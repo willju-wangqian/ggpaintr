@@ -1,0 +1,241 @@
+---
+title: "plots for final project"
+author: "Jinji Pang"
+date: "3/16/2022"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggplot2)
+```
+
+
+## Commonly used plots
+
+### 1.Histogram
+
+I want to make a histogram, with`numerical variables`on the x-axis, `numerical values` on the y-axis, using variables with `different levels of factor` as color mapping object.
+
+
+```{r histogram}
+
+df<-as.data.frame(iris)
+
+## regular histogram to show the distribution of Petal.Length
+p<-df%>%
+  ggplot(aes(x=Petal.Length))+geom_histogram()
+
+p
+
+## use density for y axis.
+p1<-df%>%
+  ggplot(aes(x=Petal.Length,y = ..density..))+geom_histogram()
+
+p1
+
+
+## color histogram by Species variable
+
+# p2<-df%>%group_by(Species)%>%
+#   ggplot(aes(x=Petal.Length,y = ..density.., fill=Species))+
+#   geom_histogram()
+
+
+p2<-df%>%
+  ggplot(aes(x=Petal.Length,y = ..density..,     fill=Species))+geom_histogram()+facet_wrap(~Species)
+
+p2
+
+
+```
+
+
+
+### 2.Boxplot
+
+I want to make a boxplot, with`categorical variables`on the x-axis, `numerical variables` on the y-axis, using variables with `different levels of factor` as color mapping object.
+
+
+```{r}
+
+## regular boxplot to show the distribution of Petal.Length with respect of different species
+
+p<-df %>%
+  ggplot(aes(x =Species,y=Petal.Length, fill=Species))+geom_boxplot()
+
+p
+
+
+```
+
+
+### 3.Parallel coordinates plot
+
+I want to make a parallel coordinates plot, with`multiple numerical variables's names`on the x-axis, `numerical variables` on the y-axis, using variables with `different levels of factor` as color mapping object.
+
+```{r}
+
+library(GGally)
+ggparcoord(iris, columns = 1:4, groupColumn = 5, scale = "uniminmax") + 
+  geom_line(size = 1.2)
+
+```
+
+### 4.Scatter plot
+
+I want to make a scatter plot, with`numerical variables`on the x-axis, `numerical variables` on the y-axis, using variables with `different levels of factor` as color mapping object.
+
+
+```{r}
+## show to relationship between two variables
+p<-df%>%
+  ggplot(aes(x=Sepal.Length, y=Sepal.Width, color=Species))+geom_point(aes(shape=Species))
+
+p
+
+```
+
+
+
+### 5.Ridgeline plot 
+
+I want to make a boxplot, with`numerical variables`on the x-axis, `categorical variables` on the y-axis, using `density` as color mapping object.
+
+```{r}
+
+
+#Ridgeline plots are partially overlapping line plots that create the impression of a mountain range. They can be quite useful for visualizing changes in distributions over time or space.
+
+
+library(ggridges)
+p<-ggplot(iris, aes(x = Sepal.Length, y = Species, fill = 0.5 - abs(0.5 - stat(ecdf)))) +
+  stat_density_ridges(geom = "density_ridges_gradient", calc_ecdf = TRUE) +
+  scale_fill_viridis_c(name = "Tail probability", direction = -1)
+p
+
+
+```
+
+
+
+### 6.Mosaic plot
+
+I want to make a mosaic plot,x-axis is created by product(), e.g. x = product(var2, var1)., using variables with `different levels of factor` as color mapping object.
+
+```{r}
+#The main hurdle ggmosaic faced is that mosaic plots do not have a one-to-one mapping between a variable and the x or y axis. To accommodate the variable number of variables, the mapping to x is created by the product() function. 
+
+ftable(Titanic)
+
+par(mar = c(2, 3.5, .1, .1))
+mosaicplot(Titanic, shade = TRUE, main = "")
+```
+
+
+
+### 7.Pie chart
+
+I want to make a pie chart,  `numerical values` on the y-axis, using variables with `different levels of factor` as color mapping object.
+
+
+```{r}
+
+# Create Data
+data <- data.frame(
+  group=LETTERS[1:5],
+  value=c(13,7,9,21,2)
+)
+
+# Basic piechart
+ggplot(data, aes(x="", y=value, fill=group)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y", start=0)
+
+
+```
+
+### 8.Heatmap
+
+I want to make a heatmap, with`categorical variables`on the x-axis, `categorical variables` on the y-axis, using `numeric variable` as color mapping object.
+
+
+```{r}
+
+library(RColorBrewer)
+heatmap(as.matrix(mtcars), col = brewer.pal(9, "RdYlBu"), 
+        scale = "column", margins = c(4, 8))
+
+
+```
+
+
+### 9.Map
+
+I want to make a map, with`categorical variables`on the x-axis, using `numeric values` as color mapping object.
+
+```{r}
+
+if (require(maps)) {
+
+  crimes <- data.frame(state = tolower(rownames(USArrests)), USArrests)
+
+  # Equivalent to crimes %>% tidyr::pivot_longer(Murder:Rape)
+  vars <- lapply(names(crimes)[-1], function(j) {
+    data.frame(state = crimes$state, variable = j, value = crimes[[j]])
+  })
+  crimes_long <- do.call("rbind", vars)
+
+  states_map <- map_data("state")
+  ggplot(crimes, aes(map_id = state)) +
+    geom_map(aes(fill = Murder), map = states_map) +
+    expand_limits(x = states_map$long, y = states_map$lat)
+
+  last_plot() + coord_map()
+  ggplot(crimes_long, aes(map_id = state)) +
+    geom_map(aes(fill = value), map = states_map) +
+    expand_limits(x = states_map$long, y = states_map$lat) +
+    facet_wrap( ~ variable)
+}
+
+
+
+```
+
+
+### 10.Violin plot
+
+I want to make a violin plot, with`categorical variables`on the x-axis, `numerical variables` on the y-axis, using variables with `different levels of factor` as color mapping object.
+
+```{r}
+
+
+p <- mtcars%>%
+  ggplot(aes(x=factor(cyl), y=mpg, fill=factor(cyl)))+ geom_violin()
+
+p
+```
+
+
+### 11.Survival plot
+
+I want to make a survival plot, with`time variables`on the x-axis, `numerical variables` on the y-axis, using variables with `different levels of factor` as color mapping object.
+
+```{r}
+
+library(survival)
+leukemia.surv <- survfit(Surv(time, status) ~ x, data = aml)
+plot(leukemia.surv, lty = 1:2, xlab = "time")
+legend("topright", c("Maintenance", "No Maintenance"), lty = 1:2, bty = "n")
+survminer::ggsurvplot(leukemia.surv, data = aml)
+
+
+```
+
+
+
+
+
+
