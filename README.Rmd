@@ -1,0 +1,36 @@
+---
+output: github_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "80%",
+  echo=FALSE,
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+## Installation
+
+You can install the development version from Github with:
+
+```{r}
+# install.packages("devtools")
+devtools::install_github("willju-wangqian/ggpaintr")
+```
+
+## Run the shiny app
+
+```{r, eval=FALSE}
+library(ggpaintr)
+
+run_ggpaintr_app()
+```
+
+

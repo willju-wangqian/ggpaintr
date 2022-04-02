@@ -7,27 +7,90 @@
 #    http://shiny.rstudio.com/
 #
 
-library(shiny)
+sidebar <- dashboardSidebar(
+    sidebarMenu(
+        menuItem("Design", tabName = "menuDesign"),
+        menuItem("Draw", tabName = "menuDraw")
+    )
+)
 
-# Define UI for application that draws a histogram
-shinyUI(fluidPage(
-
-    # Application title
-    titlePanel("Old Faithful Geyser Data"),
-
-    # Sidebar with a slider input for number of bins
-    sidebarLayout(
-        sidebarPanel(
-            sliderInput("bins",
-                        "Number of bins:",
-                        min = 1,
-                        max = 50,
-                        value = 30)
+body <- dashboardBody(
+    tabItems(
+        tabItem(
+            tabName = "menuDesign",
+            pickerInput(
+                "designDecision1",
+                "Comparative or descriptive?",
+                choices = c(
+                    "Comparative",
+                    "Descriptive"),
+                selected = "",
+                multiple = TRUE,
+                options = pickerOptions(maxOptions = 1)
+            ),
+            pickerInput(
+                "designDesicision2",
+                "something else",
+                choices = c(
+                    "choice1",
+                    "choice2"
+                ),
+                selected = "",
+                multiple = TRUE,
+                options = pickerOptions(maxOptions = 1)
+            ),
+            uiOutput("mytableFilter"),
+            DT::dataTableOutput("mytable"),
         ),
 
-        # Show a plot of the generated distribution
-        mainPanel(
-            plotOutput("distPlot")
+        tabItem(
+            tabName = "menuDraw",
+            p("Plot type"),
+            br(),
+            fluidRow(
+                box(column(3,
+                           actionButton(
+                               "drawBar",
+                               "Bar plot"
+                           )),
+                    column(3,
+                           actionButton(
+                               "drawLine",
+                               "Line plot"
+                           )),
+                    column(3,
+                           actionButton(
+                               "drawScatter",
+                               "Scatter plot"
+                           )),
+                    column(3,
+                           actionButton(
+                               "drawLolli",
+                               "Lollipop plot"
+                           ))
+                )
+            ),
+            
+            br(),
+            
+            fluidRow(
+                column(
+                    4,
+                    uiOutput("drawControls")
+                ),
+                column(
+                    8,
+                    plotOutput("mainPlot")
+                )
+            )
         )
     )
-))
+)
+
+# Put them together into a dashboardPage
+dashboardPage(
+    dashboardHeader(title = "Simple tabs"),
+    sidebar,
+    body
+)
+

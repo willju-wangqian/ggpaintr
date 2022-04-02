@@ -1,0 +1,721 @@
+"","subject","category","sub_category","grade","mean","se"
+"1","reading","total mean","Total","first_grade",95.3152381002271,0.399103159422141
+"2","reading","total mean","Total","second_grade",112.791846950162,0.36636233038865
+"3","reading","total mean","Total","third_grade",121.367721915302,0.323426877981747
+"4","reading","total mean","Total","fourth_grade",129.749067305533,0.279982658131497
+"5","reading","total mean","Total","fifth_grade",136.787490312543,0.303120596709865
+"6","reading","Sex of child","Male","first_grade",93.6845537196435,0.447378822178651
+"7","reading","Sex of child","Male","second_grade",111.11109910433,0.436514788483948
+"8","reading","Sex of child","Male","third_grade",119.785943836917,0.399804325939606
+"9","reading","Sex of child","Male","fourth_grade",128.817410995539,0.34188195079906
+"10","reading","Sex of child","Male","fifth_grade",136.072821553909,0.359280742994091
+"11","reading","Sex of child","Female","first_grade",97.0030135933244,0.479633472547766
+"12","reading","Sex of child","Female","second_grade",114.526042481127,0.420706177326872
+"13","reading","Sex of child","Female","third_grade",122.988920065467,0.371659999718598
+"14","reading","Sex of child","Female","fourth_grade",130.700507278241,0.322306417342854
+"15","reading","Sex of child","Female","fifth_grade",137.520317779182,0.358288645969885
+"16","reading","Age of child at kindergarten entry, fall 2010","Less than 5 years old","first_grade",87.903898645952,1.40095429476259
+"17","reading","Age of child at kindergarten entry, fall 2010","Less than 5 years old","second_grade",107.07560006394,1.22371809039314
+"18","reading","Age of child at kindergarten entry, fall 2010","Less than 5 years old","third_grade",117.347396553696,1.01879215195378
+"19","reading","Age of child at kindergarten entry, fall 2010","Less than 5 years old","fourth_grade",126.202699964094,0.978814415325088
+"20","reading","Age of child at kindergarten entry, fall 2010","Less than 5 years old","fifth_grade",134.047508043199,1.0734976716075
+"21","reading","Age of child at kindergarten entry, fall 2010","5 years old to 5 1/2 years old","first_grade",93.4696685568351,0.476653049027346
+"22","reading","Age of child at kindergarten entry, fall 2010","5 years old to 5 1/2 years old","second_grade",111.269304000926,0.404259885312065
+"23","reading","Age of child at kindergarten entry, fall 2010","5 years old to 5 1/2 years old","third_grade",119.844824403104,0.380919498103146
+"24","reading","Age of child at kindergarten entry, fall 2010","5 years old to 5 1/2 years old","fourth_grade",128.674150742842,0.347025963226847
+"25","reading","Age of child at kindergarten entry, fall 2010","5 years old to 5 1/2 years old","fifth_grade",135.634568763467,0.373457865287815
+"26","reading","Age of child at kindergarten entry, fall 2010","More than 5 1/2 years old to 6 years old","first_grade",96.857148978627,0.521008725925394
+"27","reading","Age of child at kindergarten entry, fall 2010","More than 5 1/2 years old to 6 years old","second_grade",114.129342026626,0.488856034322256
+"28","reading","Age of child at kindergarten entry, fall 2010","More than 5 1/2 years old to 6 years old","third_grade",122.639413539382,0.412623699413398
+"29","reading","Age of child at kindergarten entry, fall 2010","More than 5 1/2 years old to 6 years old","fourth_grade",130.641811183164,0.362702264440449
+"30","reading","Age of child at kindergarten entry, fall 2010","More than 5 1/2 years old to 6 years old","fifth_grade",137.794873391699,0.382139665619638
+"31","reading","Age of child at kindergarten entry, fall 2010","More than 6 years old","first_grade",99.5894745187911,0.741456181945769
+"32","reading","Age of child at kindergarten entry, fall 2010","More than 6 years old","second_grade",115.879120851448,0.736869066982391
+"33","reading","Age of child at kindergarten entry, fall 2010","More than 6 years old","third_grade",123.980878253057,0.60707961601061
+"34","reading","Age of child at kindergarten entry, fall 2010","More than 6 years old","fourth_grade",131.927653271585,0.681005589030796
+"35","reading","Age of child at kindergarten entry, fall 2010","More than 6 years old","fifth_grade",138.419834443302,0.739005818556243
+"36","reading","Race/ethnicity of child","White","first_grade",98.5975679986642,0.503196844361786
+"37","reading","Race/ethnicity of child","White","second_grade",116.1393599787,0.433801444022321
+"38","reading","Race/ethnicity of child","White","third_grade",124.753299404381,0.378609339616106
+"39","reading","Race/ethnicity of child","White","fourth_grade",132.795202444029,0.322872693230646
+"40","reading","Race/ethnicity of child","White","fifth_grade",139.958028857785,0.349605060170073
+"41","reading","Race/ethnicity of child","Black","first_grade",90.9859068887486,0.89630603937095
+"42","reading","Race/ethnicity of child","Black","second_grade",107.699071048257,0.799967556023947
+"43","reading","Race/ethnicity of child","Black","third_grade",115.275640910725,0.617897365989033
+"44","reading","Race/ethnicity of child","Black","fourth_grade",123.782273877172,0.679661608004513
+"45","reading","Race/ethnicity of child","Black","fifth_grade",130.452138431911,0.566368596352333
+"46","reading","Race/ethnicity of child","Hispanic","first_grade",89.19594746243,0.520043886776056
+"47","reading","Race/ethnicity of child","Hispanic","second_grade",107.126327205276,0.613839681080017
+"48","reading","Race/ethnicity of child","Hispanic","third_grade",116.046957447597,0.559354357759455
+"49","reading","Race/ethnicity of child","Hispanic","fourth_grade",125.019537457142,0.561020809087531
+"50","reading","Race/ethnicity of child","Hispanic","fifth_grade",131.959918705481,0.525730216703562
+"51","reading","Race/ethnicity of child","Asian","first_grade",100.389761348633,0.999271535980318
+"52","reading","Race/ethnicity of child","Asian","second_grade",117.108005551366,0.883864877172232
+"53","reading","Race/ethnicity of child","Asian","third_grade",125.187665439038,0.703339799231544
+"54","reading","Race/ethnicity of child","Asian","fourth_grade",134.307674254355,0.809151554967223
+"55","reading","Race/ethnicity of child","Asian","fifth_grade",141.260280666754,0.759290987576982
+"56","reading","Race/ethnicity of child","Pacific Islander","first_grade",97.6547306829616,2.87204229560552
+"57","reading","Race/ethnicity of child","Pacific Islander","second_grade",115.441611502523,2.82359070379967
+"58","reading","Race/ethnicity of child","Pacific Islander","third_grade",123.158952231185,2.61297914435656
+"59","reading","Race/ethnicity of child","Pacific Islander","fourth_grade",131.257609989002,1.87492744549764
+"60","reading","Race/ethnicity of child","Pacific Islander","fifth_grade",138.752560487573,2.09299513663465
+"61","reading","Race/ethnicity of child","American Indian/Alaska Native","first_grade",91.3472996991443,1.38595369055534
+"62","reading","Race/ethnicity of child","American Indian/Alaska Native","second_grade",107.487462592649,1.33137271576576
+"63","reading","Race/ethnicity of child","American Indian/Alaska Native","third_grade",117.648381353656,1.20711938604738
+"64","reading","Race/ethnicity of child","American Indian/Alaska Native","fourth_grade",126.683500847416,1.33422400074162
+"65","reading","Race/ethnicity of child","American Indian/Alaska Native","fifth_grade",133.962686296706,1.59298802651227
+"66","reading","Race/ethnicity of child","Two or more races","first_grade",96.9985270050697,1.12112281712267
+"67","reading","Race/ethnicity of child","Two or more races","second_grade",114.561206733334,1.08076117478644
+"68","reading","Race/ethnicity of child","Two or more races","third_grade",123.56484411761,0.821747480673353
+"69","reading","Race/ethnicity of child","Two or more races","fourth_grade",131.950171934385,0.837867263477869
+"70","reading","Race/ethnicity of child","Two or more races","fifth_grade",139.226939400139,0.820673865723117
+"71","reading","How often child exhibited positive learning behaviors, fall 2010","Never","first_grade",71.8405512004686,1.85801508020687
+"72","reading","How often child exhibited positive learning behaviors, fall 2010","Never","second_grade",91.5085942104665,2.1463265551028
+"73","reading","How often child exhibited positive learning behaviors, fall 2010","Never","third_grade",103.433953667925,1.8859778822948
+"74","reading","How often child exhibited positive learning behaviors, fall 2010","Never","fourth_grade",113.937500168933,1.75199887480722
+"75","reading","How often child exhibited positive learning behaviors, fall 2010","Never","fifth_grade",119.754910373393,1.97158411169626
+"76","reading","How often child exhibited positive learning behaviors, fall 2010","Sometimes","first_grade",86.9784829429629,0.586413245904457
+"77","reading","How often child exhibited positive learning behaviors, fall 2010","Sometimes","second_grade",105.118562304587,0.540547035023331
+"78","reading","How often child exhibited positive learning behaviors, fall 2010","Sometimes","third_grade",114.41036358605,0.460207922108766
+"79","reading","How often child exhibited positive learning behaviors, fall 2010","Sometimes","fourth_grade",123.777573264834,0.475251513588514
+"80","reading","How often child exhibited positive learning behaviors, fall 2010","Sometimes","fifth_grade",130.715361860939,0.471624248249418
+"81","reading","How often child exhibited positive learning behaviors, fall 2010","Often","first_grade",96.3574936753125,0.477591931219271
+"82","reading","How often child exhibited positive learning behaviors, fall 2010","Often","second_grade",113.995380815409,0.405620850773187
+"83","reading","How often child exhibited positive learning behaviors, fall 2010","Often","third_grade",122.503923119919,0.379699158412581
+"84","reading","How often child exhibited positive learning behaviors, fall 2010","Often","fourth_grade",130.706262051182,0.345811697049154
+"85","reading","How often child exhibited positive learning behaviors, fall 2010","Often","fifth_grade",137.909048979677,0.388215120409191
+"86","reading","How often child exhibited positive learning behaviors, fall 2010","Very often","first_grade",103.019902055225,0.616148773813709
+"87","reading","How often child exhibited positive learning behaviors, fall 2010","Very often","second_grade",119.419865403811,0.603108855952296
+"88","reading","How often child exhibited positive learning behaviors, fall 2010","Very often","third_grade",127.294025502847,0.492746402389155
+"89","reading","How often child exhibited positive learning behaviors, fall 2010","Very often","fourth_grade",134.794325802169,0.463618620072125
+"90","reading","How often child exhibited positive learning behaviors, fall 2010","Very often","fifth_grade",141.818897791476,0.438552702509072
+"91","reading","Primary type of nonparental care arrangement prior to kindergarten entry","No regular nonparental arrangement","first_grade",92.0073646594787,0.607054377239699
+"92","reading","Primary type of nonparental care arrangement prior to kindergarten entry","No regular nonparental arrangement","second_grade",109.646985074557,0.592936473066155
+"93","reading","Primary type of nonparental care arrangement prior to kindergarten entry","No regular nonparental arrangement","third_grade",118.92848390068,0.543575175668526
+"94","reading","Primary type of nonparental care arrangement prior to kindergarten entry","No regular nonparental arrangement","fourth_grade",127.2752110739,0.45673795307969
+"95","reading","Primary type of nonparental care arrangement prior to kindergarten entry","No regular nonparental arrangement","fifth_grade",134.951827790967,0.44884454464316
+"96","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Relative care (Home-based care)","first_grade",93.7590732197424,0.538493779267534
+"97","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Relative care (Home-based care)","second_grade",111.378108676876,0.570698042269147
+"98","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Relative care (Home-based care)","third_grade",119.919037649541,0.489825747183301
+"99","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Relative care (Home-based care)","fourth_grade",128.761850452298,0.416671977918789
+"100","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Relative care (Home-based care)","fifth_grade",135.213825834845,0.455736593656341
+"101","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Nonrelative care (Home-based care)","first_grade",98.3810204847269,0.78487547029138
+"102","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Nonrelative care (Home-based care)","second_grade",115.285349815524,0.736628402407848
+"103","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Nonrelative care (Home-based care)","third_grade",123.647078668877,0.707701807650682
+"104","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Nonrelative care (Home-based care)","fourth_grade",132.215703939147,0.57819153156578
+"105","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Nonrelative care (Home-based care)","fifth_grade",139.475742979982,0.637997390466191
+"106","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Center-based care","first_grade",96.7004119275978,0.497834301702193
+"107","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Center-based care","second_grade",114.109169664483,0.413227740833624
+"108","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Center-based care","third_grade",122.497288591493,0.372702303370209
+"109","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Center-based care","fourth_grade",130.647937871408,0.348886519372756
+"110","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Center-based care","fifth_grade",137.700744628662,0.380369658337622
+"111","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Multiple arrangements","first_grade",96.5115364832182,1.05490838586731
+"112","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Multiple arrangements","second_grade",114.151853423788,1.08358549764288
+"113","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Multiple arrangements","third_grade",121.244898639079,1.00084385667395
+"114","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Multiple arrangements","fourth_grade",130.833491017663,0.915009384804719
+"115","reading","Primary type of nonparental care arrangement prior to kindergarten entry","Multiple arrangements","fifth_grade",137.371823616082,0.942849279664597
+"116","reading","Household type, fall 2010","Two-parent household","first_grade",97.3244534840116,0.449588953156986
+"117","reading","Household type, fall 2010","Two-parent household","second_grade",114.793264377218,0.400166787968299
+"118","reading","Household type, fall 2010","Two-parent household","third_grade",123.254738980665,0.349530555606306
+"119","reading","Household type, fall 2010","Two-parent household","fourth_grade",131.559186989399,0.305026832562686
+"120","reading","Household type, fall 2010","Two-parent household","fifth_grade",138.68689341927,0.33572715660127
+"121","reading","Household type, fall 2010","Mother-only household","first_grade",90.4404633621597,0.596014055573323
+"122","reading","Household type, fall 2010","Mother-only household","second_grade",108.002141136624,0.530700603614373
+"123","reading","Household type, fall 2010","Mother-only household","third_grade",116.947003094836,0.508383221628991
+"124","reading","Household type, fall 2010","Mother-only household","fourth_grade",125.344813528385,0.488182085942432
+"125","reading","Household type, fall 2010","Mother-only household","fifth_grade",132.100525277412,0.499684233774298
+"126","reading","Household type, fall 2010","Father-only household","first_grade",88.9819435131401,1.29715119290443
+"127","reading","Household type, fall 2010","Father-only household","second_grade",107.042339026074,1.21908028425732
+"128","reading","Household type, fall 2010","Father-only household","third_grade",115.385778690158,1.05691811135835
+"129","reading","Household type, fall 2010","Father-only household","fourth_grade",123.820219545295,1.20399730474983
+"130","reading","Household type, fall 2010","Father-only household","fifth_grade",132.203407424683,1.23901384018686
+"131","reading","Household type, fall 2010","Other household type","first_grade",87.0461006759984,1.79177676914791
+"132","reading","Household type, fall 2010","Other household type","second_grade",103.49284598891,1.51019047084391
+"133","reading","Household type, fall 2010","Other household type","third_grade",112.616939242506,1.570786821217
+"134","reading","Household type, fall 2010","Other household type","fourth_grade",120.802202440997,1.85735331293253
+"135","reading","Household type, fall 2010","Other household type","fifth_grade",126.961014194641,1.53130062932584
+"136","reading","Primary home language","English","first_grade",96.7718309925811,0.417692714387049
+"137","reading","Primary home language","English","second_grade",114.133996297715,0.371876247035017
+"138","reading","Primary home language","English","third_grade",122.557298966759,0.325635695941108
+"139","reading","Primary home language","English","fourth_grade",130.780257507673,0.26484584800261
+"140","reading","Primary home language","English","fifth_grade",137.82988566843,0.285323407091192
+"141","reading","Primary home language","Non-English","first_grade",87.3979094825483,0.806240291367857
+"142","reading","Primary home language","Non-English","second_grade",105.539134677656,0.720361488310646
+"143","reading","Primary home language","Non-English","third_grade",114.958492793253,0.626586213368201
+"144","reading","Primary home language","Non-English","fourth_grade",124.10351623282,0.63454233946528
+"145","reading","Primary home language","Non-English","fifth_grade",131.239203468751,0.67971646793425
+"146","reading","Primary home language","Primary language not identified","first_grade",90.9612444975896,1.96038090492928
+"147","reading","Primary home language","Primary language not identified","second_grade",107.5292519216,2.22260602540165
+"148","reading","Primary home language","Primary language not identified","third_grade",115.584170028247,1.67694234797757
+"149","reading","Primary home language","Primary language not identified","fourth_grade",126.241172277147,1.95339435794876
+"150","reading","Primary home language","Primary language not identified","fifth_grade",131.256996429103,1.80687769878933
+"151","reading","Parents' highest level of education","Less than high school","first_grade",83.4674349792991,0.799767867734425
+"152","reading","Parents' highest level of education","Less than high school","second_grade",100.989673068256,0.809882354744443
+"153","reading","Parents' highest level of education","Less than high school","third_grade",110.583954687712,0.665774222561108
+"154","reading","Parents' highest level of education","Less than high school","fourth_grade",119.165146022074,0.700617021774636
+"155","reading","Parents' highest level of education","Less than high school","fifth_grade",125.976569790014,0.666798813789249
+"156","reading","Parents' highest level of education","High school completion","first_grade",88.6918514109816,0.530380758225078
+"157","reading","Parents' highest level of education","High school completion","second_grade",106.118753236188,0.514392330351863
+"158","reading","Parents' highest level of education","High school completion","third_grade",115.578384407357,0.437859150165525
+"159","reading","Parents' highest level of education","High school completion","fourth_grade",124.256326761245,0.406470111629615
+"160","reading","Parents' highest level of education","High school completion","fifth_grade",131.225701229917,0.436205920438838
+"161","reading","Parents' highest level of education","Some college/vocational","first_grade",94.3416344982019,0.416938193930597
+"162","reading","Parents' highest level of education","Some college/vocational","second_grade",111.669303465792,0.413153473671046
+"163","reading","Parents' highest level of education","Some college/vocational","third_grade",120.094026734296,0.415852737150617
+"164","reading","Parents' highest level of education","Some college/vocational","fourth_grade",128.713489957625,0.363372614359719
+"165","reading","Parents' highest level of education","Some college/vocational","fifth_grade",135.880127133637,0.362631615124037
+"166","reading","Parents' highest level of education","Bachelor's degree","first_grade",100.299518462668,0.579881592338223
+"167","reading","Parents' highest level of education","Bachelor's degree","second_grade",118.12006797448,0.400653708660757
+"168","reading","Parents' highest level of education","Bachelor's degree","third_grade",126.170629338119,0.34729461833393
+"169","reading","Parents' highest level of education","Bachelor's degree","fourth_grade",134.289563801806,0.349476061271664
+"170","reading","Parents' highest level of education","Bachelor's degree","fifth_grade",141.535229995075,0.346406263604747
+"171","reading","Parents' highest level of education","Any graduate education","first_grade",104.737243510512,0.524741731383547
+"172","reading","Parents' highest level of education","Any graduate education","second_grade",122.160300330228,0.409124011176823
+"173","reading","Parents' highest level of education","Any graduate education","third_grade",130.040285427057,0.40562701364289
+"174","reading","Parents' highest level of education","Any graduate education","fourth_grade",137.822484785908,0.38957290869017
+"175","reading","Parents' highest level of education","Any graduate education","fifth_grade",144.659841919161,0.360840942438889
+"176","reading","Poverty status, spring 2011","Below poverty threshold","first_grade",86.6197440627999,0.582857178586782
+"177","reading","Poverty status, spring 2011","Below poverty threshold","second_grade",104.364594458398,0.578348983106831
+"178","reading","Poverty status, spring 2011","Below poverty threshold","third_grade",113.620066313515,0.561936213655357
+"179","reading","Poverty status, spring 2011","Below poverty threshold","fourth_grade",122.314810149923,0.490661232050083
+"180","reading","Poverty status, spring 2011","Below poverty threshold","fifth_grade",129.389554450651,0.51019688869179
+"181","reading","Poverty status, spring 2011","100 to 199 percent of poverty threshold","first_grade",93.8278691362968,0.640418047656722
+"182","reading","Poverty status, spring 2011","100 to 199 percent of poverty threshold","second_grade",111.022774663081,0.581967790042047
+"183","reading","Poverty status, spring 2011","100 to 199 percent of poverty threshold","third_grade",119.93668022985,0.546080268437975
+"184","reading","Poverty status, spring 2011","100 to 199 percent of poverty threshold","fourth_grade",128.25068319876,0.551387116045588
+"185","reading","Poverty status, spring 2011","100 to 199 percent of poverty threshold","fifth_grade",135.5183355757,0.553971828099456
+"186","reading","Poverty status, spring 2011","200 percent or more of poverty threshold","first_grade",100.691923921834,0.43875043485318
+"187","reading","Poverty status, spring 2011","200 percent or more of poverty threshold","second_grade",118.246443928632,0.361709088000384
+"188","reading","Poverty status, spring 2011","200 percent or more of poverty threshold","third_grade",126.275102200089,0.347063347698508
+"189","reading","Poverty status, spring 2011","200 percent or more of poverty threshold","fourth_grade",134.438214692379,0.274233772216123
+"190","reading","Poverty status, spring 2011","200 percent or more of poverty threshold","fifth_grade",141.524805524461,0.299032956806682
+"191","reading","Two risk factors","Both risk factors: No parent completed high school and family below poverty threshold","first_grade",83.2340770824972,0.992318983770958
+"192","reading","Two risk factors","Both risk factors: No parent completed high school and family below poverty threshold","second_grade",101.019788691856,0.97663038259057
+"193","reading","Two risk factors","Both risk factors: No parent completed high school and family below poverty threshold","third_grade",110.210300563963,0.824312253222837
+"194","reading","Two risk factors","Both risk factors: No parent completed high school and family below poverty threshold","fourth_grade",118.791591059993,0.867754137352315
+"195","reading","Two risk factors","Both risk factors: No parent completed high school and family below poverty threshold","fifth_grade",125.73472910253,0.904290117962244
+"196","reading","Two risk factors","One risk factor: No parent completed high school","first_grade",85.5988951124973,1.0909440149703
+"197","reading","Two risk factors","One risk factor: No parent completed high school","second_grade",103.792874557889,1.20289023828459
+"198","reading","Two risk factors","One risk factor: No parent completed high school","third_grade",113.337505302646,1.08823736200829
+"199","reading","Two risk factors","One risk factor: No parent completed high school","fourth_grade",122.868240224353,1.05223907438872
+"200","reading","Two risk factors","One risk factor: No parent completed high school","fifth_grade",130.189725889637,1.2056598714183
+"201","reading","Two risk factors","One risk factor: Family below poverty threshold","first_grade",87.6481901704351,0.582194721440997
+"202","reading","Two risk factors","One risk factor: Family below poverty threshold","second_grade",105.389970775923,0.653802916374525
+"203","reading","Two risk factors","One risk factor: Family below poverty threshold","third_grade",114.648964889584,0.620802941668776
+"204","reading","Two risk factors","One risk factor: Family below poverty threshold","fourth_grade",123.390039169169,0.553243497479847
+"205","reading","Two risk factors","One risk factor: Family below poverty threshold","fifth_grade",130.49255464183,0.57260361332978
+"206","reading","Two risk factors","Neither risk factor","first_grade",98.9587413871854,0.409920870440587
+"207","reading","Two risk factors","Neither risk factor","second_grade",116.386869307622,0.359582907454229
+"208","reading","Two risk factors","Neither risk factor","third_grade",124.64697367707,0.328328450777159
+"209","reading","Two risk factors","Neither risk factor","fourth_grade",132.818395700863,0.265449180709965
+"210","reading","Two risk factors","Neither risk factor","fifth_grade",139.952209766502,0.296448101982923
+"211","reading","Socioeconomic status","Lowest 20 percent","first_grade",84.97613802167,0.596948987189758
+"212","reading","Socioeconomic status","Lowest 20 percent","second_grade",102.772474305089,0.582268985283177
+"213","reading","Socioeconomic status","Lowest 20 percent","third_grade",112.185764020148,0.542819585343933
+"214","reading","Socioeconomic status","Lowest 20 percent","fourth_grade",120.851697287728,0.521144433148721
+"215","reading","Socioeconomic status","Lowest 20 percent","fifth_grade",127.76069235831,0.513728544374585
+"216","reading","Socioeconomic status","Middle 60 percent","first_grade",95.3574382202789,0.373186790158299
+"217","reading","Socioeconomic status","Middle 60 percent","second_grade",112.733009455833,0.336373560292053
+"218","reading","Socioeconomic status","Middle 60 percent","third_grade",121.195088399251,0.290452921517396
+"219","reading","Socioeconomic status","Middle 60 percent","fourth_grade",129.70841916887,0.269134030058636
+"220","reading","Socioeconomic status","Middle 60 percent","fifth_grade",136.854855293796,0.27809212013342
+"221","reading","Socioeconomic status","Highest 20 percent","first_grade",104.582184512678,0.540259630914077
+"222","reading","Socioeconomic status","Highest 20 percent","second_grade",122.000417003648,0.44978379722853
+"223","reading","Socioeconomic status","Highest 20 percent","third_grade",130.100846266044,0.403163613351888
+"224","reading","Socioeconomic status","Highest 20 percent","fourth_grade",137.859883016301,0.329690586524521
+"225","reading","Socioeconomic status","Highest 20 percent","fifth_grade",144.793325924248,0.32320209579415
+"226","reading","School control, fall 2010","Public","first_grade",94.772520300383,0.43558636701884
+"227","reading","School control, fall 2010","Public","second_grade",112.05259131583,0.405623883119297
+"228","reading","School control, fall 2010","Public","third_grade",120.697176512105,0.371303520256339
+"229","reading","School control, fall 2010","Public","fourth_grade",129.08494400932,0.316197083838642
+"230","reading","School control, fall 2010","Public","fifth_grade",136.131790690099,0.343425656630807
+"231","reading","School control, fall 2010","Private","first_grade",99.5722936776667,1.24739676862687
+"232","reading","School control, fall 2010","Private","second_grade",118.525128228314,0.895172816537473
+"233","reading","School control, fall 2010","Private","third_grade",126.549407190305,0.859697496513065
+"234","reading","School control, fall 2010","Private","fourth_grade",134.838024950474,0.759106853996785
+"235","reading","School control, fall 2010","Private","fifth_grade",141.852289682135,0.678989541169001
+"236","reading","total sd","Total","first_grade",16.4524489107108,0.253082428977817
+"237","reading","total sd","Total","second_grade",15.5799704897529,0.25866294361127
+"238","reading","total sd","Total","third_grade",14.028351936454,0.238294724874967
+"239","reading","total sd","Total","fourth_grade",13.3391594468459,0.251121853229743
+"240","reading","total sd","Total","fifth_grade",13.9601285971027,0.244969298753105
+"241","mathematics","total mean","Total","first_grade",73.0168747784553,0.340748029711552
+"242","mathematics","total mean","Total","second_grade",90.4179690798441,0.408451325446511
+"243","mathematics","total mean","Total","third_grade",104.38398101711,0.372707789737562
+"244","mathematics","total mean","Total","fourth_grade",112.842775983955,0.401478205584552
+"245","mathematics","total mean","Total","fifth_grade",119.995082455995,0.373466107798977
+"246","mathematics","Sex of child","Male","first_grade",73.767145402634,0.41287437272158
+"247","mathematics","Sex of child","Male","second_grade",91.7838196350633,0.470908928846033
+"248","mathematics","Sex of child","Male","third_grade",106.114850244201,0.429023084853109
+"249","mathematics","Sex of child","Male","fourth_grade",114.517426642186,0.414224589996084
+"250","mathematics","Sex of child","Male","fifth_grade",120.880957603058,0.406848709840635
+"251","mathematics","Sex of child","Female","first_grade",72.2417731799605,0.395195614856085
+"252","mathematics","Sex of child","Female","second_grade",89.0084346465571,0.489546173402438
+"253","mathematics","Sex of child","Female","third_grade",102.608854892783,0.439243019251423
+"254","mathematics","Sex of child","Female","fourth_grade",111.13261551915,0.483850760630326
+"255","mathematics","Sex of child","Female","fifth_grade",119.086850393982,0.446857793509961
+"256","mathematics","Age of child at kindergarten entry, fall 2010","Less than 5 years old","first_grade",65.1388975801801,1.17365928667619
+"257","mathematics","Age of child at kindergarten entry, fall 2010","Less than 5 years old","second_grade",83.8475506276067,1.38561977564178
+"258","mathematics","Age of child at kindergarten entry, fall 2010","Less than 5 years old","third_grade",98.4236094464803,1.34181445610464
+"259","mathematics","Age of child at kindergarten entry, fall 2010","Less than 5 years old","fourth_grade",108.276045054962,1.37364129529396
+"260","mathematics","Age of child at kindergarten entry, fall 2010","Less than 5 years old","fifth_grade",116.033319948834,1.41223975834042
+"261","mathematics","Age of child at kindergarten entry, fall 2010","5 years old to 5 1/2 years old","first_grade",70.6272899645489,0.409273002800051
+"262","mathematics","Age of child at kindergarten entry, fall 2010","5 years old to 5 1/2 years old","second_grade",88.1246374156521,0.523732226902872
+"263","mathematics","Age of child at kindergarten entry, fall 2010","5 years old to 5 1/2 years old","third_grade",102.393660751881,0.481633121097049
+"264","mathematics","Age of child at kindergarten entry, fall 2010","5 years old to 5 1/2 years old","fourth_grade",111.302815026736,0.48981167595353
+"265","mathematics","Age of child at kindergarten entry, fall 2010","5 years old to 5 1/2 years old","fifth_grade",118.561303002213,0.457452342534682
+"266","mathematics","Age of child at kindergarten entry, fall 2010","More than 5 1/2 years old to 6 years old","first_grade",74.8001015018466,0.41515181706871
+"267","mathematics","Age of child at kindergarten entry, fall 2010","More than 5 1/2 years old to 6 years old","second_grade",92.1961752500968,0.444090886051661
+"268","mathematics","Age of child at kindergarten entry, fall 2010","More than 5 1/2 years old to 6 years old","third_grade",105.968452115265,0.415346170700707
+"269","mathematics","Age of child at kindergarten entry, fall 2010","More than 5 1/2 years old to 6 years old","fourth_grade",114.068281868468,0.45479556613633
+"270","mathematics","Age of child at kindergarten entry, fall 2010","More than 5 1/2 years old to 6 years old","fifth_grade",121.146912415932,0.43629471792628
+"271","mathematics","Age of child at kindergarten entry, fall 2010","More than 6 years old","first_grade",78.8666281473321,0.702921367096445
+"272","mathematics","Age of child at kindergarten entry, fall 2010","More than 6 years old","second_grade",95.3000052786312,1.02165575358033
+"273","mathematics","Age of child at kindergarten entry, fall 2010","More than 6 years old","third_grade",108.495441386896,0.839104646310667
+"274","mathematics","Age of child at kindergarten entry, fall 2010","More than 6 years old","fourth_grade",116.011393137748,0.915375241921409
+"275","mathematics","Age of child at kindergarten entry, fall 2010","More than 6 years old","fifth_grade",122.768824698811,0.814299827748498
+"276","mathematics","Race/ethnicity of child","White","first_grade",77.1173231101091,0.385686711264129
+"277","mathematics","Race/ethnicity of child","White","second_grade",95.1463767902766,0.459199498230534
+"278","mathematics","Race/ethnicity of child","White","third_grade",109.196736951106,0.405357679985289
+"279","mathematics","Race/ethnicity of child","White","fourth_grade",117.519155880522,0.375857518616833
+"280","mathematics","Race/ethnicity of child","White","fifth_grade",124.665121868153,0.389375428669899
+"281","mathematics","Race/ethnicity of child","Black","first_grade",65.4369546221618,0.623207159491317
+"282","mathematics","Race/ethnicity of child","Black","second_grade",79.3917832957353,0.805793459468718
+"283","mathematics","Race/ethnicity of child","Black","third_grade",92.7867372745794,0.86008015480097
+"284","mathematics","Race/ethnicity of child","Black","fourth_grade",101.12375868524,0.995086119677499
+"285","mathematics","Race/ethnicity of child","Black","fifth_grade",108.57531027258,0.841361523607862
+"286","mathematics","Race/ethnicity of child","Hispanic","first_grade",67.0051611172724,0.552048515848557
+"287","mathematics","Race/ethnicity of child","Hispanic","second_grade",84.108851045644,0.681001440034952
+"288","mathematics","Race/ethnicity of child","Hispanic","third_grade",98.331933969184,0.452151167474518
+"289","mathematics","Race/ethnicity of child","Hispanic","fourth_grade",107.146635539539,0.54875546872719
+"290","mathematics","Race/ethnicity of child","Hispanic","fifth_grade",114.162210574756,0.550717367940598
+"291","mathematics","Race/ethnicity of child","Asian","first_grade",77.183420654365,0.6705153987789
+"292","mathematics","Race/ethnicity of child","Asian","second_grade",97.8420756863852,0.946213837339111
+"293","mathematics","Race/ethnicity of child","Asian","third_grade",111.583484124026,0.712233207744589
+"294","mathematics","Race/ethnicity of child","Asian","fourth_grade",119.958574418456,0.839809291085709
+"295","mathematics","Race/ethnicity of child","Asian","fifth_grade",127.803305203261,0.741925248420712
+"296","mathematics","Race/ethnicity of child","Pacific Islander","first_grade",73.543809013725,2.22488014172934
+"297","mathematics","Race/ethnicity of child","Pacific Islander","second_grade",92.9777451744201,2.87268738129361
+"298","mathematics","Race/ethnicity of child","Pacific Islander","third_grade",107.153711612882,2.56707160041004
+"299","mathematics","Race/ethnicity of child","Pacific Islander","fourth_grade",114.836418482996,2.54320802537101
+"300","mathematics","Race/ethnicity of child","Pacific Islander","fifth_grade",123.273555567421,1.8089715533231
+"301","mathematics","Race/ethnicity of child","American Indian/Alaska Native","first_grade",70.4562056981151,1.19626869513629
+"302","mathematics","Race/ethnicity of child","American Indian/Alaska Native","second_grade",87.8844011705289,1.78768394399704
+"303","mathematics","Race/ethnicity of child","American Indian/Alaska Native","third_grade",102.791249022875,1.52245606330144
+"304","mathematics","Race/ethnicity of child","American Indian/Alaska Native","fourth_grade",112.320943597457,1.8810545719614
+"305","mathematics","Race/ethnicity of child","American Indian/Alaska Native","fifth_grade",119.147295517196,1.36576865528183
+"306","mathematics","Race/ethnicity of child","Two or more races","first_grade",73.9893802117863,0.90513122936641
+"307","mathematics","Race/ethnicity of child","Two or more races","second_grade",92.5043504040223,1.09762904676351
+"308","mathematics","Race/ethnicity of child","Two or more races","third_grade",105.398033972764,0.924609562857666
+"309","mathematics","Race/ethnicity of child","Two or more races","fourth_grade",114.022260522315,1.01225087201719
+"310","mathematics","Race/ethnicity of child","Two or more races","fifth_grade",120.682256317307,0.968316055525357
+"311","mathematics","How often child exhibited positive learning behaviors, fall 2010","Never","first_grade",53.0493605140326,1.54748728108145
+"312","mathematics","How often child exhibited positive learning behaviors, fall 2010","Never","second_grade",68.3600234323029,1.96514791316
+"313","mathematics","How often child exhibited positive learning behaviors, fall 2010","Never","third_grade",84.6311790518858,2.0204266843998
+"314","mathematics","How often child exhibited positive learning behaviors, fall 2010","Never","fourth_grade",93.0817659909359,2.45703189370455
+"315","mathematics","How often child exhibited positive learning behaviors, fall 2010","Never","fifth_grade",100.656847257194,2.24615322659651
+"316","mathematics","How often child exhibited positive learning behaviors, fall 2010","Sometimes","first_grade",66.2257818686118,0.453913817934758
+"317","mathematics","How often child exhibited positive learning behaviors, fall 2010","Sometimes","second_grade",83.0365591904373,0.545159658116284
+"318","mathematics","How often child exhibited positive learning behaviors, fall 2010","Sometimes","third_grade",97.403095584291,0.595649474981205
+"319","mathematics","How often child exhibited positive learning behaviors, fall 2010","Sometimes","fourth_grade",106.040738095424,0.615055687647006
+"320","mathematics","How often child exhibited positive learning behaviors, fall 2010","Sometimes","fifth_grade",113.139415321796,0.604076115621982
+"321","mathematics","How often child exhibited positive learning behaviors, fall 2010","Often","first_grade",73.9518323080057,0.452555386143405
+"322","mathematics","How often child exhibited positive learning behaviors, fall 2010","Often","second_grade",91.4444798321083,0.501724455204002
+"323","mathematics","How often child exhibited positive learning behaviors, fall 2010","Often","third_grade",105.610049700212,0.51380127018698
+"324","mathematics","How often child exhibited positive learning behaviors, fall 2010","Often","fourth_grade",113.991335798957,0.52654248944334
+"325","mathematics","How often child exhibited positive learning behaviors, fall 2010","Often","fifth_grade",121.135514343579,0.467519014591985
+"326","mathematics","How often child exhibited positive learning behaviors, fall 2010","Very often","first_grade",79.2199123983595,0.529520626231197
+"327","mathematics","How often child exhibited positive learning behaviors, fall 2010","Very often","second_grade",97.1423198030576,0.600793268833036
+"328","mathematics","How often child exhibited positive learning behaviors, fall 2010","Very often","third_grade",110.343539049462,0.557116677733926
+"329","mathematics","How often child exhibited positive learning behaviors, fall 2010","Very often","fourth_grade",118.681881278276,0.498134578913414
+"330","mathematics","How often child exhibited positive learning behaviors, fall 2010","Very often","fifth_grade",126.002896876413,0.482781780534557
+"331","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","No regular nonparental arrangement","first_grade",69.977475329965,0.527813947896656
+"332","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","No regular nonparental arrangement","second_grade",87.7636769251789,0.608573494846635
+"333","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","No regular nonparental arrangement","third_grade",101.788958843461,0.529517588109612
+"334","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","No regular nonparental arrangement","fourth_grade",110.316000074098,0.580781621808716
+"335","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","No regular nonparental arrangement","fifth_grade",117.447159473837,0.574757961976735
+"336","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Relative care (Home-based care)","first_grade",71.5175737443608,0.475436452232851
+"337","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Relative care (Home-based care)","second_grade",88.2993297629777,0.685533361622488
+"338","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Relative care (Home-based care)","third_grade",102.348366851211,0.609555559277993
+"339","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Relative care (Home-based care)","fourth_grade",110.724296483813,0.652228077817243
+"340","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Relative care (Home-based care)","fifth_grade",117.508861211138,0.563168018410341
+"341","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Nonrelative care (Home-based care)","first_grade",76.4280540028354,0.734273170155523
+"342","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Nonrelative care (Home-based care)","second_grade",94.4889181403291,0.918380922910586
+"343","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Nonrelative care (Home-based care)","third_grade",108.455519899416,0.834228088298452
+"344","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Nonrelative care (Home-based care)","fourth_grade",117.608256704057,0.766587807214581
+"345","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Nonrelative care (Home-based care)","fifth_grade",125.523641936716,0.755416091905407
+"346","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Center-based care","first_grade",74.2087489713412,0.404416586353613
+"347","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Center-based care","second_grade",91.5668905036917,0.487720359831785
+"348","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Center-based care","third_grade",105.429939575994,0.441038862997635
+"349","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Center-based care","fourth_grade",113.828185367319,0.430938170139424
+"350","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Center-based care","fifth_grade",120.942713871608,0.407336446253751
+"351","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Multiple arrangements","first_grade",74.2257274284749,0.867311438010157
+"352","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Multiple arrangements","second_grade",92.2320830425727,1.10120068305169
+"353","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Multiple arrangements","third_grade",106.732302291291,1.09544034096668
+"354","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Multiple arrangements","fourth_grade",114.707942115818,1.20317577214671
+"355","mathematics","Primary type of nonparental care arrangement prior to kindergarten entry","Multiple arrangements","fifth_grade",122.179922988115,1.15268854185891
+"356","mathematics","Household type, fall 2010","Two-parent household","first_grade",74.9434820227563,0.36093222539811
+"357","mathematics","Household type, fall 2010","Two-parent household","second_grade",92.8340075821793,0.446314049942813
+"358","mathematics","Household type, fall 2010","Two-parent household","third_grade",106.807012239806,0.365321684059402
+"359","mathematics","Household type, fall 2010","Two-parent household","fourth_grade",115.288237151288,0.378119481509882
+"360","mathematics","Household type, fall 2010","Two-parent household","fifth_grade",122.531190777123,0.378709130112433
+"361","mathematics","Household type, fall 2010","Mother-only household","first_grade",68.1321104994945,0.544328679983222
+"362","mathematics","Household type, fall 2010","Mother-only household","second_grade",83.7836021762687,0.670615342648823
+"363","mathematics","Household type, fall 2010","Mother-only household","third_grade",97.8917398433736,0.762758542908892
+"364","mathematics","Household type, fall 2010","Mother-only household","fourth_grade",106.192293256219,0.764301553998248
+"365","mathematics","Household type, fall 2010","Mother-only household","fifth_grade",113.132739639388,0.651799146800733
+"366","mathematics","Household type, fall 2010","Father-only household","first_grade",68.5630515238046,1.18488729714495
+"367","mathematics","Household type, fall 2010","Father-only household","second_grade",84.5082105939251,1.19408171116676
+"368","mathematics","Household type, fall 2010","Father-only household","third_grade",98.8803914645649,1.56743304614721
+"369","mathematics","Household type, fall 2010","Father-only household","fourth_grade",106.69920659196,1.46006210270421
+"370","mathematics","Household type, fall 2010","Father-only household","fifth_grade",113.723829209938,1.39260204936452
+"371","mathematics","Household type, fall 2010","Other household type","first_grade",63.7350616813015,1.5893326090718
+"372","mathematics","Household type, fall 2010","Other household type","second_grade",79.4268493770014,1.94987341556418
+"373","mathematics","Household type, fall 2010","Other household type","third_grade",92.5406315150403,2.18236058143344
+"374","mathematics","Household type, fall 2010","Other household type","fourth_grade",101.333060269189,2.07320675597944
+"375","mathematics","Household type, fall 2010","Other household type","fifth_grade",108.146270084702,1.90691614725236
+"376","mathematics","Primary home language","English","first_grade",74.2507756483339,0.357449308596023
+"377","mathematics","Primary home language","English","second_grade",91.6032979447191,0.437408272793862
+"378","mathematics","Primary home language","English","third_grade",105.495444948392,0.421074877098321
+"379","mathematics","Primary home language","English","fourth_grade",113.813152975364,0.445026319880483
+"380","mathematics","Primary home language","English","fifth_grade",120.91924415843,0.410815738201751
+"381","mathematics","Primary home language","Non-English","first_grade",66.4421780798438,0.626733624560471
+"382","mathematics","Primary home language","Non-English","second_grade",84.0188068006799,0.793033999556435
+"383","mathematics","Primary home language","Non-English","third_grade",98.3288772117948,0.664831234886082
+"384","mathematics","Primary home language","Non-English","fourth_grade",107.552814408258,0.795342993059064
+"385","mathematics","Primary home language","Non-English","fifth_grade",114.95735816292,0.796129602639192
+"386","mathematics","Primary home language","Primary language not identified","first_grade",67.5499551698571,1.4843487250082
+"387","mathematics","Primary home language","Primary language not identified","second_grade",85.4284483555268,1.86570869029241
+"388","mathematics","Primary home language","Primary language not identified","third_grade",100.33019350462,1.58636206199457
+"389","mathematics","Primary home language","Primary language not identified","fourth_grade",108.816730859136,1.71772671427786
+"390","mathematics","Primary home language","Primary language not identified","fifth_grade",116.734007604049,1.78222331206162
+"391","mathematics","Parents' highest level of education","Less than high school","first_grade",62.8542324708653,0.734922579120386
+"392","mathematics","Parents' highest level of education","Less than high school","second_grade",78.9721674310831,0.778500734754074
+"393","mathematics","Parents' highest level of education","Less than high school","third_grade",92.5317666976369,0.73054311898996
+"394","mathematics","Parents' highest level of education","Less than high school","fourth_grade",101.249853373024,0.815970308124183
+"395","mathematics","Parents' highest level of education","Less than high school","fifth_grade",108.433461806101,0.821248715422321
+"396","mathematics","Parents' highest level of education","High school completion","first_grade",66.9974419088631,0.404322065398883
+"397","mathematics","Parents' highest level of education","High school completion","second_grade",83.4613476998932,0.45874914348268
+"398","mathematics","Parents' highest level of education","High school completion","third_grade",97.733954747287,0.436819519450732
+"399","mathematics","Parents' highest level of education","High school completion","fourth_grade",105.904855777647,0.494816453215729
+"400","mathematics","Parents' highest level of education","High school completion","fifth_grade",113.172601826564,0.452531574073801
+"401","mathematics","Parents' highest level of education","Some college/vocational","first_grade",71.8668055946451,0.42246713149602
+"402","mathematics","Parents' highest level of education","Some college/vocational","second_grade",88.8654229401662,0.478830549926789
+"403","mathematics","Parents' highest level of education","Some college/vocational","third_grade",103.18143422176,0.461516289027452
+"404","mathematics","Parents' highest level of education","Some college/vocational","fourth_grade",111.571616731395,0.541585682325221
+"405","mathematics","Parents' highest level of education","Some college/vocational","fifth_grade",118.538891565972,0.470791264655994
+"406","mathematics","Parents' highest level of education","Bachelor's degree","first_grade",77.9016388340227,0.384143502219484
+"407","mathematics","Parents' highest level of education","Bachelor's degree","second_grade",96.034357179959,0.501164319881509
+"408","mathematics","Parents' highest level of education","Bachelor's degree","third_grade",109.946174513469,0.498414298439177
+"409","mathematics","Parents' highest level of education","Bachelor's degree","fourth_grade",118.572779250288,0.444327031928815
+"410","mathematics","Parents' highest level of education","Bachelor's degree","fifth_grade",125.854065202979,0.40763059690993
+"411","mathematics","Parents' highest level of education","Any graduate education","first_grade",81.4305253538408,0.420867731094666
+"412","mathematics","Parents' highest level of education","Any graduate education","second_grade",100.510080814523,0.560916715804279
+"413","mathematics","Parents' highest level of education","Any graduate education","third_grade",113.568419450446,0.474826319744369
+"414","mathematics","Parents' highest level of education","Any graduate education","fourth_grade",122.238639651361,0.413234233666009
+"415","mathematics","Parents' highest level of education","Any graduate education","fifth_grade",129.542279716579,0.464594690701261
+"416","mathematics","Poverty status, spring 2011","Below poverty threshold","first_grade",65.4959703653504,0.532589181847823
+"417","mathematics","Poverty status, spring 2011","Below poverty threshold","second_grade",82.0729946520728,0.621509545000017
+"418","mathematics","Poverty status, spring 2011","Below poverty threshold","third_grade",96.0461690929983,0.675032717365257
+"419","mathematics","Poverty status, spring 2011","Below poverty threshold","fourth_grade",104.057137470035,0.66489810226928
+"420","mathematics","Poverty status, spring 2011","Below poverty threshold","fifth_grade",111.250636961692,0.573328931338197
+"421","mathematics","Poverty status, spring 2011","100 to 199 percent of poverty threshold","first_grade",71.3393835698579,0.513717623113064
+"422","mathematics","Poverty status, spring 2011","100 to 199 percent of poverty threshold","second_grade",88.4969941118664,0.633984220056345
+"423","mathematics","Poverty status, spring 2011","100 to 199 percent of poverty threshold","third_grade",102.623825292575,0.643572383921882
+"424","mathematics","Poverty status, spring 2011","100 to 199 percent of poverty threshold","fourth_grade",111.341637537123,0.698627583542163
+"425","mathematics","Poverty status, spring 2011","100 to 199 percent of poverty threshold","fifth_grade",118.263456289105,0.58061965742966
+"426","mathematics","Poverty status, spring 2011","200 percent or more of poverty threshold","first_grade",77.9241923426516,0.339100567136684
+"427","mathematics","Poverty status, spring 2011","200 percent or more of poverty threshold","second_grade",96.1469303756447,0.460517602177063
+"428","mathematics","Poverty status, spring 2011","200 percent or more of poverty threshold","third_grade",109.864392605921,0.379719134807345
+"429","mathematics","Poverty status, spring 2011","200 percent or more of poverty threshold","fourth_grade",118.361656348044,0.382726092613379
+"430","mathematics","Poverty status, spring 2011","200 percent or more of poverty threshold","fifth_grade",125.61944660964,0.366792208634392
+"431","mathematics","Two risk factors","Both risk factors: No parent completed high school and family below poverty threshold","first_grade",62.7792059997738,1.00787872938676
+"432","mathematics","Two risk factors","Both risk factors: No parent completed high school and family below poverty threshold","second_grade",78.5567149694001,1.18266165418581
+"433","mathematics","Two risk factors","Both risk factors: No parent completed high school and family below poverty threshold","third_grade",91.6842169404779,1.06162167058051
+"434","mathematics","Two risk factors","Both risk factors: No parent completed high school and family below poverty threshold","fourth_grade",100.254733111185,1.23343123128806
+"435","mathematics","Two risk factors","Both risk factors: No parent completed high school and family below poverty threshold","fifth_grade",107.886723540184,1.15739321249782
+"436","mathematics","Two risk factors","One risk factor: No parent completed high school","first_grade",64.8404937032236,0.946760886383111
+"437","mathematics","Two risk factors","One risk factor: No parent completed high school","second_grade",83.3584094402968,1.42394589662532
+"438","mathematics","Two risk factors","One risk factor: No parent completed high school","third_grade",97.3276449609947,1.4027635206551
+"439","mathematics","Two risk factors","One risk factor: No parent completed high school","fourth_grade",106.580022147848,1.35909316740833
+"440","mathematics","Two risk factors","One risk factor: No parent completed high school","fifth_grade",112.54578655405,1.4448033606654
+"441","mathematics","Two risk factors","One risk factor: Family below poverty threshold","first_grade",66.3245019158119,0.579797989247216
+"442","mathematics","Two risk factors","One risk factor: Family below poverty threshold","second_grade",83.1543594674641,0.739499148058062
+"443","mathematics","Two risk factors","One risk factor: Family below poverty threshold","third_grade",97.3622042439702,0.777078228966442
+"444","mathematics","Two risk factors","One risk factor: Family below poverty threshold","fourth_grade",105.217575707511,0.723795994707455
+"445","mathematics","Two risk factors","One risk factor: Family below poverty threshold","fifth_grade",112.264505332781,0.69862966145232
+"446","mathematics","Two risk factors","Neither risk factor","first_grade",76.2235759570324,0.357252979952598
+"447","mathematics","Two risk factors","Neither risk factor","second_grade",94.1101231175849,0.451265311577202
+"448","mathematics","Two risk factors","Neither risk factor","third_grade",107.944922724641,0.390782507991573
+"449","mathematics","Two risk factors","Neither risk factor","fourth_grade",116.488570631878,0.40945293193367
+"450","mathematics","Two risk factors","Neither risk factor","fifth_grade",123.672030972463,0.373176276692317
+"451","mathematics","Socioeconomic status","Lowest 20 percent","first_grade",64.0729687441588,0.569412145226165
+"452","mathematics","Socioeconomic status","Lowest 20 percent","second_grade",80.2117005745569,0.625485856015674
+"453","mathematics","Socioeconomic status","Lowest 20 percent","third_grade",94.1730581370302,0.646960753425228
+"454","mathematics","Socioeconomic status","Lowest 20 percent","fourth_grade",102.578207759597,0.700831230781855
+"455","mathematics","Socioeconomic status","Lowest 20 percent","fifth_grade",109.940229440592,0.51966676303748
+"456","mathematics","Socioeconomic status","Middle 60 percent","first_grade",72.8978870642871,0.31967912786157
+"457","mathematics","Socioeconomic status","Middle 60 percent","second_grade",90.1794367202848,0.406076316597253
+"458","mathematics","Socioeconomic status","Middle 60 percent","third_grade",104.330937857037,0.362292268253852
+"459","mathematics","Socioeconomic status","Middle 60 percent","fourth_grade",112.780163004174,0.407481498345867
+"460","mathematics","Socioeconomic status","Middle 60 percent","fifth_grade",119.781805360109,0.367256712831386
+"461","mathematics","Socioeconomic status","Highest 20 percent","first_grade",81.4809465468992,0.454850873968126
+"462","mathematics","Socioeconomic status","Highest 20 percent","second_grade",100.328208082006,0.545375182008126
+"463","mathematics","Socioeconomic status","Highest 20 percent","third_grade",113.718247088919,0.417436457084947
+"464","mathematics","Socioeconomic status","Highest 20 percent","fourth_grade",122.301021226367,0.355896190341229
+"465","mathematics","Socioeconomic status","Highest 20 percent","fifth_grade",129.779416083266,0.386529644547918
+"466","mathematics","School control, fall 2010","Public","first_grade",72.4672666976537,0.372516163491872
+"467","mathematics","School control, fall 2010","Public","second_grade",89.7797530611654,0.432605381196279
+"468","mathematics","School control, fall 2010","Public","third_grade",103.910270391124,0.399821278076441
+"469","mathematics","School control, fall 2010","Public","fourth_grade",112.296192297917,0.426213340054082
+"470","mathematics","School control, fall 2010","Public","fifth_grade",119.420018805809,0.396794267474933
+"471","mathematics","School control, fall 2010","Private","first_grade",77.3227904725659,1.08550667525479
+"472","mathematics","School control, fall 2010","Private","second_grade",95.3636373394643,1.10621040721741
+"473","mathematics","School control, fall 2010","Private","third_grade",108.040022509558,1.03613067880298
+"474","mathematics","School control, fall 2010","Private","fourth_grade",117.032577298444,0.963626231312728
+"475","mathematics","School control, fall 2010","Private","fifth_grade",124.436518189291,0.894053333232012
+"476","mathematics","total sd","Total","first_grade",14.4257566871378,0.245135865046397
+"477","mathematics","total sd","Total","second_grade",16.5713198653861,0.257480586102294
+"478","mathematics","total sd","Total","third_grade",16.3006796001192,0.256977378454159
+"479","mathematics","total sd","Total","fourth_grade",16.1922627880217,0.29525434061138
+"480","mathematics","total sd","Total","fifth_grade",15.8145780773072,0.281591854898942
+"481","science","total mean","Total","first_grade",43.2296333545117,0.258033555659365
+"482","science","total mean","Total","second_grade",52.7188432126521,0.276647904928193
+"483","science","total mean","Total","third_grade",60.2945696393705,0.279629770376802
+"484","science","total mean","Total","fourth_grade",67.077755187405,0.292982970455943
+"485","science","total mean","Total","fifth_grade",73.7498058996509,0.284337366816351
+"486","science","Sex of child","Male","first_grade",43.5374058206464,0.287482386784441
+"487","science","Sex of child","Male","second_grade",53.1665420572629,0.310490781534641
+"488","science","Sex of child","Male","third_grade",60.7924226106388,0.304438005397105
+"489","science","Sex of child","Male","fourth_grade",67.5262525180575,0.338917101239417
+"490","science","Sex of child","Male","fifth_grade",74.2147084968886,0.315721306528602
+"491","science","Sex of child","Female","first_grade",42.9118525928069,0.292025591144239
+"492","science","Sex of child","Female","second_grade",52.2574499509942,0.318224398610906
+"493","science","Sex of child","Female","third_grade",59.7848485204282,0.324041328374789
+"494","science","Sex of child","Female","fourth_grade",66.6199834734446,0.321511405781274
+"495","science","Sex of child","Female","fifth_grade",73.2725008780657,0.331116140935692
+"496","science","Age of child at kindergarten entry, fall 2010","Less than 5 years old","first_grade",39.172384918588,0.762824154581261
+"497","science","Age of child at kindergarten entry, fall 2010","Less than 5 years old","second_grade",48.4953859807013,0.727355551960859
+"498","science","Age of child at kindergarten entry, fall 2010","Less than 5 years old","third_grade",56.3843501361171,0.748310700710923
+"499","science","Age of child at kindergarten entry, fall 2010","Less than 5 years old","fourth_grade",63.8317407302892,0.792455056656051
+"500","science","Age of child at kindergarten entry, fall 2010","Less than 5 years old","fifth_grade",70.4180482321665,0.886836845930363
+"501","science","Age of child at kindergarten entry, fall 2010","5 years old to 5 1/2 years old","first_grade",41.4020662211206,0.308220968451109
+"502","science","Age of child at kindergarten entry, fall 2010","5 years old to 5 1/2 years old","second_grade",50.9324091459205,0.319439946172046
+"503","science","Age of child at kindergarten entry, fall 2010","5 years old to 5 1/2 years old","third_grade",58.9411742782369,0.345663908334166
+"504","science","Age of child at kindergarten entry, fall 2010","5 years old to 5 1/2 years old","fourth_grade",65.9284757260616,0.347520449188542
+"505","science","Age of child at kindergarten entry, fall 2010","5 years old to 5 1/2 years old","fifth_grade",72.7438609097705,0.335882304847818
+"506","science","Age of child at kindergarten entry, fall 2010","More than 5 1/2 years old to 6 years old","first_grade",44.5884946938674,0.302471193962561
+"507","science","Age of child at kindergarten entry, fall 2010","More than 5 1/2 years old to 6 years old","second_grade",54.1797337173069,0.319695027651923
+"508","science","Age of child at kindergarten entry, fall 2010","More than 5 1/2 years old to 6 years old","third_grade",61.4547505764697,0.320461392756169
+"509","science","Age of child at kindergarten entry, fall 2010","More than 5 1/2 years old to 6 years old","fourth_grade",67.9959833468297,0.334528294779028
+"510","science","Age of child at kindergarten entry, fall 2010","More than 5 1/2 years old to 6 years old","fifth_grade",74.7088724621752,0.34378453965069
+"511","science","Age of child at kindergarten entry, fall 2010","More than 6 years old","first_grade",46.8575916522086,0.461880120172667
+"512","science","Age of child at kindergarten entry, fall 2010","More than 6 years old","second_grade",55.7658136845687,0.621647082289431
+"513","science","Age of child at kindergarten entry, fall 2010","More than 6 years old","third_grade",62.6233188248008,0.609263392863685
+"514","science","Age of child at kindergarten entry, fall 2010","More than 6 years old","fourth_grade",69.3555760873605,0.560563653556429
+"515","science","Age of child at kindergarten entry, fall 2010","More than 6 years old","fifth_grade",75.1986015239845,0.609655209499819
+"516","science","Race/ethnicity of child","White","first_grade",46.6170273350787,0.234434343413994
+"517","science","Race/ethnicity of child","White","second_grade",56.1587005531255,0.260859989013787
+"518","science","Race/ethnicity of child","White","third_grade",63.7897702775106,0.26146726773424
+"519","science","Race/ethnicity of child","White","fourth_grade",70.5385103691597,0.212363677475631
+"520","science","Race/ethnicity of child","White","fifth_grade",77.2695424304061,0.249146456023591
+"521","science","Race/ethnicity of child","Black","first_grade",38.0769150893343,0.469415187094692
+"522","science","Race/ethnicity of child","Black","second_grade",46.7081248395376,0.495525884986759
+"523","science","Race/ethnicity of child","Black","third_grade",53.6743364128018,0.595875473719805
+"524","science","Race/ethnicity of child","Black","fourth_grade",60.0872498932192,0.729027805555451
+"525","science","Race/ethnicity of child","Black","fifth_grade",65.60998725327,0.636969560723688
+"526","science","Race/ethnicity of child","Hispanic","first_grade",37.9542565133768,0.387951324877123
+"527","science","Race/ethnicity of child","Hispanic","second_grade",47.5646782974716,0.430406697347165
+"528","science","Race/ethnicity of child","Hispanic","third_grade",55.1855113399235,0.388896840953508
+"529","science","Race/ethnicity of child","Hispanic","fourth_grade",62.32537189045,0.503934327398951
+"530","science","Race/ethnicity of child","Hispanic","fifth_grade",69.3410450045802,0.357193218887257
+"531","science","Race/ethnicity of child","Asian","first_grade",42.3365549621999,0.514266258165706
+"532","science","Race/ethnicity of child","Asian","second_grade",54.4237724030523,0.552440653753482
+"533","science","Race/ethnicity of child","Asian","third_grade",62.7399524322796,0.569824482490395
+"534","science","Race/ethnicity of child","Asian","fourth_grade",69.0975841720929,0.499509239359519
+"535","science","Race/ethnicity of child","Asian","fifth_grade",77.0915420722226,0.496257196353337
+"536","science","Race/ethnicity of child","Pacific Islander","first_grade",40.6712024172048,1.33552927205928
+"537","science","Race/ethnicity of child","Pacific Islander","second_grade",50.5818650834215,2.01874340838827
+"538","science","Race/ethnicity of child","Pacific Islander","third_grade",59.1248707604319,2.4213536206042
+"539","science","Race/ethnicity of child","Pacific Islander","fourth_grade",64.8691383211426,2.28024408990311
+"540","science","Race/ethnicity of child","Pacific Islander","fifth_grade",73.0201701122439,1.70681078881803
+"541","science","Race/ethnicity of child","American Indian/Alaska Native","first_grade",43.1250446792863,1.66660359321419
+"542","science","Race/ethnicity of child","American Indian/Alaska Native","second_grade",51.3291113657358,1.31140615597308
+"543","science","Race/ethnicity of child","American Indian/Alaska Native","third_grade",58.1007092651873,1.61753386184311
+"544","science","Race/ethnicity of child","American Indian/Alaska Native","fourth_grade",67.376282654656,1.64469546774184
+"545","science","Race/ethnicity of child","American Indian/Alaska Native","fifth_grade",73.0993611578202,2.07623655566728
+"546","science","Race/ethnicity of child","Two or more races","first_grade",45.9451368837469,0.656698471338355
+"547","science","Race/ethnicity of child","Two or more races","second_grade",54.9480256454921,0.812336513219056
+"548","science","Race/ethnicity of child","Two or more races","third_grade",62.620465990581,0.818792319789396
+"549","science","Race/ethnicity of child","Two or more races","fourth_grade",68.8310265507803,0.847569870807768
+"550","science","Race/ethnicity of child","Two or more races","fifth_grade",75.3655907160183,0.873420461507233
+"551","science","How often child exhibited positive learning behaviors, fall 2010","Never","first_grade",33.2503065416413,1.14631773388197
+"552","science","How often child exhibited positive learning behaviors, fall 2010","Never","second_grade",40.55779827987,1.26500669879465
+"553","science","How often child exhibited positive learning behaviors, fall 2010","Never","third_grade",48.0373880332617,1.40578711981941
+"554","science","How often child exhibited positive learning behaviors, fall 2010","Never","fourth_grade",56.6872603297096,1.45200238285401
+"555","science","How often child exhibited positive learning behaviors, fall 2010","Never","fifth_grade",60.5071864054556,1.64098128934083
+"556","science","How often child exhibited positive learning behaviors, fall 2010","Sometimes","first_grade",39.6434765576546,0.357922647643934
+"557","science","How often child exhibited positive learning behaviors, fall 2010","Sometimes","second_grade",48.6401223924986,0.397567663919296
+"558","science","How often child exhibited positive learning behaviors, fall 2010","Sometimes","third_grade",55.9647288660588,0.426698299926367
+"559","science","How often child exhibited positive learning behaviors, fall 2010","Sometimes","fourth_grade",62.9838942833039,0.455951961910775
+"560","science","How often child exhibited positive learning behaviors, fall 2010","Sometimes","fifth_grade",69.7831345131353,0.483109399946341
+"561","science","How often child exhibited positive learning behaviors, fall 2010","Often","first_grade",43.8276774908509,0.294025153512083
+"562","science","How often child exhibited positive learning behaviors, fall 2010","Often","second_grade",53.3714728812037,0.338899029059721
+"563","science","How often child exhibited positive learning behaviors, fall 2010","Often","third_grade",61.1877731468702,0.322923042095462
+"564","science","How often child exhibited positive learning behaviors, fall 2010","Often","fourth_grade",67.7823481330508,0.353170489447406
+"565","science","How often child exhibited positive learning behaviors, fall 2010","Often","fifth_grade",74.489432541411,0.340729685746389
+"566","science","How often child exhibited positive learning behaviors, fall 2010","Very often","first_grade",46.4339119037805,0.396067133474504
+"567","science","How often child exhibited positive learning behaviors, fall 2010","Very often","second_grade",56.4244949124599,0.399567302944703
+"568","science","How often child exhibited positive learning behaviors, fall 2010","Very often","third_grade",63.8410993507081,0.396252271738988
+"569","science","How often child exhibited positive learning behaviors, fall 2010","Very often","fourth_grade",70.5614749214329,0.331821288803811
+"570","science","How often child exhibited positive learning behaviors, fall 2010","Very often","fifth_grade",77.3369778243118,0.373173722722849
+"571","science","Primary type of nonparental care arrangement prior to kindergarten entry","No regular nonparental arrangement","first_grade",41.5257226478329,0.39042679953517
+"572","science","Primary type of nonparental care arrangement prior to kindergarten entry","No regular nonparental arrangement","second_grade",50.9066270141049,0.419138955763773
+"573","science","Primary type of nonparental care arrangement prior to kindergarten entry","No regular nonparental arrangement","third_grade",58.5894993418029,0.416791713196708
+"574","science","Primary type of nonparental care arrangement prior to kindergarten entry","No regular nonparental arrangement","fourth_grade",65.1471555420342,0.469246595264103
+"575","science","Primary type of nonparental care arrangement prior to kindergarten entry","No regular nonparental arrangement","fifth_grade",72.4879786900833,0.405131963973689
+"576","science","Primary type of nonparental care arrangement prior to kindergarten entry","Relative care (Home-based care)","first_grade",42.6186331029366,0.387986018973242
+"577","science","Primary type of nonparental care arrangement prior to kindergarten entry","Relative care (Home-based care)","second_grade",51.7043104153359,0.441194467689535
+"578","science","Primary type of nonparental care arrangement prior to kindergarten entry","Relative care (Home-based care)","third_grade",58.9677071216599,0.435900317244856
+"579","science","Primary type of nonparental care arrangement prior to kindergarten entry","Relative care (Home-based care)","fourth_grade",65.7659588872007,0.467390683553061
+"580","science","Primary type of nonparental care arrangement prior to kindergarten entry","Relative care (Home-based care)","fifth_grade",72.1776431982685,0.452380459054776
+"581","science","Primary type of nonparental care arrangement prior to kindergarten entry","Nonrelative care (Home-based care)","first_grade",45.1570825979588,0.524421052115315
+"582","science","Primary type of nonparental care arrangement prior to kindergarten entry","Nonrelative care (Home-based care)","second_grade",54.7262968069263,0.464133464395828
+"583","science","Primary type of nonparental care arrangement prior to kindergarten entry","Nonrelative care (Home-based care)","third_grade",62.0404319507061,0.543609207163731
+"584","science","Primary type of nonparental care arrangement prior to kindergarten entry","Nonrelative care (Home-based care)","fourth_grade",69.4734696207568,0.420679651617814
+"585","science","Primary type of nonparental care arrangement prior to kindergarten entry","Nonrelative care (Home-based care)","fifth_grade",75.8518597438843,0.534439188414817
+"586","science","Primary type of nonparental care arrangement prior to kindergarten entry","Center-based care","first_grade",43.823564006617,0.277783051740264
+"587","science","Primary type of nonparental care arrangement prior to kindergarten entry","Center-based care","second_grade",53.4202868629562,0.318593139158748
+"588","science","Primary type of nonparental care arrangement prior to kindergarten entry","Center-based care","third_grade",61.0750377483102,0.305699815421473
+"589","science","Primary type of nonparental care arrangement prior to kindergarten entry","Center-based care","fourth_grade",67.8645644888209,0.302545231910036
+"590","science","Primary type of nonparental care arrangement prior to kindergarten entry","Center-based care","fifth_grade",74.4419328062076,0.325987359067322
+"591","science","Primary type of nonparental care arrangement prior to kindergarten entry","Multiple arrangements","first_grade",44.7674464816976,0.710888814736401
+"592","science","Primary type of nonparental care arrangement prior to kindergarten entry","Multiple arrangements","second_grade",54.5722597164083,0.742954425302665
+"593","science","Primary type of nonparental care arrangement prior to kindergarten entry","Multiple arrangements","third_grade",61.9812184159885,0.908299975463706
+"594","science","Primary type of nonparental care arrangement prior to kindergarten entry","Multiple arrangements","fourth_grade",68.5432726014472,0.89242666405041
+"595","science","Primary type of nonparental care arrangement prior to kindergarten entry","Multiple arrangements","fifth_grade",75.1900708097677,0.866613966946185
+"596","science","Household type, fall 2010","Two-parent household","first_grade",44.488099154188,0.264725788801125
+"597","science","Household type, fall 2010","Two-parent household","second_grade",54.147461649933,0.2754356494732
+"598","science","Household type, fall 2010","Two-parent household","third_grade",61.8220583673929,0.27310296089202
+"599","science","Household type, fall 2010","Two-parent household","fourth_grade",68.6160297788322,0.26509739223538
+"600","science","Household type, fall 2010","Two-parent household","fifth_grade",75.505981751818,0.274524026487948
+"601","science","Household type, fall 2010","Mother-only household","first_grade",40.1998121330962,0.441493394923729
+"602","science","Household type, fall 2010","Mother-only household","second_grade",49.0850209765549,0.524725197116139
+"603","science","Household type, fall 2010","Mother-only household","third_grade",56.4133999668575,0.571979049663175
+"604","science","Household type, fall 2010","Mother-only household","fourth_grade",63.1444381432137,0.625041573574859
+"605","science","Household type, fall 2010","Mother-only household","fifth_grade",69.2234090447198,0.482105574158571
+"606","science","Household type, fall 2010","Father-only household","first_grade",41.4766533003387,0.701151698468092
+"607","science","Household type, fall 2010","Father-only household","second_grade",49.8942732088477,0.837176582852814
+"608","science","Household type, fall 2010","Father-only household","third_grade",57.1006899947498,0.887395332258443
+"609","science","Household type, fall 2010","Father-only household","fourth_grade",64.5138565186432,1.05018504480951
+"610","science","Household type, fall 2010","Father-only household","fifth_grade",72.0692400685479,1.06807787357113
+"611","science","Household type, fall 2010","Other household type","first_grade",38.9608039805585,0.912077889587316
+"612","science","Household type, fall 2010","Other household type","second_grade",47.6755566501338,1.02072264619501
+"613","science","Household type, fall 2010","Other household type","third_grade",54.1851784834741,1.18323763539135
+"614","science","Household type, fall 2010","Other household type","fourth_grade",59.6061796592835,1.38950704683091
+"615","science","Household type, fall 2010","Other household type","fifth_grade",66.1110738506092,1.71123755408061
+"616","science","Primary home language","English","first_grade",44.6647849600616,0.254646941232113
+"617","science","Primary home language","English","second_grade",54.0009851922569,0.279490179938661
+"618","science","Primary home language","English","third_grade",61.4447377406715,0.298231675882963
+"619","science","Primary home language","English","fourth_grade",68.1137562175255,0.294638632519198
+"620","science","Primary home language","English","fifth_grade",74.683222616382,0.296260896494629
+"621","science","Primary home language","Non-English","first_grade",35.4009809503231,0.418302897547781
+"622","science","Primary home language","Non-English","second_grade",45.8463724646364,0.562383547934231
+"623","science","Primary home language","Non-English","third_grade",54.0820695878039,0.487300272516597
+"624","science","Primary home language","Non-English","fourth_grade",61.4633237319272,0.626950054371417
+"625","science","Primary home language","Non-English","fifth_grade",68.6181103425206,0.512459139474359
+"626","science","Primary home language","Primary language not identified","first_grade",37.2334539833944,0.889363525511109
+"627","science","Primary home language","Primary language not identified","second_grade",46.4120861425906,1.27974995281127
+"628","science","Primary home language","Primary language not identified","third_grade",54.5533827849299,1.36223235479431
+"629","science","Primary home language","Primary language not identified","fourth_grade",62.55722917078,1.50631109696967
+"630","science","Primary home language","Primary language not identified","fifth_grade",70.7275557966347,1.62429327932683
+"631","science","Parents' highest level of education","Less than high school","first_grade",34.5114111038076,0.479131295709597
+"632","science","Parents' highest level of education","Less than high school","second_grade",43.7294755114981,0.579042377752337
+"633","science","Parents' highest level of education","Less than high school","third_grade",51.1164642000326,0.506476873307598
+"634","science","Parents' highest level of education","Less than high school","fourth_grade",58.0822333187068,0.612069783675197
+"635","science","Parents' highest level of education","Less than high school","fifth_grade",64.318209075759,0.599374511916654
+"636","science","Parents' highest level of education","High school completion","first_grade",39.2459169790239,0.324753613519593
+"637","science","Parents' highest level of education","High school completion","second_grade",48.3319380624385,0.355595870501564
+"638","science","Parents' highest level of education","High school completion","third_grade",55.6145973829837,0.34133947350967
+"639","science","Parents' highest level of education","High school completion","fourth_grade",62.464412951233,0.384645254922043
+"640","science","Parents' highest level of education","High school completion","fifth_grade",69.1450727206684,0.376891567369678
+"641","science","Parents' highest level of education","Some college/vocational","first_grade",42.757294458945,0.252169142089942
+"642","science","Parents' highest level of education","Some college/vocational","second_grade",51.9440475438137,0.277979876492434
+"643","science","Parents' highest level of education","Some college/vocational","third_grade",59.4632479272103,0.277933943072775
+"644","science","Parents' highest level of education","Some college/vocational","fourth_grade",66.5615822589668,0.338285680157277
+"645","science","Parents' highest level of education","Some college/vocational","fifth_grade",73.0963066130998,0.335078141680898
+"646","science","Parents' highest level of education","Bachelor's degree","first_grade",46.3922146978452,0.335498575003517
+"647","science","Parents' highest level of education","Bachelor's degree","second_grade",56.4700192595406,0.363476910951265
+"648","science","Parents' highest level of education","Bachelor's degree","third_grade",64.2704756948165,0.343042841837922
+"649","science","Parents' highest level of education","Bachelor's degree","fourth_grade",70.7153062333125,0.329970180370095
+"650","science","Parents' highest level of education","Bachelor's degree","fifth_grade",77.8388349387241,0.375108756208778
+"651","science","Parents' highest level of education","Any graduate education","first_grade",49.2290680215487,0.336461631165685
+"652","science","Parents' highest level of education","Any graduate education","second_grade",59.2787742264116,0.334541355644244
+"653","science","Parents' highest level of education","Any graduate education","third_grade",67.0428729505687,0.341419378605968
+"654","science","Parents' highest level of education","Any graduate education","fourth_grade",73.4221981725646,0.294650196039783
+"655","science","Parents' highest level of education","Any graduate education","fifth_grade",80.1394008284806,0.328468410504865
+"656","science","Poverty status, spring 2011","Below poverty threshold","first_grade",37.6213045778947,0.423304991609249
+"657","science","Poverty status, spring 2011","Below poverty threshold","second_grade",46.6603077459789,0.465874104408959
+"658","science","Poverty status, spring 2011","Below poverty threshold","third_grade",54.370077530387,0.425532308732905
+"659","science","Poverty status, spring 2011","Below poverty threshold","fourth_grade",60.9306374600675,0.534556075518404
+"660","science","Poverty status, spring 2011","Below poverty threshold","fifth_grade",67.4274270108784,0.456082599764722
+"661","science","Poverty status, spring 2011","100 to 199 percent of poverty threshold","first_grade",42.1982873983875,0.343330691892856
+"662","science","Poverty status, spring 2011","100 to 199 percent of poverty threshold","second_grade",51.762683290981,0.358655762612228
+"663","science","Poverty status, spring 2011","100 to 199 percent of poverty threshold","third_grade",59.0387726896941,0.428956867805156
+"664","science","Poverty status, spring 2011","100 to 199 percent of poverty threshold","fourth_grade",66.1042922491527,0.452554932870015
+"665","science","Poverty status, spring 2011","100 to 199 percent of poverty threshold","fifth_grade",72.6491252827248,0.467384522523501
+"666","science","Poverty status, spring 2011","200 percent or more of poverty threshold","first_grade",46.8746156884813,0.249491860858249
+"667","science","Poverty status, spring 2011","200 percent or more of poverty threshold","second_grade",56.6414447198677,0.269689038180609
+"668","science","Poverty status, spring 2011","200 percent or more of poverty threshold","third_grade",64.3508096318177,0.259920900547073
+"669","science","Poverty status, spring 2011","200 percent or more of poverty threshold","fourth_grade",71.0123859570392,0.218889005286252
+"670","science","Poverty status, spring 2011","200 percent or more of poverty threshold","fifth_grade",77.7931440811839,0.271546408491139
+"671","science","Two risk factors","Both risk factors: No parent completed high school and family below poverty threshold","first_grade",33.7425912618519,0.573696562855678
+"672","science","Two risk factors","Both risk factors: No parent completed high school and family below poverty threshold","second_grade",43.1091796099592,0.735249875113117
+"673","science","Two risk factors","Both risk factors: No parent completed high school and family below poverty threshold","third_grade",50.7335558136261,0.598445035575004
+"674","science","Two risk factors","Both risk factors: No parent completed high school and family below poverty threshold","fourth_grade",57.6589652818673,0.773928981969514
+"675","science","Two risk factors","Both risk factors: No parent completed high school and family below poverty threshold","fifth_grade",64.0967995254135,0.804481640320493
+"676","science","Two risk factors","One risk factor: No parent completed high school","first_grade",35.6217898478412,0.664634651736944
+"677","science","Two risk factors","One risk factor: No parent completed high school","second_grade",45.8341513921707,0.828005871874316
+"678","science","Two risk factors","One risk factor: No parent completed high school","third_grade",53.6287549328164,0.848263243244239
+"679","science","Two risk factors","One risk factor: No parent completed high school","fourth_grade",60.3579266858147,1.09072015977118
+"680","science","Two risk factors","One risk factor: No parent completed high school","fifth_grade",67.0905909727461,1.21034213385708
+"681","science","Two risk factors","One risk factor: Family below poverty threshold","first_grade",38.7953354748702,0.438704143905079
+"682","science","Two risk factors","One risk factor: Family below poverty threshold","second_grade",47.7486388065994,0.487721520987331
+"683","science","Two risk factors","One risk factor: Family below poverty threshold","third_grade",55.4683914796883,0.458323990818734
+"684","science","Two risk factors","One risk factor: Family below poverty threshold","fourth_grade",61.9292267557386,0.554038054880119
+"685","science","Two risk factors","One risk factor: Family below poverty threshold","fifth_grade",68.4360136325612,0.500450041932286
+"686","science","Two risk factors","Neither risk factor","first_grade",45.7194415310165,0.248865313833858
+"687","science","Two risk factors","Neither risk factor","second_grade",55.4136351743293,0.26380441382407
+"688","science","Two risk factors","Neither risk factor","third_grade",62.9833150499724,0.263768655605898
+"689","science","Two risk factors","Neither risk factor","fourth_grade",69.7664634799413,0.228939944610637
+"690","science","Two risk factors","Neither risk factor","fifth_grade",76.4729012460361,0.288514188576551
+"691","science","Socioeconomic status","Lowest 20 percent","first_grade",36.6067188332364,0.410393584030988
+"692","science","Socioeconomic status","Lowest 20 percent","second_grade",45.6263317528261,0.409277908117267
+"693","science","Socioeconomic status","Lowest 20 percent","third_grade",52.8628549353113,0.484507173423532
+"694","science","Socioeconomic status","Lowest 20 percent","fourth_grade",59.7119155393628,0.560344552152725
+"695","science","Socioeconomic status","Lowest 20 percent","fifth_grade",66.265899905275,0.506844327086915
+"696","science","Socioeconomic status","Middle 60 percent","first_grade",43.3243825858617,0.225027396742204
+"697","science","Socioeconomic status","Middle 60 percent","second_grade",52.6769654005035,0.246516134577489
+"698","science","Socioeconomic status","Middle 60 percent","third_grade",60.2242637205496,0.246869746157159
+"699","science","Socioeconomic status","Middle 60 percent","fourth_grade",67.1822061205961,0.253238284006902
+"700","science","Socioeconomic status","Middle 60 percent","fifth_grade",73.8400331293577,0.287344258757045
+"701","science","Socioeconomic status","Highest 20 percent","first_grade",48.9887785959351,0.366282541830491
+"702","science","Socioeconomic status","Highest 20 percent","second_grade",59.2757065364695,0.360509048908664
+"703","science","Socioeconomic status","Highest 20 percent","third_grade",67.1846304326737,0.338479504978584
+"704","science","Socioeconomic status","Highest 20 percent","fourth_grade",73.4031462517682,0.290569392197686
+"705","science","Socioeconomic status","Highest 20 percent","fifth_grade",80.3273280772393,0.290458772695349
+"706","science","School control, fall 2010","Public","first_grade",42.8221934572647,0.278496533519311
+"707","science","School control, fall 2010","Public","second_grade",52.291153694366,0.303493145530511
+"708","science","School control, fall 2010","Public","third_grade",59.7950304661801,0.308745832897819
+"709","science","School control, fall 2010","Public","fourth_grade",66.6089895619227,0.324323073876438
+"710","science","School control, fall 2010","Public","fifth_grade",73.2690771248277,0.310235278632907
+"711","science","School control, fall 2010","Private","first_grade",46.4188636748183,0.639380121055774
+"712","science","School control, fall 2010","Private","second_grade",56.0354351644759,0.680045803247748
+"713","science","School control, fall 2010","Private","third_grade",64.1549788885929,0.661847999189602
+"714","science","School control, fall 2010","Private","fourth_grade",70.6694811300955,0.576735623484983
+"715","science","School control, fall 2010","Private","fifth_grade",77.4641927292552,0.611422842702858
+"716","science","total sd","Total","first_grade",9.49443079683591,0.160537472485215
+"717","science","total sd","Total","second_grade",10.6914242998715,0.188431732491211
+"718","science","total sd","Total","third_grade",10.9430089439087,0.187771026329751
+"719","science","total sd","Total","fourth_grade",10.9302090220293,0.212586227938226
+"720","science","total sd","Total","fifth_grade",11.623072395127,0.204860198981724
