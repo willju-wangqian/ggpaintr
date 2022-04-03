@@ -18,28 +18,9 @@ body <- dashboardBody(
     tabItems(
         tabItem(
             tabName = "menuDesign",
-            pickerInput(
-                "designDecision1",
-                "Comparative or descriptive?",
-                choices = c(
-                    "Comparative",
-                    "Descriptive"),
-                selected = "",
-                multiple = TRUE,
-                options = pickerOptions(maxOptions = 1)
-            ),
-            pickerInput(
-                "designDesicision2",
-                "something else",
-                choices = c(
-                    "choice1",
-                    "choice2"
-                ),
-                selected = "",
-                multiple = TRUE,
-                options = pickerOptions(maxOptions = 1)
-            ),
-            uiOutput("mytableFilter"),
+            fileInput(inputId = "fileData",
+                      label = "Upload data in csv or rds format",
+                      accept = c(".csv")),
             DT::dataTableOutput("mytable"),
         ),
 
@@ -70,9 +51,9 @@ body <- dashboardBody(
                            ))
                 )
             ),
-            
+
             br(),
-            
+
             fluidRow(
                 column(
                     4,

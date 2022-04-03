@@ -10,25 +10,34 @@
 
 server = function(input, output, session) {
 
-    data_path <- system.file("extdata", "kindergartners_data_firsttofifth.csv", package = "ggpaintr")
 
-    data <- read_csv(data_path)
-    data$grade <- factor(
-        data$grade,
-        levels = c("first_grade", "second_grade", "third_grade", "fourth_grade", "fifth_grade")
-    )
-    names(data)[4] <- "category_levels"
-    names(data)[5] <- "school_year"
-    names(data)[6] <- "score_mean"
-    names(data)[7] <- "score_se"
-    data <- data[,-1]
+    dataContainer <- reactive({
+        req(input$fileData)
 
-    dataContainer <- reactiveValues(data = data)
+        path <- input$fileData$datapath
 
-    output$mytable = DT::renderDataTable({
-        dataContainer$data
-        # data
+        ext <- tools::file_ext(path) # [TODO] add Imports tools
+
+        validate(
+            need(ext %in% c("csv", "rds"), "Please select either csv or rds file")
+        )
+
+        if (ext == "csv") {
+            inputData <- read.csv(path)
+        } else if (ext == "rds") {
+            inputData <- readRDS(path)
+        }
+
+        inputData
     })
+
+    output$mytable <- DT::renderDT(
+        dataContainer(),
+        filter = "top",
+        options = list(
+            pageLength = 5
+        )
+    )
 
     output$mytableFilter <- renderUI({
         fluidRow(
@@ -57,51 +66,12 @@ server = function(input, output, session) {
 
     })
 
-    observe({
-        if(
-            input$mytableFilterInputCategory == "no filter" ||
-            is.null(input$mytableFilterInputCategory) ||
-            input$mytableFilterInputCategory == ""
-        ) {
-            c_pattern <- ""
-        } else {
-            c_pattern <- input$mytableFilterInputCategory
-        }
-
-        if(
-            input$mytableFilterInputSubject == "no filter" ||
-            is.null(input$mytableFilterInputSubject) ||
-            input$mytableFilterInputSubject == ""
-        ) {
-            s_pattern <- ""
-        } else {
-            s_pattern <- input$mytableFilterInputSubject
-        }
-
-        if(
-            input$mytableFilterInputGrade == "no filter" ||
-            is.null(input$mytableFilterInputGrade) ||
-            input$mytableFilterInputGrade == ""
-        ) {
-            g_pattern <- ""
-        } else {
-            g_pattern <- input$mytableFilterInputGrade
-        }
-
-        dataContainer$data <- data %>%
-            filter(str_detect(school_year, g_pattern)) %>%
-            filter(str_detect(subject, s_pattern)) %>%
-            filter(str_detect(category, c_pattern))
-
-
-    })
-
     #############################################################
     # server part for the bar chart
     observeEvent(input$drawBar, {
         # browser()
 
-        dataBar <- dataContainer$data
+        dataBar <- dataContainer() # dataContainer$data
 
         output$drawControls <- renderUI({
             # provide the complete UI of all components
@@ -113,7 +83,7 @@ server = function(input, output, session) {
     })
 
     observeEvent(input[[NS("barControl")("buttonDraw")]], {
-        dataBar <- dataContainer$data
+        dataBar <- dataContainer() #dataContainer$data
 
         barComponent <- geomBarGenerator("barControl", dataBar)
 
@@ -145,7 +115,7 @@ server = function(input, output, session) {
     # ui for line chart
     observeEvent(input$drawLine, {
 
-        dataLine <- dataContainer$data
+        dataLine <- dataContainer() # dataContainer$data
 
         output$drawControls <- renderUI({
             # provide the complete UI of all components
@@ -157,7 +127,7 @@ server = function(input, output, session) {
     })
 
     observeEvent(input[[NS("lineControl")("buttonDraw")]], {
-        dataLine <- dataContainer$data
+        dataLine <- dataContainer() # dataContainer$data
 
         lineComponent <- geomLineGenerator("lineControl", dataLine)
 
@@ -189,7 +159,7 @@ server = function(input, output, session) {
     # ui for scatter chart
     observeEvent(input$drawScatter, {
 
-        dataScatter <- dataContainer$data
+        dataScatter <- dataContainer() # dataContainer$data
         dataScatterWider <- dataScatter %>% select(-score_se) %>%
             pivot_wider(names_from = subject, values_from = score_mean)
 
@@ -203,7 +173,7 @@ server = function(input, output, session) {
     })
 
     observeEvent(input[[NS("pointControl")("buttonDraw")]], {
-        dataScatter <- dataContainer$data
+        dataScatter <- dataContainer() # dataContainer$data
         dataScatterWider <- dataScatter %>% select(-score_se) %>%
             pivot_wider(names_from = subject, values_from = score_mean)
 
@@ -237,7 +207,7 @@ server = function(input, output, session) {
     #############################################################
     # ui for lollipop chart
     observeEvent(input$drawLolli, {
-        dataLolli <- dataContainer$data
+        dataLolli <- dataContainer() # dataContainer$data
         # ui
         output$drawControls <- renderUI({
             column(12,
@@ -249,7 +219,7 @@ server = function(input, output, session) {
 
     # server for lollipop chart
     observeEvent(input[[NS("lolliControl")("buttonDraw")]], {
-        dataLolli <- dataContainer$data
+        dataLolli <- dataContainer() # dataContainer$data
 
         linerangeComponent <- geomLinerangeGenerator("lolliControl", dataLolli)
         pointComponent <- geomPointGenerator("lolliControl", dataLolli)
