@@ -20,7 +20,7 @@ body <- dashboardBody(
             tabName = "menuDesign",
             fileInput(inputId = "fileData",
                       label = "Upload data in csv or rds format",
-                      accept = c(".csv")),
+                      accept = c(".csv", ".rds")),
             DT::dataTableOutput("mytable"),
         ),
 
