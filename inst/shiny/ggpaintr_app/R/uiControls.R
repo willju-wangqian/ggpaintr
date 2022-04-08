@@ -216,7 +216,8 @@ getUIControlList <- function(user_defined) {
     x = "mappingXUI",
     y = "mappingYUI",
     color = "mappingColorUI",
-    shape = "mappingShapeUI"
+    shape = "mappingShapeUI",
+    stat = "ourSTATUI"
   )
   uiControlList
 }
@@ -286,7 +287,7 @@ callFuncUI <- function(name, mp, defaultArgs, extraFunc, extraFuncArgs) {
 #' @param id
 #' @param data
 #' @param mapping
-#' @param other_arguments
+#' @param geom_args
 #' @param extra_uiFunc
 #' @param extra_uiFuncArgs
 #'
@@ -294,7 +295,7 @@ callFuncUI <- function(name, mp, defaultArgs, extraFunc, extraFuncArgs) {
 #' @export
 #'
 #' @examples
-controlUI <- function(id, data, mapping, other_arguments = NULL,
+controlUI <- function(id, data, mapping, geom_args = NULL, plot_settings = NULL,
                       extra_uiFunc = NULL, extra_uiFuncArgs = NULL) {
   ns <- NS(id)
 
@@ -302,8 +303,8 @@ controlUI <- function(id, data, mapping, other_arguments = NULL,
     !is.null(names(mapping))
   )
 
-  if(!is.null(other_arguments)) {
-    assert_that( !is.null(names(other_arguments))  )
+  if(!is.null(geom_args)) {
+    assert_that( !is.null(names(geom_args))  )
   }
 
   mapping_ui <- mapply(callFuncUI, names(mapping), mapping,
@@ -314,7 +315,7 @@ controlUI <- function(id, data, mapping, other_arguments = NULL,
                        ),
                        SIMPLIFY = FALSE)
 
-  other_ui <- mapply(callFuncUI, names(other_arguments), other_arguments,
+  geom_args_ui <- mapply(callFuncUI, names(geom_args), geom_args,
                      MoreArgs = list(
                        defaultArgs = list(ns, data),
                        extraFunc = extra_uiFunc,
@@ -322,22 +323,37 @@ controlUI <- function(id, data, mapping, other_arguments = NULL,
                      ),
                      SIMPLIFY = FALSE)
 
+  plot_settings_ui <- mapply(callFuncUI, names(plot_settings), plot_settings,
+                         MoreArgs = list(
+                           defaultArgs = list(ns, data),
+                           extraFunc = extra_uiFunc,
+                           extraFuncArgs = extra_uiFuncArgs
+                         ),
+                         SIMPLIFY = FALSE)
+
   if (is.null(unlist(mapping_ui))) {
     mapping_ui <- NULL
   }
 
-  if (is.null(unlist(other_ui))) {
-    other_ui <- NULL
+  if (is.null(unlist(geom_args_ui))) {
+    geom_args_ui <- NULL
+  }
+
+  if (is.null(unlist(plot_settings_ui))) {
+    plot_settings_ui <- NULL
   }
 
   valid_piece_mapping <- !sapply(mapping_ui, is.null)
-  valid_piece_param <- !sapply(other_ui, is.null)
+  valid_piece_geom_args <- !sapply(geom_args_ui, is.null)
+  valid_piece_plot_settings <- !sapply(plot_settings_ui, is.null)
 
   return(list(
     ui = list(mapping_ui = mapping_ui[valid_piece_mapping],
-              param_ui = other_ui[valid_piece_param]),
+              geom_args_ui = geom_args_ui[valid_piece_geom_args],
+              plot_settings_ui = plot_settings_ui[valid_piece_plot_settings]),
     param = list(mapping = mapping[valid_piece_mapping],
-                 other_arguments = other_arguments[valid_piece_param])
+                 geom_args = geom_args[valid_piece_geom_args],
+                 plot_settings = plot_settings[valid_piece_plot_settings])
   ))
 
 }

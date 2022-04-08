@@ -12,6 +12,8 @@ library(formatR)
 library(shinyhelper)
 library(shinyBS)
 
+library(assertthat)
+
 # library(ggpaintr)
 
 sapply(list.files("R"), function(fileName) {
@@ -23,3 +25,4 @@ sapply(list.files("R"), function(fileName) {
 # data("penguins")
 
 DODGE_WID_DEFAULT <- 0.5
+myStatUI <- function(x, y) { h3(paste(x + y)) }

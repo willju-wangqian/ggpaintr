@@ -55,7 +55,20 @@ server = function(input, output, session) {
         req(dataContainer())
 
         dataBox <- dataContainer()
-        boxUI <- boxControlUI("boxControl", dataBox)
+        boxUI <- controlUI("boxControl", dataBox,
+                           mapping = list( x = "mapX",
+                                           y = "mapY",
+                                           color = "mapColor"),
+                           plot_settings = list( misc = "otherMisc" ,
+                                                   theme = "otherTheme"),
+                           geom_args = list (stat = "argsStat",
+                                             position = "argsPosition"),
+                           extra_uiFunc = list(misc = miscUI,
+                                               theme = themeUI,
+                                               stat = myStatUI),
+                           extra_uiFuncArgs = list(misc = list(NS("boxControl"), dataBox),
+                                                   theme = list(NS("boxControl")),
+                                                   stat = list(2, 5) ))
 
         boxUI
 
@@ -64,16 +77,40 @@ server = function(input, output, session) {
     output$drawControls <- renderUI({
         req(box_main())
 
-        column(12,
-               box_main()$ui,
-               actionButton(NS("boxControl")("buttonDraw"), "Draw the plot")
+        column(
+            12,
+            bsCollapse(
+                id = NS("boxControl")("boxControlCollapse"), open = "mapping",
+                multiple = FALSE,
+                bsCollapsePanel(
+                    "mapping",
+                    column(
+                        12, offset = 0, style='padding:0px;',
+                        br(),
+                        box_main()[['ui']][['mapping_ui']][['x']],
+                        box_main()[['ui']][['mapping_ui']][['y']],
+                        box_main()[['ui']][['mapping_ui']][['color']]
+                    )
+                ),
+                bsCollapsePanel(
+                    "advanced settings",
+                    br(),
+                    h3("misc"),
+                    box_main()[['ui']][['plot_settings_ui']][['misc']],
+                    br(),
+                    h3("theme settings"),
+                    box_main()[['ui']][['plot_settings_ui']][['theme']]
+                )
+            ),
+            actionButton(NS("boxControl")("buttonDraw"), "Draw the plot"),
+            box_main()[['ui']][['geom_args_ui']][['stat']]
         )
     }) %>% bindEvent(input$drawBox)
 
     observe({
         req(dataContainer(), box_main())
 
-        str(box_main()$mapping)
+        str(box_main()[['param']][['mapping']])
         cat('\n')
     }) %>% bindEvent(input[[NS("boxControl")("buttonDraw")]])
 
