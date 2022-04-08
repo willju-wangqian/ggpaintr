@@ -12,8 +12,7 @@ library(formatR)
 library(shinyhelper)
 library(shinyBS)
 
-library(ggpaintr)
-
+# library(ggpaintr)
 
 sapply(list.files("R"), function(fileName) {
   source(paste0("R/", fileName))

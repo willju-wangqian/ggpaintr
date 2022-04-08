@@ -2,6 +2,7 @@
 
 export(barControlUI)
 export(barSettingUI)
+export(boxControlUI)
 export(geomBarGenerator)
 export(geomLineGenerator)
 export(geomLinerangeGenerator)

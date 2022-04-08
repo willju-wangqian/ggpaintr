@@ -10,8 +10,8 @@
 
 server = function(input, output, session) {
 
-
-    dataContainer <- reactive({
+    # reactive to fileData
+    dataInput <- reactive({
         req(input$fileData)
 
         path <- input$fileData$datapath
@@ -31,40 +31,81 @@ server = function(input, output, session) {
         inputData
     })
 
-    output$mytable <- DT::renderDT(
-        dataContainer(),
-        filter = "top",
-        options = list(
-            pageLength = 5
-        )
-    )
-
-    output$mytableFilter <- renderUI({
-        fluidRow(
-            column(4,
-                   pickerInput("mytableFilterInputSubject", "choose a subject for investigation:",
-                               choices = c(unique(data$subject), "no filter"),
-                               selected = "no filter",
-                               multiple = TRUE,
-                               options = pickerOptions(maxOptions = 1))
-            ),
-            column(4,
-                   pickerInput("mytableFilterInputCategory", "choose a category for investigation:",
-                               choices = c(unique(data$category), "no filter"),
-                               selected = "no filter",
-                               multiple = TRUE,
-                               options = pickerOptions(maxOptions = 1))
-            ),
-            column(4,
-                   pickerInput("mytableFilterInputGrade", "choose a grade for investigation:",
-                               choices = c(unique(as.character(data$school_year)), "no filter"),
-                               selected = "no filter",
-                               multiple = TRUE,
-                               options = pickerOptions(maxOptions = 1))
-            )
-        )
-
+    # reactive to mytable_rows_all:
+    #   apply the filters
+    dataContainer <- reactive({
+        req(input$mytable_rows_all)
+        dataInput()[input$mytable_rows_all, ]
     })
+
+    # render the table
+    output$mytable = DT::renderDataTable({
+        req(dataInput())
+        datatable(dataInput(), filter = 'top',
+                  options = list(
+                      pageLength = 10,
+                      scrollX = TRUE,
+                      stateSave = TRUE
+                  ))
+    })
+
+    #############################################################
+    # server part for the bar chart
+    box_main <- reactive({
+        req(dataContainer())
+
+        dataBox <- dataContainer()
+        boxUI <- boxControlUI("boxControl", dataBox)
+
+        boxUI
+
+    }) %>% bindEvent(input$drawBox)
+
+    output$drawControls <- renderUI({
+        req(box_main())
+
+        column(12,
+               box_main()$ui,
+               actionButton(NS("boxControl")("buttonDraw"), "Draw the plot")
+        )
+    }) %>% bindEvent(input$drawBox)
+
+    observe({
+        req(dataContainer(), box_main())
+
+        str(box_main()$mapping)
+        cat('\n')
+    }) %>% bindEvent(input[[NS("boxControl")("buttonDraw")]])
+
+    # observeEvent(input[[NS("boxControl")("buttonDraw")]], {
+    #     dataBox <- dataContainer() #dataContainer$data
+    #
+    #     cat(box_UI()$mapping)
+    #     # barComponent <- geomBarGenerator("barControl", dataBar)
+    #     #
+    #     # geomComponents <-
+    #     #     ggplot(data = dataBar) +
+    #     #     barComponent()
+    #     # if(!is.null(input$`barControl-addTextButton`)) {
+    #     #     if(input$`barControl-addTextButton`) {
+    #     #         textComponent <- geomTextGenerator("barControl", dataBar)
+    #     #         geomComponents <- geomComponents + textComponent()
+    #     #     }
+    #     # }
+    #     #
+    #     # reactiveList <- reactiveValues(
+    #     #     pp = reactive(geomComponents)
+    #     # )
+    #     #
+    #     # # add all plot settings
+    #     # reactiveList <- plotSettingServer("barControl", reactiveList)
+    #     #
+    #     # pp <- plotGenerator(reactiveList)
+    #     #
+    #     # output$mainPlot <- renderPlot({
+    #     #     pp
+    #     # })
+    # })
 
     #############################################################
     # server part for the bar chart

@@ -4,7 +4,7 @@
 \alias{mappingShapeUI}
 \title{Title}
 \usage{
-mappingShapeUI(ns, data)
+mappingShapeUI(ns, data, id = "mapShape")
 }
 \arguments{
 \item{data}{}

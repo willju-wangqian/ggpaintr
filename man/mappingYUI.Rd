@@ -4,7 +4,7 @@
 \alias{mappingYUI}
 \title{Title}
 \usage{
-mappingYUI(ns, data)
+mappingYUI(ns, data, id = "mapY")
 }
 \arguments{
 \item{data}{}

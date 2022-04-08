@@ -52,6 +52,15 @@ body <- dashboardBody(
                 )
             ),
 
+            fluidRow(
+                box(column(3,
+                           actionButton(
+                               "drawBox",
+                               "Box plot"
+                           ))
+                )
+            ),
+
             br(),
 
             fluidRow(
