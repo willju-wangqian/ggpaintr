@@ -55,20 +55,21 @@ server = function(input, output, session) {
         req(dataContainer())
 
         dataBox <- dataContainer()
-        boxUI <- controlUI("boxControl", dataBox,
-                           mapping = list( x = "mapX",
-                                           y = "mapY",
-                                           color = "mapColor"),
-                           plot_settings = list( misc = "otherMisc" ,
-                                                   theme = "otherTheme"),
-                           geom_args = list (stat = "argsStat",
-                                             position = "argsPosition"),
-                           extra_uiFunc = list(misc = miscUI,
-                                               theme = themeUI,
-                                               stat = myStatUI),
-                           extra_uiFuncArgs = list(misc = list(NS("boxControl"), dataBox),
-                                                   theme = list(NS("boxControl")),
-                                                   stat = list(2, 5) ))
+        boxUI <-
+            controlUI("boxControl", dataBox,
+                      mapping = list( x = "mapX",
+                                      y = "mapY",
+                                      color = "mapColor"),
+                      plot_settings = list( misc = "otherMisc" ,
+                                            theme = "otherTheme"),
+                      geom_args = list(stat = "argsStat",
+                                       position = "argsPosition"),
+                      extra_uiFunc = list(misc = miscUI,
+                                          theme = themeUI,
+                                          stat = myStatUI),
+                      extra_uiFuncArgs = list(misc = list(NS("boxControl"), dataBox),
+                                              theme = list(NS("boxControl")),
+                                              stat = list(2, 5) ))
 
         boxUI
 

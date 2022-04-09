@@ -316,20 +316,20 @@ controlUI <- function(id, data, mapping, geom_args = NULL, plot_settings = NULL,
                        SIMPLIFY = FALSE)
 
   geom_args_ui <- mapply(callFuncUI, names(geom_args), geom_args,
-                     MoreArgs = list(
-                       defaultArgs = list(ns, data),
-                       extraFunc = extra_uiFunc,
-                       extraFuncArgs = extra_uiFuncArgs
-                     ),
-                     SIMPLIFY = FALSE)
-
-  plot_settings_ui <- mapply(callFuncUI, names(plot_settings), plot_settings,
                          MoreArgs = list(
                            defaultArgs = list(ns, data),
                            extraFunc = extra_uiFunc,
                            extraFuncArgs = extra_uiFuncArgs
                          ),
                          SIMPLIFY = FALSE)
+
+  plot_settings_ui <- mapply(callFuncUI, names(plot_settings), plot_settings,
+                             MoreArgs = list(
+                               defaultArgs = list(ns, data),
+                               extraFunc = extra_uiFunc,
+                               extraFuncArgs = extra_uiFuncArgs
+                             ),
+                             SIMPLIFY = FALSE)
 
   if (is.null(unlist(mapping_ui))) {
     mapping_ui <- NULL
