@@ -17,18 +17,27 @@ sidebar <- dashboardSidebar(width=300,
         "<a href='https://github.com/willju-wangqian/ggpaintr' target='_blank'><img style = 'display: block; margin-left: auto; margin-right: auto;' src='ggpaintr.png' width = '186'></a>",
         "<br>"
       )),
-        menuItem("Design", tabName = "menuDesign"),
-        menuItem("Draw", tabName = "menuDraw")
+        menuItem("Home", tabName = "home", icon = icon("home")),
+        menuItem("Design", tabName = "menuDesign",icon = icon("table")),
+        menuItem("Draw", tabName = "menuDraw",icon = icon("stats", lib = "glyphicon")),
+        menuItem("Code", tabName = "code", icon = icon("code"))
     )
 )
 
 
 
 body <- dashboardBody(
-  tags$head(
-    tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap.min.css")),
+  # tags$head(
+  #   tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap.min.css")),
 
     tabItems(
+
+
+        tabItem(
+              tabName = "home",
+              includeMarkdown("www/home.md")
+        ),
+
         tabItem(
             tabName = "menuDesign",
             fileInput(inputId = "fileData",
