@@ -7,14 +7,27 @@
 #    http://shiny.rstudio.com/
 #
 
-sidebar <- dashboardSidebar(
+
+
+sidebar <- dashboardSidebar(width=300,
+
     sidebarMenu(
+      HTML(paste0(
+        "<br>",
+        "<a href='https://github.com/willju-wangqian/ggpaintr' target='_blank'><img style = 'display: block; margin-left: auto; margin-right: auto;' src='ggpaintr.png' width = '186'></a>",
+        "<br>"
+      )),
         menuItem("Design", tabName = "menuDesign"),
         menuItem("Draw", tabName = "menuDraw")
     )
 )
 
+
+
 body <- dashboardBody(
+  tags$head(
+    tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap.min.css")),
+
     tabItems(
         tabItem(
             tabName = "menuDesign",
@@ -69,8 +82,11 @@ body <- dashboardBody(
 )
 
 # Put them together into a dashboardPage
+
+
 dashboardPage(
-    dashboardHeader(title = "Simple tabs"),
+    skin="purple",
+    dashboardHeader(title = "Welcome to ggpaintr!"),
     sidebar,
     body
 )
