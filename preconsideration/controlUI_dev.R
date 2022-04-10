@@ -12,6 +12,15 @@ library(formatR)
 library(shinyhelper)
 library(shinyBS)
 
+sapply(list.files("R"), function(fileName) {
+  source(paste0("R/", fileName))
+})
+
+dataBox <- readRDS("inst/extdata/kindergartners_data_firsttofifth.rds")
+
+dataBox %>% ggplot() +
+  geom_boxplot(aes(x=school_year, y=score_mean, color=subject, fill = subject, group = subject))
+
 mapping_part <- list(x="mapX", y="mapY", color="mapColor")
 
 mapping_part %>% pmap(~{
@@ -173,22 +182,20 @@ data <- mtcars
 
 tt_ui <- controlUI(
   id = "boxPlot",
-  data = mtcars,
-  mapping = list(x = "mapX",
-                 y = "mapY",
-                 color = "mapColor"),
-  other_arguments = list(legend = "themeLegend",
-                         stat = "statTest",
-                         position = "positionTest"),
+  data = data,
+  mapping = c('x', 'y', 'color'),
+  plot_settings = c('misc', 'theme'),
   extra_uiFunc = list(
-    # stat = test_statUI,
-    x = myMappingXUI,
-    position = test_positionUI),
+    misc = miscUI,
+    theme = themeUI),
   extra_uiFuncArgs = list(
-    x = list(NS("boxplot"), 1,2),
-    position = list(4,5,6)
+    misc = list(NS("boxplot"), data),
+    theme = list(NS("boxplot"))
   )
 )
+
+mapping_ui <- c(mapping_ui, shape= list(NULL))
+
 
 tt_ui$param
 tt_ui$ui$mapping_ui
@@ -209,6 +216,8 @@ myMappingXUI <- function(ns, x, y) {
   h3(paste(ns(x + y)))
 }
 
+ggplot(mtcars) +
+  geom_point(mapping = aes_string("x" = "mpg", 'y' = 'cyl'))
 
 
 

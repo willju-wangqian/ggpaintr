@@ -1,21 +1,98 @@
 #' Title
 #'
 #' @param ns
+#' @param data
 #'
 #' @return
 #' @export
 #'
 #' @examples
-themeUI <- function(ns) {
-  column(12, offset = 0, style='padding:0px;',
-         br(),
-         pickerInput(ns("themeLegendPosition"), "Legend Position:",
-                     choices = c("top", "bottom", "left", "right"),
-                     selected = "",
-                     multiple = TRUE,
-                     options = pickerOptions(maxOptions = 1)),
-         # textInput(ns("themeLegendTitle"), "Legend Title")
+mappingXUI <- function(ns, data, id = "mapX") {
+  ui <- pickerInput(ns(id), "x:",
+                    choices = names(data),
+                    selected = "",
+                    multiple = TRUE,
+                    options = pickerOptions(maxOptions = 1))
+  return(list(ui=ui, id=id))
+}
+
+#' Title
+#'
+#' @param ns
+#' @param data
+#'
+#' @return
+#' @export
+#'
+#' @examples
+mappingYUI <- function(ns, data, id = "mapY") {
+  ui <- pickerInput(ns(id), "y:",
+                    choices = names(data),
+                    selected = "",
+                    multiple = TRUE,
+                    options = pickerOptions(maxOptions = 1))
+  return(list(ui=ui, id=id))
+}
+
+#' Title
+#'
+#' @param ns
+#' @param data
+#'
+#' @return
+#' @export
+#'
+#' @examples
+mappingColorUI <- function(ns, data, id = "mapColor") {
+  ui <- pickerInput(ns(id), "color:",
+                    choices = names(data),
+                    selected = "",
+                    multiple = TRUE,
+                    options = pickerOptions(maxOptions = 1))
+  return(list(ui=ui, id=id))
+}
+
+#' Title
+#'
+#' @param ns
+#' @param data
+#'
+#' @return
+#' @export
+#'
+#' @examples
+mappingShapeUI <- function(ns, data, id="mapShape") {
+  ui <- pickerInput(ns(id), "shape:",
+                    choices = names(data),
+                    selected = "",
+                    multiple = TRUE,
+                    options = pickerOptions(maxOptions = 1))
+  return(list(ui=ui, id=id))
+}
+
+
+
+#' Title
+#'
+#' @param ns
+#' @param data
+#'
+#' @return
+#' @export
+#'
+#' @examples
+themeUI <- function(ns, data) {
+  ui <- column(12, offset = 0, style='padding:0px;',
+               br(),
+               pickerInput(ns("themeLegendPosition"), "Legend Position:",
+                           choices = c("top", "bottom", "left", "right"),
+                           selected = "",
+                           multiple = TRUE,
+                           options = pickerOptions(maxOptions = 1)),
+               textInput(ns("themeLegendTitle"), "Legend Title")
   )
+
+  return(list(ui=ui, id=c('themeLegendPosition', 'themeLegendTitle')))
 }
 
 #' Title
@@ -28,15 +105,17 @@ themeUI <- function(ns) {
 #'
 #' @examples
 miscUI <- function(ns, data) {
-  column(12, offset = 0, style='padding:0px;',
-         br(),
-         pickerInput(ns("miscFacet"), "choose variables for facet (max 2):",
-                     choices = names(data),
-                     selected = "",
-                     multiple = TRUE,
-                     options = pickerOptions(maxOptions = 2)),
-         checkboxInput(ns("miscFlip"), "Flip the coordinate", value = FALSE, width = NULL)
+  ui <- column(12, offset = 0, style='padding:0px;',
+               br(),
+               pickerInput(ns("miscFacet"), "choose variables for facet (max 2):",
+                           choices = names(data),
+                           selected = "",
+                           multiple = TRUE,
+                           options = pickerOptions(maxOptions = 2)),
+               checkboxInput(ns("miscFlip"), "Flip the coordinate", value = FALSE, width = NULL)
   )
+
+  return(list(ui=ui, id = c('miscFacet', 'miscFlip')))
 }
 
 #' Title
@@ -132,73 +211,7 @@ mappingUI <- function(ns, data) {
   )
 }
 
-#' Title
-#'
-#' @param ns
-#' @param data
-#'
-#' @return
-#' @export
-#'
-#' @examples
-mappingXUI <- function(ns, data, id = "mapX") {
-  pickerInput(ns(id), "x:",
-              choices = names(data),
-              selected = "",
-              multiple = TRUE,
-              options = pickerOptions(maxOptions = 1))
-}
 
-#' Title
-#'
-#' @param ns
-#' @param data
-#'
-#' @return
-#' @export
-#'
-#' @examples
-mappingYUI <- function(ns, data, id = "mapY") {
-  pickerInput(ns(id), "y:",
-              choices = names(data),
-              selected = "",
-              multiple = TRUE,
-              options = pickerOptions(maxOptions = 1))
-}
-
-#' Title
-#'
-#' @param ns
-#' @param data
-#'
-#' @return
-#' @export
-#'
-#' @examples
-mappingColorUI <- function(ns, data, id = "mapColor") {
-  pickerInput(ns(id), "color:",
-              choices = names(data),
-              selected = "",
-              multiple = TRUE,
-              options = pickerOptions(maxOptions = 1))
-}
-
-#' Title
-#'
-#' @param ns
-#' @param data
-#'
-#' @return
-#' @export
-#'
-#' @examples
-mappingShapeUI <- function(ns, data, id="mapShape") {
-  pickerInput(ns(id), "shape:",
-              choices = names(data),
-              selected = "",
-              multiple = TRUE,
-              options = pickerOptions(maxOptions = 1))
-}
 
 
 #' Title

@@ -7,6 +7,49 @@
 #' @export
 #'
 #' @examples
+geomBoxGenerator <- function(id, data, id_list) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+
+      # generate the basic plot
+      ggPlotObject <- reactive({
+
+        boxArgList <- list()
+
+        aesList <- connect_param_id(input,
+                                    id_list[['mapping']],
+                                    params = c('x', 'y', 'color'),
+                                    color_fill = TRUE)
+
+        boxArgList <- connect_param_id(input,
+                                       id_list[['geom_args']],
+                                       params = NULL)
+
+        boxArgList[['mapping']] <- do.call(aes_string, aesList)
+
+        boxArgList <- check_remove_null(boxArgList)
+
+        do.call(geom_boxplot, boxArgList)
+
+      })
+
+      ggPlotObject
+
+    }
+  )
+}
+
+
+#' Title
+#'
+#' @param id
+#' @param data
+#'
+#' @return
+#' @export
+#'
+#' @examples
 geomBarGenerator <- function(id, data) {
   moduleServer(
     id,

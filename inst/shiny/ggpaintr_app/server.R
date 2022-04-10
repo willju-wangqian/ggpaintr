@@ -57,19 +57,16 @@ server = function(input, output, session) {
         dataBox <- dataContainer()
         boxUI <-
             controlUI("boxControl", dataBox,
-                      mapping = list( x = "mapX",
-                                      y = "mapY",
-                                      color = "mapColor"),
-                      plot_settings = list( misc = "otherMisc" ,
-                                            theme = "otherTheme"),
-                      geom_args = list(stat = "argsStat",
-                                       position = "argsPosition"),
-                      extra_uiFunc = list(misc = miscUI,
-                                          theme = themeUI,
-                                          stat = myStatUI),
-                      extra_uiFuncArgs = list(misc = list(NS("boxControl"), dataBox),
-                                              theme = list(NS("boxControl")),
-                                              stat = list(2, 5) ))
+                      mapping = c('x', 'y', 'color'),
+                      plot_settings = c( 'misc', 'theme'),
+                      geom_args = NULL
+                      # extra_uiFunc = list(misc = miscUI,
+                      #                     theme = themeUI,
+                      #                     stat = myStatUI),
+                      # extra_uiFuncArgs = list(misc = list(NS("boxControl"), dataBox),
+                      #                         theme = list(NS("boxControl")),
+                      #                         stat = list(2, 5) )
+                      )
 
         boxUI
 
@@ -111,38 +108,58 @@ server = function(input, output, session) {
     observe({
         req(dataContainer(), box_main())
 
-        str(box_main()[['param']][['mapping']])
-        cat('\n')
+        dataBox <- dataContainer()
+
+        boxComponent <- geomBoxGenerator('boxControl',
+                                         data = dataBox,
+                                         id_list = box_main()[['ids']]
+                                         )
+        geomComponents <- ggplot(data = dataBox) +
+            boxComponent()
+
+        reactiveList <- reactiveValues(
+            pp = reactive(geomComponents)
+        )
+
+        # add all plot settings
+        reactiveList <- plotSettingServer("boxControl", reactiveList)
+
+        pp <- plotGenerator(reactiveList)
+
+        output$mainPlot <- renderPlot({
+            pp
+        })
+
     }) %>% bindEvent(input[[NS("boxControl")("buttonDraw")]])
 
     # observeEvent(input[[NS("boxControl")("buttonDraw")]], {
     #     dataBox <- dataContainer() #dataContainer$data
     #
     #     cat(box_UI()$mapping)
-    #     # barComponent <- geomBarGenerator("barControl", dataBar)
-    #     #
-    #     # geomComponents <-
-    #     #     ggplot(data = dataBar) +
-    #     #     barComponent()
-    #     # if(!is.null(input$`barControl-addTextButton`)) {
-    #     #     if(input$`barControl-addTextButton`) {
-    #     #         textComponent <- geomTextGenerator("barControl", dataBar)
-    #     #         geomComponents <- geomComponents + textComponent()
-    #     #     }
-    #     # }
-    #     #
-    #     # reactiveList <- reactiveValues(
-    #     #     pp = reactive(geomComponents)
-    #     # )
-    #     #
-    #     # # add all plot settings
-    #     # reactiveList <- plotSettingServer("barControl", reactiveList)
-    #     #
-    #     # pp <- plotGenerator(reactiveList)
-    #     #
-    #     # output$mainPlot <- renderPlot({
-    #     #     pp
-    #     # })
+    #     barComponent <- geomBarGenerator("barControl", dataBar)
+    #
+    #     geomComponents <-
+    #         ggplot(data = dataBar) +
+    #         barComponent()
+    #     if(!is.null(input$`barControl-addTextButton`)) {
+    #         if(input$`barControl-addTextButton`) {
+    #             textComponent <- geomTextGenerator("barControl", dataBar)
+    #             geomComponents <- geomComponents + textComponent()
+    #         }
+    #     }
+    #
+    #     reactiveList <- reactiveValues(
+    #         pp = reactive(geomComponents)
+    #     )
+    #
+    #     # add all plot settings
+    #     reactiveList <- plotSettingServer("barControl", reactiveList)
+    #
+    #     pp <- plotGenerator(reactiveList)
+    #
+    #     output$mainPlot <- renderPlot({
+    #         pp
+    #     })
     # })
 
     #############################################################
@@ -177,6 +194,7 @@ server = function(input, output, session) {
         }
 
         reactiveList <- reactiveValues(
+            # pp = (geomComponents)
             pp = reactive(geomComponents)
         )
 

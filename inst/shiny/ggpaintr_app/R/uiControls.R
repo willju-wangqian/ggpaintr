@@ -217,7 +217,8 @@ getUIControlList <- function(user_defined) {
     y = "mappingYUI",
     color = "mappingColorUI",
     shape = "mappingShapeUI",
-    stat = "ourSTATUI"
+    theme = "themeUI",
+    misc = "miscUI"
   )
   uiControlList
 }
@@ -238,7 +239,8 @@ matchUIControls <- function(ui_part) {
     warning( paste("The ui part for", ui_part, "has not been implemented yet.")  )
     return(NULL)
   } else {
-    return( getFromNamespace(uiControlList[[ui_part]], asNamespace("ggpaintr")) )
+    # return( getFromNamespace(uiControlList[[ui_part]], asNamespace("ggpaintr")) )
+    return( match.fun(uiControlList[[ui_part]]) )
   }
 
 }
@@ -269,10 +271,12 @@ callFuncUI <- function(name, mp, defaultArgs, extraFunc, extraFuncArgs) {
 
   if( !is.null(UI_FUN) ) {
 
+    UI_FUN_args_names <- names(formals(UI_FUN))[sapply(formals(UI_FUN), is.symbol)]
+
     UI_FUN_args <- if( !is.null(extraFuncArgs[[name]]) ) {
       extraFuncArgs[[name]]
     } else {
-      c(defaultArgs, list(mp))
+      defaultArgs[UI_FUN_args_names]
     }
 
     return( do.call(UI_FUN, UI_FUN_args) )
@@ -299,17 +303,13 @@ controlUI <- function(id, data, mapping, geom_args = NULL, plot_settings = NULL,
                       extra_uiFunc = NULL, extra_uiFuncArgs = NULL) {
   ns <- NS(id)
 
-  assert_that(
-    !is.null(names(mapping))
-  )
-
-  if(!is.null(geom_args)) {
-    assert_that( !is.null(names(geom_args))  )
-  }
+  mapping <- check_char_set_names(mapping)
+  geom_args <- check_char_set_names(geom_args)
+  plot_settings <- check_char_set_names(plot_settings)
 
   mapping_ui <- mapply(callFuncUI, names(mapping), mapping,
                        MoreArgs = list(
-                         defaultArgs = list(ns, data),
+                         defaultArgs = list(ns = ns, data = data),
                          extraFunc = extra_uiFunc,
                          extraFuncArgs = extra_uiFuncArgs
                        ),
@@ -317,7 +317,7 @@ controlUI <- function(id, data, mapping, geom_args = NULL, plot_settings = NULL,
 
   geom_args_ui <- mapply(callFuncUI, names(geom_args), geom_args,
                          MoreArgs = list(
-                           defaultArgs = list(ns, data),
+                           defaultArgs = list(ns = ns, data = data),
                            extraFunc = extra_uiFunc,
                            extraFuncArgs = extra_uiFuncArgs
                          ),
@@ -325,35 +325,26 @@ controlUI <- function(id, data, mapping, geom_args = NULL, plot_settings = NULL,
 
   plot_settings_ui <- mapply(callFuncUI, names(plot_settings), plot_settings,
                              MoreArgs = list(
-                               defaultArgs = list(ns, data),
+                               defaultArgs = list(ns = ns, data = data),
                                extraFunc = extra_uiFunc,
                                extraFuncArgs = extra_uiFuncArgs
                              ),
                              SIMPLIFY = FALSE)
 
-  if (is.null(unlist(mapping_ui))) {
-    mapping_ui <- NULL
-  }
 
-  if (is.null(unlist(geom_args_ui))) {
-    geom_args_ui <- NULL
-  }
+  mapping_ui <- check_remove_null(mapping_ui)
+  geom_args_ui <- check_remove_null(geom_args_ui)
+  plot_settings_ui <- check_remove_null(plot_settings_ui)
 
-  if (is.null(unlist(plot_settings_ui))) {
-    plot_settings_ui <- NULL
-  }
+  result <- list(
+    ui = list(mapping_ui = empty_list_null(purrr::map(mapping_ui, 1)),
+              geom_args_ui = empty_list_null(purrr::map(geom_args_ui, 1)),
+              plot_settings_ui = empty_list_null(purrr::map(plot_settings_ui, 1))),
+    ids = list(mapping = empty_list_null(purrr::map(mapping_ui, 2)),
+               geom_args = empty_list_null(purrr::map(geom_args_ui, 2)),
+               plot_settings = empty_list_null(purrr::map(plot_settings_ui, 2)))
+  )
 
-  valid_piece_mapping <- !sapply(mapping_ui, is.null)
-  valid_piece_geom_args <- !sapply(geom_args_ui, is.null)
-  valid_piece_plot_settings <- !sapply(plot_settings_ui, is.null)
-
-  return(list(
-    ui = list(mapping_ui = mapping_ui[valid_piece_mapping],
-              geom_args_ui = geom_args_ui[valid_piece_geom_args],
-              plot_settings_ui = plot_settings_ui[valid_piece_plot_settings]),
-    param = list(mapping = mapping[valid_piece_mapping],
-                 geom_args = geom_args[valid_piece_geom_args],
-                 plot_settings = plot_settings[valid_piece_plot_settings])
-  ))
+  return(result)
 
 }
