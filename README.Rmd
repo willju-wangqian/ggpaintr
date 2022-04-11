@@ -60,6 +60,7 @@ run_ggpaintr_app()
 
 +   updates:
     +   `*Handler`s are introduced for plot generation
+    +   added bar chart
 
 #### version number: 0.0.9.1
 

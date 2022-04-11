@@ -53,17 +53,30 @@ body <- dashboardBody(
                 tabPanel(
                     "Paint", icon =  icon("palette"),
                     fluidRow(
-                        box(column(
-                            3, actionBttn(
-                                "drawBox",
-                                label = "boxplot",
-                                icon = div(
-                                    img(src = "img_button/boxplot.png")
-                                    # p("box plot")
-                                ),
-                                # "style"="color: #fff; background-color: #337ab7; border-color: #2e6da4",
-                                style = "fill"
-                            ))
+                        box(
+                            column(
+                                3, actionBttn(
+                                    "drawBox",
+                                    label = "boxplot",
+                                    icon = div(
+                                        img(src = "img_button/boxplot.png")
+                                        # p("box plot")
+                                    ),
+                                    # "style"="color: #fff; background-color: #337ab7; border-color: #2e6da4",
+                                    style = "fill"
+                                )),
+                            column(
+                                3, actionBttn(
+                                    "drawBar",
+                                    label = "bar chart",
+                                    icon = div(
+                                        img(src = "img_button/boxplot.png")
+                                        # p("box plot")
+                                    ),
+                                    # "style"="color: #fff; background-color: #337ab7; border-color: #2e6da4",
+                                    style = "fill"
+                                ))
+
                         )
                         # box(column(3,
                         #            actionButton(

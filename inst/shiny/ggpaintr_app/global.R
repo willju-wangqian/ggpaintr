@@ -16,8 +16,8 @@ library(assertthat)
 
 # library(ggpaintr)
 
-sapply(list.files("R"), function(fileName) {
-  source(paste0("R/", fileName))
+sapply(list.files("R_funcs/"), function(fileName) {
+  source(paste0("R_funcs/", fileName))
 })
 # source("R/modules.R")
 # source("R/helper.R")
