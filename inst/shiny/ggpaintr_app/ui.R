@@ -19,7 +19,7 @@ sidebar <- dashboardSidebar(
       "<br>"
     )),
     menuItem("Home", tabName = "home", icon = icon("home")),
-    menuItem("Paintr", tabName = "menuPaint", icon = icon("stats", lib = "glyphicon"))
+    menuItem("Paintr", tabName = "menuPaint", icon = icon("image"))
     # menuItem("Design", tabName = "menuDesign",icon = icon("table")),
     # menuItem("Draw", tabName = "menuDraw",icon = icon("stats", lib = "glyphicon")),
     # menuItem("Code", tabName = "code", icon = icon("code"))
@@ -54,7 +54,7 @@ body <- dashboardBody(
         ),
 
         tabPanel(
-          "Paint", icon =  icon("code"),
+          "Paint", icon =  icon("palette"),
           fluidRow(
             box(column(
               3, actionBttn(
