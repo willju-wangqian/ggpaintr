@@ -12,6 +12,8 @@ library(formatR)
 library(shinyhelper)
 library(shinyBS)
 
+setwd("~/Research/ggpaintr/inst/shiny/ggpaintr_app")
+
 sapply(list.files("R"), function(fileName) {
   source(paste0("R/", fileName))
 })
@@ -180,18 +182,11 @@ id <- "boxPlot"
 data <- mtcars
 
 
-tt_ui <- controlUI(
+boxMain <- controlUI(
   id = "boxPlot",
   data = data,
   mapping = c('x', 'y', 'color'),
-  plot_settings = c('misc', 'theme'),
-  extra_uiFunc = list(
-    misc = miscUI,
-    theme = themeUI),
-  extra_uiFuncArgs = list(
-    misc = list(NS("boxplot"), data),
-    theme = list(NS("boxplot"))
-  )
+  plot_settings = c('misc', 'theme')
 )
 
 mapping_ui <- c(mapping_ui, shape= list(NULL))
