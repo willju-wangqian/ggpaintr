@@ -58,15 +58,12 @@ server = function(input, output, session) {
         boxUI <-
             controlUI("boxControl", dataBox,
                       mapping = c('x', 'y', 'fill'),
+                      # mapping = c('something'),
                       plot_settings = c( 'misc', 'theme'),
                       geom_args = NULL
-                      # extra_uiFunc = list(misc = miscUI,
-                      #                     theme = themeUI,
-                      #                     stat = myStatUI),
-                      # extra_uiFuncArgs = list(misc = list(NS("boxControl"), dataBox),
-                      #                         theme = list(NS("boxControl")),
-                      #                         stat = list(2, 5) )
-                      )
+                      # extra_uiFunc = list(something = mappingUI),
+                      # extra_uiFuncArgs = list(something = list(NS("boxControl"), dataBox))
+            )
 
         boxUI
 
@@ -88,6 +85,7 @@ server = function(input, output, session) {
                         box_main()[['ui']][['mapping_ui']][['x']],
                         box_main()[['ui']][['mapping_ui']][['y']],
                         box_main()[['ui']][['mapping_ui']][['fill']]
+                        # box_main()[['ui']][['mapping_ui']][['something']]
                     )
                 ),
                 bsCollapsePanel(
@@ -119,8 +117,10 @@ server = function(input, output, session) {
                                         data = dataBox,
                                         geom_FUN = geom_boxplot,
                                         id_list = box_main()[['ids']],
-                                        params_list = list(mapping = c('x', 'y', 'fill'))
+                                        params_list = list(
+                                            mapping = c('x', 'y', 'fill')
                                         )
+        )
 
         basic_plot <- ggplot(data = dataBox) +
             boxComponent()
@@ -180,8 +180,8 @@ server = function(input, output, session) {
         output$drawControls <- renderUI({
             # provide the complete UI of all components
             column(12,
-                barControlUI("barControl", dataBar),
-                actionButton(NS("barControl")("buttonDraw"), "Draw the plot")
+                   barControlUI("barControl", dataBar),
+                   actionButton(NS("barControl")("buttonDraw"), "Draw the plot")
             )
         })
     })

@@ -132,6 +132,7 @@ connect_param_id <- function(session_input, id_list, params,
   }
 
   id_list <- unlist(id_list)
+  params <- unlist(params)
 
   assert_that(
     length(id_list) == length(params)

@@ -229,7 +229,7 @@ textSettingUI <- function(ns) {
 #'
 #' @examples
 mappingUI <- function(ns, data) {
-  column(12, offset = 0, style='padding:0px;',
+  ui <- column(12, offset = 0, style='padding:0px;',
          br(),
          pickerInput(ns("mapX"), "x:",
                      choices = names(data),
@@ -247,6 +247,8 @@ mappingUI <- function(ns, data) {
                      multiple = TRUE,
                      options = pickerOptions(maxOptions = 1))
   )
+
+  return(list(ui = ui, id= c('mapX', 'mapY', 'mapColor') ))
 }
 
 
