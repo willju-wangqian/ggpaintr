@@ -30,12 +30,14 @@ body <- dashboardBody(
   # tags$head(
   #   tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap.min.css")),
 
+
     tabItems(
 
 
         tabItem(
               tabName = "home",
-              includeMarkdown("www/home.md")
+              includeMarkdown("www/home.md"),
+              img(src = "image.png", height = 500, width = 1000)
         ),
 
         tabItem(
@@ -47,8 +49,9 @@ body <- dashboardBody(
         ),
 
         tabItem(
+
             tabName = "menuDraw",
-            p("Plot type"),
+            strong("Plot type"),
             br(),
             fluidRow(
                 box(column(3,
@@ -75,6 +78,8 @@ body <- dashboardBody(
             ),
 
             br(),
+
+
 
             fluidRow(
                 column(
