@@ -62,10 +62,14 @@ run_ggpaintr_app()
     +   example for box plot finished
 +   TODO:
     +   update the geomGenerators
+        +   each line of Grammar of Graphics has its onw handler
+        +   a function that collects all handlers
+        +   find a way to connect handlers to its ui components
     +   allow color pickers to respond to the selected variable
     +   update ui
     +   implement other plot types
     +   display code
+    
 
 
 

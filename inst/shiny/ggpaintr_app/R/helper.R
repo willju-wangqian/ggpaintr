@@ -127,7 +127,7 @@ check_remove_null <- function(x) {
 #' @examples
 connect_param_id <- function(session_input, id_list, params,
                              color_fill = FALSE, color_group = FALSE) {
-  if(is.null(params)) {
+  if(is.null(params) || is.null(id_list)) {
     return(NULL)
   }
 
@@ -145,16 +145,30 @@ connect_param_id <- function(session_input, id_list, params,
 
   if(color_fill) {
     assert_that(
-      hasName(aes_list, "color")
+      hasName(aes_list, "color") || hasName(aes_list, "fill")
     )
-    aes_list[['fill']] <- aes_list[['color']]
+
+    if (is.null(aes_list[['fill']])) {
+      aes_list[['fill']] <- aes_list[['color']]
+    }
+
+    if(is.null(aes_list[['color']])) {
+      aes_list[['color']] <- aes_list[['fill']]
+    }
   }
 
   if(color_group) {
     assert_that(
-      hasName(aes_list, "color")
+      hasName(aes_list, "color") || hasName(aes_list, "group")
     )
-    aes_list[['group']] <- aes_list[['color']]
+
+    if (is.null(aes_list[['group']])) {
+      aes_list[['group']] <- aes_list[['color']]
+    }
+
+    if(is.null(aes_list[['color']])) {
+      aes_list[['color']] <- aes_list[['group']]
+    }
   }
 
   aes_list

@@ -56,6 +56,44 @@ mappingColorUI <- function(ns, data, id = "mapColor") {
 #'
 #' @param ns
 #' @param data
+#' @param id
+#'
+#' @return
+#' @export
+#'
+#' @examples
+mappingFillUI <- function(ns, data, id = "mapFill") {
+  ui <- pickerInput(ns(id), "fill:",
+                    choices = names(data),
+                    selected = "",
+                    multiple = TRUE,
+                    options = pickerOptions(maxOptions = 1))
+  return(list(ui=ui, id=id))
+}
+
+#' Title
+#'
+#' @param ns
+#' @param data
+#' @param id
+#'
+#' @return
+#' @export
+#'
+#' @examples
+mappingGroupUI <- function(ns, data, id = "mapGroup") {
+  ui <- pickerInput(ns(id), "group:",
+                    choices = names(data),
+                    selected = "",
+                    multiple = TRUE,
+                    options = pickerOptions(maxOptions = 1))
+  return(list(ui=ui, id=id))
+}
+
+#' Title
+#'
+#' @param ns
+#' @param data
 #'
 #' @return
 #' @export

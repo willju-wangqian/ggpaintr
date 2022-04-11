@@ -7,7 +7,8 @@
 #' @export
 #'
 #' @examples
-geomBoxGenerator <- function(id, data, id_list) {
+ggGeomGenerator <- function(id, data, geom_FUN, id_list, params_list,
+                            color_fill = FALSE, color_group = FALSE) {
   moduleServer(
     id,
     function(input, output, session) {
@@ -19,18 +20,23 @@ geomBoxGenerator <- function(id, data, id_list) {
 
         aesList <- connect_param_id(input,
                                     id_list[['mapping']],
-                                    params = c('x', 'y', 'color'),
-                                    color_fill = TRUE)
+                                    params = params_list[['mapping']],
+                                    color_fill = color_fill,
+                                    color_group = color_group)
 
         boxArgList <- connect_param_id(input,
                                        id_list[['geom_args']],
-                                       params = NULL)
+                                       params = params_list[['geom_args']])
 
         boxArgList[['mapping']] <- do.call(aes_string, aesList)
 
         boxArgList <- check_remove_null(boxArgList)
 
-        do.call(geom_boxplot, boxArgList)
+        if(is.null(boxArgList)) {
+          warning(paste("no argument is passed into", as.character(quote(geom_FUN)) ))
+        }
+
+        do.call(geom_FUN, boxArgList)
 
       })
 

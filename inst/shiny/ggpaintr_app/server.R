@@ -57,7 +57,7 @@ server = function(input, output, session) {
         dataBox <- dataContainer()
         boxUI <-
             controlUI("boxControl", dataBox,
-                      mapping = c('x', 'y', 'color'),
+                      mapping = c('x', 'y', 'fill'),
                       plot_settings = c( 'misc', 'theme'),
                       geom_args = NULL
                       # extra_uiFunc = list(misc = miscUI,
@@ -87,7 +87,7 @@ server = function(input, output, session) {
                         br(),
                         box_main()[['ui']][['mapping_ui']][['x']],
                         box_main()[['ui']][['mapping_ui']][['y']],
-                        box_main()[['ui']][['mapping_ui']][['color']]
+                        box_main()[['ui']][['mapping_ui']][['fill']]
                     )
                 ),
                 bsCollapsePanel(
@@ -110,15 +110,23 @@ server = function(input, output, session) {
 
         dataBox <- dataContainer()
 
-        boxComponent <- geomBoxGenerator('boxControl',
-                                         data = dataBox,
-                                         id_list = box_main()[['ids']]
-                                         )
-        geomComponents <- ggplot(data = dataBox) +
+        # boxComponent <- geomBoxGenerator('boxControl',
+        #                                  data = dataBox,
+        #                                  id_list = box_main()[['ids']]
+        #                                  )
+
+        boxComponent <- ggGeomGenerator(id = 'boxControl',
+                                        data = dataBox,
+                                        geom_FUN = geom_boxplot,
+                                        id_list = box_main()[['ids']],
+                                        params_list = list(mapping = c('x', 'y', 'fill'))
+                                        )
+
+        basic_plot <- ggplot(data = dataBox) +
             boxComponent()
 
         reactiveList <- reactiveValues(
-            pp = reactive(geomComponents)
+            pp = reactive(basic_plot)
         )
 
         # add all plot settings

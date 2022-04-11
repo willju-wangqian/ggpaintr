@@ -215,7 +215,7 @@ ggplot(mtcars) +
   geom_point(mapping = aes_string("x" = "mpg", 'y' = 'cyl'))
 
 
-
+params_list <- list(mapping = c('x', 'y', 'color'))
 
 
 
