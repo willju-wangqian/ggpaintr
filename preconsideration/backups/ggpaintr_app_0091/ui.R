@@ -20,6 +20,9 @@ sidebar <- dashboardSidebar(
         )),
         menuItem("Home", tabName = "home", icon = icon("home")),
         menuItem("Paintr", tabName = "menuPaint", icon = icon("image"))
+        # menuItem("Design", tabName = "menuDesign",icon = icon("table")),
+        # menuItem("Draw", tabName = "menuDraw",icon = icon("stats", lib = "glyphicon")),
+        # menuItem("Code", tabName = "code", icon = icon("code"))
     )
 )
 
@@ -94,6 +97,39 @@ body <- dashboardBody(
             )
         )
 
+        # tabItem(
+        #   tabName = "menuDesign",
+        # ),
+
+        # tabItem(
+        #
+        #   tabName = "menuDraw",
+        #   strong("Plot type"),
+        #   br(),
+        #   fluidRow(
+        #     box(column(3,
+        #                actionButton(
+        #                  "drawBar",
+        #                  "Bar plot"
+        #                )),
+        #         column(3,
+        #                actionButton(
+        #                  "drawLine",
+        #                  "Line plot"
+        #                )),
+        #         column(3,
+        #                actionButton(
+        #                  "drawScatter",
+        #                  "Scatter plot"
+        #                )),
+        #         column(3,
+        #                actionButton(
+        #                  "drawLolli",
+        #                  "Lollipop plot"
+        #                ))
+        #     )
+        #   ),
+        # )
     )
 )
 

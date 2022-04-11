@@ -2,23 +2,13 @@
 #'
 #' @param id
 #' @param data
-#' @param geom_FUN
-#' @param id_list
-#' @param params_list
-#' @param color_fill
-#' @param color_group
-#' @param userFun a function that returns a named list, where the names of
-#' this named list are parameters (except for `mapping`) of `geom_FUN`, and the elements
-#' of this list are arguments of the corresponding parameters
-#' @param ... arguments that go into `userFUN`
 #'
 #' @return
 #' @export
 #'
 #' @examples
 ggGeomGenerator <- function(id, data, geom_FUN, id_list, params_list,
-                            color_fill = FALSE, color_group = FALSE,
-                            userFUN = NULL, ...) {
+                            color_fill = FALSE, color_group = FALSE) {
   moduleServer(
     id,
     function(input, output, session) {
@@ -26,7 +16,7 @@ ggGeomGenerator <- function(id, data, geom_FUN, id_list, params_list,
       # generate the basic plot
       ggPlotObject <- reactive({
 
-        geomArgList <- list()
+        boxArgList <- list()
 
         aesList <- connect_param_id(input,
                                     id_list[['mapping']],
@@ -34,23 +24,19 @@ ggGeomGenerator <- function(id, data, geom_FUN, id_list, params_list,
                                     color_fill = color_fill,
                                     color_group = color_group)
 
-        geomArgList <- if (!is.null(userFUN)) {
-          userFUN(...)
-        } else {
-          connect_param_id(input,
-                           id_list[['geom_args']],
-                           params = params_list[['geom_args']])
-        }
+        boxArgList <- connect_param_id(input,
+                                       id_list[['geom_args']],
+                                       params = params_list[['geom_args']])
 
-        geomArgList[['mapping']] <- do.call(aes_string, aesList)
+        boxArgList[['mapping']] <- do.call(aes_string, aesList)
 
-        geomArgList <- check_remove_null(geomArgList)
+        boxArgList <- check_remove_null(boxArgList)
 
-        if(is.null(geomArgList)) {
+        if(is.null(boxArgList)) {
           warning(paste("no argument is passed into", as.character(quote(geom_FUN)) ))
         }
 
-        do.call(geom_FUN, geomArgList)
+        do.call(geom_FUN, boxArgList)
 
       })
 

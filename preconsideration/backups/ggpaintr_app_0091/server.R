@@ -108,6 +108,11 @@ server = function(input, output, session) {
 
         dataBox <- dataContainer()
 
+        # boxComponent <- geomBoxGenerator('boxControl',
+        #                                  data = dataBox,
+        #                                  id_list = box_main()[['ids']]
+        #                                  )
+
         boxComponent <- ggGeomGenerator(id = 'boxControl',
                                         data = dataBox,
                                         geom_FUN = geom_boxplot,
@@ -129,6 +134,16 @@ server = function(input, output, session) {
         pp <- pp + themeHandler("boxControl",
                                 box_main()[['ids']][['plot_settings']][['theme']],
                                 theme_param = c("legend.position", "legend.direction") )
+        # browser()
+
+        # reactiveList <- reactiveValues(
+        #     pp = reactive(basic_plot)
+        # )
+        #
+        # # add all plot settings
+        # reactiveList <- plotSettingServer("boxControl", reactiveList)
+        #
+        # pp <- plotGenerator(reactiveList)
 
         output$mainPlot <- renderPlot({
             pp
@@ -136,6 +151,35 @@ server = function(input, output, session) {
 
     }) %>% bindEvent(input[[NS("boxControl")("buttonDraw")]])
 
+    # observeEvent(input[[NS("boxControl")("buttonDraw")]], {
+    #     dataBox <- dataContainer() #dataContainer$data
+    #
+    #     cat(box_UI()$mapping)
+    #     barComponent <- geomBarGenerator("barControl", dataBar)
+    #
+    #     geomComponents <-
+    #         ggplot(data = dataBar) +
+    #         barComponent()
+    #     if(!is.null(input$`barControl-addTextButton`)) {
+    #         if(input$`barControl-addTextButton`) {
+    #             textComponent <- geomTextGenerator("barControl", dataBar)
+    #             geomComponents <- geomComponents + textComponent()
+    #         }
+    #     }
+    #
+    #     reactiveList <- reactiveValues(
+    #         pp = reactive(geomComponents)
+    #     )
+    #
+    #     # add all plot settings
+    #     reactiveList <- plotSettingServer("barControl", reactiveList)
+    #
+    #     pp <- plotGenerator(reactiveList)
+    #
+    #     output$mainPlot <- renderPlot({
+    #         pp
+    #     })
+    # })
 
     #############################################################
     # server part for the bar chart

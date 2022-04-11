@@ -11,6 +11,7 @@ library(shinyAce)
 library(formatR)
 library(shinyhelper)
 library(shinyBS)
+library(here)
 
 setwd("~/Research/ggpaintr/inst/shiny/ggpaintr_app")
 
@@ -18,11 +19,12 @@ sapply(list.files("R"), function(fileName) {
   source(paste0("R/", fileName))
 })
 
-dataBox <- readRDS("inst/extdata/kindergartners_data_firsttofifth.rds")
+dataBox <- readRDS(here("inst", "extdata", "kindergartners_data_firsttofifth.rds"))
 
-dataBox %>% ggplot() +
-  geom_boxplot(aes(x=school_year, y=score_mean, color=subject, fill = subject, group = subject))
-
+pp <- dataBox %>% ggplot() +
+  geom_boxplot(aes(x=school_year, y=score_mean, color=subject, fill = subject, group = subject)) +
+  theme(legend.direction = "horizontal")
+pp
 mapping_part <- list(x="mapX", y="mapY", color="mapColor")
 
 mapping_part %>% pmap(~{

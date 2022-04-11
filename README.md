@@ -42,12 +42,21 @@ run_ggpaintr_app()
 
 ## Current Version
 
--   version number: 0.0.9.1
+#### version number: 0.0.9.2
+
+-   updates:
+    -   `*Handler`s are introduced for plot generation
+
+#### version number: 0.0.9.1
+
 -   updates:
     -   new ui
     -   example for box plot finished
 -   TODO:
     -   update the geomGenerators
+        -   each line of Grammar of Graphics has its onw handler
+        -   a function that collects all handlers
+        -   find a way to connect handlers to its ui components
     -   allow color pickers to respond to the selected variable
     -   update ui
     -   implement other plot types
