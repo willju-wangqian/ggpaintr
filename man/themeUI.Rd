@@ -4,10 +4,10 @@
 \alias{themeUI}
 \title{Title}
 \usage{
-themeUI(ns)
+themeUI(ns, data)
 }
 \arguments{
-\item{ns}{}
+\item{data}{}
 }
 \value{
 
