@@ -7,15 +7,39 @@
 #    http://shiny.rstudio.com/
 #
 
-sidebar <- dashboardSidebar(
+
+
+sidebar <- dashboardSidebar(width=300,
+
     sidebarMenu(
-        menuItem("Design", tabName = "menuDesign"),
-        menuItem("Draw", tabName = "menuDraw")
+      HTML(paste0(
+        "<br>",
+        "<a href='https://github.com/willju-wangqian/ggpaintr' target='_blank'><img style = 'display: block; margin-left: auto; margin-right: auto;' src='ggpaintr.png' width = '186'></a>",
+        "<br>"
+      )),
+        menuItem("Home", tabName = "home", icon = icon("home")),
+        menuItem("Design", tabName = "menuDesign",icon = icon("table")),
+        menuItem("Draw", tabName = "menuDraw",icon = icon("stats", lib = "glyphicon")),
+        menuItem("Code", tabName = "code", icon = icon("code"))
     )
 )
 
+
+
 body <- dashboardBody(
+  # tags$head(
+  #   tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap.min.css")),
+
+
     tabItems(
+
+
+        tabItem(
+              tabName = "home",
+              includeMarkdown("www/home.md"),
+              img(src = "image.png", height = 500, width = 1000)
+        ),
+
         tabItem(
             tabName = "menuDesign",
             fileInput(inputId = "fileData",
@@ -25,8 +49,9 @@ body <- dashboardBody(
         ),
 
         tabItem(
+
             tabName = "menuDraw",
-            p("Plot type"),
+            strong("Plot type"),
             br(),
             fluidRow(
                 box(column(3,
@@ -63,6 +88,8 @@ body <- dashboardBody(
 
             br(),
 
+
+
             fluidRow(
                 column(
                     4,
@@ -78,8 +105,11 @@ body <- dashboardBody(
 )
 
 # Put them together into a dashboardPage
+
+
 dashboardPage(
-    dashboardHeader(title = "Simple tabs"),
+    skin="purple",
+    dashboardHeader(title = "Welcome to ggpaintr!"),
     sidebar,
     body
 )
