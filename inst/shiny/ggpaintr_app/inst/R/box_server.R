@@ -51,6 +51,7 @@ observe({
       box_main()[['ui']][['plot_settings_ui']][['scaleColor']],
       br(),
       actionButton(NS(box_control_id)("buttonDraw"), "Draw the plot"),
+      br(),
       box_main()[['ui']][['geom_args_ui']][['stat']]
     )
   })
@@ -84,18 +85,35 @@ observe({
                           box_main()[['ids']][['plot_settings']][['theme']],
                           theme_param = c("legend.position", "legend.direction") )
 
-  selected_colors <- tryCatch(
+  # selected_colors <- tryCatch(
+  #   {
+  #     if (!is.null(selectedColors())) selectedColors() else NULL
+  #   },
+  #   error = function(cond) {
+  #     return(NULL)
+  #   }
+  # )
+  #
+  # pp <- pp + scaleColorHandler(box_control_id,
+  #                              selected_colors,
+  #                              color_fill = 'fill')
+
+  scaleColors <- tryCatch(
     {
-      if (!is.null(selectedColors())) selectedColors() else NULL
+      if (!is.null(selectedColors())) {
+        scaleColorHandler(box_control_id,
+                          selectedColors(),
+                          color_fill = 'fill')
+      } else {
+        NULL
+      }
     },
     error = function(cond) {
       return(NULL)
     }
   )
 
-  pp <- pp + scaleColorHandler(box_control_id,
-                               selected_colors,
-                               color_fill = 'fill')
+  pp <- pp + scaleColors
 
   output$mainPlot <- renderPlot({
 
