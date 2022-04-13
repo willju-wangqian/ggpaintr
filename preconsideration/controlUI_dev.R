@@ -183,6 +183,18 @@ controlUI <- function(id, data, mapping, other_arguments = NULL,
 id <- "boxPlot"
 data <- mtcars
 
+labels <- unique(as.character(mtcars$cyl))
+init_colors <- RColorBrewer::brewer.pal(length(labels), "Set2")
+
+
+pickerUI_list <- mapply(function(color, label, i) {
+  colourpicker::colourInput(inputId = paste(id, i, sep="-"), # DO NOT change
+                            label = paste0("Colour for level ", label , ':'), # Text shown on template
+                            value = color)
+}, init_colors, labels, seq_along(init_colors), SIMPLIFY = FALSE)
+
+
+
 
 boxMain <- controlUI(
   id = "boxPlot",

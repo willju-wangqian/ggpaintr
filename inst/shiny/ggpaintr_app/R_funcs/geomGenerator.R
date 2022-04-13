@@ -60,6 +60,57 @@ ggGeomGenerator <- function(id, data, geom_FUN, id_list, params_list,
   )
 }
 
+colorGenerator <- function(id, dataColor, fillID, scaleColorID, colorPalette = "RdYlBu") {
+  moduleServer(
+    id,
+    function(input, output, session) {
+
+      req(input[[fillID]])
+
+      assert_that(
+        hasName(dataColor, input[[fillID]])
+      )
+
+      if(is.null(scaleColorID)) {
+        return(NULL)
+      }
+
+      color_var <- dataColor[[input[[fillID]]]]
+      ns <- NS(id)
+
+      if (is.character(color_var) || is.factor(color_var) ) {
+        num_color <- length(unique( color_var ))
+
+        TOO_MANY_LEVELS <- num_color > 11
+
+        if(TOO_MANY_LEVELS) {
+          return(list(type = "TOO_MANY_LEVELS"))
+        }
+
+        init_colors <- RColorBrewer::brewer.pal(num_color, "RdYlBu")
+        labels <- unique( color_var )
+
+        colorPickers <- multipleColorPickerUI(ns, init_colors, labels)
+
+        return(c(colorPickers, type = "categorical"))
+
+      } else if ( is.numeric(color_var) ) {
+
+        init_colors <- RColorBrewer::brewer.pal(11, "RdBu")[c(9,3)]
+        labels <- c('low', 'high')
+        colorPickers <- multipleColorPickerUI(ns, init_colors, labels)
+
+        return(c(colorPickers, type = "numerical"))
+      } else {
+        return(NULL)
+      }
+    }
+  )
+}
+
+
+
+
 
 #' Title
 #'

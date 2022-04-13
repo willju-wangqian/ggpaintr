@@ -27,9 +27,24 @@ png(here("preconsideration", "saved_plot_icon", "boxplot.png"),
 print(p_boxplot)
 dev.off()
 
+color1 <- brewer.pal(11, "RdBu")[9]
+color2 <- brewer.pal(11, "RdBu")[3]
 
+penguins %>% ggplot()  +
+  geom_point(aes(x=bill_length_mm, y=bill_depth_mm, color = (bill_length_mm))) +
+  # scale_color_gradient(low = color1, high = color2)
+  do.call(scale_color_gradient, list(low = color1, high=color2))
 
 RColorBrewer::display.brewer.all()
 RColorBrewer::display.brewer.pal(3, "Set2")
 
-brewer.pal(3, "Set2")
+brewer.pal(3, "RdYlBu")
+display.brewer.pal(9, "PuBu")
+brewer.pal(5, "RdYlBu")[1]
+
+
+
+
+
+
+

@@ -8,8 +8,7 @@ box_main <- reactive({
   boxUI <-
     controlUI(box_control_id, dataBox,
               mapping = c('x', 'y', 'fill'),
-              # mapping = c('something'),
-              plot_settings = c( 'misc', 'theme'),
+              plot_settings = c('scaleColor', 'misc', 'theme'),
               geom_args = NULL
               # extra_uiFunc = list(something = mappingUI),
               # extra_uiFuncArgs = list(something = list(NS("boxControl"), dataBox))
@@ -19,7 +18,7 @@ box_main <- reactive({
 
 }) %>% bindCache(input$drawBox) %>% bindEvent(input$drawBox)
 
-observeEvent(input$drawBox, {
+observe({
   output$drawControls <- renderUI({
     req(box_main())
 
@@ -41,7 +40,6 @@ observeEvent(input$drawBox, {
         ),
         bsCollapsePanel(
           "advanced settings",
-          br(),
           h3("misc"),
           box_main()[['ui']][['plot_settings_ui']][['misc']],
           br(),
@@ -49,11 +47,15 @@ observeEvent(input$drawBox, {
           box_main()[['ui']][['plot_settings_ui']][['theme']]
         )
       ),
+      h3("choose colors (if applicable)"),
+      box_main()[['ui']][['plot_settings_ui']][['scaleColor']],
+      br(),
       actionButton(NS(box_control_id)("buttonDraw"), "Draw the plot"),
       box_main()[['ui']][['geom_args_ui']][['stat']]
     )
   })
-})
+
+}) %>% bindEvent(input$drawBox)
 
 observe({
   req(dataContainer(), box_main())
@@ -82,8 +84,63 @@ observe({
                           box_main()[['ids']][['plot_settings']][['theme']],
                           theme_param = c("legend.position", "legend.direction") )
 
+  selected_colors <- tryCatch(
+    {
+      if (!is.null(selectedColors())) selectedColors() else NULL
+    },
+    error = function(cond) {
+      return(NULL)
+    }
+  )
+
+  pp <- pp + scaleColorHandler(box_control_id,
+                               selected_colors,
+                               color_fill = 'fill')
+
   output$mainPlot <- renderPlot({
+
+    validate(need(pp, "plot is not rendered"))
+
     pp
   })
 
 }) %>% bindEvent(input[[NS(box_control_id)("buttonDraw")]])
+
+selectedColors <- reactive({
+  req(box_main(), dataContainer())
+
+  colorGenerator(box_control_id,
+                 dataContainer(),
+                 box_main()[['ids']][['mapping']][['fill']],
+                 box_main()[['ids']][['plot_settings']][['scaleColor']])
+
+}) %>% bindCache(input[[NS(box_control_id)(box_main()[['ids']][['mapping']][['fill']])]]) %>%
+  bindEvent(input[[NS(box_control_id)(box_main()[['ids']][['mapping']][['fill']])]])
+
+observe({
+  req(selectedColors(), box_main())
+
+  ns <- NS(box_control_id)
+  scaleColorID <- box_main()[['ids']][['plot_settings']][['scaleColor']]
+  fillID <- box_main()[['ids']][['mapping']][['fill']]
+
+  if(selectedColors()[['type']] == "TOO_MANY_LEVELS") {
+    output[[ns(scaleColorID)]] <- renderUI({
+      validate(paste( paste0("There are more than 11 levels in ", input[[ns(fillID)]], "."),
+                      "Too many levels.", sep = "\n"))
+    })
+  } else {
+    output[[ns(scaleColorID)]] <- renderUI({
+      selectedColors()[['ui']]
+    })
+  }
+
+}) %>% bindEvent(input[[NS(box_control_id)(box_main()[['ids']][['mapping']][['fill']])]])
+
+
+
+
+
+
+
+

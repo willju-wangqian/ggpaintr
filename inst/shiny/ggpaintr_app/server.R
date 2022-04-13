@@ -34,7 +34,7 @@ server = function(input, output, session) {
     # reactive to mytable_rows_all:
     #   apply the filters
     dataContainer <- reactive({
-        req(input$mytable_rows_all)
+        req(input$mytable_rows_all, dataInput())
         dataInput()[input$mytable_rows_all, ]
     })
 

@@ -119,7 +119,7 @@ mappingShapeUI <- function(ns, data, id="mapShape") {
 #' @export
 #'
 #' @examples
-themeUI <- function(ns, data) {
+themeUI <- function(ns) {
   ui <- column(12, offset = 0, style='padding:0px;',
                br(),
                pickerInput(ns("themeLegendPosition"), "Legend Position:",
@@ -160,6 +160,36 @@ miscUI <- function(ns, data) {
 
   return(list(ui=ui, id = c('miscFacet', 'miscFlip')))
 }
+
+
+scaleColorUI <- function(ns, id="scaleColorUIOutput") {
+  ui <- uiOutput(ns(id))
+
+  return(list(ui=ui, id=id))
+}
+
+multipleColorPickerUI <- function(ns, init_colors, labels, id = "colorPicker") {
+  assert_that(
+    length(init_colors) == length(labels)
+  )
+
+  ids <- sapply(seq_along(init_colors), function(i) { paste(id, i, sep="-") })
+
+  pickerUI_list <- mapply(function(color, label, id) {
+    colourpicker::colourInput(inputId = ns(id), # DO NOT change
+                              label = paste0("Colour for ", label , ':'), # Text shown on template
+                              value = color)
+  }, init_colors, labels, ids, SIMPLIFY = FALSE)
+
+
+  ui <- do.call(tagList, pickerUI_list)
+
+  return(list(ui = ui, id = ids))
+}
+
+
+
+
 
 #' Title
 #'

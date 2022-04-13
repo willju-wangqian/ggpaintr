@@ -53,7 +53,7 @@ body <- dashboardBody(
                 tabPanel(
                     "Paint", icon =  icon("palette"),
                     fluidRow(
-                        box(
+                        box(width = 12,
                             column(
                                 3, actionBttn(
                                     "drawBox",

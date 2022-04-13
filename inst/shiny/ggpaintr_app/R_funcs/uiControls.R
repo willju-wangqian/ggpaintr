@@ -220,7 +220,8 @@ getUIControlList <- function(user_defined) {
     fill = "mappingFillUI",
     group = "mappingGroupUI",
     theme = "themeUI",
-    misc = "miscUI"
+    misc = "miscUI",
+    scaleColor = "scaleColorUI"
   )
   uiControlList
 }

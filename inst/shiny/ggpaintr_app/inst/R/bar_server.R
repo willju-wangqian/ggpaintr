@@ -18,7 +18,7 @@ bar_main <- reactive({
 
 }) %>% bindCache(input$drawBar) %>% bindEvent(input$drawBar)
 
-observeEvent(input$drawBar, {
+observe({
   output$drawControls <- renderUI({
     req(bar_main())
 
@@ -52,7 +52,7 @@ observeEvent(input$drawBar, {
       bar_main()[['ui']][['geom_args_ui']][['stat']]
     )
   })
-})
+}) %>% bindEvent(input$drawBar)
 
 
 observe({

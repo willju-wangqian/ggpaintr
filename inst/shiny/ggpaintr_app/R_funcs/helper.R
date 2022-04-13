@@ -93,6 +93,57 @@ themeHandler <- function(id, module_id, theme_param) {
   )
 }
 
+scaleColorHandler <- function(id, selected_colors, color_fill) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+
+      color_fill_options <- c("color", "fill")
+
+      if (is.null(selected_colors) || (!( color_fill %in% color_fill_options )) ) {
+        return(NULL)
+      }
+
+      if (selected_colors[['type']] == "numerical") {
+        assert_that(
+          length(selected_colors[['id']]) == 2
+        )
+
+        colors <- lapply(selected_colors[['id']], function(ii) {
+          input[[ii]]
+        })
+        names(colors) <- c("low", "high")
+
+        if (color_fill == "color") {
+          return(do.call(scale_color_gradient, colors))
+        } else {
+          return(do.call(scale_fill_gradient, colors))
+        }
+
+      } else if (selected_colors[['type']] == "categorical") {
+
+        colors <- sapply(selected_colors[['id']], function(ii) {
+          input[[ii]]
+        })
+
+        names(colors) <- NULL
+
+        if (color_fill == "color") {
+          return(scale_color_manual(values = colors))
+        } else {
+          return(scale_fill_manual(values = colors))
+        }
+
+      } else {
+        return(NULL)
+      }
+
+    }
+  )
+}
+
+
+
 
 #' Title
 #'

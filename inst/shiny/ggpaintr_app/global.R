@@ -12,6 +12,8 @@ library(formatR)
 library(shinyhelper)
 library(shinyBS)
 
+library(colourpicker)
+
 library(assertthat)
 
 # library(ggpaintr)
