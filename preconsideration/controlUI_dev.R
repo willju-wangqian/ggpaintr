@@ -195,7 +195,6 @@ pickerUI_list <- mapply(function(color, label, i) {
 
 
 
-
 boxMain <- controlUI(
   id = "boxPlot",
   data = data,
@@ -230,6 +229,19 @@ ggplot(mtcars) +
 
 
 params_list <- list(mapping = c('x', 'y', 'color'))
+
+ggplot(iris) +
+  geom_point(aes(x=Sepal.Length, y=Sepal.Width, color=Species)) +
+  scale_color_manual(values = c("red", "green", "blue"))
+
+p1 <- ggplot(iris) +
+  geom_boxplot(aes(x=Species, y=Sepal.Width, fill=Species))
+
+test_scale <- scale_fill_manual(values = c("red", "green", "blue"))
+p1 + test_scale
+
+
+
 
 
 
