@@ -103,6 +103,7 @@ body <- dashboardBody(
 
                 tabPanel(
                     "Code", icon =  icon("code"),
+                    box(width = 12, verbatimTextOutput('mycode'))
                 )
             )
         )
@@ -113,7 +114,7 @@ body <- dashboardBody(
 # Put them together into a dashboardPage
 
 
-dashboardPage(
+ui = dashboardPage(
     skin="purple",
     dashboardHeader(title = "Welcome to ggpaintr!"),
     sidebar,

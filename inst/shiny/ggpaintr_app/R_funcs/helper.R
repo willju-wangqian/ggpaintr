@@ -128,7 +128,7 @@ scaleColorHandler <- function(id, selected_colors, color_fill) {
 
         names(colors) <- NULL
 
-        if (color_fill == "color") {
+         if (color_fill == "color") {
           return(scale_color_manual(values = colors))
         } else {
           return(scale_fill_manual(values = colors))
