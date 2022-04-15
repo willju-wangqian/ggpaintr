@@ -42,10 +42,23 @@ run_ggpaintr_app()
 
 ## Current Version
 
+#### version number: 0.0.9.3
+
+-   updates:
+    -   the app is now able to show code that generates the plot
+    -   dynamic color picker
+-   TODO:
+    -   update ui
+    -   implement other plot types
+    -   extend the current functionality: added more handlers (for
+        example one for `labs()`)
+    -   documentations
+
 #### version number: 0.0.9.2
 
 -   updates:
     -   `*Handler`s are introduced for plot generation
+    -   added bar chart
 
 #### version number: 0.0.9.1
 
