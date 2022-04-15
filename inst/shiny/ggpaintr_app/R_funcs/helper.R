@@ -1,3 +1,70 @@
+#' collecting all arguments for theme()
+#'
+#' @param input
+#'
+#' @return
+#' @export
+#'
+#' @examples
+themeCollector <- function(input) {
+  themeSettings <- list()
+
+  if(!is.null(input$themeLegendPosition))
+    themeSettings$legend.position = input$themeLegendPosition
+
+  # if(input$themeLegendTitle != "")
+  #   themeSettings$legend.title = input$themeLegendTitle
+
+  themeSettings
+}
+
+#' Title
+#'
+#' @param id
+#' @param reactiveList
+#'
+#' @return
+#' @export
+#'
+#' @examples
+plotSettingServer <- function(id, reactiveList) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      reactiveList$flip = reactive(input$miscFlip)
+      reactiveList$facet = reactive(input$miscFacet)
+      reactiveList$themeSettings = reactive(themeCollector(input))
+
+      reactiveList
+      # relist <- reactiveValues(
+      #   pp = ggPlotObject,
+      #   flip = reactive(input$mapFlip),
+      #   facet = reactive(input$mapFacet),
+      #   themeSettings = reactive(themeCollector(input))
+      # )
+    }
+  )
+}
+
+#' Title
+#'
+#' @param reactiveList
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_plot <- function(data, gg_list) {
+
+  p <- ggplot(data = data)
+  for (i in seq_along(gg_list)) {
+    p <- p + gg_list[[i]]
+  }
+
+  return(p)
+
+}
+
 #' Title
 #'
 #' @param id
@@ -13,7 +80,8 @@ flipHandler <- function(id, module_id) {
     id,
     function(input, output, session) {
       if(input[[module_id]]) {
-        return(coord_flip())
+        return(list(plot = coord_flip(),
+                    code = "coord_flip()"))
       } else {
         return(NULL)
       }
@@ -41,12 +109,16 @@ facetHandler <- function(id, module_id) {
         selectedVars <- input[[module_id]]
 
         ff <- NULL
+        code <- NULL
         if(length(selectedVars) == 2) {
-          ff <- as.formula(paste(selectedVars[1], "~", selectedVars[2]))
+          code <- paste(selectedVars[1], "~", selectedVars[2])
+          ff <- as.formula(code)
         } else {
-          ff <- as.formula(paste(selectedVars[1], "~."))
+          code <- paste(selectedVars[1], "~ .")
+          ff <- as.formula(code)
         }
-        return(facet_grid(ff))
+        return(list(plot = facet_grid(ff),
+                    code = paste0("facet_grid(", code, ")")))
       } else {
         return(NULL)
       }
@@ -55,16 +127,6 @@ facetHandler <- function(id, module_id) {
   )
 }
 
-#' Title
-#'
-#' @param id
-#' @param module_id
-#' @param theme_param
-#'
-#' @return
-#' @export
-#'
-#' @examples
 themeHandler <- function(id, module_id, theme_param) {
   moduleServer(
     id,
@@ -82,61 +144,19 @@ themeHandler <- function(id, module_id, theme_param) {
 
       themeSettings <- check_remove_null(themeSettings)
 
+      # browser()
+
       if( is.null(themeSettings) ) {
         return(NULL)
       } else {
-        return(do.call(theme, themeSettings))
+
+        code <- paste_arg_param(themeSettings, add_quo = TRUE)
+        code <- paste0("theme(", code, ")")
+
+        return(list(plot = do.call(theme, themeSettings),
+                    code = code))
       }
 
-
-    }
-  )
-}
-
-scaleColorHandler <- function(id, selected_colors, color_fill) {
-  moduleServer(
-    id,
-    function(input, output, session) {
-
-      color_fill_options <- c("color", "fill")
-
-      if (is.null(selected_colors) || (!( color_fill %in% color_fill_options )) ) {
-        return(NULL)
-      }
-
-      if (selected_colors[['type']] == "numerical") {
-        assert_that(
-          length(selected_colors[['id']]) == 2
-        )
-
-        colors <- lapply(selected_colors[['id']], function(ii) {
-          input[[ii]]
-        })
-        names(colors) <- c("low", "high")
-
-        if (color_fill == "color") {
-          return(do.call(scale_color_gradient, colors))
-        } else {
-          return(do.call(scale_fill_gradient, colors))
-        }
-
-      } else if (selected_colors[['type']] == "categorical") {
-
-        colors <- sapply(selected_colors[['id']], function(ii) {
-          input[[ii]]
-        })
-
-        names(colors) <- NULL
-
-         if (color_fill == "color") {
-          return(scale_color_manual(values = colors))
-        } else {
-          return(scale_fill_manual(values = colors))
-        }
-
-      } else {
-        return(NULL)
-      }
 
     }
   )
@@ -197,7 +217,6 @@ connect_param_id <- function(session_input, id_list, params,
   }
 
   id_list <- unlist(id_list)
-  params <- unlist(params)
 
   assert_that(
     length(id_list) == length(params)
@@ -240,14 +259,10 @@ connect_param_id <- function(session_input, id_list, params,
   aes_list
 }
 
+remove_null_list <- function(x) {
+  x[!sapply(x, is.null)]
+}
 
-#' Title
-#'
-#' @param x
-#'
-#' @return
-#'
-#' @examples
 empty_list_null <- function(x) {
   if(length(x) == 0) {
     return(NULL)
@@ -256,5 +271,77 @@ empty_list_null <- function(x) {
   }
 }
 
+paste_arg_param <- function(x, add_quo = FALSE) {
+  if(is.null(x)) {
+    return("")
+  }
+
+  assert_that(
+    !is.null( names(x) )
+  )
+
+  code_args <- mapply(function(aa, var){
+    if(add_quo) {
+      paste0(aa, " = '", var, "'")
+    } else {
+      paste0(aa, " = ", var)
+    }
+  }, names(x), x, SIMPLIFY = FALSE )
+  code_args[['sep']] <- ', '
+  code <- do.call(paste, code_args)
+
+  return(code)
+}
+
+
+get_code <- function(code_list) {
+
+  assert_that(
+    has_name(code_list, "data"),
+    has_name(code_list, "geom")
+  )
+
+  basic_code <- paste0(
+    "data <- ", code_list[['data']], "\n\n",
+
+    "ggplot(data = data) + ", "\n",
+    "  ", code_list[['geom']]
+  )
+
+  code_list[['data']] <- NULL
+  code_list[['geom']] <- NULL
+  code_list <- check_remove_null(code_list)
+
+  if(is.null(code_list)) {
+    final_code <- basic_code
+  } else {
+    code_list[['sep']] <- " +\n  "
+    other_code <- do.call(paste, code_list)
+    final_code <- paste0(basic_code, " +\n  ", other_code)
+  }
+
+  return(final_code)
+}
+
+
+get_plot_code <- function(geom_component, ..., data, data_path) {
+
+  total_list <- c(
+    list(geom_component),
+    list(...)
+  )
+
+  plot_list <- map(total_list, 1)
+  code_list <- map(total_list, 2)
+
+  names(code_list)[1] <- "geom"
+  code_list[['data']] <- data_path
+
+  pp <- get_plot(data, plot_list)
+  final_code <- get_code(code_list)
+
+  return(list(plot = pp, code = final_code))
+
+}
 
 

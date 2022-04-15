@@ -61,7 +61,8 @@ flipHandler <- function(id, module_id) {
     id,
     function(input, output, session) {
       if(input[[module_id]]) {
-        return(coord_flip())
+        return(list(plot = coord_flip(),
+                    code = "coord_flip()"))
       } else {
         return(NULL)
       }
@@ -89,12 +90,16 @@ facetHandler <- function(id, module_id) {
         selectedVars <- input[[module_id]]
 
         ff <- NULL
+        code <- NULL
         if(length(selectedVars) == 2) {
-          ff <- as.formula(paste(selectedVars[1], "~", selectedVars[2]))
+          code <- paste(selectedVars[1], "~", selectedVars[2])
+          ff <- as.formula(code)
         } else {
-          ff <- as.formula(paste(selectedVars[1], "~."))
+          code <- paste(selectedVars[1], "~.")
+          ff <- as.formula(code)
         }
-        return(facet_grid(ff))
+        return(list(plot = facet_grid(ff),
+                    code = code))
       } else {
         return(NULL)
       }
@@ -125,7 +130,12 @@ themeHandler <- function(id, module_id, theme_param) {
       if( is.null(themeSettings) ) {
         return(NULL)
       } else {
-        return(do.call(theme, themeSettings))
+
+        code <- paste_arg_param(themeSettings)
+        code <- paste0("theme(", code, ")")
+
+        return(list(plot = do.call(theme, themeSettings),
+                    code = code))
       }
 
 

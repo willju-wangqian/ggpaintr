@@ -1,6 +1,8 @@
 # server part for the box chart
 box_control_id <- "boxControl"
 
+ns_box <- NS(box_control_id)
+
 box_main <- reactive({
   req(dataContainer())
 
@@ -51,8 +53,7 @@ observe({
       box_main()[['ui']][['plot_settings_ui']][['scaleColor']],
       br(),
       actionButton(NS(box_control_id)("buttonDraw"), "Draw the plot"),
-      br(),
-      box_main()[['ui']][['geom_args_ui']][['stat']]
+      br()
     )
   })
 
@@ -65,38 +66,22 @@ observe({
 
   boxComponent <- ggGeomGenerator(id = box_control_id,
                                   data = dataBox,
-                                  geom_FUN = geom_boxplot,
+                                  geom_FUN = "geom_boxplot",
                                   id_list = box_main()[['ids']],
                                   params_list = list(
                                     mapping = c('x', 'y', 'fill')
                                   )
   )
 
-  pp <- ggplot(data = dataBox) +
-    boxComponent()
+  flip_output <- flipHandler(box_control_id,
+                             box_main()[['ids']][['plot_settings']][['misc']][2])
 
-  pp <- pp + flipHandler(box_control_id,
-                         box_main()[['ids']][['plot_settings']][['misc']][2])
+  facet_output <- facetHandler(box_control_id,
+                               box_main()[['ids']][['plot_settings']][['misc']][1])
 
-  pp <- pp + facetHandler(box_control_id,
-                          box_main()[['ids']][['plot_settings']][['misc']][1])
-
-  pp <- pp + themeHandler(box_control_id,
-                          box_main()[['ids']][['plot_settings']][['theme']],
-                          theme_param = c("legend.position", "legend.direction") )
-
-  # selected_colors <- tryCatch(
-  #   {
-  #     if (!is.null(selectedColors())) selectedColors() else NULL
-  #   },
-  #   error = function(cond) {
-  #     return(NULL)
-  #   }
-  # )
-  #
-  # pp <- pp + scaleColorHandler(box_control_id,
-  #                              selected_colors,
-  #                              color_fill = 'fill')
+  theme_output <- themeHandler(box_control_id,
+                               box_main()[['ids']][['plot_settings']][['theme']],
+                               theme_param = c("legend.position", "legend.direction") )
 
   scaleColors <- tryCatch(
     {
@@ -113,141 +98,99 @@ observe({
     }
   )
 
-  pp <- pp + scaleColors
+
+  results <- get_plot_code(boxComponent,
+                           flip_output,
+                           facet_output,
+                           theme_output,
+                           scaleColors,
+                           data = dataBox,
+                           data_path = code_container[['data']])
+
 
   output$mainPlot <- renderPlot({
 
-    validate(need(pp, "plot is not rendered"))
+    validate(need(results[['plot']], "plot is not rendered"))
 
-    pp
+    results[['plot']]
+  })
+
+
+  output$mycode = renderText({
+
+    results[['code']]
+
   })
 
 }) %>% bindEvent(input[[NS(box_control_id)("buttonDraw")]])
 
+
+
+# selectedColors <- reactive({
+#   req(box_main(), dataContainer())
+#
+#   colorGenerator(box_control_id,
+#                  dataContainer(),
+#                  box_main()[['ids']][['mapping']][['fill']],
+#                  box_main()[['ids']][['plot_settings']][['scaleColor']])
+#
+# }) %>%
+#   bindCache(input[[NS(box_control_id)(box_main()[['ids']][['mapping']][['fill']])]]) %>%
+#   bindEvent(input[[NS(box_control_id)(box_main()[['ids']][['mapping']][['fill']])]])
+#
+# #
+# # selectedColors <- scaleColorServer(box_control_id,
+# #                                    box_main()[['ids']][['mapping']][['fill']],
+# #                                    box_main()[['ids']][['plot_settings']][['scaleColor']],
+# #                                    box_main,
+# #                                    dataContainer)
+#
+
+
+
+scaleColorIDs <- reactive({
+  req(box_main())
+
+  fill <-  box_main()[['ids']][['mapping']][['fill']]
+  scaleColor <- box_main()[['ids']][['plot_settings']][['scaleColor']]
+
+  list(fill = fill, scaleColor = scaleColor)
+
+})
+
 selectedColors <- reactive({
-  req(box_main(), dataContainer())
+  req(scaleColorIDs(), dataContainer())
 
   colorGenerator(box_control_id,
                  dataContainer(),
-                 box_main()[['ids']][['mapping']][['fill']],
-                 box_main()[['ids']][['plot_settings']][['scaleColor']])
+                 scaleColorIDs()[[1]],
+                 scaleColorIDs()[[2]])
 
-}) %>% bindCache(input[[NS(box_control_id)(box_main()[['ids']][['mapping']][['fill']])]]) %>%
-  bindEvent(input[[NS(box_control_id)(box_main()[['ids']][['mapping']][['fill']])]])
+}) %>% bindCache(input[[ns_box(scaleColorIDs()[[1]])]]) %>%
+  bindEvent(input[[ns_box(scaleColorIDs()[[1]])]])
 
 observe({
-  req(selectedColors(), box_main())
-
-  ns <- NS(box_control_id)
-  scaleColorID <- box_main()[['ids']][['plot_settings']][['scaleColor']]
-  fillID <- box_main()[['ids']][['mapping']][['fill']]
+  req(selectedColors(), scaleColorIDs())
 
   if(selectedColors()[['type']] == "TOO_MANY_LEVELS") {
-    output[[ns(scaleColorID)]] <- renderUI({
-      validate(paste( paste0("There are more than 11 levels in ", input[[ns(fillID)]], "."),
+    output[[ns_box(scaleColorIDs()[[2]])]] <- renderUI({
+      validate(paste( paste0("There are more than 11 levels in ",
+                             input[[ns_box(scaleColorIDs()[[1]])]], "."),
                       "Too many levels.", sep = "\n"))
     })
   } else {
-    output[[ns(scaleColorID)]] <- renderUI({
+    output[[ns_box(scaleColorIDs()[[2]])]] <- renderUI({
       selectedColors()[['ui']]
     })
   }
 
-}) %>% bindEvent(input[[NS(box_control_id)(box_main()[['ids']][['mapping']][['fill']])]])
+}) %>% bindEvent(input[[ns_box(scaleColorIDs()[[1]])]])
 
-
-observe({
-  req(box_main())
-
-  controltype = 'boxControl'
-
-  get_var = function(var_name){
-    paste(controltype, '-', var_name, sep = '')
-  }
-
-  # ggplot + mappings + geom_boxplot
-  mappings = names(box_main()[['ui']][['mapping_ui']])
-  variables = paste(get_var('map'), stringr::str_to_title(mappings), sep = '')
-  variables = as.vector(sapply(variables, function(x){input[[x]]}))
-  variables_not_null = sapply(variables, function(x) {!is.null(x)})
-  mappings = mappings[variables_not_null]
-  variables = variables[variables_not_null]
-
-  mapping_code = paste(mappings, variables, sep = ' = ')
-  mapping_code = paste(mapping_code, collapse = ', ')
-  mapping_code = paste('ggplot(data = df, aes(', mapping_code, '))', ' + geom_boxplot()', sep = '')
-
-  # settings
-  flip_code = ''
-  if(input[[get_var('miscFlip')]]){
-    flip_code = paste(' + ', flip_code, 'coord_flip()', sep = '')
-  }
-
-  facet_code = ''
-  if(!is.null(input[[get_var('miscFacet')]])){
-    facet_variables = input[[get_var('miscFacet')]]
-    if(length(facet_variables) > 1){
-      facet_variables = paste(facet_variables, collapse = ' ~ ')
-    }
-    facet_code = paste(' + ', facet_code, 'facet_grid(', facet_variables, ')', sep = '')
-  }
-
-
-  # legend settings
-  legend_code = ''
-  # variables = c('legend.direction', 'legend.position')
-  # legend_settings = c(input[[get_var('themeLegendDirection')]],
-  #                      input[[get_var('themeLegendPosition')]])
-  #
-  # if(!is.null(legend_settings)){
-  #   legend_settings_not_null = sapply(legend_settings, function(x) {!is.null(x)})
-  #   print(legend_settings_not_null)
-  #   variables = as.vector(variables[legend_settings_not_null])
-  #   print(variables)
-  #   legend_settings = as.vector(legend_settings[legend_settings_not_null])
-  #   print(legend_settings)
-  #
-  #   legend_settings = paste(variables, legend_settings, sep = ' = ')
-  #
-  #   legend_code = paste(legend_code, ' + theme(',
-  #                       paste(legend_settings, collapse = ', '),
-  #                       ')', sep = '')
-  # }
-
-  legend_direction = input[[get_var('themeLegendDirection')]]
-  legend_position = input[[get_var('themeLegendPosition')]]
-
-
-  if(!is.null(legend_direction) | !is.null(legend_position)){
-    legend_code = paste(legend_code, ' + theme(', sep = '')
-
-    if(!is.null(legend_direction) & is.null(legend_position)){
-      legend_code = paste(legend_code, 'legend.direction = ', "'", legend_direction, "'", sep = '')
-    }
-    else if(!is.null(legend_position) & is.null(legend_direction)){
-      legend_code = paste(legend_code, 'legend.position = ', "'", legend_position, "'", sep = '')
-    }
-    else{
-      legend_code = paste(legend_code,
-                          'legend.direction = ', "'", legend_direction, "'",
-                          ', ',
-                          'legend.position = ', "'", legend_position, "'", sep = '')
-    }
-
-    legend_code = paste(legend_code, ')', sep = '')
-  }
-
-
-
-  output$mycode = renderText({
-    paste("# Remember to replace 'df' in the code with the name of your data frame in R:\n\n",
-      mapping_code,
-      flip_code,
-      facet_code,
-      legend_code,
-      sep = '')
-  })
-}) %>% bindEvent(input[[NS(box_control_id)("buttonDraw")]])
+# scaleColorRenderUI(box_control_id,
+#                    scaleColorIDs()[['fill']],
+#                    scaleColorIDs()[['scaleColor']],
+#                    box_main,
+#                    selectedColors)
 
 
 

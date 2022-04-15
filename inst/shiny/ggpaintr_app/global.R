@@ -18,10 +18,10 @@ library(assertthat)
 
 # library(ggpaintr)
 
-setwd('C:/Downloads/project/ggpaintr/inst/shiny/ggpaintr_app/')
+# setwd('C:/Downloads/project/ggpaintr/inst/shiny/ggpaintr_app/')
 
-source('ui.R')
-source('server.R')
+# source('ui.R')
+# source('server.R')
 
 sapply(list.files("R_funcs/"), function(fileName) {
   source(paste0("R_funcs/", fileName))
@@ -34,7 +34,7 @@ sapply(list.files("R_funcs/"), function(fileName) {
 DODGE_WID_DEFAULT <- 0.5
 myStatUI <- function(x, y) { h3(paste(x + y)) }
 
-shinyApp(ui, server)
+# shinyApp(ui, server)
 
 
 

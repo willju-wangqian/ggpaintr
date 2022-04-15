@@ -186,5 +186,22 @@ empty_list_null <- function(x) {
   }
 }
 
+paste_arg_param <- function(x) {
+  if(is.null(x)) {
+    return("")
+  }
+
+  assert_that(
+    !is.null( names(x) )
+  )
+
+  code_args <- mapply(function(aa, var){
+    paste0(aa, " = ", var)
+  }, names(x), x, SIMPLIFY = FALSE )
+  code_args[['sep']] <- ', '
+  code <- do.call(paste, code_args)
+
+  return(code)
+}
 
 

@@ -114,7 +114,7 @@ body <- dashboardBody(
 # Put them together into a dashboardPage
 
 
-ui = dashboardPage(
+ui <- dashboardPage(
     skin="purple",
     dashboardHeader(title = "Welcome to ggpaintr!"),
     sidebar,

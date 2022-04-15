@@ -8,7 +8,9 @@
 #
 #
 
-server = function(input, output, session) {
+server <- function(input, output, session) {
+
+    code_container <- reactiveValues()
 
     # reactive to fileData
     dataInput <- reactive({
@@ -22,11 +24,17 @@ server = function(input, output, session) {
             need(ext %in% c("csv", "rds"), "Please select either csv or rds file")
         )
 
+        read_fun <- NULL
+
         if (ext == "csv") {
             inputData <- read.csv(path)
+            read_fun <- "read.csv"
         } else if (ext == "rds") {
             inputData <- readRDS(path)
+            read_fun <- "readRDS"
         }
+
+        code_container[['data']] <- paste0(read_fun, '("', input$fileData$name, '")')
 
         inputData
     })
@@ -48,13 +56,6 @@ server = function(input, output, session) {
                       stateSave = TRUE
                   ))
     })
-
-
-
-
-
-
-
 
     #############################################################
     source("inst/R/box_server.R", local = TRUE)
