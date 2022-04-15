@@ -87,6 +87,18 @@ ggGeomGenerator <- function(id, data, geom_FUN, id_list, params_list,
   )
 }
 
+#' Title
+#'
+#' @param id
+#' @param dataColor
+#' @param fillID
+#' @param scaleColorID
+#' @param colorPalette
+#'
+#' @return
+#' @export
+#'
+#' @examples
 colorGenerator <- function(id, dataColor, fillID, scaleColorID, colorPalette = "RdYlBu") {
   moduleServer(
     id,
@@ -136,6 +148,16 @@ colorGenerator <- function(id, dataColor, fillID, scaleColorID, colorPalette = "
 }
 
 
+#' Title
+#'
+#' @param id
+#' @param selected_colors
+#' @param color_fill
+#'
+#' @return
+#' @export
+#'
+#' @examples
 scaleColorHandler <- function(id, selected_colors, color_fill) {
   moduleServer(
     id,

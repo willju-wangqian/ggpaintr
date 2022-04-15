@@ -127,6 +127,16 @@ facetHandler <- function(id, module_id) {
   )
 }
 
+#' Title
+#'
+#' @param id
+#' @param module_id
+#' @param theme_param
+#'
+#' @return
+#' @export
+#'
+#' @examples
 themeHandler <- function(id, module_id, theme_param) {
   moduleServer(
     id,
@@ -259,10 +269,26 @@ connect_param_id <- function(session_input, id_list, params,
   aes_list
 }
 
+#' Title
+#'
+#' @param x
+#'
+#' @return
+#' @export
+#'
+#' @examples
 remove_null_list <- function(x) {
   x[!sapply(x, is.null)]
 }
 
+#' Title
+#'
+#' @param x
+#'
+#' @return
+#' @export
+#'
+#' @examples
 empty_list_null <- function(x) {
   if(length(x) == 0) {
     return(NULL)
@@ -271,6 +297,15 @@ empty_list_null <- function(x) {
   }
 }
 
+#' Title
+#'
+#' @param x
+#' @param add_quo
+#'
+#' @return
+#' @export
+#'
+#' @examples
 paste_arg_param <- function(x, add_quo = FALSE) {
   if(is.null(x)) {
     return("")
@@ -294,6 +329,14 @@ paste_arg_param <- function(x, add_quo = FALSE) {
 }
 
 
+#' Title
+#'
+#' @param code_list
+#'
+#' @return
+#' @export
+#'
+#' @examples
 get_code <- function(code_list) {
 
   assert_that(
@@ -324,6 +367,17 @@ get_code <- function(code_list) {
 }
 
 
+#' Title
+#'
+#' @param geom_component
+#' @param ...
+#' @param data
+#' @param data_path
+#'
+#' @return
+#' @export
+#'
+#' @examples
 get_plot_code <- function(geom_component, ..., data, data_path) {
 
   total_list <- c(
