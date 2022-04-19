@@ -108,6 +108,24 @@ mappingShapeUI <- function(ns, data, id="mapShape") {
   return(list(ui=ui, id=id))
 }
 
+#' Title
+#'
+#' @param ns
+#' @param data
+#'
+#' @return
+#' @export
+#'
+#' @examples
+mappingSizeUI <- function(ns, data, id="mapSize") {
+  ui <- pickerInput(ns(id), "size:",
+                    choices = names(data),
+                    selected = "",
+                    multiple = TRUE,
+                    options = pickerOptions(maxOptions = 1))
+  return(list(ui=ui, id=id))
+}
+
 
 
 #' Title

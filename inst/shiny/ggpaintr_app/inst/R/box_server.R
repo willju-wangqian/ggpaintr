@@ -34,10 +34,10 @@ observe({
           column(
             12, offset = 0, style='padding:0px;',
             br(),
+            # p("tips: this variable should be ..."),
             box_main()[['ui']][['mapping_ui']][['x']],
             box_main()[['ui']][['mapping_ui']][['y']],
             box_main()[['ui']][['mapping_ui']][['fill']]
-            # box_main()[['ui']][['mapping_ui']][['something']]
           )
         ),
         bsCollapsePanel(
@@ -113,6 +113,12 @@ observe({
     validate(need(results[['plot']], "plot is not rendered"))
 
     results[['plot']]
+  })
+
+  output$mainPlot <- renderPlot({
+
+    ggplot() +
+      geom_boxplot(aes(x = input$mapX, y = input$mapY))
   })
 
 
