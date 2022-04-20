@@ -8,11 +8,12 @@
 #'
 #' @examples
 mappingXUI <- function(ns, data, id = "mapX") {
-  ui <- pickerInput(ns(id), "x:",
+  ui <- pickerInput(ns(id), "",
                     choices = names(data),
                     selected = "",
                     multiple = TRUE,
-                    options = pickerOptions(maxOptions = 1))
+                    options = pickerOptions(maxOptions = 1),
+                    width = "fit")
   return(list(ui=ui, id=id))
 }
 
@@ -26,11 +27,12 @@ mappingXUI <- function(ns, data, id = "mapX") {
 #'
 #' @examples
 mappingYUI <- function(ns, data, id = "mapY") {
-  ui <- pickerInput(ns(id), "y:",
+  ui <- pickerInput(ns(id), "",
                     choices = names(data),
                     selected = "",
                     multiple = TRUE,
-                    options = pickerOptions(maxOptions = 1))
+                    options = pickerOptions(maxOptions = 1),
+                    width = "fit")
   return(list(ui=ui, id=id))
 }
 
@@ -44,11 +46,12 @@ mappingYUI <- function(ns, data, id = "mapY") {
 #'
 #' @examples
 mappingColorUI <- function(ns, data, id = "mapColor") {
-  ui <- pickerInput(ns(id), "color:",
+  ui <- pickerInput(ns(id), "",
                     choices = names(data),
                     selected = "",
                     multiple = TRUE,
-                    options = pickerOptions(maxOptions = 1))
+                    options = pickerOptions(maxOptions = 1),
+                    width = "fit")
   return(list(ui=ui, id=id))
 }
 
@@ -63,11 +66,12 @@ mappingColorUI <- function(ns, data, id = "mapColor") {
 #'
 #' @examples
 mappingFillUI <- function(ns, data, id = "mapFill") {
-  ui <- pickerInput(ns(id), "fill:",
+  ui <- pickerInput(ns(id), "",
                     choices = names(data),
                     selected = "",
                     multiple = TRUE,
-                    options = pickerOptions(maxOptions = 1))
+                    options = pickerOptions(maxOptions = 1),
+                    width = "fit")
   return(list(ui=ui, id=id))
 }
 

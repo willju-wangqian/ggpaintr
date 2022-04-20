@@ -78,28 +78,29 @@ body <- dashboardBody(
                                 ))
 
                         )
-                        # box(column(3,
-                        #            actionButton(
-                        #              "drawBox",
-                        #              label = div(
-                        #                img(src = "img_button/boxplot.png"),
-                        #                p("box plot")
-                        #              ),
-                        #              style = "color: #fff; background-color: #337ab7; border-color: #2e6da4",
-                        #            )
-                        # ) )
                     ),
                     br(),
+                    # fluidRow(
+                    #     column(
+                    #         4,
+                    #         uiOutput('description')
+                    #     )
+                    # ),
+                    # br(),
                     fluidRow(
                         column(
                             4,
+                            # actionButton("drawBox2", "click me"),
+                            uiOutput('description'),
                             uiOutput("drawControls")
                         ),
                         column(
                             8,
+                            downloadButton('downloadplot', label = 'Download Plot'),
                             plotOutput("mainPlot")
                         )
-                    )),
+                    )
+                ),
 
                 tabPanel(
                     "Code", icon =  icon("code"),

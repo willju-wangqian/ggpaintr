@@ -20,9 +20,57 @@ box_main <- reactive({
 
 }) %>% bindCache(input$drawBox) %>% bindEvent(input$drawBox)
 
+
+description_text = function(text){
+  div(style="display: inline-block;vertical-align:middle;", h4(text))
+}
+
+description_bold_text = function(text){
+  div(style="display: inline-block;vertical-align:middle;", h4(shiny::tags$b(text)))
+}
+
+description_var = function(var_ui){
+  div(style="display: inline-block;vertical-align:middle;", var_ui)
+}
+
+# observe({
+#
+#   output$description <- renderUI({
+#     req(dataContainer(), box_main())
+#     dataBox = dataContainer()
+#
+#     description_text = function(text){
+#       div(style="display: inline-block;vertical-align:middle;", h4(text))
+#     }
+#     description_var = function(var){
+#       div(style="display: inline-block;vertical-align:middle;",
+#           selectInput(var, "", choices = names(dataBox)))
+#     }
+#
+#     box(width = 12,
+#         h3('Description'),
+#         br(),
+#         description_text('I want to draw a boxplot for the distribution of '),
+#         description_var('varY'),
+#         description_text(' in different categories of '),
+#         description_var('varX'),
+#         description_text(', with different colors in each group of '),
+#         description_var('varColor')
+#     )
+#   })
+#
+# }) %>% bindEvent(input$drawBox)
+
 observe({
+
   output$drawControls <- renderUI({
+
+
     req(box_main())
+
+    # p("abc")
+
+    # browser()
 
     column(
       12,
@@ -34,9 +82,17 @@ observe({
           column(
             12, offset = 0, style='padding:0px;',
             br(),
-            box_main()[['ui']][['mapping_ui']][['x']],
-            box_main()[['ui']][['mapping_ui']][['y']],
-            box_main()[['ui']][['mapping_ui']][['fill']]
+            description_text('I want to draw a boxplot for the distribution of '),
+            description_bold_text('Y variable: '),
+            description_var(box_main()[['ui']][['mapping_ui']][['y']]),
+            br(),
+            description_text(' in different categories of '),
+            description_bold_text('X variable: '),
+            description_var(box_main()[['ui']][['mapping_ui']][['x']]),
+            br(),
+            description_text('with different colors in '),
+            description_bold_text('each group of '),
+            description_var(box_main()[['ui']][['mapping_ui']][['fill']])
             # box_main()[['ui']][['mapping_ui']][['something']]
           )
         ),
@@ -47,6 +103,11 @@ observe({
           br(),
           h3("theme settings"),
           box_main()[['ui']][['plot_settings_ui']][['theme']]
+        ),
+        bsCollapsePanel(
+          'plot size',
+          sliderInput("height", "height", min = 100, max = 2000, value = 500),
+          sliderInput("width", "width", min = 100, max = 2000, value = 500)
         )
       ),
       h3("choose colors (if applicable)"),
@@ -108,13 +169,25 @@ observe({
                            data_path = code_container[['data']])
 
 
-  output$mainPlot <- renderPlot({
+  output$mainPlot <- renderPlot(
+    width = function() input$width,
+    height = function() input$height,
 
+    {
     validate(need(results[['plot']], "plot is not rendered"))
 
     results[['plot']]
   })
 
+  data_name = unlist(str_split(as.character(input$fileData$name), '[.]'))
+  data_name = paste(data_name[1:length(data_name)-1], collapse = '.')
+
+  output$downloadplot = downloadHandler(
+    filename = function() { paste(data_name, '_boxplot', '.png', sep='') },
+    content = function(file) {
+      ggsave(file, results[['plot']])
+    }
+  )
 
   output$mycode = renderText({
 
