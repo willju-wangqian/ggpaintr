@@ -9,7 +9,7 @@ scatter_main <- reactive({
   dataBox <- dataContainer()
   scatterUI <-
     controlUI(scatter_control_id, dataBox,
-              mapping = c('x', 'y', 'fill'),
+              mapping = c('x', 'y', 'color','size','shape'),
               plot_settings = c('scaleColor', 'misc', 'theme'),
               geom_args = NULL
               # extra_uiFunc = list(something = mappingUI),
@@ -37,7 +37,9 @@ observe({
             # p("tips: this variable should be ..."),
             scatter_main()[['ui']][['mapping_ui']][['x']],
             scatter_main()[['ui']][['mapping_ui']][['y']],
-            scatter_main()[['ui']][['mapping_ui']][['fill']]
+            scatter_main()[['ui']][['mapping_ui']][['color']],
+            scatter_main()[['ui']][['mapping_ui']][['size']],
+            scatter_main()[['ui']][['mapping_ui']][['shape']]
           )
         ),
         bsCollapsePanel(
@@ -69,7 +71,7 @@ observe({
                                   geom_FUN = "geom_point",
                                   id_list = scatter_main()[['ids']],
                                   params_list = list(
-                                    mapping = c('x', 'y', 'color')
+                                    mapping = c('x', 'y', 'color','size','shape')
                                   )
   )
 
