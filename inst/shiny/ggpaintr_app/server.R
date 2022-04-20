@@ -18,7 +18,6 @@ server <- function(input, output, session) {
 
     if(!is.null(input$fileData)) {
 
-      browser()
       path <- input$fileData$datapath
 
       ext <- tools::file_ext(path) # [TODO] add Imports tools
@@ -71,7 +70,6 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$defaultData, {
-    browser()
     shinyjs::reset(id = "fileData")
   })
 
