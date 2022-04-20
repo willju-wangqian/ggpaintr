@@ -10,7 +10,7 @@ box_main <- reactive({
   boxUI <-
     controlUI(box_control_id, dataBox,
               mapping = c('x', 'y', 'fill'),
-              plot_settings = c('scaleColor', 'misc', 'theme'),
+              plot_settings = c('scaleColor', 'misc', 'theme', 'theme_choose'),
               geom_args = NULL
               # extra_uiFunc = list(something = mappingUI),
               # extra_uiFuncArgs = list(something = list(NS("boxControl"), dataBox))
@@ -46,7 +46,9 @@ observe({
           box_main()[['ui']][['plot_settings_ui']][['misc']],
           br(),
           h3("theme settings"),
-          box_main()[['ui']][['plot_settings_ui']][['theme']]
+          box_main()[['ui']][['plot_settings_ui']][['theme']],
+          br(),
+          box_main()[['ui']][['plot_settings_ui']][['theme_choose']]
         )
       ),
       h3("choose colors (if applicable)"),
@@ -83,11 +85,14 @@ observe({
                                box_main()[['ids']][['plot_settings']][['theme']],
                                theme_param = c("legend.position", "legend.direction") )
 
+  theme_choose <- themeChooseHandler(box_control_id,
+                                     box_main()[['ids']][['plot_settings']][['theme_choose']])
+
   scaleColors <- tryCatch(
     {
-      if (!is.null(selectedColors())) {
+      if (!is.null(selectedColors_box())) {
         scaleColorHandler(box_control_id,
-                          selectedColors(),
+                          selectedColors_box(),
                           color_fill = 'fill')
       } else {
         NULL
@@ -103,6 +108,7 @@ observe({
                            flip_output,
                            facet_output,
                            theme_output,
+                           theme_choose,
                            scaleColors,
                            data = dataBox,
                            data_path = code_container[['data']])
@@ -115,13 +121,6 @@ observe({
     results[['plot']]
   })
 
-  output$mainPlot <- renderPlot({
-
-    ggplot() +
-      geom_boxplot(aes(x = input$mapX, y = input$mapY))
-  })
-
-
   output$mycode = renderText({
 
     results[['code']]
@@ -132,7 +131,7 @@ observe({
 
 
 
-# selectedColors <- reactive({
+# selectedColors_box <- reactive({
 #   req(box_main(), dataContainer())
 #
 #   colorGenerator(box_control_id,
@@ -144,63 +143,55 @@ observe({
 #   bindCache(input[[NS(box_control_id)(box_main()[['ids']][['mapping']][['fill']])]]) %>%
 #   bindEvent(input[[NS(box_control_id)(box_main()[['ids']][['mapping']][['fill']])]])
 #
+# #
+# # selectedColors_box <- scaleColorServer(box_control_id,
+# #                                    box_main()[['ids']][['mapping']][['fill']],
+# #                                    box_main()[['ids']][['plot_settings']][['scaleColor']],
+# #                                    box_main,
+# #                                    dataContainer)
 #
-# selectedColors <- scaleColorServer(box_control_id,
-#                                    box_main()[['ids']][['mapping']][['fill']],
-#                                    box_main()[['ids']][['plot_settings']][['scaleColor']],
-#                                    box_main,
-#                                    dataContainer)
 
 
+scaleColorIDs_box <- reactive({
+  req(box_main())
 
-#
-# scaleColorIDs <- reactive({
-#   req(box_main())
-#
-#   fill <-  box_main()[['ids']][['mapping']][['fill']]
-#   scaleColor <- box_main()[['ids']][['plot_settings']][['scaleColor']]
-#
-#   list(fill = fill, scaleColor = scaleColor)
-#
-# })
+  fill <-  box_main()[['ids']][['mapping']][['fill']]
+  scaleColor <- box_main()[['ids']][['plot_settings']][['scaleColor']]
 
+  list(fill = fill, scaleColor = scaleColor)
 
+})
 
-selectedColors <- reactive({
-  req(scaleColorIDs(), dataContainer())
+selectedColors_box <- reactive({
+  req(scaleColorIDs_box(), dataContainer())
 
   colorGenerator(box_control_id,
                  dataContainer(),
-                 scaleColorIDs()[[1]],
-                 scaleColorIDs()[[2]])
+                 scaleColorIDs_box()[[1]],
+                 scaleColorIDs_box()[[2]])
 
-}) %>% bindCache(input[[ns_box(scaleColorIDs()[[1]])]]) %>%
-  bindEvent(input[[ns_box(scaleColorIDs()[[1]])]])
-
-
+}) %>% bindCache(input[[ns_box(scaleColorIDs_box()[[1]])]]) %>%
+  bindEvent(input[[ns_box(scaleColorIDs_box()[[1]])]])
 
 observe({
-  req(selectedColors(), scaleColorIDs())
+  req(selectedColors_box(), scaleColorIDs_box())
 
-  if(selectedColors()[['type']] == "TOO_MANY_LEVELS") {
-    output[[ns_box(scaleColorIDs()[[2]])]] <- renderUI({
+  if(selectedColors_box()[['type']] == "TOO_MANY_LEVELS") {
+    output[[ns_box(scaleColorIDs_box()[[2]])]] <- renderUI({
       validate(paste( paste0("There are more than 11 levels in ",
-                             input[[ns_box(scaleColorIDs()[[1]])]], "."),
+                             input[[ns_box(scaleColorIDs_box()[[1]])]], "."),
                       "Too many levels.", sep = "\n"))
     })
   } else {
-    output[[ns_box(scaleColorIDs()[[2]])]] <- renderUI({
-      selectedColors()[['ui']]
+    output[[ns_box(scaleColorIDs_box()[[2]])]] <- renderUI({
+      selectedColors_box()[['ui']]
     })
   }
 
-}) %>% bindEvent(input[[ns_box(scaleColorIDs()[[1]])]])
+}) %>% bindEvent(input[[ns_box(scaleColorIDs_box()[[1]])]])
 
-# scaleColorRenderUI(box_control_id,
-#                    scaleColorIDs()[['fill']],
-#                    scaleColorIDs()[['scaleColor']],
-#                    box_main,
-#                    selectedColors)
+
+
 
 
 

@@ -87,9 +87,9 @@ observe({
 
   scaleColors <- tryCatch(
     {
-      if (!is.null(selectedColors())) {
+      if (!is.null(selectedColors_scatter())) {
         scaleColorHandler(scatter_control_id,
-                          selectedColors(),
+                          selectedColors_scatter(),
                           color_fill = 'color')
       } else {
         NULL
@@ -117,11 +117,6 @@ observe({
     results[['plot']]
   })
 
-  output$mainPlot <- renderPlot({
-
-    ggplot() +
-      geom_point(aes(x = input$mapX, y = input$mapY))
-  })
 
 
   output$mycode = renderText({
@@ -134,7 +129,7 @@ observe({
 
 
 
-# selectedColors <- reactive({
+# selectedColors_scatter <- reactive({
 #   req(box_main(), dataContainer())
 #
 #   colorGenerator(box_control_id,
@@ -147,7 +142,7 @@ observe({
 #   bindEvent(input[[NS(box_control_id)(box_main()[['ids']][['mapping']][['fill']])]])
 #
 # #
-# # selectedColors <- scaleColorServer(box_control_id,
+# # selectedColors_scatter <- scaleColorServer(box_control_id,
 # #                                    box_main()[['ids']][['mapping']][['fill']],
 # #                                    box_main()[['ids']][['plot_settings']][['scaleColor']],
 # #                                    box_main,
@@ -156,7 +151,7 @@ observe({
 
 
 
-scaleColorIDs <- reactive({
+scaleColorIDs_scatter <- reactive({
   req(scatter_main())
 
   color <-  scatter_main()[['ids']][['mapping']][['color']]
@@ -166,39 +161,39 @@ scaleColorIDs <- reactive({
 
 })
 
-selectedColors <- reactive({
-  req(scaleColorIDs(), dataContainer())
+selectedColors_scatter <- reactive({
+  req(scaleColorIDs_scatter(), dataContainer())
 
   colorGenerator(scatter_control_id,
                  dataContainer(),
-                 scaleColorIDs()[[1]],
-                 scaleColorIDs()[[2]])
+                 scaleColorIDs_scatter()[[1]],
+                 scaleColorIDs_scatter()[[2]])
 
-}) %>% bindCache(input[[ns_scatter(scaleColorIDs()[[1]])]]) %>%
-  bindEvent(input[[ns_scatter(scaleColorIDs()[[1]])]])
+}) %>% bindCache(input[[ns_scatter(scaleColorIDs_scatter()[[1]])]]) %>%
+  bindEvent(input[[ns_scatter(scaleColorIDs_scatter()[[1]])]])
 
 observe({
-  req(selectedColors(), scaleColorIDs())
+  req(selectedColors_scatter(), scaleColorIDs_scatter())
 
-  if(selectedColors()[['type']] == "TOO_MANY_LEVELS") {
-    output[[ns_scatter(scaleColorIDs()[[2]])]] <- renderUI({
+  if(selectedColors_scatter()[['type']] == "TOO_MANY_LEVELS") {
+    output[[ns_scatter(scaleColorIDs_scatter()[[2]])]] <- renderUI({
       validate(paste( paste0("There are more than 11 levels in ",
-                             input[[ns_scatter(scaleColorIDs()[[1]])]], "."),
+                             input[[ns_scatter(scaleColorIDs_scatter()[[1]])]], "."),
                       "Too many levels.", sep = "\n"))
     })
   } else {
-    output[[ns_scatter(scaleColorIDs()[[2]])]] <- renderUI({
-      selectedColors()[['ui']]
+    output[[ns_scatter(scaleColorIDs_scatter()[[2]])]] <- renderUI({
+      selectedColors_scatter()[['ui']]
     })
   }
 
-}) %>% bindEvent(input[[ns_scatter(scaleColorIDs()[[1]])]])
+}) %>% bindEvent(input[[ns_scatter(scaleColorIDs_scatter()[[1]])]])
 
 # scaleColorRenderUI(box_control_id,
-#                    scaleColorIDs()[['fill']],
-#                    scaleColorIDs()[['scaleColor']],
+#                    scaleColorIDs_scatter()[['fill']],
+#                    scaleColorIDs_scatter()[['scaleColor']],
 #                    box_main,
-#                    selectedColors)
+#                    selectedColors_scatter)
 
 
 

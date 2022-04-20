@@ -173,6 +173,30 @@ themeHandler <- function(id, module_id, theme_param) {
 }
 
 
+#' Title
+#'
+#' @param id
+#' @param module_id
+#'
+#' @return
+#' @export
+#'
+#' @examples
+themeChooseHandler <- function(id, module_id) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+
+      if (is.null(input[[module_id]])) {
+        return(NULL)
+      }
+
+      return( list(plot = match.fun(input[[module_id]])(),
+                   code = paste0(input[[module_id]], "()")) )
+
+    }
+  )
+}
 
 
 #' Title

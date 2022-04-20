@@ -47,6 +47,11 @@ body <- dashboardBody(
                     fileInput(inputId = "fileData",
                               label = "Upload data in csv or rds format",
                               accept = c(".csv", ".rds")),
+                    pickerInput("defaultData", "select a default dataset:",
+                                choices = c("iris", "mtcars"),
+                                selected = "",
+                                multiple = TRUE,
+                                options = pickerOptions(maxOptions = 1)),
                     DT::dataTableOutput("mytable"),
                 ),
 
