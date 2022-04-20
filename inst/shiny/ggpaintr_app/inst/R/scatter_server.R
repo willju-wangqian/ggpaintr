@@ -1,14 +1,14 @@
-# server part for the box chart
-box_control_id <- "boxControl"
+# server part for the scatter plot
+scatter_control_id <- "scatterControl"
 
-ns_box <- NS(box_control_id)
+ns_scatter <- NS(scatter_control_id)
 
-box_main <- reactive({
+scatter_main <- reactive({
   req(dataContainer())
 
   dataBox <- dataContainer()
-  boxUI <-
-    controlUI(box_control_id, dataBox,
+  scatterUI <-
+    controlUI(scatter_control_id, dataBox,
               mapping = c('x', 'y', 'fill'),
               plot_settings = c('scaleColor', 'misc', 'theme'),
               geom_args = NULL
@@ -16,18 +16,18 @@ box_main <- reactive({
               # extra_uiFuncArgs = list(something = list(NS("boxControl"), dataBox))
     )
 
-  boxUI
+  scatterUI
 
-}) %>% bindCache(input$drawBox) %>% bindEvent(input$drawBox)
+}) %>% bindCache(input$drawScatter) %>% bindEvent(input$drawScatter)
 
 observe({
   output$drawControls <- renderUI({
-    req(box_main())
+    req(scatter_main())
 
     column(
       12,
       bsCollapse(
-        id = NS(box_control_id)("boxControlCollapse"), open = "mapping",
+        id = NS(scatter_control_id)("scatterControlCollapse"), open = "mapping",
         multiple = FALSE,
         bsCollapsePanel(
           "mapping",
@@ -35,60 +35,60 @@ observe({
             12, offset = 0, style='padding:0px;',
             br(),
             # p("tips: this variable should be ..."),
-            box_main()[['ui']][['mapping_ui']][['x']],
-            box_main()[['ui']][['mapping_ui']][['y']],
-            box_main()[['ui']][['mapping_ui']][['fill']]
+            scatter_main()[['ui']][['mapping_ui']][['x']],
+            scatter_main()[['ui']][['mapping_ui']][['y']],
+            scatter_main()[['ui']][['mapping_ui']][['fill']]
           )
         ),
         bsCollapsePanel(
           "advanced settings",
           h3("misc"),
-          box_main()[['ui']][['plot_settings_ui']][['misc']],
+          scatter_main()[['ui']][['plot_settings_ui']][['misc']],
           br(),
           h3("theme settings"),
-          box_main()[['ui']][['plot_settings_ui']][['theme']]
+          scatter_main()[['ui']][['plot_settings_ui']][['theme']]
         )
       ),
       h3("choose colors (if applicable)"),
-      box_main()[['ui']][['plot_settings_ui']][['scaleColor']],
+      scatter_main()[['ui']][['plot_settings_ui']][['scaleColor']],
       br(),
-      actionButton(NS(box_control_id)("buttonDraw"), "Draw the plot"),
+      actionButton(NS(scatter_control_id)("buttonDraw"), "Draw the plot"),
       br()
     )
   })
 
-}) %>% bindEvent(input$drawBox)
+}) %>% bindEvent(input$drawScatter)
 
 observe({
-  req(dataContainer(), box_main())
+  req(dataContainer(), scatter_main())
 
   dataBox <- dataContainer()
 
-  boxComponent <- ggGeomGenerator(id = box_control_id,
+  scatterComponent <- ggGeomGenerator(id = scatter_control_id,
                                   data = dataBox,
-                                  geom_FUN = "geom_boxplot",
-                                  id_list = box_main()[['ids']],
+                                  geom_FUN = "geom_point",
+                                  id_list = scatter_main()[['ids']],
                                   params_list = list(
-                                    mapping = c('x', 'y', 'fill')
+                                    mapping = c('x', 'y', 'color')
                                   )
   )
 
-  flip_output <- flipHandler(box_control_id,
-                             box_main()[['ids']][['plot_settings']][['misc']][2])
+  flip_output <- flipHandler(scatter_control_id,
+                             scatter_main()[['ids']][['plot_settings']][['misc']][2])
 
-  facet_output <- facetHandler(box_control_id,
-                               box_main()[['ids']][['plot_settings']][['misc']][1])
+  facet_output <- facetHandler(scatter_control_id,
+                               scatter_main()[['ids']][['plot_settings']][['misc']][1])
 
-  theme_output <- themeHandler(box_control_id,
-                               box_main()[['ids']][['plot_settings']][['theme']],
+  theme_output <- themeHandler(scatter_control_id,
+                               scatter_main()[['ids']][['plot_settings']][['theme']],
                                theme_param = c("legend.position", "legend.direction") )
 
   scaleColors <- tryCatch(
     {
       if (!is.null(selectedColors())) {
-        scaleColorHandler(box_control_id,
+        scaleColorHandler(scatter_control_id,
                           selectedColors(),
-                          color_fill = 'fill')
+                          color_fill = 'color')
       } else {
         NULL
       }
@@ -99,7 +99,7 @@ observe({
   )
 
 
-  results <- get_plot_code(boxComponent,
+  results <- get_plot_code(scatterComponent,
                            flip_output,
                            facet_output,
                            theme_output,
@@ -118,7 +118,7 @@ observe({
   output$mainPlot <- renderPlot({
 
     ggplot() +
-      geom_boxplot(aes(x = input$mapX, y = input$mapY))
+      geom_point(aes(x = input$mapX, y = input$mapY))
   })
 
 
@@ -128,7 +128,7 @@ observe({
 
   })
 
-}) %>% bindEvent(input[[NS(box_control_id)("buttonDraw")]])
+}) %>% bindEvent(input[[NS(scatter_control_id)("buttonDraw")]])
 
 
 
@@ -144,57 +144,53 @@ observe({
 #   bindCache(input[[NS(box_control_id)(box_main()[['ids']][['mapping']][['fill']])]]) %>%
 #   bindEvent(input[[NS(box_control_id)(box_main()[['ids']][['mapping']][['fill']])]])
 #
+# #
+# # selectedColors <- scaleColorServer(box_control_id,
+# #                                    box_main()[['ids']][['mapping']][['fill']],
+# #                                    box_main()[['ids']][['plot_settings']][['scaleColor']],
+# #                                    box_main,
+# #                                    dataContainer)
 #
-# selectedColors <- scaleColorServer(box_control_id,
-#                                    box_main()[['ids']][['mapping']][['fill']],
-#                                    box_main()[['ids']][['plot_settings']][['scaleColor']],
-#                                    box_main,
-#                                    dataContainer)
 
 
 
-#
-# scaleColorIDs <- reactive({
-#   req(box_main())
-#
-#   fill <-  box_main()[['ids']][['mapping']][['fill']]
-#   scaleColor <- box_main()[['ids']][['plot_settings']][['scaleColor']]
-#
-#   list(fill = fill, scaleColor = scaleColor)
-#
-# })
+scaleColorIDs <- reactive({
+  req(scatter_main())
 
+  color <-  scatter_main()[['ids']][['mapping']][['color']]
+  scaleColor <- scatter_main()[['ids']][['plot_settings']][['scaleColor']]
 
+  list(color = color, scaleColor = scaleColor)
+
+})
 
 selectedColors <- reactive({
   req(scaleColorIDs(), dataContainer())
 
-  colorGenerator(box_control_id,
+  colorGenerator(scatter_control_id,
                  dataContainer(),
                  scaleColorIDs()[[1]],
                  scaleColorIDs()[[2]])
 
-}) %>% bindCache(input[[ns_box(scaleColorIDs()[[1]])]]) %>%
-  bindEvent(input[[ns_box(scaleColorIDs()[[1]])]])
-
-
+}) %>% bindCache(input[[ns_scatter(scaleColorIDs()[[1]])]]) %>%
+  bindEvent(input[[ns_scatter(scaleColorIDs()[[1]])]])
 
 observe({
   req(selectedColors(), scaleColorIDs())
 
   if(selectedColors()[['type']] == "TOO_MANY_LEVELS") {
-    output[[ns_box(scaleColorIDs()[[2]])]] <- renderUI({
+    output[[ns_scatter(scaleColorIDs()[[2]])]] <- renderUI({
       validate(paste( paste0("There are more than 11 levels in ",
-                             input[[ns_box(scaleColorIDs()[[1]])]], "."),
+                             input[[ns_scatter(scaleColorIDs()[[1]])]], "."),
                       "Too many levels.", sep = "\n"))
     })
   } else {
-    output[[ns_box(scaleColorIDs()[[2]])]] <- renderUI({
+    output[[ns_scatter(scaleColorIDs()[[2]])]] <- renderUI({
       selectedColors()[['ui']]
     })
   }
 
-}) %>% bindEvent(input[[ns_box(scaleColorIDs()[[1]])]])
+}) %>% bindEvent(input[[ns_scatter(scaleColorIDs()[[1]])]])
 
 # scaleColorRenderUI(box_control_id,
 #                    scaleColorIDs()[['fill']],

@@ -15,7 +15,7 @@ sidebar <- dashboardSidebar(
     sidebarMenu(
         HTML(paste0(
             "<br>",
-            "<a href='https://github.com/willju-wangqian/ggpaintr' target='_blank'><img style = 'display: block; margin-left: auto; margin-right: auto;' src='img/ggpaintr.png' width = '186'></a>",
+            "<a href='https://github.com/willju-wangqian/ggpaintr' target='_blank'><img style = 'display: block; margin-left: auto; margin-right: auto;' src='img/ggpaintr.png' width = '170'></a>",
             "<br>"
         )),
         menuItem("Home", tabName = "home", icon = icon("home")),
@@ -75,9 +75,34 @@ body <- dashboardBody(
                                     ),
                                     # "style"="color: #fff; background-color: #337ab7; border-color: #2e6da4",
                                     style = "fill"
-                                ))
-
+                                )),
+                            column(
+                              3, actionBttn(
+                                "drawScatter",
+                                label = "scatter plot",
+                                icon = div(
+                                  img(src = "img_button/scatter.png")
+                                  # p("scatter plot")
+                                ),
+                                # "style"="color: #fff; background-color: #337ab7; border-color: #2e6da4",
+                                style = "fill"
+                              )),
+                            column(
+                              3, actionBttn(
+                                "drawLine",
+                                label = "line plot",
+                                icon = div(
+                                  img(src = "img_button/line.png")
+                                  # p("scatter plot")
+                                ),
+                                # "style"="color: #fff; background-color: #337ab7; border-color: #2e6da4",
+                                style = "fill"
+                              ))
                         )
+
+
+
+
                         # box(column(3,
                         #            actionButton(
                         #              "drawBox",
@@ -115,7 +140,7 @@ body <- dashboardBody(
 
 
 ui <- dashboardPage(
-    skin="purple",
+    skin="green",
     dashboardHeader(title = "Welcome to ggpaintr!"),
     sidebar,
     body

@@ -65,6 +65,16 @@ server <- function(input, output, session) {
     source("inst/R/bar_server.R", local = TRUE)
 
     #############################################################
+    # server part for the scatter plot
+    source("inst/R/scatter_server.R", local = TRUE)
+
+    #############################################################
+
+
+
+
+
+
     # ui for line chart
     observeEvent(input$drawLine, {
 
