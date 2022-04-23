@@ -48,7 +48,7 @@ body <- dashboardBody(
                               label = "Upload data in csv or rds format",
                               accept = c(".csv", ".rds")),
                     pickerInput("defaultData", "select a default dataset:",
-                                choices = c("iris", "mtcars"),
+                                choices = c("iris", "mtcars","penguins"),
                                 selected = "",
                                 multiple = TRUE,
                                 options = pickerOptions(maxOptions = 1)),

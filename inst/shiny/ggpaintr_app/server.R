@@ -18,7 +18,6 @@ server <- function(input, output, session) {
 
     if(!is.null(input$fileData)) {
 
-      browser()
       path <- input$fileData$datapath
 
       ext <- tools::file_ext(path) # [TODO] add Imports tools
@@ -69,11 +68,11 @@ server <- function(input, output, session) {
                 stateSave = TRUE
               ))
   })
-
-  observeEvent(input$defaultData, {
-    browser()
-    shinyjs::reset(id = "fileData")
-  })
+#
+#   observeEvent(input$defaultData, {
+#
+#     shinyjs::reset(id = "fileData")
+#   })
 
   #############################################################
   source("inst/R/box_server.R", local = TRUE)
@@ -88,7 +87,10 @@ server <- function(input, output, session) {
 
   #############################################################
 
+  # server part for the line plot
+  source("inst/R/line_server.R", local = TRUE)
 
+  #############################################################
   # ui for line chart
   # observeEvent(input$drawLine, {
   #
