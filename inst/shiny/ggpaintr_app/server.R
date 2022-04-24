@@ -69,9 +69,11 @@ server <- function(input, output, session) {
               ))
   })
 
-  observeEvent(input$defaultData, {
-    shinyjs::reset(id = "fileData")
-  })
+
+#   observeEvent(input$defaultData, {
+#
+#     shinyjs::reset(id = "fileData")
+#   })
 
   #############################################################
   source("inst/R/box_server.R", local = TRUE)
@@ -86,7 +88,10 @@ server <- function(input, output, session) {
 
   #############################################################
 
+  # server part for the line plot
+  source("inst/R/line_server.R", local = TRUE)
 
+  #############################################################
   # ui for line chart
   # observeEvent(input$drawLine, {
   #
