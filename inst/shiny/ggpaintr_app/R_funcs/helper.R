@@ -290,7 +290,7 @@ connect_param_id <- function(session_input, id_list, params,
     }
   }
 
-  aes_list
+  check_remove_null(aes_list)
 }
 
 #' Title

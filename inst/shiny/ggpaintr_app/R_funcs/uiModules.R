@@ -225,8 +225,23 @@ multipleColorPickerUI <- function(ns, init_colors, labels, id = "colorPicker") {
   return(list(ui = ui, id = ids))
 }
 
+argsStatUI <- function(ns, data, id="argsStat") {
+  ui <- pickerInput(ns(id), "stat:",
+                    choices = c("bin", "identity", "count"),
+                    selected = "",
+                    multiple = TRUE,
+                    options = pickerOptions(maxOptions = 1))
+  return(list(ui=ui, id=id))
+}
 
-
+argsPositionUI <- function(ns, data, id="argsPosition") {
+  ui <- pickerInput(ns(id), "position:",
+                    choices = c("dodge", "dodge2", "stack", "fill"),
+                    selected = "",
+                    multiple = TRUE,
+                    options = pickerOptions(maxOptions = 1))
+  return(list(ui=ui, id=id))
+}
 
 
 #' Title

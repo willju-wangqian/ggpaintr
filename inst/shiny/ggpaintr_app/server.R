@@ -87,7 +87,6 @@ server <- function(input, output, session) {
   source("inst/R/scatter_server.R", local = TRUE)
 
   #############################################################
-
   # server part for the line plot
   source("inst/R/line_server.R", local = TRUE)
 
