@@ -11,7 +11,7 @@ bar_main <- reactive({
     controlUI(bar_control_id, dataBar,
               mapping = c('x', 'y', 'fill'),
               plot_settings = c('scaleColor', 'misc', 'theme', 'theme_choose'),
-              geom_args = c('stat', 'position', 'alpha'),
+              geom_args = c('stat', 'position'),
               # extra_uiFunc = list(something = mappingUI),
               # extra_uiFuncArgs = list(something = list(NS("barControl"), dataBar))
     )
@@ -46,7 +46,6 @@ observe({
           bar_main()[['ui']][['mapping_ui']][['y']],
           bar_main()[['ui']][['geom_args_ui']][['stat']],
           bar_main()[['ui']][['geom_args_ui']][['position']],
-          bar_main()[['ui']][['geom_args_ui']][['alpha']],
           h3("misc"),
           bar_main()[['ui']][['plot_settings_ui']][['misc']],
           br(),
@@ -77,7 +76,7 @@ observe({
                                   id_list = bar_main()[['ids']],
                                   params_list = list(
                                     mapping = c('x', 'y', 'fill'),
-                                    geom_args = c('stat', 'position', 'alpha')
+                                    geom_args = c('stat', 'position')
                                   )
   )
 

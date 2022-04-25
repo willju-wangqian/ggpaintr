@@ -1,12 +1,16 @@
-#' Title
+#' UI component and its id for aesthetic mapping of x
 #'
-#' @param ns
-#' @param data
+#' @param ns the name space of this ui
+#' @param data the data which provides available variables (columns) for plotting
+#' @param id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
 #' @export
 #'
 #' @examples
+#' mappingXUI(NS("myplot"), mtcars)
 mappingXUI <- function(ns, data, id = "mapX") {
   ui <- pickerInput(ns(id), "x:",
                     choices = names(data),
@@ -20,6 +24,7 @@ mappingXUI <- function(ns, data, id = "mapX") {
 #'
 #' @param ns
 #' @param data
+#' @param id
 #'
 #' @return
 #' @export
@@ -38,6 +43,7 @@ mappingYUI <- function(ns, data, id = "mapY") {
 #'
 #' @param ns
 #' @param data
+#' @param id
 #'
 #' @return
 #' @export
@@ -200,12 +206,32 @@ miscUI <- function(ns, data) {
 }
 
 
+#' Title
+#'
+#' @param ns
+#' @param id
+#'
+#' @return
+#' @export
+#'
+#' @examples
 scaleColorUI <- function(ns, id="scaleColorUIOutput") {
   ui <- uiOutput(ns(id))
 
   return(list(ui=ui, id=id))
 }
 
+#' Title
+#'
+#' @param ns
+#' @param init_colors
+#' @param labels
+#' @param id
+#'
+#' @return
+#' @export
+#'
+#' @examples
 multipleColorPickerUI <- function(ns, init_colors, labels, id = "colorPicker") {
   assert_that(
     length(init_colors) == length(labels)
@@ -225,6 +251,16 @@ multipleColorPickerUI <- function(ns, init_colors, labels, id = "colorPicker") {
   return(list(ui = ui, id = ids))
 }
 
+#' Title
+#'
+#' @param ns
+#' @param data
+#' @param id
+#'
+#' @return
+#' @export
+#'
+#' @examples
 argsStatUI <- function(ns, data, id="argsStat") {
   ui <- pickerInput(ns(id), "stat:",
                     choices = c("bin", "identity", "count"),
@@ -234,6 +270,16 @@ argsStatUI <- function(ns, data, id="argsStat") {
   return(list(ui=ui, id=id))
 }
 
+#' Title
+#'
+#' @param ns
+#' @param data
+#' @param id
+#'
+#' @return
+#' @export
+#'
+#' @examples
 argsPositionUI <- function(ns, data, id="argsPosition") {
   ui <- pickerInput(ns(id), "position:",
                     choices = c("dodge", "dodge2", "stack", "fill"),
@@ -243,212 +289,36 @@ argsPositionUI <- function(ns, data, id="argsPosition") {
   return(list(ui=ui, id=id))
 }
 
-
 #' Title
 #'
 #' @param ns
+#' @param data
+#' @param id
 #'
 #' @return
 #' @export
 #'
 #' @examples
-barSettingUI <- function(ns) {
-  column(12, offset = 0, style='padding:0px;',
-         br(),
-         pickerInput(ns("settingBarStat"), "stat:",
-                     choices = c("bin", "identity", "count"),
-                     selected = "",
-                     multiple = TRUE,
-                     options = pickerOptions(maxOptions = 1)),
-         numericInput(ns("settingBarWidth"), "bar width (between 0 and 1):",
-                      0.5,
-                      min = 0, max = 1),
-         pickerInput(ns("settingBarPosition"), "position:",
-                     choices = c("dodge" = "position_dodge", "fill" = "position_fill"),
-                     selected = c("dodge" = "position_dodge"),
-                     multiple = TRUE,
-                     options = pickerOptions(maxOptions = 1)),
-         numericInput(ns("settingBarPositionWidth"), "position width:",
-                      DODGE_WID_DEFAULT,
-                      min = 0, max = 1)
-  )
-}
-
-#' Title
-#'
-#' @param ns
-#'
-#' @return
-#' @export
-#'
-#' @examples
-textSettingUI <- function(ns) {
-  column(
-    12,  offset = 0, style='padding:0px;',
-    numericInput(ns("settingTextRounding"), "round the labels if they are numeric:",
-                 2, min = 0),
-    numericInput(ns("settingTextSize"), "label size:",
-                 NULL),
-    numericInput(ns("settingTextHjust"), "hjust:",
-                 NULL),
-    numericInput(ns("settingTextVjust"), "vjust:",
-                 NULL),
-    pickerInput(ns("settingTextPosition"), "position:",
-                choices = c("dodge" = "position_dodge", "identity" = "position_identity"),
-                selected = c("dodge" = "position_dodge"),
-                multiple = TRUE,
-                options = pickerOptions(maxOptions = 1)),
-    numericInput(ns("settingTextPositionWidth"), "label position width:",
-                 DODGE_WID_DEFAULT),
-
-  )
-
-
-
+argsAlphaUI <- function(ns, data, id="argsAlpha") {
+  ui <- numericInput(ns(id), "alpha:",
+                     1,
+                     min = 0, max = 1)
+  return(list(ui=ui, id=id))
 }
 
 #' Title
 #'
 #' @param ns
 #' @param data
+#' @param id
 #'
 #' @return
 #' @export
 #'
 #' @examples
-mappingUI <- function(ns, data) {
-  ui <- column(12, offset = 0, style='padding:0px;',
-         br(),
-         pickerInput(ns("mapX"), "x:",
-                     choices = names(data),
-                     selected = "",
-                     multiple = TRUE,
-                     options = pickerOptions(maxOptions = 1)),
-         pickerInput(ns("mapY"), "y:",
-                     choices = names(data),
-                     selected = "",
-                     multiple = TRUE,
-                     options = pickerOptions(maxOptions = 1)),
-         pickerInput(ns("mapColor"), "color:",
-                     choices = names(data),
-                     selected = "",
-                     multiple = TRUE,
-                     options = pickerOptions(maxOptions = 1))
-  )
-
-  return(list(ui = ui, id= c('mapX', 'mapY', 'mapColor') ))
+argsSizeUI <- function(ns, data, id="argsSize") {
+  ui <- numericInput(ns(id), "geom size:",
+                     1, min = 0)
+  return(list(ui=ui, id=id))
 }
-
-
-
-
-#' Title
-#'
-#' @param ns
-#'
-#' @return
-#' @export
-#'
-#' @examples
-lolliSettingUI <- function(ns) {
-  column(12, offset = 0, style='padding:0px;',
-         br(),
-         h4("line segment setting:"),
-         pickerInput(ns("settingLinerangePosition"), "position:",
-                     choices = c("dodge" = "position_dodge", "fill" = "position_fill"),
-                     selected = c("dodge" = "position_dodge"),
-                     multiple = TRUE,
-                     options = pickerOptions(maxOptions = 1)),
-         numericInput(ns("settingLinerangePositionWidth"), "position width:",
-                      DODGE_WID_DEFAULT,
-                      min = 0, max = 1),
-         numericInput(ns("settingLinerangeAlpha"), "alpha:",
-                      0.7,
-                      min = 0, max = 1),
-         numericInput(ns("settingLinerangeSize"), "size:",
-                      1.2, min = 0),
-         br(),
-         h4("dot setting"),
-         pickerInput(ns("settingPointPosition"), "position:",
-                     choices = c("dodge" = "position_dodge", "fill" = "position_fill"),
-                     selected = c("dodge" = "position_dodge"),
-                     multiple = TRUE,
-                     options = pickerOptions(maxOptions = 1)),
-         numericInput(ns("settingPointPositionWidth"), "position width:",
-                      DODGE_WID_DEFAULT,
-                      min = 0, max = 1),
-         numericInput(ns("settingPointAlpha"), "alpha:",
-                      0.9,
-                      min = 0, max = 1),
-         numericInput(ns("settingPointSize"), "size:",
-                      3, min = 0)
-  )
-}
-
-
-#' Title
-#'
-#' @param ns
-#'
-#' @return
-#' @export
-#'
-#' @examples
-lineSettingUI <- function(ns) {
-  column(12, offset = 0, style='padding:0px;',
-         br(),
-         h4("line settings:"),
-         # pickerInput(ns("settingLinerangePosition"), "position:",
-         #             choices = c("dodge" = "position_dodge", "identity" = "position_identity"),
-         #             selected = c("identity" = "position_identity"),
-         #             multiple = TRUE,
-         #             options = pickerOptions(maxOptions = 1)),
-         # numericInput(ns("settingLinerangePositionWidth"), "position width:",
-         #              NULL,
-         #              min = 0, max = 1),
-         numericInput(ns("settingLineAlpha"), "alpha:",
-                      1,
-                      min = 0, max = 1),
-         numericInput(ns("settingLineSize"), "size:",
-                      1, min = 0),
-         # br(),
-         # h4("dot setting"),
-         # pickerInput(ns("settingPointPosition"), "position:",
-         #             choices = c("dodge" = "position_dodge", "fill" = "position_fill"),
-         #             selected = c("dodge" = "position_dodge"),
-         #             multiple = TRUE,
-         #             options = pickerOptions(maxOptions = 1)),
-         # numericInput(ns("settingPointPositionWidth"), "position width:",
-         #              DODGE_WID_DEFAULT,
-         #              min = 0, max = 1),
-         # numericInput(ns("settingPointAlpha"), "alpha:",
-         #              0.9,
-         #              min = 0, max = 1),
-         # numericInput(ns("settingPointSize"), "size:",
-         #              3, min = 0)
-  )
-}
-
-
-#' Title
-#'
-#' @param ns
-#'
-#' @return
-#' @export
-#'
-#' @examples
-pointSettingUI <-  function(ns) {
-  column(12, offset = 0, style='padding:0px;',
-         br(),
-         h4("point settings:"),
-         numericInput(ns("settingPointAlpha"), "alpha:",
-                      1,
-                      min = 0, max = 1),
-         numericInput(ns("settingPointSize"), "size:",
-                      1, min = 0),
-  )
-}
-
-
 

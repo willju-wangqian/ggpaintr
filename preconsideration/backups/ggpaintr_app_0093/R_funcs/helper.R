@@ -1,16 +1,80 @@
-#' Module server for `coord_flip()`
+#' collecting all arguments for theme()
 #'
-#' @param id a string which becomes a name space for the module server
-#' @param module_id the id of the ui element (not including its prefix created by
-#' the name space) which determines whether or not to call `coord_flip()`
+#' @param input
 #'
-#' @return `NULL` or `coord_flip()`
+#' @return
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' flipHandler("my_boxplot", "settingFlip")
-#' }
+themeCollector <- function(input) {
+  themeSettings <- list()
+
+  if(!is.null(input$themeLegendPosition))
+    themeSettings$legend.position = input$themeLegendPosition
+
+  # if(input$themeLegendTitle != "")
+  #   themeSettings$legend.title = input$themeLegendTitle
+
+  themeSettings
+}
+
+#' Title
+#'
+#' @param id
+#' @param reactiveList
+#'
+#' @return
+#' @export
+#'
+#' @examples
+plotSettingServer <- function(id, reactiveList) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      reactiveList$flip = reactive(input$miscFlip)
+      reactiveList$facet = reactive(input$miscFacet)
+      reactiveList$themeSettings = reactive(themeCollector(input))
+
+      reactiveList
+      # relist <- reactiveValues(
+      #   pp = ggPlotObject,
+      #   flip = reactive(input$mapFlip),
+      #   facet = reactive(input$mapFacet),
+      #   themeSettings = reactive(themeCollector(input))
+      # )
+    }
+  )
+}
+
+#' Title
+#'
+#' @param reactiveList
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_plot <- function(data, gg_list) {
+
+  p <- ggplot(data = data)
+  for (i in seq_along(gg_list)) {
+    p <- p + gg_list[[i]]
+  }
+
+  return(p)
+
+}
+
+#' Title
+#'
+#' @param id
+#' @param pp
+#' @param module_id
+#'
+#' @return
+#' @export
+#'
+#' @examples
 flipHandler <- function(id, module_id) {
   moduleServer(
     id,
@@ -63,7 +127,7 @@ facetHandler <- function(id, module_id) {
   )
 }
 
-#' theme()
+#' Title
 #'
 #' @param id
 #' @param module_id
@@ -152,6 +216,23 @@ check_char_set_names <- function(x) {
   x
 }
 
+#' Title
+#'
+#' @param x list
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_remove_null <- function(x) {
+  if(is.null(x)) return(NULL)
+
+  x <- x[!sapply(x, is.null)]
+  if(length(x) == 0) {
+    x <- NULL
+  }
+  x
+}
 
 #' Title
 #'
@@ -212,23 +293,16 @@ connect_param_id <- function(session_input, id_list, params,
   check_remove_null(aes_list)
 }
 
-
 #' Title
 #'
-#' @param x list
+#' @param x
 #'
 #' @return
 #' @export
 #'
 #' @examples
-check_remove_null <- function(x) {
-  if(is.null(x)) return(NULL)
-
-  x <- x[!sapply(x, is.null)]
-  if(length(x) == 0) {
-    x <- NULL
-  }
-  x
+remove_null_list <- function(x) {
+  x[!sapply(x, is.null)]
 }
 
 #' Title
@@ -314,25 +388,6 @@ get_code <- function(code_list) {
   }
 
   return(final_code)
-}
-
-#' Title
-#'
-#' @param reactiveList
-#'
-#' @return
-#' @export
-#'
-#' @examples
-get_plot <- function(data, gg_list) {
-
-  p <- ggplot(data = data)
-  for (i in seq_along(gg_list)) {
-    p <- p + gg_list[[i]]
-  }
-
-  return(p)
-
 }
 
 
