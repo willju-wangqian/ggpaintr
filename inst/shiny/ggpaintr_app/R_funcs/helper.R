@@ -102,11 +102,45 @@ themeHandler <- function(id, module_id, theme_param) {
         return(list(plot = do.call(theme, themeSettings),
                     code = code))
       }
-
-
     }
   )
 }
+
+
+stringParamHandler <- function(id, module_id, param, FUN) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+
+      assert_that(
+        length(module_id) == length(param)
+      )
+
+      settingArgsList <- lapply(module_id, function(mm_id) {
+        input[[mm_id]]
+      })
+
+      names(settingArgsList) <- param
+
+      settingArgsList <- check_remove_null(settingArgsList)
+
+      # browser()
+
+      if( is.null(settingArgsList) ) {
+        return(NULL)
+      } else {
+
+        code <- paste_arg_param(settingArgsList, add_quo = TRUE)
+        code <- paste0(FUN, "(", code, ")")
+
+        return(list(plot = do.call(eval(rlang::parse_expr(FUN)), settingArgsList),
+                    code = code))
+      }
+    }
+  )
+}
+
+
 
 
 #' Title

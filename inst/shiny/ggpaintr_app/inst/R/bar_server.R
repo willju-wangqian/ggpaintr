@@ -10,8 +10,8 @@ bar_main <- reactive({
   barUI <-
     controlUI(bar_control_id, dataBar,
               mapping = c('x', 'y', 'fill'),
-              plot_settings = c('scaleColor', 'misc', 'theme', 'theme_choose'),
               geom_args = c('stat', 'position', 'alpha'),
+              plot_settings = c('scaleColor', 'misc', 'theme', 'theme_choose', 'labs')
               # extra_uiFunc = list(something = mappingUI),
               # extra_uiFuncArgs = list(something = list(NS("barControl"), dataBar))
     )
@@ -53,7 +53,9 @@ observe({
           h3("theme settings"),
           bar_main()[['ui']][['plot_settings_ui']][['theme']],
           br(),
-          bar_main()[['ui']][['plot_settings_ui']][['theme_choose']]
+          bar_main()[['ui']][['plot_settings_ui']][['theme_choose']],
+          h3("labels"),
+          bar_main()[['ui']][['plot_settings_ui']][['labs']]
         )
       ),
       h3("choose colors (if applicable)"),
@@ -87,12 +89,18 @@ observe({
   facet_output <- facetHandler(bar_control_id,
                                bar_main()[['ids']][['plot_settings']][['misc']][1])
 
-  theme_output <- themeHandler(bar_control_id,
-                               bar_main()[['ids']][['plot_settings']][['theme']],
-                               theme_param = c("legend.position", "legend.direction") )
+  theme_output <- stringParamHandler(bar_control_id,
+                                     bar_main()[['ids']][['plot_settings']][['theme']],
+                                     param = c("legend.position", "legend.direction"),
+                                     FUN = "theme")
 
   theme_choose <- themeChooseHandler(bar_control_id,
                                      bar_main()[['ids']][['plot_settings']][['theme_choose']])
+
+  labs_output <- stringParamHandler(bar_control_id,
+                                    bar_main()[['ids']][['plot_settings']][['labs']],
+                                    param = c('x', 'y', 'title', 'subtitle'),
+                                    FUN = "labs")
 
   scaleColors <- tryCatch(
     {
@@ -115,6 +123,7 @@ observe({
                            facet_output,
                            theme_output,
                            theme_choose,
+                           labs_output,
                            scaleColors,
                            data = dataBar,
                            data_path = code_container[['data']])

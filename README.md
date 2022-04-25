@@ -42,6 +42,18 @@ run_ggpaintr_app()
 
 ## Current Version
 
+#### version number: 0.0.9.4
+
+-   TODO:
+    -   documentations
+    -   writeup
+        -   the concept of grammar of graphics?
+        -   how to use the package
+        -   why this package can be useful?
+    -   one more example?
+    -   how to wrap up the part of scale_color
+    -   metaprogramming?
+
 #### version number: 0.0.9.3
 
 -   updates:

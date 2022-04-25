@@ -28,15 +28,30 @@ print(p_boxplot)
 dev.off()
 
 p_bar <- penguins %>% ggplot()  +
-  geom_bar(aes(x=species, y = NULL, fill = species)) +
+  geom_bar(aes(x=species, fill = species)) +
   scale_fill_manual(values = c("#66C2A5", "#FC8D62", "#8DA0CB")) +
   my_theme_icon
-p_bar
+penguins %>% ggplot()  +
+  geom_bar(aes(x=species, fill = species)) +
+  scale_fill_manual(values = c("#66C2A5", "#FC8D62", "#8DA0CB")) +
+  eval(rlang::parse_expr("labs(x = 'abc')"))
+
+rlang::parse_expr("labs(x = 'abc')")
+
+eval(expr(sym("labs(x = 'abc')")))
 
 png(here("preconsideration", "saved_plot_icon", "barplot.png"),
     width = 236, height = 150, units = "px")
 print(p_bar)
 dev.off()
+
+
+eval(rlang::parse_expr(
+  'penguins %>% ggplot()  +
+  geom_bar(aes(x=species, fill = species)) +
+  scale_fill_manual(values = c("#66C2A5", "#FC8D62", "#8DA0CB"))'
+))
+
 
 
 color1 <- brewer.pal(11, "RdBu")[9]

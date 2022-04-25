@@ -56,6 +56,19 @@ run_ggpaintr_app()
 
 ## Current Version
 
+#### version number: 0.0.9.4
+
++ TODO: 
+  - documentations 
+  - icon position or size
+  - writeup
+    - the concept of grammar of graphics
+    - why this package can be useful
+    - how to use the package
+  - how to wrap up the part of scale_color
+  - template?
+  - download plot
+
 #### version number: 0.0.9.3
 
 +   updates:

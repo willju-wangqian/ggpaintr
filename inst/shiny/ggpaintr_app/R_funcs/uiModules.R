@@ -20,6 +20,7 @@ mappingXUI <- function(ns, data, id = "mapX") {
   return(list(ui=ui, id=id))
 }
 
+
 #' Title
 #'
 #' @param ns
@@ -161,6 +162,23 @@ themeUI <- function(ns) {
 
   return(list(ui=ui, id=c('themeLegendPosition', 'themeLegendDirection')))
 }
+
+labsUI <- function(ns) {
+  ui <- column(12, offset = 0, style='padding:0px;',
+               br(),
+               textInput(ns("labX"), "label x:"),
+               textInput(ns("labY"), "label y:"),
+               textInput(ns("labTitle"), "label title:"),
+               textInput(ns("labSubtitle"), "label subtitle:")
+  )
+
+  return(list(ui=ui, id=c('labX', 'labY', 'labTitle', 'labSubtitle')))
+}
+
+
+
+
+
 
 #' Title
 #'

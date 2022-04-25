@@ -24,6 +24,7 @@ getUIControlList <- function(user_defined) {
     theme = "themeUI",
     theme_choose = "themeChooseUI",
     misc = "miscUI",
+    labs = "labsUI",
     scaleColor = "scaleColorUI"
   )
   uiControlList
