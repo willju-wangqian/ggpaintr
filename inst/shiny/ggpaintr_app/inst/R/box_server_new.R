@@ -6,10 +6,20 @@ ns_box <- NS(box_control_id)
 box_main <- reactive({
   req(dataContainer())
 
+  paintr_expr <- expr(
+    geom_boxplot(aes(x, y, fill), position) +
+      coord_flip +
+      facet_grid +
+      theme(legend.position, legend.direction) +
+      labs(x, y, title, subtitle) +
+      theme_choose
+  )
+
   result <- paintr_components(
-    box_control_id, names(dataContainer()),
-    geom_boxplot(aes(x, y, fill)) + coord_flip + facet_grid +
-      theme(legend.position, legend.direction) + labs(x, y, title, subtitle) + theme_choose)
+    box_control_id,
+    names(dataContainer()),
+    !!paintr_expr
+  )
 
   result
 
@@ -37,13 +47,17 @@ observe({
         ),
         bsCollapsePanel(
           "advanced settings",
+          h3("position"),
+          paintr_get_ui(box_main(), "position"),
           h3("misc"),
           paintr_get_ui(box_main(), "coord_flip"),
           paintr_get_ui(box_main(), "facet_grid"),
           h3("theme settings"),
           paintr_get_ui(box_main(), "theme"),
           br(),
-          paintr_get_ui(box_main(), "theme_choose")
+          paintr_get_ui(box_main(), "theme_choose"),
+          br(),
+          paintr_get_ui(box_main(), "labs")
         )
       ),
       h3("choose colors (if applicable)"),
@@ -58,11 +72,8 @@ observe({
 }) %>% bindEvent(input$drawBox)
 
 
-tt <- reactive({
+box_result <- reactive({
   req(dataContainer(), box_main())
-
-  # paintr_list <- paintr_plot_code(box_main(), box_control_id, dataContainer(),
-  #                                 input, output, session)
 
   paintr_list <- paintr_plot_code(box_main(), box_control_id, dataContainer())
 
@@ -87,27 +98,24 @@ tt <- reactive({
     data = dataContainer(),
     data_path = result_container[['data']])
 
-  result_container[['plot']] <- results[['plot']]
-  result_container[['code']] <- results[['code']]
-
-  result_container
+  results
 
 }) %>% bindEvent(input[[NS(box_control_id)("buttonDraw")]])
 
 
 observe({
-  req(tt())
+  req(box_result())
 
   output$mainPlot <- renderPlot({
 
-    validate(need(tt()[['plot']], "plot is not rendered"))
+    validate(need(box_result()[['plot']], "plot is not rendered"))
 
-    tt()[['plot']]
+    box_result()[['plot']]
   })
 
   output$mycode = renderText({
 
-    tt()[['code']]
+    box_result()[['code']]
 
   })
 

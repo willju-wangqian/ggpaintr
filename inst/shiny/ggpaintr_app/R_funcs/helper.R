@@ -137,6 +137,8 @@ stringParamHandler <- function(id, module_id, param, FUN) {
       )
 
       settingArgsList <- lapply(module_id, function(mm_id) {
+        if(is.null(input[[mm_id]])) return(NULL)
+        if (input[[mm_id]] == '') return(NULL)
         input[[mm_id]]
       })
 

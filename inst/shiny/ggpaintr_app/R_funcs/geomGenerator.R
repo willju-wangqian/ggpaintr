@@ -69,7 +69,7 @@ ggGeomGenerator <- function(id, data, geom_FUN, id_list, params_list,
         # get code for geomArgList
         geomArgList <- geomArgList[-which(names(geomArgList) == 'mapping')]
         geomArgList <- check_remove_null(geomArgList)
-        geomArg_code <- paste_arg_param(geomArgList)
+        geomArg_code <- paste_arg_param(geomArgList, add_quo = TRUE)
         if (geomArg_code != "") {
           geomArg_code <- paste0(", ", geomArg_code)
         }
