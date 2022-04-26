@@ -10,7 +10,7 @@
 
 server <- function(input, output, session) {
 
-  code_container <- reactiveValues()
+  result_container <- reactiveValues()
 
   # reactive to fileData
   dataInput <- reactive({
@@ -18,7 +18,8 @@ server <- function(input, output, session) {
 
     if(!is.null(input$defaultData)) {
 
-      code_container[['data']] <- paste0("get('", input$defaultData,  "')")
+      result_container[['data']] <- paste0("get('", input$defaultData,  "')")
+      result_container[['filename']] <- input$defaultData
 
       get(input$defaultData)
 
@@ -43,7 +44,8 @@ server <- function(input, output, session) {
         read_fun <- "readRDS"
       }
 
-      code_container[['data']] <- paste0(read_fun, '("', input$fileData$name, '")')
+      result_container[['data']] <- paste0(read_fun, '("', input$fileData$name, '")')
+      result_container[['filename']] <- input$fileData$name
 
       inputData
 
@@ -76,7 +78,9 @@ server <- function(input, output, session) {
   })
 
   #############################################################
-  source("inst/R/box_server.R", local = TRUE)
+  # source("inst/R/box_server.R", local = TRUE)
+
+  source("inst/R/box_server_new.R", local = TRUE)
 
   #############################################################
   # server part for the bar chart

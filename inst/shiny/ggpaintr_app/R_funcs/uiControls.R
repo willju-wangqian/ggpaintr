@@ -8,7 +8,10 @@
 #' @export
 #'
 #' @examples
-getUIControlList <- function(user_defined) {
+getControlList <- function(type = "ui") {
+
+  type <- match.arg(type, c("ui", "handler"))
+
   uiControlList <- list(
     x = "mappingXUI",
     y = "mappingYUI",
@@ -23,11 +26,29 @@ getUIControlList <- function(user_defined) {
     size_geom = "argsSizeUI",
     theme = "themeUI",
     theme_choose = "themeChooseUI",
-    misc = "miscUI",
+    coord_flip = "settingFlipUI",
+    facet_grid = "settingFacetUI",
+    # misc = "miscUI",
     labs = "labsUI",
     scaleColor = "scaleColorUI"
   )
-  uiControlList
+
+  handlerControlList <- list(
+    labs = "labsHandler",
+    theme = "themeHandler",
+    theme_choose = "themeChooseHandler",
+    facet_grid = "facetHandler",
+    coord_flip = "flipHandler"
+  )
+
+  if (type == "ui") {
+    return(uiControlList)
+  }
+
+  if (type == "handler") {
+    return(handlerControlList)
+  }
+
 }
 
 #' Title
@@ -38,16 +59,16 @@ getUIControlList <- function(user_defined) {
 #' @export
 #'
 #' @examples
-matchUIControls <- function(ui_part) {
+matchControls <- function(selected, type = "ui") {
 
-  uiControlList <- getUIControlList()
+  controlList <- getControlList(type)
 
-  if ( is.null(uiControlList[[ui_part]]) ) {
-    warning( paste("The ui part for", ui_part, "has not been implemented yet.")  )
+  if ( is.null(controlList[[selected]]) ) {
+    warning( paste("The", type, "part for", selected, "has not been implemented yet.")  )
     return(NULL)
   } else {
-    # return( getFromNamespace(uiControlList[[ui_part]], asNamespace("ggpaintr")) )
-    return( match.fun(uiControlList[[ui_part]]) )
+    # return( getFromNamespace(controlList[[selected]], asNamespace("ggpaintr")) )
+    return( match.fun(controlList[[selected]]) )
   }
 
 }
@@ -57,23 +78,30 @@ matchUIControls <- function(ui_part) {
 #' @param name
 #' @param mp
 #' @param defaultArgs
-#' @param extraFunc
-#' @param extraFuncArgs
+#' @param extraFunc optional. A named list of extra functions provided by the user.
+#' For example `list(param1 = my_func1, param2 = my_func2)`
+#' @param extraFuncArgs optional. A list of function arguments provided by the user.
+#' Function arguments of one function should be formed in a list as one element of `extraFuncArgs`
+#' For example `list(param1 = list(my_func1_arg1, my_func1_arg2), param2 = list(my_func2_arg1, my_func2_arg2))`
+#'
+#'
+#' @note `extraFunc` and `extraFuncArgs` allow users to override
+#'
 #'
 #' @return
 #' @export
 #'
 #' @examples
-callFuncUI <- function(name, mp, defaultArgs, extraFunc, extraFuncArgs) {
+callFuncUI <- function(name, defaultArgs, extraFunc = NULL, extraFuncArgs = NULL) {
 
-  if ( is.null(name) || is.null(mp) ) {
+  if ( is.null(name) ) {
     return(NULL)
   }
 
   UI_FUN <- if (!is.null(extraFunc[[name]])) {
     extraFunc[[name]]
   } else {
-    matchUIControls(name)
+    matchControls(name)
   }
 
   if( !is.null(UI_FUN) ) {
@@ -106,7 +134,7 @@ callFuncUI <- function(name, mp, defaultArgs, extraFunc, extraFuncArgs) {
 #' @export
 #'
 #' @examples
-controlUI <- function(id, data, mapping, geom_args = NULL, plot_settings = NULL,
+controlUI <- function(id, data_vars, mapping, geom_args = NULL, plot_settings = NULL,
                       extra_uiFunc = NULL, extra_uiFuncArgs = NULL) {
   ns <- NS(id)
 
@@ -114,25 +142,25 @@ controlUI <- function(id, data, mapping, geom_args = NULL, plot_settings = NULL,
   geom_args <- check_char_set_names(geom_args)
   plot_settings <- check_char_set_names(plot_settings)
 
-  mapping_ui <- mapply(callFuncUI, names(mapping), mapping,
+  mapping_ui <- mapply(callFuncUI, names(mapping),
                        MoreArgs = list(
-                         defaultArgs = list(ns = ns, data = data),
+                         defaultArgs = list(ns = ns, data_vars = data_vars),
                          extraFunc = extra_uiFunc,
                          extraFuncArgs = extra_uiFuncArgs
                        ),
                        SIMPLIFY = FALSE)
 
-  geom_args_ui <- mapply(callFuncUI, names(geom_args), geom_args,
+  geom_args_ui <- mapply(callFuncUI, names(geom_args),
                          MoreArgs = list(
-                           defaultArgs = list(ns = ns, data = data),
+                           defaultArgs = list(ns = ns, data_vars = data_vars),
                            extraFunc = extra_uiFunc,
                            extraFuncArgs = extra_uiFuncArgs
                          ),
                          SIMPLIFY = FALSE)
 
-  plot_settings_ui <- mapply(callFuncUI, names(plot_settings), plot_settings,
+  plot_settings_ui <- mapply(callFuncUI, names(plot_settings),
                              MoreArgs = list(
-                               defaultArgs = list(ns = ns, data = data),
+                               defaultArgs = list(ns = ns, data_vars = data_vars),
                                extraFunc = extra_uiFunc,
                                extraFuncArgs = extra_uiFuncArgs
                              ),
@@ -144,10 +172,10 @@ controlUI <- function(id, data, mapping, geom_args = NULL, plot_settings = NULL,
   plot_settings_ui <- check_remove_null(plot_settings_ui)
 
   result <- list(
-    ui = list(mapping_ui = empty_list_null(purrr::map(mapping_ui, 1)),
-              geom_args_ui = empty_list_null(purrr::map(geom_args_ui, 1)),
-              plot_settings_ui = empty_list_null(purrr::map(plot_settings_ui, 1))),
-    ids = list(mapping = empty_list_null(purrr::map(mapping_ui, 2)),
+    ui = list(mapping = empty_list_null(purrr::map(mapping_ui, 1)),
+              geom_args = empty_list_null(purrr::map(geom_args_ui, 1)),
+              plot_settings = empty_list_null(purrr::map(plot_settings_ui, 1))),
+    id = list(mapping = empty_list_null(purrr::map(mapping_ui, 2)),
                geom_args = empty_list_null(purrr::map(geom_args_ui, 2)),
                plot_settings = empty_list_null(purrr::map(plot_settings_ui, 2)))
   )

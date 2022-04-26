@@ -303,7 +303,7 @@ callFuncUI <- function(name, mp, defaultArgs, extraFunc, extraFuncArgs) {
 #' @export
 #'
 #' @examples
-controlUI <- function(id, data, mapping, geom_args = NULL, plot_settings = NULL,
+controlUI <- function(id, data_vars, mapping, geom_args = NULL, plot_settings = NULL,
                       extra_uiFunc = NULL, extra_uiFuncArgs = NULL) {
   ns <- NS(id)
 
@@ -313,7 +313,7 @@ controlUI <- function(id, data, mapping, geom_args = NULL, plot_settings = NULL,
 
   mapping_ui <- mapply(callFuncUI, names(mapping), mapping,
                        MoreArgs = list(
-                         defaultArgs = list(ns = ns, data = data),
+                         defaultArgs = list(ns = ns, data_vars = data_vars),
                          extraFunc = extra_uiFunc,
                          extraFuncArgs = extra_uiFuncArgs
                        ),
@@ -321,7 +321,7 @@ controlUI <- function(id, data, mapping, geom_args = NULL, plot_settings = NULL,
 
   geom_args_ui <- mapply(callFuncUI, names(geom_args), geom_args,
                          MoreArgs = list(
-                           defaultArgs = list(ns = ns, data = data),
+                           defaultArgs = list(ns = ns, data_vars = data_vars),
                            extraFunc = extra_uiFunc,
                            extraFuncArgs = extra_uiFuncArgs
                          ),
@@ -329,7 +329,7 @@ controlUI <- function(id, data, mapping, geom_args = NULL, plot_settings = NULL,
 
   plot_settings_ui <- mapply(callFuncUI, names(plot_settings), plot_settings,
                              MoreArgs = list(
-                               defaultArgs = list(ns = ns, data = data),
+                               defaultArgs = list(ns = ns, data_vars = data_vars),
                                extraFunc = extra_uiFunc,
                                extraFuncArgs = extra_uiFuncArgs
                              ),

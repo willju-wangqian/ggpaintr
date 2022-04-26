@@ -11,9 +11,9 @@
 #'
 #' @examples
 #' mappingXUI(NS("myplot"), mtcars)
-mappingXUI <- function(ns, data, id = "mapX") {
+mappingXUI <- function(ns, data_vars, id = "mapX") {
   ui <- pickerInput(ns(id), "x:",
-                    choices = names(data),
+                    choices = data_vars,
                     selected = "",
                     multiple = TRUE,
                     options = pickerOptions(maxOptions = 1))
@@ -31,9 +31,9 @@ mappingXUI <- function(ns, data, id = "mapX") {
 #' @export
 #'
 #' @examples
-mappingYUI <- function(ns, data, id = "mapY") {
+mappingYUI <- function(ns, data_vars, id = "mapY") {
   ui <- pickerInput(ns(id), "y:",
-                    choices = names(data),
+                    choices = data_vars,
                     selected = "",
                     multiple = TRUE,
                     options = pickerOptions(maxOptions = 1))
@@ -50,9 +50,9 @@ mappingYUI <- function(ns, data, id = "mapY") {
 #' @export
 #'
 #' @examples
-mappingColorUI <- function(ns, data, id = "mapColor") {
+mappingColorUI <- function(ns, data_vars, id = "mapColor") {
   ui <- pickerInput(ns(id), "color:",
-                    choices = names(data),
+                    choices = data_vars,
                     selected = "",
                     multiple = TRUE,
                     options = pickerOptions(maxOptions = 1))
@@ -69,9 +69,9 @@ mappingColorUI <- function(ns, data, id = "mapColor") {
 #' @export
 #'
 #' @examples
-mappingFillUI <- function(ns, data, id = "mapFill") {
+mappingFillUI <- function(ns, data_vars, id = "mapFill") {
   ui <- pickerInput(ns(id), "fill:",
-                    choices = names(data),
+                    choices = data_vars,
                     selected = "",
                     multiple = TRUE,
                     options = pickerOptions(maxOptions = 1))
@@ -88,9 +88,9 @@ mappingFillUI <- function(ns, data, id = "mapFill") {
 #' @export
 #'
 #' @examples
-mappingGroupUI <- function(ns, data, id = "mapGroup") {
+mappingGroupUI <- function(ns, data_vars, id = "mapGroup") {
   ui <- pickerInput(ns(id), "group:",
-                    choices = names(data),
+                    choices = data_vars,
                     selected = "",
                     multiple = TRUE,
                     options = pickerOptions(maxOptions = 1))
@@ -106,9 +106,9 @@ mappingGroupUI <- function(ns, data, id = "mapGroup") {
 #' @export
 #'
 #' @examples
-mappingShapeUI <- function(ns, data, id="mapShape") {
+mappingShapeUI <- function(ns, data_vars, id="mapShape") {
   ui <- pickerInput(ns(id), "shape:",
-                    choices = names(data),
+                    choices = data_vars,
                     selected = "",
                     multiple = TRUE,
                     options = pickerOptions(maxOptions = 1))
@@ -124,9 +124,9 @@ mappingShapeUI <- function(ns, data, id="mapShape") {
 #' @export
 #'
 #' @examples
-mappingSizeUI <- function(ns, data, id="mapSize") {
+mappingSizeUI <- function(ns, data_vars, id="mapSize") {
   ui <- pickerInput(ns(id), "size:",
-                    choices = names(data),
+                    choices = data_vars,
                     selected = "",
                     multiple = TRUE,
                     options = pickerOptions(maxOptions = 1))
@@ -138,7 +138,6 @@ mappingSizeUI <- function(ns, data, id="mapSize") {
 #' Title
 #'
 #' @param ns
-#' @param data
 #'
 #' @return
 #' @export
@@ -209,20 +208,34 @@ themeChooseUI <- function(ns) {
 #' @export
 #'
 #' @examples
-miscUI <- function(ns, data) {
-  ui <- column(12, offset = 0, style='padding:0px;',
-               br(),
-               pickerInput(ns("miscFacet"), "choose variables for facet (max 2):",
-                           choices = names(data),
-                           selected = "",
-                           multiple = TRUE,
-                           options = pickerOptions(maxOptions = 2)),
-               checkboxInput(ns("miscFlip"), "Flip the coordinate", value = FALSE, width = NULL)
-  )
+# miscUI <- function(ns, data_vars) {
+#   ui <- column(12, offset = 0, style='padding:0px;',
+#                br(),
+#                pickerInput(ns("miscFacet"), "choose variables for facet (max 2):",
+#                            choices = data_vars,
+#                            selected = "",
+#                            multiple = TRUE,
+#                            options = pickerOptions(maxOptions = 2)),
+#                checkboxInput(ns("miscFlip"), "Flip the coordinate", value = FALSE, width = NULL)
+#   )
+#
+#   return(list(ui=ui, id = c('miscFacet', 'miscFlip')))
+# }
 
-  return(list(ui=ui, id = c('miscFacet', 'miscFlip')))
+settingFacetUI <- function(ns, data_vars, id = "miscFacet") {
+  ui <- pickerInput(ns(id), "choose variables for facet (max 2):",
+                    choices = data_vars,
+                    selected = "",
+                    multiple = TRUE,
+                    options = pickerOptions(maxOptions = 2))
+  return(list(ui=ui, id = id))
 }
 
+settingFlipUI <- function(ns, data_vars, id = "miscFlip") {
+  ui <- checkboxInput(ns(id), "Flip the coordinate", value = FALSE, width = NULL)
+
+  return(list(ui=ui, id = id))
+}
 
 #' Title
 #'
@@ -279,7 +292,7 @@ multipleColorPickerUI <- function(ns, init_colors, labels, id = "colorPicker") {
 #' @export
 #'
 #' @examples
-argsStatUI <- function(ns, data, id="argsStat") {
+argsStatUI <- function(ns, id="argsStat") {
   ui <- pickerInput(ns(id), "stat:",
                     choices = c("bin", "identity", "count"),
                     selected = "",
@@ -298,7 +311,7 @@ argsStatUI <- function(ns, data, id="argsStat") {
 #' @export
 #'
 #' @examples
-argsPositionUI <- function(ns, data, id="argsPosition") {
+argsPositionUI <- function(ns, id="argsPosition") {
   ui <- pickerInput(ns(id), "position:",
                     choices = c("dodge", "dodge2", "stack", "fill"),
                     selected = "",
@@ -317,7 +330,7 @@ argsPositionUI <- function(ns, data, id="argsPosition") {
 #' @export
 #'
 #' @examples
-argsAlphaUI <- function(ns, data, id="argsAlpha") {
+argsAlphaUI <- function(ns, id="argsAlpha") {
   ui <- numericInput(ns(id), "alpha:",
                      1,
                      min = 0, max = 1)
@@ -334,7 +347,7 @@ argsAlphaUI <- function(ns, data, id="argsAlpha") {
 #' @export
 #'
 #' @examples
-argsSizeUI <- function(ns, data, id="argsSize") {
+argsSizeUI <- function(ns, id="argsSize") {
   ui <- numericInput(ns(id), "geom size:",
                      1, min = 0)
   return(list(ui=ui, id=id))

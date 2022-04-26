@@ -58,6 +58,18 @@ run_ggpaintr_app()
 
 #### version number: 0.0.9.4
 
+- heuristics:
+  - parameters of handlers
+  - parameters of ui modules
+  - returns of handlers
+
+- changes apply to all plot_servers:
+  - `code_container` to `result_container`
+
+- change theme ui structure so that it can be selected (the same thing for labs)
+  - use list? then select? then taglist?
+
+
 + TODO: 
   - documentations 
   - icon position or size
@@ -68,6 +80,7 @@ run_ggpaintr_app()
   - how to wrap up the part of scale_color
   - template?
   - download plot
+  - aes then comma
 
 #### version number: 0.0.9.3
 

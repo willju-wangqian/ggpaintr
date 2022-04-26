@@ -71,7 +71,7 @@ ggGeomGenerator <- function(id, data, geom_FUN, id_list, params_list,
         geomArgList <- check_remove_null(geomArgList)
         geomArg_code <- paste_arg_param(geomArgList)
         if (geomArg_code != "") {
-          geomArg_code <- paste0(" ", geomArg_code)
+          geomArg_code <- paste0(", ", geomArg_code)
         }
 
         final_code <- paste0(geom_FUN, "(", aes_code, geomArg_code, ")" )

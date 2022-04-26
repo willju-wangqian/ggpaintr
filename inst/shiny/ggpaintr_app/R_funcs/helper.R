@@ -15,6 +15,12 @@ flipHandler <- function(id, module_id) {
   moduleServer(
     id,
     function(input, output, session) {
+      if(is.null(module_id)) {
+        return(NULL)
+      }
+
+      # browser()
+
       if(input[[module_id]]) {
         return(list(plot = coord_flip(),
                     code = "coord_flip()"))
@@ -41,6 +47,9 @@ facetHandler <- function(id, module_id) {
   moduleServer(
     id,
     function(input, output, session) {
+
+      if(is.null(module_id)) return(NULL)
+
       if(!is.null(input[[module_id]])) {
         selectedVars <- input[[module_id]]
 
@@ -73,38 +82,49 @@ facetHandler <- function(id, module_id) {
 #' @export
 #'
 #' @examples
-themeHandler <- function(id, module_id, theme_param) {
-  moduleServer(
-    id,
-    function(input, output, session) {
-
-      assert_that(
-        length(module_id) == length(theme_param)
-      )
-
-      themeSettings <- lapply(module_id, function(mm_id) {
-        input[[mm_id]]
-      })
-
-      names(themeSettings) <- theme_param
-
-      themeSettings <- check_remove_null(themeSettings)
-
-      # browser()
-
-      if( is.null(themeSettings) ) {
-        return(NULL)
-      } else {
-
-        code <- paste_arg_param(themeSettings, add_quo = TRUE)
-        code <- paste0("theme(", code, ")")
-
-        return(list(plot = do.call(theme, themeSettings),
-                    code = code))
-      }
-    }
-  )
+themeHandler <- function(id, module_id, param) {
+  stringParamHandler(id, module_id, param, "theme")
 }
+
+
+labsHandler <- function(id, module_id, param) {
+  stringParamHandler(id, module_id, param, "labs")
+}
+
+
+
+# themeHandler <- function(id, module_id, theme_param) {
+#   moduleServer(
+#     id,
+#     function(input, output, session) {
+#
+#       assert_that(
+#         length(module_id) == length(theme_param)
+#       )
+#
+#       themeSettings <- lapply(module_id, function(mm_id) {
+#         input[[mm_id]]
+#       })
+#
+#       names(themeSettings) <- theme_param
+#
+#       themeSettings <- check_remove_null(themeSettings)
+#
+#       # browser()
+#
+#       if( is.null(themeSettings) ) {
+#         return(NULL)
+#       } else {
+#
+#         code <- paste_arg_param(themeSettings, add_quo = TRUE)
+#         code <- paste0("theme(", code, ")")
+#
+#         return(list(plot = do.call(theme, themeSettings),
+#                     code = code))
+#       }
+#     }
+#   )
+# }
 
 
 stringParamHandler <- function(id, module_id, param, FUN) {
@@ -381,15 +401,28 @@ get_plot <- function(data, gg_list) {
 #' @export
 #'
 #' @examples
-get_plot_code <- function(geom_component, ..., data, data_path) {
+get_plot_code <- function(componentList, data, data_path) {
 
-  total_list <- c(
-    list(geom_component),
-    list(...)
-  )
+  componentList <- check_remove_null(componentList)
 
-  plot_list <- map(total_list, 1)
-  code_list <- map(total_list, 2)
+  # browser()
+
+  check_component <- sapply(componentList, function(cc) {
+      hasName(cc, "code") && hasName(cc, "plot")
+  })
+
+  if(!all(check_component)) {
+    need_fix <- names(componentList)[which(!check_component)]
+    if(is.null(need_fix)) {
+      warning("One or more handlers do not provide both code and plot at the same time")
+    } else {
+      warning(paste0("the handler(s) of: ", paste(need_fix, collapse = " "), " do not provide both code and plot at the same time"))
+    }
+  }
+
+
+  plot_list <- map(componentList, 1)
+  code_list <- map(componentList, 2)
 
   names(code_list)[1] <- "geom"
   code_list[['data']] <- data_path

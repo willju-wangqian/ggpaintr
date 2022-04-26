@@ -8,15 +8,17 @@ box_main <- reactive({
 
   dataBox <- dataContainer()
   boxUI <-
-    controlUI(box_control_id, dataBox,
+    controlUI(box_control_id, names(dataBox),
               mapping = c('x', 'y', 'fill'),
-              plot_settings = c('scaleColor', 'misc', 'theme', 'theme_choose'),
+              plot_settings = c('scaleColor', 'theme', 'theme_choose'),
               geom_args = NULL
               # extra_uiFunc = list(something = mappingUI),
               # extra_uiFuncArgs = list(something = list(NS("boxControl"), dataBox))
     )
 
   boxUI
+
+  # browser()
 
 }) %>% bindCache(input$drawBox) %>% bindEvent(input$drawBox)
 
@@ -35,24 +37,24 @@ observe({
             12, offset = 0, style='padding:0px;',
             br(),
             # p("tips: this variable should be ..."),
-            box_main()[['ui']][['mapping_ui']][['x']],
-            box_main()[['ui']][['mapping_ui']][['y']],
-            box_main()[['ui']][['mapping_ui']][['fill']]
+            box_main()[['ui']][['mapping']][['x']],
+            box_main()[['ui']][['mapping']][['y']],
+            box_main()[['ui']][['mapping']][['fill']]
           )
         ),
         bsCollapsePanel(
           "advanced settings",
           h3("misc"),
-          box_main()[['ui']][['plot_settings_ui']][['misc']],
+          box_main()[['ui']][['plot_settings']][['misc']],
           br(),
           h3("theme settings"),
-          box_main()[['ui']][['plot_settings_ui']][['theme']],
+          box_main()[['ui']][['plot_settings']][['theme']],
           br(),
-          box_main()[['ui']][['plot_settings_ui']][['theme_choose']]
+          box_main()[['ui']][['plot_settings']][['theme_choose']]
         )
       ),
       h3("choose colors (if applicable)"),
-      box_main()[['ui']][['plot_settings_ui']][['scaleColor']],
+      box_main()[['ui']][['plot_settings']][['scaleColor']],
       br(),
       actionButton(NS(box_control_id)("buttonDraw"), "Draw the plot"),
       br()
@@ -61,7 +63,8 @@ observe({
 
 }) %>% bindEvent(input$drawBox)
 
-observe({
+
+tt <- reactive({
   req(dataContainer(), box_main())
 
   dataBox <- dataContainer()
@@ -75,6 +78,8 @@ observe({
                                   )
   )
 
+  # browser()
+
   flip_output <- flipHandler(box_control_id,
                              box_main()[['ids']][['plot_settings']][['misc']][2])
 
@@ -83,7 +88,7 @@ observe({
 
   theme_output <- themeHandler(box_control_id,
                                box_main()[['ids']][['plot_settings']][['theme']],
-                               theme_param = c("legend.position", "legend.direction") )
+                               param = c("legend.position", "legend.direction") )
 
   theme_choose <- themeChooseHandler(box_control_id,
                                      box_main()[['ids']][['plot_settings']][['theme_choose']])
@@ -104,31 +109,56 @@ observe({
   )
 
 
-  results <- get_plot_code(boxComponent,
-                           flip_output,
-                           facet_output,
-                           theme_output,
-                           theme_choose,
-                           scaleColors,
-                           data = dataBox,
-                           data_path = code_container[['data']])
+  results <- get_plot_code(
+    list(boxComponent,
+         flip_output,
+         facet_output,
+         theme_output,
+         theme_choose,
+         scaleColors),
+    data = dataBox,
+    data_path = result_container[['data']])
 
+  result_container[['plot']] <- results[['plot']]
+  result_container[['code']] <- results[['code']]
+
+
+  # output$mainPlot <- renderPlot({
+  #
+  #   validate(need(results[['plot']], "plot is not rendered"))
+  #
+  #   results[['plot']]
+  # })
+  #
+  # output$mycode = renderText({
+  #
+  #   results[['code']]
+  #
+  # })
+
+  result_container
+
+}) %>% bindEvent(input[[NS(box_control_id)("buttonDraw")]])
+
+
+observe({
+  req(tt())
 
   output$mainPlot <- renderPlot({
 
-    validate(need(results[['plot']], "plot is not rendered"))
+    validate(need(tt()[['plot']], "plot is not rendered"))
 
-    results[['plot']]
+    tt()[['plot']]
   })
 
   output$mycode = renderText({
 
-    results[['code']]
+    tt()[['code']]
 
   })
 
+  # browser()
 }) %>% bindEvent(input[[NS(box_control_id)("buttonDraw")]])
-
 
 
 # selectedColors_box <- reactive({
