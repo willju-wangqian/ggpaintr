@@ -4,7 +4,7 @@
 \alias{get_plot_code}
 \title{Title}
 \usage{
-get_plot_code(geom_component, ..., data, data_path)
+get_plot_code(componentList, data, data_path)
 }
 \arguments{
 \item{data_path}{}

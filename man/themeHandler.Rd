@@ -2,9 +2,9 @@
 % Please edit documentation in R/helper.R
 \name{themeHandler}
 \alias{themeHandler}
-\title{Title}
+\title{theme()}
 \usage{
-themeHandler(id, module_id, theme_param)
+themeHandler(id, module_id, param)
 }
 \arguments{
 \item{theme_param}{}
@@ -13,5 +13,5 @@ themeHandler(id, module_id, theme_param)
 
 }
 \description{
-Title
+theme()
 }

@@ -4,7 +4,7 @@
 \alias{mappingSizeUI}
 \title{Title}
 \usage{
-mappingSizeUI(ns, data, id = "mapSize")
+mappingSizeUI(ns, data_vars, id = "mapSize")
 }
 \arguments{
 \item{data}{}

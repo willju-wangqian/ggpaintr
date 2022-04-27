@@ -4,14 +4,22 @@
 \alias{callFuncUI}
 \title{Title}
 \usage{
-callFuncUI(name, mp, defaultArgs, extraFunc, extraFuncArgs)
+callFuncUI(name, defaultArgs, extraFunc = NULL, extraFuncArgs = NULL)
 }
 \arguments{
-\item{extraFuncArgs}{}
+\item{extraFunc}{optional. A named list of extra functions provided by the user.
+For example \code{list(param1 = my_func1, param2 = my_func2)}}
+
+\item{extraFuncArgs}{optional. A list of function arguments provided by the user.
+Function arguments of one function should be formed in a list as one element of \code{extraFuncArgs}
+For example \code{list(param1 = list(my_func1_arg1, my_func1_arg2), param2 = list(my_func2_arg1, my_func2_arg2))}}
 }
 \value{
 
 }
 \description{
 Title
+}
+\note{
+\code{extraFunc} and \code{extraFuncArgs} allow users to override
 }

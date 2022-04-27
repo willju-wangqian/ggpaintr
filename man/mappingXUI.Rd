@@ -2,16 +2,24 @@
 % Please edit documentation in R/uiModules.R
 \name{mappingXUI}
 \alias{mappingXUI}
-\title{Title}
+\title{UI component and its id for aesthetic mapping of x}
 \usage{
-mappingXUI(ns, data, id = "mapX")
+mappingXUI(ns, data_vars, id = "mapX")
 }
 \arguments{
-\item{data}{}
+\item{ns}{the name space of this ui}
+
+\item{id}{id of the ui element}
+
+\item{data}{the data which provides available variables (columns) for plotting}
 }
 \value{
-
+a list with two elements
+\itemize{
+\item ui: the ui element of this piece
+\item id: the id of this ui element
+}
 }
 \description{
-Title
+UI component and its id for aesthetic mapping of x
 }

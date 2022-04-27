@@ -4,10 +4,10 @@
 \alias{mappingColorUI}
 \title{Title}
 \usage{
-mappingColorUI(ns, data, id = "mapColor")
+mappingColorUI(ns, data_vars, id = "mapColor")
 }
 \arguments{
-\item{data}{}
+\item{id}{}
 }
 \value{
 

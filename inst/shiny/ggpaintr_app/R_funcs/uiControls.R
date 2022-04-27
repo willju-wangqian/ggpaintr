@@ -1,206 +1,3 @@
-#' Title
-#'
-#' @param id
-#' @param data
-#'
-#' @return
-#' @export
-#'
-#' @examples
-boxControlUI <- function(id, data) {
-  ns <- NS(id)
-
-  mapping_part <- list(x="mapX", y="mapY", color="mapColor")
-
-  ui_part <- bsCollapse(
-    id = ns("boxControlCollapse"), open = "mapping", multiple = FALSE,
-    bsCollapsePanel(
-      "mapping",
-      column(12, offset = 0, style='padding:0px;',
-             br(),
-             mappingXUI(ns, data, mapping_part$x),
-             mappingYUI(ns, data, mapping_part$y),
-             mappingColorUI(ns, data, mapping_part$color)
-      )
-    ),
-    bsCollapsePanel(
-      "advanced settings",
-      # h3("bar settings"),
-      # barSettingUI(ns),
-      # br(),
-      # h3("label settings"),
-      # checkboxInput(ns("addTextButton"), "Add labels", value = FALSE, width = NULL),
-      # textSettingUI(ns),
-      br(),
-      h3("misc"),
-      miscUI(ns, data),
-      br(),
-      h3("theme settings"),
-      themeUI(ns)
-    )
-  )
-
-  return(list(ui = ui_part, mapping = mapping_part))
-
-}
-
-#' Title
-#'
-#' @param id
-#' @param data
-#'
-#' @return
-#' @export
-#'
-#' @examples
-barControlUI <- function(id, data) {
-  ns <- NS(id)
-
-  bsCollapse(
-    id = ns("barControlCollapse"), open = "mapping", multiple = FALSE,
-    bsCollapsePanel(
-      "mapping",
-      mappingUI(ns, data)
-    ),
-    bsCollapsePanel(
-      "advanced settings",
-      h3("bar settings"),
-      barSettingUI(ns),
-      br(),
-      h3("label settings"),
-      checkboxInput(ns("addTextButton"), "Add labels", value = FALSE, width = NULL),
-      textSettingUI(ns),
-      br(),
-      h3("misc"),
-      miscUI(ns, data),
-      br(),
-      h3("theme settings"),
-      themeUI(ns)
-    )
-  )
-
-}
-
-
-
-#' Title
-#'
-#' @param id
-#' @param data
-#'
-#' @return
-#' @export
-#'
-#' @examples
-lolliControlUI <- function(id, data) {
-  ns <- NS(id)
-
-  bsCollapse(
-    id = ns("lolliControlCollapse"), open = "mapping", multiple = FALSE,
-    bsCollapsePanel(
-      "mapping",
-      mappingUI(ns, data)
-    ),
-    bsCollapsePanel(
-      "advanced settings",
-      h3("lollipop settings"),
-      lolliSettingUI(ns),
-      br(),
-      h3("label settings"),
-      checkboxInput(ns("addTextButton"), "Add labels", value = FALSE, width = NULL),
-      textSettingUI(ns),
-      br(),
-      h3("misc"),
-      miscUI(ns, data),
-      br(),
-      h3("theme settings"),
-      themeUI(ns)
-    )
-  )
-
-}
-
-
-#' Title
-#'
-#' @param id
-#' @param data
-#'
-#' @return
-#' @export
-#'
-#' @examples
-lineControlUI <- function(id, data) {
-  ns <- NS(id)
-
-  bsCollapse(
-    id = ns("lineControlCollapse"), open = "mapping", multiple = FALSE,
-    bsCollapsePanel(
-      "mapping",
-      mappingUI(ns, data)
-    ),
-    bsCollapsePanel(
-      "advanced settings",
-      h3("line settings"),
-      lineSettingUI(ns),
-      br(),
-      h3("label settings"),
-      checkboxInput(ns("addTextButton"), "Add labels", value = FALSE, width = NULL),
-      textSettingUI(ns),
-      br(),
-      h3("misc"),
-      miscUI(ns, data),
-      br(),
-      h3("theme settings"),
-      themeUI(ns)
-    )
-  )
-
-}
-
-
-#' Title
-#'
-#' @param id
-#' @param data
-#'
-#' @return
-#' @export
-#'
-#' @examples
-pointControlUI <- function(id, data) {
-  ns <- NS(id)
-
-  bsCollapse(
-    id = ns("pointControlCollapse"), open = "mapping", multiple = FALSE,
-    bsCollapsePanel(
-      "mapping",
-      # mappingUI(ns, data)
-      column(12, offset = 0, style='padding:0px;',
-        mappingXUI(ns, data),
-        mappingYUI(ns, data),
-        mappingColorUI(ns, data),
-        mappingShapeUI(ns, data)
-      )
-    ),
-    bsCollapsePanel(
-      "advanced settings",
-      h3("point settings"),
-      pointSettingUI(ns),
-      br(),
-      h3("label settings"),
-      checkboxInput(ns("addTextButton"), "Add labels", value = FALSE, width = NULL),
-      textSettingUI(ns),
-      br(),
-      h3("misc"),
-      miscUI(ns, data),
-      br(),
-      h3("theme settings"),
-      themeUI(ns)
-    )
-  )
-}
-
 #################
 
 #' Title
@@ -211,7 +8,10 @@ pointControlUI <- function(id, data) {
 #' @export
 #'
 #' @examples
-getUIControlList <- function(user_defined) {
+getControlList <- function(type = "ui") {
+
+  type <- match.arg(type, c("ui", "handler"))
+
   uiControlList <- list(
     x = "mappingXUI",
     y = "mappingYUI",
@@ -220,12 +20,35 @@ getUIControlList <- function(user_defined) {
     size = "mappingSizeUI",
     fill = "mappingFillUI",
     group = "mappingGroupUI",
+    stat = "argsStatUI",
+    position = "argsPositionUI",
+    alpha = "argsAlphaUI",
+    size_geom = "argsSizeUI",
     theme = "themeUI",
     theme_choose = "themeChooseUI",
-    misc = "miscUI",
+    coord_flip = "settingFlipUI",
+    facet_grid = "settingFacetUI",
+    # misc = "miscUI",
+    labs = "labsUI",
     scaleColor = "scaleColorUI"
   )
-  uiControlList
+
+  handlerControlList <- list(
+    labs = "labsHandler",
+    theme = "themeHandler",
+    theme_choose = "themeChooseHandler",
+    facet_grid = "facetHandler",
+    coord_flip = "flipHandler"
+  )
+
+  if (type == "ui") {
+    return(uiControlList)
+  }
+
+  if (type == "handler") {
+    return(handlerControlList)
+  }
+
 }
 
 #' Title
@@ -236,16 +59,16 @@ getUIControlList <- function(user_defined) {
 #' @export
 #'
 #' @examples
-matchUIControls <- function(ui_part) {
+matchControls <- function(selected, type = "ui") {
 
-  uiControlList <- getUIControlList()
+  controlList <- getControlList(type)
 
-  if ( is.null(uiControlList[[ui_part]]) ) {
-    warning( paste("The ui part for", ui_part, "has not been implemented yet.")  )
+  if ( is.null(controlList[[selected]]) ) {
+    warning( paste("The", type, "part for", selected, "has not been implemented yet.")  )
     return(NULL)
   } else {
-    # return( getFromNamespace(uiControlList[[ui_part]], asNamespace("ggpaintr")) )
-    return( match.fun(uiControlList[[ui_part]]) )
+    # return( getFromNamespace(controlList[[selected]], asNamespace("ggpaintr")) )
+    return( match.fun(controlList[[selected]]) )
   }
 
 }
@@ -255,28 +78,36 @@ matchUIControls <- function(ui_part) {
 #' @param name
 #' @param mp
 #' @param defaultArgs
-#' @param extraFunc
-#' @param extraFuncArgs
+#' @param extraFunc optional. A named list of extra functions provided by the user.
+#' For example `list(param1 = my_func1, param2 = my_func2)`
+#' @param extraFuncArgs optional. A list of function arguments provided by the user.
+#' Function arguments of one function should be formed in a list as one element of `extraFuncArgs`
+#' For example `list(param1 = list(my_func1_arg1, my_func1_arg2), param2 = list(my_func2_arg1, my_func2_arg2))`
+#'
+#'
+#' @note `extraFunc` and `extraFuncArgs` allow users to override
+#'
 #'
 #' @return
 #' @export
 #'
 #' @examples
-callFuncUI <- function(name, mp, defaultArgs, extraFunc, extraFuncArgs) {
+callFuncUI <- function(name, defaultArgs, extraFunc = NULL, extraFuncArgs = NULL) {
 
-  if ( is.null(name) || is.null(mp) ) {
+  if ( is.null(name) ) {
     return(NULL)
   }
 
   UI_FUN <- if (!is.null(extraFunc[[name]])) {
     extraFunc[[name]]
   } else {
-    matchUIControls(name)
+    matchControls(name)
   }
 
   if( !is.null(UI_FUN) ) {
 
-    UI_FUN_args_names <- names(formals(UI_FUN))[sapply(formals(UI_FUN), is.symbol)]
+    # UI_FUN_args_names <- names(formals(UI_FUN))[sapply(formals(UI_FUN), is.symbol)]
+    UI_FUN_args_names <- names(formals(UI_FUN))
 
     UI_FUN_args <- if( !is.null(extraFuncArgs[[name]]) ) {
       extraFuncArgs[[name]]
@@ -284,7 +115,7 @@ callFuncUI <- function(name, mp, defaultArgs, extraFunc, extraFuncArgs) {
       defaultArgs[UI_FUN_args_names]
     }
 
-    return( do.call(UI_FUN, UI_FUN_args) )
+    return( do.call(UI_FUN, check_remove_null(UI_FUN_args)) )
   } else {
     return(NULL)
   }
@@ -304,7 +135,7 @@ callFuncUI <- function(name, mp, defaultArgs, extraFunc, extraFuncArgs) {
 #' @export
 #'
 #' @examples
-controlUI <- function(id, data, mapping, geom_args = NULL, plot_settings = NULL,
+controlUI <- function(id, data_vars, mapping, defaultArgs, geom_args = NULL, plot_settings = NULL,
                       extra_uiFunc = NULL, extra_uiFuncArgs = NULL) {
   ns <- NS(id)
 
@@ -312,25 +143,25 @@ controlUI <- function(id, data, mapping, geom_args = NULL, plot_settings = NULL,
   geom_args <- check_char_set_names(geom_args)
   plot_settings <- check_char_set_names(plot_settings)
 
-  mapping_ui <- mapply(callFuncUI, names(mapping), mapping,
+  mapping_ui <- mapply(callFuncUI, names(mapping),
                        MoreArgs = list(
-                         defaultArgs = list(ns = ns, data = data),
+                         defaultArgs = defaultArgs, # list(ns = ns, data_vars = data_vars),
                          extraFunc = extra_uiFunc,
                          extraFuncArgs = extra_uiFuncArgs
                        ),
                        SIMPLIFY = FALSE)
 
-  geom_args_ui <- mapply(callFuncUI, names(geom_args), geom_args,
+  geom_args_ui <- mapply(callFuncUI, names(geom_args),
                          MoreArgs = list(
-                           defaultArgs = list(ns = ns, data = data),
+                           defaultArgs = defaultArgs,
                            extraFunc = extra_uiFunc,
                            extraFuncArgs = extra_uiFuncArgs
                          ),
                          SIMPLIFY = FALSE)
 
-  plot_settings_ui <- mapply(callFuncUI, names(plot_settings), plot_settings,
+  plot_settings_ui <- mapply(callFuncUI, names(plot_settings),
                              MoreArgs = list(
-                               defaultArgs = list(ns = ns, data = data),
+                               defaultArgs = defaultArgs,
                                extraFunc = extra_uiFunc,
                                extraFuncArgs = extra_uiFuncArgs
                              ),
@@ -342,10 +173,10 @@ controlUI <- function(id, data, mapping, geom_args = NULL, plot_settings = NULL,
   plot_settings_ui <- check_remove_null(plot_settings_ui)
 
   result <- list(
-    ui = list(mapping_ui = empty_list_null(purrr::map(mapping_ui, 1)),
-              geom_args_ui = empty_list_null(purrr::map(geom_args_ui, 1)),
-              plot_settings_ui = empty_list_null(purrr::map(plot_settings_ui, 1))),
-    ids = list(mapping = empty_list_null(purrr::map(mapping_ui, 2)),
+    ui = list(mapping = empty_list_null(purrr::map(mapping_ui, 1)),
+              geom_args = empty_list_null(purrr::map(geom_args_ui, 1)),
+              plot_settings = empty_list_null(purrr::map(plot_settings_ui, 1))),
+    id = list(mapping = empty_list_null(purrr::map(mapping_ui, 2)),
                geom_args = empty_list_null(purrr::map(geom_args_ui, 2)),
                plot_settings = empty_list_null(purrr::map(plot_settings_ui, 2)))
   )

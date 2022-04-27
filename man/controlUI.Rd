@@ -6,8 +6,9 @@
 \usage{
 controlUI(
   id,
-  data,
+  data_vars,
   mapping,
+  defaultArgs,
   geom_args = NULL,
   plot_settings = NULL,
   extra_uiFunc = NULL,

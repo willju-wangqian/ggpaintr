@@ -10,15 +10,22 @@
 
 server <- function(input, output, session) {
 
-  code_container <- reactiveValues()
+  result_container <- reactiveValues()
 
   # reactive to fileData
   dataInput <- reactive({
     # req(input$fileData)
 
-    if(!is.null(input$fileData)) {
+    if(!is.null(input$defaultData)) {
 
-      browser()
+      result_container[['data']] <- paste0("get('", input$defaultData,  "')")
+      result_container[['filename']] <- input$defaultData
+
+      get(input$defaultData)
+
+
+    } else if (!is.null(input$fileData)) {
+
       path <- input$fileData$datapath
 
       ext <- tools::file_ext(path) # [TODO] add Imports tools
@@ -37,19 +44,19 @@ server <- function(input, output, session) {
         read_fun <- "readRDS"
       }
 
-      code_container[['data']] <- paste0(read_fun, '("', input$fileData$name, '")')
+      result_container[['data']] <- paste0(read_fun, '("', input$fileData$name, '")')
+      result_container[['filename']] <- input$fileData$name
 
       inputData
-    } else if (!is.null(input$defaultData)) {
-
-      code_container[['data']] <- paste0("get('", input$defaultData,  "')")
-
-      get(input$defaultData)
 
     } else {
       NULL
     }
 
+  })
+
+  observeEvent(input$fileData, {
+    updatePickerInput(session, "defaultData", selected = "")
   })
 
   # reactive to mytable_rows_all:
@@ -60,7 +67,7 @@ server <- function(input, output, session) {
   })
 
   # render the table
-  output$mytable = DT::renderDataTable({
+  output$mytable <- DT::renderDataTable({
     req(dataInput())
     datatable(dataInput(), filter = 'top',
               options = list(
@@ -70,13 +77,10 @@ server <- function(input, output, session) {
               ))
   })
 
-  observeEvent(input$defaultData, {
-    browser()
-    shinyjs::reset(id = "fileData")
-  })
-
   #############################################################
-  source("inst/R/box_server.R", local = TRUE)
+  # source("inst/R/box_server.R", local = TRUE)
+
+  source("inst/R/box_server_new.R", local = TRUE)
 
   #############################################################
   # server part for the bar chart
@@ -87,100 +91,8 @@ server <- function(input, output, session) {
   source("inst/R/scatter_server.R", local = TRUE)
 
   #############################################################
-
-
-  # ui for line chart
-  # observeEvent(input$drawLine, {
-  #
-  #     dataLine <- dataContainer() # dataContainer$data
-  #
-  #     output$drawControls <- renderUI({
-  #         # provide the complete UI of all components
-  #         column(12,
-  #                lineControlUI("lineControl", dataLine),
-  #                actionButton(NS("lineControl")("buttonDraw"), "Draw the plot")
-  #         )
-  #     })
-  # })
-  #
-  # observeEvent(input[[NS("lineControl")("buttonDraw")]], {
-  #     dataLine <- dataContainer() # dataContainer$data
-  #
-  #     lineComponent <- geomLineGenerator("lineControl", dataLine)
-  #
-  #     geomComponents <-
-  #         ggplot(data = dataLine) +
-  #         lineComponent()
-  #     if(!is.null(input[[NS("lineControl")("addTextButton")]])) {
-  #         if(input[[NS("lineControl")("addTextButton")]]) {
-  #             textComponent <- geomTextGenerator("lineControl", dataLine)
-  #             geomComponents <- geomComponents + textComponent()
-  #         }
-  #     }
-  #
-  #     reactiveList <- reactiveValues(
-  #         pp = reactive(geomComponents)
-  #     )
-  #
-  #     # add all plot settings
-  #     reactiveList <- plotSettingServer("lineControl", reactiveList)
-  #
-  #     pp <- plotGenerator(reactiveList)
-  #
-  #     output$mainPlot <- renderPlot({
-  #         pp
-  #     })
-  # })
-
-
-  #############################################################
-  # ui for lollipop chart
-  # observeEvent(input$drawLolli, {
-  #     dataLolli <- dataContainer() # dataContainer$data
-  #     # ui
-  #     output$drawControls <- renderUI({
-  #         column(12,
-  #                lolliControlUI("lolliControl", dataLolli),
-  #                actionButton(NS("lolliControl")("buttonDraw"), "Draw the plot")
-  #         )
-  #     })
-  # })
-  #
-  # # server for lollipop chart
-  # observeEvent(input[[NS("lolliControl")("buttonDraw")]], {
-  #     dataLolli <- dataContainer() # dataContainer$data
-  #
-  #     linerangeComponent <- geomLinerangeGenerator("lolliControl", dataLolli)
-  #     pointComponent <- geomPointGenerator("lolliControl", dataLolli)
-  #
-  #     geomComponents <-
-  #         ggplot(data = dataLolli) +
-  #         linerangeComponent() +
-  #         pointComponent()
-  #
-  #     if(!is.null(input[[NS("lolliControl")("addTextButton")]])) {
-  #         if(input[[NS("lolliControl")("addTextButton")]]) {
-  #             textComponent <- geomTextGenerator("lolliControl", dataLolli)
-  #             geomComponents <- geomComponents + textComponent()
-  #         }
-  #     }
-  #
-  #     reactiveList <- reactiveValues(
-  #         pp = reactive(geomComponents)
-  #     )
-  #
-  #     # add all plot settings
-  #     reactiveList <- plotSettingServer("lolliControl", reactiveList)
-  #
-  #     pp <- plotGenerator(reactiveList)
-  #
-  #     output$mainPlot <- renderPlot({
-  #         pp
-  #     })
-  # })
-
-
-
+  # server part for the line plot
+  source("inst/R/line_server.R", local = TRUE)
 
 }
 

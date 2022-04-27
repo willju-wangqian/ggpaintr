@@ -12,7 +12,12 @@ Imports:
     tidyverse,
     shinydashboard,
     shinyWidgets,
-    DT
+    DT,
+    rlang
+Suggests:
+    colourpicker,
+    knitr,
+    rmarkdown
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)

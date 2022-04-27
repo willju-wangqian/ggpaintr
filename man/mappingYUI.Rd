@@ -4,10 +4,10 @@
 \alias{mappingYUI}
 \title{Title}
 \usage{
-mappingYUI(ns, data, id = "mapY")
+mappingYUI(ns, data_vars, id = "mapY")
 }
 \arguments{
-\item{data}{}
+\item{id}{}
 }
 \value{
 
