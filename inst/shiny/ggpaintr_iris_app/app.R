@@ -8,15 +8,15 @@
 #
 
 library(shiny)
-library(ggpaintr)
+# library(ggpaintr)
 library(tidyverse)
 library(assertthat)
 library(rlang)
 library(shinyWidgets)
 
-# sapply(list.files("R_funcs/"), function(fileName) {
-#     source(paste0("R_funcs/", fileName))
-# })
+sapply(list.files("R_funcs/"), function(fileName) {
+    source(paste0("R_funcs/", fileName))
+})
 
 data <- iris
 
@@ -55,9 +55,23 @@ server <- function(input, output) {
     code_container <- reactiveValues()
     code_container[['data']] <- "iris"
 
+    # construct paintr object
     box_main <- reactive({
 
-        paintr_expr <- expr(
+        expr1 <- expr(
+            geom_boxplot(aes(x, y))
+        )
+
+        expr2 <- expr(
+            geom_boxplot(aes(x, y), position)
+        )
+
+        expr3 <- expr(
+            geom_boxplot(aes(x, y), position) +
+                theme
+        )
+
+        expr4 <- expr(
             geom_boxplot(aes(x, y, fill), position) +
                 coord_flip +
                 facet_grid +
@@ -66,14 +80,21 @@ server <- function(input, output) {
                 theme_choose
         )
 
+        expr5 <- expr(
+            geom_contour(aes(x, y, z)) +
+                labs(x, title)
+        )
+
+
         paintr(
             box_control_id,
             names(data),
-            !!paintr_expr
+            !!expr5
         )
 
     })
 
+    # place ui
     output$someUI <- renderUI({
         req(box_main())
 
@@ -81,13 +102,16 @@ server <- function(input, output) {
             12,
             paintr_get_ui(box_main(), "x"),
             paintr_get_ui(box_main(), "y"),
-            paintr_get_ui(box_main(), "fill"),
-            paintr_get_ui(box_main(), "coord_flip"),
-            paintr_get_ui(box_main(), "facet_grid")
+            paintr_get_ui(box_main(), "z"),
+            # paintr_get_ui(box_main(), "fill"),
+            paintr_get_ui(box_main(), "labs"),
+            # paintr_get_ui(box_main(), "position"),
+            # paintr_get_ui(box_main(), "facet_grid")
+            # ...
         )
     })
 
-
+    # take results and plot
     observe({
         req(box_main())
 
