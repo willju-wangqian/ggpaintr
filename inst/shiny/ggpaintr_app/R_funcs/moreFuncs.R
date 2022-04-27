@@ -95,7 +95,7 @@ paintr_geom_construct <- function(expr){
     return(NULL)
   }
 
-  args_piece <- fix_repeated_param(args_piece, "size")
+  # args_piece <- fix_repeated_param(args_piece, "size")
 
   result <- list(geom_FUN = geom_func,
                  mapping = mapping_piece,
@@ -221,7 +221,8 @@ paintr_get_ui <- function(paintr_obj, selected_ui_name, type = "ui", scope = NUL
   ui_selected <- ui_names[sapply(ui_names, function(nn) {  any(str_detect(nn, selected_ui_name)) })]
 
   if (length(ui_selected) == 0) {
-    warning("The selected ui not found. return NULL")
+    warning(paste0("The selected ui not found. return NULL\n",
+                   "It's either not in getControlList() or not included in the expr."))
     return(NULL)
   } else if (length(ui_selected) > 1) {
 
@@ -248,15 +249,21 @@ paintr_get_ui <- function(paintr_obj, selected_ui_name, type = "ui", scope = NUL
 
 #' Title
 #'
+#'
+#'
 #' @param paintr_obj
 #' @param id
 #' @param data
+#'
+#' @note this function should be called inside `observeEvent()` since the `isolate()` scope provided
+#' by `observeEvent()` is essential.
 #'
 #' @return
 #' @export
 #'
 #' @examples
-paintr_plot_code <- function(paintr_obj, id, data){
+paintr_plot_code <- function(paintr_obj, id, data,
+                             selected_color_rctv = NULL, selected_fill_rctv = NULL){
   stopifnot(class(paintr_obj) == "paintr_obj")
 
   geomComponent <- ggGeomGenerator(id = id,
@@ -273,13 +280,28 @@ paintr_plot_code <- function(paintr_obj, id, data){
     FUNC <- matchControls(nn, type = "handler")
     if(is.null(FUNC)) return(NULL)
 
-    funcArgsNames <- names(formals(FUNC))[sapply(formals(FUNC), is.symbol)]
+    funcArgsNames <- names(formals(FUNC))
 
     argList <- list(id = id,
                     module_id = paintr_obj[['shiny_components']][['id']][['plot_settings']][[nn]],
                     param = paintr_obj[['gg_components']][['plot_settings']][[nn]])
 
-    do.call(FUNC, argList[funcArgsNames])
+    if( nn == "scaleColor") {
+      argList[['selected_color_fill_rctv']] <- selected_color_rctv
+      argList[['color_fill']] <- 'color'
+    }
+
+    if( nn == "scaleFill") {
+      argList[['selected_color_fill_rctv']] <- selected_fill_rctv
+      argList[['color_fill']] <- 'fill'
+    }
+
+    argList <- check_remove_null(argList[funcArgsNames])
+    if (is.null(argList)) {
+      argList <- list()
+    }
+
+    do.call(FUNC, argList)
 
   }, names(paintr_obj[['gg_components']][['plot_settings']]))
 
@@ -296,22 +318,29 @@ paintr_plot_code <- function(paintr_obj, id, data){
 #' @param id
 #' @param paintr_obj
 #' @param data
-#' @param color_name
+#' @param color_or_fill
 #' @param scaleColor_name
 #'
 #' @return
 #' @export
 #'
 #' @examples
-scaleColorWrapper <- function(id, paintr_obj, data, color_name, scaleColor_name) {
+scaleColor_build_reactivity <- function(id, paintr_obj, data, color_or_fill) {
   moduleServer(
     id,
     function(input, output, session) {
+
       selectedColors_box <- reactive({
         req(paintr_obj(), data())
 
-        fill_id <- paintr_get_ui(paintr_obj(), color_name, type = "id")
-        scaleColorid <- scaleColor_name
+        color_or_fill <- match.arg(color_or_fill, c("color", "fill"))
+        fill_id <- paintr_get_ui(paintr_obj(), color_or_fill, type = "id")
+
+        if(color_or_fill == "color") {
+          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleColor", type = "id")
+        } else {
+          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleFill", type = "id")
+        }
 
         req(input[[fill_id]])
 
@@ -338,7 +367,8 @@ scaleColorWrapper <- function(id, paintr_obj, data, color_name, scaleColor_name)
           init_colors <- RColorBrewer::brewer.pal(num_color, "RdYlBu")
           labels <- unique( color_var )
 
-          colorPickers <- multipleColorPickerUI(ns, init_colors, labels)
+          colorPickers <- multipleColorPickerUI(ns, init_colors,
+                                                labels, id = paste0(color_or_fill, "Picker"))
 
           result <- c(colorPickers, type = "categorical")
 
@@ -346,7 +376,8 @@ scaleColorWrapper <- function(id, paintr_obj, data, color_name, scaleColor_name)
 
           init_colors <- RColorBrewer::brewer.pal(11, "RdBu")[c(9,3)]
           labels <- c('low', 'high')
-          colorPickers <- multipleColorPickerUI(ns, init_colors, labels)
+          colorPickers <- multipleColorPickerUI(ns, init_colors,
+                                                labels, id = paste0(color_or_fill, "Picker"))
 
           result <- c(colorPickers, type = "numerical")
         } else {
@@ -355,14 +386,21 @@ scaleColorWrapper <- function(id, paintr_obj, data, color_name, scaleColor_name)
 
         result
 
-      })  %>% bindEvent(paintr_obj(), input[[paintr_get_ui(paintr_obj(), color_name, type = "id")]])
+      })  %>% bindEvent(paintr_obj(), input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]],
+                        ignoreInit = TRUE)
 
       observe({
 
-        req(selectedColors_box(), paintr_obj())
+        req(selectedColors_box(), paintr_obj(), data())
 
-        fill_id <- paintr_get_ui(paintr_obj(), color_name, type = "id")
-        scaleColorid <- scaleColor_name
+        color_or_fill <- match.arg(color_or_fill, c("color", "fill"))
+        fill_id <- paintr_get_ui(paintr_obj(), color_or_fill, type = "id")
+
+        if(color_or_fill == "color") {
+          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleColor", type = "id")
+        } else {
+          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleFill", type = "id")
+        }
 
         if(selectedColors_box()[['type']] == "TOO_MANY_LEVELS") {
           output[[scaleColorid]] <- renderUI({
@@ -376,20 +414,10 @@ scaleColorWrapper <- function(id, paintr_obj, data, color_name, scaleColor_name)
           })
         }
 
-      })  %>% bindEvent(paintr_obj(), input[[paintr_get_ui(paintr_obj(), color_name, type = "id")]])
+      })  %>% bindEvent(paintr_obj(), input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]])
 
 
-
-      result <- reactive({
-
-        req(selectedColors_box())
-
-
-        selectedColors_box()
-
-      })
-
-      result
+      selectedColors_box
 
     }
 

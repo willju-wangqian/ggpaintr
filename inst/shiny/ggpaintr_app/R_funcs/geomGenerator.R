@@ -149,75 +149,7 @@ colorGenerator <- function(id, dataColor, fillID, scaleColorID, colorPalette = "
 }
 
 
-#' Title
-#'
-#' @param id
-#' @param selected_colors
-#' @param color_fill
-#'
-#' @return
-#' @export
-#'
-#' @examples
-scaleColorHandler <- function(id, selected_colors, color_fill) {
-  moduleServer(
-    id,
-    function(input, output, session) {
 
-      color_fill_options <- c("color", "fill")
-
-      if (is.null(selected_colors) || (!( color_fill %in% color_fill_options )) ) {
-        return(NULL)
-      }
-
-      if (selected_colors[['type']] == "numerical") {
-        assert_that(
-          length(selected_colors[['id']]) == 2
-        )
-
-        colors <- lapply(selected_colors[['id']], function(ii) {
-          input[[ii]]
-        })
-        names(colors) <- c("low", "high")
-
-        code <- paste_arg_param(colors)
-
-
-        if (color_fill == "color") {
-          return(list(plot = do.call(scale_color_gradient, colors),
-                      code = paste0("scale_color_gradient(", code, ")")))
-        } else {
-          return(list(plot = do.call(scale_fill_gradient, colors),
-                      code = paste0("scale_fill_gradient(", code, ")")))
-        }
-
-      } else if (selected_colors[['type']] == "categorical") {
-
-        colors <- sapply(selected_colors[['id']], function(ii) {
-          input[[ii]]
-        })
-
-        names(colors) <- NULL
-
-        if (color_fill == "color") {
-          return(list(plot = scale_color_manual(values = colors),
-                      code =  paste0("scale_color_manual(values = c(",
-                                     paste(shQuote(colors, type="csh"), collapse=", "),
-                                     "))") ))
-        } else {
-          return(list(plot = scale_fill_manual(values = colors),
-                      code =  paste0("scale_fill_manual(values = c(",
-                                     paste(shQuote(colors, type="csh"), collapse=", "),
-                                     "))") ))
-        }
-
-      } else {
-        return(NULL)
-      }
-
-    }
-  )
-}
 
 
 

@@ -18,7 +18,8 @@ sapply(list.files("R_funcs/"), function(fileName) {
     source(paste0("R_funcs/", fileName))
 })
 
-data <- iris
+# data <- iris
+data <- faithfuld
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -31,7 +32,8 @@ ui <- fluidPage(
         sidebarPanel(
             uiOutput("someUI"),
             # actionButton("drawBox", "call UI"),
-            actionButton("draw", "label: draw")
+            actionButton("draw", "label: draw"),
+            textInput("abc", "some label")
         ),
 
         # Show a plot of the generated distribution
@@ -54,6 +56,16 @@ server <- function(input, output) {
 
     code_container <- reactiveValues()
     code_container[['data']] <- "iris"
+
+    my_test <- reactive({
+        input$abc
+    })
+
+    observe({
+       cat(paste0(my_test(), '\n'))
+    })
+
+    cat(input$abc)
 
     # construct paintr object
     box_main <- reactive({

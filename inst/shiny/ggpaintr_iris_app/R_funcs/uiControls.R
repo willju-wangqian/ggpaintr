@@ -39,7 +39,8 @@ getControlList <- function(type = "ui") {
     theme = "themeHandler",
     theme_choose = "themeChooseHandler",
     facet_grid = "facetHandler",
-    coord_flip = "flipHandler"
+    coord_flip = "flipHandler",
+    scaleColor = "scaleColorFlag"
   )
 
   if (type == "ui") {

@@ -8,30 +8,31 @@
 #' @export
 #'
 #' @examples
-getControlList <- function(type = "ui") {
+getControlList <- function(scope = "mapping", type = "ui") {
 
   type <- match.arg(type, c("ui", "handler"))
+  scope <- match.arg(scope, c("mapping", "geom_args", "plot_settings"))
 
   uiControlList <- list(
-    x = "mappingXUI",
-    y = "mappingYUI",
-    z = "mappingZUI",
-    color = "mappingColorUI",
-    shape = "mappingShapeUI",
-    size = "mappingSizeUI",
-    fill = "mappingFillUI",
-    group = "mappingGroupUI",
-    stat = "argsStatUI",
-    position = "argsPositionUI",
-    alpha = "argsAlphaUI",
-    size_geom = "argsSizeUI",
-    theme = "themeUI",
-    theme_choose = "themeChooseUI",
-    coord_flip = "settingFlipUI",
-    facet_grid = "settingFacetUI",
-    # misc = "miscUI",
-    labs = "labsUI",
-    scaleColor = "scaleColorUI"
+    mapping = list(x = "mappingXUI",
+                   y = "mappingYUI",
+                   z = "mappingZUI",
+                   color = "mappingColorUI",
+                   shape = "mappingShapeUI",
+                   size = "mappingSizeUI",
+                   fill = "mappingFillUI",
+                   group = "mappingGroupUI"),
+    geom_args = list(stat = "argsStatUI",
+                     position = "argsPositionUI",
+                     alpha = "argsAlphaUI",
+                     size = "argsSizeUI"),
+    plot_settings = list(theme = "themeUI",
+                         theme_choose = "themeChooseUI",
+                         coord_flip = "settingFlipUI",
+                         facet_grid = "settingFacetUI",
+                         labs = "labsUI",
+                         scaleColor = "scaleColorUI",
+                         scaleFill = "scaleFillUI")
   )
 
   handlerControlList <- list(
@@ -39,11 +40,13 @@ getControlList <- function(type = "ui") {
     theme = "themeHandler",
     theme_choose = "themeChooseHandler",
     facet_grid = "facetHandler",
-    coord_flip = "flipHandler"
+    coord_flip = "flipHandler",
+    scaleColor = "scaleColorFillHandler",
+    scaleFill = "scaleColorFillHandler"
   )
 
   if (type == "ui") {
-    return(uiControlList)
+    return(uiControlList[[scope]])
   }
 
   if (type == "handler") {
@@ -60,9 +63,9 @@ getControlList <- function(type = "ui") {
 #' @export
 #'
 #' @examples
-matchControls <- function(selected, type = "ui") {
+matchControls <- function(selected, scope = "mapping", type = "ui") {
 
-  controlList <- getControlList(type)
+  controlList <- getControlList(scope, type)
 
   if ( is.null(controlList[[selected]]) ) {
     warning( paste("The", type, "part for", selected, "has not been implemented yet.")  )
@@ -93,7 +96,7 @@ matchControls <- function(selected, type = "ui") {
 #' @export
 #'
 #' @examples
-callFuncUI <- function(name, defaultArgs, extraFunc = NULL, extraFuncArgs = NULL) {
+callFuncUI <- function(name, defaultArgs, scope, extraFunc = NULL, extraFuncArgs = NULL) {
 
   if ( is.null(name) ) {
     return(NULL)
@@ -102,7 +105,7 @@ callFuncUI <- function(name, defaultArgs, extraFunc = NULL, extraFuncArgs = NULL
   UI_FUN <- if (!is.null(extraFunc[[name]])) {
     extraFunc[[name]]
   } else {
-    matchControls(name)
+    matchControls(name, scope, type = "ui")
   }
 
   if( !is.null(UI_FUN) ) {
@@ -147,6 +150,7 @@ controlUI <- function(id, data_vars, mapping, defaultArgs, geom_args = NULL, plo
   mapping_ui <- mapply(callFuncUI, names(mapping),
                        MoreArgs = list(
                          defaultArgs = defaultArgs, # list(ns = ns, data_vars = data_vars),
+                         scope = "mapping",
                          extraFunc = extra_uiFunc,
                          extraFuncArgs = extra_uiFuncArgs
                        ),
@@ -155,6 +159,7 @@ controlUI <- function(id, data_vars, mapping, defaultArgs, geom_args = NULL, plo
   geom_args_ui <- mapply(callFuncUI, names(geom_args),
                          MoreArgs = list(
                            defaultArgs = defaultArgs,
+                           scope = "geom_args",
                            extraFunc = extra_uiFunc,
                            extraFuncArgs = extra_uiFuncArgs
                          ),
@@ -163,6 +168,7 @@ controlUI <- function(id, data_vars, mapping, defaultArgs, geom_args = NULL, plo
   plot_settings_ui <- mapply(callFuncUI, names(plot_settings),
                              MoreArgs = list(
                                defaultArgs = defaultArgs,
+                               scope = "plot_settings",
                                extraFunc = extra_uiFunc,
                                extraFuncArgs = extra_uiFuncArgs
                              ),

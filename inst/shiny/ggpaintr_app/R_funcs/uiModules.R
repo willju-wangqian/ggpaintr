@@ -284,6 +284,13 @@ scaleColorUI <- function(ns, id="scaleColorUIOutput") {
   return(list(ui=ui, id=id))
 }
 
+scaleFillUI <- function(ns, id="scaleFillUIOutput") {
+  ui <- uiOutput(ns(id))
+
+  return(list(ui=ui, id=id))
+}
+
+
 #' Title
 #'
 #' @param ns
@@ -381,7 +388,7 @@ argsAlphaUI <- function(ns, id="argsAlpha") {
 #' @examples
 argsSizeUI <- function(ns, id="argsSize") {
   ui <- numericInput(ns(id), "geom size:",
-                     1, min = 0)
+                     0.5, min = 0)
   return(list(ui=ui, id=id))
 }
 
