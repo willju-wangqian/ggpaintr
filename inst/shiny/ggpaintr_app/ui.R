@@ -64,10 +64,8 @@ body <- dashboardBody(
                                     "drawBox",
                                     label = "boxplot",
                                     icon = div(
-                                        img(src = "img_button/boxplot.png")
-                                        # p("box plot")
+                                        img(src = "img_button/boxplot.png", width = "100%")
                                     ),
-                                    # "style"="color: #fff; background-color: #337ab7; border-color: #2e6da4",
                                     style = "fill"
                                 )),
                             column(
@@ -75,10 +73,8 @@ body <- dashboardBody(
                                     "drawBar",
                                     label = "bar chart",
                                     icon = div(
-                                        img(src = "img_button/barplot.png")
-                                        # p("box plot")
+                                        img(src = "img_button/barplot.png", width = "100%")
                                     ),
-                                    # "style"="color: #fff; background-color: #337ab7; border-color: #2e6da4",
                                     style = "fill"
                                 )),
                             column(
@@ -86,10 +82,8 @@ body <- dashboardBody(
                                 "drawScatter",
                                 label = "scatter plot",
                                 icon = div(
-                                  img(src = "img_button/scatter.png")
-                                  # p("scatter plot")
+                                  img(src = "img_button/scatter.png", width = "100%")
                                 ),
-                                # "style"="color: #fff; background-color: #337ab7; border-color: #2e6da4",
                                 style = "fill"
                               )),
                             column(
@@ -97,10 +91,8 @@ body <- dashboardBody(
                                 "drawLine",
                                 label = "line plot",
                                 icon = div(
-                                  img(src = "img_button/line.png")
-                                  # p("scatter plot")
+                                  img(src = "img_button/line.png", width = "100%")
                                 ),
-                                # "style"="color: #fff; background-color: #337ab7; border-color: #2e6da4",
                                 style = "fill"
                               ))
                         )
