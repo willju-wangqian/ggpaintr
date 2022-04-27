@@ -21,13 +21,15 @@ mappingXUI <- function(ns, data, id = "mapX") {
 }
 
 
-#' Title
+#' UI component and its id for aesthetic mapping of y
 #'
-#' @param ns
-#' @param data
-#' @param id
+#' @param ns the name space of this ui
+#' @param data the data which provides available variables (columns) for plotting
+#' @param id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
 #' @export
 #'
 #' @examples
@@ -40,13 +42,16 @@ mappingYUI <- function(ns, data, id = "mapY") {
   return(list(ui=ui, id=id))
 }
 
-#' Title
+#' UI component and its id for aesthetic mapping of color
 #'
-#' @param ns
-#' @param data
-#' @param id
+#' @param ns the name space of this ui
+#' @param data the data which provides available variables (columns) for plotting
+#' @param id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
+#'
 #' @export
 #'
 #' @examples
@@ -59,13 +64,16 @@ mappingColorUI <- function(ns, data, id = "mapColor") {
   return(list(ui=ui, id=id))
 }
 
-#' Title
+#' UI component and its id for aesthetic mapping of fill
 #'
-#' @param ns
-#' @param data
-#' @param id
+#' @param ns the name space of this ui
+#' @param data the data which provides available variables (columns) for plotting
+#' @param id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
+#'
 #' @export
 #'
 #' @examples
@@ -78,13 +86,16 @@ mappingFillUI <- function(ns, data, id = "mapFill") {
   return(list(ui=ui, id=id))
 }
 
-#' Title
+#' UI component and its id for aesthetic mapping of group
 #'
-#' @param ns
-#' @param data
-#' @param id
+#' @param ns the name space of this ui
+#' @param data the data which provides available variables (columns) for plotting
+#' @param id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
+#'
 #' @export
 #'
 #' @examples
@@ -97,12 +108,16 @@ mappingGroupUI <- function(ns, data, id = "mapGroup") {
   return(list(ui=ui, id=id))
 }
 
-#' Title
+#' UI component and its id for aesthetic mapping of shape
 #'
-#' @param ns
-#' @param data
+#' @param ns the name space of this ui
+#' @param data the data which provides available variables (columns) for plotting
+#' @param id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
+#'
 #' @export
 #'
 #' @examples
@@ -115,12 +130,16 @@ mappingShapeUI <- function(ns, data, id="mapShape") {
   return(list(ui=ui, id=id))
 }
 
-#' Title
+#' UI component and its id for aesthetic mapping of size
 #'
-#' @param ns
-#' @param data
+#' @param ns the name space of this ui
+#' @param data the data which provides available variables (columns) for plotting
+#' @param id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
+#'
 #' @export
 #'
 #' @examples
@@ -135,10 +154,9 @@ mappingSizeUI <- function(ns, data, id="mapSize") {
 
 
 
-#' Title
+#' UI component and it allows user to add
 #'
-#' @param ns
-#' @param data
+#' @param ns the name space of this ui
 #'
 #' @return
 #' @export
@@ -162,6 +180,8 @@ themeUI <- function(ns) {
 
   return(list(ui=ui, id=c('themeLegendPosition', 'themeLegendDirection')))
 }
+
+
 
 labsUI <- function(ns) {
   ui <- column(12, offset = 0, style='padding:0px;',
@@ -202,8 +222,8 @@ themeChooseUI <- function(ns) {
 
 #' Title
 #'
-#' @param ns
-#' @param data
+#' @param ns the name space of this ui
+#' @param data the data which provides available variables (columns) for plotting
 #'
 #' @return
 #' @export
@@ -226,8 +246,8 @@ miscUI <- function(ns, data) {
 
 #' Title
 #'
-#' @param ns
-#' @param id
+#' @param ns the name space of this ui
+#' @param id id of the ui element
 #'
 #' @return
 #' @export
@@ -271,9 +291,9 @@ multipleColorPickerUI <- function(ns, init_colors, labels, id = "colorPicker") {
 
 #' Title
 #'
-#' @param ns
-#' @param data
-#' @param id
+#' @param ns the name space of this ui
+#' @param data the data which provides available variables (columns) for plotting
+#' @param id id of the ui element
 #'
 #' @return
 #' @export
@@ -290,9 +310,9 @@ argsStatUI <- function(ns, data, id="argsStat") {
 
 #' Title
 #'
-#' @param ns
-#' @param data
-#' @param id
+#' @param ns the name space of this ui
+#' @param data the data which provides available variables (columns) for plotting
+#' @param id id of the ui element
 #'
 #' @return
 #' @export
@@ -309,9 +329,9 @@ argsPositionUI <- function(ns, data, id="argsPosition") {
 
 #' Title
 #'
-#' @param ns
-#' @param data
-#' @param id
+#' @param ns the name space of this ui
+#' @param data the data which provides available variables (columns) for plotting
+#' @param id id of the ui element
 #'
 #' @return
 #' @export
@@ -326,9 +346,9 @@ argsAlphaUI <- function(ns, data, id="argsAlpha") {
 
 #' Title
 #'
-#' @param ns
-#' @param data
-#' @param id
+#' @param ns the name space of this ui
+#' @param data the data which provides available variables (columns) for plotting
+#' @param id id of the ui element
 #'
 #' @return
 #' @export
