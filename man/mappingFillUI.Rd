@@ -4,7 +4,7 @@
 \alias{mappingFillUI}
 \title{Title}
 \usage{
-mappingFillUI(ns, data, id = "mapFill")
+mappingFillUI(ns, data_vars, id = "mapFill")
 }
 \arguments{
 \item{id}{}

@@ -10,7 +10,6 @@
 #' @export
 #'
 #' @examples
-#' mappingXUI(NS("myplot"), mtcars)
 mappingXUI <- function(ns, data_vars, id = "mapX") {
   ui <- pickerInput(ns(id), "x:",
                     choices = data_vars,
@@ -143,35 +142,59 @@ mappingSizeUI <- function(ns, data_vars, id="mapSize") {
 #' @export
 #'
 #' @examples
-themeUI <- function(ns) {
+themeUI <- function(ns, theme_selected = TRUE) {
+
+  ui_list <- list(
+    legend.position = list(pickerInput(ns("themeLegendPosition"), "Legend Position:",
+                                       choices = c("top", "bottom", "left", "right"),
+                                       selected = "",
+                                       multiple = TRUE,
+                                       options = pickerOptions(maxOptions = 1))),
+    legend.direction = list(pickerInput(ns("themeLegendDirection"), "Legend Direction:",
+                                        choices = c("vertical", "horizontal"),
+                                        selected = "",
+                                        multiple = TRUE,
+                                        options = pickerOptions(maxOptions = 1))),
+    legend.box = list(
+      pickerInput(ns("themeLegendBox"), "Legend Box:",
+                  choices = c("vertical", "horizontal"),
+                  selected = "",
+                  multiple = TRUE,
+                  options = pickerOptions(maxOptions = 1))
+    )
+  )
+  id <- c(legend.position = 'themeLegendPosition', legend.direction = 'themeLegendDirection',
+          legend.box = "themeLegendBox")
+  id <- id[theme_selected]
+
   ui <- column(12, offset = 0, style='padding:0px;',
                br(),
-               pickerInput(ns("themeLegendPosition"), "Legend Position:",
-                           choices = c("top", "bottom", "left", "right"),
-                           selected = "",
-                           multiple = TRUE,
-                           options = pickerOptions(maxOptions = 1)),
-               # textInput(ns("themeLegendTitle"), "Legend Title")
-               pickerInput(ns("themeLegendDirection"), "Legend Direction:",
-                           choices = c("vertical", "horizontal"),
-                           selected = "",
-                           multiple = TRUE,
-                           options = pickerOptions(maxOptions = 1)),
+               tagList(
+                 ui_list[theme_selected]
+               )
   )
 
-  return(list(ui=ui, id=c('themeLegendPosition', 'themeLegendDirection')))
+  return(list(ui=ui, id=id))
 }
 
-labsUI <- function(ns) {
+labsUI <- function(ns, labs_selected = TRUE) {
+
+  lab_type <- c('x', 'y', 'title', 'subtitle')
+  lab_id <- c('labX', 'labY', 'labTitle', 'labSubtitle')
+  ui_list <- mapply(function(type, id) {
+    list(textInput(ns(id), paste0("label ", type ,":")))
+  }, lab_type, lab_id)
+
   ui <- column(12, offset = 0, style='padding:0px;',
                br(),
-               textInput(ns("labX"), "label x:"),
-               textInput(ns("labY"), "label y:"),
-               textInput(ns("labTitle"), "label title:"),
-               textInput(ns("labSubtitle"), "label subtitle:")
+               tagList(
+                 ui_list[labs_selected]
+               )
   )
+  names(lab_id) <- lab_type
+  id <- lab_id[labs_selected]
 
-  return(list(ui=ui, id=c('labX', 'labY', 'labTitle', 'labSubtitle')))
+  return(list(ui=ui, id=id))
 }
 
 

@@ -1,102 +1,11 @@
-# library(sloop)
-#
-# new_factor <- function(x = integer(), levels = character()) {
-#   stopifnot(is.integer(x))
-#   stopifnot(is.character(levels))
-#
-#   structure(
-#     x,
-#     levels = levels,
-#     class = "my_factor"
-#   )
-# }
-#
-# new_factor(1:3, c('a', 'b', 'c'))
-#
-#
-# s3_methods_class("lm")
-# s3_methods_generic("t.test")
-#
-#
-# new_my_class <- function(x = integer()) {
-#   structure(
-#     x,
-#     class = "my_class"
-#   )
-# }
-#
-#
-# confint.my_class <- function(object, parm, level = 0.95, ...) {
-#   print("good")
-# }
-# s3_methods_generic("confint")
-#
-# x <- new_my_class(1L)
-# confint(x)
-#
-#
-#
-#
-#
-#
-# 128 * 256 * 3 * 3 *32 * 32+ 256 * 512 * 3 * 3 *32 *32
-#
-# tt <- matrix(c(12, 0, -5, 14, 10, 5, 14, 10, 5, 12, 0, -5), ncol = 4)
-# tt
-#
-# apply(tt, 1, mean)
-# apply(tt, 1, sd)
-# apply(tt, 1, var)
-#
-# tt / c(1, 10, 100)
-#
-# (tt - apply(tt, 1, mean)) / apply(tt, 1, sd)
-# apply(tt, 1, function(z) {
-#   (z- mean(z)) / sd(z)
-# })
-#
-# tt_new <- (tt - apply(tt, 1, mean)) / apply(tt, 1, sd)
-#
-# gamma_ <- c(1,1,1)
-# beta_ <- c(0, -10, 10)
-#
-# tt_new * gamma_ + beta_
-#
-#
-# data_name = unlist(str_split(as.character(input$fileData$name), '[.]'))
-# data_name = paste(data_name[1:length(data_name)-1], collapse = '.')
-#
-# output$downloadplot = downloadHandler(
-#   filename = function() { paste(data_name, '_boxplot', '.png', sep='') },
-#   content = function(file) {
-#     ggsave(file, results[['plot']])
-#   }
-# )
-#
-#
-# tt <- expr(geom_boxplot(aes(x,y), position) + coord_flip + facet_grid)
-# tt <- expr(geom_boxplot(mapping = aes(x,y), position = ) + coord_flip() + facet_grid())
-# ast(geom_boxplot(mapping = aes(x,y), position) + coord_flip() + facet_grid())
-#
-#
-# ast(geom_boxplot(aes(x,y), position) + coord_flip + facet_grid)
-#
-# my_test_func <- function(x) {
-#   enexpr(x)
-# }
-#
-#
-# my_test_func(
-#   geom_boxplot(aes(x,y), position) + coord_flip() + facet_grid()
-# )
-#
-#
-# rlang::call_standardise(tt)
-
-library(rlang)
-library(lobstr)
-
-
+#' Title
+#'
+#' @param x
+#'
+#' @return
+#' @export
+#'
+#' @examples
 unwrap_expr <- function(x) {
   code <- enexpr(x)
 
@@ -115,6 +24,16 @@ unwrap_expr <- function(x) {
   }
 }
 
+#' Title
+#'
+#' @param x
+#' @param name
+#' @param value
+#'
+#' @return
+#' @export
+#'
+#' @examples
 append_list_name <- function(x, name, value) {
   stopifnot(is_character(name))
 
@@ -122,7 +41,15 @@ append_list_name <- function(x, name, value) {
   x
 }
 
-paintr_construct <- function(expr){
+#' Title
+#'
+#' @param expr
+#'
+#' @return
+#' @export
+#'
+#' @examples
+paintr_geom_construct <- function(expr){
 
   code <- enexpr(expr)
   rr <- unwrap_expr(!!code)
@@ -134,14 +61,12 @@ paintr_construct <- function(expr){
 
   repeat(
     if(rr[[1]] == '+') {
-      # browser()
 
       if( length(rr[[3]]) != 1) {
         plot_setting_piece <- append_list_name(plot_setting_piece,
                                                name = rr[[3]][[1]],
                                                value = unlist(rr[[3]][-1]))
       } else {
-        # plot_setting_piece <- append(plot_setting_piece, rr[[3]])
         plot_setting_piece <- append_list_name(plot_setting_piece,
                                                name = rr[[3]][[1]],
                                                value = NA)
@@ -170,10 +95,8 @@ paintr_construct <- function(expr){
     return(NULL)
   }
 
-  # browser()
   args_piece <- fix_repeated_param(args_piece, "size")
 
-  # browser()
   result <- list(geom_FUN = geom_func,
                  mapping = mapping_piece,
                  geom_args = args_piece,
@@ -182,6 +105,16 @@ paintr_construct <- function(expr){
   return(check_remove_null(result))
 }
 
+#' Title
+#'
+#' @param x
+#' @param param
+#' @param suffix
+#'
+#' @return
+#' @export
+#'
+#' @examples
 fix_repeated_param <- function(x, param, suffix = "_geom") {
 
   if(is.null(x)) {
@@ -204,10 +137,22 @@ fix_repeated_param <- function(x, param, suffix = "_geom") {
 
 }
 
-paintr_components <- function(id, data_vars, expr, extra_uiFunc = NULL, extra_uiFuncArgs = NULL) {
+#' Title
+#'
+#' @param id
+#' @param data_vars
+#' @param expr
+#' @param extra_uiFunc
+#' @param extra_uiFuncArgs
+#'
+#' @return
+#' @export
+#'
+#' @examples
+paintr <- function(id, data_vars, expr, extra_uiFunc = NULL, extra_uiFuncArgs = NULL) {
   code <- enexpr(expr)
 
-  gg_components <- paintr_construct(!!code)
+  gg_components <- paintr_geom_construct(!!code)
 
   mapping <- if (has_name(gg_components, "mapping")) gg_components[['mapping']] else  NULL
   geom_args <- if (has_name(gg_components, "geom_args")) gg_components[['geom_args']] else NULL
@@ -233,6 +178,17 @@ paintr_components <- function(id, data_vars, expr, extra_uiFunc = NULL, extra_ui
 
 }
 
+#' Title
+#'
+#' @param defaultArgs
+#' @param ui_element
+#' @param ui_param
+#' @param plot_settings
+#'
+#' @return
+#' @export
+#'
+#' @examples
 addDefaultArgs <- function(defaultArgs, ui_element, ui_param, plot_settings) {
   if (has_name(plot_settings, ui_element)) {
     defaultArgs[[ui_param]] <- plot_settings[[ui_element]]
@@ -241,6 +197,17 @@ addDefaultArgs <- function(defaultArgs, ui_element, ui_param, plot_settings) {
 }
 
 
+#' Title
+#'
+#' @param paintr_obj
+#' @param selected_ui_name
+#' @param type
+#' @param scope
+#'
+#' @return
+#' @export
+#'
+#' @examples
 paintr_get_ui <- function(paintr_obj, selected_ui_name, type = "ui", scope = NULL) {
 
   stopifnot(class(paintr_obj) == "paintr_obj")
@@ -279,9 +246,17 @@ paintr_get_ui <- function(paintr_obj, selected_ui_name, type = "ui", scope = NUL
 }
 
 
+#' Title
+#'
+#' @param paintr_obj
+#' @param id
+#' @param data
+#'
+#' @return
+#' @export
+#'
+#' @examples
 paintr_plot_code <- function(paintr_obj, id, data){
-  # input, output, session) {
-  # running with session is required
   stopifnot(class(paintr_obj) == "paintr_obj")
 
   geomComponent <- ggGeomGenerator(id = id,
@@ -312,28 +287,22 @@ paintr_plot_code <- function(paintr_obj, id, data){
 
   plotSettingComponents <- check_remove_null(plotSettingComponents)
 
-  # browser()
   return(c(geom = list(geomComponent), plotSettingComponents))
 
 }
-#
-# my_expr <- expr(geom_boxplot(aes(x, y, size), position, size) + coord_flip + facet_grid +
-#                   theme(legend.title, legend.direction) + labs(x, y, title))
-# rr <- paintr_components("boxPlot", mtcars,
-#                         !!my_expr)
-#
-# # rr <- paintr_construct(!!my_expr)
-#
-# paintr_get_ui(rr, "size", "mapping")
-# paintr_get_ui(rr, "labs")
-#
-#
-# paintr_obj <- paintr_components("boxPlot", iris,
-#                                 geom_boxplot(aes(x, y)) + coord_flip + facet_grid +
-#                                   theme(legend.title, legend.direction) + labs(x, y, title) + theme_choose)
-#
-# paintr_get_ui(paintr_obj, "labs")
 
+#' Title
+#'
+#' @param id
+#' @param paintr_obj
+#' @param data
+#' @param color_name
+#' @param scaleColor_name
+#'
+#' @return
+#' @export
+#'
+#' @examples
 scaleColorWrapper <- function(id, paintr_obj, data, color_name, scaleColor_name) {
   moduleServer(
     id,
@@ -409,7 +378,19 @@ scaleColorWrapper <- function(id, paintr_obj, data, color_name, scaleColor_name)
 
       })  %>% bindEvent(paintr_obj(), input[[paintr_get_ui(paintr_obj(), color_name, type = "id")]])
 
-      selectedColors_box
+
+
+      result <- reactive({
+
+        req(selectedColors_box())
+
+
+        selectedColors_box()
+
+      })
+
+      result
+
     }
 
   )

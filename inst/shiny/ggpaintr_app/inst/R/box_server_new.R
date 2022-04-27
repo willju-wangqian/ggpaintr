@@ -6,24 +6,38 @@ ns_box <- NS(box_control_id)
 box_main <- reactive({
   req(dataContainer())
 
-  paintr_expr <- expr(
-    geom_boxplot(aes(x, y, fill), position) +
-      coord_flip +
-      facet_grid +
-      theme(legend.position, legend.direction) +
-      labs(x, y, title, subtitle) +
-      theme_choose
-  )
+  # paintr_expr <- expr(
+  #   geom_boxplot(aes(x, y, fill), position, stat) +
+  #     coord_flip +
+  #     facet_grid +
+  #     theme(legend.direction, legend.position) +
+  #     labs(x, y, title) +
+  #     theme_choose
+  # )
+  #
+  # result <- paintr(
+  #   box_control_id,
+  #   names(dataContainer()),
+  #   !!paintr_expr
+  # )
 
-  result <- paintr_components(
+  result <- paintr(
     box_control_id,
     names(dataContainer()),
-    !!paintr_expr
+    geom_boxplot(aes(x, y, color, size), position, size_geom) +
+      coord_flip +
+      facet_grid +
+      theme(legend.direction, legend.position) +
+      labs(x, y, title) +
+      theme_choose
   )
 
   result
 
 }) %>% bindCache(input$drawBox) %>% bindEvent(input$drawBox)
+
+selectedColors_box <- scaleColorWrapper(box_control_id, box_main, dataContainer,
+                                        "color", "scaleColorUIOutput")
 
 observe({
   output$drawControls <- renderUI({
@@ -42,13 +56,15 @@ observe({
             # p("tips: this variable should be ..."),
             paintr_get_ui(box_main(), "x"),
             paintr_get_ui(box_main(), "y"),
-            paintr_get_ui(box_main(), "fill")
+            paintr_get_ui(box_main(), "color"),
+            paintr_get_ui(box_main(), "size", scope = "mapping")
           )
         ),
         bsCollapsePanel(
           "advanced settings",
           h3("position"),
           paintr_get_ui(box_main(), "position"),
+          paintr_get_ui(box_main(), "size", scope = "geom_args"),
           h3("misc"),
           paintr_get_ui(box_main(), "coord_flip"),
           paintr_get_ui(box_main(), "facet_grid"),
@@ -82,7 +98,7 @@ box_result <- reactive({
       if (!is.null(selectedColors_box())) {
         scaleColorHandler(box_control_id,
                           selectedColors_box(),
-                          color_fill = 'fill')
+                          color_fill = 'color')
       } else {
         NULL
       }
@@ -91,6 +107,18 @@ box_result <- reactive({
       return(NULL)
     }
   )
+
+  # browser()
+  #
+  # scaleColors <- if (!is.null(selectedColors_box())) {
+  #   scaleColorHandler(box_control_id,
+  #                     selectedColors_box(),
+  #                     color_fill = 'fill')
+  # } else {
+  #   NULL
+  # }
+
+
 
   results <- get_plot_code(
     c(paintr_list,
@@ -113,71 +141,16 @@ observe({
     box_result()[['plot']]
   })
 
-  output$mycode = renderText({
+  output$mycode <- renderText({
 
     box_result()[['code']]
 
   })
 
-  # browser()
 }) %>% bindEvent(input[[NS(box_control_id)("buttonDraw")]])
 
-#
-# selectedColors_box <-  scaleColorWrapper(box_control_id, box_main, dataContainer,
-#                                          "fill", "scaleColor")
 
 
-# selectedColors_box <- reactive({
-#
-#   req(box_main(), dataContainer())
-#
-#   result <- scaleColorWrapper(box_control_id, box_main, dataContainer,
-#                               "fill", "scaleColor")
-#   browser()
-#   result()
-# })
-
-
-
-
-scaleColorIDs_box <- reactive({
-  req(box_main())
-
-  fill <-  paintr_get_ui(box_main(), "fill", type = "id")
-  # scaleColor <- paintr_get_ui(box_main(), "scaleColor", type = "id")
-  scaleColor <- "scaleColorUIOutput"
-
-  list(fill = fill, scaleColor = scaleColor)
-
-})
-
-selectedColors_box <- reactive({
-  req(scaleColorIDs_box(), dataContainer())
-
-  colorGenerator(box_control_id,
-                 dataContainer(),
-                 scaleColorIDs_box()[[1]],
-                 scaleColorIDs_box()[[2]])
-
-}) %>% bindCache(input[[ns_box(scaleColorIDs_box()[[1]])]]) %>%
-  bindEvent(input[[ns_box(scaleColorIDs_box()[[1]])]])
-
-observe({
-  req(selectedColors_box(), scaleColorIDs_box())
-
-  if(selectedColors_box()[['type']] == "TOO_MANY_LEVELS") {
-    output[[ns_box(scaleColorIDs_box()[[2]])]] <- renderUI({
-      validate(paste( paste0("There are more than 11 levels in ",
-                             input[[ns_box(scaleColorIDs_box()[[1]])]], "."),
-                      "Too many levels.", sep = "\n"))
-    })
-  } else {
-    output[[ns_box(scaleColorIDs_box()[[2]])]] <- renderUI({
-      selectedColors_box()[['ui']]
-    })
-  }
-
-}) %>% bindEvent(input[[ns_box(scaleColorIDs_box()[[1]])]])
 
 
 

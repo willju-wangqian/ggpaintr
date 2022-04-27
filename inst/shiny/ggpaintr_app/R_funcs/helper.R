@@ -15,11 +15,10 @@ flipHandler <- function(id, module_id) {
   moduleServer(
     id,
     function(input, output, session) {
-      if(is.null(module_id)) {
+      if(is.null(module_id) || is.null(input[[module_id]])) {
         return(NULL)
       }
 
-      # browser()
 
       if(input[[module_id]]) {
         return(list(plot = coord_flip(),
@@ -132,6 +131,8 @@ stringParamHandler <- function(id, module_id, param, FUN) {
     id,
     function(input, output, session) {
 
+      if( any(is.na(module_id)) || any(is.na(param)) ) return(NULL)
+
       assert_that(
         length(module_id) == length(param)
       )
@@ -179,7 +180,7 @@ themeChooseHandler <- function(id, module_id) {
     id,
     function(input, output, session) {
 
-      if (is.null(input[[module_id]])) {
+      if (is.null(module_id) || is.null(input[[module_id]])) {
         return(NULL)
       }
 

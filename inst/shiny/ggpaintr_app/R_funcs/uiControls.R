@@ -106,7 +106,8 @@ callFuncUI <- function(name, defaultArgs, extraFunc = NULL, extraFuncArgs = NULL
 
   if( !is.null(UI_FUN) ) {
 
-    UI_FUN_args_names <- names(formals(UI_FUN))[sapply(formals(UI_FUN), is.symbol)]
+    # UI_FUN_args_names <- names(formals(UI_FUN))[sapply(formals(UI_FUN), is.symbol)]
+    UI_FUN_args_names <- names(formals(UI_FUN))
 
     UI_FUN_args <- if( !is.null(extraFuncArgs[[name]]) ) {
       extraFuncArgs[[name]]
@@ -114,7 +115,7 @@ callFuncUI <- function(name, defaultArgs, extraFunc = NULL, extraFuncArgs = NULL
       defaultArgs[UI_FUN_args_names]
     }
 
-    return( do.call(UI_FUN, UI_FUN_args) )
+    return( do.call(UI_FUN, check_remove_null(UI_FUN_args)) )
   } else {
     return(NULL)
   }
@@ -134,7 +135,7 @@ callFuncUI <- function(name, defaultArgs, extraFunc = NULL, extraFuncArgs = NULL
 #' @export
 #'
 #' @examples
-controlUI <- function(id, data_vars, mapping, geom_args = NULL, plot_settings = NULL,
+controlUI <- function(id, data_vars, mapping, defaultArgs, geom_args = NULL, plot_settings = NULL,
                       extra_uiFunc = NULL, extra_uiFuncArgs = NULL) {
   ns <- NS(id)
 
@@ -144,7 +145,7 @@ controlUI <- function(id, data_vars, mapping, geom_args = NULL, plot_settings = 
 
   mapping_ui <- mapply(callFuncUI, names(mapping),
                        MoreArgs = list(
-                         defaultArgs = list(ns = ns, data_vars = data_vars),
+                         defaultArgs = defaultArgs, # list(ns = ns, data_vars = data_vars),
                          extraFunc = extra_uiFunc,
                          extraFuncArgs = extra_uiFuncArgs
                        ),
@@ -152,7 +153,7 @@ controlUI <- function(id, data_vars, mapping, geom_args = NULL, plot_settings = 
 
   geom_args_ui <- mapply(callFuncUI, names(geom_args),
                          MoreArgs = list(
-                           defaultArgs = list(ns = ns, data_vars = data_vars),
+                           defaultArgs = defaultArgs,
                            extraFunc = extra_uiFunc,
                            extraFuncArgs = extra_uiFuncArgs
                          ),
@@ -160,7 +161,7 @@ controlUI <- function(id, data_vars, mapping, geom_args = NULL, plot_settings = 
 
   plot_settings_ui <- mapply(callFuncUI, names(plot_settings),
                              MoreArgs = list(
-                               defaultArgs = list(ns = ns, data_vars = data_vars),
+                               defaultArgs = defaultArgs,
                                extraFunc = extra_uiFunc,
                                extraFuncArgs = extra_uiFuncArgs
                              ),

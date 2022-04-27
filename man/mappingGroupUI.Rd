@@ -4,7 +4,7 @@
 \alias{mappingGroupUI}
 \title{Title}
 \usage{
-mappingGroupUI(ns, data, id = "mapGroup")
+mappingGroupUI(ns, data_vars, id = "mapGroup")
 }
 \arguments{
 \item{id}{}

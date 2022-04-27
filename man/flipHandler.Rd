@@ -2,16 +2,24 @@
 % Please edit documentation in R/helper.R
 \name{flipHandler}
 \alias{flipHandler}
-\title{Title}
+\title{Module server for \code{coord_flip()}}
 \usage{
 flipHandler(id, module_id)
 }
 \arguments{
-\item{module_id}{}
+\item{id}{a string which becomes a name space for the module server}
+
+\item{module_id}{the id of the ui element (not including its prefix created by
+the name space) which determines whether or not to call \code{coord_flip()}}
 }
 \value{
-
+\code{NULL} or \code{coord_flip()}
 }
 \description{
-Title
+Module server for \code{coord_flip()}
+}
+\examples{
+\dontrun{
+flipHandler("my_boxplot", "settingFlip")
+}
 }

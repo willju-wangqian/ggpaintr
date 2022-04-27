@@ -11,6 +11,12 @@ library(shiny)
 library(ggpaintr)
 library(tidyverse)
 library(assertthat)
+library(rlang)
+library(shinyWidgets)
+
+# sapply(list.files("R_funcs/"), function(fileName) {
+#     source(paste0("R_funcs/", fileName))
+# })
 
 data <- iris
 
@@ -24,67 +30,71 @@ ui <- fluidPage(
     sidebarLayout(
         sidebarPanel(
             uiOutput("someUI"),
-            actionButton("drawBox", "call UI"),
+            # actionButton("drawBox", "call UI"),
             actionButton("draw", "label: draw")
         ),
 
         # Show a plot of the generated distribution
         mainPanel(
-            plotOutput("mainPlot")
+            plotOutput("mainPlot"),
+            verbatimTextOutput('mycode')
         )
     )
 )
 
 
-box_control_id <- "boxControl"
 
-ns_box <- NS(box_control_id)
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
 
+    box_control_id <- "boxControl"
+
+    ns_box <- NS(box_control_id)
+
     code_container <- reactiveValues()
-    code_container[['data']] <- "abc"
+    code_container[['data']] <- "iris"
 
     box_main <- reactive({
-        req(data)
 
-        boxUI <-
-            controlUI(box_control_id, data,
-                      mapping = c('x', 'y', 'color', 'size')
-            )
-
-        boxUI
-
-    }) %>% bindCache(input$drawBox) %>% bindEvent(input$drawBox)
-
-    observe({
-        output$someUI <- renderUI({
-            req(box_main())
-
-            column(
-                12,
-                box_main()[['ui']][['mapping_ui']][['x']],
-                box_main()[['ui']][['mapping_ui']][['y']],
-                box_main()[['ui']][['mapping_ui']][['color']],
-                box_main()[['ui']][['mapping_ui']][['size']]
-            )
-        })
-
-    }) %>% bindEvent(input$drawBox)
-
-
-    observe({
-        boxComponent <- ggGeomGenerator(id = box_control_id,
-                                        data = data,
-                                        geom_FUN = "geom_point",
-                                        id_list = box_main()[['ids']],
-                                        params_list = list(
-                                            mapping = c('x', 'y', 'color', 'size')
-                                        )
+        paintr_expr <- expr(
+            geom_boxplot(aes(x, y, fill), position) +
+                coord_flip +
+                facet_grid +
+                theme(legend.position) +
+                labs(x, y) +
+                theme_choose
         )
 
-        results <- get_plot_code(boxComponent,
+        paintr(
+            box_control_id,
+            names(data),
+            !!paintr_expr
+        )
+
+    })
+
+    output$someUI <- renderUI({
+        req(box_main())
+
+        column(
+            12,
+            paintr_get_ui(box_main(), "x"),
+            paintr_get_ui(box_main(), "y"),
+            paintr_get_ui(box_main(), "fill"),
+            paintr_get_ui(box_main(), "coord_flip"),
+            paintr_get_ui(box_main(), "facet_grid")
+        )
+    })
+
+
+    observe({
+        req(box_main())
+
+        paintr_list <- paintr_plot_code(box_main(),
+                                        box_control_id, data)
+
+        results <- get_plot_code(paintr_list,
                                  data = data,
                                  data_path = code_container[['data']])
 
@@ -93,6 +103,12 @@ server <- function(input, output) {
             validate(need(results[['plot']], "plot is not rendered"))
 
             results[['plot']]
+        })
+
+        output$mycode <- renderText({
+
+            results[['code']]
+
         })
 
     }) %>% bindEvent(input$draw)

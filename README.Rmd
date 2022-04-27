@@ -68,6 +68,11 @@ run_ggpaintr_app()
 
 - change theme ui structure so that it can be selected (the same thing for labs)
   - use list? then select? then taglist?
+  - make `defaultArguments` a pool of arguments, uis can choose whatever they need
+  
+- color doesn't work
+  - change parameters in scale wrapper
+- can I call reactive 
 
 
 + TODO: 

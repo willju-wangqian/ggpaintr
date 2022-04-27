@@ -103,6 +103,7 @@ colorGenerator <- function(id, dataColor, fillID, scaleColorID, colorPalette = "
   moduleServer(
     id,
     function(input, output, session) {
+      browser()
 
       req(input[[fillID]])
 
