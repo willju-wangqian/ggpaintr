@@ -1,4 +1,174 @@
-#################
+#' Title
+#'
+#' @param id
+#' @param paintr_obj
+#' @param data
+#' @param color_or_fill
+#' @param scaleColor_name
+#'
+#' @return
+#' @export
+#'
+#' @examples
+scaleColor_build_reactivity <- function(id, paintr_obj, data, color_or_fill) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+
+      selectedColors_box <- reactive({
+        req(paintr_obj(), data())
+
+        color_or_fill <- match.arg(color_or_fill, c("color", "fill"))
+        fill_id <- paintr_get_ui(paintr_obj(), color_or_fill, type = "id")
+
+        if(color_or_fill == "color") {
+          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleColor", type = "id")
+        } else {
+          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleFill", type = "id")
+        }
+
+        req(input[[fill_id]])
+
+        assert_that(
+          hasName(data(), input[[fill_id]])
+        )
+
+        if(is.null(scaleColorid)) {
+          result <- NULL
+        }
+
+        color_var <- data()[[input[[fill_id]]]]
+        ns <- NS(id)
+
+        if (is.character(color_var) || is.factor(color_var) ) {
+          num_color <- length(unique( color_var ))
+
+          TOO_MANY_LEVELS <- num_color > 11
+
+          if(TOO_MANY_LEVELS) {
+            result <- list(type = "TOO_MANY_LEVELS")
+          }
+
+          init_colors <- RColorBrewer::brewer.pal(num_color, "RdYlBu")
+          labels <- unique( color_var )
+
+          colorPickers <- multipleColorPickerUI(ns, init_colors,
+                                                labels, id = paste0(color_or_fill, "Picker"))
+
+          result <- c(colorPickers, type = "categorical")
+
+        } else if ( is.numeric(color_var) ) {
+
+          init_colors <- RColorBrewer::brewer.pal(11, "RdBu")[c(9,3)]
+          labels <- c('low', 'high')
+          colorPickers <- multipleColorPickerUI(ns, init_colors,
+                                                labels, id = paste0(color_or_fill, "Picker"))
+
+          result <- c(colorPickers, type = "numerical")
+        } else {
+          result <- NULL
+        }
+
+        result
+
+      })  %>% bindEvent(paintr_obj(), input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]],
+                        ignoreInit = TRUE)
+
+      observe({
+
+        req(selectedColors_box(), paintr_obj(), data())
+
+        color_or_fill <- match.arg(color_or_fill, c("color", "fill"))
+        fill_id <- paintr_get_ui(paintr_obj(), color_or_fill, type = "id")
+
+        if(color_or_fill == "color") {
+          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleColor", type = "id")
+        } else {
+          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleFill", type = "id")
+        }
+
+        if(selectedColors_box()[['type']] == "TOO_MANY_LEVELS") {
+          output[[scaleColorid]] <- renderUI({
+            validate(paste( paste0("There are more than 11 levels in ",
+                                   input[[ns_box(scaleColorIDs_box()[[1]])]], "."),
+                            "Too many levels.", sep = "\n"))
+          })
+        } else {
+          output[[scaleColorid]] <- renderUI({
+            selectedColors_box()[['ui']]
+          })
+        }
+
+      })  %>% bindEvent(paintr_obj(), input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]])
+
+
+      selectedColors_box
+
+    }
+
+  )
+}
+
+
+#' Title
+#'
+#' @param session_input
+#' @param mapping_id
+#' @param params
+#'
+#' @return
+#' @export
+#'
+#' @examples
+connect_param_id <- function(session_input, id_list, params,
+                             color_fill = FALSE, color_group = FALSE) {
+  if(is.null(params) || is.null(id_list)) {
+    return(NULL)
+  }
+
+  id_list <- unlist(id_list)
+
+  assert_that(
+    length(id_list) == length(params)
+  )
+
+  aes_list <- lapply(id_list, function(id, input) {
+    input[[id]]
+  }, input = session_input)
+
+  names(aes_list) <- params
+
+  if(color_fill) {
+    assert_that(
+      hasName(aes_list, "color") || hasName(aes_list, "fill")
+    )
+
+    if (is.null(aes_list[['fill']])) {
+      aes_list[['fill']] <- aes_list[['color']]
+    }
+
+    if(is.null(aes_list[['color']])) {
+      aes_list[['color']] <- aes_list[['fill']]
+    }
+  }
+
+  if(color_group) {
+    assert_that(
+      hasName(aes_list, "color") || hasName(aes_list, "group")
+    )
+
+    if (is.null(aes_list[['group']])) {
+      aes_list[['group']] <- aes_list[['color']]
+    }
+
+    if(is.null(aes_list[['color']])) {
+      aes_list[['color']] <- aes_list[['group']]
+    }
+  }
+
+  check_remove_null(aes_list)
+}
+
 
 #' Title
 #'
@@ -8,7 +178,7 @@
 #' @export
 #'
 #' @examples
-getControlList <- function(scope = "mapping", type = "ui") {
+getControlList <- function(scope = "mapping", type = "ui", show_all = FALSE) {
 
   type <- match.arg(type, c("ui", "handler"))
   scope <- match.arg(scope, c("mapping", "geom_args", "plot_settings"))
@@ -44,6 +214,11 @@ getControlList <- function(scope = "mapping", type = "ui") {
     scaleColor = "scaleColorFillHandler",
     scaleFill = "scaleColorFillHandler"
   )
+
+  if(show_all) {
+    return(print(list(ui = uiControlList,
+                      handler = handlerControlList)))
+  }
 
   if (type == "ui") {
     return(uiControlList[[scope]])
@@ -149,7 +324,7 @@ controlUI <- function(id, data_vars, mapping, defaultArgs, geom_args = NULL, plo
 
   mapping_ui <- mapply(callFuncUI, names(mapping),
                        MoreArgs = list(
-                         defaultArgs = defaultArgs, # list(ns = ns, data_vars = data_vars),
+                         defaultArgs = defaultArgs,
                          scope = "mapping",
                          extraFunc = extra_uiFunc,
                          extraFuncArgs = extra_uiFuncArgs
@@ -180,14 +355,15 @@ controlUI <- function(id, data_vars, mapping, defaultArgs, geom_args = NULL, plo
   plot_settings_ui <- check_remove_null(plot_settings_ui)
 
   result <- list(
-    ui = list(mapping = empty_list_null(purrr::map(mapping_ui, 1)),
-              geom_args = empty_list_null(purrr::map(geom_args_ui, 1)),
-              plot_settings = empty_list_null(purrr::map(plot_settings_ui, 1))),
-    id = list(mapping = empty_list_null(purrr::map(mapping_ui, 2)),
-               geom_args = empty_list_null(purrr::map(geom_args_ui, 2)),
-               plot_settings = empty_list_null(purrr::map(plot_settings_ui, 2)))
+    ui = list(mapping = check_remove_null(purrr::map(mapping_ui, 1)),
+              geom_args = check_remove_null(purrr::map(geom_args_ui, 1)),
+              plot_settings = check_remove_null(purrr::map(plot_settings_ui, 1))),
+    id = list(mapping = check_remove_null(purrr::map(mapping_ui, 2)),
+              geom_args = check_remove_null(purrr::map(geom_args_ui, 2)),
+              plot_settings = check_remove_null(purrr::map(plot_settings_ui, 2)))
   )
 
   return(result)
 
 }
+

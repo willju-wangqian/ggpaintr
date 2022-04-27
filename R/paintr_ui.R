@@ -221,11 +221,11 @@ labsUI <- function(ns, labs_selected = TRUE) {
 #' @examples
 themeChooseUI <- function(ns) {
   ui <- pickerInput(ns("themeChoose"), "Choose a theme:",
-              choices = c("default" = "theme_gray", "classic" = "theme_classic",
-                          "dark-on-light" = "theme_bw", "minimal" = "theme_minimal"),
-              selected = "",
-              multiple = TRUE,
-              options = pickerOptions(maxOptions = 1))
+                    choices = c("default" = "theme_gray", "classic" = "theme_classic",
+                                "dark-on-light" = "theme_bw", "minimal" = "theme_minimal"),
+                    selected = "",
+                    multiple = TRUE,
+                    options = pickerOptions(maxOptions = 1))
   return(list(ui=ui, id="themeChoose"))
 
 }

@@ -1,48 +1,5 @@
 #' Title
 #'
-#' @param x
-#'
-#' @return
-#' @export
-#'
-#' @examples
-unwrap_expr <- function(x) {
-  code <- enexpr(x)
-
-  if(all(sapply(code, is_symbol))) {
-    return(lapply(as.list(code), as_string))
-  } else {
-    lapply(as.list(code), function(code_piece) {
-      if(is_call(code_piece)) {
-        return(unwrap_expr(!!code_piece))
-      } else {
-        return(as_string(code_piece))
-      }
-
-    })
-
-  }
-}
-
-#' Title
-#'
-#' @param x
-#' @param name
-#' @param value
-#'
-#' @return
-#' @export
-#'
-#' @examples
-append_list_name <- function(x, name, value) {
-  stopifnot(is_character(name))
-
-  x[[name]] <- value
-  x
-}
-
-#' Title
-#'
 #' @param expr
 #'
 #' @return
@@ -107,38 +64,6 @@ paintr_geom_construct <- function(expr){
 
 #' Title
 #'
-#' @param x
-#' @param param
-#' @param suffix
-#'
-#' @return
-#' @export
-#'
-#' @examples
-fix_repeated_param <- function(x, param, suffix = "_geom") {
-
-  if(is.null(x)) {
-    return(NULL)
-  }
-
-
-  stopifnot(is.character(x) && is.character(param))
-
-  idx <- which(x == param)
-  if( length(idx) == 0 ) {
-    return(x)
-  } else if (length(idx) == 1) {
-    x[idx] <- paste0(param, suffix)
-    return(x)
-  } else {
-    stop("Too many repeated parameters.")
-    return(NULL)
-  }
-
-}
-
-#' Title
-#'
 #' @param id
 #' @param data_vars
 #' @param expr
@@ -149,7 +74,7 @@ fix_repeated_param <- function(x, param, suffix = "_geom") {
 #' @export
 #'
 #' @examples
-paintr <- function(id, data_vars, expr, extra_uiFunc = NULL, extra_uiFuncArgs = NULL) {
+paintr <- function(id, data_vars, expr, extra_ui = NULL, extra_ui_args = NULL) {
   code <- enexpr(expr)
 
   gg_components <- paintr_geom_construct(!!code)
@@ -169,7 +94,7 @@ paintr <- function(id, data_vars, expr, extra_uiFunc = NULL, extra_uiFuncArgs = 
   shiny_components <- controlUI(id, data_vars,
                                 defaultArgs = defaultArgs,
                                 mapping, geom_args, names(plot_settings),
-                                extra_uiFunc = extra_uiFunc, extra_uiFuncArgs = extra_uiFuncArgs)
+                                extra_uiFunc = extra_ui, extra_uiFuncArgs = extra_ui_args)
 
   result <- list(gg_components = gg_components,
                  shiny_components = shiny_components)
@@ -178,23 +103,6 @@ paintr <- function(id, data_vars, expr, extra_uiFunc = NULL, extra_uiFuncArgs = 
 
 }
 
-#' Title
-#'
-#' @param defaultArgs
-#' @param ui_element
-#' @param ui_param
-#' @param plot_settings
-#'
-#' @return
-#' @export
-#'
-#' @examples
-addDefaultArgs <- function(defaultArgs, ui_element, ui_param, plot_settings) {
-  if (has_name(plot_settings, ui_element)) {
-    defaultArgs[[ui_param]] <- plot_settings[[ui_element]]
-  }
-  defaultArgs
-}
 
 
 #' Title
@@ -266,12 +174,12 @@ paintr_plot_code <- function(paintr_obj, id, data,
                              selected_color_rctv = NULL, selected_fill_rctv = NULL){
   stopifnot(class(paintr_obj) == "paintr_obj")
 
-  geomComponent <- ggGeomGenerator(id = id,
-                                   data = data,
-                                   geom_FUN = paintr_obj[['gg_components']][['geom_FUN']],
-                                   id_list = paintr_obj[['shiny_components']][['id']],
-                                   params_list = list( mapping = paintr_obj[['gg_components']][['mapping']],
-                                                       geom_args = paintr_obj[['gg_components']][['geom_args']] )
+  geomComponent <- ggGeomHandler(id = id,
+                                 data = data,
+                                 geom_FUN = paintr_obj[['gg_components']][['geom_FUN']],
+                                 id_list = paintr_obj[['shiny_components']][['id']],
+                                 params_list = list( mapping = paintr_obj[['gg_components']][['mapping']],
+                                                     geom_args = paintr_obj[['gg_components']][['geom_args']] )
   )
 
   plotSettingComponents <- mapply(function(nn) {
@@ -315,114 +223,101 @@ paintr_plot_code <- function(paintr_obj, id, data,
 
 #' Title
 #'
-#' @param id
-#' @param paintr_obj
-#' @param data
-#' @param color_or_fill
-#' @param scaleColor_name
+#' @param code_list
 #'
 #' @return
 #' @export
 #'
 #' @examples
-scaleColor_build_reactivity <- function(id, paintr_obj, data, color_or_fill) {
-  moduleServer(
-    id,
-    function(input, output, session) {
+get_code <- function(code_list) {
 
-      selectedColors_box <- reactive({
-        req(paintr_obj(), data())
-
-        color_or_fill <- match.arg(color_or_fill, c("color", "fill"))
-        fill_id <- paintr_get_ui(paintr_obj(), color_or_fill, type = "id")
-
-        if(color_or_fill == "color") {
-          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleColor", type = "id")
-        } else {
-          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleFill", type = "id")
-        }
-
-        req(input[[fill_id]])
-
-        assert_that(
-          hasName(data(), input[[fill_id]])
-        )
-
-        if(is.null(scaleColorid)) {
-          result <- NULL
-        }
-
-        color_var <- data()[[input[[fill_id]]]]
-        ns <- NS(id)
-
-        if (is.character(color_var) || is.factor(color_var) ) {
-          num_color <- length(unique( color_var ))
-
-          TOO_MANY_LEVELS <- num_color > 11
-
-          if(TOO_MANY_LEVELS) {
-            result <- list(type = "TOO_MANY_LEVELS")
-          }
-
-          init_colors <- RColorBrewer::brewer.pal(num_color, "RdYlBu")
-          labels <- unique( color_var )
-
-          colorPickers <- multipleColorPickerUI(ns, init_colors,
-                                                labels, id = paste0(color_or_fill, "Picker"))
-
-          result <- c(colorPickers, type = "categorical")
-
-        } else if ( is.numeric(color_var) ) {
-
-          init_colors <- RColorBrewer::brewer.pal(11, "RdBu")[c(9,3)]
-          labels <- c('low', 'high')
-          colorPickers <- multipleColorPickerUI(ns, init_colors,
-                                                labels, id = paste0(color_or_fill, "Picker"))
-
-          result <- c(colorPickers, type = "numerical")
-        } else {
-          result <- NULL
-        }
-
-        result
-
-      })  %>% bindEvent(paintr_obj(), input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]],
-                        ignoreInit = TRUE)
-
-      observe({
-
-        req(selectedColors_box(), paintr_obj(), data())
-
-        color_or_fill <- match.arg(color_or_fill, c("color", "fill"))
-        fill_id <- paintr_get_ui(paintr_obj(), color_or_fill, type = "id")
-
-        if(color_or_fill == "color") {
-          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleColor", type = "id")
-        } else {
-          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleFill", type = "id")
-        }
-
-        if(selectedColors_box()[['type']] == "TOO_MANY_LEVELS") {
-          output[[scaleColorid]] <- renderUI({
-            validate(paste( paste0("There are more than 11 levels in ",
-                                   input[[ns_box(scaleColorIDs_box()[[1]])]], "."),
-                            "Too many levels.", sep = "\n"))
-          })
-        } else {
-          output[[scaleColorid]] <- renderUI({
-            selectedColors_box()[['ui']]
-          })
-        }
-
-      })  %>% bindEvent(paintr_obj(), input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]])
-
-
-      selectedColors_box
-
-    }
-
+  assert_that(
+    has_name(code_list, "data"),
+    has_name(code_list, "geom")
   )
+
+  basic_code <- paste0(
+    "data <- ", code_list[['data']], "\n\n",
+
+    "ggplot(data = data) + ", "\n",
+    "  ", code_list[['geom']]
+  )
+
+  code_list[['data']] <- NULL
+  code_list[['geom']] <- NULL
+  code_list <- check_remove_null(code_list)
+
+  if(is.null(code_list)) {
+    final_code <- basic_code
+  } else {
+    code_list[['sep']] <- " +\n  "
+    other_code <- do.call(paste, code_list)
+    final_code <- paste0(basic_code, " +\n  ", other_code)
+  }
+
+  return(final_code)
 }
 
+#' Title
+#'
+#' @param reactiveList
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_plot <- function(data, gg_list) {
+
+  p <- ggplot(data = data)
+  for (i in seq_along(gg_list)) {
+    p <- p + gg_list[[i]]
+  }
+
+  return(p)
+
+}
+
+
+#' Title
+#'
+#' @param geom_component
+#' @param ...
+#' @param data
+#' @param data_path
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_plot_code <- function(componentList, data, data_path) {
+
+  componentList <- check_remove_null(componentList)
+
+  check_component <- sapply(componentList, function(cc) {
+    hasName(cc, "code") && hasName(cc, "plot")
+  })
+
+  if(!all(check_component)) {
+    need_fix <- names(componentList)[which(!check_component)]
+    if(is.null(need_fix)) {
+      warning("One or more handlers do not provide both code and plot at the same time")
+    } else {
+      warning(paste0("the handler(s) of: ", paste(need_fix, collapse = " "), " do not provide both code and plot at the same time"))
+    }
+  }
+
+
+  plot_list <- map(componentList, 1)
+  code_list <- map(componentList, 2)
+
+  names(code_list)[1] <- "geom"
+  code_list[['data']] <- data_path
+
+  pp <- get_plot(data, plot_list)
+  final_code <- get_code(code_list)
+
+  return(list(plot = pp, code = final_code))
+
+}
 
 

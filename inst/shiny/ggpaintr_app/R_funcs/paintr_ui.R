@@ -39,6 +39,15 @@ mappingYUI <- function(ns, data_vars, id = "mapY") {
   return(list(ui=ui, id=id))
 }
 
+mappingZUI <- function(ns, data_vars, id = "mapZ") {
+  ui <- pickerInput(ns(id), "z:",
+                    choices = data_vars,
+                    selected = "",
+                    multiple = TRUE,
+                    options = pickerOptions(maxOptions = 1))
+  return(list(ui=ui, id=id))
+}
+
 #' Title
 #'
 #' @param ns
@@ -154,9 +163,17 @@ themeUI <- function(ns, theme_selected = TRUE) {
                                         choices = c("vertical", "horizontal"),
                                         selected = "",
                                         multiple = TRUE,
-                                        options = pickerOptions(maxOptions = 1)))
+                                        options = pickerOptions(maxOptions = 1))),
+    legend.box = list(
+      pickerInput(ns("themeLegendBox"), "Legend Box:",
+                  choices = c("vertical", "horizontal"),
+                  selected = "",
+                  multiple = TRUE,
+                  options = pickerOptions(maxOptions = 1))
+    )
   )
-  id <- c(legend.position = 'themeLegendPosition', legend.direction = 'themeLegendDirection')
+  id <- c(legend.position = 'themeLegendPosition', legend.direction = 'themeLegendDirection',
+          legend.box = "themeLegendBox")
   id <- id[theme_selected]
 
   ui <- column(12, offset = 0, style='padding:0px;',
@@ -204,11 +221,11 @@ labsUI <- function(ns, labs_selected = TRUE) {
 #' @examples
 themeChooseUI <- function(ns) {
   ui <- pickerInput(ns("themeChoose"), "Choose a theme:",
-              choices = c("default" = "theme_gray", "classic" = "theme_classic",
-                          "dark-on-light" = "theme_bw", "minimal" = "theme_minimal"),
-              selected = "",
-              multiple = TRUE,
-              options = pickerOptions(maxOptions = 1))
+                    choices = c("default" = "theme_gray", "classic" = "theme_classic",
+                                "dark-on-light" = "theme_bw", "minimal" = "theme_minimal"),
+                    selected = "",
+                    multiple = TRUE,
+                    options = pickerOptions(maxOptions = 1))
   return(list(ui=ui, id="themeChoose"))
 
 }
@@ -266,6 +283,13 @@ scaleColorUI <- function(ns, id="scaleColorUIOutput") {
 
   return(list(ui=ui, id=id))
 }
+
+scaleFillUI <- function(ns, id="scaleFillUIOutput") {
+  ui <- uiOutput(ns(id))
+
+  return(list(ui=ui, id=id))
+}
+
 
 #' Title
 #'
@@ -364,7 +388,7 @@ argsAlphaUI <- function(ns, id="argsAlpha") {
 #' @examples
 argsSizeUI <- function(ns, id="argsSize") {
   ui <- numericInput(ns(id), "geom size:",
-                     1, min = 0)
+                     0.5, min = 0)
   return(list(ui=ui, id=id))
 }
 
