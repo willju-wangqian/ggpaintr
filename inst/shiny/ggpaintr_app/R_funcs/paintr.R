@@ -1,9 +1,93 @@
-#' Title
+#' Construct a `paintr_obj` based on an expression in `ggplot2` alike layout
 #'
-#' @param expr
+#' @param id An ID string that corresponds with the ID used for all component of this `paintr_obj`
+#' @param data the dataset for plotting
+#' @param expr a `ggplot2` alike expression which is referred to as "paintr expression" in `ggpaintr`
+#' @param extra_ui a named list: of extra functions that generate paintr_ui. The
+#' names of this list should be key words of a paintr expression
+#' For example `extra_ui = list(param1 = my_ui_func1, param2 = my_ui_func2)`
+#' @param extra_ui_args a named list: of lists of arguments. The names of this
+#' list should be key words of a paintr expression. And the element of a key word
+#' should be a list of arguments that goes into the ui function of this key word
+#' For example `list(param1 = list(my_ui_func1_arg1, my_ui_func1_arg2), param2 = list(my_ui_func2_arg1, my_ui_func2_arg2))`
+#' @param data_path string. path to the dataset; used for code of obtaining the data
 #'
-#' @return
+#' @import rlang
+#'
+#' @details the `expr` should have a `ggplot2` alike layout and be wrapped by `rlang::expr`.
+#' And the functionality of `paintr` is based on this `expr` that follows certain
+#' rules. In general, a ggpaintr expression should be:
+#' ```{r, eval=FALSE}
+#' rlang::expr(
+#'   geom_<chart>(aes(<mapping_1>, <mapping_2>), <geom_args_1>, <geom_args2>) +
+#'     <plot_settings_1> +
+#'     <plot_settings_2> +
+#'     <plot_settings_3>
+#' )
+#' ```
+#' And note that:
+#' - `<mapping_*>` is a `mapping` keyword that represents a aesthetic mapping in `ggplot2`, like `x`, `y`, or `color`
+#' - `<geom_args_*>` is a `geom_args` keyword that represents an argument passed into `geom_<chart>`, like `position`
+#' - `<plot_settings_*>` is a `plot_settings` keyword that represents a `ggplot2` function like `coord_flip`, which can modify the plot
+#' - `geom_<chart>` specifies the geom function used for the plot. `'geom_'`is used to identify `geom_<chart>`
+#' - `aes` is used to distinguish `mapping` keywords and `geom_args` keywords in `geom_<chart>`
+#'
+#' @note `extraFunc` and `extraFuncArgs` allow users to override the ui functions provided by `ggpaintr` package
+#'
+#' @return a `paintr_obj` that contains all pieces of the paintr expression and
+#' and their corresponding ui elements used to build a shiny app. Additionally, it includes:
+#'  - `id`
+#'  - `data`
+#'  - `data_path`
 #' @export
+#'
+#' @examples
+#' paintr("boxplot_id", names(mtcars), geom_boxplot(aes(x, y)))
+#'
+#' # alternatively, one can define the expression first
+#' library(rlang)
+#' my_expr <- rlang::expr(geom_boxplot(aes(x, y)))
+#' paintr("boxplot_id", names(mtcars), !!my_expr)
+paintr <- function(id, data, expr, extra_ui = NULL, extra_ui_args = NULL, data_path = "data") {
+  code <- enexpr(expr)
+
+  gg_components <- paintr_geom_construct(!!code)
+
+  mapping <- if (has_name(gg_components, "mapping")) gg_components[['mapping']] else  NULL
+  geom_args <- if (has_name(gg_components, "geom_args")) gg_components[['geom_args']] else NULL
+  plot_settings <- if (has_name(gg_components, "plot_settings")) gg_components[['plot_settings']] else NULL
+
+  data_vars <- names(data)
+
+  defaultArgs <- list(
+    id = id,
+    data_vars = data_vars
+  )
+
+  defaultArgs <- addDefaultArgs(defaultArgs, "labs", "labs_selected", plot_settings)
+  defaultArgs <- addDefaultArgs(defaultArgs, "theme", "theme_selected", plot_settings)
+
+  shiny_components <- controlUI(id, data_vars,
+                                defaultArgs = defaultArgs,
+                                mapping, geom_args, names(plot_settings),
+                                extra_uiFunc = extra_ui, extra_uiFuncArgs = extra_ui_args)
+
+  result <- list(gg_components = gg_components,
+                 shiny_components = shiny_components,
+                 id = id, data = data, data_path = data_path)
+  attr(result, "class") <- "paintr_obj"
+  return(result)
+
+}
+
+#' Deconstruct the paintr expression
+#'
+#' @param expr a `ggplot2` alike expression
+#'
+#' @return a list of pieces of the keywords
+#'
+#' @import rlang
+#' @importFrom stringr str_detect
 #'
 #' @examples
 paintr_geom_construct <- function(expr){
@@ -16,6 +100,8 @@ paintr_geom_construct <- function(expr){
   args_piece <- NULL
   mapping_piece <- NULL
 
+
+  # here NA is an important placeholder
   repeat(
     if(rr[[1]] == '+') {
 
@@ -52,8 +138,6 @@ paintr_geom_construct <- function(expr){
     return(NULL)
   }
 
-  # args_piece <- fix_repeated_param(args_piece, "size")
-
   result <- list(geom_FUN = geom_func,
                  mapping = mapping_piece,
                  geom_args = args_piece,
@@ -62,60 +146,24 @@ paintr_geom_construct <- function(expr){
   return(check_remove_null(result))
 }
 
-#' Title
+
+#' Get a ui element or its id of a paintr keyword from a `paintr_obj`
 #'
-#' @param id
-#' @param data_vars
-#' @param expr
-#' @param extra_uiFunc
-#' @param extra_uiFuncArgs
+#' @param paintr_obj a `paintr_obj`
+#' @param selected_ui_name the keyword of the desired ui element
+#' @param type optional. `type` can be `ui` or `id`
+#' @param scope one value of `mapping`, `geom_args`, or `plot_settings`. Used to
+#' distinguish keywords with the same name but in different scope. For example `size`
+#' can be either a `mapping` keyword or a `geom_args` keyword.
 #'
-#' @return
+#' @return the ui or id of `selected_ui_name`
 #' @export
 #'
-#' @examples
-paintr <- function(id, data_vars, expr, extra_ui = NULL, extra_ui_args = NULL) {
-  code <- enexpr(expr)
-
-  gg_components <- paintr_geom_construct(!!code)
-
-  mapping <- if (has_name(gg_components, "mapping")) gg_components[['mapping']] else  NULL
-  geom_args <- if (has_name(gg_components, "geom_args")) gg_components[['geom_args']] else NULL
-  plot_settings <- if (has_name(gg_components, "plot_settings")) gg_components[['plot_settings']] else NULL
-
-  defaultArgs <- list(
-    ns = NS(id),
-    data_vars = data_vars
-  )
-
-  defaultArgs <- addDefaultArgs(defaultArgs, "labs", "labs_selected", plot_settings)
-  defaultArgs <- addDefaultArgs(defaultArgs, "theme", "theme_selected", plot_settings)
-
-  shiny_components <- controlUI(id, data_vars,
-                                defaultArgs = defaultArgs,
-                                mapping, geom_args, names(plot_settings),
-                                extra_uiFunc = extra_ui, extra_uiFuncArgs = extra_ui_args)
-
-  result <- list(gg_components = gg_components,
-                 shiny_components = shiny_components)
-  attr(result, "class") <- "paintr_obj"
-  return(result)
-
-}
-
-
-
-#' Title
-#'
-#' @param paintr_obj
-#' @param selected_ui_name
-#' @param type
-#' @param scope
-#'
-#' @return
-#' @export
+#' @importFrom stringr str_detect
 #'
 #' @examples
+#' ptr_obj <- paintr("boxplot_id", names(mtcars), geom_boxplot(aes(x, y)))
+#' paintr_get_ui(ptr_obj, "x")
 paintr_get_ui <- function(paintr_obj, selected_ui_name, type = "ui", scope = NULL) {
 
   stopifnot(class(paintr_obj) == "paintr_obj")
@@ -155,31 +203,42 @@ paintr_get_ui <- function(paintr_obj, selected_ui_name, type = "ui", scope = NUL
 }
 
 
-#' Title
+#' Generate plot and the corresponding code of `ggplot2` from a `paintr_obj`
 #'
-#'
-#'
-#' @param paintr_obj
-#' @param id
-#' @param data
+#' @param paintr_obj a `paintr_obj`
+#' @param id module id
+#' @param data dataset used for the plot
+#' @param selected_color_rctv reactive value returned by `scaleColor_build_reactivity` for color
+#' @param selected_fill_rctv reactive value returned by `scaleColor_build_reactivity` for fill
+#' @param color_fill bool; optional. Whether or not to use the same variable for both color and fill
+#' @param color_group bool; optional. Whether or not to use the same variable for both color and group
+#' @param userFUN a function that returns a named list, where the names of
+#' this named list are parameters (except for `mapping`) of `geom_<chart>`, and the elements
+#' of this list are arguments of the corresponding parameters
+#' @param ... arguments that go into `userFUN`
 #'
 #' @note this function should be called inside `observeEvent()` since the `isolate()` scope provided
 #' by `observeEvent()` is essential.
 #'
-#' @return
+#' @return a named list of two elements; plot and code
 #' @export
-#'
-#' @examples
-paintr_plot_code <- function(paintr_obj, id, data,
-                             selected_color_rctv = NULL, selected_fill_rctv = NULL){
+paintr_plot_code <- function(paintr_obj,
+                             selected_color_rctv = NULL, selected_fill_rctv = NULL,
+                             color_fill = FALSE, color_group = FALSE, userFUN = NULL, ...){
+
   stopifnot(class(paintr_obj) == "paintr_obj")
+
+  id <- paintr_obj[['id']]
+  data <- paintr_obj[['data']]
+  data_path <- paintr_obj[['data_path']]
 
   geomComponent <- ggGeomHandler(id = id,
                                  data = data,
                                  geom_FUN = paintr_obj[['gg_components']][['geom_FUN']],
                                  id_list = paintr_obj[['shiny_components']][['id']],
                                  params_list = list( mapping = paintr_obj[['gg_components']][['mapping']],
-                                                     geom_args = paintr_obj[['gg_components']][['geom_args']] )
+                                                     geom_args = paintr_obj[['gg_components']][['geom_args']] ),
+                                 userFUN = userFUN, ...
   )
 
   plotSettingComponents <- mapply(function(nn) {
@@ -211,24 +270,27 @@ paintr_plot_code <- function(paintr_obj, id, data,
 
     do.call(FUNC, argList)
 
-  }, names(paintr_obj[['gg_components']][['plot_settings']]))
+  }, names(paintr_obj[['gg_components']][['plot_settings']]), SIMPLIFY = FALSE)
 
   names(plotSettingComponents) <- names(paintr_obj[['gg_components']][['plot_settings']])
 
   plotSettingComponents <- check_remove_null(plotSettingComponents)
 
-  return(c(geom = list(geomComponent), plotSettingComponents))
+  componentList <- c(geom = list(geomComponent), plotSettingComponents)
+
+  result <- get_plot_code(componentList, data, data_path = data_path)
+
+  return(result)
 
 }
 
-#' Title
+#' Extract code
 #'
-#' @param code_list
+#' @param code_list list of code
 #'
-#' @return
-#' @export
+#' @importFrom rlang has_name
 #'
-#' @examples
+#' @return code
 get_code <- function(code_list) {
 
   assert_that(
@@ -258,14 +320,12 @@ get_code <- function(code_list) {
   return(final_code)
 }
 
-#' Title
+#' Extract plot
 #'
-#' @param reactiveList
+#' @param data data used for the plot
+#' @param gg_list list of `gg` objects
 #'
-#' @return
-#' @export
-#'
-#' @examples
+#' @return `ggplot` object
 get_plot <- function(data, gg_list) {
 
   p <- ggplot(data = data)
@@ -278,23 +338,22 @@ get_plot <- function(data, gg_list) {
 }
 
 
-#' Title
+#' Extract code and plot
 #'
-#' @param geom_component
-#' @param ...
-#' @param data
-#' @param data_path
+#' @param componentList list of plot components and code components
+#' @param data data
+#' @param data_path path to the data
 #'
-#' @return
-#' @export
+#' @importFrom rlang has_name
+#' @importFrom purrr map
 #'
-#' @examples
+#' @return a named list of two elements; plot and code
 get_plot_code <- function(componentList, data, data_path) {
 
   componentList <- check_remove_null(componentList)
 
   check_component <- sapply(componentList, function(cc) {
-    hasName(cc, "code") && hasName(cc, "plot")
+    has_name(cc, "code") && has_name(cc, "plot")
   })
 
   if(!all(check_component)) {
@@ -305,7 +364,6 @@ get_plot_code <- function(componentList, data, data_path) {
       warning(paste0("the handler(s) of: ", paste(need_fix, collapse = " "), " do not provide both code and plot at the same time"))
     }
   }
-
 
   plot_list <- map(componentList, 1)
   code_list <- map(componentList, 2)

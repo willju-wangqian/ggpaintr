@@ -9,15 +9,20 @@ Description: More about what it does (maybe more than one line)
 License: GPL-3
 Imports:
     shiny,
-    tidyverse,
-    shinydashboard,
-    shinyWidgets,
-    DT,
-    rlang
-Suggests:
+    magrittr,
+    stringr,
+    rlang,
+    purrr,
+    assertthat,
     colourpicker,
+    shinyWidgets,
+    RColorBrewer,
+    ggplot2
+Suggests:
     knitr,
-    rmarkdown
+    rmarkdown,
+    DT,
+    shinydashboard,
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)

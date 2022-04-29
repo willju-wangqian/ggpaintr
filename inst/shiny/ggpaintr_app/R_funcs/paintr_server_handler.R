@@ -1,21 +1,22 @@
-#' Title
+#' Generate the geom component of a `ggplot2` plot
 #'
-#' @param id
-#' @param data
-#' @param geom_FUN
-#' @param id_list
-#' @param params_list
-#' @param color_fill
-#' @param color_group
-#' @param userFun a function that returns a named list, where the names of
-#' this named list are parameters (except for `mapping`) of `geom_FUN`, and the elements
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param data data
+#' @param geom_FUN `geom_<chart>`
+#' @param id_list list of id of all ui elements
+#' @param params_list list of parameters that the ui elements should correspond to
+#' @param color_fill bool; optional. Whether or not to use the same variable for both color and fill
+#' @param color_group bool; optional. Whether or not to use the same variable for both color and group
+#' @param userFUN a function that returns a named list, where the names of
+#' this named list are parameters (except for `mapping`) of `geom_<chart>`, and the elements
 #' of this list are arguments of the corresponding parameters
 #' @param ... arguments that go into `userFUN`
 #'
-#' @return
-#' @export
+#' @return list of plot and code of a geom component of a `ggplot2` plot
 #'
-#' @examples
+#' @import ggplot2
+#'
+#' @export
 ggGeomHandler <- function(id, data, geom_FUN, id_list, params_list,
                             color_fill = FALSE, color_group = FALSE,
                             userFUN = NULL, ...) {
@@ -24,7 +25,6 @@ ggGeomHandler <- function(id, data, geom_FUN, id_list, params_list,
     function(input, output, session) {
 
       # generate the basic plot
-      # ggPlotObject <- reactive({
 
       geomArgList <- list()
 
@@ -79,9 +79,6 @@ ggGeomHandler <- function(id, data, geom_FUN, id_list, params_list,
 
       return(list(plot = p, code = final_code))
 
-      # })
-
-      # ggPlotObject
 
     }
   )
@@ -90,17 +87,14 @@ ggGeomHandler <- function(id, data, geom_FUN, id_list, params_list,
 
 #' Module server for `coord_flip()`
 #'
-#' @param id a string which becomes a name space for the module server
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
 #' @param module_id the id of the ui element (not including its prefix created by
 #' the name space) which determines whether or not to call `coord_flip()`
 #'
-#' @return `NULL` or `coord_flip()`
-#' @export
+#' @import ggplot2
 #'
-#' @examples
-#' \dontrun{
-#' flipHandler("my_boxplot", "settingFlip")
-#' }
+#' @return `coord_flip()` and its code or `NULL`
+#' @export
 flipHandler <- function(id, module_id) {
   moduleServer(
     id,
@@ -122,16 +116,16 @@ flipHandler <- function(id, module_id) {
 }
 
 
-#' Title
+#' Module server for `facet_grid()`
 #'
-#' @param id
-#' @param pp
-#' @param module_id
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param module_id the id of the ui element (not including its prefix created by
+#' the name space) which gives input to `facet_grid()`
 #'
-#' @return
+#' @import ggplot2 stats
+#'
+#' @return `facet_grid()` and its code or `NULL`
 #' @export
-#'
-#' @examples
 facetHandler <- function(id, module_id) {
   moduleServer(
     id,
@@ -161,26 +155,58 @@ facetHandler <- function(id, module_id) {
   )
 }
 
-#' theme()
+#' Module server for `theme()`
 #'
-#' @param id
-#' @param module_id
-#' @param theme_param
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param module_id the id of the ui elements (not including its prefix created by
+#' the name space) which gives input as arguments of `theme()`
+#' @param param parameters of `theme()` that correspond to the ui elements
 #'
-#' @return
+#' @note the order of `param` should match the order of `module_id`. Currently the
+#' following parameters of `theme()` are implemented
+#'  - `legend.position`
+#'  - `legend.direction`
+#'  - `legend.box`
+#'
+#' @return `theme()` and its code or `NULL`
+#'
 #' @export
-#'
-#' @examples
 themeHandler <- function(id, module_id, param) {
   stringParamHandler(id, module_id, param, "theme")
 }
 
 
+#' Module server for `labs()`
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param module_id the id of the ui elements (not including its prefix created by
+#' the name space) which gives input as arguments of `labs()`
+#' @param param parameters of `labs()` that correspond to the ui elements
+#'
+#' @note the order of `param` should match the order of `module_id`. Currently the
+#' following parameters of `labs()` are implemented
+#'  - `x`
+#'  - `y`
+#'  - `title`
+#'  - `subtitle`
+#'
+#' @return `labs()` and its code or `NULL`
+#' @export
 labsHandler <- function(id, module_id, param) {
   stringParamHandler(id, module_id, param, "labs")
 }
 
 
+#' Module server for a `ggplot2` function which takes strings as arguments
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param module_id the id of the ui elements (not including its prefix created by
+#' the name space) which gives input as arguments of `FUN()`
+#' @param param parameters of `theme()` that correspond to the ui elements
+#' @param FUN a `ggplot2` function which takes strings as arguments
+#'
+#' @return the return of `FUN` and its code or `NULL`
+#' @export
 stringParamHandler <- function(id, module_id, param, FUN) {
   moduleServer(
     id,
@@ -219,15 +245,20 @@ stringParamHandler <- function(id, module_id, param, FUN) {
 }
 
 
-#' Title
+#' Module server that provides several `ggplot2` themes
 #'
-#' @param id
-#' @param module_id
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param module_id the id of the ui elements (not including its prefix created by
+#' the name space)
 #'
-#' @return
+#' @note currently the following themes of `ggplot2` are implemented:
+#'  - `theme_gray()`
+#'  - `theme_classic()`
+#'  - `theme_bw()`
+#'  - `theme_minimal()`
+#'
+#' @return an implemented `ggplot2` theme and its code or `NULL`
 #' @export
-#'
-#' @examples
 themeChooseHandler <- function(id, module_id) {
   moduleServer(
     id,
@@ -244,16 +275,17 @@ themeChooseHandler <- function(id, module_id) {
   )
 }
 
-#' Title
+#' The inner module server that sets colors through `scale_fill_gradient`, `scale_fill_manual`,
+#' `scale_color_gradient`, `scale_color_manual`
 #'
-#' @param id
-#' @param selected_colors
-#' @param color_fill
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param selected_colors the selected colors from input
+#' @param color_fill string. either `color` or `fill`. Specifies whether it's `scale_color`
+#' or `scale_fill`
 #'
-#' @return
-#' @export
+#' @return the return of `scale_<fill/color>_<gradient/manual>` and its code or `NULL`
 #'
-#' @examples
+#' @import ggplot2
 scaleColorHandler_inner <- function(id, selected_colors, color_fill) {
   moduleServer(
     id,
@@ -315,6 +347,18 @@ scaleColorHandler_inner <- function(id, selected_colors, color_fill) {
 }
 
 
+#' Module server that sets colors through `scale_fill_gradient`, `scale_fill_manual`,
+#' `scale_color_gradient`, `scale_color_manual`
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param selected_color_fill_rctv the reactive values returned by `scaleColor_build_reactivity()`
+#' @param color_fill string. either `color` or `fill`. Specifies whether it's `scale_color`
+#' or `scale_fill`
+#'
+#' @note this function handles the `error` when `selected_color_fill_rctv()` returns error
+#'
+#' @return the return of `scale_<fill/color>_<gradient/manual>` and its code or `NULL`
+#' @export
 scaleColorFillHandler <- function(id, selected_color_fill_rctv, color_fill) {
   if (is.null(selected_color_fill_rctv)) return(NULL)
 

@@ -56,6 +56,11 @@ run_ggpaintr_app()
 
 ## Current Version
 
+#### version number: 0.0.9.6
+
+- ggplot2 import?
+- can match.fun find ggplot2 functions?
+
 #### version number: 0.0.9.5
 
 - Updates:

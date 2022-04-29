@@ -1,27 +1,23 @@
-#' Build reactivity for `scale_color` or `scale_fill`
+#' Title
 #'
-#' @param id An ID string that corresponds with the ID used for all component of this `paintr_obj`
-#' @param paintr_obj a `paintr_obj` built by `paintr()`
-#' @param color_or_fill string. either `color` or `fill`. Specifies whether it's `scale_color`
-#' or `scale_fill`
+#' @param id
+#' @param paintr_obj
+#' @param data
+#' @param color_or_fill
 #'
-#' @return a reactive object that is passed into `paintr_plot_code()`
+#' @return
 #' @export
 #'
-#' @import shiny RColorBrewer
-#' @importFrom assertthat assert_that has_name
-#' @importFrom magrittr %>%
+#' @import dplyr shiny RColorBrewer assertthat rlang
 #'
-scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
-
+#' @examples
+scaleColor_build_reactivity <- function(id, paintr_obj, data, color_or_fill) {
   moduleServer(
     id,
     function(input, output, session) {
 
       selectedColors_box <- reactive({
-        req(paintr_obj())
-
-        data <- paintr_obj()[['data']]
+        req(paintr_obj(), data())
 
         color_or_fill <- match.arg(color_or_fill, c("color", "fill"))
         fill_id <- paintr_get_ui(paintr_obj(), color_or_fill, type = "id")
@@ -35,14 +31,14 @@ scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
         req(input[[fill_id]])
 
         assert_that(
-          has_name(data, input[[fill_id]])
+          has_name(data(), input[[fill_id]])
         )
 
         if(is.null(scaleColorid)) {
           result <- NULL
         }
 
-        color_var <- data[[input[[fill_id]]]]
+        color_var <- data()[[input[[fill_id]]]]
         ns <- NS(id)
 
         if (is.character(color_var) || is.factor(color_var) ) {
@@ -57,8 +53,8 @@ scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
           init_colors <- brewer.pal(num_color, "RdYlBu")
           labels <- unique( color_var )
 
-          colorPickers <- multipleColorPickerUI(id, init_colors,
-                                                labels, ui_id = paste0(color_or_fill, "Picker"))
+          colorPickers <- multipleColorPickerUI(ns, init_colors,
+                                                labels, id = paste0(color_or_fill, "Picker"))
 
           result <- c(colorPickers, type = "categorical")
 
@@ -66,8 +62,8 @@ scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
 
           init_colors <- brewer.pal(11, "RdBu")[c(9,3)]
           labels <- c('low', 'high')
-          colorPickers <- multipleColorPickerUI(id, init_colors,
-                                                labels, ui_id = paste0(color_or_fill, "Picker"))
+          colorPickers <- multipleColorPickerUI(ns, init_colors,
+                                                labels, id = paste0(color_or_fill, "Picker"))
 
           result <- c(colorPickers, type = "numerical")
         } else {
@@ -76,12 +72,12 @@ scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
 
         result
 
-      }) %>% bindEvent(paintr_obj(), input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]],
-                       ignoreInit = TRUE)
+      })  %>% bindEvent(paintr_obj(), input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]],
+                        ignoreInit = TRUE)
 
       observe({
 
-        req(selectedColors_box(), paintr_obj())
+        req(selectedColors_box(), paintr_obj(), data())
 
         color_or_fill <- match.arg(color_or_fill, c("color", "fill"))
         fill_id <- paintr_get_ui(paintr_obj(), color_or_fill, type = "id")
@@ -115,18 +111,16 @@ scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
 }
 
 
-#' Connect parameters to their input obtained from the ui elements by their ids
+#' Title
 #'
-#' @param session_input input of a shiny session
-#' @param id_list list of ids
-#' @param params list of parameters
-#' @param color_fill bool; optional. Whether or not to use the same variable for both color and fill
-#' @param color_group bool; optional. Whether or not to use the same variable for both color and group
+#' @param session_input
+#' @param mapping_id
+#' @param params
 #'
-#' @return a named list which has parameters as names and ids as list elements
+#' @return
+#' @export
 #'
-#' @importFrom assertthat assert_that has_name
-#'
+#' @examples
 connect_param_id <- function(session_input, id_list, params,
                              color_fill = FALSE, color_group = FALSE) {
   if(is.null(params) || is.null(id_list)) {
@@ -147,7 +141,7 @@ connect_param_id <- function(session_input, id_list, params,
 
   if(color_fill) {
     assert_that(
-      has_name(param_arg_list, "color") || has_name(param_arg_list, "fill")
+      hasName(param_arg_list, "color") || hasName(param_arg_list, "fill")
     )
 
     if (is.null(param_arg_list[['fill']])) {
@@ -161,7 +155,7 @@ connect_param_id <- function(session_input, id_list, params,
 
   if(color_group) {
     assert_that(
-      has_name(param_arg_list, "color") || has_name(param_arg_list, "group")
+      hasName(param_arg_list, "color") || hasName(param_arg_list, "group")
     )
 
     if (is.null(param_arg_list[['group']])) {
@@ -177,16 +171,14 @@ connect_param_id <- function(session_input, id_list, params,
 }
 
 
-#' Get all the implemented keys and their corresponding ui functions or handler functions
+#' Title
 #'
-#' @param scope optional. `scope` can be one of `mapping`, `geom_args`, or `plot_settings`
-#' @param type optional. By default it's `ui`. Can be `ui` or `handler`
-#' @param show_all optional. bool. `show_all = TRUE` prints all keys
+#' @param user_defined
 #'
-#' @return a named list where names are ggpaintr keys and list elements are the corresponding
-#' ui functions or handler functions
+#' @return
 #' @export
 #'
+#' @examples
 getControlList <- function(scope = "mapping", type = "ui", show_all = FALSE) {
 
   type <- match.arg(type, c("ui", "handler"))
@@ -239,14 +231,14 @@ getControlList <- function(scope = "mapping", type = "ui", show_all = FALSE) {
 
 }
 
-#' match key to its ui or handler function
+#' Title
 #'
-#' @param selected the key to be matched
-#' @param scope optional. `scope` can be one of `mapping`, `geom_args`, or `plot_settings`
-#' @param type optional. By default it's `ui`. Can be `ui` or `handler`
+#' @param ui_part
 #'
-#' @return the ui or handler function of `selected` key
+#' @return
+#' @export
 #'
+#' @examples
 matchControls <- function(selected, scope = "mapping", type = "ui") {
 
   controlList <- getControlList(scope, type)
@@ -261,19 +253,25 @@ matchControls <- function(selected, scope = "mapping", type = "ui") {
 
 }
 
-#' Calls the selected ui functions by the name of the key
+#' Title
 #'
-#' @param name name of the key
-#' @param defaultArgs some default arguments passed to the ui functions
-#' @param scope `scope` can be one of `mapping`, `geom_args`, or `plot_settings`
+#' @param name
+#' @param mp
+#' @param defaultArgs
 #' @param extraFunc optional. A named list of extra functions provided by the user.
 #' For example `list(param1 = my_func1, param2 = my_func2)`
 #' @param extraFuncArgs optional. A list of function arguments provided by the user.
 #' Function arguments of one function should be formed in a list as one element of `extraFuncArgs`
 #' For example `list(param1 = list(my_func1_arg1, my_func1_arg2), param2 = list(my_func2_arg1, my_func2_arg2))`
 #'
-#' @return function call of the selected function
 #'
+#' @note `extraFunc` and `extraFuncArgs` allow users to override
+#'
+#'
+#' @return
+#' @export
+#'
+#' @examples
 callFuncUI <- function(name, defaultArgs, scope, extraFunc = NULL, extraFuncArgs = NULL) {
 
   if ( is.null(name) ) {
@@ -304,22 +302,20 @@ callFuncUI <- function(name, defaultArgs, scope, extraFunc = NULL, extraFuncArgs
 
 }
 
-#' get all ui elements
+#' Title
 #'
-#' @param id An ID string that corresponds with the ID used for all component of this `paintr_obj`
-#' @param defaultArgs some default arguments passed to the ui functions
-#' @param mapping keys of mapping
-#' @param geom_args keys of geom_args
-#' @param plot_settings keys of plot_settings
-#' @param extra_uiFunc optional. A named list of extra functions provided by the user.
-#' For example `list(param1 = my_func1, param2 = my_func2)`
-#' @param extra_uiFuncArgs optional. A list of function arguments provided by the user.
-#' Function arguments of one function should be formed in a list as one element of `extraFuncArgs`
-#' For example `list(param1 = list(my_func1_arg1, my_func1_arg2), param2 = list(my_func2_arg1, my_func2_arg2))`
+#' @param id
+#' @param data
+#' @param mapping
+#' @param geom_args
+#' @param extra_uiFunc
+#' @param extra_uiFuncArgs
 #'
-#' @return a list of ui and id
+#' @return
+#' @export
 #'
-controlUI <- function(id, defaultArgs, mapping, geom_args = NULL, plot_settings = NULL,
+#' @examples
+controlUI <- function(id, data_vars, mapping, defaultArgs, geom_args = NULL, plot_settings = NULL,
                       extra_uiFunc = NULL, extra_uiFuncArgs = NULL) {
   ns <- NS(id)
 

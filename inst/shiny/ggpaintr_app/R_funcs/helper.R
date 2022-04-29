@@ -1,11 +1,17 @@
-#' Title
+#' Check if a character vector has name
 #'
-#' @param x
+#' If this character vector does not have names, then its elements will be assigned to `names(x)`
 #'
-#' @return
+#' @param x a character vector
+#'
+#' @return a character vector with names
 #' @export
 #'
+#' @importFrom assertthat assert_that
+#' @importFrom purrr set_names
+#'
 #' @examples
+#' check_char_set_names(c("a", "b"))
 check_char_set_names <- function(x) {
   if(!is.null(x)) {
     assert_that( is.character(x) )
@@ -15,34 +21,41 @@ check_char_set_names <- function(x) {
   x
 }
 
-
-#' Title
+#' check if a list has `NULL`; if so, remove it (them)
 #'
 #' @param x list
 #'
-#' @return
+#' @return `NULL` or a list
 #' @export
 #'
 #' @examples
+#' x <- list(a = 1, b = NULL)
+#' check_remove_null(x)
 check_remove_null <- function(x) {
   if(is.null(x)) return(NULL)
 
-  x <- x[!sapply(x, is.null)]
+  # x <- x[!sapply(x, function(xx) { is.null(xx) || is.na(xx) } )]
+
+  x <- x[!sapply(x, is.null )]
   if(length(x) == 0) {
     x <- NULL
   }
   x
 }
 
-#' Title
+#' Paste parameter and its argument
 #'
-#' @param x
-#' @param add_quo
+#' @param x a named character vector
+#' @param add_quo bool. Whether to add quotation marks on the arguments
 #'
-#' @return
+#' @return a string
 #' @export
 #'
+#' @importFrom assertthat assert_that
+#'
 #' @examples
+#' x <- c(param1 = "arg1", param2 = "arg2")
+#' paste_arg_param(x, add_quo = TRUE)
 paste_arg_param <- function(x, add_quo = FALSE) {
   if(is.null(x)) {
     return("")
@@ -67,14 +80,17 @@ paste_arg_param <- function(x, add_quo = FALSE) {
 
 
 
-#' Title
+#' Unwrap an expression
 #'
-#' @param x
+#' @param x an expression
 #'
-#' @return
+#' @return list of strings converted from the expression
 #' @export
 #'
+#' @import rlang
+#'
 #' @examples
+#' unwrap_expr(x + y + z)
 unwrap_expr <- function(x) {
   code <- enexpr(x)
 
@@ -93,16 +109,18 @@ unwrap_expr <- function(x) {
   }
 }
 
-#' Title
+#' Append a named list
 #'
-#' @param x
-#' @param name
-#' @param value
+#' @param x a list
+#' @param name new name
+#' @param value value of the new name
 #'
-#' @return
+#' @return a list
 #' @export
 #'
 #' @examples
+#' x <- list(a = 1, b = 2)
+#' append_list_name(x, "c", 3)
 append_list_name <- function(x, name, value) {
   stopifnot(is_character(name))
 
@@ -110,50 +128,14 @@ append_list_name <- function(x, name, value) {
   x
 }
 
-
-#' Title
+#' Add one element into a list of arguments
 #'
-#' @param x
-#' @param param
-#' @param suffix
-#'
-#' @return
-#' @export
-#'
-#' @examples
-fix_repeated_param <- function(x, param, suffix = "_geom") {
-
-  if(is.null(x)) {
-    return(NULL)
-  }
-
-
-  stopifnot(is.character(x) && is.character(param))
-
-  idx <- which(x == param)
-  if( length(idx) == 0 ) {
-    return(x)
-  } else if (length(idx) == 1) {
-    x[idx] <- paste0(param, suffix)
-    return(x)
-  } else {
-    stop("Too many repeated parameters.")
-    return(NULL)
-  }
-
-}
-
-#' Title
-#'
-#' @param defaultArgs
-#' @param ui_element
-#' @param ui_param
-#' @param plot_settings
+#' @param defaultArgs the default argument list
+#' @param ui_element the keyword of the ui element
+#' @param ui_param the parameter of the ui function
+#' @param plot_settings a list contains all ui elements
 #'
 #' @return
-#' @export
-#'
-#' @examples
 addDefaultArgs <- function(defaultArgs, ui_element, ui_param, plot_settings) {
   if (has_name(plot_settings, ui_element)) {
     defaultArgs[[ui_param]] <- plot_settings[[ui_element]]

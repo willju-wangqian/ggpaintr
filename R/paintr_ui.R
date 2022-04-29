@@ -1,157 +1,219 @@
 #' UI component and its id for aesthetic mapping of x
 #'
-#' @param ns the name space of this ui
-#' @param data the data which provides available variables (columns) for plotting
-#' @param id id of the ui element
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param data_vars variable names of the dataset
+#' @param ui_id id of the ui element
 #'
 #' @return a list with two elements
 #' - ui: the ui element of this piece
 #' - id: the id of this ui element
 #' @export
 #'
-#' @examples
-mappingXUI <- function(ns, data_vars, id = "mapX") {
-  ui <- pickerInput(ns(id), "x:",
+#' @import shiny shinyWidgets
+#'
+mappingXUI <- function(id, data_vars, ui_id = "mapX") {
+
+  ns <- NS(id)
+
+  ui <- pickerInput(ns(ui_id), "x:",
                     choices = data_vars,
                     selected = "",
                     multiple = TRUE,
                     options = pickerOptions(maxOptions = 1))
-  return(list(ui=ui, id=id))
+  return(list(ui=ui, id=ui_id))
 }
 
 
-#' Title
+#' UI component and its id for aesthetic mapping of y
 #'
-#' @param ns
-#' @param data
-#' @param id
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param data_vars variable names of the dataset
+#' @param ui_id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
 #' @export
 #'
-#' @examples
-mappingYUI <- function(ns, data_vars, id = "mapY") {
-  ui <- pickerInput(ns(id), "y:",
+#' @import shiny shinyWidgets
+#'
+mappingYUI <- function(id, data_vars, ui_id = "mapY") {
+  ns <- NS(id)
+
+  ui <- pickerInput(ns(ui_id), "y:",
                     choices = data_vars,
                     selected = "",
                     multiple = TRUE,
                     options = pickerOptions(maxOptions = 1))
-  return(list(ui=ui, id=id))
+  return(list(ui=ui, id=ui_id))
 }
 
-mappingZUI <- function(ns, data_vars, id = "mapZ") {
-  ui <- pickerInput(ns(id), "z:",
-                    choices = data_vars,
-                    selected = "",
-                    multiple = TRUE,
-                    options = pickerOptions(maxOptions = 1))
-  return(list(ui=ui, id=id))
-}
-
-#' Title
+#' UI component and its id for aesthetic mapping of z
 #'
-#' @param ns
-#' @param data
-#' @param id
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param data_vars variable names of the dataset
+#' @param ui_id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
 #' @export
 #'
-#' @examples
-mappingColorUI <- function(ns, data_vars, id = "mapColor") {
-  ui <- pickerInput(ns(id), "color:",
+#' @import shiny shinyWidgets
+#'
+mappingZUI <- function(id, data_vars, ui_id = "mapZ") {
+  ns <- NS(id)
+
+  ui <- pickerInput(ns(ui_id), "z:",
                     choices = data_vars,
                     selected = "",
                     multiple = TRUE,
                     options = pickerOptions(maxOptions = 1))
-  return(list(ui=ui, id=id))
+  return(list(ui=ui, id=ui_id))
 }
 
-#' Title
+#' UI component and its id for aesthetic mapping of color
 #'
-#' @param ns
-#' @param data
-#' @param id
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param data_vars variable names of the dataset
+#' @param ui_id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
 #' @export
 #'
-#' @examples
-mappingFillUI <- function(ns, data_vars, id = "mapFill") {
-  ui <- pickerInput(ns(id), "fill:",
+#' @import shiny shinyWidgets
+#'
+#'
+mappingColorUI <- function(id, data_vars, ui_id = "mapColor") {
+  ns <- NS(id)
+
+  ui <- pickerInput(ns(ui_id), "color:",
                     choices = data_vars,
                     selected = "",
                     multiple = TRUE,
                     options = pickerOptions(maxOptions = 1))
-  return(list(ui=ui, id=id))
+  return(list(ui=ui, id=ui_id))
 }
 
-#' Title
+#' UI component and its id for aesthetic mapping of fill
 #'
-#' @param ns
-#' @param data
-#' @param id
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param data_vars variable names of the dataset
+#' @param ui_id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
 #' @export
 #'
-#' @examples
-mappingGroupUI <- function(ns, data_vars, id = "mapGroup") {
-  ui <- pickerInput(ns(id), "group:",
+#' @import shiny shinyWidgets
+#'
+#'
+mappingFillUI <- function(id, data_vars, ui_id = "mapFill") {
+  ns <- NS(id)
+
+  ui <- pickerInput(ns(ui_id), "fill:",
                     choices = data_vars,
                     selected = "",
                     multiple = TRUE,
                     options = pickerOptions(maxOptions = 1))
-  return(list(ui=ui, id=id))
+  return(list(ui=ui, id=ui_id))
 }
 
-#' Title
+#' UI component and its id for aesthetic mapping of group
 #'
-#' @param ns
-#' @param data
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param data_vars variable names of the dataset
+#' @param ui_id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
 #' @export
 #'
-#' @examples
-mappingShapeUI <- function(ns, data_vars, id="mapShape") {
-  ui <- pickerInput(ns(id), "shape:",
+#' @import shiny shinyWidgets
+#'
+#'
+mappingGroupUI <- function(id, data_vars, ui_id = "mapGroup") {
+  ns <- NS(id)
+
+  ui <- pickerInput(ns(ui_id), "group:",
                     choices = data_vars,
                     selected = "",
                     multiple = TRUE,
                     options = pickerOptions(maxOptions = 1))
-  return(list(ui=ui, id=id))
+  return(list(ui=ui, id=ui_id))
 }
 
-#' Title
+#' UI component and its id for aesthetic mapping of shape
 #'
-#' @param ns
-#' @param data
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param data_vars variable names of the dataset
+#' @param ui_id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
 #' @export
 #'
-#' @examples
-mappingSizeUI <- function(ns, data_vars, id="mapSize") {
-  ui <- pickerInput(ns(id), "size:",
+#' @import shiny shinyWidgets
+#'
+#'
+mappingShapeUI <- function(id, data_vars, ui_id="mapShape") {
+  ns <- NS(id)
+
+  ui <- pickerInput(ns(ui_id), "shape:",
                     choices = data_vars,
                     selected = "",
                     multiple = TRUE,
                     options = pickerOptions(maxOptions = 1))
-  return(list(ui=ui, id=id))
+  return(list(ui=ui, id=ui_id))
+}
+
+#' UI component and its id for aesthetic mapping of size
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param data_vars variable names of the dataset
+#' @param ui_id id of the ui element
+#'
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
+#' @export
+#'
+#' @import shiny shinyWidgets
+#'
+#'
+mappingSizeUI <- function(id, data_vars, ui_id="mapSize") {
+  ns <- NS(id)
+
+  ui <- pickerInput(ns(ui_id), "size:",
+                    choices = data_vars,
+                    selected = "",
+                    multiple = TRUE,
+                    options = pickerOptions(maxOptions = 1))
+  return(list(ui=ui, id=ui_id))
 }
 
 
 
-#' Title
+#' ui component for `theme()`
 #'
-#' @param ns
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param theme_selected vector of selected parameters of `theme()`
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
 #' @export
 #'
-#' @examples
-themeUI <- function(ns, theme_selected = TRUE) {
+#' @import shiny shinyWidgets
+#'
+#'
+themeUI <- function(id, theme_selected = TRUE) {
+  ns <- NS(id)
 
   ui_list <- list(
     legend.position = list(pickerInput(ns("themeLegendPosition"), "Legend Position:",
@@ -164,14 +226,13 @@ themeUI <- function(ns, theme_selected = TRUE) {
                                         selected = "",
                                         multiple = TRUE,
                                         options = pickerOptions(maxOptions = 1))),
-    legend.box = list(
-      pickerInput(ns("themeLegendBox"), "Legend Box:",
-                  choices = c("vertical", "horizontal"),
-                  selected = "",
-                  multiple = TRUE,
-                  options = pickerOptions(maxOptions = 1))
-    )
+    legend.box = list(pickerInput(ns("themeLegendBox"), "Legend Box:",
+                                  choices = c("vertical", "horizontal"),
+                                  selected = "",
+                                  multiple = TRUE,
+                                  options = pickerOptions(maxOptions = 1)))
   )
+
   id <- c(legend.position = 'themeLegendPosition', legend.direction = 'themeLegendDirection',
           legend.box = "themeLegendBox")
   id <- id[theme_selected]
@@ -186,7 +247,22 @@ themeUI <- function(ns, theme_selected = TRUE) {
   return(list(ui=ui, id=id))
 }
 
-labsUI <- function(ns, labs_selected = TRUE) {
+
+#' ui component for `labs()`
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param labs_selected ector of selected parameters of `labs()`
+#'
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
+#' @export
+#'
+#' @import shiny
+#'
+#'
+labsUI <- function(id, labs_selected = TRUE) {
+  ns <- NS(id)
 
   lab_type <- c('x', 'y', 'title', 'subtitle')
   lab_id <- c('labX', 'labY', 'labTitle', 'labSubtitle')
@@ -208,187 +284,247 @@ labsUI <- function(ns, labs_selected = TRUE) {
 
 
 
-
-
-
-#' Title
+#' ui component for choosing themes
 #'
-#' @param ns
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param ui_id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
 #' @export
 #'
-#' @examples
-themeChooseUI <- function(ns) {
-  ui <- pickerInput(ns("themeChoose"), "Choose a theme:",
+#' @import shiny shinyWidgets
+#'
+#'
+themeChooseUI <- function(id, ui_id = "themeChoose") {
+  ns <- NS(id)
+
+  ui <- pickerInput(ns(ui_id), "Choose a theme:",
                     choices = c("default" = "theme_gray", "classic" = "theme_classic",
                                 "dark-on-light" = "theme_bw", "minimal" = "theme_minimal"),
                     selected = "",
                     multiple = TRUE,
                     options = pickerOptions(maxOptions = 1))
-  return(list(ui=ui, id="themeChoose"))
+  return(list(ui=ui, id=ui_id))
 
 }
 
 
-#' Title
+#' ui component for selecting variables for `facet_grid()`
 #'
-#' @param ns
-#' @param data
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param data_vars variable names of the dataset
+#' @param ui_id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
 #' @export
 #'
-#' @examples
-# miscUI <- function(ns, data_vars) {
-#   ui <- column(12, offset = 0, style='padding:0px;',
-#                br(),
-#                pickerInput(ns("miscFacet"), "choose variables for facet (max 2):",
-#                            choices = data_vars,
-#                            selected = "",
-#                            multiple = TRUE,
-#                            options = pickerOptions(maxOptions = 2)),
-#                checkboxInput(ns("miscFlip"), "Flip the coordinate", value = FALSE, width = NULL)
-#   )
-#
-#   return(list(ui=ui, id = c('miscFacet', 'miscFlip')))
-# }
+#' @import shiny shinyWidgets
+#'
+settingFacetUI <- function(id, data_vars, ui_id = "miscFacet") {
+  ns <- NS(id)
 
-settingFacetUI <- function(ns, data_vars, id = "miscFacet") {
-  ui <- pickerInput(ns(id), "choose variables for facet (max 2):",
+  ui <- pickerInput(ns(ui_id), "choose variables for facet (max 2):",
                     choices = data_vars,
                     selected = "",
                     multiple = TRUE,
                     options = pickerOptions(maxOptions = 2))
-  return(list(ui=ui, id = id))
+  return(list(ui=ui, id=ui_id))
 }
 
-settingFlipUI <- function(ns, data_vars, id = "miscFlip") {
-  ui <- checkboxInput(ns(id), "Flip the coordinate", value = FALSE, width = NULL)
-
-  return(list(ui=ui, id = id))
-}
-
-#' Title
+#' ui component for deciding whether or not to toggle `coord_flip()`
 #'
-#' @param ns
-#' @param id
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param data_vars variable names of the dataset
+#' @param ui_id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
 #' @export
 #'
-#' @examples
-scaleColorUI <- function(ns, id="scaleColorUIOutput") {
-  ui <- uiOutput(ns(id))
+#' @import shiny
+#'
+#'
+settingFlipUI <- function(id, data_vars, ui_id = "miscFlip") {
+  ns <- NS(id)
 
-  return(list(ui=ui, id=id))
+  ui <- checkboxInput(ns(ui_id), "Flip the coordinate", value = FALSE, width = NULL)
+
+  return(list(ui=ui, id=ui_id))
 }
 
-scaleFillUI <- function(ns, id="scaleFillUIOutput") {
-  ui <- uiOutput(ns(id))
-
-  return(list(ui=ui, id=id))
-}
-
-
-#' Title
+#' ui component for scale color
 #'
-#' @param ns
-#' @param init_colors
-#' @param labels
-#' @param id
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param ui_id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
 #' @export
 #'
-#' @examples
-multipleColorPickerUI <- function(ns, init_colors, labels, id = "colorPicker") {
+#' @import shiny
+#'
+#'
+scaleColorUI <- function(id, ui_id="scaleColorUIOutput") {
+  ns <- NS(id)
+
+  ui <- uiOutput(ns(ui_id))
+
+  return(list(ui=ui, id=ui_id))
+}
+
+#' ui component for scale fill
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param ui_id id of the ui element
+#'
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
+#' @export
+#'
+#' @import shiny
+#'
+#'
+scaleFillUI <- function(id, ui_id="scaleFillUIOutput") {
+  ns <- NS(id)
+
+  ui <- uiOutput(ns(ui_id))
+
+  return(list(ui=ui, id=ui_id))
+}
+
+
+#' ui component for setting `colourInput`
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param init_colors initial colors for `colourInput`
+#' @param labels labels for `colourInput`
+#' @param ui_id id of the ui element
+#'
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
+#' @export
+#'
+#' @importFrom colourpicker colourInput
+#'
+#'
+multipleColorPickerUI <- function(id, init_colors, labels, ui_id = "colorPicker") {
+  ns <- NS(id)
+
   assert_that(
     length(init_colors) == length(labels)
   )
 
-  ids <- sapply(seq_along(init_colors), function(i) { paste(id, i, sep="-") })
+  ids <- sapply(seq_along(init_colors), function(i) { paste(ui_id, i, sep="-") })
 
   pickerUI_list <- mapply(function(color, label, id) {
-    colourpicker::colourInput(inputId = ns(id), # DO NOT change
-                              label = paste0("Colour for ", label , ':'), # Text shown on template
-                              value = color)
+    colourInput(inputId = ns(id), # DO NOT change
+                label = paste0("Colour for ", label , ':'), # Text shown on template
+                value = color)
   }, init_colors, labels, ids, SIMPLIFY = FALSE)
 
 
   ui <- do.call(tagList, pickerUI_list)
 
-  return(list(ui = ui, id = ids))
+  return(list(ui = ui, id=ids))
 }
 
-#' Title
+
+#' ui component for setting `stat` in `geom_<chart>`
 #'
-#' @param ns
-#' @param data
-#' @param id
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param ui_id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
 #' @export
 #'
-#' @examples
-argsStatUI <- function(ns, id="argsStat") {
-  ui <- pickerInput(ns(id), "stat:",
+#' @import shiny shinyWidgets
+#'
+#'
+argsStatUI <- function(id, ui_id="argsStat") {
+  ns <- NS(id)
+
+  ui <- pickerInput(ns(ui_id), "stat:",
                     choices = c("bin", "identity", "count"),
                     selected = "",
                     multiple = TRUE,
                     options = pickerOptions(maxOptions = 1))
-  return(list(ui=ui, id=id))
+  return(list(ui=ui, id=ui_id))
 }
 
-#' Title
+#' ui component for setting `position` in `geom_<chart>`
 #'
-#' @param ns
-#' @param data
-#' @param id
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param ui_id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
 #' @export
 #'
-#' @examples
-argsPositionUI <- function(ns, id="argsPosition") {
-  ui <- pickerInput(ns(id), "position:",
+#' @import shiny shinyWidgets
+#'
+#'
+argsPositionUI <- function(id, ui_id="argsPosition") {
+  ns <- NS(id)
+
+  ui <- pickerInput(ns(ui_id), "position:",
                     choices = c("dodge", "dodge2", "stack", "fill"),
                     selected = "",
                     multiple = TRUE,
                     options = pickerOptions(maxOptions = 1))
-  return(list(ui=ui, id=id))
+  return(list(ui=ui, id=ui_id))
 }
 
-#' Title
+#' ui component for setting `alpha` in `geom_<chart>`
 #'
-#' @param ns
-#' @param data
-#' @param id
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param ui_id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
 #' @export
 #'
-#' @examples
-argsAlphaUI <- function(ns, id="argsAlpha") {
-  ui <- numericInput(ns(id), "alpha:",
+#' @import shiny
+#'
+#'
+argsAlphaUI <- function(id, ui_id="argsAlpha") {
+  ns <- NS(id)
+
+  ui <- numericInput(ns(ui_id), "alpha:",
                      1,
                      min = 0, max = 1)
-  return(list(ui=ui, id=id))
+  return(list(ui=ui, id=ui_id))
 }
 
-#' Title
+#' ui component for setting `size` in `geom_<chart>`
 #'
-#' @param ns
-#' @param data
-#' @param id
+#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param ui_id id of the ui element
 #'
-#' @return
+#' @return a list with two elements
+#' - ui: the ui element of this piece
+#' - id: the id of this ui element
 #' @export
 #'
-#' @examples
-argsSizeUI <- function(ns, id="argsSize") {
-  ui <- numericInput(ns(id), "geom size:",
+#' @import shiny
+#'
+#'
+argsSizeUI <- function(id, ui_id="argsSize") {
+  ns <- NS(id)
+
+  ui <- numericInput(ns(ui_id), "geom size:",
                      0.5, min = 0)
-  return(list(ui=ui, id=id))
+  return(list(ui=ui, id=ui_id))
 }
 

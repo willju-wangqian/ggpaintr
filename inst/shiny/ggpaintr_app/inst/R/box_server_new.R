@@ -8,7 +8,7 @@ box_main <- reactive({
 
   paintr(
     box_control_id,
-    names(dataContainer()),
+    dataContainer(), data_path = result_container[['data']],
     geom_boxplot(aes(x, y, color, fill, size), position, size) +
       coord_flip +
       facet_grid +
@@ -21,8 +21,8 @@ box_main <- reactive({
 
 }) %>% bindCache(input$drawBox) %>% bindEvent(input$drawBox)
 
-selectedColors_box <- scaleColor_build_reactivity(box_control_id, box_main, dataContainer, "color")
-selectedFills_box <- scaleColor_build_reactivity(box_control_id, box_main, dataContainer, "fill")
+selectedColors_box <- scaleColor_build_reactivity(box_control_id, box_main, "color")
+selectedFills_box <- scaleColor_build_reactivity(box_control_id, box_main, "fill")
 
 observe({
   output$drawControls <- renderUI({
@@ -74,12 +74,12 @@ observe({
 box_result <- reactive({
   req(dataContainer(), box_main())
 
-  paintr_list <- paintr_plot_code(box_main(), box_control_id, dataContainer(),
-                                  selectedColors_box, selectedFills_box)
+  # paintr_plot_code(box_main(), box_control_id, dataContainer(),
+  #                  data_path = result_container[['data']],
+  #                  selectedColors_box, selectedFills_box)
 
-  get_plot_code(paintr_list,
-                data = dataContainer(),
-                data_path = result_container[['data']])
+  paintr_plot_code(box_main(),
+                   selectedColors_box, selectedFills_box)
 
 }) %>% bindEvent(input[[NS(box_control_id)("buttonDraw")]])
 

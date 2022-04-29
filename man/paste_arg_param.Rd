@@ -2,16 +2,22 @@
 % Please edit documentation in R/helper.R
 \name{paste_arg_param}
 \alias{paste_arg_param}
-\title{Title}
+\title{Paste parameter and its argument}
 \usage{
 paste_arg_param(x, add_quo = FALSE)
 }
 \arguments{
-\item{add_quo}{}
+\item{x}{a named character vector}
+
+\item{add_quo}{bool. Whether to add quotation marks on the arguments}
 }
 \value{
-
+a string
 }
 \description{
-Title
+Paste parameter and its argument
+}
+\examples{
+x <- c(param1 = "arg1", param2 = "arg2")
+paste_arg_param(x, add_quo = TRUE)
 }

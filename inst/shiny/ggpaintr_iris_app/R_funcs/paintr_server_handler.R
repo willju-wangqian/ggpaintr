@@ -1,6 +1,6 @@
 #' Generate the geom component of a `ggplot2` plot
 #'
-#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param id id for the module server
 #' @param data data
 #' @param geom_FUN `geom_<chart>`
 #' @param id_list list of id of all ui elements
@@ -87,7 +87,7 @@ ggGeomHandler <- function(id, data, geom_FUN, id_list, params_list,
 
 #' Module server for `coord_flip()`
 #'
-#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param id id for the module server
 #' @param module_id the id of the ui element (not including its prefix created by
 #' the name space) which determines whether or not to call `coord_flip()`
 #'
@@ -118,7 +118,7 @@ flipHandler <- function(id, module_id) {
 
 #' Module server for `facet_grid()`
 #'
-#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param id id for the module server
 #' @param module_id the id of the ui element (not including its prefix created by
 #' the name space) which gives input to `facet_grid()`
 #'
@@ -157,7 +157,7 @@ facetHandler <- function(id, module_id) {
 
 #' Module server for `theme()`
 #'
-#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param id id for the module server
 #' @param module_id the id of the ui elements (not including its prefix created by
 #' the name space) which gives input as arguments of `theme()`
 #' @param param parameters of `theme()` that correspond to the ui elements
@@ -178,7 +178,7 @@ themeHandler <- function(id, module_id, param) {
 
 #' Module server for `labs()`
 #'
-#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param id id for the module server
 #' @param module_id the id of the ui elements (not including its prefix created by
 #' the name space) which gives input as arguments of `labs()`
 #' @param param parameters of `labs()` that correspond to the ui elements
@@ -199,13 +199,11 @@ labsHandler <- function(id, module_id, param) {
 
 #' Module server for a `ggplot2` function which takes strings as arguments
 #'
-#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param id id for the module server
 #' @param module_id the id of the ui elements (not including its prefix created by
 #' the name space) which gives input as arguments of `FUN()`
 #' @param param parameters of `theme()` that correspond to the ui elements
 #' @param FUN a `ggplot2` function which takes strings as arguments
-#'
-#' @importFrom assertthat assert_that
 #'
 #' @return the return of `FUN` and its code or `NULL`
 #' @export
@@ -249,7 +247,7 @@ stringParamHandler <- function(id, module_id, param, FUN) {
 
 #' Module server that provides several `ggplot2` themes
 #'
-#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param id id for the module server
 #' @param module_id the id of the ui elements (not including its prefix created by
 #' the name space)
 #'
@@ -280,15 +278,14 @@ themeChooseHandler <- function(id, module_id) {
 #' The inner module server that sets colors through `scale_fill_gradient`, `scale_fill_manual`,
 #' `scale_color_gradient`, `scale_color_manual`
 #'
-#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param id id for the module server
 #' @param selected_colors the selected colors from input
 #' @param color_fill string. either `color` or `fill`. Specifies whether it's `scale_color`
 #' or `scale_fill`
 #'
 #' @return the return of `scale_<fill/color>_<gradient/manual>` and its code or `NULL`
 #'
-#' @importFrom ggplot2 scale_color_gradient scale_fill_gradient scale_color_manual scale_fill_manual
-#' @importFrom assertthat assert_that
+#' @import ggplot2
 scaleColorHandler_inner <- function(id, selected_colors, color_fill) {
   moduleServer(
     id,
@@ -353,7 +350,7 @@ scaleColorHandler_inner <- function(id, selected_colors, color_fill) {
 #' Module server that sets colors through `scale_fill_gradient`, `scale_fill_manual`,
 #' `scale_color_gradient`, `scale_color_manual`
 #'
-#' @param id An ID string that corresponds with the ID used to call the module's UI function.
+#' @param id id for the module server
 #' @param selected_color_fill_rctv the reactive values returned by `scaleColor_build_reactivity()`
 #' @param color_fill string. either `color` or `fill`. Specifies whether it's `scale_color`
 #' or `scale_fill`
