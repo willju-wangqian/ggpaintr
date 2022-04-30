@@ -8,7 +8,7 @@ library(colourpicker)
 library(RColorBrewer)
 library(assertthat)
 
-# library(ggpaintr)
+library(ggpaintr)
 
 # library(shinyFiles)
 # library(shinybusy)
@@ -19,9 +19,9 @@ library(shinyBS)
 
 # setwd('C:/Downloads/project/ggpaintr/inst/shiny/ggpaintr_app/')
 
-sapply(list.files("R_funcs/"), function(fileName) {
-  source(paste0("R_funcs/", fileName))
-})
+# sapply(list.files("R_funcs/"), function(fileName) {
+#   source(paste0("R_funcs/", fileName))
+# })
 
 # data("penguins")
 
