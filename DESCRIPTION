@@ -1,23 +1,27 @@
 Package: ggpaintr
 Type: Package
-Title: What the Package Does (Title Case)
-Version: 0.0.9.3
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Title: Build R Shiny App Using the Grammar of Graphics
+Version: 0.0.9.6
+Authors@R: c(
+    person("Wangqian", "Ju", email = "wju@iastate.edu", role = c("aut", "cre"), comment = c(ORCID = "0000-0002-9977-377X")),
+    person("Jinji", "Pang", email = "pjj0702@iastate.edu", role = "aut", comment = c(ORCID = "0000-0002-2267-2313")),
+    person("Zhili", "Qiao", email = "zlqiao@iastate.edu", role = "aut", comment = c(ORCID = "0000-0002-8154-0898"))
+    )    
+Description: A package for developers to build modularized shiny app using the 
+    Grammar of Graphics. The resulting shiny app provides a basic graphical user 
+    interface for making plots using ggplot2. Example shiny apps are included.
 License: GPL-3
 Imports:
-    shiny,
-    magrittr,
-    stringr,
-    rlang,
-    purrr,
-    assertthat,
-    colourpicker,
-    shinyWidgets,
-    RColorBrewer,
-    ggplot2
+    shiny (>= 1.6.0),
+    magrittr (>= 2.0.0),
+    stringr (>= 1.4.0),
+    rlang (>= 1.0.0),
+    purrr (>= 0.3.0),
+    assertthat (>= 0.2.0),
+    colourpicker (>= 1.1.0),
+    shinyWidgets (>= 0.6.4),
+    RColorBrewer (>= 1.0),
+    ggplot2 (>= 3.3.0)
 Suggests:
     knitr,
     rmarkdown,
