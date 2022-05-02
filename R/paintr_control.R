@@ -27,9 +27,9 @@ scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
         fill_id <- paintr_get_ui(paintr_obj(), color_or_fill, type = "id")
 
         if(color_or_fill == "color") {
-          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleColor", type = "id")
+          scaleColorid <- paintr_get_ui(paintr_obj(), "scale_color", type = "id")
         } else {
-          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleFill", type = "id")
+          scaleColorid <- paintr_get_ui(paintr_obj(), "scale_fill", type = "id")
         }
 
         req(input[[fill_id]])
@@ -76,8 +76,11 @@ scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
 
         result
 
-      }) %>% bindEvent(paintr_obj(), input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]],
-                       ignoreInit = TRUE)
+      }) %>%
+        bindEvent({
+          req(paintr_obj(), paintr_get_ui(paintr_obj(), color_or_fill, type = "id"))
+          input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]]
+        })
 
       observe({
 
@@ -87,9 +90,9 @@ scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
         fill_id <- paintr_get_ui(paintr_obj(), color_or_fill, type = "id")
 
         if(color_or_fill == "color") {
-          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleColor", type = "id")
+          scaleColorid <- paintr_get_ui(paintr_obj(), "scale_color", type = "id")
         } else {
-          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleFill", type = "id")
+          scaleColorid <- paintr_get_ui(paintr_obj(), "scale_fill", type = "id")
         }
 
         if(selectedColors_box()[['type']] == "TOO_MANY_LEVELS") {
@@ -104,7 +107,12 @@ scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
           })
         }
 
-      })  %>% bindEvent(paintr_obj(), input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]])
+      })  %>%
+        # bindEvent(input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]])
+        bindEvent({
+          req(paintr_obj(), paintr_get_ui(paintr_obj(), color_or_fill, type = "id"))
+          input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]]
+        })
 
 
       selectedColors_box
@@ -210,8 +218,8 @@ getControlList <- function(scope = "mapping", type = "ui", show_all = FALSE) {
                          coord_flip = "settingFlipUI",
                          facet_grid = "settingFacetUI",
                          labs = "labsUI",
-                         scaleColor = "scaleColorUI",
-                         scaleFill = "scaleFillUI")
+                         scale_color = "scaleColorUI",
+                         scale_fill = "scaleFillUI")
   )
 
   handlerControlList <- list(
@@ -220,8 +228,8 @@ getControlList <- function(scope = "mapping", type = "ui", show_all = FALSE) {
     theme_choose = "themeChooseHandler",
     facet_grid = "facetHandler",
     coord_flip = "flipHandler",
-    scaleColor = "scaleColorFillHandler",
-    scaleFill = "scaleColorFillHandler"
+    scale_color = "scaleColorFillHandler",
+    scale_fill = "scaleColorFillHandler"
   )
 
   if(show_all) {

@@ -4,7 +4,13 @@
 \alias{paintr_get_ui}
 \title{Get a ui element or its id of a paintr keyword from a \code{paintr_obj}}
 \usage{
-paintr_get_ui(paintr_obj, selected_ui_name, type = "ui", scope = NULL)
+paintr_get_ui(
+  paintr_obj,
+  selected_ui_name,
+  type = "ui",
+  scope = NULL,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{paintr_obj}{a \code{paintr_obj}}
@@ -16,6 +22,8 @@ paintr_get_ui(paintr_obj, selected_ui_name, type = "ui", scope = NULL)
 \item{scope}{one value of \code{mapping}, \code{geom_args}, or \code{plot_settings}. Used to
 distinguish keywords with the same name but in different scope. For example \code{size}
 can be either a \code{mapping} keyword or a \code{geom_args} keyword.}
+
+\item{verbose}{Whether or not to send warning messages when ui element is not found}
 }
 \value{
 the ui or id of \code{selected_ui_name}

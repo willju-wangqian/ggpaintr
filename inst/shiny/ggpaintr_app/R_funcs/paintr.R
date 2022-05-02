@@ -154,6 +154,7 @@ paintr_geom_construct <- function(expr){
 #' @param scope one value of `mapping`, `geom_args`, or `plot_settings`. Used to
 #' distinguish keywords with the same name but in different scope. For example `size`
 #' can be either a `mapping` keyword or a `geom_args` keyword.
+#' @param verbose Whether or not to send warning messages when ui element is not found
 #'
 #' @return the ui or id of `selected_ui_name`
 #' @export
@@ -163,7 +164,7 @@ paintr_geom_construct <- function(expr){
 #' @examples
 #' ptr_obj <- paintr("boxplot_id", mtcars, geom_boxplot(aes(x, y)))
 #' paintr_get_ui(ptr_obj, "x")
-paintr_get_ui <- function(paintr_obj, selected_ui_name, type = "ui", scope = NULL) {
+paintr_get_ui <- function(paintr_obj, selected_ui_name, type = "ui", scope = NULL, verbose = FALSE) {
 
   stopifnot(class(paintr_obj) == "paintr_obj")
 
@@ -176,8 +177,10 @@ paintr_get_ui <- function(paintr_obj, selected_ui_name, type = "ui", scope = NUL
   ui_selected <- ui_names[sapply(ui_names, function(nn) {  any( nn == selected_ui_name ) })]
 
   if (length(ui_selected) == 0) {
-    # warning(paste0("The selected ui not found. return NULL\n",
-    #                "It's either not in getControlList() or not included in the expr."))
+    if (verbose) {
+      warning(paste0("The selected ui not found. return NULL\n",
+                     "It's either not in getControlList() or not included in the expr."))
+    }
     return(NULL)
   } else if (length(ui_selected) > 1) {
 
