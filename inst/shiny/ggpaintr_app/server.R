@@ -84,15 +84,15 @@ server <- function(input, output, session) {
 
   #############################################################
   # server part for the bar chart
-  source("inst/R/bar_server.R", local = TRUE)
+  # source("inst/R/bar_server.R", local = TRUE)
 
   #############################################################
   # server part for the scatter plot
-  source("inst/R/scatter_server.R", local = TRUE)
+  # source("inst/R/scatter_server.R", local = TRUE)
 
   #############################################################
   # server part for the line plot
-  source("inst/R/line_server.R", local = TRUE)
+  # source("inst/R/line_server.R", local = TRUE)
 
 }
 

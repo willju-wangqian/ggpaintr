@@ -205,6 +205,8 @@ labsHandler <- function(id, module_id, param) {
 #' @param param parameters of `theme()` that correspond to the ui elements
 #' @param FUN a `ggplot2` function which takes strings as arguments
 #'
+#' @importFrom assertthat assert_that
+#'
 #' @return the return of `FUN` and its code or `NULL`
 #' @export
 stringParamHandler <- function(id, module_id, param, FUN) {
@@ -285,7 +287,8 @@ themeChooseHandler <- function(id, module_id) {
 #'
 #' @return the return of `scale_<fill/color>_<gradient/manual>` and its code or `NULL`
 #'
-#' @import ggplot2
+#' @importFrom ggplot2 scale_color_gradient scale_fill_gradient scale_color_manual scale_fill_manual
+#' @importFrom assertthat assert_that
 scaleColorHandler_inner <- function(id, selected_colors, color_fill) {
   moduleServer(
     id,

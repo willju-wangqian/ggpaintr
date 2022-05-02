@@ -3,7 +3,8 @@ library(shiny)
 library(DT)
 library(shinydashboard)
 library(shinyBS)
-library(ggpaintr)
+library(rlang)
+# library(ggpaintr)
 
 # library(tidyverse)
 # library(shinyWidgets)
@@ -11,9 +12,9 @@ library(ggpaintr)
 # library(RColorBrewer)
 # library(assertthat)
 
-# sapply(list.files("R_funcs/"), function(fileName) {
-#   source(paste0("R_funcs/", fileName))
-# })
+sapply(list.files("R_funcs/"), function(fileName) {
+  source(paste0("R_funcs/", fileName))
+})
 
 
 DODGE_WID_DEFAULT <- 0.5

@@ -8,7 +8,9 @@
 #' @return a reactive object that is passed into `paintr_plot_code()`
 #' @export
 #'
-#' @import dplyr shiny RColorBrewer assertthat rlang
+#' @import shiny RColorBrewer
+#' @importFrom assertthat assert_that has_name
+#' @importFrom magrittr %>%
 #'
 scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
 
@@ -25,9 +27,9 @@ scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
         fill_id <- paintr_get_ui(paintr_obj(), color_or_fill, type = "id")
 
         if(color_or_fill == "color") {
-          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleColor", type = "id")
+          scaleColorid <- paintr_get_ui(paintr_obj(), "scale_color", type = "id")
         } else {
-          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleFill", type = "id")
+          scaleColorid <- paintr_get_ui(paintr_obj(), "scale_fill", type = "id")
         }
 
         req(input[[fill_id]])
@@ -55,8 +57,6 @@ scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
           init_colors <- brewer.pal(num_color, "RdYlBu")
           labels <- unique( color_var )
 
-          # browser()
-
           colorPickers <- multipleColorPickerUI(id, init_colors,
                                                 labels, ui_id = paste0(color_or_fill, "Picker"))
 
@@ -76,8 +76,11 @@ scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
 
         result
 
-      })  %>% bindEvent(paintr_obj(), input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]],
-                        ignoreInit = TRUE)
+      }) %>%
+        bindEvent({
+          req(paintr_obj(), paintr_get_ui(paintr_obj(), color_or_fill, type = "id"))
+          input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]]
+        })
 
       observe({
 
@@ -87,9 +90,9 @@ scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
         fill_id <- paintr_get_ui(paintr_obj(), color_or_fill, type = "id")
 
         if(color_or_fill == "color") {
-          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleColor", type = "id")
+          scaleColorid <- paintr_get_ui(paintr_obj(), "scale_color", type = "id")
         } else {
-          scaleColorid <- paintr_get_ui(paintr_obj(), "scaleFill", type = "id")
+          scaleColorid <- paintr_get_ui(paintr_obj(), "scale_fill", type = "id")
         }
 
         if(selectedColors_box()[['type']] == "TOO_MANY_LEVELS") {
@@ -104,7 +107,12 @@ scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
           })
         }
 
-      })  %>% bindEvent(paintr_obj(), input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]])
+      })  %>%
+        # bindEvent(input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]])
+        bindEvent({
+          req(paintr_obj(), paintr_get_ui(paintr_obj(), color_or_fill, type = "id"))
+          input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]]
+        })
 
 
       selectedColors_box
@@ -125,7 +133,7 @@ scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
 #'
 #' @return a named list which has parameters as names and ids as list elements
 #'
-#' @import assertthat rlang
+#' @importFrom assertthat assert_that has_name
 #'
 connect_param_id <- function(session_input, id_list, params,
                              color_fill = FALSE, color_group = FALSE) {
@@ -210,8 +218,8 @@ getControlList <- function(scope = "mapping", type = "ui", show_all = FALSE) {
                          coord_flip = "settingFlipUI",
                          facet_grid = "settingFacetUI",
                          labs = "labsUI",
-                         scaleColor = "scaleColorUI",
-                         scaleFill = "scaleFillUI")
+                         scale_color = "scaleColorUI",
+                         scale_fill = "scaleFillUI")
   )
 
   handlerControlList <- list(
@@ -220,8 +228,8 @@ getControlList <- function(scope = "mapping", type = "ui", show_all = FALSE) {
     theme_choose = "themeChooseHandler",
     facet_grid = "facetHandler",
     coord_flip = "flipHandler",
-    scaleColor = "scaleColorFillHandler",
-    scaleFill = "scaleColorFillHandler"
+    scale_color = "scaleColorFillHandler",
+    scale_fill = "scaleColorFillHandler"
   )
 
   if(show_all) {
@@ -307,20 +315,19 @@ callFuncUI <- function(name, defaultArgs, scope, extraFunc = NULL, extraFuncArgs
 #' get all ui elements
 #'
 #' @param id An ID string that corresponds with the ID used for all component of this `paintr_obj`
-#' @param data_vars variable names of the dataset
 #' @param defaultArgs some default arguments passed to the ui functions
 #' @param mapping keys of mapping
 #' @param geom_args keys of geom_args
 #' @param plot_settings keys of plot_settings
-#' @param extraFunc optional. A named list of extra functions provided by the user.
+#' @param extra_uiFunc optional. A named list of extra functions provided by the user.
 #' For example `list(param1 = my_func1, param2 = my_func2)`
-#' @param extraFuncArgs optional. A list of function arguments provided by the user.
+#' @param extra_uiFuncArgs optional. A list of function arguments provided by the user.
 #' Function arguments of one function should be formed in a list as one element of `extraFuncArgs`
 #' For example `list(param1 = list(my_func1_arg1, my_func1_arg2), param2 = list(my_func2_arg1, my_func2_arg2))`
 #'
-#' @return
+#' @return a list of ui and id
 #'
-controlUI <- function(id, data_vars, defaultArgs, mapping, geom_args = NULL, plot_settings = NULL,
+controlUI <- function(id, defaultArgs, mapping, geom_args = NULL, plot_settings = NULL,
                       extra_uiFunc = NULL, extra_uiFuncArgs = NULL) {
   ns <- NS(id)
 

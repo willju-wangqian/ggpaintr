@@ -12,7 +12,7 @@
 #' For example `list(param1 = list(my_ui_func1_arg1, my_ui_func1_arg2), param2 = list(my_ui_func2_arg1, my_ui_func2_arg2))`
 #' @param data_path string. path to the dataset; used for code of obtaining the data
 #'
-#' @import rlang
+#' @importFrom rlang enexpr
 #'
 #' @details the `expr` should have a `ggplot2` alike layout and be wrapped by `rlang::expr`.
 #' And the functionality of `paintr` is based on this `expr` that follows certain
@@ -42,12 +42,12 @@
 #' @export
 #'
 #' @examples
-#' paintr("boxplot_id", names(mtcars), geom_boxplot(aes(x, y)))
+#' paintr("boxplot_id", mtcars, geom_boxplot(aes(x, y)))
 #'
 #' # alternatively, one can define the expression first
 #' library(rlang)
 #' my_expr <- rlang::expr(geom_boxplot(aes(x, y)))
-#' paintr("boxplot_id", names(mtcars), !!my_expr)
+#' paintr("boxplot_id", mtcars, !!my_expr)
 paintr <- function(id, data, expr, extra_ui = NULL, extra_ui_args = NULL, data_path = "data") {
   code <- enexpr(expr)
 
@@ -67,7 +67,7 @@ paintr <- function(id, data, expr, extra_ui = NULL, extra_ui_args = NULL, data_p
   defaultArgs <- addDefaultArgs(defaultArgs, "labs", "labs_selected", plot_settings)
   defaultArgs <- addDefaultArgs(defaultArgs, "theme", "theme_selected", plot_settings)
 
-  shiny_components <- controlUI(id, data_vars,
+  shiny_components <- controlUI(id,
                                 defaultArgs = defaultArgs,
                                 mapping, geom_args, names(plot_settings),
                                 extra_uiFunc = extra_ui, extra_uiFuncArgs = extra_ui_args)
@@ -86,10 +86,9 @@ paintr <- function(id, data, expr, extra_ui = NULL, extra_ui_args = NULL, data_p
 #'
 #' @return a list of pieces of the keywords
 #'
-#' @import rlang
+#' @importFrom rlang enexpr
 #' @importFrom stringr str_detect
 #'
-#' @examples
 paintr_geom_construct <- function(expr){
 
   code <- enexpr(expr)
@@ -162,7 +161,7 @@ paintr_geom_construct <- function(expr){
 #' @importFrom stringr str_detect
 #'
 #' @examples
-#' ptr_obj <- paintr("boxplot_id", names(mtcars), geom_boxplot(aes(x, y)))
+#' ptr_obj <- paintr("boxplot_id", mtcars, geom_boxplot(aes(x, y)))
 #' paintr_get_ui(ptr_obj, "x")
 paintr_get_ui <- function(paintr_obj, selected_ui_name, type = "ui", scope = NULL) {
 
@@ -174,11 +173,11 @@ paintr_get_ui <- function(paintr_obj, selected_ui_name, type = "ui", scope = NUL
                    geom_args = paintr_obj$gg_components$geom_args,
                    plot_settings = names(paintr_obj$gg_components$plot_settings))
 
-  ui_selected <- ui_names[sapply(ui_names, function(nn) {  any(str_detect(nn, selected_ui_name)) })]
+  ui_selected <- ui_names[sapply(ui_names, function(nn) {  any( nn == selected_ui_name ) })]
 
   if (length(ui_selected) == 0) {
-    warning(paste0("The selected ui not found. return NULL\n",
-                   "It's either not in getControlList() or not included in the expr."))
+    # warning(paste0("The selected ui not found. return NULL\n",
+    #                "It's either not in getControlList() or not included in the expr."))
     return(NULL)
   } else if (length(ui_selected) > 1) {
 
@@ -206,8 +205,6 @@ paintr_get_ui <- function(paintr_obj, selected_ui_name, type = "ui", scope = NUL
 #' Generate plot and the corresponding code of `ggplot2` from a `paintr_obj`
 #'
 #' @param paintr_obj a `paintr_obj`
-#' @param id module id
-#' @param data dataset used for the plot
 #' @param selected_color_rctv reactive value returned by `scaleColor_build_reactivity` for color
 #' @param selected_fill_rctv reactive value returned by `scaleColor_build_reactivity` for fill
 #' @param color_fill bool; optional. Whether or not to use the same variable for both color and fill
@@ -253,12 +250,12 @@ paintr_plot_code <- function(paintr_obj,
                     module_id = paintr_obj[['shiny_components']][['id']][['plot_settings']][[nn]],
                     param = paintr_obj[['gg_components']][['plot_settings']][[nn]])
 
-    if( nn == "scaleColor") {
+    if( nn == "scale_color") {
       argList[['selected_color_fill_rctv']] <- selected_color_rctv
       argList[['color_fill']] <- 'color'
     }
 
-    if( nn == "scaleFill") {
+    if( nn == "scale_fill") {
       argList[['selected_color_fill_rctv']] <- selected_fill_rctv
       argList[['color_fill']] <- 'fill'
     }
@@ -288,7 +285,7 @@ paintr_plot_code <- function(paintr_obj,
 #'
 #' @param code_list list of code
 #'
-#' @importFrom rlang has_name
+#' @importFrom assertthat assert_that has_name
 #'
 #' @return code
 get_code <- function(code_list) {
@@ -344,7 +341,7 @@ get_plot <- function(data, gg_list) {
 #' @param data data
 #' @param data_path path to the data
 #'
-#' @importFrom rlang has_name
+#' @importFrom assertthat has_name
 #' @importFrom purrr map
 #'
 #' @return a named list of two elements; plot and code

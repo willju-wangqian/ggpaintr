@@ -87,7 +87,7 @@ paste_arg_param <- function(x, add_quo = FALSE) {
 #' @return list of strings converted from the expression
 #' @export
 #'
-#' @import rlang
+#' @importFrom rlang enexpr as_string is_symbol is_call
 #'
 #' @examples
 #' unwrap_expr(x + y + z)
@@ -118,6 +118,8 @@ unwrap_expr <- function(x) {
 #' @return a list
 #' @export
 #'
+#' @importFrom rlang is_character
+#'
 #' @examples
 #' x <- list(a = 1, b = 2)
 #' append_list_name(x, "c", 3)
@@ -135,7 +137,7 @@ append_list_name <- function(x, name, value) {
 #' @param ui_param the parameter of the ui function
 #' @param plot_settings a list contains all ui elements
 #'
-#' @return
+#' @return a list of default arguments
 addDefaultArgs <- function(defaultArgs, ui_element, ui_param, plot_settings) {
   if (has_name(plot_settings, ui_element)) {
     defaultArgs[[ui_param]] <- plot_settings[[ui_element]]

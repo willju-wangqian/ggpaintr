@@ -1,105 +1,194 @@
-# server part for the box chart
-box_control_id <- "boxControl"
+############# set up expressions ##############
+# boxplot
 
-ns_box <- NS(box_control_id)
+observe({
+  req(result_container)
 
-box_main <- reactive({
-  req(dataContainer())
-
-  paintr(
-    box_control_id,
-    dataContainer(), data_path = result_container[['data']],
-    geom_boxplot(aes(x, y, color, fill, size), position, size) +
+  expr <- rlang::expr(
+    geom_boxplot(aes(x, y, fill, size), position, size) +
       coord_flip +
       facet_grid +
       theme(legend.direction, legend.position) +
       labs(x, y, title) +
       theme_choose +
-      scaleColor +
-      scaleFill
+      scale_fill
   )
 
-}) %>% bindCache(input$drawBox) %>% bindEvent(input$drawBox)
+  result_container[['expr']] <- expr
+  result_container[['module_id']] <- "boxPlot"
 
-selectedColors_box <- scaleColor_build_reactivity(box_control_id, box_main, "color")
-selectedFills_box <- scaleColor_build_reactivity(box_control_id, box_main, "fill")
+}) %>% bindEvent(input$drawBox)
+
+# scatter plot
 
 observe({
+  req(result_container)
+
+  expr <- rlang::expr(
+    geom_point(aes(x, y, color, size)) +
+      labs(x, y, title) +
+      coord_flip +
+      facet_grid +
+      theme(legend.direction, legend.position) +
+      theme_choose +
+      scale_color
+  )
+
+  result_container[['expr']] <- expr
+  result_container[['module_id']] <- "scatterPlot"
+
+}) %>% bindEvent(input$drawScatter)
+
+# line chart
+
+observe({
+  req(result_container)
+
+  expr <- rlang::expr(
+    geom_line(aes(x, y, color)) +
+      labs(x, y, title) +
+      coord_flip +
+      facet_grid +
+      theme(legend.direction, legend.position) +
+      theme_choose +
+      scale_color
+  )
+
+  result_container[['expr']] <- expr
+  result_container[['module_id']] <- "lineChart"
+
+}) %>% bindEvent(input$drawLine)
+
+# bar chart
+
+observe({
+  req(result_container)
+
+  expr <- rlang::expr(
+    geom_col(aes(x, y, fill), position) +
+      labs(x, y, title) +
+      coord_flip +
+      facet_grid +
+      theme(legend.direction, legend.position) +
+      theme_choose +
+      scale_fill
+  )
+
+  result_container[['expr']] <- expr
+  result_container[['module_id']] <- "barChart"
+
+}) %>% bindEvent(input$drawBar)
+
+
+
+
+
+
+############# paintr #################
+
+paintr_main <- reactive({
+  req(dataContainer(), result_container[['expr']])
+
+  paintr(
+    result_container[['module_id']],
+    dataContainer(), data_path = result_container[['data']],
+    !!result_container[['expr']]
+  )
+
+}) %>% bindEvent(result_container[['expr']])
+
+observe({
+
+  req(paintr_main())
+
+  if(!is.null(paintr_get_ui(paintr_main(), "scale_fill"))) {
+    result_container[['scale_fill']] <- scaleColor_build_reactivity(
+      result_container[['module_id']], paintr_main, "fill"
+    )
+  } else {
+    result_container[['scale_fill']] <- NULL
+  }
+
+  if(!is.null(paintr_get_ui(paintr_main(), "scale_color"))) {
+    result_container[['scale_color']] <- scaleColor_build_reactivity(
+      result_container[['module_id']], paintr_main, "color"
+    )
+  } else {
+    result_container[['scale_color']] <- NULL
+  }
+
   output$drawControls <- renderUI({
-    req(box_main(), dataContainer())
+    req(paintr_main(), dataContainer(), result_container)
 
     column(
       12,
-      actionButton(NS(box_control_id)("buttonDraw"), "Draw the plot"),
+      br(),
       bsCollapse(
-        id = NS(box_control_id)("boxControlCollapse"), open = "mapping",
+        id = "boxControlCollapse", open = "mapping",
         multiple = FALSE,
         bsCollapsePanel(
           "mapping",
           column(
             12, offset = 0, style='padding:0px;',
             br(),
-            paintr_get_ui(box_main(), "x"),
-            paintr_get_ui(box_main(), "y"),
-            paintr_get_ui(box_main(), "color"),
-            paintr_get_ui(box_main(), "fill"),
-            paintr_get_ui(box_main(), "size", scope = "mapping")
+            paintr_get_ui(paintr_main(), "x"),
+            paintr_get_ui(paintr_main(), "y"),
+            paintr_get_ui(paintr_main(), "z"),
+            paintr_get_ui(paintr_main(), "color"),
+            paintr_get_ui(paintr_main(), "fill"),
+            paintr_get_ui(paintr_main(), "shape"),
+            paintr_get_ui(paintr_main(), "size", scope = "mapping")
           )
         ),
         bsCollapsePanel(
           "advanced settings",
-          h3("position"),
-          paintr_get_ui(box_main(), "position"),
-          paintr_get_ui(box_main(), "size", scope = "geom_args"),
-          h3("misc"),
-          paintr_get_ui(box_main(), "coord_flip"),
-          paintr_get_ui(box_main(), "facet_grid"),
-          h3("theme settings"),
-          paintr_get_ui(box_main(), "theme"),
-          br(),
-          paintr_get_ui(box_main(), "theme_choose"),
-          br(),
-          paintr_get_ui(box_main(), "labs")
+          paintr_get_ui(paintr_main(), "position"),
+          paintr_get_ui(paintr_main(), "size", scope = "geom_args"),
+          paintr_get_ui(paintr_main(), "alpha"),
+          paintr_get_ui(paintr_main(), "stat"),
+          paintr_get_ui(paintr_main(), "coord_flip"),
+          paintr_get_ui(paintr_main(), "facet_grid"),
+          paintr_get_ui(paintr_main(), "theme"),
+          paintr_get_ui(paintr_main(), "theme_choose"),
+          paintr_get_ui(paintr_main(), "labs")
         )
       ),
       h3("choose colors (if applicable)"),
-      paintr_get_ui(box_main(), "scaleColor"),
+      paintr_get_ui(paintr_main(), "scale_color"),
       h3("choose fills (if applicable)"),
-      paintr_get_ui(box_main(), "scaleFill"),
+      paintr_get_ui(paintr_main(), "scale_fill"),
     )
   })
 
-}) %>% bindEvent(input$drawBox)
+}) %>% bindEvent(paintr_main())
 
-box_result <- reactive({
-  req(dataContainer(), box_main())
+paintr_result <- reactive({
+  req(dataContainer(), paintr_main())
 
-  # paintr_plot_code(box_main(), box_control_id, dataContainer(),
-  #                  data_path = result_container[['data']],
-  #                  selectedColors_box, selectedFills_box)
+  paintr_plot_code(paintr_main(),
+                   result_container[['scale_color']],
+                   result_container[['scale_fill']])
 
-  paintr_plot_code(box_main(),
-                   selectedColors_box, selectedFills_box)
 
-}) %>% bindEvent(input[[NS(box_control_id)("buttonDraw")]])
+}) %>% bindEvent(input[["buttonDraw"]])
 
 observe({
-  req(box_result())
+  req(paintr_result())
 
   output$mainPlot <- renderPlot({
 
-    validate(need(box_result()[['plot']], "plot is not rendered"))
+    validate(need(paintr_result()[['plot']], "plot is not rendered"))
 
-    box_result()[['plot']]
+    paintr_result()[['plot']]
   })
 
   output$mycode <- renderText({
 
-    box_result()[['code']]
+    paintr_result()[['code']]
 
   })
 
-}) %>% bindEvent(input[[NS(box_control_id)("buttonDraw")]])
+}) %>% bindEvent(input[["buttonDraw"]])
 
 
 

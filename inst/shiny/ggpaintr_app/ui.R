@@ -102,6 +102,7 @@ body <- dashboardBody(
                     fluidRow(
                         column(
                             4,
+                            actionButton("buttonDraw", "Draw the plot"),
                             uiOutput("drawControls")
                         ),
                         column(

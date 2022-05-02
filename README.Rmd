@@ -58,8 +58,11 @@ run_ggpaintr_app()
 
 #### version number: 0.0.9.6
 
-- ggplot2 import?
-- can match.fun find ggplot2 functions?
+- added four chart types, next: update functions in the package
+
+- change expression by clicking the plot icon
+- test if ui functions can be added
+- how to add customized handler functions?
 
 #### version number: 0.0.9.5
 

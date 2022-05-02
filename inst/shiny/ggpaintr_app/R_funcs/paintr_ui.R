@@ -412,7 +412,7 @@ scaleFillUI <- function(id, ui_id="scaleFillUIOutput") {
 #' - id: the id of this ui element
 #' @export
 #'
-#' @import colourpicker
+#' @importFrom colourpicker colourInput
 #'
 #'
 multipleColorPickerUI <- function(id, init_colors, labels, ui_id = "colorPicker") {
@@ -425,9 +425,9 @@ multipleColorPickerUI <- function(id, init_colors, labels, ui_id = "colorPicker"
   ids <- sapply(seq_along(init_colors), function(i) { paste(ui_id, i, sep="-") })
 
   pickerUI_list <- mapply(function(color, label, id) {
-    colourpicker::colourInput(inputId = ns(id), # DO NOT change
-                              label = paste0("Colour for ", label , ':'), # Text shown on template
-                              value = color)
+    colourInput(inputId = ns(id), # DO NOT change
+                label = paste0("Colour for ", label , ':'), # Text shown on template
+                value = color)
   }, init_colors, labels, ids, SIMPLIFY = FALSE)
 
 
