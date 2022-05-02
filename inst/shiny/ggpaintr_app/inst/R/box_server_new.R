@@ -5,7 +5,7 @@ observe({
   req(result_container)
 
   expr <- rlang::expr(
-    geom_boxplot(aes(x, y, fill, size), position, size) +
+    geom_boxplot(aes(x, y, fill)) +
       coord_flip +
       facet_grid +
       theme(legend.direction, legend.position) +
@@ -95,7 +95,7 @@ paintr_main <- reactive({
     !!result_container[['expr']]
   )
 
-}) %>% bindEvent(result_container[['expr']])
+}) %>% bindEvent(result_container[['expr']], dataContainer())
 
 observe({
 
@@ -124,7 +124,7 @@ observe({
       12,
       br(),
       bsCollapse(
-        id = "boxControlCollapse", open = "mapping",
+        id = NS(result_container[['module_id']])("boxControlCollapse"), open = "mapping",
         multiple = FALSE,
         bsCollapsePanel(
           "mapping",
@@ -160,7 +160,7 @@ observe({
     )
   })
 
-}) %>% bindEvent(paintr_main())
+}) %>% bindEvent(paintr_main(), dataContainer())
 
 paintr_result <- reactive({
   req(dataContainer(), paintr_main())

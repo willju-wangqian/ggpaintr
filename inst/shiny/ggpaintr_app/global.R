@@ -11,7 +11,6 @@ library(ggpaintr)
 # library(colourpicker)
 # library(RColorBrewer)
 # library(assertthat)
-#
 # sapply(list.files("R_funcs/"), function(fileName) {
 #   source(paste0("R_funcs/", fileName))
 # })

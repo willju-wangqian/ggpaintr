@@ -32,11 +32,7 @@ scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
           scaleColorid <- paintr_get_ui(paintr_obj(), "scale_fill", type = "id")
         }
 
-        req(input[[fill_id]])
-
-        assert_that(
-          has_name(data, input[[fill_id]])
-        )
+        req(input[[fill_id]], has_name(data, input[[fill_id]]))
 
         if(is.null(scaleColorid)) {
           result <- NULL
