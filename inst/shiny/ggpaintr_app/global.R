@@ -1,10 +1,38 @@
-require(palmerpenguins)
-require(shiny)
-require(DT)
-require(shinydashboard)
-require(shinyBS)
-require(rlang)
-require(shinyWidgets)
+if(!require(palmerpenguins)) {
+  install.packages("palmerpenguins")
+  library(palmerpenguins)
+}
+if(!require(shiny)) {
+  install.packages("shiny")
+  library(shiny)
+}
+if(!require(DT)) {
+  install.packages("DT")
+  library(DT)
+}
+if(!require(shinydashboard)) {
+  install.packages("shinydashboard")
+  library(shinydashboard)
+}
+if(!require(shinyBS)) {
+  install.packages("shinyBS")
+  library(shinyBS)
+}
+if(!require(rlang)) {
+  install.packages("rlang")
+  library(rlang)
+}
+if(!require(shinyWidgets)) {
+  install.packages("shinyWidgets")
+  library(shinyWidgets)
+}
+# require(palmerpenguins)
+# require(shiny)
+# require(DT)
+# require(shinydashboard)
+# require(shinyBS)
+# require(rlang)
+# require(shinyWidgets)
 library(ggpaintr)
 
 # library(tidyverse)
