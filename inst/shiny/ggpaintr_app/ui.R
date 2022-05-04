@@ -1,6 +1,6 @@
 
 sidebar <- dashboardSidebar(
-    width=300,
+    width=230,
 
     sidebarMenu(
         HTML(paste0(
