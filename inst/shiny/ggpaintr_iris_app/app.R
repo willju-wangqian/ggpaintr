@@ -8,91 +8,121 @@
 #
 
 library(shiny)
-library(ggpaintr)
+# library(ggpaintr)
 library(tidyverse)
 library(assertthat)
+library(rlang)
+library(shinyWidgets)
+library(palmerpenguins)
 
-data <- iris
+sapply(list.files("R_funcs/"), function(fileName) {
+    source(paste0("R_funcs/", fileName))
+})
+
+# data <- iris
+data <- faithfuld
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
 
     # Application title
-    titlePanel("Old Faithful Geyser Data"),
+    titlePanel("ggpaintr demo"),
 
     # Sidebar with a slider input for number of bins
     sidebarLayout(
         sidebarPanel(
+            pickerInput("defaultData", "select a default dataset:",
+                        choices = c("iris", "mtcars","penguins", "faithfuld"),
+                        selected = "",
+                        multiple = TRUE,
+                        options = pickerOptions(maxOptions = 1)),
             uiOutput("someUI"),
-            actionButton("drawBox", "call UI"),
+            # actionButton("drawBox", "call UI"),
             actionButton("draw", "label: draw")
         ),
 
         # Show a plot of the generated distribution
         mainPanel(
-            plotOutput("mainPlot")
+            plotOutput("mainPlot"),
+            verbatimTextOutput('mycode')
         )
     )
 )
 
 
-box_control_id <- "boxControl"
-
-ns_box <- NS(box_control_id)
-
 # Define server logic required to draw a histogram
 server <- function(input, output) {
 
-    code_container <- reactiveValues()
-    code_container[['data']] <- "abc"
+    box_control_id <- "boxControl"
 
+    ns_box <- NS(box_control_id)
+
+    # data
+    data_container <- reactive({
+        req(input$defaultData)
+        get(input$defaultData)
+    })
+
+    # construct paintr object
     box_main <- reactive({
-        req(data)
 
-        boxUI <-
-            controlUI(box_control_id, data,
-                      mapping = c('x', 'y', 'color', 'size')
-            )
+        req(data_container())
+        data <- data_container()
 
-        boxUI
+        paintr(
+            box_control_id,
+            names(data),
+            # geom_point(aes(x, y, color)) +
+            #     theme_choose +
+            #     labs(x, y, title)
+            geom_point(aes(x, y, color), alpha) +
+                theme_choose +
+                labs(x, y, title)
 
-    }) %>% bindCache(input$drawBox) %>% bindEvent(input$drawBox)
-
-    observe({
-        output$someUI <- renderUI({
-            req(box_main())
-
-            column(
-                12,
-                box_main()[['ui']][['mapping_ui']][['x']],
-                box_main()[['ui']][['mapping_ui']][['y']],
-                box_main()[['ui']][['mapping_ui']][['color']],
-                box_main()[['ui']][['mapping_ui']][['size']]
-            )
-        })
-
-    }) %>% bindEvent(input$drawBox)
-
-
-    observe({
-        boxComponent <- ggGeomGenerator(id = box_control_id,
-                                        data = data,
-                                        geom_FUN = "geom_point",
-                                        id_list = box_main()[['ids']],
-                                        params_list = list(
-                                            mapping = c('x', 'y', 'color', 'size')
-                                        )
         )
 
-        results <- get_plot_code(boxComponent,
-                                 data = data,
-                                 data_path = code_container[['data']])
+    })
+
+    # place ui
+    output$someUI <- renderUI({
+        req(box_main())
+
+        column(
+            12,
+            paintr_get_ui(box_main(), "x"),
+            paintr_get_ui(box_main(), "y"),
+            paintr_get_ui(box_main(), "color"),
+            paintr_get_ui(box_main(), "alpha"),
+            # paintr_get_ui(box_main(), "color"),
+            paintr_get_ui(box_main(), "labs"),
+            paintr_get_ui(box_main(), "theme_choose"),
+            # paintr_get_ui(box_main(), "theme"),
+            # paintr_get_ui(box_main(), "position"),
+            # paintr_get_ui(box_main(), "facet_grid")
+            # ...
+        )
+    })
+
+    # take results and plot
+    observe({
+        req(box_main(), data_container(), input$defaultData)
+        data <- data_container()
+
+        paintr_list <- paintr_plot_code(box_main(),
+                                        box_control_id, data,
+                                        data_path = input$defaultData)
 
         output$mainPlot <- renderPlot({
 
-            validate(need(results[['plot']], "plot is not rendered"))
+            validate(need(paintr_list[['plot']], "plot is not rendered"))
 
-            results[['plot']]
+            paintr_list[['plot']]
+        })
+
+        output$mycode <- renderText({
+
+            paintr_list[['code']]
+
         })
 
     }) %>% bindEvent(input$draw)

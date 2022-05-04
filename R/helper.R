@@ -1,188 +1,17 @@
-#' collecting all arguments for theme()
+#' Check if a character vector has name
 #'
-#' @param input
+#' If this character vector does not have names, then its elements will be assigned to `names(x)`
 #'
-#' @return
+#' @param x a character vector
+#'
+#' @return a character vector with names
 #' @export
 #'
-#' @examples
-themeCollector <- function(input) {
-  themeSettings <- list()
-
-  if(!is.null(input$themeLegendPosition))
-    themeSettings$legend.position = input$themeLegendPosition
-
-  # if(input$themeLegendTitle != "")
-  #   themeSettings$legend.title = input$themeLegendTitle
-
-  themeSettings
-}
-
-#' Title
-#'
-#' @param id
-#' @param reactiveList
-#'
-#' @return
-#' @export
+#' @importFrom assertthat assert_that
+#' @importFrom purrr set_names
 #'
 #' @examples
-plotSettingServer <- function(id, reactiveList) {
-  moduleServer(
-    id,
-    function(input, output, session) {
-      reactiveList$flip = reactive(input$miscFlip)
-      reactiveList$facet = reactive(input$miscFacet)
-      reactiveList$themeSettings = reactive(themeCollector(input))
-
-      reactiveList
-      # relist <- reactiveValues(
-      #   pp = ggPlotObject,
-      #   flip = reactive(input$mapFlip),
-      #   facet = reactive(input$mapFacet),
-      #   themeSettings = reactive(themeCollector(input))
-      # )
-    }
-  )
-}
-
-#' Title
-#'
-#' @param reactiveList
-#'
-#' @return
-#' @export
-#'
-#' @examples
-get_plot <- function(data, gg_list) {
-
-  p <- ggplot(data = data)
-  for (i in seq_along(gg_list)) {
-    p <- p + gg_list[[i]]
-  }
-
-  return(p)
-
-}
-
-#' Title
-#'
-#' @param id
-#' @param pp
-#' @param module_id
-#'
-#' @return
-#' @export
-#'
-#' @examples
-flipHandler <- function(id, module_id) {
-  moduleServer(
-    id,
-    function(input, output, session) {
-      if(input[[module_id]]) {
-        return(list(plot = coord_flip(),
-                    code = "coord_flip()"))
-      } else {
-        return(NULL)
-      }
-
-    }
-  )
-}
-
-
-#' Title
-#'
-#' @param id
-#' @param pp
-#' @param module_id
-#'
-#' @return
-#' @export
-#'
-#' @examples
-facetHandler <- function(id, module_id) {
-  moduleServer(
-    id,
-    function(input, output, session) {
-      if(!is.null(input[[module_id]])) {
-        selectedVars <- input[[module_id]]
-
-        ff <- NULL
-        code <- NULL
-        if(length(selectedVars) == 2) {
-          code <- paste(selectedVars[1], "~", selectedVars[2])
-          ff <- as.formula(code)
-        } else {
-          code <- paste(selectedVars[1], "~ .")
-          ff <- as.formula(code)
-        }
-        return(list(plot = facet_grid(ff),
-                    code = paste0("facet_grid(", code, ")")))
-      } else {
-        return(NULL)
-      }
-
-    }
-  )
-}
-
-#' Title
-#'
-#' @param id
-#' @param module_id
-#' @param theme_param
-#'
-#' @return
-#' @export
-#'
-#' @examples
-themeHandler <- function(id, module_id, theme_param) {
-  moduleServer(
-    id,
-    function(input, output, session) {
-
-      assert_that(
-        length(module_id) == length(theme_param)
-      )
-
-      themeSettings <- lapply(module_id, function(mm_id) {
-        input[[mm_id]]
-      })
-
-      names(themeSettings) <- theme_param
-
-      themeSettings <- check_remove_null(themeSettings)
-
-      # browser()
-
-      if( is.null(themeSettings) ) {
-        return(NULL)
-      } else {
-
-        code <- paste_arg_param(themeSettings, add_quo = TRUE)
-        code <- paste0("theme(", code, ")")
-
-        return(list(plot = do.call(theme, themeSettings),
-                    code = code))
-      }
-
-
-    }
-  )
-}
-
-
-
-
-#' Title
-#'
-#' @param x
-#'
-#' @return
-#' @export
-#'
-#' @examples
+#' check_char_set_names(c("a", "b"))
 check_char_set_names <- function(x) {
   if(!is.null(x)) {
     assert_that( is.character(x) )
@@ -192,120 +21,41 @@ check_char_set_names <- function(x) {
   x
 }
 
-#' Title
+#' check if a list has `NULL`; if so, remove it (them)
 #'
 #' @param x list
 #'
-#' @return
+#' @return `NULL` or a list
 #' @export
 #'
 #' @examples
+#' x <- list(a = 1, b = NULL)
+#' check_remove_null(x)
 check_remove_null <- function(x) {
   if(is.null(x)) return(NULL)
 
-  x <- x[!sapply(x, is.null)]
+  # x <- x[!sapply(x, function(xx) { is.null(xx) || is.na(xx) } )]
+
+  x <- x[!sapply(x, is.null )]
   if(length(x) == 0) {
     x <- NULL
   }
   x
 }
 
-#' Title
+#' Paste parameter and its argument
 #'
-#' @param session_input
-#' @param mapping_id
-#' @param params
+#' @param x a named character vector
+#' @param add_quo bool. Whether to add quotation marks on the arguments
 #'
-#' @return
+#' @return a string
 #' @export
 #'
-#' @examples
-connect_param_id <- function(session_input, id_list, params,
-                             color_fill = FALSE, color_group = FALSE) {
-  if(is.null(params) || is.null(id_list)) {
-    return(NULL)
-  }
-
-  id_list <- unlist(id_list)
-
-  assert_that(
-    length(id_list) == length(params)
-  )
-
-  aes_list <- lapply(id_list, function(id, input) {
-    input[[id]]
-  }, input = session_input)
-
-  names(aes_list) <- params
-
-  if(color_fill) {
-    assert_that(
-      hasName(aes_list, "color") || hasName(aes_list, "fill")
-    )
-
-    if (is.null(aes_list[['fill']])) {
-      aes_list[['fill']] <- aes_list[['color']]
-    }
-
-    if(is.null(aes_list[['color']])) {
-      aes_list[['color']] <- aes_list[['fill']]
-    }
-  }
-
-  if(color_group) {
-    assert_that(
-      hasName(aes_list, "color") || hasName(aes_list, "group")
-    )
-
-    if (is.null(aes_list[['group']])) {
-      aes_list[['group']] <- aes_list[['color']]
-    }
-
-    if(is.null(aes_list[['color']])) {
-      aes_list[['color']] <- aes_list[['group']]
-    }
-  }
-
-  aes_list
-}
-
-#' Title
-#'
-#' @param x
-#'
-#' @return
-#' @export
+#' @importFrom assertthat assert_that
 #'
 #' @examples
-remove_null_list <- function(x) {
-  x[!sapply(x, is.null)]
-}
-
-#' Title
-#'
-#' @param x
-#'
-#' @return
-#' @export
-#'
-#' @examples
-empty_list_null <- function(x) {
-  if(length(x) == 0) {
-    return(NULL)
-  } else {
-    return(x)
-  }
-}
-
-#' Title
-#'
-#' @param x
-#' @param add_quo
-#'
-#' @return
-#' @export
-#'
-#' @examples
+#' x <- c(param1 = "arg1", param2 = "arg2")
+#' paste_arg_param(x, add_quo = TRUE)
 paste_arg_param <- function(x, add_quo = FALSE) {
   if(is.null(x)) {
     return("")
@@ -316,10 +66,15 @@ paste_arg_param <- function(x, add_quo = FALSE) {
   )
 
   code_args <- mapply(function(aa, var){
-    if(add_quo) {
-      paste0(aa, " = '", var, "'")
-    } else {
+
+    if(is.numeric(var)) {
       paste0(aa, " = ", var)
+    } else {
+      if(add_quo) {
+        paste0(aa, " = '", var, "'")
+      } else {
+        paste0(aa, " = ", var)
+      }
     }
   }, names(x), x, SIMPLIFY = FALSE )
   code_args[['sep']] <- ', '
@@ -329,73 +84,74 @@ paste_arg_param <- function(x, add_quo = FALSE) {
 }
 
 
-#' Title
+
+#' Unwrap an expression
 #'
-#' @param code_list
+#' @param x an expression
 #'
-#' @return
+#' @return list of strings converted from the expression
 #' @export
 #'
+#' @importFrom rlang enexpr as_string is_symbol is_call
+#'
 #' @examples
-get_code <- function(code_list) {
+#' unwrap_expr(x + y + z)
+unwrap_expr <- function(x) {
+  code <- enexpr(x)
 
-  assert_that(
-    has_name(code_list, "data"),
-    has_name(code_list, "geom")
-  )
-
-  basic_code <- paste0(
-    "data <- ", code_list[['data']], "\n\n",
-
-    "ggplot(data = data) + ", "\n",
-    "  ", code_list[['geom']]
-  )
-
-  code_list[['data']] <- NULL
-  code_list[['geom']] <- NULL
-  code_list <- check_remove_null(code_list)
-
-  if(is.null(code_list)) {
-    final_code <- basic_code
+  if(all(sapply(code, is_symbol))) {
+    return(lapply(as.list(code), as_string))
   } else {
-    code_list[['sep']] <- " +\n  "
-    other_code <- do.call(paste, code_list)
-    final_code <- paste0(basic_code, " +\n  ", other_code)
-  }
+    lapply(as.list(code), function(code_piece) {
+      if(is_call(code_piece)) {
+        return(unwrap_expr(!!code_piece))
+      } else {
+        return(as_string(code_piece))
+      }
 
-  return(final_code)
+    })
+
+  }
 }
 
-
-#' Title
+#' Append a named list
 #'
-#' @param geom_component
-#' @param ...
-#' @param data
-#' @param data_path
+#' @param x a list
+#' @param name new name
+#' @param value value of the new name
 #'
-#' @return
+#' @return a list
 #' @export
 #'
+#' @importFrom rlang is_character
+#'
 #' @examples
-get_plot_code <- function(geom_component, ..., data, data_path) {
+#' x <- list(a = 1, b = 2)
+#' append_list_name(x, "c", 3)
+append_list_name <- function(x, name, value) {
+  stopifnot(is_character(name))
 
-  total_list <- c(
-    list(geom_component),
-    list(...)
-  )
-
-  plot_list <- map(total_list, 1)
-  code_list <- map(total_list, 2)
-
-  names(code_list)[1] <- "geom"
-  code_list[['data']] <- data_path
-
-  pp <- get_plot(data, plot_list)
-  final_code <- get_code(code_list)
-
-  return(list(plot = pp, code = final_code))
-
+  x[[name]] <- value
+  x
 }
+
+#' Add one element into a list of arguments
+#'
+#' @param defaultArgs the default argument list
+#' @param ui_element the keyword of the ui element
+#' @param ui_param the parameter of the ui function
+#' @param plot_settings a list contains all ui elements
+#'
+#' @return a list of default arguments
+addDefaultArgs <- function(defaultArgs, ui_element, ui_param, plot_settings) {
+  if (has_name(plot_settings, ui_element)) {
+    defaultArgs[[ui_param]] <- plot_settings[[ui_element]]
+  }
+  defaultArgs
+}
+
+
+
+
 
 
