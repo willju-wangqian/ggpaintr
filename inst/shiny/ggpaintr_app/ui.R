@@ -1,13 +1,3 @@
-#
-# This is the user-interface definition of a Shiny web application. You can
-# run the application by clicking 'Run App' above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
-
-
 
 sidebar <- dashboardSidebar(
     width=300,
@@ -26,8 +16,6 @@ sidebar <- dashboardSidebar(
 
 
 body <- dashboardBody(
-    # tags$head(
-    #   tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap.min.css")),
 
     tabItems(
 
@@ -123,8 +111,6 @@ body <- dashboardBody(
 )
 
 # Put them together into a dashboardPage
-
-
 ui <- dashboardPage(
     skin="green",
     dashboardHeader(title = "Welcome to ggpaintr!"),
