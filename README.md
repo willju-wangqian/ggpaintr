@@ -40,7 +40,33 @@ run_ggpaintr_app()
     -   `bsButton`: this includes both the `actionButton` and
         `checkboxInput`, but we don’t have much room for `style`
 
-## Current Version
+## Future work
+
+-   more extensible: have a sophisticated way of adding ui and server
+    functions from the users
+-   allow users to download plots in ggpaintr_app
+-   submit to CRAN
+
+## Change log
+
+#### version number: 0.0.9.7
+
+-   fixed code for numeric input
+-   allow categorical variables to have less than 3 levels
+
+#### version number: 0.0.9.6
+
+-   alpha as numeric
+
+-   n \< 3 colors
+
+-   added four chart types, next: update functions in the package
+
+-   change expression by clicking the plot icon
+
+-   test if ui functions can be added
+
+-   how to add customized handler functions?
 
 #### version number: 0.0.9.5
 

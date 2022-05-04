@@ -51,14 +51,19 @@ run_ggpaintr_app()
     +   `actionButton`: this is the default and we can specify the `style` attribute
     +   `bsButton`: this includes both the `actionButton` and `checkboxInput`, but we don't have much room for `style` 
 
+## Future work
+
+- more extensible: have a sophisticated way of adding ui and server functions from the users
+- allow users to download plots in ggpaintr_app
+- submit to CRAN
 
 
-
-## Current Version
+## Change log
 
 #### version number: 0.0.9.7
 
-
+- fixed code for numeric input
+- allow categorical variables to have less than 3 levels
 
 #### version number: 0.0.9.6
 
