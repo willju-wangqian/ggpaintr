@@ -25,7 +25,7 @@ observe({
   req(result_container)
 
   expr <- rlang::expr(
-    geom_point(aes(x, y, color, size)) +
+    geom_point(aes(x, y, color, size), alpha) +
       labs(x, y, title) +
       coord_flip +
       facet_grid +

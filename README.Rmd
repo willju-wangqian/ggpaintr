@@ -56,7 +56,14 @@ run_ggpaintr_app()
 
 ## Current Version
 
+#### version number: 0.0.9.7
+
+
+
 #### version number: 0.0.9.6
+
+- alpha as numeric
+- n < 3 colors
 
 - added four chart types, next: update functions in the package
 

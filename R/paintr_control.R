@@ -51,6 +51,10 @@ scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
           }
 
           init_colors <- brewer.pal(num_color, "RdYlBu")
+          if(length(init_colors) > num_color) {
+            init_colors <- init_colors[1:num_color]
+          }
+
           labels <- unique( color_var )
 
           colorPickers <- multipleColorPickerUI(id, init_colors,

@@ -66,10 +66,15 @@ paste_arg_param <- function(x, add_quo = FALSE) {
   )
 
   code_args <- mapply(function(aa, var){
-    if(add_quo) {
-      paste0(aa, " = '", var, "'")
-    } else {
+
+    if(is.numeric(var)) {
       paste0(aa, " = ", var)
+    } else {
+      if(add_quo) {
+        paste0(aa, " = '", var, "'")
+      } else {
+        paste0(aa, " = ", var)
+      }
     }
   }, names(x), x, SIMPLIFY = FALSE )
   code_args[['sep']] <- ', '
