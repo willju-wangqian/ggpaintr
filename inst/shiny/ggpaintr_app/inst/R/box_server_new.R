@@ -79,7 +79,25 @@ observe({
 
 }) %>% bindEvent(input$drawBar)
 
+# violin
 
+observe({
+  req(result_container)
+
+  expr <- rlang::expr(
+    geom_violin(aes(x, y, fill)) +
+      labs(x, y, title) +
+      coord_flip +
+      facet_grid +
+      theme(legend.direction, legend.position) +
+      theme_choose +
+      scale_fill
+  )
+
+  result_container[['expr']] <- expr
+  result_container[['module_id']] <- "violinChart"
+
+}) %>% bindEvent(input$drawViolin)
 
 
 

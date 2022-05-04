@@ -10,7 +10,7 @@
 
 
 sidebar <- dashboardSidebar(
-    width=300,
+    width=230,
 
     sidebarMenu(
         HTML(paste0(
@@ -99,6 +99,19 @@ body <- dashboardBody(
                         )
 
                     ),
+                    # fluidRow(
+                    #   box(width = 12,
+                    #       column(
+                    #         3, actionBttn(
+                    #           "drawViolin",
+                    #           label = "violin plot",
+                    #           icon = div(
+                    #             img(src = "img_button/boxplot.png", width = "100%")
+                    #           ),
+                    #           style = "fill"
+                    #         ))
+                    #       )
+                    # ),
                     br(),
                     fluidRow(
                         column(
