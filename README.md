@@ -52,7 +52,12 @@ run_ggpaintr_app()
 #### version number: 0.0.9.7
 
 -   fixed code for numeric input
+
 -   allow categorical variables to have less than 3 levels
+
+-   Todo - `ggpaintr_app`:
+
+    -   filters from `DT` will invalidate the code
 
 #### version number: 0.0.9.6
 
