@@ -1,7 +1,7 @@
 #' Build reactivity for `scale_color` or `scale_fill`
 #'
 #' @param id An ID string that corresponds with the ID used for all component of this `paintr_obj`
-#' @param paintr_obj a `paintr_obj` built by `paintr()`
+#' @param paintr_rctv a reactive value of a `paintr_obj` object created by `paintr()`
 #' @param color_or_fill string. either `color` or `fill`. Specifies whether it's `scale_color`
 #' or `scale_fill`
 #'
@@ -12,24 +12,24 @@
 #' @importFrom assertthat assert_that has_name
 #' @importFrom magrittr %>%
 #'
-scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
+scaleColor_build_reactivity <- function(id, paintr_rctv, color_or_fill) {
 
   moduleServer(
     id,
     function(input, output, session) {
 
       selectedColors_box <- reactive({
-        req(paintr_obj())
+        req(paintr_rctv())
 
-        data <- paintr_obj()[['data']]
+        data <- paintr_rctv()[['data']]
 
         color_or_fill <- match.arg(color_or_fill, c("color", "fill"))
-        fill_id <- paintr_get_ui(paintr_obj(), color_or_fill, type = "id")
+        fill_id <- paintr_get_ui(paintr_rctv(), color_or_fill, type = "id")
 
         if(color_or_fill == "color") {
-          scaleColorid <- paintr_get_ui(paintr_obj(), "scale_color", type = "id")
+          scaleColorid <- paintr_get_ui(paintr_rctv(), "scale_color", type = "id")
         } else {
-          scaleColorid <- paintr_get_ui(paintr_obj(), "scale_fill", type = "id")
+          scaleColorid <- paintr_get_ui(paintr_rctv(), "scale_fill", type = "id")
         }
 
         req(input[[fill_id]], has_name(data, input[[fill_id]]))
@@ -78,21 +78,21 @@ scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
 
       }) %>%
         bindEvent({
-          req(paintr_obj(), paintr_get_ui(paintr_obj(), color_or_fill, type = "id"))
-          input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]]
+          req(paintr_rctv(), paintr_get_ui(paintr_rctv(), color_or_fill, type = "id"))
+          input[[paintr_get_ui(paintr_rctv(), color_or_fill, type = "id")]]
         })
 
       observe({
 
-        req(selectedColors_box(), paintr_obj())
+        req(selectedColors_box(), paintr_rctv())
 
         color_or_fill <- match.arg(color_or_fill, c("color", "fill"))
-        fill_id <- paintr_get_ui(paintr_obj(), color_or_fill, type = "id")
+        fill_id <- paintr_get_ui(paintr_rctv(), color_or_fill, type = "id")
 
         if(color_or_fill == "color") {
-          scaleColorid <- paintr_get_ui(paintr_obj(), "scale_color", type = "id")
+          scaleColorid <- paintr_get_ui(paintr_rctv(), "scale_color", type = "id")
         } else {
-          scaleColorid <- paintr_get_ui(paintr_obj(), "scale_fill", type = "id")
+          scaleColorid <- paintr_get_ui(paintr_rctv(), "scale_fill", type = "id")
         }
 
         if(selectedColors_box()[['type']] == "TOO_MANY_LEVELS") {
@@ -110,8 +110,8 @@ scaleColor_build_reactivity <- function(id, paintr_obj, color_or_fill) {
       })  %>%
         # bindEvent(input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]])
         bindEvent({
-          req(paintr_obj(), paintr_get_ui(paintr_obj(), color_or_fill, type = "id"))
-          input[[paintr_get_ui(paintr_obj(), color_or_fill, type = "id")]]
+          req(paintr_rctv(), paintr_get_ui(paintr_rctv(), color_or_fill, type = "id"))
+          input[[paintr_get_ui(paintr_rctv(), color_or_fill, type = "id")]]
         })
 
 

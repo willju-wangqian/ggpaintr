@@ -4,12 +4,12 @@
 \alias{scaleColor_build_reactivity}
 \title{Build reactivity for \code{scale_color} or \code{scale_fill}}
 \usage{
-scaleColor_build_reactivity(id, paintr_obj, color_or_fill)
+scaleColor_build_reactivity(id, paintr_rctv, color_or_fill)
 }
 \arguments{
 \item{id}{An ID string that corresponds with the ID used for all component of this \code{paintr_obj}}
 
-\item{paintr_obj}{a \code{paintr_obj} built by \code{paintr()}}
+\item{paintr_rctv}{a reactive value of a \code{paintr_obj} object created by \code{paintr()}}
 
 \item{color_or_fill}{string. either \code{color} or \code{fill}. Specifies whether it's \code{scale_color}
 or \code{scale_fill}}
