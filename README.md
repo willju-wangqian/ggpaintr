@@ -40,7 +40,52 @@ run_ggpaintr_app()
     -   `bsButton`: this includes both the `actionButton` and
         `checkboxInput`, but we don’t have much room for `style`
 
-## Current Version
+## Future work
+
+-   more extensible: have a sophisticated way of adding ui and server
+    functions from the users
+-   allow users to download plots in ggpaintr_app
+-   submit to CRAN
+
+## Change log
+
+#### version number: 0.0.9.7
+
+-   fixed code for numeric input
+
+-   allow categorical variables to have less than 3 levels
+
+-   Todo - `ggpaintr_app`:
+
+    -   filters from `DT` will invalidate the code
+
+#### version number: 0.0.9.6
+
+-   alpha as numeric
+
+-   n \< 3 colors
+
+-   added four chart types, next: update functions in the package
+
+-   change expression by clicking the plot icon
+
+-   test if ui functions can be added
+
+-   how to add customized handler functions?
+
+#### version number: 0.0.9.5
+
+-   Updates:
+    -   introduced `paintr_obj` and `paintr()`, which use a grammar
+        similar to `ggplot2` to specify and control all elements or
+        pieces built in the shiny app
+    -   use one function to build reactivity of `color` or `fill` so
+        that they can work with `paintr_plot_code`
+-   TODO:
+    -   documentations and dependencies
+    -   write-ups
+    -   download plot
+    -   test and finalize code then push to main
 
 #### version number: 0.0.9.4
 
@@ -48,22 +93,17 @@ run_ggpaintr_app()
     -   parameters of handlers
     -   parameters of ui modules
     -   returns of handlers
--   changes apply to all plot_servers:
-    -   `code_container` to `result_container`
--   change theme ui structure so that it can be selected (the same thing
-    for labs)
-    -   use list? then select? then taglist?
 -   TODO:
     -   documentations
-    -   icon position or size
+    -   [x] icon position or size
     -   writeup
         -   the concept of grammar of graphics
         -   why this package can be useful
         -   how to use the package
-    -   how to wrap up the part of scale_color
+    -   [x] how to wrap up the part of scale_color
     -   template?
     -   download plot
-    -   aes then comma
+    -   [x] aes then comma
 
 #### version number: 0.0.9.3
 

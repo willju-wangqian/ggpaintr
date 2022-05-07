@@ -8,29 +8,35 @@
 #
 
 library(shiny)
-# library(ggpaintr)
+library(ggpaintr)
 library(tidyverse)
 library(assertthat)
 library(rlang)
 library(shinyWidgets)
+library(palmerpenguins)
+#
+# sapply(list.files("R_funcs/"), function(fileName) {
+#     source(paste0("R_funcs/", fileName))
+# })
 
-sapply(list.files("R_funcs/"), function(fileName) {
-    source(paste0("R_funcs/", fileName))
-})
 
-data <- iris
-# data <- faithfuld
+# data <- iris
+data <- faithfuld
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
 
     # Application title
-    titlePanel("Iris Data"),
-    # titlePanel("Old Faithful Geyser Data"),
+    titlePanel("ggpaintr demo"),
 
     # Sidebar with a slider input for number of bins
     sidebarLayout(
         sidebarPanel(
+            pickerInput("defaultData", "select a default dataset:",
+                        choices = c("iris", "mtcars","penguins", "faithfuld"),
+                        selected = "",
+                        multiple = TRUE,
+                        options = pickerOptions(maxOptions = 1)),
             uiOutput("someUI"),
             actionButton("draw", "click to draw boxplot"),
             # textInput("abc", "some label")
@@ -45,63 +51,38 @@ ui <- fluidPage(
 )
 
 
-
-
 # Define server logic required to draw a histogram
 server <- function(input, output) {
 
     box_control_id <- "boxControl"
 
-    ns_box <- NS(box_control_id)
-
-    code_container <- reactiveValues()
-    code_container[['data']] <- "iris"
-
-    # my_test <- reactive({
-    #     input$abc
-    # })
-    #
-    # observe({
-    #    cat(paste0(my_test(), '\n'))
-    # })
-    #
-    # observe({cat(my_test())})
+    # data
+    data_container <- reactive({
+        req(input$defaultData)
+        get(input$defaultData)
+    })
 
     # construct paintr object
     box_main <- reactive({
 
-        expr1 <- expr(
-            geom_boxplot(aes(x, y))
-        )
+        req(data_container())
+        data <- data_container()
 
-        expr2 <- expr(
-            geom_boxplot(aes(x, y, fill), position)
-        )
-
-        expr3 <- expr(
-            geom_boxplot(aes(x, y), position) +
-                theme
-        )
-
-        expr4 <- expr(
-            geom_boxplot(aes(x, y, fill), position) +
-                coord_flip +
-                facet_grid +
-                theme(legend.position) +
-                labs(x, y) +
-                theme_choose
-        )
-
-        expr5 <- expr(
-            geom_contour(aes(x, y, z)) +
-                labs(x, title)
-        )
-
+        # expr5 <- expr(
+        #     geom_contour(aes(x, y, z)) +
+        #         labs(x, title)
+        # )
 
         paintr(
             box_control_id,
-            names(data),
-            !!expr1
+            data, data_path = input$defaultData,
+            # geom_point(aes(x, y, color)) +
+            #     theme_choose +
+            #     labs(x, y, title)
+            geom_point(aes(x, y, color), alpha) +
+                theme_choose +
+                labs(x, y, title)
+
         )
 
     })
@@ -114,11 +95,13 @@ server <- function(input, output) {
             12,
             paintr_get_ui(box_main(), "x"),
             paintr_get_ui(box_main(), "y"),
-            # paintr_get_ui(box_main(), "z"),
-            # paintr_get_ui(box_main(), "fill"),
+            paintr_get_ui(box_main(), "color"),
+            paintr_get_ui(box_main(), "alpha"),
+            # paintr_get_ui(box_main(), "color"),
+            paintr_get_ui(box_main(), "labs"),
+            paintr_get_ui(box_main(), "theme_choose"),
+            # paintr_get_ui(box_main(), "theme"),
             # paintr_get_ui(box_main(), "position"),
-            # paintr_get_ui(box_main(), "coord_flip"),
-            # paintr_get_ui(box_main(), "labs"),
             # paintr_get_ui(box_main(), "facet_grid")
             # ...
         )
@@ -126,27 +109,23 @@ server <- function(input, output) {
 
     # take results and plot
     observe({
-        req(box_main())
+        req(box_main(), data_container(), input$defaultData)
+        data <- data_container()
 
-        paintr_list <- paintr_plot_code(box_main(),
-                                        box_control_id, data)
-
-        results <- get_plot_code(paintr_list,
-                                 data = data,
-                                 data_path = code_container[['data']])
+        paintr_list <- paintr_plot_code(box_main())
 
         # Plot output
         output$mainPlot <- renderPlot({
 
-            validate(need(results[['plot']], "plot is not rendered"))
+            validate(need(paintr_list[['plot']], "plot is not rendered"))
 
-            results[['plot']]
+            paintr_list[['plot']]
         })
 
         # Code output
         output$mycode <- renderText({
 
-            results[['code']]
+            paintr_list[['code']]
 
         })
 

@@ -1,9 +1,8 @@
-#' Title
+#' Call ggpaintr_app
 #'
-#' @return
+#' @return `shiny::runApp`
 #' @export
 #'
-#' @examples
 run_ggpaintr_app <- function() {
   appDir <- system.file("shiny", "ggpaintr_app", package = "ggpaintr")
   if (appDir == "") {

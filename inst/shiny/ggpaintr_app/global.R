@@ -1,38 +1,51 @@
-library(tidyverse)
-library(palmerpenguins)
-library(shinyWidgets)
-library(shiny)
-library(DT)
+if(!require(palmerpenguins)) {
+  install.packages("palmerpenguins")
+  library(palmerpenguins)
+}
+if(!require(shiny)) {
+  install.packages("shiny")
+  library(shiny)
+}
+if(!require(DT)) {
+  install.packages("DT")
+  library(DT)
+}
+if(!require(shinydashboard)) {
+  install.packages("shinydashboard")
+  library(shinydashboard)
+}
+if(!require(shinyBS)) {
+  install.packages("shinyBS")
+  library(shinyBS)
+}
+if(!require(rlang)) {
+  install.packages("rlang")
+  library(rlang)
+}
+if(!require(shinyWidgets)) {
+  install.packages("shinyWidgets")
+  library(shinyWidgets)
+}
+library(ggpaintr)
+# require(palmerpenguins)
+# require(shiny)
+# require(DT)
+# require(shinydashboard)
+# require(shinyBS)
+# require(rlang)
+# require(shinyWidgets)
 
-library(shinydashboard)
-library(shinyFiles)
-library(shinybusy)
-library(shinyAce)
-library(formatR)
-library(shinyhelper)
-library(shinyBS)
+# library(tidyverse)
+# library(colourpicker)
+# library(RColorBrewer)
+# library(assertthat)
+# sapply(list.files("R_funcs/"), function(fileName) {
+#   source(paste0("R_funcs/", fileName))
+# })
 
-library(colourpicker)
 
-library(assertthat)
-
-# library(ggpaintr)
-
-# setwd('C:/Downloads/project/ggpaintr/inst/shiny/ggpaintr_app/')
-
-# source('ui.R')
-# source('server.R')
-
-sapply(list.files("R_funcs/"), function(fileName) {
-  source(paste0("R_funcs/", fileName))
-})
-# source("R/modules.R")
-# source("R/helper.R")
-
-# data("penguins")
-
-DODGE_WID_DEFAULT <- 0.5
-myStatUI <- function(x, y) { h3(paste(x + y)) }
+# DODGE_WID_DEFAULT <- 0.5
+# myStatUI <- function(x, y) { h3(paste(x + y)) }
 
 # shinyApp(ui, server)
 

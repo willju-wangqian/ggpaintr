@@ -1,16 +1,6 @@
-#
-# This is the user-interface definition of a Shiny web application. You can
-# run the application by clicking 'Run App' above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
-
-
 
 sidebar <- dashboardSidebar(
-    width=300,
+    width=230,
 
     sidebarMenu(
         HTML(paste0(
@@ -26,8 +16,6 @@ sidebar <- dashboardSidebar(
 
 
 body <- dashboardBody(
-    # tags$head(
-    #   tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap.min.css")),
 
     tabItems(
 
@@ -48,7 +36,8 @@ body <- dashboardBody(
                               label = "Upload data in csv or rds format",
                               accept = c(".csv", ".rds")),
                     pickerInput("defaultData", "select a default dataset:",
-                                choices = c("iris", "mtcars","penguins"),
+                                choices = c("iris", "mtcars","penguins", "txhousing", "faithfuld",
+                                            "diamonds", "economics", "economics_long", "CO2"),
                                 selected = "",
                                 multiple = TRUE,
                                 options = pickerOptions(maxOptions = 1)),
@@ -102,6 +91,7 @@ body <- dashboardBody(
                     fluidRow(
                         column(
                             4,
+                            actionButton("buttonDraw", "Draw the plot"),
                             uiOutput("drawControls")
                         ),
                         column(
@@ -121,8 +111,6 @@ body <- dashboardBody(
 )
 
 # Put them together into a dashboardPage
-
-
 ui <- dashboardPage(
     skin="green",
     dashboardHeader(title = "Welcome to ggpaintr!"),

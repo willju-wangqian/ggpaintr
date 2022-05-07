@@ -2,13 +2,13 @@
 % Please edit documentation in R/runApp.R
 \name{run_ggpaintr_app}
 \alias{run_ggpaintr_app}
-\title{Title}
+\title{Call ggpaintr_app}
 \usage{
 run_ggpaintr_app()
 }
 \value{
-
+\code{shiny::runApp}
 }
 \description{
-Title
+Call ggpaintr_app
 }
