@@ -1,13 +1,3 @@
-#
-# This is the server logic of a Shiny web application. You can run the
-# application by clicking 'Run App' above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
-#
-
 server <- function(input, output, session) {
 
   result_container <- reactiveValues()
@@ -77,22 +67,8 @@ server <- function(input, output, session) {
               ))
   })
 
-  #############################################################
-  # source("inst/R/box_server.R", local = TRUE)
 
-  source("inst/R/box_server_new.R", local = TRUE)
-
-  #############################################################
-  # server part for the bar chart
-  # source("inst/R/bar_server.R", local = TRUE)
-
-  #############################################################
-  # server part for the scatter plot
-  # source("inst/R/scatter_server.R", local = TRUE)
-
-  #############################################################
-  # server part for the line plot
-  # source("inst/R/line_server.R", local = TRUE)
+  source("inst/R/paintr_server.R", local = TRUE)
 
 }
 

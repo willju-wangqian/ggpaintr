@@ -26,6 +26,7 @@ if(!require(shinyWidgets)) {
   install.packages("shinyWidgets")
   library(shinyWidgets)
 }
+library(ggpaintr)
 # require(palmerpenguins)
 # require(shiny)
 # require(DT)
@@ -33,7 +34,6 @@ if(!require(shinyWidgets)) {
 # require(shinyBS)
 # require(rlang)
 # require(shinyWidgets)
-library(ggpaintr)
 
 # library(tidyverse)
 # library(colourpicker)

@@ -1,7 +1,7 @@
 Package: ggpaintr
 Type: Package
 Title: Build R Shiny App Using the Grammar of Graphics
-Version: 0.0.9.6
+Version: 0.0.9.7
 Authors@R: c(
     person("Wangqian", "Ju", email = "wju@iastate.edu", role = c("aut", "cre"), comment = c(ORCID = "0000-0002-9977-377X")),
     person("Jinji", "Pang", email = "pjj0702@iastate.edu", role = "aut", comment = c(ORCID = "0000-0002-2267-2313")),
