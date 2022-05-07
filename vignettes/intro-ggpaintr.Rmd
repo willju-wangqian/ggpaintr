@@ -6,14 +6,49 @@ vignette: >
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
-
-```{r, include = FALSE}
+```{r setup, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  fig.path = "figures/vignette-",
+  echo=FALSE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 7,
+  fig.height = 5,
+  out.width = "80%"
 )
+library(tidyverse)
+theme_set(theme_bw())
 ```
 
-```{r setup}
-library(ggpaintr)
+
+## Installation
+
+You can install the development version from Github with:
+
+```{r, eval=FALSE, echo=TRUE}
+# install.packages("devtools")
+devtools::install_github("willju-wangqian/ggpaintr")
 ```
+
+## Run the shiny app
+
+```{r, eval=FALSE, echo=TRUE}
+library(ggpaintr)
+
+run_ggpaintr_app()
+```
+
+## The `ggpaintr` Shiny App 
+
+### 
+
+```{r, echo=FALSE, out.width="80%", fig.cap="Homepage."}
+knitr::include_graphics("images/homepage.png")
+```
+
+
+
+
+
