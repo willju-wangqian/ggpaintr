@@ -144,10 +144,9 @@ server <- function(input, output) {
 shinyApp(ui = ui, server = server)
 ```
 
-Many things are hidden and handled by functions in `ggpaintr`, and we
-will talk about it in detail in the next section. Updating this shiny
-app can be relatively easy with the help of `ggpaintr`: by changing the
-`ggplot2` alike expression at line 51 into
+Many things are hidden and handled by functions in `ggpaintr`. And
+updating this shiny app can be relatively easy with the help of
+`ggpaintr`: by changing the `ggplot2` alike expression at line 51 into
 
 ``` r
 # add mapping for fill
