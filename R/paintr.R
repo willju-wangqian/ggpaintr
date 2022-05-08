@@ -294,6 +294,7 @@ paintr_plot_code <- function(paintr_obj, data_filter = "",
 #' @importFrom jsonlite fromJSON
 #'
 #' @return filtering code
+#' @export
 get_filter = function(data, search) {
   parse_search_expression <- function(x, name_var, s) {
     if (!nzchar(s)) return(FALSE)
