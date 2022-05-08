@@ -46,7 +46,6 @@ Each of the above functionalities can be modularized into one or several functio
 Compared to the plotting functions in vanilla R, `ggplot2` is more convenient to use, with higher flexibility and readability. It is considered one of the most popular R package [@Wickham2016].
 
 
-
 ### Building a Shiny App with Graphical Visualization
 
 Shiny is a framework for creating web applications from R. Shiny apps built from [R shiny](https://shiny.rstudio.com/) help users interact with the data instead of facing the ice-cold coding console. Together with `ggplot2`, it provides possibility of creating elegant data visualizations with large flexibility. Interactive graphical visualizations are extremely helpful in presentations or statistical education [@Doi2016], for providing the audience with a clear and straight forward view of data analysis.
@@ -115,7 +114,7 @@ We expect this package to be useful in the following scenarios:
 
   Our package offers a easier and more flexible way of building graphical shiny apps. Statistics instructors can develop interactive graphical UIs on their own with their specific demands. By transforming R's programming language into a point-and-click style, these UIs can be used to introduce different statistical graphics to fresh students in this field.
 
-* Statistical education of R / ggplot2
+* Statistical education of `R` / `ggplot2`
 
   Along with the plot, shiny apps built from our package also interactively show the complete R code for generating such plot. This can be extremely useful for beginners in R or ggplot2.
 
@@ -434,13 +433,6 @@ In order to add reactivity for `fill` in our demo shiny app, one should make the
 
 This part needs some future work.
 
-
-
-
-## References
-
-
-
 ## Case Study 2: `ggpaintr_app` 
 
 A shiny app called `ggpaintr_app` is built with the `ggpaintr` package and included in the package. `ggpaintr_app` not only demonstrates the functionality of `ggpaintr`, but also serves as a shiny app for those unfamiliar with the Grammar of Graphics or ggplot2 but want to create a plot using ggplot2. Some design of `ggpaintr_app` can also provide reference for package/shiny app developers. 
@@ -511,8 +503,12 @@ Although we have included most of the mapping and aesthetic options for drawing 
 knitr::include_graphics("images/code.png")
 ```
 
+## Conclusion
+
+In this project, we introduced an open-source `R` package `ggpaintr` for building modularized shiny apps with plotting functionalities using `ggplot2` and the idea of the Grammar of Graphics. We showcased what `ggpaintr` can do with two case studies in this project and discussed the thoughts and decisions we had in the designs of `ggpaintr`. We combined the idea of modularization and the Grammar of Graphics and implemented independent modules that are responsible for different pieces of the plotting functionality of a shiny app. `ggpaintr` makes it easier to embed reactive plotting functionality in a shiny app and provides simplicity, flexibility, and extensibility. With the help of `ggpaintr`, reactive plotting in a shiny app can be easily achieved and updated since an expression in `ggplot2`-alike syntax can control which modules or reactivity to be included in the shiny app. So far, we only implemented the most commonly used and basic features of `ggplot2`. However, as an open-source `R` package, developers can easily develop their own modules, cover more aspects of `ggplot2`, and make suggestions and improvements for `ggpaintr`. We aim to build a bridge between `ggplot2` and shiny apps, connecting versatility and interactivity. We hope that `ggpaintr` can help more people in the community build their shiny apps with elegant and versatile data visualization functionality.
 
 
+## References
 
 
 
