@@ -1,6 +1,9 @@
 
 # ggpaintr <img src="man/figures/logo.png" width="160px" align="right" />
 
+An open-source R package for building modularized shiny apps with
+plotting functionalities using `ggplot2` and the Grammar of Graphics
+
 ## Installation
 
 You can install the development version from Github with:

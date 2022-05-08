@@ -1,15 +1,16 @@
 Package: ggpaintr
 Type: Package
-Title: Build R Shiny App Using the Grammar of Graphics
+Title: Building modularized shiny apps with plotting functionalities using ggplot2 and the Grammar of Graphics
 Version: 0.0.9.7
 Authors@R: c(
     person("Wangqian", "Ju", email = "wju@iastate.edu", role = c("aut", "cre"), comment = c(ORCID = "0000-0002-9977-377X")),
     person("Jinji", "Pang", email = "pjj0702@iastate.edu", role = "aut", comment = c(ORCID = "0000-0002-2267-2313")),
     person("Zhili", "Qiao", email = "zlqiao@iastate.edu", role = "aut", comment = c(ORCID = "0000-0002-8154-0898"))
     )    
-Description: A package for developers to build modularized shiny app using the 
-    Grammar of Graphics. The resulting shiny app provides a basic graphical user 
-    interface for making plots using ggplot2. Example shiny apps are included.
+Description: A package for developers to build modularized shiny apps with plotting 
+    functionalities using ggplot2 and the Grammar of Graphics. The resulting shiny 
+    app provides a basic graphical user interface for making plots using ggplot2. 
+    Example shiny apps are included.
 License: GPL-3
 Imports:
     shiny (>= 1.6.0),
