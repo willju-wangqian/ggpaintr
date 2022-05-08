@@ -208,6 +208,7 @@ paintr_get_ui <- function(paintr_obj, selected_ui_name, type = "ui", scope = NUL
 #' Generate plot and the corresponding code of `ggplot2` from a `paintr_obj`
 #'
 #' @param paintr_obj a `paintr_obj`
+#' @param data_filter data filtering code
 #' @param selected_color_rctv reactive value returned by `scaleColor_build_reactivity` for color
 #' @param selected_fill_rctv reactive value returned by `scaleColor_build_reactivity` for fill
 #' @param color_fill bool; optional. Whether or not to use the same variable for both color and fill
@@ -289,7 +290,7 @@ paintr_plot_code <- function(paintr_obj, data_filter = "",
 #' @param data dataset
 #' @param search filter conditions
 #'
-#' @importFrom
+#' @importFrom jsonlite fromJSON
 #'
 #' @return filtering code
 get_filter = function(data, search) {

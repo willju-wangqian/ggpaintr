@@ -21,7 +21,8 @@ Imports:
     assertthat (>= 0.2.0),
     colourpicker (>= 1.1.0),
     shinyWidgets (>= 0.6.4),
-    RColorBrewer (>= 1.0)
+    RColorBrewer (>= 1.0), 
+    jsonlite(>= 1.8.0)
 Suggests:
     knitr,
     rmarkdown,

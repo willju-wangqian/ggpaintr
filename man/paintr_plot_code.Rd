@@ -6,6 +6,7 @@
 \usage{
 paintr_plot_code(
   paintr_obj,
+  data_filter = "",
   selected_color_rctv = NULL,
   selected_fill_rctv = NULL,
   color_fill = FALSE,
@@ -16,6 +17,8 @@ paintr_plot_code(
 }
 \arguments{
 \item{paintr_obj}{a \code{paintr_obj}}
+
+\item{data_filter}{data filtering code}
 
 \item{selected_color_rctv}{reactive value returned by \code{scaleColor_build_reactivity} for color}
 

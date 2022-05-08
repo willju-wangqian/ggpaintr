@@ -4,7 +4,7 @@
 \alias{get_plot_code}
 \title{Extract code and plot}
 \usage{
-get_plot_code(componentList, data, data_path)
+get_plot_code(componentList, data, data_path, data_filter = "")
 }
 \arguments{
 \item{componentList}{list of plot components and code components}
@@ -12,6 +12,8 @@ get_plot_code(componentList, data, data_path)
 \item{data}{data}
 
 \item{data_path}{path to the data}
+
+\item{data_filter}{data filtering code}
 }
 \value{
 a named list of two elements; plot and code

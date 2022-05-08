@@ -208,6 +208,7 @@ paintr_get_ui <- function(paintr_obj, selected_ui_name, type = "ui", scope = NUL
 #' Generate plot and the corresponding code of `ggplot2` from a `paintr_obj`
 #'
 #' @param paintr_obj a `paintr_obj`
+#' @param data_filter data filtering code
 #' @param selected_color_rctv reactive value returned by `scaleColor_build_reactivity` for color
 #' @param selected_fill_rctv reactive value returned by `scaleColor_build_reactivity` for fill
 #' @param color_fill bool; optional. Whether or not to use the same variable for both color and fill
@@ -222,7 +223,7 @@ paintr_get_ui <- function(paintr_obj, selected_ui_name, type = "ui", scope = NUL
 #'
 #' @return a named list of two elements; plot and code
 #' @export
-paintr_plot_code <- function(paintr_obj,
+paintr_plot_code <- function(paintr_obj, data_filter = "",
                              selected_color_rctv = NULL, selected_fill_rctv = NULL,
                              color_fill = FALSE, color_group = FALSE, userFUN = NULL, ...){
 
@@ -278,11 +279,50 @@ paintr_plot_code <- function(paintr_obj,
 
   componentList <- c(geom = list(geomComponent), plotSettingComponents)
 
-  result <- get_plot_code(componentList, data, data_path = data_path)
+  result <- get_plot_code(componentList, data, data_path = data_path, data_filter = data_filter)
 
   return(result)
 
 }
+
+
+#' Extract filtering code
+#'
+#' @param data dataset
+#' @param search filter conditions
+#'
+#' @importFrom jsonlite fromJSON
+#'
+#' @return filtering code
+get_filter = function(data, search) {
+  parse_search_expression <- function(x, name_var, s) {
+    if (!nzchar(s)) return(FALSE)
+    if (is.numeric(x)) {
+      r <- strsplit(s, "...", fixed = TRUE)
+      r <- sapply(r, as.numeric)
+      out = deparse(bquote((x >= .(r[1])) & (x <= .(r[2]))))
+      out = gsub('x', name_var, out)
+    } else if (is.factor(x) || is.logical(x)) {
+      v <- jsonlite::fromJSON(s)
+      out = deparse(bquote(x %in% .(v)))
+      out = paste0(name_var, substring(out, 2))
+    } else {
+      out = deparse(bquote(grepl(.(s), x, fixed = TRUE)))
+    }
+    out
+  }
+
+  result = Map(parse_search_expression, data, names(data), search)
+  result = result[sapply(result, is.character)]
+
+  if(length(result) > 0){
+    # browser()
+    paste0('data', ' <- ', 'data',  ' %>% filter(\n  ',
+           paste(unlist(result), collapse = ',\n  '), '\n)')
+  }
+  else{""}
+}
+
 
 #' Extract code
 #'
@@ -343,12 +383,13 @@ get_plot <- function(data, gg_list) {
 #' @param componentList list of plot components and code components
 #' @param data data
 #' @param data_path path to the data
+#' @param data_filter data filtering code
 #'
 #' @importFrom assertthat has_name
 #' @importFrom purrr map
 #'
 #' @return a named list of two elements; plot and code
-get_plot_code <- function(componentList, data, data_path) {
+get_plot_code <- function(componentList, data, data_path, data_filter = "") {
 
   componentList <- check_remove_null(componentList)
 
@@ -369,7 +410,7 @@ get_plot_code <- function(componentList, data, data_path) {
   code_list <- map(componentList, 2)
 
   names(code_list)[1] <- "geom"
-  code_list[['data']] <- data_path
+  code_list[['data']] <- paste0(data_path, '\n', data_filter)
 
   pp <- get_plot(data, plot_list)
   final_code <- get_code(code_list)

@@ -26,6 +26,10 @@ if(!require(shinyWidgets)) {
   install.packages("shinyWidgets")
   library(shinyWidgets)
 }
+if(!require(stringr)) {
+  install.packages("stringr")
+  library(stringr)
+}
 library(ggpaintr)
 # require(palmerpenguins)
 # require(shiny)
