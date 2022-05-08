@@ -1,0 +1,43 @@
+% Encoding: UTF-8
+
+@Article{Wickham2010,
+  author    = {Hadley Wickham},
+  journal   = {Journal of Computational and Graphical Statistics},
+  title     = {A Layered Grammar of Graphics},
+  year      = {2010},
+  number    = {1},
+  pages     = {3-28},
+  volume    = {19},
+  abstract  = {A grammar of graphics is a tool that enables us to concisely describe the components of a graphic. Such a grammar allows us to move beyond named graphics (e.g., the “scatterplot”) and gain insight into the deep structure that underlies statistical graphics. This article builds on Wilkinson, Anand, and Grossman (2005), describing extensions and refinements developed while building an open source implementation of the grammar of graphics for R, ggplot2. The topics in this article include an introduction to the grammar by working through the process of creating a plot, and discussing the components that we need. The grammar is then presented formally and compared to Wilkinson’s grammar, highlighting the hierarchy of defaults, and the implications of embedding a graphical grammar into a programming language. The power of the grammar is illustrated with a selection of examples that explore different components and their interactions, in more detail. The article concludes by discussing some perceptual issues, and thinking about how we can build on the grammar to learn how to create graphical “poems.” Supplemental materials are available online.},
+  doi       = {10.1198/jcgs.2009.07098},
+  eprint    = {https://doi.org/10.1198/jcgs.2009.07098},
+  publisher = {Taylor & Francis},
+  url       = {https://doi.org/10.1198/jcgs.2009.07098},
+}
+
+@Article{Wilkinson2005,
+  author  = {Lee Wilkinson and Anushka Anand and Raymond Harold Grossman},
+  journal = {IEEE Symposium on Information Visualization, 2005. INFOVIS 2005.},
+  title   = {Graph-theoretic scagnostics},
+  year    = {2005},
+  pages   = {157-164},
+}
+
+@Article{Doi2016,
+  author  = {Jimmy A. Doi and Gail E. Potter and Jimmy Wong and Irvin Alcaraz and Peter Chi},
+  journal = {Technology Innovations in Statistics Education},
+  title   = {Web Application Teaching Tools for Statistics Using R and Shiny},
+  year    = {2016},
+  volume  = {9},
+}
+
+@Book{Wickham2016,
+  author    = {Hadley Wickham},
+  publisher = {Springer-Verlag New York},
+  title     = {ggplot2: Elegant Graphics for Data Analysis},
+  year      = {2016},
+  isbn      = {978-3-319-24277-4},
+  url       = {https://ggplot2.tidyverse.org},
+}
+
+@Comment{jabref-meta: databaseType:bibtex;}
