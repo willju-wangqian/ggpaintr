@@ -164,7 +164,6 @@ observe({
 
 paintr_result <- reactive({
   req(dataContainer(), paintr_main())
-  browser()
 
   filter_cond = get_filter(dataContainer(), input$mytable_search_columns)
 
