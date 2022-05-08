@@ -75,6 +75,16 @@ Along with the plot, shiny apps built from our package also interactively show t
 
 The most important characteristic of **ggpaintr** is that users can customize their app based on their demand and preference. We have implemented modules for most of the commonly used functionalities in ggplot2, and the grammar used in **ggpaintr** is also similar. As long as you are familiar with ggplot2, you should not find it hard to build your own shiny app. With some extra knowledge of shiny, you also have the ability to convert it into a fancier style as a formal presentation demo. 
 
+### Installation
+
+You can install the development version from Github with:
+
+```{r, eval=FALSE, echo=TRUE}
+# install.packages("devtools")
+devtools::install_github("willju-wangqian/ggpaintr")
+```
+
+
 
 ## Case Study 1: `ggpaintr` demo 
 
@@ -372,27 +382,22 @@ In order to add reactivity for `fill` in our demo shiny app, one should make the
     ```
 
 
+### Extensibility
 
-## Installation
+This part needs some future work. 
 
-You can install the development version from Github with:
 
-```{r, eval=FALSE, echo=TRUE}
-# install.packages("devtools")
-devtools::install_github("willju-wangqian/ggpaintr")
-```
+## Case Study 2: `ggpaintr_app` 
 
-## Run the shiny app
+A shiny app called `ggpaintr_app` is built with the `ggpaintr` package and included in the package. `ggpaintr_app` not only demonstrates the functionality of `ggpaintr`, but also serves as a shiny app for those unfamiliar with the Grammar of Graphics or ggplot2 but want to create a plot using ggplot2. Some design of `ggpaintr_app` can also provide reference for package/shiny app developers. 
+
+### Run the shiny app
 
 ```{r, eval=FALSE, echo=TRUE}
 library(ggpaintr)
 
 run_ggpaintr_app()
 ```
-
-## The `ggpaintr` Shiny App 
-
-This part is meant to briefly showcase a more sophisticated shiny application built with the **ggpaintr** package. The **ggpaintr** shiny app can not only be utilized by ordinary users, but also can provide reference for package/shiny app developers. 
 
 ### Home page 
 
@@ -410,7 +415,6 @@ The **Paintr** page is the main user interface of the app, this page is further 
 #### 1.`Data` tab
 
 Under **Data**, users are allowed to either upload data set from their local file folders, or select a data set from Base R database. 
-
 
 ```{r, echo=FALSE, out.width="100%", fig.cap="Paintr page."}
 knitr::include_graphics("images/paintrpage.png")
@@ -455,9 +459,6 @@ knitr::include_graphics("images/code.png")
 
 
 
-### Extensibility
-
-This part needs some future work. 
 
 
 
