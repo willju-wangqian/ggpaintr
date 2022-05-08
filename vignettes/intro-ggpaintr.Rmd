@@ -123,6 +123,16 @@ We expect this package to be useful in the following scenarios:
 
   The most important characteristic of `ggpaintr` is that users can customize their app based on their demand and preference. We have implemented modules for most of the commonly used functionalities in ggplot2, and the grammar used in `ggpaintr` is also similar. As long as you are familiar with ggplot2, you should not find it hard to build your own shiny app. With some extra knowledge of shiny, you also have the ability to convert it into a fancier style as a formal presentation demo. 
 
+### Installation
+
+You can install the development version from Github with:
+
+```{r, eval=FALSE, echo=TRUE}
+# install.packages("devtools")
+devtools::install_github("willju-wangqian/ggpaintr")
+```
+
+
 
 ## Case Study 1: `ggpaintr` demo 
 
@@ -268,6 +278,7 @@ we can build a shiny app with the updated features as shown in Figure X. We can 
 ```{r shinyiris2, echo=FALSE, fig.cap="An Extended Iris Shiny App"}
 knitr::include_graphics("images/ggpaintr_iris_2.png")
 ```
+
 
 ## `ggpaintr` Design Desicisions
 
@@ -418,6 +429,7 @@ In order to add reactivity for `fill` in our demo shiny app, one should make the
                                        selected_fill_rctv = scale_fill_rctv)
     ```
 
+
 ### Extensibility
 
 This part needs some future work.
@@ -426,6 +438,80 @@ This part needs some future work.
 
 
 ## References
+
+
+
+## Case Study 2: `ggpaintr_app` 
+
+A shiny app called `ggpaintr_app` is built with the `ggpaintr` package and included in the package. `ggpaintr_app` not only demonstrates the functionality of `ggpaintr`, but also serves as a shiny app for those unfamiliar with the Grammar of Graphics or ggplot2 but want to create a plot using ggplot2. Some design of `ggpaintr_app` can also provide reference for package/shiny app developers. 
+
+### Run the shiny app
+
+```{r, eval=FALSE, echo=TRUE}
+library(ggpaintr)
+
+run_ggpaintr_app()
+```
+
+### Home page 
+
+Our **Home** page gives a brief introduction about the **ggpaintr** package and the corresponding shiny app,it also includes our GitHub repository link, which can direct users to our package codes if needed. 
+
+```{r, echo=FALSE, out.width="100%", fig.cap="Homepage."}
+knitr::include_graphics("images/homepage.png")
+```
+
+
+### Paintr page
+
+The **Paintr** page is the main user interface of the app, this page is further divided into three tabs, which are **Data**, **Paint**, and **Code**. 
+
+#### 1.`Data` tab
+
+Under **Data**, users are allowed to either upload data set from their local file folders, or select a data set from Base R database. 
+
+```{r, echo=FALSE, out.width="100%", fig.cap="Paintr page."}
+knitr::include_graphics("images/paintrpage.png")
+```
+
+Once the data set is loaded, users can see partial example of the data set and even filter the data before moving to the next step.
+
+```{r, echo=FALSE, out.width="100%", fig.cap="Filter function."}
+knitr::include_graphics("images/filter.png")
+```
+
+#### 2.`Paint` tab 
+
+Under **Paint**, there are image icons to present all types of plots currently available in our shiny app, these image icons allow users to choose the type of plot they would like to draw in a more intuitive manner. 
+
+Once the type of plot is chosen, the corresponding mapping options box will pop up. Here, we have embedded **basic mapping** options such as `x`, `y`, `color`, `fill`, and `size`; we also included **advanced setting** where users can modify the `legend`,`coordinate`, `theme`, `labels` or facet the plot.
+
+```{r, echo=FALSE, out.width="100%", fig.cap="Paint page."}
+knitr::include_graphics("images/Paint.png")
+```
+
+What's more, in order to meet different aesthetic needs, it also allows users to freely choose colors for their plots.
+
+```{r, echo=FALSE, out.width="100%", fig.cap="Paint page."}
+knitr::include_graphics("images/choosecolor.png")
+```
+
+Once all the mapping variables and setting options are chosen, users can click the **Draw the plot** button and the plot will show up automatically. Here is an example of a scatter plot drew with the iris data.
+
+
+```{r, echo=FALSE, out.width="100%", fig.cap="Example plot."}
+knitr::include_graphics("images/scatterplot.png")
+```
+
+#### 3.`Code` tab 
+
+Although we have included most of the mapping and aesthetic options for drawing a plot in our shiny app, we want to give users more freedom to modify their plots if needed. Therefore, the code for drawing the plot will also be provided once a plot is made. Simply copy and paste the code into R console and run it will generate an identical plot as the shiny app does. Modify the codes and draw your dream plot is also encouraged.
+
+```{r, echo=FALSE, out.width="100%", fig.cap="Example code."}
+knitr::include_graphics("images/code.png")
+```
+
+
 
 
 

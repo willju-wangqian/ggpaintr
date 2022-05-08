@@ -9,12 +9,16 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
   fig.path = "man/figures/README-",
-  out.width = "80%",
-  echo=FALSE,
+  out.width = "100%",
+  echo=TRUE,
   warning = FALSE,
   message = FALSE
 )
 ```
+
+# ggpaintr <img src="man/figures/logo.png" width="160px" align="right" /> 
+
+An open-source R package for building modularized shiny apps with plotting functionalities using `ggplot2` and the Grammar of Graphics
 
 ## Installation
 
@@ -25,15 +29,165 @@ You can install the development version from Github with:
 devtools::install_github("willju-wangqian/ggpaintr")
 ```
 
-## Run the shiny app
+
+## Building a shiny app that can make plots with `ggplot2`
+
+```{r shinyiris1, echo=FALSE, fig.cap="Some Caption"}
+knitr::include_graphics("man/figures/ggpaintr_iris_1.png")
+```
+
+This figure shows a shiny app that can make plots with `ggplot2`. After selecting a dataset, the shiny app allows users to map variables (or columns) in the dataset to `x` and `y`. It generates a plot using `ggplot2` and shows the corresponding `R` code. The reactivity on the mappings are built up so that changing mappings variables for `x` or `y` will change the resulting plot after clicking the "draw" button. Moreover, changing the selected dataset will automatically update the available choices for `x` and `y`. Without the help of `ggpaintr`, building such a shiny app at least requires the following steps:
+
+- have UI components for `x` and `y` so that `input$x` and `input$y` are available
+- dynamically render UI components for `x` and `y` so that the available choices depend on the selected data set
+- figure out how to generate a `ggplot2` plot using `input$x` and `input$y` since the inputs are strings. One option is to use `aes_string()`
+- figure out the `R` code for generating the resulting plot
+- render the plot
+- render the code
+
+This might look involved, but what if this shiny app needs more functionalities? If the shiny app needs more mappings, such as `color` or `fill`, it will add more UI component, modify the server part so that the inputs can be correctly captured. If the shiny app wants to allow users to flip the coordinates using `coord_flip()` or adding labels using `labs()`, building this shiny app becomes even more involved. Additionally, maintaining and updating the shiny app can be challenging as well since many aspects of the shiny app would be modified.
+
+However, we can build such a shiny app using `ggpaintr` with the following code. 
+
+```{r, include = TRUE, eval = FALSE, attr.source='.numberLines'}
+library(ggpaintr)
+library(shiny)
+library(tidyverse)
+library(shinyWidgets)
+library(palmerpenguins)
+
+# Define UI for application that draws a histogram
+ui <- fluidPage(
+  
+  # Application title
+  titlePanel("ggpaintr demo"),
+  
+  # Sidebar with a slider input for number of bins
+  sidebarLayout(
+    sidebarPanel(
+      pickerInput("defaultData", "select a default dataset:",
+                  choices = c("iris", "mtcars","penguins", "faithfuld"),
+                  selected = "",
+                  multiple = TRUE,
+                  options = pickerOptions(maxOptions = 1)),
+      uiOutput("controlPanel"),
+      actionButton("draw", "click to draw the plot"),
+    ),
+    
+    # Show a plot of the generated distribution
+    mainPanel(
+      plotOutput("outputPlot"),
+      verbatimTextOutput('outputCode')
+    )
+  )
+)
+
+# Define server logic required to draw a histogram
+server <- function(input, output) {
+  
+  control_id <- "control_id"
+  
+  # data
+  data_container <- reactive({
+    req(input$defaultData)
+    get(input$defaultData)
+  })
+  
+  # construct paintr object
+  paintr_rctv <- reactive({
+    
+    req(data_container())
+    
+    paintr(control_id,
+           data_container(), data_path = input$defaultData,
+           geom_boxplot(aes(x, y)) 
+    )
+    
+  })
+  
+  # place ui
+  output$controlPanel <- renderUI({
+    req(paintr_rctv())
+    
+    column(
+      12,
+      paintr_get_ui(paintr_rctv(), "x"),
+      paintr_get_ui(paintr_rctv(), "y"),
+    )
+  })
+  
+  # take results and plot
+  observe({
+    req(paintr_rctv(), data_container(), input$defaultData)
+    data <- data_container()
+    
+    paintr_results <- paintr_plot_code(paintr_rctv())
+    
+    # Plot output
+    output$outputPlot <- renderPlot({
+      
+      paintr_results[['plot']]
+      
+    })
+    
+    # Code output
+    output$outputCode <- renderText({
+      
+      paintr_results[['code']]
+      
+    })
+    
+  }) %>% bindEvent(input$draw)
+  
+  
+}
+
+# Run the application
+shinyApp(ui = ui, server = server)
+```
+
+Many things are hidden and handled by functions in `ggpaintr`. And updating this shiny app can be relatively easy with the help of `ggpaintr`: by changing the `ggplot2` alike expression at line 51 into
+
+```{r, echo=TRUE, eval=FALSE}
+# add mapping for fill
+geom_boxplot(aes(x, y, fill)) +
+  coord_flip +        # allow users to flip coordinate
+  labs(x, y, title)   # allow users to add labels for x-axis, y-axis, and title
+```
+
+and adding more elements in `output$controlPanel <- renderUI()` at line 57:
+
+```{r, echo=TRUE, eval=FALSE}
+# place ui
+output$controlPanel <- renderUI({
+  req(paintr_rctv())
+  
+  column(
+    12,
+    paintr_get_ui(paintr_rctv(), "x"),
+    paintr_get_ui(paintr_rctv(), "y"),
+    paintr_get_ui(paintr_rctv(), "fill"),
+    paintr_get_ui(paintr_rctv(), "coord_flip"), # add UI for coord_flip()
+    paintr_get_ui(paintr_rctv(), "labs"),       # add UI for labs()
+  )
+})
+```
+
+we can build a shiny app with the updated features as shown in Figure X. We can see that the shiny app now allows users to flip coordinates and set labels. The plot and corresponding `R` code can be updated accordingly as well.
+
+```{r shinyiris2, echo=FALSE, fig.cap="Some Caption"}
+knitr::include_graphics("man/figures/ggpaintr_iris_2.png")
+```
+
+## Building a shiny app using `ggpaintr`
+
+A shiny app called `ggpaintr_app` is built with the `ggpaintr` package and included in the package. `ggpaintr_app` not only demonstrates the functionality of `ggpaintr`, but also serves as a shiny app for those unfamiliar with the Grammar of Graphics or ggplot2 but want to create a plot using ggplot2. Some design of `ggpaintr_app` can also provide reference for package/shiny app developers. To start the app:
 
 ```{r, eval=FALSE, echo=TRUE}
 library(ggpaintr)
 
 run_ggpaintr_app()
 ```
-
-
 
 ## Development
 
@@ -53,10 +207,7 @@ run_ggpaintr_app()
 
 ## Future work
 
-- more extensible: have a sophisticated way of adding ui and server functions from the users
-- allow users to download plots in ggpaintr_app
-- submit to CRAN
-
+- extensibility + 
 
 ## Change log
 
