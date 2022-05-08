@@ -2,7 +2,7 @@ library(shiny)
 library(DT)
 library(shinydashboard)
 
-get_filter = function(data, names_data, search) {
+get_filter = function(data, search) {
   parse_search_expression <- function(x, name_var, s) {
     if (!nzchar(s)) return(FALSE)
     if (is.numeric(x)) {
@@ -20,26 +20,27 @@ get_filter = function(data, names_data, search) {
     out
   }
 
-  result = Map(parse_search_expression, data, names_data, search)
+  result = Map(parse_search_expression, data, names(data), search)
   result = result[sapply(result, is.character)]
 
   if(length(result) > 0){
     paste0(substitute(data), ' %>% filter(',
-           paste(unlist(result), collapse = ', '), ')')
+           paste0(unlist(result), collapse = ",\n "), ')')
   }
   else{substitute(data)}
 }
 
 ui <- fluidPage(
   DTOutput("table"),
-  box(title = 'Code', width = 12, uiOutput("expression"))
+  uiOutput("expression")
 )
 
 server <- function(input, output, session) {
 
   output$table <- renderDataTable(iris, filter = "top")
   output$expression <- renderText({
-    filter_cond = get_filter(iris, names(iris), input$table_search_columns)
+    print(input$table_search_columns)
+    filter_cond = get_filter(iris, input$table_search_columns)
     filter_cond
   })
 }

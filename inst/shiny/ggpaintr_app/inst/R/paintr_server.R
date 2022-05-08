@@ -165,7 +165,9 @@ observe({
 paintr_result <- reactive({
   req(dataContainer(), paintr_main())
 
-  paintr_plot_code(paintr_main(),
+  filter_cond = get_filter(dataContainer(), input$mytable_search_columns)
+
+  paintr_plot_code(paintr_main(), data_filter = filter_cond,
                    result_container[['scale_color']],
                    result_container[['scale_fill']])
 
@@ -183,9 +185,14 @@ observe({
   })
 
   output$mycode <- renderText({
-
+    req(dataContainer())
+    # browser()
+    # filter_cond = get_filter(dataContainer(), input$mytable_search_columns)
+    # filter_cond
+    # code = paste0(filter_cond, '\n', paintr_result()[['code']] )
     paintr_result()[['code']]
-
+    # code = paintr_result()[['code']]
+    # paste0(filter_cond, '\n', code, "\n\n")
   })
 
 }) %>% bindEvent(input[["buttonDraw"]])

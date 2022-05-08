@@ -41,7 +41,7 @@ body <- dashboardBody(
                                 selected = "",
                                 multiple = TRUE,
                                 options = pickerOptions(maxOptions = 1)),
-                    DT::dataTableOutput("mytable"),
+                    DT::DTOutput("mytable"),
                 ),
 
                 tabPanel(
