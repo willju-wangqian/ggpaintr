@@ -211,6 +211,12 @@ run_ggpaintr_app()
 
 ## Change log
 
+#### version number: 0.0.9.8
+
+- fixed `DT` filtering problem in `ggpaintr_app`
+
+- Todo: ???
+
 #### version number: 0.0.9.7
 
 - fixed code for numeric input
