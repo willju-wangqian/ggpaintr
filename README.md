@@ -15,7 +15,14 @@ devtools::install_github("willju-wangqian/ggpaintr")
 
 ## Building a shiny app that can make plots with `ggplot2`
 
-<img src="man/figures/ggpaintr_iris_1.png" title="Some Caption" alt="Some Caption" width="100%" />
+<div class="figure">
+
+<img src="man/figures/ggpaintr_iris_1.png" alt="Some Caption" width="100%" />
+<p class="caption">
+Some Caption
+</p>
+
+</div>
 
 This figure shows a shiny app that can make plots with `ggplot2`. After
 selecting a dataset, the shiny app allows users to map variables (or
@@ -182,7 +189,14 @@ We can see that the shiny app now allows users to flip coordinates and
 set labels. The plot and corresponding `R` code can be updated
 accordingly as well.
 
-<img src="man/figures/ggpaintr_iris_2.png" title="Some Caption" alt="Some Caption" width="100%" />
+<div class="figure">
+
+<img src="man/figures/ggpaintr_iris_2.png" alt="Some Caption" width="100%" />
+<p class="caption">
+Some Caption
+</p>
+
+</div>
 
 ## Building a shiny app using `ggpaintr`
 
@@ -229,6 +243,12 @@ run_ggpaintr_app()
 
 ## Change log
 
+#### version number: 0.0.9.8
+
+-   fixed `DT` filtering problem in `ggpaintr_app`
+
+-   Todo: ???
+
 #### version number: 0.0.9.7
 
 -   fixed code for numeric input
@@ -243,7 +263,7 @@ run_ggpaintr_app()
 
 -   alpha as numeric
 
--   n \< 3 colors
+-   n &lt; 3 colors
 
 -   added four chart types, next: update functions in the package
 
@@ -280,7 +300,7 @@ run_ggpaintr_app()
         -   the concept of grammar of graphics
         -   why this package can be useful
         -   how to use the package
-    -   [x] how to wrap up the part of scale_color
+    -   [x] how to wrap up the part of scale\_color
     -   template?
     -   download plot
     -   [x] aes then comma
