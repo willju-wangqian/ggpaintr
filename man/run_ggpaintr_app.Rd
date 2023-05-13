@@ -4,7 +4,11 @@
 \alias{run_ggpaintr_app}
 \title{Call ggpaintr_app}
 \usage{
-run_ggpaintr_app()
+run_ggpaintr_app(name = NULL)
+}
+\arguments{
+\item{name}{name of the installed shiny app. Default is \code{NULL}. Other choices
+include: \code{ggpaintr_demo}}
 }
 \value{
 \code{shiny::runApp}

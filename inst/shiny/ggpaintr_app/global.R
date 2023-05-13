@@ -1,3 +1,11 @@
+if(!require(htmltools)) {
+  install.packages("htmltools")
+  library(htmltools)
+}
+if(!require(markdown)) {
+  install.packages("markdown")
+  library(markdown)
+}
 if(!require(palmerpenguins)) {
   install.packages("palmerpenguins")
   library(palmerpenguins)

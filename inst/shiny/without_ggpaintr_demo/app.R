@@ -24,8 +24,10 @@ ui <- fluidPage(
 
         # Show a plot of the generated distribution
         mainPanel(
-            plotOutput("outputPlot"),
-            verbatimTextOutput('outputCode')
+            plotOutput("outputPlot", click = "plot_click",
+                       brush = brushOpts(id = "plot_brush", fill = "#ccc", direction = "x")),
+            verbatimTextOutput('outputCode'),
+            verbatimTextOutput("info")
         )
     )
 )
@@ -48,7 +50,7 @@ server <- function(input, output) {
 
         paintr(control_id,
                data_container(), data_path = input$defaultData,
-               geom_boxplot(aes(x, y, fill)) +
+               geom_col(aes(x, y, fill)) +
                    coord_flip +
                    labs(x, y, title) +
                    scale_fill
@@ -57,7 +59,6 @@ server <- function(input, output) {
     })
 
     scale_fill_rctv <- scaleColor_build_reactivity(control_id, paintr_rctv, "fill")
-
 
     # place ui
     output$controlPanel <- renderUI({
@@ -97,6 +98,18 @@ server <- function(input, output) {
         })
 
     }) %>% bindEvent(input$draw)
+
+    output$info <- renderPrint({
+        # With ggplot2, no need to tell it what the x and y variables are.
+        # threshold: set max distance, in pixels
+        # maxpoints: maximum number of rows to return
+        # addDist: add column with distance, in pixels
+        req(data_container())
+
+        # nearPoints(data_container(), input$plot_click, threshold = 10, maxpoints = 1,
+        #            addDist = TRUE)
+        brushedPoints(data_container(), input$plot_brush)
+    })
 
 
 }

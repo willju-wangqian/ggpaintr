@@ -46,7 +46,9 @@ Construct a \code{paintr_obj} based on an expression in \code{ggplot2} alike lay
 \details{
 the \code{expr} should have a \code{ggplot2} alike layout and be wrapped by \code{rlang::expr}.
 And the functionality of \code{paintr} is based on this \code{expr} that follows certain
-rules. In general, a ggpaintr expression should be:\if{html}{\out{<div class="sourceCode r">}}\preformatted{rlang::expr(
+rules. In general, a ggpaintr expression should be:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{rlang::expr(
   geom_<chart>(aes(<mapping_1>, <mapping_2>), <geom_args_1>, <geom_args2>) +
     <plot_settings_1> +
     <plot_settings_2> +
