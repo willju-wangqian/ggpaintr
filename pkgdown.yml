@@ -1,0 +1,10 @@
+pandoc: 2.19.2
+pkgdown: 2.0.7
+pkgdown_sha: ~
+articles:
+  intro-ggpaintr: intro-ggpaintr.html
+last_built: 2024-02-20T17:45Z
+urls:
+  reference: https://willju-wangqian.github.io/ggpaintr/reference
+  article: https://willju-wangqian.github.io/ggpaintr/articles
+
