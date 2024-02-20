@@ -4,3 +4,7 @@
 ^preconsideration$
 
 README\.*
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^\.github$

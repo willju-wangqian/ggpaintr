@@ -36,3 +36,4 @@ Depends:
     R (>= 3.5.0),
     ggplot2 (>= 3.3.0)
 VignetteBuilder: knitr
+URL: https://willju-wangqian.github.io/ggpaintr/

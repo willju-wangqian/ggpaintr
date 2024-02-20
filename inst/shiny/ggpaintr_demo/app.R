@@ -46,12 +46,26 @@ server <- function(input, output) {
 
     req(data_container())
 
+    # paintr_expr <- expr(
+    #   geom_boxplot(aes(x, y))
+    # )
+
+    paintr_expr <- expr(
+      geom_boxplot(aes(x, y, fill)) +
+        coord_flip +        # allow users to flip coordinate
+        labs(x, y, title)
+    )
+
     paintr(control_id,
            data_container(), data_path = input$defaultData,
-           geom_boxplot(aes(x, y, fill)) +
-             coord_flip +        # allow users to flip coordinate
-             labs(x, y, title)
+           !!paintr_expr
     )
+
+    ggpaintr::paintr("boxplot",
+                     iris,
+                     geom_boxplot(aes(x, y)))
+
+
 
   })
 
