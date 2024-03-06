@@ -83,15 +83,15 @@
 <div class="section level3">
 <h3 id="grammar-of-graphics-ggplot2">Grammar of Graphics &amp; ggplot2<a class="anchor" aria-label="anchor" href="#grammar-of-graphics-ggplot2"></a>
 </h3>
-<p>First proposed by <span class="citation">(<a href="#ref-Wilkinson2005" role="doc-biblioref">Wilkinson, Anand, and
-Grossman 2005</a>)</span>, the grammar of graphics defines a way of
-concisely breaking up graphs into semantic components for data
-visualization. Analogous to the grammar in English, the grammar of
-graphics tells us which “words” should be used to make up a “sentence”.
-It allows users to create a complex graphic by assembling multiple
-independent components.</p>
-<p>The open-sourced R package <code>ggplot2</code> <span class="citation">(<a href="#ref-Wickham2010" role="doc-biblioref">Hadley
-Wickham 2010</a>)</span> implemented this grammar of graphics with some
+<p>First proposed by <span class="citation">(<a href="#ref-Wilkinson2005">Wilkinson, Anand, and Grossman
+2005</a>)</span>, the grammar of graphics defines a way of concisely
+breaking up graphs into semantic components for data visualization.
+Analogous to the grammar in English, the grammar of graphics tells us
+which “words” should be used to make up a “sentence”. It allows users to
+create a complex graphic by assembling multiple independent
+components.</p>
+<p>The open-sourced R package <code>ggplot2</code> <span class="citation">(<a href="#ref-Wickham2010">Hadley Wickham
+2010</a>)</span> implemented this grammar of graphics with some
 modifications and refinements, leading to what is now called a ‘’layered
 grammar’’. <code>ggplot2</code> built a mapping from the data to
 geometric objects in multiple different layers drawn on a coordinate
@@ -111,8 +111,8 @@ abstraction according to the “grammar” of <code>ggplot2</code>, to
 eventually show the graphic we desire.</p>
 <p>Compared to the plotting functions in vanilla R, <code>ggplot2</code>
 is more convenient to use, with higher flexibility and readability. It
-is considered one of the most popular R package <span class="citation">(<a href="#ref-Wickham2016" role="doc-biblioref">H.
-Wickham 2016</a>)</span>.</p>
+is considered one of the most popular R package <span class="citation">(<a href="#ref-Wickham2016">H. Wickham
+2016</a>)</span>.</p>
 </div>
 <div class="section level3">
 <h3 id="building-a-shiny-app-with-graphical-visualization">Building a Shiny App with Graphical Visualization<a class="anchor" aria-label="anchor" href="#building-a-shiny-app-with-graphical-visualization"></a>
@@ -123,8 +123,9 @@ interact with the data instead of facing the ice-cold coding console.
 Together with <code>ggplot2</code>, it provides possibility of creating
 elegant data visualizations with large flexibility. Interactive
 graphical visualizations are extremely helpful in presentations or
-statistical education <span class="citation">(<a href="#ref-Doi2016" role="doc-biblioref">Doi et al. 2016</a>)</span>, for providing the
-audience with a clear and straight forward view of data analysis.</p>
+statistical education <span class="citation">(<a href="#ref-Doi2016">Doi
+et al. 2016</a>)</span>, for providing the audience with a clear and
+straight forward view of data analysis.</p>
 <p>However, the procedure of building such a fancy shiny app may not be
 as fancy as it comes out. It requires an extensive knowledge about shiny
 and comes at a cost of heavy and tedious programming work:</p>
@@ -528,10 +529,10 @@ essential to the functionality of <code>ggpaintr</code>. It controls
 what type of plot the shiny app can make and what functionalities the
 shiny app provides. In general, a valid <code>expr</code> is as the
 following:</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>geom_<span class="sc">&lt;</span>chart<span class="sc">&gt;</span>(<span class="fu">aes</span>(<span class="sc">&lt;</span>mapping_1<span class="sc">&gt;</span>, <span class="sc">&lt;</span>mapping_2<span class="sc">&gt;</span>, ...), <span class="sc">&lt;</span>geom_args_1<span class="sc">&gt;</span>, <span class="sc">&lt;</span>geom_args_2<span class="sc">&gt;</span>, ...) <span class="sc">+</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="er">&lt;</span>plot_settings_1<span class="sc">&gt;</span> <span class="sc">+</span></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="er">&lt;</span>plot_settings_2<span class="sc">&gt;</span> <span class="sc">+</span> </span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  ...</span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>geom_<span class="sc">&lt;</span>chart<span class="sc">&gt;</span>(<span class="fu">aes</span>(<span class="sc">&lt;</span>mapping_1<span class="sc">&gt;</span>, <span class="sc">&lt;</span>mapping_2<span class="sc">&gt;</span>, ...), <span class="sc">&lt;</span>geom_args_1<span class="sc">&gt;</span>, <span class="sc">&lt;</span>geom_args_2<span class="sc">&gt;</span>, ...) <span class="sc">+</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>  <span class="er">&lt;</span>plot_settings_1<span class="sc">&gt;</span> <span class="sc">+</span></span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>  <span class="er">&lt;</span>plot_settings_2<span class="sc">&gt;</span> <span class="sc">+</span> </span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>  ...</span></code></pre></div>
 <ul>
 <li>
 <code>geom_&lt;chart&gt;</code> can be any <code>geom_</code>
@@ -861,7 +862,7 @@ students to step into this field.</p>
 <div class="section level2 unnumbered">
 <h2 class="unnumbered" id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
-<div id="refs" class="references csl-bib-body hanging-indent">
+<div id="refs" class="references csl-bib-body hanging-indent" entry-spacing="0">
 <div id="ref-Doi2016" class="csl-entry">
 Doi, Jimmy A., Gail E. Potter, Jimmy Wong, Irvin Alcaraz, and Peter Chi.
 2016. <span>“Web Application Teaching Tools for Statistics Using r and
