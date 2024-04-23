@@ -108,6 +108,8 @@ server <- function(input, output) {
 
     })
 
+    browser()
+
   }) %>% bindEvent(input$draw)
 
 

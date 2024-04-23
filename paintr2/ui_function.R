@@ -1,30 +1,91 @@
 generate_ui_upload <- function(id) {
-  pickerInput(id, "select a default dataset:",
-              choices = c("iris", "mtcars","penguins", "txhousing", "faithfuld",
-                          "diamonds", "economics", "economics_long", "CO2"),
-              selected = "",
-              multiple = TRUE,
-              options = pickerOptions(maxOptions = 1))
+  .expr <- expr(
+    pickerInput(!!id, "select a default dataset:",
+                choices = c("iris", "mtcars","penguins", "txhousing", "faithfuld",
+                            "diamonds", "economics", "economics_long", "CO2"),
+                selected = "",
+                multiple = TRUE,
+                options = pickerOptions(maxOptions = 1))
+  )
+  ui <- eval(.expr)
+  attr(ui, "ui_expr") <- .expr
+  return(ui)
 }
 
 generate_ui_var_placeholder <- function(id) {
-  uiOutput(paste0("var-", id))
+  .expr <- expr(uiOutput(paste0("var-", !!id)))
+  ui <- eval(.expr)
+  attr(ui, "ui_expr") <- "placeholder"
+  return(ui)
 }
 
 generate_ui_text <- function(id, param) {
-  textInput(id, paste0("text for ", param, ":"))
+
+  # if(is.list(param) && is.null(param[[1]])) {
+  #   param <- paste0(str_split(id, "\\+")[[1]][1], " argument")
+  # }
+
+  .expr <- expr(textInput(!!id, paste0("text for ", !!param, ":")))
+  ui <- eval(.expr)
+  attr(ui, "ui_expr") <- .expr
+  return(ui)
 }
 
 generate_ui_num <- function(id, param) {
-  numericInput(id, paste0("num for ", param, ":"), NA)
+
+  # if(is.list(param) && is.null(param[[1]])) {
+  #   param <- paste0(str_split(id, "\\+")[[1]][1], " argument")
+  # }
+
+  .expr <- expr(numericInput(!!id, paste0("num for ", !!param, ":"), NA))
+  ui <- eval(.expr)
+  attr(ui, "ui_expr") <- .expr
+  return(ui)
 }
 
 generate_ui_expr <- function(id, param) {
-  textInput(id, paste0("expr for ", param, ":"))
+
+  # if(is.list(param) && is.null(param[[1]])) {
+  #   param <- paste0(str_split(id, "\\+")[[1]][1], " argument")
+  # }
+
+  .expr <- expr(textInput(!!id, paste0("expr for ", !!param, ":")))
+  ui <- eval(.expr)
+  attr(ui, "ui_expr") <- .expr
+  return(ui)
+}
+
+generate_ui_var <- function(data_var, id, param) {
+
+  if (is.null(data_var)) return(NULL)
+
+  if((is.list(param) && is.null(param[[1]])) ||
+     (param == "")) {
+    id_breakdown <- str_split(id, "\\+")[[1]]
+    param <- paste0(id_breakdown[1], " argument ", as.numeric(id_breakdown[3])-1 )
+  }
+
+  .expr <- expr(
+    pickerInput(!!id, paste0(!!param, ": "),
+                choices = !!data_var,
+                selected = "",
+                multiple = TRUE,
+                options = pickerOptions(maxOptions = 1))
+  )
+  ui <- eval(.expr)
+  attr(ui, "ui_expr") <- .expr
+  return(ui)
+
 }
 
 generate_ui_individual <- function(key, id, param) {
   key <- as_string(key)
+
+  if((is.list(param) && is.null(param[[1]])) ||
+     (param == "")) {
+    id_breakdown <- str_split(id, "\\+")[[1]]
+    param <- paste0(id_breakdown[1], " argument ", as.numeric(id_breakdown[length(id_breakdown)])-1 )
+  }
 
   if (key == "upload") {
     generate_ui_upload(id)
@@ -41,29 +102,6 @@ generate_ui_individual <- function(key, id, param) {
   }
 }
 
-generate_ui_var_data_input <- function(input, data_id, id, param) {
-  renderUI({
-    req(input[[data_id]])
-
-    data <- get(input[[data_id]])
-
-    pickerInput(id, paste0(param, ": "),
-                choices = names(data),
-                selected = "",
-                multiple = TRUE,
-                options = pickerOptions(maxOptions = 1))
-  })
-}
-
-generate_ui_var_data_local <- function(data_var, id, param) {
-  renderUI({
-    pickerInput(id, paste0(param, ": "),
-                choices = data_var,
-                selected = "",
-                multiple = TRUE,
-                options = pickerOptions(maxOptions = 1))
-  })
-}
 
 output_embed_var <- function(input, output, paintr_obj) {
 
@@ -74,6 +112,8 @@ output_embed_var <- function(input, output, paintr_obj) {
   id_list <- paintr_obj[['id_list']]
 
   expr_list <- list()
+  var_ui_list <- list()
+
 
   for (i in seq_along(keywords_list)) {# for each expr
 
@@ -93,7 +133,7 @@ output_embed_var <- function(input, output, paintr_obj) {
         } else {
 
           global_data_flag <- "local"
-          global_data_var <- names(eval(keywords_list[[i]][[data_index]]))
+          global_data <- eval(keywords_list[[i]][[data_index]])
 
         }
 
@@ -110,91 +150,124 @@ output_embed_var <- function(input, output, paintr_obj) {
 
     if ("var" %in% str_keywords) { # if this expr contains var
 
+      data_var <- NULL
       data_index <- which(param_list[[i]] == 'data')
-      if (length(data_index) != 0) { # if this expr has data param
 
-        if (str_keywords[data_index] == 'upload') { # data = upload
+      for (var_index in which(str_keywords == 'var')) {
 
-          for (var_index in which(str_keywords == 'var')) {
+        if (length(data_index) != 0) { # if this expr has data param
 
-            expr_list[[length(expr_list)+1]] <- expr(
-              output[[paste0("var-", !!id_list[[i]][[var_index]])]] <-
-                generate_ui_var_data_input(input,
-                                           !!id_list[[i]][[data_index]],
-                                           !!id_list[[i]][[var_index]],
-                                           !!param_list[[i]][[var_index]])
-            )
-
-
+          if (str_keywords[data_index] == 'upload') { # if data = upload
+            tmp_data <- tryCatch({
+              get(input[[id_list[[i]][[data_index]]]])
+            }, error = function(e) NULL)
+          } else { # if data = mpg
+            tmp_data <- eval(keywords_list[[i]][[data_index]])
           }
 
-        } else { # data = something else, we have a local data
-
-          tmp_data <- eval(keywords_list[[i]][[data_index]])
-          data_var <- names(tmp_data)
-
-          for (var_index in which(str_keywords == 'var')) {
-
-            expr_list[[length(expr_list)+1]] <- expr(
-              output[[paste0("var-", !!id_list[[i]][[var_index]])]] <-
-                generate_ui_var_data_local(data_var,
-                                           !!id_list[[i]][[var_index]],
-                                           !!param_list[[i]][[var_index]])
-            )
-
+          if (!is.null(tmp_data)) {
+            data_var <- names(tmp_data)
           }
 
+        } else { # this expr doesn't contain data param, global data should be used
+
+          if (!is.null(global_data_flag)) {
+
+            if (global_data_flag == 'upload') {
+              tmp_data <- tryCatch({
+                get(input[[global_data_id]])
+              }, error = function(e) NULL)
+            } else if (global_data_flag == 'local') {
+              tmp_data <- global_data
+            }
+
+            # data_var <- if (is.null(tmp_data)) NULL else names(tmp_data)
+            if (!is.null(tmp_data)) {
+              data_var <- names(tmp_data)
+            }
+
+          } else {
+            stop("data is not provided!")
+          }
         }
-      } else { # this expr doesn't contain data param, global data should be used
 
-        if (!is.null(global_data_flag)) {
+        var_ui_list[[id_list[[i]][[var_index]]]] <- generate_ui_var(
+          data_var,
+          id_list[[i]][[var_index]],
+          param_list[[i]][[var_index]]
+        )
 
-          if (global_data_flag == 'upload') {
+        # browser()
 
-            for (var_index in which(str_keywords == 'var')) {
+        if (length(data_index) != 0) {
 
-              expr_list[[length(expr_list)+1]] <- expr(
-                output[[paste0("var-", !!id_list[[i]][[var_index]])]] <-
-                  generate_ui_var_data_input(input,
-                                             global_data_id,
-                                             !!id_list[[i]][[var_index]],
-                                             !!param_list[[i]][[var_index]])
-              )
+          if (str_keywords[data_index] == 'upload') {
 
-            }
+            expr_list[[length(expr_list)+1]] <- expr(
+              output[[paste0("var-", !!id_list[[i]][[var_index]])]] <- renderUI({
+                req(input[[!!id_list[[i]][[data_index]]]])
 
-          } else if (global_data_flag == 'local') {
+                var_ui_list[[!!id_list[[i]][[var_index]]]]
+              })
+            )
 
-            for (var_index in which(str_keywords == 'var')) {
+          } else {
 
-              expr_list[[length(expr_list)+1]] <- expr(
-                output[[paste0("var-", !!id_list[[i]][[var_index]])]] <-
-                  generate_ui_var_data_local(global_data_var,
-                                             !!id_list[[i]][[var_index]],
-                                             !!param_list[[i]][[var_index]])
-              )
-
-
-            }
+            expr_list[[length(expr_list)+1]] <- expr(
+              output[[paste0("var-", !!id_list[[i]][[var_index]])]] <- renderUI({
+                var_ui_list[[!!id_list[[i]][[var_index]]]]
+              })
+            )
 
           }
 
         } else {
 
-          stop("data is not provided!")
+          if (global_data_flag == 'upload') {
 
+            expr_list[[length(expr_list)+1]] <- expr(
+              output[[paste0("var-", !!id_list[[i]][[var_index]])]] <- renderUI({
+                req(input[[!!global_data_id]])
+
+                var_ui_list[[!!id_list[[i]][[var_index]]]]
+              })
+            )
+
+          } else {
+
+            expr_list[[length(expr_list)+1]] <- expr(
+              output[[paste0("var-", !!id_list[[i]][[var_index]])]] <- renderUI({
+                var_ui_list[[!!id_list[[i]][[var_index]]]]
+              })
+            )
+
+          }
         }
-
       }
     }
 
   }
 
-  # browser()
   for (i in seq_along(expr_list)) eval(expr_list[[i]])
-
+  return(var_ui_list)
 }
 
+
+var_ui_replacement <- function(ui_list, var_ui_list) {
+  tmp_ui_list <- ui_list
+
+  var_id <- names(var_ui_list)
+
+  id_domain <- sapply(var_id, function(.id) strsplit(.id, "\\+")[[1]][1])
+
+  for (i in seq_along(var_id)) {
+    id <- names(id_domain)[i]
+    tmp_ui_list[[id_domain[i]]][[id]] <- var_ui_list[[i]]
+  }
+
+  return(tmp_ui_list)
+
+}
 
 
 ##########

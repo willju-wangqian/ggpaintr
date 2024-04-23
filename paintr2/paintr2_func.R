@@ -128,15 +128,12 @@ detect_keywords <- function(.x) {
 }
 
 switch_keywords <- function(.x, ...) {
-  # switch(detect_keywords(.x),
-  #        ...,
-  #        warning("Don't know how to handle keyword: ", as_string(.x), call. = FALSE)
-  # )
   switch(detect_keywords(.x),
          ...
   )
-
 }
+
+
 
 handle_var <- function(.expr, index_path, input_item) {
   if (is.null(input_item)) {
@@ -168,6 +165,7 @@ handle_text <- function(.expr, index_path, input_item) {
   } else {
     assert_that(is.character(input_item))
     expr_pluck(.expr, index_path) <- expr(!!input_item)
+    # browser()
   }
   .expr
 }
@@ -209,6 +207,31 @@ expr_replace_keywords <- function(.expr, keyword, index_path, input_item) {
     handle_unknown(.expr, keyword)
   )
 }
+
+enexpr_replace_keywords <- function(.expr, keyword, index_path, input_item) {
+  switch_keywords(
+    keyword,
+    var = handle_server_expr_var(.expr, index_path, enexpr(input_item)),
+    num = handle_server_expr(.expr, index_path, enexpr(input_item)),
+    text = handle_server_expr(.expr, index_path, enexpr(input_item)),
+    expr = handle_server_expr(.expr, index_path, enexpr(input_item)),
+    upload = handle_server_expr(.expr, index_path, enexpr(input_item)),
+    handle_unknown(.expr, keyword)
+  )
+}
+
+handle_server_expr <- function(.expr, index_path, input_item) {
+  expr_pluck(.expr, index_path) <- input_item
+
+  .expr
+}
+
+handle_server_expr_var <- function(.expr, index_path, input_item) {
+  expr_pluck(.expr, index_path) <- expr(.data[[!!input_item]])
+
+  .expr
+}
+
 
 expr_remove_null <- function(.expr, target = sym("NULL_placeholder"),
                              current_path = numeric()) {
@@ -259,3 +282,322 @@ get_expr_param <- function(.expr, .path) {
     }
   }
 }
+
+paintr_formula <- function(formula) {
+  paintr_expr <- parse_expr(formula)
+  paintr_expr_list <- unlist(break_sum(paintr_expr))
+  paintr_expr_names <- sapply(paintr_expr_list, get_fun_names)
+  paintr_expr_names <- handle_duplicate_names(paintr_expr_names)
+  paintr_expr_list <- set_names(paintr_expr_list, paintr_expr_names)
+
+  index_path_list <- lapply(paintr_expr_list, get_index_path)
+  id_list <- lapply(names(index_path_list), function(.nn) {
+    lapply(index_path_list[[.nn]], encode_id, .nn)
+  })
+  index_path_list <- purrr::map2(index_path_list, id_list, set_names)
+
+  keywords_list <- purrr::map2(
+    index_path_list, paintr_expr_list, function(.path, .expr) {
+      lapply(.path, function(.x, .exprr) expr_pluck(.exprr, .x),
+             .exprr = .expr)
+    })
+
+  paintr_expr_param_list <- purrr::map2(
+    paintr_expr_list, index_path_list, function(.expr, .path_list) {
+      lapply(.path_list, function(.path) {
+        get_expr_param(.expr, .path)
+      })
+    }
+  )
+
+  paintr_ui_list <- purrr::pmap(
+    list(keywords_list, id_list, paintr_expr_param_list),
+    function(k_l, id_l, p_l) {
+      purrr::pmap(list(k_l, id_l, p_l), generate_ui_individual)
+    }
+  )
+
+  result <- list(
+    param_list = paintr_expr_param_list,
+    keywords_list = keywords_list,
+    index_path_list = index_path_list,
+    id_list = id_list,
+    expr_list = paintr_expr_list,
+    ui_list = paintr_ui_list
+  )
+
+  attr(result, "class") <- "paintr_obj"
+
+  return(result)
+}
+
+paintr_get_tab_ui <- function(paintr_obj) {
+  # check if it's paintr_obj
+  # assert_that(class(paintr_obj) == 'paintr_obj')
+  if (class(paintr_obj) != 'paintr_obj') return(NULL)
+
+  ui_list <- paintr_obj[['ui_list']]
+
+  return(tab_wrap_ui(ui_list))
+
+  # tab_list <- unname(purrr::map2(ui_list, names(ui_list),
+  #                                function(ui, nn) do.call(tabPanel, c(nn, unname(ui)))))
+  # tab_ui <- do.call(tabsetPanel, tab_list)
+  #
+  # return(tab_ui)
+}
+
+tab_wrap_ui <- function(ui_list) {
+  assert_that(!is.null(names(ui_list)))
+
+  tab_list <- unname(purrr::map2(ui_list, names(ui_list),
+                                 function(ui, nn) do.call(tabPanel, c(nn, unname(ui)))))
+  tab_ui <- do.call(tabsetPanel, tab_list)
+
+  return(tab_ui)
+}
+
+expr_text_tab_ui <- function(ui_list) {
+  assert_that(!is.null(names(ui_list)))
+
+  tab_expr_list <- unname(purrr::map2(
+    ui_list, names(ui_list),
+    function(.l, .n) {
+      expr_list <- unname(lapply(.l, attr, "ui_expr"))
+      expr_list <- check_remove_null(expr_list)
+      call2("tabPanel", .n, !!!expr_list)
+    }))
+  tab_expr <- call2("tabsetPanel", !!!tab_expr_list)
+
+  return(expr_text(tab_expr))
+
+}
+
+paintr_complete_expr <- function(paintr_obj, input) {
+  assert_that(class(paintr_obj) == 'paintr_obj')
+
+  paintr_processed_expr_list <- paintr_obj[['expr_list']]
+  unfolded_id_list <- unlist(paintr_obj[['id_list']])
+  keywords_list <- paintr_obj[['keywords_list']]
+  index_path_list <- paintr_obj[['index_path_list']]
+
+  for (id in unfolded_id_list) {
+
+    id_domain <- unlist(strsplit(id, "\\+"))[1]
+    paintr_processed_expr_list[[id_domain]] <-
+      expr_replace_keywords(paintr_processed_expr_list[[id_domain]],
+                            keywords_list[[id_domain]][[id]],
+                            index_path_list[[id_domain]][[id]],
+                            input[[id]])
+  }
+
+  paintr_processed_expr_list <- lapply(paintr_processed_expr_list, expr_remove_null)
+  paintr_processed_expr_list <- lapply(paintr_processed_expr_list, expr_remove_emptycall)
+
+  code_text_list <- lapply(paintr_processed_expr_list, expr_text)
+  code_text <- do.call(paste, c(unname(code_text_list), sep = ' +\n  '))
+
+  # paintr_obj[['complete_expr_list']] <- paintr_processed_expr_list
+  # paintr_obj[['code_text']] <- code_text
+  #
+  # return(paintr_obj)
+
+  return(list(
+    complete_expr_list = paintr_processed_expr_list,
+    code_text = code_text
+  ))
+
+}
+
+paintr_get_plot <- function(plot_expr_list) {
+
+  plot_list <- lapply(plot_expr_list, eval)
+
+  p <- plot_list[[1]]
+
+  for (i in 2:length(plot_list)) p <- p + plot_list[[i]]
+
+  return(p)
+
+}
+
+expr_text_server <- function(paintr_obj, input) {
+  assert_that(class(paintr_obj) == 'paintr_obj')
+
+  paintr_processed_expr_list <- paintr_obj[['expr_list']]
+  unfolded_id_list <- unlist(paintr_obj[['id_list']])
+  keywords_list <- paintr_obj[['keywords_list']]
+  index_path_list <- paintr_obj[['index_path_list']]
+
+  for (id in unfolded_id_list) {
+
+    # browser()
+
+    id_domain <- unlist(strsplit(id, "\\+"))[1]
+    paintr_processed_expr_list[[id_domain]] <-
+      enexpr_replace_keywords(paintr_processed_expr_list[[id_domain]],
+                              keywords_list[[id_domain]][[id]],
+                              index_path_list[[id_domain]][[id]],
+                              input[[!!id]])
+  }
+
+  paintr_processed_expr_list <- lapply(paintr_processed_expr_list, expr_remove_null)
+  paintr_processed_expr_list <- lapply(paintr_processed_expr_list, expr_remove_emptycall)
+
+  code_text_list <- lapply(paintr_processed_expr_list, expr_text)
+  code_text <- do.call(paste, c(unname(code_text_list), sep = ' +\n  '))
+
+  return(code_text)
+
+  # return(list(
+  #   complete_expr_list = paintr_processed_expr_list,
+  #   code_text = code_text
+  # ))
+
+}
+
+check_remove_null <- function(x) {
+  if(is.null(x)) return(NULL)
+
+  x <- x[!sapply(x, is.null )]
+
+  if(length(x) == 0) return(NULL)
+
+  x
+}
+
+get_shiny_template <- function() {
+  shiny_template <- c(
+    "library(shiny)",
+    "library(shinyWidgets)",
+    "",
+    "# Please load your data first",
+    "",
+    "ui <- fluidPage(",
+    "",
+    "  # Application title",
+    "  titlePanel(\"ggpaintr demo\"),",
+    "",
+    "  # Sidebar with a slider input for number of bins",
+    "  sidebarLayout(",
+    "    sidebarPanel(",
+    "      $text_ui$,",
+    "      actionButton(\"draw\", \"click to draw the plot\"),",
+    "    ),",
+    "",
+    "    # Show a plot of the generated distribution",
+    "    mainPanel(",
+    "      plotOutput(\"outputPlot\")",
+    "    )",
+    "  )",
+    ")",
+    "",
+    "server <- function(input, output) {",
+    "",
+    "",
+    "  observe({",
+    "",
+    "    p <- $text_server$",
+    "",
+    "    output$outputPlot <- renderPlot({",
+    "      p",
+    "    })",
+    "",
+    "  }) %>% bindEvent(input$draw)",
+    "}",
+    "",
+    "shinyApp(ui, server)"
+  )
+
+}
+
+generate_shiny <- function(patinr_obj, var_ui, output_file,
+                           style = TRUE) {
+
+  ui_list <- patinr_obj$ui_list
+  updated_ui_list <- var_ui_replacement(ui_list, var_ui)
+
+  text_ui <- expr_text_tab_ui(updated_ui_list)
+  text_server <- expr_text_server(patinr_obj)
+
+  shiny_text <- get_shiny_template()
+  shiny_text <- stringr::str_replace(
+    shiny_text,
+    "\\$text_ui\\$",
+    text_ui
+  )
+  shiny_text <- stringr::str_replace(
+    shiny_text,
+    "\\$text_server\\$",
+    text_server
+  )
+
+  writeLines(shiny_text, output_file)
+  if (style) {
+    styler::style_file(output_file)
+  }
+
+}
+
+
+foo_ui <- function() {
+  'ui <- fluidPage(
+
+  titlePanel("ggpaintr demo"),
+
+  sidebarLayout(
+    sidebarPanel(
+      $text_ui$,
+      actionButton("draw", "click to draw the plot"),
+    ),
+
+    mainPanel(
+      plotOutput("outputPlot")
+    )
+  )
+)'
+}
+
+foo <- function() {
+'library(shiny)
+library(shinyWidgets)
+
+# Please load your data first
+
+ui <- fluidPage(
+
+  # Application title
+  titlePanel("ggpaintr demo"),
+
+  # Sidebar with a slider input for number of bins
+  sidebarLayout(
+    sidebarPanel(
+      $text_ui$,
+      actionButton("draw", "click to draw the plot"),
+    ),
+
+    # Show a plot of the generated distribution
+    mainPanel(
+      plotOutput("outputPlot")
+    )
+  )
+)
+
+server <- function(input, output) {
+
+
+  observe({
+
+    output$outputPlot <- renderPlot({
+      $text_server$
+    })
+
+  }) %>% bindEvent(input$draw)
+}
+
+shinyApp(ui, server)'
+}
+
+
+
+
