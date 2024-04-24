@@ -105,7 +105,7 @@ ggpaintr_basic2 <- function(input_formula) {
         # actionButton("enter", "click to enter the formula"),
         uiOutput("controlPanel"),
         actionButton("draw", "click to draw the plot"),
-        # actionButton("uiExport", "export the UI"),
+        downloadButton("shinyExport", "export the shiny app"),
       ),
 
       # Show a plot of the generated distribution
@@ -116,55 +116,54 @@ ggpaintr_basic2 <- function(input_formula) {
     )
   )
 
-  server <- function(input, output) {
+  server <- function(input, output, session) {
 
-    # paintr_obj <- eventReactive({
-    #   input$enter
-    # }, {
-    #   paintr_formula(input$formula)
-    # })
+    session$userData$paintr <- reactiveValues(obj = list(NULL))
+    session$userData$paintr$obj <- paintr_formula(input_formula)
 
-    paintr_obj <- reactive({
-      paintr_formula(input_formula)
+    observe({
+      req(session$userData$paintr$obj)
+
+      session$userData$paintr$var_ui_list <-
+        output_embed_var(input, output, session$userData$paintr$obj)
     })
 
     output$controlPanel <- renderUI({
-      req(paintr_obj())
+      req(session$userData$paintr)
 
-      column(12, paintr_get_tab_ui(paintr_obj()))
+      column(12, paintr_get_tab_ui(session$userData$paintr$obj))
 
     })
 
-    # observe({
-    #   req(paintr_obj())
-    #
-    #   updated_ui_list <- var_ui_replacement(paintr_obj()$ui_list, var_ui_list)
-    #   tab_ui <- tab_wrap_ui(updated_ui_list)
-    #
-    # }) %>% bindEvent(input$uiExport)
+    output$shinyExport <- downloadHandler(
+      filename = "trial_0.R",
+      content = function(file) {
+
+        req(session$userData$paintr$var_ui_list)
+
+        generate_shiny(session$userData$paintr$obj,
+                       session$userData$paintr$var_ui_list,
+                       file,
+                       style = TRUE)
+
+      }
+    )
 
     observe({
-      req(paintr_obj())
+      req(session$userData$paintr$obj)
 
-      output_embed_var(input, output, paintr_obj())
-    })
-
-    observe({
-      req(paintr_obj())
-
-      complete_expr <- paintr_complete_expr(paintr_obj(), input)
-
-      # browser()
+      complete_expr_code <-
+        paintr_complete_expr(session$userData$paintr$obj, input)
 
       output$outputPlot <- renderPlot({
 
-        paintr_get_plot(complete_expr[['complete_expr_list']])
+        paintr_get_plot(complete_expr_code[['complete_expr_list']])
 
       })
 
       output$outputCode <- renderText({
 
-        complete_expr[['code_text']]
+        complete_expr_code[['code_text']]
 
       })
 
@@ -173,6 +172,32 @@ ggpaintr_basic2 <- function(input_formula) {
 
   shinyApp(ui, server)
 }
+
+capitalize <- function(string) {
+  substr(string, 1, 1) <- toupper(substr(string, 1, 1))
+  string
+}
+
+df2 <- msleep
+
+ggpaintr_basic2(
+  "
+  ggplot(data = df2, aes(x = var, y = var)) +
+   geom_point() +
+   labs(x = text, y = text, title = text) +
+   facet_grid(var ~ var, labeller = expr)
+  "
+)
+
+#
+
+
+
+
+
+
+
+
 
 data("mpg")
 
@@ -213,6 +238,19 @@ f1(a + b + c)
 
 paintr2_basic(library$scatterplot, data)
 
+foo <- function() {
+  print("environment of foo. foo2() is called here.")
+  print(environment())
 
+  foo2()
+}
 
+foo2 <- function() {
+  print("the environment of foo2:")
+  print(environment())
+  print("the environment where foo2 is called:")
+  print(parent.frame())
+}
+
+foo()
 

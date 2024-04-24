@@ -14,6 +14,19 @@ source(here("paintr2", "ui_function.R"))
 
 library(ggsci)
 
+capitalize <- function(string) {
+  substr(string, 1, 1) <- toupper(substr(string, 1, 1))
+  string
+}
+
+foo <- function(string) {
+  substr(string, 1, 1) <- toupper(substr(string, 1, 1))
+  string
+}
+
+df2 <- msleep
+
+print(environment(capitalize))
 
 ui <- fluidPage(
 
@@ -25,9 +38,10 @@ ui <- fluidPage(
     sidebarPanel(
       textAreaInput("formula", label = "Enter the paintr formula",
                     value =
-                      "ggplot(data = mpg, aes(x = var, y = var)) +
+                      "ggplot(data = msleep, aes(x = var, y = var)) +
                       geom_point() +
-                      labs(x = text, y = text)",
+                      labs(x = text, y = text)+
+                      facet_grid(var ~ var, labeller = expr)",
                     rows = 5, placeholder = "Input the formula"),
       actionButton("enter", "use above formula to get UI"),
       uiOutput("controlPanel"),

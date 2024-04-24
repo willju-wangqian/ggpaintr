@@ -103,7 +103,8 @@ generate_ui_individual <- function(key, id, param) {
 }
 
 
-output_embed_var <- function(input, output, paintr_obj) {
+output_embed_var <- function(input, output, paintr_obj,
+                             envir = parent.frame()) {
 
   # browser()
 
@@ -133,7 +134,7 @@ output_embed_var <- function(input, output, paintr_obj) {
         } else {
 
           global_data_flag <- "local"
-          global_data <- eval(keywords_list[[i]][[data_index]])
+          global_data <- eval(keywords_list[[i]][[data_index]], envir = envir)
 
         }
 
@@ -162,7 +163,7 @@ output_embed_var <- function(input, output, paintr_obj) {
               get(input[[id_list[[i]][[data_index]]]])
             }, error = function(e) NULL)
           } else { # if data = mpg
-            tmp_data <- eval(keywords_list[[i]][[data_index]])
+            tmp_data <- eval(keywords_list[[i]][[data_index]], envir = envir)
           }
 
           if (!is.null(tmp_data)) {
@@ -302,33 +303,33 @@ foo3 <- function(input) {
 
 
 
-change_output <- function(input, output, tt) {
-
-  id_list <- c("ggplot+3+2+2", "ggplot+3+3")
-  param_list <- c("x", "yabcdef")
-
-  expr_list <- list()
-
-  for (i in 1:2) {
-    expr_list[[i]] <- expr(
-      output[[paste0("var-", !!id_list[i])]] <- generate_ui_var_data_local(names(mpg), !!id_list[i], !!param_list[i])
-    )
-  }
-
-  # eval(expr_list[[1]])
-  # eval(expr_list[[2]])
-
-  for (i in seq_along(expr_list)) eval(expr_list[[i]])
-  browser()
-
-}
-
-change_output2 <- function(input, output, tt) {
-
-  output[['var-ggplot+3+2+2']] <- generate_ui_var_data_local(names(mpg), "tt_id1", "x")
-  output[['var-ggplot+3+3']] <-  generate_ui_var_data_local(names(mpg), "tt_id2", "y")
-
-}
+# change_output <- function(input, output, tt) {
+#
+#   id_list <- c("ggplot+3+2+2", "ggplot+3+3")
+#   param_list <- c("x", "yabcdef")
+#
+#   expr_list <- list()
+#
+#   for (i in 1:2) {
+#     expr_list[[i]] <- expr(
+#       output[[paste0("var-", !!id_list[i])]] <- generate_ui_var_data_local(names(mpg), !!id_list[i], !!param_list[i])
+#     )
+#   }
+#
+#   # eval(expr_list[[1]])
+#   # eval(expr_list[[2]])
+#
+#   for (i in seq_along(expr_list)) eval(expr_list[[i]])
+#   browser()
+#
+# }
+#
+# change_output2 <- function(input, output, tt) {
+#
+#   output[['var-ggplot+3+2+2']] <- generate_ui_var_data_local(names(mpg), "tt_id1", "x")
+#   output[['var-ggplot+3+3']] <-  generate_ui_var_data_local(names(mpg), "tt_id2", "y")
+#
+# }
 
 # generate ui for upload, text, num, expr, etc
 # generate placeholder ui for var

@@ -211,23 +211,34 @@ expr_replace_keywords <- function(.expr, keyword, index_path, input_item) {
 enexpr_replace_keywords <- function(.expr, keyword, index_path, input_item) {
   switch_keywords(
     keyword,
-    var = handle_server_expr_var(.expr, index_path, enexpr(input_item)),
-    num = handle_server_expr(.expr, index_path, enexpr(input_item)),
-    text = handle_server_expr(.expr, index_path, enexpr(input_item)),
+    var = handle_server_var(.expr, index_path, enexpr(input_item)),
+    num = handle_server_default(.expr, index_path, enexpr(input_item)),
+    text = handle_server_default(.expr, index_path, enexpr(input_item)),
     expr = handle_server_expr(.expr, index_path, enexpr(input_item)),
-    upload = handle_server_expr(.expr, index_path, enexpr(input_item)),
+    upload = handle_server_default(.expr, index_path, enexpr(input_item)),
     handle_unknown(.expr, keyword)
   )
 }
 
-handle_server_expr <- function(.expr, index_path, input_item) {
+handle_server_default <- function(.expr, index_path, input_item) {
   expr_pluck(.expr, index_path) <- input_item
 
   .expr
 }
 
-handle_server_expr_var <- function(.expr, index_path, input_item) {
+handle_server_var <- function(.expr, index_path, input_item) {
   expr_pluck(.expr, index_path) <- expr(.data[[!!input_item]])
+
+  .expr
+}
+
+handle_server_expr <- function(.expr, index_path, input_item) {
+  expr_pluck(.expr, index_path) <- parse_expr(
+    paste0("!!",
+           expr_text(
+             expr(parse_expr(!!input_item))
+           ))
+  )
 
   .expr
 }
@@ -409,9 +420,17 @@ paintr_complete_expr <- function(paintr_obj, input) {
 
 }
 
-paintr_get_plot <- function(plot_expr_list) {
+paintr_get_plot <- function(plot_expr_list, envir = parent.frame()) {
 
-  plot_list <- lapply(plot_expr_list, eval)
+  # browser()
+
+  # plot_list <- lapply(plot_expr_list, eval, envir = environment(capitalize))
+  plot_list <- lapply(plot_expr_list, eval, envir = envir)
+
+  # plot_list <- list()
+  # for (i in seq_along(plot_expr_list)) {
+  #   plot_list[[i]] <- eval(plot_expr_list[[i]])
+  # }
 
   p <- plot_list[[1]]
 
@@ -497,10 +516,10 @@ get_shiny_template <- function() {
     "",
     "  observe({",
     "",
-    "    p <- $text_server$",
+    "    p <- expr($text_server$)",
     "",
     "    output$outputPlot <- renderPlot({",
-    "      p",
+    "      eval(p)",
     "    })",
     "",
     "  }) %>% bindEvent(input$draw)",
@@ -519,6 +538,8 @@ generate_shiny <- function(patinr_obj, var_ui, output_file,
 
   text_ui <- expr_text_tab_ui(updated_ui_list)
   text_server <- expr_text_server(patinr_obj)
+
+  browser()
 
   shiny_text <- get_shiny_template()
   shiny_text <- stringr::str_replace(

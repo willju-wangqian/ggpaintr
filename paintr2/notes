@@ -1,0 +1,17 @@
+## Notes
+
+1. will get errors if column names has white spaces
+
+2. for the baby shiny, clean the expr
+
+3. label for unnamed augrments. The current herustic might not work
+  - facet_grid(var ~ var + var)
+  - extend keywords to var1, var2, var3
+
+4. test var + 1: .data[[""]] and var might not work?
+
+x. [DONE] define a function in app.R, it's not global
+
+x. [DONE] take care of expr when export
+
+# https://shiny.posit.co/r/articles/share/function/
