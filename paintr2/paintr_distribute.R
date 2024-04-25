@@ -189,6 +189,13 @@ ggpaintr_basic2(
   "
 )
 
+ggpaintr_basic2(
+  "ggplot(data = iris, aes(x = var, y = var)) +
+    geom_point(aes(color = var), size = num) +
+    labs(x = text) +
+    facet_wrap(expr)"
+)
+
 #
 
 
@@ -253,4 +260,36 @@ foo2 <- function() {
 }
 
 foo()
+
+
+# Define the division function
+safe_division <- function(x, y) {
+  tryCatch(
+    {
+      # Expression that might cause an error
+      result <- x / y
+      if (is.infinite(result)) {
+        stop("Attempt to divide by zero.")
+      }
+      result
+    },
+    error = function(e) {
+      # Error handler: what to do if an error occurs
+      cat("Error occurred: ", e$message, "\n")
+      NA  # You might return NA or another appropriate value
+    },
+    finally = {
+      # Code that executes no matter what
+      cat("Attempted division of", x, "by", y, "\n")
+    }
+  )
+}
+
+# Test the function
+safe_division(10, 2)  # Should work
+safe_division(10, 0)  # Should trigger the error handler
+
+tt <- expr(geom_point(aes(foo1()), foo2(), foo3(foo4())))
+tt <- expr(labs(aes(foo1()), foo2(), foo3(foo4())))
+expr_remove_emptycall2(tt)
 

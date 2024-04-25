@@ -41,12 +41,17 @@ break_sum <- function(x) {
 }
 
 get_fun_names <- function(x) {
-  as_string(x[[1]])
+  if (is_call(x)) return(as_string(x[[1]]))
+  if (is_symbol(x)) return(as_string(x))
 }
 
 get_item <- function(.x, indices) {
   for (index in indices) {
-    .x <- .x[[index]]
+    .x <- tryCatch({
+      .x[[index]]
+    }, error = function(e) {
+      NULL
+    })
   }
   return(.x)
 }
@@ -57,7 +62,13 @@ modify_with_index_path <- function(.x, index_path, new_value) {
     access_expr <- paste(access_expr, "[[", index, "]]", sep="")
   }
   tmp_expr <- parse_expr(paste(access_expr, "<- enexpr(new_value)"))
-  eval(tmp_expr)
+
+  tryCatch({
+    eval(tmp_expr)
+  }, error = function(e) {
+    cat("Error message: ", e$message, "\n", "Modification failed.\n")
+  })
+
   return(.x)
 }
 
@@ -270,7 +281,54 @@ expr_remove_emptycall <- function(.expr, current_path = numeric()) {
       }
     }
   }
+  browser()
   return(.expr)
+}
+
+expr_remove_emptycall2 <- function(.expr) {
+  for (i in (length(.expr):1)) {
+    if (is.call(.expr[[i]])) {
+      if (length(.expr[[i]]) == 1) {
+
+        func_meaning <- tryCatch({
+          eval(.expr[[i]])
+        }, error = function(e) {
+          NULL
+        })
+
+        if (is.null(func_meaning) || (!("gg" %in% attr(func_meaning, "class")))) {
+          message(paste0("The function ", as_string(.expr[[i]][[1]]),
+                         "() in ", as_string(.expr[[1]]),
+                         "() is removed."))
+          .expr[[i]] <- NULL
+        }
+
+      } else {
+        .expr[[i]] <- expr_remove_emptycall2(.expr[[i]])
+      }
+    }
+  }
+
+  if (is.call(.expr) && (length(.expr) == 1)) {
+
+    func_meaning <- tryCatch({
+      eval(.expr)
+    }, error = function(e) {
+      NULL
+    })
+
+    if (is.null(func_meaning) || (!("gg" %in% attr(func_meaning, "class")))) {
+      message(paste0("The function ", as_string(.expr[[1]]),
+                     "() is removed."))
+      .expr <- NULL
+    }
+
+  }
+  return(.expr)
+}
+
+key_layer_functions <- function() {
+  "geom_"
 }
 
 
@@ -403,15 +461,11 @@ paintr_complete_expr <- function(paintr_obj, input) {
   }
 
   paintr_processed_expr_list <- lapply(paintr_processed_expr_list, expr_remove_null)
-  paintr_processed_expr_list <- lapply(paintr_processed_expr_list, expr_remove_emptycall)
+  paintr_processed_expr_list <- lapply(paintr_processed_expr_list, expr_remove_emptycall2)
+  paintr_processed_expr_list <- check_remove_null(paintr_processed_expr_list)
 
   code_text_list <- lapply(paintr_processed_expr_list, expr_text)
   code_text <- do.call(paste, c(unname(code_text_list), sep = ' +\n  '))
-
-  # paintr_obj[['complete_expr_list']] <- paintr_processed_expr_list
-  # paintr_obj[['code_text']] <- code_text
-  #
-  # return(paintr_obj)
 
   return(list(
     complete_expr_list = paintr_processed_expr_list,
@@ -422,15 +476,7 @@ paintr_complete_expr <- function(paintr_obj, input) {
 
 paintr_get_plot <- function(plot_expr_list, envir = parent.frame()) {
 
-  # browser()
-
-  # plot_list <- lapply(plot_expr_list, eval, envir = environment(capitalize))
   plot_list <- lapply(plot_expr_list, eval, envir = envir)
-
-  # plot_list <- list()
-  # for (i in seq_along(plot_expr_list)) {
-  #   plot_list[[i]] <- eval(plot_expr_list[[i]])
-  # }
 
   p <- plot_list[[1]]
 
@@ -450,8 +496,6 @@ expr_text_server <- function(paintr_obj, input) {
 
   for (id in unfolded_id_list) {
 
-    # browser()
-
     id_domain <- unlist(strsplit(id, "\\+"))[1]
     paintr_processed_expr_list[[id_domain]] <-
       enexpr_replace_keywords(paintr_processed_expr_list[[id_domain]],
@@ -461,17 +505,12 @@ expr_text_server <- function(paintr_obj, input) {
   }
 
   paintr_processed_expr_list <- lapply(paintr_processed_expr_list, expr_remove_null)
-  paintr_processed_expr_list <- lapply(paintr_processed_expr_list, expr_remove_emptycall)
+  paintr_processed_expr_list <- lapply(paintr_processed_expr_list, expr_remove_emptycall2)
 
   code_text_list <- lapply(paintr_processed_expr_list, expr_text)
   code_text <- do.call(paste, c(unname(code_text_list), sep = ' +\n  '))
 
   return(code_text)
-
-  # return(list(
-  #   complete_expr_list = paintr_processed_expr_list,
-  #   code_text = code_text
-  # ))
 
 }
 
@@ -516,10 +555,14 @@ get_shiny_template <- function() {
     "",
     "  observe({",
     "",
-    "    p <- expr($text_server$)",
+    "    p_expr <- parse_expr('expr($text_server$)')",
+    "",
+    "    p_expr_active <- expr_remove_empty_input(p_expr, input)",
     "",
     "    output$outputPlot <- renderPlot({",
-    "      eval(p)",
+    "",
+    "      paintr_get_plot(expr_plot_eval(p_expr_active))",
+    "",
     "    })",
     "",
     "  }) %>% bindEvent(input$draw)",
@@ -539,8 +582,6 @@ generate_shiny <- function(patinr_obj, var_ui, output_file,
   text_ui <- expr_text_tab_ui(updated_ui_list)
   text_server <- expr_text_server(patinr_obj)
 
-  browser()
-
   shiny_text <- get_shiny_template()
   shiny_text <- stringr::str_replace(
     shiny_text,
@@ -558,6 +599,93 @@ generate_shiny <- function(patinr_obj, var_ui, output_file,
     styler::style_file(output_file)
   }
 
+}
+
+expr_plot_eval <- function(.expr, envir = parent.frame()) {
+  p_expr <- eval(.expr, envir = envir)
+  p_list <- unlist(break_sum(p_expr))
+  p_list_clean <- lapply(p_list, expr_remove_emptycall2)
+
+  return(p_list_clean)
+}
+
+get_input_path <- function(x,
+                           target = c("input"),
+                           current_path = numeric(),
+                           result = list()) {
+  for (i in seq_along(x)) {
+    new_path <- c(current_path, i)
+    if (is.call(x[[i]])) {
+      result <- get_input_path(x[[i]], target, new_path, result)
+    } else if (is.symbol(x[[i]])) {
+      # browser()
+      if (as_string(x[[i]]) %in% target) {
+        result <- c(result, list(new_path))
+      }
+    }
+  }
+  return(result)
+}
+
+get_id_path <- function(input_path) {
+  lapply(input_path, function(.p) {
+    .p[length(.p)] <- .p[length(.p)] + 1
+    .p
+  })
+}
+
+get_caller_path <- function(input_path) {
+  lapply(input_path, function(.p) {
+    if (length(.p) > 1 && .p[length(.p)-1] > 1) {
+      .p <- .p[-length(.p)]
+      .p[length(.p)] <- 1
+      .p
+    } else {
+      stop(eval(call2(paste, "path:", !!!.p)))
+    }
+
+  })
+}
+
+is_empty_input <- function(x) {
+  is.null(x) || is.na(x) || (x == "")
+}
+
+expr_remove_empty_input <- function(.expr,
+                                    input,
+                                    current_path = numeric()) {
+  input_path <- get_input_path(.expr)
+  id_path <- get_id_path(input_path)
+  ids <- lapply(id_path, function(.p) expr_pluck(.expr, .p))
+  caller_path <- get_caller_path(input_path)
+  caller <- lapply(caller_path, function(.p) expr_pluck(.expr, .p))
+
+  for (i in length(input_path):1) {
+    if (as_string(caller[[i]]) == "[[") {
+      if (is_empty_input(input[[ids[[i]]]])) {
+        expr_pluck(.expr, caller_path[[i]][-length(caller_path[[i]])]) <- NULL
+      }
+    } else if (as_string(caller[[i]]) == "parse_expr") {
+      if (is_empty_input(input[[ids[[i]]]])) {
+        expr_pluck(.expr, caller_path[[i]]) <- NULL
+        expr_pluck(.expr, caller_path[[i]]) <- NULL
+
+        if (is.null(expr_pluck(.expr, caller_path[[i]]))) {
+          expr_pluck(.expr, caller_path[[i]][-((length(caller_path[[i]])-2):length(caller_path[[i]]))]) <- NULL
+        } else {
+          expr_pluck(.expr,
+                     caller_path[[i]][-((length(caller_path[[i]])-3):length(caller_path[[i]]))]) <-
+            expr_pluck(.expr, caller_path[[i]][-length(caller_path[[i]])])
+        }
+      }
+    } else if (is_empty_input(input[[ids[[i]]]])) {
+      expr_pluck(.expr, input_path[[i]][-length(input_path[[i]])]) <- NULL
+    } else {
+      message("Invalid index path. Fail to remove empty inputs.")
+    }
+  }
+
+  return(.expr)
 }
 
 
@@ -580,7 +708,7 @@ foo_ui <- function() {
 }
 
 foo <- function() {
-'library(shiny)
+  'library(shiny)
 library(shinyWidgets)
 
 # Please load your data first

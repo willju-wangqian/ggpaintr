@@ -2,13 +2,25 @@
 
 1. will get errors if column names has white spaces
 
-2. for the baby shiny, clean the expr
-
-3. label for unnamed augrments. The current herustic might not work
+2. label for unnamed augrments. The current herustic might not work
   - facet_grid(var ~ var + var)
   - extend keywords to var1, var2, var3
 
-4. test var + 1: .data[[""]] and var might not work?
+3. test var + 1: .data[[""]] and var might not work? primary test passed
+
+4. upload is not really implemented
+
+5. clean up the function files
+
+x. [DONE] finish baby shiny template and test, key file: trial_06_iris_clean2.R
+
+x. [DONE] + expr in formula?
+
+x. [DONE] remove empty call?
+
+x. [DONE] expr_remove_emptycall2 -> replace the original one? Yes
+
+x. [DONE] for the baby shiny, clean the expr
 
 x. [DONE] define a function in app.R, it's not global
 
