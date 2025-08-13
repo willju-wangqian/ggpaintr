@@ -148,7 +148,7 @@ switch_keywords <- function(.x, ...) {
 
 handle_var <- function(.expr, index_path, input_item) {
   if (is.null(input_item)) {
-    expr_pluck(.expr, index_path) <- sym("NULL_placeholder")
+    expr_pluck(.expr, index_path) <- sym("_NULL_PLACEHOLDER")
   } else {
     assert_that(is.character(input_item))
     # expr_pluck(.expr, index_path) <- expr(.data[[!!input_item]]) # this won't work with calculations in the expr
@@ -162,7 +162,7 @@ handle_var <- function(.expr, index_path, input_item) {
 handle_num <- function(.expr, index_path, input_item) {
   # browser()
   if (is.na(input_item) | is.null(input_item)) {
-    expr_pluck(.expr, index_path) <- sym("NULL_placeholder")
+    expr_pluck(.expr, index_path) <- sym("_NULL_PLACEHOLDER")
   } else {
     assert_that(is.numeric(input_item))
     expr_pluck(.expr, index_path) <- expr(!!input_item)
@@ -172,7 +172,7 @@ handle_num <- function(.expr, index_path, input_item) {
 
 handle_text <- function(.expr, index_path, input_item) {
   if (is.null(input_item) | input_item == "") {
-    expr_pluck(.expr, index_path) <- sym("NULL_placeholder")
+    expr_pluck(.expr, index_path) <- sym("_NULL_PLACEHOLDER")
   } else {
     assert_that(is.character(input_item))
     expr_pluck(.expr, index_path) <- expr(!!input_item)
@@ -185,7 +185,7 @@ handle_expr <- function(.expr, index_path, input_item) {
   if ((!is.null(input_item)) & (input_item != "")) {
     expr_pluck(.expr, index_path) <- parse_expr(input_item)
   } else {
-    expr_pluck(.expr, index_path) <- sym("NULL_placeholder")
+    expr_pluck(.expr, index_path) <- sym("_NULL_PLACEHOLDER")
   }
   .expr
 }
@@ -194,7 +194,7 @@ handle_upload <- function(.expr, index_path, input_item) { # this needs to be fi
   if ((!is.null(input_item)) & (input_item != "")) {
     expr_pluck(.expr, index_path) <- parse_expr(input_item)
   } else {
-    expr_pluck(.expr, index_path) <- sym("NULL_placeholder")
+    expr_pluck(.expr, index_path) <- sym("_NULL_PLACEHOLDER")
   }
   .expr
 }
@@ -255,7 +255,7 @@ handle_server_expr <- function(.expr, index_path, input_item) {
 }
 
 
-expr_remove_null <- function(.expr, target = sym("NULL_placeholder"),
+expr_remove_null <- function(.expr, target = sym("_NULL_PLACEHOLDER"),
                              current_path = numeric()) {
   for (i in (length(.expr):1)) {
     new_path <- c(current_path, i)
