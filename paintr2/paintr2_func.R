@@ -352,6 +352,18 @@ get_expr_param <- function(.expr, .path) {
   }
 }
 
+ui_insert_checkbox <- function(ui, nn) {
+
+  if (nn == 'ggplot') return(ui)
+
+  checkbox <- checkboxInput(paste0(nn, "+checkbox"),
+                            label = paste("Keep the layer of", nn),
+                            value = TRUE)
+  ui <- c(list(checkbox), ui)
+  names(ui)[1] <- paste0(nn, "+checkbox")
+  return(ui)
+}
+
 paintr_formula <- function(formula) {
   paintr_expr <- parse_expr(formula)
   paintr_expr_list <- unlist(break_sum(paintr_expr))
@@ -379,12 +391,13 @@ paintr_formula <- function(formula) {
     }
   )
 
-  browser()
   paintr_ui_list <- purrr::pmap(
     list(keywords_list, id_list, paintr_expr_param_list),
-    function(k_l, id_l, p_l) {
-      purrr::pmap(list(k_l, id_l, p_l), generate_ui_individual)
-    }
+    function(k_l, id_l, p_l) purrr::pmap(list(k_l, id_l, p_l), generate_ui_individual)
+  )
+
+  paintr_ui_list <- purrr::map2(
+    paintr_ui_list, names(paintr_ui_list), ui_insert_checkbox
   )
 
   result <- list(
@@ -409,12 +422,6 @@ paintr_get_tab_ui <- function(paintr_obj) {
   ui_list <- paintr_obj[['ui_list']]
 
   return(tab_wrap_ui(ui_list))
-
-  # tab_list <- unname(purrr::map2(ui_list, names(ui_list),
-  #                                function(ui, nn) do.call(tabPanel, c(nn, unname(ui)))))
-  # tab_ui <- do.call(tabsetPanel, tab_list)
-  #
-  # return(tab_ui)
 }
 
 tab_wrap_ui <- function(ui_list) {
@@ -422,15 +429,7 @@ tab_wrap_ui <- function(ui_list) {
 
   tab_list <- unname(purrr::map2(
     ui_list, names(ui_list),
-    function(ui, nn) {
-
-      # checkbox <- checkboxInput(paste0(nn, "-checkbox"),
-      #                           label = paste("Show content for", nn),
-      #                           value = TRUE)
-      #
-      # do.call(tabPanel, c(nn, list(checkbox), unname(ui)))
-      do.call(tabPanel, c(nn, unname(ui)))
-    }
+    function(ui, nn) do.call(tabPanel, c(nn, unname(ui)))
   ))
   tab_ui <- do.call(tabsetPanel, tab_list)
 
@@ -460,6 +459,8 @@ paintr_complete_expr <- function(paintr_obj, input) {
   unfolded_id_list <- unlist(paintr_obj[['id_list']])
   keywords_list <- paintr_obj[['keywords_list']]
   index_path_list <- paintr_obj[['index_path_list']]
+
+  browser()
 
   for (id in unfolded_id_list) {
 

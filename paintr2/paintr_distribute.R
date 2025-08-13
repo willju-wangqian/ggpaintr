@@ -199,6 +199,7 @@ region.lab.data <- some.eu.maps %>%
 #   theme_void()+
 #   theme(legend.position = "none")
 
+source(here("paintr2", "paintr2_func.R"))
 ggpaintr_basic2(
   "ggplot(data = some.eu.maps, aes(x = var + 1, y = var)) +
     geom_polygon(aes(group = var, fill = var)) +
@@ -208,6 +209,7 @@ ggpaintr_basic2(
     theme_void()+
     theme(legend.position = text)"
 )
+
 
 
 
