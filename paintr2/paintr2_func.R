@@ -379,6 +379,7 @@ paintr_formula <- function(formula) {
     }
   )
 
+  browser()
   paintr_ui_list <- purrr::pmap(
     list(keywords_list, id_list, paintr_expr_param_list),
     function(k_l, id_l, p_l) {
@@ -419,8 +420,18 @@ paintr_get_tab_ui <- function(paintr_obj) {
 tab_wrap_ui <- function(ui_list) {
   assert_that(!is.null(names(ui_list)))
 
-  tab_list <- unname(purrr::map2(ui_list, names(ui_list),
-                                 function(ui, nn) do.call(tabPanel, c(nn, unname(ui)))))
+  tab_list <- unname(purrr::map2(
+    ui_list, names(ui_list),
+    function(ui, nn) {
+
+      # checkbox <- checkboxInput(paste0(nn, "-checkbox"),
+      #                           label = paste("Show content for", nn),
+      #                           value = TRUE)
+      #
+      # do.call(tabPanel, c(nn, list(checkbox), unname(ui)))
+      do.call(tabPanel, c(nn, unname(ui)))
+    }
+  ))
   tab_ui <- do.call(tabsetPanel, tab_list)
 
   return(tab_ui)

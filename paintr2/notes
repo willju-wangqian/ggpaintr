@@ -1,16 +1,30 @@
 ## Notes
 
-1. will get errors if column names has white spaces
+1. turn off certain layers? add check box for each tab except for ggplot
+  - avoid potential errors
 
-2. label for unnamed augrments. The current herustic might not work
+2. check the final expression ... clean ? -> handle error message
+  - make the error message more informative
+
+3. add NS(), allow potential combination of multiple baby shiny apps
+
+4. test var + 1: .data[[""]] and var might not work? primary test passed
+
+5. label for unnamed augrments. The current herustic might not work
   - facet_grid(var ~ var + var)
   - extend keywords to var1, var2, var3
+  - $var^
 
-3. test var + 1: .data[[""]] and var might not work? primary test passed
+6. will get errors if column names has white spaces
 
-4. upload is not really implemented
+7. upload is not really implemented
 
-5. clean up the function files
+8. clean up the function files
+
+Collection of showcase ideas:
+  - map
+  - facet_grid
+  - use of local functions
 
 x. [DONE] finish baby shiny template and test, key file: trial_06_iris_clean2.R
 

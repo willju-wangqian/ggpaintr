@@ -173,6 +173,46 @@ ggpaintr_basic2 <- function(input_formula) {
   shinyApp(ui, server)
 }
 
+world_map <- map_data("world")
+
+# Some EU Contries
+some.eu.countries <- c(
+  "Portugal", "Spain", "France", "Switzerland", "Germany",
+  "Austria", "Belgium", "UK", "Netherlands",
+  "Denmark", "Poland", "Italy",
+  "Croatia", "Slovenia", "Hungary", "Slovakia",
+  "Czech republic"
+)
+# Retrievethe map data
+some.eu.maps <- map_data("world", region = some.eu.countries)
+
+# Compute the centroid as the mean longitude and lattitude
+# Used as label coordinate for country's names
+region.lab.data <- some.eu.maps %>%
+  group_by(region) %>%
+  summarise(long = mean(long), lat = mean(lat))
+
+# ggplot(some.eu.maps, aes(x = long, y = lat)) +
+#   geom_polygon(aes( group = group, fill = region))+
+#   geom_text(aes(label = region), data = region.lab.data,  size = 3, hjust = 0.5)+
+#   scale_fill_viridis_d()+
+#   theme_void()+
+#   theme(legend.position = "none")
+
+ggpaintr_basic2(
+  "ggplot(data = some.eu.maps, aes(x = var + 1, y = var)) +
+    geom_polygon(aes(group = var, fill = var)) +
+    geom_polygon(aes(group = var, fill = var)) +
+    geom_text(data = region.lab.data, aes(x = var, y = var, label = var),  size = num, hjust = num)+
+    scale_fill_viridis_d()+
+    theme_void()+
+    theme(legend.position = text)"
+)
+
+
+
+
+
 capitalize <- function(string) {
   substr(string, 1, 1) <- toupper(substr(string, 1, 1))
   string
