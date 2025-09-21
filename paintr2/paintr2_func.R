@@ -429,7 +429,7 @@ tab_wrap_ui <- function(ui_list) {
 
   tab_list <- unname(purrr::map2(
     ui_list, names(ui_list),
-    function(ui, nn) do.call(tabPanel, c(nn, unname(ui)))
+    function(ui, .nn) do.call(tabPanel, c(.nn, unname(ui)))
   ))
   tab_ui <- do.call(tabsetPanel, tab_list)
 
@@ -452,6 +452,17 @@ expr_text_tab_ui <- function(ui_list) {
 
 }
 
+expr_apply_checkbox_result <- function(expr, nn, input) {
+  if (nn == 'ggplot') return(expr)
+
+  checkbox_id <- paste0(nn, "+checkbox")
+  if (input[[checkbox_id]]) {
+    return(expr)
+  } else {
+    return(NULL)
+  }
+}
+
 paintr_complete_expr <- function(paintr_obj, input) {
   assert_that(class(paintr_obj) == 'paintr_obj')
 
@@ -459,8 +470,6 @@ paintr_complete_expr <- function(paintr_obj, input) {
   unfolded_id_list <- unlist(paintr_obj[['id_list']])
   keywords_list <- paintr_obj[['keywords_list']]
   index_path_list <- paintr_obj[['index_path_list']]
-
-  browser()
 
   for (id in unfolded_id_list) {
 
@@ -474,6 +483,10 @@ paintr_complete_expr <- function(paintr_obj, input) {
 
   paintr_processed_expr_list <- lapply(paintr_processed_expr_list, expr_remove_null)
   paintr_processed_expr_list <- lapply(paintr_processed_expr_list, expr_remove_emptycall2)
+  paintr_processed_expr_list <- purrr::map2(paintr_processed_expr_list,
+                                            names(paintr_processed_expr_list),
+                                            expr_apply_checkbox_result,
+                                            input)
   paintr_processed_expr_list <- check_remove_null(paintr_processed_expr_list)
 
   code_text_list <- lapply(paintr_processed_expr_list, expr_text)
