@@ -9,8 +9,8 @@ library(assertthat)
 library(lobstr)
 
 library(here)
-source(here("paintr2", "paintr2_func.R"))
-source(here("paintr2", "ui_function.R"))
+source(here("paintr2/paintr2_func.R"))
+source(here("paintr2/ui_function.R"))
 
 ggpaintr_basic <- function(input_formula) {
 
@@ -199,7 +199,8 @@ region.lab.data <- some.eu.maps %>%
 #   theme_void()+
 #   theme(legend.position = "none")
 
-source(here("paintr2", "paintr2_func.R"))
+source(here("paintr2/paintr2_func.R"))
+source(here("paintr2/ui_function.R"))
 ggpaintr_basic2(
   "ggplot(data = some.eu.maps, aes(x = var + 1, y = var)) +
     geom_polygon(aes(group = var, fill = var)) +

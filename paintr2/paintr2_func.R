@@ -45,39 +45,42 @@ get_fun_names <- function(x) {
   if (is_symbol(x)) return(as_string(x))
 }
 
-get_item <- function(.x, indices) {
-  for (index in indices) {
-    .x <- tryCatch({
-      .x[[index]]
-    }, error = function(e) {
-      NULL
-    })
-  }
+# modify_with_index_path <- function(.x, index_path, new_value) {
+#   access_expr <- ".x"
+#   for (index in unlist(index_path)) {
+#     access_expr <- paste(access_expr, "[[", index, "]]", sep="")
+#   }
+#   tmp_expr <- parse_expr(paste(access_expr, "<- enexpr(new_value)"))
+#
+#   tryCatch({
+#     eval(tmp_expr)
+#   }, error = function(e) {
+#     cat("Error message: ", e$message, "\n", "Modification failed.\n")
+#   })
+#
+#   return(.x)
+# }
+
+expr_pluck <- function(.x, index_path) {
+  .x <- tryCatch({
+    .x[[index_path]]
+  }, error = function(e) {
+    NULL
+  })
   return(.x)
 }
 
-modify_with_index_path <- function(.x, index_path, new_value) {
-  access_expr <- ".x"
-  for (index in unlist(index_path)) {
-    access_expr <- paste(access_expr, "[[", index, "]]", sep="")
-  }
-  tmp_expr <- parse_expr(paste(access_expr, "<- enexpr(new_value)"))
-
+`expr_pluck<-` <- function(.x, index_path, value) {
   tryCatch({
-    eval(tmp_expr)
+    .x[[index_path]] <- value
   }, error = function(e) {
-    cat("Error message: ", e$message, "\n", "Modification failed.\n")
+    cat(
+      paste0("Error in ", deparse(e$call), ": ",
+             e$message, "\n", "Modification failed.\n")
+    )
   })
 
   return(.x)
-}
-
-expr_pluck <- function(.x, ...) {
-  get_item(.x, list2(...))
-}
-
-`expr_pluck<-` <- function(.x, ..., value) {
-  modify_with_index_path(.x, list2(...), (!!value))
 }
 
 get_index_path <- function(x,
@@ -89,7 +92,6 @@ get_index_path <- function(x,
     if (is.call(x[[i]])) {
       result <- get_index_path(x[[i]], target, new_path, result)
     } else if (is.symbol(x[[i]])) {
-      # browser()
       if (as_string(x[[i]]) %in% target) {
         result <- c(result, list(new_path))
       } else if (!is.null(names(x)) && names(x)[i] == 'data') {
@@ -109,7 +111,7 @@ handle_duplicate_names <- function(x) {
     for (i in seq_along(x)) {
       if (x[i] %in% names(counting_list)) {
         counting_list[[x[i]]] <- counting_list[[x[i]]] + 1
-        x[i] <- paste0(x[i], counting_list[[x[i]]])
+        x[i] <- paste0(x[i], "-", counting_list[[x[i]]])
 
       }
     }
@@ -160,7 +162,6 @@ handle_var <- function(.expr, index_path, input_item) {
 }
 
 handle_num <- function(.expr, index_path, input_item) {
-  # browser()
   if (is.na(input_item) | is.null(input_item)) {
     expr_pluck(.expr, index_path) <- sym("_NULL_PLACEHOLDER")
   } else {
@@ -356,9 +357,16 @@ ui_insert_checkbox <- function(ui, nn) {
 
   if (nn == 'ggplot') return(ui)
 
-  checkbox <- checkboxInput(paste0(nn, "+checkbox"),
-                            label = paste("Keep the layer of", nn),
-                            value = TRUE)
+  id <- paste0(nn, "+checkbox")
+  .expr <- expr(checkboxInput(!!id,
+                              label = paste("Keep the layer of", !!nn),
+                              value = TRUE))
+  checkbox <- eval(.expr)
+  attr(checkbox, "ui_expr") <- .expr
+
+  # checkbox <- checkboxInput(paste0(nn, "+checkbox"),
+  #                           label = paste("Keep the layer of", nn),
+  #                           value = TRUE)
   ui <- c(list(checkbox), ui)
   names(ui)[1] <- paste0(nn, "+checkbox")
   return(ui)
@@ -437,6 +445,7 @@ tab_wrap_ui <- function(ui_list) {
 }
 
 expr_text_tab_ui <- function(ui_list) {
+  browser()
   assert_that(!is.null(names(ui_list)))
 
   tab_expr_list <- unname(purrr::map2(
@@ -598,14 +607,16 @@ get_shiny_template <- function() {
 
 }
 
-generate_shiny <- function(patinr_obj, var_ui, output_file,
+generate_shiny <- function(paintr_obj, var_ui, output_file,
                            style = TRUE) {
 
-  ui_list <- patinr_obj$ui_list
+  browser()
+
+  ui_list <- paintr_obj$ui_list
   updated_ui_list <- var_ui_replacement(ui_list, var_ui)
 
   text_ui <- expr_text_tab_ui(updated_ui_list)
-  text_server <- expr_text_server(patinr_obj)
+  text_server <- expr_text_server(paintr_obj)
 
   shiny_text <- get_shiny_template()
   shiny_text <- stringr::str_replace(
@@ -634,16 +645,15 @@ expr_plot_eval <- function(.expr, envir = parent.frame()) {
   return(p_list_clean)
 }
 
-get_input_path <- function(x,
-                           target = c("input"),
-                           current_path = numeric(),
-                           result = list()) {
+get_path <- function(x,
+                     target = c("input"),
+                     current_path = numeric(),
+                     result = list()) {
   for (i in seq_along(x)) {
     new_path <- c(current_path, i)
     if (is.call(x[[i]])) {
-      result <- get_input_path(x[[i]], target, new_path, result)
+      result <- get_path(x[[i]], target, new_path, result)
     } else if (is.symbol(x[[i]])) {
-      # browser()
       if (as_string(x[[i]]) %in% target) {
         result <- c(result, list(new_path))
       }
@@ -679,7 +689,30 @@ is_empty_input <- function(x) {
 expr_remove_empty_input <- function(.expr,
                                     input,
                                     current_path = numeric()) {
-  input_path <- get_input_path(.expr)
+
+  # all names with '+checkbox'
+  all_checkboxes <- names(input)[which(
+    stringr::str_detect(names(input), "\\+checkbox")
+  )]
+  checkbox_results <- sapply(all_checkboxes, function(.p) input[[.p]])
+  # all layers with FALSE
+  layers_to_be_removed <- all_checkboxes[which(!checkbox_results)]
+  for (layer in layers_to_be_removed) {
+    target_call <- str_remove(layer, "\\+checkbox") # remove '+checkbox'
+    dup <- 1
+    if(str_detect(target_call, "\\-")) { # if the layer name is duplicated
+      tt <- str_split_1(target_call, "\\-")
+      target_call <- tt[1]
+      dup <- as.numeric(tt[2])
+    }
+
+    # get expr path for the target
+    target_path <- get_path(.expr, target = target_call)[[dup]]
+    call_path <- target_path[-length(target_path)]
+    expr_pluck(.expr, call_path) <- NULL # set it to NULL
+  }
+
+  input_path <- get_path(.expr)
   id_path <- get_id_path(input_path)
   ids <- lapply(id_path, function(.p) expr_pluck(.expr, .p))
   caller_path <- get_caller_path(input_path)

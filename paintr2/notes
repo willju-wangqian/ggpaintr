@@ -1,10 +1,11 @@
 ## Notes
 
-1. turn off certain layers? add check box for each tab except for ggplot
-  - avoid potential errors
+1. update `generate_shiny` to include checkboxes
 
 2. check the final expression ... clean ? -> handle error message
   - make the error message more informative
+  - check the plot render function, find possible solutions
+  - goal: print error messages from the plot panel
 
 3. add NS(), allow potential combination of multiple baby shiny apps
 
@@ -16,6 +17,7 @@
   - $var^
 
 6. will get errors if column names has white spaces
+  - why?
 
 7. upload is not really implemented
 
@@ -25,6 +27,8 @@ Collection of showcase ideas:
   - map
   - facet_grid
   - use of local functions
+
+x. [DONE] turn off certain layers? add check box for each tab except for ggplot
 
 x. [DONE] finish baby shiny template and test, key file: trial_06_iris_clean2.R
 
