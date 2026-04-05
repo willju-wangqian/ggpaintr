@@ -1,0 +1,81 @@
+<div class="tabbable">
+  <ul class="nav nav-tabs" data-tabsetid="5550">
+    <li class="active">
+      <a href="#tab-5550-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot">ggplot</a>
+    </li>
+    <li>
+      <a href="#tab-5550-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point">geom_point</a>
+    </li>
+    <li>
+      <a href="#tab-5550-3" data-toggle="tab" data-bs-toggle="tab" data-value="labs">labs</a>
+    </li>
+  </ul>
+  <div class="tab-content" data-tabsetid="5550">
+    <div class="tab-pane active" data-value="ggplot" id="tab-5550-1">
+      <div class="form-group shiny-input-container">
+        <label class="control-label" for="ggplot+2">select a default dataset:</label>
+        <select data-max-options="1" id="ggplot+2" class="selectpicker form-control" multiple="multiple"><option value="iris">iris</option>
+<option value="mtcars">mtcars</option>
+<option value="penguins">penguins</option>
+<option value="txhousing">txhousing</option>
+<option value="faithfuld">faithfuld</option>
+<option value="diamonds">diamonds</option>
+<option value="economics">economics</option>
+<option value="economics_long">economics_long</option>
+<option value="CO2">CO2</option></select>
+      </div>
+      <div class="form-group shiny-input-container">
+        <label class="control-label" for="ggplot+3+2+2">x: </label>
+        <select data-max-options="1" id="ggplot+3+2+2" class="selectpicker form-control" multiple="multiple"><option value="Sepal.Length">Sepal.Length</option>
+<option value="Sepal.Width">Sepal.Width</option>
+<option value="Petal.Length">Petal.Length</option>
+<option value="Petal.Width">Petal.Width</option>
+<option value="Species">Species</option></select>
+      </div>
+      <div class="form-group shiny-input-container">
+        <label class="control-label" for="ggplot+3+3">y: </label>
+        <select data-max-options="1" id="ggplot+3+3" class="selectpicker form-control" multiple="multiple"><option value="Sepal.Length">Sepal.Length</option>
+<option value="Sepal.Width">Sepal.Width</option>
+<option value="Petal.Length">Petal.Length</option>
+<option value="Petal.Width">Petal.Width</option>
+<option value="Species">Species</option></select>
+      </div>
+    </div>
+    <div class="tab-pane" data-value="geom_point" id="tab-5550-2">
+      <div class="form-group shiny-input-container">
+        <label class="control-label" for="geom_point+2+2">color: </label>
+        <select data-max-options="1" id="geom_point+2+2" class="selectpicker form-control" multiple="multiple"><option value="Sepal.Length">Sepal.Length</option>
+<option value="Sepal.Width">Sepal.Width</option>
+<option value="Petal.Length">Petal.Length</option>
+<option value="Petal.Width">Petal.Width</option>
+<option value="Species">Species</option></select>
+      </div>
+      <div class="form-group shiny-input-container">
+        <label class="control-label" id="geom_point+3-label" for="geom_point+3">num for size:</label>
+        <input id="geom_point+3" type="number" class="shiny-input-number form-control" value="NA"/>
+      </div>
+      <div class="form-group shiny-input-container">
+        <label class="control-label" id="geom_point+4-label" for="geom_point+4">text for color:</label>
+        <input id="geom_point+4" type="text" class="shiny-input-text form-control" value=""/>
+      </div>
+    </div>
+    <div class="tab-pane" data-value="labs" id="tab-5550-3">
+      <div class="form-group shiny-input-container">
+        <label class="control-label" id="labs+2-label" for="labs+2">text for x:</label>
+        <input id="labs+2" type="text" class="shiny-input-text form-control" value=""/>
+      </div>
+      <div class="form-group shiny-input-container">
+        <label class="control-label" id="labs+3-label" for="labs+3">text for y:</label>
+        <input id="labs+3" type="text" class="shiny-input-text form-control" value=""/>
+      </div>
+      <div class="form-group shiny-input-container">
+        <label class="control-label" id="labs+4-label" for="labs+4">text for title:</label>
+        <input id="labs+4" type="text" class="shiny-input-text form-control" value=""/>
+      </div>
+      <div class="form-group shiny-input-container">
+        <label class="control-label" id="labs+5-label" for="labs+5">text for tags:</label>
+        <input id="labs+5" type="text" class="shiny-input-text form-control" value=""/>
+      </div>
+    </div>
+  </div>
+</div>
