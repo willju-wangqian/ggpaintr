@@ -3,7 +3,7 @@ pkgdown: 2.2.0
 pkgdown_sha: ~
 articles:
   intro-ggpaintr: intro-ggpaintr.html
-last_built: 2026-04-05T01:36Z
+last_built: 2026-04-05T01:41Z
 urls:
   reference: https://willju-wangqian.github.io/ggpaintr/reference
   article: https://willju-wangqian.github.io/ggpaintr/articles
