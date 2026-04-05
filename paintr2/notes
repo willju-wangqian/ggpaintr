@@ -1,6 +1,10 @@
 ## Notes
 
-1. update `generate_shiny` to include checkboxes
+1. print code for generated shiny?
+
+1. aes(x = reorder())?
+
+1. ... + (expr): layer name?
 
 2. check the final expression ... clean ? -> handle error message
   - make the error message more informative
@@ -27,6 +31,8 @@ Collection of showcase ideas:
   - map
   - facet_grid
   - use of local functions
+
+x. [DONE] update `generate_shiny` to include checkboxes
 
 x. [DONE] turn off certain layers? add check box for each tab except for ggplot
 

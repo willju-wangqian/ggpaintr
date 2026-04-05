@@ -211,8 +211,17 @@ ggpaintr_basic2(
     theme(legend.position = text)"
 )
 
+ggpaintr_basic2(
+  '
+  ggplot(data = mtcars, aes(x = var, y = var)) +
+  geom_point() +
+  (expr) +
+  (expr)
+  '
+)
 
 
+#
 
 
 

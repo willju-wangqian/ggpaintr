@@ -87,6 +87,9 @@ get_index_path <- function(x,
                            target = c("var", "text", "num", "expr", "upload"),
                            current_path = numeric(),
                            result = list()) {
+
+  # if (is.symbol(x) && as_string(x) %in% target)
+
   for (i in seq_along(x)) {
     new_path <- c(current_path, i)
     if (is.call(x[[i]])) {
@@ -200,10 +203,43 @@ handle_upload <- function(.expr, index_path, input_item) { # this needs to be fi
   .expr
 }
 
+get_parameter_name_by_index_path <- function(.expr, index_path) {
+  if (length(index_path) < 1) return(NULL)
+
+  if (length(index_path) == 1) {
+    names_vec <- names(.expr)
+  } else {
+    name_path <- index_path[1:(length(index_path) - 1)]
+    names_vec <- names(.expr[[name_path]])
+  }
+
+  name_index <- index_path[length(index_path)]
+  return( names_vec[name_index] )
+}
+
 handle_unknown <- function(.expr, keyword) {
-  message(paste0("Don't know how to handle keyword: ", keyword, ". Let it pass"))
+
+  keyword <- as_string(keyword)
+
+  keyword_path <- get_path(.expr, target = keyword)
+
+  if (length(keyword_path) > 1) {
+    message(paste0("Found multiple items for keyword: ", keyword,
+                   ". Let it pass."))
+    return(.expr)
+  }
+
+  keyword_path <- keyword_path[[1]]
+  keyword_name <- get_parameter_name_by_index_path(.expr, keyword_path)
+
+  if (keyword_name != "data") {
+    message(paste0("Don't know how to handle keyword: ", keyword, ". Let it pass."))
+  } else {
+    message(paste0("The dataset ", keyword, " has been provided."))
+  }
 
   .expr
+
 }
 
 encode_id <- function(index_path, func_name) paste(c(func_name, index_path), collapse = "+")
@@ -373,6 +409,8 @@ ui_insert_checkbox <- function(ui, nn) {
 }
 
 paintr_formula <- function(formula) {
+  # browser()
+
   paintr_expr <- parse_expr(formula)
   paintr_expr_list <- unlist(break_sum(paintr_expr))
   paintr_expr_names <- sapply(paintr_expr_list, get_fun_names)
@@ -445,7 +483,6 @@ tab_wrap_ui <- function(ui_list) {
 }
 
 expr_text_tab_ui <- function(ui_list) {
-  browser()
   assert_that(!is.null(names(ui_list)))
 
   tab_expr_list <- unname(purrr::map2(
@@ -610,8 +647,6 @@ get_shiny_template <- function() {
 generate_shiny <- function(paintr_obj, var_ui, output_file,
                            style = TRUE) {
 
-  browser()
-
   ui_list <- paintr_obj$ui_list
   updated_ui_list <- var_ui_replacement(ui_list, var_ui)
 
@@ -697,7 +732,7 @@ expr_remove_empty_input <- function(.expr,
   checkbox_results <- sapply(all_checkboxes, function(.p) input[[.p]])
   # all layers with FALSE
   layers_to_be_removed <- all_checkboxes[which(!checkbox_results)]
-  for (layer in layers_to_be_removed) {
+  for (layer in rev(layers_to_be_removed)) {
     target_call <- str_remove(layer, "\\+checkbox") # remove '+checkbox'
     dup <- 1
     if(str_detect(target_call, "\\-")) { # if the layer name is duplicated
@@ -705,7 +740,6 @@ expr_remove_empty_input <- function(.expr,
       target_call <- tt[1]
       dup <- as.numeric(tt[2])
     }
-
     # get expr path for the target
     target_path <- get_path(.expr, target = target_call)[[dup]]
     call_path <- target_path[-length(target_path)]

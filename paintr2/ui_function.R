@@ -87,6 +87,8 @@ generate_ui_individual <- function(key, id, param) {
     param <- paste0(id_breakdown[1], " argument ", as.numeric(id_breakdown[length(id_breakdown)])-1 )
   }
 
+  if (key == "expr") browser()
+
   if (key == "upload") {
     generate_ui_upload(id)
   } else if (key == "var") {
