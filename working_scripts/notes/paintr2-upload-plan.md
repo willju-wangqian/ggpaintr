@@ -9,7 +9,7 @@ Current state after rereading the repo note and code:
 - The current UI for `upload` is only a dataset picker, not a real local file upload control.
 - The server side assumes `input[[id]]` is the name of an existing object and calls `get(...)`, so it does not yet load files from the user’s machine.
 - The package already contains a working upload pattern in the bundled app (`inst/shiny/ggpaintr_app`) that can be reused conceptually.
-- I cannot literally clear memory or start a new chat from here, but I refreshed context by rereading [working_scripts/notes/paintr2_notes.md](/Users/willju/Research/ggpaintr/working_scripts/notes/paintr2_notes.md) and tracing the relevant source paths.
+- I cannot literally clear memory or start a new chat from here, but I refreshed context by rereading [working_scripts/notes/paintr2-overview.md](/Users/willju/Research/ggpaintr/working_scripts/notes/paintr2-overview.md) and tracing the relevant source paths.
 
 Defaults chosen for the implementation plan:
 - Support file types: `csv` and `rds`

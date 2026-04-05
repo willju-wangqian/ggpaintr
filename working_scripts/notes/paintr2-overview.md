@@ -1,4 +1,4 @@
-# paintr2 Notes
+# paintr2 Overview
 
 ## What `ggpaintr` does
 
@@ -20,6 +20,12 @@ Relevant files:
 - `R/ui_function.R`
 - `working_scripts/paintr_distribute.R`
 
+Reference:
+
+- `R/paintr2_func.R:511-791`
+- `R/ui_function.R:1-260`
+- `working_scripts/paintr_distribute.R:96-180`
+
 ## What `ggpaintr_basic2()` does
 
 `ggpaintr_basic2()` is defined in `working_scripts/paintr_distribute.R`. It
@@ -35,6 +41,10 @@ High-level flow:
 5. Evaluate the resulting `ggplot2` expression pieces with `paintr_get_plot()`.
 6. Show both the rendered plot and generated code.
 7. Optionally export a standalone Shiny app with `generate_shiny()`.
+
+Reference:
+
+- `working_scripts/paintr_distribute.R:96-180`
 
 This makes `ggpaintr_basic2()` a generic formula-driven plotting app generator.
 
@@ -55,12 +65,17 @@ It then:
 
 The return value is a `paintr_obj` containing:
 
+- `formula_text`
 - `param_list`
 - `keywords_list`
 - `index_path_list`
 - `id_list`
 - `expr_list`
 - `ui_list`
+
+Reference:
+
+- `R/paintr2_func.R:511-562`
 
 ## Placeholder tokens
 
@@ -74,14 +89,22 @@ The current supported placeholders are bare symbols:
 
 These are detected in `detect_keywords()`.
 
+Reference:
+
+- `R/paintr2_func.R:126-149`
+
 Their intended meaning in the current code:
 
 - `var`: a variable-like expression chosen by the user
 - `text`: character input
 - `num`: numeric input
 - `expr`: arbitrary R expression entered as text and parsed
-- `upload`: dataset placeholder, though this path appears experimental in the
-  current `paintr2` code
+- `upload`: dataset upload placeholder with file and dataset-name inputs
+
+Reference:
+
+- `R/ui_function.R:1-110`
+- `R/paintr2_func.R:254-304`
 
 ## Requirements for the formula string
 
@@ -91,6 +114,10 @@ The `formula` supplied to `paintr_formula()` should follow these rules.
 
 Because `paintr_formula()` uses `parse_expr()`, the input must be parsable as
 one R expression.
+
+Reference:
+
+- `R/paintr2_func.R:514`
 
 Good:
 
@@ -108,6 +135,11 @@ Bad:
 
 The parser logic assumes a top-level plot specification that can be split into
 pieces and re-added later.
+
+Reference:
+
+- `R/paintr2_func.R:26-40`
+- `R/paintr2_func.R:514-518`
 
 Typical shape:
 
@@ -145,6 +177,10 @@ labs(title = \"text\")
 If no data is available for a `var` placeholder, the UI-building path can fail
 with `data is not provided!`.
 
+Reference:
+
+- `R/ui_function.R:113-260`
+
 ### 5. Data objects must exist in the evaluation environment
 
 Examples in the repo use datasets such as:
@@ -157,10 +193,20 @@ Examples in the repo use datasets such as:
 If the formula references a data object, that object must exist when the app
 runs.
 
+Reference:
+
+- `R/ui_function.R:141-145`
+- `R/ui_function.R:172-174`
+- `R/paintr2_func.R:655-665`
+
 ### 6. `expr` inputs must be valid R code when entered
 
 User-provided `expr` values are parsed with `parse_expr()`. This allows flexible
 injection, but invalid syntax will fail.
+
+Reference:
+
+- `R/paintr2_func.R:288-295`
 
 Examples:
 
@@ -183,6 +229,10 @@ wt + 1
 This is flexible, but it also means `var` behaves more like a plot expression
 input than a strict column-name selector.
 
+Reference:
+
+- `R/paintr2_func.R:254-265`
+
 ### 8. Blank optional inputs are removed from the expression
 
 Missing or blank `text`, `num`, and `expr` values are converted to
@@ -199,6 +249,31 @@ theme(legend.position = text)
 
 to disappear cleanly if left blank.
 
+Reference:
+
+- `R/paintr2_func.R:267-295`
+- `R/paintr2_func.R:395-465`
+
+### 9. `upload` currently supports local `.csv` and `.rds` files
+
+When `data = upload` is present in the formula:
+
+- the UI includes a `fileInput()` for the dataset
+- the UI includes a companion `textInput()` for the dataset object name
+- if the dataset name is blank, a default object name is derived from the file name
+- uploaded data is read on the server side and assigned into the plotting evaluation environment
+- uploaded data can drive `var` choices
+- both global `ggplot(data = upload, ...)` and layer-specific `data = upload` are supported
+
+Unsupported upload file types currently error.
+
+Reference:
+
+- `R/ui_function.R:1-20`
+- `R/ui_function.R:113-260`
+- `R/paintr2_func.R:152-251`
+- `R/paintr2_func.R:613-653`
+
 ## Notes about execution flow
 
 `paintr_complete_expr()` performs the placeholder substitution at draw time.
@@ -212,9 +287,17 @@ It:
 5. Produces both:
    - `complete_expr_list`
    - `code_text`
+   - `eval_env`
 
-`paintr_get_plot()` then evaluates each expression piece and rebuilds the final
-plot by adding the components back together.
+`paintr_get_plot()` then evaluates each expression piece in the provided
+environment and rebuilds the final plot by adding the components back together.
+
+For upload-backed formulas, `eval_env` contains the uploaded datasets under
+their resolved object names.
+
+Reference:
+
+- `R/paintr2_func.R:613-665`
 
 ## Practical authoring advice
 
@@ -226,15 +309,51 @@ When writing a `paintr2` formula template, use this checklist:
 - Ensure referenced datasets exist in the app environment
 - Use `var` only where a data context exists
 - Use `expr` only where arbitrary parsed code is acceptable
-- Treat `upload` support as incomplete unless verified further
+- Use `upload` only for `.csv` or `.rds` datasets
+- Remember that exported apps currently reuse the `paintr2` runtime through `ggpaintr:::...` calls
+
+Reference:
+
+- `R/paintr2_func.R:705-791`
+
+## Testing status
+
+The repo now includes package-standard automated testing for the `paintr2` path.
+
+Current coverage includes:
+
+- formula parsing
+- placeholder detection and substitution
+- upload helper behavior
+- upload-backed `var` handling
+- expression completion
+- plot construction
+- supported and unsupported use cases
+- Shiny app export generation
+
+Current testing locations:
+
+- `tests/testthat/`
+- `tests/testthat/fixtures/`
+- `tests/manual/manual-checklist-paintr2.md`
+- `.github/workflows/R-CMD-check.yaml`
+
+Reference:
+
+- `DESCRIPTION:26-41`
+- `tests/testthat.R`
+- `.github/workflows/R-CMD-check.yaml`
 
 ## Suggested future cleanup
 
 Current code observations worth revisiting later:
 
-- `upload` support looks incomplete or experimental.
 - `var` currently accepts parsed expressions, not only selected column names.
-- There is at least one `browser()` call still present in `R/ui_function.R`.
 - There is at least one `browser()` call still present in
   `expr_remove_emptycall()`, though that function does not appear to be the main
   path used by `paintr_complete_expr()`.
+
+Reference:
+
+- `R/paintr2_func.R:254-265`
+- `R/paintr2_func.R:410-423`

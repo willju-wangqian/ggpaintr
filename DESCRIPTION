@@ -28,6 +28,7 @@ Suggests:
     rmarkdown,
     DT,
     shinydashboard,
+    testthat (>= 3.0.0),
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
@@ -37,3 +38,4 @@ Depends:
     ggplot2 (>= 3.3.0)
 VignetteBuilder: knitr
 URL: https://willju-wangqian.github.io/ggpaintr/
+Config/testthat/edition: 3
