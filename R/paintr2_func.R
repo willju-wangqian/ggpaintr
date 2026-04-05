@@ -149,6 +149,106 @@ switch_keywords <- function(.x, ...) {
   )
 }
 
+paintr_upload_name_id <- function(id) {
+  paste0(id, "+name")
+}
+
+paintr_upload_default_name <- function(file_name) {
+  file_stem <- tools::file_path_sans_ext(basename(file_name))
+  file_stem <- gsub("[^[:alnum:]_]+", "_", file_stem)
+  file_stem <- gsub("^_+|_+$", "", file_stem)
+  if (identical(file_stem, "")) {
+    file_stem <- "uploaded_data"
+  }
+
+  make.names(file_stem)
+}
+
+paintr_read_uploaded_data <- function(file_info) {
+  if (is.null(file_info) || is.null(file_info$datapath) || is.null(file_info$name)) {
+    return(NULL)
+  }
+
+  ext <- tolower(tools::file_ext(file_info$name))
+  if (ext == "csv") {
+    return(read.csv(file_info$datapath))
+  }
+  if (ext == "rds") {
+    return(readRDS(file_info$datapath))
+  }
+
+  stop("Please upload a .csv or .rds file.", call. = FALSE)
+}
+
+paintr_resolve_upload_info <- function(input, upload_id, strict = FALSE) {
+  file_info <- input[[upload_id]]
+
+  if (is.null(file_info) || is.null(file_info$datapath) || is.null(file_info$name)) {
+    if (strict) {
+      stop(
+        paste0("Upload required for input '", upload_id, "'."),
+        call. = FALSE
+      )
+    }
+    return(NULL)
+  }
+
+  data_obj <- paintr_read_uploaded_data(file_info)
+  object_name <- input[[paintr_upload_name_id(upload_id)]]
+  object_name <- trimws(if (is.null(object_name)) "" else object_name)
+  if (identical(object_name, "")) {
+    object_name <- paintr_upload_default_name(file_info$name)
+  } else {
+    object_name <- make.names(object_name)
+  }
+
+  ext <- tolower(tools::file_ext(file_info$name))
+  read_fun <- switch(
+    ext,
+    csv = "read.csv",
+    rds = "readRDS",
+    stop("Please upload a .csv or .rds file.", call. = FALSE)
+  )
+
+  list(
+    data = data_obj,
+    object_name = object_name,
+    file_name = file_info$name,
+    code_text = paste0(object_name, " <- ", read_fun, "(\"", file_info$name, "\")")
+  )
+}
+
+paintr_get_uploaded_data <- function(input, upload_id) {
+  upload_info <- paintr_resolve_upload_info(input, upload_id, strict = FALSE)
+
+  if (is.null(upload_info)) {
+    return(NULL)
+  }
+
+  upload_info$data
+}
+
+paintr_prepare_eval_env <- function(paintr_obj, input, envir = parent.frame()) {
+  eval_env <- rlang::env_clone(envir)
+  upload_ids <- character()
+
+  for (expr_name in names(paintr_obj[['keywords_list']])) {
+    keyword_list <- paintr_obj[['keywords_list']][[expr_name]]
+    upload_matches <- sapply(keyword_list, detect_keywords) == "upload"
+    upload_ids <- c(upload_ids, names(keyword_list)[upload_matches])
+  }
+
+  for (upload_id in upload_ids) {
+    upload_info <- paintr_resolve_upload_info(input, upload_id, strict = FALSE)
+    if (is.null(upload_info)) {
+      next
+    }
+
+    assign(upload_info$object_name, upload_info$data, envir = eval_env)
+  }
+
+  eval_env
+}
 
 
 handle_var <- function(.expr, index_path, input_item) {
@@ -194,7 +294,7 @@ handle_expr <- function(.expr, index_path, input_item) {
   .expr
 }
 
-handle_upload <- function(.expr, index_path, input_item) { # this needs to be fixed for real data upload
+handle_upload <- function(.expr, index_path, input_item) {
   if ((!is.null(input_item)) & (input_item != "")) {
     expr_pluck(.expr, index_path) <- parse_expr(input_item)
   } else {
@@ -447,6 +547,7 @@ paintr_formula <- function(formula) {
   )
 
   result <- list(
+    formula_text = formula,
     param_list = paintr_expr_param_list,
     keywords_list = keywords_list,
     index_path_list = index_path_list,
@@ -509,22 +610,27 @@ expr_apply_checkbox_result <- function(expr, nn, input) {
   }
 }
 
-paintr_complete_expr <- function(paintr_obj, input) {
+paintr_complete_expr <- function(paintr_obj, input, envir = parent.frame()) {
   assert_that(class(paintr_obj) == 'paintr_obj')
 
   paintr_processed_expr_list <- paintr_obj[['expr_list']]
   unfolded_id_list <- unlist(paintr_obj[['id_list']])
   keywords_list <- paintr_obj[['keywords_list']]
   index_path_list <- paintr_obj[['index_path_list']]
+  eval_env <- paintr_prepare_eval_env(paintr_obj, input, envir = envir)
 
   for (id in unfolded_id_list) {
-
+    input_item <- input[[id]]
+    if (detect_keywords(keywords_list[[unlist(strsplit(id, "\\+"))[1]]][[id]]) == "upload") {
+      upload_info <- paintr_resolve_upload_info(input, id, strict = FALSE)
+      input_item <- if (is.null(upload_info)) "" else upload_info$object_name
+    }
     id_domain <- unlist(strsplit(id, "\\+"))[1]
     paintr_processed_expr_list[[id_domain]] <-
       expr_replace_keywords(paintr_processed_expr_list[[id_domain]],
                             keywords_list[[id_domain]][[id]],
                             index_path_list[[id_domain]][[id]],
-                            input[[id]])
+                            input_item)
   }
 
   paintr_processed_expr_list <- lapply(paintr_processed_expr_list, expr_remove_null)
@@ -540,7 +646,8 @@ paintr_complete_expr <- function(paintr_obj, input) {
 
   return(list(
     complete_expr_list = paintr_processed_expr_list,
-    code_text = code_text
+    code_text = code_text,
+    eval_env = eval_env
   ))
 
 }
@@ -597,10 +704,11 @@ check_remove_null <- function(x) {
 
 get_shiny_template <- function() {
   shiny_template <- c(
+    "library(ggpaintr)",
     "library(shiny)",
     "library(shinyWidgets)",
     "",
-    "# Please load your data first",
+    "input_formula <- $formula_text$",
     "",
     "ui <- fluidPage(",
     "",
@@ -610,30 +718,51 @@ get_shiny_template <- function() {
     "  # Sidebar with a slider input for number of bins",
     "  sidebarLayout(",
     "    sidebarPanel(",
-    "      $text_ui$,",
+    "      uiOutput(\"controlPanel\"),",
     "      actionButton(\"draw\", \"click to draw the plot\"),",
     "    ),",
     "",
     "    # Show a plot of the generated distribution",
     "    mainPanel(",
-    "      plotOutput(\"outputPlot\")",
+    "      plotOutput(\"outputPlot\"),",
+    "      verbatimTextOutput(\"outputCode\")",
     "    )",
     "  )",
     ")",
     "",
-    "server <- function(input, output) {",
+    "server <- function(input, output, session) {",
     "",
+    "  session$userData$paintr <- reactiveValues(obj = list(NULL))",
+    "  session$userData$paintr$obj <- ggpaintr:::paintr_formula(input_formula)",
+    "",
+    "  observe({",
+    "    req(session$userData$paintr$obj)",
+    "    session$userData$paintr$var_ui_list <-",
+    "      ggpaintr:::output_embed_var(input, output, session$userData$paintr$obj)",
+    "  })",
+    "",
+    "  output$controlPanel <- renderUI({",
+    "    req(session$userData$paintr$obj)",
+    "    column(12, ggpaintr:::paintr_get_tab_ui(session$userData$paintr$obj))",
+    "  })",
     "",
     "  observe({",
     "",
-    "    p_expr <- parse_expr('expr($text_server$)')",
-    "",
-    "    p_expr_active <- expr_remove_empty_input(p_expr, input)",
+    "    req(session$userData$paintr$obj)",
+    "    complete_expr_code <- ggpaintr:::paintr_complete_expr(",
+    "      session$userData$paintr$obj,",
+    "      input",
+    "    )",
     "",
     "    output$outputPlot <- renderPlot({",
+    "      ggpaintr:::paintr_get_plot(",
+    "        complete_expr_code[[\"complete_expr_list\"]],",
+    "        envir = complete_expr_code[[\"eval_env\"]]",
+    "      )",
+    "    })",
     "",
-    "      paintr_get_plot(expr_plot_eval(p_expr_active))",
-    "",
+    "    output$outputCode <- renderText({",
+    "      complete_expr_code[[\"code_text\"]]",
     "    })",
     "",
     "  }) %>% bindEvent(input$draw)",
@@ -646,23 +775,12 @@ get_shiny_template <- function() {
 
 generate_shiny <- function(paintr_obj, var_ui, output_file,
                            style = TRUE) {
-
-  ui_list <- paintr_obj$ui_list
-  updated_ui_list <- var_ui_replacement(ui_list, var_ui)
-
-  text_ui <- expr_text_tab_ui(updated_ui_list)
-  text_server <- expr_text_server(paintr_obj)
-
   shiny_text <- get_shiny_template()
+  formula_text <- paste(capture.output(dput(paintr_obj$formula_text)), collapse = "")
   shiny_text <- stringr::str_replace(
     shiny_text,
-    "\\$text_ui\\$",
-    text_ui
-  )
-  shiny_text <- stringr::str_replace(
-    shiny_text,
-    "\\$text_server\\$",
-    text_server
+    "\\$formula_text\\$",
+    formula_text
   )
 
   writeLines(shiny_text, output_file)
@@ -838,7 +956,3 @@ server <- function(input, output) {
 
 shinyApp(ui, server)'
 }
-
-
-
-

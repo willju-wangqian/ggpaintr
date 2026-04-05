@@ -101,7 +101,10 @@ server <- function(input, output, session) {
 
     output$outputPlot <- renderPlot({
 
-      paintr_get_plot(complete_expr_code[['complete_expr_list']])
+      paintr_get_plot(
+        complete_expr_code[['complete_expr_list']],
+        envir = complete_expr_code[['eval_env']]
+      )
 
     })
 
@@ -115,6 +118,5 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui, server)
-
 
 

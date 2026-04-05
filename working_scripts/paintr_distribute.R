@@ -74,7 +74,10 @@ ggpaintr_basic <- function(input_formula) {
 
       output$outputPlot <- renderPlot({
 
-        paintr_get_plot(complete_expr[['complete_expr_list']])
+        paintr_get_plot(
+          complete_expr[['complete_expr_list']],
+          envir = complete_expr[['eval_env']]
+        )
 
       })
 
@@ -157,7 +160,10 @@ ggpaintr_basic2 <- function(input_formula) {
 
       output$outputPlot <- renderPlot({
 
-        paintr_get_plot(complete_expr_code[['complete_expr_list']])
+        paintr_get_plot(
+          complete_expr_code[['complete_expr_list']],
+          envir = complete_expr_code[['eval_env']]
+        )
 
       })
 
@@ -344,4 +350,3 @@ safe_division(10, 0)  # Should trigger the error handler
 tt <- expr(geom_point(aes(foo1()), foo2(), foo3(foo4())))
 tt <- expr(labs(aes(foo1()), foo2(), foo3(foo4())))
 expr_remove_emptycall2(tt)
-

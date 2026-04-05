@@ -70,7 +70,10 @@ ggpaintr_basic2 <- function(input_formula) {
 
       output$outputPlot <- renderPlot({
 
-        paintr_get_plot(complete_expr_code[['complete_expr_list']])
+        paintr_get_plot(
+          complete_expr_code[['complete_expr_list']],
+          envir = complete_expr_code[['eval_env']]
+        )
 
       })
 
@@ -167,5 +170,4 @@ ggpaintr_basic2(
   theme_minimal(base_size = num)
   '
 )
-
 

@@ -1,11 +1,18 @@
 generate_ui_upload <- function(id) {
   .expr <- expr(
-    pickerInput(!!id, "select a default dataset:",
-                choices = c("iris", "mtcars","penguins", "txhousing", "faithfuld",
-                            "diamonds", "economics", "economics_long", "CO2"),
-                selected = "",
-                multiple = TRUE,
-                options = pickerOptions(maxOptions = 1))
+    tagList(
+      fileInput(
+        !!id,
+        "upload a dataset (.csv or .rds):",
+        accept = c(".csv", ".rds")
+      ),
+      textInput(
+        paintr_upload_name_id(!!id),
+        "dataset object name:",
+        placeholder = "Defaults to the uploaded file name"
+      ),
+      helpText("Leave the dataset name blank to use the uploaded file name.")
+    )
   )
   ui <- eval(.expr)
   attr(ui, "ui_expr") <- .expr
@@ -87,8 +94,6 @@ generate_ui_individual <- function(key, id, param) {
     param <- paste0(id_breakdown[1], " argument ", as.numeric(id_breakdown[length(id_breakdown)])-1 )
   }
 
-  if (key == "expr") browser()
-
   if (key == "upload") {
     generate_ui_upload(id)
   } else if (key == "var") {
@@ -162,7 +167,7 @@ output_embed_var <- function(input, output, paintr_obj,
 
           if (str_keywords[data_index] == 'upload') { # if data = upload
             tmp_data <- tryCatch({
-              get(input[[id_list[[i]][[data_index]]]])
+              paintr_get_uploaded_data(input, id_list[[i]][[data_index]])
             }, error = function(e) NULL)
           } else { # if data = mpg
             tmp_data <- eval(keywords_list[[i]][[data_index]], envir = envir)
@@ -178,7 +183,7 @@ output_embed_var <- function(input, output, paintr_obj,
 
             if (global_data_flag == 'upload') {
               tmp_data <- tryCatch({
-                get(input[[global_data_id]])
+                paintr_get_uploaded_data(input, global_data_id)
               }, error = function(e) NULL)
             } else if (global_data_flag == 'local') {
               tmp_data <- global_data
@@ -336,5 +341,4 @@ foo3 <- function(input) {
 # generate ui for upload, text, num, expr, etc
 # generate placeholder ui for var
 # keep track of var placeholders and data
-
 
