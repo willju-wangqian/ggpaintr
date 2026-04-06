@@ -199,6 +199,7 @@ paintr_resolve_upload_info <- function(input, upload_id, strict = FALSE) {
   if (identical(object_name, "")) {
     object_name <- paintr_upload_default_name(file_info$name)
   } else {
+    object_name <- gsub("[[:space:]]+", "_", object_name)
     object_name <- make.names(object_name)
   }
 
@@ -704,7 +705,8 @@ check_remove_null <- function(x) {
 
 get_shiny_template <- function() {
   shiny_template <- c(
-    "library(ggpaintr)",
+    "source(here('R/paintr2_func.R'))",
+    "source(here('R/ui_function.R'))",
     "library(shiny)",
     "library(shinyWidgets)",
     "",
@@ -776,11 +778,14 @@ get_shiny_template <- function() {
 generate_shiny <- function(paintr_obj, var_ui, output_file,
                            style = TRUE) {
   shiny_text <- get_shiny_template()
-  formula_text <- paste(capture.output(dput(paintr_obj$formula_text)), collapse = "")
+  formula_text <- paintr_obj$formula_text
+  formula_text <- gsub("\\\\", "\\\\\\\\", formula_text)
+  formula_text <- gsub("\"", "\\\\\"", formula_text)
+  formula_text <- paste0("\"", formula_text, "\"")
   shiny_text <- stringr::str_replace(
     shiny_text,
     "\\$formula_text\\$",
-    formula_text
+    function(...) formula_text
   )
 
   writeLines(shiny_text, output_file)

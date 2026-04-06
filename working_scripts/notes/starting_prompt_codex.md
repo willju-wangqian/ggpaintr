@@ -17,6 +17,7 @@ Then read the implementation files referenced by those notes, especially:
 - R/paintr2_func.R
 - R/ui_function.R
 - working_scripts/paintr_distribute.R
+- working_scripts/manual_test.Rmd
 - DESCRIPTION
 - tests/testthat/
 
@@ -31,7 +32,10 @@ Important project context:
   - `expr`
   - `upload`
 - `upload` is currently implemented for `.csv` and `.rds`.
+- In custom upload dataset names, whitespace is now normalized to underscores before `make.names()`.
+- `generate_shiny()` now has export test coverage for preserving `input_formula` in the generated app.
 - There is now a package-standard automated test setup under `tests/testthat/`.
+- One manual testing round has been completed, and the runnable manual workbook is `working_scripts/manual_test.Rmd`.
 - The notes in `working_scripts/notes/` contain code references with file paths and line numbers. Use them.
 
 After reading the files above:
@@ -51,6 +55,8 @@ Working rules:
 - When explaining behavior, cite the file paths and line numbers you used.
 - Prefer preserving the current `paintr2` direction and the current `testthat` structure.
 - If you change behavior, update tests when needed.
+- If the task touches export behavior, read `tests/testthat/test-export-shiny.R`.
+- If the task touches manual interaction behavior, read `working_scripts/manual_test.Rmd` and `tests/manual/manual-checklist-paintr2.md`.
 - If you discover important new context, update the notes in `working_scripts/notes/` so a future fresh session can recover quickly.
 - Be concise but concrete.
 ```

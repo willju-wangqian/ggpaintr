@@ -1,0 +1,321 @@
+---
+title: "paintr2 Manual Test Workbook"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+This workbook is a practical manual test guide for the current `paintr2` workflow. It is intended to complement, not replace, the package-standard automated tests in `tests/testthat/`.
+
+It aligns with:
+
+- `working_scripts/notes/plans/testing-strategy.md`
+- `tests/manual/manual-checklist-paintr2.md`
+
+## Setup
+
+Assumptions:
+
+- Run this from the repo root.
+- Use the current `paintr2` path centered on `R/paintr2_func.R`, `R/ui_function.R`, and `working_scripts/paintr_distribute.R`.
+- Use the committed fixture files under `tests/testthat/fixtures/` for upload checks.
+
+```{r setup, message=FALSE, warning=FALSE}
+library(ggpaintr)
+library(shiny)
+library(tidyverse)
+library(shinyWidgets)
+library(palmerpenguins)
+library(rlang)
+library(assertthat)
+library(lobstr)
+library(here)
+
+source(here("R/paintr2_func.R"))
+source(here("R/ui_function.R"))
+ggpaintr_basic2 <- function(input_formula) {
+
+  ui <- fluidPage(
+
+    # Application title
+    titlePanel("ggpaintr demo"),
+
+    # Sidebar with a slider input for number of bins
+    sidebarLayout(
+      sidebarPanel(
+        # textAreaInput("formula", label = "Enter the paintr formula",
+        #               value = input_formula, rows = 5, placeholder = "Input the formula"),
+        # actionButton("enter", "click to enter the formula"),
+        uiOutput("controlPanel"),
+        actionButton("draw", "click to draw the plot"),
+        downloadButton("shinyExport", "export the shiny app"),
+      ),
+
+      # Show a plot of the generated distribution
+      mainPanel(
+        plotOutput("outputPlot"),
+        verbatimTextOutput('outputCode')
+      )
+    )
+  )
+
+  server <- function(input, output, session) {
+
+    session$userData$paintr <- reactiveValues(obj = list(NULL))
+    session$userData$paintr$obj <- paintr_formula(input_formula)
+
+    observe({
+      req(session$userData$paintr$obj)
+
+      session$userData$paintr$var_ui_list <-
+        output_embed_var(input, output, session$userData$paintr$obj)
+    })
+
+    output$controlPanel <- renderUI({
+      req(session$userData$paintr)
+
+      column(12, paintr_get_tab_ui(session$userData$paintr$obj))
+
+    })
+
+    output$shinyExport <- downloadHandler(
+      filename = "trial_0.R",
+      content = function(file) {
+
+        req(session$userData$paintr$var_ui_list)
+
+        generate_shiny(session$userData$paintr$obj,
+                       session$userData$paintr$var_ui_list,
+                       file,
+                       style = TRUE)
+
+      }
+    )
+
+    observe({
+      req(session$userData$paintr$obj)
+
+      complete_expr_code <-
+        paintr_complete_expr(session$userData$paintr$obj, input)
+
+      output$outputPlot <- renderPlot({
+
+        paintr_get_plot(
+          complete_expr_code[['complete_expr_list']],
+          envir = complete_expr_code[['eval_env']]
+        )
+
+      })
+
+      output$outputCode <- renderText({
+
+        complete_expr_code[['code_text']]
+
+      })
+
+    }) %>% bindEvent(input$draw)
+  }
+
+  shinyApp(ui, server)
+}
+
+world_map <- map_data("world")
+
+# Some EU Contries
+some.eu.countries <- c(
+  "Portugal", "Spain", "France", "Switzerland", "Germany",
+  "Austria", "Belgium", "UK", "Netherlands",
+  "Denmark", "Poland", "Italy",
+  "Croatia", "Slovenia", "Hungary", "Slovakia",
+  "Czech republic"
+)
+# Retrievethe map data
+some.eu.maps <- map_data("world", region = some.eu.countries)
+
+# Compute the centroid as the mean longitude and lattitude
+# Used as label coordinate for country's names
+region.lab.data <- some.eu.maps %>%
+  group_by(region) %>%
+  summarise(long = mean(long), lat = mean(lat))
+
+
+csv_fixture <- here("tests", "testthat", "fixtures", "simple_numeric.csv")
+rds_fixture <- here("tests", "testthat", "fixtures", "simple_numeric.rds")
+bad_fixture <- here("tests", "testthat", "fixtures", "bad_extension.txt")
+
+list(
+  csv_fixture = csv_fixture,
+  rds_fixture = rds_fixture,
+  bad_fixture = bad_fixture
+)
+```
+
+Upload fixture paths to use during manual testing:
+
+- `r csv_fixture`
+- `r rds_fixture`
+- `r bad_fixture`
+
+## Formula 1: Static All-Placeholders Interaction
+
+This app is the main static-data interaction sweep. It exercises `var`, `text`, `num`, `expr`, `outputCode`, and layer checkbox behavior in one place.
+
+```{r formula-1, eval=FALSE}
+ggpaintr_basic2("
+ggplot(data = iris, aes(x = var, y = var)) +
+  geom_point(aes(color = var), size = num, alpha = num) +
+  labs(title = text, x = text, y = text) +
+  facet_wrap(expr) +
+  theme(legend.position = text)
+")
+```
+
+Suggested manual inputs:
+
+- `x = Sepal.Length`
+- `y = Sepal.Width`
+- `color = Species`
+- `size = 2.5`
+- `alpha = 0.7`
+- `title = Iris manual test`
+- `x text = Sepal length`
+- `y text = Sepal width`
+- `facet_wrap expr = ~ Species`
+- `legend.position text = bottom`
+
+Expected checks:
+
+- Control tabs render for all layers.
+- Clicking `draw` updates both the plot and `outputCode`.
+- Clearing `title` removes `labs(title = ...)` content from the generated code.
+- Clearing `facet_wrap` removes the faceting call from the generated code.
+- Clearing `legend.position` removes that theme argument from the generated code.
+- Unchecking `geom_point`, `labs`, `facet_wrap`, or `theme` removes that layer from both the plot and the code.
+
+## Formula 2: `var` Expression Input
+
+This app checks the current behavior where `var` accepts expression-like input, not just plain column names.
+
+```{r formula-2, eval=FALSE}
+ggpaintr_basic2("
+ggplot(data = mtcars, aes(x = log(var), y = var + 1)) +
+  geom_point() +
+  labs(title = text)
+")
+```
+
+Suggested manual inputs:
+
+- `x = log(mpg)`
+- `y = disp + 1`
+- `title = var expression test`
+
+Expected checks:
+
+- The plot draws successfully with expression-like `var` inputs.
+- `outputCode` contains `log(mpg)` for `x`.
+- `outputCode` contains `disp + 1` for `y`.
+
+## Formula 3: Global Upload
+
+This app checks upload-backed global data, delayed `var` controls, default/custom dataset names, and unsupported file handling.
+
+```{r formula-3, eval=FALSE}
+ggpaintr_basic2("
+ggplot(data = upload, aes(x = var, y = var)) +
+  geom_point(size = num) +
+  labs(title = 'good')
+")
+```
+
+Suggested manual sequence:
+
+- Launch the app and confirm the `var` selectors are not available before an upload.
+- Upload `simple_numeric.csv` from `tests/testthat/fixtures/simple_numeric.csv`.
+- Leave the dataset object name blank the first time.
+- Use `x = x`, `y = y`, `size = 2`, `title = uploaded scatter`.
+- Click `draw`.
+- Repeat with `simple_numeric.rds` from `tests/testthat/fixtures/simple_numeric.rds`.
+- Repeat again with custom dataset object name `manual_upload_data`.
+- Retry with `bad_extension.txt` from `tests/testthat/fixtures/bad_extension.txt`.
+
+Expected checks:
+
+- `var` selectors appear only after a valid upload.
+- With a blank dataset name, the generated code uses a filename-derived object name.
+- With a custom dataset name, the generated code uses `manual_upload_data`.
+- The app draws successfully for both `.csv` and `.rds`.
+- The bad-extension upload shows a clear error without crashing the session.
+
+## Formula 4: Layer-Specific Upload
+
+This app checks mixed static/upload layering and confirms that upload-backed `var` controls apply only to the upload-backed layer.
+
+```{r formula-4, eval=FALSE}
+ggpaintr_basic2("
+ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
+  geom_point(color = 'grey70', size = 2) +
+  geom_point(data = upload, aes(x = var, y = var, color = var), size = num) +
+  labs(title = text)
+")
+```
+
+Suggested manual sequence:
+
+- Launch the app and inspect the controls before upload.
+- Confirm the static `iris` layer does not need upload-driven controls.
+- Upload `simple_numeric.csv` or `simple_numeric.rds`.
+- Set upload-layer `x = x`, `y = y`, `color = group`, `size = 3`.
+- Set `title = mixed static/upload plot`.
+- Click `draw`.
+- Uncheck the upload-backed `geom_point` layer and draw again.
+
+Expected checks:
+
+- Only the upload-backed layer depends on uploaded columns.
+- The static `iris` layer remains intact before and after upload.
+- The combined plot shows both static and uploaded layers when enabled.
+- Disabling the upload-backed layer leaves a valid static plot.
+
+## Formula 5: Export Smoke Test
+
+This app is the static export-oriented formula. Use it along with Formula 3 for the two export checks.
+
+```{r formula-5, eval=FALSE}
+ggpaintr_basic2("
+ggplot(data = iris, aes(x = var, y = var)) +
+  geom_point(size = num) +
+  labs(title = text, subtitle = text) +
+  facet_grid(var ~ var, labeller = expr)
+")
+```
+
+Suggested manual inputs:
+
+- `x = Sepal.Length`
+- `y = Sepal.Width`
+- `row facet = Species`
+- `col facet = Species`
+- `labeller expr = label_both`
+- `size = 1.5`
+- `title = export test`
+- `subtitle = static formula export`
+
+Expected checks:
+
+- The static app draws and updates `outputCode` correctly.
+- Export the generated app from this formula and run it.
+- Export the generated app from Formula 3 and run it.
+- In the exported upload app, repeat one CSV upload flow and one RDS upload flow.
+- Confirm the exported apps still render both the plot and the generated code.
+
+## Final Checklist
+
+- Plot updates after clicking `draw`.
+- `outputCode` matches the active inputs.
+- Blank optional `text`, `num`, and `expr` values disappear cleanly from generated code where expected.
+- Unchecked layers disappear from both the plot and `outputCode`.
+- Upload-backed `var` controls appear only after valid upload.
+- Default upload naming works when the dataset name box is blank.
+- Custom upload naming works when a dataset name is provided.
+- Exported apps run and preserve the same behavior for static and upload formulas.

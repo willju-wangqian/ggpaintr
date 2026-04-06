@@ -1,53 +1,14 @@
 ## Notes
 
-1. print code for generated shiny?
+1. add instruction or modify the current prompts. Better suggestions?
+  - "keep the layer of xxx"
+  - "text for xxx"
 
-1. aes(x = reorder())?
+2. shiny app theme? redesign the current UI
 
-1. ... + (expr): layer name?
+3. test cases that can break ggpaintr
 
-2. check the final expression ... clean ? -> handle error message
-  - make the error message more informative
-  - check the plot render function, find possible solutions
-  - goal: print error messages from the plot panel
+4. test cases of super complicated ggplot2 formula
 
-3. add NS(), allow potential combination of multiple baby shiny apps
-
-4. test var + 1: .data[[""]] and var might not work? primary test passed
-
-5. label for unnamed augrments. The current herustic might not work
-  - facet_grid(var ~ var + var)
-  - extend keywords to var1, var2, var3
-  - $var^
-
-6. will get errors if column names has white spaces
-  - why?
-
-7. upload is not really implemented
-
-8. clean up the function files
-
-Collection of showcase ideas:
-  - map
-  - facet_grid
-  - use of local functions
-
-x. [DONE] update `generate_shiny` to include checkboxes
-
-x. [DONE] turn off certain layers? add check box for each tab except for ggplot
-
-x. [DONE] finish baby shiny template and test, key file: trial_06_iris_clean2.R
-
-x. [DONE] + expr in formula?
-
-x. [DONE] remove empty call?
-
-x. [DONE] expr_remove_emptycall2 -> replace the original one? Yes
-
-x. [DONE] for the baby shiny, clean the expr
-
-x. [DONE] define a function in app.R, it's not global
-
-x. [DONE] take care of expr when export
 
 # https://shiny.posit.co/r/articles/share/function/

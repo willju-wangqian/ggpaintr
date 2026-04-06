@@ -27,3 +27,32 @@ test_that("generate_shiny preserves upload-aware runtime code", {
   expect_match(app_text, "ggplot\\(data = upload")
   expect_match(app_text, "ggpaintr:::output_embed_var", fixed = TRUE)
 })
+
+test_that("generate_shiny preserves the formula text in the exported app", {
+  formula_text <- paste(
+    "",
+    "ggplot(data = upload, aes(x = var, y = var)) +",
+    "  geom_point(size = num) +",
+    "  labs(title = text)",
+    sep = "\n"
+  )
+
+  obj <- paintr_formula(formula_text)
+  out_file <- tempfile(fileext = ".R")
+
+  generate_shiny(obj, list(), out_file, style = FALSE)
+
+  app_expr <- parse(file = out_file)
+  input_formula_expr <- NULL
+
+  for (expr in app_expr) {
+    if (rlang::is_call(expr, "<-") &&
+        rlang::is_symbol(expr[[2]], "input_formula")) {
+      input_formula_expr <- expr
+      break
+    }
+  }
+
+  expect_false(is.null(input_formula_expr))
+  expect_identical(eval(input_formula_expr[[3]]), formula_text)
+})
