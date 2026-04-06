@@ -28,7 +28,8 @@ workflow.
 
 4. Runtime cleanup
    - reduce stale debug code and duplicated runtime paths
-   - improve readability in maintained `paintr2` helper files
+   - improve readability in maintained `paintr2` helper files now that
+     launch-time vs draw-time error boundaries are more explicit
    - keep existing examples and tests intact
 
 5. Namespacing with `NS()`

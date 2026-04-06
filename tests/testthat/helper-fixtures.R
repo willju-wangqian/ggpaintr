@@ -112,7 +112,7 @@ unsupported_use_cases <- list(
   ),
   unknown_data_object = list(
     formula = "ggplot(data = unknown_object, aes(x = var, y = var)) + geom_point()",
-    stage = "ui"
+    stage = "plot"
   ),
   malformed_expr_input = list(
     formula = "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + facet_wrap(expr)",

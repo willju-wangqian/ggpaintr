@@ -23,7 +23,7 @@ Core runtime flow:
   Reference: `R/paintr2_func.R:613-653`
 - `paintr_get_plot()` evaluates the completed expression list into a plot  
   Reference: `R/paintr2_func.R:655-665`
-- `paintr_build_runtime()` now wraps completion plus plot construction into one structured result for the app UI and exported apps, preserving generated code on plot-stage failures  
+- `paintr_build_runtime()` now wraps completion, plot construction, and render-time validation into one structured result for the app UI and exported apps, preserving generated code on plot-stage failures  
   Reference: `R/paintr2_func.R`
 - `generate_shiny()` exports a standalone app script using the same runtime helpers  
   Reference: `R/paintr2_func.R:778-796`
@@ -50,6 +50,13 @@ Current behavior summary:
   Reference: `R/ui_function.R:53-63`, `R/paintr2_func.R:288-295`
 - `upload` supports `.csv` and `.rds`, creates a file input plus dataset-name input, and injects uploaded data into the evaluation environment  
   Reference: `R/ui_function.R:1-20`, `R/paintr2_func.R:167-250`
+
+Current launch-vs-draw boundary:
+
+- structural formula errors still block launch during parsing
+- `var` with no data source still blocks launch during UI preparation
+- unresolved local data objects such as `data = unknown_object` no longer block launch; they now defer to draw-time inline `Plot error:` handling
+- render-time ggplot failures such as missing faceting variables are now captured by the same draw-time error channel
 
 Upload naming status:
 
@@ -79,6 +86,7 @@ Current automated coverage includes:
 - upload helper behavior
 - upload-backed `var` handling
 - expression completion and plot construction
+- draw-time runtime error handling, including render-time ggplot failures
 - supported and unsupported formula cases
 - Shiny app export generation
 - exported `input_formula` preservation in generated apps  
@@ -103,8 +111,10 @@ Completed in this session:
 - added export test coverage for `input_formula` preservation  
   Reference: `tests/testthat/test-export-shiny.R:31-58`
 - added structured draw-time error handling for completion and plot failures, with inline Shiny error output and preserved code text on plot-stage failures
-- added automated test coverage for malformed `expr`, invalid uploads, and plot-stage missing-object errors
-- updated manual docs to cover inline error feedback flows
+- extended automated coverage for the error-message channel, including helper output shape, render-time ggplot failures, and exported-app error wiring
+- fixed a render-time error gap so faceting failures like `facet_wrap(~ Speciesasdf)` now surface through the inline error channel instead of raw Shiny `[object Object]`
+- changed unresolved local data objects such as `data = unknown_object` from launch-blocking UI failures to draw-time inline plot errors
+- updated the manual workbook and checklist to cover malformed `expr`, invalid uploads, render-time ggplot errors, recovery-after-error, exported-app error behavior, and launch-first/draw-fail missing-object cases
 
 ## Quick re-entry points
 

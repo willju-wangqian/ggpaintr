@@ -12,6 +12,31 @@ It aligns with:
 - `working_scripts/notes/testing-strategy.md`
 - `tests/manual/manual-checklist-paintr2.md`
 
+Current automated coverage for the new error-feedback channel already includes:
+
+- malformed `expr` handling in `paintr_complete_expr_safe()`
+- invalid upload handling in `paintr_complete_expr_safe()`
+- plot-stage missing-object handling in `paintr_get_plot_safe()`
+- successful runtime assembly in `paintr_build_runtime()`
+- exported app wiring for `paintr_build_runtime()` and `outputError`
+
+See:
+
+- `tests/testthat/test-runtime-feedback.R`
+- `tests/testthat/test-export-shiny.R`
+
+## Error Feedback Feature Test Guide
+
+Use the scenarios below to test the dedicated inline error channel end to end.
+
+| Scenario | Trigger | Expected error label | Plot behavior | Code behavior |
+| --- | --- | --- | --- | --- |
+| Completion-stage error | malformed `expr` such as `~` | `Input error:` | plot clears / stays empty | code stays blank |
+| Upload validation error | upload `bad_extension.txt` | `Input error:` | plot stays empty | code stays blank |
+| Plot-stage error | missing object such as `unknown_object` | `Plot error:` | plot clears / stays empty | code remains visible |
+| Recovery after error | correct the inputs and redraw | no error panel | valid plot renders | code updates normally |
+| Exported app error behavior | run exported app and trigger one error case | same inline error as in-repo app | same clearing behavior | same code behavior |
+
 ## Setup
 
 Assumptions:
@@ -320,7 +345,7 @@ Expected checks:
 
 ## Formula 6: Error Feedback Checks
 
-Use these short apps to confirm the new draw-time error path for malformed expressions and missing objects.
+Use these short apps to confirm the new draw-time error path for malformed expressions, invalid uploads, missing objects, and recovery after failure.
 
 ```{r formula-6a, eval=FALSE}
 ggpaintr_basic2("
@@ -334,13 +359,38 @@ Suggested manual sequence:
 
 - Enter `~` for `facet_wrap expr`.
 - Click `draw`.
+- Replace it with `~ Speciesasdf`.
+- Click `draw` again.
+
+Expected checks:
+
+- The app shows an inline `Input error:` message for bare `~`.
+- The session keeps running.
+- No stale plot is rendered.
+- `outputCode` stays blank because expression completion failed.
+- With `~ Speciesasdf`, the inline error channel shows a `Plot error:` message mentioning `Speciesasdf`.
+- The plot pane does not show raw Shiny `Error: [object Object]`.
+- `outputCode` remains visible for the `~ Speciesasdf` case because completion succeeded before render-time failure.
+
+```{r formula-6-upload-error, eval=FALSE}
+ggpaintr_basic2("
+ggplot(data = upload, aes(x = var, y = var)) +
+  geom_point()
+")
+```
+
+Suggested manual sequence:
+
+- Launch the app.
+- Upload `bad_extension.txt`.
+- Click `draw`.
 
 Expected checks:
 
 - The app shows an inline `Input error:` message.
-- The session keeps running.
-- No stale plot is rendered.
-- `outputCode` stays blank because expression completion failed.
+- Upload-backed `var` selectors do not become usable from the invalid file.
+- The plot stays empty.
+- `outputCode` stays blank.
 
 ```{r formula-6b, eval=FALSE}
 ggpaintr_basic2("
@@ -356,8 +406,49 @@ Suggested manual sequence:
 
 Expected checks:
 
+- The app launches without crashing before interaction.
 - The app shows an inline `Plot error:` message mentioning `unknown_object`.
+- The plot stays empty.
 - The generated code remains visible even though plot construction failed.
+
+```{r formula-6c-recovery, eval=FALSE}
+ggpaintr_basic2("
+ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
+  geom_point() +
+  facet_wrap(expr)
+")
+```
+
+Suggested manual sequence:
+
+- First enter `~` for `facet_wrap expr` and click `draw`.
+- Confirm the inline `Input error:` appears and the plot stays empty.
+- Replace the input with `~ Species`.
+- Click `draw` again.
+
+Expected checks:
+
+- The previous error message disappears after the successful draw.
+- The plot renders normally after recovery.
+- `outputCode` updates to the valid faceting code.
+- The session remains usable without restart.
+
+## Exported App Error Feedback Check
+
+Use Formula 6A or the upload-error app above, then export the generated app and run it.
+
+Suggested manual sequence:
+
+- Export the app after opening it in the workbook.
+- Run the exported app.
+- Trigger one malformed `expr` error or one invalid upload error.
+- Correct the input and redraw.
+
+Expected checks:
+
+- The exported app shows the same inline error message pattern as the in-repo app.
+- The plot clears on failure and renders again after recovery.
+- `outputCode` stays blank for completion-stage errors and updates normally after recovery.
 
 ## Final Checklist
 
@@ -369,5 +460,7 @@ Expected checks:
 - Default upload naming works when the dataset name box is blank.
 - Custom upload naming works when a dataset name is provided.
 - Inline errors appear for malformed `expr`, bad upload types, and missing objects.
+- The plot clears and does not stay stale after an error.
 - Generated code remains visible when plot construction fails after completion succeeds.
+- Recovery after an error clears the error panel and restores normal plotting.
 - Exported apps run and preserve the same behavior for static and upload formulas.

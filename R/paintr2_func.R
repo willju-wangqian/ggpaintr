@@ -744,9 +744,31 @@ paintr_get_plot_safe <- function(runtime_result, envir = parent.frame()) {
   )
 }
 
+paintr_validate_plot_render_safe <- function(runtime_result) {
+  if (!isTRUE(runtime_result$ok)) {
+    return(runtime_result)
+  }
+
+  tryCatch(
+    {
+      ggplot2::ggplot_build(runtime_result$plot)
+      runtime_result
+    },
+    error = function(e) {
+      runtime_result$ok <- FALSE
+      runtime_result$stage <- "plot"
+      runtime_result$message <- paintr_format_runtime_message("plot", e)
+      runtime_result$condition <- e
+      runtime_result$plot <- NULL
+      runtime_result
+    }
+  )
+}
+
 paintr_build_runtime <- function(paintr_obj, input, envir = parent.frame()) {
   runtime_result <- paintr_complete_expr_safe(paintr_obj, input, envir = envir)
-  paintr_get_plot_safe(runtime_result, envir = envir)
+  runtime_result <- paintr_get_plot_safe(runtime_result, envir = envir)
+  paintr_validate_plot_render_safe(runtime_result)
 }
 
 paintr_error_ui <- function(message) {

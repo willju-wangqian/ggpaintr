@@ -39,7 +39,8 @@ Key runtime path:
 2. `output_embed_var()` resolves dynamic `var` controls from available data
 3. `paintr_complete_expr()` substitutes current input values
 4. `paintr_build_runtime()` captures completion success/failure, plot
-   success/failure, generated code, and readable errors
+   construction success/failure, render-time ggplot success/failure, generated
+   code, and readable errors
 5. `generate_shiny()` exports a standalone app using the same runtime helpers
 
 References:
@@ -71,6 +72,11 @@ Current boundary notes:
 - `var` currently allows expression-like input, not only plain column names
 - `expr` inputs must still be valid R code
 - `upload` currently supports `.csv` and `.rds`
+- structurally invalid formulas still block launch
+- formulas using `var` with no data source still block launch
+- unresolved local data objects such as `data = unknown_object` are now deferred
+  to draw-time inline errors rather than blocking app launch
+- render-time ggplot failures are part of the shared runtime error path
 
 ## Main Runtime Entry Points
 

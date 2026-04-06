@@ -141,7 +141,10 @@ output_embed_var <- function(input, output, paintr_obj,
         } else {
 
           global_data_flag <- "local"
-          global_data <- eval(keywords_list[[i]][[data_index]], envir = envir)
+          global_data <- tryCatch(
+            eval(keywords_list[[i]][[data_index]], envir = envir),
+            error = function(e) NULL
+          )
 
         }
 
@@ -170,7 +173,10 @@ output_embed_var <- function(input, output, paintr_obj,
               paintr_get_uploaded_data(input, id_list[[i]][[data_index]])
             }, error = function(e) NULL)
           } else { # if data = mpg
-            tmp_data <- eval(keywords_list[[i]][[data_index]], envir = envir)
+            tmp_data <- tryCatch(
+              eval(keywords_list[[i]][[data_index]], envir = envir),
+              error = function(e) NULL
+            )
           }
 
           if (!is.null(tmp_data)) {
@@ -341,4 +347,3 @@ foo3 <- function(input) {
 # generate ui for upload, text, num, expr, etc
 # generate placeholder ui for var
 # keep track of var placeholders and data
-

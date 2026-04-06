@@ -15,6 +15,7 @@ test_that("generate_shiny writes a syntactically valid app script", {
   expect_match(app_text, "ggpaintr:::paintr_build_runtime", fixed = TRUE)
   expect_match(app_text, "uiOutput\\(\"outputError\"\\)")
   expect_match(app_text, "ggpaintr:::paintr_error_ui", fixed = TRUE)
+  expect_match(app_text, "output\\$outputError <- renderUI")
 })
 
 test_that("generate_shiny preserves upload-aware runtime code", {

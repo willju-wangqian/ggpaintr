@@ -7,6 +7,7 @@
 3. Confirm the plot updates and `outputCode` matches the chosen inputs.
 4. Disable one or more layer checkboxes and confirm the plot and code both update.
 5. Enter a malformed `expr` value and confirm the app shows an inline error instead of failing silently.
+6. Enter a faceting expression with a missing variable such as `~ Speciesasdf` and confirm the inline error channel shows the faceting error instead of raw Shiny `[object Object]`.
 
 ## Upload checks
 
@@ -33,10 +34,21 @@
 3. In the exported upload app, repeat one CSV upload flow and one RDS upload flow.
 4. Confirm the exported app still renders the plot and code correctly.
 5. Confirm exported apps also show inline error messages for bad `expr` input and bad uploads.
+6. Confirm exported apps clear the plot on failure and recover normally after a corrected redraw.
 
 ## Missing-object checks
 
 1. Launch a formula like `ggplot(data = unknown_object, aes(x = mpg, y = disp)) + geom_point()`.
 2. Click `draw`.
-3. Confirm the app shows an inline plot error mentioning the missing object.
-4. Confirm generated code remains visible when plot construction fails after completion succeeds.
+3. Confirm the app launches successfully before clicking `draw`.
+4. Confirm the app shows an inline plot error mentioning the missing object.
+5. Confirm the plot stays empty.
+6. Confirm generated code remains visible when plot construction fails after completion succeeds.
+
+## Recovery checks
+
+1. Trigger a completion-stage error such as malformed `expr`.
+2. Correct the input and click `draw` again.
+3. Confirm the inline error disappears after the successful redraw.
+4. Confirm the plot renders normally again.
+5. Confirm `outputCode` updates to the corrected code.
