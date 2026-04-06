@@ -6,6 +6,7 @@
 2. Select `var`, `text`, `num`, and `expr` inputs and click `draw`.
 3. Confirm the plot updates and `outputCode` matches the chosen inputs.
 4. Disable one or more layer checkboxes and confirm the plot and code both update.
+5. Enter a malformed `expr` value and confirm the app shows an inline error instead of failing silently.
 
 ## Upload checks
 
@@ -16,7 +17,8 @@
 5. Draw the plot and confirm the code uses the resolved dataset object name.
 6. Repeat with `simple_numeric.rds`.
 7. Repeat with a custom dataset name and confirm the custom name is used.
-8. Try `bad_extension.txt` and confirm the app shows a clear error without crashing.
+8. Try `bad_extension.txt` and confirm the app shows a clear inline error without crashing.
+9. Confirm the plot stays empty when upload completion fails.
 
 ## Layer-specific upload checks
 
@@ -30,3 +32,11 @@
 2. Export a generated app from an upload formula and run it.
 3. In the exported upload app, repeat one CSV upload flow and one RDS upload flow.
 4. Confirm the exported app still renders the plot and code correctly.
+5. Confirm exported apps also show inline error messages for bad `expr` input and bad uploads.
+
+## Missing-object checks
+
+1. Launch a formula like `ggplot(data = unknown_object, aes(x = mpg, y = disp)) + geom_point()`.
+2. Click `draw`.
+3. Confirm the app shows an inline plot error mentioning the missing object.
+4. Confirm generated code remains visible when plot construction fails after completion succeeds.

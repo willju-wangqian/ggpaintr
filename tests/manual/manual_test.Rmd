@@ -9,7 +9,7 @@ This workbook is a practical manual test guide for the current `paintr2` workflo
 
 It aligns with:
 
-- `working_scripts/notes/plans/testing-strategy.md`
+- `working_scripts/notes/testing-strategy.md`
 - `tests/manual/manual-checklist-paintr2.md`
 
 ## Setup
@@ -54,6 +54,7 @@ ggpaintr_basic2 <- function(input_formula) {
       # Show a plot of the generated distribution
       mainPanel(
         plotOutput("outputPlot"),
+        uiOutput("outputError"),
         verbatimTextOutput('outputCode')
       )
     )
@@ -95,22 +96,28 @@ ggpaintr_basic2 <- function(input_formula) {
     observe({
       req(session$userData$paintr$obj)
 
-      complete_expr_code <-
-        paintr_complete_expr(session$userData$paintr$obj, input)
+      runtime_result <-
+        paintr_build_runtime(session$userData$paintr$obj, input)
 
       output$outputPlot <- renderPlot({
+        if (!isTRUE(runtime_result[['ok']])) {
+          plot.new()
+          return(invisible(NULL))
+        }
 
-        paintr_get_plot(
-          complete_expr_code[['complete_expr_list']],
-          envir = complete_expr_code[['eval_env']]
-        )
+        runtime_result[['plot']]
+      })
 
+      output$outputError <- renderUI({
+        if (isTRUE(runtime_result[['ok']])) {
+          return(NULL)
+        }
+
+        paintr_error_ui(runtime_result[['message']])
       })
 
       output$outputCode <- renderText({
-
-        complete_expr_code[['code_text']]
-
+        runtime_result[['code_text']]
       })
 
     }) %>% bindEvent(input$draw)
@@ -245,7 +252,8 @@ Expected checks:
 - With a blank dataset name, the generated code uses a filename-derived object name.
 - With a custom dataset name, the generated code uses `manual_upload_data`.
 - The app draws successfully for both `.csv` and `.rds`.
-- The bad-extension upload shows a clear error without crashing the session.
+- The bad-extension upload shows a clear inline error without crashing the session.
+- When upload completion fails, the plot does not render.
 
 ## Formula 4: Layer-Specific Upload
 
@@ -308,6 +316,48 @@ Expected checks:
 - Export the generated app from Formula 3 and run it.
 - In the exported upload app, repeat one CSV upload flow and one RDS upload flow.
 - Confirm the exported apps still render both the plot and the generated code.
+- Confirm exported apps also show the same inline error message behavior on bad `expr` or bad upload input.
+
+## Formula 6: Error Feedback Checks
+
+Use these short apps to confirm the new draw-time error path for malformed expressions and missing objects.
+
+```{r formula-6a, eval=FALSE}
+ggpaintr_basic2("
+ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
+  geom_point() +
+  facet_wrap(expr)
+")
+```
+
+Suggested manual sequence:
+
+- Enter `~` for `facet_wrap expr`.
+- Click `draw`.
+
+Expected checks:
+
+- The app shows an inline `Input error:` message.
+- The session keeps running.
+- No stale plot is rendered.
+- `outputCode` stays blank because expression completion failed.
+
+```{r formula-6b, eval=FALSE}
+ggpaintr_basic2("
+ggplot(data = unknown_object, aes(x = mpg, y = disp)) +
+  geom_point()
+")
+```
+
+Suggested manual sequence:
+
+- Launch the app.
+- Click `draw`.
+
+Expected checks:
+
+- The app shows an inline `Plot error:` message mentioning `unknown_object`.
+- The generated code remains visible even though plot construction failed.
 
 ## Final Checklist
 
@@ -318,4 +368,6 @@ Expected checks:
 - Upload-backed `var` controls appear only after valid upload.
 - Default upload naming works when the dataset name box is blank.
 - Custom upload naming works when a dataset name is provided.
+- Inline errors appear for malformed `expr`, bad upload types, and missing objects.
+- Generated code remains visible when plot construction fails after completion succeeds.
 - Exported apps run and preserve the same behavior for static and upload formulas.

@@ -33,6 +33,7 @@ ggpaintr_basic <- function(input_formula) {
       # Show a plot of the generated distribution
       mainPanel(
         plotOutput("outputPlot"),
+        uiOutput("outputError"),
         verbatimTextOutput('outputCode')
       )
     )
@@ -114,6 +115,7 @@ ggpaintr_basic2 <- function(input_formula) {
       # Show a plot of the generated distribution
       mainPanel(
         plotOutput("outputPlot"),
+        uiOutput("outputError"),
         verbatimTextOutput('outputCode')
       )
     )
@@ -155,22 +157,28 @@ ggpaintr_basic2 <- function(input_formula) {
     observe({
       req(session$userData$paintr$obj)
 
-      complete_expr_code <-
-        paintr_complete_expr(session$userData$paintr$obj, input)
+      runtime_result <-
+        paintr_build_runtime(session$userData$paintr$obj, input)
 
       output$outputPlot <- renderPlot({
+        if (!isTRUE(runtime_result[['ok']])) {
+          plot.new()
+          return(invisible(NULL))
+        }
 
-        paintr_get_plot(
-          complete_expr_code[['complete_expr_list']],
-          envir = complete_expr_code[['eval_env']]
-        )
+        runtime_result[['plot']]
+      })
 
+      output$outputError <- renderUI({
+        if (isTRUE(runtime_result[['ok']])) {
+          return(NULL)
+        }
+
+        paintr_error_ui(runtime_result[['message']])
       })
 
       output$outputCode <- renderText({
-
-        complete_expr_code[['code_text']]
-
+        runtime_result[['code_text']]
       })
 
     }) %>% bindEvent(input$draw)

@@ -665,6 +665,113 @@ paintr_get_plot <- function(plot_expr_list, envir = parent.frame()) {
 
 }
 
+paintr_format_runtime_message <- function(stage, condition = NULL, message = NULL) {
+  stage_label <- switch(
+    stage,
+    complete = "Input error",
+    plot = "Plot error",
+    "Runtime error"
+  )
+
+  detail <- message
+  if (is.null(detail) || identical(trimws(detail), "")) {
+    detail <- if (is.null(condition)) NULL else conditionMessage(condition)
+  }
+
+  if (is.null(detail) || identical(trimws(detail), "")) {
+    return(stage_label)
+  }
+
+  paste0(stage_label, ": ", detail)
+}
+
+paintr_complete_expr_safe <- function(paintr_obj, input, envir = parent.frame()) {
+  tryCatch(
+    {
+      complete_result <- paintr_complete_expr(paintr_obj, input, envir = envir)
+      list(
+        ok = TRUE,
+        stage = "complete",
+        message = NULL,
+        code_text = complete_result$code_text,
+        complete_expr_list = complete_result$complete_expr_list,
+        eval_env = complete_result$eval_env,
+        condition = NULL,
+        plot = NULL
+      )
+    },
+    error = function(e) {
+      list(
+        ok = FALSE,
+        stage = "complete",
+        message = paintr_format_runtime_message("complete", e),
+        code_text = NULL,
+        complete_expr_list = NULL,
+        eval_env = NULL,
+        condition = e,
+        plot = NULL
+      )
+    }
+  )
+}
+
+paintr_get_plot_safe <- function(runtime_result, envir = parent.frame()) {
+  if (!isTRUE(runtime_result$ok)) {
+    return(runtime_result)
+  }
+
+  plot_env <- runtime_result$eval_env
+  if (is.null(plot_env)) {
+    plot_env <- envir
+  }
+
+  tryCatch(
+    {
+      runtime_result$plot <- paintr_get_plot(
+        runtime_result$complete_expr_list,
+        envir = plot_env
+      )
+      runtime_result
+    },
+    error = function(e) {
+      runtime_result$ok <- FALSE
+      runtime_result$stage <- "plot"
+      runtime_result$message <- paintr_format_runtime_message("plot", e)
+      runtime_result$condition <- e
+      runtime_result$plot <- NULL
+      runtime_result
+    }
+  )
+}
+
+paintr_build_runtime <- function(paintr_obj, input, envir = parent.frame()) {
+  runtime_result <- paintr_complete_expr_safe(paintr_obj, input, envir = envir)
+  paintr_get_plot_safe(runtime_result, envir = envir)
+}
+
+paintr_error_ui <- function(message) {
+  if (is.null(message) || identical(trimws(message), "")) {
+    return(NULL)
+  }
+
+  tags$div(
+    style = paste(
+      "margin-top: 12px;",
+      "margin-bottom: 12px;",
+      "padding: 12px;",
+      "border: 1px solid #c62828;",
+      "border-radius: 4px;",
+      "background-color: #fff3f3;",
+      "color: #7f1d1d;"
+    ),
+    tags$strong("Error"),
+    tags$div(
+      style = "white-space: pre-wrap; margin-top: 6px;",
+      message
+    )
+  )
+}
+
 expr_text_server <- function(paintr_obj, input) {
   assert_that(class(paintr_obj) == 'paintr_obj')
 
@@ -727,6 +834,7 @@ get_shiny_template <- function() {
     "    # Show a plot of the generated distribution",
     "    mainPanel(",
     "      plotOutput(\"outputPlot\"),",
+    "      uiOutput(\"outputError\"),",
     "      verbatimTextOutput(\"outputCode\")",
     "    )",
     "  )",
@@ -751,20 +859,30 @@ get_shiny_template <- function() {
     "  observe({",
     "",
     "    req(session$userData$paintr$obj)",
-    "    complete_expr_code <- ggpaintr:::paintr_complete_expr(",
+    "    runtime_result <- ggpaintr:::paintr_build_runtime(",
     "      session$userData$paintr$obj,",
     "      input",
     "    )",
     "",
     "    output$outputPlot <- renderPlot({",
-    "      ggpaintr:::paintr_get_plot(",
-    "        complete_expr_code[[\"complete_expr_list\"]],",
-    "        envir = complete_expr_code[[\"eval_env\"]]",
-    "      )",
+    "      if (!isTRUE(runtime_result[[\"ok\"]])) {",
+    "        plot.new()",
+    "        return(invisible(NULL))",
+    "      }",
+    "",
+    "      runtime_result[[\"plot\"]]",
+    "    })",
+    "",
+    "    output$outputError <- renderUI({",
+    "      if (isTRUE(runtime_result[[\"ok\"]])) {",
+    "        return(NULL)",
+    "      }",
+    "",
+    "      ggpaintr:::paintr_error_ui(runtime_result[[\"message\"]])",
     "    })",
     "",
     "    output$outputCode <- renderText({",
-    "      complete_expr_code[[\"code_text\"]]",
+    "      runtime_result[[\"code_text\"]]",
     "    })",
     "",
     "  }) %>% bindEvent(input$draw)",

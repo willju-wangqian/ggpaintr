@@ -12,7 +12,9 @@ test_that("generate_shiny writes a syntactically valid app script", {
   app_text <- paste(readLines(out_file), collapse = "\n")
   expect_match(app_text, "input_formula <- ")
   expect_match(app_text, "ggpaintr:::paintr_formula", fixed = TRUE)
-  expect_match(app_text, "ggpaintr:::paintr_complete_expr", fixed = TRUE)
+  expect_match(app_text, "ggpaintr:::paintr_build_runtime", fixed = TRUE)
+  expect_match(app_text, "uiOutput\\(\"outputError\"\\)")
+  expect_match(app_text, "ggpaintr:::paintr_error_ui", fixed = TRUE)
 })
 
 test_that("generate_shiny preserves upload-aware runtime code", {

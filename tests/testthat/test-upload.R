@@ -25,7 +25,7 @@ test_that("upload metadata uses custom names or normalized file names", {
   info_custom <- paintr_resolve_upload_info(input_custom, "ggplot+2")
 
   expect_identical(info_default$object_name, "simple_numeric")
-  expect_identical(info_custom$object_name, "custom.dataset")
+  expect_identical(info_custom$object_name, "custom_dataset")
   expect_match(info_default$code_text, 'simple_numeric <- read.csv\\("simple numeric.csv"\\)')
 })
 

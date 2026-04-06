@@ -23,6 +23,8 @@ Core runtime flow:
   Reference: `R/paintr2_func.R:613-653`
 - `paintr_get_plot()` evaluates the completed expression list into a plot  
   Reference: `R/paintr2_func.R:655-665`
+- `paintr_build_runtime()` now wraps completion plus plot construction into one structured result for the app UI and exported apps, preserving generated code on plot-stage failures  
+  Reference: `R/paintr2_func.R`
 - `generate_shiny()` exports a standalone app script using the same runtime helpers  
   Reference: `R/paintr2_func.R:778-796`
 
@@ -85,14 +87,14 @@ Current automated coverage includes:
 Manual testing status:
 
 - one round of manual `paintr2` interaction testing has been completed in this session
-- a runnable manual workbook now exists at `working_scripts/manual_test.Rmd`
+- a runnable manual workbook now exists at `tests/manual/manual_test.Rmd`
 - the manual checklist remains in `tests/manual/manual-checklist-paintr2.md`
 
 ## Session progress
 
 Completed in this session:
 
-- added `working_scripts/manual_test.Rmd` with 5 `ggpaintr_basic2()` manual test formulas and suggested inputs
+- added `tests/manual/manual_test.Rmd` with `ggpaintr_basic2()` manual test formulas and suggested inputs
 - finished one manual test round against the current `paintr2` interaction path
 - updated upload custom-name handling so whitespace becomes underscores  
   Reference: `R/paintr2_func.R:197-204`
@@ -100,14 +102,21 @@ Completed in this session:
   Reference: `R/paintr2_func.R:778-789`
 - added export test coverage for `input_formula` preservation  
   Reference: `tests/testthat/test-export-shiny.R:31-58`
+- added structured draw-time error handling for completion and plot failures, with inline Shiny error output and preserved code text on plot-stage failures
+- added automated test coverage for malformed `expr`, invalid uploads, and plot-stage missing-object errors
+- updated manual docs to cover inline error feedback flows
 
 ## Quick re-entry points
 
 If starting fresh next time, read in this order:
 
-1. `working_scripts/notes/current-status.md`
-2. `working_scripts/notes/paintr2-overview.md`
-3. `R/paintr2_func.R`
-4. `R/ui_function.R`
-5. `tests/testthat/test-export-shiny.R`
-6. `working_scripts/manual_test.Rmd`
+1. `working_scripts/notes/knowledge-schema.md`
+2. `working_scripts/notes/start-codex.md`
+3. `working_scripts/notes/current-status.md`
+4. `working_scripts/notes/project-overview.md`
+5. `working_scripts/notes/testing-strategy.md`
+6. `working_scripts/notes/next-steps.md`
+7. `R/paintr2_func.R`
+8. `R/ui_function.R`
+9. `tests/testthat/test-export-shiny.R`
+10. `tests/manual/manual_test.Rmd`
