@@ -2,27 +2,25 @@
 
 ## Purpose
 
-This file is for developer-written initial thoughts, rough ideas, and informal
-planning.
+This file is for developer-written initial thoughts, rough ideas, and informal planning.
 
-- It is maintained by developers, not by AI tools.
-- AI tools should not update this file unless the user explicitly asks for that
-  exact file to be edited.
-- This is not part of the canonical session-knowledge system.
+-   It is maintained by developers, not by AI tools.
+-   AI tools should not update this file unless the user explicitly asks for that exact file to be edited.
+-   This is not part of the canonical session-knowledge system.
 
 ## Notes
 
-1. add instruction or modify the current prompts. Better suggestions?
-  - "keep the layer of xxx"
-  - "text for xxx"
+1.  add instruction or modify the current prompts. Better suggestions?
 
-2. shiny app theme? redesign the current UI
+-   "keep the layer of xxx"
+-   "text for xxx"
 
-3. test cases that can break ggpaintr
+2.  shiny app theme? redesign the current UI
 
-4. test cases of super complicated ggplot2 formula
+3.  test cases that can break ggpaintr
 
-5. build the harness? which md files should be actively updated? 
+4.  test cases of super complicated ggplot2 formula
 
+5.  [x] build the harness? which md files should be actively updated?
 
-# https://shiny.posit.co/r/articles/share/function/
+# <https://shiny.posit.co/r/articles/share/function/>
