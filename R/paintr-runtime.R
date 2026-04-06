@@ -1,0 +1,432 @@
+#' Replace a `var` Placeholder
+#'
+#' @param .expr An expression object.
+#' @param index_path An index path.
+#' @param input_item A user input value.
+#'
+#' @return The updated expression.
+#' @keywords internal
+handle_var <- function(.expr, index_path, input_item) {
+  if (is.null(input_item)) {
+    expr_pluck(.expr, index_path) <- rlang::sym("_NULL_PLACEHOLDER")
+  } else {
+    assertthat::assert_that(is.character(input_item))
+    expr_pluck(.expr, index_path) <- rlang::parse_expr(input_item)
+  }
+
+  .expr
+}
+
+#' Replace a `num` Placeholder
+#'
+#' @param .expr An expression object.
+#' @param index_path An index path.
+#' @param input_item A user input value.
+#'
+#' @return The updated expression.
+#' @keywords internal
+handle_num <- function(.expr, index_path, input_item) {
+  if (is.na(input_item) || is.null(input_item)) {
+    expr_pluck(.expr, index_path) <- rlang::sym("_NULL_PLACEHOLDER")
+  } else {
+    assertthat::assert_that(is.numeric(input_item))
+    expr_pluck(.expr, index_path) <- rlang::expr(!!input_item)
+  }
+
+  .expr
+}
+
+#' Replace a `text` Placeholder
+#'
+#' @param .expr An expression object.
+#' @param index_path An index path.
+#' @param input_item A user input value.
+#'
+#' @return The updated expression.
+#' @keywords internal
+handle_text <- function(.expr, index_path, input_item) {
+  if (is.null(input_item) || identical(input_item, "")) {
+    expr_pluck(.expr, index_path) <- rlang::sym("_NULL_PLACEHOLDER")
+  } else {
+    assertthat::assert_that(is.character(input_item))
+    expr_pluck(.expr, index_path) <- rlang::expr(!!input_item)
+  }
+
+  .expr
+}
+
+#' Replace an `expr` Placeholder
+#'
+#' @param .expr An expression object.
+#' @param index_path An index path.
+#' @param input_item A user input value.
+#'
+#' @return The updated expression.
+#' @keywords internal
+handle_expr <- function(.expr, index_path, input_item) {
+  if (!is.null(input_item) && !identical(input_item, "")) {
+    expr_pluck(.expr, index_path) <- rlang::parse_expr(input_item)
+  } else {
+    expr_pluck(.expr, index_path) <- rlang::sym("_NULL_PLACEHOLDER")
+  }
+
+  .expr
+}
+
+#' Replace an `upload` Placeholder
+#'
+#' @param .expr An expression object.
+#' @param index_path An index path.
+#' @param input_item A user input value.
+#'
+#' @return The updated expression.
+#' @keywords internal
+handle_upload <- function(.expr, index_path, input_item) {
+  if (!is.null(input_item) && !identical(input_item, "")) {
+    expr_pluck(.expr, index_path) <- rlang::parse_expr(input_item)
+  } else {
+    expr_pluck(.expr, index_path) <- rlang::sym("_NULL_PLACEHOLDER")
+  }
+
+  .expr
+}
+
+#' Get the Argument Name for an Index Path
+#'
+#' @param .expr An expression object.
+#' @param index_path An index path.
+#'
+#' @return The argument name or `NULL`.
+#' @keywords internal
+get_parameter_name_by_index_path <- function(.expr, index_path) {
+  if (length(index_path) < 1) {
+    return(NULL)
+  }
+
+  if (length(index_path) == 1) {
+    names_vec <- names(.expr)
+  } else {
+    name_path <- index_path[1:(length(index_path) - 1)]
+    names_vec <- names(.expr[[name_path]])
+  }
+
+  name_index <- index_path[length(index_path)]
+  names_vec[name_index]
+}
+
+#' Leave Unknown Keywords Untouched
+#'
+#' @param .expr An expression object.
+#' @param keyword A keyword expression.
+#'
+#' @return The original expression.
+#' @keywords internal
+handle_unknown <- function(.expr, keyword) {
+  keyword <- rlang::as_string(keyword)
+  message(paste0("Don't know how to handle keyword: ", keyword, ". Let it pass."))
+  .expr
+}
+
+#' Replace One Placeholder in an Expression
+#'
+#' @param .expr An expression object.
+#' @param keyword A placeholder symbol.
+#' @param index_path An index path.
+#' @param input_item A user input value.
+#'
+#' @return The updated expression.
+#' @keywords internal
+expr_replace_keywords <- function(.expr, keyword, index_path, input_item) {
+  switch(
+    detect_keywords(keyword),
+    var = handle_var(.expr, index_path, input_item),
+    num = handle_num(.expr, index_path, input_item),
+    text = handle_text(.expr, index_path, input_item),
+    expr = handle_expr(.expr, index_path, input_item),
+    upload = handle_upload(.expr, index_path, input_item),
+    handle_unknown(.expr, keyword)
+  )
+}
+
+#' Apply a Layer Checkbox Result
+#'
+#' @param expr A layer expression.
+#' @param nn The layer name.
+#' @param input A Shiny input-like object.
+#'
+#' @return The layer expression or `NULL`.
+#' @keywords internal
+expr_apply_checkbox_result <- function(expr, nn, input) {
+  if (nn == "ggplot") {
+    return(expr)
+  }
+
+  checkbox_id <- paste0(nn, "+checkbox")
+  if (isTRUE(input[[checkbox_id]])) {
+    expr
+  } else {
+    NULL
+  }
+}
+
+#' Complete a Parsed Formula with User Inputs
+#'
+#' @param paintr_obj A `paintr_obj`.
+#' @param input A Shiny input-like object.
+#' @param envir The environment used to resolve local data objects.
+#'
+#' @return A list with completed expressions, generated code, and eval env.
+#' @keywords internal
+paintr_complete_expr <- function(paintr_obj, input, envir = parent.frame()) {
+  assertthat::assert_that(inherits(paintr_obj, "paintr_obj"))
+
+  paintr_processed_expr_list <- paintr_obj[["expr_list"]]
+  unfolded_id_list <- unlist(paintr_obj[["id_list"]])
+  keywords_list <- paintr_obj[["keywords_list"]]
+  index_path_list <- paintr_obj[["index_path_list"]]
+  eval_env <- paintr_prepare_eval_env(paintr_obj, input, envir = envir)
+
+  for (id in unfolded_id_list) {
+    input_item <- input[[id]]
+    id_domain <- strsplit(id, "\\+")[[1]][1]
+
+    if (detect_keywords(keywords_list[[id_domain]][[id]]) == "upload") {
+      upload_info <- paintr_resolve_upload_info(input, id, strict = FALSE)
+      input_item <- if (is.null(upload_info)) "" else upload_info$object_name
+    }
+
+    paintr_processed_expr_list[[id_domain]] <- expr_replace_keywords(
+      paintr_processed_expr_list[[id_domain]],
+      keywords_list[[id_domain]][[id]],
+      index_path_list[[id_domain]][[id]],
+      input_item
+    )
+  }
+
+  paintr_processed_expr_list <- lapply(paintr_processed_expr_list, expr_remove_null)
+  paintr_processed_expr_list <- lapply(paintr_processed_expr_list, expr_remove_emptycall2)
+  paintr_processed_expr_list <- purrr::map2(
+    paintr_processed_expr_list,
+    names(paintr_processed_expr_list),
+    expr_apply_checkbox_result,
+    input
+  )
+  paintr_processed_expr_list <- check_remove_null(paintr_processed_expr_list)
+
+  code_text_list <- lapply(paintr_processed_expr_list, rlang::expr_text)
+  code_text <- do.call(paste, c(unname(code_text_list), sep = " +\n  "))
+
+  list(
+    complete_expr_list = paintr_processed_expr_list,
+    code_text = code_text,
+    eval_env = eval_env
+  )
+}
+
+#' Build a Plot from Completed Layer Expressions
+#'
+#' @param plot_expr_list A list of completed plot layer expressions.
+#' @param envir The evaluation environment.
+#'
+#' @return A `ggplot` object.
+#' @examples
+#' library(ggplot2)
+#'
+#' obj <- paintr_formula(
+#'   "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + geom_point()"
+#' )
+#' runtime <- paintr_build_runtime(obj, list("geom_point+checkbox" = TRUE))
+#' plot_obj <- paintr_get_plot(runtime$complete_expr_list, runtime$eval_env)
+#' inherits(plot_obj, "ggplot")
+#' @export
+paintr_get_plot <- function(plot_expr_list, envir = parent.frame()) {
+  plot_list <- lapply(plot_expr_list, eval, envir = envir)
+  p <- plot_list[[1]]
+
+  for (i in 2:length(plot_list)) {
+    p <- p + plot_list[[i]]
+  }
+
+  p
+}
+
+#' Format a Runtime Error Message
+#'
+#' @param stage The failure stage.
+#' @param condition An optional condition object.
+#' @param message An optional message override.
+#'
+#' @return A formatted message string.
+#' @keywords internal
+paintr_format_runtime_message <- function(stage, condition = NULL, message = NULL) {
+  stage_label <- switch(
+    stage,
+    complete = "Input error",
+    plot = "Plot error",
+    "Runtime error"
+  )
+
+  detail <- message
+  if (is.null(detail) || identical(trimws(detail), "")) {
+    detail <- if (is.null(condition)) NULL else conditionMessage(condition)
+  }
+
+  if (is.null(detail) || identical(trimws(detail), "")) {
+    return(stage_label)
+  }
+
+  paste0(stage_label, ": ", detail)
+}
+
+#' Safely Complete a Parsed Formula
+#'
+#' @param paintr_obj A `paintr_obj`.
+#' @param input A Shiny input-like object.
+#' @param envir The evaluation environment.
+#'
+#' @return A structured runtime result.
+#' @keywords internal
+paintr_complete_expr_safe <- function(paintr_obj, input, envir = parent.frame()) {
+  tryCatch(
+    {
+      complete_result <- paintr_complete_expr(paintr_obj, input, envir = envir)
+      list(
+        ok = TRUE,
+        stage = "complete",
+        message = NULL,
+        code_text = complete_result$code_text,
+        complete_expr_list = complete_result$complete_expr_list,
+        eval_env = complete_result$eval_env,
+        condition = NULL,
+        plot = NULL
+      )
+    },
+    error = function(e) {
+      list(
+        ok = FALSE,
+        stage = "complete",
+        message = paintr_format_runtime_message("complete", e),
+        code_text = NULL,
+        complete_expr_list = NULL,
+        eval_env = NULL,
+        condition = e,
+        plot = NULL
+      )
+    }
+  )
+}
+
+#' Safely Build a Plot from a Runtime Result
+#'
+#' @param runtime_result A runtime result list.
+#' @param envir A fallback evaluation environment.
+#'
+#' @return An updated runtime result.
+#' @keywords internal
+paintr_get_plot_safe <- function(runtime_result, envir = parent.frame()) {
+  if (!isTRUE(runtime_result$ok)) {
+    return(runtime_result)
+  }
+
+  plot_env <- runtime_result$eval_env
+  if (is.null(plot_env)) {
+    plot_env <- envir
+  }
+
+  tryCatch(
+    {
+      runtime_result$plot <- paintr_get_plot(runtime_result$complete_expr_list, envir = plot_env)
+      runtime_result
+    },
+    error = function(e) {
+      runtime_result$ok <- FALSE
+      runtime_result$stage <- "plot"
+      runtime_result$message <- paintr_format_runtime_message("plot", e)
+      runtime_result$condition <- e
+      runtime_result$plot <- NULL
+      runtime_result
+    }
+  )
+}
+
+#' Safely Validate a Plot at Render Time
+#'
+#' @param runtime_result A runtime result list.
+#'
+#' @return An updated runtime result.
+#' @keywords internal
+paintr_validate_plot_render_safe <- function(runtime_result) {
+  if (!isTRUE(runtime_result$ok)) {
+    return(runtime_result)
+  }
+
+  tryCatch(
+    {
+      ggplot2::ggplot_build(runtime_result$plot)
+      runtime_result
+    },
+    error = function(e) {
+      runtime_result$ok <- FALSE
+      runtime_result$stage <- "plot"
+      runtime_result$message <- paintr_format_runtime_message("plot", e)
+      runtime_result$condition <- e
+      runtime_result$plot <- NULL
+      runtime_result
+    }
+  )
+}
+
+#' Build the Full Runtime Result for a Paintr App
+#'
+#' @param paintr_obj A `paintr_obj`.
+#' @param input A Shiny input-like object.
+#' @param envir The environment used to resolve local data objects.
+#'
+#' @return A runtime result list containing success flag, stage, plot, code,
+#'   and readable error details.
+#' @examples
+#' library(ggplot2)
+#'
+#' obj <- paintr_formula(
+#'   "ggplot(data = iris, aes(x = var, y = var)) + geom_point()"
+#' )
+#' runtime <- paintr_build_runtime(
+#'   obj,
+#'   list("ggplot+3+2" = "Sepal.Length", "ggplot+3+3" = "Sepal.Width", "geom_point+checkbox" = TRUE)
+#' )
+#' isTRUE(runtime$ok)
+#' @export
+paintr_build_runtime <- function(paintr_obj, input, envir = parent.frame()) {
+  runtime_result <- paintr_complete_expr_safe(paintr_obj, input, envir = envir)
+  runtime_result <- paintr_get_plot_safe(runtime_result, envir = envir)
+  paintr_validate_plot_render_safe(runtime_result)
+}
+
+#' Build Inline Error UI for a Paintr App
+#'
+#' @param message A runtime error message.
+#'
+#' @return A Shiny tag or `NULL`.
+#' @keywords internal
+paintr_error_ui <- function(message) {
+  if (is.null(message) || identical(trimws(message), "")) {
+    return(NULL)
+  }
+
+  shiny::tags$div(
+    style = paste(
+      "margin-top: 12px;",
+      "margin-bottom: 12px;",
+      "padding: 12px;",
+      "border: 1px solid #c62828;",
+      "border-radius: 4px;",
+      "background-color: #fff3f3;",
+      "color: #7f1d1d;"
+    ),
+    shiny::tags$strong("Error"),
+    shiny::tags$div(
+      style = "white-space: pre-wrap; margin-top: 6px;",
+      message
+    )
+  )
+}

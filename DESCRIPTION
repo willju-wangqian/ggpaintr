@@ -1,41 +1,57 @@
 Package: ggpaintr
 Type: Package
-Title: Building modularized shiny apps with plotting functionalities using ggplot2 and the Grammar of Graphics
-Version: 0.0.9.8
+Title: Build Formula-Driven Shiny Apps for 'ggplot2'
+Version: 0.1.0
 Authors@R: c(
-    person("Wangqian", "Ju", email = "wju@iastate.edu", role = c("aut", "cre"), comment = c(ORCID = "0000-0002-9977-377X")),
-    person("Jinji", "Pang", email = "pjj0702@iastate.edu", role = "aut", comment = c(ORCID = "0000-0002-2267-2313")),
-    person("Zhili", "Qiao", email = "zlqiao@iastate.edu", role = "aut", comment = c(ORCID = "0000-0002-8154-0898"))
-    )    
-Description: A package for developers to build modularized shiny apps with plotting 
-    functionalities using ggplot2 and the Grammar of Graphics. The resulting shiny 
-    app provides a basic graphical user interface for making plots using ggplot2. 
-    Example shiny apps are included.
+    person(
+      given = "Wangqian",
+      family = "Ju",
+      email = "wju@iastate.edu",
+      role = c("aut", "cre"),
+      comment = c(ORCID = "0000-0002-9977-377X")
+    ),
+    person(
+      given = "Jinji",
+      family = "Pang",
+      email = "pjj0702@iastate.edu",
+      role = "aut",
+      comment = c(ORCID = "0000-0002-2267-2313")
+    ),
+    person(
+      given = "Zhili",
+      family = "Qiao",
+      email = "zlqiao@iastate.edu",
+      role = "aut",
+      comment = c(ORCID = "0000-0002-8154-0898")
+    )
+  )
+Description: Turns a single ggplot-like formula string into a small Shiny
+    application. The package generates user controls from placeholder tokens,
+    completes the expression with current inputs, renders plots, shows the
+    generated code, supports uploaded '.csv' and '.rds' datasets, and can
+    export a standalone Shiny app that uses the same runtime helpers.
 License: GPL-3
+URL: https://willju-wangqian.github.io/ggpaintr/,
+    https://github.com/willju-wangqian/ggpaintr
+BugReports: https://github.com/willju-wangqian/ggpaintr/issues
+Depends:
+    R (>= 3.5.0)
 Imports:
-    shiny (>= 1.6.0),
-    magrittr (>= 2.0.0),
-    stringr (>= 1.4.0),
-    rlang (>= 1.0.0),
-    purrr (>= 0.3.0),
     assertthat (>= 0.2.0),
-    colourpicker (>= 1.1.0),
+    ggplot2 (>= 3.3.0),
+    purrr (>= 0.3.0),
+    rlang (>= 1.0.0),
+    shiny (>= 1.6.0),
     shinyWidgets (>= 0.6.4),
-    RColorBrewer (>= 1.0), 
-    jsonlite(>= 1.8.0)
+    stringr (>= 1.4.0)
 Suggests:
     knitr,
+    pkgdown,
     rmarkdown,
-    DT,
-    shinydashboard,
-    testthat (>= 3.0.0),
+    styler,
+    testthat (>= 3.0.0)
+VignetteBuilder: knitr
 Encoding: UTF-8
-LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
-Depends: 
-    R (>= 3.5.0),
-    ggplot2 (>= 3.3.0)
-VignetteBuilder: knitr
-URL: https://willju-wangqian.github.io/ggpaintr/
 Config/testthat/edition: 3

@@ -21,6 +21,10 @@ This file is for developer-written initial thoughts, rough ideas, and informal p
 
 4.  test cases of super complicated ggplot2 formula
 
-5.  [x] build the harness? which md files should be actively updated?
+5.  make functions used by `paintr_app_components` external
+  - user should be able to write wrapper function like `ggpaintr_app` on their own
+  using exported functions of `ggpaintr` package
+
+[x] build the harness? which md files should be actively updated?
 
 # <https://shiny.posit.co/r/articles/share/function/>

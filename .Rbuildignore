@@ -1,10 +1,14 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^.*\.DS_Store$
 
 ^preconsideration$
+^archive$
+^working_scripts$
 
 README\.*
 ^_pkgdown\.yml$
 ^docs$
 ^pkgdown$
 ^\.github$
+^cran-comments\.md$

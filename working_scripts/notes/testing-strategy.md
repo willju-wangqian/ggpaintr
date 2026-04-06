@@ -2,14 +2,10 @@
 
 ## Purpose
 
-This file defines the maintained testing strategy for the current `paintr2`
-workflow.
+This file defines the maintained testing strategy for the `ggpaintr` package
+surface.
 
-- Update only when testing structure, policy, or acceptance expectations
-  meaningfully change.
-- Do not use this file as a task log.
-
-## Strategy Summary
+## Strategy summary
 
 Use package-standard automated testing plus targeted manual checks.
 
@@ -20,26 +16,28 @@ Automated tests live in:
 
 Manual verification lives in:
 
-- `tests/manual/manual-checklist-paintr2.md`
-- `tests/manual/manual_test.Rmd`
+- `tests/manual/manual-checklist-ggpaintr.md`
+- `tests/manual/manual-test-ggpaintr.Rmd`
 
 Current target under test:
 
-- the `paintr2` flow, especially `paintr_formula()`, `output_embed_var()`,
-  `paintr_complete_expr()`, `paintr_build_runtime()`, `paintr_get_plot()`, and
-  `generate_shiny()`
+- `ggpaintr_app()`
+- `paintr_formula()`
+- `paintr_build_runtime()`
+- `paintr_get_plot()`
+- `generate_shiny()`
+- internal helpers that define runtime semantics
 
-## Maintenance Rules
+## Maintenance rules
 
-When behavior changes in the maintained `paintr2` path:
+When behavior changes in the maintained path:
 
-- add or update automated tests for new logic
-- update manual docs only when manual verification expectations changed
-- keep tests package-standard under `tests/testthat/`
-- prefer small committed fixtures over generated-on-the-fly fixtures for core
-  cases
+- update focused `testthat` coverage in the same change
+- update manual docs only when human interaction behavior changed
+- preserve the current `tests/testthat/` structure
+- keep export-path coverage when `generate_shiny()` changes
 
-## Required Test Layers
+## Required test layers
 
 Automated coverage should continue to include:
 
@@ -51,20 +49,20 @@ Automated coverage should continue to include:
 - structured runtime error handling
 - plot construction
 - exported app generation
-- supported and unsupported behavior boundaries
+- package-surface behavior for exported functions
 
 Manual coverage should continue to include:
 
 - real Shiny interaction
 - upload flows
 - inline error feedback
-- export smoke tests
+- exported app smoke tests
 
-## Acceptance Expectations
+## Acceptance expectations
 
-For feature work in `paintr2`, the default expectation is:
+For package work on the maintained path, the default expectation is:
 
 1. update or add focused `testthat` coverage
-2. keep the existing suite passing
-3. update manual docs if the human interaction flow changed
-4. preserve exported-app behavior when export paths are touched
+2. keep the suite passing
+3. rebuild generated docs when the public package surface changes
+4. run package-level verification for docs, site, and check readiness

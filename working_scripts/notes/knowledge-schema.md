@@ -48,8 +48,8 @@ These should be updated only when their own scope changes:
 These are not part of the five-file operational note system:
 
 - `README.md`
-- `tests/manual/manual-checklist-paintr2.md`
-- `tests/manual/manual_test.Rmd`
+- `tests/manual/manual-checklist-ggpaintr.md`
+- `tests/manual/manual-test-ggpaintr.Rmd`
 - `working_scripts/notes/developer-notes.md`
 - app/package content docs under `inst/`
 - older note files that are kept only for history or compatibility

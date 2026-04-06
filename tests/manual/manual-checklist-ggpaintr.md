@@ -1,8 +1,8 @@
-# Manual Checklist for `paintr2`
+# Manual Checklist for `ggpaintr`
 
 ## Core Shiny checks
 
-1. Launch a `ggpaintr_basic2()` app with static data and confirm the control tabs render.
+1. Launch a `ggpaintr_app()` app with static data and confirm the control tabs render.
 2. Select `var`, `text`, `num`, and `expr` inputs and click `draw`.
 3. Confirm the plot updates and `outputCode` matches the chosen inputs.
 4. Disable one or more layer checkboxes and confirm the plot and code both update.

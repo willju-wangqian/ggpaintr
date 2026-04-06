@@ -2,56 +2,63 @@
 
 ## Purpose
 
-This is the durable architecture overview for the current maintained development
-path in `ggpaintr`.
+This is the durable architecture overview for the maintained `ggpaintr` package
+surface.
 
-- Update only when architecture or supported behavior boundaries meaningfully
-  change.
-- Do not use this file as a session log.
+## Repo shape
 
-## Repo Shape
+The repo now has two clearly separated areas:
 
-`ggpaintr` currently contains two tracks:
+1. active package code for the maintained `ggpaintr` workflow
+2. archived legacy package content under `archive/legacy-package/`
 
-1. the older package-level `ggpaintr` path
-2. the newer `paintr2` formula-driven workflow
+The active package is centered on:
 
-The current development focus is the `paintr2` path centered on:
+- `R/paintr-app.R`
+- `R/paintr-export.R`
+- `R/paintr-parse.R`
+- `R/paintr-runtime.R`
+- `R/paintr-ui.R`
+- `R/paintr-upload.R`
+- `R/paintr-utils.R`
 
-- `R/paintr2_func.R`
-- `R/ui_function.R`
-- `working_scripts/paintr_distribute.R`
+## `ggpaintr` mental model
 
-## `paintr2` Mental Model
-
-In the `paintr2` workflow, a plot specification is written as a single formula
-string containing a valid `ggplot2` expression template. Placeholder tokens in
-that string are detected, converted into Shiny controls, then substituted back
-into the expression to produce:
+In the maintained workflow, a plot specification is written as one formula
+string containing a ggplot-like expression template. Placeholder tokens are
+detected, turned into Shiny controls, substituted back into the expression, and
+used to produce:
 
 - a plot
 - generated code
-- runtime feedback when completion or plot building fails
+- inline runtime feedback
+- an exportable standalone app
 
 Key runtime path:
 
 1. `paintr_formula()` parses the formula and constructs a `paintr_obj`
 2. `output_embed_var()` resolves dynamic `var` controls from available data
-3. `paintr_complete_expr()` substitutes current input values
-4. `paintr_build_runtime()` captures completion success/failure, plot
-   construction success/failure, render-time ggplot success/failure, generated
-   code, and readable errors
-5. `generate_shiny()` exports a standalone app using the same runtime helpers
+3. `paintr_build_runtime()` completes the expression, builds the plot, validates
+   render-time behavior, and formats errors
+4. `ggpaintr_app()` wraps those helpers into an interactive Shiny app
+5. `generate_shiny()` writes a standalone app script that reuses the same
+   package runtime
 
-References:
+## Public API
 
-- `R/paintr2_func.R`
-- `R/ui_function.R`
-- `working_scripts/paintr_distribute.R`
+The maintained exported package surface is:
 
-## Placeholder Model
+- `ggpaintr_app()`
+- `paintr_formula()`
+- `paintr_build_runtime()`
+- `paintr_get_plot()`
+- `generate_shiny()`
 
-Supported placeholders in the maintained `paintr2` path:
+Everything else in `R/` is package-internal implementation support.
+
+## Placeholder model
+
+Supported placeholders:
 
 - `var`
 - `text`
@@ -59,32 +66,12 @@ Supported placeholders in the maintained `paintr2` path:
 - `expr`
 - `upload`
 
-Current meanings:
-
-- `var`: variable-like expression chosen by the user
-- `text`: character input
-- `num`: numeric input
-- `expr`: arbitrary R expression entered as text and parsed
-- `upload`: uploaded dataset placeholder with file input and dataset-name input
-
-Current boundary notes:
+Boundary notes:
 
 - `var` currently allows expression-like input, not only plain column names
-- `expr` inputs must still be valid R code
+- `expr` input must still be valid R code
 - `upload` currently supports `.csv` and `.rds`
 - structurally invalid formulas still block launch
-- formulas using `var` with no data source still block launch
-- unresolved local data objects such as `data = unknown_object` are now deferred
-  to draw-time inline errors rather than blocking app launch
+- formulas using `var` with no data source still block during UI preparation
+- unresolved local data objects are deferred to draw-time inline errors
 - render-time ggplot failures are part of the shared runtime error path
-
-## Main Runtime Entry Points
-
-Read these first when tracing behavior:
-
-- `paintr_formula()` in `R/paintr2_func.R`
-- `paintr_complete_expr()` in `R/paintr2_func.R`
-- `paintr_build_runtime()` in `R/paintr2_func.R`
-- `output_embed_var()` in `R/ui_function.R`
-- `ggpaintr_basic2()` in `working_scripts/paintr_distribute.R`
-- `generate_shiny()` in `R/paintr2_func.R`

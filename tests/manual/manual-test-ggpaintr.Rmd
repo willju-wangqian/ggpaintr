@@ -1,16 +1,18 @@
 ---
-title: "paintr2 Manual Test Workbook"
+title: "ggpaintr Manual Test Workbook"
 output: html_document
 editor_options: 
   chunk_output_type: console
 ---
 
-This workbook is a practical manual test guide for the current `paintr2` workflow. It is intended to complement, not replace, the package-standard automated tests in `tests/testthat/`.
+This workbook is the canonical interactive manual test guide for the current
+`ggpaintr` workflow. It is intended to complement, not replace, the
+package-standard automated tests in `tests/testthat/`.
 
 It aligns with:
 
 - `working_scripts/notes/testing-strategy.md`
-- `tests/manual/manual-checklist-paintr2.md`
+- `tests/manual/manual-checklist-ggpaintr.md`
 
 Current automated coverage for the new error-feedback channel already includes:
 
@@ -24,6 +26,16 @@ See:
 
 - `tests/testthat/test-runtime-feedback.R`
 - `tests/testthat/test-export-shiny.R`
+
+## How To Use This Workbook
+
+Use this file from an interactive RStudio session.
+
+1. Run the setup chunk first.
+2. Review the printed fixture paths.
+3. Run one app chunk at a time to launch `ggpaintr_app()`.
+4. Close the current app before launching the next one.
+5. Use the expected-check lists below to record pass/fail behavior.
 
 ## Error Feedback Feature Test Guide
 
@@ -42,7 +54,7 @@ Use the scenarios below to test the dedicated inline error channel end to end.
 Assumptions:
 
 - Run this from the repo root.
-- Use the current `paintr2` path centered on `R/paintr2_func.R`, `R/ui_function.R`, and `working_scripts/paintr_distribute.R`.
+- Use the maintained package path centered on `R/paintr-app.R`, `R/paintr-parse.R`, `R/paintr-runtime.R`, `R/paintr-ui.R`, and `R/paintr-upload.R`.
 - Use the committed fixture files under `tests/testthat/fixtures/` for upload checks.
 
 ```{r setup, message=FALSE, warning=FALSE}
@@ -55,101 +67,6 @@ library(rlang)
 library(assertthat)
 library(lobstr)
 library(here)
-
-source(here("R/paintr2_func.R"))
-source(here("R/ui_function.R"))
-ggpaintr_basic2 <- function(input_formula) {
-
-  ui <- fluidPage(
-
-    # Application title
-    titlePanel("ggpaintr demo"),
-
-    # Sidebar with a slider input for number of bins
-    sidebarLayout(
-      sidebarPanel(
-        # textAreaInput("formula", label = "Enter the paintr formula",
-        #               value = input_formula, rows = 5, placeholder = "Input the formula"),
-        # actionButton("enter", "click to enter the formula"),
-        uiOutput("controlPanel"),
-        actionButton("draw", "click to draw the plot"),
-        downloadButton("shinyExport", "export the shiny app"),
-      ),
-
-      # Show a plot of the generated distribution
-      mainPanel(
-        plotOutput("outputPlot"),
-        uiOutput("outputError"),
-        verbatimTextOutput('outputCode')
-      )
-    )
-  )
-
-  server <- function(input, output, session) {
-
-    session$userData$paintr <- reactiveValues(obj = list(NULL))
-    session$userData$paintr$obj <- paintr_formula(input_formula)
-
-    observe({
-      req(session$userData$paintr$obj)
-
-      session$userData$paintr$var_ui_list <-
-        output_embed_var(input, output, session$userData$paintr$obj)
-    })
-
-    output$controlPanel <- renderUI({
-      req(session$userData$paintr)
-
-      column(12, paintr_get_tab_ui(session$userData$paintr$obj))
-
-    })
-
-    output$shinyExport <- downloadHandler(
-      filename = "trial_0.R",
-      content = function(file) {
-
-        req(session$userData$paintr$var_ui_list)
-
-        generate_shiny(session$userData$paintr$obj,
-                       session$userData$paintr$var_ui_list,
-                       file,
-                       style = TRUE)
-
-      }
-    )
-
-    observe({
-      req(session$userData$paintr$obj)
-
-      runtime_result <-
-        paintr_build_runtime(session$userData$paintr$obj, input)
-
-      output$outputPlot <- renderPlot({
-        if (!isTRUE(runtime_result[['ok']])) {
-          plot.new()
-          return(invisible(NULL))
-        }
-
-        runtime_result[['plot']]
-      })
-
-      output$outputError <- renderUI({
-        if (isTRUE(runtime_result[['ok']])) {
-          return(NULL)
-        }
-
-        paintr_error_ui(runtime_result[['message']])
-      })
-
-      output$outputCode <- renderText({
-        runtime_result[['code_text']]
-      })
-
-    }) %>% bindEvent(input$draw)
-  }
-
-  shinyApp(ui, server)
-}
 
 world_map <- map_data("world")
 
@@ -188,12 +105,20 @@ Upload fixture paths to use during manual testing:
 - `r rds_fixture`
 - `r bad_fixture`
 
+Recommended RStudio flow:
+
+- restart R if you have an older `ggpaintr` namespace loaded
+- run the setup chunk
+- launch one app chunk
+- perform the listed checks
+- close the app window before continuing
+
 ## Formula 1: Static All-Placeholders Interaction
 
 This app is the main static-data interaction sweep. It exercises `var`, `text`, `num`, `expr`, `outputCode`, and layer checkbox behavior in one place.
 
 ```{r formula-1, eval=FALSE}
-ggpaintr_basic2("
+ggpaintr_app("
 ggplot(data = iris, aes(x = var, y = var)) +
   geom_point(aes(color = var), size = num, alpha = num) +
   labs(title = text, x = text, y = text) +
@@ -229,7 +154,7 @@ Expected checks:
 This app checks the current behavior where `var` accepts expression-like input, not just plain column names.
 
 ```{r formula-2, eval=FALSE}
-ggpaintr_basic2("
+ggpaintr_app("
 ggplot(data = mtcars, aes(x = log(var), y = var + 1)) +
   geom_point() +
   labs(title = text)
@@ -253,7 +178,7 @@ Expected checks:
 This app checks upload-backed global data, delayed `var` controls, default/custom dataset names, and unsupported file handling.
 
 ```{r formula-3, eval=FALSE}
-ggpaintr_basic2("
+ggpaintr_app("
 ggplot(data = upload, aes(x = var, y = var)) +
   geom_point(size = num) +
   labs(title = 'good')
@@ -285,7 +210,7 @@ Expected checks:
 This app checks mixed static/upload layering and confirms that upload-backed `var` controls apply only to the upload-backed layer.
 
 ```{r formula-4, eval=FALSE}
-ggpaintr_basic2("
+ggpaintr_app("
 ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
   geom_point(color = 'grey70', size = 2) +
   geom_point(data = upload, aes(x = var, y = var, color = var), size = num) +
@@ -315,7 +240,7 @@ Expected checks:
 This app is the static export-oriented formula. Use it along with Formula 3 for the two export checks.
 
 ```{r formula-5, eval=FALSE}
-ggpaintr_basic2("
+ggpaintr_app("
 ggplot(data = iris, aes(x = var, y = var)) +
   geom_point(size = num) +
   labs(title = text, subtitle = text) +
@@ -348,7 +273,7 @@ Expected checks:
 Use these short apps to confirm the new draw-time error path for malformed expressions, invalid uploads, missing objects, and recovery after failure.
 
 ```{r formula-6a, eval=FALSE}
-ggpaintr_basic2("
+ggpaintr_app("
 ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
   geom_point() +
   facet_wrap(expr)
@@ -373,7 +298,7 @@ Expected checks:
 - `outputCode` remains visible for the `~ Speciesasdf` case because completion succeeded before render-time failure.
 
 ```{r formula-6-upload-error, eval=FALSE}
-ggpaintr_basic2("
+ggpaintr_app("
 ggplot(data = upload, aes(x = var, y = var)) +
   geom_point()
 ")
@@ -393,7 +318,7 @@ Expected checks:
 - `outputCode` stays blank.
 
 ```{r formula-6b, eval=FALSE}
-ggpaintr_basic2("
+ggpaintr_app("
 ggplot(data = unknown_object, aes(x = mpg, y = disp)) +
   geom_point()
 ")
@@ -412,7 +337,7 @@ Expected checks:
 - The generated code remains visible even though plot construction failed.
 
 ```{r formula-6c-recovery, eval=FALSE}
-ggpaintr_basic2("
+ggpaintr_app("
 ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
   geom_point() +
   facet_wrap(expr)

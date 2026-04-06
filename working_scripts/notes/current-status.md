@@ -2,35 +2,38 @@
 
 ## Project state
 
-`ggpaintr` currently has two tracks in the repo:
+`ggpaintr` is now maintained as a single `ggpaintr` package.
 
-1. the older package-level `ggpaintr` path
-2. the newer `paintr2` formula-driven workflow
+Active package entry points are:
 
-Current development focus is the `paintr2` path centered on:
+- `ggpaintr_app()`  
+  Reference: `R/paintr-app.R:15-17`
+- `paintr_formula()`  
+  Reference: `R/paintr-parse.R:17-67`
+- `paintr_build_runtime()`  
+  Reference: `R/paintr-runtime.R:399-402`
+- `paintr_get_plot()`  
+  Reference: `R/paintr-runtime.R:242-250`
+- `generate_shiny()`  
+  Reference: `R/paintr-export.R:38-55`
 
-- `R/paintr2_func.R`
-- `R/ui_function.R`
-- `working_scripts/paintr_distribute.R`
+The runtime is now organized into package modules:
 
-Core runtime flow:
+- `R/paintr-app.R`
+- `R/paintr-export.R`
+- `R/paintr-parse.R`
+- `R/paintr-runtime.R`
+- `R/paintr-ui.R`
+- `R/paintr-upload.R`
+- `R/paintr-utils.R`
 
-- `paintr_formula()` parses one ggplot-like formula string and builds a `paintr_obj`  
-  Reference: `R/paintr2_func.R:511-562`
-- `output_embed_var()` resolves dynamic `var` controls from static or uploaded data  
-  Reference: `R/ui_function.R:113-260`
-- `paintr_complete_expr()` substitutes current input values and builds `code_text`  
-  Reference: `R/paintr2_func.R:613-653`
-- `paintr_get_plot()` evaluates the completed expression list into a plot  
-  Reference: `R/paintr2_func.R:655-665`
-- `paintr_build_runtime()` now wraps completion, plot construction, and render-time validation into one structured result for the app UI and exported apps, preserving generated code on plot-stage failures  
-  Reference: `R/paintr2_func.R`
-- `generate_shiny()` exports a standalone app script using the same runtime helpers  
-  Reference: `R/paintr2_func.R:778-796`
+Legacy package content has been moved under:
+
+- `archive/legacy-package/`
 
 ## Current placeholder support
 
-Supported placeholders in `paintr2`:
+Supported placeholders in the maintained path:
 
 - `var`
 - `text`
@@ -38,87 +41,80 @@ Supported placeholders in `paintr2`:
 - `expr`
 - `upload`
 
-Current behavior summary:
+Current boundary summary:
 
-- `var` is rendered dynamically from available column names, but on substitution it is still parsed with `parse_expr()`, so expression-like inputs such as `log(mpg)` are allowed  
-  Reference: `R/ui_function.R:22-27`, `R/ui_function.R:65-85`, `R/paintr2_func.R:254-265`
-- `text` uses `textInput()` and blank values are removed from the completed expression  
-  Reference: `R/ui_function.R:29-39`, `R/paintr2_func.R:277-286`
-- `num` uses `numericInput()` and missing values are removed from the completed expression  
-  Reference: `R/ui_function.R:41-51`, `R/paintr2_func.R:267-275`
-- `expr` uses `textInput()`, is parsed with `parse_expr()`, and invalid syntax still errors during completion  
-  Reference: `R/ui_function.R:53-63`, `R/paintr2_func.R:288-295`
-- `upload` supports `.csv` and `.rds`, creates a file input plus dataset-name input, and injects uploaded data into the evaluation environment  
-  Reference: `R/ui_function.R:1-20`, `R/paintr2_func.R:167-250`
+- `upload` supports `.csv` and `.rds`
+- `var` still accepts expression-like input through `parse_expr()`  
+  Reference: `R/paintr-runtime.R:9-17`
+- structural formula failures still happen at parse time
+- structural formula parsing and placeholder detection are still built from one formula string into a `paintr_obj`  
+  Reference: `R/paintr-parse.R:17-67`
+- `var` with no data source still fails during UI preparation
+- missing local data objects are deferred to draw-time plot errors  
+  Reference: `R/paintr-app.R:67-95`, `R/paintr-runtime.R:326-377`
+- render-time ggplot failures use the same inline runtime error channel
 
-Current launch-vs-draw boundary:
+## Package surface status
 
-- structural formula errors still block launch during parsing
-- `var` with no data source still blocks launch during UI preparation
-- unresolved local data objects such as `data = unknown_object` no longer block launch; they now defer to draw-time inline `Plot error:` handling
-- render-time ggplot failures such as missing faceting variables are now captured by the same draw-time error channel
+Current exported API is:
 
-Upload naming status:
+- `ggpaintr_app()`
+- `paintr_formula()`
+- `paintr_build_runtime()`
+- `paintr_get_plot()`
+- `generate_shiny()`
 
-- blank upload names still default from the uploaded filename  
-  Reference: `R/paintr2_func.R:156-165`, `R/paintr2_func.R:199-200`
-- custom upload names now normalize whitespace to underscores before `make.names()`  
-  Example: `"custom dataset"` becomes `"custom_dataset"`  
-  Reference: `R/paintr2_func.R:197-204`
+Current generated package artifacts are expected to be derived from source:
+
+- `NAMESPACE`
+- `man/`
+- `docs/`
+
+Current naming status:
+
+- active package/docs/notes now use `ggpaintr` as the maintained workflow name
+- active manual assets now live at `tests/manual/manual-test-ggpaintr.Rmd` and `tests/manual/manual-checklist-ggpaintr.md`
+- the active vignette now lives at `vignettes/ggpaintr-workflow.Rmd`
 
 ## Testing status
 
-Automated testing is in package-standard `testthat` layout:
+Automated tests remain under:
 
 - `tests/testthat/`
-- `tests/testthat/fixtures/`
-- `tests/manual/manual-checklist-paintr2.md`
 
-Reference:
+Manual interaction coverage remains under:
 
-- `DESCRIPTION:26-41`
-- `tests/testthat.R`
+- `tests/manual/manual-test-ggpaintr.Rmd`
+- `tests/manual/manual-checklist-ggpaintr.md`
 
-Current automated coverage includes:
+Latest verification status:
 
-- formula parsing and placeholder detection
-- placeholder substitution
-- upload helper behavior
-- upload-backed `var` handling
-- expression completion and plot construction
-- draw-time runtime error handling, including render-time ggplot failures
-- supported and unsupported formula cases
-- Shiny app export generation
-- exported `input_formula` preservation in generated apps  
-  Reference: `tests/testthat/test-export-shiny.R:1-58`
-
-Manual testing status:
-
-- one round of manual `paintr2` interaction testing has been completed in this session
-- a runnable manual workbook now exists at `tests/manual/manual_test.Rmd`
-- the manual checklist remains in `tests/manual/manual-checklist-paintr2.md`
+- `testthat::test_dir("tests/testthat")` passes  
+  Reference: `tests/testthat/test-runtime-feedback.R:1-178`, `tests/testthat/test-export-shiny.R:1-66`
+- `generate_shiny()` export behavior is covered against the current `ggpaintr_app()`-based template  
+  Reference: `R/paintr-export.R:5-15`, `tests/testthat/test-export-shiny.R:1-58`
+- `devtools::check(document = FALSE, manual = FALSE, args = c("--no-manual"))` completed cleanly in the latest session run
+- `cran-comments.md` still records the earlier one-note result and should be refreshed before submission  
+  Reference: `cran-comments.md:5-20`
 
 ## Session progress
 
 Completed in this session:
 
-- added `tests/manual/manual_test.Rmd` with `ggpaintr_basic2()` manual test formulas and suggested inputs
-- finished one manual test round against the current `paintr2` interaction path
-- updated upload custom-name handling so whitespace becomes underscores  
-  Reference: `R/paintr2_func.R:197-204`
-- fixed `generate_shiny()` formula-text export handling so the exported app preserves the formula string correctly  
-  Reference: `R/paintr2_func.R:778-789`
-- added export test coverage for `input_formula` preservation  
-  Reference: `tests/testthat/test-export-shiny.R:31-58`
-- added structured draw-time error handling for completion and plot failures, with inline Shiny error output and preserved code text on plot-stage failures
-- extended automated coverage for the error-message channel, including helper output shape, render-time ggplot failures, and exported-app error wiring
-- fixed a render-time error gap so faceting failures like `facet_wrap(~ Speciesasdf)` now surface through the inline error channel instead of raw Shiny `[object Object]`
-- changed unresolved local data objects such as `data = unknown_object` from launch-blocking UI failures to draw-time inline plot errors
-- updated the manual workbook and checklist to cover malformed `expr`, invalid uploads, render-time ggplot errors, recovery-after-error, exported-app error behavior, and launch-first/draw-fail missing-object cases
+- archived the legacy package implementation under `archive/legacy-package/`
+- replaced the active package API with a focused `ggpaintr` exported surface
+- split active runtime code into focused `R/` modules
+- added roxygen2 comments across the active implementation
+- regenerated `NAMESPACE` and `man/`
+- rewrote `DESCRIPTION`, `README`, vignette, and pkgdown configuration around `ggpaintr`
+- added `NEWS.md` and `cran-comments.md`
+- renamed the active workflow/docs/manual assets from `paintr2` to `ggpaintr`
+- rebuilt the canonical manual workbook at `tests/manual/manual-test-ggpaintr.Rmd`
+- reran generated outputs and package verification after the rename sweep
 
 ## Quick re-entry points
 
-If starting fresh next time, read in this order:
+Read in this order:
 
 1. `working_scripts/notes/knowledge-schema.md`
 2. `working_scripts/notes/start-codex.md`
@@ -126,7 +122,9 @@ If starting fresh next time, read in this order:
 4. `working_scripts/notes/project-overview.md`
 5. `working_scripts/notes/testing-strategy.md`
 6. `working_scripts/notes/next-steps.md`
-7. `R/paintr2_func.R`
-8. `R/ui_function.R`
-9. `tests/testthat/test-export-shiny.R`
-10. `tests/manual/manual_test.Rmd`
+7. `R/paintr-app.R`
+8. `R/paintr-parse.R`
+9. `R/paintr-runtime.R`
+10. `tests/testthat/test-runtime-feedback.R`
+11. `tests/testthat/test-export-shiny.R`
+12. `tests/manual/manual-test-ggpaintr.Rmd`

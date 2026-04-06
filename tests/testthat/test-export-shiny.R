@@ -11,11 +11,8 @@ test_that("generate_shiny writes a syntactically valid app script", {
 
   app_text <- paste(readLines(out_file), collapse = "\n")
   expect_match(app_text, "input_formula <- ")
-  expect_match(app_text, "ggpaintr:::paintr_formula", fixed = TRUE)
-  expect_match(app_text, "ggpaintr:::paintr_build_runtime", fixed = TRUE)
-  expect_match(app_text, "uiOutput\\(\"outputError\"\\)")
-  expect_match(app_text, "ggpaintr:::paintr_error_ui", fixed = TRUE)
-  expect_match(app_text, "output\\$outputError <- renderUI")
+  expect_match(app_text, "ggpaintr_app\\(input_formula\\)")
+  expect_match(app_text, "shinyApp\\(ui = app\\$ui, server = app\\$server\\)")
 })
 
 test_that("generate_shiny preserves upload-aware runtime code", {
@@ -28,7 +25,7 @@ test_that("generate_shiny preserves upload-aware runtime code", {
 
   app_text <- paste(readLines(out_file), collapse = "\n")
   expect_match(app_text, "ggplot\\(data = upload")
-  expect_match(app_text, "ggpaintr:::output_embed_var", fixed = TRUE)
+  expect_match(app_text, "ggpaintr_app\\(input_formula\\)")
 })
 
 test_that("generate_shiny preserves the formula text in the exported app", {
@@ -58,4 +55,12 @@ test_that("generate_shiny preserves the formula text in the exported app", {
 
   expect_false(is.null(input_formula_expr))
   expect_identical(eval(input_formula_expr[[3]]), formula_text)
+})
+
+test_that("ggpaintr_app returns a shiny app object", {
+  app <- ggpaintr_app(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  )
+
+  expect_s3_class(app, "shiny.appobj")
 })

@@ -1,4 +1,19 @@
 url: https://willju-wangqian.github.io/ggpaintr/
 template:
   bootstrap: 5
-
+home:
+  title: ggpaintr
+  description: Build formula-driven Shiny apps for ggplot2.
+reference:
+  - title: Main functions
+    contents:
+      - ggpaintr_app
+      - paintr_formula
+      - paintr_build_runtime
+      - paintr_get_plot
+      - generate_shiny
+articles:
+  - title: Guides
+    navbar: ggpaintr
+    contents:
+      - ggpaintr-workflow

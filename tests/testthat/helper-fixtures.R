@@ -6,8 +6,14 @@ library(shiny)
 library(shinyWidgets)
 library(stringr)
 
-source(testthat::test_path("..", "..", "R", "paintr2_func.R"), local = TRUE)
-source(testthat::test_path("..", "..", "R", "ui_function.R"), local = TRUE)
+r_files <- sort(list.files(
+  testthat::test_path("..", "..", "R"),
+  pattern = "[.]R$",
+  full.names = TRUE
+))
+for (r_file in r_files) {
+  source(r_file, local = TRUE)
+}
 
 fixture_path <- function(...) {
   testthat::test_path("fixtures", ...)
