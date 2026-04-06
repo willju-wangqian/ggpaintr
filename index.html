@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Building modularized shiny apps with plotting functionalities using ggplot2 and the Grammar of Graphics • ggpaintr</title>
+<title>ggpaintr • ggpaintr</title>
 <!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png">
 <link rel="icon" type="”image/svg+xml”" href="favicon.svg">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -15,10 +15,9 @@
 <link href="deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Building modularized shiny apps with plotting functionalities using ggplot2 and the Grammar of Graphics">
-<meta name="description" content="A package for developers to build modularized shiny apps with plotting functionalities using ggplot2 and the Grammar of Graphics. The resulting shiny app provides a basic graphical user interface for making plots using ggplot2. Example shiny apps are included.">
-<meta property="og:description" content="A package for developers to build modularized shiny apps with plotting functionalities using ggplot2 and the Grammar of Graphics. The resulting shiny app provides a basic graphical user interface for making plots using ggplot2. Example shiny apps are included.">
-<meta property="og:image" content="https://willju-wangqian.github.io/ggpaintr/logo.png">
+<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="ggpaintr">
+<meta name="description" content="Build formula-driven Shiny apps for ggplot2.">
+<meta property="og:description" content="Build formula-driven Shiny apps for ggplot2.">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -28,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.9.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -41,14 +40,18 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="articles/intro-ggpaintr.html">Introduction to ggpaintr</a></li>
+<li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
+    <li><a class="dropdown-item" href="articles/ggpaintr-workflow.html">ggpaintr Workflow</a></li>
   </ul>
 </li>
+<li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="search.json">
 </form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/willju-wangqian/ggpaintr/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul>
 </div>
 
@@ -57,366 +60,104 @@
 </nav><div class="container template-home">
 <div class="row">
   <main id="main" class="col-md-9"><div class="section level1">
-<div class="page-header">
-<img src="logo.png" class="logo" alt=""><h1 id="ggpaintr-">ggpaintr <a class="anchor" aria-label="anchor" href="#ggpaintr-"></a>
-</h1>
-</div>
-<p>An open-source R package for building modularized shiny apps with plotting functionalities using <code>ggplot2</code> and the Grammar of Graphics</p>
+<div class="page-header"><h1 id="ggpaintr">ggpaintr<a class="anchor" aria-label="anchor" href="#ggpaintr"></a>
+</h1></div>
+<p><code>ggpaintr</code> is an R package for the maintained <code>ggpaintr</code> workflow. It turns a single ggplot-like formula string into a small Shiny app with generated controls, rendered plots, generated code, upload support, and inline runtime feedback.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>You can install the development version from Github with:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># install.packages("devtools")</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"willju-wangqian/ggpaintr"</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
+<span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pkg_install.html" class="external-link">pkg_install</a></span><span class="op">(</span><span class="st">"willju-wangqian/ggpaintr"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="building-a-shiny-app-that-can-make-plots-with-ggplot2">Building a shiny app that can make plots with <code>ggplot2</code>
-<a class="anchor" aria-label="anchor" href="#building-a-shiny-app-that-can-make-plots-with-ggplot2"></a>
+<h2 id="the-ggpaintr-model">The <code>ggpaintr</code> model<a class="anchor" aria-label="anchor" href="#the-ggpaintr-model"></a>
 </h2>
-<div class="figure">
-<img src="reference/figures/ggpaintr_iris_1.png" alt="Some Caption" width="100%"><p class="caption">
-Some Caption
-</p>
-</div>
-<p>This figure shows a shiny app that can make plots with <code>ggplot2</code>. After selecting a dataset, the shiny app allows users to map variables (or columns) in the dataset to <code>x</code> and <code>y</code>. It generates a plot using <code>ggplot2</code> and shows the corresponding <code>R</code> code. The reactivity on the mappings are built up so that changing mappings variables for <code>x</code> or <code>y</code> will change the resulting plot after clicking the “draw” button. Moreover, changing the selected dataset will automatically update the available choices for <code>x</code> and <code>y</code>. Without the help of <code>ggpaintr</code>, building such a shiny app at least requires the following steps:</p>
+<p>Supported placeholders inside a formula string are:</p>
 <ul>
-<li>have UI components for <code>x</code> and <code>y</code> so that <code>input$x</code> and <code>input$y</code> are available</li>
-<li>dynamically render UI components for <code>x</code> and <code>y</code> so that the available choices depend on the selected data set</li>
-<li>figure out how to generate a <code>ggplot2</code> plot using <code>input$x</code> and <code>input$y</code> since the inputs are strings. One option is to use <code><a href="https://ggplot2.tidyverse.org/reference/aes_.html" class="external-link">aes_string()</a></code>
-</li>
-<li>figure out the <code>R</code> code for generating the resulting plot</li>
-<li>render the plot</li>
-<li>render the code</li>
+<li><code>var</code></li>
+<li><code>text</code></li>
+<li><code>num</code></li>
+<li><code>expr</code></li>
+<li><code>upload</code></li>
 </ul>
-<p>This might look involved, but what if this shiny app needs more functionalities? If the shiny app needs more mappings, such as <code>color</code> or <code>fill</code>, it will add more UI component, modify the server part so that the inputs can be correctly captured. If the shiny app wants to allow users to flip the coordinates using <code><a href="https://ggplot2.tidyverse.org/reference/coord_flip.html" class="external-link">coord_flip()</a></code> or adding labels using <code><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs()</a></code>, building this shiny app becomes even more involved. Additionally, maintaining and updating the shiny app can be challenging as well since many aspects of the shiny app would be modified.</p>
-<p>However, we can build such a shiny app using <code>ggpaintr</code> with the following code.</p>
+<p><code>upload</code> currently supports <code>.csv</code> and <code>.rds</code>.</p>
+</div>
+<div class="section level2">
+<h2 id="quick-start">Quick start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
+</h2>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://willju-wangqian.github.io/ggpaintr/">ggpaintr</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://shiny.posit.co/" class="external-link">shiny</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://tidyverse.tidyverse.org" class="external-link">tidyverse</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/dreamRs/shinyWidgets" class="external-link">shinyWidgets</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://allisonhorst.github.io/palmerpenguins/" class="external-link">palmerpenguins</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Define UI for application that draws a histogram</span></span>
-<span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidPage</a></span><span class="op">(</span></span>
-<span>  </span>
-<span>  <span class="co"># Application title</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/titlePanel.html" class="external-link">titlePanel</a></span><span class="op">(</span><span class="st">"ggpaintr demo"</span><span class="op">)</span>,</span>
-<span>  </span>
-<span>  <span class="co"># Sidebar with a slider input for number of bins</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarLayout</a></span><span class="op">(</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarPanel</a></span><span class="op">(</span></span>
-<span>      <span class="fu"><a href="https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html" class="external-link">pickerInput</a></span><span class="op">(</span><span class="st">"defaultData"</span>, <span class="st">"select a default dataset:"</span>,</span>
-<span>                  choices <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"iris"</span>, <span class="st">"mtcars"</span>,<span class="st">"penguins"</span>, <span class="st">"faithfuld"</span><span class="op">)</span>,</span>
-<span>                  selected <span class="op">=</span> <span class="st">""</span>,</span>
-<span>                  multiple <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>                  options <span class="op">=</span> <span class="fu"><a href="https://dreamrs.github.io/shinyWidgets/reference/pickerOptions.html" class="external-link">pickerOptions</a></span><span class="op">(</span>maxOptions <span class="op">=</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>      <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/htmlOutput.html" class="external-link">uiOutput</a></span><span class="op">(</span><span class="st">"controlPanel"</span><span class="op">)</span>,</span>
-<span>      <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/actionButton.html" class="external-link">actionButton</a></span><span class="op">(</span><span class="st">"draw"</span>, <span class="st">"click to draw the plot"</span><span class="op">)</span>,</span>
-<span>    <span class="op">)</span>,</span>
-<span>    </span>
-<span>    <span class="co"># Show a plot of the generated distribution</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">mainPanel</a></span><span class="op">(</span></span>
-<span>      <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/plotOutput.html" class="external-link">plotOutput</a></span><span class="op">(</span><span class="st">"outputPlot"</span><span class="op">)</span>,</span>
-<span>      <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/textOutput.html" class="external-link">verbatimTextOutput</a></span><span class="op">(</span><span class="st">'outputCode'</span><span class="op">)</span></span>
-<span>    <span class="op">)</span></span>
+<span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/paintr_formula.html">paintr_formula</a></span><span class="op">(</span></span>
+<span>  <span class="st">"ggplot(data = mtcars, aes(x = var, y = var)) +</span></span>
+<span><span class="st">    geom_point(size = num) +</span></span>
+<span><span class="st">    labs(title = text)"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">runtime</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/paintr_build_runtime.html">paintr_build_runtime</a></span><span class="op">(</span></span>
+<span>  <span class="va">obj</span>,</span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    <span class="st">"ggplot+3+2"</span> <span class="op">=</span> <span class="st">"mpg"</span>,</span>
+<span>    <span class="st">"ggplot+3+3"</span> <span class="op">=</span> <span class="st">"disp"</span>,</span>
+<span>    <span class="st">"geom_point+2"</span> <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>    <span class="st">"labs+2"</span> <span class="op">=</span> <span class="st">"Mtcars scatter"</span>,</span>
+<span>    <span class="st">"geom_point+checkbox"</span> <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>    <span class="st">"labs+checkbox"</span> <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Define server logic required to draw a histogram</span></span>
-<span><span class="va">server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  </span>
-<span>  <span class="va">control_id</span> <span class="op">&lt;-</span> <span class="st">"control_id"</span></span>
-<span>  </span>
-<span>  <span class="co"># data</span></span>
-<span>  <span class="va">data_container</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/reactive.html" class="external-link">reactive</a></span><span class="op">(</span><span class="op">{</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/req.html" class="external-link">req</a></span><span class="op">(</span><span class="va">input</span><span class="op">$</span><span class="va">defaultData</span><span class="op">)</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/get.html" class="external-link">get</a></span><span class="op">(</span><span class="va">input</span><span class="op">$</span><span class="va">defaultData</span><span class="op">)</span></span>
-<span>  <span class="op">}</span><span class="op">)</span></span>
-<span>  </span>
-<span>  <span class="co"># construct paintr object</span></span>
-<span>  <span class="va">paintr_rctv</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/reactive.html" class="external-link">reactive</a></span><span class="op">(</span><span class="op">{</span></span>
-<span>    </span>
-<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/req.html" class="external-link">req</a></span><span class="op">(</span><span class="fu">data_container</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span>    </span>
-<span>    <span class="fu"><a href="reference/paintr.html">paintr</a></span><span class="op">(</span><span class="va">control_id</span>,</span>
-<span>           <span class="fu">data_container</span><span class="op">(</span><span class="op">)</span>, data_path <span class="op">=</span> <span class="va">input</span><span class="op">$</span><span class="va">defaultData</span>,</span>
-<span>           <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_boxplot.html" class="external-link">geom_boxplot</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span><span class="op">)</span><span class="op">)</span> </span>
-<span>    <span class="op">)</span></span>
-<span>    </span>
-<span>  <span class="op">}</span><span class="op">)</span></span>
-<span>  </span>
-<span>  <span class="co"># place ui</span></span>
-<span>  <span class="va">output</span><span class="op">$</span><span class="va">controlPanel</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI</a></span><span class="op">(</span><span class="op">{</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/req.html" class="external-link">req</a></span><span class="op">(</span><span class="fu">paintr_rctv</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span>    </span>
-<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/column.html" class="external-link">column</a></span><span class="op">(</span></span>
-<span>      <span class="fl">12</span>,</span>
-<span>      <span class="fu"><a href="reference/paintr_get_ui.html">paintr_get_ui</a></span><span class="op">(</span><span class="fu">paintr_rctv</span><span class="op">(</span><span class="op">)</span>, <span class="st">"x"</span><span class="op">)</span>,</span>
-<span>      <span class="fu"><a href="reference/paintr_get_ui.html">paintr_get_ui</a></span><span class="op">(</span><span class="fu">paintr_rctv</span><span class="op">(</span><span class="op">)</span>, <span class="st">"y"</span><span class="op">)</span>,</span>
-<span>    <span class="op">)</span></span>
-<span>  <span class="op">}</span><span class="op">)</span></span>
-<span>  </span>
-<span>  <span class="co"># take results and plot</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/observe.html" class="external-link">observe</a></span><span class="op">(</span><span class="op">{</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/req.html" class="external-link">req</a></span><span class="op">(</span><span class="fu">paintr_rctv</span><span class="op">(</span><span class="op">)</span>, <span class="fu">data_container</span><span class="op">(</span><span class="op">)</span>, <span class="va">input</span><span class="op">$</span><span class="va">defaultData</span><span class="op">)</span></span>
-<span>    <span class="va">data</span> <span class="op">&lt;-</span> <span class="fu">data_container</span><span class="op">(</span><span class="op">)</span></span>
-<span>    </span>
-<span>    <span class="va">paintr_results</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/paintr_plot_code.html">paintr_plot_code</a></span><span class="op">(</span><span class="fu">paintr_rctv</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span>    </span>
-<span>    <span class="co"># Plot output</span></span>
-<span>    <span class="va">output</span><span class="op">$</span><span class="va">outputPlot</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/renderPlot.html" class="external-link">renderPlot</a></span><span class="op">(</span><span class="op">{</span></span>
-<span>      </span>
-<span>      <span class="va">paintr_results</span><span class="op">[[</span><span class="st">'plot'</span><span class="op">]</span><span class="op">]</span></span>
-<span>      </span>
-<span>    <span class="op">}</span><span class="op">)</span></span>
-<span>    </span>
-<span>    <span class="co"># Code output</span></span>
-<span>    <span class="va">output</span><span class="op">$</span><span class="va">outputCode</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/renderPrint.html" class="external-link">renderText</a></span><span class="op">(</span><span class="op">{</span></span>
-<span>      </span>
-<span>      <span class="va">paintr_results</span><span class="op">[[</span><span class="st">'code'</span><span class="op">]</span><span class="op">]</span></span>
-<span>      </span>
-<span>    <span class="op">}</span><span class="op">)</span></span>
-<span>    </span>
-<span>  <span class="op">}</span><span class="op">)</span> <span class="op">%&gt;%</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/bindEvent.html" class="external-link">bindEvent</a></span><span class="op">(</span><span class="va">input</span><span class="op">$</span><span class="va">draw</span><span class="op">)</span></span>
-<span>  </span>
-<span>  </span>
-<span><span class="op">}</span></span>
-<span></span>
-<span><span class="co"># Run the application</span></span>
-<span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/shinyApp.html" class="external-link">shinyApp</a></span><span class="op">(</span>ui <span class="op">=</span> <span class="va">ui</span>, server <span class="op">=</span> <span class="va">server</span><span class="op">)</span></span></code></pre></div>
-<p>Many things are hidden and handled by functions in <code>ggpaintr</code>. And updating this shiny app can be relatively easy with the help of <code>ggpaintr</code>: by changing the <code>ggplot2</code> alike expression at line 51 into</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># add mapping for fill</span></span>
-<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_boxplot.html" class="external-link">geom_boxplot</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, <span class="va">fill</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="va">coord_flip</span> <span class="op">+</span>        <span class="co"># allow users to flip coordinate</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, <span class="va">title</span><span class="op">)</span>   <span class="co"># allow users to add labels for x-axis, y-axis, and title</span></span></code></pre></div>
-<p>and adding more elements in <code>output$controlPanel &lt;- renderUI()</code> at line 57:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># place ui</span></span>
-<span><span class="va">output</span><span class="op">$</span><span class="va">controlPanel</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI</a></span><span class="op">(</span><span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/req.html" class="external-link">req</a></span><span class="op">(</span><span class="fu">paintr_rctv</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span>  </span>
-<span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/column.html" class="external-link">column</a></span><span class="op">(</span></span>
-<span>    <span class="fl">12</span>,</span>
-<span>    <span class="fu"><a href="reference/paintr_get_ui.html">paintr_get_ui</a></span><span class="op">(</span><span class="fu">paintr_rctv</span><span class="op">(</span><span class="op">)</span>, <span class="st">"x"</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="reference/paintr_get_ui.html">paintr_get_ui</a></span><span class="op">(</span><span class="fu">paintr_rctv</span><span class="op">(</span><span class="op">)</span>, <span class="st">"y"</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="reference/paintr_get_ui.html">paintr_get_ui</a></span><span class="op">(</span><span class="fu">paintr_rctv</span><span class="op">(</span><span class="op">)</span>, <span class="st">"fill"</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="reference/paintr_get_ui.html">paintr_get_ui</a></span><span class="op">(</span><span class="fu">paintr_rctv</span><span class="op">(</span><span class="op">)</span>, <span class="st">"coord_flip"</span><span class="op">)</span>, <span class="co"># add UI for coord_flip()</span></span>
-<span>    <span class="fu"><a href="reference/paintr_get_ui.html">paintr_get_ui</a></span><span class="op">(</span><span class="fu">paintr_rctv</span><span class="op">(</span><span class="op">)</span>, <span class="st">"labs"</span><span class="op">)</span>,       <span class="co"># add UI for labs()</span></span>
-<span>  <span class="op">)</span></span>
-<span><span class="op">}</span><span class="op">)</span></span></code></pre></div>
-<p>we can build a shiny app with the updated features as shown in Figure X. We can see that the shiny app now allows users to flip coordinates and set labels. The plot and corresponding <code>R</code> code can be updated accordingly as well.</p>
-<div class="figure">
-<img src="reference/figures/ggpaintr_iris_2.png" alt="Some Caption" width="100%"><p class="caption">
-Some Caption
-</p>
-</div>
+<span><span class="va">runtime</span><span class="op">$</span><span class="va">code_text</span></span>
+<span><span class="co">#&gt; [1] "ggplot(data = mtcars, aes(x = mpg, y = disp)) +\n  geom_point(size = 2) +\n  labs(title = \"Mtcars scatter\")"</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">inherits</a></span><span class="op">(</span><span class="va">runtime</span><span class="op">$</span><span class="va">plot</span>, <span class="st">"ggplot"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="building-a-shiny-app-using-ggpaintr">Building a shiny app using <code>ggpaintr</code>
-<a class="anchor" aria-label="anchor" href="#building-a-shiny-app-using-ggpaintr"></a>
+<h2 id="launch-an-app">Launch an app<a class="anchor" aria-label="anchor" href="#launch-an-app"></a>
 </h2>
-<p>A shiny app called <code>ggpaintr_app</code> is built with the <code>ggpaintr</code> package and included in the package. <code>ggpaintr_app</code> not only demonstrates the functionality of <code>ggpaintr</code>, but also serves as a shiny app for those unfamiliar with the Grammar of Graphics or ggplot2 but want to create a plot using ggplot2. Some design of <code>ggpaintr_app</code> can also provide reference for package/shiny app developers. To start the app:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://willju-wangqian.github.io/ggpaintr/">ggpaintr</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="reference/run_ggpaintr_app.html">run_ggpaintr_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="reference/ggpaintr_app.html">ggpaintr_app</a></span><span class="op">(</span><span class="st">"</span></span>
+<span><span class="st">ggplot(data = iris, aes(x = var, y = var)) +</span></span>
+<span><span class="st">  geom_point(aes(color = var), size = num) +</span></span>
+<span><span class="st">  labs(title = text) +</span></span>
+<span><span class="st">  facet_wrap(expr)</span></span>
+<span><span class="st">"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="development">Development<a class="anchor" aria-label="anchor" href="#development"></a>
+<h2 id="export-a-standalone-app">Export a standalone app<a class="anchor" aria-label="anchor" href="#export-a-standalone-app"></a>
 </h2>
-<ul>
-<li>location for external data: <code>inst/extdata</code>
-</li>
-<li>location for example shiny app: <code>inst/shiny</code>
-</li>
-<li>location for files that need to be uploaded but are not part of the package: <code>preconsideration/&lt;folder_name&gt;</code>
-</li>
-<li>coding style consistency: please try to use <code>underscores_in_variable_names</code> and (maybe) <code>camelCase</code> for web-related names…</li>
-</ul>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/paintr_formula.html">paintr_formula</a></span><span class="op">(</span></span>
+<span>  <span class="st">"ggplot(data = upload, aes(x = var, y = var)) + geom_point()"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="reference/generate_shiny.html">generate_shiny</a></span><span class="op">(</span><span class="va">obj</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".R"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="generate-plot-icons">Generate plot icons<a class="anchor" aria-label="anchor" href="#generate-plot-icons"></a>
+<h2 id="runtime-behavior">Runtime behavior<a class="anchor" aria-label="anchor" href="#runtime-behavior"></a>
 </h2>
 <ul>
-<li>the code that generates the plot icons: <code>preconsideration/generate_plot_icon</code>
-</li>
-<li>we can save the generated icons into <code>preconsideration/saved_plot_icon</code> or copy them to <code>inst/shiny/ggpaintr_app/www/img_button</code>
-</li>
-<li>different functions for <code>actionButton</code>
-<ul>
+<li>Structural formula errors fail at parse time.</li>
 <li>
-<code><a href="https://dreamrs.github.io/shinyWidgets/reference/actionBttn.html" class="external-link">shinyWidgets::actionBttn</a></code>, <a href="https://bttn.surge.sh/" class="external-link">link</a>
-</li>
-<li>
-<code>actionButton</code>: this is the default and we can specify the <code>style</code> attribute</li>
-<li>
-<code>bsButton</code>: this includes both the <code>actionButton</code> and <code>checkboxInput</code>, but we don’t have much room for <code>style</code>
-</li>
+<code>var</code> with no data source fails while preparing UI.</li>
+<li>Missing local data objects are deferred to draw-time plot errors.</li>
+<li>Render-time ggplot failures are shown through the same inline error channel.</li>
 </ul>
-</li>
-</ul>
-</div>
-<div class="section level2">
-<h2 id="future-work">Future work<a class="anchor" aria-label="anchor" href="#future-work"></a>
-</h2>
-<ul>
-<li>extensibility +</li>
-</ul>
-</div>
-<div class="section level2">
-<h2 id="change-log">Change log<a class="anchor" aria-label="anchor" href="#change-log"></a>
-</h2>
-<div class="section level4">
-<h4 id="version-number-0098">version number: 0.0.9.8<a class="anchor" aria-label="anchor" href="#version-number-0098"></a>
-</h4>
-<ul>
-<li><p>fixed <code>DT</code> filtering problem in <code>ggpaintr_app</code></p></li>
-<li><p>Todo: ???</p></li>
-</ul>
-</div>
-<div class="section level4">
-<h4 id="version-number-0097">version number: 0.0.9.7<a class="anchor" aria-label="anchor" href="#version-number-0097"></a>
-</h4>
-<ul>
-<li><p>fixed code for numeric input</p></li>
-<li><p>allow categorical variables to have less than 3 levels</p></li>
-<li>
-<p>Todo - <code>ggpaintr_app</code>:</p>
-<ul>
-<li>filters from <code>DT</code> will invalidate the code</li>
-</ul>
-</li>
-</ul>
-</div>
-<div class="section level4">
-<h4 id="version-number-0096">version number: 0.0.9.6<a class="anchor" aria-label="anchor" href="#version-number-0096"></a>
-</h4>
-<ul>
-<li><p>alpha as numeric</p></li>
-<li><p>n &lt; 3 colors</p></li>
-<li><p>added four chart types, next: update functions in the package</p></li>
-<li><p>change expression by clicking the plot icon</p></li>
-<li><p>test if ui functions can be added</p></li>
-<li><p>how to add customized handler functions?</p></li>
-</ul>
-</div>
-<div class="section level4">
-<h4 id="version-number-0095">version number: 0.0.9.5<a class="anchor" aria-label="anchor" href="#version-number-0095"></a>
-</h4>
-<ul>
-<li>Updates:
-<ul>
-<li>introduced <code>paintr_obj</code> and <code><a href="reference/paintr.html">paintr()</a></code>, which use a grammar similar to <code>ggplot2</code> to specify and control all elements or pieces built in the shiny app</li>
-<li>use one function to build reactivity of <code>color</code> or <code>fill</code> so that they can work with <code>paintr_plot_code</code>
-</li>
-</ul>
-</li>
-<li>TODO:
-<ul>
-<li>documentations and dependencies</li>
-<li>write-ups</li>
-<li>download plot</li>
-<li>test and finalize code then push to main</li>
-</ul>
-</li>
-</ul>
-</div>
-<div class="section level4">
-<h4 id="version-number-0094">version number: 0.0.9.4<a class="anchor" aria-label="anchor" href="#version-number-0094"></a>
-</h4>
-<ul>
-<li>heuristics:
-<ul>
-<li>parameters of handlers</li>
-<li>parameters of ui modules</li>
-<li>returns of handlers</li>
-</ul>
-</li>
-<li>TODO:
-<ul>
-<li>documentations</li>
-<li><label><input type="checkbox" checked>icon position or size</label></li>
-<li>writeup
-<ul>
-<li>the concept of grammar of graphics</li>
-<li>why this package can be useful</li>
-<li>how to use the package</li>
-</ul>
-</li>
-<li><label><input type="checkbox" checked>how to wrap up the part of scale_color</label></li>
-<li>template?</li>
-<li>download plot</li>
-<li><label><input type="checkbox" checked>aes then comma</label></li>
-</ul>
-</li>
-</ul>
-</div>
-<div class="section level4">
-<h4 id="version-number-0093">version number: 0.0.9.3<a class="anchor" aria-label="anchor" href="#version-number-0093"></a>
-</h4>
-<ul>
-<li>updates:
-<ul>
-<li>the app is now able to show code that generates the plot</li>
-<li>dynamic color picker</li>
-</ul>
-</li>
-<li>TODO:
-<ul>
-<li>update ui</li>
-<li>implement other plot types</li>
-<li>extend the current functionality: added more handlers (for example one for <code><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs()</a></code>)</li>
-<li>documentations</li>
-</ul>
-</li>
-</ul>
-</div>
-<div class="section level4">
-<h4 id="version-number-0092">version number: 0.0.9.2<a class="anchor" aria-label="anchor" href="#version-number-0092"></a>
-</h4>
-<ul>
-<li>updates:
-<ul>
-<li>
-<code>*Handler</code>s are introduced for plot generation</li>
-<li>added bar chart</li>
-</ul>
-</li>
-</ul>
-</div>
-<div class="section level4">
-<h4 id="version-number-0091">version number: 0.0.9.1<a class="anchor" aria-label="anchor" href="#version-number-0091"></a>
-</h4>
-<ul>
-<li>updates:
-<ul>
-<li>new ui</li>
-<li>example for box plot finished</li>
-</ul>
-</li>
-<li>TODO:
-<ul>
-<li>update the geomGenerators
-<ul>
-<li>each line of Grammar of Graphics has its onw handler</li>
-<li>a function that collects all handlers</li>
-<li>find a way to connect handlers to its ui components</li>
-</ul>
-</li>
-<li>allow color pickers to respond to the selected variable</li>
-<li>update ui</li>
-<li>implement other plot types</li>
-<li>display code</li>
-</ul>
-</li>
-</ul>
+<p>See <code><a href="articles/ggpaintr-workflow.html">vignette("ggpaintr-workflow")</a></code> for a fuller walkthrough.</p>
 </div>
 </div>
+  </main><aside class="col-md-3"><div class="links">
+<h2 data-toc-skip>Links</h2>
+<ul class="list-unstyled">
+<li><a href="https://github.com/willju-wangqian/ggpaintr/" class="external-link">Browse source code</a></li>
+<li><a href="https://github.com/willju-wangqian/ggpaintr/issues" class="external-link">Report a bug</a></li>
+</ul>
 </div>
-  </main><aside class="col-md-3"><div class="license">
+
+<div class="license">
 <h2 data-toc-skip>License</h2>
 <ul class="list-unstyled">
 <li><a href="https://www.r-project.org/Licenses/GPL-3" class="external-link">GPL-3</a></li>

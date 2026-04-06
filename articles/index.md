@@ -1,6 +1,6 @@
 # Articles
 
-### All vignettes
+### Guides
 
-- [Introduction to
-  ggpaintr](https://willju-wangqian.github.io/ggpaintr/articles/intro-ggpaintr.md):
+- [ggpaintr
+  Workflow](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-workflow.md):

@@ -1,6 +1,6 @@
-# check if a list has `NULL`; if so, remove it (them)
+# Drop `NULL` Elements from a List
 
-check if a list has `NULL`; if so, remove it (them)
+Drop `NULL` Elements from a List
 
 ## Usage
 
@@ -12,18 +12,8 @@ check_remove_null(x)
 
 - x:
 
-  list
+  A list or `NULL`.
 
 ## Value
 
-`NULL` or a list
-
-## Examples
-
-``` r
-x <- list(a = 1, b = NULL)
-check_remove_null(x)
-#> $a
-#> [1] 1
-#> 
-```
+A list without `NULL` values, or `NULL`.

@@ -1,0 +1,45 @@
+# Build the Full Runtime Result for a Paintr App
+
+Build the Full Runtime Result for a Paintr App
+
+## Usage
+
+``` r
+paintr_build_runtime(paintr_obj, input, envir = parent.frame())
+```
+
+## Arguments
+
+- paintr_obj:
+
+  A `paintr_obj`.
+
+- input:
+
+  A Shiny input-like object.
+
+- envir:
+
+  The environment used to resolve local data objects.
+
+## Value
+
+A runtime result list containing success flag, stage, plot, code, and
+readable error details.
+
+## Examples
+
+``` r
+library(ggplot2)
+
+obj <- paintr_formula(
+  "ggplot(data = iris, aes(x = var, y = var)) + geom_point()"
+)
+runtime <- paintr_build_runtime(
+  obj,
+  list("ggplot+3+2" = "Sepal.Length", "ggplot+3+3" = "Sepal.Width", "geom_point+checkbox" = TRUE)
+)
+#> Don't know how to handle keyword: iris. Let it pass.
+isTRUE(runtime$ok)
+#> [1] TRUE
+```
