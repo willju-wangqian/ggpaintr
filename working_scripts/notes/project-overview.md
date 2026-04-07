@@ -34,25 +34,28 @@ Key runtime path:
 1. `paintr_formula()` parses the formula and constructs a `paintr_obj`
 2. `paintr_effective_copy_rules()` merges internal copy defaults with any
    runtime overrides
-3. `paintr_get_tab_ui()` and `register_var_ui_outputs()` build static and
-   deferred controls from formula metadata plus resolved copy
-4. `paintr_build_runtime()` completes the expression, builds the plot, validates
-   render-time behavior, and formats errors
-5. `ggpaintr_server()` wires the standard Shiny server behavior, runtime state,
-   and export handler while preserving the original `copy_rules` input for
-   export
-6. `ggpaintr_app()` wraps the default UI shell around that server behavior
-7. `generate_shiny()` writes a standalone app script with explicit shell-copy
+3. `ggpaintr_server_state()` initializes shared reactive state for the wrapper
+   and integration helpers
+4. `ggpaintr_bind_control_panel()` uses `register_var_ui_outputs()` and
+   `paintr_get_tab_ui()` to build static and deferred controls from formula
+   metadata plus resolved copy
+5. `ggpaintr_bind_draw()`, `ggpaintr_bind_export()`, `ggpaintr_bind_plot()`,
+   `ggpaintr_bind_error()`, and `ggpaintr_bind_code()` wire the standard Shiny
+   behavior for the default wrapper and for embedded integrations
+6. `ggpaintr_server()` is a thin wrapper over that shared state plus the
+   standard bind helpers
+7. `ggpaintr_app()` wraps the default UI shell around that server behavior
+8. `generate_shiny()` writes a standalone app script with explicit shell-copy
    objects, explicit `ui`, explicit `server`, and a `ggpaintr_server()` call
 
 References:
 
 - `R/paintr-parse.R:17-67`
-- `R/paintr-copy.R:507-625`
-- `R/paintr-ui.R:210-426`
+- `R/paintr-copy.R:507-643`
+- `R/paintr-ui.R:250-426`
 - `R/paintr-runtime.R:289-402`
-- `R/paintr-app.R:40-186`
-- `R/paintr-export.R:64-179`
+- `R/paintr-app.R:181-535`
+- `R/paintr-export.R:64-193`
 
 ## Public API
 
@@ -60,6 +63,19 @@ The maintained exported package surface is:
 
 - `ggpaintr_app()`
 - `ggpaintr_server()`
+- `ggpaintr_ids()`
+- `ggpaintr_server_state()`
+- `ggpaintr_bind_control_panel()`
+- `ggpaintr_bind_draw()`
+- `ggpaintr_bind_export()`
+- `ggpaintr_bind_plot()`
+- `ggpaintr_bind_error()`
+- `ggpaintr_bind_code()`
+- `ggpaintr_plot_value()`
+- `ggpaintr_error_value()`
+- `ggpaintr_code_value()`
+- `ggpaintr_controls_ui()`
+- `ggpaintr_outputs_ui()`
 - `paintr_formula()`
 - `paintr_build_runtime()`
 - `paintr_get_plot()`
@@ -67,22 +83,43 @@ The maintained exported package surface is:
 
 Current public customization boundary:
 
-- `ggpaintr_app()`, `ggpaintr_server()`, and `generate_shiny()` accept optional
-  named-list `copy_rules`
-- `paintr_effective_copy_rules()` is now exported so users and exported apps
-  can rebuild a full runtime copy registry from compact custom overrides
-- exported apps can also call exported `paintr_resolve_copy()` to keep shell
-  labels aligned with a visible `copy_rules` object
-- `copy_rules` only affects labels, helper text, placeholders, and related UI
-  wording
+- `ggpaintr_app()`, `ggpaintr_server()`, `ggpaintr_server_state()`, and
+  `generate_shiny()` accept optional named-list `copy_rules`
+- `ggpaintr_ids()` lets embedded integrations customize only the six top-level
+  Shiny ids for control panel, draw, export, plot, error, and code
+- `ggpaintr_server_state()` plus the `ggpaintr_bind_*()` helpers are the
+  supported way to embed the package runtime into an existing Shiny app
+- `ggpaintr_plot_value()`, `ggpaintr_error_value()`, and
+  `ggpaintr_code_value()` are the pure-value seam for custom `renderPlot()`,
+  `renderUI()`, and `renderText()` code
+- `ggpaintr_controls_ui()` and `ggpaintr_outputs_ui()` provide optional default
+  UI fragments for those integrations
+- `paintr_effective_copy_rules()` and `paintr_resolve_copy()` remain exported
+  copy helpers for runtime and exported-app customization
+- internal placeholder ids and dynamic `var-*` outputs remain package-owned in
+  phase 1
 - everything else in `R/` remains package-internal implementation support
 
 References:
 
-- `R/paintr-app.R:7-18`
-- `R/paintr-app.R:29-46`
-- `R/paintr-copy.R:507-625`
-- `R/paintr-export.R:78-179`
+- `R/paintr-app.R:21-535`
+- `R/paintr-copy.R:507-643`
+- `R/paintr-export.R:64-193`
+- `NAMESPACE:3-23`
+- `_pkgdown.yml:7-42`
+
+## Documentation workflow
+
+- edit `README.Rmd`, not `README.md`
+- regenerate `README.md` by knitting or rendering `README.Rmd` after README
+  source changes
+- if a session cannot regenerate `README.md`, treat `README.Rmd` as the
+  source-of-truth edit and leave an explicit note that the knitted `README.md`
+  still needs manual regeneration
+
+References:
+
+- `README.Rmd:1-5`
 
 ## Exported app design
 
@@ -105,14 +142,16 @@ Design expectations:
 - `input_formula` should stay readable in the generated source, and if the
   original formula spans multiple lines, the exported `input_formula` should
   also span multiple lines
+- phase 1 intentionally keeps exported apps on the established
+  `ggpaintr_server()` path rather than exporting a binder-based template
 
 References:
 
-- `R/paintr-app.R:45-77`
+- `R/paintr-app.R:516-535`
 - `R/paintr-copy.R:507-580`
 - `R/paintr-export.R:34-155`
-- `R/paintr-export.R:166-179`
-- `tests/testthat/test-export-shiny.R:1-302`
+- `R/paintr-export.R:180-193`
+- `tests/testthat/test-export-shiny.R:1-410`
 
 ## Placeholder and copy model
 
@@ -139,15 +178,17 @@ Boundary notes:
 - default exported apps rely on package-owned default copy behavior through
   `copy_rules <- NULL`, while customized exports preserve only compact
   non-default overrides and reconstruct effective rules in the generated app
+- advanced integrations can customize the built plot through
+  `ggpaintr_plot_value()` while the default binder preserves the blank-on-failure
+  render behavior
 
 References:
 
 - `R/paintr-parse.R:3-6`
 - `R/paintr-runtime.R:9-17`
-- `R/paintr-ui.R:285-320`
 - `R/paintr-runtime.R:326-377`
 - `R/paintr-upload.R:35-95`
-- `R/paintr-copy.R:117-125`
-- `R/paintr-copy.R:150-174`
-- `R/paintr-copy.R:252-580`
+- `R/paintr-copy.R:117-174`
+- `R/paintr-copy.R:252-643`
+- `R/paintr-app.R:319-429`
 - `R/paintr-export.R:64-155`

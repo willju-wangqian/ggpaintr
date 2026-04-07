@@ -28,8 +28,8 @@ ggpaintr_server(
 text, and placeholders.}
 }
 \value{
-A list containing reactive accessors named \code{obj}, \code{runtime}, and
-\code{var_ui_list}.
+A \code{ggpaintr_state} object containing reactive accessors named \code{obj},
+\code{runtime}, and \code{var_ui_list}, plus shared metadata used by the bind helpers.
 }
 \description{
 Wire the standard \code{ggpaintr} server behavior into an existing Shiny app.

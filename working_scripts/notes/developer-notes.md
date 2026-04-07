@@ -12,15 +12,18 @@ This file is for developer-written initial thoughts, rough ideas, and informal p
 
 0.  rename `copy_rules`
 
-1.  assess package-level extensibility
+1.  `var` with white space?
 
-2.  shiny app theme? redesign the current UI
+2.  test cases that can break ggpaintr
 
-3.  test cases that can break ggpaintr
+    -   bug assessment? generate edge cases that can effectively break ggpaintr
 
-4.  test cases of super complicated ggplot2 formula
-  
-5.  silence the message in console by default.
+3.  assess package-level extensibility
 
+4.  shiny app theme? redesign the current UI
+
+5.  test cases of super complicated ggplot2 formula
+
+6.  silence the message in console by default.
 
 # <https://shiny.posit.co/r/articles/share/function/>

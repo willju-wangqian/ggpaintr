@@ -80,6 +80,66 @@ ggplot(data = iris, aes(x = var, y = var)) +
 ")
 ```
 
+## Integrate `ggpaintr` into an existing app
+
+The default wrappers stay available, but you can now embed `ggpaintr` into your
+own Shiny layout with custom ids and custom server wiring.
+
+```{r integrate, eval=FALSE}
+library(ggpaintr)
+library(ggplot2)
+library(shiny)
+
+ids <- ggpaintr_ids(
+  control_panel = "builder_controls",
+  draw_button = "render_plot",
+  export_button = "export_app",
+  plot_output = "main_plot",
+  error_output = "main_error",
+  code_output = "main_code"
+)
+
+ui <- fluidPage(
+  titlePanel("Custom ggpaintr integration"),
+  sidebarLayout(
+    sidebarPanel(
+      ggpaintr_controls_ui(ids = ids)
+    ),
+    mainPanel(
+      ggpaintr_outputs_ui(ids = ids)
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  paintr_state <- ggpaintr_server_state(
+    "ggplot(data = iris, aes(x = var, y = var)) +
+      geom_point() +
+      labs(title = text)",
+    ids = ids
+  )
+
+  ggpaintr_bind_control_panel(input, output, paintr_state, ids = ids)
+  ggpaintr_bind_draw(input, paintr_state, ids = ids)
+  ggpaintr_bind_export(output, paintr_state, ids = ids)
+  ggpaintr_bind_error(output, paintr_state, ids = ids)
+  ggpaintr_bind_code(output, paintr_state, ids = ids)
+
+  output[[ids$plot_output]] <- renderPlot({
+    plot_obj <- ggpaintr_plot_value(paintr_state$runtime())
+
+    if (is.null(plot_obj)) {
+      plot.new()
+      return(invisible(NULL))
+    }
+
+    plot_obj + ggplot2::theme_minimal()
+  })
+}
+
+shinyApp(ui, server)
+```
+
 ## Export a standalone app
 
 ```{r export, eval=FALSE}
@@ -97,4 +157,5 @@ generate_shiny(obj, list(), tempfile(fileext = ".R"))
 - Missing local data objects are deferred to draw-time plot errors.
 - Render-time ggplot failures are shown through the same inline error channel.
 
-See `vignette("ggpaintr-workflow")` for a fuller walkthrough.
+See `vignette("ggpaintr-workflow")` for the main workflow and
+`vignette("ggpaintr-extensibility")` for integration recipes.

@@ -5,14 +5,31 @@ home:
   title: ggpaintr
   description: Build formula-driven Shiny apps for ggplot2.
 reference:
-  - title: Main functions
+  - title: Shiny wrappers
     contents:
       - ggpaintr_app
       - ggpaintr_server
+      - generate_shiny
+  - title: Shiny integration
+    contents:
+      - ggpaintr_ids
+      - ggpaintr_server_state
+      - ggpaintr_bind_control_panel
+      - ggpaintr_bind_draw
+      - ggpaintr_bind_export
+      - ggpaintr_bind_plot
+      - ggpaintr_bind_error
+      - ggpaintr_bind_code
+      - ggpaintr_plot_value
+      - ggpaintr_error_value
+      - ggpaintr_code_value
+      - ggpaintr_controls_ui
+      - ggpaintr_outputs_ui
+  - title: Formula and runtime
+    contents:
       - paintr_formula
       - paintr_build_runtime
       - paintr_get_plot
-      - generate_shiny
   - title: Copy customization
     contents:
       - paintr_effective_copy_rules
@@ -22,3 +39,4 @@ articles:
     navbar: ggpaintr
     contents:
       - ggpaintr-workflow
+      - ggpaintr-extensibility

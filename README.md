@@ -68,43 +68,64 @@ ggplot(data = iris, aes(x = var, y = var)) +
 ")
 ```
 
-## Customize control copy
+## Integrate `ggpaintr` into an existing app
 
-You can override the default UI copy for a specific app by passing a
-named `copy_rules` list. The package merges your overrides with the
-internal defaults, so you only need to specify the labels, helper text,
-or placeholders you want to change.
+The default wrappers stay available, but you can now embed `ggpaintr`
+into your own Shiny layout with custom ids and custom server wiring.
 
 ``` r
-copy_rules <- list(
-  shell = list(
-    title = list(label = "Exploratory Plot Builder"),
-    draw_button = list(label = "Render plot")
-  ),
-  params = list(
-    x = list(var = list(label = "Pick the field for the x-axis")),
-    y = list(var = list(label = "Pick the field for the y-axis")),
-    title = list(text = list(label = "Chart title"))
-  ),
-  layers = list(
-    facet_wrap = list(
-      expr = list(
-        `__unnamed__` = list(
-          label = "Split the plot by",
-          placeholder = "~ Species"
-        )
-      )
+library(ggpaintr)
+library(ggplot2)
+library(shiny)
+
+ids <- ggpaintr_ids(
+  control_panel = "builder_controls",
+  draw_button = "render_plot",
+  export_button = "export_app",
+  plot_output = "main_plot",
+  error_output = "main_error",
+  code_output = "main_code"
+)
+
+ui <- fluidPage(
+  titlePanel("Custom ggpaintr integration"),
+  sidebarLayout(
+    sidebarPanel(
+      ggpaintr_controls_ui(ids = ids)
+    ),
+    mainPanel(
+      ggpaintr_outputs_ui(ids = ids)
     )
   )
 )
 
-ggpaintr_app(
-  "ggplot(data = iris, aes(x = var, y = var)) +
-     geom_point() +
-     labs(title = text) +
-     facet_wrap(expr)",
-  copy_rules = copy_rules
-)
+server <- function(input, output, session) {
+  paintr_state <- ggpaintr_server_state(
+    "ggplot(data = iris, aes(x = var, y = var)) +
+      geom_point() +
+      labs(title = text)",
+    ids = ids
+  )
+
+  ggpaintr_bind_control_panel(input, output, paintr_state, ids = ids)
+  ggpaintr_bind_draw(input, paintr_state, ids = ids)
+  ggpaintr_bind_export(output, paintr_state, ids = ids)
+  ggpaintr_bind_error(output, paintr_state, ids = ids)
+  ggpaintr_bind_code(output, paintr_state, ids = ids)
+
+  output[[ids$plot_output]] <- renderPlot({
+    plot_obj <- ggpaintr_plot_value(paintr_state$runtime())
+
+    if (is.null(plot_obj)) {
+      plot.new()
+      return(invisible(NULL))
+    }
+
+    plot_obj + ggplot2::theme_minimal()
+  })
+}
+
+shinyApp(ui, server)
 ```
 
 ## Export a standalone app
@@ -117,13 +138,6 @@ obj <- paintr_formula(
 generate_shiny(obj, list(), tempfile(fileext = ".R"))
 ```
 
-The same `copy_rules` object can be passed to `generate_shiny()` so an
-exported app keeps the same customized wording as the live app. When
-the exported app needs custom wording, it writes a compact
-`custom_copy_rules` object and reconstructs `copy_rules` with
-`paintr_effective_copy_rules(custom_copy_rules)` instead of embedding
-the full default registry.
-
 ## Runtime behavior
 
 -   Structural formula errors fail at parse time.
@@ -132,4 +146,5 @@ the full default registry.
 -   Render-time ggplot failures are shown through the same inline error
     channel.
 
-See `vignette("ggpaintr-workflow")` for a fuller walkthrough.
+See `vignette("ggpaintr-workflow")` for the main workflow and
+`vignette("ggpaintr-extensibility")` for integration recipes.
