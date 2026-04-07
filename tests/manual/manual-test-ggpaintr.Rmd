@@ -210,7 +210,7 @@ This app checks mixed static/upload layering and confirms that upload-backed `va
 ```{r formula-4, eval=FALSE}
 ggpaintr_app("
 ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
-  geom_point(color = 'grey70', size = 2) +
+  geom_point(aes(color = var), size = 2) +
   geom_point(data = upload, aes(x = var, y = var, color = var), size = num) +
   labs(title = text)
 ")
@@ -242,7 +242,7 @@ ggpaintr_app("
 ggplot(data = iris, aes(x = var, y = var)) +
   geom_point(size = num) +
   labs(title = text, subtitle = text) +
-  facet_grid(var ~ var, labeller = expr)
+  facet_grid(expr, labeller = expr)
 ")
 ```
 
