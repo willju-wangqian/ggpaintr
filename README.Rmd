@@ -17,8 +17,8 @@ knitr::opts_chunk$set(
 
 `ggpaintr` is an R package for the maintained `ggpaintr` workflow. It turns a
 single ggplot-like formula string into a small Shiny app with generated
-controls, rendered plots, generated code, upload support, and inline runtime
-feedback.
+controls, rendered plots, generated code, upload support, copy customization,
+custom Shiny integration hooks, and export helpers.
 
 ## Installation
 
@@ -27,19 +27,30 @@ feedback.
 pak::pkg_install("willju-wangqian/ggpaintr")
 ```
 
-## The `ggpaintr` model
+## Core concepts
 
-Supported placeholders inside a formula string are:
+`ggpaintr` works by treating a ggplot-like formula string as a template with
+placeholders that become Shiny inputs.
 
-- `var`
-- `text`
-- `num`
-- `expr`
-- `upload`
+- `var` selects a variable or expression-like input
+- `text` collects free text
+- `num` collects numeric input
+- `expr` collects raw R code for places like faceting or labels
+- `upload` lets the app use uploaded data
 
 `upload` currently supports `.csv` and `.rds`.
 
+```r
+"ggplot(data = iris, aes(x = var, y = var)) +
+  geom_point(size = num, color = text) +
+  labs(title = text) +
+  facet_wrap(expr)"
+```
+
 ## Quick start
+
+The low-level workflow is: parse a formula, build a runtime from user inputs,
+then inspect the generated code and plot.
 
 ```{r quick-start}
 library(ggpaintr)
@@ -67,7 +78,39 @@ runtime$code_text
 inherits(runtime$plot, "ggplot")
 ```
 
-## Launch an app
+## Feature tour
+
+### Build a plot from a formula
+
+You can use the low-level runtime helpers directly when you want to inspect or
+test the generated plot code outside Shiny.
+
+```{r formula-runtime}
+obj <- paintr_formula(
+  "ggplot(data = iris, aes(x = var, y = var)) +
+    geom_point(color = text) +
+    labs(title = text)"
+)
+
+runtime <- paintr_build_runtime(
+  obj,
+  list(
+    "ggplot+3+2" = "Sepal.Length",
+    "ggplot+3+3" = "Petal.Length",
+    "geom_point+2" = "steelblue",
+    "labs+2" = "Iris scatter",
+    "geom_point+checkbox" = TRUE,
+    "labs+checkbox" = TRUE
+  )
+)
+
+runtime$code_text
+```
+
+### Launch an interactive app
+
+Use `ggpaintr_app()` for the default wrapper when you want the package to build
+the Shiny app shell for you.
 
 ```r
 library(ggpaintr)
@@ -80,14 +123,71 @@ ggplot(data = iris, aes(x = var, y = var)) +
 ")
 ```
 
-## Integrate `ggpaintr` into an existing app
+### Work with uploaded data
 
-The default wrappers stay available, but you can now embed `ggpaintr` into your
-own Shiny layout with custom ids and custom server wiring.
+Use `upload` when the app should let users supply a dataset at runtime.
+
+```r
+ggpaintr_app("
+ggplot(data = upload, aes(x = var, y = var)) +
+  geom_point(size = num) +
+  labs(title = text)
+")
+```
+
+The upload control currently supports `.csv` and `.rds`.
+
+### Customize control text with `copy_rules`
+
+Use `copy_rules` to change user-facing labels without changing the runtime
+behavior of the generated app.
+
+```r
+custom_copy <- list(
+  shell = list(
+    draw_button = "Render plot",
+    export_button = "Save app"
+  ),
+  args = list(
+    x = "X axis variable",
+    y = "Y axis variable",
+    title = "Plot title"
+  )
+)
+
+ggpaintr_app(
+  "ggplot(data = iris, aes(x = var, y = var)) +
+     geom_point() +
+     labs(title = text)",
+  copy_rules = custom_copy
+)
+```
+
+### Export a standalone app
+
+Use `generate_shiny()` when you want an explicit, editable Shiny app file that
+you can continue customizing outside the package wrapper.
+
+```{r export, eval=FALSE}
+obj <- paintr_formula(
+  "ggplot(data = upload, aes(x = var, y = var)) +
+    geom_point() +
+    labs(title = text)"
+)
+
+app_file <- tempfile(fileext = ".R")
+generate_shiny(obj, list(), app_file)
+
+# The generated file keeps an explicit ui, an explicit server, and a visible
+# copy_rules hook so you can keep editing it as a normal Shiny app.
+```
+
+### Embed `ggpaintr` in your own Shiny app
+
+The phase-1 extensibility layer lets you keep your own layout while reusing the
+`ggpaintr` state and bind helpers.
 
 ```{r integrate, eval=FALSE}
-library(ggpaintr)
-library(ggplot2)
 library(shiny)
 
 ids <- ggpaintr_ids(
@@ -100,14 +200,9 @@ ids <- ggpaintr_ids(
 )
 
 ui <- fluidPage(
-  titlePanel("Custom ggpaintr integration"),
   sidebarLayout(
-    sidebarPanel(
-      ggpaintr_controls_ui(ids = ids)
-    ),
-    mainPanel(
-      ggpaintr_outputs_ui(ids = ids)
-    )
+    sidebarPanel(ggpaintr_controls_ui(ids = ids)),
+    mainPanel(ggpaintr_outputs_ui(ids = ids))
   )
 )
 
@@ -122,10 +217,32 @@ server <- function(input, output, session) {
   ggpaintr_bind_control_panel(input, output, paintr_state, ids = ids)
   ggpaintr_bind_draw(input, paintr_state, ids = ids)
   ggpaintr_bind_export(output, paintr_state, ids = ids)
+  ggpaintr_bind_plot(output, paintr_state, ids = ids)
   ggpaintr_bind_error(output, paintr_state, ids = ids)
   ggpaintr_bind_code(output, paintr_state, ids = ids)
+}
 
-  output[[ids$plot_output]] <- renderPlot({
+shinyApp(ui, server)
+```
+
+### Customize the plot in your own `renderPlot()`
+
+If you want to keep the `ggpaintr` runtime but take over plot rendering, use
+`ggpaintr_plot_value()` inside your own `renderPlot()`.
+
+```{r customize-plot, eval=FALSE}
+server <- function(input, output, session) {
+  paintr_state <- ggpaintr_server_state(
+    "ggplot(data = iris, aes(x = var, y = var)) + geom_point()"
+  )
+
+  ggpaintr_bind_control_panel(input, output, paintr_state)
+  ggpaintr_bind_draw(input, paintr_state)
+  ggpaintr_bind_export(output, paintr_state)
+  ggpaintr_bind_error(output, paintr_state)
+  ggpaintr_bind_code(output, paintr_state)
+
+  output$outputPlot <- renderPlot({
     plot_obj <- ggpaintr_plot_value(paintr_state$runtime())
 
     if (is.null(plot_obj)) {
@@ -136,26 +253,17 @@ server <- function(input, output, session) {
     plot_obj + ggplot2::theme_minimal()
   })
 }
-
-shinyApp(ui, server)
 ```
 
-## Export a standalone app
+## Behavior and boundaries
 
-```{r export, eval=FALSE}
-obj <- paintr_formula(
-  "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
-)
+- Structural formula errors fail early during parsing.
+- `var` with no data source fails while preparing the UI.
+- Missing local data objects are deferred to draw-time inline errors.
+- Advanced integrations can customize the plot through `ggpaintr_plot_value()`.
+- `upload` currently supports `.csv` and `.rds`.
 
-generate_shiny(obj, list(), tempfile(fileext = ".R"))
-```
-
-## Runtime behavior
-
-- Structural formula errors fail at parse time.
-- `var` with no data source fails while preparing UI.
-- Missing local data objects are deferred to draw-time plot errors.
-- Render-time ggplot failures are shown through the same inline error channel.
+## Where to go next
 
 See `vignette("ggpaintr-workflow")` for the main workflow and
-`vignette("ggpaintr-extensibility")` for integration recipes.
+`vignette("ggpaintr-extensibility")` for custom Shiny integration recipes.
