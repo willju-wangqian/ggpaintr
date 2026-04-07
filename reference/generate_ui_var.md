@@ -5,7 +5,7 @@ Build a Variable Selector UI
 ## Usage
 
 ``` r
-generate_ui_var(data_var, id, param)
+generate_ui_var(data_var, id, param, layer_name = NULL, copy_rules = NULL)
 ```
 
 ## Arguments
@@ -21,6 +21,14 @@ generate_ui_var(data_var, id, param)
 - param:
 
   Parameter label.
+
+- layer_name:
+
+  Layer name.
+
+- copy_rules:
+
+  Effective or user-supplied copy rules.
 
 ## Value
 

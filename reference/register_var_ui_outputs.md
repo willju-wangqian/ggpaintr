@@ -5,7 +5,13 @@ Register Dynamic `var` UI Outputs for a Parsed Formula
 ## Usage
 
 ``` r
-register_var_ui_outputs(input, output, paintr_obj, envir = parent.frame())
+register_var_ui_outputs(
+  input,
+  output,
+  paintr_obj,
+  envir = parent.frame(),
+  copy_rules = NULL
+)
 ```
 
 ## Arguments
@@ -25,6 +31,10 @@ register_var_ui_outputs(input, output, paintr_obj, envir = parent.frame())
 - envir:
 
   Environment used to resolve local data objects.
+
+- copy_rules:
+
+  Effective or user-supplied copy rules.
 
 ## Value
 

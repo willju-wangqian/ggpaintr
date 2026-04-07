@@ -6,7 +6,13 @@ helpers as the package.
 ## Usage
 
 ``` r
-generate_shiny(paintr_obj, var_ui, output_file, style = TRUE)
+generate_shiny(
+  paintr_obj,
+  var_ui,
+  output_file,
+  style = TRUE,
+  copy_rules = NULL
+)
 ```
 
 ## Arguments
@@ -27,6 +33,11 @@ generate_shiny(paintr_obj, var_ui, output_file, style = TRUE)
 - style:
 
   Whether to style the generated file with `styler` when available.
+
+- copy_rules:
+
+  Optional named list of copy overrides for UI labels, helper text, and
+  placeholders.
 
 ## Value
 

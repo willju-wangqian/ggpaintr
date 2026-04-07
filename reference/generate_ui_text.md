@@ -5,7 +5,7 @@ Build Text Placeholder UI
 ## Usage
 
 ``` r
-generate_ui_text(id, param)
+generate_ui_text(id, param, layer_name = NULL, copy_rules = NULL)
 ```
 
 ## Arguments
@@ -17,6 +17,14 @@ generate_ui_text(id, param)
 - param:
 
   Parameter label.
+
+- layer_name:
+
+  Layer name.
+
+- copy_rules:
+
+  Effective or user-supplied copy rules.
 
 ## Value
 

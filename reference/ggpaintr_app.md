@@ -7,7 +7,7 @@ output, and an export button for producing a standalone app script.
 ## Usage
 
 ``` r
-ggpaintr_app(formula, envir = parent.frame())
+ggpaintr_app(formula, envir = parent.frame(), copy_rules = NULL)
 ```
 
 ## Arguments
@@ -19,6 +19,11 @@ ggpaintr_app(formula, envir = parent.frame())
 - envir:
 
   Environment used to resolve local data objects when building the app.
+
+- copy_rules:
+
+  Optional named list of copy overrides for UI labels, helper text, and
+  placeholders.
 
 ## Value
 

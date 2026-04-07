@@ -5,7 +5,7 @@ Build Reusable App Components for ggpaintr
 ## Usage
 
 ``` r
-paintr_app_components(formula, envir = parent.frame())
+paintr_app_components(formula, envir = parent.frame(), copy_rules = NULL)
 ```
 
 ## Arguments
@@ -17,6 +17,10 @@ paintr_app_components(formula, envir = parent.frame())
 - envir:
 
   Environment used to resolve local data objects.
+
+- copy_rules:
+
+  Optional named list of copy overrides.
 
 ## Value
 

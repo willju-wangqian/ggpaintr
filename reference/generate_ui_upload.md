@@ -5,7 +5,7 @@ Build Upload UI for a Placeholder
 ## Usage
 
 ``` r
-generate_ui_upload(id)
+generate_ui_upload(id, copy_rules = NULL)
 ```
 
 ## Arguments
@@ -14,6 +14,10 @@ generate_ui_upload(id)
 
   Placeholder id.
 
+- copy_rules:
+
+  Effective or user-supplied copy rules.
+
 ## Value
 
-A Shiny UI object with an attached `ui_expr` attribute.
+A Shiny UI object.

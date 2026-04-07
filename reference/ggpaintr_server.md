@@ -8,7 +8,14 @@ callers can extend the app with additional observers and outputs.
 ## Usage
 
 ``` r
-ggpaintr_server(input, output, session, formula, envir = parent.frame())
+ggpaintr_server(
+  input,
+  output,
+  session,
+  formula,
+  envir = parent.frame(),
+  copy_rules = NULL
+)
 ```
 
 ## Arguments
@@ -32,6 +39,11 @@ ggpaintr_server(input, output, session, formula, envir = parent.frame())
 - envir:
 
   Environment used to resolve local data objects when building the app.
+
+- copy_rules:
+
+  Optional named list of copy overrides for UI labels, helper text, and
+  placeholders.
 
 ## Value
 
