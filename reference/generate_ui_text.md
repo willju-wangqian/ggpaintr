@@ -28,4 +28,5 @@ generate_ui_text(id, param, layer_name = NULL, copy_rules = NULL)
 
 ## Value
 
-A `textInput()` UI object.
+A [`textInput()`](https://rdrr.io/pkg/shiny/man/textInput.html) UI
+object.

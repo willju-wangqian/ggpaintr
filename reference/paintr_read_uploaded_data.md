@@ -12,7 +12,8 @@ paintr_read_uploaded_data(file_info)
 
 - file_info:
 
-  A Shiny `fileInput()` value.
+  A Shiny [`fileInput()`](https://rdrr.io/pkg/shiny/man/fileInput.html)
+  value.
 
 ## Value
 

@@ -16,4 +16,4 @@ tab_wrap_ui(ui_list)
 
 ## Value
 
-A `tabsetPanel()`.
+A [`tabsetPanel()`](https://rdrr.io/pkg/shiny/man/tabsetPanel.html).

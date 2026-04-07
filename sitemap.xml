@@ -1,5 +1,6 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/404.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-extensibility.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-workflow.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/articles/index.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/authors.html</loc></url>
@@ -31,7 +32,20 @@
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/get_shiny_template.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr-package.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_app.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_bind_code.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_bind_control_panel.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_bind_draw.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_bind_error.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_bind_export.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_bind_plot.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_code_value.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_controls_ui.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_error_value.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_ids.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_outputs_ui.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_plot_value.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_server.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_server_state.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/handle_call_break_sum.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/handle_duplicate_names.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/handle_expr.html</loc></url>

@@ -97,3 +97,7 @@ file.exists(out_file)
   draw time.
 - Render-time ggplot failures such as missing faceting variables are
   surfaced by the same runtime error path as other plot failures.
+
+For recipes that embed `ggpaintr` into an existing Shiny app with custom
+ids or custom plot rendering, see
+[`vignette("ggpaintr-extensibility")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-extensibility.md).

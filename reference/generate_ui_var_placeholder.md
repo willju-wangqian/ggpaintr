@@ -16,4 +16,5 @@ generate_ui_var_placeholder(id)
 
 ## Value
 
-A placeholder `uiOutput()`.
+A placeholder
+[`uiOutput()`](https://rdrr.io/pkg/shiny/man/htmlOutput.html).

@@ -47,5 +47,6 @@ ggpaintr_server(
 
 ## Value
 
-A list containing reactive accessors named `obj`, `runtime`, and
-`var_ui_list`.
+A `ggpaintr_state` object containing reactive accessors named `obj`,
+`runtime`, and `var_ui_list`, plus shared metadata used by the bind
+helpers.
