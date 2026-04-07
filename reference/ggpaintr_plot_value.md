@@ -29,7 +29,6 @@ runtime <- paintr_build_runtime(
   obj,
   list("ggplot+3+2" = "mpg", "ggplot+3+3" = "disp", "geom_point+checkbox" = TRUE)
 )
-#> Don't know how to handle keyword: mtcars. Let it pass.
 #> The function geom_point() is removed.
 inherits(ggpaintr_plot_value(runtime), "ggplot")
 #> [1] FALSE

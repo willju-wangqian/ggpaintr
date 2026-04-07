@@ -31,7 +31,6 @@ obj <- paintr_formula(
   "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + geom_point()"
 )
 runtime <- paintr_build_runtime(obj, list("geom_point+checkbox" = TRUE))
-#> Don't know how to handle keyword: iris. Let it pass.
 plot_obj <- paintr_get_plot(runtime$complete_expr_list, runtime$eval_env)
 inherits(plot_obj, "ggplot")
 #> [1] TRUE

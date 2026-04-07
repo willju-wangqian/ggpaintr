@@ -5,7 +5,7 @@ Validate Copy Rules
 ## Usage
 
 ``` r
-paintr_validate_copy_rules(copy_rules)
+paintr_validate_copy_rules(copy_rules, placeholders = NULL)
 ```
 
 ## Arguments
@@ -13,6 +13,11 @@ paintr_validate_copy_rules(copy_rules)
 - copy_rules:
 
   User-supplied copy rules.
+
+- placeholders:
+
+  Optional custom placeholder definitions or an effective placeholder
+  registry.
 
 ## Value
 

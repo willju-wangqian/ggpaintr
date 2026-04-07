@@ -5,7 +5,12 @@ Build Reusable App Components for ggpaintr
 ## Usage
 
 ``` r
-paintr_app_components(formula, envir = parent.frame(), copy_rules = NULL)
+paintr_app_components(
+  formula,
+  envir = parent.frame(),
+  copy_rules = NULL,
+  placeholders = NULL
+)
 ```
 
 ## Arguments
@@ -21,6 +26,11 @@ paintr_app_components(formula, envir = parent.frame(), copy_rules = NULL)
 - copy_rules:
 
   Optional named list of copy overrides.
+
+- placeholders:
+
+  Optional custom placeholder definitions or an existing placeholder
+  registry.
 
 ## Value
 

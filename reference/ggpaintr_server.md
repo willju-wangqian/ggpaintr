@@ -14,7 +14,8 @@ ggpaintr_server(
   session,
   formula,
   envir = parent.frame(),
-  copy_rules = NULL
+  copy_rules = NULL,
+  placeholders = NULL
 )
 ```
 
@@ -44,6 +45,11 @@ ggpaintr_server(
 
   Optional named list of copy overrides for UI labels, helper text, and
   placeholders.
+
+- placeholders:
+
+  Optional custom placeholder definitions or an existing placeholder
+  registry.
 
 ## Value
 

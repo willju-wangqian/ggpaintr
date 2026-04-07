@@ -39,7 +39,6 @@ runtime <- paintr_build_runtime(
   obj,
   list("ggplot+3+2" = "Sepal.Length", "ggplot+3+3" = "Sepal.Width", "geom_point+checkbox" = TRUE)
 )
-#> Don't know how to handle keyword: iris. Let it pass.
 isTRUE(runtime$ok)
 #> [1] TRUE
 ```

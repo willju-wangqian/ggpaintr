@@ -3,7 +3,8 @@
 `ggpaintr` is an R package for the maintained `ggpaintr` workflow. It
 turns a single ggplot-like formula string into a small Shiny app with
 generated controls, rendered plots, generated code, upload support, copy
-customization, custom Shiny integration hooks, and export helpers.
+customization, custom Shiny integration hooks, custom placeholder
+registries, and export helpers.
 
 ## Installation
 
@@ -22,6 +23,8 @@ with placeholders that become Shiny inputs.
 - `num` collects numeric input
 - `expr` collects raw R code for places like faceting or labels
 - `upload` lets the app use uploaded data
+- you can register your own placeholder types per app with
+  [`ggpaintr_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_placeholder.md)
 
 `upload` currently supports `.csv` and `.rds`.
 
@@ -135,13 +138,13 @@ runtime behavior of the generated app.
 ``` r
 custom_copy <- list(
   shell = list(
-    draw_button = "Render plot",
-    export_button = "Save app"
+    draw_button = list(label = "Render plot"),
+    export_button = list(label = "Save app")
   ),
-  args = list(
-    x = "X axis variable",
-    y = "Y axis variable",
-    title = "Plot title"
+  params = list(
+    x = list(var = list(label = "X axis variable")),
+    y = list(var = list(label = "Y axis variable")),
+    title = list(text = list(label = "Plot title"))
   )
 )
 
@@ -150,6 +153,60 @@ ggpaintr_app(
      geom_point() +
      labs(title = text)",
   copy_rules = custom_copy
+)
+```
+
+### Register a custom placeholder type
+
+Use
+[`ggpaintr_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_placeholder.md)
+and
+[`ggpaintr_effective_placeholders()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_effective_placeholders.md)
+when you want to add a new control type without editing package
+internals.
+
+``` r
+sales <- data.frame(
+  day = as.Date("2024-01-01") + 0:4,
+  value = c(10, 13, 12, 16, 18)
+)
+
+date_placeholder <- ggpaintr_placeholder(
+  keyword = "date",
+  build_ui = function(id, copy, meta, context) {
+    shiny::dateInput(id, copy$label)
+  },
+  resolve_expr = function(value, meta, context) {
+    if (is.null(value) || identical(as.character(value), "")) {
+      return(ggpaintr_missing_expr())
+    }
+
+    rlang::expr(as.Date(!!as.character(value)))
+  },
+  copy_defaults = list(label = "Choose a date for {param}")
+)
+
+placeholders <- ggpaintr_effective_placeholders(
+  list(date = date_placeholder)
+)
+
+obj <- paintr_formula(
+  "ggplot(data = sales, aes(x = day, y = value)) +
+    geom_line() +
+    geom_vline(xintercept = date)",
+  placeholders = placeholders
+)
+
+names(obj$placeholders)
+#> [1] "var"    "text"   "num"    "expr"   "upload" "date"
+```
+
+``` r
+ggpaintr_app(
+  "ggplot(data = sales, aes(x = day, y = value)) +
+    geom_line() +
+    geom_vline(xintercept = date)",
+  placeholders = placeholders
 )
 ```
 
@@ -171,7 +228,8 @@ app_file <- tempfile(fileext = ".R")
 generate_shiny(obj, list(), app_file)
 
 # The generated file keeps an explicit ui, an explicit server, and a visible
-# copy_rules hook so you can keep editing it as a normal Shiny app.
+# copy_rules hook so you can keep editing it as a normal Shiny app. If you pass
+# custom placeholders, the exported file also rebuilds the placeholder registry.
 ```
 
 ### Embed `ggpaintr` in your own Shiny app
@@ -257,6 +315,8 @@ server <- function(input, output, session) {
 - Missing local data objects are deferred to draw-time inline errors.
 - Advanced integrations can customize the plot through
   [`ggpaintr_plot_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_plot_value.md).
+- Custom placeholders are registered per app through
+  [`ggpaintr_effective_placeholders()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_effective_placeholders.md).
 - `upload` currently supports `.csv` and `.rds`.
 
 ## Where to go next
@@ -265,4 +325,7 @@ See
 [`vignette("ggpaintr-workflow")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-workflow.md)
 for the main workflow and
 [`vignette("ggpaintr-extensibility")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-extensibility.md)
-for custom Shiny integration recipes.
+for custom Shiny integration recipes. See
+[`vignette("ggpaintr-placeholder-registry")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-placeholder-registry.md)
+for the full placeholder registry API, hook contract, and export
+guidance.

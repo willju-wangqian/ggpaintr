@@ -5,7 +5,7 @@ Build the Standalone App Template
 ## Usage
 
 ``` r
-get_shiny_template(formula_text, copy_rules = NULL)
+get_shiny_template(formula_text, copy_rules = NULL, placeholders = NULL)
 ```
 
 ## Arguments

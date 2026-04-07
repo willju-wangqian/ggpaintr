@@ -10,7 +10,8 @@ paintr_resolve_copy(
   keyword = NULL,
   layer_name = NULL,
   param = NULL,
-  copy_rules = NULL
+  copy_rules = NULL,
+  placeholders = NULL
 )
 ```
 
@@ -36,6 +37,11 @@ paintr_resolve_copy(
 - copy_rules:
 
   Effective or user-supplied copy rules.
+
+- placeholders:
+
+  Optional custom placeholder definitions or an effective placeholder
+  registry.
 
 ## Value
 

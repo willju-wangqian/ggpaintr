@@ -22,6 +22,7 @@
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-workflow.html">ggpaintr Workflow</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-extensibility.html">ggpaintr Extensibility</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-placeholder-registry.html">ggpaintr Placeholder Registry</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -74,7 +75,6 @@
 <span class="r-in"><span>  <span class="st">"ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + geom_point()"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">runtime</span> <span class="op">&lt;-</span> <span class="fu"><a href="paintr_build_runtime.html">paintr_build_runtime</a></span><span class="op">(</span><span class="va">obj</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"geom_point+checkbox"</span> <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> Don't know how to handle keyword: iris. Let it pass.</span>
 <span class="r-in"><span><span class="va">plot_obj</span> <span class="op">&lt;-</span> <span class="fu">paintr_get_plot</span><span class="op">(</span><span class="va">runtime</span><span class="op">$</span><span class="va">complete_expr_list</span>, <span class="va">runtime</span><span class="op">$</span><span class="va">eval_env</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">inherits</a></span><span class="op">(</span><span class="va">plot_obj</span>, <span class="st">"ggplot"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>

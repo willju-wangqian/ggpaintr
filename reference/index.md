@@ -38,6 +38,15 @@
 - [`ggpaintr_outputs_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_outputs_ui.md)
   : Build Default ggpaintr Output Widgets
 
+## Placeholder extensibility
+
+- [`ggpaintr_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_placeholder.md)
+  : Construct a Custom ggpaintr Placeholder
+- [`ggpaintr_effective_placeholders()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_effective_placeholders.md)
+  : Build the Effective Placeholder Registry for ggpaintr
+- [`ggpaintr_missing_expr()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_missing_expr.md)
+  : Return the Sentinel for Removing a Placeholder Argument
+
 ## Formula and runtime
 
 - [`paintr_formula()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_formula.md)

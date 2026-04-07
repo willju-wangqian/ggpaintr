@@ -11,7 +11,8 @@ generate_shiny(
   var_ui,
   output_file,
   style = TRUE,
-  copy_rules = NULL
+  copy_rules = NULL,
+  placeholders = NULL
 )
 ```
 
@@ -38,6 +39,11 @@ generate_shiny(
 
   Optional named list of copy overrides for UI labels, helper text, and
   placeholders.
+
+- placeholders:
+
+  Optional custom placeholder definitions or an existing placeholder
+  registry.
 
 ## Value
 

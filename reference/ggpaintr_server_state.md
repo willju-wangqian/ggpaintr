@@ -11,7 +11,8 @@ ggpaintr_server_state(
   formula,
   envir = parent.frame(),
   copy_rules = NULL,
-  ids = ggpaintr_ids()
+  ids = ggpaintr_ids(),
+  placeholders = NULL
 )
 ```
 
@@ -34,6 +35,11 @@ ggpaintr_server_state(
 
   A `ggpaintr_ids` object describing the top-level Shiny ids used by the
   integration helpers.
+
+- placeholders:
+
+  Optional custom placeholder definitions or an existing placeholder
+  registry.
 
 ## Value
 

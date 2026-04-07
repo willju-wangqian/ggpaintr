@@ -7,8 +7,15 @@ new common parameters in one place.
 ## Usage
 
 ``` r
-paintr_default_copy_rules()
+paintr_default_copy_rules(placeholders = NULL)
 ```
+
+## Arguments
+
+- placeholders:
+
+  Optional custom placeholder definitions or an effective placeholder
+  registry.
 
 ## Value
 

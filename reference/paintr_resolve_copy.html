@@ -22,6 +22,7 @@
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-workflow.html">ggpaintr Workflow</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-extensibility.html">ggpaintr Extensibility</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-placeholder-registry.html">ggpaintr Placeholder Registry</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -51,7 +52,8 @@
 <span>  keyword <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  layer_name <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  param <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  copy_rules <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  copy_rules <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  placeholders <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -78,6 +80,11 @@
 
 <dt id="arg-copy-rules">copy_rules<a class="anchor" aria-label="anchor" href="#arg-copy-rules"></a></dt>
 <dd><p>Effective or user-supplied copy rules.</p></dd>
+
+
+<dt id="arg-placeholders">placeholders<a class="anchor" aria-label="anchor" href="#arg-placeholders"></a></dt>
+<dd><p>Optional custom placeholder definitions or an effective
+placeholder registry.</p></dd>
 
 </dl></div>
     <div class="section level2">

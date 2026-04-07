@@ -1,0 +1,376 @@
+# ggpaintr Placeholder Registry
+
+## Overview
+
+`ggpaintr` now supports per-app placeholder registries. That means
+downstream developers can define a new placeholder once, pass it into
+[`paintr_formula()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_formula.md),
+[`ggpaintr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_app.md),
+[`ggpaintr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_server_state.md),
+or
+[`generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/generate_shiny.md),
+and keep the rest of the package runtime unchanged.
+
+The public entry points for this layer are:
+
+- [`ggpaintr_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_placeholder.md)
+- [`ggpaintr_effective_placeholders()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_effective_placeholders.md)
+- [`ggpaintr_missing_expr()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_missing_expr.md)
+
+Built-in placeholders such as `var`, `text`, `num`, `expr`, and `upload`
+now use the same registry path as custom placeholders.
+
+## A minimal custom placeholder
+
+This `date` placeholder adds a Shiny
+[`dateInput()`](https://rdrr.io/pkg/shiny/man/dateInput.html) control
+and turns the chosen date into `as.Date("YYYY-MM-DD")` in generated
+code.
+
+``` r
+sales <- data.frame(
+  day = as.Date("2024-01-01") + 0:4,
+  value = c(10, 13, 12, 16, 18)
+)
+
+date_placeholder <- ggpaintr_placeholder(
+  keyword = "date",
+  build_ui = function(id, copy, meta, context) {
+    shiny::dateInput(id, copy$label)
+  },
+  resolve_expr = function(value, meta, context) {
+    if (is.null(value) || identical(as.character(value), "")) {
+      return(ggpaintr_missing_expr())
+    }
+
+    rlang::expr(as.Date(!!as.character(value)))
+  },
+  copy_defaults = list(label = "Choose a date for {param}")
+)
+
+placeholders <- ggpaintr_effective_placeholders(
+  list(date = date_placeholder)
+)
+
+names(placeholders)
+#> [1] "var"    "text"   "num"    "expr"   "upload" "date"
+```
+
+## Using the registry in parsing and runtime
+
+Pass the registry through `placeholders = ...` anywhere you want custom
+placeholder support.
+
+``` r
+obj <- paintr_formula(
+  "ggplot(data = sales, aes(x = day, y = value)) +
+    geom_line() +
+    geom_vline(xintercept = date)",
+  placeholders = placeholders
+)
+
+runtime <- paintr_build_runtime(
+  obj,
+  list(
+    "geom_line+checkbox" = TRUE,
+    "geom_vline+checkbox" = TRUE,
+    "geom_vline+2" = as.Date("2024-01-03")
+  )
+)
+
+runtime$code_text
+#> [1] "ggplot(data = sales, aes(x = day, y = value)) +\n  geom_line() +\n  geom_vline(xintercept = as.Date(\"2024-01-03\"))"
+```
+
+The same registry can also be used in the higher-level wrappers.
+
+``` r
+ggpaintr_app(
+  "ggplot(data = sales, aes(x = day, y = value)) +
+    geom_line() +
+    geom_vline(xintercept = date)",
+  placeholders = placeholders
+)
+```
+
+## The placeholder metadata contract
+
+Every placeholder occurrence becomes one metadata record in
+`paintr_obj$placeholder_map`.
+
+``` r
+meta <- obj$placeholder_map$geom_vline[["geom_vline+2"]]
+meta
+#> $id
+#> [1] "geom_vline+2"
+#> 
+#> $keyword
+#> [1] "date"
+#> 
+#> $layer_name
+#> [1] "geom_vline"
+#> 
+#> $param
+#> [1] "xintercept"
+#> 
+#> $index_path
+#> [1] 2
+```
+
+Each metadata record contains:
+
+- `id`: the Shiny input id for that placeholder occurrence
+- `keyword`: the placeholder keyword, such as `date`
+- `layer_name`: the layer where the placeholder was found
+- `param`: the argument name, such as `xintercept`
+- `index_path`: the expression path used during replacement
+
+These fields are passed into every placeholder hook so custom
+placeholder code can behave differently by parameter or by layer.
+
+## The hook contract
+
+[`ggpaintr_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_placeholder.md)
+supports one required UI hook, one required resolver hook, and three
+optional advanced hooks.
+
+### `build_ui(id, copy, meta, context)`
+
+`build_ui()` returns the UI control for one placeholder occurrence.
+
+``` r
+date_placeholder$build_ui
+#> function (id, copy, meta, context) 
+#> {
+#>     shiny::dateInput(id, copy$label)
+#> }
+```
+
+The arguments are:
+
+- `id`: the generated input id to bind
+- `copy`: resolved copy text for this control
+- `meta`: the metadata record for this occurrence
+- `context`: a named list containing `paintr_obj`, `placeholders`,
+  `copy_rules`, and `envir`
+
+### `resolve_expr(value, meta, context)`
+
+`resolve_expr()` turns the current input value into an expression
+suitable for the completed plot expression.
+
+``` r
+date_placeholder$resolve_expr
+#> function (value, meta, context) 
+#> {
+#>     if (is.null(value) || identical(as.character(value), "")) {
+#>         return(ggpaintr_missing_expr())
+#>     }
+#>     rlang::expr(as.Date(!!as.character(value)))
+#> }
+```
+
+Return
+[`ggpaintr_missing_expr()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_missing_expr.md)
+when the argument should be removed from the completed code instead of
+inserted.
+
+### `resolve_input(input, id, meta, context)`
+
+Use `resolve_input()` when the raw Shiny input needs preprocessing
+before it is handed to `resolve_expr()`. If omitted, `ggpaintr` uses
+`input[[id]]`.
+
+``` r
+trimmed_text_placeholder <- ggpaintr_placeholder(
+  keyword = "trimmed_text",
+  build_ui = function(id, copy, meta, context) {
+    shiny::textInput(id, copy$label)
+  },
+  resolve_input = function(input, id, meta, context) {
+    trimws(input[[id]])
+  },
+  resolve_expr = function(value, meta, context) {
+    if (identical(value, "")) {
+      return(ggpaintr_missing_expr())
+    }
+
+    rlang::expr(!!value)
+  }
+)
+```
+
+### `bind_ui(input, output, metas, context)`
+
+Use `bind_ui()` for deferred or dynamic UI registration. This is how the
+built-in `var` placeholder registers delayed
+[`renderUI()`](https://rdrr.io/pkg/shiny/man/renderUI.html) outputs
+after data is known.
+
+``` r
+deferred_placeholder <- ggpaintr_placeholder(
+  keyword = "dynamic_text",
+  build_ui = function(id, copy, meta, context) {
+    shiny::uiOutput(paste0("dynamic-", id))
+  },
+  bind_ui = function(input, output, metas, context) {
+    for (meta in metas) {
+      output[[paste0("dynamic-", meta$id)]] <- shiny::renderUI({
+        shiny::textInput(meta$id, paste("Dynamic control for", meta$param))
+      })
+    }
+
+    invisible(NULL)
+  },
+  resolve_expr = function(value, meta, context) {
+    if (is.null(value) || identical(value, "")) {
+      return(ggpaintr_missing_expr())
+    }
+
+    rlang::expr(!!value)
+  }
+)
+```
+
+### `prepare_eval_env(input, metas, eval_env, context)`
+
+Use `prepare_eval_env()` when a placeholder needs to inject objects into
+the evaluation environment before the plot is built. This is how the
+built-in `upload` placeholder assigns uploaded data objects before code
+is evaluated.
+
+``` r
+prepared_data_placeholder <- ggpaintr_placeholder(
+  keyword = "prepared_data",
+  build_ui = function(id, copy, meta, context) {
+    shiny::textInput(id, copy$label, placeholder = "dataset_name")
+  },
+  resolve_expr = function(value, meta, context) {
+    if (is.null(value) || identical(value, "")) {
+      return(ggpaintr_missing_expr())
+    }
+
+    rlang::parse_expr(value)
+  },
+  prepare_eval_env = function(input, metas, eval_env, context) {
+    eval_env$prepared_dataset <- data.frame(x = 1:3, y = c(2, 4, 3))
+    eval_env
+  }
+)
+```
+
+## Copy defaults and custom copy rules
+
+Each placeholder can ship its own default copy through `copy_defaults`.
+Those defaults then participate in the normal `copy_rules` system.
+
+``` r
+date_copy_rules <- paintr_effective_copy_rules(
+  list(
+    defaults = list(date = list(label = "Pick any date")),
+    params = list(
+      xintercept = list(date = list(label = "Reference date"))
+    ),
+    layers = list(
+      geom_vline = list(
+        date = list(
+          xintercept = list(help = "Choose a cutoff date for the vertical guide.")
+        )
+      )
+    )
+  ),
+  placeholders = placeholders
+)
+
+paintr_resolve_copy(
+  "control",
+  keyword = "date",
+  layer_name = "geom_vline",
+  param = "xintercept",
+  copy_rules = date_copy_rules,
+  placeholders = placeholders
+)
+#> $label
+#> [1] "Reference date"
+#> 
+#> $help
+#> [1] "Choose a cutoff date for the vertical guide."
+```
+
+## Using custom placeholders with Shiny integration helpers
+
+The phase-1 Shiny integration helpers work with custom placeholder
+registries too.
+
+``` r
+ids <- ggpaintr_ids(
+  control_panel = "builder_controls",
+  draw_button = "render_plot",
+  export_button = "export_app",
+  plot_output = "main_plot",
+  error_output = "main_error",
+  code_output = "main_code"
+)
+
+ui <- shiny::fluidPage(
+  shiny::sidebarLayout(
+    shiny::sidebarPanel(
+      ggpaintr_controls_ui(ids = ids)
+    ),
+    shiny::mainPanel(
+      ggpaintr_outputs_ui(ids = ids)
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  paintr_state <- ggpaintr_server_state(
+    "ggplot(data = sales, aes(x = day, y = value)) +
+      geom_line() +
+      geom_vline(xintercept = date)",
+    ids = ids,
+    placeholders = placeholders
+  )
+
+  ggpaintr_bind_control_panel(input, output, paintr_state, ids = ids)
+  ggpaintr_bind_draw(input, paintr_state, ids = ids)
+  ggpaintr_bind_export(output, paintr_state, ids = ids)
+  ggpaintr_bind_plot(output, paintr_state, ids = ids)
+  ggpaintr_bind_error(output, paintr_state, ids = ids)
+  ggpaintr_bind_code(output, paintr_state, ids = ids)
+}
+```
+
+## Exporting a standalone app with custom placeholders
+
+Exported apps rebuild only the custom placeholder definitions they need.
+The same placeholder registry can be passed into
+[`generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/generate_shiny.md).
+
+``` r
+out_file <- tempfile(fileext = ".R")
+
+generate_shiny(
+  obj,
+  list(),
+  out_file,
+  style = FALSE,
+  placeholders = placeholders
+)
+```
+
+For an exported app to stay standalone, custom placeholders must be
+created with
+[`ggpaintr_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_placeholder.md)
+and must define hook functions inline inside that call. If a placeholder
+definition cannot be serialized safely,
+[`generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/generate_shiny.md)
+will error instead of writing a broken app.
+
+## Summary
+
+The placeholder registry is the developer-facing extension point for
+adding new control types without editing parser, UI, runtime, copy-rule,
+or export internals. Start with `build_ui()` plus `resolve_expr()`, add
+the optional hooks only when needed, and pass the same registry through
+parsing, app launch, Shiny integration, and export.

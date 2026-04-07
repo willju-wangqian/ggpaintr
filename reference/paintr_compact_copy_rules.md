@@ -5,7 +5,7 @@ Compact Effective Copy Rules to Custom Overrides
 ## Usage
 
 ``` r
-paintr_compact_copy_rules(copy_rules = NULL)
+paintr_compact_copy_rules(copy_rules = NULL, placeholders = NULL)
 ```
 
 ## Arguments
@@ -13,6 +13,11 @@ paintr_compact_copy_rules(copy_rules = NULL)
 - copy_rules:
 
   Optional user-supplied or effective copy rules.
+
+- placeholders:
+
+  Optional custom placeholder definitions or an effective placeholder
+  registry.
 
 ## Value
 

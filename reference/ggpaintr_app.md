@@ -7,7 +7,12 @@ output, and an export button for producing a standalone app script.
 ## Usage
 
 ``` r
-ggpaintr_app(formula, envir = parent.frame(), copy_rules = NULL)
+ggpaintr_app(
+  formula,
+  envir = parent.frame(),
+  copy_rules = NULL,
+  placeholders = NULL
+)
 ```
 
 ## Arguments
@@ -24,6 +29,11 @@ ggpaintr_app(formula, envir = parent.frame(), copy_rules = NULL)
 
   Optional named list of copy overrides for UI labels, helper text, and
   placeholders.
+
+- placeholders:
+
+  Optional custom placeholder definitions or an existing placeholder
+  registry.
 
 ## Value
 

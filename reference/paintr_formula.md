@@ -7,7 +7,7 @@ definitions.
 ## Usage
 
 ``` r
-paintr_formula(formula)
+paintr_formula(formula, placeholders = NULL)
 ```
 
 ## Arguments
@@ -16,13 +16,19 @@ paintr_formula(formula)
 
   A single formula string describing a ggplot-like expression.
 
+- placeholders:
+
+  Optional custom placeholder definitions or an existing placeholder
+  registry.
+
 ## Value
 
 An object of class `paintr_obj`.
 
 ## Details
 
-Supported placeholders are `var`, `text`, `num`, `expr`, and `upload`.
+Supported placeholders come from the effective placeholder registry. The
+built-in registry includes `var`, `text`, `num`, `expr`, and `upload`.
 
 ## Examples
 

@@ -5,7 +5,7 @@ Serialize Copy Rules for an Exported Template
 ## Usage
 
 ``` r
-paintr_serialize_export_copy_rules(copy_rules = NULL)
+paintr_serialize_export_copy_rules(copy_rules = NULL, placeholders = NULL)
 ```
 
 ## Arguments
