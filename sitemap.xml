@@ -41,7 +41,6 @@
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/handle_upload.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/handle_var.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/index.html</loc></url>
-<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/output_embed_var.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_app_components.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_build_runtime.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_complete_expr.html</loc></url>
@@ -59,6 +58,7 @@
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_upload_default_name.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_upload_name_id.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_validate_plot_render_safe.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/register_var_ui_outputs.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/tab_wrap_ui.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ui_insert_checkbox.html</loc></url>
 </urlset>
