@@ -151,3 +151,26 @@ Default review targets for that instruction:
   structure, or acceptance policy changed
 - do not update `working_scripts/notes/knowledge-schema.md` unless the markdown
   maintenance system itself changed
+
+When the user says:
+
+`clean up project repo based on the schema defined at working_scripts/notes/knowledge-schema.md`
+
+Codex should:
+
+1. run the full `testthat` suite for the repo
+2. run `R CMD check` in the current CRAN-submission style used by the project
+3. run `pkgdown::build_site_github_pages()` to refresh the GitHub Pages site
+4. inspect `README.Rmd` as the editable README source of truth
+5. knit or render `README.Rmd` to regenerate `README.md`
+6. finally apply the `update knowledge based on the schema defined at working_scripts/notes/knowledge-schema.md` workflow
+
+Default expectations for that instruction:
+
+- use the current maintained repo commands for `testthat`, package check, and
+  pkgdown build
+- treat `README.Rmd` as the source of truth and `README.md` as generated output
+- if `README.Rmd` is already current, still regenerate `README.md` so the repo
+  stays clean and synchronized
+- report any failures encountered during tests, checks, pkgdown build, or README
+  rendering before updating knowledge notes

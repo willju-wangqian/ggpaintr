@@ -4,10 +4,13 @@
 \alias{paintr_compact_copy_rules}
 \title{Compact Effective Copy Rules to Custom Overrides}
 \usage{
-paintr_compact_copy_rules(copy_rules = NULL)
+paintr_compact_copy_rules(copy_rules = NULL, placeholders = NULL)
 }
 \arguments{
 \item{copy_rules}{Optional user-supplied or effective copy rules.}
+
+\item{placeholders}{Optional custom placeholder definitions or an effective
+placeholder registry.}
 }
 \value{
 A named list of custom overrides or \code{NULL}.

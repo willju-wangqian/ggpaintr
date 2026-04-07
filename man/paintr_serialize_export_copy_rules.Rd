@@ -4,7 +4,7 @@
 \alias{paintr_serialize_export_copy_rules}
 \title{Serialize Copy Rules for an Exported Template}
 \usage{
-paintr_serialize_export_copy_rules(copy_rules = NULL)
+paintr_serialize_export_copy_rules(copy_rules = NULL, placeholders = NULL)
 }
 \arguments{
 \item{copy_rules}{User-supplied or effective copy rules.}

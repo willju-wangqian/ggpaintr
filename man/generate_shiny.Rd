@@ -9,7 +9,8 @@ generate_shiny(
   var_ui,
   output_file,
   style = TRUE,
-  copy_rules = NULL
+  copy_rules = NULL,
+  placeholders = NULL
 )
 }
 \arguments{
@@ -24,6 +25,9 @@ It is ignored.}
 
 \item{copy_rules}{Optional named list of copy overrides for UI labels, helper
 text, and placeholders.}
+
+\item{placeholders}{Optional custom placeholder definitions or an existing
+placeholder registry.}
 }
 \value{
 Invisibly returns \code{output_file}.

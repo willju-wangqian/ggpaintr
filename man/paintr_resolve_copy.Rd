@@ -9,7 +9,8 @@ paintr_resolve_copy(
   keyword = NULL,
   layer_name = NULL,
   param = NULL,
-  copy_rules = NULL
+  copy_rules = NULL,
+  placeholders = NULL
 )
 }
 \arguments{
@@ -23,6 +24,9 @@ paintr_resolve_copy(
 \item{param}{Optional parameter name.}
 
 \item{copy_rules}{Effective or user-supplied copy rules.}
+
+\item{placeholders}{Optional custom placeholder definitions or an effective
+placeholder registry.}
 }
 \value{
 A named list with \code{label}, \code{help}, \code{placeholder}, and \code{empty_text}.

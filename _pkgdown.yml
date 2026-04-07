@@ -25,6 +25,11 @@ reference:
       - ggpaintr_code_value
       - ggpaintr_controls_ui
       - ggpaintr_outputs_ui
+  - title: Placeholder extensibility
+    contents:
+      - ggpaintr_placeholder
+      - ggpaintr_effective_placeholders
+      - ggpaintr_missing_expr
   - title: Formula and runtime
     contents:
       - paintr_formula
@@ -40,3 +45,4 @@ articles:
     contents:
       - ggpaintr-workflow
       - ggpaintr-extensibility
+      - ggpaintr-placeholder-registry

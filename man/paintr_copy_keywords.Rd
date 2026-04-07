@@ -4,7 +4,11 @@
 \alias{paintr_copy_keywords}
 \title{Return Allowed Copy Keywords}
 \usage{
-paintr_copy_keywords()
+paintr_copy_keywords(placeholders = NULL)
+}
+\arguments{
+\item{placeholders}{Optional custom placeholder definitions or an effective
+placeholder registry.}
 }
 \value{
 A character vector.

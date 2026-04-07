@@ -23,6 +23,8 @@ Current target under test:
 
 - `ggpaintr_app()`
 - `ggpaintr_server()`
+- `ggpaintr_placeholder()`
+- `ggpaintr_effective_placeholders()`
 - `paintr_formula()`
 - `paintr_build_runtime()`
 - `paintr_get_plot()`
@@ -40,6 +42,9 @@ When behavior changes in the maintained path:
 - keep export-path coverage when `generate_shiny()` changes
 - if user-facing prompt text or `copy_rules` behavior changes, update
   `tests/testthat/test-copy-rules.R` and the relevant manual copy-rule checks
+- if placeholder-registry behavior changes, update
+  `tests/testthat/test-placeholder-registry.R`, the relevant export tests, and
+  the relevant manual placeholder-registry checks
 
 ## Required test layers
 
@@ -47,6 +52,7 @@ Automated coverage should continue to include:
 
 - formula parsing and metadata construction
 - placeholder detection and substitution
+- placeholder-registry construction, validation, and metadata propagation
 - upload helper behavior
 - dynamic `var` UI behavior
 - expression completion
@@ -54,8 +60,9 @@ Automated coverage should continue to include:
 - plot construction
 - copy-rule validation, normalization, merge precedence, and readable fallbacks
 - exported app generation, including default `copy_rules <- NULL`,
-  compact `custom_copy_rules` reconstruction, and multiline `input_formula`
-  parity
+  compact `custom_copy_rules` reconstruction, multiline `input_formula`
+  parity, default `placeholders <- NULL`, and compact
+  `custom_placeholders` reconstruction
 - reusable server-state behavior for exported/custom apps
 - package-surface behavior for exported functions
 
@@ -66,6 +73,9 @@ Manual coverage should continue to include:
 - inline error feedback
 - default copy-rule behavior
 - custom `copy_rules` overrides
+- custom Shiny integration with bind helpers and custom top-level ids
+- custom plot rendering with `ggpaintr_plot_value()`
+- custom placeholder controls and exported custom-placeholder apps
 - exported app smoke tests, including custom-copy parity and the explicit
   editable export-template shape
 
@@ -82,5 +92,6 @@ Current default verification commands:
 
 - `Rscript -e 'devtools::document()'`
 - `Rscript -e 'testthat::test_dir("tests/testthat")'`
-- `Rscript -e 'pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)'`
+- `Rscript -e 'pkgdown::build_site_github_pages(new_process = FALSE, install = TRUE)'`
 - `Rscript -e 'devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran", "--no-manual"))'`
+- `Rscript -e 'devtools::load_all("."); rmarkdown::render("README.Rmd", envir = globalenv())'`

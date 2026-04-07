@@ -4,7 +4,7 @@
 \alias{get_shiny_template}
 \title{Build the Standalone App Template}
 \usage{
-get_shiny_template(formula_text, copy_rules = NULL)
+get_shiny_template(formula_text, copy_rules = NULL, placeholders = NULL)
 }
 \arguments{
 \item{formula_text}{A single formula string.}

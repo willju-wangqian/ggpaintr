@@ -13,6 +13,7 @@ test_that("generate_shiny writes a syntactically valid app script", {
   expect_match(app_text, "input_formula <- ")
   expect_match(app_text, "copy_rules <- NULL", fixed = TRUE)
   expect_match(app_text, "Replace NULL with a named list", fixed = TRUE)
+  expect_match(app_text, "placeholders <- NULL", fixed = TRUE)
   expect_match(
     app_text,
     "title_copy <- paintr_resolve_copy\\(\"title\", copy_rules = copy_rules\\)"
@@ -32,11 +33,16 @@ test_that("generate_shiny writes a syntactically valid app script", {
   expect_match(app_text, "server <- function\\(input, output, session\\)")
   expect_match(
     app_text,
-    "paintr_state <- ggpaintr_server\\(input, output, session, input_formula, copy_rules = copy_rules\\)"
+    paste0(
+      "paintr_state <- ggpaintr_server\\(",
+      "input, output, session, input_formula, copy_rules = copy_rules, ",
+      "placeholders = placeholders\\)"
+    )
   )
   expect_match(app_text, "shinyApp\\(ui, server\\)")
   expect_no_match(app_text, "copy_rules <- list\\(")
   expect_no_match(app_text, "custom_copy_rules <- list\\(")
+  expect_no_match(app_text, "custom_placeholders <- list\\(")
   expect_no_match(app_text, "app\\$ui")
   expect_no_match(app_text, "app\\$server")
 })
@@ -53,7 +59,11 @@ test_that("generate_shiny preserves upload-aware runtime code", {
   expect_match(app_text, "ggplot\\(data = upload")
   expect_match(
     app_text,
-    "ggpaintr_server\\(input, output, session, input_formula, copy_rules = copy_rules\\)"
+    paste0(
+      "ggpaintr_server\\(",
+      "input, output, session, input_formula, copy_rules = copy_rules, ",
+      "placeholders = placeholders\\)"
+    )
   )
 })
 
@@ -73,7 +83,7 @@ test_that("generate_shiny writes multiline formulas as multiline source", {
 
   app_lines <- readLines(out_file)
   input_formula_index <- grep("^input_formula <- ", app_lines)
-  copy_rules_index <- grep("^# Replace NULL with a named list", app_lines)
+  copy_rules_index <- grep("^copy_rules <- NULL$", app_lines)
 
   expect_identical(length(input_formula_index), 1L)
   expect_identical(length(copy_rules_index), 1L)
@@ -171,7 +181,11 @@ test_that("generate_shiny writes compact custom copy rules for exported apps", {
   )
   expect_match(
     app_text,
-    "ggpaintr_server\\(input, output, session, input_formula, copy_rules = copy_rules\\)"
+    paste0(
+      "ggpaintr_server\\(",
+      "input, output, session, input_formula, copy_rules = copy_rules, ",
+      "placeholders = placeholders\\)"
+    )
   )
 
   app_expr <- parse(file = out_file)
@@ -236,8 +250,89 @@ test_that("generate_shiny omits concrete copy rules when effective rules match d
 
   app_text <- paste(readLines(out_file), collapse = "\n")
   expect_match(app_text, "copy_rules <- NULL", fixed = TRUE)
+  expect_match(app_text, "placeholders <- NULL", fixed = TRUE)
   expect_no_match(app_text, "copy_rules <- list\\(")
   expect_no_match(app_text, "custom_copy_rules <- list\\(")
+})
+
+test_that("generate_shiny writes compact custom placeholders for exported apps", {
+  registry <- ggpaintr_effective_placeholders(
+    list(date = make_test_date_placeholder())
+  )
+  obj <- paintr_formula(test_date_formula, placeholders = registry)
+  out_file <- tempfile(fileext = ".R")
+
+  generate_shiny(
+    obj,
+    list(),
+    out_file,
+    style = FALSE,
+    placeholders = registry
+  )
+
+  app_text <- paste(readLines(out_file), collapse = "\n")
+  expect_match(app_text, "custom_placeholders <- ")
+  expect_match(
+    app_text,
+    "placeholders <- ggpaintr_effective_placeholders\\(custom_placeholders\\)"
+  )
+  expect_match(app_text, "keyword = \"date\"", fixed = TRUE)
+  expect_match(
+    app_text,
+    paste0(
+      "ggpaintr_server\\(",
+      "input, output, session, input_formula, copy_rules = copy_rules, ",
+      "placeholders = placeholders\\)"
+    )
+  )
+  expect_no_match(app_text, "custom_placeholders <- list\\(var = ")
+
+  app_expr <- parse(file = out_file)
+  custom_placeholders_expr <- NULL
+  placeholders_expr <- NULL
+
+  for (expr in app_expr) {
+    if (rlang::is_call(expr, "<-") &&
+        rlang::is_symbol(expr[[2]], "custom_placeholders")) {
+      custom_placeholders_expr <- expr
+    }
+
+    if (rlang::is_call(expr, "<-") &&
+        rlang::is_symbol(expr[[2]], "placeholders")) {
+      placeholders_expr <- expr
+    }
+  }
+
+  expect_false(is.null(custom_placeholders_expr))
+  expect_false(is.null(placeholders_expr))
+
+  export_env <- new.env(parent = environment())
+  eval(custom_placeholders_expr, envir = export_env)
+  eval(placeholders_expr, envir = export_env)
+
+  expect_true("date" %in% names(export_env$custom_placeholders))
+  expect_s3_class(export_env$custom_placeholders$date, "ggpaintr_placeholder")
+  expect_s3_class(export_env$placeholders, "ggpaintr_placeholder_registry")
+  expect_true("date" %in% names(export_env$placeholders))
+})
+
+test_that("generate_shiny errors when custom placeholders are not exportable", {
+  registry <- ggpaintr_effective_placeholders(
+    list(date = make_non_inline_date_placeholder())
+  )
+  obj <- paintr_formula(test_date_formula, placeholders = registry)
+  out_file <- tempfile(fileext = ".R")
+
+  expect_error(
+    generate_shiny(
+      obj,
+      list(),
+      out_file,
+      style = FALSE,
+      placeholders = registry
+    ),
+    "must define build_ui inline"
+  )
 })
 
 test_that("generate_shiny compacts pre-merged copy rules before export", {

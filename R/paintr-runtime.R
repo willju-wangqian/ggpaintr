@@ -181,26 +181,16 @@ paintr_complete_expr <- function(paintr_obj, input, envir = parent.frame()) {
   assertthat::assert_that(inherits(paintr_obj, "paintr_obj"))
 
   paintr_processed_expr_list <- paintr_obj[["expr_list"]]
-  unfolded_id_list <- unlist(paintr_obj[["id_list"]])
-  keywords_list <- paintr_obj[["keywords_list"]]
-  index_path_list <- paintr_obj[["index_path_list"]]
   eval_env <- paintr_prepare_eval_env(paintr_obj, input, envir = envir)
+  context <- paintr_placeholder_context(paintr_obj, copy_rules = NULL, envir = envir)
+  placeholder_metas <- paintr_flatten_placeholder_map(paintr_obj)
 
-  for (id in unfolded_id_list) {
-    input_item <- input[[id]]
-    id_domain <- strsplit(id, "\\+")[[1]][1]
+  for (meta in placeholder_metas) {
+    spec <- paintr_obj$placeholders[[meta$keyword]]
+    input_item <- paintr_resolve_placeholder_input(spec, input, meta, context)
+    resolved_expr <- paintr_resolve_placeholder_expr(spec, input_item, meta, context)
 
-    if (detect_keywords(keywords_list[[id_domain]][[id]]) == "upload") {
-      upload_info <- paintr_resolve_upload_info(input, id, strict = FALSE)
-      input_item <- if (is.null(upload_info)) "" else upload_info$object_name
-    }
-
-    paintr_processed_expr_list[[id_domain]] <- expr_replace_keywords(
-      paintr_processed_expr_list[[id_domain]],
-      keywords_list[[id_domain]][[id]],
-      index_path_list[[id_domain]][[id]],
-      input_item
-    )
+    expr_pluck(paintr_processed_expr_list[[meta$layer_name]], meta$index_path) <- resolved_expr
   }
 
   paintr_processed_expr_list <- lapply(paintr_processed_expr_list, expr_remove_null)

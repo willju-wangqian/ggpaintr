@@ -55,6 +55,29 @@
 13. Confirm the exported script passes `copy_rules = copy_rules` into `ggpaintr_server(...)`.
 14. Run the exported custom-copy app and confirm it preserves the customized wording from the live app.
 
+## Shiny integration checks
+
+1. Launch an app built from `ggpaintr_server_state()` plus the `ggpaintr_bind_*()` helpers.
+2. Confirm the embedded app still renders the control panel, plot, inline errors, code, and export button.
+3. Add one small custom output or observer that reads `paintr_state$runtime()` and confirm it updates after `draw`.
+4. Launch a variant with custom top-level ids from `ggpaintr_ids()` and confirm the app still behaves normally.
+5. Launch a variant with a custom `renderPlot()` that uses `ggpaintr_plot_value()`.
+6. Confirm the custom plot renderer can add styling while the default error and code binders still work.
+7. Confirm the custom plot renderer clears the plot when `ggpaintr_plot_value()` returns `NULL`.
+
+## Placeholder registry checks
+
+1. Launch an app with a custom placeholder registry built by `ggpaintr_effective_placeholders()`.
+2. Confirm the custom control renders with the UI returned by the placeholder's `build_ui()` hook.
+3. Interact with the custom control and confirm the plot updates after `draw`.
+4. Confirm `outputCode` contains the expression returned by the placeholder's `resolve_expr()` hook.
+5. Launch a variant with custom `copy_rules` targeting the custom placeholder keyword and confirm the custom label or help text appears.
+6. Export the custom-placeholder app and inspect the generated script.
+7. Confirm the exported script defines `custom_placeholders <- ...`.
+8. Confirm the exported script rebuilds `placeholders <- ggpaintr_effective_placeholders(custom_placeholders)`.
+9. Confirm the exported server passes `placeholders = placeholders` into `ggpaintr_server(...)`.
+10. Run the exported custom-placeholder app and confirm the custom control still works end to end.
+
 ## Missing-object checks
 
 1. Launch a formula like `ggplot(data = unknown_object, aes(x = mpg, y = disp)) + geom_point()`.

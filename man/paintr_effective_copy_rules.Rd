@@ -4,10 +4,13 @@
 \alias{paintr_effective_copy_rules}
 \title{Build Effective Copy Rules}
 \usage{
-paintr_effective_copy_rules(copy_rules = NULL)
+paintr_effective_copy_rules(copy_rules = NULL, placeholders = NULL)
 }
 \arguments{
 \item{copy_rules}{Optional user-supplied rules.}
+
+\item{placeholders}{Optional custom placeholder definitions or an effective
+placeholder registry.}
 }
 \value{
 A merged copy-rule list.

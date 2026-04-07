@@ -10,7 +10,8 @@ ggpaintr_server(
   session,
   formula,
   envir = parent.frame(),
-  copy_rules = NULL
+  copy_rules = NULL,
+  placeholders = NULL
 )
 }
 \arguments{
@@ -26,6 +27,9 @@ ggpaintr_server(
 
 \item{copy_rules}{Optional named list of copy overrides for UI labels, helper
 text, and placeholders.}
+
+\item{placeholders}{Optional custom placeholder definitions or an existing
+placeholder registry.}
 }
 \value{
 A \code{ggpaintr_state} object containing reactive accessors named \code{obj},

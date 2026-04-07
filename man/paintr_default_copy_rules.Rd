@@ -4,7 +4,11 @@
 \alias{paintr_default_copy_rules}
 \title{Default Copy Rules for ggpaintr}
 \usage{
-paintr_default_copy_rules()
+paintr_default_copy_rules(placeholders = NULL)
+}
+\arguments{
+\item{placeholders}{Optional custom placeholder definitions or an effective
+placeholder registry.}
 }
 \value{
 A named list of default copy rules.

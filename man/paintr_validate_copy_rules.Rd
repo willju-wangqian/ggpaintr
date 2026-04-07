@@ -4,10 +4,13 @@
 \alias{paintr_validate_copy_rules}
 \title{Validate Copy Rules}
 \usage{
-paintr_validate_copy_rules(copy_rules)
+paintr_validate_copy_rules(copy_rules, placeholders = NULL)
 }
 \arguments{
 \item{copy_rules}{User-supplied copy rules.}
+
+\item{placeholders}{Optional custom placeholder definitions or an effective
+placeholder registry.}
 }
 \value{
 Invisibly returns \code{TRUE}.

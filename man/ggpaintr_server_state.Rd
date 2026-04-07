@@ -8,7 +8,8 @@ ggpaintr_server_state(
   formula,
   envir = parent.frame(),
   copy_rules = NULL,
-  ids = ggpaintr_ids()
+  ids = ggpaintr_ids(),
+  placeholders = NULL
 )
 }
 \arguments{
@@ -21,6 +22,9 @@ text, and placeholders.}
 
 \item{ids}{A \code{ggpaintr_ids} object describing the top-level Shiny ids used by
 the integration helpers.}
+
+\item{placeholders}{Optional custom placeholder definitions or an existing
+placeholder registry.}
 }
 \value{
 An object of class \code{ggpaintr_state}.

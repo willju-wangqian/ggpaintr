@@ -208,29 +208,44 @@ generate_ui_individual <- function(key,
 #' @return A named list of UI controls by layer.
 #' @keywords internal
 paintr_build_ui_list <- function(paintr_obj, copy_rules = NULL) {
-  effective_copy_rules <- paintr_effective_copy_rules(copy_rules)
+  effective_copy_rules <- paintr_effective_copy_rules(
+    copy_rules,
+    placeholders = paintr_obj$placeholders
+  )
+  context <- paintr_placeholder_context(
+    paintr_obj,
+    copy_rules = effective_copy_rules
+  )
   keywords_list <- paintr_obj[["keywords_list"]]
   id_list <- paintr_obj[["id_list"]]
-  param_list <- paintr_obj[["param_list"]]
+  placeholder_map <- paintr_obj[["placeholder_map"]]
   layer_names <- names(keywords_list)
 
   ui_list <- lapply(seq_along(layer_names), function(i) {
     layer_name <- layer_names[[i]]
-    keywords <- keywords_list[[i]]
     ids <- id_list[[i]]
-    params <- param_list[[i]]
 
     ui <- lapply(seq_along(ids), function(j) {
-      generate_ui_individual(
-        keywords[[j]],
-        ids[[j]],
-        params[[j]],
-        layer_name = layer_name,
-        copy_rules = effective_copy_rules
+      id <- ids[[j]]
+      meta <- placeholder_map[[layer_name]][[id]]
+      if (is.null(meta)) {
+        return(NULL)
+      }
+
+      spec <- paintr_obj$placeholders[[meta$keyword]]
+      copy <- paintr_resolve_copy(
+        "control",
+        keyword = meta$keyword,
+        layer_name = meta$layer_name,
+        param = meta$param,
+        copy_rules = effective_copy_rules,
+        placeholders = paintr_obj$placeholders
       )
+
+      spec$build_ui(id, copy, meta, context)
     })
 
-    names(ui) <- names(keywords)
+    names(ui) <- names(keywords_list[[i]])
     ui_insert_checkbox(ui, layer_name, copy_rules = effective_copy_rules)
   })
 
@@ -252,120 +267,13 @@ register_var_ui_outputs <- function(input,
                                     paintr_obj,
                                     envir = parent.frame(),
                                     copy_rules = NULL) {
-  effective_copy_rules <- paintr_effective_copy_rules(copy_rules)
-  param_list <- paintr_obj[["param_list"]]
-  keywords_list <- paintr_obj[["keywords_list"]]
-  id_list <- paintr_obj[["id_list"]]
-
-  expr_list <- list()
-  var_ui_list <- list()
-
-  for (i in seq_along(keywords_list)) {
-    str_keywords <- vapply(keywords_list[[i]], rlang::as_string, character(1))
-
-    if (names(keywords_list)[i] == "ggplot") {
-      data_index <- which(param_list[[i]] == "data")
-      if (length(data_index) != 0) {
-        if (str_keywords[data_index] == "upload") {
-          global_data_flag <- "upload"
-          global_data_id <- id_list[[i]][[data_index]]
-        } else {
-          global_data_flag <- "local"
-          global_data <- tryCatch(
-            eval(keywords_list[[i]][[data_index]], envir = envir),
-            error = function(e) NULL
-          )
-        }
-      } else {
-        global_data_flag <- NULL
-        global_data_id <- NULL
-      }
-    }
-
-    if ("var" %in% str_keywords) {
-      data_var <- NULL
-      data_index <- which(param_list[[i]] == "data")
-
-      for (var_index in which(str_keywords == "var")) {
-        if (length(data_index) != 0) {
-          if (str_keywords[data_index] == "upload") {
-            tmp_data <- tryCatch(
-              paintr_get_uploaded_data(input, id_list[[i]][[data_index]]),
-              error = function(e) NULL
-            )
-          } else {
-            tmp_data <- tryCatch(
-              eval(keywords_list[[i]][[data_index]], envir = envir),
-              error = function(e) NULL
-            )
-          }
-
-          if (!is.null(tmp_data)) {
-            data_var <- names(tmp_data)
-          }
-        } else if (!is.null(global_data_flag)) {
-          if (global_data_flag == "upload") {
-            tmp_data <- tryCatch(
-              paintr_get_uploaded_data(input, global_data_id),
-              error = function(e) NULL
-            )
-          } else if (global_data_flag == "local") {
-            tmp_data <- global_data
-          }
-
-          if (!is.null(tmp_data)) {
-            data_var <- names(tmp_data)
-          }
-        } else {
-          stop("data is not provided!")
-        }
-
-        var_ui_list[[id_list[[i]][[var_index]]]] <- generate_ui_var(
-          data_var,
-          id_list[[i]][[var_index]],
-          param_list[[i]][[var_index]],
-          layer_name = names(keywords_list)[i],
-          copy_rules = effective_copy_rules
-        )
-
-        if (length(data_index) != 0) {
-          if (str_keywords[data_index] == "upload") {
-            expr_list[[length(expr_list) + 1]] <- rlang::expr(
-              output[[paste0("var-", !!id_list[[i]][[var_index]])]] <- shiny::renderUI({
-                shiny::req(input[[!!id_list[[i]][[data_index]]]])
-                var_ui_list[[!!id_list[[i]][[var_index]]]]
-              })
-            )
-          } else {
-            expr_list[[length(expr_list) + 1]] <- rlang::expr(
-              output[[paste0("var-", !!id_list[[i]][[var_index]])]] <- shiny::renderUI({
-                var_ui_list[[!!id_list[[i]][[var_index]]]]
-              })
-            )
-          }
-        } else if (global_data_flag == "upload") {
-          expr_list[[length(expr_list) + 1]] <- rlang::expr(
-            output[[paste0("var-", !!id_list[[i]][[var_index]])]] <- shiny::renderUI({
-              shiny::req(input[[!!global_data_id]])
-              var_ui_list[[!!id_list[[i]][[var_index]]]]
-            })
-          )
-        } else {
-          expr_list[[length(expr_list) + 1]] <- rlang::expr(
-            output[[paste0("var-", !!id_list[[i]][[var_index]])]] <- shiny::renderUI({
-              var_ui_list[[!!id_list[[i]][[var_index]]]]
-            })
-          )
-        }
-      }
-    }
-  }
-
-  for (i in seq_along(expr_list)) {
-    eval(expr_list[[i]])
-  }
-
-  var_ui_list
+  paintr_bind_placeholder_ui(
+    input,
+    output,
+    paintr_obj,
+    envir = envir,
+    copy_rules = copy_rules
+  )
 }
 
 #' Add Layer Checkboxes to a UI List
@@ -422,5 +330,13 @@ paintr_get_tab_ui <- function(paintr_obj, copy_rules = NULL) {
     return(NULL)
   }
 
-  tab_wrap_ui(paintr_build_ui_list(paintr_obj, copy_rules = copy_rules))
+  tab_wrap_ui(
+    paintr_build_ui_list(
+      paintr_obj,
+      copy_rules = paintr_effective_copy_rules(
+        copy_rules,
+        placeholders = paintr_obj$placeholders
+      )
+    )
+  )
 }

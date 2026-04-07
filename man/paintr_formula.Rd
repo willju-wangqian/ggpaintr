@@ -4,10 +4,13 @@
 \alias{paintr_formula}
 \title{Parse a Paintr Formula}
 \usage{
-paintr_formula(formula)
+paintr_formula(formula, placeholders = NULL)
 }
 \arguments{
 \item{formula}{A single formula string describing a ggplot-like expression.}
+
+\item{placeholders}{Optional custom placeholder definitions or an existing
+placeholder registry.}
 }
 \value{
 An object of class \code{paintr_obj}.
@@ -17,7 +20,8 @@ Parse a single ggplot-like formula string into a \code{paintr_obj} containing
 expression metadata, placeholder locations, and generated UI definitions.
 }
 \details{
-Supported placeholders are \code{var}, \code{text}, \code{num}, \code{expr}, and \code{upload}.
+Supported placeholders come from the effective placeholder registry. The
+built-in registry includes \code{var}, \code{text}, \code{num}, \code{expr}, and \code{upload}.
 }
 \examples{
 obj <- paintr_formula(

@@ -212,6 +212,9 @@ test_that("new extensibility helpers are exported in NAMESPACE", {
   }
 
   expected_exports <- c(
+    "ggpaintr_placeholder",
+    "ggpaintr_effective_placeholders",
+    "ggpaintr_missing_expr",
     "ggpaintr_ids",
     "ggpaintr_server_state",
     "ggpaintr_bind_control_panel",

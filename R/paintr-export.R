@@ -61,12 +61,15 @@ paintr_serialize_formula_text <- function(formula_text) {
 #'
 #' @return A character vector of source lines.
 #' @keywords internal
-paintr_serialize_export_copy_rules <- function(copy_rules = NULL) {
+paintr_serialize_export_copy_rules <- function(copy_rules = NULL, placeholders = NULL) {
   default_header <- paste(
     "# Replace NULL with a named list to customize UI labels, help text, and",
     "placeholders."
   )
-  compact_copy_rules <- paintr_compact_copy_rules(copy_rules)
+  compact_copy_rules <- paintr_compact_copy_rules(
+    copy_rules,
+    placeholders = placeholders
+  )
   if (is.null(compact_copy_rules)) {
     return(c(default_header, "copy_rules <- NULL"))
   }
@@ -89,6 +92,41 @@ paintr_serialize_export_copy_rules <- function(copy_rules = NULL) {
   )
 }
 
+#' Serialize Custom Placeholder Definitions for an Exported Template
+#'
+#' @param placeholders Placeholder definitions or a placeholder registry.
+#'
+#' @return A character vector of source lines.
+#' @keywords internal
+paintr_serialize_export_placeholders <- function(placeholders = NULL) {
+  custom_placeholders <- paintr_exportable_custom_placeholders(placeholders)
+  default_header <- paste(
+    "# Replace NULL with a named list of ggpaintr_placeholder() calls to",
+    "register custom placeholder types."
+  )
+
+  if (length(custom_placeholders) == 0) {
+    return(c(default_header, "placeholders <- NULL"))
+  }
+
+  custom_header <- paste(
+    "# Edit custom_placeholders to register custom placeholder types for this",
+    "exported app."
+  )
+  custom_placeholder_lines <- paintr_serialize_r_object(custom_placeholders)
+  custom_placeholder_lines <- paintr_prefix_assignment(
+    "custom_placeholders",
+    custom_placeholder_lines
+  )
+
+  c(
+    custom_header,
+    custom_placeholder_lines,
+    "",
+    "placeholders <- ggpaintr_effective_placeholders(custom_placeholders)"
+  )
+}
+
 #' Build the Standalone App Template
 #'
 #' @param formula_text A single formula string.
@@ -96,12 +134,18 @@ paintr_serialize_export_copy_rules <- function(copy_rules = NULL) {
 #'
 #' @return A character vector containing the exported app template.
 #' @keywords internal
-get_shiny_template <- function(formula_text, copy_rules = NULL) {
+get_shiny_template <- function(formula_text,
+                               copy_rules = NULL,
+                               placeholders = NULL) {
   formula_text_lines <- paintr_prefix_assignment(
     "input_formula",
     paintr_serialize_formula_text(formula_text)
   )
-  copy_rules_lines <- paintr_serialize_export_copy_rules(copy_rules)
+  copy_rules_lines <- paintr_serialize_export_copy_rules(
+    copy_rules,
+    placeholders = placeholders
+  )
+  placeholder_lines <- paintr_serialize_export_placeholders(placeholders)
 
   c(
     "library(ggpaintr)",
@@ -111,6 +155,8 @@ get_shiny_template <- function(formula_text, copy_rules = NULL) {
     formula_text_lines,
     "",
     copy_rules_lines,
+    "",
+    placeholder_lines,
     "",
     "title_copy <- paintr_resolve_copy(\"title\", copy_rules = copy_rules)",
     "draw_copy <- paintr_resolve_copy(\"draw_button\", copy_rules = copy_rules)",
@@ -137,7 +183,8 @@ get_shiny_template <- function(formula_text, copy_rules = NULL) {
     "server <- function(input, output, session) {",
     paste(
       "  paintr_state <- ggpaintr_server(",
-      "input, output, session, input_formula, copy_rules = copy_rules",
+      "input, output, session, input_formula, copy_rules = copy_rules, ",
+      "placeholders = placeholders",
       ")",
       sep = ""
     ),
@@ -167,6 +214,8 @@ get_shiny_template <- function(formula_text, copy_rules = NULL) {
 #' @param style Whether to style the generated file with `styler` when available.
 #' @param copy_rules Optional named list of copy overrides for UI labels, helper
 #'   text, and placeholders.
+#' @param placeholders Optional custom placeholder definitions or an existing
+#'   placeholder registry.
 #'
 #' @return Invisibly returns `output_file`.
 #' @examples
@@ -181,8 +230,18 @@ generate_shiny <- function(paintr_obj,
                            var_ui,
                            output_file,
                            style = TRUE,
-                           copy_rules = NULL) {
-  shiny_text <- get_shiny_template(paintr_obj$formula_text, copy_rules = copy_rules)
+                           copy_rules = NULL,
+                           placeholders = NULL) {
+  placeholder_registry <- if (is.null(placeholders)) {
+    paintr_obj$placeholders
+  } else {
+    ggpaintr_effective_placeholders(placeholders)
+  }
+  shiny_text <- get_shiny_template(
+    paintr_obj$formula_text,
+    copy_rules = copy_rules,
+    placeholders = placeholder_registry
+  )
 
   writeLines(shiny_text, output_file)
   if (isTRUE(style) && requireNamespace("styler", quietly = TRUE)) {

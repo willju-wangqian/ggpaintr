@@ -120,23 +120,21 @@ paintr_get_uploaded_data <- function(input, upload_id) {
 #' @keywords internal
 paintr_prepare_eval_env <- function(paintr_obj, input, envir = parent.frame()) {
   eval_env <- rlang::env_clone(envir)
-  upload_ids <- character()
+  context <- paintr_placeholder_context(paintr_obj, copy_rules = NULL, envir = envir)
 
-  for (expr_name in names(paintr_obj[["keywords_list"]])) {
-    keyword_list <- paintr_obj[["keywords_list"]][[expr_name]]
-    upload_matches <- vapply(keyword_list, detect_keywords, character(1)) == "upload"
-    upload_ids <- c(upload_ids, names(keyword_list)[upload_matches])
-  }
+  for (keyword in names(paintr_obj$placeholders)) {
+    spec <- paintr_obj$placeholders[[keyword]]
+    metas <- paintr_flatten_placeholder_map(paintr_obj, keyword = keyword)
 
-  for (upload_id in upload_ids) {
-    upload_info <- paintr_resolve_upload_info(input, upload_id, strict = FALSE)
-    if (is.null(upload_info)) {
+    if (length(metas) == 0 || is.null(spec$prepare_eval_env)) {
       next
     }
 
-    assign(upload_info$object_name, upload_info$data, envir = eval_env)
+    prepared_env <- spec$prepare_eval_env(input, metas, eval_env, context)
+    if (!is.null(prepared_env)) {
+      eval_env <- prepared_env
+    }
   }
 
   eval_env
 }
-

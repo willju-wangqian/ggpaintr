@@ -4,9 +4,18 @@
 #' this object when they want to refine defaults or add support for new common
 #' parameters in one place.
 #'
+#' @param placeholders Optional custom placeholder definitions or an effective
+#'   placeholder registry.
+#'
 #' @return A named list of default copy rules.
 #' @keywords internal
-paintr_default_copy_rules <- function() {
+paintr_default_copy_rules <- function(placeholders = NULL) {
+  placeholder_registry <- ggpaintr_effective_placeholders(placeholders)
+  default_placeholder_copy <- lapply(
+    placeholder_registry,
+    paintr_placeholder_copy_defaults
+  )
+
   structure(
     list(
       shell = list(
@@ -26,15 +35,7 @@ paintr_default_copy_rules <- function() {
         )
       ),
       layer_checkbox = list(label = "Include this layer in the plot"),
-      defaults = list(
-        var = list(
-          label = "Choose a column for {param}",
-          empty_text = "Choose one column"
-        ),
-        text = list(label = "Enter text for {param}"),
-        num = list(label = "Enter a number for {param}"),
-        expr = list(label = "Enter an expression for {param}")
-      ),
+      defaults = default_placeholder_copy,
       # Common parameter-specific defaults go here.
       params = list(
         x = list(
@@ -135,10 +136,13 @@ paintr_copy_leaf_fields <- function() {
 
 #' Return Allowed Copy Keywords
 #'
+#' @param placeholders Optional custom placeholder definitions or an effective
+#'   placeholder registry.
+#'
 #' @return A character vector.
 #' @keywords internal
-paintr_copy_keywords <- function() {
-  c("var", "text", "num", "expr")
+paintr_copy_keywords <- function(placeholders = NULL) {
+  names(ggpaintr_effective_placeholders(placeholders))
 }
 
 #' Detect Whether a Parameter Is Unnamed
@@ -246,10 +250,12 @@ paintr_validate_copy_leaf <- function(x, path) {
 #' Validate Copy Rules
 #'
 #' @param copy_rules User-supplied copy rules.
+#' @param placeholders Optional custom placeholder definitions or an effective
+#'   placeholder registry.
 #'
 #' @return Invisibly returns `TRUE`.
 #' @keywords internal
-paintr_validate_copy_rules <- function(copy_rules) {
+paintr_validate_copy_rules <- function(copy_rules, placeholders = NULL) {
   if (is.null(copy_rules)) {
     return(invisible(TRUE))
   }
@@ -315,7 +321,10 @@ paintr_validate_copy_rules <- function(copy_rules) {
   }
 
   if (!is.null(copy_rules$defaults)) {
-    unknown_defaults <- setdiff(names(copy_rules$defaults), paintr_copy_keywords())
+    unknown_defaults <- setdiff(
+      names(copy_rules$defaults),
+      paintr_copy_keywords(placeholders)
+    )
     if (length(unknown_defaults) > 0) {
       stop(
         "copy_rules$defaults has unsupported entries: ",
@@ -343,7 +352,10 @@ paintr_validate_copy_rules <- function(copy_rules) {
         )
       }
 
-      unknown_keywords <- setdiff(names(param_rules), paintr_copy_keywords())
+      unknown_keywords <- setdiff(
+        names(param_rules),
+        paintr_copy_keywords(placeholders)
+      )
       if (length(unknown_keywords) > 0) {
         stop(
           "copy_rules$params$", param_name, " has unsupported keywords: ",
@@ -372,7 +384,10 @@ paintr_validate_copy_rules <- function(copy_rules) {
         )
       }
 
-      unknown_keywords <- setdiff(names(layer_rules), paintr_copy_keywords())
+      unknown_keywords <- setdiff(
+        names(layer_rules),
+        paintr_copy_keywords(placeholders)
+      )
       if (length(unknown_keywords) > 0) {
         stop(
           "copy_rules$layers$", layer_name, " has unsupported keywords: ",
@@ -501,21 +516,23 @@ paintr_merge_copy_rules <- function(base, overrides) {
 #' Build Effective Copy Rules
 #'
 #' @param copy_rules Optional user-supplied rules.
+#' @param placeholders Optional custom placeholder definitions or an effective
+#'   placeholder registry.
 #'
 #' @return A merged copy-rule list.
 #'
 #' @export
-paintr_effective_copy_rules <- function(copy_rules = NULL) {
+paintr_effective_copy_rules <- function(copy_rules = NULL, placeholders = NULL) {
   if (inherits(copy_rules, "paintr_copy_rules")) {
     return(copy_rules)
   }
 
-  defaults <- paintr_default_copy_rules()
+  defaults <- paintr_default_copy_rules(placeholders = placeholders)
   if (is.null(copy_rules)) {
     return(defaults)
   }
 
-  paintr_validate_copy_rules(copy_rules)
+  paintr_validate_copy_rules(copy_rules, placeholders = placeholders)
   copy_rules <- paintr_normalize_copy_rules(copy_rules)
 
   merged <- paintr_merge_copy_rules(unclass(defaults), copy_rules)
@@ -566,12 +583,17 @@ paintr_compact_copy_rule_branch <- function(current, defaults = NULL) {
 #' Compact Effective Copy Rules to Custom Overrides
 #'
 #' @param copy_rules Optional user-supplied or effective copy rules.
+#' @param placeholders Optional custom placeholder definitions or an effective
+#'   placeholder registry.
 #'
 #' @return A named list of custom overrides or `NULL`.
 #' @keywords internal
-paintr_compact_copy_rules <- function(copy_rules = NULL) {
-  effective_copy_rules <- paintr_effective_copy_rules(copy_rules)
-  default_copy_rules <- paintr_default_copy_rules()
+paintr_compact_copy_rules <- function(copy_rules = NULL, placeholders = NULL) {
+  effective_copy_rules <- paintr_effective_copy_rules(
+    copy_rules,
+    placeholders = placeholders
+  )
+  default_copy_rules <- paintr_default_copy_rules(placeholders = placeholders)
 
   paintr_compact_copy_rule_branch(
     unclass(effective_copy_rules),
@@ -587,6 +609,8 @@ paintr_compact_copy_rules <- function(copy_rules = NULL) {
 #' @param layer_name Optional layer name.
 #' @param param Optional parameter name.
 #' @param copy_rules Effective or user-supplied copy rules.
+#' @param placeholders Optional custom placeholder definitions or an effective
+#'   placeholder registry.
 #'
 #' @return A named list with `label`, `help`, `placeholder`, and `empty_text`.
 #'
@@ -595,8 +619,9 @@ paintr_resolve_copy <- function(component,
                                 keyword = NULL,
                                 layer_name = NULL,
                                 param = NULL,
-                                copy_rules = NULL) {
-  rules <- paintr_effective_copy_rules(copy_rules)
+                                copy_rules = NULL,
+                                placeholders = NULL) {
+  rules <- paintr_effective_copy_rules(copy_rules, placeholders = placeholders)
 
   resolved <- switch(
     component,

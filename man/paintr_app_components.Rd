@@ -4,7 +4,12 @@
 \alias{paintr_app_components}
 \title{Build Reusable App Components for ggpaintr}
 \usage{
-paintr_app_components(formula, envir = parent.frame(), copy_rules = NULL)
+paintr_app_components(
+  formula,
+  envir = parent.frame(),
+  copy_rules = NULL,
+  placeholders = NULL
+)
 }
 \arguments{
 \item{formula}{A single formula string.}
@@ -12,6 +17,9 @@ paintr_app_components(formula, envir = parent.frame(), copy_rules = NULL)
 \item{envir}{Environment used to resolve local data objects.}
 
 \item{copy_rules}{Optional named list of copy overrides.}
+
+\item{placeholders}{Optional custom placeholder definitions or an existing
+placeholder registry.}
 }
 \value{
 A list with \code{ui} and \code{server}.

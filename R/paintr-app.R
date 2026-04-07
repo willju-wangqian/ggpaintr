@@ -130,6 +130,8 @@ ggpaintr_validate_state <- function(paintr_state) {
     "var_ui_list",
     "raw_copy_rules",
     "effective_copy_rules",
+    "placeholders",
+    "custom_placeholders",
     "ids",
     "envir"
   )
@@ -155,6 +157,12 @@ ggpaintr_validate_state <- function(paintr_state) {
   }
 
   ggpaintr_validate_ids(paintr_state$ids)
+  if (!inherits(paintr_state$placeholders, "ggpaintr_placeholder_registry")) {
+    stop(
+      "paintr_state$placeholders must inherit from 'ggpaintr_placeholder_registry'.",
+      call. = FALSE
+    )
+  }
   invisible(TRUE)
 }
 
@@ -170,6 +178,8 @@ ggpaintr_validate_state <- function(paintr_state) {
 #'   text, and placeholders.
 #' @param ids A `ggpaintr_ids` object describing the top-level Shiny ids used by
 #'   the integration helpers.
+#' @param placeholders Optional custom placeholder definitions or an existing
+#'   placeholder registry.
 #'
 #' @return An object of class `ggpaintr_state`.
 #' @examples
@@ -181,16 +191,23 @@ ggpaintr_validate_state <- function(paintr_state) {
 ggpaintr_server_state <- function(formula,
                                   envir = parent.frame(),
                                   copy_rules = NULL,
-                                  ids = ggpaintr_ids()) {
+                                  ids = ggpaintr_ids(),
+                                  placeholders = NULL) {
   ids <- ggpaintr_normalize_ids(ids)
+  placeholder_registry <- ggpaintr_effective_placeholders(placeholders)
 
   structure(
     list(
-      obj = shiny::reactiveVal(paintr_formula(formula)),
+      obj = shiny::reactiveVal(paintr_formula(formula, placeholders = placeholder_registry)),
       runtime = shiny::reactiveVal(NULL),
       var_ui_list = shiny::reactiveVal(list()),
       raw_copy_rules = copy_rules,
-      effective_copy_rules = paintr_effective_copy_rules(copy_rules),
+      effective_copy_rules = paintr_effective_copy_rules(
+        copy_rules,
+        placeholders = placeholder_registry
+      ),
+      placeholders = placeholder_registry,
+      custom_placeholders = placeholder_registry$custom_placeholders,
       ids = ids,
       envir = envir
     ),
@@ -293,7 +310,8 @@ ggpaintr_bind_export <- function(output,
         paintr_state$obj(),
         paintr_state$var_ui_list(),
         file,
-        copy_rules = paintr_state$raw_copy_rules
+        copy_rules = paintr_state$raw_copy_rules,
+        placeholders = paintr_state$placeholders
       )
     }
   )
@@ -484,14 +502,24 @@ ggpaintr_outputs_ui <- function(ids = ggpaintr_ids()) {
 #' @param envir Environment used to resolve local data objects when building the app.
 #' @param copy_rules Optional named list of copy overrides for UI labels, helper
 #'   text, and placeholders.
+#' @param placeholders Optional custom placeholder definitions or an existing
+#'   placeholder registry.
 #'
 #' @return A `shiny.appobj`.
 #' @examples
 #' app <- ggpaintr_app("ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()")
 #' inherits(app, "shiny.appobj")
 #' @export
-ggpaintr_app <- function(formula, envir = parent.frame(), copy_rules = NULL) {
-  app_parts <- paintr_app_components(formula, envir = envir, copy_rules = copy_rules)
+ggpaintr_app <- function(formula,
+                         envir = parent.frame(),
+                         copy_rules = NULL,
+                         placeholders = NULL) {
+  app_parts <- paintr_app_components(
+    formula,
+    envir = envir,
+    copy_rules = copy_rules,
+    placeholders = placeholders
+  )
   shiny::shinyApp(ui = app_parts$ui, server = app_parts$server)
 }
 
@@ -509,6 +537,8 @@ ggpaintr_app <- function(formula, envir = parent.frame(), copy_rules = NULL) {
 #' @param envir Environment used to resolve local data objects when building the app.
 #' @param copy_rules Optional named list of copy overrides for UI labels, helper
 #'   text, and placeholders.
+#' @param placeholders Optional custom placeholder definitions or an existing
+#'   placeholder registry.
 #'
 #' @return A `ggpaintr_state` object containing reactive accessors named `obj`,
 #'   `runtime`, and `var_ui_list`, plus shared metadata used by the bind helpers.
@@ -518,11 +548,13 @@ ggpaintr_server <- function(input,
                             session,
                             formula,
                             envir = parent.frame(),
-                            copy_rules = NULL) {
+                            copy_rules = NULL,
+                            placeholders = NULL) {
   paintr_state <- ggpaintr_server_state(
     formula,
     envir = envir,
-    copy_rules = copy_rules
+    copy_rules = copy_rules,
+    placeholders = placeholders
   )
 
   ggpaintr_bind_control_panel(input, output, paintr_state)
@@ -580,10 +612,15 @@ paintr_build_app_ui <- function(title_label, draw_label, export_label) {
 #' @param formula A single formula string.
 #' @param envir Environment used to resolve local data objects.
 #' @param copy_rules Optional named list of copy overrides.
+#' @param placeholders Optional custom placeholder definitions or an existing
+#'   placeholder registry.
 #'
 #' @return A list with `ui` and `server`.
 #' @keywords internal
-paintr_app_components <- function(formula, envir = parent.frame(), copy_rules = NULL) {
+paintr_app_components <- function(formula,
+                                  envir = parent.frame(),
+                                  copy_rules = NULL,
+                                  placeholders = NULL) {
   shell_copy <- paintr_resolve_shell_copy(copy_rules)
 
   ui <- paintr_build_app_ui(
@@ -599,7 +636,8 @@ paintr_app_components <- function(formula, envir = parent.frame(), copy_rules = 
       session,
       formula,
       envir = envir,
-      copy_rules = copy_rules
+      copy_rules = copy_rules,
+      placeholders = placeholders
     )
     invisible(NULL)
   }
