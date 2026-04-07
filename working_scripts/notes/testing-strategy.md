@@ -22,6 +22,7 @@ Manual verification lives in:
 Current target under test:
 
 - `ggpaintr_app()`
+- `ggpaintr_server()`
 - `paintr_formula()`
 - `paintr_build_runtime()`
 - `paintr_get_plot()`
@@ -49,6 +50,7 @@ Automated coverage should continue to include:
 - structured runtime error handling
 - plot construction
 - exported app generation
+- reusable server-state behavior for exported/custom apps
 - package-surface behavior for exported functions
 
 Manual coverage should continue to include:

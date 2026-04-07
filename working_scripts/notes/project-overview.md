@@ -40,15 +40,18 @@ Key runtime path:
 2. `register_var_ui_outputs()` resolves dynamic `var` controls from available data
 3. `paintr_build_runtime()` completes the expression, builds the plot, validates
    render-time behavior, and formats errors
-4. `ggpaintr_app()` wraps those helpers into an interactive Shiny app
-5. `generate_shiny()` writes a standalone app script that reuses the same
-   package runtime
+4. `ggpaintr_server()` wires the standard Shiny server behavior and exposes
+   reactive state for extension
+5. `ggpaintr_app()` wraps the default UI around that server behavior
+6. `generate_shiny()` writes a standalone app script with explicit `ui`,
+   explicit `server`, and a `ggpaintr_server()` call
 
 ## Public API
 
 The maintained exported package surface is:
 
 - `ggpaintr_app()`
+- `ggpaintr_server()`
 - `paintr_formula()`
 - `paintr_build_runtime()`
 - `paintr_get_plot()`

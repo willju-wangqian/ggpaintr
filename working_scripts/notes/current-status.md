@@ -8,6 +8,8 @@ Active package entry points are:
 
 - `ggpaintr_app()`  
   Reference: `R/paintr-app.R:15-17`
+- `ggpaintr_server()`  
+  Reference: `R/paintr-app.R:36-93`
 - `paintr_formula()`  
   Reference: `R/paintr-parse.R:17-67`
 - `paintr_build_runtime()`  
@@ -53,12 +55,15 @@ Current boundary summary:
 - missing local data objects are deferred to draw-time plot errors  
   Reference: `R/paintr-app.R:67-95`, `R/paintr-runtime.R:326-377`
 - render-time ggplot failures use the same inline runtime error channel
+- dynamic `var` UI registration is handled by `register_var_ui_outputs()`  
+  Reference: `R/paintr-ui.R:152-273`
 
 ## Package surface status
 
 Current exported API is:
 
 - `ggpaintr_app()`
+- `ggpaintr_server()`
 - `paintr_formula()`
 - `paintr_build_runtime()`
 - `paintr_get_plot()`
@@ -89,11 +94,14 @@ Manual interaction coverage remains under:
 
 Latest verification status:
 
-- `testthat::test_dir("tests/testthat")` passes  
-  Reference: `tests/testthat/test-runtime-feedback.R:1-178`, `tests/testthat/test-export-shiny.R:1-66`
-- `generate_shiny()` export behavior is covered against the current `ggpaintr_app()`-based template  
-  Reference: `R/paintr-export.R:5-15`, `tests/testthat/test-export-shiny.R:1-58`
-- `devtools::check(document = FALSE, manual = FALSE, args = c("--no-manual"))` completed cleanly in the latest session run
+- `testthat::test_dir("tests/testthat")` passes with 129 tests in the latest session run  
+  Reference: `tests/testthat/test-runtime-feedback.R:1-178`, `tests/testthat/test-export-shiny.R:1-140`
+- `generate_shiny()` now writes an explicit `ui <- ...`, `server <- function(...)`, `shinyApp(ui, server)` template that calls `ggpaintr_server(...)`  
+  Reference: `R/paintr-export.R:5-84`, `tests/testthat/test-export-shiny.R:1-33`
+- `ggpaintr_server()` reusable runtime state is covered for both success and failure draws  
+  Reference: `R/paintr-app.R:36-93`, `tests/testthat/test-export-shiny.R:76-140`
+- `devtools::check()` completed cleanly in the latest session run except for the environment time-verification NOTE
+- `pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)` completed cleanly in the latest session run
 - `cran-comments.md` still records the earlier one-note result and should be refreshed before submission  
   Reference: `cran-comments.md:5-20`
 
@@ -111,6 +119,9 @@ Completed in this session:
 - renamed the active workflow/docs/manual assets from `paintr2` to `ggpaintr`
 - rebuilt the canonical manual workbook at `tests/manual/manual-test-ggpaintr.Rmd`
 - reran generated outputs and package verification after the rename sweep
+- added exported `ggpaintr_server()` so custom or exported apps can reuse the standard server wiring and latest runtime state
+- changed `generate_shiny()` to emit a thin editable template with explicit `ui` and `server`
+- renamed the internal `var` UI helper from `output_embed_var()` to `register_var_ui_outputs()`
 
 ## Quick re-entry points
 
@@ -124,7 +135,8 @@ Read in this order:
 6. `working_scripts/notes/next-steps.md`
 7. `R/paintr-app.R`
 8. `R/paintr-parse.R`
-9. `R/paintr-runtime.R`
-10. `tests/testthat/test-runtime-feedback.R`
+9. `R/paintr-export.R`
+10. `R/paintr-runtime.R`
 11. `tests/testthat/test-export-shiny.R`
-12. `tests/manual/manual-test-ggpaintr.Rmd`
+12. `tests/testthat/test-runtime-feedback.R`
+13. `tests/manual/manual-test-ggpaintr.Rmd`
