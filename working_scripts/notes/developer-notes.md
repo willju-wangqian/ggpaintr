@@ -14,6 +14,7 @@ This file is for developer-written initial thoughts, rough ideas, and informal p
 
 -   "keep the layer of xxx"
 -   "text for xxx"
+-   expr for facet_wrap argument 1:
 
 2.  shiny app theme? redesign the current UI
 
