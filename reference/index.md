@@ -14,3 +14,10 @@
   : Build a Plot from Completed Layer Expressions
 - [`generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/generate_shiny.md)
   : Generate a Standalone Shiny App Script
+
+## Copy customization
+
+- [`paintr_effective_copy_rules()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_effective_copy_rules.md)
+  : Build Effective Copy Rules
+- [`paintr_resolve_copy()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_resolve_copy.md)
+  : Resolve Copy for One Control or App Element

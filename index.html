@@ -170,7 +170,7 @@
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="reference/generate_shiny.html">generate_shiny</a></span><span class="op">(</span><span class="va">obj</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".R"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p>The same <code>copy_rules</code> object can be passed to <code><a href="reference/generate_shiny.html">generate_shiny()</a></code> so an exported app keeps the same customized wording as the live app.</p>
+<p>The same <code>copy_rules</code> object can be passed to <code><a href="reference/generate_shiny.html">generate_shiny()</a></code> so an exported app keeps the same customized wording as the live app. When the exported app needs custom wording, it writes a compact <code>custom_copy_rules</code> object and reconstructs <code>copy_rules</code> with <code>paintr_effective_copy_rules(custom_copy_rules)</code> instead of embedding the full default registry.</p>
 </div>
 <div class="section level2">
 <h2 id="runtime-behavior">Runtime behavior<a class="anchor" aria-label="anchor" href="#runtime-behavior"></a>
