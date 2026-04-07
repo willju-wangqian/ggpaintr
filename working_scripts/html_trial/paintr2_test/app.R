@@ -100,7 +100,7 @@ server <- function(input, output) {
   observe({
     req(paintr_obj(), input$enter)
 
-    var_ui_list <<- output_embed_var(input, output, paintr_obj())
+    var_ui_list <<- register_var_ui_outputs(input, output, paintr_obj())
   })
 
   observe({
@@ -154,7 +154,6 @@ shinyApp(ui = ui, server = server)
 
 
 # expr <- expr(ggplot(data = input$data, aes(x = input$var)))
-
 
 
 

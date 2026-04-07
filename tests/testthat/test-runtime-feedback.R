@@ -61,7 +61,7 @@ test_that("paintr_build_runtime defers missing local data objects until draw tim
   )
   output <- list2env(list(), parent = emptyenv())
 
-  expect_no_error(output_embed_var(list(), output, obj))
+  expect_no_error(register_var_ui_outputs(list(), output, obj))
 
   runtime_result <- paintr_build_runtime(
     obj,

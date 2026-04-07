@@ -37,7 +37,7 @@ used to produce:
 Key runtime path:
 
 1. `paintr_formula()` parses the formula and constructs a `paintr_obj`
-2. `output_embed_var()` resolves dynamic `var` controls from available data
+2. `register_var_ui_outputs()` resolves dynamic `var` controls from available data
 3. `paintr_build_runtime()` completes the expression, builds the plot, validates
    render-time behavior, and formats errors
 4. `ggpaintr_app()` wraps those helpers into an interactive Shiny app

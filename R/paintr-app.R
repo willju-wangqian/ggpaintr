@@ -40,7 +40,7 @@ ggpaintr_server <- function(input, output, session, formula, envir = parent.fram
 
   shiny::observe({
     shiny::req(obj())
-    var_ui_list(output_embed_var(input, output, obj(), envir = envir))
+    var_ui_list(register_var_ui_outputs(input, output, obj(), envir = envir))
   })
 
   output$controlPanel <- shiny::renderUI({

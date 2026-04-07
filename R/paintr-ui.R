@@ -149,16 +149,16 @@ generate_ui_individual <- function(key, id, param) {
   }
 }
 
-#' Build Dynamic `var` Controls for a Parsed Formula
+#' Register Dynamic `var` UI Outputs for a Parsed Formula
 #'
 #' @param input A Shiny input object.
 #' @param output A Shiny output object.
 #' @param paintr_obj A `paintr_obj`.
 #' @param envir Environment used to resolve local data objects.
 #'
-#' @return A named list of generated `var` UI controls.
+#' @return A named list of generated `var` UI controls registered on `output`.
 #' @keywords internal
-output_embed_var <- function(input, output, paintr_obj, envir = parent.frame()) {
+register_var_ui_outputs <- function(input, output, paintr_obj, envir = parent.frame()) {
   param_list <- paintr_obj[["param_list"]]
   keywords_list <- paintr_obj[["keywords_list"]]
   id_list <- paintr_obj[["id_list"]]
@@ -334,4 +334,3 @@ paintr_get_tab_ui <- function(paintr_obj) {
 
   tab_wrap_ui(paintr_obj[["ui_list"]])
 }
-

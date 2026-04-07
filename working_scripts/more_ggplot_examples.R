@@ -38,7 +38,7 @@ ggpaintr_basic2 <- function(input_formula) {
       req(session$userData$paintr$obj)
 
       session$userData$paintr$var_ui_list <-
-        output_embed_var(input, output, session$userData$paintr$obj)
+        register_var_ui_outputs(input, output, session$userData$paintr$obj)
     })
 
     output$controlPanel <- renderUI({
@@ -170,4 +170,3 @@ ggpaintr_basic2(
   theme_minimal(base_size = num)
   '
 )
-

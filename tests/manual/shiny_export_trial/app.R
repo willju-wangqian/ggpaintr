@@ -69,7 +69,7 @@ server <- function(input, output, session) {
     req(session$userData$paintr$obj, input$enter)
 
     session$userData$paintr$var_ui_list <-
-      output_embed_var(input, output, session$userData$paintr$obj)
+      register_var_ui_outputs(input, output, session$userData$paintr$obj)
   })
 
   output$controlPanel <- renderUI({
@@ -118,5 +118,4 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui, server)
-
 

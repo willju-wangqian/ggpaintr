@@ -41,14 +41,14 @@ test_that("unsupported upload extensions error clearly", {
   )
 })
 
-test_that("output_embed_var waits for uploaded data and populates choices after upload", {
+test_that("register_var_ui_outputs waits for uploaded data and populates choices after upload", {
   obj <- paintr_formula(
     "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
   )
 
   output <- list2env(list(), parent = emptyenv())
 
-  before_upload <- output_embed_var(list(), output, obj)
+  before_upload <- register_var_ui_outputs(list(), output, obj)
   expect_length(before_upload, 0)
 
   input_after <- list(
@@ -57,7 +57,7 @@ test_that("output_embed_var waits for uploaded data and populates choices after 
     "ggplot+3+2" = "x",
     "ggplot+3+3" = "y"
   )
-  after_upload <- output_embed_var(input_after, output, obj)
+  after_upload <- register_var_ui_outputs(input_after, output, obj)
 
   expect_named(after_upload, c("ggplot+3+2", "ggplot+3+3"))
 })
