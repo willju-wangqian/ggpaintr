@@ -5,44 +5,42 @@ editor_options:
   chunk_output_type: console
 ---
 
-This workbook is the canonical interactive manual test guide for the current
-`ggpaintr` workflow. It is intended to complement, not replace, the
-package-standard automated tests in `tests/testthat/`.
+This workbook is the canonical interactive manual test guide for the current `ggpaintr` workflow. It is intended to complement, not replace, the package-standard automated tests in `tests/testthat/`.
 
 It aligns with:
 
-- `working_scripts/notes/testing-strategy.md`
-- `tests/manual/manual-checklist-ggpaintr.md`
+-   `working_scripts/notes/testing-strategy.md`
+-   `tests/manual/manual-checklist-ggpaintr.md`
 
 Current automated coverage for the new error-feedback channel already includes:
 
-- malformed `expr` handling in `paintr_complete_expr_safe()`
-- invalid upload handling in `paintr_complete_expr_safe()`
-- plot-stage missing-object handling in `paintr_get_plot_safe()`
-- successful runtime assembly in `paintr_build_runtime()`
-- exported app wiring for `paintr_build_runtime()` and `outputError`
+-   malformed `expr` handling in `paintr_complete_expr_safe()`
+-   invalid upload handling in `paintr_complete_expr_safe()`
+-   plot-stage missing-object handling in `paintr_get_plot_safe()`
+-   successful runtime assembly in `paintr_build_runtime()`
+-   exported app wiring for `paintr_build_runtime()` and `outputError`
 
 See:
 
-- `tests/testthat/test-runtime-feedback.R`
-- `tests/testthat/test-export-shiny.R`
+-   `tests/testthat/test-runtime-feedback.R`
+-   `tests/testthat/test-export-shiny.R`
 
 ## How To Use This Workbook
 
 Use this file from an interactive RStudio session.
 
-1. Run the setup chunk first.
-2. Review the printed fixture paths.
-3. Run one app chunk at a time to launch `ggpaintr_app()`.
-4. Close the current app before launching the next one.
-5. Use the expected-check lists below to record pass/fail behavior.
+1.  Run the setup chunk first.
+2.  Review the printed fixture paths.
+3.  Run one app chunk at a time to launch `ggpaintr_app()`.
+4.  Close the current app before launching the next one.
+5.  Use the expected-check lists below to record pass/fail behavior.
 
 ## Error Feedback Feature Test Guide
 
 Use the scenarios below to test the dedicated inline error channel end to end.
 
 | Scenario | Trigger | Expected error label | Plot behavior | Code behavior |
-| --- | --- | --- | --- | --- |
+|---------------|---------------|---------------|---------------|---------------|
 | Completion-stage error | malformed `expr` such as `~` | `Input error:` | plot clears / stays empty | code stays blank |
 | Upload validation error | upload `bad_extension.txt` | `Input error:` | plot stays empty | code stays blank |
 | Plot-stage error | missing object such as `unknown_object` | `Plot error:` | plot clears / stays empty | code remains visible |
@@ -53,9 +51,9 @@ Use the scenarios below to test the dedicated inline error channel end to end.
 
 Assumptions:
 
-- Run this from the repo root.
-- Use the maintained package path centered on `R/paintr-app.R`, `R/paintr-parse.R`, `R/paintr-runtime.R`, `R/paintr-ui.R`, and `R/paintr-upload.R`.
-- Use the committed fixture files under `tests/testthat/fixtures/` for upload checks.
+-   Run this from the repo root.
+-   Use the maintained package path centered on `R/paintr-app.R`, `R/paintr-parse.R`, `R/paintr-runtime.R`, `R/paintr-ui.R`, and `R/paintr-upload.R`.
+-   Use the committed fixture files under `tests/testthat/fixtures/` for upload checks.
 
 ```{r setup, message=FALSE, warning=FALSE}
 library(ggpaintr)
@@ -101,17 +99,17 @@ list(
 
 Upload fixture paths to use during manual testing:
 
-- `r csv_fixture`
-- `r rds_fixture`
-- `r bad_fixture`
+-   `r csv_fixture`
+-   `r rds_fixture`
+-   `r bad_fixture`
 
 Recommended RStudio flow:
 
-- restart R if you have an older `ggpaintr` namespace loaded
-- run the setup chunk
-- launch one app chunk
-- perform the listed checks
-- close the app window before continuing
+-   restart R if you have an older `ggpaintr` namespace loaded
+-   run the setup chunk
+-   launch one app chunk
+-   perform the listed checks
+-   close the app window before continuing
 
 ## Formula 1: Static All-Placeholders Interaction
 
@@ -129,25 +127,25 @@ ggplot(data = iris, aes(x = var, y = var)) +
 
 Suggested manual inputs:
 
-- `x = Sepal.Length`
-- `y = Sepal.Width`
-- `color = Species`
-- `size = 2.5`
-- `alpha = 0.7`
-- `title = Iris manual test`
-- `x text = Sepal length`
-- `y text = Sepal width`
-- `facet_wrap expr = ~ Species`
-- `legend.position text = bottom`
+-   `x = Sepal.Length`
+-   `y = Sepal.Width`
+-   `color = Species`
+-   `size = 2.5`
+-   `alpha = 0.7`
+-   `title = Iris manual test`
+-   `x text = Sepal length`
+-   `y text = Sepal width`
+-   `facet_wrap expr = ~ Species`
+-   `legend.position text = bottom`
 
 Expected checks:
 
-- Control tabs render for all layers.
-- Clicking `draw` updates both the plot and `outputCode`.
-- Clearing `title` removes `labs(title = ...)` content from the generated code.
-- Clearing `facet_wrap` removes the faceting call from the generated code.
-- Clearing `legend.position` removes that theme argument from the generated code.
-- Unchecking `geom_point`, `labs`, `facet_wrap`, or `theme` removes that layer from both the plot and the code.
+-   Control tabs render for all layers.
+-   Clicking `draw` updates both the plot and `outputCode`.
+-   Clearing `title` removes `labs(title = ...)` content from the generated code.
+-   Clearing `facet_wrap` removes the faceting call from the generated code.
+-   Clearing `legend.position` removes that theme argument from the generated code.
+-   Unchecking `geom_point`, `labs`, `facet_wrap`, or `theme` removes that layer from both the plot and the code.
 
 ## Formula 2: `var` Expression Input
 
@@ -163,15 +161,15 @@ ggplot(data = mtcars, aes(x = log(var), y = var + 1)) +
 
 Suggested manual inputs:
 
-- `x = log(mpg)`
-- `y = disp + 1`
-- `title = var expression test`
+-   `x = log(mpg)`
+-   `y = disp + 1`
+-   `title = var expression test`
 
 Expected checks:
 
-- The plot draws successfully with expression-like `var` inputs.
-- `outputCode` contains `log(mpg)` for `x`.
-- `outputCode` contains `disp + 1` for `y`.
+-   The plot draws successfully with expression-like `var` inputs.
+-   `outputCode` contains `log(mpg)` for `x`.
+-   `outputCode` contains `disp + 1` for `y`.
 
 ## Formula 3: Global Upload
 
@@ -187,23 +185,23 @@ ggplot(data = upload, aes(x = var, y = var)) +
 
 Suggested manual sequence:
 
-- Launch the app and confirm the `var` selectors are not available before an upload.
-- Upload `simple_numeric.csv` from `tests/testthat/fixtures/simple_numeric.csv`.
-- Leave the dataset object name blank the first time.
-- Use `x = x`, `y = y`, `size = 2`, `title = uploaded scatter`.
-- Click `draw`.
-- Repeat with `simple_numeric.rds` from `tests/testthat/fixtures/simple_numeric.rds`.
-- Repeat again with custom dataset object name `manual_upload_data`.
-- Retry with `bad_extension.txt` from `tests/testthat/fixtures/bad_extension.txt`.
+-   Launch the app and confirm the `var` selectors are not available before an upload.
+-   Upload `simple_numeric.csv` from `tests/testthat/fixtures/simple_numeric.csv`.
+-   Leave the dataset object name blank the first time.
+-   Use `x = x`, `y = y`, `size = 2`, `title = uploaded scatter`.
+-   Click `draw`.
+-   Repeat with `simple_numeric.rds` from `tests/testthat/fixtures/simple_numeric.rds`.
+-   Repeat again with custom dataset object name `manual_upload_data`.
+-   Retry with `bad_extension.txt` from `tests/testthat/fixtures/bad_extension.txt`.
 
 Expected checks:
 
-- `var` selectors appear only after a valid upload.
-- With a blank dataset name, the generated code uses a filename-derived object name.
-- With a custom dataset name, the generated code uses `manual_upload_data`.
-- The app draws successfully for both `.csv` and `.rds`.
-- The bad-extension upload shows a clear inline error without crashing the session.
-- When upload completion fails, the plot does not render.
+-   `var` selectors appear only after a valid upload.
+-   With a blank dataset name, the generated code uses a filename-derived object name.
+-   With a custom dataset name, the generated code uses `manual_upload_data`.
+-   The app draws successfully for both `.csv` and `.rds`.
+-   The bad-extension upload shows a clear inline error without crashing the session.
+-   When upload completion fails, the plot does not render.
 
 ## Formula 4: Layer-Specific Upload
 
@@ -220,20 +218,20 @@ ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
 
 Suggested manual sequence:
 
-- Launch the app and inspect the controls before upload.
-- Confirm the static `iris` layer does not need upload-driven controls.
-- Upload `simple_numeric.csv` or `simple_numeric.rds`.
-- Set upload-layer `x = x`, `y = y`, `color = group`, `size = 3`.
-- Set `title = mixed static/upload plot`.
-- Click `draw`.
-- Uncheck the upload-backed `geom_point` layer and draw again.
+-   Launch the app and inspect the controls before upload.
+-   Confirm the static `iris` layer does not need upload-driven controls.
+-   Upload `simple_numeric.csv` or `simple_numeric.rds`.
+-   Set upload-layer `x = x`, `y = y`, `color = group`, `size = 3`.
+-   Set `title = mixed static/upload plot`.
+-   Click `draw`.
+-   Uncheck the upload-backed `geom_point` layer and draw again.
 
 Expected checks:
 
-- Only the upload-backed layer depends on uploaded columns.
-- The static `iris` layer remains intact before and after upload.
-- The combined plot shows both static and uploaded layers when enabled.
-- Disabling the upload-backed layer leaves a valid static plot.
+-   Only the upload-backed layer depends on uploaded columns.
+-   The static `iris` layer remains intact before and after upload.
+-   The combined plot shows both static and uploaded layers when enabled.
+-   Disabling the upload-backed layer leaves a valid static plot.
 
 ## Formula 5: Export Smoke Test
 
@@ -250,23 +248,26 @@ ggplot(data = iris, aes(x = var, y = var)) +
 
 Suggested manual inputs:
 
-- `x = Sepal.Length`
-- `y = Sepal.Width`
-- `row facet = Species`
-- `col facet = Species`
-- `labeller expr = label_both`
-- `size = 1.5`
-- `title = export test`
-- `subtitle = static formula export`
+-   `x = Sepal.Length`
+-   `y = Sepal.Width`
+-   `row facet = Species`
+-   `col facet = Species`
+-   `labeller expr = label_both`
+-   `size = 1.5`
+-   `title = export test`
+-   `subtitle = static formula export`
 
 Expected checks:
 
-- The static app draws and updates `outputCode` correctly.
-- Export the generated app from this formula and run it.
-- Export the generated app from Formula 3 and run it.
-- In the exported upload app, repeat one CSV upload flow and one RDS upload flow.
-- Confirm the exported apps still render both the plot and the generated code.
-- Confirm exported apps also show the same inline error message behavior on bad `expr` or bad upload input.
+-   The static app draws and updates `outputCode` correctly.
+-   Export the generated app from this formula and run it.
+-   Export the generated app from Formula 3 and run it.
+-   Confirm the exported script shows explicit `ui <- ...`, `server <- function(...)`, and `shinyApp(ui, server)`.
+-   Confirm the exported server assigns `paintr_state <- ggpaintr_server(...)`.
+-   In the exported upload app, repeat one CSV upload flow and one RDS upload flow.
+-   Confirm the exported apps still render both the plot and the generated code.
+-   Confirm exported apps also show the same inline error message behavior on bad `expr` or bad upload input.
+-   Add one small custom output or observer that reads `paintr_state$runtime()` and confirm the `draw` workflow still behaves normally.
 
 ## Formula 6: Error Feedback Checks
 
@@ -282,20 +283,20 @@ ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
 
 Suggested manual sequence:
 
-- Enter `~` for `facet_wrap expr`.
-- Click `draw`.
-- Replace it with `~ Speciesasdf`.
-- Click `draw` again.
+-   Enter `~` for `facet_wrap expr`.
+-   Click `draw`.
+-   Replace it with `~ Speciesasdf`.
+-   Click `draw` again.
 
 Expected checks:
 
-- The app shows an inline `Input error:` message for bare `~`.
-- The session keeps running.
-- No stale plot is rendered.
-- `outputCode` stays blank because expression completion failed.
-- With `~ Speciesasdf`, the inline error channel shows a `Plot error:` message mentioning `Speciesasdf`.
-- The plot pane does not show raw Shiny `Error: [object Object]`.
-- `outputCode` remains visible for the `~ Speciesasdf` case because completion succeeded before render-time failure.
+-   The app shows an inline `Input error:` message for bare `~`.
+-   The session keeps running.
+-   No stale plot is rendered.
+-   `outputCode` stays blank because expression completion failed.
+-   With `~ Speciesasdf`, the inline error channel shows a `Plot error:` message mentioning `Speciesasdf`.
+-   The plot pane does not show raw Shiny `Error: [object Object]`.
+-   `outputCode` remains visible for the `~ Speciesasdf` case because completion succeeded before render-time failure.
 
 ```{r formula-6-upload-error, eval=FALSE}
 ggpaintr_app("
@@ -306,16 +307,16 @@ ggplot(data = upload, aes(x = var, y = var)) +
 
 Suggested manual sequence:
 
-- Launch the app.
-- Upload `bad_extension.txt`.
-- Click `draw`.
+-   Launch the app.
+-   Upload `bad_extension.txt`.
+-   Click `draw`.
 
 Expected checks:
 
-- The app shows an inline `Input error:` message.
-- Upload-backed `var` selectors do not become usable from the invalid file.
-- The plot stays empty.
-- `outputCode` stays blank.
+-   The app shows an inline `Input error:` message.
+-   Upload-backed `var` selectors do not become usable from the invalid file.
+-   The plot stays empty.
+-   `outputCode` stays blank.
 
 ```{r formula-6b, eval=FALSE}
 ggpaintr_app("
@@ -326,15 +327,15 @@ ggplot(data = unknown_object, aes(x = mpg, y = disp)) +
 
 Suggested manual sequence:
 
-- Launch the app.
-- Click `draw`.
+-   Launch the app.
+-   Click `draw`.
 
 Expected checks:
 
-- The app launches without crashing before interaction.
-- The app shows an inline `Plot error:` message mentioning `unknown_object`.
-- The plot stays empty.
-- The generated code remains visible even though plot construction failed.
+-   The app launches without crashing before interaction.
+-   The app shows an inline `Plot error:` message mentioning `unknown_object`.
+-   The plot stays empty.
+-   The generated code remains visible even though plot construction failed.
 
 ```{r formula-6c-recovery, eval=FALSE}
 ggpaintr_app("
@@ -346,17 +347,17 @@ ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
 
 Suggested manual sequence:
 
-- First enter `~` for `facet_wrap expr` and click `draw`.
-- Confirm the inline `Input error:` appears and the plot stays empty.
-- Replace the input with `~ Species`.
-- Click `draw` again.
+-   First enter `~` for `facet_wrap expr` and click `draw`.
+-   Confirm the inline `Input error:` appears and the plot stays empty.
+-   Replace the input with `~ Species`.
+-   Click `draw` again.
 
 Expected checks:
 
-- The previous error message disappears after the successful draw.
-- The plot renders normally after recovery.
-- `outputCode` updates to the valid faceting code.
-- The session remains usable without restart.
+-   The previous error message disappears after the successful draw.
+-   The plot renders normally after recovery.
+-   `outputCode` updates to the valid faceting code.
+-   The session remains usable without restart.
 
 ## Exported App Error Feedback Check
 
@@ -364,28 +365,28 @@ Use Formula 6A or the upload-error app above, then export the generated app and 
 
 Suggested manual sequence:
 
-- Export the app after opening it in the workbook.
-- Run the exported app.
-- Trigger one malformed `expr` error or one invalid upload error.
-- Correct the input and redraw.
+-   Export the app after opening it in the workbook.
+-   Run the exported app.
+-   Trigger one malformed `expr` error or one invalid upload error.
+-   Correct the input and redraw.
 
 Expected checks:
 
-- The exported app shows the same inline error message pattern as the in-repo app.
-- The plot clears on failure and renders again after recovery.
-- `outputCode` stays blank for completion-stage errors and updates normally after recovery.
+-   The exported app shows the same inline error message pattern as the in-repo app.
+-   The plot clears on failure and renders again after recovery.
+-   `outputCode` stays blank for completion-stage errors and updates normally after recovery.
 
 ## Final Checklist
 
-- Plot updates after clicking `draw`.
-- `outputCode` matches the active inputs.
-- Blank optional `text`, `num`, and `expr` values disappear cleanly from generated code where expected.
-- Unchecked layers disappear from both the plot and `outputCode`.
-- Upload-backed `var` controls appear only after valid upload.
-- Default upload naming works when the dataset name box is blank.
-- Custom upload naming works when a dataset name is provided.
-- Inline errors appear for malformed `expr`, bad upload types, and missing objects.
-- The plot clears and does not stay stale after an error.
-- Generated code remains visible when plot construction fails after completion succeeds.
-- Recovery after an error clears the error panel and restores normal plotting.
-- Exported apps run and preserve the same behavior for static and upload formulas.
+-   Plot updates after clicking `draw`.
+-   `outputCode` matches the active inputs.
+-   Blank optional `text`, `num`, and `expr` values disappear cleanly from generated code where expected.
+-   Unchecked layers disappear from both the plot and `outputCode`.
+-   Upload-backed `var` controls appear only after valid upload.
+-   Default upload naming works when the dataset name box is blank.
+-   Custom upload naming works when a dataset name is provided.
+-   Inline errors appear for malformed `expr`, bad upload types, and missing objects.
+-   The plot clears and does not stay stale after an error.
+-   Generated code remains visible when plot construction fails after completion succeeds.
+-   Recovery after an error clears the error panel and restores normal plotting.
+-   Exported apps run and preserve the same behavior for static and upload formulas.

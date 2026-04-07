@@ -2,6 +2,7 @@
 
 export(generate_shiny)
 export(ggpaintr_app)
+export(ggpaintr_server)
 export(paintr_build_runtime)
 export(paintr_formula)
 export(paintr_get_plot)

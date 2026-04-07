@@ -35,6 +35,9 @@
 4. Confirm the exported app still renders the plot and code correctly.
 5. Confirm exported apps also show inline error messages for bad `expr` input and bad uploads.
 6. Confirm exported apps clear the plot on failure and recover normally after a corrected redraw.
+7. Confirm the exported script exposes explicit `ui <- ...`, `server <- function(...)`, and `shinyApp(ui, server)`.
+8. Confirm the exported server uses `ggpaintr_server(...)` and stores the returned `paintr_state`.
+9. Add one simple custom output or observer that reads `paintr_state$runtime()` and confirm the app still works.
 
 ## Missing-object checks
 
