@@ -15,4 +15,3 @@ A merged copy-rule list.
 \description{
 Build Effective Copy Rules
 }
-\keyword{internal}

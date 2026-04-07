@@ -10,6 +10,8 @@ This file is for developer-written initial thoughts, rough ideas, and informal p
 
 ## Notes
 
+0.  rename `copy_rules`
+
 1.  assess package-level extensibility
 
 2.  shiny app theme? redesign the current UI

@@ -43,6 +43,7 @@ ggpaintr_server <- function(input,
                             formula,
                             envir = parent.frame(),
                             copy_rules = NULL) {
+  raw_copy_rules <- copy_rules
   effective_copy_rules <- paintr_effective_copy_rules(copy_rules)
   obj <- shiny::reactiveVal(paintr_formula(formula))
   runtime <- shiny::reactiveVal(NULL)
@@ -72,7 +73,7 @@ ggpaintr_server <- function(input,
         obj(),
         var_ui_list(),
         file,
-        copy_rules = effective_copy_rules
+        copy_rules = raw_copy_rules
       )
     }
   )
@@ -113,6 +114,46 @@ ggpaintr_server <- function(input,
   list(obj = obj, runtime = runtime, var_ui_list = var_ui_list)
 }
 
+#' Resolve Standard Shell Copy for ggpaintr
+#'
+#' @param copy_rules Optional named list of copy overrides.
+#'
+#' @return A named list with shell copy entries.
+#' @keywords internal
+paintr_resolve_shell_copy <- function(copy_rules = NULL) {
+  list(
+    title_copy = paintr_resolve_copy("title", copy_rules = copy_rules),
+    draw_copy = paintr_resolve_copy("draw_button", copy_rules = copy_rules),
+    export_copy = paintr_resolve_copy("export_button", copy_rules = copy_rules)
+  )
+}
+
+#' Build the Standard ggpaintr App UI
+#'
+#' @param title_label App title text.
+#' @param draw_label Draw button text.
+#' @param export_label Export button text.
+#'
+#' @return A Shiny UI object.
+#' @keywords internal
+paintr_build_app_ui <- function(title_label, draw_label, export_label) {
+  shiny::fluidPage(
+    shiny::titlePanel(title_label),
+    shiny::sidebarLayout(
+      shiny::sidebarPanel(
+        shiny::uiOutput("controlPanel"),
+        shiny::actionButton("draw", draw_label),
+        shiny::downloadButton("shinyExport", export_label)
+      ),
+      shiny::mainPanel(
+        shiny::plotOutput("outputPlot"),
+        shiny::uiOutput("outputError"),
+        shiny::verbatimTextOutput("outputCode")
+      )
+    )
+  )
+}
+
 #' Build Reusable App Components for ggpaintr
 #'
 #' @param formula A single formula string.
@@ -122,25 +163,12 @@ ggpaintr_server <- function(input,
 #' @return A list with `ui` and `server`.
 #' @keywords internal
 paintr_app_components <- function(formula, envir = parent.frame(), copy_rules = NULL) {
-  effective_copy_rules <- paintr_effective_copy_rules(copy_rules)
-  title_copy <- paintr_resolve_copy("title", copy_rules = effective_copy_rules)
-  draw_copy <- paintr_resolve_copy("draw_button", copy_rules = effective_copy_rules)
-  export_copy <- paintr_resolve_copy("export_button", copy_rules = effective_copy_rules)
+  shell_copy <- paintr_resolve_shell_copy(copy_rules)
 
-  ui <- shiny::fluidPage(
-    shiny::titlePanel(title_copy$label),
-    shiny::sidebarLayout(
-      shiny::sidebarPanel(
-        shiny::uiOutput("controlPanel"),
-        shiny::actionButton("draw", draw_copy$label),
-        shiny::downloadButton("shinyExport", export_copy$label)
-      ),
-      shiny::mainPanel(
-        shiny::plotOutput("outputPlot"),
-        shiny::uiOutput("outputError"),
-        shiny::verbatimTextOutput("outputCode")
-      )
-    )
+  ui <- paintr_build_app_ui(
+    shell_copy$title_copy$label,
+    shell_copy$draw_copy$label,
+    shell_copy$export_copy$label
   )
 
   server <- function(input, output, session) {
@@ -150,7 +178,7 @@ paintr_app_components <- function(formula, envir = parent.frame(), copy_rules = 
       session,
       formula,
       envir = envir,
-      copy_rules = effective_copy_rules
+      copy_rules = copy_rules
     )
     invisible(NULL)
   }

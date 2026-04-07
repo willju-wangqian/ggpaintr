@@ -503,7 +503,8 @@ paintr_merge_copy_rules <- function(base, overrides) {
 #' @param copy_rules Optional user-supplied rules.
 #'
 #' @return A merged copy-rule list.
-#' @keywords internal
+#'
+#' @export
 paintr_effective_copy_rules <- function(copy_rules = NULL) {
   if (inherits(copy_rules, "paintr_copy_rules")) {
     return(copy_rules)
@@ -522,6 +523,62 @@ paintr_effective_copy_rules <- function(copy_rules = NULL) {
   merged
 }
 
+#' Recursively Compact Copy Rules Against Defaults
+#'
+#' @param current A current copy-rule branch.
+#' @param defaults A default copy-rule branch.
+#'
+#' @return A compacted branch or `NULL`.
+#' @keywords internal
+paintr_compact_copy_rule_branch <- function(current, defaults = NULL) {
+  if (is.null(current)) {
+    return(NULL)
+  }
+
+  if (!is.list(current) || is.null(names(current))) {
+    if (identical(current, defaults)) {
+      return(NULL)
+    }
+
+    return(current)
+  }
+
+  result <- list()
+  for (name in names(current)) {
+    default_value <- NULL
+    if (is.list(defaults) && !is.null(names(defaults)) && name %in% names(defaults)) {
+      default_value <- defaults[[name]]
+    }
+
+    compact_value <- paintr_compact_copy_rule_branch(current[[name]], default_value)
+    if (!is.null(compact_value)) {
+      result[[name]] <- compact_value
+    }
+  }
+
+  if (length(result) == 0) {
+    return(NULL)
+  }
+
+  result
+}
+
+#' Compact Effective Copy Rules to Custom Overrides
+#'
+#' @param copy_rules Optional user-supplied or effective copy rules.
+#'
+#' @return A named list of custom overrides or `NULL`.
+#' @keywords internal
+paintr_compact_copy_rules <- function(copy_rules = NULL) {
+  effective_copy_rules <- paintr_effective_copy_rules(copy_rules)
+  default_copy_rules <- paintr_default_copy_rules()
+
+  paintr_compact_copy_rule_branch(
+    unclass(effective_copy_rules),
+    unclass(default_copy_rules)
+  )
+}
+
 #' Resolve Copy for One Control or App Element
 #'
 #' @param component One of `title`, `draw_button`, `export_button`,
@@ -532,7 +589,8 @@ paintr_effective_copy_rules <- function(copy_rules = NULL) {
 #' @param copy_rules Effective or user-supplied copy rules.
 #'
 #' @return A named list with `label`, `help`, `placeholder`, and `empty_text`.
-#' @keywords internal
+#'
+#' @export
 paintr_resolve_copy <- function(component,
                                 keyword = NULL,
                                 layer_name = NULL,

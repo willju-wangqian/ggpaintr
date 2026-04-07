@@ -41,6 +41,57 @@ test_that("copy rules normalize aliases and merge precedence field by field", {
   expect_identical(color_copy$empty_text, "Pick one column")
 })
 
+test_that("copy rule compaction keeps only custom diffs with canonical keys", {
+  compact_rules <- paintr_compact_copy_rules(
+    list(
+      shell = list(
+        title = list(label = "Exploratory Plot Builder")
+      ),
+      params = list(
+        colour = list(var = list(label = "Choose a colour column"))
+      ),
+      layers = list(
+        facet_wrap = list(
+          expr = list(
+            `__unnamed__` = list(label = "Split the plot by")
+          )
+        )
+      )
+    )
+  )
+
+  expect_identical(
+    compact_rules,
+    list(
+      shell = list(
+        title = list(label = "Exploratory Plot Builder")
+      ),
+      params = list(
+        color = list(var = list(label = "Choose a colour column"))
+      ),
+      layers = list(
+        facet_wrap = list(
+          expr = list(
+            `__unnamed__` = list(label = "Split the plot by")
+          )
+        )
+      )
+    )
+  )
+})
+
+test_that("copy rule compaction collapses default-equivalent overrides", {
+  expect_null(
+    paintr_compact_copy_rules(
+      list(
+        shell = list(
+          title = list(label = "ggpaintr Plot Builder")
+        )
+      )
+    )
+  )
+})
+
 test_that("copy rules provide readable fallbacks and seeded defaults", {
   fallback_copy <- paintr_resolve_copy(
     "control",

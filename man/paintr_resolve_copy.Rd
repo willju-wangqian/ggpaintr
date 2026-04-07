@@ -30,4 +30,3 @@ A named list with \code{label}, \code{help}, \code{placeholder}, and \code{empty
 \description{
 Resolve Copy for One Control or App Element
 }
-\keyword{internal}

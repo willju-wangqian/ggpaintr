@@ -11,17 +11,32 @@ test_that("generate_shiny writes a syntactically valid app script", {
 
   app_text <- paste(readLines(out_file), collapse = "\n")
   expect_match(app_text, "input_formula <- ")
-  expect_match(app_text, "copy_rules <- ")
+  expect_match(app_text, "copy_rules <- NULL", fixed = TRUE)
+  expect_match(app_text, "Replace NULL with a named list", fixed = TRUE)
+  expect_match(
+    app_text,
+    "title_copy <- paintr_resolve_copy\\(\"title\", copy_rules = copy_rules\\)"
+  )
+  expect_match(
+    app_text,
+    "draw_copy <- paintr_resolve_copy\\(\"draw_button\", copy_rules = copy_rules\\)"
+  )
+  expect_match(
+    app_text,
+    "export_copy <- paintr_resolve_copy\\(\"export_button\", copy_rules = copy_rules\\)"
+  )
   expect_match(app_text, "ui <- fluidPage\\(")
-  expect_match(app_text, "ggpaintr Plot Builder", fixed = TRUE)
-  expect_match(app_text, "Update plot", fixed = TRUE)
-  expect_match(app_text, "Export Shiny app", fixed = TRUE)
+  expect_match(app_text, "titlePanel\\(title_copy\\$label\\)")
+  expect_match(app_text, "actionButton\\(\"draw\", draw_copy\\$label\\)")
+  expect_match(app_text, "downloadButton\\(\"shinyExport\", export_copy\\$label\\)")
   expect_match(app_text, "server <- function\\(input, output, session\\)")
   expect_match(
     app_text,
     "paintr_state <- ggpaintr_server\\(input, output, session, input_formula, copy_rules = copy_rules\\)"
   )
   expect_match(app_text, "shinyApp\\(ui, server\\)")
+  expect_no_match(app_text, "copy_rules <- list\\(")
+  expect_no_match(app_text, "custom_copy_rules <- list\\(")
   expect_no_match(app_text, "app\\$ui")
   expect_no_match(app_text, "app\\$server")
 })
@@ -42,12 +57,50 @@ test_that("generate_shiny preserves upload-aware runtime code", {
   )
 })
 
-test_that("generate_shiny preserves the formula text in the exported app", {
+test_that("generate_shiny writes multiline formulas as multiline source", {
   formula_text <- paste(
     "",
     "ggplot(data = upload, aes(x = var, y = var)) +",
     "  geom_point(size = num) +",
     "  labs(title = text)",
+    sep = "\n"
+  )
+
+  obj <- paintr_formula(formula_text)
+  out_file <- tempfile(fileext = ".R")
+
+  generate_shiny(obj, list(), out_file, style = FALSE)
+
+  app_lines <- readLines(out_file)
+  input_formula_index <- grep("^input_formula <- ", app_lines)
+  copy_rules_index <- grep("^# Replace NULL with a named list", app_lines)
+
+  expect_identical(length(input_formula_index), 1L)
+  expect_identical(length(copy_rules_index), 1L)
+  expect_identical(app_lines[[input_formula_index]], "input_formula <- \"")
+  expect_identical(app_lines[[input_formula_index + 1]], "ggplot(data = upload, aes(x = var, y = var)) +")
+  expect_false(any(grepl("\\\\n", app_lines[input_formula_index:(copy_rules_index - 1)])))
+
+  app_expr <- parse(file = out_file)
+  input_formula_expr <- NULL
+
+  for (expr in app_expr) {
+    if (rlang::is_call(expr, "<-") &&
+        rlang::is_symbol(expr[[2]], "input_formula")) {
+      input_formula_expr <- expr
+      break
+    }
+  }
+
+  expect_false(is.null(input_formula_expr))
+  expect_identical(eval(input_formula_expr[[3]]), formula_text)
+})
+
+test_that("generate_shiny preserves quotes and backslashes in exported formulas", {
+  formula_text <- paste(
+    "",
+    "ggplot(data = mtcars, aes(x = var, y = var)) +",
+    "  labs(title = \"A \\\"quote\\\"\", caption = \"C:\\\\temp\")",
     sep = "\n"
   )
 
@@ -79,7 +132,7 @@ test_that("ggpaintr_app returns a shiny app object", {
   expect_s3_class(app, "shiny.appobj")
 })
 
-test_that("generate_shiny embeds effective copy rules for exported apps", {
+test_that("generate_shiny writes compact custom copy rules for exported apps", {
   obj <- paintr_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
@@ -102,36 +155,192 @@ test_that("generate_shiny embeds effective copy rules for exported apps", {
   )
 
   app_text <- paste(readLines(out_file), collapse = "\n")
-  expect_match(app_text, "copy_rules <- ")
+  expect_match(app_text, "custom_copy_rules <- ")
+  expect_match(
+    app_text,
+    "copy_rules <- paintr_effective_copy_rules\\(custom_copy_rules\\)"
+  )
   expect_match(app_text, "Exploratory Plot Builder", fixed = TRUE)
   expect_match(app_text, "Render plot", fixed = TRUE)
   expect_match(app_text, "Pick the field for the x-axis", fixed = TRUE)
+  expect_no_match(app_text, "Choose the y-axis column", fixed = TRUE)
+  expect_no_match(app_text, "Optional dataset name", fixed = TRUE)
+  expect_match(
+    app_text,
+    "title_copy <- paintr_resolve_copy\\(\"title\", copy_rules = copy_rules\\)"
+  )
   expect_match(
     app_text,
     "ggpaintr_server\\(input, output, session, input_formula, copy_rules = copy_rules\\)"
   )
 
   app_expr <- parse(file = out_file)
+  custom_copy_rules_expr <- NULL
   copy_rules_expr <- NULL
 
   for (expr in app_expr) {
     if (rlang::is_call(expr, "<-") &&
+        rlang::is_symbol(expr[[2]], "custom_copy_rules")) {
+      custom_copy_rules_expr <- expr
+    }
+
+    if (rlang::is_call(expr, "<-") &&
         rlang::is_symbol(expr[[2]], "copy_rules")) {
       copy_rules_expr <- expr
-      break
     }
   }
 
+  expect_false(is.null(custom_copy_rules_expr))
   expect_false(is.null(copy_rules_expr))
 
-  exported_rules <- eval(copy_rules_expr[[3]])
+  export_env <- new.env(parent = environment())
+  eval(custom_copy_rules_expr, envir = export_env)
+  eval(copy_rules_expr, envir = export_env)
+
+  exported_custom_rules <- export_env$custom_copy_rules
+  exported_rules <- export_env$copy_rules
+  expect_identical(
+    exported_custom_rules,
+    list(
+      shell = list(
+        title = list(label = "Exploratory Plot Builder"),
+        draw_button = list(label = "Render plot")
+      ),
+      params = list(
+        x = list(var = list(label = "Pick the field for the x-axis"))
+      )
+    )
+  )
   expect_identical(exported_rules$shell$title$label, "Exploratory Plot Builder")
   expect_identical(exported_rules$shell$draw_button$label, "Render plot")
   expect_identical(exported_rules$params$x$var$label, "Pick the field for the x-axis")
 })
 
+test_that("generate_shiny omits concrete copy rules when effective rules match defaults", {
+  obj <- paintr_formula(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  )
+  out_file <- tempfile(fileext = ".R")
+
+  generate_shiny(
+    obj,
+    list(),
+    out_file,
+    style = FALSE,
+    copy_rules = list(
+      shell = list(
+        title = list(label = "ggpaintr Plot Builder")
+      )
+    )
+  )
+
+  app_text <- paste(readLines(out_file), collapse = "\n")
+  expect_match(app_text, "copy_rules <- NULL", fixed = TRUE)
+  expect_no_match(app_text, "copy_rules <- list\\(")
+  expect_no_match(app_text, "custom_copy_rules <- list\\(")
+})
+
+test_that("generate_shiny compacts pre-merged copy rules before export", {
+  obj <- paintr_formula(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  )
+  out_file <- tempfile(fileext = ".R")
+  merged_rules <- paintr_effective_copy_rules(
+    list(
+      shell = list(
+        title = list(label = "Exploratory Plot Builder")
+      ),
+      params = list(
+        colour = list(var = list(label = "Choose a colour column"))
+      )
+    )
+  )
+
+  generate_shiny(
+    obj,
+    list(),
+    out_file,
+    style = FALSE,
+    copy_rules = merged_rules
+  )
+
+  app_text <- paste(readLines(out_file), collapse = "\n")
+  expect_match(app_text, "custom_copy_rules <- ")
+  expect_match(
+    app_text,
+    "copy_rules <- paintr_effective_copy_rules\\(custom_copy_rules\\)"
+  )
+  expect_no_match(app_text, "ggpaintr Plot Builder", fixed = TRUE)
+  expect_no_match(app_text, "Update plot", fixed = TRUE)
+  expect_no_match(app_text, "Choose the x-axis column", fixed = TRUE)
+  expect_match(app_text, "Choose a colour column", fixed = TRUE)
+  expect_match(app_text, "color", fixed = TRUE)
+
+  app_expr <- parse(file = out_file)
+  custom_copy_rules_expr <- NULL
+  for (expr in app_expr) {
+    if (rlang::is_call(expr, "<-") &&
+        rlang::is_symbol(expr[[2]], "custom_copy_rules")) {
+      custom_copy_rules_expr <- expr
+      break
+    }
+  }
+
+  expect_false(is.null(custom_copy_rules_expr))
+  exported_custom_rules <- eval(custom_copy_rules_expr[[3]])
+  expect_identical(
+    exported_custom_rules,
+    list(
+      shell = list(
+        title = list(label = "Exploratory Plot Builder")
+      ),
+      params = list(
+        color = list(var = list(label = "Choose a colour column"))
+      )
+    )
+  )
+})
+
 test_that("ggpaintr_server is exported in NAMESPACE", {
   expect_true("ggpaintr_server" %in% getNamespaceExports("ggpaintr"))
+})
+
+test_that("paintr_resolve_copy is exported in NAMESPACE", {
+  installed_export <- "paintr_resolve_copy" %in% getNamespaceExports("ggpaintr")
+  repo_export <- FALSE
+
+  namespace_candidates <- c(
+    file.path(getwd(), "NAMESPACE"),
+    testthat::test_path("..", "..", "NAMESPACE"),
+    testthat::test_path("..", "NAMESPACE")
+  )
+  namespace_path <- namespace_candidates[file.exists(namespace_candidates)][1]
+
+  if (!is.na(namespace_path) && nzchar(namespace_path)) {
+    namespace_lines <- readLines(namespace_path)
+    repo_export <- any(grepl("^export\\(paintr_resolve_copy\\)$", namespace_lines))
+  }
+
+  expect_true(installed_export || repo_export)
+})
+
+test_that("paintr_effective_copy_rules is exported in NAMESPACE", {
+  installed_export <- "paintr_effective_copy_rules" %in% getNamespaceExports("ggpaintr")
+  repo_export <- FALSE
+
+  namespace_candidates <- c(
+    file.path(getwd(), "NAMESPACE"),
+    testthat::test_path("..", "..", "NAMESPACE"),
+    testthat::test_path("..", "NAMESPACE")
+  )
+  namespace_path <- namespace_candidates[file.exists(namespace_candidates)][1]
+
+  if (!is.na(namespace_path) && nzchar(namespace_path)) {
+    namespace_lines <- readLines(namespace_path)
+    repo_export <- any(grepl("^export\\(paintr_effective_copy_rules\\)$", namespace_lines))
+  }
+
+  expect_true(installed_export || repo_export)
 })
 
 test_that("ggpaintr_server returns reusable state before and after a successful draw", {

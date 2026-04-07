@@ -369,6 +369,8 @@ Use Formula 6A or the upload-error app above, then export the generated app and 
 Suggested manual sequence:
 
 -   Export the app after opening it in the workbook.
+-   Inspect the exported script and confirm it defines `copy_rules <- NULL`.
+-   Confirm the exported script resolves shell labels with `paintr_resolve_copy(..., copy_rules = copy_rules)`.
 -   Run the exported app.
 -   Trigger one malformed `expr` error or one invalid upload error.
 -   Correct the input and redraw.
@@ -376,6 +378,7 @@ Suggested manual sequence:
 Expected checks:
 
 -   The exported app shows the same inline error message pattern as the in-repo app.
+-   The default exported script exposes `copy_rules <- NULL` instead of embedding the full default copy registry.
 -   The plot clears on failure and renders again after recovery.
 -   `outputCode` stays blank for completion-stage errors and updates normally after recovery.
 
@@ -471,7 +474,7 @@ Expected checks:
 
 ## Formula 9: Exported Custom Copy Rules
 
-This export check confirms that a generated app carries the effective `copy_rules` into the exported script and preserves the same custom wording at runtime.
+This export check confirms that a generated app carries only compact custom overrides into the exported script and preserves the same custom wording at runtime.
 
 ```{r formula-9-exported-custom-copy, eval=FALSE}
 custom_copy_rules <- list(
@@ -521,7 +524,9 @@ source(custom_out_file)
 Suggested manual sequence:
 
 -   Run the chunk and note the generated file path.
--   Inspect the exported script and confirm it defines `copy_rules <- ...`.
+-   Inspect the exported script and confirm it defines `custom_copy_rules <- ...`.
+-   Confirm the exported script rebuilds `copy_rules` with `paintr_effective_copy_rules(custom_copy_rules)`.
+-   Confirm the default export case would instead define `copy_rules <- NULL`.
 -   Confirm the exported server calls `ggpaintr_server(..., copy_rules = copy_rules)`.
 -   Run the exported app and confirm the title is `Exploratory Plot Builder`.
 -   Confirm the draw button reads `Render plot`.
@@ -532,7 +537,8 @@ Suggested manual sequence:
 Expected checks:
 
 -   The exported app preserves the same custom wording as the live app.
--   The exported script carries a local `copy_rules` object and passes it into the package runtime.
+-   The exported script carries a compact local `custom_copy_rules` object and rebuilds `copy_rules` from it before calling the package runtime.
+-   The custom export keeps `custom_copy_rules <- ...`, while the default export keeps `copy_rules <- NULL`.
 -   Plot rendering and generated code continue to work normally in the exported app.
 
 ## Final Checklist
@@ -552,4 +558,4 @@ Expected checks:
 -   Default copy-rule wording appears for shell text, upload prompts, numeric hints, and unnamed faceting prompts.
 -   No default control label shows parser-style fallback text such as `argument 1`.
 -   Custom `copy_rules` override only the targeted prompts while untargeted controls stay on the defaults.
--   Exported custom-copy apps preserve the same wording as the live customized app.
+-   Exported custom-copy apps preserve the same wording as the live customized app while keeping only compact custom overrides in the script.

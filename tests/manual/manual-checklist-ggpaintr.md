@@ -46,12 +46,14 @@
 4. Confirm the exported app still renders the plot and code correctly.
 5. Confirm exported apps also show inline error messages for bad `expr` input and bad uploads.
 6. Confirm exported apps clear the plot on failure and recover normally after a corrected redraw.
-7. Confirm the exported script exposes explicit `ui <- ...`, `server <- function(...)`, and `shinyApp(ui, server)`.
-8. Confirm the exported server uses `ggpaintr_server(...)` and stores the returned `paintr_state`.
-9. Add one simple custom output or observer that reads `paintr_state$runtime()` and confirm the app still works.
-10. Export an app with custom `copy_rules` and confirm the exported script defines `copy_rules <- ...`.
-11. Confirm the exported script passes `copy_rules = copy_rules` into `ggpaintr_server(...)`.
-12. Run the exported custom-copy app and confirm it preserves the customized wording from the live app.
+7. Confirm the default exported script exposes `copy_rules <- NULL`, explicit `ui <- ...`, explicit `server <- function(...)`, and `shinyApp(ui, server)`.
+8. Confirm the exported shell labels are resolved with `paintr_resolve_copy(..., copy_rules = copy_rules)`.
+9. Confirm the exported server uses `ggpaintr_server(...)` and stores the returned `paintr_state`.
+10. Add one simple custom output or observer that reads `paintr_state$runtime()` and confirm the app still works.
+11. Export an app with custom `copy_rules` and confirm the exported script defines `custom_copy_rules <- ...`.
+12. Confirm the exported script rebuilds `copy_rules` with `paintr_effective_copy_rules(custom_copy_rules)`.
+13. Confirm the exported script passes `copy_rules = copy_rules` into `ggpaintr_server(...)`.
+14. Run the exported custom-copy app and confirm it preserves the customized wording from the live app.
 
 ## Missing-object checks
 

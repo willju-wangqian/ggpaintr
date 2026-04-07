@@ -13,6 +13,10 @@ reference:
       - paintr_build_runtime
       - paintr_get_plot
       - generate_shiny
+  - title: Copy customization
+    contents:
+      - paintr_effective_copy_rules
+      - paintr_resolve_copy
 articles:
   - title: Guides
     navbar: ggpaintr

@@ -8,6 +8,87 @@ paintr_serialize_r_object <- function(x) {
   utils::capture.output(dput(x))
 }
 
+#' Escape One String Segment for a Template Literal
+#'
+#' @param x A character string.
+#'
+#' @return A single escaped string segment.
+#' @keywords internal
+paintr_escape_string_segment <- function(x) {
+  encoded <- encodeString(x, quote = "\"")
+  substring(encoded, 2, nchar(encoded) - 1)
+}
+
+#' Prefix Serialized Template Lines with an Assignment
+#'
+#' @param name An assignment target.
+#' @param value_lines A character vector of serialized value lines.
+#'
+#' @return A character vector.
+#' @keywords internal
+paintr_prefix_assignment <- function(name, value_lines) {
+  value_lines[1] <- paste0(name, " <- ", value_lines[1])
+  value_lines
+}
+
+#' Serialize a Formula String for an Exported Template
+#'
+#' @param formula_text A single formula string.
+#'
+#' @return A character vector of source lines.
+#' @keywords internal
+paintr_serialize_formula_text <- function(formula_text) {
+  formula_lines <- strsplit(formula_text, "\n", fixed = TRUE)[[1]]
+  formula_lines <- vapply(
+    formula_lines,
+    paintr_escape_string_segment,
+    character(1),
+    USE.NAMES = FALSE
+  )
+
+  if (length(formula_lines) == 1) {
+    return(paste0("\"", formula_lines, "\""))
+  }
+
+  formula_lines[1] <- paste0("\"", formula_lines[1])
+  formula_lines[length(formula_lines)] <- paste0(formula_lines[length(formula_lines)], "\"")
+  formula_lines
+}
+
+#' Serialize Copy Rules for an Exported Template
+#'
+#' @param copy_rules User-supplied or effective copy rules.
+#'
+#' @return A character vector of source lines.
+#' @keywords internal
+paintr_serialize_export_copy_rules <- function(copy_rules = NULL) {
+  default_header <- paste(
+    "# Replace NULL with a named list to customize UI labels, help text, and",
+    "placeholders."
+  )
+  compact_copy_rules <- paintr_compact_copy_rules(copy_rules)
+  if (is.null(compact_copy_rules)) {
+    return(c(default_header, "copy_rules <- NULL"))
+  }
+
+  custom_header <- paste(
+    "# Edit custom_copy_rules to customize UI labels, help text, and",
+    "placeholders."
+  )
+  custom_copy_rules_lines <- paintr_serialize_r_object(compact_copy_rules)
+  custom_copy_rules_lines <- paintr_prefix_assignment(
+    "custom_copy_rules",
+    custom_copy_rules_lines
+  )
+
+  c(
+    custom_header,
+    custom_copy_rules_lines,
+    "",
+    "copy_rules <- paintr_effective_copy_rules(custom_copy_rules)"
+  )
+}
+
 #' Build the Standalone App Template
 #'
 #' @param formula_text A single formula string.
@@ -16,16 +97,11 @@ paintr_serialize_r_object <- function(x) {
 #' @return A character vector containing the exported app template.
 #' @keywords internal
 get_shiny_template <- function(formula_text, copy_rules = NULL) {
-  effective_copy_rules <- paintr_effective_copy_rules(copy_rules)
-  title_copy <- paintr_resolve_copy("title", copy_rules = effective_copy_rules)
-  draw_copy <- paintr_resolve_copy("draw_button", copy_rules = effective_copy_rules)
-  export_copy <- paintr_resolve_copy("export_button", copy_rules = effective_copy_rules)
-
-  formula_text_lines <- paintr_serialize_r_object(formula_text)
-  formula_text_lines[1] <- paste0("input_formula <- ", formula_text_lines[1])
-
-  copy_rules_lines <- paintr_serialize_r_object(unclass(effective_copy_rules))
-  copy_rules_lines[1] <- paste0("copy_rules <- ", copy_rules_lines[1])
+  formula_text_lines <- paintr_prefix_assignment(
+    "input_formula",
+    paintr_serialize_formula_text(formula_text)
+  )
+  copy_rules_lines <- paintr_serialize_export_copy_rules(copy_rules)
 
   c(
     "library(ggpaintr)",
@@ -36,22 +112,18 @@ get_shiny_template <- function(formula_text, copy_rules = NULL) {
     "",
     copy_rules_lines,
     "",
+    "title_copy <- paintr_resolve_copy(\"title\", copy_rules = copy_rules)",
+    "draw_copy <- paintr_resolve_copy(\"draw_button\", copy_rules = copy_rules)",
+    "export_copy <- paintr_resolve_copy(\"export_button\", copy_rules = copy_rules)",
+    "",
     "ui <- fluidPage(",
-    paste0("  titlePanel(", paintr_serialize_r_object(title_copy$label), "),"),
+    "  titlePanel(title_copy$label),",
     "  sidebarLayout(",
     "    sidebarPanel(",
     "      # Modify or add controls here.",
     "      uiOutput(\"controlPanel\"),",
-    paste0(
-      "      actionButton(\"draw\", ",
-      paintr_serialize_r_object(draw_copy$label),
-      "),"
-    ),
-    paste0(
-      "      downloadButton(\"shinyExport\", ",
-      paintr_serialize_r_object(export_copy$label),
-      ")"
-    ),
+    "      actionButton(\"draw\", draw_copy$label),",
+    "      downloadButton(\"shinyExport\", export_copy$label)",
     "    ),",
     "    mainPanel(",
     "      # Modify or add outputs here.",

@@ -118,7 +118,11 @@ generate_shiny(obj, list(), tempfile(fileext = ".R"))
 ```
 
 The same `copy_rules` object can be passed to `generate_shiny()` so an
-exported app keeps the same customized wording as the live app.
+exported app keeps the same customized wording as the live app. When
+the exported app needs custom wording, it writes a compact
+`custom_copy_rules` object and reconstructs `copy_rules` with
+`paintr_effective_copy_rules(custom_copy_rules)` instead of embedding
+the full default registry.
 
 ## Runtime behavior
 

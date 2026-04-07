@@ -10,7 +10,8 @@ This file tracks the prioritized follow-up work for the maintained package.
    - decide whether internal roxygen topics should remain in `man/` or move to
      `@noRd`
    - review whether pkgdown should continue surfacing internal helpers such as
-     `paintr_resolve_copy()` and `register_var_ui_outputs()`
+     `register_var_ui_outputs()` and whether exported copy helpers should stay
+     prominent in user-facing docs
    - keep exported reference docs small and user-facing
 
 2. Column-name robustness
@@ -19,11 +20,12 @@ This file tracks the prioritized follow-up work for the maintained package.
    - add focused tests for spaced and non-standard names
 
 3. Export-template usability
-   - decide whether the exported `ui` / `server` template should expose more
-     guidance around extending `paintr_state$runtime()`
-   - keep the exported app readable while preserving the package-backed runtime
-   - keep serialized `copy_rules` readable while preserving live/exported UI
-     parity
+   - preserve the exported app as an understandable, editable, extensible
+     starting point rather than hiding its `ui` or `server` structure
+   - keep multiline `input_formula` readable in generated app source
+   - keep `copy_rules <- NULL` discoverable in default exports while preserving
+     non-default custom-copy parity through compact `custom_copy_rules`
+     overrides
 
 4. Copy-rule ergonomics
    - review whether the current defaults and examples cover enough common

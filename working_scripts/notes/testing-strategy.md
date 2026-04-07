@@ -53,7 +53,9 @@ Automated coverage should continue to include:
 - structured runtime error handling
 - plot construction
 - copy-rule validation, normalization, merge precedence, and readable fallbacks
-- exported app generation, including serialized `copy_rules` parity
+- exported app generation, including default `copy_rules <- NULL`,
+  compact `custom_copy_rules` reconstruction, and multiline `input_formula`
+  parity
 - reusable server-state behavior for exported/custom apps
 - package-surface behavior for exported functions
 
@@ -64,7 +66,8 @@ Manual coverage should continue to include:
 - inline error feedback
 - default copy-rule behavior
 - custom `copy_rules` overrides
-- exported app smoke tests, including custom-copy parity
+- exported app smoke tests, including custom-copy parity and the explicit
+  editable export-template shape
 
 ## Acceptance expectations
 
