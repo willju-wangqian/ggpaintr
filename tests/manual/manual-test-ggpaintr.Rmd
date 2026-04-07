@@ -12,18 +12,21 @@ It aligns with:
 -   `working_scripts/notes/testing-strategy.md`
 -   `tests/manual/manual-checklist-ggpaintr.md`
 
-Current automated coverage for the new error-feedback channel already includes:
+Current automated coverage for runtime feedback and the copy-rule system already includes:
 
 -   malformed `expr` handling in `paintr_complete_expr_safe()`
 -   invalid upload handling in `paintr_complete_expr_safe()`
 -   plot-stage missing-object handling in `paintr_get_plot_safe()`
 -   successful runtime assembly in `paintr_build_runtime()`
 -   exported app wiring for `paintr_build_runtime()` and `outputError`
+-   copy-rule validation, fallback resolution, and alias handling
+-   default and overridden copy for app-shell controls and exported apps
 
 See:
 
 -   `tests/testthat/test-runtime-feedback.R`
 -   `tests/testthat/test-export-shiny.R`
+-   `tests/testthat/test-copy-rules.R`
 
 ## How To Use This Workbook
 
@@ -376,6 +379,162 @@ Expected checks:
 -   The plot clears on failure and renders again after recovery.
 -   `outputCode` stays blank for completion-stage errors and updates normally after recovery.
 
+## Formula 7: Default Copy Rules
+
+This app checks the shipped default copy from the internal registry. It covers shell text, upload prompts, friendly unnamed `expr` copy, and plain-language hints.
+
+```{r formula-7-default-copy, eval=FALSE}
+ggpaintr_app("
+ggplot(data = upload, aes(x = var, y = var)) +
+  geom_point(size = num, alpha = num) +
+  labs(title = text) +
+  facet_grid(expr)
+")
+```
+
+Suggested manual sequence:
+
+-   Launch the app and confirm the title is `ggpaintr Plot Builder`.
+-   Confirm the primary buttons read `Update plot` and `Export Shiny app`.
+-   Confirm the upload controls read `Choose a data file` and `Optional dataset name`.
+-   Confirm the upload help text mentions accepted `.csv` and `.rds` formats and blank-name behavior.
+-   Upload `simple_numeric.csv`.
+-   Confirm the `var` prompts read `Choose the x-axis column` and `Choose the y-axis column`.
+-   Confirm the numeric prompts read `Point size` and `Transparency`.
+-   Confirm the `Transparency` help text mentions values between `0` and `1`.
+-   Confirm the title prompt reads `Plot title`.
+-   Confirm the faceting prompt reads `Facet by` with placeholder `~ Species`.
+-   Confirm no control label includes parser-style text such as `argument 1`.
+-   Use `x = x`, `y = y`, `size = 2`, `alpha = 0.8`, `title = Default copy test`, `facet = ~ group`, then click `Update plot`.
+
+Expected checks:
+
+-   The shipped default copy appears across the shell, upload controls, numeric hints, and faceting prompt.
+-   The app never surfaces raw parser labels such as `argument 1`.
+-   The plot renders successfully after upload and `outputCode` updates normally.
+-   The generated code still reflects the formula inputs rather than the UI wording.
+
+## Formula 8: Custom Copy Rules
+
+This app checks runtime copy overrides passed through `copy_rules`.
+
+```{r formula-8-custom-copy, eval=FALSE}
+custom_copy_rules <- list(
+  shell = list(
+    title = list(label = "Exploratory Plot Builder"),
+    draw_button = list(label = "Render plot")
+  ),
+  params = list(
+    x = list(var = list(label = "Pick the field for the x-axis")),
+    y = list(var = list(label = "Pick the field for the y-axis")),
+    title = list(text = list(label = "Chart title"))
+  ),
+  layers = list(
+    facet_wrap = list(
+      expr = list(
+        `__unnamed__` = list(
+          label = "Split the plot by",
+          placeholder = "~ Species"
+        )
+      )
+    )
+  )
+)
+
+ggpaintr_app(
+  "
+ggplot(data = iris, aes(x = var, y = var)) +
+  geom_point() +
+  labs(title = text) +
+  facet_wrap(expr)
+",
+  copy_rules = custom_copy_rules
+)
+```
+
+Suggested manual sequence:
+
+-   Launch the app and confirm the title is `Exploratory Plot Builder`.
+-   Confirm the draw button reads `Render plot`.
+-   Confirm the `var` prompts read `Pick the field for the x-axis` and `Pick the field for the y-axis`.
+-   Confirm the title prompt reads `Chart title`.
+-   Confirm the faceting prompt reads `Split the plot by` with placeholder `~ Species`.
+-   Confirm the export button still reads `Export Shiny app`.
+-   Confirm layer checkboxes still read `Include this layer in the plot`.
+-   Use `x = Sepal.Length`, `y = Sepal.Width`, `title = Custom copy test`, `facet = ~ Species`, then click `Render plot`.
+
+Expected checks:
+
+-   The targeted prompts use the custom wording from `copy_rules`.
+-   Untargeted controls continue to use the package defaults.
+-   Plot rendering and generated code behavior remain unchanged apart from the visible UI text.
+
+## Formula 9: Exported Custom Copy Rules
+
+This export check confirms that a generated app carries the effective `copy_rules` into the exported script and preserves the same custom wording at runtime.
+
+```{r formula-9-exported-custom-copy, eval=FALSE}
+custom_copy_rules <- list(
+  shell = list(
+    title = list(label = "Exploratory Plot Builder"),
+    draw_button = list(label = "Render plot")
+  ),
+  params = list(
+    x = list(var = list(label = "Pick the field for the x-axis")),
+    y = list(var = list(label = "Pick the field for the y-axis")),
+    title = list(text = list(label = "Chart title"))
+  ),
+  layers = list(
+    facet_wrap = list(
+      expr = list(
+        `__unnamed__` = list(
+          label = "Split the plot by",
+          placeholder = "~ Species"
+        )
+      )
+    )
+  )
+)
+
+custom_formula <- "
+ggplot(data = iris, aes(x = var, y = var)) +
+  geom_point() +
+  labs(title = text) +
+  facet_wrap(expr)
+"
+
+custom_obj <- paintr_formula(custom_formula)
+custom_out_file <- tempfile(fileext = ".R")
+
+generate_shiny(
+  custom_obj,
+  list(),
+  custom_out_file,
+  style = FALSE,
+  copy_rules = custom_copy_rules
+)
+
+custom_out_file
+source(custom_out_file)
+```
+
+Suggested manual sequence:
+
+-   Run the chunk and note the generated file path.
+-   Inspect the exported script and confirm it defines `copy_rules <- ...`.
+-   Confirm the exported server calls `ggpaintr_server(..., copy_rules = copy_rules)`.
+-   Run the exported app and confirm the title is `Exploratory Plot Builder`.
+-   Confirm the draw button reads `Render plot`.
+-   Confirm the overridden `x`, `y`, `title`, and faceting prompts match Formula 8.
+-   Confirm untargeted controls, such as the export button and layer checkboxes, still use the default wording.
+-   Use `x = Sepal.Length`, `y = Sepal.Width`, `title = Exported custom copy`, `facet = ~ Species`, then render the plot.
+
+Expected checks:
+
+-   The exported app preserves the same custom wording as the live app.
+-   The exported script carries a local `copy_rules` object and passes it into the package runtime.
+-   Plot rendering and generated code continue to work normally in the exported app.
+
 ## Final Checklist
 
 -   Plot updates after clicking `draw`.
@@ -390,3 +549,7 @@ Expected checks:
 -   Generated code remains visible when plot construction fails after completion succeeds.
 -   Recovery after an error clears the error panel and restores normal plotting.
 -   Exported apps run and preserve the same behavior for static and upload formulas.
+-   Default copy-rule wording appears for shell text, upload prompts, numeric hints, and unnamed faceting prompts.
+-   No default control label shows parser-style fallback text such as `argument 1`.
+-   Custom `copy_rules` override only the targeted prompts while untargeted controls stay on the defaults.
+-   Exported custom-copy apps preserve the same wording as the live customized app.

@@ -4,7 +4,13 @@
 \alias{register_var_ui_outputs}
 \title{Register Dynamic \code{var} UI Outputs for a Parsed Formula}
 \usage{
-register_var_ui_outputs(input, output, paintr_obj, envir = parent.frame())
+register_var_ui_outputs(
+  input,
+  output,
+  paintr_obj,
+  envir = parent.frame(),
+  copy_rules = NULL
+)
 }
 \arguments{
 \item{input}{A Shiny input object.}
@@ -14,6 +20,8 @@ register_var_ui_outputs(input, output, paintr_obj, envir = parent.frame())
 \item{paintr_obj}{A \code{paintr_obj}.}
 
 \item{envir}{Environment used to resolve local data objects.}
+
+\item{copy_rules}{Effective or user-supplied copy rules.}
 }
 \value{
 A named list of generated \code{var} UI controls registered on \code{output}.

@@ -42,8 +42,7 @@ Imports:
     purrr (>= 0.3.0),
     rlang (>= 1.0.0),
     shiny (>= 1.6.0),
-    shinyWidgets (>= 0.6.4),
-    stringr (>= 1.4.0)
+    shinyWidgets (>= 0.6.4)
 Suggests:
     knitr,
     pkgdown,

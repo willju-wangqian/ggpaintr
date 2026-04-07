@@ -4,7 +4,7 @@
 \alias{generate_ui_individual}
 \title{Build UI for One Placeholder}
 \usage{
-generate_ui_individual(key, id, param)
+generate_ui_individual(key, id, param, layer_name = NULL, copy_rules = NULL)
 }
 \arguments{
 \item{key}{Placeholder keyword.}
@@ -12,6 +12,10 @@ generate_ui_individual(key, id, param)
 \item{id}{Placeholder id.}
 
 \item{param}{Parameter label.}
+
+\item{layer_name}{Layer name.}
+
+\item{copy_rules}{Effective or user-supplied copy rules.}
 }
 \value{
 A Shiny UI object or \code{NULL}.

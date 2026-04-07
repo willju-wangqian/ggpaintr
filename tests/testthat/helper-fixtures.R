@@ -4,7 +4,6 @@ library(purrr)
 library(rlang)
 library(shiny)
 library(shinyWidgets)
-library(stringr)
 
 r_files <- sort(list.files(
   testthat::test_path("..", "..", "R"),

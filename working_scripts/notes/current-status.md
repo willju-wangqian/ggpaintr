@@ -2,14 +2,14 @@
 
 ## Project state
 
-`ggpaintr` is now maintained as a single `ggpaintr` package.
+`ggpaintr` is maintained as a single package surface.
 
-Active package entry points are:
+Public entry points are:
 
 - `ggpaintr_app()`  
-  Reference: `R/paintr-app.R:15-17`
+  Reference: `R/paintr-app.R:17-19`
 - `ggpaintr_server()`  
-  Reference: `R/paintr-app.R:36-93`
+  Reference: `R/paintr-app.R:40-114`
 - `paintr_formula()`  
   Reference: `R/paintr-parse.R:17-67`
 - `paintr_build_runtime()`  
@@ -17,11 +17,12 @@ Active package entry points are:
 - `paintr_get_plot()`  
   Reference: `R/paintr-runtime.R:242-250`
 - `generate_shiny()`  
-  Reference: `R/paintr-export.R:38-55`
+  Reference: `R/paintr-export.R:108-120`
 
-The runtime is now organized into package modules:
+Active implementation modules are now:
 
 - `R/paintr-app.R`
+- `R/paintr-copy.R`
 - `R/paintr-export.R`
 - `R/paintr-parse.R`
 - `R/paintr-runtime.R`
@@ -29,59 +30,59 @@ The runtime is now organized into package modules:
 - `R/paintr-upload.R`
 - `R/paintr-utils.R`
 
-Legacy package content has been moved under:
+Legacy package content remains archived under:
 
 - `archive/legacy-package/`
 
-## Current placeholder support
+## Current behavior boundaries
 
-Supported placeholders in the maintained path:
+Supported placeholders in the maintained path remain:
 
 - `var`
 - `text`
 - `num`
 - `expr`
-- `upload`
+- `upload`  
+  Reference: `R/paintr-parse.R:3-6`
 
 Current boundary summary:
 
-- `upload` supports `.csv` and `.rds`
-- `var` still accepts expression-like input through `parse_expr()`  
+- `upload` supports `.csv` and `.rds` and still derives a default object name
+  from the uploaded filename when the dataset-name field is blank.  
+  Reference: `R/paintr-upload.R:17-27`, `R/paintr-upload.R:35-49`,
+  `R/paintr-upload.R:60-95`
+- `var` still accepts expression-like input through `rlang::parse_expr()`.  
   Reference: `R/paintr-runtime.R:9-17`
-- structural formula failures still happen at parse time
-- structural formula parsing and placeholder detection are still built from one formula string into a `paintr_obj`  
-  Reference: `R/paintr-parse.R:17-67`
-- `var` with no data source still fails during UI preparation
-- missing local data objects are deferred to draw-time plot errors  
-  Reference: `R/paintr-app.R:67-95`, `R/paintr-runtime.R:326-377`
-- render-time ggplot failures use the same inline runtime error channel
-- dynamic `var` UI registration is handled by `register_var_ui_outputs()`  
-  Reference: `R/paintr-ui.R:152-273`
+- formulas with `var` and no data source still fail during UI preparation, but
+  missing local data objects are deferred to draw-time plot errors.  
+  Reference: `R/paintr-ui.R:285-320`, `R/paintr-runtime.R:326-377`
+- runtime failures still flow through the shared completion, plot-build, and
+  render-validation pipeline with `Input error:` versus `Plot error:` labeling.  
+  Reference: `R/paintr-runtime.R:261-279`, `R/paintr-runtime.R:289-402`
 
-## Package surface status
+## Copy-rule status
 
-Current exported API is:
+The maintained app and export path now use a shared copy-rule system.
 
-- `ggpaintr_app()`
-- `ggpaintr_server()`
-- `paintr_formula()`
-- `paintr_build_runtime()`
-- `paintr_get_plot()`
-- `generate_shiny()`
+- `ggpaintr_app()`, `ggpaintr_server()`, and `generate_shiny()` all accept
+  optional `copy_rules = NULL` inputs.  
+  Reference: `R/paintr-app.R:7-18`, `R/paintr-app.R:29-46`,
+  `R/paintr-export.R:91-120`
+- default copy, validation, alias normalization, recursive merges, and final
+  resolution now live in `R/paintr-copy.R`. The current system supports
+  validated top-level sections, `colour -> color` alias normalization, and the
+  internal `__unnamed__` key for positional arguments.  
+  Reference: `R/paintr-copy.R:9-125`, `R/paintr-copy.R:252-585`
+- UI builders now route app-shell labels, upload labels, control labels/help,
+  and layer checkbox text through the same resolver.  
+  Reference: `R/paintr-app.R:124-159`, `R/paintr-ui.R:23-168`,
+  `R/paintr-ui.R:379-426`
+- exported apps now serialize the effective copy rules into the generated script
+  and pass them back into `ggpaintr_server(...)` for live/exported UI parity.  
+  Reference: `R/paintr-export.R:18-82`,
+  `tests/testthat/test-export-shiny.R:82-131`
 
-Current generated package artifacts are expected to be derived from source:
-
-- `NAMESPACE`
-- `man/`
-- `docs/`
-
-Current naming status:
-
-- active package/docs/notes now use `ggpaintr` as the maintained workflow name
-- active manual assets now live at `tests/manual/manual-test-ggpaintr.Rmd` and `tests/manual/manual-checklist-ggpaintr.md`
-- the active vignette now lives at `vignettes/ggpaintr-workflow.Rmd`
-
-## Testing status
+## Testing and verification
 
 Automated tests remain under:
 
@@ -92,36 +93,64 @@ Manual interaction coverage remains under:
 - `tests/manual/manual-test-ggpaintr.Rmd`
 - `tests/manual/manual-checklist-ggpaintr.md`
 
-Latest verification status:
+Latest coverage highlights:
 
-- `testthat::test_dir("tests/testthat")` passes with 129 tests in the latest session run  
-  Reference: `tests/testthat/test-runtime-feedback.R:1-178`, `tests/testthat/test-export-shiny.R:1-140`
-- `generate_shiny()` now writes an explicit `ui <- ...`, `server <- function(...)`, `shinyApp(ui, server)` template that calls `ggpaintr_server(...)`  
-  Reference: `R/paintr-export.R:5-84`, `tests/testthat/test-export-shiny.R:1-33`
-- `ggpaintr_server()` reusable runtime state is covered for both success and failure draws  
-  Reference: `R/paintr-app.R:36-93`, `tests/testthat/test-export-shiny.R:76-140`
-- `devtools::check()` completed cleanly in the latest session run except for the environment time-verification NOTE
-- `pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)` completed cleanly in the latest session run
-- `cran-comments.md` still records the earlier one-note result and should be refreshed before submission  
-  Reference: `cran-comments.md:5-20`
+- dedicated automated copy-rule coverage now lives in
+  `tests/testthat/test-copy-rules.R`.  
+  Reference: `tests/testthat/test-copy-rules.R:5-134`
+- exported-app parity coverage for shell copy and serialized `copy_rules`
+  remains in `tests/testthat/test-export-shiny.R`.  
+  Reference: `tests/testthat/test-export-shiny.R:1-131`
+- manual coverage now includes default copy, custom `copy_rules`, and exported
+  custom-copy checks.  
+  Reference: `tests/manual/manual-test-ggpaintr.Rmd:382-555`,
+  `tests/manual/manual-checklist-ggpaintr.md:30-54`
 
-## Session progress
+Latest local verification status:
 
-Completed in this session:
+- `devtools::document()` completed cleanly in the latest session run
+- `testthat::test_dir("tests/testthat")` passes with 172 tests in the latest
+  session run
+- `pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)`
+  completed cleanly in the latest session run
+- `devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran",
+  "--no-manual"))` completed with only the environment
+  `unable to verify current time` NOTE in the latest session run
+- `cran-comments.md` still needs to be refreshed to match the latest one-note
+  result
 
-- archived the legacy package implementation under `archive/legacy-package/`
-- replaced the active package API with a focused `ggpaintr` exported surface
-- split active runtime code into focused `R/` modules
-- added roxygen2 comments across the active implementation
-- regenerated `NAMESPACE` and `man/`
-- rewrote `DESCRIPTION`, `README`, vignette, and pkgdown configuration around `ggpaintr`
-- added `NEWS.md` and `cran-comments.md`
-- renamed the active workflow/docs/manual assets from `paintr2` to `ggpaintr`
-- rebuilt the canonical manual workbook at `tests/manual/manual-test-ggpaintr.Rmd`
-- reran generated outputs and package verification after the rename sweep
-- added exported `ggpaintr_server()` so custom or exported apps can reuse the standard server wiring and latest runtime state
-- changed `generate_shiny()` to emit a thin editable template with explicit `ui` and `server`
-- renamed the internal `var` UI helper from `output_embed_var()` to `register_var_ui_outputs()`
+## Completed recently
+
+- added the internal copy-rule registry and resolver under `R/paintr-copy.R`  
+  Reference: `R/paintr-copy.R:9-585`
+- threaded `copy_rules` through the live app, reusable server, exported
+  template, and public documentation example  
+  Reference: `R/paintr-app.R:17-18`, `R/paintr-app.R:40-78`,
+  `R/paintr-export.R:18-120`, `README.md:71-121`
+- added manual workbook and checklist coverage for default, custom, and
+  exported copy rules  
+  Reference: `tests/manual/manual-test-ggpaintr.Rmd:382-555`,
+  `tests/manual/manual-checklist-ggpaintr.md:30-54`
+- removed the unused package `stringr` import and test helper load, and updated
+  export serialization to use `utils::capture.output()` so the local CRAN-style
+  check is back down to the environment-only note  
+  Reference: `DESCRIPTION:39-45`, `R/paintr-export.R:1-9`,
+  `tests/testthat/helper-fixtures.R:1-7`
+
+## Current focus
+
+- review the public/internal docs boundary for the new internal copy helpers in
+  `man/` and pkgdown
+- improve `var` handling for spaces and other non-syntactic column names
+- refresh `cran-comments.md` with the latest `--as-cran --no-manual` result
+
+## Current risks or blockers
+
+- `var` replacement still depends on `rlang::parse_expr(input_item)`, so
+  spaced or otherwise non-syntactic column names remain a likely rough edge.  
+  Reference: `R/paintr-runtime.R:9-17`
+- local CRAN-style verification still ends with the environment-only
+  `unable to verify current time` NOTE
 
 ## Quick re-entry points
 
@@ -133,10 +162,11 @@ Read in this order:
 4. `working_scripts/notes/project-overview.md`
 5. `working_scripts/notes/testing-strategy.md`
 6. `working_scripts/notes/next-steps.md`
-7. `R/paintr-app.R`
-8. `R/paintr-parse.R`
-9. `R/paintr-export.R`
-10. `R/paintr-runtime.R`
-11. `tests/testthat/test-export-shiny.R`
-12. `tests/testthat/test-runtime-feedback.R`
-13. `tests/manual/manual-test-ggpaintr.Rmd`
+7. `R/paintr-copy.R`
+8. `R/paintr-app.R`
+9. `R/paintr-ui.R`
+10. `R/paintr-export.R`
+11. `R/paintr-runtime.R`
+12. `tests/testthat/test-copy-rules.R`
+13. `tests/testthat/test-export-shiny.R`
+14. `tests/manual/manual-test-ggpaintr.Rmd`

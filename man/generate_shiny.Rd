@@ -4,7 +4,13 @@
 \alias{generate_shiny}
 \title{Generate a Standalone Shiny App Script}
 \usage{
-generate_shiny(paintr_obj, var_ui, output_file, style = TRUE)
+generate_shiny(
+  paintr_obj,
+  var_ui,
+  output_file,
+  style = TRUE,
+  copy_rules = NULL
+)
 }
 \arguments{
 \item{paintr_obj}{A \code{paintr_obj}.}
@@ -15,6 +21,9 @@ It is ignored.}
 \item{output_file}{Path to the generated \code{.R} script.}
 
 \item{style}{Whether to style the generated file with \code{styler} when available.}
+
+\item{copy_rules}{Optional named list of copy overrides for UI labels, helper
+text, and placeholders.}
 }
 \value{
 Invisibly returns \code{output_file}.

@@ -4,12 +4,14 @@
 \alias{paintr_app_components}
 \title{Build Reusable App Components for ggpaintr}
 \usage{
-paintr_app_components(formula, envir = parent.frame())
+paintr_app_components(formula, envir = parent.frame(), copy_rules = NULL)
 }
 \arguments{
 \item{formula}{A single formula string.}
 
 \item{envir}{Environment used to resolve local data objects.}
+
+\item{copy_rules}{Optional named list of copy overrides.}
 }
 \value{
 A list with \code{ui} and \code{server}.

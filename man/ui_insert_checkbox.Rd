@@ -4,12 +4,14 @@
 \alias{ui_insert_checkbox}
 \title{Add Layer Checkboxes to a UI List}
 \usage{
-ui_insert_checkbox(ui, nn)
+ui_insert_checkbox(ui, nn, copy_rules = NULL)
 }
 \arguments{
 \item{ui}{A list of UI elements for one layer.}
 
 \item{nn}{The layer name.}
+
+\item{copy_rules}{Effective or user-supplied copy rules.}
 }
 \value{
 A list of UI elements, possibly prefixed with a checkbox.

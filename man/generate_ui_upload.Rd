@@ -4,13 +4,15 @@
 \alias{generate_ui_upload}
 \title{Build Upload UI for a Placeholder}
 \usage{
-generate_ui_upload(id)
+generate_ui_upload(id, copy_rules = NULL)
 }
 \arguments{
 \item{id}{Placeholder id.}
+
+\item{copy_rules}{Effective or user-supplied copy rules.}
 }
 \value{
-A Shiny UI object with an attached \code{ui_expr} attribute.
+A Shiny UI object.
 }
 \description{
 Build Upload UI for a Placeholder

@@ -27,6 +27,17 @@
 2. Confirm the uploaded dataset drives only the upload-backed `var` selectors.
 3. Confirm the final plot still combines static-data and upload-data layers.
 
+## Copy-rule checks
+
+1. Launch an app that uses the default copy rules with upload, numeric, title, and `facet_wrap(expr)` controls.
+2. Confirm the shell text shows `ggpaintr Plot Builder`, `Update plot`, and `Export Shiny app`.
+3. Confirm the upload controls show `Choose a data file`, `Optional dataset name`, and the accepted-format help text.
+4. After upload, confirm prompts such as `Choose the x-axis column`, `Choose the y-axis column`, `Point size`, `Transparency`, `Plot title`, and `Facet by` appear.
+5. Confirm no default control label contains parser-style text such as `argument 1`.
+6. Launch an app with a custom `copy_rules` list.
+7. Confirm the targeted labels and placeholders use the custom wording while untargeted controls keep the defaults.
+8. Confirm the customized app still renders the plot and generated code normally.
+
 ## Export checks
 
 1. Export a generated app from a static-data formula and run it.
@@ -38,6 +49,9 @@
 7. Confirm the exported script exposes explicit `ui <- ...`, `server <- function(...)`, and `shinyApp(ui, server)`.
 8. Confirm the exported server uses `ggpaintr_server(...)` and stores the returned `paintr_state`.
 9. Add one simple custom output or observer that reads `paintr_state$runtime()` and confirm the app still works.
+10. Export an app with custom `copy_rules` and confirm the exported script defines `copy_rules <- ...`.
+11. Confirm the exported script passes `copy_rules = copy_rules` into `ggpaintr_server(...)`.
+12. Run the exported custom-copy app and confirm it preserves the customized wording from the live app.
 
 ## Missing-object checks
 

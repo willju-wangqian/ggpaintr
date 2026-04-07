@@ -4,12 +4,16 @@
 \alias{generate_ui_num}
 \title{Build Numeric Placeholder UI}
 \usage{
-generate_ui_num(id, param)
+generate_ui_num(id, param, layer_name = NULL, copy_rules = NULL)
 }
 \arguments{
 \item{id}{Placeholder id.}
 
 \item{param}{Parameter label.}
+
+\item{layer_name}{Layer name.}
+
+\item{copy_rules}{Effective or user-supplied copy rules.}
 }
 \value{
 A \code{numericInput()} UI object.

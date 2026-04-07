@@ -68,6 +68,45 @@ ggplot(data = iris, aes(x = var, y = var)) +
 ")
 ```
 
+## Customize control copy
+
+You can override the default UI copy for a specific app by passing a
+named `copy_rules` list. The package merges your overrides with the
+internal defaults, so you only need to specify the labels, helper text,
+or placeholders you want to change.
+
+``` r
+copy_rules <- list(
+  shell = list(
+    title = list(label = "Exploratory Plot Builder"),
+    draw_button = list(label = "Render plot")
+  ),
+  params = list(
+    x = list(var = list(label = "Pick the field for the x-axis")),
+    y = list(var = list(label = "Pick the field for the y-axis")),
+    title = list(text = list(label = "Chart title"))
+  ),
+  layers = list(
+    facet_wrap = list(
+      expr = list(
+        `__unnamed__` = list(
+          label = "Split the plot by",
+          placeholder = "~ Species"
+        )
+      )
+    )
+  )
+)
+
+ggpaintr_app(
+  "ggplot(data = iris, aes(x = var, y = var)) +
+     geom_point() +
+     labs(title = text) +
+     facet_wrap(expr)",
+  copy_rules = copy_rules
+)
+```
+
 ## Export a standalone app
 
 ``` r
@@ -77,6 +116,9 @@ obj <- paintr_formula(
 
 generate_shiny(obj, list(), tempfile(fileext = ".R"))
 ```
+
+The same `copy_rules` object can be passed to `generate_shiny()` so an
+exported app keeps the same customized wording as the live app.
 
 ## Runtime behavior
 

@@ -4,7 +4,7 @@
 \alias{generate_ui_var}
 \title{Build a Variable Selector UI}
 \usage{
-generate_ui_var(data_var, id, param)
+generate_ui_var(data_var, id, param, layer_name = NULL, copy_rules = NULL)
 }
 \arguments{
 \item{data_var}{Character vector of candidate variables.}
@@ -12,6 +12,10 @@ generate_ui_var(data_var, id, param)
 \item{id}{Placeholder id.}
 
 \item{param}{Parameter label.}
+
+\item{layer_name}{Layer name.}
+
+\item{copy_rules}{Effective or user-supplied copy rules.}
 }
 \value{
 A \code{pickerInput()} UI object or \code{NULL}.

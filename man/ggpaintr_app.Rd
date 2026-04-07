@@ -4,12 +4,15 @@
 \alias{ggpaintr_app}
 \title{Build a ggpaintr Shiny App}
 \usage{
-ggpaintr_app(formula, envir = parent.frame())
+ggpaintr_app(formula, envir = parent.frame(), copy_rules = NULL)
 }
 \arguments{
 \item{formula}{A single formula string using \code{ggpaintr} placeholders.}
 
 \item{envir}{Environment used to resolve local data objects when building the app.}
+
+\item{copy_rules}{Optional named list of copy overrides for UI labels, helper
+text, and placeholders.}
 }
 \value{
 A \code{shiny.appobj}.

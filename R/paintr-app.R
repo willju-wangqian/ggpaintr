@@ -6,14 +6,16 @@
 #'
 #' @param formula A single formula string using `ggpaintr` placeholders.
 #' @param envir Environment used to resolve local data objects when building the app.
+#' @param copy_rules Optional named list of copy overrides for UI labels, helper
+#'   text, and placeholders.
 #'
 #' @return A `shiny.appobj`.
 #' @examples
 #' app <- ggpaintr_app("ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()")
 #' inherits(app, "shiny.appobj")
 #' @export
-ggpaintr_app <- function(formula, envir = parent.frame()) {
-  app_parts <- paintr_app_components(formula, envir = envir)
+ggpaintr_app <- function(formula, envir = parent.frame(), copy_rules = NULL) {
+  app_parts <- paintr_app_components(formula, envir = envir, copy_rules = copy_rules)
   shiny::shinyApp(ui = app_parts$ui, server = app_parts$server)
 }
 
@@ -29,30 +31,49 @@ ggpaintr_app <- function(formula, envir = parent.frame()) {
 #' @param session A Shiny `session` object.
 #' @param formula A single formula string using `ggpaintr` placeholders.
 #' @param envir Environment used to resolve local data objects when building the app.
+#' @param copy_rules Optional named list of copy overrides for UI labels, helper
+#'   text, and placeholders.
 #'
 #' @return A list containing reactive accessors named `obj`, `runtime`, and
 #'   `var_ui_list`.
 #' @export
-ggpaintr_server <- function(input, output, session, formula, envir = parent.frame()) {
+ggpaintr_server <- function(input,
+                            output,
+                            session,
+                            formula,
+                            envir = parent.frame(),
+                            copy_rules = NULL) {
+  effective_copy_rules <- paintr_effective_copy_rules(copy_rules)
   obj <- shiny::reactiveVal(paintr_formula(formula))
   runtime <- shiny::reactiveVal(NULL)
   var_ui_list <- shiny::reactiveVal(list())
 
   shiny::observe({
     shiny::req(obj())
-    var_ui_list(register_var_ui_outputs(input, output, obj(), envir = envir))
+    var_ui_list(register_var_ui_outputs(
+      input,
+      output,
+      obj(),
+      envir = envir,
+      copy_rules = effective_copy_rules
+    ))
   })
 
   output$controlPanel <- shiny::renderUI({
     shiny::req(obj())
-    shiny::column(12, paintr_get_tab_ui(obj()))
+    shiny::column(12, paintr_get_tab_ui(obj(), copy_rules = effective_copy_rules))
   })
 
   output$shinyExport <- shiny::downloadHandler(
     filename = "ggpaintr-app.R",
     content = function(file) {
       shiny::req(obj())
-      generate_shiny(obj(), var_ui_list(), file)
+      generate_shiny(
+        obj(),
+        var_ui_list(),
+        file,
+        copy_rules = effective_copy_rules
+      )
     }
   )
 
@@ -96,17 +117,23 @@ ggpaintr_server <- function(input, output, session, formula, envir = parent.fram
 #'
 #' @param formula A single formula string.
 #' @param envir Environment used to resolve local data objects.
+#' @param copy_rules Optional named list of copy overrides.
 #'
 #' @return A list with `ui` and `server`.
 #' @keywords internal
-paintr_app_components <- function(formula, envir = parent.frame()) {
+paintr_app_components <- function(formula, envir = parent.frame(), copy_rules = NULL) {
+  effective_copy_rules <- paintr_effective_copy_rules(copy_rules)
+  title_copy <- paintr_resolve_copy("title", copy_rules = effective_copy_rules)
+  draw_copy <- paintr_resolve_copy("draw_button", copy_rules = effective_copy_rules)
+  export_copy <- paintr_resolve_copy("export_button", copy_rules = effective_copy_rules)
+
   ui <- shiny::fluidPage(
-    shiny::titlePanel("ggpaintr demo"),
+    shiny::titlePanel(title_copy$label),
     shiny::sidebarLayout(
       shiny::sidebarPanel(
         shiny::uiOutput("controlPanel"),
-        shiny::actionButton("draw", "click to draw the plot"),
-        shiny::downloadButton("shinyExport", "export the shiny app")
+        shiny::actionButton("draw", draw_copy$label),
+        shiny::downloadButton("shinyExport", export_copy$label)
       ),
       shiny::mainPanel(
         shiny::plotOutput("outputPlot"),
@@ -117,7 +144,14 @@ paintr_app_components <- function(formula, envir = parent.frame()) {
   )
 
   server <- function(input, output, session) {
-    ggpaintr_server(input, output, session, formula, envir = envir)
+    ggpaintr_server(
+      input,
+      output,
+      session,
+      formula,
+      envir = envir,
+      copy_rules = effective_copy_rules
+    )
     invisible(NULL)
   }
 

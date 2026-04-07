@@ -4,7 +4,14 @@
 \alias{ggpaintr_server}
 \title{Register ggpaintr Server Logic}
 \usage{
-ggpaintr_server(input, output, session, formula, envir = parent.frame())
+ggpaintr_server(
+  input,
+  output,
+  session,
+  formula,
+  envir = parent.frame(),
+  copy_rules = NULL
+)
 }
 \arguments{
 \item{input}{A Shiny \code{input} object.}
@@ -16,6 +23,9 @@ ggpaintr_server(input, output, session, formula, envir = parent.frame())
 \item{formula}{A single formula string using \code{ggpaintr} placeholders.}
 
 \item{envir}{Environment used to resolve local data objects when building the app.}
+
+\item{copy_rules}{Optional named list of copy overrides for UI labels, helper
+text, and placeholders.}
 }
 \value{
 A list containing reactive accessors named \code{obj}, \code{runtime}, and

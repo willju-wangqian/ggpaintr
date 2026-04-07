@@ -4,7 +4,12 @@
 \alias{get_shiny_template}
 \title{Build the Standalone App Template}
 \usage{
-get_shiny_template()
+get_shiny_template(formula_text, copy_rules = NULL)
+}
+\arguments{
+\item{formula_text}{A single formula string.}
+
+\item{copy_rules}{Effective or user-supplied copy rules.}
 }
 \value{
 A character vector containing the exported app template.

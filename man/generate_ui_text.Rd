@@ -4,12 +4,16 @@
 \alias{generate_ui_text}
 \title{Build Text Placeholder UI}
 \usage{
-generate_ui_text(id, param)
+generate_ui_text(id, param, layer_name = NULL, copy_rules = NULL)
 }
 \arguments{
 \item{id}{Placeholder id.}
 
 \item{param}{Parameter label.}
+
+\item{layer_name}{Layer name.}
+
+\item{copy_rules}{Effective or user-supplied copy rules.}
 }
 \value{
 A \code{textInput()} UI object.

@@ -13,13 +13,17 @@ Read these files first, in this order:
 Then read the active package implementation files, especially:
 
 - `R/paintr-app.R`
+- `R/paintr-copy.R`
 - `R/paintr-export.R`
 - `R/paintr-parse.R`
 - `R/paintr-runtime.R`
 - `R/paintr-ui.R`
 - `R/paintr-upload.R`
+- `R/paintr-utils.R`
 - `DESCRIPTION`
 - `NAMESPACE`
+- `tests/testthat/test-copy-rules.R`
+- `tests/testthat/test-export-shiny.R`
 - `tests/testthat/`
 - `tests/manual/manual-test-ggpaintr.Rmd`
 - `tests/manual/manual-checklist-ggpaintr.md`
@@ -36,6 +40,9 @@ Important project context:
   - `expr`
   - `upload`
 - `upload` currently supports `.csv` and `.rds`.
+- `ggpaintr_app()`, `ggpaintr_server()`, and `generate_shiny()` now support
+  runtime `copy_rules` customization, with default and override logic
+  centralized in `R/paintr-copy.R`.
 - Repo notes are the starting point, but current source code and tests are the
   final authority.
 
@@ -54,6 +61,9 @@ Working rules:
 - Prefer preserving the current `ggpaintr` direction and the current `testthat`
   structure.
 - If behavior changes, update tests when needed.
+- If copy behavior or user-facing prompt text is touched, read
+  `R/paintr-copy.R`, `tests/testthat/test-copy-rules.R`, and the custom-copy
+  example in `README.md`.
 - If export behavior is touched, read `tests/testthat/test-export-shiny.R`.
 - If manual interaction behavior is touched, read
   `tests/manual/manual-test-ggpaintr.Rmd` and
