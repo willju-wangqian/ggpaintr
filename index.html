@@ -63,7 +63,7 @@
   <main id="main" class="col-md-9"><div class="section level1">
 <div class="page-header"><h1 id="ggpaintr">ggpaintr<a class="anchor" aria-label="anchor" href="#ggpaintr"></a>
 </h1></div>
-<p><code>ggpaintr</code> is an R package for the maintained <code>ggpaintr</code> workflow. It turns a single ggplot-like formula string into a small Shiny app with generated controls, rendered plots, generated code, upload support, and inline runtime feedback.</p>
+<p><code>ggpaintr</code> is an R package for the maintained <code>ggpaintr</code> workflow. It turns a single ggplot-like formula string into a small Shiny app with generated controls, rendered plots, generated code, upload support, copy customization, custom Shiny integration hooks, and export helpers.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
@@ -72,22 +72,33 @@
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pkg_install.html" class="external-link">pkg_install</a></span><span class="op">(</span><span class="st">"willju-wangqian/ggpaintr"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="the-ggpaintr-model">The <code>ggpaintr</code> model<a class="anchor" aria-label="anchor" href="#the-ggpaintr-model"></a>
+<h2 id="core-concepts">Core concepts<a class="anchor" aria-label="anchor" href="#core-concepts"></a>
 </h2>
-<p>Supported placeholders inside a formula string are:</p>
+<p><code>ggpaintr</code> works by treating a ggplot-like formula string as a template with placeholders that become Shiny inputs.</p>
 <ul>
-<li><code>var</code></li>
-<li><code>text</code></li>
-<li><code>num</code></li>
-<li><code>expr</code></li>
-<li><code>upload</code></li>
+<li>
+<code>var</code> selects a variable or expression-like input</li>
+<li>
+<code>text</code> collects free text</li>
+<li>
+<code>num</code> collects numeric input</li>
+<li>
+<code>expr</code> collects raw R code for places like faceting or labels</li>
+<li>
+<code>upload</code> lets the app use uploaded data</li>
 </ul>
 <p><code>upload</code> currently supports <code>.csv</code> and <code>.rds</code>.</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="st">"ggplot(data = iris, aes(x = var, y = var)) +</span></span>
+<span><span class="st">  geom_point(size = num, color = text) +</span></span>
+<span><span class="st">  labs(title = text) +</span></span>
+<span><span class="st">  facet_wrap(expr)"</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="quick-start">Quick start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
 </h2>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<p>The low-level workflow is: parse a formula, build a runtime from user inputs, then inspect the generated code and plot.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://willju-wangqian.github.io/ggpaintr/">ggpaintr</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
 <span></span>
@@ -115,9 +126,39 @@
 <span><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="launch-an-app">Launch an app<a class="anchor" aria-label="anchor" href="#launch-an-app"></a>
+<h2 id="feature-tour">Feature tour<a class="anchor" aria-label="anchor" href="#feature-tour"></a>
 </h2>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="section level3">
+<h3 id="build-a-plot-from-a-formula">Build a plot from a formula<a class="anchor" aria-label="anchor" href="#build-a-plot-from-a-formula"></a>
+</h3>
+<p>You can use the low-level runtime helpers directly when you want to inspect or test the generated plot code outside Shiny.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/paintr_formula.html">paintr_formula</a></span><span class="op">(</span></span>
+<span>  <span class="st">"ggplot(data = iris, aes(x = var, y = var)) +</span></span>
+<span><span class="st">    geom_point(color = text) +</span></span>
+<span><span class="st">    labs(title = text)"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">runtime</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/paintr_build_runtime.html">paintr_build_runtime</a></span><span class="op">(</span></span>
+<span>  <span class="va">obj</span>,</span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    <span class="st">"ggplot+3+2"</span> <span class="op">=</span> <span class="st">"Sepal.Length"</span>,</span>
+<span>    <span class="st">"ggplot+3+3"</span> <span class="op">=</span> <span class="st">"Petal.Length"</span>,</span>
+<span>    <span class="st">"geom_point+2"</span> <span class="op">=</span> <span class="st">"steelblue"</span>,</span>
+<span>    <span class="st">"labs+2"</span> <span class="op">=</span> <span class="st">"Iris scatter"</span>,</span>
+<span>    <span class="st">"geom_point+checkbox"</span> <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>    <span class="st">"labs+checkbox"</span> <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">runtime</span><span class="op">$</span><span class="va">code_text</span></span>
+<span><span class="co">#&gt; [1] "ggplot(data = iris, aes(x = Sepal.Length, y = Petal.Length)) +\n  geom_point(color = \"steelblue\") +\n  labs(title = \"Iris scatter\")"</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="launch-an-interactive-app">Launch an interactive app<a class="anchor" aria-label="anchor" href="#launch-an-interactive-app"></a>
+</h3>
+<p>Use <code><a href="reference/ggpaintr_app.html">ggpaintr_app()</a></code> for the default wrapper when you want the package to build the Shiny app shell for you.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://willju-wangqian.github.io/ggpaintr/">ggpaintr</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="reference/ggpaintr_app.html">ggpaintr_app</a></span><span class="op">(</span><span class="st">"</span></span>
@@ -127,14 +168,66 @@
 <span><span class="st">  facet_wrap(expr)</span></span>
 <span><span class="st">"</span><span class="op">)</span></span></code></pre></div>
 </div>
-<div class="section level2">
-<h2 id="integrate-ggpaintr-into-an-existing-app">Integrate <code>ggpaintr</code> into an existing app<a class="anchor" aria-label="anchor" href="#integrate-ggpaintr-into-an-existing-app"></a>
-</h2>
-<p>The default wrappers stay available, but you can now embed <code>ggpaintr</code> into your own Shiny layout with custom ids and custom server wiring.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://willju-wangqian.github.io/ggpaintr/">ggpaintr</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://shiny.posit.co/" class="external-link">shiny</a></span><span class="op">)</span></span>
+<div class="section level3">
+<h3 id="work-with-uploaded-data">Work with uploaded data<a class="anchor" aria-label="anchor" href="#work-with-uploaded-data"></a>
+</h3>
+<p>Use <code>upload</code> when the app should let users supply a dataset at runtime.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/ggpaintr_app.html">ggpaintr_app</a></span><span class="op">(</span><span class="st">"</span></span>
+<span><span class="st">ggplot(data = upload, aes(x = var, y = var)) +</span></span>
+<span><span class="st">  geom_point(size = num) +</span></span>
+<span><span class="st">  labs(title = text)</span></span>
+<span><span class="st">"</span><span class="op">)</span></span></code></pre></div>
+<p>The upload control currently supports <code>.csv</code> and <code>.rds</code>.</p>
+</div>
+<div class="section level3">
+<h3 id="customize-control-text-with-copy_rules">Customize control text with <code>copy_rules</code>
+<a class="anchor" aria-label="anchor" href="#customize-control-text-with-copy_rules"></a>
+</h3>
+<p>Use <code>copy_rules</code> to change user-facing labels without changing the runtime behavior of the generated app.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">custom_copy</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  shell <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    draw_button <span class="op">=</span> <span class="st">"Render plot"</span>,</span>
+<span>    export_button <span class="op">=</span> <span class="st">"Save app"</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    x <span class="op">=</span> <span class="st">"X axis variable"</span>,</span>
+<span>    y <span class="op">=</span> <span class="st">"Y axis variable"</span>,</span>
+<span>    title <span class="op">=</span> <span class="st">"Plot title"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="reference/ggpaintr_app.html">ggpaintr_app</a></span><span class="op">(</span></span>
+<span>  <span class="st">"ggplot(data = iris, aes(x = var, y = var)) +</span></span>
+<span><span class="st">     geom_point() +</span></span>
+<span><span class="st">     labs(title = text)"</span>,</span>
+<span>  copy_rules <span class="op">=</span> <span class="va">custom_copy</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="export-a-standalone-app">Export a standalone app<a class="anchor" aria-label="anchor" href="#export-a-standalone-app"></a>
+</h3>
+<p>Use <code><a href="reference/generate_shiny.html">generate_shiny()</a></code> when you want an explicit, editable Shiny app file that you can continue customizing outside the package wrapper.</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/paintr_formula.html">paintr_formula</a></span><span class="op">(</span></span>
+<span>  <span class="st">"ggplot(data = upload, aes(x = var, y = var)) +</span></span>
+<span><span class="st">    geom_point() +</span></span>
+<span><span class="st">    labs(title = text)"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">app_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".R"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/generate_shiny.html">generate_shiny</a></span><span class="op">(</span><span class="va">obj</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, <span class="va">app_file</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># The generated file keeps an explicit ui, an explicit server, and a visible</span></span>
+<span><span class="co"># copy_rules hook so you can keep editing it as a normal Shiny app.</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="embed-ggpaintr-in-your-own-shiny-app">Embed <code>ggpaintr</code> in your own Shiny app<a class="anchor" aria-label="anchor" href="#embed-ggpaintr-in-your-own-shiny-app"></a>
+</h3>
+<p>The phase-1 extensibility layer lets you keep your own layout while reusing the <code>ggpaintr</code> state and bind helpers.</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://shiny.posit.co/" class="external-link">shiny</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ggpaintr_ids.html">ggpaintr_ids</a></span><span class="op">(</span></span>
 <span>  control_panel <span class="op">=</span> <span class="st">"builder_controls"</span>,</span>
@@ -146,14 +239,9 @@
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidPage</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/titlePanel.html" class="external-link">titlePanel</a></span><span class="op">(</span><span class="st">"Custom ggpaintr integration"</span><span class="op">)</span>,</span>
 <span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarLayout</a></span><span class="op">(</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarPanel</a></span><span class="op">(</span></span>
-<span>      <span class="fu"><a href="reference/ggpaintr_controls_ui.html">ggpaintr_controls_ui</a></span><span class="op">(</span>ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>    <span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">mainPanel</a></span><span class="op">(</span></span>
-<span>      <span class="fu"><a href="reference/ggpaintr_outputs_ui.html">ggpaintr_outputs_ui</a></span><span class="op">(</span>ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>    <span class="op">)</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarPanel</a></span><span class="op">(</span><span class="fu"><a href="reference/ggpaintr_controls_ui.html">ggpaintr_controls_ui</a></span><span class="op">(</span>ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">mainPanel</a></span><span class="op">(</span><span class="fu"><a href="reference/ggpaintr_outputs_ui.html">ggpaintr_outputs_ui</a></span><span class="op">(</span>ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span><span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -168,10 +256,31 @@
 <span>  <span class="fu"><a href="reference/ggpaintr_bind_control_panel.html">ggpaintr_bind_control_panel</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">paintr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="reference/ggpaintr_bind_draw.html">ggpaintr_bind_draw</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">paintr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="reference/ggpaintr_bind_export.html">ggpaintr_bind_export</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">paintr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="reference/ggpaintr_bind_plot.html">ggpaintr_bind_plot</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">paintr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="reference/ggpaintr_bind_error.html">ggpaintr_bind_error</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">paintr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="reference/ggpaintr_bind_code.html">ggpaintr_bind_code</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">paintr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
 <span></span>
-<span>  <span class="va">output</span><span class="op">[[</span><span class="va">ids</span><span class="op">$</span><span class="va">plot_output</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/renderPlot.html" class="external-link">renderPlot</a></span><span class="op">(</span><span class="op">{</span></span>
+<span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/shinyApp.html" class="external-link">shinyApp</a></span><span class="op">(</span><span class="va">ui</span>, <span class="va">server</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="customize-the-plot-in-your-own-renderplot">Customize the plot in your own <code>renderPlot()</code>
+<a class="anchor" aria-label="anchor" href="#customize-the-plot-in-your-own-renderplot"></a>
+</h3>
+<p>If you want to keep the <code>ggpaintr</code> runtime but take over plot rendering, use <code><a href="reference/ggpaintr_plot_value.html">ggpaintr_plot_value()</a></code> inside your own <code><a href="https://rdrr.io/pkg/shiny/man/renderPlot.html" class="external-link">renderPlot()</a></code>.</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">paintr_state</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ggpaintr_server_state.html">ggpaintr_server_state</a></span><span class="op">(</span></span>
+<span>    <span class="st">"ggplot(data = iris, aes(x = var, y = var)) + geom_point()"</span></span>
+<span>  <span class="op">)</span></span>
+<span></span>
+<span>  <span class="fu"><a href="reference/ggpaintr_bind_control_panel.html">ggpaintr_bind_control_panel</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">paintr_state</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="reference/ggpaintr_bind_draw.html">ggpaintr_bind_draw</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">paintr_state</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="reference/ggpaintr_bind_export.html">ggpaintr_bind_export</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">paintr_state</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="reference/ggpaintr_bind_error.html">ggpaintr_bind_error</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">paintr_state</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="reference/ggpaintr_bind_code.html">ggpaintr_bind_code</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">paintr_state</span><span class="op">)</span></span>
+<span></span>
+<span>  <span class="va">output</span><span class="op">$</span><span class="va">outputPlot</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/renderPlot.html" class="external-link">renderPlot</a></span><span class="op">(</span><span class="op">{</span></span>
 <span>    <span class="va">plot_obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ggpaintr_plot_value.html">ggpaintr_plot_value</a></span><span class="op">(</span><span class="va">paintr_state</span><span class="op">$</span><span class="fu">runtime</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">plot_obj</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
@@ -181,31 +290,26 @@
 <span></span>
 <span>    <span class="va">plot_obj</span> <span class="op">+</span> <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span></span>
 <span>  <span class="op">}</span><span class="op">)</span></span>
-<span><span class="op">}</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/shinyApp.html" class="external-link">shinyApp</a></span><span class="op">(</span><span class="va">ui</span>, <span class="va">server</span><span class="op">)</span></span></code></pre></div>
+<span><span class="op">}</span></span></code></pre></div>
+</div>
 </div>
 <div class="section level2">
-<h2 id="export-a-standalone-app">Export a standalone app<a class="anchor" aria-label="anchor" href="#export-a-standalone-app"></a>
-</h2>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/paintr_formula.html">paintr_formula</a></span><span class="op">(</span></span>
-<span>  <span class="st">"ggplot(data = upload, aes(x = var, y = var)) + geom_point()"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="reference/generate_shiny.html">generate_shiny</a></span><span class="op">(</span><span class="va">obj</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".R"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="runtime-behavior">Runtime behavior<a class="anchor" aria-label="anchor" href="#runtime-behavior"></a>
+<h2 id="behavior-and-boundaries">Behavior and boundaries<a class="anchor" aria-label="anchor" href="#behavior-and-boundaries"></a>
 </h2>
 <ul>
-<li>Structural formula errors fail at parse time.</li>
+<li>Structural formula errors fail early during parsing.</li>
 <li>
-<code>var</code> with no data source fails while preparing UI.</li>
-<li>Missing local data objects are deferred to draw-time plot errors.</li>
-<li>Render-time ggplot failures are shown through the same inline error channel.</li>
+<code>var</code> with no data source fails while preparing the UI.</li>
+<li>Missing local data objects are deferred to draw-time inline errors.</li>
+<li>Advanced integrations can customize the plot through <code><a href="reference/ggpaintr_plot_value.html">ggpaintr_plot_value()</a></code>.</li>
+<li>
+<code>upload</code> currently supports <code>.csv</code> and <code>.rds</code>.</li>
 </ul>
-<p>See <code><a href="articles/ggpaintr-workflow.html">vignette("ggpaintr-workflow")</a></code> for the main workflow and <code><a href="articles/ggpaintr-extensibility.html">vignette("ggpaintr-extensibility")</a></code> for integration recipes.</p>
+</div>
+<div class="section level2">
+<h2 id="where-to-go-next">Where to go next<a class="anchor" aria-label="anchor" href="#where-to-go-next"></a>
+</h2>
+<p>See <code><a href="articles/ggpaintr-workflow.html">vignette("ggpaintr-workflow")</a></code> for the main workflow and <code><a href="articles/ggpaintr-extensibility.html">vignette("ggpaintr-extensibility")</a></code> for custom Shiny integration recipes.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">
