@@ -70,12 +70,7 @@ test_that("ggpaintr_app returns a shiny app object", {
 })
 
 test_that("ggpaintr_server is exported in NAMESPACE", {
-  namespace_text <- paste(
-    readLines(testthat::test_path("..", "..", "NAMESPACE")),
-    collapse = "\n"
-  )
-
-  expect_match(namespace_text, "export\\(ggpaintr_server\\)")
+  expect_true("ggpaintr_server" %in% getNamespaceExports("ggpaintr"))
 })
 
 test_that("ggpaintr_server returns reusable state before and after a successful draw", {
