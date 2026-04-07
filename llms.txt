@@ -95,6 +95,8 @@ for a fuller walkthrough.
 
 - [`ggpaintr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_app.md)
   : Build a ggpaintr Shiny App
+- [`ggpaintr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_server.md)
+  : Register ggpaintr Server Logic
 - [`paintr_formula()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_formula.md)
   : Parse a Paintr Formula
 - [`paintr_build_runtime()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_build_runtime.md)
