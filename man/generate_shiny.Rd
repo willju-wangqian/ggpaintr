@@ -6,8 +6,8 @@
 \usage{
 generate_shiny(
   paintr_obj,
-  var_ui,
   output_file,
+  ...,
   style = TRUE,
   copy_rules = NULL,
   placeholders = NULL
@@ -16,10 +16,10 @@ generate_shiny(
 \arguments{
 \item{paintr_obj}{A \code{paintr_obj}.}
 
-\item{var_ui}{Deprecated legacy argument retained for backward compatibility.
-It is ignored.}
-
 \item{output_file}{Path to the generated \code{.R} script.}
+
+\item{...}{Backward-compatibility only. A deprecated legacy \code{var_ui} argument
+may still be supplied positionally or by name, but it is ignored.}
 
 \item{style}{Whether to style the generated file with \code{styler} when available.}
 
@@ -43,6 +43,6 @@ obj <- paintr_formula(
   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
 )
 out_file <- tempfile(fileext = ".R")
-generate_shiny(obj, list(), out_file, style = FALSE)
+generate_shiny(obj, out_file, style = FALSE)
 file.exists(out_file)
 }

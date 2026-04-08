@@ -5,7 +5,7 @@
 #' @param x An R expression object.
 #'
 #' @return A single string describing the expression type.
-#' @keywords internal
+#' @noRd
 expr_type <- function(x) {
   if (rlang::is_syntactic_literal(x)) {
     "constant"
@@ -25,7 +25,7 @@ expr_type <- function(x) {
 #' @param x An expression or call.
 #'
 #' @return A nested structure with plot layers separated.
-#' @keywords internal
+#' @noRd
 handle_call_break_sum <- function(x) {
   if (rlang::as_string(x[[1]]) == "+") {
     lapply(x[-1], break_sum)
@@ -39,7 +39,7 @@ handle_call_break_sum <- function(x) {
 #' @param x An expression or call.
 #'
 #' @return A split representation of the expression.
-#' @keywords internal
+#' @noRd
 break_sum <- function(x) {
   switch(
     expr_type(x),
@@ -55,7 +55,7 @@ break_sum <- function(x) {
 #' @param x An expression object.
 #'
 #' @return A function or symbol name when available.
-#' @keywords internal
+#' @noRd
 get_fun_names <- function(x) {
   if (rlang::is_call(x)) {
     return(rlang::as_string(x[[1]]))
@@ -74,7 +74,7 @@ get_fun_names <- function(x) {
 #' @param index_path An index vector.
 #'
 #' @return The plucked expression or `NULL`.
-#' @keywords internal
+#' @noRd
 expr_pluck <- function(.x, index_path) {
   tryCatch(.x[[index_path]], error = function(e) NULL)
 }
@@ -86,7 +86,7 @@ expr_pluck <- function(.x, index_path) {
 #' @param value A replacement value.
 #'
 #' @return The updated expression object.
-#' @keywords internal
+#' @noRd
 `expr_pluck<-` <- function(.x, index_path, value) {
   tryCatch({
     .x[[index_path]] <- value
@@ -110,7 +110,7 @@ expr_pluck <- function(.x, index_path) {
 #' @param result Internal accumulator.
 #'
 #' @return A list of index paths.
-#' @keywords internal
+#' @noRd
 get_index_path <- function(x,
                            target = c("var", "text", "num", "expr", "upload"),
                            current_path = numeric(),
@@ -136,7 +136,7 @@ get_index_path <- function(x,
 #' @param x A character vector of names.
 #'
 #' @return A character vector with duplicates made unique.
-#' @keywords internal
+#' @noRd
 handle_duplicate_names <- function(x) {
   if (length(unique(x)) != length(x)) {
     duplicated_items <- unique(x[duplicated(x)])
@@ -160,7 +160,7 @@ handle_duplicate_names <- function(x) {
 #' @param func_name A call name.
 #'
 #' @return A single encoded id string.
-#' @keywords internal
+#' @noRd
 encode_id <- function(index_path, func_name) {
   paste(c(func_name, index_path), collapse = "+")
 }
@@ -171,7 +171,7 @@ encode_id <- function(index_path, func_name) {
 #' @param .path An index path.
 #'
 #' @return The parameter name or `NULL`.
-#' @keywords internal
+#' @noRd
 get_expr_param <- function(.expr, .path) {
   if (length(.path) > 1) {
     current_index <- .path[1]
@@ -202,7 +202,7 @@ get_expr_param <- function(.expr, .path) {
 #' @param current_path Internal recursion path.
 #'
 #' @return The cleaned expression.
-#' @keywords internal
+#' @noRd
 expr_remove_null <- function(.expr,
                              target = rlang::sym("_NULL_PLACEHOLDER"),
                              current_path = numeric()) {
@@ -223,7 +223,7 @@ expr_remove_null <- function(.expr,
 #' @param .expr An expression object.
 #'
 #' @return The cleaned expression or `NULL`.
-#' @keywords internal
+#' @noRd
 expr_remove_emptycall2 <- function(.expr) {
   for (i in length(.expr):1) {
     if (is.call(.expr[[i]])) {
@@ -260,7 +260,7 @@ expr_remove_emptycall2 <- function(.expr) {
 #' @param x A list or `NULL`.
 #'
 #' @return A list without `NULL` values, or `NULL`.
-#' @keywords internal
+#' @noRd
 check_remove_null <- function(x) {
   if (is.null(x)) {
     return(NULL)

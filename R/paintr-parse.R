@@ -192,7 +192,7 @@ ggpaintr_runtime_input_spec <- function(paintr_obj) {
 #' @param placeholders An effective placeholder registry.
 #'
 #' @return A named list of placeholder metadata records by layer.
-#' @keywords internal
+#' @noRd
 paintr_build_placeholder_map <- function(keywords_list,
                                          id_list,
                                          param_list,

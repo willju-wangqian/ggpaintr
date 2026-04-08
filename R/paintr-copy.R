@@ -8,7 +8,7 @@
 #'   placeholder registry.
 #'
 #' @return A named list of default copy rules.
-#' @keywords internal
+#' @noRd
 paintr_default_copy_rules <- function(placeholders = NULL) {
   placeholder_registry <- ggpaintr_effective_placeholders(placeholders)
   default_placeholder_copy <- lapply(
@@ -121,7 +121,7 @@ paintr_default_copy_rules <- function(placeholders = NULL) {
 #' same copy entry.
 #'
 #' @return A named character vector mapping aliases to canonical keys.
-#' @keywords internal
+#' @noRd
 paintr_copy_param_aliases <- function() {
   c(colour = "color")
 }
@@ -129,7 +129,7 @@ paintr_copy_param_aliases <- function() {
 #' Return Allowed Copy Leaf Fields
 #'
 #' @return A character vector.
-#' @keywords internal
+#' @noRd
 paintr_copy_leaf_fields <- function() {
   c("label", "help", "placeholder", "empty_text")
 }
@@ -140,7 +140,7 @@ paintr_copy_leaf_fields <- function() {
 #'   placeholder registry.
 #'
 #' @return A character vector.
-#' @keywords internal
+#' @noRd
 paintr_copy_keywords <- function(placeholders = NULL) {
   names(ggpaintr_effective_placeholders(placeholders))
 }
@@ -150,7 +150,7 @@ paintr_copy_keywords <- function(placeholders = NULL) {
 #' @param param A parameter value from `paintr_obj$param_list`.
 #'
 #' @return A single logical value.
-#' @keywords internal
+#' @noRd
 paintr_param_is_unnamed <- function(param) {
   if (is.null(param) || length(param) == 0) {
     return(TRUE)
@@ -169,7 +169,7 @@ paintr_param_is_unnamed <- function(param) {
 #' @param param A parameter name or `NULL`.
 #'
 #' @return A normalized parameter key.
-#' @keywords internal
+#' @noRd
 paintr_normalize_param_key <- function(param) {
   if (paintr_param_is_unnamed(param)) {
     return("__unnamed__")
@@ -189,7 +189,7 @@ paintr_normalize_param_key <- function(param) {
 #' @param param A parameter name or `NULL`.
 #'
 #' @return A single readable label string.
-#' @keywords internal
+#' @noRd
 paintr_humanize_param <- function(param) {
   if (paintr_param_is_unnamed(param)) {
     return("this setting")
@@ -207,7 +207,7 @@ paintr_humanize_param <- function(param) {
 #' @param layer_name A layer name.
 #'
 #' @return A single string or `NULL`.
-#' @keywords internal
+#' @noRd
 paintr_interpolate_copy_text <- function(text, param = NULL, layer_name = NULL) {
   if (is.null(text)) {
     return(NULL)
@@ -227,7 +227,7 @@ paintr_interpolate_copy_text <- function(text, param = NULL, layer_name = NULL) 
 #' @param path A human-readable location string.
 #'
 #' @return Invisibly returns `TRUE`.
-#' @keywords internal
+#' @noRd
 paintr_validate_copy_leaf <- function(x, path) {
   if (!is.list(x) || is.null(names(x)) || length(x) == 0) {
     stop(path, " must be a named list.", call. = FALSE)
@@ -261,7 +261,7 @@ paintr_validate_copy_leaf <- function(x, path) {
 #'   placeholder registry.
 #'
 #' @return Invisibly returns `TRUE`.
-#' @keywords internal
+#' @noRd
 paintr_validate_copy_rules <- function(copy_rules, placeholders = NULL) {
   if (is.null(copy_rules)) {
     return(invisible(TRUE))
@@ -432,7 +432,7 @@ paintr_validate_copy_rules <- function(copy_rules, placeholders = NULL) {
 #' @param copy_rules User-supplied copy rules.
 #'
 #' @return A normalized copy-rule list.
-#' @keywords internal
+#' @noRd
 paintr_normalize_copy_rules <- function(copy_rules) {
   if (is.null(copy_rules)) {
     return(NULL)
@@ -494,7 +494,7 @@ paintr_normalize_copy_rules <- function(copy_rules) {
 #' @param overrides Override values.
 #'
 #' @return A merged list.
-#' @keywords internal
+#' @noRd
 paintr_merge_copy_rules <- function(base, overrides) {
   if (is.null(base)) {
     return(overrides)
@@ -553,7 +553,7 @@ paintr_effective_copy_rules <- function(copy_rules = NULL, placeholders = NULL) 
 #' @param defaults A default copy-rule branch.
 #'
 #' @return A compacted branch or `NULL`.
-#' @keywords internal
+#' @noRd
 paintr_compact_copy_rule_branch <- function(current, defaults = NULL) {
   if (is.null(current)) {
     return(NULL)
@@ -594,7 +594,7 @@ paintr_compact_copy_rule_branch <- function(current, defaults = NULL) {
 #'   placeholder registry.
 #'
 #' @return A named list of custom overrides or `NULL`.
-#' @keywords internal
+#' @noRd
 paintr_compact_copy_rules <- function(copy_rules = NULL, placeholders = NULL) {
   effective_copy_rules <- paintr_effective_copy_rules(
     copy_rules,

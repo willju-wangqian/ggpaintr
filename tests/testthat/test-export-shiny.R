@@ -8,7 +8,7 @@ test_that("generate_shiny writes a syntactically valid app script", {
   )
   out_file <- tempfile(fileext = ".R")
 
-  generate_shiny(obj, list(), out_file, style = FALSE)
+  generate_shiny(obj, out_file, style = FALSE)
 
   expect_true(file.exists(out_file))
   expect_no_error(parse(file = out_file))
@@ -57,7 +57,7 @@ test_that("generate_shiny preserves upload-aware runtime code", {
   )
   out_file <- tempfile(fileext = ".R")
 
-  generate_shiny(obj, list(), out_file, style = FALSE)
+  generate_shiny(obj, out_file, style = FALSE)
 
   app_text <- paste(readLines(out_file), collapse = "\n")
   expect_match(app_text, "ggplot\\(data = upload")
@@ -83,7 +83,7 @@ test_that("generate_shiny writes multiline formulas as multiline source", {
   obj <- paintr_formula(formula_text)
   out_file <- tempfile(fileext = ".R")
 
-  generate_shiny(obj, list(), out_file, style = FALSE)
+  generate_shiny(obj, out_file, style = FALSE)
 
   app_lines <- readLines(out_file)
   input_formula_index <- grep("^input_formula <- ", app_lines)
@@ -121,7 +121,7 @@ test_that("generate_shiny preserves quotes and backslashes in exported formulas"
   obj <- paintr_formula(formula_text)
   out_file <- tempfile(fileext = ".R")
 
-  generate_shiny(obj, list(), out_file, style = FALSE)
+  generate_shiny(obj, out_file, style = FALSE)
 
   app_expr <- parse(file = out_file)
   input_formula_expr <- NULL
@@ -152,7 +152,7 @@ test_that("generate_shiny exported apps execute end to end for static formulas",
   )
   out_file <- tempfile(fileext = ".R")
 
-  generate_shiny(obj, list(), out_file, style = FALSE)
+  generate_shiny(obj, out_file, style = FALSE)
 
   export_env <- new.env(parent = environment())
   exported_app <- source_exported_app(out_file, envir = export_env)
@@ -187,7 +187,7 @@ test_that("generate_shiny exported apps execute upload formulas end to end", {
   )
   out_file <- tempfile(fileext = ".R")
 
-  generate_shiny(obj, list(), out_file, style = FALSE)
+  generate_shiny(obj, out_file, style = FALSE)
 
   export_env <- new.env(parent = environment())
   exported_app <- source_exported_app(out_file, envir = export_env)
@@ -215,6 +215,38 @@ test_that("generate_shiny exported apps execute upload formulas end to end", {
   })
 })
 
+test_that("generate_shiny accepts the new public call shape", {
+  obj <- paintr_formula(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  )
+  out_file <- tempfile(fileext = ".R")
+
+  expect_no_warning(generate_shiny(obj, out_file, style = FALSE))
+  expect_true(file.exists(out_file))
+})
+
+test_that("generate_shiny warns but still supports deprecated var_ui calls", {
+  obj <- paintr_formula(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  )
+  out_file <- tempfile(fileext = ".R")
+
+  expect_warning(
+    generate_shiny(obj, list(), out_file, style = FALSE),
+    "`var_ui` is deprecated and ignored",
+    fixed = TRUE
+  )
+  expect_true(file.exists(out_file))
+
+  named_out_file <- tempfile(fileext = ".R")
+  expect_warning(
+    generate_shiny(obj, named_out_file, style = FALSE, var_ui = list()),
+    "`var_ui` is deprecated and ignored",
+    fixed = TRUE
+  )
+  expect_true(file.exists(named_out_file))
+})
+
 test_that("generate_shiny writes compact custom copy rules for exported apps", {
   obj <- paintr_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
@@ -223,7 +255,6 @@ test_that("generate_shiny writes compact custom copy rules for exported apps", {
 
   generate_shiny(
     obj,
-    list(),
     out_file,
     style = FALSE,
     copy_rules = list(
@@ -311,7 +342,6 @@ test_that("generate_shiny omits concrete copy rules when effective rules match d
 
   generate_shiny(
     obj,
-    list(),
     out_file,
     style = FALSE,
     copy_rules = list(
@@ -337,7 +367,6 @@ test_that("generate_shiny writes compact custom placeholders for exported apps",
 
   generate_shiny(
     obj,
-    list(),
     out_file,
     style = FALSE,
     placeholders = registry
@@ -399,7 +428,6 @@ test_that("generate_shiny errors when custom placeholders are not exportable", {
   expect_error(
     generate_shiny(
       obj,
-      list(),
       out_file,
       style = FALSE,
       placeholders = registry
@@ -426,7 +454,6 @@ test_that("generate_shiny compacts pre-merged copy rules before export", {
 
   generate_shiny(
     obj,
-    list(),
     out_file,
     style = FALSE,
     copy_rules = merged_rules

@@ -102,7 +102,7 @@ The generated app:
 
 ```{r}
 out_file <- tempfile(fileext = ".R")
-generate_shiny(obj, list(), out_file, style = FALSE)
+generate_shiny(obj, out_file, style = FALSE)
 file.exists(out_file)
 ```
 

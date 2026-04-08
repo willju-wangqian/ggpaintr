@@ -21,7 +21,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libtiff5-dev \
     libxml2-dev \
     pandoc \
+    qpdf \
     ripgrep \
+    tini \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
@@ -34,4 +36,5 @@ RUN R -q -e "install.packages(c('pak', 'remotes'), repos = 'https://cloud.r-proj
 
 WORKDIR /workspace/ggpaintr
 
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["/bin/bash"]

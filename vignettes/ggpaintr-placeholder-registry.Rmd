@@ -326,7 +326,6 @@ out_file <- tempfile(fileext = ".R")
 
 generate_shiny(
   obj,
-  list(),
   out_file,
   style = FALSE,
   placeholders = placeholders

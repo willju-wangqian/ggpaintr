@@ -5,7 +5,11 @@ cd /workspace/ggpaintr
 
 git config --global --add safe.directory /workspace/ggpaintr
 
-R -q -e "pak::pkg_install(c('local::.', 'testthat', 'rmarkdown', 'knitr', 'pkgdown', 'styler'))"
+/workspace/ggpaintr/working_scripts/codex/prepare-site-dir.sh /workspace/ggpaintr
+
+R -q -e "pak::pkg_install(c('local::.', 'devtools', 'testthat', 'rmarkdown', 'knitr', 'pkgdown', 'styler'))"
+
+R -q -e "cat('pkgdown=', as.character(utils::packageVersion('pkgdown')), '\n', 'devtools=', as.character(utils::packageVersion('devtools')), '\n', sep = '')"
 
 echo
 echo "Container bootstrap finished."

@@ -4,7 +4,7 @@
 #' @param help Optional help text.
 #'
 #' @return A Shiny UI object.
-#' @keywords internal
+#' @noRd
 paintr_attach_help <- function(ui, help = NULL) {
   if (is.null(help) || identical(trimws(help), "")) {
     return(ui)
@@ -19,7 +19,7 @@ paintr_attach_help <- function(ui, help = NULL) {
 #' @param copy_rules Effective or user-supplied copy rules.
 #'
 #' @return A Shiny UI object.
-#' @keywords internal
+#' @noRd
 generate_ui_upload <- function(id, copy_rules = NULL) {
   effective_copy_rules <- paintr_effective_copy_rules(copy_rules)
   file_copy <- paintr_resolve_copy("upload_file", copy_rules = effective_copy_rules)
@@ -47,7 +47,7 @@ generate_ui_upload <- function(id, copy_rules = NULL) {
 #' @param id Placeholder id.
 #'
 #' @return A placeholder `uiOutput()`.
-#' @keywords internal
+#' @noRd
 generate_ui_var_placeholder <- function(id) {
   shiny::uiOutput(paste0("var-", id))
 }
@@ -60,7 +60,7 @@ generate_ui_var_placeholder <- function(id) {
 #' @param copy_rules Effective or user-supplied copy rules.
 #'
 #' @return A `textInput()` UI object.
-#' @keywords internal
+#' @noRd
 generate_ui_text <- function(id, param, layer_name = NULL, copy_rules = NULL) {
   copy <- paintr_resolve_copy(
     "control",
@@ -84,7 +84,7 @@ generate_ui_text <- function(id, param, layer_name = NULL, copy_rules = NULL) {
 #' @param copy_rules Effective or user-supplied copy rules.
 #'
 #' @return A `numericInput()` UI object.
-#' @keywords internal
+#' @noRd
 generate_ui_num <- function(id, param, layer_name = NULL, copy_rules = NULL) {
   copy <- paintr_resolve_copy(
     "control",
@@ -108,7 +108,7 @@ generate_ui_num <- function(id, param, layer_name = NULL, copy_rules = NULL) {
 #' @param copy_rules Effective or user-supplied copy rules.
 #'
 #' @return A `textInput()` UI object.
-#' @keywords internal
+#' @noRd
 generate_ui_expr <- function(id, param, layer_name = NULL, copy_rules = NULL) {
   copy <- paintr_resolve_copy(
     "control",
@@ -133,7 +133,7 @@ generate_ui_expr <- function(id, param, layer_name = NULL, copy_rules = NULL) {
 #' @param copy_rules Effective or user-supplied copy rules.
 #'
 #' @return A `pickerInput()` UI object or `NULL`.
-#' @keywords internal
+#' @noRd
 generate_ui_var <- function(data_var,
                             id,
                             param,
@@ -173,7 +173,7 @@ generate_ui_var <- function(data_var,
 #' @param copy_rules Effective or user-supplied copy rules.
 #'
 #' @return A named list of UI controls by layer.
-#' @keywords internal
+#' @noRd
 paintr_build_ui_list <- function(paintr_obj, copy_rules = NULL) {
   effective_copy_rules <- paintr_effective_copy_rules(
     copy_rules,
@@ -228,7 +228,7 @@ paintr_build_ui_list <- function(paintr_obj, copy_rules = NULL) {
 #' @param copy_rules Effective or user-supplied copy rules.
 #'
 #' @return A named list of generated `var` UI controls registered on `output`.
-#' @keywords internal
+#' @noRd
 register_var_ui_outputs <- function(input,
                                     output,
                                     paintr_obj,
@@ -250,7 +250,7 @@ register_var_ui_outputs <- function(input,
 #' @param copy_rules Effective or user-supplied copy rules.
 #'
 #' @return A list of UI elements, possibly prefixed with a checkbox.
-#' @keywords internal
+#' @noRd
 ui_insert_checkbox <- function(ui, nn, copy_rules = NULL) {
   if (nn == "ggplot") {
     return(ui)
@@ -270,7 +270,7 @@ ui_insert_checkbox <- function(ui, nn, copy_rules = NULL) {
 #' @param ui_list A named list of UI lists.
 #'
 #' @return A `tabsetPanel()`.
-#' @keywords internal
+#' @noRd
 tab_wrap_ui <- function(ui_list) {
   assertthat::assert_that(!is.null(names(ui_list)))
 
@@ -291,7 +291,7 @@ tab_wrap_ui <- function(ui_list) {
 #' @param copy_rules Effective or user-supplied copy rules.
 #'
 #' @return A Shiny UI object or `NULL`.
-#' @keywords internal
+#' @noRd
 paintr_get_tab_ui <- function(paintr_obj, copy_rules = NULL) {
   if (!inherits(paintr_obj, "paintr_obj")) {
     return(NULL)

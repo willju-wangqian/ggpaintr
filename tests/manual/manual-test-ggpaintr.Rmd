@@ -664,7 +664,6 @@ custom_out_file <- tempfile(fileext = ".R")
 
 generate_shiny(
   custom_obj,
-  list(),
   custom_out_file,
   style = FALSE,
   copy_rules = custom_copy_rules
@@ -882,7 +881,6 @@ date_out_file <- tempfile(fileext = ".R")
 
 generate_shiny(
   date_obj,
-  list(),
   date_out_file,
   style = FALSE,
   copy_rules = date_copy_rules,
@@ -950,7 +948,6 @@ ggplot(data = sales_manual, aes(x = day, y = value)) +
 
 generate_shiny(
   non_inline_obj,
-  list(),
   tempfile(fileext = ".R"),
   style = FALSE,
   placeholders = non_inline_obj$placeholders

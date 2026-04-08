@@ -68,7 +68,7 @@ paintr_validate_layer_checkbox_inputs <- function(paintr_obj, input) {
 #' @param input A Shiny input-like object.
 #'
 #' @return The layer expression or `NULL`.
-#' @keywords internal
+#' @noRd
 expr_apply_checkbox_result <- function(expr, nn, input) {
   if (nn == "ggplot") {
     return(expr)
@@ -88,7 +88,7 @@ expr_apply_checkbox_result <- function(expr, nn, input) {
 #' @param envir The environment used to resolve local data objects.
 #'
 #' @return A named list with `complete_expr_list`, `code_text`, and `eval_env`.
-#' @keywords internal
+#' @noRd
 paintr_complete_expr <- function(paintr_obj, input, envir = parent.frame()) {
   assertthat::assert_that(inherits(paintr_obj, "paintr_obj"))
 
@@ -189,7 +189,7 @@ paintr_get_plot <- function(plot_expr_list, envir = parent.frame()) {
 #' @param message An optional message override.
 #'
 #' @return A formatted message string.
-#' @keywords internal
+#' @noRd
 paintr_format_runtime_message <- function(stage, condition = NULL, message = NULL) {
   stage_label <- switch(
     stage,
@@ -217,7 +217,7 @@ paintr_format_runtime_message <- function(stage, condition = NULL, message = NUL
 #' @param condition A condition object.
 #'
 #' @return An updated runtime result.
-#' @keywords internal
+#' @noRd
 paintr_mark_runtime_failure <- function(runtime_result, stage, condition) {
   runtime_result$ok <- FALSE
   runtime_result$stage <- stage
@@ -234,7 +234,7 @@ paintr_mark_runtime_failure <- function(runtime_result, stage, condition) {
 #' @param envir The evaluation environment.
 #'
 #' @return A structured runtime result.
-#' @keywords internal
+#' @noRd
 paintr_complete_expr_safe <- function(paintr_obj, input, envir = parent.frame()) {
   tryCatch(
     {
@@ -271,7 +271,7 @@ paintr_complete_expr_safe <- function(paintr_obj, input, envir = parent.frame())
 #' @param envir A fallback evaluation environment.
 #'
 #' @return An updated runtime result.
-#' @keywords internal
+#' @noRd
 paintr_get_plot_safe <- function(runtime_result, envir = parent.frame()) {
   if (!isTRUE(runtime_result$ok)) {
     return(runtime_result)
@@ -296,7 +296,7 @@ paintr_get_plot_safe <- function(runtime_result, envir = parent.frame()) {
 #' @param runtime_result A runtime result list.
 #'
 #' @return An updated runtime result.
-#' @keywords internal
+#' @noRd
 paintr_validate_plot_render_safe <- function(runtime_result) {
   if (!isTRUE(runtime_result$ok)) {
     return(runtime_result)
@@ -349,7 +349,7 @@ paintr_build_runtime <- function(paintr_obj, input, envir = parent.frame()) {
 #' @param message A runtime error message.
 #'
 #' @return A Shiny tag or `NULL`.
-#' @keywords internal
+#' @noRd
 paintr_error_ui <- function(message) {
   if (is.null(message) || identical(trimws(message), "")) {
     return(NULL)

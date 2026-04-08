@@ -1,0 +1,27 @@
+services:
+  codex-publication:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ggpaintr-codex:latest
+    working_dir: /workspace/ggpaintr
+    user: ${UID:-0}:${GID:-0}
+    init: true
+    stdin_open: true
+    tty: true
+    volumes:
+      - .:/workspace/ggpaintr
+      - ${HOME}/.codex:/tmp/codex-home/.codex
+    environment:
+      HOME: /tmp/codex-home
+      CODEX_LOOP_MODE: ${CODEX_LOOP_MODE:-danger}
+      CODEX_LOOP_AGENT_COUNT: ${CODEX_LOOP_AGENT_COUNT:-4}
+      CODEX_WORKFLOW_FOLLOWUP_MAX_PASSES: ${CODEX_WORKFLOW_FOLLOWUP_MAX_PASSES:-4}
+      CODEX_LOOP_MAX_PASSES: ${CODEX_LOOP_MAX_PASSES:-6}
+      CODEX_LOOP_MODEL: ${CODEX_LOOP_MODEL:-}
+      CODEX_LOOP_ENABLE_SEARCH: ${CODEX_LOOP_ENABLE_SEARCH:-0}
+      CODEX_SKIP_BOOTSTRAP: ${CODEX_SKIP_BOOTSTRAP:-0}
+      CODEX_BOOTSTRAP_ALWAYS: ${CODEX_BOOTSTRAP_ALWAYS:-0}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    entrypoint: ["/bin/bash", "/workspace/ggpaintr/working_scripts/codex/container-entrypoint.sh"]
+    command: ["workflow"]

@@ -3,7 +3,7 @@
 #' @param id A placeholder id.
 #'
 #' @return A related id string for the dataset-name control.
-#' @keywords internal
+#' @noRd
 paintr_upload_name_id <- function(id) {
   paste0(id, "+name")
 }
@@ -13,7 +13,7 @@ paintr_upload_name_id <- function(id) {
 #' @param file_name The uploaded filename.
 #'
 #' @return A syntactic R object name.
-#' @keywords internal
+#' @noRd
 paintr_upload_default_name <- function(file_name) {
   file_stem <- tools::file_path_sans_ext(basename(file_name))
   file_stem <- gsub("[^[:alnum:]_]+", "_", file_stem)
@@ -31,7 +31,7 @@ paintr_upload_default_name <- function(file_name) {
 #' @param file_info A Shiny `fileInput()` value.
 #'
 #' @return A normalized tabular object or `NULL` when no file was supplied.
-#' @keywords internal
+#' @noRd
 paintr_read_uploaded_data <- function(file_info) {
   if (is.null(file_info) || is.null(file_info$datapath) || is.null(file_info$name)) {
     return(NULL)
@@ -60,7 +60,7 @@ paintr_read_uploaded_data <- function(file_info) {
 #'
 #' @return A list with `data`, `object_name`, `file_name`, and `code_text`, or
 #'   `NULL` when `strict = FALSE` and no upload was supplied.
-#' @keywords internal
+#' @noRd
 paintr_resolve_upload_info <- function(input, upload_id, strict = FALSE) {
   file_info <- input[[upload_id]]
 
@@ -106,7 +106,7 @@ paintr_resolve_upload_info <- function(input, upload_id, strict = FALSE) {
 #'
 #' @return An evaluation environment containing uploaded datasets and any other
 #'   placeholder-provided objects.
-#' @keywords internal
+#' @noRd
 paintr_prepare_eval_env <- function(paintr_obj, input, envir = parent.frame()) {
   eval_env <- rlang::env_clone(envir)
   context <- paintr_placeholder_context(paintr_obj, copy_rules = NULL, envir = envir)

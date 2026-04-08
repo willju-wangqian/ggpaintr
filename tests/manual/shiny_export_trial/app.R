@@ -86,7 +86,6 @@ server <- function(input, output, session) {
       req(session$userData$paintr$var_ui_list)
 
       generate_shiny(session$userData$paintr$obj,
-                     session$userData$paintr$var_ui_list,
                      file,
                      style = TRUE)
 
@@ -118,4 +117,3 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui, server)
-

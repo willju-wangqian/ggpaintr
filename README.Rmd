@@ -80,6 +80,24 @@ ggplot(data = iris, aes(x = var, y = var)) +
 ")
 ```
 
+## Supported public API
+
+The maintained public path is intentionally narrow.
+
+- Start with `ggpaintr_app()` for the default app wrapper.
+- Use `ggpaintr_server()`, `ggpaintr_server_state()`, `ggpaintr_ids()`, and the
+  `ggpaintr_bind_*()` helpers when you need to embed `ggpaintr` in a larger
+  Shiny app.
+- Use `ggpaintr_placeholder()` and `ggpaintr_effective_placeholders()` for
+  custom placeholder types.
+- Use `ggpaintr_runtime_input_spec()`, `paintr_formula()`,
+  `paintr_build_runtime()`, and `paintr_get_plot()` for advanced runtime or
+  testing workflows.
+- Use `generate_shiny()` to export an explicit standalone app script.
+
+Other helpers in `R/` are internal implementation support rather than part of
+the maintained community-facing API.
+
 ## Feature tour
 
 ### Work with uploaded data
@@ -173,7 +191,7 @@ obj <- paintr_formula(
 )
 
 app_file <- tempfile(fileext = ".R")
-generate_shiny(obj, list(), app_file)
+generate_shiny(obj, app_file)
 
 # The generated file keeps an explicit ui, an explicit server, and visible
 # copy_rules/placeholders hooks so you can keep editing it as a normal Shiny app.

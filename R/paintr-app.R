@@ -308,7 +308,6 @@ ggpaintr_bind_export <- function(output,
       shiny::req(paintr_state$obj())
       generate_shiny(
         paintr_state$obj(),
-        paintr_state$var_ui_list(),
         file,
         copy_rules = paintr_state$raw_copy_rules,
         placeholders = paintr_state$placeholders
@@ -577,7 +576,7 @@ ggpaintr_server <- function(input,
 #' @param copy_rules Optional named list of copy overrides.
 #'
 #' @return A named list with shell copy entries.
-#' @keywords internal
+#' @noRd
 paintr_resolve_shell_copy <- function(copy_rules = NULL) {
   list(
     title_copy = paintr_resolve_copy("title", copy_rules = copy_rules),
@@ -593,7 +592,7 @@ paintr_resolve_shell_copy <- function(copy_rules = NULL) {
 #' @param export_label Export button text.
 #'
 #' @return A Shiny UI object.
-#' @keywords internal
+#' @noRd
 paintr_build_app_ui <- function(title_label, draw_label, export_label) {
   shiny::fluidPage(
     shiny::titlePanel(title_label),
@@ -621,7 +620,7 @@ paintr_build_app_ui <- function(title_label, draw_label, export_label) {
 #'   placeholder registry.
 #'
 #' @return A list with `ui` and `server`.
-#' @keywords internal
+#' @noRd
 paintr_app_components <- function(formula,
                                   envir = parent.frame(),
                                   copy_rules = NULL,

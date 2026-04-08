@@ -5,13 +5,14 @@ home:
   title: ggpaintr
   description: Build formula-driven Shiny apps for ggplot2.
 reference:
-  - title: Shiny wrappers
+  - title: Start here
     contents:
       - ggpaintr_app
-      - ggpaintr_server
       - generate_shiny
   - title: Shiny integration
+    desc: Embed ggpaintr inside a larger Shiny app while keeping package-owned runtime behavior.
     contents:
+      - ggpaintr_server
       - ggpaintr_ids
       - ggpaintr_server_state
       - ggpaintr_bind_control_panel
@@ -26,6 +27,7 @@ reference:
       - ggpaintr_controls_ui
       - ggpaintr_outputs_ui
   - title: Placeholder extensibility
+    desc: Register and reuse supported custom placeholder types without editing package internals.
     contents:
       - ggpaintr_placeholder
       - ggpaintr_effective_placeholders
@@ -33,7 +35,8 @@ reference:
   - title: Data preparation
     contents:
       - ggpaintr_normalize_column_names
-  - title: Formula and runtime
+  - title: Advanced runtime
+    desc: Low-level helpers intentionally exported for advanced tests, tooling, and custom runtime workflows.
     contents:
       - paintr_formula
       - ggpaintr_runtime_input_spec

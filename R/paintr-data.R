@@ -29,7 +29,7 @@ ggpaintr_normalize_column_names <- function(data) {
 #' @param source A short label for error messages.
 #'
 #' @return A `data.frame`-like object with normalized column names.
-#' @keywords internal
+#' @noRd
 paintr_normalize_tabular_data <- function(data, source = "Data") {
   if (inherits(data, "data.frame")) {
     names(data) <- paintr_normalize_column_name_vector(names(data), ncol(data))
@@ -65,7 +65,7 @@ paintr_normalize_tabular_data <- function(data, source = "Data") {
 #' @param n Expected column count.
 #'
 #' @return A normalized character vector with syntactic, unique names.
-#' @keywords internal
+#' @noRd
 paintr_normalize_column_name_vector <- function(x, n = length(x)) {
   if (is.null(x)) {
     x <- character()
@@ -99,7 +99,7 @@ paintr_normalize_column_name_vector <- function(x, n = length(x)) {
 #' Reserved Words That Should Not Be Used as Column Names
 #'
 #' @return A character vector of reserved words.
-#' @keywords internal
+#' @noRd
 paintr_reserved_words <- function() {
   c(
     "if",
