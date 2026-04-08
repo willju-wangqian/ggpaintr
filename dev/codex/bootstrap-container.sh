@@ -5,7 +5,7 @@ cd /workspace/ggpaintr
 
 git config --global --add safe.directory /workspace/ggpaintr
 
-/workspace/ggpaintr/working_scripts/codex/prepare-site-dir.sh /workspace/ggpaintr
+/workspace/ggpaintr/dev/codex/prepare-site-dir.sh /workspace/ggpaintr
 
 export R_LIBS_USER="${R_LIBS_USER:-/tmp/Rlibs}"
 mkdir -p "$R_LIBS_USER"

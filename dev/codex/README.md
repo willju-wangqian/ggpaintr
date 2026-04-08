@@ -4,34 +4,34 @@ This directory contains the unattended Codex CLI workflow for publication-readin
 
 ## What it runs
 
-`working_scripts/codex/run-publication-workflow.sh` runs:
+`dev/codex/run-publication-workflow.sh` runs:
 
-1. `working_scripts/notes/prompts/publication-improvements-batch-1-prompt.md`
-2. a structured reassessment using `working_scripts/notes/prompts/publication-readiness-cran-prep-prompt.md`
-3. `working_scripts/notes/prompts/publication-improvements-batch-2-3-prompt.md`
+1. `dev/notes/prompts/publication-improvements-batch-1-prompt.md`
+2. a structured reassessment using `dev/notes/prompts/publication-readiness-cran-prep-prompt.md`
+3. `dev/notes/prompts/publication-improvements-batch-2-3-prompt.md`
 4. another structured reassessment
-5. a follow-up unattended publication loop using `working_scripts/codex/run-publication-loop.sh`
+5. a follow-up unattended publication loop using `dev/codex/run-publication-loop.sh`
 
-Each phase writes its prompt, JSONL event stream, and structured result into a timestamped directory under `working_scripts/codex/runs/`.
+Each phase writes its prompt, JSONL event stream, and structured result into a timestamped directory under `dev/codex/runs/`.
 
 ## Local usage
 
 Dry-run the workflow shape:
 
 ```bash
-CODEX_WORKFLOW_DRY_RUN=1 ./working_scripts/codex/run-publication-workflow.sh
+CODEX_WORKFLOW_DRY_RUN=1 ./dev/codex/run-publication-workflow.sh
 ```
 
 Run it locally with sandboxed automatic execution:
 
 ```bash
-CODEX_LOOP_MODE=safe ./working_scripts/codex/run-publication-workflow.sh
+CODEX_LOOP_MODE=safe ./dev/codex/run-publication-workflow.sh
 ```
 
 Run it in a fully external sandboxed environment:
 
 ```bash
-CODEX_LOOP_MODE=danger ./working_scripts/codex/run-publication-workflow.sh
+CODEX_LOOP_MODE=danger ./dev/codex/run-publication-workflow.sh
 ```
 
 Useful environment variables:
@@ -82,7 +82,7 @@ If you prefer API-key auth, export `OPENAI_API_KEY` before launching the contain
 
 Each run creates a timestamped directory like:
 
-`working_scripts/codex/runs/20260408-120000/`
+`dev/codex/runs/20260408-120000/`
 
 Look at:
 

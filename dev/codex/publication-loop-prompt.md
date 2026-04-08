@@ -6,7 +6,7 @@ the `ggpaintr` repository.
 Requirements:
 
 - run the strict assessment based on
-  `working_scripts/notes/prompts/publication-readiness-cran-prep-prompt.md`
+  `dev/notes/prompts/publication-readiness-cran-prep-prompt.md`
 - turn the assessment findings into concrete plans
 - implement the plan instead of stopping at analysis
 - after each major update batch, rerun the assessment from the current repo
@@ -17,7 +17,7 @@ Requirements:
   assumptions and proceed
 - you may use up to `__AGENT_COUNT__` subagents in parallel when helpful, with
   disjoint ownership and no duplicate work
-- do not edit stored prompt-library files under `working_scripts/notes/prompts/`
+- do not edit stored prompt-library files under `dev/notes/prompts/`
 - keep tests, README/vignettes/manual docs, and generated artifacts in sync when
   behavior changes
 - if `devtools` is unavailable in the runtime environment, use equivalent

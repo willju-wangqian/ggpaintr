@@ -23,5 +23,5 @@ services:
       CODEX_SKIP_BOOTSTRAP: ${CODEX_SKIP_BOOTSTRAP:-0}
       CODEX_BOOTSTRAP_ALWAYS: ${CODEX_BOOTSTRAP_ALWAYS:-0}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-    entrypoint: ["/bin/bash", "/workspace/ggpaintr/working_scripts/codex/container-entrypoint.sh"]
+    entrypoint: ["/bin/bash", "/workspace/ggpaintr/dev/codex/container-entrypoint.sh"]
     command: ["workflow"]

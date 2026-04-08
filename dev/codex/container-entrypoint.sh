@@ -27,12 +27,12 @@ maybe_bootstrap() {
     return 0
   fi
 
-  "$ROOT_DIR/working_scripts/codex/bootstrap-container.sh"
+  "$ROOT_DIR/dev/codex/bootstrap-container.sh"
   touch "$BOOTSTRAP_STAMP"
 }
 
 prepare_site_dir() {
-  "$ROOT_DIR/working_scripts/codex/prepare-site-dir.sh" "$ROOT_DIR"
+  "$ROOT_DIR/dev/codex/prepare-site-dir.sh" "$ROOT_DIR"
 }
 
 if [ ! -d "$CODEX_HOME_DIR" ] && [ -z "${OPENAI_API_KEY:-}" ]; then
@@ -41,17 +41,17 @@ fi
 
 case "$MODE" in
   bootstrap)
-    exec "$ROOT_DIR/working_scripts/codex/bootstrap-container.sh"
+    exec "$ROOT_DIR/dev/codex/bootstrap-container.sh"
     ;;
   workflow)
     maybe_bootstrap
     prepare_site_dir
-    exec "$ROOT_DIR/working_scripts/codex/run-publication-workflow.sh" "$@"
+    exec "$ROOT_DIR/dev/codex/run-publication-workflow.sh" "$@"
     ;;
   loop)
     maybe_bootstrap
     prepare_site_dir
-    exec "$ROOT_DIR/working_scripts/codex/run-publication-loop.sh" "$@"
+    exec "$ROOT_DIR/dev/codex/run-publication-loop.sh" "$@"
     ;;
   shell)
     maybe_bootstrap

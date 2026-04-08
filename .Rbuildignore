@@ -7,7 +7,7 @@
 
 ^preconsideration$
 ^archive$
-^working_scripts$
+^dev$
 
 README\.*
 ^_pkgdown\.yml$

@@ -1,6 +1,6 @@
 ---
 name: publication-loop
-description: Run an autonomous publication-readiness / CRAN-prep improvement loop for the ggpaintr repository. Use when the user wants Codex to run the stored assessment prompt in working_scripts/notes/prompts/publication-readiness-cran-prep-prompt.md, turn findings into concrete plans, implement the fixes, delegate independent batches to subagents, and rerun the assessment after major updates until substantive requirements are addressed.
+description: Run an autonomous publication-readiness / CRAN-prep improvement loop for the ggpaintr repository. Use when the user wants Codex to run the stored assessment prompt in dev/notes/prompts/publication-readiness-cran-prep-prompt.md, turn findings into concrete plans, implement the fixes, delegate independent batches to subagents, and rerun the assessment after major updates until substantive requirements are addressed.
 ---
 
 # Publication Loop
@@ -13,16 +13,16 @@ Rebuild context from the repository before judging or changing anything.
 
 Read these first:
 
-1. `working_scripts/notes/start-codex.md`
-2. `working_scripts/notes/index.md`
-3. `working_scripts/notes/current-status.md`
-4. `working_scripts/notes/prompts/publication-readiness-cran-prep-prompt.md`
+1. `dev/notes/start-codex.md`
+2. `dev/notes/index.md`
+3. `dev/notes/current-status.md`
+4. `dev/notes/prompts/publication-readiness-cran-prep-prompt.md`
 
 Then read only the smallest relevant code, tests, docs, and metadata needed for
 the current assessment findings and planned batch. Treat current source code and
 tests as the final authority.
 
-Read `working_scripts/notes/testing-strategy.md` whenever the batch changes
+Read `dev/notes/testing-strategy.md` whenever the batch changes
 behavior, tests, README/pkgdown/manual-sync expectations, or verification
 workflow.
 
@@ -52,7 +52,7 @@ from repo context.
 
 - Make reasonable conservative assumptions instead of asking for preferences.
 - State assumptions in the final response after the work is done.
-- Do not edit stored prompt-library files under `working_scripts/notes/prompts/`
+- Do not edit stored prompt-library files under `dev/notes/prompts/`
   unless the user explicitly asks.
 - When behavior changes, update tests and user-facing docs as needed.
 - Prefer focused batches that leave the repo in a coherent state after each

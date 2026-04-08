@@ -16,8 +16,8 @@ assessment based on the current repository state.
 Instructions:
 - Rebuild context from the repo itself before judging anything.
 - Start with:
-  1. `working_scripts/notes/index.md`
-  2. `working_scripts/notes/current-status.md`
+  1. `dev/knowledge/index.md`
+  2. `dev/knowledge/current-status.md`
 - Then inspect the current source code, tests, README, vignettes, manual docs,
   package metadata, and generated docs that are relevant to a publication
   assessment.

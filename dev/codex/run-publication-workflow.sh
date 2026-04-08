@@ -31,7 +31,7 @@ fi
 AGENT_COUNT="${1:-${CODEX_LOOP_AGENT_COUNT:-4}}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 STAMP="$(date +%Y%m%d-%H%M%S)"
-RUN_DIR="${CODEX_WORKFLOW_RUN_DIR:-$ROOT_DIR/working_scripts/codex/runs/$STAMP}"
+RUN_DIR="${CODEX_WORKFLOW_RUN_DIR:-$ROOT_DIR/dev/codex/runs/$STAMP}"
 MODE="${CODEX_LOOP_MODE:-safe}"
 MODEL="${CODEX_LOOP_MODEL:-}"
 ENABLE_SEARCH="${CODEX_LOOP_ENABLE_SEARCH:-0}"
@@ -39,14 +39,14 @@ FOLLOWUP_MAX_PASSES="${CODEX_WORKFLOW_FOLLOWUP_MAX_PASSES:-4}"
 SKIP_FOLLOWUP_LOOP="${CODEX_WORKFLOW_SKIP_FOLLOWUP_LOOP:-0}"
 DRY_RUN="${CODEX_WORKFLOW_DRY_RUN:-0}"
 
-PHASE_TEMPLATE="$ROOT_DIR/working_scripts/codex/publication-phase-prompt.md"
-PHASE_SCHEMA="$ROOT_DIR/working_scripts/codex/publication-loop-schema.json"
-ASSESS_TEMPLATE="$ROOT_DIR/working_scripts/codex/publication-assessment-prompt.md"
-ASSESS_SCHEMA="$ROOT_DIR/working_scripts/codex/publication-assessment-schema.json"
-RUN_LOOP_SCRIPT="$ROOT_DIR/working_scripts/codex/run-publication-loop.sh"
+PHASE_TEMPLATE="$ROOT_DIR/dev/codex/publication-phase-prompt.md"
+PHASE_SCHEMA="$ROOT_DIR/dev/codex/publication-loop-schema.json"
+ASSESS_TEMPLATE="$ROOT_DIR/dev/codex/publication-assessment-prompt.md"
+ASSESS_SCHEMA="$ROOT_DIR/dev/codex/publication-assessment-schema.json"
+RUN_LOOP_SCRIPT="$ROOT_DIR/dev/codex/run-publication-loop.sh"
 
-BATCH1_PROMPT="$ROOT_DIR/working_scripts/notes/prompts/publication-improvements-batch-1-prompt.md"
-BATCH23_PROMPT="$ROOT_DIR/working_scripts/notes/prompts/publication-improvements-batch-2-3-prompt.md"
+BATCH1_PROMPT="$ROOT_DIR/dev/notes/prompts/publication-improvements-batch-1-prompt.md"
+BATCH23_PROMPT="$ROOT_DIR/dev/notes/prompts/publication-improvements-batch-2-3-prompt.md"
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -228,7 +228,7 @@ fi
 run_phase \
   "02-assessment-after-batch-1" \
   "Assessment After Batch 1" \
-  "$ROOT_DIR/working_scripts/notes/prompts/publication-readiness-cran-prep-prompt.md" \
+  "$ROOT_DIR/dev/notes/prompts/publication-readiness-cran-prep-prompt.md" \
   "$ASSESS_TEMPLATE" \
   "$ASSESS_SCHEMA" \
   "$RUN_DIR/01-batch-1/result.json"
@@ -249,7 +249,7 @@ fi
 run_phase \
   "04-assessment-after-batch-2-3" \
   "Assessment After Batch 2-3" \
-  "$ROOT_DIR/working_scripts/notes/prompts/publication-readiness-cran-prep-prompt.md" \
+  "$ROOT_DIR/dev/notes/prompts/publication-readiness-cran-prep-prompt.md" \
   "$ASSESS_TEMPLATE" \
   "$ASSESS_SCHEMA" \
   "$RUN_DIR/03-batch-2-3/result.json"

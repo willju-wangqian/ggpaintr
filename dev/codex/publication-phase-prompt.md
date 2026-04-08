@@ -5,12 +5,12 @@ workflow for the `ggpaintr` repository.
 
 Requirements:
 
-- before doing anything else, read and follow `working_scripts/notes/start-codex.md`
+- before doing anything else, read and follow `dev/notes/start-codex.md`
 - then open and execute the stored task prompt at `__TASK_PROMPT__`
 - implement the stored prompt instead of stopping at analysis
 - keep tests, README/vignettes/manual docs, and generated artifacts aligned when
   behavior changes
-- do not edit stored prompt-library files under `working_scripts/notes/prompts/`
+- do not edit stored prompt-library files under `dev/notes/prompts/`
 - do not ask for user approval or opinion during the process; make reasonable
   conservative assumptions and proceed
 - you may use up to `__AGENT_COUNT__` subagents in parallel when helpful, with

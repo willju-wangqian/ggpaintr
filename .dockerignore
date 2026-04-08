@@ -5,7 +5,7 @@ archive
 docs
 preconsideration
 README.html
-working_scripts/codex/runs
+dev/codex/runs
 *.tar.gz
 *.Rcheck
 vignettes/*.html

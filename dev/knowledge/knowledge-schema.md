@@ -18,35 +18,35 @@ This is a governance document, not a session log.
 
 The active operational note set for this repo is:
 
-1. `working_scripts/notes/index.md`
-2. `working_scripts/notes/current-status.md`
-3. `working_scripts/notes/project-overview.md`
-4. `working_scripts/notes/testing-strategy.md`
-5. `working_scripts/notes/start-codex.md`
-6. `working_scripts/notes/next-steps.md`
+1. `dev/knowledge/index.md`
+2. `dev/knowledge/current-status.md`
+3. `dev/knowledge/project-overview.md`
+4. `dev/knowledge/testing-strategy.md`
+5. `dev/knowledge/start-codex.md`
+6. `dev/knowledge/next-steps.md`
 
 These files have distinct responsibilities and should not substantially
 duplicate one another.
 
-`working_scripts/notes/knowledge-schema.md` governs the system, but it is not
+`dev/knowledge/knowledge-schema.md` governs the system, but it is not
 part of the default lightweight startup load for ordinary coding tasks.
 
 ### Session-maintained files
 
 These are the default files to review and update before a session ends:
 
-- `working_scripts/notes/current-status.md`
-- `working_scripts/notes/next-steps.md`
+- `dev/knowledge/current-status.md`
+- `dev/knowledge/next-steps.md`
 
 ### Mostly stable files
 
 These should be updated only when their own scope changes:
 
-- `working_scripts/notes/index.md`
-- `working_scripts/notes/project-overview.md`
-- `working_scripts/notes/testing-strategy.md`
-- `working_scripts/notes/start-codex.md`
-- `working_scripts/notes/knowledge-schema.md`
+- `dev/knowledge/index.md`
+- `dev/knowledge/project-overview.md`
+- `dev/knowledge/testing-strategy.md`
+- `dev/knowledge/start-codex.md`
+- `dev/knowledge/knowledge-schema.md`
 
 ### Non-core markdown files
 
@@ -55,8 +55,8 @@ These are not part of the operational note system:
 - `README.md`
 - `tests/manual/manual-checklist-ggpaintr.md`
 - `tests/manual/manual-test-ggpaintr.Rmd`
-- `working_scripts/notes/developer-notes.md`
-- stored prompt-library files under `working_scripts/notes/prompts/`
+- `dev/knowledge/developer-notes.md`
+- stored task files under `dev/tasks/`
 - app/package content docs under `inst/`
 - older note files that are kept only for history or compatibility
 
@@ -113,14 +113,14 @@ These are not part of the operational note system:
 - Do not create new ad hoc markdown files in the active notes root for one-off
   feature work.
 - Temporary deep-dive notes should go to an archive area, not the active root.
-- Reusable stored prompts may live under `working_scripts/notes/prompts/` when
+- Reusable stored prompts may live under `dev/tasks/` when
   they support repeated future workflows and are kept out of the default startup
   path.
 - Completed work belongs in `current-status.md`, not in `next-steps.md`.
 - Stable policy belongs in `testing-strategy.md`, not in `current-status.md`.
 - Durable routing rules belong in `index.md`, not duplicated across every note.
 - Starter instructions belong only in `start-codex.md`.
-- Stored prompt-library files under `working_scripts/notes/prompts/` should stay
+- Stored task files under `dev/tasks/` should stay
   unchanged unless the user explicitly asks to edit them.
 - `developer-notes.md` is developer-maintained only and should not be updated by
   AI tools unless the user explicitly requests edits to that file.
@@ -129,14 +129,14 @@ These are not part of the operational note system:
 
 For a fresh development session:
 
-1. use `working_scripts/notes/start-codex.md` as the copy-paste session-start
+1. use `dev/knowledge/start-codex.md` as the copy-paste session-start
    prompt
-2. in a normal coding session, read `working_scripts/notes/index.md`
-3. read `working_scripts/notes/current-status.md`
+2. in a normal coding session, read `dev/knowledge/index.md`
+3. read `dev/knowledge/current-status.md`
 4. load additional note files only when `index.md` says they are relevant
 5. then read the implementation files and tests directly relevant to the task
 
-Read `working_scripts/notes/knowledge-schema.md` at the start only when:
+Read `dev/knowledge/knowledge-schema.md` at the start only when:
 
 - the user asks to update knowledge
 - the user asks to clean up the repo based on the schema
@@ -156,11 +156,11 @@ Read `working_scripts/notes/knowledge-schema.md` at the start only when:
 
 When the user says:
 
-`update knowledge based on the schema defined at working_scripts/notes/knowledge-schema.md`
+`update knowledge based on the schema defined at dev/knowledge/knowledge-schema.md`
 
 Codex should:
 
-1. reread `working_scripts/notes/knowledge-schema.md`
+1. reread `dev/knowledge/knowledge-schema.md`
 2. inspect the current repo state relevant to recent work
 3. update only the files whose responsibilities in this schema require updating
 4. avoid touching stable or archived docs unless their own contract says they
@@ -169,22 +169,22 @@ Codex should:
 
 Default review targets for that instruction:
 
-- always review `working_scripts/notes/current-status.md`
-- always review `working_scripts/notes/next-steps.md`
-- review `working_scripts/notes/index.md` only if routing rules, canonical note
+- always review `dev/knowledge/current-status.md`
+- always review `dev/knowledge/next-steps.md`
+- review `dev/knowledge/index.md` only if routing rules, canonical note
   paths, or the default startup load changed
-- review `working_scripts/notes/start-codex.md` only if session-start prompt or
+- review `dev/knowledge/start-codex.md` only if session-start prompt or
   canonical startup instructions changed
-- review `working_scripts/notes/project-overview.md` only if architecture or
+- review `dev/knowledge/project-overview.md` only if architecture or
   supported behavior boundaries changed
-- review `working_scripts/notes/testing-strategy.md` only if testing strategy,
+- review `dev/knowledge/testing-strategy.md` only if testing strategy,
   structure, or acceptance policy changed
-- do not update `working_scripts/notes/knowledge-schema.md` unless the markdown
+- do not update `dev/knowledge/knowledge-schema.md` unless the markdown
   maintenance system itself changed
 
 When the user says:
 
-`clean up project repo based on the schema defined at working_scripts/notes/knowledge-schema.md`
+`clean up project repo based on the schema defined at dev/knowledge/knowledge-schema.md`
 
 Codex should:
 
@@ -193,7 +193,7 @@ Codex should:
 3. run `pkgdown::build_site_github_pages()` to refresh the GitHub Pages site
 4. inspect `README.Rmd` as the editable README source of truth
 5. knit or render `README.Rmd` to regenerate `README.md`
-6. finally apply the `update knowledge based on the schema defined at working_scripts/notes/knowledge-schema.md` workflow
+6. finally apply the `update knowledge based on the schema defined at dev/knowledge/knowledge-schema.md` workflow
 
 Default expectations for that instruction:
 

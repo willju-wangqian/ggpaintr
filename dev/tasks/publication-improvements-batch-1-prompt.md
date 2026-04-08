@@ -9,7 +9,7 @@ prompt.
 ```text
 You are helping with development in the `ggpaintr` repository.
 
-`working_scripts/notes/start-codex.md` has already been injected for this session.
+`dev/knowledge/start-codex.md` has already been injected for this session.
 Follow it exactly, and rebuild context from the repo itself before making any changes.
 
 This task is the first focused publication-readiness improvement batch, based on a prior strict CRAN-prep style assessment.
@@ -22,12 +22,12 @@ Do not treat older notes or memory as authority. Treat current source code, test
 README/vignettes, generated docs, and package metadata as the final authority.
 
 Before editing anything, rebuild context from:
-1. `working_scripts/notes/index.md`
-2. `working_scripts/notes/current-status.md`
+1. `dev/knowledge/index.md`
+2. `dev/knowledge/current-status.md`
 
 Then read the smallest additional set needed for this task:
-- `working_scripts/notes/project-overview.md`
-- `working_scripts/notes/testing-strategy.md`
+- `dev/knowledge/project-overview.md`
+- `dev/knowledge/testing-strategy.md`
 - `DESCRIPTION`
 - `NAMESPACE`
 - `_pkgdown.yml`

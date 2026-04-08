@@ -10,7 +10,7 @@ prompt.
 ```text
 You are helping with development in the `ggpaintr` repository.
 
-`working_scripts/notes/start-codex.md` has already been injected for this session.
+`dev/knowledge/start-codex.md` has already been injected for this session.
 Follow it exactly, and rebuild context from the repo itself before making any changes.
 
 This task continues publication-readiness improvement work after the first focused
@@ -27,13 +27,13 @@ README/vignettes, generated docs, package metadata, and maintained notes as the
 final authority.
 
 Before editing anything, rebuild context from:
-1. `working_scripts/notes/index.md`
-2. `working_scripts/notes/current-status.md`
+1. `dev/knowledge/index.md`
+2. `dev/knowledge/current-status.md`
 
 Then read the smallest additional set needed for this task:
-- `working_scripts/notes/project-overview.md`
-- `working_scripts/notes/testing-strategy.md`
-- `working_scripts/notes/next-steps.md`
+- `dev/knowledge/project-overview.md`
+- `dev/knowledge/testing-strategy.md`
+- `dev/knowledge/next-steps.md`
 - `README.Rmd`
 - `R/paintr-app.R`
 - `R/paintr-export.R`
