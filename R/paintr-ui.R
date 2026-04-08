@@ -167,39 +167,6 @@ generate_ui_var <- function(data_var,
   )
 }
 
-#' Build UI for One Placeholder
-#'
-#' @param key Placeholder keyword.
-#' @param id Placeholder id.
-#' @param param Parameter label.
-#' @param layer_name Layer name.
-#' @param copy_rules Effective or user-supplied copy rules.
-#'
-#' @return A Shiny UI object or `NULL`.
-#' @keywords internal
-generate_ui_individual <- function(key,
-                                   id,
-                                   param,
-                                   layer_name = NULL,
-                                   copy_rules = NULL) {
-  key <- rlang::as_string(key)
-  effective_copy_rules <- paintr_effective_copy_rules(copy_rules)
-
-  if (key == "upload") {
-    generate_ui_upload(id, copy_rules = effective_copy_rules)
-  } else if (key == "var") {
-    generate_ui_var_placeholder(id)
-  } else if (key == "text") {
-    generate_ui_text(id, param, layer_name = layer_name, copy_rules = effective_copy_rules)
-  } else if (key == "num") {
-    generate_ui_num(id, param, layer_name = layer_name, copy_rules = effective_copy_rules)
-  } else if (key == "expr") {
-    generate_ui_expr(id, param, layer_name = layer_name, copy_rules = effective_copy_rules)
-  } else {
-    NULL
-  }
-}
-
 #' Build a UI List for a Parsed Formula
 #'
 #' @param paintr_obj A `paintr_obj`.

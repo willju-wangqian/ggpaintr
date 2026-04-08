@@ -58,6 +58,8 @@ paintr_serialize_formula_text <- function(formula_text) {
 #' Serialize Copy Rules for an Exported Template
 #'
 #' @param copy_rules User-supplied or effective copy rules.
+#' @param placeholders Placeholder definitions or a placeholder registry used
+#'   to compact placeholder-specific copy overrides.
 #'
 #' @return A character vector of source lines.
 #' @keywords internal
@@ -131,6 +133,8 @@ paintr_serialize_export_placeholders <- function(placeholders = NULL) {
 #'
 #' @param formula_text A single formula string.
 #' @param copy_rules Effective or user-supplied copy rules.
+#' @param placeholders Optional custom placeholder definitions or an effective
+#'   placeholder registry.
 #'
 #' @return A character vector containing the exported app template.
 #' @keywords internal

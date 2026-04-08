@@ -130,6 +130,12 @@ ggpaintr_missing_expr <- function() {
   structure(list(), class = "ggpaintr_missing_expr")
 }
 
+#' Extract One Placeholder Registry Entry with `$`
+#'
+#' @param x A `ggpaintr_placeholder_registry`.
+#' @param name An entry name.
+#'
+#' @return A registry entry or the stored custom placeholder list.
 #' @noRd
 `$.ggpaintr_placeholder_registry` <- function(x, name) {
   if (identical(name, "custom_placeholders")) {
@@ -139,6 +145,13 @@ ggpaintr_missing_expr <- function() {
   .subset2(unclass(x), name)
 }
 
+#' Extract One Placeholder Registry Entry with `[[`
+#'
+#' @param x A `ggpaintr_placeholder_registry`.
+#' @param i An index or name.
+#' @param ... Unused.
+#'
+#' @return A registry entry or the stored custom placeholder list.
 #' @noRd
 `[[.ggpaintr_placeholder_registry` <- function(x, i, ...) {
   if (is.character(i) && length(i) == 1 && identical(i, "custom_placeholders")) {
@@ -553,21 +566,45 @@ paintr_builtin_placeholders <- function() {
   )
 }
 
+#' Build the Deferred UI Placeholder for `var`
+#'
+#' @param id Placeholder id.
+#' @param copy Resolved copy for the control.
+#' @param meta Placeholder metadata.
+#' @param context A placeholder context list.
+#'
+#' @return A placeholder `uiOutput()`.
 #' @noRd
 paintr_build_var_placeholder_ui <- function(id, copy, meta, context) {
   generate_ui_var_placeholder(id)
 }
 
+#' Resolve a `var` Placeholder to a Column Symbol
+#'
+#' @param value A selected column name.
+#' @param meta Placeholder metadata.
+#' @param context A placeholder context list.
+#'
+#' @return A symbol naming the selected column, or
+#'   `ggpaintr_missing_expr()` when no selection was supplied.
 #' @noRd
 paintr_resolve_var_expr <- function(value, meta, context) {
   if (is.null(value)) {
     return(ggpaintr_missing_expr())
   }
 
-  assertthat::assert_that(is.character(value))
-  rlang::parse_expr(value)
+  selected_column <- paintr_validate_var_input(value, meta, context)
+  rlang::sym(selected_column)
 }
 
+#' Build the Default Text Placeholder UI
+#'
+#' @param id Placeholder id.
+#' @param copy Resolved copy for the control.
+#' @param meta Placeholder metadata.
+#' @param context A placeholder context list.
+#'
+#' @return A text input UI control.
 #' @noRd
 paintr_build_text_placeholder_ui <- function(id, copy, meta, context) {
   paintr_attach_help(
@@ -576,6 +613,13 @@ paintr_build_text_placeholder_ui <- function(id, copy, meta, context) {
   )
 }
 
+#' Resolve a `text` Placeholder to a Scalar Character Expression
+#'
+#' @param value A raw text input value.
+#' @param meta Placeholder metadata.
+#' @param context A placeholder context list.
+#'
+#' @return A scalar character expression, or `ggpaintr_missing_expr()`.
 #' @noRd
 paintr_resolve_text_expr <- function(value, meta, context) {
   if (is.null(value) || identical(value, "")) {
@@ -586,6 +630,14 @@ paintr_resolve_text_expr <- function(value, meta, context) {
   rlang::expr(!!value)
 }
 
+#' Build the Default Numeric Placeholder UI
+#'
+#' @param id Placeholder id.
+#' @param copy Resolved copy for the control.
+#' @param meta Placeholder metadata.
+#' @param context A placeholder context list.
+#'
+#' @return A numeric input UI control.
 #' @noRd
 paintr_build_num_placeholder_ui <- function(id, copy, meta, context) {
   paintr_attach_help(
@@ -594,6 +646,13 @@ paintr_build_num_placeholder_ui <- function(id, copy, meta, context) {
   )
 }
 
+#' Resolve a `num` Placeholder to a Numeric Expression
+#'
+#' @param value A raw numeric input value.
+#' @param meta Placeholder metadata.
+#' @param context A placeholder context list.
+#'
+#' @return A numeric expression, or `ggpaintr_missing_expr()`.
 #' @noRd
 paintr_resolve_num_expr <- function(value, meta, context) {
   if (is.na(value) || is.null(value)) {
@@ -604,6 +663,14 @@ paintr_resolve_num_expr <- function(value, meta, context) {
   rlang::expr(!!value)
 }
 
+#' Build the Default Expression Placeholder UI
+#'
+#' @param id Placeholder id.
+#' @param copy Resolved copy for the control.
+#' @param meta Placeholder metadata.
+#' @param context A placeholder context list.
+#'
+#' @return A text input UI control.
 #' @noRd
 paintr_build_expr_placeholder_ui <- function(id, copy, meta, context) {
   paintr_attach_help(
@@ -612,6 +679,13 @@ paintr_build_expr_placeholder_ui <- function(id, copy, meta, context) {
   )
 }
 
+#' Parse a Raw `expr` Placeholder Input
+#'
+#' @param value A raw expression string.
+#' @param meta Placeholder metadata.
+#' @param context A placeholder context list.
+#'
+#' @return A parsed expression, or `ggpaintr_missing_expr()`.
 #' @noRd
 paintr_resolve_expr_expr <- function(value, meta, context) {
   if (is.null(value) || identical(value, "")) {
@@ -621,11 +695,27 @@ paintr_resolve_expr_expr <- function(value, meta, context) {
   rlang::parse_expr(value)
 }
 
+#' Build the Default Upload Placeholder UI
+#'
+#' @param id Placeholder id.
+#' @param copy Resolved copy for the control.
+#' @param meta Placeholder metadata.
+#' @param context A placeholder context list.
+#'
+#' @return A Shiny UI object.
 #' @noRd
 paintr_build_upload_placeholder_ui <- function(id, copy, meta, context) {
   generate_ui_upload(id, copy_rules = context$copy_rules)
 }
 
+#' Resolve Raw Upload Input to an Object Name
+#'
+#' @param input A Shiny input-like object.
+#' @param id Placeholder id.
+#' @param meta Placeholder metadata.
+#' @param context A placeholder context list.
+#'
+#' @return A single object-name string or `""` when no upload is available.
 #' @noRd
 paintr_resolve_upload_input <- function(input, id, meta, context) {
   upload_info <- paintr_resolve_upload_info(input, id, strict = FALSE)
@@ -636,6 +726,13 @@ paintr_resolve_upload_input <- function(input, id, meta, context) {
   upload_info$object_name
 }
 
+#' Resolve an Upload Placeholder to an Expression
+#'
+#' @param value A raw uploaded-object name.
+#' @param meta Placeholder metadata.
+#' @param context A placeholder context list.
+#'
+#' @return A parsed symbol expression, or `ggpaintr_missing_expr()`.
 #' @noRd
 paintr_resolve_upload_expr <- function(value, meta, context) {
   if (is.null(value) || identical(value, "")) {
@@ -645,6 +742,14 @@ paintr_resolve_upload_expr <- function(value, meta, context) {
   rlang::parse_expr(value)
 }
 
+#' Inject Uploaded Data Objects into an Evaluation Environment
+#'
+#' @param input A Shiny input-like object.
+#' @param metas Placeholder metadata records for `upload`.
+#' @param eval_env An evaluation environment.
+#' @param context A placeholder context list.
+#'
+#' @return The updated evaluation environment.
 #' @noRd
 paintr_prepare_upload_eval_env_impl <- function(input, metas, eval_env, context) {
   for (meta in metas) {
@@ -659,6 +764,15 @@ paintr_prepare_upload_eval_env_impl <- function(input, metas, eval_env, context)
   eval_env
 }
 
+#' Resolve the Dataset Object Used by One Layer
+#'
+#' @param paintr_obj A `paintr_obj`.
+#' @param layer_name A parsed layer name.
+#' @param input A Shiny input-like object.
+#' @param context A placeholder context list.
+#' @param eval_env An evaluation environment.
+#'
+#' @return A list with `has_data` and `data`.
 #' @noRd
 paintr_resolve_layer_data <- function(paintr_obj,
                                       layer_name,
@@ -702,20 +816,32 @@ paintr_resolve_layer_data <- function(paintr_obj,
   list(has_data = TRUE, data = data_obj)
 }
 
+#' Detect Whether a Parsed Parameter Refers to `data`
+#'
+#' @param param A parsed parameter value.
+#'
+#' @return A single logical value.
 #' @noRd
 paintr_param_matches_data <- function(param) {
   identical(param, "data") || identical(as.character(param)[1], "data")
 }
 
+#' Build the Available-Column Map for All `var` Placeholders
+#'
+#' @param paintr_obj A `paintr_obj`.
+#' @param input A Shiny input-like object.
+#' @param context A placeholder context list.
+#' @param eval_env An evaluation environment.
+#'
+#' @return A named list keyed by layer name with `has_data` and `columns`.
 #' @noRd
-paintr_bind_var_ui_impl <- function(input, output, metas, context) {
-  paintr_obj <- context$paintr_obj
-  eval_env <- paintr_prepare_eval_env(
-    paintr_obj,
-    input,
-    envir = context$envir
-  )
-  deferred_ui <- list()
+paintr_build_var_column_map <- function(paintr_obj, input, context, eval_env) {
+  var_metas <- paintr_flatten_placeholder_map(paintr_obj, keyword = "var")
+  if (length(var_metas) == 0) {
+    return(list())
+  }
+
+  layer_names <- unique(vapply(var_metas, `[[`, character(1), "layer_name"))
   global_data_info <- paintr_resolve_layer_data(
     paintr_obj,
     "ggplot",
@@ -724,9 +850,7 @@ paintr_bind_var_ui_impl <- function(input, output, metas, context) {
     eval_env
   )
 
-  metas_by_layer <- split(metas, vapply(metas, `[[`, character(1), "layer_name"))
-
-  for (layer_name in names(metas_by_layer)) {
+  column_map <- lapply(layer_names, function(layer_name) {
     layer_data_info <- paintr_resolve_layer_data(
       paintr_obj,
       layer_name,
@@ -742,22 +866,123 @@ paintr_bind_var_ui_impl <- function(input, output, metas, context) {
       global_data_info$data
     }
 
-    if (!has_data) {
-      stop("data is not provided!", call. = FALSE)
+    list(
+      has_data = has_data,
+      columns = if (is.null(layer_data)) NULL else names(layer_data)
+    )
+  })
+
+  rlang::set_names(column_map, layer_names)
+}
+
+#' Validate One `var` Runtime Input
+#'
+#' @param value A selected column name.
+#' @param meta Placeholder metadata.
+#' @param context A placeholder context list.
+#'
+#' @return The validated column name string.
+#' @noRd
+paintr_validate_var_input <- function(value, meta, context) {
+  if (!is.character(value) || length(value) != 1 || is.na(value) || !nzchar(value[[1]])) {
+    stop(
+      paste0("Input '", meta$id, "' must select exactly one column name."),
+      call. = FALSE
+    )
+  }
+
+  column_info <- context$var_column_map[[meta$layer_name]]
+  if (is.null(column_info)) {
+    stop(
+      paste0(
+        "Input '",
+        meta$id,
+        "' cannot be resolved because no dataset information is available for layer '",
+        meta$layer_name,
+        "'."
+      ),
+      call. = FALSE
+    )
+  }
+
+  if (!isTRUE(column_info$has_data) || is.null(column_info$columns)) {
+    stop(
+      paste0(
+        "Input '",
+        meta$id,
+        "' cannot be resolved because data columns are not available for layer '",
+        meta$layer_name,
+        "'."
+      ),
+      call. = FALSE
+    )
+  }
+
+  selected_column <- value[[1]]
+  if (!(selected_column %in% column_info$columns)) {
+    stop(
+      paste0(
+        "Input '",
+        meta$id,
+        "' must match one available column name for layer '",
+        meta$layer_name,
+        "'."
+      ),
+      call. = FALSE
+    )
+  }
+
+  selected_column
+}
+
+#' Bind Deferred `var` Controls for the Current Runtime Context
+#'
+#' @param input A Shiny input-like object.
+#' @param output A Shiny output object.
+#' @param metas Placeholder metadata records for `var`.
+#' @param context A placeholder context list.
+#'
+#' @return A named list of generated `var` UI controls.
+#' @noRd
+paintr_bind_var_ui_impl <- function(input, output, metas, context) {
+  paintr_obj <- context$paintr_obj
+  eval_env <- paintr_prepare_eval_env(
+    paintr_obj,
+    input,
+    envir = context$envir
+  )
+  context$input <- input
+  context$eval_env <- eval_env
+  context$var_column_map <- paintr_build_var_column_map(
+    paintr_obj,
+    input,
+    context,
+    eval_env
+  )
+  deferred_ui <- list()
+
+  metas_by_layer <- split(metas, vapply(metas, `[[`, character(1), "layer_name"))
+
+  for (layer_name in names(metas_by_layer)) {
+    column_info <- context$var_column_map[[layer_name]]
+    if (is.null(column_info)) {
+      column_info <- list(has_data = FALSE, columns = NULL)
     }
 
-    data_var <- if (is.null(layer_data)) NULL else names(layer_data)
+    if (!isTRUE(column_info$has_data)) {
+      stop(
+        paste0(
+          "Variable inputs cannot be rendered because data columns are not available for layer '",
+          layer_name,
+          "'."
+        ),
+        call. = FALSE
+      )
+    }
 
     for (meta in metas_by_layer[[layer_name]]) {
-      copy <- paintr_resolve_copy(
-        "control",
-        keyword = meta$keyword,
-        layer_name = meta$layer_name,
-        param = meta$param,
-        copy_rules = context$copy_rules
-      )
       ui <- generate_ui_var(
-        data_var,
+        column_info$columns,
         meta$id,
         meta$param,
         layer_name = meta$layer_name,

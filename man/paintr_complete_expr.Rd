@@ -14,7 +14,7 @@ paintr_complete_expr(paintr_obj, input, envir = parent.frame())
 \item{envir}{The environment used to resolve local data objects.}
 }
 \value{
-A list with completed expressions, generated code, and eval env.
+A named list with \code{complete_expr_list}, \code{code_text}, and \code{eval_env}.
 }
 \description{
 Complete a Parsed Formula with User Inputs

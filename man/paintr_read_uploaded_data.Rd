@@ -10,7 +10,7 @@ paintr_read_uploaded_data(file_info)
 \item{file_info}{A Shiny \code{fileInput()} value.}
 }
 \value{
-The uploaded object or \code{NULL}.
+A normalized tabular object or \code{NULL} when no file was supplied.
 }
 \description{
 Read Uploaded Paintr Data

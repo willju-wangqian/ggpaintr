@@ -12,10 +12,16 @@ The repo has two clearly separated areas:
 1. active package code for the maintained `ggpaintr` workflow
 2. archived legacy package content under `archive/legacy-package/`
 
+The repo also still contains tracked historical exploratory material under
+`preconsideration/`. It is excluded from the package/build path and is not part
+of the maintained package surface.  
+References: `.gitignore:44-46`, `.Rbuildignore:5-7`
+
 The active package is centered on:
 
 - `R/paintr-app.R`
 - `R/paintr-copy.R`
+- `R/paintr-data.R`
 - `R/paintr-export.R`
 - `R/paintr-parse.R`
 - `R/paintr-placeholders.R`
@@ -85,6 +91,7 @@ The maintained exported package surface is:
 - `ggpaintr_placeholder()`
 - `ggpaintr_effective_placeholders()`
 - `ggpaintr_missing_expr()`
+- `ggpaintr_normalize_column_names()`
 - `paintr_formula()`
 - `paintr_build_runtime()`
 - `paintr_get_plot()`
@@ -202,9 +209,14 @@ Custom placeholders:
 
 Boundary notes:
 
-- `var` currently allows expression-like input, not only plain column names
+- `var` now expects one exact column name from the resolved dataset, while
+  derived mappings such as `var + 1` or `log(var)` stay supported when the
+  transform is written in the formula text around `var`
 - `expr` input must still be valid R code
 - `upload` currently supports `.csv` and `.rds`
+- local non-syntactic column names should be normalized with
+  `ggpaintr_normalize_column_names()`, and uploaded datasets now pass through
+  the same normalization path automatically
 - structurally invalid formulas still block launch
 - formulas using `var` with no data source still block during UI preparation
 - unresolved local data objects are deferred to draw-time inline errors
@@ -225,6 +237,8 @@ References:
 
 - `R/paintr-parse.R:20-77`
 - `R/paintr-placeholders.R:44-131`
+- `R/paintr-placeholders.R:752-854`
+- `R/paintr-data.R:1-121`
 - `R/paintr-placeholders.R:312-449`
 - `R/paintr-placeholders.R:451-509`
 - `R/paintr-upload.R:35-95`

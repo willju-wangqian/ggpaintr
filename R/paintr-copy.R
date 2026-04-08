@@ -152,9 +152,16 @@ paintr_copy_keywords <- function(placeholders = NULL) {
 #' @return A single logical value.
 #' @keywords internal
 paintr_param_is_unnamed <- function(param) {
-  is.null(param) ||
-    identical(param, "") ||
-    (is.list(param) && length(param) >= 1 && is.null(param[[1]]))
+  if (is.null(param) || length(param) == 0) {
+    return(TRUE)
+  }
+
+  if (is.list(param) && length(param) >= 1 && is.null(param[[1]])) {
+    return(TRUE)
+  }
+
+  param_chr <- as.character(param)[1]
+  is.na(param_chr) || identical(param_chr, "")
 }
 
 #' Normalize a Copy Rule Parameter Key

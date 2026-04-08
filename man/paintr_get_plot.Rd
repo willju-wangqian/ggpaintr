@@ -12,7 +12,8 @@ paintr_get_plot(plot_expr_list, envir = parent.frame())
 \item{envir}{The evaluation environment.}
 }
 \value{
-A \code{ggplot} object.
+A \code{ggplot} object assembled from the retained layer expressions.
+Errors when no plot expressions remain after runtime processing.
 }
 \description{
 Build a Plot from Completed Layer Expressions

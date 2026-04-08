@@ -21,6 +21,34 @@ test_that("paintr_get_plot returns ggplot objects for supported formulas", {
   expect_s3_class(plot_obj, "ggplot")
 })
 
+test_that("paintr_get_plot returns a base ggplot when optional layers are unchecked", {
+  obj <- paintr_formula(
+    "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + geom_point()"
+  )
+
+  result <- paintr_complete_expr(
+    obj,
+    list("geom_point+checkbox" = FALSE)
+  )
+  plot_obj <- paintr_get_plot(result$complete_expr_list, envir = result$eval_env)
+
+  expect_s3_class(plot_obj, "ggplot")
+  expect_equal(length(plot_obj$layers), 0)
+  expect_no_match(result$code_text, "geom_point\\(")
+})
+
+test_that("paintr_get_plot errors clearly when no plot expressions remain", {
+  expect_error(
+    paintr_get_plot(NULL),
+    "No plot layers remain after processing the selected inputs\\."
+  )
+
+  expect_error(
+    paintr_get_plot(list()),
+    "No plot layers remain after processing the selected inputs\\."
+  )
+})
+
 test_that("upload-backed formulas can be built into final plots", {
   obj <- paintr_formula(
     "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"

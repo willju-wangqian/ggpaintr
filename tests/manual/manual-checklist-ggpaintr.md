@@ -1,5 +1,8 @@
 # Manual Checklist for `ggpaintr`
 
+For known unresolved boundaries and reproducible edge-case examples, see
+`tests/manual/ggpaintr-edge-cases.Rmd`.
+
 ## Core Shiny checks
 
 1. Launch a `ggpaintr_app()` app with static data and confirm the control tabs render.
@@ -8,6 +11,19 @@
 4. Disable one or more layer checkboxes and confirm the plot and code both update.
 5. Enter a malformed `expr` value and confirm the app shows an inline error instead of failing silently.
 6. Enter a faceting expression with a missing variable such as `~ Speciesasdf` and confirm the inline error channel shows the faceting error instead of raw Shiny `[object Object]`.
+7. Launch a formula such as `aes(x = var + 1, y = log(var))`, confirm the picker still offers only column names, and confirm the generated code shows the selected columns inside those formula-level transforms.
+
+## Local data normalization checks
+
+1. Create a local data frame with spaced or punctuated column names and pass it through `ggpaintr_normalize_column_names()`.
+2. Launch a `ggpaintr_app()` formula against the normalized object.
+3. Confirm the `var` pickers show the normalized names and the plot/code render successfully.
+
+## Unsupported boundary checks
+
+1. Build a formula that uses `var` with no `data = ...` source.
+2. Confirm `register_var_ui_outputs()` fails during UI preparation instead of creating broken `var` controls.
+3. Confirm the error clearly says that data columns are not available for the affected layer.
 
 ## Upload checks
 
@@ -20,6 +36,7 @@
 7. Repeat with a custom dataset name and confirm the custom name is used.
 8. Try `bad_extension.txt` and confirm the app shows a clear inline error without crashing.
 9. Confirm the plot stays empty when upload completion fails.
+10. Confirm upload-backed `var` pickers show normalized column names before draw.
 
 ## Layer-specific upload checks
 

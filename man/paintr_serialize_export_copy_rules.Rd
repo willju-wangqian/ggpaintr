@@ -8,6 +8,9 @@ paintr_serialize_export_copy_rules(copy_rules = NULL, placeholders = NULL)
 }
 \arguments{
 \item{copy_rules}{User-supplied or effective copy rules.}
+
+\item{placeholders}{Placeholder definitions or a placeholder registry used
+to compact placeholder-specific copy overrides.}
 }
 \value{
 A character vector of source lines.

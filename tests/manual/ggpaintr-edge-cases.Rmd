@@ -1,0 +1,134 @@
+---
+title: "ggpaintr Edge-Case Catalog"
+output: html_document
+editor_options:
+  chunk_output_type: console
+---
+
+This internal QA workbook collects philosophy-aligned edge cases that remain
+partly uncovered by the current maintained workflow. It is a companion to
+`tests/manual/manual-test-ggpaintr.Rmd`, not a replacement for the supported
+workflow checks in that workbook.
+
+## How To Use This File
+
+- Run examples from the repo root in a fresh interactive R session.
+- Treat current source code and automated tests as the authority.
+- Update, narrow, or remove an entry when the underlying behavior is fixed or
+  the product boundary is intentionally redefined.
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+```{r helpers}
+library(ggpaintr)
+library(ggplot2)
+
+mock_upload_input <- function(path, name = basename(path), type = "") {
+  data.frame(
+    name = name,
+    size = file.info(path)$size,
+    type = type,
+    datapath = path,
+    stringsAsFactors = FALSE
+  )
+}
+```
+
+## 1. Formula-level `var` transforms versus runtime `var` inputs
+
+Why it matters:
+`var` is a column picker. When users want derived mappings, the transformation
+belongs in the formula itself and the chosen column should slot into that
+formula tree.
+
+Current supported behavior:
+
+- Formulas such as `aes(x = var + 1, y = log(var))` are supported.
+- The shipped `var` UI still offers column names only.
+- Low-level runtime inputs for `var` must now be single column names from the
+  resolved dataset, not arbitrary expressions such as `log(mpg)` or `disp + 1`.
+
+```{r var-formula-transforms}
+obj <- paintr_formula(
+  "ggplot(data = mtcars, aes(x = var + 1, y = log(var))) + geom_point()"
+)
+
+ggpaintr:::paintr_complete_expr(
+  obj,
+  list(
+    "ggplot+3+2+2" = "mpg",
+    "ggplot+3+3+2" = "disp",
+    "geom_point+checkbox" = TRUE
+  )
+)$code_text
+
+ggpaintr:::register_var_ui_outputs(
+  list(),
+  list2env(list(), parent = emptyenv()),
+  obj
+)
+```
+
+Desired behavior:
+
+- Keep formula-level transforms supported.
+- Keep the picker and low-level runtime contract aligned around exact column
+  names.
+
+Suggested automated test location:
+`tests/testthat/test-placeholders.R` and
+`tests/testthat/test-runtime-feedback.R`.
+
+Manual check note:
+Use `tests/manual/manual-test-ggpaintr.Rmd` Formula 2 and Formula 2B for the
+current supported workflow.
+
+## 2. Empty plot-expression runtime paths
+
+Why it matters:
+`paintr_complete_expr()` can legally prune optional layers down to a single
+base `ggplot(...)` call, and internal runtime helpers should fail clearly if a
+truly empty plot-expression list ever reaches `paintr_get_plot()`.
+
+Current supported behavior:
+
+- A base `ggplot(...)` with every optional layer unchecked is a valid success
+  case and should still render.
+- A truly empty plot-expression list is not a supported final plot and should
+  surface a readable plot-stage error rather than a brittle internal indexing
+  failure.
+- The shipped UI does not intentionally expose a normal end-user path that
+  produces a completely empty plot-expression list.
+
+```{r empty-plot-runtime-paths}
+single_layer_runtime <- list(
+  quote(ggplot2::ggplot(iris, ggplot2::aes(Sepal.Length, Sepal.Width)))
+)
+
+ggpaintr:::paintr_get_plot(single_layer_runtime)
+
+tryCatch(
+  ggpaintr:::paintr_get_plot(NULL),
+  error = function(e) conditionMessage(e)
+)
+```
+
+Desired behavior:
+
+- Keep single-expression plot assembly stable.
+- Keep truly empty plot input as a readable plot-stage failure.
+- Cover the internal empty-input path primarily with automated tests.
+
+Suggested automated test location:
+`tests/testthat/test-plot-build.R` and
+`tests/testthat/test-runtime-feedback.R`.
+
+Manual check note:
+Use the Runtime Assembly Edge Cases section in
+`tests/manual/manual-test-ggpaintr.Rmd` for the supported single-layer UI path.

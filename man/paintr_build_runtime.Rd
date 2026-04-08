@@ -14,8 +14,10 @@ paintr_build_runtime(paintr_obj, input, envir = parent.frame())
 \item{envir}{The environment used to resolve local data objects.}
 }
 \value{
-A runtime result list containing success flag, stage, plot, code,
-and readable error details.
+A runtime result list containing \code{ok}, \code{stage}, \code{message},
+\code{code_text}, \code{complete_expr_list}, \code{eval_env}, \code{condition}, and \code{plot}.
+Completion-stage validation failures return \code{stage = "complete"};
+plot-construction or render failures return \code{stage = "plot"}.
 }
 \description{
 Build the Full Runtime Result for a Paintr App

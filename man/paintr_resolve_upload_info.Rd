@@ -14,7 +14,8 @@ paintr_resolve_upload_info(input, upload_id, strict = FALSE)
 \item{strict}{Whether missing uploads should error.}
 }
 \value{
-A list with data, object name, file name, and generated code text.
+A list with \code{data}, \code{object_name}, \code{file_name}, and \code{code_text}, or
+\code{NULL} when \code{strict = FALSE} and no upload was supplied.
 }
 \description{
 Resolve Uploaded Dataset Metadata

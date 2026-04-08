@@ -175,19 +175,24 @@ encode_id <- function(index_path, func_name) {
 get_expr_param <- function(.expr, .path) {
   if (length(.path) > 1) {
     current_index <- .path[1]
-    if (is.null(names(.expr[[current_index]])) &&
-        expr_type(.expr[[current_index]]) == "call") {
-      return(get_expr_param(.expr[[current_index]], .path[-1]))
+    current_expr <- .expr[[current_index]]
+    current_names <- names(current_expr)
+
+    if (is.call(current_expr) && is.null(current_names)) {
+      return(get_expr_param(current_expr, .path[-1]))
     }
 
-    if (!is.null(names(.expr[[current_index]]))) {
-      return(names(.expr[[current_index]])[.path[2]])
+    if (!is.null(current_names)) {
+      return(current_names[.path[2]])
     }
-  } else if (!is.null(names(.expr))) {
-    return(names(.expr)[.path])
   }
 
-  list(NULL)
+  expr_names <- names(.expr)
+  if (!is.null(expr_names)) {
+    return(expr_names[.path])
+  }
+
+  NULL
 }
 
 #' Remove Placeholder Marker Symbols

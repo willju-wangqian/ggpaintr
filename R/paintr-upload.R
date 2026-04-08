@@ -30,7 +30,7 @@ paintr_upload_default_name <- function(file_name) {
 #'
 #' @param file_info A Shiny `fileInput()` value.
 #'
-#' @return The uploaded object or `NULL`.
+#' @return A normalized tabular object or `NULL` when no file was supplied.
 #' @keywords internal
 paintr_read_uploaded_data <- function(file_info) {
   if (is.null(file_info) || is.null(file_info$datapath) || is.null(file_info$name)) {
@@ -39,11 +39,14 @@ paintr_read_uploaded_data <- function(file_info) {
 
   ext <- tolower(tools::file_ext(file_info$name))
   if (ext == "csv") {
-    return(utils::read.csv(file_info$datapath))
+    return(ggpaintr_normalize_column_names(utils::read.csv(file_info$datapath)))
   }
 
   if (ext == "rds") {
-    return(readRDS(file_info$datapath))
+    return(paintr_normalize_tabular_data(
+      readRDS(file_info$datapath),
+      source = "Uploaded data"
+    ))
   }
 
   stop("Please upload a .csv or .rds file.", call. = FALSE)
@@ -55,7 +58,8 @@ paintr_read_uploaded_data <- function(file_info) {
 #' @param upload_id The upload placeholder id.
 #' @param strict Whether missing uploads should error.
 #'
-#' @return A list with data, object name, file name, and generated code text.
+#' @return A list with `data`, `object_name`, `file_name`, and `code_text`, or
+#'   `NULL` when `strict = FALSE` and no upload was supplied.
 #' @keywords internal
 paintr_resolve_upload_info <- function(input, upload_id, strict = FALSE) {
   file_info <- input[[upload_id]]
@@ -94,29 +98,14 @@ paintr_resolve_upload_info <- function(input, upload_id, strict = FALSE) {
   )
 }
 
-#' Return Uploaded Data Only
-#'
-#' @param input A Shiny input-like object.
-#' @param upload_id The upload placeholder id.
-#'
-#' @return The uploaded object or `NULL`.
-#' @keywords internal
-paintr_get_uploaded_data <- function(input, upload_id) {
-  upload_info <- paintr_resolve_upload_info(input, upload_id, strict = FALSE)
-  if (is.null(upload_info)) {
-    return(NULL)
-  }
-
-  upload_info$data
-}
-
 #' Clone an Evaluation Environment and Inject Uploads
 #'
 #' @param paintr_obj A `paintr_obj`.
 #' @param input A Shiny input-like object.
 #' @param envir A parent environment.
 #'
-#' @return An evaluation environment containing uploaded datasets.
+#' @return An evaluation environment containing uploaded datasets and any other
+#'   placeholder-provided objects.
 #' @keywords internal
 paintr_prepare_eval_env <- function(paintr_obj, input, envir = parent.frame()) {
   eval_env <- rlang::env_clone(envir)

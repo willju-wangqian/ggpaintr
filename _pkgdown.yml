@@ -30,6 +30,9 @@ reference:
       - ggpaintr_placeholder
       - ggpaintr_effective_placeholders
       - ggpaintr_missing_expr
+  - title: Data preparation
+    contents:
+      - ggpaintr_normalize_column_names
   - title: Formula and runtime
     contents:
       - paintr_formula

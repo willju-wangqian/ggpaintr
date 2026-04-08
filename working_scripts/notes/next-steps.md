@@ -6,12 +6,7 @@ This file tracks the prioritized follow-up work for the maintained package.
 
 ## Current priorities
 
-1. Column-name robustness
-   - improve `var` handling for spaces and other non-syntactic names
-   - align static-data and upload-data behavior
-   - add focused tests for spaced and non-standard names
-
-2. Phase-3 extensibility follow-up
+1. Phase-3 extensibility follow-up
    - decide whether to layer Shiny modules on top of the current id-based
      `ggpaintr_*` integration helpers rather than replacing them
    - decide whether to expose any higher-level helper constructors for common
@@ -25,7 +20,7 @@ This file tracks the prioritized follow-up work for the maintained package.
      Reference: `R/paintr-app.R:191-567`, `R/paintr-placeholders.R:44-131`,
      `R/paintr-placeholders.R:457-509`, `_pkgdown.yml:7-48`
 
-3. Documentation and submission workflow
+2. Documentation and submission workflow
    - keep `README.Rmd` as the editable README source and re-knit `README.md`
      after README source changes  
      Reference: `README.Rmd:1-5`
@@ -38,6 +33,14 @@ This file tracks the prioritized follow-up work for the maintained package.
      Reference: `tests/manual/manual-test-ggpaintr.Rmd:602-841`,
      `tests/manual/manual-checklist-ggpaintr.md:58-79`
 
+3. Historical material cleanup
+   - decide whether tracked exploratory material under `preconsideration/`
+     should remain as explicit repo history or move into a clearer archive path
+   - keep non-maintained historical material clearly separated from the
+     maintained package surface even if it stays tracked
+   - keep archive content, exploratory utilities, and the active package path
+     visually distinct for fresh-session re-entry
+
 4. Copy-rule ergonomics
    - review whether the current defaults and examples cover enough common
      parameters, layer-specific unnamed arguments, and custom-placeholder copy
@@ -49,17 +52,12 @@ This file tracks the prioritized follow-up work for the maintained package.
      `tests/testthat/test-copy-rules.R`,
      `tests/testthat/test-placeholder-registry.R:64-100`
 
-5. Non-package cleanup
-   - decide whether old exploratory `working_scripts/` and
-     `tests/manual/shiny_export_trial/` files that still mention `paintr2`
-     should be renamed, archived, or left as historical utilities
-   - keep archive content and non-active historical material clearly separated
-     from the maintained package surface
-
 ## Near-term exit conditions
 
-- the current `ggpaintr_*` integration surface remains documented and covered by
-  focused automated tests
+- the current `ggpaintr_*` integration surface remains documented and covered
+  by focused automated tests
+- durable notes reflect the current exported surface, current runtime
+  semantics, and latest verification status
 - the placeholder registry remains a stable contributor-facing extensibility
   path without breaking the existing phase-1 integration API
 - `NAMESPACE`, `man/`, and `docs/` are regenerated from the active source

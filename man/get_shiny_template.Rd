@@ -10,6 +10,9 @@ get_shiny_template(formula_text, copy_rules = NULL, placeholders = NULL)
 \item{formula_text}{A single formula string.}
 
 \item{copy_rules}{Effective or user-supplied copy rules.}
+
+\item{placeholders}{Optional custom placeholder definitions or an effective
+placeholder registry.}
 }
 \value{
 A character vector containing the exported app template.

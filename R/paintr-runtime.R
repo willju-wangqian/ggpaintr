@@ -1,3 +1,66 @@
+#' Build the Runtime Checkbox Input Id for One Layer
+#'
+#' @param layer_name A parsed non-`ggplot` layer name.
+#'
+#' @return A single input id string.
+#' @noRd
+paintr_checkbox_input_id <- function(layer_name) {
+  paste0(layer_name, "+checkbox")
+}
+
+#' Validate One Layer Checkbox Runtime Input
+#'
+#' @param layer_name A parsed non-`ggplot` layer name.
+#' @param input A Shiny input-like object.
+#'
+#' @return A single logical value.
+#' @noRd
+paintr_validate_layer_checkbox_input <- function(layer_name, input) {
+  checkbox_id <- paintr_checkbox_input_id(layer_name)
+  checkbox_value <- input[[checkbox_id]]
+
+  if (is.null(checkbox_value)) {
+    stop(
+      paste0(
+        "Missing required runtime input '",
+        checkbox_id,
+        "'. paintr_build_runtime() requires an explicit TRUE/FALSE value for every non-ggplot layer."
+      ),
+      call. = FALSE
+    )
+  }
+
+  if (!is.logical(checkbox_value) || length(checkbox_value) != 1 || is.na(checkbox_value)) {
+    stop(
+      paste0(
+        "Runtime input '",
+        checkbox_id,
+        "' must be a single TRUE/FALSE value."
+      ),
+      call. = FALSE
+    )
+  }
+
+  checkbox_value
+}
+
+#' Validate Checkbox Inputs for Every Optional Layer
+#'
+#' @param paintr_obj A `paintr_obj`.
+#' @param input A Shiny input-like object.
+#'
+#' @return Invisibly returns `NULL`.
+#' @noRd
+paintr_validate_layer_checkbox_inputs <- function(paintr_obj, input) {
+  layer_names <- setdiff(names(paintr_obj$expr_list), "ggplot")
+
+  for (layer_name in layer_names) {
+    paintr_validate_layer_checkbox_input(layer_name, input)
+  }
+
+  invisible(NULL)
+}
+
 #' Apply a Layer Checkbox Result
 #'
 #' @param expr A layer expression.
@@ -11,8 +74,7 @@ expr_apply_checkbox_result <- function(expr, nn, input) {
     return(expr)
   }
 
-  checkbox_id <- paste0(nn, "+checkbox")
-  if (isTRUE(input[[checkbox_id]])) {
+  if (isTRUE(input[[paintr_checkbox_input_id(nn)]])) {
     expr
   } else {
     NULL
@@ -25,7 +87,7 @@ expr_apply_checkbox_result <- function(expr, nn, input) {
 #' @param input A Shiny input-like object.
 #' @param envir The environment used to resolve local data objects.
 #'
-#' @return A list with completed expressions, generated code, and eval env.
+#' @return A named list with `complete_expr_list`, `code_text`, and `eval_env`.
 #' @keywords internal
 paintr_complete_expr <- function(paintr_obj, input, envir = parent.frame()) {
   assertthat::assert_that(inherits(paintr_obj, "paintr_obj"))
@@ -33,6 +95,14 @@ paintr_complete_expr <- function(paintr_obj, input, envir = parent.frame()) {
   paintr_processed_expr_list <- paintr_obj[["expr_list"]]
   eval_env <- paintr_prepare_eval_env(paintr_obj, input, envir = envir)
   context <- paintr_placeholder_context(paintr_obj, copy_rules = NULL, envir = envir)
+  context$input <- input
+  context$eval_env <- eval_env
+  context$var_column_map <- paintr_build_var_column_map(
+    paintr_obj,
+    input,
+    context,
+    eval_env
+  )
   placeholder_metas <- paintr_flatten_placeholder_map(paintr_obj)
 
   for (meta in placeholder_metas) {
@@ -45,6 +115,7 @@ paintr_complete_expr <- function(paintr_obj, input, envir = parent.frame()) {
 
   paintr_processed_expr_list <- lapply(paintr_processed_expr_list, expr_remove_null)
   paintr_processed_expr_list <- lapply(paintr_processed_expr_list, expr_remove_emptycall2)
+  paintr_validate_layer_checkbox_inputs(paintr_obj, input)
   paintr_processed_expr_list <- purrr::map2(
     paintr_processed_expr_list,
     names(paintr_processed_expr_list),
@@ -68,7 +139,8 @@ paintr_complete_expr <- function(paintr_obj, input, envir = parent.frame()) {
 #' @param plot_expr_list A list of completed plot layer expressions.
 #' @param envir The evaluation environment.
 #'
-#' @return A `ggplot` object.
+#' @return A `ggplot` object assembled from the retained layer expressions.
+#'   Errors when no plot expressions remain after runtime processing.
 #' @examples
 #' library(ggplot2)
 #'
@@ -80,10 +152,27 @@ paintr_complete_expr <- function(paintr_obj, input, envir = parent.frame()) {
 #' inherits(plot_obj, "ggplot")
 #' @export
 paintr_get_plot <- function(plot_expr_list, envir = parent.frame()) {
-  plot_list <- lapply(plot_expr_list, eval, envir = envir)
-  p <- plot_list[[1]]
+  if (is.null(plot_expr_list) || length(plot_expr_list) == 0) {
+    stop(
+      "No plot layers remain after processing the selected inputs.",
+      call. = FALSE
+    )
+  }
 
-  for (i in 2:length(plot_list)) {
+  plot_list <- lapply(plot_expr_list, eval, envir = envir)
+  if (length(plot_list) == 0) {
+    stop(
+      "No plot layers remain after processing the selected inputs.",
+      call. = FALSE
+    )
+  }
+
+  p <- plot_list[[1]]
+  if (length(plot_list) == 1) {
+    return(p)
+  }
+
+  for (i in seq.int(2, length(plot_list))) {
     p <- p + plot_list[[i]]
   }
 
@@ -116,6 +205,23 @@ paintr_format_runtime_message <- function(stage, condition = NULL, message = NUL
   }
 
   paste0(stage_label, ": ", detail)
+}
+
+#' Apply a Structured Runtime Failure to a Result Object
+#'
+#' @param runtime_result A runtime result list.
+#' @param stage The failure stage.
+#' @param condition A condition object.
+#'
+#' @return An updated runtime result.
+#' @keywords internal
+paintr_mark_runtime_failure <- function(runtime_result, stage, condition) {
+  runtime_result$ok <- FALSE
+  runtime_result$stage <- stage
+  runtime_result$message <- paintr_format_runtime_message(stage, condition)
+  runtime_result$condition <- condition
+  runtime_result$plot <- NULL
+  runtime_result
 }
 
 #' Safely Complete a Parsed Formula
@@ -178,14 +284,7 @@ paintr_get_plot_safe <- function(runtime_result, envir = parent.frame()) {
       runtime_result$plot <- paintr_get_plot(runtime_result$complete_expr_list, envir = plot_env)
       runtime_result
     },
-    error = function(e) {
-      runtime_result$ok <- FALSE
-      runtime_result$stage <- "plot"
-      runtime_result$message <- paintr_format_runtime_message("plot", e)
-      runtime_result$condition <- e
-      runtime_result$plot <- NULL
-      runtime_result
-    }
+    error = function(e) paintr_mark_runtime_failure(runtime_result, "plot", e)
   )
 }
 
@@ -205,14 +304,7 @@ paintr_validate_plot_render_safe <- function(runtime_result) {
       ggplot2::ggplot_build(runtime_result$plot)
       runtime_result
     },
-    error = function(e) {
-      runtime_result$ok <- FALSE
-      runtime_result$stage <- "plot"
-      runtime_result$message <- paintr_format_runtime_message("plot", e)
-      runtime_result$condition <- e
-      runtime_result$plot <- NULL
-      runtime_result
-    }
+    error = function(e) paintr_mark_runtime_failure(runtime_result, "plot", e)
   )
 }
 
@@ -222,8 +314,10 @@ paintr_validate_plot_render_safe <- function(runtime_result) {
 #' @param input A Shiny input-like object.
 #' @param envir The environment used to resolve local data objects.
 #'
-#' @return A runtime result list containing success flag, stage, plot, code,
-#'   and readable error details.
+#' @return A runtime result list containing `ok`, `stage`, `message`,
+#'   `code_text`, `complete_expr_list`, `eval_env`, `condition`, and `plot`.
+#'   Completion-stage validation failures return `stage = "complete"`;
+#'   plot-construction or render failures return `stage = "plot"`.
 #' @examples
 #' library(ggplot2)
 #'

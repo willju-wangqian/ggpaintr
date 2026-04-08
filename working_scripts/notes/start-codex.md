@@ -96,4 +96,4 @@ Working rules:
 - Do not update `working_scripts/notes/developer-notes.md` unless the user
   explicitly asks for edits to that file.
 - Be concise but concrete.
-- Trigger the notify hook when you finish.
+- Trigger the notify hook when you finish or before asking my input.

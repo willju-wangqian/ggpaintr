@@ -35,3 +35,36 @@ test_that("paintr_complete_expr errors on malformed expr input", {
     paintr_complete_expr(obj, input)
   )
 })
+
+test_that("paintr_complete_expr requires explicit layer checkbox inputs", {
+  obj <- paintr_formula(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  )
+
+  input <- list(
+    "ggplot+3+2" = "mpg",
+    "ggplot+3+3" = "disp"
+  )
+
+  expect_error(
+    paintr_complete_expr(obj, input),
+    "geom_point\\+checkbox"
+  )
+})
+
+test_that("paintr_complete_expr rejects invalid layer checkbox inputs", {
+  obj <- paintr_formula(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  )
+
+  input <- list(
+    "ggplot+3+2" = "mpg",
+    "ggplot+3+3" = "disp",
+    "geom_point+checkbox" = "yes"
+  )
+
+  expect_error(
+    paintr_complete_expr(obj, input),
+    "single TRUE/FALSE value"
+  )
+})

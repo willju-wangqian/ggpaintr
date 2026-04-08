@@ -11,6 +11,7 @@ It aligns with:
 
 -   `working_scripts/notes/testing-strategy.md`
 -   `tests/manual/manual-checklist-ggpaintr.md`
+-   `tests/manual/ggpaintr-edge-cases.Rmd`
 
 Current automated coverage for runtime feedback and the copy-rule system already includes:
 
@@ -31,6 +32,21 @@ See:
 -   `tests/testthat/test-copy-rules.R`
 -   `tests/testthat/test-extensibility.R`
 -   `tests/testthat/test-placeholder-registry.R`
+
+## Coverage Map
+
+This workbook is intended to cover the maintained `ggpaintr` surface end to end.
+Use the sections below as the canonical manual sweep for:
+
+-   core app flow, plot updates, generated code, and layer toggles
+-   built-in placeholders: `var`, `text`, `num`, `expr`, and `upload`
+-   runtime error feedback, recovery, and plot-stage failure behavior
+-   default copy rules and targeted `copy_rules` overrides
+-   exported app behavior for default and customized apps
+-   embedded `ggpaintr_server_state()` / bind-helper integrations
+-   custom plot rendering with `ggpaintr_plot_value()`
+-   custom placeholder registration and exported custom-placeholder apps
+-   companion edge-case follow-up in `tests/manual/ggpaintr-edge-cases.Rmd`
 
 ## How To Use This Workbook
 
@@ -103,6 +119,10 @@ sales_manual <- data.frame(
   segment = c("A", "A", "B", "B", "C", "C")
 )
 
+spaced_manual <- data.frame(left = 1:4, right = c(2, 4, 6, 8), check.names = FALSE)
+names(spaced_manual) <- c("first column", "second column")
+spaced_manual_clean <- ggpaintr_normalize_column_names(spaced_manual)
+
 date_placeholder <- ggpaintr_placeholder(
   keyword = "date",
   build_ui = function(id, copy, meta, context) {
@@ -172,6 +192,10 @@ Recommended RStudio flow:
 -   perform the listed checks
 -   close the app window before continuing
 
+Use `tests/manual/ggpaintr-edge-cases.Rmd` for known unresolved boundaries that
+need repro code or follow-up testing rather than ordinary pass/fail workbook
+checks.
+
 ## Formula 1: Static All-Placeholders Interaction
 
 This app is the main static-data interaction sweep. It exercises `var`, `text`, `num`, `expr`, `outputCode`, and layer checkbox behavior in one place.
@@ -208,13 +232,16 @@ Expected checks:
 -   Clearing `legend.position` removes that theme argument from the generated code.
 -   Unchecking `geom_point`, `labs`, `facet_wrap`, or `theme` removes that layer from both the plot and the code.
 
-## Formula 2: `var` Expression Input
+## Formula 2: `var` Picker Boundary
 
-This app checks the current behavior where `var` accepts expression-like input, not just plain column names.
+This app checks the shipped UI behavior for `var`. The default control is a
+single-column picker backed by the current dataset, not a free-text expression
+editor. Derived mappings belong in the formula text around `var`, not in the
+picker input itself.
 
 ```{r formula-2, eval=FALSE}
 ggpaintr_app("
-ggplot(data = mtcars, aes(x = log(var), y = var + 1)) +
+ggplot(data = mtcars, aes(x = var, y = var)) +
   geom_point() +
   labs(title = text)
 ")
@@ -222,15 +249,71 @@ ggplot(data = mtcars, aes(x = log(var), y = var + 1)) +
 
 Suggested manual inputs:
 
--   `x = log(mpg)`
--   `y = disp + 1`
--   `title = var expression test`
+-   open the `x` and `y` pickers and inspect the available choices
+-   `x = mpg`
+-   `y = disp`
+-   `title = var picker boundary`
 
 Expected checks:
 
--   The plot draws successfully with expression-like `var` inputs.
--   `outputCode` contains `log(mpg)` for `x`.
--   `outputCode` contains `disp + 1` for `y`.
+-   Each `var` control shows dataset column names instead of a free-text box.
+-   Arbitrary expressions such as `log(mpg)` or `disp + 1` are not offered by
+    the shipped control.
+-   The plot draws successfully with column selections.
+-   `outputCode` reflects the selected columns.
+
+## Formula 2B: Formula-Level `var` Transforms
+
+This app checks the supported derived-mapping workflow for `var`. The picker
+still supplies column names, while the formula carries the transformation.
+
+```{r formula-2c, eval=FALSE}
+ggpaintr_app("
+ggplot(data = mtcars, aes(x = var + 1, y = log(var))) +
+  geom_point() +
+  labs(title = text)
+")
+```
+
+Suggested manual inputs:
+
+-   `x = mpg`
+-   `y = disp`
+-   `title = transformed var mapping`
+
+Expected checks:
+
+-   The `x` picker still offers only column names such as `mpg`.
+-   The `y` picker still offers only column names such as `disp`.
+-   The plot draws successfully after substituting those columns into the
+    formula-level transforms.
+-   `outputCode` shows expressions such as `mpg + 1` and `log(disp)`.
+
+## Formula 2C: Local Column Normalization
+
+This app checks the supported local-data workflow for non-syntactic column
+names. Normalize the data first, then let the shipped `var` picker expose the
+cleaned names.
+
+```{r formula-2b, eval=FALSE}
+ggpaintr_app("
+ggplot(data = spaced_manual_clean, aes(x = var, y = var)) +
+  geom_point() +
+  labs(title = text)
+")
+```
+
+Suggested manual inputs:
+
+-   `x = first_column`
+-   `y = second_column`
+-   `title = normalized local data`
+
+Expected checks:
+
+-   The `var` controls show `first_column` and `second_column`.
+-   The plot draws successfully with the normalized local object.
+-   `outputCode` uses the normalized column names.
 
 ## Formula 3: Global Upload
 
@@ -261,6 +344,7 @@ Expected checks:
 -   With a blank dataset name, the generated code uses a filename-derived object name.
 -   With a custom dataset name, the generated code uses `manual_upload_data`.
 -   The app draws successfully for both `.csv` and `.rds`.
+-   Uploaded column choices stay normalized before they reach the `var` pickers.
 -   The bad-extension upload shows a clear inline error without crashing the session.
 -   When upload completion fails, the plot does not render.
 
@@ -419,6 +503,31 @@ Expected checks:
 -   The plot renders normally after recovery.
 -   `outputCode` updates to the valid faceting code.
 -   The session remains usable without restart.
+
+## Runtime Assembly Edge Cases
+
+Use these checks to confirm that runtime layer pruning still produces stable
+plot assembly.
+
+Suggested manual sequence:
+
+-   Re-run Formula 1.
+-   Uncheck `geom_point`, `labs`, `facet_wrap`, and `theme`.
+-   Click `draw`.
+-   Re-run Formula 3 or Formula 4.
+-   Disable every optional non-`ggplot` layer and click `draw` again.
+
+Expected checks:
+
+-   A base `ggplot(...)` call with every optional layer unchecked still renders
+    as a valid blank plot instead of showing an inline error.
+-   `outputCode` keeps only the retained `ggplot(...)` call after those layers
+    are removed.
+-   The app remains responsive after toggling layers back on and drawing again.
+-   There is no user-facing workflow in the shipped app that intentionally
+    produces a truly empty plot-expression list; keep that internal runtime path
+    covered through automated tests and the companion notes in
+    `tests/manual/ggpaintr-edge-cases.Rmd`.
 
 ## Exported App Error Feedback Check
 
@@ -819,10 +928,15 @@ Expected checks:
 
 ## Final Checklist
 
+-   The manual sweep covers wrapper apps, upload flows, copy rules, export,
+    embedded/bind-helper integrations, custom plot rendering, and custom
+    placeholders.
 -   Plot updates after clicking `draw`.
 -   `outputCode` matches the active inputs.
 -   Blank optional `text`, `num`, and `expr` values disappear cleanly from generated code where expected.
 -   Unchecked layers disappear from both the plot and `outputCode`.
+-   Unchecking every optional layer still leaves a valid base `ggplot(...)`
+    render instead of a brittle runtime failure.
 -   Upload-backed `var` controls appear only after valid upload.
 -   Default upload naming works when the dataset name box is blank.
 -   Custom upload naming works when a dataset name is provided.
@@ -839,3 +953,5 @@ Expected checks:
 -   Custom `renderPlot()` workflows can use `ggpaintr_plot_value()` and keep the rest of the default runtime behavior intact.
 -   Custom placeholder controls render correctly, participate in code generation, and work alongside built-in placeholders.
 -   Exported custom-placeholder apps rebuild `custom_placeholders` and preserve their custom copy text.
+-   Remaining internal-only or philosophy-boundary edge cases are reviewed in
+    `tests/manual/ggpaintr-edge-cases.Rmd`.

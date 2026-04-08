@@ -9,7 +9,7 @@ test_that("formulas with var and no data fail during UI preparation", {
 
   expect_error(
     register_var_ui_outputs(list(), list2env(list(), parent = emptyenv()), obj),
-    "data is not provided!"
+    "Variable inputs cannot be rendered because data columns are not available"
   )
 })
 
