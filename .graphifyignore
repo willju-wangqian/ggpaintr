@@ -1,0 +1,3 @@
+# Exclude legacy source trees from Graphify ingestion.
+/archive/
+/preconsideration/

@@ -70,7 +70,7 @@ docker compose -f docker-compose.codex.yml run --rm codex-publication shell
 The compose file mounts:
 
 - the repo at `/workspace/ggpaintr`
-- `${HOME}/.codex` at `/tmp/codex-home/.codex` for Codex credentials/config
+- `${HOME}/.codex` at `/tmp/.codex` for Codex credentials/config
 
 Passing `UID` and `GID` from the host is recommended so pkgdown and other
 verification steps write files with your host user instead of leaving behind

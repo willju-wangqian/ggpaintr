@@ -10,19 +10,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
     jq \
+    libgit2-dev \
     libcurl4-openssl-dev \
     libfontconfig1-dev \
     libfreetype6-dev \
     libfribidi-dev \
     libharfbuzz-dev \
+    libicu-dev \
     libjpeg-dev \
     libpng-dev \
     libssl-dev \
     libtiff5-dev \
+    libx11-dev \
     libxml2-dev \
     pandoc \
     qpdf \
     ripgrep \
+    zlib1g-dev \
     tini \
     && rm -rf /var/lib/apt/lists/*
 

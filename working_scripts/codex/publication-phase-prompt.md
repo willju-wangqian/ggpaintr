@@ -15,6 +15,8 @@ Requirements:
   conservative assumptions and proceed
 - you may use up to `__AGENT_COUNT__` subagents in parallel when helpful, with
   disjoint ownership and no duplicate work
+- if `devtools` is unavailable in the runtime environment, use equivalent
+  commands built from `roxygen2`, `pkgload`, and `rcmdcheck`
 
 Execution guidance:
 

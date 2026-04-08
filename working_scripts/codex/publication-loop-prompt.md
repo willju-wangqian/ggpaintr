@@ -20,6 +20,9 @@ Requirements:
 - do not edit stored prompt-library files under `working_scripts/notes/prompts/`
 - keep tests, README/vignettes/manual docs, and generated artifacts in sync when
   behavior changes
+- if `devtools` is unavailable in the runtime environment, use equivalent
+  commands built from `roxygen2`, `pkgload`, and `rcmdcheck` rather than
+  treating that as a blocker by itself
 
 Execution guidance:
 
