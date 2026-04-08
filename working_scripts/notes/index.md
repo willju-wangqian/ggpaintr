@@ -48,6 +48,13 @@ Only load the other note files when the triggers below apply.
 - copy-paste session-start prompt
 - not the main durable memory file once a session is running
 
+`working_scripts/notes/prompts/publication-readiness-cran-prep-prompt.md`
+- stored strict review prompt for future publication/community-readiness
+  assessment
+- read only when the user explicitly asks for that prompt or asks for a strict
+  publication-readiness / CRAN-prep style package review
+- do not edit unless the user explicitly asks
+
 `working_scripts/notes/developer-notes.md`
 - developer-maintained scratchpad
 - not part of the canonical AI memory system

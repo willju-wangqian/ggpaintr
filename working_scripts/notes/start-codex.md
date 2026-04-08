@@ -19,6 +19,9 @@ Load additional notes only when needed:
   README/pkgdown/manual-sync work, or acceptance expectations
 - `working_scripts/notes/next-steps.md` for planning, prioritization, or
   "what next" questions
+- `working_scripts/notes/prompts/publication-readiness-cran-prep-prompt.md`
+  only when the user explicitly asks for that stored prompt or asks for a
+  strict publication-readiness / CRAN-prep style package review
 - do not auto-read `working_scripts/notes/developer-notes.md`; only read it if
   the user explicitly asks
 
@@ -80,6 +83,8 @@ Working rules:
   `tests/manual/manual-test-ggpaintr.Rmd` and
   `tests/manual/manual-checklist-ggpaintr.md`.
 - Do not create extra ad hoc markdown notes unless the schema allows it.
+- Do not edit stored prompt-library files under `working_scripts/notes/prompts/`
+  unless the user explicitly asks.
 - Do not update `working_scripts/notes/developer-notes.md` unless the user
   explicitly asks for edits to that file.
 - Be concise but concrete.

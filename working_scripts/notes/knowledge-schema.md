@@ -56,6 +56,7 @@ These are not part of the operational note system:
 - `tests/manual/manual-checklist-ggpaintr.md`
 - `tests/manual/manual-test-ggpaintr.Rmd`
 - `working_scripts/notes/developer-notes.md`
+- stored prompt-library files under `working_scripts/notes/prompts/`
 - app/package content docs under `inst/`
 - older note files that are kept only for history or compatibility
 
@@ -112,10 +113,15 @@ These are not part of the operational note system:
 - Do not create new ad hoc markdown files in the active notes root for one-off
   feature work.
 - Temporary deep-dive notes should go to an archive area, not the active root.
+- Reusable stored prompts may live under `working_scripts/notes/prompts/` when
+  they support repeated future workflows and are kept out of the default startup
+  path.
 - Completed work belongs in `current-status.md`, not in `next-steps.md`.
 - Stable policy belongs in `testing-strategy.md`, not in `current-status.md`.
 - Durable routing rules belong in `index.md`, not duplicated across every note.
 - Starter instructions belong only in `start-codex.md`.
+- Stored prompt-library files under `working_scripts/notes/prompts/` should stay
+  unchanged unless the user explicitly asks to edit them.
 - `developer-notes.md` is developer-maintained only and should not be updated by
   AI tools unless the user explicitly requests edits to that file.
 
