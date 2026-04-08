@@ -10,4 +10,8 @@ R -q -e "pak::pkg_install(c('local::.', 'testthat', 'rmarkdown', 'knitr', 'pkgdo
 echo
 echo "Container bootstrap finished."
 echo "Repo: /workspace/ggpaintr"
-echo "Codex: $(codex --version | tail -n 1)"
+if codex_version="$(codex --version 2>/dev/null | tail -n 1)"; then
+  echo "Codex: $codex_version"
+else
+  echo "Codex: failed to start"
+fi
