@@ -1,159 +1,74 @@
 # Current Status
 
-## Project state
+## Snapshot
 
-`ggpaintr` is maintained as a single package surface.
-
-Public entry points now fall into three groups:
-
-- default wrapper and runtime surface:
-  `ggpaintr_app()`, `ggpaintr_server()`, `paintr_formula()`,
-  `paintr_build_runtime()`, `paintr_get_plot()`, and `generate_shiny()`  
-  Reference: `R/paintr-app.R:513-567`, `R/paintr-parse.R:20-77`,
-  `R/paintr-runtime.R:232-240`, `R/paintr-export.R:229-252`,
-  `NAMESPACE:3-26`
-- phase-1 Shiny integration surface:
-  `ggpaintr_ids()`, `ggpaintr_server_state()`,
-  `ggpaintr_bind_control_panel()`, `ggpaintr_bind_draw()`,
-  `ggpaintr_bind_export()`, `ggpaintr_bind_plot()`,
-  `ggpaintr_bind_error()`, `ggpaintr_bind_code()`,
-  `ggpaintr_plot_value()`, `ggpaintr_error_value()`,
-  `ggpaintr_code_value()`, `ggpaintr_controls_ui()`, and
-  `ggpaintr_outputs_ui()`  
-  Reference: `R/paintr-app.R:21-493`, `NAMESPACE:4-21`
-- phase-2 placeholder extensibility surface:
-  `ggpaintr_placeholder()`, `ggpaintr_effective_placeholders()`, and
-  `ggpaintr_missing_expr()`  
-  Reference: `R/paintr-placeholders.R:44-131`, `NAMESPACE:13-18`
-
-Active implementation modules are:
-
-- `R/paintr-app.R`
-- `R/paintr-copy.R`
-- `R/paintr-export.R`
-- `R/paintr-parse.R`
-- `R/paintr-placeholders.R`
-- `R/paintr-runtime.R`
-- `R/paintr-ui.R`
-- `R/paintr-upload.R`
-- `R/paintr-utils.R`
-
-Legacy package content remains archived under:
-
-- `archive/legacy-package/`
+- `ggpaintr` is maintained as a single package surface. Archived legacy package
+  content remains under `archive/legacy-package/`.  
+  Reference: `archive/legacy-package/`
+- The public surface still centers on three groups: wrapper/runtime helpers,
+  phase-1 Shiny integration helpers, and phase-2 placeholder extensibility
+  helpers.  
+  Reference: `R/paintr-app.R:21-567`, `R/paintr-parse.R:20-77`,
+  `R/paintr-runtime.R:389-393`, `R/paintr-export.R:229-252`,
+  `R/paintr-placeholders.R:44-131`, `NAMESPACE:3-26`
+- Durable architecture, supported boundaries, and export design live in
+  `working_scripts/notes/project-overview.md`. Use
+  `working_scripts/notes/index.md` for the normal note-routing entry point.
 
 ## Current behavior boundaries
 
-Built-in placeholders remain:
-
-- `var`
-- `text`
-- `num`
-- `expr`
-- `upload`
-
-Custom placeholders are now registered per app through
-`ggpaintr_effective_placeholders()`, with parsed occurrences stored in
-`paintr_obj$placeholder_map` metadata and dispatched through placeholder hooks.  
-Reference: `R/paintr-placeholders.R:69-149`, `R/paintr-parse.R:20-77`,
-`R/paintr-parse.R:90-124`
-
-Current boundary summary:
-
+- Built-in placeholders remain `var`, `text`, `num`, `expr`, and `upload`.
+  Custom placeholders are registered per app through
+  `ggpaintr_effective_placeholders()` and now share the same parse, UI, runtime,
+  copy-rule, and export path as built-ins.  
+  Reference: `R/paintr-placeholders.R:69-149`, `R/paintr-parse.R:20-77`,
+  `R/paintr-ui.R:210-253`, `R/paintr-runtime.R:180-214`,
+  `R/paintr-copy.R:12-18`, `R/paintr-export.R:95-128`
 - `upload` supports `.csv` and `.rds` and still derives a default object name
   from the uploaded filename when the dataset-name field is blank.  
   Reference: `R/paintr-upload.R:17-27`, `R/paintr-upload.R:35-95`
-- `var` still accepts expression-like input through `rlang::parse_expr()`,
-  now via the built-in placeholder resolver path.  
-  Reference: `R/paintr-placeholders.R:562-569`
-- formulas with `var` and no data source still fail during UI preparation, but
-  missing local data objects are deferred to draw-time plot errors.  
-  Reference: `R/paintr-placeholders.R:663-777`, `R/paintr-runtime.R:316-377`
-- runtime failures still flow through the shared completion, plot-build, and
-  render-validation pipeline with `Input error:` versus `Plot error:` labeling.  
-  Reference: `R/paintr-runtime.R:251-402`
-- phase-1 integration still makes only six top-level app ids configurable:
-  control panel, draw button, export button, plot output, error output, and
-  code output. Internal placeholder ids and dynamic `var-*` outputs remain
-  package-owned.  
-  Reference: `R/paintr-app.R:21-37`, `R/paintr-app.R:231-447`
-- advanced plot customization should use
-  `ggpaintr_plot_value(runtime_result)` inside a user-defined `renderPlot()`
-  rather than changing the default plot binder.  
-  Reference: `R/paintr-app.R:322-403`
-- exported custom placeholders must currently be created with
-  `ggpaintr_placeholder()` and define hook functions inline so standalone
-  exported apps can serialize them safely.  
-  Reference: `R/paintr-placeholders.R:451-509`
-
-## Copy-rule and export status
-
-The maintained app, integration layer, placeholder registry, and export path
-use a shared copy-rule system.
-
 - `ggpaintr_app()`, `ggpaintr_server()`, `ggpaintr_server_state()`, and
-  `generate_shiny()` preserve the optional `copy_rules = NULL` path.  
+  `generate_shiny()` still support runtime `copy_rules`, with default and
+  override logic centralized in `R/paintr-copy.R`.  
   Reference: `R/paintr-app.R:191-215`, `R/paintr-app.R:513-567`,
-  `R/paintr-export.R:229-252`
-- copy defaults and validation now resolve against the effective placeholder
-  registry, so custom placeholder keywords participate in
-  `copy_rules$defaults`, `copy_rules$params`, and `copy_rules$layers`.  
-  Reference: `R/paintr-copy.R:12-18`, `R/paintr-copy.R:144-146`,
-  `R/paintr-copy.R:258-457`, `tests/testthat/test-placeholder-registry.R:64-100`
-- exported apps keep the explicit editable `ui <- fluidPage(...)` and
-  `server <- function(...) { paintr_state <- ggpaintr_server(...) }` template.  
-  Reference: `R/paintr-export.R:137-201`
-- exported apps now write `placeholders <- NULL` for the default case or
-  compact `custom_placeholders <- ...` plus
-  `placeholders <- ggpaintr_effective_placeholders(custom_placeholders)` for
-  custom-placeholder exports.  
-  Reference: `R/paintr-export.R:95-128`, `tests/testthat/test-export-shiny.R:258-336`
+  `R/paintr-copy.R:12-146`, `R/paintr-export.R:229-252`
+- `ggpaintr_server()` remains a thin wrapper over shared state plus the standard
+  bind helpers.  
+  Reference: `R/paintr-app.R:546-567`
+- Runtime failures still flow through the shared completion, plot-build, and
+  render-validation pipeline with `Input error:` versus `Plot error:` labeling.  
+  Reference: `R/paintr-runtime.R:251-393`
+- Formulas with `var` and no data source still fail during UI preparation, but
+  missing local data objects are deferred to draw-time plot errors.  
+  Reference: `R/paintr-placeholders.R:663-777`,
+  `tests/testthat/test-unsupported-use-cases.R:7-21`,
+  `tests/testthat/test-runtime-feedback.R:58-77`
+- Phase-1 integration still exposes only six configurable top-level ids.
+  Internal placeholder ids and dynamic `var-*` outputs remain package-owned.  
+  Reference: `R/paintr-app.R:21-118`, `R/paintr-app.R:231-447`
+- Exported apps still keep explicit `ui <- fluidPage(...)`, explicit
+  `server <- function(...)`, default `copy_rules <- NULL`, and compact
+  reconstruction of custom copy rules and custom placeholders when needed.
+  Exported custom placeholders still need inline hook definitions to stay
+  standalone.  
+  Reference: `R/paintr-export.R:64-128`, `R/paintr-export.R:137-201`,
+  `R/paintr-placeholders.R:457-509`,
+  `tests/testthat/test-export-shiny.R:1-336`
 
-## Testing and verification
-
-Automated tests remain under:
-
-- `tests/testthat/`
-
-Manual interaction coverage remains under:
-
-- `tests/manual/manual-test-ggpaintr.Rmd`
-- `tests/manual/manual-checklist-ggpaintr.md`
-
-Latest coverage highlights:
-
-- `tests/testthat/test-extensibility.R` covers id validation, optional UI
-  helpers, pure value helpers, custom-id binders, and export visibility.  
-  Reference: `tests/testthat/test-extensibility.R:5-237`
-- `tests/testthat/test-placeholder-registry.R` covers placeholder constructor
-  validation, registry pass-through, parsed metadata, runtime replacement,
-  copy-rule integration, and wrapper compatibility.  
-  Reference: `tests/testthat/test-placeholder-registry.R:5-140`
-- `tests/testthat/test-export-shiny.R` now covers serialized
-  `custom_placeholders`, placeholder-registry reconstruction, and
-  non-exportable placeholder failures in addition to copy/export parity.  
-  Reference: `tests/testthat/test-export-shiny.R:1-420`
-- manual coverage now includes embedded custom-id apps, custom plot rendering
-  with `ggpaintr_plot_value()`, live custom placeholders, and exported
-  custom-placeholder checks.  
-  Reference: `tests/manual/manual-test-ggpaintr.Rmd:602-841`,
-  `tests/manual/manual-checklist-ggpaintr.md:58-79`
-
-Latest local verification status:
+## Latest verification
 
 - `Rscript -e 'testthat::test_dir("tests/testthat")'` passes with 294 tests in
-  the latest session run
+  the latest recorded session run.
 - `Rscript -e 'devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran", "--no-manual"))'`
   completed cleanly with 0 errors, 0 warnings, and 1 standard timestamp note
-  (`unable to verify current time`) in the latest session run
+  (`unable to verify current time`) in the latest recorded session run.
 - `Rscript -e 'pkgdown::build_site_github_pages(new_process = FALSE, install = TRUE)'`
-  completed cleanly in the latest session run; the `install = TRUE` path is the
-  current reliable local pkgdown command for the new placeholder-registry
-  vignette
+  completed cleanly in the latest recorded session run.
 - `Rscript -e 'devtools::load_all("."); rmarkdown::render("README.Rmd", envir = globalenv())'`
-  completed cleanly in the latest session run and regenerated `README.md`
+  completed cleanly in the latest recorded session run and regenerated
+  `README.md`.
 - `cran-comments.md` still needs to be refreshed to match the latest clean
-  `--as-cran --no-manual` result
+  `--as-cran --no-manual` result.
 
 ## Completed recently
 
@@ -161,20 +76,20 @@ Latest local verification status:
   including `ggpaintr_placeholder()`,
   `ggpaintr_effective_placeholders()`, and `ggpaintr_missing_expr()`  
   Reference: `R/paintr-placeholders.R:44-131`, `NAMESPACE:13-18`
-- refactored parsing, UI dispatch, runtime completion, eval-env preparation,
-  and copy-rule validation so built-in and custom placeholders follow the same
-  registry path  
-  Reference: `R/paintr-parse.R:20-77`, `R/paintr-ui.R:210-277`,
+- refactored parsing, UI dispatch, runtime completion, upload eval-env
+  preparation, and copy-rule validation so built-in and custom placeholders
+  share the same registry path  
+  Reference: `R/paintr-parse.R:20-77`, `R/paintr-ui.R:210-253`,
   `R/paintr-runtime.R:180-214`, `R/paintr-upload.R:121-140`,
   `R/paintr-copy.R:12-146`
-- extended export generation so custom-placeholder apps serialize only
-  `custom_placeholders <- ...` and rebuild the effective placeholder registry
-  inside the generated app  
-  Reference: `R/paintr-export.R:95-128`, `R/paintr-export.R:137-252`,
+- extended export generation so custom-placeholder apps serialize only compact
+  `custom_placeholders` definitions and rebuild the effective registry in the
+  generated app  
+  Reference: `R/paintr-export.R:95-128`,
   `tests/testthat/test-export-shiny.R:258-336`
-- expanded README, pkgdown, the manual workbook/checklist, and vignettes to
-  cover custom placeholders plus the newer Shiny integration workflows  
-  Reference: `README.Rmd:143-326`, `_pkgdown.yml:42-48`,
+- expanded README, pkgdown, manual docs, and vignettes to cover custom
+  placeholders and the newer Shiny integration workflows  
+  Reference: `README.Rmd:169-326`, `_pkgdown.yml:7-48`,
   `tests/manual/manual-test-ggpaintr.Rmd:602-841`,
   `vignettes/ggpaintr-placeholder-registry.Rmd:1-347`
 
@@ -189,8 +104,8 @@ Latest local verification status:
 
 ## Current risks or blockers
 
-- `var` replacement still depends on `rlang::parse_expr(input_item)`, so
-  spaced or otherwise non-syntactic column names remain a likely rough edge.  
+- `var` replacement still depends on `rlang::parse_expr(input_item)`, so spaced
+  or otherwise non-syntactic column names remain a likely rough edge.  
   Reference: `R/paintr-placeholders.R:562-569`
 - exported custom placeholders must currently define hook functions inline
   inside `ggpaintr_placeholder()` calls to remain exportable as standalone apps.  
@@ -198,21 +113,35 @@ Latest local verification status:
 
 ## Quick re-entry points
 
-Read in this order:
+Default startup path:
 
-1. `working_scripts/notes/knowledge-schema.md`
-2. `working_scripts/notes/start-codex.md`
-3. `working_scripts/notes/current-status.md`
-4. `working_scripts/notes/project-overview.md`
-5. `working_scripts/notes/testing-strategy.md`
-6. `working_scripts/notes/next-steps.md`
-7. `R/paintr-app.R`
-8. `R/paintr-placeholders.R`
-9. `tests/testthat/test-placeholder-registry.R`
-10. `README.Rmd`
-11. `vignettes/ggpaintr-placeholder-registry.Rmd`
-12. `vignettes/ggpaintr-extensibility.Rmd`
-13. `R/paintr-export.R`
-14. `R/paintr-runtime.R`
-15. `tests/testthat/test-export-shiny.R`
-16. `_pkgdown.yml`
+1. `working_scripts/notes/index.md`
+2. `working_scripts/notes/current-status.md`
+3. task-relevant source files, tests, and docs only
+
+Load additional note files only when needed:
+
+- `working_scripts/notes/knowledge-schema.md` for note maintenance, repo
+  cleanup, or note-system edits
+- `working_scripts/notes/project-overview.md` for architecture, public API, or
+  support-boundary work
+- `working_scripts/notes/testing-strategy.md` for testing, verification,
+  README/pkgdown/manual-sync, or acceptance questions
+- `working_scripts/notes/next-steps.md` for planning and prioritization
+
+Task-specific source routes:
+
+- placeholder registry:
+  `R/paintr-placeholders.R`, `R/paintr-parse.R`, `R/paintr-runtime.R`,
+  `tests/testthat/test-placeholder-registry.R`,
+  `vignettes/ggpaintr-placeholder-registry.Rmd`
+- copy behavior or prompt text:
+  `R/paintr-copy.R`, `tests/testthat/test-copy-rules.R`, `README.Rmd`
+- export behavior:
+  `R/paintr-export.R`, `tests/testthat/test-export-shiny.R`
+- Shiny integration helpers:
+  `R/paintr-app.R`, `tests/testthat/test-extensibility.R`,
+  `vignettes/ggpaintr-extensibility.Rmd`
+- manual interaction behavior:
+  `tests/manual/manual-test-ggpaintr.Rmd`,
+  `tests/manual/manual-checklist-ggpaintr.md`

@@ -18,14 +18,18 @@ This is a governance document, not a session log.
 
 The active operational note set for this repo is:
 
-1. `working_scripts/notes/current-status.md`
-2. `working_scripts/notes/project-overview.md`
-3. `working_scripts/notes/testing-strategy.md`
-4. `working_scripts/notes/start-codex.md`
-5. `working_scripts/notes/next-steps.md`
+1. `working_scripts/notes/index.md`
+2. `working_scripts/notes/current-status.md`
+3. `working_scripts/notes/project-overview.md`
+4. `working_scripts/notes/testing-strategy.md`
+5. `working_scripts/notes/start-codex.md`
+6. `working_scripts/notes/next-steps.md`
 
 These files have distinct responsibilities and should not substantially
 duplicate one another.
+
+`working_scripts/notes/knowledge-schema.md` governs the system, but it is not
+part of the default lightweight startup load for ordinary coding tasks.
 
 ### Session-maintained files
 
@@ -38,6 +42,7 @@ These are the default files to review and update before a session ends:
 
 These should be updated only when their own scope changes:
 
+- `working_scripts/notes/index.md`
 - `working_scripts/notes/project-overview.md`
 - `working_scripts/notes/testing-strategy.md`
 - `working_scripts/notes/start-codex.md`
@@ -45,7 +50,7 @@ These should be updated only when their own scope changes:
 
 ### Non-core markdown files
 
-These are not part of the five-file operational note system:
+These are not part of the operational note system:
 
 - `README.md`
 - `tests/manual/manual-checklist-ggpaintr.md`
@@ -58,12 +63,21 @@ These are not part of the five-file operational note system:
 
 ### File responsibilities
 
+`index.md`
+- lightweight router for the note system
+- first note read in a normal coding session
+- default versus conditional note-loading rules
+- canonical file-routing pointers
+- update only when the note-loading strategy or canonical routing changes
+
 `current-status.md`
 - latest project state
 - recent completed work
 - current focus
 - current risks or blockers
 - quick re-entry reading order
+- should stay focused on volatile state rather than re-explaining durable
+  architecture already covered elsewhere
 - update whenever repo truth changed during the session
 
 `project-overview.md`
@@ -79,7 +93,8 @@ These are not part of the five-file operational note system:
 
 `start-codex.md`
 - strict reusable session-start prompt
-- exact read order and working rules
+- copy-paste entry prompt for new sessions
+- lightweight default read order and working rules
 - update only when startup instructions or canonical paths change
 
 `next-steps.md`
@@ -92,27 +107,34 @@ These are not part of the five-file operational note system:
 - Keep notes concise and high-signal.
 - Prefer bullets and short sections over narrative logs.
 - Cite source files and line numbers when describing implementation behavior.
+- Keep the default startup path lightweight: `index.md`, `current-status.md`,
+  then task-relevant source files and tests.
 - Do not create new ad hoc markdown files in the active notes root for one-off
   feature work.
 - Temporary deep-dive notes should go to an archive area, not the active root.
 - Completed work belongs in `current-status.md`, not in `next-steps.md`.
 - Stable policy belongs in `testing-strategy.md`, not in `current-status.md`.
+- Durable routing rules belong in `index.md`, not duplicated across every note.
 - Starter instructions belong only in `start-codex.md`.
 - `developer-notes.md` is developer-maintained only and should not be updated by
   AI tools unless the user explicitly requests edits to that file.
 
 ## Read Order
 
-For a fresh development session, read notes in this order:
+For a fresh development session:
 
-1. `working_scripts/notes/knowledge-schema.md`
-2. `working_scripts/notes/start-codex.md`
-3. `working_scripts/notes/current-status.md`
-4. `working_scripts/notes/project-overview.md`
-5. `working_scripts/notes/testing-strategy.md`
-6. `working_scripts/notes/next-steps.md`
+1. use `working_scripts/notes/start-codex.md` as the copy-paste session-start
+   prompt
+2. in a normal coding session, read `working_scripts/notes/index.md`
+3. read `working_scripts/notes/current-status.md`
+4. load additional note files only when `index.md` says they are relevant
+5. then read the implementation files and tests directly relevant to the task
 
-Then read the implementation files and tests referenced by those notes.
+Read `working_scripts/notes/knowledge-schema.md` at the start only when:
+
+- the user asks to update knowledge
+- the user asks to clean up the repo based on the schema
+- the note system itself is being changed
 
 ## Archive Rules
 
@@ -143,8 +165,10 @@ Default review targets for that instruction:
 
 - always review `working_scripts/notes/current-status.md`
 - always review `working_scripts/notes/next-steps.md`
-- review `working_scripts/notes/start-codex.md` only if session-start
-  instructions or canonical note paths changed
+- review `working_scripts/notes/index.md` only if routing rules, canonical note
+  paths, or the default startup load changed
+- review `working_scripts/notes/start-codex.md` only if session-start prompt or
+  canonical startup instructions changed
 - review `working_scripts/notes/project-overview.md` only if architecture or
   supported behavior boundaries changed
 - review `working_scripts/notes/testing-strategy.md` only if testing strategy,
