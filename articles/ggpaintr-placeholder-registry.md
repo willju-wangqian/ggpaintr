@@ -367,6 +367,81 @@ definition cannot be serialized safely,
 [`generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/generate_shiny.md)
 will error instead of writing a broken app.
 
+## What exportable means
+
+The current export path works by storing the original
+`ggpaintr_placeholder(...)` call on each custom placeholder as
+`definition_call`. When you export an app,
+[`generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/generate_shiny.md)
+serializes that stored call into the generated script and then rebuilds
+the registry there.
+
+That is why inline hooks are exportable today:
+
+- inline hook bodies live inside the stored `ggpaintr_placeholder(...)`
+  call
+- external helper references are only symbols, so the exported app would
+  not contain the helper definitions themselves
+
+You can inspect the stored call directly:
+
+``` r
+date_placeholder$definition_call
+#> ggpaintr_placeholder(keyword = "date", build_ui = function(id, 
+#>     copy, meta, context) {
+#>     shiny::dateInput(id, copy$label)
+#> }, resolve_expr = function(value, meta, context) {
+#>     if (is.null(value) || identical(as.character(value), "")) {
+#>         return(ggpaintr_missing_expr())
+#>     }
+#>     rlang::expr(as.Date(!!as.character(value)))
+#> }, copy_defaults = list(label = "Choose a date for {param}"))
+```
+
+### Exportable today
+
+``` r
+date_placeholder <- ggpaintr_placeholder(
+  keyword = "date",
+  build_ui = function(id, copy, meta, context) {
+    shiny::dateInput(id, copy$label)
+  },
+  resolve_expr = function(value, meta, context) {
+    if (is.null(value) || identical(as.character(value), "")) {
+      return(ggpaintr_missing_expr())
+    }
+
+    rlang::expr(as.Date(!!as.character(value)))
+  }
+)
+```
+
+### Not exportable today
+
+``` r
+build_date_ui <- function(id, copy, meta, context) {
+  shiny::dateInput(id, copy$label)
+}
+
+date_to_expr <- function(value, meta, context) {
+  if (is.null(value) || identical(as.character(value), "")) {
+    return(ggpaintr_missing_expr())
+  }
+
+  rlang::expr(as.Date(!!as.character(value)))
+}
+
+date_placeholder <- ggpaintr_placeholder(
+  keyword = "date",
+  build_ui = build_date_ui,
+  resolve_expr = date_to_expr
+)
+
+# generate_shiny(..., placeholders = list(date = date_placeholder))
+# errors because the exported app would not contain build_date_ui() or
+# date_to_expr().
+```
+
 ## Summary
 
 The placeholder registry is the developer-facing extension point for

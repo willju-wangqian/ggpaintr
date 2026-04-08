@@ -26,6 +26,28 @@ The supported integration pieces are:
 - [`ggpaintr_controls_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_controls_ui.md)
 - [`ggpaintr_outputs_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_outputs_ui.md)
 
+## Choosing the right surface
+
+The current package surface is intentionally layered.
+
+- use
+  [`ggpaintr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_app.md)
+  or
+  [`ggpaintr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_server.md)
+  for most apps
+- use
+  [`ggpaintr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_server_state.md)
+  plus the `ggpaintr_bind_*()` helpers when you already own a larger
+  Shiny layout and want to embed `ggpaintr`
+- use the low-level `paintr_*` runtime helpers, together with
+  [`ggpaintr_runtime_input_spec()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_runtime_input_spec.md),
+  when you are writing tests, tooling, or package-level extensions
+  around parsed formulas
+
+That split is a little opinionated, but it keeps the beginner path small
+while still exposing a supported integration seam for more advanced
+Shiny work.
+
 ## Recipe 1: Embed `ggpaintr` with the default binders
 
 ``` r
@@ -172,3 +194,33 @@ Use the pure value helpers when you want to own the rendering details:
   for custom
   [`renderText()`](https://rdrr.io/pkg/shiny/man/renderPrint.html) or
   downstream processing
+
+## How to improve the advanced surface
+
+The current advanced surface is powerful, but it is still closer to
+package developer tooling than to a polished app-builder DSL. The next
+improvements should stay incremental:
+
+- improve docs and helper discoverability first
+- add higher-level helper constructors for common placeholder patterns
+  only after the current low-level registry contract has settled a bit
+  more
+- consider an optional Shiny module wrapper on top of the current
+  id-based helpers rather than replacing the existing supported surface
+- do not introduce a separate declarative end-user spec in this phase
+
+## Roadmap for the formula-string runtime
+
+The formula-string model is still the author-facing interface. To make
+the runtime easier to reason about without giving up that authoring
+model, the next hardening step should happen internally:
+
+- keep formula strings as the public authoring format
+- compile each parsed `paintr_obj` once into a richer internal runtime
+  contract
+- have runtime completion consume that compiled contract instead of
+  repeatedly relying on raw expression walks and companion-id
+  conventions
+
+That approach would tighten the runtime semantics without forcing users
+to rewrite formulas into a separate declarative language.

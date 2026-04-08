@@ -58,6 +58,8 @@
 
 - [`paintr_formula()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_formula.md)
   : Parse a Paintr Formula
+- [`ggpaintr_runtime_input_spec()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_runtime_input_spec.md)
+  : Describe the Runtime Inputs for a Parsed Formula
 - [`paintr_build_runtime()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_build_runtime.md)
   : Build the Full Runtime Result for a Paintr App
 - [`paintr_get_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_get_plot.md)

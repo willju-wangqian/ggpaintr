@@ -442,6 +442,78 @@ serialized safely, <code><a href="../reference/generate_shiny.html">generate_shi
 writing a broken app.</p>
 </div>
 <div class="section level2">
+<h2 id="what-exportable-means">What exportable means<a class="anchor" aria-label="anchor" href="#what-exportable-means"></a>
+</h2>
+<p>The current export path works by storing the original
+<code>ggpaintr_placeholder(...)</code> call on each custom placeholder
+as <code>definition_call</code>. When you export an app,
+<code><a href="../reference/generate_shiny.html">generate_shiny()</a></code> serializes that stored call into the
+generated script and then rebuilds the registry there.</p>
+<p>That is why inline hooks are exportable today:</p>
+<ul>
+<li>inline hook bodies live inside the stored
+<code>ggpaintr_placeholder(...)</code> call</li>
+<li>external helper references are only symbols, so the exported app
+would not contain the helper definitions themselves</li>
+</ul>
+<p>You can inspect the stored call directly:</p>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">date_placeholder</span><span class="op">$</span><span class="va">definition_call</span></span>
+<span><span class="co">#&gt; ggpaintr_placeholder(keyword = "date", build_ui = function(id, </span></span>
+<span><span class="co">#&gt;     copy, meta, context) {</span></span>
+<span><span class="co">#&gt;     shiny::dateInput(id, copy$label)</span></span>
+<span><span class="co">#&gt; }, resolve_expr = function(value, meta, context) {</span></span>
+<span><span class="co">#&gt;     if (is.null(value) || identical(as.character(value), "")) {</span></span>
+<span><span class="co">#&gt;         return(ggpaintr_missing_expr())</span></span>
+<span><span class="co">#&gt;     }</span></span>
+<span><span class="co">#&gt;     rlang::expr(as.Date(!!as.character(value)))</span></span>
+<span><span class="co">#&gt; }, copy_defaults = list(label = "Choose a date for {param}"))</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="exportable-today">Exportable today<a class="anchor" aria-label="anchor" href="#exportable-today"></a>
+</h3>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">date_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ggpaintr_placeholder.html">ggpaintr_placeholder</a></span><span class="op">(</span></span>
+<span>  keyword <span class="op">=</span> <span class="st">"date"</span>,</span>
+<span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/dateInput.html" class="external-link">dateInput</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span><span class="op">$</span><span class="va">label</span><span class="op">)</span></span>
+<span>  <span class="op">}</span>,</span>
+<span>  resolve_expr <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="op">||</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span>, <span class="st">""</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ggpaintr_missing_expr.html">ggpaintr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="op">}</span></span>
+<span></span>
+<span>    <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="op">}</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="not-exportable-today">Not exportable today<a class="anchor" aria-label="anchor" href="#not-exportable-today"></a>
+</h3>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">build_date_ui</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/dateInput.html" class="external-link">dateInput</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span><span class="op">$</span><span class="va">label</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">date_to_expr</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="op">||</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span>, <span class="st">""</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ggpaintr_missing_expr.html">ggpaintr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="op">}</span></span>
+<span></span>
+<span>  <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">date_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ggpaintr_placeholder.html">ggpaintr_placeholder</a></span><span class="op">(</span></span>
+<span>  keyword <span class="op">=</span> <span class="st">"date"</span>,</span>
+<span>  build_ui <span class="op">=</span> <span class="va">build_date_ui</span>,</span>
+<span>  resolve_expr <span class="op">=</span> <span class="va">date_to_expr</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># generate_shiny(..., placeholders = list(date = date_placeholder))</span></span>
+<span><span class="co"># errors because the exported app would not contain build_date_ui() or</span></span>
+<span><span class="co"># date_to_expr().</span></span></code></pre></div>
+</div>
+</div>
+<div class="section level2">
 <h2 id="summary">Summary<a class="anchor" aria-label="anchor" href="#summary"></a>
 </h2>
 <p>The placeholder registry is the developer-facing extension point for

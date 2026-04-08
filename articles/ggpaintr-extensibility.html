@@ -101,6 +101,25 @@ own UI.</p>
 </ul>
 </div>
 <div class="section level2">
+<h2 id="choosing-the-right-surface">Choosing the right surface<a class="anchor" aria-label="anchor" href="#choosing-the-right-surface"></a>
+</h2>
+<p>The current package surface is intentionally layered.</p>
+<ul>
+<li>use <code><a href="../reference/ggpaintr_app.html">ggpaintr_app()</a></code> or <code><a href="../reference/ggpaintr_server.html">ggpaintr_server()</a></code>
+for most apps</li>
+<li>use <code><a href="../reference/ggpaintr_server_state.html">ggpaintr_server_state()</a></code> plus the
+<code>ggpaintr_bind_*()</code> helpers when you already own a larger
+Shiny layout and want to embed <code>ggpaintr</code>
+</li>
+<li>use the low-level <code>paintr_*</code> runtime helpers, together
+with <code><a href="../reference/ggpaintr_runtime_input_spec.html">ggpaintr_runtime_input_spec()</a></code>, when you are writing
+tests, tooling, or package-level extensions around parsed formulas</li>
+</ul>
+<p>That split is a little opinionated, but it keeps the beginner path
+small while still exposing a supported integration seam for more
+advanced Shiny work.</p>
+</div>
+<div class="section level2">
 <h2 id="recipe-1-embed-ggpaintr-with-the-default-binders">Recipe 1: Embed <code>ggpaintr</code> with the default binders<a class="anchor" aria-label="anchor" href="#recipe-1-embed-ggpaintr-with-the-default-binders"></a>
 </h2>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
@@ -238,6 +257,41 @@ details:</p>
 <code><a href="../reference/ggpaintr_code_value.html">ggpaintr_code_value()</a></code> for custom
 <code><a href="https://rdrr.io/pkg/shiny/man/renderPrint.html" class="external-link">renderText()</a></code> or downstream processing</li>
 </ul>
+</div>
+<div class="section level2">
+<h2 id="how-to-improve-the-advanced-surface">How to improve the advanced surface<a class="anchor" aria-label="anchor" href="#how-to-improve-the-advanced-surface"></a>
+</h2>
+<p>The current advanced surface is powerful, but it is still closer to
+package developer tooling than to a polished app-builder DSL. The next
+improvements should stay incremental:</p>
+<ul>
+<li>improve docs and helper discoverability first</li>
+<li>add higher-level helper constructors for common placeholder patterns
+only after the current low-level registry contract has settled a bit
+more</li>
+<li>consider an optional Shiny module wrapper on top of the current
+id-based helpers rather than replacing the existing supported
+surface</li>
+<li>do not introduce a separate declarative end-user spec in this
+phase</li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="roadmap-for-the-formula-string-runtime">Roadmap for the formula-string runtime<a class="anchor" aria-label="anchor" href="#roadmap-for-the-formula-string-runtime"></a>
+</h2>
+<p>The formula-string model is still the author-facing interface. To
+make the runtime easier to reason about without giving up that authoring
+model, the next hardening step should happen internally:</p>
+<ul>
+<li>keep formula strings as the public authoring format</li>
+<li>compile each parsed <code>paintr_obj</code> once into a richer
+internal runtime contract</li>
+<li>have runtime completion consume that compiled contract instead of
+repeatedly relying on raw expression walks and companion-id
+conventions</li>
+</ul>
+<p>That approach would tighten the runtime semantics without forcing
+users to rewrite formulas into a separate declarative language.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

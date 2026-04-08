@@ -40,26 +40,55 @@ names(obj$keywords_list$ggplot)
 ## Building runtime output
 
 ``` r
+spec <- ggpaintr_runtime_input_spec(obj)
+spec
+#>              input_id           role layer_name keyword   param_key
+#> 1          ggplot+3+2    placeholder     ggplot     var           x
+#> 2          ggplot+3+3    placeholder     ggplot     var           y
+#> 3      geom_point+2+2    placeholder geom_point     var       color
+#> 4        geom_point+3    placeholder geom_point     num        size
+#> 5              labs+2    placeholder       labs    text       title
+#> 6        facet_wrap+2    placeholder facet_wrap    expr __unnamed__
+#> 7 geom_point+checkbox layer_checkbox geom_point    <NA>        <NA>
+#> 8       labs+checkbox layer_checkbox       labs    <NA>        <NA>
+#> 9 facet_wrap+checkbox layer_checkbox facet_wrap    <NA>        <NA>
+#>        source_id
+#> 1     ggplot+3+2
+#> 2     ggplot+3+3
+#> 3 geom_point+2+2
+#> 4   geom_point+3
+#> 5         labs+2
+#> 6   facet_wrap+2
+#> 7           <NA>
+#> 8           <NA>
+#> 9           <NA>
+
+inputs <- setNames(vector("list", nrow(spec)), spec$input_id)
+inputs[spec$role == "layer_checkbox"] <- rep(list(TRUE), sum(spec$role == "layer_checkbox"))
+inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "x"]]] <- "Sepal.Length"
+inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "y"]]] <- "Sepal.Width"
+inputs[[spec$input_id[spec$layer_name == "geom_point" & spec$param_key == "color"]]] <- "Species"
+inputs[[spec$input_id[spec$layer_name == "geom_point" & spec$keyword == "num"]]] <- 2.5
+inputs[[spec$input_id[spec$layer_name == "labs" & spec$param_key == "title"]]] <- "Iris scatter"
+inputs[[spec$input_id[spec$layer_name == "facet_wrap" & spec$keyword == "expr"]]] <- "~ Species"
+
 runtime <- paintr_build_runtime(
   obj,
-  list(
-    "ggplot+3+2" = "Sepal.Length",
-    "ggplot+3+3" = "Sepal.Width",
-    "ggplot+3+4" = "Species",
-    "geom_point+2" = 2.5,
-    "labs+2" = "Iris scatter",
-    "facet_wrap+2" = "~ Species",
-    "geom_point+checkbox" = TRUE,
-    "labs+checkbox" = TRUE,
-    "facet_wrap+checkbox" = TRUE
-  )
+  inputs
 )
 
 runtime$code_text
-#> [1] "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +\n  geom_point(aes()) +\n  labs(title = \"Iris scatter\") +\n  facet_wrap(~Species)"
+#> NULL
 inherits(runtime$plot, "ggplot")
-#> [1] TRUE
+#> [1] FALSE
 ```
+
+[`ggpaintr_runtime_input_spec()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_runtime_input_spec.md)
+is the supported way to discover the low-level runtime inputs consumed
+by
+[`paintr_build_runtime()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_build_runtime.md).
+Raw ids still appear in the returned data, but they should be treated as
+implementation details rather than as hand-authored examples.
 
 ## Launching an app
 

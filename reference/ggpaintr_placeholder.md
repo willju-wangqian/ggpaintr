@@ -62,6 +62,13 @@ ggpaintr_placeholder(
 
 An object of class `ggpaintr_placeholder`.
 
+## Details
+
+To make a custom placeholder exportable through
+[`generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/generate_shiny.md),
+define any hook functions inline inside the `ggpaintr_placeholder()`
+call so the exported app can serialize the full placeholder definition.
+
 ## Examples
 
 ``` r

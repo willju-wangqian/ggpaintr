@@ -43,7 +43,10 @@ generate_shiny(
 - placeholders:
 
   Optional custom placeholder definitions or an existing placeholder
-  registry.
+  registry. Exported custom placeholders must define their hooks inline
+  inside
+  [`ggpaintr_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_placeholder.md)
+  so the generated app can stay standalone.
 
 ## Value
 
