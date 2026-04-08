@@ -24,6 +24,7 @@ Current automated coverage for runtime feedback and the copy-rule system already
 -   default and overridden copy for app-shell controls and exported apps
 -   custom Shiny integration helpers with custom top-level ids
 -   custom placeholder registry parsing, runtime replacement, and export wiring
+-   low-level runtime input discovery through `ggpaintr_runtime_input_spec()`
 
 See:
 
@@ -32,6 +33,7 @@ See:
 -   `tests/testthat/test-copy-rules.R`
 -   `tests/testthat/test-extensibility.R`
 -   `tests/testthat/test-placeholder-registry.R`
+-   `tests/testthat/test-runtime-input-spec.R`
 
 ## Coverage Map
 
@@ -195,6 +197,13 @@ Recommended RStudio flow:
 Use `tests/manual/ggpaintr-edge-cases.Rmd` for known unresolved boundaries that
 need repro code or follow-up testing rather than ordinary pass/fail workbook
 checks.
+
+Low-level developer note:
+
+-   If you are manually probing `paintr_build_runtime()`, discover its input ids
+    with `ggpaintr_runtime_input_spec()` instead of hand-authoring raw ids.
+-   Raw ids such as `ggplot+3+2` may still appear in printed output, but they
+    are implementation details rather than the recommended documentation path.
 
 ## Formula 1: Static All-Placeholders Interaction
 
@@ -926,6 +935,66 @@ Expected checks:
 -   The exported script serializes only the custom placeholder definition, not the built-in placeholder registry.
 -   The exported app still renders the date-driven vertical line and generated code normally.
 
+## Formula 14: Non-Inline Placeholder Export Failure
+
+This check confirms the current exportability rule for custom placeholders.
+Standalone exported apps can only rebuild custom placeholders whose hooks are
+defined inline inside `ggpaintr_placeholder(...)`.
+
+```{r formula-14-non-inline-export, eval=FALSE}
+build_date_ui_manual <- function(id, copy, meta, context) {
+  shiny::dateInput(id, copy$label)
+}
+
+date_to_expr_manual <- function(value, meta, context) {
+  if (is.null(value) || identical(as.character(value), "")) {
+    return(ggpaintr_missing_expr())
+  }
+
+  rlang::expr(as.Date(!!as.character(value)))
+}
+
+non_inline_date_placeholder <- ggpaintr_placeholder(
+  keyword = "date",
+  build_ui = build_date_ui_manual,
+  resolve_expr = date_to_expr_manual
+)
+
+non_inline_obj <- paintr_formula(
+  "
+ggplot(data = sales_manual, aes(x = day, y = value)) +
+  geom_line() +
+  geom_vline(xintercept = date)
+",
+  placeholders = ggpaintr_effective_placeholders(
+    list(date = non_inline_date_placeholder)
+  )
+)
+
+generate_shiny(
+  non_inline_obj,
+  list(),
+  tempfile(fileext = ".R"),
+  style = FALSE,
+  placeholders = non_inline_obj$placeholders
+)
+```
+
+Suggested manual sequence:
+
+-   Run the chunk.
+-   Confirm `generate_shiny()` errors instead of writing a broken app.
+-   Read the error message.
+
+Expected checks:
+
+-   The error explains that the custom placeholder must define `build_ui`
+    inline.
+-   The package refuses the export before writing a standalone app that would be
+    missing helper definitions.
+-   This failure is limited to exportability; the same non-inline placeholder
+    shape can still be useful for in-session experiments that are not exported.
+
 ## Final Checklist
 
 -   The manual sweep covers wrapper apps, upload flows, copy rules, export,
@@ -953,5 +1022,7 @@ Expected checks:
 -   Custom `renderPlot()` workflows can use `ggpaintr_plot_value()` and keep the rest of the default runtime behavior intact.
 -   Custom placeholder controls render correctly, participate in code generation, and work alongside built-in placeholders.
 -   Exported custom-placeholder apps rebuild `custom_placeholders` and preserve their custom copy text.
+-   Export attempts for non-inline custom placeholders fail clearly instead of
+    writing a broken standalone app.
 -   Remaining internal-only or philosophy-boundary edge cases are reviewed in
     `tests/manual/ggpaintr-edge-cases.Rmd`.

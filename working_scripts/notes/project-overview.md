@@ -92,9 +92,12 @@ The maintained exported package surface is:
 - `ggpaintr_effective_placeholders()`
 - `ggpaintr_missing_expr()`
 - `ggpaintr_normalize_column_names()`
+- `ggpaintr_runtime_input_spec()`
 - `paintr_formula()`
 - `paintr_build_runtime()`
 - `paintr_get_plot()`
+- `paintr_effective_copy_rules()`
+- `paintr_resolve_copy()`
 - `generate_shiny()`
 
 Current public customization boundary:
@@ -111,6 +114,9 @@ Current public customization boundary:
 - `ggpaintr_plot_value()`, `ggpaintr_error_value()`, and
   `ggpaintr_code_value()` are the pure-value seam for custom `renderPlot()`,
   `renderUI()`, and `renderText()` code
+- `ggpaintr_runtime_input_spec()` is the supported low-level discovery helper
+  for advanced tests, tooling, and package authors who need to build runtime
+  inputs without relying on raw id encoding by hand
 - `ggpaintr_controls_ui()` and `ggpaintr_outputs_ui()` provide optional default
   UI fragments for those integrations
 - `ggpaintr_placeholder()`, `ggpaintr_effective_placeholders()`, and
@@ -128,6 +134,7 @@ Current public customization boundary:
 References:
 
 - `R/paintr-app.R:21-567`
+- `R/paintr-parse.R:80-184`
 - `R/paintr-placeholders.R:44-131`
 - `R/paintr-copy.R:12-146`
 - `R/paintr-export.R:95-252`

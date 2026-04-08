@@ -328,9 +328,14 @@ ggpaintr_bind_export <- function(output,
 #' obj <- paintr_formula(
 #'   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
 #' )
+#' spec <- ggpaintr_runtime_input_spec(obj)
+#' inputs <- setNames(vector("list", nrow(spec)), spec$input_id)
+#' inputs[spec$role == "layer_checkbox"] <- rep(list(TRUE), sum(spec$role == "layer_checkbox"))
+#' inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "x"]]] <- "mpg"
+#' inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "y"]]] <- "disp"
 #' runtime <- paintr_build_runtime(
 #'   obj,
-#'   list("ggplot+3+2" = "mpg", "ggplot+3+3" = "disp", "geom_point+checkbox" = TRUE)
+#'   inputs
 #' )
 #' inherits(ggpaintr_plot_value(runtime), "ggplot")
 #' @export

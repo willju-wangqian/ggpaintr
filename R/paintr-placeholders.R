@@ -5,6 +5,10 @@
 #' UI control, runtime expression replacement, deferred UI binding, and
 #' evaluation-environment preparation.
 #'
+#' To make a custom placeholder exportable through `generate_shiny()`, define
+#' any hook functions inline inside the `ggpaintr_placeholder()` call so the
+#' exported app can serialize the full placeholder definition.
+#'
 #' @param keyword A single syntactic placeholder name used inside the formula.
 #' @param build_ui Function with signature `(id, copy, meta, context)` returning
 #'   a Shiny UI control or placeholder.

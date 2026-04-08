@@ -47,6 +47,11 @@ Build one placeholder specification for use with
 UI control, runtime expression replacement, deferred UI binding, and
 evaluation-environment preparation.
 }
+\details{
+To make a custom placeholder exportable through \code{generate_shiny()}, define
+any hook functions inline inside the \code{ggpaintr_placeholder()} call so the
+exported app can serialize the full placeholder definition.
+}
 \examples{
 date_placeholder <- ggpaintr_placeholder(
   keyword = "date",

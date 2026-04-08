@@ -147,7 +147,10 @@ paintr_complete_expr <- function(paintr_obj, input, envir = parent.frame()) {
 #' obj <- paintr_formula(
 #'   "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + geom_point()"
 #' )
-#' runtime <- paintr_build_runtime(obj, list("geom_point+checkbox" = TRUE))
+#' spec <- ggpaintr_runtime_input_spec(obj)
+#' inputs <- setNames(vector("list", nrow(spec)), spec$input_id)
+#' inputs[spec$role == "layer_checkbox"] <- rep(list(TRUE), sum(spec$role == "layer_checkbox"))
+#' runtime <- paintr_build_runtime(obj, inputs)
 #' plot_obj <- paintr_get_plot(runtime$complete_expr_list, runtime$eval_env)
 #' inherits(plot_obj, "ggplot")
 #' @export
@@ -324,9 +327,14 @@ paintr_validate_plot_render_safe <- function(runtime_result) {
 #' obj <- paintr_formula(
 #'   "ggplot(data = iris, aes(x = var, y = var)) + geom_point()"
 #' )
+#' spec <- ggpaintr_runtime_input_spec(obj)
+#' inputs <- setNames(vector("list", nrow(spec)), spec$input_id)
+#' inputs[spec$role == "layer_checkbox"] <- rep(list(TRUE), sum(spec$role == "layer_checkbox"))
+#' inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "x"]]] <- "Sepal.Length"
+#' inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "y"]]] <- "Sepal.Width"
 #' runtime <- paintr_build_runtime(
 #'   obj,
-#'   list("ggplot+3+2" = "Sepal.Length", "ggplot+3+3" = "Sepal.Width", "geom_point+checkbox" = TRUE)
+#'   inputs
 #' )
 #' isTRUE(runtime$ok)
 #' @export

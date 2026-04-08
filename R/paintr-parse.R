@@ -77,6 +77,112 @@ paintr_formula <- function(formula, placeholders = NULL) {
   result
 }
 
+#' Describe the Runtime Inputs for a Parsed Formula
+#'
+#' Return the input ids consumed by `paintr_build_runtime()` in a stable,
+#' documented data frame. This is the supported low-level discovery helper for
+#' tests, tooling, and advanced package authors who need to construct an input
+#' list programmatically without hard-coding internal ids in documentation or
+#' downstream code.
+#'
+#' The returned rows follow the current UI/runtime order:
+#'
+#' - placeholder inputs in parsed layer order
+#' - derived upload dataset-name inputs immediately after each `upload`
+#'   placeholder row
+#' - layer checkbox inputs for every non-`ggplot` layer, appended in layer order
+#'
+#' Raw ids such as `"ggplot+3+2"` still appear in the returned data, but those
+#' ids remain implementation details. Call this helper instead of relying on the
+#' exact encoding scheme directly.
+#'
+#' @param paintr_obj A `paintr_obj`.
+#'
+#' @return A base `data.frame` with columns `input_id`, `role`, `layer_name`,
+#'   `keyword`, `param_key`, and `source_id`.
+#' @examples
+#' obj <- paintr_formula(
+#'   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point() + labs(title = text)"
+#' )
+#' ggpaintr_runtime_input_spec(obj)
+#' @export
+ggpaintr_runtime_input_spec <- function(paintr_obj) {
+  assertthat::assert_that(inherits(paintr_obj, "paintr_obj"))
+
+  new_spec_row <- function(input_id,
+                           role,
+                           layer_name,
+                           keyword = NA_character_,
+                           param_key = NA_character_,
+                           source_id = NA_character_) {
+    data.frame(
+      input_id = input_id,
+      role = role,
+      layer_name = layer_name,
+      keyword = keyword,
+      param_key = param_key,
+      source_id = source_id,
+      stringsAsFactors = FALSE
+    )
+  }
+
+  spec_rows <- list()
+  layer_names <- names(paintr_obj$expr_list)
+
+  for (layer_name in layer_names) {
+    layer_meta <- paintr_obj$placeholder_map[[layer_name]]
+    if (length(layer_meta) == 0) {
+      next
+    }
+
+    for (meta in unname(layer_meta)) {
+      param_key <- paintr_normalize_param_key(meta$param)
+
+      spec_rows[[length(spec_rows) + 1L]] <- new_spec_row(
+        input_id = meta$id,
+        role = "placeholder",
+        layer_name = meta$layer_name,
+        keyword = meta$keyword,
+        param_key = param_key,
+        source_id = meta$id
+      )
+
+      if (identical(meta$keyword, "upload")) {
+        spec_rows[[length(spec_rows) + 1L]] <- new_spec_row(
+          input_id = paintr_upload_name_id(meta$id),
+          role = "upload_name",
+          layer_name = meta$layer_name,
+          keyword = meta$keyword,
+          param_key = param_key,
+          source_id = meta$id
+        )
+      }
+    }
+  }
+
+  for (layer_name in setdiff(layer_names, "ggplot")) {
+    checkbox_id <- paintr_checkbox_input_id(layer_name)
+    spec_rows[[length(spec_rows) + 1L]] <- new_spec_row(
+      input_id = checkbox_id,
+      role = "layer_checkbox",
+      layer_name = layer_name
+    )
+  }
+
+  if (length(spec_rows) == 0) {
+    return(new_spec_row(
+      input_id = character(0),
+      role = character(0),
+      layer_name = character(0),
+      keyword = character(0),
+      param_key = character(0),
+      source_id = character(0)
+    ))
+  }
+
+  do.call(rbind, spec_rows)
+}
+
 #' Build Placeholder Metadata for a Parsed Formula
 #'
 #' @param keywords_list A parsed keyword list by layer.

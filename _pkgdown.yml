@@ -36,6 +36,7 @@ reference:
   - title: Formula and runtime
     contents:
       - paintr_formula
+      - ggpaintr_runtime_input_spec
       - paintr_build_runtime
       - paintr_get_plot
   - title: Copy customization

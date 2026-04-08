@@ -219,7 +219,9 @@ get_shiny_template <- function(formula_text,
 #' @param copy_rules Optional named list of copy overrides for UI labels, helper
 #'   text, and placeholders.
 #' @param placeholders Optional custom placeholder definitions or an existing
-#'   placeholder registry.
+#'   placeholder registry. Exported custom placeholders must define their hooks
+#'   inline inside `ggpaintr_placeholder()` so the generated app can stay
+#'   standalone.
 #'
 #' @return Invisibly returns `output_file`.
 #' @examples

@@ -7,10 +7,11 @@
   Reference: `archive/legacy-package/`
 - The public surface now centers on wrapper/runtime helpers, phase-1 Shiny
   integration helpers, phase-2 placeholder extensibility helpers, and the
-  exported column-name normalization helper
-  `ggpaintr_normalize_column_names()`.  
+  exported low-level/runtime helpers
+  `ggpaintr_normalize_column_names()` and `ggpaintr_runtime_input_spec()`.  
   Reference: `R/paintr-app.R:21-567`, `R/paintr-parse.R:20-77`,
-  `R/paintr-runtime.R:239-243`, `R/paintr-export.R:229-252`,
+  `R/paintr-parse.R:80-184`, `R/paintr-runtime.R:239-243`,
+  `R/paintr-export.R:229-252`,
   `R/paintr-placeholders.R:44-131`, `R/paintr-data.R:1-121`,
   `NAMESPACE:3-27`
 - Durable architecture, supported boundaries, and export design live in
@@ -57,6 +58,11 @@
 - Phase-1 integration still exposes only six configurable top-level ids.
   Internal placeholder ids and dynamic `var-*` outputs remain package-owned.  
   Reference: `R/paintr-app.R:21-118`, `R/paintr-app.R:231-447`
+- `ggpaintr_runtime_input_spec()` now provides the supported low-level path for
+  discovering runtime inputs without hand-authoring internal ids in examples or
+  downstream tooling.  
+  Reference: `R/paintr-parse.R:80-184`, `tests/testthat/test-runtime-input-spec.R:1-165`,
+  `README.Rmd:314-349`, `vignettes/ggpaintr-workflow.Rmd:45-80`
 - Exported apps still keep explicit `ui <- fluidPage(...)`, explicit
   `server <- function(...)`, default `copy_rules <- NULL`, and compact
   reconstruction of custom copy rules and custom placeholders when needed.
@@ -71,11 +77,11 @@
 - `Rscript -e 'devtools::document()'` completed cleanly in the latest recorded
   session run and synchronized `NAMESPACE` plus the generated `man/` files with
   the current roxygen comments.
-- `Rscript -e 'testthat::test_dir("tests/testthat")'` passes with 369 tests in
+- `Rscript -e 'testthat::test_dir("tests/testthat")'` passes with 388 tests in
   the latest recorded session run.
 - `Rscript -e 'devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran", "--no-manual"))'`
-  completed cleanly with 0 errors, 0 warnings, and 1 standard timestamp note
-  (`unable to verify current time`) in the latest recorded session run.
+  completed cleanly with 0 errors, 0 warnings, and 0 notes in the latest
+  recorded session run.
 - `Rscript -e 'pkgdown::build_site_github_pages(new_process = FALSE, install = TRUE)'`
   completed cleanly in the latest recorded session run.
 - `Rscript -e 'devtools::load_all("."); rmarkdown::render("README.Rmd", envir = globalenv())'`
@@ -130,6 +136,20 @@
   Reference: `README.Rmd:169-326`, `_pkgdown.yml:7-48`,
   `tests/manual/manual-test-ggpaintr.Rmd:602-841`,
   `vignettes/ggpaintr-placeholder-registry.Rmd:1-347`
+- added `ggpaintr_runtime_input_spec()` as the supported low-level runtime
+  input-discovery helper and rewrote the maintained README/vignette/manual
+  examples around that path instead of hand-authoring internal ids  
+  Reference: `R/paintr-parse.R:80-184`, `NAMESPACE:3-28`,
+  `tests/testthat/test-runtime-input-spec.R:1-165`, `README.Rmd:314-349`,
+  `vignettes/ggpaintr-workflow.Rmd:45-80`,
+  `tests/manual/manual-test-ggpaintr.Rmd:198-206`
+- tightened the maintained note system so normal startup stays on
+  `index.md`, `current-status.md`, and task-relevant source/tests, with
+  `start-codex.md` acting as a lighter session-entry prompt rather than a
+  second durable status file  
+  Reference: `working_scripts/notes/index.md:9-63`,
+  `working_scripts/notes/knowledge-schema.md:68-95`,
+  `working_scripts/notes/start-codex.md:1-58`
 
 ## Current focus
 
@@ -140,6 +160,9 @@
   common custom-placeholder patterns
 - keep the verified source, generated docs, README, and maintained notes in
   sync as the next feature work lands
+- keep the startup prompt light so fresh sessions rebuild context from the
+  maintained notes and current code instead of duplicating durable detail in the
+  prompt itself
 
 ## Current risks or blockers
 
@@ -150,6 +173,9 @@
   `preconsideration/`; it is excluded from package/build paths, but it remains
   repo-noise until a separate archival decision is made.  
   Reference: `.gitignore:44-46`, `.Rbuildignore:5-7`
+- the repo currently has in-progress source/docs changes in the working tree, so
+  any cleanup pass should avoid treating a non-clean worktree as proof of note
+  drift by itself.
 
 ## Quick re-entry points
 
@@ -179,6 +205,9 @@ Task-specific source routes:
   `R/paintr-copy.R`, `tests/testthat/test-copy-rules.R`, `README.Rmd`
 - export behavior:
   `R/paintr-export.R`, `tests/testthat/test-export-shiny.R`
+- low-level runtime input discovery:
+  `R/paintr-parse.R`, `R/paintr-runtime.R`, `tests/testthat/test-runtime-input-spec.R`,
+  `README.Rmd`, `vignettes/ggpaintr-workflow.Rmd`
 - Shiny integration helpers:
   `R/paintr-app.R`, `tests/testthat/test-extensibility.R`,
   `vignettes/ggpaintr-extensibility.Rmd`

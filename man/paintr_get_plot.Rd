@@ -24,7 +24,10 @@ library(ggplot2)
 obj <- paintr_formula(
   "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + geom_point()"
 )
-runtime <- paintr_build_runtime(obj, list("geom_point+checkbox" = TRUE))
+spec <- ggpaintr_runtime_input_spec(obj)
+inputs <- setNames(vector("list", nrow(spec)), spec$input_id)
+inputs[spec$role == "layer_checkbox"] <- rep(list(TRUE), sum(spec$role == "layer_checkbox"))
+runtime <- paintr_build_runtime(obj, inputs)
 plot_obj <- paintr_get_plot(runtime$complete_expr_list, runtime$eval_env)
 inherits(plot_obj, "ggplot")
 }

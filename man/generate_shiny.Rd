@@ -27,7 +27,9 @@ It is ignored.}
 text, and placeholders.}
 
 \item{placeholders}{Optional custom placeholder definitions or an existing
-placeholder registry.}
+placeholder registry. Exported custom placeholders must define their hooks
+inline inside \code{ggpaintr_placeholder()} so the generated app can stay
+standalone.}
 }
 \value{
 Invisibly returns \code{output_file}.

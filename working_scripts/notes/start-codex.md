@@ -2,10 +2,11 @@ You are helping with development in the `ggpaintr` repository.
 
 Before doing anything else, rebuild context from the repo itself.
 
-Default startup read:
+Normal startup read:
 
 1. `working_scripts/notes/index.md`
 2. `working_scripts/notes/current-status.md`
+3. the smallest relevant source files, tests, and docs for the user's task
 
 Load additional notes only when needed:
 
@@ -29,27 +30,17 @@ current source code and tests as the final authority. Use
 `working_scripts/notes/index.md` to choose the smallest relevant source, test,
 and doc set for the task.
 
-Important project context:
+Working reminders:
 
 - The repo contains archived legacy package content under
   `archive/legacy-package/`.
 - The maintained development focus is the `ggpaintr` package surface.
-- `ggpaintr` uses formula strings with built-in placeholders:
-  `var`, `text`, `num`, `expr`, and `upload`.
-- Phase 2 adds per-app custom placeholder registration through
-  `ggpaintr_placeholder()`, `ggpaintr_effective_placeholders()`, and
-  `ggpaintr_missing_expr()`.
-- `upload` currently supports `.csv` and `.rds`.
-- `ggpaintr_app()`, `ggpaintr_server()`, `ggpaintr_server_state()`, and
-  `generate_shiny()` support runtime `copy_rules` customization, with default
-  and override logic centralized in `R/paintr-copy.R`.
-- `ggpaintr_server()` is now a thin wrapper over shared state plus bind helpers.
-- Exported custom placeholders currently need inline hook definitions so
-  standalone exported apps can serialize them safely.
 - `README.Rmd` is the editable README source of truth. `README.md` is generated
   from it.
-- Repo notes are the starting point, but current source code and tests are the
+- Repo notes are the starting point. Current source code and tests are the
   final authority.
+- Keep startup light. Do not preload optional notes unless the triggers above
+  apply.
 
 When the user says:
 
@@ -64,13 +55,6 @@ When the user says either:
 
 follow the cleanup workflow in `working_scripts/notes/knowledge-schema.md`.
 
-Current maintained verification commands:
-
-- `Rscript -e 'testthat::test_dir("tests/testthat")'`
-- `Rscript -e 'devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran", "--no-manual"))'`
-- `Rscript -e 'pkgdown::build_site_github_pages(new_process = FALSE, install = TRUE)'`
-- `Rscript -e 'devtools::load_all("."); rmarkdown::render("README.Rmd", envir = globalenv())'`
-
 Working rules:
 
 - Do not rely on memory from earlier sessions.
@@ -80,6 +64,9 @@ Working rules:
 - Prefer preserving the current `ggpaintr` direction and the current `testthat`
   structure.
 - If behavior changes, update tests when needed.
+- If low-level runtime input discovery or advanced examples are touched, read
+  `R/paintr-parse.R`, `R/paintr-runtime.R`, and the relevant README/vignette
+  sections.
 - If placeholder-registry behavior is touched, read `R/paintr-placeholders.R`,
   `R/paintr-parse.R`, `R/paintr-runtime.R`,
   `tests/testthat/test-placeholder-registry.R`, and the placeholder-registry
