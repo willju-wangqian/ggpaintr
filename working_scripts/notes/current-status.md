@@ -9,7 +9,7 @@
   phase-1 Shiny integration helpers, and phase-2 placeholder extensibility
   helpers.  
   Reference: `R/paintr-app.R:21-567`, `R/paintr-parse.R:20-77`,
-  `R/paintr-runtime.R:389-393`, `R/paintr-export.R:229-252`,
+  `R/paintr-runtime.R:239-243`, `R/paintr-export.R:229-252`,
   `R/paintr-placeholders.R:44-131`, `NAMESPACE:3-26`
 - Durable architecture, supported boundaries, and export design live in
   `working_scripts/notes/project-overview.md`. Use
@@ -22,7 +22,7 @@
   `ggpaintr_effective_placeholders()` and now share the same parse, UI, runtime,
   copy-rule, and export path as built-ins.  
   Reference: `R/paintr-placeholders.R:69-149`, `R/paintr-parse.R:20-77`,
-  `R/paintr-ui.R:210-253`, `R/paintr-runtime.R:180-214`,
+  `R/paintr-ui.R:210-253`, `R/paintr-runtime.R:30-63`,
   `R/paintr-copy.R:12-18`, `R/paintr-export.R:95-128`
 - `upload` supports `.csv` and `.rds` and still derives a default object name
   from the uploaded filename when the dataset-name field is blank.  
@@ -37,7 +37,7 @@
   Reference: `R/paintr-app.R:546-567`
 - Runtime failures still flow through the shared completion, plot-build, and
   render-validation pipeline with `Input error:` versus `Plot error:` labeling.  
-  Reference: `R/paintr-runtime.R:251-393`
+  Reference: `R/paintr-runtime.R:101-243`
 - Formulas with `var` and no data source still fail during UI preparation, but
   missing local data objects are deferred to draw-time plot errors.  
   Reference: `R/paintr-placeholders.R:663-777`,
@@ -67,7 +67,7 @@
 - `Rscript -e 'devtools::load_all("."); rmarkdown::render("README.Rmd", envir = globalenv())'`
   completed cleanly in the latest recorded session run and regenerated
   `README.md`.
-- `cran-comments.md` still needs to be refreshed to match the latest clean
+- `cran-comments.md` now matches the latest clean
   `--as-cran --no-manual` result.
 
 ## Completed recently
@@ -80,8 +80,13 @@
   preparation, and copy-rule validation so built-in and custom placeholders
   share the same registry path  
   Reference: `R/paintr-parse.R:20-77`, `R/paintr-ui.R:210-253`,
-  `R/paintr-runtime.R:180-214`, `R/paintr-upload.R:121-140`,
+  `R/paintr-runtime.R:30-63`, `R/paintr-upload.R:121-140`,
   `R/paintr-copy.R:12-146`
+- removed the unused legacy placeholder replacement helpers from
+  `R/paintr-runtime.R`, dropped the orphaned `detect_keywords()` helper, and
+  regenerated `man/` and `docs/` so the dead internal help pages are gone  
+  Reference: `R/paintr-runtime.R:1-63`, `R/paintr-utils.R:157-190`,
+  `tests/testthat/test-runtime-feedback.R:1-154`
 - extended export generation so custom-placeholder apps serialize only compact
   `custom_placeholders` definitions and rebuild the effective registry in the
   generated app  
@@ -99,8 +104,6 @@
 - decide whether phase 3 should focus on module-layer composition, deeper
   placeholder exportability guarantees, or developer ergonomics for common
   custom-placeholder patterns
-- refresh `cran-comments.md` with the latest clean `--as-cran --no-manual`
-  result
 
 ## Current risks or blockers
 

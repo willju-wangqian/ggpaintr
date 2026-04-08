@@ -4,7 +4,7 @@
 
 ## R CMD check results
 
-- `devtools::check(document = FALSE, manual = FALSE, args = c("--no-manual"))`
+- `devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran", "--no-manual"))`
   completed with:
   - 0 errors
   - 0 warnings

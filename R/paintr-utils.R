@@ -154,25 +154,6 @@ handle_duplicate_names <- function(x) {
   x
 }
 
-#' Detect Paintr Placeholder Keywords
-#'
-#' @param .x An expression object.
-#'
-#' @return The placeholder keyword string or `NULL`.
-#' @keywords internal
-detect_keywords <- function(.x) {
-  if (!rlang::is_symbol(.x)) {
-    return(NULL)
-  }
-
-  keyword <- rlang::as_string(.x)
-  if (keyword %in% c("var", "text", "num", "expr", "upload")) {
-    keyword
-  } else {
-    keyword
-  }
-}
-
 #' Build a Stable Placeholder Id
 #'
 #' @param index_path An index path.
@@ -287,4 +268,3 @@ check_remove_null <- function(x) {
 
   x
 }
-

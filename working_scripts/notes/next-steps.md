@@ -26,8 +26,6 @@ This file tracks the prioritized follow-up work for the maintained package.
      `R/paintr-placeholders.R:457-509`, `_pkgdown.yml:7-48`
 
 3. Documentation and submission workflow
-   - refresh `cran-comments.md` with the latest clean `--as-cran --no-manual`
-     result
    - keep `README.Rmd` as the editable README source and re-knit `README.md`
      after README source changes  
      Reference: `README.Rmd:1-5`
