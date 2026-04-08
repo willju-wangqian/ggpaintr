@@ -1,3 +1,6 @@
 # Exclude legacy source trees from Graphify ingestion.
 /archive/
 /preconsideration/
+
+# R CMD check output duplicates the repo and adds noise to the graph.
+/ggpaintr.Rcheck/
