@@ -18,11 +18,14 @@ pak::pkg_install("willju-wangqian/ggpaintr")
 `ggpaintr` works by treating a ggplot-like formula string as a template
 with placeholders that become Shiny inputs.
 
-- `var` selects a variable or expression-like input
+- `var` selects a data column in the generated UI
 - `text` collects free text
 - `num` collects numeric input
 - `expr` collects raw R code for places like faceting or labels
 - `upload` lets the app use uploaded data
+- [`ggpaintr_normalize_column_names()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_normalize_column_names.md)
+  cleans local column names before `var` selection when the source data
+  is not already syntactic
 - you can register your own placeholder types per app with
   [`ggpaintr_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_placeholder.md)
 
@@ -129,6 +132,45 @@ ggplot(data = upload, aes(x = var, y = var)) +
 ```
 
 The upload control currently supports `.csv` and `.rds`.
+
+Uploads are normalized through the same column-name helper automatically
+after read-in. `.rds` uploads must already be tabular or be coercible
+with [`as.data.frame()`](https://rdrr.io/r/base/as.data.frame.html).
+
+### Prepare local data with non-syntactic column names
+
+If your local data uses spaces or punctuation in column names, normalize
+it once before you build the app.
+
+``` r
+messy_sales <- data.frame(
+  left = 1:4,
+  right = c(2, 4, 6, 8),
+  check.names = FALSE
+)
+names(messy_sales) <- c("first column", "second-column")
+
+sales <- ggpaintr_normalize_column_names(messy_sales)
+names(sales)
+
+ggpaintr_app("
+ggplot(data = sales, aes(x = var, y = var)) +
+  geom_point()
+")
+```
+
+### Put transforms around `var` in the formula
+
+`var` is a column picker. When you want derived mappings, wrap the
+placeholder in the formula itself and let the selected column slot into
+that expression.
+
+``` r
+ggpaintr_app("
+ggplot(data = mtcars, aes(x = var + 1, y = log(var))) +
+  geom_point()
+")
+```
 
 ### Customize control text with `copy_rules`
 
@@ -312,6 +354,12 @@ server <- function(input, output, session) {
 
 - Structural formula errors fail early during parsing.
 - `var` with no data source fails while preparing the UI.
+- `var` is a column picker. Formula-level transforms such as `var + 1`
+  or `log(var)` are supported inside the formula text, not as direct
+  input values.
+- For local data with non-syntactic names, call
+  [`ggpaintr_normalize_column_names()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_normalize_column_names.md)
+  first; uploads apply the same normalization automatically.
 - Missing local data objects are deferred to draw-time inline errors.
 - Advanced integrations can customize the plot through
   [`ggpaintr_plot_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_plot_value.md).
@@ -378,6 +426,13 @@ guidance.
   : Build the Effective Placeholder Registry for ggpaintr
 - [`ggpaintr_missing_expr()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_missing_expr.md)
   : Return the Sentinel for Removing a Placeholder Argument
+
+## Data preparation
+
+- [`ggpaintr_normalize_column_names()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_normalize_column_names.md)
+  :
+
+  Normalize Dataset Column Names for `ggpaintr`
 
 ## Formula and runtime
 

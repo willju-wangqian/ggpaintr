@@ -24,8 +24,10 @@ paintr_build_runtime(paintr_obj, input, envir = parent.frame())
 
 ## Value
 
-A runtime result list containing success flag, stage, plot, code, and
-readable error details.
+A runtime result list containing `ok`, `stage`, `message`, `code_text`,
+`complete_expr_list`, `eval_env`, `condition`, and `plot`.
+Completion-stage validation failures return `stage = "complete"`;
+plot-construction or render failures return `stage = "plot"`.
 
 ## Examples
 

@@ -18,7 +18,6 @@
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/expr_type.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/generate_shiny.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/generate_ui_expr.html</loc></url>
-<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/generate_ui_individual.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/generate_ui_num.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/generate_ui_text.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/generate_ui_upload.html</loc></url>
@@ -42,6 +41,7 @@
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_error_value.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_ids.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_missing_expr.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_normalize_column_names.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_outputs_ui.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_placeholder.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_plot_value.html</loc></url>
@@ -72,16 +72,19 @@
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_get_plot.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_get_plot_safe.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_get_tab_ui.html</loc></url>
-<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_get_uploaded_data.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_humanize_param.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_interpolate_copy_text.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_mark_runtime_failure.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_merge_copy_rules.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_normalize_column_name_vector.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_normalize_copy_rules.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_normalize_param_key.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_normalize_tabular_data.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_param_is_unnamed.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_prefix_assignment.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_prepare_eval_env.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_read_uploaded_data.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_reserved_words.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_resolve_copy.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_resolve_shell_copy.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/paintr_resolve_upload_info.html</loc></url>

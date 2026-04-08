@@ -78,7 +78,7 @@
 <p><code>ggpaintr</code> works by treating a ggplot-like formula string as a template with placeholders that become Shiny inputs.</p>
 <ul>
 <li>
-<code>var</code> selects a variable or expression-like input</li>
+<code>var</code> selects a data column in the generated UI</li>
 <li>
 <code>text</code> collects free text</li>
 <li>
@@ -87,6 +87,8 @@
 <code>expr</code> collects raw R code for places like faceting or labels</li>
 <li>
 <code>upload</code> lets the app use uploaded data</li>
+<li>
+<code><a href="reference/ggpaintr_normalize_column_names.html">ggpaintr_normalize_column_names()</a></code> cleans local column names before <code>var</code> selection when the source data is not already syntactic</li>
 <li>you can register your own placeholder types per app with <code><a href="reference/ggpaintr_placeholder.html">ggpaintr_placeholder()</a></code>
 </li>
 </ul>
@@ -182,13 +184,44 @@
 <span><span class="st">  labs(title = text)</span></span>
 <span><span class="st">"</span><span class="op">)</span></span></code></pre></div>
 <p>The upload control currently supports <code>.csv</code> and <code>.rds</code>.</p>
+<p>Uploads are normalized through the same column-name helper automatically after read-in. <code>.rds</code> uploads must already be tabular or be coercible with <code><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame()</a></code>.</p>
+</div>
+<div class="section level3">
+<h3 id="prepare-local-data-with-non-syntactic-column-names">Prepare local data with non-syntactic column names<a class="anchor" aria-label="anchor" href="#prepare-local-data-with-non-syntactic-column-names"></a>
+</h3>
+<p>If your local data uses spaces or punctuation in column names, normalize it once before you build the app.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">messy_sales</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  left <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">4</span>,</span>
+<span>  right <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">4</span>, <span class="fl">6</span>, <span class="fl">8</span><span class="op">)</span>,</span>
+<span>  check.names <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">messy_sales</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"first column"</span>, <span class="st">"second-column"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">sales</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ggpaintr_normalize_column_names.html">ggpaintr_normalize_column_names</a></span><span class="op">(</span><span class="va">messy_sales</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sales</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="reference/ggpaintr_app.html">ggpaintr_app</a></span><span class="op">(</span><span class="st">"</span></span>
+<span><span class="st">ggplot(data = sales, aes(x = var, y = var)) +</span></span>
+<span><span class="st">  geom_point()</span></span>
+<span><span class="st">"</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="put-transforms-around-var-in-the-formula">Put transforms around <code>var</code> in the formula<a class="anchor" aria-label="anchor" href="#put-transforms-around-var-in-the-formula"></a>
+</h3>
+<p><code>var</code> is a column picker. When you want derived mappings, wrap the placeholder in the formula itself and let the selected column slot into that expression.</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/ggpaintr_app.html">ggpaintr_app</a></span><span class="op">(</span><span class="st">"</span></span>
+<span><span class="st">ggplot(data = mtcars, aes(x = var + 1, y = log(var))) +</span></span>
+<span><span class="st">  geom_point()</span></span>
+<span><span class="st">"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="customize-control-text-with-copy_rules">Customize control text with <code>copy_rules</code>
 <a class="anchor" aria-label="anchor" href="#customize-control-text-with-copy_rules"></a>
 </h3>
 <p>Use <code>copy_rules</code> to change user-facing labels without changing the runtime behavior of the generated app.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">custom_copy</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  shell <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    draw_button <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Render plot"</span><span class="op">)</span>,</span>
@@ -212,7 +245,7 @@
 <h3 id="register-a-custom-placeholder-type">Register a custom placeholder type<a class="anchor" aria-label="anchor" href="#register-a-custom-placeholder-type"></a>
 </h3>
 <p>Use <code><a href="reference/ggpaintr_placeholder.html">ggpaintr_placeholder()</a></code> and <code><a href="reference/ggpaintr_effective_placeholders.html">ggpaintr_effective_placeholders()</a></code> when you want to add a new control type without editing package internals.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sales</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  day <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="st">"2024-01-01"</span><span class="op">)</span> <span class="op">+</span> <span class="fl">0</span><span class="op">:</span><span class="fl">4</span>,</span>
 <span>  value <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10</span>, <span class="fl">13</span>, <span class="fl">12</span>, <span class="fl">16</span>, <span class="fl">18</span><span class="op">)</span></span>
@@ -246,7 +279,7 @@
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="va">placeholders</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "var"    "text"   "num"    "expr"   "upload" "date"</span></span></code></pre></div>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/ggpaintr_app.html">ggpaintr_app</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = sales, aes(x = day, y = value)) +</span></span>
 <span><span class="st">    geom_line() +</span></span>
@@ -258,7 +291,7 @@
 <h3 id="export-a-standalone-app">Export a standalone app<a class="anchor" aria-label="anchor" href="#export-a-standalone-app"></a>
 </h3>
 <p>Use <code><a href="reference/generate_shiny.html">generate_shiny()</a></code> when you want an explicit, editable Shiny app file that you can continue customizing outside the package wrapper.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/paintr_formula.html">paintr_formula</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = upload, aes(x = var, y = var)) +</span></span>
 <span><span class="st">    geom_point() +</span></span>
@@ -276,7 +309,7 @@
 <h3 id="embed-ggpaintr-in-your-own-shiny-app">Embed <code>ggpaintr</code> in your own Shiny app<a class="anchor" aria-label="anchor" href="#embed-ggpaintr-in-your-own-shiny-app"></a>
 </h3>
 <p>The phase-1 extensibility layer lets you keep your own layout while reusing the <code>ggpaintr</code> state and bind helpers.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://shiny.posit.co/" class="external-link">shiny</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ggpaintr_ids.html">ggpaintr_ids</a></span><span class="op">(</span></span>
@@ -318,7 +351,7 @@
 <a class="anchor" aria-label="anchor" href="#customize-the-plot-in-your-own-renderplot"></a>
 </h3>
 <p>If you want to keep the <code>ggpaintr</code> runtime but take over plot rendering, use <code><a href="reference/ggpaintr_plot_value.html">ggpaintr_plot_value()</a></code> inside your own <code><a href="https://rdrr.io/pkg/shiny/man/renderPlot.html" class="external-link">renderPlot()</a></code>.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">paintr_state</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ggpaintr_server_state.html">ggpaintr_server_state</a></span><span class="op">(</span></span>
 <span>    <span class="st">"ggplot(data = iris, aes(x = var, y = var)) + geom_point()"</span></span>
@@ -350,6 +383,9 @@
 <li>Structural formula errors fail early during parsing.</li>
 <li>
 <code>var</code> with no data source fails while preparing the UI.</li>
+<li>
+<code>var</code> is a column picker. Formula-level transforms such as <code>var + 1</code> or <code>log(var)</code> are supported inside the formula text, not as direct input values.</li>
+<li>For local data with non-syntactic names, call <code><a href="reference/ggpaintr_normalize_column_names.html">ggpaintr_normalize_column_names()</a></code> first; uploads apply the same normalization automatically.</li>
 <li>Missing local data objects are deferred to draw-time inline errors.</li>
 <li>Advanced integrations can customize the plot through <code><a href="reference/ggpaintr_plot_value.html">ggpaintr_plot_value()</a></code>.</li>
 <li>Custom placeholders are registered per app through <code><a href="reference/ggpaintr_effective_placeholders.html">ggpaintr_effective_placeholders()</a></code>.</li>

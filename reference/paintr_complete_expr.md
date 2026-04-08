@@ -24,4 +24,4 @@ paintr_complete_expr(paintr_obj, input, envir = parent.frame())
 
 ## Value
 
-A list with completed expressions, generated code, and eval env.
+A named list with `complete_expr_list`, `code_text`, and `eval_env`.

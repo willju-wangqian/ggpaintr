@@ -47,6 +47,13 @@
 - [`ggpaintr_missing_expr()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_missing_expr.md)
   : Return the Sentinel for Removing a Placeholder Argument
 
+## Data preparation
+
+- [`ggpaintr_normalize_column_names()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_normalize_column_names.md)
+  :
+
+  Normalize Dataset Column Names for `ggpaintr`
+
 ## Formula and runtime
 
 - [`paintr_formula()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_formula.md)

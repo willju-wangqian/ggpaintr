@@ -18,6 +18,11 @@ get_shiny_template(formula_text, copy_rules = NULL, placeholders = NULL)
 
   Effective or user-supplied copy rules.
 
+- placeholders:
+
+  Optional custom placeholder definitions or an effective placeholder
+  registry.
+
 ## Value
 
 A character vector containing the exported app template.

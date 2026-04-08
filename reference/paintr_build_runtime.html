@@ -68,8 +68,10 @@
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A runtime result list containing success flag, stage, plot, code,
-and readable error details.</p>
+    <p>A runtime result list containing <code>ok</code>, <code>stage</code>, <code>message</code>,
+<code>code_text</code>, <code>complete_expr_list</code>, <code>eval_env</code>, <code>condition</code>, and <code>plot</code>.
+Completion-stage validation failures return <code>stage = "complete"</code>;
+plot-construction or render failures return <code>stage = "plot"</code>.</p>
     </div>
 
     <div class="section level2">

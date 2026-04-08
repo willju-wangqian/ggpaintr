@@ -14,6 +14,11 @@ paintr_serialize_export_copy_rules(copy_rules = NULL, placeholders = NULL)
 
   User-supplied or effective copy rules.
 
+- placeholders:
+
+  Placeholder definitions or a placeholder registry used to compact
+  placeholder-specific copy overrides.
+
 ## Value
 
 A character vector of source lines.

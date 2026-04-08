@@ -20,7 +20,8 @@ paintr_get_plot(plot_expr_list, envir = parent.frame())
 
 ## Value
 
-A `ggplot` object.
+A `ggplot` object assembled from the retained layer expressions. Errors
+when no plot expressions remain after runtime processing.
 
 ## Examples
 

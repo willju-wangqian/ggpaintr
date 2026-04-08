@@ -24,4 +24,5 @@ paintr_resolve_upload_info(input, upload_id, strict = FALSE)
 
 ## Value
 
-A list with data, object name, file name, and generated code text.
+A list with `data`, `object_name`, `file_name`, and `code_text`, or
+`NULL` when `strict = FALSE` and no upload was supplied.

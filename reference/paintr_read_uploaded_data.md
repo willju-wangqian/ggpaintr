@@ -17,4 +17,4 @@ paintr_read_uploaded_data(file_info)
 
 ## Value
 
-The uploaded object or `NULL`.
+A normalized tabular object or `NULL` when no file was supplied.

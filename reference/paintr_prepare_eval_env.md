@@ -24,4 +24,5 @@ paintr_prepare_eval_env(paintr_obj, input, envir = parent.frame())
 
 ## Value
 
-An evaluation environment containing uploaded datasets.
+An evaluation environment containing uploaded datasets and any other
+placeholder-provided objects.
