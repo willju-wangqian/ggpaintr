@@ -24,6 +24,7 @@ Current automated coverage for runtime feedback and the copy-rule system already
 -   default and overridden copy for app-shell controls and exported apps
 -   custom Shiny integration helpers with custom top-level ids
 -   custom placeholder registry parsing, runtime replacement, and export wiring
+-   sourced exported-app smoke tests for static-data and upload-backed formulas
 -   low-level runtime input discovery through `ggpaintr_runtime_input_spec()`
 
 See:
@@ -83,37 +84,13 @@ Assumptions:
 ```{r setup, message=FALSE, warning=FALSE}
 library(ggpaintr)
 library(shiny)
-library(tidyverse)
 library(shinyWidgets)
-library(palmerpenguins)
 library(rlang)
 library(assertthat)
-library(lobstr)
-library(here)
 
-world_map <- map_data("world")
-
-# Some EU Contries
-some.eu.countries <- c(
-  "Portugal", "Spain", "France", "Switzerland", "Germany",
-  "Austria", "Belgium", "UK", "Netherlands",
-  "Denmark", "Poland", "Italy",
-  "Croatia", "Slovenia", "Hungary", "Slovakia",
-  "Czech republic"
-)
-# Retrievethe map data
-some.eu.maps <- map_data("world", region = some.eu.countries)
-
-# Compute the centroid as the mean longitude and lattitude
-# Used as label coordinate for country's names
-region.lab.data <- some.eu.maps %>%
-  group_by(region) %>%
-  summarise(long = mean(long), lat = mean(lat))
-
-
-csv_fixture <- here("tests", "testthat", "fixtures", "simple_numeric.csv")
-rds_fixture <- here("tests", "testthat", "fixtures", "simple_numeric.rds")
-bad_fixture <- here("tests", "testthat", "fixtures", "bad_extension.txt")
+csv_fixture <- file.path("tests", "testthat", "fixtures", "simple_numeric.csv")
+rds_fixture <- file.path("tests", "testthat", "fixtures", "simple_numeric.rds")
+bad_fixture <- file.path("tests", "testthat", "fixtures", "bad_extension.txt")
 
 sales_manual <- data.frame(
   day = as.Date("2024-01-01") + 0:5,

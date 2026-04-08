@@ -1,3 +1,7 @@
+source_exported_app <- function(path, envir = new.env(parent = baseenv())) {
+  source(path, local = envir)$value
+}
+
 test_that("generate_shiny writes a syntactically valid app script", {
   obj <- paintr_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
@@ -140,6 +144,75 @@ test_that("ggpaintr_app returns a shiny app object", {
   )
 
   expect_s3_class(app, "shiny.appobj")
+})
+
+test_that("generate_shiny exported apps execute end to end for static formulas", {
+  obj <- paintr_formula(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point() + labs(title = text)"
+  )
+  out_file <- tempfile(fileext = ".R")
+
+  generate_shiny(obj, list(), out_file, style = FALSE)
+
+  export_env <- new.env(parent = environment())
+  exported_app <- source_exported_app(out_file, envir = export_env)
+  server_wrapper <- function(input, output, session) {
+    session$userData$paintr_state <- export_env$server(input, output, session)
+  }
+
+  expect_s3_class(exported_app, "shiny.appobj")
+  expect_true(is.function(export_env$server))
+
+  shiny::testServer(server_wrapper, {
+    session$setInputs(
+      "ggplot+3+2" = "mpg",
+      "ggplot+3+3" = "disp",
+      "labs+2" = "Exported plot",
+      "geom_point+checkbox" = TRUE,
+      "labs+checkbox" = TRUE,
+      draw = 1
+    )
+
+    runtime_result <- session$userData$paintr_state$runtime()
+    expect_true(runtime_result$ok)
+    expect_null(runtime_result$message)
+    expect_s3_class(runtime_result$plot, "ggplot")
+    expect_match(runtime_result$code_text, "labs\\(title = \"Exported plot\"\\)")
+  })
+})
+
+test_that("generate_shiny exported apps execute upload formulas end to end", {
+  obj <- paintr_formula(
+    "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
+  )
+  out_file <- tempfile(fileext = ".R")
+
+  generate_shiny(obj, list(), out_file, style = FALSE)
+
+  export_env <- new.env(parent = environment())
+  exported_app <- source_exported_app(out_file, envir = export_env)
+  server_wrapper <- function(input, output, session) {
+    session$userData$paintr_state <- export_env$server(input, output, session)
+  }
+
+  expect_s3_class(exported_app, "shiny.appobj")
+
+  shiny::testServer(server_wrapper, {
+    session$setInputs(
+      "ggplot+2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple numeric.csv"),
+      "ggplot+2+name" = "",
+      "ggplot+3+2" = "x",
+      "ggplot+3+3" = "y",
+      "geom_point+checkbox" = TRUE,
+      draw = 1
+    )
+
+    runtime_result <- session$userData$paintr_state$runtime()
+    expect_true(runtime_result$ok)
+    expect_null(runtime_result$message)
+    expect_s3_class(runtime_result$plot, "ggplot")
+    expect_match(runtime_result$code_text, "ggplot\\(data = simple_numeric")
+  })
 })
 
 test_that("generate_shiny writes compact custom copy rules for exported apps", {
