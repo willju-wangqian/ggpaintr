@@ -11,6 +11,11 @@ knitr::opts_chunk$set(
   warning = FALSE,
   message = FALSE
 )
+
+if (!requireNamespace("ggpaintr", quietly = TRUE)) {
+  devtools::install(quiet = TRUE)
+}
+library(ggpaintr)
 ```
 
 # ggpaintr
