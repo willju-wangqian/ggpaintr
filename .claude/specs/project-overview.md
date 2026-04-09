@@ -22,7 +22,7 @@ The repo has two clearly separated areas:
 The repo also still contains tracked historical exploratory material under
 `preconsideration/`. It is excluded from the package/build path and is not part
 of the maintained package surface.  
-References: `.gitignore:44-46`, `.Rbuildignore:5-7`
+References: `.gitignore:44-46`, `.Rbuildignore:8`
 
 The active package is centered on:
 
@@ -71,8 +71,8 @@ References:
 - `R/paintr-parse.R:20-77`
 - `R/paintr-placeholders.R:69-149`
 - `R/paintr-copy.R:12-18`
-- `R/paintr-ui.R:210-341`
-- `R/paintr-runtime.R:180-402`
+- `R/paintr-ui.R:210-319`
+- `R/paintr-runtime.R:180-369`
 - `R/paintr-app.R:191-567`
 - `R/paintr-export.R:95-252`
 
