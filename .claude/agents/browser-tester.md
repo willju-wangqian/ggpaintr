@@ -1,6 +1,7 @@
 ---
 name: browser-tester
 description: "Launches ggpaintr Shiny apps in a browser and runs automated E2E tests using Chrome MCP tools"
+model: opus
 tools:
   - Bash
   - Read

@@ -10,16 +10,6 @@ This file is for developer-written initial thoughts, rough ideas, and informal p
 
 ## Notes
 
-2.  formula driven redesign?
-
-    0.  Add a short roadmap note explaining how to resolve formula-string fragility later without breaking the authoring model:
-
-        -   keep formula strings as the author-facing input;
-
-        -   introduce an internal compiled runtime contract derived once from paintr_obj;
-
-        -   have runtime completion consume that contract instead of re-deriving behavior from raw expression walks and companion-id conventions.
-
 3.  test cases that can break ggpaintr
 
     -   bug assessment? generate edge cases that can effectively break ggpaintr
