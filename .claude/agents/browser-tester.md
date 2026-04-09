@@ -65,6 +65,10 @@ Run Formula 2 (the canary) first. If it fails, stop and report the infrastructur
 
 For each formula in the test plan, execute the five-phase loop below. Continue on failure (log it, move to next formula).
 
+### Batching Same-Formula Tests
+
+When multiple test sections share the same launch code (identical formula), run them in a single app session instead of relaunching. The test plan marks these with `### Batch with: <other section>`. Run all scenarios and checks sequentially in the same app, same Chrome tab, before teardown.
+
 ### Per-Formula Loop
 
 #### 1. Launch

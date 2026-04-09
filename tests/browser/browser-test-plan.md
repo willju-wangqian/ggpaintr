@@ -345,7 +345,9 @@ Verify exported file via R:
 
 ---
 
-## Formula 6A: Error Feedback — Malformed expr
+## Formula 6A+6D: Error Feedback and Recovery — Malformed expr
+
+### Batch with: F6D (same app, single launch)
 
 ### Launch
 
@@ -383,6 +385,18 @@ shiny::runApp(
 - dom: `#outputPlot img` is absent
 - dom: `#outputCode` is non-blank (completion succeeded)
 - dom: No raw `Error: [object Object]` text visible
+
+### Recovery Scenario (formerly F6D)
+
+1. `facet_wrap expr` → type `~ Species`
+2. Click `draw`
+
+### Checks — Recovery
+
+- dom: `#outputError` is empty or hidden (error cleared)
+- dom: `#outputPlot img` present
+- dom: `#outputCode` contains `facet_wrap(~ Species)`
+- r-side: Session remains responsive
 
 ---
 
@@ -440,39 +454,6 @@ shiny::runApp(
 - dom: `#outputCode` is non-blank (code generation succeeded)
 
 ---
-
-## Formula 6D: Error Recovery
-
-### Launch
-
-```r
-shiny::runApp(
-  ggpaintr::ptr_app("
-    ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
-      geom_point() +
-      facet_wrap(expr)
-  "),
-  port = 4321, launch.browser = FALSE
-)
-```
-
-### Error Phase
-
-1. `facet_wrap expr` → type `~`
-2. Click `draw`
-3. Verify: `#outputError` contains `Input error`
-
-### Recovery Phase
-
-1. `facet_wrap expr` → type `~ Species`
-2. Click `draw`
-
-### Checks — Recovery
-
-- dom: `#outputError` is empty or hidden (error cleared)
-- dom: `#outputPlot img` present
-- dom: `#outputCode` contains `facet_wrap(~ Species)`
-- r-side: Session remains responsive
 
 ---
 
