@@ -44,8 +44,8 @@ These are hard-won lessons from actual test execution. Do not skip them.
 4. **Check R process stderr for session crashes** — if the Shiny disconnect overlay
    appears (`document.getElementById('shiny-disconnected-overlay') !== null`), read the
    background Rscript output file to diagnose why. A crashed session is a test failure.
-5. **Fixed: var UI closure** — the closure-over-loop bug in `paintr-placeholders.R:934`
-   has been fixed with `local()`. Both x-axis and y-axis pickers should now render
+5. **Fixed: var UI closure** — the closure-over-loop bug in `paintr-placeholders.R`
+   (var `bind_ui` impl) has been fixed. Both x-axis and y-axis pickers should now render
    distinct labels. If they still show identical labels, that's a regression — report it.
 
 ## Execution Protocol
@@ -88,7 +88,7 @@ Map the human-readable input names from the test plan to actual Shiny input IDs.
 
 You can also run this R-side to get a mapping:
 ```r
-Rscript -e 'cat(jsonlite::toJSON(ggpaintr::ggpaintr_runtime_input_spec(ggpaintr::paintr_formula("...")), auto_unbox=TRUE))'
+Rscript -e 'cat(jsonlite::toJSON(ggpaintr::ptr_runtime_input_spec(ggpaintr::ptr_parse_formula("...")), auto_unbox=TRUE))'
 ```
 
 #### 3. Interact

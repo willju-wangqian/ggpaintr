@@ -620,7 +620,7 @@ custom_ui_text <- list(
     `__unnamed__` = list(label = "Split the plot by", placeholder = "~ Species"))))
 )
 
-obj <- ggpaintr::paintr_formula("
+obj <- ggpaintr::ptr_parse_formula("
   ggplot(data = iris, aes(x = var, y = var)) +
     geom_point() + labs(title = text) + facet_wrap(expr)
 ")
@@ -631,7 +631,7 @@ ggpaintr::ptr_generate_shiny(obj, out_file, style = FALSE, ui_text = custom_ui_t
 ### File Content Checks
 
 - Contains `custom_ui_text <-`
-- Contains `paintr_effective_ui_text(custom_ui_text)`
+- Contains `ptr_merge_ui_text(custom_ui_text)`
 - Contains `ptr_server(`
 - Contains `ui_text = ui_text`
 
@@ -857,7 +857,7 @@ date_ui_text <- list(
     xintercept = list(help = "Choose a cutoff date for the vertical guide."))))
 )
 
-obj <- ggpaintr::paintr_formula(
+obj <- ggpaintr::ptr_parse_formula(
   "
   ggplot(data = sales_manual, aes(x = day, y = value)) +
     geom_line() +
@@ -907,7 +907,7 @@ non_inline_date <- ggpaintr::ptr_define_placeholder(
   resolve_expr = date_to_expr_manual
 )
 
-non_inline_obj <- ggpaintr::paintr_formula(
+non_inline_obj <- ggpaintr::ptr_parse_formula(
   "
   ggplot(data = sales_manual, aes(x = day, y = value)) +
     geom_line() + geom_vline(xintercept = date)
