@@ -1,3 +1,10 @@
+---
+name: testing-strategy
+type: reference
+scope: [testing]
+created: 2026-04-09
+---
+
 # Testing Strategy
 
 ## Purpose

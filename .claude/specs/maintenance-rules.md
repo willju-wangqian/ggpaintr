@@ -1,9 +1,16 @@
+---
+name: maintenance-rules
+type: reference
+scope: [governance]
+created: 2026-04-09
+---
+
 # Maintenance Rules
 
 ## Purpose
 
 This file defines the maintenance contract for project knowledge and documentation.
-It governs how notes, memory, and knowledge files are maintained — not how the R package code works.
+It governs how notes, memory, and specs are maintained — not how the R package code works.
 
 Source code is the final authority. These rules are governance, not a session log.
 
@@ -15,7 +22,7 @@ Source code is the final authority. These rules are governance, not a session lo
 - Commands, architecture summary, conventions, governance rules, context routing, prompt contracts
 - Update when architecture, commands, conventions, or governance rules change
 
-### On-demand knowledge (`.claude/knowledge/`)
+### On-demand specs (`.claude/specs/`)
 
 `project-overview.md`
 - Durable architecture, public API surface, supported boundaries, export design, placeholder/copy model
@@ -60,10 +67,9 @@ Scope: all md/Rmd files outside `archive/`, `preconsideration/`, `docs/` (genera
 
 - Keep notes concise and high-signal. Prefer bullets over narrative.
 - Cite source files and line numbers when describing implementation behavior.
-- Do not create ad-hoc markdown files in `.claude/knowledge/`.
 - Completed work belongs in current-status memory, not next-steps.
 - Stable policy belongs in testing-strategy, not current-status.
-- Temporary deep-dive notes go to `dev/`, not `.claude/knowledge/`.
+- Temporary deep-dive notes go to `dev/`, not `.claude/specs/`.
 
 ## Archive Rules
 

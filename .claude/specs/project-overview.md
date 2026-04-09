@@ -1,3 +1,10 @@
+---
+name: project-overview
+type: reference
+scope: [architecture, api]
+created: 2026-04-09
+---
+
 # Project Overview
 
 ## Purpose

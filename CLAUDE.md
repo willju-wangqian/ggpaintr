@@ -58,24 +58,22 @@ A formula string flows through four stages:
 - `README.Rmd` is the editable README source; `README.md` is generated output — edit `README.Rmd`, then re-knit.
 - `dev/developer-notes.md` is human-maintained only — do not edit unless the user explicitly asks.
 - Stored task files (`dev/tasks/*.md`) stay unchanged unless the user explicitly asks to edit them.
-- Do not create ad-hoc markdown files in `.claude/knowledge/`.
+- Do not create ad-hoc markdown files in `.claude/specs/`.
 
 ## Context Loading
 
-Read these on-demand when the task requires deeper context:
+Read `.claude/specs/SPECS.md` on-demand when the task requires deeper context. Follow links for relevant specs.
 
-- `.claude/knowledge/project-overview.md` — durable architecture, public API surface, supported boundaries
-- `.claude/knowledge/testing-strategy.md` — automated/manual test policy, fixture strategy, acceptance criteria
-- `.claude/knowledge/maintenance-rules.md` — file responsibilities, maintenance workflow, archive rules
+Additional context:
 - `dev/tasks/*.md` — stored task prompts for publication workflows (read when @-mentioned)
 
 ## Prompt Contracts
 
 When the user says **"update knowledge"**:
-1. Read `.claude/knowledge/maintenance-rules.md` for file responsibilities
+1. Read `.claude/specs/maintenance-rules.md` for file responsibilities
 2. Inspect current repo state relevant to recent work
 3. Update memory files (current-status, next-steps) based on what changed
-4. Do not touch stable knowledge files unless their scope changed
+4. Do not touch stable reference specs unless their scope changed
 
 When the user says **"fact-check docs"**:
 1. Grep all non-archive md/Rmd files for exported function names, verify against NAMESPACE

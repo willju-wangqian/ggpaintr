@@ -6,11 +6,11 @@ trigger: /graphify
 
 # /graphify
 
-Use the installed Graphify Codex workflow at `/Users/willju/.codex/skills/graphify/skill-codex.md`.
+Use the installed Graphify skill at `~/.claude/skills/graphify/SKILL.md`.
 
 When invoked:
 
-1. Read `/Users/willju/.codex/skills/graphify/skill-codex.md`.
+1. Read `~/.claude/skills/graphify/SKILL.md`.
 2. Follow those instructions exactly for the user's `/graphify ...` invocation.
 3. Default the target path to `.` when the user does not provide one.
 4. Respect this repository's [`.graphifyignore`](/Users/willju/Research/ggpaintr/.graphifyignore) during detection and extraction.
