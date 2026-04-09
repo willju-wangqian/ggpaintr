@@ -10,10 +10,6 @@ This file is for developer-written initial thoughts, rough ideas, and informal p
 
 ## Notes
 
-0.  rename `copy_rules`
-
-1.  development goal as a prompt?
-
 2.  formula driven redesign?
 
     0.  Add a short roadmap note explaining how to resolve formula-string fragility later without breaking the authoring model:

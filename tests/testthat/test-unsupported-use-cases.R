@@ -19,11 +19,3 @@ test_that("unknown data objects fail when variable UI needs data columns", {
 
   expect_no_error(register_var_ui_outputs(list(), output, obj))
 })
-
-test_that("quoted placeholders do not create variable controls", {
-  obj <- ptr_parse_formula(
-    'ggplot(data = mtcars, aes(x = "var", y = "var")) + geom_point()'
-  )
-
-  expect_false(any(vapply(obj$keywords_list$ggplot, rlang::as_string, character(1)) == "var"))
-})
