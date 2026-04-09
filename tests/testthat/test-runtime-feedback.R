@@ -204,6 +204,17 @@ test_that("ptr_format_runtime_message formats stage labels consistently", {
   )
 })
 
+test_that("ptr_format_runtime_message strips ANSI escape codes", {
+  ansi_msg <- paste0(
+    "\033[38;5;255mMissing `asdf`\n",
+    "\033[31m", "x", "\033[38;5;255m Layer 1 is missing `asdf`\033[39m"
+  )
+  cond <- simpleError(ansi_msg)
+  result <- ptr_format_runtime_message("plot", cond)
+  expect_false(grepl("\033", result, fixed = TRUE))
+  expect_match(result, "Plot error: Missing `asdf`")
+})
+
 test_that("ptr_error_ui returns NULL for blank input and tags for messages", {
   expect_null(ptr_error_ui(NULL))
   expect_null(ptr_error_ui(""))

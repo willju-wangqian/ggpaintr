@@ -242,6 +242,22 @@ ptr_is_gg_layer_name <- function(fn_name) {
   any(vapply(gg_prefixes, function(p) startsWith(fn_name, p), logical(1)))
 }
 
+#' Check Whether a Layer Can Stand Alone Without Arguments
+#'
+#' Layers like `geom_*()` and `stat_*()` can inherit aesthetics from
+#' the base `ggplot()` call, so they are valid even with no arguments.
+#' Other gg helpers (`labs()`, `facet_wrap()`, `theme()`, etc.) are
+#' either no-ops or will error when called with no arguments.
+#'
+#' @param fn_name A single function name string.
+#'
+#' @return `TRUE` if the layer can be called with zero arguments.
+#' @noRd
+ptr_can_stand_alone <- function(fn_name) {
+  standalone_prefixes <- c("geom_", "stat_")
+  any(vapply(standalone_prefixes, function(p) startsWith(fn_name, p), logical(1)))
+}
+
 #' Remove Empty Non-ggplot Calls
 #'
 #' @param .expr An expression object.
@@ -277,6 +293,34 @@ expr_remove_emptycall2 <- function(.expr) {
   }
 
   .expr
+}
+
+#' Remove Empty Non-Standalone Layers from an Expression List
+#'
+#' After placeholder resolution and empty-call pruning, some top-level
+#' layers may have lost all arguments (e.g. `labs()`, `facet_wrap()`,
+#' `theme()`).  These are either no-ops or will error at eval time.
+#' Layers that can inherit aesthetics (`geom_*`, `stat_*`) and the
+#' base `ggplot` layer are kept.
+#'
+#' @param expr_list A named list of layer expressions.
+#'
+#' @return The filtered expression list with empty non-standalone layers
+#'   set to `NULL`.
+#' @noRd
+ptr_remove_empty_nonstandalone_layers <- function(expr_list) {
+  for (nn in names(expr_list)) {
+    expr <- expr_list[[nn]]
+    if (is.null(expr) || nn == "ggplot") next
+    if (is.call(expr) && length(expr) == 1) {
+      fn_name <- rlang::as_string(expr[[1]])
+      if (!ptr_can_stand_alone(fn_name)) {
+        message(paste0("Layer ", fn_name, "() removed (no arguments provided)."))
+        expr_list[[nn]] <- NULL
+      }
+    }
+  }
+  expr_list
 }
 
 #' Drop `NULL` Elements from a List

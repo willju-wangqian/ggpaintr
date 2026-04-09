@@ -344,6 +344,60 @@ test_that("check_remove_null leaves a list with no NULLs unchanged", {
   expect_equal(check_remove_null(x), x)
 })
 
+# --- ptr_can_stand_alone --------------------------------------------------
+
+test_that("ptr_can_stand_alone recognizes geom_ and stat_ prefixes", {
+  expect_true(ptr_can_stand_alone("geom_point"))
+  expect_true(ptr_can_stand_alone("geom_line"))
+  expect_true(ptr_can_stand_alone("stat_smooth"))
+})
+
+test_that("ptr_can_stand_alone rejects non-standalone layers", {
+  expect_false(ptr_can_stand_alone("labs"))
+  expect_false(ptr_can_stand_alone("facet_wrap"))
+  expect_false(ptr_can_stand_alone("theme"))
+  expect_false(ptr_can_stand_alone("theme_minimal"))
+  expect_false(ptr_can_stand_alone("scale_x_continuous"))
+})
+
+# --- ptr_remove_empty_nonstandalone_layers --------------------------------
+
+test_that("ptr_remove_empty_nonstandalone_layers removes empty labs/facet/theme", {
+  expr_list <- list(
+    ggplot = quote(ggplot(data = iris, aes(x = Sepal.Length))),
+    `geom_point+2` = quote(geom_point()),
+    `labs+3` = quote(labs()),
+    `facet_wrap+4` = quote(facet_wrap()),
+    `theme+5` = quote(theme())
+  )
+  result <- suppressMessages(ptr_remove_empty_nonstandalone_layers(expr_list))
+  expect_true("ggplot" %in% names(result))
+  expect_true("geom_point+2" %in% names(result))
+  expect_null(result[["labs+3"]])
+  expect_null(result[["facet_wrap+4"]])
+  expect_null(result[["theme+5"]])
+})
+
+test_that("ptr_remove_empty_nonstandalone_layers keeps layers with arguments", {
+  expr_list <- list(
+    ggplot = quote(ggplot(data = iris)),
+    `labs+2` = quote(labs(title = "hello")),
+    `theme+3` = quote(theme(legend.position = "top"))
+  )
+  result <- ptr_remove_empty_nonstandalone_layers(expr_list)
+  expect_length(result, 3)
+})
+
+test_that("ptr_remove_empty_nonstandalone_layers keeps empty geom layers", {
+  expr_list <- list(
+    ggplot = quote(ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width))),
+    `geom_point+2` = quote(geom_point()),
+    `stat_smooth+3` = quote(stat_smooth())
+  )
+  result <- ptr_remove_empty_nonstandalone_layers(expr_list)
+  expect_length(result, 3)
+})
+
 test_that("check_remove_null handles a single non-NULL element", {
   x <- list(a = 42)
   expect_equal(check_remove_null(x), list(a = 42))

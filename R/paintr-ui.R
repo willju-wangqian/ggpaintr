@@ -167,9 +167,10 @@ generate_ui_var <- function(data_var,
       copy$label,
       choices = data_var,
       selected = character(0),
-      multiple = FALSE,
+      multiple = TRUE,
       options = shinyWidgets::pickerOptions(
-        noneSelectedText = copy$empty_text
+        noneSelectedText = copy$empty_text,
+        maxOptions = 1L
       )
     ),
     copy$help

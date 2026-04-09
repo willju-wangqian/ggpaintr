@@ -53,7 +53,7 @@ These are hard-won lessons from actual test execution. Do not skip them.
 ### Phase 0: Infrastructure Check
 
 1. Verify R is available: `Rscript --version`
-2. Verify ggpaintr is loadable: `Rscript -e 'library(ggpaintr)'`
+2. Verify ggpaintr is loadable: `Rscript -e 'devtools::load_all(".")'`
 3. Verify Chrome is accessible: call `mcp__claude-in-chrome__tabs_context_mcp`
 4. If any check fails, report the problem and stop.
 
@@ -70,7 +70,7 @@ For each formula in the test plan, execute the five-phase loop below. Continue o
 #### 1. Launch
 
 - Write a temp R script (`/tmp/ggpaintr_test_<N>.R`) containing:
-  - `library(ggpaintr); library(ggplot2); library(shiny); library(shinyWidgets)`
+  - `devtools::load_all("."); library(ggplot2); library(shiny); library(shinyWidgets)`
   - Any setup objects the formula needs (from the "Setup Objects" section)
   - The `shiny::runApp(...)` call from the "Launch" section
 - Run it in background: `Rscript /tmp/ggpaintr_test_<N>.R`
