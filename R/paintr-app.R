@@ -217,13 +217,17 @@ ggpaintr_bind_control_panel <- function(input,
 
   shiny::observe({
     shiny::req(ggpaintr_state$obj())
-    ggpaintr_state$var_ui_list(register_var_ui_outputs(
-      input,
-      output,
-      ggpaintr_state$obj(),
-      envir = ggpaintr_state$envir,
-      copy_rules = ggpaintr_state$effective_copy_rules
-    ))
+    result <- tryCatch(
+      register_var_ui_outputs(
+        input,
+        output,
+        ggpaintr_state$obj(),
+        envir = ggpaintr_state$envir,
+        copy_rules = ggpaintr_state$effective_copy_rules
+      ),
+      error = function(e) list()
+    )
+    ggpaintr_state$var_ui_list(result)
   })
 
   output[[ids$control_panel]] <- shiny::renderUI({

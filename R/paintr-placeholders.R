@@ -931,8 +931,11 @@ ggpaintr_bind_var_ui_impl <- function(input, output, metas, context) {
         deferred_ui[[meta$id]] <- ui
       }
 
-      output[[paste0("var-", meta$id)]] <- shiny::renderUI({
-        ui
+      local({
+        captured_ui <- ui
+        output[[paste0("var-", meta$id)]] <- shiny::renderUI({
+          captured_ui
+        })
       })
     }
   }

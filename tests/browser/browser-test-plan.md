@@ -295,7 +295,7 @@ shiny::runApp(
 
 ### Layer Toggle Check
 
-1. Uncheck upload-backed `geom_point` → click `draw`
+1. Uncheck upload-backed `geom_point` (ID hint: `geom_point-2+checkbox` — duplicate layers use `-N` suffix) → click `draw`
    - dom: `#outputPlot img` still present (static layer only)
    - dom: `#outputCode` does not contain upload data reference
 

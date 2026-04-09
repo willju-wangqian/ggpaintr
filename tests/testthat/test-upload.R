@@ -121,3 +121,48 @@ test_that("register_var_ui_outputs exposes normalized names for uploaded rds dat
   expect_match(ui_text, "first_column", fixed = TRUE)
   expect_match(ui_text, "second_column", fixed = TRUE)
 })
+
+test_that("register_var_ui_outputs produces distinct widgets for each var placeholder", {
+  obj <- ggpaintr_formula(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  )
+
+  output <- list2env(list(), parent = emptyenv())
+  input <- list(
+    "ggplot+3+2" = "mpg",
+    "ggplot+3+3" = "disp"
+  )
+
+  result <- register_var_ui_outputs(input, output, obj)
+
+  expect_named(result, c("ggplot+3+2", "ggplot+3+3"))
+
+  ui_x <- paste(as.character(result[["ggplot+3+2"]]), collapse = "\n")
+  ui_y <- paste(as.character(result[["ggplot+3+3"]]), collapse = "\n")
+
+  expect_match(ui_x, "x-axis", fixed = TRUE)
+  expect_match(ui_y, "y-axis", fixed = TRUE)
+  expect_false(identical(ui_x, ui_y))
+})
+
+test_that("bad upload does not crash the app session", {
+  formula <- "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
+
+  server_wrapper <- function(input, output, session) {
+    session$userData$paintr_state <- ggpaintr_server(
+      input, output, session, formula
+    )
+  }
+
+  shiny::testServer(server_wrapper, {
+    session$setInputs(
+      "ggplot+2" = mock_upload_input(fixture_path("bad_extension.txt"), "bad_extension.txt"),
+      "ggplot+2+name" = "",
+      draw = 1
+    )
+
+    runtime_result <- session$userData$paintr_state$runtime()
+    expect_false(runtime_result$ok)
+    expect_match(runtime_result$message, "Input error", fixed = TRUE)
+  })
+})
