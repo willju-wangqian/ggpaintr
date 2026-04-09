@@ -117,6 +117,35 @@ test_that("ptr_resolve_layer_data evaluates a literal symbol from eval_env", {
   expect_identical(result$data, mtcars)
 })
 
+test_that("ptr_resolve_layer_data detects positional first-arg data", {
+  obj <- ptr_parse_formula(
+    "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+  )
+  context <- ptr_define_placeholder_context(obj, ui_text = NULL)
+  eval_env <- new.env(parent = .GlobalEnv)
+
+  result <- ptr_resolve_layer_data(
+    obj,
+    layer_name = "ggplot",
+    input      = list(),
+    context    = context,
+    eval_env   = eval_env
+  )
+
+  expect_true(result$has_data)
+  expect_s3_class(result$data, "data.frame")
+  expect_identical(result$data, mtcars)
+})
+
+test_that("ptr_param_matches_data detects named and positional data params", {
+  expect_true(ptr_param_matches_data("data"))
+  expect_true(ptr_param_matches_data(NULL, index_path = 2))
+  expect_true(ptr_param_matches_data("", index_path = 2))
+  expect_false(ptr_param_matches_data(NULL))
+  expect_false(ptr_param_matches_data(NULL, index_path = 3))
+  expect_false(ptr_param_matches_data("color"))
+})
+
 # ---------------------------------------------------------------------------
 # 4. ptr_upload_default_name — edge cases
 # ---------------------------------------------------------------------------

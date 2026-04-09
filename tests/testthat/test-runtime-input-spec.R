@@ -86,14 +86,14 @@ test_that("ptr_runtime_input_spec preserves resolved duplicate layer names", {
 
   expect_identical(
     spec$layer_name,
-    c("geom_point-1", "geom_point-2", "geom_point-1", "geom_point-2")
+    c("geom_point", "geom_point-2", "geom_point", "geom_point-2")
   )
   expect_identical(
     spec$input_id,
     c(
-      "geom_point-1+2",
+      "geom_point+2",
       "geom_point-2+2",
-      "geom_point-1+checkbox",
+      "geom_point+checkbox",
       "geom_point-2+checkbox"
     )
   )

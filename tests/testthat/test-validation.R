@@ -287,6 +287,44 @@ test_that("ptr_validate_placeholder aborts when optional hooks are not NULL or f
   )
 })
 
+test_that("ptr_validate_placeholder aborts when hook has wrong arity", {
+  bad_build_ui <- make_raw_placeholder(build_ui = function(x) x)
+  expect_error(
+    ptr_validate_placeholder(bad_build_ui),
+    "build_ui must accept 4 arguments, but has 1"
+  )
+
+  bad_resolve_expr <- make_raw_placeholder(resolve_expr = function(a, b) a)
+  expect_error(
+    ptr_validate_placeholder(bad_resolve_expr),
+    "resolve_expr must accept 3 arguments, but has 2"
+  )
+
+  bad_resolve_input <- make_raw_placeholder(
+    resolve_input = function(input, id) input[[id]]
+  )
+  expect_error(
+    ptr_validate_placeholder(bad_resolve_input),
+    "resolve_input must accept 4 arguments, but has 2"
+  )
+
+  bad_bind_ui <- make_raw_placeholder(
+    bind_ui = function(input, output) NULL
+  )
+  expect_error(
+    ptr_validate_placeholder(bad_bind_ui),
+    "bind_ui must accept 4 arguments, but has 2"
+  )
+
+  bad_prep <- make_raw_placeholder(
+    prepare_eval_env = function(input) input
+  )
+  expect_error(
+    ptr_validate_placeholder(bad_prep),
+    "prepare_eval_env must accept 4 arguments, but has 1"
+  )
+})
+
 test_that("ptr_validate_placeholder aborts when copy_defaults is not a named list", {
   # Unnamed list
   bad_unnamed <- make_raw_placeholder(copy_defaults = list("a", "b"))

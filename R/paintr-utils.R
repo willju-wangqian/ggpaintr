@@ -88,16 +88,19 @@ expr_pluck <- function(.x, index_path) {
 #' @return The updated expression object.
 #' @noRd
 `expr_pluck<-` <- function(.x, index_path, value) {
-  tryCatch({
-    .x[[index_path]] <- value
-  }, error = function(e) {
-    cat(
-      paste0(
-        "Error in ", deparse(e$call), ": ", e$message,
-        "\nModification failed.\n"
+  tryCatch(
+    .x[[index_path]] <- value,
+    error = function(e) {
+      rlang::abort(
+        paste0(
+          "Failed to substitute expression at index path [",
+          paste(index_path, collapse = ", "),
+          "]: ", e$message
+        ),
+        parent = e
       )
-    )
-  })
+    }
+  )
 
   .x
 }
@@ -142,11 +145,16 @@ handle_duplicate_names <- function(x) {
     duplicated_items <- unique(x[duplicated(x)])
     counting_list <- rep(list(0), length(duplicated_items))
     counting_list <- rlang::set_names(counting_list, duplicated_items)
+    seen <- character(0)
 
     for (i in seq_along(x)) {
       if (x[i] %in% names(counting_list)) {
         counting_list[[x[i]]] <- counting_list[[x[i]]] + 1
-        x[i] <- paste0(x[i], "-", counting_list[[x[i]]])
+        if (x[i] %in% seen) {
+          x[i] <- paste0(x[i], "-", counting_list[[x[i]]])
+        } else {
+          seen <- c(seen, x[i])
+        }
       }
     }
   }
@@ -218,6 +226,22 @@ expr_remove_null <- function(.expr,
   .expr
 }
 
+#' Check Whether a Function Name Looks Like a ggplot2 Layer
+#'
+#' @param fn_name A single function name string.
+#'
+#' @return `TRUE` if the name matches known ggplot2 patterns.
+#' @noRd
+ptr_is_gg_layer_name <- function(fn_name) {
+  gg_prefixes <- c(
+    "geom_", "stat_", "scale_", "coord_", "facet_", "theme_", "theme",
+    "labs", "xlab", "ylab", "ggtitle", "guides", "guide_",
+    "annotation_", "borders", "expand_limits", "lims", "xlim", "ylim",
+    "after_stat", "after_scale", "stage"
+  )
+  any(vapply(gg_prefixes, function(p) startsWith(fn_name, p), logical(1)))
+}
+
 #' Remove Empty Non-ggplot Calls
 #'
 #' @param .expr An expression object.
@@ -228,11 +252,11 @@ expr_remove_emptycall2 <- function(.expr) {
   for (i in length(.expr):1) {
     if (is.call(.expr[[i]])) {
       if (length(.expr[[i]]) == 1) {
-        func_meaning <- tryCatch(eval(.expr[[i]]), error = function(e) NULL)
-        if (is.null(func_meaning) || !("gg" %in% attr(func_meaning, "class"))) {
+        fn_name <- rlang::as_string(.expr[[i]][[1]])
+        if (!ptr_is_gg_layer_name(fn_name)) {
           message(
             paste0(
-              "The function ", rlang::as_string(.expr[[i]][[1]]),
+              "The function ", fn_name,
               "() in ", rlang::as_string(.expr[[1]]), "() is removed."
             )
           )
@@ -245,9 +269,9 @@ expr_remove_emptycall2 <- function(.expr) {
   }
 
   if (is.call(.expr) && length(.expr) == 1) {
-    func_meaning <- tryCatch(eval(.expr), error = function(e) NULL)
-    if (is.null(func_meaning) || !("gg" %in% attr(func_meaning, "class"))) {
-      message(paste0("The function ", rlang::as_string(.expr[[1]]), "() is removed."))
+    fn_name <- rlang::as_string(.expr[[1]])
+    if (!ptr_is_gg_layer_name(fn_name)) {
+      message(paste0("The function ", fn_name, "() is removed."))
       .expr <- NULL
     }
   }

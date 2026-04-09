@@ -1,3 +1,21 @@
+#' Map Public Component Names to Storage Paths
+#'
+#' Single source of truth for the mapping between public `ptr_resolve_ui_text()`
+#' component names and their nested storage paths in the rules structure.
+#'
+#' @return A named list of character vectors representing storage paths.
+#' @noRd
+ptr_ui_text_component_paths <- function() {
+  list(
+    title          = c("shell", "title"),
+    draw_button    = c("shell", "draw_button"),
+    export_button  = c("shell", "export_button"),
+    upload_file    = c("upload", "file"),
+    upload_name    = c("upload", "name"),
+    layer_checkbox = c("layer_checkbox")
+  )
+}
+
 #' Default Copy Rules for ggpaintr
 #'
 #' Internal registry for all user-facing control copy. Maintainers should update
@@ -636,38 +654,36 @@ ptr_resolve_ui_text <- function(component,
                                 placeholders = NULL) {
   rules <- ptr_merge_ui_text(ui_text, placeholders = placeholders)
 
-  resolved <- switch(
-    component,
-    title = rules$shell$title,
-    draw_button = rules$shell$draw_button,
-    export_button = rules$shell$export_button,
-    upload_file = rules$upload$file,
-    upload_name = rules$upload$name,
-    layer_checkbox = rules$layer_checkbox,
-    control = {
-      param_key <- ptr_normalize_param_key(param)
-      default_rule <- rules$defaults[[keyword]]
-      param_rule <- if (!identical(param_key, "__unnamed__") &&
-        !is.null(rules$params[[param_key]])) {
-        rules$params[[param_key]][[keyword]]
-      } else {
-        NULL
-      }
-      layer_rule <- if (!is.null(layer_name) &&
-        !is.null(rules$layers[[layer_name]]) &&
-        !is.null(rules$layers[[layer_name]][[keyword]])) {
-        rules$layers[[layer_name]][[keyword]][[param_key]]
-      } else {
-        NULL
-      }
+  component_map <- ptr_ui_text_component_paths()
 
-      ptr_deep_merge_ui_text(
-        ptr_deep_merge_ui_text(default_rule, param_rule),
-        layer_rule
-      )
-    },
+  if (component %in% names(component_map)) {
+    path <- component_map[[component]]
+    resolved <- rules
+    for (key in path) resolved <- resolved[[key]]
+  } else if (identical(component, "control")) {
+    param_key <- ptr_normalize_param_key(param)
+    default_rule <- rules$defaults[[keyword]]
+    param_rule <- if (!identical(param_key, "__unnamed__") &&
+      !is.null(rules$params[[param_key]])) {
+      rules$params[[param_key]][[keyword]]
+    } else {
+      NULL
+    }
+    layer_rule <- if (!is.null(layer_name) &&
+      !is.null(rules$layers[[layer_name]]) &&
+      !is.null(rules$layers[[layer_name]][[keyword]])) {
+      rules$layers[[layer_name]][[keyword]][[param_key]]
+    } else {
+      NULL
+    }
+
+    resolved <- ptr_deep_merge_ui_text(
+      ptr_deep_merge_ui_text(default_rule, param_rule),
+      layer_rule
+    )
+  } else {
     rlang::abort(paste0("Unknown copy component: ", component, "."))
-  )
+  }
 
   for (field_name in ptr_ui_text_leaf_fields()) {
     resolved[[field_name]] <- ptr_interpolate_ui_text(

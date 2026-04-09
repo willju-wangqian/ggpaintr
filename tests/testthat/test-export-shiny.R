@@ -436,6 +436,41 @@ test_that("ptr_generate_shiny errors when custom placeholders are not exportable
   )
 })
 
+test_that("ptr_validate_exportable_placeholder warns on free variables in hooks", {
+  ph <- ptr_define_placeholder(
+    keyword = "freevar",
+    build_ui = function(id, copy, meta, context) {
+      shiny::textInput(id, my_external_label)
+    },
+    resolve_expr = function(value, meta, context) {
+      if (is.null(value)) return(ptr_missing_expr())
+      rlang::expr(!!value)
+    }
+  )
+
+  expect_warning(
+    ptr_validate_exportable_placeholder(ph),
+    "my_external_label"
+  )
+})
+
+test_that("ptr_validate_exportable_placeholder does not warn on clean hooks", {
+  ph <- ptr_define_placeholder(
+    keyword = "clean",
+    build_ui = function(id, copy, meta, context) {
+      shiny::textInput(id, copy$label)
+    },
+    resolve_expr = function(value, meta, context) {
+      if (is.null(value)) return(ptr_missing_expr())
+      rlang::expr(!!value)
+    }
+  )
+
+  expect_no_warning(
+    ptr_validate_exportable_placeholder(ph)
+  )
+})
+
 test_that("ptr_generate_shiny compacts pre-merged copy rules before export", {
   obj <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"

@@ -42,6 +42,16 @@ generate_ui_upload <- function(id, ui_text = NULL) {
   )
 }
 
+#' Build the Output ID for a Deferred `var` UI Element
+#'
+#' @param id Placeholder id.
+#'
+#' @return A single output id string.
+#' @noRd
+ptr_var_output_id <- function(id) {
+  paste0("var-", id)
+}
+
 #' Build a Deferred `var` UI Placeholder
 #'
 #' @param id Placeholder id.
@@ -49,7 +59,7 @@ generate_ui_upload <- function(id, ui_text = NULL) {
 #' @return A placeholder `uiOutput()`.
 #' @noRd
 generate_ui_var_placeholder <- function(id) {
-  shiny::uiOutput(paste0("var-", id))
+  shiny::uiOutput(ptr_var_output_id(id))
 }
 
 #' Build Text Placeholder UI
@@ -157,9 +167,8 @@ generate_ui_var <- function(data_var,
       copy$label,
       choices = data_var,
       selected = character(0),
-      multiple = TRUE,
+      multiple = FALSE,
       options = shinyWidgets::pickerOptions(
-        maxOptions = 1,
         noneSelectedText = copy$empty_text
       )
     ),

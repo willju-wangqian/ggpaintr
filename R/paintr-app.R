@@ -617,19 +617,20 @@ ptr_resolve_shell_ui_text <- function(ui_text = NULL) {
 #'
 #' @return A Shiny UI object.
 #' @noRd
-ptr_build_app_ui <- function(title_label, draw_label, export_label) {
+ptr_build_app_ui <- function(title_label, draw_label, export_label,
+                             ids = ptr_build_ids()) {
   shiny::fluidPage(
     shiny::titlePanel(title_label),
     shiny::sidebarLayout(
       shiny::sidebarPanel(
-        shiny::uiOutput("controlPanel"),
-        shiny::actionButton("draw", draw_label),
-        shiny::downloadButton("shinyExport", export_label)
+        shiny::uiOutput(ids$control_panel),
+        shiny::actionButton(ids$draw_button, draw_label),
+        shiny::downloadButton(ids$export_button, export_label)
       ),
       shiny::mainPanel(
-        shiny::plotOutput("outputPlot"),
-        shiny::uiOutput("outputError"),
-        shiny::verbatimTextOutput("outputCode")
+        shiny::plotOutput(ids$plot_output),
+        shiny::uiOutput(ids$error_output),
+        shiny::verbatimTextOutput(ids$code_output)
       )
     )
   )

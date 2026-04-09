@@ -183,3 +183,26 @@ test_that("tab UI does not expose parser-style unnamed argument labels", {
   expect_match(tab_text, "Facet by", fixed = TRUE)
   expect_no_match(tab_text, "argument 1")
 })
+
+test_that("ptr_resolve_ui_text resolves all mapped components", {
+  components <- names(ptr_ui_text_component_paths())
+  for (comp in components) {
+    result <- ptr_resolve_ui_text(comp)
+    expect_type(result, "list")
+    expect_true("label" %in% names(result))
+  }
+})
+
+test_that("ptr_resolve_ui_text errors on unknown component", {
+  expect_error(
+    ptr_resolve_ui_text("nonexistent_component"),
+    "Unknown copy component"
+  )
+})
+
+test_that("ptr_ui_text_component_paths keys are exhaustive", {
+  paths <- ptr_ui_text_component_paths()
+  expected <- c("title", "draw_button", "export_button",
+                "upload_file", "upload_name", "layer_checkbox")
+  expect_setequal(names(paths), expected)
+})

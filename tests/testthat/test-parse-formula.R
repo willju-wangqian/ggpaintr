@@ -12,7 +12,7 @@ test_that("ptr_parse_formula parses formulas into a paintr object", {
   expect_identical(obj$formula_text, formula)
   expect_named(
     obj$expr_list,
-    c("ggplot", "geom_point-1", "geom_point-2", "labs")
+    c("ggplot", "geom_point", "geom_point-2", "labs")
   )
   expect_true("ggplot+2" %in% names(obj$keywords_list$ggplot))
   expect_true("ggplot+3+2" %in% names(obj$keywords_list$ggplot))

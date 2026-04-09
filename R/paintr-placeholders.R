@@ -219,6 +219,27 @@ ptr_validate_placeholder <- function(placeholder) {
     }
   }
 
+  expected_arity <- list(
+    build_ui = 4L,
+    resolve_expr = 3L,
+    resolve_input = 4L,
+    bind_ui = 4L,
+    prepare_eval_env = 4L
+  )
+  for (hook_name in names(expected_arity)) {
+    fn <- placeholder[[hook_name]]
+    if (!is.null(fn) && is.function(fn)) {
+      actual <- length(formals(fn))
+      expected <- expected_arity[[hook_name]]
+      if (actual != expected) {
+        rlang::abort(paste0(
+          "placeholder$", hook_name, " must accept ", expected,
+          " arguments, but has ", actual, "."
+        ))
+      }
+    }
+  }
+
   if (is.null(placeholder$copy_defaults)) {
     placeholder$copy_defaults <- list()
   }
@@ -468,9 +489,83 @@ ptr_validate_exportable_placeholder <- function(placeholder) {
     if (!rlang::is_call(arg_expr, "function")) {
       rlang::abort(paste0("Custom placeholder '", placeholder$keyword, "' must define ", arg_name, " inline so exported apps stay standalone."))
     }
+
+    ptr_check_free_variables(arg_expr, placeholder$keyword, arg_name)
   }
 
   invisible(TRUE)
+}
+
+#' Recursively Collect Free Symbol Names from an Expression
+#'
+#' Skips symbols accessed via `::`, `:::`, or `$` (namespace-qualified or
+#' member-access symbols are not free variables).
+#'
+#' @param expr An R expression.
+#'
+#' @return A character vector of unique symbol names.
+#' @noRd
+ptr_collect_symbols <- function(expr) {
+  if (is.symbol(expr)) return(as.character(expr))
+  if (!is.call(expr)) return(character(0))
+
+  fn <- expr[[1]]
+  fn_name <- if (is.symbol(fn)) as.character(fn) else ""
+
+  # Skip both sides of :: and ::: (namespace-qualified calls are safe).
+  # Skip RHS of $ (member access is not a free variable).
+  if (fn_name %in% c("::", ":::") && length(expr) == 3) {
+    return(character(0))
+  }
+  if (fn_name == "$" && length(expr) == 3) {
+    return(ptr_collect_symbols(expr[[2]]))
+  }
+
+  unique(unlist(lapply(as.list(expr), ptr_collect_symbols)))
+}
+
+#' Warn About Free Variables in an Inline Hook Function
+#'
+#' @param fn_expr A function call expression.
+#' @param keyword The placeholder keyword.
+#' @param hook_name The hook name.
+#'
+#' @return Invisibly returns `NULL`.
+#' @noRd
+ptr_check_free_variables <- function(fn_expr, keyword, hook_name) {
+  fn_formals <- fn_expr[[2]]
+  fn_body <- fn_expr[[3]]
+
+  formal_names <- names(fn_formals)
+  all_symbols <- ptr_collect_symbols(fn_body)
+
+  # Known safe: formals, base R, ggpaintr namespace
+  safe_names <- unique(c(
+    formal_names,
+    ls(baseenv()),
+    ls(asNamespace("ggpaintr")),
+    # R syntax not captured by baseenv()
+    "if", "else", "for", "while", "repeat", "function", "return",
+    "next", "break", "{", "(", "<-", "<<-", "=", "~",
+    "!", "&", "|", "&&", "||", "+", "-", "*", "/", "^",
+    "%%", "%/%", "%in%", "%>%", "|>",
+    "<", ">", "<=", ">=", "==", "!=",
+    "$", "[", "[[", ":", "::", ":::",
+    "NULL", "TRUE", "FALSE", "NA", "NA_character_", "NA_real_", "NA_integer_",
+    "T", "F"
+  ))
+
+  free_vars <- setdiff(all_symbols, safe_names)
+  if (length(free_vars) > 0) {
+    rlang::warn(paste0(
+      "Custom placeholder '", keyword, "': hook '", hook_name,
+      "' references names not in its formals or common packages: ",
+      paste(free_vars, collapse = ", "),
+      ". These may not be available in the exported app."
+    ))
+  }
+
+  invisible(NULL)
 }
 
 #' Serialize Custom Placeholder Definitions for Export
@@ -755,50 +850,82 @@ ptr_resolve_layer_data <- function(ptr_obj,
                                       context,
                                       eval_env) {
   params <- ptr_obj$param_list[[layer_name]]
-  data_index <- which(vapply(params, ptr_param_matches_data, logical(1)))
+  index_paths <- ptr_obj$index_path_list[[layer_name]]
+  data_index <- which(vapply(seq_along(params), function(j) {
+    ptr_param_matches_data(params[[j]], index_paths[[j]])
+  }, logical(1)))
 
-  if (length(data_index) == 0) {
-    return(list(has_data = FALSE, data = NULL))
-  }
+  if (length(data_index) > 0) {
+    data_index <- unname(data_index[[1]])
+    data_id <- ptr_obj$id_list[[layer_name]][[data_index]]
+    data_keyword <- ptr_obj$keywords_list[[layer_name]][[data_index]]
+    data_keyword_string <- rlang::as_string(data_keyword)
 
-  data_index <- unname(data_index[[1]])
-  data_id <- ptr_obj$id_list[[layer_name]][[data_index]]
-  data_keyword <- ptr_obj$keywords_list[[layer_name]][[data_index]]
-  data_keyword_string <- rlang::as_string(data_keyword)
+    if (data_keyword_string %in% names(ptr_obj$placeholders)) {
+      data_meta <- ptr_obj$placeholder_map[[layer_name]][[data_id]]
+      spec <- ptr_obj$placeholders[[data_meta$keyword]]
+      value <- ptr_resolve_placeholder_input(spec, input, data_meta, context)
+      resolved_expr <- ptr_resolve_placeholder_expr(spec, value, data_meta, context)
 
-  if (data_keyword_string %in% names(ptr_obj$placeholders)) {
-    data_meta <- ptr_obj$placeholder_map[[layer_name]][[data_id]]
-    spec <- ptr_obj$placeholders[[data_meta$keyword]]
-    value <- ptr_resolve_placeholder_input(spec, input, data_meta, context)
-    resolved_expr <- ptr_resolve_placeholder_expr(spec, value, data_meta, context)
+      if (identical(resolved_expr, ptr_missing_expr_symbol())) {
+        return(list(has_data = TRUE, data = NULL))
+      }
 
-    if (identical(resolved_expr, ptr_missing_expr_symbol())) {
-      return(list(has_data = TRUE, data = NULL))
+      data_obj <- tryCatch(
+        eval(resolved_expr, envir = eval_env),
+        error = function(e) NULL
+      )
+      return(list(has_data = TRUE, data = data_obj))
     }
 
     data_obj <- tryCatch(
-      eval(resolved_expr, envir = eval_env),
+      eval(data_keyword, envir = eval_env),
       error = function(e) NULL
     )
     return(list(has_data = TRUE, data = data_obj))
   }
 
-  data_obj <- tryCatch(
-    eval(data_keyword, envir = eval_env),
-    error = function(e) NULL
-  )
+  # Fallback: check the raw expression for a positional first argument
+  # (e.g., ggplot(mtcars, aes(...)) where mtcars is unnamed and not a placeholder)
+  layer_expr <- ptr_obj$expr_list[[layer_name]]
+  if (is.call(layer_expr) && length(layer_expr) >= 2) {
+    first_arg <- layer_expr[[2]]
+    first_arg_name <- names(layer_expr)[2]
+    if (is.symbol(first_arg) && (is.null(first_arg_name) || identical(first_arg_name, "") || identical(first_arg_name, "data"))) {
+      data_obj <- tryCatch(
+        eval(first_arg, envir = eval_env),
+        error = function(e) NULL
+      )
+      if (is.data.frame(data_obj)) {
+        return(list(has_data = TRUE, data = data_obj))
+      }
+    }
+  }
 
-  list(has_data = TRUE, data = data_obj)
+  list(has_data = FALSE, data = NULL)
 }
 
 #' Detect Whether a Parsed Parameter Refers to `data`
 #'
 #' @param param A parsed parameter value.
+#' @param index_path An optional index path for positional-arg detection.
 #'
 #' @return A single logical value.
 #' @noRd
-ptr_param_matches_data <- function(param) {
-  identical(param, "data") || identical(as.character(param)[1], "data")
+ptr_param_matches_data <- function(param, index_path = NULL) {
+  if (identical(param, "data") || identical(as.character(param)[1], "data")) {
+    return(TRUE)
+  }
+
+  # Positional first argument (index_path == 2) is conventionally `data` in
+
+  # ggplot() and geom_*/stat_* layers.
+  if ((is.null(param) || identical(param, "") || identical(param, NA_character_)) &&
+      !is.null(index_path) && length(index_path) == 1 && index_path[1] == 2) {
+    return(TRUE)
+  }
+
+  FALSE
 }
 
 #' Build the Available-Column Map for All `var` Placeholders
@@ -933,7 +1060,7 @@ ptr_bind_var_ui_impl <- function(input, output, metas, context) {
 
       local({
         captured_ui <- ui
-        output[[paste0("var-", meta$id)]] <- shiny::renderUI({
+        output[[ptr_var_output_id(meta$id)]] <- shiny::renderUI({
           captured_ui
         })
       })

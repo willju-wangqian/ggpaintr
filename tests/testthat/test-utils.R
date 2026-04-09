@@ -128,21 +128,12 @@ test_that("expr_pluck<- replaces an element at the given index path", {
   expect_equal(expr[[2]], rlang::sym("z"))
 })
 
-test_that("expr_pluck<- returns the expression unchanged on invalid path and outputs to cat", {
-  expr <- quote(f(a))
-  # Capture cat() output to confirm error path fires without throwing
-  out <- capture.output(
-    result <- local({
-      e <- quote(f(a))
-      expr_pluck(e, c(99, 1)) <- rlang::sym("z")
-      e
-    }),
-    type = "output"
+test_that("expr_pluck<- errors on invalid index path", {
+  e <- quote(f(a))
+  expect_error(
+    expr_pluck(e, c(99, 1)) <- rlang::sym("z"),
+    "Failed to substitute expression at index path"
   )
-  # Original structure is unchanged
-  expect_equal(result, quote(f(a)))
-  # A message was written to stdout via cat()
-  expect_true(length(out) > 0 || TRUE)  # cat may or may not fire depending on R internals
 })
 
 # --- get_index_path ------------------------------------------------------
@@ -193,19 +184,19 @@ test_that("handle_duplicate_names leaves unique names unchanged", {
   expect_equal(handle_duplicate_names(c("a", "b", "c")), c("a", "b", "c"))
 })
 
-test_that("handle_duplicate_names suffixes duplicated entries with -1, -2, ...", {
+test_that("handle_duplicate_names keeps first occurrence, suffixes from 2nd", {
   result <- handle_duplicate_names(c("a", "b", "a"))
-  expect_equal(result, c("a-1", "b", "a-2"))
+  expect_equal(result, c("a", "b", "a-2"))
 })
 
 test_that("handle_duplicate_names handles more than two duplicates", {
   result <- handle_duplicate_names(c("x", "x", "x"))
-  expect_equal(result, c("x-1", "x-2", "x-3"))
+  expect_equal(result, c("x", "x-2", "x-3"))
 })
 
 test_that("handle_duplicate_names handles multiple different duplicated groups", {
   result <- handle_duplicate_names(c("a", "b", "a", "b"))
-  expect_equal(result, c("a-1", "b-1", "a-2", "b-2"))
+  expect_equal(result, c("a", "b", "a-2", "b-2"))
 })
 
 test_that("handle_duplicate_names handles a single-element vector", {
@@ -293,53 +284,42 @@ test_that("expr_remove_null accepts a custom target symbol", {
 # --- expr_remove_emptycall2 ----------------------------------------------
 
 test_that("expr_remove_emptycall2 removes an empty non-ggplot call with a message", {
-  # Build a call list where one element is an empty call to an unknown function
-  # that evaluates to NULL (not a gg object).
-  # We manually construct: list(geom_point(), unknown_empty_func())
-  # and embed it as a structure that expr_remove_emptycall2 expects.
-  #
-  # The function iterates over elements of .expr; if element i is a length-1
-  # call (no args) that evals to NULL or non-gg, it is removed.
-  #
-  # Use a ggplot2 layer call to confirm gg objects are preserved.
-  library(ggplot2)
-
-  # Construct a call-like list: f(geom_point(), thisfuncdoesnotexist())
-  # We can't easily call eval inside without a real R call, so we test
-  # with a known empty-call that returns NULL when eval'd.
-  # Define a dummy function that returns NULL
-  dummy_null <- function() NULL
-  assign("dummy_null", dummy_null, envir = globalenv())
-  on.exit(rm("dummy_null", envir = globalenv()), add = TRUE)
-
-  expr <- quote(f(dummy_null()))
+  expr <- quote(f(unknown_func()))
   expect_message(
     result <- expr_remove_emptycall2(expr),
-    regexp = "dummy_null"
+    regexp = "unknown_func"
   )
-  # After removal f() has no args; the outer length-1 check then fires too
-  # and f itself may be removed. Either result is NULL or a reduced expr.
+  # After removal f() has no args; the outer length-1 check fires too.
   expect_true(is.null(result) || (is.call(result) && length(result) < length(expr)))
 })
 
-test_that("expr_remove_emptycall2 preserves a gg-returning call", {
-  library(ggplot2)
-  # geom_point() is a length-1 call that returns a gg object; should be kept
-  # We need to embed it inside another call so the loop runs.
-  # Structure: wrapper(geom_point())
-  # wrapper is unknown, but geom_point() is gg so it stays.
-  wrapper <- function(...) list(...)
-  assign("wrapper", wrapper, envir = globalenv())
-  on.exit(rm("wrapper", envir = globalenv()), add = TRUE)
-
+test_that("expr_remove_emptycall2 preserves a gg-layer call by name", {
   expr <- quote(wrapper(geom_point()))
-  # geom_point() should NOT be removed (it is a gg object)
   result <- expr_remove_emptycall2(expr)
-  expect_false(is.null(result))
-  # geom_point() is still an argument
+  # geom_point() is recognized as gg by name — should be kept
   args <- as.list(result)[-1]
   expect_true(length(args) >= 1)
   expect_equal(rlang::as_string(args[[1]][[1]]), "geom_point")
+})
+
+test_that("expr_remove_emptycall2 preserves other gg-layer types by name", {
+  # scale_, coord_, facet_, theme_ should all be preserved
+  expr <- quote(wrapper(scale_x_continuous(), coord_flip(), facet_wrap(), theme_minimal()))
+  result <- expr_remove_emptycall2(expr)
+  args <- as.list(result)[-1]
+  expect_length(args, 4)
+})
+
+test_that("ptr_is_gg_layer_name recognizes known patterns", {
+  expect_true(ptr_is_gg_layer_name("geom_point"))
+  expect_true(ptr_is_gg_layer_name("stat_smooth"))
+  expect_true(ptr_is_gg_layer_name("scale_x_continuous"))
+  expect_true(ptr_is_gg_layer_name("theme_minimal"))
+  expect_true(ptr_is_gg_layer_name("theme"))
+  expect_true(ptr_is_gg_layer_name("labs"))
+  expect_true(ptr_is_gg_layer_name("xlim"))
+  expect_false(ptr_is_gg_layer_name("unknown_func"))
+  expect_false(ptr_is_gg_layer_name("f"))
 })
 
 # --- check_remove_null ---------------------------------------------------

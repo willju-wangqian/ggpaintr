@@ -66,6 +66,35 @@ test_that("optional UI helpers use resolved copy and custom ids", {
   expect_match(ext_ui_text(outputs_ui), "main_code", fixed = TRUE)
 })
 
+test_that("ptr_build_app_ui uses custom ids in rendered HTML", {
+  custom_ids <- ptr_build_ids(
+    control_panel = "myPanel",
+    draw_button = "myDraw",
+    export_button = "myExport",
+    plot_output = "myPlot",
+    error_output = "myError",
+    code_output = "myCode"
+  )
+  ui <- ptr_build_app_ui("Test", "Draw", "Export", ids = custom_ids)
+  html <- ext_ui_text(ui)
+
+  expect_match(html, "myPanel", fixed = TRUE)
+  expect_match(html, "myDraw", fixed = TRUE)
+  expect_match(html, "myExport", fixed = TRUE)
+  expect_match(html, "myPlot", fixed = TRUE)
+  expect_match(html, "myError", fixed = TRUE)
+  expect_match(html, "myCode", fixed = TRUE)
+})
+
+test_that("ptr_build_app_ui defaults match ptr_build_ids defaults", {
+  ui <- ptr_build_app_ui("Test", "Draw", "Export")
+  html <- ext_ui_text(ui)
+
+  expect_match(html, "controlPanel", fixed = TRUE)
+  expect_match(html, "\"draw\"", fixed = TRUE)
+  expect_match(html, "outputPlot", fixed = TRUE)
+})
+
 test_that("value helpers expose plot, code, and default error UI", {
   obj_success <- ptr_parse_formula(
     "ggplot(data = iris, aes(x = var, y = var)) + geom_point()"
