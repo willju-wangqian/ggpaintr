@@ -257,7 +257,7 @@ ui_insert_checkbox <- function(ui, nn, ui_text = NULL) {
   }
 
   copy <- ptr_resolve_ui_text("layer_checkbox", ui_text = ui_text)
-  id <- paste0(nn, "+checkbox")
+  id <- ptr_checkbox_input_id(nn)
   checkbox <- shiny::checkboxInput(id, label = copy$label, value = TRUE)
 
   ui <- c(list(checkbox), ui)
