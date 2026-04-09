@@ -4,7 +4,7 @@
 #'
 #' @return A related id string for the dataset-name control.
 #' @noRd
-ggpaintr_upload_name_id <- function(id) {
+ptr_upload_name_id <- function(id) {
   paste0(id, "+name")
 }
 
@@ -14,7 +14,7 @@ ggpaintr_upload_name_id <- function(id) {
 #'
 #' @return A syntactic R object name.
 #' @noRd
-ggpaintr_upload_default_name <- function(file_name) {
+ptr_upload_default_name <- function(file_name) {
   file_stem <- tools::file_path_sans_ext(basename(file_name))
   file_stem <- gsub("[^[:alnum:]_]+", "_", file_stem)
   file_stem <- gsub("^_+|_+$", "", file_stem)
@@ -32,18 +32,18 @@ ggpaintr_upload_default_name <- function(file_name) {
 #'
 #' @return A normalized tabular object or `NULL` when no file was supplied.
 #' @noRd
-ggpaintr_read_uploaded_data <- function(file_info) {
+ptr_read_uploaded_data <- function(file_info) {
   if (is.null(file_info) || is.null(file_info$datapath) || is.null(file_info$name)) {
     return(NULL)
   }
 
   ext <- tolower(tools::file_ext(file_info$name))
   if (ext == "csv") {
-    return(ggpaintr_normalize_column_names(utils::read.csv(file_info$datapath)))
+    return(ptr_normalize_column_names(utils::read.csv(file_info$datapath)))
   }
 
   if (ext == "rds") {
-    return(ggpaintr_normalize_tabular_data(
+    return(ptr_normalize_tabular_data(
       readRDS(file_info$datapath),
       source = "Uploaded data"
     ))
@@ -61,7 +61,7 @@ ggpaintr_read_uploaded_data <- function(file_info) {
 #' @return A list with `data`, `object_name`, `file_name`, and `code_text`, or
 #'   `NULL` when `strict = FALSE` and no upload was supplied.
 #' @noRd
-ggpaintr_resolve_upload_info <- function(input, upload_id, strict = FALSE) {
+ptr_resolve_upload_info <- function(input, upload_id, strict = FALSE) {
   file_info <- input[[upload_id]]
 
   if (is.null(file_info) || is.null(file_info$datapath) || is.null(file_info$name)) {
@@ -71,12 +71,12 @@ ggpaintr_resolve_upload_info <- function(input, upload_id, strict = FALSE) {
     return(NULL)
   }
 
-  data_obj <- ggpaintr_read_uploaded_data(file_info)
-  object_name <- input[[ggpaintr_upload_name_id(upload_id)]]
+  data_obj <- ptr_read_uploaded_data(file_info)
+  object_name <- input[[ptr_upload_name_id(upload_id)]]
   object_name <- trimws(if (is.null(object_name)) "" else object_name)
 
   if (identical(object_name, "")) {
-    object_name <- ggpaintr_upload_default_name(file_info$name)
+    object_name <- ptr_upload_default_name(file_info$name)
   } else {
     object_name <- gsub("[[:space:]]+", "_", object_name)
     object_name <- make.names(object_name)
@@ -100,20 +100,20 @@ ggpaintr_resolve_upload_info <- function(input, upload_id, strict = FALSE) {
 
 #' Clone an Evaluation Environment and Inject Uploads
 #'
-#' @param ggpaintr_obj A `ggpaintr_obj`.
+#' @param ptr_obj A `ptr_obj`.
 #' @param input A Shiny input-like object.
 #' @param envir A parent environment.
 #'
 #' @return An evaluation environment containing uploaded datasets and any other
 #'   placeholder-provided objects.
 #' @noRd
-ggpaintr_prepare_eval_env <- function(ggpaintr_obj, input, envir = parent.frame()) {
+ptr_prepare_eval_env <- function(ptr_obj, input, envir = parent.frame()) {
   eval_env <- rlang::env_clone(envir)
-  context <- ggpaintr_placeholder_context(ggpaintr_obj, copy_rules = NULL, envir = envir)
+  context <- ptr_define_placeholder_context(ptr_obj, ui_text = NULL, envir = envir)
 
-  for (keyword in names(ggpaintr_obj$placeholders)) {
-    spec <- ggpaintr_obj$placeholders[[keyword]]
-    metas <- ggpaintr_flatten_placeholder_map(ggpaintr_obj, keyword = keyword)
+  for (keyword in names(ptr_obj$placeholders)) {
+    spec <- ptr_obj$placeholders[[keyword]]
+    metas <- ptr_flatten_placeholder_map(ptr_obj, keyword = keyword)
 
     if (length(metas) == 0 || is.null(spec$prepare_eval_env)) {
       next

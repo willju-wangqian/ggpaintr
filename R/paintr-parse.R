@@ -1,6 +1,6 @@
 #' Parse a Paintr Formula
 #'
-#' Parse a single ggplot-like formula string into a `ggpaintr_obj` containing
+#' Parse a single ggplot-like formula string into a `ptr_obj` containing
 #' expression metadata, placeholder locations, and generated UI definitions.
 #'
 #' Supported placeholders come from the effective placeholder registry. The
@@ -10,23 +10,23 @@
 #' @param placeholders Optional custom placeholder definitions or an existing
 #'   placeholder registry.
 #'
-#' @return An object of class `ggpaintr_obj`.
+#' @return An object of class `ptr_obj`.
 #' @examples
-#' obj <- ggpaintr_formula(
+#' obj <- ptr_parse_formula(
 #'   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
 #' )
 #' names(obj$expr_list)
 #' @export
-ggpaintr_formula <- function(formula, placeholders = NULL) {
-  placeholder_registry <- ggpaintr_effective_placeholders(placeholders)
-  ggpaintr_expr <- rlang::parse_expr(formula)
-  ggpaintr_expr_list <- unlist(break_sum(ggpaintr_expr))
-  ggpaintr_expr_names <- vapply(ggpaintr_expr_list, get_fun_names, character(1))
-  ggpaintr_expr_names <- handle_duplicate_names(ggpaintr_expr_names)
-  ggpaintr_expr_list <- rlang::set_names(ggpaintr_expr_list, ggpaintr_expr_names)
+ptr_parse_formula <- function(formula, placeholders = NULL) {
+  placeholder_registry <- ptr_merge_placeholders(placeholders)
+  ptr_expr <- rlang::parse_expr(formula)
+  ptr_expr_list <- unlist(break_sum(ptr_expr))
+  ptr_expr_names <- vapply(ptr_expr_list, get_fun_names, character(1))
+  ptr_expr_names <- handle_duplicate_names(ptr_expr_names)
+  ptr_expr_list <- rlang::set_names(ptr_expr_list, ptr_expr_names)
 
   index_path_list <- lapply(
-    ggpaintr_expr_list,
+    ptr_expr_list,
     get_index_path,
     target = names(placeholder_registry)
   )
@@ -38,48 +38,48 @@ ggpaintr_formula <- function(formula, placeholders = NULL) {
 
   keywords_list <- purrr::map2(
     index_path_list,
-    ggpaintr_expr_list,
+    ptr_expr_list,
     function(.path, .expr) {
       lapply(.path, function(.x, .exprr) expr_pluck(.exprr, .x), .exprr = .expr)
     }
   )
 
-  ggpaintr_expr_param_list <- purrr::map2(
-    ggpaintr_expr_list,
+  ptr_expr_param_list <- purrr::map2(
+    ptr_expr_list,
     index_path_list,
     function(.expr, .path_list) {
       lapply(.path_list, function(.path) get_expr_param(.expr, .path))
     }
   )
 
-  placeholder_map <- ggpaintr_build_placeholder_map(
+  placeholder_map <- ptr_build_placeholder_map(
     keywords_list = keywords_list,
     id_list = id_list,
-    param_list = ggpaintr_expr_param_list,
+    param_list = ptr_expr_param_list,
     index_path_list = index_path_list,
     placeholders = placeholder_registry
   )
 
   result <- list(
     formula_text = formula,
-    param_list = ggpaintr_expr_param_list,
+    param_list = ptr_expr_param_list,
     keywords_list = keywords_list,
     index_path_list = index_path_list,
     id_list = id_list,
-    expr_list = ggpaintr_expr_list,
+    expr_list = ptr_expr_list,
     placeholder_map = placeholder_map,
     placeholders = placeholder_registry,
     custom_placeholders = placeholder_registry$custom_placeholders
   )
 
-  class(result) <- "ggpaintr_obj"
-  result$ui_list <- ggpaintr_build_ui_list(result)
+  class(result) <- "ptr_obj"
+  result$ui_list <- ptr_build_ui_list(result)
   result
 }
 
 #' Describe the Runtime Inputs for a Parsed Formula
 #'
-#' Return the input ids consumed by `ggpaintr_build_runtime()` in a stable,
+#' Return the input ids consumed by `ptr_exec()` in a stable,
 #' documented data frame. This is the supported low-level discovery helper for
 #' tests, tooling, and advanced package authors who need to construct an input
 #' list programmatically without hard-coding internal ids in documentation or
@@ -96,18 +96,18 @@ ggpaintr_formula <- function(formula, placeholders = NULL) {
 #' ids remain implementation details. Call this helper instead of relying on the
 #' exact encoding scheme directly.
 #'
-#' @param ggpaintr_obj A `ggpaintr_obj`.
+#' @param ptr_obj A `ptr_obj`.
 #'
 #' @return A base `data.frame` with columns `input_id`, `role`, `layer_name`,
 #'   `keyword`, `param_key`, and `source_id`.
 #' @examples
-#' obj <- ggpaintr_formula(
+#' obj <- ptr_parse_formula(
 #'   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point() + labs(title = text)"
 #' )
-#' ggpaintr_runtime_input_spec(obj)
+#' ptr_runtime_input_spec(obj)
 #' @export
-ggpaintr_runtime_input_spec <- function(ggpaintr_obj) {
-  assertthat::assert_that(inherits(ggpaintr_obj, "ggpaintr_obj"))
+ptr_runtime_input_spec <- function(ptr_obj) {
+  assertthat::assert_that(inherits(ptr_obj, "ptr_obj"))
 
   new_spec_row <- function(input_id,
                            role,
@@ -127,16 +127,16 @@ ggpaintr_runtime_input_spec <- function(ggpaintr_obj) {
   }
 
   spec_rows <- list()
-  layer_names <- names(ggpaintr_obj$expr_list)
+  layer_names <- names(ptr_obj$expr_list)
 
   for (layer_name in layer_names) {
-    layer_meta <- ggpaintr_obj$placeholder_map[[layer_name]]
+    layer_meta <- ptr_obj$placeholder_map[[layer_name]]
     if (length(layer_meta) == 0) {
       next
     }
 
     for (meta in unname(layer_meta)) {
-      param_key <- ggpaintr_normalize_param_key(meta$param)
+      param_key <- ptr_normalize_param_key(meta$param)
 
       spec_rows[[length(spec_rows) + 1L]] <- new_spec_row(
         input_id = meta$id,
@@ -149,7 +149,7 @@ ggpaintr_runtime_input_spec <- function(ggpaintr_obj) {
 
       if (identical(meta$keyword, "upload")) {
         spec_rows[[length(spec_rows) + 1L]] <- new_spec_row(
-          input_id = ggpaintr_upload_name_id(meta$id),
+          input_id = ptr_upload_name_id(meta$id),
           role = "upload_name",
           layer_name = meta$layer_name,
           keyword = meta$keyword,
@@ -161,7 +161,7 @@ ggpaintr_runtime_input_spec <- function(ggpaintr_obj) {
   }
 
   for (layer_name in setdiff(layer_names, "ggplot")) {
-    checkbox_id <- ggpaintr_checkbox_input_id(layer_name)
+    checkbox_id <- ptr_checkbox_input_id(layer_name)
     spec_rows[[length(spec_rows) + 1L]] <- new_spec_row(
       input_id = checkbox_id,
       role = "layer_checkbox",
@@ -193,7 +193,7 @@ ggpaintr_runtime_input_spec <- function(ggpaintr_obj) {
 #'
 #' @return A named list of placeholder metadata records by layer.
 #' @noRd
-ggpaintr_build_placeholder_map <- function(keywords_list,
+ptr_build_placeholder_map <- function(keywords_list,
                                          id_list,
                                          param_list,
                                          index_path_list,

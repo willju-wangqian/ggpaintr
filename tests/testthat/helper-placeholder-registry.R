@@ -17,17 +17,17 @@ test_sales_env <- function() {
 }
 
 make_test_date_placeholder <- function() {
-  ggpaintr_placeholder(
+  ptr_define_placeholder(
     keyword = "date",
     build_ui = function(id, copy, meta, context) {
-      ggpaintr_attach_help(
+      ptr_attach_help(
         shiny::dateInput(id, copy$label),
         copy$help
       )
     },
     resolve_expr = function(value, meta, context) {
       if (is.null(value) || identical(value, "")) {
-        return(ggpaintr_missing_expr())
+        return(ptr_missing_expr())
       }
 
       if (inherits(value, "Date")) {
@@ -41,7 +41,7 @@ make_test_date_placeholder <- function() {
 }
 
 named_date_build_ui <- function(id, copy, meta, context) {
-  ggpaintr_attach_help(
+  ptr_attach_help(
     shiny::dateInput(id, copy$label),
     copy$help
   )
@@ -49,7 +49,7 @@ named_date_build_ui <- function(id, copy, meta, context) {
 
 named_date_resolve_expr <- function(value, meta, context) {
   if (is.null(value) || identical(value, "")) {
-    return(ggpaintr_missing_expr())
+    return(ptr_missing_expr())
   }
 
   if (inherits(value, "Date")) {
@@ -60,7 +60,7 @@ named_date_resolve_expr <- function(value, meta, context) {
 }
 
 make_non_inline_date_placeholder <- function() {
-  ggpaintr_placeholder(
+  ptr_define_placeholder(
     keyword = "date",
     build_ui = named_date_build_ui,
     resolve_expr = named_date_resolve_expr,

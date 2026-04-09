@@ -4,7 +4,7 @@
 #'
 #' @return A single input id string.
 #' @noRd
-ggpaintr_checkbox_input_id <- function(layer_name) {
+ptr_checkbox_input_id <- function(layer_name) {
   paste0(layer_name, "+checkbox")
 }
 
@@ -15,8 +15,8 @@ ggpaintr_checkbox_input_id <- function(layer_name) {
 #'
 #' @return A single logical value.
 #' @noRd
-ggpaintr_validate_layer_checkbox_input <- function(layer_name, input) {
-  checkbox_id <- ggpaintr_checkbox_input_id(layer_name)
+ptr_validate_layer_checkbox_input <- function(layer_name, input) {
+  checkbox_id <- ptr_checkbox_input_id(layer_name)
   checkbox_value <- input[[checkbox_id]]
 
   if (is.null(checkbox_value)) {
@@ -24,7 +24,7 @@ ggpaintr_validate_layer_checkbox_input <- function(layer_name, input) {
       paste0(
         "Missing required runtime input '",
         checkbox_id,
-        "'. ggpaintr_build_runtime() requires an explicit TRUE/FALSE value for every non-ggplot layer."
+        "'. ptr_exec() requires an explicit TRUE/FALSE value for every non-ggplot layer."
       )
     )
   }
@@ -44,16 +44,16 @@ ggpaintr_validate_layer_checkbox_input <- function(layer_name, input) {
 
 #' Validate Checkbox Inputs for Every Optional Layer
 #'
-#' @param ggpaintr_obj A `ggpaintr_obj`.
+#' @param ptr_obj A `ptr_obj`.
 #' @param input A Shiny input-like object.
 #'
 #' @return Invisibly returns `NULL`.
 #' @noRd
-ggpaintr_validate_layer_checkbox_inputs <- function(ggpaintr_obj, input) {
-  layer_names <- setdiff(names(ggpaintr_obj$expr_list), "ggplot")
+ptr_validate_layer_checkbox_inputs <- function(ptr_obj, input) {
+  layer_names <- setdiff(names(ptr_obj$expr_list), "ggplot")
 
   for (layer_name in layer_names) {
-    ggpaintr_validate_layer_checkbox_input(layer_name, input)
+    ptr_validate_layer_checkbox_input(layer_name, input)
   }
 
   invisible(NULL)
@@ -72,7 +72,7 @@ expr_apply_checkbox_result <- function(expr, nn, input) {
     return(expr)
   }
 
-  if (isTRUE(input[[ggpaintr_checkbox_input_id(nn)]])) {
+  if (isTRUE(input[[ptr_checkbox_input_id(nn)]])) {
     expr
   } else {
     NULL
@@ -81,52 +81,52 @@ expr_apply_checkbox_result <- function(expr, nn, input) {
 
 #' Complete a Parsed Formula with User Inputs
 #'
-#' @param ggpaintr_obj A `ggpaintr_obj`.
+#' @param ptr_obj A `ptr_obj`.
 #' @param input A Shiny input-like object.
 #' @param envir The environment used to resolve local data objects.
 #'
 #' @return A named list with `complete_expr_list`, `code_text`, and `eval_env`.
 #' @noRd
-ggpaintr_complete_expr <- function(ggpaintr_obj, input, envir = parent.frame()) {
-  assertthat::assert_that(inherits(ggpaintr_obj, "ggpaintr_obj"))
+ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame()) {
+  assertthat::assert_that(inherits(ptr_obj, "ptr_obj"))
 
-  ggpaintr_processed_expr_list <- ggpaintr_obj[["expr_list"]]
-  eval_env <- ggpaintr_prepare_eval_env(ggpaintr_obj, input, envir = envir)
-  context <- ggpaintr_placeholder_context(ggpaintr_obj, copy_rules = NULL, envir = envir)
+  ptr_processed_expr_list <- ptr_obj[["expr_list"]]
+  eval_env <- ptr_prepare_eval_env(ptr_obj, input, envir = envir)
+  context <- ptr_define_placeholder_context(ptr_obj, ui_text = NULL, envir = envir)
   context$input <- input
   context$eval_env <- eval_env
-  context$var_column_map <- ggpaintr_build_var_column_map(
-    ggpaintr_obj,
+  context$var_column_map <- ptr_build_var_column_map(
+    ptr_obj,
     input,
     context,
     eval_env
   )
-  placeholder_metas <- ggpaintr_flatten_placeholder_map(ggpaintr_obj)
+  placeholder_metas <- ptr_flatten_placeholder_map(ptr_obj)
 
   for (meta in placeholder_metas) {
-    spec <- ggpaintr_obj$placeholders[[meta$keyword]]
-    input_item <- ggpaintr_resolve_placeholder_input(spec, input, meta, context)
-    resolved_expr <- ggpaintr_resolve_placeholder_expr(spec, input_item, meta, context)
+    spec <- ptr_obj$placeholders[[meta$keyword]]
+    input_item <- ptr_resolve_placeholder_input(spec, input, meta, context)
+    resolved_expr <- ptr_resolve_placeholder_expr(spec, input_item, meta, context)
 
-    expr_pluck(ggpaintr_processed_expr_list[[meta$layer_name]], meta$index_path) <- resolved_expr
+    expr_pluck(ptr_processed_expr_list[[meta$layer_name]], meta$index_path) <- resolved_expr
   }
 
-  ggpaintr_processed_expr_list <- lapply(ggpaintr_processed_expr_list, expr_remove_null)
-  ggpaintr_processed_expr_list <- lapply(ggpaintr_processed_expr_list, expr_remove_emptycall2)
-  ggpaintr_validate_layer_checkbox_inputs(ggpaintr_obj, input)
-  ggpaintr_processed_expr_list <- purrr::map2(
-    ggpaintr_processed_expr_list,
-    names(ggpaintr_processed_expr_list),
+  ptr_processed_expr_list <- lapply(ptr_processed_expr_list, expr_remove_null)
+  ptr_processed_expr_list <- lapply(ptr_processed_expr_list, expr_remove_emptycall2)
+  ptr_validate_layer_checkbox_inputs(ptr_obj, input)
+  ptr_processed_expr_list <- purrr::map2(
+    ptr_processed_expr_list,
+    names(ptr_processed_expr_list),
     expr_apply_checkbox_result,
     input
   )
-  ggpaintr_processed_expr_list <- check_remove_null(ggpaintr_processed_expr_list)
+  ptr_processed_expr_list <- check_remove_null(ptr_processed_expr_list)
 
-  code_text_list <- lapply(ggpaintr_processed_expr_list, rlang::expr_text)
+  code_text_list <- lapply(ptr_processed_expr_list, rlang::expr_text)
   code_text <- do.call(paste, c(unname(code_text_list), sep = " +\n  "))
 
   list(
-    complete_expr_list = ggpaintr_processed_expr_list,
+    complete_expr_list = ptr_processed_expr_list,
     code_text = code_text,
     eval_env = eval_env
   )
@@ -142,17 +142,17 @@ ggpaintr_complete_expr <- function(ggpaintr_obj, input, envir = parent.frame()) 
 #' @examples
 #' library(ggplot2)
 #'
-#' obj <- ggpaintr_formula(
+#' obj <- ptr_parse_formula(
 #'   "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + geom_point()"
 #' )
-#' spec <- ggpaintr_runtime_input_spec(obj)
+#' spec <- ptr_runtime_input_spec(obj)
 #' inputs <- setNames(vector("list", nrow(spec)), spec$input_id)
 #' inputs[spec$role == "layer_checkbox"] <- rep(list(TRUE), sum(spec$role == "layer_checkbox"))
-#' runtime <- ggpaintr_build_runtime(obj, inputs)
-#' plot_obj <- ggpaintr_get_plot(runtime$complete_expr_list, runtime$eval_env)
+#' runtime <- ptr_exec(obj, inputs)
+#' plot_obj <- ptr_assemble_plot(runtime$complete_expr_list, runtime$eval_env)
 #' inherits(plot_obj, "ggplot")
 #' @export
-ggpaintr_get_plot <- function(plot_expr_list, envir = parent.frame()) {
+ptr_assemble_plot <- function(plot_expr_list, envir = parent.frame()) {
   if (is.null(plot_expr_list) || length(plot_expr_list) == 0) {
     rlang::abort("No plot layers remain after processing the selected inputs.")
   }
@@ -182,7 +182,7 @@ ggpaintr_get_plot <- function(plot_expr_list, envir = parent.frame()) {
 #'
 #' @return A formatted message string.
 #' @noRd
-ggpaintr_format_runtime_message <- function(stage, condition = NULL, message = NULL) {
+ptr_format_runtime_message <- function(stage, condition = NULL, message = NULL) {
   stage_label <- switch(
     stage,
     complete = "Input error",
@@ -210,10 +210,10 @@ ggpaintr_format_runtime_message <- function(stage, condition = NULL, message = N
 #'
 #' @return An updated runtime result.
 #' @noRd
-ggpaintr_mark_runtime_failure <- function(runtime_result, stage, condition) {
+ptr_mark_runtime_failure <- function(runtime_result, stage, condition) {
   runtime_result$ok <- FALSE
   runtime_result$stage <- stage
-  runtime_result$message <- ggpaintr_format_runtime_message(stage, condition)
+  runtime_result$message <- ptr_format_runtime_message(stage, condition)
   runtime_result$condition <- condition
   runtime_result$plot <- NULL
   runtime_result
@@ -221,16 +221,16 @@ ggpaintr_mark_runtime_failure <- function(runtime_result, stage, condition) {
 
 #' Safely Complete a Parsed Formula
 #'
-#' @param ggpaintr_obj A `ggpaintr_obj`.
+#' @param ptr_obj A `ptr_obj`.
 #' @param input A Shiny input-like object.
 #' @param envir The evaluation environment.
 #'
 #' @return A structured runtime result.
 #' @noRd
-ggpaintr_complete_expr_safe <- function(ggpaintr_obj, input, envir = parent.frame()) {
+ptr_complete_expr_safe <- function(ptr_obj, input, envir = parent.frame()) {
   tryCatch(
     {
-      complete_result <- ggpaintr_complete_expr(ggpaintr_obj, input, envir = envir)
+      complete_result <- ptr_complete_expr(ptr_obj, input, envir = envir)
       list(
         ok = TRUE,
         stage = "complete",
@@ -246,7 +246,7 @@ ggpaintr_complete_expr_safe <- function(ggpaintr_obj, input, envir = parent.fram
       list(
         ok = FALSE,
         stage = "complete",
-        message = ggpaintr_format_runtime_message("complete", e),
+        message = ptr_format_runtime_message("complete", e),
         code_text = NULL,
         complete_expr_list = NULL,
         eval_env = NULL,
@@ -264,7 +264,7 @@ ggpaintr_complete_expr_safe <- function(ggpaintr_obj, input, envir = parent.fram
 #'
 #' @return An updated runtime result.
 #' @noRd
-ggpaintr_get_plot_safe <- function(runtime_result, envir = parent.frame()) {
+ptr_assemble_plot_safe <- function(runtime_result, envir = parent.frame()) {
   if (!isTRUE(runtime_result$ok)) {
     return(runtime_result)
   }
@@ -276,10 +276,10 @@ ggpaintr_get_plot_safe <- function(runtime_result, envir = parent.frame()) {
 
   tryCatch(
     {
-      runtime_result$plot <- ggpaintr_get_plot(runtime_result$complete_expr_list, envir = plot_env)
+      runtime_result$plot <- ptr_assemble_plot(runtime_result$complete_expr_list, envir = plot_env)
       runtime_result
     },
-    error = function(e) ggpaintr_mark_runtime_failure(runtime_result, "plot", e)
+    error = function(e) ptr_mark_runtime_failure(runtime_result, "plot", e)
   )
 }
 
@@ -289,7 +289,7 @@ ggpaintr_get_plot_safe <- function(runtime_result, envir = parent.frame()) {
 #'
 #' @return An updated runtime result.
 #' @noRd
-ggpaintr_validate_plot_render_safe <- function(runtime_result) {
+ptr_validate_plot_render_safe <- function(runtime_result) {
   if (!isTRUE(runtime_result$ok)) {
     return(runtime_result)
   }
@@ -299,13 +299,13 @@ ggpaintr_validate_plot_render_safe <- function(runtime_result) {
       ggplot2::ggplot_build(runtime_result$plot)
       runtime_result
     },
-    error = function(e) ggpaintr_mark_runtime_failure(runtime_result, "plot", e)
+    error = function(e) ptr_mark_runtime_failure(runtime_result, "plot", e)
   )
 }
 
 #' Build the Full Runtime Result for a Paintr App
 #'
-#' @param ggpaintr_obj A `ggpaintr_obj`.
+#' @param ptr_obj A `ptr_obj`.
 #' @param input A Shiny input-like object.
 #' @param envir The environment used to resolve local data objects.
 #'
@@ -316,24 +316,24 @@ ggpaintr_validate_plot_render_safe <- function(runtime_result) {
 #' @examples
 #' library(ggplot2)
 #'
-#' obj <- ggpaintr_formula(
+#' obj <- ptr_parse_formula(
 #'   "ggplot(data = iris, aes(x = var, y = var)) + geom_point()"
 #' )
-#' spec <- ggpaintr_runtime_input_spec(obj)
+#' spec <- ptr_runtime_input_spec(obj)
 #' inputs <- setNames(vector("list", nrow(spec)), spec$input_id)
 #' inputs[spec$role == "layer_checkbox"] <- rep(list(TRUE), sum(spec$role == "layer_checkbox"))
 #' inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "x"]]] <- "Sepal.Length"
 #' inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "y"]]] <- "Sepal.Width"
-#' runtime <- ggpaintr_build_runtime(
+#' runtime <- ptr_exec(
 #'   obj,
 #'   inputs
 #' )
 #' isTRUE(runtime$ok)
 #' @export
-ggpaintr_build_runtime <- function(ggpaintr_obj, input, envir = parent.frame()) {
-  runtime_result <- ggpaintr_complete_expr_safe(ggpaintr_obj, input, envir = envir)
-  runtime_result <- ggpaintr_get_plot_safe(runtime_result, envir = envir)
-  ggpaintr_validate_plot_render_safe(runtime_result)
+ptr_exec <- function(ptr_obj, input, envir = parent.frame()) {
+  runtime_result <- ptr_complete_expr_safe(ptr_obj, input, envir = envir)
+  runtime_result <- ptr_assemble_plot_safe(runtime_result, envir = envir)
+  ptr_validate_plot_render_safe(runtime_result)
 }
 
 #' Build Inline Error UI for a Paintr App
@@ -342,7 +342,7 @@ ggpaintr_build_runtime <- function(ggpaintr_obj, input, envir = parent.frame()) 
 #'
 #' @return A Shiny tag or `NULL`.
 #' @noRd
-ggpaintr_error_ui <- function(message) {
+ptr_error_ui <- function(message) {
   if (is.null(message) || identical(trimws(message), "")) {
     return(NULL)
   }

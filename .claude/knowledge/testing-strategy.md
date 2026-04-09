@@ -21,14 +21,14 @@ Manual verification lives in:
 
 Current target under test:
 
-- `ggpaintr_app()`
-- `ggpaintr_server()`
-- `ggpaintr_placeholder()`
-- `ggpaintr_effective_placeholders()`
-- `ggpaintr_formula()`
-- `ggpaintr_build_runtime()`
-- `ggpaintr_get_plot()`
-- `generate_shiny()`
+- `ptr_app()`
+- `ptr_server()`
+- `ptr_define_placeholder()`
+- `ptr_merge_placeholders()`
+- `ptr_parse_formula()`
+- `ptr_exec()`
+- `ptr_assemble_plot()`
+- `ptr_generate_shiny()`
 - internal helpers that define runtime semantics or user-facing control copy
 
 ## Maintenance rules
@@ -39,8 +39,8 @@ When behavior changes in the maintained path:
 - update manual docs when human interaction behavior or exported-app behavior
   changes
 - preserve the current `tests/testthat/` structure
-- keep export-path coverage when `generate_shiny()` changes
-- if user-facing prompt text or `copy_rules` behavior changes, update
+- keep export-path coverage when `ptr_generate_shiny()` changes
+- if user-facing prompt text or `ui_text` behavior changes, update
   `tests/testthat/test-copy-rules.R` and the relevant manual copy-rule checks
 - if placeholder-registry behavior changes, update
   `tests/testthat/test-placeholder-registry.R`, the relevant export tests, and
@@ -59,8 +59,8 @@ Automated coverage should continue to include:
 - structured runtime error handling
 - plot construction
 - copy-rule validation, normalization, merge precedence, and readable fallbacks
-- exported app generation, including default `copy_rules <- NULL`,
-  compact `custom_copy_rules` reconstruction, multiline `input_formula`
+- exported app generation, including default `ui_text <- NULL`,
+  compact `custom_ui_text` reconstruction, multiline `input_formula`
   parity, default `placeholders <- NULL`, and compact
   `custom_placeholders` reconstruction
 - reusable server-state behavior for exported/custom apps
@@ -72,9 +72,9 @@ Manual coverage should continue to include:
 - upload flows
 - inline error feedback
 - default copy-rule behavior
-- custom `copy_rules` overrides
+- custom `ui_text` overrides
 - custom Shiny integration with bind helpers and custom top-level ids
-- custom plot rendering with `ggpaintr_plot_value()`
+- custom plot rendering with `ptr_extract_plot()`
 - custom placeholder controls and exported custom-placeholder apps
 - exported app smoke tests, including custom-copy parity and the explicit
   editable export-template shape

@@ -1,4 +1,4 @@
-test_that("ggpaintr_formula parses formulas into a paintr object", {
+test_that("ptr_parse_formula parses formulas into a paintr object", {
   formula <- paste(
     "ggplot(data = mtcars, aes(x = var, y = var)) +",
     "geom_point() +",
@@ -6,9 +6,9 @@ test_that("ggpaintr_formula parses formulas into a paintr object", {
     "labs(title = text)"
   )
 
-  obj <- ggpaintr_formula(formula)
+  obj <- ptr_parse_formula(formula)
 
-  expect_s3_class(obj, "ggpaintr_obj")
+  expect_s3_class(obj, "ptr_obj")
   expect_identical(obj$formula_text, formula)
   expect_named(
     obj$expr_list,
@@ -23,7 +23,7 @@ test_that("ggpaintr_formula parses formulas into a paintr object", {
   )
 })
 
-test_that("ggpaintr_formula detects every placeholder type", {
+test_that("ptr_parse_formula detects every placeholder type", {
   formula <- paste(
     "ggplot(data = upload, aes(x = var, y = var)) +",
     "geom_point(size = num) +",
@@ -31,7 +31,7 @@ test_that("ggpaintr_formula detects every placeholder type", {
     "facet_wrap(expr)"
   )
 
-  obj <- ggpaintr_formula(formula)
+  obj <- ptr_parse_formula(formula)
 
   keyword_strings <- unlist(lapply(
     obj$keywords_list,
@@ -42,7 +42,7 @@ test_that("ggpaintr_formula detects every placeholder type", {
 })
 
 test_that("quoted placeholders are not treated as placeholders", {
-  obj <- ggpaintr_formula(
+  obj <- ptr_parse_formula(
     'ggplot(data = mtcars, aes(x = "var", y = "var")) + geom_point()'
   )
 

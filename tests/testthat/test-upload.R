@@ -2,8 +2,8 @@ test_that("upload helpers read csv and rds fixtures", {
   csv_input <- mock_upload_input(fixture_path("simple_numeric.csv"), "simple numeric.csv")
   rds_input <- mock_upload_input(fixture_path("simple_numeric.rds"), "simple_numeric.rds")
 
-  csv_data <- ggpaintr_read_uploaded_data(csv_input)
-  rds_data <- ggpaintr_read_uploaded_data(rds_input)
+  csv_data <- ptr_read_uploaded_data(csv_input)
+  rds_data <- ptr_read_uploaded_data(rds_input)
 
   expect_s3_class(csv_data, "data.frame")
   expect_s3_class(rds_data, "data.frame")
@@ -17,10 +17,10 @@ test_that("upload helpers normalize .rds columns and coerce list-like uploads", 
   names(spaced_data) <- c("first column", "second-column")
   saveRDS(spaced_data, spaced_path)
 
-  normalized_rds <- ggpaintr_read_uploaded_data(
+  normalized_rds <- ptr_read_uploaded_data(
     mock_upload_input(spaced_path, "spaced columns.rds")
   )
-  coerced_list <- ggpaintr_read_uploaded_data(
+  coerced_list <- ptr_read_uploaded_data(
     mock_upload_input(fixture_path("non_tabular.rds"), "non_tabular.rds")
   )
 
@@ -36,13 +36,13 @@ test_that("upload metadata uses custom names or normalized file names", {
     "ggplot+2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple numeric.csv"),
     "ggplot+2+name" = ""
   )
-  info_default <- ggpaintr_resolve_upload_info(input_default, "ggplot+2")
+  info_default <- ptr_resolve_upload_info(input_default, "ggplot+2")
 
   input_custom <- list(
     "ggplot+2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple numeric.csv"),
     "ggplot+2+name" = "custom dataset"
   )
-  info_custom <- ggpaintr_resolve_upload_info(input_custom, "ggplot+2")
+  info_custom <- ptr_resolve_upload_info(input_custom, "ggplot+2")
 
   expect_identical(info_default$object_name, "simple_numeric")
   expect_identical(info_custom$object_name, "custom_dataset")
@@ -59,7 +59,7 @@ test_that("non-coercible uploads fail with a tabular-data validation error", {
   )
 
   expect_error(
-    ggpaintr_resolve_upload_info(input_bad, "ggplot+2"),
+    ptr_resolve_upload_info(input_bad, "ggplot+2"),
     "Uploaded data is not usable as tabular data for ggpaintr"
   )
 })
@@ -71,13 +71,13 @@ test_that("unsupported upload extensions error clearly", {
   )
 
   expect_error(
-    ggpaintr_resolve_upload_info(input_bad, "ggplot+2"),
+    ptr_resolve_upload_info(input_bad, "ggplot+2"),
     "Please upload a .csv or .rds file."
   )
 })
 
 test_that("register_var_ui_outputs waits for uploaded data and populates choices after upload", {
-  obj <- ggpaintr_formula(
+  obj <- ptr_parse_formula(
     "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
   )
 
@@ -103,7 +103,7 @@ test_that("register_var_ui_outputs exposes normalized names for uploaded rds dat
   names(spaced_data) <- c("first column", "second-column")
   saveRDS(spaced_data, spaced_path)
 
-  obj <- ggpaintr_formula(
+  obj <- ptr_parse_formula(
     "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
   )
   output <- list2env(list(), parent = emptyenv())
@@ -123,7 +123,7 @@ test_that("register_var_ui_outputs exposes normalized names for uploaded rds dat
 })
 
 test_that("register_var_ui_outputs produces distinct widgets for each var placeholder", {
-  obj <- ggpaintr_formula(
+  obj <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
 
@@ -149,7 +149,7 @@ test_that("bad upload does not crash the app session", {
   formula <- "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
 
   server_wrapper <- function(input, output, session) {
-    session$userData$paintr_state <- ggpaintr_server(
+    session$userData$paintr_state <- ptr_server(
       input, output, session, formula
     )
   }

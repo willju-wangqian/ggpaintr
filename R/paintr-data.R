@@ -16,11 +16,11 @@
 #'   "if" = 4:6
 #' )
 #'
-#' clean <- ggpaintr_normalize_column_names(messy)
+#' clean <- ptr_normalize_column_names(messy)
 #' names(clean)
 #' @export
-ggpaintr_normalize_column_names <- function(data) {
-  ggpaintr_normalize_tabular_data(data, source = "Data")
+ptr_normalize_column_names <- function(data) {
+  ptr_normalize_tabular_data(data, source = "Data")
 }
 
 #' Coerce an Object to Tabular Data for `ggpaintr`
@@ -30,9 +30,9 @@ ggpaintr_normalize_column_names <- function(data) {
 #'
 #' @return A `data.frame`-like object with normalized column names.
 #' @noRd
-ggpaintr_normalize_tabular_data <- function(data, source = "Data") {
+ptr_normalize_tabular_data <- function(data, source = "Data") {
   if (inherits(data, "data.frame")) {
-    names(data) <- ggpaintr_normalize_column_name_vector(names(data), ncol(data))
+    names(data) <- ptr_normalize_column_name_vector(names(data), ncol(data))
     return(data)
   }
 
@@ -51,7 +51,7 @@ ggpaintr_normalize_tabular_data <- function(data, source = "Data") {
     )
   }
 
-  names(data_frame) <- ggpaintr_normalize_column_name_vector(
+  names(data_frame) <- ptr_normalize_column_name_vector(
     names(data_frame),
     ncol(data_frame)
   )
@@ -65,7 +65,7 @@ ggpaintr_normalize_tabular_data <- function(data, source = "Data") {
 #'
 #' @return A normalized character vector with syntactic, unique names.
 #' @noRd
-ggpaintr_normalize_column_name_vector <- function(x, n = length(x)) {
+ptr_normalize_column_name_vector <- function(x, n = length(x)) {
   if (is.null(x)) {
     x <- character()
   }
@@ -89,7 +89,7 @@ ggpaintr_normalize_column_name_vector <- function(x, n = length(x)) {
   valid_starts <- grepl("(^[[:alpha:]])|(^\\.(?![0-9]))", x, perl = TRUE)
   x[!valid_starts] <- paste0("X", x[!valid_starts])
 
-  reserved <- ggpaintr_reserved_words()
+  reserved <- ptr_reserved_words()
   x[x %in% reserved] <- paste0(x[x %in% reserved], "_")
 
   make.unique(x, sep = "_")
@@ -99,7 +99,7 @@ ggpaintr_normalize_column_name_vector <- function(x, n = length(x)) {
 #'
 #' @return A character vector of reserved words.
 #' @noRd
-ggpaintr_reserved_words <- function() {
+ptr_reserved_words <- function() {
   c(
     "if",
     "else",

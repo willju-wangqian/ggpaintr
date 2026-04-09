@@ -28,8 +28,8 @@ mock_upload_input <- function(path, name = basename(path), type = "") {
   )
 }
 
-set_layer_checkboxes <- function(input, ggpaintr_obj, value = TRUE) {
-  for (layer_name in names(ggpaintr_obj$expr_list)) {
+set_layer_checkboxes <- function(input, ptr_obj, value = TRUE) {
+  for (layer_name in names(ptr_obj$expr_list)) {
     if (identical(layer_name, "ggplot")) {
       next
     }

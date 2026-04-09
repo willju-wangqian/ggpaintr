@@ -8,8 +8,8 @@ ggplot(data = iris, aes(x = var, y = var)) +
   labs(title = text) +
   facet_wrap(expr)"
 
-# Edit custom_copy_rules to customize UI labels, help text, and placeholders.
-custom_copy_rules <- list(shell = list(
+# Edit custom_ui_text to customize UI labels, help text, and placeholders.
+custom_ui_text <- list(shell = list(
   title = list(label = "Exploratory Plot Builder"),
   draw_button = list(label = "Render plot")
 ), params = list(
@@ -20,11 +20,11 @@ custom_copy_rules <- list(shell = list(
   facet_wrap = list(expr = list(`__unnamed__` = list(label = "Split the plot by")))
 ))
 
-copy_rules <- ggpaintr_effective_copy_rules(custom_copy_rules)
+ui_text <- ptr_merge_ui_text(custom_ui_text)
 
-title_copy <- ggpaintr_resolve_copy("title", copy_rules = copy_rules)
-draw_copy <- ggpaintr_resolve_copy("draw_button", copy_rules = copy_rules)
-export_copy <- ggpaintr_resolve_copy("export_button", copy_rules = copy_rules)
+title_copy <- ptr_resolve_ui_text("title", ui_text = ui_text)
+draw_copy <- ptr_resolve_ui_text("draw_button", ui_text = ui_text)
+export_copy <- ptr_resolve_ui_text("export_button", ui_text = ui_text)
 
 ui <- fluidPage(
   titlePanel(title_copy$label),
@@ -45,11 +45,11 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
-  ggpaintr_state <- ggpaintr_server(input, output, session, input_formula, copy_rules = copy_rules)
+  ptr_state <- ptr_server(input, output, session, input_formula, ui_text = ui_text)
 
   # Add custom observers or outputs below.
   # observe({
-  #   runtime_result <- ggpaintr_state$runtime()
+  #   runtime_result <- ptr_state$runtime()
   #   if (!is.null(runtime_result) && isTRUE(runtime_result$ok)) {
   #     message(runtime_result$code_text)
   #   }

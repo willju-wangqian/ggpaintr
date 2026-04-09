@@ -55,11 +55,11 @@ Current supported behavior:
   resolved dataset, not arbitrary expressions such as `log(mpg)` or `disp + 1`.
 
 ```{r var-formula-transforms}
-obj <- ggpaintr_formula(
+obj <- ptr_parse_formula(
   "ggplot(data = mtcars, aes(x = var + 1, y = log(var))) + geom_point()"
 )
 
-ggpaintr:::ggpaintr_complete_expr(
+ggpaintr:::ptr_complete_expr(
   obj,
   list(
     "ggplot+3+2+2" = "mpg",
@@ -92,9 +92,9 @@ current supported workflow.
 ## 2. Empty plot-expression runtime paths
 
 Why it matters:
-`ggpaintr_complete_expr()` can legally prune optional layers down to a single
+`ptr_complete_expr()` can legally prune optional layers down to a single
 base `ggplot(...)` call, and internal runtime helpers should fail clearly if a
-truly empty plot-expression list ever reaches `ggpaintr_get_plot()`.
+truly empty plot-expression list ever reaches `ptr_assemble_plot()`.
 
 Current supported behavior:
 
@@ -111,10 +111,10 @@ single_layer_runtime <- list(
   quote(ggplot2::ggplot(iris, ggplot2::aes(Sepal.Length, Sepal.Width)))
 )
 
-ggpaintr:::ggpaintr_get_plot(single_layer_runtime)
+ggpaintr:::ptr_assemble_plot(single_layer_runtime)
 
 tryCatch(
-  ggpaintr:::ggpaintr_get_plot(NULL),
+  ggpaintr:::ptr_assemble_plot(NULL),
   error = function(e) conditionMessage(e)
 )
 ```

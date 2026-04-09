@@ -1,5 +1,5 @@
 test_that("var placeholders replace selected columns inside formula-level transforms", {
-  obj <- ggpaintr_formula(
+  obj <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var + 1, y = log(var))) + geom_point()"
   )
 
@@ -9,14 +9,14 @@ test_that("var placeholders replace selected columns inside formula-level transf
     "geom_point+checkbox" = TRUE
   )
 
-  result <- ggpaintr_complete_expr(obj, input)
+  result <- ptr_complete_expr(obj, input)
 
   expect_match(result$code_text, "x = mpg \\+ 1")
   expect_match(result$code_text, "y = log\\(disp\\)")
 })
 
 test_that("var placeholders reject direct runtime expressions", {
-  obj <- ggpaintr_formula(
+  obj <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
 
@@ -27,13 +27,13 @@ test_that("var placeholders reject direct runtime expressions", {
   )
 
   expect_error(
-    ggpaintr_complete_expr(obj, input),
+    ptr_complete_expr(obj, input),
     "must match one available column name"
   )
 })
 
 test_that("var placeholders reject unknown column names", {
-  obj <- ggpaintr_formula(
+  obj <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
 
@@ -44,13 +44,13 @@ test_that("var placeholders reject unknown column names", {
   )
 
   expect_error(
-    ggpaintr_complete_expr(obj, input),
+    ptr_complete_expr(obj, input),
     "must match one available column name"
   )
 })
 
 test_that("var placeholders reject multiple selected columns", {
-  obj <- ggpaintr_formula(
+  obj <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
 
@@ -61,7 +61,7 @@ test_that("var placeholders reject multiple selected columns", {
   )
 
   expect_error(
-    ggpaintr_complete_expr(obj, input),
+    ptr_complete_expr(obj, input),
     "must select exactly one column name"
   )
 })
@@ -69,16 +69,16 @@ test_that("var placeholders reject multiple selected columns", {
 test_that("normalized local column names work with var placeholders", {
   spaced <- data.frame(left = 1:3, right = 4:6, check.names = FALSE)
   names(spaced) <- c("first column", "second column")
-  spaced <- ggpaintr_normalize_column_names(spaced)
+  spaced <- ptr_normalize_column_names(spaced)
 
-  obj <- ggpaintr_formula(
+  obj <- ptr_parse_formula(
     "ggplot(data = spaced, aes(x = var, y = var)) + geom_point()"
   )
   output <- list2env(list(), parent = emptyenv())
 
   expect_no_error(register_var_ui_outputs(list(), output, obj, envir = environment()))
 
-  result <- ggpaintr_build_runtime(
+  result <- ptr_exec(
     obj,
     list(
       "ggplot+3+2" = "first_column",
@@ -95,7 +95,7 @@ test_that("normalized local column names work with var placeholders", {
 })
 
 test_that("text and num placeholders are inserted into the final code", {
-  obj <- ggpaintr_formula(
+  obj <- ptr_parse_formula(
     paste(
       "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +",
       "geom_point(size = num) +",
@@ -110,19 +110,19 @@ test_that("text and num placeholders are inserted into the final code", {
     "labs+checkbox" = TRUE
   )
 
-  result <- ggpaintr_complete_expr(obj, input)
+  result <- ptr_complete_expr(obj, input)
 
   expect_match(result$code_text, 'size = 3')
   expect_match(result$code_text, 'title = "Iris plot"')
 })
 
 test_that("expr placeholders are parsed into the completed expression", {
-  obj <- ggpaintr_formula(
+  obj <- ptr_parse_formula(
     "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + facet_wrap(expr)"
   )
 
   input <- list("facet_wrap+2" = "~ Species", "facet_wrap+checkbox" = TRUE)
-  result <- ggpaintr_complete_expr(obj, input)
+  result <- ptr_complete_expr(obj, input)
 
   expect_match(result$code_text, "facet_wrap\\(~Species\\)")
 })

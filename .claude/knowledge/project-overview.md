@@ -33,30 +33,30 @@ The active package is centered on:
 ## `ggpaintr` mental model
 
 In the maintained workflow, a plot specification is written as one formula
-string containing a ggplot-like expression template. Optional `copy_rules`
+string containing a ggplot-like expression template. Optional `ui_text`
 customize the user-facing control text without changing runtime semantics.
 Optional `placeholders` let downstream developers add new placeholder types per
 app without editing parser, UI, runtime, copy-rule, or export internals.
 
 Key runtime path:
 
-1. `ggpaintr_formula()` parses the formula and constructs a `ggpaintr_obj`
-2. `ggpaintr_effective_placeholders()` builds the effective placeholder
+1. `ptr_parse_formula()` parses the formula and constructs a `ptr_obj`
+2. `ptr_merge_placeholders()` builds the effective placeholder
    registry from built-ins plus any per-app custom placeholders
-3. `ggpaintr_effective_copy_rules()` merges internal copy defaults with any
+3. `ptr_merge_ui_text()` merges internal copy defaults with any
    runtime overrides using the effective placeholder registry
-4. `ggpaintr_server_state()` initializes shared reactive state for the wrapper
+4. `ptr_server_state()` initializes shared reactive state for the wrapper
    and integration helpers
-5. `ggpaintr_bind_control_panel()` builds static and deferred controls from
+5. `ptr_register_controls()` builds static and deferred controls from
    parsed metadata plus resolved copy
-6. `ggpaintr_bind_draw()`, `ggpaintr_bind_export()`, `ggpaintr_bind_plot()`,
-   `ggpaintr_bind_error()`, and `ggpaintr_bind_code()` wire the standard Shiny
+6. `ptr_register_draw()`, `ptr_register_export()`, `ptr_register_plot()`,
+   `ptr_register_error()`, and `ptr_register_code()` wire the standard Shiny
    behavior for the default wrapper and for embedded integrations
-7. `ggpaintr_server()` is a thin wrapper over that shared state plus the
+7. `ptr_server()` is a thin wrapper over that shared state plus the
    standard bind helpers
-8. `ggpaintr_app()` wraps the default UI shell around that server behavior
-9. `generate_shiny()` writes a standalone app script with explicit shell-copy
-   objects, explicit `ui`, explicit `server`, and a `ggpaintr_server()` call
+8. `ptr_app()` wraps the default UI shell around that server behavior
+9. `ptr_generate_shiny()` writes a standalone app script with explicit shell-copy
+   objects, explicit `ui`, explicit `server`, and a `ptr_server()` call
    that rebuilds custom placeholders only when needed
 
 References:
@@ -73,59 +73,59 @@ References:
 
 The maintained exported package surface is:
 
-- `ggpaintr_app()`
-- `ggpaintr_server()`
-- `ggpaintr_ids()`
-- `ggpaintr_server_state()`
-- `ggpaintr_bind_control_panel()`
-- `ggpaintr_bind_draw()`
-- `ggpaintr_bind_export()`
-- `ggpaintr_bind_plot()`
-- `ggpaintr_bind_error()`
-- `ggpaintr_bind_code()`
-- `ggpaintr_plot_value()`
-- `ggpaintr_error_value()`
-- `ggpaintr_code_value()`
-- `ggpaintr_controls_ui()`
-- `ggpaintr_outputs_ui()`
-- `ggpaintr_placeholder()`
-- `ggpaintr_effective_placeholders()`
-- `ggpaintr_missing_expr()`
-- `ggpaintr_normalize_column_names()`
-- `ggpaintr_runtime_input_spec()`
-- `ggpaintr_formula()`
-- `ggpaintr_build_runtime()`
-- `ggpaintr_get_plot()`
-- `ggpaintr_effective_copy_rules()`
-- `ggpaintr_resolve_copy()`
-- `generate_shiny()`
+- `ptr_app()`
+- `ptr_server()`
+- `ptr_build_ids()`
+- `ptr_server_state()`
+- `ptr_register_controls()`
+- `ptr_register_draw()`
+- `ptr_register_export()`
+- `ptr_register_plot()`
+- `ptr_register_error()`
+- `ptr_register_code()`
+- `ptr_extract_plot()`
+- `ptr_extract_error()`
+- `ptr_extract_code()`
+- `ptr_input_ui()`
+- `ptr_output_ui()`
+- `ptr_define_placeholder()`
+- `ptr_merge_placeholders()`
+- `ptr_missing_expr()`
+- `ptr_normalize_column_names()`
+- `ptr_runtime_input_spec()`
+- `ptr_parse_formula()`
+- `ptr_exec()`
+- `ptr_assemble_plot()`
+- `ptr_merge_ui_text()`
+- `ptr_resolve_ui_text()`
+- `ptr_generate_shiny()`
 
 Current public customization boundary:
 
-- `ggpaintr_app()`, `ggpaintr_server()`, `ggpaintr_server_state()`, and
-  `generate_shiny()` accept optional named-list `copy_rules`
-- `ggpaintr_app()`, `ggpaintr_server()`, `ggpaintr_server_state()`,
-  `ggpaintr_formula()`, and `generate_shiny()` accept optional custom
+- `ptr_app()`, `ptr_server()`, `ptr_server_state()`, and
+  `ptr_generate_shiny()` accept optional named-list `ui_text`
+- `ptr_app()`, `ptr_server()`, `ptr_server_state()`,
+  `ptr_parse_formula()`, and `ptr_generate_shiny()` accept optional custom
   `placeholders`
-- `ggpaintr_ids()` lets embedded integrations customize only the six top-level
+- `ptr_build_ids()` lets embedded integrations customize only the six top-level
   Shiny ids for control panel, draw, export, plot, error, and code
-- `ggpaintr_server_state()` plus the `ggpaintr_bind_*()` helpers are the
+- `ptr_server_state()` plus the `ptr_bind_*()` helpers are the
   supported way to embed the package runtime into an existing Shiny app
-- `ggpaintr_plot_value()`, `ggpaintr_error_value()`, and
-  `ggpaintr_code_value()` are the pure-value seam for custom `renderPlot()`,
+- `ptr_extract_plot()`, `ptr_extract_error()`, and
+  `ptr_extract_code()` are the pure-value seam for custom `renderPlot()`,
   `renderUI()`, and `renderText()` code
-- `ggpaintr_runtime_input_spec()` is the supported low-level discovery helper
+- `ptr_runtime_input_spec()` is the supported low-level discovery helper
   for advanced tests, tooling, and package authors who need to build runtime
   inputs without relying on raw id encoding by hand
-- `ggpaintr_controls_ui()` and `ggpaintr_outputs_ui()` provide optional default
+- `ptr_input_ui()` and `ptr_output_ui()` provide optional default
   UI fragments for those integrations
-- `ggpaintr_placeholder()`, `ggpaintr_effective_placeholders()`, and
-  `ggpaintr_missing_expr()` are the supported contributor-facing extension path
+- `ptr_define_placeholder()`, `ptr_merge_placeholders()`, and
+  `ptr_missing_expr()` are the supported contributor-facing extension path
   for custom placeholder/widget types
 - built-in and custom placeholders now share the same registry lifecycle for
   parse metadata, UI construction, runtime substitution, copy validation, and
   export serialization
-- `ggpaintr_effective_copy_rules()` and `ggpaintr_resolve_copy()` remain exported
+- `ptr_merge_ui_text()` and `ptr_resolve_ui_text()` remain exported
   copy helpers for runtime and exported-app customization
 - internal placeholder ids and dynamic `var-*` outputs remain package-owned in
   the current integration layer
@@ -165,26 +165,26 @@ Design expectations:
 - users should be able to add their own observers, outputs, and other Shiny
   behavior directly in the exported file
 - the generated app should keep explicit `ui <- shiny::fluidPage(...)` and
-  explicit `server <- function(...) { ggpaintr_state <- ggpaintr_server(...) }`
+  explicit `server <- function(...) { ptr_state <- ptr_server(...) }`
   structure
-- the exported file should expose a visible `copy_rules` hook:
-  `copy_rules <- NULL` for the default case and compact
-  `custom_copy_rules <- ...` plus
-  `copy_rules <- ggpaintr_effective_copy_rules(custom_copy_rules)` for
+- the exported file should expose a visible `ui_text` hook:
+  `ui_text <- NULL` for the default case and compact
+  `custom_ui_text <- ...` plus
+  `ui_text <- ptr_merge_ui_text(custom_ui_text)` for
   non-default customized exports
 - the exported file should expose a visible `placeholders` hook:
   `placeholders <- NULL` for the default case and compact
   `custom_placeholders <- ...` plus
-  `placeholders <- ggpaintr_effective_placeholders(custom_placeholders)` for
+  `placeholders <- ptr_merge_placeholders(custom_placeholders)` for
   custom-placeholder exports
 - `input_formula` should stay readable in the generated source, and if the
   original formula spans multiple lines, the exported `input_formula` should
   also span multiple lines
 - exported custom placeholders must stay standalone, so only definitions built
-  from `ggpaintr_placeholder()` with inline hook functions are currently
+  from `ptr_define_placeholder()` with inline hook functions are currently
   exportable
 - the current architecture intentionally keeps exported apps on the established
-  `ggpaintr_server()` path rather than exporting a binder-based template
+  `ptr_server()` path rather than exporting a binder-based template
 
 References:
 
@@ -205,13 +205,13 @@ Built-in placeholders:
 
 Custom placeholders:
 
-- are registered per app with `ggpaintr_effective_placeholders()`
-- are constructed with `ggpaintr_placeholder()`
+- are registered per app with `ptr_merge_placeholders()`
+- are constructed with `ptr_define_placeholder()`
 - receive `meta` records containing `id`, `keyword`, `layer_name`, `param`,
   and `index_path`
 - can define `build_ui()`, `resolve_expr()`, and optional `resolve_input()`,
   `bind_ui()`, and `prepare_eval_env()` hooks
-- can participate in `copy_rules` through placeholder-specific defaults and
+- can participate in `ui_text` through placeholder-specific defaults and
   registered keywords
 
 Boundary notes:
@@ -222,7 +222,7 @@ Boundary notes:
 - `expr` input must still be valid R code
 - `upload` currently supports `.csv` and `.rds`
 - local non-syntactic column names should be normalized with
-  `ggpaintr_normalize_column_names()`, and uploaded datasets now pass through
+  `ptr_normalize_column_names()`, and uploaded datasets now pass through
   the same normalization path automatically
 - structurally invalid formulas still block launch
 - formulas using `var` with no data source still block during UI preparation
@@ -232,12 +232,12 @@ Boundary notes:
 - positional arguments use the internal `__unnamed__` key when resolving
   layer-specific copy rules, and aliases such as `colour` normalize to `color`
 - default exported apps rely on package-owned default copy behavior through
-  `copy_rules <- NULL`, while customized exports preserve only compact
+  `ui_text <- NULL`, while customized exports preserve only compact
   non-default overrides and reconstruct effective rules in the generated app
 - exported custom placeholders are reconstructed from serialized definition
   calls rather than from the built-in placeholder registry
 - advanced integrations can customize the built plot through
-  `ggpaintr_plot_value()` while the default binder preserves the blank-on-failure
+  `ptr_extract_plot()` while the default binder preserves the blank-on-failure
   render behavior
 
 References:

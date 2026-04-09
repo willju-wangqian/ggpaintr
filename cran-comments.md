@@ -15,8 +15,11 @@
 
 ## Resubmission
 
-- Unified API prefix: all exported functions now use the `ggpaintr_*`
-  prefix for naming consistency.
+- Shortened API prefix: all exported functions now use the `ptr_*`
+  prefix for conciseness (previously `ggpaintr_*`).
+- Improved semantic clarity of function names across the public API
+  (e.g., `bind_*` → `register_*`, `*_value` → `extract_*`).
+- Renamed `copy_rules` parameter/system to `ui_text` throughout.
 - Migrated error signaling from `base::stop()` to `rlang::abort()`.
 - Added `@examples` to all exported functions.
 - Removed legacy `preconsideration/` directory from tracking.

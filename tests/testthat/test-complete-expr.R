@@ -1,5 +1,5 @@
-test_that("ggpaintr_complete_expr removes unchecked layers and prepares eval env", {
-  obj <- ggpaintr_formula(
+test_that("ptr_complete_expr removes unchecked layers and prepares eval env", {
+  obj <- ptr_parse_formula(
     paste(
       "ggplot(data = upload, aes(x = var, y = var)) +",
       "geom_point() +",
@@ -17,27 +17,27 @@ test_that("ggpaintr_complete_expr removes unchecked layers and prepares eval env
     "labs+checkbox" = FALSE
   )
 
-  result <- ggpaintr_complete_expr(obj, input)
+  result <- ptr_complete_expr(obj, input)
 
   expect_false(grepl("labs\\(", result$code_text))
   expect_match(result$code_text, "ggplot\\(data = uploaded_data")
   expect_true(exists("uploaded_data", envir = result$eval_env, inherits = FALSE))
 })
 
-test_that("ggpaintr_complete_expr errors on malformed expr input", {
-  obj <- ggpaintr_formula(
+test_that("ptr_complete_expr errors on malformed expr input", {
+  obj <- ptr_parse_formula(
     "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + facet_wrap(expr)"
   )
 
   input <- list("facet_wrap+2" = "~", "facet_wrap+checkbox" = TRUE)
 
   expect_error(
-    ggpaintr_complete_expr(obj, input)
+    ptr_complete_expr(obj, input)
   )
 })
 
-test_that("ggpaintr_complete_expr requires explicit layer checkbox inputs", {
-  obj <- ggpaintr_formula(
+test_that("ptr_complete_expr requires explicit layer checkbox inputs", {
+  obj <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
 
@@ -47,13 +47,13 @@ test_that("ggpaintr_complete_expr requires explicit layer checkbox inputs", {
   )
 
   expect_error(
-    ggpaintr_complete_expr(obj, input),
+    ptr_complete_expr(obj, input),
     "geom_point\\+checkbox"
   )
 })
 
-test_that("ggpaintr_complete_expr rejects invalid layer checkbox inputs", {
-  obj <- ggpaintr_formula(
+test_that("ptr_complete_expr rejects invalid layer checkbox inputs", {
+  obj <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
 
@@ -64,7 +64,7 @@ test_that("ggpaintr_complete_expr rejects invalid layer checkbox inputs", {
   )
 
   expect_error(
-    ggpaintr_complete_expr(obj, input),
+    ptr_complete_expr(obj, input),
     "single TRUE/FALSE value"
   )
 })

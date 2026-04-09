@@ -1,9 +1,9 @@
-test_that("ggpaintr_runtime_input_spec returns placeholder and checkbox rows in order", {
-  obj <- ggpaintr_formula(
+test_that("ptr_runtime_input_spec returns placeholder and checkbox rows in order", {
+  obj <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point() + labs(title = text)"
   )
 
-  spec <- ggpaintr_runtime_input_spec(obj)
+  spec <- ptr_runtime_input_spec(obj)
 
   expect_s3_class(spec, "data.frame")
   expect_identical(
@@ -42,12 +42,12 @@ test_that("ggpaintr_runtime_input_spec returns placeholder and checkbox rows in 
   )
 })
 
-test_that("ggpaintr_runtime_input_spec includes derived upload name inputs", {
-  obj <- ggpaintr_formula(
+test_that("ptr_runtime_input_spec includes derived upload name inputs", {
+  obj <- ptr_parse_formula(
     "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
   )
 
-  spec <- ggpaintr_runtime_input_spec(obj)
+  spec <- ptr_runtime_input_spec(obj)
 
   expect_identical(
     spec$input_id,
@@ -73,8 +73,8 @@ test_that("ggpaintr_runtime_input_spec includes derived upload name inputs", {
   )
 })
 
-test_that("ggpaintr_runtime_input_spec preserves resolved duplicate layer names", {
-  obj <- ggpaintr_formula(
+test_that("ptr_runtime_input_spec preserves resolved duplicate layer names", {
+  obj <- ptr_parse_formula(
     paste(
       "ggplot(data = mtcars, aes(x = mpg, y = disp)) +",
       "geom_point(color = text) +",
@@ -82,7 +82,7 @@ test_that("ggpaintr_runtime_input_spec preserves resolved duplicate layer names"
     )
   )
 
-  spec <- ggpaintr_runtime_input_spec(obj)
+  spec <- ptr_runtime_input_spec(obj)
 
   expect_identical(
     spec$layer_name,
@@ -99,13 +99,13 @@ test_that("ggpaintr_runtime_input_spec preserves resolved duplicate layer names"
   )
 })
 
-test_that("ggpaintr_runtime_input_spec surfaces custom placeholder keywords", {
-  registry <- ggpaintr_effective_placeholders(
+test_that("ptr_runtime_input_spec surfaces custom placeholder keywords", {
+  registry <- ptr_merge_placeholders(
     list(date = make_test_date_placeholder())
   )
-  obj <- ggpaintr_formula(test_date_formula, placeholders = registry)
+  obj <- ptr_parse_formula(test_date_formula, placeholders = registry)
 
-  spec <- ggpaintr_runtime_input_spec(obj)
+  spec <- ptr_runtime_input_spec(obj)
   date_row <- spec[which(spec$keyword %in% "date"), , drop = FALSE]
 
   expect_identical(nrow(date_row), 1L)

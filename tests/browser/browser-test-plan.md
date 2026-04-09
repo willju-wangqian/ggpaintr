@@ -26,7 +26,7 @@ Simplest formula — validates the entire infrastructure before the full suite.
 
 ```r
 shiny::runApp(
-  ggpaintr::ggpaintr_app("
+  ggpaintr::ptr_app("
     ggplot(data = mtcars, aes(x = var, y = var)) +
       geom_point() +
       labs(title = text)
@@ -61,7 +61,7 @@ Exercises `var`, `text`, `num`, `expr`, and layer checkbox behavior.
 
 ```r
 shiny::runApp(
-  ggpaintr::ggpaintr_app("
+  ggpaintr::ptr_app("
     ggplot(data = iris, aes(x = var, y = var)) +
       geom_point(aes(color = var), size = num, alpha = num) +
       labs(title = text, x = text, y = text) +
@@ -122,7 +122,7 @@ shiny::runApp(
 
 ```r
 shiny::runApp(
-  ggpaintr::ggpaintr_app("
+  ggpaintr::ptr_app("
     ggplot(data = mtcars, aes(x = var + 1, y = log(var))) +
       geom_point() +
       labs(title = text)
@@ -154,14 +154,14 @@ shiny::runApp(
 ```r
 spaced_manual <- data.frame(left = 1:4, right = c(2, 4, 6, 8), check.names = FALSE)
 names(spaced_manual) <- c("first column", "second column")
-spaced_manual_clean <- ggpaintr::ggpaintr_normalize_column_names(spaced_manual)
+spaced_manual_clean <- ggpaintr::ptr_normalize_column_names(spaced_manual)
 ```
 
 ### Launch
 
 ```r
 shiny::runApp(
-  ggpaintr::ggpaintr_app("
+  ggpaintr::ptr_app("
     ggplot(data = spaced_manual_clean, aes(x = var, y = var)) +
       geom_point() +
       labs(title = text)
@@ -192,7 +192,7 @@ shiny::runApp(
 
 ```r
 shiny::runApp(
-  ggpaintr::ggpaintr_app("
+  ggpaintr::ptr_app("
     ggplot(data = upload, aes(x = var, y = var)) +
       geom_point(size = num) +
       labs(title = 'good')
@@ -260,7 +260,7 @@ shiny::runApp(
 
 ```r
 shiny::runApp(
-  ggpaintr::ggpaintr_app("
+  ggpaintr::ptr_app("
     ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
       geom_point(aes(color = var), size = 2) +
       geom_point(data = upload, aes(x = var, y = var, color = var), size = num) +
@@ -307,7 +307,7 @@ shiny::runApp(
 
 ```r
 shiny::runApp(
-  ggpaintr::ggpaintr_app("
+  ggpaintr::ptr_app("
     ggplot(data = iris, aes(x = var, y = var)) +
       geom_point(size = num) +
       labs(title = text, subtitle = text) +
@@ -340,8 +340,8 @@ Verify exported file via R:
 - Contains `ui <- `
 - Contains `server <- function(`
 - Contains `shinyApp(ui, server)`
-- Contains `paintr_state <- ggpaintr_server(`
-- Contains `copy_rules <- NULL`
+- Contains `paintr_state <- ptr_server(`
+- Contains `ui_text <- NULL`
 
 ---
 
@@ -351,7 +351,7 @@ Verify exported file via R:
 
 ```r
 shiny::runApp(
-  ggpaintr::ggpaintr_app("
+  ggpaintr::ptr_app("
     ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
       geom_point() +
       facet_wrap(expr)
@@ -392,7 +392,7 @@ shiny::runApp(
 
 ```r
 shiny::runApp(
-  ggpaintr::ggpaintr_app("
+  ggpaintr::ptr_app("
     ggplot(data = upload, aes(x = var, y = var)) +
       geom_point()
   "),
@@ -420,7 +420,7 @@ shiny::runApp(
 
 ```r
 shiny::runApp(
-  ggpaintr::ggpaintr_app("
+  ggpaintr::ptr_app("
     ggplot(data = unknown_object, aes(x = mpg, y = disp)) +
       geom_point()
   "),
@@ -447,7 +447,7 @@ shiny::runApp(
 
 ```r
 shiny::runApp(
-  ggpaintr::ggpaintr_app("
+  ggpaintr::ptr_app("
     ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
       geom_point() +
       facet_wrap(expr)
@@ -482,7 +482,7 @@ shiny::runApp(
 
 ```r
 shiny::runApp(
-  ggpaintr::ggpaintr_app("
+  ggpaintr::ptr_app("
     ggplot(data = upload, aes(x = var, y = var)) +
       geom_point(size = num, alpha = num) +
       labs(title = text) +
@@ -540,7 +540,7 @@ shiny::runApp(
 ### Launch
 
 ```r
-custom_copy_rules <- list(
+custom_ui_text <- list(
   shell = list(
     title = list(label = "Exploratory Plot Builder"),
     draw_button = list(label = "Render plot")
@@ -563,14 +563,14 @@ custom_copy_rules <- list(
 )
 
 shiny::runApp(
-  ggpaintr::ggpaintr_app(
+  ggpaintr::ptr_app(
     "
     ggplot(data = iris, aes(x = var, y = var)) +
       geom_point() +
       labs(title = text) +
       facet_wrap(expr)
     ",
-    copy_rules = custom_copy_rules
+    ui_text = custom_ui_text
   ),
   port = 4321, launch.browser = FALSE
 )
@@ -610,7 +610,7 @@ No browser launch. Verify exported file contents via R.
 ### R Check
 
 ```r
-custom_copy_rules <- list(
+custom_ui_text <- list(
   shell = list(title = list(label = "Exploratory Plot Builder"),
                draw_button = list(label = "Render plot")),
   params = list(x = list(var = list(label = "Pick the field for the x-axis")),
@@ -625,15 +625,15 @@ obj <- ggpaintr::paintr_formula("
     geom_point() + labs(title = text) + facet_wrap(expr)
 ")
 out_file <- tempfile(fileext = ".R")
-ggpaintr::generate_shiny(obj, out_file, style = FALSE, copy_rules = custom_copy_rules)
+ggpaintr::ptr_generate_shiny(obj, out_file, style = FALSE, ui_text = custom_ui_text)
 ```
 
 ### File Content Checks
 
-- Contains `custom_copy_rules <-`
-- Contains `paintr_effective_copy_rules(custom_copy_rules)`
-- Contains `ggpaintr_server(`
-- Contains `copy_rules = copy_rules`
+- Contains `custom_ui_text <-`
+- Contains `paintr_effective_ui_text(custom_ui_text)`
+- Contains `ptr_server(`
+- Contains `ui_text = ui_text`
 
 ---
 
@@ -642,7 +642,7 @@ ggpaintr::generate_shiny(obj, out_file, style = FALSE, copy_rules = custom_copy_
 ### Launch
 
 ```r
-manual_ids <- ggpaintr::ggpaintr_ids(
+manual_ids <- ggpaintr::ptr_build_ids(
   control_panel = "builder_controls",
   draw_button = "render_plot",
   export_button = "export_app",
@@ -655,18 +655,18 @@ ui <- shiny::fluidPage(
   shiny::titlePanel("Embedded ggpaintr manual test"),
   shiny::sidebarLayout(
     shiny::sidebarPanel(
-      ggpaintr::ggpaintr_controls_ui(ids = manual_ids),
+      ggpaintr::ptr_input_ui(ids = manual_ids),
       shiny::tags$hr(),
       shiny::textOutput("runtimeStatus")
     ),
     shiny::mainPanel(
-      ggpaintr::ggpaintr_outputs_ui(ids = manual_ids)
+      ggpaintr::ptr_output_ui(ids = manual_ids)
     )
   )
 )
 
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr::ggpaintr_server_state(
+  paintr_state <- ggpaintr::ptr_server_state(
     "
     ggplot(data = iris, aes(x = var, y = var)) +
       geom_point(aes(color = var), size = num) +
@@ -674,12 +674,12 @@ server <- function(input, output, session) {
     ",
     ids = manual_ids
   )
-  ggpaintr::ggpaintr_bind_control_panel(input, output, paintr_state, ids = manual_ids)
-  ggpaintr::ggpaintr_bind_draw(input, paintr_state, ids = manual_ids)
-  ggpaintr::ggpaintr_bind_export(output, paintr_state, ids = manual_ids)
-  ggpaintr::ggpaintr_bind_plot(output, paintr_state, ids = manual_ids)
-  ggpaintr::ggpaintr_bind_error(output, paintr_state, ids = manual_ids)
-  ggpaintr::ggpaintr_bind_code(output, paintr_state, ids = manual_ids)
+  ggpaintr::ptr_register_controls(input, output, paintr_state, ids = manual_ids)
+  ggpaintr::ptr_register_draw(input, paintr_state, ids = manual_ids)
+  ggpaintr::ptr_register_export(output, paintr_state, ids = manual_ids)
+  ggpaintr::ptr_register_plot(output, paintr_state, ids = manual_ids)
+  ggpaintr::ptr_register_error(output, paintr_state, ids = manual_ids)
+  ggpaintr::ptr_register_code(output, paintr_state, ids = manual_ids)
 
   output$runtimeStatus <- shiny::renderText({
     runtime_result <- paintr_state$runtime()
@@ -723,7 +723,7 @@ shiny::runApp(shiny::shinyApp(ui, server), port = 4321, launch.browser = FALSE)
 ui <- shiny::fluidPage(
   shiny::titlePanel("Custom plot rendering"),
   shiny::sidebarLayout(
-    shiny::sidebarPanel(ggpaintr::ggpaintr_controls_ui()),
+    shiny::sidebarPanel(ggpaintr::ptr_input_ui()),
     shiny::mainPanel(
       shiny::plotOutput("outputPlot"),
       shiny::uiOutput("outputError"),
@@ -733,18 +733,18 @@ ui <- shiny::fluidPage(
 )
 
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr::ggpaintr_server_state("
+  paintr_state <- ggpaintr::ptr_server_state("
     ggplot(data = iris, aes(x = var, y = var)) +
       geom_point() + labs(title = text)
   ")
-  ggpaintr::ggpaintr_bind_control_panel(input, output, paintr_state)
-  ggpaintr::ggpaintr_bind_draw(input, paintr_state)
-  ggpaintr::ggpaintr_bind_export(output, paintr_state)
-  ggpaintr::ggpaintr_bind_error(output, paintr_state)
-  ggpaintr::ggpaintr_bind_code(output, paintr_state)
+  ggpaintr::ptr_register_controls(input, output, paintr_state)
+  ggpaintr::ptr_register_draw(input, paintr_state)
+  ggpaintr::ptr_register_export(output, paintr_state)
+  ggpaintr::ptr_register_error(output, paintr_state)
+  ggpaintr::ptr_register_code(output, paintr_state)
 
   output$outputPlot <- shiny::renderPlot({
-    plot_obj <- ggpaintr::ggpaintr_plot_value(paintr_state$runtime())
+    plot_obj <- ggpaintr::ptr_extract_plot(paintr_state$runtime())
     if (is.null(plot_obj)) { plot.new(); return(invisible(NULL)) }
     plot_obj + ggplot2::theme_minimal(base_size = 16)
   })
@@ -780,21 +780,21 @@ sales_manual <- data.frame(
   segment = c("A", "A", "B", "B", "C", "C")
 )
 
-date_placeholder <- ggpaintr::ggpaintr_placeholder(
+date_placeholder <- ggpaintr::ptr_define_placeholder(
   keyword = "date",
   build_ui = function(id, copy, meta, context) {
     shiny::dateInput(id, copy$label)
   },
   resolve_expr = function(value, meta, context) {
     if (is.null(value) || identical(as.character(value), "")) {
-      return(ggpaintr::ggpaintr_missing_expr())
+      return(ggpaintr::ptr_missing_expr())
     }
     rlang::expr(as.Date(!!as.character(value)))
   },
   copy_defaults = list(label = "Choose a date for {param}")
 )
 
-date_placeholders <- ggpaintr::ggpaintr_effective_placeholders(
+date_placeholders <- ggpaintr::ptr_merge_placeholders(
   list(date = date_placeholder)
 )
 ```
@@ -803,7 +803,7 @@ date_placeholders <- ggpaintr::ggpaintr_effective_placeholders(
 
 ```r
 shiny::runApp(
-  ggpaintr::ggpaintr_app(
+  ggpaintr::ptr_app(
     "
     ggplot(data = sales_manual, aes(x = day, y = value)) +
       geom_line() +
@@ -850,7 +850,7 @@ No browser launch. Verify exported file contents via R.
 ```r
 # (uses sales_manual, date_placeholder, date_placeholders from Formula 12 setup)
 
-date_copy_rules <- list(
+date_ui_text <- list(
   defaults = list(date = list(label = "Pick any date")),
   params = list(xintercept = list(date = list(label = "Reference date"))),
   layers = list(geom_vline = list(date = list(
@@ -867,9 +867,9 @@ obj <- ggpaintr::paintr_formula(
   placeholders = date_placeholders
 )
 out_file <- tempfile(fileext = ".R")
-ggpaintr::generate_shiny(
+ggpaintr::ptr_generate_shiny(
   obj, out_file, style = FALSE,
-  copy_rules = date_copy_rules,
+  ui_text = date_ui_text,
   placeholders = date_placeholders
 )
 ```
@@ -877,9 +877,9 @@ ggpaintr::generate_shiny(
 ### File Content Checks
 
 - Contains `custom_placeholders <-`
-- Contains `ggpaintr_effective_placeholders(custom_placeholders)`
-- Contains `custom_copy_rules <-`
-- Contains `ggpaintr_server(`
+- Contains `ptr_merge_placeholders(custom_placeholders)`
+- Contains `custom_ui_text <-`
+- Contains `ptr_server(`
 - Contains `placeholders = placeholders`
 
 ---
@@ -896,12 +896,12 @@ build_date_ui_manual <- function(id, copy, meta, context) {
 }
 date_to_expr_manual <- function(value, meta, context) {
   if (is.null(value) || identical(as.character(value), "")) {
-    return(ggpaintr::ggpaintr_missing_expr())
+    return(ggpaintr::ptr_missing_expr())
   }
   rlang::expr(as.Date(!!as.character(value)))
 }
 
-non_inline_date <- ggpaintr::ggpaintr_placeholder(
+non_inline_date <- ggpaintr::ptr_define_placeholder(
   keyword = "date",
   build_ui = build_date_ui_manual,
   resolve_expr = date_to_expr_manual
@@ -912,10 +912,10 @@ non_inline_obj <- ggpaintr::paintr_formula(
   ggplot(data = sales_manual, aes(x = day, y = value)) +
     geom_line() + geom_vline(xintercept = date)
   ",
-  placeholders = ggpaintr::ggpaintr_effective_placeholders(list(date = non_inline_date))
+  placeholders = ggpaintr::ptr_merge_placeholders(list(date = non_inline_date))
 )
 
-ggpaintr::generate_shiny(
+ggpaintr::ptr_generate_shiny(
   non_inline_obj, tempfile(fileext = ".R"),
   style = FALSE,
   placeholders = non_inline_obj$placeholders
@@ -924,7 +924,7 @@ ggpaintr::generate_shiny(
 
 ### Expected Behavior
 
-- `generate_shiny()` raises an error (does not write a file)
+- `ptr_generate_shiny()` raises an error (does not write a file)
 - Error message mentions `build_ui` must be defined inline
 
 ---

@@ -1,10 +1,10 @@
-test_that("ggpaintr_complete_expr_safe captures malformed expr input", {
-  obj <- ggpaintr_formula(
+test_that("ptr_complete_expr_safe captures malformed expr input", {
+  obj <- ptr_parse_formula(
     "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + facet_wrap(expr)"
   )
 
   input <- list("facet_wrap+2" = "~", "facet_wrap+checkbox" = TRUE)
-  result <- ggpaintr_complete_expr_safe(obj, input)
+  result <- ptr_complete_expr_safe(obj, input)
 
   expect_false(result$ok)
   expect_identical(result$stage, "complete")
@@ -15,8 +15,8 @@ test_that("ggpaintr_complete_expr_safe captures malformed expr input", {
   expect_match(result$message, "^Input error:")
 })
 
-test_that("ggpaintr_complete_expr_safe captures invalid uploads", {
-  obj <- ggpaintr_formula(
+test_that("ptr_complete_expr_safe captures invalid uploads", {
+  obj <- ptr_parse_formula(
     "ggplot(data = upload, aes(x = x, y = y)) + geom_point()"
   )
 
@@ -24,7 +24,7 @@ test_that("ggpaintr_complete_expr_safe captures invalid uploads", {
     "ggplot+2" = mock_upload_input(fixture_path("bad_extension.txt"), "bad_extension.txt"),
     "ggplot+2+name" = ""
   )
-  result <- ggpaintr_complete_expr_safe(obj, input)
+  result <- ptr_complete_expr_safe(obj, input)
 
   expect_false(result$ok)
   expect_identical(result$stage, "complete")
@@ -35,8 +35,8 @@ test_that("ggpaintr_complete_expr_safe captures invalid uploads", {
   expect_match(result$message, "Please upload a \\.csv or \\.rds file\\.")
 })
 
-test_that("ggpaintr_complete_expr_safe fails fast when layer checkbox inputs are missing", {
-  obj <- ggpaintr_formula(
+test_that("ptr_complete_expr_safe fails fast when layer checkbox inputs are missing", {
+  obj <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
 
@@ -44,7 +44,7 @@ test_that("ggpaintr_complete_expr_safe fails fast when layer checkbox inputs are
     "ggplot+3+2" = "mpg",
     "ggplot+3+3" = "disp"
   )
-  result <- ggpaintr_complete_expr_safe(obj, input)
+  result <- ptr_complete_expr_safe(obj, input)
 
   expect_false(result$ok)
   expect_identical(result$stage, "complete")
@@ -55,8 +55,8 @@ test_that("ggpaintr_complete_expr_safe fails fast when layer checkbox inputs are
   expect_match(result$message, "geom_point\\+checkbox")
 })
 
-test_that("ggpaintr_complete_expr_safe fails fast on invalid layer checkbox inputs", {
-  obj <- ggpaintr_formula(
+test_that("ptr_complete_expr_safe fails fast on invalid layer checkbox inputs", {
+  obj <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
 
@@ -65,7 +65,7 @@ test_that("ggpaintr_complete_expr_safe fails fast on invalid layer checkbox inpu
     "ggplot+3+3" = "disp",
     "geom_point+checkbox" = "yes"
   )
-  result <- ggpaintr_complete_expr_safe(obj, input)
+  result <- ptr_complete_expr_safe(obj, input)
 
   expect_false(result$ok)
   expect_identical(result$stage, "complete")
@@ -76,11 +76,11 @@ test_that("ggpaintr_complete_expr_safe fails fast on invalid layer checkbox inpu
   expect_match(result$message, "single TRUE/FALSE value")
 })
 
-test_that("ggpaintr_complete_expr_safe captures non-tabular rds uploads early", {
+test_that("ptr_complete_expr_safe captures non-tabular rds uploads early", {
   non_coercible_path <- tempfile(fileext = ".rds")
   saveRDS(function(x) x, non_coercible_path)
 
-  obj <- ggpaintr_formula(
+  obj <- ptr_parse_formula(
     "ggplot(data = upload, aes(x = x, y = y)) + geom_point()"
   )
 
@@ -88,7 +88,7 @@ test_that("ggpaintr_complete_expr_safe captures non-tabular rds uploads early", 
     "ggplot+2" = mock_upload_input(non_coercible_path, "non_coercible.rds"),
     "ggplot+2+name" = ""
   )
-  result <- ggpaintr_complete_expr_safe(obj, input)
+  result <- ptr_complete_expr_safe(obj, input)
 
   expect_false(result$ok)
   expect_identical(result$stage, "complete")
@@ -102,12 +102,12 @@ test_that("ggpaintr_complete_expr_safe captures non-tabular rds uploads early", 
   )
 })
 
-test_that("ggpaintr_build_runtime fails fast on invalid var selections", {
-  obj <- ggpaintr_formula(
+test_that("ptr_exec fails fast on invalid var selections", {
+  obj <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
 
-  result <- ggpaintr_build_runtime(
+  result <- ptr_exec(
     obj,
     list(
       "ggplot+3+2" = "log(mpg)",
@@ -123,16 +123,16 @@ test_that("ggpaintr_build_runtime fails fast on invalid var selections", {
   expect_null(result$code_text)
 })
 
-test_that("ggpaintr_get_plot_safe captures plot-stage missing object errors and keeps code", {
-  obj <- ggpaintr_formula(
+test_that("ptr_assemble_plot_safe captures plot-stage missing object errors and keeps code", {
+  obj <- ptr_parse_formula(
     "ggplot(data = unknown_object, aes(x = mpg, y = disp)) + geom_point()"
   )
 
-  complete_result <- ggpaintr_complete_expr_safe(
+  complete_result <- ptr_complete_expr_safe(
     obj,
     list("geom_point+checkbox" = TRUE)
   )
-  plot_result <- ggpaintr_get_plot_safe(complete_result)
+  plot_result <- ptr_assemble_plot_safe(complete_result)
 
   expect_true(complete_result$ok)
   expect_false(plot_result$ok)
@@ -143,15 +143,15 @@ test_that("ggpaintr_get_plot_safe captures plot-stage missing object errors and 
   expect_match(plot_result$code_text, "ggplot\\(data = unknown_object")
 })
 
-test_that("ggpaintr_build_runtime defers missing local data objects until draw time", {
-  obj <- ggpaintr_formula(
+test_that("ptr_exec defers missing local data objects until draw time", {
+  obj <- ptr_parse_formula(
     "ggplot(data = unknown_object, aes(x = mpg, y = disp)) + geom_point()"
   )
   output <- list2env(list(), parent = emptyenv())
 
   expect_no_error(register_var_ui_outputs(list(), output, obj))
 
-  runtime_result <- ggpaintr_build_runtime(
+  runtime_result <- ptr_exec(
     obj,
     list("geom_point+checkbox" = TRUE)
   )
@@ -164,19 +164,19 @@ test_that("ggpaintr_build_runtime defers missing local data objects until draw t
   expect_match(runtime_result$code_text, "ggplot\\(data = unknown_object")
 })
 
-test_that("ggpaintr_build_runtime captures render-time faceting errors and keeps code", {
-  obj <- ggpaintr_formula(
+test_that("ptr_exec captures render-time faceting errors and keeps code", {
+  obj <- ptr_parse_formula(
     "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + facet_wrap(expr)"
   )
 
-  complete_result <- ggpaintr_complete_expr_safe(
+  complete_result <- ptr_complete_expr_safe(
     obj,
     list("facet_wrap+2" = "~ Speciesasdf", "facet_wrap+checkbox" = TRUE)
   )
   expect_true(complete_result$ok)
   expect_match(complete_result$code_text, "facet_wrap\\(~Speciesasdf\\)")
 
-  runtime_result <- ggpaintr_build_runtime(
+  runtime_result <- ptr_exec(
     obj,
     list("facet_wrap+2" = "~ Speciesasdf", "facet_wrap+checkbox" = TRUE)
   )
@@ -189,34 +189,34 @@ test_that("ggpaintr_build_runtime captures render-time faceting errors and keeps
   expect_match(runtime_result$code_text, "facet_wrap\\(~Speciesasdf\\)")
 })
 
-test_that("ggpaintr_format_runtime_message formats stage labels consistently", {
+test_that("ptr_format_runtime_message formats stage labels consistently", {
   expect_identical(
-    ggpaintr_format_runtime_message("complete", message = "bad expr"),
+    ptr_format_runtime_message("complete", message = "bad expr"),
     "Input error: bad expr"
   )
   expect_identical(
-    ggpaintr_format_runtime_message("plot", message = "missing object"),
+    ptr_format_runtime_message("plot", message = "missing object"),
     "Plot error: missing object"
   )
   expect_identical(
-    ggpaintr_format_runtime_message("other", message = "fallback"),
+    ptr_format_runtime_message("other", message = "fallback"),
     "Runtime error: fallback"
   )
 })
 
-test_that("ggpaintr_error_ui returns NULL for blank input and tags for messages", {
-  expect_null(ggpaintr_error_ui(NULL))
-  expect_null(ggpaintr_error_ui(""))
-  expect_null(ggpaintr_error_ui("   "))
+test_that("ptr_error_ui returns NULL for blank input and tags for messages", {
+  expect_null(ptr_error_ui(NULL))
+  expect_null(ptr_error_ui(""))
+  expect_null(ptr_error_ui("   "))
 
-  ui <- ggpaintr_error_ui("Input error: bad expr")
+  ui <- ptr_error_ui("Input error: bad expr")
 
   expect_s3_class(ui, "shiny.tag")
   expect_identical(ui$name, "div")
   expect_match(as.character(ui), "Input error: bad expr", fixed = TRUE)
 })
 
-test_that("ggpaintr_validate_plot_render_safe returns plot failures from ggplot_build", {
+test_that("ptr_validate_plot_render_safe returns plot failures from ggplot_build", {
   bad_plot <- ggplot2::ggplot(iris, ggplot2::aes(Sepal.Length, Sepal.Width)) +
     ggplot2::geom_point() +
     ggplot2::facet_wrap(~Speciesasdf)
@@ -232,7 +232,7 @@ test_that("ggpaintr_validate_plot_render_safe returns plot failures from ggplot_
     plot = bad_plot
   )
 
-  validated <- ggpaintr_validate_plot_render_safe(runtime_result)
+  validated <- ptr_validate_plot_render_safe(runtime_result)
 
   expect_false(validated$ok)
   expect_identical(validated$stage, "plot")
@@ -241,8 +241,8 @@ test_that("ggpaintr_validate_plot_render_safe returns plot failures from ggplot_
   expect_match(validated$message, "Speciesasdf")
 })
 
-test_that("ggpaintr_build_runtime returns plots on successful inputs", {
-  obj <- ggpaintr_formula(
+test_that("ptr_exec returns plots on successful inputs", {
+  obj <- ptr_parse_formula(
     paste(
       "ggplot(data = iris, aes(x = var, y = var)) +",
       "geom_point() +",
@@ -257,7 +257,7 @@ test_that("ggpaintr_build_runtime returns plots on successful inputs", {
     "geom_point+checkbox" = TRUE,
     "facet_wrap+checkbox" = TRUE
   )
-  result <- ggpaintr_build_runtime(obj, input)
+  result <- ptr_exec(obj, input)
 
   expect_true(result$ok)
   expect_null(result$message)
@@ -265,12 +265,12 @@ test_that("ggpaintr_build_runtime returns plots on successful inputs", {
   expect_match(result$code_text, "facet_wrap\\(~Species\\)")
 })
 
-test_that("ggpaintr_build_runtime succeeds when only the base ggplot remains", {
-  obj <- ggpaintr_formula(
+test_that("ptr_exec succeeds when only the base ggplot remains", {
+  obj <- ptr_parse_formula(
     "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + geom_point()"
   )
 
-  result <- ggpaintr_build_runtime(
+  result <- ptr_exec(
     obj,
     list("geom_point+checkbox" = FALSE)
   )
@@ -282,7 +282,7 @@ test_that("ggpaintr_build_runtime succeeds when only the base ggplot remains", {
   expect_no_match(result$code_text, "geom_point\\(")
 })
 
-test_that("ggpaintr_get_plot_safe reports empty plot-expression input as a plot-stage error", {
+test_that("ptr_assemble_plot_safe reports empty plot-expression input as a plot-stage error", {
   runtime_result <- list(
     ok = TRUE,
     stage = "complete",
@@ -294,7 +294,7 @@ test_that("ggpaintr_get_plot_safe reports empty plot-expression input as a plot-
     plot = NULL
   )
 
-  result <- ggpaintr_get_plot_safe(runtime_result)
+  result <- ptr_assemble_plot_safe(runtime_result)
 
   expect_false(result$ok)
   expect_identical(result$stage, "plot")
@@ -306,13 +306,13 @@ test_that("ggpaintr_get_plot_safe reports empty plot-expression input as a plot-
   )
 })
 
-test_that("ggpaintr_build_runtime uses normalized uploaded column names in code and plots", {
+test_that("ptr_exec uses normalized uploaded column names in code and plots", {
   spaced_path <- tempfile(fileext = ".rds")
   spaced_data <- data.frame(left = 1:3, right = 4:6, check.names = FALSE)
   names(spaced_data) <- c("first column", "second column")
   saveRDS(spaced_data, spaced_path)
 
-  obj <- ggpaintr_formula(
+  obj <- ptr_parse_formula(
     "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
   )
   input <- list(
@@ -323,7 +323,7 @@ test_that("ggpaintr_build_runtime uses normalized uploaded column names in code 
     "geom_point+checkbox" = TRUE
   )
 
-  result <- ggpaintr_build_runtime(obj, input)
+  result <- ptr_exec(obj, input)
 
   expect_true(result$ok)
   expect_null(result$message)
