@@ -10,6 +10,8 @@ This file is for developer-written initial thoughts, rough ideas, and informal p
 
 ## Notes
 
+2. enrich manual test cases
+
 3.  test cases that can break ggpaintr
 
     -   bug assessment? generate edge cases that can effectively break ggpaintr
