@@ -19,7 +19,7 @@ Source code is the final authority. These rules are governance, not a session lo
 ### Auto-loaded (every session)
 
 `CLAUDE.md` (project root)
-- Commands, architecture summary, conventions, governance rules, context routing, prompt contracts
+- Commands, architecture summary, conventions, governance rules, context routing, harness config, workflows
 - Update when architecture, commands, conventions, or governance rules change
 
 ### On-demand specs (`.claude/specs/`)
