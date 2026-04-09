@@ -26,7 +26,7 @@ A formula string flows through four stages:
 `ptr_parse_formula()` parses the formula via rlang, splits it into layers (e.g. `ggplot()`, `geom_point()`), identifies placeholder tokens in arguments, generates unique IDs like `"ggplot+3+2"`, and returns a `ptr_obj` containing ASTs, placeholder metadata, and the placeholder registry.
 
 ### 2. Placeholder Registry (`paintr-placeholders.R`)
-`ptr_define_placeholder()` defines extensible control types with four hooks: `build_ui()` (Shiny widget), `resolve_expr()` (input → R expression), `bind_ui()` (deferred/reactive UI), `prepare_eval_env()` (inject runtime data). Built-in types: `var` (column selector), `text`, `num`, `expr` (parsed R input), `upload` (CSV/RDS loader). Custom placeholders can override built-ins but must use inline function definitions (for export serialization).
+`ptr_define_placeholder()` defines extensible control types with five hooks: `build_ui()` (Shiny widget), `resolve_expr()` (input → R expression), `resolve_input()` (optional raw-value extraction), `bind_ui()` (deferred/reactive UI), `prepare_eval_env()` (inject runtime data), plus a `copy_defaults` list for default UI labels. Built-in types: `var` (column selector), `text`, `num`, `expr` (parsed R input), `upload` (CSV/RDS loader). Custom placeholders can override built-ins but must use inline function definitions (for export serialization).
 
 ### 3. UI & Runtime (`paintr-ui.R`, `paintr-runtime.R`)
 - UI generation: `ptr_build_ui_list()` creates Shiny controls; `var` inputs use deferred `uiOutput()` since columns depend on data.
