@@ -340,7 +340,7 @@ Verify exported file via R:
 - Contains `ui <- `
 - Contains `server <- function(`
 - Contains `shinyApp(ui, server)`
-- Contains `paintr_state <- ptr_server(`
+- Contains `ptr_state <- ptr_server(`
 - Contains `ui_text <- NULL`
 
 ---

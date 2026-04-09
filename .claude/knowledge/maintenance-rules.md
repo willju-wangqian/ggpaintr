@@ -44,6 +44,18 @@ Source code is the final authority. These rules are governance, not a session lo
 `dev/developer-notes.md` — human scratchpad, do not edit unless user explicitly asks
 `dev/tasks/*.md` — stored prompts, do not edit unless user explicitly asks
 
+## Documentation Sync Rules
+
+When any of the following change, update all non-archive md/Rmd references in the same commit:
+
+- Exported function names (renames, prefix changes) — grep md files for old names
+- File or directory paths (restructures, moves) — grep md files for old paths
+- DESCRIPTION Imports/Suggests — update dependency lists in CLAUDE.md
+- Return value structure of exported functions — update architecture descriptions
+- Agent/skill configs that reference source paths — verify paths still exist
+
+Scope: all md/Rmd files outside `archive/`, `preconsideration/`, `docs/` (generated), and `dev/tasks/` (stored prompts).
+
 ## Authoring Rules
 
 - Keep notes concise and high-signal. Prefer bullets over narrative.

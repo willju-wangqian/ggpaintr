@@ -24,7 +24,7 @@ Source files are in `R/` (prefixed `paintr-`). Tests are in `tests/testthat/`.
 
 1. Read the relevant source files first — understand existing patterns
 2. Follow tidyverse style: snake_case, 2-space indent
-3. Public functions use `ggpaintr_` or `paintr_` prefix
+3. Public functions use `ptr_` prefix
 4. Use rlang for errors (`rlang::abort()`), assertthat for validation
 5. Add roxygen2 docs for any new/changed exported functions
 6. Run `cd /Users/willju/Research/ggpaintr && Rscript -e "devtools::test()"` after changes

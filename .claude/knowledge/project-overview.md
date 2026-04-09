@@ -109,7 +109,7 @@ Current public customization boundary:
   `placeholders`
 - `ptr_build_ids()` lets embedded integrations customize only the six top-level
   Shiny ids for control panel, draw, export, plot, error, and code
-- `ptr_server_state()` plus the `ptr_bind_*()` helpers are the
+- `ptr_server_state()` plus the `ptr_register_*()` helpers are the
   supported way to embed the package runtime into an existing Shiny app
 - `ptr_extract_plot()`, `ptr_extract_error()`, and
   `ptr_extract_code()` are the pure-value seam for custom `renderPlot()`,
@@ -138,7 +138,7 @@ References:
 - `R/paintr-placeholders.R:44-131`
 - `R/paintr-copy.R:12-146`
 - `R/paintr-export.R:95-252`
-- `NAMESPACE:3-26`
+- `NAMESPACE:3-28`
 - `_pkgdown.yml:7-48`
 
 ## Documentation workflow

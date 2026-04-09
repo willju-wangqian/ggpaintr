@@ -9,7 +9,7 @@ This workbook is the canonical interactive manual test guide for the current `gg
 
 It aligns with:
 
--   `dev/notes/testing-strategy.md`
+-   `.claude/knowledge/testing-strategy.md`
 -   `tests/manual/manual-checklist-ggpaintr.md`
 -   `tests/manual/ggpaintr-edge-cases.Rmd`
 

@@ -45,8 +45,8 @@ ASSESS_TEMPLATE="$ROOT_DIR/dev/codex/publication-assessment-prompt.md"
 ASSESS_SCHEMA="$ROOT_DIR/dev/codex/publication-assessment-schema.json"
 RUN_LOOP_SCRIPT="$ROOT_DIR/dev/codex/run-publication-loop.sh"
 
-BATCH1_PROMPT="$ROOT_DIR/dev/notes/prompts/publication-improvements-batch-1-prompt.md"
-BATCH23_PROMPT="$ROOT_DIR/dev/notes/prompts/publication-improvements-batch-2-3-prompt.md"
+BATCH1_PROMPT="$ROOT_DIR/dev/tasks/publication-improvements-batch-1-prompt.md"
+BATCH23_PROMPT="$ROOT_DIR/dev/tasks/publication-improvements-batch-2-3-prompt.md"
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -228,7 +228,7 @@ fi
 run_phase \
   "02-assessment-after-batch-1" \
   "Assessment After Batch 1" \
-  "$ROOT_DIR/dev/notes/prompts/publication-readiness-cran-prep-prompt.md" \
+  "$ROOT_DIR/dev/tasks/publication-readiness-cran-prep-prompt.md" \
   "$ASSESS_TEMPLATE" \
   "$ASSESS_SCHEMA" \
   "$RUN_DIR/01-batch-1/result.json"
@@ -249,7 +249,7 @@ fi
 run_phase \
   "04-assessment-after-batch-2-3" \
   "Assessment After Batch 2-3" \
-  "$ROOT_DIR/dev/notes/prompts/publication-readiness-cran-prep-prompt.md" \
+  "$ROOT_DIR/dev/tasks/publication-readiness-cran-prep-prompt.md" \
   "$ASSESS_TEMPLATE" \
   "$ASSESS_SCHEMA" \
   "$RUN_DIR/03-batch-2-3/result.json"

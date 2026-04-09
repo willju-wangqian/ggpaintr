@@ -74,7 +74,7 @@ For known unresolved boundaries and reproducible edge-case examples, see
 
 ## Shiny integration checks
 
-1. Launch an app built from `ptr_server_state()` plus the `ptr_bind_*()` helpers.
+1. Launch an app built from `ptr_server_state()` plus the `ptr_register_*()` helpers.
 2. Confirm the embedded app still renders the control panel, plot, inline errors, code, and export button.
 3. Add one small custom output or observer that reads `ptr_state$runtime()` and confirm it updates after `draw`.
 4. Launch a variant with custom top-level ids from `ptr_build_ids()` and confirm the app still behaves normally.

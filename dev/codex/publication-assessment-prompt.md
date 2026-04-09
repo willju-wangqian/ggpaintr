@@ -5,9 +5,9 @@ You are running a structured publication-readiness reassessment for the
 
 Requirements:
 
-- before doing anything else, read and follow `dev/notes/start-codex.md`
+- before doing anything else, read and follow `CLAUDE.md`
 - run the strict assessment standards from
-  `dev/notes/prompts/publication-readiness-cran-prep-prompt.md`
+  `dev/tasks/publication-readiness-cran-prep-prompt.md`
 - assess the current repository state, not prior memory
 - focus on design caveats, supportability gaps, ergonomics risks, API-boundary
   clarity, documentation gaps, testing gaps, and adoption barriers that still

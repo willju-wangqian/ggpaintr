@@ -27,7 +27,7 @@ Your job is to assess whether ggpaintr is a **mature project ready for wide comm
 Assess ggpaintr against these four goals:
 
 ### Goal 1: User-Friendly for Beginners
-ggpaintr should be approachable for beginner Shiny app users. The high-level public API (`paintr()`, `ptr_parse_formula()`, etc.) must stay simple and easy to use. Evaluate: Can a beginner generate a working Shiny app with minimal code? Are the defaults sensible? Is the learning curve reasonable?
+ggpaintr should be approachable for beginner Shiny app users. The high-level public API (`ptr_app()`, `ptr_parse_formula()`, etc.) must stay simple and easy to use. Evaluate: Can a beginner generate a working Shiny app with minimal code? Are the defaults sensible? Is the learning curve reasonable?
 
 ### Goal 2: Elegant, Clean Code
 ggpaintr code should be elegant, easy to read, and beautiful. Reject redundant code, unnecessary complexity, and dead paths. If code quality issues are found, note that the `code-simplifier` agent can be invoked to address them. Evaluate: Are functions focused and well-named? Is there duplicated logic? Are abstractions justified or premature?

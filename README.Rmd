@@ -86,7 +86,7 @@ The maintained public path is intentionally narrow.
 
 - Start with `ptr_app()` for the default app wrapper.
 - Use `ptr_server()`, `ptr_server_state()`, `ptr_build_ids()`, and the
-  `ptr_bind_*()` helpers when you need to embed `ggpaintr` in a larger
+  `ptr_register_*()` helpers when you need to embed `ggpaintr` in a larger
   Shiny app.
 - Use `ptr_define_placeholder()` and `ptr_merge_placeholders()` for
   custom placeholder types.

@@ -6,9 +6,9 @@ This directory contains the unattended Codex CLI workflow for publication-readin
 
 `dev/codex/run-publication-workflow.sh` runs:
 
-1. `dev/notes/prompts/publication-improvements-batch-1-prompt.md`
-2. a structured reassessment using `dev/notes/prompts/publication-readiness-cran-prep-prompt.md`
-3. `dev/notes/prompts/publication-improvements-batch-2-3-prompt.md`
+1. `dev/tasks/publication-improvements-batch-1-prompt.md`
+2. a structured reassessment using `dev/tasks/publication-readiness-cran-prep-prompt.md`
+3. `dev/tasks/publication-improvements-batch-2-3-prompt.md`
 4. another structured reassessment
 5. a follow-up unattended publication loop using `dev/codex/run-publication-loop.sh`
 
