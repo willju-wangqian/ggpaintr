@@ -45,3 +45,6 @@ preconsideration
 docs
 README.html
 dev/codex/runs/
+
+# Claude Code local config (personal, not shared)
+.claude/settings.local.json
