@@ -18,31 +18,9 @@ devtools::load_all()                      # load package for interactive use
 pkgdown::build_site()                     # build documentation site
 ```
 
-## Architecture — The Pipeline
+## Architecture
 
-A formula string flows through four stages:
-
-### 1. Parsing (`paintr-parse.R`)
-`ptr_parse_formula()` parses the formula via rlang, splits it into layers (e.g. `ggplot()`, `geom_point()`), identifies placeholder tokens in arguments, generates unique IDs like `"ggplot+3+2"`, and returns a `ptr_obj` containing ASTs, placeholder metadata, and the placeholder registry.
-
-### 2. Placeholder Registry (`paintr-placeholders.R`)
-`ptr_define_placeholder()` defines extensible control types with five hooks: `build_ui()` (Shiny widget), `resolve_expr()` (input → R expression), `resolve_input()` (optional raw-value extraction), `bind_ui()` (deferred/reactive UI), `prepare_eval_env()` (inject runtime data), plus a `copy_defaults` list for default UI labels. Built-in types: `var` (column selector), `text`, `num`, `expr` (parsed R input), `upload` (CSV/RDS loader). Custom placeholders can override built-ins but must use inline function definitions (for export serialization).
-
-### 3. UI & Runtime (`paintr-ui.R`, `paintr-runtime.R`)
-- UI generation: `ptr_build_ui_list()` creates Shiny controls; `var` inputs use deferred `uiOutput()` since columns depend on data.
-- Expression completion: `ptr_complete_expr()` substitutes user inputs into layer ASTs.
-- `ptr_exec()` orchestrates: complete expressions → evaluate layers → build plot → validate. Returns `list(ok, stage, message, code_text, complete_expr_list, eval_env, condition, plot)`.
-
-### 4. Shiny App & Export (`paintr-app.R`, `paintr-export.R`)
-- `ptr_server_state()` creates reactive state (parsed formula, runtime, deferred UI, copy rules).
-- Modular binders: `ptr_register_controls()`, `ptr_register_draw()`, `ptr_register_plot()`, `ptr_register_export()`, `ptr_register_code()`, `ptr_register_error()`.
-- `ptr_generate_shiny()` serializes a standalone `.R` app with embedded formula, custom placeholders, and copy rules.
-
-### Supporting Modules
-- **Copy rules** (`paintr-copy.R`): Nested hierarchy (shell → params/layers → keywords → fields) maps UI labels and help text with template interpolation (`{param}`, `{layer}`).
-- **Upload** (`paintr-upload.R`): File metadata extraction, object-name derivation, environment injection.
-- **Data** (`paintr-data.R`): Column-name sanitization for safe variable references.
-- **Utils** (`paintr-utils.R`): Internal helpers.
+See `.claude/specs/project-overview.md` for the pipeline and API details.
 
 ## Conventions
 
