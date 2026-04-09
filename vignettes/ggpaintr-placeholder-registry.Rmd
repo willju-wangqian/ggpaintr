@@ -24,7 +24,7 @@ library(rlang)
 
 `ggpaintr` now supports per-app placeholder registries. That means downstream
 developers can define a new placeholder once, pass it into
-`paintr_formula()`, `ggpaintr_app()`, `ggpaintr_server_state()`, or
+`ggpaintr_formula()`, `ggpaintr_app()`, `ggpaintr_server_state()`, or
 `generate_shiny()`, and keep the rest of the package runtime unchanged.
 
 The public entry points for this layer are:
@@ -75,14 +75,14 @@ Pass the registry through `placeholders = ...` anywhere you want custom
 placeholder support.
 
 ```{r date-runtime}
-obj <- paintr_formula(
+obj <- ggpaintr_formula(
   "ggplot(data = sales, aes(x = day, y = value)) +
     geom_line() +
     geom_vline(xintercept = date)",
   placeholders = placeholders
 )
 
-runtime <- paintr_build_runtime(
+runtime <- ggpaintr_build_runtime(
   obj,
   list(
     "geom_line+checkbox" = TRUE,
@@ -108,7 +108,7 @@ ggpaintr_app(
 ## The placeholder metadata contract
 
 Every placeholder occurrence becomes one metadata record in
-`paintr_obj$placeholder_map`.
+`ggpaintr_obj$placeholder_map`.
 
 ```{r meta-record}
 meta <- obj$placeholder_map$geom_vline[["geom_vline+2"]]
@@ -144,7 +144,7 @@ The arguments are:
 - `id`: the generated input id to bind
 - `copy`: resolved copy text for this control
 - `meta`: the metadata record for this occurrence
-- `context`: a named list containing `paintr_obj`, `placeholders`,
+- `context`: a named list containing `ggpaintr_obj`, `placeholders`,
   `copy_rules`, and `envir`
 
 ### `resolve_expr(value, meta, context)`
@@ -245,7 +245,7 @@ Each placeholder can ship its own default copy through `copy_defaults`. Those
 defaults then participate in the normal `copy_rules` system.
 
 ```{r custom-copy}
-date_copy_rules <- paintr_effective_copy_rules(
+date_copy_rules <- ggpaintr_effective_copy_rules(
   list(
     defaults = list(date = list(label = "Pick any date")),
     params = list(
@@ -262,7 +262,7 @@ date_copy_rules <- paintr_effective_copy_rules(
   placeholders = placeholders
 )
 
-paintr_resolve_copy(
+ggpaintr_resolve_copy(
   "control",
   keyword = "date",
   layer_name = "geom_vline",
@@ -299,7 +299,7 @@ ui <- shiny::fluidPage(
 )
 
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server_state(
+  ggpaintr_state <- ggpaintr_server_state(
     "ggplot(data = sales, aes(x = day, y = value)) +
       geom_line() +
       geom_vline(xintercept = date)",
@@ -307,12 +307,12 @@ server <- function(input, output, session) {
     placeholders = placeholders
   )
 
-  ggpaintr_bind_control_panel(input, output, paintr_state, ids = ids)
-  ggpaintr_bind_draw(input, paintr_state, ids = ids)
-  ggpaintr_bind_export(output, paintr_state, ids = ids)
-  ggpaintr_bind_plot(output, paintr_state, ids = ids)
-  ggpaintr_bind_error(output, paintr_state, ids = ids)
-  ggpaintr_bind_code(output, paintr_state, ids = ids)
+  ggpaintr_bind_control_panel(input, output, ggpaintr_state, ids = ids)
+  ggpaintr_bind_draw(input, ggpaintr_state, ids = ids)
+  ggpaintr_bind_export(output, ggpaintr_state, ids = ids)
+  ggpaintr_bind_plot(output, ggpaintr_state, ids = ids)
+  ggpaintr_bind_error(output, ggpaintr_state, ids = ids)
+  ggpaintr_bind_code(output, ggpaintr_state, ids = ids)
 }
 ```
 
@@ -399,6 +399,10 @@ date_placeholder <- ggpaintr_placeholder(
 # errors because the exported app would not contain build_date_ui() or
 # date_to_expr().
 ```
+
+> **Note:** This inline-only restriction is a known limitation. A future release
+> may lift it by deparsing function bodies at export time so that hooks defined
+> outside the `ggpaintr_placeholder()` call can also be serialized.
 
 ## Summary
 

@@ -1,5 +1,5 @@
 test_that("ggpaintr_runtime_input_spec returns placeholder and checkbox rows in order", {
-  obj <- paintr_formula(
+  obj <- ggpaintr_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point() + labs(title = text)"
   )
 
@@ -43,7 +43,7 @@ test_that("ggpaintr_runtime_input_spec returns placeholder and checkbox rows in 
 })
 
 test_that("ggpaintr_runtime_input_spec includes derived upload name inputs", {
-  obj <- paintr_formula(
+  obj <- ggpaintr_formula(
     "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
   )
 
@@ -74,7 +74,7 @@ test_that("ggpaintr_runtime_input_spec includes derived upload name inputs", {
 })
 
 test_that("ggpaintr_runtime_input_spec preserves resolved duplicate layer names", {
-  obj <- paintr_formula(
+  obj <- ggpaintr_formula(
     paste(
       "ggplot(data = mtcars, aes(x = mpg, y = disp)) +",
       "geom_point(color = text) +",
@@ -103,7 +103,7 @@ test_that("ggpaintr_runtime_input_spec surfaces custom placeholder keywords", {
   registry <- ggpaintr_effective_placeholders(
     list(date = make_test_date_placeholder())
   )
-  obj <- paintr_formula(test_date_formula, placeholders = registry)
+  obj <- ggpaintr_formula(test_date_formula, placeholders = registry)
 
   spec <- ggpaintr_runtime_input_spec(obj)
   date_row <- spec[which(spec$keyword %in% "date"), , drop = FALSE]

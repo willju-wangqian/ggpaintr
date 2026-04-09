@@ -15,3 +15,14 @@ README\.*
 ^pkgdown$
 ^\.github$
 ^cran-comments\.md$
+
+^\.graphify_chunks\.json$
+^\.graphify_worker_prompt\.md$
+^\.graphifyignore$
+^\.graphify_semantic_parts$
+^\.claude$
+^AGENTS\.md$
+^CLAUDE\.md$
+^Rplots\.pdf$
+^docker-compose\.codex\.yml$
+^graphify-out$

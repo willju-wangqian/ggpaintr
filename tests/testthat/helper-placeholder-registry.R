@@ -20,7 +20,7 @@ make_test_date_placeholder <- function() {
   ggpaintr_placeholder(
     keyword = "date",
     build_ui = function(id, copy, meta, context) {
-      paintr_attach_help(
+      ggpaintr_attach_help(
         shiny::dateInput(id, copy$label),
         copy$help
       )
@@ -41,7 +41,7 @@ make_test_date_placeholder <- function() {
 }
 
 named_date_build_ui <- function(id, copy, meta, context) {
-  paintr_attach_help(
+  ggpaintr_attach_help(
     shiny::dateInput(id, copy$label),
     copy$help
   )

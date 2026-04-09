@@ -40,10 +40,10 @@ app without editing parser, UI, runtime, copy-rule, or export internals.
 
 Key runtime path:
 
-1. `paintr_formula()` parses the formula and constructs a `paintr_obj`
+1. `ggpaintr_formula()` parses the formula and constructs a `ggpaintr_obj`
 2. `ggpaintr_effective_placeholders()` builds the effective placeholder
    registry from built-ins plus any per-app custom placeholders
-3. `paintr_effective_copy_rules()` merges internal copy defaults with any
+3. `ggpaintr_effective_copy_rules()` merges internal copy defaults with any
    runtime overrides using the effective placeholder registry
 4. `ggpaintr_server_state()` initializes shared reactive state for the wrapper
    and integration helpers
@@ -93,11 +93,11 @@ The maintained exported package surface is:
 - `ggpaintr_missing_expr()`
 - `ggpaintr_normalize_column_names()`
 - `ggpaintr_runtime_input_spec()`
-- `paintr_formula()`
-- `paintr_build_runtime()`
-- `paintr_get_plot()`
-- `paintr_effective_copy_rules()`
-- `paintr_resolve_copy()`
+- `ggpaintr_formula()`
+- `ggpaintr_build_runtime()`
+- `ggpaintr_get_plot()`
+- `ggpaintr_effective_copy_rules()`
+- `ggpaintr_resolve_copy()`
 - `generate_shiny()`
 
 Current public customization boundary:
@@ -105,7 +105,7 @@ Current public customization boundary:
 - `ggpaintr_app()`, `ggpaintr_server()`, `ggpaintr_server_state()`, and
   `generate_shiny()` accept optional named-list `copy_rules`
 - `ggpaintr_app()`, `ggpaintr_server()`, `ggpaintr_server_state()`,
-  `paintr_formula()`, and `generate_shiny()` accept optional custom
+  `ggpaintr_formula()`, and `generate_shiny()` accept optional custom
   `placeholders`
 - `ggpaintr_ids()` lets embedded integrations customize only the six top-level
   Shiny ids for control panel, draw, export, plot, error, and code
@@ -125,7 +125,7 @@ Current public customization boundary:
 - built-in and custom placeholders now share the same registry lifecycle for
   parse metadata, UI construction, runtime substitution, copy validation, and
   export serialization
-- `paintr_effective_copy_rules()` and `paintr_resolve_copy()` remain exported
+- `ggpaintr_effective_copy_rules()` and `ggpaintr_resolve_copy()` remain exported
   copy helpers for runtime and exported-app customization
 - internal placeholder ids and dynamic `var-*` outputs remain package-owned in
   the current integration layer
@@ -165,12 +165,12 @@ Design expectations:
 - users should be able to add their own observers, outputs, and other Shiny
   behavior directly in the exported file
 - the generated app should keep explicit `ui <- shiny::fluidPage(...)` and
-  explicit `server <- function(...) { paintr_state <- ggpaintr_server(...) }`
+  explicit `server <- function(...) { ggpaintr_state <- ggpaintr_server(...) }`
   structure
 - the exported file should expose a visible `copy_rules` hook:
   `copy_rules <- NULL` for the default case and compact
   `custom_copy_rules <- ...` plus
-  `copy_rules <- paintr_effective_copy_rules(custom_copy_rules)` for
+  `copy_rules <- ggpaintr_effective_copy_rules(custom_copy_rules)` for
   non-default customized exports
 - the exported file should expose a visible `placeholders` hook:
   `placeholders <- NULL` for the default case and compact

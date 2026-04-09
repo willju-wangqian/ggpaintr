@@ -20,11 +20,11 @@ custom_copy_rules <- list(shell = list(
   facet_wrap = list(expr = list(`__unnamed__` = list(label = "Split the plot by")))
 ))
 
-copy_rules <- paintr_effective_copy_rules(custom_copy_rules)
+copy_rules <- ggpaintr_effective_copy_rules(custom_copy_rules)
 
-title_copy <- paintr_resolve_copy("title", copy_rules = copy_rules)
-draw_copy <- paintr_resolve_copy("draw_button", copy_rules = copy_rules)
-export_copy <- paintr_resolve_copy("export_button", copy_rules = copy_rules)
+title_copy <- ggpaintr_resolve_copy("title", copy_rules = copy_rules)
+draw_copy <- ggpaintr_resolve_copy("draw_button", copy_rules = copy_rules)
+export_copy <- ggpaintr_resolve_copy("export_button", copy_rules = copy_rules)
 
 ui <- fluidPage(
   titlePanel(title_copy$label),
@@ -45,11 +45,11 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server(input, output, session, input_formula, copy_rules = copy_rules)
+  ggpaintr_state <- ggpaintr_server(input, output, session, input_formula, copy_rules = copy_rules)
 
   # Add custom observers or outputs below.
   # observe({
-  #   runtime_result <- paintr_state$runtime()
+  #   runtime_result <- ggpaintr_state$runtime()
   #   if (!is.null(runtime_result) && isTRUE(runtime_result$ok)) {
   #     message(runtime_result$code_text)
   #   }

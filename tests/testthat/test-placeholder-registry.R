@@ -39,14 +39,14 @@ test_that("custom placeholders are parsed into placeholder metadata and runtime 
   registry <- ggpaintr_effective_placeholders(
     list(date = make_test_date_placeholder())
   )
-  obj <- paintr_formula(test_date_formula, placeholders = registry)
+  obj <- ggpaintr_formula(test_date_formula, placeholders = registry)
 
   expect_true("geom_vline+2" %in% names(obj$placeholder_map$geom_vline))
   expect_identical(obj$placeholder_map$geom_vline[["geom_vline+2"]]$keyword, "date")
   expect_s3_class(obj$placeholders, "ggpaintr_placeholder_registry")
   expect_true("date" %in% names(obj$custom_placeholders))
 
-  runtime <- paintr_build_runtime(
+  runtime <- ggpaintr_build_runtime(
     obj,
     list(
       "geom_line+checkbox" = TRUE,
@@ -65,7 +65,7 @@ test_that("custom placeholders participate in copy rules and generated UI", {
   registry <- ggpaintr_effective_placeholders(
     list(date = make_test_date_placeholder())
   )
-  rules <- paintr_effective_copy_rules(
+  rules <- ggpaintr_effective_copy_rules(
     list(
       defaults = list(date = list(label = "Choose any date")),
       params = list(
@@ -82,15 +82,15 @@ test_that("custom placeholders participate in copy rules and generated UI", {
     placeholders = registry
   )
 
-  resolved <- paintr_resolve_copy(
+  resolved <- ggpaintr_resolve_copy(
     "control",
     keyword = "date",
     layer_name = "geom_vline",
     param = "xintercept",
     copy_rules = rules
   )
-  obj <- paintr_formula(test_date_formula, placeholders = registry)
-  ui <- paintr_get_tab_ui(obj, copy_rules = rules)
+  obj <- ggpaintr_formula(test_date_formula, placeholders = registry)
+  ui <- ggpaintr_get_tab_ui(obj, copy_rules = rules)
   ui_text <- placeholder_ui_text(ui)
 
   expect_identical(resolved$label, "Reference date")
@@ -112,7 +112,7 @@ test_that("custom placeholders work through ggpaintr wrappers", {
   expect_s3_class(app, "shiny.appobj")
 
   server_wrapper <- function(input, output, session) {
-    session$userData$paintr_state <- ggpaintr_server(
+    session$userData$ggpaintr_state <- ggpaintr_server(
       input,
       output,
       session,
@@ -123,8 +123,8 @@ test_that("custom placeholders work through ggpaintr wrappers", {
   }
 
   shiny::testServer(server_wrapper, {
-    expect_s3_class(session$userData$paintr_state$placeholders, "ggpaintr_placeholder_registry")
-    expect_true("date" %in% names(session$userData$paintr_state$custom_placeholders))
+    expect_s3_class(session$userData$ggpaintr_state$placeholders, "ggpaintr_placeholder_registry")
+    expect_true("date" %in% names(session$userData$ggpaintr_state$custom_placeholders))
 
     session$setInputs(
       "geom_line+checkbox" = TRUE,
@@ -133,7 +133,7 @@ test_that("custom placeholders work through ggpaintr wrappers", {
       draw = 1
     )
 
-    runtime_result <- session$userData$paintr_state$runtime()
+    runtime_result <- session$userData$ggpaintr_state$runtime()
     expect_true(runtime_result$ok)
     expect_match(runtime_result$code_text, 'as.Date\\("2020-01-02"\\)')
   })

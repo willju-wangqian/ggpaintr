@@ -4,7 +4,7 @@
 #'
 #' @return A character vector.
 #' @noRd
-paintr_serialize_r_object <- function(x) {
+ggpaintr_serialize_r_object <- function(x) {
   utils::capture.output(dput(x))
 }
 
@@ -14,7 +14,7 @@ paintr_serialize_r_object <- function(x) {
 #'
 #' @return A single escaped string segment.
 #' @noRd
-paintr_escape_string_segment <- function(x) {
+ggpaintr_escape_string_segment <- function(x) {
   encoded <- encodeString(x, quote = "\"")
   substring(encoded, 2, nchar(encoded) - 1)
 }
@@ -26,7 +26,7 @@ paintr_escape_string_segment <- function(x) {
 #'
 #' @return A character vector.
 #' @noRd
-paintr_prefix_assignment <- function(name, value_lines) {
+ggpaintr_prefix_assignment <- function(name, value_lines) {
   value_lines[1] <- paste0(name, " <- ", value_lines[1])
   value_lines
 }
@@ -37,11 +37,11 @@ paintr_prefix_assignment <- function(name, value_lines) {
 #'
 #' @return A character vector of source lines.
 #' @noRd
-paintr_serialize_formula_text <- function(formula_text) {
+ggpaintr_serialize_formula_text <- function(formula_text) {
   formula_lines <- strsplit(formula_text, "\n", fixed = TRUE)[[1]]
   formula_lines <- vapply(
     formula_lines,
-    paintr_escape_string_segment,
+    ggpaintr_escape_string_segment,
     character(1),
     USE.NAMES = FALSE
   )
@@ -63,12 +63,12 @@ paintr_serialize_formula_text <- function(formula_text) {
 #'
 #' @return A character vector of source lines.
 #' @noRd
-paintr_serialize_export_copy_rules <- function(copy_rules = NULL, placeholders = NULL) {
+ggpaintr_serialize_export_copy_rules <- function(copy_rules = NULL, placeholders = NULL) {
   default_header <- paste(
     "# Replace NULL with a named list to customize UI labels, help text, and",
     "placeholders."
   )
-  compact_copy_rules <- paintr_compact_copy_rules(
+  compact_copy_rules <- ggpaintr_compact_copy_rules(
     copy_rules,
     placeholders = placeholders
   )
@@ -80,8 +80,8 @@ paintr_serialize_export_copy_rules <- function(copy_rules = NULL, placeholders =
     "# Edit custom_copy_rules to customize UI labels, help text, and",
     "placeholders."
   )
-  custom_copy_rules_lines <- paintr_serialize_r_object(compact_copy_rules)
-  custom_copy_rules_lines <- paintr_prefix_assignment(
+  custom_copy_rules_lines <- ggpaintr_serialize_r_object(compact_copy_rules)
+  custom_copy_rules_lines <- ggpaintr_prefix_assignment(
     "custom_copy_rules",
     custom_copy_rules_lines
   )
@@ -90,7 +90,7 @@ paintr_serialize_export_copy_rules <- function(copy_rules = NULL, placeholders =
     custom_header,
     custom_copy_rules_lines,
     "",
-    "copy_rules <- paintr_effective_copy_rules(custom_copy_rules)"
+    "copy_rules <- ggpaintr_effective_copy_rules(custom_copy_rules)"
   )
 }
 
@@ -100,8 +100,8 @@ paintr_serialize_export_copy_rules <- function(copy_rules = NULL, placeholders =
 #'
 #' @return A character vector of source lines.
 #' @noRd
-paintr_serialize_export_placeholders <- function(placeholders = NULL) {
-  custom_placeholders <- paintr_exportable_custom_placeholders(placeholders)
+ggpaintr_serialize_export_placeholders <- function(placeholders = NULL) {
+  custom_placeholders <- ggpaintr_exportable_custom_placeholders(placeholders)
   default_header <- paste(
     "# Replace NULL with a named list of ggpaintr_placeholder() calls to",
     "register custom placeholder types."
@@ -115,8 +115,8 @@ paintr_serialize_export_placeholders <- function(placeholders = NULL) {
     "# Edit custom_placeholders to register custom placeholder types for this",
     "exported app."
   )
-  custom_placeholder_lines <- paintr_serialize_r_object(custom_placeholders)
-  custom_placeholder_lines <- paintr_prefix_assignment(
+  custom_placeholder_lines <- ggpaintr_serialize_r_object(custom_placeholders)
+  custom_placeholder_lines <- ggpaintr_prefix_assignment(
     "custom_placeholders",
     custom_placeholder_lines
   )
@@ -141,15 +141,15 @@ paintr_serialize_export_placeholders <- function(placeholders = NULL) {
 get_shiny_template <- function(formula_text,
                                copy_rules = NULL,
                                placeholders = NULL) {
-  formula_text_lines <- paintr_prefix_assignment(
+  formula_text_lines <- ggpaintr_prefix_assignment(
     "input_formula",
-    paintr_serialize_formula_text(formula_text)
+    ggpaintr_serialize_formula_text(formula_text)
   )
-  copy_rules_lines <- paintr_serialize_export_copy_rules(
+  copy_rules_lines <- ggpaintr_serialize_export_copy_rules(
     copy_rules,
     placeholders = placeholders
   )
-  placeholder_lines <- paintr_serialize_export_placeholders(placeholders)
+  placeholder_lines <- ggpaintr_serialize_export_placeholders(placeholders)
 
   c(
     "library(ggpaintr)",
@@ -162,9 +162,9 @@ get_shiny_template <- function(formula_text,
     "",
     placeholder_lines,
     "",
-    "title_copy <- paintr_resolve_copy(\"title\", copy_rules = copy_rules)",
-    "draw_copy <- paintr_resolve_copy(\"draw_button\", copy_rules = copy_rules)",
-    "export_copy <- paintr_resolve_copy(\"export_button\", copy_rules = copy_rules)",
+    "title_copy <- ggpaintr_resolve_copy(\"title\", copy_rules = copy_rules)",
+    "draw_copy <- ggpaintr_resolve_copy(\"draw_button\", copy_rules = copy_rules)",
+    "export_copy <- ggpaintr_resolve_copy(\"export_button\", copy_rules = copy_rules)",
     "",
     "ui <- fluidPage(",
     "  titlePanel(title_copy$label),",
@@ -186,7 +186,7 @@ get_shiny_template <- function(formula_text,
     "",
     "server <- function(input, output, session) {",
     paste(
-      "  paintr_state <- ggpaintr_server(",
+      "  ggpaintr_state <- ggpaintr_server(",
       "input, output, session, input_formula, copy_rules = copy_rules, ",
       "placeholders = placeholders",
       ")",
@@ -195,7 +195,7 @@ get_shiny_template <- function(formula_text,
     "",
     "  # Add custom observers or outputs below.",
     "  # observe({",
-    "  #   runtime_result <- paintr_state$runtime()",
+    "  #   runtime_result <- ggpaintr_state$runtime()",
     "  #   if (!is.null(runtime_result) && isTRUE(runtime_result$ok)) {",
     "  #     message(runtime_result$code_text)",
     "  #   }",
@@ -211,7 +211,7 @@ get_shiny_template <- function(formula_text,
 #' Generate a single-file Shiny app that uses the same `ggpaintr` runtime helpers
 #' as the package.
 #'
-#' @param paintr_obj A `paintr_obj`.
+#' @param ggpaintr_obj A `ggpaintr_obj`.
 #' @param output_file Path to the generated `.R` script.
 #' @param style Whether to style the generated file with `styler` when available.
 #' @param copy_rules Optional named list of copy overrides for UI labels, helper
@@ -225,14 +225,14 @@ get_shiny_template <- function(formula_text,
 #'
 #' @return Invisibly returns `output_file`.
 #' @examples
-#' obj <- paintr_formula(
+#' obj <- ggpaintr_formula(
 #'   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
 #' )
 #' out_file <- tempfile(fileext = ".R")
 #' generate_shiny(obj, out_file, style = FALSE)
 #' file.exists(out_file)
 #' @export
-generate_shiny <- function(paintr_obj,
+generate_shiny <- function(ggpaintr_obj,
                            output_file,
                            ...,
                            style = TRUE,
@@ -260,7 +260,7 @@ generate_shiny <- function(paintr_obj,
     legacy_var_ui_supplied <- TRUE
 
     if (length(legacy_positional_args) == 0) {
-      stop("output_file must be a single non-missing string.", call. = FALSE)
+      rlang::abort("output_file must be a single non-missing string.")
     }
 
     output_file <- legacy_positional_args[[1]]
@@ -280,20 +280,16 @@ generate_shiny <- function(paintr_obj,
       placeholders <- legacy_positional_args[[3]]
     }
     if (length(legacy_positional_args) > 3) {
-      stop("Too many legacy positional arguments supplied.", call. = FALSE)
+      rlang::abort("Too many legacy positional arguments supplied.")
     }
   }
 
   if (length(extra_args) > 0) {
-    stop(
-      "Unused arguments: ",
-      paste(names(extra_args), collapse = ", "),
-      call. = FALSE
-    )
+    rlang::abort(paste0("Unused arguments: ", paste(names(extra_args), collapse = ", ")))
   }
 
   if (!is.character(output_file) || length(output_file) != 1 || is.na(output_file)) {
-    stop("output_file must be a single non-missing string.", call. = FALSE)
+    rlang::abort("output_file must be a single non-missing string.")
   }
 
   if (legacy_var_ui_supplied || legacy_positional_supplied) {
@@ -311,7 +307,7 @@ generate_shiny <- function(paintr_obj,
 
     warning(
       paste(
-        c(warning_parts, "Call generate_shiny(paintr_obj, output_file, ...) instead."),
+        c(warning_parts, "Call generate_shiny(ggpaintr_obj, output_file, ...) instead."),
         collapse = " "
       ),
       call. = FALSE
@@ -319,12 +315,12 @@ generate_shiny <- function(paintr_obj,
   }
 
   placeholder_registry <- if (is.null(placeholders)) {
-    paintr_obj$placeholders
+    ggpaintr_obj$placeholders
   } else {
     ggpaintr_effective_placeholders(placeholders)
   }
   shiny_text <- get_shiny_template(
-    paintr_obj$formula_text,
+    ggpaintr_obj$formula_text,
     copy_rules = copy_rules,
     placeholders = placeholder_registry
   )

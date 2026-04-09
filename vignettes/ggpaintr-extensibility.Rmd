@@ -48,7 +48,7 @@ The current package surface is intentionally layered.
 - use `ggpaintr_app()` or `ggpaintr_server()` for most apps
 - use `ggpaintr_server_state()` plus the `ggpaintr_bind_*()` helpers when you
   already own a larger Shiny layout and want to embed `ggpaintr`
-- use the low-level `paintr_*` runtime helpers, together with
+- use the low-level `ggpaintr_*` runtime helpers, together with
   `ggpaintr_runtime_input_spec()`, when you are writing tests, tooling, or
   package-level extensions around parsed formulas
 
@@ -74,18 +74,18 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server_state(
+  ggpaintr_state <- ggpaintr_server_state(
     "ggplot(data = iris, aes(x = var, y = var)) +
       geom_point() +
       labs(title = text)"
   )
 
-  ggpaintr_bind_control_panel(input, output, paintr_state)
-  ggpaintr_bind_draw(input, paintr_state)
-  ggpaintr_bind_export(output, paintr_state)
-  ggpaintr_bind_plot(output, paintr_state)
-  ggpaintr_bind_error(output, paintr_state)
-  ggpaintr_bind_code(output, paintr_state)
+  ggpaintr_bind_control_panel(input, output, ggpaintr_state)
+  ggpaintr_bind_draw(input, ggpaintr_state)
+  ggpaintr_bind_export(output, ggpaintr_state)
+  ggpaintr_bind_plot(output, ggpaintr_state)
+  ggpaintr_bind_error(output, ggpaintr_state)
+  ggpaintr_bind_code(output, ggpaintr_state)
 }
 
 shinyApp(ui, server)
@@ -125,17 +125,17 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server_state(
+  ggpaintr_state <- ggpaintr_server_state(
     "ggplot(data = iris, aes(x = var, y = var)) + geom_point()",
     ids = ids
   )
 
-  ggpaintr_bind_control_panel(input, output, paintr_state, ids = ids)
-  ggpaintr_bind_draw(input, paintr_state, ids = ids)
-  ggpaintr_bind_export(output, paintr_state, ids = ids)
-  ggpaintr_bind_plot(output, paintr_state, ids = ids)
-  ggpaintr_bind_error(output, paintr_state, ids = ids)
-  ggpaintr_bind_code(output, paintr_state, ids = ids)
+  ggpaintr_bind_control_panel(input, output, ggpaintr_state, ids = ids)
+  ggpaintr_bind_draw(input, ggpaintr_state, ids = ids)
+  ggpaintr_bind_export(output, ggpaintr_state, ids = ids)
+  ggpaintr_bind_plot(output, ggpaintr_state, ids = ids)
+  ggpaintr_bind_error(output, ggpaintr_state, ids = ids)
+  ggpaintr_bind_code(output, ggpaintr_state, ids = ids)
 }
 ```
 
@@ -150,18 +150,18 @@ behavior. If you want to modify the built plot before rendering, write your own
 
 ```{r, eval = FALSE}
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server_state(
+  ggpaintr_state <- ggpaintr_server_state(
     "ggplot(data = iris, aes(x = var, y = var)) + geom_point()"
   )
 
-  ggpaintr_bind_control_panel(input, output, paintr_state)
-  ggpaintr_bind_draw(input, paintr_state)
-  ggpaintr_bind_export(output, paintr_state)
-  ggpaintr_bind_error(output, paintr_state)
-  ggpaintr_bind_code(output, paintr_state)
+  ggpaintr_bind_control_panel(input, output, ggpaintr_state)
+  ggpaintr_bind_draw(input, ggpaintr_state)
+  ggpaintr_bind_export(output, ggpaintr_state)
+  ggpaintr_bind_error(output, ggpaintr_state)
+  ggpaintr_bind_code(output, ggpaintr_state)
 
   output$outputPlot <- renderPlot({
-    plot_obj <- ggpaintr_plot_value(paintr_state$runtime())
+    plot_obj <- ggpaintr_plot_value(ggpaintr_state$runtime())
 
     if (is.null(plot_obj)) {
       plot.new()
@@ -208,7 +208,7 @@ runtime easier to reason about without giving up that authoring model, the next
 hardening step should happen internally:
 
 - keep formula strings as the public authoring format
-- compile each parsed `paintr_obj` once into a richer internal runtime contract
+- compile each parsed `ggpaintr_obj` once into a richer internal runtime contract
 - have runtime completion consume that compiled contract instead of repeatedly
   relying on raw expression walks and companion-id conventions
 

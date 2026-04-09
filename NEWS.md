@@ -7,12 +7,12 @@
   so internal implementation details are no longer presented as part of the
   public community-facing surface
 - updated `generate_shiny()` so the maintained public call path is now
-  `generate_shiny(paintr_obj, output_file, ...)`, while deprecated legacy
+  `generate_shiny(ggpaintr_obj, output_file, ...)`, while deprecated legacy
   `var_ui` calls still work with a warning
 - repositioned the package around the maintained `ggpaintr` workflow
 - archived the legacy package implementation under `archive/legacy-package/`
-- introduced a focused public API: `ggpaintr_app()`, `paintr_formula()`,
-  `paintr_build_runtime()`, `paintr_get_plot()`, and `generate_shiny()`
+- introduced a focused public API: `ggpaintr_app()`, `ggpaintr_formula()`,
+  `ggpaintr_build_runtime()`, `ggpaintr_get_plot()`, and `generate_shiny()`
 - replaced legacy package docs, vignette, and pkgdown content with
   `ggpaintr`-first documentation
 - added roxygen2-based package documentation for the active implementation

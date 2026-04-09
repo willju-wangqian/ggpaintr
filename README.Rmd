@@ -90,8 +90,8 @@ The maintained public path is intentionally narrow.
   Shiny app.
 - Use `ggpaintr_placeholder()` and `ggpaintr_effective_placeholders()` for
   custom placeholder types.
-- Use `ggpaintr_runtime_input_spec()`, `paintr_formula()`,
-  `paintr_build_runtime()`, and `paintr_get_plot()` for advanced runtime or
+- Use `ggpaintr_runtime_input_spec()`, `ggpaintr_formula()`,
+  `ggpaintr_build_runtime()`, and `ggpaintr_get_plot()` for advanced runtime or
   testing workflows.
 - Use `generate_shiny()` to export an explicit standalone app script.
 
@@ -184,7 +184,7 @@ Use `generate_shiny()` when you want an explicit, editable Shiny app file that
 you can continue customizing outside the package wrapper.
 
 ```{r export, eval=FALSE}
-obj <- paintr_formula(
+obj <- ggpaintr_formula(
   "ggplot(data = upload, aes(x = var, y = var)) +
     geom_point() +
     labs(title = text)"
@@ -222,19 +222,19 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server_state(
+  ggpaintr_state <- ggpaintr_server_state(
     "ggplot(data = iris, aes(x = var, y = var)) +
       geom_point() +
       labs(title = text)",
     ids = ids
   )
 
-  ggpaintr_bind_control_panel(input, output, paintr_state, ids = ids)
-  ggpaintr_bind_draw(input, paintr_state, ids = ids)
-  ggpaintr_bind_export(output, paintr_state, ids = ids)
-  ggpaintr_bind_plot(output, paintr_state, ids = ids)
-  ggpaintr_bind_error(output, paintr_state, ids = ids)
-  ggpaintr_bind_code(output, paintr_state, ids = ids)
+  ggpaintr_bind_control_panel(input, output, ggpaintr_state, ids = ids)
+  ggpaintr_bind_draw(input, ggpaintr_state, ids = ids)
+  ggpaintr_bind_export(output, ggpaintr_state, ids = ids)
+  ggpaintr_bind_plot(output, ggpaintr_state, ids = ids)
+  ggpaintr_bind_error(output, ggpaintr_state, ids = ids)
+  ggpaintr_bind_code(output, ggpaintr_state, ids = ids)
 }
 
 shinyApp(ui, server)
@@ -247,18 +247,18 @@ If you want to keep the `ggpaintr` runtime but take over plot rendering, use
 
 ```{r customize-plot, eval=FALSE}
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server_state(
+  ggpaintr_state <- ggpaintr_server_state(
     "ggplot(data = iris, aes(x = var, y = var)) + geom_point()"
   )
 
-  ggpaintr_bind_control_panel(input, output, paintr_state)
-  ggpaintr_bind_draw(input, paintr_state)
-  ggpaintr_bind_export(output, paintr_state)
-  ggpaintr_bind_error(output, paintr_state)
-  ggpaintr_bind_code(output, paintr_state)
+  ggpaintr_bind_control_panel(input, output, ggpaintr_state)
+  ggpaintr_bind_draw(input, ggpaintr_state)
+  ggpaintr_bind_export(output, ggpaintr_state)
+  ggpaintr_bind_error(output, ggpaintr_state)
+  ggpaintr_bind_code(output, ggpaintr_state)
 
   output$outputPlot <- renderPlot({
-    plot_obj <- ggpaintr_plot_value(paintr_state$runtime())
+    plot_obj <- ggpaintr_plot_value(ggpaintr_state$runtime())
 
     if (is.null(plot_obj)) {
       plot.new()
@@ -300,7 +300,7 @@ placeholders <- ggpaintr_effective_placeholders(
   list(date = date_placeholder)
 )
 
-obj <- paintr_formula(
+obj <- ggpaintr_formula(
   "ggplot(data = sales, aes(x = day, y = value)) +
     geom_line() +
     geom_vline(xintercept = date)",
@@ -330,10 +330,10 @@ Use the low-level runtime helpers directly when you want to inspect generated
 code, write tests, or build developer tooling around parsed formulas.
 
 `ggpaintr_runtime_input_spec()` is the supported way to discover the runtime
-input ids needed by `paintr_build_runtime()`.
+input ids needed by `ggpaintr_build_runtime()`.
 
 ```{r advanced-runtime}
-obj <- paintr_formula(
+obj <- ggpaintr_formula(
   "ggplot(data = mtcars, aes(x = var, y = var)) +
     geom_point(size = num) +
     labs(title = text)"
@@ -350,7 +350,7 @@ inputs[["ggplot+3+3"]] <- "disp"
 inputs[["geom_point+2"]] <- 2
 inputs[["labs+2"]] <- "Mtcars scatter"
 
-runtime <- paintr_build_runtime(obj, inputs)
+runtime <- ggpaintr_build_runtime(obj, inputs)
 
 runtime$code_text
 inherits(runtime$plot, "ggplot")
@@ -360,7 +360,7 @@ For upload-backed formulas, the spec also includes the derived dataset-name
 input that accompanies each upload control.
 
 ```{r advanced-upload-spec}
-upload_obj <- paintr_formula(
+upload_obj <- ggpaintr_formula(
   "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
 )
 

@@ -1,23 +1,22 @@
 ## Test environments
 
-- Local Ubuntu 22.04.5 LTS development environment (`R 4.3.3`, `aarch64`)
+- Local macOS (Darwin 24.6.0, `R 4.2.3`, `aarch64-apple-darwin20`)
 
 ## R CMD check results
 
 - `R CMD check --as-cran --no-manual ggpaintr_0.1.0.tar.gz`
   completed with:
   - 0 errors
-  - 1 warning
-  - 2 notes
-- The remaining warning/note items were:
-  - `‘qpdf’ is needed for checks on size reduction of PDFs`
-  - this is an environment dependency warning from the local check machine
+  - 0 warnings
+  - 1 note
+- The remaining note:
   - `unable to verify current time`
-  - this appears to be an environment/timestamp check note rather than a
-    package code or metadata issue
+  - this is an environment/timestamp check note, not a package issue
 
 ## Resubmission
 
-- This release repositions `ggpaintr` around the maintained `ggpaintr`
-  workflow and archives the older package implementation in-repo without
-  shipping it in the active package.
+- Unified API prefix: all exported functions now use the `ggpaintr_*`
+  prefix for naming consistency.
+- Migrated error signaling from `base::stop()` to `rlang::abort()`.
+- Added `@examples` to all exported functions.
+- Removed legacy `preconsideration/` directory from tracking.

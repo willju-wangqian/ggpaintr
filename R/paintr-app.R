@@ -1,3 +1,6 @@
+# TODO(future): add inst/shiny-demo/ interactive demo app for hands-on
+# discovery by new users.
+
 #' Build Standard Output Ids for ggpaintr Integration
 #'
 #' Create a validated set of top-level output and control ids for embedding the
@@ -54,44 +57,29 @@ ggpaintr_validate_ids <- function(ids) {
   )
 
   if (!is.list(ids) || is.null(names(ids))) {
-    stop("ids must be a named list.", call. = FALSE)
+    rlang::abort("ids must be a named list.")
   }
 
   missing_names <- setdiff(required_names, names(ids))
   if (length(missing_names) > 0) {
-    stop(
-      "ids is missing required entries: ",
-      paste(missing_names, collapse = ", "),
-      ".",
-      call. = FALSE
-    )
+    rlang::abort(paste0("ids is missing required entries: ", paste(missing_names, collapse = ", "), "."))
   }
 
   extra_names <- setdiff(names(ids), required_names)
   if (length(extra_names) > 0) {
-    stop(
-      "ids has unsupported entries: ",
-      paste(extra_names, collapse = ", "),
-      ".",
-      call. = FALSE
-    )
+    rlang::abort(paste0("ids has unsupported entries: ", paste(extra_names, collapse = ", "), "."))
   }
 
   for (name in required_names) {
     value <- ids[[name]]
     if (!is.character(value) || length(value) != 1 || identical(trimws(value), "")) {
-      stop("ids$", name, " must be a single non-empty string.", call. = FALSE)
+      rlang::abort(paste0("ids$", name, " must be a single non-empty string."))
     }
   }
 
   duplicate_ids <- unique(unname(ids)[duplicated(unname(ids))])
   if (length(duplicate_ids) > 0) {
-    stop(
-      "ids must be unique. Duplicated values: ",
-      paste(duplicate_ids, collapse = ", "),
-      ".",
-      call. = FALSE
-    )
+    rlang::abort(paste0("ids must be unique. Duplicated values: ", paste(duplicate_ids, collapse = ", "), "."))
   }
 
   invisible(TRUE)
@@ -119,11 +107,11 @@ ggpaintr_normalize_ids <- function(ids = NULL) {
 
 #' Validate a ggpaintr State Object
 #'
-#' @param paintr_state A `ggpaintr_state` object.
+#' @param ggpaintr_state A `ggpaintr_state` object.
 #'
 #' @return Invisibly returns `TRUE`.
 #' @noRd
-ggpaintr_validate_state <- function(paintr_state) {
+ggpaintr_validate_state <- function(ggpaintr_state) {
   required_names <- c(
     "obj",
     "runtime",
@@ -136,32 +124,24 @@ ggpaintr_validate_state <- function(paintr_state) {
     "envir"
   )
 
-  if (!inherits(paintr_state, "ggpaintr_state")) {
-    stop("paintr_state must inherit from 'ggpaintr_state'.", call. = FALSE)
+  if (!inherits(ggpaintr_state, "ggpaintr_state")) {
+    rlang::abort("ggpaintr_state must inherit from 'ggpaintr_state'.")
   }
 
-  missing_names <- setdiff(required_names, names(paintr_state))
+  missing_names <- setdiff(required_names, names(ggpaintr_state))
   if (length(missing_names) > 0) {
-    stop(
-      "paintr_state is missing required entries: ",
-      paste(missing_names, collapse = ", "),
-      ".",
-      call. = FALSE
-    )
+    rlang::abort(paste0("ggpaintr_state is missing required entries: ", paste(missing_names, collapse = ", "), "."))
   }
 
-  if (!is.function(paintr_state$obj) ||
-      !is.function(paintr_state$runtime) ||
-      !is.function(paintr_state$var_ui_list)) {
-    stop("paintr_state reactive accessors must be functions.", call. = FALSE)
+  if (!is.function(ggpaintr_state$obj) ||
+      !is.function(ggpaintr_state$runtime) ||
+      !is.function(ggpaintr_state$var_ui_list)) {
+    rlang::abort("ggpaintr_state reactive accessors must be functions.")
   }
 
-  ggpaintr_validate_ids(paintr_state$ids)
-  if (!inherits(paintr_state$placeholders, "ggpaintr_placeholder_registry")) {
-    stop(
-      "paintr_state$placeholders must inherit from 'ggpaintr_placeholder_registry'.",
-      call. = FALSE
-    )
+  ggpaintr_validate_ids(ggpaintr_state$ids)
+  if (!inherits(ggpaintr_state$placeholders, "ggpaintr_placeholder_registry")) {
+    rlang::abort("ggpaintr_state$placeholders must inherit from 'ggpaintr_placeholder_registry'.")
   }
   invisible(TRUE)
 }
@@ -198,11 +178,11 @@ ggpaintr_server_state <- function(formula,
 
   structure(
     list(
-      obj = shiny::reactiveVal(paintr_formula(formula, placeholders = placeholder_registry)),
+      obj = shiny::reactiveVal(ggpaintr_formula(formula, placeholders = placeholder_registry)),
       runtime = shiny::reactiveVal(NULL),
       var_ui_list = shiny::reactiveVal(list()),
       raw_copy_rules = copy_rules,
-      effective_copy_rules = paintr_effective_copy_rules(
+      effective_copy_rules = ggpaintr_effective_copy_rules(
         copy_rules,
         placeholders = placeholder_registry
       ),
@@ -222,109 +202,125 @@ ggpaintr_server_state <- function(formula,
 #'
 #' @param input A Shiny `input` object.
 #' @param output A Shiny `output` object.
-#' @param paintr_state A `ggpaintr_state` object.
+#' @param ggpaintr_state A `ggpaintr_state` object.
 #' @param ids A `ggpaintr_ids` object describing the top-level Shiny ids used by
 #'   the integration helpers.
 #'
-#' @return Invisibly returns `paintr_state`.
+#' @return Invisibly returns `ggpaintr_state`.
 #' @export
 ggpaintr_bind_control_panel <- function(input,
                                         output,
-                                        paintr_state,
-                                        ids = paintr_state$ids) {
-  ggpaintr_validate_state(paintr_state)
+                                        ggpaintr_state,
+                                        ids = ggpaintr_state$ids) {
+  ggpaintr_validate_state(ggpaintr_state)
   ids <- ggpaintr_normalize_ids(ids)
 
   shiny::observe({
-    shiny::req(paintr_state$obj())
-    paintr_state$var_ui_list(register_var_ui_outputs(
+    shiny::req(ggpaintr_state$obj())
+    ggpaintr_state$var_ui_list(register_var_ui_outputs(
       input,
       output,
-      paintr_state$obj(),
-      envir = paintr_state$envir,
-      copy_rules = paintr_state$effective_copy_rules
+      ggpaintr_state$obj(),
+      envir = ggpaintr_state$envir,
+      copy_rules = ggpaintr_state$effective_copy_rules
     ))
   })
 
   output[[ids$control_panel]] <- shiny::renderUI({
-    shiny::req(paintr_state$obj())
+    shiny::req(ggpaintr_state$obj())
     shiny::column(
       12,
-      paintr_get_tab_ui(
-        paintr_state$obj(),
-        copy_rules = paintr_state$effective_copy_rules
+      ggpaintr_get_tab_ui(
+        ggpaintr_state$obj(),
+        copy_rules = ggpaintr_state$effective_copy_rules
       )
     )
   })
 
-  invisible(paintr_state)
+  invisible(ggpaintr_state)
 }
 
 #' Bind Draw Behavior into a Shiny App
 #'
 #' @param input A Shiny `input` object.
-#' @param paintr_state A `ggpaintr_state` object.
+#' @param ggpaintr_state A `ggpaintr_state` object.
 #' @param ids A `ggpaintr_ids` object describing the top-level Shiny ids used by
 #'   the integration helpers.
 #'
-#' @return Invisibly returns `paintr_state`.
+#' @return Invisibly returns `ggpaintr_state`.
+#' @examples
+#' \dontrun{
+#' server <- function(input, output, session) {
+#'   ps <- ggpaintr_server_state("ggplot(mtcars, aes(x = var)) + geom_histogram()")
+#'   ggpaintr_bind_control_panel(input, output, ps)
+#'   ggpaintr_bind_draw(input, ps)
+#'   ggpaintr_bind_plot(output, ps)
+#' }
+#' }
 #' @export
 ggpaintr_bind_draw <- function(input,
-                               paintr_state,
-                               ids = paintr_state$ids) {
-  ggpaintr_validate_state(paintr_state)
+                               ggpaintr_state,
+                               ids = ggpaintr_state$ids) {
+  ggpaintr_validate_state(ggpaintr_state)
   ids <- ggpaintr_normalize_ids(ids)
 
   shiny::observeEvent(input[[ids$draw_button]], {
-    shiny::req(paintr_state$obj())
-    paintr_state$runtime(paintr_build_runtime(
-      paintr_state$obj(),
+    shiny::req(ggpaintr_state$obj())
+    ggpaintr_state$runtime(ggpaintr_build_runtime(
+      ggpaintr_state$obj(),
       input,
-      envir = paintr_state$envir
+      envir = ggpaintr_state$envir
     ))
   })
 
-  invisible(paintr_state)
+  invisible(ggpaintr_state)
 }
 
 #' Bind Export Behavior into a Shiny App
 #'
 #' @param output A Shiny `output` object.
-#' @param paintr_state A `ggpaintr_state` object.
+#' @param ggpaintr_state A `ggpaintr_state` object.
 #' @param ids A `ggpaintr_ids` object describing the top-level Shiny ids used by
 #'   the integration helpers.
 #'
-#' @return Invisibly returns `paintr_state`.
+#' @return Invisibly returns `ggpaintr_state`.
+#' @examples
+#' \dontrun{
+#' server <- function(input, output, session) {
+#'   ps <- ggpaintr_server_state("ggplot(mtcars, aes(x = var)) + geom_histogram()")
+#'   ggpaintr_bind_export(output, ps)
+#' }
+#' }
 #' @export
 ggpaintr_bind_export <- function(output,
-                                 paintr_state,
-                                 ids = paintr_state$ids) {
-  ggpaintr_validate_state(paintr_state)
+                                 ggpaintr_state,
+                                 ids = ggpaintr_state$ids) {
+  ggpaintr_validate_state(ggpaintr_state)
   ids <- ggpaintr_normalize_ids(ids)
 
   output[[ids$export_button]] <- shiny::downloadHandler(
     filename = "ggpaintr-app.R",
     content = function(file) {
-      shiny::req(paintr_state$obj())
+      shiny::req(ggpaintr_state$obj())
       generate_shiny(
-        paintr_state$obj(),
+        ggpaintr_state$obj(),
         file,
-        copy_rules = paintr_state$raw_copy_rules,
-        placeholders = paintr_state$placeholders
+        copy_rules = ggpaintr_state$raw_copy_rules,
+        placeholders = ggpaintr_state$placeholders
       )
     }
   )
 
-  invisible(paintr_state)
+  invisible(ggpaintr_state)
 }
 
 #' Return the Built Plot from a Runtime Result
 #'
-#' @param runtime_result A runtime result list returned by `paintr_build_runtime()`.
+#' @param runtime_result A runtime result list returned by `ggpaintr_build_runtime()`.
 #'
 #' @return A `ggplot` object or `NULL`.
 #' @examples
-#' obj <- paintr_formula(
+#' obj <- ggpaintr_formula(
 #'   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
 #' )
 #' spec <- ggpaintr_runtime_input_spec(obj)
@@ -332,7 +328,7 @@ ggpaintr_bind_export <- function(output,
 #' inputs[spec$role == "layer_checkbox"] <- rep(list(TRUE), sum(spec$role == "layer_checkbox"))
 #' inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "x"]]] <- "mpg"
 #' inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "y"]]] <- "disp"
-#' runtime <- paintr_build_runtime(
+#' runtime <- ggpaintr_build_runtime(
 #'   obj,
 #'   inputs
 #' )
@@ -348,7 +344,7 @@ ggpaintr_plot_value <- function(runtime_result) {
 
 #' Return Default Error UI from a Runtime Result
 #'
-#' @param runtime_result A runtime result list returned by `paintr_build_runtime()`.
+#' @param runtime_result A runtime result list returned by `ggpaintr_build_runtime()`.
 #'
 #' @return A Shiny tag or `NULL`.
 #' @export
@@ -357,12 +353,12 @@ ggpaintr_error_value <- function(runtime_result) {
     return(NULL)
   }
 
-  paintr_error_ui(runtime_result[["message"]])
+  ggpaintr_error_ui(runtime_result[["message"]])
 }
 
 #' Return Generated Code Text from a Runtime Result
 #'
-#' @param runtime_result A runtime result list returned by `paintr_build_runtime()`.
+#' @param runtime_result A runtime result list returned by `ggpaintr_build_runtime()`.
 #'
 #' @return A character string or `NULL`.
 #' @export
@@ -381,20 +377,28 @@ ggpaintr_code_value <- function(runtime_result) {
 #' `renderPlot()` and call `ggpaintr_plot_value()`.
 #'
 #' @param output A Shiny `output` object.
-#' @param paintr_state A `ggpaintr_state` object.
+#' @param ggpaintr_state A `ggpaintr_state` object.
 #' @param ids A `ggpaintr_ids` object describing the top-level Shiny ids used by
 #'   the integration helpers.
 #'
-#' @return Invisibly returns `paintr_state`.
+#' @return Invisibly returns `ggpaintr_state`.
+#' @examples
+#' \dontrun{
+#' server <- function(input, output, session) {
+#'   ps <- ggpaintr_server_state("ggplot(mtcars, aes(x = var)) + geom_histogram()")
+#'   ggpaintr_bind_draw(input, ps)
+#'   ggpaintr_bind_plot(output, ps)
+#' }
+#' }
 #' @export
 ggpaintr_bind_plot <- function(output,
-                               paintr_state,
-                               ids = paintr_state$ids) {
-  ggpaintr_validate_state(paintr_state)
+                               ggpaintr_state,
+                               ids = ggpaintr_state$ids) {
+  ggpaintr_validate_state(ggpaintr_state)
   ids <- ggpaintr_normalize_ids(ids)
 
   output[[ids$plot_output]] <- shiny::renderPlot({
-    plot_obj <- ggpaintr_plot_value(paintr_state$runtime())
+    plot_obj <- ggpaintr_plot_value(ggpaintr_state$runtime())
     if (is.null(plot_obj)) {
       graphics::plot.new()
       return(invisible(NULL))
@@ -403,51 +407,67 @@ ggpaintr_bind_plot <- function(output,
     plot_obj
   })
 
-  invisible(paintr_state)
+  invisible(ggpaintr_state)
 }
 
 #' Bind Default Error Rendering into a Shiny App
 #'
 #' @param output A Shiny `output` object.
-#' @param paintr_state A `ggpaintr_state` object.
+#' @param ggpaintr_state A `ggpaintr_state` object.
 #' @param ids A `ggpaintr_ids` object describing the top-level Shiny ids used by
 #'   the integration helpers.
 #'
-#' @return Invisibly returns `paintr_state`.
+#' @return Invisibly returns `ggpaintr_state`.
+#' @examples
+#' \dontrun{
+#' server <- function(input, output, session) {
+#'   ps <- ggpaintr_server_state("ggplot(mtcars, aes(x = var)) + geom_histogram()")
+#'   ggpaintr_bind_draw(input, ps)
+#'   ggpaintr_bind_error(output, ps)
+#' }
+#' }
 #' @export
 ggpaintr_bind_error <- function(output,
-                                paintr_state,
-                                ids = paintr_state$ids) {
-  ggpaintr_validate_state(paintr_state)
+                                ggpaintr_state,
+                                ids = ggpaintr_state$ids) {
+  ggpaintr_validate_state(ggpaintr_state)
   ids <- ggpaintr_normalize_ids(ids)
 
   output[[ids$error_output]] <- shiny::renderUI({
-    ggpaintr_error_value(paintr_state$runtime())
+    ggpaintr_error_value(ggpaintr_state$runtime())
   })
 
-  invisible(paintr_state)
+  invisible(ggpaintr_state)
 }
 
 #' Bind Default Code Rendering into a Shiny App
 #'
 #' @param output A Shiny `output` object.
-#' @param paintr_state A `ggpaintr_state` object.
+#' @param ggpaintr_state A `ggpaintr_state` object.
 #' @param ids A `ggpaintr_ids` object describing the top-level Shiny ids used by
 #'   the integration helpers.
 #'
-#' @return Invisibly returns `paintr_state`.
+#' @return Invisibly returns `ggpaintr_state`.
+#' @examples
+#' \dontrun{
+#' server <- function(input, output, session) {
+#'   ps <- ggpaintr_server_state("ggplot(mtcars, aes(x = var)) + geom_histogram()")
+#'   ggpaintr_bind_draw(input, ps)
+#'   ggpaintr_bind_code(output, ps)
+#' }
+#' }
 #' @export
 ggpaintr_bind_code <- function(output,
-                               paintr_state,
-                               ids = paintr_state$ids) {
-  ggpaintr_validate_state(paintr_state)
+                               ggpaintr_state,
+                               ids = ggpaintr_state$ids) {
+  ggpaintr_validate_state(ggpaintr_state)
   ids <- ggpaintr_normalize_ids(ids)
 
   output[[ids$code_output]] <- shiny::renderText({
-    ggpaintr_code_value(paintr_state$runtime())
+    ggpaintr_code_value(ggpaintr_state$runtime())
   })
 
-  invisible(paintr_state)
+  invisible(ggpaintr_state)
 }
 
 #' Build Default ggpaintr Control Widgets
@@ -467,7 +487,7 @@ ggpaintr_bind_code <- function(output,
 #' @export
 ggpaintr_controls_ui <- function(ids = ggpaintr_ids(), copy_rules = NULL) {
   ids <- ggpaintr_normalize_ids(ids)
-  shell_copy <- paintr_resolve_shell_copy(copy_rules)
+  shell_copy <- ggpaintr_resolve_shell_copy(copy_rules)
 
   shiny::tagList(
     shiny::uiOutput(ids$control_panel),
@@ -518,7 +538,7 @@ ggpaintr_app <- function(formula,
                          envir = parent.frame(),
                          copy_rules = NULL,
                          placeholders = NULL) {
-  app_parts <- paintr_app_components(
+  app_parts <- ggpaintr_app_components(
     formula,
     envir = envir,
     copy_rules = copy_rules,
@@ -554,21 +574,21 @@ ggpaintr_server <- function(input,
                             envir = parent.frame(),
                             copy_rules = NULL,
                             placeholders = NULL) {
-  paintr_state <- ggpaintr_server_state(
+  ggpaintr_state <- ggpaintr_server_state(
     formula,
     envir = envir,
     copy_rules = copy_rules,
     placeholders = placeholders
   )
 
-  ggpaintr_bind_control_panel(input, output, paintr_state)
-  ggpaintr_bind_export(output, paintr_state)
-  ggpaintr_bind_draw(input, paintr_state)
-  ggpaintr_bind_plot(output, paintr_state)
-  ggpaintr_bind_error(output, paintr_state)
-  ggpaintr_bind_code(output, paintr_state)
+  ggpaintr_bind_control_panel(input, output, ggpaintr_state)
+  ggpaintr_bind_export(output, ggpaintr_state)
+  ggpaintr_bind_draw(input, ggpaintr_state)
+  ggpaintr_bind_plot(output, ggpaintr_state)
+  ggpaintr_bind_error(output, ggpaintr_state)
+  ggpaintr_bind_code(output, ggpaintr_state)
 
-  paintr_state
+  ggpaintr_state
 }
 
 #' Resolve Standard Shell Copy for ggpaintr
@@ -577,11 +597,11 @@ ggpaintr_server <- function(input,
 #'
 #' @return A named list with shell copy entries.
 #' @noRd
-paintr_resolve_shell_copy <- function(copy_rules = NULL) {
+ggpaintr_resolve_shell_copy <- function(copy_rules = NULL) {
   list(
-    title_copy = paintr_resolve_copy("title", copy_rules = copy_rules),
-    draw_copy = paintr_resolve_copy("draw_button", copy_rules = copy_rules),
-    export_copy = paintr_resolve_copy("export_button", copy_rules = copy_rules)
+    title_copy = ggpaintr_resolve_copy("title", copy_rules = copy_rules),
+    draw_copy = ggpaintr_resolve_copy("draw_button", copy_rules = copy_rules),
+    export_copy = ggpaintr_resolve_copy("export_button", copy_rules = copy_rules)
   )
 }
 
@@ -593,7 +613,7 @@ paintr_resolve_shell_copy <- function(copy_rules = NULL) {
 #'
 #' @return A Shiny UI object.
 #' @noRd
-paintr_build_app_ui <- function(title_label, draw_label, export_label) {
+ggpaintr_build_app_ui <- function(title_label, draw_label, export_label) {
   shiny::fluidPage(
     shiny::titlePanel(title_label),
     shiny::sidebarLayout(
@@ -621,13 +641,13 @@ paintr_build_app_ui <- function(title_label, draw_label, export_label) {
 #'
 #' @return A list with `ui` and `server`.
 #' @noRd
-paintr_app_components <- function(formula,
+ggpaintr_app_components <- function(formula,
                                   envir = parent.frame(),
                                   copy_rules = NULL,
                                   placeholders = NULL) {
-  shell_copy <- paintr_resolve_shell_copy(copy_rules)
+  shell_copy <- ggpaintr_resolve_shell_copy(copy_rules)
 
-  ui <- paintr_build_app_ui(
+  ui <- ggpaintr_build_app_ui(
     shell_copy$title_copy$label,
     shell_copy$draw_copy$label,
     shell_copy$export_copy$label

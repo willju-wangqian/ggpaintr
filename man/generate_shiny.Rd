@@ -5,7 +5,7 @@
 \title{Generate a Standalone Shiny App Script}
 \usage{
 generate_shiny(
-  paintr_obj,
+  ggpaintr_obj,
   output_file,
   ...,
   style = TRUE,
@@ -14,7 +14,7 @@ generate_shiny(
 )
 }
 \arguments{
-\item{paintr_obj}{A \code{paintr_obj}.}
+\item{ggpaintr_obj}{A \code{ggpaintr_obj}.}
 
 \item{output_file}{Path to the generated \code{.R} script.}
 
@@ -39,7 +39,7 @@ Generate a single-file Shiny app that uses the same \code{ggpaintr} runtime help
 as the package.
 }
 \examples{
-obj <- paintr_formula(
+obj <- ggpaintr_formula(
   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
 )
 out_file <- tempfile(fileext = ".R")

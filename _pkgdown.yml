@@ -38,14 +38,14 @@ reference:
   - title: Advanced runtime
     desc: Low-level helpers intentionally exported for advanced tests, tooling, and custom runtime workflows.
     contents:
-      - paintr_formula
+      - ggpaintr_formula
       - ggpaintr_runtime_input_spec
-      - paintr_build_runtime
-      - paintr_get_plot
+      - ggpaintr_build_runtime
+      - ggpaintr_get_plot
   - title: Copy customization
     contents:
-      - paintr_effective_copy_rules
-      - paintr_resolve_copy
+      - ggpaintr_effective_copy_rules
+      - ggpaintr_resolve_copy
 articles:
   - title: Guides
     navbar: ggpaintr

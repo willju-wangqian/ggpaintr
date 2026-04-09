@@ -7,7 +7,7 @@
 ggpaintr_plot_value(runtime_result)
 }
 \arguments{
-\item{runtime_result}{A runtime result list returned by \code{paintr_build_runtime()}.}
+\item{runtime_result}{A runtime result list returned by \code{ggpaintr_build_runtime()}.}
 }
 \value{
 A \code{ggplot} object or \code{NULL}.
@@ -16,7 +16,7 @@ A \code{ggplot} object or \code{NULL}.
 Return the Built Plot from a Runtime Result
 }
 \examples{
-obj <- paintr_formula(
+obj <- ggpaintr_formula(
   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
 )
 spec <- ggpaintr_runtime_input_spec(obj)
@@ -24,7 +24,7 @@ inputs <- setNames(vector("list", nrow(spec)), spec$input_id)
 inputs[spec$role == "layer_checkbox"] <- rep(list(TRUE), sum(spec$role == "layer_checkbox"))
 inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "x"]]] <- "mpg"
 inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "y"]]] <- "disp"
-runtime <- paintr_build_runtime(
+runtime <- ggpaintr_build_runtime(
   obj,
   inputs
 )

@@ -20,7 +20,7 @@
 #' names(clean)
 #' @export
 ggpaintr_normalize_column_names <- function(data) {
-  paintr_normalize_tabular_data(data, source = "Data")
+  ggpaintr_normalize_tabular_data(data, source = "Data")
 }
 
 #' Coerce an Object to Tabular Data for `ggpaintr`
@@ -30,9 +30,9 @@ ggpaintr_normalize_column_names <- function(data) {
 #'
 #' @return A `data.frame`-like object with normalized column names.
 #' @noRd
-paintr_normalize_tabular_data <- function(data, source = "Data") {
+ggpaintr_normalize_tabular_data <- function(data, source = "Data") {
   if (inherits(data, "data.frame")) {
-    names(data) <- paintr_normalize_column_name_vector(names(data), ncol(data))
+    names(data) <- ggpaintr_normalize_column_name_vector(names(data), ncol(data))
     return(data)
   }
 
@@ -42,17 +42,16 @@ paintr_normalize_tabular_data <- function(data, source = "Data") {
   )
 
   if (is.null(data_frame)) {
-    stop(
+    rlang::abort(
       paste0(
         source,
         " is not usable as tabular data for ggpaintr. ",
         "Provide a data.frame or an object coercible with as.data.frame()."
-      ),
-      call. = FALSE
+      )
     )
   }
 
-  names(data_frame) <- paintr_normalize_column_name_vector(
+  names(data_frame) <- ggpaintr_normalize_column_name_vector(
     names(data_frame),
     ncol(data_frame)
   )
@@ -66,7 +65,7 @@ paintr_normalize_tabular_data <- function(data, source = "Data") {
 #'
 #' @return A normalized character vector with syntactic, unique names.
 #' @noRd
-paintr_normalize_column_name_vector <- function(x, n = length(x)) {
+ggpaintr_normalize_column_name_vector <- function(x, n = length(x)) {
   if (is.null(x)) {
     x <- character()
   }
@@ -90,7 +89,7 @@ paintr_normalize_column_name_vector <- function(x, n = length(x)) {
   valid_starts <- grepl("(^[[:alpha:]])|(^\\.(?![0-9]))", x, perl = TRUE)
   x[!valid_starts] <- paste0("X", x[!valid_starts])
 
-  reserved <- paintr_reserved_words()
+  reserved <- ggpaintr_reserved_words()
   x[x %in% reserved] <- paste0(x[x %in% reserved], "_")
 
   make.unique(x, sep = "_")
@@ -100,7 +99,7 @@ paintr_normalize_column_name_vector <- function(x, n = length(x)) {
 #'
 #' @return A character vector of reserved words.
 #' @noRd
-paintr_reserved_words <- function() {
+ggpaintr_reserved_words <- function() {
   c(
     "if",
     "else",

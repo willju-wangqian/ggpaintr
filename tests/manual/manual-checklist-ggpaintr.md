@@ -64,11 +64,11 @@ For known unresolved boundaries and reproducible edge-case examples, see
 5. Confirm exported apps also show inline error messages for bad `expr` input and bad uploads.
 6. Confirm exported apps clear the plot on failure and recover normally after a corrected redraw.
 7. Confirm the default exported script exposes `copy_rules <- NULL`, explicit `ui <- ...`, explicit `server <- function(...)`, and `shinyApp(ui, server)`.
-8. Confirm the exported shell labels are resolved with `paintr_resolve_copy(..., copy_rules = copy_rules)`.
-9. Confirm the exported server uses `ggpaintr_server(...)` and stores the returned `paintr_state`.
-10. Add one simple custom output or observer that reads `paintr_state$runtime()` and confirm the app still works.
+8. Confirm the exported shell labels are resolved with `ggpaintr_resolve_copy(..., copy_rules = copy_rules)`.
+9. Confirm the exported server uses `ggpaintr_server(...)` and stores the returned `ggpaintr_state`.
+10. Add one simple custom output or observer that reads `ggpaintr_state$runtime()` and confirm the app still works.
 11. Export an app with custom `copy_rules` and confirm the exported script defines `custom_copy_rules <- ...`.
-12. Confirm the exported script rebuilds `copy_rules` with `paintr_effective_copy_rules(custom_copy_rules)`.
+12. Confirm the exported script rebuilds `copy_rules` with `ggpaintr_effective_copy_rules(custom_copy_rules)`.
 13. Confirm the exported script passes `copy_rules = copy_rules` into `ggpaintr_server(...)`.
 14. Run the exported custom-copy app and confirm it preserves the customized wording from the live app.
 
@@ -76,7 +76,7 @@ For known unresolved boundaries and reproducible edge-case examples, see
 
 1. Launch an app built from `ggpaintr_server_state()` plus the `ggpaintr_bind_*()` helpers.
 2. Confirm the embedded app still renders the control panel, plot, inline errors, code, and export button.
-3. Add one small custom output or observer that reads `paintr_state$runtime()` and confirm it updates after `draw`.
+3. Add one small custom output or observer that reads `ggpaintr_state$runtime()` and confirm it updates after `draw`.
 4. Launch a variant with custom top-level ids from `ggpaintr_ids()` and confirm the app still behaves normally.
 5. Launch a variant with a custom `renderPlot()` that uses `ggpaintr_plot_value()`.
 6. Confirm the custom plot renderer can add styling while the default error and code binders still work.

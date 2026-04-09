@@ -4,17 +4,17 @@
 \alias{ggpaintr_runtime_input_spec}
 \title{Describe the Runtime Inputs for a Parsed Formula}
 \usage{
-ggpaintr_runtime_input_spec(paintr_obj)
+ggpaintr_runtime_input_spec(ggpaintr_obj)
 }
 \arguments{
-\item{paintr_obj}{A \code{paintr_obj}.}
+\item{ggpaintr_obj}{A \code{ggpaintr_obj}.}
 }
 \value{
 A base \code{data.frame} with columns \code{input_id}, \code{role}, \code{layer_name},
 \code{keyword}, \code{param_key}, and \code{source_id}.
 }
 \description{
-Return the input ids consumed by \code{paintr_build_runtime()} in a stable,
+Return the input ids consumed by \code{ggpaintr_build_runtime()} in a stable,
 documented data frame. This is the supported low-level discovery helper for
 tests, tooling, and advanced package authors who need to construct an input
 list programmatically without hard-coding internal ids in documentation or
@@ -34,7 +34,7 @@ ids remain implementation details. Call this helper instead of relying on the
 exact encoding scheme directly.
 }
 \examples{
-obj <- paintr_formula(
+obj <- ggpaintr_formula(
   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point() + labs(title = text)"
 )
 ggpaintr_runtime_input_spec(obj)

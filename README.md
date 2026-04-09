@@ -18,14 +18,14 @@ pak::pkg_install("willju-wangqian/ggpaintr")
 `ggpaintr` treats a ggplot-like formula string as a template with
 placeholders that become Shiny inputs.
 
-  - `var` selects a data column in the generated UI
-  - `text` collects free text
-  - `num` collects numeric input
-  - `expr` collects raw R code for places like faceting or labels
-  - `upload` lets the app use uploaded data
-  - `ggpaintr_normalize_column_names()` cleans local column names before
+-   `var` selects a data column in the generated UI
+-   `text` collects free text
+-   `num` collects numeric input
+-   `expr` collects raw R code for places like faceting or labels
+-   `upload` lets the app use uploaded data
+-   `ggpaintr_normalize_column_names()` cleans local column names before
     `var` selection when the source data is not already syntactic
-  - you can register your own placeholder types per app with
+-   you can register your own placeholder types per app with
     `ggpaintr_placeholder()`
 
 `upload` currently supports `.csv` and `.rds`.
@@ -42,18 +42,18 @@ placeholders that become Shiny inputs.
 `ggpaintr` keeps the author-facing input as one formula string on
 purpose.
 
-  - formula strings stay close to the way many R users already sketch
+-   formula strings stay close to the way many R users already sketch
     ggplot code
-  - the same parsed object can drive generated controls, runtime
+-   the same parsed object can drive generated controls, runtime
     completion, generated code, and standalone export
-  - one placeholder registry powers parse, UI, runtime, copy rules, and
+-   one placeholder registry powers parse, UI, runtime, copy rules, and
     export for both built-in and custom placeholders
-  - the package gives you both a default wrapper and a supported Shiny
+-   the package gives you both a default wrapper and a supported Shiny
     embedding layer, so you can start simple and grow into a more custom
     app
-  - exported apps stay explicit `ui <- ...` and `server <-
-    function(...)` files so they remain readable and editable outside
-    the package wrapper
+-   exported apps stay explicit `ui <- ...` and
+    `server <- function(...)` files so they remain readable and editable
+    outside the package wrapper
 
 ## Quick start
 
@@ -74,16 +74,16 @@ ggplot(data = iris, aes(x = var, y = var)) +
 
 The maintained public path is intentionally narrow.
 
-  - Start with `ggpaintr_app()` for the default app wrapper.
-  - Use `ggpaintr_server()`, `ggpaintr_server_state()`,
+-   Start with `ggpaintr_app()` for the default app wrapper.
+-   Use `ggpaintr_server()`, `ggpaintr_server_state()`,
     `ggpaintr_ids()`, and the `ggpaintr_bind_*()` helpers when you need
     to embed `ggpaintr` in a larger Shiny app.
-  - Use `ggpaintr_placeholder()` and `ggpaintr_effective_placeholders()`
+-   Use `ggpaintr_placeholder()` and `ggpaintr_effective_placeholders()`
     for custom placeholder types.
-  - Use `ggpaintr_runtime_input_spec()`, `paintr_formula()`,
-    `paintr_build_runtime()`, and `paintr_get_plot()` for advanced
+-   Use `ggpaintr_runtime_input_spec()`, `ggpaintr_formula()`,
+    `ggpaintr_build_runtime()`, and `ggpaintr_get_plot()` for advanced
     runtime or testing workflows.
-  - Use `generate_shiny()` to export an explicit standalone app script.
+-   Use `generate_shiny()` to export an explicit standalone app script.
 
 Other helpers in `R/` are internal implementation support rather than
 part of the maintained community-facing API.
@@ -175,7 +175,7 @@ Use `generate_shiny()` when you want an explicit, editable Shiny app
 file that you can continue customizing outside the package wrapper.
 
 ``` r
-obj <- paintr_formula(
+obj <- ggpaintr_formula(
   "ggplot(data = upload, aes(x = var, y = var)) +
     geom_point() +
     labs(title = text)"
@@ -213,19 +213,19 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server_state(
+  ggpaintr_state <- ggpaintr_server_state(
     "ggplot(data = iris, aes(x = var, y = var)) +
       geom_point() +
       labs(title = text)",
     ids = ids
   )
 
-  ggpaintr_bind_control_panel(input, output, paintr_state, ids = ids)
-  ggpaintr_bind_draw(input, paintr_state, ids = ids)
-  ggpaintr_bind_export(output, paintr_state, ids = ids)
-  ggpaintr_bind_plot(output, paintr_state, ids = ids)
-  ggpaintr_bind_error(output, paintr_state, ids = ids)
-  ggpaintr_bind_code(output, paintr_state, ids = ids)
+  ggpaintr_bind_control_panel(input, output, ggpaintr_state, ids = ids)
+  ggpaintr_bind_draw(input, ggpaintr_state, ids = ids)
+  ggpaintr_bind_export(output, ggpaintr_state, ids = ids)
+  ggpaintr_bind_plot(output, ggpaintr_state, ids = ids)
+  ggpaintr_bind_error(output, ggpaintr_state, ids = ids)
+  ggpaintr_bind_code(output, ggpaintr_state, ids = ids)
 }
 
 shinyApp(ui, server)
@@ -238,18 +238,18 @@ use `ggpaintr_plot_value()` inside your own `renderPlot()`.
 
 ``` r
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server_state(
+  ggpaintr_state <- ggpaintr_server_state(
     "ggplot(data = iris, aes(x = var, y = var)) + geom_point()"
   )
 
-  ggpaintr_bind_control_panel(input, output, paintr_state)
-  ggpaintr_bind_draw(input, paintr_state)
-  ggpaintr_bind_export(output, paintr_state)
-  ggpaintr_bind_error(output, paintr_state)
-  ggpaintr_bind_code(output, paintr_state)
+  ggpaintr_bind_control_panel(input, output, ggpaintr_state)
+  ggpaintr_bind_draw(input, ggpaintr_state)
+  ggpaintr_bind_export(output, ggpaintr_state)
+  ggpaintr_bind_error(output, ggpaintr_state)
+  ggpaintr_bind_code(output, ggpaintr_state)
 
   output$outputPlot <- renderPlot({
-    plot_obj <- ggpaintr_plot_value(paintr_state$runtime())
+    plot_obj <- ggpaintr_plot_value(ggpaintr_state$runtime())
 
     if (is.null(plot_obj)) {
       plot.new()
@@ -292,7 +292,7 @@ placeholders <- ggpaintr_effective_placeholders(
   list(date = date_placeholder)
 )
 
-obj <- paintr_formula(
+obj <- ggpaintr_formula(
   "ggplot(data = sales, aes(x = day, y = value)) +
     geom_line() +
     geom_vline(xintercept = date)",
@@ -325,10 +325,10 @@ generated code, write tests, or build developer tooling around parsed
 formulas.
 
 `ggpaintr_runtime_input_spec()` is the supported way to discover the
-runtime input ids needed by `paintr_build_runtime()`.
+runtime input ids needed by `ggpaintr_build_runtime()`.
 
 ``` r
-obj <- paintr_formula(
+obj <- ggpaintr_formula(
   "ggplot(data = mtcars, aes(x = var, y = var)) +
     geom_point(size = num) +
     labs(title = text)"
@@ -352,7 +352,7 @@ inputs[["ggplot+3+3"]] <- "disp"
 inputs[["geom_point+2"]] <- 2
 inputs[["labs+2"]] <- "Mtcars scatter"
 
-runtime <- paintr_build_runtime(obj, inputs)
+runtime <- ggpaintr_build_runtime(obj, inputs)
 
 runtime$code_text
 #> [1] "ggplot(data = mtcars, aes(x = mpg, y = disp)) +\n  geom_point(size = 2) +\n  labs(title = \"Mtcars scatter\")"
@@ -364,7 +364,7 @@ For upload-backed formulas, the spec also includes the derived
 dataset-name input that accompanies each upload control.
 
 ``` r
-upload_obj <- paintr_formula(
+upload_obj <- ggpaintr_formula(
   "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
 )
 
@@ -379,45 +379,45 @@ ggpaintr_runtime_input_spec(upload_obj)
 
 ## Current stability guarantees
 
-  - built-in placeholders are `var`, `text`, `num`, `expr`, and `upload`
-  - custom placeholders share the same parse, UI, runtime, copy-rule,
+-   built-in placeholders are `var`, `text`, `num`, `expr`, and `upload`
+-   custom placeholders share the same parse, UI, runtime, copy-rule,
     and export path as built-ins
-  - `upload` currently supports `.csv` and `.rds`
-  - the supported app-facing surface is the current `ggpaintr_*` wrapper
+-   `upload` currently supports `.csv` and `.rds`
+-   the supported app-facing surface is the current `ggpaintr_*` wrapper
     and Shiny-integration layer
-  - exported apps keep the current explicit-file shape built around
+-   exported apps keep the current explicit-file shape built around
     `ggpaintr_server()`
-  - only the six top-level ids exposed by `ggpaintr_ids()` are
+-   only the six top-level ids exposed by `ggpaintr_ids()` are
     configurable
-  - runtime failures are labeled as `Input error:` or `Plot error:` and
+-   runtime failures are labeled as `Input error:` or `Plot error:` and
     stay on the shared inline error path
 
 ## Not guaranteed / implementation details
 
-  - raw placeholder ids such as `"ggplot+3+2"` are not a stable
+-   raw placeholder ids such as `"ggplot+3+2"` are not a stable
     hand-authored API; discover them with
     `ggpaintr_runtime_input_spec()`
-  - deeper traversal details such as `index_path` encoding and internal
+-   deeper traversal details such as `index_path` encoding and internal
     companion id conventions remain package internals
-  - unsupported upload formats are outside the current boundary
-  - custom placeholders whose hooks are not defined inline inside
+-   unsupported upload formats are outside the current boundary
+-   custom placeholders whose hooks are not defined inline inside
     `ggpaintr_placeholder()` are not exportable as standalone apps today
-  - the formula-string model is the current author-facing interface;
+-   the formula-string model is the current author-facing interface;
     future hardening should compile it into a richer internal runtime
     contract rather than replace that authoring model outright
 
 ## Current behavior boundary
 
-  - Structural formula errors fail early during parsing.
-  - `var` with no data source fails while preparing the UI.
-  - `var` is a column picker. Formula-level transforms such as `var + 1`
+-   Structural formula errors fail early during parsing.
+-   `var` with no data source fails while preparing the UI.
+-   `var` is a column picker. Formula-level transforms such as `var + 1`
     or `log(var)` are supported inside the formula text, not as direct
     input values.
-  - For local data with non-syntactic names, call
+-   For local data with non-syntactic names, call
     `ggpaintr_normalize_column_names()` first; uploads apply the same
     normalization automatically.
-  - Missing local data objects are deferred to draw-time inline errors.
-  - Advanced integrations can customize the plot through
+-   Missing local data objects are deferred to draw-time inline errors.
+-   Advanced integrations can customize the plot through
     `ggpaintr_plot_value()`.
 
 ## Where to go next

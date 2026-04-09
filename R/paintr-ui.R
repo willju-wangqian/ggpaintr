@@ -5,7 +5,7 @@
 #'
 #' @return A Shiny UI object.
 #' @noRd
-paintr_attach_help <- function(ui, help = NULL) {
+ggpaintr_attach_help <- function(ui, help = NULL) {
   if (is.null(help) || identical(trimws(help), "")) {
     return(ui)
   }
@@ -21,9 +21,9 @@ paintr_attach_help <- function(ui, help = NULL) {
 #' @return A Shiny UI object.
 #' @noRd
 generate_ui_upload <- function(id, copy_rules = NULL) {
-  effective_copy_rules <- paintr_effective_copy_rules(copy_rules)
-  file_copy <- paintr_resolve_copy("upload_file", copy_rules = effective_copy_rules)
-  name_copy <- paintr_resolve_copy("upload_name", copy_rules = effective_copy_rules)
+  effective_copy_rules <- ggpaintr_effective_copy_rules(copy_rules)
+  file_copy <- ggpaintr_resolve_copy("upload_file", copy_rules = effective_copy_rules)
+  name_copy <- ggpaintr_resolve_copy("upload_name", copy_rules = effective_copy_rules)
 
   shiny::tagList(
     shiny::fileInput(
@@ -31,9 +31,9 @@ generate_ui_upload <- function(id, copy_rules = NULL) {
       file_copy$label,
       accept = c(".csv", ".rds")
     ),
-    paintr_attach_help(
+    ggpaintr_attach_help(
       shiny::textInput(
-        paintr_upload_name_id(id),
+        ggpaintr_upload_name_id(id),
         name_copy$label,
         placeholder = name_copy$placeholder
       ),
@@ -62,7 +62,7 @@ generate_ui_var_placeholder <- function(id) {
 #' @return A `textInput()` UI object.
 #' @noRd
 generate_ui_text <- function(id, param, layer_name = NULL, copy_rules = NULL) {
-  copy <- paintr_resolve_copy(
+  copy <- ggpaintr_resolve_copy(
     "control",
     keyword = "text",
     layer_name = layer_name,
@@ -70,7 +70,7 @@ generate_ui_text <- function(id, param, layer_name = NULL, copy_rules = NULL) {
     copy_rules = copy_rules
   )
 
-  paintr_attach_help(
+  ggpaintr_attach_help(
     shiny::textInput(id, copy$label, placeholder = copy$placeholder),
     copy$help
   )
@@ -86,7 +86,7 @@ generate_ui_text <- function(id, param, layer_name = NULL, copy_rules = NULL) {
 #' @return A `numericInput()` UI object.
 #' @noRd
 generate_ui_num <- function(id, param, layer_name = NULL, copy_rules = NULL) {
-  copy <- paintr_resolve_copy(
+  copy <- ggpaintr_resolve_copy(
     "control",
     keyword = "num",
     layer_name = layer_name,
@@ -94,7 +94,7 @@ generate_ui_num <- function(id, param, layer_name = NULL, copy_rules = NULL) {
     copy_rules = copy_rules
   )
 
-  paintr_attach_help(
+  ggpaintr_attach_help(
     shiny::numericInput(id, copy$label, NA),
     copy$help
   )
@@ -110,7 +110,7 @@ generate_ui_num <- function(id, param, layer_name = NULL, copy_rules = NULL) {
 #' @return A `textInput()` UI object.
 #' @noRd
 generate_ui_expr <- function(id, param, layer_name = NULL, copy_rules = NULL) {
-  copy <- paintr_resolve_copy(
+  copy <- ggpaintr_resolve_copy(
     "control",
     keyword = "expr",
     layer_name = layer_name,
@@ -118,7 +118,7 @@ generate_ui_expr <- function(id, param, layer_name = NULL, copy_rules = NULL) {
     copy_rules = copy_rules
   )
 
-  paintr_attach_help(
+  ggpaintr_attach_help(
     shiny::textInput(id, copy$label, placeholder = copy$placeholder),
     copy$help
   )
@@ -143,7 +143,7 @@ generate_ui_var <- function(data_var,
     return(NULL)
   }
 
-  copy <- paintr_resolve_copy(
+  copy <- ggpaintr_resolve_copy(
     "control",
     keyword = "var",
     layer_name = layer_name,
@@ -151,7 +151,7 @@ generate_ui_var <- function(data_var,
     copy_rules = copy_rules
   )
 
-  paintr_attach_help(
+  ggpaintr_attach_help(
     shinyWidgets::pickerInput(
       id,
       copy$label,
@@ -169,23 +169,23 @@ generate_ui_var <- function(data_var,
 
 #' Build a UI List for a Parsed Formula
 #'
-#' @param paintr_obj A `paintr_obj`.
+#' @param ggpaintr_obj A `ggpaintr_obj`.
 #' @param copy_rules Effective or user-supplied copy rules.
 #'
 #' @return A named list of UI controls by layer.
 #' @noRd
-paintr_build_ui_list <- function(paintr_obj, copy_rules = NULL) {
-  effective_copy_rules <- paintr_effective_copy_rules(
+ggpaintr_build_ui_list <- function(ggpaintr_obj, copy_rules = NULL) {
+  effective_copy_rules <- ggpaintr_effective_copy_rules(
     copy_rules,
-    placeholders = paintr_obj$placeholders
+    placeholders = ggpaintr_obj$placeholders
   )
-  context <- paintr_placeholder_context(
-    paintr_obj,
+  context <- ggpaintr_placeholder_context(
+    ggpaintr_obj,
     copy_rules = effective_copy_rules
   )
-  keywords_list <- paintr_obj[["keywords_list"]]
-  id_list <- paintr_obj[["id_list"]]
-  placeholder_map <- paintr_obj[["placeholder_map"]]
+  keywords_list <- ggpaintr_obj[["keywords_list"]]
+  id_list <- ggpaintr_obj[["id_list"]]
+  placeholder_map <- ggpaintr_obj[["placeholder_map"]]
   layer_names <- names(keywords_list)
 
   ui_list <- lapply(seq_along(layer_names), function(i) {
@@ -199,14 +199,14 @@ paintr_build_ui_list <- function(paintr_obj, copy_rules = NULL) {
         return(NULL)
       }
 
-      spec <- paintr_obj$placeholders[[meta$keyword]]
-      copy <- paintr_resolve_copy(
+      spec <- ggpaintr_obj$placeholders[[meta$keyword]]
+      copy <- ggpaintr_resolve_copy(
         "control",
         keyword = meta$keyword,
         layer_name = meta$layer_name,
         param = meta$param,
         copy_rules = effective_copy_rules,
-        placeholders = paintr_obj$placeholders
+        placeholders = ggpaintr_obj$placeholders
       )
 
       spec$build_ui(id, copy, meta, context)
@@ -223,7 +223,7 @@ paintr_build_ui_list <- function(paintr_obj, copy_rules = NULL) {
 #'
 #' @param input A Shiny input object.
 #' @param output A Shiny output object.
-#' @param paintr_obj A `paintr_obj`.
+#' @param ggpaintr_obj A `ggpaintr_obj`.
 #' @param envir Environment used to resolve local data objects.
 #' @param copy_rules Effective or user-supplied copy rules.
 #'
@@ -231,13 +231,13 @@ paintr_build_ui_list <- function(paintr_obj, copy_rules = NULL) {
 #' @noRd
 register_var_ui_outputs <- function(input,
                                     output,
-                                    paintr_obj,
+                                    ggpaintr_obj,
                                     envir = parent.frame(),
                                     copy_rules = NULL) {
-  paintr_bind_placeholder_ui(
+  ggpaintr_bind_placeholder_ui(
     input,
     output,
-    paintr_obj,
+    ggpaintr_obj,
     envir = envir,
     copy_rules = copy_rules
   )
@@ -256,7 +256,7 @@ ui_insert_checkbox <- function(ui, nn, copy_rules = NULL) {
     return(ui)
   }
 
-  copy <- paintr_resolve_copy("layer_checkbox", copy_rules = copy_rules)
+  copy <- ggpaintr_resolve_copy("layer_checkbox", copy_rules = copy_rules)
   id <- paste0(nn, "+checkbox")
   checkbox <- shiny::checkboxInput(id, label = copy$label, value = TRUE)
 
@@ -287,22 +287,22 @@ tab_wrap_ui <- function(ui_list) {
 
 #' Build the Tabbed Control UI for a Parsed Formula
 #'
-#' @param paintr_obj A `paintr_obj`.
+#' @param ggpaintr_obj A `ggpaintr_obj`.
 #' @param copy_rules Effective or user-supplied copy rules.
 #'
 #' @return A Shiny UI object or `NULL`.
 #' @noRd
-paintr_get_tab_ui <- function(paintr_obj, copy_rules = NULL) {
-  if (!inherits(paintr_obj, "paintr_obj")) {
+ggpaintr_get_tab_ui <- function(ggpaintr_obj, copy_rules = NULL) {
+  if (!inherits(ggpaintr_obj, "ggpaintr_obj")) {
     return(NULL)
   }
 
   tab_wrap_ui(
-    paintr_build_ui_list(
-      paintr_obj,
-      copy_rules = paintr_effective_copy_rules(
+    ggpaintr_build_ui_list(
+      ggpaintr_obj,
+      copy_rules = ggpaintr_effective_copy_rules(
         copy_rules,
-        placeholders = paintr_obj$placeholders
+        placeholders = ggpaintr_obj$placeholders
       )
     )
   )

@@ -47,10 +47,13 @@ Build one placeholder specification for use with
 UI control, runtime expression replacement, deferred UI binding, and
 evaluation-environment preparation.
 }
-\details{
-To make a custom placeholder exportable through \code{generate_shiny()}, define
-any hook functions inline inside the \code{ggpaintr_placeholder()} call so the
-exported app can serialize the full placeholder definition.
+\note{
+\strong{Export limitation:} To make a custom placeholder exportable through
+\code{generate_shiny()}, all hook functions (\code{build_ui}, \code{resolve_expr}, etc.)
+must be defined \strong{inline} inside the \code{ggpaintr_placeholder()} call.
+Functions defined elsewhere and passed by name (e.g.,
+\code{build_ui = my_function}) cannot be serialized into the standalone app file.
+This is a known limitation; a future release may lift this restriction.
 }
 \examples{
 date_placeholder <- ggpaintr_placeholder(

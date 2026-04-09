@@ -28,11 +28,11 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server(input, output, session, input_formula)
+  ggpaintr_state <- ggpaintr_server(input, output, session, input_formula)
 
   # Add custom observers or outputs below.
   # observe({
-  #   runtime_result <- paintr_state$runtime()
+  #   runtime_result <- ggpaintr_state$runtime()
   #   if (!is.null(runtime_result) && isTRUE(runtime_result$ok)) {
   #     message(runtime_result$code_text)
   #   }

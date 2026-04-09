@@ -62,7 +62,7 @@ server <- function(input, output, session) {
   session$userData$paintr <- reactiveValues(obj = list(NULL))
 
   observeEvent(input$enter, {
-    session$userData$paintr$obj <- paintr_formula(input$formula)
+    session$userData$paintr$obj <- ggpaintr_formula(input$formula)
   })
 
   observe({
@@ -75,7 +75,7 @@ server <- function(input, output, session) {
   output$controlPanel <- renderUI({
     req(session$userData$paintr)
 
-    column(12, paintr_get_tab_ui(session$userData$paintr$obj))
+    column(12, ggpaintr_get_tab_ui(session$userData$paintr$obj))
 
   })
 
@@ -96,11 +96,11 @@ server <- function(input, output, session) {
     req(session$userData$paintr$obj)
 
     complete_expr_code <-
-      paintr_complete_expr(session$userData$paintr$obj, input)
+      ggpaintr_complete_expr(session$userData$paintr$obj, input)
 
     output$outputPlot <- renderPlot({
 
-      paintr_get_plot(
+      ggpaintr_get_plot(
         complete_expr_code[['complete_expr_list']],
         envir = complete_expr_code[['eval_env']]
       )

@@ -25,9 +25,9 @@ Current target under test:
 - `ggpaintr_server()`
 - `ggpaintr_placeholder()`
 - `ggpaintr_effective_placeholders()`
-- `paintr_formula()`
-- `paintr_build_runtime()`
-- `paintr_get_plot()`
+- `ggpaintr_formula()`
+- `ggpaintr_build_runtime()`
+- `ggpaintr_get_plot()`
 - `generate_shiny()`
 - internal helpers that define runtime semantics or user-facing control copy
 

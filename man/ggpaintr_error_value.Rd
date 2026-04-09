@@ -7,7 +7,7 @@
 ggpaintr_error_value(runtime_result)
 }
 \arguments{
-\item{runtime_result}{A runtime result list returned by \code{paintr_build_runtime()}.}
+\item{runtime_result}{A runtime result list returned by \code{ggpaintr_build_runtime()}.}
 }
 \value{
 A Shiny tag or \code{NULL}.

@@ -3,7 +3,7 @@ source_exported_app <- function(path, envir = new.env(parent = baseenv())) {
 }
 
 test_that("generate_shiny writes a syntactically valid app script", {
-  obj <- paintr_formula(
+  obj <- ggpaintr_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
   out_file <- tempfile(fileext = ".R")
@@ -20,15 +20,15 @@ test_that("generate_shiny writes a syntactically valid app script", {
   expect_match(app_text, "placeholders <- NULL", fixed = TRUE)
   expect_match(
     app_text,
-    "title_copy <- paintr_resolve_copy\\(\"title\", copy_rules = copy_rules\\)"
+    "title_copy <- ggpaintr_resolve_copy\\(\"title\", copy_rules = copy_rules\\)"
   )
   expect_match(
     app_text,
-    "draw_copy <- paintr_resolve_copy\\(\"draw_button\", copy_rules = copy_rules\\)"
+    "draw_copy <- ggpaintr_resolve_copy\\(\"draw_button\", copy_rules = copy_rules\\)"
   )
   expect_match(
     app_text,
-    "export_copy <- paintr_resolve_copy\\(\"export_button\", copy_rules = copy_rules\\)"
+    "export_copy <- ggpaintr_resolve_copy\\(\"export_button\", copy_rules = copy_rules\\)"
   )
   expect_match(app_text, "ui <- fluidPage\\(")
   expect_match(app_text, "titlePanel\\(title_copy\\$label\\)")
@@ -38,7 +38,7 @@ test_that("generate_shiny writes a syntactically valid app script", {
   expect_match(
     app_text,
     paste0(
-      "paintr_state <- ggpaintr_server\\(",
+      "ggpaintr_state <- ggpaintr_server\\(",
       "input, output, session, input_formula, copy_rules = copy_rules, ",
       "placeholders = placeholders\\)"
     )
@@ -52,7 +52,7 @@ test_that("generate_shiny writes a syntactically valid app script", {
 })
 
 test_that("generate_shiny preserves upload-aware runtime code", {
-  obj <- paintr_formula(
+  obj <- ggpaintr_formula(
     "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
   )
   out_file <- tempfile(fileext = ".R")
@@ -80,7 +80,7 @@ test_that("generate_shiny writes multiline formulas as multiline source", {
     sep = "\n"
   )
 
-  obj <- paintr_formula(formula_text)
+  obj <- ggpaintr_formula(formula_text)
   out_file <- tempfile(fileext = ".R")
 
   generate_shiny(obj, out_file, style = FALSE)
@@ -118,7 +118,7 @@ test_that("generate_shiny preserves quotes and backslashes in exported formulas"
     sep = "\n"
   )
 
-  obj <- paintr_formula(formula_text)
+  obj <- ggpaintr_formula(formula_text)
   out_file <- tempfile(fileext = ".R")
 
   generate_shiny(obj, out_file, style = FALSE)
@@ -147,7 +147,7 @@ test_that("ggpaintr_app returns a shiny app object", {
 })
 
 test_that("generate_shiny exported apps execute end to end for static formulas", {
-  obj <- paintr_formula(
+  obj <- ggpaintr_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point() + labs(title = text)"
   )
   out_file <- tempfile(fileext = ".R")
@@ -157,7 +157,7 @@ test_that("generate_shiny exported apps execute end to end for static formulas",
   export_env <- new.env(parent = environment())
   exported_app <- source_exported_app(out_file, envir = export_env)
   server_wrapper <- function(input, output, session) {
-    session$userData$paintr_state <- export_env$server(input, output, session)
+    session$userData$ggpaintr_state <- export_env$server(input, output, session)
   }
 
   expect_s3_class(exported_app, "shiny.appobj")
@@ -173,7 +173,7 @@ test_that("generate_shiny exported apps execute end to end for static formulas",
       draw = 1
     )
 
-    runtime_result <- session$userData$paintr_state$runtime()
+    runtime_result <- session$userData$ggpaintr_state$runtime()
     expect_true(runtime_result$ok)
     expect_null(runtime_result$message)
     expect_s3_class(runtime_result$plot, "ggplot")
@@ -182,7 +182,7 @@ test_that("generate_shiny exported apps execute end to end for static formulas",
 })
 
 test_that("generate_shiny exported apps execute upload formulas end to end", {
-  obj <- paintr_formula(
+  obj <- ggpaintr_formula(
     "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
   )
   out_file <- tempfile(fileext = ".R")
@@ -192,7 +192,7 @@ test_that("generate_shiny exported apps execute upload formulas end to end", {
   export_env <- new.env(parent = environment())
   exported_app <- source_exported_app(out_file, envir = export_env)
   server_wrapper <- function(input, output, session) {
-    session$userData$paintr_state <- export_env$server(input, output, session)
+    session$userData$ggpaintr_state <- export_env$server(input, output, session)
   }
 
   expect_s3_class(exported_app, "shiny.appobj")
@@ -207,7 +207,7 @@ test_that("generate_shiny exported apps execute upload formulas end to end", {
       draw = 1
     )
 
-    runtime_result <- session$userData$paintr_state$runtime()
+    runtime_result <- session$userData$ggpaintr_state$runtime()
     expect_true(runtime_result$ok)
     expect_null(runtime_result$message)
     expect_s3_class(runtime_result$plot, "ggplot")
@@ -216,7 +216,7 @@ test_that("generate_shiny exported apps execute upload formulas end to end", {
 })
 
 test_that("generate_shiny accepts the new public call shape", {
-  obj <- paintr_formula(
+  obj <- ggpaintr_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
   out_file <- tempfile(fileext = ".R")
@@ -226,7 +226,7 @@ test_that("generate_shiny accepts the new public call shape", {
 })
 
 test_that("generate_shiny warns but still supports deprecated var_ui calls", {
-  obj <- paintr_formula(
+  obj <- ggpaintr_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
   out_file <- tempfile(fileext = ".R")
@@ -248,7 +248,7 @@ test_that("generate_shiny warns but still supports deprecated var_ui calls", {
 })
 
 test_that("generate_shiny writes compact custom copy rules for exported apps", {
-  obj <- paintr_formula(
+  obj <- ggpaintr_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
   out_file <- tempfile(fileext = ".R")
@@ -272,7 +272,7 @@ test_that("generate_shiny writes compact custom copy rules for exported apps", {
   expect_match(app_text, "custom_copy_rules <- ")
   expect_match(
     app_text,
-    "copy_rules <- paintr_effective_copy_rules\\(custom_copy_rules\\)"
+    "copy_rules <- ggpaintr_effective_copy_rules\\(custom_copy_rules\\)"
   )
   expect_match(app_text, "Exploratory Plot Builder", fixed = TRUE)
   expect_match(app_text, "Render plot", fixed = TRUE)
@@ -281,7 +281,7 @@ test_that("generate_shiny writes compact custom copy rules for exported apps", {
   expect_no_match(app_text, "Optional dataset name", fixed = TRUE)
   expect_match(
     app_text,
-    "title_copy <- paintr_resolve_copy\\(\"title\", copy_rules = copy_rules\\)"
+    "title_copy <- ggpaintr_resolve_copy\\(\"title\", copy_rules = copy_rules\\)"
   )
   expect_match(
     app_text,
@@ -335,7 +335,7 @@ test_that("generate_shiny writes compact custom copy rules for exported apps", {
 })
 
 test_that("generate_shiny omits concrete copy rules when effective rules match defaults", {
-  obj <- paintr_formula(
+  obj <- ggpaintr_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
   out_file <- tempfile(fileext = ".R")
@@ -362,7 +362,7 @@ test_that("generate_shiny writes compact custom placeholders for exported apps",
   registry <- ggpaintr_effective_placeholders(
     list(date = make_test_date_placeholder())
   )
-  obj <- paintr_formula(test_date_formula, placeholders = registry)
+  obj <- ggpaintr_formula(test_date_formula, placeholders = registry)
   out_file <- tempfile(fileext = ".R")
 
   generate_shiny(
@@ -422,7 +422,7 @@ test_that("generate_shiny errors when custom placeholders are not exportable", {
   registry <- ggpaintr_effective_placeholders(
     list(date = make_non_inline_date_placeholder())
   )
-  obj <- paintr_formula(test_date_formula, placeholders = registry)
+  obj <- ggpaintr_formula(test_date_formula, placeholders = registry)
   out_file <- tempfile(fileext = ".R")
 
   expect_error(
@@ -437,11 +437,11 @@ test_that("generate_shiny errors when custom placeholders are not exportable", {
 })
 
 test_that("generate_shiny compacts pre-merged copy rules before export", {
-  obj <- paintr_formula(
+  obj <- ggpaintr_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
   out_file <- tempfile(fileext = ".R")
-  merged_rules <- paintr_effective_copy_rules(
+  merged_rules <- ggpaintr_effective_copy_rules(
     list(
       shell = list(
         title = list(label = "Exploratory Plot Builder")
@@ -463,7 +463,7 @@ test_that("generate_shiny compacts pre-merged copy rules before export", {
   expect_match(app_text, "custom_copy_rules <- ")
   expect_match(
     app_text,
-    "copy_rules <- paintr_effective_copy_rules\\(custom_copy_rules\\)"
+    "copy_rules <- ggpaintr_effective_copy_rules\\(custom_copy_rules\\)"
   )
   expect_no_match(app_text, "ggpaintr Plot Builder", fixed = TRUE)
   expect_no_match(app_text, "Update plot", fixed = TRUE)
@@ -500,8 +500,8 @@ test_that("ggpaintr_server is exported in NAMESPACE", {
   expect_true("ggpaintr_server" %in% getNamespaceExports("ggpaintr"))
 })
 
-test_that("paintr_resolve_copy is exported in NAMESPACE", {
-  installed_export <- "paintr_resolve_copy" %in% getNamespaceExports("ggpaintr")
+test_that("ggpaintr_resolve_copy is exported in NAMESPACE", {
+  installed_export <- "ggpaintr_resolve_copy" %in% getNamespaceExports("ggpaintr")
   repo_export <- FALSE
 
   namespace_candidates <- c(
@@ -513,14 +513,14 @@ test_that("paintr_resolve_copy is exported in NAMESPACE", {
 
   if (!is.na(namespace_path) && nzchar(namespace_path)) {
     namespace_lines <- readLines(namespace_path)
-    repo_export <- any(grepl("^export\\(paintr_resolve_copy\\)$", namespace_lines))
+    repo_export <- any(grepl("^export\\(ggpaintr_resolve_copy\\)$", namespace_lines))
   }
 
   expect_true(installed_export || repo_export)
 })
 
-test_that("paintr_effective_copy_rules is exported in NAMESPACE", {
-  installed_export <- "paintr_effective_copy_rules" %in% getNamespaceExports("ggpaintr")
+test_that("ggpaintr_effective_copy_rules is exported in NAMESPACE", {
+  installed_export <- "ggpaintr_effective_copy_rules" %in% getNamespaceExports("ggpaintr")
   repo_export <- FALSE
 
   namespace_candidates <- c(
@@ -532,7 +532,7 @@ test_that("paintr_effective_copy_rules is exported in NAMESPACE", {
 
   if (!is.na(namespace_path) && nzchar(namespace_path)) {
     namespace_lines <- readLines(namespace_path)
-    repo_export <- any(grepl("^export\\(paintr_effective_copy_rules\\)$", namespace_lines))
+    repo_export <- any(grepl("^export\\(ggpaintr_effective_copy_rules\\)$", namespace_lines))
   }
 
   expect_true(installed_export || repo_export)
@@ -540,7 +540,7 @@ test_that("paintr_effective_copy_rules is exported in NAMESPACE", {
 
 test_that("ggpaintr_server returns reusable state before and after a successful draw", {
   server_wrapper <- function(input, output, session) {
-    session$userData$paintr_state <- ggpaintr_server(
+    session$userData$ggpaintr_state <- ggpaintr_server(
       input,
       output,
       session,
@@ -553,11 +553,11 @@ test_that("ggpaintr_server returns reusable state before and after a successful 
   }
 
   shiny::testServer(server_wrapper, {
-    expect_type(session$userData$paintr_state, "list")
-    expect_true(is.function(session$userData$paintr_state$runtime))
-    expect_true(is.function(session$userData$paintr_state$obj))
-    expect_null(session$userData$paintr_state$runtime())
-    expect_s3_class(session$userData$paintr_state$obj(), "paintr_obj")
+    expect_type(session$userData$ggpaintr_state, "list")
+    expect_true(is.function(session$userData$ggpaintr_state$runtime))
+    expect_true(is.function(session$userData$ggpaintr_state$obj))
+    expect_null(session$userData$ggpaintr_state$runtime())
+    expect_s3_class(session$userData$ggpaintr_state$obj(), "ggpaintr_obj")
 
     session$setInputs(
       "ggplot+3+2" = "Sepal.Length",
@@ -568,7 +568,7 @@ test_that("ggpaintr_server returns reusable state before and after a successful 
       draw = 1
     )
 
-    runtime_result <- session$userData$paintr_state$runtime()
+    runtime_result <- session$userData$ggpaintr_state$runtime()
     expect_true(runtime_result$ok)
     expect_null(runtime_result$message)
     expect_s3_class(runtime_result$plot, "ggplot")
@@ -578,7 +578,7 @@ test_that("ggpaintr_server returns reusable state before and after a successful 
 
 test_that("ggpaintr_server stores structured failure state after draw", {
   server_wrapper <- function(input, output, session) {
-    session$userData$paintr_state <- ggpaintr_server(
+    session$userData$ggpaintr_state <- ggpaintr_server(
       input,
       output,
       session,
@@ -587,14 +587,14 @@ test_that("ggpaintr_server stores structured failure state after draw", {
   }
 
   shiny::testServer(server_wrapper, {
-    expect_null(session$userData$paintr_state$runtime())
+    expect_null(session$userData$ggpaintr_state$runtime())
 
     session$setInputs(
       "geom_point+checkbox" = TRUE,
       draw = 1
     )
 
-    runtime_result <- session$userData$paintr_state$runtime()
+    runtime_result <- session$userData$ggpaintr_state$runtime()
     expect_false(runtime_result$ok)
     expect_identical(runtime_result$stage, "plot")
     expect_null(runtime_result$plot)

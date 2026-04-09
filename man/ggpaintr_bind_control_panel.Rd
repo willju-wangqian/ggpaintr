@@ -7,8 +7,8 @@
 ggpaintr_bind_control_panel(
   input,
   output,
-  paintr_state,
-  ids = paintr_state$ids
+  ggpaintr_state,
+  ids = ggpaintr_state$ids
 )
 }
 \arguments{
@@ -16,13 +16,13 @@ ggpaintr_bind_control_panel(
 
 \item{output}{A Shiny \code{output} object.}
 
-\item{paintr_state}{A \code{ggpaintr_state} object.}
+\item{ggpaintr_state}{A \code{ggpaintr_state} object.}
 
 \item{ids}{A \code{ggpaintr_ids} object describing the top-level Shiny ids used by
 the integration helpers.}
 }
 \value{
-Invisibly returns \code{paintr_state}.
+Invisibly returns \code{ggpaintr_state}.
 }
 \description{
 Register the dynamic \code{var} controls and render the standard tabbed control

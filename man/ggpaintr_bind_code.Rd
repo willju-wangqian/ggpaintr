@@ -4,19 +4,28 @@
 \alias{ggpaintr_bind_code}
 \title{Bind Default Code Rendering into a Shiny App}
 \usage{
-ggpaintr_bind_code(output, paintr_state, ids = paintr_state$ids)
+ggpaintr_bind_code(output, ggpaintr_state, ids = ggpaintr_state$ids)
 }
 \arguments{
 \item{output}{A Shiny \code{output} object.}
 
-\item{paintr_state}{A \code{ggpaintr_state} object.}
+\item{ggpaintr_state}{A \code{ggpaintr_state} object.}
 
 \item{ids}{A \code{ggpaintr_ids} object describing the top-level Shiny ids used by
 the integration helpers.}
 }
 \value{
-Invisibly returns \code{paintr_state}.
+Invisibly returns \code{ggpaintr_state}.
 }
 \description{
 Bind Default Code Rendering into a Shiny App
+}
+\examples{
+\dontrun{
+server <- function(input, output, session) {
+  ps <- ggpaintr_server_state("ggplot(mtcars, aes(x = var)) + geom_histogram()")
+  ggpaintr_bind_draw(input, ps)
+  ggpaintr_bind_code(output, ps)
+}
+}
 }

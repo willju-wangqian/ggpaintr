@@ -1,11 +1,11 @@
 test_that("multiple expressions are rejected at parse time", {
   expect_error(
-    paintr_formula(unsupported_use_cases$multiple_expressions$formula)
+    ggpaintr_formula(unsupported_use_cases$multiple_expressions$formula)
   )
 })
 
 test_that("formulas with var and no data fail during UI preparation", {
-  obj <- paintr_formula(unsupported_use_cases$no_data_for_var$formula)
+  obj <- ggpaintr_formula(unsupported_use_cases$no_data_for_var$formula)
 
   expect_error(
     register_var_ui_outputs(list(), list2env(list(), parent = emptyenv()), obj),
@@ -14,14 +14,14 @@ test_that("formulas with var and no data fail during UI preparation", {
 })
 
 test_that("unknown data objects fail when variable UI needs data columns", {
-  obj <- paintr_formula(unsupported_use_cases$unknown_data_object$formula)
+  obj <- ggpaintr_formula(unsupported_use_cases$unknown_data_object$formula)
   output <- list2env(list(), parent = emptyenv())
 
   expect_no_error(register_var_ui_outputs(list(), output, obj))
 })
 
 test_that("quoted placeholders do not create variable controls", {
-  obj <- paintr_formula(
+  obj <- ggpaintr_formula(
     'ggplot(data = mtcars, aes(x = "var", y = "var")) + geom_point()'
   )
 

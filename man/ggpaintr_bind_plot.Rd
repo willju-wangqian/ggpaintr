@@ -4,21 +4,30 @@
 \alias{ggpaintr_bind_plot}
 \title{Bind Default Plot Rendering into a Shiny App}
 \usage{
-ggpaintr_bind_plot(output, paintr_state, ids = paintr_state$ids)
+ggpaintr_bind_plot(output, ggpaintr_state, ids = ggpaintr_state$ids)
 }
 \arguments{
 \item{output}{A Shiny \code{output} object.}
 
-\item{paintr_state}{A \code{ggpaintr_state} object.}
+\item{ggpaintr_state}{A \code{ggpaintr_state} object.}
 
 \item{ids}{A \code{ggpaintr_ids} object describing the top-level Shiny ids used by
 the integration helpers.}
 }
 \value{
-Invisibly returns \code{paintr_state}.
+Invisibly returns \code{ggpaintr_state}.
 }
 \description{
 Bind the same default \code{renderPlot()} behavior used by \code{ggpaintr_server()}.
 Advanced users who want to transform the plot should instead write their own
 \code{renderPlot()} and call \code{ggpaintr_plot_value()}.
+}
+\examples{
+\dontrun{
+server <- function(input, output, session) {
+  ps <- ggpaintr_server_state("ggplot(mtcars, aes(x = var)) + geom_histogram()")
+  ggpaintr_bind_draw(input, ps)
+  ggpaintr_bind_plot(output, ps)
+}
+}
 }

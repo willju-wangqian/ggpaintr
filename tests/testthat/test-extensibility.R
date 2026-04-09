@@ -67,10 +67,10 @@ test_that("optional UI helpers use resolved copy and custom ids", {
 })
 
 test_that("value helpers expose plot, code, and default error UI", {
-  obj_success <- paintr_formula(
+  obj_success <- ggpaintr_formula(
     "ggplot(data = iris, aes(x = var, y = var)) + geom_point()"
   )
-  runtime_success <- paintr_build_runtime(
+  runtime_success <- ggpaintr_build_runtime(
     obj_success,
     list(
       "ggplot+3+2" = "Sepal.Length",
@@ -87,10 +87,10 @@ test_that("value helpers expose plot, code, and default error UI", {
   expect_match(ggpaintr_code_value(runtime_success), "Sepal.Length")
   expect_null(ggpaintr_error_value(runtime_success))
 
-  obj_failure <- paintr_formula(
+  obj_failure <- ggpaintr_formula(
     "ggplot(data = unknown_object, aes(x = mpg, y = disp)) + geom_point()"
   )
-  runtime_failure <- paintr_build_runtime(
+  runtime_failure <- ggpaintr_build_runtime(
     obj_failure,
     list("geom_point+checkbox" = TRUE)
   )
@@ -119,24 +119,24 @@ test_that("bind helpers support custom ids inside an existing app server", {
   )
 
   server_wrapper <- function(input, output, session) {
-    paintr_state <- ggpaintr_server_state(
+    ggpaintr_state <- ggpaintr_server_state(
       "ggplot(data = iris, aes(x = var, y = var)) + geom_point()",
       ids = ids
     )
 
-    ggpaintr_bind_control_panel(input, output, paintr_state, ids = ids)
-    ggpaintr_bind_draw(input, paintr_state, ids = ids)
-    ggpaintr_bind_export(output, paintr_state, ids = ids)
-    ggpaintr_bind_plot(output, paintr_state, ids = ids)
-    ggpaintr_bind_error(output, paintr_state, ids = ids)
-    ggpaintr_bind_code(output, paintr_state, ids = ids)
+    ggpaintr_bind_control_panel(input, output, ggpaintr_state, ids = ids)
+    ggpaintr_bind_draw(input, ggpaintr_state, ids = ids)
+    ggpaintr_bind_export(output, ggpaintr_state, ids = ids)
+    ggpaintr_bind_plot(output, ggpaintr_state, ids = ids)
+    ggpaintr_bind_error(output, ggpaintr_state, ids = ids)
+    ggpaintr_bind_code(output, ggpaintr_state, ids = ids)
 
-    session$userData$paintr_state <- paintr_state
+    session$userData$ggpaintr_state <- ggpaintr_state
   }
 
   shiny::testServer(server_wrapper, {
-    expect_s3_class(session$userData$paintr_state, "ggpaintr_state")
-    expect_s3_class(session$userData$paintr_state$ids, "ggpaintr_ids")
+    expect_s3_class(session$userData$ggpaintr_state, "ggpaintr_state")
+    expect_s3_class(session$userData$ggpaintr_state$ids, "ggpaintr_ids")
     expect_type(output$customPanel, "list")
 
     session$setInputs(
@@ -146,7 +146,7 @@ test_that("bind helpers support custom ids inside an existing app server", {
       runPlot = 1
     )
 
-    runtime_result <- session$userData$paintr_state$runtime()
+    runtime_result <- session$userData$ggpaintr_state$runtime()
     expect_true(runtime_result$ok)
     expect_true(is.list(output$mainPlot))
     expect_null(output$mainError)
@@ -166,17 +166,17 @@ test_that("bind helpers expose error and code output with custom ids on failure"
   )
 
   server_wrapper <- function(input, output, session) {
-    paintr_state <- ggpaintr_server_state(
+    ggpaintr_state <- ggpaintr_server_state(
       "ggplot(data = unknown_object, aes(x = mpg, y = disp)) + geom_point()",
       ids = ids
     )
 
-    ggpaintr_bind_control_panel(input, output, paintr_state, ids = ids)
-    ggpaintr_bind_draw(input, paintr_state, ids = ids)
-    ggpaintr_bind_error(output, paintr_state, ids = ids)
-    ggpaintr_bind_code(output, paintr_state, ids = ids)
+    ggpaintr_bind_control_panel(input, output, ggpaintr_state, ids = ids)
+    ggpaintr_bind_draw(input, ggpaintr_state, ids = ids)
+    ggpaintr_bind_error(output, ggpaintr_state, ids = ids)
+    ggpaintr_bind_code(output, ggpaintr_state, ids = ids)
 
-    session$userData$paintr_state <- paintr_state
+    session$userData$ggpaintr_state <- ggpaintr_state
   }
 
   shiny::testServer(server_wrapper, {
@@ -185,7 +185,7 @@ test_that("bind helpers expose error and code output with custom ids on failure"
       runPlot = 1
     )
 
-    runtime_result <- session$userData$paintr_state$runtime()
+    runtime_result <- session$userData$ggpaintr_state$runtime()
     expect_false(runtime_result$ok)
     expect_match(output$mainError$html, "Plot error:", fixed = TRUE)
     expect_match(output$mainError$html, "unknown_object")

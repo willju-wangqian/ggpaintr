@@ -4,18 +4,18 @@ ui_text <- function(ui) {
 
 test_that("copy rules validate supported sections and leaf fields", {
   expect_error(
-    paintr_validate_copy_rules(list(bad_section = list())),
+    ggpaintr_validate_copy_rules(list(bad_section = list())),
     "unsupported top-level sections"
   )
 
   expect_error(
-    paintr_validate_copy_rules(list(shell = list(title = list(bad_field = "nope")))),
+    ggpaintr_validate_copy_rules(list(shell = list(title = list(bad_field = "nope")))),
     "unsupported fields"
   )
 })
 
 test_that("copy rules normalize aliases and merge precedence field by field", {
-  rules <- paintr_effective_copy_rules(
+  rules <- ggpaintr_effective_copy_rules(
     list(
       defaults = list(var = list(empty_text = "Pick one column")),
       params = list(colour = list(var = list(label = "Choose a colour column"))),
@@ -29,7 +29,7 @@ test_that("copy rules normalize aliases and merge precedence field by field", {
     )
   )
 
-  color_copy <- paintr_resolve_copy(
+  color_copy <- ggpaintr_resolve_copy(
     "control",
     keyword = "var",
     layer_name = "ggplot",
@@ -42,7 +42,7 @@ test_that("copy rules normalize aliases and merge precedence field by field", {
 })
 
 test_that("copy rule compaction keeps only custom diffs with canonical keys", {
-  compact_rules <- paintr_compact_copy_rules(
+  compact_rules <- ggpaintr_compact_copy_rules(
     list(
       shell = list(
         title = list(label = "Exploratory Plot Builder")
@@ -82,7 +82,7 @@ test_that("copy rule compaction keeps only custom diffs with canonical keys", {
 
 test_that("copy rule compaction collapses default-equivalent overrides", {
   expect_null(
-    paintr_compact_copy_rules(
+    ggpaintr_compact_copy_rules(
       list(
         shell = list(
           title = list(label = "ggpaintr Plot Builder")
@@ -93,19 +93,19 @@ test_that("copy rule compaction collapses default-equivalent overrides", {
 })
 
 test_that("copy rules provide readable fallbacks and seeded defaults", {
-  fallback_copy <- paintr_resolve_copy(
+  fallback_copy <- ggpaintr_resolve_copy(
     "control",
     keyword = "num",
     layer_name = "geom_histogram",
     param = "bin_size"
   )
-  alpha_copy <- paintr_resolve_copy(
+  alpha_copy <- ggpaintr_resolve_copy(
     "control",
     keyword = "num",
     layer_name = "geom_point",
     param = "alpha"
   )
-  facet_copy <- paintr_resolve_copy(
+  facet_copy <- ggpaintr_resolve_copy(
     "control",
     keyword = "expr",
     layer_name = "facet_wrap",
@@ -120,7 +120,7 @@ test_that("copy rules provide readable fallbacks and seeded defaults", {
 })
 
 test_that("app shell copy uses defaults and runtime overrides", {
-  default_components <- paintr_app_components(
+  default_components <- ggpaintr_app_components(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
   default_text <- ui_text(default_components$ui)
@@ -129,7 +129,7 @@ test_that("app shell copy uses defaults and runtime overrides", {
   expect_match(default_text, "Update plot", fixed = TRUE)
   expect_match(default_text, "Export Shiny app", fixed = TRUE)
 
-  custom_components <- paintr_app_components(
+  custom_components <- ggpaintr_app_components(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
     copy_rules = list(
       shell = list(
@@ -174,11 +174,11 @@ test_that("ui builders use resolved copy for uploads and common controls", {
 })
 
 test_that("tab UI does not expose parser-style unnamed argument labels", {
-  obj <- paintr_formula(
+  obj <- ggpaintr_formula(
     "ggplot(data = iris, aes(x = var, y = var)) + facet_wrap(expr)"
   )
 
-  tab_text <- ui_text(paintr_get_tab_ui(obj))
+  tab_text <- ui_text(ggpaintr_get_tab_ui(obj))
 
   expect_match(tab_text, "Facet by", fixed = TRUE)
   expect_no_match(tab_text, "argument 1")
