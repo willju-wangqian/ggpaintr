@@ -46,7 +46,7 @@ The supported integration pieces are:
 The current package surface is intentionally layered.
 
 - use `ptr_app()` or `ptr_server()` for most apps
-- use `ptr_server_state()` plus the `ptr_bind_*()` helpers when you
+- use `ptr_server_state()` plus the `ptr_register_*()` helpers when you
   already own a larger Shiny layout and want to embed `ggpaintr`
 - use the low-level `ptr_*` runtime helpers, together with
   `ptr_runtime_input_spec()`, when you are writing tests, tooling, or

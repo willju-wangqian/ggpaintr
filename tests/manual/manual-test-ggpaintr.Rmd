@@ -696,7 +696,7 @@ Expected checks:
 ## Formula 10: Embedded App with Custom Ids and Bind Helpers
 
 This app checks the supported phase-1 integration surface: `ptr_build_ids()`,
-`ptr_server_state()`, and the `ptr_bind_*()` helpers.
+`ptr_server_state()`, and the `ptr_register_*()` helpers.
 
 ```{r formula-10-custom-ids, eval=FALSE}
 ui <- fluidPage(
