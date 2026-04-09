@@ -1,6 +1,7 @@
 # Specs
 
 ## Active Decisions
+- [harness-design](harness-design.md) — reusable Claude Code harness: rules, workflows, dispatcher, agents [harness, workflow, agents, rules]
 
 ## Reference
 - [project-overview](project-overview.md) — durable architecture, public API, supported boundaries [architecture, api]
