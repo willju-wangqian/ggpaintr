@@ -159,9 +159,6 @@ ptr_assemble_plot <- function(plot_expr_list, envir = parent.frame()) {
   }
 
   plot_list <- lapply(plot_expr_list, eval, envir = envir)
-  if (length(plot_list) == 0) {
-    rlang::abort("No plot layers remain after processing the selected inputs.")
-  }
 
   p <- plot_list[[1]]
   if (length(plot_list) == 1) {

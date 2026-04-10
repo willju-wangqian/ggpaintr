@@ -145,12 +145,12 @@ handle_duplicate_names <- function(x) {
     duplicated_items <- unique(x[duplicated(x)])
     counting_list <- rep(list(0), length(duplicated_items))
     counting_list <- rlang::set_names(counting_list, duplicated_items)
-    seen <- logical(0)
+    seen <- rlang::set_names(rep(FALSE, length(duplicated_items)), duplicated_items)
 
     for (i in seq_along(x)) {
       if (x[i] %in% names(counting_list)) {
         counting_list[[x[i]]] <- counting_list[[x[i]]] + 1
-        if (isTRUE(seen[x[i]])) {
+        if (seen[[x[i]]]) {
           x[i] <- paste0(x[i], "-", counting_list[[x[i]]])
         } else {
           seen[[x[i]]] <- TRUE

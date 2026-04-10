@@ -1,3 +1,12 @@
+.ptr_cache <- new.env(parent = emptyenv())
+
+.ptr_safe_base_names <- function() {
+  if (is.null(.ptr_cache$safe_base_names)) {
+    .ptr_cache$safe_base_names <- c(ls(baseenv()), ls(asNamespace("ggpaintr")))
+  }
+  .ptr_cache$safe_base_names
+}
+
 #' Construct a Custom ggpaintr Placeholder
 #'
 #' Build one placeholder specification for use with
@@ -300,7 +309,7 @@ ptr_normalize_placeholders <- function(placeholders = NULL) {
   }
 
   normalized <- list()
-  seen_keywords <- character()
+  seen_keywords <- vector("list", length(placeholders))
 
   for (i in seq_along(placeholders)) {
     placeholder <- placeholders[[i]]
@@ -319,7 +328,7 @@ ptr_normalize_placeholders <- function(placeholders = NULL) {
     }
 
     normalized[[keyword]] <- placeholder
-    seen_keywords <- c(seen_keywords, keyword)
+    seen_keywords[[i]] <- keyword
   }
 
   normalized
@@ -665,8 +674,7 @@ check_free_variables_impl <- function(fn_body, formal_names, keyword, hook_name)
 
   safe_names <- unique(c(
     formal_names,
-    ls(baseenv()),
-    ls(asNamespace("ggpaintr")),
+    .ptr_safe_base_names(),
     "if", "else", "for", "while", "repeat", "function", "return",
     "next", "break", "{", "(", "<-", "<<-", "=", "~",
     "!", "&", "|", "&&", "||", "+", "-", "*", "/", "^",

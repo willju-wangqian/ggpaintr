@@ -420,11 +420,6 @@ ptr_generate_shiny <- function(ptr_obj,
 
   tryCatch(
     writeLines(shiny_text, output_file),
-    warning = function(w) {
-      rlang::abort(
-        paste0("Failed to write app script to '", output_file, "': ", conditionMessage(w))
-      )
-    },
     error = function(e) {
       rlang::abort(
         paste0("Failed to write app script to '", output_file, "': ", conditionMessage(e))

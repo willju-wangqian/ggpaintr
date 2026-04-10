@@ -1,6 +1,3 @@
-# TODO(future): add inst/shiny-demo/ interactive demo app for hands-on
-# discovery by new users.
-
 #' Build Standard Output Ids for ggpaintr Integration
 #'
 #' Create a validated set of top-level output and control ids for embedding the
