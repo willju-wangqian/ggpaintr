@@ -324,7 +324,7 @@ ptr_serialize_ids <- function(ids) {
 #'
 #' @return A character vector containing the exported app template.
 #' @noRd
-get_shiny_template <- function(formula_text,
+ptr_shiny_template <- function(formula_text,
                                ui_text = NULL,
                                placeholders = NULL,
                                ids = ptr_build_ids()) {
@@ -433,7 +433,7 @@ ptr_generate_shiny <- function(ptr_obj,
   } else {
     ptr_merge_placeholders(placeholders)
   }
-  shiny_text <- get_shiny_template(
+  shiny_text <- ptr_shiny_template(
     ptr_obj$formula_text,
     ui_text = ui_text,
     placeholders = placeholder_registry,

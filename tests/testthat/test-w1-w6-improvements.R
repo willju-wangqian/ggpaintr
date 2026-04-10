@@ -308,7 +308,7 @@ test_that("ptr_resolve_num_expr returns ptr_missing_expr for character(0) withou
 })
 
 # =============================================================================
-# Fix B: get_shiny_template emits ptr_server(..., ids = ids) as single literal
+# Fix B: ptr_shiny_template emits ptr_server(..., ids = ids) as single literal
 # =============================================================================
 
 test_that("ptr_generate_shiny template contains ptr_server call with ids = ids", {

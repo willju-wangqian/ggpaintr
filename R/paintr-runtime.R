@@ -87,20 +87,26 @@ expr_apply_checkbox_result <- function(expr, nn, input) {
 #'
 #' @return A named list with `complete_expr_list`, `code_text`, and `eval_env`.
 #' @noRd
-ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame()) {
+ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
+                             eval_env = NULL, var_column_map = NULL) {
   assertthat::assert_that(inherits(ptr_obj, "ptr_obj"))
 
   ptr_processed_expr_list <- ptr_obj[["expr_list"]]
-  eval_env <- ptr_prepare_eval_env(ptr_obj, input, envir = envir)
+  if (is.null(eval_env)) {
+    eval_env <- ptr_prepare_eval_env(ptr_obj, input, envir = envir)
+  }
   context <- ptr_define_placeholder_context(ptr_obj, ui_text = NULL, envir = envir)
   context$input <- input
   context$eval_env <- eval_env
-  context$var_column_map <- ptr_build_var_column_map(
-    ptr_obj,
-    input,
-    context,
-    eval_env
-  )
+  if (is.null(var_column_map)) {
+    var_column_map <- ptr_build_var_column_map(
+      ptr_obj,
+      input,
+      context,
+      eval_env
+    )
+  }
+  context$var_column_map <- var_column_map
   placeholder_metas <- ptr_flatten_placeholder_map(ptr_obj)
 
   for (meta in placeholder_metas) {
@@ -227,10 +233,13 @@ ptr_mark_runtime_failure <- function(runtime_result, stage, condition) {
 #'
 #' @return A structured runtime result.
 #' @noRd
-ptr_complete_expr_safe <- function(ptr_obj, input, envir = parent.frame()) {
+ptr_complete_expr_safe <- function(ptr_obj, input, envir = parent.frame(),
+                                   eval_env = NULL, var_column_map = NULL) {
   tryCatch(
     {
-      complete_result <- ptr_complete_expr(ptr_obj, input, envir = envir)
+      complete_result <- ptr_complete_expr(ptr_obj, input, envir = envir,
+                                           eval_env = eval_env,
+                                           var_column_map = var_column_map)
       list(
         ok = TRUE,
         stage = "complete",

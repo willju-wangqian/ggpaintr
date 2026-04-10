@@ -449,12 +449,20 @@ ptr_bind_placeholder_ui <- function(input,
                                        output,
                                        ptr_obj,
                                        envir = parent.frame(),
-                                       ui_text = NULL) {
+                                       ui_text = NULL,
+                                       eval_env = NULL,
+                                       var_column_map = NULL) {
   context <- ptr_define_placeholder_context(
     ptr_obj,
     ui_text = ui_text,
     envir = envir
   )
+  if (!is.null(eval_env)) {
+    context$eval_env <- eval_env
+  }
+  if (!is.null(var_column_map)) {
+    context$var_column_map <- var_column_map
+  }
   deferred_ui <- list()
 
   for (keyword in names(ptr_obj$placeholders)) {
@@ -1180,19 +1188,24 @@ ptr_validate_var_input <- function(value, meta, context) {
 #' @noRd
 ptr_bind_var_ui_impl <- function(input, output, metas, context) {
   ptr_obj <- context$ptr_obj
-  eval_env <- ptr_prepare_eval_env(
-    ptr_obj,
-    input,
-    envir = context$envir
-  )
+  eval_env <- context$eval_env
+  if (is.null(eval_env)) {
+    eval_env <- ptr_prepare_eval_env(
+      ptr_obj,
+      input,
+      envir = context$envir
+    )
+  }
   context$input <- input
   context$eval_env <- eval_env
-  context$var_column_map <- ptr_build_var_column_map(
-    ptr_obj,
-    input,
-    context,
-    eval_env
-  )
+  if (is.null(context$var_column_map)) {
+    context$var_column_map <- ptr_build_var_column_map(
+      ptr_obj,
+      input,
+      context,
+      eval_env
+    )
+  }
   deferred_ui <- list()
 
   metas_by_layer <- split(metas, vapply(metas, `[[`, character(1), "layer_name"))

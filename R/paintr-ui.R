@@ -243,13 +243,17 @@ register_var_ui_outputs <- function(input,
                                     output,
                                     ptr_obj,
                                     envir = parent.frame(),
-                                    ui_text = NULL) {
+                                    ui_text = NULL,
+                                    eval_env = NULL,
+                                    var_column_map = NULL) {
   ptr_bind_placeholder_ui(
     input,
     output,
     ptr_obj,
     envir = envir,
-    ui_text = ui_text
+    ui_text = ui_text,
+    eval_env = eval_env,
+    var_column_map = var_column_map
   )
 }
 

@@ -112,6 +112,7 @@ ptr_validate_state <- function(ptr_state) {
     "obj",
     "runtime",
     "var_ui_list",
+    "shared_env_reactive",
     "raw_ui_text",
     "effective_ui_text",
     "placeholders",
@@ -177,6 +178,7 @@ ptr_server_state <- function(formula,
       obj = shiny::reactiveVal(ptr_parse_formula(formula, placeholders = placeholder_registry)),
       runtime = shiny::reactiveVal(NULL),
       var_ui_list = shiny::reactiveVal(list()),
+      shared_env_reactive = NULL,
       raw_ui_text = ui_text,
       effective_ui_text = ptr_merge_ui_text(
         ui_text,
@@ -211,15 +213,40 @@ ptr_setup_controls <- function(input,
   ptr_validate_state(ptr_state)
   ids <- ptr_normalize_ids(ids)
 
+  shared_env_reactive <- shiny::reactive({
+    shiny::req(ptr_state$obj())
+    obj <- ptr_state$obj()
+    eval_env <- tryCatch(
+      ptr_prepare_eval_env(obj, input, envir = ptr_state$envir),
+      error = function(e) NULL
+    )
+    var_column_map <- if (!is.null(eval_env)) {
+      context <- ptr_define_placeholder_context(obj, ui_text = NULL, envir = ptr_state$envir)
+      context$input <- input
+      context$eval_env <- eval_env
+      tryCatch(
+        ptr_build_var_column_map(obj, input, context, eval_env),
+        error = function(e) NULL
+      )
+    } else {
+      NULL
+    }
+    list(eval_env = eval_env, var_column_map = var_column_map)
+  })
+  ptr_state$shared_env_reactive <- shared_env_reactive
+
   shiny::observe({
     shiny::req(ptr_state$obj())
+    cached <- shared_env_reactive()
     result <- tryCatch(
       register_var_ui_outputs(
         input,
         output,
         ptr_state$obj(),
         envir = ptr_state$envir,
-        ui_text = ptr_state$effective_ui_text
+        ui_text = ptr_state$effective_ui_text,
+        eval_env = cached$eval_env,
+        var_column_map = cached$var_column_map
       ),
       error = function(e) list()
     )
@@ -266,11 +293,21 @@ ptr_register_draw <- function(input,
 
   shiny::observeEvent(input[[ids$draw_button]], {
     shiny::req(ptr_state$obj())
-    ptr_state$runtime(ptr_exec(
+    cached <- if (!is.null(ptr_state$shared_env_reactive)) {
+      tryCatch(ptr_state$shared_env_reactive(), error = function(e) NULL)
+    } else {
+      NULL
+    }
+    runtime_result <- ptr_complete_expr_safe(
       ptr_state$obj(),
       input,
-      envir = ptr_state$envir
-    ))
+      envir = ptr_state$envir,
+      eval_env = cached$eval_env,
+      var_column_map = cached$var_column_map
+    )
+    runtime_result <- ptr_assemble_plot_safe(runtime_result, envir = ptr_state$envir)
+    runtime_result <- ptr_validate_plot_render_safe(runtime_result)
+    ptr_state$runtime(runtime_result)
   })
 
   invisible(ptr_state)
