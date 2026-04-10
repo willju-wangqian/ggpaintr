@@ -145,6 +145,51 @@ test_that("register_var_ui_outputs produces distinct widgets for each var placeh
   expect_false(identical(ui_x, ui_y))
 })
 
+# --- ptr_resolve_upload_expr ---------------------------------------------
+
+test_that("ptr_resolve_upload_expr returns a symbol for a valid name", {
+  result <- ptr_resolve_upload_expr("my_data", list(), list())
+  expect_true(is.symbol(result))
+  expect_equal(rlang::as_string(result), "my_data")
+})
+
+test_that("ptr_resolve_upload_expr returns a symbol for a name starting with dot", {
+  result <- ptr_resolve_upload_expr(".data", list(), list())
+  expect_true(is.symbol(result))
+  expect_equal(rlang::as_string(result), ".data")
+})
+
+test_that("ptr_resolve_upload_expr aborts on name starting with digit", {
+  expect_error(
+    ptr_resolve_upload_expr("123bad", list(), list()),
+    "invalid object name"
+  )
+})
+
+test_that("ptr_resolve_upload_expr aborts on name with spaces", {
+  expect_error(
+    ptr_resolve_upload_expr("has space", list(), list()),
+    "invalid object name"
+  )
+})
+
+test_that("ptr_resolve_upload_expr aborts on injection attempt with semicolon", {
+  expect_error(
+    ptr_resolve_upload_expr("x; system('bad')", list(), list()),
+    "invalid object name"
+  )
+})
+
+test_that("ptr_resolve_upload_expr returns ptr_missing_expr for empty string", {
+  result <- ptr_resolve_upload_expr("", list(), list())
+  expect_s3_class(result, "ptr_missing_expr")
+})
+
+test_that("ptr_resolve_upload_expr returns ptr_missing_expr for NULL", {
+  result <- ptr_resolve_upload_expr(NULL, list(), list())
+  expect_s3_class(result, "ptr_missing_expr")
+})
+
 test_that("bad upload does not crash the app session", {
   formula <- "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
 

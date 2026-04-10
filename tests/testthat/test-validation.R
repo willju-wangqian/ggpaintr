@@ -293,13 +293,13 @@ test_that("ptr_validate_placeholder aborts when hook has wrong arity", {
   bad_build_ui <- make_raw_placeholder(build_ui = function(x) x)
   expect_error(
     ptr_validate_placeholder(bad_build_ui),
-    "build_ui must accept 4 arguments, but has 1"
+    "build_ui must accept at least 4 arguments, but has 1"
   )
 
   bad_resolve_expr <- make_raw_placeholder(resolve_expr = function(a, b) a)
   expect_error(
     ptr_validate_placeholder(bad_resolve_expr),
-    "resolve_expr must accept 3 arguments, but has 2"
+    "resolve_expr must accept at least 3 arguments, but has 2"
   )
 
   bad_resolve_input <- make_raw_placeholder(
@@ -307,7 +307,7 @@ test_that("ptr_validate_placeholder aborts when hook has wrong arity", {
   )
   expect_error(
     ptr_validate_placeholder(bad_resolve_input),
-    "resolve_input must accept 4 arguments, but has 2"
+    "resolve_input must accept at least 4 arguments, but has 2"
   )
 
   bad_bind_ui <- make_raw_placeholder(
@@ -315,7 +315,7 @@ test_that("ptr_validate_placeholder aborts when hook has wrong arity", {
   )
   expect_error(
     ptr_validate_placeholder(bad_bind_ui),
-    "bind_ui must accept 4 arguments, but has 2"
+    "bind_ui must accept at least 4 arguments, but has 2"
   )
 
   bad_prep <- make_raw_placeholder(
@@ -323,7 +323,7 @@ test_that("ptr_validate_placeholder aborts when hook has wrong arity", {
   )
   expect_error(
     ptr_validate_placeholder(bad_prep),
-    "prepare_eval_env must accept 4 arguments, but has 1"
+    "prepare_eval_env must accept at least 4 arguments, but has 1"
   )
 })
 
@@ -479,4 +479,35 @@ test_that("ptr_normalize_placeholders accepts correctly named entries", {
 
   result <- ptr_normalize_placeholders(list(mytype = ph))
   expect_true("mytype" %in% names(result))
+})
+
+# ── ptr_validate_placeholder arity relaxation ─────────────────────────────────
+
+test_that("ptr_validate_placeholder passes hook with exact arity", {
+  ph <- make_raw_placeholder(
+    build_ui = function(id, copy, meta, context) shiny::textInput(id, copy$label)
+  )
+  expect_no_error(ptr_validate_placeholder(ph))
+})
+
+test_that("ptr_validate_placeholder passes hook with extra args via ...", {
+  ph <- make_raw_placeholder(
+    build_ui = function(id, copy, meta, context, ...) shiny::textInput(id, copy$label)
+  )
+  expect_no_error(ptr_validate_placeholder(ph))
+})
+
+test_that("ptr_validate_placeholder passes resolve_expr with extra args via ...", {
+  ph <- make_raw_placeholder(
+    resolve_expr = function(value, meta, context, ...) rlang::expr(!!value)
+  )
+  expect_no_error(ptr_validate_placeholder(ph))
+})
+
+test_that("ptr_validate_placeholder still fails hook with too few args", {
+  bad <- make_raw_placeholder(build_ui = function(id, copy) NULL)
+  expect_error(
+    ptr_validate_placeholder(bad),
+    "build_ui must accept at least 4 arguments, but has 2"
+  )
 })

@@ -171,7 +171,7 @@ ptr_assemble_plot <- function(plot_expr_list, envir = parent.frame()) {
     return(p)
   }
 
-  for (i in seq.int(2, length(plot_list))) {
+  for (i in seq_along(plot_list)[-1]) {
     p <- p + plot_list[[i]]
   }
 

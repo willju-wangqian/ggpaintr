@@ -195,7 +195,7 @@ ptr_missing_expr <- function() {
 #' @return A registry entry or the stored custom placeholder list.
 #' @noRd
 `[[.ptr_define_placeholder_registry` <- function(x, i, ...) {
-  if (is.character(i) && length(i) == 1 && identical(i, "custom_placeholders")) {
+  if (identical(i, "custom_placeholders")) {
     return(attr(x, "custom_placeholders"))
   }
 
@@ -265,10 +265,10 @@ ptr_validate_placeholder <- function(placeholder) {
     if (!is.null(fn) && is.function(fn)) {
       actual <- length(formals(fn))
       expected <- expected_arity[[hook_name]]
-      if (actual != expected) {
+      if (actual < expected) {
         rlang::abort(paste0(
-          "placeholder$", hook_name, " must accept ", expected,
-          " arguments, but has ", actual, "."
+          "placeholder$", hook_name, " must accept at least ",
+          expected, " arguments, but has ", actual, "."
         ))
       }
     }
@@ -933,7 +933,15 @@ ptr_resolve_expr_expr <- function(value, meta, context) {
     return(ptr_missing_expr())
   }
 
-  rlang::parse_expr(value)
+  tryCatch(
+    rlang::parse_expr(value),
+    error = function(e) {
+      rlang::abort(
+        paste0("expr placeholder: could not parse input as R expression: ", conditionMessage(e)),
+        parent = e
+      )
+    }
+  )
 }
 
 #' Build the Default Upload Placeholder UI
@@ -980,7 +988,12 @@ ptr_resolve_upload_expr <- function(value, meta, context) {
     return(ptr_missing_expr())
   }
 
-  rlang::parse_expr(value)
+  if (!grepl("^[a-zA-Z.][a-zA-Z0-9._]*$", value)) {
+    rlang::abort(paste0(
+      "upload placeholder: invalid object name: ", value
+    ))
+  }
+  rlang::sym(value)
 }
 
 #' Inject Uploaded Data Objects into an Evaluation Environment
@@ -1084,7 +1097,7 @@ ptr_resolve_layer_data <- function(ptr_obj,
 #' @return A single logical value.
 #' @noRd
 ptr_param_matches_data <- function(param, index_path = NULL) {
-  if (identical(param, "data") || identical(as.character(param)[1], "data")) {
+  if (identical(param, "data")) {
     return(TRUE)
   }
 

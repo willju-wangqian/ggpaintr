@@ -5,7 +5,7 @@
 #' @return A character vector.
 #' @noRd
 ptr_serialize_r_object <- function(x) {
-  utils::capture.output(dput(x))
+  deparse(x)
 }
 
 #' Escape One String Segment for a Template Literal

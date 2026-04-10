@@ -127,12 +127,7 @@ ptr_runtime_input_spec <- function(ptr_obj) {
   }
 
   layer_names <- names(ptr_obj$expr_list)
-  n_rows <- sum(vapply(ptr_obj$placeholder_map[layer_names], length, 0L)) +
-    sum(vapply(ptr_obj$placeholder_map[layer_names], function(metas) {
-      sum(vapply(metas, function(m) identical(m$keyword, "upload"), FALSE))
-    }, 0L)) +
-    length(setdiff(layer_names, "ggplot"))
-  spec_rows <- vector("list", n_rows)
+  spec_rows <- list()
   idx <- 0L
 
   for (layer_name in layer_names) {

@@ -94,10 +94,10 @@ test_that("get_fun_names returns the symbol name for a symbol", {
   expect_equal(get_fun_names(rlang::sym("mpg")), "mpg")
 })
 
-test_that("get_fun_names returns NULL for constants and other types", {
-  expect_null(get_fun_names(42L))
-  expect_null(get_fun_names("text"))
-  expect_null(get_fun_names(TRUE))
+test_that("get_fun_names returns deparsed string for constants and other types", {
+  expect_equal(get_fun_names(42L),   "42L")
+  expect_equal(get_fun_names("text"), "\"text\"")
+  expect_equal(get_fun_names(TRUE),  "TRUE")
 })
 
 # --- expr_pluck ----------------------------------------------------------
@@ -438,4 +438,84 @@ test_that("ptr_remove_empty_nonstandalone_layers keeps empty geom layers", {
 test_that("check_remove_null handles a single non-NULL element", {
   x <- list(a = 42)
   expect_equal(check_remove_null(x), list(a = 42))
+})
+
+# --- depth guards --------------------------------------------------------
+
+test_that("break_sum aborts when max_depth is exceeded", {
+  # Build a deeply nested + chain: ((((a + b) + c) + d) + e) ...
+  deep_expr <- rlang::sym("a")
+  for (i in seq_len(10)) {
+    deep_expr <- rlang::call2("+", deep_expr, rlang::sym(paste0("x", i)))
+  }
+  expect_error(
+    break_sum(deep_expr, max_depth = 2L),
+    "maximum depth"
+  )
+})
+
+test_that("break_sum works normally within depth limit", {
+  expr <- quote(a + b + c)
+  result <- break_sum(expr)
+  expect_type(result, "list")
+})
+
+test_that("get_index_path aborts when max_depth is exceeded", {
+  # Build a call nested 10 levels deep: f(f(f(...)))
+  deep_expr <- rlang::call2("f", rlang::sym("var"))
+  for (i in seq_len(10)) {
+    deep_expr <- rlang::call2("f", deep_expr)
+  }
+  expect_error(
+    get_index_path(deep_expr, max_depth = 2L),
+    "maximum depth"
+  )
+})
+
+test_that("get_index_path works normally within depth limit", {
+  expr <- quote(aes(x = var, y = var))
+  result <- get_index_path(expr)
+  expect_length(result, 2)
+})
+
+test_that("expr_remove_null aborts when max_depth is exceeded", {
+  null_sym <- rlang::sym("_NULL_PLACEHOLDER")
+  # Build a deeply nested call structure
+  deep_expr <- rlang::call2("f", null_sym)
+  for (i in seq_len(10)) {
+    deep_expr <- rlang::call2("g", deep_expr)
+  }
+  expect_error(
+    expr_remove_null(deep_expr, max_depth = 2L),
+    "maximum depth"
+  )
+})
+
+test_that("expr_remove_null works normally within depth limit", {
+  null_sym <- rlang::sym("_NULL_PLACEHOLDER")
+  expr <- rlang::call2("f", rlang::sym("a"), null_sym)
+  result <- expr_remove_null(expr)
+  remaining <- as.list(result)[-1]
+  expect_false(any(vapply(remaining, function(e) {
+    is.symbol(e) && identical(e, null_sym)
+  }, logical(1))))
+})
+
+test_that("expr_remove_emptycall2 aborts when max_depth is exceeded", {
+  # Build a deeply nested non-gg call
+  deep_expr <- rlang::call2("unknown_func", rlang::sym("a"))
+  for (i in seq_len(10)) {
+    deep_expr <- rlang::call2("wrapper", deep_expr)
+  }
+  expect_error(
+    expr_remove_emptycall2(deep_expr, max_depth = 2L),
+    "maximum depth"
+  )
+})
+
+test_that("expr_remove_emptycall2 works normally within depth limit", {
+  expr <- quote(wrapper(geom_point()))
+  result <- expr_remove_emptycall2(expr)
+  args <- as.list(result)[-1]
+  expect_true(length(args) >= 1)
 })

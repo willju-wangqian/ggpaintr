@@ -26,9 +26,9 @@ expr_type <- function(x) {
 #'
 #' @return A nested structure with plot layers separated.
 #' @noRd
-handle_call_break_sum <- function(x) {
+handle_call_break_sum <- function(x, .depth = 0L, max_depth = 100L) {
   if (rlang::is_call(x, "+")) {
-    lapply(x[-1], break_sum)
+    lapply(x[-1], break_sum, .depth = .depth + 1L, max_depth = max_depth)
   } else {
     x
   }
@@ -40,13 +40,17 @@ handle_call_break_sum <- function(x) {
 #'
 #' @return A split representation of the expression.
 #' @noRd
-break_sum <- function(x) {
+break_sum <- function(x, .depth = 0L, max_depth = 100L) {
+  if (.depth > max_depth) {
+    rlang::abort("Formula nesting exceeds maximum depth.")
+  }
   switch(
     expr_type(x),
     symbol = x,
     constant = x,
-    call = handle_call_break_sum(x),
-    pairlist = as.pairlist(lapply(x, break_sum))
+    call = handle_call_break_sum(x, .depth, max_depth),
+    pairlist = as.pairlist(lapply(x, break_sum, .depth = .depth + 1L,
+                                  max_depth = max_depth))
   )
 }
 
@@ -65,7 +69,7 @@ get_fun_names <- function(x) {
     return(rlang::as_string(x))
   }
 
-  NULL
+  deparse(x)
 }
 
 #' Pluck an Expression by Index Path
@@ -117,11 +121,18 @@ expr_pluck <- function(.x, index_path) {
 get_index_path <- function(x,
                            target = c("var", "text", "num", "expr", "upload"),
                            current_path = numeric(),
-                           result = list()) {
+                           result = list(),
+                           max_depth = 100L) {
+  if (length(current_path) > max_depth) {
+    rlang::abort(paste0(
+      "Formula nesting exceeds maximum depth (", max_depth, "). ",
+      "Check for excessively nested expressions."
+    ))
+  }
   for (i in seq_along(x)) {
     new_path <- c(current_path, i)
     if (is.call(x[[i]])) {
-      result <- get_index_path(x[[i]], target, new_path, result)
+      result <- get_index_path(x[[i]], target, new_path, result, max_depth)
     } else if (is.symbol(x[[i]])) {
       if (rlang::as_string(x[[i]]) %in% target) {
         result <- c(result, list(new_path))
@@ -206,12 +217,16 @@ get_expr_param <- function(.expr, .path) {
 #' @noRd
 expr_remove_null <- function(.expr,
                              target = rlang::sym("_NULL_PLACEHOLDER"),
-                             current_path = numeric()) {
+                             current_path = numeric(),
+                             max_depth = 100L) {
+  if (length(current_path) > max_depth) {
+    rlang::abort("Expression nesting exceeds maximum depth.")
+  }
   if (length(.expr) == 0L) return(.expr)
   for (i in length(.expr):1) {
     new_path <- c(current_path, i)
     if (is.call(.expr[[i]])) {
-      .expr[[i]] <- expr_remove_null(.expr[[i]], target, new_path)
+      .expr[[i]] <- expr_remove_null(.expr[[i]], target, new_path, max_depth)
     } else if (is.symbol(.expr[[i]]) && identical(.expr[[i]], target)) {
       .expr[[i]] <- NULL
     }
@@ -258,7 +273,10 @@ ptr_can_stand_alone <- function(fn_name) {
 #'
 #' @return The cleaned expression or `NULL`.
 #' @noRd
-expr_remove_emptycall2 <- function(.expr) {
+expr_remove_emptycall2 <- function(.expr, .depth = 0L, max_depth = 100L) {
+  if (.depth > max_depth) {
+    rlang::abort("Expression nesting exceeds maximum depth.")
+  }
   if (length(.expr) == 0L) return(.expr)
   for (i in length(.expr):1) {
     if (is.call(.expr[[i]])) {
@@ -268,7 +286,7 @@ expr_remove_emptycall2 <- function(.expr) {
           .expr[[i]] <- NULL
         }
       } else {
-        .expr[[i]] <- expr_remove_emptycall2(.expr[[i]])
+        .expr[[i]] <- expr_remove_emptycall2(.expr[[i]], .depth + 1L, max_depth)
       }
     }
   }

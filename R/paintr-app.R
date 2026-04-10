@@ -619,7 +619,7 @@ ptr_server <- function(input,
     ids = ids
   )
 
-  ptr_setup_controls(input, output, ptr_state)
+  ptr_state <- ptr_setup_controls(input, output, ptr_state)
   ptr_register_export(output, ptr_state)
   ptr_register_draw(input, ptr_state)
   ptr_register_plot(output, ptr_state)
