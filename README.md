@@ -388,7 +388,7 @@ ptr_runtime_input_spec(upload_obj)
     `ptr_server()`
 -   only the six top-level ids exposed by `ptr_build_ids()` are
     configurable
--   runtime failures are labeled as `Input error:` or `Plot error:` and
+-   runtime failures are labeled as `Input error` or `Plot error` and
     stay on the shared inline error path
 
 ## Not guaranteed / implementation details
