@@ -293,11 +293,7 @@ ptr_register_draw <- function(input,
 
   shiny::observeEvent(input[[ids$draw_button]], {
     shiny::req(ptr_state$obj())
-    cached <- if (!is.null(ptr_state$shared_env_reactive)) {
-      tryCatch(ptr_state$shared_env_reactive(), error = function(e) NULL)
-    } else {
-      NULL
-    }
+    cached <- tryCatch(ptr_state$shared_env_reactive(), error = function(e) NULL)
     runtime_result <- ptr_complete_expr_safe(
       ptr_state$obj(),
       input,
