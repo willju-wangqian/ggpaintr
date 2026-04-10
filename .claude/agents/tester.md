@@ -1,7 +1,7 @@
 ---
 name: tester
 description: "Writes tests, finds bugs, and validates correctness for ggpaintr"
-extends: harness:tester
+extends: ewh:tester
 model: sonnet
 tools:
   - Read

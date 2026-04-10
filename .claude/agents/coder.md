@@ -1,7 +1,7 @@
 ---
 name: coder
 description: "Implements features and fixes for the ggpaintr R package"
-extends: harness:coder
+extends: ewh:coder
 model: sonnet
 tools:
   - Read
