@@ -321,7 +321,9 @@ ptr_remove_empty_nonstandalone_layers <- function(expr_list) {
     if (is.call(expr) && length(expr) == 1) {
       fn_name <- rlang::as_string(expr[[1]])
       if (!ptr_can_stand_alone(fn_name)) {
-        cli::cli_inform(paste0("Layer ", fn_name, "() removed (no arguments provided)."))
+        if (ptr_verbose()) {
+          cli::cli_inform(paste0("Layer ", fn_name, "() removed (no arguments provided)."))
+        }
         expr_list[[nn]] <- NULL
       }
     }
@@ -346,4 +348,151 @@ check_remove_null <- function(x) {
   }
 
   x
+}
+
+#' Check Whether ggpaintr Verbose Mode Is Active
+#'
+#' @return A single logical value.
+#' @noRd
+ptr_verbose <- function() {
+  isTRUE(getOption("ggpaintr.verbose", default = TRUE))
+}
+
+# Default denylist for expr placeholder safety
+unsafe_expr_denylist <- c(
+  # system escape
+  "system", "system2", "shell", "shell.exec",
+  # file I/O
+  "file.create", "file.remove", "file.rename", "file.copy",
+  "file.append", "unlink", "dir.create",
+  "readLines", "writeLines", "readRDS", "saveRDS",
+  "read.csv", "write.csv", "read.table", "write.table",
+  "scan", "cat", "sink", "connection",
+  "download.file", "url", "file",
+  # meta-eval (denylist bypass vectors)
+  "eval", "evalq", "parse", "deparse",
+  "do.call", "match.fun", "get", "mget",
+  "Recall", "sys.call", "match.call",
+  # environment / global state mutation
+  "assign", "rm", "remove", "attach", "detach",
+  "source", "sys.source",
+  "library", "require", "loadNamespace",
+  "Sys.setenv", "Sys.unsetenv", "options",
+  # dangerous base
+  "on.exit", "q", "quit", "stop",
+  ".Internal", ".Primitive", ".Call", ".External"
+)
+
+#' Resolve the Effective Check List from an `expr_check` Value
+#'
+#' @param expr_check A logical or list with `deny_list` / `allow_list`.
+#'
+#' @return A list with `mode` (`"off"`, `"denylist"`, or `"allowlist"`)
+#'   and `fns` (the character vector to check against).
+#' @noRd
+resolve_expr_check <- function(expr_check) {
+  if (identical(expr_check, FALSE)) {
+    return(list(mode = "off", fns = character()))
+  }
+
+  if (identical(expr_check, TRUE)) {
+    return(list(mode = "denylist", fns = unsafe_expr_denylist))
+  }
+
+  if (!is.list(expr_check)) {
+    rlang::abort(paste0(
+      "expr_check must be TRUE, FALSE, or a list ",
+      "with 'deny_list' and/or 'allow_list'."
+    ))
+  }
+
+  has_allow <- !is.null(expr_check$allow_list)
+  has_deny <- !is.null(expr_check$deny_list)
+
+  if (!has_allow && !has_deny) {
+    return(list(mode = "denylist", fns = unsafe_expr_denylist))
+  }
+
+  if (has_allow) {
+    allow <- expr_check$allow_list
+    if (has_deny) {
+      allow <- setdiff(allow, expr_check$deny_list)
+    }
+    return(list(mode = "allowlist", fns = allow))
+  }
+
+  list(mode = "denylist", fns = expr_check$deny_list)
+}
+
+#' Extract a Function Name from an AST Node
+#'
+#' Returns both the bare name and the namespaced name (if applicable)
+#' so callers can check either form.
+#'
+#' @param fn The first element of a call.
+#'
+#' @return A character vector of length 1 or 2.
+#' @noRd
+extract_fn_names <- function(fn) {
+  if (is.symbol(fn)) {
+    return(as.character(fn))
+  }
+
+  if (is.call(fn) && length(fn) == 3L &&
+        as.character(fn[[1]]) %in% c("::", ":::")) {
+    bare <- as.character(fn[[3]])
+    qualified <- paste0(as.character(fn[[2]]), "::", bare)
+    return(c(bare, qualified))
+  }
+
+  deparse(fn, width.cutoff = 60L)[[1]]
+}
+
+#' Validate an Expression Against the Resolved Check List
+#'
+#' Walks the AST and aborts if any function call violates the
+#' active check mode (denylist or allowlist).
+#'
+#' @param expr A parsed R expression.
+#' @param expr_check A logical or list with `deny_list` / `allow_list`.
+#'
+#' @return Invisible `TRUE` if valid; aborts otherwise.
+#' @noRd
+validate_expr_safety <- function(expr, expr_check = TRUE) {
+  resolved <- resolve_expr_check(expr_check)
+
+  if (resolved$mode == "off") {
+    return(invisible(TRUE))
+  }
+
+  walk_expr <- function(x) {
+    if (is.call(x)) {
+      fn_names <- extract_fn_names(x[[1]])
+
+      if (resolved$mode == "denylist") {
+        blocked <- fn_names[fn_names %in% resolved$fns]
+        if (length(blocked) > 0) {
+          rlang::abort(paste0(
+            "expr placeholder: `", blocked[[1]],
+            "` is not allowed. ",
+            "Set expr_check = FALSE to allow ",
+            "arbitrary expressions."
+          ))
+        }
+      } else {
+        if (!any(fn_names %in% resolved$fns)) {
+          rlang::abort(paste0(
+            "expr placeholder: `", fn_names[[1]],
+            "` is not in the allowlist. ",
+            "Set expr_check = FALSE to allow ",
+            "arbitrary expressions."
+          ))
+        }
+      }
+
+      for (i in seq_along(x)[-1]) walk_expr(x[[i]])
+    }
+  }
+  walk_expr(expr)
+  invisible(TRUE)
 }

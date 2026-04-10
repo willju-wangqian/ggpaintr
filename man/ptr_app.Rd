@@ -4,7 +4,13 @@
 \alias{ptr_app}
 \title{Build a ggpaintr Shiny App}
 \usage{
-ptr_app(formula, envir = parent.frame(), ui_text = NULL, placeholders = NULL)
+ptr_app(
+  formula,
+  envir = parent.frame(),
+  ui_text = NULL,
+  placeholders = NULL,
+  expr_check = TRUE
+)
 }
 \arguments{
 \item{formula}{A single formula string using \code{ggpaintr} placeholders.}
@@ -16,6 +22,14 @@ text, and placeholders.}
 
 \item{placeholders}{Optional custom placeholder definitions or an existing
 placeholder registry.}
+
+\item{expr_check}{Controls \code{expr} placeholder validation.
+\code{TRUE} (default) applies the built-in denylist of dangerous
+functions.
+\code{FALSE} disables all checking.
+A named list with \code{deny_list} and/or \code{allow_list} character
+vectors supplies a custom check; when both are given,
+denied entries are removed from the allowlist.}
 }
 \value{
 A \code{shiny.appobj}.

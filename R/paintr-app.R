@@ -157,6 +157,13 @@ ptr_validate_state <- function(ptr_state) {
 #'   the integration helpers.
 #' @param placeholders Optional custom placeholder definitions or an existing
 #'   placeholder registry.
+#' @param expr_check Controls `expr` placeholder validation.
+#'   `TRUE` (default) applies the built-in denylist of dangerous
+#'   functions.
+#'   `FALSE` disables all checking.
+#'   A named list with `deny_list` and/or `allow_list` character
+#'   vectors supplies a custom check; when both are given,
+#'   denied entries are removed from the allowlist.
 #'
 #' @return An object of class `ptr_state`.
 #' @examples
@@ -169,7 +176,8 @@ ptr_server_state <- function(formula,
                              envir = parent.frame(),
                              ui_text = NULL,
                              ids = ptr_build_ids(),
-                             placeholders = NULL) {
+                             placeholders = NULL,
+                             expr_check = TRUE) {
   ids <- ptr_normalize_ids(ids)
   placeholder_registry <- ptr_merge_placeholders(placeholders)
 
@@ -187,7 +195,8 @@ ptr_server_state <- function(formula,
       placeholders = placeholder_registry,
       custom_placeholders = placeholder_registry$custom_placeholders,
       ids = ids,
-      envir = envir
+      envir = envir,
+      expr_check = expr_check
     ),
     class = c("ptr_state", "list")
   )
@@ -221,7 +230,10 @@ ptr_setup_controls <- function(input,
       error = function(e) NULL
     )
     var_column_map <- if (!is.null(eval_env)) {
-      context <- ptr_define_placeholder_context(obj, ui_text = NULL, envir = ptr_state$envir)
+      context <- ptr_define_placeholder_context(
+        obj, ui_text = NULL, envir = ptr_state$envir,
+        expr_check = ptr_state$expr_check
+      )
       context$input <- input
       context$eval_env <- eval_env
       tryCatch(
@@ -246,7 +258,8 @@ ptr_setup_controls <- function(input,
         envir = ptr_state$envir,
         ui_text = ptr_state$effective_ui_text,
         eval_env = cached$eval_env,
-        var_column_map = cached$var_column_map
+        var_column_map = cached$var_column_map,
+        expr_check = ptr_state$expr_check
       ),
       error = function(e) list()
     )
@@ -299,7 +312,8 @@ ptr_register_draw <- function(input,
       input,
       envir = ptr_state$envir,
       eval_env = cached$eval_env,
-      var_column_map = cached$var_column_map
+      var_column_map = cached$var_column_map,
+      expr_check = ptr_state$expr_check
     )
     runtime_result <- ptr_assemble_plot_safe(runtime_result, envir = ptr_state$envir)
     runtime_result <- ptr_validate_plot_render_safe(runtime_result)
@@ -562,6 +576,13 @@ ptr_output_ui <- function(ids = ptr_build_ids()) {
 #'   text, and placeholders.
 #' @param placeholders Optional custom placeholder definitions or an existing
 #'   placeholder registry.
+#' @param expr_check Controls `expr` placeholder validation.
+#'   `TRUE` (default) applies the built-in denylist of dangerous
+#'   functions.
+#'   `FALSE` disables all checking.
+#'   A named list with `deny_list` and/or `allow_list` character
+#'   vectors supplies a custom check; when both are given,
+#'   denied entries are removed from the allowlist.
 #'
 #' @return A `shiny.appobj`.
 #' @examples
@@ -571,12 +592,14 @@ ptr_output_ui <- function(ids = ptr_build_ids()) {
 ptr_app <- function(formula,
                          envir = parent.frame(),
                          ui_text = NULL,
-                         placeholders = NULL) {
+                         placeholders = NULL,
+                         expr_check = TRUE) {
   app_parts <- ptr_app_components(
     formula,
     envir = envir,
     ui_text = ui_text,
-    placeholders = placeholders
+    placeholders = placeholders,
+    expr_check = expr_check
   )
   shiny::shinyApp(ui = app_parts$ui, server = app_parts$server)
 }
@@ -599,6 +622,13 @@ ptr_app <- function(formula,
 #'   placeholder registry.
 #' @param ids A `ptr_build_ids` object controlling the Shiny element IDs used by
 #'   the integration helpers. Defaults to `ptr_build_ids()`.
+#' @param expr_check Controls `expr` placeholder validation.
+#'   `TRUE` (default) applies the built-in denylist of dangerous
+#'   functions.
+#'   `FALSE` disables all checking.
+#'   A named list with `deny_list` and/or `allow_list` character
+#'   vectors supplies a custom check; when both are given,
+#'   denied entries are removed from the allowlist.
 #'
 #' @return A `ptr_state` object containing reactive accessors named `obj`,
 #'   `runtime`, and `var_ui_list`, plus shared metadata used by the bind helpers.
@@ -610,13 +640,15 @@ ptr_server <- function(input,
                             envir = parent.frame(),
                             ui_text = NULL,
                             placeholders = NULL,
-                            ids = ptr_build_ids()) {
+                            ids = ptr_build_ids(),
+                            expr_check = TRUE) {
   ptr_state <- ptr_server_state(
     formula,
     envir = envir,
     ui_text = ui_text,
     placeholders = placeholders,
-    ids = ids
+    ids = ids,
+    expr_check = expr_check
   )
 
   ptr_state <- ptr_setup_controls(input, output, ptr_state)
@@ -683,7 +715,8 @@ ptr_build_app_ui <- function(title_label, draw_label, export_label,
 ptr_app_components <- function(formula,
                                   envir = parent.frame(),
                                   ui_text = NULL,
-                                  placeholders = NULL) {
+                                  placeholders = NULL,
+                                  expr_check = TRUE) {
   shell_copy <- ptr_resolve_shell_ui_text(ui_text)
 
   ui <- ptr_build_app_ui(
@@ -700,7 +733,8 @@ ptr_app_components <- function(formula,
       formula,
       envir = envir,
       ui_text = ui_text,
-      placeholders = placeholders
+      placeholders = placeholders,
+      expr_check = expr_check
     )
     invisible(NULL)
   }

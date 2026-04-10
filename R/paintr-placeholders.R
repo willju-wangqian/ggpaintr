@@ -366,7 +366,8 @@ ptr_flatten_placeholder_map <- function(ptr_obj, keyword = NULL) {
 #' @noRd
 ptr_define_placeholder_context <- function(ptr_obj,
                                        ui_text = NULL,
-                                       envir = parent.frame()) {
+                                       envir = parent.frame(),
+                                       expr_check = TRUE) {
   list(
     ptr_obj = ptr_obj,
     placeholders = ptr_obj$placeholders,
@@ -374,7 +375,8 @@ ptr_define_placeholder_context <- function(ptr_obj,
       ui_text,
       placeholders = ptr_obj$placeholders
     ),
-    envir = envir
+    envir = envir,
+    expr_check = expr_check
   )
 }
 
@@ -452,11 +454,13 @@ ptr_bind_placeholder_ui <- function(input,
                                        envir = parent.frame(),
                                        ui_text = NULL,
                                        eval_env = NULL,
-                                       var_column_map = NULL) {
+                                       var_column_map = NULL,
+                                       expr_check = TRUE) {
   context <- ptr_define_placeholder_context(
     ptr_obj,
     ui_text = ui_text,
-    envir = envir
+    envir = envir,
+    expr_check = expr_check
   )
   if (!is.null(eval_env)) {
     context$eval_env <- eval_env
@@ -933,15 +937,24 @@ ptr_resolve_expr_expr <- function(value, meta, context) {
     return(ptr_missing_expr())
   }
 
-  tryCatch(
+  parsed <- tryCatch(
     rlang::parse_expr(value),
     error = function(e) {
       rlang::abort(
-        paste0("expr placeholder: could not parse input as R expression: ", conditionMessage(e)),
+        paste0(
+          "expr placeholder: could not parse input ",
+          "as R expression: ", conditionMessage(e)
+        ),
         parent = e
       )
     }
   )
+
+  if (!identical(context$expr_check, FALSE)) {
+    validate_expr_safety(parsed, expr_check = context$expr_check)
+  }
+
+  parsed
 }
 
 #' Build the Default Upload Placeholder UI

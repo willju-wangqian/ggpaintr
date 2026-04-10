@@ -12,7 +12,8 @@ ptr_server(
   envir = parent.frame(),
   ui_text = NULL,
   placeholders = NULL,
-  ids = ptr_build_ids()
+  ids = ptr_build_ids(),
+  expr_check = TRUE
 )
 }
 \arguments{
@@ -34,6 +35,14 @@ placeholder registry.}
 
 \item{ids}{A \code{ptr_build_ids} object controlling the Shiny element IDs used by
 the integration helpers. Defaults to \code{ptr_build_ids()}.}
+
+\item{expr_check}{Controls \code{expr} placeholder validation.
+\code{TRUE} (default) applies the built-in denylist of dangerous
+functions.
+\code{FALSE} disables all checking.
+A named list with \code{deny_list} and/or \code{allow_list} character
+vectors supplies a custom check; when both are given,
+denied entries are removed from the allowlist.}
 }
 \value{
 A \code{ptr_state} object containing reactive accessors named \code{obj},

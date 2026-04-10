@@ -3,6 +3,7 @@
 ## Active Decisions
 - [harness-design](harness-design.md) — reusable Claude Code harness: rules, workflows, dispatcher, agents [harness, workflow, agents, rules]
 - [placeholder-export](placeholder-export.md) — lift inline-only restriction: source_file/source_package/source_function params on ptr_define_placeholder() [placeholders, export, api]
+- [expr-safety-verbose](expr-safety-verbose.md) — denylist default for expr safety, expr_check API, verbose via R option [safety, expr, verbose, api]
 
 ## Reference
 - [project-overview](project-overview.md) — durable architecture, public API, supported boundaries [architecture, api]

@@ -519,3 +519,251 @@ test_that("expr_remove_emptycall2 works normally within depth limit", {
   args <- as.list(result)[-1]
   expect_true(length(args) >= 1)
 })
+
+# --- validate_expr_safety (denylist default) ------------------------------
+
+test_that("denylist allows safe math expressions", {
+  expect_invisible(validate_expr_safety(quote(sqrt(x))))
+  expect_invisible(validate_expr_safety(quote(x + y * 2)))
+  expect_invisible(validate_expr_safety(quote(log10(abs(x)))))
+  expect_invisible(validate_expr_safety(quote(round(mean(x), 2))))
+})
+
+test_that("denylist allows string helpers", {
+  expect_invisible(validate_expr_safety(quote(paste0("a", "b"))))
+  expect_invisible(validate_expr_safety(quote(toupper(x))))
+})
+
+test_that("denylist allows logic and type coercion", {
+  expect_invisible(validate_expr_safety(quote(ifelse(is.na(x), 0, x))))
+  expect_invisible(validate_expr_safety(quote(factor(x))))
+  expect_invisible(validate_expr_safety(quote(as.numeric(x))))
+})
+
+test_that("denylist allows ggplot2 aes helpers", {
+  expect_invisible(validate_expr_safety(quote(aes(x = v, y = v))))
+  expect_invisible(validate_expr_safety(quote(after_stat(count))))
+})
+
+test_that("denylist allows constructors and data ops", {
+  expect_invisible(validate_expr_safety(quote(c(1, 2, 3))))
+  expect_invisible(validate_expr_safety(quote(seq(1, 10))))
+  expect_invisible(validate_expr_safety(quote(rev(sort(x)))))
+})
+
+test_that("denylist allows bare symbols and constants", {
+  expect_invisible(validate_expr_safety(quote(x)))
+  expect_invisible(validate_expr_safety(42))
+  expect_invisible(validate_expr_safety("text"))
+})
+
+test_that("denylist allows anonymous functions", {
+  expect_invisible(
+    validate_expr_safety(quote(function(x) x + 1))
+  )
+})
+
+test_that("denylist rejects system commands", {
+  expect_error(
+    validate_expr_safety(quote(system("rm -rf /"))),
+    "not allowed"
+  )
+  expect_error(
+    validate_expr_safety(quote(system2("ls"))),
+    "not allowed"
+  )
+})
+
+test_that("denylist rejects file operations", {
+  expect_error(
+    validate_expr_safety(quote(readLines("/etc/passwd"))),
+    "not allowed"
+  )
+  expect_error(
+    validate_expr_safety(quote(file.remove("x"))),
+    "not allowed"
+  )
+})
+
+test_that("denylist rejects meta-eval and side effects", {
+  expect_error(
+    validate_expr_safety(quote(eval(quote(1 + 1)))),
+    "not allowed"
+  )
+  expect_error(
+    validate_expr_safety(quote(library(ggplot2))),
+    "not allowed"
+  )
+  expect_error(
+    validate_expr_safety(quote(Sys.setenv(FOO = "bar"))),
+    "not allowed"
+  )
+})
+
+test_that("denylist rejects indirect dangerous calls", {
+  expect_error(
+    validate_expr_safety(quote(do.call(system, list("ls")))),
+    "not allowed"
+  )
+})
+
+test_that("denylist rejects namespaced dangerous calls", {
+  expect_error(
+    validate_expr_safety(quote(base::system("ls"))),
+    "not allowed"
+  )
+})
+
+# --- expr_check = FALSE ---------------------------------------------------
+
+test_that("expr_check = FALSE skips all validation", {
+  expect_invisible(
+    validate_expr_safety(quote(system("ls")), expr_check = FALSE)
+  )
+  expect_invisible(
+    validate_expr_safety(quote(eval(parse(text = "1"))),
+                         expr_check = FALSE)
+  )
+})
+
+# --- custom deny_list -----------------------------------------------------
+
+test_that("custom deny_list blocks specified functions", {
+  custom <- list(deny_list = c("log", "exp"))
+  expect_error(
+    validate_expr_safety(quote(log(x)), expr_check = custom),
+    "not allowed"
+  )
+  expect_invisible(
+    validate_expr_safety(quote(sqrt(x)), expr_check = custom)
+  )
+})
+
+# --- custom allow_list (strict mode) --------------------------------------
+
+test_that("custom allow_list blocks unlisted functions", {
+  custom <- list(allow_list = c("sqrt", "+"))
+  expect_invisible(
+    validate_expr_safety(quote(sqrt(x)), expr_check = custom)
+  )
+  expect_error(
+    validate_expr_safety(quote(log(x)), expr_check = custom),
+    "not in the allowlist"
+  )
+})
+
+# --- deny_list + allow_list conflict resolution ---------------------------
+
+test_that("deny_list removes entries from allow_list", {
+  custom <- list(
+    allow_list = c("sqrt", "log", "+"),
+    deny_list = c("log")
+  )
+  expect_invisible(
+    validate_expr_safety(quote(sqrt(x)), expr_check = custom)
+  )
+  expect_error(
+    validate_expr_safety(quote(log(x)), expr_check = custom),
+    "not in the allowlist"
+  )
+})
+
+# --- resolve_expr_check edge cases ----------------------------------------
+
+test_that("empty list falls back to default denylist", {
+  resolved <- resolve_expr_check(list())
+  expect_equal(resolved$mode, "denylist")
+  expect_equal(resolved$fns, unsafe_expr_denylist)
+})
+
+test_that("invalid expr_check type errors", {
+  expect_error(
+    resolve_expr_check("bad"),
+    "expr_check must be TRUE, FALSE"
+  )
+})
+
+# --- ptr_resolve_expr_expr with expr_check context ------------------------
+
+test_that("ptr_resolve_expr_expr allows safe expr with default check", {
+  ctx <- list(expr_check = TRUE)
+  result <- ptr_resolve_expr_expr("sqrt(x)", list(), ctx)
+  expect_equal(result, quote(sqrt(x)))
+})
+
+test_that("ptr_resolve_expr_expr blocks dangerous expr with default check", {
+  ctx <- list(expr_check = TRUE)
+  expect_error(
+    ptr_resolve_expr_expr("system('ls')", list(), ctx),
+    "not allowed"
+  )
+})
+
+test_that("ptr_resolve_expr_expr allows dangerous expr when check = FALSE", {
+  ctx <- list(expr_check = FALSE)
+  result <- ptr_resolve_expr_expr("system('ls')", list(), ctx)
+  expect_equal(result, quote(system("ls")))
+})
+
+test_that("ptr_resolve_expr_expr returns missing for empty input", {
+  ctx_on <- list(expr_check = TRUE)
+  ctx_off <- list(expr_check = FALSE)
+  expect_equal(
+    ptr_resolve_expr_expr("", list(), ctx_on),
+    ptr_missing_expr()
+  )
+  expect_equal(
+    ptr_resolve_expr_expr(NULL, list(), ctx_on),
+    ptr_missing_expr()
+  )
+  expect_equal(
+    ptr_resolve_expr_expr("", list(), ctx_off),
+    ptr_missing_expr()
+  )
+})
+
+test_that("ptr_resolve_expr_expr respects custom allow_list", {
+  ctx <- list(expr_check = list(allow_list = c("sqrt", "+")))
+  expect_equal(
+    ptr_resolve_expr_expr("sqrt(x)", list(), ctx),
+    quote(sqrt(x))
+  )
+  expect_error(
+    ptr_resolve_expr_expr("log(x)", list(), ctx),
+    "not in the allowlist"
+  )
+})
+
+# --- expr_check on ptr_server_state ---------------------------------------
+
+test_that("ptr_server_state expr_check defaults to TRUE", {
+  state <- ptr_server_state(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  )
+  expect_true(state$expr_check)
+})
+
+test_that("ptr_server_state expr_check = FALSE is stored", {
+  state <- ptr_server_state(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+    expr_check = FALSE
+  )
+  expect_false(state$expr_check)
+})
+
+# --- ptr_verbose ----------------------------------------------------------
+
+test_that("ptr_verbose defaults to TRUE", {
+  withr::local_options(list(ggpaintr.verbose = NULL))
+  expect_true(ptr_verbose())
+})
+
+test_that("ptr_verbose respects option", {
+  withr::local_options(list(ggpaintr.verbose = FALSE))
+  expect_false(ptr_verbose())
+})
+
+test_that("ptr_verbose TRUE when option is TRUE", {
+  withr::local_options(list(ggpaintr.verbose = TRUE))
+  expect_true(ptr_verbose())
+})

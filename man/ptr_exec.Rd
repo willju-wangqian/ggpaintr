@@ -4,7 +4,7 @@
 \alias{ptr_exec}
 \title{Build the Full Runtime Result for a Paintr App}
 \usage{
-ptr_exec(ptr_obj, input, envir = parent.frame())
+ptr_exec(ptr_obj, input, envir = parent.frame(), expr_check = TRUE)
 }
 \arguments{
 \item{ptr_obj}{A \code{ptr_obj}.}
@@ -12,6 +12,14 @@ ptr_exec(ptr_obj, input, envir = parent.frame())
 \item{input}{A Shiny input-like object.}
 
 \item{envir}{The environment used to resolve local data objects.}
+
+\item{expr_check}{Controls \code{expr} placeholder validation.
+\code{TRUE} (default) applies the built-in denylist of dangerous
+functions.
+\code{FALSE} disables all checking.
+A named list with \code{deny_list} and/or \code{allow_list} character
+vectors supplies a custom check; when both are given,
+denied entries are removed from the allowlist.}
 }
 \value{
 A runtime result list containing \code{ok}, \code{stage}, \code{message},
