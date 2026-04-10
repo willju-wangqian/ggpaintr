@@ -188,6 +188,7 @@ ptr_serialize_source_pkg_block <- function(pkg, on_missing = "warn") {
 #' @param placeholders Placeholder definitions or a placeholder registry.
 #'
 #' @return A character vector of source lines, or `character(0)` if none needed.
+#' @importFrom rlang %||%
 #' @noRd
 ptr_serialize_placeholder_preamble <- function(placeholders = NULL) {
   registry <- ptr_merge_placeholders(placeholders)
