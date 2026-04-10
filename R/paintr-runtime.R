@@ -88,7 +88,7 @@ expr_apply_checkbox_result <- function(expr, nn, input) {
 #' @return A named list with `complete_expr_list`, `code_text`, and `eval_env`.
 #' @noRd
 ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
-                             eval_env = NULL, var_column_map = NULL) {
+  eval_env = NULL, var_column_map = NULL) {
   assertthat::assert_that(inherits(ptr_obj, "ptr_obj"))
 
   ptr_processed_expr_list <- ptr_obj[["expr_list"]]
@@ -234,7 +234,7 @@ ptr_mark_runtime_failure <- function(runtime_result, stage, condition) {
 #' @return A structured runtime result.
 #' @noRd
 ptr_complete_expr_safe <- function(ptr_obj, input, envir = parent.frame(),
-                                   eval_env = NULL, var_column_map = NULL) {
+  eval_env = NULL, var_column_map = NULL) {
   tryCatch(
     {
       complete_result <- ptr_complete_expr(ptr_obj, input, envir = envir,

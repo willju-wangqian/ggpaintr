@@ -126,8 +126,14 @@ ptr_runtime_input_spec <- function(ptr_obj) {
     )
   }
 
-  spec_rows <- list()
   layer_names <- names(ptr_obj$expr_list)
+  n_rows <- sum(vapply(ptr_obj$placeholder_map[layer_names], length, 0L)) +
+    sum(vapply(ptr_obj$placeholder_map[layer_names], function(metas) {
+      sum(vapply(metas, function(m) identical(m$keyword, "upload"), FALSE))
+    }, 0L)) +
+    length(setdiff(layer_names, "ggplot"))
+  spec_rows <- vector("list", n_rows)
+  idx <- 0L
 
   for (layer_name in layer_names) {
     layer_meta <- ptr_obj$placeholder_map[[layer_name]]
@@ -138,36 +144,40 @@ ptr_runtime_input_spec <- function(ptr_obj) {
     for (meta in unname(layer_meta)) {
       param_key <- ptr_normalize_param_key(meta$param)
 
-      spec_rows <- c(spec_rows, list(new_spec_row(
+      idx <- idx + 1L
+      spec_rows[[idx]] <- new_spec_row(
         input_id = meta$id,
         role = "placeholder",
         layer_name = meta$layer_name,
         keyword = meta$keyword,
         param_key = param_key,
         source_id = meta$id
-      )))
+      )
 
       if (identical(meta$keyword, "upload")) {
-        spec_rows <- c(spec_rows, list(new_spec_row(
+        idx <- idx + 1L
+        spec_rows[[idx]] <- new_spec_row(
           input_id = ptr_upload_name_id(meta$id),
           role = "upload_name",
           layer_name = meta$layer_name,
           keyword = meta$keyword,
           param_key = param_key,
           source_id = meta$id
-        )))
+        )
       }
     }
   }
 
   for (layer_name in setdiff(layer_names, "ggplot")) {
-    checkbox_id <- ptr_checkbox_input_id(layer_name)
-    spec_rows <- c(spec_rows, list(new_spec_row(
-      input_id = checkbox_id,
+    idx <- idx + 1L
+    spec_rows[[idx]] <- new_spec_row(
+      input_id = ptr_checkbox_input_id(layer_name),
       role = "layer_checkbox",
       layer_name = layer_name
-    )))
+    )
   }
+
+  spec_rows <- spec_rows[seq_len(idx)]
 
   if (length(spec_rows) == 0) {
     return(new_spec_row(

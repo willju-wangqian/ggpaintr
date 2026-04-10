@@ -95,30 +95,32 @@ ptr_normalize_column_name_vector <- function(x, n = length(x)) {
   make.unique(x, sep = "_")
 }
 
+.ptr_reserved_words <- c(
+  "if",
+  "else",
+  "repeat",
+  "while",
+  "function",
+  "for",
+  "in",
+  "next",
+  "break",
+  "TRUE",
+  "FALSE",
+  "NULL",
+  "Inf",
+  "NaN",
+  "NA",
+  "NA_integer_",
+  "NA_real_",
+  "NA_complex_",
+  "NA_character_"
+)
+
 #' Reserved Words That Should Not Be Used as Column Names
 #'
 #' @return A character vector of reserved words.
 #' @noRd
 ptr_reserved_words <- function() {
-  c(
-    "if",
-    "else",
-    "repeat",
-    "while",
-    "function",
-    "for",
-    "in",
-    "next",
-    "break",
-    "TRUE",
-    "FALSE",
-    "NULL",
-    "Inf",
-    "NaN",
-    "NA",
-    "NA_integer_",
-    "NA_real_",
-    "NA_complex_",
-    "NA_character_"
-  )
+  .ptr_reserved_words
 }

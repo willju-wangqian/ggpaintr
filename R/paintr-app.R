@@ -239,7 +239,7 @@ ptr_setup_controls <- function(input,
     shiny::req(ptr_state$obj())
     cached <- shared_env_reactive()
     result <- tryCatch(
-      register_var_ui_outputs(
+      ptr_bind_placeholder_ui(
         input,
         output,
         ptr_state$obj(),

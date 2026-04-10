@@ -62,15 +62,6 @@ generate_ui_var_placeholder <- function(id) {
   shiny::uiOutput(ptr_var_output_id(id))
 }
 
-#' Build Text Placeholder UI
-#'
-#' @param id Placeholder id.
-#' @param param Parameter label.
-#' @param layer_name Layer name.
-#' @param ui_text Effective or user-supplied copy rules.
-#'
-#' @return A `textInput()` UI object.
-#' @noRd
 generate_ui_text <- function(id, param, layer_name = NULL, ui_text = NULL) {
   copy <- ptr_resolve_ui_text(
     "control",
@@ -79,22 +70,12 @@ generate_ui_text <- function(id, param, layer_name = NULL, ui_text = NULL) {
     param = param,
     ui_text = ui_text
   )
-
   ptr_attach_help(
     shiny::textInput(id, copy$label, placeholder = copy$placeholder),
     copy$help
   )
 }
 
-#' Build Numeric Placeholder UI
-#'
-#' @param id Placeholder id.
-#' @param param Parameter label.
-#' @param layer_name Layer name.
-#' @param ui_text Effective or user-supplied copy rules.
-#'
-#' @return A `numericInput()` UI object.
-#' @noRd
 generate_ui_num <- function(id, param, layer_name = NULL, ui_text = NULL) {
   copy <- ptr_resolve_ui_text(
     "control",
@@ -103,22 +84,12 @@ generate_ui_num <- function(id, param, layer_name = NULL, ui_text = NULL) {
     param = param,
     ui_text = ui_text
   )
-
   ptr_attach_help(
     shiny::numericInput(id, copy$label, NA),
     copy$help
   )
 }
 
-#' Build Expression Placeholder UI
-#'
-#' @param id Placeholder id.
-#' @param param Parameter label.
-#' @param layer_name Layer name.
-#' @param ui_text Effective or user-supplied copy rules.
-#'
-#' @return A `textInput()` UI object.
-#' @noRd
 generate_ui_expr <- function(id, param, layer_name = NULL, ui_text = NULL) {
   copy <- ptr_resolve_ui_text(
     "control",
@@ -127,10 +98,27 @@ generate_ui_expr <- function(id, param, layer_name = NULL, ui_text = NULL) {
     param = param,
     ui_text = ui_text
   )
-
   ptr_attach_help(
     shiny::textInput(id, copy$label, placeholder = copy$placeholder),
     copy$help
+  )
+}
+
+register_var_ui_outputs <- function(input,
+                                    output,
+                                    ptr_obj,
+                                    envir = parent.frame(),
+                                    ui_text = NULL,
+                                    eval_env = NULL,
+                                    var_column_map = NULL) {
+  ptr_bind_placeholder_ui(
+    input,
+    output,
+    ptr_obj,
+    envir = envir,
+    ui_text = ui_text,
+    eval_env = eval_env,
+    var_column_map = var_column_map
   )
 }
 
@@ -229,33 +217,6 @@ ptr_build_ui_list <- function(ptr_obj, ui_text = NULL) {
   rlang::set_names(ui_list, layer_names)
 }
 
-#' Register Dynamic `var` UI Outputs for a Parsed Formula
-#'
-#' @param input A Shiny input object.
-#' @param output A Shiny output object.
-#' @param ptr_obj A `ptr_obj`.
-#' @param envir Environment used to resolve local data objects.
-#' @param ui_text Effective or user-supplied copy rules.
-#'
-#' @return A named list of generated `var` UI controls registered on `output`.
-#' @noRd
-register_var_ui_outputs <- function(input,
-                                    output,
-                                    ptr_obj,
-                                    envir = parent.frame(),
-                                    ui_text = NULL,
-                                    eval_env = NULL,
-                                    var_column_map = NULL) {
-  ptr_bind_placeholder_ui(
-    input,
-    output,
-    ptr_obj,
-    envir = envir,
-    ui_text = ui_text,
-    eval_env = eval_env,
-    var_column_map = var_column_map
-  )
-}
 
 #' Add Layer Checkboxes to a UI List
 #'
