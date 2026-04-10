@@ -660,13 +660,13 @@ ptr_resolve_ui_text <- function(component,
     path <- component_map[[component]]
     resolved <- rules
     for (key in path) {
-      resolved <- resolved[[key]]
-      if (is.null(resolved)) {
+      if (!key %in% names(resolved) || is.null(resolved[[key]])) {
         rlang::abort(paste0(
           "ptr_resolve_ui_text: rules object is missing expected path '",
           paste(path, collapse = "$"), "' at key '", key, "'."
         ))
       }
+      resolved <- resolved[[key]]
     }
   } else if (identical(component, "control")) {
     param_key <- ptr_normalize_param_key(param)

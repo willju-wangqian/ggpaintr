@@ -309,7 +309,7 @@ ptr_normalize_placeholders <- function(placeholders = NULL) {
   }
 
   normalized <- list()
-  seen_keywords <- vector("list", length(placeholders))
+  seen_keywords <- character(length(placeholders))
 
   for (i in seq_along(placeholders)) {
     placeholder <- placeholders[[i]]
