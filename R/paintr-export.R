@@ -94,6 +94,171 @@ ptr_serialize_export_ui_text <- function(ui_text = NULL, placeholders = NULL) {
   )
 }
 
+#' Resolve the Source Strategy Value for One Hook
+#'
+#' @param param A scalar character or named list (with `.default` and hook keys).
+#' @param hook_name A hook name string.
+#'
+#' @return A character string or `NULL`.
+#' @noRd
+ptr_resolve_source_param <- function(param, hook_name) {
+  if (is.null(param)) return(NULL)
+  if (is.character(param)) return(param)
+  if (is.list(param)) {
+    if (hook_name %in% names(param)) return(param[[hook_name]])
+    if (".default" %in% names(param)) return(param[[".default"]])
+  }
+  NULL
+}
+
+#' Deparse a Named Function as an Assignment Block
+#'
+#' @param fn_name Character string — the name to assign.
+#' @param fn_obj A function object.
+#'
+#' @return A character vector of source lines.
+#' @noRd
+ptr_serialize_source_fn_block <- function(fn_name, fn_obj) {
+  fn_lines <- deparse(fn_obj)
+  fn_lines[1] <- paste0(fn_name, " <- ", fn_lines[1])
+  fn_lines
+}
+
+#' Emit a source() Call for an Exported App
+#'
+#' @param path Character string — the file path to source.
+#' @param on_missing One of `"warn"` or `"error"`.
+#'
+#' @return A character vector of source lines.
+#' @noRd
+ptr_serialize_source_file_block <- function(path, on_missing = "warn") {
+  if (identical(on_missing, "error")) {
+    return(c(
+      paste0("# Provide '", path, "' alongside this app.R."),
+      paste0("source(\"", path, "\")")
+    ))
+  }
+  c(
+    paste0("# Provide '", path, "' alongside this app.R."),
+    paste0("tryCatch("),
+    paste0("  source(\"", path, "\"),"),
+    paste0("  error = function(e) {"),
+    paste0("    warning(\"ggpaintr: could not source '", path,
+           "' -- custom placeholder hooks unavailable. \","),
+    paste0("            \"Provide this file alongside app.R.\")"),
+    paste0("  }"),
+    paste0(")")
+  )
+}
+
+#' Emit a library() Call With Install-on-Missing for an Exported App
+#'
+#' @param pkg Character string — the package name.
+#' @param on_missing One of `"warn"` or `"error"`.
+#'
+#' @return A character vector of source lines.
+#' @noRd
+ptr_serialize_source_pkg_block <- function(pkg, on_missing = "warn") {
+  if (identical(on_missing, "error")) {
+    return(c(
+      paste0("if (!requireNamespace(\"", pkg, "\", quietly = TRUE)) {"),
+      paste0("  install.packages(\"", pkg, "\")"),
+      paste0("}"),
+      paste0("library(", pkg, ")")
+    ))
+  }
+  c(
+    paste0("if (!requireNamespace(\"", pkg, "\", quietly = TRUE)) {"),
+    paste0("  tryCatch("),
+    paste0("    install.packages(\"", pkg, "\"),"),
+    paste0("    error = function(e) warning(\"ggpaintr: could not install '", pkg,
+           "' -- custom placeholder hooks unavailable.\")"),
+    paste0("  )"),
+    paste0("}"),
+    paste0("library(", pkg, ")")
+  )
+}
+
+#' Build Preamble Code for Custom Placeholder Source Strategies
+#'
+#' Emits named function definitions (source_function), source() calls
+#' (source_file), and library() calls (source_package) for all custom
+#' placeholders that use non-inline hooks.
+#'
+#' @param placeholders Placeholder definitions or a placeholder registry.
+#'
+#' @return A character vector of source lines, or `character(0)` if none needed.
+#' @noRd
+ptr_serialize_placeholder_preamble <- function(placeholders = NULL) {
+  registry <- ptr_merge_placeholders(placeholders)
+  custom_phs <- registry$custom_placeholders
+
+  if (length(custom_phs) == 0) return(character(0))
+
+  hook_names <- c("build_ui", "resolve_expr", "resolve_input", "bind_ui", "prepare_eval_env")
+
+  fn_blocks  <- list()    # symbol_name -> lines (deduplicated by original name)
+  file_specs <- list()    # path -> on_missing (strictest wins)
+  pkg_specs  <- list()    # pkg  -> on_missing (strictest wins)
+
+  for (ph in custom_phs) {
+    on_missing <- ph$on_missing %||% "warn"
+
+    # source_function: recover original symbol names from definition_call, not hook names
+    if (!is.null(ph$source_function)) {
+      def_call <- ph$definition_call
+      sf_expr <- def_call[["source_function"]]
+
+      if (!is.null(sf_expr) && rlang::is_call(sf_expr, "list")) {
+        sf_args <- as.list(sf_expr)[-1]
+        for (hook_name in names(sf_args)) {
+          sym_expr <- sf_args[[hook_name]]
+          fn_obj   <- ph$source_function[[hook_name]]
+
+          if (is.symbol(sym_expr) && !is.null(fn_obj)) {
+            sym_name <- as.character(sym_expr)
+            if (!sym_name %in% names(fn_blocks)) {
+              fn_blocks[[sym_name]] <- ptr_serialize_source_fn_block(sym_name, fn_obj)
+            }
+          }
+          # Inline function literals need no preamble — they are captured in definition_call
+        }
+      }
+    }
+
+    # source_file / source_package: collect per hook, deduplicate paths/pkgs
+    for (hook in hook_names) {
+      file_path <- ptr_resolve_source_param(ph$source_file, hook)
+      if (!is.null(file_path)) {
+        prev <- file_specs[[file_path]]
+        file_specs[[file_path]] <- if (!is.null(prev) && identical(prev, "error")) "error" else on_missing
+      }
+
+      pkg_name <- ptr_resolve_source_param(ph$source_package, hook)
+      if (!is.null(pkg_name)) {
+        prev <- pkg_specs[[pkg_name]]
+        pkg_specs[[pkg_name]] <- if (!is.null(prev) && identical(prev, "error")) "error" else on_missing
+      }
+    }
+  }
+
+  lines <- character(0)
+
+  for (sym_name in names(fn_blocks)) {
+    lines <- c(lines, fn_blocks[[sym_name]], "")
+  }
+
+  for (path in names(file_specs)) {
+    lines <- c(lines, ptr_serialize_source_file_block(path, file_specs[[path]]), "")
+  }
+
+  for (pkg in names(pkg_specs)) {
+    lines <- c(lines, ptr_serialize_source_pkg_block(pkg, pkg_specs[[pkg]]), "")
+  }
+
+  lines
+}
+
 #' Serialize Custom Placeholder Definitions for an Exported Template
 #'
 #' @param placeholders Placeholder definitions or a placeholder registry.
@@ -151,11 +316,14 @@ get_shiny_template <- function(formula_text,
   )
   placeholder_lines <- ptr_serialize_export_placeholders(placeholders)
 
+  preamble_lines <- ptr_serialize_placeholder_preamble(placeholders)
+
   c(
     "library(ggpaintr)",
     "library(shiny)",
     "library(shinyWidgets)",
     "",
+    if (length(preamble_lines) > 0) c(preamble_lines, "") else character(0),
     formula_text_lines,
     "",
     ui_text_lines,
@@ -305,12 +473,11 @@ ptr_generate_shiny <- function(ptr_obj,
       )
     }
 
-    warning(
+    rlang::warn(
       paste(
         c(warning_parts, "Call ptr_generate_shiny(ptr_obj, output_file, ...) instead."),
         collapse = " "
-      ),
-      call. = FALSE
+      )
     )
   }
 

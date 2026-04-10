@@ -432,7 +432,7 @@ test_that("ptr_generate_shiny errors when custom placeholders are not exportable
       style = FALSE,
       placeholders = registry
     ),
-    "must define build_ui inline"
+    "must define 'build_ui' inline or supply"
   )
 })
 
@@ -637,4 +637,220 @@ test_that("ptr_server stores structured failure state after draw", {
     expect_match(runtime_result$message, "unknown_object")
     expect_match(runtime_result$code_text, "ggplot\\(data = unknown_object")
   })
+})
+
+# ---------------------------------------------------------------------------
+# source_file / source_package / source_function export strategies
+# ---------------------------------------------------------------------------
+
+app_text_for <- function(ph, formula = test_date_formula) {
+  registry <- ptr_merge_placeholders(list(date = ph))
+  obj <- ptr_parse_formula(formula, placeholders = registry)
+  out_file <- tempfile(fileext = ".R")
+  ptr_generate_shiny(obj, out_file, style = FALSE, placeholders = registry)
+  paste(readLines(out_file), collapse = "\n")
+}
+
+# --- source_file ---
+
+test_that("source_file emits tryCatch source() when on_missing = 'warn'", {
+  ph <- ptr_define_placeholder(
+    keyword = "date",
+    build_ui = named_date_build_ui,
+    resolve_expr = named_date_resolve_expr,
+    copy_defaults = list(label = "Choose a date for {param}"),
+    source_file = "helpers.R",
+    on_missing = "warn"
+  )
+  app_text <- app_text_for(ph)
+  expect_match(app_text, 'tryCatch', fixed = TRUE)
+  expect_match(app_text, 'source("helpers.R")', fixed = TRUE)
+  expect_match(app_text, "could not source 'helpers.R'", fixed = TRUE)
+  expect_no_error(parse(text = app_text))
+})
+
+test_that("source_file emits plain source() when on_missing = 'error'", {
+  ph <- ptr_define_placeholder(
+    keyword = "date",
+    build_ui = named_date_build_ui,
+    resolve_expr = named_date_resolve_expr,
+    copy_defaults = list(label = "Choose a date for {param}"),
+    source_file = "helpers.R",
+    on_missing = "error"
+  )
+  app_text <- app_text_for(ph)
+  expect_match(app_text, 'source("helpers.R")', fixed = TRUE)
+  expect_no_match(app_text, "tryCatch")
+  expect_no_error(parse(text = app_text))
+})
+
+test_that("source_file per-hook override emits correct paths", {
+  ph <- ptr_define_placeholder(
+    keyword = "date",
+    build_ui = named_date_build_ui,
+    resolve_expr = named_date_resolve_expr,
+    copy_defaults = list(label = "Choose a date for {param}"),
+    source_file = list(.default = "helpers.R", resolve_expr = "resolve-helpers.R"),
+    on_missing = "warn"
+  )
+  app_text <- app_text_for(ph)
+  expect_match(app_text, 'source("helpers.R")', fixed = TRUE)
+  expect_match(app_text, 'source("resolve-helpers.R")', fixed = TRUE)
+  expect_no_error(parse(text = app_text))
+})
+
+# --- source_package ---
+
+test_that("source_package emits requireNamespace + install + library block when on_missing = 'warn'", {
+  ph <- ptr_define_placeholder(
+    keyword = "date",
+    build_ui = named_date_build_ui,
+    resolve_expr = named_date_resolve_expr,
+    copy_defaults = list(label = "Choose a date for {param}"),
+    source_package = "mypkg",
+    on_missing = "warn"
+  )
+  app_text <- app_text_for(ph)
+  expect_match(app_text, 'requireNamespace("mypkg"', fixed = TRUE)
+  expect_match(app_text, 'install.packages("mypkg")', fixed = TRUE)
+  expect_match(app_text, 'library(mypkg)', fixed = TRUE)
+  expect_match(app_text, "could not install 'mypkg'", fixed = TRUE)
+  expect_no_error(parse(text = app_text))
+})
+
+test_that("source_package omits tryCatch when on_missing = 'error'", {
+  ph <- ptr_define_placeholder(
+    keyword = "date",
+    build_ui = named_date_build_ui,
+    resolve_expr = named_date_resolve_expr,
+    copy_defaults = list(label = "Choose a date for {param}"),
+    source_package = "mypkg",
+    on_missing = "error"
+  )
+  app_text <- app_text_for(ph)
+  expect_match(app_text, 'install.packages("mypkg")', fixed = TRUE)
+  expect_match(app_text, 'library(mypkg)', fixed = TRUE)
+  expect_no_match(app_text, "could not install")
+  expect_no_error(parse(text = app_text))
+})
+
+# --- source_function ---
+
+test_that("source_function deparsed function appears in exported app before placeholder call", {
+  ph <- ptr_define_placeholder(
+    keyword = "date",
+    build_ui = named_date_build_ui,
+    resolve_expr = named_date_resolve_expr,
+    copy_defaults = list(label = "Choose a date for {param}"),
+    source_function = list(
+      build_ui = named_date_build_ui,
+      resolve_expr = named_date_resolve_expr
+    )
+  )
+  app_text <- app_text_for(ph)
+  expect_match(app_text, "named_date_build_ui <- function", fixed = TRUE)
+  expect_match(app_text, "named_date_resolve_expr <- function", fixed = TRUE)
+  expect_no_error(parse(text = app_text))
+
+  # preamble must appear before the custom_placeholders assignment
+  fn_pos <- regexpr("named_date_build_ui <- function", app_text, fixed = TRUE)
+  ph_pos <- regexpr("custom_placeholders", app_text, fixed = TRUE)
+  expect_true(fn_pos < ph_pos)
+})
+
+test_that("source_function passes validation and export for non-inline hooks", {
+  ph <- ptr_define_placeholder(
+    keyword = "date",
+    build_ui = named_date_build_ui,
+    resolve_expr = named_date_resolve_expr,
+    copy_defaults = list(label = "Choose a date for {param}"),
+    source_function = list(
+      build_ui = named_date_build_ui,
+      resolve_expr = named_date_resolve_expr
+    )
+  )
+  expect_no_error(ptr_validate_exportable_placeholder(ph))
+})
+
+# --- Validation ---
+
+test_that("on_missing rejects invalid values", {
+  make_bad_ph <- function() {
+    ptr_define_placeholder(
+      keyword = "date",
+      build_ui = function(id, copy, meta, context) shiny::dateInput(id, copy$label),
+      resolve_expr = function(value, meta, context) {
+        if (is.null(value)) return(ptr_missing_expr())
+        rlang::expr(as.Date(!!value))
+      },
+      on_missing = "ignore"
+    )
+  }
+  expect_error(make_bad_ph(), 'on_missing must be "warn" or "error"')
+})
+
+test_that("source_function with a non-function value aborts", {
+  expect_error(
+    ptr_define_placeholder(
+      keyword = "date",
+      build_ui = named_date_build_ui,
+      resolve_expr = named_date_resolve_expr,
+      source_function = list(build_ui = "not_a_function")
+    ),
+    "must be a function object"
+  )
+})
+
+test_that("source_function hook name typo emits warning", {
+  expect_warning(
+    ptr_define_placeholder(
+      keyword = "date",
+      build_ui = named_date_build_ui,
+      resolve_expr = named_date_resolve_expr,
+      source_function = list(
+        build_ui = named_date_build_ui,
+        resolve_expr = named_date_resolve_expr,
+        biuld_ui = named_date_build_ui
+      )
+    ),
+    "unrecognized hook name 'biuld_ui'"
+  )
+})
+
+test_that("non-inline hook with no source strategy still aborts at export", {
+  ph <- make_non_inline_date_placeholder()
+  expect_error(
+    ptr_validate_exportable_placeholder(ph),
+    "must define 'build_ui' inline or supply"
+  )
+})
+
+# --- Precedence ---
+
+test_that("source_function takes priority over source_file for same hook", {
+  ph <- ptr_define_placeholder(
+    keyword = "date",
+    build_ui = named_date_build_ui,
+    resolve_expr = named_date_resolve_expr,
+    copy_defaults = list(label = "Choose a date for {param}"),
+    source_file = "helpers.R",
+    source_function = list(build_ui = named_date_build_ui)
+  )
+  app_text <- app_text_for(ph)
+  expect_match(app_text, "named_date_build_ui <- function", fixed = TRUE)
+  expect_no_error(parse(text = app_text))
+})
+
+test_that("inline function literal takes priority over source_function for same hook", {
+  ph <- ptr_define_placeholder(
+    keyword = "date",
+    build_ui = function(id, copy, meta, context) shiny::dateInput(id, copy$label),
+    resolve_expr = named_date_resolve_expr,
+    copy_defaults = list(label = "Choose a date for {param}"),
+    source_function = list(resolve_expr = named_date_resolve_expr)
+  )
+  expect_no_error(ptr_validate_exportable_placeholder(ph))
+  app_text <- app_text_for(ph)
+  expect_match(app_text, "named_date_resolve_expr <- function", fixed = TRUE)
+  expect_no_error(parse(text = app_text))
 })
