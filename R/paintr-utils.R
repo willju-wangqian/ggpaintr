@@ -145,15 +145,15 @@ handle_duplicate_names <- function(x) {
     duplicated_items <- unique(x[duplicated(x)])
     counting_list <- rep(list(0), length(duplicated_items))
     counting_list <- rlang::set_names(counting_list, duplicated_items)
-    seen <- character(0)
+    seen <- logical(0)
 
     for (i in seq_along(x)) {
       if (x[i] %in% names(counting_list)) {
         counting_list[[x[i]]] <- counting_list[[x[i]]] + 1
-        if (x[i] %in% seen) {
+        if (isTRUE(seen[x[i]])) {
           x[i] <- paste0(x[i], "-", counting_list[[x[i]]])
         } else {
-          seen <- c(seen, x[i])
+          seen[[x[i]]] <- TRUE
         }
       }
     }
@@ -270,12 +270,10 @@ expr_remove_emptycall2 <- function(.expr) {
       if (length(.expr[[i]]) == 1) {
         fn_name <- rlang::as_string(.expr[[i]][[1]])
         if (!ptr_is_gg_layer_name(fn_name)) {
-          message(
-            paste0(
-              "The function ", fn_name,
-              "() in ", rlang::as_string(.expr[[1]]), "() is removed."
-            )
-          )
+          cli::cli_inform(paste0(
+            "The function ", fn_name,
+            "() in ", rlang::as_string(.expr[[1]]), "() is removed."
+          ))
           .expr[[i]] <- NULL
         }
       } else {
@@ -287,7 +285,7 @@ expr_remove_emptycall2 <- function(.expr) {
   if (is.call(.expr) && length(.expr) == 1) {
     fn_name <- rlang::as_string(.expr[[1]])
     if (!ptr_is_gg_layer_name(fn_name)) {
-      message(paste0("The function ", fn_name, "() is removed."))
+      cli::cli_inform(paste0("The function ", fn_name, "() is removed."))
       .expr <- NULL
     }
   }
@@ -315,7 +313,7 @@ ptr_remove_empty_nonstandalone_layers <- function(expr_list) {
     if (is.call(expr) && length(expr) == 1) {
       fn_name <- rlang::as_string(expr[[1]])
       if (!ptr_can_stand_alone(fn_name)) {
-        message(paste0("Layer ", fn_name, "() removed (no arguments provided)."))
+        cli::cli_inform(paste0("Layer ", fn_name, "() removed (no arguments provided)."))
         expr_list[[nn]] <- NULL
       }
     }

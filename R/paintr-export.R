@@ -388,8 +388,6 @@ get_shiny_template <- function(formula_text,
 #'   placeholder registry. Exported custom placeholders must define their hooks
 #'   inline inside `ptr_define_placeholder()` so the generated app can stay
 #'   standalone.
-#' @param ... Backward-compatibility only. A deprecated legacy `var_ui` argument
-#'   may still be supplied positionally or by name, but it is ignored.
 #'
 #' @return Invisibly returns `output_file`.
 #' @examples
@@ -402,83 +400,11 @@ get_shiny_template <- function(formula_text,
 #' @export
 ptr_generate_shiny <- function(ptr_obj,
                            output_file,
-                           ...,
                            style = TRUE,
                            ui_text = NULL,
                            placeholders = NULL) {
-  extra_args <- list(...)
-  legacy_var_ui_supplied <- FALSE
-  legacy_positional_supplied <- FALSE
-  legacy_positional_args <- list()
-
-  if ("var_ui" %in% names(extra_args)) {
-    legacy_var_ui_supplied <- TRUE
-    extra_args[["var_ui"]] <- NULL
-  }
-
-  extra_arg_names <- names(extra_args)
-  if (is.null(extra_arg_names)) {
-    extra_arg_names <- rep("", length(extra_args))
-  }
-
-  legacy_positional_args <- extra_args[extra_arg_names == ""]
-  extra_args <- extra_args[extra_arg_names != ""]
-
-  if (!is.character(output_file) || length(output_file) != 1 || is.na(output_file)) {
-    legacy_var_ui_supplied <- TRUE
-
-    if (length(legacy_positional_args) == 0) {
-      rlang::abort("output_file must be a single non-missing string.")
-    }
-
-    output_file <- legacy_positional_args[[1]]
-    legacy_positional_args <- legacy_positional_args[-1]
-  }
-
-  if (length(legacy_positional_args) > 0) {
-    legacy_positional_supplied <- TRUE
-
-    if (length(legacy_positional_args) >= 1) {
-      style <- legacy_positional_args[[1]]
-    }
-    if (length(legacy_positional_args) >= 2) {
-      ui_text <- legacy_positional_args[[2]]
-    }
-    if (length(legacy_positional_args) >= 3) {
-      placeholders <- legacy_positional_args[[3]]
-    }
-    if (length(legacy_positional_args) > 3) {
-      rlang::abort("Too many legacy positional arguments supplied.")
-    }
-  }
-
-  if (length(extra_args) > 0) {
-    rlang::abort(paste0("Unused arguments: ", paste(names(extra_args), collapse = ", ")))
-  }
-
   if (!is.character(output_file) || length(output_file) != 1 || is.na(output_file)) {
     rlang::abort("output_file must be a single non-missing string.")
-  }
-
-  if (legacy_var_ui_supplied || legacy_positional_supplied) {
-    warning_parts <- character()
-
-    if (legacy_var_ui_supplied) {
-      warning_parts <- c(warning_parts, "`var_ui` is deprecated and ignored.")
-    }
-    if (legacy_positional_supplied) {
-      warning_parts <- c(
-        warning_parts,
-        "Pass additional arguments by name after `output_file`."
-      )
-    }
-
-    rlang::warn(
-      paste(
-        c(warning_parts, "Call ptr_generate_shiny(ptr_obj, output_file, ...) instead."),
-        collapse = " "
-      )
-    )
   }
 
   placeholder_registry <- if (is.null(placeholders)) {
@@ -492,7 +418,19 @@ ptr_generate_shiny <- function(ptr_obj,
     placeholders = placeholder_registry
   )
 
-  writeLines(shiny_text, output_file)
+  tryCatch(
+    writeLines(shiny_text, output_file),
+    warning = function(w) {
+      rlang::abort(
+        paste0("Failed to write app script to '", output_file, "': ", conditionMessage(w))
+      )
+    },
+    error = function(e) {
+      rlang::abort(
+        paste0("Failed to write app script to '", output_file, "': ", conditionMessage(e))
+      )
+    }
+  )
   if (isTRUE(style) && requireNamespace("styler", quietly = TRUE)) {
     styler::style_file(output_file)
   }

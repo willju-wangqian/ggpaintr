@@ -163,15 +163,19 @@ test_that("ptr_generate_shiny exported apps execute end to end for static formul
   expect_s3_class(exported_app, "shiny.appobj")
   expect_true(is.function(export_env$server))
 
+  spec <- ptr_runtime_input_spec(obj)
+  ph_ids <- spec[spec$role == "placeholder", ]
+  ggplot_vars <- ph_ids[ph_ids$layer_name == "ggplot" & ph_ids$keyword == "var", "input_id"]
+  labs_text   <- ph_ids[ph_ids$layer_name == "labs"   & ph_ids$keyword == "text", "input_id"]
+
+  inputs_to_set <- c(
+    setNames(list("mpg", "disp"), ggplot_vars),
+    setNames(list("Exported plot"), labs_text),
+    list("geom_point+checkbox" = TRUE, "labs+checkbox" = TRUE, draw = 1)
+  )
+
   shiny::testServer(server_wrapper, {
-    session$setInputs(
-      "ggplot+3+2" = "mpg",
-      "ggplot+3+3" = "disp",
-      "labs+2" = "Exported plot",
-      "geom_point+checkbox" = TRUE,
-      "labs+checkbox" = TRUE,
-      draw = 1
-    )
+    do.call(session$setInputs, inputs_to_set)
 
     runtime_result <- session$userData$ptr_state$runtime()
     expect_true(runtime_result$ok)
@@ -225,26 +229,26 @@ test_that("ptr_generate_shiny accepts the new public call shape", {
   expect_true(file.exists(out_file))
 })
 
-test_that("ptr_generate_shiny warns but still supports deprecated var_ui calls", {
+test_that("ptr_generate_shiny errors on unknown arguments", {
   obj <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
-  out_file <- tempfile(fileext = ".R")
-
-  expect_warning(
-    ptr_generate_shiny(obj, list(), out_file, style = FALSE),
-    "`var_ui` is deprecated and ignored",
-    fixed = TRUE
+  out_file <- withr::local_tempfile(fileext = ".R")
+  expect_error(
+    ptr_generate_shiny(obj, out_file, unknown_arg = TRUE),
+    regexp = "unused argument"
   )
-  expect_true(file.exists(out_file))
+})
 
-  named_out_file <- tempfile(fileext = ".R")
-  expect_warning(
-    ptr_generate_shiny(obj, named_out_file, style = FALSE, var_ui = list()),
-    "`var_ui` is deprecated and ignored",
-    fixed = TRUE
+test_that("ptr_generate_shiny aborts with path on write failure", {
+  obj <- ptr_parse_formula(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
-  expect_true(file.exists(named_out_file))
+  bad_path <- file.path(withr::local_tempdir(), "nonexistent_subdir", "app.R")
+  expect_error(
+    ptr_generate_shiny(obj, bad_path, style = FALSE),
+    regexp = "nonexistent_subdir"
+  )
 })
 
 test_that("ptr_generate_shiny writes compact custom copy rules for exported apps", {
@@ -539,14 +543,8 @@ test_that("ptr_resolve_ui_text is exported in NAMESPACE", {
   installed_export <- "ptr_resolve_ui_text" %in% getNamespaceExports("ggpaintr")
   repo_export <- FALSE
 
-  namespace_candidates <- c(
-    file.path(getwd(), "NAMESPACE"),
-    testthat::test_path("..", "..", "NAMESPACE"),
-    testthat::test_path("..", "NAMESPACE")
-  )
-  namespace_path <- namespace_candidates[file.exists(namespace_candidates)][1]
-
-  if (!is.na(namespace_path) && nzchar(namespace_path)) {
+  namespace_path <- system.file("NAMESPACE", package = "ggpaintr")
+  if (nzchar(namespace_path)) {
     namespace_lines <- readLines(namespace_path)
     repo_export <- any(grepl("^export\\(ptr_resolve_ui_text\\)$", namespace_lines))
   }
@@ -558,14 +556,8 @@ test_that("ptr_merge_ui_text is exported in NAMESPACE", {
   installed_export <- "ptr_merge_ui_text" %in% getNamespaceExports("ggpaintr")
   repo_export <- FALSE
 
-  namespace_candidates <- c(
-    file.path(getwd(), "NAMESPACE"),
-    testthat::test_path("..", "..", "NAMESPACE"),
-    testthat::test_path("..", "NAMESPACE")
-  )
-  namespace_path <- namespace_candidates[file.exists(namespace_candidates)][1]
-
-  if (!is.na(namespace_path) && nzchar(namespace_path)) {
+  namespace_path <- system.file("NAMESPACE", package = "ggpaintr")
+  if (nzchar(namespace_path)) {
     namespace_lines <- readLines(namespace_path)
     repo_export <- any(grepl("^export\\(ptr_merge_ui_text\\)$", namespace_lines))
   }

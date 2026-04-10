@@ -7,7 +7,6 @@
 ptr_generate_shiny(
   ptr_obj,
   output_file,
-  ...,
   style = TRUE,
   ui_text = NULL,
   placeholders = NULL
@@ -17,9 +16,6 @@ ptr_generate_shiny(
 \item{ptr_obj}{A \code{ptr_obj}.}
 
 \item{output_file}{Path to the generated \code{.R} script.}
-
-\item{...}{Backward-compatibility only. A deprecated legacy \code{var_ui} argument
-may still be supplied positionally or by name, but it is ignored.}
 
 \item{style}{Whether to style the generated file with \code{styler} when available.}
 

@@ -11,7 +11,11 @@ ptr_define_placeholder(
   resolve_input = NULL,
   bind_ui = NULL,
   prepare_eval_env = NULL,
-  copy_defaults = list(label = "Enter a value for {param}")
+  copy_defaults = list(label = "Enter a value for {param}"),
+  source_file = NULL,
+  source_package = NULL,
+  source_function = NULL,
+  on_missing = "warn"
 )
 }
 \arguments{
@@ -37,6 +41,24 @@ environment.}
 \item{copy_defaults}{Optional named list with \code{label}, \code{help},
 \code{placeholder}, and \code{empty_text}. Defaults to
 \code{list(label = "Enter a value for {param}")}.}
+
+\item{source_file}{Character string (or named list with \code{.default} and
+hook-name keys) giving the path to an R file that defines the hook
+functions. The exported app will \code{source()} this file. Provide the file
+alongside the exported \code{app.R}. Applies to all hooks unless overridden
+per-hook with a named list.}
+
+\item{source_package}{Character string (or named list with \code{.default} and
+hook-name keys) naming an R package that exports the hook functions. The
+exported app will call \code{library()} and install the package if missing.}
+
+\item{source_function}{Named list mapping hook names to the actual function
+objects (e.g. \code{list(build_ui = my_build_ui)}). The exported app will
+contain the deparsed function definitions before the placeholder call.}
+
+\item{on_missing}{One of \code{"warn"} (default) or \code{"error"}. Controls the
+exported app's behaviour when a \code{source_file} file or \code{source_package}
+package is unavailable at runtime.}
 }
 \value{
 An object of class \code{ptr_define_placeholder}.

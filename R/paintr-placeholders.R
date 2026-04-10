@@ -264,11 +264,8 @@ ptr_validate_placeholder <- function(placeholder) {
     }
   }
 
-  if (is.null(placeholder$copy_defaults)) {
-    placeholder$copy_defaults <- list()
-  }
-
-  if (!is.list(placeholder$copy_defaults) || is.null(names(placeholder$copy_defaults))) {
+  if (!is.null(placeholder$copy_defaults) &&
+      (!is.list(placeholder$copy_defaults) || is.null(names(placeholder$copy_defaults)))) {
     rlang::abort("placeholder$copy_defaults must be a named list.")
   }
 
@@ -654,27 +651,22 @@ ptr_collect_symbols <- function(expr) {
   unique(unlist(lapply(as.list(expr), ptr_collect_symbols)))
 }
 
-#' Warn About Free Variables in an Inline Hook Function
+#' Warn if a Hook Body References Free Variables
 #'
-#' @param fn_expr A function call expression.
+#' @param fn_body A body expression.
+#' @param formal_names A character vector of formal parameter names.
 #' @param keyword The placeholder keyword.
 #' @param hook_name The hook name.
 #'
 #' @return Invisibly returns `NULL`.
 #' @noRd
-ptr_check_free_variables <- function(fn_expr, keyword, hook_name) {
-  fn_formals <- fn_expr[[2]]
-  fn_body <- fn_expr[[3]]
-
-  formal_names <- names(fn_formals)
+check_free_variables_impl <- function(fn_body, formal_names, keyword, hook_name) {
   all_symbols <- ptr_collect_symbols(fn_body)
 
-  # Known safe: formals, base R, ggpaintr namespace
   safe_names <- unique(c(
     formal_names,
     ls(baseenv()),
     ls(asNamespace("ggpaintr")),
-    # R syntax not captured by baseenv()
     "if", "else", "for", "while", "repeat", "function", "return",
     "next", "break", "{", "(", "<-", "<<-", "=", "~",
     "!", "&", "|", "&&", "||", "+", "-", "*", "/", "^",
@@ -698,6 +690,23 @@ ptr_check_free_variables <- function(fn_expr, keyword, hook_name) {
   invisible(NULL)
 }
 
+#' Warn About Free Variables in an Inline Hook Function
+#'
+#' @param fn_expr A function call expression.
+#' @param keyword The placeholder keyword.
+#' @param hook_name The hook name.
+#'
+#' @return Invisibly returns `NULL`.
+#' @noRd
+ptr_check_free_variables <- function(fn_expr, keyword, hook_name) {
+  check_free_variables_impl(
+    fn_body = fn_expr[[3]],
+    formal_names = names(fn_expr[[2]]),
+    keyword = keyword,
+    hook_name = hook_name
+  )
+}
+
 #' Warn About Free Variables in a source_function Hook (Function Object)
 #'
 #' @param fn_obj A function object.
@@ -707,35 +716,12 @@ ptr_check_free_variables <- function(fn_expr, keyword, hook_name) {
 #' @return Invisibly returns `NULL`.
 #' @noRd
 ptr_check_free_variables_fn <- function(fn_obj, keyword, hook_name) {
-  fn_body <- body(fn_obj)
-  formal_names <- names(formals(fn_obj))
-  all_symbols <- ptr_collect_symbols(fn_body)
-
-  safe_names <- unique(c(
-    formal_names,
-    ls(baseenv()),
-    ls(asNamespace("ggpaintr")),
-    "if", "else", "for", "while", "repeat", "function", "return",
-    "next", "break", "{", "(", "<-", "<<-", "=", "~",
-    "!", "&", "|", "&&", "||", "+", "-", "*", "/", "^",
-    "%%", "%/%", "%in%", "%>%", "|>",
-    "<", ">", "<=", ">=", "==", "!=",
-    "$", "[", "[[", ":", "::", ":::",
-    "NULL", "TRUE", "FALSE", "NA", "NA_character_", "NA_real_", "NA_integer_",
-    "T", "F"
-  ))
-
-  free_vars <- setdiff(all_symbols, safe_names)
-  if (length(free_vars) > 0) {
-    rlang::warn(paste0(
-      "Custom placeholder '", keyword, "': hook '", hook_name,
-      "' references names not in its formals or common packages: ",
-      paste(free_vars, collapse = ", "),
-      ". These may not be available in the exported app."
-    ))
-  }
-
-  invisible(NULL)
+  check_free_variables_impl(
+    fn_body = body(fn_obj),
+    formal_names = names(formals(fn_obj)),
+    keyword = keyword,
+    hook_name = hook_name
+  )
 }
 
 #' Serialize Custom Placeholder Definitions for Export
