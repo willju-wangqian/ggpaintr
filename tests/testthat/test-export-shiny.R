@@ -32,15 +32,15 @@ test_that("ptr_generate_shiny writes a syntactically valid app script", {
   )
   expect_match(app_text, "ui <- fluidPage\\(")
   expect_match(app_text, "titlePanel\\(title_copy\\$label\\)")
-  expect_match(app_text, "actionButton\\(\"draw\", draw_copy\\$label\\)")
-  expect_match(app_text, "downloadButton\\(\"shinyExport\", export_copy\\$label\\)")
+  expect_match(app_text, "actionButton\\(ids\\$draw_button, draw_copy\\$label\\)")
+  expect_match(app_text, "downloadButton\\(ids\\$export_button, export_copy\\$label\\)")
   expect_match(app_text, "server <- function\\(input, output, session\\)")
   expect_match(
     app_text,
     paste0(
       "ptr_state <- ptr_server\\(",
       "input, output, session, input_formula, ui_text = ui_text, ",
-      "placeholders = placeholders\\)"
+      "placeholders = placeholders, ids = ids\\)"
     )
   )
   expect_match(app_text, "shinyApp\\(ui, server\\)")
@@ -66,7 +66,7 @@ test_that("ptr_generate_shiny preserves upload-aware runtime code", {
     paste0(
       "ptr_server\\(",
       "input, output, session, input_formula, ui_text = ui_text, ",
-      "placeholders = placeholders\\)"
+      "placeholders = placeholders, ids = ids\\)"
     )
   )
 })
@@ -292,7 +292,7 @@ test_that("ptr_generate_shiny writes compact custom copy rules for exported apps
     paste0(
       "ptr_server\\(",
       "input, output, session, input_formula, ui_text = ui_text, ",
-      "placeholders = placeholders\\)"
+      "placeholders = placeholders, ids = ids\\)"
     )
   )
 
@@ -388,7 +388,7 @@ test_that("ptr_generate_shiny writes compact custom placeholders for exported ap
     paste0(
       "ptr_server\\(",
       "input, output, session, input_formula, ui_text = ui_text, ",
-      "placeholders = placeholders\\)"
+      "placeholders = placeholders, ids = ids\\)"
     )
   )
   expect_no_match(app_text, "custom_placeholders <- list\\(var = ")

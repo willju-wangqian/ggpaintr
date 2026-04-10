@@ -309,7 +309,7 @@ ptr_normalize_placeholders <- function(placeholders = NULL) {
   }
 
   normalized <- list()
-  seen_keywords <- character(length(placeholders))
+  seen_keywords <- character(0)
 
   for (i in seq_along(placeholders)) {
     placeholder <- placeholders[[i]]
@@ -328,7 +328,7 @@ ptr_normalize_placeholders <- function(placeholders = NULL) {
     }
 
     normalized[[keyword]] <- placeholder
-    seen_keywords[[i]] <- keyword
+    seen_keywords <- c(seen_keywords, keyword)
   }
 
   normalized
@@ -889,7 +889,7 @@ ptr_build_num_placeholder_ui <- function(id, copy, meta, context) {
 #' @return A numeric expression, or `ptr_missing_expr()`.
 #' @noRd
 ptr_resolve_num_expr <- function(value, meta, context) {
-  if (is.na(value) || is.null(value)) {
+  if (is.null(value) || length(value) == 0L || is.na(value)) {
     return(ptr_missing_expr())
   }
 
@@ -1206,7 +1206,7 @@ ptr_bind_var_ui_impl <- function(input, output, metas, context) {
     }
 
     if (!isTRUE(column_info$has_data)) {
-      rlang::abort(paste0("Variable inputs cannot be rendered because data columns are not available for layer '", layer_name, "'."))
+      next
     }
 
     for (meta in metas_by_layer[[layer_name]]) {

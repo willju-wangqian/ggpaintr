@@ -9,7 +9,8 @@ ptr_generate_shiny(
   output_file,
   style = TRUE,
   ui_text = NULL,
-  placeholders = NULL
+  placeholders = NULL,
+  ids = ptr_build_ids()
 )
 }
 \arguments{
@@ -26,6 +27,9 @@ text, and placeholders.}
 placeholder registry. Exported custom placeholders must define their hooks
 inline inside \code{ptr_define_placeholder()} so the generated app can stay
 standalone.}
+
+\item{ids}{A \code{ptr_build_ids} object controlling the Shiny element IDs used in
+the generated app. Defaults to \code{ptr_build_ids()}.}
 }
 \value{
 Invisibly returns \code{output_file}.

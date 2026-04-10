@@ -4,12 +4,11 @@ test_that("multiple expressions are rejected at parse time", {
   )
 })
 
-test_that("formulas with var and no data fail during UI preparation", {
+test_that("formulas with var and no data silently skip during UI preparation", {
   obj <- ptr_parse_formula(unsupported_use_cases$no_data_for_var$formula)
 
-  expect_error(
-    register_var_ui_outputs(list(), list2env(list(), parent = emptyenv()), obj),
-    "Variable inputs cannot be rendered because data columns are not available"
+  expect_no_error(
+    register_var_ui_outputs(list(), list2env(list(), parent = emptyenv()), obj)
   )
 })
 

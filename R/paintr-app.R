@@ -307,7 +307,8 @@ ptr_register_export <- function(output,
         ptr_state$obj(),
         file,
         ui_text = ptr_state$raw_ui_text,
-        placeholders = ptr_state$placeholders
+        placeholders = ptr_state$placeholders,
+        ids = ids
       )
     }
   )
@@ -564,6 +565,8 @@ ptr_app <- function(formula,
 #'   text, and placeholders.
 #' @param placeholders Optional custom placeholder definitions or an existing
 #'   placeholder registry.
+#' @param ids A `ptr_build_ids` object controlling the Shiny element IDs used by
+#'   the integration helpers. Defaults to `ptr_build_ids()`.
 #'
 #' @return A `ptr_state` object containing reactive accessors named `obj`,
 #'   `runtime`, and `var_ui_list`, plus shared metadata used by the bind helpers.
@@ -574,12 +577,14 @@ ptr_server <- function(input,
                             formula,
                             envir = parent.frame(),
                             ui_text = NULL,
-                            placeholders = NULL) {
+                            placeholders = NULL,
+                            ids = ptr_build_ids()) {
   ptr_state <- ptr_server_state(
     formula,
     envir = envir,
     ui_text = ui_text,
-    placeholders = placeholders
+    placeholders = placeholders,
+    ids = ids
   )
 
   ptr_register_controls(input, output, ptr_state)

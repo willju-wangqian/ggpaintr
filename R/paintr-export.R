@@ -294,6 +294,26 @@ ptr_serialize_export_placeholders <- function(placeholders = NULL) {
   )
 }
 
+#' Serialize a ptr_build_ids Object to an R Assignment String
+#'
+#' @param ids A `ptr_build_ids` object.
+#'
+#' @return A single character string containing an R assignment expression.
+#' @noRd
+ptr_serialize_ids <- function(ids) {
+  fields <- c(
+    "control_panel", "draw_button", "export_button",
+    "plot_output", "error_output", "code_output"
+  )
+  args <- paste(
+    vapply(fields, function(f) {
+      paste0(f, " = \"", ptr_escape_string_segment(ids[[f]]), "\"")
+    }, character(1)),
+    collapse = ", "
+  )
+  paste0("ids <- ptr_build_ids(", args, ")")
+}
+
 #' Build the Standalone App Template
 #'
 #' @param formula_text A single formula string.
@@ -305,7 +325,8 @@ ptr_serialize_export_placeholders <- function(placeholders = NULL) {
 #' @noRd
 get_shiny_template <- function(formula_text,
                                ui_text = NULL,
-                               placeholders = NULL) {
+                               placeholders = NULL,
+                               ids = ptr_build_ids()) {
   formula_text_lines <- ptr_prefix_assignment(
     "input_formula",
     ptr_serialize_formula_text(formula_text)
@@ -330,6 +351,8 @@ get_shiny_template <- function(formula_text,
     "",
     placeholder_lines,
     "",
+    ptr_serialize_ids(ids),
+    "",
     "title_copy <- ptr_resolve_ui_text(\"title\", ui_text = ui_text)",
     "draw_copy <- ptr_resolve_ui_text(\"draw_button\", ui_text = ui_text)",
     "export_copy <- ptr_resolve_ui_text(\"export_button\", ui_text = ui_text)",
@@ -339,27 +362,21 @@ get_shiny_template <- function(formula_text,
     "  sidebarLayout(",
     "    sidebarPanel(",
     "      # Modify or add controls here.",
-    "      uiOutput(\"controlPanel\"),",
-    "      actionButton(\"draw\", draw_copy$label),",
-    "      downloadButton(\"shinyExport\", export_copy$label)",
+    "      uiOutput(ids$control_panel),",
+    "      actionButton(ids$draw_button, draw_copy$label),",
+    "      downloadButton(ids$export_button, export_copy$label)",
     "    ),",
     "    mainPanel(",
     "      # Modify or add outputs here.",
-    "      plotOutput(\"outputPlot\"),",
-    "      uiOutput(\"outputError\"),",
-    "      verbatimTextOutput(\"outputCode\")",
+    "      plotOutput(ids$plot_output),",
+    "      uiOutput(ids$error_output),",
+    "      verbatimTextOutput(ids$code_output)",
     "    )",
     "  )",
     ")",
     "",
     "server <- function(input, output, session) {",
-    paste(
-      "  ptr_state <- ptr_server(",
-      "input, output, session, input_formula, ui_text = ui_text, ",
-      "placeholders = placeholders",
-      ")",
-      sep = ""
-    ),
+    "  ptr_state <- ptr_server(input, output, session, input_formula, ui_text = ui_text, placeholders = placeholders, ids = ids)",
     "",
     "  # Add custom observers or outputs below.",
     "  # observe({",
@@ -388,6 +405,8 @@ get_shiny_template <- function(formula_text,
 #'   placeholder registry. Exported custom placeholders must define their hooks
 #'   inline inside `ptr_define_placeholder()` so the generated app can stay
 #'   standalone.
+#' @param ids A `ptr_build_ids` object controlling the Shiny element IDs used in
+#'   the generated app. Defaults to `ptr_build_ids()`.
 #'
 #' @return Invisibly returns `output_file`.
 #' @examples
@@ -402,7 +421,8 @@ ptr_generate_shiny <- function(ptr_obj,
                            output_file,
                            style = TRUE,
                            ui_text = NULL,
-                           placeholders = NULL) {
+                           placeholders = NULL,
+                           ids = ptr_build_ids()) {
   if (!is.character(output_file) || length(output_file) != 1 || is.na(output_file)) {
     rlang::abort("output_file must be a single non-missing string.")
   }
@@ -415,7 +435,8 @@ ptr_generate_shiny <- function(ptr_obj,
   shiny_text <- get_shiny_template(
     ptr_obj$formula_text,
     ui_text = ui_text,
-    placeholders = placeholder_registry
+    placeholders = placeholder_registry,
+    ids = ids
   )
 
   tryCatch(

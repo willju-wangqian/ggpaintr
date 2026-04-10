@@ -11,7 +11,8 @@ ptr_server(
   formula,
   envir = parent.frame(),
   ui_text = NULL,
-  placeholders = NULL
+  placeholders = NULL,
+  ids = ptr_build_ids()
 )
 }
 \arguments{
@@ -30,6 +31,9 @@ text, and placeholders.}
 
 \item{placeholders}{Optional custom placeholder definitions or an existing
 placeholder registry.}
+
+\item{ids}{A \code{ptr_build_ids} object controlling the Shiny element IDs used by
+the integration helpers. Defaults to \code{ptr_build_ids()}.}
 }
 \value{
 A \code{ptr_state} object containing reactive accessors named \code{obj},

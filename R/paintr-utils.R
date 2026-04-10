@@ -141,24 +141,17 @@ get_index_path <- function(x,
 #' @return A character vector with duplicates made unique.
 #' @noRd
 handle_duplicate_names <- function(x) {
-  if (length(unique(x)) != length(x)) {
-    duplicated_items <- unique(x[duplicated(x)])
-    counting_list <- rep(list(0), length(duplicated_items))
-    counting_list <- rlang::set_names(counting_list, duplicated_items)
-    seen <- rlang::set_names(rep(FALSE, length(duplicated_items)), duplicated_items)
-
-    for (i in seq_along(x)) {
-      if (x[i] %in% names(counting_list)) {
-        counting_list[[x[i]]] <- counting_list[[x[i]]] + 1
-        if (seen[[x[i]]]) {
-          x[i] <- paste0(x[i], "-", counting_list[[x[i]]])
-        } else {
-          seen[[x[i]]] <- TRUE
-        }
-      }
+  if (length(unique(x)) == length(x)) return(x)
+  counts <- new.env(parent = emptyenv())
+  for (i in seq_along(x)) {
+    nm <- x[i]
+    if (is.null(counts[[nm]])) {
+      counts[[nm]] <- 1L
+    } else {
+      counts[[nm]] <- counts[[nm]] + 1L
+      x[i] <- paste0(nm, "-", counts[[nm]])
     }
   }
-
   x
 }
 
@@ -264,20 +257,22 @@ ptr_can_stand_alone <- function(fn_name) {
 #'
 #' @return The cleaned expression or `NULL`.
 #' @noRd
-expr_remove_emptycall2 <- function(.expr) {
+expr_remove_emptycall2 <- function(.expr, verbose = TRUE) {
   for (i in length(.expr):1) {
     if (is.call(.expr[[i]])) {
       if (length(.expr[[i]]) == 1) {
         fn_name <- rlang::as_string(.expr[[i]][[1]])
         if (!ptr_is_gg_layer_name(fn_name)) {
-          cli::cli_inform(paste0(
-            "The function ", fn_name,
-            "() in ", rlang::as_string(.expr[[1]]), "() is removed."
-          ))
+          if (verbose) {
+            cli::cli_inform(paste0(
+              "The function ", fn_name,
+              "() in ", rlang::as_string(.expr[[1]]), "() is removed."
+            ))
+          }
           .expr[[i]] <- NULL
         }
       } else {
-        .expr[[i]] <- expr_remove_emptycall2(.expr[[i]])
+        .expr[[i]] <- expr_remove_emptycall2(.expr[[i]], verbose = verbose)
       }
     }
   }
@@ -285,7 +280,9 @@ expr_remove_emptycall2 <- function(.expr) {
   if (is.call(.expr) && length(.expr) == 1) {
     fn_name <- rlang::as_string(.expr[[1]])
     if (!ptr_is_gg_layer_name(fn_name)) {
-      cli::cli_inform(paste0("The function ", fn_name, "() is removed."))
+      if (verbose) {
+        cli::cli_inform(paste0("The function ", fn_name, "() is removed."))
+      }
       .expr <- NULL
     }
   }
