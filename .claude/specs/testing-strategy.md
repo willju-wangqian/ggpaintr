@@ -21,7 +21,7 @@ Automated tests live in:
 - `tests/testthat/`
 - `tests/testthat/fixtures/`
 
-Manual verification lives in:
+Manual verification (not yet created — planned):
 
 - `tests/manual/manual-checklist-ggpaintr.md`
 - `tests/manual/manual-test-ggpaintr.Rmd`

@@ -14,12 +14,13 @@
 #' UI control, runtime expression replacement, deferred UI binding, and
 #' evaluation-environment preparation.
 #'
-#' @note **Export limitation:** To make a custom placeholder exportable through
-#'   `ptr_generate_shiny()`, all hook functions (`build_ui`, `resolve_expr`, etc.)
-#'   must be defined **inline** inside the `ptr_define_placeholder()` call.
-#'   Functions defined elsewhere and passed by name (e.g.,
-#'   `build_ui = my_function`) cannot be serialized into the standalone app file.
-#'   This is a known limitation; a future release may lift this restriction.
+#' @note **Export of non-inline hooks:** Hook functions can be made exportable
+#'   through `ptr_generate_shiny()` in three ways: define them **inline** inside
+#'   the `ptr_define_placeholder()` call (serialized directly), supply them via
+#'   `source_function` (deparsed into the generated app), reference them via
+#'   `source_file` (a `source()` call is emitted), or reference them via
+#'   `source_package` (a `library()` call is emitted). Non-inline hooks with no
+#'   source strategy will abort at export time.
 #'
 #' @param keyword A single syntactic placeholder name used inside the formula.
 #' @param build_ui Function with signature `(id, copy, meta, context)` returning

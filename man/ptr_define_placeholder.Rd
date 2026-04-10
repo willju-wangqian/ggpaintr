@@ -70,12 +70,13 @@ UI control, runtime expression replacement, deferred UI binding, and
 evaluation-environment preparation.
 }
 \note{
-\strong{Export limitation:} To make a custom placeholder exportable through
-\code{ptr_generate_shiny()}, all hook functions (\code{build_ui}, \code{resolve_expr}, etc.)
-must be defined \strong{inline} inside the \code{ptr_define_placeholder()} call.
-Functions defined elsewhere and passed by name (e.g.,
-\code{build_ui = my_function}) cannot be serialized into the standalone app file.
-This is a known limitation; a future release may lift this restriction.
+\strong{Export of non-inline hooks:} Hook functions can be made exportable
+through \code{ptr_generate_shiny()} in three ways: define them \strong{inline} inside
+the \code{ptr_define_placeholder()} call (serialized directly), supply them via
+\code{source_function} (deparsed into the generated app), reference them via
+\code{source_file} (a \code{source()} call is emitted), or reference them via
+\code{source_package} (a \code{library()} call is emitted). Non-inline hooks with no
+source strategy will abort at export time.
 }
 \examples{
 date_placeholder <- ptr_define_placeholder(

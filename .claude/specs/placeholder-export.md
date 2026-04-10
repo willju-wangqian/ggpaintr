@@ -28,7 +28,7 @@ ptr_define_placeholder(
   resolve_input      = NULL,
   bind_ui            = NULL,
   prepare_eval_env   = NULL,
-  copy_defaults      = list(label = "Enter a value for {param}"),
+  copy_defaults      = list(label = "Enter a value for {param}"),  # function default; built-in keywords each supply their own defaults
   source_file        = NULL,   # path(s); scalar = default for all hooks
   source_package     = NULL,   # package name(s); scalar = default for all hooks
   source_function    = NULL,   # named list: hook_name -> function object to deparse
@@ -119,7 +119,7 @@ Additional validation at definition time:
 
 ## Testing Strategy
 
-Tests in `tests/testthat/test-export.R` (or `test-export-source.R` if file grows too large). Test approach: inspect text output of `ptr_generate_shiny()` via `withr::local_tempfile()`.
+Tests in `tests/testthat/test-export-shiny.R` and `tests/testthat/test-w1-w6-improvements.R`. Test approach: inspect text output of `ptr_generate_shiny()` via `withr::local_tempfile()`.
 
 Key test groups:
 - `source_function`: deparse correctness, per-hook override, free-variable abort
