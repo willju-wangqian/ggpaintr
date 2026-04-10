@@ -103,38 +103,6 @@ test_that("ptr_normalize_placeholders returns empty list for NULL input", {
 })
 
 # =============================================================================
-# W4: expr_remove_emptycall2 - verbose param
-# =============================================================================
-
-test_that("expr_remove_emptycall2 with verbose = FALSE produces no messages", {
-  expr <- quote(wrapper(unknown_func()))
-  expect_no_message(
-    expr_remove_emptycall2(expr, verbose = FALSE)
-  )
-})
-
-test_that("expr_remove_emptycall2 with verbose = TRUE (default) still produces messages", {
-  expr <- quote(wrapper(unknown_func()))
-  expect_message(
-    expr_remove_emptycall2(expr, verbose = TRUE),
-    regexp = "unknown_func"
-  )
-})
-
-test_that("expr_remove_emptycall2 verbose = FALSE produces same structural result as verbose = TRUE", {
-  expr <- quote(wrapper(unknown_func(), geom_point()))
-  result_silent  <- suppressMessages(expr_remove_emptycall2(expr, verbose = FALSE))
-  result_verbose <- suppressMessages(expr_remove_emptycall2(expr, verbose = TRUE))
-  expect_equal(result_silent, result_verbose)
-})
-
-test_that("expr_remove_emptycall2 default verbose argument is TRUE", {
-  # Confirm default triggers a message (i.e., verbose defaults to TRUE not FALSE)
-  expr <- quote(f(unknown_func()))
-  expect_message(expr_remove_emptycall2(expr))
-})
-
-# =============================================================================
 # W5: handle_duplicate_names - O(n) environment-based deduplication
 # =============================================================================
 

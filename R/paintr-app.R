@@ -166,10 +166,10 @@ ptr_validate_state <- function(ptr_state) {
 #' is.function(state$runtime)
 #' @export
 ptr_server_state <- function(formula,
-                                  envir = parent.frame(),
-                                  ui_text = NULL,
-                                  ids = ptr_build_ids(),
-                                  placeholders = NULL) {
+                             envir = parent.frame(),
+                             ui_text = NULL,
+                             ids = ptr_build_ids(),
+                             placeholders = NULL) {
   ids <- ptr_normalize_ids(ids)
   placeholder_registry <- ptr_merge_placeholders(placeholders)
 
@@ -205,10 +205,10 @@ ptr_server_state <- function(formula,
 #'
 #' @return Invisibly returns `ptr_state`.
 #' @export
-ptr_register_controls <- function(input,
-                                        output,
-                                        ptr_state,
-                                        ids = ptr_state$ids) {
+ptr_setup_controls <- function(input,
+                               output,
+                               ptr_state,
+                               ids = ptr_state$ids) {
   ptr_validate_state(ptr_state)
   ids <- ptr_normalize_ids(ids)
 
@@ -253,7 +253,7 @@ ptr_register_controls <- function(input,
 #' \dontrun{
 #' server <- function(input, output, session) {
 #'   ps <- ptr_server_state("ggplot(mtcars, aes(x = var)) + geom_histogram()")
-#'   ptr_register_controls(input, output, ps)
+#'   ptr_setup_controls(input, output, ps)
 #'   ptr_register_draw(input, ps)
 #'   ptr_register_plot(output, ps)
 #' }
@@ -587,7 +587,7 @@ ptr_server <- function(input,
     ids = ids
   )
 
-  ptr_register_controls(input, output, ptr_state)
+  ptr_setup_controls(input, output, ptr_state)
   ptr_register_export(output, ptr_state)
   ptr_register_draw(input, ptr_state)
   ptr_register_plot(output, ptr_state)

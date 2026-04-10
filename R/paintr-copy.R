@@ -54,7 +54,6 @@ ptr_default_ui_text <- function(placeholders = NULL) {
       ),
       layer_checkbox = list(label = "Include this layer in the plot"),
       defaults = default_placeholder_copy,
-      # Common parameter-specific defaults go here.
       params = list(
         x = list(
           var = list(label = "Choose the x-axis column"),
@@ -105,7 +104,6 @@ ptr_default_ui_text <- function(placeholders = NULL) {
         bins = list(num = list(label = "Number of bins")),
         binwidth = list(num = list(label = "Bin width"))
       ),
-      # Layer-specific unnamed-expression rules go here.
       layers = list(
         facet_wrap = list(
           expr = list(

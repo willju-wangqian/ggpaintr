@@ -309,7 +309,7 @@ ptr_normalize_placeholders <- function(placeholders = NULL) {
   }
 
   normalized <- list()
-  seen_keywords <- character(0)
+  seen_env <- new.env(hash = TRUE, parent = emptyenv())
 
   for (i in seq_along(placeholders)) {
     placeholder <- placeholders[[i]]
@@ -323,12 +323,12 @@ ptr_normalize_placeholders <- function(placeholders = NULL) {
       rlang::abort(paste0("placeholders name '", supplied_name, "' does not match placeholder keyword '", keyword, "'."))
     }
 
-    if (keyword %in% seen_keywords) {
+    if (exists(keyword, envir = seen_env, inherits = FALSE)) {
       rlang::abort(paste0("placeholders contains duplicated keywords: ", keyword, "."))
     }
 
     normalized[[keyword]] <- placeholder
-    seen_keywords <- c(seen_keywords, keyword)
+    assign(keyword, TRUE, envir = seen_env)
   }
 
   normalized

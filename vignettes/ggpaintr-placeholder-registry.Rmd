@@ -307,7 +307,7 @@ server <- function(input, output, session) {
     placeholders = placeholders
   )
 
-  ptr_register_controls(input, output, ptr_state, ids = ids)
+  ptr_setup_controls(input, output, ptr_state, ids = ids)
   ptr_register_draw(input, ptr_state, ids = ids)
   ptr_register_export(output, ptr_state, ids = ids)
   ptr_register_plot(output, ptr_state, ids = ids)

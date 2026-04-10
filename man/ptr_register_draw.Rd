@@ -24,7 +24,7 @@ Bind Draw Behavior into a Shiny App
 \dontrun{
 server <- function(input, output, session) {
   ps <- ptr_server_state("ggplot(mtcars, aes(x = var)) + geom_histogram()")
-  ptr_register_controls(input, output, ps)
+  ptr_setup_controls(input, output, ps)
   ptr_register_draw(input, ps)
   ptr_register_plot(output, ps)
 }

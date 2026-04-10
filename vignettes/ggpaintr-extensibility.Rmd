@@ -29,7 +29,7 @@ The supported integration pieces are:
 
 - `ptr_build_ids()`
 - `ptr_server_state()`
-- `ptr_register_controls()`
+- `ptr_setup_controls()`
 - `ptr_register_draw()`
 - `ptr_register_export()`
 - `ptr_register_plot()`
@@ -80,7 +80,7 @@ server <- function(input, output, session) {
       labs(title = text)"
   )
 
-  ptr_register_controls(input, output, ptr_state)
+  ptr_setup_controls(input, output, ptr_state)
   ptr_register_draw(input, ptr_state)
   ptr_register_export(output, ptr_state)
   ptr_register_plot(output, ptr_state)
@@ -130,7 +130,7 @@ server <- function(input, output, session) {
     ids = ids
   )
 
-  ptr_register_controls(input, output, ptr_state, ids = ids)
+  ptr_setup_controls(input, output, ptr_state, ids = ids)
   ptr_register_draw(input, ptr_state, ids = ids)
   ptr_register_export(output, ptr_state, ids = ids)
   ptr_register_plot(output, ptr_state, ids = ids)
@@ -154,7 +154,7 @@ server <- function(input, output, session) {
     "ggplot(data = iris, aes(x = var, y = var)) + geom_point()"
   )
 
-  ptr_register_controls(input, output, ptr_state)
+  ptr_setup_controls(input, output, ptr_state)
   ptr_register_draw(input, ptr_state)
   ptr_register_export(output, ptr_state)
   ptr_register_error(output, ptr_state)

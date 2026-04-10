@@ -283,12 +283,9 @@ test_that("expr_remove_null accepts a custom target symbol", {
 
 # --- expr_remove_emptycall2 ----------------------------------------------
 
-test_that("expr_remove_emptycall2 removes an empty non-ggplot call with a message", {
+test_that("expr_remove_emptycall2 removes an empty non-ggplot call", {
   expr <- quote(f(unknown_func()))
-  expect_message(
-    result <- expr_remove_emptycall2(expr),
-    regexp = "unknown_func"
-  )
+  result <- expr_remove_emptycall2(expr)
   # After removal f() has no args; the outer length-1 check fires too.
   expect_true(is.null(result) || (is.call(result) && length(result) < length(expr)))
 })
@@ -320,6 +317,46 @@ test_that("ptr_is_gg_layer_name recognizes known patterns", {
   expect_true(ptr_is_gg_layer_name("xlim"))
   expect_false(ptr_is_gg_layer_name("unknown_func"))
   expect_false(ptr_is_gg_layer_name("f"))
+})
+
+# W2: edge cases for startsWith-based implementation
+test_that("ptr_is_gg_layer_name returns FALSE for empty string", {
+  expect_false(ptr_is_gg_layer_name(""))
+})
+
+test_that("ptr_is_gg_layer_name returns FALSE for prefix without trailing underscore", {
+  # "geom" alone is not a valid gg layer name; only "geom_*" is
+  expect_false(ptr_is_gg_layer_name("geom"))
+  expect_false(ptr_is_gg_layer_name("stat"))
+  expect_false(ptr_is_gg_layer_name("scale"))
+  expect_false(ptr_is_gg_layer_name("facet"))
+  expect_false(ptr_is_gg_layer_name("coord"))
+})
+
+test_that("ptr_can_stand_alone returns FALSE for empty string", {
+  expect_false(ptr_can_stand_alone(""))
+})
+
+test_that("ptr_can_stand_alone returns FALSE for prefix without trailing underscore", {
+  expect_false(ptr_can_stand_alone("geom"))
+  expect_false(ptr_can_stand_alone("stat"))
+})
+
+test_that("ptr_can_stand_alone returns FALSE for layers that share prefix but are not geom_/stat_", {
+  # geomancy, statistic — not gg layer names
+  expect_false(ptr_can_stand_alone("geomancy"))
+  expect_false(ptr_can_stand_alone("statistics"))
+})
+
+# W3: expr_remove_emptycall2 must not emit messages
+test_that("expr_remove_emptycall2 emits no messages when removing empty non-gg call", {
+  expr <- quote(f(unknown_func()))
+  expect_no_message(expr_remove_emptycall2(expr))
+})
+
+test_that("expr_remove_emptycall2 emits no messages when preserving gg-layer call", {
+  expr <- quote(wrapper(geom_point()))
+  expect_no_message(expr_remove_emptycall2(expr))
 })
 
 # --- check_remove_null ---------------------------------------------------

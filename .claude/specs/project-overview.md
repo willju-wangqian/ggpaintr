@@ -54,7 +54,7 @@ Key runtime path:
    runtime overrides using the effective placeholder registry
 4. `ptr_server_state()` initializes shared reactive state for the wrapper
    and integration helpers
-5. `ptr_register_controls()` builds static and deferred controls from
+5. `ptr_setup_controls()` builds static and deferred controls from
    parsed metadata plus resolved copy
 6. `ptr_register_draw()`, `ptr_register_export()`, `ptr_register_plot()`,
    `ptr_register_error()`, and `ptr_register_code()` wire the standard Shiny
@@ -84,7 +84,7 @@ The maintained exported package surface is:
 - `ptr_server()`
 - `ptr_build_ids()`
 - `ptr_server_state()`
-- `ptr_register_controls()`
+- `ptr_setup_controls()`
 - `ptr_register_draw()`
 - `ptr_register_export()`
 - `ptr_register_plot()`
@@ -145,7 +145,7 @@ References:
 - `R/paintr-placeholders.R:44-131`
 - `R/paintr-copy.R:12-146`
 - `R/paintr-export.R:95-252`
-- `NAMESPACE:3-28`
+- `NAMESPACE:3-29`
 - `_pkgdown.yml:7-48`
 
 ## Documentation workflow

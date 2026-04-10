@@ -15,7 +15,7 @@ reference:
       - ptr_server
       - ptr_build_ids
       - ptr_server_state
-      - ptr_register_controls
+      - ptr_setup_controls
       - ptr_register_draw
       - ptr_register_export
       - ptr_register_plot

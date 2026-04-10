@@ -232,7 +232,7 @@ ptr_is_gg_layer_name <- function(fn_name) {
     "annotation_", "borders", "expand_limits", "lims", "xlim", "ylim",
     "after_stat", "after_scale", "stage"
   )
-  any(vapply(gg_prefixes, function(p) startsWith(fn_name, p), logical(1)))
+  any(startsWith(fn_name, gg_prefixes))
 }
 
 #' Check Whether a Layer Can Stand Alone Without Arguments
@@ -248,7 +248,7 @@ ptr_is_gg_layer_name <- function(fn_name) {
 #' @noRd
 ptr_can_stand_alone <- function(fn_name) {
   standalone_prefixes <- c("geom_", "stat_")
-  any(vapply(standalone_prefixes, function(p) startsWith(fn_name, p), logical(1)))
+  any(startsWith(fn_name, standalone_prefixes))
 }
 
 #' Remove Empty Non-ggplot Calls
@@ -257,22 +257,16 @@ ptr_can_stand_alone <- function(fn_name) {
 #'
 #' @return The cleaned expression or `NULL`.
 #' @noRd
-expr_remove_emptycall2 <- function(.expr, verbose = TRUE) {
+expr_remove_emptycall2 <- function(.expr) {
   for (i in length(.expr):1) {
     if (is.call(.expr[[i]])) {
       if (length(.expr[[i]]) == 1) {
         fn_name <- rlang::as_string(.expr[[i]][[1]])
         if (!ptr_is_gg_layer_name(fn_name)) {
-          if (verbose) {
-            cli::cli_inform(paste0(
-              "The function ", fn_name,
-              "() in ", rlang::as_string(.expr[[1]]), "() is removed."
-            ))
-          }
           .expr[[i]] <- NULL
         }
       } else {
-        .expr[[i]] <- expr_remove_emptycall2(.expr[[i]], verbose = verbose)
+        .expr[[i]] <- expr_remove_emptycall2(.expr[[i]])
       }
     }
   }
@@ -280,9 +274,6 @@ expr_remove_emptycall2 <- function(.expr, verbose = TRUE) {
   if (is.call(.expr) && length(.expr) == 1) {
     fn_name <- rlang::as_string(.expr[[1]])
     if (!ptr_is_gg_layer_name(fn_name)) {
-      if (verbose) {
-        cli::cli_inform(paste0("The function ", fn_name, "() is removed."))
-      }
       .expr <- NULL
     }
   }

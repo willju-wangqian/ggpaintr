@@ -655,7 +655,7 @@ server <- function(input, output, session) {
     ",
     ids = manual_ids
   )
-  ggpaintr::ptr_register_controls(input, output, paintr_state, ids = manual_ids)
+  ggpaintr::ptr_setup_controls(input, output, paintr_state, ids = manual_ids)
   ggpaintr::ptr_register_draw(input, paintr_state, ids = manual_ids)
   ggpaintr::ptr_register_export(output, paintr_state, ids = manual_ids)
   ggpaintr::ptr_register_plot(output, paintr_state, ids = manual_ids)
@@ -718,7 +718,7 @@ server <- function(input, output, session) {
     ggplot(data = iris, aes(x = var, y = var)) +
       geom_point() + labs(title = text)
   ")
-  ggpaintr::ptr_register_controls(input, output, paintr_state)
+  ggpaintr::ptr_setup_controls(input, output, paintr_state)
   ggpaintr::ptr_register_draw(input, paintr_state)
   ggpaintr::ptr_register_export(output, paintr_state)
   ggpaintr::ptr_register_error(output, paintr_state)

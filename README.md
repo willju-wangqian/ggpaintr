@@ -220,7 +220,7 @@ server <- function(input, output, session) {
     ids = ids
   )
 
-  ptr_register_controls(input, output, ptr_state, ids = ids)
+  ptr_setup_controls(input, output, ptr_state, ids = ids)
   ptr_register_draw(input, ptr_state, ids = ids)
   ptr_register_export(output, ptr_state, ids = ids)
   ptr_register_plot(output, ptr_state, ids = ids)
@@ -242,7 +242,7 @@ server <- function(input, output, session) {
     "ggplot(data = iris, aes(x = var, y = var)) + geom_point()"
   )
 
-  ptr_register_controls(input, output, ptr_state)
+  ptr_setup_controls(input, output, ptr_state)
   ptr_register_draw(input, ptr_state)
   ptr_register_export(output, ptr_state)
   ptr_register_error(output, ptr_state)
