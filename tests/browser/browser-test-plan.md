@@ -370,7 +370,7 @@ shiny::runApp(
 ### Checks — Bare Tilde
 
 - dom: `#outputError` contains `Input error`
-- dom: `#outputPlot img` is absent
+- dom: `#outputPlot` shows a blank canvas (img element is always present because `renderPlot` renders `plot.new()`)
 - dom: `#outputCode` is blank
 - r-side: Session is still responsive
 
@@ -382,7 +382,7 @@ shiny::runApp(
 ### Checks — Invalid Column
 
 - dom: `#outputError` contains `Plot error`
-- dom: `#outputPlot img` is absent
+- dom: `#outputPlot` shows a blank canvas (img always present via `renderPlot`)
 - dom: `#outputCode` is non-blank (completion succeeded)
 - dom: No raw `Error: [object Object]` text visible
 
@@ -423,7 +423,7 @@ shiny::runApp(
 
 - dom: `#outputError` contains `Input error`
 - dom: `var` selectors not usable
-- dom: `#outputPlot img` absent
+- dom: `#outputPlot` shows a blank canvas (img always present via `renderPlot`)
 - dom: `#outputCode` blank
 
 ---
@@ -450,7 +450,7 @@ shiny::runApp(
 
 - dom: App launched without crashing
 - dom: `#outputError` contains `Plot error`
-- dom: `#outputPlot img` absent
+- dom: `#outputPlot` shows a blank canvas (img always present via `renderPlot`)
 - dom: `#outputCode` is non-blank (code generation succeeded)
 
 ---
@@ -691,7 +691,7 @@ shiny::runApp(shiny::shinyApp(ui, server), port = 4321, launch.browser = FALSE)
 - dom: `#main_plot img` present (custom output ID)
 - dom: `#main_code` contains `Sepal.Length`
 - dom: `#runtimeStatus` contains `Last draw succeeded`
-- r-side: Shiny input values accessible under custom IDs
+- r-side: Draw button fired (verify via `Shiny.shinyapp.$values` containing updated plot/code, not via `$inputValues` key — action button input keys lack the `:shiny.action` suffix in the JS-side registry)
 - console: No R errors
 
 ---
