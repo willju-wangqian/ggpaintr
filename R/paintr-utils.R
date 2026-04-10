@@ -27,7 +27,7 @@ expr_type <- function(x) {
 #' @return A nested structure with plot layers separated.
 #' @noRd
 handle_call_break_sum <- function(x) {
-  if (rlang::as_string(x[[1]]) == "+") {
+  if (rlang::is_call(x, "+")) {
     lapply(x[-1], break_sum)
   } else {
     x
@@ -207,6 +207,7 @@ get_expr_param <- function(.expr, .path) {
 expr_remove_null <- function(.expr,
                              target = rlang::sym("_NULL_PLACEHOLDER"),
                              current_path = numeric()) {
+  if (length(.expr) == 0L) return(.expr)
   for (i in length(.expr):1) {
     new_path <- c(current_path, i)
     if (is.call(.expr[[i]])) {
@@ -258,6 +259,7 @@ ptr_can_stand_alone <- function(fn_name) {
 #' @return The cleaned expression or `NULL`.
 #' @noRd
 expr_remove_emptycall2 <- function(.expr) {
+  if (length(.expr) == 0L) return(.expr)
   for (i in length(.expr):1) {
     if (is.call(.expr[[i]])) {
       if (length(.expr[[i]]) == 1) {

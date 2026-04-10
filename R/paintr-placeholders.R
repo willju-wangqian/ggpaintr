@@ -860,7 +860,6 @@ ptr_resolve_text_expr <- function(value, meta, context) {
     return(ptr_missing_expr())
   }
 
-  assertthat::assert_that(is.character(value))
   rlang::expr(!!value)
 }
 
@@ -893,7 +892,6 @@ ptr_resolve_num_expr <- function(value, meta, context) {
     return(ptr_missing_expr())
   }
 
-  assertthat::assert_that(is.numeric(value))
   rlang::expr(!!value)
 }
 

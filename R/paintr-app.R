@@ -94,7 +94,6 @@ ptr_normalize_ids <- function(ids = NULL) {
   }
 
   if (inherits(ids, "ptr_build_ids")) {
-    ptr_validate_ids(ids)
     return(ids)
   }
 

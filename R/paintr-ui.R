@@ -20,8 +20,8 @@ ptr_attach_help <- function(ui, help = NULL) {
 #'
 #' @return A Shiny UI object.
 #' @noRd
-generate_ui_upload <- function(id, ui_text = NULL) {
-  effective_ui_text <- ptr_merge_ui_text(ui_text)
+generate_ui_upload <- function(id, ui_text = NULL, placeholders = NULL) {
+  effective_ui_text <- ptr_merge_ui_text(ui_text, placeholders = placeholders)
   file_copy <- ptr_resolve_ui_text("upload_file", ui_text = effective_ui_text)
   name_copy <- ptr_resolve_ui_text("upload_name", ui_text = effective_ui_text)
 

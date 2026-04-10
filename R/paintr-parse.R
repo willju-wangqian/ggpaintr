@@ -138,35 +138,35 @@ ptr_runtime_input_spec <- function(ptr_obj) {
     for (meta in unname(layer_meta)) {
       param_key <- ptr_normalize_param_key(meta$param)
 
-      spec_rows[[length(spec_rows) + 1L]] <- new_spec_row(
+      spec_rows <- c(spec_rows, list(new_spec_row(
         input_id = meta$id,
         role = "placeholder",
         layer_name = meta$layer_name,
         keyword = meta$keyword,
         param_key = param_key,
         source_id = meta$id
-      )
+      )))
 
       if (identical(meta$keyword, "upload")) {
-        spec_rows[[length(spec_rows) + 1L]] <- new_spec_row(
+        spec_rows <- c(spec_rows, list(new_spec_row(
           input_id = ptr_upload_name_id(meta$id),
           role = "upload_name",
           layer_name = meta$layer_name,
           keyword = meta$keyword,
           param_key = param_key,
           source_id = meta$id
-        )
+        )))
       }
     }
   }
 
   for (layer_name in setdiff(layer_names, "ggplot")) {
     checkbox_id <- ptr_checkbox_input_id(layer_name)
-    spec_rows[[length(spec_rows) + 1L]] <- new_spec_row(
+    spec_rows <- c(spec_rows, list(new_spec_row(
       input_id = checkbox_id,
       role = "layer_checkbox",
       layer_name = layer_name
-    )
+    )))
   }
 
   if (length(spec_rows) == 0) {
