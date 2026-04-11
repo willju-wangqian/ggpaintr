@@ -151,14 +151,14 @@ test_that("get_index_path finds multiple placeholder types", {
   expect_length(paths, 5)
 })
 
-test_that("get_index_path finds a named 'data' argument as a path", {
+test_that("get_index_path does not capture 'data' arg unless value is a placeholder keyword", {
   expr <- quote(geom_point(data = mydf, aes(x = a)))
   paths <- get_index_path(expr)
-  # 'data' named arg should be captured
+  # 'mydf' is not a placeholder keyword, so 'data = mydf' should NOT be captured
   data_path_found <- any(vapply(paths, function(p) {
     length(p) == 1 && p == 2
   }, logical(1)))
-  expect_true(data_path_found)
+  expect_false(data_path_found)
 })
 
 test_that("get_index_path returns empty list when no placeholders", {
@@ -170,9 +170,9 @@ test_that("get_index_path returns empty list when no placeholders", {
 test_that("get_index_path recurses into nested calls", {
   expr <- quote(ggplot(data = mtcars, aes(x = var, y = var)))
   paths <- get_index_path(expr)
-  # 'data = mtcars' is captured as a data named-arg path, plus two var paths
-  # nested inside aes().  At least 3 paths total.
-  expect_true(length(paths) >= 3)
+  # 'data = mtcars' is NOT captured (mtcars is not a placeholder keyword).
+  # Two var paths nested inside aes() are captured.  At least 2 paths total.
+  expect_true(length(paths) >= 2)
   # At least two paths have depth > 1 (the nested var placeholders)
   deep_paths <- Filter(function(p) length(p) >= 2, paths)
   expect_true(length(deep_paths) >= 2)

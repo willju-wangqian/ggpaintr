@@ -4,13 +4,19 @@
 \alias{ptr_parse_formula}
 \title{Parse a Paintr Formula}
 \usage{
-ptr_parse_formula(formula, placeholders = NULL)
+ptr_parse_formula(formula, placeholders = NULL, formula_check = TRUE)
 }
 \arguments{
 \item{formula}{A single formula string describing a ggplot-like expression.}
 
 \item{placeholders}{Optional custom placeholder definitions or an existing
 placeholder registry.}
+
+\item{formula_check}{Logical or list controlling safety validation of the
+formula text itself. \code{TRUE} (default) applies the default denylist.
+\code{FALSE} skips validation, treating the formula as trusted developer
+input. A list with \code{deny_list} / \code{allow_list} customises the
+check. See \code{validate_expr_safety} details.}
 }
 \value{
 An object of class \code{ptr_obj}.
@@ -22,6 +28,11 @@ expression metadata, placeholder locations, and generated UI definitions.
 \details{
 Supported placeholders come from the effective placeholder registry. The
 built-in registry includes \code{var}, \code{text}, \code{num}, \code{expr}, and \code{upload}.
+}
+\note{
+The \code{formula} argument is validated by default using the denylist.
+Set \code{formula_check = FALSE} only for trusted developer input that you
+know is safe.
 }
 \examples{
 obj <- ptr_parse_formula(

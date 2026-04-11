@@ -136,8 +136,6 @@ get_index_path <- function(x,
     } else if (is.symbol(x[[i]])) {
       if (rlang::as_string(x[[i]]) %in% target) {
         result <- c(result, list(new_path))
-      } else if (!is.null(names(x)) && names(x)[i] == "data") {
-        result <- c(result, list(new_path))
       }
     }
   }
@@ -374,6 +372,7 @@ unsafe_expr_denylist <- c(
   "do.call", "match.fun", "get", "mget", "getFromNamespace",
   "Recall", "sys.call", "match.call",
   # environment / global state mutation
+  "<<-", "->>", "makeActiveBinding",
   "assign", "rm", "remove", "attach", "detach",
   "source", "sys.source",
   "library", "require", "loadNamespace",
@@ -391,7 +390,8 @@ unsafe_expr_denylist <- c(
   # information disclosure
   "Sys.getenv", "Sys.getpid", "Sys.info", "Sys.time",
   "proc.time", "message", "warning", "getwd",
-  "normalizePath", "Sys.glob", "list.files", "list.dirs"
+  "normalizePath", "Sys.glob", "list.files", "list.dirs",
+  "getAnywhere", "exists", "find", "loadedNamespaces"
 )
 
 #' Resolve the Effective Check List from an `expr_check` Value
@@ -480,6 +480,12 @@ validate_expr_safety <- function(expr, expr_check = TRUE) {
   }
 
   walk_expr <- function(x) {
+    if (is.pairlist(x)) {
+      for (i in seq_along(x)) {
+        walk_expr(x[[i]])
+      }
+      return(invisible(NULL))
+    }
     if (is.symbol(x)) {
       sym_name <- as.character(x)
       if (resolved$mode == "denylist" && sym_name %in% resolved$fns) {
@@ -501,28 +507,30 @@ validate_expr_safety <- function(expr, expr_check = TRUE) {
       return(invisible(NULL))
     }
     if (is.call(x)) {
-      if (is.call(x[[1]])) walk_expr(x[[1]])
-
-      fn_names <- extract_fn_names(x[[1]])
-
-      if (resolved$mode == "denylist") {
-        blocked <- fn_names[fn_names %in% resolved$fns]
-        if (length(blocked) > 0) {
-          rlang::abort(paste0(
-            "expr placeholder: `", blocked[[1]],
-            "` is not allowed. ",
-            "Set expr_check = FALSE to allow ",
-            "arbitrary expressions."
-          ))
-        }
+      if (is.call(x[[1]])) {
+        walk_expr(x[[1]])
       } else {
-        if (!any(fn_names %in% resolved$fns)) {
-          rlang::abort(paste0(
-            "expr placeholder: `", fn_names[[1]],
-            "` is not in the allowlist. ",
-            "Set expr_check = FALSE to allow ",
-            "arbitrary expressions."
-          ))
+        fn_names <- extract_fn_names(x[[1]])
+
+        if (resolved$mode == "denylist") {
+          blocked <- fn_names[fn_names %in% resolved$fns]
+          if (length(blocked) > 0) {
+            rlang::abort(paste0(
+              "expr placeholder: `", blocked[[1]],
+              "` is not allowed. ",
+              "Set expr_check = FALSE to allow ",
+              "arbitrary expressions."
+            ))
+          }
+        } else {
+          if (!any(fn_names %in% resolved$fns)) {
+            rlang::abort(paste0(
+              "expr placeholder: `", fn_names[[1]],
+              "` is not in the allowlist. ",
+              "Set expr_check = FALSE to allow ",
+              "arbitrary expressions."
+            ))
+          }
         }
       }
 

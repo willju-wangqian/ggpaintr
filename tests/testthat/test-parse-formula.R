@@ -14,12 +14,13 @@ test_that("ptr_parse_formula parses formulas into a paintr object", {
     obj$expr_list,
     c("ggplot", "geom_point", "geom_point-2", "labs")
   )
-  expect_true("ggplot+2" %in% names(obj$keywords_list$ggplot))
+  # 'data = mtcars' is NOT collected (mtcars is not a placeholder keyword)
+  expect_false("ggplot+2" %in% names(obj$keywords_list$ggplot))
   expect_true("ggplot+3+2" %in% names(obj$keywords_list$ggplot))
   expect_true("ggplot+3+3" %in% names(obj$keywords_list$ggplot))
   expect_identical(
     unname(vapply(obj$keywords_list$ggplot, rlang::as_string, character(1))),
-    c("mtcars", "var", "var")
+    c("var", "var")
   )
 })
 

@@ -61,7 +61,7 @@ test_that("Fix1: valid formula still parses without error (regression)", {
 test_that("Fix1: empty string signals parse error", {
   expect_error(
     ptr_parse_formula(""),
-    regexp = "could not parse formula"
+    regexp = "exactly one top-level expression"
   )
 })
 
@@ -389,8 +389,8 @@ test_that("Fix5-G6: formula_check=TRUE blocks system() in formula", {
   )
 })
 
-test_that("Fix5-G6: formula_check=FALSE (default) allows dangerous formula text to parse", {
-  # No error — formula_check=FALSE is the default, formula treated as trusted input
+test_that("Fix5-G6: formula_check=FALSE (opt-in) allows dangerous formula text to parse", {
+  # No error — formula_check=FALSE is an opt-in override, formula treated as trusted input
   expect_no_error(
     ptr_parse_formula(
       "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
@@ -501,5 +501,153 @@ test_that("walk_expr: zero-arg call (length-1) does not crash — seq_along(x)[-
   # f() has length 1; seq_along(x)[-1] yields integer(0), loop body never executes
   expect_invisible(
     validate_expr_safety(quote(sqrt()))
+  )
+})
+
+# =============================================================================
+# New denylist entries: super-assignment (<<-, ->>) and makeActiveBinding
+# =============================================================================
+
+test_that("denylist: x <<- 1 (left super-assign call) is blocked", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr("x <<- 1")),
+    "not allowed"
+  )
+})
+
+test_that("denylist: 1 ->> x (right super-assign call) is blocked", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr("1 ->> x")),
+    "not allowed"
+  )
+})
+
+test_that("denylist: <<- as bare symbol reference (higher-order) is blocked", {
+  # lapply(list(), `<<-`) passes `<<-` as a symbol argument
+  expect_error(
+    validate_expr_safety(rlang::parse_expr("lapply(list(), `<<-`)")),
+    "not allowed"
+  )
+})
+
+test_that("denylist: normal <- assignment is NOT blocked (no false positive)", {
+  expect_invisible(
+    validate_expr_safety(rlang::parse_expr("x <- 1"))
+  )
+})
+
+test_that("denylist: makeActiveBinding call is blocked", {
+  expect_error(
+    validate_expr_safety(
+      rlang::parse_expr('makeActiveBinding("x", function() 1, .GlobalEnv)')
+    ),
+    "not allowed"
+  )
+})
+
+test_that("denylist: makeActiveBinding as bare symbol is blocked (higher-order)", {
+  expect_error(
+    validate_expr_safety(
+      rlang::parse_expr("lapply(list(), makeActiveBinding)")
+    ),
+    "not allowed"
+  )
+})
+
+# =============================================================================
+# Multi-expression guard in ptr_parse_formula
+# =============================================================================
+
+test_that("multi-expr guard: two expressions separated by newline are rejected", {
+  expect_error(
+    ptr_parse_formula("x <- 1\nggplot(mtcars, aes(x = var)) + geom_point()",
+                      formula_check = FALSE),
+    "exactly one top-level expression"
+  )
+})
+
+test_that("multi-expr guard: two expressions separated by semicolon are rejected", {
+  expect_error(
+    ptr_parse_formula("x <- 1; ggplot(mtcars, aes(x = var)) + geom_point()",
+                      formula_check = FALSE),
+    "exactly one top-level expression"
+  )
+})
+
+test_that("multi-expr guard: trailing semicolon produces two expressions and is rejected", {
+  # A trailing semicolon after a valid expression yields length 2 from parse_exprs
+  # (one expression + one empty parse artifact in some R versions), or length 1.
+  # Either way the guard should reject or pass cleanly — we check no crash occurs
+  # and that if it produces 2 exprs the error fires.
+  tryCatch(
+    {
+      result <- ptr_parse_formula(
+        "ggplot(mtcars, aes(x = var)) + geom_point();",
+        formula_check = FALSE
+      )
+      # If it parsed to exactly 1 expression, the result must be a ptr_obj
+      expect_s3_class(result, "ptr_obj")
+    },
+    error = function(e) {
+      expect_match(conditionMessage(e), "exactly one top-level expression")
+    }
+  )
+})
+
+test_that("multi-expr guard: empty string is rejected with exactly-one message", {
+  expect_error(
+    ptr_parse_formula(""),
+    "exactly one top-level expression"
+  )
+})
+
+test_that("multi-expr guard: single valid expression still works (regression)", {
+  result <- ptr_parse_formula(
+    "ggplot(mtcars, aes(x = var)) + geom_point()"
+  )
+  expect_s3_class(result, "ptr_obj")
+})
+
+# =============================================================================
+# Pre-eval safety guard in ptr_assemble_plot
+# =============================================================================
+
+test_that("ptr_assemble_plot: blocks a list containing a dangerous expression", {
+  danger_expr <- list(quote(system("id")))
+  expect_error(
+    ptr_assemble_plot(danger_expr, envir = new.env(parent = baseenv())),
+    "not allowed"
+  )
+})
+
+test_that("ptr_assemble_plot: blocks system() even when nested in a safe-looking call", {
+  nested_danger <- list(quote(paste(system("id"), "x")))
+  expect_error(
+    ptr_assemble_plot(nested_danger, envir = new.env(parent = baseenv())),
+    "not allowed"
+  )
+})
+
+test_that("ptr_assemble_plot: passes a list of safe ggplot2 expressions", {
+  safe_exprs <- list(
+    quote(ggplot2::ggplot(mtcars, ggplot2::aes(x = mpg, y = hp))),
+    quote(ggplot2::geom_point())
+  )
+  # Use globalenv so mtcars (and ggplot2 functions) are resolvable
+  result <- ptr_assemble_plot(safe_exprs, envir = globalenv())
+  expect_s3_class(result, "gg")
+})
+
+test_that("ptr_assemble_plot: empty list signals no-layers error (not a safety error)", {
+  expect_error(
+    ptr_assemble_plot(list()),
+    "No plot layers"
+  )
+})
+
+test_that("ptr_assemble_plot: NULL plot_expr_list signals no-layers error", {
+  expect_error(
+    ptr_assemble_plot(NULL),
+    "No plot layers"
   )
 })

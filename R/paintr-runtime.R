@@ -170,6 +170,10 @@ ptr_assemble_plot <- function(plot_expr_list, envir = parent.frame()) {
     rlang::abort("No plot layers remain after processing the selected inputs.")
   }
 
+  for (expr in plot_expr_list) {
+    validate_expr_safety(expr)
+  }
+
   plot_list <- lapply(plot_expr_list, eval, envir = envir)
 
   p <- plot_list[[1]]

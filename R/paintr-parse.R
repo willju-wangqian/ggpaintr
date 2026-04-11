@@ -6,18 +6,17 @@
 #' Supported placeholders come from the effective placeholder registry. The
 #' built-in registry includes `var`, `text`, `num`, `expr`, and `upload`.
 #'
-#' @note The \code{formula} argument is treated as trusted developer input and
-#'   is parsed directly via \code{rlang::parse_expr}. Never pass user-controlled
-#'   strings (e.g., from URL parameters or database fields) as the formula
-#'   without enabling \code{formula_check}.
+#' @note The \code{formula} argument is validated by default using the denylist.
+#'   Set \code{formula_check = FALSE} only for trusted developer input that you
+#'   know is safe.
 #' @param formula A single formula string describing a ggplot-like expression.
 #' @param placeholders Optional custom placeholder definitions or an existing
 #'   placeholder registry.
 #' @param formula_check Logical or list controlling safety validation of the
-#'   formula text itself. \code{FALSE} (default) skips validation, treating the
-#'   formula as trusted developer input. \code{TRUE} applies the default denylist.
-#'   A list with \code{deny_list} / \code{allow_list} customises the check.
-#'   See \code{validate_expr_safety} details.
+#'   formula text itself. \code{TRUE} (default) applies the default denylist.
+#'   \code{FALSE} skips validation, treating the formula as trusted developer
+#'   input. A list with \code{deny_list} / \code{allow_list} customises the
+#'   check. See \code{validate_expr_safety} details.
 #'
 #' @return An object of class `ptr_obj`.
 #' @examples
@@ -26,10 +25,10 @@
 #' )
 #' names(obj$expr_list)
 #' @export
-ptr_parse_formula <- function(formula, placeholders = NULL, formula_check = FALSE) {
+ptr_parse_formula <- function(formula, placeholders = NULL, formula_check = TRUE) {
   placeholder_registry <- ptr_merge_placeholders(placeholders)
-  ptr_expr <- tryCatch(
-    rlang::parse_expr(formula),
+  ptr_exprs <- tryCatch(
+    rlang::parse_exprs(formula),
     error = function(e) {
       rlang::abort(
         paste0("ptr_parse_formula: could not parse formula as R expression: ",
@@ -38,6 +37,13 @@ ptr_parse_formula <- function(formula, placeholders = NULL, formula_check = FALS
       )
     }
   )
+  if (length(ptr_exprs) != 1L) {
+    rlang::abort(
+      paste0("ptr_parse_formula: formula must contain exactly one top-level ",
+             "expression, but ", length(ptr_exprs), " were found.")
+    )
+  }
+  ptr_expr <- ptr_exprs[[1]]
   if (!identical(formula_check, FALSE)) {
     validate_expr_safety(ptr_expr, formula_check)
   }
