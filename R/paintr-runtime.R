@@ -148,7 +148,11 @@ ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
 #' Build a Plot from Completed Layer Expressions
 #'
 #' @param plot_expr_list A list of completed plot layer expressions.
-#' @param envir The evaluation environment.
+#' @param envir The evaluation environment. Defaults to \code{parent.frame()},
+#'   which is the caller's frame. When called from \code{ptr_exec}, a cloned
+#'   runtime environment is passed explicitly. Direct callers should provide
+#'   an explicit \code{envir} to avoid evaluating expressions in an
+#'   unintended scope.
 #' @param expr_check Logical or list controlling safety validation of the
 #'   assembled expressions. Forwarded to \code{validate_expr_safety}.
 #'   Defaults to \code{TRUE}.
@@ -333,13 +337,17 @@ ptr_validate_plot_render_safe <- function(runtime_result) {
 #' @param ptr_obj A `ptr_obj`.
 #' @param input A Shiny input-like object.
 #' @param envir The environment used to resolve local data objects.
-#' @param expr_check Controls `expr` placeholder validation.
+#' @param expr_check Controls `expr` placeholder validation at runtime.
 #'   `TRUE` (default) applies the built-in denylist of dangerous
 #'   functions.
 #'   `FALSE` disables all checking.
 #'   A named list with `deny_list` and/or `allow_list` character
 #'   vectors supplies a custom check; when both are given,
 #'   denied entries are removed from the allowlist.
+#'   Note: the formula template itself is separately validated at parse
+#'   time via \code{formula_check} in \code{\link{ptr_parse_formula}}.
+#'   Disabling \code{expr_check} here does not affect that earlier check,
+#'   and vice versa.
 #'
 #' @return A runtime result list containing `ok`, `stage`, `message`,
 #'   `code_text`, `complete_expr_list`, `eval_env`, `condition`, and `plot`.

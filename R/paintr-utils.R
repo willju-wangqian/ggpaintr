@@ -579,30 +579,38 @@ validate_expr_safety <- function(expr, expr_check = TRUE) {
       return(invisible(NULL))
     }
     if (is.call(x)) {
+      # Compound-head strategy (e.g. `(system)("ls")`, `base::eval(expr)`):
+      # Two-phase check — (1) recurse into the head sub-expression so the
+      # walker catches denied symbols inside it (e.g. `system` inside `(system)`),
+      # then (2) run extract_fn_names + denylist/allowlist on the outer head.
+      # Phase 2 is belt-and-suspenders for denylist mode (deparsed compound
+      # heads won't match real denylist entries, but the check is cheap).
+      # In allowlist mode, phase 2 blocks compound heads whose deparsed name
+      # isn't in the allowlist — this is intentionally restrictive.
       if (is.call(x[[1]])) {
         walk_expr(x[[1]], .depth = .depth + 1L)
-      } else {
-        fn_names <- extract_fn_names(x[[1]])
+      }
 
-        if (resolved$mode == "denylist") {
-          blocked <- fn_names[fn_names %in% resolved$fns]
-          if (length(blocked) > 0) {
-            rlang::abort(paste0(
-              "expr placeholder: `", blocked[[1]],
-              "` is not allowed. ",
-              "Set expr_check = FALSE to allow ",
-              "arbitrary expressions."
-            ))
-          }
-        } else {
-          if (!any(fn_names %in% resolved$fns)) {
-            rlang::abort(paste0(
-              "expr placeholder: `", fn_names[[1]],
-              "` is not in the allowlist. ",
-              "Set expr_check = FALSE to allow ",
-              "arbitrary expressions."
-            ))
-          }
+      fn_names <- extract_fn_names(x[[1]])
+
+      if (resolved$mode == "denylist") {
+        blocked <- fn_names[fn_names %in% resolved$fns]
+        if (length(blocked) > 0) {
+          rlang::abort(paste0(
+            "expr placeholder: `", blocked[[1]],
+            "` is not allowed. ",
+            "Set expr_check = FALSE to allow ",
+            "arbitrary expressions."
+          ))
+        }
+      } else {
+        if (length(fn_names) > 0 && !any(fn_names %in% resolved$fns)) {
+          rlang::abort(paste0(
+            "expr placeholder: `", fn_names[[1]],
+            "` is not in the allowlist. ",
+            "Set expr_check = FALSE to allow ",
+            "arbitrary expressions."
+          ))
         }
       }
 

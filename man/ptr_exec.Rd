@@ -13,13 +13,17 @@ ptr_exec(ptr_obj, input, envir = parent.frame(), expr_check = TRUE)
 
 \item{envir}{The environment used to resolve local data objects.}
 
-\item{expr_check}{Controls \code{expr} placeholder validation.
+\item{expr_check}{Controls \code{expr} placeholder validation at runtime.
 \code{TRUE} (default) applies the built-in denylist of dangerous
 functions.
 \code{FALSE} disables all checking.
 A named list with \code{deny_list} and/or \code{allow_list} character
 vectors supplies a custom check; when both are given,
-denied entries are removed from the allowlist.}
+denied entries are removed from the allowlist.
+Note: the formula template itself is separately validated at parse
+time via \code{formula_check} in \code{\link{ptr_parse_formula}}.
+Disabling \code{expr_check} here does not affect that earlier check,
+and vice versa.}
 }
 \value{
 A runtime result list containing \code{ok}, \code{stage}, \code{message},

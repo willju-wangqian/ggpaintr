@@ -32,7 +32,10 @@ built-in registry includes \code{var}, \code{text}, \code{num}, \code{expr}, and
 \note{
 The \code{formula} argument is validated by default using the denylist.
 Set \code{formula_check = FALSE} only for trusted developer input that you
-know is safe.
+know is safe — this is an advanced option for package authors who
+programmatically generate formula strings.  This check is independent of
+the per-placeholder \code{expr_check} applied at runtime; disabling one
+does not disable the other.
 }
 \examples{
 obj <- ptr_parse_formula(

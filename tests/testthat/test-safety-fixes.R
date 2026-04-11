@@ -505,6 +505,125 @@ test_that("walk_expr: zero-arg call (length-1) does not crash — seq_along(x)[-
 })
 
 # =============================================================================
+# F1: walk_expr compound-head branch — extract_fn_names + denylist/allowlist
+#     check runs unconditionally after compound-head recursion.
+# Covers: (base::system)("ls"), ((system))("ls"), lambda-head with denied arg,
+#         allowlist mode with compound heads.
+# =============================================================================
+
+test_that("F1: (base::system)('ls') is blocked — paren-wrapped :: call as head", {
+  # x[[1]] is a call `(base::system)`, which is compound; walk_expr recurses
+  # into it, finds the `::` node, and extract_fn_names extracts "system".
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('(base::system)("ls")')),
+    "not allowed"
+  )
+})
+
+test_that("F1: (base::ggplot2::ggplot)() — safe namespaced fn paren-wrapped passes walker (no block)", {
+  # The inner symbol is ggplot; it is not on the denylist.
+  # Walker recurses into (ggplot2::ggplot) compound head, extracts "ggplot",
+  # finds no denylist match.
+  expect_invisible(
+    validate_expr_safety(rlang::parse_expr("(ggplot2::ggplot)(mtcars, aes(x = mpg))"))
+  )
+})
+
+test_that("F1: ((system))('ls') is blocked — double-wrapped paren around denylist symbol", {
+  # x[[1]] = (system) which is compound; walk_expr recurses into it,
+  # then (system)[[1]] = ( which is compound again; recurses once more,
+  # reaching the bare symbol `system` which is caught.
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('((system))("ls")')),
+    "not allowed"
+  )
+})
+
+test_that("F1: ((file.remove))('x') is blocked — double-wrapped paren around different denylist symbol", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('((file.remove))("x")')),
+    "not allowed"
+  )
+})
+
+test_that("F1: ((sqrt))(4) passes — double-wrapped paren around safe symbol", {
+  expect_invisible(
+    validate_expr_safety(rlang::parse_expr("((sqrt))(4)"))
+  )
+})
+
+test_that("F1: (function(x) x)(system('ls')) is blocked — lambda head, denied fn in argument", {
+  # Lambda head is compound; inner body is safe (just `x`).
+  # BUT the argument to the call, system("ls"), is walked via seq_along(x)[-1]
+  # and system() is caught there.
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('(function(x) x)(system("ls"))')),
+    "not allowed"
+  )
+})
+
+test_that("F1: (function(x) x)(sqrt(4)) passes — lambda head, safe argument", {
+  expect_invisible(
+    validate_expr_safety(rlang::parse_expr("(function(x) x)(sqrt(4))"))
+  )
+})
+
+test_that("F1: (function(x) x)(eval(quote(1))) is blocked — lambda head, eval in argument", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr("(function(x) x)(eval(quote(1)))")),
+    "not allowed"
+  )
+})
+
+test_that("F1: allowlist mode — (system)('ls') is blocked even with broad allowlist", {
+  # In allowlist mode: extract_fn_names on the compound head `(system)` returns
+  # the deparsed string "(system)" which is not in the allowlist, so it is blocked.
+  # The recursive walk also catches `system` as a bare symbol inside the head.
+  expect_error(
+    validate_expr_safety(
+      rlang::parse_expr('(system)("ls")'),
+      expr_check = list(allow_list = c("system", "ggplot", "aes"))
+    ),
+    "not (allowed|in the allowlist)"
+  )
+})
+
+test_that("F1: allowlist mode — (ggplot)(mtcars) is blocked (compound head not in allowlist)", {
+  # Deparsed compound head "(ggplot)" does not match any allowlist entry.
+  # The recursive walk then checks the inner symbol `ggplot`; it IS in the
+  # allowlist, but the outer compound-head check fires first and blocks.
+  expect_error(
+    validate_expr_safety(
+      rlang::parse_expr("(ggplot)(mtcars)"),
+      expr_check = list(allow_list = c("ggplot", "aes"))
+    ),
+    "not (allowed|in the allowlist)"
+  )
+})
+
+test_that("F1: allowlist mode — normal ggplot() call (non-compound head) passes", {
+  # Baseline: a plain call with a symbol head passes allowlist correctly.
+  expect_invisible(
+    validate_expr_safety(
+      rlang::parse_expr("ggplot(mtcars, aes(x = mpg))"),
+      expr_check = list(allow_list = c("ggplot", "aes"))
+    )
+  )
+})
+
+test_that("F1: (base::system)('ls') is also blocked in allowlist mode", {
+  # Compound head deparsed as "(base::system)" — not in any allowlist.
+  # Recursive walk then finds the :: node and bare symbol `system` (denylist).
+  expect_error(
+    validate_expr_safety(
+      rlang::parse_expr('(base::system)("ls")'),
+      expr_check = list(allow_list = c("ggplot", "aes", "geom_point"))
+    ),
+    "not (allowed|in the allowlist)"
+  )
+})
+
+# =============================================================================
 # New denylist entries: super-assignment (<<-, ->>) and makeActiveBinding
 # =============================================================================
 

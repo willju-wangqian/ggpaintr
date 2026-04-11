@@ -4,12 +4,20 @@
 \alias{ptr_assemble_plot}
 \title{Build a Plot from Completed Layer Expressions}
 \usage{
-ptr_assemble_plot(plot_expr_list, envir = parent.frame())
+ptr_assemble_plot(plot_expr_list, envir = parent.frame(), expr_check = TRUE)
 }
 \arguments{
 \item{plot_expr_list}{A list of completed plot layer expressions.}
 
-\item{envir}{The evaluation environment.}
+\item{envir}{The evaluation environment. Defaults to \code{parent.frame()},
+which is the caller's frame. When called from \code{ptr_exec}, a cloned
+runtime environment is passed explicitly. Direct callers should provide
+an explicit \code{envir} to avoid evaluating expressions in an
+unintended scope.}
+
+\item{expr_check}{Logical or list controlling safety validation of the
+assembled expressions. Forwarded to \code{validate_expr_safety}.
+Defaults to \code{TRUE}.}
 }
 \value{
 A \code{ggplot} object assembled from the retained layer expressions.
