@@ -819,3 +819,137 @@ test_that("type-guard: valid string still works after type guard (regression)", 
   )
   expect_s3_class(result, "ptr_obj")
 })
+
+# =============================================================================
+# W3: walk_expr max-depth guard (depth > 100 aborts)
+# =============================================================================
+
+test_that("W3-max-depth: expression nested 105 levels deep triggers depth-limit abort", {
+  # Build a 105-level deeply nested call WITHOUT parsing a string —
+  # string parsing has its own limits and is unrelated to walk_expr depth.
+  expr <- quote(x)
+  for (i in seq_len(105L)) expr <- call("identity", expr)
+
+  expect_error(
+    validate_expr_safety(expr),
+    "maximum depth"
+  )
+})
+
+test_that("W3-max-depth: expression nested exactly 100 levels deep does not abort", {
+  # 100 levels is the threshold; <= 100 must pass (depth 0..100 are all allowed).
+  expr <- quote(x)
+  for (i in seq_len(100L)) expr <- call("identity", expr)
+
+  expect_invisible(validate_expr_safety(expr))
+})
+
+test_that("W3-max-depth: expression nested 101 levels deep aborts", {
+  # One level over the limit must trigger the guard.
+  expr <- quote(x)
+  for (i in seq_len(101L)) expr <- call("identity", expr)
+
+  expect_error(
+    validate_expr_safety(expr),
+    "maximum depth"
+  )
+})
+
+test_that("W3-max-depth: shallow expression is unaffected by depth guard", {
+  # Baseline regression: ordinary ggplot2 call must still pass.
+  expect_invisible(
+    validate_expr_safety(rlang::parse_expr("ggplot(data = mtcars, aes(x = mpg))"))
+  )
+})
+
+test_that("W3-max-depth: depth-limit error message mentions the limit value", {
+  expr <- quote(x)
+  for (i in seq_len(105L)) expr <- call("identity", expr)
+
+  err <- tryCatch(
+    validate_expr_safety(expr),
+    error = function(e) e
+  )
+  expect_match(conditionMessage(err), "100")
+})
+
+# =============================================================================
+# W1: character return from custom resolve_expr is validated
+# =============================================================================
+
+test_that("W1-char-resolve: custom placeholder whose resolve_expr returns a denied string is blocked", {
+  # Create a custom placeholder whose resolve_expr returns the bare string
+  # "system" — validate_expr_safety must intercept it.
+  # ptr_complete_expr (not ptr_exec) is used because ptr_exec swallows errors into ok=FALSE.
+  dangerous_placeholder <- ptr_define_placeholder(
+    keyword  = "danger",
+    build_ui = function(id, copy, meta, context) shiny::textInput(id, "Danger"),
+    resolve_expr = function(value, meta, context) {
+      # Returns a character string containing a denylist name — W1 fix catches this.
+      "system"
+    }
+  )
+
+  registry <- ptr_merge_placeholders(list(danger = dangerous_placeholder))
+
+  obj <- ptr_parse_formula(
+    "ggplot(data = mtcars, aes(x = mpg, y = disp)) + geom_point(colour = danger)",
+    placeholders = registry
+  )
+
+  # Determine the actual input id from the spec so the placeholder resolves.
+  spec    <- ptr_runtime_input_spec(obj)
+  danger_id <- spec$input_id[spec$keyword == "danger"][[1L]]
+
+  input <- list("geom_point+checkbox" = TRUE)
+  input[[danger_id]] <- "anything"
+
+  expect_error(
+    ptr_complete_expr(obj, input),
+    "not allowed"
+  )
+})
+
+test_that("W1-char-resolve: custom placeholder whose resolve_expr returns a safe character passes", {
+  # A placeholder that returns a harmless string like "red" — must not error.
+  safe_placeholder <- ptr_define_placeholder(
+    keyword  = "mycolor",
+    build_ui = function(id, copy, meta, context) shiny::textInput(id, "Color"),
+    resolve_expr = function(value, meta, context) {
+      if (is.null(value) || identical(value, "")) return(ptr_missing_expr())
+      # Return a character string — safe strings must pass.
+      rlang::expr(!!value)
+    }
+  )
+
+  registry <- ptr_merge_placeholders(list(mycolor = safe_placeholder))
+
+  obj <- ptr_parse_formula(
+    "ggplot(data = mtcars, aes(x = mpg, y = disp)) + geom_point(colour = mycolor)",
+    placeholders = registry
+  )
+
+  expect_no_error(
+    ptr_exec(obj, list("geom_point+checkbox" = TRUE, "geom_point+3" = "red"))
+  )
+})
+
+# =============================================================================
+# N2: lockBinding prevents reassignment of unsafe_expr_denylist
+# =============================================================================
+
+test_that("N2-lockBinding: unsafe_expr_denylist cannot be reassigned in the package namespace", {
+  expect_error(
+    assign("unsafe_expr_denylist", character(), envir = asNamespace("ggpaintr"))
+  )
+})
+
+test_that("N2-lockBinding: unsafe_expr_denylist retains its content after attempted reassignment", {
+  tryCatch(
+    assign("unsafe_expr_denylist", character(), envir = asNamespace("ggpaintr")),
+    error = function(e) NULL
+  )
+  dl <- get("unsafe_expr_denylist", envir = asNamespace("ggpaintr"))
+  expect_true(length(dl) > 0L)
+  expect_true("system" %in% dl)
+})

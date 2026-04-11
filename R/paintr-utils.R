@@ -417,6 +417,7 @@ unsafe_expr_denylist <- c(
   "reg.finalizer", "addTaskCallback", "taskCallbackManager",
   "setHook", "packageEvent"
 )
+lockBinding("unsafe_expr_denylist", environment())
 
 #' Resolve the Effective Check List from an `expr_check` Value
 #'
@@ -503,10 +504,17 @@ validate_expr_safety <- function(expr, expr_check = TRUE) {
     return(invisible(TRUE))
   }
 
-  walk_expr <- function(x) {
+  max_depth <- 100L
+  walk_expr <- function(x, .depth = 0L) {
+    if (.depth > max_depth) {
+      rlang::abort(
+        paste0("Expression nesting exceeds maximum depth (", max_depth, "). ",
+               "The expression may be too complex or maliciously crafted.")
+      )
+    }
     if (is.pairlist(x)) {
       for (i in seq_along(x)) {
-        walk_expr(x[[i]])
+        walk_expr(x[[i]], .depth = .depth + 1L)
       }
       return(invisible(NULL))
     }
@@ -526,6 +534,27 @@ validate_expr_safety <- function(expr, expr_check = TRUE) {
           "Set expr_check = FALSE to allow ",
           "arbitrary expressions."
         ))
+      }
+      return(invisible(NULL))
+    }
+    if (is.character(x) && length(x) > 1L) {
+      for (el in x) {
+        if (resolved$mode == "denylist" && el %in% resolved$fns) {
+          rlang::abort(paste0(
+            "expr placeholder: `", el,
+            "` is not allowed (found in character vector). ",
+            "Set expr_check = FALSE to allow ",
+            "arbitrary expressions."
+          ))
+        }
+        if (resolved$mode == "allowlist" && el %in% unsafe_expr_denylist) {
+          rlang::abort(paste0(
+            "expr placeholder: `", el,
+            "` is not allowed (found in character vector). ",
+            "Set expr_check = FALSE to allow ",
+            "arbitrary expressions."
+          ))
+        }
       }
       return(invisible(NULL))
     }
@@ -551,7 +580,7 @@ validate_expr_safety <- function(expr, expr_check = TRUE) {
     }
     if (is.call(x)) {
       if (is.call(x[[1]])) {
-        walk_expr(x[[1]])
+        walk_expr(x[[1]], .depth = .depth + 1L)
       } else {
         fn_names <- extract_fn_names(x[[1]])
 
@@ -577,28 +606,7 @@ validate_expr_safety <- function(expr, expr_check = TRUE) {
         }
       }
 
-      for (i in seq_along(x)[-1]) walk_expr(x[[i]])
-    }
-    if (is.character(x) && length(x) > 1L) {
-      for (el in x) {
-        if (resolved$mode == "denylist" && el %in% resolved$fns) {
-          rlang::abort(paste0(
-            "expr placeholder: `", el,
-            "` is not allowed (found in character vector). ",
-            "Set expr_check = FALSE to allow ",
-            "arbitrary expressions."
-          ))
-        }
-        if (resolved$mode == "allowlist" && el %in% unsafe_expr_denylist) {
-          rlang::abort(paste0(
-            "expr placeholder: `", el,
-            "` is not allowed (found in character vector). ",
-            "Set expr_check = FALSE to allow ",
-            "arbitrary expressions."
-          ))
-        }
-      }
-      return(invisible(NULL))
+      for (i in seq_along(x)[-1]) walk_expr(x[[i]], .depth = .depth + 1L)
     }
   }
   walk_expr(expr)

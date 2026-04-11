@@ -8,9 +8,10 @@
 #'
 #' @note The \code{formula} argument is validated by default using the denylist.
 #'   Set \code{formula_check = FALSE} only for trusted developer input that you
-#'   know is safe.  This check is independent of the per-placeholder
-#'   \code{expr_check} applied at runtime; disabling one does not disable the
-#'   other.
+#'   know is safe — this is an advanced option for package authors who
+#'   programmatically generate formula strings.  This check is independent of
+#'   the per-placeholder \code{expr_check} applied at runtime; disabling one
+#'   does not disable the other.
 #' @param formula A single formula string describing a ggplot-like expression.
 #' @param placeholders Optional custom placeholder definitions or an existing
 #'   placeholder registry.
