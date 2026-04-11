@@ -265,7 +265,13 @@ ptr_validate_placeholder <- function(placeholder) {
     if (!is.null(fn) && is.function(fn)) {
       actual <- length(formals(fn))
       expected <- expected_arity[[hook_name]]
-      if (actual < expected) {
+      formal_names <- names(formals(fn))
+      if (length(formal_names) == 1 && identical(formal_names, "...")) {
+        cli::cli_warn(paste0(
+          "placeholder$", hook_name,
+          " uses only `...` — positional argument mismatches will not be caught at definition time."
+        ))
+      } else if (actual < expected) {
         rlang::abort(paste0(
           "placeholder$", hook_name, " must accept at least ",
           expected, " arguments, but has ", actual, "."
@@ -296,7 +302,9 @@ ptr_validate_placeholder <- function(placeholder) {
 
 #' Normalize User-Supplied Placeholder Definitions
 #'
-#' @param placeholders Placeholder definitions or `NULL`.
+#' @param placeholders A list of `ptr_define_placeholder` objects (optionally
+#'   named), or `NULL`. If named, names must match the placeholder keyword.
+#'   If unnamed, the keyword is used as the registry key.
 #'
 #' @return A named list of `ptr_define_placeholder` objects.
 #' @noRd
@@ -362,22 +370,26 @@ ptr_flatten_placeholder_map <- function(ptr_obj, keyword = NULL) {
 #' @param ui_text Optional copy rules.
 #' @param envir Environment used to resolve local objects.
 #'
-#' @return A named list.
+#' @return An environment with reference semantics.
 #' @noRd
 ptr_define_placeholder_context <- function(ptr_obj,
                                        ui_text = NULL,
                                        envir = parent.frame(),
-                                       expr_check = TRUE) {
-  list(
-    ptr_obj = ptr_obj,
-    placeholders = ptr_obj$placeholders,
-    ui_text = ptr_merge_ui_text(
-      ui_text,
-      placeholders = ptr_obj$placeholders
-    ),
-    envir = envir,
-    expr_check = expr_check
+                                       expr_check = TRUE,
+                                       eval_env = NULL,
+                                       var_column_map = NULL) {
+  ctx <- new.env(parent = emptyenv())
+  ctx$ptr_obj <- ptr_obj
+  ctx$placeholders <- ptr_obj$placeholders
+  ctx$ui_text <- ptr_merge_ui_text(
+    ui_text,
+    placeholders = ptr_obj$placeholders
   )
+  ctx$envir <- envir
+  ctx$expr_check <- expr_check
+  ctx$eval_env <- eval_env
+  ctx$var_column_map <- var_column_map
+  ctx
 }
 
 #' Return the Internal Missing-Expression Symbol
@@ -435,8 +447,23 @@ ptr_resolve_placeholder_expr <- function(spec, value, meta, context) {
     rlang::abort(paste0("Placeholder '", meta$keyword, "' returned a function instead of an expression."))
   }
 
-  if (is.call(resolved_expr) || is.symbol(resolved_expr) || is.pairlist(resolved_expr) || is.character(resolved_expr)) {
+  needs_safety_check <- is.call(resolved_expr) || is.symbol(resolved_expr) ||
+    is.pairlist(resolved_expr) || is.character(resolved_expr)
+
+  if (needs_safety_check) {
     validate_expr_safety(resolved_expr, context$expr_check %||% TRUE)
+  }
+
+  is_scalar_type <- is.numeric(resolved_expr) || is.logical(resolved_expr) ||
+    is.integer(resolved_expr) || is.double(resolved_expr) ||
+    is.complex(resolved_expr) || is.null(resolved_expr)
+
+  if (!needs_safety_check && !is_scalar_type) {
+    rlang::abort(paste0(
+      "Placeholder '", meta$keyword, "' resolve_expr returned an unsupported type: ",
+      class(resolved_expr)[[1]], ". Allowed types: call, symbol, pairlist, character, ",
+      "numeric, logical, integer, double, complex, NULL."
+    ))
   }
 
   resolved_expr
@@ -464,14 +491,10 @@ ptr_bind_placeholder_ui <- function(input,
     ptr_obj,
     ui_text = ui_text,
     envir = envir,
-    expr_check = expr_check
+    expr_check = expr_check,
+    eval_env = eval_env,
+    var_column_map = var_column_map
   )
-  if (!is.null(eval_env)) {
-    context$eval_env <- eval_env
-  }
-  if (!is.null(var_column_map)) {
-    context$var_column_map <- var_column_map
-  }
   deferred_ui <- list()
 
   for (keyword in names(ptr_obj$placeholders)) {
@@ -524,6 +547,9 @@ ptr_validate_placeholder_source_params <- function(placeholder) {
     ))
   }
 
+  valid_hook_names <- c("build_ui", "resolve_expr", "resolve_input", "bind_ui", "prepare_eval_env")
+  valid_source_keys <- c(".default", valid_hook_names)
+
   if (!is.null(placeholder$source_file)) {
     vals <- unlist(placeholder$source_file)
     if (!is.character(vals)) {
@@ -531,6 +557,17 @@ ptr_validate_placeholder_source_params <- function(placeholder) {
         "Custom placeholder '", placeholder$keyword,
         "': source_file must be a character string or named list of character strings."
       ))
+    }
+    if (is.list(placeholder$source_file)) {
+      for (key in names(placeholder$source_file)) {
+        if (!key %in% valid_source_keys) {
+          cli::cli_warn(paste0(
+            "Custom placeholder '", placeholder$keyword,
+            "': source_file contains unrecognized key '", key,
+            "'. Did you mean one of: ", paste(valid_source_keys, collapse = ", "), "?"
+          ))
+        }
+      }
     }
   }
 
@@ -542,9 +579,18 @@ ptr_validate_placeholder_source_params <- function(placeholder) {
         "': source_package must be a character string or named list of character strings."
       ))
     }
+    if (is.list(placeholder$source_package)) {
+      for (key in names(placeholder$source_package)) {
+        if (!key %in% valid_source_keys) {
+          cli::cli_warn(paste0(
+            "Custom placeholder '", placeholder$keyword,
+            "': source_package contains unrecognized key '", key,
+            "'. Did you mean one of: ", paste(valid_source_keys, collapse = ", "), "?"
+          ))
+        }
+      }
+    }
   }
-
-  valid_hook_names <- c("build_ui", "resolve_expr", "resolve_input", "bind_ui", "prepare_eval_env")
 
   if (!is.null(placeholder$source_function)) {
     if (!is.list(placeholder$source_function)) {
@@ -772,12 +818,17 @@ ptr_exportable_custom_placeholders <- function(placeholders = NULL) {
   exportable
 }
 
+.ptr_builtin_cache <- new.env(parent = emptyenv())
+
 #' Build the Built-In Placeholder Registry
 #'
 #' @return A named list of built-in placeholders.
 #' @noRd
 ptr_builtin_placeholders <- function() {
-  list(
+  if (!is.null(.ptr_builtin_cache$registry)) {
+    return(.ptr_builtin_cache$registry)
+  }
+  result <- list(
     var = ptr_define_placeholder(
       keyword = "var",
       build_ui = ptr_build_var_placeholder_ui,
@@ -815,6 +866,8 @@ ptr_builtin_placeholders <- function() {
       copy_defaults = list(label = "Choose a data source for {param}")
     )
   )
+  .ptr_builtin_cache$registry <- result
+  result
 }
 
 #' Build the Deferred UI Placeholder for `var`
