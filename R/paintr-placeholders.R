@@ -937,8 +937,8 @@ ptr_resolve_expr_expr <- function(value, meta, context) {
     return(ptr_missing_expr())
   }
 
-  parsed <- tryCatch(
-    rlang::parse_expr(value),
+  parsed_list <- tryCatch(
+    rlang::parse_exprs(value),
     error = function(e) {
       rlang::abort(
         paste0(
@@ -949,6 +949,13 @@ ptr_resolve_expr_expr <- function(value, meta, context) {
       )
     }
   )
+  if (length(parsed_list) != 1L) {
+    rlang::abort(
+      paste0("expr placeholder: input must contain exactly one expression, but ",
+             length(parsed_list), " were found.")
+    )
+  }
+  parsed <- parsed_list[[1]]
 
   if (!identical(context$expr_check, FALSE)) {
     validate_expr_safety(parsed, expr_check = context$expr_check)

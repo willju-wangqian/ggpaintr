@@ -651,3 +651,171 @@ test_that("ptr_assemble_plot: NULL plot_expr_list signals no-layers error", {
     "No plot layers"
   )
 })
+
+# =============================================================================
+# New safety hardening: string-literal denylist check in walk_expr
+# =============================================================================
+
+test_that("string-literal: exec('system', 'id') is blocked — 'system' caught as literal", {
+  # exec() is now on the denylist; but even if it weren't, "system" as a string
+  # arg is caught by the string-literal check
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('exec("system", "id")')),
+    "not allowed"
+  )
+})
+
+test_that("string-literal: getExportedValue('base', 'system') is blocked — 'system' caught as literal", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('getExportedValue("base", "system")')),
+    "not allowed"
+  )
+})
+
+test_that("string-literal: f('red') passes — non-denylisted string literal is fine", {
+  expect_invisible(
+    validate_expr_safety(rlang::parse_expr('f("red")'))
+  )
+})
+
+test_that("string-literal: geom_point(color = 'red', size = 3) passes — normal ggplot string args unaffected", {
+  expect_invisible(
+    validate_expr_safety(rlang::parse_expr("geom_point(color = 'red', size = 3)"))
+  )
+})
+
+test_that("string-literal: paste('system', 'hello') is caught — 'system' as string arg to safe function (known strictness tradeoff)", {
+  # The string-literal check catches any denylisted name appearing as a string,
+  # even when passed to a benign function.  This is intentional — the tradeoff
+  # is documented: safe false-positive is preferable to bypass.
+  expect_error(
+    validate_expr_safety(rlang::parse_expr("paste('system', 'hello')")),
+    "not allowed"
+  )
+})
+
+# =============================================================================
+# New safety hardening: meta-dispatch denylist entries
+# =============================================================================
+
+test_that("meta-dispatch: exec(mean, 1:10) is blocked — exec as call head", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr("exec(mean, 1:10)")),
+    "not allowed"
+  )
+})
+
+test_that("meta-dispatch: getExportedValue('stats', 'lm') is blocked — getExportedValue as call head", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('getExportedValue("stats", "lm")')),
+    "not allowed"
+  )
+})
+
+test_that("meta-dispatch: delayedAssign call is blocked", {
+  expect_error(
+    validate_expr_safety(
+      rlang::parse_expr('delayedAssign("x", 1, globalenv(), globalenv())')
+    ),
+    "not allowed"
+  )
+})
+
+test_that("meta-dispatch: trace(mean, print) is blocked", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr("trace(mean, print)")),
+    "not allowed"
+  )
+})
+
+test_that("meta-dispatch: setClass('Foo', list()) is blocked", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('setClass("Foo", list())')),
+    "not allowed"
+  )
+})
+
+test_that("meta-dispatch: registerS3method call is blocked", {
+  expect_error(
+    validate_expr_safety(
+      rlang::parse_expr('registerS3method("print", "foo", function(x, ...) x)')
+    ),
+    "not allowed"
+  )
+})
+
+test_that("meta-dispatch: unlockBinding(x, globalenv()) is blocked", {
+  # globalenv is also on the denylist; either triggers the error
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('unlockBinding("x", globalenv())')),
+    "not allowed"
+  )
+})
+
+# =============================================================================
+# New safety hardening: ptr_resolve_expr_expr multi-expression guard
+# =============================================================================
+
+test_that("ptr_resolve_expr_expr: multi-line input is rejected with 'exactly one expression'", {
+  expect_error(
+    ptr_resolve_expr_expr("x + 1\ny + 2", list(), list(expr_check = TRUE)),
+    "exactly one expression"
+  )
+})
+
+test_that("ptr_resolve_expr_expr: semicolon-separated input is rejected", {
+  expect_error(
+    ptr_resolve_expr_expr("x + 1; y + 2", list(), list(expr_check = TRUE)),
+    "exactly one expression"
+  )
+})
+
+test_that("ptr_resolve_expr_expr: empty string returns ptr_missing_expr() sentinel", {
+  result <- ptr_resolve_expr_expr("", list(), list(expr_check = TRUE))
+  expect_true(inherits(result, "ptr_missing_expr"))
+})
+
+test_that("ptr_resolve_expr_expr: NULL returns ptr_missing_expr() sentinel", {
+  result <- ptr_resolve_expr_expr(NULL, list(), list(expr_check = TRUE))
+  expect_true(inherits(result, "ptr_missing_expr"))
+})
+
+test_that("ptr_resolve_expr_expr: single valid expression passes and returns parsed expr", {
+  result <- ptr_resolve_expr_expr("x + 1", list(), list(expr_check = TRUE))
+  expect_true(is.language(result))
+  expect_equal(deparse(result), "x + 1")
+})
+
+test_that("ptr_resolve_expr_expr: expr_check = FALSE bypasses safety for trusted input", {
+  # With expr_check=FALSE, dangerous expressions are not checked
+  expect_no_error(
+    ptr_resolve_expr_expr("sqrt(x)", list(), list(expr_check = FALSE))
+  )
+})
+
+# =============================================================================
+# New safety hardening: ptr_parse_formula type guard (assertthat::assert_that)
+# =============================================================================
+
+test_that("type-guard: ptr_parse_formula(NULL) errors with assertion", {
+  expect_error(ptr_parse_formula(NULL))
+})
+
+test_that("type-guard: ptr_parse_formula(123) errors with assertion", {
+  expect_error(ptr_parse_formula(123))
+})
+
+test_that("type-guard: ptr_parse_formula(c('a', 'b')) errors — not a scalar string", {
+  expect_error(ptr_parse_formula(c("a", "b")))
+})
+
+test_that("type-guard: ptr_parse_formula(quote(x)) errors — language object is not a string", {
+  expect_error(ptr_parse_formula(quote(x)))
+})
+
+test_that("type-guard: valid string still works after type guard (regression)", {
+  result <- ptr_parse_formula(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  )
+  expect_s3_class(result, "ptr_obj")
+})

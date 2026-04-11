@@ -26,6 +26,7 @@
 #' names(obj$expr_list)
 #' @export
 ptr_parse_formula <- function(formula, placeholders = NULL, formula_check = TRUE) {
+  assertthat::assert_that(rlang::is_string(formula))
   placeholder_registry <- ptr_merge_placeholders(placeholders)
   ptr_exprs <- tryCatch(
     rlang::parse_exprs(formula),

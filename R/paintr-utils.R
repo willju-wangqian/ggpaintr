@@ -391,7 +391,12 @@ unsafe_expr_denylist <- c(
   "Sys.getenv", "Sys.getpid", "Sys.info", "Sys.time",
   "proc.time", "message", "warning", "getwd",
   "normalizePath", "Sys.glob", "list.files", "list.dirs",
-  "getAnywhere", "exists", "find", "loadedNamespaces"
+  "getAnywhere", "exists", "find", "loadedNamespaces",
+  # meta-dispatch & method injection (string-arg bypass vectors)
+  "exec", "getExportedValue", "getNativeSymbolInfo",
+  "delayedAssign", "trace", "untrace",
+  "setClass", "setMethod", "setGeneric", "registerS3method",
+  "unlockBinding"
 )
 
 #' Resolve the Effective Check List from an `expr_check` Value
@@ -483,6 +488,25 @@ validate_expr_safety <- function(expr, expr_check = TRUE) {
     if (is.pairlist(x)) {
       for (i in seq_along(x)) {
         walk_expr(x[[i]])
+      }
+      return(invisible(NULL))
+    }
+    if (is.character(x) && length(x) == 1L) {
+      if (resolved$mode == "denylist" && x %in% resolved$fns) {
+        rlang::abort(paste0(
+          "expr placeholder: `", x,
+          "` is not allowed (found as string literal). ",
+          "Set expr_check = FALSE to allow ",
+          "arbitrary expressions."
+        ))
+      }
+      if (resolved$mode == "allowlist" && x %in% unsafe_expr_denylist) {
+        rlang::abort(paste0(
+          "expr placeholder: `", x,
+          "` is not allowed (found as string literal). ",
+          "Set expr_check = FALSE to allow ",
+          "arbitrary expressions."
+        ))
       }
       return(invisible(NULL))
     }
