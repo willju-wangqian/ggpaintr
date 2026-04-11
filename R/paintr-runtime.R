@@ -114,6 +114,10 @@ ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
   for (meta in placeholder_metas) {
     spec <- ptr_obj$placeholders[[meta$keyword]]
     input_item <- ptr_resolve_placeholder_input(spec, input, meta, context)
+    if (is.null(input_item)) {
+      expr_pluck(ptr_processed_expr_list[[meta$layer_name]], meta$index_path) <- ptr_missing_expr_symbol()
+      next
+    }
     resolved_expr <- ptr_resolve_placeholder_expr(spec, input_item, meta, context)
 
     expr_pluck(ptr_processed_expr_list[[meta$layer_name]], meta$index_path) <- resolved_expr

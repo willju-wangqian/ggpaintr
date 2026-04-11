@@ -19,7 +19,16 @@
 #' @export
 ptr_parse_formula <- function(formula, placeholders = NULL) {
   placeholder_registry <- ptr_merge_placeholders(placeholders)
-  ptr_expr <- rlang::parse_expr(formula)
+  ptr_expr <- tryCatch(
+    rlang::parse_expr(formula),
+    error = function(e) {
+      rlang::abort(
+        paste0("ptr_parse_formula: could not parse formula as R expression: ",
+               conditionMessage(e)),
+        parent = e
+      )
+    }
+  )
   ptr_expr_list <- unlist(break_sum(ptr_expr))
   ptr_expr_names <- vapply(ptr_expr_list, get_fun_names, character(1))
   ptr_expr_names <- handle_duplicate_names(ptr_expr_names)

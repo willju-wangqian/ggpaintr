@@ -380,7 +380,11 @@ unsafe_expr_denylist <- c(
   "Sys.setenv", "Sys.unsetenv", "options",
   # dangerous base
   "on.exit", "q", "quit", "stop",
-  ".Internal", ".Primitive", ".Call", ".External"
+  ".Internal", ".Primitive", ".Call", ".External",
+  # information disclosure
+  "Sys.getenv", "Sys.getpid", "Sys.info", "Sys.time",
+  "proc.time", "message", "warning", "getwd",
+  "normalizePath", "Sys.glob", "list.files", "list.dirs"
 )
 
 #' Resolve the Effective Check List from an `expr_check` Value
