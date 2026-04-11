@@ -371,7 +371,7 @@ unsafe_expr_denylist <- c(
   "download.file", "url", "file",
   # meta-eval (denylist bypass vectors)
   "eval", "evalq", "parse", "deparse",
-  "do.call", "match.fun", "get", "mget",
+  "do.call", "match.fun", "get", "mget", "getFromNamespace",
   "Recall", "sys.call", "match.call",
   # environment / global state mutation
   "assign", "rm", "remove", "attach", "detach",
@@ -381,6 +381,13 @@ unsafe_expr_denylist <- c(
   # dangerous base
   "on.exit", "q", "quit", "stop",
   ".Internal", ".Primitive", ".Call", ".External",
+  # process / session blocking
+  "Sys.sleep", "readline",
+  # stack / environment introspection
+  "sys.frame", "sys.function", "sys.calls",
+  "parent.frame", "parent.env",
+  "environment", "new.env", "as.environment",
+  "baseenv", "globalenv", "emptyenv",
   # information disclosure
   "Sys.getenv", "Sys.getpid", "Sys.info", "Sys.time",
   "proc.time", "message", "warning", "getwd",
@@ -393,6 +400,8 @@ unsafe_expr_denylist <- c(
 #'
 #' @return A list with `mode` (`"off"`, `"denylist"`, or `"allowlist"`)
 #'   and `fns` (the character vector to check against).
+#' @note Passing an empty \code{list()} silently falls back to the default
+#'   denylist. Callers should pass \code{TRUE} explicitly for default behaviour.
 #' @noRd
 resolve_expr_check <- function(expr_check) {
   if (identical(expr_check, FALSE)) {
@@ -445,7 +454,8 @@ extract_fn_names <- function(fn) {
   if (is.call(fn) && length(fn) == 3L &&
         as.character(fn[[1]]) %in% c("::", ":::")) {
     bare <- as.character(fn[[3]])
-    qualified <- paste0(as.character(fn[[2]]), "::", bare)
+    op <- as.character(fn[[1]])
+    qualified <- paste0(as.character(fn[[2]]), op, bare)
     return(c(bare, qualified))
   }
 
@@ -470,7 +480,29 @@ validate_expr_safety <- function(expr, expr_check = TRUE) {
   }
 
   walk_expr <- function(x) {
+    if (is.symbol(x)) {
+      sym_name <- as.character(x)
+      if (resolved$mode == "denylist" && sym_name %in% resolved$fns) {
+        rlang::abort(paste0(
+          "expr placeholder: `", sym_name,
+          "` is not allowed (found as symbol reference). ",
+          "Set expr_check = FALSE to allow ",
+          "arbitrary expressions."
+        ))
+      }
+      if (resolved$mode == "allowlist" && sym_name %in% unsafe_expr_denylist) {
+        rlang::abort(paste0(
+          "expr placeholder: `", sym_name,
+          "` is not allowed (found as symbol reference). ",
+          "Set expr_check = FALSE to allow ",
+          "arbitrary expressions."
+        ))
+      }
+      return(invisible(NULL))
+    }
     if (is.call(x)) {
+      if (is.call(x[[1]])) walk_expr(x[[1]])
+
       fn_names <- extract_fn_names(x[[1]])
 
       if (resolved$mode == "denylist") {

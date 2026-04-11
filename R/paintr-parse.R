@@ -6,9 +6,18 @@
 #' Supported placeholders come from the effective placeholder registry. The
 #' built-in registry includes `var`, `text`, `num`, `expr`, and `upload`.
 #'
+#' @note The \code{formula} argument is treated as trusted developer input and
+#'   is parsed directly via \code{rlang::parse_expr}. Never pass user-controlled
+#'   strings (e.g., from URL parameters or database fields) as the formula
+#'   without enabling \code{formula_check}.
 #' @param formula A single formula string describing a ggplot-like expression.
 #' @param placeholders Optional custom placeholder definitions or an existing
 #'   placeholder registry.
+#' @param formula_check Logical or list controlling safety validation of the
+#'   formula text itself. \code{FALSE} (default) skips validation, treating the
+#'   formula as trusted developer input. \code{TRUE} applies the default denylist.
+#'   A list with \code{deny_list} / \code{allow_list} customises the check.
+#'   See \code{validate_expr_safety} details.
 #'
 #' @return An object of class `ptr_obj`.
 #' @examples
@@ -17,7 +26,7 @@
 #' )
 #' names(obj$expr_list)
 #' @export
-ptr_parse_formula <- function(formula, placeholders = NULL) {
+ptr_parse_formula <- function(formula, placeholders = NULL, formula_check = FALSE) {
   placeholder_registry <- ptr_merge_placeholders(placeholders)
   ptr_expr <- tryCatch(
     rlang::parse_expr(formula),
@@ -29,6 +38,9 @@ ptr_parse_formula <- function(formula, placeholders = NULL) {
       )
     }
   )
+  if (!identical(formula_check, FALSE)) {
+    validate_expr_safety(ptr_expr, formula_check)
+  }
   ptr_expr_list <- unlist(break_sum(ptr_expr))
   ptr_expr_names <- vapply(ptr_expr_list, get_fun_names, character(1))
   ptr_expr_names <- handle_duplicate_names(ptr_expr_names)

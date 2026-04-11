@@ -6,6 +6,13 @@
 #                             unsafe_expr_denylist.
 # Fix 3 (paintr-runtime.R):  NULL input_item early-return guard in
 #                             ptr_complete_expr prevents crash outside Shiny.
+#
+# Fix 4 (paintr-utils.R):    walk_expr checks bare symbols against denylist
+#                             (higher-order function bypass), recurses into ALL
+#                             children including x[[1]] (anonymous function
+#                             bypass), expanded denylist, ::: operator
+#                             preservation in extract_fn_names.
+# Fix 5 (paintr-parse.R):    ptr_parse_formula gains formula_check param.
 
 # =============================================================================
 # Fix 1: ptr_parse_formula — malformed formula error wrapping
@@ -236,4 +243,263 @@ test_that("Fix3: mixed NULL and non-NULL inputs work correctly", {
 
   expect_type(result, "list")
   expect_match(result$code_text, "mpg")
+})
+
+# =============================================================================
+# Fix 4: Higher-order function symbol bypass (walk_expr checks bare symbols)
+# =============================================================================
+
+test_that("Fix4-G1: lapply with system as function argument is blocked (symbol in arg position)", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('lapply(list("id"), system)')),
+    "not allowed"
+  )
+})
+
+test_that("Fix4-G1: Map with system as function argument is blocked", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('Map(system, list("id"))')),
+    "not allowed"
+  )
+})
+
+test_that("Fix4-G1: sapply with system as function argument is blocked", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('sapply(list("id"), system)')),
+    "not allowed"
+  )
+})
+
+test_that("Fix4-G1: Reduce with system as function argument is blocked", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('Reduce(system, list("a", "b"))')),
+    "not allowed"
+  )
+})
+
+# =============================================================================
+# Fix 4: Anonymous function bypass (walk_expr recurses into x[[1]])
+# =============================================================================
+
+test_that("Fix4-G2: anonymous function wrapping system() is blocked", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('(function(x) system(x))("id")')),
+    "not allowed"
+  )
+})
+
+test_that("Fix4-G2: anonymous function containing eval is blocked", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('(function() eval(quote(1)))()')),
+    "not allowed"
+  )
+})
+
+# =============================================================================
+# Fix 4: Allowlist mode symbol safety (denylist still blocks dangerous symbols)
+# =============================================================================
+
+test_that("Fix4-G3: allowlist mode still blocks denylist symbol in arg position", {
+  expect_error(
+    validate_expr_safety(
+      rlang::parse_expr('lapply(list("id"), system)'),
+      expr_check = list(allow_list = c("lapply", "list"))
+    ),
+    "not allowed"
+  )
+})
+
+test_that("Fix4-G3: allowlist mode passes legitimate ggplot2 call with listed symbols", {
+  expect_invisible(
+    validate_expr_safety(
+      rlang::parse_expr("aes(x = mpg)"),
+      expr_check = list(allow_list = c("aes"))
+    )
+  )
+})
+
+# =============================================================================
+# Fix 4: New denylist entries
+# =============================================================================
+
+test_that("Fix4-G4: getFromNamespace is blocked by default denylist", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('getFromNamespace("system", "base")')),
+    "not allowed"
+  )
+})
+
+test_that("Fix4-G4: Sys.sleep is blocked by default denylist", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr("Sys.sleep(100)")),
+    "not allowed"
+  )
+})
+
+test_that("Fix4-G4: readline is blocked by default denylist", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('readline("prompt")')),
+    "not allowed"
+  )
+})
+
+test_that("Fix4-G4: environment is blocked by default denylist", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr("environment(ls)")),
+    "not allowed"
+  )
+})
+
+# =============================================================================
+# Fix 4: ::: operator preservation in extract_fn_names
+# =============================================================================
+
+test_that("Fix4-G5: base:::system is blocked (qualified name with ::: preserved)", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('base:::system("id")')),
+    "not allowed"
+  )
+})
+
+test_that("Fix4-G5: extract_fn_names returns qualified form for ::: call", {
+  fn_node <- rlang::parse_expr("base:::system")
+  result <- extract_fn_names(fn_node)
+  expect_true("base:::system" %in% result)
+  expect_true("system" %in% result)
+})
+
+test_that("Fix4-G5: extract_fn_names returns qualified form for :: call", {
+  fn_node <- rlang::parse_expr("base::system")
+  result <- extract_fn_names(fn_node)
+  expect_true("base::system" %in% result)
+  expect_true("system" %in% result)
+})
+
+# =============================================================================
+# Fix 5: formula_check parameter on ptr_parse_formula
+# =============================================================================
+
+test_that("Fix5-G6: formula_check=TRUE blocks system() in formula", {
+  expect_error(
+    ptr_parse_formula(
+      "system('id') + ggplot(mtcars, aes(x = var))",
+      formula_check = TRUE
+    ),
+    "not allowed"
+  )
+})
+
+test_that("Fix5-G6: formula_check=FALSE (default) allows dangerous formula text to parse", {
+  # No error — formula_check=FALSE is the default, formula treated as trusted input
+  expect_no_error(
+    ptr_parse_formula(
+      "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+      formula_check = FALSE
+    )
+  )
+})
+
+test_that("Fix5-G6: formula_check=TRUE passes for a legitimate formula", {
+  expect_s3_class(
+    ptr_parse_formula(
+      "ggplot(mtcars, aes(x = var)) + geom_point()",
+      formula_check = TRUE
+    ),
+    "ptr_obj"
+  )
+})
+
+# =============================================================================
+# Fix 4/5: No false positives — common ggplot2 idioms pass denylist
+# =============================================================================
+
+test_that("Fix4-G7: aes(x = mpg, y = hp) passes denylist", {
+  expect_invisible(
+    validate_expr_safety(rlang::parse_expr("aes(x = mpg, y = hp)"))
+  )
+})
+
+test_that("Fix4-G7: c(1, 2, 3) passes denylist", {
+  expect_invisible(
+    validate_expr_safety(quote(c(1, 2, 3)))
+  )
+})
+
+test_that("Fix4-G7: scale_x_log10() passes denylist", {
+  expect_invisible(
+    validate_expr_safety(rlang::parse_expr("scale_x_log10()"))
+  )
+})
+
+test_that("Fix4-G7: geom_point(color = 'red', size = 3) passes denylist", {
+  expect_invisible(
+    validate_expr_safety(rlang::parse_expr("geom_point(color = 'red', size = 3)"))
+  )
+})
+
+# =============================================================================
+# walk_expr compound-head traversal fix (codex/publication-loop)
+# Scenarios: anonymous fn bypass, paren-wrapped symbol, safe compound head,
+#            nested anonymous fn, normal calls, length-1 call no-crash.
+# =============================================================================
+
+test_that("walk_expr: anon fn with varargs wrapping system() is blocked (denylist)", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('(function(...) system(...))(arg)')),
+    "not allowed"
+  )
+})
+
+test_that("walk_expr: anon fn with braced body containing file.remove is blocked (denylist)", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('(function() { file.remove("x") })()')),
+    "not allowed"
+  )
+})
+
+test_that("walk_expr: anon fn with safe body passes denylist", {
+  expect_invisible(
+    validate_expr_safety(rlang::parse_expr("(function(x) x + 1)(2)"))
+  )
+})
+
+test_that("walk_expr: nested anonymous functions — inner system() is blocked (denylist)", {
+  expect_error(
+    validate_expr_safety(
+      rlang::parse_expr('(function() (function() system("id"))())()')
+    ),
+    "not allowed"
+  )
+})
+
+test_that("walk_expr: paren-wrapped dangerous symbol used as callable is blocked (denylist)", {
+  expect_error(
+    validate_expr_safety(rlang::parse_expr('(system)("id")')),
+    "not allowed"
+  )
+})
+
+test_that("walk_expr: sqrt(x) passes denylist — normal call unaffected by fix", {
+  expect_invisible(
+    validate_expr_safety(rlang::parse_expr("sqrt(x)"))
+  )
+})
+
+test_that("walk_expr: aes(x = mpg) passes denylist — normal call unaffected by fix", {
+  expect_invisible(
+    validate_expr_safety(rlang::parse_expr("aes(x = mpg)"))
+  )
+})
+
+test_that("walk_expr: c(1, 2, 3) passes denylist — normal call unaffected by fix", {
+  expect_invisible(
+    validate_expr_safety(quote(c(1, 2, 3)))
+  )
+})
+
+test_that("walk_expr: zero-arg call (length-1) does not crash — seq_along(x)[-1] is integer(0)", {
+  # f() has length 1; seq_along(x)[-1] yields integer(0), loop body never executes
+  expect_invisible(
+    validate_expr_safety(quote(sqrt()))
+  )
 })
