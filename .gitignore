@@ -52,3 +52,6 @@ dev/codex/runs/
 # Graphify
 .graphifyignore
 graphify-out/
+
+# EWH artifacts (ephemeral, per-workflow-run)
+.claude/artifacts/
