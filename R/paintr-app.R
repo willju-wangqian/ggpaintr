@@ -222,7 +222,7 @@ ptr_setup_controls <- function(input,
   ptr_validate_state(ptr_state)
   ids <- ptr_normalize_ids(ids)
 
-  shared_env_reactive <- shiny::reactive({
+  shared_env_reactive_raw <- shiny::reactive({
     shiny::req(ptr_state$obj())
     obj <- ptr_state$obj()
     eval_env <- tryCatch(
@@ -245,6 +245,7 @@ ptr_setup_controls <- function(input,
     }
     list(eval_env = eval_env, var_column_map = var_column_map)
   })
+  shared_env_reactive <- shiny::debounce(shared_env_reactive_raw, millis = 300)
   ptr_state$shared_env_reactive <- shared_env_reactive
 
   shiny::observe({
