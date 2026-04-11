@@ -435,6 +435,10 @@ ptr_resolve_placeholder_expr <- function(spec, value, meta, context) {
     rlang::abort(paste0("Placeholder '", meta$keyword, "' returned a function instead of an expression."))
   }
 
+  if (is.call(resolved_expr) || is.symbol(resolved_expr) || is.pairlist(resolved_expr)) {
+    validate_expr_safety(resolved_expr, context$expr_check %||% TRUE)
+  }
+
   resolved_expr
 }
 

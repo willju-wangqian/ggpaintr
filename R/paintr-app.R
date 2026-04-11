@@ -315,7 +315,7 @@ ptr_register_draw <- function(input,
       var_column_map = cached$var_column_map,
       expr_check = ptr_state$expr_check
     )
-    runtime_result <- ptr_assemble_plot_safe(runtime_result, envir = ptr_state$envir)
+    runtime_result <- ptr_assemble_plot_safe(runtime_result, envir = ptr_state$envir, expr_check = ptr_state$expr_check)
     runtime_result <- ptr_validate_plot_render_safe(runtime_result)
     ptr_state$runtime(runtime_result)
   })

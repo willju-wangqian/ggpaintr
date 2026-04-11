@@ -149,6 +149,9 @@ ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
 #'
 #' @param plot_expr_list A list of completed plot layer expressions.
 #' @param envir The evaluation environment.
+#' @param expr_check Logical or list controlling safety validation of the
+#'   assembled expressions. Forwarded to \code{validate_expr_safety}.
+#'   Defaults to \code{TRUE}.
 #'
 #' @return A `ggplot` object assembled from the retained layer expressions.
 #'   Errors when no plot expressions remain after runtime processing.
@@ -165,13 +168,13 @@ ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
 #' plot_obj <- ptr_assemble_plot(runtime$complete_expr_list, runtime$eval_env)
 #' inherits(plot_obj, "ggplot")
 #' @export
-ptr_assemble_plot <- function(plot_expr_list, envir = parent.frame()) {
+ptr_assemble_plot <- function(plot_expr_list, envir = parent.frame(), expr_check = TRUE) {
   if (is.null(plot_expr_list) || length(plot_expr_list) == 0) {
     rlang::abort("No plot layers remain after processing the selected inputs.")
   }
 
   for (expr in plot_expr_list) {
-    validate_expr_safety(expr)
+    validate_expr_safety(expr, expr_check)
   }
 
   plot_list <- lapply(plot_expr_list, eval, envir = envir)
@@ -281,10 +284,12 @@ ptr_complete_expr_safe <- function(ptr_obj, input, envir = parent.frame(),
 #'
 #' @param runtime_result A runtime result list.
 #' @param envir A fallback evaluation environment.
+#' @param expr_check Logical or list controlling safety validation.
+#'   Forwarded to \code{ptr_assemble_plot}. Defaults to \code{TRUE}.
 #'
 #' @return An updated runtime result.
 #' @noRd
-ptr_assemble_plot_safe <- function(runtime_result, envir = parent.frame()) {
+ptr_assemble_plot_safe <- function(runtime_result, envir = parent.frame(), expr_check = TRUE) {
   if (!isTRUE(runtime_result$ok)) {
     return(runtime_result)
   }
@@ -296,7 +301,7 @@ ptr_assemble_plot_safe <- function(runtime_result, envir = parent.frame()) {
 
   tryCatch(
     {
-      runtime_result$plot <- ptr_assemble_plot(runtime_result$complete_expr_list, envir = plot_env)
+      runtime_result$plot <- ptr_assemble_plot(runtime_result$complete_expr_list, envir = plot_env, expr_check = expr_check)
       runtime_result
     },
     error = function(e) ptr_mark_runtime_failure(runtime_result, "plot", e)
@@ -362,7 +367,7 @@ ptr_exec <- function(ptr_obj, input, envir = parent.frame(),
   runtime_result <- ptr_complete_expr_safe(
     ptr_obj, input, envir = envir, expr_check = expr_check
   )
-  runtime_result <- ptr_assemble_plot_safe(runtime_result, envir = envir)
+  runtime_result <- ptr_assemble_plot_safe(runtime_result, envir = envir, expr_check = expr_check)
   ptr_validate_plot_render_safe(runtime_result)
 }
 

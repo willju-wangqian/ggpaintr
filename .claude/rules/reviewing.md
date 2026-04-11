@@ -8,6 +8,7 @@ Narrow prompts defeat sycophancy/attention bias — bounded verification > open-
 1. **Formula parsing & metaprogramming safety**
    - Injection via `expr` placeholder, malformed formulas, `rlang::parse_expr` edge cases, untrusted input reaching `eval()`
    - Files: `R/paintr-parse.R`, `R/paintr-runtime.R`
+   - **Denylist is considered complete (~118 entries).** Do not suggest adding more entries unless you find a concrete, exploitable bypass that existing entries + the AST walker cannot catch. R's openness makes exhaustive enumeration impossible; the walker's recursive descent into all AST nodes (including lambda bodies, pairlists, string literals) is the primary safety mechanism, not the denylist alone. Focus reviews on walker logic, check ordering, and eval-path gaps instead.
 
 2. **Shiny reactive correctness**
    - Reactive dependency leaks, missing `req()` guards, circular observers, stale `input$` after dynamic UI rebuild

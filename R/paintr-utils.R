@@ -359,7 +359,7 @@ ptr_verbose <- function() {
 # Default denylist for expr placeholder safety
 unsafe_expr_denylist <- c(
   # system escape
-  "system", "system2", "shell", "shell.exec",
+  "system", "system2", "shell", "shell.exec", "pipe",
   # file I/O
   "file.create", "file.remove", "file.rename", "file.copy",
   "file.append", "unlink", "dir.create",
@@ -367,8 +367,13 @@ unsafe_expr_denylist <- c(
   "read.csv", "write.csv", "read.table", "write.table",
   "scan", "cat", "sink", "connection",
   "download.file", "url", "file",
+  "writeBin", "readBin", "readChar", "writeChar",
+  # deserialization / workspace I/O
+  "serialize", "unserialize", "load", "save", "save.image",
   # meta-eval (denylist bypass vectors)
   "eval", "evalq", "parse", "deparse",
+  "str2lang", "str2expression",
+  "call", "as.call", "quote", "bquote", "as.symbol", "as.name",
   "do.call", "match.fun", "get", "mget", "getFromNamespace",
   "Recall", "sys.call", "match.call",
   # environment / global state mutation
@@ -377,26 +382,40 @@ unsafe_expr_denylist <- c(
   "source", "sys.source",
   "library", "require", "loadNamespace",
   "Sys.setenv", "Sys.unsetenv", "options",
+  "body<-", "formals<-", "environment<-",
   # dangerous base
   "on.exit", "q", "quit", "stop",
   ".Internal", ".Primitive", ".Call", ".External",
+  # native code loading
+  "dyn.load", "dyn.unload",
   # process / session blocking
   "Sys.sleep", "readline",
+  # system mutation
+  "Sys.chmod", "Sys.umask", "Sys.readlink", "Sys.setlocale", "Sys.setFileTime",
+  # debugger hooks
+  "debug", "debugonce", "undebug", "browser",
   # stack / environment introspection
   "sys.frame", "sys.function", "sys.calls",
   "parent.frame", "parent.env",
   "environment", "new.env", "as.environment",
   "baseenv", "globalenv", "emptyenv",
+  "attr", "attributes", "slot",
+  "attr<-", "attributes<-",
   # information disclosure
   "Sys.getenv", "Sys.getpid", "Sys.info", "Sys.time",
   "proc.time", "message", "warning", "getwd",
   "normalizePath", "Sys.glob", "list.files", "list.dirs",
   "getAnywhere", "exists", "find", "loadedNamespaces",
+  "ls", "objects", "search", "searchpaths",
+  "R.home", ".libPaths", ".packages",
   # meta-dispatch & method injection (string-arg bypass vectors)
   "exec", "getExportedValue", "getNativeSymbolInfo",
   "delayedAssign", "trace", "untrace",
   "setClass", "setMethod", "setGeneric", "registerS3method",
-  "unlockBinding"
+  "unlockBinding",
+  # delayed / deferred code execution
+  "reg.finalizer", "addTaskCallback", "taskCallbackManager",
+  "setHook", "packageEvent"
 )
 
 #' Resolve the Effective Check List from an `expr_check` Value
@@ -559,6 +578,27 @@ validate_expr_safety <- function(expr, expr_check = TRUE) {
       }
 
       for (i in seq_along(x)[-1]) walk_expr(x[[i]])
+    }
+    if (is.character(x) && length(x) > 1L) {
+      for (el in x) {
+        if (resolved$mode == "denylist" && el %in% resolved$fns) {
+          rlang::abort(paste0(
+            "expr placeholder: `", el,
+            "` is not allowed (found in character vector). ",
+            "Set expr_check = FALSE to allow ",
+            "arbitrary expressions."
+          ))
+        }
+        if (resolved$mode == "allowlist" && el %in% unsafe_expr_denylist) {
+          rlang::abort(paste0(
+            "expr placeholder: `", el,
+            "` is not allowed (found in character vector). ",
+            "Set expr_check = FALSE to allow ",
+            "arbitrary expressions."
+          ))
+        }
+      }
+      return(invisible(NULL))
     }
   }
   walk_expr(expr)

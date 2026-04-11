@@ -8,7 +8,9 @@
 #'
 #' @note The \code{formula} argument is validated by default using the denylist.
 #'   Set \code{formula_check = FALSE} only for trusted developer input that you
-#'   know is safe.
+#'   know is safe.  This check is independent of the per-placeholder
+#'   \code{expr_check} applied at runtime; disabling one does not disable the
+#'   other.
 #' @param formula A single formula string describing a ggplot-like expression.
 #' @param placeholders Optional custom placeholder definitions or an existing
 #'   placeholder registry.
@@ -27,6 +29,9 @@
 #' @export
 ptr_parse_formula <- function(formula, placeholders = NULL, formula_check = TRUE) {
   assertthat::assert_that(rlang::is_string(formula))
+  if (!nzchar(trimws(formula))) {
+    rlang::abort("ptr_parse_formula: formula must not be empty or whitespace-only.")
+  }
   placeholder_registry <- ptr_merge_placeholders(placeholders)
   ptr_exprs <- tryCatch(
     rlang::parse_exprs(formula),

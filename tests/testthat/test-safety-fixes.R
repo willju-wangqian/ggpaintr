@@ -61,7 +61,7 @@ test_that("Fix1: valid formula still parses without error (regression)", {
 test_that("Fix1: empty string signals parse error", {
   expect_error(
     ptr_parse_formula(""),
-    regexp = "exactly one top-level expression"
+    regexp = "empty or whitespace-only"
   )
 })
 
@@ -594,10 +594,10 @@ test_that("multi-expr guard: trailing semicolon produces two expressions and is 
   )
 })
 
-test_that("multi-expr guard: empty string is rejected with exactly-one message", {
+test_that("multi-expr guard: empty string is rejected with empty-formula message", {
   expect_error(
     ptr_parse_formula(""),
-    "exactly one top-level expression"
+    "empty or whitespace-only"
   )
 })
 
