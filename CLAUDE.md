@@ -57,6 +57,7 @@ Additional context:
 - Doc build: source("dev/build-pkgdown.R"); build_pkgdown_clean()  # excludes CLAUDE.md from the rendered site
 - README render: devtools::load_all("."); rmarkdown::render("README.Rmd", envir = globalenv())
 - Conventions: tidyverse style, snake_case, 2-space indent
+- Auto-approve start: true
 
 ## Workflows
 

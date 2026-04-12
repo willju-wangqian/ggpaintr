@@ -51,3 +51,4 @@ dev/codex/runs/
 
 # EWH artifacts (ephemeral, per-workflow-run)
 .claude/artifacts/
+.ewh-artifacts/

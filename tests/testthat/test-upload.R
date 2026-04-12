@@ -211,3 +211,119 @@ test_that("bad upload does not crash the app session", {
     expect_match(runtime_result$message, "Input error", fixed = TRUE)
   })
 })
+
+# --- F2: BOM stripping -------------------------------------------------------
+
+test_that("F2: UTF-8 BOM is stripped from CSV column names", {
+  bom_file <- withr::local_tempfile(fileext = ".csv")
+  # Write BOM + CSV content as raw bytes
+  bom <- as.raw(c(0xEF, 0xBB, 0xBF))
+  csv_bytes <- chartr("\n", "\n", "a,b\n1,2\n3,4")
+  writeBin(c(bom, charToRaw(csv_bytes)), bom_file)
+
+  file_info <- mock_upload_input(bom_file, "bom_data.csv")
+  result <- ptr_read_uploaded_data(file_info)
+
+  expect_identical(names(result)[1], "a")
+})
+
+test_that("F2: plain UTF-8 CSV (no BOM) reads correctly", {
+  plain_file <- withr::local_tempfile(fileext = ".csv")
+  writeLines("a,b\n1,2\n3,4", plain_file)
+
+  file_info <- mock_upload_input(plain_file, "plain_data.csv")
+  result <- ptr_read_uploaded_data(file_info)
+
+  expect_identical(names(result), c("a", "b"))
+})
+
+# --- F3: empty-file guards ---------------------------------------------------
+
+test_that("F3: CSV with header only (no data rows) errors 'contains no rows'", {
+  header_only <- withr::local_tempfile(fileext = ".csv")
+  writeLines("a,b,c", header_only)
+
+  file_info <- mock_upload_input(header_only, "header_only.csv")
+  expect_error(ptr_read_uploaded_data(file_info), "contains no rows")
+})
+
+test_that("F3: completely empty CSV errors with a readable message", {
+  empty_file <- withr::local_tempfile(fileext = ".csv")
+  writeLines("", empty_file)
+
+  file_info <- mock_upload_input(empty_file, "empty.csv")
+  # read.csv signals "no lines available" before row/column guards run,
+  # so the tryCatch converts it to "Could not read ... as a csv file"
+  expect_error(
+    ptr_read_uploaded_data(file_info),
+    "contains no rows|contains no columns|Could not read.*as a csv file"
+  )
+})
+
+test_that("F3: RDS zero-row data.frame errors 'contains no rows'", {
+  rds_file <- withr::local_tempfile(fileext = ".rds")
+  saveRDS(data.frame(a = integer(0)), rds_file)
+
+  file_info <- mock_upload_input(rds_file, "zero_rows.rds")
+  expect_error(ptr_read_uploaded_data(file_info), "contains no rows")
+})
+
+test_that("F3: RDS zero-column data.frame errors 'contains no columns'", {
+  rds_file <- withr::local_tempfile(fileext = ".rds")
+  saveRDS(data.frame(row.names = 1:3), rds_file)
+
+  file_info <- mock_upload_input(rds_file, "zero_cols.rds")
+  expect_error(ptr_read_uploaded_data(file_info), "contains no columns")
+})
+
+test_that("F3: RDS zero-row matrix errors 'contains no rows'", {
+  rds_file <- withr::local_tempfile(fileext = ".rds")
+  saveRDS(matrix(numeric(0), nrow = 0, ncol = 2), rds_file)
+
+  file_info <- mock_upload_input(rds_file, "zero_row_matrix.rds")
+  expect_error(ptr_read_uploaded_data(file_info), "contains no rows")
+})
+
+# --- F4: reader errors -------------------------------------------------------
+
+test_that("F4: RDS file with .csv extension errors on bad content", {
+  rds_as_csv <- withr::local_tempfile(fileext = ".csv")
+  saveRDS(data.frame(x = 1:3), rds_as_csv)
+
+  # read.csv parses RDS bytes as text and yields 0 rows, triggering the
+  # empty-data guard rather than a parse error — either message is acceptable.
+  file_info <- mock_upload_input(rds_as_csv, "actually_rds.csv")
+  expect_error(
+    ptr_read_uploaded_data(file_info),
+    "contains no rows|Could not read.*as a csv file"
+  )
+})
+
+test_that("F4: CSV file with .rds extension errors 'Could not read ... as an RDS file'", {
+  csv_as_rds <- withr::local_tempfile(fileext = ".rds")
+  writeLines("a,b\n1,2", csv_as_rds)
+
+  file_info <- mock_upload_input(csv_as_rds, "actually_csv.rds")
+  expect_error(
+    ptr_read_uploaded_data(file_info),
+    "Could not read.*as an RDS file"
+  )
+})
+
+# --- F5: reserved-word default names -----------------------------------------
+
+test_that("F5: 'if.csv' produces default name 'if_'", {
+  expect_equal(ptr_upload_default_name("if.csv"), "if_")
+})
+
+test_that("F5: 'for.csv' produces default name 'for_'", {
+  expect_equal(ptr_upload_default_name("for.csv"), "for_")
+})
+
+test_that("F5: 'NULL.csv' produces default name 'NULL_'", {
+  expect_equal(ptr_upload_default_name("NULL.csv"), "NULL_")
+})
+
+test_that("F5: 'normal.csv' produces default name 'normal' (happy path)", {
+  expect_equal(ptr_upload_default_name("normal.csv"), "normal")
+})

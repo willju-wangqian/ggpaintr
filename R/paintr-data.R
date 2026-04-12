@@ -89,6 +89,8 @@ ptr_normalize_column_name_vector <- function(x, n = length(x)) {
   valid_starts <- grepl("(^[[:alpha:]])|(^\\.(?![0-9]))", x, perl = TRUE)
   x[!valid_starts] <- paste0("X", x[!valid_starts])
 
+  x <- make.unique(x, sep = "_")
+
   reserved <- ptr_reserved_words()
   x[x %in% reserved] <- paste0(x[x %in% reserved], "_")
 

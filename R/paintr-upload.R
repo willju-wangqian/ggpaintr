@@ -23,6 +23,9 @@ ptr_upload_default_name <- function(file_name) {
     file_stem <- "uploaded_data"
   }
 
+  if (file_stem %in% ptr_reserved_words()) {
+    file_stem <- paste0(file_stem, "_")
+  }
   make.names(file_stem)
 }
 
@@ -39,14 +42,42 @@ ptr_read_uploaded_data <- function(file_info) {
 
   ext <- tolower(tools::file_ext(file_info$name))
   if (ext == "csv") {
-    return(ptr_normalize_column_names(utils::read.csv(file_info$datapath)))
+    result <- tryCatch(
+      utils::read.csv(file_info$datapath, fileEncoding = "UTF-8-BOM"),
+      error = function(e) {
+        rlang::abort(paste0(
+          "Could not read '", file_info$name, "' as a csv file: ",
+          conditionMessage(e)
+        ))
+      }
+    )
+    if (ncol(result) == 0L) {
+      rlang::abort(paste0("Uploaded file '", file_info$name, "' contains no columns."))
+    }
+    if (nrow(result) == 0L) {
+      rlang::abort(paste0("Uploaded file '", file_info$name, "' contains no rows."))
+    }
+    return(ptr_normalize_column_names(result))
   }
 
   if (ext == "rds") {
-    return(ptr_normalize_tabular_data(
+    result <- tryCatch(
       readRDS(file_info$datapath),
-      source = "Uploaded data"
-    ))
+      error = function(e) {
+        rlang::abort(paste0(
+          "Could not read '", file_info$name, "' as an RDS file: ",
+          conditionMessage(e)
+        ))
+      }
+    )
+    normalized <- ptr_normalize_tabular_data(result, source = "Uploaded data")
+    if (ncol(normalized) == 0L) {
+      rlang::abort(paste0("Uploaded file '", file_info$name, "' contains no columns."))
+    }
+    if (nrow(normalized) == 0L) {
+      rlang::abort(paste0("Uploaded file '", file_info$name, "' contains no rows."))
+    }
+    return(normalized)
   }
 
   rlang::abort("Please upload a .csv or .rds file.")

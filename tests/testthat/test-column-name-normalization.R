@@ -51,3 +51,33 @@ test_that("ptr_normalize_column_names errors on non-tabular inputs", {
     "Data is not usable as tabular data for ggpaintr"
   )
 })
+
+# --- F6: collision after reserved-word suffix --------------------------------
+
+test_that("F6: happy path c('a','b','c') round-trips unchanged", {
+  expect_identical(ptr_normalize_column_name_vector(c("a", "b", "c")), c("a", "b", "c"))
+})
+
+test_that("F6: c('if','if_') disambiguates without silently renaming the pre-existing 'if_'", {
+  result <- ptr_normalize_column_name_vector(c("if", "if_"))
+  # 'if' must become 'if_', original 'if_' must be deduped to 'if_1'
+  expect_equal(result, c("if_", "if_1"))
+  # Both names must be present and distinct
+  expect_length(unique(result), 2L)
+})
+
+test_that("F6: three 'if' columns all get unique reserved-word-safe names", {
+  result <- ptr_normalize_column_name_vector(c("if", "if", "if"))
+  expect_length(result, 3L)
+  expect_length(unique(result), 3L)
+  # All must be safe (none equals a reserved word)
+  expect_false(any(result %in% ptr_reserved_words()))
+})
+
+test_that("F6: mix of reserved-word and normal columns preserves non-reserved names", {
+  result <- ptr_normalize_column_name_vector(c("if", "x", "for", "y"))
+  expect_equal(result[2], "x")
+  expect_equal(result[4], "y")
+  expect_false(any(result %in% ptr_reserved_words()))
+  expect_length(unique(result), 4L)
+})
