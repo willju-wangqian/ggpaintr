@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -64,7 +64,7 @@
   <main id="main" class="col-md-9"><div class="section level1">
 <div class="page-header"><h1 id="ggpaintr">ggpaintr<a class="anchor" aria-label="anchor" href="#ggpaintr"></a>
 </h1></div>
-<p><code>ggpaintr</code> turns one ggplot-like formula string into a small Shiny app with generated controls, rendered plots, generated code, upload support, copy customization, custom Shiny integration hooks, custom placeholder registries, and export helpers.</p>
+<p><code>ggpaintr</code> turns one ggplot-like formula string into a small Shiny app with generated controls, rendered plots, generated code, upload support, copy customization, custom Shiny integration hooks, and custom placeholder registries.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
@@ -105,7 +105,7 @@
 <p><code>ggpaintr</code> keeps the author-facing input as one formula string on purpose.</p>
 <ul>
 <li>formula strings stay close to the way many R users already sketch ggplot code</li>
-<li>the same parsed object can drive generated controls, runtime completion, generated code, and standalone export</li>
+<li>the same parsed object drives generated controls, runtime completion, and generated code</li>
 <li>one placeholder registry powers parse, UI, runtime, and copy rules for both built-in and custom placeholders</li>
 <li>the package gives you both a default wrapper and a supported Shiny embedding layer, so you can start simple and grow into a more custom app</li>
 </ul>
@@ -129,7 +129,7 @@
 </h2>
 <p>The maintained public path is intentionally narrow.</p>
 <ul>
-<li>Start with <code><a href="reference/ptr_app.html">ptr_app()</a></code> for the default app wrapper.</li>
+<li>Start with <code><a href="reference/ptr_app.html">ptr_app()</a></code> for the default app wrapper, or <code><a href="reference/ptr_app_bslib.html">ptr_app_bslib()</a></code> for a <code>bslib</code>-themed variant that doubles as a worked example of building custom shells from the public API.</li>
 <li>Use <code><a href="reference/ptr_server.html">ptr_server()</a></code>, <code><a href="reference/ptr_server_state.html">ptr_server_state()</a></code>, <code><a href="reference/ptr_build_ids.html">ptr_build_ids()</a></code>, and the <code>ptr_register_*()</code> helpers when you need to embed <code>ggpaintr</code> in a larger Shiny app.</li>
 <li>Use <code><a href="reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code> and <code><a href="reference/ptr_merge_placeholders.html">ptr_merge_placeholders()</a></code> for custom placeholder types.</li>
 <li>Use <code><a href="reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec()</a></code>, <code><a href="reference/ptr_parse_formula.html">ptr_parse_formula()</a></code>, <code><a href="reference/ptr_exec.html">ptr_exec()</a></code>, and <code><a href="reference/ptr_assemble_plot.html">ptr_assemble_plot()</a></code> for advanced runtime or testing workflows.</li>
@@ -318,7 +318,6 @@
 <span><span class="st">    geom_vline(xintercept = date)"</span>,</span>
 <span>  placeholders <span class="op">=</span> <span class="va">placeholders</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>If you want to export a standalone app with a custom placeholder, define the placeholder hooks inline inside the <code><a href="reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code> call. The export path serializes that stored call into the generated app, so helper functions that only exist in your current session are not exportable today.</p>
 </div>
 <div class="section level3">
 <h3 id="advanced-developer-workflow">Advanced developer workflow<a class="anchor" aria-label="anchor" href="#advanced-developer-workflow"></a>
@@ -353,9 +352,9 @@
 <span><span class="va">runtime</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_exec.html">ptr_exec</a></span><span class="op">(</span><span class="va">obj</span>, <span class="va">inputs</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">runtime</span><span class="op">$</span><span class="va">code_text</span></span>
-<span><span class="co">#&gt; NULL</span></span>
+<span><span class="co">#&gt; [1] "ggplot(data = mtcars, aes(x = mpg, y = disp)) +\n  geom_point(size = 2) +\n  labs(title = \"Mtcars scatter\")"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">inherits</a></span><span class="op">(</span><span class="va">runtime</span><span class="op">$</span><span class="va">plot</span>, <span class="st">"ggplot"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] FALSE</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
 <p>For upload-backed formulas, the spec also includes the derived dataset-name input that accompanies each upload control.</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">upload_obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_parse_formula.html">ptr_parse_formula</a></span><span class="op">(</span></span>
@@ -377,14 +376,12 @@
 <ul>
 <li>built-in placeholders are <code>var</code>, <code>text</code>, <code>num</code>, <code>expr</code>, and <code>upload</code>
 </li>
-<li>custom placeholders share the same parse, UI, runtime, copy-rule, and export path as built-ins</li>
+<li>custom placeholders share the same parse, UI, runtime, and copy-rule path as built-ins</li>
 <li>
 <code>upload</code> currently supports <code>.csv</code> and <code>.rds</code>
 </li>
 <li>the supported app-facing surface is the current <code>ptr_*</code> wrapper and Shiny-integration layer</li>
-<li>exported apps keep the current explicit-file shape built around <code><a href="reference/ptr_server.html">ptr_server()</a></code>
-</li>
-<li>only the six top-level ids exposed by <code><a href="reference/ptr_build_ids.html">ptr_build_ids()</a></code> are configurable</li>
+<li>only the five top-level ids exposed by <code><a href="reference/ptr_build_ids.html">ptr_build_ids()</a></code> are configurable</li>
 <li>runtime failures are labeled as <code>Input error</code> or <code>Plot error</code> and stay on the shared inline error path</li>
 </ul>
 </div>
@@ -396,7 +393,6 @@
 </li>
 <li>deeper traversal details such as <code>index_path</code> encoding and internal companion id conventions remain package internals</li>
 <li>unsupported upload formats are outside the current boundary</li>
-<li>custom placeholders whose hooks are not defined inline inside <code><a href="reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code> are not exportable as standalone apps today</li>
 <li>the formula-string model is the current author-facing interface; future hardening should compile it into a richer internal runtime contract rather than replace that authoring model outright</li>
 </ul>
 </div>
@@ -417,7 +413,7 @@
 <div class="section level2">
 <h2 id="where-to-go-next">Where to go next<a class="anchor" aria-label="anchor" href="#where-to-go-next"></a>
 </h2>
-<p>See <code><a href="articles/ggpaintr-workflow.html">vignette("ggpaintr-workflow")</a></code> for the main workflow and <code><a href="articles/ggpaintr-extensibility.html">vignette("ggpaintr-extensibility")</a></code> for supported Shiny integration recipes. See <code><a href="articles/ggpaintr-placeholder-registry.html">vignette("ggpaintr-placeholder-registry")</a></code> for the placeholder registry API, hook contract, and export guidance.</p>
+<p>See <code><a href="articles/ggpaintr-workflow.html">vignette("ggpaintr-workflow")</a></code> for the main workflow and <code><a href="articles/ggpaintr-extensibility.html">vignette("ggpaintr-extensibility")</a></code> for supported Shiny integration recipes. See <code><a href="articles/ggpaintr-placeholder-registry.html">vignette("ggpaintr-placeholder-registry")</a></code> for the placeholder registry API and hook contract.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">

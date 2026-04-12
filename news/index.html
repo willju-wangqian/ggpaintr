@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -41,9 +41,9 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="development version" id="ggpaintr-development-version">ggpaintr (development version)<a class="anchor" aria-label="anchor" href="#ggpaintr-development-version"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.9.0" id="ggpaintr-090">ggpaintr 0.9.0<a class="anchor" aria-label="anchor" href="#ggpaintr-090"></a></h2>
 <div class="section level3">
-<h3 id="breaking-changes-development-version">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-development-version"></a></h3>
+<h3 id="breaking-changes-0-9-0">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-0-9-0"></a></h3>
 <ul><li>Removed the Shiny app export feature: <code>ptr_generate_shiny()</code>, <code>ptr_register_export()</code>, the download button, and <code>ids$export_button</code> are gone. Use the public API (<code><a href="../reference/ptr_server_state.html">ptr_server_state()</a></code>, <code>ptr_register_*()</code>, <code><a href="../reference/ptr_input_ui.html">ptr_input_ui()</a></code>, <code><a href="../reference/ptr_output_ui.html">ptr_output_ui()</a></code>, <code><a href="../reference/ptr_app_bslib.html">ptr_app_bslib()</a></code>) to compose and distribute custom apps.</li>
 <li>The placeholder distribution parameters <code>source_file</code>, <code>source_package</code>, <code>source_function</code>, and <code>on_missing</code> are removed from <code><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code>. They only existed to support the exporter. Hook functions should be defined inline.</li>
 <li>The last commit before these removals is tagged <code>v0-pre-export-removal</code>.</li>

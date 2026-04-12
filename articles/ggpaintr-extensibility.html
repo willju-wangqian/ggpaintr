@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -80,8 +80,8 @@
 <p><code>ggpaintr</code> still ships the default <code><a href="../reference/ptr_app.html">ptr_app()</a></code>
 and <code><a href="../reference/ptr_server.html">ptr_server()</a></code> wrappers, but it now also exposes a
 supported integration layer for users who already have a Shiny app and
-want to embed the generated <code>ggpaintr</code> controls, runtime, and
-export behavior into their own UI.</p>
+want to embed the generated <code>ggpaintr</code> controls and runtime
+into their own UI.</p>
 <p>The supported integration pieces are:</p>
 <ul>
 <li><code><a href="../reference/ptr_build_ids.html">ptr_build_ids()</a></code></li>
@@ -215,7 +215,7 @@ specific UI containers.</p>
 <span>  <span class="fu"><a href="../reference/ptr_register_error.html">ptr_register_error</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="../reference/ptr_register_code.html">ptr_register_code</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
-<p>Only the six top-level ids are configurable in this phase. Internal
+<p>Only the five top-level ids are configurable in this phase. Internal
 placeholder ids and dynamic <code>var-*</code> output ids remain
 package-owned.</p>
 </div>

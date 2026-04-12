@@ -8,7 +8,7 @@ and
 [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
 wrappers, but it now also exposes a supported integration layer for
 users who already have a Shiny app and want to embed the generated
-`ggpaintr` controls, runtime, and export behavior into their own UI.
+`ggpaintr` controls and runtime into their own UI.
 
 The supported integration pieces are:
 
@@ -154,7 +154,7 @@ server <- function(input, output, session) {
 }
 ```
 
-Only the six top-level ids are configurable in this phase. Internal
+Only the five top-level ids are configurable in this phase. Internal
 placeholder ids and dynamic `var-*` output ids remain package-owned.
 
 ## Recipe 3: Customize the returned plot in `renderPlot()`
