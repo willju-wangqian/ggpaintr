@@ -35,7 +35,7 @@ URL: https://willju-wangqian.github.io/ggpaintr/,
     https://github.com/willju-wangqian/ggpaintr
 BugReports: https://github.com/willju-wangqian/ggpaintr/issues
 Depends:
-    R (>= 3.5.0)
+    R (>= 4.0.0)
 Imports:
     assertthat (>= 0.2.0),
     cli (>= 2.2.0),
