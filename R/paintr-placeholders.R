@@ -1,11 +1,3 @@
-.ptr_cache <- new.env(parent = emptyenv())
-
-.ptr_safe_base_names <- function() {
-  if (is.null(.ptr_cache$safe_base_names)) {
-    .ptr_cache$safe_base_names <- c(ls(baseenv()), ls(asNamespace("ggpaintr")))
-  }
-  .ptr_cache$safe_base_names
-}
 
 #' Construct a Custom ggpaintr Placeholder
 #'
@@ -13,14 +5,6 @@
 #' `ptr_merge_placeholders()`. Custom placeholders can define their own
 #' UI control, runtime expression replacement, deferred UI binding, and
 #' evaluation-environment preparation.
-#'
-#' @note **Export of non-inline hooks:** Hook functions can be made exportable
-#'   through `ptr_generate_shiny()` in three ways: define them **inline** inside
-#'   the `ptr_define_placeholder()` call (serialized directly), supply them via
-#'   `source_function` (deparsed into the generated app), reference them via
-#'   `source_file` (a `source()` call is emitted), or reference them via
-#'   `source_package` (a `library()` call is emitted). Non-inline hooks with no
-#'   source strategy will abort at export time.
 #'
 #' @param keyword A single syntactic placeholder name used inside the formula.
 #' @param build_ui Function with signature `(id, copy, meta, context)` returning
@@ -39,21 +23,6 @@
 #' @param copy_defaults Optional named list with `label`, `help`,
 #'   `placeholder`, and `empty_text`. Defaults to
 #'   `list(label = "Enter a value for {param}")`.
-#'
-#' @param source_file Character string (or named list with `.default` and
-#'   hook-name keys) giving the path to an R file that defines the hook
-#'   functions. The exported app will `source()` this file. Provide the file
-#'   alongside the exported `app.R`. Applies to all hooks unless overridden
-#'   per-hook with a named list.
-#' @param source_package Character string (or named list with `.default` and
-#'   hook-name keys) naming an R package that exports the hook functions. The
-#'   exported app will call `library()` and install the package if missing.
-#' @param source_function Named list mapping hook names to the actual function
-#'   objects (e.g. `list(build_ui = my_build_ui)`). The exported app will
-#'   contain the deparsed function definitions before the placeholder call.
-#' @param on_missing One of `"warn"` (default) or `"error"`. Controls the
-#'   exported app's behaviour when a `source_file` file or `source_package`
-#'   package is unavailable at runtime.
 #'
 #' @return An object of class `ptr_define_placeholder`.
 #' @examples
@@ -79,11 +48,7 @@ ptr_define_placeholder <- function(keyword,
                                  resolve_input = NULL,
                                  bind_ui = NULL,
                                  prepare_eval_env = NULL,
-                                 copy_defaults = list(label = "Enter a value for {param}"),
-                                 source_file = NULL,
-                                 source_package = NULL,
-                                 source_function = NULL,
-                                 on_missing = "warn") {
+                                 copy_defaults = list(label = "Enter a value for {param}")) {
   placeholder <- structure(
     list(
       keyword = keyword,
@@ -92,18 +57,12 @@ ptr_define_placeholder <- function(keyword,
       resolve_input = resolve_input,
       bind_ui = bind_ui,
       prepare_eval_env = prepare_eval_env,
-      copy_defaults = copy_defaults,
-      source_file = source_file,
-      source_package = source_package,
-      source_function = source_function,
-      on_missing = on_missing,
-      definition_call = match.call(expand.dots = FALSE)
+      copy_defaults = copy_defaults
     ),
     class = c("ptr_define_placeholder", "list")
   )
 
   ptr_validate_placeholder(placeholder)
-  ptr_validate_placeholder_source_params(placeholder)
   placeholder
 }
 
@@ -216,8 +175,7 @@ ptr_validate_placeholder <- function(placeholder) {
     "resolve_input",
     "bind_ui",
     "prepare_eval_env",
-    "copy_defaults",
-    "definition_call"
+    "copy_defaults"
   )
 
   if (!inherits(placeholder, "ptr_define_placeholder")) {
@@ -436,6 +394,7 @@ ptr_resolve_placeholder_input <- function(spec, input, meta, context) {
 #' @param context A placeholder context list.
 #'
 #' @return An R object suitable for `expr_pluck<-`.
+#' @importFrom rlang %||%
 #' @noRd
 ptr_resolve_placeholder_expr <- function(spec, value, meta, context) {
   resolved_expr <- spec$resolve_expr(value, meta, context)
@@ -530,293 +489,6 @@ ptr_define_placeholder_copy_defaults <- function(spec) {
   }
 
   defaults
-}
-
-#' Validate Source Parameters on a Placeholder Definition
-#'
-#' @param placeholder A `ptr_define_placeholder`.
-#'
-#' @return Invisibly returns `NULL`.
-#' @noRd
-ptr_validate_placeholder_source_params <- function(placeholder) {
-  if (!is.null(placeholder$on_missing) &&
-      !identical(placeholder$on_missing, "warn") &&
-      !identical(placeholder$on_missing, "error")) {
-    rlang::abort(paste0(
-      "Custom placeholder '", placeholder$keyword,
-      "': on_missing must be \"warn\" or \"error\"."
-    ))
-  }
-
-  valid_hook_names <- c("build_ui", "resolve_expr", "resolve_input", "bind_ui", "prepare_eval_env")
-  valid_source_keys <- c(".default", valid_hook_names)
-
-  if (!is.null(placeholder$source_file)) {
-    vals <- unlist(placeholder$source_file)
-    if (!is.character(vals)) {
-      rlang::abort(paste0(
-        "Custom placeholder '", placeholder$keyword,
-        "': source_file must be a character string or named list of character strings."
-      ))
-    }
-    if (is.list(placeholder$source_file)) {
-      for (key in names(placeholder$source_file)) {
-        if (!key %in% valid_source_keys) {
-          cli::cli_warn(paste0(
-            "Custom placeholder '", placeholder$keyword,
-            "': source_file contains unrecognized key '", key,
-            "'. Did you mean one of: ", paste(valid_source_keys, collapse = ", "), "?"
-          ))
-        }
-      }
-    }
-  }
-
-  if (!is.null(placeholder$source_package)) {
-    vals <- unlist(placeholder$source_package)
-    if (!is.character(vals)) {
-      rlang::abort(paste0(
-        "Custom placeholder '", placeholder$keyword,
-        "': source_package must be a character string or named list of character strings."
-      ))
-    }
-    if (is.list(placeholder$source_package)) {
-      for (key in names(placeholder$source_package)) {
-        if (!key %in% valid_source_keys) {
-          cli::cli_warn(paste0(
-            "Custom placeholder '", placeholder$keyword,
-            "': source_package contains unrecognized key '", key,
-            "'. Did you mean one of: ", paste(valid_source_keys, collapse = ", "), "?"
-          ))
-        }
-      }
-    }
-  }
-
-  if (!is.null(placeholder$source_function)) {
-    if (!is.list(placeholder$source_function)) {
-      rlang::abort(paste0(
-        "Custom placeholder '", placeholder$keyword,
-        "': source_function must be a named list mapping hook names to function objects."
-      ))
-    }
-    for (fn_name in names(placeholder$source_function)) {
-      fn_obj <- placeholder$source_function[[fn_name]]
-      if (!is.function(fn_obj)) {
-        rlang::abort(paste0(
-          "Custom placeholder '", placeholder$keyword,
-          "': source_function$", fn_name, " must be a function object."
-        ))
-      }
-      if (!fn_name %in% valid_hook_names) {
-        rlang::warn(paste0(
-          "Custom placeholder '", placeholder$keyword,
-          "': source_function contains unrecognized hook name '", fn_name,
-          "'. Did you mean one of: ", paste(valid_hook_names, collapse = ", "), "?"
-        ))
-      }
-    }
-  }
-
-  invisible(NULL)
-}
-
-#' Check Whether a Hook Has an Explicit Source Strategy
-#'
-#' @param placeholder A `ptr_define_placeholder`.
-#' @param hook_name A hook name string.
-#'
-#' @return `TRUE` if a source strategy covers this hook.
-#' @noRd
-ptr_hook_has_source_strategy <- function(placeholder, hook_name) {
-  if (!is.null(placeholder$source_function) &&
-      hook_name %in% names(placeholder$source_function)) {
-    return(TRUE)
-  }
-
-  if (!is.null(placeholder$source_file)) {
-    sf <- placeholder$source_file
-    if (is.character(sf)) return(TRUE)
-    if (is.list(sf) && (hook_name %in% names(sf) || ".default" %in% names(sf))) return(TRUE)
-  }
-
-  if (!is.null(placeholder$source_package)) {
-    sp <- placeholder$source_package
-    if (is.character(sp)) return(TRUE)
-    if (is.list(sp) && (hook_name %in% names(sp) || ".default" %in% names(sp))) return(TRUE)
-  }
-
-  FALSE
-}
-
-#' Validate That a Placeholder Definition Can Be Exported
-#'
-#' @param placeholder A `ptr_define_placeholder`.
-#'
-#' @return Invisibly returns `TRUE`.
-#' @noRd
-ptr_validate_exportable_placeholder <- function(placeholder) {
-  if (is.null(placeholder$definition_call) ||
-      !rlang::is_call(placeholder$definition_call, "ptr_define_placeholder")) {
-    rlang::abort("Custom placeholders must be created with ptr_define_placeholder() to be exportable.")
-  }
-
-  inline_args <- c("build_ui", "resolve_expr", "resolve_input", "bind_ui", "prepare_eval_env")
-  call_args <- as.list(placeholder$definition_call)[-1]
-
-  for (arg_name in inline_args) {
-    arg_expr <- call_args[[arg_name]]
-    if (is.null(arg_expr) || identical(arg_expr, quote(NULL))) {
-      next
-    }
-
-    if (rlang::is_call(arg_expr, "function")) {
-      ptr_check_free_variables(arg_expr, placeholder$keyword, arg_name)
-      next
-    }
-
-    if (!ptr_hook_has_source_strategy(placeholder, arg_name)) {
-      rlang::abort(paste0(
-        "Custom placeholder '", placeholder$keyword, "' must define '", arg_name,
-        "' inline or supply source_file, source_package, or source_function so ",
-        "exported apps stay standalone."
-      ))
-    }
-
-    if (!is.null(placeholder$source_function) &&
-        arg_name %in% names(placeholder$source_function)) {
-      ptr_check_free_variables_fn(
-        placeholder$source_function[[arg_name]],
-        placeholder$keyword,
-        arg_name
-      )
-    }
-  }
-
-  invisible(TRUE)
-}
-
-#' Recursively Collect Free Symbol Names from an Expression
-#'
-#' Skips symbols accessed via `::`, `:::`, or `$` (namespace-qualified or
-#' member-access symbols are not free variables).
-#'
-#' @param expr An R expression.
-#'
-#' @return A character vector of unique symbol names.
-#' @noRd
-ptr_collect_symbols <- function(expr) {
-  if (is.symbol(expr)) return(as.character(expr))
-  if (!is.call(expr)) return(character(0))
-
-  fn <- expr[[1]]
-  fn_name <- if (is.symbol(fn)) as.character(fn) else ""
-
-  # Skip both sides of :: and ::: (namespace-qualified calls are safe).
-  # Skip RHS of $ (member access is not a free variable).
-  if (fn_name %in% c("::", ":::") && length(expr) == 3) {
-    return(character(0))
-  }
-  if (fn_name == "$" && length(expr) == 3) {
-    return(ptr_collect_symbols(expr[[2]]))
-  }
-
-  unique(unlist(lapply(as.list(expr), ptr_collect_symbols)))
-}
-
-#' Warn if a Hook Body References Free Variables
-#'
-#' @param fn_body A body expression.
-#' @param formal_names A character vector of formal parameter names.
-#' @param keyword The placeholder keyword.
-#' @param hook_name The hook name.
-#'
-#' @return Invisibly returns `NULL`.
-#' @noRd
-check_free_variables_impl <- function(fn_body, formal_names, keyword, hook_name) {
-  all_symbols <- ptr_collect_symbols(fn_body)
-
-  safe_names <- unique(c(
-    formal_names,
-    .ptr_safe_base_names(),
-    "if", "else", "for", "while", "repeat", "function", "return",
-    "next", "break", "{", "(", "<-", "<<-", "=", "~",
-    "!", "&", "|", "&&", "||", "+", "-", "*", "/", "^",
-    "%%", "%/%", "%in%", "%>%", "|>",
-    "<", ">", "<=", ">=", "==", "!=",
-    "$", "[", "[[", ":", "::", ":::",
-    "NULL", "TRUE", "FALSE", "NA", "NA_character_", "NA_real_", "NA_integer_",
-    "T", "F"
-  ))
-
-  free_vars <- setdiff(all_symbols, safe_names)
-  if (length(free_vars) > 0) {
-    rlang::warn(paste0(
-      "Custom placeholder '", keyword, "': hook '", hook_name,
-      "' references names not in its formals or common packages: ",
-      paste(free_vars, collapse = ", "),
-      ". These may not be available in the exported app."
-    ))
-  }
-
-  invisible(NULL)
-}
-
-#' Warn About Free Variables in an Inline Hook Function
-#'
-#' @param fn_expr A function call expression.
-#' @param keyword The placeholder keyword.
-#' @param hook_name The hook name.
-#'
-#' @return Invisibly returns `NULL`.
-#' @noRd
-ptr_check_free_variables <- function(fn_expr, keyword, hook_name) {
-  check_free_variables_impl(
-    fn_body = fn_expr[[3]],
-    formal_names = names(fn_expr[[2]]),
-    keyword = keyword,
-    hook_name = hook_name
-  )
-}
-
-#' Warn About Free Variables in a source_function Hook (Function Object)
-#'
-#' @param fn_obj A function object.
-#' @param keyword The placeholder keyword.
-#' @param hook_name The hook name.
-#'
-#' @return Invisibly returns `NULL`.
-#' @noRd
-ptr_check_free_variables_fn <- function(fn_obj, keyword, hook_name) {
-  check_free_variables_impl(
-    fn_body = body(fn_obj),
-    formal_names = names(formals(fn_obj)),
-    keyword = keyword,
-    hook_name = hook_name
-  )
-}
-
-#' Serialize Custom Placeholder Definitions for Export
-#'
-#' @param placeholders A placeholder registry or custom placeholder list.
-#'
-#' @return A named list of exportable placeholder definition calls.
-#' @noRd
-ptr_exportable_custom_placeholders <- function(placeholders = NULL) {
-  registry <- ptr_merge_placeholders(placeholders)
-  custom_placeholders <- registry$custom_placeholders
-
-  if (length(custom_placeholders) == 0) {
-    return(list())
-  }
-
-  for (keyword in names(custom_placeholders)) {
-    ptr_validate_exportable_placeholder(custom_placeholders[[keyword]])
-  }
-
-  exportable <- lapply(custom_placeholders, `[[`, "definition_call")
-  names(exportable) <- names(custom_placeholders)
-  exportable
 }
 
 .ptr_builtin_cache <- new.env(parent = emptyenv())

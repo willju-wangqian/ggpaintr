@@ -14,8 +14,8 @@ ptr_resolve_ui_text(
 )
 }
 \arguments{
-\item{component}{One of \code{title}, \code{draw_button}, \code{export_button},
-\code{upload_file}, \code{upload_name}, \code{layer_checkbox}, or \code{control}.}
+\item{component}{One of \code{title}, \code{draw_button}, \code{upload_file},
+\code{upload_name}, \code{layer_checkbox}, or \code{control}.}
 
 \item{keyword}{Optional placeholder keyword.}
 

@@ -9,12 +9,6 @@
 #'
 #' Requires the `bslib` package. Install it with `install.packages("bslib")`.
 #'
-#' @note The Export button themes only the live app. The generated script
-#'   produced by [ptr_register_export()] currently hard-codes a
-#'   [shiny::fluidPage()] + [shiny::sidebarLayout()] shell, so a downloaded
-#'   app will not carry the `bslib` theme or layout. To ship a themed export,
-#'   re-wrap the generated script in [bslib::page_sidebar()] manually.
-#'
 #' @param formula A single formula string using `ggpaintr` placeholders.
 #' @param envir Environment used to resolve local data objects when building
 #'   the app.

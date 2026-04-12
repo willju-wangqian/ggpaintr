@@ -35,7 +35,6 @@ Current target under test:
 - `ptr_parse_formula()`
 - `ptr_exec()`
 - `ptr_assemble_plot()`
-- `ptr_generate_shiny()`
 - internal helpers that define runtime semantics or user-facing control copy
 
 ## Maintenance rules
@@ -43,15 +42,13 @@ Current target under test:
 When behavior changes in the maintained path:
 
 - update focused `testthat` coverage in the same change
-- update manual docs when human interaction behavior or exported-app behavior
-  changes
+- update manual docs when human interaction behavior changes
 - preserve the current `tests/testthat/` structure
-- keep export-path coverage when `ptr_generate_shiny()` changes
 - if user-facing prompt text or `ui_text` behavior changes, update
   `tests/testthat/test-copy-rules.R` and the relevant manual copy-rule checks
 - if placeholder-registry behavior changes, update
-  `tests/testthat/test-placeholder-registry.R`, the relevant export tests, and
-  the relevant manual placeholder-registry checks
+  `tests/testthat/test-placeholder-registry.R` and the relevant manual
+  placeholder-registry checks
 
 ## Required test layers
 
@@ -66,11 +63,7 @@ Automated coverage should continue to include:
 - structured runtime error handling
 - plot construction
 - copy-rule validation, normalization, merge precedence, and readable fallbacks
-- exported app generation, including default `ui_text <- NULL`,
-  compact `custom_ui_text` reconstruction, multiline `input_formula`
-  parity, default `placeholders <- NULL`, and compact
-  `custom_placeholders` reconstruction
-- reusable server-state behavior for exported/custom apps
+- reusable server-state behavior for custom apps built on the public API
 - package-surface behavior for exported functions
 
 Manual coverage should continue to include:
@@ -82,9 +75,7 @@ Manual coverage should continue to include:
 - custom `ui_text` overrides
 - custom Shiny integration with bind helpers and custom top-level ids
 - custom plot rendering with `ptr_extract_plot()`
-- custom placeholder controls and exported custom-placeholder apps
-- exported app smoke tests, including custom-copy parity and the explicit
-  editable export-template shape
+- custom placeholder controls
 
 ## Acceptance expectations
 

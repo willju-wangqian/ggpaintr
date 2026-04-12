@@ -63,12 +63,10 @@ that become Shiny inputs.
 - formula strings stay close to the way many R users already sketch ggplot code
 - the same parsed object can drive generated controls, runtime completion,
   generated code, and standalone export
-- one placeholder registry powers parse, UI, runtime, copy rules, and export
-  for both built-in and custom placeholders
+- one placeholder registry powers parse, UI, runtime, and copy rules for both
+  built-in and custom placeholders
 - the package gives you both a default wrapper and a supported Shiny embedding
   layer, so you can start simple and grow into a more custom app
-- exported apps stay explicit `ui <- ...` and `server <- function(...)` files so
-  they remain readable and editable outside the package wrapper
 
 ## Quick start
 
@@ -98,7 +96,6 @@ The maintained public path is intentionally narrow.
 - Use `ptr_runtime_input_spec()`, `ptr_parse_formula()`,
   `ptr_exec()`, and `ptr_assemble_plot()` for advanced runtime or
   testing workflows.
-- Use `ptr_generate_shiny()` to export an explicit standalone app script.
 
 Other helpers in `R/` are internal implementation support rather than part of
 the maintained community-facing API.
@@ -165,8 +162,7 @@ behavior of the generated app.
 ```r
 custom_copy <- list(
   shell = list(
-    draw_button = list(label = "Render plot"),
-    export_button = list(label = "Save app")
+    draw_button = list(label = "Render plot")
   ),
   params = list(
     x = list(var = list(label = "X axis variable")),
@@ -183,25 +179,6 @@ ptr_app(
 )
 ```
 
-### Export a standalone app
-
-Use `ptr_generate_shiny()` when you want an explicit, editable Shiny app file that
-you can continue customizing outside the package wrapper.
-
-```{r export, eval=FALSE}
-obj <- ptr_parse_formula(
-  "ggplot(data = upload, aes(x = var, y = var)) +
-    geom_point() +
-    labs(title = text)"
-)
-
-app_file <- tempfile(fileext = ".R")
-ptr_generate_shiny(obj, app_file)
-
-# The generated file keeps an explicit ui, an explicit server, and visible
-# ui_text/placeholders hooks so you can keep editing it as a normal Shiny app.
-```
-
 ### Embed `ggpaintr` in your own Shiny app
 
 The supported integration layer lets you keep your own layout while reusing the
@@ -213,7 +190,6 @@ library(shiny)
 ids <- ptr_build_ids(
   control_panel = "builder_controls",
   draw_button = "render_plot",
-  export_button = "export_app",
   plot_output = "main_plot",
   error_output = "main_error",
   code_output = "main_code"
@@ -236,7 +212,6 @@ server <- function(input, output, session) {
 
   ptr_setup_controls(input, output, ptr_state, ids = ids)
   ptr_register_draw(input, ptr_state, ids = ids)
-  ptr_register_export(output, ptr_state, ids = ids)
   ptr_register_plot(output, ptr_state, ids = ids)
   ptr_register_error(output, ptr_state, ids = ids)
   ptr_register_code(output, ptr_state, ids = ids)
@@ -258,7 +233,6 @@ server <- function(input, output, session) {
 
   ptr_setup_controls(input, output, ptr_state)
   ptr_register_draw(input, ptr_state)
-  ptr_register_export(output, ptr_state)
   ptr_register_error(output, ptr_state)
   ptr_register_code(output, ptr_state)
 

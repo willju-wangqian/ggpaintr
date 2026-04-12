@@ -47,13 +47,6 @@ and \code{\link[=ptr_server]{ptr_server()}} and composes outputs from the id con
 \details{
 Requires the \code{bslib} package. Install it with \code{install.packages("bslib")}.
 }
-\note{
-The Export button themes only the live app. The generated script
-produced by \code{\link[=ptr_register_export]{ptr_register_export()}} currently hard-codes a
-\code{\link[shiny:fluidPage]{shiny::fluidPage()}} + \code{\link[shiny:sidebarLayout]{shiny::sidebarLayout()}} shell, so a downloaded
-app will not carry the \code{bslib} theme or layout. To ship a themed export,
-re-wrap the generated script in \code{\link[bslib:page_sidebar]{bslib::page_sidebar()}} manually.
-}
 \examples{
 \dontrun{
 ptr_app_bslib(

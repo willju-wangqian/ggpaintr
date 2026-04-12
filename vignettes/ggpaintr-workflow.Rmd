@@ -121,16 +121,6 @@ The generated app:
 - shows `Input error:` and `Plot error:` messages inline
 - preserves generated code when completion succeeds but plotting fails
 
-## Exporting a standalone app
-
-```{r}
-out_file <- tempfile(fileext = ".R")
-# style = FALSE skips styler formatting of the generated code (faster; useful
-# in automated contexts). Set style = TRUE to produce a cleanly formatted app.R.
-ptr_generate_shiny(obj, out_file, style = FALSE)
-file.exists(out_file)
-```
-
 ## Current behavior boundary
 
 - Structural parse failures still stop the app before launch.

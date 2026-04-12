@@ -11,7 +11,6 @@ test_that("ptr_build_ids validates defaults and rejects invalid registries", {
     list(
       control_panel = "controlPanel",
       draw_button = "draw",
-      export_button = "shinyExport",
       plot_output = "outputPlot",
       error_output = "outputError",
       code_output = "outputCode"
@@ -21,10 +20,6 @@ test_that("ptr_build_ids validates defaults and rejects invalid registries", {
   expect_error(
     ptr_build_ids(draw_button = ""),
     "single non-empty string"
-  )
-  expect_error(
-    ptr_build_ids(draw_button = "shared", export_button = "shared"),
-    "must be unique"
   )
   expect_error(
     ptr_server_state(
@@ -39,7 +34,6 @@ test_that("optional UI helpers use resolved copy and custom ids", {
   ids <- ptr_build_ids(
     control_panel = "custom_controls",
     draw_button = "render_plot",
-    export_button = "download_app",
     plot_output = "main_plot",
     error_output = "main_error",
     code_output = "main_code"
@@ -48,8 +42,7 @@ test_that("optional UI helpers use resolved copy and custom ids", {
     ids = ids,
     ui_text = list(
       shell = list(
-        draw_button = list(label = "Render plot"),
-        export_button = list(label = "Download generated app")
+        draw_button = list(label = "Render plot")
       )
     )
   )
@@ -57,9 +50,7 @@ test_that("optional UI helpers use resolved copy and custom ids", {
 
   expect_match(ext_ui_text(controls_ui), "custom_controls", fixed = TRUE)
   expect_match(ext_ui_text(controls_ui), "render_plot", fixed = TRUE)
-  expect_match(ext_ui_text(controls_ui), "download_app", fixed = TRUE)
   expect_match(ext_ui_text(controls_ui), "Render plot", fixed = TRUE)
-  expect_match(ext_ui_text(controls_ui), "Download generated app", fixed = TRUE)
 
   expect_match(ext_ui_text(outputs_ui), "main_plot", fixed = TRUE)
   expect_match(ext_ui_text(outputs_ui), "main_error", fixed = TRUE)
@@ -70,24 +61,22 @@ test_that("ptr_build_app_ui uses custom ids in rendered HTML", {
   custom_ids <- ptr_build_ids(
     control_panel = "myPanel",
     draw_button = "myDraw",
-    export_button = "myExport",
     plot_output = "myPlot",
     error_output = "myError",
     code_output = "myCode"
   )
-  ui <- ptr_build_app_ui("Test", "Draw", "Export", ids = custom_ids)
+  ui <- ptr_build_app_ui("Test", "Draw", ids = custom_ids)
   html <- ext_ui_text(ui)
 
   expect_match(html, "myPanel", fixed = TRUE)
   expect_match(html, "myDraw", fixed = TRUE)
-  expect_match(html, "myExport", fixed = TRUE)
   expect_match(html, "myPlot", fixed = TRUE)
   expect_match(html, "myError", fixed = TRUE)
   expect_match(html, "myCode", fixed = TRUE)
 })
 
 test_that("ptr_build_app_ui defaults match ptr_build_ids defaults", {
-  ui <- ptr_build_app_ui("Test", "Draw", "Export")
+  ui <- ptr_build_app_ui("Test", "Draw")
   html <- ext_ui_text(ui)
 
   expect_match(html, "controlPanel", fixed = TRUE)
@@ -141,7 +130,6 @@ test_that("bind helpers support custom ids inside an existing app server", {
   ids <- ptr_build_ids(
     control_panel = "customPanel",
     draw_button = "runPlot",
-    export_button = "downloadApp",
     plot_output = "mainPlot",
     error_output = "mainError",
     code_output = "mainCode"
@@ -155,7 +143,6 @@ test_that("bind helpers support custom ids inside an existing app server", {
 
     ptr_setup_controls(input, output, ptr_state, ids = ids)
     ptr_register_draw(input, ptr_state, ids = ids)
-    ptr_register_export(output, ptr_state, ids = ids)
     ptr_register_plot(output, ptr_state, ids = ids)
     ptr_register_error(output, ptr_state, ids = ids)
     ptr_register_code(output, ptr_state, ids = ids)
@@ -180,7 +167,6 @@ test_that("bind helpers support custom ids inside an existing app server", {
     expect_true(is.list(output$mainPlot))
     expect_null(output$mainError)
     expect_match(output$mainCode, "Sepal.Length")
-    expect_match(output$downloadApp, "ggpaintr-app[.]R")
   })
 })
 
@@ -188,7 +174,6 @@ test_that("bind helpers expose error and code output with custom ids on failure"
   ids <- ptr_build_ids(
     control_panel = "customPanel",
     draw_button = "runPlot",
-    export_button = "downloadApp",
     plot_output = "mainPlot",
     error_output = "mainError",
     code_output = "mainCode"
@@ -249,7 +234,6 @@ test_that("new extensibility helpers are exported in NAMESPACE", {
     "ptr_server_state",
     "ptr_setup_controls",
     "ptr_register_draw",
-    "ptr_register_export",
     "ptr_register_plot",
     "ptr_register_error",
     "ptr_register_code",

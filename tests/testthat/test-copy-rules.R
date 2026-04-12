@@ -127,7 +127,6 @@ test_that("app shell copy uses defaults and runtime overrides", {
 
   expect_match(default_text, "ggpaintr Plot Builder", fixed = TRUE)
   expect_match(default_text, "Update plot", fixed = TRUE)
-  expect_match(default_text, "Export Shiny app", fixed = TRUE)
 
   custom_components <- ptr_app_components(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
@@ -142,7 +141,6 @@ test_that("app shell copy uses defaults and runtime overrides", {
 
   expect_match(custom_text, "Exploratory Plot Builder", fixed = TRUE)
   expect_match(custom_text, "Render plot", fixed = TRUE)
-  expect_match(custom_text, "Export Shiny app", fixed = TRUE)
 })
 
 test_that("ui builders use resolved copy for uploads and common controls", {
@@ -202,8 +200,7 @@ test_that("ptr_resolve_ui_text errors on unknown component", {
 
 test_that("ptr_ui_text_component_paths keys are exhaustive", {
   paths <- ptr_ui_text_component_paths()
-  expected <- c("title", "draw_button", "export_button",
-                "upload_file", "upload_name", "layer_checkbox")
+  expected <- c("title", "draw_button", "upload_file", "upload_name", "layer_checkbox")
   expect_setequal(names(paths), expected)
 })
 

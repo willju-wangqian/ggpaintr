@@ -7,7 +7,6 @@
 ptr_build_ids(
   control_panel = "controlPanel",
   draw_button = "draw",
-  export_button = "shinyExport",
   plot_output = "outputPlot",
   error_output = "outputError",
   code_output = "outputCode"
@@ -17,8 +16,6 @@ ptr_build_ids(
 \item{control_panel}{Output id used for the generated control panel.}
 
 \item{draw_button}{Input id used for the draw button.}
-
-\item{export_button}{Output id used for the export download button.}
 
 \item{plot_output}{Output id used for the plot output.}
 

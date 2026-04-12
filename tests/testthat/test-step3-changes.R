@@ -200,7 +200,7 @@ test_that("W4: ptr_normalize_ids returns a ptr_build_ids object unchanged (ident
   ids <- ptr_build_ids(
     control_panel = "myPanel",
     draw_button   = "myDraw",
-    export_button = "myExport",
+
     plot_output   = "myPlot",
     error_output  = "myError",
     code_output   = "myCode"
@@ -229,7 +229,7 @@ test_that("W4: ptr_normalize_ids with a plain named list validates and wraps it"
   plain_list <- list(
     control_panel = "a",
     draw_button   = "b",
-    export_button = "c",
+
     plot_output   = "d",
     error_output  = "e",
     code_output   = "f"

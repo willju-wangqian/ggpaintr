@@ -56,15 +56,12 @@ Key runtime path:
    and integration helpers
 5. `ptr_setup_controls()` builds static and deferred controls from
    parsed metadata plus resolved copy
-6. `ptr_register_draw()`, `ptr_register_export()`, `ptr_register_plot()`,
-   `ptr_register_error()`, and `ptr_register_code()` wire the standard Shiny
-   behavior for the default wrapper and for embedded integrations
+6. `ptr_register_draw()`, `ptr_register_plot()`, `ptr_register_error()`,
+   and `ptr_register_code()` wire the standard Shiny behavior for the
+   default wrapper and for embedded integrations
 7. `ptr_server()` is a thin wrapper over that shared state plus the
    standard bind helpers
 8. `ptr_app()` wraps the default UI shell around that server behavior
-9. `ptr_generate_shiny()` writes a standalone app script with explicit shell-copy
-   objects, explicit `ui`, explicit `server`, and a `ptr_server()` call
-   that rebuilds custom placeholders only when needed
 
 References:
 
@@ -74,7 +71,6 @@ References:
 - `R/paintr-app.R:175-228`
 - `R/paintr-app.R:229-312`
 - `R/paintr-app.R:313-572`
-- `R/paintr-export.R:432-467`
 
 ## Public API
 
@@ -86,7 +82,6 @@ The maintained exported package surface is:
 - `ptr_server_state()`
 - `ptr_setup_controls()`
 - `ptr_register_draw()`
-- `ptr_register_export()`
 - `ptr_register_plot()`
 - `ptr_register_error()`
 - `ptr_register_code()`
@@ -105,18 +100,16 @@ The maintained exported package surface is:
 - `ptr_assemble_plot()`
 - `ptr_merge_ui_text()`
 - `ptr_resolve_ui_text()`
-- `ptr_generate_shiny()`
 
 Current public customization boundary:
 
+- `ptr_app()`, `ptr_server()`, and `ptr_server_state()` accept optional
+  named-list `ui_text`
 - `ptr_app()`, `ptr_server()`, `ptr_server_state()`, and
-  `ptr_generate_shiny()` accept optional named-list `ui_text`
-- `ptr_app()`, `ptr_server()`, `ptr_server_state()`,
-  `ptr_parse_formula()`, and `ptr_generate_shiny()` accept optional custom
-  `placeholders`
-- `ptr_build_ids()` lets embedded integrations customize the six top-level
-  Shiny ids via parameters: `control_panel`, `draw_button`, `export_button`,
-  `plot_output`, `error_output`, and `code_output`
+  `ptr_parse_formula()` accept optional custom `placeholders`
+- `ptr_build_ids()` lets embedded integrations customize the five top-level
+  Shiny ids via parameters: `control_panel`, `draw_button`, `plot_output`,
+  `error_output`, and `code_output`
 - `ptr_server_state()` plus the `ptr_register_*()` helpers are the
   supported way to embed the package runtime into an existing Shiny app
 - `ptr_extract_plot()`, `ptr_extract_error()`, and
@@ -131,10 +124,9 @@ Current public customization boundary:
   `ptr_missing_expr()` are the supported contributor-facing extension path
   for custom placeholder/widget types
 - built-in and custom placeholders now share the same registry lifecycle for
-  parse metadata, UI construction, runtime substitution, copy validation, and
-  export serialization
+  parse metadata, UI construction, runtime substitution, and copy validation
 - `ptr_merge_ui_text()` and `ptr_resolve_ui_text()` remain exported
-  copy helpers for runtime and exported-app customization
+  copy helpers for runtime customization
 - internal placeholder ids and dynamic `var-*` outputs remain package-owned in
   the current integration layer
 - everything else in `R/` remains package-internal implementation support
@@ -145,7 +137,6 @@ References:
 - `R/paintr-parse.R:31-184`
 - `R/paintr-placeholders.R:76-159`
 - `R/paintr-copy.R:570-742`
-- `R/paintr-export.R:432-467`
 - `NAMESPACE:3-29`
 - `_pkgdown.yml:7-48`
 
@@ -161,45 +152,6 @@ References:
 References:
 
 - `README.Rmd:1-5`
-
-## Exported app design
-
-The exported Shiny app is intended to be a starting point for users to build
-their own Shiny apps, not a hidden wrapper around package internals.
-
-Design expectations:
-
-- the generated app should stay understandable, editable, and extensible
-- users should be able to add their own observers, outputs, and other Shiny
-  behavior directly in the exported file
-- the generated app should keep explicit `ui <- shiny::fluidPage(...)` and
-  explicit `server <- function(...) { ptr_state <- ptr_server(...) }`
-  structure
-- the exported file should expose a visible `ui_text` hook:
-  `ui_text <- NULL` for the default case and compact
-  `custom_ui_text <- ...` plus
-  `ui_text <- ptr_merge_ui_text(custom_ui_text)` for
-  non-default customized exports
-- the exported file should expose a visible `placeholders` hook:
-  `placeholders <- NULL` for the default case and compact
-  `custom_placeholders <- ...` plus
-  `placeholders <- ptr_merge_placeholders(custom_placeholders)` for
-  custom-placeholder exports
-- `input_formula` should stay readable in the generated source, and if the
-  original formula spans multiple lines, the exported `input_formula` should
-  also span multiple lines
-- exported custom placeholders must stay standalone, so only definitions built
-  from `ptr_define_placeholder()` with inline hook functions are currently
-  exportable
-- the current architecture intentionally keeps exported apps on the established
-  `ptr_server()` path rather than exporting a binder-based template
-
-References:
-
-- `R/paintr-export.R:432-467`
-- `R/paintr-export.R:229-252`
-- `R/paintr-placeholders.R:451-509`
-- `tests/testthat/test-export-shiny.R:1-995`
 
 ## Placeholder and copy model
 
@@ -239,11 +191,6 @@ Boundary notes:
   with package defaults
 - positional arguments use the internal `__unnamed__` key when resolving
   layer-specific copy rules, and aliases such as `colour` normalize to `color`
-- default exported apps rely on package-owned default copy behavior through
-  `ui_text <- NULL`, while customized exports preserve only compact
-  non-default overrides and reconstruct effective rules in the generated app
-- exported custom placeholders are reconstructed from serialized definition
-  calls rather than from the built-in placeholder registry
 - advanced integrations can customize the built plot through
   `ptr_extract_plot()` while the default binder preserves the blank-on-failure
   render behavior

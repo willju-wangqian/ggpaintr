@@ -141,114 +141,14 @@ test_that("handle_duplicate_names does not modify the first occurrence's name", 
 })
 
 # =============================================================================
-# W6: ids param in ptr_generate_shiny, ptr_serialize_ids, ptr_server
+# W6: ids param in ptr_server
 # =============================================================================
-
-test_that("ptr_serialize_ids serializes default ids correctly", {
-  ids <- ptr_build_ids()
-  result <- ptr_serialize_ids(ids)
-  expect_type(result, "character")
-  expect_length(result, 1)
-  expect_match(result, "^ids <- ptr_build_ids\\(", fixed = FALSE)
-  expect_match(result, 'control_panel = "controlPanel"', fixed = TRUE)
-  expect_match(result, 'draw_button = "draw"', fixed = TRUE)
-  expect_match(result, 'export_button = "shinyExport"', fixed = TRUE)
-  expect_match(result, 'plot_output = "outputPlot"', fixed = TRUE)
-  expect_match(result, 'error_output = "outputError"', fixed = TRUE)
-  expect_match(result, 'code_output = "outputCode"', fixed = TRUE)
-})
-
-test_that("ptr_serialize_ids serializes custom ids", {
-  ids <- ptr_build_ids(
-    control_panel = "myControls",
-    draw_button = "runPlot"
-  )
-  result <- ptr_serialize_ids(ids)
-  expect_match(result, 'control_panel = "myControls"', fixed = TRUE)
-  expect_match(result, 'draw_button = "runPlot"', fixed = TRUE)
-})
-
-test_that("ptr_serialize_ids escapes special characters in id values", {
-  # Build ids with a value containing a double quote would fail ptr_validate_ids
-  # (non-empty string), so test backslash instead
-  ids <- structure(
-    list(
-      control_panel = "panel\\one",
-      draw_button = "draw",
-      export_button = "export",
-      plot_output = "plot",
-      error_output = "error",
-      code_output = "code"
-    ),
-    class = c("ptr_build_ids", "list")
-  )
-  result <- ptr_serialize_ids(ids)
-  # backslash should be escaped as \\
-  expect_match(result, "panel\\\\one", fixed = TRUE)
-})
-
-test_that("ptr_generate_shiny with default ids emits ptr_build_ids() call", {
-  obj <- ptr_parse_formula(
-    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
-  )
-  out_file <- withr::local_tempfile(fileext = ".R")
-  ptr_generate_shiny(obj, out_file, style = FALSE)
-
-  app_text <- paste(readLines(out_file), collapse = "\n")
-  expect_match(app_text, "ids <- ptr_build_ids(", fixed = TRUE)
-  expect_match(app_text, 'control_panel = "controlPanel"', fixed = TRUE)
-  expect_no_error(parse(file = out_file))
-})
-
-test_that("ptr_generate_shiny with custom ids serializes custom values into template", {
-  obj <- ptr_parse_formula(
-    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
-  )
-  custom_ids <- ptr_build_ids(
-    control_panel = "myPanel",
-    draw_button = "runIt",
-    export_button = "saveIt",
-    plot_output = "thePlot",
-    error_output = "theError",
-    code_output = "theCode"
-  )
-  out_file <- withr::local_tempfile(fileext = ".R")
-  ptr_generate_shiny(obj, out_file, style = FALSE, ids = custom_ids)
-
-  app_text <- paste(readLines(out_file), collapse = "\n")
-  expect_match(app_text, 'control_panel = "myPanel"', fixed = TRUE)
-  expect_match(app_text, 'draw_button = "runIt"', fixed = TRUE)
-  expect_match(app_text, 'export_button = "saveIt"', fixed = TRUE)
-  expect_match(app_text, 'plot_output = "thePlot"', fixed = TRUE)
-  expect_match(app_text, 'error_output = "theError"', fixed = TRUE)
-  expect_match(app_text, 'code_output = "theCode"', fixed = TRUE)
-  # Template references should use ids$ field access
-  expect_match(app_text, "ids$control_panel", fixed = TRUE)
-  expect_match(app_text, "ids$draw_button", fixed = TRUE)
-  expect_no_error(parse(file = out_file))
-})
-
-test_that("ptr_generate_shiny template references ids fields via ids$ syntax", {
-  obj <- ptr_parse_formula(
-    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
-  )
-  out_file <- withr::local_tempfile(fileext = ".R")
-  ptr_generate_shiny(obj, out_file, style = FALSE)
-
-  app_text <- paste(readLines(out_file), collapse = "\n")
-  # All template UI/server wiring must go through ids$ not hardcoded strings
-  expect_match(app_text, "uiOutput(ids$control_panel)", fixed = TRUE)
-  expect_match(app_text, "actionButton(ids$draw_button", fixed = TRUE)
-  expect_match(app_text, "downloadButton(ids$export_button", fixed = TRUE)
-  expect_match(app_text, "plotOutput(ids$plot_output)", fixed = TRUE)
-})
 
 test_that("ptr_server accepts ids param without error", {
   server_wrapper <- function(input, output, session) {
     custom_ids <- ptr_build_ids(
       control_panel = "myPanel",
       draw_button = "myDraw",
-      export_button = "myExport",
       plot_output = "myPlot",
       error_output = "myError",
       code_output = "myCode"
@@ -305,58 +205,4 @@ test_that("ptr_resolve_num_expr returns ptr_missing_expr for character(0) withou
     result <- ptr_resolve_num_expr(character(0), meta = list(), context = list())
   )
   expect_s3_class(result, "ptr_missing_expr")
-})
-
-# =============================================================================
-# Fix B: ptr_shiny_template emits ptr_server(..., ids = ids) as single literal
-# =============================================================================
-
-test_that("ptr_generate_shiny template contains ptr_server call with ids = ids", {
-  obj <- ptr_parse_formula(
-    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
-  )
-  out_file <- withr::local_tempfile(fileext = ".R")
-  ptr_generate_shiny(obj, out_file, style = FALSE)
-
-  app_text <- paste(readLines(out_file), collapse = "\n")
-  expect_match(app_text, "ptr_server(", fixed = TRUE)
-  expect_match(app_text, "ids = ids", fixed = TRUE)
-})
-
-test_that("ptr_generate_shiny exported app with custom ids executes end to end", {
-  obj <- ptr_parse_formula(
-    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
-  )
-  custom_ids <- ptr_build_ids(
-    control_panel = "myPanel",
-    draw_button = "myDraw",
-    export_button = "myExport",
-    plot_output = "myPlot",
-    error_output = "myError",
-    code_output = "myCode"
-  )
-  out_file <- withr::local_tempfile(fileext = ".R")
-  ptr_generate_shiny(obj, out_file, style = FALSE, ids = custom_ids)
-
-  export_env <- new.env(parent = environment())
-  exported_app <- source(out_file, local = export_env)$value
-  expect_s3_class(exported_app, "shiny.appobj")
-
-  server_wrapper <- function(input, output, session) {
-    session$userData$ptr_state <- export_env$server(input, output, session)
-  }
-
-  spec <- ptr_runtime_input_spec(obj)
-  ph_ids <- spec[spec$role == "placeholder", ]
-  var_ids <- ph_ids[ph_ids$layer_name == "ggplot" & ph_ids$keyword == "var", "input_id"]
-
-  shiny::testServer(server_wrapper, {
-    do.call(session$setInputs, c(
-      setNames(list("mpg", "disp"), var_ids),
-      list("geom_point+checkbox" = TRUE, myDraw = 1)
-    ))
-    runtime_result <- session$userData$ptr_state$runtime()
-    expect_true(runtime_result$ok)
-    expect_s3_class(runtime_result$plot, "ggplot")
-  })
 })

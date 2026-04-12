@@ -28,8 +28,8 @@ xaringanExtra::use_clipboard()
 
 `ggpaintr` now supports per-app placeholder registries. That means downstream
 developers can define a new placeholder once, pass it into
-`ptr_parse_formula()`, `ptr_app()`, `ptr_server_state()`, or
-`ptr_generate_shiny()`, and keep the rest of the package runtime unchanged.
+`ptr_parse_formula()`, `ptr_app()`, or `ptr_server_state()`, and keep the rest
+of the package runtime unchanged.
 
 The public entry points for this layer are:
 
@@ -383,7 +383,6 @@ too.
 ids <- ptr_build_ids(
   control_panel = "builder_controls",
   draw_button = "render_plot",
-  export_button = "export_app",
   plot_output = "main_plot",
   error_output = "main_error",
   code_output = "main_code"
@@ -411,105 +410,15 @@ server <- function(input, output, session) {
 
   ptr_setup_controls(input, output, ptr_state, ids = ids)
   ptr_register_draw(input, ptr_state, ids = ids)
-  ptr_register_export(output, ptr_state, ids = ids)
   ptr_register_plot(output, ptr_state, ids = ids)
   ptr_register_error(output, ptr_state, ids = ids)
   ptr_register_code(output, ptr_state, ids = ids)
 }
 ```
 
-## Exporting a standalone app with custom placeholders
-
-Exported apps rebuild only the custom placeholder definitions they need. The
-same placeholder registry can be passed into `ptr_generate_shiny()`.
-
-```{r export-registry, eval = FALSE}
-out_file <- tempfile(fileext = ".R")
-
-ptr_generate_shiny(
-  obj,
-  out_file,
-  style = FALSE,
-  placeholders = placeholders
-)
-```
-
-For an exported app to stay standalone, custom placeholders must be created with
-`ptr_define_placeholder()` and must define hook functions inline inside that call.
-If a placeholder definition cannot be serialized safely, `ptr_generate_shiny()` will
-error instead of writing a broken app.
-
-## What exportable means
-
-The current export path works by storing the original
-`ptr_define_placeholder(...)` call on each custom placeholder as
-`definition_call`. When you export an app, `ptr_generate_shiny()` serializes that
-stored call into the generated script and then rebuilds the registry there.
-
-That is why inline hooks are exportable today:
-
-- inline hook bodies live inside the stored `ptr_define_placeholder(...)` call
-- external helper references are only symbols, so the exported app would not
-  contain the helper definitions themselves
-
-You can inspect the stored call directly:
-
-```{r definition-call}
-date_placeholder$definition_call
-```
-
-### Exportable today
-
-```{r exportable-inline, eval = FALSE}
-date_placeholder <- ptr_define_placeholder(
-  keyword = "date",
-  build_ui = function(id, copy, meta, context) {
-    shiny::dateInput(id, copy$label)
-  },
-  resolve_expr = function(value, meta, context) {
-    if (is.null(value) || identical(as.character(value), "")) {
-      return(ptr_missing_expr())
-    }
-
-    rlang::expr(as.Date(!!as.character(value)))
-  }
-)
-```
-
-### Not exportable today
-
-```{r non-exportable-inline, eval = FALSE}
-build_date_ui <- function(id, copy, meta, context) {
-  shiny::dateInput(id, copy$label)
-}
-
-date_to_expr <- function(value, meta, context) {
-  if (is.null(value) || identical(as.character(value), "")) {
-    return(ptr_missing_expr())
-  }
-
-  rlang::expr(as.Date(!!as.character(value)))
-}
-
-date_placeholder <- ptr_define_placeholder(
-  keyword = "date",
-  build_ui = build_date_ui,
-  resolve_expr = date_to_expr
-)
-
-# ptr_generate_shiny(..., placeholders = list(date = date_placeholder))
-# errors because the exported app would not contain build_date_ui() or
-# date_to_expr().
-```
-
-> **Note:** This inline-only restriction is a known limitation. A future release
-> may lift it by deparsing function bodies at export time so that hooks defined
-> outside the `ptr_define_placeholder()` call can also be serialized.
-
 ## Summary
 
 The placeholder registry is the developer-facing extension point for adding new
-control types without editing parser, UI, runtime, copy-rule, or export
-internals. Start with `build_ui()` plus `resolve_expr()`, add the optional hooks
-only when needed, and pass the same registry through parsing, app launch, Shiny
-integration, and export.
+control types without editing parser, UI, runtime, or copy-rule internals.
+Start with `build_ui()` plus `resolve_expr()`, add the optional hooks only when
+needed, and pass the same registry through parsing and app launch.

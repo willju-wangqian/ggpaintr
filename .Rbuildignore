@@ -22,3 +22,4 @@ README\.*
 ^Rplots\.pdf$
 ^docker-compose\.codex\.yml$
 ^\.ewh-artifacts$
+^\.serena$

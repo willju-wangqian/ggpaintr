@@ -49,7 +49,6 @@ Suggests:
     knitr,
     pkgdown,
     rmarkdown,
-    styler,
     testthat (>= 3.0.0),
     withr,
     xaringanExtra

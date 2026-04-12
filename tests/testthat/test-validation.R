@@ -75,8 +75,7 @@ test_that("ptr_validate_ids aborts when ids is not a named list", {
 test_that("ptr_validate_ids aborts on missing required entries", {
   incomplete <- list(
     control_panel  = "cp",
-    draw_button    = "draw",
-    export_button  = "exp"
+    draw_button    = "draw"
     # plot_output, error_output, code_output missing
   )
   expect_error(
@@ -89,7 +88,6 @@ test_that("ptr_validate_ids aborts on extra unsupported entries", {
   full <- list(
     control_panel  = "cp",
     draw_button    = "draw",
-    export_button  = "exp",
     plot_output    = "plot",
     error_output   = "err",
     code_output    = "code",
@@ -106,7 +104,6 @@ test_that("ptr_validate_ids aborts on non-string or empty string values", {
   bad_type <- list(
     control_panel  = 42L,
     draw_button    = "draw",
-    export_button  = "exp",
     plot_output    = "plot",
     error_output   = "err",
     code_output    = "code"
@@ -120,7 +117,6 @@ test_that("ptr_validate_ids aborts on non-string or empty string values", {
   empty_str <- list(
     control_panel  = "  ",   # whitespace only
     draw_button    = "draw",
-    export_button  = "exp",
     plot_output    = "plot",
     error_output   = "err",
     code_output    = "code"
@@ -134,7 +130,6 @@ test_that("ptr_validate_ids aborts on non-string or empty string values", {
   multi_str <- list(
     control_panel  = c("cp1", "cp2"),
     draw_button    = "draw",
-    export_button  = "exp",
     plot_output    = "plot",
     error_output   = "err",
     code_output    = "code"
@@ -149,7 +144,6 @@ test_that("ptr_validate_ids aborts on duplicate id values", {
   dupe <- list(
     control_panel  = "shared_id",
     draw_button    = "shared_id",
-    export_button  = "exp",
     plot_output    = "plot",
     error_output   = "err",
     code_output    = "code"

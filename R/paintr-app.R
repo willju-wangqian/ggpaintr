@@ -5,7 +5,6 @@
 #'
 #' @param control_panel Output id used for the generated control panel.
 #' @param draw_button Input id used for the draw button.
-#' @param export_button Output id used for the export download button.
 #' @param plot_output Output id used for the plot output.
 #' @param error_output Output id used for the inline error UI.
 #' @param code_output Output id used for the generated code output.
@@ -20,14 +19,12 @@
 #' @export
 ptr_build_ids <- function(control_panel = "controlPanel",
                          draw_button = "draw",
-                         export_button = "shinyExport",
                          plot_output = "outputPlot",
                          error_output = "outputError",
                          code_output = "outputCode") {
   ids <- list(
     control_panel = control_panel,
     draw_button = draw_button,
-    export_button = export_button,
     plot_output = plot_output,
     error_output = error_output,
     code_output = code_output
@@ -47,7 +44,6 @@ ptr_validate_ids <- function(ids) {
   required_names <- c(
     "control_panel",
     "draw_button",
-    "export_button",
     "plot_output",
     "error_output",
     "code_output"
@@ -335,45 +331,6 @@ ptr_register_draw <- function(input,
   invisible(ptr_state)
 }
 
-#' Bind Export Behavior into a Shiny App
-#'
-#' @param output A Shiny `output` object.
-#' @param ptr_state A `ptr_state` object.
-#' @param ids A `ptr_build_ids` object describing the top-level Shiny ids used by
-#'   the integration helpers.
-#'
-#' @return Invisibly returns `ptr_state`.
-#' @examples
-#' \dontrun{
-#' server <- function(input, output, session) {
-#'   ps <- ptr_server_state("ggplot(mtcars, aes(x = var)) + geom_histogram()")
-#'   ptr_register_export(output, ps)
-#' }
-#' }
-#' @export
-ptr_register_export <- function(output,
-                                 ptr_state,
-                                 ids = ptr_state$ids) {
-  ptr_validate_state(ptr_state)
-  ids <- ptr_normalize_ids(ids)
-
-  output[[ids$export_button]] <- shiny::downloadHandler(
-    filename = "ggpaintr-app.R",
-    content = function(file) {
-      shiny::req(ptr_state$obj())
-      ptr_generate_shiny(
-        ptr_state$obj(),
-        file,
-        ui_text = ptr_state$raw_ui_text,
-        placeholders = ptr_state$placeholders,
-        ids = ids
-      )
-    }
-  )
-
-  invisible(ptr_state)
-}
-
 #' Return the Built Plot from a Runtime Result
 #'
 #' @param runtime_result A runtime result list returned by `ptr_exec()`.
@@ -577,8 +534,7 @@ ptr_input_ui <- function(ids = ptr_build_ids(), ui_text = NULL) {
 
   shiny::tagList(
     shiny::uiOutput(ids$control_panel),
-    shiny::actionButton(ids$draw_button, shell_copy$draw_copy$label),
-    shiny::downloadButton(ids$export_button, shell_copy$export_copy$label)
+    shiny::actionButton(ids$draw_button, shell_copy$draw_copy$label)
   )
 }
 
@@ -605,8 +561,7 @@ ptr_output_ui <- function(ids = ptr_build_ids()) {
 #' Build a ggpaintr Shiny App
 #'
 #' Create a Shiny app from a single ggplot-like formula string. The app exposes
-#' generated controls, a draw button, inline error handling, code output, and an
-#' export button for producing a standalone app script.
+#' generated controls, a draw button, inline error handling, and code output.
 #'
 #' @param formula A single formula string using `ggpaintr` placeholders.
 #' @param envir Environment used to resolve local data objects when building the app.
@@ -690,7 +645,6 @@ ptr_server <- function(input,
   )
 
   ptr_state <- ptr_setup_controls(input, output, ptr_state)
-  ptr_register_export(output, ptr_state)
   ptr_register_draw(input, ptr_state)
   ptr_register_plot(output, ptr_state)
   ptr_register_error(output, ptr_state)
@@ -708,8 +662,7 @@ ptr_server <- function(input,
 ptr_resolve_shell_ui_text <- function(ui_text = NULL) {
   list(
     title_copy = ptr_resolve_ui_text("title", ui_text = ui_text),
-    draw_copy = ptr_resolve_ui_text("draw_button", ui_text = ui_text),
-    export_copy = ptr_resolve_ui_text("export_button", ui_text = ui_text)
+    draw_copy = ptr_resolve_ui_text("draw_button", ui_text = ui_text)
   )
 }
 
@@ -717,19 +670,17 @@ ptr_resolve_shell_ui_text <- function(ui_text = NULL) {
 #'
 #' @param title_label App title text.
 #' @param draw_label Draw button text.
-#' @param export_label Export button text.
 #'
 #' @return A Shiny UI object.
 #' @noRd
-ptr_build_app_ui <- function(title_label, draw_label, export_label,
+ptr_build_app_ui <- function(title_label, draw_label,
                              ids = ptr_build_ids()) {
   shiny::fluidPage(
     shiny::titlePanel(title_label),
     shiny::sidebarLayout(
       shiny::sidebarPanel(
         shiny::uiOutput(ids$control_panel),
-        shiny::actionButton(ids$draw_button, draw_label),
-        shiny::downloadButton(ids$export_button, export_label)
+        shiny::actionButton(ids$draw_button, draw_label)
       ),
       shiny::mainPanel(
         shiny::plotOutput(ids$plot_output),
@@ -759,8 +710,7 @@ ptr_app_components <- function(formula,
 
   ui <- ptr_build_app_ui(
     shell_copy$title_copy$label,
-    shell_copy$draw_copy$label,
-    shell_copy$export_copy$label
+    shell_copy$draw_copy$label
   )
 
   server <- function(input, output, session) {

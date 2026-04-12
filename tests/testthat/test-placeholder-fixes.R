@@ -1,22 +1,5 @@
-# Tests for 4 fixes in ptr_validate_placeholder_source_params,
-# ptr_merge_placeholders, ptr_resolve_placeholder_expr, and
+# Tests for fixes in ptr_merge_placeholders, ptr_resolve_placeholder_expr, and
 # ptr_define_placeholder_context / ptr_bind_placeholder_ui.
-
-# Helper: minimal placeholder stub -----------------------------------------
-
-make_min_placeholder <- function(keyword = "myph",
-                                  source_file = NULL,
-                                  source_package = NULL,
-                                  source_function = NULL) {
-  ptr_define_placeholder(
-    keyword        = keyword,
-    build_ui       = function(id, copy, meta, context) shiny::textInput(id, copy$label),
-    resolve_expr   = function(value, meta, context) rlang::sym(value),
-    source_file    = source_file,
-    source_package = source_package,
-    source_function = source_function
-  )
-}
 
 # Helper: placeholder with a custom resolve_expr return value ---------------
 
@@ -27,87 +10,6 @@ make_resolve_expr_ph <- function(return_fn) {
     resolve_expr = function(value, meta, context) return_fn()
   )
 }
-
-# =============================================================================
-# Fix 2: source_file / source_package key-name validation
-# =============================================================================
-
-test_that("Fix2: valid hook-name keys in source_file produce no warning", {
-  expect_no_warning(
-    make_min_placeholder(
-      source_file = list(
-        build_ui     = "hooks.R",
-        resolve_expr = "hooks.R"
-      )
-    )
-  )
-})
-
-test_that("Fix2: .default key in source_file produces no warning", {
-  expect_no_warning(
-    make_min_placeholder(source_file = list(.default = "hooks.R"))
-  )
-})
-
-test_that("Fix2: .default key in source_package produces no warning", {
-  expect_no_warning(
-    make_min_placeholder(source_package = list(.default = "mypkg"))
-  )
-})
-
-test_that("Fix2: valid hook-name keys in source_package produce no warning", {
-  expect_no_warning(
-    make_min_placeholder(
-      source_package = list(
-        resolve_expr = "mypkg",
-        bind_ui      = "mypkg"
-      )
-    )
-  )
-})
-
-test_that("Fix2: unrecognized key in source_file triggers a warning mentioning the bad key", {
-  expect_warning(
-    make_min_placeholder(source_file = list(bad_hook = "hooks.R")),
-    "bad_hook"
-  )
-})
-
-test_that("Fix2: unrecognized key in source_package triggers a warning mentioning the bad key", {
-  expect_warning(
-    make_min_placeholder(source_package = list(bad_hook = "mypkg")),
-    "bad_hook"
-  )
-})
-
-test_that("Fix2: plain character source_file produces no warning", {
-  expect_no_warning(
-    make_min_placeholder(source_file = "hooks.R")
-  )
-})
-
-test_that("Fix2: plain character source_package produces no warning", {
-  expect_no_warning(
-    make_min_placeholder(source_package = "mypkg")
-  )
-})
-
-# Edge case from review finding: unnamed positional entry list("path.R")
-# names() returns "" for unnamed elements; "" is not in valid_source_keys,
-# so the current code fires a spurious warning.  This test documents the bug.
-test_that("Fix2: unnamed positional entry in source_file list does not fire a spurious warning", {
-  # names(list("path.R")) returns NULL, not ""; the for-loop body never runs,
-  # so no spurious warning is emitted.  The review finding was incorrect.
-  warned <- FALSE
-  withCallingHandlers(
-    make_min_placeholder(source_file = list("path.R")),
-    warning = function(w) {
-      warned <<- TRUE
-      invokeRestart("muffleWarning")
-    }
-  )
-  expect_false(warned)
-})
 
 # =============================================================================
 # Fix 3: ptr_merge_placeholders composability — existing registry returned

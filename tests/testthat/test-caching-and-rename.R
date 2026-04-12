@@ -1,7 +1,6 @@
 # Tests for:
 #   W1 – ptr_complete_expr / ptr_bind_placeholder_ui accept pre-computed
 #          eval_env and var_column_map (caching refactor)
-#   N1 – get_shiny_template renamed to ptr_shiny_template
 
 # =============================================================================
 # Helpers shared across W1 tests
@@ -277,55 +276,3 @@ test_that("ptr_complete_expr gives identical code_text whether or not cache is s
   expect_equal(result_no_cache$code_text, result_with_cache$code_text)
 })
 
-# =============================================================================
-# N1: rename get_shiny_template → ptr_shiny_template
-# =============================================================================
-
-test_that("ptr_shiny_template exists as a function in the package namespace", {
-  expect_true(
-    exists("ptr_shiny_template", envir = asNamespace("ggpaintr"), inherits = FALSE)
-  )
-  expect_true(
-    is.function(get("ptr_shiny_template", envir = asNamespace("ggpaintr")))
-  )
-})
-
-test_that("get_shiny_template does not exist in the package namespace", {
-  expect_false(
-    exists("get_shiny_template", envir = asNamespace("ggpaintr"), inherits = FALSE)
-  )
-})
-
-test_that("ptr_shiny_template returns a character vector with expected template sections", {
-  obj      <- make_basic_obj()
-  template <- ptr_shiny_template(
-    obj$formula_text,
-    ui_text      = NULL,
-    placeholders = NULL,
-    ids          = ptr_build_ids()
-  )
-
-  expect_type(template, "character")
-  expect_true(length(template) > 0)
-  expect_true(any(grepl("library(ggpaintr)", template, fixed = TRUE)))
-  expect_true(any(grepl("shinyApp", template, fixed = TRUE)))
-  expect_true(any(grepl("ptr_server(", template, fixed = TRUE)))
-  expect_true(any(grepl("ids = ids", template, fixed = TRUE)))
-})
-
-test_that("ptr_shiny_template output is consistent with ptr_generate_shiny output", {
-  obj      <- make_basic_obj()
-  out_file <- withr::local_tempfile(fileext = ".R")
-  ptr_generate_shiny(obj, out_file, style = FALSE)
-
-  generated_lines <- readLines(out_file)
-  template_lines  <- ptr_shiny_template(
-    obj$formula_text,
-    ui_text      = NULL,
-    placeholders = NULL,
-    ids          = ptr_build_ids()
-  )
-
-  # ptr_generate_shiny writes exactly what ptr_shiny_template returns
-  expect_equal(generated_lines, template_lines)
-})

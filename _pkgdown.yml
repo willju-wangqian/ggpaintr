@@ -8,7 +8,7 @@ reference:
   - title: Start here
     contents:
       - ptr_app
-      - ptr_generate_shiny
+      - ptr_app_bslib
   - title: Shiny integration
     desc: Embed ggpaintr inside a larger Shiny app while keeping package-owned runtime behavior.
     contents:
@@ -17,7 +17,6 @@ reference:
       - ptr_server_state
       - ptr_setup_controls
       - ptr_register_draw
-      - ptr_register_export
       - ptr_register_plot
       - ptr_register_error
       - ptr_register_code

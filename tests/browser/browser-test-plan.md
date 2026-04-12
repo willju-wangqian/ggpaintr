@@ -301,50 +301,6 @@ shiny::runApp(
 
 ---
 
-## Formula 5: Export Smoke Test
-
-### Launch
-
-```r
-shiny::runApp(
-  ggpaintr::ptr_app("
-    ggplot(data = iris, aes(x = var, y = var)) +
-      geom_point(size = num) +
-      labs(title = text, subtitle = text) +
-      facet_grid(expr, labeller = expr)
-  "),
-  port = 4321, launch.browser = FALSE
-)
-```
-
-### Inputs
-
-1. `x var` → select `Sepal.Length`
-2. `y var` → select `Sepal.Width`
-3. `size num` → type `1.5`
-4. `title text` → type `export test`
-5. `subtitle text` → type `static formula export`
-6. `facet_grid expr` → type `Species`
-7. `labeller expr` → type `label_both`
-8. Click `draw`
-
-### Checks
-
-- dom: `#outputPlot img` present
-- dom: `#outputCode` contains `Sepal.Length`, `facet_grid`, `label_both`
-- console: No R errors
-
-### Export Content Check (R-side only, no browser)
-
-Verify exported file via R:
-- Contains `ui <- `
-- Contains `server <- function(`
-- Contains `shinyApp(ui, server)`
-- Contains `ptr_state <- ptr_server(`
-- Contains `ui_text <- NULL`
-
----
-
 ## Formula 6A+6D: Error Feedback and Recovery — Malformed expr
 
 ### Batch with: F6D (same app, single launch)
@@ -584,40 +540,6 @@ shiny::runApp(
 
 ---
 
-## Formula 9: Exported Custom Copy Rules (R-side only)
-
-No browser launch. Verify exported file contents via R.
-
-### R Check
-
-```r
-custom_ui_text <- list(
-  shell = list(title = list(label = "Exploratory Plot Builder"),
-               draw_button = list(label = "Render plot")),
-  params = list(x = list(var = list(label = "Pick the field for the x-axis")),
-                y = list(var = list(label = "Pick the field for the y-axis")),
-                title = list(text = list(label = "Chart title"))),
-  layers = list(facet_wrap = list(expr = list(
-    `__unnamed__` = list(label = "Split the plot by", placeholder = "~ Species"))))
-)
-
-obj <- ggpaintr::ptr_parse_formula("
-  ggplot(data = iris, aes(x = var, y = var)) +
-    geom_point() + labs(title = text) + facet_wrap(expr)
-")
-out_file <- tempfile(fileext = ".R")
-ggpaintr::ptr_generate_shiny(obj, out_file, style = FALSE, ui_text = custom_ui_text)
-```
-
-### File Content Checks
-
-- Contains `custom_ui_text <-`
-- Contains `ptr_merge_ui_text(custom_ui_text)`
-- Contains `ptr_server(`
-- Contains `ui_text = ui_text`
-
----
-
 ## Formula 10: Embedded App with Custom IDs
 
 ### Launch
@@ -626,7 +548,6 @@ ggpaintr::ptr_generate_shiny(obj, out_file, style = FALSE, ui_text = custom_ui_t
 manual_ids <- ggpaintr::ptr_build_ids(
   control_panel = "builder_controls",
   draw_button = "render_plot",
-  export_button = "export_app",
   plot_output = "main_plot",
   error_output = "main_error",
   code_output = "main_code"
@@ -657,7 +578,6 @@ server <- function(input, output, session) {
   )
   ggpaintr::ptr_setup_controls(input, output, paintr_state, ids = manual_ids)
   ggpaintr::ptr_register_draw(input, paintr_state, ids = manual_ids)
-  ggpaintr::ptr_register_export(output, paintr_state, ids = manual_ids)
   ggpaintr::ptr_register_plot(output, paintr_state, ids = manual_ids)
   ggpaintr::ptr_register_error(output, paintr_state, ids = manual_ids)
   ggpaintr::ptr_register_code(output, paintr_state, ids = manual_ids)
@@ -720,7 +640,6 @@ server <- function(input, output, session) {
   ")
   ggpaintr::ptr_setup_controls(input, output, paintr_state)
   ggpaintr::ptr_register_draw(input, paintr_state)
-  ggpaintr::ptr_register_export(output, paintr_state)
   ggpaintr::ptr_register_error(output, paintr_state)
   ggpaintr::ptr_register_code(output, paintr_state)
 
@@ -819,94 +738,6 @@ shiny::runApp(
 1. Change date to `2024-01-02`
 2. Click `draw`
    - dom: `#outputCode` contains `as.Date("2024-01-02")`
-
----
-
-## Formula 13: Exported Custom Placeholder (R-side only)
-
-No browser launch. Verify exported file contents via R.
-
-### R Check
-
-```r
-# (uses sales_manual, date_placeholder, date_placeholders from Formula 12 setup)
-
-date_ui_text <- list(
-  defaults = list(date = list(label = "Pick any date")),
-  params = list(xintercept = list(date = list(label = "Reference date"))),
-  layers = list(geom_vline = list(date = list(
-    xintercept = list(help = "Choose a cutoff date for the vertical guide."))))
-)
-
-obj <- ggpaintr::ptr_parse_formula(
-  "
-  ggplot(data = sales_manual, aes(x = day, y = value)) +
-    geom_line() +
-    geom_vline(xintercept = date, color = text) +
-    labs(title = text)
-  ",
-  placeholders = date_placeholders
-)
-out_file <- tempfile(fileext = ".R")
-ggpaintr::ptr_generate_shiny(
-  obj, out_file, style = FALSE,
-  ui_text = date_ui_text,
-  placeholders = date_placeholders
-)
-```
-
-### File Content Checks
-
-- Contains `custom_placeholders <-`
-- Contains `ptr_merge_placeholders(custom_placeholders)`
-- Contains `custom_ui_text <-`
-- Contains `ptr_server(`
-- Contains `placeholders = placeholders`
-
----
-
-## Formula 14: Non-Inline Export Failure (R-side only)
-
-No browser launch. Verify R error behavior.
-
-### R Check
-
-```r
-build_date_ui_manual <- function(id, copy, meta, context) {
-  shiny::dateInput(id, copy$label)
-}
-date_to_expr_manual <- function(value, meta, context) {
-  if (is.null(value) || identical(as.character(value), "")) {
-    return(ggpaintr::ptr_missing_expr())
-  }
-  rlang::expr(as.Date(!!as.character(value)))
-}
-
-non_inline_date <- ggpaintr::ptr_define_placeholder(
-  keyword = "date",
-  build_ui = build_date_ui_manual,
-  resolve_expr = date_to_expr_manual
-)
-
-non_inline_obj <- ggpaintr::ptr_parse_formula(
-  "
-  ggplot(data = sales_manual, aes(x = day, y = value)) +
-    geom_line() + geom_vline(xintercept = date)
-  ",
-  placeholders = ggpaintr::ptr_merge_placeholders(list(date = non_inline_date))
-)
-
-ggpaintr::ptr_generate_shiny(
-  non_inline_obj, tempfile(fileext = ".R"),
-  style = FALSE,
-  placeholders = non_inline_obj$placeholders
-)
-```
-
-### Expected Behavior
-
-- `ptr_generate_shiny()` raises an error (does not write a file)
-- Error message mentions `build_ui` must be defined inline
 
 ---
 

@@ -9,7 +9,6 @@ ptr_ui_text_component_paths <- function() {
   list(
     title          = c("shell", "title"),
     draw_button    = c("shell", "draw_button"),
-    export_button  = c("shell", "export_button"),
     upload_file    = c("upload", "file"),
     upload_name    = c("upload", "name"),
     layer_checkbox = c("layer_checkbox")
@@ -38,8 +37,7 @@ ptr_default_ui_text <- function(placeholders = NULL) {
     list(
       shell = list(
         title = list(label = "ggpaintr Plot Builder"),
-        draw_button = list(label = "Update plot"),
-        export_button = list(label = "Export Shiny app")
+        draw_button = list(label = "Update plot")
       ),
       upload = list(
         file = list(label = "Choose a data file"),
@@ -306,7 +304,7 @@ ptr_validate_ui_text <- function(ui_text, placeholders = NULL) {
   }
 
   if (!is.null(ui_text$shell)) {
-    allowed_shell <- c("title", "draw_button", "export_button")
+    allowed_shell <- c("title", "draw_button")
     unknown_shell <- setdiff(names(ui_text$shell), allowed_shell)
     if (length(unknown_shell) > 0) {
       rlang::abort(paste0(
@@ -661,8 +659,8 @@ ptr_compact_ui_text <- function(ui_text = NULL, placeholders = NULL) {
 
 #' Resolve Copy for One Control or App Element
 #'
-#' @param component One of `title`, `draw_button`, `export_button`,
-#'   `upload_file`, `upload_name`, `layer_checkbox`, or `control`.
+#' @param component One of `title`, `draw_button`, `upload_file`,
+#'   `upload_name`, `layer_checkbox`, or `control`.
 #' @param keyword Optional placeholder keyword.
 #' @param layer_name Optional layer name.
 #' @param param Optional parameter name.

@@ -36,8 +36,7 @@ A \code{shiny.appobj}.
 }
 \description{
 Create a Shiny app from a single ggplot-like formula string. The app exposes
-generated controls, a draw button, inline error handling, code output, and an
-export button for producing a standalone app script.
+generated controls, a draw button, inline error handling, and code output.
 }
 \examples{
 app <- ptr_app("ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()")

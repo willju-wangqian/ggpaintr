@@ -109,7 +109,6 @@ ggpaintr_basic2 <- function(input_formula) {
         # actionButton("enter", "click to enter the formula"),
         uiOutput("controlPanel"),
         actionButton("draw", "click to draw the plot"),
-        downloadButton("shinyExport", "export the shiny app"),
       ),
 
       # Show a plot of the generated distribution
@@ -139,20 +138,6 @@ ggpaintr_basic2 <- function(input_formula) {
       column(12, paintr_get_tab_ui(session$userData$paintr$obj))
 
     })
-
-    output$shinyExport <- downloadHandler(
-      filename = "trial_0.R",
-      content = function(file) {
-
-        req(session$userData$paintr$var_ui_list)
-
-        generate_shiny(session$userData$paintr$obj,
-                       session$userData$paintr$var_ui_list,
-                       file,
-                       style = TRUE)
-
-      }
-    )
 
     observe({
       req(session$userData$paintr$obj)
