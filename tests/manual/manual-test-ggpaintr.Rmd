@@ -303,40 +303,46 @@ Expected checks:
 
 ## Formula 3: Global Upload
 
-This app checks upload-backed global data, delayed `var` controls, default/custom dataset names, and unsupported file handling.
+This app checks upload-backed global data, delayed `var` controls, default/custom
+dataset names, and unsupported file handling. It also covers the upload error
+path previously tested separately in Formula 6.
 
 ```{r formula-3, eval=FALSE}
 ptr_app("
 ggplot(data = upload, aes(x = var, y = var)) +
-  geom_point(size = num) +
-  labs(title = 'good')
+  geom_point(aes(color = var), size = num) +
+  labs(title = text)
 ")
 ```
 
 Suggested manual sequence:
 
 -   Launch the app and confirm the `var` selectors are not available before an upload.
+-   Upload `bad_extension.txt` from `tests/testthat/fixtures/bad_extension.txt`.
+-   Confirm inline `Input error:` appears, `var` selectors stay disabled, plot stays empty, `outputCode` stays blank.
 -   Upload `simple_numeric.csv` from `tests/testthat/fixtures/simple_numeric.csv`.
--   Leave the dataset object name blank the first time.
--   Use `x = x`, `y = y`, `size = 2`, `title = uploaded scatter`.
+-   Leave the dataset object name blank.
+-   Use `x = x`, `y = y`, `color = group`, `size = 2`, `title = uploaded scatter`.
 -   Click `draw`.
 -   Repeat with `simple_numeric.rds` from `tests/testthat/fixtures/simple_numeric.rds`.
 -   Repeat again with custom dataset object name `manual_upload_data`.
--   Retry with `bad_extension.txt` from `tests/testthat/fixtures/bad_extension.txt`.
 
 Expected checks:
 
 -   `var` selectors appear only after a valid upload.
+-   The bad-extension upload shows a clear inline `Input error:` without crashing the session.
+-   Upload-backed `var` selectors do not become usable from the invalid file.
+-   When upload completion fails, the plot does not render and `outputCode` stays blank.
 -   With a blank dataset name, the generated code uses a filename-derived object name.
 -   With a custom dataset name, the generated code uses `manual_upload_data`.
 -   The app draws successfully for both `.csv` and `.rds`.
 -   Uploaded column choices stay normalized before they reach the `var` pickers.
--   The bad-extension upload shows a clear inline error without crashing the session.
--   When upload completion fails, the plot does not render.
 
 ## Formula 4: Layer-Specific Upload
 
-This app checks mixed static/upload layering and confirms that upload-backed `var` controls apply only to the upload-backed layer.
+This app checks mixed static/upload layering and confirms that upload-backed
+`var` controls apply only to the upload-backed layer. It also covers the upload
+error path for a layer-specific upload.
 
 ```{r formula-4, eval=FALSE}
 ptr_app("
@@ -351,6 +357,8 @@ Suggested manual sequence:
 
 -   Launch the app and inspect the controls before upload.
 -   Confirm the static `iris` layer does not need upload-driven controls.
+-   Upload `bad_extension.txt` — confirm inline error, upload-layer vars stay disabled,
+    but static-layer `var` picker for `color` still works.
 -   Upload `simple_numeric.csv` or `simple_numeric.rds`.
 -   Set upload-layer `x = x`, `y = y`, `color = group`, `size = 3`.
 -   Set `title = mixed static/upload plot`.
@@ -361,8 +369,56 @@ Expected checks:
 
 -   Only the upload-backed layer depends on uploaded columns.
 -   The static `iris` layer remains intact before and after upload.
+-   Bad-extension upload shows inline error without affecting the static layer.
 -   The combined plot shows both static and uploaded layers when enabled.
 -   Disabling the upload-backed layer leaves a valid static plot.
+
+## Formula 4B: Combined Global and Layer-Specific Upload
+
+This app checks both upload code paths in a single formula: the base `ggplot()`
+uses global uploaded data, and a second `geom_point()` layer uses its own
+separate upload. This exercises two independent upload controls, two sets of
+deferred `var` pickers, and the interaction between them.
+
+```{r formula-4b, eval=FALSE}
+ptr_app("
+ggplot(data = upload, aes(x = var, y = var)) +
+  geom_point(size = num) +
+  geom_point(data = upload, aes(x = var, y = var), color = text, size = num) +
+  labs(title = text)
+")
+```
+
+Suggested manual sequence:
+
+-   Launch the app and confirm both upload controls are visible.
+-   Confirm all `var` selectors are disabled before any upload.
+-   Upload `bad_extension.txt` to the global (ggplot) upload — confirm inline error,
+    all global `var` selectors stay disabled.
+-   Upload `simple_numeric.csv` to the global upload.
+-   Confirm the global `var` pickers populate with `x`, `y`, `group`.
+-   Confirm the layer-specific `var` pickers are still disabled (no upload yet).
+-   Upload `simple_numeric.csv` to the layer-specific upload.
+-   Confirm the layer-specific `var` pickers now populate independently.
+-   Set global `x = x`, `y = y`, `size = 2`.
+-   Set layer `x = x`, `y = y`, `color = red`, `size = 3`.
+-   Set `title = dual upload test`.
+-   Click `draw`.
+-   Uncheck the layer-specific `geom_point` and draw again.
+-   Re-check it and draw again.
+
+Expected checks:
+
+-   Two independent upload controls render, one for global data and one for the
+    overlay layer.
+-   Each upload populates only its own `var` pickers.
+-   Bad-extension error on one upload does not affect the other.
+-   Both layers draw correctly when both uploads are valid.
+-   Disabling the overlay layer leaves a valid global-upload-only plot.
+-   Re-enabling the overlay layer restores the combined plot.
+-   `outputCode` reflects both dataset names when both layers are active.
+-   Each upload's filename-derived dataset name appears independently in the
+    generated code.
 
 ## Formula 5: Export Smoke Test
 
@@ -429,25 +485,8 @@ Expected checks:
 -   The plot pane does not show raw Shiny `Error: [object Object]`.
 -   `outputCode` remains visible for the `~ Speciesasdf` case because completion succeeded before render-time failure.
 
-```{r formula-6-upload-error, eval=FALSE}
-ptr_app("
-ggplot(data = upload, aes(x = var, y = var)) +
-  geom_point()
-")
-```
-
-Suggested manual sequence:
-
--   Launch the app.
--   Upload `bad_extension.txt`.
--   Click `draw`.
-
-Expected checks:
-
--   The app shows an inline `Input error:` message.
--   Upload-backed `var` selectors do not become usable from the invalid file.
--   The plot stays empty.
--   `outputCode` stays blank.
+Upload error checks are now covered by the bad-extension steps in Formula 3
+and Formula 4.
 
 ```{r formula-6b, eval=FALSE}
 ptr_app("
@@ -986,8 +1025,12 @@ Expected checks:
 -   Unchecking every optional layer still leaves a valid base `ggplot(...)`
     render instead of a brittle runtime failure.
 -   Upload-backed `var` controls appear only after valid upload.
+-   Bad-extension uploads show inline errors without crashing the session or
+    affecting unrelated layers.
 -   Default upload naming works when the dataset name box is blank.
 -   Custom upload naming works when a dataset name is provided.
+-   Combined global + layer-specific upload formulas maintain independent upload
+    controls, independent `var` pickers, and independent error paths.
 -   Inline errors appear for malformed `expr`, bad upload types, and missing objects.
 -   The plot clears and does not stay stale after an error.
 -   Generated code remains visible when plot construction fails after completion succeeds.
