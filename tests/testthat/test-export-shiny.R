@@ -705,7 +705,7 @@ test_that("source_package emits requireNamespace + install + library block when 
   app_text <- app_text_for(ph)
   expect_match(app_text, 'requireNamespace("mypkg"', fixed = TRUE)
   expect_match(app_text, 'install.packages("mypkg")', fixed = TRUE)
-  expect_match(app_text, 'library(mypkg)', fixed = TRUE)
+  expect_match(app_text, 'library("mypkg")', fixed = TRUE)
   expect_match(app_text, "could not install 'mypkg'", fixed = TRUE)
   expect_no_error(parse(text = app_text))
 })
@@ -721,7 +721,7 @@ test_that("source_package omits tryCatch when on_missing = 'error'", {
   )
   app_text <- app_text_for(ph)
   expect_match(app_text, 'install.packages("mypkg")', fixed = TRUE)
-  expect_match(app_text, 'library(mypkg)', fixed = TRUE)
+  expect_match(app_text, 'library("mypkg")', fixed = TRUE)
   expect_no_match(app_text, "could not install")
   expect_no_error(parse(text = app_text))
 })
@@ -845,4 +845,151 @@ test_that("inline function literal takes priority over source_function for same 
   app_text <- app_text_for(ph)
   expect_match(app_text, "named_date_resolve_expr <- function", fixed = TRUE)
   expect_no_error(parse(text = app_text))
+})
+
+# ---------------------------------------------------------------------------
+# Regression tests for the 6 hardening improvements
+# ---------------------------------------------------------------------------
+
+# --- 1. Path escaping: ptr_serialize_source_file_block ---
+
+test_that("source_file with backslash in path emits parseable code", {
+  ph <- ptr_define_placeholder(
+    keyword = "date",
+    build_ui = named_date_build_ui,
+    resolve_expr = named_date_resolve_expr,
+    copy_defaults = list(label = "Choose a date for {param}"),
+    source_file = "helpers\\hooks.R",
+    on_missing = "warn"
+  )
+  app_text <- app_text_for(ph)
+  expect_no_error(parse(text = app_text))
+  # The escaped backslash must appear as \\ inside the string literal
+  expect_match(app_text, "helpers\\\\hooks.R", fixed = TRUE)
+})
+
+test_that("source_file with double-quote in path emits parseable code", {
+  ph <- ptr_define_placeholder(
+    keyword = "date",
+    build_ui = named_date_build_ui,
+    resolve_expr = named_date_resolve_expr,
+    copy_defaults = list(label = "Choose a date for {param}"),
+    source_file = 'my"special"file.R',
+    on_missing = "warn"
+  )
+  app_text <- app_text_for(ph)
+  expect_no_error(parse(text = app_text))
+})
+
+test_that("source_file with backslash in path round-trips through parse + eval", {
+  raw_lines <- ggpaintr:::ptr_serialize_source_file_block(
+    "helpers\\hooks.R",
+    on_missing = "error"
+  )
+  joined <- paste(raw_lines, collapse = "\n")
+  expect_no_error(parse(text = joined))
+})
+
+test_that("source_file with double-quote in path round-trips through parse + eval", {
+  raw_lines <- ggpaintr:::ptr_serialize_source_file_block(
+    'my"special"file.R',
+    on_missing = "error"
+  )
+  joined <- paste(raw_lines, collapse = "\n")
+  expect_no_error(parse(text = joined))
+})
+
+# --- 2. Package name escaping: ptr_serialize_source_pkg_block ---
+
+test_that("source_package emits library() with quoted package name", {
+  ph <- ptr_define_placeholder(
+    keyword = "date",
+    build_ui = named_date_build_ui,
+    resolve_expr = named_date_resolve_expr,
+    copy_defaults = list(label = "Choose a date for {param}"),
+    source_package = "mypkg",
+    on_missing = "warn"
+  )
+  app_text <- app_text_for(ph)
+  expect_match(app_text, 'library("mypkg")', fixed = TRUE)
+  expect_no_error(parse(text = app_text))
+})
+
+test_that("ptr_serialize_source_pkg_block output parses for warn and error branches", {
+  warn_lines <- ggpaintr:::ptr_serialize_source_pkg_block("mypkg", on_missing = "warn")
+  expect_no_error(parse(text = paste(warn_lines, collapse = "\n")))
+  expect_true(any(grepl('library("mypkg")', warn_lines, fixed = TRUE)))
+
+  err_lines <- ggpaintr:::ptr_serialize_source_pkg_block("mypkg", on_missing = "error")
+  expect_no_error(parse(text = paste(err_lines, collapse = "\n")))
+  expect_true(any(grepl('library("mypkg")', err_lines, fixed = TRUE)))
+})
+
+# --- 3. library(ggplot2) presence in ptr_shiny_template ---
+
+test_that("ptr_shiny_template output contains library(ggplot2)", {
+  obj <- ptr_parse_formula(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  )
+  out_file <- tempfile(fileext = ".R")
+  ptr_generate_shiny(obj, out_file, style = FALSE)
+  app_text <- paste(readLines(out_file), collapse = "\n")
+  expect_match(app_text, "library(ggplot2)", fixed = TRUE)
+})
+
+test_that("library(ggplot2) appears before library(ggpaintr) in generated app", {
+  obj <- ptr_parse_formula(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  )
+  out_file <- tempfile(fileext = ".R")
+  ptr_generate_shiny(obj, out_file, style = FALSE)
+  app_lines <- readLines(out_file)
+  ggplot2_idx  <- which(app_lines == "library(ggplot2)")
+  ggpaintr_idx <- which(app_lines == "library(ggpaintr)")
+  expect_identical(length(ggplot2_idx), 1L)
+  expect_identical(length(ggpaintr_idx), 1L)
+  expect_true(ggplot2_idx < ggpaintr_idx)
+})
+
+# --- 4. Formula text guard: ptr_serialize_formula_text ---
+
+test_that("ptr_serialize_formula_text errors on NULL input", {
+  expect_error(
+    ggpaintr:::ptr_serialize_formula_text(NULL),
+    "formula_text must be a single non-missing"
+  )
+})
+
+test_that("ptr_serialize_formula_text errors on zero-length character input", {
+  expect_error(
+    ggpaintr:::ptr_serialize_formula_text(character(0)),
+    "formula_text must be a single non-missing"
+  )
+})
+
+test_that("ptr_serialize_formula_text errors on NA input", {
+  expect_error(
+    ggpaintr:::ptr_serialize_formula_text(NA_character_),
+    "formula_text must be a single non-missing"
+  )
+})
+
+# --- 5. deparse width: ptr_serialize_r_object ---
+
+test_that("ptr_serialize_r_object splits wide objects across multiple lines", {
+  # A named character vector wide enough that deparse without width.cutoff=80
+  # would produce a single very long line.
+  wide_obj <- setNames(
+    paste0("value_", seq_len(20)),
+    paste0("key_", seq_len(20))
+  )
+  lines <- ggpaintr:::ptr_serialize_r_object(wide_obj)
+  # With width.cutoff = 80L there must be more than one line for this object.
+  expect_true(length(lines) > 1L)
+  # Every line must be at most 80 characters (deparse respects width.cutoff as
+  # a soft hint; lines should not wildly exceed 80 chars).
+  expect_true(all(nchar(lines) <= 120L))
+  # The result must round-trip: re-parse and eval recovers the original object.
+  evaluated <- eval(parse(text = paste(lines, collapse = "\n")))
+  expect_identical(evaluated, wide_obj)
 })

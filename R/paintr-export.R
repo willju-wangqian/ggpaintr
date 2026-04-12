@@ -5,7 +5,7 @@
 #' @return A character vector.
 #' @noRd
 ptr_serialize_r_object <- function(x) {
-  deparse(x)
+  deparse(x, width.cutoff = 80L)
 }
 
 #' Escape One String Segment for a Template Literal
@@ -38,6 +38,12 @@ ptr_prefix_assignment <- function(name, value_lines) {
 #' @return A character vector of source lines.
 #' @noRd
 ptr_serialize_formula_text <- function(formula_text) {
+  if (is.null(formula_text) || length(formula_text) == 0 ||
+      (length(formula_text) == 1 && is.na(formula_text))) {
+    rlang::abort("formula_text must be a single non-missing, non-empty string.")
+  }
+  # Contract: returns a character vector where each element becomes one line via
+  # writeLines(); newlines between elements are injected by writeLines, not embedded.
   formula_lines <- strsplit(formula_text, "\n", fixed = TRUE)[[1]]
   formula_lines <- vapply(
     formula_lines,
@@ -132,18 +138,19 @@ ptr_serialize_source_fn_block <- function(fn_name, fn_obj) {
 #' @return A character vector of source lines.
 #' @noRd
 ptr_serialize_source_file_block <- function(path, on_missing = "warn") {
+  escaped_path <- ptr_escape_string_segment(path)
   if (identical(on_missing, "error")) {
     return(c(
-      paste0("# Provide '", path, "' alongside this app.R."),
-      paste0("source(\"", path, "\")")
+      paste0("# Provide '", escaped_path, "' alongside this app.R."),
+      paste0("source(\"", escaped_path, "\")")
     ))
   }
   c(
-    paste0("# Provide '", path, "' alongside this app.R."),
+    paste0("# Provide '", escaped_path, "' alongside this app.R."),
     paste0("tryCatch("),
-    paste0("  source(\"", path, "\"),"),
+    paste0("  source(\"", escaped_path, "\"),"),
     paste0("  error = function(e) {"),
-    paste0("    warning(\"ggpaintr: could not source '", path,
+    paste0("    warning(\"ggpaintr: could not source '", escaped_path,
            "' -- custom placeholder hooks unavailable. \","),
     paste0("            \"Provide this file alongside app.R.\")"),
     paste0("  }"),
@@ -159,23 +166,24 @@ ptr_serialize_source_file_block <- function(path, on_missing = "warn") {
 #' @return A character vector of source lines.
 #' @noRd
 ptr_serialize_source_pkg_block <- function(pkg, on_missing = "warn") {
+  escaped_pkg <- ptr_escape_string_segment(pkg)
   if (identical(on_missing, "error")) {
     return(c(
-      paste0("if (!requireNamespace(\"", pkg, "\", quietly = TRUE)) {"),
-      paste0("  install.packages(\"", pkg, "\")"),
+      paste0("if (!requireNamespace(\"", escaped_pkg, "\", quietly = TRUE)) {"),
+      paste0("  install.packages(\"", escaped_pkg, "\")"),
       paste0("}"),
-      paste0("library(", pkg, ")")
+      paste0("library(\"", escaped_pkg, "\")")
     ))
   }
   c(
-    paste0("if (!requireNamespace(\"", pkg, "\", quietly = TRUE)) {"),
+    paste0("if (!requireNamespace(\"", escaped_pkg, "\", quietly = TRUE)) {"),
     paste0("  tryCatch("),
-    paste0("    install.packages(\"", pkg, "\"),"),
-    paste0("    error = function(e) warning(\"ggpaintr: could not install '", pkg,
+    paste0("    install.packages(\"", escaped_pkg, "\"),"),
+    paste0("    error = function(e) warning(\"ggpaintr: could not install '", escaped_pkg,
            "' -- custom placeholder hooks unavailable.\")"),
     paste0("  )"),
     paste0("}"),
-    paste0("library(", pkg, ")")
+    paste0("library(\"", escaped_pkg, "\")")
   )
 }
 
@@ -232,12 +240,14 @@ ptr_serialize_placeholder_preamble <- function(placeholders = NULL) {
       file_path <- ptr_resolve_source_param(ph$source_file, hook)
       if (!is.null(file_path)) {
         prev <- file_specs[[file_path]]
+        # "error" is strictest: once any placeholder requires it, keep it.
         file_specs[[file_path]] <- if (!is.null(prev) && identical(prev, "error")) "error" else on_missing
       }
 
       pkg_name <- ptr_resolve_source_param(ph$source_package, hook)
       if (!is.null(pkg_name)) {
         prev <- pkg_specs[[pkg_name]]
+        # "error" is strictest: once any placeholder requires it, keep it.
         pkg_specs[[pkg_name]] <- if (!is.null(prev) && identical(prev, "error")) "error" else on_missing
       }
     }
@@ -341,6 +351,7 @@ ptr_shiny_template <- function(formula_text,
   preamble_lines <- ptr_serialize_placeholder_preamble(placeholders)
 
   c(
+    "library(ggplot2)",
     "library(ggpaintr)",
     "library(shiny)",
     "library(shinyWidgets)",

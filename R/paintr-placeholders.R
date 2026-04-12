@@ -269,7 +269,7 @@ ptr_validate_placeholder <- function(placeholder) {
       if (length(formal_names) == 1 && identical(formal_names, "...")) {
         cli::cli_warn(paste0(
           "placeholder$", hook_name,
-          " uses only `...` — positional argument mismatches will not be caught at definition time."
+          " uses only `...` -- positional argument mismatches will not be caught at definition time."
         ))
       } else if (actual < expected) {
         rlang::abort(paste0(
