@@ -4,13 +4,17 @@
 \alias{ptr_merge_ui_text}
 \title{Build Effective Copy Rules}
 \usage{
-ptr_merge_ui_text(ui_text = NULL, placeholders = NULL)
+ptr_merge_ui_text(ui_text = NULL, placeholders = NULL, known_param_keys = NULL)
 }
 \arguments{
 \item{ui_text}{Optional user-supplied rules.}
 
 \item{placeholders}{Optional custom placeholder definitions or an effective
 placeholder registry.}
+
+\item{known_param_keys}{Optional character vector of parameter keys present
+in the formula. When supplied, any key in \code{ui_text$params} that is not in
+this set triggers a \code{cli::cli_warn()} so the user can catch misspellings.}
 }
 \value{
 A merged copy-rule list.

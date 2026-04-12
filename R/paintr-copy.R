@@ -67,13 +67,6 @@ ptr_default_ui_text <- function(placeholders = NULL) {
         fill = list(var = list(label = "Choose the fill column")),
         group = list(var = list(label = "Choose the grouping column")),
         shape = list(var = list(label = "Choose the shape column")),
-        size = list(
-          var = list(label = "Choose the size column"),
-          num = list(
-            label = "Point size",
-            help = "Enter a number such as 2 or 3."
-          )
-        ),
         alpha = list(
           var = list(label = "Choose the transparency column"),
           num = list(
@@ -99,7 +92,13 @@ ptr_default_ui_text <- function(placeholders = NULL) {
         ),
         ncol = list(num = list(label = "Number of facet columns")),
         nrow = list(num = list(label = "Number of facet rows")),
-        linewidth = list(num = list(label = "Line width")),
+        linewidth = list(
+          var = list(label = "Choose the size column"),
+          num = list(
+            label = "Size",
+            help = "Enter a number such as 2 or 3."
+          )
+        ),
         stroke = list(num = list(label = "Stroke width")),
         bins = list(num = list(label = "Number of bins")),
         binwidth = list(num = list(label = "Bin width"))
@@ -139,7 +138,10 @@ ptr_default_ui_text <- function(placeholders = NULL) {
 #' @return A named character vector mapping aliases to canonical keys.
 #' @noRd
 ptr_ui_text_param_aliases <- function() {
-  c(colour = "color")
+  c(
+    colour = "color",
+    size = "linewidth"
+  )
 }
 
 #' Return Allowed Copy Leaf Fields
@@ -526,11 +528,31 @@ ptr_deep_merge_ui_text <- function(base, overrides) {
   result
 }
 
+#' Extract Known Parameter Keys from a Parsed Formula Object
+#'
+#' Returns the set of parameter keys present in the formula, excluding NA and
+#' `__unnamed__`. Used to warn on misspelled `ui_text$params` overrides.
+#'
+#' @param ptr_obj A `ptr_obj` as returned by `ptr_parse_formula()`.
+#'
+#' @return A character vector of known param keys, or `NULL` if `ptr_obj` is
+#'   not a `ptr_obj`.
+#' @noRd
+ptr_known_param_keys_from_obj <- function(ptr_obj) {
+  if (!inherits(ptr_obj, "ptr_obj")) return(NULL)
+  spec <- ptr_runtime_input_spec(ptr_obj)
+  keys <- unique(spec$param_key[!is.na(spec$param_key)])
+  setdiff(keys, "__unnamed__")
+}
+
 #' Build Effective Copy Rules
 #'
 #' @param ui_text Optional user-supplied rules.
 #' @param placeholders Optional custom placeholder definitions or an effective
 #'   placeholder registry.
+#' @param known_param_keys Optional character vector of parameter keys present
+#'   in the formula. When supplied, any key in `ui_text$params` that is not in
+#'   this set triggers a `cli::cli_warn()` so the user can catch misspellings.
 #'
 #' @return A merged copy-rule list.
 #'
@@ -545,7 +567,9 @@ ptr_deep_merge_ui_text <- function(base, overrides) {
 #' )
 #' rules$shell$draw_button$label
 #' @export
-ptr_merge_ui_text <- function(ui_text = NULL, placeholders = NULL) {
+ptr_merge_ui_text <- function(ui_text = NULL,
+                             placeholders = NULL,
+                             known_param_keys = NULL) {
   if (inherits(ui_text, "ptr_ui_text")) {
     return(ui_text)
   }
@@ -557,6 +581,17 @@ ptr_merge_ui_text <- function(ui_text = NULL, placeholders = NULL) {
 
   ptr_validate_ui_text(ui_text, placeholders = placeholders)
   ui_text <- ptr_normalize_ui_text(ui_text)
+
+  if (!is.null(known_param_keys) && !is.null(ui_text$params)) {
+    unknown <- setdiff(names(ui_text$params), known_param_keys)
+    if (length(unknown) > 0) {
+      cli::cli_warn(c(
+        "Unknown {.code ui_text$params} key{?s}: {.val {unknown}}",
+        i = "These overrides will be silently ignored because they don't match any aesthetic in the formula.",
+        i = "Known keys: {.val {known_param_keys}}"
+      ))
+    }
+  }
 
   merged <- ptr_deep_merge_ui_text(unclass(defaults), ui_text)
   class(merged) <- "ptr_ui_text"
@@ -675,6 +710,10 @@ ptr_resolve_ui_text <- function(component,
     } else {
       NULL
     }
+    # `__unnamed__` is intentionally allowed here (unlike param_rule above).
+    # Some layers (e.g. facet_wrap, facet_grid) register copy under the
+    # `__unnamed__` key for positional arguments.  The lookup returns NULL
+    # when no such sub-key exists, so there is no mis-fire for named params.
     layer_rule <- if (!is.null(layer_name) &&
       !is.null(rules$layers[[layer_name]]) &&
       !is.null(rules$layers[[layer_name]][[keyword]])) {

@@ -181,16 +181,18 @@ ptr_server_state <- function(formula,
   ids <- ptr_normalize_ids(ids)
   placeholder_registry <- ptr_merge_placeholders(placeholders)
 
+  parsed <- ptr_parse_formula(formula, placeholders = placeholder_registry)
   structure(
     list(
-      obj = shiny::reactiveVal(ptr_parse_formula(formula, placeholders = placeholder_registry)),
+      obj = shiny::reactiveVal(parsed),
       runtime = shiny::reactiveVal(NULL),
       var_ui_list = shiny::reactiveVal(list()),
       shared_env_reactive = NULL,
       raw_ui_text = ui_text,
       effective_ui_text = ptr_merge_ui_text(
         ui_text,
-        placeholders = placeholder_registry
+        placeholders = placeholder_registry,
+        known_param_keys = ptr_known_param_keys_from_obj(parsed)
       ),
       placeholders = placeholder_registry,
       custom_placeholders = placeholder_registry$custom_placeholders,

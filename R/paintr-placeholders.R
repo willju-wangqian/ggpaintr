@@ -383,7 +383,8 @@ ptr_define_placeholder_context <- function(ptr_obj,
   ctx$placeholders <- ptr_obj$placeholders
   ctx$ui_text <- ptr_merge_ui_text(
     ui_text,
-    placeholders = ptr_obj$placeholders
+    placeholders = ptr_obj$placeholders,
+    known_param_keys = ptr_known_param_keys_from_obj(ptr_obj)
   )
   ctx$envir <- envir
   ctx$expr_check <- expr_check
