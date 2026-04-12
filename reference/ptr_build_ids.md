@@ -9,7 +9,6 @@ the `ggpaintr` runtime inside a larger Shiny app.
 ptr_build_ids(
   control_panel = "controlPanel",
   draw_button = "draw",
-  export_button = "shinyExport",
   plot_output = "outputPlot",
   error_output = "outputError",
   code_output = "outputCode"
@@ -25,10 +24,6 @@ ptr_build_ids(
 - draw_button:
 
   Input id used for the draw button.
-
-- export_button:
-
-  Output id used for the export download button.
 
 - plot_output:
 

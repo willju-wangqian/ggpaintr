@@ -1,5 +1,26 @@
 # Changelog
 
+## ggpaintr (development version)
+
+### Breaking changes
+
+- Removed the Shiny app export feature: `ptr_generate_shiny()`,
+  `ptr_register_export()`, the download button, and `ids$export_button`
+  are gone. Use the public API
+  ([`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md),
+  `ptr_register_*()`,
+  [`ptr_input_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_input_ui.md),
+  [`ptr_output_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_output_ui.md),
+  [`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md))
+  to compose and distribute custom apps.
+- The placeholder distribution parameters `source_file`,
+  `source_package`, `source_function`, and `on_missing` are removed from
+  [`ptr_define_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder.md).
+  They only existed to support the exporter. Hook functions should be
+  defined inline.
+- The last commit before these removals is tagged
+  `v0-pre-export-removal`.
+
 ## ggpaintr 0.1.0
 
 - repositioned the package around the maintained `ggpaintr` workflow
@@ -19,10 +40,8 @@
 - removed generated documentation topics for package-internal helper
   functions so internal implementation details are no longer presented
   as part of the public community-facing surface
-- updated
-  [`ptr_generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_generate_shiny.md)
-  so the maintained public call path is now
-  `ptr_generate_shiny(ptr_obj, output_file, ...)`
+- updated `ptr_generate_shiny()` so the maintained public call path is
+  now `ptr_generate_shiny(ptr_obj, output_file, ...)`
 - archived the legacy package implementation under
   `archive/legacy-package/`
 - replaced legacy package docs, vignette, and pkgdown content with

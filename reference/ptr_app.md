@@ -1,8 +1,8 @@
 # Build a ggpaintr Shiny App
 
 Create a Shiny app from a single ggplot-like formula string. The app
-exposes generated controls, a draw button, inline error handling, code
-output, and an export button for producing a standalone app script.
+exposes generated controls, a draw button, inline error handling, and
+code output.
 
 ## Usage
 

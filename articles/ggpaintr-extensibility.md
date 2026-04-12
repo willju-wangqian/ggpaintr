@@ -16,7 +16,6 @@ The supported integration pieces are:
 - [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md)
 - [`ptr_setup_controls()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_setup_controls.md)
 - [`ptr_register_draw()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_draw.md)
-- [`ptr_register_export()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_export.md)
 - [`ptr_register_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_plot.md)
 - [`ptr_register_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_error.md)
 - [`ptr_register_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_code.md)
@@ -25,6 +24,12 @@ The supported integration pieces are:
 - [`ptr_extract_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_code.md)
 - [`ptr_input_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_input_ui.md)
 - [`ptr_output_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_output_ui.md)
+
+To compose and distribute your own Shiny app, use
+[`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md)
+together with the `ptr_register_*` helpers; see
+[`?ptr_app_bslib`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)
+for a worked example.
 
 ## Choosing the right surface
 
@@ -83,9 +88,6 @@ server <- function(input, output, session) {
   # each time it is clicked.
   ptr_register_draw(input, ptr_state)
 
-  # Wire the export button to a downloadHandler that writes a standalone app.R.
-  ptr_register_export(output, ptr_state)
-
   # renderPlot(): reads ptr_state$runtime()$plot and renders it.
   ptr_register_plot(output, ptr_state)
 
@@ -113,12 +115,11 @@ when your app already has its own naming scheme or you want to mount
 
 ``` r
 ids <- ptr_build_ids(
-  # The six top-level ids that ggpaintr uses for its standard UI elements.
+  # The top-level ids that ggpaintr uses for its standard UI elements.
   # Provide custom strings when your app already uses those default id names
   # for something else, or when you want ggpaintr outputs in specific containers.
   control_panel  = "builder_controls",  # tabsetPanel that holds per-layer control tabs
   draw_button    = "render_plot",        # actionButton that triggers plot re-render
-  export_button  = "export_app",         # downloadButton that writes a standalone app.R
   plot_output    = "main_plot",          # plotOutput widget
   error_output   = "main_error",         # output for parse / plot error messages
   code_output    = "main_code"           # verbatimTextOutput for the generated ggplot code
@@ -147,7 +148,6 @@ server <- function(input, output, session) {
 
   ptr_setup_controls(input, output, ptr_state, ids = ids)
   ptr_register_draw(input, ptr_state, ids = ids)
-  ptr_register_export(output, ptr_state, ids = ids)
   ptr_register_plot(output, ptr_state, ids = ids)
   ptr_register_error(output, ptr_state, ids = ids)
   ptr_register_code(output, ptr_state, ids = ids)
@@ -174,7 +174,6 @@ server <- function(input, output, session) {
 
   ptr_setup_controls(input, output, ptr_state)
   ptr_register_draw(input, ptr_state)
-  ptr_register_export(output, ptr_state)
   ptr_register_error(output, ptr_state)
   ptr_register_code(output, ptr_state)
 

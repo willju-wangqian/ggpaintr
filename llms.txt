@@ -46,13 +46,11 @@ purpose.
   ggplot code
 - the same parsed object can drive generated controls, runtime
   completion, generated code, and standalone export
-- one placeholder registry powers parse, UI, runtime, copy rules, and
-  export for both built-in and custom placeholders
+- one placeholder registry powers parse, UI, runtime, and copy rules for
+  both built-in and custom placeholders
 - the package gives you both a default wrapper and a supported Shiny
   embedding layer, so you can start simple and grow into a more custom
   app
-- exported apps stay explicit `ui <- ...` and `server <- function(...)`
-  files so they remain readable and editable outside the package wrapper
 
 ## Quick start
 
@@ -95,9 +93,6 @@ The maintained public path is intentionally narrow.
   and
   [`ptr_assemble_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_assemble_plot.md)
   for advanced runtime or testing workflows.
-- Use
-  [`ptr_generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_generate_shiny.md)
-  to export an explicit standalone app script.
 
 Other helpers in `R/` are internal implementation support rather than
 part of the maintained community-facing API.
@@ -165,8 +160,7 @@ behavior of the generated app.
 ``` r
 custom_copy <- list(
   shell = list(
-    draw_button = list(label = "Render plot"),
-    export_button = list(label = "Save app")
+    draw_button = list(label = "Render plot")
   ),
   params = list(
     x = list(var = list(label = "X axis variable")),
@@ -183,27 +177,6 @@ ptr_app(
 )
 ```
 
-### Export a standalone app
-
-Use
-[`ptr_generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_generate_shiny.md)
-when you want an explicit, editable Shiny app file that you can continue
-customizing outside the package wrapper.
-
-``` r
-obj <- ptr_parse_formula(
-  "ggplot(data = upload, aes(x = var, y = var)) +
-    geom_point() +
-    labs(title = text)"
-)
-
-app_file <- tempfile(fileext = ".R")
-ptr_generate_shiny(obj, app_file)
-
-# The generated file keeps an explicit ui, an explicit server, and visible
-# ui_text/placeholders hooks so you can keep editing it as a normal Shiny app.
-```
-
 ### Embed `ggpaintr` in your own Shiny app
 
 The supported integration layer lets you keep your own layout while
@@ -215,7 +188,6 @@ library(shiny)
 ids <- ptr_build_ids(
   control_panel = "builder_controls",
   draw_button = "render_plot",
-  export_button = "export_app",
   plot_output = "main_plot",
   error_output = "main_error",
   code_output = "main_code"
@@ -238,7 +210,6 @@ server <- function(input, output, session) {
 
   ptr_setup_controls(input, output, ptr_state, ids = ids)
   ptr_register_draw(input, ptr_state, ids = ids)
-  ptr_register_export(output, ptr_state, ids = ids)
   ptr_register_plot(output, ptr_state, ids = ids)
   ptr_register_error(output, ptr_state, ids = ids)
   ptr_register_code(output, ptr_state, ids = ids)
@@ -263,7 +234,6 @@ server <- function(input, output, session) {
 
   ptr_setup_controls(input, output, ptr_state)
   ptr_register_draw(input, ptr_state)
-  ptr_register_export(output, ptr_state)
   ptr_register_error(output, ptr_state)
   ptr_register_code(output, ptr_state)
 
@@ -379,9 +349,9 @@ inputs[["labs+2"]] <- "Mtcars scatter"
 runtime <- ptr_exec(obj, inputs)
 
 runtime$code_text
-#> [1] "ggplot(data = mtcars, aes(x = mpg, y = disp)) +\n  geom_point(size = 2) +\n  labs(title = \"Mtcars scatter\")"
+#> NULL
 inherits(runtime$plot, "ggplot")
-#> [1] TRUE
+#> [1] FALSE
 ```
 
 For upload-backed formulas, the spec also includes the derived
@@ -462,8 +432,8 @@ for the placeholder registry API, hook contract, and export guidance.
 
 - [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
   : Build a ggpaintr Shiny App
-- [`ptr_generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_generate_shiny.md)
-  : Generate a Standalone Shiny App Script
+- [`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)
+  : Build a ggpaintr Shiny App with a bslib Theme
 
 ## Shiny integration
 
@@ -480,8 +450,6 @@ runtime behavior.
   : Bind the Generated Control Panel into a Shiny App
 - [`ptr_register_draw()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_draw.md)
   : Bind Draw Behavior into a Shiny App
-- [`ptr_register_export()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_export.md)
-  : Bind Export Behavior into a Shiny App
 - [`ptr_register_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_plot.md)
   : Bind Default Plot Rendering into a Shiny App
 - [`ptr_register_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_error.md)

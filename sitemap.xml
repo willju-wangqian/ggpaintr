@@ -11,6 +11,7 @@
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr-package.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/index.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_assemble_plot.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder.html</loc></url>
@@ -18,7 +19,6 @@
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_code.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_error.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_plot.html</loc></url>
-<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_generate_shiny.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_input_ui.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_merge_placeholders.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_merge_ui_text.html</loc></url>
@@ -29,7 +29,6 @@
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_code.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_draw.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_error.html</loc></url>
-<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_export.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_plot.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_resolve_ui_text.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_runtime_input_spec.html</loc></url>

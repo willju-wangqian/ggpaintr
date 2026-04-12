@@ -4,8 +4,8 @@
 
 - [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
   : Build a ggpaintr Shiny App
-- [`ptr_generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_generate_shiny.md)
-  : Generate a Standalone Shiny App Script
+- [`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)
+  : Build a ggpaintr Shiny App with a bslib Theme
 
 ## Shiny integration
 
@@ -22,8 +22,6 @@ runtime behavior.
   : Bind the Generated Control Panel into a Shiny App
 - [`ptr_register_draw()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_draw.md)
   : Bind Draw Behavior into a Shiny App
-- [`ptr_register_export()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_export.md)
-  : Bind Export Behavior into a Shiny App
 - [`ptr_register_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_plot.md)
   : Bind Default Plot Rendering into a Shiny App
 - [`ptr_register_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_error.md)

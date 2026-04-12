@@ -19,8 +19,8 @@ ptr_resolve_ui_text(
 
 - component:
 
-  One of `title`, `draw_button`, `export_button`, `upload_file`,
-  `upload_name`, `layer_checkbox`, or `control`.
+  One of `title`, `draw_button`, `upload_file`, `upload_name`,
+  `layer_checkbox`, or `control`.
 
 - keyword:
 
