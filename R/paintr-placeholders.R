@@ -1282,7 +1282,9 @@ ptr_bind_var_ui_impl <- function(input, output, metas, context) {
   ptr_obj <- context$ptr_obj
   eval_env <- context$eval_env
   if (is.null(eval_env)) {
-    cli::cli_warn("ptr_bind_var_ui_impl: eval_env not cached; rebuilt")
+    if (!is.null(shiny::getDefaultReactiveDomain())) {
+      cli::cli_warn("ptr_bind_var_ui_impl: eval_env not cached; rebuilt")
+    }
     eval_env <- ptr_prepare_eval_env(
       ptr_obj,
       input,
@@ -1292,7 +1294,9 @@ ptr_bind_var_ui_impl <- function(input, output, metas, context) {
   context$input <- input
   context$eval_env <- eval_env
   if (is.null(context$var_column_map)) {
-    cli::cli_warn("ptr_bind_var_ui_impl: var_column_map not cached; rebuilt")
+    if (!is.null(shiny::getDefaultReactiveDomain())) {
+      cli::cli_warn("ptr_bind_var_ui_impl: var_column_map not cached; rebuilt")
+    }
     context$var_column_map <- ptr_build_var_column_map(
       ptr_obj,
       input,

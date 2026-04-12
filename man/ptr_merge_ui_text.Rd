@@ -17,7 +17,7 @@ in the formula. When supplied, any key in \code{ui_text$params} that is not in
 this set triggers a \code{cli::cli_warn()} so the user can catch misspellings.}
 }
 \value{
-A merged copy-rule list.
+A \code{ptr_ui_text} object containing the merged copy rules.
 }
 \description{
 Build Effective Copy Rules

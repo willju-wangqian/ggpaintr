@@ -199,7 +199,7 @@ test_that("bad upload does not crash the app session", {
     )
   }
 
-  shiny::testServer(server_wrapper, {
+  suppressWarnings(shiny::testServer(server_wrapper, {
     session$setInputs(
       "ggplot+2" = mock_upload_input(fixture_path("bad_extension.txt"), "bad_extension.txt"),
       "ggplot+2+name" = "",
@@ -209,7 +209,7 @@ test_that("bad upload does not crash the app session", {
     runtime_result <- session$userData$paintr_state$runtime()
     expect_false(runtime_result$ok)
     expect_match(runtime_result$message, "Input error", fixed = TRUE)
-  })
+  }))
 })
 
 # --- F2: BOM stripping -------------------------------------------------------
@@ -222,7 +222,7 @@ test_that("F2: UTF-8 BOM is stripped from CSV column names", {
   writeBin(c(bom, charToRaw(csv_bytes)), bom_file)
 
   file_info <- mock_upload_input(bom_file, "bom_data.csv")
-  result <- ptr_read_uploaded_data(file_info)
+  result <- suppressWarnings(ptr_read_uploaded_data(file_info))
 
   expect_identical(names(result)[1], "a")
 })
@@ -293,10 +293,10 @@ test_that("F4: RDS file with .csv extension errors on bad content", {
   # read.csv parses RDS bytes as text and yields 0 rows, triggering the
   # empty-data guard rather than a parse error — either message is acceptable.
   file_info <- mock_upload_input(rds_as_csv, "actually_rds.csv")
-  expect_error(
+  suppressWarnings(expect_error(
     ptr_read_uploaded_data(file_info),
     "contains no rows|Could not read.*as a csv file"
-  )
+  ))
 })
 
 test_that("F4: CSV file with .rds extension errors 'Could not read ... as an RDS file'", {

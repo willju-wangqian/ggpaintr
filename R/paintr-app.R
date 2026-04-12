@@ -216,6 +216,15 @@ ptr_server_state <- function(formula,
 #'   the integration helpers.
 #'
 #' @return Invisibly returns `ptr_state`.
+#' @examples
+#' \dontrun{
+#' server <- function(input, output, session) {
+#'   ps <- ptr_server_state("ggplot(mtcars, aes(x = var)) + geom_histogram()")
+#'   ptr_setup_controls(input, output, ps)
+#'   ptr_register_draw(input, ps)
+#'   ptr_register_plot(output, ps)
+#' }
+#' }
 #' @export
 ptr_setup_controls <- function(input,
                                output,
@@ -398,6 +407,19 @@ ptr_extract_plot <- function(runtime_result) {
 #' @param runtime_result A runtime result list returned by `ptr_exec()`.
 #'
 #' @return A Shiny tag or `NULL`.
+#' @examples
+#' \dontrun{
+#' obj <- ptr_parse_formula(
+#'   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+#' )
+#' spec <- ptr_runtime_input_spec(obj)
+#' inputs <- setNames(vector("list", nrow(spec)), spec$input_id)
+#' inputs[spec$role == "layer_checkbox"] <- rep(list(TRUE), sum(spec$role == "layer_checkbox"))
+#' inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "x"]]] <- "mpg"
+#' inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "y"]]] <- "disp"
+#' runtime <- ptr_exec(obj, inputs)
+#' ptr_extract_error(runtime)
+#' }
 #' @export
 ptr_extract_error <- function(runtime_result) {
   if (is.null(runtime_result) || isTRUE(runtime_result[["ok"]])) {
@@ -412,6 +434,19 @@ ptr_extract_error <- function(runtime_result) {
 #' @param runtime_result A runtime result list returned by `ptr_exec()`.
 #'
 #' @return A character string or `NULL`.
+#' @examples
+#' \dontrun{
+#' obj <- ptr_parse_formula(
+#'   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+#' )
+#' spec <- ptr_runtime_input_spec(obj)
+#' inputs <- setNames(vector("list", nrow(spec)), spec$input_id)
+#' inputs[spec$role == "layer_checkbox"] <- rep(list(TRUE), sum(spec$role == "layer_checkbox"))
+#' inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "x"]]] <- "mpg"
+#' inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "y"]]] <- "disp"
+#' runtime <- ptr_exec(obj, inputs)
+#' ptr_extract_code(runtime)
+#' }
 #' @export
 ptr_extract_code <- function(runtime_result) {
   if (is.null(runtime_result)) {

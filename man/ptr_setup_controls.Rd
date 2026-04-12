@@ -23,3 +23,13 @@ Invisibly returns \code{ptr_state}.
 Register the dynamic \code{var} controls and render the standard tabbed control
 panel into the target \code{uiOutput()}.
 }
+\examples{
+\dontrun{
+server <- function(input, output, session) {
+  ps <- ptr_server_state("ggplot(mtcars, aes(x = var)) + geom_histogram()")
+  ptr_setup_controls(input, output, ps)
+  ptr_register_draw(input, ps)
+  ptr_register_plot(output, ps)
+}
+}
+}

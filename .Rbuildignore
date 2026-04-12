@@ -21,3 +21,4 @@ README\.*
 ^CLAUDE\.md$
 ^Rplots\.pdf$
 ^docker-compose\.codex\.yml$
+^\.ewh-artifacts$

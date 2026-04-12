@@ -554,7 +554,7 @@ ptr_known_param_keys_from_obj <- function(ptr_obj) {
 #'   in the formula. When supplied, any key in `ui_text$params` that is not in
 #'   this set triggers a `cli::cli_warn()` so the user can catch misspellings.
 #'
-#' @return A merged copy-rule list.
+#' @return A `ptr_ui_text` object containing the merged copy rules.
 #'
 #' @examples
 #' # Default rules

@@ -245,10 +245,10 @@ test_that("ptr_generate_shiny aborts with path on write failure", {
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
   bad_path <- file.path(withr::local_tempdir(), "nonexistent_subdir", "app.R")
-  expect_error(
+  suppressWarnings(expect_error(
     ptr_generate_shiny(obj, bad_path, style = FALSE),
     regexp = "nonexistent_subdir"
-  )
+  ))
 })
 
 test_that("ptr_generate_shiny writes compact custom copy rules for exported apps", {

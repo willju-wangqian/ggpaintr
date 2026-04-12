@@ -58,7 +58,7 @@ source_function = list(
 
 ## Export-Time Preamble Generation
 
-`ptr_serialize_export_placeholders()` gains `ptr_serialize_placeholder_preamble()`. Preamble is emitted after `library()` calls, before placeholder definitions. Order within preamble: `source_function` blocks first, then `source_file`, then `source_package`.
+`ptr_serialize_export_placeholders()` (in `R/paintr-export.R:279`) gains `ptr_serialize_placeholder_preamble()` (in `R/paintr-export.R:201`). Preamble is emitted after `library()` calls, before placeholder definitions. Order within preamble: `source_function` blocks first, then `source_file`, then `source_package`.
 
 **`source_function`** → named assignment from deparsed formals + body:
 ```r

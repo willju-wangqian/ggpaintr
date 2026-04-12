@@ -15,3 +15,17 @@ A Shiny tag or \code{NULL}.
 \description{
 Return Default Error UI from a Runtime Result
 }
+\examples{
+\dontrun{
+obj <- ptr_parse_formula(
+  "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+)
+spec <- ptr_runtime_input_spec(obj)
+inputs <- setNames(vector("list", nrow(spec)), spec$input_id)
+inputs[spec$role == "layer_checkbox"] <- rep(list(TRUE), sum(spec$role == "layer_checkbox"))
+inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "x"]]] <- "mpg"
+inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "y"]]] <- "disp"
+runtime <- ptr_exec(obj, inputs)
+ptr_extract_error(runtime)
+}
+}

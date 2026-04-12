@@ -338,7 +338,7 @@ spec
 #>              input_id           role layer_name keyword param_key    source_id
 #> 1          ggplot+3+2    placeholder     ggplot     var         x   ggplot+3+2
 #> 2          ggplot+3+3    placeholder     ggplot     var         y   ggplot+3+3
-#> 3        geom_point+2    placeholder geom_point     num      size geom_point+2
+#> 3        geom_point+2    placeholder geom_point     num linewidth geom_point+2
 #> 4              labs+2    placeholder       labs    text     title       labs+2
 #> 5 geom_point+checkbox layer_checkbox geom_point    <NA>      <NA>         <NA>
 #> 6       labs+checkbox layer_checkbox       labs    <NA>      <NA>         <NA>

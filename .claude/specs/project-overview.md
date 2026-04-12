@@ -70,10 +70,10 @@ References:
 
 - `R/paintr-parse.R:31-112`
 - `R/paintr-placeholders.R:141-159`
-- `R/paintr-copy.R:548-572`
-- `R/paintr-app.R:218-282`
-- `R/paintr-app.R:175-203`
-- `R/paintr-app.R:593-606`
+- `R/paintr-copy.R:570-610`
+- `R/paintr-app.R:175-228`
+- `R/paintr-app.R:229-312`
+- `R/paintr-app.R:313-572`
 - `R/paintr-export.R:432-467`
 
 ## Public API
@@ -114,8 +114,9 @@ Current public customization boundary:
 - `ptr_app()`, `ptr_server()`, `ptr_server_state()`,
   `ptr_parse_formula()`, and `ptr_generate_shiny()` accept optional custom
   `placeholders`
-- `ptr_build_ids()` lets embedded integrations customize only the six top-level
-  Shiny ids for control panel, draw, export, plot, error, and code
+- `ptr_build_ids()` lets embedded integrations customize the six top-level
+  Shiny ids via parameters: `control_panel`, `draw_button`, `export_button`,
+  `plot_output`, `error_output`, and `code_output`
 - `ptr_server_state()` plus the `ptr_register_*()` helpers are the
   supported way to embed the package runtime into an existing Shiny app
 - `ptr_extract_plot()`, `ptr_extract_error()`, and
@@ -140,11 +141,11 @@ Current public customization boundary:
 
 References:
 
-- `R/paintr-app.R:21-567`
-- `R/paintr-parse.R:80-184`
+- `R/paintr-app.R:21-781`
+- `R/paintr-parse.R:31-184`
 - `R/paintr-placeholders.R:76-159`
-- `R/paintr-copy.R:12-146`
-- `R/paintr-export.R:95-252`
+- `R/paintr-copy.R:570-742`
+- `R/paintr-export.R:432-467`
 - `NAMESPACE:3-29`
 - `_pkgdown.yml:7-48`
 
@@ -195,7 +196,7 @@ Design expectations:
 
 References:
 
-- `R/paintr-export.R:95-201`
+- `R/paintr-export.R:432-467`
 - `R/paintr-export.R:229-252`
 - `R/paintr-placeholders.R:451-509`
 - `tests/testthat/test-export-shiny.R:1-995`
@@ -258,5 +259,5 @@ References:
 - `R/paintr-upload.R:35-95`
 - `R/paintr-copy.R:117-174`
 - `R/paintr-copy.R:252-643`
-- `R/paintr-app.R:322-447`
-- `R/paintr-export.R:95-201`
+- `R/paintr-app.R:313-480`
+- `R/paintr-export.R:432-467`

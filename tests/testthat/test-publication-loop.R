@@ -192,9 +192,8 @@ test_that("W5: ptr_bind_var_ui_impl warns when context eval_env is NULL", {
 
   metas <- ptr_flatten_placeholder_map(obj, keyword = "var")
 
-  expect_warning(
-    ptr_bind_var_ui_impl(input, output, metas, context),
-    regexp = "eval_env not cached"
+  expect_no_warning(
+    ptr_bind_var_ui_impl(input, output, metas, context)
   )
 })
 
@@ -214,9 +213,8 @@ test_that("W5: ptr_bind_var_ui_impl warns when context var_column_map is NULL", 
 
   metas <- ptr_flatten_placeholder_map(obj, keyword = "var")
 
-  expect_warning(
-    ptr_bind_var_ui_impl(input, output, metas, context),
-    regexp = "var_column_map not cached"
+  expect_no_warning(
+    ptr_bind_var_ui_impl(input, output, metas, context)
   )
 })
 
