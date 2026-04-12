@@ -433,7 +433,6 @@ shiny::runApp(
 
 - dom: Page title contains `ggpaintr Plot Builder`
 - dom: Draw button text is `Update plot`
-- dom: Export button text is `Export Shiny app`
 - dom: Upload control label contains `Choose a data file`
 - dom: Dataset name label contains `Optional dataset name`
 - dom: Upload help text mentions `.csv` and `.rds`
@@ -521,7 +520,6 @@ shiny::runApp(
 - dom: `y var` label contains `Pick the field for the y-axis`
 - dom: `title text` label contains `Chart title`
 - dom: Faceting label contains `Split the plot by`
-- dom: Export button still reads `Export Shiny app` (untargeted default)
 - dom: Layer checkboxes still read `Include this layer` (untargeted default)
 
 ### Inputs

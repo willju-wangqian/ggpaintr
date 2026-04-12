@@ -19,18 +19,15 @@ Current automated coverage for runtime feedback and the copy-rule system already
 -   invalid upload handling in `ptr_complete_expr_safe()`
 -   plot-stage missing-object handling in `ptr_assemble_plot_safe()`
 -   successful runtime assembly in `ptr_exec()`
--   exported app wiring for `ptr_exec()` and `outputError`
 -   copy-rule validation, fallback resolution, and alias handling
--   default and overridden copy for app-shell controls and exported apps
+-   default and overridden copy for app-shell controls
 -   custom Shiny integration helpers with custom top-level ids
--   custom placeholder registry parsing, runtime replacement, and export wiring
--   sourced exported-app smoke tests for static-data and upload-backed formulas
+-   custom placeholder registry parsing and runtime replacement
 -   low-level runtime input discovery through `ptr_runtime_input_spec()`
 
 See:
 
 -   `tests/testthat/test-runtime-feedback.R`
--   `tests/testthat/test-export-shiny.R`
 -   `tests/testthat/test-copy-rules.R`
 -   `tests/testthat/test-extensibility.R`
 -   `tests/testthat/test-placeholder-registry.R`
@@ -45,10 +42,9 @@ Use the sections below as the canonical manual sweep for:
 -   built-in placeholders: `var`, `text`, `num`, `expr`, and `upload`
 -   runtime error feedback, recovery, and plot-stage failure behavior
 -   default copy rules and targeted `ui_text` overrides
--   exported app behavior for default and customized apps
 -   embedded `ptr_server_state()` / bind-helper integrations
 -   custom plot rendering with `ptr_extract_plot()`
--   custom placeholder registration and exported custom-placeholder apps
+-   custom placeholder registration
 -   companion edge-case follow-up in `tests/manual/ggpaintr-edge-cases.Rmd`
 
 ## How To Use This Workbook
@@ -71,7 +67,6 @@ Use the scenarios below to test the dedicated inline error channel end to end.
 | Upload validation error | upload `bad_extension.txt` | `Input error:` | plot stays empty | code stays blank |
 | Plot-stage error | missing object such as `unknown_object` | `Plot error:` | plot clears / stays empty | code remains visible |
 | Recovery after error | correct the inputs and redraw | no error panel | valid plot renders | code updates normally |
-| Exported app error behavior | run exported app and trigger one error case | same inline error as in-repo app | same clearing behavior | same code behavior |
 
 ## Setup
 
@@ -533,7 +528,7 @@ ggplot(data = upload, aes(x = var, y = var)) +
 Suggested manual sequence:
 
 -   Launch the app and confirm the title is `ggpaintr Plot Builder`.
--   Confirm the primary buttons read `Update plot` and `Export Shiny app`.
+-   Confirm the primary button reads `Update plot`.
 -   Confirm the upload controls read `Choose a data file` and `Optional dataset name`.
 -   Confirm the upload help text mentions accepted `.csv` and `.rds` formats and blank-name behavior.
 -   Upload `simple_numeric.csv`.
@@ -597,7 +592,6 @@ Suggested manual sequence:
 -   Confirm the `var` prompts read `Pick the field for the x-axis` and `Pick the field for the y-axis`.
 -   Confirm the title prompt reads `Chart title`.
 -   Confirm the faceting prompt reads `Split the plot by` with placeholder `~ Species`.
--   Confirm the export button still reads `Export Shiny app`.
 -   Confirm layer checkboxes still read `Include this layer in the plot`.
 -   Use `x = Sepal.Length`, `y = Sepal.Width`, `title = Custom copy test`, `facet = ~ Species`, then click `Render plot`.
 

@@ -1,7 +1,7 @@
 Package: ggpaintr
 Type: Package
 Title: Build Formula-Driven Shiny Apps for 'ggplot2'
-Version: 0.1.0
+Version: 0.9.0
 Authors@R: c(
     person(
       given = "Wangqian",
@@ -28,8 +28,7 @@ Authors@R: c(
 Description: Turns a single ggplot-like formula string into a small Shiny
     application. The package generates user controls from placeholder tokens,
     completes the expression with current inputs, renders plots, shows the
-    generated code, supports uploaded '.csv' and '.rds' datasets, and can
-    export a standalone Shiny app that uses the same runtime helpers.
+    generated code, and supports uploaded '.csv' and '.rds' datasets.
 License: GPL-3
 URL: https://willju-wangqian.github.io/ggpaintr/,
     https://github.com/willju-wangqian/ggpaintr

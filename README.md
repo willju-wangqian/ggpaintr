@@ -3,8 +3,8 @@
 
 `ggpaintr` turns one ggplot-like formula string into a small Shiny app
 with generated controls, rendered plots, generated code, upload support,
-copy customization, custom Shiny integration hooks, custom placeholder
-registries, and export helpers.
+copy customization, custom Shiny integration hooks, and custom
+placeholder registries.
 
 ## Installation
 
@@ -44,8 +44,8 @@ purpose.
 
 -   formula strings stay close to the way many R users already sketch
     ggplot code
--   the same parsed object can drive generated controls, runtime
-    completion, generated code, and standalone export
+-   the same parsed object drives generated controls, runtime
+    completion, and generated code
 -   one placeholder registry powers parse, UI, runtime, and copy rules
     for both built-in and custom placeholders
 -   the package gives you both a default wrapper and a supported Shiny
@@ -71,7 +71,9 @@ ggplot(data = iris, aes(x = var, y = var)) +
 
 The maintained public path is intentionally narrow.
 
--   Start with `ptr_app()` for the default app wrapper.
+-   Start with `ptr_app()` for the default app wrapper, or
+    `ptr_app_bslib()` for a `bslib`-themed variant that doubles as a
+    worked example of building custom shells from the public API.
 -   Use `ptr_server()`, `ptr_server_state()`, `ptr_build_ids()`, and the
     `ptr_register_*()` helpers when you need to embed `ggpaintr` in a
     larger Shiny app.
@@ -283,12 +285,6 @@ ptr_app(
 )
 ```
 
-If you want to export a standalone app with a custom placeholder, define
-the placeholder hooks inline inside the `ptr_define_placeholder()` call.
-The export path serializes that stored call into the generated app, so
-helper functions that only exist in your current session are not
-exportable today.
-
 ### Advanced developer workflow
 
 Use the low-level runtime helpers directly when you want to inspect
@@ -326,9 +322,9 @@ inputs[["labs+2"]] <- "Mtcars scatter"
 runtime <- ptr_exec(obj, inputs)
 
 runtime$code_text
-#> NULL
+#> [1] "ggplot(data = mtcars, aes(x = mpg, y = disp)) +\n  geom_point(size = 2) +\n  labs(title = \"Mtcars scatter\")"
 inherits(runtime$plot, "ggplot")
-#> [1] FALSE
+#> [1] TRUE
 ```
 
 For upload-backed formulas, the spec also includes the derived
@@ -351,14 +347,12 @@ ptr_runtime_input_spec(upload_obj)
 ## Current stability guarantees
 
 -   built-in placeholders are `var`, `text`, `num`, `expr`, and `upload`
--   custom placeholders share the same parse, UI, runtime, copy-rule,
-    and export path as built-ins
+-   custom placeholders share the same parse, UI, runtime, and copy-rule
+    path as built-ins
 -   `upload` currently supports `.csv` and `.rds`
 -   the supported app-facing surface is the current `ptr_*` wrapper and
     Shiny-integration layer
--   exported apps keep the current explicit-file shape built around
-    `ptr_server()`
--   only the six top-level ids exposed by `ptr_build_ids()` are
+-   only the five top-level ids exposed by `ptr_build_ids()` are
     configurable
 -   runtime failures are labeled as `Input error` or `Plot error` and
     stay on the shared inline error path
@@ -370,9 +364,6 @@ ptr_runtime_input_spec(upload_obj)
 -   deeper traversal details such as `index_path` encoding and internal
     companion id conventions remain package internals
 -   unsupported upload formats are outside the current boundary
--   custom placeholders whose hooks are not defined inline inside
-    `ptr_define_placeholder()` are not exportable as standalone apps
-    today
 -   the formula-string model is the current author-facing interface;
     future hardening should compile it into a richer internal runtime
     contract rather than replace that authoring model outright
@@ -396,4 +387,4 @@ ptr_runtime_input_spec(upload_obj)
 See `vignette("ggpaintr-workflow")` for the main workflow and
 `vignette("ggpaintr-extensibility")` for supported Shiny integration
 recipes. See `vignette("ggpaintr-placeholder-registry")` for the
-placeholder registry API, hook contract, and export guidance.
+placeholder registry API and hook contract.
