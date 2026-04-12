@@ -20,36 +20,36 @@ library(ggpaintr)
 
 ## Overview
 
-`ggpaintr` still ships the default `ggpaintr_app()` and `ggpaintr_server()`
+`ggpaintr` still ships the default `ptr_app()` and `ptr_server()`
 wrappers, but it now also exposes a supported integration layer for users who
 already have a Shiny app and want to embed the generated `ggpaintr` controls,
 runtime, and export behavior into their own UI.
 
 The supported integration pieces are:
 
-- `ggpaintr_ids()`
-- `ggpaintr_server_state()`
-- `ggpaintr_bind_control_panel()`
-- `ggpaintr_bind_draw()`
-- `ggpaintr_bind_export()`
-- `ggpaintr_bind_plot()`
-- `ggpaintr_bind_error()`
-- `ggpaintr_bind_code()`
-- `ggpaintr_plot_value()`
-- `ggpaintr_error_value()`
-- `ggpaintr_code_value()`
-- `ggpaintr_controls_ui()`
-- `ggpaintr_outputs_ui()`
+- `ptr_build_ids()`
+- `ptr_server_state()`
+- `ptr_setup_controls()`
+- `ptr_register_draw()`
+- `ptr_register_export()`
+- `ptr_register_plot()`
+- `ptr_register_error()`
+- `ptr_register_code()`
+- `ptr_extract_plot()`
+- `ptr_extract_error()`
+- `ptr_extract_code()`
+- `ptr_input_ui()`
+- `ptr_output_ui()`
 
 ## Choosing the right surface
 
 The current package surface is intentionally layered.
 
-- use `ggpaintr_app()` or `ggpaintr_server()` for most apps
-- use `ggpaintr_server_state()` plus the `ggpaintr_bind_*()` helpers when you
+- use `ptr_app()` or `ptr_server()` for most apps
+- use `ptr_server_state()` plus the `ptr_register_*()` helpers when you
   already own a larger Shiny layout and want to embed `ggpaintr`
-- use the low-level `paintr_*` runtime helpers, together with
-  `ggpaintr_runtime_input_spec()`, when you are writing tests, tooling, or
+- use the low-level `ptr_*` runtime helpers, together with
+  `ptr_runtime_input_spec()`, when you are writing tests, tooling, or
   package-level extensions around parsed formulas
 
 That split is a little opinionated, but it keeps the beginner path small while
@@ -65,42 +65,42 @@ ui <- fluidPage(
   titlePanel("Embedded ggpaintr"),
   sidebarLayout(
     sidebarPanel(
-      ggpaintr_controls_ui()
+      ptr_input_ui()
     ),
     mainPanel(
-      ggpaintr_outputs_ui()
+      ptr_output_ui()
     )
   )
 )
 
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server_state(
+  ptr_state <- ptr_server_state(
     "ggplot(data = iris, aes(x = var, y = var)) +
       geom_point() +
       labs(title = text)"
   )
 
-  ggpaintr_bind_control_panel(input, output, paintr_state)
-  ggpaintr_bind_draw(input, paintr_state)
-  ggpaintr_bind_export(output, paintr_state)
-  ggpaintr_bind_plot(output, paintr_state)
-  ggpaintr_bind_error(output, paintr_state)
-  ggpaintr_bind_code(output, paintr_state)
+  ptr_setup_controls(input, output, ptr_state)
+  ptr_register_draw(input, ptr_state)
+  ptr_register_export(output, ptr_state)
+  ptr_register_plot(output, ptr_state)
+  ptr_register_error(output, ptr_state)
+  ptr_register_code(output, ptr_state)
 }
 
 shinyApp(ui, server)
 ```
 
-This is the closest supported equivalent to `ggpaintr_server()`, but it lets
+This is the closest supported equivalent to `ptr_server()`, but it lets
 you place the controls and outputs inside your own page layout.
 
 ## Recipe 2: Customize top-level ids
 
-Use `ggpaintr_ids()` when your app already has its own naming scheme or you want
+Use `ptr_build_ids()` when your app already has its own naming scheme or you want
 to mount `ggpaintr` outputs in specific UI containers.
 
 ```{r, eval = FALSE}
-ids <- ggpaintr_ids(
+ids <- ptr_build_ids(
   control_panel = "builder_controls",
   draw_button = "render_plot",
   export_button = "export_app",
@@ -116,26 +116,26 @@ ids
 ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
-      ggpaintr_controls_ui(ids = ids)
+      ptr_input_ui(ids = ids)
     ),
     mainPanel(
-      ggpaintr_outputs_ui(ids = ids)
+      ptr_output_ui(ids = ids)
     )
   )
 )
 
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server_state(
+  ptr_state <- ptr_server_state(
     "ggplot(data = iris, aes(x = var, y = var)) + geom_point()",
     ids = ids
   )
 
-  ggpaintr_bind_control_panel(input, output, paintr_state, ids = ids)
-  ggpaintr_bind_draw(input, paintr_state, ids = ids)
-  ggpaintr_bind_export(output, paintr_state, ids = ids)
-  ggpaintr_bind_plot(output, paintr_state, ids = ids)
-  ggpaintr_bind_error(output, paintr_state, ids = ids)
-  ggpaintr_bind_code(output, paintr_state, ids = ids)
+  ptr_setup_controls(input, output, ptr_state, ids = ids)
+  ptr_register_draw(input, ptr_state, ids = ids)
+  ptr_register_export(output, ptr_state, ids = ids)
+  ptr_register_plot(output, ptr_state, ids = ids)
+  ptr_register_error(output, ptr_state, ids = ids)
+  ptr_register_code(output, ptr_state, ids = ids)
 }
 ```
 
@@ -144,24 +144,24 @@ ids and dynamic `var-*` output ids remain package-owned.
 
 ## Recipe 3: Customize the returned plot in `renderPlot()`
 
-The default `ggpaintr_bind_plot()` binder preserves the current wrapper
+The default `ptr_register_plot()` binder preserves the current wrapper
 behavior. If you want to modify the built plot before rendering, write your own
-`renderPlot()` and use `ggpaintr_plot_value()`.
+`renderPlot()` and use `ptr_extract_plot()`.
 
 ```{r, eval = FALSE}
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server_state(
+  ptr_state <- ptr_server_state(
     "ggplot(data = iris, aes(x = var, y = var)) + geom_point()"
   )
 
-  ggpaintr_bind_control_panel(input, output, paintr_state)
-  ggpaintr_bind_draw(input, paintr_state)
-  ggpaintr_bind_export(output, paintr_state)
-  ggpaintr_bind_error(output, paintr_state)
-  ggpaintr_bind_code(output, paintr_state)
+  ptr_setup_controls(input, output, ptr_state)
+  ptr_register_draw(input, ptr_state)
+  ptr_register_export(output, ptr_state)
+  ptr_register_error(output, ptr_state)
+  ptr_register_code(output, ptr_state)
 
   output$outputPlot <- renderPlot({
-    plot_obj <- ggpaintr_plot_value(paintr_state$runtime())
+    plot_obj <- ptr_extract_plot(ptr_state$runtime())
 
     if (is.null(plot_obj)) {
       plot.new()
@@ -173,7 +173,7 @@ server <- function(input, output, session) {
 }
 ```
 
-`ggpaintr_plot_value()` returns the raw `ggplot` object on success and `NULL`
+`ptr_extract_plot()` returns the raw `ggplot` object on success and `NULL`
 otherwise. That keeps the advanced customization seam side-effect free and lets
 you decide how to render failure states in your own app.
 
@@ -184,9 +184,9 @@ layout or custom top-level ids.
 
 Use the pure value helpers when you want to own the rendering details:
 
-- `ggpaintr_plot_value()` for plot customization
-- `ggpaintr_error_value()` for custom `renderUI()` workflows
-- `ggpaintr_code_value()` for custom `renderText()` or downstream processing
+- `ptr_extract_plot()` for plot customization
+- `ptr_extract_error()` for custom `renderUI()` workflows
+- `ptr_extract_code()` for custom `renderText()` or downstream processing
 
 ## How to improve the advanced surface
 
@@ -208,7 +208,7 @@ runtime easier to reason about without giving up that authoring model, the next
 hardening step should happen internally:
 
 - keep formula strings as the public authoring format
-- compile each parsed `paintr_obj` once into a richer internal runtime contract
+- compile each parsed `ptr_obj` once into a richer internal runtime contract
 - have runtime completion consume that compiled contract instead of repeatedly
   relying on raw expression walks and companion-id conventions
 

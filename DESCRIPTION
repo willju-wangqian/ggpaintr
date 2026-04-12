@@ -35,9 +35,10 @@ URL: https://willju-wangqian.github.io/ggpaintr/,
     https://github.com/willju-wangqian/ggpaintr
 BugReports: https://github.com/willju-wangqian/ggpaintr/issues
 Depends:
-    R (>= 3.5.0)
+    R (>= 4.0.0)
 Imports:
     assertthat (>= 0.2.0),
+    cli (>= 2.2.0),
     ggplot2 (>= 3.3.0),
     purrr (>= 0.3.0),
     rlang (>= 1.0.0),
@@ -48,7 +49,8 @@ Suggests:
     pkgdown,
     rmarkdown,
     styler,
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    withr
 VignetteBuilder: knitr
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

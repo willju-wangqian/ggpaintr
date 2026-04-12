@@ -138,7 +138,7 @@ server <- function(input, output) {
     p_expr_active <- expr_remove_empty_input(p_expr, input)
 
     output$outputPlot <- renderPlot({
-      paintr_get_plot(expr_plot_eval(p_expr_active))
+      ptr_assemble_plot(expr_plot_eval(p_expr_active))
     })
   }) %>% bindEvent(input$draw)
 }

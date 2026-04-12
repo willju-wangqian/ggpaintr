@@ -4,18 +4,18 @@ ui_text <- function(ui) {
 
 test_that("copy rules validate supported sections and leaf fields", {
   expect_error(
-    paintr_validate_copy_rules(list(bad_section = list())),
+    ptr_validate_ui_text(list(bad_section = list())),
     "unsupported top-level sections"
   )
 
   expect_error(
-    paintr_validate_copy_rules(list(shell = list(title = list(bad_field = "nope")))),
+    ptr_validate_ui_text(list(shell = list(title = list(bad_field = "nope")))),
     "unsupported fields"
   )
 })
 
 test_that("copy rules normalize aliases and merge precedence field by field", {
-  rules <- paintr_effective_copy_rules(
+  rules <- ptr_merge_ui_text(
     list(
       defaults = list(var = list(empty_text = "Pick one column")),
       params = list(colour = list(var = list(label = "Choose a colour column"))),
@@ -29,12 +29,12 @@ test_that("copy rules normalize aliases and merge precedence field by field", {
     )
   )
 
-  color_copy <- paintr_resolve_copy(
+  color_copy <- ptr_resolve_ui_text(
     "control",
     keyword = "var",
     layer_name = "ggplot",
     param = "colour",
-    copy_rules = rules
+    ui_text = rules
   )
 
   expect_identical(color_copy$label, "Choose a layer-specific color column")
@@ -42,7 +42,7 @@ test_that("copy rules normalize aliases and merge precedence field by field", {
 })
 
 test_that("copy rule compaction keeps only custom diffs with canonical keys", {
-  compact_rules <- paintr_compact_copy_rules(
+  compact_rules <- ptr_compact_ui_text(
     list(
       shell = list(
         title = list(label = "Exploratory Plot Builder")
@@ -82,7 +82,7 @@ test_that("copy rule compaction keeps only custom diffs with canonical keys", {
 
 test_that("copy rule compaction collapses default-equivalent overrides", {
   expect_null(
-    paintr_compact_copy_rules(
+    ptr_compact_ui_text(
       list(
         shell = list(
           title = list(label = "ggpaintr Plot Builder")
@@ -93,19 +93,19 @@ test_that("copy rule compaction collapses default-equivalent overrides", {
 })
 
 test_that("copy rules provide readable fallbacks and seeded defaults", {
-  fallback_copy <- paintr_resolve_copy(
+  fallback_copy <- ptr_resolve_ui_text(
     "control",
     keyword = "num",
     layer_name = "geom_histogram",
     param = "bin_size"
   )
-  alpha_copy <- paintr_resolve_copy(
+  alpha_copy <- ptr_resolve_ui_text(
     "control",
     keyword = "num",
     layer_name = "geom_point",
     param = "alpha"
   )
-  facet_copy <- paintr_resolve_copy(
+  facet_copy <- ptr_resolve_ui_text(
     "control",
     keyword = "expr",
     layer_name = "facet_wrap",
@@ -120,7 +120,7 @@ test_that("copy rules provide readable fallbacks and seeded defaults", {
 })
 
 test_that("app shell copy uses defaults and runtime overrides", {
-  default_components <- paintr_app_components(
+  default_components <- ptr_app_components(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
   default_text <- ui_text(default_components$ui)
@@ -129,9 +129,9 @@ test_that("app shell copy uses defaults and runtime overrides", {
   expect_match(default_text, "Update plot", fixed = TRUE)
   expect_match(default_text, "Export Shiny app", fixed = TRUE)
 
-  custom_components <- paintr_app_components(
+  custom_components <- ptr_app_components(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
-    copy_rules = list(
+    ui_text = list(
       shell = list(
         title = list(label = "Exploratory Plot Builder"),
         draw_button = list(label = "Render plot")
@@ -174,12 +174,112 @@ test_that("ui builders use resolved copy for uploads and common controls", {
 })
 
 test_that("tab UI does not expose parser-style unnamed argument labels", {
-  obj <- paintr_formula(
+  obj <- ptr_parse_formula(
     "ggplot(data = iris, aes(x = var, y = var)) + facet_wrap(expr)"
   )
 
-  tab_text <- ui_text(paintr_get_tab_ui(obj))
+  tab_text <- ui_text(ptr_get_tab_ui(obj))
 
   expect_match(tab_text, "Facet by", fixed = TRUE)
   expect_no_match(tab_text, "argument 1")
+})
+
+test_that("ptr_resolve_ui_text resolves all mapped components", {
+  components <- names(ptr_ui_text_component_paths())
+  for (comp in components) {
+    result <- ptr_resolve_ui_text(comp)
+    expect_type(result, "list")
+    expect_true("label" %in% names(result))
+  }
+})
+
+test_that("ptr_resolve_ui_text errors on unknown component", {
+  expect_error(
+    ptr_resolve_ui_text("nonexistent_component"),
+    "Unknown copy component"
+  )
+})
+
+test_that("ptr_ui_text_component_paths keys are exhaustive", {
+  paths <- ptr_ui_text_component_paths()
+  expected <- c("title", "draw_button", "export_button",
+                "upload_file", "upload_name", "layer_checkbox")
+  expect_setequal(names(paths), expected)
+})
+
+# --- Improvements: alias, warn-on-unknown, generic label ---
+
+test_that("alias: size resolves to same copy as linewidth, both yield label 'Size'", {
+  size_copy <- ptr_resolve_ui_text(
+    "control",
+    keyword = "num",
+    param = "size"
+  )
+  linewidth_copy <- ptr_resolve_ui_text(
+    "control",
+    keyword = "num",
+    param = "linewidth"
+  )
+
+  expect_equal(size_copy$label, "Size")
+  expect_equal(linewidth_copy$label, "Size")
+  expect_identical(size_copy, linewidth_copy)
+})
+
+test_that("alias: size resolves to same var copy as linewidth", {
+  size_var <- ptr_resolve_ui_text(
+    "control",
+    keyword = "var",
+    param = "size"
+  )
+  linewidth_var <- ptr_resolve_ui_text(
+    "control",
+    keyword = "var",
+    param = "linewidth"
+  )
+
+  expect_equal(size_var$label, "Choose the size column")
+  expect_identical(size_var, linewidth_var)
+})
+
+test_that("linewidth$num label is the generic 'Size'", {
+  defaults <- ptr_default_ui_text()
+  expect_equal(defaults$params$linewidth$num$label, "Size")
+})
+
+test_that("warn-on-unknown fires when misspelled param key supplied with known_param_keys", {
+  expect_warning(
+    ptr_merge_ui_text(
+      ui_text = list(params = list(colur = list(var = list(label = "X")))),
+      known_param_keys = c("color", "x", "y")
+    ),
+    regexp = "colur"
+  )
+})
+
+test_that("warn-on-unknown does NOT fire when known_param_keys = NULL (back-compat)", {
+  expect_no_warning(
+    ptr_merge_ui_text(
+      ui_text = list(params = list(colur = list(var = list(label = "X"))))
+    )
+  )
+})
+
+test_that("warn-on-unknown does NOT fire when known_param_keys is empty but no params supplied", {
+  expect_no_warning(
+    ptr_merge_ui_text(
+      ui_text = list(shell = list(title = list(label = "My App"))),
+      known_param_keys = c("color", "x", "y")
+    )
+  )
+})
+
+test_that("alias normalization: user-supplied 'size' key does NOT warn when known_param_keys = c('linewidth')", {
+  # size normalizes to linewidth before the unknown-key check, so no warning
+  expect_no_warning(
+    ptr_merge_ui_text(
+      ui_text = list(params = list(size = list(num = list(label = "My size")))),
+      known_param_keys = c("linewidth", "x", "y")
+    )
+  )
 })

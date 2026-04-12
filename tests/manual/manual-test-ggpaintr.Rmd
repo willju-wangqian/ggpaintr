@@ -9,22 +9,23 @@ This workbook is the canonical interactive manual test guide for the current `gg
 
 It aligns with:
 
--   `working_scripts/notes/testing-strategy.md`
+-   `.claude/specs/testing-strategy.md`
 -   `tests/manual/manual-checklist-ggpaintr.md`
 -   `tests/manual/ggpaintr-edge-cases.Rmd`
 
 Current automated coverage for runtime feedback and the copy-rule system already includes:
 
--   malformed `expr` handling in `paintr_complete_expr_safe()`
--   invalid upload handling in `paintr_complete_expr_safe()`
--   plot-stage missing-object handling in `paintr_get_plot_safe()`
--   successful runtime assembly in `paintr_build_runtime()`
--   exported app wiring for `paintr_build_runtime()` and `outputError`
+-   malformed `expr` handling in `ptr_complete_expr_safe()`
+-   invalid upload handling in `ptr_complete_expr_safe()`
+-   plot-stage missing-object handling in `ptr_assemble_plot_safe()`
+-   successful runtime assembly in `ptr_exec()`
+-   exported app wiring for `ptr_exec()` and `outputError`
 -   copy-rule validation, fallback resolution, and alias handling
 -   default and overridden copy for app-shell controls and exported apps
 -   custom Shiny integration helpers with custom top-level ids
 -   custom placeholder registry parsing, runtime replacement, and export wiring
--   low-level runtime input discovery through `ggpaintr_runtime_input_spec()`
+-   sourced exported-app smoke tests for static-data and upload-backed formulas
+-   low-level runtime input discovery through `ptr_runtime_input_spec()`
 
 See:
 
@@ -43,10 +44,10 @@ Use the sections below as the canonical manual sweep for:
 -   core app flow, plot updates, generated code, and layer toggles
 -   built-in placeholders: `var`, `text`, `num`, `expr`, and `upload`
 -   runtime error feedback, recovery, and plot-stage failure behavior
--   default copy rules and targeted `copy_rules` overrides
+-   default copy rules and targeted `ui_text` overrides
 -   exported app behavior for default and customized apps
--   embedded `ggpaintr_server_state()` / bind-helper integrations
--   custom plot rendering with `ggpaintr_plot_value()`
+-   embedded `ptr_server_state()` / bind-helper integrations
+-   custom plot rendering with `ptr_extract_plot()`
 -   custom placeholder registration and exported custom-placeholder apps
 -   companion edge-case follow-up in `tests/manual/ggpaintr-edge-cases.Rmd`
 
@@ -56,7 +57,7 @@ Use this file from an interactive RStudio session.
 
 1.  Run the setup chunk first.
 2.  Review the printed fixture paths.
-3.  Run one app chunk at a time to launch `ggpaintr_app()`.
+3.  Run one app chunk at a time to launch `ptr_app()`.
 4.  Close the current app before launching the next one.
 5.  Use the expected-check lists below to record pass/fail behavior.
 
@@ -83,37 +84,13 @@ Assumptions:
 ```{r setup, message=FALSE, warning=FALSE}
 library(ggpaintr)
 library(shiny)
-library(tidyverse)
 library(shinyWidgets)
-library(palmerpenguins)
 library(rlang)
 library(assertthat)
-library(lobstr)
-library(here)
 
-world_map <- map_data("world")
-
-# Some EU Contries
-some.eu.countries <- c(
-  "Portugal", "Spain", "France", "Switzerland", "Germany",
-  "Austria", "Belgium", "UK", "Netherlands",
-  "Denmark", "Poland", "Italy",
-  "Croatia", "Slovenia", "Hungary", "Slovakia",
-  "Czech republic"
-)
-# Retrievethe map data
-some.eu.maps <- map_data("world", region = some.eu.countries)
-
-# Compute the centroid as the mean longitude and lattitude
-# Used as label coordinate for country's names
-region.lab.data <- some.eu.maps %>%
-  group_by(region) %>%
-  summarise(long = mean(long), lat = mean(lat))
-
-
-csv_fixture <- here("tests", "testthat", "fixtures", "simple_numeric.csv")
-rds_fixture <- here("tests", "testthat", "fixtures", "simple_numeric.rds")
-bad_fixture <- here("tests", "testthat", "fixtures", "bad_extension.txt")
+csv_fixture <- file.path("tests", "testthat", "fixtures", "simple_numeric.csv")
+rds_fixture <- file.path("tests", "testthat", "fixtures", "simple_numeric.rds")
+bad_fixture <- file.path("tests", "testthat", "fixtures", "bad_extension.txt")
 
 sales_manual <- data.frame(
   day = as.Date("2024-01-01") + 0:5,
@@ -123,16 +100,16 @@ sales_manual <- data.frame(
 
 spaced_manual <- data.frame(left = 1:4, right = c(2, 4, 6, 8), check.names = FALSE)
 names(spaced_manual) <- c("first column", "second column")
-spaced_manual_clean <- ggpaintr_normalize_column_names(spaced_manual)
+spaced_manual_clean <- ptr_normalize_column_names(spaced_manual)
 
-date_placeholder <- ggpaintr_placeholder(
+date_placeholder <- ptr_define_placeholder(
   keyword = "date",
   build_ui = function(id, copy, meta, context) {
     shiny::dateInput(id, copy$label)
   },
   resolve_expr = function(value, meta, context) {
     if (is.null(value) || identical(as.character(value), "")) {
-      return(ggpaintr_missing_expr())
+      return(ptr_missing_expr())
     }
 
     rlang::expr(as.Date(!!as.character(value)))
@@ -140,11 +117,11 @@ date_placeholder <- ggpaintr_placeholder(
   copy_defaults = list(label = "Choose a date for {param}")
 )
 
-date_placeholders <- ggpaintr_effective_placeholders(
+date_placeholders <- ptr_merge_placeholders(
   list(date = date_placeholder)
 )
 
-date_copy_rules <- list(
+date_ui_text <- list(
   defaults = list(
     date = list(label = "Pick any date")
   ),
@@ -164,7 +141,7 @@ date_copy_rules <- list(
   )
 )
 
-manual_ids <- ggpaintr_ids(
+manual_ids <- ptr_build_ids(
   control_panel = "builder_controls",
   draw_button = "render_plot",
   export_button = "export_app",
@@ -200,8 +177,8 @@ checks.
 
 Low-level developer note:
 
--   If you are manually probing `paintr_build_runtime()`, discover its input ids
-    with `ggpaintr_runtime_input_spec()` instead of hand-authoring raw ids.
+-   If you are manually probing `ptr_exec()`, discover its input ids
+    with `ptr_runtime_input_spec()` instead of hand-authoring raw ids.
 -   Raw ids such as `ggplot+3+2` may still appear in printed output, but they
     are implementation details rather than the recommended documentation path.
 
@@ -210,7 +187,7 @@ Low-level developer note:
 This app is the main static-data interaction sweep. It exercises `var`, `text`, `num`, `expr`, `outputCode`, and layer checkbox behavior in one place.
 
 ```{r formula-1, eval=FALSE}
-ggpaintr_app("
+ptr_app("
 ggplot(data = iris, aes(x = var, y = var)) +
   geom_point(aes(color = var), size = num, alpha = num) +
   labs(title = text, x = text, y = text) +
@@ -249,7 +226,7 @@ editor. Derived mappings belong in the formula text around `var`, not in the
 picker input itself.
 
 ```{r formula-2, eval=FALSE}
-ggpaintr_app("
+ptr_app("
 ggplot(data = mtcars, aes(x = var, y = var)) +
   geom_point() +
   labs(title = text)
@@ -277,7 +254,7 @@ This app checks the supported derived-mapping workflow for `var`. The picker
 still supplies column names, while the formula carries the transformation.
 
 ```{r formula-2c, eval=FALSE}
-ggpaintr_app("
+ptr_app("
 ggplot(data = mtcars, aes(x = var + 1, y = log(var))) +
   geom_point() +
   labs(title = text)
@@ -305,7 +282,7 @@ names. Normalize the data first, then let the shipped `var` picker expose the
 cleaned names.
 
 ```{r formula-2b, eval=FALSE}
-ggpaintr_app("
+ptr_app("
 ggplot(data = spaced_manual_clean, aes(x = var, y = var)) +
   geom_point() +
   labs(title = text)
@@ -326,43 +303,49 @@ Expected checks:
 
 ## Formula 3: Global Upload
 
-This app checks upload-backed global data, delayed `var` controls, default/custom dataset names, and unsupported file handling.
+This app checks upload-backed global data, delayed `var` controls, default/custom
+dataset names, and unsupported file handling. It also covers the upload error
+path previously tested separately in Formula 6.
 
 ```{r formula-3, eval=FALSE}
-ggpaintr_app("
+ptr_app("
 ggplot(data = upload, aes(x = var, y = var)) +
-  geom_point(size = num) +
-  labs(title = 'good')
+  geom_point(aes(color = var), size = num) +
+  labs(title = text)
 ")
 ```
 
 Suggested manual sequence:
 
 -   Launch the app and confirm the `var` selectors are not available before an upload.
+-   Upload `bad_extension.txt` from `tests/testthat/fixtures/bad_extension.txt`.
+-   Confirm inline `Input error:` appears, `var` selectors stay disabled, plot stays empty, `outputCode` stays blank.
 -   Upload `simple_numeric.csv` from `tests/testthat/fixtures/simple_numeric.csv`.
--   Leave the dataset object name blank the first time.
--   Use `x = x`, `y = y`, `size = 2`, `title = uploaded scatter`.
+-   Leave the dataset object name blank.
+-   Use `x = x`, `y = y`, `color = group`, `size = 2`, `title = uploaded scatter`.
 -   Click `draw`.
 -   Repeat with `simple_numeric.rds` from `tests/testthat/fixtures/simple_numeric.rds`.
 -   Repeat again with custom dataset object name `manual_upload_data`.
--   Retry with `bad_extension.txt` from `tests/testthat/fixtures/bad_extension.txt`.
 
 Expected checks:
 
 -   `var` selectors appear only after a valid upload.
+-   The bad-extension upload shows a clear inline `Input error:` without crashing the session.
+-   Upload-backed `var` selectors do not become usable from the invalid file.
+-   When upload completion fails, the plot does not render and `outputCode` stays blank.
 -   With a blank dataset name, the generated code uses a filename-derived object name.
 -   With a custom dataset name, the generated code uses `manual_upload_data`.
 -   The app draws successfully for both `.csv` and `.rds`.
 -   Uploaded column choices stay normalized before they reach the `var` pickers.
--   The bad-extension upload shows a clear inline error without crashing the session.
--   When upload completion fails, the plot does not render.
 
 ## Formula 4: Layer-Specific Upload
 
-This app checks mixed static/upload layering and confirms that upload-backed `var` controls apply only to the upload-backed layer.
+This app checks mixed static/upload layering and confirms that upload-backed
+`var` controls apply only to the upload-backed layer. It also covers the upload
+error path for a layer-specific upload.
 
 ```{r formula-4, eval=FALSE}
-ggpaintr_app("
+ptr_app("
 ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
   geom_point(aes(color = var), size = 2) +
   geom_point(data = upload, aes(x = var, y = var, color = var), size = num) +
@@ -374,6 +357,8 @@ Suggested manual sequence:
 
 -   Launch the app and inspect the controls before upload.
 -   Confirm the static `iris` layer does not need upload-driven controls.
+-   Upload `bad_extension.txt` — confirm inline error, upload-layer vars stay disabled,
+    but static-layer `var` picker for `color` still works.
 -   Upload `simple_numeric.csv` or `simple_numeric.rds`.
 -   Set upload-layer `x = x`, `y = y`, `color = group`, `size = 3`.
 -   Set `title = mixed static/upload plot`.
@@ -384,15 +369,63 @@ Expected checks:
 
 -   Only the upload-backed layer depends on uploaded columns.
 -   The static `iris` layer remains intact before and after upload.
+-   Bad-extension upload shows inline error without affecting the static layer.
 -   The combined plot shows both static and uploaded layers when enabled.
 -   Disabling the upload-backed layer leaves a valid static plot.
+
+## Formula 4B: Combined Global and Layer-Specific Upload
+
+This app checks both upload code paths in a single formula: the base `ggplot()`
+uses global uploaded data, and a second `geom_point()` layer uses its own
+separate upload. This exercises two independent upload controls, two sets of
+deferred `var` pickers, and the interaction between them.
+
+```{r formula-4b, eval=FALSE}
+ptr_app("
+ggplot(data = upload, aes(x = var, y = var)) +
+  geom_point(size = num) +
+  geom_point(data = upload, aes(x = var, y = var), color = text, size = num) +
+  labs(title = text)
+")
+```
+
+Suggested manual sequence:
+
+-   Launch the app and confirm both upload controls are visible.
+-   Confirm all `var` selectors are disabled before any upload.
+-   Upload `bad_extension.txt` to the global (ggplot) upload — confirm inline error,
+    all global `var` selectors stay disabled.
+-   Upload `simple_numeric.csv` to the global upload.
+-   Confirm the global `var` pickers populate with `x`, `y`, `group`.
+-   Confirm the layer-specific `var` pickers are still disabled (no upload yet).
+-   Upload `simple_numeric.csv` to the layer-specific upload.
+-   Confirm the layer-specific `var` pickers now populate independently.
+-   Set global `x = x`, `y = y`, `size = 2`.
+-   Set layer `x = x`, `y = y`, `color = red`, `size = 3`.
+-   Set `title = dual upload test`.
+-   Click `draw`.
+-   Uncheck the layer-specific `geom_point` and draw again.
+-   Re-check it and draw again.
+
+Expected checks:
+
+-   Two independent upload controls render, one for global data and one for the
+    overlay layer.
+-   Each upload populates only its own `var` pickers.
+-   Bad-extension error on one upload does not affect the other.
+-   Both layers draw correctly when both uploads are valid.
+-   Disabling the overlay layer leaves a valid global-upload-only plot.
+-   Re-enabling the overlay layer restores the combined plot.
+-   `outputCode` reflects both dataset names when both layers are active.
+-   Each upload's filename-derived dataset name appears independently in the
+    generated code.
 
 ## Formula 5: Export Smoke Test
 
 This app is the static export-oriented formula. Use it along with Formula 3 for the two export checks.
 
 ```{r formula-5, eval=FALSE}
-ggpaintr_app("
+ptr_app("
 ggplot(data = iris, aes(x = var, y = var)) +
   geom_point(size = num) +
   labs(title = text, subtitle = text) +
@@ -417,18 +450,18 @@ Expected checks:
 -   Export the generated app from this formula and run it.
 -   Export the generated app from Formula 3 and run it.
 -   Confirm the exported script shows explicit `ui <- ...`, `server <- function(...)`, and `shinyApp(ui, server)`.
--   Confirm the exported server assigns `paintr_state <- ggpaintr_server(...)`.
+-   Confirm the exported server assigns `ptr_state <- ptr_server(...)`.
 -   In the exported upload app, repeat one CSV upload flow and one RDS upload flow.
 -   Confirm the exported apps still render both the plot and the generated code.
 -   Confirm exported apps also show the same inline error message behavior on bad `expr` or bad upload input.
--   Add one small custom output or observer that reads `paintr_state$runtime()` and confirm the `draw` workflow still behaves normally.
+-   Add one small custom output or observer that reads `ptr_state$runtime()` and confirm the `draw` workflow still behaves normally.
 
 ## Formula 6: Error Feedback Checks
 
 Use these short apps to confirm the new draw-time error path for malformed expressions, invalid uploads, missing objects, and recovery after failure.
 
 ```{r formula-6a, eval=FALSE}
-ggpaintr_app("
+ptr_app("
 ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
   geom_point() +
   facet_wrap(expr)
@@ -452,28 +485,11 @@ Expected checks:
 -   The plot pane does not show raw Shiny `Error: [object Object]`.
 -   `outputCode` remains visible for the `~ Speciesasdf` case because completion succeeded before render-time failure.
 
-```{r formula-6-upload-error, eval=FALSE}
-ggpaintr_app("
-ggplot(data = upload, aes(x = var, y = var)) +
-  geom_point()
-")
-```
-
-Suggested manual sequence:
-
--   Launch the app.
--   Upload `bad_extension.txt`.
--   Click `draw`.
-
-Expected checks:
-
--   The app shows an inline `Input error:` message.
--   Upload-backed `var` selectors do not become usable from the invalid file.
--   The plot stays empty.
--   `outputCode` stays blank.
+Upload error checks are now covered by the bad-extension steps in Formula 3
+and Formula 4.
 
 ```{r formula-6b, eval=FALSE}
-ggpaintr_app("
+ptr_app("
 ggplot(data = unknown_object, aes(x = mpg, y = disp)) +
   geom_point()
 ")
@@ -492,7 +508,7 @@ Expected checks:
 -   The generated code remains visible even though plot construction failed.
 
 ```{r formula-6c-recovery, eval=FALSE}
-ggpaintr_app("
+ptr_app("
 ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
   geom_point() +
   facet_wrap(expr)
@@ -545,8 +561,8 @@ Use Formula 6A or the upload-error app above, then export the generated app and 
 Suggested manual sequence:
 
 -   Export the app after opening it in the workbook.
--   Inspect the exported script and confirm it defines `copy_rules <- NULL`.
--   Confirm the exported script resolves shell labels with `paintr_resolve_copy(..., copy_rules = copy_rules)`.
+-   Inspect the exported script and confirm it defines `ui_text <- NULL`.
+-   Confirm the exported script resolves shell labels with `ptr_resolve_ui_text(..., ui_text = ui_text)`.
 -   Run the exported app.
 -   Trigger one malformed `expr` error or one invalid upload error.
 -   Correct the input and redraw.
@@ -554,7 +570,7 @@ Suggested manual sequence:
 Expected checks:
 
 -   The exported app shows the same inline error message pattern as the in-repo app.
--   The default exported script exposes `copy_rules <- NULL` instead of embedding the full default copy registry.
+-   The default exported script exposes `ui_text <- NULL` instead of embedding the full default copy registry.
 -   The plot clears on failure and renders again after recovery.
 -   `outputCode` stays blank for completion-stage errors and updates normally after recovery.
 
@@ -563,7 +579,7 @@ Expected checks:
 This app checks the shipped default copy from the internal registry. It covers shell text, upload prompts, friendly unnamed `expr` copy, and plain-language hints.
 
 ```{r formula-7-default-copy, eval=FALSE}
-ggpaintr_app("
+ptr_app("
 ggplot(data = upload, aes(x = var, y = var)) +
   geom_point(size = num, alpha = num) +
   labs(title = text) +
@@ -595,10 +611,10 @@ Expected checks:
 
 ## Formula 8: Custom Copy Rules
 
-This app checks runtime copy overrides passed through `copy_rules`.
+This app checks runtime copy overrides passed through `ui_text`.
 
 ```{r formula-8-custom-copy, eval=FALSE}
-custom_copy_rules <- list(
+custom_ui_text <- list(
   shell = list(
     title = list(label = "Exploratory Plot Builder"),
     draw_button = list(label = "Render plot")
@@ -620,14 +636,14 @@ custom_copy_rules <- list(
   )
 )
 
-ggpaintr_app(
+ptr_app(
   "
 ggplot(data = iris, aes(x = var, y = var)) +
   geom_point() +
   labs(title = text) +
   facet_wrap(expr)
 ",
-  copy_rules = custom_copy_rules
+  ui_text = custom_ui_text
 )
 ```
 
@@ -644,7 +660,7 @@ Suggested manual sequence:
 
 Expected checks:
 
--   The targeted prompts use the custom wording from `copy_rules`.
+-   The targeted prompts use the custom wording from `ui_text`.
 -   Untargeted controls continue to use the package defaults.
 -   Plot rendering and generated code behavior remain unchanged apart from the visible UI text.
 
@@ -653,7 +669,7 @@ Expected checks:
 This export check confirms that a generated app carries only compact custom overrides into the exported script and preserves the same custom wording at runtime.
 
 ```{r formula-9-exported-custom-copy, eval=FALSE}
-custom_copy_rules <- list(
+custom_ui_text <- list(
   shell = list(
     title = list(label = "Exploratory Plot Builder"),
     draw_button = list(label = "Render plot")
@@ -682,15 +698,14 @@ ggplot(data = iris, aes(x = var, y = var)) +
   facet_wrap(expr)
 "
 
-custom_obj <- paintr_formula(custom_formula)
+custom_obj <- ptr_parse_formula(custom_formula)
 custom_out_file <- tempfile(fileext = ".R")
 
-generate_shiny(
+ptr_generate_shiny(
   custom_obj,
-  list(),
   custom_out_file,
   style = FALSE,
-  copy_rules = custom_copy_rules
+  ui_text = custom_ui_text
 )
 
 custom_out_file
@@ -700,10 +715,10 @@ source(custom_out_file)
 Suggested manual sequence:
 
 -   Run the chunk and note the generated file path.
--   Inspect the exported script and confirm it defines `custom_copy_rules <- ...`.
--   Confirm the exported script rebuilds `copy_rules` with `paintr_effective_copy_rules(custom_copy_rules)`.
--   Confirm the default export case would instead define `copy_rules <- NULL`.
--   Confirm the exported server calls `ggpaintr_server(..., copy_rules = copy_rules)`.
+-   Inspect the exported script and confirm it defines `custom_ui_text <- ...`.
+-   Confirm the exported script rebuilds `ui_text` with `ptr_merge_ui_text(custom_ui_text)`.
+-   Confirm the default export case would instead define `ui_text <- NULL`.
+-   Confirm the exported server calls `ptr_server(..., ui_text = ui_text)`.
 -   Run the exported app and confirm the title is `Exploratory Plot Builder`.
 -   Confirm the draw button reads `Render plot`.
 -   Confirm the overridden `x`, `y`, `title`, and faceting prompts match Formula 8.
@@ -713,32 +728,32 @@ Suggested manual sequence:
 Expected checks:
 
 -   The exported app preserves the same custom wording as the live app.
--   The exported script carries a compact local `custom_copy_rules` object and rebuilds `copy_rules` from it before calling the package runtime.
--   The custom export keeps `custom_copy_rules <- ...`, while the default export keeps `copy_rules <- NULL`.
+-   The exported script carries a compact local `custom_ui_text` object and rebuilds `ui_text` from it before calling the package runtime.
+-   The custom export keeps `custom_ui_text <- ...`, while the default export keeps `ui_text <- NULL`.
 -   Plot rendering and generated code continue to work normally in the exported app.
 
 ## Formula 10: Embedded App with Custom Ids and Bind Helpers
 
-This app checks the supported phase-1 integration surface: `ggpaintr_ids()`,
-`ggpaintr_server_state()`, and the `ggpaintr_bind_*()` helpers.
+This app checks the supported phase-1 integration surface: `ptr_build_ids()`,
+`ptr_server_state()`, and the `ptr_register_*()` helpers.
 
 ```{r formula-10-custom-ids, eval=FALSE}
 ui <- fluidPage(
   titlePanel("Embedded ggpaintr manual test"),
   sidebarLayout(
     sidebarPanel(
-      ggpaintr_controls_ui(ids = manual_ids),
+      ptr_input_ui(ids = manual_ids),
       tags$hr(),
       textOutput("runtimeStatus")
     ),
     mainPanel(
-      ggpaintr_outputs_ui(ids = manual_ids)
+      ptr_output_ui(ids = manual_ids)
     )
   )
 )
 
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server_state(
+  ptr_state <- ptr_server_state(
     "
 ggplot(data = iris, aes(x = var, y = var)) +
   geom_point(aes(color = var), size = num) +
@@ -747,15 +762,15 @@ ggplot(data = iris, aes(x = var, y = var)) +
     ids = manual_ids
   )
 
-  ggpaintr_bind_control_panel(input, output, paintr_state, ids = manual_ids)
-  ggpaintr_bind_draw(input, paintr_state, ids = manual_ids)
-  ggpaintr_bind_export(output, paintr_state, ids = manual_ids)
-  ggpaintr_bind_plot(output, paintr_state, ids = manual_ids)
-  ggpaintr_bind_error(output, paintr_state, ids = manual_ids)
-  ggpaintr_bind_code(output, paintr_state, ids = manual_ids)
+  ptr_setup_controls(input, output, ptr_state, ids = manual_ids)
+  ptr_register_draw(input, ptr_state, ids = manual_ids)
+  ptr_register_export(output, ptr_state, ids = manual_ids)
+  ptr_register_plot(output, ptr_state, ids = manual_ids)
+  ptr_register_error(output, ptr_state, ids = manual_ids)
+  ptr_register_code(output, ptr_state, ids = manual_ids)
 
   output$runtimeStatus <- renderText({
-    runtime_result <- paintr_state$runtime()
+    runtime_result <- ptr_state$runtime()
     if (is.null(runtime_result)) {
       return("Waiting for draw")
     }
@@ -782,10 +797,10 @@ Suggested manual sequence:
 Expected checks:
 
 -   The embedded app behaves the same as the default wrapper even with custom ids.
--   The extra `runtimeStatus` output can read `paintr_state$runtime()` without breaking the draw flow.
+-   The extra `runtimeStatus` output can read `ptr_state$runtime()` without breaking the draw flow.
 -   Plot, inline error area, generated code, and export button all still work through the bind helpers.
 
-## Formula 11: Custom Plot Rendering with `ggpaintr_plot_value()`
+## Formula 11: Custom Plot Rendering with `ptr_extract_plot()`
 
 This app checks the pure-value customization seam. It replaces the default plot
 binder with a custom `renderPlot()` that adds a theme.
@@ -795,7 +810,7 @@ ui <- fluidPage(
   titlePanel("Custom plot rendering"),
   sidebarLayout(
     sidebarPanel(
-      ggpaintr_controls_ui()
+      ptr_input_ui()
     ),
     mainPanel(
       plotOutput("outputPlot"),
@@ -806,7 +821,7 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server_state(
+  ptr_state <- ptr_server_state(
     "
 ggplot(data = iris, aes(x = var, y = var)) +
   geom_point() +
@@ -814,14 +829,14 @@ ggplot(data = iris, aes(x = var, y = var)) +
 "
   )
 
-  ggpaintr_bind_control_panel(input, output, paintr_state)
-  ggpaintr_bind_draw(input, paintr_state)
-  ggpaintr_bind_export(output, paintr_state)
-  ggpaintr_bind_error(output, paintr_state)
-  ggpaintr_bind_code(output, paintr_state)
+  ptr_setup_controls(input, output, ptr_state)
+  ptr_register_draw(input, ptr_state)
+  ptr_register_export(output, ptr_state)
+  ptr_register_error(output, ptr_state)
+  ptr_register_code(output, ptr_state)
 
   output$outputPlot <- renderPlot({
-    plot_obj <- ggpaintr_plot_value(paintr_state$runtime())
+    plot_obj <- ptr_extract_plot(ptr_state$runtime())
 
     if (is.null(plot_obj)) {
       plot.new()
@@ -845,7 +860,7 @@ Suggested manual sequence:
 Expected checks:
 
 -   The rendered plot reflects the custom theme rather than the default ggplot appearance.
--   `ggpaintr_plot_value()` returns a plot only after a successful draw.
+-   `ptr_extract_plot()` returns a plot only after a successful draw.
 -   The blank-on-failure behavior still works because the custom `renderPlot()` handles `NULL`.
 -   The default error and code binders continue to work alongside the custom plot renderer.
 
@@ -855,7 +870,7 @@ This app checks the new placeholder registry path end to end with a custom
 `date` placeholder.
 
 ```{r formula-12-date-placeholder, eval=FALSE}
-ggpaintr_app(
+ptr_app(
   "
 ggplot(data = sales_manual, aes(x = day, y = value)) +
   geom_line() +
@@ -897,18 +912,17 @@ ggplot(data = sales_manual, aes(x = day, y = value)) +
   labs(title = text)
 "
 
-date_obj <- paintr_formula(
+date_obj <- ptr_parse_formula(
   date_formula,
   placeholders = date_placeholders
 )
 date_out_file <- tempfile(fileext = ".R")
 
-generate_shiny(
+ptr_generate_shiny(
   date_obj,
-  list(),
   date_out_file,
   style = FALSE,
-  copy_rules = date_copy_rules,
+  ui_text = date_ui_text,
   placeholders = date_placeholders
 )
 
@@ -921,9 +935,9 @@ Suggested manual sequence:
 -   Run the chunk and note the exported file path.
 -   Inspect the exported script.
 -   Confirm it defines `custom_placeholders <- ...`.
--   Confirm it rebuilds `placeholders <- ggpaintr_effective_placeholders(custom_placeholders)`.
--   Confirm it defines `custom_copy_rules <- ...` and rebuilds `copy_rules`.
--   Confirm the exported server calls `ggpaintr_server(..., copy_rules = copy_rules, placeholders = placeholders)`.
+-   Confirm it rebuilds `placeholders <- ptr_merge_placeholders(custom_placeholders)`.
+-   Confirm it defines `custom_ui_text <- ...` and rebuilds `ui_text`.
+-   Confirm the exported server calls `ptr_server(..., ui_text = ui_text, placeholders = placeholders)`.
 -   Run the exported app.
 -   Confirm the date control label reads `Reference date`.
 -   Confirm the date help text reads `Choose a cutoff date for the vertical guide.`
@@ -938,8 +952,10 @@ Expected checks:
 ## Formula 14: Non-Inline Placeholder Export Failure
 
 This check confirms the current exportability rule for custom placeholders.
-Standalone exported apps can only rebuild custom placeholders whose hooks are
-defined inline inside `ggpaintr_placeholder(...)`.
+Standalone exported apps require that each hook function is either defined
+inline inside `ptr_define_placeholder(...)` or made available through a source
+strategy (`source_function`, `source_file`, or `source_package`). Hooks that
+are bare named references with no source strategy are rejected at export time.
 
 ```{r formula-14-non-inline-export, eval=FALSE}
 build_date_ui_manual <- function(id, copy, meta, context) {
@@ -948,32 +964,31 @@ build_date_ui_manual <- function(id, copy, meta, context) {
 
 date_to_expr_manual <- function(value, meta, context) {
   if (is.null(value) || identical(as.character(value), "")) {
-    return(ggpaintr_missing_expr())
+    return(ptr_missing_expr())
   }
 
   rlang::expr(as.Date(!!as.character(value)))
 }
 
-non_inline_date_placeholder <- ggpaintr_placeholder(
+non_inline_date_placeholder <- ptr_define_placeholder(
   keyword = "date",
   build_ui = build_date_ui_manual,
   resolve_expr = date_to_expr_manual
 )
 
-non_inline_obj <- paintr_formula(
+non_inline_obj <- ptr_parse_formula(
   "
 ggplot(data = sales_manual, aes(x = day, y = value)) +
   geom_line() +
   geom_vline(xintercept = date)
 ",
-  placeholders = ggpaintr_effective_placeholders(
+  placeholders = ptr_merge_placeholders(
     list(date = non_inline_date_placeholder)
   )
 )
 
-generate_shiny(
+ptr_generate_shiny(
   non_inline_obj,
-  list(),
   tempfile(fileext = ".R"),
   style = FALSE,
   placeholders = non_inline_obj$placeholders
@@ -983,17 +998,20 @@ generate_shiny(
 Suggested manual sequence:
 
 -   Run the chunk.
--   Confirm `generate_shiny()` errors instead of writing a broken app.
+-   Confirm `ptr_generate_shiny()` errors instead of writing a broken app.
 -   Read the error message.
 
 Expected checks:
 
 -   The error explains that the custom placeholder must define `build_ui`
-    inline.
+    inline or supply `source_file`, `source_package`, or `source_function` so
+    exported apps stay standalone.
 -   The package refuses the export before writing a standalone app that would be
     missing helper definitions.
 -   This failure is limited to exportability; the same non-inline placeholder
     shape can still be useful for in-session experiments that are not exported.
+-   Adding a source strategy (e.g. `source_function = list(build_ui = build_date_ui_manual, resolve_expr = date_to_expr_manual)`)
+    to the `ptr_define_placeholder()` call would make the same placeholder exportable.
 
 ## Final Checklist
 
@@ -1007,8 +1025,12 @@ Expected checks:
 -   Unchecking every optional layer still leaves a valid base `ggplot(...)`
     render instead of a brittle runtime failure.
 -   Upload-backed `var` controls appear only after valid upload.
+-   Bad-extension uploads show inline errors without crashing the session or
+    affecting unrelated layers.
 -   Default upload naming works when the dataset name box is blank.
 -   Custom upload naming works when a dataset name is provided.
+-   Combined global + layer-specific upload formulas maintain independent upload
+    controls, independent `var` pickers, and independent error paths.
 -   Inline errors appear for malformed `expr`, bad upload types, and missing objects.
 -   The plot clears and does not stay stale after an error.
 -   Generated code remains visible when plot construction fails after completion succeeds.
@@ -1016,13 +1038,13 @@ Expected checks:
 -   Exported apps run and preserve the same behavior for static and upload formulas.
 -   Default copy-rule wording appears for shell text, upload prompts, numeric hints, and unnamed faceting prompts.
 -   No default control label shows parser-style fallback text such as `argument 1`.
--   Custom `copy_rules` override only the targeted prompts while untargeted controls stay on the defaults.
+-   Custom `ui_text` override only the targeted prompts while untargeted controls stay on the defaults.
 -   Exported custom-copy apps preserve the same wording as the live customized app while keeping only compact custom overrides in the script.
--   Embedded apps built from `ggpaintr_server_state()` and the bind helpers still support custom outputs or observers around `paintr_state`.
--   Custom `renderPlot()` workflows can use `ggpaintr_plot_value()` and keep the rest of the default runtime behavior intact.
+-   Embedded apps built from `ptr_server_state()` and the bind helpers still support custom outputs or observers around `ptr_state`.
+-   Custom `renderPlot()` workflows can use `ptr_extract_plot()` and keep the rest of the default runtime behavior intact.
 -   Custom placeholder controls render correctly, participate in code generation, and work alongside built-in placeholders.
 -   Exported custom-placeholder apps rebuild `custom_placeholders` and preserve their custom copy text.
--   Export attempts for non-inline custom placeholders fail clearly instead of
-    writing a broken standalone app.
+-   Export attempts for non-inline custom placeholders without a source strategy
+    fail clearly instead of writing a broken standalone app.
 -   Remaining internal-only or philosophy-boundary edge cases are reviewed in
     `tests/manual/ggpaintr-edge-cases.Rmd`.

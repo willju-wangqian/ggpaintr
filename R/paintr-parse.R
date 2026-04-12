@@ -1,32 +1,66 @@
 #' Parse a Paintr Formula
 #'
-#' Parse a single ggplot-like formula string into a `paintr_obj` containing
+#' Parse a single ggplot-like formula string into a `ptr_obj` containing
 #' expression metadata, placeholder locations, and generated UI definitions.
 #'
 #' Supported placeholders come from the effective placeholder registry. The
 #' built-in registry includes `var`, `text`, `num`, `expr`, and `upload`.
 #'
+#' @note The \code{formula} argument is validated by default using the denylist.
+#'   Set \code{formula_check = FALSE} only for trusted developer input that you
+#'   know is safe — this is an advanced option for package authors who
+#'   programmatically generate formula strings.  This check is independent of
+#'   the per-placeholder \code{expr_check} applied at runtime; disabling one
+#'   does not disable the other.
 #' @param formula A single formula string describing a ggplot-like expression.
 #' @param placeholders Optional custom placeholder definitions or an existing
 #'   placeholder registry.
+#' @param formula_check Logical or list controlling safety validation of the
+#'   formula text itself. \code{TRUE} (default) applies the default denylist.
+#'   \code{FALSE} skips validation, treating the formula as trusted developer
+#'   input. A list with \code{deny_list} / \code{allow_list} customises the
+#'   check. See \code{validate_expr_safety} details.
 #'
-#' @return An object of class `paintr_obj`.
+#' @return An object of class `ptr_obj`.
 #' @examples
-#' obj <- paintr_formula(
+#' obj <- ptr_parse_formula(
 #'   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
 #' )
 #' names(obj$expr_list)
 #' @export
-paintr_formula <- function(formula, placeholders = NULL) {
-  placeholder_registry <- ggpaintr_effective_placeholders(placeholders)
-  paintr_expr <- rlang::parse_expr(formula)
-  paintr_expr_list <- unlist(break_sum(paintr_expr))
-  paintr_expr_names <- vapply(paintr_expr_list, get_fun_names, character(1))
-  paintr_expr_names <- handle_duplicate_names(paintr_expr_names)
-  paintr_expr_list <- rlang::set_names(paintr_expr_list, paintr_expr_names)
+ptr_parse_formula <- function(formula, placeholders = NULL, formula_check = TRUE) {
+  assertthat::assert_that(rlang::is_string(formula))
+  if (!nzchar(trimws(formula))) {
+    rlang::abort("ptr_parse_formula: formula must not be empty or whitespace-only.")
+  }
+  placeholder_registry <- ptr_merge_placeholders(placeholders)
+  ptr_exprs <- tryCatch(
+    rlang::parse_exprs(formula),
+    error = function(e) {
+      rlang::abort(
+        paste0("ptr_parse_formula: could not parse formula as R expression: ",
+               conditionMessage(e)),
+        parent = e
+      )
+    }
+  )
+  if (length(ptr_exprs) != 1L) {
+    rlang::abort(
+      paste0("ptr_parse_formula: formula must contain exactly one top-level ",
+             "expression, but ", length(ptr_exprs), " were found.")
+    )
+  }
+  ptr_expr <- ptr_exprs[[1]]
+  if (!identical(formula_check, FALSE)) {
+    validate_expr_safety(ptr_expr, formula_check)
+  }
+  ptr_expr_list <- unlist(break_sum(ptr_expr))
+  ptr_expr_names <- vapply(ptr_expr_list, get_fun_names, character(1))
+  ptr_expr_names <- handle_duplicate_names(ptr_expr_names)
+  ptr_expr_list <- rlang::set_names(ptr_expr_list, ptr_expr_names)
 
   index_path_list <- lapply(
-    paintr_expr_list,
+    ptr_expr_list,
     get_index_path,
     target = names(placeholder_registry)
   )
@@ -38,48 +72,48 @@ paintr_formula <- function(formula, placeholders = NULL) {
 
   keywords_list <- purrr::map2(
     index_path_list,
-    paintr_expr_list,
+    ptr_expr_list,
     function(.path, .expr) {
       lapply(.path, function(.x, .exprr) expr_pluck(.exprr, .x), .exprr = .expr)
     }
   )
 
-  paintr_expr_param_list <- purrr::map2(
-    paintr_expr_list,
+  ptr_expr_param_list <- purrr::map2(
+    ptr_expr_list,
     index_path_list,
     function(.expr, .path_list) {
       lapply(.path_list, function(.path) get_expr_param(.expr, .path))
     }
   )
 
-  placeholder_map <- paintr_build_placeholder_map(
+  placeholder_map <- ptr_build_placeholder_map(
     keywords_list = keywords_list,
     id_list = id_list,
-    param_list = paintr_expr_param_list,
+    param_list = ptr_expr_param_list,
     index_path_list = index_path_list,
     placeholders = placeholder_registry
   )
 
   result <- list(
     formula_text = formula,
-    param_list = paintr_expr_param_list,
+    param_list = ptr_expr_param_list,
     keywords_list = keywords_list,
     index_path_list = index_path_list,
     id_list = id_list,
-    expr_list = paintr_expr_list,
+    expr_list = ptr_expr_list,
     placeholder_map = placeholder_map,
     placeholders = placeholder_registry,
     custom_placeholders = placeholder_registry$custom_placeholders
   )
 
-  class(result) <- "paintr_obj"
-  result$ui_list <- paintr_build_ui_list(result)
+  class(result) <- "ptr_obj"
+  result$ui_list <- ptr_build_ui_list(result)
   result
 }
 
 #' Describe the Runtime Inputs for a Parsed Formula
 #'
-#' Return the input ids consumed by `paintr_build_runtime()` in a stable,
+#' Return the input ids consumed by `ptr_exec()` in a stable,
 #' documented data frame. This is the supported low-level discovery helper for
 #' tests, tooling, and advanced package authors who need to construct an input
 #' list programmatically without hard-coding internal ids in documentation or
@@ -96,18 +130,18 @@ paintr_formula <- function(formula, placeholders = NULL) {
 #' ids remain implementation details. Call this helper instead of relying on the
 #' exact encoding scheme directly.
 #'
-#' @param paintr_obj A `paintr_obj`.
+#' @param ptr_obj A `ptr_obj`.
 #'
 #' @return A base `data.frame` with columns `input_id`, `role`, `layer_name`,
 #'   `keyword`, `param_key`, and `source_id`.
 #' @examples
-#' obj <- paintr_formula(
+#' obj <- ptr_parse_formula(
 #'   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point() + labs(title = text)"
 #' )
-#' ggpaintr_runtime_input_spec(obj)
+#' ptr_runtime_input_spec(obj)
 #' @export
-ggpaintr_runtime_input_spec <- function(paintr_obj) {
-  assertthat::assert_that(inherits(paintr_obj, "paintr_obj"))
+ptr_runtime_input_spec <- function(ptr_obj) {
+  assertthat::assert_that(inherits(ptr_obj, "ptr_obj"))
 
   new_spec_row <- function(input_id,
                            role,
@@ -126,19 +160,21 @@ ggpaintr_runtime_input_spec <- function(paintr_obj) {
     )
   }
 
+  layer_names <- names(ptr_obj$expr_list)
   spec_rows <- list()
-  layer_names <- names(paintr_obj$expr_list)
+  idx <- 0L
 
   for (layer_name in layer_names) {
-    layer_meta <- paintr_obj$placeholder_map[[layer_name]]
+    layer_meta <- ptr_obj$placeholder_map[[layer_name]]
     if (length(layer_meta) == 0) {
       next
     }
 
     for (meta in unname(layer_meta)) {
-      param_key <- paintr_normalize_param_key(meta$param)
+      param_key <- ptr_normalize_param_key(meta$param)
 
-      spec_rows[[length(spec_rows) + 1L]] <- new_spec_row(
+      idx <- idx + 1L
+      spec_rows[[idx]] <- new_spec_row(
         input_id = meta$id,
         role = "placeholder",
         layer_name = meta$layer_name,
@@ -148,8 +184,9 @@ ggpaintr_runtime_input_spec <- function(paintr_obj) {
       )
 
       if (identical(meta$keyword, "upload")) {
-        spec_rows[[length(spec_rows) + 1L]] <- new_spec_row(
-          input_id = paintr_upload_name_id(meta$id),
+        idx <- idx + 1L
+        spec_rows[[idx]] <- new_spec_row(
+          input_id = ptr_upload_name_id(meta$id),
           role = "upload_name",
           layer_name = meta$layer_name,
           keyword = meta$keyword,
@@ -161,13 +198,15 @@ ggpaintr_runtime_input_spec <- function(paintr_obj) {
   }
 
   for (layer_name in setdiff(layer_names, "ggplot")) {
-    checkbox_id <- paintr_checkbox_input_id(layer_name)
-    spec_rows[[length(spec_rows) + 1L]] <- new_spec_row(
-      input_id = checkbox_id,
+    idx <- idx + 1L
+    spec_rows[[idx]] <- new_spec_row(
+      input_id = ptr_checkbox_input_id(layer_name),
       role = "layer_checkbox",
       layer_name = layer_name
     )
   }
+
+  spec_rows <- spec_rows[seq_len(idx)]
 
   if (length(spec_rows) == 0) {
     return(new_spec_row(
@@ -192,8 +231,8 @@ ggpaintr_runtime_input_spec <- function(paintr_obj) {
 #' @param placeholders An effective placeholder registry.
 #'
 #' @return A named list of placeholder metadata records by layer.
-#' @keywords internal
-paintr_build_placeholder_map <- function(keywords_list,
+#' @noRd
+ptr_build_placeholder_map <- function(keywords_list,
                                          id_list,
                                          param_list,
                                          index_path_list,

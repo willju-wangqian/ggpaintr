@@ -62,7 +62,7 @@ server <- function(input, output, session) {
   session$userData$paintr <- reactiveValues(obj = list(NULL))
 
   observeEvent(input$enter, {
-    session$userData$paintr$obj <- paintr_formula(input$formula)
+    session$userData$paintr$obj <- ptr_parse_formula(input$formula)
   })
 
   observe({
@@ -75,7 +75,7 @@ server <- function(input, output, session) {
   output$controlPanel <- renderUI({
     req(session$userData$paintr)
 
-    column(12, paintr_get_tab_ui(session$userData$paintr$obj))
+    column(12, ptr_get_tab_ui(session$userData$paintr$obj))
 
   })
 
@@ -85,8 +85,7 @@ server <- function(input, output, session) {
 
       req(session$userData$paintr$var_ui_list)
 
-      generate_shiny(session$userData$paintr$obj,
-                     session$userData$paintr$var_ui_list,
+      ptr_generate_shiny(session$userData$paintr$obj,
                      file,
                      style = TRUE)
 
@@ -97,11 +96,11 @@ server <- function(input, output, session) {
     req(session$userData$paintr$obj)
 
     complete_expr_code <-
-      paintr_complete_expr(session$userData$paintr$obj, input)
+      ptr_complete_expr(session$userData$paintr$obj, input)
 
     output$outputPlot <- renderPlot({
 
-      paintr_get_plot(
+      ptr_assemble_plot(
         complete_expr_code[['complete_expr_list']],
         envir = complete_expr_code[['eval_env']]
       )
@@ -118,4 +117,3 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui, server)
-

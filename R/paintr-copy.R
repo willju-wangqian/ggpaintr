@@ -1,3 +1,21 @@
+#' Map Public Component Names to Storage Paths
+#'
+#' Single source of truth for the mapping between public `ptr_resolve_ui_text()`
+#' component names and their nested storage paths in the rules structure.
+#'
+#' @return A named list of character vectors representing storage paths.
+#' @noRd
+ptr_ui_text_component_paths <- function() {
+  list(
+    title          = c("shell", "title"),
+    draw_button    = c("shell", "draw_button"),
+    export_button  = c("shell", "export_button"),
+    upload_file    = c("upload", "file"),
+    upload_name    = c("upload", "name"),
+    layer_checkbox = c("layer_checkbox")
+  )
+}
+
 #' Default Copy Rules for ggpaintr
 #'
 #' Internal registry for all user-facing control copy. Maintainers should update
@@ -8,12 +26,12 @@
 #'   placeholder registry.
 #'
 #' @return A named list of default copy rules.
-#' @keywords internal
-paintr_default_copy_rules <- function(placeholders = NULL) {
-  placeholder_registry <- ggpaintr_effective_placeholders(placeholders)
+#' @noRd
+ptr_default_ui_text <- function(placeholders = NULL) {
+  placeholder_registry <- ptr_merge_placeholders(placeholders)
   default_placeholder_copy <- lapply(
     placeholder_registry,
-    paintr_placeholder_copy_defaults
+    ptr_define_placeholder_copy_defaults
   )
 
   structure(
@@ -36,7 +54,6 @@ paintr_default_copy_rules <- function(placeholders = NULL) {
       ),
       layer_checkbox = list(label = "Include this layer in the plot"),
       defaults = default_placeholder_copy,
-      # Common parameter-specific defaults go here.
       params = list(
         x = list(
           var = list(label = "Choose the x-axis column"),
@@ -50,13 +67,6 @@ paintr_default_copy_rules <- function(placeholders = NULL) {
         fill = list(var = list(label = "Choose the fill column")),
         group = list(var = list(label = "Choose the grouping column")),
         shape = list(var = list(label = "Choose the shape column")),
-        size = list(
-          var = list(label = "Choose the size column"),
-          num = list(
-            label = "Point size",
-            help = "Enter a number such as 2 or 3."
-          )
-        ),
         alpha = list(
           var = list(label = "Choose the transparency column"),
           num = list(
@@ -82,12 +92,17 @@ paintr_default_copy_rules <- function(placeholders = NULL) {
         ),
         ncol = list(num = list(label = "Number of facet columns")),
         nrow = list(num = list(label = "Number of facet rows")),
-        linewidth = list(num = list(label = "Line width")),
+        linewidth = list(
+          var = list(label = "Choose the size column"),
+          num = list(
+            label = "Size",
+            help = "Enter a number such as 2 or 3."
+          )
+        ),
         stroke = list(num = list(label = "Stroke width")),
         bins = list(num = list(label = "Number of bins")),
         binwidth = list(num = list(label = "Bin width"))
       ),
-      # Layer-specific unnamed-expression rules go here.
       layers = list(
         facet_wrap = list(
           expr = list(
@@ -111,7 +126,7 @@ paintr_default_copy_rules <- function(placeholders = NULL) {
         )
       )
     ),
-    class = "paintr_copy_rules"
+    class = "ptr_ui_text"
   )
 }
 
@@ -121,16 +136,19 @@ paintr_default_copy_rules <- function(placeholders = NULL) {
 #' same copy entry.
 #'
 #' @return A named character vector mapping aliases to canonical keys.
-#' @keywords internal
-paintr_copy_param_aliases <- function() {
-  c(colour = "color")
+#' @noRd
+ptr_ui_text_param_aliases <- function() {
+  c(
+    colour = "color",
+    size = "linewidth"
+  )
 }
 
 #' Return Allowed Copy Leaf Fields
 #'
 #' @return A character vector.
-#' @keywords internal
-paintr_copy_leaf_fields <- function() {
+#' @noRd
+ptr_ui_text_leaf_fields <- function() {
   c("label", "help", "placeholder", "empty_text")
 }
 
@@ -140,18 +158,18 @@ paintr_copy_leaf_fields <- function() {
 #'   placeholder registry.
 #'
 #' @return A character vector.
-#' @keywords internal
-paintr_copy_keywords <- function(placeholders = NULL) {
-  names(ggpaintr_effective_placeholders(placeholders))
+#' @noRd
+ptr_ui_text_keywords <- function(placeholders = NULL) {
+  names(ptr_merge_placeholders(placeholders))
 }
 
 #' Detect Whether a Parameter Is Unnamed
 #'
-#' @param param A parameter value from `paintr_obj$param_list`.
+#' @param param A parameter value from `ptr_obj$param_list`.
 #'
 #' @return A single logical value.
-#' @keywords internal
-paintr_param_is_unnamed <- function(param) {
+#' @noRd
+ptr_param_is_unnamed <- function(param) {
   if (is.null(param) || length(param) == 0) {
     return(TRUE)
   }
@@ -169,14 +187,14 @@ paintr_param_is_unnamed <- function(param) {
 #' @param param A parameter name or `NULL`.
 #'
 #' @return A normalized parameter key.
-#' @keywords internal
-paintr_normalize_param_key <- function(param) {
-  if (paintr_param_is_unnamed(param)) {
+#' @noRd
+ptr_normalize_param_key <- function(param) {
+  if (ptr_param_is_unnamed(param)) {
     return("__unnamed__")
   }
 
   param <- as.character(param)[1]
-  alias_map <- paintr_copy_param_aliases()
+  alias_map <- ptr_ui_text_param_aliases()
   if (param %in% names(alias_map)) {
     alias_map[[param]]
   } else {
@@ -189,13 +207,13 @@ paintr_normalize_param_key <- function(param) {
 #' @param param A parameter name or `NULL`.
 #'
 #' @return A single readable label string.
-#' @keywords internal
-paintr_humanize_param <- function(param) {
-  if (paintr_param_is_unnamed(param)) {
+#' @noRd
+ptr_humanize_param <- function(param) {
+  if (ptr_param_is_unnamed(param)) {
     return("this setting")
   }
 
-  param <- paintr_normalize_param_key(param)
+  param <- ptr_normalize_param_key(param)
   param <- gsub("[._]+", " ", param)
   trimws(param)
 }
@@ -207,13 +225,13 @@ paintr_humanize_param <- function(param) {
 #' @param layer_name A layer name.
 #'
 #' @return A single string or `NULL`.
-#' @keywords internal
-paintr_interpolate_copy_text <- function(text, param = NULL, layer_name = NULL) {
+#' @noRd
+ptr_interpolate_ui_text <- function(text, param = NULL, layer_name = NULL) {
   if (is.null(text)) {
     return(NULL)
   }
 
-  text <- gsub("\\{param\\}", paintr_humanize_param(param), text)
+  text <- gsub("\\{param\\}", ptr_humanize_param(param), text)
   if (!is.null(layer_name)) {
     text <- gsub("\\{layer\\}", layer_name, text)
   }
@@ -227,27 +245,26 @@ paintr_interpolate_copy_text <- function(text, param = NULL, layer_name = NULL) 
 #' @param path A human-readable location string.
 #'
 #' @return Invisibly returns `TRUE`.
-#' @keywords internal
-paintr_validate_copy_leaf <- function(x, path) {
+#' @noRd
+ptr_validate_ui_text_leaf <- function(x, path) {
   if (!is.list(x) || is.null(names(x)) || length(x) == 0) {
-    stop(path, " must be a named list.", call. = FALSE)
+    rlang::abort(paste0(path, " must be a named list."))
   }
 
-  unknown_fields <- setdiff(names(x), paintr_copy_leaf_fields())
+  unknown_fields <- setdiff(names(x), ptr_ui_text_leaf_fields())
   if (length(unknown_fields) > 0) {
-    stop(
+    rlang::abort(paste0(
       path,
       " has unsupported fields: ",
       paste(sort(unknown_fields), collapse = ", "),
-      ".",
-      call. = FALSE
-    )
+      "."
+    ))
   }
 
   for (field_name in names(x)) {
     value <- x[[field_name]]
     if (!is.character(value) || length(value) != 1) {
-      stop(path, "$", field_name, " must be a single string.", call. = FALSE)
+      rlang::abort(paste0(path, "$", field_name, " must be a single string."))
     }
   }
 
@@ -256,19 +273,19 @@ paintr_validate_copy_leaf <- function(x, path) {
 
 #' Validate Copy Rules
 #'
-#' @param copy_rules User-supplied copy rules.
+#' @param ui_text User-supplied copy rules.
 #' @param placeholders Optional custom placeholder definitions or an effective
 #'   placeholder registry.
 #'
 #' @return Invisibly returns `TRUE`.
-#' @keywords internal
-paintr_validate_copy_rules <- function(copy_rules, placeholders = NULL) {
-  if (is.null(copy_rules)) {
+#' @noRd
+ptr_validate_ui_text <- function(ui_text, placeholders = NULL) {
+  if (is.null(ui_text)) {
     return(invisible(TRUE))
   }
 
-  if (!is.list(copy_rules)) {
-    stop("copy_rules must be a named list.", call. = FALSE)
+  if (!is.list(ui_text)) {
+    rlang::abort("ui_text must be a named list.")
   }
 
   allowed_top <- c(
@@ -279,145 +296,136 @@ paintr_validate_copy_rules <- function(copy_rules, placeholders = NULL) {
     "params",
     "layers"
   )
-  unknown_top <- setdiff(names(copy_rules), allowed_top)
+  unknown_top <- setdiff(names(ui_text), allowed_top)
   if (length(unknown_top) > 0) {
-    stop(
-      "copy_rules has unsupported top-level sections: ",
+    rlang::abort(paste0(
+      "ui_text has unsupported top-level sections: ",
       paste(sort(unknown_top), collapse = ", "),
-      ".",
-      call. = FALSE
-    )
+      "."
+    ))
   }
 
-  if (!is.null(copy_rules$shell)) {
+  if (!is.null(ui_text$shell)) {
     allowed_shell <- c("title", "draw_button", "export_button")
-    unknown_shell <- setdiff(names(copy_rules$shell), allowed_shell)
+    unknown_shell <- setdiff(names(ui_text$shell), allowed_shell)
     if (length(unknown_shell) > 0) {
-      stop(
-        "copy_rules$shell has unsupported entries: ",
+      rlang::abort(paste0(
+        "ui_text$shell has unsupported entries: ",
         paste(sort(unknown_shell), collapse = ", "),
-        ".",
-        call. = FALSE
-      )
+        "."
+      ))
     }
 
-    for (name in names(copy_rules$shell)) {
-      paintr_validate_copy_leaf(copy_rules$shell[[name]], paste0("copy_rules$shell$", name))
+    for (name in names(ui_text$shell)) {
+      ptr_validate_ui_text_leaf(ui_text$shell[[name]], paste0("ui_text$shell$", name))
     }
   }
 
-  if (!is.null(copy_rules$upload)) {
+  if (!is.null(ui_text$upload)) {
     allowed_upload <- c("file", "name")
-    unknown_upload <- setdiff(names(copy_rules$upload), allowed_upload)
+    unknown_upload <- setdiff(names(ui_text$upload), allowed_upload)
     if (length(unknown_upload) > 0) {
-      stop(
-        "copy_rules$upload has unsupported entries: ",
+      rlang::abort(paste0(
+        "ui_text$upload has unsupported entries: ",
         paste(sort(unknown_upload), collapse = ", "),
-        ".",
-        call. = FALSE
-      )
+        "."
+      ))
     }
 
-    for (name in names(copy_rules$upload)) {
-      paintr_validate_copy_leaf(copy_rules$upload[[name]], paste0("copy_rules$upload$", name))
+    for (name in names(ui_text$upload)) {
+      ptr_validate_ui_text_leaf(ui_text$upload[[name]], paste0("ui_text$upload$", name))
     }
   }
 
-  if (!is.null(copy_rules$layer_checkbox)) {
-    paintr_validate_copy_leaf(copy_rules$layer_checkbox, "copy_rules$layer_checkbox")
+  if (!is.null(ui_text$layer_checkbox)) {
+    ptr_validate_ui_text_leaf(ui_text$layer_checkbox, "ui_text$layer_checkbox")
   }
 
-  if (!is.null(copy_rules$defaults)) {
+  if (!is.null(ui_text$defaults)) {
     unknown_defaults <- setdiff(
-      names(copy_rules$defaults),
-      paintr_copy_keywords(placeholders)
+      names(ui_text$defaults),
+      ptr_ui_text_keywords(placeholders)
     )
     if (length(unknown_defaults) > 0) {
-      stop(
-        "copy_rules$defaults has unsupported entries: ",
+      rlang::abort(paste0(
+        "ui_text$defaults has unsupported entries: ",
         paste(sort(unknown_defaults), collapse = ", "),
-        ".",
-        call. = FALSE
-      )
+        "."
+      ))
     }
 
-    for (keyword in names(copy_rules$defaults)) {
-      paintr_validate_copy_leaf(
-        copy_rules$defaults[[keyword]],
-        paste0("copy_rules$defaults$", keyword)
+    for (keyword in names(ui_text$defaults)) {
+      ptr_validate_ui_text_leaf(
+        ui_text$defaults[[keyword]],
+        paste0("ui_text$defaults$", keyword)
       )
     }
   }
 
-  if (!is.null(copy_rules$params)) {
-    for (param_name in names(copy_rules$params)) {
-      param_rules <- copy_rules$params[[param_name]]
+  if (!is.null(ui_text$params)) {
+    for (param_name in names(ui_text$params)) {
+      param_rules <- ui_text$params[[param_name]]
       if (!is.list(param_rules)) {
-        stop(
-          "copy_rules$params$", param_name, " must be a named list.",
-          call. = FALSE
-        )
+        rlang::abort(paste0(
+          "ui_text$params$", param_name, " must be a named list."
+        ))
       }
 
       unknown_keywords <- setdiff(
         names(param_rules),
-        paintr_copy_keywords(placeholders)
+        ptr_ui_text_keywords(placeholders)
       )
       if (length(unknown_keywords) > 0) {
-        stop(
-          "copy_rules$params$", param_name, " has unsupported keywords: ",
+        rlang::abort(paste0(
+          "ui_text$params$", param_name, " has unsupported keywords: ",
           paste(sort(unknown_keywords), collapse = ", "),
-          ".",
-          call. = FALSE
-        )
+          "."
+        ))
       }
 
       for (keyword in names(param_rules)) {
-        paintr_validate_copy_leaf(
+        ptr_validate_ui_text_leaf(
           param_rules[[keyword]],
-          paste0("copy_rules$params$", param_name, "$", keyword)
+          paste0("ui_text$params$", param_name, "$", keyword)
         )
       }
     }
   }
 
-  if (!is.null(copy_rules$layers)) {
-    for (layer_name in names(copy_rules$layers)) {
-      layer_rules <- copy_rules$layers[[layer_name]]
+  if (!is.null(ui_text$layers)) {
+    for (layer_name in names(ui_text$layers)) {
+      layer_rules <- ui_text$layers[[layer_name]]
       if (!is.list(layer_rules)) {
-        stop(
-          "copy_rules$layers$", layer_name, " must be a named list.",
-          call. = FALSE
-        )
+        rlang::abort(paste0(
+          "ui_text$layers$", layer_name, " must be a named list."
+        ))
       }
 
       unknown_keywords <- setdiff(
         names(layer_rules),
-        paintr_copy_keywords(placeholders)
+        ptr_ui_text_keywords(placeholders)
       )
       if (length(unknown_keywords) > 0) {
-        stop(
-          "copy_rules$layers$", layer_name, " has unsupported keywords: ",
+        rlang::abort(paste0(
+          "ui_text$layers$", layer_name, " has unsupported keywords: ",
           paste(sort(unknown_keywords), collapse = ", "),
-          ".",
-          call. = FALSE
-        )
+          "."
+        ))
       }
 
       for (keyword in names(layer_rules)) {
         keyword_rules <- layer_rules[[keyword]]
         if (!is.list(keyword_rules)) {
-          stop(
-            "copy_rules$layers$", layer_name, "$", keyword,
-            " must be a named list.",
-            call. = FALSE
-          )
+          rlang::abort(paste0(
+            "ui_text$layers$", layer_name, "$", keyword,
+            " must be a named list."
+          ))
         }
 
         for (param_name in names(keyword_rules)) {
-          paintr_validate_copy_leaf(
+          ptr_validate_ui_text_leaf(
             keyword_rules[[param_name]],
-            paste0("copy_rules$layers$", layer_name, "$", keyword, "$", param_name)
+            paste0("ui_text$layers$", layer_name, "$", keyword, "$", param_name)
           )
         }
       }
@@ -429,33 +437,33 @@ paintr_validate_copy_rules <- function(copy_rules, placeholders = NULL) {
 
 #' Normalize User Copy Rule Keys
 #'
-#' @param copy_rules User-supplied copy rules.
+#' @param ui_text User-supplied copy rules.
 #'
 #' @return A normalized copy-rule list.
-#' @keywords internal
-paintr_normalize_copy_rules <- function(copy_rules) {
-  if (is.null(copy_rules)) {
+#' @noRd
+ptr_normalize_ui_text <- function(ui_text) {
+  if (is.null(ui_text)) {
     return(NULL)
   }
 
-  if (!is.null(copy_rules$params)) {
+  if (!is.null(ui_text$params)) {
     normalized_params <- list()
-    for (param_name in names(copy_rules$params)) {
-      normalized_key <- paintr_normalize_param_key(param_name)
+    for (param_name in names(ui_text$params)) {
+      normalized_key <- ptr_normalize_param_key(param_name)
       existing <- normalized_params[[normalized_key]]
       normalized_params[[normalized_key]] <- if (is.null(existing)) {
-        copy_rules$params[[param_name]]
+        ui_text$params[[param_name]]
       } else {
-        paintr_merge_copy_rules(existing, copy_rules$params[[param_name]])
+        ptr_deep_merge_ui_text(existing, ui_text$params[[param_name]])
       }
     }
-    copy_rules$params <- normalized_params
+    ui_text$params <- normalized_params
   }
 
-  if (!is.null(copy_rules$layers)) {
+  if (!is.null(ui_text$layers)) {
     normalized_layers <- list()
-    for (layer_name in names(copy_rules$layers)) {
-      layer_rules <- copy_rules$layers[[layer_name]]
+    for (layer_name in names(ui_text$layers)) {
+      layer_rules <- ui_text$layers[[layer_name]]
       normalized_layer <- list()
 
       for (keyword in names(layer_rules)) {
@@ -465,14 +473,14 @@ paintr_normalize_copy_rules <- function(copy_rules) {
           normalized_key <- if (identical(param_name, "__unnamed__")) {
             "__unnamed__"
           } else {
-            paintr_normalize_param_key(param_name)
+            ptr_normalize_param_key(param_name)
           }
 
           existing <- normalized_keyword[[normalized_key]]
           normalized_keyword[[normalized_key]] <- if (is.null(existing)) {
             keyword_rules[[param_name]]
           } else {
-            paintr_merge_copy_rules(existing, keyword_rules[[param_name]])
+            ptr_deep_merge_ui_text(existing, keyword_rules[[param_name]])
           }
         }
 
@@ -482,10 +490,10 @@ paintr_normalize_copy_rules <- function(copy_rules) {
       normalized_layers[[layer_name]] <- normalized_layer
     }
 
-    copy_rules$layers <- normalized_layers
+    ui_text$layers <- normalized_layers
   }
 
-  copy_rules
+  ui_text
 }
 
 #' Recursively Merge Copy Rules
@@ -494,8 +502,8 @@ paintr_normalize_copy_rules <- function(copy_rules) {
 #' @param overrides Override values.
 #'
 #' @return A merged list.
-#' @keywords internal
-paintr_merge_copy_rules <- function(base, overrides) {
+#' @noRd
+ptr_deep_merge_ui_text <- function(base, overrides) {
   if (is.null(base)) {
     return(overrides)
   }
@@ -511,7 +519,7 @@ paintr_merge_copy_rules <- function(base, overrides) {
   result <- base
   for (name in names(overrides)) {
     result[[name]] <- if (name %in% names(result)) {
-      paintr_merge_copy_rules(result[[name]], overrides[[name]])
+      ptr_deep_merge_ui_text(result[[name]], overrides[[name]])
     } else {
       overrides[[name]]
     }
@@ -520,30 +528,73 @@ paintr_merge_copy_rules <- function(base, overrides) {
   result
 }
 
+#' Extract Known Parameter Keys from a Parsed Formula Object
+#'
+#' Returns the set of parameter keys present in the formula, excluding NA and
+#' `__unnamed__`. Used to warn on misspelled `ui_text$params` overrides.
+#'
+#' @param ptr_obj A `ptr_obj` as returned by `ptr_parse_formula()`.
+#'
+#' @return A character vector of known param keys, or `NULL` if `ptr_obj` is
+#'   not a `ptr_obj`.
+#' @noRd
+ptr_known_param_keys_from_obj <- function(ptr_obj) {
+  if (!inherits(ptr_obj, "ptr_obj")) return(NULL)
+  spec <- ptr_runtime_input_spec(ptr_obj)
+  keys <- unique(spec$param_key[!is.na(spec$param_key)])
+  setdiff(keys, "__unnamed__")
+}
+
 #' Build Effective Copy Rules
 #'
-#' @param copy_rules Optional user-supplied rules.
+#' @param ui_text Optional user-supplied rules.
 #' @param placeholders Optional custom placeholder definitions or an effective
 #'   placeholder registry.
+#' @param known_param_keys Optional character vector of parameter keys present
+#'   in the formula. When supplied, any key in `ui_text$params` that is not in
+#'   this set triggers a `cli::cli_warn()` so the user can catch misspellings.
 #'
-#' @return A merged copy-rule list.
+#' @return A `ptr_ui_text` object containing the merged copy rules.
 #'
+#' @examples
+#' # Default rules
+#' rules <- ptr_merge_ui_text()
+#' rules$shell$title$label
+#'
+#' # Override the draw button label
+#' rules <- ptr_merge_ui_text(
+#'   ui_text = list(shell = list(draw_button = list(label = "Render")))
+#' )
+#' rules$shell$draw_button$label
 #' @export
-paintr_effective_copy_rules <- function(copy_rules = NULL, placeholders = NULL) {
-  if (inherits(copy_rules, "paintr_copy_rules")) {
-    return(copy_rules)
+ptr_merge_ui_text <- function(ui_text = NULL,
+                             placeholders = NULL,
+                             known_param_keys = NULL) {
+  if (inherits(ui_text, "ptr_ui_text")) {
+    return(ui_text)
   }
 
-  defaults <- paintr_default_copy_rules(placeholders = placeholders)
-  if (is.null(copy_rules)) {
+  defaults <- ptr_default_ui_text(placeholders = placeholders)
+  if (is.null(ui_text)) {
     return(defaults)
   }
 
-  paintr_validate_copy_rules(copy_rules, placeholders = placeholders)
-  copy_rules <- paintr_normalize_copy_rules(copy_rules)
+  ptr_validate_ui_text(ui_text, placeholders = placeholders)
+  ui_text <- ptr_normalize_ui_text(ui_text)
 
-  merged <- paintr_merge_copy_rules(unclass(defaults), copy_rules)
-  class(merged) <- "paintr_copy_rules"
+  if (!is.null(known_param_keys) && !is.null(ui_text$params)) {
+    unknown <- setdiff(names(ui_text$params), known_param_keys)
+    if (length(unknown) > 0) {
+      cli::cli_warn(c(
+        "Unknown {.code ui_text$params} key{?s}: {.val {unknown}}",
+        i = "These overrides will be silently ignored because they don't match any aesthetic in the formula.",
+        i = "Known keys: {.val {known_param_keys}}"
+      ))
+    }
+  }
+
+  merged <- ptr_deep_merge_ui_text(unclass(defaults), ui_text)
+  class(merged) <- "ptr_ui_text"
   merged
 }
 
@@ -553,8 +604,8 @@ paintr_effective_copy_rules <- function(copy_rules = NULL, placeholders = NULL) 
 #' @param defaults A default copy-rule branch.
 #'
 #' @return A compacted branch or `NULL`.
-#' @keywords internal
-paintr_compact_copy_rule_branch <- function(current, defaults = NULL) {
+#' @noRd
+ptr_compact_ui_text_branch <- function(current, defaults = NULL) {
   if (is.null(current)) {
     return(NULL)
   }
@@ -574,7 +625,7 @@ paintr_compact_copy_rule_branch <- function(current, defaults = NULL) {
       default_value <- defaults[[name]]
     }
 
-    compact_value <- paintr_compact_copy_rule_branch(current[[name]], default_value)
+    compact_value <- ptr_compact_ui_text_branch(current[[name]], default_value)
     if (!is.null(compact_value)) {
       result[[name]] <- compact_value
     }
@@ -589,22 +640,22 @@ paintr_compact_copy_rule_branch <- function(current, defaults = NULL) {
 
 #' Compact Effective Copy Rules to Custom Overrides
 #'
-#' @param copy_rules Optional user-supplied or effective copy rules.
+#' @param ui_text Optional user-supplied or effective copy rules.
 #' @param placeholders Optional custom placeholder definitions or an effective
 #'   placeholder registry.
 #'
 #' @return A named list of custom overrides or `NULL`.
-#' @keywords internal
-paintr_compact_copy_rules <- function(copy_rules = NULL, placeholders = NULL) {
-  effective_copy_rules <- paintr_effective_copy_rules(
-    copy_rules,
+#' @noRd
+ptr_compact_ui_text <- function(ui_text = NULL, placeholders = NULL) {
+  effective_ui_text <- ptr_merge_ui_text(
+    ui_text,
     placeholders = placeholders
   )
-  default_copy_rules <- paintr_default_copy_rules(placeholders = placeholders)
+  default_ui_text <- ptr_default_ui_text(placeholders = placeholders)
 
-  paintr_compact_copy_rule_branch(
-    unclass(effective_copy_rules),
-    unclass(default_copy_rules)
+  ptr_compact_ui_text_branch(
+    unclass(effective_ui_text),
+    unclass(default_ui_text)
   )
 }
 
@@ -615,56 +666,72 @@ paintr_compact_copy_rules <- function(copy_rules = NULL, placeholders = NULL) {
 #' @param keyword Optional placeholder keyword.
 #' @param layer_name Optional layer name.
 #' @param param Optional parameter name.
-#' @param copy_rules Effective or user-supplied copy rules.
+#' @param ui_text Effective or user-supplied copy rules.
 #' @param placeholders Optional custom placeholder definitions or an effective
 #'   placeholder registry.
 #'
 #' @return A named list with `label`, `help`, `placeholder`, and `empty_text`.
 #'
+#' @examples
+#' # Resolve copy for the title element
+#' ptr_resolve_ui_text("title")
+#'
+#' # Resolve copy for a var control on the x-axis
+#' ptr_resolve_ui_text("control", keyword = "var", param = "x")
 #' @export
-paintr_resolve_copy <- function(component,
+ptr_resolve_ui_text <- function(component,
                                 keyword = NULL,
                                 layer_name = NULL,
                                 param = NULL,
-                                copy_rules = NULL,
+                                ui_text = NULL,
                                 placeholders = NULL) {
-  rules <- paintr_effective_copy_rules(copy_rules, placeholders = placeholders)
+  rules <- ptr_merge_ui_text(ui_text, placeholders = placeholders)
 
-  resolved <- switch(
-    component,
-    title = rules$shell$title,
-    draw_button = rules$shell$draw_button,
-    export_button = rules$shell$export_button,
-    upload_file = rules$upload$file,
-    upload_name = rules$upload$name,
-    layer_checkbox = rules$layer_checkbox,
-    control = {
-      param_key <- paintr_normalize_param_key(param)
-      default_rule <- rules$defaults[[keyword]]
-      param_rule <- if (!identical(param_key, "__unnamed__") &&
-        !is.null(rules$params[[param_key]])) {
-        rules$params[[param_key]][[keyword]]
-      } else {
-        NULL
+  component_map <- ptr_ui_text_component_paths()
+
+  if (component %in% names(component_map)) {
+    path <- component_map[[component]]
+    resolved <- rules
+    for (key in path) {
+      if (!key %in% names(resolved) || is.null(resolved[[key]])) {
+        rlang::abort(paste0(
+          "ptr_resolve_ui_text: rules object is missing expected path '",
+          paste(path, collapse = "$"), "' at key '", key, "'."
+        ))
       }
-      layer_rule <- if (!is.null(layer_name) &&
-        !is.null(rules$layers[[layer_name]]) &&
-        !is.null(rules$layers[[layer_name]][[keyword]])) {
-        rules$layers[[layer_name]][[keyword]][[param_key]]
-      } else {
-        NULL
-      }
+      resolved <- resolved[[key]]
+    }
+  } else if (identical(component, "control")) {
+    param_key <- ptr_normalize_param_key(param)
+    default_rule <- rules$defaults[[keyword]]
+    param_rule <- if (!identical(param_key, "__unnamed__") &&
+      !is.null(rules$params[[param_key]])) {
+      rules$params[[param_key]][[keyword]]
+    } else {
+      NULL
+    }
+    # `__unnamed__` is intentionally allowed here (unlike param_rule above).
+    # Some layers (e.g. facet_wrap, facet_grid) register copy under the
+    # `__unnamed__` key for positional arguments.  The lookup returns NULL
+    # when no such sub-key exists, so there is no mis-fire for named params.
+    layer_rule <- if (!is.null(layer_name) &&
+      !is.null(rules$layers[[layer_name]]) &&
+      !is.null(rules$layers[[layer_name]][[keyword]])) {
+      rules$layers[[layer_name]][[keyword]][[param_key]]
+    } else {
+      NULL
+    }
 
-      paintr_merge_copy_rules(
-        paintr_merge_copy_rules(default_rule, param_rule),
-        layer_rule
-      )
-    },
-    stop("Unknown copy component: ", component, ".", call. = FALSE)
-  )
+    resolved <- ptr_deep_merge_ui_text(
+      ptr_deep_merge_ui_text(default_rule, param_rule),
+      layer_rule
+    )
+  } else {
+    rlang::abort(paste0("Unknown copy component: ", component, "."))
+  }
 
-  for (field_name in paintr_copy_leaf_fields()) {
-    resolved[[field_name]] <- paintr_interpolate_copy_text(
+  for (field_name in ptr_ui_text_leaf_fields()) {
+    resolved[[field_name]] <- ptr_interpolate_ui_text(
       resolved[[field_name]],
       param = param,
       layer_name = layer_name

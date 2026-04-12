@@ -1,0 +1,12 @@
+.git
+.Rproj.user
+.DS_Store
+archive
+docs
+preconsideration
+README.html
+dev/codex/runs
+*.tar.gz
+*.Rcheck
+vignettes/*.html
+vignettes/*.pdf

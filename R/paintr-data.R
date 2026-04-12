@@ -16,11 +16,11 @@
 #'   "if" = 4:6
 #' )
 #'
-#' clean <- ggpaintr_normalize_column_names(messy)
+#' clean <- ptr_normalize_column_names(messy)
 #' names(clean)
 #' @export
-ggpaintr_normalize_column_names <- function(data) {
-  paintr_normalize_tabular_data(data, source = "Data")
+ptr_normalize_column_names <- function(data) {
+  ptr_normalize_tabular_data(data, source = "Data")
 }
 
 #' Coerce an Object to Tabular Data for `ggpaintr`
@@ -29,10 +29,10 @@ ggpaintr_normalize_column_names <- function(data) {
 #' @param source A short label for error messages.
 #'
 #' @return A `data.frame`-like object with normalized column names.
-#' @keywords internal
-paintr_normalize_tabular_data <- function(data, source = "Data") {
+#' @noRd
+ptr_normalize_tabular_data <- function(data, source = "Data") {
   if (inherits(data, "data.frame")) {
-    names(data) <- paintr_normalize_column_name_vector(names(data), ncol(data))
+    names(data) <- ptr_normalize_column_name_vector(names(data), ncol(data))
     return(data)
   }
 
@@ -42,17 +42,16 @@ paintr_normalize_tabular_data <- function(data, source = "Data") {
   )
 
   if (is.null(data_frame)) {
-    stop(
+    rlang::abort(
       paste0(
         source,
         " is not usable as tabular data for ggpaintr. ",
         "Provide a data.frame or an object coercible with as.data.frame()."
-      ),
-      call. = FALSE
+      )
     )
   }
 
-  names(data_frame) <- paintr_normalize_column_name_vector(
+  names(data_frame) <- ptr_normalize_column_name_vector(
     names(data_frame),
     ncol(data_frame)
   )
@@ -65,8 +64,8 @@ paintr_normalize_tabular_data <- function(data, source = "Data") {
 #' @param n Expected column count.
 #'
 #' @return A normalized character vector with syntactic, unique names.
-#' @keywords internal
-paintr_normalize_column_name_vector <- function(x, n = length(x)) {
+#' @noRd
+ptr_normalize_column_name_vector <- function(x, n = length(x)) {
   if (is.null(x)) {
     x <- character()
   }
@@ -90,36 +89,40 @@ paintr_normalize_column_name_vector <- function(x, n = length(x)) {
   valid_starts <- grepl("(^[[:alpha:]])|(^\\.(?![0-9]))", x, perl = TRUE)
   x[!valid_starts] <- paste0("X", x[!valid_starts])
 
-  reserved <- paintr_reserved_words()
+  x <- make.unique(x, sep = "_")
+
+  reserved <- ptr_reserved_words()
   x[x %in% reserved] <- paste0(x[x %in% reserved], "_")
 
   make.unique(x, sep = "_")
 }
 
+.ptr_reserved_words <- c(
+  "if",
+  "else",
+  "repeat",
+  "while",
+  "function",
+  "for",
+  "in",
+  "next",
+  "break",
+  "TRUE",
+  "FALSE",
+  "NULL",
+  "Inf",
+  "NaN",
+  "NA",
+  "NA_integer_",
+  "NA_real_",
+  "NA_complex_",
+  "NA_character_"
+)
+
 #' Reserved Words That Should Not Be Used as Column Names
 #'
 #' @return A character vector of reserved words.
-#' @keywords internal
-paintr_reserved_words <- function() {
-  c(
-    "if",
-    "else",
-    "repeat",
-    "while",
-    "function",
-    "for",
-    "in",
-    "next",
-    "break",
-    "TRUE",
-    "FALSE",
-    "NULL",
-    "Inf",
-    "NaN",
-    "NA",
-    "NA_integer_",
-    "NA_real_",
-    "NA_complex_",
-    "NA_character_"
-  )
+#' @noRd
+ptr_reserved_words <- function() {
+  .ptr_reserved_words
 }

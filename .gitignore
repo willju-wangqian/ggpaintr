@@ -44,4 +44,11 @@ inst/doc
 preconsideration
 docs
 README.html
-working_scripts/codex/runs/
+dev/codex/runs/
+
+# Claude Code local config (personal, not shared)
+.claude/settings.local.json
+
+# EWH artifacts (ephemeral, per-workflow-run)
+.claude/artifacts/
+.ewh-artifacts/

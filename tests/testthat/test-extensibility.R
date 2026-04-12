@@ -2,10 +2,10 @@ ext_ui_text <- function(ui) {
   paste(as.character(ui), collapse = "\n")
 }
 
-test_that("ggpaintr_ids validates defaults and rejects invalid registries", {
-  ids <- ggpaintr_ids()
+test_that("ptr_build_ids validates defaults and rejects invalid registries", {
+  ids <- ptr_build_ids()
 
-  expect_s3_class(ids, "ggpaintr_ids")
+  expect_s3_class(ids, "ptr_build_ids")
   expect_identical(
     unclass(ids),
     list(
@@ -19,15 +19,15 @@ test_that("ggpaintr_ids validates defaults and rejects invalid registries", {
   )
 
   expect_error(
-    ggpaintr_ids(draw_button = ""),
+    ptr_build_ids(draw_button = ""),
     "single non-empty string"
   )
   expect_error(
-    ggpaintr_ids(draw_button = "shared", export_button = "shared"),
+    ptr_build_ids(draw_button = "shared", export_button = "shared"),
     "must be unique"
   )
   expect_error(
-    ggpaintr_server_state(
+    ptr_server_state(
       "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
       ids = list(draw_button = "draw")
     ),
@@ -36,7 +36,7 @@ test_that("ggpaintr_ids validates defaults and rejects invalid registries", {
 })
 
 test_that("optional UI helpers use resolved copy and custom ids", {
-  ids <- ggpaintr_ids(
+  ids <- ptr_build_ids(
     control_panel = "custom_controls",
     draw_button = "render_plot",
     export_button = "download_app",
@@ -44,16 +44,16 @@ test_that("optional UI helpers use resolved copy and custom ids", {
     error_output = "main_error",
     code_output = "main_code"
   )
-  controls_ui <- ggpaintr_controls_ui(
+  controls_ui <- ptr_input_ui(
     ids = ids,
-    copy_rules = list(
+    ui_text = list(
       shell = list(
         draw_button = list(label = "Render plot"),
         export_button = list(label = "Download generated app")
       )
     )
   )
-  outputs_ui <- ggpaintr_outputs_ui(ids = ids)
+  outputs_ui <- ptr_output_ui(ids = ids)
 
   expect_match(ext_ui_text(controls_ui), "custom_controls", fixed = TRUE)
   expect_match(ext_ui_text(controls_ui), "render_plot", fixed = TRUE)
@@ -66,11 +66,40 @@ test_that("optional UI helpers use resolved copy and custom ids", {
   expect_match(ext_ui_text(outputs_ui), "main_code", fixed = TRUE)
 })
 
+test_that("ptr_build_app_ui uses custom ids in rendered HTML", {
+  custom_ids <- ptr_build_ids(
+    control_panel = "myPanel",
+    draw_button = "myDraw",
+    export_button = "myExport",
+    plot_output = "myPlot",
+    error_output = "myError",
+    code_output = "myCode"
+  )
+  ui <- ptr_build_app_ui("Test", "Draw", "Export", ids = custom_ids)
+  html <- ext_ui_text(ui)
+
+  expect_match(html, "myPanel", fixed = TRUE)
+  expect_match(html, "myDraw", fixed = TRUE)
+  expect_match(html, "myExport", fixed = TRUE)
+  expect_match(html, "myPlot", fixed = TRUE)
+  expect_match(html, "myError", fixed = TRUE)
+  expect_match(html, "myCode", fixed = TRUE)
+})
+
+test_that("ptr_build_app_ui defaults match ptr_build_ids defaults", {
+  ui <- ptr_build_app_ui("Test", "Draw", "Export")
+  html <- ext_ui_text(ui)
+
+  expect_match(html, "controlPanel", fixed = TRUE)
+  expect_match(html, "\"draw\"", fixed = TRUE)
+  expect_match(html, "outputPlot", fixed = TRUE)
+})
+
 test_that("value helpers expose plot, code, and default error UI", {
-  obj_success <- paintr_formula(
+  obj_success <- ptr_parse_formula(
     "ggplot(data = iris, aes(x = var, y = var)) + geom_point()"
   )
-  runtime_success <- paintr_build_runtime(
+  runtime_success <- ptr_exec(
     obj_success,
     list(
       "ggplot+3+2" = "Sepal.Length",
@@ -79,37 +108,37 @@ test_that("value helpers expose plot, code, and default error UI", {
     )
   )
 
-  plot_obj <- ggpaintr_plot_value(runtime_success)
+  plot_obj <- ptr_extract_plot(runtime_success)
   themed_plot <- plot_obj + ggplot2::theme_minimal()
 
   expect_s3_class(plot_obj, "ggplot")
   expect_s3_class(themed_plot, "ggplot")
-  expect_match(ggpaintr_code_value(runtime_success), "Sepal.Length")
-  expect_null(ggpaintr_error_value(runtime_success))
+  expect_match(ptr_extract_code(runtime_success), "Sepal.Length")
+  expect_null(ptr_extract_error(runtime_success))
 
-  obj_failure <- paintr_formula(
+  obj_failure <- ptr_parse_formula(
     "ggplot(data = unknown_object, aes(x = mpg, y = disp)) + geom_point()"
   )
-  runtime_failure <- paintr_build_runtime(
+  runtime_failure <- ptr_exec(
     obj_failure,
     list("geom_point+checkbox" = TRUE)
   )
 
-  expect_null(ggpaintr_plot_value(runtime_failure))
-  expect_match(ggpaintr_code_value(runtime_failure), "unknown_object")
+  expect_null(ptr_extract_plot(runtime_failure))
+  expect_match(ptr_extract_code(runtime_failure), "unknown_object")
   expect_match(
-    ext_ui_text(ggpaintr_error_value(runtime_failure)),
+    ext_ui_text(ptr_extract_error(runtime_failure)),
     "Plot error:",
     fixed = TRUE
   )
 
-  expect_null(ggpaintr_plot_value(NULL))
-  expect_null(ggpaintr_code_value(NULL))
-  expect_null(ggpaintr_error_value(NULL))
+  expect_null(ptr_extract_plot(NULL))
+  expect_null(ptr_extract_code(NULL))
+  expect_null(ptr_extract_error(NULL))
 })
 
 test_that("bind helpers support custom ids inside an existing app server", {
-  ids <- ggpaintr_ids(
+  ids <- ptr_build_ids(
     control_panel = "customPanel",
     draw_button = "runPlot",
     export_button = "downloadApp",
@@ -119,24 +148,24 @@ test_that("bind helpers support custom ids inside an existing app server", {
   )
 
   server_wrapper <- function(input, output, session) {
-    paintr_state <- ggpaintr_server_state(
+    ptr_state <- ptr_server_state(
       "ggplot(data = iris, aes(x = var, y = var)) + geom_point()",
       ids = ids
     )
 
-    ggpaintr_bind_control_panel(input, output, paintr_state, ids = ids)
-    ggpaintr_bind_draw(input, paintr_state, ids = ids)
-    ggpaintr_bind_export(output, paintr_state, ids = ids)
-    ggpaintr_bind_plot(output, paintr_state, ids = ids)
-    ggpaintr_bind_error(output, paintr_state, ids = ids)
-    ggpaintr_bind_code(output, paintr_state, ids = ids)
+    ptr_setup_controls(input, output, ptr_state, ids = ids)
+    ptr_register_draw(input, ptr_state, ids = ids)
+    ptr_register_export(output, ptr_state, ids = ids)
+    ptr_register_plot(output, ptr_state, ids = ids)
+    ptr_register_error(output, ptr_state, ids = ids)
+    ptr_register_code(output, ptr_state, ids = ids)
 
-    session$userData$paintr_state <- paintr_state
+    session$userData$ptr_state <- ptr_state
   }
 
   shiny::testServer(server_wrapper, {
-    expect_s3_class(session$userData$paintr_state, "ggpaintr_state")
-    expect_s3_class(session$userData$paintr_state$ids, "ggpaintr_ids")
+    expect_s3_class(session$userData$ptr_state, "ptr_state")
+    expect_s3_class(session$userData$ptr_state$ids, "ptr_build_ids")
     expect_type(output$customPanel, "list")
 
     session$setInputs(
@@ -146,7 +175,7 @@ test_that("bind helpers support custom ids inside an existing app server", {
       runPlot = 1
     )
 
-    runtime_result <- session$userData$paintr_state$runtime()
+    runtime_result <- session$userData$ptr_state$runtime()
     expect_true(runtime_result$ok)
     expect_true(is.list(output$mainPlot))
     expect_null(output$mainError)
@@ -156,7 +185,7 @@ test_that("bind helpers support custom ids inside an existing app server", {
 })
 
 test_that("bind helpers expose error and code output with custom ids on failure", {
-  ids <- ggpaintr_ids(
+  ids <- ptr_build_ids(
     control_panel = "customPanel",
     draw_button = "runPlot",
     export_button = "downloadApp",
@@ -166,17 +195,17 @@ test_that("bind helpers expose error and code output with custom ids on failure"
   )
 
   server_wrapper <- function(input, output, session) {
-    paintr_state <- ggpaintr_server_state(
+    ptr_state <- ptr_server_state(
       "ggplot(data = unknown_object, aes(x = mpg, y = disp)) + geom_point()",
       ids = ids
     )
 
-    ggpaintr_bind_control_panel(input, output, paintr_state, ids = ids)
-    ggpaintr_bind_draw(input, paintr_state, ids = ids)
-    ggpaintr_bind_error(output, paintr_state, ids = ids)
-    ggpaintr_bind_code(output, paintr_state, ids = ids)
+    ptr_setup_controls(input, output, ptr_state, ids = ids)
+    ptr_register_draw(input, ptr_state, ids = ids)
+    ptr_register_error(output, ptr_state, ids = ids)
+    ptr_register_code(output, ptr_state, ids = ids)
 
-    session$userData$paintr_state <- paintr_state
+    session$userData$ptr_state <- ptr_state
   }
 
   shiny::testServer(server_wrapper, {
@@ -185,7 +214,7 @@ test_that("bind helpers expose error and code output with custom ids on failure"
       runPlot = 1
     )
 
-    runtime_result <- session$userData$paintr_state$runtime()
+    runtime_result <- session$userData$ptr_state$runtime()
     expect_false(runtime_result$ok)
     expect_match(output$mainError$html, "Plot error:", fixed = TRUE)
     expect_match(output$mainError$html, "unknown_object")
@@ -212,23 +241,23 @@ test_that("new extensibility helpers are exported in NAMESPACE", {
   }
 
   expected_exports <- c(
-    "ggpaintr_placeholder",
-    "ggpaintr_effective_placeholders",
-    "ggpaintr_missing_expr",
-    "ggpaintr_normalize_column_names",
-    "ggpaintr_ids",
-    "ggpaintr_server_state",
-    "ggpaintr_bind_control_panel",
-    "ggpaintr_bind_draw",
-    "ggpaintr_bind_export",
-    "ggpaintr_bind_plot",
-    "ggpaintr_bind_error",
-    "ggpaintr_bind_code",
-    "ggpaintr_plot_value",
-    "ggpaintr_error_value",
-    "ggpaintr_code_value",
-    "ggpaintr_controls_ui",
-    "ggpaintr_outputs_ui"
+    "ptr_define_placeholder",
+    "ptr_merge_placeholders",
+    "ptr_missing_expr",
+    "ptr_normalize_column_names",
+    "ptr_build_ids",
+    "ptr_server_state",
+    "ptr_setup_controls",
+    "ptr_register_draw",
+    "ptr_register_export",
+    "ptr_register_plot",
+    "ptr_register_error",
+    "ptr_register_code",
+    "ptr_extract_plot",
+    "ptr_extract_error",
+    "ptr_extract_code",
+    "ptr_input_ui",
+    "ptr_output_ui"
   )
 
   for (export_name in expected_exports) {

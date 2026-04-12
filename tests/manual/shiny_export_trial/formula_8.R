@@ -8,8 +8,8 @@ ggplot(data = iris, aes(x = var, y = var)) +
   labs(title = text) +
   facet_wrap(expr)"
 
-# Edit custom_copy_rules to customize UI labels, help text, and placeholders.
-custom_copy_rules <- list(shell = list(
+# Edit custom_ui_text to customize UI labels, help text, and placeholders.
+custom_ui_text <- list(shell = list(
   title = list(label = "Exploratory Plot Builder"),
   draw_button = list(label = "Render plot")
 ), params = list(
@@ -20,36 +20,41 @@ custom_copy_rules <- list(shell = list(
   facet_wrap = list(expr = list(`__unnamed__` = list(label = "Split the plot by")))
 ))
 
-copy_rules <- paintr_effective_copy_rules(custom_copy_rules)
+ui_text <- ptr_merge_ui_text(custom_ui_text)
 
-title_copy <- paintr_resolve_copy("title", copy_rules = copy_rules)
-draw_copy <- paintr_resolve_copy("draw_button", copy_rules = copy_rules)
-export_copy <- paintr_resolve_copy("export_button", copy_rules = copy_rules)
+# Replace NULL with a named list of ptr_define_placeholder() calls to register custom placeholder types.
+placeholders <- NULL
+
+ids <- ptr_build_ids(control_panel = "controlPanel", draw_button = "draw", export_button = "shinyExport", plot_output = "outputPlot", error_output = "outputError", code_output = "outputCode")
+
+title_copy <- ptr_resolve_ui_text("title", ui_text = ui_text)
+draw_copy <- ptr_resolve_ui_text("draw_button", ui_text = ui_text)
+export_copy <- ptr_resolve_ui_text("export_button", ui_text = ui_text)
 
 ui <- fluidPage(
   titlePanel(title_copy$label),
   sidebarLayout(
     sidebarPanel(
       # Modify or add controls here.
-      uiOutput("controlPanel"),
-      actionButton("draw", draw_copy$label),
-      downloadButton("shinyExport", export_copy$label)
+      uiOutput(ids$control_panel),
+      actionButton(ids$draw_button, draw_copy$label),
+      downloadButton(ids$export_button, export_copy$label)
     ),
     mainPanel(
       # Modify or add outputs here.
-      plotOutput("outputPlot"),
-      uiOutput("outputError"),
-      verbatimTextOutput("outputCode")
+      plotOutput(ids$plot_output),
+      uiOutput(ids$error_output),
+      verbatimTextOutput(ids$code_output)
     )
   )
 )
 
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server(input, output, session, input_formula, copy_rules = copy_rules)
+  ptr_state <- ptr_server(input, output, session, input_formula, ui_text = ui_text, placeholders = placeholders, ids = ids)
 
   # Add custom observers or outputs below.
   # observe({
-  #   runtime_result <- paintr_state$runtime()
+  #   runtime_result <- ptr_state$runtime()
   #   if (!is.null(runtime_result) && isTRUE(runtime_result$ok)) {
   #     message(runtime_result$code_text)
   #   }

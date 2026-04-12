@@ -5,7 +5,7 @@
 #' @param x An R expression object.
 #'
 #' @return A single string describing the expression type.
-#' @keywords internal
+#' @noRd
 expr_type <- function(x) {
   if (rlang::is_syntactic_literal(x)) {
     "constant"
@@ -25,10 +25,10 @@ expr_type <- function(x) {
 #' @param x An expression or call.
 #'
 #' @return A nested structure with plot layers separated.
-#' @keywords internal
-handle_call_break_sum <- function(x) {
-  if (rlang::as_string(x[[1]]) == "+") {
-    lapply(x[-1], break_sum)
+#' @noRd
+handle_call_break_sum <- function(x, .depth = 0L, max_depth = 100L) {
+  if (rlang::is_call(x, "+")) {
+    lapply(x[-1], break_sum, .depth = .depth + 1L, max_depth = max_depth)
   } else {
     x
   }
@@ -39,14 +39,18 @@ handle_call_break_sum <- function(x) {
 #' @param x An expression or call.
 #'
 #' @return A split representation of the expression.
-#' @keywords internal
-break_sum <- function(x) {
+#' @noRd
+break_sum <- function(x, .depth = 0L, max_depth = 100L) {
+  if (.depth > max_depth) {
+    rlang::abort("Formula nesting exceeds maximum depth.")
+  }
   switch(
     expr_type(x),
     symbol = x,
     constant = x,
-    call = handle_call_break_sum(x),
-    pairlist = as.pairlist(lapply(x, break_sum))
+    call = handle_call_break_sum(x, .depth, max_depth),
+    pairlist = as.pairlist(lapply(x, break_sum, .depth = .depth + 1L,
+                                  max_depth = max_depth))
   )
 }
 
@@ -55,7 +59,7 @@ break_sum <- function(x) {
 #' @param x An expression object.
 #'
 #' @return A function or symbol name when available.
-#' @keywords internal
+#' @noRd
 get_fun_names <- function(x) {
   if (rlang::is_call(x)) {
     return(rlang::as_string(x[[1]]))
@@ -65,7 +69,7 @@ get_fun_names <- function(x) {
     return(rlang::as_string(x))
   }
 
-  NULL
+  deparse(x)
 }
 
 #' Pluck an Expression by Index Path
@@ -74,7 +78,7 @@ get_fun_names <- function(x) {
 #' @param index_path An index vector.
 #'
 #' @return The plucked expression or `NULL`.
-#' @keywords internal
+#' @noRd
 expr_pluck <- function(.x, index_path) {
   tryCatch(.x[[index_path]], error = function(e) NULL)
 }
@@ -86,18 +90,21 @@ expr_pluck <- function(.x, index_path) {
 #' @param value A replacement value.
 #'
 #' @return The updated expression object.
-#' @keywords internal
+#' @noRd
 `expr_pluck<-` <- function(.x, index_path, value) {
-  tryCatch({
-    .x[[index_path]] <- value
-  }, error = function(e) {
-    cat(
-      paste0(
-        "Error in ", deparse(e$call), ": ", e$message,
-        "\nModification failed.\n"
+  tryCatch(
+    .x[[index_path]] <- value,
+    error = function(e) {
+      rlang::abort(
+        paste0(
+          "Failed to substitute expression at index path [",
+          paste(index_path, collapse = ", "),
+          "]: ", e$message
+        ),
+        parent = e
       )
-    )
-  })
+    }
+  )
 
   .x
 }
@@ -110,19 +117,24 @@ expr_pluck <- function(.x, index_path) {
 #' @param result Internal accumulator.
 #'
 #' @return A list of index paths.
-#' @keywords internal
+#' @noRd
 get_index_path <- function(x,
                            target = c("var", "text", "num", "expr", "upload"),
                            current_path = numeric(),
-                           result = list()) {
+                           result = list(),
+                           max_depth = 100L) {
+  if (length(current_path) > max_depth) {
+    rlang::abort(paste0(
+      "Formula nesting exceeds maximum depth (", max_depth, "). ",
+      "Check for excessively nested expressions."
+    ))
+  }
   for (i in seq_along(x)) {
     new_path <- c(current_path, i)
     if (is.call(x[[i]])) {
-      result <- get_index_path(x[[i]], target, new_path, result)
+      result <- get_index_path(x[[i]], target, new_path, result, max_depth)
     } else if (is.symbol(x[[i]])) {
       if (rlang::as_string(x[[i]]) %in% target) {
-        result <- c(result, list(new_path))
-      } else if (!is.null(names(x)) && names(x)[i] == "data") {
         result <- c(result, list(new_path))
       }
     }
@@ -136,21 +148,19 @@ get_index_path <- function(x,
 #' @param x A character vector of names.
 #'
 #' @return A character vector with duplicates made unique.
-#' @keywords internal
+#' @noRd
 handle_duplicate_names <- function(x) {
-  if (length(unique(x)) != length(x)) {
-    duplicated_items <- unique(x[duplicated(x)])
-    counting_list <- rep(list(0), length(duplicated_items))
-    counting_list <- rlang::set_names(counting_list, duplicated_items)
-
-    for (i in seq_along(x)) {
-      if (x[i] %in% names(counting_list)) {
-        counting_list[[x[i]]] <- counting_list[[x[i]]] + 1
-        x[i] <- paste0(x[i], "-", counting_list[[x[i]]])
-      }
+  if (length(unique(x)) == length(x)) return(x)
+  counts <- new.env(parent = emptyenv())
+  for (i in seq_along(x)) {
+    nm <- x[i]
+    if (is.null(counts[[nm]])) {
+      counts[[nm]] <- 1L
+    } else {
+      counts[[nm]] <- counts[[nm]] + 1L
+      x[i] <- paste0(nm, "-", counts[[nm]])
     }
   }
-
   x
 }
 
@@ -160,7 +170,7 @@ handle_duplicate_names <- function(x) {
 #' @param func_name A call name.
 #'
 #' @return A single encoded id string.
-#' @keywords internal
+#' @noRd
 encode_id <- function(index_path, func_name) {
   paste(c(func_name, index_path), collapse = "+")
 }
@@ -171,7 +181,7 @@ encode_id <- function(index_path, func_name) {
 #' @param .path An index path.
 #'
 #' @return The parameter name or `NULL`.
-#' @keywords internal
+#' @noRd
 get_expr_param <- function(.expr, .path) {
   if (length(.path) > 1) {
     current_index <- .path[1]
@@ -202,14 +212,19 @@ get_expr_param <- function(.expr, .path) {
 #' @param current_path Internal recursion path.
 #'
 #' @return The cleaned expression.
-#' @keywords internal
+#' @noRd
 expr_remove_null <- function(.expr,
                              target = rlang::sym("_NULL_PLACEHOLDER"),
-                             current_path = numeric()) {
+                             current_path = numeric(),
+                             max_depth = 100L) {
+  if (length(current_path) > max_depth) {
+    rlang::abort("Expression nesting exceeds maximum depth.")
+  }
+  if (length(.expr) == 0L) return(.expr)
   for (i in length(.expr):1) {
     new_path <- c(current_path, i)
     if (is.call(.expr[[i]])) {
-      .expr[[i]] <- expr_remove_null(.expr[[i]], target, new_path)
+      .expr[[i]] <- expr_remove_null(.expr[[i]], target, new_path, max_depth)
     } else if (is.symbol(.expr[[i]]) && identical(.expr[[i]], target)) {
       .expr[[i]] <- NULL
     }
@@ -218,36 +233,65 @@ expr_remove_null <- function(.expr,
   .expr
 }
 
+#' Check Whether a Function Name Looks Like a ggplot2 Layer
+#'
+#' @param fn_name A single function name string.
+#'
+#' @return `TRUE` if the name matches known ggplot2 patterns.
+#' @noRd
+ptr_is_gg_layer_name <- function(fn_name) {
+  gg_prefixes <- c(
+    "geom_", "stat_", "scale_", "coord_", "facet_", "theme_", "theme",
+    "labs", "xlab", "ylab", "ggtitle", "guides", "guide_",
+    "annotation_", "borders", "expand_limits", "lims", "xlim", "ylim",
+    "after_stat", "after_scale", "stage"
+  )
+  any(startsWith(fn_name, gg_prefixes))
+}
+
+#' Check Whether a Layer Can Stand Alone Without Arguments
+#'
+#' Layers like `geom_*()` and `stat_*()` can inherit aesthetics from
+#' the base `ggplot()` call, so they are valid even with no arguments.
+#' Other gg helpers (`labs()`, `facet_wrap()`, `theme()`, etc.) are
+#' either no-ops or will error when called with no arguments.
+#'
+#' @param fn_name A single function name string.
+#'
+#' @return `TRUE` if the layer can be called with zero arguments.
+#' @noRd
+ptr_can_stand_alone <- function(fn_name) {
+  standalone_prefixes <- c("geom_", "stat_")
+  any(startsWith(fn_name, standalone_prefixes))
+}
+
 #' Remove Empty Non-ggplot Calls
 #'
 #' @param .expr An expression object.
 #'
 #' @return The cleaned expression or `NULL`.
-#' @keywords internal
-expr_remove_emptycall2 <- function(.expr) {
+#' @noRd
+expr_remove_emptycall2 <- function(.expr, .depth = 0L, max_depth = 100L) {
+  if (.depth > max_depth) {
+    rlang::abort("Expression nesting exceeds maximum depth.")
+  }
+  if (length(.expr) == 0L) return(.expr)
   for (i in length(.expr):1) {
     if (is.call(.expr[[i]])) {
       if (length(.expr[[i]]) == 1) {
-        func_meaning <- tryCatch(eval(.expr[[i]]), error = function(e) NULL)
-        if (is.null(func_meaning) || !("gg" %in% attr(func_meaning, "class"))) {
-          message(
-            paste0(
-              "The function ", rlang::as_string(.expr[[i]][[1]]),
-              "() in ", rlang::as_string(.expr[[1]]), "() is removed."
-            )
-          )
+        fn_name <- rlang::as_string(.expr[[i]][[1]])
+        if (!ptr_is_gg_layer_name(fn_name)) {
           .expr[[i]] <- NULL
         }
       } else {
-        .expr[[i]] <- expr_remove_emptycall2(.expr[[i]])
+        .expr[[i]] <- expr_remove_emptycall2(.expr[[i]], .depth + 1L, max_depth)
       }
     }
   }
 
   if (is.call(.expr) && length(.expr) == 1) {
-    func_meaning <- tryCatch(eval(.expr), error = function(e) NULL)
-    if (is.null(func_meaning) || !("gg" %in% attr(func_meaning, "class"))) {
-      message(paste0("The function ", rlang::as_string(.expr[[1]]), "() is removed."))
+    fn_name <- rlang::as_string(.expr[[1]])
+    if (!ptr_is_gg_layer_name(fn_name)) {
       .expr <- NULL
     }
   }
@@ -255,12 +299,42 @@ expr_remove_emptycall2 <- function(.expr) {
   .expr
 }
 
+#' Remove Empty Non-Standalone Layers from an Expression List
+#'
+#' After placeholder resolution and empty-call pruning, some top-level
+#' layers may have lost all arguments (e.g. `labs()`, `facet_wrap()`,
+#' `theme()`).  These are either no-ops or will error at eval time.
+#' Layers that can inherit aesthetics (`geom_*`, `stat_*`) and the
+#' base `ggplot` layer are kept.
+#'
+#' @param expr_list A named list of layer expressions.
+#'
+#' @return The filtered expression list with empty non-standalone layers
+#'   set to `NULL`.
+#' @noRd
+ptr_remove_empty_nonstandalone_layers <- function(expr_list) {
+  for (nn in names(expr_list)) {
+    expr <- expr_list[[nn]]
+    if (is.null(expr) || nn == "ggplot") next
+    if (is.call(expr) && length(expr) == 1) {
+      fn_name <- rlang::as_string(expr[[1]])
+      if (!ptr_can_stand_alone(fn_name)) {
+        if (ptr_verbose()) {
+          cli::cli_inform(paste0("Layer ", fn_name, "() removed (no arguments provided)."))
+        }
+        expr_list[[nn]] <- NULL
+      }
+    }
+  }
+  expr_list
+}
+
 #' Drop `NULL` Elements from a List
 #'
 #' @param x A list or `NULL`.
 #'
 #' @return A list without `NULL` values, or `NULL`.
-#' @keywords internal
+#' @noRd
 check_remove_null <- function(x) {
   if (is.null(x)) {
     return(NULL)
@@ -272,4 +346,277 @@ check_remove_null <- function(x) {
   }
 
   x
+}
+
+#' Check Whether ggpaintr Verbose Mode Is Active
+#'
+#' @return A single logical value.
+#' @noRd
+ptr_verbose <- function() {
+  isTRUE(getOption("ggpaintr.verbose", default = TRUE))
+}
+
+# Default denylist for expr placeholder safety
+unsafe_expr_denylist <- c(
+  # system escape
+  "system", "system2", "shell", "shell.exec", "pipe",
+  # file I/O
+  "file.create", "file.remove", "file.rename", "file.copy",
+  "file.append", "unlink", "dir.create",
+  "readLines", "writeLines", "readRDS", "saveRDS",
+  "read.csv", "write.csv", "read.table", "write.table",
+  "scan", "cat", "sink", "connection",
+  "download.file", "url", "file",
+  "writeBin", "readBin", "readChar", "writeChar",
+  # deserialization / workspace I/O
+  "serialize", "unserialize", "load", "save", "save.image",
+  # meta-eval (denylist bypass vectors)
+  "eval", "evalq", "parse", "deparse",
+  "str2lang", "str2expression",
+  "call", "as.call", "quote", "bquote", "as.symbol", "as.name",
+  "do.call", "match.fun", "get", "mget", "getFromNamespace",
+  "Recall", "sys.call", "match.call",
+  # environment / global state mutation
+  "<<-", "->>", "makeActiveBinding",
+  "assign", "rm", "remove", "attach", "detach",
+  "source", "sys.source",
+  "library", "require", "loadNamespace",
+  "Sys.setenv", "Sys.unsetenv", "options",
+  "body<-", "formals<-", "environment<-",
+  # dangerous base
+  "on.exit", "q", "quit", "stop",
+  ".Internal", ".Primitive", ".Call", ".External",
+  # native code loading
+  "dyn.load", "dyn.unload",
+  # process / session blocking
+  "Sys.sleep", "readline",
+  # system mutation
+  "Sys.chmod", "Sys.umask", "Sys.readlink", "Sys.setlocale", "Sys.setFileTime",
+  # debugger hooks
+  "debug", "debugonce", "undebug", "browser",
+  # stack / environment introspection
+  "sys.frame", "sys.function", "sys.calls",
+  "parent.frame", "parent.env",
+  "environment", "new.env", "as.environment",
+  "baseenv", "globalenv", "emptyenv",
+  "attr", "attributes", "slot",
+  "attr<-", "attributes<-",
+  # information disclosure
+  "Sys.getenv", "Sys.getpid", "Sys.info", "Sys.time",
+  "proc.time", "message", "warning", "getwd",
+  "normalizePath", "Sys.glob", "list.files", "list.dirs",
+  "getAnywhere", "exists", "find", "loadedNamespaces",
+  "ls", "objects", "search", "searchpaths",
+  "R.home", ".libPaths", ".packages",
+  # meta-dispatch & method injection (string-arg bypass vectors)
+  "exec", "getExportedValue", "getNativeSymbolInfo",
+  "delayedAssign", "trace", "untrace",
+  "setClass", "setMethod", "setGeneric", "registerS3method",
+  "unlockBinding",
+  # delayed / deferred code execution
+  "reg.finalizer", "addTaskCallback", "taskCallbackManager",
+  "setHook", "packageEvent"
+)
+lockBinding("unsafe_expr_denylist", environment())
+
+#' Resolve the Effective Check List from an `expr_check` Value
+#'
+#' @param expr_check A logical or list with `deny_list` / `allow_list`.
+#'
+#' @return A list with `mode` (`"off"`, `"denylist"`, or `"allowlist"`)
+#'   and `fns` (the character vector to check against).
+#' @note Passing an empty \code{list()} silently falls back to the default
+#'   denylist. Callers should pass \code{TRUE} explicitly for default behaviour.
+#' @noRd
+resolve_expr_check <- function(expr_check) {
+  if (identical(expr_check, FALSE)) {
+    return(list(mode = "off", fns = character()))
+  }
+
+  if (identical(expr_check, TRUE)) {
+    return(list(mode = "denylist", fns = unsafe_expr_denylist))
+  }
+
+  if (!is.list(expr_check)) {
+    rlang::abort(paste0(
+      "expr_check must be TRUE, FALSE, or a list ",
+      "with 'deny_list' and/or 'allow_list'."
+    ))
+  }
+
+  has_allow <- !is.null(expr_check$allow_list)
+  has_deny <- !is.null(expr_check$deny_list)
+
+  if (!has_allow && !has_deny) {
+    return(list(mode = "denylist", fns = unsafe_expr_denylist))
+  }
+
+  if (has_allow) {
+    allow <- expr_check$allow_list
+    if (has_deny) {
+      allow <- setdiff(allow, expr_check$deny_list)
+    }
+    return(list(mode = "allowlist", fns = allow))
+  }
+
+  list(mode = "denylist", fns = expr_check$deny_list)
+}
+
+#' Extract a Function Name from an AST Node
+#'
+#' Returns both the bare name and the namespaced name (if applicable)
+#' so callers can check either form.
+#'
+#' @param fn The first element of a call.
+#'
+#' @return A character vector of length 1 or 2.
+#' @noRd
+extract_fn_names <- function(fn) {
+  if (is.symbol(fn)) {
+    return(as.character(fn))
+  }
+
+  if (is.call(fn) && length(fn) == 3L &&
+        as.character(fn[[1]]) %in% c("::", ":::")) {
+    bare <- as.character(fn[[3]])
+    op <- as.character(fn[[1]])
+    qualified <- paste0(as.character(fn[[2]]), op, bare)
+    return(c(bare, qualified))
+  }
+
+  deparse(fn, width.cutoff = 60L)[[1]]
+}
+
+#' Validate an Expression Against the Resolved Check List
+#'
+#' Walks the AST and aborts if any function call violates the
+#' active check mode (denylist or allowlist).
+#'
+#' @param expr A parsed R expression.
+#' @param expr_check A logical or list with `deny_list` / `allow_list`.
+#'
+#' @return Invisible `TRUE` if valid; aborts otherwise.
+#' @noRd
+validate_expr_safety <- function(expr, expr_check = TRUE) {
+  resolved <- resolve_expr_check(expr_check)
+
+  if (resolved$mode == "off") {
+    return(invisible(TRUE))
+  }
+
+  max_depth <- 100L
+  walk_expr <- function(x, .depth = 0L) {
+    if (.depth > max_depth) {
+      rlang::abort(
+        paste0("Expression nesting exceeds maximum depth (", max_depth, "). ",
+               "The expression may be too complex or maliciously crafted.")
+      )
+    }
+    if (is.pairlist(x)) {
+      for (i in seq_along(x)) {
+        walk_expr(x[[i]], .depth = .depth + 1L)
+      }
+      return(invisible(NULL))
+    }
+    if (is.character(x) && length(x) == 1L) {
+      if (resolved$mode == "denylist" && x %in% resolved$fns) {
+        rlang::abort(paste0(
+          "expr placeholder: `", x,
+          "` is not allowed (found as string literal). ",
+          "Set expr_check = FALSE to allow ",
+          "arbitrary expressions."
+        ))
+      }
+      if (resolved$mode == "allowlist" && x %in% unsafe_expr_denylist) {
+        rlang::abort(paste0(
+          "expr placeholder: `", x,
+          "` is not allowed (found as string literal). ",
+          "Set expr_check = FALSE to allow ",
+          "arbitrary expressions."
+        ))
+      }
+      return(invisible(NULL))
+    }
+    if (is.character(x) && length(x) > 1L) {
+      for (el in x) {
+        if (resolved$mode == "denylist" && el %in% resolved$fns) {
+          rlang::abort(paste0(
+            "expr placeholder: `", el,
+            "` is not allowed (found in character vector). ",
+            "Set expr_check = FALSE to allow ",
+            "arbitrary expressions."
+          ))
+        }
+        if (resolved$mode == "allowlist" && el %in% unsafe_expr_denylist) {
+          rlang::abort(paste0(
+            "expr placeholder: `", el,
+            "` is not allowed (found in character vector). ",
+            "Set expr_check = FALSE to allow ",
+            "arbitrary expressions."
+          ))
+        }
+      }
+      return(invisible(NULL))
+    }
+    if (is.symbol(x)) {
+      sym_name <- as.character(x)
+      if (resolved$mode == "denylist" && sym_name %in% resolved$fns) {
+        rlang::abort(paste0(
+          "expr placeholder: `", sym_name,
+          "` is not allowed (found as symbol reference). ",
+          "Set expr_check = FALSE to allow ",
+          "arbitrary expressions."
+        ))
+      }
+      if (resolved$mode == "allowlist" && sym_name %in% unsafe_expr_denylist) {
+        rlang::abort(paste0(
+          "expr placeholder: `", sym_name,
+          "` is not allowed (found as symbol reference). ",
+          "Set expr_check = FALSE to allow ",
+          "arbitrary expressions."
+        ))
+      }
+      return(invisible(NULL))
+    }
+    if (is.call(x)) {
+      # Compound-head strategy (e.g. `(system)("ls")`, `base::eval(expr)`):
+      # Two-phase check — (1) recurse into the head sub-expression so the
+      # walker catches denied symbols inside it (e.g. `system` inside `(system)`),
+      # then (2) run extract_fn_names + denylist/allowlist on the outer head.
+      # Phase 2 is belt-and-suspenders for denylist mode (deparsed compound
+      # heads won't match real denylist entries, but the check is cheap).
+      # In allowlist mode, phase 2 blocks compound heads whose deparsed name
+      # isn't in the allowlist — this is intentionally restrictive.
+      if (is.call(x[[1]])) {
+        walk_expr(x[[1]], .depth = .depth + 1L)
+      }
+
+      fn_names <- extract_fn_names(x[[1]])
+
+      if (resolved$mode == "denylist") {
+        blocked <- fn_names[fn_names %in% resolved$fns]
+        if (length(blocked) > 0) {
+          rlang::abort(paste0(
+            "expr placeholder: `", blocked[[1]],
+            "` is not allowed. ",
+            "Set expr_check = FALSE to allow ",
+            "arbitrary expressions."
+          ))
+        }
+      } else {
+        if (length(fn_names) > 0 && !any(fn_names %in% resolved$fns)) {
+          rlang::abort(paste0(
+            "expr placeholder: `", fn_names[[1]],
+            "` is not in the allowlist. ",
+            "Set expr_check = FALSE to allow ",
+            "arbitrary expressions."
+          ))
+        }
+      }
+
+      for (i in seq_along(x)[-1]) walk_expr(x[[i]], .depth = .depth + 1L)
+    }
+  }
+  walk_expr(expr)
+  invisible(TRUE)
 }

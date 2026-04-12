@@ -1,19 +1,32 @@
+.ptr_cache <- new.env(parent = emptyenv())
+
+.ptr_safe_base_names <- function() {
+  if (is.null(.ptr_cache$safe_base_names)) {
+    .ptr_cache$safe_base_names <- c(ls(baseenv()), ls(asNamespace("ggpaintr")))
+  }
+  .ptr_cache$safe_base_names
+}
+
 #' Construct a Custom ggpaintr Placeholder
 #'
 #' Build one placeholder specification for use with
-#' `ggpaintr_effective_placeholders()`. Custom placeholders can define their own
+#' `ptr_merge_placeholders()`. Custom placeholders can define their own
 #' UI control, runtime expression replacement, deferred UI binding, and
 #' evaluation-environment preparation.
 #'
-#' To make a custom placeholder exportable through `generate_shiny()`, define
-#' any hook functions inline inside the `ggpaintr_placeholder()` call so the
-#' exported app can serialize the full placeholder definition.
+#' @note **Export of non-inline hooks:** Hook functions can be made exportable
+#'   through `ptr_generate_shiny()` in three ways: define them **inline** inside
+#'   the `ptr_define_placeholder()` call (serialized directly), supply them via
+#'   `source_function` (deparsed into the generated app), reference them via
+#'   `source_file` (a `source()` call is emitted), or reference them via
+#'   `source_package` (a `library()` call is emitted). Non-inline hooks with no
+#'   source strategy will abort at export time.
 #'
 #' @param keyword A single syntactic placeholder name used inside the formula.
 #' @param build_ui Function with signature `(id, copy, meta, context)` returning
 #'   a Shiny UI control or placeholder.
 #' @param resolve_expr Function with signature `(value, meta, context)`
-#'   returning an R expression or `ggpaintr_missing_expr()`.
+#'   returning an R expression or `ptr_missing_expr()`.
 #' @param resolve_input Optional function with signature
 #'   `(input, id, meta, context)` returning the raw value to hand to
 #'   `resolve_expr()`. Defaults to `input[[id]]`.
@@ -27,16 +40,31 @@
 #'   `placeholder`, and `empty_text`. Defaults to
 #'   `list(label = "Enter a value for {param}")`.
 #'
-#' @return An object of class `ggpaintr_placeholder`.
+#' @param source_file Character string (or named list with `.default` and
+#'   hook-name keys) giving the path to an R file that defines the hook
+#'   functions. The exported app will `source()` this file. Provide the file
+#'   alongside the exported `app.R`. Applies to all hooks unless overridden
+#'   per-hook with a named list.
+#' @param source_package Character string (or named list with `.default` and
+#'   hook-name keys) naming an R package that exports the hook functions. The
+#'   exported app will call `library()` and install the package if missing.
+#' @param source_function Named list mapping hook names to the actual function
+#'   objects (e.g. `list(build_ui = my_build_ui)`). The exported app will
+#'   contain the deparsed function definitions before the placeholder call.
+#' @param on_missing One of `"warn"` (default) or `"error"`. Controls the
+#'   exported app's behaviour when a `source_file` file or `source_package`
+#'   package is unavailable at runtime.
+#'
+#' @return An object of class `ptr_define_placeholder`.
 #' @examples
-#' date_placeholder <- ggpaintr_placeholder(
+#' date_placeholder <- ptr_define_placeholder(
 #'   keyword = "date",
 #'   build_ui = function(id, copy, meta, context) {
 #'     shiny::dateInput(id, copy$label)
 #'   },
 #'   resolve_expr = function(value, meta, context) {
 #'     if (is.null(value) || identical(value, "")) {
-#'       return(ggpaintr_missing_expr())
+#'       return(ptr_missing_expr())
 #'     }
 #'
 #'     rlang::expr(as.Date(!!value))
@@ -45,13 +73,17 @@
 #' )
 #' date_placeholder$keyword
 #' @export
-ggpaintr_placeholder <- function(keyword,
+ptr_define_placeholder <- function(keyword,
                                  build_ui,
                                  resolve_expr,
                                  resolve_input = NULL,
                                  bind_ui = NULL,
                                  prepare_eval_env = NULL,
-                                 copy_defaults = list(label = "Enter a value for {param}")) {
+                                 copy_defaults = list(label = "Enter a value for {param}"),
+                                 source_file = NULL,
+                                 source_package = NULL,
+                                 source_function = NULL,
+                                 on_missing = "warn") {
   placeholder <- structure(
     list(
       keyword = keyword,
@@ -61,12 +93,17 @@ ggpaintr_placeholder <- function(keyword,
       bind_ui = bind_ui,
       prepare_eval_env = prepare_eval_env,
       copy_defaults = copy_defaults,
+      source_file = source_file,
+      source_package = source_package,
+      source_function = source_function,
+      on_missing = on_missing,
       definition_call = match.call(expand.dots = FALSE)
     ),
-    class = c("ggpaintr_placeholder", "list")
+    class = c("ptr_define_placeholder", "list")
   )
 
-  ggpaintr_validate_placeholder(placeholder)
+  ptr_validate_placeholder(placeholder)
+  ptr_validate_placeholder_source_params(placeholder)
   placeholder
 }
 
@@ -77,37 +114,37 @@ ggpaintr_placeholder <- function(keyword,
 #' collision.
 #'
 #' @param placeholders Either `NULL`, a named list of
-#'   `ggpaintr_placeholder` objects, or an existing
-#'   `ggpaintr_placeholder_registry`.
+#'   `ptr_define_placeholder` objects, or an existing
+#'   `ptr_define_placeholder_registry`.
 #'
-#' @return An object of class `ggpaintr_placeholder_registry`.
+#' @return An object of class `ptr_define_placeholder_registry`.
 #' @examples
-#' registry <- ggpaintr_effective_placeholders()
+#' registry <- ptr_merge_placeholders()
 #' all(c("var", "text", "num", "expr", "upload") %in% names(registry))
 #'
-#' date_placeholder <- ggpaintr_placeholder(
+#' date_placeholder <- ptr_define_placeholder(
 #'   keyword = "date",
 #'   build_ui = function(id, copy, meta, context) {
 #'     shiny::dateInput(id, copy$label)
 #'   },
 #'   resolve_expr = function(value, meta, context) {
 #'     if (is.null(value) || identical(value, "")) {
-#'       return(ggpaintr_missing_expr())
+#'       return(ptr_missing_expr())
 #'     }
 #'
 #'     rlang::expr(as.Date(!!value))
 #'   }
 #' )
-#' custom_registry <- ggpaintr_effective_placeholders(list(date = date_placeholder))
+#' custom_registry <- ptr_merge_placeholders(list(date = date_placeholder))
 #' "date" %in% names(custom_registry)
 #' @export
-ggpaintr_effective_placeholders <- function(placeholders = NULL) {
-  if (inherits(placeholders, "ggpaintr_placeholder_registry")) {
+ptr_merge_placeholders <- function(placeholders = NULL) {
+  if (inherits(placeholders, "ptr_define_placeholder_registry")) {
     return(placeholders)
   }
 
-  custom_placeholders <- ggpaintr_normalize_placeholders(placeholders)
-  builtin_placeholders <- paintr_builtin_placeholders()
+  custom_placeholders <- ptr_normalize_placeholders(placeholders)
+  builtin_placeholders <- ptr_builtin_placeholders()
   registry_entries <- builtin_placeholders
 
   for (keyword in names(custom_placeholders)) {
@@ -116,32 +153,32 @@ ggpaintr_effective_placeholders <- function(placeholders = NULL) {
 
   structure(
     registry_entries,
-    class = c("ggpaintr_placeholder_registry", "list"),
+    class = c("ptr_define_placeholder_registry", "list"),
     custom_placeholders = custom_placeholders
   )
 }
 
 #' Return the Sentinel for Removing a Placeholder Argument
 #'
-#' Placeholder resolvers should return `ggpaintr_missing_expr()` when the target
+#' Placeholder resolvers should return `ptr_missing_expr()` when the target
 #' argument should be removed from the completed expression.
 #'
-#' @return An object of class `ggpaintr_missing_expr`.
+#' @return An object of class `ptr_missing_expr`.
 #' @examples
-#' inherits(ggpaintr_missing_expr(), "ggpaintr_missing_expr")
+#' inherits(ptr_missing_expr(), "ptr_missing_expr")
 #' @export
-ggpaintr_missing_expr <- function() {
-  structure(list(), class = "ggpaintr_missing_expr")
+ptr_missing_expr <- function() {
+  structure(list(), class = "ptr_missing_expr")
 }
 
 #' Extract One Placeholder Registry Entry with `$`
 #'
-#' @param x A `ggpaintr_placeholder_registry`.
+#' @param x A `ptr_define_placeholder_registry`.
 #' @param name An entry name.
 #'
 #' @return A registry entry or the stored custom placeholder list.
 #' @noRd
-`$.ggpaintr_placeholder_registry` <- function(x, name) {
+`$.ptr_define_placeholder_registry` <- function(x, name) {
   if (identical(name, "custom_placeholders")) {
     return(attr(x, "custom_placeholders"))
   }
@@ -151,14 +188,14 @@ ggpaintr_missing_expr <- function() {
 
 #' Extract One Placeholder Registry Entry with `[[`
 #'
-#' @param x A `ggpaintr_placeholder_registry`.
+#' @param x A `ptr_define_placeholder_registry`.
 #' @param i An index or name.
 #' @param ... Unused.
 #'
 #' @return A registry entry or the stored custom placeholder list.
 #' @noRd
-`[[.ggpaintr_placeholder_registry` <- function(x, i, ...) {
-  if (is.character(i) && length(i) == 1 && identical(i, "custom_placeholders")) {
+`[[.ptr_define_placeholder_registry` <- function(x, i, ...) {
+  if (identical(i, "custom_placeholders")) {
     return(attr(x, "custom_placeholders"))
   }
 
@@ -171,7 +208,7 @@ ggpaintr_missing_expr <- function() {
 #'
 #' @return Invisibly returns `TRUE`.
 #' @noRd
-ggpaintr_validate_placeholder <- function(placeholder) {
+ptr_validate_placeholder <- function(placeholder) {
   required_names <- c(
     "keyword",
     "build_ui",
@@ -183,72 +220,80 @@ ggpaintr_validate_placeholder <- function(placeholder) {
     "definition_call"
   )
 
-  if (!inherits(placeholder, "ggpaintr_placeholder")) {
-    stop("placeholders must inherit from 'ggpaintr_placeholder'.", call. = FALSE)
+  if (!inherits(placeholder, "ptr_define_placeholder")) {
+    rlang::abort("placeholders must inherit from 'ptr_define_placeholder'.")
   }
 
   missing_names <- setdiff(required_names, names(placeholder))
   if (length(missing_names) > 0) {
-    stop(
-      "placeholder is missing required entries: ",
-      paste(missing_names, collapse = ", "),
-      ".",
-      call. = FALSE
-    )
+    rlang::abort(paste0("placeholder is missing required entries: ", paste(missing_names, collapse = ", "), "."))
   }
 
   if (!is.character(placeholder$keyword) || length(placeholder$keyword) != 1) {
-    stop("placeholder$keyword must be a single string.", call. = FALSE)
+    rlang::abort("placeholder$keyword must be a single string.")
   }
 
   if (!grepl("^[A-Za-z.][A-Za-z0-9._]*$", placeholder$keyword)) {
-    stop(
-      "placeholder$keyword must be a syntactic placeholder name.",
-      call. = FALSE
-    )
+    rlang::abort("placeholder$keyword must be a syntactic placeholder name.")
   }
 
   if (!is.function(placeholder$build_ui)) {
-    stop("placeholder$build_ui must be a function.", call. = FALSE)
+    rlang::abort("placeholder$build_ui must be a function.")
   }
 
   if (!is.function(placeholder$resolve_expr)) {
-    stop("placeholder$resolve_expr must be a function.", call. = FALSE)
+    rlang::abort("placeholder$resolve_expr must be a function.")
   }
 
   optional_function_names <- c("resolve_input", "bind_ui", "prepare_eval_env")
   for (name in optional_function_names) {
     value <- placeholder[[name]]
     if (!is.null(value) && !is.function(value)) {
-      stop("placeholder$", name, " must be NULL or a function.", call. = FALSE)
+      rlang::abort(paste0("placeholder$", name, " must be NULL or a function."))
     }
   }
 
-  if (is.null(placeholder$copy_defaults)) {
-    placeholder$copy_defaults <- list()
+  expected_arity <- list(
+    build_ui = 4L,
+    resolve_expr = 3L,
+    resolve_input = 4L,
+    bind_ui = 4L,
+    prepare_eval_env = 4L
+  )
+  for (hook_name in names(expected_arity)) {
+    fn <- placeholder[[hook_name]]
+    if (!is.null(fn) && is.function(fn)) {
+      actual <- length(formals(fn))
+      expected <- expected_arity[[hook_name]]
+      formal_names <- names(formals(fn))
+      if (length(formal_names) == 1 && identical(formal_names, "...")) {
+        cli::cli_warn(paste0(
+          "placeholder$", hook_name,
+          " uses only `...` -- positional argument mismatches will not be caught at definition time."
+        ))
+      } else if (actual < expected) {
+        rlang::abort(paste0(
+          "placeholder$", hook_name, " must accept at least ",
+          expected, " arguments, but has ", actual, "."
+        ))
+      }
+    }
   }
 
-  if (!is.list(placeholder$copy_defaults) || is.null(names(placeholder$copy_defaults))) {
-    stop("placeholder$copy_defaults must be a named list.", call. = FALSE)
+  if (!is.null(placeholder$copy_defaults) &&
+      (!is.list(placeholder$copy_defaults) || is.null(names(placeholder$copy_defaults)))) {
+    rlang::abort("placeholder$copy_defaults must be a named list.")
   }
 
-  unknown_copy_fields <- setdiff(names(placeholder$copy_defaults), paintr_copy_leaf_fields())
+  unknown_copy_fields <- setdiff(names(placeholder$copy_defaults), ptr_ui_text_leaf_fields())
   if (length(unknown_copy_fields) > 0) {
-    stop(
-      "placeholder$copy_defaults has unsupported fields: ",
-      paste(sort(unknown_copy_fields), collapse = ", "),
-      ".",
-      call. = FALSE
-    )
+    rlang::abort(paste0("placeholder$copy_defaults has unsupported fields: ", paste(sort(unknown_copy_fields), collapse = ", "), "."))
   }
 
   for (field_name in names(placeholder$copy_defaults)) {
     value <- placeholder$copy_defaults[[field_name]]
     if (!is.character(value) || length(value) != 1) {
-      stop(
-        "placeholder$copy_defaults$", field_name, " must be a single string.",
-        call. = FALSE
-      )
+      rlang::abort(paste0("placeholder$copy_defaults$", field_name, " must be a single string."))
     }
   }
 
@@ -257,49 +302,42 @@ ggpaintr_validate_placeholder <- function(placeholder) {
 
 #' Normalize User-Supplied Placeholder Definitions
 #'
-#' @param placeholders Placeholder definitions or `NULL`.
+#' @param placeholders A list of `ptr_define_placeholder` objects (optionally
+#'   named), or `NULL`. If named, names must match the placeholder keyword.
+#'   If unnamed, the keyword is used as the registry key.
 #'
-#' @return A named list of `ggpaintr_placeholder` objects.
+#' @return A named list of `ptr_define_placeholder` objects.
 #' @noRd
-ggpaintr_normalize_placeholders <- function(placeholders = NULL) {
+ptr_normalize_placeholders <- function(placeholders = NULL) {
   if (is.null(placeholders)) {
     return(list())
   }
 
   if (!is.list(placeholders)) {
-    stop("placeholders must be NULL or a named list.", call. = FALSE)
+    rlang::abort("placeholders must be NULL or a named list.")
   }
 
   normalized <- list()
-  seen_keywords <- character()
+  seen_env <- new.env(hash = TRUE, parent = emptyenv())
 
   for (i in seq_along(placeholders)) {
     placeholder <- placeholders[[i]]
-    ggpaintr_validate_placeholder(placeholder)
+    ptr_validate_placeholder(placeholder)
 
     keyword <- placeholder$keyword
     supplied_name <- names(placeholders)[i]
     if (!is.null(supplied_name) &&
         !identical(supplied_name, "") &&
         !identical(supplied_name, keyword)) {
-      stop(
-        "placeholders name '", supplied_name,
-        "' does not match placeholder keyword '", keyword, "'.",
-        call. = FALSE
-      )
+      rlang::abort(paste0("placeholders name '", supplied_name, "' does not match placeholder keyword '", keyword, "'."))
     }
 
-    if (keyword %in% seen_keywords) {
-      stop(
-        "placeholders contains duplicated keywords: ",
-        keyword,
-        ".",
-        call. = FALSE
-      )
+    if (exists(keyword, envir = seen_env, inherits = FALSE)) {
+      rlang::abort(paste0("placeholders contains duplicated keywords: ", keyword, "."))
     }
 
     normalized[[keyword]] <- placeholder
-    seen_keywords <- c(seen_keywords, keyword)
+    assign(keyword, TRUE, envir = seen_env)
   }
 
   normalized
@@ -307,13 +345,13 @@ ggpaintr_normalize_placeholders <- function(placeholders = NULL) {
 
 #' Return the Flattened Placeholder Metadata for a Parsed Formula
 #'
-#' @param paintr_obj A `paintr_obj`.
+#' @param ptr_obj A `ptr_obj`.
 #' @param keyword Optional placeholder keyword filter.
 #'
 #' @return A list of metadata records.
 #' @noRd
-paintr_flatten_placeholder_map <- function(paintr_obj, keyword = NULL) {
-  placeholder_map <- paintr_obj[["placeholder_map"]]
+ptr_flatten_placeholder_map <- function(ptr_obj, keyword = NULL) {
+  placeholder_map <- ptr_obj[["placeholder_map"]]
   if (is.null(placeholder_map) || length(placeholder_map) == 0) {
     return(list())
   }
@@ -328,31 +366,38 @@ paintr_flatten_placeholder_map <- function(paintr_obj, keyword = NULL) {
 
 #' Build the Hook Context for Placeholder Operations
 #'
-#' @param paintr_obj A `paintr_obj`.
-#' @param copy_rules Optional copy rules.
+#' @param ptr_obj A `ptr_obj`.
+#' @param ui_text Optional copy rules.
 #' @param envir Environment used to resolve local objects.
 #'
-#' @return A named list.
+#' @return An environment with reference semantics.
 #' @noRd
-paintr_placeholder_context <- function(paintr_obj,
-                                       copy_rules = NULL,
-                                       envir = parent.frame()) {
-  list(
-    paintr_obj = paintr_obj,
-    placeholders = paintr_obj$placeholders,
-    copy_rules = paintr_effective_copy_rules(
-      copy_rules,
-      placeholders = paintr_obj$placeholders
-    ),
-    envir = envir
+ptr_define_placeholder_context <- function(ptr_obj,
+                                       ui_text = NULL,
+                                       envir = parent.frame(),
+                                       expr_check = TRUE,
+                                       eval_env = NULL,
+                                       var_column_map = NULL) {
+  ctx <- new.env(parent = emptyenv())
+  ctx$ptr_obj <- ptr_obj
+  ctx$placeholders <- ptr_obj$placeholders
+  ctx$ui_text <- ptr_merge_ui_text(
+    ui_text,
+    placeholders = ptr_obj$placeholders,
+    known_param_keys = ptr_known_param_keys_from_obj(ptr_obj)
   )
+  ctx$envir <- envir
+  ctx$expr_check <- expr_check
+  ctx$eval_env <- eval_env
+  ctx$var_column_map <- var_column_map
+  ctx
 }
 
 #' Return the Internal Missing-Expression Symbol
 #'
 #' @return A symbol.
 #' @noRd
-paintr_missing_expr_symbol <- function() {
+ptr_missing_expr_symbol <- function() {
   rlang::sym("_NULL_PLACEHOLDER")
 }
 
@@ -362,20 +407,20 @@ paintr_missing_expr_symbol <- function() {
 #'
 #' @return A single logical value.
 #' @noRd
-ggpaintr_is_missing_expr <- function(x) {
-  inherits(x, "ggpaintr_missing_expr")
+ptr_is_missing_expr <- function(x) {
+  inherits(x, "ptr_missing_expr")
 }
 
 #' Resolve One Placeholder Input Value
 #'
-#' @param spec A `ggpaintr_placeholder`.
+#' @param spec A `ptr_define_placeholder`.
 #' @param input A Shiny input-like object.
 #' @param meta A metadata record.
 #' @param context A placeholder context list.
 #'
 #' @return A raw input value.
 #' @noRd
-paintr_resolve_placeholder_input <- function(spec, input, meta, context) {
+ptr_resolve_placeholder_input <- function(spec, input, meta, context) {
   if (is.null(spec$resolve_input)) {
     return(input[[meta$id]])
   }
@@ -385,25 +430,41 @@ paintr_resolve_placeholder_input <- function(spec, input, meta, context) {
 
 #' Resolve One Placeholder Expression Replacement
 #'
-#' @param spec A `ggpaintr_placeholder`.
+#' @param spec A `ptr_define_placeholder`.
 #' @param value A raw value.
 #' @param meta A metadata record.
 #' @param context A placeholder context list.
 #'
 #' @return An R object suitable for `expr_pluck<-`.
 #' @noRd
-paintr_resolve_placeholder_expr <- function(spec, value, meta, context) {
+ptr_resolve_placeholder_expr <- function(spec, value, meta, context) {
   resolved_expr <- spec$resolve_expr(value, meta, context)
 
-  if (ggpaintr_is_missing_expr(resolved_expr)) {
-    return(paintr_missing_expr_symbol())
+  if (ptr_is_missing_expr(resolved_expr)) {
+    return(ptr_missing_expr_symbol())
   }
 
   if (is.function(resolved_expr)) {
-    stop(
-      "Placeholder '", meta$keyword, "' returned a function instead of an expression.",
-      call. = FALSE
-    )
+    rlang::abort(paste0("Placeholder '", meta$keyword, "' returned a function instead of an expression."))
+  }
+
+  needs_safety_check <- is.call(resolved_expr) || is.symbol(resolved_expr) ||
+    is.pairlist(resolved_expr) || is.character(resolved_expr)
+
+  if (needs_safety_check) {
+    validate_expr_safety(resolved_expr, context$expr_check %||% TRUE)
+  }
+
+  is_scalar_type <- is.numeric(resolved_expr) || is.logical(resolved_expr) ||
+    is.integer(resolved_expr) || is.double(resolved_expr) ||
+    is.complex(resolved_expr) || is.null(resolved_expr)
+
+  if (!needs_safety_check && !is_scalar_type) {
+    rlang::abort(paste0(
+      "Placeholder '", meta$keyword, "' resolve_expr returned an unsupported type: ",
+      class(resolved_expr)[[1]], ". Allowed types: call, symbol, pairlist, character, ",
+      "numeric, logical, integer, double, complex, NULL."
+    ))
   }
 
   resolved_expr
@@ -413,27 +474,33 @@ paintr_resolve_placeholder_expr <- function(spec, value, meta, context) {
 #'
 #' @param input A Shiny input-like object.
 #' @param output A Shiny output object.
-#' @param paintr_obj A `paintr_obj`.
+#' @param ptr_obj A `ptr_obj`.
 #' @param envir Environment used to resolve local data objects.
-#' @param copy_rules Effective or user-supplied copy rules.
+#' @param ui_text Effective or user-supplied copy rules.
 #'
 #' @return A named list of deferred UI controls.
 #' @noRd
-paintr_bind_placeholder_ui <- function(input,
+ptr_bind_placeholder_ui <- function(input,
                                        output,
-                                       paintr_obj,
+                                       ptr_obj,
                                        envir = parent.frame(),
-                                       copy_rules = NULL) {
-  context <- paintr_placeholder_context(
-    paintr_obj,
-    copy_rules = copy_rules,
-    envir = envir
+                                       ui_text = NULL,
+                                       eval_env = NULL,
+                                       var_column_map = NULL,
+                                       expr_check = TRUE) {
+  context <- ptr_define_placeholder_context(
+    ptr_obj,
+    ui_text = ui_text,
+    envir = envir,
+    expr_check = expr_check,
+    eval_env = eval_env,
+    var_column_map = var_column_map
   )
   deferred_ui <- list()
 
-  for (keyword in names(paintr_obj$placeholders)) {
-    spec <- paintr_obj$placeholders[[keyword]]
-    metas <- paintr_flatten_placeholder_map(paintr_obj, keyword = keyword)
+  for (keyword in names(ptr_obj$placeholders)) {
+    spec <- ptr_obj$placeholders[[keyword]]
+    metas <- ptr_flatten_placeholder_map(ptr_obj, keyword = keyword)
 
     if (length(metas) == 0 || is.null(spec$bind_ui)) {
       next
@@ -452,11 +519,11 @@ paintr_bind_placeholder_ui <- function(input,
 
 #' Return Placeholder Copy Defaults
 #'
-#' @param spec A `ggpaintr_placeholder`.
+#' @param spec A `ptr_define_placeholder`.
 #'
 #' @return A named list of copy defaults.
 #' @noRd
-paintr_placeholder_copy_defaults <- function(spec) {
+ptr_define_placeholder_copy_defaults <- function(spec) {
   defaults <- spec$copy_defaults
   if (is.null(defaults)) {
     defaults <- list()
@@ -465,19 +532,133 @@ paintr_placeholder_copy_defaults <- function(spec) {
   defaults
 }
 
+#' Validate Source Parameters on a Placeholder Definition
+#'
+#' @param placeholder A `ptr_define_placeholder`.
+#'
+#' @return Invisibly returns `NULL`.
+#' @noRd
+ptr_validate_placeholder_source_params <- function(placeholder) {
+  if (!is.null(placeholder$on_missing) &&
+      !identical(placeholder$on_missing, "warn") &&
+      !identical(placeholder$on_missing, "error")) {
+    rlang::abort(paste0(
+      "Custom placeholder '", placeholder$keyword,
+      "': on_missing must be \"warn\" or \"error\"."
+    ))
+  }
+
+  valid_hook_names <- c("build_ui", "resolve_expr", "resolve_input", "bind_ui", "prepare_eval_env")
+  valid_source_keys <- c(".default", valid_hook_names)
+
+  if (!is.null(placeholder$source_file)) {
+    vals <- unlist(placeholder$source_file)
+    if (!is.character(vals)) {
+      rlang::abort(paste0(
+        "Custom placeholder '", placeholder$keyword,
+        "': source_file must be a character string or named list of character strings."
+      ))
+    }
+    if (is.list(placeholder$source_file)) {
+      for (key in names(placeholder$source_file)) {
+        if (!key %in% valid_source_keys) {
+          cli::cli_warn(paste0(
+            "Custom placeholder '", placeholder$keyword,
+            "': source_file contains unrecognized key '", key,
+            "'. Did you mean one of: ", paste(valid_source_keys, collapse = ", "), "?"
+          ))
+        }
+      }
+    }
+  }
+
+  if (!is.null(placeholder$source_package)) {
+    vals <- unlist(placeholder$source_package)
+    if (!is.character(vals)) {
+      rlang::abort(paste0(
+        "Custom placeholder '", placeholder$keyword,
+        "': source_package must be a character string or named list of character strings."
+      ))
+    }
+    if (is.list(placeholder$source_package)) {
+      for (key in names(placeholder$source_package)) {
+        if (!key %in% valid_source_keys) {
+          cli::cli_warn(paste0(
+            "Custom placeholder '", placeholder$keyword,
+            "': source_package contains unrecognized key '", key,
+            "'. Did you mean one of: ", paste(valid_source_keys, collapse = ", "), "?"
+          ))
+        }
+      }
+    }
+  }
+
+  if (!is.null(placeholder$source_function)) {
+    if (!is.list(placeholder$source_function)) {
+      rlang::abort(paste0(
+        "Custom placeholder '", placeholder$keyword,
+        "': source_function must be a named list mapping hook names to function objects."
+      ))
+    }
+    for (fn_name in names(placeholder$source_function)) {
+      fn_obj <- placeholder$source_function[[fn_name]]
+      if (!is.function(fn_obj)) {
+        rlang::abort(paste0(
+          "Custom placeholder '", placeholder$keyword,
+          "': source_function$", fn_name, " must be a function object."
+        ))
+      }
+      if (!fn_name %in% valid_hook_names) {
+        rlang::warn(paste0(
+          "Custom placeholder '", placeholder$keyword,
+          "': source_function contains unrecognized hook name '", fn_name,
+          "'. Did you mean one of: ", paste(valid_hook_names, collapse = ", "), "?"
+        ))
+      }
+    }
+  }
+
+  invisible(NULL)
+}
+
+#' Check Whether a Hook Has an Explicit Source Strategy
+#'
+#' @param placeholder A `ptr_define_placeholder`.
+#' @param hook_name A hook name string.
+#'
+#' @return `TRUE` if a source strategy covers this hook.
+#' @noRd
+ptr_hook_has_source_strategy <- function(placeholder, hook_name) {
+  if (!is.null(placeholder$source_function) &&
+      hook_name %in% names(placeholder$source_function)) {
+    return(TRUE)
+  }
+
+  if (!is.null(placeholder$source_file)) {
+    sf <- placeholder$source_file
+    if (is.character(sf)) return(TRUE)
+    if (is.list(sf) && (hook_name %in% names(sf) || ".default" %in% names(sf))) return(TRUE)
+  }
+
+  if (!is.null(placeholder$source_package)) {
+    sp <- placeholder$source_package
+    if (is.character(sp)) return(TRUE)
+    if (is.list(sp) && (hook_name %in% names(sp) || ".default" %in% names(sp))) return(TRUE)
+  }
+
+  FALSE
+}
+
 #' Validate That a Placeholder Definition Can Be Exported
 #'
-#' @param placeholder A `ggpaintr_placeholder`.
+#' @param placeholder A `ptr_define_placeholder`.
 #'
 #' @return Invisibly returns `TRUE`.
 #' @noRd
-paintr_validate_exportable_placeholder <- function(placeholder) {
+ptr_validate_exportable_placeholder <- function(placeholder) {
   if (is.null(placeholder$definition_call) ||
-      !rlang::is_call(placeholder$definition_call, "ggpaintr_placeholder")) {
-    stop(
-      "Custom placeholders must be created with ggpaintr_placeholder() to be exportable.",
-      call. = FALSE
-    )
+      !rlang::is_call(placeholder$definition_call, "ptr_define_placeholder")) {
+    rlang::abort("Custom placeholders must be created with ptr_define_placeholder() to be exportable.")
   }
 
   inline_args <- c("build_ui", "resolve_expr", "resolve_input", "bind_ui", "prepare_eval_env")
@@ -489,17 +670,130 @@ paintr_validate_exportable_placeholder <- function(placeholder) {
       next
     }
 
-    if (!rlang::is_call(arg_expr, "function")) {
-      stop(
-        "Custom placeholder '", placeholder$keyword,
-        "' must define ", arg_name,
-        " inline so exported apps stay standalone.",
-        call. = FALSE
+    if (rlang::is_call(arg_expr, "function")) {
+      ptr_check_free_variables(arg_expr, placeholder$keyword, arg_name)
+      next
+    }
+
+    if (!ptr_hook_has_source_strategy(placeholder, arg_name)) {
+      rlang::abort(paste0(
+        "Custom placeholder '", placeholder$keyword, "' must define '", arg_name,
+        "' inline or supply source_file, source_package, or source_function so ",
+        "exported apps stay standalone."
+      ))
+    }
+
+    if (!is.null(placeholder$source_function) &&
+        arg_name %in% names(placeholder$source_function)) {
+      ptr_check_free_variables_fn(
+        placeholder$source_function[[arg_name]],
+        placeholder$keyword,
+        arg_name
       )
     }
   }
 
   invisible(TRUE)
+}
+
+#' Recursively Collect Free Symbol Names from an Expression
+#'
+#' Skips symbols accessed via `::`, `:::`, or `$` (namespace-qualified or
+#' member-access symbols are not free variables).
+#'
+#' @param expr An R expression.
+#'
+#' @return A character vector of unique symbol names.
+#' @noRd
+ptr_collect_symbols <- function(expr) {
+  if (is.symbol(expr)) return(as.character(expr))
+  if (!is.call(expr)) return(character(0))
+
+  fn <- expr[[1]]
+  fn_name <- if (is.symbol(fn)) as.character(fn) else ""
+
+  # Skip both sides of :: and ::: (namespace-qualified calls are safe).
+  # Skip RHS of $ (member access is not a free variable).
+  if (fn_name %in% c("::", ":::") && length(expr) == 3) {
+    return(character(0))
+  }
+  if (fn_name == "$" && length(expr) == 3) {
+    return(ptr_collect_symbols(expr[[2]]))
+  }
+
+  unique(unlist(lapply(as.list(expr), ptr_collect_symbols)))
+}
+
+#' Warn if a Hook Body References Free Variables
+#'
+#' @param fn_body A body expression.
+#' @param formal_names A character vector of formal parameter names.
+#' @param keyword The placeholder keyword.
+#' @param hook_name The hook name.
+#'
+#' @return Invisibly returns `NULL`.
+#' @noRd
+check_free_variables_impl <- function(fn_body, formal_names, keyword, hook_name) {
+  all_symbols <- ptr_collect_symbols(fn_body)
+
+  safe_names <- unique(c(
+    formal_names,
+    .ptr_safe_base_names(),
+    "if", "else", "for", "while", "repeat", "function", "return",
+    "next", "break", "{", "(", "<-", "<<-", "=", "~",
+    "!", "&", "|", "&&", "||", "+", "-", "*", "/", "^",
+    "%%", "%/%", "%in%", "%>%", "|>",
+    "<", ">", "<=", ">=", "==", "!=",
+    "$", "[", "[[", ":", "::", ":::",
+    "NULL", "TRUE", "FALSE", "NA", "NA_character_", "NA_real_", "NA_integer_",
+    "T", "F"
+  ))
+
+  free_vars <- setdiff(all_symbols, safe_names)
+  if (length(free_vars) > 0) {
+    rlang::warn(paste0(
+      "Custom placeholder '", keyword, "': hook '", hook_name,
+      "' references names not in its formals or common packages: ",
+      paste(free_vars, collapse = ", "),
+      ". These may not be available in the exported app."
+    ))
+  }
+
+  invisible(NULL)
+}
+
+#' Warn About Free Variables in an Inline Hook Function
+#'
+#' @param fn_expr A function call expression.
+#' @param keyword The placeholder keyword.
+#' @param hook_name The hook name.
+#'
+#' @return Invisibly returns `NULL`.
+#' @noRd
+ptr_check_free_variables <- function(fn_expr, keyword, hook_name) {
+  check_free_variables_impl(
+    fn_body = fn_expr[[3]],
+    formal_names = names(fn_expr[[2]]),
+    keyword = keyword,
+    hook_name = hook_name
+  )
+}
+
+#' Warn About Free Variables in a source_function Hook (Function Object)
+#'
+#' @param fn_obj A function object.
+#' @param keyword The placeholder keyword.
+#' @param hook_name The hook name.
+#'
+#' @return Invisibly returns `NULL`.
+#' @noRd
+ptr_check_free_variables_fn <- function(fn_obj, keyword, hook_name) {
+  check_free_variables_impl(
+    fn_body = body(fn_obj),
+    formal_names = names(formals(fn_obj)),
+    keyword = keyword,
+    hook_name = hook_name
+  )
 }
 
 #' Serialize Custom Placeholder Definitions for Export
@@ -508,8 +802,8 @@ paintr_validate_exportable_placeholder <- function(placeholder) {
 #'
 #' @return A named list of exportable placeholder definition calls.
 #' @noRd
-paintr_exportable_custom_placeholders <- function(placeholders = NULL) {
-  registry <- ggpaintr_effective_placeholders(placeholders)
+ptr_exportable_custom_placeholders <- function(placeholders = NULL) {
+  registry <- ptr_merge_placeholders(placeholders)
   custom_placeholders <- registry$custom_placeholders
 
   if (length(custom_placeholders) == 0) {
@@ -517,7 +811,7 @@ paintr_exportable_custom_placeholders <- function(placeholders = NULL) {
   }
 
   for (keyword in names(custom_placeholders)) {
-    paintr_validate_exportable_placeholder(custom_placeholders[[keyword]])
+    ptr_validate_exportable_placeholder(custom_placeholders[[keyword]])
   }
 
   exportable <- lapply(custom_placeholders, `[[`, "definition_call")
@@ -525,49 +819,56 @@ paintr_exportable_custom_placeholders <- function(placeholders = NULL) {
   exportable
 }
 
+.ptr_builtin_cache <- new.env(parent = emptyenv())
+
 #' Build the Built-In Placeholder Registry
 #'
 #' @return A named list of built-in placeholders.
 #' @noRd
-paintr_builtin_placeholders <- function() {
-  list(
-    var = ggpaintr_placeholder(
+ptr_builtin_placeholders <- function() {
+  if (!is.null(.ptr_builtin_cache$registry)) {
+    return(.ptr_builtin_cache$registry)
+  }
+  result <- list(
+    var = ptr_define_placeholder(
       keyword = "var",
-      build_ui = paintr_build_var_placeholder_ui,
-      resolve_expr = paintr_resolve_var_expr,
-      bind_ui = paintr_bind_var_ui_impl,
+      build_ui = ptr_build_var_placeholder_ui,
+      resolve_expr = ptr_resolve_var_expr,
+      bind_ui = ptr_bind_var_ui_impl,
       copy_defaults = list(
         label = "Choose a column for {param}",
         empty_text = "Choose one column"
       )
     ),
-    text = ggpaintr_placeholder(
+    text = ptr_define_placeholder(
       keyword = "text",
-      build_ui = paintr_build_text_placeholder_ui,
-      resolve_expr = paintr_resolve_text_expr,
+      build_ui = ptr_build_text_placeholder_ui,
+      resolve_expr = ptr_resolve_text_expr,
       copy_defaults = list(label = "Enter text for {param}")
     ),
-    num = ggpaintr_placeholder(
+    num = ptr_define_placeholder(
       keyword = "num",
-      build_ui = paintr_build_num_placeholder_ui,
-      resolve_expr = paintr_resolve_num_expr,
+      build_ui = ptr_build_num_placeholder_ui,
+      resolve_expr = ptr_resolve_num_expr,
       copy_defaults = list(label = "Enter a number for {param}")
     ),
-    expr = ggpaintr_placeholder(
+    expr = ptr_define_placeholder(
       keyword = "expr",
-      build_ui = paintr_build_expr_placeholder_ui,
-      resolve_expr = paintr_resolve_expr_expr,
+      build_ui = ptr_build_expr_placeholder_ui,
+      resolve_expr = ptr_resolve_expr_expr,
       copy_defaults = list(label = "Enter an expression for {param}")
     ),
-    upload = ggpaintr_placeholder(
+    upload = ptr_define_placeholder(
       keyword = "upload",
-      build_ui = paintr_build_upload_placeholder_ui,
-      resolve_expr = paintr_resolve_upload_expr,
-      resolve_input = paintr_resolve_upload_input,
-      prepare_eval_env = paintr_prepare_upload_eval_env_impl,
+      build_ui = ptr_build_upload_placeholder_ui,
+      resolve_expr = ptr_resolve_upload_expr,
+      resolve_input = ptr_resolve_upload_input,
+      prepare_eval_env = ptr_prepare_upload_eval_env_impl,
       copy_defaults = list(label = "Choose a data source for {param}")
     )
   )
+  .ptr_builtin_cache$registry <- result
+  result
 }
 
 #' Build the Deferred UI Placeholder for `var`
@@ -579,7 +880,7 @@ paintr_builtin_placeholders <- function() {
 #'
 #' @return A placeholder `uiOutput()`.
 #' @noRd
-paintr_build_var_placeholder_ui <- function(id, copy, meta, context) {
+ptr_build_var_placeholder_ui <- function(id, copy, meta, context) {
   generate_ui_var_placeholder(id)
 }
 
@@ -590,14 +891,14 @@ paintr_build_var_placeholder_ui <- function(id, copy, meta, context) {
 #' @param context A placeholder context list.
 #'
 #' @return A symbol naming the selected column, or
-#'   `ggpaintr_missing_expr()` when no selection was supplied.
+#'   `ptr_missing_expr()` when no selection was supplied.
 #' @noRd
-paintr_resolve_var_expr <- function(value, meta, context) {
+ptr_resolve_var_expr <- function(value, meta, context) {
   if (is.null(value)) {
-    return(ggpaintr_missing_expr())
+    return(ptr_missing_expr())
   }
 
-  selected_column <- paintr_validate_var_input(value, meta, context)
+  selected_column <- ptr_validate_var_input(value, meta, context)
   rlang::sym(selected_column)
 }
 
@@ -610,8 +911,8 @@ paintr_resolve_var_expr <- function(value, meta, context) {
 #'
 #' @return A text input UI control.
 #' @noRd
-paintr_build_text_placeholder_ui <- function(id, copy, meta, context) {
-  paintr_attach_help(
+ptr_build_text_placeholder_ui <- function(id, copy, meta, context) {
+  ptr_attach_help(
     shiny::textInput(id, copy$label, placeholder = copy$placeholder),
     copy$help
   )
@@ -623,14 +924,13 @@ paintr_build_text_placeholder_ui <- function(id, copy, meta, context) {
 #' @param meta Placeholder metadata.
 #' @param context A placeholder context list.
 #'
-#' @return A scalar character expression, or `ggpaintr_missing_expr()`.
+#' @return A scalar character expression, or `ptr_missing_expr()`.
 #' @noRd
-paintr_resolve_text_expr <- function(value, meta, context) {
+ptr_resolve_text_expr <- function(value, meta, context) {
   if (is.null(value) || identical(value, "")) {
-    return(ggpaintr_missing_expr())
+    return(ptr_missing_expr())
   }
 
-  assertthat::assert_that(is.character(value))
   rlang::expr(!!value)
 }
 
@@ -643,8 +943,8 @@ paintr_resolve_text_expr <- function(value, meta, context) {
 #'
 #' @return A numeric input UI control.
 #' @noRd
-paintr_build_num_placeholder_ui <- function(id, copy, meta, context) {
-  paintr_attach_help(
+ptr_build_num_placeholder_ui <- function(id, copy, meta, context) {
+  ptr_attach_help(
     shiny::numericInput(id, copy$label, NA),
     copy$help
   )
@@ -656,14 +956,13 @@ paintr_build_num_placeholder_ui <- function(id, copy, meta, context) {
 #' @param meta Placeholder metadata.
 #' @param context A placeholder context list.
 #'
-#' @return A numeric expression, or `ggpaintr_missing_expr()`.
+#' @return A numeric expression, or `ptr_missing_expr()`.
 #' @noRd
-paintr_resolve_num_expr <- function(value, meta, context) {
-  if (is.na(value) || is.null(value)) {
-    return(ggpaintr_missing_expr())
+ptr_resolve_num_expr <- function(value, meta, context) {
+  if (is.null(value) || length(value) == 0L || is.na(value)) {
+    return(ptr_missing_expr())
   }
 
-  assertthat::assert_that(is.numeric(value))
   rlang::expr(!!value)
 }
 
@@ -676,8 +975,8 @@ paintr_resolve_num_expr <- function(value, meta, context) {
 #'
 #' @return A text input UI control.
 #' @noRd
-paintr_build_expr_placeholder_ui <- function(id, copy, meta, context) {
-  paintr_attach_help(
+ptr_build_expr_placeholder_ui <- function(id, copy, meta, context) {
+  ptr_attach_help(
     shiny::textInput(id, copy$label, placeholder = copy$placeholder),
     copy$help
   )
@@ -689,14 +988,38 @@ paintr_build_expr_placeholder_ui <- function(id, copy, meta, context) {
 #' @param meta Placeholder metadata.
 #' @param context A placeholder context list.
 #'
-#' @return A parsed expression, or `ggpaintr_missing_expr()`.
+#' @return A parsed expression, or `ptr_missing_expr()`.
 #' @noRd
-paintr_resolve_expr_expr <- function(value, meta, context) {
+ptr_resolve_expr_expr <- function(value, meta, context) {
   if (is.null(value) || identical(value, "")) {
-    return(ggpaintr_missing_expr())
+    return(ptr_missing_expr())
   }
 
-  rlang::parse_expr(value)
+  parsed_list <- tryCatch(
+    rlang::parse_exprs(value),
+    error = function(e) {
+      rlang::abort(
+        paste0(
+          "expr placeholder: could not parse input ",
+          "as R expression: ", conditionMessage(e)
+        ),
+        parent = e
+      )
+    }
+  )
+  if (length(parsed_list) != 1L) {
+    rlang::abort(
+      paste0("expr placeholder: input must contain exactly one expression, but ",
+             length(parsed_list), " were found.")
+    )
+  }
+  parsed <- parsed_list[[1]]
+
+  if (!identical(context$expr_check, FALSE)) {
+    validate_expr_safety(parsed, expr_check = context$expr_check)
+  }
+
+  parsed
 }
 
 #' Build the Default Upload Placeholder UI
@@ -708,8 +1031,8 @@ paintr_resolve_expr_expr <- function(value, meta, context) {
 #'
 #' @return A Shiny UI object.
 #' @noRd
-paintr_build_upload_placeholder_ui <- function(id, copy, meta, context) {
-  generate_ui_upload(id, copy_rules = context$copy_rules)
+ptr_build_upload_placeholder_ui <- function(id, copy, meta, context) {
+  generate_ui_upload(id, ui_text = context$ui_text)
 }
 
 #' Resolve Raw Upload Input to an Object Name
@@ -721,8 +1044,8 @@ paintr_build_upload_placeholder_ui <- function(id, copy, meta, context) {
 #'
 #' @return A single object-name string or `""` when no upload is available.
 #' @noRd
-paintr_resolve_upload_input <- function(input, id, meta, context) {
-  upload_info <- paintr_resolve_upload_info(input, id, strict = FALSE)
+ptr_resolve_upload_input <- function(input, id, meta, context) {
+  upload_info <- ptr_resolve_upload_info(input, id, strict = FALSE)
   if (is.null(upload_info)) {
     return("")
   }
@@ -736,14 +1059,19 @@ paintr_resolve_upload_input <- function(input, id, meta, context) {
 #' @param meta Placeholder metadata.
 #' @param context A placeholder context list.
 #'
-#' @return A parsed symbol expression, or `ggpaintr_missing_expr()`.
+#' @return A parsed symbol expression, or `ptr_missing_expr()`.
 #' @noRd
-paintr_resolve_upload_expr <- function(value, meta, context) {
+ptr_resolve_upload_expr <- function(value, meta, context) {
   if (is.null(value) || identical(value, "")) {
-    return(ggpaintr_missing_expr())
+    return(ptr_missing_expr())
   }
 
-  rlang::parse_expr(value)
+  if (!grepl("^[a-zA-Z.][a-zA-Z0-9._]*$", value)) {
+    rlang::abort(paste0(
+      "upload placeholder: invalid object name: ", value
+    ))
+  }
+  rlang::sym(value)
 }
 
 #' Inject Uploaded Data Objects into an Evaluation Environment
@@ -755,9 +1083,9 @@ paintr_resolve_upload_expr <- function(value, meta, context) {
 #'
 #' @return The updated evaluation environment.
 #' @noRd
-paintr_prepare_upload_eval_env_impl <- function(input, metas, eval_env, context) {
+ptr_prepare_upload_eval_env_impl <- function(input, metas, eval_env, context) {
   for (meta in metas) {
-    upload_info <- paintr_resolve_upload_info(input, meta$id, strict = FALSE)
+    upload_info <- ptr_resolve_upload_info(input, meta$id, strict = FALSE)
     if (is.null(upload_info)) {
       next
     }
@@ -770,7 +1098,7 @@ paintr_prepare_upload_eval_env_impl <- function(input, metas, eval_env, context)
 
 #' Resolve the Dataset Object Used by One Layer
 #'
-#' @param paintr_obj A `paintr_obj`.
+#' @param ptr_obj A `ptr_obj`.
 #' @param layer_name A parsed layer name.
 #' @param input A Shiny input-like object.
 #' @param context A placeholder context list.
@@ -778,76 +1106,108 @@ paintr_prepare_upload_eval_env_impl <- function(input, metas, eval_env, context)
 #'
 #' @return A list with `has_data` and `data`.
 #' @noRd
-paintr_resolve_layer_data <- function(paintr_obj,
+ptr_resolve_layer_data <- function(ptr_obj,
                                       layer_name,
                                       input,
                                       context,
                                       eval_env) {
-  params <- paintr_obj$param_list[[layer_name]]
-  data_index <- which(vapply(params, paintr_param_matches_data, logical(1)))
+  params <- ptr_obj$param_list[[layer_name]]
+  index_paths <- ptr_obj$index_path_list[[layer_name]]
+  data_index <- which(vapply(seq_along(params), function(j) {
+    ptr_param_matches_data(params[[j]], index_paths[[j]])
+  }, logical(1)))
 
-  if (length(data_index) == 0) {
-    return(list(has_data = FALSE, data = NULL))
-  }
+  if (length(data_index) > 0) {
+    data_index <- unname(data_index[[1]])
+    data_id <- ptr_obj$id_list[[layer_name]][[data_index]]
+    data_keyword <- ptr_obj$keywords_list[[layer_name]][[data_index]]
+    data_keyword_string <- rlang::as_string(data_keyword)
 
-  data_index <- unname(data_index[[1]])
-  data_id <- paintr_obj$id_list[[layer_name]][[data_index]]
-  data_keyword <- paintr_obj$keywords_list[[layer_name]][[data_index]]
-  data_keyword_string <- rlang::as_string(data_keyword)
+    if (data_keyword_string %in% names(ptr_obj$placeholders)) {
+      data_meta <- ptr_obj$placeholder_map[[layer_name]][[data_id]]
+      spec <- ptr_obj$placeholders[[data_meta$keyword]]
+      value <- ptr_resolve_placeholder_input(spec, input, data_meta, context)
+      resolved_expr <- ptr_resolve_placeholder_expr(spec, value, data_meta, context)
 
-  if (data_keyword_string %in% names(paintr_obj$placeholders)) {
-    data_meta <- paintr_obj$placeholder_map[[layer_name]][[data_id]]
-    spec <- paintr_obj$placeholders[[data_meta$keyword]]
-    value <- paintr_resolve_placeholder_input(spec, input, data_meta, context)
-    resolved_expr <- paintr_resolve_placeholder_expr(spec, value, data_meta, context)
+      if (identical(resolved_expr, ptr_missing_expr_symbol())) {
+        return(list(has_data = TRUE, data = NULL))
+      }
 
-    if (identical(resolved_expr, paintr_missing_expr_symbol())) {
-      return(list(has_data = TRUE, data = NULL))
+      data_obj <- tryCatch(
+        eval(resolved_expr, envir = eval_env),
+        error = function(e) NULL
+      )
+      return(list(has_data = TRUE, data = data_obj))
     }
 
     data_obj <- tryCatch(
-      eval(resolved_expr, envir = eval_env),
+      eval(data_keyword, envir = eval_env),
       error = function(e) NULL
     )
     return(list(has_data = TRUE, data = data_obj))
   }
 
-  data_obj <- tryCatch(
-    eval(data_keyword, envir = eval_env),
-    error = function(e) NULL
-  )
+  # Fallback: check the raw expression for a positional first argument
+  # (e.g., ggplot(mtcars, aes(...)) where mtcars is unnamed and not a placeholder)
+  layer_expr <- ptr_obj$expr_list[[layer_name]]
+  if (is.call(layer_expr) && length(layer_expr) >= 2) {
+    first_arg <- layer_expr[[2]]
+    first_arg_name <- names(layer_expr)[2]
+    if (is.symbol(first_arg) && (is.null(first_arg_name) || identical(first_arg_name, "") || identical(first_arg_name, "data"))) {
+      data_obj <- tryCatch(
+        eval(first_arg, envir = eval_env),
+        error = function(e) NULL
+      )
+      if (is.data.frame(data_obj)) {
+        return(list(has_data = TRUE, data = data_obj))
+      }
+    }
+  }
 
-  list(has_data = TRUE, data = data_obj)
+  list(has_data = FALSE, data = NULL)
 }
 
 #' Detect Whether a Parsed Parameter Refers to `data`
 #'
 #' @param param A parsed parameter value.
+#' @param index_path An optional index path for positional-arg detection.
 #'
 #' @return A single logical value.
 #' @noRd
-paintr_param_matches_data <- function(param) {
-  identical(param, "data") || identical(as.character(param)[1], "data")
+ptr_param_matches_data <- function(param, index_path = NULL) {
+  if (identical(param, "data")) {
+    return(TRUE)
+  }
+
+  # Positional first argument (index_path == 2) is conventionally `data` in
+
+  # ggplot() and geom_*/stat_* layers.
+  if ((is.null(param) || identical(param, "") || identical(param, NA_character_)) &&
+      !is.null(index_path) && length(index_path) == 1 && index_path[1] == 2) {
+    return(TRUE)
+  }
+
+  FALSE
 }
 
 #' Build the Available-Column Map for All `var` Placeholders
 #'
-#' @param paintr_obj A `paintr_obj`.
+#' @param ptr_obj A `ptr_obj`.
 #' @param input A Shiny input-like object.
 #' @param context A placeholder context list.
 #' @param eval_env An evaluation environment.
 #'
 #' @return A named list keyed by layer name with `has_data` and `columns`.
 #' @noRd
-paintr_build_var_column_map <- function(paintr_obj, input, context, eval_env) {
-  var_metas <- paintr_flatten_placeholder_map(paintr_obj, keyword = "var")
+ptr_build_var_column_map <- function(ptr_obj, input, context, eval_env) {
+  var_metas <- ptr_flatten_placeholder_map(ptr_obj, keyword = "var")
   if (length(var_metas) == 0) {
     return(list())
   }
 
   layer_names <- unique(vapply(var_metas, `[[`, character(1), "layer_name"))
-  global_data_info <- paintr_resolve_layer_data(
-    paintr_obj,
+  global_data_info <- ptr_resolve_layer_data(
+    ptr_obj,
     "ggplot",
     input,
     context,
@@ -855,8 +1215,8 @@ paintr_build_var_column_map <- function(paintr_obj, input, context, eval_env) {
   )
 
   column_map <- lapply(layer_names, function(layer_name) {
-    layer_data_info <- paintr_resolve_layer_data(
-      paintr_obj,
+    layer_data_info <- ptr_resolve_layer_data(
+      ptr_obj,
       layer_name,
       input,
       context,
@@ -887,53 +1247,23 @@ paintr_build_var_column_map <- function(paintr_obj, input, context, eval_env) {
 #'
 #' @return The validated column name string.
 #' @noRd
-paintr_validate_var_input <- function(value, meta, context) {
+ptr_validate_var_input <- function(value, meta, context) {
   if (!is.character(value) || length(value) != 1 || is.na(value) || !nzchar(value[[1]])) {
-    stop(
-      paste0("Input '", meta$id, "' must select exactly one column name."),
-      call. = FALSE
-    )
+    rlang::abort(paste0("Input '", meta$id, "' must select exactly one column name."))
   }
 
   column_info <- context$var_column_map[[meta$layer_name]]
   if (is.null(column_info)) {
-    stop(
-      paste0(
-        "Input '",
-        meta$id,
-        "' cannot be resolved because no dataset information is available for layer '",
-        meta$layer_name,
-        "'."
-      ),
-      call. = FALSE
-    )
+    rlang::abort(paste0("Input '", meta$id, "' cannot be resolved because no dataset information is available for layer '", meta$layer_name, "'."))
   }
 
   if (!isTRUE(column_info$has_data) || is.null(column_info$columns)) {
-    stop(
-      paste0(
-        "Input '",
-        meta$id,
-        "' cannot be resolved because data columns are not available for layer '",
-        meta$layer_name,
-        "'."
-      ),
-      call. = FALSE
-    )
+    rlang::abort(paste0("Input '", meta$id, "' cannot be resolved because data columns are not available for layer '", meta$layer_name, "'."))
   }
 
   selected_column <- value[[1]]
   if (!(selected_column %in% column_info$columns)) {
-    stop(
-      paste0(
-        "Input '",
-        meta$id,
-        "' must match one available column name for layer '",
-        meta$layer_name,
-        "'."
-      ),
-      call. = FALSE
-    )
+    rlang::abort(paste0("Input '", meta$id, "' must match one available column name for layer '", meta$layer_name, "'."))
   }
 
   selected_column
@@ -948,21 +1278,32 @@ paintr_validate_var_input <- function(value, meta, context) {
 #'
 #' @return A named list of generated `var` UI controls.
 #' @noRd
-paintr_bind_var_ui_impl <- function(input, output, metas, context) {
-  paintr_obj <- context$paintr_obj
-  eval_env <- paintr_prepare_eval_env(
-    paintr_obj,
-    input,
-    envir = context$envir
-  )
+ptr_bind_var_ui_impl <- function(input, output, metas, context) {
+  ptr_obj <- context$ptr_obj
+  eval_env <- context$eval_env
+  if (is.null(eval_env)) {
+    if (!is.null(shiny::getDefaultReactiveDomain())) {
+      cli::cli_warn("ptr_bind_var_ui_impl: eval_env not cached; rebuilt")
+    }
+    eval_env <- ptr_prepare_eval_env(
+      ptr_obj,
+      input,
+      envir = context$envir
+    )
+  }
   context$input <- input
   context$eval_env <- eval_env
-  context$var_column_map <- paintr_build_var_column_map(
-    paintr_obj,
-    input,
-    context,
-    eval_env
-  )
+  if (is.null(context$var_column_map)) {
+    if (!is.null(shiny::getDefaultReactiveDomain())) {
+      cli::cli_warn("ptr_bind_var_ui_impl: var_column_map not cached; rebuilt")
+    }
+    context$var_column_map <- ptr_build_var_column_map(
+      ptr_obj,
+      input,
+      context,
+      eval_env
+    )
+  }
   deferred_ui <- list()
 
   metas_by_layer <- split(metas, vapply(metas, `[[`, character(1), "layer_name"))
@@ -974,14 +1315,7 @@ paintr_bind_var_ui_impl <- function(input, output, metas, context) {
     }
 
     if (!isTRUE(column_info$has_data)) {
-      stop(
-        paste0(
-          "Variable inputs cannot be rendered because data columns are not available for layer '",
-          layer_name,
-          "'."
-        ),
-        call. = FALSE
-      )
+      next
     }
 
     for (meta in metas_by_layer[[layer_name]]) {
@@ -990,15 +1324,18 @@ paintr_bind_var_ui_impl <- function(input, output, metas, context) {
         meta$id,
         meta$param,
         layer_name = meta$layer_name,
-        copy_rules = context$copy_rules
+        ui_text = context$ui_text
       )
 
       if (!is.null(ui)) {
         deferred_ui[[meta$id]] <- ui
       }
 
-      output[[paste0("var-", meta$id)]] <- shiny::renderUI({
-        ui
+      local({
+        captured_ui <- ui
+        output[[ptr_var_output_id(meta$id)]] <- shiny::renderUI({
+          captured_ui
+        })
       })
     }
   }
