@@ -45,12 +45,14 @@ Imports:
     shiny (>= 1.6.0),
     shinyWidgets (>= 0.6.4)
 Suggests:
+    bslib (>= 0.5.0),
     knitr,
     pkgdown,
     rmarkdown,
     styler,
     testthat (>= 3.0.0),
-    withr
+    withr,
+    xaringanExtra
 VignetteBuilder: knitr
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

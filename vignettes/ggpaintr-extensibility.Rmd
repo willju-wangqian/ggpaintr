@@ -18,6 +18,10 @@ knitr::opts_chunk$set(
 library(ggpaintr)
 ```
 
+```{r clipboard, echo = FALSE}
+xaringanExtra::use_clipboard()
+```
+
 ## Overview
 
 `ggpaintr` still ships the default `ptr_app()` and `ptr_server()`
@@ -74,17 +78,32 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
+  # Parse the formula and create reactive state — holds the placeholder map,
+  # the last runtime result, and the current input spec.
   ptr_state <- ptr_server_state(
     "ggplot(data = iris, aes(x = var, y = var)) +
       geom_point() +
       labs(title = text)"
   )
 
+  # Register dynamic var-column selectors and the file upload handler.
+  # Must be called before ptr_register_draw() so data is available to var inputs.
   ptr_setup_controls(input, output, ptr_state)
+
+  # Observe the draw button; re-run ptr_exec() and update ptr_state$runtime()
+  # each time it is clicked.
   ptr_register_draw(input, ptr_state)
+
+  # Wire the export button to a downloadHandler that writes a standalone app.R.
   ptr_register_export(output, ptr_state)
+
+  # renderPlot(): reads ptr_state$runtime()$plot and renders it.
   ptr_register_plot(output, ptr_state)
+
+  # renderText() / renderUI(): reads ptr_state$runtime()$error and shows it.
   ptr_register_error(output, ptr_state)
+
+  # renderText(): reads ptr_state$runtime()$code_text and shows generated code.
   ptr_register_code(output, ptr_state)
 }
 
@@ -101,12 +120,15 @@ to mount `ggpaintr` outputs in specific UI containers.
 
 ```{r, eval = FALSE}
 ids <- ptr_build_ids(
-  control_panel = "builder_controls",
-  draw_button = "render_plot",
-  export_button = "export_app",
-  plot_output = "main_plot",
-  error_output = "main_error",
-  code_output = "main_code"
+  # The six top-level ids that ggpaintr uses for its standard UI elements.
+  # Provide custom strings when your app already uses those default id names
+  # for something else, or when you want ggpaintr outputs in specific containers.
+  control_panel  = "builder_controls",  # tabsetPanel that holds per-layer control tabs
+  draw_button    = "render_plot",        # actionButton that triggers plot re-render
+  export_button  = "export_app",         # downloadButton that writes a standalone app.R
+  plot_output    = "main_plot",          # plotOutput widget
+  error_output   = "main_error",         # output for parse / plot error messages
+  code_output    = "main_code"           # verbatimTextOutput for the generated ggplot code
 )
 
 ids
@@ -161,13 +183,19 @@ server <- function(input, output, session) {
   ptr_register_code(output, ptr_state)
 
   output$outputPlot <- renderPlot({
+    # ptr_state$runtime() is a reactive value updated each time the draw button
+    # is clicked. It holds the full result of ptr_exec() for the current inputs.
+    # ptr_extract_plot() pulls the ggplot object out of that result,
+    # returning NULL when the plot failed or the draw button hasn't been clicked.
     plot_obj <- ptr_extract_plot(ptr_state$runtime())
 
     if (is.null(plot_obj)) {
-      plot.new()
+      plot.new()           # show a blank canvas instead of an error frame
       return(invisible(NULL))
     }
 
+    # Modify the ggplot object freely before it is rendered.
+    # Here we apply a theme; you could also add layers, scales, or annotations.
     plot_obj + ggplot2::theme_minimal()
   })
 }
