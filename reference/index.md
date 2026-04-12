@@ -1,73 +1,82 @@
 # Package index
 
-## Shiny wrappers
+## Start here
 
-- [`ggpaintr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_app.md)
+- [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
   : Build a ggpaintr Shiny App
-- [`ggpaintr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_server.md)
-  : Register ggpaintr Server Logic
-- [`generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/generate_shiny.md)
+- [`ptr_generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_generate_shiny.md)
   : Generate a Standalone Shiny App Script
 
 ## Shiny integration
 
-- [`ggpaintr_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_ids.md)
+Embed ggpaintr inside a larger Shiny app while keeping package-owned
+runtime behavior.
+
+- [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
+  : Register ggpaintr Server Logic
+- [`ptr_build_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.md)
   : Build Standard Output Ids for ggpaintr Integration
-- [`ggpaintr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_server_state.md)
+- [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md)
   : Build Reactive Server State for ggpaintr
-- [`ggpaintr_bind_control_panel()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_bind_control_panel.md)
+- [`ptr_setup_controls()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_setup_controls.md)
   : Bind the Generated Control Panel into a Shiny App
-- [`ggpaintr_bind_draw()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_bind_draw.md)
+- [`ptr_register_draw()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_draw.md)
   : Bind Draw Behavior into a Shiny App
-- [`ggpaintr_bind_export()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_bind_export.md)
+- [`ptr_register_export()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_export.md)
   : Bind Export Behavior into a Shiny App
-- [`ggpaintr_bind_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_bind_plot.md)
+- [`ptr_register_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_plot.md)
   : Bind Default Plot Rendering into a Shiny App
-- [`ggpaintr_bind_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_bind_error.md)
+- [`ptr_register_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_error.md)
   : Bind Default Error Rendering into a Shiny App
-- [`ggpaintr_bind_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_bind_code.md)
+- [`ptr_register_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_code.md)
   : Bind Default Code Rendering into a Shiny App
-- [`ggpaintr_plot_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_plot_value.md)
+- [`ptr_extract_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_plot.md)
   : Return the Built Plot from a Runtime Result
-- [`ggpaintr_error_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_error_value.md)
+- [`ptr_extract_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_error.md)
   : Return Default Error UI from a Runtime Result
-- [`ggpaintr_code_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_code_value.md)
+- [`ptr_extract_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_code.md)
   : Return Generated Code Text from a Runtime Result
-- [`ggpaintr_controls_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_controls_ui.md)
+- [`ptr_input_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_input_ui.md)
   : Build Default ggpaintr Control Widgets
-- [`ggpaintr_outputs_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_outputs_ui.md)
+- [`ptr_output_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_output_ui.md)
   : Build Default ggpaintr Output Widgets
 
 ## Placeholder extensibility
 
-- [`ggpaintr_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_placeholder.md)
+Register and reuse supported custom placeholder types without editing
+package internals.
+
+- [`ptr_define_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder.md)
   : Construct a Custom ggpaintr Placeholder
-- [`ggpaintr_effective_placeholders()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_effective_placeholders.md)
+- [`ptr_merge_placeholders()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_merge_placeholders.md)
   : Build the Effective Placeholder Registry for ggpaintr
-- [`ggpaintr_missing_expr()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_missing_expr.md)
+- [`ptr_missing_expr()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_missing_expr.md)
   : Return the Sentinel for Removing a Placeholder Argument
 
 ## Data preparation
 
-- [`ggpaintr_normalize_column_names()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_normalize_column_names.md)
+- [`ptr_normalize_column_names()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_normalize_column_names.md)
   :
 
   Normalize Dataset Column Names for `ggpaintr`
 
-## Formula and runtime
+## Advanced runtime
 
-- [`paintr_formula()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_formula.md)
+Low-level helpers intentionally exported for advanced tests, tooling,
+and custom runtime workflows.
+
+- [`ptr_parse_formula()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_parse_formula.md)
   : Parse a Paintr Formula
-- [`ggpaintr_runtime_input_spec()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_runtime_input_spec.md)
+- [`ptr_runtime_input_spec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_runtime_input_spec.md)
   : Describe the Runtime Inputs for a Parsed Formula
-- [`paintr_build_runtime()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_build_runtime.md)
+- [`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md)
   : Build the Full Runtime Result for a Paintr App
-- [`paintr_get_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_get_plot.md)
+- [`ptr_assemble_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_assemble_plot.md)
   : Build a Plot from Completed Layer Expressions
 
 ## Copy customization
 
-- [`paintr_effective_copy_rules()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_effective_copy_rules.md)
+- [`ptr_merge_ui_text()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_merge_ui_text.md)
   : Build Effective Copy Rules
-- [`paintr_resolve_copy()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_resolve_copy.md)
+- [`ptr_resolve_ui_text()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_resolve_ui_text.md)
   : Resolve Copy for One Control or App Element

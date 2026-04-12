@@ -79,14 +79,14 @@
 </h2>
 <p><code>ggpaintr</code> now supports per-app placeholder registries.
 That means downstream developers can define a new placeholder once, pass
-it into <code><a href="../reference/paintr_formula.html">paintr_formula()</a></code>, <code><a href="../reference/ggpaintr_app.html">ggpaintr_app()</a></code>,
-<code><a href="../reference/ggpaintr_server_state.html">ggpaintr_server_state()</a></code>, or <code><a href="../reference/generate_shiny.html">generate_shiny()</a></code>,
+it into <code><a href="../reference/ptr_parse_formula.html">ptr_parse_formula()</a></code>, <code><a href="../reference/ptr_app.html">ptr_app()</a></code>,
+<code><a href="../reference/ptr_server_state.html">ptr_server_state()</a></code>, or <code><a href="../reference/ptr_generate_shiny.html">ptr_generate_shiny()</a></code>,
 and keep the rest of the package runtime unchanged.</p>
 <p>The public entry points for this layer are:</p>
 <ul>
-<li><code><a href="../reference/ggpaintr_placeholder.html">ggpaintr_placeholder()</a></code></li>
-<li><code><a href="../reference/ggpaintr_effective_placeholders.html">ggpaintr_effective_placeholders()</a></code></li>
-<li><code><a href="../reference/ggpaintr_missing_expr.html">ggpaintr_missing_expr()</a></code></li>
+<li><code><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code></li>
+<li><code><a href="../reference/ptr_merge_placeholders.html">ptr_merge_placeholders()</a></code></li>
+<li><code><a href="../reference/ptr_missing_expr.html">ptr_missing_expr()</a></code></li>
 </ul>
 <p>Built-in placeholders such as <code>var</code>, <code>text</code>,
 <code>num</code>, <code>expr</code>, and <code>upload</code> now use the
@@ -104,14 +104,14 @@ same registry path as custom placeholders.</p>
 <span>  value <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10</span>, <span class="fl">13</span>, <span class="fl">12</span>, <span class="fl">16</span>, <span class="fl">18</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">date_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ggpaintr_placeholder.html">ggpaintr_placeholder</a></span><span class="op">(</span></span>
+<span><span class="va">date_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
 <span>  keyword <span class="op">=</span> <span class="st">"date"</span>,</span>
 <span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/dateInput.html" class="external-link">dateInput</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span><span class="op">$</span><span class="va">label</span><span class="op">)</span></span>
 <span>  <span class="op">}</span>,</span>
 <span>  resolve_expr <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="op">||</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span>, <span class="st">""</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ggpaintr_missing_expr.html">ggpaintr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_missing_expr.html">ptr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span>    <span class="op">}</span></span>
 <span></span>
 <span>    <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
@@ -119,7 +119,7 @@ same registry path as custom placeholders.</p>
 <span>  copy_defaults <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Choose a date for {param}"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">placeholders</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ggpaintr_effective_placeholders.html">ggpaintr_effective_placeholders</a></span><span class="op">(</span></span>
+<span><span class="va">placeholders</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_merge_placeholders.html">ptr_merge_placeholders</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>date <span class="op">=</span> <span class="va">date_placeholder</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -132,14 +132,14 @@ same registry path as custom placeholders.</p>
 <p>Pass the registry through <code>placeholders = ...</code> anywhere
 you want custom placeholder support.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/paintr_formula.html">paintr_formula</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_parse_formula.html">ptr_parse_formula</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = sales, aes(x = day, y = value)) +</span></span>
 <span><span class="st">    geom_line() +</span></span>
 <span><span class="st">    geom_vline(xintercept = date)"</span>,</span>
 <span>  placeholders <span class="op">=</span> <span class="va">placeholders</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">runtime</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/paintr_build_runtime.html">paintr_build_runtime</a></span><span class="op">(</span></span>
+<span><span class="va">runtime</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_exec.html">ptr_exec</a></span><span class="op">(</span></span>
 <span>  <span class="va">obj</span>,</span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    <span class="st">"geom_line+checkbox"</span> <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -152,7 +152,7 @@ you want custom placeholder support.</p>
 <span><span class="co">#&gt; [1] "ggplot(data = sales, aes(x = day, y = value)) +\n  geom_line() +\n  geom_vline(xintercept = as.Date(\"2024-01-03\"))"</span></span></code></pre></div>
 <p>The same registry can also be used in the higher-level wrappers.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/ggpaintr_app.html">ggpaintr_app</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = sales, aes(x = day, y = value)) +</span></span>
 <span><span class="st">    geom_line() +</span></span>
 <span><span class="st">    geom_vline(xintercept = date)"</span>,</span>
@@ -163,7 +163,7 @@ you want custom placeholder support.</p>
 <h2 id="the-placeholder-metadata-contract">The placeholder metadata contract<a class="anchor" aria-label="anchor" href="#the-placeholder-metadata-contract"></a>
 </h2>
 <p>Every placeholder occurrence becomes one metadata record in
-<code>paintr_obj$placeholder_map</code>.</p>
+<code>ptr_obj$placeholder_map</code>.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">meta</span> <span class="op">&lt;-</span> <span class="va">obj</span><span class="op">$</span><span class="va">placeholder_map</span><span class="op">$</span><span class="va">geom_vline</span><span class="op">[[</span><span class="st">"geom_vline+2"</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">meta</span></span>
@@ -207,7 +207,7 @@ placeholder code can behave differently by parameter or by layer.</p>
 <div class="section level2">
 <h2 id="the-hook-contract">The hook contract<a class="anchor" aria-label="anchor" href="#the-hook-contract"></a>
 </h2>
-<p><code><a href="../reference/ggpaintr_placeholder.html">ggpaintr_placeholder()</a></code> supports one required UI hook,
+<p><code><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code> supports one required UI hook,
 one required resolver hook, and three optional advanced hooks.</p>
 <div class="section level3">
 <h3 id="build_uiid-copy-meta-context">
@@ -230,9 +230,9 @@ occurrence.</p>
 <li>
 <code>meta</code>: the metadata record for this occurrence</li>
 <li>
-<code>context</code>: a named list containing
-<code>paintr_obj</code>, <code>placeholders</code>,
-<code>copy_rules</code>, and <code>envir</code>
+<code>context</code>: a named list containing <code>ptr_obj</code>,
+<code>placeholders</code>, <code>ui_text</code>, and
+<code>envir</code>
 </li>
 </ul>
 </div>
@@ -247,12 +247,12 @@ expression suitable for the completed plot expression.</p>
 <span><span class="co">#&gt; function (value, meta, context) </span></span>
 <span><span class="co">#&gt; {</span></span>
 <span><span class="co">#&gt;     if (is.null(value) || identical(as.character(value), "")) {</span></span>
-<span><span class="co">#&gt;         return(ggpaintr_missing_expr())</span></span>
+<span><span class="co">#&gt;         return(ptr_missing_expr())</span></span>
 <span><span class="co">#&gt;     }</span></span>
 <span><span class="co">#&gt;     rlang::expr(as.Date(!!as.character(value)))</span></span>
 <span><span class="co">#&gt; }</span></span></code></pre></div>
-<p>Return <code><a href="../reference/ggpaintr_missing_expr.html">ggpaintr_missing_expr()</a></code> when the argument should
-be removed from the completed code instead of inserted.</p>
+<p>Return <code><a href="../reference/ptr_missing_expr.html">ptr_missing_expr()</a></code> when the argument should be
+removed from the completed code instead of inserted.</p>
 </div>
 <div class="section level3">
 <h3 id="resolve_inputinput-id-meta-context">
@@ -262,7 +262,7 @@ be removed from the completed code instead of inserted.</p>
 preprocessing before it is handed to <code>resolve_expr()</code>. If
 omitted, <code>ggpaintr</code> uses <code>input[[id]]</code>.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">trimmed_text_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ggpaintr_placeholder.html">ggpaintr_placeholder</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">trimmed_text_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
 <span>  keyword <span class="op">=</span> <span class="st">"trimmed_text"</span>,</span>
 <span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/textInput.html" class="external-link">textInput</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span><span class="op">$</span><span class="va">label</span><span class="op">)</span></span>
@@ -272,7 +272,7 @@ omitted, <code>ggpaintr</code> uses <code>input[[id]]</code>.</p>
 <span>  <span class="op">}</span>,</span>
 <span>  resolve_expr <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">value</span>, <span class="st">""</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ggpaintr_missing_expr.html">ggpaintr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_missing_expr.html">ptr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span>    <span class="op">}</span></span>
 <span></span>
 <span>    <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="va">value</span><span class="op">)</span></span>
@@ -287,7 +287,7 @@ omitted, <code>ggpaintr</code> uses <code>input[[id]]</code>.</p>
 This is how the built-in <code>var</code> placeholder registers delayed
 <code><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI()</a></code> outputs after data is known.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">deferred_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ggpaintr_placeholder.html">ggpaintr_placeholder</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">deferred_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
 <span>  keyword <span class="op">=</span> <span class="st">"dynamic_text"</span>,</span>
 <span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/htmlOutput.html" class="external-link">uiOutput</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"dynamic-"</span>, <span class="va">id</span><span class="op">)</span><span class="op">)</span></span>
@@ -303,7 +303,7 @@ This is how the built-in <code>var</code> placeholder registers delayed
 <span>  <span class="op">}</span>,</span>
 <span>  resolve_expr <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="op">||</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">value</span>, <span class="st">""</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ggpaintr_missing_expr.html">ggpaintr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_missing_expr.html">ptr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span>    <span class="op">}</span></span>
 <span></span>
 <span>    <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="va">value</span><span class="op">)</span></span>
@@ -319,14 +319,14 @@ inject objects into the evaluation environment before the plot is built.
 This is how the built-in <code>upload</code> placeholder assigns
 uploaded data objects before code is evaluated.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">prepared_data_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ggpaintr_placeholder.html">ggpaintr_placeholder</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">prepared_data_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
 <span>  keyword <span class="op">=</span> <span class="st">"prepared_data"</span>,</span>
 <span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/textInput.html" class="external-link">textInput</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span><span class="op">$</span><span class="va">label</span>, placeholder <span class="op">=</span> <span class="st">"dataset_name"</span><span class="op">)</span></span>
 <span>  <span class="op">}</span>,</span>
 <span>  resolve_expr <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="op">||</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">value</span>, <span class="st">""</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ggpaintr_missing_expr.html">ggpaintr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_missing_expr.html">ptr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span>    <span class="op">}</span></span>
 <span></span>
 <span>    <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/parse_expr.html" class="external-link">parse_expr</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span></span>
@@ -343,9 +343,9 @@ uploaded data objects before code is evaluated.</p>
 </h2>
 <p>Each placeholder can ship its own default copy through
 <code>copy_defaults</code>. Those defaults then participate in the
-normal <code>copy_rules</code> system.</p>
+normal <code>ui_text</code> system.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">date_copy_rules</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/paintr_effective_copy_rules.html">paintr_effective_copy_rules</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">date_ui_text</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_merge_ui_text.html">ptr_merge_ui_text</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    defaults <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>date <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Pick any date"</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>    params <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
@@ -362,12 +362,12 @@ normal <code>copy_rules</code> system.</p>
 <span>  placeholders <span class="op">=</span> <span class="va">placeholders</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="../reference/paintr_resolve_copy.html">paintr_resolve_copy</a></span><span class="op">(</span></span>
+<span><span class="fu"><a href="../reference/ptr_resolve_ui_text.html">ptr_resolve_ui_text</a></span><span class="op">(</span></span>
 <span>  <span class="st">"control"</span>,</span>
 <span>  keyword <span class="op">=</span> <span class="st">"date"</span>,</span>
 <span>  layer_name <span class="op">=</span> <span class="st">"geom_vline"</span>,</span>
 <span>  param <span class="op">=</span> <span class="st">"xintercept"</span>,</span>
-<span>  copy_rules <span class="op">=</span> <span class="va">date_copy_rules</span>,</span>
+<span>  ui_text <span class="op">=</span> <span class="va">date_ui_text</span>,</span>
 <span>  placeholders <span class="op">=</span> <span class="va">placeholders</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt; $label</span></span>
@@ -382,7 +382,7 @@ normal <code>copy_rules</code> system.</p>
 <p>The phase-1 Shiny integration helpers work with custom placeholder
 registries too.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ggpaintr_ids.html">ggpaintr_ids</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_build_ids.html">ptr_build_ids</a></span><span class="op">(</span></span>
 <span>  control_panel <span class="op">=</span> <span class="st">"builder_controls"</span>,</span>
 <span>  draw_button <span class="op">=</span> <span class="st">"render_plot"</span>,</span>
 <span>  export_button <span class="op">=</span> <span class="st">"export_app"</span>,</span>
@@ -394,16 +394,16 @@ registries too.</p>
 <span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidPage</a></span><span class="op">(</span></span>
 <span>  <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarLayout</a></span><span class="op">(</span></span>
 <span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarPanel</a></span><span class="op">(</span></span>
-<span>      <span class="fu"><a href="../reference/ggpaintr_controls_ui.html">ggpaintr_controls_ui</a></span><span class="op">(</span>ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
+<span>      <span class="fu"><a href="../reference/ptr_input_ui.html">ptr_input_ui</a></span><span class="op">(</span>ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
 <span>    <span class="op">)</span>,</span>
 <span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">mainPanel</a></span><span class="op">(</span></span>
-<span>      <span class="fu"><a href="../reference/ggpaintr_outputs_ui.html">ggpaintr_outputs_ui</a></span><span class="op">(</span>ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
+<span>      <span class="fu"><a href="../reference/ptr_output_ui.html">ptr_output_ui</a></span><span class="op">(</span>ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
 <span>    <span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">paintr_state</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ggpaintr_server_state.html">ggpaintr_server_state</a></span><span class="op">(</span></span>
+<span>  <span class="va">ptr_state</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_server_state.html">ptr_server_state</a></span><span class="op">(</span></span>
 <span>    <span class="st">"ggplot(data = sales, aes(x = day, y = value)) +</span></span>
 <span><span class="st">      geom_line() +</span></span>
 <span><span class="st">      geom_vline(xintercept = date)"</span>,</span>
@@ -411,12 +411,12 @@ registries too.</p>
 <span>    placeholders <span class="op">=</span> <span class="va">placeholders</span></span>
 <span>  <span class="op">)</span></span>
 <span></span>
-<span>  <span class="fu"><a href="../reference/ggpaintr_bind_control_panel.html">ggpaintr_bind_control_panel</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">paintr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="../reference/ggpaintr_bind_draw.html">ggpaintr_bind_draw</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">paintr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="../reference/ggpaintr_bind_export.html">ggpaintr_bind_export</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">paintr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="../reference/ggpaintr_bind_plot.html">ggpaintr_bind_plot</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">paintr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="../reference/ggpaintr_bind_error.html">ggpaintr_bind_error</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">paintr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="../reference/ggpaintr_bind_code.html">ggpaintr_bind_code</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">paintr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/ptr_setup_controls.html">ptr_setup_controls</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/ptr_register_draw.html">ptr_register_draw</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/ptr_register_export.html">ptr_register_export</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/ptr_register_plot.html">ptr_register_plot</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/ptr_register_error.html">ptr_register_error</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/ptr_register_code.html">ptr_register_code</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
 </div>
 <div class="section level2">
@@ -424,47 +424,46 @@ registries too.</p>
 </h2>
 <p>Exported apps rebuild only the custom placeholder definitions they
 need. The same placeholder registry can be passed into
-<code><a href="../reference/generate_shiny.html">generate_shiny()</a></code>.</p>
+<code><a href="../reference/ptr_generate_shiny.html">ptr_generate_shiny()</a></code>.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">out_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".R"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="../reference/generate_shiny.html">generate_shiny</a></span><span class="op">(</span></span>
+<span><span class="fu"><a href="../reference/ptr_generate_shiny.html">ptr_generate_shiny</a></span><span class="op">(</span></span>
 <span>  <span class="va">obj</span>,</span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  <span class="va">out_file</span>,</span>
 <span>  style <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  placeholders <span class="op">=</span> <span class="va">placeholders</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>For an exported app to stay standalone, custom placeholders must be
-created with <code><a href="../reference/ggpaintr_placeholder.html">ggpaintr_placeholder()</a></code> and must define hook
+created with <code><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code> and must define hook
 functions inline inside that call. If a placeholder definition cannot be
-serialized safely, <code><a href="../reference/generate_shiny.html">generate_shiny()</a></code> will error instead of
-writing a broken app.</p>
+serialized safely, <code><a href="../reference/ptr_generate_shiny.html">ptr_generate_shiny()</a></code> will error instead
+of writing a broken app.</p>
 </div>
 <div class="section level2">
 <h2 id="what-exportable-means">What exportable means<a class="anchor" aria-label="anchor" href="#what-exportable-means"></a>
 </h2>
 <p>The current export path works by storing the original
-<code>ggpaintr_placeholder(...)</code> call on each custom placeholder
+<code>ptr_define_placeholder(...)</code> call on each custom placeholder
 as <code>definition_call</code>. When you export an app,
-<code><a href="../reference/generate_shiny.html">generate_shiny()</a></code> serializes that stored call into the
+<code><a href="../reference/ptr_generate_shiny.html">ptr_generate_shiny()</a></code> serializes that stored call into the
 generated script and then rebuilds the registry there.</p>
 <p>That is why inline hooks are exportable today:</p>
 <ul>
 <li>inline hook bodies live inside the stored
-<code>ggpaintr_placeholder(...)</code> call</li>
+<code>ptr_define_placeholder(...)</code> call</li>
 <li>external helper references are only symbols, so the exported app
 would not contain the helper definitions themselves</li>
 </ul>
 <p>You can inspect the stored call directly:</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">date_placeholder</span><span class="op">$</span><span class="va">definition_call</span></span>
-<span><span class="co">#&gt; ggpaintr_placeholder(keyword = "date", build_ui = function(id, </span></span>
+<span><span class="co">#&gt; ptr_define_placeholder(keyword = "date", build_ui = function(id, </span></span>
 <span><span class="co">#&gt;     copy, meta, context) {</span></span>
 <span><span class="co">#&gt;     shiny::dateInput(id, copy$label)</span></span>
 <span><span class="co">#&gt; }, resolve_expr = function(value, meta, context) {</span></span>
 <span><span class="co">#&gt;     if (is.null(value) || identical(as.character(value), "")) {</span></span>
-<span><span class="co">#&gt;         return(ggpaintr_missing_expr())</span></span>
+<span><span class="co">#&gt;         return(ptr_missing_expr())</span></span>
 <span><span class="co">#&gt;     }</span></span>
 <span><span class="co">#&gt;     rlang::expr(as.Date(!!as.character(value)))</span></span>
 <span><span class="co">#&gt; }, copy_defaults = list(label = "Choose a date for {param}"))</span></span></code></pre></div>
@@ -472,14 +471,14 @@ would not contain the helper definitions themselves</li>
 <h3 id="exportable-today">Exportable today<a class="anchor" aria-label="anchor" href="#exportable-today"></a>
 </h3>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">date_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ggpaintr_placeholder.html">ggpaintr_placeholder</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">date_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
 <span>  keyword <span class="op">=</span> <span class="st">"date"</span>,</span>
 <span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/dateInput.html" class="external-link">dateInput</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span><span class="op">$</span><span class="va">label</span><span class="op">)</span></span>
 <span>  <span class="op">}</span>,</span>
 <span>  resolve_expr <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="op">||</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span>, <span class="st">""</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ggpaintr_missing_expr.html">ggpaintr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_missing_expr.html">ptr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span>    <span class="op">}</span></span>
 <span></span>
 <span>    <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
@@ -496,21 +495,27 @@ would not contain the helper definitions themselves</li>
 <span></span>
 <span><span class="va">date_to_expr</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="op">||</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span>, <span class="st">""</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ggpaintr_missing_expr.html">ggpaintr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_missing_expr.html">ptr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span>  <span class="op">}</span></span>
 <span></span>
 <span>  <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
-<span><span class="va">date_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ggpaintr_placeholder.html">ggpaintr_placeholder</a></span><span class="op">(</span></span>
+<span><span class="va">date_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
 <span>  keyword <span class="op">=</span> <span class="st">"date"</span>,</span>
 <span>  build_ui <span class="op">=</span> <span class="va">build_date_ui</span>,</span>
 <span>  resolve_expr <span class="op">=</span> <span class="va">date_to_expr</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># generate_shiny(..., placeholders = list(date = date_placeholder))</span></span>
+<span><span class="co"># ptr_generate_shiny(..., placeholders = list(date = date_placeholder))</span></span>
 <span><span class="co"># errors because the exported app would not contain build_date_ui() or</span></span>
 <span><span class="co"># date_to_expr().</span></span></code></pre></div>
+<blockquote>
+<p><strong>Note:</strong> This inline-only restriction is a known
+limitation. A future release may lift it by deparsing function bodies at
+export time so that hooks defined outside the
+<code><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code> call can also be serialized.</p>
+</blockquote>
 </div>
 </div>
 <div class="section level2">

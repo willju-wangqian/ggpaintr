@@ -3,44 +3,44 @@
 ## Overview
 
 `ggpaintr` still ships the default
-[`ggpaintr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_app.md)
+[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
 and
-[`ggpaintr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_server.md)
+[`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
 wrappers, but it now also exposes a supported integration layer for
 users who already have a Shiny app and want to embed the generated
 `ggpaintr` controls, runtime, and export behavior into their own UI.
 
 The supported integration pieces are:
 
-- [`ggpaintr_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_ids.md)
-- [`ggpaintr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_server_state.md)
-- [`ggpaintr_bind_control_panel()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_bind_control_panel.md)
-- [`ggpaintr_bind_draw()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_bind_draw.md)
-- [`ggpaintr_bind_export()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_bind_export.md)
-- [`ggpaintr_bind_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_bind_plot.md)
-- [`ggpaintr_bind_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_bind_error.md)
-- [`ggpaintr_bind_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_bind_code.md)
-- [`ggpaintr_plot_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_plot_value.md)
-- [`ggpaintr_error_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_error_value.md)
-- [`ggpaintr_code_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_code_value.md)
-- [`ggpaintr_controls_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_controls_ui.md)
-- [`ggpaintr_outputs_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_outputs_ui.md)
+- [`ptr_build_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.md)
+- [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md)
+- [`ptr_setup_controls()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_setup_controls.md)
+- [`ptr_register_draw()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_draw.md)
+- [`ptr_register_export()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_export.md)
+- [`ptr_register_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_plot.md)
+- [`ptr_register_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_error.md)
+- [`ptr_register_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_code.md)
+- [`ptr_extract_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_plot.md)
+- [`ptr_extract_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_error.md)
+- [`ptr_extract_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_code.md)
+- [`ptr_input_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_input_ui.md)
+- [`ptr_output_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_output_ui.md)
 
 ## Choosing the right surface
 
 The current package surface is intentionally layered.
 
 - use
-  [`ggpaintr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_app.md)
+  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
   or
-  [`ggpaintr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_server.md)
+  [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
   for most apps
 - use
-  [`ggpaintr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_server_state.md)
-  plus the `ggpaintr_bind_*()` helpers when you already own a larger
+  [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md)
+  plus the `ptr_register_*()` helpers when you already own a larger
   Shiny layout and want to embed `ggpaintr`
-- use the low-level `paintr_*` runtime helpers, together with
-  [`ggpaintr_runtime_input_spec()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_runtime_input_spec.md),
+- use the low-level `ptr_*` runtime helpers, together with
+  [`ptr_runtime_input_spec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_runtime_input_spec.md),
   when you are writing tests, tooling, or package-level extensions
   around parsed formulas
 
@@ -58,46 +58,46 @@ ui <- fluidPage(
   titlePanel("Embedded ggpaintr"),
   sidebarLayout(
     sidebarPanel(
-      ggpaintr_controls_ui()
+      ptr_input_ui()
     ),
     mainPanel(
-      ggpaintr_outputs_ui()
+      ptr_output_ui()
     )
   )
 )
 
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server_state(
+  ptr_state <- ptr_server_state(
     "ggplot(data = iris, aes(x = var, y = var)) +
       geom_point() +
       labs(title = text)"
   )
 
-  ggpaintr_bind_control_panel(input, output, paintr_state)
-  ggpaintr_bind_draw(input, paintr_state)
-  ggpaintr_bind_export(output, paintr_state)
-  ggpaintr_bind_plot(output, paintr_state)
-  ggpaintr_bind_error(output, paintr_state)
-  ggpaintr_bind_code(output, paintr_state)
+  ptr_setup_controls(input, output, ptr_state)
+  ptr_register_draw(input, ptr_state)
+  ptr_register_export(output, ptr_state)
+  ptr_register_plot(output, ptr_state)
+  ptr_register_error(output, ptr_state)
+  ptr_register_code(output, ptr_state)
 }
 
 shinyApp(ui, server)
 ```
 
 This is the closest supported equivalent to
-[`ggpaintr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_server.md),
+[`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md),
 but it lets you place the controls and outputs inside your own page
 layout.
 
 ## Recipe 2: Customize top-level ids
 
 Use
-[`ggpaintr_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_ids.md)
+[`ptr_build_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.md)
 when your app already has its own naming scheme or you want to mount
 `ggpaintr` outputs in specific UI containers.
 
 ``` r
-ids <- ggpaintr_ids(
+ids <- ptr_build_ids(
   control_panel = "builder_controls",
   draw_button = "render_plot",
   export_button = "export_app",
@@ -113,26 +113,26 @@ ids
 ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
-      ggpaintr_controls_ui(ids = ids)
+      ptr_input_ui(ids = ids)
     ),
     mainPanel(
-      ggpaintr_outputs_ui(ids = ids)
+      ptr_output_ui(ids = ids)
     )
   )
 )
 
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server_state(
+  ptr_state <- ptr_server_state(
     "ggplot(data = iris, aes(x = var, y = var)) + geom_point()",
     ids = ids
   )
 
-  ggpaintr_bind_control_panel(input, output, paintr_state, ids = ids)
-  ggpaintr_bind_draw(input, paintr_state, ids = ids)
-  ggpaintr_bind_export(output, paintr_state, ids = ids)
-  ggpaintr_bind_plot(output, paintr_state, ids = ids)
-  ggpaintr_bind_error(output, paintr_state, ids = ids)
-  ggpaintr_bind_code(output, paintr_state, ids = ids)
+  ptr_setup_controls(input, output, ptr_state, ids = ids)
+  ptr_register_draw(input, ptr_state, ids = ids)
+  ptr_register_export(output, ptr_state, ids = ids)
+  ptr_register_plot(output, ptr_state, ids = ids)
+  ptr_register_error(output, ptr_state, ids = ids)
+  ptr_register_code(output, ptr_state, ids = ids)
 }
 ```
 
@@ -142,26 +142,26 @@ placeholder ids and dynamic `var-*` output ids remain package-owned.
 ## Recipe 3: Customize the returned plot in `renderPlot()`
 
 The default
-[`ggpaintr_bind_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_bind_plot.md)
+[`ptr_register_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_plot.md)
 binder preserves the current wrapper behavior. If you want to modify the
 built plot before rendering, write your own
 [`renderPlot()`](https://rdrr.io/pkg/shiny/man/renderPlot.html) and use
-[`ggpaintr_plot_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_plot_value.md).
+[`ptr_extract_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_plot.md).
 
 ``` r
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server_state(
+  ptr_state <- ptr_server_state(
     "ggplot(data = iris, aes(x = var, y = var)) + geom_point()"
   )
 
-  ggpaintr_bind_control_panel(input, output, paintr_state)
-  ggpaintr_bind_draw(input, paintr_state)
-  ggpaintr_bind_export(output, paintr_state)
-  ggpaintr_bind_error(output, paintr_state)
-  ggpaintr_bind_code(output, paintr_state)
+  ptr_setup_controls(input, output, ptr_state)
+  ptr_register_draw(input, ptr_state)
+  ptr_register_export(output, ptr_state)
+  ptr_register_error(output, ptr_state)
+  ptr_register_code(output, ptr_state)
 
   output$outputPlot <- renderPlot({
-    plot_obj <- ggpaintr_plot_value(paintr_state$runtime())
+    plot_obj <- ptr_extract_plot(ptr_state$runtime())
 
     if (is.null(plot_obj)) {
       plot.new()
@@ -173,7 +173,7 @@ server <- function(input, output, session) {
 }
 ```
 
-[`ggpaintr_plot_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_plot_value.md)
+[`ptr_extract_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_plot.md)
 returns the raw `ggplot` object on success and `NULL` otherwise. That
 keeps the advanced customization seam side-effect free and lets you
 decide how to render failure states in your own app.
@@ -185,12 +185,12 @@ custom layout or custom top-level ids.
 
 Use the pure value helpers when you want to own the rendering details:
 
-- [`ggpaintr_plot_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_plot_value.md)
+- [`ptr_extract_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_plot.md)
   for plot customization
-- [`ggpaintr_error_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_error_value.md)
+- [`ptr_extract_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_error.md)
   for custom [`renderUI()`](https://rdrr.io/pkg/shiny/man/renderUI.html)
   workflows
-- [`ggpaintr_code_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_code_value.md)
+- [`ptr_extract_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_code.md)
   for custom
   [`renderText()`](https://rdrr.io/pkg/shiny/man/renderPrint.html) or
   downstream processing
@@ -216,7 +216,7 @@ the runtime easier to reason about without giving up that authoring
 model, the next hardening step should happen internally:
 
 - keep formula strings as the public authoring format
-- compile each parsed `paintr_obj` once into a richer internal runtime
+- compile each parsed `ptr_obj` once into a richer internal runtime
   contract
 - have runtime completion consume that compiled contract instead of
   repeatedly relying on raw expression walks and companion-id

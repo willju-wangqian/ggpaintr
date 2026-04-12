@@ -40,7 +40,7 @@
     </div>
 
     <div class="section level2">
-      <h2 id="shiny-wrappers">Shiny wrappers<a class="anchor" aria-label="anchor" href="#shiny-wrappers"></a></h2>
+      <h2 id="start-here">Start here<a class="anchor" aria-label="anchor" href="#start-here"></a></h2>
 
 
 
@@ -51,28 +51,21 @@
 
       <dl><dt>
 
-          <code><a href="ggpaintr_app.html">ggpaintr_app()</a></code>
+          <code><a href="ptr_app.html">ptr_app()</a></code>
 
         </dt>
         <dd>Build a ggpaintr Shiny App</dd>
 
         <dt>
 
-          <code><a href="ggpaintr_server.html">ggpaintr_server()</a></code>
-
-        </dt>
-        <dd>Register ggpaintr Server Logic</dd>
-
-        <dt>
-
-          <code><a href="generate_shiny.html">generate_shiny()</a></code>
+          <code><a href="ptr_generate_shiny.html">ptr_generate_shiny()</a></code>
 
         </dt>
         <dd>Generate a Standalone Shiny App Script</dd>
       </dl></div><div class="section level2">
       <h2 id="shiny-integration">Shiny integration<a class="anchor" aria-label="anchor" href="#shiny-integration"></a></h2>
 
-
+      <div class="section-desc"><p>Embed ggpaintr inside a larger Shiny app while keeping package-owned runtime behavior.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -81,98 +74,105 @@
 
       <dl><dt>
 
-          <code><a href="ggpaintr_ids.html">ggpaintr_ids()</a></code>
+          <code><a href="ptr_server.html">ptr_server()</a></code>
+
+        </dt>
+        <dd>Register ggpaintr Server Logic</dd>
+
+        <dt>
+
+          <code><a href="ptr_build_ids.html">ptr_build_ids()</a></code>
 
         </dt>
         <dd>Build Standard Output Ids for ggpaintr Integration</dd>
 
         <dt>
 
-          <code><a href="ggpaintr_server_state.html">ggpaintr_server_state()</a></code>
+          <code><a href="ptr_server_state.html">ptr_server_state()</a></code>
 
         </dt>
         <dd>Build Reactive Server State for ggpaintr</dd>
 
         <dt>
 
-          <code><a href="ggpaintr_bind_control_panel.html">ggpaintr_bind_control_panel()</a></code>
+          <code><a href="ptr_setup_controls.html">ptr_setup_controls()</a></code>
 
         </dt>
         <dd>Bind the Generated Control Panel into a Shiny App</dd>
 
         <dt>
 
-          <code><a href="ggpaintr_bind_draw.html">ggpaintr_bind_draw()</a></code>
+          <code><a href="ptr_register_draw.html">ptr_register_draw()</a></code>
 
         </dt>
         <dd>Bind Draw Behavior into a Shiny App</dd>
 
         <dt>
 
-          <code><a href="ggpaintr_bind_export.html">ggpaintr_bind_export()</a></code>
+          <code><a href="ptr_register_export.html">ptr_register_export()</a></code>
 
         </dt>
         <dd>Bind Export Behavior into a Shiny App</dd>
 
         <dt>
 
-          <code><a href="ggpaintr_bind_plot.html">ggpaintr_bind_plot()</a></code>
+          <code><a href="ptr_register_plot.html">ptr_register_plot()</a></code>
 
         </dt>
         <dd>Bind Default Plot Rendering into a Shiny App</dd>
 
         <dt>
 
-          <code><a href="ggpaintr_bind_error.html">ggpaintr_bind_error()</a></code>
+          <code><a href="ptr_register_error.html">ptr_register_error()</a></code>
 
         </dt>
         <dd>Bind Default Error Rendering into a Shiny App</dd>
 
         <dt>
 
-          <code><a href="ggpaintr_bind_code.html">ggpaintr_bind_code()</a></code>
+          <code><a href="ptr_register_code.html">ptr_register_code()</a></code>
 
         </dt>
         <dd>Bind Default Code Rendering into a Shiny App</dd>
 
         <dt>
 
-          <code><a href="ggpaintr_plot_value.html">ggpaintr_plot_value()</a></code>
+          <code><a href="ptr_extract_plot.html">ptr_extract_plot()</a></code>
 
         </dt>
         <dd>Return the Built Plot from a Runtime Result</dd>
 
         <dt>
 
-          <code><a href="ggpaintr_error_value.html">ggpaintr_error_value()</a></code>
+          <code><a href="ptr_extract_error.html">ptr_extract_error()</a></code>
 
         </dt>
         <dd>Return Default Error UI from a Runtime Result</dd>
 
         <dt>
 
-          <code><a href="ggpaintr_code_value.html">ggpaintr_code_value()</a></code>
+          <code><a href="ptr_extract_code.html">ptr_extract_code()</a></code>
 
         </dt>
         <dd>Return Generated Code Text from a Runtime Result</dd>
 
         <dt>
 
-          <code><a href="ggpaintr_controls_ui.html">ggpaintr_controls_ui()</a></code>
+          <code><a href="ptr_input_ui.html">ptr_input_ui()</a></code>
 
         </dt>
         <dd>Build Default ggpaintr Control Widgets</dd>
 
         <dt>
 
-          <code><a href="ggpaintr_outputs_ui.html">ggpaintr_outputs_ui()</a></code>
+          <code><a href="ptr_output_ui.html">ptr_output_ui()</a></code>
 
         </dt>
         <dd>Build Default ggpaintr Output Widgets</dd>
       </dl></div><div class="section level2">
       <h2 id="placeholder-extensibility">Placeholder extensibility<a class="anchor" aria-label="anchor" href="#placeholder-extensibility"></a></h2>
 
-
+      <div class="section-desc"><p>Register and reuse supported custom placeholder types without editing package internals.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -181,21 +181,21 @@
 
       <dl><dt>
 
-          <code><a href="ggpaintr_placeholder.html">ggpaintr_placeholder()</a></code>
+          <code><a href="ptr_define_placeholder.html">ptr_define_placeholder()</a></code>
 
         </dt>
         <dd>Construct a Custom ggpaintr Placeholder</dd>
 
         <dt>
 
-          <code><a href="ggpaintr_effective_placeholders.html">ggpaintr_effective_placeholders()</a></code>
+          <code><a href="ptr_merge_placeholders.html">ptr_merge_placeholders()</a></code>
 
         </dt>
         <dd>Build the Effective Placeholder Registry for ggpaintr</dd>
 
         <dt>
 
-          <code><a href="ggpaintr_missing_expr.html">ggpaintr_missing_expr()</a></code>
+          <code><a href="ptr_missing_expr.html">ptr_missing_expr()</a></code>
 
         </dt>
         <dd>Return the Sentinel for Removing a Placeholder Argument</dd>
@@ -211,14 +211,14 @@
 
       <dl><dt>
 
-          <code><a href="ggpaintr_normalize_column_names.html">ggpaintr_normalize_column_names()</a></code>
+          <code><a href="ptr_normalize_column_names.html">ptr_normalize_column_names()</a></code>
 
         </dt>
         <dd>Normalize Dataset Column Names for <code>ggpaintr</code></dd>
       </dl></div><div class="section level2">
-      <h2 id="formula-and-runtime">Formula and runtime<a class="anchor" aria-label="anchor" href="#formula-and-runtime"></a></h2>
+      <h2 id="advanced-runtime">Advanced runtime<a class="anchor" aria-label="anchor" href="#advanced-runtime"></a></h2>
 
-
+      <div class="section-desc"><p>Low-level helpers intentionally exported for advanced tests, tooling, and custom runtime workflows.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -227,28 +227,28 @@
 
       <dl><dt>
 
-          <code><a href="paintr_formula.html">paintr_formula()</a></code>
+          <code><a href="ptr_parse_formula.html">ptr_parse_formula()</a></code>
 
         </dt>
         <dd>Parse a Paintr Formula</dd>
 
         <dt>
 
-          <code><a href="ggpaintr_runtime_input_spec.html">ggpaintr_runtime_input_spec()</a></code>
+          <code><a href="ptr_runtime_input_spec.html">ptr_runtime_input_spec()</a></code>
 
         </dt>
         <dd>Describe the Runtime Inputs for a Parsed Formula</dd>
 
         <dt>
 
-          <code><a href="paintr_build_runtime.html">paintr_build_runtime()</a></code>
+          <code><a href="ptr_exec.html">ptr_exec()</a></code>
 
         </dt>
         <dd>Build the Full Runtime Result for a Paintr App</dd>
 
         <dt>
 
-          <code><a href="paintr_get_plot.html">paintr_get_plot()</a></code>
+          <code><a href="ptr_assemble_plot.html">ptr_assemble_plot()</a></code>
 
         </dt>
         <dd>Build a Plot from Completed Layer Expressions</dd>
@@ -264,14 +264,14 @@
 
       <dl><dt>
 
-          <code><a href="paintr_effective_copy_rules.html">paintr_effective_copy_rules()</a></code>
+          <code><a href="ptr_merge_ui_text.html">ptr_merge_ui_text()</a></code>
 
         </dt>
         <dd>Build Effective Copy Rules</dd>
 
         <dt>
 
-          <code><a href="paintr_resolve_copy.html">paintr_resolve_copy()</a></code>
+          <code><a href="ptr_resolve_ui_text.html">ptr_resolve_ui_text()</a></code>
 
         </dt>
         <dd>Resolve Copy for One Control or App Element</dd>

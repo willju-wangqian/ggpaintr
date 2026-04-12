@@ -88,8 +88,8 @@
 <li>
 <code>upload</code> lets the app use uploaded data</li>
 <li>
-<code><a href="reference/ggpaintr_normalize_column_names.html">ggpaintr_normalize_column_names()</a></code> cleans local column names before <code>var</code> selection when the source data is not already syntactic</li>
-<li>you can register your own placeholder types per app with <code><a href="reference/ggpaintr_placeholder.html">ggpaintr_placeholder()</a></code>
+<code><a href="reference/ptr_normalize_column_names.html">ptr_normalize_column_names()</a></code> cleans local column names before <code>var</code> selection when the source data is not already syntactic</li>
+<li>you can register your own placeholder types per app with <code><a href="reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code>
 </li>
 </ul>
 <p><code>upload</code> currently supports <code>.csv</code> and <code>.rds</code>.</p>
@@ -114,16 +114,29 @@
 <div class="section level2">
 <h2 id="quick-start">Quick start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
 </h2>
-<p>Most users should start with <code><a href="reference/ggpaintr_app.html">ggpaintr_app()</a></code>.</p>
+<p>Most users should start with <code><a href="reference/ptr_app.html">ptr_app()</a></code>.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://willju-wangqian.github.io/ggpaintr/">ggpaintr</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="reference/ggpaintr_app.html">ggpaintr_app</a></span><span class="op">(</span><span class="st">"</span></span>
+<span><span class="fu"><a href="reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="st">"</span></span>
 <span><span class="st">ggplot(data = iris, aes(x = var, y = var)) +</span></span>
 <span><span class="st">  geom_point(aes(color = var), size = num) +</span></span>
 <span><span class="st">  labs(title = text) +</span></span>
 <span><span class="st">  facet_wrap(expr)</span></span>
 <span><span class="st">"</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="supported-public-api">Supported public API<a class="anchor" aria-label="anchor" href="#supported-public-api"></a>
+</h2>
+<p>The maintained public path is intentionally narrow.</p>
+<ul>
+<li>Start with <code><a href="reference/ptr_app.html">ptr_app()</a></code> for the default app wrapper.</li>
+<li>Use <code><a href="reference/ptr_server.html">ptr_server()</a></code>, <code><a href="reference/ptr_server_state.html">ptr_server_state()</a></code>, <code><a href="reference/ptr_build_ids.html">ptr_build_ids()</a></code>, and the <code>ptr_register_*()</code> helpers when you need to embed <code>ggpaintr</code> in a larger Shiny app.</li>
+<li>Use <code><a href="reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code> and <code><a href="reference/ptr_merge_placeholders.html">ptr_merge_placeholders()</a></code> for custom placeholder types.</li>
+<li>Use <code><a href="reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec()</a></code>, <code><a href="reference/ptr_parse_formula.html">ptr_parse_formula()</a></code>, <code><a href="reference/ptr_exec.html">ptr_exec()</a></code>, and <code><a href="reference/ptr_assemble_plot.html">ptr_assemble_plot()</a></code> for advanced runtime or testing workflows.</li>
+<li>Use <code><a href="reference/ptr_generate_shiny.html">ptr_generate_shiny()</a></code> to export an explicit standalone app script.</li>
+</ul>
+<p>Other helpers in <code>R/</code> are internal implementation support rather than part of the maintained community-facing API.</p>
 </div>
 <div class="section level2">
 <h2 id="feature-tour">Feature tour<a class="anchor" aria-label="anchor" href="#feature-tour"></a>
@@ -133,7 +146,7 @@
 </h3>
 <p>Use <code>upload</code> when the app should let users supply a dataset at runtime.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="reference/ggpaintr_app.html">ggpaintr_app</a></span><span class="op">(</span><span class="st">"</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="st">"</span></span>
 <span><span class="st">ggplot(data = upload, aes(x = var, y = var)) +</span></span>
 <span><span class="st">  geom_point(size = num) +</span></span>
 <span><span class="st">  labs(title = text)</span></span>
@@ -153,10 +166,10 @@
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">messy_sales</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"first column"</span>, <span class="st">"second-column"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">sales</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ggpaintr_normalize_column_names.html">ggpaintr_normalize_column_names</a></span><span class="op">(</span><span class="va">messy_sales</span><span class="op">)</span></span>
+<span><span class="va">sales</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_normalize_column_names.html">ptr_normalize_column_names</a></span><span class="op">(</span><span class="va">messy_sales</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sales</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="reference/ggpaintr_app.html">ggpaintr_app</a></span><span class="op">(</span><span class="st">"</span></span>
+<span><span class="fu"><a href="reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="st">"</span></span>
 <span><span class="st">ggplot(data = sales, aes(x = var, y = var)) +</span></span>
 <span><span class="st">  geom_point()</span></span>
 <span><span class="st">"</span><span class="op">)</span></span></code></pre></div>
@@ -166,16 +179,16 @@
 </h3>
 <p><code>var</code> is a column picker. When you want derived mappings, wrap the placeholder in the formula itself and let the selected column slot into that expression.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="reference/ggpaintr_app.html">ggpaintr_app</a></span><span class="op">(</span><span class="st">"</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="st">"</span></span>
 <span><span class="st">ggplot(data = mtcars, aes(x = var + 1, y = log(var))) +</span></span>
 <span><span class="st">  geom_point()</span></span>
 <span><span class="st">"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
-<h3 id="customize-control-text-with-copy_rules">Customize control text with <code>copy_rules</code>
-<a class="anchor" aria-label="anchor" href="#customize-control-text-with-copy_rules"></a>
+<h3 id="customize-control-text-with-ui_text">Customize control text with <code>ui_text</code>
+<a class="anchor" aria-label="anchor" href="#customize-control-text-with-ui_text"></a>
 </h3>
-<p>Use <code>copy_rules</code> to change user-facing labels without changing the runtime behavior of the generated app.</p>
+<p>Use <code>ui_text</code> to change user-facing labels without changing the runtime behavior of the generated app.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">custom_copy</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  shell <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
@@ -189,29 +202,29 @@
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="reference/ggpaintr_app.html">ggpaintr_app</a></span><span class="op">(</span></span>
+<span><span class="fu"><a href="reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = iris, aes(x = var, y = var)) +</span></span>
 <span><span class="st">     geom_point() +</span></span>
 <span><span class="st">     labs(title = text)"</span>,</span>
-<span>  copy_rules <span class="op">=</span> <span class="va">custom_copy</span></span>
+<span>  ui_text <span class="op">=</span> <span class="va">custom_copy</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="export-a-standalone-app">Export a standalone app<a class="anchor" aria-label="anchor" href="#export-a-standalone-app"></a>
 </h3>
-<p>Use <code><a href="reference/generate_shiny.html">generate_shiny()</a></code> when you want an explicit, editable Shiny app file that you can continue customizing outside the package wrapper.</p>
+<p>Use <code><a href="reference/ptr_generate_shiny.html">ptr_generate_shiny()</a></code> when you want an explicit, editable Shiny app file that you can continue customizing outside the package wrapper.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/paintr_formula.html">paintr_formula</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_parse_formula.html">ptr_parse_formula</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = upload, aes(x = var, y = var)) +</span></span>
 <span><span class="st">    geom_point() +</span></span>
 <span><span class="st">    labs(title = text)"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">app_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".R"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/generate_shiny.html">generate_shiny</a></span><span class="op">(</span><span class="va">obj</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, <span class="va">app_file</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/ptr_generate_shiny.html">ptr_generate_shiny</a></span><span class="op">(</span><span class="va">obj</span>, <span class="va">app_file</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># The generated file keeps an explicit ui, an explicit server, and visible</span></span>
-<span><span class="co"># copy_rules/placeholders hooks so you can keep editing it as a normal Shiny app.</span></span></code></pre></div>
+<span><span class="co"># ui_text/placeholders hooks so you can keep editing it as a normal Shiny app.</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="embed-ggpaintr-in-your-own-shiny-app">Embed <code>ggpaintr</code> in your own Shiny app<a class="anchor" aria-label="anchor" href="#embed-ggpaintr-in-your-own-shiny-app"></a>
@@ -220,7 +233,7 @@
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://shiny.posit.co/" class="external-link">shiny</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ggpaintr_ids.html">ggpaintr_ids</a></span><span class="op">(</span></span>
+<span><span class="va">ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_build_ids.html">ptr_build_ids</a></span><span class="op">(</span></span>
 <span>  control_panel <span class="op">=</span> <span class="st">"builder_controls"</span>,</span>
 <span>  draw_button <span class="op">=</span> <span class="st">"render_plot"</span>,</span>
 <span>  export_button <span class="op">=</span> <span class="st">"export_app"</span>,</span>
@@ -231,25 +244,25 @@
 <span></span>
 <span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidPage</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarLayout</a></span><span class="op">(</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarPanel</a></span><span class="op">(</span><span class="fu"><a href="reference/ggpaintr_controls_ui.html">ggpaintr_controls_ui</a></span><span class="op">(</span>ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">mainPanel</a></span><span class="op">(</span><span class="fu"><a href="reference/ggpaintr_outputs_ui.html">ggpaintr_outputs_ui</a></span><span class="op">(</span>ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarPanel</a></span><span class="op">(</span><span class="fu"><a href="reference/ptr_input_ui.html">ptr_input_ui</a></span><span class="op">(</span>ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">mainPanel</a></span><span class="op">(</span><span class="fu"><a href="reference/ptr_output_ui.html">ptr_output_ui</a></span><span class="op">(</span>ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span><span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">paintr_state</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ggpaintr_server_state.html">ggpaintr_server_state</a></span><span class="op">(</span></span>
+<span>  <span class="va">ptr_state</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_server_state.html">ptr_server_state</a></span><span class="op">(</span></span>
 <span>    <span class="st">"ggplot(data = iris, aes(x = var, y = var)) +</span></span>
 <span><span class="st">      geom_point() +</span></span>
 <span><span class="st">      labs(title = text)"</span>,</span>
 <span>    ids <span class="op">=</span> <span class="va">ids</span></span>
 <span>  <span class="op">)</span></span>
 <span></span>
-<span>  <span class="fu"><a href="reference/ggpaintr_bind_control_panel.html">ggpaintr_bind_control_panel</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">paintr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="reference/ggpaintr_bind_draw.html">ggpaintr_bind_draw</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">paintr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="reference/ggpaintr_bind_export.html">ggpaintr_bind_export</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">paintr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="reference/ggpaintr_bind_plot.html">ggpaintr_bind_plot</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">paintr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="reference/ggpaintr_bind_error.html">ggpaintr_bind_error</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">paintr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="reference/ggpaintr_bind_code.html">ggpaintr_bind_code</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">paintr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="reference/ptr_setup_controls.html">ptr_setup_controls</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="reference/ptr_register_draw.html">ptr_register_draw</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="reference/ptr_register_export.html">ptr_register_export</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="reference/ptr_register_plot.html">ptr_register_plot</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="reference/ptr_register_error.html">ptr_register_error</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="reference/ptr_register_code.html">ptr_register_code</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/shinyApp.html" class="external-link">shinyApp</a></span><span class="op">(</span><span class="va">ui</span>, <span class="va">server</span><span class="op">)</span></span></code></pre></div>
@@ -258,21 +271,21 @@
 <h3 id="customize-the-plot-in-your-own-renderplot">Customize the plot in your own <code>renderPlot()</code>
 <a class="anchor" aria-label="anchor" href="#customize-the-plot-in-your-own-renderplot"></a>
 </h3>
-<p>If you want to keep the <code>ggpaintr</code> runtime but take over plot rendering, use <code><a href="reference/ggpaintr_plot_value.html">ggpaintr_plot_value()</a></code> inside your own <code><a href="https://rdrr.io/pkg/shiny/man/renderPlot.html" class="external-link">renderPlot()</a></code>.</p>
+<p>If you want to keep the <code>ggpaintr</code> runtime but take over plot rendering, use <code><a href="reference/ptr_extract_plot.html">ptr_extract_plot()</a></code> inside your own <code><a href="https://rdrr.io/pkg/shiny/man/renderPlot.html" class="external-link">renderPlot()</a></code>.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">paintr_state</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ggpaintr_server_state.html">ggpaintr_server_state</a></span><span class="op">(</span></span>
+<span>  <span class="va">ptr_state</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_server_state.html">ptr_server_state</a></span><span class="op">(</span></span>
 <span>    <span class="st">"ggplot(data = iris, aes(x = var, y = var)) + geom_point()"</span></span>
 <span>  <span class="op">)</span></span>
 <span></span>
-<span>  <span class="fu"><a href="reference/ggpaintr_bind_control_panel.html">ggpaintr_bind_control_panel</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">paintr_state</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="reference/ggpaintr_bind_draw.html">ggpaintr_bind_draw</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">paintr_state</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="reference/ggpaintr_bind_export.html">ggpaintr_bind_export</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">paintr_state</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="reference/ggpaintr_bind_error.html">ggpaintr_bind_error</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">paintr_state</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="reference/ggpaintr_bind_code.html">ggpaintr_bind_code</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">paintr_state</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="reference/ptr_setup_controls.html">ptr_setup_controls</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">ptr_state</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="reference/ptr_register_draw.html">ptr_register_draw</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">ptr_state</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="reference/ptr_register_export.html">ptr_register_export</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="reference/ptr_register_error.html">ptr_register_error</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="reference/ptr_register_code.html">ptr_register_code</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span><span class="op">)</span></span>
 <span></span>
 <span>  <span class="va">output</span><span class="op">$</span><span class="va">outputPlot</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/renderPlot.html" class="external-link">renderPlot</a></span><span class="op">(</span><span class="op">{</span></span>
-<span>    <span class="va">plot_obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ggpaintr_plot_value.html">ggpaintr_plot_value</a></span><span class="op">(</span><span class="va">paintr_state</span><span class="op">$</span><span class="fu">runtime</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="va">plot_obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_extract_plot.html">ptr_extract_plot</a></span><span class="op">(</span><span class="va">ptr_state</span><span class="op">$</span><span class="fu">runtime</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">plot_obj</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>      <span class="fu"><a href="https://rdrr.io/r/graphics/frame.html" class="external-link">plot.new</a></span><span class="op">(</span><span class="op">)</span></span>
@@ -286,21 +299,21 @@
 <div class="section level3">
 <h3 id="register-a-custom-placeholder-type">Register a custom placeholder type<a class="anchor" aria-label="anchor" href="#register-a-custom-placeholder-type"></a>
 </h3>
-<p>Use <code><a href="reference/ggpaintr_placeholder.html">ggpaintr_placeholder()</a></code> and <code><a href="reference/ggpaintr_effective_placeholders.html">ggpaintr_effective_placeholders()</a></code> when you want to add a new control type without editing package internals.</p>
+<p>Use <code><a href="reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code> and <code><a href="reference/ptr_merge_placeholders.html">ptr_merge_placeholders()</a></code> when you want to add a new control type without editing package internals.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sales</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  day <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="st">"2024-01-01"</span><span class="op">)</span> <span class="op">+</span> <span class="fl">0</span><span class="op">:</span><span class="fl">4</span>,</span>
 <span>  value <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10</span>, <span class="fl">13</span>, <span class="fl">12</span>, <span class="fl">16</span>, <span class="fl">18</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">date_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ggpaintr_placeholder.html">ggpaintr_placeholder</a></span><span class="op">(</span></span>
+<span><span class="va">date_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
 <span>  keyword <span class="op">=</span> <span class="st">"date"</span>,</span>
 <span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/dateInput.html" class="external-link">dateInput</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span><span class="op">$</span><span class="va">label</span><span class="op">)</span></span>
 <span>  <span class="op">}</span>,</span>
 <span>  resolve_expr <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="op">||</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span>, <span class="st">""</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="reference/ggpaintr_missing_expr.html">ggpaintr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="reference/ptr_missing_expr.html">ptr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span>    <span class="op">}</span></span>
 <span></span>
 <span>    <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
@@ -308,11 +321,11 @@
 <span>  copy_defaults <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Choose a date for {param}"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">placeholders</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ggpaintr_effective_placeholders.html">ggpaintr_effective_placeholders</a></span><span class="op">(</span></span>
+<span><span class="va">placeholders</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_merge_placeholders.html">ptr_merge_placeholders</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>date <span class="op">=</span> <span class="va">date_placeholder</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/paintr_formula.html">paintr_formula</a></span><span class="op">(</span></span>
+<span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_parse_formula.html">ptr_parse_formula</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = sales, aes(x = day, y = value)) +</span></span>
 <span><span class="st">    geom_line() +</span></span>
 <span><span class="st">    geom_vline(xintercept = date)"</span>,</span>
@@ -322,32 +335,32 @@
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="va">placeholders</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "var"    "text"   "num"    "expr"   "upload" "date"</span></span></code></pre></div>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="reference/ggpaintr_app.html">ggpaintr_app</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = sales, aes(x = day, y = value)) +</span></span>
 <span><span class="st">    geom_line() +</span></span>
 <span><span class="st">    geom_vline(xintercept = date)"</span>,</span>
 <span>  placeholders <span class="op">=</span> <span class="va">placeholders</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>If you want to export a standalone app with a custom placeholder, define the placeholder hooks inline inside the <code><a href="reference/ggpaintr_placeholder.html">ggpaintr_placeholder()</a></code> call. The export path serializes that stored call into the generated app, so helper functions that only exist in your current session are not exportable today.</p>
+<p>If you want to export a standalone app with a custom placeholder, define the placeholder hooks inline inside the <code><a href="reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code> call. The export path serializes that stored call into the generated app, so helper functions that only exist in your current session are not exportable today.</p>
 </div>
 <div class="section level3">
 <h3 id="advanced-developer-workflow">Advanced developer workflow<a class="anchor" aria-label="anchor" href="#advanced-developer-workflow"></a>
 </h3>
 <p>Use the low-level runtime helpers directly when you want to inspect generated code, write tests, or build developer tooling around parsed formulas.</p>
-<p><code><a href="reference/ggpaintr_runtime_input_spec.html">ggpaintr_runtime_input_spec()</a></code> is the supported way to discover the runtime input ids needed by <code><a href="reference/paintr_build_runtime.html">paintr_build_runtime()</a></code>.</p>
+<p><code><a href="reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec()</a></code> is the supported way to discover the runtime input ids needed by <code><a href="reference/ptr_exec.html">ptr_exec()</a></code>.</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/paintr_formula.html">paintr_formula</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_parse_formula.html">ptr_parse_formula</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = mtcars, aes(x = var, y = var)) +</span></span>
 <span><span class="st">    geom_point(size = num) +</span></span>
 <span><span class="st">    labs(title = text)"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ggpaintr_runtime_input_spec.html">ggpaintr_runtime_input_spec</a></span><span class="op">(</span><span class="va">obj</span><span class="op">)</span></span>
+<span><span class="va">spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec</a></span><span class="op">(</span><span class="va">obj</span><span class="op">)</span></span>
 <span><span class="va">spec</span></span>
 <span><span class="co">#&gt;              input_id           role layer_name keyword param_key    source_id</span></span>
 <span><span class="co">#&gt; 1          ggplot+3+2    placeholder     ggplot     var         x   ggplot+3+2</span></span>
 <span><span class="co">#&gt; 2          ggplot+3+3    placeholder     ggplot     var         y   ggplot+3+3</span></span>
-<span><span class="co">#&gt; 3        geom_point+2    placeholder geom_point     num      size geom_point+2</span></span>
+<span><span class="co">#&gt; 3        geom_point+2    placeholder geom_point     num linewidth geom_point+2</span></span>
 <span><span class="co">#&gt; 4              labs+2    placeholder       labs    text     title       labs+2</span></span>
 <span><span class="co">#&gt; 5 geom_point+checkbox layer_checkbox geom_point    &lt;NA&gt;      &lt;NA&gt;         &lt;NA&gt;</span></span>
 <span><span class="co">#&gt; 6       labs+checkbox layer_checkbox       labs    &lt;NA&gt;      &lt;NA&gt;         &lt;NA&gt;</span></span>
@@ -360,7 +373,7 @@
 <span><span class="va">inputs</span><span class="op">[[</span><span class="st">"geom_point+2"</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fl">2</span></span>
 <span><span class="va">inputs</span><span class="op">[[</span><span class="st">"labs+2"</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"Mtcars scatter"</span></span>
 <span></span>
-<span><span class="va">runtime</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/paintr_build_runtime.html">paintr_build_runtime</a></span><span class="op">(</span><span class="va">obj</span>, <span class="va">inputs</span><span class="op">)</span></span>
+<span><span class="va">runtime</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_exec.html">ptr_exec</a></span><span class="op">(</span><span class="va">obj</span>, <span class="va">inputs</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">runtime</span><span class="op">$</span><span class="va">code_text</span></span>
 <span><span class="co">#&gt; [1] "ggplot(data = mtcars, aes(x = mpg, y = disp)) +\n  geom_point(size = 2) +\n  labs(title = \"Mtcars scatter\")"</span></span>
@@ -368,11 +381,11 @@
 <span><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
 <p>For upload-backed formulas, the spec also includes the derived dataset-name input that accompanies each upload control.</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">upload_obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/paintr_formula.html">paintr_formula</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">upload_obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_parse_formula.html">ptr_parse_formula</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = upload, aes(x = var, y = var)) + geom_point()"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="reference/ggpaintr_runtime_input_spec.html">ggpaintr_runtime_input_spec</a></span><span class="op">(</span><span class="va">upload_obj</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec</a></span><span class="op">(</span><span class="va">upload_obj</span><span class="op">)</span></span>
 <span><span class="co">#&gt;              input_id           role layer_name keyword param_key  source_id</span></span>
 <span><span class="co">#&gt; 1            ggplot+2    placeholder     ggplot  upload      data   ggplot+2</span></span>
 <span><span class="co">#&gt; 2       ggplot+2+name    upload_name     ggplot  upload      data   ggplot+2</span></span>
@@ -391,22 +404,22 @@
 <li>
 <code>upload</code> currently supports <code>.csv</code> and <code>.rds</code>
 </li>
-<li>the supported app-facing surface is the current <code>ggpaintr_*</code> wrapper and Shiny-integration layer</li>
-<li>exported apps keep the current explicit-file shape built around <code><a href="reference/ggpaintr_server.html">ggpaintr_server()</a></code>
+<li>the supported app-facing surface is the current <code>ptr_*</code> wrapper and Shiny-integration layer</li>
+<li>exported apps keep the current explicit-file shape built around <code><a href="reference/ptr_server.html">ptr_server()</a></code>
 </li>
-<li>only the six top-level ids exposed by <code><a href="reference/ggpaintr_ids.html">ggpaintr_ids()</a></code> are configurable</li>
-<li>runtime failures are labeled as <code>Input error:</code> or <code>Plot error:</code> and stay on the shared inline error path</li>
+<li>only the six top-level ids exposed by <code><a href="reference/ptr_build_ids.html">ptr_build_ids()</a></code> are configurable</li>
+<li>runtime failures are labeled as <code>Input error</code> or <code>Plot error</code> and stay on the shared inline error path</li>
 </ul>
 </div>
 <div class="section level2">
 <h2 id="not-guaranteed--implementation-details">Not guaranteed / implementation details<a class="anchor" aria-label="anchor" href="#not-guaranteed--implementation-details"></a>
 </h2>
 <ul>
-<li>raw placeholder ids such as <code>"ggplot+3+2"</code> are not a stable hand-authored API; discover them with <code><a href="reference/ggpaintr_runtime_input_spec.html">ggpaintr_runtime_input_spec()</a></code>
+<li>raw placeholder ids such as <code>"ggplot+3+2"</code> are not a stable hand-authored API; discover them with <code><a href="reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec()</a></code>
 </li>
 <li>deeper traversal details such as <code>index_path</code> encoding and internal companion id conventions remain package internals</li>
 <li>unsupported upload formats are outside the current boundary</li>
-<li>custom placeholders whose hooks are not defined inline inside <code><a href="reference/ggpaintr_placeholder.html">ggpaintr_placeholder()</a></code> are not exportable as standalone apps today</li>
+<li>custom placeholders whose hooks are not defined inline inside <code><a href="reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code> are not exportable as standalone apps today</li>
 <li>the formula-string model is the current author-facing interface; future hardening should compile it into a richer internal runtime contract rather than replace that authoring model outright</li>
 </ul>
 </div>
@@ -419,9 +432,9 @@
 <code>var</code> with no data source fails while preparing the UI.</li>
 <li>
 <code>var</code> is a column picker. Formula-level transforms such as <code>var + 1</code> or <code>log(var)</code> are supported inside the formula text, not as direct input values.</li>
-<li>For local data with non-syntactic names, call <code><a href="reference/ggpaintr_normalize_column_names.html">ggpaintr_normalize_column_names()</a></code> first; uploads apply the same normalization automatically.</li>
+<li>For local data with non-syntactic names, call <code><a href="reference/ptr_normalize_column_names.html">ptr_normalize_column_names()</a></code> first; uploads apply the same normalization automatically.</li>
 <li>Missing local data objects are deferred to draw-time inline errors.</li>
-<li>Advanced integrations can customize the plot through <code><a href="reference/ggpaintr_plot_value.html">ggpaintr_plot_value()</a></code>.</li>
+<li>Advanced integrations can customize the plot through <code><a href="reference/ptr_extract_plot.html">ptr_extract_plot()</a></code>.</li>
 </ul>
 </div>
 <div class="section level2">

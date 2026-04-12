@@ -3,15 +3,28 @@
 ## ggpaintr 0.1.0
 
 - repositioned the package around the maintained `ggpaintr` workflow
+- shortened API prefix: all exported functions now use the `ptr_*`
+  prefix for conciseness (previously `ggpaintr_*`)
+- improved semantic clarity of function names across the public API
+  (e.g., `bind_*` → `register_*`, `*_value` → `extract_*`)
+- renamed `copy_rules` parameter/system to `ui_text` throughout
+- migrated error signaling from
+  [`base::stop()`](https://rdrr.io/r/base/stop.html) to
+  [`rlang::abort()`](https://rlang.r-lib.org/reference/abort.html)
+- added `@examples` to all exported functions
+- clarified the maintained public API boundary in the README and
+  pkgdown-facing docs so the beginner path stays centered on the
+  wrapper, integration, export, placeholder, and intentionally exported
+  runtime helpers
+- removed generated documentation topics for package-internal helper
+  functions so internal implementation details are no longer presented
+  as part of the public community-facing surface
+- updated
+  [`ptr_generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_generate_shiny.md)
+  so the maintained public call path is now
+  `ptr_generate_shiny(ptr_obj, output_file, ...)`
 - archived the legacy package implementation under
   `archive/legacy-package/`
-- introduced a focused public API:
-  [`ggpaintr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_app.md),
-  [`paintr_formula()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_formula.md),
-  [`paintr_build_runtime()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_build_runtime.md),
-  [`paintr_get_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_get_plot.md),
-  and
-  [`generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/generate_shiny.md)
 - replaced legacy package docs, vignette, and pkgdown content with
   `ggpaintr`-first documentation
 - added roxygen2-based package documentation for the active

@@ -4,18 +4,18 @@
 
 `ggpaintr` now supports per-app placeholder registries. That means
 downstream developers can define a new placeholder once, pass it into
-[`paintr_formula()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_formula.md),
-[`ggpaintr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_app.md),
-[`ggpaintr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_server_state.md),
+[`ptr_parse_formula()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_parse_formula.md),
+[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md),
+[`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md),
 or
-[`generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/generate_shiny.md),
+[`ptr_generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_generate_shiny.md),
 and keep the rest of the package runtime unchanged.
 
 The public entry points for this layer are:
 
-- [`ggpaintr_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_placeholder.md)
-- [`ggpaintr_effective_placeholders()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_effective_placeholders.md)
-- [`ggpaintr_missing_expr()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_missing_expr.md)
+- [`ptr_define_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder.md)
+- [`ptr_merge_placeholders()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_merge_placeholders.md)
+- [`ptr_missing_expr()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_missing_expr.md)
 
 Built-in placeholders such as `var`, `text`, `num`, `expr`, and `upload`
 now use the same registry path as custom placeholders.
@@ -33,14 +33,14 @@ sales <- data.frame(
   value = c(10, 13, 12, 16, 18)
 )
 
-date_placeholder <- ggpaintr_placeholder(
+date_placeholder <- ptr_define_placeholder(
   keyword = "date",
   build_ui = function(id, copy, meta, context) {
     shiny::dateInput(id, copy$label)
   },
   resolve_expr = function(value, meta, context) {
     if (is.null(value) || identical(as.character(value), "")) {
-      return(ggpaintr_missing_expr())
+      return(ptr_missing_expr())
     }
 
     rlang::expr(as.Date(!!as.character(value)))
@@ -48,7 +48,7 @@ date_placeholder <- ggpaintr_placeholder(
   copy_defaults = list(label = "Choose a date for {param}")
 )
 
-placeholders <- ggpaintr_effective_placeholders(
+placeholders <- ptr_merge_placeholders(
   list(date = date_placeholder)
 )
 
@@ -62,14 +62,14 @@ Pass the registry through `placeholders = ...` anywhere you want custom
 placeholder support.
 
 ``` r
-obj <- paintr_formula(
+obj <- ptr_parse_formula(
   "ggplot(data = sales, aes(x = day, y = value)) +
     geom_line() +
     geom_vline(xintercept = date)",
   placeholders = placeholders
 )
 
-runtime <- paintr_build_runtime(
+runtime <- ptr_exec(
   obj,
   list(
     "geom_line+checkbox" = TRUE,
@@ -85,7 +85,7 @@ runtime$code_text
 The same registry can also be used in the higher-level wrappers.
 
 ``` r
-ggpaintr_app(
+ptr_app(
   "ggplot(data = sales, aes(x = day, y = value)) +
     geom_line() +
     geom_vline(xintercept = date)",
@@ -96,7 +96,7 @@ ggpaintr_app(
 ## The placeholder metadata contract
 
 Every placeholder occurrence becomes one metadata record in
-`paintr_obj$placeholder_map`.
+`ptr_obj$placeholder_map`.
 
 ``` r
 meta <- obj$placeholder_map$geom_vline[["geom_vline+2"]]
@@ -130,7 +130,7 @@ placeholder code can behave differently by parameter or by layer.
 
 ## The hook contract
 
-[`ggpaintr_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_placeholder.md)
+[`ptr_define_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder.md)
 supports one required UI hook, one required resolver hook, and three
 optional advanced hooks.
 
@@ -151,8 +151,8 @@ The arguments are:
 - `id`: the generated input id to bind
 - `copy`: resolved copy text for this control
 - `meta`: the metadata record for this occurrence
-- `context`: a named list containing `paintr_obj`, `placeholders`,
-  `copy_rules`, and `envir`
+- `context`: a named list containing `ptr_obj`, `placeholders`,
+  `ui_text`, and `envir`
 
 ### `resolve_expr(value, meta, context)`
 
@@ -164,14 +164,14 @@ date_placeholder$resolve_expr
 #> function (value, meta, context) 
 #> {
 #>     if (is.null(value) || identical(as.character(value), "")) {
-#>         return(ggpaintr_missing_expr())
+#>         return(ptr_missing_expr())
 #>     }
 #>     rlang::expr(as.Date(!!as.character(value)))
 #> }
 ```
 
 Return
-[`ggpaintr_missing_expr()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_missing_expr.md)
+[`ptr_missing_expr()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_missing_expr.md)
 when the argument should be removed from the completed code instead of
 inserted.
 
@@ -182,7 +182,7 @@ before it is handed to `resolve_expr()`. If omitted, `ggpaintr` uses
 `input[[id]]`.
 
 ``` r
-trimmed_text_placeholder <- ggpaintr_placeholder(
+trimmed_text_placeholder <- ptr_define_placeholder(
   keyword = "trimmed_text",
   build_ui = function(id, copy, meta, context) {
     shiny::textInput(id, copy$label)
@@ -192,7 +192,7 @@ trimmed_text_placeholder <- ggpaintr_placeholder(
   },
   resolve_expr = function(value, meta, context) {
     if (identical(value, "")) {
-      return(ggpaintr_missing_expr())
+      return(ptr_missing_expr())
     }
 
     rlang::expr(!!value)
@@ -208,7 +208,7 @@ built-in `var` placeholder registers delayed
 after data is known.
 
 ``` r
-deferred_placeholder <- ggpaintr_placeholder(
+deferred_placeholder <- ptr_define_placeholder(
   keyword = "dynamic_text",
   build_ui = function(id, copy, meta, context) {
     shiny::uiOutput(paste0("dynamic-", id))
@@ -224,7 +224,7 @@ deferred_placeholder <- ggpaintr_placeholder(
   },
   resolve_expr = function(value, meta, context) {
     if (is.null(value) || identical(value, "")) {
-      return(ggpaintr_missing_expr())
+      return(ptr_missing_expr())
     }
 
     rlang::expr(!!value)
@@ -240,14 +240,14 @@ built-in `upload` placeholder assigns uploaded data objects before code
 is evaluated.
 
 ``` r
-prepared_data_placeholder <- ggpaintr_placeholder(
+prepared_data_placeholder <- ptr_define_placeholder(
   keyword = "prepared_data",
   build_ui = function(id, copy, meta, context) {
     shiny::textInput(id, copy$label, placeholder = "dataset_name")
   },
   resolve_expr = function(value, meta, context) {
     if (is.null(value) || identical(value, "")) {
-      return(ggpaintr_missing_expr())
+      return(ptr_missing_expr())
     }
 
     rlang::parse_expr(value)
@@ -262,10 +262,10 @@ prepared_data_placeholder <- ggpaintr_placeholder(
 ## Copy defaults and custom copy rules
 
 Each placeholder can ship its own default copy through `copy_defaults`.
-Those defaults then participate in the normal `copy_rules` system.
+Those defaults then participate in the normal `ui_text` system.
 
 ``` r
-date_copy_rules <- paintr_effective_copy_rules(
+date_ui_text <- ptr_merge_ui_text(
   list(
     defaults = list(date = list(label = "Pick any date")),
     params = list(
@@ -282,12 +282,12 @@ date_copy_rules <- paintr_effective_copy_rules(
   placeholders = placeholders
 )
 
-paintr_resolve_copy(
+ptr_resolve_ui_text(
   "control",
   keyword = "date",
   layer_name = "geom_vline",
   param = "xintercept",
-  copy_rules = date_copy_rules,
+  ui_text = date_ui_text,
   placeholders = placeholders
 )
 #> $label
@@ -303,7 +303,7 @@ The phase-1 Shiny integration helpers work with custom placeholder
 registries too.
 
 ``` r
-ids <- ggpaintr_ids(
+ids <- ptr_build_ids(
   control_panel = "builder_controls",
   draw_button = "render_plot",
   export_button = "export_app",
@@ -315,16 +315,16 @@ ids <- ggpaintr_ids(
 ui <- shiny::fluidPage(
   shiny::sidebarLayout(
     shiny::sidebarPanel(
-      ggpaintr_controls_ui(ids = ids)
+      ptr_input_ui(ids = ids)
     ),
     shiny::mainPanel(
-      ggpaintr_outputs_ui(ids = ids)
+      ptr_output_ui(ids = ids)
     )
   )
 )
 
 server <- function(input, output, session) {
-  paintr_state <- ggpaintr_server_state(
+  ptr_state <- ptr_server_state(
     "ggplot(data = sales, aes(x = day, y = value)) +
       geom_line() +
       geom_vline(xintercept = date)",
@@ -332,12 +332,12 @@ server <- function(input, output, session) {
     placeholders = placeholders
   )
 
-  ggpaintr_bind_control_panel(input, output, paintr_state, ids = ids)
-  ggpaintr_bind_draw(input, paintr_state, ids = ids)
-  ggpaintr_bind_export(output, paintr_state, ids = ids)
-  ggpaintr_bind_plot(output, paintr_state, ids = ids)
-  ggpaintr_bind_error(output, paintr_state, ids = ids)
-  ggpaintr_bind_code(output, paintr_state, ids = ids)
+  ptr_setup_controls(input, output, ptr_state, ids = ids)
+  ptr_register_draw(input, ptr_state, ids = ids)
+  ptr_register_export(output, ptr_state, ids = ids)
+  ptr_register_plot(output, ptr_state, ids = ids)
+  ptr_register_error(output, ptr_state, ids = ids)
+  ptr_register_code(output, ptr_state, ids = ids)
 }
 ```
 
@@ -345,14 +345,13 @@ server <- function(input, output, session) {
 
 Exported apps rebuild only the custom placeholder definitions they need.
 The same placeholder registry can be passed into
-[`generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/generate_shiny.md).
+[`ptr_generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_generate_shiny.md).
 
 ``` r
 out_file <- tempfile(fileext = ".R")
 
-generate_shiny(
+ptr_generate_shiny(
   obj,
-  list(),
   out_file,
   style = FALSE,
   placeholders = placeholders
@@ -361,25 +360,25 @@ generate_shiny(
 
 For an exported app to stay standalone, custom placeholders must be
 created with
-[`ggpaintr_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_placeholder.md)
+[`ptr_define_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder.md)
 and must define hook functions inline inside that call. If a placeholder
 definition cannot be serialized safely,
-[`generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/generate_shiny.md)
+[`ptr_generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_generate_shiny.md)
 will error instead of writing a broken app.
 
 ## What exportable means
 
 The current export path works by storing the original
-`ggpaintr_placeholder(...)` call on each custom placeholder as
+`ptr_define_placeholder(...)` call on each custom placeholder as
 `definition_call`. When you export an app,
-[`generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/generate_shiny.md)
+[`ptr_generate_shiny()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_generate_shiny.md)
 serializes that stored call into the generated script and then rebuilds
 the registry there.
 
 That is why inline hooks are exportable today:
 
-- inline hook bodies live inside the stored `ggpaintr_placeholder(...)`
-  call
+- inline hook bodies live inside the stored
+  `ptr_define_placeholder(...)` call
 - external helper references are only symbols, so the exported app would
   not contain the helper definitions themselves
 
@@ -387,12 +386,12 @@ You can inspect the stored call directly:
 
 ``` r
 date_placeholder$definition_call
-#> ggpaintr_placeholder(keyword = "date", build_ui = function(id, 
+#> ptr_define_placeholder(keyword = "date", build_ui = function(id, 
 #>     copy, meta, context) {
 #>     shiny::dateInput(id, copy$label)
 #> }, resolve_expr = function(value, meta, context) {
 #>     if (is.null(value) || identical(as.character(value), "")) {
-#>         return(ggpaintr_missing_expr())
+#>         return(ptr_missing_expr())
 #>     }
 #>     rlang::expr(as.Date(!!as.character(value)))
 #> }, copy_defaults = list(label = "Choose a date for {param}"))
@@ -401,14 +400,14 @@ date_placeholder$definition_call
 ### Exportable today
 
 ``` r
-date_placeholder <- ggpaintr_placeholder(
+date_placeholder <- ptr_define_placeholder(
   keyword = "date",
   build_ui = function(id, copy, meta, context) {
     shiny::dateInput(id, copy$label)
   },
   resolve_expr = function(value, meta, context) {
     if (is.null(value) || identical(as.character(value), "")) {
-      return(ggpaintr_missing_expr())
+      return(ptr_missing_expr())
     }
 
     rlang::expr(as.Date(!!as.character(value)))
@@ -425,22 +424,28 @@ build_date_ui <- function(id, copy, meta, context) {
 
 date_to_expr <- function(value, meta, context) {
   if (is.null(value) || identical(as.character(value), "")) {
-    return(ggpaintr_missing_expr())
+    return(ptr_missing_expr())
   }
 
   rlang::expr(as.Date(!!as.character(value)))
 }
 
-date_placeholder <- ggpaintr_placeholder(
+date_placeholder <- ptr_define_placeholder(
   keyword = "date",
   build_ui = build_date_ui,
   resolve_expr = date_to_expr
 )
 
-# generate_shiny(..., placeholders = list(date = date_placeholder))
+# ptr_generate_shiny(..., placeholders = list(date = date_placeholder))
 # errors because the exported app would not contain build_date_ui() or
 # date_to_expr().
 ```
+
+> **Note:** This inline-only restriction is a known limitation. A future
+> release may lift it by deparsing function bodies at export time so
+> that hooks defined outside the
+> [`ptr_define_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder.md)
+> call can also be serialized.
 
 ## Summary
 

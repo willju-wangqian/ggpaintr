@@ -24,7 +24,7 @@ Supported placeholders are:
 library(ggpaintr)
 library(ggplot2)
 
-obj <- paintr_formula(
+obj <- ptr_parse_formula(
   "ggplot(data = iris, aes(x = var, y = var)) +
     geom_point(aes(color = var), size = num) +
     labs(title = text) +
@@ -34,19 +34,19 @@ obj <- paintr_formula(
 names(obj$expr_list)
 #> [1] "ggplot"     "geom_point" "labs"       "facet_wrap"
 names(obj$keywords_list$ggplot)
-#> [1] "ggplot+2"   "ggplot+3+2" "ggplot+3+3"
+#> [1] "ggplot+3+2" "ggplot+3+3"
 ```
 
 ## Building runtime output
 
 ``` r
-spec <- ggpaintr_runtime_input_spec(obj)
+spec <- ptr_runtime_input_spec(obj)
 spec
 #>              input_id           role layer_name keyword   param_key
 #> 1          ggplot+3+2    placeholder     ggplot     var           x
 #> 2          ggplot+3+3    placeholder     ggplot     var           y
 #> 3      geom_point+2+2    placeholder geom_point     var       color
-#> 4        geom_point+3    placeholder geom_point     num        size
+#> 4        geom_point+3    placeholder geom_point     num   linewidth
 #> 5              labs+2    placeholder       labs    text       title
 #> 6        facet_wrap+2    placeholder facet_wrap    expr __unnamed__
 #> 7 geom_point+checkbox layer_checkbox geom_point    <NA>        <NA>
@@ -72,7 +72,7 @@ inputs[[spec$input_id[spec$layer_name == "geom_point" & spec$keyword == "num"]]]
 inputs[[spec$input_id[spec$layer_name == "labs" & spec$param_key == "title"]]] <- "Iris scatter"
 inputs[[spec$input_id[spec$layer_name == "facet_wrap" & spec$keyword == "expr"]]] <- "~ Species"
 
-runtime <- paintr_build_runtime(
+runtime <- ptr_exec(
   obj,
   inputs
 )
@@ -83,17 +83,17 @@ inherits(runtime$plot, "ggplot")
 #> [1] FALSE
 ```
 
-[`ggpaintr_runtime_input_spec()`](https://willju-wangqian.github.io/ggpaintr/reference/ggpaintr_runtime_input_spec.md)
+[`ptr_runtime_input_spec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_runtime_input_spec.md)
 is the supported way to discover the low-level runtime inputs consumed
 by
-[`paintr_build_runtime()`](https://willju-wangqian.github.io/ggpaintr/reference/paintr_build_runtime.md).
+[`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md).
 Raw ids still appear in the returned data, but they should be treated as
 implementation details rather than as hand-authored examples.
 
 ## Launching an app
 
 ``` r
-ggpaintr_app("
+ptr_app("
 ggplot(data = iris, aes(x = var, y = var)) +
   geom_point(aes(color = var), size = num) +
   labs(title = text) +
@@ -113,7 +113,7 @@ The generated app:
 
 ``` r
 out_file <- tempfile(fileext = ".R")
-generate_shiny(obj, list(), out_file, style = FALSE)
+ptr_generate_shiny(obj, out_file, style = FALSE)
 file.exists(out_file)
 #> [1] TRUE
 ```
