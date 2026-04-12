@@ -61,8 +61,8 @@
 
 
 
-
-<div class="row">
+<script src="ggpaintr-workflow_files/clipboard-2.0.6/clipboard.min.js"></script><link href="ggpaintr-workflow_files/xaringanExtra-clipboard-0.2.6/xaringanExtra-clipboard.css" rel="stylesheet">
+<script src="ggpaintr-workflow_files/xaringanExtra-clipboard-0.2.6/xaringanExtra-clipboard.js"></script><script>window.xaringanExtraClipboard(null, {"button":"Copy Code","success":"Copied!","error":"Press Ctrl+C to Copy"})</script><div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>ggpaintr Workflow</h1>
@@ -100,6 +100,12 @@ generated code and readable runtime feedback.</p>
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://willju-wangqian.github.io/ggpaintr/">ggpaintr</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
 <span></span>
+<span><span class="co"># Each placeholder token in the formula becomes a Shiny input widget:</span></span>
+<span><span class="co">#   var   → selectInput  (column chooser; populated from the active dataset)</span></span>
+<span><span class="co">#   num   → numericInput</span></span>
+<span><span class="co">#   text  → textInput    (value used as a string literal)</span></span>
+<span><span class="co">#   expr  → textInput    (value is parsed as an R expression at runtime)</span></span>
+<span><span class="co">#   upload → fileInput + textInput (upload a .csv or .rds and name it)</span></span>
 <span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_parse_formula.html">ptr_parse_formula</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = iris, aes(x = var, y = var)) +</span></span>
 <span><span class="st">    geom_point(aes(color = var), size = num) +</span></span>
@@ -107,16 +113,23 @@ generated code and readable runtime feedback.</p>
 <span><span class="st">    facet_wrap(expr)"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="va">expr_list</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="va">expr_list</span><span class="op">)</span>          <span class="co"># one entry per ggplot layer</span></span>
 <span><span class="co">#&gt; [1] "ggplot"     "geom_point" "labs"       "facet_wrap"</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="va">keywords_list</span><span class="op">$</span><span class="va">ggplot</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="va">keywords_list</span><span class="op">$</span><span class="va">ggplot</span><span class="op">)</span>  <span class="co"># placeholder locations inside the ggplot() call</span></span>
 <span><span class="co">#&gt; [1] "ggplot+3+2" "ggplot+3+3"</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="building-runtime-output">Building runtime output<a class="anchor" aria-label="anchor" href="#building-runtime-output"></a>
 </h2>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec</a></span><span class="op">(</span><span class="va">obj</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="co"># ptr_runtime_input_spec() returns a data frame describing every input that</span></span>
+<span><span class="co"># ptr_exec() expects. Key columns:</span></span>
+<span><span class="co">#   input_id   — the Shiny input id string (treat as opaque; discover via spec)</span></span>
+<span><span class="co">#   role       — "layer_checkbox" (toggle a layer on/off) or "placeholder" (a widget value)</span></span>
+<span><span class="co">#   layer_name — the ggplot layer this input belongs to (e.g. "geom_point")</span></span>
+<span><span class="co">#   param_key  — the ggplot argument name (e.g. "x", "color"); NA for unnamed placeholders</span></span>
+<span><span class="co">#   keyword    — the placeholder type ("var", "num", "text", "expr")</span></span>
+<span><span class="va">spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec</a></span><span class="op">(</span><span class="va">obj</span><span class="op">)</span></span>
 <span><span class="va">spec</span></span>
 <span><span class="co">#&gt;              input_id           role layer_name keyword   param_key</span></span>
 <span><span class="co">#&gt; 1          ggplot+3+2    placeholder     ggplot     var           x</span></span>
@@ -139,23 +152,29 @@ generated code and readable runtime feedback.</p>
 <span><span class="co">#&gt; 8           &lt;NA&gt;</span></span>
 <span><span class="co">#&gt; 9           &lt;NA&gt;</span></span>
 <span></span>
+<span><span class="co"># Build a named list keyed by input_id — the same shape as Shiny's input object.</span></span>
 <span><span class="va">inputs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">vector</a></span><span class="op">(</span><span class="st">"list"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">spec</span><span class="op">)</span><span class="op">)</span>, <span class="va">spec</span><span class="op">$</span><span class="va">input_id</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># layer_checkbox inputs control whether a layer is included in the plot at all.</span></span>
+<span><span class="co"># Set them all TRUE here to render every layer.</span></span>
 <span><span class="va">inputs</span><span class="op">[</span><span class="va">spec</span><span class="op">$</span><span class="va">role</span> <span class="op">==</span> <span class="st">"layer_checkbox"</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="cn">TRUE</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">spec</span><span class="op">$</span><span class="va">role</span> <span class="op">==</span> <span class="st">"layer_checkbox"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">inputs</span><span class="op">[[</span><span class="va">spec</span><span class="op">$</span><span class="va">input_id</span><span class="op">[</span><span class="va">spec</span><span class="op">$</span><span class="va">layer_name</span> <span class="op">==</span> <span class="st">"ggplot"</span> <span class="op">&amp;</span> <span class="va">spec</span><span class="op">$</span><span class="va">param_key</span> <span class="op">==</span> <span class="st">"x"</span><span class="op">]</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"Sepal.Length"</span></span>
-<span><span class="va">inputs</span><span class="op">[[</span><span class="va">spec</span><span class="op">$</span><span class="va">input_id</span><span class="op">[</span><span class="va">spec</span><span class="op">$</span><span class="va">layer_name</span> <span class="op">==</span> <span class="st">"ggplot"</span> <span class="op">&amp;</span> <span class="va">spec</span><span class="op">$</span><span class="va">param_key</span> <span class="op">==</span> <span class="st">"y"</span><span class="op">]</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"Sepal.Width"</span></span>
+<span></span>
+<span><span class="co"># For each placeholder, look up its input_id by filtering spec on layer_name + param_key</span></span>
+<span><span class="co"># (or keyword for unnamed placeholders like num/expr), then assign the desired value.</span></span>
+<span><span class="va">inputs</span><span class="op">[[</span><span class="va">spec</span><span class="op">$</span><span class="va">input_id</span><span class="op">[</span><span class="va">spec</span><span class="op">$</span><span class="va">layer_name</span> <span class="op">==</span> <span class="st">"ggplot"</span>    <span class="op">&amp;</span> <span class="va">spec</span><span class="op">$</span><span class="va">param_key</span> <span class="op">==</span> <span class="st">"x"</span><span class="op">]</span><span class="op">]</span><span class="op">]</span>      <span class="op">&lt;-</span> <span class="st">"Sepal.Length"</span></span>
+<span><span class="va">inputs</span><span class="op">[[</span><span class="va">spec</span><span class="op">$</span><span class="va">input_id</span><span class="op">[</span><span class="va">spec</span><span class="op">$</span><span class="va">layer_name</span> <span class="op">==</span> <span class="st">"ggplot"</span>    <span class="op">&amp;</span> <span class="va">spec</span><span class="op">$</span><span class="va">param_key</span> <span class="op">==</span> <span class="st">"y"</span><span class="op">]</span><span class="op">]</span><span class="op">]</span>      <span class="op">&lt;-</span> <span class="st">"Sepal.Width"</span></span>
 <span><span class="va">inputs</span><span class="op">[[</span><span class="va">spec</span><span class="op">$</span><span class="va">input_id</span><span class="op">[</span><span class="va">spec</span><span class="op">$</span><span class="va">layer_name</span> <span class="op">==</span> <span class="st">"geom_point"</span> <span class="op">&amp;</span> <span class="va">spec</span><span class="op">$</span><span class="va">param_key</span> <span class="op">==</span> <span class="st">"color"</span><span class="op">]</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"Species"</span></span>
-<span><span class="va">inputs</span><span class="op">[[</span><span class="va">spec</span><span class="op">$</span><span class="va">input_id</span><span class="op">[</span><span class="va">spec</span><span class="op">$</span><span class="va">layer_name</span> <span class="op">==</span> <span class="st">"geom_point"</span> <span class="op">&amp;</span> <span class="va">spec</span><span class="op">$</span><span class="va">keyword</span> <span class="op">==</span> <span class="st">"num"</span><span class="op">]</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fl">2.5</span></span>
-<span><span class="va">inputs</span><span class="op">[[</span><span class="va">spec</span><span class="op">$</span><span class="va">input_id</span><span class="op">[</span><span class="va">spec</span><span class="op">$</span><span class="va">layer_name</span> <span class="op">==</span> <span class="st">"labs"</span> <span class="op">&amp;</span> <span class="va">spec</span><span class="op">$</span><span class="va">param_key</span> <span class="op">==</span> <span class="st">"title"</span><span class="op">]</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"Iris scatter"</span></span>
-<span><span class="va">inputs</span><span class="op">[[</span><span class="va">spec</span><span class="op">$</span><span class="va">input_id</span><span class="op">[</span><span class="va">spec</span><span class="op">$</span><span class="va">layer_name</span> <span class="op">==</span> <span class="st">"facet_wrap"</span> <span class="op">&amp;</span> <span class="va">spec</span><span class="op">$</span><span class="va">keyword</span> <span class="op">==</span> <span class="st">"expr"</span><span class="op">]</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"~ Species"</span></span>
+<span><span class="co"># num has no param_key (it fills the `size` argument positionally); filter by keyword</span></span>
+<span><span class="va">inputs</span><span class="op">[[</span><span class="va">spec</span><span class="op">$</span><span class="va">input_id</span><span class="op">[</span><span class="va">spec</span><span class="op">$</span><span class="va">layer_name</span> <span class="op">==</span> <span class="st">"geom_point"</span> <span class="op">&amp;</span> <span class="va">spec</span><span class="op">$</span><span class="va">keyword</span> <span class="op">==</span> <span class="st">"num"</span><span class="op">]</span><span class="op">]</span><span class="op">]</span>     <span class="op">&lt;-</span> <span class="fl">2.5</span></span>
+<span><span class="va">inputs</span><span class="op">[[</span><span class="va">spec</span><span class="op">$</span><span class="va">input_id</span><span class="op">[</span><span class="va">spec</span><span class="op">$</span><span class="va">layer_name</span> <span class="op">==</span> <span class="st">"labs"</span>       <span class="op">&amp;</span> <span class="va">spec</span><span class="op">$</span><span class="va">param_key</span> <span class="op">==</span> <span class="st">"title"</span><span class="op">]</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"Iris scatter"</span></span>
+<span><span class="co"># expr values are strings; ptr_exec() parses them into R expressions internally</span></span>
+<span><span class="va">inputs</span><span class="op">[[</span><span class="va">spec</span><span class="op">$</span><span class="va">input_id</span><span class="op">[</span><span class="va">spec</span><span class="op">$</span><span class="va">layer_name</span> <span class="op">==</span> <span class="st">"facet_wrap"</span> <span class="op">&amp;</span> <span class="va">spec</span><span class="op">$</span><span class="va">keyword</span> <span class="op">==</span> <span class="st">"expr"</span><span class="op">]</span><span class="op">]</span><span class="op">]</span>    <span class="op">&lt;-</span> <span class="st">"~ Species"</span></span>
 <span></span>
-<span><span class="va">runtime</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_exec.html">ptr_exec</a></span><span class="op">(</span></span>
-<span>  <span class="va">obj</span>,</span>
-<span>  <span class="va">inputs</span></span>
-<span><span class="op">)</span></span>
+<span><span class="va">runtime</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_exec.html">ptr_exec</a></span><span class="op">(</span><span class="va">obj</span>, <span class="va">inputs</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">runtime</span><span class="op">$</span><span class="va">code_text</span></span>
+<span><span class="va">runtime</span><span class="op">$</span><span class="va">code_text</span>               <span class="co"># completed ggplot call as a formatted string</span></span>
 <span><span class="co">#&gt; NULL</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">inherits</a></span><span class="op">(</span><span class="va">runtime</span><span class="op">$</span><span class="va">plot</span>, <span class="st">"ggplot"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">inherits</a></span><span class="op">(</span><span class="va">runtime</span><span class="op">$</span><span class="va">plot</span>, <span class="st">"ggplot"</span><span class="op">)</span> <span class="co"># TRUE when the plot rendered without error</span></span>
 <span><span class="co">#&gt; [1] FALSE</span></span></code></pre></div>
 <p><code><a href="../reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec()</a></code> is the supported way to
 discover the low-level runtime inputs consumed by
@@ -190,6 +209,8 @@ fails</li>
 </h2>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">out_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".R"</span><span class="op">)</span></span>
+<span><span class="co"># style = FALSE skips styler formatting of the generated code (faster; useful</span></span>
+<span><span class="co"># in automated contexts). Set style = TRUE to produce a cleanly formatted app.R.</span></span>
 <span><span class="fu"><a href="../reference/ptr_generate_shiny.html">ptr_generate_shiny</a></span><span class="op">(</span><span class="va">obj</span>, <span class="va">out_file</span>, style <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/files.html" class="external-link">file.exists</a></span><span class="op">(</span><span class="va">out_file</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>

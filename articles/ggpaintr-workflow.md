@@ -24,6 +24,12 @@ Supported placeholders are:
 library(ggpaintr)
 library(ggplot2)
 
+# Each placeholder token in the formula becomes a Shiny input widget:
+#   var   → selectInput  (column chooser; populated from the active dataset)
+#   num   → numericInput
+#   text  → textInput    (value used as a string literal)
+#   expr  → textInput    (value is parsed as an R expression at runtime)
+#   upload → fileInput + textInput (upload a .csv or .rds and name it)
 obj <- ptr_parse_formula(
   "ggplot(data = iris, aes(x = var, y = var)) +
     geom_point(aes(color = var), size = num) +
@@ -31,15 +37,22 @@ obj <- ptr_parse_formula(
     facet_wrap(expr)"
 )
 
-names(obj$expr_list)
+names(obj$expr_list)          # one entry per ggplot layer
 #> [1] "ggplot"     "geom_point" "labs"       "facet_wrap"
-names(obj$keywords_list$ggplot)
+names(obj$keywords_list$ggplot)  # placeholder locations inside the ggplot() call
 #> [1] "ggplot+3+2" "ggplot+3+3"
 ```
 
 ## Building runtime output
 
 ``` r
+# ptr_runtime_input_spec() returns a data frame describing every input that
+# ptr_exec() expects. Key columns:
+#   input_id   — the Shiny input id string (treat as opaque; discover via spec)
+#   role       — "layer_checkbox" (toggle a layer on/off) or "placeholder" (a widget value)
+#   layer_name — the ggplot layer this input belongs to (e.g. "geom_point")
+#   param_key  — the ggplot argument name (e.g. "x", "color"); NA for unnamed placeholders
+#   keyword    — the placeholder type ("var", "num", "text", "expr")
 spec <- ptr_runtime_input_spec(obj)
 spec
 #>              input_id           role layer_name keyword   param_key
@@ -63,23 +76,29 @@ spec
 #> 8           <NA>
 #> 9           <NA>
 
+# Build a named list keyed by input_id — the same shape as Shiny's input object.
 inputs <- setNames(vector("list", nrow(spec)), spec$input_id)
+
+# layer_checkbox inputs control whether a layer is included in the plot at all.
+# Set them all TRUE here to render every layer.
 inputs[spec$role == "layer_checkbox"] <- rep(list(TRUE), sum(spec$role == "layer_checkbox"))
-inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "x"]]] <- "Sepal.Length"
-inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "y"]]] <- "Sepal.Width"
+
+# For each placeholder, look up its input_id by filtering spec on layer_name + param_key
+# (or keyword for unnamed placeholders like num/expr), then assign the desired value.
+inputs[[spec$input_id[spec$layer_name == "ggplot"    & spec$param_key == "x"]]]      <- "Sepal.Length"
+inputs[[spec$input_id[spec$layer_name == "ggplot"    & spec$param_key == "y"]]]      <- "Sepal.Width"
 inputs[[spec$input_id[spec$layer_name == "geom_point" & spec$param_key == "color"]]] <- "Species"
-inputs[[spec$input_id[spec$layer_name == "geom_point" & spec$keyword == "num"]]] <- 2.5
-inputs[[spec$input_id[spec$layer_name == "labs" & spec$param_key == "title"]]] <- "Iris scatter"
-inputs[[spec$input_id[spec$layer_name == "facet_wrap" & spec$keyword == "expr"]]] <- "~ Species"
+# num has no param_key (it fills the `size` argument positionally); filter by keyword
+inputs[[spec$input_id[spec$layer_name == "geom_point" & spec$keyword == "num"]]]     <- 2.5
+inputs[[spec$input_id[spec$layer_name == "labs"       & spec$param_key == "title"]]] <- "Iris scatter"
+# expr values are strings; ptr_exec() parses them into R expressions internally
+inputs[[spec$input_id[spec$layer_name == "facet_wrap" & spec$keyword == "expr"]]]    <- "~ Species"
 
-runtime <- ptr_exec(
-  obj,
-  inputs
-)
+runtime <- ptr_exec(obj, inputs)
 
-runtime$code_text
+runtime$code_text               # completed ggplot call as a formatted string
 #> NULL
-inherits(runtime$plot, "ggplot")
+inherits(runtime$plot, "ggplot") # TRUE when the plot rendered without error
 #> [1] FALSE
 ```
 
@@ -113,6 +132,8 @@ The generated app:
 
 ``` r
 out_file <- tempfile(fileext = ".R")
+# style = FALSE skips styler formatting of the generated code (faster; useful
+# in automated contexts). Set style = TRUE to produce a cleanly formatted app.R.
 ptr_generate_shiny(obj, out_file, style = FALSE)
 file.exists(out_file)
 #> [1] TRUE
