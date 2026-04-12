@@ -913,8 +913,10 @@ Expected checks:
 ## Formula 14: Non-Inline Placeholder Export Failure
 
 This check confirms the current exportability rule for custom placeholders.
-Standalone exported apps can only rebuild custom placeholders whose hooks are
-defined inline inside `ptr_define_placeholder(...)`.
+Standalone exported apps require that each hook function is either defined
+inline inside `ptr_define_placeholder(...)` or made available through a source
+strategy (`source_function`, `source_file`, or `source_package`). Hooks that
+are bare named references with no source strategy are rejected at export time.
 
 ```{r formula-14-non-inline-export, eval=FALSE}
 build_date_ui_manual <- function(id, copy, meta, context) {
@@ -963,11 +965,14 @@ Suggested manual sequence:
 Expected checks:
 
 -   The error explains that the custom placeholder must define `build_ui`
-    inline.
+    inline or supply `source_file`, `source_package`, or `source_function` so
+    exported apps stay standalone.
 -   The package refuses the export before writing a standalone app that would be
     missing helper definitions.
 -   This failure is limited to exportability; the same non-inline placeholder
     shape can still be useful for in-session experiments that are not exported.
+-   Adding a source strategy (e.g. `source_function = list(build_ui = build_date_ui_manual, resolve_expr = date_to_expr_manual)`)
+    to the `ptr_define_placeholder()` call would make the same placeholder exportable.
 
 ## Final Checklist
 
@@ -996,7 +1001,7 @@ Expected checks:
 -   Custom `renderPlot()` workflows can use `ptr_extract_plot()` and keep the rest of the default runtime behavior intact.
 -   Custom placeholder controls render correctly, participate in code generation, and work alongside built-in placeholders.
 -   Exported custom-placeholder apps rebuild `custom_placeholders` and preserve their custom copy text.
--   Export attempts for non-inline custom placeholders fail clearly instead of
-    writing a broken standalone app.
+-   Export attempts for non-inline custom placeholders without a source strategy
+    fail clearly instead of writing a broken standalone app.
 -   Remaining internal-only or philosophy-boundary edge cases are reviewed in
     `tests/manual/ggpaintr-edge-cases.Rmd`.
