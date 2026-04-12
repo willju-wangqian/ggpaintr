@@ -54,7 +54,7 @@ Additional context:
 - Check command: devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran", "--no-manual"))
 - Source pattern: R/paintr-*.R
 - Test pattern: tests/testthat/test-*.R
-- Doc build: pkgdown::build_site_github_pages(new_process = FALSE, install = TRUE)
+- Doc build: source("dev/build-pkgdown.R"); build_pkgdown_clean()  # excludes CLAUDE.md from the rendered site
 - README render: devtools::load_all("."); rmarkdown::render("README.Rmd", envir = globalenv())
 - Conventions: tidyverse style, snake_case, 2-space indent
 
@@ -66,11 +66,3 @@ These workflows are available via `/ewh:doit <name>`:
 - `fact-check` — cross-validate docs against source code
 - `knowledge-update` — update CLAUDE.md and memory files
 - `clean-up` — test, check, build docs, update knowledge
-
-## graphify
-
-This project has a graphify knowledge graph at graphify-out/.
-
-Rules:
-- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
-- After modifying code files in this session, run `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` to keep the graph current

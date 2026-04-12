@@ -14,7 +14,7 @@ created: 2026-04-09
 - **Why:** Current workflow is ad-hoc (prompt contracts, manually sequenced agents, scattered conventions). Needs consistency, discoverability, and portability.
 - **Who:** The user, and eventually other Claude Code users who install the harness.
 - **Key constraints:** Language-agnostic; lives at `~/.claude/harness/`; designed to evolve into a distributable package later; YAML frontmatter + prose body for rules; dispatcher skill (`/workflow <name>`) orchestrates workflows; hybrid autonomy (structural + compliance gates); rules injected into agent prompts by default with post-step compliance for critical rules.
-- **Non-goals:** Not a language-specific linter; not replacing existing skills (brainstorming, graphify, specs); not building a package manager yet.
+- **Non-goals:** Not a language-specific linter; not replacing existing skills (brainstorming, specs); not building a package manager yet.
 
 ## Decision
 

@@ -20,17 +20,6 @@
           }
         ]
       }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Glob|Grep",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "[ -f graphify-out/graph.json ] && echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"graphify knowledge graph available — see CLAUDE.md graphify section.\"}}' || true"
-          }
-        ]
-      }
     ]
   }
 }
