@@ -136,6 +136,12 @@ date_ui_text <- list(
   )
 )
 
+date_ui_text <- ptr_merge_ui_text(
+  date_ui_text,
+  placeholders = date_placeholders
+)
+
+
 manual_ids <- ptr_build_ids(
   control_panel = "builder_controls",
   draw_button = "render_plot",
@@ -181,7 +187,7 @@ Low-level developer note:
 This app is the main static-data interaction sweep. It exercises `var`, `text`, `num`, `expr`, `outputCode`, and layer checkbox behavior in one place.
 
 ```{r formula-1, eval=FALSE}
-ptr_app("
+ptr_app_bslib("
 ggplot(data = iris, aes(x = var, y = var)) +
   geom_point(aes(color = var), size = num, alpha = num) +
   labs(title = text, x = text, y = text) +
@@ -339,7 +345,7 @@ This app checks mixed static/upload layering and confirms that upload-backed
 error path for a layer-specific upload.
 
 ```{r formula-4, eval=FALSE}
-ptr_app("
+ptr_app_bslib("
 ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
   geom_point(aes(color = var), size = 2) +
   geom_point(data = upload, aes(x = var, y = var, color = var), size = num) +
@@ -744,7 +750,8 @@ ggplot(data = sales_manual, aes(x = day, y = value)) +
   geom_vline(xintercept = date, color = text) +
   labs(title = text)
 ",
-  placeholders = date_placeholders
+  placeholders = date_placeholders,
+  ui_text = date_ui_text
 )
 ```
 
