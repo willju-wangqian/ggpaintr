@@ -209,7 +209,9 @@ shinyApp(ui, server)
 ### Customize the plot in your own `renderPlot()`
 
 If you want to keep the `ggpaintr` runtime but take over plot rendering,
-use `ptr_extract_plot()` inside your own `renderPlot()`.
+use `ptr_extract_plot()` inside your own `renderPlot()`. Wrap any extra
+ggplot components in `ptr_gg_extra()` so the default code binder keeps
+the `outputCode` pane in sync with what is actually drawn.
 
 ``` r
 server <- function(input, output, session) {
@@ -230,7 +232,7 @@ server <- function(input, output, session) {
       return(invisible(NULL))
     }
 
-    plot_obj + ggplot2::theme_minimal()
+    plot_obj + ptr_gg_extra(ptr_state, ggplot2::theme_minimal(base_size = 16))
   })
 }
 ```

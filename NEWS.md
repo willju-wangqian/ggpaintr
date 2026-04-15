@@ -1,5 +1,16 @@
 # ggpaintr 0.9.0
 
+## New features
+
+- `ptr_gg_extra()` — advanced helper for embedded apps that own their own
+  `renderPlot({...})` block. Captures ggplot components (themes, scales,
+  coords, ...) added on top of `ptr_extract_plot()` and stores them on a new
+  `ptr_state$extras` reactiveVal, so the default code binder
+  (`ptr_register_code()`) appends them to the generated-code pane. Extras
+  are suppressed automatically when the underlying runtime reports a failure,
+  so stale extras from a prior successful draw never surface during an error
+  state. See `vignette("ggpaintr-extensibility")`, Recipe 3.
+
 ## Breaking changes
 
 - Removed the Shiny app export feature: `ptr_generate_shiny()`,
