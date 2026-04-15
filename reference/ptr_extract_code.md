@@ -5,7 +5,7 @@ Return Generated Code Text from a Runtime Result
 ## Usage
 
 ``` r
-ptr_extract_code(runtime_result)
+ptr_extract_code(runtime_result, extras = NULL)
 ```
 
 ## Arguments
@@ -14,6 +14,14 @@ ptr_extract_code(runtime_result)
 
   A runtime result list returned by
   [`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md).
+
+- extras:
+
+  Optional list of quosures captured by
+  [`ptr_gg_extra()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_gg_extra.md),
+  appended to the runtime code text when the runtime succeeded. Extras
+  are suppressed when `runtime_result$ok` is not `TRUE`, so stale extras
+  from a prior successful draw never surface during a failed draw.
 
 ## Value
 

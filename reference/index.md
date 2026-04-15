@@ -34,6 +34,8 @@ runtime behavior.
   : Return Default Error UI from a Runtime Result
 - [`ptr_extract_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_code.md)
   : Return Generated Code Text from a Runtime Result
+- [`ptr_gg_extra()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_gg_extra.md)
+  : Capture Out-of-Runtime ggplot Additions for the Code Output
 - [`ptr_input_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_input_ui.md)
   : Build Default ggpaintr Control Widgets
 - [`ptr_output_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_output_ui.md)

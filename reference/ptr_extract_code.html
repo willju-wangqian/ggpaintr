@@ -47,7 +47,7 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">ptr_extract_code</span><span class="op">(</span><span class="va">runtime_result</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">ptr_extract_code</span><span class="op">(</span><span class="va">runtime_result</span>, extras <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -56,6 +56,13 @@
 
 <dl><dt id="arg-runtime-result">runtime_result<a class="anchor" aria-label="anchor" href="#arg-runtime-result"></a></dt>
 <dd><p>A runtime result list returned by <code><a href="ptr_exec.html">ptr_exec()</a></code>.</p></dd>
+
+
+<dt id="arg-extras">extras<a class="anchor" aria-label="anchor" href="#arg-extras"></a></dt>
+<dd><p>Optional list of quosures captured by <code><a href="ptr_gg_extra.html">ptr_gg_extra()</a></code>,
+appended to the runtime code text when the runtime succeeded. Extras
+are suppressed when <code>runtime_result$ok</code> is not <code>TRUE</code>, so stale extras
+from a prior successful draw never surface during a failed draw.</p></dd>
 
 </dl></div>
     <div class="section level2">
