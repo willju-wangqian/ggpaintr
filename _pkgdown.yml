@@ -23,6 +23,7 @@ reference:
       - ptr_extract_plot
       - ptr_extract_error
       - ptr_extract_code
+      - ptr_gg_extra
       - ptr_input_ui
       - ptr_output_ui
   - title: Placeholder extensibility
