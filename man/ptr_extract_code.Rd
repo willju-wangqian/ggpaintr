@@ -4,10 +4,15 @@
 \alias{ptr_extract_code}
 \title{Return Generated Code Text from a Runtime Result}
 \usage{
-ptr_extract_code(runtime_result)
+ptr_extract_code(runtime_result, extras = NULL)
 }
 \arguments{
 \item{runtime_result}{A runtime result list returned by \code{ptr_exec()}.}
+
+\item{extras}{Optional list of quosures captured by \code{\link[=ptr_gg_extra]{ptr_gg_extra()}},
+appended to the runtime code text when the runtime succeeded. Extras
+are suppressed when \code{runtime_result$ok} is not \code{TRUE}, so stale extras
+from a prior successful draw never surface during a failed draw.}
 }
 \value{
 A character string or \code{NULL}.

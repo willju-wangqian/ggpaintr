@@ -107,6 +107,7 @@ ptr_validate_state <- function(ptr_state) {
   required_names <- c(
     "obj",
     "runtime",
+    "extras",
     "var_ui_list",
     "shared_env_reactive",
     "raw_ui_text",
@@ -128,6 +129,7 @@ ptr_validate_state <- function(ptr_state) {
 
   if (!is.function(ptr_state$obj) ||
       !is.function(ptr_state$runtime) ||
+      !is.function(ptr_state$extras) ||
       !is.function(ptr_state$var_ui_list)) {
     rlang::abort("ptr_state reactive accessors must be functions.")
   }
@@ -182,6 +184,7 @@ ptr_server_state <- function(formula,
     list(
       obj = shiny::reactiveVal(parsed),
       runtime = shiny::reactiveVal(NULL),
+      extras = shiny::reactiveVal(list()),
       var_ui_list = shiny::reactiveVal(list()),
       shared_env_reactive = NULL,
       raw_ui_text = ui_text,
@@ -389,6 +392,10 @@ ptr_extract_error <- function(runtime_result) {
 #' Return Generated Code Text from a Runtime Result
 #'
 #' @param runtime_result A runtime result list returned by `ptr_exec()`.
+#' @param extras Optional list of quosures captured by [ptr_gg_extra()],
+#'   appended to the runtime code text when the runtime succeeded. Extras
+#'   are suppressed when `runtime_result$ok` is not `TRUE`, so stale extras
+#'   from a prior successful draw never surface during a failed draw.
 #'
 #' @return A character string or `NULL`.
 #' @examples
@@ -405,12 +412,24 @@ ptr_extract_error <- function(runtime_result) {
 #' ptr_extract_code(runtime)
 #' }
 #' @export
-ptr_extract_code <- function(runtime_result) {
+ptr_extract_code <- function(runtime_result, extras = NULL) {
   if (is.null(runtime_result)) {
     return(NULL)
   }
 
-  runtime_result[["code_text"]]
+  base <- runtime_result[["code_text"]]
+  if (!isTRUE(runtime_result[["ok"]])) {
+    return(base)
+  }
+  if (is.null(extras) || length(extras) == 0) {
+    return(base)
+  }
+
+  extra_text <- vapply(extras, rlang::quo_text, character(1))
+  if (is.null(base) || !nzchar(base)) {
+    return(paste(extra_text, collapse = " +\n  "))
+  }
+  paste(c(base, extra_text), collapse = " +\n  ")
 }
 
 #' Bind Default Plot Rendering into a Shiny App
@@ -507,10 +526,86 @@ ptr_register_code <- function(output,
   ids <- ptr_normalize_ids(ids)
 
   output[[ids$code_output]] <- shiny::renderText({
-    ptr_extract_code(ptr_state$runtime())
+    ptr_extract_code(ptr_state$runtime(), extras = ptr_state$extras())
   })
 
   invisible(ptr_state)
+}
+
+#' Capture Out-of-Runtime ggplot Additions for the Code Output
+#'
+#' Advanced helper for custom `renderPlot({...})` blocks inside embedded
+#' ggpaintr apps. When an advanced developer adds ggplot components (themes,
+#' scales, coords, guides, labs, ...) to the plot returned by
+#' [ptr_extract_plot()], those additions render visually but never reach the
+#' generated code output. `ptr_gg_extra()` solves that by capturing the
+#' expressions it receives and storing them on the `ptr_state` so the default
+#' code binder ([ptr_register_code()]) can surface them alongside the
+#' formula-driven code.
+#'
+#' The helper is intentionally **not** exposed through [ptr_app()] or
+#' [ptr_app_bslib()]. It is only meaningful when the caller owns their own
+#' `renderPlot({...})` block built on [ptr_server_state()] and the
+#' `ptr_register_*()` helpers.
+#'
+#' Semantics:
+#'
+#' * Replace-per-call. Each call overwrites the previously captured extras.
+#'   Pass every component you want in a single call, e.g.
+#'   `ptr_gg_extra(ps, theme_minimal(), scale_x_log10())`.
+#' * Suppression on failure. When the underlying runtime reports
+#'   `ok = FALSE`, the code binder ignores extras so stale values from a
+#'   prior successful draw never surface during a failed draw.
+#' * No new S3 class. The return value is a plain list, so
+#'   `plot_obj + ptr_gg_extra(ps, ...)` dispatches through ggplot2's built-in
+#'   `ggplot_add.list` method.
+#'
+#' @param ptr_state A `ptr_state` object created by [ptr_server_state()].
+#' @param ... ggplot components (theme, scale, coord, guides, labs, ...).
+#'   Captured with [rlang::enquos()] for code output, evaluated for the
+#'   returned list.
+#'
+#' @return A list of evaluated ggplot components, suitable for
+#'   `plot_obj + ptr_gg_extra(ptr_state, ...)`.
+#'
+#' @examples
+#' \dontrun{
+#' server <- function(input, output, session) {
+#'   ps <- ptr_server_state(
+#'     "ggplot(data = iris, aes(x = var, y = var)) + geom_point() + labs(title = text)"
+#'   )
+#'   ptr_setup_controls(input, output, ps)
+#'   ptr_register_draw(input, ps)
+#'   ptr_register_error(output, ps)
+#'   ptr_register_code(output, ps)
+#'
+#'   output$outputPlot <- shiny::renderPlot({
+#'     plot_obj <- ptr_extract_plot(ps$runtime())
+#'     if (is.null(plot_obj)) {
+#'       graphics::plot.new()
+#'       return(invisible(NULL))
+#'     }
+#'     plot_obj + ptr_gg_extra(ps, ggplot2::theme_minimal(base_size = 16))
+#'   })
+#' }
+#' }
+#' @export
+ptr_gg_extra <- function(ptr_state, ...) {
+  if (missing(ptr_state)) {
+    rlang::abort("ptr_gg_extra() requires `ptr_state` as the first argument.")
+  }
+  if (!is.list(ptr_state) || !is.function(ptr_state$extras)) {
+    rlang::abort(
+      "`ptr_state` does not expose an `extras` reactiveVal. Rebuild it with ptr_server_state() from the current ggpaintr version."
+    )
+  }
+
+  quos <- rlang::enquos(..., .named = FALSE)
+  vals <- rlang::list2(...)
+
+  ptr_state$extras(quos)
+
+  vals
 }
 
 #' Build Default ggpaintr Control Widgets

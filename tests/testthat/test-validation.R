@@ -32,6 +32,7 @@ make_raw_placeholder <- function(
 make_raw_state <- function(
   obj                 = function() NULL,
   runtime             = function() NULL,
+  extras              = function() list(),
   var_ui_list         = function() NULL,
   shared_env_reactive = NULL,
   raw_ui_text         = NULL,
@@ -45,6 +46,7 @@ make_raw_state <- function(
     list(
       obj                 = obj,
       runtime             = runtime,
+      extras              = extras,
       var_ui_list         = var_ui_list,
       shared_env_reactive = shared_env_reactive,
       raw_ui_text         = raw_ui_text,

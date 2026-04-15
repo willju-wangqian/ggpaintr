@@ -673,10 +673,11 @@ Expected checks:
 -   The extra `runtimeStatus` output can read `ptr_state$runtime()` without breaking the draw flow.
 -   Plot, inline error area, and generated code all still work through the bind helpers.
 
-## Formula 11: Custom Plot Rendering with `ptr_extract_plot()`
+## Formula 11: Custom Plot Rendering with `ptr_extract_plot()` and `ptr_gg_extra()`
 
 This app checks the pure-value customization seam. It replaces the default plot
-binder with a custom `renderPlot()` that adds a theme.
+binder with a custom `renderPlot()` that adds a theme, and uses
+`ptr_gg_extra()` so the theme also appears in `outputCode`.
 
 ```{r formula-11-custom-plot, eval=FALSE}
 ui <- fluidPage(
@@ -715,7 +716,7 @@ ggplot(data = iris, aes(x = var, y = var)) +
       return(invisible(NULL))
     }
 
-    plot_obj + ggplot2::theme_minimal(base_size = 16)
+    plot_obj + ptr_gg_extra(ptr_state, ggplot2::theme_minimal(base_size = 16))
   })
 }
 
@@ -735,6 +736,8 @@ Expected checks:
 -   `ptr_extract_plot()` returns a plot only after a successful draw.
 -   The blank-on-failure behavior still works because the custom `renderPlot()` handles `NULL`.
 -   The default error and code binders continue to work alongside the custom plot renderer.
+-   `outputCode` now includes `ggplot2::theme_minimal(base_size = 16)` appended after the formula-driven code, so the rendered plot and the code pane match.
+-   On a failed draw, the theme line disappears from `outputCode` (extras are suppressed when `runtime()$ok` is `FALSE`).
 
 ## Formula 12: Custom `date` Placeholder in a Live App
 
