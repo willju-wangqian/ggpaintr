@@ -94,6 +94,7 @@ into their own UI.</p>
 <li><code><a href="../reference/ptr_extract_plot.html">ptr_extract_plot()</a></code></li>
 <li><code><a href="../reference/ptr_extract_error.html">ptr_extract_error()</a></code></li>
 <li><code><a href="../reference/ptr_extract_code.html">ptr_extract_code()</a></code></li>
+<li><code><a href="../reference/ptr_gg_extra.html">ptr_gg_extra()</a></code></li>
 <li><code><a href="../reference/ptr_input_ui.html">ptr_input_ui()</a></code></li>
 <li><code><a href="../reference/ptr_output_ui.html">ptr_output_ui()</a></code></li>
 </ul>
@@ -227,6 +228,11 @@ package-owned.</p>
 current wrapper behavior. If you want to modify the built plot before
 rendering, write your own <code><a href="https://rdrr.io/pkg/shiny/man/renderPlot.html" class="external-link">renderPlot()</a></code> and use
 <code><a href="../reference/ptr_extract_plot.html">ptr_extract_plot()</a></code>.</p>
+<p>Adding ggplot components (themes, scales, coords, …) directly to the
+plot object works for rendering, but those additions live outside the
+ggpaintr runtime, so the generated-code pane (<code>outputCode</code>)
+never sees them. Wrap them in <code><a href="../reference/ptr_gg_extra.html">ptr_gg_extra()</a></code> to make the
+default code binder surface them alongside the formula-driven code:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">ptr_state</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_server_state.html">ptr_server_state</a></span><span class="op">(</span></span>
@@ -250,15 +256,24 @@ rendering, write your own <code><a href="https://rdrr.io/pkg/shiny/man/renderPlo
 <span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span><span class="op">)</span></span>
 <span>    <span class="op">}</span></span>
 <span></span>
-<span>    <span class="co"># Modify the ggplot object freely before it is rendered.</span></span>
-<span>    <span class="co"># Here we apply a theme; you could also add layers, scales, or annotations.</span></span>
-<span>    <span class="va">plot_obj</span> <span class="op">+</span> <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>    <span class="co"># ptr_gg_extra() captures the ggplot components it receives so that the</span></span>
+<span>    <span class="co"># default code binder (ptr_register_code) can append them to outputCode.</span></span>
+<span>    <span class="co"># Pass every component you want in a single call — the helper is</span></span>
+<span>    <span class="co"># replace-per-call, and the captured expressions are suppressed</span></span>
+<span>    <span class="co"># automatically when the runtime reports a failure.</span></span>
+<span>    <span class="va">plot_obj</span> <span class="op">+</span> <span class="fu"><a href="../reference/ptr_gg_extra.html">ptr_gg_extra</a></span><span class="op">(</span><span class="va">ptr_state</span>, <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span>base_size <span class="op">=</span> <span class="fl">16</span><span class="op">)</span><span class="op">)</span></span>
 <span>  <span class="op">}</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
 <p><code><a href="../reference/ptr_extract_plot.html">ptr_extract_plot()</a></code> returns the raw <code>ggplot</code>
 object on success and <code>NULL</code> otherwise. That keeps the
 advanced customization seam side-effect free and lets you decide how to
 render failure states in your own app.</p>
+<p><code><a href="../reference/ptr_gg_extra.html">ptr_gg_extra()</a></code> is the one exception: it intentionally
+writes the captured expressions to a dedicated
+<code>ptr_state$extras</code> reactiveVal so the default code binder
+stays in sync with what <code><a href="https://rdrr.io/pkg/shiny/man/renderPlot.html" class="external-link">renderPlot()</a></code> draws. Advanced users
+who roll their own code binder can ignore it and read
+<code>ptr_state$runtime()$code_text</code> directly.</p>
 </div>
 <div class="section level2">
 <h2 id="pure-helpers-versus-bind-helpers">Pure helpers versus bind helpers<a class="anchor" aria-label="anchor" href="#pure-helpers-versus-bind-helpers"></a>
@@ -276,6 +291,10 @@ workflows</li>
 <li>
 <code><a href="../reference/ptr_extract_code.html">ptr_extract_code()</a></code> for custom <code><a href="https://rdrr.io/pkg/shiny/man/renderPrint.html" class="external-link">renderText()</a></code>
 or downstream processing</li>
+<li>
+<code><a href="../reference/ptr_gg_extra.html">ptr_gg_extra()</a></code> to capture out-of-runtime ggplot
+additions (theme, scale, coord, …) so they round-trip into the default
+code binder</li>
 </ul>
 </div>
 <div class="section level2">

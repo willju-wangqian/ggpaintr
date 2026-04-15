@@ -22,6 +22,7 @@ The supported integration pieces are:
 - [`ptr_extract_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_plot.md)
 - [`ptr_extract_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_error.md)
 - [`ptr_extract_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_code.md)
+- [`ptr_gg_extra()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_gg_extra.md)
 - [`ptr_input_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_input_ui.md)
 - [`ptr_output_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_output_ui.md)
 
@@ -166,6 +167,14 @@ built plot before rendering, write your own
 [`renderPlot()`](https://rdrr.io/pkg/shiny/man/renderPlot.html) and use
 [`ptr_extract_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_plot.md).
 
+Adding ggplot components (themes, scales, coords, …) directly to the
+plot object works for rendering, but those additions live outside the
+ggpaintr runtime, so the generated-code pane (`outputCode`) never sees
+them. Wrap them in
+[`ptr_gg_extra()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_gg_extra.md)
+to make the default code binder surface them alongside the
+formula-driven code:
+
 ``` r
 server <- function(input, output, session) {
   ptr_state <- ptr_server_state(
@@ -189,9 +198,12 @@ server <- function(input, output, session) {
       return(invisible(NULL))
     }
 
-    # Modify the ggplot object freely before it is rendered.
-    # Here we apply a theme; you could also add layers, scales, or annotations.
-    plot_obj + ggplot2::theme_minimal()
+    # ptr_gg_extra() captures the ggplot components it receives so that the
+    # default code binder (ptr_register_code) can append them to outputCode.
+    # Pass every component you want in a single call — the helper is
+    # replace-per-call, and the captured expressions are suppressed
+    # automatically when the runtime reports a failure.
+    plot_obj + ptr_gg_extra(ptr_state, ggplot2::theme_minimal(base_size = 16))
   })
 }
 ```
@@ -200,6 +212,14 @@ server <- function(input, output, session) {
 returns the raw `ggplot` object on success and `NULL` otherwise. That
 keeps the advanced customization seam side-effect free and lets you
 decide how to render failure states in your own app.
+
+[`ptr_gg_extra()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_gg_extra.md)
+is the one exception: it intentionally writes the captured expressions
+to a dedicated `ptr_state$extras` reactiveVal so the default code binder
+stays in sync with what
+[`renderPlot()`](https://rdrr.io/pkg/shiny/man/renderPlot.html) draws.
+Advanced users who roll their own code binder can ignore it and read
+`ptr_state$runtime()$code_text` directly.
 
 ## Pure helpers versus bind helpers
 
@@ -217,6 +237,9 @@ Use the pure value helpers when you want to own the rendering details:
   for custom
   [`renderText()`](https://rdrr.io/pkg/shiny/man/renderPrint.html) or
   downstream processing
+- [`ptr_gg_extra()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_gg_extra.md)
+  to capture out-of-runtime ggplot additions (theme, scale, coord, …) so
+  they round-trip into the default code binder
 
 ## How to improve the advanced surface
 
