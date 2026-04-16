@@ -66,10 +66,13 @@ names(obj$keywords_list$ggplot)  # placeholder locations inside the ggplot() cal
 # ptr_runtime_input_spec() returns a data frame describing every input that
 # ptr_exec() expects. Key columns:
 #   input_id   — the Shiny input id string (treat as opaque; discover via spec)
-#   role       — "layer_checkbox" (toggle a layer on/off) or "placeholder" (a widget value)
+#   role       — "layer_checkbox" (toggle a layer on/off), "placeholder" (a widget value),
+#                or "upload_name" (the name-field companion of an upload placeholder)
 #   layer_name — the ggplot layer this input belongs to (e.g. "geom_point")
 #   param_key  — the ggplot argument name (e.g. "x", "color"); NA for unnamed placeholders
 #   keyword    — the placeholder type ("var", "num", "text", "expr")
+#   source_id  — the input_id of the parent placeholder; for "upload_name" rows this
+#                links back to the corresponding "placeholder" row
 spec <- ptr_runtime_input_spec(obj)
 spec
 
@@ -85,7 +88,8 @@ inputs[spec$role == "layer_checkbox"] <- rep(list(TRUE), sum(spec$role == "layer
 inputs[[spec$input_id[spec$layer_name == "ggplot"    & spec$param_key == "x"]]]      <- "Sepal.Length"
 inputs[[spec$input_id[spec$layer_name == "ggplot"    & spec$param_key == "y"]]]      <- "Sepal.Width"
 inputs[[spec$input_id[spec$layer_name == "geom_point" & spec$param_key == "color"]]] <- "Species"
-# num has no param_key (it fills the `size` argument positionally); filter by keyword
+# num's param_key is "linewidth" because ptr_normalize_param_key() aliases size -> linewidth.
+# Either filter by keyword or by param_key == "linewidth".
 inputs[[spec$input_id[spec$layer_name == "geom_point" & spec$keyword == "num"]]]     <- 2.5
 inputs[[spec$input_id[spec$layer_name == "labs"       & spec$param_key == "title"]]] <- "Iris scatter"
 # expr values are strings; ptr_exec() parses them into R expressions internally

@@ -11,7 +11,7 @@ created: 2026-04-10
 ## Understanding
 
 - ggpaintr's `expr` placeholder lets users type arbitrary R expressions into a Shiny text input
-- These expressions are parsed via `rlang::parse_expr()` and evaluated inside `ggplot_build()` — confirmed dangerous (`system("bad")` executes at render time)
+- These expressions are parsed via `rlang::parse_expr()` and evaluated via `eval()` in `ptr_assemble_plot()` (`R/paintr-runtime.R:184`); `ggplot_build()` appears only as a post-assembly render probe in `ptr_validate_plot_render_safe()` — confirmed dangerous (`system("bad")` executes at eval time)
 - R has no sandboxing; sourcing a malicious `.R` script has the same risk
 - Primary use case: self-use / trusted users. Public deployment is secondary but supported.
 - Current implementation uses a ~90-function allowlist — too restrictive and high-maintenance

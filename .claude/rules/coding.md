@@ -11,7 +11,7 @@ inject_into: [coder]
 - Public functions use `ptr_` prefix. Internal helpers are unexported.
 - Source files: `R/paintr-*.R`. Follow existing file naming patterns.
 - Tidyverse style: snake_case, 2-space indent.
-- Use `rlang::abort()` for errors, not `stop()`. Use `rlang::warn()` not `warning()`.
+- Use `rlang::abort()` for errors, not `stop()`. Use `cli::cli_warn()` not `warning()`.
 - Use `assertthat::assert_that()` for argument validation.
 - Use `cli::cli_inform()` / `cli::cli_warn()` for user-facing messages.
 - Add roxygen2 docs for any new/changed exported functions.

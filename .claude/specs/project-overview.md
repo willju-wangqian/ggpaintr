@@ -27,9 +27,9 @@ References: `.gitignore:44-46`, `.Rbuildignore:8`
 The active package is centered on:
 
 - `R/paintr-app.R`
+- `R/paintr-app-bslib.R`
 - `R/paintr-copy.R`
 - `R/paintr-data.R`
-- `R/paintr-export.R`
 - `R/paintr-parse.R`
 - `R/paintr-placeholders.R`
 - `R/paintr-runtime.R`
@@ -76,7 +76,8 @@ References:
 
 The maintained exported package surface is:
 
-- `ptr_app()`
+- `ptr_app()` — default Shiny app wrapper
+- `ptr_app_bslib()` — themed variant of `ptr_app()` using a bslib `page_sidebar` shell
 - `ptr_server()`
 - `ptr_build_ids()`
 - `ptr_server_state()`
@@ -88,6 +89,7 @@ The maintained exported package surface is:
 - `ptr_extract_plot()`
 - `ptr_extract_error()`
 - `ptr_extract_code()`
+- `ptr_gg_extra()` — captures out-of-runtime ggplot additions so the code binder surfaces them in the generated-code pane
 - `ptr_input_ui()`
 - `ptr_output_ui()`
 - `ptr_define_placeholder()`
@@ -207,4 +209,3 @@ References:
 - `R/paintr-copy.R:117-174`
 - `R/paintr-copy.R:252-643`
 - `R/paintr-app.R:313-480`
-- `R/paintr-export.R:432-467`

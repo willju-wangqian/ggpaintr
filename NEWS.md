@@ -42,6 +42,7 @@
   public community-facing surface
 - updated `ptr_generate_shiny()` so the maintained public call path is now
   `ptr_generate_shiny(ptr_obj, output_file, ...)`
+  _Note: `ptr_generate_shiny()` was removed in 0.9.0 — see breaking changes above._
 - archived the legacy package implementation under `archive/legacy-package/`
 - replaced legacy package docs, vignette, and pkgdown content with
   `ggpaintr`-first documentation
