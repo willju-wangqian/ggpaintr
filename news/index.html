@@ -65,7 +65,7 @@
 <li>added <code>@examples</code> to all exported functions</li>
 <li>clarified the maintained public API boundary in the README and pkgdown-facing docs so the beginner path stays centered on the wrapper, integration, export, placeholder, and intentionally exported runtime helpers</li>
 <li>removed generated documentation topics for package-internal helper functions so internal implementation details are no longer presented as part of the public community-facing surface</li>
-<li>updated <code>ptr_generate_shiny()</code> so the maintained public call path is now <code>ptr_generate_shiny(ptr_obj, output_file, ...)</code>
+<li>updated <code>ptr_generate_shiny()</code> so the maintained public call path is now <code>ptr_generate_shiny(ptr_obj, output_file, ...)</code> <em>Note: <code>ptr_generate_shiny()</code> was removed in 0.9.0 — see breaking changes above.</em>
 </li>
 <li>archived the legacy package implementation under <code>archive/legacy-package/</code>
 </li>

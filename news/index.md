@@ -58,7 +58,9 @@
   functions so internal implementation details are no longer presented
   as part of the public community-facing surface
 - updated `ptr_generate_shiny()` so the maintained public call path is
-  now `ptr_generate_shiny(ptr_obj, output_file, ...)`
+  now `ptr_generate_shiny(ptr_obj, output_file, ...)` *Note:
+  `ptr_generate_shiny()` was removed in 0.9.0 — see breaking changes
+  above.*
 - archived the legacy package implementation under
   `archive/legacy-package/`
 - replaced legacy package docs, vignette, and pkgdown content with

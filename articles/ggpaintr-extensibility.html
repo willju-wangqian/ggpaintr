@@ -161,7 +161,7 @@ advanced Shiny work.</p>
 <span>  <span class="co"># renderPlot(): reads ptr_state$runtime()$plot and renders it.</span></span>
 <span>  <span class="fu"><a href="../reference/ptr_register_plot.html">ptr_register_plot</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span><span class="op">)</span></span>
 <span></span>
-<span>  <span class="co"># renderText() / renderUI(): reads ptr_state$runtime()$error and shows it.</span></span>
+<span>  <span class="co"># renderText() / renderUI(): reads ptr_state$runtime()$message via ptr_extract_error() and shows it.</span></span>
 <span>  <span class="fu"><a href="../reference/ptr_register_error.html">ptr_register_error</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span><span class="op">)</span></span>
 <span></span>
 <span>  <span class="co"># renderText(): reads ptr_state$runtime()$code_text and shows generated code.</span></span>
