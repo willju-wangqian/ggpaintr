@@ -365,7 +365,7 @@ date_ui_text <- ptr_merge_ui_text(
 # Precedence applied: layers > params > defaults > copy_defaults from the placeholder.
 # The result is what build_ui() receives as its `copy` argument.
 ptr_resolve_ui_text(
-  "control",          # component type: "control" for placeholder widgets
+  "control",          # component: "control" selects the placeholder widget component
   keyword    = "date",
   layer_name = "geom_vline",
   param      = "xintercept",

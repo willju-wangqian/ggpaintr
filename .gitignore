@@ -52,3 +52,6 @@ dev/codex/runs/
 # EWH artifacts (ephemeral, per-workflow-run)
 .claude/artifacts/
 .ewh-artifacts/
+
+# EWH per-project state (developer-local preferences)
+.claude/ewh-state.json

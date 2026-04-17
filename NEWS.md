@@ -15,9 +15,9 @@
 
 - Removed the Shiny app export feature: `ptr_generate_shiny()`,
   `ptr_register_export()`, the download button, and `ids$export_button` are
-  gone. Use the public API (`ptr_server_state()`, `ptr_register_*()`,
-  `ptr_input_ui()`, `ptr_output_ui()`, `ptr_app_bslib()`) to compose and
-  distribute custom apps.
+  gone. Use the public Shiny integration surface (`ptr_server_state()`,
+  `ptr_register_*()`, `ptr_input_ui()`, `ptr_output_ui()`, `ptr_app_bslib()`)
+  to compose and distribute custom apps.
 - The placeholder distribution parameters `source_file`, `source_package`,
   `source_function`, and `on_missing` are removed from
   `ptr_define_placeholder()`. They only existed to support the exporter. Hook

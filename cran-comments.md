@@ -4,7 +4,7 @@
 
 ## R CMD check results
 
-- `R CMD check --as-cran --no-manual ggpaintr_0.1.0.tar.gz`
+- `R CMD check --as-cran --no-manual ggpaintr_0.9.0.tar.gz`
   completed with:
   - 0 errors
   - 0 warnings

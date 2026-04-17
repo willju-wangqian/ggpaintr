@@ -100,7 +100,7 @@ server <- function(input, output, session) {
   # renderPlot(): reads ptr_state$runtime()$plot and renders it.
   ptr_register_plot(output, ptr_state)
 
-  # renderText() / renderUI(): reads ptr_state$runtime()$message via ptr_extract_error() and shows it.
+  # renderUI(): reads ptr_state$runtime()$message via ptr_extract_error() and shows it.
   ptr_register_error(output, ptr_state)
 
   # renderText(): reads ptr_state$runtime()$code_text and shows generated code.

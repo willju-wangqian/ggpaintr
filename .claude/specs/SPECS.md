@@ -1,7 +1,6 @@
 # Specs
 
 ## Active Decisions
-- [harness-design](harness-design.md) — reusable Claude Code harness: rules, workflows, dispatcher, agents [harness, workflow, agents, rules]
 - [expr-safety-verbose](expr-safety-verbose.md) — denylist default for expr safety, expr_check API, verbose via R option [safety, expr, verbose, api]
 - [gg-extra-patch](gg-extra-patch.md) — `ptr_gg_extra()` captures out-of-runtime ggplot additions into outputCode via a `ptr_state$extras` reactiveVal [api, runtime, advanced-embed]
 

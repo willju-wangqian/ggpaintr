@@ -79,6 +79,9 @@ The maintained public path is intentionally narrow.
     larger Shiny app.
 -   Use `ptr_define_placeholder()` and `ptr_merge_placeholders()` for
     custom placeholder types.
+-   Use `ptr_gg_extra()` for advanced embeds that own their own
+    `renderPlot()` block and need captured ggplot components reflected
+    in the generated code pane.
 -   Use `ptr_runtime_input_spec()`, `ptr_parse_formula()`, `ptr_exec()`,
     and `ptr_assemble_plot()` for advanced runtime or testing workflows.
 
