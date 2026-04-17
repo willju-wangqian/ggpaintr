@@ -90,6 +90,12 @@ The maintained public path is intentionally narrow.
   [`ptr_merge_placeholders()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_merge_placeholders.md)
   for custom placeholder types.
 - Use
+  [`ptr_gg_extra()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_gg_extra.md)
+  for advanced embeds that own their own
+  [`renderPlot()`](https://rdrr.io/pkg/shiny/man/renderPlot.html) block
+  and need captured ggplot components reflected in the generated code
+  pane.
+- Use
   [`ptr_runtime_input_spec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_runtime_input_spec.md),
   [`ptr_parse_formula()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_parse_formula.md),
   [`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md),

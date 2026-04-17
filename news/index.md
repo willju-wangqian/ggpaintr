@@ -23,7 +23,7 @@
 
 - Removed the Shiny app export feature: `ptr_generate_shiny()`,
   `ptr_register_export()`, the download button, and `ids$export_button`
-  are gone. Use the public API
+  are gone. Use the public Shiny integration surface
   ([`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md),
   `ptr_register_*()`,
   [`ptr_input_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_input_ui.md),
