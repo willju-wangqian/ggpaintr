@@ -23,3 +23,5 @@ README\.*
 ^docker-compose\.codex\.yml$
 ^\.ewh-artifacts$
 ^\.serena$
+^doc$
+^Meta$

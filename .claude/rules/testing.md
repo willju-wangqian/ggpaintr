@@ -18,3 +18,24 @@ inject_into: [tester]
 - Check that placeholder parsing handles unusual ggplot constructs.
 - Run full suite: `Rscript -e "devtools::test()"`.
 - Run R CMD check when asked: `Rscript -e "devtools::check()"`.
+
+## Coverage expectations
+
+Automated coverage should include: formula parsing, placeholder detection &
+substitution, placeholder-registry construction/validation, upload helpers,
+dynamic `var` UI, expression completion, runtime error handling, plot
+construction, copy-rule validation/merge/normalization, server-state behavior
+for custom apps, and exported package-surface behavior.
+
+Manual coverage (`tests/manual/`): real Shiny interaction, upload flows,
+inline errors, default and custom `ui_text`, custom integrations with bind
+helpers + custom top-level ids, custom plot rendering via `ptr_extract_plot()`,
+and custom placeholder controls.
+
+When behavior changes on the maintained path:
+
+- update focused `testthat` coverage in the same change
+- update manual docs when human-interaction behavior changes
+- if `ui_text` behavior changes, update `test-copy-rules.R` + manual copy checks
+- if placeholder-registry behavior changes, update
+  `test-placeholder-registry.R` + manual placeholder checks

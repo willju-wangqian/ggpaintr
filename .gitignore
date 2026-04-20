@@ -55,3 +55,5 @@ dev/codex/runs/
 
 # EWH per-project state (developer-local preferences)
 .claude/ewh-state.json
+/doc/
+/Meta/
