@@ -48,9 +48,9 @@ obj <- ptr_parse_formula(
 )
 ptr_runtime_input_spec(obj)
 #>              input_id           role layer_name keyword param_key  source_id
-#> 1          ggplot+3+2    placeholder     ggplot     var         x ggplot+3+2
-#> 2          ggplot+3+3    placeholder     ggplot     var         y ggplot+3+3
-#> 3              labs+2    placeholder       labs    text     title     labs+2
-#> 4 geom_point+checkbox layer_checkbox geom_point    <NA>      <NA>       <NA>
-#> 5       labs+checkbox layer_checkbox       labs    <NA>      <NA>       <NA>
+#> 1          ggplot_3_2    placeholder     ggplot     var         x ggplot_3_2
+#> 2          ggplot_3_3    placeholder     ggplot     var         y ggplot_3_3
+#> 3              labs_2    placeholder       labs    text     title     labs_2
+#> 4 geom_point_checkbox layer_checkbox geom_point    <NA>      <NA>       <NA>
+#> 5       labs_checkbox layer_checkbox       labs    <NA>      <NA>       <NA>
 ```

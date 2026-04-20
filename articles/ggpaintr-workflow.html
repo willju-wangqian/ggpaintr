@@ -116,7 +116,7 @@ generated code and readable runtime feedback.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="va">expr_list</span><span class="op">)</span>          <span class="co"># one entry per ggplot layer</span></span>
 <span><span class="co">#&gt; [1] "ggplot"     "geom_point" "labs"       "facet_wrap"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="va">keywords_list</span><span class="op">$</span><span class="va">ggplot</span><span class="op">)</span>  <span class="co"># placeholder locations inside the ggplot() call</span></span>
-<span><span class="co">#&gt; [1] "ggplot+3+2" "ggplot+3+3"</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "ggplot_3_2" "ggplot_3_3"</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="building-runtime-output">Building runtime output<a class="anchor" aria-label="anchor" href="#building-runtime-output"></a>
@@ -135,22 +135,22 @@ generated code and readable runtime feedback.</p>
 <span><span class="va">spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec</a></span><span class="op">(</span><span class="va">obj</span><span class="op">)</span></span>
 <span><span class="va">spec</span></span>
 <span><span class="co">#&gt;              input_id           role layer_name keyword   param_key</span></span>
-<span><span class="co">#&gt; 1          ggplot+3+2    placeholder     ggplot     var           x</span></span>
-<span><span class="co">#&gt; 2          ggplot+3+3    placeholder     ggplot     var           y</span></span>
-<span><span class="co">#&gt; 3      geom_point+2+2    placeholder geom_point     var       color</span></span>
-<span><span class="co">#&gt; 4        geom_point+3    placeholder geom_point     num   linewidth</span></span>
-<span><span class="co">#&gt; 5              labs+2    placeholder       labs    text       title</span></span>
-<span><span class="co">#&gt; 6        facet_wrap+2    placeholder facet_wrap    expr __unnamed__</span></span>
-<span><span class="co">#&gt; 7 geom_point+checkbox layer_checkbox geom_point    &lt;NA&gt;        &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 8       labs+checkbox layer_checkbox       labs    &lt;NA&gt;        &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 9 facet_wrap+checkbox layer_checkbox facet_wrap    &lt;NA&gt;        &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 1          ggplot_3_2    placeholder     ggplot     var           x</span></span>
+<span><span class="co">#&gt; 2          ggplot_3_3    placeholder     ggplot     var           y</span></span>
+<span><span class="co">#&gt; 3      geom_point_2_2    placeholder geom_point     var       color</span></span>
+<span><span class="co">#&gt; 4        geom_point_3    placeholder geom_point     num   linewidth</span></span>
+<span><span class="co">#&gt; 5              labs_2    placeholder       labs    text       title</span></span>
+<span><span class="co">#&gt; 6        facet_wrap_2    placeholder facet_wrap    expr __unnamed__</span></span>
+<span><span class="co">#&gt; 7 geom_point_checkbox layer_checkbox geom_point    &lt;NA&gt;        &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 8       labs_checkbox layer_checkbox       labs    &lt;NA&gt;        &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 9 facet_wrap_checkbox layer_checkbox facet_wrap    &lt;NA&gt;        &lt;NA&gt;</span></span>
 <span><span class="co">#&gt;        source_id</span></span>
-<span><span class="co">#&gt; 1     ggplot+3+2</span></span>
-<span><span class="co">#&gt; 2     ggplot+3+3</span></span>
-<span><span class="co">#&gt; 3 geom_point+2+2</span></span>
-<span><span class="co">#&gt; 4   geom_point+3</span></span>
-<span><span class="co">#&gt; 5         labs+2</span></span>
-<span><span class="co">#&gt; 6   facet_wrap+2</span></span>
+<span><span class="co">#&gt; 1     ggplot_3_2</span></span>
+<span><span class="co">#&gt; 2     ggplot_3_3</span></span>
+<span><span class="co">#&gt; 3 geom_point_2_2</span></span>
+<span><span class="co">#&gt; 4   geom_point_3</span></span>
+<span><span class="co">#&gt; 5         labs_2</span></span>
+<span><span class="co">#&gt; 6   facet_wrap_2</span></span>
 <span><span class="co">#&gt; 7           &lt;NA&gt;</span></span>
 <span><span class="co">#&gt; 8           &lt;NA&gt;</span></span>
 <span><span class="co">#&gt; 9           &lt;NA&gt;</span></span>

@@ -127,7 +127,7 @@ runtime <- ptr_exec(
 )
 
 runtime$code_text
-#> [1] "ggplot(data = sales, aes(x = day, y = value)) +\n  geom_line() +\n  geom_vline(xintercept = as.Date(\"2024-01-03\"))"
+#> NULL
 ```
 
 The same registry can also be used in the higher-level wrappers.
@@ -149,20 +149,7 @@ Every placeholder occurrence becomes one metadata record in
 ``` r
 meta <- obj$placeholder_map$geom_vline[["geom_vline+2"]]
 meta
-#> $id
-#> [1] "geom_vline+2"
-#> 
-#> $keyword
-#> [1] "date"
-#> 
-#> $layer_name
-#> [1] "geom_vline"
-#> 
-#> $param
-#> [1] "xintercept"
-#> 
-#> $index_path
-#> [1] 2
+#> NULL
 ```
 
 Each metadata record contains:

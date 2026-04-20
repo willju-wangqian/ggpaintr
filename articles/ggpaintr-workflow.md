@@ -40,7 +40,7 @@ obj <- ptr_parse_formula(
 names(obj$expr_list)          # one entry per ggplot layer
 #> [1] "ggplot"     "geom_point" "labs"       "facet_wrap"
 names(obj$keywords_list$ggplot)  # placeholder locations inside the ggplot() call
-#> [1] "ggplot+3+2" "ggplot+3+3"
+#> [1] "ggplot_3_2" "ggplot_3_3"
 ```
 
 ## Building runtime output
@@ -59,22 +59,22 @@ names(obj$keywords_list$ggplot)  # placeholder locations inside the ggplot() cal
 spec <- ptr_runtime_input_spec(obj)
 spec
 #>              input_id           role layer_name keyword   param_key
-#> 1          ggplot+3+2    placeholder     ggplot     var           x
-#> 2          ggplot+3+3    placeholder     ggplot     var           y
-#> 3      geom_point+2+2    placeholder geom_point     var       color
-#> 4        geom_point+3    placeholder geom_point     num   linewidth
-#> 5              labs+2    placeholder       labs    text       title
-#> 6        facet_wrap+2    placeholder facet_wrap    expr __unnamed__
-#> 7 geom_point+checkbox layer_checkbox geom_point    <NA>        <NA>
-#> 8       labs+checkbox layer_checkbox       labs    <NA>        <NA>
-#> 9 facet_wrap+checkbox layer_checkbox facet_wrap    <NA>        <NA>
+#> 1          ggplot_3_2    placeholder     ggplot     var           x
+#> 2          ggplot_3_3    placeholder     ggplot     var           y
+#> 3      geom_point_2_2    placeholder geom_point     var       color
+#> 4        geom_point_3    placeholder geom_point     num   linewidth
+#> 5              labs_2    placeholder       labs    text       title
+#> 6        facet_wrap_2    placeholder facet_wrap    expr __unnamed__
+#> 7 geom_point_checkbox layer_checkbox geom_point    <NA>        <NA>
+#> 8       labs_checkbox layer_checkbox       labs    <NA>        <NA>
+#> 9 facet_wrap_checkbox layer_checkbox facet_wrap    <NA>        <NA>
 #>        source_id
-#> 1     ggplot+3+2
-#> 2     ggplot+3+3
-#> 3 geom_point+2+2
-#> 4   geom_point+3
-#> 5         labs+2
-#> 6   facet_wrap+2
+#> 1     ggplot_3_2
+#> 2     ggplot_3_3
+#> 3 geom_point_2_2
+#> 4   geom_point_3
+#> 5         labs_2
+#> 6   facet_wrap_2
 #> 7           <NA>
 #> 8           <NA>
 #> 9           <NA>
