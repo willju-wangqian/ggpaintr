@@ -47,6 +47,10 @@ ptr_app_bslib <- function(formula,
     theme <- bslib::bs_theme(version = 5, bootswatch = "flatly")
   }
 
+  if (!is.null(ui_text$shell$title$label)) {
+    title <- ui_text$shell$title$label
+  }
+
   ui <- bslib::page_sidebar(
     title = title,
     theme = theme,
