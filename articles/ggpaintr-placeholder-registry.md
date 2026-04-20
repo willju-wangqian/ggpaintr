@@ -66,8 +66,8 @@ formula. Fields set by the parser:
 
 The copy-defaults list may set any of the four leaf fields ggpaintr
 understands: `label`, `help`, `placeholder`, `empty_text`. Strings
-support `{param}` / [layer](https://github.com/marcosci/layer) /
-`{layer_name}` interpolation. Use
+support `{param}` and [layer](https://github.com/marcosci/layer)
+interpolation. Use
 [`ptr_missing_expr()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_missing_expr.md)
 from `resolve_expr` when an occurrence should be **removed** from the
 completed expression (rather than rendered as `NULL`).
@@ -143,8 +143,21 @@ obj <- ptr_parse_formula(
   placeholders = placeholders
 )
 
-obj$placeholder_map$geom_vline[["geom_vline+2"]]
-#> NULL
+obj$placeholder_map$geom_vline[["geom_vline_2"]]
+#> $id
+#> [1] "geom_vline_2"
+#> 
+#> $keyword
+#> [1] "date"
+#> 
+#> $layer_name
+#> [1] "geom_vline"
+#> 
+#> $param
+#> [1] "xintercept"
+#> 
+#> $index_path
+#> [1] 2
 ```
 
 The fields match the `meta` record every hook receives — `id`,
@@ -152,21 +165,21 @@ The fields match the `meta` record every hook receives — `id`,
 
 Execute the plot headlessly with a concrete date. Prefer
 `ptr_runtime_input_spec(obj)` for discovering the expected input ids
-programmatically rather than hard-coding the `"geom_vline+2"` pattern
+programmatically rather than hard-coding the `"geom_vline_2"` pattern
 used below for clarity.
 
 ``` r
 runtime <- ptr_exec(
   obj,
   list(
-    "geom_line+checkbox"  = TRUE,
-    "geom_vline+checkbox" = TRUE,
-    "geom_vline+2"        = as.Date("2024-01-03")
+    "geom_line_checkbox"  = TRUE,
+    "geom_vline_checkbox" = TRUE,
+    "geom_vline_2"        = as.Date("2024-01-03")
   )
 )
 
 runtime$code_text
-#> NULL
+#> [1] "ggplot(data = sales, aes(x = day, y = value)) +\n  geom_line() +\n  geom_vline(xintercept = as.Date(\"2024-01-03\"))"
 ```
 
 To launch a full Shiny app that drives the same placeholder
@@ -276,14 +289,14 @@ log_num <- ptr_define_placeholder(
   },
 
   # Populate the selectInput with numeric columns drawn from the data
-  # symbol referenced in the formula (context$ptr_obj$ggdata).
+  # symbol referenced in the formula's ggplot() layer.
   bind_ui = function(input, output, metas, context) {
     eval_env <- context$eval_env
-    data_name <- context$ptr_obj$ggdata
+    ggplot_expr <- context$ptr_obj$expr_list[["ggplot"]]
+    data_expr <- if (is.call(ggplot_expr)) ggplot_expr$data else NULL
     numeric_cols <- character(0)
-    if (!is.null(eval_env) && is.character(data_name) &&
-        exists(data_name, envir = eval_env, inherits = FALSE)) {
-      d <- get(data_name, envir = eval_env, inherits = FALSE)
+    if (!is.null(eval_env) && !is.null(data_expr)) {
+      d <- tryCatch(eval(data_expr, envir = eval_env), error = function(e) NULL)
       if (is.data.frame(d)) {
         numeric_cols <- names(d)[vapply(d, is.numeric, logical(1))]
       }
@@ -331,8 +344,8 @@ obj <- ptr_parse_formula(
   placeholders = registry
 )
 
-obj$code_text
-#> NULL
+obj$formula_text
+#> [1] "ggplot(data = mtcars, aes(x = wt, y = log_num)) + geom_point()"
 ```
 
 Running the same formula headlessly — note that `.log_safe` resolves
@@ -342,13 +355,13 @@ because `prepare_eval_env()` bound it in the eval environment:
 runtime <- ptr_exec(
   obj,
   list(
-    "geom_point+checkbox" = TRUE,
-    "geom_point+3"        = "mpg"
+    "geom_point_checkbox" = TRUE,
+    "ggplot_3_3"          = "mpg"
   )
 )
 
 runtime$code_text
-#> NULL
+#> [1] "ggplot(data = mtcars, aes(x = wt, y = .log_safe(mpg))) +\n  geom_point()"
 ```
 
 Launch the live app to exercise `bind_ui`:
@@ -388,11 +401,11 @@ picker_var <- ptr_define_placeholder(
   # Mirror the reactive-column behaviour of the default `var`.
   bind_ui = function(input, output, metas, context) {
     eval_env <- context$eval_env
-    data_name <- context$ptr_obj$ggdata
+    ggplot_expr <- context$ptr_obj$expr_list[["ggplot"]]
+    data_expr <- if (is.call(ggplot_expr)) ggplot_expr$data else NULL
     cols <- character(0)
-    if (!is.null(eval_env) && is.character(data_name) &&
-        exists(data_name, envir = eval_env, inherits = FALSE)) {
-      d <- get(data_name, envir = eval_env, inherits = FALSE)
+    if (!is.null(eval_env) && !is.null(data_expr)) {
+      d <- tryCatch(eval(data_expr, envir = eval_env), error = function(e) NULL)
       if (is.data.frame(d)) {
         cols <- names(d)
       }
@@ -533,7 +546,7 @@ downstream app that uses it gets sensible labels without extra work. The
 supported fields match the four leaf fields in
 [`ptr_resolve_ui_text()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_resolve_ui_text.md):
 `label`, `help`, `placeholder`, `empty_text`. Strings may reference
-`{param}` and `{layer_name}`.
+`{param}` and [layer](https://github.com/marcosci/layer).
 
 ``` r
 annotated_date <- ptr_define_placeholder(
@@ -550,7 +563,7 @@ annotated_date <- ptr_define_placeholder(
   },
   copy_defaults = list(
     label = "Choose a {param} date",
-    help  = "Used by {layer_name}."
+    help  = "Used by {layer}."
   )
 )
 
@@ -566,7 +579,7 @@ ptr_resolve_ui_text(
 #> [1] "Choose a xintercept date"
 #> 
 #> $help
-#> [1] "Used by {layer_name}."
+#> [1] "Used by geom_vline."
 ```
 
 Everything beyond `copy_defaults` — the three-layer merge precedence
