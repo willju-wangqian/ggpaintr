@@ -15,9 +15,9 @@ test_that("ptr_parse_formula parses formulas into a paintr object", {
     c("ggplot", "geom_point", "geom_point-2", "labs")
   )
   # 'data = mtcars' is NOT collected (mtcars is not a placeholder keyword)
-  expect_false("ggplot+2" %in% names(obj$keywords_list$ggplot))
-  expect_true("ggplot+3+2" %in% names(obj$keywords_list$ggplot))
-  expect_true("ggplot+3+3" %in% names(obj$keywords_list$ggplot))
+  expect_false("ggplot_2" %in% names(obj$keywords_list$ggplot))
+  expect_true("ggplot_3_2" %in% names(obj$keywords_list$ggplot))
+  expect_true("ggplot_3_3" %in% names(obj$keywords_list$ggplot))
   expect_identical(
     unname(vapply(obj$keywords_list$ggplot, rlang::as_string, character(1))),
     c("var", "var")
@@ -48,4 +48,69 @@ test_that("quoted placeholders are not treated as placeholders", {
   )
 
   expect_false(any(vapply(obj$keywords_list$ggplot, rlang::as_string, character(1)) == "var"))
+})
+
+test_that("ptr_parse_formula accepts a bare-symbol placeholder as a trailing layer", {
+  obj <- ptr_parse_formula(
+    "ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point() + expr"
+  )
+
+  expect_true("expr" %in% names(obj$expr_list))
+  expect_identical(obj$expr_list$expr, rlang::sym("expr"))
+
+  meta <- obj$placeholder_map$expr$expr
+  expect_identical(meta$keyword, "expr")
+  expect_identical(meta$layer_name, "expr")
+  expect_identical(meta$index_path, integer(0))
+  expect_null(meta$param)
+})
+
+test_that("bare-symbol expr layer round-trips through ptr_complete_expr", {
+  obj <- ptr_parse_formula(
+    "ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point() + expr"
+  )
+
+  base_input <- list()
+  base_input[["geom_point_checkbox"]] <- TRUE
+  base_input[["expr_checkbox"]] <- TRUE
+
+  # Empty input: layer silently dropped from code pane
+  empty_input <- base_input
+  empty_input[["expr"]] <- ""
+  res_empty <- ptr_complete_expr(obj, empty_input)
+  expect_false(grepl("_NULL_PLACEHOLDER", res_empty$code_text, fixed = TRUE))
+  expect_false("expr" %in% names(res_empty$complete_expr_list))
+
+  # User-provided expression: spliced verbatim
+  filled_input <- base_input
+  filled_input[["expr"]] <- "theme_minimal(base_size = 14)"
+  res_filled <- ptr_complete_expr(obj, filled_input)
+  expect_true(grepl("theme_minimal", res_filled$code_text, fixed = TRUE))
+  expect_identical(
+    res_filled$complete_expr_list$expr,
+    rlang::expr(theme_minimal(base_size = 14))
+  )
+
+  # Checkbox off: trailing layer dropped
+  off_input <- filled_input
+  off_input[["expr_checkbox"]] <- FALSE
+  res_off <- ptr_complete_expr(obj, off_input)
+  expect_false("expr" %in% names(res_off$complete_expr_list))
+})
+
+test_that("bare-symbol expr layer survives when resolved to a zero-arg call", {
+  obj <- ptr_parse_formula(
+    "ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point() + expr"
+  )
+  input <- list(
+    "geom_point_checkbox" = TRUE,
+    "expr_checkbox"       = TRUE,
+    "expr"                = "theme_minimal()"
+  )
+  res <- ptr_complete_expr(obj, input)
+  expect_identical(
+    res$complete_expr_list$expr,
+    rlang::expr(theme_minimal())
+  )
+  expect_true(grepl("theme_minimal()", res$code_text, fixed = TRUE))
 })

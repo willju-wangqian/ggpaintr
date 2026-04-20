@@ -8,11 +8,11 @@ test_that("ptr_assemble_plot returns ggplot objects for supported formulas", {
   )
 
   input <- list(
-    "ggplot+3+2" = "Sepal.Length",
-    "ggplot+3+3" = "Sepal.Width",
-    "facet_wrap+2" = "~ Species",
-    "geom_point+checkbox" = TRUE,
-    "facet_wrap+checkbox" = TRUE
+    "ggplot_3_2" = "Sepal.Length",
+    "ggplot_3_3" = "Sepal.Width",
+    "facet_wrap_2" = "~ Species",
+    "geom_point_checkbox" = TRUE,
+    "facet_wrap_checkbox" = TRUE
   )
 
   result <- ptr_complete_expr(obj, input)
@@ -28,7 +28,7 @@ test_that("ptr_assemble_plot returns a base ggplot when optional layers are unch
 
   result <- ptr_complete_expr(
     obj,
-    list("geom_point+checkbox" = FALSE)
+    list("geom_point_checkbox" = FALSE)
   )
   plot_obj <- ptr_assemble_plot(result$complete_expr_list, envir = result$eval_env)
 
@@ -55,11 +55,11 @@ test_that("upload-backed formulas can be built into final plots", {
   )
 
   input <- list(
-    "ggplot+2" = mock_upload_input(fixture_path("simple_numeric.rds"), "simple_numeric.rds"),
-    "ggplot+2+name" = "",
-    "ggplot+3+2" = "x",
-    "ggplot+3+3" = "y",
-    "geom_point+checkbox" = TRUE
+    "ggplot_2" = mock_upload_input(fixture_path("simple_numeric.rds"), "simple_numeric.rds"),
+    "ggplot_2_name" = "",
+    "ggplot_3_2" = "x",
+    "ggplot_3_3" = "y",
+    "geom_point_checkbox" = TRUE
   )
 
   result <- ptr_complete_expr(obj, input)

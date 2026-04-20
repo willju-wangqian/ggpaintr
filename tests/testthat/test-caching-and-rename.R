@@ -14,9 +14,9 @@ make_basic_obj <- function() {
 
 make_basic_input <- function() {
   list(
-    "ggplot+3+2"        = "mpg",
-    "ggplot+3+3"        = "disp",
-    "geom_point+checkbox" = TRUE
+    "ggplot_3_2"        = "mpg",
+    "ggplot_3_3"        = "disp",
+    "geom_point_checkbox" = TRUE
   )
 }
 
@@ -128,7 +128,7 @@ test_that("ptr_complete_expr returns eval_env in result list", {
 
 test_that("ptr_bind_placeholder_ui succeeds with both params NULL (backward compat)", {
   obj    <- make_basic_obj()
-  input  <- list("ggplot+3+2" = "mpg", "ggplot+3+3" = "disp")
+  input  <- list("ggplot_3_2" = "mpg", "ggplot_3_3" = "disp")
   output <- list2env(list(), parent = emptyenv())
 
   expect_no_error(
@@ -141,7 +141,7 @@ test_that("ptr_bind_placeholder_ui succeeds with both params NULL (backward comp
 
 test_that("ptr_bind_placeholder_ui uses pre-computed eval_env when supplied", {
   obj    <- make_basic_obj()
-  input  <- list("ggplot+3+2" = "mpg", "ggplot+3+3" = "disp")
+  input  <- list("ggplot_3_2" = "mpg", "ggplot_3_3" = "disp")
   output <- list2env(list(), parent = emptyenv())
 
   pre_env <- ptr_prepare_eval_env(obj, input, envir = globalenv())
@@ -157,7 +157,7 @@ test_that("ptr_bind_placeholder_ui uses pre-computed eval_env when supplied", {
 
 test_that("ptr_bind_placeholder_ui uses pre-computed var_column_map when supplied", {
   obj    <- make_basic_obj()
-  input  <- list("ggplot+3+2" = "mpg", "ggplot+3+3" = "disp")
+  input  <- list("ggplot_3_2" = "mpg", "ggplot_3_3" = "disp")
   output <- list2env(list(), parent = emptyenv())
 
   pre_env <- ptr_prepare_eval_env(obj, input, envir = globalenv())
@@ -178,7 +178,7 @@ test_that("ptr_bind_placeholder_ui uses pre-computed var_column_map when supplie
 
 test_that("ptr_bind_placeholder_ui with eval_env supplied but var_column_map NULL works", {
   obj    <- make_basic_obj()
-  input  <- list("ggplot+3+2" = "mpg", "ggplot+3+3" = "disp")
+  input  <- list("ggplot_3_2" = "mpg", "ggplot_3_3" = "disp")
   output <- list2env(list(), parent = emptyenv())
 
   pre_env <- ptr_prepare_eval_env(obj, input, envir = globalenv())
@@ -199,7 +199,7 @@ test_that("ptr_bind_placeholder_ui with eval_env supplied but var_column_map NUL
 
 test_that("ptr_bind_var_ui_impl uses context eval_env when pre-set", {
   obj    <- make_basic_obj()
-  input  <- list("ggplot+3+2" = "mpg", "ggplot+3+3" = "disp")
+  input  <- list("ggplot_3_2" = "mpg", "ggplot_3_3" = "disp")
   output <- list2env(list(), parent = emptyenv())
 
   pre_env <- ptr_prepare_eval_env(obj, input, envir = globalenv())
@@ -216,7 +216,7 @@ test_that("ptr_bind_var_ui_impl uses context eval_env when pre-set", {
 
 test_that("ptr_bind_var_ui_impl uses context var_column_map when pre-set", {
   obj    <- make_basic_obj()
-  input  <- list("ggplot+3+2" = "mpg", "ggplot+3+3" = "disp")
+  input  <- list("ggplot_3_2" = "mpg", "ggplot_3_3" = "disp")
   output <- list2env(list(), parent = emptyenv())
 
   pre_env <- ptr_prepare_eval_env(obj, input, envir = globalenv())
@@ -236,7 +236,7 @@ test_that("ptr_bind_var_ui_impl uses context var_column_map when pre-set", {
 
 test_that("ptr_bind_var_ui_impl with NULL context eval_env and var_column_map still works", {
   obj    <- make_basic_obj()
-  input  <- list("ggplot+3+2" = "mpg", "ggplot+3+3" = "disp")
+  input  <- list("ggplot_3_2" = "mpg", "ggplot_3_3" = "disp")
   output <- list2env(list(), parent = emptyenv())
 
   context <- ptr_define_placeholder_context(obj, ui_text = NULL, envir = globalenv())

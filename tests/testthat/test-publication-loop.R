@@ -182,7 +182,7 @@ test_that("W5: ptr_bind_var_ui_impl warns when context eval_env is NULL", {
   obj    <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
-  input  <- list("ggplot+3+2" = "mpg", "ggplot+3+3" = "disp")
+  input  <- list("ggplot_3_2" = "mpg", "ggplot_3_3" = "disp")
   output <- list2env(list(), parent = emptyenv())
 
   context <- ptr_define_placeholder_context(obj, ui_text = NULL, envir = globalenv())
@@ -201,7 +201,7 @@ test_that("W5: ptr_bind_var_ui_impl warns when context var_column_map is NULL", 
   obj    <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
-  input  <- list("ggplot+3+2" = "mpg", "ggplot+3+3" = "disp")
+  input  <- list("ggplot_3_2" = "mpg", "ggplot_3_3" = "disp")
   output <- list2env(list(), parent = emptyenv())
 
   # Supply eval_env but leave var_column_map NULL to isolate the second branch
@@ -222,7 +222,7 @@ test_that("W5: ptr_bind_var_ui_impl emits no warning when both caches are pre-se
   obj    <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
-  input  <- list("ggplot+3+2" = "mpg", "ggplot+3+3" = "disp")
+  input  <- list("ggplot_3_2" = "mpg", "ggplot_3_3" = "disp")
   output <- list2env(list(), parent = emptyenv())
 
   pre_env <- ptr_prepare_eval_env(obj, input, envir = globalenv())
@@ -242,7 +242,7 @@ test_that("W5: ptr_bind_var_ui_impl with both NULL still returns a list (no abor
   obj    <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
-  input  <- list("ggplot+3+2" = "mpg", "ggplot+3+3" = "disp")
+  input  <- list("ggplot_3_2" = "mpg", "ggplot_3_3" = "disp")
   output <- list2env(list(), parent = emptyenv())
 
   context <- ptr_define_placeholder_context(obj, ui_text = NULL, envir = globalenv())
@@ -266,7 +266,7 @@ test_that("W2: ptr_bind_placeholder_ui direct call returns a list for a var form
   obj    <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
-  input  <- list("ggplot+3+2" = "mpg", "ggplot+3+3" = "disp")
+  input  <- list("ggplot_3_2" = "mpg", "ggplot_3_3" = "disp")
   output <- list2env(list(), parent = emptyenv())
 
   result <- ptr_bind_placeholder_ui(
@@ -279,7 +279,7 @@ test_that("W2: ptr_bind_placeholder_ui direct call with pre-computed cache match
   obj    <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
-  input  <- list("ggplot+3+2" = "mpg", "ggplot+3+3" = "disp")
+  input  <- list("ggplot_3_2" = "mpg", "ggplot_3_3" = "disp")
   output1 <- list2env(list(), parent = emptyenv())
   output2 <- list2env(list(), parent = emptyenv())
 
@@ -311,7 +311,7 @@ test_that("W2: ptr_bind_placeholder_ui direct call with a text-only formula retu
   obj    <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = mpg, y = disp)) + geom_point() + labs(title = text)"
   )
-  input  <- list("labs+2" = "My title", "geom_point+checkbox" = TRUE, "labs+checkbox" = TRUE)
+  input  <- list("labs_2" = "My title", "geom_point_checkbox" = TRUE, "labs_checkbox" = TRUE)
   output <- list2env(list(), parent = emptyenv())
 
   result <- ptr_bind_placeholder_ui(
@@ -325,7 +325,7 @@ test_that("W2: ptr_bind_placeholder_ui direct call with no placeholders in formu
   obj    <- ptr_parse_formula(
     "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + geom_point()"
   )
-  input  <- list("geom_point+checkbox" = TRUE)
+  input  <- list("geom_point_checkbox" = TRUE)
   output <- list2env(list(), parent = emptyenv())
 
   result <- ptr_bind_placeholder_ui(

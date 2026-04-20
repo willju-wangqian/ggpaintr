@@ -41,17 +41,17 @@ test_that("custom placeholders are parsed into placeholder metadata and runtime 
   )
   obj <- ptr_parse_formula(test_date_formula, placeholders = registry)
 
-  expect_true("geom_vline+2" %in% names(obj$placeholder_map$geom_vline))
-  expect_identical(obj$placeholder_map$geom_vline[["geom_vline+2"]]$keyword, "date")
+  expect_true("geom_vline_2" %in% names(obj$placeholder_map$geom_vline))
+  expect_identical(obj$placeholder_map$geom_vline[["geom_vline_2"]]$keyword, "date")
   expect_s3_class(obj$placeholders, "ptr_define_placeholder_registry")
   expect_true("date" %in% names(obj$custom_placeholders))
 
   runtime <- ptr_exec(
     obj,
     list(
-      "geom_line+checkbox" = TRUE,
-      "geom_vline+checkbox" = TRUE,
-      "geom_vline+2" = as.Date("2020-01-02")
+      "geom_line_checkbox" = TRUE,
+      "geom_vline_checkbox" = TRUE,
+      "geom_vline_2" = as.Date("2020-01-02")
     ),
     envir = test_sales_env()
   )
@@ -127,9 +127,9 @@ test_that("custom placeholders work through ggpaintr wrappers", {
     expect_true("date" %in% names(session$userData$ptr_state$custom_placeholders))
 
     session$setInputs(
-      "geom_line+checkbox" = TRUE,
-      "geom_vline+checkbox" = TRUE,
-      "geom_vline+2" = as.Date("2020-01-02"),
+      "geom_line_checkbox" = TRUE,
+      "geom_vline_checkbox" = TRUE,
+      "geom_vline_2" = as.Date("2020-01-02"),
       draw = 1
     )
 

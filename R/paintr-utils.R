@@ -80,6 +80,7 @@ get_fun_names <- function(x) {
 #' @return The plucked expression or `NULL`.
 #' @noRd
 expr_pluck <- function(.x, index_path) {
+  if (length(index_path) == 0L) return(.x)
   tryCatch(.x[[index_path]], error = function(e) NULL)
 }
 
@@ -92,6 +93,7 @@ expr_pluck <- function(.x, index_path) {
 #' @return The updated expression object.
 #' @noRd
 `expr_pluck<-` <- function(.x, index_path, value) {
+  if (length(index_path) == 0L) return(value)
   tryCatch(
     .x[[index_path]] <- value,
     error = function(e) {
@@ -128,6 +130,13 @@ get_index_path <- function(x,
       "Formula nesting exceeds maximum depth (", max_depth, "). ",
       "Check for excessively nested expressions."
     ))
+  }
+  # Bare-symbol layer: the whole expression IS the placeholder.
+  if (length(current_path) == 0L && is.symbol(x)) {
+    if (rlang::as_string(x) %in% target) {
+      return(list(integer(0)))
+    }
+    return(result)
   }
   for (i in seq_along(x)) {
     new_path <- c(current_path, i)
@@ -172,7 +181,7 @@ handle_duplicate_names <- function(x) {
 #' @return A single encoded id string.
 #' @noRd
 encode_id <- function(index_path, func_name) {
-  paste(c(func_name, index_path), collapse = "+")
+  paste(c(func_name, index_path), collapse = "_")
 }
 
 #' Read a Parameter Name from an Expression Path
@@ -183,6 +192,7 @@ encode_id <- function(index_path, func_name) {
 #' @return The parameter name or `NULL`.
 #' @noRd
 get_expr_param <- function(.expr, .path) {
+  if (length(.path) == 0L) return(NULL)
   if (length(.path) > 1) {
     current_index <- .path[1]
     current_expr <- .expr[[current_index]]
@@ -221,6 +231,11 @@ expr_remove_null <- function(.expr,
     rlang::abort("Expression nesting exceeds maximum depth.")
   }
   if (length(.expr) == 0L) return(.expr)
+  # Bare-symbol layer: nothing to recurse into — drop if it matches the target.
+  if (length(current_path) == 0L && is.symbol(.expr)) {
+    if (identical(.expr, target)) return(NULL)
+    return(.expr)
+  }
   for (i in length(.expr):1) {
     new_path <- c(current_path, i)
     if (is.call(.expr[[i]])) {
@@ -276,6 +291,8 @@ expr_remove_emptycall2 <- function(.expr, .depth = 0L, max_depth = 100L) {
     rlang::abort("Expression nesting exceeds maximum depth.")
   }
   if (length(.expr) == 0L) return(.expr)
+  # Bare-symbol / atomic layer: nothing to strip, leave it alone.
+  if (.depth == 0L && !is.call(.expr)) return(.expr)
   for (i in length(.expr):1) {
     if (is.call(.expr[[i]])) {
       if (length(.expr[[i]]) == 1) {
@@ -308,14 +325,19 @@ expr_remove_emptycall2 <- function(.expr, .depth = 0L, max_depth = 100L) {
 #' base `ggplot` layer are kept.
 #'
 #' @param expr_list A named list of layer expressions.
+#' @param original_expr_list The pre-substitution layer list. Layers whose
+#'   original entry was a bare symbol (e.g. `+ expr`) are skipped — whatever
+#'   the user supplied replaces the entire layer and must be honoured.
 #'
 #' @return The filtered expression list with empty non-standalone layers
 #'   set to `NULL`.
 #' @noRd
-ptr_remove_empty_nonstandalone_layers <- function(expr_list) {
+ptr_remove_empty_nonstandalone_layers <- function(expr_list,
+                                                  original_expr_list = NULL) {
   for (nn in names(expr_list)) {
     expr <- expr_list[[nn]]
     if (is.null(expr) || nn == "ggplot") next
+    if (!is.null(original_expr_list) && is.symbol(original_expr_list[[nn]])) next
     if (is.call(expr) && length(expr) == 1) {
       fn_name <- rlang::as_string(expr[[1]])
       if (!ptr_can_stand_alone(fn_name)) {

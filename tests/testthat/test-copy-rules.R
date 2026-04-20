@@ -144,11 +144,11 @@ test_that("app shell copy uses defaults and runtime overrides", {
 })
 
 test_that("ui builders use resolved copy for uploads and common controls", {
-  upload_text <- ui_text(generate_ui_upload("ggplot+2"))
-  var_text <- ui_text(generate_ui_var(c("x", "y"), "ggplot+3+2", "x", layer_name = "ggplot"))
-  text_input <- ui_text(generate_ui_text("labs+2", "title", layer_name = "labs"))
-  num_input <- ui_text(generate_ui_num("geom_point+2", "alpha", layer_name = "geom_point"))
-  expr_input <- ui_text(generate_ui_expr("facet_grid+2", list(NULL), layer_name = "facet_grid"))
+  upload_text <- ui_text(generate_ui_upload("ggplot_2"))
+  var_text <- ui_text(generate_ui_var(c("x", "y"), "ggplot_3_2", "x", layer_name = "ggplot"))
+  text_input <- ui_text(generate_ui_text("labs_2", "title", layer_name = "labs"))
+  num_input <- ui_text(generate_ui_num("geom_point_2", "alpha", layer_name = "geom_point"))
+  expr_input <- ui_text(generate_ui_expr("facet_grid_2", list(NULL), layer_name = "facet_grid"))
   checkbox <- ui_insert_checkbox(list(), "geom_point")[[1]]
 
   expect_match(upload_text, "Choose a data file", fixed = TRUE)

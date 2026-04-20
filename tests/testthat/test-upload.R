@@ -33,16 +33,16 @@ test_that("upload helpers normalize .rds columns and coerce list-like uploads", 
 
 test_that("upload metadata uses custom names or normalized file names", {
   input_default <- list(
-    "ggplot+2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple numeric.csv"),
-    "ggplot+2+name" = ""
+    "ggplot_2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple numeric.csv"),
+    "ggplot_2_name" = ""
   )
-  info_default <- ptr_resolve_upload_info(input_default, "ggplot+2")
+  info_default <- ptr_resolve_upload_info(input_default, "ggplot_2")
 
   input_custom <- list(
-    "ggplot+2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple numeric.csv"),
-    "ggplot+2+name" = "custom dataset"
+    "ggplot_2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple numeric.csv"),
+    "ggplot_2_name" = "custom dataset"
   )
-  info_custom <- ptr_resolve_upload_info(input_custom, "ggplot+2")
+  info_custom <- ptr_resolve_upload_info(input_custom, "ggplot_2")
 
   expect_identical(info_default$object_name, "simple_numeric")
   expect_identical(info_custom$object_name, "custom_dataset")
@@ -54,24 +54,24 @@ test_that("non-coercible uploads fail with a tabular-data validation error", {
   saveRDS(function(x) x, non_coercible_path)
 
   input_bad <- list(
-    "ggplot+2" = mock_upload_input(non_coercible_path, "non_coercible.rds"),
-    "ggplot+2+name" = ""
+    "ggplot_2" = mock_upload_input(non_coercible_path, "non_coercible.rds"),
+    "ggplot_2_name" = ""
   )
 
   expect_error(
-    ptr_resolve_upload_info(input_bad, "ggplot+2"),
+    ptr_resolve_upload_info(input_bad, "ggplot_2"),
     "Uploaded data is not usable as tabular data for ggpaintr"
   )
 })
 
 test_that("unsupported upload extensions error clearly", {
   input_bad <- list(
-    "ggplot+2" = mock_upload_input(fixture_path("bad_extension.txt"), "bad_extension.txt"),
-    "ggplot+2+name" = ""
+    "ggplot_2" = mock_upload_input(fixture_path("bad_extension.txt"), "bad_extension.txt"),
+    "ggplot_2_name" = ""
   )
 
   expect_error(
-    ptr_resolve_upload_info(input_bad, "ggplot+2"),
+    ptr_resolve_upload_info(input_bad, "ggplot_2"),
     "Please upload a .csv or .rds file."
   )
 })
@@ -87,14 +87,14 @@ test_that("register_var_ui_outputs waits for uploaded data and populates choices
   expect_length(before_upload, 0)
 
   input_after <- list(
-    "ggplot+2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple_numeric.csv"),
-    "ggplot+2+name" = "",
-    "ggplot+3+2" = "x",
-    "ggplot+3+3" = "y"
+    "ggplot_2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple_numeric.csv"),
+    "ggplot_2_name" = "",
+    "ggplot_3_2" = "x",
+    "ggplot_3_3" = "y"
   )
   after_upload <- register_var_ui_outputs(input_after, output, obj)
 
-  expect_named(after_upload, c("ggplot+3+2", "ggplot+3+3"))
+  expect_named(after_upload, c("ggplot_3_2", "ggplot_3_3"))
 })
 
 test_that("register_var_ui_outputs exposes normalized names for uploaded rds data", {
@@ -108,16 +108,16 @@ test_that("register_var_ui_outputs exposes normalized names for uploaded rds dat
   )
   output <- list2env(list(), parent = emptyenv())
   input_after <- list(
-    "ggplot+2" = mock_upload_input(spaced_path, "spaced columns.rds"),
-    "ggplot+2+name" = "",
-    "ggplot+3+2" = "first_column",
-    "ggplot+3+3" = "second_column"
+    "ggplot_2" = mock_upload_input(spaced_path, "spaced columns.rds"),
+    "ggplot_2_name" = "",
+    "ggplot_3_2" = "first_column",
+    "ggplot_3_3" = "second_column"
   )
 
   after_upload <- register_var_ui_outputs(input_after, output, obj)
-  ui_text <- paste(as.character(after_upload[["ggplot+3+2"]]), collapse = "\n")
+  ui_text <- paste(as.character(after_upload[["ggplot_3_2"]]), collapse = "\n")
 
-  expect_named(after_upload, c("ggplot+3+2", "ggplot+3+3"))
+  expect_named(after_upload, c("ggplot_3_2", "ggplot_3_3"))
   expect_match(ui_text, "first_column", fixed = TRUE)
   expect_match(ui_text, "second_column", fixed = TRUE)
 })
@@ -129,16 +129,16 @@ test_that("register_var_ui_outputs produces distinct widgets for each var placeh
 
   output <- list2env(list(), parent = emptyenv())
   input <- list(
-    "ggplot+3+2" = "mpg",
-    "ggplot+3+3" = "disp"
+    "ggplot_3_2" = "mpg",
+    "ggplot_3_3" = "disp"
   )
 
   result <- register_var_ui_outputs(input, output, obj)
 
-  expect_named(result, c("ggplot+3+2", "ggplot+3+3"))
+  expect_named(result, c("ggplot_3_2", "ggplot_3_3"))
 
-  ui_x <- paste(as.character(result[["ggplot+3+2"]]), collapse = "\n")
-  ui_y <- paste(as.character(result[["ggplot+3+3"]]), collapse = "\n")
+  ui_x <- paste(as.character(result[["ggplot_3_2"]]), collapse = "\n")
+  ui_y <- paste(as.character(result[["ggplot_3_3"]]), collapse = "\n")
 
   expect_match(ui_x, "x-axis", fixed = TRUE)
   expect_match(ui_y, "y-axis", fixed = TRUE)
@@ -201,8 +201,8 @@ test_that("bad upload does not crash the app session", {
 
   suppressWarnings(shiny::testServer(server_wrapper, {
     session$setInputs(
-      "ggplot+2" = mock_upload_input(fixture_path("bad_extension.txt"), "bad_extension.txt"),
-      "ggplot+2+name" = "",
+      "ggplot_2" = mock_upload_input(fixture_path("bad_extension.txt"), "bad_extension.txt"),
+      "ggplot_2_name" = "",
       draw = 1
     )
 

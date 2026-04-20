@@ -64,8 +64,8 @@ exec_typed <- function(registry, value) {
   ptr_complete_expr(
     obj,
     list(
-      "geom_point+checkbox" = TRUE,
-      "geom_point+2" = value
+      "geom_point_checkbox" = TRUE,
+      "geom_point_2" = value
     )
   )
 }
@@ -110,7 +110,7 @@ test_that("Fix4: environment return value triggers abort with type in message", 
   expect_error(
     ptr_complete_expr(
       obj,
-      list("geom_point+checkbox" = TRUE, "geom_point+2" = "x")
+      list("geom_point_checkbox" = TRUE, "geom_point_2" = "x")
     ),
     "unsupported type"
   )
@@ -124,7 +124,7 @@ test_that("Fix4: raw return value triggers abort with type in message", {
   expect_error(
     ptr_complete_expr(
       obj,
-      list("geom_point+checkbox" = TRUE, "geom_point+2" = "x")
+      list("geom_point_checkbox" = TRUE, "geom_point_2" = "x")
     ),
     "unsupported type"
   )
@@ -138,7 +138,7 @@ test_that("Fix4: list return value triggers abort with type in message", {
   expect_error(
     ptr_complete_expr(
       obj,
-      list("geom_point+checkbox" = TRUE, "geom_point+2" = "x")
+      list("geom_point_checkbox" = TRUE, "geom_point_2" = "x")
     ),
     "unsupported type"
   )

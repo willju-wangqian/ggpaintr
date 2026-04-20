@@ -4,9 +4,9 @@ test_that("var placeholders replace selected columns inside formula-level transf
   )
 
   input <- list(
-    "ggplot+3+2+2" = "mpg",
-    "ggplot+3+3+2" = "disp",
-    "geom_point+checkbox" = TRUE
+    "ggplot_3_2_2" = "mpg",
+    "ggplot_3_3_2" = "disp",
+    "geom_point_checkbox" = TRUE
   )
 
   result <- ptr_complete_expr(obj, input)
@@ -21,9 +21,9 @@ test_that("var placeholders reject direct runtime expressions", {
   )
 
   input <- list(
-    "ggplot+3+2" = "log(mpg)",
-    "ggplot+3+3" = "disp",
-    "geom_point+checkbox" = TRUE
+    "ggplot_3_2" = "log(mpg)",
+    "ggplot_3_3" = "disp",
+    "geom_point_checkbox" = TRUE
   )
 
   expect_error(
@@ -38,9 +38,9 @@ test_that("var placeholders reject unknown column names", {
   )
 
   input <- list(
-    "ggplot+3+2" = "not_a_column",
-    "ggplot+3+3" = "disp",
-    "geom_point+checkbox" = TRUE
+    "ggplot_3_2" = "not_a_column",
+    "ggplot_3_3" = "disp",
+    "geom_point_checkbox" = TRUE
   )
 
   expect_error(
@@ -55,9 +55,9 @@ test_that("var placeholders reject multiple selected columns", {
   )
 
   input <- list(
-    "ggplot+3+2" = c("mpg", "disp"),
-    "ggplot+3+3" = "disp",
-    "geom_point+checkbox" = TRUE
+    "ggplot_3_2" = c("mpg", "disp"),
+    "ggplot_3_3" = "disp",
+    "geom_point_checkbox" = TRUE
   )
 
   expect_error(
@@ -81,9 +81,9 @@ test_that("normalized local column names work with var placeholders", {
   result <- ptr_exec(
     obj,
     list(
-      "ggplot+3+2" = "first_column",
-      "ggplot+3+3" = "second_column",
-      "geom_point+checkbox" = TRUE
+      "ggplot_3_2" = "first_column",
+      "ggplot_3_3" = "second_column",
+      "geom_point_checkbox" = TRUE
     ),
     envir = environment()
   )
@@ -104,10 +104,10 @@ test_that("text and num placeholders are inserted into the final code", {
   )
 
   input <- list(
-    "geom_point+2" = 3,
-    "labs+2" = "Iris plot",
-    "geom_point+checkbox" = TRUE,
-    "labs+checkbox" = TRUE
+    "geom_point_2" = 3,
+    "labs_2" = "Iris plot",
+    "geom_point_checkbox" = TRUE,
+    "labs_checkbox" = TRUE
   )
 
   result <- ptr_complete_expr(obj, input)
@@ -121,7 +121,7 @@ test_that("expr placeholders are parsed into the completed expression", {
     "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + facet_wrap(expr)"
   )
 
-  input <- list("facet_wrap+2" = "~ Species", "facet_wrap+checkbox" = TRUE)
+  input <- list("facet_wrap_2" = "~ Species", "facet_wrap_checkbox" = TRUE)
   result <- ptr_complete_expr(obj, input)
 
   expect_match(result$code_text, "facet_wrap\\(~Species\\)")

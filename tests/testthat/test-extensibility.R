@@ -91,9 +91,9 @@ test_that("value helpers expose plot, code, and default error UI", {
   runtime_success <- ptr_exec(
     obj_success,
     list(
-      "ggplot+3+2" = "Sepal.Length",
-      "ggplot+3+3" = "Sepal.Width",
-      "geom_point+checkbox" = TRUE
+      "ggplot_3_2" = "Sepal.Length",
+      "ggplot_3_3" = "Sepal.Width",
+      "geom_point_checkbox" = TRUE
     )
   )
 
@@ -110,7 +110,7 @@ test_that("value helpers expose plot, code, and default error UI", {
   )
   runtime_failure <- ptr_exec(
     obj_failure,
-    list("geom_point+checkbox" = TRUE)
+    list("geom_point_checkbox" = TRUE)
   )
 
   expect_null(ptr_extract_plot(runtime_failure))
@@ -156,9 +156,9 @@ test_that("bind helpers support custom ids inside an existing app server", {
     expect_type(output$customPanel, "list")
 
     session$setInputs(
-      "ggplot+3+2" = "Sepal.Length",
-      "ggplot+3+3" = "Sepal.Width",
-      "geom_point+checkbox" = TRUE,
+      "ggplot_3_2" = "Sepal.Length",
+      "ggplot_3_3" = "Sepal.Width",
+      "geom_point_checkbox" = TRUE,
       runPlot = 1
     )
 
@@ -195,7 +195,7 @@ test_that("bind helpers expose error and code output with custom ids on failure"
 
   shiny::testServer(server_wrapper, {
     session$setInputs(
-      "geom_point+checkbox" = TRUE,
+      "geom_point_checkbox" = TRUE,
       runPlot = 1
     )
 

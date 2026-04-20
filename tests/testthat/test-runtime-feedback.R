@@ -3,7 +3,7 @@ test_that("ptr_complete_expr_safe captures malformed expr input", {
     "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + facet_wrap(expr)"
   )
 
-  input <- list("facet_wrap+2" = "~", "facet_wrap+checkbox" = TRUE)
+  input <- list("facet_wrap_2" = "~", "facet_wrap_checkbox" = TRUE)
   result <- ptr_complete_expr_safe(obj, input)
 
   expect_false(result$ok)
@@ -21,8 +21,8 @@ test_that("ptr_complete_expr_safe captures invalid uploads", {
   )
 
   input <- list(
-    "ggplot+2" = mock_upload_input(fixture_path("bad_extension.txt"), "bad_extension.txt"),
-    "ggplot+2+name" = ""
+    "ggplot_2" = mock_upload_input(fixture_path("bad_extension.txt"), "bad_extension.txt"),
+    "ggplot_2_name" = ""
   )
   result <- ptr_complete_expr_safe(obj, input)
 
@@ -41,8 +41,8 @@ test_that("ptr_complete_expr_safe fails fast when layer checkbox inputs are miss
   )
 
   input <- list(
-    "ggplot+3+2" = "mpg",
-    "ggplot+3+3" = "disp"
+    "ggplot_3_2" = "mpg",
+    "ggplot_3_3" = "disp"
   )
   result <- ptr_complete_expr_safe(obj, input)
 
@@ -52,7 +52,7 @@ test_that("ptr_complete_expr_safe fails fast when layer checkbox inputs are miss
   expect_null(result$eval_env)
   expect_null(result$complete_expr_list)
   expect_null(result$plot)
-  expect_match(result$message, "geom_point\\+checkbox")
+  expect_match(result$message, "geom_point_checkbox")
 })
 
 test_that("ptr_complete_expr_safe fails fast on invalid layer checkbox inputs", {
@@ -61,9 +61,9 @@ test_that("ptr_complete_expr_safe fails fast on invalid layer checkbox inputs", 
   )
 
   input <- list(
-    "ggplot+3+2" = "mpg",
-    "ggplot+3+3" = "disp",
-    "geom_point+checkbox" = "yes"
+    "ggplot_3_2" = "mpg",
+    "ggplot_3_3" = "disp",
+    "geom_point_checkbox" = "yes"
   )
   result <- ptr_complete_expr_safe(obj, input)
 
@@ -85,8 +85,8 @@ test_that("ptr_complete_expr_safe captures non-tabular rds uploads early", {
   )
 
   input <- list(
-    "ggplot+2" = mock_upload_input(non_coercible_path, "non_coercible.rds"),
-    "ggplot+2+name" = ""
+    "ggplot_2" = mock_upload_input(non_coercible_path, "non_coercible.rds"),
+    "ggplot_2_name" = ""
   )
   result <- ptr_complete_expr_safe(obj, input)
 
@@ -110,9 +110,9 @@ test_that("ptr_exec fails fast on invalid var selections", {
   result <- ptr_exec(
     obj,
     list(
-      "ggplot+3+2" = "log(mpg)",
-      "ggplot+3+3" = "disp",
-      "geom_point+checkbox" = TRUE
+      "ggplot_3_2" = "log(mpg)",
+      "ggplot_3_3" = "disp",
+      "geom_point_checkbox" = TRUE
     )
   )
 
@@ -130,7 +130,7 @@ test_that("ptr_assemble_plot_safe captures plot-stage missing object errors and 
 
   complete_result <- ptr_complete_expr_safe(
     obj,
-    list("geom_point+checkbox" = TRUE)
+    list("geom_point_checkbox" = TRUE)
   )
   plot_result <- ptr_assemble_plot_safe(complete_result)
 
@@ -153,7 +153,7 @@ test_that("ptr_exec defers missing local data objects until draw time", {
 
   runtime_result <- ptr_exec(
     obj,
-    list("geom_point+checkbox" = TRUE)
+    list("geom_point_checkbox" = TRUE)
   )
 
   expect_false(runtime_result$ok)
@@ -171,14 +171,14 @@ test_that("ptr_exec captures render-time faceting errors and keeps code", {
 
   complete_result <- ptr_complete_expr_safe(
     obj,
-    list("facet_wrap+2" = "~ Speciesasdf", "facet_wrap+checkbox" = TRUE)
+    list("facet_wrap_2" = "~ Speciesasdf", "facet_wrap_checkbox" = TRUE)
   )
   expect_true(complete_result$ok)
   expect_match(complete_result$code_text, "facet_wrap\\(~Speciesasdf\\)")
 
   runtime_result <- ptr_exec(
     obj,
-    list("facet_wrap+2" = "~ Speciesasdf", "facet_wrap+checkbox" = TRUE)
+    list("facet_wrap_2" = "~ Speciesasdf", "facet_wrap_checkbox" = TRUE)
   )
 
   expect_false(runtime_result$ok)
@@ -262,11 +262,11 @@ test_that("ptr_exec returns plots on successful inputs", {
   )
 
   input <- list(
-    "ggplot+3+2" = "Sepal.Length",
-    "ggplot+3+3" = "Sepal.Width",
-    "facet_wrap+2" = "~ Species",
-    "geom_point+checkbox" = TRUE,
-    "facet_wrap+checkbox" = TRUE
+    "ggplot_3_2" = "Sepal.Length",
+    "ggplot_3_3" = "Sepal.Width",
+    "facet_wrap_2" = "~ Species",
+    "geom_point_checkbox" = TRUE,
+    "facet_wrap_checkbox" = TRUE
   )
   result <- ptr_exec(obj, input)
 
@@ -283,7 +283,7 @@ test_that("ptr_exec succeeds when only the base ggplot remains", {
 
   result <- ptr_exec(
     obj,
-    list("geom_point+checkbox" = FALSE)
+    list("geom_point_checkbox" = FALSE)
   )
 
   expect_true(result$ok)
@@ -327,11 +327,11 @@ test_that("ptr_exec uses normalized uploaded column names in code and plots", {
     "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
   )
   input <- list(
-    "ggplot+2" = mock_upload_input(spaced_path, "spaced columns.rds"),
-    "ggplot+2+name" = "",
-    "ggplot+3+2" = "first_column",
-    "ggplot+3+3" = "second_column",
-    "geom_point+checkbox" = TRUE
+    "ggplot_2" = mock_upload_input(spaced_path, "spaced columns.rds"),
+    "ggplot_2_name" = "",
+    "ggplot_3_2" = "first_column",
+    "ggplot_3_3" = "second_column",
+    "geom_point_checkbox" = TRUE
   )
 
   result <- ptr_exec(obj, input)

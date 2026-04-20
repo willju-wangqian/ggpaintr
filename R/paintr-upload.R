@@ -5,7 +5,7 @@
 #' @return A related id string for the dataset-name control.
 #' @noRd
 ptr_upload_name_id <- function(id) {
-  paste0(id, "+name")
+  paste0(id, "_name")
 }
 
 #' Derive a Default Object Name from an Uploaded File

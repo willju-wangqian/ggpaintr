@@ -174,7 +174,7 @@ test_that("Fix3: ptr_complete_expr does not error when all placeholder inputs ar
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
   # Provide only checkboxes; all placeholder ids are absent (NULL from input[[id]])
-  input <- list("geom_point+checkbox" = TRUE)
+  input <- list("geom_point_checkbox" = TRUE)
 
   expect_no_error(ptr_complete_expr(obj, input))
 })
@@ -183,7 +183,7 @@ test_that("Fix3: ptr_complete_expr result is a list with required fields when in
   obj <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
-  input <- list("geom_point+checkbox" = TRUE)
+  input <- list("geom_point_checkbox" = TRUE)
 
   result <- ptr_complete_expr(obj, input)
 
@@ -197,7 +197,7 @@ test_that("Fix3: code_text is a non-empty string when placeholder inputs are NUL
   obj <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
-  input <- list("geom_point+checkbox" = TRUE)
+  input <- list("geom_point_checkbox" = TRUE)
 
   result <- ptr_complete_expr(obj, input)
 
@@ -211,8 +211,8 @@ test_that("Fix3: NULL input for text placeholder does not error", {
   )
   # text placeholder input absent (NULL); checkbox set
   input <- list(
-    "geom_point+checkbox" = TRUE,
-    "labs+checkbox" = TRUE
+    "geom_point_checkbox" = TRUE,
+    "labs_checkbox" = TRUE
   )
 
   expect_no_error(ptr_complete_expr(obj, input))
@@ -222,7 +222,7 @@ test_that("Fix3: NULL input for num placeholder does not error", {
   obj <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = mpg, y = disp)) + geom_point(size = num)"
   )
-  input <- list("geom_point+checkbox" = TRUE)
+  input <- list("geom_point_checkbox" = TRUE)
 
   expect_no_error(ptr_complete_expr(obj, input))
 })
@@ -234,9 +234,9 @@ test_that("Fix3: mixed NULL and non-NULL inputs work correctly", {
   spec <- ptr_runtime_input_spec(obj)
   # Supply one var, leave the other and text as NULL
   input <- list(
-    "ggplot+3+2" = "mpg",
-    "geom_point+checkbox" = TRUE,
-    "labs+checkbox" = TRUE
+    "ggplot_3_2" = "mpg",
+    "geom_point_checkbox" = TRUE,
+    "labs_checkbox" = TRUE
   )
 
   result <- ptr_complete_expr(obj, input)
@@ -1020,7 +1020,7 @@ test_that("W1-char-resolve: custom placeholder whose resolve_expr returns a deni
   spec    <- ptr_runtime_input_spec(obj)
   danger_id <- spec$input_id[spec$keyword == "danger"][[1L]]
 
-  input <- list("geom_point+checkbox" = TRUE)
+  input <- list("geom_point_checkbox" = TRUE)
   input[[danger_id]] <- "anything"
 
   expect_error(
@@ -1049,7 +1049,7 @@ test_that("W1-char-resolve: custom placeholder whose resolve_expr returns a safe
   )
 
   expect_no_error(
-    ptr_exec(obj, list("geom_point+checkbox" = TRUE, "geom_point+3" = "red"))
+    ptr_exec(obj, list("geom_point_checkbox" = TRUE, "geom_point_3" = "red"))
   )
 })
 

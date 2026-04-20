@@ -8,13 +8,13 @@ test_that("ptr_complete_expr removes unchecked layers and prepares eval env", {
   )
 
   input <- list(
-    "ggplot+2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple_numeric.csv"),
-    "ggplot+2+name" = "uploaded_data",
-    "ggplot+3+2" = "x",
-    "ggplot+3+3" = "y",
-    "labs+2" = "Uploaded scatter",
-    "geom_point+checkbox" = TRUE,
-    "labs+checkbox" = FALSE
+    "ggplot_2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple_numeric.csv"),
+    "ggplot_2_name" = "uploaded_data",
+    "ggplot_3_2" = "x",
+    "ggplot_3_3" = "y",
+    "labs_2" = "Uploaded scatter",
+    "geom_point_checkbox" = TRUE,
+    "labs_checkbox" = FALSE
   )
 
   result <- ptr_complete_expr(obj, input)
@@ -29,7 +29,7 @@ test_that("ptr_complete_expr errors on malformed expr input", {
     "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + facet_wrap(expr)"
   )
 
-  input <- list("facet_wrap+2" = "~", "facet_wrap+checkbox" = TRUE)
+  input <- list("facet_wrap_2" = "~", "facet_wrap_checkbox" = TRUE)
 
   expect_error(
     ptr_complete_expr(obj, input)
@@ -42,13 +42,13 @@ test_that("ptr_complete_expr requires explicit layer checkbox inputs", {
   )
 
   input <- list(
-    "ggplot+3+2" = "mpg",
-    "ggplot+3+3" = "disp"
+    "ggplot_3_2" = "mpg",
+    "ggplot_3_3" = "disp"
   )
 
   expect_error(
     ptr_complete_expr(obj, input),
-    "geom_point\\+checkbox"
+    "geom_point_checkbox"
   )
 })
 
@@ -58,9 +58,9 @@ test_that("ptr_complete_expr rejects invalid layer checkbox inputs", {
   )
 
   input <- list(
-    "ggplot+3+2" = "mpg",
-    "ggplot+3+3" = "disp",
-    "geom_point+checkbox" = "yes"
+    "ggplot_3_2" = "mpg",
+    "ggplot_3_3" = "disp",
+    "geom_point_checkbox" = "yes"
   )
 
   expect_error(

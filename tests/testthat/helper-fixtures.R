@@ -45,9 +45,9 @@ supported_use_cases <- list(
     formula = "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
     envir = globalenv(),
     input = list(
-      "ggplot+3+2" = "mpg",
-      "ggplot+3+3" = "disp",
-      "geom_point+checkbox" = TRUE
+      "ggplot_3_2" = "mpg",
+      "ggplot_3_3" = "disp",
+      "geom_point_checkbox" = TRUE
     )
   ),
   scatter_with_labels = list(
@@ -58,36 +58,36 @@ supported_use_cases <- list(
     ),
     envir = globalenv(),
     input = list(
-      "ggplot+3+2" = "Sepal.Length",
-      "ggplot+3+3" = "Sepal.Width",
-      "geom_point+2" = 2,
-      "labs+2" = "Iris scatter",
-      "labs+3" = "Sepal length",
-      "labs+4" = "Sepal width",
-      "geom_point+checkbox" = TRUE,
-      "labs+checkbox" = TRUE
+      "ggplot_3_2" = "Sepal.Length",
+      "ggplot_3_3" = "Sepal.Width",
+      "geom_point_2" = 2,
+      "labs_2" = "Iris scatter",
+      "labs_3" = "Sepal length",
+      "labs_4" = "Sepal width",
+      "geom_point_checkbox" = TRUE,
+      "labs_checkbox" = TRUE
     )
   ),
   facet_expr = list(
     formula = "ggplot(data = iris, aes(x = var, y = var)) + geom_point() + facet_wrap(expr)",
     envir = globalenv(),
     input = list(
-      "ggplot+3+2" = "Sepal.Length",
-      "ggplot+3+3" = "Sepal.Width",
-      "facet_wrap+2" = "~ Species",
-      "geom_point+checkbox" = TRUE,
-      "facet_wrap+checkbox" = TRUE
+      "ggplot_3_2" = "Sepal.Length",
+      "ggplot_3_3" = "Sepal.Width",
+      "facet_wrap_2" = "~ Species",
+      "geom_point_checkbox" = TRUE,
+      "facet_wrap_checkbox" = TRUE
     )
   ),
   upload_global = list(
     formula = "ggplot(data = upload, aes(x = var, y = var)) + geom_point()",
     envir = globalenv(),
     input = list(
-      "ggplot+2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple numeric.csv"),
-      "ggplot+2+name" = "",
-      "ggplot+3+2" = "x",
-      "ggplot+3+3" = "y",
-      "geom_point+checkbox" = TRUE
+      "ggplot_2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple numeric.csv"),
+      "ggplot_2_name" = "",
+      "ggplot_3_2" = "x",
+      "ggplot_3_3" = "y",
+      "geom_point_checkbox" = TRUE
     )
   ),
   upload_layer = list(
@@ -97,11 +97,11 @@ supported_use_cases <- list(
     ),
     envir = globalenv(),
     input = list(
-      "geom_point+2" = mock_upload_input(fixture_path("simple_numeric.csv"), "layer-data.csv"),
-      "geom_point+2+name" = "layer_data",
-      "geom_point+3+2" = "x",
-      "geom_point+3+3" = "y",
-      "geom_point+checkbox" = TRUE
+      "geom_point_2" = mock_upload_input(fixture_path("simple_numeric.csv"), "layer-data.csv"),
+      "geom_point_2_name" = "layer_data",
+      "geom_point_3_2" = "x",
+      "geom_point_3_3" = "y",
+      "geom_point_checkbox" = TRUE
     )
   )
 )

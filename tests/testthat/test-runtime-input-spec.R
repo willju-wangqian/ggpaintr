@@ -13,11 +13,11 @@ test_that("ptr_runtime_input_spec returns placeholder and checkbox rows in order
   expect_identical(
     spec$input_id,
     c(
-      "ggplot+3+2",
-      "ggplot+3+3",
-      "labs+2",
-      "geom_point+checkbox",
-      "labs+checkbox"
+      "ggplot_3_2",
+      "ggplot_3_3",
+      "labs_2",
+      "geom_point_checkbox",
+      "labs_checkbox"
     )
   )
   expect_identical(
@@ -38,7 +38,7 @@ test_that("ptr_runtime_input_spec returns placeholder and checkbox rows in order
   )
   expect_identical(
     spec$source_id,
-    c("ggplot+3+2", "ggplot+3+3", "labs+2", NA_character_, NA_character_)
+    c("ggplot_3_2", "ggplot_3_3", "labs_2", NA_character_, NA_character_)
   )
 })
 
@@ -52,11 +52,11 @@ test_that("ptr_runtime_input_spec includes derived upload name inputs", {
   expect_identical(
     spec$input_id,
     c(
-      "ggplot+2",
-      "ggplot+2+name",
-      "ggplot+3+2",
-      "ggplot+3+3",
-      "geom_point+checkbox"
+      "ggplot_2",
+      "ggplot_2_name",
+      "ggplot_3_2",
+      "ggplot_3_3",
+      "geom_point_checkbox"
     )
   )
   expect_identical(
@@ -69,7 +69,7 @@ test_that("ptr_runtime_input_spec includes derived upload name inputs", {
   )
   expect_identical(
     spec$source_id,
-    c("ggplot+2", "ggplot+2", "ggplot+3+2", "ggplot+3+3", NA_character_)
+    c("ggplot_2", "ggplot_2", "ggplot_3_2", "ggplot_3_3", NA_character_)
   )
 })
 
@@ -91,10 +91,10 @@ test_that("ptr_runtime_input_spec preserves resolved duplicate layer names", {
   expect_identical(
     spec$input_id,
     c(
-      "geom_point+2",
-      "geom_point-2+2",
-      "geom_point+checkbox",
-      "geom_point-2+checkbox"
+      "geom_point_2",
+      "geom_point-2_2",
+      "geom_point_checkbox",
+      "geom_point-2_checkbox"
     )
   )
 })

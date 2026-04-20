@@ -5,7 +5,7 @@
 #' @return A single input id string.
 #' @noRd
 ptr_checkbox_input_id <- function(layer_name) {
-  paste0(layer_name, "+checkbox")
+  paste0(layer_name, "_checkbox")
 }
 
 #' Validate One Layer Checkbox Runtime Input
@@ -125,7 +125,10 @@ ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
 
   ptr_processed_expr_list <- lapply(ptr_processed_expr_list, expr_remove_null)
   ptr_processed_expr_list <- lapply(ptr_processed_expr_list, expr_remove_emptycall2)
-  ptr_processed_expr_list <- ptr_remove_empty_nonstandalone_layers(ptr_processed_expr_list)
+  ptr_processed_expr_list <- ptr_remove_empty_nonstandalone_layers(
+    ptr_processed_expr_list,
+    original_expr_list = ptr_obj[["expr_list"]]
+  )
   ptr_validate_layer_checkbox_inputs(ptr_obj, input)
   ptr_processed_expr_list <- purrr::map2(
     ptr_processed_expr_list,

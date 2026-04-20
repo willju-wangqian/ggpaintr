@@ -206,12 +206,12 @@ test_that("handle_duplicate_names handles a single-element vector", {
 # --- encode_id -----------------------------------------------------------
 
 test_that("encode_id joins func_name and index_path with +", {
-  expect_equal(encode_id(c(2, 3), "ggplot"),    "ggplot+2+3")
-  expect_equal(encode_id(c(2),    "geom_point"), "geom_point+2")
+  expect_equal(encode_id(c(2, 3), "ggplot"),    "ggplot_2_3")
+  expect_equal(encode_id(c(2),    "geom_point"), "geom_point_2")
 })
 
 test_that("encode_id works with a length-3 path", {
-  expect_equal(encode_id(c(3, 2, 1), "labs"), "labs+3+2+1")
+  expect_equal(encode_id(c(3, 2, 1), "labs"), "labs_3_2_1")
 })
 
 test_that("encode_id works with an empty index path", {
@@ -402,24 +402,24 @@ test_that("ptr_can_stand_alone rejects non-standalone layers", {
 test_that("ptr_remove_empty_nonstandalone_layers removes empty labs/facet/theme", {
   expr_list <- list(
     ggplot = quote(ggplot(data = iris, aes(x = Sepal.Length))),
-    `geom_point+2` = quote(geom_point()),
-    `labs+3` = quote(labs()),
-    `facet_wrap+4` = quote(facet_wrap()),
-    `theme+5` = quote(theme())
+    `geom_point_2` = quote(geom_point()),
+    `labs_3` = quote(labs()),
+    `facet_wrap_4` = quote(facet_wrap()),
+    `theme_5` = quote(theme())
   )
   result <- suppressMessages(ptr_remove_empty_nonstandalone_layers(expr_list))
   expect_true("ggplot" %in% names(result))
-  expect_true("geom_point+2" %in% names(result))
-  expect_null(result[["labs+3"]])
-  expect_null(result[["facet_wrap+4"]])
-  expect_null(result[["theme+5"]])
+  expect_true("geom_point_2" %in% names(result))
+  expect_null(result[["labs_3"]])
+  expect_null(result[["facet_wrap_4"]])
+  expect_null(result[["theme_5"]])
 })
 
 test_that("ptr_remove_empty_nonstandalone_layers keeps layers with arguments", {
   expr_list <- list(
     ggplot = quote(ggplot(data = iris)),
-    `labs+2` = quote(labs(title = "hello")),
-    `theme+3` = quote(theme(legend.position = "top"))
+    `labs_2` = quote(labs(title = "hello")),
+    `theme_3` = quote(theme(legend.position = "top"))
   )
   result <- ptr_remove_empty_nonstandalone_layers(expr_list)
   expect_length(result, 3)
@@ -428,8 +428,8 @@ test_that("ptr_remove_empty_nonstandalone_layers keeps layers with arguments", {
 test_that("ptr_remove_empty_nonstandalone_layers keeps empty geom layers", {
   expr_list <- list(
     ggplot = quote(ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width))),
-    `geom_point+2` = quote(geom_point()),
-    `stat_smooth+3` = quote(stat_smooth())
+    `geom_point_2` = quote(geom_point()),
+    `stat_smooth_3` = quote(stat_smooth())
   )
   result <- ptr_remove_empty_nonstandalone_layers(expr_list)
   expect_length(result, 3)

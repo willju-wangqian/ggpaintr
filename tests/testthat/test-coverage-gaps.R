@@ -24,7 +24,7 @@ test_that("ptr_resolve_placeholder_expr aborts when resolve_expr returns a funct
 
   input <- stats::setNames(
     list("mpg", TRUE),
-    c(bad_id, "geom_point+checkbox")
+    c(bad_id, "geom_point_checkbox")
   )
 
   expect_error(
