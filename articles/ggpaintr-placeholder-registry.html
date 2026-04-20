@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>ggpaintr Placeholder Registry • ggpaintr</title>
+<title>Custom Placeholders with the ggpaintr Registry • ggpaintr</title>
 <!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="../favicon-96x96.png">
 <link rel="icon" type="”image/svg+xml”" href="../favicon.svg">
 <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
@@ -15,7 +15,7 @@
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="ggpaintr Placeholder Registry">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Custom Placeholders with the ggpaintr Registry">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -42,7 +42,7 @@
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-workflow.html">ggpaintr Workflow</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-extensibility.html">ggpaintr Extensibility</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-placeholder-registry.html">ggpaintr Placeholder Registry</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-placeholder-registry.html">Custom Placeholders with the ggpaintr Registry</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -65,7 +65,7 @@
 <script src="ggpaintr-placeholder-registry_files/xaringanExtra-clipboard-0.2.6/xaringanExtra-clipboard.js"></script><script>window.xaringanExtraClipboard(null, {"button":"Copy Code","success":"Copied!","error":"Press Ctrl+C to Copy"})</script><div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
 
-      <h1>ggpaintr Placeholder Registry</h1>
+      <h1>Custom Placeholders with the ggpaintr Registry</h1>
             
       
       <small class="dont-index">Source: <a href="https://github.com/willju-wangqian/ggpaintr/blob/main/vignettes/ggpaintr-placeholder-registry.Rmd" class="external-link"><code>vignettes/ggpaintr-placeholder-registry.Rmd</code></a></small>
@@ -75,29 +75,217 @@
     
     
 <div class="section level2">
-<h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
+<h2 id="why-a-placeholder-registry">Why a placeholder registry?<a class="anchor" aria-label="anchor" href="#why-a-placeholder-registry"></a>
 </h2>
-<p><code>ggpaintr</code> now supports per-app placeholder registries.
-That means downstream developers can define a new placeholder once, pass
-it into <code><a href="../reference/ptr_parse_formula.html">ptr_parse_formula()</a></code>, <code><a href="../reference/ptr_app.html">ptr_app()</a></code>, or
-<code><a href="../reference/ptr_server_state.html">ptr_server_state()</a></code>, and keep the rest of the package
-runtime unchanged.</p>
-<p>The public entry points for this layer are:</p>
+<p>The five built-in placeholder keywords (<code>var</code>,
+<code>text</code>, <code>num</code>, <code>expr</code>,
+<code>upload</code>) cover the common cases, but real apps need more:
+date pickers, sliders bound to data extents, colour pickers, row-filter
+widgets, and so on. The <strong>placeholder registry</strong> is the
+extension point that lets you add such widgets without patching the
+parser, the runtime, or the copy system.</p>
+<p>Concretely, the registry lets you:</p>
 <ul>
-<li><code><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code></li>
-<li><code><a href="../reference/ptr_merge_placeholders.html">ptr_merge_placeholders()</a></code></li>
-<li><code><a href="../reference/ptr_missing_expr.html">ptr_missing_expr()</a></code></li>
+<li>
+<strong>Add a new placeholder keyword.</strong> Register a
+<code>date</code> placeholder and use <code>date</code> inside any
+formula, e.g. <code>geom_vline(xintercept = date)</code>.</li>
+<li>
+<strong>Replace a built-in widget.</strong> Swap <code>var</code>’s
+<code><a href="https://rdrr.io/pkg/shiny/man/selectInput.html" class="external-link">selectInput()</a></code> for <code><a href="https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html" class="external-link">shinyWidgets::pickerInput()</a></code>
+without touching package internals.</li>
+<li>
+<strong>Ship placeholders from another package.</strong> A registry
+is a plain list, so an external package can export
+<code>placeholders = ...</code> that downstream apps pass into
+<code><a href="../reference/ptr_app.html">ptr_app()</a></code>.</li>
 </ul>
-<p>Built-in placeholders such as <code>var</code>, <code>text</code>,
-<code>num</code>, <code>expr</code>, and <code>upload</code> now use the
-same registry path as custom placeholders.</p>
+<p>Before reading further, make sure you are comfortable with the
+formula syntax and the built-in placeholders — those are covered in
+<code><a href="../articles/ggpaintr-workflow.html">vignette("ggpaintr-workflow")</a></code>. This vignette focuses on
+what you add <strong>on top</strong> of that foundation.</p>
 </div>
 <div class="section level2">
-<h2 id="a-minimal-custom-placeholder">A minimal custom placeholder<a class="anchor" aria-label="anchor" href="#a-minimal-custom-placeholder"></a>
+<h2 id="the-placeholder-contract-at-a-glance">The placeholder contract at a glance<a class="anchor" aria-label="anchor" href="#the-placeholder-contract-at-a-glance"></a>
 </h2>
-<p>This <code>date</code> placeholder adds a Shiny
-<code><a href="https://rdrr.io/pkg/shiny/man/dateInput.html" class="external-link">dateInput()</a></code> control and turns the chosen date into
-<code>as.Date("YYYY-MM-DD")</code> in generated code.</p>
+<p>A placeholder is the value returned by
+<code><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code>. It bundles up to five hooks and a
+copy-defaults list. Only two hooks are required:</p>
+<table class="table">
+<colgroup>
+<col width="16%">
+<col width="29%">
+<col width="29%">
+<col width="24%">
+</colgroup>
+<thead><tr class="header">
+<th>Hook</th>
+<th>Signature</th>
+<th>Required?</th>
+<th>Purpose</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>build_ui</code></td>
+<td><code>function(id, copy, meta, context)</code></td>
+<td><strong>required</strong></td>
+<td>Return the Shiny tag for one placeholder occurrence.</td>
+</tr>
+<tr class="even">
+<td><code>resolve_expr</code></td>
+<td><code>function(value, meta, context)</code></td>
+<td><strong>required</strong></td>
+<td>Turn the current widget value into an R expression spliced into the
+generated ggplot call.</td>
+</tr>
+<tr class="odd">
+<td><code>resolve_input</code></td>
+<td><code>function(input, id, meta, context)</code></td>
+<td>optional</td>
+<td>Pre-process the raw Shiny input before it reaches
+<code>resolve_expr</code>. Defaults to <code>input[[id]]</code>.</td>
+</tr>
+<tr class="even">
+<td><code>bind_ui</code></td>
+<td><code>function(input, output, metas, context)</code></td>
+<td>optional</td>
+<td>Reactive wiring inside the server (e.g. <code>renderUI</code>,
+<code>observe</code>, <code>updateSelectInput</code>). Runs once per
+keyword with the list of occurrences.</td>
+</tr>
+<tr class="odd">
+<td><code>prepare_eval_env</code></td>
+<td><code>function(input, metas, eval_env, context)</code></td>
+<td>optional</td>
+<td>Inject objects into the environment where the completed formula is
+evaluated; must return <code>eval_env</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Every hook receives two shared records:</p>
+<p><strong><code>meta</code></strong> — describes the specific
+occurrence of the placeholder in the formula. Fields set by the
+parser:</p>
+<ul>
+<li>
+<code>id</code> — Shiny input id ggpaintr generated for this
+occurrence.</li>
+<li>
+<code>keyword</code> — the placeholder keyword
+(e.g. <code>"date"</code>).</li>
+<li>
+<code>layer_name</code> — the ggplot layer,
+e.g. <code>"geom_vline"</code>.</li>
+<li>
+<code>param</code> — the argument name (<code>"xintercept"</code>),
+or <code>""</code> for positional args.</li>
+<li>
+<code>index_path</code> — integer vector pointing into the parsed
+expression tree.</li>
+</ul>
+<p><strong><code>context</code></strong> — shared read-only
+environment:</p>
+<ul>
+<li>
+<code>context$ptr_obj</code> — the parsed <code>ptr_obj</code>,
+including <code>placeholder_map</code>.</li>
+<li>
+<code>context$placeholders</code> — the active placeholder
+registry.</li>
+<li>
+<code>context$ui_text</code> — merged copy rules.</li>
+<li>
+<code>context$envir</code> — caller environment (used to resolve
+data symbols).</li>
+<li>
+<code>context$eval_env</code>, <code>context$var_column_map</code> —
+set in Shiny mode; <code>NULL</code> elsewhere.</li>
+</ul>
+<p>The copy-defaults list may set any of the four leaf fields ggpaintr
+understands: <code>label</code>, <code>help</code>,
+<code>placeholder</code>, <code>empty_text</code>. Strings support
+<code>{param}</code> / <a href="https://github.com/marcosci/layer" class="external-link">layer</a> / <code>{layer_name}</code>
+interpolation. Use <code><a href="../reference/ptr_missing_expr.html">ptr_missing_expr()</a></code> from
+<code>resolve_expr</code> when an occurrence should be
+<strong>removed</strong> from the completed expression (rather than
+rendered as <code>NULL</code>).</p>
+</div>
+<div class="section level2">
+<h2 id="built-in-placeholders">Built-in placeholders<a class="anchor" aria-label="anchor" href="#built-in-placeholders"></a>
+</h2>
+<p>The five built-ins use the same registry path as any custom
+placeholder. The table below shows which hooks each one defines — a
+useful reference when you want to mimic or replace one.</p>
+<table class="table">
+<colgroup>
+<col width="20%">
+<col width="17%">
+<col width="35%">
+<col width="26%">
+</colgroup>
+<thead><tr class="header">
+<th>Keyword</th>
+<th>Widget</th>
+<th>Value produced</th>
+<th>Hooks used</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>var</code></td>
+<td>Dynamic <code>selectInput</code> of data columns</td>
+<td>Column name as a symbol</td>
+<td>
+<code>build_ui</code>, <code>resolve_expr</code>,
+<code>bind_ui</code>
+</td>
+</tr>
+<tr class="even">
+<td><code>text</code></td>
+<td><code>textInput</code></td>
+<td>String literal</td>
+<td>
+<code>build_ui</code>, <code>resolve_expr</code>
+</td>
+</tr>
+<tr class="odd">
+<td><code>num</code></td>
+<td><code>numericInput</code></td>
+<td>Numeric scalar</td>
+<td>
+<code>build_ui</code>, <code>resolve_expr</code>
+</td>
+</tr>
+<tr class="even">
+<td><code>expr</code></td>
+<td>Text field parsed as R</td>
+<td>Arbitrary expression (safety-checked)</td>
+<td>
+<code>build_ui</code>, <code>resolve_expr</code>
+</td>
+</tr>
+<tr class="odd">
+<td><code>upload</code></td>
+<td>File input + format picker</td>
+<td>User-supplied data frame bound in eval env</td>
+<td>
+<code>build_ui</code>, <code>resolve_expr</code>,
+<code>resolve_input</code>, <code>prepare_eval_env</code>
+</td>
+</tr>
+</tbody>
+</table>
+<p><code>var</code> uses <code>bind_ui</code> because its choices can
+only be populated after the data is known at runtime.
+<code>upload</code> uses <code>prepare_eval_env</code> because the
+uploaded data frame has to live in the eval environment under the name
+the user typed.</p>
+</div>
+<div class="section level2">
+<h2 id="a-minimal-custom-placeholder-a-date-picker">A minimal custom placeholder — a date picker<a class="anchor" aria-label="anchor" href="#a-minimal-custom-placeholder-a-date-picker"></a>
+</h2>
+<p>Here is a complete end-to-end example: define a <code>date</code>
+placeholder, use it in a formula, inspect the generated metadata, and
+launch a Shiny app that drives it.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sales</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  day <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="st">"2024-01-01"</span><span class="op">)</span> <span class="op">+</span> <span class="fl">0</span><span class="op">:</span><span class="fl">4</span>,</span>
@@ -105,77 +293,32 @@ same registry path as custom placeholders.</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">date_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
-<span>  <span class="co"># keyword: the token written inside the formula string (e.g. `date` in</span></span>
-<span>  <span class="co"># `geom_vline(xintercept = date)`). Must be a valid R name.</span></span>
 <span>  keyword <span class="op">=</span> <span class="st">"date"</span>,</span>
-<span></span>
-<span>  <span class="co"># build_ui: produces the Shiny widget for one placeholder occurrence.</span></span>
-<span>  <span class="co"># Arguments:</span></span>
-<span>  <span class="co">#   id      — the Shiny input id generated by ggpaintr; pass it to the widget</span></span>
-<span>  <span class="co">#             so the reactive system can read it with input[[id]].</span></span>
-<span>  <span class="co">#   copy    — resolved label/help text for this occurrence. A named list with</span></span>
-<span>  <span class="co">#             fields: $label, $help, $placeholder, $empty_text.</span></span>
-<span>  <span class="co">#             Values come from copy_defaults (defined below), and can be</span></span>
-<span>  <span class="co">#             overridden per-param or per-layer via ptr_merge_ui_text().</span></span>
-<span>  <span class="co">#   meta    — metadata record for this specific placeholder occurrence:</span></span>
-<span>  <span class="co">#               meta$id          same as `id` above</span></span>
-<span>  <span class="co">#               meta$keyword     "date"</span></span>
-<span>  <span class="co">#               meta$layer_name  the ggplot layer (e.g. "geom_vline")</span></span>
-<span>  <span class="co">#               meta$param       the argument name (e.g. "xintercept")</span></span>
-<span>  <span class="co">#             Use meta$param or meta$layer_name to vary widget behaviour by</span></span>
-<span>  <span class="co">#             context (e.g. different defaults per argument).</span></span>
-<span>  <span class="co">#   context — shared read-only environment:</span></span>
-<span>  <span class="co">#               context$ptr_obj       the full parsed formula object</span></span>
-<span>  <span class="co">#               context$placeholders  the active placeholder registry</span></span>
-<span>  <span class="co">#               context$ui_text       merged copy rules</span></span>
-<span>  <span class="co">#               context$envir         calling environment (for resolving data)</span></span>
 <span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/dateInput.html" class="external-link">dateInput</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span><span class="op">$</span><span class="va">label</span><span class="op">)</span>  <span class="co"># copy$label is filled from copy_defaults below</span></span>
+<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/dateInput.html" class="external-link">dateInput</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span><span class="op">$</span><span class="va">label</span><span class="op">)</span></span>
 <span>  <span class="op">}</span>,</span>
-<span></span>
-<span>  <span class="co"># resolve_expr: converts the current widget value into an R expression that</span></span>
-<span>  <span class="co"># replaces the `date` token in the completed formula.</span></span>
-<span>  <span class="co"># Arguments:</span></span>
-<span>  <span class="co">#   value   — the current input value (result of input[[id]], or of</span></span>
-<span>  <span class="co">#             resolve_input() if that hook is defined)</span></span>
-<span>  <span class="co">#   meta    — same metadata record as in build_ui</span></span>
-<span>  <span class="co">#   context — same shared environment as in build_ui</span></span>
 <span>  resolve_expr <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="co"># ptr_missing_expr() signals that this argument should be dropped from the</span></span>
-<span>    <span class="co"># completed formula entirely (rather than inserting a NULL or NA).</span></span>
 <span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="op">||</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span>, <span class="st">""</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_missing_expr.html">ptr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span>    <span class="op">}</span></span>
-<span></span>
-<span>    <span class="co"># !! (unquote) splices the runtime value into the expression at build time.</span></span>
-<span>    <span class="co"># The result here is the call `as.Date("2024-01-03")` embedded in the plot code.</span></span>
 <span>    <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span>  <span class="op">}</span>,</span>
-<span></span>
-<span>  <span class="co"># copy_defaults: default label/help text shown for every occurrence of this</span></span>
-<span>  <span class="co"># placeholder. {param} is a glue-style template filled with meta$param at</span></span>
-<span>  <span class="co"># runtime (e.g. "xintercept" → "Choose a date for xintercept").</span></span>
-<span>  <span class="co"># Override specific occurrences with ptr_merge_ui_text().</span></span>
 <span>  copy_defaults <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Choose a date for {param}"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># ptr_merge_placeholders() merges custom placeholders into the built-in registry</span></span>
-<span><span class="co"># (var, text, num, expr, upload). The result is a complete registry that can be</span></span>
-<span><span class="co"># passed as `placeholders =` to ptr_parse_formula(), ptr_app(), ptr_exec(), etc.</span></span>
-<span><span class="co"># Custom entries override built-ins of the same keyword name.</span></span>
-<span><span class="va">placeholders</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_merge_placeholders.html">ptr_merge_placeholders</a></span><span class="op">(</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><code><a href="../reference/ptr_merge_placeholders.html">ptr_merge_placeholders()</a></code> combines your custom entries
+with the built-ins so the registry you pass downstream still understands
+<code>var</code>, <code>text</code>, etc. Custom entries with a built-in
+keyword override the built-in.</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">placeholders</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_merge_placeholders.html">ptr_merge_placeholders</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>date <span class="op">=</span> <span class="va">date_placeholder</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">placeholders</span><span class="op">)</span>  <span class="co"># built-ins + "date"</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">placeholders</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "var"    "text"   "num"    "expr"   "upload" "date"</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="using-the-registry-in-parsing-and-runtime">Using the registry in parsing and runtime<a class="anchor" aria-label="anchor" href="#using-the-registry-in-parsing-and-runtime"></a>
-</h2>
-<p>Pass the registry through <code>placeholders = ...</code> anywhere
-you want custom placeholder support.</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<p>Parse a formula with the enriched registry and inspect the metadata
+record the parser built for the <code>date</code> occurrence:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_parse_formula.html">ptr_parse_formula</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = sales, aes(x = day, y = value)) +</span></span>
 <span><span class="st">    geom_line() +</span></span>
@@ -183,24 +326,31 @@ you want custom placeholder support.</p>
 <span>  placeholders <span class="op">=</span> <span class="va">placeholders</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Input ids follow internal conventions — prefer discovering them via</span></span>
-<span><span class="co"># ptr_runtime_input_spec(obj) rather than hard-coding strings.</span></span>
-<span><span class="co"># The patterns shown here are for illustration only:</span></span>
-<span><span class="co">#   "&lt;layer&gt;+checkbox"  — toggle that layer on (TRUE) or off (FALSE)</span></span>
-<span><span class="co">#   "&lt;layer&gt;+&lt;n&gt;"       — the n-th placeholder in that layer (1-based)</span></span>
-<span><span class="va">runtime</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_exec.html">ptr_exec</a></span><span class="op">(</span></span>
+<span><span class="va">obj</span><span class="op">$</span><span class="va">placeholder_map</span><span class="op">$</span><span class="va">geom_vline</span><span class="op">[[</span><span class="st">"geom_vline+2"</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="co">#&gt; NULL</span></span></code></pre></div>
+<p>The fields match the <code>meta</code> record every hook receives —
+<code>id</code>, <code>keyword</code>, <code>layer_name</code>,
+<code>param</code>, <code>index_path</code>.</p>
+<p>Execute the plot headlessly with a concrete date. Prefer
+<code>ptr_runtime_input_spec(obj)</code> for discovering the expected
+input ids programmatically rather than hard-coding the
+<code>"geom_vline+2"</code> pattern used below for clarity.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">runtime</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_exec.html">ptr_exec</a></span><span class="op">(</span></span>
 <span>  <span class="va">obj</span>,</span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>    <span class="st">"geom_line+checkbox"</span>  <span class="op">=</span> <span class="cn">TRUE</span>,              <span class="co"># include geom_line in the plot</span></span>
-<span>    <span class="st">"geom_vline+checkbox"</span> <span class="op">=</span> <span class="cn">TRUE</span>,              <span class="co"># include geom_vline in the plot</span></span>
-<span>    <span class="st">"geom_vline+2"</span>        <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="st">"2024-01-03"</span><span class="op">)</span>  <span class="co"># value for the date placeholder</span></span>
+<span>    <span class="st">"geom_line+checkbox"</span>  <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>    <span class="st">"geom_vline+checkbox"</span> <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>    <span class="st">"geom_vline+2"</span>        <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="st">"2024-01-03"</span><span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">runtime</span><span class="op">$</span><span class="va">code_text</span></span>
 <span><span class="co">#&gt; NULL</span></span></code></pre></div>
-<p>The same registry can also be used in the higher-level wrappers.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<p>To launch a full Shiny app that drives the same placeholder
+interactively, use <code><a href="../reference/ptr_app.html">ptr_app()</a></code> (see the final section for
+every API that accepts <code>placeholders = ...</code>):</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = sales, aes(x = day, y = value)) +</span></span>
 <span><span class="st">    geom_line() +</span></span>
@@ -209,280 +359,324 @@ you want custom placeholder support.</p>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="the-placeholder-metadata-contract">The placeholder metadata contract<a class="anchor" aria-label="anchor" href="#the-placeholder-metadata-contract"></a>
+<h2 id="the-five-hooks-in-detail">The five hooks in detail<a class="anchor" aria-label="anchor" href="#the-five-hooks-in-detail"></a>
 </h2>
-<p>Every placeholder occurrence becomes one metadata record in
-<code>ptr_obj$placeholder_map</code>.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">meta</span> <span class="op">&lt;-</span> <span class="va">obj</span><span class="op">$</span><span class="va">placeholder_map</span><span class="op">$</span><span class="va">geom_vline</span><span class="op">[[</span><span class="st">"geom_vline+2"</span><span class="op">]</span><span class="op">]</span></span>
-<span><span class="va">meta</span></span>
-<span><span class="co">#&gt; NULL</span></span></code></pre></div>
-<p>Each metadata record contains:</p>
-<ul>
-<li>
-<code>id</code>: the Shiny input id for that placeholder
-occurrence</li>
-<li>
-<code>keyword</code>: the placeholder keyword, such as
-<code>date</code>
-</li>
-<li>
-<code>layer_name</code>: the layer where the placeholder was
-found</li>
-<li>
-<code>param</code>: the argument name, such as
-<code>xintercept</code>
-</li>
-<li>
-<code>index_path</code>: the expression path used during
-replacement</li>
-</ul>
-<p>These fields are passed into every placeholder hook so custom
-placeholder code can behave differently by parameter or by layer.</p>
-</div>
-<div class="section level2">
-<h2 id="the-hook-contract">The hook contract<a class="anchor" aria-label="anchor" href="#the-hook-contract"></a>
-</h2>
-<p><code><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code> supports one required UI hook,
-one required resolver hook, and three optional advanced hooks.</p>
 <div class="section level3">
-<h3 id="build_uiid-copy-meta-context">
-<code>build_ui(id, copy, meta, context)</code><a class="anchor" aria-label="anchor" href="#build_uiid-copy-meta-context"></a>
+<h3 id="build_uiid-copy-meta-context-required">
+<code>build_ui(id, copy, meta, context)</code> — required<a class="anchor" aria-label="anchor" href="#build_uiid-copy-meta-context-required"></a>
 </h3>
-<p><code>build_ui()</code> returns the UI control for one placeholder
-occurrence.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<p>Returns the Shiny tag for one placeholder occurrence. Called once per
+occurrence when ggpaintr constructs the control panel. <code>id</code>
+is the Shiny input id you must bind; <code>copy</code> is a named list
+with the four leaf fields (<code>label</code>, <code>help</code>,
+<code>placeholder</code>, <code>empty_text</code>) already resolved for
+this occurrence.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">date_placeholder</span><span class="op">$</span><span class="va">build_ui</span></span>
 <span><span class="co">#&gt; function (id, copy, meta, context) </span></span>
 <span><span class="co">#&gt; {</span></span>
 <span><span class="co">#&gt;     shiny::dateInput(id, copy$label)</span></span>
 <span><span class="co">#&gt; }</span></span></code></pre></div>
-<p>The arguments are:</p>
-<ul>
-<li>
-<code>id</code>: the generated input id to bind</li>
-<li>
-<code>copy</code>: resolved copy text for this control</li>
-<li>
-<code>meta</code>: the metadata record for this occurrence</li>
-<li>
-<code>context</code>: a named list containing <code>ptr_obj</code>,
-<code>placeholders</code>, <code>ui_text</code>, and
-<code>envir</code>
-</li>
-</ul>
+<p><code>build_ui</code> has no access to reactives. If the widget needs
+to depend on current input values, return a container tag
+(e.g. <code><a href="https://rdrr.io/pkg/shiny/man/htmlOutput.html" class="external-link">shiny::uiOutput()</a></code>) and finish wiring it inside
+<code>bind_ui()</code>.</p>
 </div>
 <div class="section level3">
-<h3 id="resolve_exprvalue-meta-context">
-<code>resolve_expr(value, meta, context)</code><a class="anchor" aria-label="anchor" href="#resolve_exprvalue-meta-context"></a>
+<h3 id="resolve_exprvalue-meta-context-required">
+<code>resolve_expr(value, meta, context)</code> — required<a class="anchor" aria-label="anchor" href="#resolve_exprvalue-meta-context-required"></a>
 </h3>
-<p><code>resolve_expr()</code> turns the current input value into an
-expression suitable for the completed plot expression.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">date_placeholder</span><span class="op">$</span><span class="va">resolve_expr</span></span>
-<span><span class="co">#&gt; function (value, meta, context) </span></span>
-<span><span class="co">#&gt; {</span></span>
-<span><span class="co">#&gt;     if (is.null(value) || identical(as.character(value), "")) {</span></span>
-<span><span class="co">#&gt;         return(ptr_missing_expr())</span></span>
-<span><span class="co">#&gt;     }</span></span>
-<span><span class="co">#&gt;     rlang::expr(as.Date(!!as.character(value)))</span></span>
-<span><span class="co">#&gt; }</span></span></code></pre></div>
-<p>Return <code><a href="../reference/ptr_missing_expr.html">ptr_missing_expr()</a></code> when the argument should be
-removed from the completed code instead of inserted.</p>
+<p>Turns the current widget value into an R expression that replaces the
+placeholder token in the completed code. Use <code>!!</code>
+(<code>rlang</code> unquoting) to splice the runtime value into the
+returned expression. Return <code><a href="../reference/ptr_missing_expr.html">ptr_missing_expr()</a></code> to
+<strong>drop</strong> the argument from the completed expression
+entirely.</p>
+<p>The returned value must be one of: a call, symbol, pairlist,
+character vector, or a scalar (<code>numeric</code>,
+<code>logical</code>, <code>integer</code>, <code>double</code>,
+<code>complex</code>, or <code>NULL</code>). Anything else is rejected
+with a clear error.</p>
 </div>
 <div class="section level3">
-<h3 id="resolve_inputinput-id-meta-context">
-<code>resolve_input(input, id, meta, context)</code><a class="anchor" aria-label="anchor" href="#resolve_inputinput-id-meta-context"></a>
+<h3 id="resolve_inputinput-id-meta-context-optional">
+<code>resolve_input(input, id, meta, context)</code> — optional<a class="anchor" aria-label="anchor" href="#resolve_inputinput-id-meta-context-optional"></a>
 </h3>
-<p>Use <code>resolve_input()</code> when the raw Shiny input needs
-preprocessing before it is handed to <code>resolve_expr()</code>. If
-omitted, <code>ggpaintr</code> uses <code>input[[id]]</code>.</p>
+<p>Runs before <code>resolve_expr</code> and lets you massage the raw
+Shiny input value. When omitted, ggpaintr passes
+<code>input[[id]]</code> straight through.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">trimmed_text_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">trimmed_text</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
 <span>  keyword <span class="op">=</span> <span class="st">"trimmed_text"</span>,</span>
 <span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/textInput.html" class="external-link">textInput</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span><span class="op">$</span><span class="va">label</span><span class="op">)</span></span>
 <span>  <span class="op">}</span>,</span>
-<span>  <span class="co"># resolve_input: pre-processes the raw Shiny input value before it reaches</span></span>
-<span>  <span class="co"># resolve_expr(). If omitted, ggpaintr uses input[[id]] directly.</span></span>
-<span>  <span class="co"># Arguments:</span></span>
-<span>  <span class="co">#   input — the full Shiny input object (access any input, not just this one)</span></span>
-<span>  <span class="co">#   id    — the input id for this placeholder occurrence</span></span>
-<span>  <span class="co">#   meta, context — same as in build_ui and resolve_expr</span></span>
-<span>  <span class="co"># Return the cleaned value; it becomes `value` in resolve_expr().</span></span>
 <span>  resolve_input <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">id</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/trimws.html" class="external-link">trimws</a></span><span class="op">(</span><span class="va">input</span><span class="op">[[</span><span class="va">id</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>  <span class="co"># strip leading/trailing whitespace before resolve_expr sees it</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/trimws.html" class="external-link">trimws</a></span><span class="op">(</span><span class="va">input</span><span class="op">[[</span><span class="va">id</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span>
 <span>  <span class="op">}</span>,</span>
 <span>  resolve_expr <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">value</span>, <span class="st">""</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_missing_expr.html">ptr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span>    <span class="op">}</span></span>
-<span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">value</span>, <span class="st">""</span><span class="op">)</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_missing_expr.html">ptr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span>    <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="va">value</span><span class="op">)</span></span>
 <span>  <span class="op">}</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
-<h3 id="bind_uiinput-output-metas-context">
-<code>bind_ui(input, output, metas, context)</code><a class="anchor" aria-label="anchor" href="#bind_uiinput-output-metas-context"></a>
+<h3 id="bind_uiinput-output-metas-context-optional">
+<code>bind_ui(input, output, metas, context)</code> — optional<a class="anchor" aria-label="anchor" href="#bind_uiinput-output-metas-context-optional"></a>
 </h3>
-<p>Use <code>bind_ui()</code> for deferred or dynamic UI registration.
-This is how the built-in <code>var</code> placeholder registers delayed
-<code><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI()</a></code> outputs after data is known.</p>
+<p><code>bind_ui</code> is called once per keyword inside the Shiny
+server with the full list of occurrences (<code>metas</code>). Use it to
+register <code><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI()</a></code> outputs or <code><a href="https://rdrr.io/pkg/shiny/man/observe.html" class="external-link">observe()</a></code>
+blocks for widgets that depend on reactive state. The return value is a
+named list of <code><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI()</a></code>-capable tags keyed by
+<code>meta$id</code>, which ggpaintr uses for deferred rendering;
+returning <code>NULL</code> or <code>invisible(NULL)</code> is fine.</p>
+</div>
+<div class="section level3">
+<h3 id="prepare_eval_envinput-metas-eval_env-context-optional">
+<code>prepare_eval_env(input, metas, eval_env, context)</code> —
+optional<a class="anchor" aria-label="anchor" href="#prepare_eval_envinput-metas-eval_env-context-optional"></a>
+</h3>
+<p>Runs immediately before the completed expression is evaluated. Use it
+to bind objects into the eval environment — uploaded data frames, helper
+functions, lookup tables. <strong>The hook must return the modified
+<code>eval_env</code></strong>; ggpaintr does not mutate it in
+place.</p>
+</div>
+</div>
+<div class="section level2">
+<h2 id="a-more-complex-example-bind_ui-prepare_eval_env">A more complex example — <code>bind_ui</code> +
+<code>prepare_eval_env</code><a class="anchor" aria-label="anchor" href="#a-more-complex-example-bind_ui-prepare_eval_env"></a>
+</h2>
+<p>This example defines a <code>log_num</code> placeholder that chooses
+a numeric column from the formula’s <code>data</code> and wraps it in
+<code><a href="https://rdrr.io/r/base/Log.html" class="external-link">log()</a></code> in the generated code. It uses <code>bind_ui</code>
+to populate a <code>selectInput</code> with the data’s numeric columns,
+and <code>prepare_eval_env</code> to expose a small safe-log helper so
+the generated call stays readable.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">deferred_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
-<span>  keyword <span class="op">=</span> <span class="st">"dynamic_text"</span>,</span>
+<code class="sourceCode R"><span><span class="va">log_num</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
+<span>  keyword <span class="op">=</span> <span class="st">"log_num"</span>,</span>
+<span></span>
+<span>  <span class="co"># Return a container; fill it in from bind_ui once data is available.</span></span>
 <span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="co"># Return a placeholder container. The real widget is rendered later by bind_ui()</span></span>
-<span>    <span class="co"># once the data or other runtime context needed to build it is available.</span></span>
-<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/htmlOutput.html" class="external-link">uiOutput</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"dynamic-"</span>, <span class="va">id</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/htmlOutput.html" class="external-link">uiOutput</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">id</span>, <span class="st">"_container"</span><span class="op">)</span><span class="op">)</span></span>
 <span>  <span class="op">}</span>,</span>
-<span>  <span class="co"># bind_ui: called during ptr_setup_controls() inside the Shiny server.</span></span>
-<span>  <span class="co"># Use it to register renderUI() observers for widgets that depend on reactive</span></span>
-<span>  <span class="co"># state (e.g. column names from an uploaded file).</span></span>
-<span>  <span class="co"># Unlike build_ui() — which runs once at UI construction time and has no</span></span>
-<span>  <span class="co"># access to reactives — bind_ui() runs inside the server and can read inputs.</span></span>
-<span>  <span class="co"># Arguments:</span></span>
-<span>  <span class="co">#   input, output — standard Shiny server arguments</span></span>
-<span>  <span class="co">#   metas   — list of metadata records, one per occurrence of this keyword;</span></span>
-<span>  <span class="co">#             each record has $id, $keyword, $layer_name, $param, $index_path</span></span>
-<span>  <span class="co">#   context — shared environment (ptr_obj, placeholders, ui_text, envir)</span></span>
+<span></span>
+<span>  <span class="co"># Populate the selectInput with numeric columns drawn from the data</span></span>
+<span>  <span class="co"># symbol referenced in the formula (context$ptr_obj$ggdata).</span></span>
 <span>  bind_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">metas</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">eval_env</span> <span class="op">&lt;-</span> <span class="va">context</span><span class="op">$</span><span class="va">eval_env</span></span>
+<span>    <span class="va">data_name</span> <span class="op">&lt;-</span> <span class="va">context</span><span class="op">$</span><span class="va">ptr_obj</span><span class="op">$</span><span class="va">ggdata</span></span>
+<span>    <span class="va">numeric_cols</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">eval_env</span><span class="op">)</span> <span class="op">&amp;&amp;</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">is.character</a></span><span class="op">(</span><span class="va">data_name</span><span class="op">)</span> <span class="op">&amp;&amp;</span></span>
+<span>        <span class="fu"><a href="https://rdrr.io/r/base/exists.html" class="external-link">exists</a></span><span class="op">(</span><span class="va">data_name</span>, envir <span class="op">=</span> <span class="va">eval_env</span>, inherits <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/get.html" class="external-link">get</a></span><span class="op">(</span><span class="va">data_name</span>, envir <span class="op">=</span> <span class="va">eval_env</span>, inherits <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span>      <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">is.data.frame</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>        <span class="va">numeric_cols</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">d</span>, <span class="va">is.numeric</span>, <span class="fu"><a href="https://rdrr.io/r/base/logical.html" class="external-link">logical</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span><span class="op">]</span></span>
+<span>      <span class="op">}</span></span>
+<span>    <span class="op">}</span></span>
 <span>    <span class="kw">for</span> <span class="op">(</span><span class="va">meta</span> <span class="kw">in</span> <span class="va">metas</span><span class="op">)</span> <span class="op">{</span></span>
-<span>      <span class="co"># Register a renderUI() for the uiOutput() container built above.</span></span>
-<span>      <span class="va">output</span><span class="op">[[</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"dynamic-"</span>, <span class="va">meta</span><span class="op">$</span><span class="va">id</span><span class="op">)</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI</a></span><span class="op">(</span><span class="op">{</span></span>
-<span>        <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/textInput.html" class="external-link">textInput</a></span><span class="op">(</span><span class="va">meta</span><span class="op">$</span><span class="va">id</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Dynamic control for"</span>, <span class="va">meta</span><span class="op">$</span><span class="va">param</span><span class="op">)</span><span class="op">)</span></span>
+<span>      <span class="fu"><a href="https://rdrr.io/r/base/eval.html" class="external-link">local</a></span><span class="op">(</span><span class="op">{</span></span>
+<span>        <span class="va">m</span> <span class="op">&lt;-</span> <span class="va">meta</span></span>
+<span>        <span class="va">output</span><span class="op">[[</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">m</span><span class="op">$</span><span class="va">id</span>, <span class="st">"_container"</span><span class="op">)</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI</a></span><span class="op">(</span><span class="op">{</span></span>
+<span>          <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/selectInput.html" class="external-link">selectInput</a></span><span class="op">(</span></span>
+<span>            <span class="va">m</span><span class="op">$</span><span class="va">id</span>,</span>
+<span>            label   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Log-transform column for"</span>, <span class="va">m</span><span class="op">$</span><span class="va">param</span><span class="op">)</span>,</span>
+<span>            choices <span class="op">=</span> <span class="va">numeric_cols</span></span>
+<span>          <span class="op">)</span></span>
+<span>        <span class="op">}</span><span class="op">)</span></span>
 <span>      <span class="op">}</span><span class="op">)</span></span>
 <span>    <span class="op">}</span></span>
-<span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span></span>
 <span>  <span class="op">}</span>,</span>
+<span></span>
+<span>  <span class="co"># Generate `.log_safe(&lt;col&gt;)` in the completed expression.</span></span>
 <span>  resolve_expr <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="op">||</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">value</span>, <span class="st">""</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_missing_expr.html">ptr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span>    <span class="op">}</span></span>
+<span>    <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span><span class="fu">.log_safe</span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/sym.html" class="external-link">sym</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="op">}</span>,</span>
 <span></span>
-<span>    <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="va">value</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
+<span>  <span class="co"># Bind the helper the generated call references by name.</span></span>
+<span>  prepare_eval_env <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">metas</span>, <span class="va">eval_env</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">eval_env</span><span class="op">$</span><span class="va">.log_safe</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmax</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">.Machine</span><span class="op">$</span><span class="va">double.eps</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="va">eval_env</span></span>
+<span>  <span class="op">}</span>,</span>
+<span></span>
+<span>  copy_defaults <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Log-transform column for {param}"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>A formula using it, parsed with the merged registry:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">registry</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_merge_placeholders.html">ptr_merge_placeholders</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>log_num <span class="op">=</span> <span class="va">log_num</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_parse_formula.html">ptr_parse_formula</a></span><span class="op">(</span></span>
+<span>  <span class="st">"ggplot(data = mtcars, aes(x = wt, y = log_num)) + geom_point()"</span>,</span>
+<span>  placeholders <span class="op">=</span> <span class="va">registry</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">obj</span><span class="op">$</span><span class="va">code_text</span></span>
+<span><span class="co">#&gt; NULL</span></span></code></pre></div>
+<p>Running the same formula headlessly — note that
+<code>.log_safe</code> resolves because <code>prepare_eval_env()</code>
+bound it in the eval environment:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">runtime</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_exec.html">ptr_exec</a></span><span class="op">(</span></span>
+<span>  <span class="va">obj</span>,</span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    <span class="st">"geom_point+checkbox"</span> <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>    <span class="st">"geom_point+3"</span>        <span class="op">=</span> <span class="st">"mpg"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">runtime</span><span class="op">$</span><span class="va">code_text</span></span>
+<span><span class="co">#&gt; NULL</span></span></code></pre></div>
+<p>Launch the live app to exercise <code>bind_ui</code>:</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
+<span>  <span class="st">"ggplot(data = mtcars, aes(x = wt, y = log_num)) + geom_point()"</span>,</span>
+<span>  placeholders <span class="op">=</span> <span class="va">registry</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="replacing-a-built-in-placeholder">Replacing a built-in placeholder<a class="anchor" aria-label="anchor" href="#replacing-a-built-in-placeholder"></a>
+</h2>
+<p>Any custom keyword that matches a built-in one wins — the built-in is
+evicted from the merged registry. Below, we replace <code>var</code>
+with a <code><a href="https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html" class="external-link">shinyWidgets::pickerInput()</a></code> that offers search and
+tick-boxes while keeping the original reactive behaviour (columns
+populated from data).</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">picker_var</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
+<span>  keyword <span class="op">=</span> <span class="st">"var"</span>,</span>
+<span></span>
+<span>  <span class="co"># Container filled in by bind_ui once data is known.</span></span>
+<span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/htmlOutput.html" class="external-link">uiOutput</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">id</span>, <span class="st">"_container"</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="op">}</span>,</span>
+<span></span>
+<span>  <span class="co"># Produce the same symbol the default `var` does.</span></span>
+<span>  resolve_expr <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="op">||</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">value</span>, <span class="st">""</span><span class="op">)</span> <span class="op">||</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">value</span>, <span class="st">"(none)"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_missing_expr.html">ptr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="op">}</span></span>
+<span>    <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/sym.html" class="external-link">sym</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span></span>
+<span>  <span class="op">}</span>,</span>
+<span></span>
+<span>  <span class="co"># Mirror the reactive-column behaviour of the default `var`.</span></span>
+<span>  bind_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">metas</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">eval_env</span> <span class="op">&lt;-</span> <span class="va">context</span><span class="op">$</span><span class="va">eval_env</span></span>
+<span>    <span class="va">data_name</span> <span class="op">&lt;-</span> <span class="va">context</span><span class="op">$</span><span class="va">ptr_obj</span><span class="op">$</span><span class="va">ggdata</span></span>
+<span>    <span class="va">cols</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">eval_env</span><span class="op">)</span> <span class="op">&amp;&amp;</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">is.character</a></span><span class="op">(</span><span class="va">data_name</span><span class="op">)</span> <span class="op">&amp;&amp;</span></span>
+<span>        <span class="fu"><a href="https://rdrr.io/r/base/exists.html" class="external-link">exists</a></span><span class="op">(</span><span class="va">data_name</span>, envir <span class="op">=</span> <span class="va">eval_env</span>, inherits <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/get.html" class="external-link">get</a></span><span class="op">(</span><span class="va">data_name</span>, envir <span class="op">=</span> <span class="va">eval_env</span>, inherits <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span>      <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">is.data.frame</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>        <span class="va">cols</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span></span>
+<span>      <span class="op">}</span></span>
+<span>    <span class="op">}</span></span>
+<span>    <span class="kw">for</span> <span class="op">(</span><span class="va">meta</span> <span class="kw">in</span> <span class="va">metas</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="fu"><a href="https://rdrr.io/r/base/eval.html" class="external-link">local</a></span><span class="op">(</span><span class="op">{</span></span>
+<span>        <span class="va">m</span> <span class="op">&lt;-</span> <span class="va">meta</span></span>
+<span>        <span class="va">output</span><span class="op">[[</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">m</span><span class="op">$</span><span class="va">id</span>, <span class="st">"_container"</span><span class="op">)</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI</a></span><span class="op">(</span><span class="op">{</span></span>
+<span>          <span class="fu">shinyWidgets</span><span class="fu">::</span><span class="fu"><a href="https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html" class="external-link">pickerInput</a></span><span class="op">(</span></span>
+<span>            inputId <span class="op">=</span> <span class="va">m</span><span class="op">$</span><span class="va">id</span>,</span>
+<span>            label   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Column for"</span>, <span class="va">m</span><span class="op">$</span><span class="va">param</span><span class="op">)</span>,</span>
+<span>            choices <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"(none)"</span>, <span class="va">cols</span><span class="op">)</span>,</span>
+<span>            options <span class="op">=</span> <span class="fu">shinyWidgets</span><span class="fu">::</span><span class="fu"><a href="https://dreamrs.github.io/shinyWidgets/reference/pickerOptions.html" class="external-link">pickerOptions</a></span><span class="op">(</span>liveSearch <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span>          <span class="op">)</span></span>
+<span>        <span class="op">}</span><span class="op">)</span></span>
+<span>      <span class="op">}</span><span class="op">)</span></span>
+<span>    <span class="op">}</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span></span>
+<span>  <span class="op">}</span>,</span>
+<span></span>
+<span>  copy_defaults <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    label      <span class="op">=</span> <span class="st">"Column for {param}"</span>,</span>
+<span>    empty_text <span class="op">=</span> <span class="st">"(none)"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">replacement_registry</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_merge_placeholders.html">ptr_merge_placeholders</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>var <span class="op">=</span> <span class="va">picker_var</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">replacement_registry</span><span class="op">$</span><span class="va">var</span>, <span class="va">picker_var</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
+<span>  <span class="st">"ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"</span>,</span>
+<span>  placeholders <span class="op">=</span> <span class="va">replacement_registry</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="plugging-a-registry-into-every-api">Plugging a registry into every API<a class="anchor" aria-label="anchor" href="#plugging-a-registry-into-every-api"></a>
+</h2>
+<p>Every public entry point that accepts formulas also accepts a
+<code>placeholders = ...</code> argument holding a merged registry. Pass
+the same registry object everywhere so built-in widgets, custom widgets,
+and copy rules stay in sync.</p>
+<div class="section level3">
+<h3 id="ptr_app-and-ptr_app_bslib-level-1">
+<code>ptr_app()</code> and <code>ptr_app_bslib()</code> — Level
+1<a class="anchor" aria-label="anchor" href="#ptr_app-and-ptr_app_bslib-level-1"></a>
+</h3>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
+<span>  <span class="st">"ggplot(data = sales, aes(x = day, y = value)) +</span></span>
+<span><span class="st">    geom_line() +</span></span>
+<span><span class="st">    geom_vline(xintercept = date)"</span>,</span>
+<span>  placeholders <span class="op">=</span> <span class="va">placeholders</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="../reference/ptr_app_bslib.html">ptr_app_bslib</a></span><span class="op">(</span></span>
+<span>  <span class="st">"ggplot(data = sales, aes(x = day, y = value)) +</span></span>
+<span><span class="st">    geom_line() +</span></span>
+<span><span class="st">    geom_vline(xintercept = date)"</span>,</span>
+<span>  placeholders <span class="op">=</span> <span class="va">placeholders</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
-<h3 id="prepare_eval_envinput-metas-eval_env-context">
-<code>prepare_eval_env(input, metas, eval_env, context)</code><a class="anchor" aria-label="anchor" href="#prepare_eval_envinput-metas-eval_env-context"></a>
+<h3 id="ptr_parse_formula-ptr_exec-level-3-headless">
+<code>ptr_parse_formula()</code> + <code>ptr_exec()</code> — Level 3
+headless<a class="anchor" aria-label="anchor" href="#ptr_parse_formula-ptr_exec-level-3-headless"></a>
 </h3>
-<p>Use <code>prepare_eval_env()</code> when a placeholder needs to
-inject objects into the evaluation environment before the plot is built.
-This is how the built-in <code>upload</code> placeholder assigns
-uploaded data objects before code is evaluated.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">prepared_data_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
-<span>  keyword <span class="op">=</span> <span class="st">"prepared_data"</span>,</span>
-<span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/textInput.html" class="external-link">textInput</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span><span class="op">$</span><span class="va">label</span>, placeholder <span class="op">=</span> <span class="st">"dataset_name"</span><span class="op">)</span></span>
-<span>  <span class="op">}</span>,</span>
-<span>  resolve_expr <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="op">||</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">value</span>, <span class="st">""</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_missing_expr.html">ptr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span>    <span class="op">}</span></span>
-<span></span>
-<span>    <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/parse_expr.html" class="external-link">parse_expr</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span></span>
-<span>  <span class="op">}</span>,</span>
-<span>  <span class="co"># prepare_eval_env: runs just before the completed formula is evaluated to</span></span>
-<span>  <span class="co"># build the plot. Use it to inject R objects that the formula references by</span></span>
-<span>  <span class="co"># name (e.g. a dataset variable, a helper function, a colour palette).</span></span>
-<span>  <span class="co"># This is how the built-in `upload` placeholder makes uploaded data available</span></span>
-<span>  <span class="co"># under the user-supplied name at eval time.</span></span>
-<span>  <span class="co"># Arguments:</span></span>
-<span>  <span class="co">#   input    — Shiny input object (read current widget values if needed)</span></span>
-<span>  <span class="co">#   metas    — list of metadata records for all occurrences of this keyword</span></span>
-<span>  <span class="co">#   eval_env — the environment in which the formula will be eval()'d;</span></span>
-<span>  <span class="co">#              add or overwrite bindings, then return the modified env</span></span>
-<span>  <span class="co">#   context  — shared environment (ptr_obj, placeholders, ui_text, envir)</span></span>
-<span>  prepare_eval_env <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">metas</span>, <span class="va">eval_env</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="co"># Bind `prepared_dataset` so the formula can reference it by name.</span></span>
-<span>    <span class="va">eval_env</span><span class="op">$</span><span class="va">prepared_dataset</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span>, y <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">4</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
-<span>    <span class="va">eval_env</span>  <span class="co"># must return the (modified) eval_env</span></span>
-<span>  <span class="op">}</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-</div>
-<div class="section level2">
-<h2 id="copy-defaults-and-custom-copy-rules">Copy defaults and custom copy rules<a class="anchor" aria-label="anchor" href="#copy-defaults-and-custom-copy-rules"></a>
-</h2>
-<p>Each placeholder can ship its own default copy through
-<code>copy_defaults</code>. Those defaults then participate in the
-normal <code>ui_text</code> system.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># ptr_merge_ui_text() builds a copy-rules object that overrides default labels</span></span>
-<span><span class="co"># and help text. Three levels of specificity — higher wins over lower:</span></span>
-<span><span class="co">#</span></span>
-<span><span class="co">#   defaults  → applies to every occurrence of a keyword, across all layers/params</span></span>
-<span><span class="co">#   params    → applies to a specific argument name, across all layers</span></span>
-<span><span class="co">#   layers    → applies to a keyword inside a specific layer + argument combination</span></span>
-<span><span class="co">#</span></span>
-<span><span class="co"># Within each level you can set: label, help, placeholder, empty_text.</span></span>
-<span><span class="va">date_ui_text</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_merge_ui_text.html">ptr_merge_ui_text</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>    <span class="co"># Fallback for any `date` placeholder not matched by a more specific rule.</span></span>
-<span>    defaults <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>date <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Pick any date"</span><span class="op">)</span><span class="op">)</span>,</span>
-<span></span>
-<span>    <span class="co"># Overrides the label when the argument is named `xintercept`, regardless of layer.</span></span>
-<span>    params <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>      xintercept <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>date <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Reference date"</span><span class="op">)</span><span class="op">)</span></span>
-<span>    <span class="op">)</span>,</span>
-<span></span>
-<span>    <span class="co"># Most specific: overrides copy only for `date` inside `geom_vline(xintercept = ...)`.</span></span>
-<span>    <span class="co"># This wins over both `defaults` and `params` for that exact occurrence.</span></span>
-<span>    layers <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>      geom_vline <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>        date <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>          xintercept <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>help <span class="op">=</span> <span class="st">"Choose a cutoff date for the vertical guide."</span><span class="op">)</span></span>
-<span>        <span class="op">)</span></span>
-<span>      <span class="op">)</span></span>
-<span>    <span class="op">)</span></span>
-<span>  <span class="op">)</span>,</span>
+<p>Useful for batch reports, tests, and custom pipelines. The registry
+is stored on the returned <code>ptr_obj</code>, so downstream calls such
+as <code><a href="../reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec()</a></code> and <code><a href="../reference/ptr_exec.html">ptr_exec()</a></code>
+pick it up automatically.</p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_parse_formula.html">ptr_parse_formula</a></span><span class="op">(</span></span>
+<span>  <span class="st">"ggplot(data = sales, aes(x = day, y = value)) +</span></span>
+<span><span class="st">    geom_line() +</span></span>
+<span><span class="st">    geom_vline(xintercept = date)"</span>,</span>
 <span>  placeholders <span class="op">=</span> <span class="va">placeholders</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># ptr_resolve_ui_text() returns the fully merged copy record for one occurrence.</span></span>
-<span><span class="co"># Precedence applied: layers &gt; params &gt; defaults &gt; copy_defaults from the placeholder.</span></span>
-<span><span class="co"># The result is what build_ui() receives as its `copy` argument.</span></span>
-<span><span class="fu"><a href="../reference/ptr_resolve_ui_text.html">ptr_resolve_ui_text</a></span><span class="op">(</span></span>
-<span>  <span class="st">"control"</span>,          <span class="co"># component: "control" selects the placeholder widget component</span></span>
-<span>  keyword    <span class="op">=</span> <span class="st">"date"</span>,</span>
-<span>  layer_name <span class="op">=</span> <span class="st">"geom_vline"</span>,</span>
-<span>  param      <span class="op">=</span> <span class="st">"xintercept"</span>,</span>
-<span>  ui_text    <span class="op">=</span> <span class="va">date_ui_text</span>,</span>
-<span>  placeholders <span class="op">=</span> <span class="va">placeholders</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; $label</span></span>
-<span><span class="co">#&gt; [1] "Reference date"</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $help</span></span>
-<span><span class="co">#&gt; [1] "Choose a cutoff date for the vertical guide."</span></span></code></pre></div>
+<span><span class="va">spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec</a></span><span class="op">(</span><span class="va">obj</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">spec</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "input_id"   "role"       "layer_name" "keyword"    "param_key" </span></span>
+<span><span class="co">#&gt; [6] "source_id"</span></span></code></pre></div>
 </div>
-<div class="section level2">
-<h2 id="using-custom-placeholders-with-shiny-integration-helpers">Using custom placeholders with Shiny integration helpers<a class="anchor" aria-label="anchor" href="#using-custom-placeholders-with-shiny-integration-helpers"></a>
-</h2>
-<p>The phase-1 Shiny integration helpers work with custom placeholder
-registries too.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="section level3">
+<h3 id="manual-embedding-with-ptr_input_ui-ptr_server_state-level-2">Manual embedding with <code>ptr_input_ui()</code> /
+<code>ptr_server_state()</code> — Level 2<a class="anchor" aria-label="anchor" href="#manual-embedding-with-ptr_input_ui-ptr_server_state-level-2"></a>
+</h3>
+<p>For embedding ggpaintr inside an existing Shiny app, pass
+<code>placeholders</code> through <code><a href="../reference/ptr_server_state.html">ptr_server_state()</a></code> — it
+flows from there into the controls, plot, and code registrations
+automatically.</p>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_build_ids.html">ptr_build_ids</a></span><span class="op">(</span></span>
 <span>  control_panel <span class="op">=</span> <span class="st">"builder_controls"</span>,</span>
-<span>  draw_button <span class="op">=</span> <span class="st">"render_plot"</span>,</span>
-<span>  plot_output <span class="op">=</span> <span class="st">"main_plot"</span>,</span>
-<span>  error_output <span class="op">=</span> <span class="st">"main_error"</span>,</span>
-<span>  code_output <span class="op">=</span> <span class="st">"main_code"</span></span>
+<span>  draw_button   <span class="op">=</span> <span class="st">"render_plot"</span>,</span>
+<span>  plot_output   <span class="op">=</span> <span class="st">"main_plot"</span>,</span>
+<span>  error_output  <span class="op">=</span> <span class="st">"main_error"</span>,</span>
+<span>  code_output   <span class="op">=</span> <span class="st">"main_code"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidPage</a></span><span class="op">(</span></span>
 <span>  <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarLayout</a></span><span class="op">(</span></span>
-<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarPanel</a></span><span class="op">(</span></span>
-<span>      <span class="fu"><a href="../reference/ptr_input_ui.html">ptr_input_ui</a></span><span class="op">(</span>ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>    <span class="op">)</span>,</span>
-<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">mainPanel</a></span><span class="op">(</span></span>
-<span>      <span class="fu"><a href="../reference/ptr_output_ui.html">ptr_output_ui</a></span><span class="op">(</span>ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>    <span class="op">)</span></span>
+<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarPanel</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_input_ui.html">ptr_input_ui</a></span><span class="op">(</span>ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">mainPanel</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_output_ui.html">ptr_output_ui</a></span><span class="op">(</span>ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span><span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -491,7 +685,7 @@ registries too.</p>
 <span>    <span class="st">"ggplot(data = sales, aes(x = day, y = value)) +</span></span>
 <span><span class="st">      geom_line() +</span></span>
 <span><span class="st">      geom_vline(xintercept = date)"</span>,</span>
-<span>    ids <span class="op">=</span> <span class="va">ids</span>,</span>
+<span>    ids          <span class="op">=</span> <span class="va">ids</span>,</span>
 <span>    placeholders <span class="op">=</span> <span class="va">placeholders</span></span>
 <span>  <span class="op">)</span></span>
 <span></span>
@@ -500,16 +694,81 @@ registries too.</p>
 <span>  <span class="fu"><a href="../reference/ptr_register_plot.html">ptr_register_plot</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="../reference/ptr_register_error.html">ptr_register_error</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="../reference/ptr_register_code.html">ptr_register_code</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span><span class="op">}</span></span></code></pre></div>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/shinyApp.html" class="external-link">shinyApp</a></span><span class="op">(</span><span class="va">ui</span>, <span class="va">server</span><span class="op">)</span></span></code></pre></div>
+<p>See <code><a href="../articles/ggpaintr-extensibility.html">vignette("ggpaintr-extensibility")</a></code> §3 for the full
+Level-2 embed walkthrough.</p>
+</div>
+</div>
+<div class="section level2">
+<h2 id="copy-defaults-inside-a-placeholder-definition">Copy defaults inside a placeholder definition<a class="anchor" aria-label="anchor" href="#copy-defaults-inside-a-placeholder-definition"></a>
+</h2>
+<p><code>copy_defaults</code> ships default copy with the placeholder
+itself, so every downstream app that uses it gets sensible labels
+without extra work. The supported fields match the four leaf fields in
+<code><a href="../reference/ptr_resolve_ui_text.html">ptr_resolve_ui_text()</a></code>: <code>label</code>,
+<code>help</code>, <code>placeholder</code>, <code>empty_text</code>.
+Strings may reference <code>{param}</code> and
+<code>{layer_name}</code>.</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">annotated_date</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
+<span>  keyword  <span class="op">=</span> <span class="st">"date"</span>,</span>
+<span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rstudio.github.io/htmltools/reference/tagList.html" class="external-link">tagList</a></span><span class="op">(</span></span>
+<span>      <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/dateInput.html" class="external-link">dateInput</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span><span class="op">$</span><span class="va">label</span><span class="op">)</span>,</span>
+<span>      <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nchar.html" class="external-link">nzchar</a></span><span class="op">(</span><span class="va">copy</span><span class="op">$</span><span class="va">help</span><span class="op">)</span><span class="op">)</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/helpText.html" class="external-link">helpText</a></span><span class="op">(</span><span class="va">copy</span><span class="op">$</span><span class="va">help</span><span class="op">)</span></span>
+<span>    <span class="op">)</span></span>
+<span>  <span class="op">}</span>,</span>
+<span>  resolve_expr <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_missing_expr.html">ptr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="op">}</span>,</span>
+<span>  copy_defaults <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    label <span class="op">=</span> <span class="st">"Choose a {param} date"</span>,</span>
+<span>    help  <span class="op">=</span> <span class="st">"Used by {layer_name}."</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># ptr_resolve_ui_text() shows the final text a `build_ui` call would receive.</span></span>
+<span><span class="fu"><a href="../reference/ptr_resolve_ui_text.html">ptr_resolve_ui_text</a></span><span class="op">(</span></span>
+<span>  component    <span class="op">=</span> <span class="st">"control"</span>,</span>
+<span>  keyword      <span class="op">=</span> <span class="st">"date"</span>,</span>
+<span>  layer_name   <span class="op">=</span> <span class="st">"geom_vline"</span>,</span>
+<span>  param        <span class="op">=</span> <span class="st">"xintercept"</span>,</span>
+<span>  placeholders <span class="op">=</span> <span class="fu"><a href="../reference/ptr_merge_placeholders.html">ptr_merge_placeholders</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>date <span class="op">=</span> <span class="va">annotated_date</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt; $label</span></span>
+<span><span class="co">#&gt; [1] "Choose a xintercept date"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $help</span></span>
+<span><span class="co">#&gt; [1] "Used by {layer_name}."</span></span></code></pre></div>
+<p>Everything beyond <code>copy_defaults</code> — the three-layer merge
+precedence (<code>defaults</code> / <code>params</code> /
+<code>layers</code>), <code><a href="../reference/ptr_merge_ui_text.html">ptr_merge_ui_text()</a></code> and the
+<code>shell</code> chrome copy — is covered in
+<code><a href="../articles/ggpaintr-extensibility.html">vignette("ggpaintr-extensibility")</a></code> §3d. That section walks
+through the full override catalogue and shows a worked example of a
+single placeholder receiving different copy under each layer.</p>
 </div>
 <div class="section level2">
 <h2 id="summary">Summary<a class="anchor" aria-label="anchor" href="#summary"></a>
 </h2>
-<p>The placeholder registry is the developer-facing extension point for
-adding new control types without editing parser, UI, runtime, or
-copy-rule internals. Start with <code>build_ui()</code> plus
-<code>resolve_expr()</code>, add the optional hooks only when needed,
-and pass the same registry through parsing and app launch.</p>
+<ol style="list-style-type: decimal">
+<li>A placeholder is a bundle of two required hooks
+(<code>build_ui</code>, <code>resolve_expr</code>) and three optional
+ones (<code>resolve_input</code>, <code>bind_ui</code>,
+<code>prepare_eval_env</code>) plus <code>copy_defaults</code>.</li>
+<li>
+<code><a href="../reference/ptr_merge_placeholders.html">ptr_merge_placeholders()</a></code> turns your custom entries into
+a registry that still knows the built-ins, and custom entries win on
+name clash.</li>
+<li>Every public API that accepts formulas also accepts a
+<code>placeholders = ...</code> argument.</li>
+<li>For copy customisation beyond <code>copy_defaults</code>, use the
+<code>ui_text</code> system — see
+<code><a href="../articles/ggpaintr-extensibility.html">vignette("ggpaintr-extensibility")</a></code> §3d.</li>
+</ol>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

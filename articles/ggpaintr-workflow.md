@@ -1,146 +1,526 @@
 # ggpaintr Workflow
 
-## Overview
-
-`ggpaintr` now focuses on the `ggpaintr` workflow. A plot is described
-as one ggplot-like formula string. Placeholder tokens inside that string
-are converted into Shiny controls, completed with current inputs,
-evaluated into a plot, and rendered with generated code and readable
-runtime feedback.
-
-Supported placeholders are:
-
-- `var`
-- `text`
-- `num`
-- `expr`
-- `upload`
-
-`upload` currently supports `.csv` and `.rds`.
-
-## Parsing a formula
-
 ``` r
 library(ggpaintr)
 library(ggplot2)
-
-# Each placeholder token in the formula becomes a Shiny input widget:
-#   var   → selectInput  (column chooser; populated from the active dataset)
-#   num   → numericInput
-#   text  → textInput    (value used as a string literal)
-#   expr  → textInput    (value is parsed as an R expression at runtime)
-#   upload → fileInput + textInput (upload a .csv or .rds and name it)
-obj <- ptr_parse_formula(
-  "ggplot(data = iris, aes(x = var, y = var)) +
-    geom_point(aes(color = var), size = num) +
-    labs(title = text) +
-    facet_wrap(expr)"
-)
-
-names(obj$expr_list)          # one entry per ggplot layer
-#> [1] "ggplot"     "geom_point" "labs"       "facet_wrap"
-names(obj$keywords_list$ggplot)  # placeholder locations inside the ggplot() call
-#> [1] "ggplot_3_2" "ggplot_3_3"
 ```
 
-## Building runtime output
+## 1. Motivation
+
+Teaching ggplot, exploring a new dataset, or running a quick demo
+usually means writing a small Shiny app so the audience can click
+through variables. That app is almost always boilerplate: a sidebar of
+[`selectInput()`](https://rdrr.io/pkg/shiny/man/selectInput.html)s, a
+[`renderPlot()`](https://rdrr.io/pkg/shiny/man/renderPlot.html), and a
+harness that rebuilds the plot whenever inputs change.
+
+`ggpaintr` removes the boilerplate. You describe the plot once with a
+**formula string** that looks like ordinary ggplot code, and `ggpaintr`
+turns each placeholder token in the string into the right Shiny input
+widget, evaluates the completed call, and renders both the plot and the
+generated code.
+
+The workflow is aimed at three situations:
+
+- **Teaching** — show how changing one aesthetic (`color = var`) changes
+  the plot without writing UI code.
+- **Exploration** — point the app at a dataset and try several
+  aesthetic-to-column assignments before committing to one.
+- **Prototyping** — stand up an interactive plot in minutes to share
+  with collaborators, then later migrate the generated ggplot call into
+  a reproducible script or report.
+
+This vignette covers **Level 1** of `ggpaintr`: spinning up a one-call
+app. Levels 2 and 3 (embedding ggpaintr into your own Shiny app, and
+driving the runtime directly without Shiny) are covered in
+[`vignette("ggpaintr-extensibility")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-extensibility.md)
+and
+[`vignette("ggpaintr-placeholder-registry")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-placeholder-registry.md).
+
+## 2. The formula syntax
+
+A ggpaintr formula is a single string that looks like a ggplot call,
+except that some argument positions hold a **placeholder keyword**
+instead of a literal value. When the app starts, each keyword is
+replaced by a Shiny input widget whose current value is substituted back
+into the call at draw time.
+
+The `+` operator still separates ggplot layers. Each call to
+[`ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html),
+`geom_*()`,
+[`labs()`](https://ggplot2.tidyverse.org/reference/labs.html),
+`facet_*()`, `scale_*()`, etc. is one layer; layers other than
+[`ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html) get an
+on/off checkbox in the UI so the viewer can add or drop them.
+
+### 2.1 The five placeholder keywords
+
+`ggpaintr` ships with five built-in keywords. They differ in what widget
+they produce and what kind of value they feed back into the ggplot call.
+
+| Keyword  | Widget                                                                                                                             | Produces at runtime          | Typical use                               |
+|----------|------------------------------------------------------------------------------------------------------------------------------------|------------------------------|-------------------------------------------|
+| `var`    | [`selectInput()`](https://rdrr.io/pkg/shiny/man/selectInput.html) of data-frame columns                                            | column name as a symbol      | mappings like `x = var`, `color = var`    |
+| `text`   | [`textInput()`](https://rdrr.io/pkg/shiny/man/textInput.html)                                                                      | string literal               | `labs(title = text)`, category filters    |
+| `num`    | [`numericInput()`](https://rdrr.io/pkg/shiny/man/numericInput.html)                                                                | numeric value                | `size = num`, `alpha = num`               |
+| `expr`   | [`textInput()`](https://rdrr.io/pkg/shiny/man/textInput.html) (parsed as R expression)                                             | arbitrary R expression       | `facet_wrap(expr)`, `aes(x = expr)` maths |
+| `upload` | [`fileInput()`](https://rdrr.io/pkg/shiny/man/fileInput.html) + name [`textInput()`](https://rdrr.io/pkg/shiny/man/textInput.html) | a named data frame in memory | supply the dataset from the browser       |
+
+Each subsection below shows the minimum formula that exercises the
+keyword.
+
+#### `var` — choose a column
+
+`var` binds to a column of the active dataset. In the UI it becomes a
+[`selectInput()`](https://rdrr.io/pkg/shiny/man/selectInput.html) whose
+choices are the column names of the data frame (either the one you
+passed as `data =` or one uploaded via `upload`). At runtime the
+selected name is injected as a symbol, so the expression `aes(x = var)`
+becomes `aes(x = Sepal.Length)`.
 
 ``` r
-# ptr_runtime_input_spec() returns a data frame describing every input that
-# ptr_exec() expects. Key columns:
-#   input_id   — the Shiny input id string (treat as opaque; discover via spec)
-#   role       — "layer_checkbox" (toggle a layer on/off), "placeholder" (a widget value),
-#                or "upload_name" (the name-field companion of an upload placeholder)
-#   layer_name — the ggplot layer this input belongs to (e.g. "geom_point")
-#   param_key  — the ggplot argument name (e.g. "x", "color"); NA for unnamed placeholders
-#   keyword    — the placeholder type ("var", "num", "text", "expr")
-#   source_id  — the input_id of the parent placeholder; for "upload_name" rows this
-#                links back to the corresponding "placeholder" row
+ptr_app(
+  "ggplot(data = mtcars, aes(x = var, y = var)) +
+     geom_point()"
+)
+```
+
+A few behaviors worth knowing:
+
+- When the dataset is supplied via `data =`, `var` choices are populated
+  up front.
+- When the dataset is supplied by an `upload` placeholder, `var` widgets
+  are **deferred** until the upload resolves. You will see a short
+  placeholder message in the UI in the meantime.
+- Non-syntactic column names (spaces, leading digits, symbols) are
+  normalized to syntactic identifiers — see [§4. Data
+  sources](#id_4-data-sources).
+
+#### `text` — a string literal
+
+`text` is a free-form string. The value is injected verbatim as a
+character literal — it is **not** parsed as R code. Use it for titles,
+labels, and other pure string inputs.
+
+``` r
+ptr_app(
+  "ggplot(data = mtcars, aes(x = var, y = var)) +
+     geom_point() +
+     labs(title = text)"
+)
+```
+
+#### `num` — a numeric value
+
+`num` becomes a
+[`numericInput()`](https://rdrr.io/pkg/shiny/man/numericInput.html). The
+value is a plain number, suitable for arguments like `size`, `alpha`,
+`width`, or `binwidth`.
+
+``` r
+ptr_app(
+  "ggplot(data = mtcars, aes(x = var, y = var)) +
+     geom_point(size = num)"
+)
+```
+
+#### `expr` — an R expression
+
+`expr` is the escape hatch. The value you type in the widget is **parsed
+as an R expression** at draw time, so you can pass things like
+`log(mpg)`, `~ cyl`, or `factor(gear)`.
+
+Because `expr` evaluates user input, it is gated by an expression safety
+check. The check is on by default; see the `expr_check` argument in §3.
+
+``` r
+ptr_app(
+  "ggplot(data = mtcars, aes(x = var, y = var)) +
+     geom_point() +
+     facet_wrap(expr)"
+)
+```
+
+#### `upload` — load a dataset from the browser
+
+`upload` lets the viewer supply the dataset themselves. It renders a
+[`fileInput()`](https://rdrr.io/pkg/shiny/man/fileInput.html) that
+accepts `.csv` and `.rds` files, plus a companion
+[`textInput()`](https://rdrr.io/pkg/shiny/man/textInput.html) where the
+user gives the uploaded object a name (e.g. `penguins`). Any `var`
+placeholders that reference that name are wired to the uploaded data
+frame once the upload completes.
+
+``` r
+ptr_app(
+  "ggplot(data = upload, aes(x = var, y = var)) +
+     geom_point()"
+)
+```
+
+### 2.2 Combining placeholders
+
+Placeholders compose. Here is a formula that uses all five:
+
+``` r
+ptr_app(
+  "ggplot(data = upload, aes(x = var, y = var)) +
+     geom_point(aes(color = var), size = num) +
+     labs(title = text) +
+     facet_wrap(expr)"
+)
+```
+
+The resulting app has:
+
+- one upload widget (with a name field) for the data,
+- three column selectors (`x`, `y`, `color`),
+- one numeric input (`size`),
+- one text input (title),
+- one expression input (faceting formula),
+- one “Update plot” button,
+- one checkbox per
+  non-[`ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html)
+  layer to toggle it on and off.
+
+## 3. Level 1 — launching an app
+
+Two entry points cover the common cases.
+
+### 3.1 `ptr_app()`
+
+[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+produces a minimal Shiny app with a fluid-page shell: a single column of
+controls, a draw button, and the plot + code output below. It has no
+extra runtime dependencies beyond `shiny`.
+
+Full signature:
+
+``` r
+ptr_app(
+  formula,
+  envir = parent.frame(),
+  ui_text = NULL,
+  placeholders = NULL,
+  expr_check = TRUE
+)
+```
+
+| Argument       | Default                                                    | What it does                                                                                            |
+|----------------|------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
+| `formula`      | —                                                          | A single formula string using ggpaintr placeholders. Required.                                          |
+| `envir`        | [`parent.frame()`](https://rdrr.io/r/base/sys.parent.html) | Environment used to resolve bare data object names (e.g. `data = mtcars`) in the formula.               |
+| `ui_text`      | `NULL`                                                     | Optional named list of UI copy overrides (labels, help text, placeholders). See extensibility vignette. |
+| `placeholders` | `NULL`                                                     | Optional custom placeholder definitions or a full registry. See placeholder-registry vignette.          |
+| `expr_check`   | `TRUE`                                                     | Controls `expr` placeholder safety validation. See §3.3.                                                |
+
+Smallest working example:
+
+``` r
+ptr_app(
+  "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+)
+```
+
+### 3.2 `ptr_app_bslib()`
+
+[`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)
+produces the same functional app but inside a
+[bslib](https://rstudio.github.io/bslib/) `page_sidebar()` shell with
+cards for the plot and generated code. Use it when you want a themed
+look without writing any Shiny UI code yourself.
+
+Full signature:
+
+``` r
+ptr_app_bslib(
+  formula,
+  envir = parent.frame(),
+  ui_text = NULL,
+  placeholders = NULL,
+  expr_check = TRUE,
+  theme = NULL,
+  title = "ggpaintr"
+)
+```
+
+| Argument       | Default                                                    | What it does                                                                                                                                            |
+|----------------|------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `formula`      | —                                                          | A single formula string using ggpaintr placeholders. Required.                                                                                          |
+| `envir`        | [`parent.frame()`](https://rdrr.io/r/base/sys.parent.html) | Environment used to resolve bare data object names in the formula.                                                                                      |
+| `ui_text`      | `NULL`                                                     | Optional named list of UI copy overrides. Same contract as [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md).              |
+| `placeholders` | `NULL`                                                     | Optional custom placeholder definitions or a registry. Same contract as [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md). |
+| `expr_check`   | `TRUE`                                                     | Controls `expr` placeholder validation. See §3.3.                                                                                                       |
+| `theme`        | `NULL` (→ `bslib::bs_theme(version = 5, "flatly")`)        | A [`bslib::bs_theme()`](https://rstudio.github.io/bslib/reference/bs_theme.html) object. Pass your own to restyle.                                      |
+| `title`        | `"ggpaintr"`                                               | The page header title. Also overridable via `ui_text$shell$title$label`.                                                                                |
+
+Requires `bslib`. If the package is not installed, the function errors
+at call time.
+
+Example with a different theme:
+
+``` r
+ptr_app_bslib(
+  "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+  theme = bslib::bs_theme(version = 5, bootswatch = "minty"),
+  title = "mtcars explorer"
+)
+```
+
+### 3.3 When to use which
+
+- Use
+  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+  for teaching, quick demos, and tests — it has the lightest dependency
+  footprint and matches typical RMarkdown output.
+- Use
+  [`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)
+  when the app will be shared with non-R users or shown as part of a
+  finished deliverable — the themed layout looks more polished with no
+  extra effort.
+
+Both functions return a `shiny.appobj`, so at the top level of an R
+session they launch the app immediately; inside a function or script you
+can assign the result and pass it to
+[`shiny::runApp()`](https://rdrr.io/pkg/shiny/man/runApp.html).
+
+### 3.4 The `expr_check` argument
+
+`expr` inputs are evaluated as R expressions. Because that is
+effectively `eval(parse(text = input))`, `ggpaintr` runs a safety check
+against a curated denylist of dangerous functions (file I/O, system
+calls, environment manipulation). The `expr_check` argument controls
+that check:
+
+| `expr_check` value                                            | Behavior                                                                                          |
+|---------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+| `TRUE` (default)                                              | Use the built-in denylist — recommended for interactive use.                                      |
+| `FALSE`                                                       | Disable all checking. Only safe when the app is running locally and you trust every user.         |
+| A list with `deny_list` and/or `allow_list` character vectors | Replace / augment the denylist. If both are given, denied entries are removed from the allowlist. |
+
+Leave it at `TRUE` unless you have a specific reason to change it.
+
+## 4. Data sources
+
+There are three ways to get a data frame into the running app.
+
+### 4.1 Pass `data = <object>` directly in the formula
+
+The simplest option. The name on the right of `data =` is resolved
+against `envir` (by default the calling frame). Any variable visible
+when you call
+[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+works.
+
+``` r
+mtcars2 <- dplyr::mutate(mtcars, cyl = factor(cyl))
+ptr_app(
+  "ggplot(data = mtcars2, aes(x = var, y = var)) + geom_point()"
+)
+```
+
+`var` choices are the columns of the named data frame and are populated
+as soon as the app starts.
+
+### 4.2 Use the `upload` placeholder
+
+Replace `data = <object>` with `data = upload` to let the viewer supply
+the dataset. The `upload` widget exposes a file picker (accepting `.csv`
+and `.rds`) plus a name field; the name is the symbol the uploaded data
+binds to inside the generated ggplot call.
+
+``` r
+ptr_app(
+  "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
+)
+```
+
+Until a file is uploaded and named, `var` widgets stay deferred and the
+draw button produces an inline “data not ready” message instead of a
+broken plot.
+
+### 4.3 Non-syntactic column names
+
+Column names that are not valid R identifiers (contain spaces, start
+with a digit, use punctuation) would break `aes(x = that name)` when
+injected as a symbol. `ggpaintr` normalizes them automatically:
+
+- Data passed through an `upload` placeholder is normalized at load time
+  by `ptr_normalize_tabular_data()`.
+- Data passed directly with `data = <object>` is **not** normalized
+  automatically — you are expected to pass a clean data frame.
+
+If you have a data frame with problematic names and want to drive it
+through `data =`, call
+[`ptr_normalize_column_names()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_normalize_column_names.md)
+yourself first:
+
+``` r
+dirty <- data.frame(`miles per gallon` = mtcars$mpg, `# cyl` = mtcars$cyl,
+                    check.names = FALSE)
+names(dirty)
+#> [1] "miles per gallon" "# cyl"
+
+clean <- ptr_normalize_column_names(dirty)
+names(clean)
+#> [1] "miles_per_gallon" "cyl"
+```
+
+The signature is simply `ptr_normalize_column_names(data)`. Any object
+that [`as.data.frame()`](https://rdrr.io/r/base/as.data.frame.html)
+accepts is allowed; the function returns a data frame with names run
+through `make.names(unique = TRUE)` (with empty names filled in as `V1`,
+`V2`, …).
+
+## 5. What happens when you click “Update plot”
+
+Knowing the pipeline at a high level helps when an app misbehaves. The
+full sequence is:
+
+    formula string
+          │
+          ▼
+    ptr_parse_formula()        ── parses formula, finds placeholders,
+          │                       builds an internal ptr_obj
+          ▼
+    ptr_runtime_input_spec()   ── enumerates every Shiny input the app
+          │                       needs (one row per placeholder, one per
+          │                       layer checkbox, one per upload-name field)
+          ▼
+    UI is built                ── each spec row becomes a widget via the
+          │                       placeholder registry's build_ui hook
+          ▼
+    user clicks "Update plot"
+          │
+          ▼
+    ptr_exec(ptr_obj, input)   ── substitutes input values into the
+          │                       expression list, assembles ggplot
+          │                       layers, renders the plot
+          ▼
+    plot + code text output
+
+Two of those steps are public functions you can call directly —
+[`ptr_parse_formula()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_parse_formula.md)
+and
+[`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md).
+That is the entry point to Level 3 (driving the runtime without Shiny)
+covered in the extensibility vignette. For Level 1 usage you do not need
+to touch either one.
+
+A tiny illustration of the first step:
+
+``` r
+obj <- ptr_parse_formula(
+  "ggplot(data = mtcars, aes(x = var, y = var)) +
+     geom_point(aes(color = var), size = num) +
+     labs(title = text)"
+)
+class(obj)
+#> [1] "ptr_obj"
+names(obj$expr_list)
+#> [1] "ggplot"     "geom_point" "labs"
+```
+
+Each element of `obj$expr_list` is one ggplot layer. Each entry of
+`obj$keywords_list` lists which placeholder keywords appear inside the
+corresponding layer.
+
+And the second step — inspecting the inputs the runtime expects:
+
+``` r
 spec <- ptr_runtime_input_spec(obj)
 spec
-#>              input_id           role layer_name keyword   param_key
-#> 1          ggplot_3_2    placeholder     ggplot     var           x
-#> 2          ggplot_3_3    placeholder     ggplot     var           y
-#> 3      geom_point_2_2    placeholder geom_point     var       color
-#> 4        geom_point_3    placeholder geom_point     num   linewidth
-#> 5              labs_2    placeholder       labs    text       title
-#> 6        facet_wrap_2    placeholder facet_wrap    expr __unnamed__
-#> 7 geom_point_checkbox layer_checkbox geom_point    <NA>        <NA>
-#> 8       labs_checkbox layer_checkbox       labs    <NA>        <NA>
-#> 9 facet_wrap_checkbox layer_checkbox facet_wrap    <NA>        <NA>
+#>              input_id           role layer_name keyword param_key
+#> 1          ggplot_3_2    placeholder     ggplot     var         x
+#> 2          ggplot_3_3    placeholder     ggplot     var         y
+#> 3      geom_point_2_2    placeholder geom_point     var     color
+#> 4        geom_point_3    placeholder geom_point     num linewidth
+#> 5              labs_2    placeholder       labs    text     title
+#> 6 geom_point_checkbox layer_checkbox geom_point    <NA>      <NA>
+#> 7       labs_checkbox layer_checkbox       labs    <NA>      <NA>
 #>        source_id
 #> 1     ggplot_3_2
 #> 2     ggplot_3_3
 #> 3 geom_point_2_2
 #> 4   geom_point_3
 #> 5         labs_2
-#> 6   facet_wrap_2
+#> 6           <NA>
 #> 7           <NA>
-#> 8           <NA>
-#> 9           <NA>
-
-# Build a named list keyed by input_id — the same shape as Shiny's input object.
-inputs <- setNames(vector("list", nrow(spec)), spec$input_id)
-
-# layer_checkbox inputs control whether a layer is included in the plot at all.
-# Set them all TRUE here to render every layer.
-inputs[spec$role == "layer_checkbox"] <- rep(list(TRUE), sum(spec$role == "layer_checkbox"))
-
-# For each placeholder, look up its input_id by filtering spec on layer_name + param_key
-# (or keyword for unnamed placeholders like num/expr), then assign the desired value.
-inputs[[spec$input_id[spec$layer_name == "ggplot"    & spec$param_key == "x"]]]      <- "Sepal.Length"
-inputs[[spec$input_id[spec$layer_name == "ggplot"    & spec$param_key == "y"]]]      <- "Sepal.Width"
-inputs[[spec$input_id[spec$layer_name == "geom_point" & spec$param_key == "color"]]] <- "Species"
-# num's param_key is "linewidth" because ptr_normalize_param_key() aliases size -> linewidth.
-# Either filter by keyword or by param_key == "linewidth".
-inputs[[spec$input_id[spec$layer_name == "geom_point" & spec$keyword == "num"]]]     <- 2.5
-inputs[[spec$input_id[spec$layer_name == "labs"       & spec$param_key == "title"]]] <- "Iris scatter"
-# expr values are strings; ptr_exec() parses them into R expressions internally
-inputs[[spec$input_id[spec$layer_name == "facet_wrap" & spec$keyword == "expr"]]]    <- "~ Species"
-
-runtime <- ptr_exec(obj, inputs)
-
-runtime$code_text               # completed ggplot call as a formatted string
-#> NULL
-inherits(runtime$plot, "ggplot") # TRUE when the plot rendered without error
-#> [1] FALSE
 ```
 
-[`ptr_runtime_input_spec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_runtime_input_spec.md)
-is the supported way to discover the low-level runtime inputs consumed
-by
-[`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md).
-Raw ids still appear in the returned data, but they should be treated as
-implementation details rather than as hand-authored examples.
+Columns in the returned data frame:
 
-## Launching an app
+- `input_id` — the Shiny input id. Treat as opaque; do not hand-author.
+- `role` — `"placeholder"` (a widget value), `"layer_checkbox"` (a layer
+  on/off toggle), or `"upload_name"` (the name field that accompanies an
+  `upload` placeholder).
+- `layer_name` — the ggplot layer the input belongs to (`"ggplot"`,
+  `"geom_point"`, …).
+- `param_key` — the ggplot argument name (`"x"`, `"color"`, …);
+  `NA_character_` for unnamed positional placeholders.
+- `keyword` — the placeholder type (`"var"`, `"num"`, …).
+- `source_id` — for `upload_name` rows, the `input_id` of the matching
+  `upload` placeholder row.
 
-``` r
-ptr_app("
-ggplot(data = iris, aes(x = var, y = var)) +
-  geom_point(aes(color = var), size = num) +
-  labs(title = text) +
-  facet_wrap(expr)
-")
-```
+## 6. Going further
 
-The generated app:
+### Level 2 — embed ggpaintr in your own Shiny app
 
-- renders one control tab per layer
-- delays `var` selectors until upload-backed data is available
-- clears the plot on failure
-- shows `Input error:` and `Plot error:` messages inline
-- preserves generated code when completion succeeds but plotting fails
+If you already have a Shiny app and want to drop ggpaintr controls into
+one of its tabs (or override `ui_text` for a single label), the Level 2
+API
+([`ptr_input_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_input_ui.md),
+[`ptr_output_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_output_ui.md),
+`ptr_register_*()`) is what you want.
 
-## Current behavior boundary
+After reading
+[`vignette("ggpaintr-extensibility")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-extensibility.md)
+you will know how to embed ggpaintr controls in your own Shiny app and
+override any label or help text.
 
-- Structural parse failures still stop the app before launch.
-- `var` placeholders still require a data source during UI preparation.
-- Missing local data objects such as `unknown_object` are deferred to
-  draw time.
-- Render-time ggplot failures such as missing faceting variables are
-  surfaced by the same runtime error path as other plot failures.
+### Level 3 — drive ggpaintr without Shiny
 
-For recipes that embed `ggpaintr` into an existing Shiny app with custom
-ids or custom plot rendering, see
-[`vignette("ggpaintr-extensibility")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-extensibility.md).
+Every step in the §5 pipeline is a public function, so you can parse a
+formula, fill in inputs from any source, and render a plot to a file
+without launching a Shiny server. This is useful for batch reports, test
+fixtures, and programmatic code generation.
+
+After reading
+[`vignette("ggpaintr-extensibility")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-extensibility.md)
+you will know how to drive
+[`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md)
+directly, post-process the plot object, and generate ggplot code strings
+from a formula.
+
+### Adding new placeholder types
+
+If none of the five built-in keywords fit your input (say you want a
+date picker or a slider), the placeholder registry lets you add a new
+keyword and plug it into any ggpaintr app.
+
+After reading
+[`vignette("ggpaintr-placeholder-registry")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-placeholder-registry.md)
+you will know how to add a new placeholder type end-to-end — every
+required and optional hook, the metadata contract, and how to plug your
+placeholder into
+[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md),
+[`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md),
+and manual Shiny embeds.
+
+## 7. Current behavior boundary
+
+A few things to keep in mind while using Level 1:
+
+- Structural parse failures (unbalanced parens, invalid R syntax) stop
+  the app before it launches.
+- `var` placeholders require a data source to finish UI preparation.
+  With `data = <object>` that happens immediately; with `data = upload`
+  it is deferred until the file is uploaded.
+- Missing local data objects (e.g. `data = unknown_object`) are deferred
+  to draw time — the app launches, and the error surfaces inline after
+  clicking “Update plot”.
+- Render-time ggplot failures (missing columns, invalid aesthetics, bad
+  `expr` values) are surfaced by the same inline error path as other
+  plot failures.
+- Generated code is preserved when input completion succeeds but
+  plotting fails, so you can inspect what ggpaintr tried to run.
