@@ -1,8 +1,8 @@
 ---
-title: "ggpaintr Placeholder Registry"
+title: "Custom Placeholders with the ggpaintr Registry"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{ggpaintr Placeholder Registry}
+  %\VignetteIndexEntry{Custom Placeholders with the ggpaintr Registry}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -18,32 +18,99 @@ knitr::opts_chunk$set(
 library(ggpaintr)
 library(ggplot2)
 library(rlang)
+library(shiny)
 ```
 
 ```{r clipboard, echo = FALSE}
 xaringanExtra::use_clipboard()
 ```
 
-## Overview
+## Why a placeholder registry?
 
-`ggpaintr` now supports per-app placeholder registries. That means downstream
-developers can define a new placeholder once, pass it into
-`ptr_parse_formula()`, `ptr_app()`, or `ptr_server_state()`, and keep the rest
-of the package runtime unchanged.
+The five built-in placeholder keywords (`var`, `text`, `num`, `expr`, `upload`)
+cover the common cases, but real apps need more: date pickers, sliders bound
+to data extents, colour pickers, row-filter widgets, and so on. The
+**placeholder registry** is the extension point that lets you add such
+widgets without patching the parser, the runtime, or the copy system.
 
-The public entry points for this layer are:
+Concretely, the registry lets you:
 
-- `ptr_define_placeholder()`
-- `ptr_merge_placeholders()`
-- `ptr_missing_expr()`
+- **Add a new placeholder keyword.** Register a `date` placeholder and use
+  `date` inside any formula, e.g. `geom_vline(xintercept = date)`.
+- **Replace a built-in widget.** Swap `var`'s `selectInput()` for
+  `shinyWidgets::pickerInput()` without touching package internals.
+- **Ship placeholders from another package.** A registry is a plain list, so
+  an external package can export `placeholders = ...` that downstream apps
+  pass into `ptr_app()`.
 
-Built-in placeholders such as `var`, `text`, `num`, `expr`, and `upload` now
-use the same registry path as custom placeholders.
+Before reading further, make sure you are comfortable with the formula
+syntax and the built-in placeholders — those are covered in
+`vignette("ggpaintr-workflow")`. This vignette focuses on what you add
+**on top** of that foundation.
 
-## A minimal custom placeholder
+## The placeholder contract at a glance
 
-This `date` placeholder adds a Shiny `dateInput()` control and turns the chosen
-date into `as.Date("YYYY-MM-DD")` in generated code.
+A placeholder is the value returned by `ptr_define_placeholder()`. It bundles
+up to five hooks and a copy-defaults list. Only two hooks are required:
+
+| Hook | Signature | Required? | Purpose |
+|------|-----------|-----------|---------|
+| `build_ui` | `function(id, copy, meta, context)` | **required** | Return the Shiny tag for one placeholder occurrence. |
+| `resolve_expr` | `function(value, meta, context)` | **required** | Turn the current widget value into an R expression spliced into the generated ggplot call. |
+| `resolve_input` | `function(input, id, meta, context)` | optional | Pre-process the raw Shiny input before it reaches `resolve_expr`. Defaults to `input[[id]]`. |
+| `bind_ui` | `function(input, output, metas, context)` | optional | Reactive wiring inside the server (e.g. `renderUI`, `observe`, `updateSelectInput`). Runs once per keyword with the list of occurrences. |
+| `prepare_eval_env` | `function(input, metas, eval_env, context)` | optional | Inject objects into the environment where the completed formula is evaluated; must return `eval_env`. |
+
+Every hook receives two shared records:
+
+**`meta`** — describes the specific occurrence of the placeholder in the
+formula. Fields set by the parser:
+
+- `id` — Shiny input id ggpaintr generated for this occurrence.
+- `keyword` — the placeholder keyword (e.g. `"date"`).
+- `layer_name` — the ggplot layer, e.g. `"geom_vline"`.
+- `param` — the argument name (`"xintercept"`), or `""` for positional args.
+- `index_path` — integer vector pointing into the parsed expression tree.
+
+**`context`** — shared read-only environment:
+
+- `context$ptr_obj` — the parsed `ptr_obj`, including `placeholder_map`.
+- `context$placeholders` — the active placeholder registry.
+- `context$ui_text` — merged copy rules.
+- `context$envir` — caller environment (used to resolve data symbols).
+- `context$eval_env`, `context$var_column_map` — set in Shiny mode; `NULL`
+  elsewhere.
+
+The copy-defaults list may set any of the four leaf fields ggpaintr
+understands: `label`, `help`, `placeholder`, `empty_text`. Strings support
+`{param}` / `{layer}` / `{layer_name}` interpolation. Use `ptr_missing_expr()`
+from `resolve_expr` when an occurrence should be **removed** from the
+completed expression (rather than rendered as `NULL`).
+
+## Built-in placeholders
+
+The five built-ins use the same registry path as any custom placeholder.
+The table below shows which hooks each one defines — a useful reference
+when you want to mimic or replace one.
+
+| Keyword | Widget | Value produced | Hooks used |
+|---------|--------|----------------|------------|
+| `var` | Dynamic `selectInput` of data columns | Column name as a symbol | `build_ui`, `resolve_expr`, `bind_ui` |
+| `text` | `textInput` | String literal | `build_ui`, `resolve_expr` |
+| `num` | `numericInput` | Numeric scalar | `build_ui`, `resolve_expr` |
+| `expr` | Text field parsed as R | Arbitrary expression (safety-checked) | `build_ui`, `resolve_expr` |
+| `upload` | File input + format picker | User-supplied data frame bound in eval env | `build_ui`, `resolve_expr`, `resolve_input`, `prepare_eval_env` |
+
+`var` uses `bind_ui` because its choices can only be populated after the
+data is known at runtime. `upload` uses `prepare_eval_env` because the
+uploaded data frame has to live in the eval environment under the name the
+user typed.
+
+## A minimal custom placeholder — a date picker
+
+Here is a complete end-to-end example: define a `date` placeholder, use it
+in a formula, inspect the generated metadata, and launch a Shiny app that
+drives it.
 
 ```{r date-placeholder}
 sales <- data.frame(
@@ -52,77 +119,36 @@ sales <- data.frame(
 )
 
 date_placeholder <- ptr_define_placeholder(
-  # keyword: the token written inside the formula string (e.g. `date` in
-  # `geom_vline(xintercept = date)`). Must be a valid R name.
   keyword = "date",
-
-  # build_ui: produces the Shiny widget for one placeholder occurrence.
-  # Arguments:
-  #   id      — the Shiny input id generated by ggpaintr; pass it to the widget
-  #             so the reactive system can read it with input[[id]].
-  #   copy    — resolved label/help text for this occurrence. A named list with
-  #             fields: $label, $help, $placeholder, $empty_text.
-  #             Values come from copy_defaults (defined below), and can be
-  #             overridden per-param or per-layer via ptr_merge_ui_text().
-  #   meta    — metadata record for this specific placeholder occurrence:
-  #               meta$id          same as `id` above
-  #               meta$keyword     "date"
-  #               meta$layer_name  the ggplot layer (e.g. "geom_vline")
-  #               meta$param       the argument name (e.g. "xintercept")
-  #             Use meta$param or meta$layer_name to vary widget behaviour by
-  #             context (e.g. different defaults per argument).
-  #   context — shared read-only environment:
-  #               context$ptr_obj       the full parsed formula object
-  #               context$placeholders  the active placeholder registry
-  #               context$ui_text       merged copy rules
-  #               context$envir         calling environment (for resolving data)
   build_ui = function(id, copy, meta, context) {
-    shiny::dateInput(id, copy$label)  # copy$label is filled from copy_defaults below
+    shiny::dateInput(id, copy$label)
   },
-
-  # resolve_expr: converts the current widget value into an R expression that
-  # replaces the `date` token in the completed formula.
-  # Arguments:
-  #   value   — the current input value (result of input[[id]], or of
-  #             resolve_input() if that hook is defined)
-  #   meta    — same metadata record as in build_ui
-  #   context — same shared environment as in build_ui
   resolve_expr = function(value, meta, context) {
-    # ptr_missing_expr() signals that this argument should be dropped from the
-    # completed formula entirely (rather than inserting a NULL or NA).
     if (is.null(value) || identical(as.character(value), "")) {
       return(ptr_missing_expr())
     }
-
-    # !! (unquote) splices the runtime value into the expression at build time.
-    # The result here is the call `as.Date("2024-01-03")` embedded in the plot code.
     rlang::expr(as.Date(!!as.character(value)))
   },
-
-  # copy_defaults: default label/help text shown for every occurrence of this
-  # placeholder. {param} is a glue-style template filled with meta$param at
-  # runtime (e.g. "xintercept" → "Choose a date for xintercept").
-  # Override specific occurrences with ptr_merge_ui_text().
   copy_defaults = list(label = "Choose a date for {param}")
 )
+```
 
-# ptr_merge_placeholders() merges custom placeholders into the built-in registry
-# (var, text, num, expr, upload). The result is a complete registry that can be
-# passed as `placeholders =` to ptr_parse_formula(), ptr_app(), ptr_exec(), etc.
-# Custom entries override built-ins of the same keyword name.
+`ptr_merge_placeholders()` combines your custom entries with the built-ins
+so the registry you pass downstream still understands `var`, `text`, etc.
+Custom entries with a built-in keyword override the built-in.
+
+```{r merge-placeholders}
 placeholders <- ptr_merge_placeholders(
   list(date = date_placeholder)
 )
 
-names(placeholders)  # built-ins + "date"
+names(placeholders)
 ```
 
-## Using the registry in parsing and runtime
+Parse a formula with the enriched registry and inspect the metadata record
+the parser built for the `date` occurrence:
 
-Pass the registry through `placeholders = ...` anywhere you want custom
-placeholder support.
-
-```{r date-runtime}
+```{r date-parse}
 obj <- ptr_parse_formula(
   "ggplot(data = sales, aes(x = day, y = value)) +
     geom_line() +
@@ -130,24 +156,33 @@ obj <- ptr_parse_formula(
   placeholders = placeholders
 )
 
-# Input ids follow internal conventions — prefer discovering them via
-# ptr_runtime_input_spec(obj) rather than hard-coding strings.
-# The patterns shown here are for illustration only:
-#   "<layer>+checkbox"  — toggle that layer on (TRUE) or off (FALSE)
-#   "<layer>+<n>"       — the n-th placeholder in that layer (1-based)
+obj$placeholder_map$geom_vline[["geom_vline+2"]]
+```
+
+The fields match the `meta` record every hook receives — `id`, `keyword`,
+`layer_name`, `param`, `index_path`.
+
+Execute the plot headlessly with a concrete date. Prefer
+`ptr_runtime_input_spec(obj)` for discovering the expected input ids
+programmatically rather than hard-coding the `"geom_vline+2"` pattern used
+below for clarity.
+
+```{r date-exec}
 runtime <- ptr_exec(
   obj,
   list(
-    "geom_line+checkbox"  = TRUE,              # include geom_line in the plot
-    "geom_vline+checkbox" = TRUE,              # include geom_vline in the plot
-    "geom_vline+2"        = as.Date("2024-01-03")  # value for the date placeholder
+    "geom_line+checkbox"  = TRUE,
+    "geom_vline+checkbox" = TRUE,
+    "geom_vline+2"        = as.Date("2024-01-03")
   )
 )
 
 runtime$code_text
 ```
 
-The same registry can also be used in the higher-level wrappers.
+To launch a full Shiny app that drives the same placeholder interactively,
+use `ptr_app()` (see the final section for every API that accepts
+`placeholders = ...`):
 
 ```{r date-app, eval = FALSE}
 ptr_app(
@@ -158,244 +193,304 @@ ptr_app(
 )
 ```
 
-## The placeholder metadata contract
+## The five hooks in detail
 
-Every placeholder occurrence becomes one metadata record in
-`ptr_obj$placeholder_map`.
+### `build_ui(id, copy, meta, context)` — required
 
-```{r meta-record}
-meta <- obj$placeholder_map$geom_vline[["geom_vline+2"]]
-meta
-```
+Returns the Shiny tag for one placeholder occurrence. Called once per
+occurrence when ggpaintr constructs the control panel. `id` is the Shiny
+input id you must bind; `copy` is a named list with the four leaf fields
+(`label`, `help`, `placeholder`, `empty_text`) already resolved for this
+occurrence.
 
-Each metadata record contains:
-
-- `id`: the Shiny input id for that placeholder occurrence
-- `keyword`: the placeholder keyword, such as `date`
-- `layer_name`: the layer where the placeholder was found
-- `param`: the argument name, such as `xintercept`
-- `index_path`: the expression path used during replacement
-
-These fields are passed into every placeholder hook so custom placeholder code
-can behave differently by parameter or by layer.
-
-## The hook contract
-
-`ptr_define_placeholder()` supports one required UI hook, one required resolver
-hook, and three optional advanced hooks.
-
-### `build_ui(id, copy, meta, context)`
-
-`build_ui()` returns the UI control for one placeholder occurrence.
-
-```{r build-ui-example}
+```{r build-ui-peek}
 date_placeholder$build_ui
 ```
 
-The arguments are:
+`build_ui` has no access to reactives. If the widget needs to depend on
+current input values, return a container tag (e.g. `shiny::uiOutput()`)
+and finish wiring it inside `bind_ui()`.
 
-- `id`: the generated input id to bind
-- `copy`: resolved copy text for this control
-- `meta`: the metadata record for this occurrence
-- `context`: a named list containing `ptr_obj`, `placeholders`,
-  `ui_text`, and `envir`
+### `resolve_expr(value, meta, context)` — required
 
-### `resolve_expr(value, meta, context)`
+Turns the current widget value into an R expression that replaces the
+placeholder token in the completed code. Use `!!` (`rlang` unquoting) to
+splice the runtime value into the returned expression. Return
+`ptr_missing_expr()` to **drop** the argument from the completed
+expression entirely.
 
-`resolve_expr()` turns the current input value into an expression suitable for
-the completed plot expression.
+The returned value must be one of: a call, symbol, pairlist, character
+vector, or a scalar (`numeric`, `logical`, `integer`, `double`,
+`complex`, or `NULL`). Anything else is rejected with a clear error.
 
-```{r resolve-expr-example}
-date_placeholder$resolve_expr
-```
+### `resolve_input(input, id, meta, context)` — optional
 
-Return `ptr_missing_expr()` when the argument should be removed from the
-completed code instead of inserted.
-
-### `resolve_input(input, id, meta, context)`
-
-Use `resolve_input()` when the raw Shiny input needs preprocessing before it is
-handed to `resolve_expr()`. If omitted, `ggpaintr` uses `input[[id]]`.
+Runs before `resolve_expr` and lets you massage the raw Shiny input value.
+When omitted, ggpaintr passes `input[[id]]` straight through.
 
 ```{r resolve-input-example, eval = FALSE}
-trimmed_text_placeholder <- ptr_define_placeholder(
+trimmed_text <- ptr_define_placeholder(
   keyword = "trimmed_text",
   build_ui = function(id, copy, meta, context) {
     shiny::textInput(id, copy$label)
   },
-  # resolve_input: pre-processes the raw Shiny input value before it reaches
-  # resolve_expr(). If omitted, ggpaintr uses input[[id]] directly.
-  # Arguments:
-  #   input — the full Shiny input object (access any input, not just this one)
-  #   id    — the input id for this placeholder occurrence
-  #   meta, context — same as in build_ui and resolve_expr
-  # Return the cleaned value; it becomes `value` in resolve_expr().
   resolve_input = function(input, id, meta, context) {
-    trimws(input[[id]])  # strip leading/trailing whitespace before resolve_expr sees it
+    trimws(input[[id]])
   },
   resolve_expr = function(value, meta, context) {
-    if (identical(value, "")) {
-      return(ptr_missing_expr())
-    }
-
+    if (identical(value, "")) return(ptr_missing_expr())
     rlang::expr(!!value)
   }
 )
 ```
 
-### `bind_ui(input, output, metas, context)`
+### `bind_ui(input, output, metas, context)` — optional
 
-Use `bind_ui()` for deferred or dynamic UI registration. This is how the built-in
-`var` placeholder registers delayed `renderUI()` outputs after data is known.
+`bind_ui` is called once per keyword inside the Shiny server with the full
+list of occurrences (`metas`). Use it to register `renderUI()` outputs or
+`observe()` blocks for widgets that depend on reactive state. The return
+value is a named list of `renderUI()`-capable tags keyed by `meta$id`,
+which ggpaintr uses for deferred rendering; returning `NULL` or
+`invisible(NULL)` is fine.
 
-```{r bind-ui-example, eval = FALSE}
-deferred_placeholder <- ptr_define_placeholder(
-  keyword = "dynamic_text",
+### `prepare_eval_env(input, metas, eval_env, context)` — optional
+
+Runs immediately before the completed expression is evaluated. Use it to
+bind objects into the eval environment — uploaded data frames, helper
+functions, lookup tables. **The hook must return the modified
+`eval_env`**; ggpaintr does not mutate it in place.
+
+## A more complex example — `bind_ui` + `prepare_eval_env`
+
+This example defines a `log_num` placeholder that chooses a numeric column
+from the formula's `data` and wraps it in `log()` in the generated code.
+It uses `bind_ui` to populate a `selectInput` with the data's numeric
+columns, and `prepare_eval_env` to expose a small safe-log helper so the
+generated call stays readable.
+
+```{r log-num-placeholder}
+log_num <- ptr_define_placeholder(
+  keyword = "log_num",
+
+  # Return a container; fill it in from bind_ui once data is available.
   build_ui = function(id, copy, meta, context) {
-    # Return a placeholder container. The real widget is rendered later by bind_ui()
-    # once the data or other runtime context needed to build it is available.
-    shiny::uiOutput(paste0("dynamic-", id))
+    shiny::uiOutput(paste0(id, "_container"))
   },
-  # bind_ui: called during ptr_setup_controls() inside the Shiny server.
-  # Use it to register renderUI() observers for widgets that depend on reactive
-  # state (e.g. column names from an uploaded file).
-  # Unlike build_ui() — which runs once at UI construction time and has no
-  # access to reactives — bind_ui() runs inside the server and can read inputs.
-  # Arguments:
-  #   input, output — standard Shiny server arguments
-  #   metas   — list of metadata records, one per occurrence of this keyword;
-  #             each record has $id, $keyword, $layer_name, $param, $index_path
-  #   context — shared environment (ptr_obj, placeholders, ui_text, envir)
+
+  # Populate the selectInput with numeric columns drawn from the data
+  # symbol referenced in the formula (context$ptr_obj$ggdata).
   bind_ui = function(input, output, metas, context) {
+    eval_env <- context$eval_env
+    data_name <- context$ptr_obj$ggdata
+    numeric_cols <- character(0)
+    if (!is.null(eval_env) && is.character(data_name) &&
+        exists(data_name, envir = eval_env, inherits = FALSE)) {
+      d <- get(data_name, envir = eval_env, inherits = FALSE)
+      if (is.data.frame(d)) {
+        numeric_cols <- names(d)[vapply(d, is.numeric, logical(1))]
+      }
+    }
     for (meta in metas) {
-      # Register a renderUI() for the uiOutput() container built above.
-      output[[paste0("dynamic-", meta$id)]] <- shiny::renderUI({
-        shiny::textInput(meta$id, paste("Dynamic control for", meta$param))
+      local({
+        m <- meta
+        output[[paste0(m$id, "_container")]] <- shiny::renderUI({
+          shiny::selectInput(
+            m$id,
+            label   = paste("Log-transform column for", m$param),
+            choices = numeric_cols
+          )
+        })
       })
     }
-
     invisible(NULL)
   },
+
+  # Generate `.log_safe(<col>)` in the completed expression.
   resolve_expr = function(value, meta, context) {
     if (is.null(value) || identical(value, "")) {
       return(ptr_missing_expr())
     }
-
-    rlang::expr(!!value)
-  }
-)
-```
-
-### `prepare_eval_env(input, metas, eval_env, context)`
-
-Use `prepare_eval_env()` when a placeholder needs to inject objects into the
-evaluation environment before the plot is built. This is how the built-in
-`upload` placeholder assigns uploaded data objects before code is evaluated.
-
-```{r prepare-eval-env-example, eval = FALSE}
-prepared_data_placeholder <- ptr_define_placeholder(
-  keyword = "prepared_data",
-  build_ui = function(id, copy, meta, context) {
-    shiny::textInput(id, copy$label, placeholder = "dataset_name")
+    rlang::expr(.log_safe(!!rlang::sym(value)))
   },
-  resolve_expr = function(value, meta, context) {
-    if (is.null(value) || identical(value, "")) {
-      return(ptr_missing_expr())
-    }
 
-    rlang::parse_expr(value)
-  },
-  # prepare_eval_env: runs just before the completed formula is evaluated to
-  # build the plot. Use it to inject R objects that the formula references by
-  # name (e.g. a dataset variable, a helper function, a colour palette).
-  # This is how the built-in `upload` placeholder makes uploaded data available
-  # under the user-supplied name at eval time.
-  # Arguments:
-  #   input    — Shiny input object (read current widget values if needed)
-  #   metas    — list of metadata records for all occurrences of this keyword
-  #   eval_env — the environment in which the formula will be eval()'d;
-  #              add or overwrite bindings, then return the modified env
-  #   context  — shared environment (ptr_obj, placeholders, ui_text, envir)
+  # Bind the helper the generated call references by name.
   prepare_eval_env = function(input, metas, eval_env, context) {
-    # Bind `prepared_dataset` so the formula can reference it by name.
-    eval_env$prepared_dataset <- data.frame(x = 1:3, y = c(2, 4, 3))
-    eval_env  # must return the (modified) eval_env
-  }
+    eval_env$.log_safe <- function(x) log(pmax(x, .Machine$double.eps))
+    eval_env
+  },
+
+  copy_defaults = list(label = "Log-transform column for {param}")
 )
 ```
 
-## Copy defaults and custom copy rules
+A formula using it, parsed with the merged registry:
 
-Each placeholder can ship its own default copy through `copy_defaults`. Those
-defaults then participate in the normal `ui_text` system.
+```{r log-num-parse}
+registry <- ptr_merge_placeholders(list(log_num = log_num))
 
-```{r custom-copy}
-# ptr_merge_ui_text() builds a copy-rules object that overrides default labels
-# and help text. Three levels of specificity — higher wins over lower:
-#
-#   defaults  → applies to every occurrence of a keyword, across all layers/params
-#   params    → applies to a specific argument name, across all layers
-#   layers    → applies to a keyword inside a specific layer + argument combination
-#
-# Within each level you can set: label, help, placeholder, empty_text.
-date_ui_text <- ptr_merge_ui_text(
+obj <- ptr_parse_formula(
+  "ggplot(data = mtcars, aes(x = wt, y = log_num)) + geom_point()",
+  placeholders = registry
+)
+
+obj$code_text
+```
+
+Running the same formula headlessly — note that `.log_safe` resolves
+because `prepare_eval_env()` bound it in the eval environment:
+
+```{r log-num-exec}
+runtime <- ptr_exec(
+  obj,
   list(
-    # Fallback for any `date` placeholder not matched by a more specific rule.
-    defaults = list(date = list(label = "Pick any date")),
+    "geom_point+checkbox" = TRUE,
+    "geom_point+3"        = "mpg"
+  )
+)
 
-    # Overrides the label when the argument is named `xintercept`, regardless of layer.
-    params = list(
-      xintercept = list(date = list(label = "Reference date"))
-    ),
+runtime$code_text
+```
 
-    # Most specific: overrides copy only for `date` inside `geom_vline(xintercept = ...)`.
-    # This wins over both `defaults` and `params` for that exact occurrence.
-    layers = list(
-      geom_vline = list(
-        date = list(
-          xintercept = list(help = "Choose a cutoff date for the vertical guide.")
-        )
-      )
-    )
-  ),
+Launch the live app to exercise `bind_ui`:
+
+```{r log-num-app, eval = FALSE}
+ptr_app(
+  "ggplot(data = mtcars, aes(x = wt, y = log_num)) + geom_point()",
+  placeholders = registry
+)
+```
+
+## Replacing a built-in placeholder
+
+Any custom keyword that matches a built-in one wins — the built-in is
+evicted from the merged registry. Below, we replace `var` with a
+`shinyWidgets::pickerInput()` that offers search and tick-boxes while
+keeping the original reactive behaviour (columns populated from data).
+
+```{r replace-var}
+picker_var <- ptr_define_placeholder(
+  keyword = "var",
+
+  # Container filled in by bind_ui once data is known.
+  build_ui = function(id, copy, meta, context) {
+    shiny::uiOutput(paste0(id, "_container"))
+  },
+
+  # Produce the same symbol the default `var` does.
+  resolve_expr = function(value, meta, context) {
+    if (is.null(value) || identical(value, "") || identical(value, "(none)")) {
+      return(ptr_missing_expr())
+    }
+    rlang::sym(value)
+  },
+
+  # Mirror the reactive-column behaviour of the default `var`.
+  bind_ui = function(input, output, metas, context) {
+    eval_env <- context$eval_env
+    data_name <- context$ptr_obj$ggdata
+    cols <- character(0)
+    if (!is.null(eval_env) && is.character(data_name) &&
+        exists(data_name, envir = eval_env, inherits = FALSE)) {
+      d <- get(data_name, envir = eval_env, inherits = FALSE)
+      if (is.data.frame(d)) {
+        cols <- names(d)
+      }
+    }
+    for (meta in metas) {
+      local({
+        m <- meta
+        output[[paste0(m$id, "_container")]] <- shiny::renderUI({
+          shinyWidgets::pickerInput(
+            inputId = m$id,
+            label   = paste("Column for", m$param),
+            choices = c("(none)", cols),
+            options = shinyWidgets::pickerOptions(liveSearch = TRUE)
+          )
+        })
+      })
+    }
+    invisible(NULL)
+  },
+
+  copy_defaults = list(
+    label      = "Column for {param}",
+    empty_text = "(none)"
+  )
+)
+
+replacement_registry <- ptr_merge_placeholders(list(var = picker_var))
+identical(replacement_registry$var, picker_var)
+```
+
+```{r replace-var-app, eval = FALSE}
+ptr_app(
+  "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+  placeholders = replacement_registry
+)
+```
+
+## Plugging a registry into every API
+
+Every public entry point that accepts formulas also accepts a
+`placeholders = ...` argument holding a merged registry. Pass the same
+registry object everywhere so built-in widgets, custom widgets, and copy
+rules stay in sync.
+
+### `ptr_app()` and `ptr_app_bslib()` — Level 1
+
+```{r api-ptr-app, eval = FALSE}
+ptr_app(
+  "ggplot(data = sales, aes(x = day, y = value)) +
+    geom_line() +
+    geom_vline(xintercept = date)",
   placeholders = placeholders
 )
 
-# ptr_resolve_ui_text() returns the fully merged copy record for one occurrence.
-# Precedence applied: layers > params > defaults > copy_defaults from the placeholder.
-# The result is what build_ui() receives as its `copy` argument.
-ptr_resolve_ui_text(
-  "control",          # component: "control" selects the placeholder widget component
-  keyword    = "date",
-  layer_name = "geom_vline",
-  param      = "xintercept",
-  ui_text    = date_ui_text,
+ptr_app_bslib(
+  "ggplot(data = sales, aes(x = day, y = value)) +
+    geom_line() +
+    geom_vline(xintercept = date)",
   placeholders = placeholders
 )
 ```
 
-## Using custom placeholders with Shiny integration helpers
+### `ptr_parse_formula()` + `ptr_exec()` — Level 3 headless
 
-The phase-1 Shiny integration helpers work with custom placeholder registries
-too.
+Useful for batch reports, tests, and custom pipelines. The registry is
+stored on the returned `ptr_obj`, so downstream calls such as
+`ptr_runtime_input_spec()` and `ptr_exec()` pick it up automatically.
 
-```{r registry-integration, eval = FALSE}
+```{r api-parse-exec}
+obj <- ptr_parse_formula(
+  "ggplot(data = sales, aes(x = day, y = value)) +
+    geom_line() +
+    geom_vline(xintercept = date)",
+  placeholders = placeholders
+)
+
+spec <- ptr_runtime_input_spec(obj)
+names(spec)
+```
+
+### Manual embedding with `ptr_input_ui()` / `ptr_server_state()` — Level 2
+
+For embedding ggpaintr inside an existing Shiny app, pass `placeholders`
+through `ptr_server_state()` — it flows from there into the controls,
+plot, and code registrations automatically.
+
+```{r api-manual-embed, eval = FALSE}
 ids <- ptr_build_ids(
   control_panel = "builder_controls",
-  draw_button = "render_plot",
-  plot_output = "main_plot",
-  error_output = "main_error",
-  code_output = "main_code"
+  draw_button   = "render_plot",
+  plot_output   = "main_plot",
+  error_output  = "main_error",
+  code_output   = "main_code"
 )
 
 ui <- shiny::fluidPage(
   shiny::sidebarLayout(
-    shiny::sidebarPanel(
-      ptr_input_ui(ids = ids)
-    ),
-    shiny::mainPanel(
-      ptr_output_ui(ids = ids)
-    )
+    shiny::sidebarPanel(ptr_input_ui(ids = ids)),
+    shiny::mainPanel(ptr_output_ui(ids = ids))
   )
 )
 
@@ -404,7 +499,7 @@ server <- function(input, output, session) {
     "ggplot(data = sales, aes(x = day, y = value)) +
       geom_line() +
       geom_vline(xintercept = date)",
-    ids = ids,
+    ids          = ids,
     placeholders = placeholders
   )
 
@@ -414,11 +509,64 @@ server <- function(input, output, session) {
   ptr_register_error(output, ptr_state, ids = ids)
   ptr_register_code(output, ptr_state, ids = ids)
 }
+
+shiny::shinyApp(ui, server)
 ```
+
+See `vignette("ggpaintr-extensibility")` §3 for the full Level-2 embed
+walkthrough.
+
+## Copy defaults inside a placeholder definition
+
+`copy_defaults` ships default copy with the placeholder itself, so every
+downstream app that uses it gets sensible labels without extra work. The
+supported fields match the four leaf fields in `ptr_resolve_ui_text()`:
+`label`, `help`, `placeholder`, `empty_text`. Strings may reference
+`{param}` and `{layer_name}`.
+
+```{r copy-defaults-example}
+annotated_date <- ptr_define_placeholder(
+  keyword  = "date",
+  build_ui = function(id, copy, meta, context) {
+    shiny::tagList(
+      shiny::dateInput(id, copy$label),
+      if (nzchar(copy$help)) shiny::helpText(copy$help)
+    )
+  },
+  resolve_expr = function(value, meta, context) {
+    if (is.null(value)) return(ptr_missing_expr())
+    rlang::expr(as.Date(!!as.character(value)))
+  },
+  copy_defaults = list(
+    label = "Choose a {param} date",
+    help  = "Used by {layer_name}."
+  )
+)
+
+# ptr_resolve_ui_text() shows the final text a `build_ui` call would receive.
+ptr_resolve_ui_text(
+  component    = "control",
+  keyword      = "date",
+  layer_name   = "geom_vline",
+  param        = "xintercept",
+  placeholders = ptr_merge_placeholders(list(date = annotated_date))
+)
+```
+
+Everything beyond `copy_defaults` — the three-layer merge precedence
+(`defaults` / `params` / `layers`), `ptr_merge_ui_text()` and the `shell`
+chrome copy — is covered in `vignette("ggpaintr-extensibility")` §3d. That
+section walks through the full override catalogue and shows a worked
+example of a single placeholder receiving different copy under each layer.
 
 ## Summary
 
-The placeholder registry is the developer-facing extension point for adding new
-control types without editing parser, UI, runtime, or copy-rule internals.
-Start with `build_ui()` plus `resolve_expr()`, add the optional hooks only when
-needed, and pass the same registry through parsing and app launch.
+1. A placeholder is a bundle of two required hooks (`build_ui`,
+   `resolve_expr`) and three optional ones (`resolve_input`, `bind_ui`,
+   `prepare_eval_env`) plus `copy_defaults`.
+2. `ptr_merge_placeholders()` turns your custom entries into a registry
+   that still knows the built-ins, and custom entries win on name clash.
+3. Every public API that accepts formulas also accepts a
+   `placeholders = ...` argument.
+4. For copy customisation beyond `copy_defaults`, use the `ui_text`
+   system — see `vignette("ggpaintr-extensibility")` §3d.

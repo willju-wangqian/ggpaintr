@@ -307,7 +307,7 @@ obj <- ptr_parse_formula(
 )
 
 spec <- ptr_runtime_input_spec(obj)
-spec
+spec  # 6 columns: input_id, role, layer_name, keyword, param_key, source_id
 #>              input_id           role layer_name keyword param_key    source_id
 #> 1          ggplot+3+2    placeholder     ggplot     var         x   ggplot+3+2
 #> 2          ggplot+3+3    placeholder     ggplot     var         y   ggplot+3+3

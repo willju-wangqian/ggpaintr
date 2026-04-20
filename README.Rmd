@@ -321,7 +321,7 @@ obj <- ptr_parse_formula(
 )
 
 spec <- ptr_runtime_input_spec(obj)
-spec
+spec  # 6 columns: input_id, role, layer_name, keyword, param_key, source_id
 
 inputs <- setNames(vector("list", nrow(spec)), spec$input_id)
 checkbox_rows <- spec$role == "layer_checkbox"
