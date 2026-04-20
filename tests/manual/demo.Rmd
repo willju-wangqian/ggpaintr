@@ -3,6 +3,9 @@ title: "ggpaintr Showcase Demo"
 author: "Will Ju"
 date: "`r Sys.Date()`"
 output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 ```{r setup, include=FALSE}
@@ -11,12 +14,12 @@ knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
 
 ## About this demo
 
-`ggpaintr` turns a ggplot-like formula string into a Shiny app. Placeholder
-tokens inside the formula (`var`, `text`, `num`, `expr`, `upload`) become
-Shiny widgets automatically.
+`ggpaintr` turns a ggplot-like formula string into a Shiny app.
+Placeholder tokens inside the formula (`var`, `text`, `num`, `expr`,
+`upload`) become Shiny widgets automatically.
 
-Run chunks one at a time. Each `ptr_app*()` call launches an interactive app;
-close the window before launching the next one.
+Run chunks one at a time. Each `ptr_app*()` call launches an interactive
+app; close the window before launching the next one.
 
 ```{r packages}
 library(ggpaintr)
@@ -26,9 +29,177 @@ library(shinyWidgets)
 library(rlang)
 # Install once if missing: install.packages("colourpicker")
 library(colourpicker)
+library(palmerpenguins)
 ```
 
----
+------------------------------------------------------------------------
+
+# Part 0 - Shiny App with ggplot2
+
+## A simple Shiny App for Iris
+
+A `selectInput` for `x`, `y`, and `color`, respectively.
+
+```{r}
+library(shiny)
+library(ggplot2)
+
+ui <- fluidPage(
+  titlePanel("Iris scatter"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("x", "X variable",
+                  choices = names(iris), selected = "Sepal.Length"),
+      selectInput("y", "Y variable",
+                  choices = names(iris), selected = "Sepal.Width"),
+      selectInput("color", "Color variable",
+                  choices = names(iris), selected = "Species")
+    ),
+    mainPanel(plotOutput("plot"))
+  )
+)
+
+server <- function(input, output, session) {
+  output$plot <- renderPlot({
+    ggplot(iris, aes(x = .data[[input$x]],
+                     y = .data[[input$y]],
+                     color = .data[[input$color]])) +
+      geom_point()
+  })
+}
+
+shinyApp(ui, server)
+```
+
+Add a "draw" button? A `textInput` for the plot title?
+
+```{r}
+library(shiny)
+library(ggplot2)
+
+ui <- fluidPage(
+  titlePanel("Iris scatter"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("x", "X variable",
+                  choices = names(iris)[1:4], selected = "Sepal.Length"),
+      selectInput("y", "Y variable",
+                  choices = names(iris)[1:4], selected = "Sepal.Width"),
+      selectInput("color", "Color variable",
+                  choices = names(iris), selected = "Species"),
+      textInput("title", "Plot title", value = "Iris scatter"),
+      actionButton("draw", "Draw", class = "btn-primary")
+    ),
+    mainPanel(plotOutput("plot"))
+  )
+)
+
+server <- function(input, output, session) {
+  plot_data <- eventReactive(input$draw, {
+    list(x = input$x, y = input$y, color = input$color, title = input$title)
+  }, ignoreNULL = FALSE)
+  
+  output$plot <- renderPlot({
+    p <- plot_data()
+    ggplot(iris, aes(x = .data[[p$x]],
+                     y = .data[[p$y]],
+                     color = .data[[p$color]])) +
+      geom_point() +
+      labs(title = p$title)
+  })
+}
+
+shinyApp(ui, server)
+```
+
+Allow `facet_wrap` in the plot? Add `geom_smooth`?
+
+```{r}
+library(shiny)
+library(ggplot2)
+
+ui <- fluidPage(
+  titlePanel("Iris scatter"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("x", "X variable",
+                  choices = names(iris)[1:4], selected = "Sepal.Length"),
+      selectInput("y", "Y variable",
+                  choices = names(iris)[1:4], selected = "Sepal.Width"),
+      selectInput("color", "Color variable",
+                  choices = names(iris), selected = "Species"),
+      selectInput("facet", "Facet by",
+                  choices = c("None" = "", names(iris)), selected = ""),
+      selectInput("smooth_method", "Smoothing method",
+                  choices = c("None" = "", "lm", "loess", "gam", "glm"),
+                  selected = ""),
+      textInput("title", "Plot title", value = "Iris scatter"),
+      actionButton("draw", "Draw", class = "btn-primary")
+    ),
+    mainPanel(plotOutput("plot"))
+  )
+)
+
+server <- function(input, output, session) {
+  plot_data <- eventReactive(input$draw, {
+    list(
+      x = input$x, y = input$y, color = input$color,
+      facet = input$facet, smooth_method = input$smooth_method,
+      title = input$title
+    )
+  }, ignoreNULL = FALSE)
+  
+  output$plot <- renderPlot({
+    p <- plot_data()
+    g <- ggplot(iris, aes(x = .data[[p$x]],
+                          y = .data[[p$y]],
+                          color = .data[[p$color]])) +
+      geom_point() +
+      labs(title = p$title)
+    
+    if (nzchar(p$smooth_method)) {
+      g <- g + geom_smooth(method = p$smooth_method)
+    }
+    if (nzchar(p$facet)) {
+      g <- g + facet_wrap(vars(.data[[p$facet]]))
+    }
+    g
+  })
+}
+
+shinyApp(ui, server)
+```
+
+Add more controls? Handle error message? See the code behind?
+
+## With `ggpaintr`
+
+```{r}
+ptr_app("
+ ggplot(data = iris, aes(x = var, y = var, color = var)) +
+   geom_point() + 
+   geom_smooth(method = text) + 
+   facet_wrap(expr) + 
+   labs(title = text)
+")
+```
+
+Change the design
+
+```{r}
+library(palmerpenguins)
+
+ptr_app("
+ ggplot(data = penguins, aes(x = var, y = var, color = var, fill = var)) +
+   geom_point() + 
+   geom_boxplot() + 
+   geom_smooth(method = text) + 
+   facet_wrap(expr) + 
+   labs(title = text)
+")
+```
+
+------------------------------------------------------------------------
 
 # Part 1 — Core Features
 
@@ -45,12 +216,13 @@ ggplot(data = iris, aes(x = var, y = var)) +
 ```
 
 Try: `x = Sepal.Length`, `y = Sepal.Width`, `title = Iris scatter`, then
-click **Update plot**. Watch the generated code pane mirror your choices.
+click **Update plot**. Watch the generated code pane mirror your
+choices.
 
 ## Example 1.2: All five placeholders in one app
 
-`var` (column picker), `text` (string), `num` (numeric), `expr` (parsed R
-expression), `upload` (file input). Each layer is toggleable.
+`var` (column picker), `text` (string), `num` (numeric), `expr` (parsed
+R expression), `upload` (file input). Each layer is toggleable.
 
 ```{r all-placeholders}
 ptr_app("
@@ -65,20 +237,21 @@ ggplot(data = upload, aes(x = var, y = var)) +
 
 Suggested flow:
 
-- upload `tests/testthat/fixtures/simple_numeric.csv` (blank the dataset name)
-- `x = x`, `y = y`, `color = group`
-- `size = 2.5`, `alpha = 0.7`
-- `method = lm`, `se = TRUE` (expr, parsed as R)
-- `title = Uploaded scatter`, `legend.position = bottom`
-- `facet_wrap expr = ~ group`
+-   upload `tests/testthat/fixtures/simple_numeric.csv` (blank the
+dataset name)
+-   `x = x`, `y = y`, `color = group`
+-   `size = 2.5`, `alpha = 0.7`
+-   `method = lm`, `se = TRUE` (expr, parsed as R)
+-   `title = Uploaded scatter`, `legend.position = bottom`
+-   `facet_wrap expr = ~ group`
 
 Uncheck individual layers to see them vanish from both plot and code.
 
 ## Example 1.3: `expr` as a compatibility escape hatch
 
 `expr` is parsed as an R expression at draw time, so any ggplot2 feature
-(scales, coords, stats, annotations, vector-valued args) can be dropped in
-without needing a dedicated placeholder.
+(scales, coords, stats, annotations, vector-valued args) can be dropped
+in without needing a dedicated placeholder.
 
 ```{r expr-compat}
 ptr_app("
@@ -94,23 +267,25 @@ ggplot(data = mtcars, aes(x = var, y = var, color = factor(cyl))) +
 
 Suggested inputs showing the full reach of `expr`:
 
-- `x = wt`, `y = mpg`, `size = 3`
-- `method = lm`, `formula = y ~ x`, `se = FALSE`
-- `scale_color_manual values = c('4' = 'steelblue', '6' = 'firebrick', '8' = 'goldenrod')`
-- `coord_cartesian xlim = c(1, 6)`, `ylim = c(10, 35)`
-- `title = mtcars with expr features`
-- Trailing `expr = theme_minimal(base_size = 14) + theme(legend.position = 'top')`
+-   `x = wt`, `y = mpg`, `size = 3`
+-   `method = lm`, `formula = y ~ x`, `se = FALSE`
+-   `scale_color_manual values = c('4' = 'steelblue', '6' = 'firebrick', '8' = 'goldenrod')`
+-   `coord_cartesian xlim = c(1, 6)`, `ylim = c(10, 35)`
+-   `title = mtcars with expr features`
+-   Trailing
+`expr = theme_minimal(base_size = 14) + theme(legend.position = 'top')`
 
-Any ggplot component you can write in R code, you can pipe through `expr`.
+Any ggplot component you can write in R code, you can pipe through
+`expr`.
 
----
+------------------------------------------------------------------------
 
 # Part 2 — Three Levels of Extensibility
 
 ## Level 1: One-liner wrapper with UI text overrides
 
-`ptr_app()` / `ptr_app_bslib()` — the shipped wrappers. Customize visible
-copy with `ui_text` without writing any Shiny code.
+`ptr_app()` / `ptr_app_bslib()` — the shipped wrappers. Customize
+visible copy with `ui_text` without writing any Shiny code.
 
 ```{r extensibility-level-1}
 ptr_app_bslib(
@@ -142,9 +317,9 @@ ui_text = list(
 
 ## Level 2: Embed into your own Shiny layout
 
-`ptr_server_state()` plus the `ptr_register_*()` bind helpers let you drop
-`ggpaintr` into a larger Shiny UI with custom ids. You own the layout; the
-helpers wire up the runtime.
+`ptr_server_state()` plus the `ptr_register_*()` bind helpers let you
+drop `ggpaintr` into a larger Shiny UI with custom ids. You own the
+layout; the helpers wire up the runtime.
 
 ```{r extensibility-level-2}
 custom_ids <- ptr_build_ids(
@@ -198,9 +373,10 @@ shinyApp(ui, server)
 
 ## Level 3: Own the render path with pure extractors + `ptr_gg_extra()`
 
-Swap in your own `renderPlot()`. Pull the built plot with `ptr_extract_plot()`,
-append any ggplot components, and wrap those components with
-`ptr_gg_extra()` so they round-trip into the generated-code pane too.
+Swap in your own `renderPlot()`. Pull the built plot with
+`ptr_extract_plot()`, append any ggplot components, and wrap those
+components with `ptr_gg_extra()` so they round-trip into the
+generated-code pane too.
 
 ```{r extensibility-level-3}
 ui <- fluidPage(
@@ -248,7 +424,142 @@ server <- function(input, output, session) {
 shinyApp(ui, server)
 ```
 
----
+## One Embedding Demonstration
+
+[`ggiraph`](https://davidgohel.github.io/ggiraph/) 
+
+```{r}
+library(ggplot2)
+library(ggiraph)
+data <- mtcars
+data$carname <- row.names(data)
+
+gg_point = ggplot(data = data) +
+  geom_point_interactive(aes(x = wt, y = qsec, color = disp,
+                             tooltip = carname, data_id = carname)) + 
+  theme_minimal()
+
+girafe(ggobj = gg_point)
+```
+
+
+```{r}
+library(ggiraph)
+
+ui <- fluidPage(
+  titlePanel("Custom render path"),
+  sidebarLayout(
+    sidebarPanel(ptr_input_ui()),
+    mainPanel(
+      ggiraph::girafeOutput("outputPlot"), # ggiraph
+      uiOutput("outputError"),
+      verbatimTextOutput("outputCode")
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  ptr_state <- ptr_server_state(
+    "ggplot(data = penguins, aes(x = var, y = var, color = var)) +
+      geom_point_interactive(
+        aes( data_id = var, tooltip = var), size = 3,
+        hover_nearest = TRUE) +
+      labs(title = text)"
+  )
+  
+  ptr_setup_controls(input, output, ptr_state)
+  ptr_register_draw(input, ptr_state)
+  ptr_register_error(output, ptr_state)
+  ptr_register_code(output, ptr_state)
+  
+  output$outputPlot <- renderGirafe({
+    plot_obj <- ptr_extract_plot(ptr_state$runtime())
+    if (is.null(plot_obj)) {
+      plot.new(); return(invisible(NULL))
+    }
+    
+    x <- girafe(
+      code = print(plot_obj),
+      width_svg = 6, height_svg = 5,
+      options = list(
+        opts_hover(css = "fill:#FF3333;stroke:black;cursor:pointer;", 
+                   reactive = TRUE),
+        opts_selection(
+          type = "multiple", css = "fill:#FF3333;stroke:black;")
+      ))
+    x
+    
+  })
+}
+
+shinyApp(ui, server)
+
+```
+
+`plotly`
+
+```{r}
+library(plotly)
+
+ui <- fluidPage(
+  titlePanel("Custom render path"),
+  sidebarLayout(
+    sidebarPanel(ptr_input_ui()),
+    mainPanel(
+      plotlyOutput("outputPlot"), # for plotly
+      uiOutput("outputError"),
+      verbatimTextOutput("outputCode")
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  # ptr_state <- ptr_server_state(
+  #   "ggplot(data = penguins, aes(x = var, y = var, color = var)) +
+  #     geom_point_interactive(
+  #       aes( data_id = var, tooltip = var), size = 3,
+  #       hover_nearest = TRUE) +
+  #     labs(title = text)"
+  # )
+  ptr_state <- ptr_server_state(
+    "ggplot(data = penguins, aes(x = var, y = var, color = var)) +
+      geom_point() + 
+      labs(title = text)"
+  )
+  
+  ptr_setup_controls(input, output, ptr_state)
+  ptr_register_draw(input, ptr_state)
+  ptr_register_error(output, ptr_state)
+  ptr_register_code(output, ptr_state)
+  
+  output$outputPlot <- renderPlotly({ # render
+    plot_obj <- ptr_extract_plot(ptr_state$runtime())
+    if (is.null(plot_obj)) {
+      plot.new(); return(invisible(NULL))
+    }
+    
+    ggplotly(plot_obj)
+
+    # x <- girafe(
+    #   code = print(plot_obj),
+    #   width_svg = 6, height_svg = 5,
+    #   options = list(
+    #     opts_hover(css = "fill:#FF3333;stroke:black;cursor:pointer;",
+    #                reactive = TRUE),
+    #     opts_selection(
+    #       type = "multiple", css = "fill:#FF3333;stroke:black;")
+    #   ))
+    # x
+
+  })
+}
+
+shinyApp(ui, server)
+
+```
+
+
+------------------------------------------------------------------------
 
 # Part 3 — Custom Placeholders
 
@@ -302,8 +613,8 @@ placeholders = color_placeholders
 )
 ```
 
-Try picking three different colours and watch the generated code update with
-the hex strings.
+Try picking three different colours and watch the generated code update
+with the hex strings.
 
 ## Example 3.2: A custom `date` placeholder with param-aware copy
 
@@ -360,119 +671,8 @@ ui_text      = date_ui_text
 )
 ```
 
-Change the reference date; the vertical line and the `as.Date(...)` string in
-the code pane both update on draw.
+Change the reference date; the vertical line and the `as.Date(...)`
+string in the code pane both update on draw.
 
+------------------------------------------------------------------------
 
-```{r}
-library(ggiraph)
-
-ui <- fluidPage(
-  titlePanel("Custom render path"),
-  sidebarLayout(
-    sidebarPanel(ptr_input_ui()),
-    mainPanel(
-      # plotOutput("outputPlot", height = "500px"),
-      ggiraph::girafeOutput("outputPlot"),
-      uiOutput("outputError"),
-      verbatimTextOutput("outputCode")
-    )
-  )
-)
-
-server <- function(input, output, session) {
-  ptr_state <- ptr_server_state(
-    "ggplot(data = iris, aes(x = var, y = var, color = Species)) +
-      geom_point_interactive(
-        aes( data_id = var, tooltip = var), size = 3,
-        hover_nearest = TRUE) +
-      labs(title = text)"
-  )
-  
-  ptr_setup_controls(input, output, ptr_state)
-  ptr_register_draw(input, ptr_state)
-  ptr_register_error(output, ptr_state)
-  ptr_register_code(output, ptr_state)
-  
-  output$outputPlot <- renderGirafe({
-    plot_obj <- ptr_extract_plot(ptr_state$runtime())
-    if (is.null(plot_obj)) {
-      plot.new(); return(invisible(NULL))
-    }
-    
-    x <- girafe(code = print(plot_obj),
-                width_svg = 6, height_svg = 5,
-                options = list(
-                  opts_hover(css = "fill:#FF3333;stroke:black;cursor:pointer;", reactive = TRUE),
-                  opts_selection(
-                    type = "multiple", css = "fill:#FF3333;stroke:black;")
-                ))
-    x
-    
-    # ptr_gg_extra() captures these additions so ptr_register_code()
-    # appends them to outputCode — keeps the rendered plot and the
-    # code pane in sync.
-    # plot_obj + ptr_gg_extra(
-    #   ptr_state,
-    #   theme_minimal(base_size = 16),
-    #   scale_color_brewer(palette = "Dark2"),
-    #   theme(legend.position = "bottom")
-    # )
-  })
-}
-
-shinyApp(ui, server)
-
-```
-
-
----
-
-# Features not covered by this demo
-
-Everything below the line is supported but intentionally left out of this
-showcase. Flag them if the audience asks "can it…?"
-
-**Placeholder hook surface (advanced)**
-
-- `resolve_input()` — preprocessing a raw Shiny value before `resolve_expr()`
-sees it (e.g. `trimws()`). Example 3.x only used the default.
-- `bind_ui()` — deferred / reactive UI registration. This is how the built-in
-`var` placeholder populates column choices *after* an upload resolves. Not
-shown here because the demo placeholders are static.
-- `prepare_eval_env()` — injecting arbitrary R objects into the eval
-environment right before the plot is built. This is how the built-in
-`upload` placeholder makes an uploaded data frame visible by name.
-
-**Formula / runtime mechanics**
-
-- `ptr_parse_formula()` + `ptr_runtime_input_spec()` + `ptr_exec()` — the
-low-level programmatic path for tests, tooling, or package extensions
-around a parsed formula (no Shiny session required).
-- `ptr_normalize_column_names()` + the full local-object / non-syntactic
-column workflow (Formula 2C in the manual workbook).
-- Mixed **global + layer-specific** uploads in one formula (two independent
-upload widgets, two independent `var` pools).
-- Layer toggles and the "uncheck every optional layer still yields a valid
-base `ggplot(...)`" graceful-degradation path.
-- Formula-level `var` transforms like `aes(x = log(var), y = var + 1)`.
-
-**Error feedback**
-
-- Inline `Input error:` vs `Plot error:` channels, plot-clears-on-failure,
-code-survives-completion behaviour, recovery after a draw fails.
-
-**UI text system**
-
-- `ptr_resolve_ui_text()` introspection, `empty_text` / `placeholder` fields,
-`__unnamed__` positional-arg copy, full precedence chain
-(`layers > params > defaults > copy_defaults`).
-
-**App shell**
-
-- `ptr_app_bslib()` bslib theming beyond the single usage in Level 1.
-- Using `ptr_extract_error()` / `ptr_extract_code()` to build a bespoke error
-/ code pane (only `ptr_extract_plot()` was shown).
-
-If any of these would help the showcase, say which and I'll wire up a
-targeted example.

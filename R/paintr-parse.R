@@ -47,7 +47,10 @@ ptr_parse_formula <- function(formula, placeholders = NULL, formula_check = TRUE
   if (length(ptr_exprs) != 1L) {
     rlang::abort(
       paste0("ptr_parse_formula: formula must contain exactly one top-level ",
-             "expression, but ", length(ptr_exprs), " were found.")
+             "expression, but ", length(ptr_exprs), " were found. ",
+             "Hint: ggplot layers must be joined with `+` \u2014 check for a ",
+             "missing `+` between layers or a stray newline that splits the ",
+             "expression.")
     )
   }
   ptr_expr <- ptr_exprs[[1]]
