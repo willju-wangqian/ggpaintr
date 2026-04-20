@@ -46,6 +46,13 @@ reference:
     contents:
       - ptr_merge_ui_text
       - ptr_resolve_ui_text
+  - title: LLM integration
+    desc: Expose ggpaintr's documentation bundle to ellmer-backed coding assistants.
+    contents:
+      - ptr_llm_primer
+      - ptr_llm_topic
+      - ptr_llm_topics
+      - ptr_llm_register
 articles:
   - title: Guides
     navbar: ggpaintr
@@ -53,3 +60,4 @@ articles:
       - ggpaintr-workflow
       - ggpaintr-extensibility
       - ggpaintr-placeholder-registry
+      - ggpaintr-llm
