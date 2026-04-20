@@ -45,6 +45,7 @@ Imports:
     shinyWidgets (>= 0.6.4)
 Suggests:
     bslib (>= 0.5.0),
+    ellmer,
     knitr,
     pkgdown,
     rmarkdown,
