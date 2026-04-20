@@ -1,8 +1,7 @@
 # Bind the Generated Control Panel into a Shiny App
 
 Register the dynamic `var` controls and render the standard tabbed
-control panel into the target
-[`uiOutput()`](https://rdrr.io/pkg/shiny/man/htmlOutput.html).
+control panel into the target `uiOutput()`.
 
 ## Usage
 

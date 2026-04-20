@@ -1,12 +1,9 @@
 # Bind Default Plot Rendering into a Shiny App
 
-Bind the same default
-[`renderPlot()`](https://rdrr.io/pkg/shiny/man/renderPlot.html) behavior
-used by
+Bind the same default `renderPlot()` behavior used by
 [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md).
 Advanced users who want to transform the plot should instead write their
-own [`renderPlot()`](https://rdrr.io/pkg/shiny/man/renderPlot.html) and
-call
+own `renderPlot()` and call
 [`ptr_extract_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_plot.md).
 
 ## Usage

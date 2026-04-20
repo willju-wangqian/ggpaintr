@@ -64,7 +64,9 @@
   <main id="main" class="col-md-9"><div class="section level1">
 <div class="page-header"><h1 id="ggpaintr">ggpaintr<a class="anchor" aria-label="anchor" href="#ggpaintr"></a>
 </h1></div>
-<p><code>ggpaintr</code> turns one ggplot-like formula string into a small Shiny app with generated controls, rendered plots, generated code, upload support, copy customization, custom Shiny integration hooks, and custom placeholder registries.</p>
+<p>Turn a ggplot-like formula string into a Shiny app. Placeholder keywords inside the formula (<code>var</code>, <code>text</code>, <code>num</code>, <code>expr</code>, <code>upload</code>) become input widgets automatically, and the same parsed object drives the UI, the runtime, and the generated code pane.</p>
+<!-- badges: start -->
+
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
@@ -73,48 +75,10 @@
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pkg_install.html" class="external-link">pkg_install</a></span><span class="op">(</span><span class="st">"willju-wangqian/ggpaintr"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="core-concepts">Core concepts<a class="anchor" aria-label="anchor" href="#core-concepts"></a>
-</h2>
-<p><code>ggpaintr</code> treats a ggplot-like formula string as a template with placeholders that become Shiny inputs.</p>
-<ul>
-<li>
-<code>var</code> selects a data column in the generated UI</li>
-<li>
-<code>text</code> collects free text</li>
-<li>
-<code>num</code> collects numeric input</li>
-<li>
-<code>expr</code> collects raw R code for places like faceting or labels</li>
-<li>
-<code>upload</code> lets the app use uploaded data</li>
-<li>
-<code><a href="reference/ptr_normalize_column_names.html">ptr_normalize_column_names()</a></code> cleans local column names before <code>var</code> selection when the source data is not already syntactic</li>
-<li>you can register your own placeholder types per app with <code><a href="reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code>
-</li>
-</ul>
-<p><code>upload</code> currently supports <code>.csv</code> and <code>.rds</code>.</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="st">"ggplot(data = iris, aes(x = var, y = var)) +</span></span>
-<span><span class="st">  geom_point(size = num, color = text) +</span></span>
-<span><span class="st">  labs(title = text) +</span></span>
-<span><span class="st">  facet_wrap(expr)"</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="why-this-design">Why this design<a class="anchor" aria-label="anchor" href="#why-this-design"></a>
-</h2>
-<p><code>ggpaintr</code> keeps the author-facing input as one formula string on purpose.</p>
-<ul>
-<li>formula strings stay close to the way many R users already sketch ggplot code</li>
-<li>the same parsed object drives generated controls, runtime completion, and generated code</li>
-<li>one placeholder registry powers parse, UI, runtime, and copy rules for both built-in and custom placeholders</li>
-<li>the package gives you both a default wrapper and a supported Shiny embedding layer, so you can start simple and grow into a more custom app</li>
-</ul>
-</div>
-<div class="section level2">
 <h2 id="quick-start">Quick start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
 </h2>
-<p>Most users should start with <code><a href="reference/ptr_app.html">ptr_app()</a></code>.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<p>Paste this into an R session:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://willju-wangqian.github.io/ggpaintr/">ggpaintr</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="st">"</span></span>
@@ -123,278 +87,159 @@
 <span><span class="st">  labs(title = text) +</span></span>
 <span><span class="st">  facet_wrap(expr)</span></span>
 <span><span class="st">"</span><span class="op">)</span></span></code></pre></div>
+<p>That single call parses the formula once and returns a running Shiny app. Every <code>var</code>, <code>num</code>, <code>text</code>, and <code>expr</code> token becomes a widget in the sidebar; editing a widget and clicking <strong>Update plot</strong> re-renders the plot and refreshes the generated ggplot code on the side. No Shiny UI or server code was written.</p>
+<p>For a bslib-themed variant with the same API, use <code><a href="reference/ptr_app_bslib.html">ptr_app_bslib()</a></code>.</p>
 </div>
 <div class="section level2">
-<h2 id="supported-public-api">Supported public API<a class="anchor" aria-label="anchor" href="#supported-public-api"></a>
+<h2 id="formula-syntax">Formula syntax<a class="anchor" aria-label="anchor" href="#formula-syntax"></a>
 </h2>
-<p>The maintained public path is intentionally narrow.</p>
-<ul>
-<li>Start with <code><a href="reference/ptr_app.html">ptr_app()</a></code> for the default app wrapper, or <code><a href="reference/ptr_app_bslib.html">ptr_app_bslib()</a></code> for a <code>bslib</code>-themed variant that doubles as a worked example of building custom shells from the public API.</li>
-<li>Use <code><a href="reference/ptr_server.html">ptr_server()</a></code>, <code><a href="reference/ptr_server_state.html">ptr_server_state()</a></code>, <code><a href="reference/ptr_build_ids.html">ptr_build_ids()</a></code>, and the <code>ptr_register_*()</code> helpers when you need to embed <code>ggpaintr</code> in a larger Shiny app.</li>
-<li>Use <code><a href="reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code> and <code><a href="reference/ptr_merge_placeholders.html">ptr_merge_placeholders()</a></code> for custom placeholder types.</li>
-<li>Use <code><a href="reference/ptr_gg_extra.html">ptr_gg_extra()</a></code> for advanced embeds that own their own <code><a href="https://rdrr.io/pkg/shiny/man/renderPlot.html" class="external-link">renderPlot()</a></code> block and need captured ggplot components reflected in the generated code pane.</li>
-<li>Use <code><a href="reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec()</a></code>, <code><a href="reference/ptr_parse_formula.html">ptr_parse_formula()</a></code>, <code><a href="reference/ptr_exec.html">ptr_exec()</a></code>, and <code><a href="reference/ptr_assemble_plot.html">ptr_assemble_plot()</a></code> for advanced runtime or testing workflows.</li>
-</ul>
-<p>Other helpers in <code>R/</code> are internal implementation support rather than part of the maintained community-facing API.</p>
+<p>A ggpaintr formula is a normal ggplot call as a string, with placeholder keywords anywhere a value would normally go. Each keyword maps to one widget and one runtime value.</p>
+<table class="table">
+<colgroup>
+<col width="8%">
+<col width="26%">
+<col width="25%">
+<col width="39%">
+</colgroup>
+<thead><tr class="header">
+<th>Keyword</th>
+<th>Widget</th>
+<th>Runtime value</th>
+<th>Typical use</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>var</code></td>
+<td>column picker (<code>selectInput</code>)</td>
+<td>column symbol</td>
+<td>pick a column from the data frame</td>
+</tr>
+<tr class="even">
+<td><code>text</code></td>
+<td><code>textInput</code></td>
+<td>string</td>
+<td>free text (axis labels, titles, color names)</td>
+</tr>
+<tr class="odd">
+<td><code>num</code></td>
+<td><code>numericInput</code></td>
+<td>numeric</td>
+<td>a number (point size, alpha, threshold)</td>
+</tr>
+<tr class="even">
+<td><code>expr</code></td>
+<td>code input</td>
+<td>parsed R expression</td>
+<td>raw R code (facet specs, label formulas)</td>
+</tr>
+<tr class="odd">
+<td><code>upload</code></td>
+<td>
+<code>fileInput</code> + dataset name</td>
+<td>data frame (<code>.csv</code> / <code>.rds</code>)</td>
+<td>let the app receive a dataset at runtime</td>
+</tr>
+</tbody>
+</table>
+<p>Slot context decides each widget’s label and help text: the surrounding argument name, the layer it appears in, and the keyword together pick the default copy. You can override any of that with <code>ui_text</code>.</p>
+<p><code>var</code> is a <strong>column picker</strong>. Formula-level transforms such as <code>aes(x = var + 1, y = log(var))</code> go in the formula itself — the picker still returns the column symbol, and the transform is applied around it.</p>
+<p><code>expr</code> accepts anything <code><a href="https://rlang.r-lib.org/reference/parse_expr.html" class="external-link">rlang::parse_expr()</a></code> can read, with a denylist guard against dangerous calls. The guard is controlled by the <code>expr_check</code> argument on <code><a href="reference/ptr_app.html">ptr_app()</a></code> / <code><a href="reference/ptr_app_bslib.html">ptr_app_bslib()</a></code>, which defaults to <code>TRUE</code> and should stay on unless you know what you are doing.</p>
+<p><code>upload</code> currently accepts <code>.csv</code> and <code>.rds</code> and normalizes column names automatically after read-in. For local data with non-syntactic column names, call <code><a href="reference/ptr_normalize_column_names.html">ptr_normalize_column_names()</a></code> once before passing the frame in.</p>
+<p>For a worked walkthrough of every keyword, see <code><a href="articles/ggpaintr-workflow.html">vignette("ggpaintr-workflow")</a></code>.</p>
 </div>
 <div class="section level2">
-<h2 id="feature-tour">Feature tour<a class="anchor" aria-label="anchor" href="#feature-tour"></a>
+<h2 id="three-levels-of-use">Three levels of use<a class="anchor" aria-label="anchor" href="#three-levels-of-use"></a>
 </h2>
+<p>ggpaintr is organized around three levels of integration. Pick the lowest level that covers what you need — the higher the level, the less code you write; the lower the level, the more control you have.</p>
 <div class="section level3">
-<h3 id="work-with-uploaded-data">Work with uploaded data<a class="anchor" aria-label="anchor" href="#work-with-uploaded-data"></a>
+<h3 id="level-1--turn-key-app">Level 1 — Turn-key app<a class="anchor" aria-label="anchor" href="#level-1--turn-key-app"></a>
 </h3>
-<p>Use <code>upload</code> when the app should let users supply a dataset at runtime.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="st">"</span></span>
-<span><span class="st">ggplot(data = upload, aes(x = var, y = var)) +</span></span>
-<span><span class="st">  geom_point(size = num) +</span></span>
-<span><span class="st">  labs(title = text)</span></span>
-<span><span class="st">"</span><span class="op">)</span></span></code></pre></div>
-<p>The upload control currently supports <code>.csv</code> and <code>.rds</code>.</p>
-<p>Uploads are normalized through the same column-name helper automatically after read-in. <code>.rds</code> uploads must already be tabular or be coercible with <code><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame()</a></code>.</p>
-</div>
-<div class="section level3">
-<h3 id="prepare-local-data-with-non-syntactic-column-names">Prepare local data with non-syntactic column names<a class="anchor" aria-label="anchor" href="#prepare-local-data-with-non-syntactic-column-names"></a>
-</h3>
-<p>If your local data uses spaces or punctuation in column names, normalize it once before you build the app.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">messy_sales</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  left <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">4</span>,</span>
-<span>  right <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">4</span>, <span class="fl">6</span>, <span class="fl">8</span><span class="op">)</span>,</span>
-<span>  check.names <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">messy_sales</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"first column"</span>, <span class="st">"second-column"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">sales</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_normalize_column_names.html">ptr_normalize_column_names</a></span><span class="op">(</span><span class="va">messy_sales</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sales</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="st">"</span></span>
-<span><span class="st">ggplot(data = sales, aes(x = var, y = var)) +</span></span>
-<span><span class="st">  geom_point()</span></span>
-<span><span class="st">"</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="put-transforms-around-var-in-the-formula">Put transforms around <code>var</code> in the formula<a class="anchor" aria-label="anchor" href="#put-transforms-around-var-in-the-formula"></a>
-</h3>
-<p><code>var</code> is a column picker. When you want derived mappings, wrap the placeholder in the formula itself and let the selected column slot into that expression.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="st">"</span></span>
-<span><span class="st">ggplot(data = mtcars, aes(x = var + 1, y = log(var))) +</span></span>
-<span><span class="st">  geom_point()</span></span>
-<span><span class="st">"</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="customize-control-text-with-ui_text">Customize control text with <code>ui_text</code>
-<a class="anchor" aria-label="anchor" href="#customize-control-text-with-ui_text"></a>
-</h3>
-<p>Use <code>ui_text</code> to change user-facing labels without changing the runtime behavior of the generated app.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">custom_copy</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  shell <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>    draw_button <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Render plot"</span><span class="op">)</span></span>
-<span>  <span class="op">)</span>,</span>
-<span>  params <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>    x <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>var <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"X axis variable"</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>    y <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>var <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Y axis variable"</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>    title <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>text <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Plot title"</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
+<p>Call <code><a href="reference/ptr_app.html">ptr_app()</a></code> or <code><a href="reference/ptr_app_bslib.html">ptr_app_bslib()</a></code>. No Shiny code required. This is the right entry point for teaching, demoing, or quick data exploration.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = iris, aes(x = var, y = var)) +</span></span>
 <span><span class="st">     geom_point() +</span></span>
-<span><span class="st">     labs(title = text)"</span>,</span>
-<span>  ui_text <span class="op">=</span> <span class="va">custom_copy</span></span>
+<span><span class="st">     labs(title = text)"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
+<p>Both wrappers accept <code>ui_text</code> (copy overrides) and <code>placeholders</code> (custom placeholder types). <code><a href="reference/ptr_app_bslib.html">ptr_app_bslib()</a></code> adds <code>theme</code> and <code>title</code> for the bslib shell.</p>
+<p>Read <code><a href="articles/ggpaintr-workflow.html">vignette("ggpaintr-workflow")</a></code> for the full list of arguments, the three data-source paths (<code>data = &lt;frame&gt;</code>, the <code>upload</code> keyword, and <code><a href="reference/ptr_normalize_column_names.html">ptr_normalize_column_names()</a></code> for non-syntactic local data), and a walk-through of what happens when you click <strong>Update plot</strong>.</p>
 </div>
 <div class="section level3">
-<h3 id="embed-ggpaintr-in-your-own-shiny-app">Embed <code>ggpaintr</code> in your own Shiny app<a class="anchor" aria-label="anchor" href="#embed-ggpaintr-in-your-own-shiny-app"></a>
+<h3 id="level-2--embed-in-your-own-shiny-app">Level 2 — Embed in your own Shiny app<a class="anchor" aria-label="anchor" href="#level-2--embed-in-your-own-shiny-app"></a>
 </h3>
-<p>The supported integration layer lets you keep your own layout while reusing the <code>ggpaintr</code> state and bind helpers.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://shiny.posit.co/" class="external-link">shiny</a></span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_build_ids.html">ptr_build_ids</a></span><span class="op">(</span></span>
-<span>  control_panel <span class="op">=</span> <span class="st">"builder_controls"</span>,</span>
-<span>  draw_button <span class="op">=</span> <span class="st">"render_plot"</span>,</span>
-<span>  plot_output <span class="op">=</span> <span class="st">"main_plot"</span>,</span>
-<span>  error_output <span class="op">=</span> <span class="st">"main_error"</span>,</span>
-<span>  code_output <span class="op">=</span> <span class="st">"main_code"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidPage</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarLayout</a></span><span class="op">(</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarPanel</a></span><span class="op">(</span><span class="fu"><a href="reference/ptr_input_ui.html">ptr_input_ui</a></span><span class="op">(</span>ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">mainPanel</a></span><span class="op">(</span><span class="fu"><a href="reference/ptr_output_ui.html">ptr_output_ui</a></span><span class="op">(</span>ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">ptr_state</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_server_state.html">ptr_server_state</a></span><span class="op">(</span></span>
-<span>    <span class="st">"ggplot(data = iris, aes(x = var, y = var)) +</span></span>
-<span><span class="st">      geom_point() +</span></span>
-<span><span class="st">      labs(title = text)"</span>,</span>
-<span>    ids <span class="op">=</span> <span class="va">ids</span></span>
-<span>  <span class="op">)</span></span>
-<span></span>
-<span>  <span class="fu"><a href="reference/ptr_setup_controls.html">ptr_setup_controls</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="reference/ptr_register_draw.html">ptr_register_draw</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="reference/ptr_register_plot.html">ptr_register_plot</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="reference/ptr_register_error.html">ptr_register_error</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="reference/ptr_register_code.html">ptr_register_code</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span><span class="op">}</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/shinyApp.html" class="external-link">shinyApp</a></span><span class="op">(</span><span class="va">ui</span>, <span class="va">server</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="customize-the-plot-in-your-own-renderplot">Customize the plot in your own <code>renderPlot()</code>
-<a class="anchor" aria-label="anchor" href="#customize-the-plot-in-your-own-renderplot"></a>
-</h3>
-<p>If you want to keep the <code>ggpaintr</code> runtime but take over plot rendering, use <code><a href="reference/ptr_extract_plot.html">ptr_extract_plot()</a></code> inside your own <code><a href="https://rdrr.io/pkg/shiny/man/renderPlot.html" class="external-link">renderPlot()</a></code>. Wrap any extra ggplot components in <code><a href="reference/ptr_gg_extra.html">ptr_gg_extra()</a></code> so the default code binder keeps the <code>outputCode</code> pane in sync with what is actually drawn.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">ptr_state</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_server_state.html">ptr_server_state</a></span><span class="op">(</span></span>
-<span>    <span class="st">"ggplot(data = iris, aes(x = var, y = var)) + geom_point()"</span></span>
-<span>  <span class="op">)</span></span>
-<span></span>
-<span>  <span class="fu"><a href="reference/ptr_setup_controls.html">ptr_setup_controls</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">ptr_state</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="reference/ptr_register_draw.html">ptr_register_draw</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">ptr_state</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="reference/ptr_register_error.html">ptr_register_error</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="reference/ptr_register_code.html">ptr_register_code</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span><span class="op">)</span></span>
-<span></span>
-<span>  <span class="va">output</span><span class="op">$</span><span class="va">outputPlot</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/renderPlot.html" class="external-link">renderPlot</a></span><span class="op">(</span><span class="op">{</span></span>
-<span>    <span class="va">plot_obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_extract_plot.html">ptr_extract_plot</a></span><span class="op">(</span><span class="va">ptr_state</span><span class="op">$</span><span class="fu">runtime</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">plot_obj</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>      <span class="fu"><a href="https://rdrr.io/r/graphics/frame.html" class="external-link">plot.new</a></span><span class="op">(</span><span class="op">)</span></span>
-<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span><span class="op">)</span></span>
-<span>    <span class="op">}</span></span>
-<span></span>
-<span>    <span class="va">plot_obj</span> <span class="op">+</span> <span class="fu"><a href="reference/ptr_gg_extra.html">ptr_gg_extra</a></span><span class="op">(</span><span class="va">ptr_state</span>, <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span>base_size <span class="op">=</span> <span class="fl">16</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="op">}</span><span class="op">)</span></span>
-<span><span class="op">}</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="register-a-custom-placeholder-type">Register a custom placeholder type<a class="anchor" aria-label="anchor" href="#register-a-custom-placeholder-type"></a>
-</h3>
-<p>Use <code><a href="reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code> and <code><a href="reference/ptr_merge_placeholders.html">ptr_merge_placeholders()</a></code> when you want to add a new control type without editing package internals.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">sales</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  day <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="st">"2024-01-01"</span><span class="op">)</span> <span class="op">+</span> <span class="fl">0</span><span class="op">:</span><span class="fl">4</span>,</span>
-<span>  value <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10</span>, <span class="fl">13</span>, <span class="fl">12</span>, <span class="fl">16</span>, <span class="fl">18</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">date_placeholder</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
-<span>  keyword <span class="op">=</span> <span class="st">"date"</span>,</span>
-<span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/dateInput.html" class="external-link">dateInput</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span><span class="op">$</span><span class="va">label</span><span class="op">)</span></span>
-<span>  <span class="op">}</span>,</span>
-<span>  resolve_expr <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="op">||</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span>, <span class="st">""</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="reference/ptr_missing_expr.html">ptr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span>    <span class="op">}</span></span>
-<span></span>
-<span>    <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="op">}</span>,</span>
-<span>  copy_defaults <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Choose a date for {param}"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">placeholders</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_merge_placeholders.html">ptr_merge_placeholders</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>date <span class="op">=</span> <span class="va">date_placeholder</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_parse_formula.html">ptr_parse_formula</a></span><span class="op">(</span></span>
-<span>  <span class="st">"ggplot(data = sales, aes(x = day, y = value)) +</span></span>
-<span><span class="st">    geom_line() +</span></span>
-<span><span class="st">    geom_vline(xintercept = date)"</span>,</span>
-<span>  placeholders <span class="op">=</span> <span class="va">placeholders</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="va">placeholders</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "var"    "text"   "num"    "expr"   "upload" "date"</span></span></code></pre></div>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
-<span>  <span class="st">"ggplot(data = sales, aes(x = day, y = value)) +</span></span>
-<span><span class="st">    geom_line() +</span></span>
-<span><span class="st">    geom_vline(xintercept = date)"</span>,</span>
-<span>  placeholders <span class="op">=</span> <span class="va">placeholders</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="advanced-developer-workflow">Advanced developer workflow<a class="anchor" aria-label="anchor" href="#advanced-developer-workflow"></a>
-</h3>
-<p>Use the low-level runtime helpers directly when you want to inspect generated code, write tests, or build developer tooling around parsed formulas.</p>
-<p><code><a href="reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec()</a></code> is the supported way to discover the runtime input ids needed by <code><a href="reference/ptr_exec.html">ptr_exec()</a></code>.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_parse_formula.html">ptr_parse_formula</a></span><span class="op">(</span></span>
-<span>  <span class="st">"ggplot(data = mtcars, aes(x = var, y = var)) +</span></span>
-<span><span class="st">    geom_point(size = num) +</span></span>
-<span><span class="st">    labs(title = text)"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec</a></span><span class="op">(</span><span class="va">obj</span><span class="op">)</span></span>
-<span><span class="va">spec</span>  <span class="co"># 6 columns: input_id, role, layer_name, keyword, param_key, source_id</span></span>
-<span><span class="co">#&gt;              input_id           role layer_name keyword param_key    source_id</span></span>
-<span><span class="co">#&gt; 1          ggplot+3+2    placeholder     ggplot     var         x   ggplot+3+2</span></span>
-<span><span class="co">#&gt; 2          ggplot+3+3    placeholder     ggplot     var         y   ggplot+3+3</span></span>
-<span><span class="co">#&gt; 3        geom_point+2    placeholder geom_point     num linewidth geom_point+2</span></span>
-<span><span class="co">#&gt; 4              labs+2    placeholder       labs    text     title       labs+2</span></span>
-<span><span class="co">#&gt; 5 geom_point+checkbox layer_checkbox geom_point    &lt;NA&gt;      &lt;NA&gt;         &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 6       labs+checkbox layer_checkbox       labs    &lt;NA&gt;      &lt;NA&gt;         &lt;NA&gt;</span></span>
-<span></span>
-<span><span class="va">inputs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">vector</a></span><span class="op">(</span><span class="st">"list"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">spec</span><span class="op">)</span><span class="op">)</span>, <span class="va">spec</span><span class="op">$</span><span class="va">input_id</span><span class="op">)</span></span>
-<span><span class="va">checkbox_rows</span> <span class="op">&lt;-</span> <span class="va">spec</span><span class="op">$</span><span class="va">role</span> <span class="op">==</span> <span class="st">"layer_checkbox"</span></span>
-<span><span class="va">inputs</span><span class="op">[</span><span class="va">checkbox_rows</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="cn">TRUE</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">checkbox_rows</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">inputs</span><span class="op">[[</span><span class="st">"ggplot+3+2"</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"mpg"</span></span>
-<span><span class="va">inputs</span><span class="op">[[</span><span class="st">"ggplot+3+3"</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"disp"</span></span>
-<span><span class="va">inputs</span><span class="op">[[</span><span class="st">"geom_point+2"</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fl">2</span></span>
-<span><span class="va">inputs</span><span class="op">[[</span><span class="st">"labs+2"</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"Mtcars scatter"</span></span>
-<span></span>
-<span><span class="va">runtime</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_exec.html">ptr_exec</a></span><span class="op">(</span><span class="va">obj</span>, <span class="va">inputs</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">runtime</span><span class="op">$</span><span class="va">code_text</span></span>
-<span><span class="co">#&gt; [1] "ggplot(data = mtcars, aes(x = mpg, y = disp)) +\n  geom_point(size = 2) +\n  labs(title = \"Mtcars scatter\")"</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">inherits</a></span><span class="op">(</span><span class="va">runtime</span><span class="op">$</span><span class="va">plot</span>, <span class="st">"ggplot"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
-<p>For upload-backed formulas, the spec also includes the derived dataset-name input that accompanies each upload control.</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">upload_obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/ptr_parse_formula.html">ptr_parse_formula</a></span><span class="op">(</span></span>
-<span>  <span class="st">"ggplot(data = upload, aes(x = var, y = var)) + geom_point()"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec</a></span><span class="op">(</span><span class="va">upload_obj</span><span class="op">)</span></span>
-<span><span class="co">#&gt;              input_id           role layer_name keyword param_key  source_id</span></span>
-<span><span class="co">#&gt; 1            ggplot+2    placeholder     ggplot  upload      data   ggplot+2</span></span>
-<span><span class="co">#&gt; 2       ggplot+2+name    upload_name     ggplot  upload      data   ggplot+2</span></span>
-<span><span class="co">#&gt; 3          ggplot+3+2    placeholder     ggplot     var         x ggplot+3+2</span></span>
-<span><span class="co">#&gt; 4          ggplot+3+3    placeholder     ggplot     var         y ggplot+3+3</span></span>
-<span><span class="co">#&gt; 5 geom_point+checkbox layer_checkbox geom_point    &lt;NA&gt;      &lt;NA&gt;       &lt;NA&gt;</span></span></code></pre></div>
-</div>
-</div>
-<div class="section level2">
-<h2 id="current-stability-guarantees">Current stability guarantees<a class="anchor" aria-label="anchor" href="#current-stability-guarantees"></a>
-</h2>
+<p>When you already have a Shiny app and want ggpaintr’s widgets and runtime to live inside it, use the embedding API:</p>
 <ul>
-<li>built-in placeholders are <code>var</code>, <code>text</code>, <code>num</code>, <code>expr</code>, and <code>upload</code>
-</li>
-<li>custom placeholders share the same parse, UI, runtime, and copy-rule path as built-ins</li>
 <li>
-<code>upload</code> currently supports <code>.csv</code> and <code>.rds</code>
-</li>
-<li>the supported app-facing surface is the current <code>ptr_*</code> wrapper and Shiny-integration layer</li>
-<li>only the five top-level ids exposed by <code><a href="reference/ptr_build_ids.html">ptr_build_ids()</a></code> are configurable</li>
-<li>runtime failures are labeled as <code>Input error</code> or <code>Plot error</code> and stay on the shared inline error path</li>
+<code><a href="reference/ptr_input_ui.html">ptr_input_ui()</a></code> and <code><a href="reference/ptr_output_ui.html">ptr_output_ui()</a></code> drop the generated controls and output panes into any UI.</li>
+<li>
+<code><a href="reference/ptr_server.html">ptr_server()</a></code> wires up the server side in one call; or compose the individual <code>ptr_register_*()</code> helpers (<code>ptr_register_draw</code>, <code>ptr_register_plot</code>, <code>ptr_register_code</code>, <code>ptr_register_error</code>) for finer control.</li>
+<li>
+<code><a href="reference/ptr_server_state.html">ptr_server_state()</a></code> + <code><a href="reference/ptr_setup_controls.html">ptr_setup_controls()</a></code> expose the underlying reactive state for apps that want to observe it.</li>
+<li>
+<code><a href="reference/ptr_build_ids.html">ptr_build_ids()</a></code> lets you rename every top-level element id to match your own conventions.</li>
+<li>
+<code>ui_text</code> rewrites labels, help text, and shell chrome at any of four merge layers (<code>shell</code>, <code>defaults</code>, <code>params</code>, <code>layers</code>).</li>
 </ul>
+<p>Read <code><a href="articles/ggpaintr-extensibility.html">vignette("ggpaintr-extensibility")</a></code> for a full runnable embed app, the complete <code>ui_text</code> override catalog, and the four-layer merge precedence rules.</p>
+</div>
+<div class="section level3">
+<h3 id="level-3--low-level-developer-api">Level 3 — Low-level developer API<a class="anchor" aria-label="anchor" href="#level-3--low-level-developer-api"></a>
+</h3>
+<p>When Level 2 is not enough — batch reports, custom <code>renderPlot()</code> blocks, programmatic code generation, or building new ggpaintr-aware packages — drop to the parse / exec / extract helpers:</p>
+<ul>
+<li>
+<code><a href="reference/ptr_parse_formula.html">ptr_parse_formula()</a></code> parses a formula once and returns the shared object that every other helper consumes.</li>
+<li>
+<code><a href="reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec()</a></code> enumerates the input ids the runtime expects, so you can build an input list without a Shiny session.</li>
+<li>
+<code><a href="reference/ptr_exec.html">ptr_exec()</a></code> runs the parsed formula against that input list, headlessly.</li>
+<li>
+<code><a href="reference/ptr_extract_plot.html">ptr_extract_plot()</a></code>, <code><a href="reference/ptr_extract_code.html">ptr_extract_code()</a></code>, <code><a href="reference/ptr_extract_error.html">ptr_extract_error()</a></code> pull the rendered plot, the generated code string, and any runtime error out of the result.</li>
+<li>
+<code><a href="reference/ptr_gg_extra.html">ptr_gg_extra()</a></code> and <code><a href="reference/ptr_assemble_plot.html">ptr_assemble_plot()</a></code> let a host app merge extra ggplot components into the embedded plot while keeping the code pane in sync with what was actually drawn.</li>
+<li>
+<code><a href="reference/ptr_missing_expr.html">ptr_missing_expr()</a></code> is the sentinel a custom <code>resolve_expr</code> hook returns when its widget has no value yet.</li>
+</ul>
+<p>Read <code><a href="articles/ggpaintr-extensibility.html">vignette("ggpaintr-extensibility")</a></code> for runnable Level 3 recipes: a headless plot rendered to a png file with no Shiny, a custom <code>renderPlot()</code> that post-processes the ggplot object, a host app injecting layers with <code><a href="reference/ptr_gg_extra.html">ptr_gg_extra()</a></code>, and programmatic code generation with <code><a href="reference/ptr_extract_code.html">ptr_extract_code()</a></code>.</p>
+</div>
+<div class="section level3">
+<h3 id="customizing-placeholders">Customizing placeholders<a class="anchor" aria-label="anchor" href="#customizing-placeholders"></a>
+</h3>
+<p>Custom widget types — a date picker, a slider, a column-subset chooser — are defined with <code><a href="reference/ptr_define_placeholder.html">ptr_define_placeholder()</a></code> and mixed in with <code><a href="reference/ptr_merge_placeholders.html">ptr_merge_placeholders()</a></code>. They plug into every level:</p>
+<ul>
+<li>Level 1: <code>ptr_app(formula, placeholders = ...)</code>.</li>
+<li>Level 2: <code>ptr_server(..., placeholders = ...)</code>.</li>
+<li>Level 3: <code>ptr_parse_formula(formula, placeholders = ...)</code>.</li>
+</ul>
+<p>A placeholder definition supplies up to five hooks (<code>build_ui</code>, <code>resolve_expr</code>, <code>resolve_input</code>, <code>bind_ui</code>, <code>prepare_eval_env</code>) of which the first two are required.</p>
+<p>See <code><a href="articles/ggpaintr-placeholder-registry.html">vignette("ggpaintr-placeholder-registry")</a></code> for the full hook contract, a minimal end-to-end example, and the recipe for replacing a built-in widget with a custom one.</p>
+</div>
 </div>
 <div class="section level2">
-<h2 id="not-guaranteed--implementation-details">Not guaranteed / implementation details<a class="anchor" aria-label="anchor" href="#not-guaranteed--implementation-details"></a>
+<h2 id="where-to-go-next">Where to go next<a class="anchor" aria-label="anchor" href="#where-to-go-next"></a>
 </h2>
 <ul>
-<li>raw placeholder ids such as <code>"ggplot+3+2"</code> are not a stable hand-authored API; discover them with <code><a href="reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec()</a></code>
-</li>
-<li>deeper traversal details such as <code>index_path</code> encoding and internal companion id conventions remain package internals</li>
-<li>unsupported upload formats are outside the current boundary</li>
-<li>the formula-string model is the current author-facing interface; future hardening should compile it into a richer internal runtime contract rather than replace that authoring model outright</li>
+<li>
+<strong><code><a href="articles/ggpaintr-workflow.html">vignette("ggpaintr-workflow")</a></code></strong> — formula syntax, every placeholder keyword, every <code><a href="reference/ptr_app.html">ptr_app()</a></code> argument, data-source paths, and a conceptual tour of what happens between click and plot. Read this first.</li>
+<li>
+<strong><code><a href="articles/ggpaintr-extensibility.html">vignette("ggpaintr-extensibility")</a></code></strong> — Level 2 (embed in an existing Shiny app, override <code>ui_text</code>, custom ids) and Level 3 (headless plot, custom <code>renderPlot()</code>, <code><a href="reference/ptr_gg_extra.html">ptr_gg_extra()</a></code>, programmatic code generation). Read this when you outgrow <code><a href="reference/ptr_app.html">ptr_app()</a></code>.</li>
+<li>
+<strong><code><a href="articles/ggpaintr-placeholder-registry.html">vignette("ggpaintr-placeholder-registry")</a></code></strong> — the five placeholder hooks, required vs optional, worked examples of adding a new widget type, and the recipe for replacing a built-in placeholder.</li>
+</ul>
+<p>The <a href="https://willju-wangqian.github.io/ggpaintr/">pkgdown reference</a> lists every exported function.</p>
+</div>
+<div class="section level2">
+<h2 id="stability-guarantees">Stability guarantees<a class="anchor" aria-label="anchor" href="#stability-guarantees"></a>
+</h2>
+<ul>
+<li>The five built-in placeholders — <code>var</code>, <code>text</code>, <code>num</code>, <code>expr</code>, <code>upload</code> — are stable. Custom placeholders share the same parse, UI, runtime, and copy-rule path.</li>
+<li>
+<code>upload</code> accepts <code>.csv</code> and <code>.rds</code>. Other formats are outside the current boundary.</li>
+<li>The supported surface is the exported <code>ptr_*</code> API (see <code>NAMESPACE</code>). Anything not exported is implementation detail.</li>
+<li>Only the top-level ids exposed by <code><a href="reference/ptr_build_ids.html">ptr_build_ids()</a></code> are configurable.</li>
+<li>Runtime failures are labeled <code>Input error</code> or <code>Plot error</code> and stay on the shared inline error path.</li>
+<li>Raw placeholder ids such as <code>"ggplot+3+2"</code> are not a stable hand-authored API — discover them with <code><a href="reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec()</a></code>. Deeper traversal details (<code>index_path</code> encoding, internal companion id conventions) remain package internals.</li>
+<li>The formula-string model is the current author-facing interface; future hardening should compile it into a richer internal runtime contract rather than replace that authoring model outright.</li>
 </ul>
 </div>
 <div class="section level2">
@@ -405,16 +250,11 @@
 <li>
 <code>var</code> with no data source fails while preparing the UI.</li>
 <li>
-<code>var</code> is a column picker. Formula-level transforms such as <code>var + 1</code> or <code>log(var)</code> are supported inside the formula text, not as direct input values.</li>
-<li>For local data with non-syntactic names, call <code><a href="reference/ptr_normalize_column_names.html">ptr_normalize_column_names()</a></code> first; uploads apply the same normalization automatically.</li>
+<code>var</code> is a column picker. Formula-level transforms such as <code>var + 1</code> or <code>log(var)</code> go in the formula text, not as input values.</li>
+<li>Local data with non-syntactic column names must pass through <code><a href="reference/ptr_normalize_column_names.html">ptr_normalize_column_names()</a></code> first. Uploads apply the same normalization automatically.</li>
 <li>Missing local data objects are deferred to draw-time inline errors.</li>
-<li>Advanced integrations can customize the plot through <code><a href="reference/ptr_extract_plot.html">ptr_extract_plot()</a></code>.</li>
+<li>Advanced integrations can customize the plot through <code><a href="reference/ptr_extract_plot.html">ptr_extract_plot()</a></code> inside a user-owned <code>renderPlot()</code>, with <code><a href="reference/ptr_gg_extra.html">ptr_gg_extra()</a></code> keeping the code pane in sync.</li>
 </ul>
-</div>
-<div class="section level2">
-<h2 id="where-to-go-next">Where to go next<a class="anchor" aria-label="anchor" href="#where-to-go-next"></a>
-</h2>
-<p>See <code><a href="articles/ggpaintr-workflow.html">vignette("ggpaintr-workflow")</a></code> for the main workflow and <code><a href="articles/ggpaintr-extensibility.html">vignette("ggpaintr-extensibility")</a></code> for supported Shiny integration recipes. See <code><a href="articles/ggpaintr-placeholder-registry.html">vignette("ggpaintr-placeholder-registry")</a></code> for the placeholder registry API and hook contract.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">
@@ -449,7 +289,12 @@
 </ul>
 </div>
 
-
+<div class="dev-status">
+<h2 data-toc-skip>Dev status</h2>
+<ul class="list-unstyled">
+<li><a href="https://lifecycle.r-lib.org/articles/stages.html" class="external-link"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental"></a></li>
+</ul>
+</div>
 
   </aside>
 </div>
