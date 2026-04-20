@@ -78,13 +78,13 @@ The five built-ins use the same registry path as any custom placeholder.
 The table below shows which hooks each one defines — a useful reference
 when you want to mimic or replace one.
 
-| Keyword  | Widget                                | Value produced                             | Hooks used                                                      |
-|----------|---------------------------------------|--------------------------------------------|-----------------------------------------------------------------|
-| `var`    | Dynamic `selectInput` of data columns | Column name as a symbol                    | `build_ui`, `resolve_expr`, `bind_ui`                           |
-| `text`   | `textInput`                           | String literal                             | `build_ui`, `resolve_expr`                                      |
-| `num`    | `numericInput`                        | Numeric scalar                             | `build_ui`, `resolve_expr`                                      |
-| `expr`   | Text field parsed as R                | Arbitrary expression (safety-checked)      | `build_ui`, `resolve_expr`                                      |
-| `upload` | File input + format picker            | User-supplied data frame bound in eval env | `build_ui`, `resolve_expr`, `resolve_input`, `prepare_eval_env` |
+| Keyword  | Widget                                                                                                                   | Value produced                             | Hooks used                                                      |
+|----------|--------------------------------------------------------------------------------------------------------------------------|--------------------------------------------|-----------------------------------------------------------------|
+| `var`    | Dynamic [`shinyWidgets::pickerInput`](https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html) of data columns | Column name as a symbol                    | `build_ui`, `resolve_expr`, `bind_ui`                           |
+| `text`   | `textInput`                                                                                                              | String literal                             | `build_ui`, `resolve_expr`                                      |
+| `num`    | `numericInput`                                                                                                           | Numeric scalar                             | `build_ui`, `resolve_expr`                                      |
+| `expr`   | Text field parsed as R                                                                                                   | Arbitrary expression (safety-checked)      | `build_ui`, `resolve_expr`                                      |
+| `upload` | File input + format picker                                                                                               | User-supplied data frame bound in eval env | `build_ui`, `resolve_expr`, `resolve_input`, `prepare_eval_env` |
 
 `var` uses `bind_ui` because its choices can only be populated after the
 data is known at runtime. `upload` uses `prepare_eval_env` because the

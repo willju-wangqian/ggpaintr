@@ -42,13 +42,13 @@ A ggpaintr formula is a normal ggplot call as a string, with placeholder
 keywords anywhere a value would normally go. Each keyword maps to one
 widget and one runtime value.
 
-| Keyword  | Widget                        | Runtime value                | Typical use                                  |
-|----------|-------------------------------|------------------------------|----------------------------------------------|
-| `var`    | column picker (`selectInput`) | column symbol                | pick a column from the data frame            |
-| `text`   | `textInput`                   | string                       | free text (axis labels, titles, color names) |
-| `num`    | `numericInput`                | numeric                      | a number (point size, alpha, threshold)      |
-| `expr`   | code input                    | parsed R expression          | raw R code (facet specs, label formulas)     |
-| `upload` | `fileInput` + dataset name    | data frame (`.csv` / `.rds`) | let the app receive a dataset at runtime     |
+| Keyword  | Widget                                                                                                           | Runtime value                | Typical use                                  |
+|----------|------------------------------------------------------------------------------------------------------------------|------------------------------|----------------------------------------------|
+| `var`    | column picker ([`shinyWidgets::pickerInput`](https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html)) | column symbol                | pick a column from the data frame            |
+| `text`   | `textInput`                                                                                                      | string                       | free text (axis labels, titles, color names) |
+| `num`    | `numericInput`                                                                                                   | numeric                      | a number (point size, alpha, threshold)      |
+| `expr`   | code input                                                                                                       | parsed R expression          | raw R code (facet specs, label formulas)     |
+| `upload` | `fileInput` + dataset name                                                                                       | data frame (`.csv` / `.rds`) | let the app receive a dataset at runtime     |
 
 Slot context decides each widget’s label and help text: the surrounding
 argument name, the layer it appears in, and the keyword together pick
@@ -132,13 +132,14 @@ runtime to live inside it, use the embedding API:
 - [`ptr_build_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.md)
   lets you rename every top-level element id to match your own
   conventions.
-- `ui_text` rewrites labels, help text, and shell chrome at any of four
-  merge layers (`shell`, `defaults`, `params`, `layers`).
+- `ui_text` rewrites labels, help text, and shell chrome at any of six
+  sections (`shell`, `upload`, `layer_checkbox`, `defaults`, `params`,
+  `layers`).
 
 Read
 [`vignette("ggpaintr-extensibility")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-extensibility.md)
 for a full runnable embed app, the complete `ui_text` override catalog,
-and the four-layer merge precedence rules.
+and the six-section merge precedence rules.
 
 ### Level 3 — Low-level developer API
 
@@ -234,7 +235,7 @@ lists every exported function.
   are configurable.
 - Runtime failures are labeled `Input error` or `Plot error` and stay on
   the shared inline error path.
-- Raw placeholder ids such as `"ggplot+3+2"` are not a stable
+- Raw placeholder ids such as `"ggplot_3_2"` are not a stable
   hand-authored API — discover them with
   [`ptr_runtime_input_spec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_runtime_input_spec.md).
   Deeper traversal details (`index_path` encoding, internal companion id

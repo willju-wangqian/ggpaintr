@@ -96,10 +96,10 @@
 <p>A ggpaintr formula is a normal ggplot call as a string, with placeholder keywords anywhere a value would normally go. Each keyword maps to one widget and one runtime value.</p>
 <table class="table">
 <colgroup>
-<col width="8%">
-<col width="26%">
-<col width="25%">
-<col width="39%">
+<col width="7%">
+<col width="34%">
+<col width="22%">
+<col width="35%">
 </colgroup>
 <thead><tr class="header">
 <th>Keyword</th>
@@ -110,7 +110,7 @@
 <tbody>
 <tr class="odd">
 <td><code>var</code></td>
-<td>column picker (<code>selectInput</code>)</td>
+<td>column picker (<code><a href="https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html" class="external-link">shinyWidgets::pickerInput</a></code>)</td>
 <td>column symbol</td>
 <td>pick a column from the data frame</td>
 </tr>
@@ -178,9 +178,9 @@
 <li>
 <code><a href="reference/ptr_build_ids.html">ptr_build_ids()</a></code> lets you rename every top-level element id to match your own conventions.</li>
 <li>
-<code>ui_text</code> rewrites labels, help text, and shell chrome at any of four merge layers (<code>shell</code>, <code>defaults</code>, <code>params</code>, <code>layers</code>).</li>
+<code>ui_text</code> rewrites labels, help text, and shell chrome at any of six sections (<code>shell</code>, <code>upload</code>, <code>layer_checkbox</code>, <code>defaults</code>, <code>params</code>, <code>layers</code>).</li>
 </ul>
-<p>Read <code><a href="articles/ggpaintr-extensibility.html">vignette("ggpaintr-extensibility")</a></code> for a full runnable embed app, the complete <code>ui_text</code> override catalog, and the four-layer merge precedence rules.</p>
+<p>Read <code><a href="articles/ggpaintr-extensibility.html">vignette("ggpaintr-extensibility")</a></code> for a full runnable embed app, the complete <code>ui_text</code> override catalog, and the six-section merge precedence rules.</p>
 </div>
 <div class="section level3">
 <h3 id="level-3--low-level-developer-api">Level 3 — Low-level developer API<a class="anchor" aria-label="anchor" href="#level-3--low-level-developer-api"></a>
@@ -238,7 +238,7 @@
 <li>The supported surface is the exported <code>ptr_*</code> API (see <code>NAMESPACE</code>). Anything not exported is implementation detail.</li>
 <li>Only the top-level ids exposed by <code><a href="reference/ptr_build_ids.html">ptr_build_ids()</a></code> are configurable.</li>
 <li>Runtime failures are labeled <code>Input error</code> or <code>Plot error</code> and stay on the shared inline error path.</li>
-<li>Raw placeholder ids such as <code>"ggplot+3+2"</code> are not a stable hand-authored API — discover them with <code><a href="reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec()</a></code>. Deeper traversal details (<code>index_path</code> encoding, internal companion id conventions) remain package internals.</li>
+<li>Raw placeholder ids such as <code>"ggplot_3_2"</code> are not a stable hand-authored API — discover them with <code><a href="reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec()</a></code>. Deeper traversal details (<code>index_path</code> encoding, internal companion id conventions) remain package internals.</li>
 <li>The formula-string model is the current author-facing interface; future hardening should compile it into a richer internal runtime contract rather than replace that authoring model outright.</li>
 </ul>
 </div>

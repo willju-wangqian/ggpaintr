@@ -60,7 +60,7 @@ they produce and what kind of value they feed back into the ggplot call.
 
 | Keyword  | Widget                                                                                                                             | Produces at runtime          | Typical use                               |
 |----------|------------------------------------------------------------------------------------------------------------------------------------|------------------------------|-------------------------------------------|
-| `var`    | [`selectInput()`](https://rdrr.io/pkg/shiny/man/selectInput.html) of data-frame columns                                            | column name as a symbol      | mappings like `x = var`, `color = var`    |
+| `var`    | [`shinyWidgets::pickerInput()`](https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html) of data-frame columns           | column name as a symbol      | mappings like `x = var`, `color = var`    |
 | `text`   | [`textInput()`](https://rdrr.io/pkg/shiny/man/textInput.html)                                                                      | string literal               | `labs(title = text)`, category filters    |
 | `num`    | [`numericInput()`](https://rdrr.io/pkg/shiny/man/numericInput.html)                                                                | numeric value                | `size = num`, `alpha = num`               |
 | `expr`   | [`textInput()`](https://rdrr.io/pkg/shiny/man/textInput.html) (parsed as R expression)                                             | arbitrary R expression       | `facet_wrap(expr)`, `aes(x = expr)` maths |
