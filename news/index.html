@@ -23,6 +23,7 @@
     <li><a class="dropdown-item" href="../articles/ggpaintr-workflow.html">ggpaintr Workflow</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-extensibility.html">ggpaintr Extensibility</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-placeholder-registry.html">Custom Placeholders with the ggpaintr Registry</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -46,6 +47,8 @@
 <h3 id="new-features-0-9-0">New features<a class="anchor" aria-label="anchor" href="#new-features-0-9-0"></a></h3>
 <ul><li>
 <code><a href="../reference/ptr_gg_extra.html">ptr_gg_extra()</a></code> — advanced helper for embedded apps that own their own <code>renderPlot({...})</code> block. Captures ggplot components (themes, scales, coords, …) added on top of <code><a href="../reference/ptr_extract_plot.html">ptr_extract_plot()</a></code> and stores them on a new <code>ptr_state$extras</code> reactiveVal, so the default code binder (<code><a href="../reference/ptr_register_code.html">ptr_register_code()</a></code>) appends them to the generated-code pane. Extras are suppressed automatically when the underlying runtime reports a failure, so stale extras from a prior successful draw never surface during an error state. See <code><a href="../articles/ggpaintr-extensibility.html">vignette("ggpaintr-extensibility")</a></code>, Recipe 3.</li>
+<li>
+<code><a href="../reference/ptr_llm_primer.html">ptr_llm_primer()</a></code>, <code><a href="../reference/ptr_llm_topic.html">ptr_llm_topic()</a></code>, <code><a href="../reference/ptr_llm_topics.html">ptr_llm_topics()</a></code>, <code><a href="../reference/ptr_llm_register.html">ptr_llm_register()</a></code> — ellmer-facing helpers that expose the bundled <code>inst/llm/</code> primer and topic files as plain strings or as registered ellmer tools, so coding assistants can fetch just-in-time ggpaintr guidance. See <code><a href="../articles/ggpaintr-llm.html">vignette("ggpaintr-llm")</a></code>.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="breaking-changes-0-9-0">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-0-9-0"></a></h3>

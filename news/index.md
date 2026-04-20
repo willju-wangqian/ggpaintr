@@ -18,6 +18,14 @@
   state. See
   [`vignette("ggpaintr-extensibility")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-extensibility.md),
   Recipe 3.
+- [`ptr_llm_primer()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_llm_primer.md),
+  [`ptr_llm_topic()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_llm_topic.md),
+  [`ptr_llm_topics()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_llm_topics.md),
+  [`ptr_llm_register()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_llm_register.md)
+  — ellmer-facing helpers that expose the bundled `inst/llm/` primer and
+  topic files as plain strings or as registered ellmer tools, so coding
+  assistants can fetch just-in-time ggpaintr guidance. See
+  [`vignette("ggpaintr-llm")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-llm.md).
 
 ### Breaking changes
 
