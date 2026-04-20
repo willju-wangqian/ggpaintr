@@ -95,7 +95,7 @@ when you want to mimic or replace one.
 
 | Keyword | Widget | Value produced | Hooks used |
 |---------|--------|----------------|------------|
-| `var` | Dynamic `selectInput` of data columns | Column name as a symbol | `build_ui`, `resolve_expr`, `bind_ui` |
+| `var` | Dynamic `shinyWidgets::pickerInput` of data columns | Column name as a symbol | `build_ui`, `resolve_expr`, `bind_ui` |
 | `text` | `textInput` | String literal | `build_ui`, `resolve_expr` |
 | `num` | `numericInput` | Numeric scalar | `build_ui`, `resolve_expr` |
 | `expr` | Text field parsed as R | Arbitrary expression (safety-checked) | `build_ui`, `resolve_expr` |

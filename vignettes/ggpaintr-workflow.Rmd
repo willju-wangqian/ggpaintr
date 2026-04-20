@@ -76,7 +76,7 @@ ggplot call.
 
 | Keyword  | Widget                                | Produces at runtime          | Typical use                                 |
 |----------|---------------------------------------|------------------------------|---------------------------------------------|
-| `var`    | `selectInput()` of data-frame columns | column name as a symbol      | mappings like `x = var`, `color = var`      |
+| `var`    | `shinyWidgets::pickerInput()` of data-frame columns | column name as a symbol      | mappings like `x = var`, `color = var`      |
 | `text`   | `textInput()`                         | string literal               | `labs(title = text)`, category filters       |
 | `num`    | `numericInput()`                      | numeric value                | `size = num`, `alpha = num`                  |
 | `expr`   | `textInput()` (parsed as R expression)| arbitrary R expression       | `facet_wrap(expr)`, `aes(x = expr)` maths    |

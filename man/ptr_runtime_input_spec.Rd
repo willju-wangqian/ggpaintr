@@ -29,7 +29,7 @@ placeholder row
 \item layer checkbox inputs for every non-\code{ggplot} layer, appended in layer order
 }
 
-Raw ids such as \code{"ggplot+3+2"} still appear in the returned data, but those
+Raw ids such as \code{"ggplot_3_2"} still appear in the returned data, but those
 ids remain implementation details. Call this helper instead of relying on the
 exact encoding scheme directly.
 }
