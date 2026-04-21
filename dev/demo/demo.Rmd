@@ -185,7 +185,7 @@ ptr_app("
  ggplot(data = iris, aes(x = var, y = var, color = var)) +
    geom_point() + 
    geom_smooth(method = text) + 
-   facet_wrap(expr) + 
+   facet_wrap(expr, scales = text) + 
    labs(title = text)
 ")
 ```
@@ -270,6 +270,12 @@ ggplot(data = mtcars, aes(x = var, y = var, color = factor(cyl))) +
   expr
 ")
 ```
+```{r}
+ptr_app("
+        ggplot(iris) + 
+        expr")
+```
+
 
 Suggested inputs showing the full reach of `expr`:
 
@@ -376,6 +382,86 @@ server <- function(input, output, session) {
 
 shinyApp(ui, server)
 ```
+
+```{r extensibility-level-2-2}
+custom_ids <- ptr_build_ids(
+  control_panel = "builder_controls",
+  draw_button   = "render_plot",
+  plot_output   = "main_plot",
+  error_output  = "main_error",
+  code_output   = "main_code"
+)
+
+custom_ids2 <- ptr_build_ids(
+  control_panel = "builder_controls2",
+  draw_button   = "render_plot2",
+  plot_output   = "main_plot2",
+  error_output  = "main_error2",
+  code_output   = "main_code2"
+)
+
+ui <- fluidPage(
+  titlePanel("Embedded ggpaintr"),
+  sidebarLayout(
+    sidebarPanel(
+      ptr_input_ui(ids = custom_ids),
+      ptr_input_ui(ids = custom_ids2),
+      tags$hr(),
+      h4("Session status"),
+      textOutput("runtimeStatus")
+    ),
+    mainPanel(
+      ptr_output_ui(ids = custom_ids),
+      ptr_output_ui(ids = custom_ids2)
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  ptr_state <- ptr_server_state(
+    "ggplot(data = iris, aes(x = var, y = var)) +
+      geom_point(aes(color = var), size = num) +
+      labs(title = text)",
+    ids = custom_ids
+  )
+  
+  ptr_setup_controls(input, output, ptr_state, ids = custom_ids)
+  ptr_register_draw(input, ptr_state, ids = custom_ids)
+  ptr_register_plot(output, ptr_state, ids = custom_ids)
+  ptr_register_error(output, ptr_state, ids = custom_ids)
+  ptr_register_code(output, ptr_state, ids = custom_ids)
+  
+  ptr_state2 <- ptr_server_state(
+    "ggplot(data = mtcars, aes(x = var, y = var)) +
+      geom_point(aes(color = var), size = num) +
+      labs(title = text)",
+    ids = custom_ids2
+  )
+  
+  ptr_setup_controls(input, output, ptr_state2, ids = custom_ids2)
+  ptr_register_draw(input, ptr_state2, ids = custom_ids2)
+  ptr_register_plot(output, ptr_state2, ids = custom_ids2)
+  ptr_register_error(output, ptr_state2, ids = custom_ids2)
+  ptr_register_code(output, ptr_state2, ids = custom_ids2)
+  
+  # Your own reactive reading ptr_state$runtime()
+  output$runtimeStatus <- renderText({
+    r <- ptr_state$runtime()
+    if (is.null(r))          return("Waiting for first draw...")
+    if (isTRUE(r$ok))        return(paste("OK —", nchar(r$code_text), "chars of code"))
+    
+    r2 <- ptr_state2$runtime()
+    if (is.null(r2))          return("Waiting for first draw...")
+    if (isTRUE(r2$ok))        return(paste("OK —", nchar(r2$code_text), "chars of code"))
+    
+    
+    paste(r$message, r2$message)
+  })
+}
+
+shinyApp(ui, server)
+```
+
 
 ## Level 3: Own the render path with pure extractors + `ptr_gg_extra()`
 
@@ -487,12 +573,13 @@ server <- function(input, output, session) {
     x <- girafe(
       code = print(plot_obj),
       width_svg = 6, height_svg = 5,
-      options = list(
-        opts_hover(css = "fill:#FF3333;stroke:black;cursor:pointer;", 
-                   reactive = TRUE),
-        opts_selection(
-          type = "multiple", css = "fill:#FF3333;stroke:black;")
-      ))
+      # options = list(
+      #   opts_hover(css = "fill:#FF3333;stroke:black;cursor:pointer;", 
+      #              reactive = TRUE),
+      #   opts_selection(
+      #     type = "multiple", css = "fill:#FF3333;stroke:black;")
+      # )
+      )
     x
     
   })
