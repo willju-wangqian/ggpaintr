@@ -11,7 +11,7 @@
 
 <meta name="author" content="Will Ju" />
 
-<meta name="date" content="2026-04-20" />
+<meta name="date" content="2026-04-21" />
 
 <title>ggpaintr Showcase Demo</title>
 
@@ -352,7 +352,7 @@ display: none;
 
 <h1 class="title toc-ignore">ggpaintr Showcase Demo</h1>
 <h4 class="author">Will Ju</h4>
-<h4 class="date">2026-04-20</h4>
+<h4 class="date">2026-04-21</h4>
 
 </div>
 
@@ -423,7 +423,10 @@ ui &lt;- fluidPage(
                   choices = names(iris)[1:4], selected = &quot;Sepal.Width&quot;),
       selectInput(&quot;color&quot;, &quot;Color variable&quot;,
                   choices = names(iris), selected = &quot;Species&quot;),
+      # for title
       textInput(&quot;title&quot;, &quot;Plot title&quot;, value = &quot;Iris scatter&quot;),
+      
+      # draw button
       actionButton(&quot;draw&quot;, &quot;Draw&quot;, class = &quot;btn-primary&quot;)
     ),
     mainPanel(plotOutput(&quot;plot&quot;))
@@ -431,6 +434,7 @@ ui &lt;- fluidPage(
 )
 
 server &lt;- function(input, output, session) {
+  # define reactive on button
   plot_data &lt;- eventReactive(input$draw, {
     list(x = input$x, y = input$y, color = input$color, title = input$title)
   }, ignoreNULL = FALSE)
@@ -441,7 +445,7 @@ server &lt;- function(input, output, session) {
                      y = .data[[p$y]],
                      color = .data[[p$color]])) +
       geom_point() +
-      labs(title = p$title)
+      labs(title = p$title) # add labs
   })
 }
 
@@ -461,8 +465,10 @@ ui &lt;- fluidPage(
                   choices = names(iris)[1:4], selected = &quot;Sepal.Width&quot;),
       selectInput(&quot;color&quot;, &quot;Color variable&quot;,
                   choices = names(iris), selected = &quot;Species&quot;),
+      # control for facet
       selectInput(&quot;facet&quot;, &quot;Facet by&quot;,
                   choices = c(&quot;None&quot; = &quot;&quot;, names(iris)), selected = &quot;&quot;),
+      # control for geom_smooth
       selectInput(&quot;smooth_method&quot;, &quot;Smoothing method&quot;,
                   choices = c(&quot;None&quot; = &quot;&quot;, &quot;lm&quot;, &quot;loess&quot;, &quot;gam&quot;, &quot;glm&quot;),
                   selected = &quot;&quot;),
@@ -490,10 +496,10 @@ server &lt;- function(input, output, session) {
       geom_point() +
       labs(title = p$title)
     
-    if (nzchar(p$smooth_method)) {
+    if (nzchar(p$smooth_method)) { # meaningful method input
       g &lt;- g + geom_smooth(method = p$smooth_method)
     }
-    if (nzchar(p$facet)) {
+    if (nzchar(p$facet)) { # meaningful facet input
       g &lt;- g + facet_wrap(vars(.data[[p$facet]]))
     }
     g
@@ -501,7 +507,9 @@ server &lt;- function(input, output, session) {
 }
 
 shinyApp(ui, server)</code></pre>
-<p>Add more controls? Handle error message? See the code behind?</p>
+<p>Add more controls? Handle error message? See the code behind? At some
+point, we will have to maintain <code>ui.R</code> and
+<code>server.R</code> as two separate files.</p>
 </div>
 <div id="with-ggpaintr" class="section level2">
 <h2>With <code>ggpaintr</code></h2>

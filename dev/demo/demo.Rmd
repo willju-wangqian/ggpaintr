@@ -40,7 +40,7 @@ library(palmerpenguins)
 
 A `selectInput` for `x`, `y`, and `color`, respectively.
 
-```{r}
+```{r simple-iris-1}
 library(shiny)
 library(ggplot2)
 
@@ -73,7 +73,7 @@ shinyApp(ui, server)
 
 Add a "draw" button? A `textInput` for the plot title?
 
-```{r}
+```{r simple-iris-2}
 library(shiny)
 library(ggplot2)
 
@@ -87,7 +87,10 @@ ui <- fluidPage(
                   choices = names(iris)[1:4], selected = "Sepal.Width"),
       selectInput("color", "Color variable",
                   choices = names(iris), selected = "Species"),
+      # for title
       textInput("title", "Plot title", value = "Iris scatter"),
+      
+      # draw button
       actionButton("draw", "Draw", class = "btn-primary")
     ),
     mainPanel(plotOutput("plot"))
@@ -95,6 +98,7 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
+  # define reactive on button
   plot_data <- eventReactive(input$draw, {
     list(x = input$x, y = input$y, color = input$color, title = input$title)
   }, ignoreNULL = FALSE)
@@ -105,7 +109,7 @@ server <- function(input, output, session) {
                      y = .data[[p$y]],
                      color = .data[[p$color]])) +
       geom_point() +
-      labs(title = p$title)
+      labs(title = p$title) # add labs
   })
 }
 
@@ -114,7 +118,7 @@ shinyApp(ui, server)
 
 Allow `facet_wrap` in the plot? Add `geom_smooth`?
 
-```{r}
+```{r simple-iris-3}
 library(shiny)
 library(ggplot2)
 
@@ -128,8 +132,10 @@ ui <- fluidPage(
                   choices = names(iris)[1:4], selected = "Sepal.Width"),
       selectInput("color", "Color variable",
                   choices = names(iris), selected = "Species"),
+      # control for facet
       selectInput("facet", "Facet by",
                   choices = c("None" = "", names(iris)), selected = ""),
+      # control for geom_smooth
       selectInput("smooth_method", "Smoothing method",
                   choices = c("None" = "", "lm", "loess", "gam", "glm"),
                   selected = ""),
@@ -157,10 +163,10 @@ server <- function(input, output, session) {
       geom_point() +
       labs(title = p$title)
     
-    if (nzchar(p$smooth_method)) {
+    if (nzchar(p$smooth_method)) { # meaningful method input
       g <- g + geom_smooth(method = p$smooth_method)
     }
-    if (nzchar(p$facet)) {
+    if (nzchar(p$facet)) { # meaningful facet input
       g <- g + facet_wrap(vars(.data[[p$facet]]))
     }
     g
@@ -170,11 +176,11 @@ server <- function(input, output, session) {
 shinyApp(ui, server)
 ```
 
-Add more controls? Handle error message? See the code behind?
+Add more controls? Handle error message? See the code behind? At some point, we will have to maintain `ui.R` and `server.R` as two separate files.
 
 ## With `ggpaintr`
 
-```{r}
+```{r simple-iris-ggpaintr}
 ptr_app("
  ggplot(data = iris, aes(x = var, y = var, color = var)) +
    geom_point() + 
@@ -186,7 +192,7 @@ ptr_app("
 
 Change the design
 
-```{r}
+```{r simple-iris-ggpaintr-2}
 library(palmerpenguins)
 
 ptr_app("

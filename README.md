@@ -1,5 +1,5 @@
 
-# ggpaintr
+# ggpaintr <img src="man/figures/logo.png" align="right" height="139" alt="ggpaintr logo" />
 
 Turn a ggplot-like formula string into a Shiny app. Placeholder keywords
 inside the formula (`var`, `text`, `num`, `expr`, `upload`) become input
