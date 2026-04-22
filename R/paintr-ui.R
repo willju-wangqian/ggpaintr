@@ -169,10 +169,11 @@ generate_ui_var <- function(data_var,
 #'
 #' @param ptr_obj A `ptr_obj`.
 #' @param ui_text Effective or user-supplied copy rules.
+#' @param ns_fn A namespace function `character -> character`.
 #'
 #' @return A named list of UI controls by layer.
 #' @noRd
-ptr_build_ui_list <- function(ptr_obj, ui_text = NULL) {
+ptr_build_ui_list <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL)) {
   effective_ui_text <- ptr_merge_ui_text(
     ui_text,
     placeholders = ptr_obj$placeholders
@@ -211,7 +212,7 @@ ptr_build_ui_list <- function(ptr_obj, ui_text = NULL) {
     })
 
     names(ui) <- names(keywords_list[[i]])
-    ui_insert_checkbox(ui, layer_name, ui_text = effective_ui_text)
+    ui_insert_checkbox(ui, layer_name, ui_text = effective_ui_text, ns_fn = ns_fn)
   })
 
   rlang::set_names(ui_list, layer_names)
@@ -223,16 +224,17 @@ ptr_build_ui_list <- function(ptr_obj, ui_text = NULL) {
 #' @param ui A list of UI elements for one layer.
 #' @param nn The layer name.
 #' @param ui_text Effective or user-supplied copy rules.
+#' @param ns_fn A namespace function `character -> character`.
 #'
 #' @return A list of UI elements, possibly prefixed with a checkbox.
 #' @noRd
-ui_insert_checkbox <- function(ui, nn, ui_text = NULL) {
+ui_insert_checkbox <- function(ui, nn, ui_text = NULL, ns_fn = shiny::NS(NULL)) {
   if (nn == "ggplot") {
     return(ui)
   }
 
   copy <- ptr_resolve_ui_text("layer_checkbox", ui_text = ui_text)
-  id <- ptr_checkbox_input_id(nn)
+  id <- ptr_ns_id(ns_fn, ptr_checkbox_input_id(nn))
   checkbox <- shiny::checkboxInput(id, label = copy$label, value = TRUE)
 
   ui <- c(list(checkbox), ui)
@@ -264,10 +266,11 @@ tab_wrap_ui <- function(ui_list) {
 #'
 #' @param ptr_obj A `ptr_obj`.
 #' @param ui_text Effective or user-supplied copy rules.
+#' @param ns_fn A namespace function `character -> character`.
 #'
 #' @return A Shiny UI object or `NULL`.
 #' @noRd
-ptr_get_tab_ui <- function(ptr_obj, ui_text = NULL) {
+ptr_get_tab_ui <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL)) {
   if (!inherits(ptr_obj, "ptr_obj")) {
     return(NULL)
   }
@@ -278,7 +281,8 @@ ptr_get_tab_ui <- function(ptr_obj, ui_text = NULL) {
       ui_text = ptr_merge_ui_text(
         ui_text,
         placeholders = ptr_obj$placeholders
-      )
+      ),
+      ns_fn = ns_fn
     )
   )
 }

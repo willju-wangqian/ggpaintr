@@ -4,7 +4,7 @@
 \alias{ptr_input_ui}
 \title{Build Default ggpaintr Control Widgets}
 \usage{
-ptr_input_ui(ids = ptr_build_ids(), ui_text = NULL)
+ptr_input_ui(ids = ptr_build_ids(), ui_text = NULL, ns = shiny::NS(NULL))
 }
 \arguments{
 \item{ids}{A \code{ptr_build_ids} object describing the top-level Shiny ids used by
@@ -12,6 +12,10 @@ the integration helpers.}
 
 \item{ui_text}{Optional named list of copy overrides for UI labels, helper
 text, and placeholders.}
+
+\item{ns}{An optional namespace function (\code{character -> character}). Must
+match the \code{ns} passed to \code{ptr_server_state()}. Defaults to
+\code{shiny::NS(NULL)} (no prefixing).}
 }
 \value{
 A Shiny UI object.

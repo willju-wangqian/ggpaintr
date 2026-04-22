@@ -163,6 +163,12 @@ ptr_validate_state <- function(ptr_state) {
 #'   vectors supplies a custom check; when both are given,
 #'   denied entries are removed from the allowlist.
 #'
+#' @param ns An optional namespace function (`character -> character`) used to
+#'   prefix all Shiny ids produced by this state instance. Pass
+#'   `shiny::NS("page1")` or `session$ns` to avoid id collisions when embedding
+#'   two or more ggpaintr formulas in the same Shiny session. The same `ns`
+#'   value must be passed to `ptr_input_ui()` and `ptr_output_ui()`. Defaults
+#'   to `shiny::NS(NULL)` (identity — no prefixing).
 #' @return An object of class `ptr_state`.
 #' @examples
 #' state <- ptr_server_state(
@@ -175,11 +181,23 @@ ptr_server_state <- function(formula,
                              ui_text = NULL,
                              ids = ptr_build_ids(),
                              placeholders = NULL,
-                             expr_check = TRUE) {
+                             expr_check = TRUE,
+                             ns = shiny::NS(NULL)) {
+  if (!is.function(ns)) {
+    rlang::abort("`ns` must be a namespace function (e.g. shiny::NS(\"id\") or session$ns).")
+  }
   ids <- ptr_normalize_ids(ids)
   placeholder_registry <- ptr_merge_placeholders(placeholders)
 
   parsed <- ptr_parse_formula(formula, placeholders = placeholder_registry)
+  parsed <- ptr_ns_obj(parsed, ns)
+
+  # Prefix top-level ids through ns
+  namespaced_ids <- structure(
+    lapply(ids, ns),
+    class = class(ids)
+  )
+
   structure(
     list(
       obj = shiny::reactiveVal(parsed),
@@ -195,9 +213,10 @@ ptr_server_state <- function(formula,
       ),
       placeholders = placeholder_registry,
       custom_placeholders = placeholder_registry$custom_placeholders,
-      ids = ids,
+      ids = namespaced_ids,
       envir = envir,
-      expr_check = expr_check
+      expr_check = expr_check,
+      ns_fn = ns
     ),
     class = c("ptr_state", "list")
   )
@@ -270,7 +289,8 @@ ptr_setup_controls <- function(input,
         ui_text = ptr_state$effective_ui_text,
         eval_env = cached$eval_env,
         var_column_map = cached$var_column_map,
-        expr_check = ptr_state$expr_check
+        expr_check = ptr_state$expr_check,
+        ns_fn = ptr_state$ns_fn %||% shiny::NS(NULL)
       ),
       error = function(e) list()
     )
@@ -283,7 +303,8 @@ ptr_setup_controls <- function(input,
       12,
       ptr_get_tab_ui(
         ptr_state$obj(),
-        ui_text = ptr_state$effective_ui_text
+        ui_text = ptr_state$effective_ui_text,
+        ns_fn = ptr_state$ns_fn %||% shiny::NS(NULL)
       )
     )
   })
@@ -324,7 +345,8 @@ ptr_register_draw <- function(input,
       envir = ptr_state$envir,
       eval_env = cached$eval_env,
       var_column_map = cached$var_column_map,
-      expr_check = ptr_state$expr_check
+      expr_check = ptr_state$expr_check,
+      ns_fn = ptr_state$ns_fn %||% shiny::NS(NULL)
     )
     runtime_result <- ptr_assemble_plot_safe(runtime_result, envir = ptr_state$envir, expr_check = ptr_state$expr_check)
     runtime_result <- ptr_validate_plot_render_safe(runtime_result)
@@ -614,6 +636,9 @@ ptr_gg_extra <- function(ptr_state, ...) {
 #'   the integration helpers.
 #' @param ui_text Optional named list of copy overrides for UI labels, helper
 #'   text, and placeholders.
+#' @param ns An optional namespace function (`character -> character`). Must
+#'   match the `ns` passed to `ptr_server_state()`. Defaults to
+#'   `shiny::NS(NULL)` (no prefixing).
 #'
 #' @return A Shiny UI object.
 #' @examples
@@ -623,13 +648,17 @@ ptr_gg_extra <- function(ptr_state, ...) {
 #' )
 #' inherits(ui, "shiny.tag.list")
 #' @export
-ptr_input_ui <- function(ids = ptr_build_ids(), ui_text = NULL) {
+ptr_input_ui <- function(ids = ptr_build_ids(), ui_text = NULL,
+                         ns = shiny::NS(NULL)) {
+  if (!is.function(ns)) {
+    rlang::abort("`ns` must be a namespace function (e.g. shiny::NS(\"id\") or session$ns).")
+  }
   ids <- ptr_normalize_ids(ids)
   shell_copy <- ptr_resolve_shell_ui_text(ui_text)
 
   shiny::tagList(
-    shiny::uiOutput(ids$control_panel),
-    shiny::actionButton(ids$draw_button, shell_copy$draw_copy$label)
+    shiny::uiOutput(ns(ids$control_panel)),
+    shiny::actionButton(ns(ids$draw_button), shell_copy$draw_copy$label)
   )
 }
 
@@ -637,19 +666,25 @@ ptr_input_ui <- function(ids = ptr_build_ids(), ui_text = NULL) {
 #'
 #' @param ids A `ptr_build_ids` object describing the top-level Shiny ids used by
 #'   the integration helpers.
+#' @param ns An optional namespace function (`character -> character`). Must
+#'   match the `ns` passed to `ptr_server_state()`. Defaults to
+#'   `shiny::NS(NULL)` (no prefixing).
 #'
 #' @return A Shiny UI object.
 #' @examples
 #' ui <- ptr_output_ui(ptr_build_ids(plot_output = "main_plot"))
 #' inherits(ui, "shiny.tag.list")
 #' @export
-ptr_output_ui <- function(ids = ptr_build_ids()) {
+ptr_output_ui <- function(ids = ptr_build_ids(), ns = shiny::NS(NULL)) {
+  if (!is.function(ns)) {
+    rlang::abort("`ns` must be a namespace function (e.g. shiny::NS(\"id\") or session$ns).")
+  }
   ids <- ptr_normalize_ids(ids)
 
   shiny::tagList(
-    shiny::plotOutput(ids$plot_output),
-    shiny::uiOutput(ids$error_output),
-    shiny::verbatimTextOutput(ids$code_output)
+    shiny::plotOutput(ns(ids$plot_output)),
+    shiny::uiOutput(ns(ids$error_output)),
+    shiny::verbatimTextOutput(ns(ids$code_output))
   )
 }
 
@@ -672,6 +707,10 @@ ptr_output_ui <- function(ids = ptr_build_ids()) {
 #'   vectors supplies a custom check; when both are given,
 #'   denied entries are removed from the allowlist.
 #'
+#' @param ns An optional namespace function (`character -> character`). See
+#'   [ptr_server_state()] for details. For standalone apps created with
+#'   `ptr_app()`, namespacing is rarely needed; it is most useful when
+#'   embedding ggpaintr inside a larger Shiny module.
 #' @return A `shiny.appobj`.
 #' @examples
 #' app <- ptr_app("ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()")
@@ -681,13 +720,15 @@ ptr_app <- function(formula,
                          envir = parent.frame(),
                          ui_text = NULL,
                          placeholders = NULL,
-                         expr_check = TRUE) {
+                         expr_check = TRUE,
+                         ns = shiny::NS(NULL)) {
   app_parts <- ptr_app_components(
     formula,
     envir = envir,
     ui_text = ui_text,
     placeholders = placeholders,
-    expr_check = expr_check
+    expr_check = expr_check,
+    ns = ns
   )
   shiny::shinyApp(ui = app_parts$ui, server = app_parts$server)
 }
@@ -717,9 +758,14 @@ ptr_app <- function(formula,
 #'   A named list with `deny_list` and/or `allow_list` character
 #'   vectors supplies a custom check; when both are given,
 #'   denied entries are removed from the allowlist.
+#' @param ns An optional namespace function (`character -> character`). See
+#'   [ptr_server_state()] for details.
 #'
 #' @return A `ptr_state` object containing reactive accessors named `obj`,
 #'   `runtime`, and `var_ui_list`, plus shared metadata used by the bind helpers.
+#' @note When embedding inside a `shiny::moduleServer()` call, pass
+#'   `session$ns` as the `ns` argument so all generated Shiny ids are scoped
+#'   to the module namespace.
 #' @export
 ptr_server <- function(input,
                             output,
@@ -729,14 +775,16 @@ ptr_server <- function(input,
                             ui_text = NULL,
                             placeholders = NULL,
                             ids = ptr_build_ids(),
-                            expr_check = TRUE) {
+                            expr_check = TRUE,
+                            ns = shiny::NS(NULL)) {
   ptr_state <- ptr_server_state(
     formula,
     envir = envir,
     ui_text = ui_text,
     placeholders = placeholders,
     ids = ids,
-    expr_check = expr_check
+    expr_check = expr_check,
+    ns = ns
   )
 
   ptr_state <- ptr_setup_controls(input, output, ptr_state)
@@ -765,22 +813,24 @@ ptr_resolve_shell_ui_text <- function(ui_text = NULL) {
 #'
 #' @param title_label App title text.
 #' @param draw_label Draw button text.
+#' @param ns An optional namespace function (`character -> character`).
 #'
 #' @return A Shiny UI object.
 #' @noRd
 ptr_build_app_ui <- function(title_label, draw_label,
-                             ids = ptr_build_ids()) {
+                             ids = ptr_build_ids(),
+                             ns = shiny::NS(NULL)) {
   shiny::fluidPage(
     shiny::titlePanel(title_label),
     shiny::sidebarLayout(
       shiny::sidebarPanel(
-        shiny::uiOutput(ids$control_panel),
-        shiny::actionButton(ids$draw_button, draw_label)
+        shiny::uiOutput(ns(ids$control_panel)),
+        shiny::actionButton(ns(ids$draw_button), draw_label)
       ),
       shiny::mainPanel(
-        shiny::plotOutput(ids$plot_output),
-        shiny::uiOutput(ids$error_output),
-        shiny::verbatimTextOutput(ids$code_output)
+        shiny::plotOutput(ns(ids$plot_output)),
+        shiny::uiOutput(ns(ids$error_output)),
+        shiny::verbatimTextOutput(ns(ids$code_output))
       )
     )
   )
@@ -793,6 +843,7 @@ ptr_build_app_ui <- function(title_label, draw_label,
 #' @param ui_text Optional named list of copy overrides.
 #' @param placeholders Optional custom placeholder definitions or an existing
 #'   placeholder registry.
+#' @param ns An optional namespace function (`character -> character`).
 #'
 #' @return A list with `ui` and `server`.
 #' @noRd
@@ -800,12 +851,14 @@ ptr_app_components <- function(formula,
                                   envir = parent.frame(),
                                   ui_text = NULL,
                                   placeholders = NULL,
-                                  expr_check = TRUE) {
+                                  expr_check = TRUE,
+                                  ns = shiny::NS(NULL)) {
   shell_copy <- ptr_resolve_shell_ui_text(ui_text)
 
   ui <- ptr_build_app_ui(
     shell_copy$title_copy$label,
-    shell_copy$draw_copy$label
+    shell_copy$draw_copy$label,
+    ns = ns
   )
 
   server <- function(input, output, session) {
@@ -817,7 +870,8 @@ ptr_app_components <- function(formula,
       envir = envir,
       ui_text = ui_text,
       placeholders = placeholders,
-      expr_check = expr_check
+      expr_check = expr_check,
+      ns = ns
     )
     invisible(NULL)
   }

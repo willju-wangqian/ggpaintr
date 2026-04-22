@@ -370,6 +370,67 @@ check_remove_null <- function(x) {
   x
 }
 
+#' Apply a Namespace Function to a Single Id
+#'
+#' @param ns_fn A namespace function `character -> character`.
+#' @param id A single id string.
+#'
+#' @return The namespaced id string.
+#' @noRd
+ptr_ns_id <- function(ns_fn, id) {
+  ns_fn(id)
+}
+
+#' Rewrite All Placeholder Ids in a `ptr_obj` Through a Namespace Function
+#'
+#' Applies `ns_fn` to every id stored in `ptr_obj$id_list` and
+#' `ptr_obj$placeholder_map`. Called once in `ptr_server_state()` immediately
+#' after parsing, so the rest of the runtime sees only namespaced ids.
+#'
+#' @param ptr_obj A `ptr_obj`.
+#' @param ns_fn A namespace function `character -> character`.
+#'
+#' @return A `ptr_obj` with rewritten ids.
+#' @noRd
+ptr_ns_obj <- function(ptr_obj, ns_fn) {
+  # Rewrite id_list: list[layer_name][[j]] = id_string
+  ptr_obj$id_list <- lapply(ptr_obj$id_list, function(layer_ids) {
+    lapply(layer_ids, function(id) ns_fn(id))
+  })
+
+  # Rewrite placeholder_map keys and $id field:
+  # list[layer_name][[id]] = {id, keyword, layer_name, param, index_path}
+  ptr_obj$placeholder_map <- lapply(ptr_obj$placeholder_map, function(layer_meta) {
+    new_meta <- list()
+    for (old_id in names(layer_meta)) {
+      entry <- layer_meta[[old_id]]
+      entry$id <- ns_fn(old_id)
+      new_meta[[ns_fn(old_id)]] <- entry
+    }
+    new_meta
+  })
+
+  # Rewrite index_path_list names (they are named by id)
+  ptr_obj$index_path_list <- lapply(ptr_obj$index_path_list, function(layer_paths) {
+    old_names <- names(layer_paths)
+    if (!is.null(old_names)) {
+      names(layer_paths) <- vapply(old_names, ns_fn, character(1))
+    }
+    layer_paths
+  })
+
+  # Rewrite checkbox_id_list values through ns_fn; names (layer names) stay intact
+  if (!is.null(ptr_obj$checkbox_id_list)) {
+    old_names <- names(ptr_obj$checkbox_id_list)
+    ptr_obj$checkbox_id_list <- stats::setNames(
+      vapply(unname(ptr_obj$checkbox_id_list), ns_fn, character(1)),
+      old_names
+    )
+  }
+
+  ptr_obj
+}
+
 #' Check Whether ggpaintr Verbose Mode Is Active
 #'
 #' @return A single logical value.

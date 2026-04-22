@@ -9,7 +9,8 @@ ptr_app(
   envir = parent.frame(),
   ui_text = NULL,
   placeholders = NULL,
-  expr_check = TRUE
+  expr_check = TRUE,
+  ns = shiny::NS(NULL)
 )
 }
 \arguments{
@@ -30,6 +31,11 @@ functions.
 A named list with \code{deny_list} and/or \code{allow_list} character
 vectors supplies a custom check; when both are given,
 denied entries are removed from the allowlist.}
+
+\item{ns}{An optional namespace function (\code{character -> character}). See
+\code{\link[=ptr_server_state]{ptr_server_state()}} for details. For standalone apps created with
+\code{ptr_app()}, namespacing is rarely needed; it is most useful when
+embedding ggpaintr inside a larger Shiny module.}
 }
 \value{
 A \code{shiny.appobj}.

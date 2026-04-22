@@ -97,6 +97,12 @@ ptr_parse_formula <- function(formula, placeholders = NULL, formula_check = TRUE
     placeholders = placeholder_registry
   )
 
+  non_ggplot_layers <- setdiff(names(ptr_expr_list), "ggplot")
+  checkbox_id_list <- stats::setNames(
+    vapply(non_ggplot_layers, ptr_checkbox_input_id, character(1)),
+    non_ggplot_layers
+  )
+
   result <- list(
     formula_text = formula,
     param_list = ptr_expr_param_list,
@@ -106,11 +112,11 @@ ptr_parse_formula <- function(formula, placeholders = NULL, formula_check = TRUE
     expr_list = ptr_expr_list,
     placeholder_map = placeholder_map,
     placeholders = placeholder_registry,
-    custom_placeholders = placeholder_registry$custom_placeholders
+    custom_placeholders = placeholder_registry$custom_placeholders,
+    checkbox_id_list = checkbox_id_list
   )
 
   class(result) <- "ptr_obj"
-  result$ui_list <- ptr_build_ui_list(result)
   result
 }
 
@@ -200,10 +206,17 @@ ptr_runtime_input_spec <- function(ptr_obj) {
     }
   }
 
+  checkbox_ids <- ptr_obj$checkbox_id_list
+  if (is.null(checkbox_ids)) {
+    checkbox_ids <- stats::setNames(
+      vapply(setdiff(layer_names, "ggplot"), ptr_checkbox_input_id, character(1)),
+      setdiff(layer_names, "ggplot")
+    )
+  }
   for (layer_name in setdiff(layer_names, "ggplot")) {
     idx <- idx + 1L
     spec_rows[[idx]] <- new_spec_row(
-      input_id = ptr_checkbox_input_id(layer_name),
+      input_id = checkbox_ids[[layer_name]],
       role = "layer_checkbox",
       layer_name = layer_name
     )

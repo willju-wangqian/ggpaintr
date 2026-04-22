@@ -12,11 +12,13 @@ ptr_checkbox_input_id <- function(layer_name) {
 #'
 #' @param layer_name A parsed non-`ggplot` layer name.
 #' @param input A Shiny input-like object.
+#' @param ns_fn A namespace function `character -> character`.
 #'
 #' @return A single logical value.
 #' @noRd
-ptr_validate_layer_checkbox_input <- function(layer_name, input) {
-  checkbox_id <- ptr_checkbox_input_id(layer_name)
+ptr_validate_layer_checkbox_input <- function(layer_name, input,
+                                              ns_fn = shiny::NS(NULL)) {
+  checkbox_id <- ptr_ns_id(ns_fn, ptr_checkbox_input_id(layer_name))
   checkbox_value <- input[[checkbox_id]]
 
   if (is.null(checkbox_value)) {
@@ -46,14 +48,16 @@ ptr_validate_layer_checkbox_input <- function(layer_name, input) {
 #'
 #' @param ptr_obj A `ptr_obj`.
 #' @param input A Shiny input-like object.
+#' @param ns_fn A namespace function `character -> character`.
 #'
 #' @return Invisibly returns `NULL`.
 #' @noRd
-ptr_validate_layer_checkbox_inputs <- function(ptr_obj, input) {
+ptr_validate_layer_checkbox_inputs <- function(ptr_obj, input,
+                                               ns_fn = shiny::NS(NULL)) {
   layer_names <- setdiff(names(ptr_obj$expr_list), "ggplot")
 
   for (layer_name in layer_names) {
-    ptr_validate_layer_checkbox_input(layer_name, input)
+    ptr_validate_layer_checkbox_input(layer_name, input, ns_fn = ns_fn)
   }
 
   invisible(NULL)
@@ -64,15 +68,17 @@ ptr_validate_layer_checkbox_inputs <- function(ptr_obj, input) {
 #' @param expr A layer expression.
 #' @param nn The layer name.
 #' @param input A Shiny input-like object.
+#' @param ns_fn A namespace function `character -> character`.
 #'
 #' @return The layer expression or `NULL`.
 #' @noRd
-expr_apply_checkbox_result <- function(expr, nn, input) {
+expr_apply_checkbox_result <- function(expr, nn, input,
+                                       ns_fn = shiny::NS(NULL)) {
   if (nn == "ggplot") {
     return(expr)
   }
 
-  if (isTRUE(input[[ptr_checkbox_input_id(nn)]])) {
+  if (isTRUE(input[[ptr_ns_id(ns_fn, ptr_checkbox_input_id(nn))]])) {
     expr
   } else {
     NULL
@@ -84,11 +90,13 @@ expr_apply_checkbox_result <- function(expr, nn, input) {
 #' @param ptr_obj A `ptr_obj`.
 #' @param input A Shiny input-like object.
 #' @param envir The environment used to resolve local data objects.
+#' @param ns_fn A namespace function `character -> character`.
 #'
 #' @return A named list with `complete_expr_list`, `code_text`, and `eval_env`.
 #' @noRd
 ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
-  eval_env = NULL, var_column_map = NULL, expr_check = TRUE) {
+  eval_env = NULL, var_column_map = NULL, expr_check = TRUE,
+  ns_fn = shiny::NS(NULL)) {
   assertthat::assert_that(inherits(ptr_obj, "ptr_obj"))
 
   ptr_processed_expr_list <- ptr_obj[["expr_list"]]
@@ -129,12 +137,13 @@ ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
     ptr_processed_expr_list,
     original_expr_list = ptr_obj[["expr_list"]]
   )
-  ptr_validate_layer_checkbox_inputs(ptr_obj, input)
+  ptr_validate_layer_checkbox_inputs(ptr_obj, input, ns_fn = ns_fn)
   ptr_processed_expr_list <- purrr::map2(
     ptr_processed_expr_list,
     names(ptr_processed_expr_list),
     expr_apply_checkbox_result,
-    input
+    input,
+    ns_fn
   )
   ptr_processed_expr_list <- check_remove_null(ptr_processed_expr_list)
 
@@ -250,17 +259,20 @@ ptr_mark_runtime_failure <- function(runtime_result, stage, condition) {
 #' @param ptr_obj A `ptr_obj`.
 #' @param input A Shiny input-like object.
 #' @param envir The evaluation environment.
+#' @param ns_fn A namespace function `character -> character`.
 #'
 #' @return A structured runtime result.
 #' @noRd
 ptr_complete_expr_safe <- function(ptr_obj, input, envir = parent.frame(),
-  eval_env = NULL, var_column_map = NULL, expr_check = TRUE) {
+  eval_env = NULL, var_column_map = NULL, expr_check = TRUE,
+  ns_fn = shiny::NS(NULL)) {
   tryCatch(
     {
       complete_result <- ptr_complete_expr(ptr_obj, input, envir = envir,
                                            eval_env = eval_env,
                                            var_column_map = var_column_map,
-                                           expr_check = expr_check)
+                                           expr_check = expr_check,
+                                           ns_fn = ns_fn)
       list(
         ok = TRUE,
         stage = "complete",

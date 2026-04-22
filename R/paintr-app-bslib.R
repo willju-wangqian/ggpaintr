@@ -20,6 +20,8 @@
 #' @param theme A `bslib` theme object. Defaults to a Bootstrap 5 Flatly
 #'   bootswatch. Pass any [bslib::bs_theme()] result to customize.
 #' @param title App title shown in the page header.
+#' @param ns An optional namespace function (`character -> character`). See
+#'   [ptr_server_state()] for details.
 #'
 #' @return A `shiny.appobj`.
 #' @examples
@@ -35,7 +37,8 @@ ptr_app_bslib <- function(formula,
                           placeholders = NULL,
                           expr_check = TRUE,
                           theme = NULL,
-                          title = "ggpaintr") {
+                          title = "ggpaintr",
+                          ns = shiny::NS(NULL)) {
   if (!requireNamespace("bslib", quietly = TRUE)) {
     rlang::abort(
       "Package 'bslib' is required for ptr_app_bslib(). Install it with install.packages(\"bslib\")."

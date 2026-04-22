@@ -11,7 +11,8 @@ ptr_app_bslib(
   placeholders = NULL,
   expr_check = TRUE,
   theme = NULL,
-  title = "ggpaintr"
+  title = "ggpaintr",
+  ns = shiny::NS(NULL)
 )
 }
 \arguments{
@@ -32,6 +33,9 @@ placeholder registry.}
 bootswatch. Pass any \code{\link[bslib:bs_theme]{bslib::bs_theme()}} result to customize.}
 
 \item{title}{App title shown in the page header.}
+
+\item{ns}{An optional namespace function (\code{character -> character}). See
+\code{\link[=ptr_server_state]{ptr_server_state()}} for details.}
 }
 \value{
 A \code{shiny.appobj}.

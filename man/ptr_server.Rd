@@ -13,7 +13,8 @@ ptr_server(
   ui_text = NULL,
   placeholders = NULL,
   ids = ptr_build_ids(),
-  expr_check = TRUE
+  expr_check = TRUE,
+  ns = shiny::NS(NULL)
 )
 }
 \arguments{
@@ -43,6 +44,9 @@ functions.
 A named list with \code{deny_list} and/or \code{allow_list} character
 vectors supplies a custom check; when both are given,
 denied entries are removed from the allowlist.}
+
+\item{ns}{An optional namespace function (\code{character -> character}). See
+\code{\link[=ptr_server_state]{ptr_server_state()}} for details.}
 }
 \value{
 A \code{ptr_state} object containing reactive accessors named \code{obj},
@@ -53,4 +57,9 @@ Wire the standard \code{ggpaintr} server behavior into an existing Shiny app.
 The returned state object exposes reactive access to the parsed formula,
 latest runtime result, and current dynamic \code{var} UI definitions so callers
 can extend the app with additional observers and outputs.
+}
+\note{
+When embedding inside a \code{shiny::moduleServer()} call, pass
+\code{session$ns} as the \code{ns} argument so all generated Shiny ids are scoped
+to the module namespace.
 }

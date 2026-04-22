@@ -4,11 +4,15 @@
 \alias{ptr_output_ui}
 \title{Build Default ggpaintr Output Widgets}
 \usage{
-ptr_output_ui(ids = ptr_build_ids())
+ptr_output_ui(ids = ptr_build_ids(), ns = shiny::NS(NULL))
 }
 \arguments{
 \item{ids}{A \code{ptr_build_ids} object describing the top-level Shiny ids used by
 the integration helpers.}
+
+\item{ns}{An optional namespace function (\code{character -> character}). Must
+match the \code{ns} passed to \code{ptr_server_state()}. Defaults to
+\code{shiny::NS(NULL)} (no prefixing).}
 }
 \value{
 A Shiny UI object.

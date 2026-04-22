@@ -436,6 +436,7 @@ ptr_resolve_placeholder_expr <- function(spec, value, meta, context) {
 #' @param ptr_obj A `ptr_obj`.
 #' @param envir Environment used to resolve local data objects.
 #' @param ui_text Effective or user-supplied copy rules.
+#' @param ns_fn A namespace function `character -> character`.
 #'
 #' @return A named list of deferred UI controls.
 #' @noRd
@@ -446,7 +447,8 @@ ptr_bind_placeholder_ui <- function(input,
                                        ui_text = NULL,
                                        eval_env = NULL,
                                        var_column_map = NULL,
-                                       expr_check = TRUE) {
+                                       expr_check = TRUE,
+                                       ns_fn = shiny::NS(NULL)) {
   context <- ptr_define_placeholder_context(
     ptr_obj,
     ui_text = ui_text,
@@ -455,6 +457,7 @@ ptr_bind_placeholder_ui <- function(input,
     eval_env = eval_env,
     var_column_map = var_column_map
   )
+  context$ns_fn <- ns_fn
   deferred_ui <- list()
 
   for (keyword in names(ptr_obj$placeholders)) {
