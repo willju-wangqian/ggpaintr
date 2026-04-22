@@ -151,7 +151,7 @@ by all three entry points and are documented once here:</p>
 <ul>
 <li>
 <strong><code>ui_text</code></strong> — override labels, help text,
-placeholder hints, and the fallback text for empty inputs. See §3d.</li>
+placeholder hints, and the fallback text for empty inputs. See §3e.</li>
 <li>
 <strong><code>placeholders</code></strong> — register new
 placeholder keywords or replace built-ins. See
@@ -278,17 +278,97 @@ want in the layout.</p>
 output id named in <code>ptr_state$ids</code>. The default ids above
 match the defaults from <code><a href="../reference/ptr_build_ids.html">ptr_build_ids()</a></code>, which is why we
 did not have to pass <code>ids = ...</code> anywhere. Customizing ids is
-§3c.</p>
+§3d.</p>
 </div>
 <div class="section level3">
-<h3 id="c--custom-ids">3c. Custom ids<a class="anchor" aria-label="anchor" href="#c--custom-ids"></a>
+<h3 id="c--multiple-ggpaintr-instances-in-one-session">3c. Multiple ggpaintr instances in one session<a class="anchor" aria-label="anchor" href="#c--multiple-ggpaintr-instances-in-one-session"></a>
+</h3>
+<p>Put more than one ggpaintr instance in the same Shiny session — two
+tabs, a side-by-side comparison, a module called several times — and
+their widget ids collide by default. Namespace each instance with
+<code>ns =</code> to keep them disjoint.</p>
+<p><code>ns</code> is a function of the shape
+<code>character -&gt; character</code>. The default
+<code>shiny::NS(NULL)</code> is the identity (no prefix), which
+reproduces pre-<code>ns</code> behavior. Pass
+<code>shiny::NS("my_prefix")</code> to prefix every widget id ggpaintr
+owns — the top-level ids on <code>ptr_state$ids</code>, the
+per-placeholder input ids, the checkbox ids, and the dynamic
+<code>var</code> output ids — with <code>"my_prefix-"</code>.</p>
+<p>The same <code>ns</code> must be threaded through three call sites
+per instance: <code><a href="../reference/ptr_input_ui.html">ptr_input_ui()</a></code>, <code><a href="../reference/ptr_output_ui.html">ptr_output_ui()</a></code>,
+and <code><a href="../reference/ptr_server_state.html">ptr_server_state()</a></code> (or its wrapper
+<code><a href="../reference/ptr_server.html">ptr_server()</a></code>). The <code>ids =</code> argument is
+independent — sharing the same <code>custom_ids</code> across instances
+is fine, because <code>ns</code> is what disambiguates them.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">ns_a</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="st">"plot_a"</span><span class="op">)</span></span>
+<span><span class="va">ns_b</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="st">"plot_b"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidPage</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/tabsetPanel.html" class="external-link">tabsetPanel</a></span><span class="op">(</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/tabPanel.html" class="external-link">tabPanel</a></span><span class="op">(</span><span class="st">"A"</span>,</span>
+<span>      <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidRow</a></span><span class="op">(</span></span>
+<span>        <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/column.html" class="external-link">column</a></span><span class="op">(</span><span class="fl">4</span>, <span class="fu"><a href="../reference/ptr_input_ui.html">ptr_input_ui</a></span><span class="op">(</span>ns <span class="op">=</span> <span class="va">ns_a</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>        <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/column.html" class="external-link">column</a></span><span class="op">(</span><span class="fl">8</span>, <span class="fu"><a href="../reference/ptr_output_ui.html">ptr_output_ui</a></span><span class="op">(</span>ns <span class="op">=</span> <span class="va">ns_a</span><span class="op">)</span><span class="op">)</span></span>
+<span>      <span class="op">)</span><span class="op">)</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/tabPanel.html" class="external-link">tabPanel</a></span><span class="op">(</span><span class="st">"B"</span>,</span>
+<span>      <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidRow</a></span><span class="op">(</span></span>
+<span>        <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/column.html" class="external-link">column</a></span><span class="op">(</span><span class="fl">4</span>, <span class="fu"><a href="../reference/ptr_input_ui.html">ptr_input_ui</a></span><span class="op">(</span>ns <span class="op">=</span> <span class="va">ns_b</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>        <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/column.html" class="external-link">column</a></span><span class="op">(</span><span class="fl">8</span>, <span class="fu"><a href="../reference/ptr_output_ui.html">ptr_output_ui</a></span><span class="op">(</span>ns <span class="op">=</span> <span class="va">ns_b</span><span class="op">)</span><span class="op">)</span></span>
+<span>      <span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="../reference/ptr_server.html">ptr_server</a></span><span class="op">(</span></span>
+<span>    <span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span>,</span>
+<span>    formula <span class="op">=</span> <span class="st">"ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"</span>,</span>
+<span>    ns      <span class="op">=</span> <span class="va">ns_a</span></span>
+<span>  <span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/ptr_server.html">ptr_server</a></span><span class="op">(</span></span>
+<span>    <span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span>,</span>
+<span>    formula <span class="op">=</span> <span class="st">"ggplot(data = iris, aes(x = var, y = var)) + geom_point()"</span>,</span>
+<span>    ns      <span class="op">=</span> <span class="va">ns_b</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<p>Inside <code><a href="https://rdrr.io/pkg/shiny/man/moduleServer.html" class="external-link">shiny::moduleServer()</a></code>, pass
+<code>session$ns</code> — it is a namespace function identical in shape
+to <code>shiny::NS(id)</code> for the enclosing module id, so the UI
+(built with <code>shiny::NS(id)</code>) and the server (using
+<code>session$ns</code>) agree. No double-prefixing occurs because
+ggpaintr applies <code>ns</code> exactly once to raw ids.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">tab_ui</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">ns</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="va">id</span><span class="op">)</span></span>
+<span>  <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rstudio.github.io/htmltools/reference/tagList.html" class="external-link">tagList</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_input_ui.html">ptr_input_ui</a></span><span class="op">(</span>ns <span class="op">=</span> <span class="va">ns</span><span class="op">)</span>, <span class="fu"><a href="../reference/ptr_output_ui.html">ptr_output_ui</a></span><span class="op">(</span>ns <span class="op">=</span> <span class="va">ns</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">tab_server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">formula</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/moduleServer.html" class="external-link">moduleServer</a></span><span class="op">(</span><span class="va">id</span>, <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="fu"><a href="../reference/ptr_server.html">ptr_server</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span>, formula <span class="op">=</span> <span class="va">formula</span>, ns <span class="op">=</span> <span class="va">session</span><span class="op">$</span><span class="va">ns</span><span class="op">)</span></span>
+<span>  <span class="op">}</span><span class="op">)</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<p>The single failure mode is reusing the same <code>ns</code> (or
+leaving it at its default) across two instances in the same session.
+Then the resolved ids collide and Shiny silently keeps only the last
+<code>output[[id]] &lt;-</code> assignment — one instance appears empty.
+Sanity check any wiring by inspecting the resolved ids in the
+console:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">state_a</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_server_state.html">ptr_server_state</a></span><span class="op">(</span><span class="va">formula_a</span>, ns <span class="op">=</span> <span class="va">ns_a</span><span class="op">)</span></span>
+<span><span class="va">state_b</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_server_state.html">ptr_server_state</a></span><span class="op">(</span><span class="va">formula_b</span>, ns <span class="op">=</span> <span class="va">ns_b</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">intersect</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">state_a</span><span class="op">$</span><span class="va">ids</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">state_b</span><span class="op">$</span><span class="va">ids</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>  <span class="co"># expect 0</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="d--custom-ids">3d. Custom ids<a class="anchor" aria-label="anchor" href="#d--custom-ids"></a>
 </h3>
 <p><code><a href="../reference/ptr_build_ids.html">ptr_build_ids()</a></code> returns a validated list describing the
 five top-level Shiny ids ggpaintr uses. Override it when your host app
 already uses one of the default names, or when you want ggpaintr outputs
 in specific containers.</p>
 <p>Full signature, with defaults:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/ptr_build_ids.html">ptr_build_ids</a></span><span class="op">(</span></span>
 <span>  control_panel <span class="op">=</span> <span class="st">"controlPanel"</span>,  <span class="co"># uiOutput that holds the tabbed controls</span></span>
 <span>  draw_button   <span class="op">=</span> <span class="st">"draw"</span>,           <span class="co"># actionButton that triggers a redraw</span></span>
@@ -300,7 +380,7 @@ in specific containers.</p>
 rejected. The returned object has class <code>ptr_build_ids</code> and
 is the only accepted type for the <code>ids =</code> argument on every
 Level-2 helper.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_build_ids.html">ptr_build_ids</a></span><span class="op">(</span></span>
 <span>  control_panel <span class="op">=</span> <span class="st">"builder_controls"</span>,</span>
 <span>  draw_button   <span class="op">=</span> <span class="st">"render_plot"</span>,</span>
@@ -328,7 +408,7 @@ Level-2 helper.</p>
 <span><span class="co">#&gt; [1] "ptr_build_ids" "list"</span></span></code></pre></div>
 <p>Pass the same <code>ids</code> object everywhere so UI and server
 stay in sync:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidPage</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarLayout</a></span><span class="op">(</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarPanel</a></span><span class="op">(</span></span>
@@ -346,24 +426,23 @@ stay in sync:</p>
 <span>    ids <span class="op">=</span> <span class="va">ids</span></span>
 <span>  <span class="op">)</span></span>
 <span></span>
-<span>  <span class="fu"><a href="../reference/ptr_setup_controls.html">ptr_setup_controls</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="../reference/ptr_register_draw.html">ptr_register_draw</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="../reference/ptr_register_plot.html">ptr_register_plot</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="../reference/ptr_register_error.html">ptr_register_error</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="../reference/ptr_register_code.html">ptr_register_code</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span>, ids <span class="op">=</span> <span class="va">ids</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/ptr_setup_controls.html">ptr_setup_controls</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">ptr_state</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/ptr_register_draw.html">ptr_register_draw</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">ptr_state</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/ptr_register_plot.html">ptr_register_plot</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/ptr_register_error.html">ptr_register_error</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/ptr_register_code.html">ptr_register_code</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
 <p><code><a href="../reference/ptr_server_state.html">ptr_server_state()</a></code> stores the ids on
-<code>ptr_state$ids</code>, so on every other helper the
-<code>ids =</code> argument defaults to <code>ptr_state$ids</code>.
-Passing it explicitly is still useful when you want the same state
-object to drive more than one output location.</p>
+<code>ptr_state$ids</code>, which every other helper reads automatically
+— so you only pass <code>ids</code> once, at state construction
+time.</p>
 <p>Only these five top-level ids are configurable. Per-placeholder input
 ids (the ones generated by <code><a href="../reference/ptr_parse_formula.html">ptr_parse_formula()</a></code>) and the
 internal <code>var-*</code> helper ids are deterministic and
 package-owned.</p>
 </div>
 <div class="section level3">
-<h3 id="id_3d-ui-text">3d. Overriding UI copy<a class="anchor" aria-label="anchor" href="#id_3d-ui-text"></a>
+<h3 id="id_3e-ui-text">3e. Overriding UI copy<a class="anchor" aria-label="anchor" href="#id_3e-ui-text"></a>
 </h3>
 <p><code>ui_text</code> is the single argument for customising every
 user-visible string ggpaintr renders. Pass it to
@@ -371,7 +450,7 @@ user-visible string ggpaintr renders. Pass it to
 <code><a href="../reference/ptr_app.html">ptr_app()</a></code>, or <code><a href="../reference/ptr_app_bslib.html">ptr_app_bslib()</a></code> — they all hand
 it to the same merge function.</p>
 <div class="section level4">
-<h4 id="d-1-the-four-leaf-fields">3d.1 The four leaf fields<a class="anchor" aria-label="anchor" href="#d-1-the-four-leaf-fields"></a>
+<h4 id="e-1-the-four-leaf-fields">3e.1 The four leaf fields<a class="anchor" aria-label="anchor" href="#e-1-the-four-leaf-fields"></a>
 </h4>
 <p>Every override is a named list whose leaves hold one or more of the
 same four string fields:</p>
@@ -481,7 +560,7 @@ on a <code>num</code> or <code>empty_text</code> on a <code>text</code>
 — they will pass validation but will never be rendered.</p>
 <p>You can inspect the merged defaults at any time by calling
 <code><a href="../reference/ptr_merge_ui_text.html">ptr_merge_ui_text()</a></code> with no overrides:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">defaults</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_merge_ui_text.html">ptr_merge_ui_text</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">defaults</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "shell"          "upload"         "layer_checkbox" "defaults"      </span></span>
@@ -503,7 +582,7 @@ on a <code>num</code> or <code>empty_text</code> on a <code>text</code>
 layer does not supply a value.</p>
 </div>
 <div class="section level4">
-<h4 id="d-2-top-level-sections-and-merge-precedence">3d.2 Top-level sections and merge precedence<a class="anchor" aria-label="anchor" href="#d-2-top-level-sections-and-merge-precedence"></a>
+<h4 id="e-2-top-level-sections-and-merge-precedence">3e.2 Top-level sections and merge precedence<a class="anchor" aria-label="anchor" href="#e-2-top-level-sections-and-merge-precedence"></a>
 </h4>
 <p>A <code>ui_text</code> list has <strong>six</strong> top-level
 sections. Three of them (<code>shell</code>, <code>upload</code>,
@@ -593,11 +672,11 @@ to one layer.</li>
 land in the same slot.</p>
 </div>
 <div class="section level4">
-<h4 id="d-3-chrome-sections-shell-upload-layer_checkbox">3d.3 Chrome sections — <code>shell</code>, <code>upload</code>,
-<code>layer_checkbox</code><a class="anchor" aria-label="anchor" href="#d-3-chrome-sections-shell-upload-layer_checkbox"></a>
+<h4 id="e-3-chrome-sections-shell-upload-layer_checkbox">3e.3 Chrome sections — <code>shell</code>, <code>upload</code>,
+<code>layer_checkbox</code><a class="anchor" aria-label="anchor" href="#e-3-chrome-sections-shell-upload-layer_checkbox"></a>
 </h4>
 <p>The three non-cascade sections each map to fixed UI components.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ui_text</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  shell <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    title       <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"My app"</span><span class="op">)</span>,                <span class="co"># page title</span></span>
@@ -620,13 +699,13 @@ a leaf rule itself (no sub-sections). Any other key at those levels
 triggers a validation error.</p>
 </div>
 <div class="section level4">
-<h4 id="d-4-worked-example-same-placeholder-three-scopes">3d.4 Worked example — same placeholder, three scopes<a class="anchor" aria-label="anchor" href="#d-4-worked-example-same-placeholder-three-scopes"></a>
+<h4 id="e-4-worked-example-same-placeholder-three-scopes">3e.4 Worked example — same placeholder, three scopes<a class="anchor" aria-label="anchor" href="#e-4-worked-example-same-placeholder-three-scopes"></a>
 </h4>
 <p>The best way to build intuition is to watch one keyword receive
 different copy under each scope. The example below uses the
 <code>text</code> keyword and the <code>title</code> argument of
 <code><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs()</a></code>.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_parse_formula.html">ptr_parse_formula</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = mtcars, aes(x = var, y = var)) +</span></span>
 <span><span class="st">     geom_point() +</span></span>
@@ -665,7 +744,7 @@ chosen for a given <code>(keyword, param, layer_name)</code> triple. The
 returned list has the resolved leaf fields — whatever the deepest
 matching layer supplied, with sibling fields filled in from
 less-specific scopes.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Only (keyword = "text") — lands in defaults$text</span></span>
 <span><span class="fu"><a href="../reference/ptr_resolve_ui_text.html">ptr_resolve_ui_text</a></span><span class="op">(</span></span>
 <span>  <span class="st">"control"</span>, keyword <span class="op">=</span> <span class="st">"text"</span>,</span>
@@ -676,7 +755,7 @@ less-specific scopes.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $help</span></span>
 <span><span class="co">#&gt; [1] "Generic help (from defaults)"</span></span></code></pre></div>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Add param = "title" — now params$title$text wins on label/help,</span></span>
 <span><span class="co"># but defaults still fill in anything params did not set.</span></span>
 <span><span class="fu"><a href="../reference/ptr_resolve_ui_text.html">ptr_resolve_ui_text</a></span><span class="op">(</span></span>
@@ -688,7 +767,7 @@ less-specific scopes.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $help</span></span>
 <span><span class="co">#&gt; [1] "Arg-specific help (from params$title)"</span></span></code></pre></div>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Add layer_name = "labs" — layers$labs$text$title wins on every</span></span>
 <span><span class="co"># field it supplies, params fills in anything layers did not.</span></span>
 <span><span class="fu"><a href="../reference/ptr_resolve_ui_text.html">ptr_resolve_ui_text</a></span><span class="op">(</span></span>
@@ -703,7 +782,7 @@ less-specific scopes.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $placeholder</span></span>
 <span><span class="co">#&gt; [1] "e.g. Weight vs MPG"</span></span></code></pre></div>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># A different layer with the same keyword/param — no layers entry</span></span>
 <span><span class="co"># exists, so resolution falls back to params.</span></span>
 <span><span class="fu"><a href="../reference/ptr_resolve_ui_text.html">ptr_resolve_ui_text</a></span><span class="op">(</span></span>
@@ -720,12 +799,12 @@ the UI — once per placeholder in the formula, using the placeholder’s
 real <code>(keyword, param, layer_name)</code>.</p>
 </div>
 <div class="section level4">
-<h4 id="d-5-resolving-chrome-copy">3d.5 Resolving chrome copy<a class="anchor" aria-label="anchor" href="#d-5-resolving-chrome-copy"></a>
+<h4 id="e-5-resolving-chrome-copy">3e.5 Resolving chrome copy<a class="anchor" aria-label="anchor" href="#e-5-resolving-chrome-copy"></a>
 </h4>
 <p>Use the short component names (no <code>keyword</code>) to resolve
 the non-cascade sections. Each name maps to a specific path in the
 merged rules object:</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ui_text_chrome</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  shell <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    title       <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"My custom title"</span><span class="op">)</span>,</span>
@@ -777,7 +856,7 @@ merged rules object:</p>
 </ul>
 </div>
 <div class="section level4">
-<h4 id="d-6-validating-a-ui_text-list-before-use">3d.6 Validating a <code>ui_text</code> list before use<a class="anchor" aria-label="anchor" href="#d-6-validating-a-ui_text-list-before-use"></a>
+<h4 id="e-6-validating-a-ui_text-list-before-use">3e.6 Validating a <code>ui_text</code> list before use<a class="anchor" aria-label="anchor" href="#e-6-validating-a-ui_text-list-before-use"></a>
 </h4>
 <p>There is no separate <code>ptr_validate_ui_text()</code> export. The
 canonical way to check a list is to run it through
@@ -789,7 +868,7 @@ placeholder in a parsed formula, and</li>
 <li>returns a <code>ptr_ui_text</code> object that every ggpaintr helper
 recognises (so subsequent helpers skip re-validation).</li>
 </ul>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">merged</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_merge_ui_text.html">ptr_merge_ui_text</a></span><span class="op">(</span><span class="va">ui_text</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">inherits</a></span><span class="op">(</span><span class="va">merged</span>, <span class="st">"ptr_ui_text"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
@@ -804,13 +883,13 @@ keys are downgraded to a <code><a href="https://cli.r-lib.org/reference/cli_abor
 commonly harmless typos, not errors.</p>
 </div>
 <div class="section level4">
-<h4 id="d-7-full-worked-embed-with-copy-overrides">3d.7 Full worked embed with copy overrides<a class="anchor" aria-label="anchor" href="#d-7-full-worked-embed-with-copy-overrides"></a>
+<h4 id="e-7-full-worked-embed-with-copy-overrides">3e.7 Full worked embed with copy overrides<a class="anchor" aria-label="anchor" href="#e-7-full-worked-embed-with-copy-overrides"></a>
 </h4>
 <p>Putting the pieces together — same minimal embed as §3a, but with a
 themed title, a relabeled draw button, a renamed <code>x</code>-axis
 control, and a custom help string on the <code>labs(title = text)</code>
 input:</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ui_text</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  shell <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    title       <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"mtcars explorer"</span><span class="op">)</span>,</span>
@@ -860,7 +939,7 @@ input:</p>
 </div>
 </div>
 <div class="section level3">
-<h3 id="e--placeholder-overrides">3e. Placeholder overrides<a class="anchor" aria-label="anchor" href="#e--placeholder-overrides"></a>
+<h3 id="f--placeholder-overrides">3f. Placeholder overrides<a class="anchor" aria-label="anchor" href="#f--placeholder-overrides"></a>
 </h3>
 <p>Replacing a built-in placeholder (say, swapping the <code>var</code>
 picker for a radio-button layout) or defining a brand-new keyword is
@@ -870,7 +949,7 @@ the five hooks, the <code>meta</code> bag, <code>copy_defaults</code> —
 is owned by <code><a href="../articles/ggpaintr-placeholder-registry.html">vignette("ggpaintr-placeholder-registry")</a></code>. Once
 you have a registry defined there, wiring it into an embed is one
 line:</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">my_registry</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_merge_placeholders.html">ptr_merge_placeholders</a></span><span class="op">(</span></span>
 <span>  date <span class="op">=</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
 <span>    keyword <span class="op">=</span> <span class="st">"date"</span>,</span>
@@ -922,7 +1001,7 @@ typed.</li>
 <code>ptr_extract_plot(result)</code> → the <code>ggplot</code>
 object.</li>
 </ol>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_parse_formula.html">ptr_parse_formula</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = mtcars, aes(x = var, y = var)) +</span></span>
 <span><span class="st">     geom_point() +</span></span>
@@ -941,7 +1020,7 @@ object.</li>
 runtime expects. The <code>role</code> column distinguishes the three
 kinds of input: a placeholder value, a per-layer on/off checkbox, and
 the companion name field for an <code>upload</code> placeholder.</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">inputs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">vector</a></span><span class="op">(</span><span class="st">"list"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">spec</span><span class="op">)</span><span class="op">)</span>, <span class="va">spec</span><span class="op">$</span><span class="va">input_id</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Every non-ggplot layer checkbox starts TRUE (= include the layer).</span></span>
@@ -966,7 +1045,7 @@ the companion name field for an <code>upload</code> placeholder.</p>
 <p><code>p</code> is an ordinary <code>ggplot</code> object. You can
 hand it to <code><a href="https://ggplot2.tidyverse.org/reference/ggsave.html" class="external-link">ggsave()</a></code>, a <code>knitr</code> chunk, or any
 other downstream consumer:</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">p</span><span class="op">)</span></span></code></pre></div>
 <p><img src="ggpaintr-extensibility_files/figure-html/headless-render-1.png" class="r-plt" alt="" width="576"></p>
 <p>If the runtime fails (missing column, unsafe <code>expr</code>,
@@ -989,7 +1068,7 @@ formula exactly.</p>
 <code><a href="../reference/ptr_extract_plot.html">ptr_extract_plot()</a></code> on <code>ptr_state$runtime()</code>. The
 default <code><a href="../reference/ptr_register_plot.html">ptr_register_plot()</a></code> is one line — anything you do
 yourself should look roughly the same shape.</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidPage</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarLayout</a></span><span class="op">(</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarPanel</a></span><span class="op">(</span></span>
@@ -1059,7 +1138,7 @@ from outside the runtime and stores them on
 <code>ptr_state$extras</code>. The default
 <code><a href="../reference/ptr_register_code.html">ptr_register_code()</a></code> picks up those extras and appends them
 to the code text whenever the runtime succeeds.</p>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidPage</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarLayout</a></span><span class="op">(</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/sidebarLayout.html" class="external-link">sidebarPanel</a></span><span class="op">(</span></span>
@@ -1140,7 +1219,7 @@ of variable assignments, for a students-see-this-code flow or for
 copy-paste into an RMarkdown report.</p>
 <p><code><a href="../reference/ptr_extract_code.html">ptr_extract_code()</a></code> returns the code as a single
 string:</p>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_exec.html">ptr_exec</a></span><span class="op">(</span><span class="va">obj</span>, <span class="va">inputs</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_extract_code.html">ptr_extract_code</a></span><span class="op">(</span><span class="va">result</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; ggplot(data = mtcars, aes(x = wt, y = mpg)) +</span></span>
@@ -1153,7 +1232,7 @@ your own code.</p>
 <code>extras =</code> list of [<code>rlang::quosures</code>]. Inside a
 Shiny session this is usually <code>ptr_state$extras()</code>; outside
 one you can build the list yourself:</p>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">extras</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/defusing-advanced.html" class="external-link">quo</a></span><span class="op">(</span><span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_extract_code.html">ptr_extract_code</a></span><span class="op">(</span><span class="va">result</span>, extras <span class="op">=</span> <span class="va">extras</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; ggplot(data = mtcars, aes(x = wt, y = mpg)) +</span></span>
@@ -1166,7 +1245,7 @@ with <code>" +\n  "</code>. When the runtime failed, the base code
 string is returned as-is and <code>extras</code> are suppressed —
 identical to the rule in <code><a href="../reference/ptr_register_code.html">ptr_register_code()</a></code>.</p>
 <p>Failure diagnostics work the same way as the plot path:</p>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">broken_inputs</span> <span class="op">&lt;-</span> <span class="va">inputs</span></span>
 <span><span class="va">broken_inputs</span><span class="op">[[</span><span class="fu">pick</span><span class="op">(</span><span class="st">"ggplot"</span>, <span class="st">"x"</span><span class="op">)</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"not_a_column"</span></span>
 <span><span class="va">bad</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_exec.html">ptr_exec</a></span><span class="op">(</span><span class="va">obj</span>, <span class="va">broken_inputs</span><span class="op">)</span></span>
@@ -1232,7 +1311,7 @@ helper</td>
 <td>Override widget labels / help text / placeholders</td>
 <td>
 <code>ui_text = list(...)</code> on <code><a href="../reference/ptr_server_state.html">ptr_server_state()</a></code>
-(see §3d)</td>
+(see §3e)</td>
 </tr>
 <tr class="odd">
 <td>Inspect the resolved copy for one placeholder</td>

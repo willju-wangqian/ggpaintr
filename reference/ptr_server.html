@@ -65,7 +65,8 @@ can extend the app with additional observers and outputs.</p>
 <span>  ui_text <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  placeholders <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  ids <span class="op">=</span> <span class="fu"><a href="ptr_build_ids.html">ptr_build_ids</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  expr_check <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  expr_check <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  ns <span class="op">=</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -117,11 +118,22 @@ A named list with <code>deny_list</code> and/or <code>allow_list</code> characte
 vectors supplies a custom check; when both are given,
 denied entries are removed from the allowlist.</p></dd>
 
+
+<dt id="arg-ns">ns<a class="anchor" aria-label="anchor" href="#arg-ns"></a></dt>
+<dd><p>An optional namespace function (<code>character -&gt; character</code>). See
+<code><a href="ptr_server_state.html">ptr_server_state()</a></code> for details.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A <code>ptr_state</code> object containing reactive accessors named <code>obj</code>,
 <code>runtime</code>, and <code>var_ui_list</code>, plus shared metadata used by the bind helpers.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="note">Note<a class="anchor" aria-label="anchor" href="#note"></a></h2>
+    <p>When embedding inside a <code><a href="https://rdrr.io/pkg/shiny/man/moduleServer.html" class="external-link">shiny::moduleServer()</a></code> call, pass
+<code>session$ns</code> as the <code>ns</code> argument so all generated Shiny ids are scoped
+to the module namespace.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -12,7 +12,8 @@ ptr_app(
   envir = parent.frame(),
   ui_text = NULL,
   placeholders = NULL,
-  expr_check = TRUE
+  expr_check = TRUE,
+  ns = shiny::NS(NULL)
 )
 ```
 
@@ -43,6 +44,14 @@ ptr_app(
   checking. A named list with `deny_list` and/or `allow_list` character
   vectors supplies a custom check; when both are given, denied entries
   are removed from the allowlist.
+
+- ns:
+
+  An optional namespace function (`character -> character`). See
+  [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md)
+  for details. For standalone apps created with `ptr_app()`, namespacing
+  is rarely needed; it is most useful when embedding ggpaintr inside a
+  larger Shiny module.
 
 ## Value
 

@@ -525,11 +525,11 @@ server <- function(input, output, session) {
     placeholders = placeholders
   )
 
-  ptr_setup_controls(input, output, ptr_state, ids = ids)
-  ptr_register_draw(input, ptr_state, ids = ids)
-  ptr_register_plot(output, ptr_state, ids = ids)
-  ptr_register_error(output, ptr_state, ids = ids)
-  ptr_register_code(output, ptr_state, ids = ids)
+  ptr_setup_controls(input, output, ptr_state)
+  ptr_register_draw(input, ptr_state)
+  ptr_register_plot(output, ptr_state)
+  ptr_register_error(output, ptr_state)
+  ptr_register_code(output, ptr_state)
 }
 
 shiny::shinyApp(ui, server)
@@ -587,7 +587,7 @@ Everything beyond `copy_defaults` — the three-layer merge precedence
 [`ptr_merge_ui_text()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_merge_ui_text.md)
 and the `shell` chrome copy — is covered in
 [`vignette("ggpaintr-extensibility")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-extensibility.md)
-§3d. That section walks through the full override catalogue and shows a
+§3e. That section walks through the full override catalogue and shows a
 worked example of a single placeholder receiving different copy under
 each layer.
 
@@ -604,4 +604,4 @@ each layer.
 4.  For copy customisation beyond `copy_defaults`, use the `ui_text`
     system — see
     [`vignette("ggpaintr-extensibility")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-extensibility.md)
-    §3d.
+    §3e.

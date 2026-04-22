@@ -17,7 +17,8 @@ ptr_server(
   ui_text = NULL,
   placeholders = NULL,
   ids = ptr_build_ids(),
-  expr_check = TRUE
+  expr_check = TRUE,
+  ns = shiny::NS(NULL)
 )
 ```
 
@@ -67,8 +68,21 @@ ptr_server(
   vectors supplies a custom check; when both are given, denied entries
   are removed from the allowlist.
 
+- ns:
+
+  An optional namespace function (`character -> character`). See
+  [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md)
+  for details.
+
 ## Value
 
 A `ptr_state` object containing reactive accessors named `obj`,
 `runtime`, and `var_ui_list`, plus shared metadata used by the bind
 helpers.
+
+## Note
+
+When embedding inside a
+[`shiny::moduleServer()`](https://rdrr.io/pkg/shiny/man/moduleServer.html)
+call, pass `session$ns` as the `ns` argument so all generated Shiny ids
+are scoped to the module namespace.

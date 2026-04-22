@@ -88,9 +88,9 @@ the LLM reliably reach for the tool instead of hallucinating an API.
 ``` r
 ptr_llm_topics()
 #>  [1] "custom_placeholder"   "formula_syntax"       "level1_ptr_app"      
-#>  [4] "level2_custom_ids"    "level2_embed"         "level2_ui_text"      
-#>  [7] "level3_custom_render" "level3_gg_extra"      "level3_headless"     
-#> [10] "overview"
+#>  [4] "level2_custom_ids"    "level2_embed"         "level2_namespacing"  
+#>  [7] "level2_ui_text"       "level3_custom_render" "level3_gg_extra"     
+#> [10] "level3_headless"      "overview"
 ```
 
 A short guide to each:

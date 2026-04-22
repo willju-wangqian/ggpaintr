@@ -59,7 +59,8 @@ inside a larger Shiny app.</p>
 <span>  ui_text <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  ids <span class="op">=</span> <span class="fu"><a href="ptr_build_ids.html">ptr_build_ids</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  placeholders <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  expr_check <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  expr_check <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  ns <span class="op">=</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -98,6 +99,15 @@ functions.
 A named list with <code>deny_list</code> and/or <code>allow_list</code> character
 vectors supplies a custom check; when both are given,
 denied entries are removed from the allowlist.</p></dd>
+
+
+<dt id="arg-ns">ns<a class="anchor" aria-label="anchor" href="#arg-ns"></a></dt>
+<dd><p>An optional namespace function (<code>character -&gt; character</code>) used to
+prefix all Shiny ids produced by this state instance. Pass
+<code>shiny::NS("page1")</code> or <code>session$ns</code> to avoid id collisions when embedding
+two or more ggpaintr formulas in the same Shiny session. The same <code>ns</code>
+value must be passed to <code><a href="ptr_input_ui.html">ptr_input_ui()</a></code> and <code><a href="ptr_output_ui.html">ptr_output_ui()</a></code>. Defaults
+to <code>shiny::NS(NULL)</code> (identity — no prefixing).</p></dd>
 
 </dl></div>
     <div class="section level2">

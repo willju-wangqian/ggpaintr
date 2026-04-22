@@ -13,7 +13,8 @@ ptr_server_state(
   ui_text = NULL,
   ids = ptr_build_ids(),
   placeholders = NULL,
-  expr_check = TRUE
+  expr_check = TRUE,
+  ns = shiny::NS(NULL)
 )
 ```
 
@@ -49,6 +50,18 @@ ptr_server_state(
   checking. A named list with `deny_list` and/or `allow_list` character
   vectors supplies a custom check; when both are given, denied entries
   are removed from the allowlist.
+
+- ns:
+
+  An optional namespace function (`character -> character`) used to
+  prefix all Shiny ids produced by this state instance. Pass
+  `shiny::NS("page1")` or `session$ns` to avoid id collisions when
+  embedding two or more ggpaintr formulas in the same Shiny session. The
+  same `ns` value must be passed to
+  [`ptr_input_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_input_ui.md)
+  and
+  [`ptr_output_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_output_ui.md).
+  Defaults to `shiny::NS(NULL)` (identity — no prefixing).
 
 ## Value
 

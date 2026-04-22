@@ -25,7 +25,8 @@ ptr_app_bslib(
   placeholders = NULL,
   expr_check = TRUE,
   theme = NULL,
-  title = "ggpaintr"
+  title = "ggpaintr",
+  ns = shiny::NS(NULL)
 )
 ```
 
@@ -64,6 +65,12 @@ ptr_app_bslib(
 - title:
 
   App title shown in the page header.
+
+- ns:
+
+  An optional namespace function (`character -> character`). See
+  [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md)
+  for details.
 
 ## Value
 

@@ -55,7 +55,8 @@ generated controls, a draw button, inline error handling, and code output.</p>
 <span>  envir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sys.parent.html" class="external-link">parent.frame</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  ui_text <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  placeholders <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  expr_check <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  expr_check <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  ns <span class="op">=</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -89,6 +90,13 @@ functions.
 A named list with <code>deny_list</code> and/or <code>allow_list</code> character
 vectors supplies a custom check; when both are given,
 denied entries are removed from the allowlist.</p></dd>
+
+
+<dt id="arg-ns">ns<a class="anchor" aria-label="anchor" href="#arg-ns"></a></dt>
+<dd><p>An optional namespace function (<code>character -&gt; character</code>). See
+<code><a href="ptr_server_state.html">ptr_server_state()</a></code> for details. For standalone apps created with
+<code>ptr_app()</code>, namespacing is rarely needed; it is most useful when
+embedding ggpaintr inside a larger Shiny module.</p></dd>
 
 </dl></div>
     <div class="section level2">

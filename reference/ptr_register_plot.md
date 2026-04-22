@@ -9,7 +9,7 @@ own `renderPlot()` and call
 ## Usage
 
 ``` r
-ptr_register_plot(output, ptr_state, ids = ptr_state$ids)
+ptr_register_plot(output, ptr_state)
 ```
 
 ## Arguments
@@ -21,11 +21,6 @@ ptr_register_plot(output, ptr_state, ids = ptr_state$ids)
 - ptr_state:
 
   A `ptr_state` object.
-
-- ids:
-
-  A `ptr_build_ids` object describing the top-level Shiny ids used by
-  the integration helpers.
 
 ## Value
 

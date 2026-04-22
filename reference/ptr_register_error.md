@@ -5,7 +5,7 @@ Bind Default Error Rendering into a Shiny App
 ## Usage
 
 ``` r
-ptr_register_error(output, ptr_state, ids = ptr_state$ids)
+ptr_register_error(output, ptr_state)
 ```
 
 ## Arguments
@@ -17,11 +17,6 @@ ptr_register_error(output, ptr_state, ids = ptr_state$ids)
 - ptr_state:
 
   A `ptr_state` object.
-
-- ids:
-
-  A `ptr_build_ids` object describing the top-level Shiny ids used by
-  the integration helpers.
 
 ## Value
 

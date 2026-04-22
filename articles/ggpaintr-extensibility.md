@@ -85,7 +85,7 @@ Customization also lives at every level. The options below are shared by
 all three entry points and are documented once here:
 
 - **`ui_text`** — override labels, help text, placeholder hints, and the
-  fallback text for empty inputs. See §3d.
+  fallback text for empty inputs. See §3e.
 - **`placeholders`** — register new placeholder keywords or replace
   built-ins. See
   [`vignette("ggpaintr-placeholder-registry")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-placeholder-registry.md).
@@ -221,9 +221,99 @@ output id named in `ptr_state$ids`. The default ids above match the
 defaults from
 [`ptr_build_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.md),
 which is why we did not have to pass `ids = ...` anywhere. Customizing
-ids is §3c.
+ids is §3d.
 
-### 3c. Custom ids
+### 3c. Multiple ggpaintr instances in one session
+
+Put more than one ggpaintr instance in the same Shiny session — two
+tabs, a side-by-side comparison, a module called several times — and
+their widget ids collide by default. Namespace each instance with `ns =`
+to keep them disjoint.
+
+`ns` is a function of the shape `character -> character`. The default
+`shiny::NS(NULL)` is the identity (no prefix), which reproduces pre-`ns`
+behavior. Pass `shiny::NS("my_prefix")` to prefix every widget id
+ggpaintr owns — the top-level ids on `ptr_state$ids`, the
+per-placeholder input ids, the checkbox ids, and the dynamic `var`
+output ids — with `"my_prefix-"`.
+
+The same `ns` must be threaded through three call sites per instance:
+[`ptr_input_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_input_ui.md),
+[`ptr_output_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_output_ui.md),
+and
+[`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md)
+(or its wrapper
+[`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)).
+The `ids =` argument is independent — sharing the same `custom_ids`
+across instances is fine, because `ns` is what disambiguates them.
+
+``` r
+ns_a <- shiny::NS("plot_a")
+ns_b <- shiny::NS("plot_b")
+
+ui <- fluidPage(
+  tabsetPanel(
+    tabPanel("A",
+      fluidRow(
+        column(4, ptr_input_ui(ns = ns_a)),
+        column(8, ptr_output_ui(ns = ns_a))
+      )),
+    tabPanel("B",
+      fluidRow(
+        column(4, ptr_input_ui(ns = ns_b)),
+        column(8, ptr_output_ui(ns = ns_b))
+      ))
+  )
+)
+
+server <- function(input, output, session) {
+  ptr_server(
+    input, output, session,
+    formula = "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+    ns      = ns_a
+  )
+  ptr_server(
+    input, output, session,
+    formula = "ggplot(data = iris, aes(x = var, y = var)) + geom_point()",
+    ns      = ns_b
+  )
+}
+```
+
+Inside
+[`shiny::moduleServer()`](https://rdrr.io/pkg/shiny/man/moduleServer.html),
+pass `session$ns` — it is a namespace function identical in shape to
+`shiny::NS(id)` for the enclosing module id, so the UI (built with
+`shiny::NS(id)`) and the server (using `session$ns`) agree. No
+double-prefixing occurs because ggpaintr applies `ns` exactly once to
+raw ids.
+
+``` r
+tab_ui <- function(id) {
+  ns <- shiny::NS(id)
+  shiny::tagList(ptr_input_ui(ns = ns), ptr_output_ui(ns = ns))
+}
+
+tab_server <- function(id, formula) {
+  shiny::moduleServer(id, function(input, output, session) {
+    ptr_server(input, output, session, formula = formula, ns = session$ns)
+  })
+}
+```
+
+The single failure mode is reusing the same `ns` (or leaving it at its
+default) across two instances in the same session. Then the resolved ids
+collide and Shiny silently keeps only the last `output[[id]] <-`
+assignment — one instance appears empty. Sanity check any wiring by
+inspecting the resolved ids in the console:
+
+``` r
+state_a <- ptr_server_state(formula_a, ns = ns_a)
+state_b <- ptr_server_state(formula_b, ns = ns_b)
+length(intersect(unlist(state_a$ids), unlist(state_b$ids)))  # expect 0
+```
+
+### 3d. Custom ids
 
 [`ptr_build_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.md)
 returns a validated list describing the five top-level Shiny ids
@@ -294,26 +384,24 @@ server <- function(input, output, session) {
     ids = ids
   )
 
-  ptr_setup_controls(input, output, ptr_state, ids = ids)
-  ptr_register_draw(input, ptr_state, ids = ids)
-  ptr_register_plot(output, ptr_state, ids = ids)
-  ptr_register_error(output, ptr_state, ids = ids)
-  ptr_register_code(output, ptr_state, ids = ids)
+  ptr_setup_controls(input, output, ptr_state)
+  ptr_register_draw(input, ptr_state)
+  ptr_register_plot(output, ptr_state)
+  ptr_register_error(output, ptr_state)
+  ptr_register_code(output, ptr_state)
 }
 ```
 
 [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md)
-stores the ids on `ptr_state$ids`, so on every other helper the `ids =`
-argument defaults to `ptr_state$ids`. Passing it explicitly is still
-useful when you want the same state object to drive more than one output
-location.
+stores the ids on `ptr_state$ids`, which every other helper reads
+automatically — so you only pass `ids` once, at state construction time.
 
 Only these five top-level ids are configurable. Per-placeholder input
 ids (the ones generated by
 [`ptr_parse_formula()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_parse_formula.md))
 and the internal `var-*` helper ids are deterministic and package-owned.
 
-### 3d. Overriding UI copy
+### 3e. Overriding UI copy
 
 `ui_text` is the single argument for customising every user-visible
 string ggpaintr renders. Pass it to
@@ -324,7 +412,7 @@ or
 [`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)
 — they all hand it to the same merge function.
 
-#### 3d.1 The four leaf fields
+#### 3e.1 The four leaf fields
 
 Every override is a named list whose leaves hold one or more of the same
 four string fields:
@@ -380,7 +468,7 @@ The `defaults` branch is what
 [`ptr_merge_ui_text()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_merge_ui_text.md)
 falls back to when a more specific layer does not supply a value.
 
-#### 3d.2 Top-level sections and merge precedence
+#### 3e.2 Top-level sections and merge precedence
 
 A `ui_text` list has **six** top-level sections. Three of them (`shell`,
 `upload`, `layer_checkbox`) map 1-to-1 to chrome widgets and do *not*
@@ -420,7 +508,7 @@ Parameter names are normalised before lookup:
 Keep your overrides under the canonical names (`color`, `linewidth`) or
 the British spellings — either works, both land in the same slot.
 
-#### 3d.3 Chrome sections — `shell`, `upload`, `layer_checkbox`
+#### 3e.3 Chrome sections — `shell`, `upload`, `layer_checkbox`
 
 The three non-cascade sections each map to fixed UI components.
 
@@ -447,7 +535,7 @@ ui_text <- list(
 sub-sections). Any other key at those levels triggers a validation
 error.
 
-#### 3d.4 Worked example — same placeholder, three scopes
+#### 3e.4 Worked example — same placeholder, three scopes
 
 The best way to build intuition is to watch one keyword receive
 different copy under each scope. The example below uses the `text`
@@ -560,7 +648,7 @@ The same merge applies when
 builds the UI — once per placeholder in the formula, using the
 placeholder’s real `(keyword, param, layer_name)`.
 
-#### 3d.5 Resolving chrome copy
+#### 3e.5 Resolving chrome copy
 
 Use the short component names (no `keyword`) to resolve the non-cascade
 sections. Each name maps to a specific path in the merged rules object:
@@ -610,7 +698,7 @@ are:
 - `"upload_file"` / `"upload_name"` — the two `upload` sub-keys.
 - `"layer_checkbox"` — the top-level `layer_checkbox` leaf.
 
-#### 3d.6 Validating a `ui_text` list before use
+#### 3e.6 Validating a `ui_text` list before use
 
 There is no separate `ptr_validate_ui_text()` export. The canonical way
 to check a list is to run it through
@@ -642,7 +730,7 @@ downgraded to a
 [`cli::cli_warn()`](https://cli.r-lib.org/reference/cli_abort.html)
 because they are commonly harmless typos, not errors.
 
-#### 3d.7 Full worked embed with copy overrides
+#### 3e.7 Full worked embed with copy overrides
 
 Putting the pieces together — same minimal embed as §3a, but with a
 themed title, a relabeled draw button, a renamed `x`-axis control, and a
@@ -697,7 +785,7 @@ server <- function(input, output, session) {
 shinyApp(ui, server)
 ```
 
-### 3e. Placeholder overrides
+### 3f. Placeholder overrides
 
 Replacing a built-in placeholder (say, swapping the `var` picker for a
 radio-button layout) or defining a brand-new keyword is done through the
@@ -1053,7 +1141,7 @@ single API call each needs.
 | Wire ggpaintr server logic into my existing `server()`                        | `ptr_server(input, output, session, formula)` (one-shot all-in-one)                                                                                                                                                                                                                                                                                                                                     |
 | Build reactive state and wire binders separately                              | [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md) + [`ptr_setup_controls()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_setup_controls.md) + four `ptr_register_*()`                                                                                                                                                                       |
 | Use non-default top-level ids                                                 | [`ptr_build_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.md) → pass as `ids =` to every helper                                                                                                                                                                                                                                                                            |
-| Override widget labels / help text / placeholders                             | `ui_text = list(...)` on [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md) (see §3d)                                                                                                                                                                                                                                                                     |
+| Override widget labels / help text / placeholders                             | `ui_text = list(...)` on [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md) (see §3e)                                                                                                                                                                                                                                                                     |
 | Inspect the resolved copy for one placeholder                                 | `ptr_resolve_ui_text("control", keyword = ..., param = ..., layer_name = ..., ui_text = ...)`                                                                                                                                                                                                                                                                                                           |
 | Validate a `ui_text` list before handing it to a helper                       | `ptr_merge_ui_text(ui_text, known_param_keys = ...)`                                                                                                                                                                                                                                                                                                                                                    |
 | Add a new placeholder keyword                                                 | [`ptr_define_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder.md) + `placeholders =` arg (see registry vignette)                                                                                                                                                                                                                                             |
