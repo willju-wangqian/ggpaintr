@@ -574,11 +574,11 @@ server <- function(input, output, session) {
     ",
     ids = manual_ids
   )
-  ggpaintr::ptr_setup_controls(input, output, paintr_state, ids = manual_ids)
-  ggpaintr::ptr_register_draw(input, paintr_state, ids = manual_ids)
-  ggpaintr::ptr_register_plot(output, paintr_state, ids = manual_ids)
-  ggpaintr::ptr_register_error(output, paintr_state, ids = manual_ids)
-  ggpaintr::ptr_register_code(output, paintr_state, ids = manual_ids)
+  ggpaintr::ptr_setup_controls(input, output, paintr_state)
+  ggpaintr::ptr_register_draw(input, paintr_state)
+  ggpaintr::ptr_register_plot(output, paintr_state)
+  ggpaintr::ptr_register_error(output, paintr_state)
+  ggpaintr::ptr_register_code(output, paintr_state)
 
   output$runtimeStatus <- shiny::renderText({
     runtime_result <- paintr_state$runtime()

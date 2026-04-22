@@ -4,15 +4,12 @@
 \alias{ptr_register_error}
 \title{Bind Default Error Rendering into a Shiny App}
 \usage{
-ptr_register_error(output, ptr_state, ids = ptr_state$ids)
+ptr_register_error(output, ptr_state)
 }
 \arguments{
 \item{output}{A Shiny \code{output} object.}
 
 \item{ptr_state}{A \code{ptr_state} object.}
-
-\item{ids}{A \code{ptr_build_ids} object describing the top-level Shiny ids used by
-the integration helpers.}
 }
 \value{
 Invisibly returns \code{ptr_state}.

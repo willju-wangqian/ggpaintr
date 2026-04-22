@@ -230,8 +230,6 @@ ptr_server_state <- function(formula,
 #' @param input A Shiny `input` object.
 #' @param output A Shiny `output` object.
 #' @param ptr_state A `ptr_state` object.
-#' @param ids A `ptr_build_ids` object describing the top-level Shiny ids used by
-#'   the integration helpers.
 #'
 #' @return Invisibly returns `ptr_state`.
 #' @examples
@@ -246,10 +244,9 @@ ptr_server_state <- function(formula,
 #' @export
 ptr_setup_controls <- function(input,
                                output,
-                               ptr_state,
-                               ids = ptr_state$ids) {
+                               ptr_state) {
   ptr_validate_state(ptr_state)
-  ids <- ptr_normalize_ids(ids)
+  ids <- ptr_normalize_ids(ptr_state$ids)
 
   shared_env_reactive_raw <- shiny::reactive({
     shiny::req(ptr_state$obj())
@@ -316,8 +313,6 @@ ptr_setup_controls <- function(input,
 #'
 #' @param input A Shiny `input` object.
 #' @param ptr_state A `ptr_state` object.
-#' @param ids A `ptr_build_ids` object describing the top-level Shiny ids used by
-#'   the integration helpers.
 #'
 #' @return Invisibly returns `ptr_state`.
 #' @examples
@@ -331,10 +326,9 @@ ptr_setup_controls <- function(input,
 #' }
 #' @export
 ptr_register_draw <- function(input,
-                               ptr_state,
-                               ids = ptr_state$ids) {
+                               ptr_state) {
   ptr_validate_state(ptr_state)
-  ids <- ptr_normalize_ids(ids)
+  ids <- ptr_normalize_ids(ptr_state$ids)
 
   shiny::observeEvent(input[[ids$draw_button]], {
     shiny::req(ptr_state$obj())
@@ -462,8 +456,6 @@ ptr_extract_code <- function(runtime_result, extras = NULL) {
 #'
 #' @param output A Shiny `output` object.
 #' @param ptr_state A `ptr_state` object.
-#' @param ids A `ptr_build_ids` object describing the top-level Shiny ids used by
-#'   the integration helpers.
 #'
 #' @return Invisibly returns `ptr_state`.
 #' @examples
@@ -476,10 +468,9 @@ ptr_extract_code <- function(runtime_result, extras = NULL) {
 #' }
 #' @export
 ptr_register_plot <- function(output,
-                               ptr_state,
-                               ids = ptr_state$ids) {
+                               ptr_state) {
   ptr_validate_state(ptr_state)
-  ids <- ptr_normalize_ids(ids)
+  ids <- ptr_normalize_ids(ptr_state$ids)
 
   output[[ids$plot_output]] <- shiny::renderPlot({
     plot_obj <- ptr_extract_plot(ptr_state$runtime())
@@ -498,8 +489,6 @@ ptr_register_plot <- function(output,
 #'
 #' @param output A Shiny `output` object.
 #' @param ptr_state A `ptr_state` object.
-#' @param ids A `ptr_build_ids` object describing the top-level Shiny ids used by
-#'   the integration helpers.
 #'
 #' @return Invisibly returns `ptr_state`.
 #' @examples
@@ -512,10 +501,9 @@ ptr_register_plot <- function(output,
 #' }
 #' @export
 ptr_register_error <- function(output,
-                                ptr_state,
-                                ids = ptr_state$ids) {
+                                ptr_state) {
   ptr_validate_state(ptr_state)
-  ids <- ptr_normalize_ids(ids)
+  ids <- ptr_normalize_ids(ptr_state$ids)
 
   output[[ids$error_output]] <- shiny::renderUI({
     ptr_extract_error(ptr_state$runtime())
@@ -528,8 +516,6 @@ ptr_register_error <- function(output,
 #'
 #' @param output A Shiny `output` object.
 #' @param ptr_state A `ptr_state` object.
-#' @param ids A `ptr_build_ids` object describing the top-level Shiny ids used by
-#'   the integration helpers.
 #'
 #' @return Invisibly returns `ptr_state`.
 #' @examples
@@ -542,10 +528,9 @@ ptr_register_error <- function(output,
 #' }
 #' @export
 ptr_register_code <- function(output,
-                               ptr_state,
-                               ids = ptr_state$ids) {
+                               ptr_state) {
   ptr_validate_state(ptr_state)
-  ids <- ptr_normalize_ids(ids)
+  ids <- ptr_normalize_ids(ptr_state$ids)
 
   output[[ids$code_output]] <- shiny::renderText({
     ptr_extract_code(ptr_state$runtime(), extras = ptr_state$extras())

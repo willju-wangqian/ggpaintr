@@ -365,11 +365,11 @@ server <- function(input, output, session) {
     ids = custom_ids
   )
   
-  ptr_setup_controls(input, output, ptr_state, ids = custom_ids)
-  ptr_register_draw(input, ptr_state, ids = custom_ids)
-  ptr_register_plot(output, ptr_state, ids = custom_ids)
-  ptr_register_error(output, ptr_state, ids = custom_ids)
-  ptr_register_code(output, ptr_state, ids = custom_ids)
+  ptr_setup_controls(input, output, ptr_state)
+  ptr_register_draw(input, ptr_state)
+  ptr_register_plot(output, ptr_state)
+  ptr_register_error(output, ptr_state)
+  ptr_register_code(output, ptr_state)
   
   # Your own reactive reading ptr_state$runtime()
   output$runtimeStatus <- renderText({
@@ -384,6 +384,9 @@ shinyApp(ui, server)
 ```
 
 ```{r extensibility-level-2-2}
+ns_a <- shiny::NS("pA")
+ns_b <- shiny::NS("pB")
+
 custom_ids <- ptr_build_ids(
   control_panel = "builder_controls",
   draw_button   = "render_plot",
@@ -404,15 +407,15 @@ ui <- fluidPage(
   titlePanel("Embedded ggpaintr"),
   sidebarLayout(
     sidebarPanel(
-      ptr_input_ui(ids = custom_ids),
-      ptr_input_ui(ids = custom_ids2),
+      ptr_input_ui(ids = custom_ids, ns = ns_a),
+      ptr_input_ui(ids = custom_ids2, ns = ns_b),
       tags$hr(),
       h4("Session status"),
       textOutput("runtimeStatus")
     ),
     mainPanel(
-      ptr_output_ui(ids = custom_ids),
-      ptr_output_ui(ids = custom_ids2)
+      ptr_output_ui(ids = custom_ids, ns = ns_a),
+      ptr_output_ui(ids = custom_ids2, ns = ns_b)
     )
   )
 )
@@ -422,27 +425,29 @@ server <- function(input, output, session) {
     "ggplot(data = iris, aes(x = var, y = var)) +
       geom_point(aes(color = var), size = num) +
       labs(title = text)",
-    ids = custom_ids
+    ids = custom_ids,
+    ns = ns_a
   )
   
-  ptr_setup_controls(input, output, ptr_state, ids = custom_ids)
-  ptr_register_draw(input, ptr_state, ids = custom_ids)
-  ptr_register_plot(output, ptr_state, ids = custom_ids)
-  ptr_register_error(output, ptr_state, ids = custom_ids)
-  ptr_register_code(output, ptr_state, ids = custom_ids)
+  ptr_setup_controls(input, output, ptr_state)
+  ptr_register_draw(input, ptr_state)
+  ptr_register_plot(output, ptr_state)
+  ptr_register_error(output, ptr_state)
+  ptr_register_code(output, ptr_state)
   
   ptr_state2 <- ptr_server_state(
     "ggplot(data = mtcars, aes(x = var, y = var)) +
       geom_point(aes(color = var), size = num) +
       labs(title = text)",
-    ids = custom_ids2
+    ids = custom_ids2,
+    ns = ns_b
   )
   
-  ptr_setup_controls(input, output, ptr_state2, ids = custom_ids2)
-  ptr_register_draw(input, ptr_state2, ids = custom_ids2)
-  ptr_register_plot(output, ptr_state2, ids = custom_ids2)
-  ptr_register_error(output, ptr_state2, ids = custom_ids2)
-  ptr_register_code(output, ptr_state2, ids = custom_ids2)
+  ptr_setup_controls(input, output, ptr_state2)
+  ptr_register_draw(input, ptr_state2)
+  ptr_register_plot(output, ptr_state2)
+  ptr_register_error(output, ptr_state2)
+  ptr_register_code(output, ptr_state2)
   
   # Your own reactive reading ptr_state$runtime()
   output$runtimeStatus <- renderText({
@@ -579,7 +584,7 @@ server <- function(input, output, session) {
       #   opts_selection(
       #     type = "multiple", css = "fill:#FF3333;stroke:black;")
       # )
-      )
+    )
     x
     
   })
@@ -632,7 +637,7 @@ server <- function(input, output, session) {
     }
     
     ggplotly(plot_obj)
-
+    
     # x <- girafe(
     #   code = print(plot_obj),
     #   width_svg = 6, height_svg = 5,
@@ -643,7 +648,7 @@ server <- function(input, output, session) {
     #       type = "multiple", css = "fill:#FF3333;stroke:black;")
     #   ))
     # x
-
+    
   })
 }
 

@@ -470,11 +470,11 @@ expr   # e.g. theme_minimal(base_size = 14)`,
   ], { x: 0.5, y: 1.7, w: 6, h: 2.2 });
   codeBlock(s,
 `ptr_state <- ptr_server_state(formula, ids = custom_ids)
-ptr_setup_controls(input, output, ptr_state, ids = custom_ids)
-ptr_register_draw (input,         ptr_state, ids = custom_ids)
-ptr_register_plot (output,        ptr_state, ids = custom_ids)
-ptr_register_error(output,        ptr_state, ids = custom_ids)
-ptr_register_code (output,        ptr_state, ids = custom_ids)`,
+ptr_setup_controls(input, output, ptr_state)
+ptr_register_draw (input,         ptr_state)
+ptr_register_plot (output,        ptr_state)
+ptr_register_error(output,        ptr_state)
+ptr_register_code (output,        ptr_state)`,
     { x: 0.5, y: 3.85, w: 6, h: 1.35 }
   );
   chunkRef(s, "extensibility-level-2", 330);

@@ -141,11 +141,11 @@ test_that("bind helpers support custom ids inside an existing app server", {
       ids = ids
     )
 
-    ptr_setup_controls(input, output, ptr_state, ids = ids)
-    ptr_register_draw(input, ptr_state, ids = ids)
-    ptr_register_plot(output, ptr_state, ids = ids)
-    ptr_register_error(output, ptr_state, ids = ids)
-    ptr_register_code(output, ptr_state, ids = ids)
+    ptr_setup_controls(input, output, ptr_state)
+    ptr_register_draw(input, ptr_state)
+    ptr_register_plot(output, ptr_state)
+    ptr_register_error(output, ptr_state)
+    ptr_register_code(output, ptr_state)
 
     session$userData$ptr_state <- ptr_state
   }
@@ -185,10 +185,10 @@ test_that("bind helpers expose error and code output with custom ids on failure"
       ids = ids
     )
 
-    ptr_setup_controls(input, output, ptr_state, ids = ids)
-    ptr_register_draw(input, ptr_state, ids = ids)
-    ptr_register_error(output, ptr_state, ids = ids)
-    ptr_register_code(output, ptr_state, ids = ids)
+    ptr_setup_controls(input, output, ptr_state)
+    ptr_register_draw(input, ptr_state)
+    ptr_register_error(output, ptr_state)
+    ptr_register_code(output, ptr_state)
 
     session$userData$ptr_state <- ptr_state
   }

@@ -40,6 +40,11 @@ User owns the layout/chrome; ggpaintr owns the plot pipeline.
 - `ptr_server(input, output, session, formula, ...)` — one-shot shortcut
   doing setup + all four binders.
 - `ptr_build_ids(...)` — rename the five configurable top-level ids.
+- `ns = shiny::NS("prefix")` — namespace every ggpaintr-owned id so
+  multiple instances can coexist in one session (two tabs, modules,
+  side-by-side). Accepted on `ptr_input_ui()`, `ptr_output_ui()`,
+  `ptr_server_state()`, `ptr_server()`, `ptr_app()`, `ptr_app_bslib()`.
+  Default `shiny::NS(NULL)` is identity (no prefix).
 - `ui_text = list(...)` — override every label / help / placeholder /
   empty_text string. Six sections (`shell`, `upload`, `layer_checkbox`,
   `defaults`, `params`, `layers`); last three form a cascade.
@@ -71,7 +76,7 @@ via `placeholders =` on `ptr_app()`, `ptr_server_state()`,
 
 - "Quick interactive plot" → L1.
 - "Put ggpaintr inside MY Shiny app / relabel widgets / split plot-code-
-  error panels / custom ids" → L2.
+  error panels / custom ids / multiple instances in one session" → L2.
 - "Render plots without Shiny / batch reports / post-process the ggplot
   object / round-trip host layers into the code pane" → L3.
 - "Date picker, slider, color well, any widget not in the 5 built-ins"
@@ -87,6 +92,7 @@ fetch the runnable example. Available topics:
 - `level1_ptr_app` — minimal turn-key app
 - `level2_embed` — minimal embed using the 6 public calls
 - `level2_custom_ids` — `ptr_build_ids()` to avoid id collisions
+- `level2_namespacing` — `ns =` for multiple ggpaintr instances in one session
 - `level2_ui_text` — copy overrides, cascade rules, worked example
 - `level3_headless` — parse → spec → exec → extract, no Shiny
 - `level3_custom_render` — own `renderPlot()` + host post-process

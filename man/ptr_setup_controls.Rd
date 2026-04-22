@@ -4,7 +4,7 @@
 \alias{ptr_setup_controls}
 \title{Bind the Generated Control Panel into a Shiny App}
 \usage{
-ptr_setup_controls(input, output, ptr_state, ids = ptr_state$ids)
+ptr_setup_controls(input, output, ptr_state)
 }
 \arguments{
 \item{input}{A Shiny \code{input} object.}
@@ -12,9 +12,6 @@ ptr_setup_controls(input, output, ptr_state, ids = ptr_state$ids)
 \item{output}{A Shiny \code{output} object.}
 
 \item{ptr_state}{A \code{ptr_state} object.}
-
-\item{ids}{A \code{ptr_build_ids} object describing the top-level Shiny ids used by
-the integration helpers.}
 }
 \value{
 Invisibly returns \code{ptr_state}.
