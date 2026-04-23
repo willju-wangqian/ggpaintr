@@ -384,87 +384,38 @@ shinyApp(ui, server)
 ```
 
 ```{r extensibility-level-2-2}
-ns_a <- shiny::NS("pA")
-ns_b <- shiny::NS("pB")
-
-custom_ids <- ptr_build_ids(
-  control_panel = "builder_controls",
-  draw_button   = "render_plot",
-  plot_output   = "main_plot",
-  error_output  = "main_error",
-  code_output   = "main_code"
-)
-
-custom_ids2 <- ptr_build_ids(
-  control_panel = "builder_controls2",
-  draw_button   = "render_plot2",
-  plot_output   = "main_plot2",
-  error_output  = "main_error2",
-  code_output   = "main_code2"
-)
+ns_a <- shiny::NS("plot_a")
+ns_b <- shiny::NS("plot_b")
 
 ui <- fluidPage(
-  titlePanel("Embedded ggpaintr"),
-  sidebarLayout(
-    sidebarPanel(
-      ptr_input_ui(ids = custom_ids, ns = ns_a),
-      ptr_input_ui(ids = custom_ids2, ns = ns_b),
-      tags$hr(),
-      h4("Session status"),
-      textOutput("runtimeStatus")
-    ),
-    mainPanel(
-      ptr_output_ui(ids = custom_ids, ns = ns_a),
-      ptr_output_ui(ids = custom_ids2, ns = ns_b)
-    )
+  tabsetPanel(
+    tabPanel("A",
+      fluidRow(
+        column(4, ptr_input_ui(ns = ns_a)),
+        column(8, ptr_output_ui(ns = ns_a))
+      )),
+    tabPanel("B",
+      fluidRow(
+        column(4, ptr_input_ui(ns = ns_b)),
+        column(8, ptr_output_ui(ns = ns_b))
+      ))
   )
 )
 
 server <- function(input, output, session) {
-  ptr_state <- ptr_server_state(
-    "ggplot(data = iris, aes(x = var, y = var)) +
-      geom_point(aes(color = var), size = num) +
-      labs(title = text)",
-    ids = custom_ids,
-    ns = ns_a
+  ptr_server(
+    input, output, session,
+    formula = "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+    ns      = ns_a
   )
-  
-  ptr_setup_controls(input, output, ptr_state)
-  ptr_register_draw(input, ptr_state)
-  ptr_register_plot(output, ptr_state)
-  ptr_register_error(output, ptr_state)
-  ptr_register_code(output, ptr_state)
-  
-  ptr_state2 <- ptr_server_state(
-    "ggplot(data = mtcars, aes(x = var, y = var)) +
-      geom_point(aes(color = var), size = num) +
-      labs(title = text)",
-    ids = custom_ids2,
-    ns = ns_b
+  ptr_server(
+    input, output, session,
+    formula = "ggplot(data = iris, aes(x = var, y = var, color = var)) + geom_point()",
+    ns      = ns_b
   )
-  
-  ptr_setup_controls(input, output, ptr_state2)
-  ptr_register_draw(input, ptr_state2)
-  ptr_register_plot(output, ptr_state2)
-  ptr_register_error(output, ptr_state2)
-  ptr_register_code(output, ptr_state2)
-  
-  # Your own reactive reading ptr_state$runtime()
-  output$runtimeStatus <- renderText({
-    r <- ptr_state$runtime()
-    if (is.null(r))          return("Waiting for first draw...")
-    if (isTRUE(r$ok))        return(paste("OK —", nchar(r$code_text), "chars of code"))
-    
-    r2 <- ptr_state2$runtime()
-    if (is.null(r2))          return("Waiting for first draw...")
-    if (isTRUE(r2$ok))        return(paste("OK —", nchar(r2$code_text), "chars of code"))
-    
-    
-    paste(r$message, r2$message)
-  })
 }
 
-shinyApp(ui, server)
+shinyApp(ui = ui, server = server)
 ```
 
 
