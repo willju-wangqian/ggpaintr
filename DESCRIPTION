@@ -1,6 +1,6 @@
 Package: ggpaintr
 Type: Package
-Title: Build Formula-Driven Shiny Apps for 'ggplot2'
+Title: Build Formula-Driven 'Shiny' Apps for 'ggplot2'
 Version: 0.9.0
 Authors@R: c(
     person(
@@ -25,10 +25,11 @@ Authors@R: c(
       comment = c(ORCID = "0000-0002-8154-0898")
     )
   )
-Description: Turns a single ggplot-like formula string into a small Shiny
-    application. The package generates user controls from placeholder tokens,
-    completes the expression with current inputs, renders plots, shows the
-    generated code, and supports uploaded '.csv' and '.rds' datasets.
+Description: Turns a single 'ggplot2'-style formula string into a small
+    'Shiny' application. Placeholder tokens in the formula become input
+    widgets automatically; the package completes the expression with the
+    current input values, renders the plot, shows the generated code, and
+    supports uploaded '.csv' and '.rds' datasets.
 License: GPL-3
 URL: https://willju-wangqian.github.io/ggpaintr/,
     https://github.com/willju-wangqian/ggpaintr
