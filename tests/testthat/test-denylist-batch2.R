@@ -181,7 +181,7 @@ test_that("Fix5-batch2: ptr_assemble_plot with dangerous expr and expr_check=TRU
 })
 
 test_that("Fix5-batch2: ptr_assemble_plot with expr_check=FALSE skips safety check", {
-  danger <- list(rlang::parse_expr("system('id')"))
+  danger <- list(rlang::parse_expr("system('id', ignore.stdout = TRUE, ignore.stderr = TRUE)"))
   # Safety check is skipped; the call may succeed or fail at eval — either is fine.
   # What must NOT happen is an error whose message contains "not allowed".
   err <- tryCatch(
