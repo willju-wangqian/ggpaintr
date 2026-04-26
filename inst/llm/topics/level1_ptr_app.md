@@ -8,10 +8,11 @@ need to own the Shiny UI. No Shiny code is written.
 ```r
 ptr_app(
   formula,
-  envir        = parent.frame(),
-  ui_text      = NULL,
-  placeholders = NULL,
-  expr_check   = TRUE
+  envir             = parent.frame(),
+  ui_text           = NULL,
+  placeholders      = NULL,
+  checkbox_defaults = NULL,
+  expr_check        = TRUE
 )
 ```
 

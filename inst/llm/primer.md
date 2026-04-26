@@ -26,7 +26,7 @@ There is no `data=` argument on `ptr_app()`.
 ### Level 1 — turn-key app
 One call, no Shiny code. For demos, teaching, quick exploration.
 
-`ptr_app(formula, envir = parent.frame(), ui_text = NULL, placeholders = NULL, expr_check = TRUE)`
+`ptr_app(formula, envir = parent.frame(), ui_text = NULL, placeholders = NULL, checkbox_defaults = NULL, expr_check = TRUE)`
 `ptr_app_bslib(...)` — same API, bslib themed shell (adds `theme`, `title`).
 
 ### Level 2 — embed ggpaintr inside the user's own Shiny app
@@ -48,6 +48,14 @@ User owns the layout/chrome; ggpaintr owns the plot pipeline.
 - `ui_text = list(...)` — override every label / help / placeholder /
   empty_text string. Six sections (`shell`, `upload`, `layer_checkbox`,
   `defaults`, `params`, `layers`); last three form a cascade.
+- `checkbox_defaults = list(...)` — set initial checked state per layer
+  at app launch. Sparse named list keyed by layer name (use
+  `names(parsed$expr_list)` to inspect; duplicates get `-2`, `-3`, ...
+  suffix). Vector value addresses a duplicate group positionally
+  (e.g. `geom_point = c(TRUE, FALSE)`); deduped key in backticks
+  addresses one instance (`` `geom_point-2` = FALSE ``). Missing keys
+  default to `TRUE` (current behavior). Accepted on `ptr_app()`,
+  `ptr_app_bslib()`, `ptr_server()`, `ptr_server_state()`.
 
 ### Level 3 — headless / custom render
 Run the runtime without Shiny, or render the plot yourself.
