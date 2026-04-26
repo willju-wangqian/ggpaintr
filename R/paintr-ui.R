@@ -174,6 +174,7 @@ generate_ui_var <- function(data_var,
 #' @return A named list of UI controls by layer.
 #' @noRd
 ptr_build_ui_list <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL),
+                              checkbox_ns_fn = ns_fn,
                               checkbox_defaults = NULL) {
   effective_ui_text <- ptr_merge_ui_text(
     ui_text,
@@ -183,6 +184,7 @@ ptr_build_ui_list <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL),
     ptr_obj,
     ui_text = effective_ui_text
   )
+  context$ui_ns_fn <- ns_fn
   keywords_list <- ptr_obj[["keywords_list"]]
   id_list <- ptr_obj[["id_list"]]
   placeholder_map <- ptr_obj[["placeholder_map"]]
@@ -199,6 +201,13 @@ ptr_build_ui_list <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL),
         return(NULL)
       }
 
+      ui_id <- if (identical(meta$keyword, "var")) {
+        id
+      } else {
+        ptr_ns_id(ns_fn, id)
+      }
+      ui_meta <- meta
+      ui_meta$id <- ui_id
       spec <- ptr_obj$placeholders[[meta$keyword]]
       copy <- ptr_resolve_ui_text(
         "control",
@@ -209,14 +218,14 @@ ptr_build_ui_list <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL),
         placeholders = ptr_obj$placeholders
       )
 
-      spec$build_ui(id, copy, meta, context)
+      spec$build_ui(ui_id, copy, ui_meta, context)
     })
 
     names(ui) <- names(keywords_list[[i]])
     ui_insert_checkbox(
       ui, layer_name,
       ui_text = effective_ui_text,
-      ns_fn = ns_fn,
+      ns_fn = checkbox_ns_fn,
       checkbox_defaults = checkbox_defaults
     )
   })
@@ -283,6 +292,7 @@ tab_wrap_ui <- function(ui_list) {
 #' @return A Shiny UI object or `NULL`.
 #' @noRd
 ptr_get_tab_ui <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL),
+                           checkbox_ns_fn = ns_fn,
                            checkbox_defaults = NULL) {
   if (!inherits(ptr_obj, "ptr_obj")) {
     return(NULL)
@@ -296,6 +306,7 @@ ptr_get_tab_ui <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL),
         placeholders = ptr_obj$placeholders
       ),
       ns_fn = ns_fn,
+      checkbox_ns_fn = checkbox_ns_fn,
       checkbox_defaults = checkbox_defaults
     )
   )

@@ -458,6 +458,7 @@ ptr_bind_placeholder_ui <- function(input,
     var_column_map = var_column_map
   )
   context$ns_fn <- ns_fn
+  context$ui_ns_fn <- ns_fn
   deferred_ui <- list()
 
   for (keyword in names(ptr_obj$placeholders)) {
@@ -556,7 +557,11 @@ ptr_builtin_placeholders <- function() {
 #' @return A placeholder `uiOutput()`.
 #' @noRd
 ptr_build_var_placeholder_ui <- function(id, copy, meta, context) {
-  generate_ui_var_placeholder(id)
+  ui_output_id <- ptr_ns_id(
+    context$ui_ns_fn %||% shiny::NS(NULL),
+    ptr_var_output_id(meta$id)
+  )
+  shiny::uiOutput(ui_output_id)
 }
 
 #' Resolve a `var` Placeholder to a Column Symbol
@@ -994,9 +999,10 @@ ptr_bind_var_ui_impl <- function(input, output, metas, context) {
     }
 
     for (meta in metas_by_layer[[layer_name]]) {
+      ui_id <- ptr_ns_id(context$ui_ns_fn %||% shiny::NS(NULL), meta$id)
       ui <- generate_ui_var(
         column_info$columns,
-        meta$id,
+        ui_id,
         meta$param,
         layer_name = meta$layer_name,
         ui_text = context$ui_text

@@ -38,8 +38,9 @@ A \code{ptr_state} object containing reactive accessors named \code{obj},
 }
 \description{
 Use this helper with \code{ptr_module_ui()} when you prefer Shiny modules for
-Level 2 integration. The function can also be read as a template for custom
-modules that compose \code{\link[=ptr_server]{ptr_server()}} with \code{session$ns}.
+Level 2 integration. The function also documents the namespace split needed
+inside modules: server-side ids stay local to the module, while UI generated
+from \code{renderUI()} is namespaced with \code{session$ns}.
 }
 \examples{
 ui <- shiny::fluidPage(ptr_module_ui("plot1"))

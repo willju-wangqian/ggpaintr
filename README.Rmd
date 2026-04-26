@@ -127,7 +127,7 @@ When you already have a Shiny app and want ggpaintr's widgets and runtime to liv
 
 - Non-module embedding: `ptr_input_ui()` and `ptr_output_ui()` drop the generated controls and output panes into any UI, while `ptr_server()` wires up the server side in one call.
 - Shiny module embedding: `ptr_module_ui()` and `ptr_module_server()` provide a ready-to-use module pair for users who prefer modules or already build apps with module habits.
-- The module API can also be read as a compact template for custom modules built from the lower-level ggpaintr APIs.
+- The module API can also be read as a compact template for custom modules; it handles the namespace split that Shiny modules need when UI is generated from `renderUI()`.
 - For finer control, compose the individual `ptr_register_*()` helpers (`ptr_register_draw`, `ptr_register_plot`, `ptr_register_code`, `ptr_register_error`) or use `ptr_server_state()` + `ptr_setup_controls()` to observe the underlying reactive state.
 - `ptr_build_ids()` remains available for non-module and advanced custom layouts that need renamed top-level element ids.
 - `ui_text` rewrites labels, help text, and shell chrome at any of six sections (`shell`, `upload`, `layer_checkbox`, `defaults`, `params`, `layers`).

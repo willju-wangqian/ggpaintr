@@ -216,7 +216,7 @@ defaults from `ptr_build_ids()`, which is why we did not have to pass
 
 ### 3c. Shiny module integration
 
-If you prefer Shiny modules, or already build apps with module habits, use `ptr_module_ui()` and `ptr_module_server()` as the parallel Level 2 route. They are ready-to-use helpers and also a compact template for custom modules built from `ptr_input_ui()`, `ptr_output_ui()`, and `ptr_server()`.
+If you prefer Shiny modules, or already build apps with module habits, use `ptr_module_ui()` and `ptr_module_server()` as the parallel Level 2 route. They are ready-to-use helpers and also a compact template for the namespace split Shiny modules need when UI is generated from `renderUI()`.
 
 ```{r module-api, eval = FALSE}
 ui <- fluidPage(
@@ -233,23 +233,20 @@ server <- function(input, output, session) {
 shinyApp(ui, server)
 ```
 
-The module wrappers deliberately do not expose `ids =`. In module code, the module id is the public boundary; ggpaintr handles the internal namespace by pairing `shiny::NS(id)` in the UI with `session$ns` in the server. If you need a custom module layout, custom top-level ids, or a custom render path, copy the pattern below and use the lower-level Level 2 helpers directly.
+The module wrappers deliberately do not expose `ids =`. In module code, the module id is the public boundary. `moduleServer()` already scopes server-side `input` and `output`, but UI generated from `renderUI()` still needs `session$ns`. The exported wrappers handle that split directly.
 
 ```{r module-template, eval = FALSE}
 plot_module_ui <- function(id) {
   ns <- shiny::NS(id)
-  shiny::tagList(
-    ptr_input_ui(ns = ns),
-    ptr_output_ui(ns = ns)
-  )
+  ptr_module_ui(id)
 }
 
 plot_module_server <- function(id, formula) {
-  shiny::moduleServer(id, function(input, output, session) {
-    ptr_server(input, output, session, formula = formula, ns = session$ns)
-  })
+  ptr_module_server(id, formula)
 }
 ```
+
+Use the non-module Level 2 helpers directly when you need custom top-level ids or a custom render path outside a Shiny module. Inside a module, start from the exported module API so the runtime ids and generated UI ids stay aligned.
 
 ### 3d. Multiple ggpaintr instances in one session
 
@@ -304,7 +301,7 @@ server <- function(input, output, session) {
 }
 ```
 
-Inside `shiny::moduleServer()`, pass `session$ns` as shown in the module template in §3c. It is a namespace function identical in shape to `shiny::NS(id)` for the enclosing module id, so the UI and server agree. No double-prefixing occurs because ggpaintr applies `ns` exactly once to raw ids.
+Inside Shiny modules, use the module API in §3c. Do not pass `session$ns` directly to `ptr_server()`: `moduleServer()` already scopes server-side `input` and `output`, while generated UI ids need a separate namespace path.
 
 The single failure mode is reusing the same `ns` (or leaving it at
 its default) across two instances in the same session. Then the

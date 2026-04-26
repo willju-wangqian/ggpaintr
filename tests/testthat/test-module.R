@@ -9,7 +9,7 @@ test_that("ptr_module_ui emits namespaced top-level ids", {
   expect_match(rendered, 'id="plot1-outputCode"', fixed = TRUE)
 })
 
-test_that("ptr_module_server returns namespaced ptr_state", {
+test_that("ptr_module_server returns module-scoped ptr_state", {
   server_wrapper <- function(input, output, session) {
     session$userData$ptr_state <- ptr_module_server(
       "plot1",
@@ -19,12 +19,41 @@ test_that("ptr_module_server returns namespaced ptr_state", {
 
   shiny::testServer(server_wrapper, {
     expect_s3_class(session$userData$ptr_state, "ptr_state")
-    expect_equal(session$userData$ptr_state$ids$control_panel, "plot1-controlPanel")
-    expect_equal(session$userData$ptr_state$ids$draw_button, "plot1-draw")
-    expect_equal(session$userData$ptr_state$ids$plot_output, "plot1-outputPlot")
-    expect_equal(session$userData$ptr_state$ids$error_output, "plot1-outputError")
-    expect_equal(session$userData$ptr_state$ids$code_output, "plot1-outputCode")
+    expect_equal(session$userData$ptr_state$ids$control_panel, "controlPanel")
+    expect_equal(session$userData$ptr_state$ids$draw_button, "draw")
+    expect_equal(session$userData$ptr_state$ids$plot_output, "outputPlot")
+    expect_equal(session$userData$ptr_state$ids$error_output, "outputError")
+    expect_equal(session$userData$ptr_state$ids$code_output, "outputCode")
+    expect_equal(
+      session$userData$ptr_state$ui_placeholder_ns_fn("controlPanel"),
+      "plot1-controlPanel"
+    )
+    expect_equal(
+      session$userData$ptr_state$ui_checkbox_ns_fn("geom_point_checkbox"),
+      "plot1-geom_point_checkbox"
+    )
   })
+})
+
+test_that("ptr_get_tab_ui can namespace dynamic module controls separately from runtime ids", {
+  state <- ptr_server_state(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  )
+  obj <- shiny::isolate(state$obj())
+  rendered <- paste(
+    as.character(
+      ptr_get_tab_ui(
+        obj,
+        ns_fn = shiny::NS("plot1"),
+        checkbox_ns_fn = shiny::NS("plot1")
+      )
+    ),
+    collapse = "\n"
+  )
+
+  expect_match(rendered, 'id="plot1-var-ggplot_3_2"', fixed = TRUE)
+  expect_match(rendered, 'id="plot1-var-ggplot_3_3"', fixed = TRUE)
+  expect_match(rendered, 'id="plot1-geom_point_checkbox"', fixed = TRUE)
 })
 
 test_that("ptr_module_server passes through customization arguments", {

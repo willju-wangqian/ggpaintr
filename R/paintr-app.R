@@ -308,7 +308,7 @@ ptr_setup_controls <- function(input,
         eval_env = cached$eval_env,
         var_column_map = cached$var_column_map,
         expr_check = ptr_state$expr_check,
-        ns_fn = ptr_state$ns_fn %||% shiny::NS(NULL)
+        ns_fn = ptr_state$ui_placeholder_ns_fn %||% shiny::NS(NULL)
       ),
       error = function(e) list()
     )
@@ -322,7 +322,10 @@ ptr_setup_controls <- function(input,
       ptr_get_tab_ui(
         ptr_state$obj(),
         ui_text = ptr_state$effective_ui_text,
-        ns_fn = ptr_state$ns_fn %||% shiny::NS(NULL),
+        ns_fn = ptr_state$ui_placeholder_ns_fn %||% shiny::NS(NULL),
+        checkbox_ns_fn = ptr_state$ui_checkbox_ns_fn %||%
+          ptr_state$ns_fn %||%
+          shiny::NS(NULL),
         checkbox_defaults = ptr_state$checkbox_defaults
       )
     )
@@ -698,7 +701,7 @@ ptr_output_ui <- function(ids = ptr_build_ids(), ns = shiny::NS(NULL)) {
 #' Build ggpaintr UI for a Shiny Module
 #'
 #' Use this helper when you prefer Shiny modules for Level 2 integration. It is
-#' also a compact template for custom module wrappers built from
+#' also a compact template for the UI half of custom module wrappers built from
 #' [ptr_input_ui()] and [ptr_output_ui()].
 #'
 #' @param id Module id.
@@ -722,8 +725,9 @@ ptr_module_ui <- function(id, ui_text = NULL) {
 #' Register ggpaintr Server Logic for a Shiny Module
 #'
 #' Use this helper with `ptr_module_ui()` when you prefer Shiny modules for
-#' Level 2 integration. The function can also be read as a template for custom
-#' modules that compose [ptr_server()] with `session$ns`.
+#' Level 2 integration. The function also documents the namespace split needed
+#' inside modules: server-side ids stay local to the module, while UI generated
+#' from `renderUI()` is namespaced with `session$ns`.
 #'
 #' @param id Module id.
 #' @param formula A single formula string using `ggpaintr` placeholders.
@@ -765,18 +769,26 @@ ptr_module_server <- function(id,
   force(expr_check)
 
   shiny::moduleServer(id, function(input, output, session) {
-    ptr_server(
-      input = input,
-      output = output,
-      session = session,
-      formula = formula,
+    ptr_state <- ptr_server_state(
+      formula,
       envir = envir,
       ui_text = ui_text,
       placeholders = placeholders,
       checkbox_defaults = checkbox_defaults,
       expr_check = expr_check,
-      ns = session$ns
+      ns = shiny::NS(NULL)
     )
+
+    ptr_state$ui_placeholder_ns_fn <- session$ns
+    ptr_state$ui_checkbox_ns_fn <- session$ns
+
+    ptr_state <- ptr_setup_controls(input, output, ptr_state)
+    ptr_register_draw(input, ptr_state)
+    ptr_register_plot(output, ptr_state)
+    ptr_register_error(output, ptr_state)
+    ptr_register_code(output, ptr_state)
+
+    ptr_state
   })
 }
 
@@ -861,9 +873,10 @@ ptr_app <- function(formula,
 #'
 #' @return A `ptr_state` object containing reactive accessors named `obj`,
 #'   `runtime`, and `var_ui_list`, plus shared metadata used by the bind helpers.
-#' @note When embedding inside a `shiny::moduleServer()` call, pass
-#'   `session$ns` as the `ns` argument so all generated Shiny ids are scoped
-#'   to the module namespace.
+#' @note For Shiny modules, prefer [ptr_module_ui()] and
+#'   [ptr_module_server()]. `moduleServer()` already scopes `input` and
+#'   `output`, while UI generated from `renderUI()` still needs `session$ns`;
+#'   the module wrappers handle that split.
 #' @export
 ptr_server <- function(input,
                             output,

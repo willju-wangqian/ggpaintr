@@ -119,7 +119,8 @@ runtime to live inside it, Level 2 has two parallel integration routes:
     provide a ready-to-use module pair for users who prefer modules or
     already build apps with module habits.
 -   The module API can also be read as a compact template for custom
-    modules built from the lower-level ggpaintr APIs.
+    modules; it handles the namespace split that Shiny modules need when
+    UI is generated from `renderUI()`.
 -   For finer control, compose the individual `ptr_register_*()` helpers
     (`ptr_register_draw`, `ptr_register_plot`, `ptr_register_code`,
     `ptr_register_error`) or use `ptr_server_state()` +

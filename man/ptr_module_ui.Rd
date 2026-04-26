@@ -17,7 +17,7 @@ A Shiny UI object.
 }
 \description{
 Use this helper when you prefer Shiny modules for Level 2 integration. It is
-also a compact template for custom module wrappers built from
+also a compact template for the UI half of custom module wrappers built from
 \code{\link[=ptr_input_ui]{ptr_input_ui()}} and \code{\link[=ptr_output_ui]{ptr_output_ui()}}.
 }
 \examples{

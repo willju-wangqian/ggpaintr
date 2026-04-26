@@ -63,7 +63,8 @@ latest runtime result, and current dynamic \code{var} UI definitions so callers
 can extend the app with additional observers and outputs.
 }
 \note{
-When embedding inside a \code{shiny::moduleServer()} call, pass
-\code{session$ns} as the \code{ns} argument so all generated Shiny ids are scoped
-to the module namespace.
+For Shiny modules, prefer \code{\link[=ptr_module_ui]{ptr_module_ui()}} and
+\code{\link[=ptr_module_server]{ptr_module_server()}}. \code{moduleServer()} already scopes \code{input} and
+\code{output}, while UI generated from \code{renderUI()} still needs \code{session$ns};
+the module wrappers handle that split.
 }
