@@ -28,10 +28,10 @@ settings and invisibly returns the previous values, suitable for the
 
 \describe{
 \item{\code{verbose}}{
-Logical. When \code{TRUE} (default), ggpaintr emits informative messages
-such as "Layer foo() removed (no arguments provided)." Set to \code{FALSE}
-to silence these messages. Underlying option:
-\code{options(ggpaintr.verbose = ...)}.
+Logical. When \code{TRUE}, ggpaintr emits informative messages such as
+"Layer foo() removed (no arguments provided)." Default \code{FALSE} —
+these messages are intended for debugging the formula pipeline and
+are off by default. Underlying option: \code{options(ggpaintr.verbose = ...)}.
 }
 \item{\code{checkbox_default_all_other_layer}}{
 Logical. The fallback initial state for layer checkboxes that aren't
