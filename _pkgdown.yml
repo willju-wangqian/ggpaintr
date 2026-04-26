@@ -16,6 +16,8 @@ reference:
   - title: Shiny integration
     desc: Embed ggpaintr inside a larger Shiny app while keeping package-owned runtime behavior.
     contents:
+      - ptr_module_ui
+      - ptr_module_server
       - ptr_server
       - ptr_build_ids
       - ptr_server_state
