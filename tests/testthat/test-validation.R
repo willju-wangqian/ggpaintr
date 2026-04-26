@@ -40,7 +40,8 @@ make_raw_state <- function(
   placeholders        = ptr_merge_placeholders(),
   custom_placeholders = list(),
   ids                 = ptr_build_ids(),
-  envir               = globalenv()
+  envir               = globalenv(),
+  checkbox_defaults   = stats::setNames(logical(0), character(0))
 ) {
   structure(
     list(
@@ -54,7 +55,8 @@ make_raw_state <- function(
       placeholders        = placeholders,
       custom_placeholders = custom_placeholders,
       ids                 = ids,
-      envir               = envir
+      envir               = envir,
+      checkbox_defaults   = checkbox_defaults
     ),
     class = "ptr_state"
   )

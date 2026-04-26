@@ -173,7 +173,8 @@ generate_ui_var <- function(data_var,
 #'
 #' @return A named list of UI controls by layer.
 #' @noRd
-ptr_build_ui_list <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL)) {
+ptr_build_ui_list <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL),
+                              checkbox_defaults = NULL) {
   effective_ui_text <- ptr_merge_ui_text(
     ui_text,
     placeholders = ptr_obj$placeholders
@@ -212,7 +213,12 @@ ptr_build_ui_list <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL)) 
     })
 
     names(ui) <- names(keywords_list[[i]])
-    ui_insert_checkbox(ui, layer_name, ui_text = effective_ui_text, ns_fn = ns_fn)
+    ui_insert_checkbox(
+      ui, layer_name,
+      ui_text = effective_ui_text,
+      ns_fn = ns_fn,
+      checkbox_defaults = checkbox_defaults
+    )
   })
 
   rlang::set_names(ui_list, layer_names)
@@ -228,14 +234,20 @@ ptr_build_ui_list <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL)) 
 #'
 #' @return A list of UI elements, possibly prefixed with a checkbox.
 #' @noRd
-ui_insert_checkbox <- function(ui, nn, ui_text = NULL, ns_fn = shiny::NS(NULL)) {
+ui_insert_checkbox <- function(ui, nn, ui_text = NULL, ns_fn = shiny::NS(NULL),
+                               checkbox_defaults = NULL) {
   if (nn == "ggplot") {
     return(ui)
   }
 
   copy <- ptr_resolve_ui_text("layer_checkbox", ui_text = ui_text)
   id <- ptr_ns_id(ns_fn, ptr_checkbox_input_id(nn))
-  checkbox <- shiny::checkboxInput(id, label = copy$label, value = TRUE)
+  default_value <- if (!is.null(checkbox_defaults) && nn %in% names(checkbox_defaults)) {
+    checkbox_defaults[[nn]]
+  } else {
+    TRUE
+  }
+  checkbox <- shiny::checkboxInput(id, label = copy$label, value = default_value)
 
   ui <- c(list(checkbox), ui)
   names(ui)[1] <- id
@@ -270,7 +282,8 @@ tab_wrap_ui <- function(ui_list) {
 #'
 #' @return A Shiny UI object or `NULL`.
 #' @noRd
-ptr_get_tab_ui <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL)) {
+ptr_get_tab_ui <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL),
+                           checkbox_defaults = NULL) {
   if (!inherits(ptr_obj, "ptr_obj")) {
     return(NULL)
   }
@@ -282,7 +295,8 @@ ptr_get_tab_ui <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL)) {
         ui_text,
         placeholders = ptr_obj$placeholders
       ),
-      ns_fn = ns_fn
+      ns_fn = ns_fn,
+      checkbox_defaults = checkbox_defaults
     )
   )
 }

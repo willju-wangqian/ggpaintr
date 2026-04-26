@@ -13,6 +13,28 @@ For known unresolved boundaries and reproducible edge-case examples, see
 6. Enter a faceting expression with a missing variable such as `~ Speciesasdf` and confirm the inline error channel shows the faceting error instead of raw Shiny `[object Object]`.
 7. Launch a formula such as `aes(x = var + 1, y = log(var))`, confirm the picker still offers only column names, and confirm the generated code shows the selected columns inside those formula-level transforms.
 
+## `checkbox_defaults` initial-state checks
+
+1. Launch:
+
+   ```r
+   ptr_app(
+     "ggplot(data = mtcars, aes(x = var, y = var)) +
+        geom_point() + geom_smooth(method = text) + geom_line()",
+     checkbox_defaults = list(geom_smooth = FALSE, geom_line = FALSE)
+   )
+   ```
+
+   Confirm `geom_point` is checked and `geom_smooth` + `geom_line` are unchecked at startup. Toggle each on/off and confirm the plot updates.
+
+2. Launch a formula with two `geom_point()` calls and pass `checkbox_defaults = list(geom_point = c(TRUE, FALSE))`. Confirm the first `geom_point` checkbox is on, the second is off.
+
+3. Launch the same duplicate-layer formula with ``checkbox_defaults = list(`geom_point-2` = FALSE)``. Confirm only the second instance starts unchecked.
+
+4. Pass `checkbox_defaults = list(geom_typo = FALSE)` against any formula. Confirm a console warning lists `geom_typo` as unknown and the app launches with all layers checked.
+
+5. Pass `checkbox_defaults = list(geom_point = c(TRUE, FALSE, TRUE))` against a formula with two `geom_point()` calls. Confirm a console warning about the extra value, and the resulting state is first on / second off.
+
 ## Local data normalization checks
 
 1. Create a local data frame with spaced or punctuated column names and pass it through `ptr_normalize_column_names()`.

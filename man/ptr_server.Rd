@@ -13,6 +13,7 @@ ptr_server(
   ui_text = NULL,
   placeholders = NULL,
   ids = ptr_build_ids(),
+  checkbox_defaults = NULL,
   expr_check = TRUE,
   ns = shiny::NS(NULL)
 )
@@ -36,6 +37,9 @@ placeholder registry.}
 
 \item{ids}{A \code{ptr_build_ids} object controlling the Shiny element IDs used by
 the integration helpers. Defaults to \code{ptr_build_ids()}.}
+
+\item{checkbox_defaults}{Optional named list of initial checked states for
+layer checkboxes. See \code{\link[=ptr_server_state]{ptr_server_state()}}.}
 
 \item{expr_check}{Controls \code{expr} placeholder validation.
 \code{TRUE} (default) applies the built-in denylist of dangerous

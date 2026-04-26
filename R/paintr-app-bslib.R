@@ -16,6 +16,8 @@
 #'   text, and placeholders.
 #' @param placeholders Optional custom placeholder definitions or an existing
 #'   placeholder registry.
+#' @param checkbox_defaults Optional named list of initial checked states for
+#'   layer checkboxes. See [ptr_server_state()].
 #' @param expr_check Controls `expr` placeholder validation. See [ptr_app()].
 #' @param theme A `bslib` theme object. Defaults to a Bootstrap 5 Flatly
 #'   bootswatch. Pass any [bslib::bs_theme()] result to customize.
@@ -35,6 +37,7 @@ ptr_app_bslib <- function(formula,
                           envir = parent.frame(),
                           ui_text = NULL,
                           placeholders = NULL,
+                          checkbox_defaults = NULL,
                           expr_check = TRUE,
                           theme = NULL,
                           title = "ggpaintr",
@@ -88,6 +91,7 @@ ptr_app_bslib <- function(formula,
       ui_text = ui_text,
       placeholders = placeholders,
       ids = ids,
+      checkbox_defaults = checkbox_defaults,
       expr_check = expr_check
     )
     invisible(NULL)

@@ -9,6 +9,7 @@ ptr_app_bslib(
   envir = parent.frame(),
   ui_text = NULL,
   placeholders = NULL,
+  checkbox_defaults = NULL,
   expr_check = TRUE,
   theme = NULL,
   title = "ggpaintr",
@@ -26,6 +27,9 @@ text, and placeholders.}
 
 \item{placeholders}{Optional custom placeholder definitions or an existing
 placeholder registry.}
+
+\item{checkbox_defaults}{Optional named list of initial checked states for
+layer checkboxes. See \code{\link[=ptr_server_state]{ptr_server_state()}}.}
 
 \item{expr_check}{Controls \code{expr} placeholder validation. See \code{\link[=ptr_app]{ptr_app()}}.}
 

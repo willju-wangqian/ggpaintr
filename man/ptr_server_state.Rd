@@ -10,6 +10,7 @@ ptr_server_state(
   ui_text = NULL,
   ids = ptr_build_ids(),
   placeholders = NULL,
+  checkbox_defaults = NULL,
   expr_check = TRUE,
   ns = shiny::NS(NULL)
 )
@@ -27,6 +28,20 @@ the integration helpers.}
 
 \item{placeholders}{Optional custom placeholder definitions or an existing
 placeholder registry.}
+
+\item{checkbox_defaults}{Optional named list controlling the initial checked
+state of each layer's "include this layer" checkbox at app launch. Names
+match layer names from the formula (use \code{names(parsed$expr_list)} to
+inspect; duplicate layers receive a hyphen-numeric suffix starting at
+\code{-2}, e.g. a formula with two \code{geom_point()} calls produces layer names
+\code{geom_point} and \code{geom_point-2}). Each value is a single logical or a
+logical vector applied positionally over consecutive instances of that
+layer; vectors shorter than the count of instances are padded with \code{TRUE}
+and longer vectors are truncated with a warning. A deduped key wrapped in
+backticks (e.g. \code{`geom_point-2`}) addresses one specific instance.
+\code{NA} and non-logical values raise an error; unrecognized names raise a
+warning and are ignored. Default \code{NULL} keeps every layer checked
+(current behavior).}
 
 \item{expr_check}{Controls \code{expr} placeholder validation.
 \code{TRUE} (default) applies the built-in denylist of dangerous

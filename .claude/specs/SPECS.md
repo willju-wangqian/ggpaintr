@@ -12,4 +12,4 @@ Reference material lives elsewhere:
 
 ## Active Decisions
 
-_(none)_
+- [checkbox-defaults](checkbox-defaults.md) — initial layer-checkbox state via `checkbox_defaults` arg on the 4 formula-taking exported functions

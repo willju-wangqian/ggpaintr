@@ -115,7 +115,8 @@ ptr_validate_state <- function(ptr_state) {
     "placeholders",
     "custom_placeholders",
     "ids",
-    "envir"
+    "envir",
+    "checkbox_defaults"
   )
 
   if (!inherits(ptr_state, "ptr_state")) {
@@ -155,6 +156,19 @@ ptr_validate_state <- function(ptr_state) {
 #'   the integration helpers.
 #' @param placeholders Optional custom placeholder definitions or an existing
 #'   placeholder registry.
+#' @param checkbox_defaults Optional named list controlling the initial checked
+#'   state of each layer's "include this layer" checkbox at app launch. Names
+#'   match layer names from the formula (use `names(parsed$expr_list)` to
+#'   inspect; duplicate layers receive a hyphen-numeric suffix starting at
+#'   `-2`, e.g. a formula with two `geom_point()` calls produces layer names
+#'   `geom_point` and `geom_point-2`). Each value is a single logical or a
+#'   logical vector applied positionally over consecutive instances of that
+#'   layer; vectors shorter than the count of instances are padded with `TRUE`
+#'   and longer vectors are truncated with a warning. A deduped key wrapped in
+#'   backticks (e.g. `` `geom_point-2` ``) addresses one specific instance.
+#'   `NA` and non-logical values raise an error; unrecognized names raise a
+#'   warning and are ignored. Default `NULL` keeps every layer checked
+#'   (current behavior).
 #' @param expr_check Controls `expr` placeholder validation.
 #'   `TRUE` (default) applies the built-in denylist of dangerous
 #'   functions.
@@ -181,6 +195,7 @@ ptr_server_state <- function(formula,
                              ui_text = NULL,
                              ids = ptr_build_ids(),
                              placeholders = NULL,
+                             checkbox_defaults = NULL,
                              expr_check = TRUE,
                              ns = shiny::NS(NULL)) {
   if (!is.function(ns)) {
@@ -191,6 +206,11 @@ ptr_server_state <- function(formula,
 
   parsed <- ptr_parse_formula(formula, placeholders = placeholder_registry)
   parsed <- ptr_ns_obj(parsed, ns)
+
+  resolved_checkbox_defaults <- ptr_resolve_checkbox_defaults(
+    checkbox_defaults,
+    parsed$expr_list
+  )
 
   # Prefix top-level ids through ns
   namespaced_ids <- structure(
@@ -216,7 +236,8 @@ ptr_server_state <- function(formula,
       ids = namespaced_ids,
       envir = envir,
       expr_check = expr_check,
-      ns_fn = ns
+      ns_fn = ns,
+      checkbox_defaults = resolved_checkbox_defaults
     ),
     class = c("ptr_state", "list")
   )
@@ -301,7 +322,8 @@ ptr_setup_controls <- function(input,
       ptr_get_tab_ui(
         ptr_state$obj(),
         ui_text = ptr_state$effective_ui_text,
-        ns_fn = ptr_state$ns_fn %||% shiny::NS(NULL)
+        ns_fn = ptr_state$ns_fn %||% shiny::NS(NULL),
+        checkbox_defaults = ptr_state$checkbox_defaults
       )
     )
   })
@@ -684,6 +706,8 @@ ptr_output_ui <- function(ids = ptr_build_ids(), ns = shiny::NS(NULL)) {
 #'   text, and placeholders.
 #' @param placeholders Optional custom placeholder definitions or an existing
 #'   placeholder registry.
+#' @param checkbox_defaults Optional named list of initial checked states for
+#'   layer checkboxes. See [ptr_server_state()].
 #' @param expr_check Controls `expr` placeholder validation.
 #'   `TRUE` (default) applies the built-in denylist of dangerous
 #'   functions.
@@ -705,6 +729,7 @@ ptr_app <- function(formula,
                          envir = parent.frame(),
                          ui_text = NULL,
                          placeholders = NULL,
+                         checkbox_defaults = NULL,
                          expr_check = TRUE,
                          ns = shiny::NS(NULL)) {
   app_parts <- ptr_app_components(
@@ -712,6 +737,7 @@ ptr_app <- function(formula,
     envir = envir,
     ui_text = ui_text,
     placeholders = placeholders,
+    checkbox_defaults = checkbox_defaults,
     expr_check = expr_check,
     ns = ns
   )
@@ -736,6 +762,8 @@ ptr_app <- function(formula,
 #'   placeholder registry.
 #' @param ids A `ptr_build_ids` object controlling the Shiny element IDs used by
 #'   the integration helpers. Defaults to `ptr_build_ids()`.
+#' @param checkbox_defaults Optional named list of initial checked states for
+#'   layer checkboxes. See [ptr_server_state()].
 #' @param expr_check Controls `expr` placeholder validation.
 #'   `TRUE` (default) applies the built-in denylist of dangerous
 #'   functions.
@@ -760,6 +788,7 @@ ptr_server <- function(input,
                             ui_text = NULL,
                             placeholders = NULL,
                             ids = ptr_build_ids(),
+                            checkbox_defaults = NULL,
                             expr_check = TRUE,
                             ns = shiny::NS(NULL)) {
   ptr_state <- ptr_server_state(
@@ -768,6 +797,7 @@ ptr_server <- function(input,
     ui_text = ui_text,
     placeholders = placeholders,
     ids = ids,
+    checkbox_defaults = checkbox_defaults,
     expr_check = expr_check,
     ns = ns
   )
@@ -836,6 +866,7 @@ ptr_app_components <- function(formula,
                                   envir = parent.frame(),
                                   ui_text = NULL,
                                   placeholders = NULL,
+                                  checkbox_defaults = NULL,
                                   expr_check = TRUE,
                                   ns = shiny::NS(NULL)) {
   shell_copy <- ptr_resolve_shell_ui_text(ui_text)
@@ -855,6 +886,7 @@ ptr_app_components <- function(formula,
       envir = envir,
       ui_text = ui_text,
       placeholders = placeholders,
+      checkbox_defaults = checkbox_defaults,
       expr_check = expr_check,
       ns = ns
     )
