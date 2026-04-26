@@ -89,7 +89,10 @@ helpers.
 
 ## Note
 
-When embedding inside a
-[`shiny::moduleServer()`](https://rdrr.io/pkg/shiny/man/moduleServer.html)
-call, pass `session$ns` as the `ns` argument so all generated Shiny ids
-are scoped to the module namespace.
+For Shiny modules, prefer
+[`ptr_module_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_ui.md)
+and
+[`ptr_module_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_server.md).
+`moduleServer()` already scopes `input` and `output`, while UI generated
+from `renderUI()` still needs `session$ns`; the module wrappers handle
+that split.

@@ -175,7 +175,7 @@
 <ul>
 <li>Non-module embedding: <code><a href="reference/ptr_input_ui.html">ptr_input_ui()</a></code> and <code><a href="reference/ptr_output_ui.html">ptr_output_ui()</a></code> drop the generated controls and output panes into any UI, while <code><a href="reference/ptr_server.html">ptr_server()</a></code> wires up the server side in one call.</li>
 <li>Shiny module embedding: <code><a href="reference/ptr_module_ui.html">ptr_module_ui()</a></code> and <code><a href="reference/ptr_module_server.html">ptr_module_server()</a></code> provide a ready-to-use module pair for users who prefer modules or already build apps with module habits.</li>
-<li>The module API can also be read as a compact template for custom modules built from the lower-level ggpaintr APIs.</li>
+<li>The module API can also be read as a compact template for custom modules; it handles the namespace split that Shiny modules need when UI is generated from <code>renderUI()</code>.</li>
 <li>For finer control, compose the individual <code>ptr_register_*()</code> helpers (<code>ptr_register_draw</code>, <code>ptr_register_plot</code>, <code>ptr_register_code</code>, <code>ptr_register_error</code>) or use <code><a href="reference/ptr_server_state.html">ptr_server_state()</a></code> + <code><a href="reference/ptr_setup_controls.html">ptr_setup_controls()</a></code> to observe the underlying reactive state.</li>
 <li>
 <code><a href="reference/ptr_build_ids.html">ptr_build_ids()</a></code> remains available for non-module and advanced custom layouts that need renamed top-level element ids.</li>

@@ -137,9 +137,10 @@ denied entries are removed from the allowlist.</p></dd>
     </div>
     <div class="section level2">
     <h2 id="note">Note<a class="anchor" aria-label="anchor" href="#note"></a></h2>
-    <p>When embedding inside a <code><a href="https://rdrr.io/pkg/shiny/man/moduleServer.html" class="external-link">shiny::moduleServer()</a></code> call, pass
-<code>session$ns</code> as the <code>ns</code> argument so all generated Shiny ids are scoped
-to the module namespace.</p>
+    <p>For Shiny modules, prefer <code><a href="ptr_module_ui.html">ptr_module_ui()</a></code> and
+<code><a href="ptr_module_server.html">ptr_module_server()</a></code>. <code>moduleServer()</code> already scopes <code>input</code> and
+<code>output</code>, while UI generated from <code>renderUI()</code> still needs <code>session$ns</code>;
+the module wrappers handle that split.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

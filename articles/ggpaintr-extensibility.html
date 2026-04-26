@@ -286,9 +286,9 @@ did not have to pass <code>ids = ...</code> anywhere. Customizing ids is
 <p>If you prefer Shiny modules, or already build apps with module
 habits, use <code><a href="../reference/ptr_module_ui.html">ptr_module_ui()</a></code> and
 <code><a href="../reference/ptr_module_server.html">ptr_module_server()</a></code> as the parallel Level 2 route. They are
-ready-to-use helpers and also a compact template for custom modules
-built from <code><a href="../reference/ptr_input_ui.html">ptr_input_ui()</a></code>, <code><a href="../reference/ptr_output_ui.html">ptr_output_ui()</a></code>,
-and <code><a href="../reference/ptr_server.html">ptr_server()</a></code>.</p>
+ready-to-use helpers and also a compact template for the namespace split
+Shiny modules need when UI is generated from
+<code><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI()</a></code>.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidPage</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="../reference/ptr_module_ui.html">ptr_module_ui</a></span><span class="op">(</span><span class="st">"plot1"</span><span class="op">)</span></span>
@@ -303,25 +303,24 @@ and <code><a href="../reference/ptr_server.html">ptr_server()</a></code>.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/shinyApp.html" class="external-link">shinyApp</a></span><span class="op">(</span><span class="va">ui</span>, <span class="va">server</span><span class="op">)</span></span></code></pre></div>
 <p>The module wrappers deliberately do not expose <code>ids =</code>. In
-module code, the module id is the public boundary; ggpaintr handles the
-internal namespace by pairing <code>shiny::NS(id)</code> in the UI with
-<code>session$ns</code> in the server. If you need a custom module
-layout, custom top-level ids, or a custom render path, copy the pattern
-below and use the lower-level Level 2 helpers directly.</p>
+module code, the module id is the public boundary.
+<code><a href="https://rdrr.io/pkg/shiny/man/moduleServer.html" class="external-link">moduleServer()</a></code> already scopes server-side
+<code>input</code> and <code>output</code>, but UI generated from
+<code><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI()</a></code> still needs <code>session$ns</code>. The
+exported wrappers handle that split directly.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">plot_module_ui</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">ns</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="va">id</span><span class="op">)</span></span>
-<span>  <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rstudio.github.io/htmltools/reference/tagList.html" class="external-link">tagList</a></span><span class="op">(</span></span>
-<span>    <span class="fu"><a href="../reference/ptr_input_ui.html">ptr_input_ui</a></span><span class="op">(</span>ns <span class="op">=</span> <span class="va">ns</span><span class="op">)</span>,</span>
-<span>    <span class="fu"><a href="../reference/ptr_output_ui.html">ptr_output_ui</a></span><span class="op">(</span>ns <span class="op">=</span> <span class="va">ns</span><span class="op">)</span></span>
-<span>  <span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/ptr_module_ui.html">ptr_module_ui</a></span><span class="op">(</span><span class="va">id</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
 <span><span class="va">plot_module_server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">formula</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/moduleServer.html" class="external-link">moduleServer</a></span><span class="op">(</span><span class="va">id</span>, <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="fu"><a href="../reference/ptr_server.html">ptr_server</a></span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span>, formula <span class="op">=</span> <span class="va">formula</span>, ns <span class="op">=</span> <span class="va">session</span><span class="op">$</span><span class="va">ns</span><span class="op">)</span></span>
-<span>  <span class="op">}</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/ptr_module_server.html">ptr_module_server</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">formula</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
+<p>Use the non-module Level 2 helpers directly when you need custom
+top-level ids or a custom render path outside a Shiny module. Inside a
+module, start from the exported module API so the runtime ids and
+generated UI ids stay aligned.</p>
 </div>
 <div class="section level3">
 <h3 id="d--multiple-ggpaintr-instances-in-one-session">3d. Multiple ggpaintr instances in one session<a class="anchor" aria-label="anchor" href="#d--multiple-ggpaintr-instances-in-one-session"></a>
@@ -375,12 +374,11 @@ is fine, because <code>ns</code> is what disambiguates them.</p>
 <span>    ns      <span class="op">=</span> <span class="va">ns_b</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
-<p>Inside <code><a href="https://rdrr.io/pkg/shiny/man/moduleServer.html" class="external-link">shiny::moduleServer()</a></code>, pass
-<code>session$ns</code> as shown in the module template in §3c. It is a
-namespace function identical in shape to <code>shiny::NS(id)</code> for
-the enclosing module id, so the UI and server agree. No double-prefixing
-occurs because ggpaintr applies <code>ns</code> exactly once to raw
-ids.</p>
+<p>Inside Shiny modules, use the module API in §3c. Do not pass
+<code>session$ns</code> directly to <code><a href="../reference/ptr_server.html">ptr_server()</a></code>:
+<code><a href="https://rdrr.io/pkg/shiny/man/moduleServer.html" class="external-link">moduleServer()</a></code> already scopes server-side
+<code>input</code> and <code>output</code>, while generated UI ids need
+a separate namespace path.</p>
 <p>The single failure mode is reusing the same <code>ns</code> (or
 leaving it at its default) across two instances in the same session.
 Then the resolved ids collide and Shiny silently keeps only the last

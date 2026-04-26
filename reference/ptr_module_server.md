@@ -2,10 +2,10 @@
 
 Use this helper with
 [`ptr_module_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_ui.md)
-when you prefer Shiny modules for Level 2 integration. The function can
-also be read as a template for custom modules that compose
-[`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
-with `session$ns`.
+when you prefer Shiny modules for Level 2 integration. The function also
+documents the namespace split needed inside modules: server-side ids
+stay local to the module, while UI generated from `renderUI()` is
+namespaced with `session$ns`.
 
 ## Usage
 
