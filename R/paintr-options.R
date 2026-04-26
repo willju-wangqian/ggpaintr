@@ -5,7 +5,7 @@
 ptr_settings <- list(
   verbose = list(
     option  = "ggpaintr.verbose",
-    default = TRUE
+    default = FALSE
   ),
   checkbox_default_all_other_layer = list(
     option  = "ggpaintr.checkbox_default_all_other_layer",
@@ -26,10 +26,10 @@ ptr_settings <- list(
 #'
 #' \describe{
 #'   \item{`verbose`}{
-#'     Logical. When `TRUE` (default), ggpaintr emits informative messages
-#'     such as "Layer foo() removed (no arguments provided)." Set to `FALSE`
-#'     to silence these messages. Underlying option:
-#'     `options(ggpaintr.verbose = ...)`.
+#'     Logical. When `TRUE`, ggpaintr emits informative messages such as
+#'     "Layer foo() removed (no arguments provided)." Default `FALSE` —
+#'     these messages are intended for debugging the formula pipeline and
+#'     are off by default. Underlying option: `options(ggpaintr.verbose = ...)`.
 #'   }
 #'   \item{`checkbox_default_all_other_layer`}{
 #'     Logical. The fallback initial state for layer checkboxes that aren't

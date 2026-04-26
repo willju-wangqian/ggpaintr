@@ -753,9 +753,9 @@ test_that("ptr_server_state expr_check = FALSE is stored", {
 
 # --- ptr_verbose ----------------------------------------------------------
 
-test_that("ptr_verbose defaults to TRUE", {
+test_that("ptr_verbose defaults to FALSE", {
   withr::local_options(list(ggpaintr.verbose = NULL))
-  expect_true(ptr_verbose())
+  expect_false(ptr_verbose())
 })
 
 test_that("ptr_verbose respects option", {

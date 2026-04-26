@@ -17,7 +17,7 @@ test_that("ptr_options() with no args returns current settings as named list", {
   out <- ptr_options()
   expect_type(out, "list")
   expect_setequal(names(out), c("verbose", "checkbox_default_all_other_layer"))
-  expect_true(out$verbose)
+  expect_false(out$verbose)
   expect_true(out$checkbox_default_all_other_layer)
 })
 
@@ -44,9 +44,9 @@ test_that("ptr_options(name = value) sets the underlying option", {
 
 test_that("ptr_options() setting returns previous values invisibly", {
   restore_options()
-  prev <- withVisible(ptr_options(verbose = FALSE))
+  prev <- withVisible(ptr_options(verbose = TRUE))
   expect_false(prev$visible)
-  expect_identical(prev$value$verbose, TRUE)
+  expect_identical(prev$value$verbose, FALSE)
 })
 
 test_that("ptr_options() round-trip restores prior state", {

@@ -66,8 +66,9 @@ flags. `ptr_options()` returns the current values; `ptr_options(name = value)`
 sets them and returns the previous values invisibly (round-trip via
 `do.call(ptr_options, old)`).
 
-- `verbose` (default `TRUE`) — silence the "Layer foo() removed (no
-  arguments provided)." informational notice.
+- `verbose` (default `FALSE`) — when `TRUE`, ggpaintr emits the "Layer
+  foo() removed (no arguments provided)." informational notice. Intended
+  for debugging the formula pipeline; off by default.
 - `checkbox_default_all_other_layer` (default `TRUE`) — fallback initial
   state for layer checkboxes that aren't explicitly named in a call's
   `checkbox_defaults` argument. Set `FALSE` to make every app start with
