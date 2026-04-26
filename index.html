@@ -100,10 +100,10 @@
 <p>A ggpaintr formula is a normal ggplot call as a string, with placeholder keywords anywhere a value would normally go. Each keyword maps to one widget and one runtime value.</p>
 <table class="table">
 <colgroup>
-<col width="7%">
-<col width="34%">
-<col width="22%">
-<col width="35%">
+<col width="5%">
+<col width="26%">
+<col width="40%">
+<col width="27%">
 </colgroup>
 <thead><tr class="header">
 <th>Keyword</th>
@@ -140,7 +140,7 @@
 <td><code>upload</code></td>
 <td>
 <code>fileInput</code> + dataset name</td>
-<td>data frame (<code>.csv</code> / <code>.rds</code>)</td>
+<td>data frame (<code>.csv</code> / <code>.tsv</code> / <code>.rds</code> / <code>.xlsx</code> / <code>.xls</code> / <code>.json</code>)</td>
 <td>let the app receive a dataset at runtime</td>
 </tr>
 </tbody>
@@ -148,7 +148,7 @@
 <p>Slot context decides each widget’s label and help text: the surrounding argument name, the layer it appears in, and the keyword together pick the default copy. You can override any of that with <code>ui_text</code>.</p>
 <p><code>var</code> is a <strong>column picker</strong>. Formula-level transforms such as <code>aes(x = var + 1, y = log(var))</code> go in the formula itself — the picker still returns the column symbol, and the transform is applied around it.</p>
 <p><code>expr</code> accepts anything <code><a href="https://rlang.r-lib.org/reference/parse_expr.html" class="external-link">rlang::parse_expr()</a></code> can read, with a denylist guard against dangerous calls. The guard is controlled by the <code>expr_check</code> argument on <code><a href="reference/ptr_app.html">ptr_app()</a></code> / <code><a href="reference/ptr_app_bslib.html">ptr_app_bslib()</a></code>, which defaults to <code>TRUE</code> and should stay on unless you know what you are doing.</p>
-<p><code>upload</code> currently accepts <code>.csv</code> and <code>.rds</code> and normalizes column names automatically after read-in. For local data with non-syntactic column names, call <code><a href="reference/ptr_normalize_column_names.html">ptr_normalize_column_names()</a></code> once before passing the frame in.</p>
+<p><code>upload</code> accepts <code>.csv</code>, <code>.tsv</code>, <code>.rds</code>, <code>.xlsx</code>, <code>.xls</code>, and <code>.json</code> (array of records, with nested objects flattened) and normalizes column names automatically after read-in. Excel and JSON readers require the suggested packages <code>readxl</code> and <code>jsonlite</code> respectively. For local data with non-syntactic column names, call <code><a href="reference/ptr_normalize_column_names.html">ptr_normalize_column_names()</a></code> once before passing the frame in.</p>
 <p>For a worked walkthrough of every keyword, see <code><a href="articles/ggpaintr-workflow.html">vignette("ggpaintr-workflow")</a></code>.</p>
 </div>
 <div class="section level2">
@@ -238,9 +238,10 @@
 <ul>
 <li>The five built-in placeholders — <code>var</code>, <code>text</code>, <code>num</code>, <code>expr</code>, <code>upload</code> — are stable. Custom placeholders share the same parse, UI, runtime, and copy-rule path.</li>
 <li>
-<code>upload</code> accepts <code>.csv</code> and <code>.rds</code>. Other formats are outside the current boundary.</li>
+<code>upload</code> accepts <code>.csv</code>, <code>.tsv</code>, <code>.rds</code>, <code>.xlsx</code>, <code>.xls</code>, and <code>.json</code>. Other formats are outside the current boundary.</li>
 <li>The supported surface is the exported <code>ptr_*</code> API (see <code>NAMESPACE</code>). Anything not exported is implementation detail.</li>
 <li>Only the top-level ids exposed by <code><a href="reference/ptr_build_ids.html">ptr_build_ids()</a></code> are configurable.</li>
+<li>Package-global settings live behind <code><a href="reference/ptr_options.html">ptr_options()</a></code> — currently <code>verbose</code> (default <code>FALSE</code>) and <code>checkbox_default_all_other_layer</code> (default <code>TRUE</code>). The function follows base <code><a href="https://rdrr.io/r/base/options.html" class="external-link">options()</a></code> semantics: call with no arguments to read, with named logicals to set; setters return the previous values for <code>do.call(ptr_options, old)</code> round-trips.</li>
 <li>Runtime failures are labeled <code>Input error</code> or <code>Plot error</code> and stay on the shared inline error path.</li>
 <li>Raw placeholder ids such as <code>"ggplot_3_2"</code> are not a stable hand-authored API — discover them with <code><a href="reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec()</a></code>. Deeper traversal details (<code>index_path</code> encoding, internal companion id conventions) remain package internals.</li>
 <li>The formula-string model is the current author-facing interface; future hardening should compile it into a richer internal runtime contract rather than replace that authoring model outright.</li>

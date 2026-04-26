@@ -26,6 +26,14 @@
   topic files as plain strings or as registered ellmer tools, so coding
   assistants can fetch just-in-time ggpaintr guidance. See
   [`vignette("ggpaintr-llm")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-llm.md).
+- `upload` placeholder now accepts `.tsv`, `.xlsx`, `.xls`, and `.json`
+  in addition to `.csv` and `.rds`. JSON uploads must be an array of
+  records; nested objects are flattened, nested arrays error out. Excel
+  and JSON readers require the new suggested packages `readxl` and
+  `jsonlite`. The “show me the code” pane reflects the
+  format-appropriate reader (`read.delim`,
+  [`readxl::read_excel`](https://readxl.tidyverse.org/reference/read_excel.html),
+  [`jsonlite::fromJSON`](https://jeroen.r-universe.dev/jsonlite/reference/fromJSON.html)).
 
 ### Breaking changes
 

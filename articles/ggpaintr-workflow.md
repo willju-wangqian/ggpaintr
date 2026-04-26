@@ -145,7 +145,9 @@ ptr_app(
 
 `upload` lets the viewer supply the dataset themselves. It renders a
 [`fileInput()`](https://rdrr.io/pkg/shiny/man/fileInput.html) that
-accepts `.csv` and `.rds` files, plus a companion
+accepts `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, and `.json` files
+(Excel and JSON read via the suggested packages `readxl` and
+`jsonlite`), plus a companion
 [`textInput()`](https://rdrr.io/pkg/shiny/man/textInput.html) where the
 user gives the uploaded object a name (e.g. `penguins`). Any `var`
 placeholders that reference that name are wired to the uploaded data
@@ -350,6 +352,34 @@ available on
 and
 [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md).
 
+### Package-global settings via `ptr_options()`
+
+`ggpaintr` exposes a small number of session-wide flags through
+[`ptr_options()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_options.md),
+which mirrors base [`options()`](https://rdrr.io/r/base/options.html):
+call with no arguments to read every current value, or with one or more
+named logicals to set them. Setters invisibly return the previous
+values, so the standard
+[`withr::with_options()`](https://withr.r-lib.org/reference/with_options.html)
+/ [`on.exit()`](https://rdrr.io/r/base/on.exit.html) round-trip works
+(`old <- ptr_options(verbose = FALSE); on.exit(do.call(ptr_options, old), add = TRUE)`).
+
+The two settings currently exposed are:
+
+- `verbose` (default `FALSE`) — when `TRUE`, ggpaintr emits the “Layer
+  foo() removed (no arguments provided).” informational notice and
+  similar pipeline diagnostics. Intended for debugging the formula
+  pipeline; off by default for a quiet user experience.
+- `checkbox_default_all_other_layer` (default `TRUE`) — fallback initial
+  state for layer checkboxes not explicitly named in
+  `checkbox_defaults =`. For apps with many alternative layers, invert
+  this with `ptr_options(checkbox_default_all_other_layer = FALSE)` so
+  every layer starts unchecked unless explicitly opted in.
+
+See
+[`?ptr_options`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_options.md)
+for the canonical reference.
+
 ## 4. Data sources
 
 There are three ways to get a data frame into the running app.
@@ -375,9 +405,10 @@ as soon as the app starts.
 ### 4.2 Use the `upload` placeholder
 
 Replace `data = <object>` with `data = upload` to let the viewer supply
-the dataset. The `upload` widget exposes a file picker (accepting `.csv`
-and `.rds`) plus a name field; the name is the symbol the uploaded data
-binds to inside the generated ggplot call.
+the dataset. The `upload` widget exposes a file picker (accepting
+`.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, and `.json`) plus a name field;
+the name is the symbol the uploaded data binds to inside the generated
+ggplot call.
 
 ``` r
 ptr_app(

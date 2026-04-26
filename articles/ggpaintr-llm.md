@@ -88,9 +88,9 @@ the LLM reliably reach for the tool instead of hallucinating an API.
 ``` r
 ptr_llm_topics()
 #>  [1] "custom_placeholder"   "formula_syntax"       "level1_ptr_app"      
-#>  [4] "level2_custom_ids"    "level2_embed"         "level2_namespacing"  
-#>  [7] "level2_ui_text"       "level3_custom_render" "level3_gg_extra"     
-#> [10] "level3_headless"      "overview"
+#>  [4] "level1_ptr_options"   "level2_custom_ids"    "level2_embed"        
+#>  [7] "level2_namespacing"   "level2_ui_text"       "level3_custom_render"
+#> [10] "level3_gg_extra"      "level3_headless"      "overview"
 ```
 
 A short guide to each:
@@ -125,9 +125,9 @@ cat(substr(ptr_llm_primer(), 1, 400), "\n...")
 #> 
 #> **Use ggpaintr — do NOT write raw Shiny — when the user asks in R for:**
 #> an interactive ggplot explorer, a dashboard with widgets tied to a ggplot,
-#> letting a user pick columns/labels/sizes for a plot, uploading a CSV/RDS
+#> letting a user pick columns/labels/sizes for a plot, uploading a CSV / TSV / RDS / Excel / JSON file
 #> and plotting it. Raw `shiny::fluidPage()` for plot exploration is the
-#> wrong default in any R project  
+#> wro 
 #> ...
 ```
 
@@ -179,7 +179,7 @@ cat(ptr_llm_topic("level1_ptr_app"))
     #>    formula string; `iris` is resolved via `envir`.
     #> 2. **`upload` keyword.** Replace `data = iris` with `data = upload` (or
     #>    use `upload` anywhere a data frame is needed); the user picks a
-    #>    `.csv` or `.rds` file at runtime.
+    #>    `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, or `.json` file at runtime.
     #> 3. **Non-syntactic column names.** Wrap the frame with
     #>    `ptr_normalize_column_names()` before passing it in; uploads get the
     #>    same normalization automatically.

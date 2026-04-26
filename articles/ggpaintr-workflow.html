@@ -265,11 +265,14 @@ expression safety check. The check is on by default; see the
 <code>upload</code> — load a dataset from the browser<a class="anchor" aria-label="anchor" href="#upload-load-a-dataset-from-the-browser"></a>
 </h4>
 <p><code>upload</code> lets the viewer supply the dataset themselves. It
-renders a <code><a href="https://rdrr.io/pkg/shiny/man/fileInput.html" class="external-link">fileInput()</a></code> that accepts <code>.csv</code> and
-<code>.rds</code> files, plus a companion <code><a href="https://rdrr.io/pkg/shiny/man/textInput.html" class="external-link">textInput()</a></code> where
-the user gives the uploaded object a name (e.g. <code>penguins</code>).
-Any <code>var</code> placeholders that reference that name are wired to
-the uploaded data frame once the upload completes.</p>
+renders a <code><a href="https://rdrr.io/pkg/shiny/man/fileInput.html" class="external-link">fileInput()</a></code> that accepts <code>.csv</code>,
+<code>.tsv</code>, <code>.rds</code>, <code>.xlsx</code>,
+<code>.xls</code>, and <code>.json</code> files (Excel and JSON read via
+the suggested packages <code>readxl</code> and <code>jsonlite</code>),
+plus a companion <code><a href="https://rdrr.io/pkg/shiny/man/textInput.html" class="external-link">textInput()</a></code> where the user gives the
+uploaded object a name (e.g. <code>penguins</code>). Any
+<code>var</code> placeholders that reference that name are wired to the
+uploaded data frame once the upload completes.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = upload, aes(x = var, y = var)) +</span></span>
@@ -553,6 +556,35 @@ same argument is available on <code><a href="../reference/ptr_app.html">ptr_app(
 <code><a href="../reference/ptr_app_bslib.html">ptr_app_bslib()</a></code>, <code><a href="../reference/ptr_server.html">ptr_server()</a></code>, and
 <code><a href="../reference/ptr_server_state.html">ptr_server_state()</a></code>.</p>
 </div>
+<div class="section level3">
+<h3 id="package-global-settings-via-ptr_options">Package-global settings via <code>ptr_options()</code><a class="anchor" aria-label="anchor" href="#package-global-settings-via-ptr_options"></a>
+</h3>
+<p><code>ggpaintr</code> exposes a small number of session-wide flags
+through <code><a href="../reference/ptr_options.html">ptr_options()</a></code>, which mirrors base
+<code><a href="https://rdrr.io/r/base/options.html" class="external-link">options()</a></code>: call with no arguments to read every current
+value, or with one or more named logicals to set them. Setters invisibly
+return the previous values, so the standard
+<code><a href="https://withr.r-lib.org/reference/with_options.html" class="external-link">withr::with_options()</a></code> / <code><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit()</a></code> round-trip
+works
+(<code>old &lt;- ptr_options(verbose = FALSE); on.exit(do.call(ptr_options, old), add = TRUE)</code>).</p>
+<p>The two settings currently exposed are:</p>
+<ul>
+<li>
+<code>verbose</code> (default <code>FALSE</code>) — when
+<code>TRUE</code>, ggpaintr emits the “Layer foo() removed (no arguments
+provided).” informational notice and similar pipeline diagnostics.
+Intended for debugging the formula pipeline; off by default for a quiet
+user experience.</li>
+<li>
+<code>checkbox_default_all_other_layer</code> (default
+<code>TRUE</code>) — fallback initial state for layer checkboxes not
+explicitly named in <code>checkbox_defaults =</code>. For apps with many
+alternative layers, invert this with
+<code>ptr_options(checkbox_default_all_other_layer = FALSE)</code> so
+every layer starts unchecked unless explicitly opted in.</li>
+</ul>
+<p>See <code><a href="../reference/ptr_options.html">?ptr_options</a></code> for the canonical reference.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="id_4-data-sources">4. Data sources<a class="anchor" aria-label="anchor" href="#id_4-data-sources"></a>
@@ -579,9 +611,10 @@ are populated as soon as the app starts.</p>
 <p>Replace <code>data = &lt;object&gt;</code> with
 <code>data = upload</code> to let the viewer supply the dataset. The
 <code>upload</code> widget exposes a file picker (accepting
-<code>.csv</code> and <code>.rds</code>) plus a name field; the name is
-the symbol the uploaded data binds to inside the generated ggplot
-call.</p>
+<code>.csv</code>, <code>.tsv</code>, <code>.rds</code>,
+<code>.xlsx</code>, <code>.xls</code>, and <code>.json</code>) plus a
+name field; the name is the symbol the uploaded data binds to inside the
+generated ggplot call.</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = upload, aes(x = var, y = var)) + geom_point()"</span></span>

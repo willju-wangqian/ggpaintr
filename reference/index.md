@@ -7,6 +7,13 @@
 - [`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)
   : Build a ggpaintr Shiny App with a bslib Theme
 
+## Configuration
+
+Set package-wide defaults that apply to every app in the session.
+
+- [`ptr_options()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_options.md)
+  : Get or Set ggpaintr Package Options
+
 ## Shiny integration
 
 Embed ggpaintr inside a larger Shiny app while keeping package-owned

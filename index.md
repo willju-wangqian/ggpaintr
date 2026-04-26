@@ -42,13 +42,13 @@ A ggpaintr formula is a normal ggplot call as a string, with placeholder
 keywords anywhere a value would normally go. Each keyword maps to one
 widget and one runtime value.
 
-| Keyword  | Widget                                                                                                           | Runtime value                | Typical use                                  |
-|----------|------------------------------------------------------------------------------------------------------------------|------------------------------|----------------------------------------------|
-| `var`    | column picker ([`shinyWidgets::pickerInput`](https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html)) | column symbol                | pick a column from the data frame            |
-| `text`   | `textInput`                                                                                                      | string                       | free text (axis labels, titles, color names) |
-| `num`    | `numericInput`                                                                                                   | numeric                      | a number (point size, alpha, threshold)      |
-| `expr`   | code input                                                                                                       | parsed R expression          | raw R code (facet specs, label formulas)     |
-| `upload` | `fileInput` + dataset name                                                                                       | data frame (`.csv` / `.rds`) | let the app receive a dataset at runtime     |
+| Keyword  | Widget                                                                                                           | Runtime value                                                      | Typical use                                  |
+|----------|------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------|----------------------------------------------|
+| `var`    | column picker ([`shinyWidgets::pickerInput`](https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html)) | column symbol                                                      | pick a column from the data frame            |
+| `text`   | `textInput`                                                                                                      | string                                                             | free text (axis labels, titles, color names) |
+| `num`    | `numericInput`                                                                                                   | numeric                                                            | a number (point size, alpha, threshold)      |
+| `expr`   | code input                                                                                                       | parsed R expression                                                | raw R code (facet specs, label formulas)     |
+| `upload` | `fileInput` + dataset name                                                                                       | data frame (`.csv` / `.tsv` / `.rds` / `.xlsx` / `.xls` / `.json`) | let the app receive a dataset at runtime     |
 
 Slot context decides each widget’s label and help text: the surrounding
 argument name, the layer it appears in, and the keyword together pick
@@ -68,9 +68,11 @@ controlled by the `expr_check` argument on
 which defaults to `TRUE` and should stay on unless you know what you are
 doing.
 
-`upload` currently accepts `.csv` and `.rds` and normalizes column names
-automatically after read-in. For local data with non-syntactic column
-names, call
+`upload` accepts `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, and `.json`
+(array of records, with nested objects flattened) and normalizes column
+names automatically after read-in. Excel and JSON readers require the
+suggested packages `readxl` and `jsonlite` respectively. For local data
+with non-syntactic column names, call
 [`ptr_normalize_column_names()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_normalize_column_names.md)
 once before passing the frame in.
 
@@ -226,13 +228,21 @@ lists every exported function.
 - The five built-in placeholders — `var`, `text`, `num`, `expr`,
   `upload` — are stable. Custom placeholders share the same parse, UI,
   runtime, and copy-rule path.
-- `upload` accepts `.csv` and `.rds`. Other formats are outside the
-  current boundary.
+- `upload` accepts `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, and `.json`.
+  Other formats are outside the current boundary.
 - The supported surface is the exported `ptr_*` API (see `NAMESPACE`).
   Anything not exported is implementation detail.
 - Only the top-level ids exposed by
   [`ptr_build_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.md)
   are configurable.
+- Package-global settings live behind
+  [`ptr_options()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_options.md)
+  — currently `verbose` (default `FALSE`) and
+  `checkbox_default_all_other_layer` (default `TRUE`). The function
+  follows base [`options()`](https://rdrr.io/r/base/options.html)
+  semantics: call with no arguments to read, with named logicals to set;
+  setters return the previous values for `do.call(ptr_options, old)`
+  round-trips.
 - Runtime failures are labeled `Input error` or `Plot error` and stay on
   the shared inline error path.
 - Raw placeholder ids such as `"ggplot_3_2"` are not a stable

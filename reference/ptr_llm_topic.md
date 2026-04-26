@@ -81,7 +81,7 @@ cat(ptr_llm_topic("level1_ptr_app"))
 #>    formula string; `iris` is resolved via `envir`.
 #> 2. **`upload` keyword.** Replace `data = iris` with `data = upload` (or
 #>    use `upload` anywhere a data frame is needed); the user picks a
-#>    `.csv` or `.rds` file at runtime.
+#>    `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, or `.json` file at runtime.
 #> 3. **Non-syntactic column names.** Wrap the frame with
 #>    `ptr_normalize_column_names()` before passing it in; uploads get the
 #>    same normalization automatically.

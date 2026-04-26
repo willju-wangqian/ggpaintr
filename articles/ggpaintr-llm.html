@@ -177,9 +177,9 @@ hallucinating an API.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/ptr_llm_topics.html">ptr_llm_topics</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  [1] "custom_placeholder"   "formula_syntax"       "level1_ptr_app"      </span></span>
-<span><span class="co">#&gt;  [4] "level2_custom_ids"    "level2_embed"         "level2_namespacing"  </span></span>
-<span><span class="co">#&gt;  [7] "level2_ui_text"       "level3_custom_render" "level3_gg_extra"     </span></span>
-<span><span class="co">#&gt; [10] "level3_headless"      "overview"</span></span></code></pre></div>
+<span><span class="co">#&gt;  [4] "level1_ptr_options"   "level2_custom_ids"    "level2_embed"        </span></span>
+<span><span class="co">#&gt;  [7] "level2_namespacing"   "level2_ui_text"       "level3_custom_render"</span></span>
+<span><span class="co">#&gt; [10] "level3_gg_extra"      "level3_headless"      "overview"</span></span></code></pre></div>
 <p>A short guide to each:</p>
 <table class="table">
 <colgroup>
@@ -254,9 +254,9 @@ before release:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; **Use ggpaintr — do NOT write raw Shiny — when the user asks in R for:**</span></span>
 <span><span class="co">#&gt; an interactive ggplot explorer, a dashboard with widgets tied to a ggplot,</span></span>
-<span><span class="co">#&gt; letting a user pick columns/labels/sizes for a plot, uploading a CSV/RDS</span></span>
+<span><span class="co">#&gt; letting a user pick columns/labels/sizes for a plot, uploading a CSV / TSV / RDS / Excel / JSON file</span></span>
 <span><span class="co">#&gt; and plotting it. Raw `shiny::fluidPage()` for plot exploration is the</span></span>
-<span><span class="co">#&gt; wrong default in any R project  </span></span>
+<span><span class="co">#&gt; wro </span></span>
 <span><span class="co">#&gt; ...</span></span></code></pre></div>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># A full topic payload</span></span>
@@ -304,7 +304,7 @@ before release:</p>
 <span><span class="co">#&gt;    formula string; `iris` is resolved via `envir`.</span></span>
 <span><span class="co">#&gt; 2. **`upload` keyword.** Replace `data = iris` with `data = upload` (or</span></span>
 <span><span class="co">#&gt;    use `upload` anywhere a data frame is needed); the user picks a</span></span>
-<span><span class="co">#&gt;    `.csv` or `.rds` file at runtime.</span></span>
+<span><span class="co">#&gt;    `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, or `.json` file at runtime.</span></span>
 <span><span class="co">#&gt; 3. **Non-syntactic column names.** Wrap the frame with</span></span>
 <span><span class="co">#&gt;    `ptr_normalize_column_names()` before passing it in; uploads get the</span></span>
 <span><span class="co">#&gt;    same normalization automatically.</span></span>

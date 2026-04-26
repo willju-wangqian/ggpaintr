@@ -523,7 +523,7 @@ ui_text <- list(
     name = list(                                          # companion name textInput
       label       = "Name it",
       placeholder = "e.g. sales",
-      help        = "Accepted: .csv, .rds"
+      help        = "Accepted: .csv, .tsv, .rds, .xlsx, .xls, .json"
     )
   ),
   layer_checkbox = list(label = "Include this layer")    # per-non-ggplot-layer toggle
@@ -660,7 +660,7 @@ ui_text_chrome <- list(
     draw_button = list(label = "Render plot")
   ),
   upload = list(
-    file = list(label = "Pick a CSV or RDS file")
+    file = list(label = "Pick a data file")
   ),
   layer_checkbox = list(label = "Include this layer")
 )
@@ -672,7 +672,7 @@ ptr_resolve_ui_text("draw_button", ui_text = ui_text_chrome)
 #> [1] "Render plot"
 ptr_resolve_ui_text("upload_file", ui_text = ui_text_chrome)
 #> $label
-#> [1] "Pick a CSV or RDS file"
+#> [1] "Pick a data file"
 ptr_resolve_ui_text("upload_name", ui_text = ui_text_chrome)
 #> $label
 #> [1] "Optional dataset name"
@@ -681,7 +681,7 @@ ptr_resolve_ui_text("upload_name", ui_text = ui_text_chrome)
 #> [1] "For example: sales_data"
 #> 
 #> $help
-#> [1] "Accepted formats: .csv and .rds. Leave the name blank to use the file name in generated code."
+#> [1] "Accepted formats: .csv, .tsv, .rds, .xlsx, .xls, .json. Leave the name blank to use the file name in generated code."
 ptr_resolve_ui_text("layer_checkbox", ui_text = ui_text_chrome)
 #> $label
 #> [1] "Include this layer"
