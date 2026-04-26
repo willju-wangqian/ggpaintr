@@ -154,7 +154,7 @@ test_that("ui builders use resolved copy for uploads and common controls", {
   expect_match(upload_text, "Choose a data file", fixed = TRUE)
   expect_match(upload_text, "Optional dataset name", fixed = TRUE)
   expect_match(upload_text, "sales_data", fixed = TRUE)
-  expect_match(upload_text, "Accepted formats: .csv and .rds.", fixed = TRUE)
+  expect_match(upload_text, "Accepted formats: .csv, .tsv, .rds, .xlsx, .xls, .json.", fixed = TRUE)
 
   expect_match(var_text, "Choose the x-axis column", fixed = TRUE)
   expect_match(var_text, "Choose one column", fixed = TRUE)

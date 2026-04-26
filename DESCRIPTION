@@ -29,7 +29,8 @@ Description: Turns a single 'ggplot2'-style formula string into a small
     'Shiny' application. Placeholder tokens in the formula become input
     widgets automatically; the package completes the expression with the
     current input values, renders the plot, shows the generated code, and
-    supports uploaded '.csv' and '.rds' datasets.
+    supports uploaded datasets in '.csv', '.tsv', '.rds', '.xlsx', '.xls',
+    and '.json' formats.
 License: GPL-3
 URL: https://willju-wangqian.github.io/ggpaintr/,
     https://github.com/willju-wangqian/ggpaintr
@@ -47,11 +48,14 @@ Imports:
 Suggests:
     bslib (>= 0.5.0),
     ellmer,
+    jsonlite,
     knitr,
     pkgdown,
+    readxl,
     rmarkdown,
     testthat (>= 3.0.0),
     withr,
+    writexl,
     xaringanExtra
 VignetteBuilder: knitr
 Encoding: UTF-8

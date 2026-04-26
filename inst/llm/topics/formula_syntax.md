@@ -10,7 +10,7 @@ maps to one widget and one runtime value.
 | `text`   | `textInput`                    | string                        | axis labels, titles, color names                   |
 | `num`    | `numericInput`                 | numeric                       | point size, alpha, threshold                       |
 | `expr`   | code input                     | parsed R expression           | facet specs, label formulas                        |
-| `upload` | `fileInput` + dataset name     | data frame (`.csv` / `.rds`)  | receive a dataset at runtime                       |
+| `upload` | `fileInput` + dataset name     | data frame (`.csv` / `.tsv` / `.rds` / `.xlsx` / `.xls` / `.json`) | receive a dataset at runtime                       |
 
 ## Example
 
@@ -39,9 +39,7 @@ Every `var`, `num`, `text`, `expr` becomes a sidebar widget. Clicking
   is applied around it.
 - **`expr` is safety-checked.** Parsed by `rlang::parse_expr()` with a
   denylist guard. Controlled by `expr_check = TRUE` (default — leave on).
-- **`upload` accepts `.csv` and `.rds`.** Column names are normalized
-  after read-in. For local frames with non-syntactic names, call
-  `ptr_normalize_column_names()` once before passing in.
+- **`upload` accepts `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, `.json`.** JSON must be an array of records; nested objects are flattened, nested arrays error. Excel and JSON read via the suggested packages `readxl` and `jsonlite`. Column names are normalized after read-in. For local frames with non-syntactic names, call `ptr_normalize_column_names()` once before passing in.
 - **Parameter aliases.** `colour → color`, `size → linewidth` — overrides
   can use either spelling.
 - **Unnamed positional args** (e.g. `facet_wrap(expr)`) resolve under

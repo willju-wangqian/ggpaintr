@@ -72,7 +72,173 @@ test_that("unsupported upload extensions error clearly", {
 
   expect_error(
     ptr_resolve_upload_info(input_bad, "ggplot_2"),
-    "Please upload a .csv or .rds file."
+    "Please upload a .csv, .tsv, .rds, .xlsx, .xls, or .json file."
+  )
+})
+
+# --- TSV / Excel / JSON readers ---------------------------------------------
+
+test_that("TSV uploads parse with header and rows", {
+  tsv_file <- withr::local_tempfile(fileext = ".tsv")
+  writeLines(c("a\tb\tgroup", "1\t2\tx", "3\t4\ty"), tsv_file)
+
+  result <- ptr_read_uploaded_data(mock_upload_input(tsv_file, "data.tsv"))
+
+  expect_s3_class(result, "data.frame")
+  expect_identical(names(result), c("a", "b", "group"))
+  expect_equal(nrow(result), 2L)
+})
+
+test_that("TSV upload code_text uses read.delim", {
+  tsv_file <- withr::local_tempfile(fileext = ".tsv")
+  writeLines(c("a\tb", "1\t2"), tsv_file)
+
+  input <- list(
+    "ggplot_2" = mock_upload_input(tsv_file, "data.tsv"),
+    "ggplot_2_name" = ""
+  )
+  info <- ptr_resolve_upload_info(input, "ggplot_2")
+
+  expect_match(info$code_text, 'data <- read.delim\\("data.tsv"\\)')
+})
+
+test_that("Excel uploads parse and normalize column names", {
+  skip_if_not_installed("readxl")
+  skip_if_not_installed("writexl")
+
+  xlsx_file <- withr::local_tempfile(fileext = ".xlsx")
+  df <- data.frame(check.names = FALSE,
+                   `first column` = c(1, 2),
+                   `second-column` = c("A", "B"))
+  names(df) <- c("first column", "second-column")
+  writexl::write_xlsx(df, xlsx_file)
+
+  result <- ptr_read_uploaded_data(mock_upload_input(xlsx_file, "spaced columns.xlsx"))
+
+  expect_s3_class(result, "data.frame")
+  expect_identical(names(result), c("first_column", "second_column"))
+  expect_equal(nrow(result), 2L)
+})
+
+test_that("Excel upload code_text uses readxl::read_excel", {
+  skip_if_not_installed("readxl")
+  skip_if_not_installed("writexl")
+
+  xlsx_file <- withr::local_tempfile(fileext = ".xlsx")
+  writexl::write_xlsx(data.frame(a = 1:2, b = 3:4), xlsx_file)
+
+  input <- list(
+    "ggplot_2" = mock_upload_input(xlsx_file, "report.xlsx"),
+    "ggplot_2_name" = ""
+  )
+  info <- ptr_resolve_upload_info(input, "ggplot_2")
+
+  expect_match(info$code_text, 'report <- readxl::read_excel\\("report.xlsx"\\)')
+})
+
+test_that("Excel upload errors clearly when readxl is missing", {
+  testthat::local_mocked_bindings(
+    requireNamespace = function(package, ...) !identical(package, "readxl"),
+    .package = "base"
+  )
+
+  xlsx_file <- withr::local_tempfile(fileext = ".xlsx")
+  writeLines("not really xlsx", xlsx_file)
+
+  expect_error(
+    ptr_read_uploaded_data(mock_upload_input(xlsx_file, "missing_dep.xlsx")),
+    "requires the 'readxl' package"
+  )
+})
+
+test_that("JSON array-of-records parses and normalizes column names", {
+  skip_if_not_installed("jsonlite")
+
+  json_file <- withr::local_tempfile(fileext = ".json")
+  jsonlite::write_json(
+    data.frame(check.names = FALSE,
+               `first column` = c(1, 2),
+               `second-column` = c("A", "B")) |>
+      setNames(c("first column", "second-column")),
+    json_file
+  )
+
+  result <- ptr_read_uploaded_data(mock_upload_input(json_file, "records.json"))
+
+  expect_s3_class(result, "data.frame")
+  expect_identical(names(result), c("first_column", "second_column"))
+  expect_equal(nrow(result), 2L)
+})
+
+test_that("JSON nested objects are flattened", {
+  skip_if_not_installed("jsonlite")
+
+  json_file <- withr::local_tempfile(fileext = ".json")
+  writeLines(
+    '[{"a":1,"b":{"x":10,"y":20}},{"a":2,"b":{"x":11,"y":21}}]',
+    json_file
+  )
+
+  result <- ptr_read_uploaded_data(mock_upload_input(json_file, "nested.json"))
+
+  expect_s3_class(result, "data.frame")
+  expect_identical(sort(names(result)), c("a", "b.x", "b.y"))
+})
+
+test_that("JSON nested arrays produce a clear error", {
+  skip_if_not_installed("jsonlite")
+
+  json_file <- withr::local_tempfile(fileext = ".json")
+  writeLines(
+    '[{"a":1,"tags":["r","shiny"]},{"a":2,"tags":["viz"]}]',
+    json_file
+  )
+
+  expect_error(
+    ptr_read_uploaded_data(mock_upload_input(json_file, "nested_arrays.json")),
+    "nested array/object columns"
+  )
+})
+
+test_that("JSON top-level object (not array) produces a clear error", {
+  skip_if_not_installed("jsonlite")
+
+  json_file <- withr::local_tempfile(fileext = ".json")
+  writeLines('{"a": 1, "b": 2}', json_file)
+
+  expect_error(
+    ptr_read_uploaded_data(mock_upload_input(json_file, "object.json")),
+    "must be an array of objects"
+  )
+})
+
+test_that("JSON upload code_text uses jsonlite::fromJSON", {
+  skip_if_not_installed("jsonlite")
+
+  json_file <- withr::local_tempfile(fileext = ".json")
+  writeLines('[{"a":1,"b":2}]', json_file)
+
+  input <- list(
+    "ggplot_2" = mock_upload_input(json_file, "records.json"),
+    "ggplot_2_name" = ""
+  )
+  info <- ptr_resolve_upload_info(input, "ggplot_2")
+
+  expect_match(info$code_text, 'records <- jsonlite::fromJSON\\("records.json"\\)')
+})
+
+test_that("JSON upload errors clearly when jsonlite is missing", {
+  testthat::local_mocked_bindings(
+    requireNamespace = function(package, ...) !identical(package, "jsonlite"),
+    .package = "base"
+  )
+
+  json_file <- withr::local_tempfile(fileext = ".json")
+  writeLines('[{"a":1}]', json_file)
+
+  expect_error(
+    ptr_read_uploaded_data(mock_upload_input(json_file, "missing_dep.json")),
+    "requires the 'jsonlite' package"
   )
 })
 

@@ -32,7 +32,7 @@ test_that("ptr_complete_expr_safe captures invalid uploads", {
   expect_null(result$eval_env)
   expect_null(result$complete_expr_list)
   expect_null(result$plot)
-  expect_match(result$message, "Please upload a \\.csv or \\.rds file\\.")
+  expect_match(result$message, "Please upload a \\.csv, \\.tsv, \\.rds, \\.xlsx, \\.xls, or \\.json file\\.")
 })
 
 test_that("ptr_complete_expr_safe fails fast when layer checkbox inputs are missing", {

@@ -475,7 +475,7 @@ ui_text <- list(
     name = list(                                          # companion name textInput
       label       = "Name it",
       placeholder = "e.g. sales",
-      help        = "Accepted: .csv, .rds"
+      help        = "Accepted: .csv, .tsv, .rds, .xlsx, .xls, .json"
     )
   ),
   layer_checkbox = list(label = "Include this layer")    # per-non-ggplot-layer toggle
@@ -586,7 +586,7 @@ ui_text_chrome <- list(
     draw_button = list(label = "Render plot")
   ),
   upload = list(
-    file = list(label = "Pick a CSV or RDS file")
+    file = list(label = "Pick a data file")
   ),
   layer_checkbox = list(label = "Include this layer")
 )

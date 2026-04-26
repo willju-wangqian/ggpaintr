@@ -29,7 +29,7 @@ generate_ui_upload <- function(id, ui_text = NULL, placeholders = NULL) {
     shiny::fileInput(
       id,
       file_copy$label,
-      accept = c(".csv", ".rds")
+      accept = c(".csv", ".tsv", ".rds", ".xlsx", ".xls", ".json")
     ),
     ptr_attach_help(
       shiny::textInput(

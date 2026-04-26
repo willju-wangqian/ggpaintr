@@ -435,7 +435,7 @@ shiny::runApp(
 - dom: Draw button text is `Update plot`
 - dom: Upload control label contains `Choose a data file`
 - dom: Dataset name label contains `Optional dataset name`
-- dom: Upload help text mentions `.csv` and `.rds`
+- dom: Upload help text mentions `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, `.json`
 
 ### Inputs
 

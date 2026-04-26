@@ -97,9 +97,9 @@ ui_text <- list(
     draw_button = list(label = "Redraw")
   ),
   upload = list(
-    file = list(label = "Pick .csv or .rds"),
+    file = list(label = "Pick a data file"),
     name = list(label = "Name it", placeholder = "e.g. sales",
-                help  = "Accepted: .csv, .rds")
+                help  = "Accepted: .csv, .tsv, .rds, .xlsx, .xls, .json")
   ),
   layer_checkbox = list(label = "Include this layer")
 )

@@ -4,6 +4,7 @@
 
 - `ptr_gg_extra()` — advanced helper for embedded apps that own their own `renderPlot({...})` block. Captures ggplot components (themes, scales, coords, ...) added on top of `ptr_extract_plot()` and stores them on a new `ptr_state$extras` reactiveVal, so the default code binder (`ptr_register_code()`) appends them to the generated-code pane. Extras are suppressed automatically when the underlying runtime reports a failure, so stale extras from a prior successful draw never surface during an error state. See `vignette("ggpaintr-extensibility")`, Recipe 3.
 - `ptr_llm_primer()`, `ptr_llm_topic()`, `ptr_llm_topics()`, `ptr_llm_register()` — ellmer-facing helpers that expose the bundled `inst/llm/` primer and topic files as plain strings or as registered ellmer tools, so coding assistants can fetch just-in-time ggpaintr guidance. See `vignette("ggpaintr-llm")`.
+- `upload` placeholder now accepts `.tsv`, `.xlsx`, `.xls`, and `.json` in addition to `.csv` and `.rds`. JSON uploads must be an array of records; nested objects are flattened, nested arrays error out. Excel and JSON readers require the new suggested packages `readxl` and `jsonlite`. The "show me the code" pane reflects the format-appropriate reader (`read.delim`, `readxl::read_excel`, `jsonlite::fromJSON`).
 
 ## Breaking changes
 

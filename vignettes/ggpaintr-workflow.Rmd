@@ -158,7 +158,7 @@ ptr_app(
 #### `upload` — load a dataset from the browser
 
 `upload` lets the viewer supply the dataset themselves. It renders a
-`fileInput()` that accepts `.csv` and `.rds` files, plus a companion
+`fileInput()` that accepts `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, and `.json` files (Excel and JSON read via the suggested packages `readxl` and `jsonlite`), plus a companion
 `textInput()` where the user gives the uploaded object a name
 (e.g. `penguins`). Any `var` placeholders that reference that name are
 wired to the uploaded data frame once the upload completes.
@@ -358,7 +358,7 @@ populated as soon as the app starts.
 
 Replace `data = <object>` with `data = upload` to let the viewer
 supply the dataset. The `upload` widget exposes a file picker
-(accepting `.csv` and `.rds`) plus a name field; the name is the
+(accepting `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, and `.json`) plus a name field; the name is the
 symbol the uploaded data binds to inside the generated ggplot call.
 
 ```{r data-upload, eval = FALSE}

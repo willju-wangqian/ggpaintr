@@ -45,7 +45,7 @@ ptr_default_ui_text <- function(placeholders = NULL) {
           label = "Optional dataset name",
           placeholder = "For example: sales_data",
           help = paste(
-            "Accepted formats: .csv and .rds.",
+            "Accepted formats: .csv, .tsv, .rds, .xlsx, .xls, .json.",
             "Leave the name blank to use the file name in generated code."
           )
         )

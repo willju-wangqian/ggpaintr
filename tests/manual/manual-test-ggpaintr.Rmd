@@ -335,7 +335,7 @@ Expected checks:
 -   When upload completion fails, the plot does not render and `outputCode` stays blank.
 -   With a blank dataset name, the generated code uses a filename-derived object name.
 -   With a custom dataset name, the generated code uses `manual_upload_data`.
--   The app draws successfully for both `.csv` and `.rds`.
+-   The app draws successfully for `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, and `.json` uploads.
 -   Uploaded column choices stay normalized before they reach the `var` pickers.
 
 ## Formula 4: Layer-Specific Upload
@@ -359,7 +359,7 @@ Suggested manual sequence:
 -   Confirm the static `iris` layer does not need upload-driven controls.
 -   Upload `bad_extension.txt` — confirm inline error, upload-layer vars stay disabled,
     but static-layer `var` picker for `color` still works.
--   Upload `simple_numeric.csv` or `simple_numeric.rds`.
+-   Upload `simple_numeric.csv` or `simple_numeric.rds` (or any `.tsv`/`.xlsx`/`.xls`/`.json` equivalent).
 -   Set upload-layer `x = x`, `y = y`, `color = group`, `size = 3`.
 -   Set `title = mixed static/upload plot`.
 -   Click `draw`.
@@ -536,7 +536,7 @@ Suggested manual sequence:
 -   Launch the app and confirm the title is `ggpaintr Plot Builder`.
 -   Confirm the primary button reads `Update plot`.
 -   Confirm the upload controls read `Choose a data file` and `Optional dataset name`.
--   Confirm the upload help text mentions accepted `.csv` and `.rds` formats and blank-name behavior.
+-   Confirm the upload help text mentions accepted `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, and `.json` formats and blank-name behavior.
 -   Upload `simple_numeric.csv`.
 -   Confirm the `var` prompts read `Choose the x-axis column` and `Choose the y-axis column`.
 -   Confirm the numeric prompts read `Point size` and `Transparency`.

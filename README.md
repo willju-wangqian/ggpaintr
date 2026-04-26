@@ -48,13 +48,13 @@ A ggpaintr formula is a normal ggplot call as a string, with placeholder
 keywords anywhere a value would normally go. Each keyword maps to one
 widget and one runtime value.
 
-| Keyword  | Widget                                      | Runtime value                | Typical use                                  |
-|----------|---------------------------------------------|------------------------------|----------------------------------------------|
-| `var`    | column picker (`shinyWidgets::pickerInput`) | column symbol                | pick a column from the data frame            |
-| `text`   | `textInput`                                 | string                       | free text (axis labels, titles, color names) |
-| `num`    | `numericInput`                              | numeric                      | a number (point size, alpha, threshold)      |
-| `expr`   | code input                                  | parsed R expression          | raw R code (facet specs, label formulas)     |
-| `upload` | `fileInput` + dataset name                  | data frame (`.csv` / `.rds`) | let the app receive a dataset at runtime     |
+| Keyword  | Widget                                      | Runtime value                                                      | Typical use                                  |
+|----------|---------------------------------------------|--------------------------------------------------------------------|----------------------------------------------|
+| `var`    | column picker (`shinyWidgets::pickerInput`) | column symbol                                                      | pick a column from the data frame            |
+| `text`   | `textInput`                                 | string                                                             | free text (axis labels, titles, color names) |
+| `num`    | `numericInput`                              | numeric                                                            | a number (point size, alpha, threshold)      |
+| `expr`   | code input                                  | parsed R expression                                                | raw R code (facet specs, label formulas)     |
+| `upload` | `fileInput` + dataset name                  | data frame (`.csv` / `.tsv` / `.rds` / `.xlsx` / `.xls` / `.json`) | let the app receive a dataset at runtime     |
 
 Slot context decides each widget’s label and help text: the surrounding
 argument name, the layer it appears in, and the keyword together pick
@@ -69,10 +69,12 @@ guard against dangerous calls. The guard is controlled by the
 `expr_check` argument on `ptr_app()` / `ptr_app_bslib()`, which defaults
 to `TRUE` and should stay on unless you know what you are doing.
 
-`upload` currently accepts `.csv` and `.rds` and normalizes column names
-automatically after read-in. For local data with non-syntactic column
-names, call `ptr_normalize_column_names()` once before passing the frame
-in.
+`upload` accepts `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, and `.json`
+(array of records, with nested objects flattened) and normalizes column
+names automatically after read-in. Excel and JSON readers require the
+suggested packages `readxl` and `jsonlite` respectively. For local data
+with non-syntactic column names, call `ptr_normalize_column_names()`
+once before passing the frame in.
 
 For a worked walkthrough of every keyword, see
 `vignette("ggpaintr-workflow")`.
@@ -197,8 +199,8 @@ lists every exported function.
 -   The five built-in placeholders — `var`, `text`, `num`, `expr`,
     `upload` — are stable. Custom placeholders share the same parse, UI,
     runtime, and copy-rule path.
--   `upload` accepts `.csv` and `.rds`. Other formats are outside the
-    current boundary.
+-   `upload` accepts `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, and
+    `.json`. Other formats are outside the current boundary.
 -   The supported surface is the exported `ptr_*` API (see `NAMESPACE`).
     Anything not exported is implementation detail.
 -   Only the top-level ids exposed by `ptr_build_ids()` are
