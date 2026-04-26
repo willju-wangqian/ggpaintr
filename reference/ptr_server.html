@@ -65,6 +65,7 @@ can extend the app with additional observers and outputs.</p>
 <span>  ui_text <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  placeholders <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  ids <span class="op">=</span> <span class="fu"><a href="ptr_build_ids.html">ptr_build_ids</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  checkbox_defaults <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  expr_check <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  ns <span class="op">=</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -107,6 +108,11 @@ placeholder registry.</p></dd>
 <dt id="arg-ids">ids<a class="anchor" aria-label="anchor" href="#arg-ids"></a></dt>
 <dd><p>A <code>ptr_build_ids</code> object controlling the Shiny element IDs used by
 the integration helpers. Defaults to <code><a href="ptr_build_ids.html">ptr_build_ids()</a></code>.</p></dd>
+
+
+<dt id="arg-checkbox-defaults">checkbox_defaults<a class="anchor" aria-label="anchor" href="#arg-checkbox-defaults"></a></dt>
+<dd><p>Optional named list of initial checked states for
+layer checkboxes. See <code><a href="ptr_server_state.html">ptr_server_state()</a></code>.</p></dd>
 
 
 <dt id="arg-expr-check">expr_check<a class="anchor" aria-label="anchor" href="#arg-expr-check"></a></dt>

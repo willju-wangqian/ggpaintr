@@ -17,6 +17,7 @@ ptr_server(
   ui_text = NULL,
   placeholders = NULL,
   ids = ptr_build_ids(),
+  checkbox_defaults = NULL,
   expr_check = TRUE,
   ns = shiny::NS(NULL)
 )
@@ -59,6 +60,12 @@ ptr_server(
   A `ptr_build_ids` object controlling the Shiny element IDs used by the
   integration helpers. Defaults to
   [`ptr_build_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.md).
+
+- checkbox_defaults:
+
+  Optional named list of initial checked states for layer checkboxes.
+  See
+  [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md).
 
 - expr_check:
 

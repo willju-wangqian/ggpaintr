@@ -13,6 +13,7 @@ ptr_server_state(
   ui_text = NULL,
   ids = ptr_build_ids(),
   placeholders = NULL,
+  checkbox_defaults = NULL,
   expr_check = TRUE,
   ns = shiny::NS(NULL)
 )
@@ -42,6 +43,24 @@ ptr_server_state(
 
   Optional custom placeholder definitions or an existing placeholder
   registry.
+
+- checkbox_defaults:
+
+  Optional named list controlling the initial checked state of each
+  layer's "include this layer" checkbox at app launch. Names match layer
+  names from the formula (use `names(parsed$expr_list)` to inspect;
+  duplicate layers receive a hyphen-numeric suffix starting at `-2`,
+  e.g. a formula with two
+  [`geom_point()`](https://ggplot2.tidyverse.org/reference/geom_point.html)
+  calls produces layer names `geom_point` and `geom_point-2`). Each
+  value is a single logical or a logical vector applied positionally
+  over consecutive instances of that layer; vectors shorter than the
+  count of instances are padded with `TRUE` and longer vectors are
+  truncated with a warning. A deduped key wrapped in backticks (e.g.
+  `` `geom_point-2` ``) addresses one specific instance. `NA` and
+  non-logical values raise an error; unrecognized names raise a warning
+  and are ignored. Default `NULL` keeps every layer checked (current
+  behavior).
 
 - expr_check:
 

@@ -12,6 +12,7 @@ ptr_app(
   envir = parent.frame(),
   ui_text = NULL,
   placeholders = NULL,
+  checkbox_defaults = NULL,
   expr_check = TRUE,
   ns = shiny::NS(NULL)
 )
@@ -36,6 +37,12 @@ ptr_app(
 
   Optional custom placeholder definitions or an existing placeholder
   registry.
+
+- checkbox_defaults:
+
+  Optional named list of initial checked states for layer checkboxes.
+  See
+  [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md).
 
 - expr_check:
 

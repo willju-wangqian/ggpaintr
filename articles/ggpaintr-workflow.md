@@ -300,6 +300,56 @@ that check:
 
 Leave it at `TRUE` unless you have a specific reason to change it.
 
+### 3.5 Choosing which layers start checked
+
+By default every
+non-[`ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html)
+layer in the formula starts checked. When a formula declares
+mutually-incompatible layers — for example, two competing geoms or
+alternative coordinate systems — that default produces a broken plot at
+app startup. The `checkbox_defaults` argument sets the initial checked
+state per layer, so users land on a sensible starting view and can
+toggle alternatives in.
+
+``` r
+ptr_app(
+  formula = paste(
+    "ggplot(data = mtcars, aes(x = var, y = var)) +",
+    "geom_point() +",
+    "geom_smooth(method = text) +",
+    "geom_line()"
+  ),
+  checkbox_defaults = list(
+    geom_smooth = FALSE,
+    geom_line   = FALSE
+  )
+)
+```
+
+Pass a named list. Names match layer names from the formula — use
+`names(ptr_parse_formula(formula)$expr_list)` to inspect them.
+**Duplicate layers** receive a hyphen-numeric suffix starting at `-2`: a
+formula with two
+[`geom_point()`](https://ggplot2.tidyverse.org/reference/geom_point.html)
+calls produces layer names `geom_point` and `geom_point-2`. To address
+them as a group, pass a logical vector at the bare key:
+
+``` r
+list(geom_point = c(TRUE, FALSE))      # 1st on, 2nd off
+list(geom_point = FALSE)               # 1st off, 2nd defaults to TRUE (padded)
+list(`geom_point-2` = FALSE)           # address one specific instance (backticks required)
+```
+
+Vectors shorter than the layer count pad with `TRUE`; longer vectors
+warn and truncate. Unrecognized names raise a warning and are ignored.
+`NA` and non-logical values raise an error. The same argument is
+available on
+[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md),
+[`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md),
+[`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md),
+and
+[`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md).
+
 ## 4. Data sources
 
 There are three ways to get a data frame into the running app.
