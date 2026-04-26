@@ -48,10 +48,11 @@ cat(ptr_llm_topic("level1_ptr_app"))
 #> ```r
 #> ptr_app(
 #>   formula,
-#>   envir        = parent.frame(),
-#>   ui_text      = NULL,
-#>   placeholders = NULL,
-#>   expr_check   = TRUE
+#>   envir             = parent.frame(),
+#>   ui_text           = NULL,
+#>   placeholders      = NULL,
+#>   checkbox_defaults = NULL,
+#>   expr_check        = TRUE
 #> )
 #> ```
 #> 
