@@ -9,6 +9,10 @@ reference:
     contents:
       - ptr_app
       - ptr_app_bslib
+  - title: Configuration
+    desc: Set package-wide defaults that apply to every app in the session.
+    contents:
+      - ptr_options
   - title: Shiny integration
     desc: Embed ggpaintr inside a larger Shiny app while keeping package-owned runtime behavior.
     contents:
