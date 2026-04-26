@@ -695,6 +695,91 @@ ptr_output_ui <- function(ids = ptr_build_ids(), ns = shiny::NS(NULL)) {
   )
 }
 
+#' Build ggpaintr UI for a Shiny Module
+#'
+#' Use this helper when you prefer Shiny modules for Level 2 integration. It is
+#' also a compact template for custom module wrappers built from
+#' [ptr_input_ui()] and [ptr_output_ui()].
+#'
+#' @param id Module id.
+#' @param ui_text Optional named list of copy overrides for UI labels, helper
+#'   text, and placeholders.
+#'
+#' @return A Shiny UI object.
+#' @examples
+#' paintr_ui <- ptr_module_ui("plot1")
+#' inherits(paintr_ui, "shiny.tag.list")
+#' @export
+ptr_module_ui <- function(id, ui_text = NULL) {
+  ns <- shiny::NS(id)
+
+  shiny::tagList(
+    ptr_input_ui(ui_text = ui_text, ns = ns),
+    ptr_output_ui(ns = ns)
+  )
+}
+
+#' Register ggpaintr Server Logic for a Shiny Module
+#'
+#' Use this helper with `ptr_module_ui()` when you prefer Shiny modules for
+#' Level 2 integration. The function can also be read as a template for custom
+#' modules that compose [ptr_server()] with `session$ns`.
+#'
+#' @param id Module id.
+#' @param formula A single formula string using `ggpaintr` placeholders.
+#' @param envir Environment used to resolve local data objects when building the app.
+#' @param ui_text Optional named list of copy overrides for UI labels, helper
+#'   text, and placeholders.
+#' @param placeholders Optional custom placeholder definitions or an existing
+#'   placeholder registry.
+#' @param checkbox_defaults Optional named list of initial checked states for
+#'   layer checkboxes. See [ptr_server_state()].
+#' @param expr_check Controls `expr` placeholder validation. See [ptr_app()].
+#'
+#' @return A `ptr_state` object containing reactive accessors named `obj`,
+#'   `runtime`, and `var_ui_list`, plus shared metadata used by the bind helpers.
+#' @examples
+#' ui <- shiny::fluidPage(ptr_module_ui("plot1"))
+#' server <- function(input, output, session) {
+#'   ptr_module_server(
+#'     "plot1",
+#'     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+#'   )
+#' }
+#' if (interactive()) {
+#'   shiny::shinyApp(ui, server)
+#' }
+#' @export
+ptr_module_server <- function(id,
+                              formula,
+                              envir = parent.frame(),
+                              ui_text = NULL,
+                              placeholders = NULL,
+                              checkbox_defaults = NULL,
+                              expr_check = TRUE) {
+  force(formula)
+  force(envir)
+  force(ui_text)
+  force(placeholders)
+  force(checkbox_defaults)
+  force(expr_check)
+
+  shiny::moduleServer(id, function(input, output, session) {
+    ptr_server(
+      input = input,
+      output = output,
+      session = session,
+      formula = formula,
+      envir = envir,
+      ui_text = ui_text,
+      placeholders = placeholders,
+      checkbox_defaults = checkbox_defaults,
+      expr_check = expr_check,
+      ns = session$ns
+    )
+  })
+}
+
 #' Build a ggpaintr Shiny App
 #'
 #' Create a Shiny app from a single ggplot-like formula string. The app exposes

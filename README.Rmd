@@ -123,25 +123,16 @@ a walk-through of what happens when you click **Update plot**.
 
 ### Level 2 — Embed in your own Shiny app
 
-When you already have a Shiny app and want ggpaintr's widgets and
-runtime to live inside it, use the embedding API:
+When you already have a Shiny app and want ggpaintr's widgets and runtime to live inside it, Level 2 has two parallel integration routes:
 
-- `ptr_input_ui()` and `ptr_output_ui()` drop the generated controls
-  and output panes into any UI.
-- `ptr_server()` wires up the server side in one call; or compose the
-  individual `ptr_register_*()` helpers (`ptr_register_draw`,
-  `ptr_register_plot`, `ptr_register_code`, `ptr_register_error`) for
-  finer control.
-- `ptr_server_state()` + `ptr_setup_controls()` expose the underlying
-  reactive state for apps that want to observe it.
-- `ptr_build_ids()` lets you rename every top-level element id to
-  match your own conventions.
-- `ui_text` rewrites labels, help text, and shell chrome at any of
-  six sections (`shell`, `upload`, `layer_checkbox`, `defaults`, `params`, `layers`).
+- Non-module embedding: `ptr_input_ui()` and `ptr_output_ui()` drop the generated controls and output panes into any UI, while `ptr_server()` wires up the server side in one call.
+- Shiny module embedding: `ptr_module_ui()` and `ptr_module_server()` provide a ready-to-use module pair for users who prefer modules or already build apps with module habits.
+- The module API can also be read as a compact template for custom modules built from the lower-level ggpaintr APIs.
+- For finer control, compose the individual `ptr_register_*()` helpers (`ptr_register_draw`, `ptr_register_plot`, `ptr_register_code`, `ptr_register_error`) or use `ptr_server_state()` + `ptr_setup_controls()` to observe the underlying reactive state.
+- `ptr_build_ids()` remains available for non-module and advanced custom layouts that need renamed top-level element ids.
+- `ui_text` rewrites labels, help text, and shell chrome at any of six sections (`shell`, `upload`, `layer_checkbox`, `defaults`, `params`, `layers`).
 
-Read `vignette("ggpaintr-extensibility")` for a full runnable embed
-app, the complete `ui_text` override catalog, and the six-section
-merge precedence rules.
+Read `vignette("ggpaintr-extensibility")` for runnable examples of both Level 2 routes, the complete `ui_text` override catalog, and the six-section merge precedence rules.
 
 ### Level 3 — Low-level developer API
 
