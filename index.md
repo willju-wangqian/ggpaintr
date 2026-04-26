@@ -118,30 +118,40 @@ you click **Update plot**.
 ### Level 2 — Embed in your own Shiny app
 
 When you already have a Shiny app and want ggpaintr’s widgets and
-runtime to live inside it, use the embedding API:
+runtime to live inside it, Level 2 has two parallel integration routes:
 
-- [`ptr_input_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_input_ui.md)
+- Non-module embedding:
+  [`ptr_input_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_input_ui.md)
   and
   [`ptr_output_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_output_ui.md)
-  drop the generated controls and output panes into any UI.
-- [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
-  wires up the server side in one call; or compose the individual
-  `ptr_register_*()` helpers (`ptr_register_draw`, `ptr_register_plot`,
-  `ptr_register_code`, `ptr_register_error`) for finer control.
-- [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md) +
+  drop the generated controls and output panes into any UI, while
+  [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
+  wires up the server side in one call.
+- Shiny module embedding:
+  [`ptr_module_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_ui.md)
+  and
+  [`ptr_module_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_server.md)
+  provide a ready-to-use module pair for users who prefer modules or
+  already build apps with module habits.
+- The module API can also be read as a compact template for custom
+  modules built from the lower-level ggpaintr APIs.
+- For finer control, compose the individual `ptr_register_*()` helpers
+  (`ptr_register_draw`, `ptr_register_plot`, `ptr_register_code`,
+  `ptr_register_error`) or use
+  [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md) +
   [`ptr_setup_controls()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_setup_controls.md)
-  expose the underlying reactive state for apps that want to observe it.
+  to observe the underlying reactive state.
 - [`ptr_build_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.md)
-  lets you rename every top-level element id to match your own
-  conventions.
+  remains available for non-module and advanced custom layouts that need
+  renamed top-level element ids.
 - `ui_text` rewrites labels, help text, and shell chrome at any of six
   sections (`shell`, `upload`, `layer_checkbox`, `defaults`, `params`,
   `layers`).
 
 Read
 [`vignette("ggpaintr-extensibility")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-extensibility.md)
-for a full runnable embed app, the complete `ui_text` override catalog,
-and the six-section merge precedence rules.
+for runnable examples of both Level 2 routes, the complete `ui_text`
+override catalog, and the six-section merge precedence rules.
 
 ### Level 3 — Low-level developer API
 

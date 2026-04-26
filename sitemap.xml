@@ -1,5 +1,6 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/404.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/AGENTS.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/CLAUDE.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-extensibility.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-llm.html</loc></url>
@@ -29,6 +30,8 @@
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_merge_placeholders.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_merge_ui_text.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_missing_expr.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_server.html</loc></url>
+<url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_ui.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_normalize_column_names.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_options.html</loc></url>
 <url><loc>https://willju-wangqian.github.io/ggpaintr/reference/ptr_output_ui.html</loc></url>

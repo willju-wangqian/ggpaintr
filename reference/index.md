@@ -19,6 +19,10 @@ Set package-wide defaults that apply to every app in the session.
 Embed ggpaintr inside a larger Shiny app while keeping package-owned
 runtime behavior.
 
+- [`ptr_module_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_ui.md)
+  : Build ggpaintr UI for a Shiny Module
+- [`ptr_module_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_server.md)
+  : Register ggpaintr Server Logic for a Shiny Module
 - [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
   : Register ggpaintr Server Logic
 - [`ptr_build_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.md)
