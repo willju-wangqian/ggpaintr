@@ -54,8 +54,24 @@ User owns the layout/chrome; ggpaintr owns the plot pipeline.
   suffix). Vector value addresses a duplicate group positionally
   (e.g. `geom_point = c(TRUE, FALSE)`); deduped key in backticks
   addresses one instance (`` `geom_point-2` = FALSE ``). Missing keys
-  default to `TRUE` (current behavior). Accepted on `ptr_app()`,
-  `ptr_app_bslib()`, `ptr_server()`, `ptr_server_state()`.
+  default to whatever
+  `ptr_options(checkbox_default_all_other_layer = ...)` is set to (TRUE
+  out of the box). Accepted on `ptr_app()`, `ptr_app_bslib()`,
+  `ptr_server()`, `ptr_server_state()`.
+
+### Package-global settings
+
+`ptr_options()` is the public getter/setter for ggpaintr's two global
+flags. `ptr_options()` returns the current values; `ptr_options(name = value)`
+sets them and returns the previous values invisibly (round-trip via
+`do.call(ptr_options, old)`).
+
+- `verbose` (default `TRUE`) — silence the "Layer foo() removed (no
+  arguments provided)." informational notice.
+- `checkbox_default_all_other_layer` (default `TRUE`) — fallback initial
+  state for layer checkboxes that aren't explicitly named in a call's
+  `checkbox_defaults` argument. Set `FALSE` to make every app start with
+  all layers unchecked unless explicitly opted in.
 
 ### Level 3 — headless / custom render
 Run the runtime without Shiny, or render the plot yourself.

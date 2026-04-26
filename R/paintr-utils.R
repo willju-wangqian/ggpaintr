@@ -436,7 +436,7 @@ ptr_ns_obj <- function(ptr_obj, ns_fn) {
 #' @return A single logical value.
 #' @noRd
 ptr_verbose <- function() {
-  isTRUE(getOption("ggpaintr.verbose", default = TRUE))
+  ptr_get_setting(ptr_settings$verbose)
 }
 
 # Default denylist for expr placeholder safety

@@ -19,7 +19,8 @@ ptr_strip_dedup_suffix <- function(x) sub("-[0-9]+$", "", x)
 #' @noRd
 ptr_resolve_checkbox_defaults <- function(checkbox_defaults, expr_list) {
   layer_names <- setdiff(names(expr_list), "ggplot")
-  result <- stats::setNames(rep(TRUE, length(layer_names)), layer_names)
+  fallback <- ptr_default_layer_state()
+  result <- stats::setNames(rep(fallback, length(layer_names)), layer_names)
 
   if (is.null(checkbox_defaults) || length(checkbox_defaults) == 0L) {
     return(result)
@@ -76,7 +77,7 @@ ptr_resolve_checkbox_defaults <- function(checkbox_defaults, expr_list) {
       )
       value_vec <- value_vec[seq_along(group)]
     } else if (length(value_vec) < length(group)) {
-      value_vec <- c(value_vec, rep(TRUE, length(group) - length(value_vec)))
+      value_vec <- c(value_vec, rep(fallback, length(group) - length(value_vec)))
     }
 
     result[group] <- value_vec
