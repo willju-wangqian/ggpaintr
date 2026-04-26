@@ -53,7 +53,7 @@ Suggests:
     pkgdown,
     readxl,
     rmarkdown,
-    testthat (>= 3.0.0),
+    testthat (>= 3.1.7),
     withr,
     writexl,
     xaringanExtra
