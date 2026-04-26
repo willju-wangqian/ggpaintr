@@ -115,6 +115,7 @@ fetch the runnable example. Available topics:
 - `overview` — this 3-level model
 - `formula_syntax` — 5 keywords + rules for aliasing and transforms
 - `level1_ptr_app` — minimal turn-key app
+- `level1_ptr_options` — package-global settings (`verbose`, `checkbox_default_all_other_layer`)
 - `level2_embed` — minimal embed using the 6 public calls
 - `level2_custom_ids` — `ptr_build_ids()` to avoid id collisions
 - `level2_namespacing` — `ns =` for multiple ggpaintr instances in one session

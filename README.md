@@ -205,6 +205,12 @@ lists every exported function.
     Anything not exported is implementation detail.
 -   Only the top-level ids exposed by `ptr_build_ids()` are
     configurable.
+-   Package-global settings live behind `ptr_options()` — currently
+    `verbose` (default `FALSE`) and `checkbox_default_all_other_layer`
+    (default `TRUE`). The function follows base `options()` semantics:
+    call with no arguments to read, with named logicals to set; setters
+    return the previous values for `do.call(ptr_options, old)`
+    round-trips.
 -   Runtime failures are labeled `Input error` or `Plot error` and stay
     on the shared inline error path.
 -   Raw placeholder ids such as `"ggplot_3_2"` are not a stable

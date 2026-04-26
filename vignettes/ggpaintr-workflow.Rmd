@@ -332,7 +332,16 @@ list(`geom_point-2` = FALSE)           # address one specific instance (backtick
 
 Vectors shorter than the layer count pad with `TRUE`; longer vectors warn and truncate. Unrecognized names raise a warning and are ignored. `NA` and non-logical values raise an error. The same argument is available on `ptr_app()`, `ptr_app_bslib()`, `ptr_server()`, and `ptr_server_state()`.
 
-For apps with many alternative layers, the "missing keys default to `TRUE`" rule can be inverted globally with `ptr_options(checkbox_default_all_other_layer = FALSE)` — every layer then starts unchecked unless explicitly opted in via `checkbox_defaults =`. See `?ptr_options` for the full list of package-global settings.
+### Package-global settings via `ptr_options()`
+
+`ggpaintr` exposes a small number of session-wide flags through `ptr_options()`, which mirrors base `options()`: call with no arguments to read every current value, or with one or more named logicals to set them. Setters invisibly return the previous values, so the standard `withr::with_options()` / `on.exit()` round-trip works (`old <- ptr_options(verbose = FALSE); on.exit(do.call(ptr_options, old), add = TRUE)`).
+
+The two settings currently exposed are:
+
+- `verbose` (default `FALSE`) — when `TRUE`, ggpaintr emits the "Layer foo() removed (no arguments provided)." informational notice and similar pipeline diagnostics. Intended for debugging the formula pipeline; off by default for a quiet user experience.
+- `checkbox_default_all_other_layer` (default `TRUE`) — fallback initial state for layer checkboxes not explicitly named in `checkbox_defaults =`. For apps with many alternative layers, invert this with `ptr_options(checkbox_default_all_other_layer = FALSE)` so every layer starts unchecked unless explicitly opted in.
+
+See `?ptr_options` for the canonical reference.
 
 ## 4. Data sources {#4-data-sources}
 
