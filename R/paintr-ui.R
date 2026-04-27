@@ -174,7 +174,6 @@ generate_ui_var <- function(data_var,
 #' @return A named list of UI controls by layer.
 #' @noRd
 ptr_build_ui_list <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL),
-                              checkbox_ns_fn = ns_fn,
                               checkbox_defaults = NULL) {
   effective_ui_text <- ptr_merge_ui_text(
     ui_text,
@@ -225,7 +224,7 @@ ptr_build_ui_list <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL),
     ui_insert_checkbox(
       ui, layer_name,
       ui_text = effective_ui_text,
-      ns_fn = checkbox_ns_fn,
+      ns_fn = ns_fn,
       checkbox_defaults = checkbox_defaults
     )
   })
@@ -292,7 +291,6 @@ tab_wrap_ui <- function(ui_list) {
 #' @return A Shiny UI object or `NULL`.
 #' @noRd
 ptr_get_tab_ui <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL),
-                           checkbox_ns_fn = ns_fn,
                            checkbox_defaults = NULL) {
   if (!inherits(ptr_obj, "ptr_obj")) {
     return(NULL)
@@ -306,7 +304,6 @@ ptr_get_tab_ui <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL),
         placeholders = ptr_obj$placeholders
       ),
       ns_fn = ns_fn,
-      checkbox_ns_fn = checkbox_ns_fn,
       checkbox_defaults = checkbox_defaults
     )
   )

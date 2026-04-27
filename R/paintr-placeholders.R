@@ -379,11 +379,12 @@ ptr_is_missing_expr <- function(x) {
 #' @return A raw input value.
 #' @noRd
 ptr_resolve_placeholder_input <- function(spec, input, meta, context) {
+  input_id <- ptr_ns_id(context$ns_fn %||% shiny::NS(NULL), meta$id)
   if (is.null(spec$resolve_input)) {
-    return(input[[meta$id]])
+    return(input[[input_id]])
   }
 
-  spec$resolve_input(input, meta$id, meta, context)
+  spec$resolve_input(input, input_id, meta, context)
 }
 
 #' Resolve One Placeholder Expression Replacement
@@ -448,7 +449,8 @@ ptr_bind_placeholder_ui <- function(input,
                                        eval_env = NULL,
                                        var_column_map = NULL,
                                        expr_check = TRUE,
-                                       ns_fn = shiny::NS(NULL)) {
+                                       ns_fn = shiny::NS(NULL),
+                                       ui_ns_fn = ns_fn) {
   context <- ptr_define_placeholder_context(
     ptr_obj,
     ui_text = ui_text,
@@ -458,7 +460,7 @@ ptr_bind_placeholder_ui <- function(input,
     var_column_map = var_column_map
   )
   context$ns_fn <- ns_fn
-  context$ui_ns_fn <- ns_fn
+  context$ui_ns_fn <- ui_ns_fn
   deferred_ui <- list()
 
   for (keyword in names(ptr_obj$placeholders)) {
@@ -557,11 +559,12 @@ ptr_builtin_placeholders <- function() {
 #' @return A placeholder `uiOutput()`.
 #' @noRd
 ptr_build_var_placeholder_ui <- function(id, copy, meta, context) {
-  ui_output_id <- ptr_ns_id(
-    context$ui_ns_fn %||% shiny::NS(NULL),
-    ptr_var_output_id(meta$id)
+  shiny::uiOutput(
+    ptr_ns_id(
+      context$ui_ns_fn %||% shiny::NS(NULL),
+      ptr_var_output_id(id)
+    )
   )
-  shiny::uiOutput(ui_output_id)
 }
 
 #' Resolve a `var` Placeholder to a Column Symbol
@@ -765,7 +768,8 @@ ptr_resolve_upload_expr <- function(value, meta, context) {
 #' @noRd
 ptr_prepare_upload_eval_env_impl <- function(input, metas, eval_env, context) {
   for (meta in metas) {
-    upload_info <- ptr_resolve_upload_info(input, meta$id, strict = FALSE)
+    input_id <- ptr_ns_id(context$ns_fn %||% shiny::NS(NULL), meta$id)
+    upload_info <- ptr_resolve_upload_info(input, input_id, strict = FALSE)
     if (is.null(upload_info)) {
       next
     }
@@ -968,7 +972,8 @@ ptr_bind_var_ui_impl <- function(input, output, metas, context) {
     eval_env <- ptr_prepare_eval_env(
       ptr_obj,
       input,
-      envir = context$envir
+      envir = context$envir,
+      ns_fn = context$ns_fn %||% shiny::NS(NULL)
     )
   }
   context$input <- input
@@ -1014,7 +1019,7 @@ ptr_bind_var_ui_impl <- function(input, output, metas, context) {
 
       local({
         captured_ui <- ui
-        output[[ptr_var_output_id(meta$id)]] <- shiny::renderUI({
+        output[[ptr_ns_id(context$ns_fn %||% shiny::NS(NULL), ptr_var_output_id(meta$id))]] <- shiny::renderUI({
           captured_ui
         })
       })

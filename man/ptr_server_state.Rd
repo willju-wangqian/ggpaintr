@@ -12,7 +12,8 @@ ptr_server_state(
   placeholders = NULL,
   checkbox_defaults = NULL,
   expr_check = TRUE,
-  ns = shiny::NS(NULL)
+  ns = shiny::NS(NULL),
+  server_ns = ns
 )
 }
 \arguments{
@@ -52,14 +53,21 @@ vectors supplies a custom check; when both are given,
 denied entries are removed from the allowlist.}
 
 \item{ns}{An optional namespace function (\code{character -> character}) used to
-prefix all Shiny ids produced by this state instance. Pass
-\code{shiny::NS("page1")} or \code{session$ns} to avoid id collisions when embedding
-two or more ggpaintr formulas in the same Shiny session. The same \code{ns}
-value must be passed to \code{ptr_input_ui()} and \code{ptr_output_ui()}. Defaults
-to \code{shiny::NS(NULL)} (identity — no prefixing).}
+render UI ids and, by default, Shiny server binding ids. Pass
+\code{shiny::NS("page1")} to avoid id collisions when embedding two or more
+ggpaintr formulas in the same root Shiny session. Defaults to
+\code{shiny::NS(NULL)} (identity — no prefixing).}
+
+\item{server_ns}{Optional namespace function for Shiny \code{input} / \code{output}
+binding keys. Defaults to \code{ns}. The module wrapper uses
+\code{shiny::NS(NULL)} because \code{shiny::moduleServer()} already scopes server
+bindings while rendered UI ids still need the module namespace.}
 }
 \value{
 An object of class \code{ptr_state}.
+The returned state stores \code{raw_ids} (canonical unprefixed ids),
+\code{ui_ids} (rendered DOM ids), and \code{server_ids} (Shiny binding keys).
+\code{ids} is retained as a compatibility alias for \code{server_ids}.
 }
 \description{
 Create the shared reactive state used by the extensible \verb{ptr_*} server

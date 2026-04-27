@@ -39,7 +39,7 @@ denied entries are removed from the allowlist.}
 \item{ns}{An optional namespace function (\code{character -> character}). See
 \code{\link[=ptr_server_state]{ptr_server_state()}} for details. For standalone apps created with
 \code{ptr_app()}, namespacing is rarely needed; it is most useful when
-embedding ggpaintr inside a larger Shiny module.}
+embedding more than one ggpaintr instance in a larger root Shiny session.}
 }
 \value{
 A \code{shiny.appobj}.

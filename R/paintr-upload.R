@@ -227,9 +227,11 @@ ptr_resolve_upload_info <- function(input, upload_id, strict = FALSE) {
 #' @return An evaluation environment containing uploaded datasets and any other
 #'   placeholder-provided objects.
 #' @noRd
-ptr_prepare_eval_env <- function(ptr_obj, input, envir = parent.frame()) {
+ptr_prepare_eval_env <- function(ptr_obj, input, envir = parent.frame(),
+                                 ns_fn = shiny::NS(NULL)) {
   eval_env <- rlang::env_clone(envir)
   context <- ptr_define_placeholder_context(ptr_obj, ui_text = NULL, envir = envir)
+  context$ns_fn <- ns_fn
 
   for (keyword in names(ptr_obj$placeholders)) {
     spec <- ptr_obj$placeholders[[keyword]]

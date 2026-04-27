@@ -18,20 +18,15 @@ test_that("ptr_module_server returns module-scoped ptr_state", {
   }
 
   shiny::testServer(server_wrapper, {
-    expect_s3_class(session$userData$ptr_state, "ptr_state")
-    expect_equal(session$userData$ptr_state$ids$control_panel, "controlPanel")
-    expect_equal(session$userData$ptr_state$ids$draw_button, "draw")
-    expect_equal(session$userData$ptr_state$ids$plot_output, "outputPlot")
-    expect_equal(session$userData$ptr_state$ids$error_output, "outputError")
-    expect_equal(session$userData$ptr_state$ids$code_output, "outputCode")
-    expect_equal(
-      session$userData$ptr_state$ui_placeholder_ns_fn("controlPanel"),
-      "plot1-controlPanel"
-    )
-    expect_equal(
-      session$userData$ptr_state$ui_checkbox_ns_fn("geom_point_checkbox"),
-      "plot1-geom_point_checkbox"
-    )
+    state <- session$userData$ptr_state
+
+    expect_s3_class(state, "ptr_state")
+    expect_equal(state$raw_ids$control_panel, "controlPanel")
+    expect_equal(state$ui_ids$control_panel, "plot1-controlPanel")
+    expect_equal(state$server_ids$control_panel, "controlPanel")
+    expect_equal(state$ids, state$server_ids)
+    expect_equal(state$ui_ns_fn("draw"), "plot1-draw")
+    expect_equal(state$server_ns_fn("draw"), "draw")
   })
 })
 
@@ -44,8 +39,7 @@ test_that("ptr_get_tab_ui can namespace dynamic module controls separately from 
     as.character(
       ptr_get_tab_ui(
         obj,
-        ns_fn = shiny::NS("plot1"),
-        checkbox_ns_fn = shiny::NS("plot1")
+        ns_fn = shiny::NS("plot1")
       )
     ),
     collapse = "\n"
@@ -84,5 +78,27 @@ test_that("ptr_module_server passes through customization arguments", {
     expect_equal(state$raw_ui_text, ui_text)
     expect_equal(state$checkbox_defaults[["geom_vline"]], FALSE)
     expect_false(state$expr_check)
+  })
+})
+
+test_that("ptr_module_server resolves namespaced browser inputs through module-local runtime ids", {
+  server_wrapper <- function(input, output, session) {
+    session$userData$ptr_state <- ptr_module_server(
+      "plot1",
+      "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+    )
+  }
+
+  shiny::testServer(server_wrapper, {
+    session$setInputs(
+      "plot1-ggplot_3_2" = "mpg",
+      "plot1-ggplot_3_3" = "wt",
+      "plot1-geom_point_checkbox" = TRUE,
+      "plot1-draw" = 1
+    )
+
+    result <- session$userData$ptr_state$runtime()
+    expect_true(result$ok)
+    expect_match(result$code_text, "aes\\(x = mpg, y = wt\\)")
   })
 })

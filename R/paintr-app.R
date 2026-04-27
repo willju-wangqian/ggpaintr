@@ -97,6 +97,41 @@ ptr_normalize_ids <- function(ids = NULL) {
   structure(ids, class = c("ptr_build_ids", "list"))
 }
 
+#' Build Top-Level ID Contract for ggpaintr State
+#'
+#' @param raw_ids A `ptr_build_ids` object or named list.
+#' @param ui_ns Namespace function for rendered DOM ids.
+#' @param server_ns Namespace function for Shiny input/output binding keys.
+#'
+#' @return A named list with `raw_ids`, `ui_ids`, and `server_ids`.
+#' @noRd
+ptr_build_id_contract <- function(raw_ids = ptr_build_ids(),
+                                  ui_ns = shiny::NS(NULL),
+                                  server_ns = ui_ns) {
+  if (!is.function(ui_ns)) {
+    rlang::abort("`ui_ns` must be a namespace function (e.g. shiny::NS(\"id\") or session$ns).")
+  }
+  if (!is.function(server_ns)) {
+    rlang::abort("`server_ns` must be a namespace function (e.g. shiny::NS(\"id\") or session$ns).")
+  }
+
+  raw_ids <- ptr_normalize_ids(raw_ids)
+  ui_ids <- structure(
+    lapply(raw_ids, ui_ns),
+    class = class(raw_ids)
+  )
+  server_ids <- structure(
+    lapply(raw_ids, server_ns),
+    class = class(raw_ids)
+  )
+
+  list(
+    raw_ids = raw_ids,
+    ui_ids = ui_ids,
+    server_ids = server_ids
+  )
+}
+
 #' Validate a ggpaintr State Object
 #'
 #' @param ptr_state A `ptr_state` object.
@@ -114,6 +149,9 @@ ptr_validate_state <- function(ptr_state) {
     "effective_ui_text",
     "placeholders",
     "custom_placeholders",
+    "raw_ids",
+    "ui_ids",
+    "server_ids",
     "ids",
     "envir",
     "checkbox_defaults"
@@ -135,6 +173,9 @@ ptr_validate_state <- function(ptr_state) {
     rlang::abort("ptr_state reactive accessors must be functions.")
   }
 
+  ptr_validate_ids(ptr_state$raw_ids)
+  ptr_validate_ids(ptr_state$ui_ids)
+  ptr_validate_ids(ptr_state$server_ids)
   ptr_validate_ids(ptr_state$ids)
   if (!inherits(ptr_state$placeholders, "ptr_define_placeholder_registry")) {
     rlang::abort("ptr_state$placeholders must inherit from 'ptr_define_placeholder_registry'.")
@@ -178,12 +219,18 @@ ptr_validate_state <- function(ptr_state) {
 #'   denied entries are removed from the allowlist.
 #'
 #' @param ns An optional namespace function (`character -> character`) used to
-#'   prefix all Shiny ids produced by this state instance. Pass
-#'   `shiny::NS("page1")` or `session$ns` to avoid id collisions when embedding
-#'   two or more ggpaintr formulas in the same Shiny session. The same `ns`
-#'   value must be passed to `ptr_input_ui()` and `ptr_output_ui()`. Defaults
-#'   to `shiny::NS(NULL)` (identity — no prefixing).
+#'   render UI ids and, by default, Shiny server binding ids. Pass
+#'   `shiny::NS("page1")` to avoid id collisions when embedding two or more
+#'   ggpaintr formulas in the same root Shiny session. Defaults to
+#'   `shiny::NS(NULL)` (identity — no prefixing).
+#' @param server_ns Optional namespace function for Shiny `input` / `output`
+#'   binding keys. Defaults to `ns`. The module wrapper uses
+#'   `shiny::NS(NULL)` because `shiny::moduleServer()` already scopes server
+#'   bindings while rendered UI ids still need the module namespace.
 #' @return An object of class `ptr_state`.
+#'   The returned state stores `raw_ids` (canonical unprefixed ids),
+#'   `ui_ids` (rendered DOM ids), and `server_ids` (Shiny binding keys).
+#'   `ids` is retained as a compatibility alias for `server_ids`.
 #' @examples
 #' state <- ptr_server_state(
 #'   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
@@ -197,25 +244,26 @@ ptr_server_state <- function(formula,
                              placeholders = NULL,
                              checkbox_defaults = NULL,
                              expr_check = TRUE,
-                             ns = shiny::NS(NULL)) {
+                             ns = shiny::NS(NULL),
+                             server_ns = ns) {
   if (!is.function(ns)) {
     rlang::abort("`ns` must be a namespace function (e.g. shiny::NS(\"id\") or session$ns).")
   }
-  ids <- ptr_normalize_ids(ids)
+  if (!is.function(server_ns)) {
+    rlang::abort("`server_ns` must be a namespace function (e.g. shiny::NS(\"id\") or session$ns).")
+  }
+  id_contract <- ptr_build_id_contract(
+    raw_ids = ids,
+    ui_ns = ns,
+    server_ns = server_ns
+  )
   placeholder_registry <- ptr_merge_placeholders(placeholders)
 
   parsed <- ptr_parse_formula(formula, placeholders = placeholder_registry)
-  parsed <- ptr_ns_obj(parsed, ns)
 
   resolved_checkbox_defaults <- ptr_resolve_checkbox_defaults(
     checkbox_defaults,
     parsed$expr_list
-  )
-
-  # Prefix top-level ids through ns
-  namespaced_ids <- structure(
-    lapply(ids, ns),
-    class = class(ids)
   )
 
   structure(
@@ -233,10 +281,15 @@ ptr_server_state <- function(formula,
       ),
       placeholders = placeholder_registry,
       custom_placeholders = placeholder_registry$custom_placeholders,
-      ids = namespaced_ids,
+      raw_ids = id_contract$raw_ids,
+      ui_ids = id_contract$ui_ids,
+      server_ids = id_contract$server_ids,
+      ids = id_contract$server_ids,
       envir = envir,
       expr_check = expr_check,
-      ns_fn = ns,
+      ui_ns_fn = ns,
+      server_ns_fn = server_ns,
+      ns_fn = server_ns,
       checkbox_defaults = resolved_checkbox_defaults
     ),
     class = c("ptr_state", "list")
@@ -267,13 +320,18 @@ ptr_setup_controls <- function(input,
                                output,
                                ptr_state) {
   ptr_validate_state(ptr_state)
-  ids <- ptr_normalize_ids(ptr_state$ids)
+  ids <- ptr_normalize_ids(ptr_state$server_ids)
 
   shared_env_reactive_raw <- shiny::reactive({
     shiny::req(ptr_state$obj())
     obj <- ptr_state$obj()
     eval_env <- tryCatch(
-      ptr_prepare_eval_env(obj, input, envir = ptr_state$envir),
+      ptr_prepare_eval_env(
+        obj,
+        input,
+        envir = ptr_state$envir,
+        ns_fn = ptr_state$server_ns_fn %||% shiny::NS(NULL)
+      ),
       error = function(e) NULL
     )
     var_column_map <- if (!is.null(eval_env)) {
@@ -281,6 +339,7 @@ ptr_setup_controls <- function(input,
         obj, ui_text = NULL, envir = ptr_state$envir,
         expr_check = ptr_state$expr_check
       )
+      context$ns_fn <- ptr_state$server_ns_fn %||% shiny::NS(NULL)
       context$input <- input
       context$eval_env <- eval_env
       tryCatch(
@@ -308,7 +367,8 @@ ptr_setup_controls <- function(input,
         eval_env = cached$eval_env,
         var_column_map = cached$var_column_map,
         expr_check = ptr_state$expr_check,
-        ns_fn = ptr_state$ui_placeholder_ns_fn %||% shiny::NS(NULL)
+        ns_fn = ptr_state$server_ns_fn %||% shiny::NS(NULL),
+        ui_ns_fn = ptr_state$ui_ns_fn %||% shiny::NS(NULL)
       ),
       error = function(e) list()
     )
@@ -322,10 +382,7 @@ ptr_setup_controls <- function(input,
       ptr_get_tab_ui(
         ptr_state$obj(),
         ui_text = ptr_state$effective_ui_text,
-        ns_fn = ptr_state$ui_placeholder_ns_fn %||% shiny::NS(NULL),
-        checkbox_ns_fn = ptr_state$ui_checkbox_ns_fn %||%
-          ptr_state$ns_fn %||%
-          shiny::NS(NULL),
+        ns_fn = ptr_state$ui_ns_fn %||% shiny::NS(NULL),
         checkbox_defaults = ptr_state$checkbox_defaults
       )
     )
@@ -353,7 +410,7 @@ ptr_setup_controls <- function(input,
 ptr_register_draw <- function(input,
                                ptr_state) {
   ptr_validate_state(ptr_state)
-  ids <- ptr_normalize_ids(ptr_state$ids)
+  ids <- ptr_normalize_ids(ptr_state$server_ids)
 
   shiny::observeEvent(input[[ids$draw_button]], {
     shiny::req(ptr_state$obj())
@@ -365,7 +422,7 @@ ptr_register_draw <- function(input,
       eval_env = cached$eval_env,
       var_column_map = cached$var_column_map,
       expr_check = ptr_state$expr_check,
-      ns_fn = ptr_state$ns_fn %||% shiny::NS(NULL)
+      ns_fn = ptr_state$server_ns_fn %||% shiny::NS(NULL)
     )
     runtime_result <- ptr_assemble_plot_safe(runtime_result, envir = ptr_state$envir, expr_check = ptr_state$expr_check)
     runtime_result <- ptr_validate_plot_render_safe(runtime_result)
@@ -495,7 +552,7 @@ ptr_extract_code <- function(runtime_result, extras = NULL) {
 ptr_register_plot <- function(output,
                                ptr_state) {
   ptr_validate_state(ptr_state)
-  ids <- ptr_normalize_ids(ptr_state$ids)
+  ids <- ptr_normalize_ids(ptr_state$server_ids)
 
   output[[ids$plot_output]] <- shiny::renderPlot({
     plot_obj <- ptr_extract_plot(ptr_state$runtime())
@@ -528,7 +585,7 @@ ptr_register_plot <- function(output,
 ptr_register_error <- function(output,
                                 ptr_state) {
   ptr_validate_state(ptr_state)
-  ids <- ptr_normalize_ids(ptr_state$ids)
+  ids <- ptr_normalize_ids(ptr_state$server_ids)
 
   output[[ids$error_output]] <- shiny::renderUI({
     ptr_extract_error(ptr_state$runtime())
@@ -555,7 +612,7 @@ ptr_register_error <- function(output,
 ptr_register_code <- function(output,
                                ptr_state) {
   ptr_validate_state(ptr_state)
-  ids <- ptr_normalize_ids(ptr_state$ids)
+  ids <- ptr_normalize_ids(ptr_state$server_ids)
 
   output[[ids$code_output]] <- shiny::renderText({
     ptr_extract_code(ptr_state$runtime(), extras = ptr_state$extras())
@@ -725,9 +782,9 @@ ptr_module_ui <- function(id, ui_text = NULL) {
 #' Register ggpaintr Server Logic for a Shiny Module
 #'
 #' Use this helper with `ptr_module_ui()` when you prefer Shiny modules for
-#' Level 2 integration. The function also documents the namespace split needed
-#' inside modules: server-side ids stay local to the module, while UI generated
-#' from `renderUI()` is namespaced with `session$ns`.
+#' Level 2 integration. The function also documents the module ID contract:
+#' server-side ids stay local to the module, while UI generated from
+#' `renderUI()` is namespaced with `session$ns`.
 #'
 #' @param id Module id.
 #' @param formula A single formula string using `ggpaintr` placeholders.
@@ -776,11 +833,9 @@ ptr_module_server <- function(id,
       placeholders = placeholders,
       checkbox_defaults = checkbox_defaults,
       expr_check = expr_check,
-      ns = shiny::NS(NULL)
+      ns = session$ns,
+      server_ns = shiny::NS(NULL)
     )
-
-    ptr_state$ui_placeholder_ns_fn <- session$ns
-    ptr_state$ui_checkbox_ns_fn <- session$ns
 
     ptr_state <- ptr_setup_controls(input, output, ptr_state)
     ptr_register_draw(input, ptr_state)
@@ -816,7 +871,7 @@ ptr_module_server <- function(id,
 #' @param ns An optional namespace function (`character -> character`). See
 #'   [ptr_server_state()] for details. For standalone apps created with
 #'   `ptr_app()`, namespacing is rarely needed; it is most useful when
-#'   embedding ggpaintr inside a larger Shiny module.
+#'   embedding more than one ggpaintr instance in a larger root Shiny session.
 #' @return A `shiny.appobj`.
 #' @examples
 #' app <- ptr_app("ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()")

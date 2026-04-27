@@ -39,7 +39,10 @@ make_raw_state <- function(
   effective_ui_text   = NULL,
   placeholders        = ptr_merge_placeholders(),
   custom_placeholders = list(),
-  ids                 = ptr_build_ids(),
+  raw_ids             = ptr_build_ids(),
+  ui_ids              = raw_ids,
+  server_ids          = raw_ids,
+  ids                 = server_ids,
   envir               = globalenv(),
   checkbox_defaults   = stats::setNames(logical(0), character(0))
 ) {
@@ -54,6 +57,9 @@ make_raw_state <- function(
       effective_ui_text   = effective_ui_text,
       placeholders        = placeholders,
       custom_placeholders = custom_placeholders,
+      raw_ids             = raw_ids,
+      ui_ids              = ui_ids,
+      server_ids          = server_ids,
       ids                 = ids,
       envir               = envir,
       checkbox_defaults   = checkbox_defaults
@@ -185,6 +191,9 @@ test_that("ptr_validate_state aborts on missing required entries", {
       effective_ui_text   = NULL,
       placeholders        = ptr_merge_placeholders(),
       custom_placeholders = list(),
+      raw_ids             = ptr_build_ids(),
+      ui_ids              = ptr_build_ids(),
+      server_ids          = ptr_build_ids(),
       ids                 = ptr_build_ids(),
       envir               = globalenv()
     ),

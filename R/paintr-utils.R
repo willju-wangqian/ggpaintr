@@ -384,8 +384,9 @@ ptr_ns_id <- function(ns_fn, id) {
 #' Rewrite All Placeholder Ids in a `ptr_obj` Through a Namespace Function
 #'
 #' Applies `ns_fn` to every id stored in `ptr_obj$id_list` and
-#' `ptr_obj$placeholder_map`. Called once in `ptr_server_state()` immediately
-#' after parsing, so the rest of the runtime sees only namespaced ids.
+#' `ptr_obj$placeholder_map`. Normal `ptr_state` construction keeps parsed
+#' placeholder ids raw and namespaces them at the UI/server boundary; this
+#' helper remains available for focused tests and advanced internal rewrites.
 #'
 #' @param ptr_obj A `ptr_obj`.
 #' @param ns_fn A namespace function `character -> character`.

@@ -101,11 +101,12 @@ ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
 
   ptr_processed_expr_list <- ptr_obj[["expr_list"]]
   if (is.null(eval_env)) {
-    eval_env <- ptr_prepare_eval_env(ptr_obj, input, envir = envir)
+    eval_env <- ptr_prepare_eval_env(ptr_obj, input, envir = envir, ns_fn = ns_fn)
   }
   context <- ptr_define_placeholder_context(
     ptr_obj, ui_text = NULL, envir = envir, expr_check = expr_check
   )
+  context$ns_fn <- ns_fn
   context$input <- input
   context$eval_env <- eval_env
   if (is.null(var_column_map)) {
