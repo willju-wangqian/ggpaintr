@@ -15,7 +15,8 @@ ptr_server_state(
   placeholders = NULL,
   checkbox_defaults = NULL,
   expr_check = TRUE,
-  ns = shiny::NS(NULL)
+  ns = shiny::NS(NULL),
+  server_ns = ns
 )
 ```
 
@@ -73,18 +74,25 @@ ptr_server_state(
 - ns:
 
   An optional namespace function (`character -> character`) used to
-  prefix all Shiny ids produced by this state instance. Pass
-  `shiny::NS("page1")` or `session$ns` to avoid id collisions when
-  embedding two or more ggpaintr formulas in the same Shiny session. The
-  same `ns` value must be passed to
-  [`ptr_input_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_input_ui.md)
-  and
-  [`ptr_output_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_output_ui.md).
-  Defaults to `shiny::NS(NULL)` (identity — no prefixing).
+  render UI ids and, by default, Shiny server binding ids. Pass
+  `shiny::NS("page1")` to avoid id collisions when embedding two or more
+  ggpaintr formulas in the same root Shiny session. Defaults to
+  `shiny::NS(NULL)` (identity — no prefixing).
+
+- server_ns:
+
+  Optional namespace function for Shiny `input` / `output` binding keys.
+  Defaults to `ns`. The module wrapper uses `shiny::NS(NULL)` because
+  [`shiny::moduleServer()`](https://rdrr.io/pkg/shiny/man/moduleServer.html)
+  already scopes server bindings while rendered UI ids still need the
+  module namespace.
 
 ## Value
 
-An object of class `ptr_state`.
+An object of class `ptr_state`. The returned state stores `raw_ids`
+(canonical unprefixed ids), `ui_ids` (rendered DOM ids), and
+`server_ids` (Shiny binding keys). `ids` is retained as a compatibility
+alias for `server_ids`.
 
 ## Examples
 

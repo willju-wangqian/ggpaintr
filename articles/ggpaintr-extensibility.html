@@ -275,10 +275,11 @@ want in the layout.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/shinyApp.html" class="external-link">shinyApp</a></span><span class="op">(</span><span class="va">ui</span>, <span class="va">server</span><span class="op">)</span></span></code></pre></div>
 <p>The three register helpers are independent — each one writes to the
-output id named in <code>ptr_state$ids</code>. The default ids above
-match the defaults from <code><a href="../reference/ptr_build_ids.html">ptr_build_ids()</a></code>, which is why we
-did not have to pass <code>ids = ...</code> anywhere. Customizing ids is
-§3e.</p>
+server id named in <code>ptr_state$server_ids</code>
+(<code>ptr_state$ids</code> remains a compatibility alias). The default
+ids above match the defaults from <code><a href="../reference/ptr_build_ids.html">ptr_build_ids()</a></code>, which is
+why we did not have to pass <code>ids = ...</code> anywhere. Customizing
+ids is §3e.</p>
 </div>
 <div class="section level3">
 <h3 id="c--shiny-module-integration">3c. Shiny module integration<a class="anchor" aria-label="anchor" href="#c--shiny-module-integration"></a>
@@ -286,9 +287,10 @@ did not have to pass <code>ids = ...</code> anywhere. Customizing ids is
 <p>If you prefer Shiny modules, or already build apps with module
 habits, use <code><a href="../reference/ptr_module_ui.html">ptr_module_ui()</a></code> and
 <code><a href="../reference/ptr_module_server.html">ptr_module_server()</a></code> as the parallel Level 2 route. They are
-ready-to-use helpers and also a compact template for the namespace split
-Shiny modules need when UI is generated from
-<code><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI()</a></code>.</p>
+ready-to-use helpers and also a compact template for the ID contract
+Shiny modules need when UI is generated from <code><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI()</a></code>:
+raw ids stay local to the module server, and DOM ids are rendered
+through the module namespace.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidPage</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="../reference/ptr_module_ui.html">ptr_module_ui</a></span><span class="op">(</span><span class="st">"plot1"</span><span class="op">)</span></span>
@@ -307,7 +309,7 @@ module code, the module id is the public boundary.
 <code><a href="https://rdrr.io/pkg/shiny/man/moduleServer.html" class="external-link">moduleServer()</a></code> already scopes server-side
 <code>input</code> and <code>output</code>, but UI generated from
 <code><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI()</a></code> still needs <code>session$ns</code>. The
-exported wrappers handle that split directly.</p>
+exported wrappers handle that contract directly.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">plot_module_ui</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">ns</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="va">id</span><span class="op">)</span></span>
@@ -379,16 +381,18 @@ is fine, because <code>ns</code> is what disambiguates them.</p>
 <code><a href="https://rdrr.io/pkg/shiny/man/moduleServer.html" class="external-link">moduleServer()</a></code> already scopes server-side
 <code>input</code> and <code>output</code>, while generated UI ids need
 a separate namespace path.</p>
-<p>The single failure mode is reusing the same <code>ns</code> (or
-leaving it at its default) across two instances in the same session.
-Then the resolved ids collide and Shiny silently keeps only the last
-<code>output[[id]] &lt;-</code> assignment — one instance appears empty.
-Sanity check any wiring by inspecting the resolved ids in the
-console:</p>
+<p>The single failure mode for non-module multi-instance apps is reusing
+the same <code>ns</code> (or leaving it at its default) across two
+instances in the same root session. Then the server ids collide and
+Shiny silently keeps only the last <code>output[[id]] &lt;-</code>
+assignment — one instance appears empty. Sanity check any wiring by
+inspecting the explicit ID contract in the console:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">state_a</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_server_state.html">ptr_server_state</a></span><span class="op">(</span><span class="va">formula_a</span>, ns <span class="op">=</span> <span class="va">ns_a</span><span class="op">)</span></span>
 <span><span class="va">state_b</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_server_state.html">ptr_server_state</a></span><span class="op">(</span><span class="va">formula_b</span>, ns <span class="op">=</span> <span class="va">ns_b</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">intersect</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">state_a</span><span class="op">$</span><span class="va">ids</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">state_b</span><span class="op">$</span><span class="va">ids</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>  <span class="co"># expect 0</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">state_a</span><span class="op">$</span><span class="va">raw_ids</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">state_b</span><span class="op">$</span><span class="va">raw_ids</span><span class="op">)</span><span class="op">)</span>  <span class="co"># TRUE</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">intersect</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">state_a</span><span class="op">$</span><span class="va">ui_ids</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">state_b</span><span class="op">$</span><span class="va">ui_ids</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>  <span class="co"># expect 0</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">intersect</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">state_a</span><span class="op">$</span><span class="va">server_ids</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">state_b</span><span class="op">$</span><span class="va">server_ids</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>  <span class="co"># expect 0</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="e--custom-ids">3e. Custom ids<a class="anchor" aria-label="anchor" href="#e--custom-ids"></a>
@@ -462,14 +466,18 @@ stay in sync:</p>
 <span>  <span class="fu"><a href="../reference/ptr_register_error.html">ptr_register_error</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="../reference/ptr_register_code.html">ptr_register_code</a></span><span class="op">(</span><span class="va">output</span>, <span class="va">ptr_state</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
-<p><code><a href="../reference/ptr_server_state.html">ptr_server_state()</a></code> stores the ids on
-<code>ptr_state$ids</code>, which every other helper reads automatically
-— so you only pass <code>ids</code> once, at state construction
-time.</p>
-<p>Only these five top-level ids are configurable. Per-placeholder input
-ids (the ones generated by <code><a href="../reference/ptr_parse_formula.html">ptr_parse_formula()</a></code>) and the
-internal <code>var-*</code> helper ids are deterministic and
-package-owned.</p>
+<p><code><a href="../reference/ptr_server_state.html">ptr_server_state()</a></code> stores the raw top-level ids on
+<code>ptr_state$raw_ids</code>, rendered DOM ids on
+<code>ptr_state$ui_ids</code>, and Shiny binding keys on
+<code>ptr_state$server_ids</code>. <code>ptr_state$ids</code> remains as
+a compatibility alias for <code>ptr_state$server_ids</code>. Every
+helper reads the state contract automatically — so you only pass
+<code>ids</code> once, at state construction time.</p>
+<p>Only these five raw top-level ids are configurable. Per-placeholder
+input ids (the ones generated by <code><a href="../reference/ptr_parse_formula.html">ptr_parse_formula()</a></code>) and
+the internal <code>var-*</code> helper ids are deterministic and
+package-owned; ggpaintr namespaces them at the UI/server boundary
+instead of rewriting the parsed formula state.</p>
 </div>
 <div class="section level3">
 <h3 id="id_3e-ui-text">3f. Overriding UI copy<a class="anchor" aria-label="anchor" href="#id_3e-ui-text"></a>

@@ -61,7 +61,8 @@ inside a larger Shiny app.</p>
 <span>  placeholders <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  checkbox_defaults <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  expr_check <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  ns <span class="op">=</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span></span>
+<span>  ns <span class="op">=</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span>,</span>
+<span>  server_ns <span class="op">=</span> <span class="va">ns</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -120,16 +121,25 @@ denied entries are removed from the allowlist.</p></dd>
 
 <dt id="arg-ns">ns<a class="anchor" aria-label="anchor" href="#arg-ns"></a></dt>
 <dd><p>An optional namespace function (<code>character -&gt; character</code>) used to
-prefix all Shiny ids produced by this state instance. Pass
-<code>shiny::NS("page1")</code> or <code>session$ns</code> to avoid id collisions when embedding
-two or more ggpaintr formulas in the same Shiny session. The same <code>ns</code>
-value must be passed to <code><a href="ptr_input_ui.html">ptr_input_ui()</a></code> and <code><a href="ptr_output_ui.html">ptr_output_ui()</a></code>. Defaults
-to <code>shiny::NS(NULL)</code> (identity — no prefixing).</p></dd>
+render UI ids and, by default, Shiny server binding ids. Pass
+<code>shiny::NS("page1")</code> to avoid id collisions when embedding two or more
+ggpaintr formulas in the same root Shiny session. Defaults to
+<code>shiny::NS(NULL)</code> (identity — no prefixing).</p></dd>
+
+
+<dt id="arg-server-ns">server_ns<a class="anchor" aria-label="anchor" href="#arg-server-ns"></a></dt>
+<dd><p>Optional namespace function for Shiny <code>input</code> / <code>output</code>
+binding keys. Defaults to <code>ns</code>. The module wrapper uses
+<code>shiny::NS(NULL)</code> because <code><a href="https://rdrr.io/pkg/shiny/man/moduleServer.html" class="external-link">shiny::moduleServer()</a></code> already scopes server
+bindings while rendered UI ids still need the module namespace.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>An object of class <code>ptr_state</code>.</p>
+    <p>An object of class <code>ptr_state</code>.
+The returned state stores <code>raw_ids</code> (canonical unprefixed ids),
+<code>ui_ids</code> (rendered DOM ids), and <code>server_ids</code> (Shiny binding keys).
+<code>ids</code> is retained as a compatibility alias for <code>server_ids</code>.</p>
     </div>
 
     <div class="section level2">

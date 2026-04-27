@@ -57,8 +57,8 @@ ptr_app(
   An optional namespace function (`character -> character`). See
   [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md)
   for details. For standalone apps created with `ptr_app()`, namespacing
-  is rarely needed; it is most useful when embedding ggpaintr inside a
-  larger Shiny module.
+  is rarely needed; it is most useful when embedding more than one
+  ggpaintr instance in a larger root Shiny session.
 
 ## Value
 

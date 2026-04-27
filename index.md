@@ -134,8 +134,9 @@ runtime to live inside it, Level 2 has two parallel integration routes:
   provide a ready-to-use module pair for users who prefer modules or
   already build apps with module habits.
 - The module API can also be read as a compact template for custom
-  modules; it handles the namespace split that Shiny modules need when
-  UI is generated from `renderUI()`.
+  modules; it keeps raw top-level ids as the module-local server
+  contract while rendering namespaced DOM ids with Shiny’s module
+  namespace.
 - For finer control, compose the individual `ptr_register_*()` helpers
   (`ptr_register_draw`, `ptr_register_plot`, `ptr_register_code`,
   `ptr_register_error`) or use
@@ -144,7 +145,10 @@ runtime to live inside it, Level 2 has two parallel integration routes:
   to observe the underlying reactive state.
 - [`ptr_build_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.md)
   remains available for non-module and advanced custom layouts that need
-  renamed top-level element ids.
+  renamed raw top-level ids;
+  [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md)
+  exposes `raw_ids`, `ui_ids`, and `server_ids` for debugging namespace
+  wiring.
 - `ui_text` rewrites labels, help text, and shell chrome at any of six
   sections (`shell`, `upload`, `layer_checkbox`, `defaults`, `params`,
   `layers`).
