@@ -91,6 +91,7 @@
 <span><span class="st">  labs(title = text) +</span></span>
 <span><span class="st">  facet_wrap(expr)</span></span>
 <span><span class="st">"</span><span class="op">)</span></span></code></pre></div>
+<p><code><a href="https://willju-wangqian.github.io/ggpaintr/">library(ggpaintr)</a></code> also attaches <code>ggplot2</code>, so bare <code><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes()</a></code>, and <code>geom_*()</code> calls work directly inside formula strings.</p>
 <p>That single call parses the formula once and returns a running Shiny app. Every <code>var</code>, <code>num</code>, <code>text</code>, and <code>expr</code> token becomes a widget in the sidebar; editing a widget and clicking <strong>Update plot</strong> re-renders the plot and refreshes the generated ggplot code on the side. No Shiny UI or server code was written.</p>
 <p>For a bslib-themed variant with the same API, use <code><a href="reference/ptr_app_bslib.html">ptr_app_bslib()</a></code>.</p>
 </div>

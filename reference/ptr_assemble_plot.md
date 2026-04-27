@@ -36,8 +36,6 @@ when no plot expressions remain after runtime processing.
 ## Examples
 
 ``` r
-library(ggplot2)
-
 obj <- ptr_parse_formula(
   "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + geom_point()"
 )

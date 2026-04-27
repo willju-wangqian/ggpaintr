@@ -44,8 +44,6 @@ plot-construction or render failures return `stage = "plot"`.
 ## Examples
 
 ``` r
-library(ggplot2)
-
 obj <- ptr_parse_formula(
   "ggplot(data = iris, aes(x = var, y = var)) + geom_point()"
 )

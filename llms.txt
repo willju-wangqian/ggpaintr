@@ -27,6 +27,12 @@ ggplot(data = iris, aes(x = var, y = var)) +
 ")
 ```
 
+[`library(ggpaintr)`](https://willju-wangqian.github.io/ggpaintr/) also
+attaches `ggplot2`, so bare
+[`ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html),
+[`aes()`](https://ggplot2.tidyverse.org/reference/aes.html), and
+`geom_*()` calls work directly inside formula strings.
+
 That single call parses the formula once and returns a running Shiny
 app. Every `var`, `num`, `text`, and `expr` token becomes a widget in
 the sidebar; editing a widget and clicking **Update plot** re-renders

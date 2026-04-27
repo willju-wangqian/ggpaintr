@@ -2,7 +2,6 @@
 
 ``` r
 library(ggpaintr)
-library(ggplot2)
 library(shiny)
 ```
 
