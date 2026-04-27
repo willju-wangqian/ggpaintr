@@ -7,5 +7,6 @@
 #' for runtime inspection and column-name normalization for data used with the
 #' built-in `var` placeholder.
 #'
+#' @import ggplot2
 #' @keywords internal
 "_PACKAGE"

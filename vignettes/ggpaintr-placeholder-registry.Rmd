@@ -16,7 +16,6 @@ knitr::opts_chunk$set(
 )
 
 library(ggpaintr)
-library(ggplot2)
 library(rlang)
 library(shiny)
 ```

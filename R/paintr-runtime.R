@@ -173,8 +173,6 @@ ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
 #' @return A `ggplot` object assembled from the retained layer expressions.
 #'   Errors when no plot expressions remain after runtime processing.
 #' @examples
-#' library(ggplot2)
-#'
 #' obj <- ptr_parse_formula(
 #'   "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + geom_point()"
 #' )
@@ -370,8 +368,6 @@ ptr_validate_plot_render_safe <- function(runtime_result) {
 #'   Completion-stage validation failures return `stage = "complete"`;
 #'   plot-construction or render failures return `stage = "plot"`.
 #' @examples
-#' library(ggplot2)
-#'
 #' obj <- ptr_parse_formula(
 #'   "ggplot(data = iris, aes(x = var, y = var)) + geom_point()"
 #' )

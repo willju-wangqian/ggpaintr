@@ -27,8 +27,6 @@ Errors when no plot expressions remain after runtime processing.
 Build a Plot from Completed Layer Expressions
 }
 \examples{
-library(ggplot2)
-
 obj <- ptr_parse_formula(
   "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + geom_point()"
 )

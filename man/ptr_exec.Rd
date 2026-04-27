@@ -35,8 +35,6 @@ plot-construction or render failures return \code{stage = "plot"}.
 Build the Full Runtime Result for a Paintr App
 }
 \examples{
-library(ggplot2)
-
 obj <- ptr_parse_formula(
   "ggplot(data = iris, aes(x = var, y = var)) + geom_point()"
 )
