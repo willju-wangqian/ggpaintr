@@ -26,3 +26,4 @@ README\.*
 ^doc$
 ^Meta$
 ^\.positai$
+^CRAN-SUBMISSION$
