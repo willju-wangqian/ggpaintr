@@ -16,7 +16,7 @@ A Shiny tag or \code{NULL}.
 Return Default Error UI from a Runtime Result
 }
 \examples{
-\dontrun{
+if (interactive()) {
 obj <- ptr_parse_formula(
   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
 )

@@ -307,7 +307,7 @@ ptr_server_state <- function(formula,
 #'
 #' @return Invisibly returns `ptr_state`.
 #' @examples
-#' \dontrun{
+#' if (interactive()) {
 #' server <- function(input, output, session) {
 #'   ps <- ptr_server_state("ggplot(mtcars, aes(x = var)) + geom_histogram()")
 #'   ptr_setup_controls(input, output, ps)
@@ -398,7 +398,7 @@ ptr_setup_controls <- function(input,
 #'
 #' @return Invisibly returns `ptr_state`.
 #' @examples
-#' \dontrun{
+#' if (interactive()) {
 #' server <- function(input, output, session) {
 #'   ps <- ptr_server_state("ggplot(mtcars, aes(x = var)) + geom_histogram()")
 #'   ptr_setup_controls(input, output, ps)
@@ -466,7 +466,7 @@ ptr_extract_plot <- function(runtime_result) {
 #'
 #' @return A Shiny tag or `NULL`.
 #' @examples
-#' \dontrun{
+#' if (interactive()) {
 #' obj <- ptr_parse_formula(
 #'   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
 #' )
@@ -497,7 +497,7 @@ ptr_extract_error <- function(runtime_result) {
 #'
 #' @return A character string or `NULL`.
 #' @examples
-#' \dontrun{
+#' if (interactive()) {
 #' obj <- ptr_parse_formula(
 #'   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
 #' )
@@ -541,7 +541,7 @@ ptr_extract_code <- function(runtime_result, extras = NULL) {
 #'
 #' @return Invisibly returns `ptr_state`.
 #' @examples
-#' \dontrun{
+#' if (interactive()) {
 #' server <- function(input, output, session) {
 #'   ps <- ptr_server_state("ggplot(mtcars, aes(x = var)) + geom_histogram()")
 #'   ptr_register_draw(input, ps)
@@ -574,7 +574,7 @@ ptr_register_plot <- function(output,
 #'
 #' @return Invisibly returns `ptr_state`.
 #' @examples
-#' \dontrun{
+#' if (interactive()) {
 #' server <- function(input, output, session) {
 #'   ps <- ptr_server_state("ggplot(mtcars, aes(x = var)) + geom_histogram()")
 #'   ptr_register_draw(input, ps)
@@ -601,7 +601,7 @@ ptr_register_error <- function(output,
 #'
 #' @return Invisibly returns `ptr_state`.
 #' @examples
-#' \dontrun{
+#' if (interactive()) {
 #' server <- function(input, output, session) {
 #'   ps <- ptr_server_state("ggplot(mtcars, aes(x = var)) + geom_histogram()")
 #'   ptr_register_draw(input, ps)
@@ -658,7 +658,7 @@ ptr_register_code <- function(output,
 #'   `plot_obj + ptr_gg_extra(ptr_state, ...)`.
 #'
 #' @examples
-#' \dontrun{
+#' if (interactive()) {
 #' server <- function(input, output, session) {
 #'   ps <- ptr_server_state(
 #'     "ggplot(data = iris, aes(x = var, y = var)) + geom_point() + labs(title = text)"

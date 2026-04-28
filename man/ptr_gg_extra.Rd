@@ -47,7 +47,7 @@ prior successful draw never surface during a failed draw.
 }
 }
 \examples{
-\dontrun{
+if (interactive()) {
 server <- function(input, output, session) {
   ps <- ptr_server_state(
     "ggplot(data = iris, aes(x = var, y = var)) + geom_point() + labs(title = text)"

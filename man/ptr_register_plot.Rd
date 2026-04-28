@@ -20,7 +20,7 @@ Advanced users who want to transform the plot should instead write their own
 \code{renderPlot()} and call \code{ptr_extract_plot()}.
 }
 \examples{
-\dontrun{
+if (interactive()) {
 server <- function(input, output, session) {
   ps <- ptr_server_state("ggplot(mtcars, aes(x = var)) + geom_histogram()")
   ptr_register_draw(input, ps)

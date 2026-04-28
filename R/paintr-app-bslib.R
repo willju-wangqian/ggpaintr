@@ -27,7 +27,7 @@
 #'
 #' @return A `shiny.appobj`.
 #' @examples
-#' \dontrun{
+#' if (interactive()) {
 #' ptr_app_bslib(
 #'   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
 #' )

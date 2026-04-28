@@ -21,7 +21,7 @@ A character string or \code{NULL}.
 Return Generated Code Text from a Runtime Result
 }
 \examples{
-\dontrun{
+if (interactive()) {
 obj <- ptr_parse_formula(
   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
 )

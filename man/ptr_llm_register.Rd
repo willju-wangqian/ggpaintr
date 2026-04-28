@@ -34,7 +34,7 @@ This function does \emph{not} set the chat's system prompt. Pass
 \verb{chat_*()} constructor so the model knows when to reach for the tool.
 }
 \examples{
-\dontrun{
+if (interactive()) {
 library(ellmer)
 chat <- chat_anthropic(system_prompt = ptr_llm_primer())
 ptr_llm_register(chat)

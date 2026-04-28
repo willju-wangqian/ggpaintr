@@ -118,7 +118,7 @@ ptr_llm_topic <- function(name) {
 #' @seealso [ptr_llm_primer()], [ptr_llm_topic()], [ptr_llm_topics()]
 #' @export
 #' @examples
-#' \dontrun{
+#' if (interactive()) {
 #' library(ellmer)
 #' chat <- chat_anthropic(system_prompt = ptr_llm_primer())
 #' ptr_llm_register(chat)

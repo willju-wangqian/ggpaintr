@@ -56,7 +56,7 @@ and \code{\link[=ptr_server]{ptr_server()}} and composes outputs from the id con
 Requires the \code{bslib} package. Install it with \code{install.packages("bslib")}.
 }
 \examples{
-\dontrun{
+if (interactive()) {
 ptr_app_bslib(
   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
 )
