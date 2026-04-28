@@ -6,6 +6,21 @@
 #' Supported placeholders come from the effective placeholder registry. The
 #' built-in registry includes `var`, `text`, `num`, `expr`, and `upload`.
 #'
+#' @section Column-name collisions with placeholder keywords:
+#' Placeholder detection is purely syntactic: any bare symbol whose name
+#' matches a registered keyword (`var`, `text`, `num`, `expr`, `upload`, or
+#' any custom keyword) is consumed as a placeholder, regardless of whether
+#' the active dataset has a column with the same name. As a consequence, if
+#' your data has a column literally named `"var"`, writing the bare symbol
+#' `var` in the formula will *not* reference that column — it will be
+#' replaced by the user's `var` widget selection. Backtick quoting
+#' (`` `var` ``) parses to the same R symbol and does not escape the
+#' conflict. To reference such a column, use `.data[["var"]]`, which
+#' represents the column name as a string literal (not a symbol) and is
+#' therefore ignored by the placeholder walker. Alternatively, pick the
+#' column from the `var` dropdown, which still lists every column of the
+#' dataset (including one named `"var"`).
+#'
 #' @note The \code{formula} argument is validated by default using the denylist.
 #'   Set \code{formula_check = FALSE} only for trusted developer input that you
 #'   know is safe — this is an advanced option for package authors who

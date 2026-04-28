@@ -37,6 +37,23 @@ programmatically generate formula strings.  This check is independent of
 the per-placeholder \code{expr_check} applied at runtime; disabling one
 does not disable the other.
 }
+\section{Column-name collisions with placeholder keywords}{
+
+Placeholder detection is purely syntactic: any bare symbol whose name
+matches a registered keyword (\code{var}, \code{text}, \code{num}, \code{expr}, \code{upload}, or
+any custom keyword) is consumed as a placeholder, regardless of whether
+the active dataset has a column with the same name. As a consequence, if
+your data has a column literally named \code{"var"}, writing the bare symbol
+\code{var} in the formula will \emph{not} reference that column — it will be
+replaced by the user's \code{var} widget selection. Backtick quoting
+(\code{`var`}) parses to the same R symbol and does not escape the
+conflict. To reference such a column, use \code{.data[["var"]]}, which
+represents the column name as a string literal (not a symbol) and is
+therefore ignored by the placeholder walker. Alternatively, pick the
+column from the \code{var} dropdown, which still lists every column of the
+dataset (including one named \code{"var"}).
+}
+
 \examples{
 obj <- ptr_parse_formula(
   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
