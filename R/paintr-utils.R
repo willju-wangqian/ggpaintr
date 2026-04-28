@@ -370,13 +370,37 @@ check_remove_null <- function(x) {
   x
 }
 
-#' Apply a Namespace Function to a Single Id
+#' Apply a Namespace Function to a Placeholder Id
 #'
-#' @param ns_fn A namespace function `character -> character`.
-#' @param id A single id string.
+#' Resolve the namespaced Shiny input/output id for a placeholder.
+#' Custom `bind_ui` callbacks should call this with the namespace function
+#' supplied on the placeholder context, never assume `meta$id` is already
+#' namespaced.
+#'
+#' Inside a custom `bind_ui(input, output, metas, context)` use:
+#'
+#' ```
+#' input_id  <- ptr_ns_id(context$ns_fn    %||% shiny::NS(NULL), meta$id)
+#' output_id <- ptr_ns_id(context$ui_ns_fn %||% shiny::NS(NULL), meta$id)
+#' ```
+#'
+#' Under [ptr_app()] both `ns_fn` and `ui_ns_fn` default to `shiny::NS(NULL)`
+#' so the namespaced id equals `meta$id`. When ggpaintr is embedded inside a
+#' Shiny module (any wrapper that supplies a real namespace), they wrap a
+#' module namespace and the two ids diverge. Always go through `ptr_ns_id()`
+#' rather than building the id string yourself.
+#'
+#' @param ns_fn A namespace function with signature `character -> character`,
+#'   typically `shiny::NS(id)` or `shiny::NS(NULL)`.
+#' @param id A single id string (e.g., `meta$id` from a placeholder context).
 #'
 #' @return The namespaced id string.
-#' @noRd
+#' @seealso [ptr_define_placeholder()], [ptr_resolve_layer_data()].
+#' @examples
+#' ns <- shiny::NS("mod1")
+#' ptr_ns_id(ns, "ggplot_3_2")
+#' ptr_ns_id(shiny::NS(NULL), "ggplot_3_2")
+#' @export
 ptr_ns_id <- function(ns_fn, id) {
   ns_fn(id)
 }

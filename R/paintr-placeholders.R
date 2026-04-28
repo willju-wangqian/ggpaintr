@@ -6,17 +6,66 @@
 #' UI control, runtime expression replacement, deferred UI binding, and
 #' evaluation-environment preparation.
 #'
+#' # Data-independent placeholders (the common case)
+#'
+#' If the widget choices do not depend on the active dataset (date pickers,
+#' sliders, color pickers, free-text variants), supply `build_ui` and
+#' `resolve_expr` and you are done. The `id` passed to `build_ui` is already
+#' namespaced by ggpaintr; use it directly.
+#'
+#' # Data-aware placeholders (`bind_ui`)
+#'
+#' If the widget needs to read columns or values from the dataset (a
+#' multi-column selector inside `dplyr::select()`, a faceting variable picker,
+#' etc.), the dataset is not available at registration time -- it depends on
+#' the user's formula and on input values. Use `bind_ui` to register a Shiny
+#' `renderUI()` for the widget.
+#'
+#' The recommended pattern is the empty-container shape used by the built-in
+#' `var` placeholder: `build_ui` returns a placeholder `shiny::uiOutput()` and
+#' `bind_ui` fills it in. See *Examples*.
+#'
+#' ## `bind_ui(input, output, metas, context)` contract
+#'
+#' * `metas` is a list of meta objects (one per occurrence of `keyword` in the
+#'   formula). Each meta has `$id` (raw, *not* yet namespaced), `$keyword`,
+#'   `$param` (the ggplot argument name), and `$layer_name`
+#'   (e.g. `"ggplot"`, `"geom_point"`).
+#' * `context` carries:
+#'   * `$ptr_obj` -- the parsed formula tree
+#'     (use [ptr_resolve_layer_data()] to read layer data).
+#'   * `$eval_env` -- the evaluation environment used for the plot.
+#'   * `$envir` -- the user's calling environment.
+#'   * `$ns_fn`, `$ui_ns_fn` -- input/output namespace functions
+#'     (use [ptr_ns_id()] to namespace `meta$id`).
+#'   * `$var_column_map` -- cached column lists for `var` placeholders.
+#'   * `$ui_text` -- merged ui text for labels/help.
+#' * Return value: either `NULL` (treated as a no-op; render via
+#'   `output[[...]]` side effects) or a named list keyed by `meta$id`. Items
+#'   in that list are merged into ggpaintr's deferred-UI map and rendered in
+#'   the layer panel. Returning a list is preferred for widgets you want
+#'   ggpaintr to lay out next to other controls.
+#'
+#' ## Namespacing rule
+#'
+#' `meta$id` is the *raw* placeholder id (e.g. `"ggplot_3_2"`). Under
+#' [ptr_app()] the default namespace functions are `shiny::NS(NULL)` so the
+#' raw id round-trips unchanged, but when ggpaintr is embedded inside a
+#' Shiny module those functions wrap a real namespace. Always namespace
+#' `meta$id` via [ptr_ns_id()] before assigning into `output` or referencing
+#' `input`.
+#'
 #' @param keyword A single syntactic placeholder name used inside the formula.
 #' @param build_ui Function with signature `(id, copy, meta, context)` returning
-#'   a Shiny UI control or placeholder.
+#'   a Shiny UI control or placeholder. `id` is already namespaced.
 #' @param resolve_expr Function with signature `(value, meta, context)`
 #'   returning an R expression or `ptr_missing_expr()`.
 #' @param resolve_input Optional function with signature
 #'   `(input, id, meta, context)` returning the raw value to hand to
 #'   `resolve_expr()`. Defaults to `input[[id]]`.
 #' @param bind_ui Optional function with signature `(input, output, metas,
-#'   context)` for registering deferred UI such as the built-in `var`
-#'   placeholder.
+#'   context)` for registering deferred UI. See *Data-aware placeholders*
+#'   above for the contract. The built-in `var` placeholder uses this hook.
 #' @param prepare_eval_env Optional function with signature
 #'   `(input, metas, eval_env, context)` returning an updated evaluation
 #'   environment.
@@ -25,7 +74,10 @@
 #'   `list(label = "Enter a value for {param}")`.
 #'
 #' @return An object of class `ptr_define_placeholder`.
+#' @seealso [ptr_resolve_layer_data()], [ptr_ns_id()],
+#'   [ptr_merge_placeholders()].
 #' @examples
+#' # ---- Data-independent placeholder: a date picker -------------------------
 #' date_placeholder <- ptr_define_placeholder(
 #'   keyword = "date",
 #'   build_ui = function(id, copy, meta, context) {
@@ -41,6 +93,55 @@
 #'   copy_defaults = list(label = "Choose a date for {param}")
 #' )
 #' date_placeholder$keyword
+#'
+#' # ---- Data-aware placeholder: a numeric-columns-only picker --------------
+#' # build_ui returns an empty uiOutput; bind_ui fills it in once the layer
+#' # data has resolved. Use ptr_resolve_layer_data() to fetch the data frame
+#' # and ptr_ns_id() to namespace the input/output ids.
+#' numvar_placeholder <- ptr_define_placeholder(
+#'   keyword = "numvar",
+#'   build_ui = function(id, copy, meta, context) {
+#'     shiny::uiOutput(paste0(id, "_container"))
+#'   },
+#'   bind_ui = function(input, output, metas, context) {
+#'     for (meta in metas) {
+#'       local({
+#'         m <- meta
+#'         layer_data <- ptr_resolve_layer_data(
+#'           context$ptr_obj, m$layer_name, input, context, context$eval_env
+#'         )
+#'         choices <- if (isTRUE(layer_data$has_data) &&
+#'                        is.data.frame(layer_data$data)) {
+#'           df <- layer_data$data
+#'           names(df)[vapply(df, is.numeric, logical(1))]
+#'         } else {
+#'           character()
+#'         }
+#'         input_id  <- ptr_ns_id(context$ns_fn    %||% shiny::NS(NULL), m$id)
+#'         output_id <- ptr_ns_id(
+#'           context$ui_ns_fn %||% shiny::NS(NULL),
+#'           paste0(m$id, "_container")
+#'         )
+#'         output[[output_id]] <- shiny::renderUI({
+#'           shiny::selectInput(
+#'             input_id,
+#'             paste("Numeric column for", m$param),
+#'             choices = choices
+#'           )
+#'         })
+#'       })
+#'     }
+#'     invisible(NULL)
+#'   },
+#'   resolve_expr = function(value, meta, context) {
+#'     if (is.null(value) || identical(value, "")) {
+#'       return(ptr_missing_expr())
+#'     }
+#'
+#'     rlang::sym(value)
+#'   }
+#' )
+#' numvar_placeholder$keyword
 #' @export
 ptr_define_placeholder <- function(keyword,
                                  build_ui,
@@ -780,16 +881,40 @@ ptr_prepare_upload_eval_env_impl <- function(input, metas, eval_env, context) {
   eval_env
 }
 
-#' Resolve the Dataset Object Used by One Layer
+#' Resolve the Dataset for a ggpaintr Layer
 #'
-#' @param ptr_obj A `ptr_obj`.
-#' @param layer_name A parsed layer name.
-#' @param input A Shiny input-like object.
-#' @param context A placeholder context list.
-#' @param eval_env An evaluation environment.
+#' Return the active data frame for a parsed layer (e.g. `"ggplot"`,
+#' `"geom_point"`). Designed to be called from a custom placeholder's
+#' `bind_ui()` callback when the widget needs to know columns or values
+#' from the dataset that the user is currently plotting.
 #'
-#' @return A list with `has_data` and `data`.
-#' @noRd
+#' Resolution order:
+#' 1. Look up the layer's `data` argument by parameter name. If the layer
+#'    has a `data = <placeholder>` argument (e.g. `data = upload`), evaluate
+#'    that placeholder to get the data frame.
+#' 2. If the `data` argument is an unbound symbol, evaluate it in `eval_env`.
+#' 3. Otherwise fall back to the first positional argument when it is a bare
+#'    symbol (e.g. `ggplot(mtcars, aes(...))`). This heuristic does **not**
+#'    handle non-data-first call shapes such as `merge(x, y)`; in those
+#'    cases supply `data = ` explicitly in the formula.
+#'
+#' Returns `list(has_data = FALSE, data = NULL)` if no dataset is resolvable,
+#' so callers can early-return without rendering an empty widget.
+#'
+#' @param ptr_obj A `ptr_obj` (available as `context$ptr_obj` inside a
+#'   `bind_ui()` callback).
+#' @param layer_name Layer name as a string. Use `meta$layer_name` to scope
+#'   to the meta currently being bound, or `"ggplot"` for the base layer.
+#' @param input A Shiny `input` reactive values object (the first argument
+#'   of `bind_ui()`).
+#' @param context The placeholder context (the fourth argument of
+#'   `bind_ui()`).
+#' @param eval_env An evaluation environment, typically `context$eval_env`.
+#'
+#' @return A named list with components `has_data` (logical scalar) and
+#'   `data` (the resolved data frame, or `NULL`).
+#' @seealso [ptr_define_placeholder()], [ptr_ns_id()].
+#' @export
 ptr_resolve_layer_data <- function(ptr_obj,
                                       layer_name,
                                       input,

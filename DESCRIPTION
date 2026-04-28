@@ -1,7 +1,7 @@
 Package: ggpaintr
 Type: Package
 Title: Build Formula-Driven 'Shiny' Apps for 'ggplot2'
-Version: 0.9.0
+Version: 0.9.1
 Authors@R: c(
     person(
       given = "Wangqian",

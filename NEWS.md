@@ -1,3 +1,10 @@
+# ggpaintr 0.9.1
+
+## Documentation and exports
+
+- `ptr_resolve_layer_data()` and `ptr_ns_id()` are now exported with full docs. Custom data-aware placeholders should call these helpers from a `bind_ui()` callback instead of replicating the source-symbol walk or the namespace-function dance.
+- `?ptr_define_placeholder` now documents the `bind_ui` contract, the contents of the placeholder `context`, and the `meta$id` namespacing rule. A second runnable example demonstrates a data-aware "numeric-columns-only" placeholder using the public helpers.
+
 # ggpaintr 0.9.0
 
 ## New features

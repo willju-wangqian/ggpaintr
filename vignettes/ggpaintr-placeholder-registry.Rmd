@@ -252,6 +252,11 @@ value is a named list of `renderUI()`-capable tags keyed by `meta$id`,
 which ggpaintr uses for deferred rendering; returning `NULL` or
 `invisible(NULL)` is fine.
 
+Two public helpers exist for the data-aware patterns that show up most often inside `bind_ui`:
+
+- `ptr_resolve_layer_data(ptr_obj, layer_name, input, context, eval_env)` — returns `list(has_data, data)` for a parsed layer. Handles the common case where `data =` is a bare symbol, an upload placeholder, or omitted (falls back to the layer's first positional argument). Returns `has_data = FALSE` when the data argument is a more elaborate call expression — see *When `data =` is a transformation chain* below.
+- `ptr_ns_id(ns_fn, id)` — namespaces a raw `meta$id` so it survives Shiny module wrappers. Use `context$ns_fn` for input ids and `context$ui_ns_fn` for output ids; both default to `shiny::NS(NULL)` under `ptr_app()` so the raw id round-trips unchanged, but they wrap a real namespace when ggpaintr is embedded inside a module.
+
 ### `prepare_eval_env(input, metas, eval_env, context)` — optional
 
 Runs immediately before the completed expression is evaluated. Use it to
@@ -267,6 +272,10 @@ It uses `bind_ui` to populate a `selectInput` with the data's numeric
 columns, and `prepare_eval_env` to expose a small safe-log helper so the
 generated call stays readable.
 
+The data-resolution step uses the public `ptr_resolve_layer_data()` helper,
+and `ptr_ns_id()` namespaces the input/output ids so the placeholder
+survives Shiny module wrappers.
+
 ```{r log-num-placeholder}
 log_num <- ptr_define_placeholder(
   keyword = "log_num",
@@ -279,22 +288,25 @@ log_num <- ptr_define_placeholder(
   # Populate the selectInput with numeric columns drawn from the data
   # symbol referenced in the formula's ggplot() layer.
   bind_ui = function(input, output, metas, context) {
-    eval_env <- context$eval_env
-    ggplot_expr <- context$ptr_obj$expr_list[["ggplot"]]
-    data_expr <- if (is.call(ggplot_expr)) ggplot_expr$data else NULL
-    numeric_cols <- character(0)
-    if (!is.null(eval_env) && !is.null(data_expr)) {
-      d <- tryCatch(eval(data_expr, envir = eval_env), error = function(e) NULL)
-      if (is.data.frame(d)) {
-        numeric_cols <- names(d)[vapply(d, is.numeric, logical(1))]
-      }
-    }
     for (meta in metas) {
       local({
         m <- meta
-        output[[paste0(m$id, "_container")]] <- shiny::renderUI({
+        info <- ptr_resolve_layer_data(
+          context$ptr_obj, m$layer_name, input, context, context$eval_env
+        )
+        numeric_cols <- if (isTRUE(info$has_data) && is.data.frame(info$data)) {
+          names(info$data)[vapply(info$data, is.numeric, logical(1))]
+        } else {
+          character()
+        }
+        input_id  <- ptr_ns_id(context$ns_fn    %||% shiny::NS(NULL), m$id)
+        output_id <- ptr_ns_id(
+          context$ui_ns_fn %||% shiny::NS(NULL),
+          paste0(m$id, "_container")
+        )
+        output[[output_id]] <- shiny::renderUI({
           shiny::selectInput(
-            m$id,
+            input_id,
             label   = paste("Log-transform column for", m$param),
             choices = numeric_cols
           )
@@ -356,6 +368,220 @@ Launch the live app to exercise `bind_ui`:
 ptr_app(
   "ggplot(data = mtcars, aes(x = wt, y = log_num)) + geom_point()",
   placeholders = registry
+)
+```
+
+## When `data =` is a transformation chain
+
+`ptr_resolve_layer_data()` covers the common cases — `data = some_data_frame`, `data = upload`, omitted `data` — by walking the parsed layer for a bare data symbol. It deliberately does *not* try to evaluate arbitrary call expressions, so when the formula uses something like `data = transform(subset(iris, ...), ...)` (or a `dplyr::select(iris, ...) |> mutate(...)` chain) the helper returns `has_data = FALSE`.
+
+The fix is a thin fallback inside `bind_ui`: when the helper reports no data, evaluate the raw `data =` expression in `context$eval_env`. The chain itself is composed of bound symbols and ordinary functions, so `eval()` succeeds and the post-transform data frame is exactly what the widget needs to populate its choices.
+
+```{r numvar-chain-placeholder}
+numvar <- ptr_define_placeholder(
+  keyword = "numvar",
+  build_ui = function(id, copy, meta, context) {
+    shiny::uiOutput(paste0(id, "_container"))
+  },
+  bind_ui = function(input, output, metas, context) {
+    resolve_layer_df <- function(m) {
+      info <- ptr_resolve_layer_data(
+        context$ptr_obj, m$layer_name, input, context, context$eval_env
+      )
+      if (isTRUE(info$has_data) && is.data.frame(info$data)) {
+        return(info$data)
+      }
+      # Fallback: evaluate the raw `data =` expression. Handles
+      # transform(subset(...)) and other call chains as long as the
+      # chain itself does not reference an unbound placeholder symbol.
+      data_expr <- context$ptr_obj$expr_list[[m$layer_name]]$data
+      if (!is.null(data_expr) && !is.null(context$eval_env)) {
+        df <- tryCatch(
+          eval(data_expr, envir = context$eval_env),
+          error = function(e) NULL
+        )
+        if (is.data.frame(df)) return(df)
+      }
+      NULL
+    }
+
+    for (meta in metas) {
+      local({
+        m <- meta
+        df <- resolve_layer_df(m)
+        choices <- if (is.data.frame(df)) {
+          names(df)[vapply(df, is.numeric, logical(1))]
+        } else {
+          character()
+        }
+        input_id  <- ptr_ns_id(context$ns_fn    %||% shiny::NS(NULL), m$id)
+        output_id <- ptr_ns_id(
+          context$ui_ns_fn %||% shiny::NS(NULL),
+          paste0(m$id, "_container")
+        )
+        output[[output_id]] <- shiny::renderUI({
+          shiny::selectInput(
+            input_id,
+            paste("Numeric column for", m$param),
+            choices = choices
+          )
+        })
+      })
+    }
+    invisible(NULL)
+  },
+  resolve_expr = function(value, meta, context) {
+    if (is.null(value) || identical(value, "")) {
+      return(ptr_missing_expr())
+    }
+    rlang::sym(value)
+  }
+)
+```
+
+A formula whose `data =` is a nested call: `subset()` filters to one species, then `transform()` adds a derived numeric column. `ptr_resolve_layer_data()` cannot reach into that, but the fallback's `eval()` returns the full post-transform frame, and the widget exposes the new `double_length` column alongside the originals.
+
+```{r numvar-chain-parse}
+registry_chain <- ptr_merge_placeholders(list(numvar = numvar))
+
+obj_chain <- ptr_parse_formula(
+  paste0(
+    'ggplot(',
+    'data = transform(subset(iris, Species == "setosa"), ',
+    'double_length = Sepal.Length * 2), ',
+    'aes(x = numvar, y = numvar)) + geom_point()'
+  ),
+  placeholders = registry_chain
+)
+
+obj_chain$formula_text
+```
+
+```{r numvar-chain-exec}
+runtime <- ptr_exec(
+  obj_chain,
+  list(
+    "ggplot_3_2"          = "Sepal.Length",   # x = numvar
+    "ggplot_3_3"          = "double_length",  # y = numvar
+    "geom_point_checkbox" = TRUE
+  )
+)
+
+cat(runtime$code_text)
+```
+
+```{r numvar-chain-app, eval = FALSE}
+ptr_app(
+  obj_chain$formula_text,
+  placeholders = registry_chain
+)
+```
+
+## A multi-column picker — `colvars`
+
+Some data-shaping verbs take a *vector* of column names rather than a single one: `subset(data, select = ...)`, `dplyr::select(data, all_of(...))`, `tidyr::pivot_longer(data, cols = all_of(...))`. The placeholder below — `colvars` — exposes that shape: it gives the user a `selectInput()` with `multiple = TRUE` and resolves to a character-vector literal `c("col_a", "col_b", ...)` that drops directly into any of those call sites.
+
+Because the placeholder typically sits *inside* the transformation (e.g. `subset(iris, select = colvars)`), `ptr_resolve_layer_data()` cannot evaluate the full data expression — `colvars` itself is unbound at bind time, so eval fails. The fallback walks the data expression looking for the underlying source frame: the first bare symbol that resolves to a data frame in `eval_env` wins. That symbol (`iris`, `mtcars`, an upload object, ...) is what you want to populate the column choices from.
+
+```{r colvars-placeholder}
+# Walk the layer's `data =` expression and return the first bare symbol
+# that resolves to a data frame in eval_env. Mirrors the "give me the
+# upstream source data" need when colvars is wrapped in subset/select/...
+find_root_data <- function(e, eval_env) {
+  if (is.null(e) || is.null(eval_env)) return(NULL)
+  if (is.symbol(e)) {
+    obj <- tryCatch(eval(e, envir = eval_env), error = function(err) NULL)
+    if (is.data.frame(obj)) return(obj)
+    return(NULL)
+  }
+  if (is.call(e)) {
+    for (i in seq_along(e)[-1]) {
+      df <- find_root_data(e[[i]], eval_env)
+      if (!is.null(df)) return(df)
+    }
+  }
+  NULL
+}
+
+colvars <- ptr_define_placeholder(
+  keyword = "colvars",
+  build_ui = function(id, copy, meta, context) {
+    shiny::uiOutput(paste0(id, "_container"))
+  },
+  bind_ui = function(input, output, metas, context) {
+    for (meta in metas) {
+      local({
+        m <- meta
+        info <- ptr_resolve_layer_data(
+          context$ptr_obj, m$layer_name, input, context, context$eval_env
+        )
+        df <- if (isTRUE(info$has_data) && is.data.frame(info$data)) {
+          info$data
+        } else {
+          find_root_data(
+            context$ptr_obj$expr_list[[m$layer_name]]$data,
+            context$eval_env
+          )
+        }
+        choices <- if (is.data.frame(df)) names(df) else character()
+        input_id  <- ptr_ns_id(context$ns_fn    %||% shiny::NS(NULL), m$id)
+        output_id <- ptr_ns_id(
+          context$ui_ns_fn %||% shiny::NS(NULL),
+          paste0(m$id, "_container")
+        )
+        output[[output_id]] <- shiny::renderUI({
+          shiny::selectInput(
+            input_id,
+            paste("Columns for", m$param),
+            choices  = choices,
+            multiple = TRUE
+          )
+        })
+      })
+    }
+    invisible(NULL)
+  },
+  resolve_expr = function(value, meta, context) {
+    if (length(value) == 0) return(ptr_missing_expr())
+    rlang::expr(c(!!!value))
+  }
+)
+```
+
+Used inside `subset()` to pick which columns to retain before plotting:
+
+```{r colvars-parse}
+registry_colvars <- ptr_merge_placeholders(list(colvars = colvars))
+
+obj_colvars <- ptr_parse_formula(
+  paste0(
+    'ggplot(data = subset(iris, select = colvars), ',
+    'aes(x = Sepal.Length)) + geom_histogram(bins = 30)'
+  ),
+  placeholders = registry_colvars
+)
+
+obj_colvars$formula_text
+```
+
+```{r colvars-exec}
+runtime <- ptr_exec(
+  obj_colvars,
+  list(
+    "ggplot_2_3"              = c("Sepal.Length", "Petal.Length"),
+    "geom_histogram_checkbox" = TRUE
+  )
+)
+
+cat(runtime$code_text)
+```
+
+The same `colvars` placeholder drops into a tidyverse-flavoured pipeline without changing the placeholder definition: `dplyr::select(iris, dplyr::all_of(colvars))` keeps a chosen subset of columns, and `tidyr::pivot_longer(iris, cols = dplyr::all_of(colvars))` reshapes the chosen numeric columns into long format. In each case the resolved expression is a plain character vector, so any function that accepts character column-names accepts the placeholder.
+
+```{r colvars-app, eval = FALSE}
+ptr_app(
+  obj_colvars$formula_text,
+  placeholders = registry_colvars
 )
 ```
 

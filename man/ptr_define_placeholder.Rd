@@ -18,7 +18,7 @@ ptr_define_placeholder(
 \item{keyword}{A single syntactic placeholder name used inside the formula.}
 
 \item{build_ui}{Function with signature \verb{(id, copy, meta, context)} returning
-a Shiny UI control or placeholder.}
+a Shiny UI control or placeholder. \code{id} is already namespaced.}
 
 \item{resolve_expr}{Function with signature \verb{(value, meta, context)}
 returning an R expression or \code{ptr_missing_expr()}.}
@@ -27,8 +27,8 @@ returning an R expression or \code{ptr_missing_expr()}.}
 \verb{(input, id, meta, context)} returning the raw value to hand to
 \code{resolve_expr()}. Defaults to \code{input[[id]]}.}
 
-\item{bind_ui}{Optional function with signature \verb{(input, output, metas, context)} for registering deferred UI such as the built-in \code{var}
-placeholder.}
+\item{bind_ui}{Optional function with signature \verb{(input, output, metas, context)} for registering deferred UI. See \emph{Data-aware placeholders}
+above for the contract. The built-in \code{var} placeholder uses this hook.}
 
 \item{prepare_eval_env}{Optional function with signature
 \verb{(input, metas, eval_env, context)} returning an updated evaluation
@@ -47,7 +47,61 @@ Build one placeholder specification for use with
 UI control, runtime expression replacement, deferred UI binding, and
 evaluation-environment preparation.
 }
+\section{Data-independent placeholders (the common case)}{
+If the widget choices do not depend on the active dataset (date pickers,
+sliders, color pickers, free-text variants), supply \code{build_ui} and
+\code{resolve_expr} and you are done. The \code{id} passed to \code{build_ui} is already
+namespaced by ggpaintr; use it directly.
+}
+
+\section{Data-aware placeholders (\code{bind_ui})}{
+If the widget needs to read columns or values from the dataset (a
+multi-column selector inside \code{dplyr::select()}, a faceting variable picker,
+etc.), the dataset is not available at registration time -- it depends on
+the user's formula and on input values. Use \code{bind_ui} to register a Shiny
+\code{renderUI()} for the widget.
+
+The recommended pattern is the empty-container shape used by the built-in
+\code{var} placeholder: \code{build_ui} returns a placeholder \code{shiny::uiOutput()} and
+\code{bind_ui} fills it in. See \emph{Examples}.
+\subsection{\code{bind_ui(input, output, metas, context)} contract}{
+\itemize{
+\item \code{metas} is a list of meta objects (one per occurrence of \code{keyword} in the
+formula). Each meta has \verb{$id} (raw, \emph{not} yet namespaced), \verb{$keyword},
+\verb{$param} (the ggplot argument name), and \verb{$layer_name}
+(e.g. \code{"ggplot"}, \code{"geom_point"}).
+\item \code{context} carries:
+\itemize{
+\item \verb{$ptr_obj} -- the parsed formula tree
+(use \code{\link[=ptr_resolve_layer_data]{ptr_resolve_layer_data()}} to read layer data).
+\item \verb{$eval_env} -- the evaluation environment used for the plot.
+\item \verb{$envir} -- the user's calling environment.
+\item \verb{$ns_fn}, \verb{$ui_ns_fn} -- input/output namespace functions
+(use \code{\link[=ptr_ns_id]{ptr_ns_id()}} to namespace \code{meta$id}).
+\item \verb{$var_column_map} -- cached column lists for \code{var} placeholders.
+\item \verb{$ui_text} -- merged ui text for labels/help.
+}
+\item Return value: either \code{NULL} (treated as a no-op; render via
+\code{output[[...]]} side effects) or a named list keyed by \code{meta$id}. Items
+in that list are merged into ggpaintr's deferred-UI map and rendered in
+the layer panel. Returning a list is preferred for widgets you want
+ggpaintr to lay out next to other controls.
+}
+}
+
+\subsection{Namespacing rule}{
+
+\code{meta$id} is the \emph{raw} placeholder id (e.g. \code{"ggplot_3_2"}). Under
+\code{\link[=ptr_app]{ptr_app()}} the default namespace functions are \code{shiny::NS(NULL)} so the
+raw id round-trips unchanged, but when ggpaintr is embedded inside a
+Shiny module those functions wrap a real namespace. Always namespace
+\code{meta$id} via \code{\link[=ptr_ns_id]{ptr_ns_id()}} before assigning into \code{output} or referencing
+\code{input}.
+}
+}
+
 \examples{
+# ---- Data-independent placeholder: a date picker -------------------------
 date_placeholder <- ptr_define_placeholder(
   keyword = "date",
   build_ui = function(id, copy, meta, context) {
@@ -63,4 +117,57 @@ date_placeholder <- ptr_define_placeholder(
   copy_defaults = list(label = "Choose a date for {param}")
 )
 date_placeholder$keyword
+
+# ---- Data-aware placeholder: a numeric-columns-only picker --------------
+# build_ui returns an empty uiOutput; bind_ui fills it in once the layer
+# data has resolved. Use ptr_resolve_layer_data() to fetch the data frame
+# and ptr_ns_id() to namespace the input/output ids.
+numvar_placeholder <- ptr_define_placeholder(
+  keyword = "numvar",
+  build_ui = function(id, copy, meta, context) {
+    shiny::uiOutput(paste0(id, "_container"))
+  },
+  bind_ui = function(input, output, metas, context) {
+    for (meta in metas) {
+      local({
+        m <- meta
+        layer_data <- ptr_resolve_layer_data(
+          context$ptr_obj, m$layer_name, input, context, context$eval_env
+        )
+        choices <- if (isTRUE(layer_data$has_data) &&
+                       is.data.frame(layer_data$data)) {
+          df <- layer_data$data
+          names(df)[vapply(df, is.numeric, logical(1))]
+        } else {
+          character()
+        }
+        input_id  <- ptr_ns_id(context$ns_fn    \%||\% shiny::NS(NULL), m$id)
+        output_id <- ptr_ns_id(
+          context$ui_ns_fn \%||\% shiny::NS(NULL),
+          paste0(m$id, "_container")
+        )
+        output[[output_id]] <- shiny::renderUI({
+          shiny::selectInput(
+            input_id,
+            paste("Numeric column for", m$param),
+            choices = choices
+          )
+        })
+      })
+    }
+    invisible(NULL)
+  },
+  resolve_expr = function(value, meta, context) {
+    if (is.null(value) || identical(value, "")) {
+      return(ptr_missing_expr())
+    }
+
+    rlang::sym(value)
+  }
+)
+numvar_placeholder$keyword
+}
+\seealso{
+\code{\link[=ptr_resolve_layer_data]{ptr_resolve_layer_data()}}, \code{\link[=ptr_ns_id]{ptr_ns_id()}},
+\code{\link[=ptr_merge_placeholders]{ptr_merge_placeholders()}}.
 }
