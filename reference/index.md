@@ -63,6 +63,10 @@ package internals.
   : Build the Effective Placeholder Registry for ggpaintr
 - [`ptr_missing_expr()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_missing_expr.md)
   : Return the Sentinel for Removing a Placeholder Argument
+- [`ptr_resolve_layer_data()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_resolve_layer_data.md)
+  : Resolve the Dataset for a ggpaintr Layer
+- [`ptr_ns_id()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ns_id.md)
+  : Apply a Namespace Function to a Placeholder Id
 
 ## Data preparation
 

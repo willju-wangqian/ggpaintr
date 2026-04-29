@@ -94,6 +94,20 @@ A few behaviors worth knowing:
 - Non-syntactic column names (spaces, leading digits, symbols) are
   normalized to syntactic identifiers — see [§4. Data
   sources](#id_4-data-sources).
+- **Column-name collisions with placeholder keywords.** Detection of
+  `var` (and `text`, `num`, `expr`, `upload`) is purely syntactic: any
+  bare symbol matching a registered keyword is consumed as a
+  placeholder, regardless of whether the dataset has a column with the
+  same name. So if your data has a column literally named `"var"`, you
+  cannot reference it by writing the bare symbol `var` (backtick quoting
+  `` `var` `` parses to the same symbol and does not escape the
+  conflict). Two workarounds: (1) refer to the column via
+  `.data[["var"]]` — the column name is then a string literal, not a
+  symbol, so it is not matched as a placeholder; or (2) pick the column
+  from the `var` widget’s dropdown, which still lists every column of
+  the dataset, including one named `"var"`. The same applies to columns
+  named `"text"`, `"num"`, `"expr"`, `"upload"`, or any custom
+  placeholder keyword.
 
 #### `text` — a string literal
 

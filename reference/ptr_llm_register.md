@@ -54,10 +54,10 @@ model knows when to reach for the tool.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
+if (interactive()) {
 library(ellmer)
 chat <- chat_anthropic(system_prompt = ptr_llm_primer())
 ptr_llm_register(chat)
 chat$chat("Build a Shiny app where the user picks X and Y columns from mtcars.")
-} # }
+}
 ```

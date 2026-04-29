@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -443,6 +443,26 @@ blocks for widgets that depend on reactive state. The return value is a
 named list of <code><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI()</a></code>-capable tags keyed by
 <code>meta$id</code>, which ggpaintr uses for deferred rendering;
 returning <code>NULL</code> or <code>invisible(NULL)</code> is fine.</p>
+<p>Two public helpers exist for the data-aware patterns that show up
+most often inside <code>bind_ui</code>:</p>
+<ul>
+<li>
+<code>ptr_resolve_layer_data(ptr_obj, layer_name, input, context, eval_env)</code>
+— returns <code>list(has_data, data)</code> for a parsed layer. Handles
+the common case where <code>data =</code> is a bare symbol, an upload
+placeholder, or omitted (falls back to the layer’s first positional
+argument). Returns <code>has_data = FALSE</code> when the data argument
+is a more elaborate call expression — see <em>When <code>data =</code>
+is a transformation chain</em> below.</li>
+<li>
+<code>ptr_ns_id(ns_fn, id)</code> — namespaces a raw
+<code>meta$id</code> so it survives Shiny module wrappers. Use
+<code>context$ns_fn</code> for input ids and
+<code>context$ui_ns_fn</code> for output ids; both default to
+<code>shiny::NS(NULL)</code> under <code><a href="../reference/ptr_app.html">ptr_app()</a></code> so the raw id
+round-trips unchanged, but they wrap a real namespace when ggpaintr is
+embedded inside a module.</li>
+</ul>
 </div>
 <div class="section level3">
 <h3 id="prepare_eval_envinput-metas-eval_env-context-optional">
@@ -466,6 +486,10 @@ a numeric column from the formula’s <code>data</code> and wraps it in
 to populate a <code>selectInput</code> with the data’s numeric columns,
 and <code>prepare_eval_env</code> to expose a small safe-log helper so
 the generated call stays readable.</p>
+<p>The data-resolution step uses the public
+<code><a href="../reference/ptr_resolve_layer_data.html">ptr_resolve_layer_data()</a></code> helper, and
+<code><a href="../reference/ptr_ns_id.html">ptr_ns_id()</a></code> namespaces the input/output ids so the
+placeholder survives Shiny module wrappers.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">log_num</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
 <span>  keyword <span class="op">=</span> <span class="st">"log_num"</span>,</span>
@@ -478,22 +502,25 @@ the generated call stays readable.</p>
 <span>  <span class="co"># Populate the selectInput with numeric columns drawn from the data</span></span>
 <span>  <span class="co"># symbol referenced in the formula's ggplot() layer.</span></span>
 <span>  bind_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">metas</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="va">eval_env</span> <span class="op">&lt;-</span> <span class="va">context</span><span class="op">$</span><span class="va">eval_env</span></span>
-<span>    <span class="va">ggplot_expr</span> <span class="op">&lt;-</span> <span class="va">context</span><span class="op">$</span><span class="va">ptr_obj</span><span class="op">$</span><span class="va">expr_list</span><span class="op">[[</span><span class="st">"ggplot"</span><span class="op">]</span><span class="op">]</span></span>
-<span>    <span class="va">data_expr</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/call.html" class="external-link">is.call</a></span><span class="op">(</span><span class="va">ggplot_expr</span><span class="op">)</span><span class="op">)</span> <span class="va">ggplot_expr</span><span class="op">$</span><span class="va">data</span> <span class="kw">else</span> <span class="cn">NULL</span></span>
-<span>    <span class="va">numeric_cols</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span></span>
-<span>    <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">eval_env</span><span class="op">)</span> <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">data_expr</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>      <span class="va">d</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/eval.html" class="external-link">eval</a></span><span class="op">(</span><span class="va">data_expr</span>, envir <span class="op">=</span> <span class="va">eval_env</span><span class="op">)</span>, error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="cn">NULL</span><span class="op">)</span></span>
-<span>      <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">is.data.frame</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>        <span class="va">numeric_cols</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">d</span>, <span class="va">is.numeric</span>, <span class="fu"><a href="https://rdrr.io/r/base/logical.html" class="external-link">logical</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span><span class="op">]</span></span>
-<span>      <span class="op">}</span></span>
-<span>    <span class="op">}</span></span>
 <span>    <span class="kw">for</span> <span class="op">(</span><span class="va">meta</span> <span class="kw">in</span> <span class="va">metas</span><span class="op">)</span> <span class="op">{</span></span>
 <span>      <span class="fu"><a href="https://rdrr.io/r/base/eval.html" class="external-link">local</a></span><span class="op">(</span><span class="op">{</span></span>
 <span>        <span class="va">m</span> <span class="op">&lt;-</span> <span class="va">meta</span></span>
-<span>        <span class="va">output</span><span class="op">[[</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">m</span><span class="op">$</span><span class="va">id</span>, <span class="st">"_container"</span><span class="op">)</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI</a></span><span class="op">(</span><span class="op">{</span></span>
+<span>        <span class="va">info</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_resolve_layer_data.html">ptr_resolve_layer_data</a></span><span class="op">(</span></span>
+<span>          <span class="va">context</span><span class="op">$</span><span class="va">ptr_obj</span>, <span class="va">m</span><span class="op">$</span><span class="va">layer_name</span>, <span class="va">input</span>, <span class="va">context</span>, <span class="va">context</span><span class="op">$</span><span class="va">eval_env</span></span>
+<span>        <span class="op">)</span></span>
+<span>        <span class="va">numeric_cols</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Logic.html" class="external-link">isTRUE</a></span><span class="op">(</span><span class="va">info</span><span class="op">$</span><span class="va">has_data</span><span class="op">)</span> <span class="op">&amp;&amp;</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">is.data.frame</a></span><span class="op">(</span><span class="va">info</span><span class="op">$</span><span class="va">data</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>          <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">info</span><span class="op">$</span><span class="va">data</span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">info</span><span class="op">$</span><span class="va">data</span>, <span class="va">is.numeric</span>, <span class="fu"><a href="https://rdrr.io/r/base/logical.html" class="external-link">logical</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span><span class="op">]</span></span>
+<span>        <span class="op">}</span> <span class="kw">else</span> <span class="op">{</span></span>
+<span>          <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>        <span class="op">}</span></span>
+<span>        <span class="va">input_id</span>  <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_ns_id.html">ptr_ns_id</a></span><span class="op">(</span><span class="va">context</span><span class="op">$</span><span class="va">ns_fn</span>    <span class="op"><a href="https://rdrr.io/r/base/Control.html" class="external-link">%||%</a></span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span>, <span class="va">m</span><span class="op">$</span><span class="va">id</span><span class="op">)</span></span>
+<span>        <span class="va">output_id</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_ns_id.html">ptr_ns_id</a></span><span class="op">(</span></span>
+<span>          <span class="va">context</span><span class="op">$</span><span class="va">ui_ns_fn</span> <span class="op"><a href="https://rdrr.io/r/base/Control.html" class="external-link">%||%</a></span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span>,</span>
+<span>          <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">m</span><span class="op">$</span><span class="va">id</span>, <span class="st">"_container"</span><span class="op">)</span></span>
+<span>        <span class="op">)</span></span>
+<span>        <span class="va">output</span><span class="op">[[</span><span class="va">output_id</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI</a></span><span class="op">(</span><span class="op">{</span></span>
 <span>          <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/selectInput.html" class="external-link">selectInput</a></span><span class="op">(</span></span>
-<span>            <span class="va">m</span><span class="op">$</span><span class="va">id</span>,</span>
+<span>            <span class="va">input_id</span>,</span>
 <span>            label   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Log-transform column for"</span>, <span class="va">m</span><span class="op">$</span><span class="va">param</span><span class="op">)</span>,</span>
 <span>            choices <span class="op">=</span> <span class="va">numeric_cols</span></span>
 <span>          <span class="op">)</span></span>
@@ -552,6 +579,251 @@ bound it in the eval environment:</p>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
+<h2 id="when-data-is-a-transformation-chain">When <code>data =</code> is a transformation chain<a class="anchor" aria-label="anchor" href="#when-data-is-a-transformation-chain"></a>
+</h2>
+<p><code><a href="../reference/ptr_resolve_layer_data.html">ptr_resolve_layer_data()</a></code> covers the common cases —
+<code>data = some_data_frame</code>, <code>data = upload</code>, omitted
+<code>data</code> — by walking the parsed layer for a bare data symbol.
+It deliberately does <em>not</em> try to evaluate arbitrary call
+expressions, so when the formula uses something like
+<code>data = transform(subset(iris, ...), ...)</code> (or a
+<code>dplyr::select(iris, ...) |&gt; mutate(...)</code> chain) the
+helper returns <code>has_data = FALSE</code>.</p>
+<p>The fix is a thin fallback inside <code>bind_ui</code>: when the
+helper reports no data, evaluate the raw <code>data =</code> expression
+in <code>context$eval_env</code>. The chain itself is composed of bound
+symbols and ordinary functions, so <code><a href="https://rdrr.io/r/base/eval.html" class="external-link">eval()</a></code> succeeds and the
+post-transform data frame is exactly what the widget needs to populate
+its choices.</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">numvar</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
+<span>  keyword <span class="op">=</span> <span class="st">"numvar"</span>,</span>
+<span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/htmlOutput.html" class="external-link">uiOutput</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">id</span>, <span class="st">"_container"</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="op">}</span>,</span>
+<span>  bind_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">metas</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">resolve_layer_df</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">m</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="va">info</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_resolve_layer_data.html">ptr_resolve_layer_data</a></span><span class="op">(</span></span>
+<span>        <span class="va">context</span><span class="op">$</span><span class="va">ptr_obj</span>, <span class="va">m</span><span class="op">$</span><span class="va">layer_name</span>, <span class="va">input</span>, <span class="va">context</span>, <span class="va">context</span><span class="op">$</span><span class="va">eval_env</span></span>
+<span>      <span class="op">)</span></span>
+<span>      <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Logic.html" class="external-link">isTRUE</a></span><span class="op">(</span><span class="va">info</span><span class="op">$</span><span class="va">has_data</span><span class="op">)</span> <span class="op">&amp;&amp;</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">is.data.frame</a></span><span class="op">(</span><span class="va">info</span><span class="op">$</span><span class="va">data</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>        <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="va">info</span><span class="op">$</span><span class="va">data</span><span class="op">)</span></span>
+<span>      <span class="op">}</span></span>
+<span>      <span class="co"># Fallback: evaluate the raw `data =` expression. Handles</span></span>
+<span>      <span class="co"># transform(subset(...)) and other call chains as long as the</span></span>
+<span>      <span class="co"># chain itself does not reference an unbound placeholder symbol.</span></span>
+<span>      <span class="va">data_expr</span> <span class="op">&lt;-</span> <span class="va">context</span><span class="op">$</span><span class="va">ptr_obj</span><span class="op">$</span><span class="va">expr_list</span><span class="op">[[</span><span class="va">m</span><span class="op">$</span><span class="va">layer_name</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">data</span></span>
+<span>      <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">data_expr</span><span class="op">)</span> <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">context</span><span class="op">$</span><span class="va">eval_env</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>        <span class="va">df</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span></span>
+<span>          <span class="fu"><a href="https://rdrr.io/r/base/eval.html" class="external-link">eval</a></span><span class="op">(</span><span class="va">data_expr</span>, envir <span class="op">=</span> <span class="va">context</span><span class="op">$</span><span class="va">eval_env</span><span class="op">)</span>,</span>
+<span>          error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="cn">NULL</span></span>
+<span>        <span class="op">)</span></span>
+<span>        <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">is.data.frame</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span></span>
+<span>      <span class="op">}</span></span>
+<span>      <span class="cn">NULL</span></span>
+<span>    <span class="op">}</span></span>
+<span></span>
+<span>    <span class="kw">for</span> <span class="op">(</span><span class="va">meta</span> <span class="kw">in</span> <span class="va">metas</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="fu"><a href="https://rdrr.io/r/base/eval.html" class="external-link">local</a></span><span class="op">(</span><span class="op">{</span></span>
+<span>        <span class="va">m</span> <span class="op">&lt;-</span> <span class="va">meta</span></span>
+<span>        <span class="va">df</span> <span class="op">&lt;-</span> <span class="fu">resolve_layer_df</span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span>
+<span>        <span class="va">choices</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">is.data.frame</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>          <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">df</span>, <span class="va">is.numeric</span>, <span class="fu"><a href="https://rdrr.io/r/base/logical.html" class="external-link">logical</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span><span class="op">]</span></span>
+<span>        <span class="op">}</span> <span class="kw">else</span> <span class="op">{</span></span>
+<span>          <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>        <span class="op">}</span></span>
+<span>        <span class="va">input_id</span>  <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_ns_id.html">ptr_ns_id</a></span><span class="op">(</span><span class="va">context</span><span class="op">$</span><span class="va">ns_fn</span>    <span class="op"><a href="https://rdrr.io/r/base/Control.html" class="external-link">%||%</a></span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span>, <span class="va">m</span><span class="op">$</span><span class="va">id</span><span class="op">)</span></span>
+<span>        <span class="va">output_id</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_ns_id.html">ptr_ns_id</a></span><span class="op">(</span></span>
+<span>          <span class="va">context</span><span class="op">$</span><span class="va">ui_ns_fn</span> <span class="op"><a href="https://rdrr.io/r/base/Control.html" class="external-link">%||%</a></span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span>,</span>
+<span>          <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">m</span><span class="op">$</span><span class="va">id</span>, <span class="st">"_container"</span><span class="op">)</span></span>
+<span>        <span class="op">)</span></span>
+<span>        <span class="va">output</span><span class="op">[[</span><span class="va">output_id</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI</a></span><span class="op">(</span><span class="op">{</span></span>
+<span>          <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/selectInput.html" class="external-link">selectInput</a></span><span class="op">(</span></span>
+<span>            <span class="va">input_id</span>,</span>
+<span>            <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Numeric column for"</span>, <span class="va">m</span><span class="op">$</span><span class="va">param</span><span class="op">)</span>,</span>
+<span>            choices <span class="op">=</span> <span class="va">choices</span></span>
+<span>          <span class="op">)</span></span>
+<span>        <span class="op">}</span><span class="op">)</span></span>
+<span>      <span class="op">}</span><span class="op">)</span></span>
+<span>    <span class="op">}</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span></span>
+<span>  <span class="op">}</span>,</span>
+<span>  resolve_expr <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="op">||</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">value</span>, <span class="st">""</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_missing_expr.html">ptr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="op">}</span></span>
+<span>    <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/sym.html" class="external-link">sym</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span></span>
+<span>  <span class="op">}</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>A formula whose <code>data =</code> is a nested call:
+<code><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset()</a></code> filters to one species, then
+<code><a href="https://rdrr.io/r/base/transform.html" class="external-link">transform()</a></code> adds a derived numeric column.
+<code><a href="../reference/ptr_resolve_layer_data.html">ptr_resolve_layer_data()</a></code> cannot reach into that, but the
+fallback’s <code><a href="https://rdrr.io/r/base/eval.html" class="external-link">eval()</a></code> returns the full post-transform frame,
+and the widget exposes the new <code>double_length</code> column
+alongside the originals.</p>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">registry_chain</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_merge_placeholders.html">ptr_merge_placeholders</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>numvar <span class="op">=</span> <span class="va">numvar</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">obj_chain</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_parse_formula.html">ptr_parse_formula</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>    <span class="st">'ggplot('</span>,</span>
+<span>    <span class="st">'data = transform(subset(iris, Species == "setosa"), '</span>,</span>
+<span>    <span class="st">'double_length = Sepal.Length * 2), '</span>,</span>
+<span>    <span class="st">'aes(x = numvar, y = numvar)) + geom_point()'</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  placeholders <span class="op">=</span> <span class="va">registry_chain</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">obj_chain</span><span class="op">$</span><span class="va">formula_text</span></span>
+<span><span class="co">#&gt; [1] "ggplot(data = transform(subset(iris, Species == \"setosa\"), double_length = Sepal.Length * 2), aes(x = numvar, y = numvar)) + geom_point()"</span></span></code></pre></div>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">runtime</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_exec.html">ptr_exec</a></span><span class="op">(</span></span>
+<span>  <span class="va">obj_chain</span>,</span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    <span class="st">"ggplot_3_2"</span>          <span class="op">=</span> <span class="st">"Sepal.Length"</span>,   <span class="co"># x = numvar</span></span>
+<span>    <span class="st">"ggplot_3_3"</span>          <span class="op">=</span> <span class="st">"double_length"</span>,  <span class="co"># y = numvar</span></span>
+<span>    <span class="st">"geom_point_checkbox"</span> <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="va">runtime</span><span class="op">$</span><span class="va">code_text</span><span class="op">)</span></span>
+<span><span class="co">#&gt; ggplot(data = transform(subset(iris, Species == "setosa"), double_length = Sepal.Length * </span></span>
+<span><span class="co">#&gt;     2), aes(x = Sepal.Length, y = double_length)) +</span></span>
+<span><span class="co">#&gt;   geom_point()</span></span></code></pre></div>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
+<span>  <span class="va">obj_chain</span><span class="op">$</span><span class="va">formula_text</span>,</span>
+<span>  placeholders <span class="op">=</span> <span class="va">registry_chain</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="a-multi-column-picker-colvars">A multi-column picker — <code>colvars</code><a class="anchor" aria-label="anchor" href="#a-multi-column-picker-colvars"></a>
+</h2>
+<p>Some data-shaping verbs take a <em>vector</em> of column names rather
+than a single one: <code>subset(data, select = ...)</code>,
+<code>dplyr::select(data, all_of(...))</code>,
+<code>tidyr::pivot_longer(data, cols = all_of(...))</code>. The
+placeholder below — <code>colvars</code> — exposes that shape: it gives
+the user a <code><a href="https://rdrr.io/pkg/shiny/man/selectInput.html" class="external-link">selectInput()</a></code> with <code>multiple = TRUE</code>
+and resolves to a character-vector literal
+<code>c("col_a", "col_b", ...)</code> that drops directly into any of
+those call sites.</p>
+<p>Because the placeholder typically sits <em>inside</em> the
+transformation (e.g. <code>subset(iris, select = colvars)</code>),
+<code><a href="../reference/ptr_resolve_layer_data.html">ptr_resolve_layer_data()</a></code> cannot evaluate the full data
+expression — <code>colvars</code> itself is unbound at bind time, so
+eval fails. The fallback walks the data expression looking for the
+underlying source frame: the first bare symbol that resolves to a data
+frame in <code>eval_env</code> wins. That symbol (<code>iris</code>,
+<code>mtcars</code>, an upload object, …) is what you want to populate
+the column choices from.</p>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Walk the layer's `data =` expression and return the first bare symbol</span></span>
+<span><span class="co"># that resolves to a data frame in eval_env. Mirrors the "give me the</span></span>
+<span><span class="co"># upstream source data" need when colvars is wrapped in subset/select/...</span></span>
+<span><span class="va">find_root_data</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span>, <span class="va">eval_env</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="op">||</span> <span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">eval_env</span><span class="op">)</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/name.html" class="external-link">is.symbol</a></span><span class="op">(</span><span class="va">e</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">obj</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/eval.html" class="external-link">eval</a></span><span class="op">(</span><span class="va">e</span>, envir <span class="op">=</span> <span class="va">eval_env</span><span class="op">)</span>, error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">err</span><span class="op">)</span> <span class="cn">NULL</span><span class="op">)</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">is.data.frame</a></span><span class="op">(</span><span class="va">obj</span><span class="op">)</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="va">obj</span><span class="op">)</span></span>
+<span>    <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span></span>
+<span>  <span class="op">}</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/call.html" class="external-link">is.call</a></span><span class="op">(</span><span class="va">e</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="kw">for</span> <span class="op">(</span><span class="va">i</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">e</span><span class="op">)</span><span class="op">[</span><span class="op">-</span><span class="fl">1</span><span class="op">]</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="va">df</span> <span class="op">&lt;-</span> <span class="fu">find_root_data</span><span class="op">(</span><span class="va">e</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span>, <span class="va">eval_env</span><span class="op">)</span></span>
+<span>      <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span></span>
+<span>    <span class="op">}</span></span>
+<span>  <span class="op">}</span></span>
+<span>  <span class="cn">NULL</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">colvars</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
+<span>  keyword <span class="op">=</span> <span class="st">"colvars"</span>,</span>
+<span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/htmlOutput.html" class="external-link">uiOutput</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">id</span>, <span class="st">"_container"</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="op">}</span>,</span>
+<span>  bind_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">metas</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="kw">for</span> <span class="op">(</span><span class="va">meta</span> <span class="kw">in</span> <span class="va">metas</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="fu"><a href="https://rdrr.io/r/base/eval.html" class="external-link">local</a></span><span class="op">(</span><span class="op">{</span></span>
+<span>        <span class="va">m</span> <span class="op">&lt;-</span> <span class="va">meta</span></span>
+<span>        <span class="va">info</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_resolve_layer_data.html">ptr_resolve_layer_data</a></span><span class="op">(</span></span>
+<span>          <span class="va">context</span><span class="op">$</span><span class="va">ptr_obj</span>, <span class="va">m</span><span class="op">$</span><span class="va">layer_name</span>, <span class="va">input</span>, <span class="va">context</span>, <span class="va">context</span><span class="op">$</span><span class="va">eval_env</span></span>
+<span>        <span class="op">)</span></span>
+<span>        <span class="va">df</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Logic.html" class="external-link">isTRUE</a></span><span class="op">(</span><span class="va">info</span><span class="op">$</span><span class="va">has_data</span><span class="op">)</span> <span class="op">&amp;&amp;</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">is.data.frame</a></span><span class="op">(</span><span class="va">info</span><span class="op">$</span><span class="va">data</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>          <span class="va">info</span><span class="op">$</span><span class="va">data</span></span>
+<span>        <span class="op">}</span> <span class="kw">else</span> <span class="op">{</span></span>
+<span>          <span class="fu">find_root_data</span><span class="op">(</span></span>
+<span>            <span class="va">context</span><span class="op">$</span><span class="va">ptr_obj</span><span class="op">$</span><span class="va">expr_list</span><span class="op">[[</span><span class="va">m</span><span class="op">$</span><span class="va">layer_name</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">data</span>,</span>
+<span>            <span class="va">context</span><span class="op">$</span><span class="va">eval_env</span></span>
+<span>          <span class="op">)</span></span>
+<span>        <span class="op">}</span></span>
+<span>        <span class="va">choices</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">is.data.frame</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span> <span class="kw">else</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>        <span class="va">input_id</span>  <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_ns_id.html">ptr_ns_id</a></span><span class="op">(</span><span class="va">context</span><span class="op">$</span><span class="va">ns_fn</span>    <span class="op"><a href="https://rdrr.io/r/base/Control.html" class="external-link">%||%</a></span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span>, <span class="va">m</span><span class="op">$</span><span class="va">id</span><span class="op">)</span></span>
+<span>        <span class="va">output_id</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_ns_id.html">ptr_ns_id</a></span><span class="op">(</span></span>
+<span>          <span class="va">context</span><span class="op">$</span><span class="va">ui_ns_fn</span> <span class="op"><a href="https://rdrr.io/r/base/Control.html" class="external-link">%||%</a></span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span>,</span>
+<span>          <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">m</span><span class="op">$</span><span class="va">id</span>, <span class="st">"_container"</span><span class="op">)</span></span>
+<span>        <span class="op">)</span></span>
+<span>        <span class="va">output</span><span class="op">[[</span><span class="va">output_id</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI</a></span><span class="op">(</span><span class="op">{</span></span>
+<span>          <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/selectInput.html" class="external-link">selectInput</a></span><span class="op">(</span></span>
+<span>            <span class="va">input_id</span>,</span>
+<span>            <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Columns for"</span>, <span class="va">m</span><span class="op">$</span><span class="va">param</span><span class="op">)</span>,</span>
+<span>            choices  <span class="op">=</span> <span class="va">choices</span>,</span>
+<span>            multiple <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>          <span class="op">)</span></span>
+<span>        <span class="op">}</span><span class="op">)</span></span>
+<span>      <span class="op">}</span><span class="op">)</span></span>
+<span>    <span class="op">}</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span></span>
+<span>  <span class="op">}</span>,</span>
+<span>  resolve_expr <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="op">==</span> <span class="fl">0</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_missing_expr.html">ptr_missing_expr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="op">!</span><span class="va">value</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="op">}</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>Used inside <code><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset()</a></code> to pick which columns to retain
+before plotting:</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">registry_colvars</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_merge_placeholders.html">ptr_merge_placeholders</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>colvars <span class="op">=</span> <span class="va">colvars</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">obj_colvars</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_parse_formula.html">ptr_parse_formula</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>    <span class="st">'ggplot(data = subset(iris, select = colvars), '</span>,</span>
+<span>    <span class="st">'aes(x = Sepal.Length)) + geom_histogram(bins = 30)'</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  placeholders <span class="op">=</span> <span class="va">registry_colvars</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">obj_colvars</span><span class="op">$</span><span class="va">formula_text</span></span>
+<span><span class="co">#&gt; [1] "ggplot(data = subset(iris, select = colvars), aes(x = Sepal.Length)) + geom_histogram(bins = 30)"</span></span></code></pre></div>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">runtime</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_exec.html">ptr_exec</a></span><span class="op">(</span></span>
+<span>  <span class="va">obj_colvars</span>,</span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    <span class="st">"ggplot_2_3"</span>              <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Sepal.Length"</span>, <span class="st">"Petal.Length"</span><span class="op">)</span>,</span>
+<span>    <span class="st">"geom_histogram_checkbox"</span> <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="va">runtime</span><span class="op">$</span><span class="va">code_text</span><span class="op">)</span></span>
+<span><span class="co">#&gt; ggplot(data = subset(iris, select = c("Sepal.Length", "Petal.Length")), </span></span>
+<span><span class="co">#&gt;     aes(x = Sepal.Length)) +</span></span>
+<span><span class="co">#&gt;   geom_histogram(bins = 30)</span></span></code></pre></div>
+<p>The same <code>colvars</code> placeholder drops into a
+tidyverse-flavoured pipeline without changing the placeholder
+definition: <code>dplyr::select(iris, dplyr::all_of(colvars))</code>
+keeps a chosen subset of columns, and
+<code>tidyr::pivot_longer(iris, cols = dplyr::all_of(colvars))</code>
+reshapes the chosen numeric columns into long format. In each case the
+resolved expression is a plain character vector, so any function that
+accepts character column-names accepts the placeholder.</p>
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
+<span>  <span class="va">obj_colvars</span><span class="op">$</span><span class="va">formula_text</span>,</span>
+<span>  placeholders <span class="op">=</span> <span class="va">registry_colvars</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
 <h2 id="replacing-a-built-in-placeholder">Replacing a built-in placeholder<a class="anchor" aria-label="anchor" href="#replacing-a-built-in-placeholder"></a>
 </h2>
 <p>Any custom keyword that matches a built-in one wins — the built-in is
@@ -559,7 +831,7 @@ evicted from the merged registry. Below, we replace <code>var</code>
 with a <code><a href="https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html" class="external-link">shinyWidgets::pickerInput()</a></code> that offers search and
 tick-boxes while keeping the original reactive behaviour (columns
 populated from data).</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">picker_var</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
 <span>  keyword <span class="op">=</span> <span class="st">"var"</span>,</span>
 <span></span>
@@ -613,7 +885,7 @@ populated from data).</p>
 <span><span class="va">replacement_registry</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_merge_placeholders.html">ptr_merge_placeholders</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>var <span class="op">=</span> <span class="va">picker_var</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">replacement_registry</span><span class="op">$</span><span class="va">var</span>, <span class="va">picker_var</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"</span>,</span>
 <span>  placeholders <span class="op">=</span> <span class="va">replacement_registry</span></span>
@@ -631,7 +903,7 @@ and copy rules stay in sync.</p>
 <code>ptr_app()</code> and <code>ptr_app_bslib()</code> — Level
 1<a class="anchor" aria-label="anchor" href="#ptr_app-and-ptr_app_bslib-level-1"></a>
 </h3>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = sales, aes(x = day, y = value)) +</span></span>
 <span><span class="st">    geom_line() +</span></span>
@@ -655,7 +927,7 @@ headless<a class="anchor" aria-label="anchor" href="#ptr_parse_formula-ptr_exec-
 is stored on the returned <code>ptr_obj</code>, so downstream calls such
 as <code><a href="../reference/ptr_runtime_input_spec.html">ptr_runtime_input_spec()</a></code> and <code><a href="../reference/ptr_exec.html">ptr_exec()</a></code>
 pick it up automatically.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_parse_formula.html">ptr_parse_formula</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = sales, aes(x = day, y = value)) +</span></span>
 <span><span class="st">    geom_line() +</span></span>
@@ -676,7 +948,7 @@ pick it up automatically.</p>
 <code>placeholders</code> through <code><a href="../reference/ptr_server_state.html">ptr_server_state()</a></code> — it
 flows from there into the controls, plot, and code registrations
 automatically.</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_build_ids.html">ptr_build_ids</a></span><span class="op">(</span></span>
 <span>  control_panel <span class="op">=</span> <span class="st">"builder_controls"</span>,</span>
 <span>  draw_button   <span class="op">=</span> <span class="st">"render_plot"</span>,</span>
@@ -722,7 +994,7 @@ without extra work. The supported fields match the four leaf fields in
 <code><a href="../reference/ptr_resolve_ui_text.html">ptr_resolve_ui_text()</a></code>: <code>label</code>,
 <code>help</code>, <code>placeholder</code>, <code>empty_text</code>.
 Strings may reference <code>{param}</code> and <a href="https://github.com/marcosci/layer" class="external-link">layer</a>.</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">annotated_date</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder.html">ptr_define_placeholder</a></span><span class="op">(</span></span>
 <span>  keyword  <span class="op">=</span> <span class="st">"date"</span>,</span>
 <span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">copy</span>, <span class="va">meta</span>, <span class="va">context</span><span class="op">)</span> <span class="op">{</span></span>

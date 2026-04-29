@@ -91,9 +91,9 @@ Requires the `bslib` package. Install it with
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
+if (interactive()) {
 ptr_app_bslib(
   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
 )
-} # }
+}
 ```

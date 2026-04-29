@@ -25,11 +25,11 @@ Invisibly returns `ptr_state`.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
+if (interactive()) {
 server <- function(input, output, session) {
   ps <- ptr_server_state("ggplot(mtcars, aes(x = var)) + geom_histogram()")
   ptr_register_draw(input, ps)
   ptr_register_code(output, ps)
 }
-} # }
+}
 ```

@@ -62,7 +62,7 @@ Semantics:
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
+if (interactive()) {
 server <- function(input, output, session) {
   ps <- ptr_server_state(
     "ggplot(data = iris, aes(x = var, y = var)) + geom_point() + labs(title = text)"
@@ -81,5 +81,5 @@ server <- function(input, output, session) {
     plot_obj + ptr_gg_extra(ps, ggplot2::theme_minimal(base_size = 16))
   })
 }
-} # }
+}
 ```

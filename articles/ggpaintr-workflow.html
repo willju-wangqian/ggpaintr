@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -212,6 +212,23 @@ resolves. You will see a short placeholder message in the UI in the
 meantime.</li>
 <li>Non-syntactic column names (spaces, leading digits, symbols) are
 normalized to syntactic identifiers — see <a href="#id_4-data-sources">§4. Data sources</a>.</li>
+<li>
+<strong>Column-name collisions with placeholder keywords.</strong>
+Detection of <code>var</code> (and <code>text</code>, <code>num</code>,
+<code>expr</code>, <code>upload</code>) is purely syntactic: any bare
+symbol matching a registered keyword is consumed as a placeholder,
+regardless of whether the dataset has a column with the same name. So if
+your data has a column literally named <code>"var"</code>, you cannot
+reference it by writing the bare symbol <code>var</code> (backtick
+quoting <code>`var`</code> parses to the same symbol and does not escape
+the conflict). Two workarounds: (1) refer to the column via
+<code>.data[["var"]]</code> — the column name is then a string literal,
+not a symbol, so it is not matched as a placeholder; or (2) pick the
+column from the <code>var</code> widget’s dropdown, which still lists
+every column of the dataset, including one named <code>"var"</code>. The
+same applies to columns named <code>"text"</code>, <code>"num"</code>,
+<code>"expr"</code>, <code>"upload"</code>, or any custom placeholder
+keyword.</li>
 </ul>
 </div>
 <div class="section level4">

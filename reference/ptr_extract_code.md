@@ -30,7 +30,7 @@ A character string or `NULL`.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
+if (interactive()) {
 obj <- ptr_parse_formula(
   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
 )
@@ -41,5 +41,5 @@ inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "x"]]] <- 
 inputs[[spec$input_id[spec$layer_name == "ggplot" & spec$param_key == "y"]]] <- "disp"
 runtime <- ptr_exec(obj, inputs)
 ptr_extract_code(runtime)
-} # }
+}
 ```
