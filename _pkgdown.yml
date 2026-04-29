@@ -38,6 +38,8 @@ reference:
       - ptr_define_placeholder
       - ptr_merge_placeholders
       - ptr_missing_expr
+      - ptr_resolve_layer_data
+      - ptr_ns_id
   - title: Data preparation
     contents:
       - ptr_normalize_column_names
