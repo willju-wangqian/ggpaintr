@@ -480,6 +480,13 @@ ptr_is_missing_expr <- function(x) {
 #' @return A raw input value.
 #' @noRd
 ptr_resolve_placeholder_input <- function(spec, input, meta, context) {
+  shared_name <- meta$shared
+  if (!is.null(shared_name)) {
+    binding <- context$shared_bindings[[shared_name]]
+    if (!is.null(binding)) {
+      return(binding())
+    }
+  }
   input_id <- ptr_ns_id(context$ns_fn %||% shiny::NS(NULL), meta$id)
   if (is.null(spec$resolve_input)) {
     return(input[[input_id]])
@@ -567,6 +574,7 @@ ptr_bind_placeholder_ui <- function(input,
   for (keyword in names(ptr_obj$placeholders)) {
     spec <- ptr_obj$placeholders[[keyword]]
     metas <- ptr_flatten_placeholder_map(ptr_obj, keyword = keyword)
+    metas <- Filter(function(m) is.null(m$shared), metas)
 
     if (length(metas) == 0 || is.null(spec$bind_ui)) {
       next

@@ -199,6 +199,9 @@ ptr_build_ui_list <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL),
       if (is.null(meta)) {
         return(NULL)
       }
+      if (!is.null(meta$shared)) {
+        return(NULL)
+      }
 
       ui_id <- if (identical(meta$keyword, "var")) {
         id

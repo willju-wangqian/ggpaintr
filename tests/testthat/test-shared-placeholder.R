@@ -144,3 +144,81 @@ test_that("ptr_runtime_input_spec carries shared onto upload_name companion row"
   expect_true(nrow(upload_rows) >= 2L)
   expect_true(all(upload_rows$shared == "ds"))
 })
+
+test_that("shared binding overrides placeholder resolution at runtime", {
+  shiny::isolate({
+    obj <- ptr_parse_formula(
+      'ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point(size = num(shared = "size_filter"))'
+    )
+    bindings <- list(size_filter = shiny::reactiveVal(7))
+    input <- list("geom_point_checkbox" = TRUE)
+    res <- ptr_complete_expr(obj, input, shared_bindings = bindings)
+    expect_true(grepl("size = 7", res$code_text, fixed = TRUE))
+  })
+})
+
+test_that("missing shared binding falls back to NULL (placeholder resolves as missing)", {
+  shiny::isolate({
+    obj <- ptr_parse_formula(
+      'ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point(size = num(shared = "size_filter"))'
+    )
+    input <- list("geom_point_checkbox" = TRUE)
+    res <- ptr_complete_expr(obj, input, shared_bindings = list())
+    expect_false(grepl("size = ", res$code_text, fixed = TRUE))
+  })
+})
+
+test_that("ptr_validate_shared_bindings accepts NULL and empty list", {
+  expect_identical(ptr_validate_shared_bindings(NULL), list())
+  expect_identical(ptr_validate_shared_bindings(list()), list())
+})
+
+test_that("ptr_validate_shared_bindings rejects non-list", {
+  expect_error(ptr_validate_shared_bindings("nope"), "must be a named list")
+})
+
+test_that("ptr_validate_shared_bindings requires names", {
+  rv <- shiny::reactiveVal(1)
+  expect_error(
+    ptr_validate_shared_bindings(list(rv)),
+    "non-empty names"
+  )
+})
+
+test_that("ptr_validate_shared_bindings rejects duplicate names", {
+  rv <- shiny::reactiveVal(1)
+  expect_error(
+    ptr_validate_shared_bindings(list(a = rv, a = rv)),
+    "non-empty names"
+  )
+})
+
+test_that("ptr_validate_shared_bindings rejects non-reactive values", {
+  expect_error(
+    ptr_validate_shared_bindings(list(a = 42)),
+    "must be Shiny reactives"
+  )
+})
+
+test_that("UI list omits widgets for shared placeholders", {
+  obj <- ptr_parse_formula(
+    'ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point(size = num(shared = "size_filter"))'
+  )
+  ui_list <- ptr_build_ui_list(obj)
+  geom_ui <- ui_list[["geom_point"]]
+  placeholder_ids <- setdiff(names(geom_ui), "geom_point_checkbox")
+  for (id in placeholder_ids) {
+    expect_null(geom_ui[[id]])
+  }
+})
+
+test_that("UI list still renders widgets for non-shared placeholders alongside shared ones", {
+  obj <- ptr_parse_formula(
+    'ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point(size = num(shared = "size_filter"), alpha = num)'
+  )
+  ui_list <- ptr_build_ui_list(obj)
+  geom_ui <- ui_list[["geom_point"]]
+  placeholder_ids <- setdiff(names(geom_ui), "geom_point_checkbox")
+  rendered <- vapply(placeholder_ids, function(id) !is.null(geom_ui[[id]]), logical(1))
+  expect_equal(sum(rendered), 1L)
+})

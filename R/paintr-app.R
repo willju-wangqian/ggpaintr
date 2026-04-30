@@ -233,7 +233,13 @@ ptr_validate_state <- function(ptr_state) {
 #'   `vars()`, `element_text()`, `element_line()`, `element_rect()`,
 #'   `element_point()`, `element_polygon()`, `element_geom()`. `geom_*()` /
 #'   `stat_*()` standalone layers are always preserved. Defaults to `character()`.
-#'
+#' @param shared Named list of Shiny reactives (or `NULL`/empty list).
+#'   Each name must match a `shared = "<id>"` annotation on a placeholder
+#'   in the formula. When a placeholder carries a `shared` annotation, its
+#'   per-instance widget is suppressed and its runtime value is read from
+#'   the matching reactive instead. Use this to drive multiple ptr_obj
+#'   instances from a single externally-rendered control. Defaults to an
+#'   empty list (no shared bindings).
 #' @param ns An optional namespace function (`character -> character`) used to
 #'   render UI ids and, by default, Shiny server binding ids. Pass
 #'   `shiny::NS("page1")` to avoid id collisions when embedding two or more
@@ -261,6 +267,7 @@ ptr_server_state <- function(formula,
                              checkbox_defaults = NULL,
                              expr_check = TRUE,
                              safe_to_remove = character(),
+                             shared = list(),
                              ns = shiny::NS(NULL),
                              server_ns = ns) {
   if (!is.function(ns)) {
@@ -269,6 +276,7 @@ ptr_server_state <- function(formula,
   if (!is.function(server_ns)) {
     rlang::abort("`server_ns` must be a namespace function (e.g. shiny::NS(\"id\") or session$ns).")
   }
+  shared_bindings <- ptr_validate_shared_bindings(shared)
   safe_to_remove <- validate_safe_to_remove(safe_to_remove)
   id_contract <- ptr_build_id_contract(
     raw_ids = ids,
@@ -291,6 +299,7 @@ ptr_server_state <- function(formula,
       extras = shiny::reactiveVal(list()),
       var_ui_list = shiny::reactiveVal(list()),
       shared_env_reactive = NULL,
+      shared_bindings = shared_bindings,
       raw_ui_text = ui_text,
       effective_ui_text = ptr_merge_ui_text(
         ui_text,
@@ -361,6 +370,7 @@ ptr_setup_controls <- function(input,
       context$ns_fn <- ptr_state$server_ns_fn %||% shiny::NS(NULL)
       context$input <- input
       context$eval_env <- eval_env
+      context$shared_bindings <- ptr_state$shared_bindings %||% list()
       tryCatch(
         ptr_build_var_column_map(obj, input, context, eval_env),
         error = function(e) NULL
@@ -442,7 +452,8 @@ ptr_register_draw <- function(input,
       var_column_map = cached$var_column_map,
       expr_check = ptr_state$expr_check,
       ns_fn = ptr_state$server_ns_fn %||% shiny::NS(NULL),
-      safe_to_remove = ptr_state$safe_to_remove %||% character()
+      safe_to_remove = ptr_state$safe_to_remove %||% character(),
+      shared_bindings = ptr_state$shared_bindings %||% list()
     )
     runtime_result <- ptr_assemble_plot_safe(runtime_result, envir = ptr_state$envir, expr_check = ptr_state$expr_check)
     runtime_result <- ptr_validate_plot_render_safe(runtime_result)
@@ -972,6 +983,9 @@ ptr_app <- function(formula,
 #'   `vars()`, `element_text()`, `element_line()`, `element_rect()`,
 #'   `element_point()`, `element_polygon()`, `element_geom()`. `geom_*()` /
 #'   `stat_*()` standalone layers are always preserved. Defaults to `character()`.
+#' @param shared Named list of Shiny reactives (or `NULL`/empty list).
+#'   See [ptr_server_state()] for details. Use this to drive multiple
+#'   ptr_obj instances from a single externally-rendered control.
 #' @param ns An optional namespace function (`character -> character`). See
 #'   [ptr_server_state()] for details.
 #'
@@ -993,6 +1007,7 @@ ptr_server <- function(input,
                             checkbox_defaults = NULL,
                             expr_check = TRUE,
                             safe_to_remove = character(),
+                            shared = list(),
                             ns = shiny::NS(NULL)) {
   ptr_state <- ptr_server_state(
     formula,
@@ -1003,6 +1018,7 @@ ptr_server <- function(input,
     checkbox_defaults = checkbox_defaults,
     expr_check = expr_check,
     safe_to_remove = safe_to_remove,
+    shared = shared,
     ns = ns
   )
 

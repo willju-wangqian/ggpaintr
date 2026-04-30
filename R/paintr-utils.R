@@ -212,6 +212,40 @@ parse_placeholder_token <- function(token) {
   rlang::abort("parse_placeholder_token: token must be a symbol or call.")
 }
 
+
+#' Validate the `shared` Bindings Argument to ptr_server()
+#'
+#' Accepts `NULL` or a (possibly empty) named list of Shiny reactives. Each
+#' name corresponds to a `shared = "<id>"` annotation in the formula; each
+#' value is the reactive that supplies that placeholder's input.
+#'
+#' @param shared User-supplied bindings.
+#'
+#' @return A named list of reactives (possibly empty).
+#' @noRd
+ptr_validate_shared_bindings <- function(shared) {
+  if (is.null(shared)) return(list())
+  if (!is.list(shared)) {
+    rlang::abort("`shared` must be a named list of reactives (or NULL).")
+  }
+  if (length(shared) == 0L) return(list())
+  nms <- names(shared)
+  if (is.null(nms) || any(!nzchar(nms)) || any(duplicated(nms))) {
+    rlang::abort(
+      "`shared` must have unique non-empty names; each name must match a `shared = \"<id>\"` annotation in the formula."
+    )
+  }
+  is_reactive <- vapply(shared, shiny::is.reactive, logical(1))
+  if (!all(is_reactive)) {
+    bad <- nms[!is_reactive]
+    rlang::abort(paste0(
+      "`shared` values must be Shiny reactives. Non-reactive entries: ",
+      paste0("`", bad, "`", collapse = ", "), "."
+    ))
+  }
+  shared
+}
+
 #' Suffix Duplicate Layer Names
 #'
 #' @param x A character vector of names.

@@ -13,6 +13,7 @@ ptr_server_state(
   checkbox_defaults = NULL,
   expr_check = TRUE,
   safe_to_remove = character(),
+  shared = list(),
   ns = shiny::NS(NULL),
   server_ns = ns
 )
@@ -63,6 +64,14 @@ leaves them empty. Extends the curated default set: \code{theme()}, \code{labs()
 \code{vars()}, \code{element_text()}, \code{element_line()}, \code{element_rect()},
 \code{element_point()}, \code{element_polygon()}, \code{element_geom()}. \verb{geom_*()} /
 \verb{stat_*()} standalone layers are always preserved. Defaults to \code{character()}.}
+
+\item{shared}{Named list of Shiny reactives (or \code{NULL}/empty list).
+Each name must match a \code{shared = "<id>"} annotation on a placeholder
+in the formula. When a placeholder carries a \code{shared} annotation, its
+per-instance widget is suppressed and its runtime value is read from
+the matching reactive instead. Use this to drive multiple ptr_obj
+instances from a single externally-rendered control. Defaults to an
+empty list (no shared bindings).}
 
 \item{ns}{An optional namespace function (\code{character -> character}) used to
 render UI ids and, by default, Shiny server binding ids. Pass

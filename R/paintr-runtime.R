@@ -106,7 +106,8 @@ expr_apply_checkbox_result <- function(expr, nn, input,
 #' @noRd
 ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
   eval_env = NULL, var_column_map = NULL, expr_check = TRUE,
-  ns_fn = shiny::NS(NULL), safe_to_remove = character()) {
+  ns_fn = shiny::NS(NULL), safe_to_remove = character(),
+  shared_bindings = list()) {
   assertthat::assert_that(inherits(ptr_obj, "ptr_obj"))
   safe_to_remove <- validate_safe_to_remove(safe_to_remove)
   remove_set <- unique(c(default_safe_to_remove(), safe_to_remove))
@@ -122,6 +123,7 @@ ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
   context$ns_fn <- ns_fn
   context$input <- input
   context$eval_env <- eval_env
+  context$shared_bindings <- shared_bindings
   if (is.null(var_column_map)) {
     var_column_map <- ptr_build_var_column_map(
       ptr_obj,
@@ -284,7 +286,8 @@ ptr_mark_runtime_failure <- function(runtime_result, stage, condition) {
 #' @noRd
 ptr_complete_expr_safe <- function(ptr_obj, input, envir = parent.frame(),
   eval_env = NULL, var_column_map = NULL, expr_check = TRUE,
-  ns_fn = shiny::NS(NULL), safe_to_remove = character()) {
+  ns_fn = shiny::NS(NULL), safe_to_remove = character(),
+  shared_bindings = list()) {
   tryCatch(
     {
       complete_result <- ptr_complete_expr(ptr_obj, input, envir = envir,
@@ -292,7 +295,8 @@ ptr_complete_expr_safe <- function(ptr_obj, input, envir = parent.frame(),
                                            var_column_map = var_column_map,
                                            expr_check = expr_check,
                                            ns_fn = ns_fn,
-                                           safe_to_remove = safe_to_remove)
+                                           safe_to_remove = safe_to_remove,
+                                           shared_bindings = shared_bindings)
       list(
         ok = TRUE,
         stage = "complete",

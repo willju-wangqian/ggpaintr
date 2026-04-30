@@ -16,6 +16,7 @@ ptr_server(
   checkbox_defaults = NULL,
   expr_check = TRUE,
   safe_to_remove = character(),
+  shared = list(),
   ns = shiny::NS(NULL)
 )
 }
@@ -60,6 +61,10 @@ leaves them empty. Extends the curated default set: \code{theme()}, \code{labs()
 \code{vars()}, \code{element_text()}, \code{element_line()}, \code{element_rect()},
 \code{element_point()}, \code{element_polygon()}, \code{element_geom()}. \verb{geom_*()} /
 \verb{stat_*()} standalone layers are always preserved. Defaults to \code{character()}.}
+
+\item{shared}{Named list of Shiny reactives (or \code{NULL}/empty list).
+See \code{\link[=ptr_server_state]{ptr_server_state()}} for details. Use this to drive multiple
+ptr_obj instances from a single externally-rendered control.}
 
 \item{ns}{An optional namespace function (\code{character -> character}). See
 \code{\link[=ptr_server_state]{ptr_server_state()}} for details.}
