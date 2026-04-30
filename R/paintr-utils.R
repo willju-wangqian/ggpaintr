@@ -62,7 +62,9 @@ break_sum <- function(x, .depth = 0L, max_depth = 100L) {
 #' @noRd
 get_fun_names <- function(x) {
   if (rlang::is_call(x)) {
-    return(rlang::as_string(x[[1]]))
+    nm <- rlang::call_name(x)
+    if (!is.null(nm)) return(nm)
+    return(deparse(x[[1]], width.cutoff = 60L)[[1]])
   }
 
   if (rlang::is_symbol(x)) {
