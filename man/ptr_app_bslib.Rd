@@ -11,6 +11,7 @@ ptr_app_bslib(
   placeholders = NULL,
   checkbox_defaults = NULL,
   expr_check = TRUE,
+  safe_to_remove = character(),
   theme = NULL,
   title = "ggpaintr",
   ns = shiny::NS(NULL)
@@ -32,6 +33,11 @@ placeholder registry.}
 layer checkboxes. See \code{\link[=ptr_server_state]{ptr_server_state()}}.}
 
 \item{expr_check}{Controls \code{expr} placeholder validation. See \code{\link[=ptr_app]{ptr_app()}}.}
+
+\item{safe_to_remove}{Character vector of additional function names whose
+zero-argument calls should be dropped after placeholder substitution
+leaves them empty. See \code{\link[=ptr_app]{ptr_app()}} for the curated default set and full
+semantics. Defaults to \code{character()}.}
 
 \item{theme}{A \code{bslib} theme object. Defaults to a Bootstrap 5 Flatly
 bootswatch. Pass any \code{\link[bslib:bs_theme]{bslib::bs_theme()}} result to customize.}

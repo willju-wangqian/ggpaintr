@@ -11,7 +11,8 @@ ptr_module_server(
   ui_text = NULL,
   placeholders = NULL,
   checkbox_defaults = NULL,
-  expr_check = TRUE
+  expr_check = TRUE,
+  safe_to_remove = character()
 )
 }
 \arguments{
@@ -31,6 +32,11 @@ placeholder registry.}
 layer checkboxes. See \code{\link[=ptr_server_state]{ptr_server_state()}}.}
 
 \item{expr_check}{Controls \code{expr} placeholder validation. See \code{\link[=ptr_app]{ptr_app()}}.}
+
+\item{safe_to_remove}{Character vector of additional function names whose
+zero-argument calls should be dropped after placeholder substitution
+leaves them empty. See \code{\link[=ptr_app]{ptr_app()}} for the curated default set and full
+semantics. Defaults to \code{character()}.}
 }
 \value{
 A \code{ptr_state} object containing reactive accessors named \code{obj},

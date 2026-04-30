@@ -3,8 +3,8 @@
 # Coverage map:
 #   W1 (paintr-parse.R)      — ptr_runtime_input_spec list-growth refactor
 #   W2 (paintr-ui.R)         — generate_ui_upload placeholders threading
-#   W3 (paintr-utils.R)      — zero-length guard in expr_remove_null /
-#                               expr_remove_emptycall2
+#   W3 (paintr-utils.R)      — zero-length guards in expr_remove_null /
+#                               prune_empty_substitution_artifacts
 #   W4 (paintr-app.R)        — ptr_normalize_ids fast-path for ptr_build_ids
 #   N1 (paintr-utils.R)      — handle_call_break_sum uses rlang::is_call
 #   N2 (paintr-placeholders.R)— ptr_resolve_text_expr / ptr_resolve_num_expr
@@ -138,8 +138,8 @@ test_that("W2: generate_ui_upload with a custom upload copy_defaults from placeh
 })
 
 # =============================================================================
-# W3: zero-length guard in expr_remove_null and expr_remove_emptycall2
-#     Both functions now return .expr unchanged when length(.expr) == 0
+# W3: zero-length guards in expr_remove_null and prune_empty_substitution_artifacts
+#     Both helpers return their input unchanged when length(input) == 0
 # =============================================================================
 
 test_that("W3: expr_remove_null returns zero-length symbol unchanged", {
@@ -164,30 +164,32 @@ test_that("W3: expr_remove_null does not error on a length-0 numeric vector", {
   expect_equal(expr_remove_null(numeric(0)), numeric(0))
 })
 
-test_that("W3: expr_remove_emptycall2 returns NULL input unchanged", {
-  result <- expr_remove_emptycall2(NULL)
+test_that("W3: prune_empty_substitution_artifacts handles NULL input", {
+  result <- prune_empty_substitution_artifacts(NULL, NULL, default_safe_to_remove())
   expect_null(result)
 })
 
-test_that("W3: expr_remove_emptycall2 does not error on a length-0 numeric vector", {
-  expect_no_error(expr_remove_emptycall2(numeric(0)))
-  expect_equal(expr_remove_emptycall2(numeric(0)), numeric(0))
+test_that("W3: prune_empty_substitution_artifacts handles a length-0 numeric vector", {
+  expect_no_error(
+    prune_empty_substitution_artifacts(numeric(0), numeric(0), default_safe_to_remove())
+  )
+  expect_equal(
+    prune_empty_substitution_artifacts(numeric(0), numeric(0), default_safe_to_remove()),
+    numeric(0)
+  )
 })
 
-test_that("W3: expr_remove_emptycall2 with length-1 call (function symbol only) applies top-level check", {
-  # quote(unknown_fn()) has length 1; the loop does nothing; top-level check fires
+test_that("W3: prune_empty_substitution_artifacts keeps user-authored empty calls", {
+  # User wrote `unknown_fn()` literally — diff guard preserves it.
   expr <- quote(unknown_fn())
-  result <- expr_remove_emptycall2(expr)
-  # unknown_fn is not a gg-layer name -> top-level guard should return NULL
-  expect_null(result)
+  result <- prune_empty_substitution_artifacts(expr, expr, default_safe_to_remove())
+  expect_equal(result, expr)
 })
 
-test_that("W3: expr_remove_emptycall2 with length-1 gg call is preserved", {
+test_that("W3: prune_empty_substitution_artifacts keeps a literal empty geom call", {
   expr <- quote(geom_point())
-  result <- expr_remove_emptycall2(expr)
-  # geom_point is a gg-layer name -> preserved
-  expect_true(is.call(result))
-  expect_equal(rlang::as_string(result[[1]]), "geom_point")
+  result <- prune_empty_substitution_artifacts(expr, expr, default_safe_to_remove())
+  expect_equal(result, expr)
 })
 
 # =============================================================================

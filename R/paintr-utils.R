@@ -248,105 +248,219 @@ expr_remove_null <- function(.expr,
   .expr
 }
 
-#' Check Whether a Function Name Looks Like a ggplot2 Layer
-#'
-#' @param fn_name A single function name string.
-#'
-#' @return `TRUE` if the name matches known ggplot2 patterns.
-#' @noRd
-ptr_is_gg_layer_name <- function(fn_name) {
-  gg_prefixes <- c(
-    "geom_", "stat_", "scale_", "coord_", "facet_", "theme_", "theme",
-    "labs", "xlab", "ylab", "ggtitle", "guides", "guide_",
-    "annotation_", "borders", "expand_limits", "lims", "xlim", "ylim",
-    "after_stat", "after_scale", "stage"
-  )
-  any(startsWith(fn_name, gg_prefixes))
-}
-
 #' Check Whether a Layer Can Stand Alone Without Arguments
 #'
 #' Layers like `geom_*()` and `stat_*()` can inherit aesthetics from
 #' the base `ggplot()` call, so they are valid even with no arguments.
-#' Other gg helpers (`labs()`, `facet_wrap()`, `theme()`, etc.) are
-#' either no-ops or will error when called with no arguments.
 #'
 #' @param fn_name A single function name string.
 #'
 #' @return `TRUE` if the layer can be called with zero arguments.
 #' @noRd
 ptr_can_stand_alone <- function(fn_name) {
+  if (is.null(fn_name)) return(FALSE)
   standalone_prefixes <- c("geom_", "stat_")
   any(startsWith(fn_name, standalone_prefixes))
 }
 
-#' Remove Empty Non-ggplot Calls
+#' Curated Default `safe_to_remove` Set
 #'
-#' @param .expr An expression object.
+#' Stock ggplot2 names where a zero-argument call after placeholder
+#' substitution is provably a no-op or an error and is therefore safe
+#' to drop. Extends via the user-supplied `safe_to_remove` argument.
 #'
-#' @return The cleaned expression or `NULL`.
+#' @return A character vector of bare function names.
 #' @noRd
-expr_remove_emptycall2 <- function(.expr, .depth = 0L, max_depth = 100L) {
+default_safe_to_remove <- function() {
+  c(
+    "theme", "labs", "xlab", "ylab", "ggtitle",
+    "facet_wrap", "facet_grid", "facet_null",
+    "xlim", "ylim", "lims", "expand_limits",
+    "guides", "annotate"
+  )
+}
+
+#' Validate a User-Supplied `safe_to_remove` Vector
+#'
+#' Accepts `NULL` and `character(0)` as "no extras". Rejects non-character
+#' input, `NA`, empty strings, namespaced entries (`pkg::fn`), and entries
+#' that are not valid R names. Returns the validated character vector.
+#'
+#' @param safe_to_remove The argument supplied by the caller.
+#' @param arg The argument label to surface in error messages.
+#' @param call The call environment to attach to errors.
+#'
+#' @return A character vector (possibly empty).
+#' @noRd
+validate_safe_to_remove <- function(safe_to_remove,
+                                    arg = "safe_to_remove",
+                                    call = rlang::caller_env()) {
+  if (is.null(safe_to_remove)) {
+    return(character())
+  }
+  if (!is.character(safe_to_remove)) {
+    rlang::abort(
+      cli::format_error(c(
+        "{.arg {arg}} must be a character vector.",
+        x = "Got {.cls {class(safe_to_remove)[1]}}."
+      )),
+      call = call
+    )
+  }
+  if (length(safe_to_remove) == 0L) {
+    return(character())
+  }
+  if (anyNA(safe_to_remove)) {
+    rlang::abort(
+      cli::format_error("{.arg {arg}} must not contain {.val NA}."),
+      call = call
+    )
+  }
+  if (any(!nzchar(safe_to_remove))) {
+    rlang::abort(
+      cli::format_error("{.arg {arg}} must not contain empty strings."),
+      call = call
+    )
+  }
+  bad_ns <- grepl("::", safe_to_remove, fixed = TRUE)
+  if (any(bad_ns)) {
+    rlang::abort(
+      cli::format_error(c(
+        "{.arg {arg}} entries must be bare function names.",
+        x = "Namespaced entries are not supported: {.val {safe_to_remove[bad_ns]}}.",
+        i = "Matching is across {.code ::} forms; pass the bare name."
+      )),
+      call = call
+    )
+  }
+  bad_name <- safe_to_remove != make.names(safe_to_remove)
+  if (any(bad_name)) {
+    rlang::abort(
+      cli::format_error(c(
+        "{.arg {arg}} entries must be valid R names.",
+        x = "Invalid entries: {.val {safe_to_remove[bad_name]}}."
+      )),
+      call = call
+    )
+  }
+  safe_to_remove
+}
+
+#' Prune Empty-Call Artifacts Left by Placeholder Substitution
+#'
+#' Single bottom-up walk that combines two jobs the old pipeline did
+#' separately: (1) sweep `_NULL_PLACEHOLDER` sentinel symbols out of
+#' argument slots, and (2) collapse zero-arg calls whose name is in
+#' the curated/user remove set. Names not in the set (third-party
+#' helpers like `aes_pcp()`, `pcp_arrange()`, `pcp_theme()`) are kept
+#' regardless of how they got empty — being absent from the set is the
+#' "we don't know if removal is safe" signal.
+#'
+#' Subtrees produced by an `expr` placeholder (where `orig` at this
+#' path is a bare symbol — i.e. the placeholder name) are honoured
+#' verbatim: substitution wins over the remove set, because typing
+#' something into an `expr` input is an explicit "keep this" signal.
+#' Mechanically this falls out of the `is.call(orig)` guard — when
+#' `orig` is not a call (symbol or `NULL`), nothing inside the
+#' substituted subtree is flagged.
+#'
+#' @param post The post-substitution expression.
+#' @param orig The pre-substitution expression at the same path.
+#' @param remove_set Character vector — curated default plus user
+#'   `safe_to_remove`.
+#' @param .depth Internal recursion depth.
+#' @param max_depth Recursion safety cap.
+#'
+#' @return Either the cleaned expression, or the `_NULL_PLACEHOLDER`
+#'   sentinel signalling the parent should drop this slot.
+#' @noRd
+prune_empty_substitution_artifacts <- function(post,
+                                                orig,
+                                                remove_set,
+                                                .depth = 0L,
+                                                max_depth = 100L) {
   if (.depth > max_depth) {
     rlang::abort("Expression nesting exceeds maximum depth.")
   }
-  if (length(.expr) == 0L) return(.expr)
-  # Bare-symbol / atomic layer: nothing to strip, leave it alone.
-  if (.depth == 0L && !is.call(.expr)) return(.expr)
-  for (i in length(.expr):1) {
-    if (is.call(.expr[[i]])) {
-      if (length(.expr[[i]]) == 1) {
-        fn_name <- rlang::as_string(.expr[[i]][[1]])
-        if (!ptr_is_gg_layer_name(fn_name)) {
-          .expr[[i]] <- NULL
-        }
-      } else {
-        .expr[[i]] <- expr_remove_emptycall2(.expr[[i]], .depth + 1L, max_depth)
+  sentinel <- ptr_missing_expr_symbol()
+
+  if (.depth == 0L) {
+    if (is.symbol(post) && identical(post, sentinel)) return(NULL)
+    if (!is.call(post)) return(post)
+  }
+  if (!is.call(post)) return(post)
+
+  if (length(post) > 1L) {
+    for (i in 2:length(post)) {
+      child <- post[[i]]
+      orig_child <- if (is.call(orig) && i <= length(orig)) orig[[i]] else NULL
+      if (is.call(child)) {
+        post[[i]] <- prune_empty_substitution_artifacts(
+          child, orig_child, remove_set, .depth + 1L, max_depth
+        )
       }
     }
   }
 
-  if (is.call(.expr) && length(.expr) == 1) {
-    fn_name <- rlang::as_string(.expr[[1]])
-    if (!ptr_is_gg_layer_name(fn_name)) {
-      .expr <- NULL
+  if (length(post) > 1L) {
+    for (i in length(post):2) {
+      slot <- post[[i]]
+      if (is.symbol(slot) && identical(slot, sentinel)) {
+        post[[i]] <- NULL
+      }
     }
   }
 
-  .expr
+  if (.depth > 0L && length(post) == 1L) {
+    nm <- rlang::call_name(post)
+    if (!is.null(nm) && nm %in% remove_set && is.call(orig)) {
+      return(sentinel)
+    }
+  }
+
+  post
 }
 
 #' Remove Empty Non-Standalone Layers from an Expression List
 #'
-#' After placeholder resolution and empty-call pruning, some top-level
-#' layers may have lost all arguments (e.g. `labs()`, `facet_wrap()`,
-#' `theme()`).  These are either no-ops or will error at eval time.
-#' Layers that can inherit aesthetics (`geom_*`, `stat_*`) and the
-#' base `ggplot` layer are kept.
+#' Top-level companion to `prune_empty_substitution_artifacts()`. Drop a
+#' layer iff (a) it is a zero-arg call, (b) its name is in the curated /
+#' user `remove_set`, and (c) it is not a `geom_*`/`stat_*` standalone
+#' layer. Names not in `remove_set` (e.g. third-party helpers like
+#' `pcp_theme()`) are kept by default — the user can opt specific names
+#' in via `safe_to_remove`.
 #'
-#' @param expr_list A named list of layer expressions.
-#' @param original_expr_list The pre-substitution layer list. Layers whose
-#'   original entry was a bare symbol (e.g. `+ expr`) are skipped — whatever
-#'   the user supplied replaces the entire layer and must be honoured.
+#' Layers whose original entry was a bare symbol (e.g. `+ expr`) are
+#' skipped — whatever the user supplied via the `expr` placeholder
+#' replaces the entire layer and is honoured verbatim, even if its
+#' name is in `remove_set`.
 #'
-#' @return The filtered expression list with empty non-standalone layers
-#'   set to `NULL`.
+#' @param expr_list A named list of post-substitution layer expressions.
+#' @param original_expr_list The pre-substitution layer list.
+#' @param remove_set Character vector of names safe to remove.
+#'
+#' @return The filtered expression list.
 #' @noRd
 ptr_remove_empty_nonstandalone_layers <- function(expr_list,
-                                                  original_expr_list = NULL) {
+                                                  original_expr_list = NULL,
+                                                  remove_set = default_safe_to_remove()) {
   for (nn in names(expr_list)) {
     expr <- expr_list[[nn]]
     if (is.null(expr) || nn == "ggplot") next
+    # Layer originally a bare symbol (e.g. `+ expr`): substitution wins, keep
+    # whatever the user supplied verbatim.
     if (!is.null(original_expr_list) && is.symbol(original_expr_list[[nn]])) next
-    if (is.call(expr) && length(expr) == 1) {
-      fn_name <- rlang::as_string(expr[[1]])
-      if (!ptr_can_stand_alone(fn_name)) {
-        if (ptr_verbose()) {
-          cli::cli_inform(paste0("Layer ", fn_name, "() removed (no arguments provided)."))
-        }
-        expr_list[[nn]] <- NULL
-      }
+    if (!(is.call(expr) && length(expr) == 1L)) next
+
+    nm <- rlang::call_name(expr)
+    if (is.null(nm)) next
+    if (!nm %in% remove_set) next
+    if (ptr_can_stand_alone(nm)) next
+
+    if (ptr_verbose()) {
+      cli::cli_inform(paste0("Layer ", nm, "() removed (no arguments provided)."))
     }
+    expr_list[[nn]] <- NULL
   }
   expr_list
 }

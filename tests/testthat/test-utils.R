@@ -281,58 +281,6 @@ test_that("expr_remove_null accepts a custom target symbol", {
   }, logical(1))))
 })
 
-# --- expr_remove_emptycall2 ----------------------------------------------
-
-test_that("expr_remove_emptycall2 removes an empty non-ggplot call", {
-  expr <- quote(f(unknown_func()))
-  result <- expr_remove_emptycall2(expr)
-  # After removal f() has no args; the outer length-1 check fires too.
-  expect_true(is.null(result) || (is.call(result) && length(result) < length(expr)))
-})
-
-test_that("expr_remove_emptycall2 preserves a gg-layer call by name", {
-  expr <- quote(wrapper(geom_point()))
-  result <- expr_remove_emptycall2(expr)
-  # geom_point() is recognized as gg by name — should be kept
-  args <- as.list(result)[-1]
-  expect_true(length(args) >= 1)
-  expect_equal(rlang::as_string(args[[1]][[1]]), "geom_point")
-})
-
-test_that("expr_remove_emptycall2 preserves other gg-layer types by name", {
-  # scale_, coord_, facet_, theme_ should all be preserved
-  expr <- quote(wrapper(scale_x_continuous(), coord_flip(), facet_wrap(), theme_minimal()))
-  result <- expr_remove_emptycall2(expr)
-  args <- as.list(result)[-1]
-  expect_length(args, 4)
-})
-
-test_that("ptr_is_gg_layer_name recognizes known patterns", {
-  expect_true(ptr_is_gg_layer_name("geom_point"))
-  expect_true(ptr_is_gg_layer_name("stat_smooth"))
-  expect_true(ptr_is_gg_layer_name("scale_x_continuous"))
-  expect_true(ptr_is_gg_layer_name("theme_minimal"))
-  expect_true(ptr_is_gg_layer_name("theme"))
-  expect_true(ptr_is_gg_layer_name("labs"))
-  expect_true(ptr_is_gg_layer_name("xlim"))
-  expect_false(ptr_is_gg_layer_name("unknown_func"))
-  expect_false(ptr_is_gg_layer_name("f"))
-})
-
-# W2: edge cases for startsWith-based implementation
-test_that("ptr_is_gg_layer_name returns FALSE for empty string", {
-  expect_false(ptr_is_gg_layer_name(""))
-})
-
-test_that("ptr_is_gg_layer_name returns FALSE for prefix without trailing underscore", {
-  # "geom" alone is not a valid gg layer name; only "geom_*" is
-  expect_false(ptr_is_gg_layer_name("geom"))
-  expect_false(ptr_is_gg_layer_name("stat"))
-  expect_false(ptr_is_gg_layer_name("scale"))
-  expect_false(ptr_is_gg_layer_name("facet"))
-  expect_false(ptr_is_gg_layer_name("coord"))
-})
-
 test_that("ptr_can_stand_alone returns FALSE for empty string", {
   expect_false(ptr_can_stand_alone(""))
 })
@@ -346,17 +294,6 @@ test_that("ptr_can_stand_alone returns FALSE for layers that share prefix but ar
   # geomancy, statistic — not gg layer names
   expect_false(ptr_can_stand_alone("geomancy"))
   expect_false(ptr_can_stand_alone("statistics"))
-})
-
-# W3: expr_remove_emptycall2 must not emit messages
-test_that("expr_remove_emptycall2 emits no messages when removing empty non-gg call", {
-  expr <- quote(f(unknown_func()))
-  expect_no_message(expr_remove_emptycall2(expr))
-})
-
-test_that("expr_remove_emptycall2 emits no messages when preserving gg-layer call", {
-  expr <- quote(wrapper(geom_point()))
-  expect_no_message(expr_remove_emptycall2(expr))
 })
 
 # --- check_remove_null ---------------------------------------------------
@@ -399,7 +336,10 @@ test_that("ptr_can_stand_alone rejects non-standalone layers", {
 
 # --- ptr_remove_empty_nonstandalone_layers --------------------------------
 
-test_that("ptr_remove_empty_nonstandalone_layers removes empty labs/facet/theme", {
+test_that("ptr_remove_empty_nonstandalone_layers drops empty curated-set layers", {
+  # New rule: drop iff name in remove_set (no diff guard). User-typed literal
+  # `+ labs()`/`+ theme()` collapse to nothing — they are no-ops, so removal
+  # is safe.
   expr_list <- list(
     ggplot = quote(ggplot(data = iris, aes(x = Sepal.Length))),
     `geom_point_2` = quote(geom_point()),
@@ -408,6 +348,57 @@ test_that("ptr_remove_empty_nonstandalone_layers removes empty labs/facet/theme"
     `theme_5` = quote(theme())
   )
   result <- suppressMessages(ptr_remove_empty_nonstandalone_layers(expr_list))
+  expect_named(result, c("ggplot", "geom_point_2"))
+})
+
+test_that("ptr_remove_empty_nonstandalone_layers keeps third-party empty layers (not in default set)", {
+  # Names not in the curated set are unknown safety — keep by default.
+  expr_list <- list(
+    ggplot = quote(ggplot(data = iris, aes(x = Sepal.Length))),
+    `pcp_theme_2` = quote(pcp_theme()),
+    `pcp_arrange_3` = quote(pcp_arrange())
+  )
+  result <- suppressMessages(ptr_remove_empty_nonstandalone_layers(expr_list))
+  expect_named(result, c("ggplot", "pcp_theme_2", "pcp_arrange_3"))
+})
+
+test_that("ptr_remove_empty_nonstandalone_layers honors expr-substituted whole-layer", {
+  # Original layer was a bare symbol (e.g. `+ expr`); whatever the user typed
+  # is preserved verbatim, even if its name is in the remove_set.
+  original_expr_list <- list(
+    ggplot = quote(ggplot(data = iris, aes(x = Sepal.Length))),
+    `expr_2` = rlang::sym("expr")
+  )
+  expr_list <- list(
+    ggplot = quote(ggplot(data = iris, aes(x = Sepal.Length))),
+    `expr_2` = rlang::call2("theme")
+  )
+  result <- suppressMessages(ptr_remove_empty_nonstandalone_layers(
+    expr_list,
+    original_expr_list = original_expr_list
+  ))
+  expect_equal(result[["expr_2"]], rlang::call2("theme"))
+})
+
+test_that("ptr_remove_empty_nonstandalone_layers removes layers emptied by substitution", {
+  original_expr_list <- list(
+    ggplot = quote(ggplot(data = iris, aes(x = Sepal.Length))),
+    `geom_point_2` = quote(geom_point()),
+    `labs_3` = quote(labs(title = text)),
+    `facet_wrap_4` = quote(facet_wrap(facets = var)),
+    `theme_5` = quote(theme(plot.title = text))
+  )
+  expr_list <- list(
+    ggplot = quote(ggplot(data = iris, aes(x = Sepal.Length))),
+    `geom_point_2` = quote(geom_point()),
+    `labs_3` = quote(labs()),
+    `facet_wrap_4` = quote(facet_wrap()),
+    `theme_5` = quote(theme())
+  )
+  result <- suppressMessages(ptr_remove_empty_nonstandalone_layers(
+    expr_list,
+    original_expr_list = original_expr_list
+  ))
   expect_true("ggplot" %in% names(result))
   expect_true("geom_point_2" %in% names(result))
   expect_null(result[["labs_3"]])
@@ -501,23 +492,16 @@ test_that("expr_remove_null works normally within depth limit", {
   }, logical(1))))
 })
 
-test_that("expr_remove_emptycall2 aborts when max_depth is exceeded", {
-  # Build a deeply nested non-gg call
+test_that("prune_empty_substitution_artifacts aborts when max_depth is exceeded", {
+  remove_set <- default_safe_to_remove()
   deep_expr <- rlang::call2("unknown_func", rlang::sym("a"))
   for (i in seq_len(10)) {
     deep_expr <- rlang::call2("wrapper", deep_expr)
   }
   expect_error(
-    expr_remove_emptycall2(deep_expr, max_depth = 2L),
+    prune_empty_substitution_artifacts(deep_expr, deep_expr, remove_set, max_depth = 2L),
     "maximum depth"
   )
-})
-
-test_that("expr_remove_emptycall2 works normally within depth limit", {
-  expr <- quote(wrapper(geom_point()))
-  result <- expr_remove_emptycall2(expr)
-  args <- as.list(result)[-1]
-  expect_true(length(args) >= 1)
 })
 
 # --- validate_expr_safety (denylist default) ------------------------------

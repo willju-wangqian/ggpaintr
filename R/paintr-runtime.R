@@ -91,15 +91,26 @@ expr_apply_checkbox_result <- function(expr, nn, input,
 #' @param input A Shiny input-like object.
 #' @param envir The environment used to resolve local data objects.
 #' @param ns_fn A namespace function `character -> character`.
+#' @param safe_to_remove Character vector of additional function names whose
+#'   zero-argument calls should be dropped after placeholder substitution
+#'   leaves them empty. Extends the curated default set: `theme()`, `labs()`,
+#'   `xlab()`, `ylab()`, `ggtitle()`, `facet_wrap()`, `facet_grid()`,
+#'   `facet_null()`, `xlim()`, `ylim()`, `lims()`, `expand_limits()`,
+#'   `guides()`, `annotate()`. User-authored zero-arg calls (where
+#'   substitution did not empty the call) and `geom_*()` / `stat_*()`
+#'   standalone layers are always preserved.
 #'
 #' @return A named list with `complete_expr_list`, `code_text`, and `eval_env`.
 #' @noRd
 ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
   eval_env = NULL, var_column_map = NULL, expr_check = TRUE,
-  ns_fn = shiny::NS(NULL)) {
+  ns_fn = shiny::NS(NULL), safe_to_remove = character()) {
   assertthat::assert_that(inherits(ptr_obj, "ptr_obj"))
+  safe_to_remove <- validate_safe_to_remove(safe_to_remove)
+  remove_set <- unique(c(default_safe_to_remove(), safe_to_remove))
 
   ptr_processed_expr_list <- ptr_obj[["expr_list"]]
+  original_expr_list <- ptr_obj[["expr_list"]]
   if (is.null(eval_env)) {
     eval_env <- ptr_prepare_eval_env(ptr_obj, input, envir = envir, ns_fn = ns_fn)
   }
@@ -132,11 +143,18 @@ ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
     expr_pluck(ptr_processed_expr_list[[meta$layer_name]], meta$index_path) <- resolved_expr
   }
 
-  ptr_processed_expr_list <- lapply(ptr_processed_expr_list, expr_remove_null)
-  ptr_processed_expr_list <- lapply(ptr_processed_expr_list, expr_remove_emptycall2)
+  layer_names <- names(ptr_processed_expr_list)
+  for (nn in layer_names) {
+    ptr_processed_expr_list[[nn]] <- prune_empty_substitution_artifacts(
+      ptr_processed_expr_list[[nn]],
+      original_expr_list[[nn]],
+      remove_set
+    )
+  }
   ptr_processed_expr_list <- ptr_remove_empty_nonstandalone_layers(
     ptr_processed_expr_list,
-    original_expr_list = ptr_obj[["expr_list"]]
+    original_expr_list = original_expr_list,
+    remove_set = remove_set
   )
   ptr_validate_layer_checkbox_inputs(ptr_obj, input, ns_fn = ns_fn)
   ptr_processed_expr_list <- purrr::map2(
@@ -264,14 +282,15 @@ ptr_mark_runtime_failure <- function(runtime_result, stage, condition) {
 #' @noRd
 ptr_complete_expr_safe <- function(ptr_obj, input, envir = parent.frame(),
   eval_env = NULL, var_column_map = NULL, expr_check = TRUE,
-  ns_fn = shiny::NS(NULL)) {
+  ns_fn = shiny::NS(NULL), safe_to_remove = character()) {
   tryCatch(
     {
       complete_result <- ptr_complete_expr(ptr_obj, input, envir = envir,
                                            eval_env = eval_env,
                                            var_column_map = var_column_map,
                                            expr_check = expr_check,
-                                           ns_fn = ns_fn)
+                                           ns_fn = ns_fn,
+                                           safe_to_remove = safe_to_remove)
       list(
         ok = TRUE,
         stage = "complete",
@@ -362,6 +381,14 @@ ptr_validate_plot_render_safe <- function(runtime_result) {
 #'   time via \code{formula_check} in \code{\link{ptr_parse_formula}}.
 #'   Disabling \code{expr_check} here does not affect that earlier check,
 #'   and vice versa.
+#' @param safe_to_remove Character vector of additional function names whose
+#'   zero-argument calls should be dropped after placeholder substitution
+#'   leaves them empty. Extends the curated default set: `theme()`, `labs()`,
+#'   `xlab()`, `ylab()`, `ggtitle()`, `facet_wrap()`, `facet_grid()`,
+#'   `facet_null()`, `xlim()`, `ylim()`, `lims()`, `expand_limits()`,
+#'   `guides()`, `annotate()`. User-authored zero-arg calls (where
+#'   substitution did not empty the call) and `geom_*()` / `stat_*()`
+#'   standalone layers are always preserved. Defaults to `character()`.
 #'
 #' @return A runtime result list containing `ok`, `stage`, `message`,
 #'   `code_text`, `complete_expr_list`, `eval_env`, `condition`, and `plot`.
@@ -383,9 +410,11 @@ ptr_validate_plot_render_safe <- function(runtime_result) {
 #' isTRUE(runtime$ok)
 #' @export
 ptr_exec <- function(ptr_obj, input, envir = parent.frame(),
-                     expr_check = TRUE) {
+                     expr_check = TRUE,
+                     safe_to_remove = character()) {
   runtime_result <- ptr_complete_expr_safe(
-    ptr_obj, input, envir = envir, expr_check = expr_check
+    ptr_obj, input, envir = envir, expr_check = expr_check,
+    safe_to_remove = safe_to_remove
   )
   runtime_result <- ptr_assemble_plot_safe(runtime_result, envir = envir, expr_check = expr_check)
   ptr_validate_plot_render_safe(runtime_result)

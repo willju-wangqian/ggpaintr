@@ -15,6 +15,7 @@ ptr_server(
   ids = ptr_build_ids(),
   checkbox_defaults = NULL,
   expr_check = TRUE,
+  safe_to_remove = character(),
   ns = shiny::NS(NULL)
 )
 }
@@ -48,6 +49,15 @@ functions.
 A named list with \code{deny_list} and/or \code{allow_list} character
 vectors supplies a custom check; when both are given,
 denied entries are removed from the allowlist.}
+
+\item{safe_to_remove}{Character vector of additional function names whose
+zero-argument calls should be dropped after placeholder substitution
+leaves them empty. Extends the curated default set: \code{theme()}, \code{labs()},
+\code{xlab()}, \code{ylab()}, \code{ggtitle()}, \code{facet_wrap()}, \code{facet_grid()},
+\code{facet_null()}, \code{xlim()}, \code{ylim()}, \code{lims()}, \code{expand_limits()},
+\code{guides()}, \code{annotate()}. User-authored zero-arg calls (where
+substitution did not empty the call) and \verb{geom_*()} / \verb{stat_*()}
+standalone layers are always preserved. Defaults to \code{character()}.}
 
 \item{ns}{An optional namespace function (\code{character -> character}). See
 \code{\link[=ptr_server_state]{ptr_server_state()}} for details.}

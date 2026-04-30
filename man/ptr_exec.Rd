@@ -4,7 +4,13 @@
 \alias{ptr_exec}
 \title{Build the Full Runtime Result for a Paintr App}
 \usage{
-ptr_exec(ptr_obj, input, envir = parent.frame(), expr_check = TRUE)
+ptr_exec(
+  ptr_obj,
+  input,
+  envir = parent.frame(),
+  expr_check = TRUE,
+  safe_to_remove = character()
+)
 }
 \arguments{
 \item{ptr_obj}{A \code{ptr_obj}.}
@@ -24,6 +30,15 @@ Note: the formula template itself is separately validated at parse
 time via \code{formula_check} in \code{\link{ptr_parse_formula}}.
 Disabling \code{expr_check} here does not affect that earlier check,
 and vice versa.}
+
+\item{safe_to_remove}{Character vector of additional function names whose
+zero-argument calls should be dropped after placeholder substitution
+leaves them empty. Extends the curated default set: \code{theme()}, \code{labs()},
+\code{xlab()}, \code{ylab()}, \code{ggtitle()}, \code{facet_wrap()}, \code{facet_grid()},
+\code{facet_null()}, \code{xlim()}, \code{ylim()}, \code{lims()}, \code{expand_limits()},
+\code{guides()}, \code{annotate()}. User-authored zero-arg calls (where
+substitution did not empty the call) and \verb{geom_*()} / \verb{stat_*()}
+standalone layers are always preserved. Defaults to \code{character()}.}
 }
 \value{
 A runtime result list containing \code{ok}, \code{stage}, \code{message},

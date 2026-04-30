@@ -180,6 +180,12 @@ ptr_validate_state <- function(ptr_state) {
   if (!inherits(ptr_state$placeholders, "ptr_define_placeholder_registry")) {
     rlang::abort("ptr_state$placeholders must inherit from 'ptr_define_placeholder_registry'.")
   }
+  if (!is.null(ptr_state$safe_to_remove)) {
+    validate_safe_to_remove(
+      ptr_state$safe_to_remove,
+      arg = "ptr_state$safe_to_remove"
+    )
+  }
   invisible(TRUE)
 }
 
@@ -217,6 +223,14 @@ ptr_validate_state <- function(ptr_state) {
 #'   A named list with `deny_list` and/or `allow_list` character
 #'   vectors supplies a custom check; when both are given,
 #'   denied entries are removed from the allowlist.
+#' @param safe_to_remove Character vector of additional function names whose
+#'   zero-argument calls should be dropped after placeholder substitution
+#'   leaves them empty. Extends the curated default set: `theme()`, `labs()`,
+#'   `xlab()`, `ylab()`, `ggtitle()`, `facet_wrap()`, `facet_grid()`,
+#'   `facet_null()`, `xlim()`, `ylim()`, `lims()`, `expand_limits()`,
+#'   `guides()`, `annotate()`. User-authored zero-arg calls (where
+#'   substitution did not empty the call) and `geom_*()` / `stat_*()`
+#'   standalone layers are always preserved. Defaults to `character()`.
 #'
 #' @param ns An optional namespace function (`character -> character`) used to
 #'   render UI ids and, by default, Shiny server binding ids. Pass
@@ -244,6 +258,7 @@ ptr_server_state <- function(formula,
                              placeholders = NULL,
                              checkbox_defaults = NULL,
                              expr_check = TRUE,
+                             safe_to_remove = character(),
                              ns = shiny::NS(NULL),
                              server_ns = ns) {
   if (!is.function(ns)) {
@@ -252,6 +267,7 @@ ptr_server_state <- function(formula,
   if (!is.function(server_ns)) {
     rlang::abort("`server_ns` must be a namespace function (e.g. shiny::NS(\"id\") or session$ns).")
   }
+  safe_to_remove <- validate_safe_to_remove(safe_to_remove)
   id_contract <- ptr_build_id_contract(
     raw_ids = ids,
     ui_ns = ns,
@@ -287,6 +303,7 @@ ptr_server_state <- function(formula,
       ids = id_contract$server_ids,
       envir = envir,
       expr_check = expr_check,
+      safe_to_remove = safe_to_remove,
       ui_ns_fn = ns,
       server_ns_fn = server_ns,
       ns_fn = server_ns,
@@ -422,7 +439,8 @@ ptr_register_draw <- function(input,
       eval_env = cached$eval_env,
       var_column_map = cached$var_column_map,
       expr_check = ptr_state$expr_check,
-      ns_fn = ptr_state$server_ns_fn %||% shiny::NS(NULL)
+      ns_fn = ptr_state$server_ns_fn %||% shiny::NS(NULL),
+      safe_to_remove = ptr_state$safe_to_remove %||% character()
     )
     runtime_result <- ptr_assemble_plot_safe(runtime_result, envir = ptr_state$envir, expr_check = ptr_state$expr_check)
     runtime_result <- ptr_validate_plot_render_safe(runtime_result)
@@ -796,6 +814,10 @@ ptr_module_ui <- function(id, ui_text = NULL) {
 #' @param checkbox_defaults Optional named list of initial checked states for
 #'   layer checkboxes. See [ptr_server_state()].
 #' @param expr_check Controls `expr` placeholder validation. See [ptr_app()].
+#' @param safe_to_remove Character vector of additional function names whose
+#'   zero-argument calls should be dropped after placeholder substitution
+#'   leaves them empty. See [ptr_app()] for the curated default set and full
+#'   semantics. Defaults to `character()`.
 #'
 #' @return A `ptr_state` object containing reactive accessors named `obj`,
 #'   `runtime`, and `var_ui_list`, plus shared metadata used by the bind helpers.
@@ -817,13 +839,15 @@ ptr_module_server <- function(id,
                               ui_text = NULL,
                               placeholders = NULL,
                               checkbox_defaults = NULL,
-                              expr_check = TRUE) {
+                              expr_check = TRUE,
+                              safe_to_remove = character()) {
   force(formula)
   force(envir)
   force(ui_text)
   force(placeholders)
   force(checkbox_defaults)
   force(expr_check)
+  safe_to_remove <- validate_safe_to_remove(safe_to_remove)
 
   shiny::moduleServer(id, function(input, output, session) {
     ptr_state <- ptr_server_state(
@@ -833,6 +857,7 @@ ptr_module_server <- function(id,
       placeholders = placeholders,
       checkbox_defaults = checkbox_defaults,
       expr_check = expr_check,
+      safe_to_remove = safe_to_remove,
       ns = session$ns,
       server_ns = shiny::NS(NULL)
     )
@@ -867,6 +892,14 @@ ptr_module_server <- function(id,
 #'   A named list with `deny_list` and/or `allow_list` character
 #'   vectors supplies a custom check; when both are given,
 #'   denied entries are removed from the allowlist.
+#' @param safe_to_remove Character vector of additional function names whose
+#'   zero-argument calls should be dropped after placeholder substitution
+#'   leaves them empty. Extends the curated default set: `theme()`, `labs()`,
+#'   `xlab()`, `ylab()`, `ggtitle()`, `facet_wrap()`, `facet_grid()`,
+#'   `facet_null()`, `xlim()`, `ylim()`, `lims()`, `expand_limits()`,
+#'   `guides()`, `annotate()`. User-authored zero-arg calls (where
+#'   substitution did not empty the call) and `geom_*()` / `stat_*()`
+#'   standalone layers are always preserved. Defaults to `character()`.
 #'
 #' @param ns An optional namespace function (`character -> character`). See
 #'   [ptr_server_state()] for details. For standalone apps created with
@@ -883,6 +916,7 @@ ptr_app <- function(formula,
                          placeholders = NULL,
                          checkbox_defaults = NULL,
                          expr_check = TRUE,
+                         safe_to_remove = character(),
                          ns = shiny::NS(NULL)) {
   app_parts <- ptr_app_components(
     formula,
@@ -891,6 +925,7 @@ ptr_app <- function(formula,
     placeholders = placeholders,
     checkbox_defaults = checkbox_defaults,
     expr_check = expr_check,
+    safe_to_remove = safe_to_remove,
     ns = ns
   )
   shiny::shinyApp(ui = app_parts$ui, server = app_parts$server)
@@ -923,6 +958,14 @@ ptr_app <- function(formula,
 #'   A named list with `deny_list` and/or `allow_list` character
 #'   vectors supplies a custom check; when both are given,
 #'   denied entries are removed from the allowlist.
+#' @param safe_to_remove Character vector of additional function names whose
+#'   zero-argument calls should be dropped after placeholder substitution
+#'   leaves them empty. Extends the curated default set: `theme()`, `labs()`,
+#'   `xlab()`, `ylab()`, `ggtitle()`, `facet_wrap()`, `facet_grid()`,
+#'   `facet_null()`, `xlim()`, `ylim()`, `lims()`, `expand_limits()`,
+#'   `guides()`, `annotate()`. User-authored zero-arg calls (where
+#'   substitution did not empty the call) and `geom_*()` / `stat_*()`
+#'   standalone layers are always preserved. Defaults to `character()`.
 #' @param ns An optional namespace function (`character -> character`). See
 #'   [ptr_server_state()] for details.
 #'
@@ -943,6 +986,7 @@ ptr_server <- function(input,
                             ids = ptr_build_ids(),
                             checkbox_defaults = NULL,
                             expr_check = TRUE,
+                            safe_to_remove = character(),
                             ns = shiny::NS(NULL)) {
   ptr_state <- ptr_server_state(
     formula,
@@ -952,6 +996,7 @@ ptr_server <- function(input,
     ids = ids,
     checkbox_defaults = checkbox_defaults,
     expr_check = expr_check,
+    safe_to_remove = safe_to_remove,
     ns = ns
   )
 
@@ -1011,6 +1056,10 @@ ptr_build_app_ui <- function(title_label, draw_label,
 #' @param ui_text Optional named list of copy overrides.
 #' @param placeholders Optional custom placeholder definitions or an existing
 #'   placeholder registry.
+#' @param safe_to_remove Character vector of additional function names whose
+#'   zero-argument calls should be dropped after placeholder substitution
+#'   leaves them empty. See [ptr_app()] for the curated default set and full
+#'   semantics. Defaults to `character()`.
 #' @param ns An optional namespace function (`character -> character`).
 #'
 #' @return A list with `ui` and `server`.
@@ -1021,8 +1070,10 @@ ptr_app_components <- function(formula,
                                   placeholders = NULL,
                                   checkbox_defaults = NULL,
                                   expr_check = TRUE,
+                                  safe_to_remove = character(),
                                   ns = shiny::NS(NULL)) {
   shell_copy <- ptr_resolve_shell_ui_text(ui_text)
+  safe_to_remove <- validate_safe_to_remove(safe_to_remove)
 
   ui <- ptr_build_app_ui(
     shell_copy$title_copy$label,
@@ -1041,6 +1092,7 @@ ptr_app_components <- function(formula,
       placeholders = placeholders,
       checkbox_defaults = checkbox_defaults,
       expr_check = expr_check,
+      safe_to_remove = safe_to_remove,
       ns = ns
     )
     invisible(NULL)
