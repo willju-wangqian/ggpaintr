@@ -61,6 +61,7 @@ inside a larger Shiny app.</p>
 <span>  placeholders <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  checkbox_defaults <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  expr_check <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  safe_to_remove <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  ns <span class="op">=</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span>,</span>
 <span>  server_ns <span class="op">=</span> <span class="va">ns</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -117,6 +118,17 @@ functions.
 A named list with <code>deny_list</code> and/or <code>allow_list</code> character
 vectors supplies a custom check; when both are given,
 denied entries are removed from the allowlist.</p></dd>
+
+
+<dt id="arg-safe-to-remove">safe_to_remove<a class="anchor" aria-label="anchor" href="#arg-safe-to-remove"></a></dt>
+<dd><p>Character vector of additional function names whose
+zero-argument calls should be dropped after placeholder substitution
+leaves them empty. Extends the curated default set: <code><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs()</a></code>,
+<code><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">xlab()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ylab()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ggtitle()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/facet_wrap.html" class="external-link">facet_wrap()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/facet_grid.html" class="external-link">facet_grid()</a></code>,
+<code><a href="https://ggplot2.tidyverse.org/reference/facet_null.html" class="external-link">facet_null()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/lims.html" class="external-link">xlim()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/lims.html" class="external-link">ylim()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/lims.html" class="external-link">lims()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/expand_limits.html" class="external-link">expand_limits()</a></code>,
+<code><a href="https://ggplot2.tidyverse.org/reference/guides.html" class="external-link">guides()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/annotate.html" class="external-link">annotate()</a></code>. User-authored zero-arg calls (where
+substitution did not empty the call) and <code>geom_*()</code> / <code>stat_*()</code>
+standalone layers are always preserved. Defaults to <code><a href="https://rdrr.io/r/base/character.html" class="external-link">character()</a></code>.</p></dd>
 
 
 <dt id="arg-ns">ns<a class="anchor" aria-label="anchor" href="#arg-ns"></a></dt>

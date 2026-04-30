@@ -47,7 +47,13 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">ptr_exec</span><span class="op">(</span><span class="va">ptr_obj</span>, <span class="va">input</span>, envir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sys.parent.html" class="external-link">parent.frame</a></span><span class="op">(</span><span class="op">)</span>, expr_check <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">ptr_exec</span><span class="op">(</span></span>
+<span>  <span class="va">ptr_obj</span>,</span>
+<span>  <span class="va">input</span>,</span>
+<span>  envir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sys.parent.html" class="external-link">parent.frame</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  expr_check <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  safe_to_remove <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -78,6 +84,17 @@ Note: the formula template itself is separately validated at parse
 time via <code>formula_check</code> in <code><a href="ptr_parse_formula.html">ptr_parse_formula</a></code>.
 Disabling <code>expr_check</code> here does not affect that earlier check,
 and vice versa.</p></dd>
+
+
+<dt id="arg-safe-to-remove">safe_to_remove<a class="anchor" aria-label="anchor" href="#arg-safe-to-remove"></a></dt>
+<dd><p>Character vector of additional function names whose
+zero-argument calls should be dropped after placeholder substitution
+leaves them empty. Extends the curated default set: <code><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs()</a></code>,
+<code><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">xlab()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ylab()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">ggtitle()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/facet_wrap.html" class="external-link">facet_wrap()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/facet_grid.html" class="external-link">facet_grid()</a></code>,
+<code><a href="https://ggplot2.tidyverse.org/reference/facet_null.html" class="external-link">facet_null()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/lims.html" class="external-link">xlim()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/lims.html" class="external-link">ylim()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/lims.html" class="external-link">lims()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/expand_limits.html" class="external-link">expand_limits()</a></code>,
+<code><a href="https://ggplot2.tidyverse.org/reference/guides.html" class="external-link">guides()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/annotate.html" class="external-link">annotate()</a></code>. User-authored zero-arg calls (where
+substitution did not empty the call) and <code>geom_*()</code> / <code>stat_*()</code>
+standalone layers are always preserved. Defaults to <code><a href="https://rdrr.io/r/base/character.html" class="external-link">character()</a></code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

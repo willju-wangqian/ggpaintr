@@ -63,7 +63,8 @@ server-side ids stay local to the module, while UI generated from
 <span>  ui_text <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  placeholders <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  checkbox_defaults <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  expr_check <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  expr_check <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  safe_to_remove <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -100,6 +101,13 @@ layer checkboxes. See <code><a href="ptr_server_state.html">ptr_server_state()</
 
 <dt id="arg-expr-check">expr_check<a class="anchor" aria-label="anchor" href="#arg-expr-check"></a></dt>
 <dd><p>Controls <code>expr</code> placeholder validation. See <code><a href="ptr_app.html">ptr_app()</a></code>.</p></dd>
+
+
+<dt id="arg-safe-to-remove">safe_to_remove<a class="anchor" aria-label="anchor" href="#arg-safe-to-remove"></a></dt>
+<dd><p>Character vector of additional function names whose
+zero-argument calls should be dropped after placeholder substitution
+leaves them empty. See <code><a href="ptr_app.html">ptr_app()</a></code> for the curated default set and full
+semantics. Defaults to <code><a href="https://rdrr.io/r/base/character.html" class="external-link">character()</a></code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

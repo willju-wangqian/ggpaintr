@@ -17,7 +17,8 @@ ptr_module_server(
   ui_text = NULL,
   placeholders = NULL,
   checkbox_defaults = NULL,
-  expr_check = TRUE
+  expr_check = TRUE,
+  safe_to_remove = character()
 )
 ```
 
@@ -55,6 +56,15 @@ ptr_module_server(
 
   Controls `expr` placeholder validation. See
   [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md).
+
+- safe_to_remove:
+
+  Character vector of additional function names whose zero-argument
+  calls should be dropped after placeholder substitution leaves them
+  empty. See
+  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+  for the curated default set and full semantics. Defaults to
+  [`character()`](https://rdrr.io/r/base/character.html).
 
 ## Value
 

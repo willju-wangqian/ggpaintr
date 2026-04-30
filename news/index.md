@@ -1,5 +1,46 @@
 # Changelog
 
+## ggpaintr (development version)
+
+### Behavior changes
+
+- Replaced the old name-prefix heuristic for pruning empty calls. The
+  new rule is: a zero-argument call is dropped iff its bare function
+  name is in a curated ggplot2 cleanup list
+  ([`theme()`](https://ggplot2.tidyverse.org/reference/theme.html),
+  [`labs()`](https://ggplot2.tidyverse.org/reference/labs.html),
+  `xlab`/`ylab`/`ggtitle`, `facet_wrap`/`facet_grid`/`facet_null`,
+  `xlim`/`ylim`/`lims`, `expand_limits`, `guides`, `annotate`) or in the
+  new `safe_to_remove` argument on
+  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md),
+  [`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md),
+  `ptr_app_components()`,
+  [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md),
+  [`ptr_module_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_server.md),
+  [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md),
+  `ptr_complete_expr()`, and
+  [`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md).
+  Empty calls whose name is not in the set (e.g. third-party helpers
+  like `pcp_theme()`, `pcp_arrange()`, or user-authored `aes_pcp()`) are
+  preserved by default — being absent from the set is the “removal
+  safety unknown” signal. Pass `safe_to_remove = c("pcp_theme")` to opt
+  a specific name into the cleanup pass.
+- An `expr` placeholder, when the user supplies an expression, always
+  wins over the cleanup pass: whatever the user typed into an `expr`
+  input is honoured verbatim, even if its top-level name is in
+  `safe_to_remove`. The intent (“I want this here”) overrides the
+  curated list.
+- `geom_*()` and `stat_*()` layers are kept empty regardless of
+  `safe_to_remove`, since they inherit aesthetics from
+  [`ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html). So
+  `geom_point(colour = var)` with `var` missing still renders as
+  [`geom_point()`](https://ggplot2.tidyverse.org/reference/geom_point.html).
+- Behavior change vs. the prior implementation: user-authored literal
+  `+ labs()`, `+ theme()`, `+ guides()` calls are now dropped (no
+  semantic change — they’re no-ops in stock ggplot2). The previous build
+  kept them via a “diff guard” that has been removed in favour of the
+  cleaner curated-list rule.
+
 ## ggpaintr 0.9.1
 
 ### Documentation and exports

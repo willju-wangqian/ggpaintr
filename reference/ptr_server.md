@@ -19,6 +19,7 @@ ptr_server(
   ids = ptr_build_ids(),
   checkbox_defaults = NULL,
   expr_check = TRUE,
+  safe_to_remove = character(),
   ns = shiny::NS(NULL)
 )
 ```
@@ -74,6 +75,30 @@ ptr_server(
   checking. A named list with `deny_list` and/or `allow_list` character
   vectors supplies a custom check; when both are given, denied entries
   are removed from the allowlist.
+
+- safe_to_remove:
+
+  Character vector of additional function names whose zero-argument
+  calls should be dropped after placeholder substitution leaves them
+  empty. Extends the curated default set:
+  [`theme()`](https://ggplot2.tidyverse.org/reference/theme.html),
+  [`labs()`](https://ggplot2.tidyverse.org/reference/labs.html),
+  [`xlab()`](https://ggplot2.tidyverse.org/reference/labs.html),
+  [`ylab()`](https://ggplot2.tidyverse.org/reference/labs.html),
+  [`ggtitle()`](https://ggplot2.tidyverse.org/reference/labs.html),
+  [`facet_wrap()`](https://ggplot2.tidyverse.org/reference/facet_wrap.html),
+  [`facet_grid()`](https://ggplot2.tidyverse.org/reference/facet_grid.html),
+  [`facet_null()`](https://ggplot2.tidyverse.org/reference/facet_null.html),
+  [`xlim()`](https://ggplot2.tidyverse.org/reference/lims.html),
+  [`ylim()`](https://ggplot2.tidyverse.org/reference/lims.html),
+  [`lims()`](https://ggplot2.tidyverse.org/reference/lims.html),
+  [`expand_limits()`](https://ggplot2.tidyverse.org/reference/expand_limits.html),
+  [`guides()`](https://ggplot2.tidyverse.org/reference/guides.html),
+  [`annotate()`](https://ggplot2.tidyverse.org/reference/annotate.html).
+  User-authored zero-arg calls (where substitution did not empty the
+  call) and `geom_*()` / `stat_*()` standalone layers are always
+  preserved. Defaults to
+  [`character()`](https://rdrr.io/r/base/character.html).
 
 - ns:
 

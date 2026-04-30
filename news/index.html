@@ -41,6 +41,17 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="development version" id="ggpaintr-development-version">ggpaintr (development version)<a class="anchor" aria-label="anchor" href="#ggpaintr-development-version"></a></h2>
+<div class="section level3">
+<h3 id="behavior-changes-development-version">Behavior changes<a class="anchor" aria-label="anchor" href="#behavior-changes-development-version"></a></h3>
+<ul><li>Replaced the old name-prefix heuristic for pruning empty calls. The new rule is: a zero-argument call is dropped iff its bare function name is in a curated ggplot2 cleanup list (<code><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs()</a></code>, <code>xlab</code>/<code>ylab</code>/<code>ggtitle</code>, <code>facet_wrap</code>/<code>facet_grid</code>/<code>facet_null</code>, <code>xlim</code>/<code>ylim</code>/<code>lims</code>, <code>expand_limits</code>, <code>guides</code>, <code>annotate</code>) or in the new <code>safe_to_remove</code> argument on <code><a href="../reference/ptr_app.html">ptr_app()</a></code>, <code><a href="../reference/ptr_app_bslib.html">ptr_app_bslib()</a></code>, <code>ptr_app_components()</code>, <code><a href="../reference/ptr_server.html">ptr_server()</a></code>, <code><a href="../reference/ptr_module_server.html">ptr_module_server()</a></code>, <code><a href="../reference/ptr_server_state.html">ptr_server_state()</a></code>, <code>ptr_complete_expr()</code>, and <code><a href="../reference/ptr_exec.html">ptr_exec()</a></code>. Empty calls whose name is not in the set (e.g. third-party helpers like <code>pcp_theme()</code>, <code>pcp_arrange()</code>, or user-authored <code>aes_pcp()</code>) are preserved by default — being absent from the set is the “removal safety unknown” signal. Pass <code>safe_to_remove = c("pcp_theme")</code> to opt a specific name into the cleanup pass.</li>
+<li>An <code>expr</code> placeholder, when the user supplies an expression, always wins over the cleanup pass: whatever the user typed into an <code>expr</code> input is honoured verbatim, even if its top-level name is in <code>safe_to_remove</code>. The intent (“I want this here”) overrides the curated list.</li>
+<li>
+<code>geom_*()</code> and <code>stat_*()</code> layers are kept empty regardless of <code>safe_to_remove</code>, since they inherit aesthetics from <code><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot()</a></code>. So <code>geom_point(colour = var)</code> with <code>var</code> missing still renders as <code><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point()</a></code>.</li>
+<li>Behavior change vs. the prior implementation: user-authored literal <code>+ labs()</code>, <code>+ theme()</code>, <code>+ guides()</code> calls are now dropped (no semantic change — they’re no-ops in stock ggplot2). The previous build kept them via a “diff guard” that has been removed in favour of the cleaner curated-list rule.</li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.9.1" id="ggpaintr-091">ggpaintr 0.9.1<a class="anchor" aria-label="anchor" href="#ggpaintr-091"></a></h2>
 <div class="section level3">
 <h3 id="documentation-and-exports-0-9-1">Documentation and exports<a class="anchor" aria-label="anchor" href="#documentation-and-exports-0-9-1"></a></h3>
