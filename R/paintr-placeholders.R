@@ -964,13 +964,26 @@ ptr_resolve_layer_data <- function(ptr_obj,
     return(list(has_data = TRUE, data = data_obj))
   }
 
-  # Fallback: check the raw expression for a positional first argument
-  # (e.g., ggplot(mtcars, aes(...)) where mtcars is unnamed and not a placeholder)
   layer_expr <- ptr_obj$expr_list[[layer_name]]
+
+  # Prefer the named `data = ...` argument. Handles both bare symbols and
+  # call expressions (e.g., `data = mtcars |> dplyr::filter(mpg > 20)`).
+  data_expr <- if (is.call(layer_expr)) layer_expr$data else NULL
+  if (!is.null(data_expr)) {
+    data_obj <- tryCatch(
+      eval(data_expr, envir = eval_env),
+      error = function(e) NULL
+    )
+    return(list(has_data = TRUE, data = data_obj))
+  }
+
+  # Fallback: unnamed positional first argument. Allow calls (the |> at the
+  # head of a formula parses to `ggplot(filter(mtcars, ...), aes(...))`) in
+  # addition to bare symbols.
   if (is.call(layer_expr) && length(layer_expr) >= 2) {
     first_arg <- layer_expr[[2]]
     first_arg_name <- names(layer_expr)[2]
-    if (is.symbol(first_arg) && (is.null(first_arg_name) || identical(first_arg_name, "") || identical(first_arg_name, "data"))) {
+    if (is.null(first_arg_name) || identical(first_arg_name, "") || identical(first_arg_name, "data")) {
       data_obj <- tryCatch(
         eval(first_arg, envir = eval_env),
         error = function(e) NULL
