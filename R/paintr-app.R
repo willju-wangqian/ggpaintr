@@ -228,9 +228,11 @@ ptr_validate_state <- function(ptr_state) {
 #'   leaves them empty. Extends the curated default set: `theme()`, `labs()`,
 #'   `xlab()`, `ylab()`, `ggtitle()`, `facet_wrap()`, `facet_grid()`,
 #'   `facet_null()`, `xlim()`, `ylim()`, `lims()`, `expand_limits()`,
-#'   `guides()`, `annotate()`. User-authored zero-arg calls (where
-#'   substitution did not empty the call) and `geom_*()` / `stat_*()`
-#'   standalone layers are always preserved. Defaults to `character()`.
+#'   `guides()`, `annotate()`, `annotation_custom()`, `annotation_map()`,
+#'   `annotation_raster()`, `aes()`, `aes_()`, `aes_q()`, `aes_string()`,
+#'   `vars()`, `element_text()`, `element_line()`, `element_rect()`,
+#'   `element_point()`, `element_polygon()`, `element_geom()`. `geom_*()` /
+#'   `stat_*()` standalone layers are always preserved. Defaults to `character()`.
 #'
 #' @param ns An optional namespace function (`character -> character`) used to
 #'   render UI ids and, by default, Shiny server binding ids. Pass
@@ -897,9 +899,11 @@ ptr_module_server <- function(id,
 #'   leaves them empty. Extends the curated default set: `theme()`, `labs()`,
 #'   `xlab()`, `ylab()`, `ggtitle()`, `facet_wrap()`, `facet_grid()`,
 #'   `facet_null()`, `xlim()`, `ylim()`, `lims()`, `expand_limits()`,
-#'   `guides()`, `annotate()`. User-authored zero-arg calls (where
-#'   substitution did not empty the call) and `geom_*()` / `stat_*()`
-#'   standalone layers are always preserved. Defaults to `character()`.
+#'   `guides()`, `annotate()`, `annotation_custom()`, `annotation_map()`,
+#'   `annotation_raster()`, `aes()`, `aes_()`, `aes_q()`, `aes_string()`,
+#'   `vars()`, `element_text()`, `element_line()`, `element_rect()`,
+#'   `element_point()`, `element_polygon()`, `element_geom()`. `geom_*()` /
+#'   `stat_*()` standalone layers are always preserved. Defaults to `character()`.
 #'
 #' @param ns An optional namespace function (`character -> character`). See
 #'   [ptr_server_state()] for details. For standalone apps created with
@@ -963,9 +967,11 @@ ptr_app <- function(formula,
 #'   leaves them empty. Extends the curated default set: `theme()`, `labs()`,
 #'   `xlab()`, `ylab()`, `ggtitle()`, `facet_wrap()`, `facet_grid()`,
 #'   `facet_null()`, `xlim()`, `ylim()`, `lims()`, `expand_limits()`,
-#'   `guides()`, `annotate()`. User-authored zero-arg calls (where
-#'   substitution did not empty the call) and `geom_*()` / `stat_*()`
-#'   standalone layers are always preserved. Defaults to `character()`.
+#'   `guides()`, `annotate()`, `annotation_custom()`, `annotation_map()`,
+#'   `annotation_raster()`, `aes()`, `aes_()`, `aes_q()`, `aes_string()`,
+#'   `vars()`, `element_text()`, `element_line()`, `element_rect()`,
+#'   `element_point()`, `element_polygon()`, `element_geom()`. `geom_*()` /
+#'   `stat_*()` standalone layers are always preserved. Defaults to `character()`.
 #' @param ns An optional namespace function (`character -> character`). See
 #'   [ptr_server_state()] for details.
 #'

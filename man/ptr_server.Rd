@@ -55,9 +55,11 @@ zero-argument calls should be dropped after placeholder substitution
 leaves them empty. Extends the curated default set: \code{theme()}, \code{labs()},
 \code{xlab()}, \code{ylab()}, \code{ggtitle()}, \code{facet_wrap()}, \code{facet_grid()},
 \code{facet_null()}, \code{xlim()}, \code{ylim()}, \code{lims()}, \code{expand_limits()},
-\code{guides()}, \code{annotate()}. User-authored zero-arg calls (where
-substitution did not empty the call) and \verb{geom_*()} / \verb{stat_*()}
-standalone layers are always preserved. Defaults to \code{character()}.}
+\code{guides()}, \code{annotate()}, \code{annotation_custom()}, \code{annotation_map()},
+\code{annotation_raster()}, \code{aes()}, \code{aes_()}, \code{aes_q()}, \code{aes_string()},
+\code{vars()}, \code{element_text()}, \code{element_line()}, \code{element_rect()},
+\code{element_point()}, \code{element_polygon()}, \code{element_geom()}. \verb{geom_*()} /
+\verb{stat_*()} standalone layers are always preserved. Defaults to \code{character()}.}
 
 \item{ns}{An optional namespace function (\code{character -> character}). See
 \code{\link[=ptr_server_state]{ptr_server_state()}} for details.}

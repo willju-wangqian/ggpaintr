@@ -96,9 +96,11 @@ expr_apply_checkbox_result <- function(expr, nn, input,
 #'   leaves them empty. Extends the curated default set: `theme()`, `labs()`,
 #'   `xlab()`, `ylab()`, `ggtitle()`, `facet_wrap()`, `facet_grid()`,
 #'   `facet_null()`, `xlim()`, `ylim()`, `lims()`, `expand_limits()`,
-#'   `guides()`, `annotate()`. User-authored zero-arg calls (where
-#'   substitution did not empty the call) and `geom_*()` / `stat_*()`
-#'   standalone layers are always preserved.
+#'   `guides()`, `annotate()`, `annotation_custom()`, `annotation_map()`,
+#'   `annotation_raster()`, `aes()`, `aes_()`, `aes_q()`, `aes_string()`,
+#'   `vars()`, `element_text()`, `element_line()`, `element_rect()`,
+#'   `element_point()`, `element_polygon()`, `element_geom()`. `geom_*()` /
+#'   `stat_*()` standalone layers are always preserved.
 #'
 #' @return A named list with `complete_expr_list`, `code_text`, and `eval_env`.
 #' @noRd
@@ -386,9 +388,11 @@ ptr_validate_plot_render_safe <- function(runtime_result) {
 #'   leaves them empty. Extends the curated default set: `theme()`, `labs()`,
 #'   `xlab()`, `ylab()`, `ggtitle()`, `facet_wrap()`, `facet_grid()`,
 #'   `facet_null()`, `xlim()`, `ylim()`, `lims()`, `expand_limits()`,
-#'   `guides()`, `annotate()`. User-authored zero-arg calls (where
-#'   substitution did not empty the call) and `geom_*()` / `stat_*()`
-#'   standalone layers are always preserved. Defaults to `character()`.
+#'   `guides()`, `annotate()`, `annotation_custom()`, `annotation_map()`,
+#'   `annotation_raster()`, `aes()`, `aes_()`, `aes_q()`, `aes_string()`,
+#'   `vars()`, `element_text()`, `element_line()`, `element_rect()`,
+#'   `element_point()`, `element_polygon()`, `element_geom()`. `geom_*()` /
+#'   `stat_*()` standalone layers are always preserved. Defaults to `character()`.
 #'
 #' @return A runtime result list containing `ok`, `stage`, `message`,
 #'   `code_text`, `complete_expr_list`, `eval_env`, `condition`, and `plot`.

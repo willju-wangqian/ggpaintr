@@ -13,11 +13,13 @@ test_that("default_safe_to_remove returns the documented curated set", {
     "theme", "labs", "xlab", "ylab", "ggtitle",
     "facet_wrap", "facet_grid", "facet_null",
     "xlim", "ylim", "lims", "expand_limits",
-    "guides", "annotate"
+    "guides", "annotate",
+    "annotation_custom", "annotation_map", "annotation_raster",
+    "aes", "aes_", "aes_q", "aes_string", "vars",
+    "element_text", "element_line", "element_rect",
+    "element_point", "element_polygon", "element_geom"
   ) %in% default_set))
-  expect_false("aes" %in% default_set)
-  expect_false("vars" %in% default_set)
-  expect_false("element_text" %in% default_set)
+  expect_false("element_blank" %in% default_set)
   expect_false(any(grepl("^geom_", default_set)))
   expect_false(any(grepl("^stat_", default_set)))
 })
@@ -88,13 +90,54 @@ test_that("theme(plot.title = text) with text missing gets pruned at top level",
   expect_equal(length(result), 1L)
 })
 
-test_that("nested theme(plot.title = element_text(size = num)) with num missing keeps element_text()", {
+test_that("nested theme(plot.title = element_text(size = num)) with num missing cascades to theme()", {
   orig <- rlang::expr(theme(plot.title = element_text(size = num)))
   post <- rlang::expr(theme(plot.title = element_text(size = !!sentinel)))
   result <- prune_empty_substitution_artifacts(post, orig, default_set)
-  # element_text not in default set → kept as element_text()
-  expect_equal(rlang::expr_text(result),
-               rlang::expr_text(rlang::expr(theme(plot.title = element_text()))))
+  # element_text now in default set → emits sentinel → parent theme slot
+  # swept → theme() returned at depth 0 (layer-pass drops it).
+  expect_true(rlang::is_call(result, "theme"))
+  expect_equal(length(result), 1L)
+})
+
+test_that("nested theme(plot.title = element_blank()) under missing num is preserved (element_blank not in set)", {
+  # element_blank is intentionally NOT in remove_set — empty form is a
+  # meaningful "suppress" directive, not an inherit-friendly default.
+  orig <- rlang::expr(theme(plot.title = element_blank()))
+  post <- rlang::expr(theme(plot.title = element_blank()))
+  result <- prune_empty_substitution_artifacts(post, orig, default_set)
+  expect_equal(
+    rlang::expr_text(result),
+    rlang::expr_text(rlang::expr(theme(plot.title = element_blank())))
+  )
+})
+
+test_that("nested aes(x = var) with var missing cascades to drop the mapping arg", {
+  # aes is in default set → empty aes() emits sentinel → parent's mapping
+  # slot is swept. geom_point is standalone-protected at top level.
+  orig <- rlang::expr(geom_point(aes(x = var)))
+  post <- rlang::expr(geom_point(aes(x = !!sentinel)))
+  result <- prune_empty_substitution_artifacts(post, orig, default_set)
+  expect_true(rlang::is_call(result, "geom_point"))
+  expect_false(grepl("aes", rlang::expr_text(result), fixed = TRUE))
+})
+
+test_that("nested annotation_custom(grob = expr) with expr missing cascades", {
+  orig <- rlang::expr(plot + annotation_custom(grob = my_grob))
+  post <- rlang::expr(plot + annotation_custom(grob = !!sentinel))
+  result <- prune_empty_substitution_artifacts(post, orig, default_set)
+  expect_false(grepl("annotation_custom", rlang::expr_text(result), fixed = TRUE))
+})
+
+test_that("nested vars(var) with var missing cascades through facet_wrap", {
+  # vars and facet_wrap both in set → vars() emits sentinel → facet_wrap()
+  # length 1 → emits sentinel up. At depth 0 the walker returns facet_wrap()
+  # length 1; layer-pass drops it.
+  orig <- rlang::expr(facet_wrap(vars(var)))
+  post <- rlang::expr(facet_wrap(vars(!!sentinel)))
+  result <- prune_empty_substitution_artifacts(post, orig, default_set)
+  expect_true(rlang::is_call(result, "facet_wrap"))
+  expect_equal(length(result), 1L)
 })
 
 test_that("nested labs(title = text) with text missing collapses (labs in curated set)", {
@@ -312,7 +355,7 @@ test_that("ptr_complete_expr respects user safe_to_remove", {
   expect_false(grepl("pcp_theme\\(", result$code_text))
 })
 
-test_that("ptr_complete_expr keeps element_text() when nested num goes missing", {
+test_that("ptr_complete_expr drops theme layer when nested element_text(size = num) goes empty", {
   obj <- ptr_parse_formula(
     "ggplot(data = mtcars, aes(x = var)) + geom_histogram() + theme(plot.title = element_text(size = num))"
   )
@@ -322,7 +365,30 @@ test_that("ptr_complete_expr keeps element_text() when nested num goes missing",
     "theme_checkbox" = TRUE
   )
   result <- ptr_complete_expr(obj, input)
-  expect_match(result$code_text, "theme\\(plot\\.title = element_text\\(\\)\\)")
+  expect_false(grepl("theme\\(", result$code_text))
+  expect_false(grepl("element_text", result$code_text, fixed = TRUE))
+})
+
+test_that("ptr_complete_expr reduces geom_point(aes(colour = var)) to geom_point() when var missing", {
+  obj <- ptr_parse_formula(
+    "ggplot(data = mtcars, aes(x = mpg, y = disp)) + geom_point(aes(colour = var))"
+  )
+  input <- list("geom_point_checkbox" = TRUE)
+  result <- ptr_complete_expr(obj, input)
+  expect_match(result$code_text, "geom_point\\(\\)")
+  expect_false(grepl("colour", result$code_text, fixed = TRUE))
+})
+
+test_that("ptr_complete_expr drops annotation_custom() when its grob arg goes missing", {
+  obj <- ptr_parse_formula(
+    "ggplot(data = mtcars, aes(x = mpg, y = disp)) + geom_point() + annotation_custom(grob = expr)"
+  )
+  input <- list(
+    "geom_point_checkbox" = TRUE,
+    "annotation_custom_checkbox" = TRUE
+  )
+  result <- ptr_complete_expr(obj, input)
+  expect_false(grepl("annotation_custom", result$code_text, fixed = TRUE))
 })
 
 test_that("ptr_complete_expr keeps geom_point when its sole aesthetic is missing", {

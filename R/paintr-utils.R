@@ -276,7 +276,11 @@ default_safe_to_remove <- function() {
     "theme", "labs", "xlab", "ylab", "ggtitle",
     "facet_wrap", "facet_grid", "facet_null",
     "xlim", "ylim", "lims", "expand_limits",
-    "guides", "annotate"
+    "guides", "annotate",
+    "annotation_custom", "annotation_map", "annotation_raster",
+    "aes", "aes_", "aes_q", "aes_string", "vars",
+    "element_text", "element_line", "element_rect",
+    "element_point", "element_polygon", "element_geom"
   )
 }
 
