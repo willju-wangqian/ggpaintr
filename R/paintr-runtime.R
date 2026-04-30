@@ -171,6 +171,13 @@ ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
   ptr_processed_expr_list <- check_remove_null(ptr_processed_expr_list)
 
   code_text_list <- lapply(ptr_processed_expr_list, rlang::expr_text)
+  pipe_op <- ptr_obj[["ggplot_pipe_op"]]
+  if (!is.null(pipe_op) && "ggplot" %in% names(code_text_list)) {
+    code_text_list[["ggplot"]] <- render_ggplot_with_pipe(
+      ptr_processed_expr_list[["ggplot"]],
+      pipe_op
+    )
+  }
   code_text <- do.call(paste, c(unname(code_text_list), sep = " +\n  "))
 
   list(
