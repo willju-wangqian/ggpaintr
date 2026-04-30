@@ -293,3 +293,49 @@ test_that("ptr_app_grid rejects non-function shared_ui entries", {
     "must be a function"
   )
 })
+
+test_that("ptr_app_grid UI includes the draw-all button", {
+  parts <- ptr_app_grid_components(
+    plots = list("ggplot(data = mtcars) + geom_point(aes(x = wt, y = mpg))"),
+    shared_ui = list()
+  )
+  ui_html <- as.character(parts$ui)
+  expect_match(ui_html, "ptr_grid_draw_all", fixed = TRUE)
+})
+
+test_that("ptr_app_grid draw-all button label is configurable", {
+  parts <- ptr_app_grid_components(
+    plots = list("ggplot(data = mtcars) + geom_point(aes(x = wt, y = mpg))"),
+    shared_ui = list(),
+    draw_all_label = "Refresh everything"
+  )
+  ui_html <- as.character(parts$ui)
+  expect_match(ui_html, "Refresh everything", fixed = TRUE)
+})
+
+test_that("ptr_server_state stores draw_trigger when provided", {
+  rv <- shiny::reactiveVal(0)
+  state <- ptr_server_state(
+    "ggplot(data = mtcars) + geom_point(aes(x = wt, y = mpg))",
+    draw_trigger = rv
+  )
+  expect_identical(state$draw_trigger, rv)
+})
+
+test_that("ptr_server_state rejects non-reactive draw_trigger", {
+  expect_error(
+    ptr_server_state(
+      "ggplot(data = mtcars) + geom_point(aes(x = wt, y = mpg))",
+      draw_trigger = 42
+    ),
+    "must be a Shiny reactive"
+  )
+})
+
+test_that("ptr_server_state accepts NULL draw_trigger", {
+  state <- ptr_server_state(
+    "ggplot(data = mtcars) + geom_point(aes(x = wt, y = mpg))",
+    draw_trigger = NULL
+  )
+  expect_null(state$draw_trigger)
+})

@@ -240,6 +240,10 @@ ptr_validate_state <- function(ptr_state) {
 #'   the matching reactive instead. Use this to drive multiple ptr_obj
 #'   instances from a single externally-rendered control. Defaults to an
 #'   empty list (no shared bindings).
+#' @param draw_trigger Optional Shiny reactive (or `NULL`). When non-`NULL`,
+#'   firing the reactive triggers a redraw in addition to the local draw
+#'   button. Used by [ptr_app_grid()] to wire a top-level "draw all" button
+#'   into every plot. Defaults to `NULL`.
 #' @param ns An optional namespace function (`character -> character`) used to
 #'   render UI ids and, by default, Shiny server binding ids. Pass
 #'   `shiny::NS("page1")` to avoid id collisions when embedding two or more
@@ -268,6 +272,7 @@ ptr_server_state <- function(formula,
                              expr_check = TRUE,
                              safe_to_remove = character(),
                              shared = list(),
+                             draw_trigger = NULL,
                              ns = shiny::NS(NULL),
                              server_ns = ns) {
   if (!is.function(ns)) {
@@ -275,6 +280,9 @@ ptr_server_state <- function(formula,
   }
   if (!is.function(server_ns)) {
     rlang::abort("`server_ns` must be a namespace function (e.g. shiny::NS(\"id\") or session$ns).")
+  }
+  if (!is.null(draw_trigger) && !shiny::is.reactive(draw_trigger)) {
+    rlang::abort("`draw_trigger` must be a Shiny reactive or NULL.")
   }
   shared_bindings <- ptr_validate_shared_bindings(shared)
   safe_to_remove <- validate_safe_to_remove(safe_to_remove)
@@ -300,6 +308,7 @@ ptr_server_state <- function(formula,
       var_ui_list = shiny::reactiveVal(list()),
       shared_env_reactive = NULL,
       shared_bindings = shared_bindings,
+      draw_trigger = draw_trigger,
       raw_ui_text = ui_text,
       effective_ui_text = ptr_merge_ui_text(
         ui_text,
@@ -440,8 +449,9 @@ ptr_register_draw <- function(input,
                                ptr_state) {
   ptr_validate_state(ptr_state)
   ids <- ptr_normalize_ids(ptr_state$server_ids)
+  draw_trigger <- ptr_state$draw_trigger
 
-  shiny::observeEvent(input[[ids$draw_button]], {
+  draw_handler <- function() {
     shiny::req(ptr_state$obj())
     cached <- tryCatch(ptr_state$shared_env_reactive(), error = function(e) NULL)
     runtime_result <- ptr_complete_expr_safe(
@@ -458,7 +468,13 @@ ptr_register_draw <- function(input,
     runtime_result <- ptr_assemble_plot_safe(runtime_result, envir = ptr_state$envir, expr_check = ptr_state$expr_check)
     runtime_result <- ptr_validate_plot_render_safe(runtime_result)
     ptr_state$runtime(runtime_result)
-  })
+  }
+
+  shiny::observeEvent(input[[ids$draw_button]], draw_handler())
+
+  if (!is.null(draw_trigger)) {
+    shiny::observeEvent(draw_trigger(), draw_handler(), ignoreInit = TRUE)
+  }
 
   invisible(ptr_state)
 }
@@ -831,6 +847,10 @@ ptr_module_ui <- function(id, ui_text = NULL) {
 #'   zero-argument calls should be dropped after placeholder substitution
 #'   leaves them empty. See [ptr_app()] for the curated default set and full
 #'   semantics. Defaults to `character()`.
+#' @param shared Named list of Shiny reactives (or empty list). See
+#'   [ptr_server_state()] for details.
+#' @param draw_trigger Optional Shiny reactive (or `NULL`). See
+#'   [ptr_server_state()] for details.
 #'
 #' @return A `ptr_state` object containing reactive accessors named `obj`,
 #'   `runtime`, and `var_ui_list`, plus shared metadata used by the bind helpers.
@@ -854,7 +874,8 @@ ptr_module_server <- function(id,
                               checkbox_defaults = NULL,
                               expr_check = TRUE,
                               safe_to_remove = character(),
-                              shared = list()) {
+                              shared = list(),
+                              draw_trigger = NULL) {
   force(formula)
   force(envir)
   force(ui_text)
@@ -862,6 +883,7 @@ ptr_module_server <- function(id,
   force(checkbox_defaults)
   force(expr_check)
   force(shared)
+  force(draw_trigger)
   safe_to_remove <- validate_safe_to_remove(safe_to_remove)
 
   shiny::moduleServer(id, function(input, output, session) {
@@ -874,6 +896,7 @@ ptr_module_server <- function(id,
       expr_check = expr_check,
       safe_to_remove = safe_to_remove,
       shared = shared,
+      draw_trigger = draw_trigger,
       ns = session$ns,
       server_ns = shiny::NS(NULL)
     )
@@ -973,6 +996,10 @@ ptr_app <- function(formula,
 #'   `shared` argument.
 #' @param envir Environment used to resolve local data objects.
 #' @param title Title displayed in the app header.
+#' @param draw_all_label Label for the top-level "draw all" button that
+#'   triggers a redraw of every plot in the grid. The button is rendered
+#'   alongside the shared widgets so changes to those widgets can be
+#'   broadcast to all plots in one click. Defaults to `"Draw all"`.
 #' @param expr_check Controls `expr` placeholder validation. See
 #'   [ptr_server_state()].
 #'
@@ -997,12 +1024,14 @@ ptr_app_grid <- function(plots,
                          shared_ui = list(),
                          envir = parent.frame(),
                          title = "ggpaintr grid",
+                         draw_all_label = "Draw all",
                          expr_check = TRUE) {
   parts <- ptr_app_grid_components(
     plots = plots,
     shared_ui = shared_ui,
     envir = envir,
     title = title,
+    draw_all_label = draw_all_label,
     expr_check = expr_check
   )
   shiny::shinyApp(ui = parts$ui, server = parts$server)
@@ -1021,6 +1050,7 @@ ptr_app_grid_components <- function(plots,
                                     shared_ui = list(),
                                     envir = parent.frame(),
                                     title = "ggpaintr grid",
+                                    draw_all_label = "Draw all",
                                     expr_check = TRUE) {
   if (is.character(plots)) plots <- as.list(plots)
   assertthat::assert_that(
@@ -1048,16 +1078,20 @@ ptr_app_grid_components <- function(plots,
   plot_module_ids <- paste0("plot_", seq_along(plots))
   n_plots <- length(plots)
   col_width <- max(1L, 12L %/% n_plots)
+  draw_all_id <- "ptr_grid_draw_all"
 
   shared_panel <- if (length(shared_ui) > 0L) {
     shiny::wellPanel(
       do.call(
         shiny::tagList,
-        lapply(shared_names, function(nm) shared_ui[[nm]](nm))
+        c(
+          lapply(shared_names, function(nm) shared_ui[[nm]](nm)),
+          list(shiny::actionButton(draw_all_id, draw_all_label))
+        )
       )
     )
   } else {
-    NULL
+    shiny::wellPanel(shiny::actionButton(draw_all_id, draw_all_label))
   }
 
   plot_columns <- do.call(
@@ -1086,6 +1120,7 @@ ptr_app_grid_components <- function(plots,
     } else {
       list()
     }
+    draw_all_trigger <- shiny::reactive(input[[draw_all_id]])
 
     for (i in seq_along(plots)) {
       local({
@@ -1095,7 +1130,8 @@ ptr_app_grid_components <- function(plots,
           formula = plots[[idx]],
           envir = envir,
           expr_check = expr_check,
-          shared = shared_reactives
+          shared = shared_reactives,
+          draw_trigger = draw_all_trigger
         )
       })
     }
@@ -1144,6 +1180,8 @@ ptr_app_grid_components <- function(plots,
 #' @param shared Named list of Shiny reactives (or `NULL`/empty list).
 #'   See [ptr_server_state()] for details. Use this to drive multiple
 #'   ptr_obj instances from a single externally-rendered control.
+#' @param draw_trigger Optional Shiny reactive (or `NULL`). See
+#'   [ptr_server_state()] for details.
 #' @param ns An optional namespace function (`character -> character`). See
 #'   [ptr_server_state()] for details.
 #'
@@ -1166,6 +1204,7 @@ ptr_server <- function(input,
                             expr_check = TRUE,
                             safe_to_remove = character(),
                             shared = list(),
+                            draw_trigger = NULL,
                             ns = shiny::NS(NULL)) {
   ptr_state <- ptr_server_state(
     formula,
@@ -1177,6 +1216,7 @@ ptr_server <- function(input,
     expr_check = expr_check,
     safe_to_remove = safe_to_remove,
     shared = shared,
+    draw_trigger = draw_trigger,
     ns = ns
   )
 

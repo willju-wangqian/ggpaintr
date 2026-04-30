@@ -13,7 +13,8 @@ ptr_module_server(
   checkbox_defaults = NULL,
   expr_check = TRUE,
   safe_to_remove = character(),
-  shared = list()
+  shared = list(),
+  draw_trigger = NULL
 )
 }
 \arguments{
@@ -38,6 +39,12 @@ layer checkboxes. See \code{\link[=ptr_server_state]{ptr_server_state()}}.}
 zero-argument calls should be dropped after placeholder substitution
 leaves them empty. See \code{\link[=ptr_app]{ptr_app()}} for the curated default set and full
 semantics. Defaults to \code{character()}.}
+
+\item{shared}{Named list of Shiny reactives (or empty list). See
+\code{\link[=ptr_server_state]{ptr_server_state()}} for details.}
+
+\item{draw_trigger}{Optional Shiny reactive (or \code{NULL}). See
+\code{\link[=ptr_server_state]{ptr_server_state()}} for details.}
 }
 \value{
 A \code{ptr_state} object containing reactive accessors named \code{obj},

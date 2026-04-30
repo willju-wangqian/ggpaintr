@@ -17,6 +17,7 @@ ptr_server(
   expr_check = TRUE,
   safe_to_remove = character(),
   shared = list(),
+  draw_trigger = NULL,
   ns = shiny::NS(NULL)
 )
 }
@@ -65,6 +66,9 @@ leaves them empty. Extends the curated default set: \code{theme()}, \code{labs()
 \item{shared}{Named list of Shiny reactives (or \code{NULL}/empty list).
 See \code{\link[=ptr_server_state]{ptr_server_state()}} for details. Use this to drive multiple
 ptr_obj instances from a single externally-rendered control.}
+
+\item{draw_trigger}{Optional Shiny reactive (or \code{NULL}). See
+\code{\link[=ptr_server_state]{ptr_server_state()}} for details.}
 
 \item{ns}{An optional namespace function (\code{character -> character}). See
 \code{\link[=ptr_server_state]{ptr_server_state()}} for details.}

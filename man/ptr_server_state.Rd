@@ -14,6 +14,7 @@ ptr_server_state(
   expr_check = TRUE,
   safe_to_remove = character(),
   shared = list(),
+  draw_trigger = NULL,
   ns = shiny::NS(NULL),
   server_ns = ns
 )
@@ -72,6 +73,11 @@ per-instance widget is suppressed and its runtime value is read from
 the matching reactive instead. Use this to drive multiple ptr_obj
 instances from a single externally-rendered control. Defaults to an
 empty list (no shared bindings).}
+
+\item{draw_trigger}{Optional Shiny reactive (or \code{NULL}). When non-\code{NULL},
+firing the reactive triggers a redraw in addition to the local draw
+button. Used by \code{\link[=ptr_app_grid]{ptr_app_grid()}} to wire a top-level "draw all" button
+into every plot. Defaults to \code{NULL}.}
 
 \item{ns}{An optional namespace function (\code{character -> character}) used to
 render UI ids and, by default, Shiny server binding ids. Pass

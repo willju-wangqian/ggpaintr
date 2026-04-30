@@ -9,6 +9,7 @@ ptr_app_grid(
   shared_ui = list(),
   envir = parent.frame(),
   title = "ggpaintr grid",
+  draw_all_label = "Draw all",
   expr_check = TRUE
 )
 }
@@ -26,6 +27,11 @@ the app and its \code{input[[id]]} is wired into every plot's
 \item{envir}{Environment used to resolve local data objects.}
 
 \item{title}{Title displayed in the app header.}
+
+\item{draw_all_label}{Label for the top-level "draw all" button that
+triggers a redraw of every plot in the grid. The button is rendered
+alongside the shared widgets so changes to those widgets can be
+broadcast to all plots in one click. Defaults to \code{"Draw all"}.}
 
 \item{expr_check}{Controls \code{expr} placeholder validation. See
 \code{\link[=ptr_server_state]{ptr_server_state()}}.}
