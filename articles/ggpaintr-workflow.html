@@ -762,6 +762,65 @@ positional placeholders.</li>
 <code>input_id</code> of the matching <code>upload</code> placeholder
 row.</li>
 </ul>
+<div class="section level3">
+<h3 id="empty-call-cleanup">5.1 Empty-call cleanup<a class="anchor" aria-label="anchor" href="#empty-call-cleanup"></a>
+</h3>
+<p>When the user clears a placeholder, the corresponding ggplot2
+argument has no value. Letting that emptiness propagate would crash the
+layer, so after substitution <code><a href="../reference/ptr_exec.html">ptr_exec()</a></code> runs a cleanup
+pass:</p>
+<ul>
+<li>Each call whose <strong>name</strong> is in a curated list AND whose
+<strong>arguments are now all empty</strong> is removed
+(sentinel-emitted up to its parent slot, which is then swept).</li>
+<li>Sweeping cascades: a nested helper that goes empty can take its
+parent slot with it, all the way up to a top-level layer.</li>
+<li>
+<code>geom_*()</code> and <code>stat_*()</code> layers are always
+kept at the top level — even with no aesthetics, they fall back on what
+<code><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot()</a></code> provided.</li>
+</ul>
+<p>Curated cleanup names: <code>theme</code>, <code>labs</code>,
+<code>xlab</code>, <code>ylab</code>, <code>ggtitle</code>,
+<code>facet_wrap</code>/<code>grid</code>/<code>null</code>,
+<code>xlim</code>, <code>ylim</code>, <code>lims</code>,
+<code>expand_limits</code>, <code>guides</code>, <code>annotate</code>,
+<code>annotation_custom</code>/<code>map</code>/<code>raster</code>,
+<code>aes</code>/<code>aes_</code>/<code>aes_q</code>/<code>aes_string</code>,
+<code>vars</code>, and
+<code>element_text</code>/<code>line</code>/<code>rect</code>/<code>point</code>/<code>polygon</code>/<code>geom</code>.
+<code><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_blank()</a></code> is intentionally not in the list (empty
+form is a meaningful “suppress” directive, not a no-op).</p>
+<p>Worked behaviors:</p>
+<ul>
+<li>
+<code>geom_point(aes(colour = var))</code> with <code>var</code>
+empty → <code>+ geom_point()</code> (inherits
+<code>x</code>/<code>y</code> from base <code><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes()</a></code>).</li>
+<li>
+<code>theme(plot.title = element_text(size = num))</code> with
+<code>num</code> empty → whole <code><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme()</a></code> layer removed;
+<code>plot.title</code> reverts to the active theme’s default
+styling.</li>
+<li>
+<code>theme(plot.title = element_text(size = num), legend.position = "right")</code>
+with <code>num</code> empty →
+<code>theme(legend.position = "right")</code> (the still-set arg is
+preserved).</li>
+<li>
+<code>facet_wrap(vars(var))</code> with <code>var</code> empty → no
+facets.</li>
+<li>
+<code>+ pcp_theme()</code> (a third-party helper, name not in the
+list) → kept verbatim.</li>
+</ul>
+<p>The cleanup list is fixed by default. To extend it, pass
+<code>safe_to_remove = c("pcp_theme")</code> to <code><a href="../reference/ptr_app.html">ptr_app()</a></code> /
+<code><a href="../reference/ptr_app_bslib.html">ptr_app_bslib()</a></code> / <code>ptr_complete_expr()</code> /
+<code><a href="../reference/ptr_exec.html">ptr_exec()</a></code> — see
+<code><a href="../articles/ggpaintr-extensibility.html">vignette("ggpaintr-extensibility")</a></code> §4 for the Level 3 entry
+points.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="going-further">6. Going further<a class="anchor" aria-label="anchor" href="#going-further"></a>

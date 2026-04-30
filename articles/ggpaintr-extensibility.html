@@ -1294,6 +1294,41 @@ identical to the rule in <code><a href="../reference/ptr_register_code.html">ptr
 <span><span class="co">#&gt; NULL</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_extract_code.html">ptr_extract_code</a></span><span class="op">(</span><span class="va">bad</span><span class="op">)</span><span class="op">)</span>  <span class="co"># still returns the attempted call</span></span></code></pre></div>
 </div>
+<div class="section level3">
+<h3 id="e--extending-the-empty-call-cleanup-list-with-safe_to_remove">4e. Extending the empty-call cleanup list with
+<code>safe_to_remove</code><a class="anchor" aria-label="anchor" href="#e--extending-the-empty-call-cleanup-list-with-safe_to_remove"></a>
+</h3>
+<p>After substitution, <code><a href="../reference/ptr_exec.html">ptr_exec()</a></code> (and
+<code>ptr_complete_expr()</code>) drop empty calls whose names appear in
+a curated cleanup list — see <code><a href="../articles/ggpaintr-workflow.html">vignette("ggpaintr-workflow")</a></code>
+§5.1 for the default behavior and the canonical examples. The default
+list covers stock ggplot2 surface; if your formula uses a third-party
+helper that should also be cleaned up when its inputs go missing, opt it
+in by name:</p>
+<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
+<span>  <span class="st">"ggplot(data = flea, mapping = aes_pcp()) +</span></span>
+<span><span class="st">     pcp_theme(title = text)"</span>,</span>
+<span>  safe_to_remove <span class="op">=</span> <span class="st">"pcp_theme"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>With <code>safe_to_remove = "pcp_theme"</code>, an empty
+<code>pcp_theme()</code> (because <code>text</code> was cleared) drops
+from the assembled expression. Without it — and without a built-in entry
+for <code>pcp_theme</code> — the empty <code>pcp_theme()</code> would
+survive, exactly like any unknown user-authored zero-arg call. The same
+argument is accepted by <code><a href="../reference/ptr_app_bslib.html">ptr_app_bslib()</a></code>,
+<code>ptr_app_components()</code>, <code><a href="../reference/ptr_server.html">ptr_server()</a></code>,
+<code><a href="../reference/ptr_module_server.html">ptr_module_server()</a></code>, <code><a href="../reference/ptr_server_state.html">ptr_server_state()</a></code>,
+<code>ptr_complete_expr()</code>, and <code><a href="../reference/ptr_exec.html">ptr_exec()</a></code>.</p>
+<p><code>safe_to_remove</code> is a character vector of bare function
+names. Validation rejects <code>NA</code>, empty strings, namespaced
+entries (<code>"patchwork::plot_layout"</code>), and entries that aren’t
+valid R names. Match a namespaced call by its bare name
+(e.g. <code>safe_to_remove = "plot_layout"</code> matches both
+<code>plot_layout()</code> and <code>patchwork::plot_layout()</code>).
+Subtrees produced by an <code>expr</code> placeholder are honoured
+verbatim and never affected by <code>safe_to_remove</code>.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="reference-card">5. Reference card<a class="anchor" aria-label="anchor" href="#reference-card"></a>
@@ -1365,6 +1400,12 @@ helper</td>
 arg (see registry vignette)</td>
 </tr>
 <tr class="even">
+<td>Opt a third-party helper into the empty-call cleanup pass</td>
+<td>
+<code>safe_to_remove = c("pcp_theme")</code> on
+<code><a href="../reference/ptr_app.html">ptr_app()</a></code> / <code><a href="../reference/ptr_exec.html">ptr_exec()</a></code> (see §4e)</td>
+</tr>
+<tr class="odd">
 <td>Render a plot from a formula without Shiny</td>
 <td>
 <code><a href="../reference/ptr_parse_formula.html">ptr_parse_formula()</a></code> →
@@ -1372,27 +1413,27 @@ arg (see registry vignette)</td>
 <code><a href="../reference/ptr_extract_plot.html">ptr_extract_plot()</a></code>
 </td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Post-process the plot before rendering</td>
 <td>Your own <code><a href="https://rdrr.io/pkg/shiny/man/renderPlot.html" class="external-link">renderPlot()</a></code> +
 <code>ptr_extract_plot(ptr_state$runtime())</code>
 </td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Keep host-app ggplot additions in the code output</td>
 <td><code>plot_obj + ptr_gg_extra(ptr_state, ...)</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Generate ggplot code text as a string</td>
 <td><code>ptr_extract_code(result, extras = NULL)</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Render a standard inline error panel</td>
 <td>
 <code>ptr_extract_error(result)</code> (or
 <code><a href="../reference/ptr_register_error.html">ptr_register_error()</a></code> inside Shiny)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Detect “no value supplied” for a placeholder (inside a custom
 <code>resolve_expr</code>)</td>
 <td><code><a href="../reference/ptr_missing_expr.html">ptr_missing_expr()</a></code></td>

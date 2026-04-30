@@ -85,6 +85,39 @@ once before passing the frame in.
 For a worked walkthrough of every keyword, see
 [`vignette("ggpaintr-workflow")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-workflow.md).
 
+### What happens when a placeholder is left empty
+
+A formula slot can resolve to “no input” — the user clears a `text`
+field, leaves a `num` blank, or unchecks a layer. ggpaintr does not
+propagate that emptiness as `NULL` into ggplot2 (which would crash).
+Instead, after substitution, any zero-arg call whose name is in a
+curated cleanup list is dropped, and the cascade lifts cleanly through
+nested helpers.
+
+In practice this means `geom_point(aes(color = var), size = num)` with
+both inputs empty renders as `+ geom_point()` (inheriting aesthetics
+from the base
+[`ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html) call);
+`theme(plot.title = element_text(size = num))` with `num` empty drops
+the whole
+[`theme()`](https://ggplot2.tidyverse.org/reference/theme.html) layer;
+`facet_wrap(vars(var))` with `var` empty drops the facet.
+
+Curated cleanup names: `theme`, `labs`, `xlab`, `ylab`, `ggtitle`,
+`facet_wrap`/`grid`/`null`, `xlim`, `ylim`, `lims`, `expand_limits`,
+`guides`, `annotate`, `annotation_custom`/`map`/`raster`,
+`aes`/`aes_`/`aes_q`/`aes_string`, `vars`, and
+`element_text`/`line`/`rect`/`point`/`polygon`/`geom`. `geom_*()` and
+`stat_*()` layers are always kept (they fall back on inherited
+aesthetics).
+[`element_blank()`](https://ggplot2.tidyverse.org/reference/element.html)
+is intentionally not in the list — empty form is a meaningful “suppress”
+directive. To opt third-party functions into the cleanup pass (e.g. for
+a plugin’s theme helper), pass `safe_to_remove = c("pcp_theme")` to
+[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+/
+[`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md).
+
 ## Three levels of use
 
 ggpaintr is organized around three levels of integration. Pick the

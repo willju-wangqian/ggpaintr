@@ -94,11 +94,23 @@ ptr_server(
   [`lims()`](https://ggplot2.tidyverse.org/reference/lims.html),
   [`expand_limits()`](https://ggplot2.tidyverse.org/reference/expand_limits.html),
   [`guides()`](https://ggplot2.tidyverse.org/reference/guides.html),
-  [`annotate()`](https://ggplot2.tidyverse.org/reference/annotate.html).
-  User-authored zero-arg calls (where substitution did not empty the
-  call) and `geom_*()` / `stat_*()` standalone layers are always
-  preserved. Defaults to
-  [`character()`](https://rdrr.io/r/base/character.html).
+  [`annotate()`](https://ggplot2.tidyverse.org/reference/annotate.html),
+  [`annotation_custom()`](https://ggplot2.tidyverse.org/reference/annotation_custom.html),
+  [`annotation_map()`](https://ggplot2.tidyverse.org/reference/annotation_map.html),
+  [`annotation_raster()`](https://ggplot2.tidyverse.org/reference/annotation_raster.html),
+  [`aes()`](https://ggplot2.tidyverse.org/reference/aes.html),
+  [`aes_()`](https://ggplot2.tidyverse.org/reference/aes_.html),
+  [`aes_q()`](https://ggplot2.tidyverse.org/reference/aes_.html),
+  [`aes_string()`](https://ggplot2.tidyverse.org/reference/aes_.html),
+  [`vars()`](https://ggplot2.tidyverse.org/reference/vars.html),
+  [`element_text()`](https://ggplot2.tidyverse.org/reference/element.html),
+  [`element_line()`](https://ggplot2.tidyverse.org/reference/element.html),
+  [`element_rect()`](https://ggplot2.tidyverse.org/reference/element.html),
+  [`element_point()`](https://ggplot2.tidyverse.org/reference/element.html),
+  [`element_polygon()`](https://ggplot2.tidyverse.org/reference/element.html),
+  [`element_geom()`](https://ggplot2.tidyverse.org/reference/element.html).
+  `geom_*()` / `stat_*()` standalone layers are always preserved.
+  Defaults to [`character()`](https://rdrr.io/r/base/character.html).
 
 - ns:
 

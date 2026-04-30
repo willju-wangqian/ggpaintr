@@ -1174,6 +1174,47 @@ ptr_extract_plot(bad)    # NULL because ok = FALSE
 cat(ptr_extract_code(bad))  # still returns the attempted call
 ```
 
+### 4e. Extending the empty-call cleanup list with `safe_to_remove`
+
+After substitution,
+[`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md)
+(and `ptr_complete_expr()`) drop empty calls whose names appear in a
+curated cleanup list — see
+[`vignette("ggpaintr-workflow")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-workflow.md)
+§5.1 for the default behavior and the canonical examples. The default
+list covers stock ggplot2 surface; if your formula uses a third-party
+helper that should also be cleaned up when its inputs go missing, opt it
+in by name:
+
+``` r
+ptr_app(
+  "ggplot(data = flea, mapping = aes_pcp()) +
+     pcp_theme(title = text)",
+  safe_to_remove = "pcp_theme"
+)
+```
+
+With `safe_to_remove = "pcp_theme"`, an empty `pcp_theme()` (because
+`text` was cleared) drops from the assembled expression. Without it —
+and without a built-in entry for `pcp_theme` — the empty `pcp_theme()`
+would survive, exactly like any unknown user-authored zero-arg call. The
+same argument is accepted by
+[`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md),
+`ptr_app_components()`,
+[`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md),
+[`ptr_module_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_server.md),
+[`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md),
+`ptr_complete_expr()`, and
+[`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md).
+
+`safe_to_remove` is a character vector of bare function names.
+Validation rejects `NA`, empty strings, namespaced entries
+(`"patchwork::plot_layout"`), and entries that aren’t valid R names.
+Match a namespaced call by its bare name
+(e.g. `safe_to_remove = "plot_layout"` matches both `plot_layout()` and
+`patchwork::plot_layout()`). Subtrees produced by an `expr` placeholder
+are honoured verbatim and never affected by `safe_to_remove`.
+
 ## 5. Reference card
 
 A compact lookup of the most common embed / headless tasks and the
@@ -1190,6 +1231,7 @@ single API call each needs.
 | Inspect the resolved copy for one placeholder                                 | `ptr_resolve_ui_text("control", keyword = ..., param = ..., layer_name = ..., ui_text = ...)`                                                                                                                                                                                                                                                                                                           |
 | Validate a `ui_text` list before handing it to a helper                       | `ptr_merge_ui_text(ui_text, known_param_keys = ...)`                                                                                                                                                                                                                                                                                                                                                    |
 | Add a new placeholder keyword                                                 | [`ptr_define_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder.md) + `placeholders =` arg (see registry vignette)                                                                                                                                                                                                                                             |
+| Opt a third-party helper into the empty-call cleanup pass                     | `safe_to_remove = c("pcp_theme")` on [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md) / [`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md) (see §4e)                                                                                                                                                                                        |
 | Render a plot from a formula without Shiny                                    | [`ptr_parse_formula()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_parse_formula.md) → [`ptr_runtime_input_spec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_runtime_input_spec.md) → [`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md) → [`ptr_extract_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_plot.md) |
 | Post-process the plot before rendering                                        | Your own [`renderPlot()`](https://rdrr.io/pkg/shiny/man/renderPlot.html) + `ptr_extract_plot(ptr_state$runtime())`                                                                                                                                                                                                                                                                                      |
 | Keep host-app ggplot additions in the code output                             | `plot_obj + ptr_gg_extra(ptr_state, ...)`                                                                                                                                                                                                                                                                                                                                                               |

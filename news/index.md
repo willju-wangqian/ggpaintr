@@ -4,6 +4,32 @@
 
 ### Behavior changes
 
+- Extended the curated empty-call cleanup list with 14 more ggplot2
+  names:
+  [`annotation_custom()`](https://ggplot2.tidyverse.org/reference/annotation_custom.html),
+  [`annotation_map()`](https://ggplot2.tidyverse.org/reference/annotation_map.html),
+  [`annotation_raster()`](https://ggplot2.tidyverse.org/reference/annotation_raster.html)
+  (their required args make zero-arg calls error in stock ggplot2 —
+  dropping prevents the crash);
+  [`aes()`](https://ggplot2.tidyverse.org/reference/aes.html),
+  [`aes_()`](https://ggplot2.tidyverse.org/reference/aes_.html),
+  [`aes_q()`](https://ggplot2.tidyverse.org/reference/aes_.html),
+  [`aes_string()`](https://ggplot2.tidyverse.org/reference/aes_.html),
+  [`vars()`](https://ggplot2.tidyverse.org/reference/vars.html) (empty
+  mapping helpers are render-identical to “absent” via `inherit.aes`);
+  and
+  [`element_text()`](https://ggplot2.tidyverse.org/reference/element.html),
+  [`element_line()`](https://ggplot2.tidyverse.org/reference/element.html),
+  [`element_rect()`](https://ggplot2.tidyverse.org/reference/element.html),
+  [`element_point()`](https://ggplot2.tidyverse.org/reference/element.html),
+  [`element_polygon()`](https://ggplot2.tidyverse.org/reference/element.html),
+  [`element_geom()`](https://ggplot2.tidyverse.org/reference/element.html)
+  (empty form inherits from the active theme element). This means
+  e.g. `geom_point(aes(colour = var))` with `var` missing now reduces to
+  `+ geom_point()` (clean) instead of `+ geom_point(aes())`.
+  [`element_blank()`](https://ggplot2.tidyverse.org/reference/element.html)
+  is intentionally excluded — empty form is a meaningful “suppress”
+  directive, not a no-op.
 - Replaced the old name-prefix heuristic for pruning empty calls. The
   new rule is: a zero-argument call is dropped iff its bare function
   name is in a curated ggplot2 cleanup list

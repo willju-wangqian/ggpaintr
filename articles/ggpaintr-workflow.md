@@ -556,6 +556,60 @@ Columns in the returned data frame:
 - `source_id` — for `upload_name` rows, the `input_id` of the matching
   `upload` placeholder row.
 
+### 5.1 Empty-call cleanup
+
+When the user clears a placeholder, the corresponding ggplot2 argument
+has no value. Letting that emptiness propagate would crash the layer, so
+after substitution
+[`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md)
+runs a cleanup pass:
+
+- Each call whose **name** is in a curated list AND whose **arguments
+  are now all empty** is removed (sentinel-emitted up to its parent
+  slot, which is then swept).
+- Sweeping cascades: a nested helper that goes empty can take its parent
+  slot with it, all the way up to a top-level layer.
+- `geom_*()` and `stat_*()` layers are always kept at the top level —
+  even with no aesthetics, they fall back on what
+  [`ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html)
+  provided.
+
+Curated cleanup names: `theme`, `labs`, `xlab`, `ylab`, `ggtitle`,
+`facet_wrap`/`grid`/`null`, `xlim`, `ylim`, `lims`, `expand_limits`,
+`guides`, `annotate`, `annotation_custom`/`map`/`raster`,
+`aes`/`aes_`/`aes_q`/`aes_string`, `vars`, and
+`element_text`/`line`/`rect`/`point`/`polygon`/`geom`.
+[`element_blank()`](https://ggplot2.tidyverse.org/reference/element.html)
+is intentionally not in the list (empty form is a meaningful “suppress”
+directive, not a no-op).
+
+Worked behaviors:
+
+- `geom_point(aes(colour = var))` with `var` empty → `+ geom_point()`
+  (inherits `x`/`y` from base
+  [`aes()`](https://ggplot2.tidyverse.org/reference/aes.html)).
+- `theme(plot.title = element_text(size = num))` with `num` empty →
+  whole [`theme()`](https://ggplot2.tidyverse.org/reference/theme.html)
+  layer removed; `plot.title` reverts to the active theme’s default
+  styling.
+- `theme(plot.title = element_text(size = num), legend.position = "right")`
+  with `num` empty → `theme(legend.position = "right")` (the still-set
+  arg is preserved).
+- `facet_wrap(vars(var))` with `var` empty → no facets.
+- `+ pcp_theme()` (a third-party helper, name not in the list) → kept
+  verbatim.
+
+The cleanup list is fixed by default. To extend it, pass
+`safe_to_remove = c("pcp_theme")` to
+[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+/
+[`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)
+/ `ptr_complete_expr()` /
+[`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md)
+— see
+[`vignette("ggpaintr-extensibility")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-extensibility.md)
+§4 for the Level 3 entry points.
+
 ## 6. Going further
 
 ### Level 2 — embed ggpaintr in your own Shiny app
