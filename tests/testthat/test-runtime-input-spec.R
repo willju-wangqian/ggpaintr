@@ -8,7 +8,7 @@ test_that("ptr_runtime_input_spec returns placeholder and checkbox rows in order
   expect_s3_class(spec, "data.frame")
   expect_identical(
     names(spec),
-    c("input_id", "role", "layer_name", "keyword", "param_key", "source_id")
+    c("input_id", "role", "layer_name", "keyword", "param_key", "source_id", "shared")
   )
   expect_identical(
     spec$input_id,

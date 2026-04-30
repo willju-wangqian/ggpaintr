@@ -95,7 +95,7 @@ test_that("W3: ptr_runtime_input_spec result has correct columns for a 10-placeh
 
   expect_identical(
     names(spec),
-    c("input_id", "role", "layer_name", "keyword", "param_key", "source_id")
+    c("input_id", "role", "layer_name", "keyword", "param_key", "source_id", "shared")
   )
 })
 

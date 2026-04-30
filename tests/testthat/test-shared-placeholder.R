@@ -109,3 +109,38 @@ test_that("multiple placeholders can share the same name within one formula", {
   shared_axis <- Filter(function(m) identical(m$shared, "axis"), metas)
   expect_length(shared_axis, 2L)
 })
+
+test_that("ptr_runtime_input_spec exposes shared column", {
+  obj <- ptr_parse_formula(
+    'ggplot(data = mtcars, aes(x = var, y = mpg)) + geom_point(size = num(shared = "size_filter"))'
+  )
+  spec <- ptr_runtime_input_spec(obj)
+  expect_true("shared" %in% names(spec))
+
+  num_row <- spec[spec$keyword == "num" & !is.na(spec$keyword), , drop = FALSE]
+  var_row <- spec[spec$keyword == "var" & !is.na(spec$keyword), , drop = FALSE]
+  checkbox_row <- spec[spec$role == "layer_checkbox", , drop = FALSE]
+
+  expect_identical(num_row$shared, "size_filter")
+  expect_true(is.na(var_row$shared))
+  expect_true(all(is.na(checkbox_row$shared)))
+})
+
+test_that("ptr_runtime_input_spec shared column is NA for unannotated formulas", {
+  obj <- ptr_parse_formula(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  )
+  spec <- ptr_runtime_input_spec(obj)
+  expect_true("shared" %in% names(spec))
+  expect_true(all(is.na(spec$shared)))
+})
+
+test_that("ptr_runtime_input_spec carries shared onto upload_name companion row", {
+  obj <- ptr_parse_formula(
+    'ggplot(data = upload(shared = "ds")) + geom_point(aes(x = var, y = var))'
+  )
+  spec <- ptr_runtime_input_spec(obj)
+  upload_rows <- spec[spec$keyword == "upload" & !is.na(spec$keyword), , drop = FALSE]
+  expect_true(nrow(upload_rows) >= 2L)
+  expect_true(all(upload_rows$shared == "ds"))
+})

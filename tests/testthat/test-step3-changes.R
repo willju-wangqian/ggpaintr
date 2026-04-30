@@ -28,7 +28,7 @@ test_that("W1: ptr_runtime_input_spec returns correct spec for multi-layer formu
   expect_s3_class(spec, "data.frame")
   expect_identical(
     names(spec),
-    c("input_id", "role", "layer_name", "keyword", "param_key", "source_id")
+    c("input_id", "role", "layer_name", "keyword", "param_key", "source_id", "shared")
   )
   # placeholder rows appear before checkbox rows
   placeholder_rows <- spec[spec$role == "placeholder", ]

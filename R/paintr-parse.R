@@ -161,7 +161,10 @@ ptr_parse_formula <- function(formula, placeholders = NULL, formula_check = TRUE
 #' @param ptr_obj A `ptr_obj`.
 #'
 #' @return A base `data.frame` with columns `input_id`, `role`, `layer_name`,
-#'   `keyword`, `param_key`, and `source_id`.
+#'   `keyword`, `param_key`, `source_id`, and `shared`. The `shared` column
+#'   carries the user-supplied identifier from a call-form placeholder
+#'   (e.g., `num(shared = "year_filter")`); it is `NA_character_` for bare
+#'   placeholders and for non-placeholder rows.
 #' @examples
 #' obj <- ptr_parse_formula(
 #'   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point() + labs(title = text)"
@@ -176,7 +179,8 @@ ptr_runtime_input_spec <- function(ptr_obj) {
                            layer_name,
                            keyword = NA_character_,
                            param_key = NA_character_,
-                           source_id = NA_character_) {
+                           source_id = NA_character_,
+                           shared = NA_character_) {
     data.frame(
       input_id = input_id,
       role = role,
@@ -184,6 +188,7 @@ ptr_runtime_input_spec <- function(ptr_obj) {
       keyword = keyword,
       param_key = param_key,
       source_id = source_id,
+      shared = shared,
       stringsAsFactors = FALSE
     )
   }
@@ -200,6 +205,7 @@ ptr_runtime_input_spec <- function(ptr_obj) {
 
     for (meta in unname(layer_meta)) {
       param_key <- ptr_normalize_param_key(meta$param)
+      shared <- meta$shared %||% NA_character_
 
       idx <- idx + 1L
       spec_rows[[idx]] <- new_spec_row(
@@ -208,7 +214,8 @@ ptr_runtime_input_spec <- function(ptr_obj) {
         layer_name = meta$layer_name,
         keyword = meta$keyword,
         param_key = param_key,
-        source_id = meta$id
+        source_id = meta$id,
+        shared = shared
       )
 
       if (identical(meta$keyword, "upload")) {
@@ -219,7 +226,8 @@ ptr_runtime_input_spec <- function(ptr_obj) {
           layer_name = meta$layer_name,
           keyword = meta$keyword,
           param_key = param_key,
-          source_id = meta$id
+          source_id = meta$id,
+          shared = shared
         )
       }
     }
@@ -250,7 +258,8 @@ ptr_runtime_input_spec <- function(ptr_obj) {
       layer_name = character(0),
       keyword = character(0),
       param_key = character(0),
-      source_id = character(0)
+      source_id = character(0),
+      shared = character(0)
     ))
   }
 

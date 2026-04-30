@@ -11,7 +11,10 @@ ptr_runtime_input_spec(ptr_obj)
 }
 \value{
 A base \code{data.frame} with columns \code{input_id}, \code{role}, \code{layer_name},
-\code{keyword}, \code{param_key}, and \code{source_id}.
+\code{keyword}, \code{param_key}, \code{source_id}, and \code{shared}. The \code{shared} column
+carries the user-supplied identifier from a call-form placeholder
+(e.g., \code{num(shared = "year_filter")}); it is \code{NA_character_} for bare
+placeholders and for non-placeholder rows.
 }
 \description{
 Return the input ids consumed by \code{ptr_exec()} in a stable,
