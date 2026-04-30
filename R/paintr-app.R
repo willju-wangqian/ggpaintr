@@ -853,13 +853,15 @@ ptr_module_server <- function(id,
                               placeholders = NULL,
                               checkbox_defaults = NULL,
                               expr_check = TRUE,
-                              safe_to_remove = character()) {
+                              safe_to_remove = character(),
+                              shared = list()) {
   force(formula)
   force(envir)
   force(ui_text)
   force(placeholders)
   force(checkbox_defaults)
   force(expr_check)
+  force(shared)
   safe_to_remove <- validate_safe_to_remove(safe_to_remove)
 
   shiny::moduleServer(id, function(input, output, session) {
@@ -871,6 +873,7 @@ ptr_module_server <- function(id,
       checkbox_defaults = checkbox_defaults,
       expr_check = expr_check,
       safe_to_remove = safe_to_remove,
+      shared = shared,
       ns = session$ns,
       server_ns = shiny::NS(NULL)
     )
@@ -944,6 +947,161 @@ ptr_app <- function(formula,
     ns = ns
   )
   shiny::shinyApp(ui = app_parts$ui, server = app_parts$server)
+}
+
+
+#' Multi-Plot Shiny App With Shared Placeholder Controls
+#'
+#' Build a single Shiny app that hosts multiple ggpaintr formulas in one
+#' session and drives them from a top region of shared controls. Each
+#' formula becomes its own ptr_obj with its own draw button and plot output.
+#' Placeholders carrying a `shared = "<id>"` annotation read their value
+#' from the matching widget in `shared_ui`; non-shared placeholders still
+#' render their per-instance widgets in each plot's panel as usual.
+#'
+#' Layout is fixed: shared controls in a top `wellPanel`, then one
+#' equally-sized column per plot below. For more flexible arrangements,
+#' use `ptr_server()` directly inside your own custom Shiny UI.
+#'
+#' @param plots Character vector or list of formula strings; one ptr_obj
+#'   per entry.
+#' @param shared_ui Named list of `function(id) -> shiny.tag`. Each name
+#'   must match a `shared = "<id>"` annotation used by at least one of the
+#'   `plots` formulas. The function is called with the shared name as the
+#'   widget input id; the resulting widget is rendered once at the top of
+#'   the app and its `input[[id]]` is wired into every plot's
+#'   `shared` argument.
+#' @param envir Environment used to resolve local data objects.
+#' @param title Title displayed in the app header.
+#' @param expr_check Controls `expr` placeholder validation. See
+#'   [ptr_server_state()].
+#'
+#' @return A `shiny.appobj`. Run with `shiny::runApp()` or print at the REPL.
+#' @examples
+#' if (interactive()) {
+#'   app <- ptr_app_grid(
+#'     plots = list(
+#'       'ggplot(data = mtcars, aes(x = wt, y = mpg)) +
+#'          geom_point(size = num(shared = "sz"))',
+#'       'ggplot(data = mtcars, aes(x = hp, y = mpg)) +
+#'          geom_point(size = num(shared = "sz"))'
+#'     ),
+#'     shared_ui = list(
+#'       sz = function(id) shiny::sliderInput(id, "Size", 1, 10, value = 3)
+#'     )
+#'   )
+#'   shiny::runApp(app)
+#' }
+#' @export
+ptr_app_grid <- function(plots,
+                         shared_ui = list(),
+                         envir = parent.frame(),
+                         title = "ggpaintr grid",
+                         expr_check = TRUE) {
+  parts <- ptr_app_grid_components(
+    plots = plots,
+    shared_ui = shared_ui,
+    envir = envir,
+    title = title,
+    expr_check = expr_check
+  )
+  shiny::shinyApp(ui = parts$ui, server = parts$server)
+}
+
+#' Build UI and Server for ptr_app_grid()
+#'
+#' Internal: returns the constructed UI tag and server function used by
+#' [ptr_app_grid()]. Exposed so tests can inspect the UI without going
+#' through `shinyApp()`.
+#'
+#' @param plots,shared_ui,envir,title,expr_check See [ptr_app_grid()].
+#' @return A list with `ui` (a `shiny.tag`) and `server` (a function).
+#' @noRd
+ptr_app_grid_components <- function(plots,
+                                    shared_ui = list(),
+                                    envir = parent.frame(),
+                                    title = "ggpaintr grid",
+                                    expr_check = TRUE) {
+  if (is.character(plots)) plots <- as.list(plots)
+  assertthat::assert_that(
+    is.list(plots),
+    length(plots) >= 1L,
+    all(vapply(plots, rlang::is_string, logical(1)))
+  )
+  assertthat::assert_that(is.list(shared_ui))
+  if (length(shared_ui) > 0L) {
+    nms <- names(shared_ui)
+    if (is.null(nms) || any(!nzchar(nms)) || any(duplicated(nms))) {
+      rlang::abort(
+        "`shared_ui` must have unique non-empty names matching the `shared` annotations in `plots`."
+      )
+    }
+    is_fn <- vapply(shared_ui, is.function, logical(1))
+    if (!all(is_fn)) {
+      rlang::abort(
+        "Every entry of `shared_ui` must be a function `function(id) -> shiny.tag`."
+      )
+    }
+  }
+
+  shared_names <- names(shared_ui)
+  plot_module_ids <- paste0("plot_", seq_along(plots))
+  n_plots <- length(plots)
+  col_width <- max(1L, 12L %/% n_plots)
+
+  shared_panel <- if (length(shared_ui) > 0L) {
+    shiny::wellPanel(
+      do.call(
+        shiny::tagList,
+        lapply(shared_names, function(nm) shared_ui[[nm]](nm))
+      )
+    )
+  } else {
+    NULL
+  }
+
+  plot_columns <- do.call(
+    shiny::fluidRow,
+    lapply(plot_module_ids, function(mid) {
+      shiny::column(width = col_width, ptr_module_ui(mid))
+    })
+  )
+
+  ui <- shiny::fluidPage(
+    shiny::titlePanel(title),
+    shared_panel,
+    plot_columns
+  )
+
+  force(plots)
+  force(envir)
+  force(expr_check)
+
+  server <- function(input, output, session) {
+    shared_reactives <- if (length(shared_names) > 0L) {
+      stats::setNames(
+        lapply(shared_names, function(nm) shiny::reactive(input[[nm]])),
+        shared_names
+      )
+    } else {
+      list()
+    }
+
+    for (i in seq_along(plots)) {
+      local({
+        idx <- i
+        ptr_module_server(
+          plot_module_ids[[idx]],
+          formula = plots[[idx]],
+          envir = envir,
+          expr_check = expr_check,
+          shared = shared_reactives
+        )
+      })
+    }
+  }
+
+  list(ui = ui, server = server)
 }
 
 #' Register ggpaintr Server Logic

@@ -222,3 +222,74 @@ test_that("UI list still renders widgets for non-shared placeholders alongside s
   rendered <- vapply(placeholder_ids, function(id) !is.null(geom_ui[[id]]), logical(1))
   expect_equal(sum(rendered), 1L)
 })
+
+test_that("ptr_app_grid returns a shiny app object", {
+  app <- ptr_app_grid(
+    plots = list(
+      'ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point(size = num(shared = "sz"))',
+      'ggplot(data = mtcars, aes(x = hp, y = mpg)) + geom_point(size = num(shared = "sz"))'
+    ),
+    shared_ui = list(
+      sz = function(id) shiny::sliderInput(id, "Size", 1, 10, value = 3)
+    )
+  )
+  expect_s3_class(app, "shiny.appobj")
+})
+
+test_that("ptr_app_grid UI contains shared widget id and per-plot module ids", {
+  parts <- ptr_app_grid_components(
+    plots = list(
+      'ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point(size = num(shared = "sz"))',
+      'ggplot(data = mtcars, aes(x = hp, y = mpg)) + geom_point(size = num(shared = "sz"))'
+    ),
+    shared_ui = list(
+      sz = function(id) shiny::sliderInput(id, "Size", 1, 10, value = 3)
+    )
+  )
+  ui_html <- as.character(parts$ui)
+  expect_match(ui_html, "id=\"sz\"", fixed = TRUE)
+  expect_match(ui_html, "plot_1-", fixed = TRUE)
+  expect_match(ui_html, "plot_2-", fixed = TRUE)
+})
+
+test_that("ptr_app_grid works with no shared controls", {
+  app <- ptr_app_grid(
+    plots = list("ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point()"),
+    shared_ui = list()
+  )
+  expect_s3_class(app, "shiny.appobj")
+})
+
+test_that("ptr_app_grid rejects empty plots list", {
+  expect_error(
+    ptr_app_grid(plots = list(), shared_ui = list()),
+    "length\\(plots\\)"
+  )
+})
+
+test_that("ptr_app_grid rejects non-string plot entries", {
+  expect_error(
+    ptr_app_grid(plots = list(42), shared_ui = list()),
+    "is_string"
+  )
+})
+
+test_that("ptr_app_grid rejects shared_ui without unique non-empty names", {
+  expect_error(
+    ptr_app_grid(
+      plots = list("ggplot(data = mtcars) + geom_point(aes(x = wt, y = mpg))"),
+      shared_ui = list(function(id) shiny::sliderInput(id, "x", 1, 10, 5))
+    ),
+    "unique non-empty names"
+  )
+})
+
+test_that("ptr_app_grid rejects non-function shared_ui entries", {
+  expect_error(
+    ptr_app_grid(
+      plots = list("ggplot(data = mtcars) + geom_point(aes(x = wt, y = mpg))"),
+      shared_ui = list(sz = "not a function")
+    ),
+    "must be a function"
+  )
+})

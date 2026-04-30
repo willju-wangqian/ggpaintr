@@ -12,7 +12,8 @@ ptr_module_server(
   placeholders = NULL,
   checkbox_defaults = NULL,
   expr_check = TRUE,
-  safe_to_remove = character()
+  safe_to_remove = character(),
+  shared = list()
 )
 }
 \arguments{
