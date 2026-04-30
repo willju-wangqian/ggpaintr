@@ -138,10 +138,20 @@ get_index_path <- function(x,
     }
     return(result)
   }
+  # Call-form layer at top level: `num(shared = "x")` as the entire layer.
+  if (length(current_path) == 0L && is.call(x) &&
+      is.symbol(x[[1]]) && rlang::as_string(x[[1]]) %in% target) {
+    return(list(integer(0)))
+  }
   for (i in seq_along(x)) {
     new_path <- c(current_path, i)
     if (is.call(x[[i]])) {
-      result <- get_index_path(x[[i]], target, new_path, result, max_depth)
+      head_sym <- x[[i]][[1]]
+      if (is.symbol(head_sym) && rlang::as_string(head_sym) %in% target) {
+        result <- c(result, list(new_path))
+      } else {
+        result <- get_index_path(x[[i]], target, new_path, result, max_depth)
+      }
     } else if (is.symbol(x[[i]])) {
       if (rlang::as_string(x[[i]]) %in% target) {
         result <- c(result, list(new_path))
@@ -150,6 +160,56 @@ get_index_path <- function(x,
   }
 
   result
+}
+
+#' Parse a Placeholder Token Into Keyword and Metadata
+#'
+#' Accepts either a bare symbol (`num`) or a call form (`num(shared = "year")`)
+#' and returns a list with the placeholder keyword plus annotation metadata.
+#' Aborts on unknown or positional arguments.
+#'
+#' @param token An R symbol or call.
+#'
+#' @return A list with `keyword` (string) and `shared` (string or `NULL`).
+#' @noRd
+parse_placeholder_token <- function(token) {
+  if (is.symbol(token)) {
+    return(list(keyword = rlang::as_string(token), shared = NULL))
+  }
+  if (is.call(token) && is.symbol(token[[1]])) {
+    keyword <- rlang::as_string(token[[1]])
+    args <- as.list(token)[-1]
+    if (length(args) == 0L) {
+      return(list(keyword = keyword, shared = NULL))
+    }
+    arg_names <- names(args)
+    if (is.null(arg_names) || any(!nzchar(arg_names))) {
+      rlang::abort(paste0(
+        "Placeholder `", keyword, "(...)` requires named arguments only. ",
+        "Positional arguments are not allowed. ",
+        "Use `shared = \"<id>\"` to declare a shared placeholder."
+      ))
+    }
+    unknown <- setdiff(arg_names, "shared")
+    if (length(unknown) > 0L) {
+      rlang::abort(paste0(
+        "Placeholder `", keyword, "(...)` got unknown argument(s): ",
+        paste0("`", unknown, "`", collapse = ", "),
+        ". Only `shared = \"<id>\"` is currently supported."
+      ))
+    }
+    shared <- args$shared
+    if (!is.null(shared)) {
+      if (!is.character(shared) || length(shared) != 1L || !nzchar(shared)) {
+        rlang::abort(paste0(
+          "Placeholder `", keyword, "(shared = ...)`: ",
+          "`shared` must be a single non-empty string."
+        ))
+      }
+    }
+    return(list(keyword = keyword, shared = shared))
+  }
+  rlang::abort("parse_placeholder_token: token must be a symbol or call.")
 }
 
 #' Suffix Duplicate Layer Names
@@ -723,7 +783,8 @@ extract_fn_names <- function(fn) {
 #'
 #' @return Invisible `TRUE` if valid; aborts otherwise.
 #' @noRd
-validate_expr_safety <- function(expr, expr_check = TRUE) {
+validate_expr_safety <- function(expr, expr_check = TRUE,
+                                 placeholder_names = character()) {
   resolved <- resolve_expr_check(expr_check)
 
   if (resolved$mode == "off") {
@@ -805,6 +866,13 @@ validate_expr_safety <- function(expr, expr_check = TRUE) {
       return(invisible(NULL))
     }
     if (is.call(x)) {
+      # Placeholder annotation calls (e.g. `num(shared = "x")`) are formula
+      # DSL syntax, not user code — args are validated by parse_placeholder_token
+      # at parse time, so skip the safety walk here.
+      if (length(placeholder_names) > 0L && is.symbol(x[[1]]) &&
+          as.character(x[[1]]) %in% placeholder_names) {
+        return(invisible(NULL))
+      }
       # Compound-head strategy (e.g. `(system)("ls")`, `base::eval(expr)`):
       # Two-phase check — (1) recurse into the head sub-expression so the
       # walker catches denied symbols inside it (e.g. `system` inside `(system)`),

@@ -70,7 +70,11 @@ ptr_parse_formula <- function(formula, placeholders = NULL, formula_check = TRUE
   }
   ptr_expr <- ptr_exprs[[1]]
   if (!identical(formula_check, FALSE)) {
-    validate_expr_safety(ptr_expr, formula_check)
+    validate_expr_safety(
+      ptr_expr,
+      formula_check,
+      placeholder_names = names(placeholder_registry)
+    )
   }
   ptr_expr_list <- unlist(break_sum(ptr_expr))
   ptr_expr_names <- vapply(ptr_expr_list, get_fun_names, character(1))
@@ -279,7 +283,8 @@ ptr_build_placeholder_map <- function(keywords_list,
     layer_meta <- list()
 
     for (j in seq_along(layer_ids)) {
-      keyword <- rlang::as_string(layer_keywords[[j]])
+      parsed <- parse_placeholder_token(layer_keywords[[j]])
+      keyword <- parsed$keyword
       if (!(keyword %in% names(placeholders))) {
         next
       }
@@ -287,6 +292,7 @@ ptr_build_placeholder_map <- function(keywords_list,
       layer_meta[[layer_ids[[j]]]] <- list(
         id = layer_ids[[j]],
         keyword = keyword,
+        shared = parsed$shared,
         layer_name = layer_name,
         param = layer_params[[j]],
         index_path = layer_index_paths[[j]]
