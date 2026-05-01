@@ -172,15 +172,17 @@ render_ggplot_with_pipe_chain <- function(ggplot_expr, pipe_ops) {
     args <- as.list(call_expr)
     as.call(c(list(args[[1]]), args[-c(1L, 2L)]))
   }
+  indent <- "  "
+  reindent <- function(text) gsub("\n", paste0("\n", indent), text, fixed = TRUE)
   links <- character(n + 1L)
-  links[1] <- rlang::expr_text(level_calls[[n + 1L]])
+  links[1] <- reindent(rlang::expr_text(level_calls[[n + 1L]]))
   for (i in 2:(n + 1L)) {
     level_idx <- n + 2L - i
-    links[i] <- rlang::expr_text(drop_arg1(level_calls[[level_idx]]))
+    links[i] <- reindent(rlang::expr_text(drop_arg1(level_calls[[level_idx]])))
   }
   out <- links[1]
   for (i in 2:(n + 1L)) {
-    out <- paste(out, pipe_ops[i - 1L], links[i])
+    out <- paste0(out, " ", pipe_ops[i - 1L], "\n", indent, links[i])
   }
   out
 }

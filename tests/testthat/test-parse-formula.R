@@ -151,7 +151,7 @@ test_that("code panel reproduces native pipe surface form", {
     "mtcars |> ggplot(aes(x = wt, y = mpg)) + geom_point()"
   )
   res <- ptr_complete_expr(obj, list(geom_point_checkbox = TRUE))
-  expect_true(grepl("mtcars |> ggplot(", res$code_text, fixed = TRUE))
+  expect_true(grepl("mtcars |>\n  ggplot(", res$code_text, fixed = TRUE))
   expect_false(grepl("ggplot(mtcars,", res$code_text, fixed = TRUE))
 })
 
@@ -160,7 +160,7 @@ test_that("code panel reproduces magrittr pipe surface form", {
     "mtcars %>% ggplot(aes(x = wt, y = mpg)) + geom_point()"
   )
   res <- ptr_complete_expr(obj, list(geom_point_checkbox = TRUE))
-  expect_true(grepl("mtcars %>% ggplot(", res$code_text, fixed = TRUE))
+  expect_true(grepl("mtcars %>%\n  ggplot(", res$code_text, fixed = TRUE))
 })
 
 test_that("ptr_parse_formula records the full pipe chain feeding ggplot", {
@@ -189,8 +189,8 @@ test_that("code panel preserves a chained native-pipe pipeline", {
     "mtcars |> head(num) |> ggplot(aes(x = wt, y = mpg))"
   )
   res <- ptr_complete_expr(obj, list("ggplot_2_3" = 5L))
-  expect_true(grepl("mtcars |> head(", res$code_text, fixed = TRUE))
-  expect_true(grepl(") |> ggplot(", res$code_text, fixed = TRUE))
+  expect_true(grepl("mtcars |>\n  head(", res$code_text, fixed = TRUE))
+  expect_true(grepl(") |>\n  ggplot(", res$code_text, fixed = TRUE))
   expect_false(grepl("head(mtcars,", res$code_text, fixed = TRUE))
   expect_false(grepl("ggplot(head", res$code_text, fixed = TRUE))
 })
@@ -200,8 +200,8 @@ test_that("code panel preserves a chained magrittr pipeline", {
     "mtcars %>% head(num) %>% ggplot(aes(x = wt, y = mpg))"
   )
   res <- ptr_complete_expr(obj, list("ggplot_2_3" = 5L))
-  expect_true(grepl("mtcars %>% head(", res$code_text, fixed = TRUE))
-  expect_true(grepl(") %>% ggplot(", res$code_text, fixed = TRUE))
+  expect_true(grepl("mtcars %>%\n  head(", res$code_text, fixed = TRUE))
+  expect_true(grepl(") %>%\n  ggplot(", res$code_text, fixed = TRUE))
 })
 
 test_that("code panel preserves a mixed pipe chain", {
@@ -209,8 +209,8 @@ test_that("code panel preserves a mixed pipe chain", {
     "mtcars %>% head(num) |> ggplot(aes(x = wt, y = mpg))"
   )
   res <- ptr_complete_expr(obj, list("ggplot_2_3" = 5L))
-  expect_true(grepl("mtcars %>% head(", res$code_text, fixed = TRUE))
-  expect_true(grepl(") |> ggplot(", res$code_text, fixed = TRUE))
+  expect_true(grepl("mtcars %>%\n  head(", res$code_text, fixed = TRUE))
+  expect_true(grepl(") |>\n  ggplot(", res$code_text, fixed = TRUE))
 })
 
 test_that("chained pipe drops middle-link arg when its placeholder is empty", {
@@ -218,7 +218,7 @@ test_that("chained pipe drops middle-link arg when its placeholder is empty", {
     "mtcars |> head(num) |> ggplot(aes(x = wt, y = mpg))"
   )
   res <- ptr_complete_expr(obj, list())
-  expect_true(grepl("mtcars |> head() |> ggplot(", res$code_text, fixed = TRUE))
+  expect_true(grepl("mtcars |>\n  head() |>\n  ggplot(", res$code_text, fixed = TRUE))
 })
 
 test_that("chained pipe rendering does not re-introduce comments from source", {
@@ -227,5 +227,5 @@ test_that("chained pipe rendering does not re-introduce comments from source", {
   )
   res <- ptr_complete_expr(obj, list("ggplot_2_3" = 5L))
   expect_false(grepl("trim rows", res$code_text, fixed = TRUE))
-  expect_true(grepl("mtcars |> head(", res$code_text, fixed = TRUE))
+  expect_true(grepl("mtcars |>\n  head(", res$code_text, fixed = TRUE))
 })
