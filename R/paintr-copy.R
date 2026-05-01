@@ -215,6 +215,9 @@ ptr_humanize_param <- function(param) {
   }
 
   param <- ptr_normalize_param_key(param)
+  if (grepl("\\(\\)$", param)) {
+    return(param)
+  }
   param <- gsub("[._]+", " ", param)
   trimws(param)
 }

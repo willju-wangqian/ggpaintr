@@ -151,6 +151,25 @@ expr_pluck <- function(.x, index_path) {
   tryCatch(.x[[index_path]], error = function(e) NULL)
 }
 
+# Walk up `index_path` from a placeholder slot in `layer_expr`, returning the
+# function name of the nearest non-operator enclosing call. Used to label
+# data-pipeline placeholder controls when the placeholder's direct parameter
+# is unnamed (otherwise `{param}` resolves to the generic "this setting").
+# Returns NULL if no such call exists.
+ptr_enclosing_verb_name <- function(layer_expr, index_path) {
+  if (is.null(index_path) || length(index_path) == 0L) return(NULL)
+  for (depth in (length(index_path) - 1L):0L) {
+    sub_path <- if (depth == 0L) integer(0) else index_path[seq_len(depth)]
+    ancestor <- expr_pluck(layer_expr, sub_path)
+    if (!is.call(ancestor)) next
+    head <- ancestor[[1L]]
+    if (!is.symbol(head)) next
+    nm <- as.character(head)
+    if (!nm %in% pruneable_operator_names) return(nm)
+  }
+  NULL
+}
+
 #' Replace an Expression by Index Path
 #'
 #' @param .x An expression-like object.

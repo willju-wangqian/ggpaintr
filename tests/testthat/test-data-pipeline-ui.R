@@ -118,3 +118,22 @@ test_that("ptr_build_ui_list omits data-pipeline placeholders from layer-control
     )
   }
 })
+
+test_that("data-pipeline placeholder labels name the enclosing verb call", {
+  obj <- ptr_parse_formula(
+    paste(
+      "ggplot(data = mtcars |> filter(cyl == num) |> head(num),",
+      "  mapping = aes(x = var)) +",
+      "  geom_smooth(data = diamonds |> sample_n(num) |> filter(price > num),",
+      "    mapping = aes(x = var)) +",
+      "  geom_point(data = iris |> filter(Species == text), mapping = aes(x = var))"
+    )
+  )
+  rendered <- ui_text(ggpaintr:::ptr_get_data_tab_ui(obj))
+
+  expect_match(rendered, "Enter a number for filter()", fixed = TRUE)
+  expect_match(rendered, "Enter a number for head()", fixed = TRUE)
+  expect_match(rendered, "Enter a number for sample_n()", fixed = TRUE)
+  expect_match(rendered, "Enter text for filter()", fixed = TRUE)
+  expect_false(grepl("for this setting", rendered, fixed = TRUE))
+})

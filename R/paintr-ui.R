@@ -377,11 +377,21 @@ ptr_get_data_tab_ui <- function(ptr_obj, ui_text = NULL,
       ui_meta <- meta
       ui_meta$id <- ui_id
       spec <- ptr_obj$placeholders[[meta$keyword]]
+      effective_param <- meta$param
+      if (ptr_param_is_unnamed(effective_param)) {
+        verb <- ptr_enclosing_verb_name(
+          ptr_obj$expr_list[[layer_name]],
+          meta$index_path
+        )
+        if (!is.null(verb)) {
+          effective_param <- paste0(verb, "()")
+        }
+      }
       copy <- ptr_resolve_ui_text(
         "control",
         keyword = meta$keyword,
         layer_name = meta$layer_name,
-        param = meta$param,
+        param = effective_param,
         ui_text = effective_ui_text,
         placeholders = ptr_obj$placeholders
       )
