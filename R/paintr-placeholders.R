@@ -923,11 +923,182 @@ ptr_prepare_upload_eval_env_impl <- function(input, metas, eval_env, context) {
 #'   `data` (the resolved data frame, or `NULL`).
 #' @seealso [ptr_define_placeholder()], [ptr_ns_id()].
 #' @export
+#' @noRd
+ptr_data_arg_index <- function(layer_expr) {
+  if (!is.call(layer_expr) || length(layer_expr) < 2L) {
+    return(NA_integer_)
+  }
+  arg_names <- names(layer_expr)
+  if (!is.null(arg_names)) {
+    named <- which(arg_names == "data")
+    if (length(named) > 0L) {
+      return(as.integer(named[[1]]))
+    }
+  }
+  if (is.null(arg_names)) {
+    return(2L)
+  }
+  unnamed <- which(is.na(arg_names) | arg_names == "")
+  unnamed <- unnamed[unnamed >= 2L]
+  if (length(unnamed) > 0L) {
+    return(as.integer(unnamed[[1]]))
+  }
+  NA_integer_
+}
+
+#' @noRd
+ptr_compute_data_pipeline_info <- function(expr_list, placeholder_map) {
+  result <- list()
+  for (layer_name in names(expr_list)) {
+    layer_expr <- expr_list[[layer_name]]
+    data_idx <- ptr_data_arg_index(layer_expr)
+    if (is.na(data_idx)) next
+    data_expr <- tryCatch(layer_expr[[data_idx]], error = function(e) NULL)
+    if (!is.call(data_expr)) next
+
+    layer_metas <- placeholder_map[[layer_name]]
+    if (is.null(layer_metas) || length(layer_metas) == 0L) next
+
+    matching_ids <- character(0)
+    for (id in names(layer_metas)) {
+      meta <- layer_metas[[id]]
+      ip <- meta$index_path
+      if (length(ip) >= 2L && identical(as.integer(ip[[1]]), as.integer(data_idx))) {
+        matching_ids <- c(matching_ids, id)
+      }
+    }
+    if (length(matching_ids) == 0L) next
+
+    result[[layer_name]] <- list(
+      data_arg_index = as.integer(data_idx),
+      placeholder_ids = matching_ids
+    )
+  }
+  result
+}
+
+#' @noRd
+ptr_unset_data_marker <- function() {
+  rlang::sym("__PTR_UNSET_DATA_PLACEHOLDER__")
+}
+
+#' @noRd
+ptr_expr_contains_marker <- function(expr, marker) {
+  if (is.symbol(expr)) {
+    return(identical(rlang::as_string(expr), rlang::as_string(marker)))
+  }
+  if (is.call(expr) || is.pairlist(expr)) {
+    for (i in seq_along(expr)) {
+      if (ptr_expr_contains_marker(expr[[i]], marker)) return(TRUE)
+    }
+  }
+  FALSE
+}
+
+#' @noRd
+ptr_trim_and_eval <- function(expr, eval_env, marker) {
+  if (!is.call(expr)) {
+    if (is.symbol(expr) &&
+        identical(rlang::as_string(expr), rlang::as_string(marker))) {
+      return(list(ok = FALSE, value = NULL))
+    }
+    val <- tryCatch(eval(expr, envir = eval_env), error = function(e) NULL)
+    if (is.null(val)) return(list(ok = FALSE, value = NULL))
+    return(list(ok = TRUE, value = val))
+  }
+
+  args <- as.list(expr)
+  if (length(args) >= 2L) {
+    upstream <- ptr_trim_and_eval(args[[2]], eval_env, marker)
+    if (!isTRUE(upstream$ok)) {
+      return(list(ok = FALSE, value = NULL))
+    }
+    args[[2]] <- upstream$value
+  }
+
+  keep <- rep(TRUE, length(args))
+  if (length(args) >= 3L) {
+    for (i in 3:length(args)) {
+      if (ptr_expr_contains_marker(args[[i]], marker)) keep[i] <- FALSE
+    }
+  }
+  trimmed <- as.call(args[keep])
+
+  result <- tryCatch(eval(trimmed, envir = eval_env), error = function(e) NULL)
+  if (!is.null(result)) {
+    return(list(ok = TRUE, value = result))
+  }
+
+  if (length(args) >= 2L) {
+    return(list(ok = TRUE, value = args[[2]]))
+  }
+  list(ok = FALSE, value = NULL)
+}
+
+#' @noRd
+ptr_resolve_data_pipeline_expr <- function(layer_expr,
+                                           data_arg_index,
+                                           placeholder_ids,
+                                           ptr_obj,
+                                           layer_name,
+                                           input,
+                                           context,
+                                           eval_env) {
+  marker <- ptr_unset_data_marker()
+  layer_metas <- ptr_obj$placeholder_map[[layer_name]]
+  substituted <- layer_expr
+
+  for (id in placeholder_ids) {
+    meta <- layer_metas[[id]]
+    spec <- ptr_obj$placeholders[[meta$keyword]]
+
+    value <- tryCatch(
+      ptr_resolve_placeholder_input(spec, input, meta, context),
+      error = function(e) NULL
+    )
+
+    replacement <- marker
+    if (!is.null(value) &&
+        !(is.character(value) && length(value) == 1L && !nzchar(value))) {
+      resolved <- tryCatch(
+        ptr_resolve_placeholder_expr(spec, value, meta, context),
+        error = function(e) NULL
+      )
+      if (!is.null(resolved) &&
+          !identical(resolved, ptr_missing_expr_symbol())) {
+        replacement <- resolved
+      }
+    }
+    expr_pluck(substituted, meta$index_path) <- replacement
+  }
+
+  data_expr <- substituted[[data_arg_index]]
+  ptr_trim_and_eval(data_expr, eval_env, marker)
+}
+
 ptr_resolve_layer_data <- function(ptr_obj,
                                       layer_name,
                                       input,
                                       context,
                                       eval_env) {
+  pipeline <- ptr_obj$data_pipeline_info[[layer_name]]
+  if (!is.null(pipeline)) {
+    layer_expr <- ptr_obj$expr_list[[layer_name]]
+    res <- ptr_resolve_data_pipeline_expr(
+      layer_expr = layer_expr,
+      data_arg_index = pipeline$data_arg_index,
+      placeholder_ids = pipeline$placeholder_ids,
+      ptr_obj = ptr_obj,
+      layer_name = layer_name,
+      input = input,
+      context = context,
+      eval_env = eval_env
+    )
+    if (isTRUE(res$ok)) {
+      return(list(has_data = TRUE, data = res$value))
+    }
+  }
+
   params <- ptr_obj$param_list[[layer_name]]
   index_paths <- ptr_obj$index_path_list[[layer_name]]
   data_index <- which(vapply(seq_along(params), function(j) {

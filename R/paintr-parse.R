@@ -128,6 +128,11 @@ ptr_parse_formula <- function(formula, placeholders = NULL, formula_check = TRUE
     non_ggplot_layers
   )
 
+  data_pipeline_info <- ptr_compute_data_pipeline_info(
+    ptr_expr_list,
+    placeholder_map
+  )
+
   result <- list(
     formula_text = formula,
     param_list = ptr_expr_param_list,
@@ -139,7 +144,8 @@ ptr_parse_formula <- function(formula, placeholders = NULL, formula_check = TRUE
     placeholders = placeholder_registry,
     custom_placeholders = placeholder_registry$custom_placeholders,
     checkbox_id_list = checkbox_id_list,
-    ggplot_pipe_op = ggplot_pipe_op
+    ggplot_pipe_op = ggplot_pipe_op,
+    data_pipeline_info = data_pipeline_info
   )
 
   class(result) <- "ptr_obj"
