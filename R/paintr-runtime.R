@@ -188,6 +188,22 @@ ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
     expr_pluck(ptr_processed_expr_list[[meta$layer_name]], meta$index_path) <- resolved_expr
   }
 
+  for (layer_name in names(data_pipeline_info)) {
+    if (!layer_name %in% names(ptr_processed_expr_list)) next
+    pipeline <- data_pipeline_info[[layer_name]]
+    layer_expr <- ptr_processed_expr_list[[layer_name]]
+    if (!is.call(layer_expr) ||
+        pipeline$data_arg_index > length(layer_expr)) next
+    data_expr <- layer_expr[[pipeline$data_arg_index]]
+    effective <- ptr_trim_and_eval(
+      data_expr, eval_env, ptr_missing_expr_symbol()
+    )
+    if (isTRUE(effective$ok) && !is.null(effective$expr)) {
+      layer_expr[[pipeline$data_arg_index]] <- effective$expr
+      ptr_processed_expr_list[[layer_name]] <- layer_expr
+    }
+  }
+
   layer_names <- names(ptr_processed_expr_list)
   for (nn in layer_names) {
     ptr_processed_expr_list[[nn]] <- prune_empty_substitution_artifacts(

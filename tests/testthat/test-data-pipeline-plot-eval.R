@@ -311,3 +311,52 @@ test_that("Update plot's code_text reflects the snapshot at the last Update Data
     expect_false(grepl("head(mtcars, 7L)", runtime_result$code_text, fixed = TRUE))
   })
 })
+
+# ---------------------------------------------------------------------------
+# code_text matches the trim+upstream-fallback path used to build the cache.
+# Without this, an empty num in `sample_n(num)` renders as
+# `sample_n(diamonds)` — invalid R that wouldn't run if copy-pasted.
+# ---------------------------------------------------------------------------
+
+test_that("code_text drops a wrapper call whose trimmed form would error", {
+  pipeline_env <- new.env(parent = .GlobalEnv)
+  pipeline_env$diamonds <- ggplot2::diamonds
+  pipeline_env$sample_n <- dplyr::sample_n
+  pipeline_env$filter <- dplyr::filter
+
+  obj <- ptr_parse_formula(
+    "ggplot(diamonds |> sample_n(num) |> filter(price > num), aes(x = carat, y = price)) + geom_point()"
+  )
+  num_ids <- obj$data_pipeline_info[["ggplot"]]$placeholder_ids
+  input <- list("geom_point_checkbox" = TRUE)
+  input[[num_ids[[1]]]] <- NA_real_
+  input[[num_ids[[2]]]] <- 1000L
+
+  result <- shiny::isolate(
+    ptr_complete_expr(obj, input, envir = pipeline_env)
+  )
+
+  expect_match(result$code_text, "filter(diamonds, price > 1000L)", fixed = TRUE)
+  expect_false(grepl("sample_n(diamonds)", result$code_text, fixed = TRUE))
+})
+
+test_that("code_text keeps a wrapper call whose trimmed form succeeds (head with no n)", {
+  pipeline_env <- new.env(parent = .GlobalEnv)
+  pipeline_env$mtcars <- datasets::mtcars
+  pipeline_env$head <- utils::head
+  pipeline_env$filter <- dplyr::filter
+
+  obj <- ptr_parse_formula(
+    "ggplot(mtcars |> filter(cyl == num) |> head(num), aes(x = mpg, y = hp)) + geom_point()"
+  )
+  num_ids <- obj$data_pipeline_info[["ggplot"]]$placeholder_ids
+  input <- list("geom_point_checkbox" = TRUE)
+  input[[num_ids[[1]]]] <- 4L
+  input[[num_ids[[2]]]] <- NA_real_
+
+  result <- shiny::isolate(
+    ptr_complete_expr(obj, input, envir = pipeline_env)
+  )
+
+  expect_match(result$code_text, "head(filter(mtcars, cyl == 4L))", fixed = TRUE)
+})

@@ -1011,20 +1011,22 @@ ptr_trim_and_eval <- function(expr, eval_env, marker) {
   if (!is.call(expr)) {
     if (is.symbol(expr) &&
         identical(rlang::as_string(expr), rlang::as_string(marker))) {
-      return(list(ok = FALSE, value = NULL))
+      return(list(ok = FALSE, value = NULL, expr = NULL))
     }
     val <- tryCatch(eval(expr, envir = eval_env), error = function(e) NULL)
-    if (is.null(val)) return(list(ok = FALSE, value = NULL))
-    return(list(ok = TRUE, value = val))
+    if (is.null(val)) return(list(ok = FALSE, value = NULL, expr = NULL))
+    return(list(ok = TRUE, value = val, expr = expr))
   }
 
   args <- as.list(expr)
+  upstream_expr <- NULL
   if (length(args) >= 2L) {
     upstream <- ptr_trim_and_eval(args[[2]], eval_env, marker)
     if (!isTRUE(upstream$ok)) {
-      return(list(ok = FALSE, value = NULL))
+      return(list(ok = FALSE, value = NULL, expr = NULL))
     }
     args[[2]] <- upstream$value
+    upstream_expr <- upstream$expr
   }
 
   keep <- rep(TRUE, length(args))
@@ -1037,13 +1039,18 @@ ptr_trim_and_eval <- function(expr, eval_env, marker) {
 
   result <- tryCatch(eval(trimmed, envir = eval_env), error = function(e) NULL)
   if (!is.null(result)) {
-    return(list(ok = TRUE, value = result))
+    expr_args <- args
+    if (length(expr_args) >= 2L && !is.null(upstream_expr)) {
+      expr_args[[2]] <- upstream_expr
+    }
+    effective_expr <- as.call(expr_args[keep])
+    return(list(ok = TRUE, value = result, expr = effective_expr))
   }
 
   if (length(args) >= 2L) {
-    return(list(ok = TRUE, value = args[[2]]))
+    return(list(ok = TRUE, value = args[[2]], expr = upstream_expr))
   }
-  list(ok = FALSE, value = NULL)
+  list(ok = FALSE, value = NULL, expr = NULL)
 }
 
 #' @noRd
