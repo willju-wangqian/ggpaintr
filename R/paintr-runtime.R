@@ -228,11 +228,15 @@ ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
   ptr_processed_expr_list <- check_remove_null(ptr_processed_expr_list)
 
   code_text_list <- lapply(ptr_processed_expr_list, rlang::expr_text)
-  pipe_op <- ptr_obj[["ggplot_pipe_op"]]
-  if (!is.null(pipe_op) && "ggplot" %in% names(code_text_list)) {
-    code_text_list[["ggplot"]] <- render_ggplot_with_pipe(
+  pipe_chain_ops <- ptr_obj[["ggplot_pipe_chain_ops"]]
+  if (is.null(pipe_chain_ops)) {
+    pipe_op <- ptr_obj[["ggplot_pipe_op"]]
+    pipe_chain_ops <- if (is.null(pipe_op)) character() else pipe_op
+  }
+  if (length(pipe_chain_ops) > 0L && "ggplot" %in% names(code_text_list)) {
+    code_text_list[["ggplot"]] <- render_ggplot_with_pipe_chain(
       ptr_processed_expr_list[["ggplot"]],
-      pipe_op
+      pipe_chain_ops
     )
   }
   code_text <- do.call(paste, c(unname(code_text_list), sep = " +\n  "))

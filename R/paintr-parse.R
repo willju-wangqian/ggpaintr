@@ -70,7 +70,12 @@ ptr_parse_formula <- function(formula, placeholders = NULL, formula_check = TRUE
   }
   ptr_expr <- ptr_exprs[[1]]
   ptr_expr <- rewrite_magrittr_pipe(ptr_expr)
-  ggplot_pipe_op <- detect_ggplot_pipe_op(formula)
+  ggplot_pipe_chain_ops <- detect_ggplot_pipe_chain(formula)
+  ggplot_pipe_op <- if (length(ggplot_pipe_chain_ops) == 0L) {
+    NULL
+  } else {
+    ggplot_pipe_chain_ops[length(ggplot_pipe_chain_ops)]
+  }
   if (!identical(formula_check, FALSE)) {
     validate_expr_safety(
       ptr_expr,
@@ -145,6 +150,7 @@ ptr_parse_formula <- function(formula, placeholders = NULL, formula_check = TRUE
     custom_placeholders = placeholder_registry$custom_placeholders,
     checkbox_id_list = checkbox_id_list,
     ggplot_pipe_op = ggplot_pipe_op,
+    ggplot_pipe_chain_ops = ggplot_pipe_chain_ops,
     data_pipeline_info = data_pipeline_info
   )
 

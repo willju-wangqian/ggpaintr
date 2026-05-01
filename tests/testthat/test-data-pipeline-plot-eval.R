@@ -226,8 +226,8 @@ test_that("code_text uses snapshotted data-placeholder values, not the live inpu
     )
   )
 
-  expect_match(result$code_text, "head(mtcars, 3L)", fixed = TRUE)
-  expect_false(grepl("head(mtcars, 7L)", result$code_text, fixed = TRUE))
+  expect_match(result$code_text, "head(3L)", fixed = TRUE)
+  expect_false(grepl("head(7L)", result$code_text, fixed = TRUE))
 })
 
 test_that("code_text falls back to the live input when no snapshot is supplied", {
@@ -247,7 +247,7 @@ test_that("code_text falls back to the live input when no snapshot is supplied",
     )
   )
 
-  expect_match(result$code_text, "head(mtcars, 7L)", fixed = TRUE)
+  expect_match(result$code_text, "head(7L)", fixed = TRUE)
 })
 
 test_that("code_text shows an empty data pipeline when the snapshot is empty", {
@@ -272,8 +272,9 @@ test_that("code_text shows an empty data pipeline when the snapshot is empty", {
   )
 
   # Snapshot was empty when Update Data fired (e.g. initial seed), so the
-  # pipeline collapses to a bare mtcars.
-  expect_match(result$code_text, "head(subset(mtcars))", fixed = TRUE)
+  # pipeline collapses to bare wrappers.
+  expect_match(result$code_text, "subset()", fixed = TRUE)
+  expect_match(result$code_text, "head()", fixed = TRUE)
   expect_false(grepl("mpg > 5L", result$code_text, fixed = TRUE))
 })
 
@@ -307,8 +308,8 @@ test_that("Update plot's code_text reflects the snapshot at the last Update Data
 
     runtime_result <- state$runtime()
     expect_true(runtime_result$ok)
-    expect_match(runtime_result$code_text, "head(mtcars, 3L)", fixed = TRUE)
-    expect_false(grepl("head(mtcars, 7L)", runtime_result$code_text, fixed = TRUE))
+    expect_match(runtime_result$code_text, "head(3L)", fixed = TRUE)
+    expect_false(grepl("head(7L)", runtime_result$code_text, fixed = TRUE))
   })
 })
 

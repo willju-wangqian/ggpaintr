@@ -441,7 +441,7 @@ test_that("subset(mtcars, mpg > num) collapses to subset(mtcars) when num is emp
   )
   input <- list("geom_point_checkbox" = TRUE)
   result <- ptr_complete_expr(obj, input)
-  expect_match(result$code_text, "subset(mtcars)", fixed = TRUE)
+  expect_match(result$code_text, "subset()", fixed = TRUE)
   expect_false(grepl(">mpg", result$code_text, fixed = TRUE))
   expect_false(grepl("mpg >", result$code_text, fixed = TRUE))
 })
