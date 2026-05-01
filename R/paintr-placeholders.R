@@ -631,7 +631,10 @@ ptr_builtin_placeholders <- function() {
       keyword = "text",
       build_ui = ptr_build_text_placeholder_ui,
       resolve_expr = ptr_resolve_text_expr,
-      copy_defaults = list(label = "Enter text for {param}")
+      copy_defaults = list(
+        label = "Enter text for {param}",
+        placeholder = "Plain text - quotes are added automatically"
+      )
     ),
     num = ptr_define_placeholder(
       keyword = "num",
@@ -721,6 +724,14 @@ ptr_build_text_placeholder_ui <- function(id, copy, meta, context) {
 ptr_resolve_text_expr <- function(value, meta, context) {
   if (is.null(value) || identical(value, "")) {
     return(ptr_missing_expr())
+  }
+
+  if (is.character(value) && length(value) == 1L && nchar(value) >= 2L) {
+    first <- substr(value, 1L, 1L)
+    last <- substr(value, nchar(value), nchar(value))
+    if (identical(first, last) && first %in% c('"', "'")) {
+      value <- substr(value, 2L, nchar(value) - 1L)
+    }
   }
 
   rlang::expr(!!value)

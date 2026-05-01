@@ -126,3 +126,52 @@ test_that("expr placeholders are parsed into the completed expression", {
 
   expect_match(result$code_text, "facet_wrap\\(~Species\\)")
 })
+
+# ---------------------------------------------------------------------------
+# text placeholder: a value that the user wrote with surrounding quotes
+# (e.g. `"setosa"`) should be treated as the literal string `setosa`, not
+# wrapped a second time into `"\"setosa\""`. Strip a single matching pair
+# of leading/trailing straight quotes before wrapping.
+# ---------------------------------------------------------------------------
+
+test_that("text placeholder strips a matching pair of leading/trailing double quotes", {
+  result <- ptr_resolve_text_expr("\"setosa\"", meta = list(), context = list())
+  expect_identical(result, "setosa")
+})
+
+test_that("text placeholder strips a matching pair of leading/trailing single quotes", {
+  result <- ptr_resolve_text_expr("'setosa'", meta = list(), context = list())
+  expect_identical(result, "setosa")
+})
+
+test_that("text placeholder leaves unbalanced or single-character input alone", {
+  expect_identical(
+    ptr_resolve_text_expr("\"setosa", meta = list(), context = list()),
+    "\"setosa"
+  )
+  expect_identical(
+    ptr_resolve_text_expr("setosa\"", meta = list(), context = list()),
+    "setosa\""
+  )
+  expect_identical(
+    ptr_resolve_text_expr("\"", meta = list(), context = list()),
+    "\""
+  )
+})
+
+test_that("text placeholder leaves bare text untouched", {
+  expect_identical(
+    ptr_resolve_text_expr("setosa", meta = list(), context = list()),
+    "setosa"
+  )
+})
+
+test_that("text placeholder default copy hints that quotes are added automatically", {
+  registry <- ptr_merge_placeholders()
+  text_spec <- registry$text
+  expect_match(
+    text_spec$copy_defaults$placeholder,
+    "quote",
+    ignore.case = TRUE
+  )
+})
