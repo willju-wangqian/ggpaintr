@@ -56,47 +56,139 @@ rewrite_magrittr_pipe <- function(x) {
   x
 }
 
-# Detect whether `formula_text` feeds a top-level `ggplot(...)` call via a pipe.
-# Returns "|>", "%>%", or NULL. Used only for code-panel display so the rendered
-# code mirrors the user's surface form rather than the AST after pipe desugaring.
-detect_ggplot_pipe_op <- function(formula_text) {
+# Detect the chain of pipe operators feeding the top-level `ggplot(...)` call in
+# `formula_text`. Returns a character vector of operators ("|>" or "%>%") in
+# source order from the leftmost link to the operator immediately before
+# `ggplot(`. Empty character vector if `ggplot(...)` is not pipe-fed. Used only
+# for code-panel display so the rendered code mirrors the user's surface form
+# rather than the AST after pipe desugaring.
+detect_ggplot_pipe_chain <- function(formula_text) {
   pd <- tryCatch(
     utils::getParseData(parse(text = formula_text, keep.source = TRUE)),
     error = function(e) NULL
   )
-  if (is.null(pd) || nrow(pd) == 0L) return(NULL)
-  pipe_rows <- which(
-    pd$token == "PIPE" |
-      (pd$token == "SPECIAL" & pd$text == "%>%")
-  )
-  for (i in pipe_rows) {
-    after <- pd[(pd$line1 > pd$line1[i]) |
-                  (pd$line1 == pd$line1[i] & pd$col1 > pd$col2[i]), ]
-    after <- after[after$token %in% c("SYMBOL_FUNCTION_CALL", "SYMBOL"), ]
-    if (nrow(after) > 0L && identical(after$text[[1]], "ggplot")) {
-      return(if (pd$token[i] == "PIPE") "|>" else "%>%")
-    }
+  if (is.null(pd) || nrow(pd) == 0L) return(character())
+
+  id_to_row <- stats::setNames(seq_len(nrow(pd)), as.character(pd$id))
+  row_of <- function(id) {
+    if (is.na(id) || id == 0L) return(NA_integer_)
+    r <- id_to_row[as.character(id)]
+    if (is.na(r)) NA_integer_ else unname(r)
   }
-  NULL
+
+  pipe_op_of <- function(expr_id) {
+    kids <- which(pd$parent == expr_id)
+    if (length(kids) == 0L) return(NULL)
+    pipe_kid <- kids[
+      pd$token[kids] == "PIPE" |
+        (pd$token[kids] == "SPECIAL" & pd$text[kids] == "%>%")
+    ]
+    if (length(pipe_kid) == 0L) return(NULL)
+    if (pd$token[pipe_kid[1]] == "PIPE") "|>" else "%>%"
+  }
+
+  ordered_kid_ids <- function(expr_id) {
+    kids <- which(pd$parent == expr_id)
+    if (length(kids) == 0L) return(integer())
+    pd$id[kids[order(pd$line1[kids], pd$col1[kids])]]
+  }
+
+  gg_rows <- which(pd$token == "SYMBOL_FUNCTION_CALL" & pd$text == "ggplot")
+  if (length(gg_rows) == 0L) return(character())
+
+  for (gg_row in gg_rows) {
+    name_expr_row <- row_of(pd$parent[gg_row])
+    if (is.na(name_expr_row)) next
+    call_expr_id <- pd$parent[name_expr_row]
+    if (is.na(call_expr_id) || call_expr_id == 0L) next
+
+    ops_right <- character()
+    cur_id <- call_expr_id
+    repeat {
+      cur_row <- row_of(cur_id)
+      if (is.na(cur_row)) break
+      par_id <- pd$parent[cur_row]
+      if (is.na(par_id) || par_id == 0L) break
+      op <- pipe_op_of(par_id)
+      if (is.null(op)) break
+      kid_ids <- ordered_kid_ids(par_id)
+      if (length(kid_ids) == 0L || kid_ids[length(kid_ids)] != cur_id) break
+      ops_right <- c(ops_right, op)
+      cur_id <- par_id
+    }
+
+    ops_left <- character()
+    repeat {
+      if (is.null(pipe_op_of(cur_id))) break
+      kid_ids <- ordered_kid_ids(cur_id)
+      if (length(kid_ids) == 0L) break
+      lhs_id <- kid_ids[1]
+      lhs_op <- pipe_op_of(lhs_id)
+      if (is.null(lhs_op)) break
+      ops_left <- c(lhs_op, ops_left)
+      cur_id <- lhs_id
+    }
+
+    chain <- c(ops_left, ops_right)
+    if (length(chain) > 0L) return(chain)
+  }
+
+  character()
 }
 
 
-# Render a `ggplot(<lhs>, <rest>)` call as `<lhs> <pipe_op> ggplot(<rest>)` for
-# the code panel, so the displayed code mirrors the user's pipe-style formula.
-# Falls back to standard expr_text if the call has no positional first argument.
+# Back-compat wrapper: returns the operator immediately preceding `ggplot(`, or
+# NULL if none.
+detect_ggplot_pipe_op <- function(formula_text) {
+  chain <- detect_ggplot_pipe_chain(formula_text)
+  if (length(chain) == 0L) NULL else chain[length(chain)]
+}
+
+
+# Render a `ggplot(...)` call back into a pipe chain matching the source form.
+# `pipe_ops` is the chain returned by `detect_ggplot_pipe_chain` — operators in
+# source order from leftmost link to the operator immediately before ggplot.
+# Walks `length(pipe_ops)` levels deep into arg-1 nesting (each pipe inserted
+# its LHS at position 1 during desugaring), drops that synthetic arg 1 at each
+# level, and joins the deparsed pieces with the captured operators. Falls back
+# to plain `expr_text` if the chain cannot be walked (e.g. pruning removed the
+# nested call).
+render_ggplot_with_pipe_chain <- function(ggplot_expr, pipe_ops) {
+  if (length(pipe_ops) == 0L) {
+    return(rlang::expr_text(ggplot_expr))
+  }
+  n <- length(pipe_ops)
+  level_calls <- vector("list", n + 1L)
+  level_calls[[1]] <- ggplot_expr
+  for (k in seq_len(n)) {
+    parent_expr <- level_calls[[k]]
+    if (!rlang::is_call(parent_expr) || length(parent_expr) < 2L) {
+      return(rlang::expr_text(ggplot_expr))
+    }
+    level_calls[[k + 1L]] <- parent_expr[[2]]
+  }
+  drop_arg1 <- function(call_expr) {
+    if (!rlang::is_call(call_expr) || length(call_expr) < 2L) return(call_expr)
+    args <- as.list(call_expr)
+    as.call(c(list(args[[1]]), args[-c(1L, 2L)]))
+  }
+  links <- character(n + 1L)
+  links[1] <- rlang::expr_text(level_calls[[n + 1L]])
+  for (i in 2:(n + 1L)) {
+    level_idx <- n + 2L - i
+    links[i] <- rlang::expr_text(drop_arg1(level_calls[[level_idx]]))
+  }
+  out <- links[1]
+  for (i in 2:(n + 1L)) {
+    out <- paste(out, pipe_ops[i - 1L], links[i])
+  }
+  out
+}
+
+
+# Back-compat wrapper used by callers that still pass a single op.
 render_ggplot_with_pipe <- function(ggplot_expr, pipe_op) {
-  if (!rlang::is_call(ggplot_expr) || length(ggplot_expr) < 2L) {
-    return(rlang::expr_text(ggplot_expr))
-  }
-  args <- as.list(ggplot_expr)[-1]
-  arg_names <- rlang::names2(args)
-  first_idx <- which(arg_names == "" | arg_names == "data")[1]
-  if (is.na(first_idx)) {
-    return(rlang::expr_text(ggplot_expr))
-  }
-  lhs_expr <- args[[first_idx]]
-  rest_call <- as.call(c(list(ggplot_expr[[1]]), args[-first_idx]))
-  paste(rlang::expr_text(lhs_expr), pipe_op, rlang::expr_text(rest_call))
+  render_ggplot_with_pipe_chain(ggplot_expr, pipe_op)
 }
 
 #' Recursively Split Plot Expressions
