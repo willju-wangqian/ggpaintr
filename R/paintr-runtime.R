@@ -132,7 +132,8 @@ ptr_substitute_cached_data <- function(expr_list, data_pipeline_info, resolved_d
 ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
   eval_env = NULL, var_column_map = NULL, expr_check = TRUE,
   ns_fn = shiny::NS(NULL), safe_to_remove = character(),
-  shared_bindings = list(), resolved_data = NULL) {
+  shared_bindings = list(), resolved_data = NULL,
+  last_click_inputs = NULL) {
   assertthat::assert_that(inherits(ptr_obj, "ptr_obj"))
   safe_to_remove <- validate_safe_to_remove(safe_to_remove)
   remove_set <- unique(c(default_safe_to_remove(), safe_to_remove))
@@ -161,9 +162,23 @@ ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
   context$var_column_map <- var_column_map
   placeholder_metas <- ptr_flatten_placeholder_map(ptr_obj)
 
+  data_pipeline_info <- ptr_obj[["data_pipeline_info"]] %||% list()
+  pipeline_id_to_layer <- character()
+  for (ln in names(data_pipeline_info)) {
+    ids <- data_pipeline_info[[ln]]$placeholder_ids
+    pipeline_id_to_layer[ids] <- ln
+  }
+
   for (meta in placeholder_metas) {
     spec <- ptr_obj$placeholders[[meta$keyword]]
-    input_item <- ptr_resolve_placeholder_input(spec, input, meta, context)
+    is_data_placeholder <- meta$id %in% names(pipeline_id_to_layer)
+    if (is_data_placeholder && !is.null(last_click_inputs)) {
+      snap_layer <- unname(pipeline_id_to_layer[meta$id])
+      snap <- last_click_inputs[[snap_layer]]
+      input_item <- if (is.list(snap) && meta$id %in% names(snap)) snap[[meta$id]] else NULL
+    } else {
+      input_item <- ptr_resolve_placeholder_input(spec, input, meta, context)
+    }
     if (is.null(input_item)) {
       expr_pluck(ptr_processed_expr_list[[meta$layer_name]], meta$index_path) <- ptr_missing_expr_symbol()
       next
@@ -326,7 +341,8 @@ ptr_mark_runtime_failure <- function(runtime_result, stage, condition) {
 ptr_complete_expr_safe <- function(ptr_obj, input, envir = parent.frame(),
   eval_env = NULL, var_column_map = NULL, expr_check = TRUE,
   ns_fn = shiny::NS(NULL), safe_to_remove = character(),
-  shared_bindings = list(), resolved_data = NULL) {
+  shared_bindings = list(), resolved_data = NULL,
+  last_click_inputs = NULL) {
   tryCatch(
     {
       complete_result <- ptr_complete_expr(ptr_obj, input, envir = envir,
@@ -336,7 +352,8 @@ ptr_complete_expr_safe <- function(ptr_obj, input, envir = parent.frame(),
                                            ns_fn = ns_fn,
                                            safe_to_remove = safe_to_remove,
                                            shared_bindings = shared_bindings,
-                                           resolved_data = resolved_data)
+                                           resolved_data = resolved_data,
+                                           last_click_inputs = last_click_inputs)
       list(
         ok = TRUE,
         stage = "complete",
@@ -443,6 +460,13 @@ ptr_validate_plot_render_safe <- function(runtime_result) {
 #'   layer's data argument is replaced with the cached frame before
 #'   evaluation, so the data pipeline is not re-executed. Pass `NULL`
 #'   (the default) to fall back to evaluating the live data expression.
+#' @param last_click_inputs Optional named list of placeholder-input snapshots,
+#'   one per data-pipeline layer, captured at the moment the layer's
+#'   "Update data" button was last clicked. When supplied, the snapshotted
+#'   values (rather than the live `input`) are substituted into the
+#'   data-pipeline placeholders during code-text generation, so the
+#'   displayed code matches the cached frame the plot was rendered against.
+#'   Pass `NULL` (the default) to use the live `input` values.
 #'
 #' @return A runtime result list containing `ok`, `stage`, `message`,
 #'   `code_text`, `complete_expr_list`, `eval_env`, `condition`, and `plot`.
@@ -466,11 +490,13 @@ ptr_validate_plot_render_safe <- function(runtime_result) {
 ptr_exec <- function(ptr_obj, input, envir = parent.frame(),
                      expr_check = TRUE,
                      safe_to_remove = character(),
-                     resolved_data = NULL) {
+                     resolved_data = NULL,
+                     last_click_inputs = NULL) {
   runtime_result <- ptr_complete_expr_safe(
     ptr_obj, input, envir = envir, expr_check = expr_check,
     safe_to_remove = safe_to_remove,
-    resolved_data = resolved_data
+    resolved_data = resolved_data,
+    last_click_inputs = last_click_inputs
   )
   runtime_result <- ptr_assemble_plot_safe(runtime_result, envir = envir, expr_check = expr_check)
   ptr_validate_plot_render_safe(runtime_result)

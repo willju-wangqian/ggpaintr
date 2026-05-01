@@ -10,7 +10,8 @@ ptr_exec(
   envir = parent.frame(),
   expr_check = TRUE,
   safe_to_remove = character(),
-  resolved_data = NULL
+  resolved_data = NULL,
+  last_click_inputs = NULL
 )
 }
 \arguments{
@@ -49,6 +50,14 @@ most recently cached data frame for that layer. When supplied, the
 layer's data argument is replaced with the cached frame before
 evaluation, so the data pipeline is not re-executed. Pass \code{NULL}
 (the default) to fall back to evaluating the live data expression.}
+
+\item{last_click_inputs}{Optional named list of placeholder-input snapshots,
+one per data-pipeline layer, captured at the moment the layer's
+"Update data" button was last clicked. When supplied, the snapshotted
+values (rather than the live \code{input}) are substituted into the
+data-pipeline placeholders during code-text generation, so the
+displayed code matches the cached frame the plot was rendered against.
+Pass \code{NULL} (the default) to use the live \code{input} values.}
 }
 \value{
 A runtime result list containing \code{ok}, \code{stage}, \code{message},

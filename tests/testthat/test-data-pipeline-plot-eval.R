@@ -196,3 +196,118 @@ test_that("Update plot uses the cached frame without re-running the pipeline", {
     expect_identical(nrow(runtime_result$plot$data), 3L)
   })
 })
+
+# ---------------------------------------------------------------------------
+# Code text reflects the snapshot at the last Update Data click, not the
+# live input. Phase D evaluates against the cached frame; the panel must
+# show the expression that produced that frame, otherwise the user sees a
+# formula that doesn't match what was rendered.
+# ---------------------------------------------------------------------------
+
+test_that("code_text uses snapshotted data-placeholder values, not the live input", {
+  obj <- ptr_parse_formula(
+    "mtcars |> head(num) |> ggplot(aes(x = mpg, y = disp)) + geom_point()"
+  )
+  eval_env <- make_plot_eval_env()
+  cached_frame <- datasets::mtcars[1:3, ]
+  resolved_data <- list(ggplot = shiny::reactiveVal(cached_frame))
+
+  num_id <- obj$data_pipeline_info[["ggplot"]]$placeholder_ids[[1]]
+  input <- list("geom_point_checkbox" = TRUE)
+  input[[num_id]] <- 7L
+  snapshots <- list(ggplot = stats::setNames(list(3L), num_id))
+
+  result <- shiny::isolate(
+    ptr_complete_expr(
+      obj, input,
+      envir = eval_env,
+      resolved_data = resolved_data,
+      last_click_inputs = snapshots
+    )
+  )
+
+  expect_match(result$code_text, "head(mtcars, 3L)", fixed = TRUE)
+  expect_false(grepl("head(mtcars, 7L)", result$code_text, fixed = TRUE))
+})
+
+test_that("code_text falls back to the live input when no snapshot is supplied", {
+  obj <- ptr_parse_formula(
+    "mtcars |> head(num) |> ggplot(aes(x = mpg, y = disp)) + geom_point()"
+  )
+  num_id <- obj$data_pipeline_info[["ggplot"]]$placeholder_ids[[1]]
+  input <- list("geom_point_checkbox" = TRUE)
+  input[[num_id]] <- 7L
+
+  result <- shiny::isolate(
+    ptr_complete_expr(
+      obj, input,
+      envir = make_plot_eval_env(),
+      resolved_data = NULL,
+      last_click_inputs = NULL
+    )
+  )
+
+  expect_match(result$code_text, "head(mtcars, 7L)", fixed = TRUE)
+})
+
+test_that("code_text shows an empty data pipeline when the snapshot is empty", {
+  obj <- ptr_parse_formula(
+    "mtcars |> subset(mpg > num) |> head(num) |> ggplot(aes(x = mpg, y = disp)) + geom_point()"
+  )
+  num_ids <- obj$data_pipeline_info[["ggplot"]]$placeholder_ids
+  input <- list("geom_point_checkbox" = TRUE)
+  for (id in num_ids) input[[id]] <- 5L
+  snapshots <- list(ggplot = stats::setNames(
+    rep(list(NULL), length(num_ids)),
+    num_ids
+  ))
+
+  result <- shiny::isolate(
+    ptr_complete_expr(
+      obj, input,
+      envir = make_plot_eval_env(),
+      resolved_data = NULL,
+      last_click_inputs = snapshots
+    )
+  )
+
+  # Snapshot was empty when Update Data fired (e.g. initial seed), so the
+  # pipeline collapses to a bare mtcars.
+  expect_match(result$code_text, "head(subset(mtcars))", fixed = TRUE)
+  expect_false(grepl("mpg > 5L", result$code_text, fixed = TRUE))
+})
+
+test_that("Update plot's code_text reflects the snapshot at the last Update Data click", {
+  pipeline_env <- make_plot_eval_env()
+
+  server_wrapper <- function(input, output, session) {
+    session$userData$ptr_state <- ptr_server(
+      input, output, session,
+      "mtcars |> head(num) |> ggplot(aes(x = mpg, y = disp)) + geom_point()",
+      envir = pipeline_env
+    )
+  }
+
+  shiny::testServer(server_wrapper, {
+    state <- session$userData$ptr_state
+    obj <- shiny::isolate(state$obj())
+    num_id <- obj$data_pipeline_info[["ggplot"]]$placeholder_ids[[1]]
+    update_data_id <- ptr_update_data_input_id("ggplot")
+    draw_id <- state$server_ids$draw_button
+
+    args <- list("geom_point_checkbox" = TRUE)
+    args[[num_id]] <- 3L
+    args[[update_data_id]] <- 1
+    do.call(session$setInputs, args)
+
+    args2 <- list()
+    args2[[num_id]] <- 7L
+    args2[[draw_id]] <- 1
+    do.call(session$setInputs, args2)
+
+    runtime_result <- state$runtime()
+    expect_true(runtime_result$ok)
+    expect_match(runtime_result$code_text, "head(mtcars, 3L)", fixed = TRUE)
+    expect_false(grepl("head(mtcars, 7L)", runtime_result$code_text, fixed = TRUE))
+  })
+})

@@ -623,6 +623,10 @@ ptr_register_draw <- function(input,
   draw_handler <- function() {
     shiny::req(ptr_state$obj())
     cached <- tryCatch(ptr_state$shared_env_reactive(), error = function(e) NULL)
+    snapshots <- lapply(
+      ptr_state$last_click_inputs %||% list(),
+      function(rv) tryCatch(rv(), error = function(e) NULL)
+    )
     runtime_result <- ptr_complete_expr_safe(
       ptr_state$obj(),
       input,
@@ -633,7 +637,8 @@ ptr_register_draw <- function(input,
       ns_fn = ptr_state$server_ns_fn %||% shiny::NS(NULL),
       safe_to_remove = ptr_state$safe_to_remove %||% character(),
       shared_bindings = ptr_state$shared_bindings %||% list(),
-      resolved_data = ptr_state$resolved_data
+      resolved_data = ptr_state$resolved_data,
+      last_click_inputs = snapshots
     )
     runtime_result <- ptr_assemble_plot_safe(runtime_result, envir = ptr_state$envir, expr_check = ptr_state$expr_check)
     runtime_result <- ptr_validate_plot_render_safe(runtime_result)
