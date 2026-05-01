@@ -34,6 +34,71 @@ handle_call_break_sum <- function(x, .depth = 0L, max_depth = 100L) {
   }
 }
 
+
+# Recursively rewrite `lhs %>% rhs(args)` into `rhs(lhs, args)`. Used so that
+# magrittr-style formulas are evaluated and inspected as ordinary calls without
+# requiring magrittr at runtime. Native `|>` is already desugared by R's parser.
+rewrite_magrittr_pipe <- function(x) {
+  if (rlang::is_call(x, "%>%")) {
+    lhs <- rewrite_magrittr_pipe(x[[2]])
+    rhs <- rewrite_magrittr_pipe(x[[3]])
+    if (rlang::is_call(rhs)) {
+      return(as.call(c(list(rhs[[1]], lhs), as.list(rhs)[-1])))
+    }
+    return(rlang::call2(rhs, lhs))
+  }
+  if (rlang::is_call(x)) {
+    return(as.call(lapply(as.list(x), rewrite_magrittr_pipe)))
+  }
+  if (rlang::is_pairlist(x)) {
+    return(as.pairlist(lapply(x, rewrite_magrittr_pipe)))
+  }
+  x
+}
+
+# Detect whether `formula_text` feeds a top-level `ggplot(...)` call via a pipe.
+# Returns "|>", "%>%", or NULL. Used only for code-panel display so the rendered
+# code mirrors the user's surface form rather than the AST after pipe desugaring.
+detect_ggplot_pipe_op <- function(formula_text) {
+  pd <- tryCatch(
+    utils::getParseData(parse(text = formula_text, keep.source = TRUE)),
+    error = function(e) NULL
+  )
+  if (is.null(pd) || nrow(pd) == 0L) return(NULL)
+  pipe_rows <- which(
+    pd$token == "PIPE" |
+      (pd$token == "SPECIAL" & pd$text == "%>%")
+  )
+  for (i in pipe_rows) {
+    after <- pd[(pd$line1 > pd$line1[i]) |
+                  (pd$line1 == pd$line1[i] & pd$col1 > pd$col2[i]), ]
+    after <- after[after$token %in% c("SYMBOL_FUNCTION_CALL", "SYMBOL"), ]
+    if (nrow(after) > 0L && identical(after$text[[1]], "ggplot")) {
+      return(if (pd$token[i] == "PIPE") "|>" else "%>%")
+    }
+  }
+  NULL
+}
+
+
+# Render a `ggplot(<lhs>, <rest>)` call as `<lhs> <pipe_op> ggplot(<rest>)` for
+# the code panel, so the displayed code mirrors the user's pipe-style formula.
+# Falls back to standard expr_text if the call has no positional first argument.
+render_ggplot_with_pipe <- function(ggplot_expr, pipe_op) {
+  if (!rlang::is_call(ggplot_expr) || length(ggplot_expr) < 2L) {
+    return(rlang::expr_text(ggplot_expr))
+  }
+  args <- as.list(ggplot_expr)[-1]
+  arg_names <- rlang::names2(args)
+  first_idx <- which(arg_names == "" | arg_names == "data")[1]
+  if (is.na(first_idx)) {
+    return(rlang::expr_text(ggplot_expr))
+  }
+  lhs_expr <- args[[first_idx]]
+  rest_call <- as.call(c(list(ggplot_expr[[1]]), args[-first_idx]))
+  paste(rlang::expr_text(lhs_expr), pipe_op, rlang::expr_text(rest_call))
+}
+
 #' Recursively Split Plot Expressions
 #'
 #' @param x An expression or call.

@@ -114,3 +114,51 @@ test_that("bare-symbol expr layer survives when resolved to a zero-arg call", {
   )
   expect_true(grepl("theme_minimal()", res$code_text, fixed = TRUE))
 })
+
+test_that("ptr_parse_formula accepts a single-layer formula with no `+`", {
+  obj <- ptr_parse_formula("ggplot(mtcars, aes(x = wt, y = mpg))")
+  expect_s3_class(obj, "ptr_obj")
+  expect_named(obj$expr_list, "ggplot")
+  expect_null(obj$ggplot_pipe_op)
+})
+
+test_that("ptr_parse_formula accepts native pipe formulas", {
+  obj <- ptr_parse_formula(
+    "mtcars |> ggplot(aes(x = wt, y = mpg)) + geom_point()"
+  )
+  expect_named(obj$expr_list, c("ggplot", "geom_point"))
+  expect_identical(obj$ggplot_pipe_op, "|>")
+  expect_identical(obj$expr_list$ggplot[[2]], rlang::sym("mtcars"))
+})
+
+test_that("ptr_parse_formula accepts native pipe formulas with a single layer", {
+  obj <- ptr_parse_formula("mtcars |> ggplot(aes(x = wt, y = mpg))")
+  expect_named(obj$expr_list, "ggplot")
+  expect_identical(obj$ggplot_pipe_op, "|>")
+})
+
+test_that("ptr_parse_formula rewrites %>% into nested calls", {
+  obj <- ptr_parse_formula(
+    "mtcars %>% ggplot(aes(x = wt, y = mpg)) + geom_point()"
+  )
+  expect_named(obj$expr_list, c("ggplot", "geom_point"))
+  expect_identical(obj$ggplot_pipe_op, "%>%")
+  expect_identical(obj$expr_list$ggplot[[2]], rlang::sym("mtcars"))
+})
+
+test_that("code panel reproduces native pipe surface form", {
+  obj <- ptr_parse_formula(
+    "mtcars |> ggplot(aes(x = wt, y = mpg)) + geom_point()"
+  )
+  res <- ptr_complete_expr(obj, list(geom_point_checkbox = TRUE))
+  expect_true(grepl("mtcars |> ggplot(", res$code_text, fixed = TRUE))
+  expect_false(grepl("ggplot(mtcars,", res$code_text, fixed = TRUE))
+})
+
+test_that("code panel reproduces magrittr pipe surface form", {
+  obj <- ptr_parse_formula(
+    "mtcars %>% ggplot(aes(x = wt, y = mpg)) + geom_point()"
+  )
+  res <- ptr_complete_expr(obj, list(geom_point_checkbox = TRUE))
+  expect_true(grepl("mtcars %>% ggplot(", res$code_text, fixed = TRUE))
+})

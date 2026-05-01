@@ -69,6 +69,8 @@ ptr_parse_formula <- function(formula, placeholders = NULL, formula_check = TRUE
     )
   }
   ptr_expr <- ptr_exprs[[1]]
+  ptr_expr <- rewrite_magrittr_pipe(ptr_expr)
+  ggplot_pipe_op <- detect_ggplot_pipe_op(formula)
   if (!identical(formula_check, FALSE)) {
     validate_expr_safety(
       ptr_expr,
@@ -76,7 +78,11 @@ ptr_parse_formula <- function(formula, placeholders = NULL, formula_check = TRUE
       placeholder_names = names(placeholder_registry)
     )
   }
-  ptr_expr_list <- unlist(break_sum(ptr_expr))
+  ptr_expr_list <- if (rlang::is_call(ptr_expr, "+")) {
+    unlist(break_sum(ptr_expr))
+  } else {
+    list(ptr_expr)
+  }
   ptr_expr_names <- vapply(ptr_expr_list, get_fun_names, character(1))
   ptr_expr_names <- handle_duplicate_names(ptr_expr_names)
   ptr_expr_list <- rlang::set_names(ptr_expr_list, ptr_expr_names)
@@ -132,7 +138,8 @@ ptr_parse_formula <- function(formula, placeholders = NULL, formula_check = TRUE
     placeholder_map = placeholder_map,
     placeholders = placeholder_registry,
     custom_placeholders = placeholder_registry$custom_placeholders,
-    checkbox_id_list = checkbox_id_list
+    checkbox_id_list = checkbox_id_list,
+    ggplot_pipe_op = ggplot_pipe_op
   )
 
   class(result) <- "ptr_obj"
