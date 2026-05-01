@@ -420,3 +420,57 @@ test_that("ptr_complete_expr rejects invalid safe_to_remove", {
     "bare function names"
   )
 })
+
+# ---------------------------------------------------------------------------
+# Operator-call escalation: a binary operator left with a sentinel operand
+# (e.g. `mpg > sentinel` from an empty `num` placeholder) cannot survive
+# as `>(mpg)` — escalate the sentinel up to the parent so the parent gets
+# to drop the whole call.
+# ---------------------------------------------------------------------------
+
+test_that("comparison operator with sentinel operand escalates to sentinel", {
+  sentinel <- ptr_missing_expr_symbol()
+  expr <- bquote(.(quote(mpg)) > .(sentinel))
+  result <- prune_empty_substitution_artifacts(expr, expr, character())
+  expect_identical(result, sentinel)
+})
+
+test_that("subset(mtcars, mpg > num) collapses to subset(mtcars) when num is empty", {
+  obj <- ptr_parse_formula(
+    "mtcars |> subset(mpg > num) |> head(num) |> ggplot(aes(x = mpg, y = disp)) + geom_point()"
+  )
+  input <- list("geom_point_checkbox" = TRUE)
+  result <- ptr_complete_expr(obj, input)
+  expect_match(result$code_text, "subset(mtcars)", fixed = TRUE)
+  expect_false(grepl(">mpg", result$code_text, fixed = TRUE))
+  expect_false(grepl("mpg >", result$code_text, fixed = TRUE))
+})
+
+test_that("inequality operator inside subset() escalates when text is empty", {
+  obj <- ptr_parse_formula(
+    "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + geom_smooth(data = iris |> subset(Species != text))"
+  )
+  input <- list("geom_smooth_checkbox" = TRUE)
+  result <- ptr_complete_expr(obj, input)
+  expect_false(grepl("!=Species", result$code_text, fixed = TRUE))
+  expect_false(grepl("Species !=", result$code_text, fixed = TRUE))
+  expect_match(result$code_text, "subset(iris)", fixed = TRUE)
+})
+
+test_that("operator escalation does not affect a fully-substituted comparison", {
+  obj <- ptr_parse_formula(
+    "mtcars |> subset(mpg > num) |> ggplot(aes(x = mpg, y = disp)) + geom_point()"
+  )
+  num_id <- obj$data_pipeline_info[["ggplot"]]$placeholder_ids[[1]]
+  input <- list("geom_point_checkbox" = TRUE)
+  input[[num_id]] <- 20L
+  result <- ptr_complete_expr(obj, input)
+  expect_match(result$code_text, "mpg > 20L", fixed = TRUE)
+})
+
+test_that("operator escalation works for unary operators (e.g. `!`)", {
+  sentinel <- ptr_missing_expr_symbol()
+  expr <- bquote(!.(sentinel))
+  result <- prune_empty_substitution_artifacts(expr, expr, character())
+  expect_identical(result, sentinel)
+})

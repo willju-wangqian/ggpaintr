@@ -539,6 +539,20 @@ validate_safe_to_remove <- function(safe_to_remove,
 #' @return Either the cleaned expression, or the `_NULL_PLACEHOLDER`
 #'   sentinel signalling the parent should drop this slot.
 #' @noRd
+pruneable_operator_names <- c(
+  "+", "-", "*", "/", "^", "%%", "%/%", "%*%",
+  "<", ">", "<=", ">=", "==", "!=",
+  "&", "|", "&&", "||",
+  ":", "%in%", "~", "!"
+)
+
+is_pruneable_operator_call <- function(x) {
+  if (!is.call(x)) return(FALSE)
+  head <- x[[1L]]
+  if (!is.symbol(head)) return(FALSE)
+  as.character(head) %in% pruneable_operator_names
+}
+
 prune_empty_substitution_artifacts <- function(post,
                                                 orig,
                                                 remove_set,
@@ -563,6 +577,15 @@ prune_empty_substitution_artifacts <- function(post,
         post[[i]] <- prune_empty_substitution_artifacts(
           child, orig_child, remove_set, .depth + 1L, max_depth
         )
+      }
+    }
+  }
+
+  if (is_pruneable_operator_call(post) && length(post) > 1L) {
+    for (i in 2:length(post)) {
+      slot <- post[[i]]
+      if (is.symbol(slot) && identical(slot, sentinel)) {
+        return(sentinel)
       }
     }
   }
