@@ -1346,12 +1346,18 @@ ptr_bind_var_ui_impl <- function(input, output, metas, context) {
 
     for (meta in metas_by_layer[[layer_name]]) {
       ui_id <- ptr_ns_id(context$ui_ns_fn %||% shiny::NS(NULL), meta$id)
+      current_selection <- tryCatch(
+        shiny::isolate(input[[ui_id]]),
+        error = function(e) NULL
+      )
+      if (is.null(current_selection)) current_selection <- character(0)
       ui <- generate_ui_var(
         column_info$columns,
         ui_id,
         meta$param,
         layer_name = meta$layer_name,
-        ui_text = context$ui_text
+        ui_text = context$ui_text,
+        selected = current_selection
       )
 
       if (!is.null(ui)) {

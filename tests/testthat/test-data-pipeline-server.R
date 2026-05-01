@@ -189,3 +189,41 @@ test_that("ptr_get_data_tab_ui includes the ptr_set_class custom-message handler
   expect_match(rendered, "ptr_set_class", fixed = TRUE)
   expect_match(rendered, "addCustomMessageHandler", fixed = TRUE)
 })
+
+# ---------------------------------------------------------------------------
+# Regression: clicking Update Data must not wipe the user's var-dropdown
+# selection. The picker is rebuilt when the cache changes; the previously
+# selected column should be retained as long as it still exists in the
+# refreshed columns.
+# ---------------------------------------------------------------------------
+
+test_that("generate_ui_var preserves the previously selected column on rebuild", {
+  rendered_default <- as.character(generate_ui_var(
+    data_var = c("mpg", "cyl", "disp"),
+    id = "x",
+    param = "x"
+  ))
+  rendered_default <- paste(rendered_default, collapse = "\n")
+  expect_false(grepl("selected[^>]*>cyl<", rendered_default))
+
+  rendered_kept <- as.character(generate_ui_var(
+    data_var = c("mpg", "cyl", "disp"),
+    id = "x",
+    param = "x",
+    selected = "cyl"
+  ))
+  rendered_kept <- paste(rendered_kept, collapse = "\n")
+  expect_match(rendered_kept, "selected[^>]*>cyl<")
+})
+
+test_that("generate_ui_var drops a stale selection that no longer exists in the columns", {
+  rendered <- as.character(generate_ui_var(
+    data_var = c("mpg", "cyl"),
+    id = "x",
+    param = "x",
+    selected = "Sepal.Length"
+  ))
+  rendered <- paste(rendered, collapse = "\n")
+  expect_false(grepl("selected[^>]*>Sepal\\.Length<", rendered))
+  expect_false(grepl("selected[^>]*>(mpg|cyl)<", rendered))
+})
