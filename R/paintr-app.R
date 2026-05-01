@@ -138,6 +138,17 @@ ptr_build_id_contract <- function(raw_ids = ptr_build_ids(),
 #'
 #' @return Invisibly returns `TRUE`.
 #' @noRd
+ptr_collect_stale_layers <- function(ptr_state) {
+  env <- ptr_state$is_stale_env
+  if (is.null(env) || !is.environment(env)) return(character())
+  layer_names <- ls(env)
+  if (length(layer_names) == 0L) return(character())
+  is_stale <- vapply(layer_names, function(ln) {
+    isTRUE(tryCatch(env[[ln]](), error = function(e) FALSE))
+  }, logical(1))
+  layer_names[is_stale]
+}
+
 ptr_validate_state <- function(ptr_state) {
   required_names <- c(
     "obj",
@@ -810,7 +821,10 @@ ptr_register_error <- function(output,
   ids <- ptr_normalize_ids(ptr_state$server_ids)
 
   output[[ids$error_output]] <- shiny::renderUI({
-    ptr_extract_error(ptr_state$runtime())
+    notice <- ptr_stale_notice_ui(ptr_collect_stale_layers(ptr_state))
+    err <- ptr_extract_error(ptr_state$runtime())
+    if (is.null(notice) && is.null(err)) return(NULL)
+    shiny::tagList(notice, err)
   })
 
   invisible(ptr_state)

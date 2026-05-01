@@ -546,3 +546,33 @@ ptr_error_ui <- function(message) {
     )
   )
 }
+
+# Visible hint that the rendered plot reflects an older "Update data" snapshot
+# (i.e. the user typed new data-pipeline values but hasn't clicked Update Data
+# yet). Without this, the plot keeps showing the cached frame and users have
+# no signal that their typing was ignored.
+ptr_stale_notice_ui <- function(stale_layers) {
+  stale_layers <- stale_layers[nzchar(stale_layers)]
+  if (length(stale_layers) == 0L) return(NULL)
+
+  layers_text <- paste(stale_layers, collapse = ", ")
+  shiny::tags$div(
+    style = paste(
+      "margin-top: 12px;",
+      "margin-bottom: 12px;",
+      "padding: 12px;",
+      "border: 1px solid #b59300;",
+      "border-radius: 4px;",
+      "background-color: #fff8db;",
+      "color: #6a4f00;"
+    ),
+    shiny::tags$strong("Unsaved data inputs"),
+    shiny::tags$div(
+      style = "margin-top: 6px;",
+      sprintf(
+        "Click \"Update data\" to apply your changes for %s.",
+        layers_text
+      )
+    )
+  )
+}

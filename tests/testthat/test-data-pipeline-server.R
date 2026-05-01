@@ -227,3 +227,40 @@ test_that("generate_ui_var drops a stale selection that no longer exists in the 
   expect_false(grepl("selected[^>]*>Sepal\\.Length<", rendered))
   expect_false(grepl("selected[^>]*>(mpg|cyl)<", rendered))
 })
+
+test_that("error_output surfaces a stale-data notice when typed inputs aren't applied", {
+  pipeline_env <- make_pipeline_server_env()
+
+  server_wrapper <- function(input, output, session) {
+    session$userData$ptr_state <- ptr_server(
+      input, output, session,
+      "mtcars |> head(num) |> ggplot(aes(x = var, y = var)) + geom_point()",
+      envir = pipeline_env
+    )
+  }
+
+  shiny::testServer(server_wrapper, {
+    state <- session$userData$ptr_state
+    obj <- shiny::isolate(state$obj())
+    num_id <- obj$data_pipeline_info[["ggplot"]]$placeholder_ids[[1]]
+    btn_id <- ptr_update_data_input_id("ggplot")
+
+    args <- list()
+    args[[num_id]] <- 3L
+    args[[btn_id]] <- 1
+    do.call(session$setInputs, args)
+    expect_null(output$outputError)
+
+    args2 <- list()
+    args2[[num_id]] <- 5L
+    do.call(session$setInputs, args2)
+    rendered <- paste(as.character(output$outputError), collapse = "\n")
+    expect_match(rendered, "Unsaved data inputs", fixed = TRUE)
+    expect_match(rendered, "ggplot", fixed = TRUE)
+
+    args3 <- list()
+    args3[[btn_id]] <- 2
+    do.call(session$setInputs, args3)
+    expect_null(output$outputError)
+  })
+})
