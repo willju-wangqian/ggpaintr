@@ -239,6 +239,40 @@ ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
       pipe_chain_ops
     )
   }
+
+  formula_text <- ptr_obj[["formula_text"]] %||% ""
+  data_arg_pipe_op <- if (length(pipe_chain_ops) > 0L) {
+    pipe_chain_ops[length(pipe_chain_ops)]
+  } else if (grepl("|>", formula_text, fixed = TRUE)) {
+    "|>"
+  } else if (grepl("%>%", formula_text, fixed = TRUE)) {
+    "%>%"
+  } else {
+    NULL
+  }
+  if (!is.null(data_arg_pipe_op)) {
+    for (layer_name in names(data_pipeline_info)) {
+      if (layer_name == "ggplot" && length(pipe_chain_ops) > 0L) next
+      if (!layer_name %in% names(ptr_processed_expr_list)) next
+      pipeline <- data_pipeline_info[[layer_name]]
+      layer_expr <- ptr_processed_expr_list[[layer_name]]
+      if (is.null(layer_expr) || !is.call(layer_expr) ||
+          pipeline$data_arg_index > length(layer_expr)) next
+      data_expr <- layer_expr[[pipeline$data_arg_index]]
+      depth <- expr_left_spine_depth(data_expr)
+      if (depth == 0L) next
+      pipe_text <- render_ggplot_with_pipe_chain(
+        data_expr, rep(data_arg_pipe_op, depth)
+      )
+      bait <- "ptrDataArgBait_x7Qk"
+      bait_expr <- layer_expr
+      bait_expr[[pipeline$data_arg_index]] <- as.symbol(bait)
+      layer_text <- rlang::expr_text(bait_expr)
+      code_text_list[[layer_name]] <- gsub(
+        bait, pipe_text, layer_text, fixed = TRUE
+      )
+    }
+  }
   code_text <- do.call(paste, c(unname(code_text_list), sep = " +\n  "))
 
   eval_expr_list <- ptr_substitute_cached_data(

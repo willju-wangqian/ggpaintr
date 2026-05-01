@@ -454,7 +454,7 @@ test_that("inequality operator inside subset() escalates when text is empty", {
   result <- ptr_complete_expr(obj, input)
   expect_false(grepl("!=Species", result$code_text, fixed = TRUE))
   expect_false(grepl("Species !=", result$code_text, fixed = TRUE))
-  expect_match(result$code_text, "subset(iris)", fixed = TRUE)
+  expect_match(result$code_text, "subset()", fixed = TRUE)
 })
 
 test_that("operator escalation does not affect a fully-substituted comparison", {

@@ -337,8 +337,10 @@ test_that("code_text drops a wrapper call whose trimmed form would error", {
     ptr_complete_expr(obj, input, envir = pipeline_env)
   )
 
-  expect_match(result$code_text, "filter(diamonds, price > 1000L)", fixed = TRUE)
+  expect_match(result$code_text, "filter(price > 1000L)", fixed = TRUE)
+  expect_match(result$code_text, "diamonds |>", fixed = TRUE)
   expect_false(grepl("sample_n(diamonds)", result$code_text, fixed = TRUE))
+  expect_false(grepl("sample_n()", result$code_text, fixed = TRUE))
 })
 
 test_that("code_text keeps a wrapper call whose trimmed form succeeds (head with no n)", {
@@ -359,5 +361,59 @@ test_that("code_text keeps a wrapper call whose trimmed form succeeds (head with
     ptr_complete_expr(obj, input, envir = pipeline_env)
   )
 
-  expect_match(result$code_text, "head(filter(mtcars, cyl == 4L))", fixed = TRUE)
+  expect_match(result$code_text, "filter(cyl == 4L)", fixed = TRUE)
+  expect_match(result$code_text, "head()", fixed = TRUE)
+  expect_match(result$code_text, "mtcars |>", fixed = TRUE)
+})
+
+test_that("nested data = ... pipe chains round-trip back to pipe form", {
+  pipeline_env <- new.env(parent = .GlobalEnv)
+  pipeline_env$mtcars <- datasets::mtcars
+  pipeline_env$diamonds <- ggplot2::diamonds
+  pipeline_env$filter <- dplyr::filter
+  pipeline_env$head <- utils::head
+  pipeline_env$sample_n <- dplyr::sample_n
+
+  obj <- ptr_parse_formula(
+    paste(
+      "ggplot(data = mtcars |> filter(cyl == num) |> head(num),",
+      "  mapping = aes(x = mpg, y = hp)) +",
+      "  geom_point(data = diamonds |> sample_n(num) |> filter(price > num),",
+      "    mapping = aes(x = carat, y = price))"
+    )
+  )
+  ids_g <- obj$id_list[["ggplot"]]
+  ids_p <- obj$id_list[["geom_point"]]
+  input <- list("geom_point_checkbox" = TRUE)
+  input[[ids_g[[1]]]] <- 4L; input[[ids_g[[2]]]] <- 32L
+  input[[ids_p[[1]]]] <- 50L; input[[ids_p[[2]]]] <- 1000L
+  result <- shiny::isolate(ptr_complete_expr(obj, input, envir = pipeline_env))
+
+  expect_match(result$code_text, "mtcars |>", fixed = TRUE)
+  expect_match(result$code_text, "filter(cyl == 4L) |>", fixed = TRUE)
+  expect_match(result$code_text, "head(32L)", fixed = TRUE)
+  expect_match(result$code_text, "diamonds |>", fixed = TRUE)
+  expect_match(result$code_text, "sample_n(50L) |>", fixed = TRUE)
+  expect_match(result$code_text, "filter(price > 1000L)", fixed = TRUE)
+  expect_false(grepl("head(filter(mtcars", result$code_text, fixed = TRUE))
+  expect_false(grepl("filter(sample_n(diamonds", result$code_text, fixed = TRUE))
+})
+
+test_that("function-call data args without source pipes are kept as function calls", {
+  pipeline_env <- new.env(parent = .GlobalEnv)
+  pipeline_env$mtcars <- datasets::mtcars
+  pipeline_env$filter <- dplyr::filter
+  pipeline_env$head <- utils::head
+
+  obj <- ptr_parse_formula(
+    "ggplot(data = head(filter(mtcars, cyl == num), num), mapping = aes(x = mpg, y = hp))"
+  )
+  ids <- obj$id_list[["ggplot"]]
+  input <- list()
+  input[[ids[[1]]]] <- 4L
+  input[[ids[[2]]]] <- 32L
+  result <- shiny::isolate(ptr_complete_expr(obj, input, envir = pipeline_env))
+
+  expect_match(result$code_text, "head(filter(mtcars, cyl == 4L), 32L)", fixed = TRUE)
+  expect_false(grepl("|>", result$code_text, fixed = TRUE))
 })

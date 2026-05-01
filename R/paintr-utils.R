@@ -250,6 +250,15 @@ expr_pluck <- function(.x, index_path) {
 # data-pipeline placeholder controls when the placeholder's direct parameter
 # is unnamed (otherwise `{param}` resolves to the generic "this setting").
 # Returns NULL if no such call exists.
+expr_left_spine_depth <- function(expr) {
+  depth <- 0L
+  while (rlang::is_call(expr) && length(expr) >= 2L) {
+    expr <- expr[[2]]
+    depth <- depth + 1L
+  }
+  depth
+}
+
 ptr_enclosing_verb_name <- function(layer_expr, index_path) {
   if (is.null(index_path) || length(index_path) == 0L) return(NULL)
   for (depth in (length(index_path) - 1L):0L) {
