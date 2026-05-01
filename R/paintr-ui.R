@@ -392,5 +392,28 @@ ptr_get_data_tab_ui <- function(ptr_obj, ui_text = NULL,
     )
   })
 
-  do.call(shiny::tabsetPanel, panels)
+  shiny::tagList(
+    ptr_data_pipeline_class_handler_script(),
+    do.call(shiny::tabsetPanel, panels)
+  )
+}
+
+# Inline JS that registers a Shiny custom message handler used by the server
+# to toggle a CSS class on update-data buttons. The handler is registered
+# once per browser window; subsequent UI rebuilds are no-ops.
+ptr_data_pipeline_class_handler_script <- function() {
+  shiny::tags$script(shiny::HTML(
+    paste(
+      "if (typeof Shiny !== 'undefined' && !window.__ptr_set_class_registered) {",
+      "  window.__ptr_set_class_registered = true;",
+      "  Shiny.addCustomMessageHandler('ptr_set_class', function(msg) {",
+      "    var el = document.getElementById(msg.id);",
+      "    if (!el || !msg.class) return;",
+      "    if (msg.add) { el.classList.add(msg.class); }",
+      "    else { el.classList.remove(msg.class); }",
+      "  });",
+      "}",
+      sep = "\n"
+    )
+  ))
 }

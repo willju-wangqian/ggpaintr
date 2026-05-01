@@ -1168,6 +1168,30 @@ ptr_resolve_layer_data <- function(ptr_obj,
   list(has_data = FALSE, data = NULL)
 }
 
+
+# Snapshot the current values of the data-pipeline placeholder inputs for a
+# layer. The result is used by Phase C to detect whether the cached resolved
+# data is stale relative to the current input state.
+ptr_snapshot_data_placeholder_inputs <- function(ptr_obj, layer_name, input, context) {
+  pipeline <- ptr_obj$data_pipeline_info[[layer_name]]
+  if (is.null(pipeline)) {
+    return(list())
+  }
+  layer_metas <- ptr_obj$placeholder_map[[layer_name]]
+  result <- list()
+  for (id in pipeline$placeholder_ids) {
+    meta <- layer_metas[[id]]
+    if (is.null(meta)) next
+    spec <- ptr_obj$placeholders[[meta$keyword]]
+    value <- tryCatch(
+      ptr_resolve_placeholder_input(spec, input, meta, context),
+      error = function(e) NULL
+    )
+    result[[id]] <- value
+  }
+  result
+}
+
 #' Detect Whether a Parsed Parameter Refers to `data`
 #'
 #' @param param A parsed parameter value.
@@ -1200,29 +1224,29 @@ ptr_param_matches_data <- function(param, index_path = NULL) {
 #'
 #' @return A named list keyed by layer name with `has_data` and `columns`.
 #' @noRd
-ptr_build_var_column_map <- function(ptr_obj, input, context, eval_env) {
+ptr_build_var_column_map <- function(ptr_obj, input, context, eval_env,
+                                     resolved_data = NULL) {
   var_metas <- ptr_flatten_placeholder_map(ptr_obj, keyword = "var")
   if (length(var_metas) == 0) {
     return(list())
   }
 
   layer_names <- unique(vapply(var_metas, `[[`, character(1), "layer_name"))
-  global_data_info <- ptr_resolve_layer_data(
-    ptr_obj,
-    "ggplot",
-    input,
-    context,
-    eval_env
-  )
+
+  resolve_one <- function(layer_name) {
+    if (!is.null(resolved_data) && !is.null(resolved_data[[layer_name]])) {
+      cached <- resolved_data[[layer_name]]()
+      if (!is.null(cached)) {
+        return(list(has_data = TRUE, data = cached))
+      }
+    }
+    ptr_resolve_layer_data(ptr_obj, layer_name, input, context, eval_env)
+  }
+
+  global_data_info <- resolve_one("ggplot")
 
   column_map <- lapply(layer_names, function(layer_name) {
-    layer_data_info <- ptr_resolve_layer_data(
-      ptr_obj,
-      layer_name,
-      input,
-      context,
-      eval_env
-    )
+    layer_data_info <- resolve_one(layer_name)
 
     has_data <- isTRUE(layer_data_info$has_data) || isTRUE(global_data_info$has_data)
     layer_data <- if (isTRUE(layer_data_info$has_data)) {

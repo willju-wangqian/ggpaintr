@@ -300,6 +300,16 @@ ptr_server_state <- function(formula,
     parsed$expr_list
   )
 
+  data_layer_names <- names(parsed$data_pipeline_info %||% list())
+  resolved_data <- stats::setNames(
+    lapply(data_layer_names, function(.) shiny::reactiveVal(NULL)),
+    data_layer_names
+  )
+  last_click_inputs <- stats::setNames(
+    lapply(data_layer_names, function(.) shiny::reactiveVal(NULL)),
+    data_layer_names
+  )
+
   structure(
     list(
       obj = shiny::reactiveVal(parsed),
@@ -327,7 +337,10 @@ ptr_server_state <- function(formula,
       ui_ns_fn = ns,
       server_ns_fn = server_ns,
       ns_fn = server_ns,
-      checkbox_defaults = resolved_checkbox_defaults
+      checkbox_defaults = resolved_checkbox_defaults,
+      resolved_data = resolved_data,
+      last_click_inputs = last_click_inputs,
+      is_stale_env = new.env(parent = emptyenv())
     ),
     class = c("ptr_state", "list")
   )
@@ -381,7 +394,10 @@ ptr_setup_controls <- function(input,
       context$eval_env <- eval_env
       context$shared_bindings <- ptr_state$shared_bindings %||% list()
       tryCatch(
-        ptr_build_var_column_map(obj, input, context, eval_env),
+        ptr_build_var_column_map(
+          obj, input, context, eval_env,
+          resolved_data = ptr_state$resolved_data
+        ),
         error = function(e) NULL
       )
     } else {
@@ -437,7 +453,149 @@ ptr_setup_controls <- function(input,
     )
   })
 
+  ptr_setup_data_pipeline_observers(input, ptr_state)
+
   invisible(ptr_state)
+}
+
+# Wire reactives that maintain the per-layer resolved-data cache, drive the
+# Update Data click observer, and toggle a stale CSS class on the button when
+# the cache is no longer in sync with the data-placeholder inputs.
+ptr_setup_data_pipeline_observers <- function(input, ptr_state) {
+  obj <- shiny::isolate(ptr_state$obj())
+  if (is.null(obj)) return(invisible(NULL))
+  pipeline_info <- obj$data_pipeline_info %||% list()
+  if (length(pipeline_info) == 0L) return(invisible(NULL))
+
+  ui_ns_fn <- ptr_state$ui_ns_fn %||% shiny::NS(NULL)
+  server_ns_fn <- ptr_state$server_ns_fn %||% shiny::NS(NULL)
+  stale_class <- ptr_state$effective_ui_text$shell$update_data_stale_class %||% ""
+
+  build_context <- function(o, ev) {
+    ctx <- ptr_define_placeholder_context(
+      o,
+      ui_text = ptr_state$effective_ui_text,
+      envir = ptr_state$envir,
+      expr_check = ptr_state$expr_check,
+      eval_env = ev
+    )
+    ctx$ns_fn <- server_ns_fn
+    ctx$input <- input
+    ctx$shared_bindings <- ptr_state$shared_bindings %||% list()
+    ctx
+  }
+
+  # Initial seed: run the resolver with the current (empty) inputs so var
+  # dropdowns have a starting column set. The snapshot of the placeholder
+  # values at seed time is recorded so the stale flag stays FALSE until the
+  # user actually changes a data-pipeline input.
+  shiny::isolate({
+    eval_env <- tryCatch(
+      ptr_prepare_eval_env(
+        obj, input,
+        envir = ptr_state$envir,
+        ns_fn = server_ns_fn
+      ),
+      error = function(e) NULL
+    )
+    if (!is.null(eval_env)) {
+      seed_ctx <- build_context(obj, eval_env)
+      for (layer_name in names(pipeline_info)) {
+        res <- tryCatch(
+          ptr_resolve_layer_data(obj, layer_name, input, seed_ctx, eval_env),
+          error = function(e) list(has_data = FALSE, data = NULL)
+        )
+        if (isTRUE(res$has_data) && !is.null(res$data)) {
+          ptr_state$resolved_data[[layer_name]](res$data)
+        }
+        snap <- tryCatch(
+          ptr_snapshot_data_placeholder_inputs(obj, layer_name, input, seed_ctx),
+          error = function(e) list()
+        )
+        ptr_state$last_click_inputs[[layer_name]](snap)
+      }
+    }
+  })
+
+  # `is_stale_env` is an environment (reference type) so reactives inserted
+  # here are visible to the caller's copy of ptr_state without having to
+  # rebuild the structure.
+  is_stale_env <- ptr_state$is_stale_env
+  for (layer_name in names(pipeline_info)) {
+    local({
+      ln <- layer_name
+      is_stale_env[[ln]] <- shiny::reactive({
+        o <- ptr_state$obj()
+        ev <- tryCatch(
+          ptr_prepare_eval_env(o, input, envir = ptr_state$envir, ns_fn = server_ns_fn),
+          error = function(e) NULL
+        )
+        ctx <- build_context(o, ev)
+        snap <- ptr_state$last_click_inputs[[ln]]()
+        current <- tryCatch(
+          ptr_snapshot_data_placeholder_inputs(o, ln, input, ctx),
+          error = function(e) list()
+        )
+        !identical(snap, current)
+      })
+    })
+  }
+
+  for (layer_name in names(pipeline_info)) {
+    local({
+      ln <- layer_name
+      btn_local_id <- ptr_update_data_input_id(ln)
+
+      # Default ignoreNULL = TRUE keeps the handler from firing while the
+      # button has not been clicked yet, so we leave ignoreInit at its
+      # default. Some testServer harnesses suppress the first non-NULL value
+      # under ignoreInit = TRUE, which would silently swallow the first real
+      # click.
+      shiny::observeEvent(input[[btn_local_id]], {
+        o <- ptr_state$obj()
+        eval_env <- tryCatch(
+          ptr_prepare_eval_env(o, input, envir = ptr_state$envir, ns_fn = server_ns_fn),
+          error = function(e) NULL
+        )
+        if (is.null(eval_env)) {
+          cli::cli_warn("Could not prepare evaluation environment for layer {.val {ln}}.")
+          return()
+        }
+        ctx <- build_context(o, eval_env)
+        res <- tryCatch(
+          ptr_resolve_layer_data(o, ln, input, ctx, eval_env),
+          error = function(e) list(has_data = FALSE, data = NULL, error = e)
+        )
+        if (isTRUE(res$has_data) && !is.null(res$data)) {
+          ptr_state$resolved_data[[ln]](res$data)
+          snap <- tryCatch(
+            ptr_snapshot_data_placeholder_inputs(o, ln, input, ctx),
+            error = function(e) list()
+          )
+          ptr_state$last_click_inputs[[ln]](snap)
+        } else {
+          cli::cli_warn(
+            "Failed to update data for layer {.val {ln}}; cache left unchanged."
+          )
+        }
+      })
+
+      if (nzchar(stale_class)) {
+        shiny::observe({
+          is_stale <- tryCatch(is_stale_env[[ln]](), error = function(e) FALSE)
+          session <- shiny::getDefaultReactiveDomain()
+          if (is.null(session)) return()
+          ui_id <- ptr_ns_id(ui_ns_fn, btn_local_id)
+          session$sendCustomMessage(
+            "ptr_set_class",
+            list(id = ui_id, class = stale_class, add = isTRUE(is_stale))
+          )
+        })
+      }
+    })
+  }
+
+  invisible(NULL)
 }
 
 #' Bind Draw Behavior into a Shiny App
