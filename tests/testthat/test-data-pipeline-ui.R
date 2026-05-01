@@ -75,3 +75,46 @@ test_that("data tabset renders one sub-tab per data-pipeline layer", {
     fixed = TRUE
   )
 })
+
+# ---------------------------------------------------------------------------
+# Regression: data-pipeline placeholders must NOT also be rendered in the
+# regular layer-control tab. They live in the Data tab only — duplicating
+# them produced Shiny "Duplicate input IDs" warnings and confused users
+# typing into the wrong copy.
+# ---------------------------------------------------------------------------
+
+test_that("ptr_build_ui_list omits data-pipeline placeholders from layer-control UI", {
+  obj <- ptr_parse_formula(
+    "mtcars |> subset(mpg > num) |> head(num) |> ggplot(aes(x = var, y = var)) + geom_point(size = num) + geom_smooth(data = iris |> subset(Species != text))"
+  )
+  ui_list <- ptr_build_ui_list(obj)
+
+  pipeline_ids <- unlist(lapply(
+    obj$data_pipeline_info,
+    function(info) info$placeholder_ids
+  ), use.names = FALSE)
+  expect_true(length(pipeline_ids) > 0L)
+
+  # The non-pipeline `num` for `geom_point(size = num)` should still be present
+  # in the geom_point control list — only pipeline-bound placeholders are skipped.
+  size_ids <- setdiff(obj$id_list[["geom_point"]], pipeline_ids)
+  expect_true(length(size_ids) >= 1L)
+
+  rendered <- paste(unlist(lapply(ui_list, function(layer_ui) {
+    as.character(layer_ui)
+  })), collapse = "\n")
+
+  for (id in pipeline_ids) {
+    expect_false(
+      grepl(id, rendered, fixed = TRUE),
+      info = sprintf("Pipeline placeholder id '%s' leaked into layer-control UI", id)
+    )
+  }
+
+  for (id in size_ids) {
+    expect_true(
+      grepl(id, rendered, fixed = TRUE),
+      info = sprintf("Non-pipeline placeholder id '%s' missing from layer-control UI", id)
+    )
+  }
+})

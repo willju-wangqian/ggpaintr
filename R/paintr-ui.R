@@ -136,7 +136,8 @@ generate_ui_var <- function(data_var,
                             id,
                             param,
                             layer_name = NULL,
-                            ui_text = NULL) {
+                            ui_text = NULL,
+                            selected = character(0)) {
   if (is.null(data_var)) {
     return(NULL)
   }
@@ -149,12 +150,14 @@ generate_ui_var <- function(data_var,
     ui_text = ui_text
   )
 
+  retained <- intersect(selected, data_var)
+
   ptr_attach_help(
     shinyWidgets::pickerInput(
       id,
       copy$label,
       choices = data_var,
-      selected = character(0),
+      selected = retained,
       multiple = TRUE,
       options = shinyWidgets::pickerOptions(
         noneSelectedText = copy$empty_text,
@@ -187,11 +190,13 @@ ptr_build_ui_list <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL),
   keywords_list <- ptr_obj[["keywords_list"]]
   id_list <- ptr_obj[["id_list"]]
   placeholder_map <- ptr_obj[["placeholder_map"]]
+  pipeline_info <- ptr_obj[["data_pipeline_info"]] %||% list()
   layer_names <- names(keywords_list)
 
   ui_list <- lapply(seq_along(layer_names), function(i) {
     layer_name <- layer_names[[i]]
     ids <- id_list[[i]]
+    pipeline_ids <- pipeline_info[[layer_name]]$placeholder_ids %||% character()
 
     ui <- lapply(seq_along(ids), function(j) {
       id <- ids[[j]]
@@ -200,6 +205,9 @@ ptr_build_ui_list <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL),
         return(NULL)
       }
       if (!is.null(meta$shared)) {
+        return(NULL)
+      }
+      if (id %in% pipeline_ids) {
         return(NULL)
       }
 
