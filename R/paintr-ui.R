@@ -311,3 +311,86 @@ ptr_get_tab_ui <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL),
     )
   )
 }
+
+
+# Data-pipeline tabset (Phase B)
+#
+# When a parsed formula contains placeholders inside a data-argument call
+# expression (e.g. `mtcars |> head(num) |> ggplot(aes(x = var))`), those
+# placeholders are tracked in `ptr_obj$data_pipeline_info`, keyed by layer
+# name. `ptr_get_data_tab_ui()` renders one sub-tab per such layer with the
+# relevant placeholder controls plus an "Update data" actionButton. The
+# button is wired up in Phase C; in Phase B it is purely decorative.
+
+ptr_update_data_input_id <- function(layer_name) {
+  paste0("ptr_update_data_", layer_name)
+}
+
+ptr_get_data_tab_ui <- function(ptr_obj, ui_text = NULL,
+                                ns_fn = shiny::NS(NULL)) {
+  if (!inherits(ptr_obj, "ptr_obj")) {
+    return(NULL)
+  }
+  pipeline_info <- ptr_obj$data_pipeline_info
+  if (is.null(pipeline_info) || length(pipeline_info) == 0L) {
+    return(NULL)
+  }
+
+  effective_ui_text <- ptr_merge_ui_text(
+    ui_text,
+    placeholders = ptr_obj$placeholders
+  )
+  context <- ptr_define_placeholder_context(
+    ptr_obj,
+    ui_text = effective_ui_text
+  )
+  context$ui_ns_fn <- ns_fn
+
+  update_data_copy <- ptr_resolve_ui_text(
+    "update_data_button",
+    ui_text = effective_ui_text,
+    placeholders = ptr_obj$placeholders
+  )
+
+  panels <- lapply(names(pipeline_info), function(layer_name) {
+    info <- pipeline_info[[layer_name]]
+    layer_metas <- ptr_obj$placeholder_map[[layer_name]]
+
+    controls <- lapply(info$placeholder_ids, function(id) {
+      meta <- layer_metas[[id]]
+      if (is.null(meta)) {
+        return(NULL)
+      }
+      ui_id <- if (identical(meta$keyword, "var")) {
+        id
+      } else {
+        ptr_ns_id(ns_fn, id)
+      }
+      ui_meta <- meta
+      ui_meta$id <- ui_id
+      spec <- ptr_obj$placeholders[[meta$keyword]]
+      copy <- ptr_resolve_ui_text(
+        "control",
+        keyword = meta$keyword,
+        layer_name = meta$layer_name,
+        param = meta$param,
+        ui_text = effective_ui_text,
+        placeholders = ptr_obj$placeholders
+      )
+      spec$build_ui(ui_id, copy, ui_meta, context)
+    })
+    controls <- controls[!vapply(controls, is.null, logical(1))]
+
+    button <- shiny::actionButton(
+      ptr_ns_id(ns_fn, ptr_update_data_input_id(layer_name)),
+      update_data_copy$label
+    )
+
+    do.call(
+      shiny::tabPanel,
+      c(layer_name, unname(controls), list(button))
+    )
+  })
+
+  do.call(shiny::tabsetPanel, panels)
+}

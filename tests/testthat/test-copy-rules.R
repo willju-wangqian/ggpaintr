@@ -200,8 +200,29 @@ test_that("ptr_resolve_ui_text errors on unknown component", {
 
 test_that("ptr_ui_text_component_paths keys are exhaustive", {
   paths <- ptr_ui_text_component_paths()
-  expected <- c("title", "draw_button", "upload_file", "upload_name", "layer_checkbox")
+  expected <- c(
+    "title", "draw_button", "update_data_button",
+    "upload_file", "upload_name", "layer_checkbox"
+  )
   expect_setequal(names(paths), expected)
+})
+
+test_that("ptr_default_ui_text exposes update_data_button copy under shell", {
+  defaults <- ptr_default_ui_text()
+  expect_identical(defaults$shell$update_data_button$label, "Update data")
+})
+
+test_that("ptr_resolve_ui_text resolves update_data_button label", {
+  default_copy <- ptr_resolve_ui_text("update_data_button")
+  expect_identical(default_copy$label, "Update data")
+
+  custom_copy <- ptr_resolve_ui_text(
+    "update_data_button",
+    ui_text = list(
+      shell = list(update_data_button = list(label = "Refresh dataset"))
+    )
+  )
+  expect_identical(custom_copy$label, "Refresh dataset")
 })
 
 # --- Improvements: alias, warn-on-unknown, generic label ---

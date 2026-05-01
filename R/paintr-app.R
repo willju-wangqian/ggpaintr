@@ -415,14 +415,25 @@ ptr_setup_controls <- function(input,
 
   output[[ids$control_panel]] <- shiny::renderUI({
     shiny::req(ptr_state$obj())
+    obj <- ptr_state$obj()
+    ui_ns_fn <- ptr_state$ui_ns_fn %||% shiny::NS(NULL)
+    data_tab <- ptr_get_data_tab_ui(
+      obj,
+      ui_text = ptr_state$effective_ui_text,
+      ns_fn = ui_ns_fn
+    )
+    layer_tab <- ptr_get_tab_ui(
+      obj,
+      ui_text = ptr_state$effective_ui_text,
+      ns_fn = ui_ns_fn,
+      checkbox_defaults = ptr_state$checkbox_defaults
+    )
     shiny::column(
       12,
-      ptr_get_tab_ui(
-        ptr_state$obj(),
-        ui_text = ptr_state$effective_ui_text,
-        ns_fn = ptr_state$ui_ns_fn %||% shiny::NS(NULL),
-        checkbox_defaults = ptr_state$checkbox_defaults
-      )
+      if (!is.null(data_tab)) {
+        shiny::tagList(shiny::h4("Data"), data_tab)
+      },
+      layer_tab
     )
   })
 

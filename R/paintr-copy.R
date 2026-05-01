@@ -7,11 +7,12 @@
 #' @noRd
 ptr_ui_text_component_paths <- function() {
   list(
-    title          = c("shell", "title"),
-    draw_button    = c("shell", "draw_button"),
-    upload_file    = c("upload", "file"),
-    upload_name    = c("upload", "name"),
-    layer_checkbox = c("layer_checkbox")
+    title              = c("shell", "title"),
+    draw_button        = c("shell", "draw_button"),
+    update_data_button = c("shell", "update_data_button"),
+    upload_file        = c("upload", "file"),
+    upload_name        = c("upload", "name"),
+    layer_checkbox     = c("layer_checkbox")
   )
 }
 
@@ -37,7 +38,8 @@ ptr_default_ui_text <- function(placeholders = NULL) {
     list(
       shell = list(
         title = list(label = "ggpaintr Plot Builder"),
-        draw_button = list(label = "Update plot")
+        draw_button = list(label = "Update plot"),
+        update_data_button = list(label = "Update data")
       ),
       upload = list(
         file = list(label = "Choose a data file"),
@@ -304,7 +306,7 @@ ptr_validate_ui_text <- function(ui_text, placeholders = NULL) {
   }
 
   if (!is.null(ui_text$shell)) {
-    allowed_shell <- c("title", "draw_button")
+    allowed_shell <- c("title", "draw_button", "update_data_button")
     unknown_shell <- setdiff(names(ui_text$shell), allowed_shell)
     if (length(unknown_shell) > 0) {
       rlang::abort(paste0(
