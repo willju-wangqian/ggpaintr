@@ -114,3 +114,20 @@ test_that("ptr_runtime_input_spec surfaces custom placeholder keywords", {
   expect_identical(date_row$param_key, "xintercept")
   expect_identical(date_row$source_id, date_row$input_id)
 })
+
+test_that("ptr_runtime_input_spec is identical for piped vs symbol data", {
+  skip_if_not_installed("dplyr")
+
+  plain <- ptr_runtime_input_spec(ptr_parse_formula(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  ))
+  piped_named <- ptr_runtime_input_spec(ptr_parse_formula(
+    "ggplot(data = mtcars |> dplyr::filter(mpg > 20), aes(x = var, y = var)) + geom_point()"
+  ))
+  piped_head <- ptr_runtime_input_spec(ptr_parse_formula(
+    "mtcars |> dplyr::filter(mpg > 20) |> ggplot(aes(x = var, y = var)) + geom_point()"
+  ))
+
+  expect_identical(piped_named, plain)
+  expect_identical(piped_head, plain)
+})
