@@ -104,10 +104,35 @@ expr_apply_checkbox_result <- function(expr, nn, input,
 #'
 #' @return A named list with `complete_expr_list`, `code_text`, and `eval_env`.
 #' @noRd
+ptr_substitute_cached_data <- function(expr_list, data_pipeline_info, resolved_data) {
+  if (is.null(resolved_data) || length(resolved_data) == 0L) return(expr_list)
+  if (is.null(data_pipeline_info) || length(data_pipeline_info) == 0L) return(expr_list)
+
+  for (layer_name in names(data_pipeline_info)) {
+    if (!layer_name %in% names(expr_list)) next
+    cache_react <- resolved_data[[layer_name]]
+    if (is.null(cache_react)) next
+    cached <- cache_react()
+    if (is.null(cached)) {
+      rlang::abort(sprintf(
+        "No cached data available for layer \"%s\". Click \"Update data\" to refresh.",
+        layer_name
+      ))
+    }
+    pipeline <- data_pipeline_info[[layer_name]]
+    layer_expr <- expr_list[[layer_name]]
+    if (is.call(layer_expr) && pipeline$data_arg_index <= length(layer_expr)) {
+      layer_expr[[pipeline$data_arg_index]] <- cached
+      expr_list[[layer_name]] <- layer_expr
+    }
+  }
+  expr_list
+}
+
 ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
   eval_env = NULL, var_column_map = NULL, expr_check = TRUE,
   ns_fn = shiny::NS(NULL), safe_to_remove = character(),
-  shared_bindings = list()) {
+  shared_bindings = list(), resolved_data = NULL) {
   assertthat::assert_that(inherits(ptr_obj, "ptr_obj"))
   safe_to_remove <- validate_safe_to_remove(safe_to_remove)
   remove_set <- unique(c(default_safe_to_remove(), safe_to_remove))
@@ -129,7 +154,8 @@ ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
       ptr_obj,
       input,
       context,
-      eval_env
+      eval_env,
+      resolved_data = resolved_data
     )
   }
   context$var_column_map <- var_column_map
@@ -180,8 +206,14 @@ ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
   }
   code_text <- do.call(paste, c(unname(code_text_list), sep = " +\n  "))
 
+  eval_expr_list <- ptr_substitute_cached_data(
+    ptr_processed_expr_list,
+    ptr_obj[["data_pipeline_info"]],
+    resolved_data
+  )
+
   list(
-    complete_expr_list = ptr_processed_expr_list,
+    complete_expr_list = eval_expr_list,
     code_text = code_text,
     eval_env = eval_env
   )
@@ -294,7 +326,7 @@ ptr_mark_runtime_failure <- function(runtime_result, stage, condition) {
 ptr_complete_expr_safe <- function(ptr_obj, input, envir = parent.frame(),
   eval_env = NULL, var_column_map = NULL, expr_check = TRUE,
   ns_fn = shiny::NS(NULL), safe_to_remove = character(),
-  shared_bindings = list()) {
+  shared_bindings = list(), resolved_data = NULL) {
   tryCatch(
     {
       complete_result <- ptr_complete_expr(ptr_obj, input, envir = envir,
@@ -303,7 +335,8 @@ ptr_complete_expr_safe <- function(ptr_obj, input, envir = parent.frame(),
                                            expr_check = expr_check,
                                            ns_fn = ns_fn,
                                            safe_to_remove = safe_to_remove,
-                                           shared_bindings = shared_bindings)
+                                           shared_bindings = shared_bindings,
+                                           resolved_data = resolved_data)
       list(
         ok = TRUE,
         stage = "complete",
@@ -404,6 +437,12 @@ ptr_validate_plot_render_safe <- function(runtime_result) {
 #'   `vars()`, `element_text()`, `element_line()`, `element_rect()`,
 #'   `element_point()`, `element_polygon()`, `element_geom()`. `geom_*()` /
 #'   `stat_*()` standalone layers are always preserved. Defaults to `character()`.
+#' @param resolved_data Optional named list of Shiny `reactiveVal`s, one per
+#'   data-pipeline layer (see `ptr_obj$data_pipeline_info`), each holding the
+#'   most recently cached data frame for that layer. When supplied, the
+#'   layer's data argument is replaced with the cached frame before
+#'   evaluation, so the data pipeline is not re-executed. Pass `NULL`
+#'   (the default) to fall back to evaluating the live data expression.
 #'
 #' @return A runtime result list containing `ok`, `stage`, `message`,
 #'   `code_text`, `complete_expr_list`, `eval_env`, `condition`, and `plot`.
@@ -426,10 +465,12 @@ ptr_validate_plot_render_safe <- function(runtime_result) {
 #' @export
 ptr_exec <- function(ptr_obj, input, envir = parent.frame(),
                      expr_check = TRUE,
-                     safe_to_remove = character()) {
+                     safe_to_remove = character(),
+                     resolved_data = NULL) {
   runtime_result <- ptr_complete_expr_safe(
     ptr_obj, input, envir = envir, expr_check = expr_check,
-    safe_to_remove = safe_to_remove
+    safe_to_remove = safe_to_remove,
+    resolved_data = resolved_data
   )
   runtime_result <- ptr_assemble_plot_safe(runtime_result, envir = envir, expr_check = expr_check)
   ptr_validate_plot_render_safe(runtime_result)

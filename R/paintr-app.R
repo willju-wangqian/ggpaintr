@@ -632,7 +632,8 @@ ptr_register_draw <- function(input,
       expr_check = ptr_state$expr_check,
       ns_fn = ptr_state$server_ns_fn %||% shiny::NS(NULL),
       safe_to_remove = ptr_state$safe_to_remove %||% character(),
-      shared_bindings = ptr_state$shared_bindings %||% list()
+      shared_bindings = ptr_state$shared_bindings %||% list(),
+      resolved_data = ptr_state$resolved_data
     )
     runtime_result <- ptr_assemble_plot_safe(runtime_result, envir = ptr_state$envir, expr_check = ptr_state$expr_check)
     runtime_result <- ptr_validate_plot_render_safe(runtime_result)

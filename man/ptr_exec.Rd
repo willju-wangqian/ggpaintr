@@ -9,7 +9,8 @@ ptr_exec(
   input,
   envir = parent.frame(),
   expr_check = TRUE,
-  safe_to_remove = character()
+  safe_to_remove = character(),
+  resolved_data = NULL
 )
 }
 \arguments{
@@ -41,6 +42,13 @@ leaves them empty. Extends the curated default set: \code{theme()}, \code{labs()
 \code{vars()}, \code{element_text()}, \code{element_line()}, \code{element_rect()},
 \code{element_point()}, \code{element_polygon()}, \code{element_geom()}. \verb{geom_*()} /
 \verb{stat_*()} standalone layers are always preserved. Defaults to \code{character()}.}
+
+\item{resolved_data}{Optional named list of Shiny \code{reactiveVal}s, one per
+data-pipeline layer (see \code{ptr_obj$data_pipeline_info}), each holding the
+most recently cached data frame for that layer. When supplied, the
+layer's data argument is replaced with the cached frame before
+evaluation, so the data pipeline is not re-executed. Pass \code{NULL}
+(the default) to fall back to evaluating the live data expression.}
 }
 \value{
 A runtime result list containing \code{ok}, \code{stage}, \code{message},
