@@ -34,13 +34,13 @@ A placeholder is the value returned by
 It bundles up to five hooks and a copy-defaults list. Only two hooks are
 required:
 
-| Hook               | Signature                                   | Required?    | Purpose                                                                                                                                  |
-|--------------------|---------------------------------------------|--------------|------------------------------------------------------------------------------------------------------------------------------------------|
-| `build_ui`         | `function(id, copy, meta, context)`         | **required** | Return the Shiny tag for one placeholder occurrence.                                                                                     |
-| `resolve_expr`     | `function(value, meta, context)`            | **required** | Turn the current widget value into an R expression spliced into the generated ggplot call.                                               |
-| `resolve_input`    | `function(input, id, meta, context)`        | optional     | Pre-process the raw Shiny input before it reaches `resolve_expr`. Defaults to `input[[id]]`.                                             |
-| `bind_ui`          | `function(input, output, metas, context)`   | optional     | Reactive wiring inside the server (e.g. `renderUI`, `observe`, `updateSelectInput`). Runs once per keyword with the list of occurrences. |
-| `prepare_eval_env` | `function(input, metas, eval_env, context)` | optional     | Inject objects into the environment where the completed formula is evaluated; must return `eval_env`.                                    |
+| Hook | Signature | Required? | Purpose |
+|----|----|----|----|
+| `build_ui` | `function(id, copy, meta, context)` | **required** | Return the Shiny tag for one placeholder occurrence. |
+| `resolve_expr` | `function(value, meta, context)` | **required** | Turn the current widget value into an R expression spliced into the generated ggplot call. |
+| `resolve_input` | `function(input, id, meta, context)` | optional | Pre-process the raw Shiny input before it reaches `resolve_expr`. Defaults to `input[[id]]`. |
+| `bind_ui` | `function(input, output, metas, context)` | optional | Reactive wiring inside the server (e.g. `renderUI`, `observe`, `updateSelectInput`). Runs once per keyword with the list of occurrences. |
+| `prepare_eval_env` | `function(input, metas, eval_env, context)` | optional | Inject objects into the environment where the completed formula is evaluated; must return `eval_env`. |
 
 Every hook receives two shared records:
 
@@ -78,13 +78,13 @@ The five built-ins use the same registry path as any custom placeholder.
 The table below shows which hooks each one defines — a useful reference
 when you want to mimic or replace one.
 
-| Keyword  | Widget                                                                                                                   | Value produced                             | Hooks used                                                      |
-|----------|--------------------------------------------------------------------------------------------------------------------------|--------------------------------------------|-----------------------------------------------------------------|
-| `var`    | Dynamic [`shinyWidgets::pickerInput`](https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html) of data columns | Column name as a symbol                    | `build_ui`, `resolve_expr`, `bind_ui`                           |
-| `text`   | `textInput`                                                                                                              | String literal                             | `build_ui`, `resolve_expr`                                      |
-| `num`    | `numericInput`                                                                                                           | Numeric scalar                             | `build_ui`, `resolve_expr`                                      |
-| `expr`   | Text field parsed as R                                                                                                   | Arbitrary expression (safety-checked)      | `build_ui`, `resolve_expr`                                      |
-| `upload` | File input + format picker                                                                                               | User-supplied data frame bound in eval env | `build_ui`, `resolve_expr`, `resolve_input`, `prepare_eval_env` |
+| Keyword | Widget | Value produced | Hooks used |
+|----|----|----|----|
+| `var` | Dynamic [`shinyWidgets::pickerInput`](https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html) of data columns | Column name as a symbol | `build_ui`, `resolve_expr`, `bind_ui` |
+| `text` | `textInput` | String literal | `build_ui`, `resolve_expr` |
+| `num` | `numericInput` | Numeric scalar | `build_ui`, `resolve_expr` |
+| `expr` | Text field parsed as R | Arbitrary expression (safety-checked) | `build_ui`, `resolve_expr` |
+| `upload` | File input + format picker | User-supplied data frame bound in eval env | `build_ui`, `resolve_expr`, `resolve_input`, `prepare_eval_env` |
 
 `var` uses `bind_ui` because its choices can only be populated after the
 data is known at runtime. `upload` uses `prepare_eval_env` because the
@@ -98,6 +98,7 @@ it in a formula, inspect the generated metadata, and launch a Shiny app
 that drives it.
 
 ``` r
+
 sales <- data.frame(
   day = as.Date("2024-01-01") + 0:4,
   value = c(10, 13, 12, 16, 18)
@@ -124,6 +125,7 @@ downstream still understands `var`, `text`, etc. Custom entries with a
 built-in keyword override the built-in.
 
 ``` r
+
 placeholders <- ptr_merge_placeholders(
   list(date = date_placeholder)
 )
@@ -136,6 +138,7 @@ Parse a formula with the enriched registry and inspect the metadata
 record the parser built for the `date` occurrence:
 
 ``` r
+
 obj <- ptr_parse_formula(
   "ggplot(data = sales, aes(x = day, y = value)) +
     geom_line() +
@@ -149,6 +152,9 @@ obj$placeholder_map$geom_vline[["geom_vline_2"]]
 #> 
 #> $keyword
 #> [1] "date"
+#> 
+#> $shared
+#> NULL
 #> 
 #> $layer_name
 #> [1] "geom_vline"
@@ -169,6 +175,7 @@ programmatically rather than hard-coding the `"geom_vline_2"` pattern
 used below for clarity.
 
 ``` r
+
 runtime <- ptr_exec(
   obj,
   list(
@@ -188,6 +195,7 @@ interactively, use
 (see the final section for every API that accepts `placeholders = ...`):
 
 ``` r
+
 ptr_app(
   "ggplot(data = sales, aes(x = day, y = value)) +
     geom_line() +
@@ -207,6 +215,7 @@ input id you must bind; `copy` is a named list with the four leaf fields
 occurrence.
 
 ``` r
+
 date_placeholder$build_ui
 #> function (id, copy, meta, context) 
 #> {
@@ -237,6 +246,7 @@ Runs before `resolve_expr` and lets you massage the raw Shiny input
 value. When omitted, ggpaintr passes `input[[id]]` straight through.
 
 ``` r
+
 trimmed_text <- ptr_define_placeholder(
   keyword = "trimmed_text",
   build_ui = function(id, copy, meta, context) {
@@ -304,6 +314,7 @@ namespaces the input/output ids so the placeholder survives Shiny module
 wrappers.
 
 ``` r
+
 log_num <- ptr_define_placeholder(
   keyword = "log_num",
 
@@ -364,6 +375,7 @@ log_num <- ptr_define_placeholder(
 A formula using it, parsed with the merged registry:
 
 ``` r
+
 registry <- ptr_merge_placeholders(list(log_num = log_num))
 
 obj <- ptr_parse_formula(
@@ -379,6 +391,7 @@ Running the same formula headlessly — note that `.log_safe` resolves
 because `prepare_eval_env()` bound it in the eval environment:
 
 ``` r
+
 runtime <- ptr_exec(
   obj,
   list(
@@ -394,6 +407,7 @@ runtime$code_text
 Launch the live app to exercise `bind_ui`:
 
 ``` r
+
 ptr_app(
   "ggplot(data = mtcars, aes(x = wt, y = log_num)) + geom_point()",
   placeholders = registry
@@ -419,6 +433,7 @@ post-transform data frame is exactly what the widget needs to populate
 its choices.
 
 ``` r
+
 numvar <- ptr_define_placeholder(
   keyword = "numvar",
   build_ui = function(id, copy, meta, context) {
@@ -491,6 +506,7 @@ post-transform frame, and the widget exposes the new `double_length`
 column alongside the originals.
 
 ``` r
+
 registry_chain <- ptr_merge_placeholders(list(numvar = numvar))
 
 obj_chain <- ptr_parse_formula(
@@ -508,6 +524,7 @@ obj_chain$formula_text
 ```
 
 ``` r
+
 runtime <- ptr_exec(
   obj_chain,
   list(
@@ -524,6 +541,7 @@ cat(runtime$code_text)
 ```
 
 ``` r
+
 ptr_app(
   obj_chain$formula_text,
   placeholders = registry_chain
@@ -553,6 +571,7 @@ resolves to a data frame in `eval_env` wins. That symbol (`iris`,
 choices from.
 
 ``` r
+
 # Walk the layer's `data =` expression and return the first bare symbol
 # that resolves to a data frame in eval_env. Mirrors the "give me the
 # upstream source data" need when colvars is wrapped in subset/select/...
@@ -621,6 +640,7 @@ Used inside [`subset()`](https://rdrr.io/r/base/subset.html) to pick
 which columns to retain before plotting:
 
 ``` r
+
 registry_colvars <- ptr_merge_placeholders(list(colvars = colvars))
 
 obj_colvars <- ptr_parse_formula(
@@ -636,6 +656,7 @@ obj_colvars$formula_text
 ```
 
 ``` r
+
 runtime <- ptr_exec(
   obj_colvars,
   list(
@@ -659,6 +680,7 @@ resolved expression is a plain character vector, so any function that
 accepts character column-names accepts the placeholder.
 
 ``` r
+
 ptr_app(
   obj_colvars$formula_text,
   placeholders = registry_colvars
@@ -674,6 +696,7 @@ that offers search and tick-boxes while keeping the original reactive
 behaviour (columns populated from data).
 
 ``` r
+
 picker_var <- ptr_define_placeholder(
   keyword = "var",
 
@@ -730,6 +753,7 @@ identical(replacement_registry$var, picker_var)
 ```
 
 ``` r
+
 ptr_app(
   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
   placeholders = replacement_registry
@@ -746,6 +770,7 @@ rules stay in sync.
 ### `ptr_app()` and `ptr_app_bslib()` — Level 1
 
 ``` r
+
 ptr_app(
   "ggplot(data = sales, aes(x = day, y = value)) +
     geom_line() +
@@ -771,6 +796,7 @@ and
 pick it up automatically.
 
 ``` r
+
 obj <- ptr_parse_formula(
   "ggplot(data = sales, aes(x = day, y = value)) +
     geom_line() +
@@ -781,7 +807,7 @@ obj <- ptr_parse_formula(
 spec <- ptr_runtime_input_spec(obj)
 names(spec)
 #> [1] "input_id"   "role"       "layer_name" "keyword"    "param_key" 
-#> [6] "source_id"
+#> [6] "source_id"  "shared"
 ```
 
 ### Manual embedding with `ptr_input_ui()` / `ptr_server_state()` — Level 2
@@ -793,6 +819,7 @@ through
 automatically.
 
 ``` r
+
 ids <- ptr_build_ids(
   control_panel = "builder_controls",
   draw_button   = "render_plot",
@@ -841,6 +868,7 @@ supported fields match the four leaf fields in
 `{param}` and [layer](https://github.com/marcosci/layer).
 
 ``` r
+
 annotated_date <- ptr_define_placeholder(
   keyword  = "date",
   build_ui = function(id, copy, meta, context) {

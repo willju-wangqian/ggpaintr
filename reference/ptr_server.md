@@ -20,6 +20,8 @@ ptr_server(
   checkbox_defaults = NULL,
   expr_check = TRUE,
   safe_to_remove = character(),
+  shared = list(),
+  draw_trigger = NULL,
   ns = shiny::NS(NULL)
 )
 ```
@@ -111,6 +113,19 @@ ptr_server(
   [`element_geom()`](https://ggplot2.tidyverse.org/reference/element.html).
   `geom_*()` / `stat_*()` standalone layers are always preserved.
   Defaults to [`character()`](https://rdrr.io/r/base/character.html).
+
+- shared:
+
+  Named list of Shiny reactives (or `NULL`/empty list). See
+  [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md)
+  for details. Use this to drive multiple ptr_obj instances from a
+  single externally-rendered control.
+
+- draw_trigger:
+
+  Optional Shiny reactive (or `NULL`). See
+  [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md)
+  for details.
 
 - ns:
 

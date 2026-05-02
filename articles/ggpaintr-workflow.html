@@ -43,6 +43,7 @@
     <li><a class="dropdown-item" href="../articles/ggpaintr-workflow.html">ggpaintr Workflow</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-extensibility.html">ggpaintr Extensibility</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-placeholder-registry.html">Custom Placeholders with the ggpaintr Registry</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul>
 </li>
@@ -614,7 +615,7 @@ formula<a class="anchor" aria-label="anchor" href="#pass-data-object-directly-in
 resolved against <code>envir</code> (by default the calling frame). Any
 variable visible when you call <code><a href="../reference/ptr_app.html">ptr_app()</a></code> works.</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">mtcars2</span> <span class="op">&lt;-</span> <span class="fu">dplyr</span><span class="fu">::</span><span class="fu">mutate</span><span class="op">(</span><span class="va">mtcars</span>, cyl <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="va">cyl</span><span class="op">)</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">mtcars2</span> <span class="op">&lt;-</span> <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span><span class="va">mtcars</span>, cyl <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="va">cyl</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
 <span>  <span class="st">"ggplot(data = mtcars2, aes(x = var, y = var)) + geom_point()"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -729,14 +730,14 @@ appear inside the corresponding layer.</p>
 <span><span class="co">#&gt; 5              labs_2    placeholder       labs    text     title</span></span>
 <span><span class="co">#&gt; 6 geom_point_checkbox layer_checkbox geom_point    &lt;NA&gt;      &lt;NA&gt;</span></span>
 <span><span class="co">#&gt; 7       labs_checkbox layer_checkbox       labs    &lt;NA&gt;      &lt;NA&gt;</span></span>
-<span><span class="co">#&gt;        source_id</span></span>
-<span><span class="co">#&gt; 1     ggplot_3_2</span></span>
-<span><span class="co">#&gt; 2     ggplot_3_3</span></span>
-<span><span class="co">#&gt; 3 geom_point_2_2</span></span>
-<span><span class="co">#&gt; 4   geom_point_3</span></span>
-<span><span class="co">#&gt; 5         labs_2</span></span>
-<span><span class="co">#&gt; 6           &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 7           &lt;NA&gt;</span></span></code></pre></div>
+<span><span class="co">#&gt;        source_id shared</span></span>
+<span><span class="co">#&gt; 1     ggplot_3_2   &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 2     ggplot_3_3   &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 3 geom_point_2_2   &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 4   geom_point_3   &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 5         labs_2   &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 6           &lt;NA&gt;   &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 7           &lt;NA&gt;   &lt;NA&gt;</span></span></code></pre></div>
 <p>Columns in the returned data frame:</p>
 <ul>
 <li>

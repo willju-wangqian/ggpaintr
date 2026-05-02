@@ -8,6 +8,7 @@ runtime, and the generated code pane.
 ## Installation
 
 ``` r
+
 # install.packages("pak")
 pak::pkg_install("willju-wangqian/ggpaintr")
 ```
@@ -17,6 +18,7 @@ pak::pkg_install("willju-wangqian/ggpaintr")
 Paste this into an R session:
 
 ``` r
+
 library(ggpaintr)
 
 ptr_app("
@@ -48,13 +50,13 @@ A ggpaintr formula is a normal ggplot call as a string, with placeholder
 keywords anywhere a value would normally go. Each keyword maps to one
 widget and one runtime value.
 
-| Keyword  | Widget                                                                                                           | Runtime value                                                      | Typical use                                  |
-|----------|------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------|----------------------------------------------|
-| `var`    | column picker ([`shinyWidgets::pickerInput`](https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html)) | column symbol                                                      | pick a column from the data frame            |
-| `text`   | `textInput`                                                                                                      | string                                                             | free text (axis labels, titles, color names) |
-| `num`    | `numericInput`                                                                                                   | numeric                                                            | a number (point size, alpha, threshold)      |
-| `expr`   | code input                                                                                                       | parsed R expression                                                | raw R code (facet specs, label formulas)     |
-| `upload` | `fileInput` + dataset name                                                                                       | data frame (`.csv` / `.tsv` / `.rds` / `.xlsx` / `.xls` / `.json`) | let the app receive a dataset at runtime     |
+| Keyword | Widget | Runtime value | Typical use |
+|----|----|----|----|
+| `var` | column picker ([`shinyWidgets::pickerInput`](https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html)) | column symbol | pick a column from the data frame |
+| `text` | `textInput` | string | free text (axis labels, titles, color names) |
+| `num` | `numericInput` | numeric | a number (point size, alpha, threshold) |
+| `expr` | code input | parsed R expression | raw R code (facet specs, label formulas) |
+| `upload` | `fileInput` + dataset name | data frame (`.csv` / `.tsv` / `.rds` / `.xlsx` / `.xls` / `.json`) | let the app receive a dataset at runtime |
 
 Slot context decides each widget’s label and help text: the surrounding
 argument name, the layer it appears in, and the keyword together pick
@@ -134,6 +136,7 @@ No Shiny code required. This is the right entry point for teaching,
 demoing, or quick data exploration.
 
 ``` r
+
 ptr_app(
   "ggplot(data = iris, aes(x = var, y = var)) +
      geom_point() +

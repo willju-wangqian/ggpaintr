@@ -8,6 +8,7 @@ runtime, and the generated code pane.
 ## Installation
 
 ``` r
+
 # install.packages("pak")
 pak::pkg_install("willju-wangqian/ggpaintr")
 ```
@@ -17,6 +18,7 @@ pak::pkg_install("willju-wangqian/ggpaintr")
 Paste this into an R session:
 
 ``` r
+
 library(ggpaintr)
 
 ptr_app("
@@ -48,13 +50,13 @@ A ggpaintr formula is a normal ggplot call as a string, with placeholder
 keywords anywhere a value would normally go. Each keyword maps to one
 widget and one runtime value.
 
-| Keyword  | Widget                                                                                                           | Runtime value                                                      | Typical use                                  |
-|----------|------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------|----------------------------------------------|
-| `var`    | column picker ([`shinyWidgets::pickerInput`](https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html)) | column symbol                                                      | pick a column from the data frame            |
-| `text`   | `textInput`                                                                                                      | string                                                             | free text (axis labels, titles, color names) |
-| `num`    | `numericInput`                                                                                                   | numeric                                                            | a number (point size, alpha, threshold)      |
-| `expr`   | code input                                                                                                       | parsed R expression                                                | raw R code (facet specs, label formulas)     |
-| `upload` | `fileInput` + dataset name                                                                                       | data frame (`.csv` / `.tsv` / `.rds` / `.xlsx` / `.xls` / `.json`) | let the app receive a dataset at runtime     |
+| Keyword | Widget | Runtime value | Typical use |
+|----|----|----|----|
+| `var` | column picker ([`shinyWidgets::pickerInput`](https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html)) | column symbol | pick a column from the data frame |
+| `text` | `textInput` | string | free text (axis labels, titles, color names) |
+| `num` | `numericInput` | numeric | a number (point size, alpha, threshold) |
+| `expr` | code input | parsed R expression | raw R code (facet specs, label formulas) |
+| `upload` | `fileInput` + dataset name | data frame (`.csv` / `.tsv` / `.rds` / `.xlsx` / `.xls` / `.json`) | let the app receive a dataset at runtime |
 
 Slot context decides each widget’s label and help text: the surrounding
 argument name, the layer it appears in, and the keyword together pick
@@ -134,6 +136,7 @@ No Shiny code required. This is the right entry point for teaching,
 demoing, or quick data exploration.
 
 ``` r
+
 ptr_app(
   "ggplot(data = iris, aes(x = var, y = var)) +
      geom_point() +
@@ -332,6 +335,8 @@ lists every exported function.
   : Build a ggpaintr Shiny App
 - [`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)
   : Build a ggpaintr Shiny App with a bslib Theme
+- [`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md)
+  : Multi-Plot Shiny App With Shared Placeholder Controls
 
 ## Configuration
 
@@ -446,5 +451,7 @@ assistants.
   Extensibility](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-extensibility.md):
 - [Custom Placeholders with the ggpaintr
   Registry](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-placeholder-registry.md):
+- [ggpaintr in the
+  Wild](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-gallery.md):
 - [Using ggpaintr from an LLM with
   ellmer](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-llm.md):

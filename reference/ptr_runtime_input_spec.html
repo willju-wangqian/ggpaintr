@@ -31,6 +31,7 @@ downstream code."><meta property="og:image" content="https://willju-wangqian.git
     <li><a class="dropdown-item" href="../articles/ggpaintr-workflow.html">ggpaintr Workflow</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-extensibility.html">ggpaintr Extensibility</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-placeholder-registry.html">Custom Placeholders with the ggpaintr Registry</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -73,7 +74,10 @@ downstream code.</p>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A base <code>data.frame</code> with columns <code>input_id</code>, <code>role</code>, <code>layer_name</code>,
-<code>keyword</code>, <code>param_key</code>, and <code>source_id</code>.</p>
+<code>keyword</code>, <code>param_key</code>, <code>source_id</code>, and <code>shared</code>. The <code>shared</code> column
+carries the user-supplied identifier from a call-form placeholder
+(e.g., <code>num(shared = "year_filter")</code>); it is <code>NA_character_</code> for bare
+placeholders and for non-placeholder rows.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -98,6 +102,12 @@ exact encoding scheme directly.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 3              labs_2    placeholder       labs    text     title     labs_2</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 4 geom_point_checkbox layer_checkbox geom_point    &lt;NA&gt;      &lt;NA&gt;       &lt;NA&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 5       labs_checkbox layer_checkbox       labs    &lt;NA&gt;      &lt;NA&gt;       &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   shared</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1   &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2   &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3   &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4   &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5   &lt;NA&gt;</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

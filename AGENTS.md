@@ -12,6 +12,7 @@ Placeholder tokens in the formula (`var`, `text`, `num`, `expr`,
 ## Commands
 
 ``` r
+
 devtools::test()                          # run all tests
 devtools::test(filter = "parse-formula")  # run one test file (matches test-<filter>.R)
 devtools::document()                      # regenerate NAMESPACE + man/ from roxygen

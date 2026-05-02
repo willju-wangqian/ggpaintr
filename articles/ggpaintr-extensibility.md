@@ -1,6 +1,7 @@
 # ggpaintr Extensibility
 
 ``` r
+
 library(ggpaintr)
 library(shiny)
 ```
@@ -105,6 +106,7 @@ place its input and output widgets inside your own layout, and wire the
 five default binders.
 
 ``` r
+
 ui <- fluidPage(
   titlePanel("Embedded ggpaintr"),
   sidebarLayout(
@@ -182,6 +184,7 @@ single output id, you can place each output wherever you want in the
 layout.
 
 ``` r
+
 ui <- fluidPage(
   titlePanel("ggpaintr with split outputs"),
   fluidRow(
@@ -237,6 +240,7 @@ stay local to the module server, and DOM ids are rendered through the
 module namespace.
 
 ``` r
+
 ui <- fluidPage(
   ptr_module_ui("plot1")
 )
@@ -259,6 +263,7 @@ already scopes server-side `input` and `output`, but UI generated from
 `session$ns`. The exported wrappers handle that contract directly.
 
 ``` r
+
 plot_module_ui <- function(id) {
   ns <- shiny::NS(id)
   ptr_module_ui(id)
@@ -299,6 +304,7 @@ The `ids =` argument is independent — sharing the same `custom_ids`
 across instances is fine, because `ns` is what disambiguates them.
 
 ``` r
+
 ns_a <- shiny::NS("plot_a")
 ns_b <- shiny::NS("plot_b")
 
@@ -346,6 +352,7 @@ Sanity check any wiring by inspecting the explicit ID contract in the
 console:
 
 ``` r
+
 state_a <- ptr_server_state(formula_a, ns = ns_a)
 state_b <- ptr_server_state(formula_b, ns = ns_b)
 identical(unlist(state_a$raw_ids), unlist(state_b$raw_ids))  # TRUE
@@ -363,6 +370,7 @@ default names, or when you want ggpaintr outputs in specific containers.
 Full signature, with defaults:
 
 ``` r
+
 ptr_build_ids(
   control_panel = "controlPanel",  # uiOutput that holds the tabbed controls
   draw_button   = "draw",           # actionButton that triggers a redraw
@@ -377,6 +385,7 @@ The returned object has class `ptr_build_ids` and is the only accepted
 type for the `ids =` argument on every Level-2 helper.
 
 ``` r
+
 ids <- ptr_build_ids(
   control_panel = "builder_controls",
   draw_button   = "render_plot",
@@ -407,6 +416,7 @@ ids
 Pass the same `ids` object everywhere so UI and server stay in sync:
 
 ``` r
+
 ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
@@ -473,14 +483,14 @@ Not every placeholder reads every field. The table below is the
 authoritative per-placeholder mapping — verified against the current
 widget builders in `R/paintr-ui.R`.
 
-| Placeholder     | Widget                                                                                           | `label` | `help` | `placeholder` | `empty_text` |
-|-----------------|--------------------------------------------------------------------------------------------------|:-------:|:------:|:-------------:|:------------:|
-| `var`           | [`shinyWidgets::pickerInput`](https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html) |   ✅    |   ✅   |       —       |      ✅      |
-| `text`          | [`shiny::textInput`](https://rdrr.io/pkg/shiny/man/textInput.html)                               |   ✅    |   ✅   |      ✅       |      —       |
-| `num`           | [`shiny::numericInput`](https://rdrr.io/pkg/shiny/man/numericInput.html)                         |   ✅    |   ✅   |       —       |      —       |
-| `expr`          | [`shiny::textInput`](https://rdrr.io/pkg/shiny/man/textInput.html)                               |   ✅    |   ✅   |      ✅       |      —       |
-| `upload` (file) | [`shiny::fileInput`](https://rdrr.io/pkg/shiny/man/fileInput.html)                               |   ✅    |   —    |       —       |      —       |
-| `upload` (name) | [`shiny::textInput`](https://rdrr.io/pkg/shiny/man/textInput.html)                               |   ✅    |   ✅   |      ✅       |      —       |
+| Placeholder | Widget | `label` | `help` | `placeholder` | `empty_text` |
+|----|----|:--:|:--:|:--:|:--:|
+| `var` | [`shinyWidgets::pickerInput`](https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html) | ✅ | ✅ | — | ✅ |
+| `text` | [`shiny::textInput`](https://rdrr.io/pkg/shiny/man/textInput.html) | ✅ | ✅ | ✅ | — |
+| `num` | [`shiny::numericInput`](https://rdrr.io/pkg/shiny/man/numericInput.html) | ✅ | ✅ | — | — |
+| `expr` | [`shiny::textInput`](https://rdrr.io/pkg/shiny/man/textInput.html) | ✅ | ✅ | ✅ | — |
+| `upload` (file) | [`shiny::fileInput`](https://rdrr.io/pkg/shiny/man/fileInput.html) | ✅ | — | — | — |
+| `upload` (name) | [`shiny::textInput`](https://rdrr.io/pkg/shiny/man/textInput.html) | ✅ | ✅ | ✅ | — |
 
 Unused fields are simply ignored. You can still set `help` on a `num` or
 `empty_text` on a `text` — they will pass validation but will never be
@@ -491,6 +501,7 @@ You can inspect the merged defaults at any time by calling
 with no overrides:
 
 ``` r
+
 defaults <- ptr_merge_ui_text(NULL)
 names(defaults)
 #> [1] "shell"          "upload"         "layer_checkbox" "defaults"      
@@ -504,6 +515,9 @@ defaults$defaults$var
 defaults$defaults$text
 #> $label
 #> [1] "Enter text for {param}"
+#> 
+#> $placeholder
+#> [1] "Plain text - quotes are added automatically"
 defaults$defaults$num
 #> $label
 #> [1] "Enter a number for {param}"
@@ -522,14 +536,14 @@ participate in the layer cascade. The other three (`defaults`, `params`,
 copy. Higher specificity wins; the merge is deep, field by field, so you
 can override one `label` without clobbering the sibling `help`.
 
-| Top-level key    | Role                                                         | Participates in cascade? |
-|------------------|--------------------------------------------------------------|:------------------------:|
-| `shell`          | Page title and draw-button label.                            |            no            |
-| `upload`         | The paired upload widgets (`file` + `name`).                 |            no            |
-| `layer_checkbox` | The “include this layer” toggle for non-`ggplot` layers.     |            no            |
-| `defaults`       | Per-keyword fallback used *everywhere*.                      |   yes — least specific   |
-| `params`         | Copy for a specific ggplot argument name (`x`, `color`, …).  |           yes            |
-| `layers`         | Copy for one keyword in one aesthetic of one specific layer. |   yes — most specific    |
+| Top-level key | Role | Participates in cascade? |
+|----|----|:--:|
+| `shell` | Page title and draw-button label. | no |
+| `upload` | The paired upload widgets (`file` + `name`). | no |
+| `layer_checkbox` | The “include this layer” toggle for non-`ggplot` layers. | no |
+| `defaults` | Per-keyword fallback used *everywhere*. | yes — least specific |
+| `params` | Copy for a specific ggplot argument name (`x`, `color`, …). | yes |
+| `layers` | Copy for one keyword in one aesthetic of one specific layer. | yes — most specific |
 
 The resolution order for a **control** (any `defaults` / `params` /
 `layers` entry) is:
@@ -558,6 +572,7 @@ the British spellings — either works, both land in the same slot.
 The three non-cascade sections each map to fixed UI components.
 
 ``` r
+
 ui_text <- list(
   shell = list(
     title       = list(label = "My app"),                # page title
@@ -588,6 +603,7 @@ keyword and the `title` argument of
 [`labs()`](https://ggplot2.tidyverse.org/reference/labs.html).
 
 ``` r
+
 obj <- ptr_parse_formula(
   "ggplot(data = mtcars, aes(x = var, y = var)) +
      geom_point() +
@@ -631,6 +647,7 @@ resolved leaf fields — whatever the deepest matching layer supplied,
 with sibling fields filled in from less-specific scopes.
 
 ``` r
+
 # Only (keyword = "text") — lands in defaults$text
 ptr_resolve_ui_text(
   "control", keyword = "text",
@@ -639,11 +656,15 @@ ptr_resolve_ui_text(
 #> $label
 #> [1] "Enter text"
 #> 
+#> $placeholder
+#> [1] "Plain text - quotes are added automatically"
+#> 
 #> $help
 #> [1] "Generic help (from defaults)"
 ```
 
 ``` r
+
 # Add param = "title" — now params$title$text wins on label/help,
 # but defaults still fill in anything params did not set.
 ptr_resolve_ui_text(
@@ -653,11 +674,15 @@ ptr_resolve_ui_text(
 #> $label
 #> [1] "Plot title"
 #> 
+#> $placeholder
+#> [1] "Plain text - quotes are added automatically"
+#> 
 #> $help
 #> [1] "Arg-specific help (from params$title)"
 ```
 
 ``` r
+
 # Add layer_name = "labs" — layers$labs$text$title wins on every
 # field it supplies, params fills in anything layers did not.
 ptr_resolve_ui_text(
@@ -667,14 +692,15 @@ ptr_resolve_ui_text(
 #> $label
 #> [1] "labs(title = …) override"
 #> 
-#> $help
-#> [1] "Layer-specific help (from layers$labs)"
-#> 
 #> $placeholder
 #> [1] "e.g. Weight vs MPG"
+#> 
+#> $help
+#> [1] "Layer-specific help (from layers$labs)"
 ```
 
 ``` r
+
 # A different layer with the same keyword/param — no layers entry
 # exists, so resolution falls back to params.
 ptr_resolve_ui_text(
@@ -683,6 +709,9 @@ ptr_resolve_ui_text(
 )
 #> $label
 #> [1] "Plot title"
+#> 
+#> $placeholder
+#> [1] "Plain text - quotes are added automatically"
 #> 
 #> $help
 #> [1] "Arg-specific help (from params$title)"
@@ -699,6 +728,7 @@ Use the short component names (no `keyword`) to resolve the non-cascade
 sections. Each name maps to a specific path in the merged rules object:
 
 ``` r
+
 ui_text_chrome <- list(
   shell = list(
     title       = list(label = "My custom title"),
@@ -757,6 +787,7 @@ That call:
   (so subsequent helpers skip re-validation).
 
 ``` r
+
 merged <- ptr_merge_ui_text(ui_text)
 inherits(merged, "ptr_ui_text")
 #> [1] TRUE
@@ -782,6 +813,7 @@ themed title, a relabeled draw button, a renamed `x`-axis control, and a
 custom help string on the `labs(title = text)` input:
 
 ``` r
+
 ui_text <- list(
   shell = list(
     title       = list(label = "mtcars explorer"),
@@ -845,6 +877,7 @@ Once you have a registry defined there, wiring it into an embed is one
 line:
 
 ``` r
+
 my_registry <- ptr_merge_placeholders(
   date = ptr_define_placeholder(
     keyword = "date",
@@ -895,6 +928,7 @@ The pipeline is:
 5.  `ptr_extract_plot(result)` → the `ggplot` object.
 
 ``` r
+
 obj <- ptr_parse_formula(
   "ggplot(data = mtcars, aes(x = var, y = var)) +
      geom_point() +
@@ -909,6 +943,12 @@ spec
 #> 3              labs_2    placeholder       labs    text     title     labs_2
 #> 4 geom_point_checkbox layer_checkbox geom_point    <NA>      <NA>       <NA>
 #> 5       labs_checkbox layer_checkbox       labs    <NA>      <NA>       <NA>
+#>   shared
+#> 1   <NA>
+#> 2   <NA>
+#> 3   <NA>
+#> 4   <NA>
+#> 5   <NA>
 ```
 
 `spec` tells you exactly which `input_id`s the runtime expects. The
@@ -917,6 +957,7 @@ value, a per-layer on/off checkbox, and the companion name field for an
 `upload` placeholder.
 
 ``` r
+
 inputs <- setNames(vector("list", nrow(spec)), spec$input_id)
 
 # Every non-ggplot layer checkbox starts TRUE (= include the layer).
@@ -945,6 +986,7 @@ class(p)
 `knitr` chunk, or any other downstream consumer:
 
 ``` r
+
 print(p)
 ```
 
@@ -976,6 +1018,7 @@ is one line — anything you do yourself should look roughly the same
 shape.
 
 ``` r
+
 ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
@@ -1047,6 +1090,7 @@ picks up those extras and appends them to the code text whenever the
 runtime succeeds.
 
 ``` r
+
 ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
@@ -1129,6 +1173,7 @@ copy-paste into an RMarkdown report.
 returns the code as a single string:
 
 ``` r
+
 result <- ptr_exec(obj, inputs)
 cat(ptr_extract_code(result))
 #> ggplot(data = mtcars, aes(x = wt, y = mpg)) +
@@ -1145,6 +1190,7 @@ Shiny session this is usually `ptr_state$extras()`; outside one you can
 build the list yourself:
 
 ``` r
+
 extras <- list(rlang::quo(ggplot2::theme_minimal()))
 cat(ptr_extract_code(result, extras = extras))
 #> ggplot(data = mtcars, aes(x = wt, y = mpg)) +
@@ -1162,6 +1208,7 @@ When the runtime failed, the base code string is returned as-is and
 Failure diagnostics work the same way as the plot path:
 
 ``` r
+
 broken_inputs <- inputs
 broken_inputs[[pick("ggplot", "x")]] <- "not_a_column"
 bad <- ptr_exec(obj, broken_inputs)
@@ -1187,6 +1234,7 @@ helper that should also be cleaned up when its inputs go missing, opt it
 in by name:
 
 ``` r
+
 ptr_app(
   "ggplot(data = flea, mapping = aes_pcp()) +
      pcp_theme(title = text)",
@@ -1220,24 +1268,24 @@ are honoured verbatim and never affected by `safe_to_remove`.
 A compact lookup of the most common embed / headless tasks and the
 single API call each needs.
 
-| I want to…                                                                    | Use this                                                                                                                                                                                                                                                                                                                                                                                                |
-|-------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Launch a turn-key app                                                         | `ptr_app(formula)` / `ptr_app_bslib(formula)`                                                                                                                                                                                                                                                                                                                                                           |
-| Embed in my own non-module UI                                                 | [`ptr_input_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_input_ui.md) + [`ptr_output_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_output_ui.md) + `ptr_server(input, output, session, formula)`                                                                                                                                                                   |
-| Use or copy a Shiny module template                                           | [`ptr_module_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_ui.md) + [`ptr_module_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_server.md)                                                                                                                                                                                                         |
-| Build reactive state and wire binders separately                              | [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md) + [`ptr_setup_controls()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_setup_controls.md) + four `ptr_register_*()`                                                                                                                                                                       |
-| Use non-default top-level ids                                                 | [`ptr_build_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.md) → pass as `ids =` to every helper                                                                                                                                                                                                                                                                            |
-| Override widget labels / help text / placeholders                             | `ui_text = list(...)` on [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md) (see §3f)                                                                                                                                                                                                                                                                     |
-| Inspect the resolved copy for one placeholder                                 | `ptr_resolve_ui_text("control", keyword = ..., param = ..., layer_name = ..., ui_text = ...)`                                                                                                                                                                                                                                                                                                           |
-| Validate a `ui_text` list before handing it to a helper                       | `ptr_merge_ui_text(ui_text, known_param_keys = ...)`                                                                                                                                                                                                                                                                                                                                                    |
-| Add a new placeholder keyword                                                 | [`ptr_define_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder.md) + `placeholders =` arg (see registry vignette)                                                                                                                                                                                                                                             |
-| Opt a third-party helper into the empty-call cleanup pass                     | `safe_to_remove = c("pcp_theme")` on [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md) / [`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md) (see §4e)                                                                                                                                                                                        |
-| Render a plot from a formula without Shiny                                    | [`ptr_parse_formula()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_parse_formula.md) → [`ptr_runtime_input_spec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_runtime_input_spec.md) → [`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md) → [`ptr_extract_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_plot.md) |
-| Post-process the plot before rendering                                        | Your own [`renderPlot()`](https://rdrr.io/pkg/shiny/man/renderPlot.html) + `ptr_extract_plot(ptr_state$runtime())`                                                                                                                                                                                                                                                                                      |
-| Keep host-app ggplot additions in the code output                             | `plot_obj + ptr_gg_extra(ptr_state, ...)`                                                                                                                                                                                                                                                                                                                                                               |
-| Generate ggplot code text as a string                                         | `ptr_extract_code(result, extras = NULL)`                                                                                                                                                                                                                                                                                                                                                               |
-| Render a standard inline error panel                                          | `ptr_extract_error(result)` (or [`ptr_register_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_error.md) inside Shiny)                                                                                                                                                                                                                                                      |
-| Detect “no value supplied” for a placeholder (inside a custom `resolve_expr`) | [`ptr_missing_expr()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_missing_expr.md)                                                                                                                                                                                                                                                                                                        |
+| I want to… | Use this |
+|----|----|
+| Launch a turn-key app | `ptr_app(formula)` / `ptr_app_bslib(formula)` |
+| Embed in my own non-module UI | [`ptr_input_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_input_ui.md) + [`ptr_output_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_output_ui.md) + `ptr_server(input, output, session, formula)` |
+| Use or copy a Shiny module template | [`ptr_module_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_ui.md) + [`ptr_module_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_server.md) |
+| Build reactive state and wire binders separately | [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md) + [`ptr_setup_controls()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_setup_controls.md) + four `ptr_register_*()` |
+| Use non-default top-level ids | [`ptr_build_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.md) → pass as `ids =` to every helper |
+| Override widget labels / help text / placeholders | `ui_text = list(...)` on [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md) (see §3f) |
+| Inspect the resolved copy for one placeholder | `ptr_resolve_ui_text("control", keyword = ..., param = ..., layer_name = ..., ui_text = ...)` |
+| Validate a `ui_text` list before handing it to a helper | `ptr_merge_ui_text(ui_text, known_param_keys = ...)` |
+| Add a new placeholder keyword | [`ptr_define_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder.md) + `placeholders =` arg (see registry vignette) |
+| Opt a third-party helper into the empty-call cleanup pass | `safe_to_remove = c("pcp_theme")` on [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md) / [`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md) (see §4e) |
+| Render a plot from a formula without Shiny | [`ptr_parse_formula()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_parse_formula.md) → [`ptr_runtime_input_spec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_runtime_input_spec.md) → [`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md) → [`ptr_extract_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_plot.md) |
+| Post-process the plot before rendering | Your own [`renderPlot()`](https://rdrr.io/pkg/shiny/man/renderPlot.html) + `ptr_extract_plot(ptr_state$runtime())` |
+| Keep host-app ggplot additions in the code output | `plot_obj + ptr_gg_extra(ptr_state, ...)` |
+| Generate ggplot code text as a string | `ptr_extract_code(result, extras = NULL)` |
+| Render a standard inline error panel | `ptr_extract_error(result)` (or [`ptr_register_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_error.md) inside Shiny) |
+| Detect “no value supplied” for a placeholder (inside a custom `resolve_expr`) | [`ptr_missing_expr()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_missing_expr.md) |
 
 ## 6. Current behavior boundary
 

@@ -29,6 +29,7 @@ evaluation-environment preparation."><meta property="og:image" content="https://
     <li><a class="dropdown-item" href="../articles/ggpaintr-workflow.html">ggpaintr Workflow</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-extensibility.html">ggpaintr Extensibility</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-placeholder-registry.html">Custom Placeholders with the ggpaintr Registry</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -122,7 +123,7 @@ namespaced by ggpaintr; use it directly.</p>
     <div class="section level2">
     <h2 id="data-aware-placeholders-bind-ui-">Data-aware placeholders (<code>bind_ui</code>)<a class="anchor" aria-label="anchor" href="#data-aware-placeholders-bind-ui-"></a></h2>
     <p>If the widget needs to read columns or values from the dataset (a
-multi-column selector inside <code>dplyr::select()</code>, a faceting variable picker,
+multi-column selector inside <code><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">dplyr::select()</a></code>, a faceting variable picker,
 etc.), the dataset is not available at registration time – it depends on
 the user's formula and on input values. Use <code>bind_ui</code> to register a Shiny
 <code>renderUI()</code> for the widget.</p>

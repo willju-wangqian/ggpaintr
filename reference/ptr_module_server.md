@@ -18,7 +18,9 @@ ptr_module_server(
   placeholders = NULL,
   checkbox_defaults = NULL,
   expr_check = TRUE,
-  safe_to_remove = character()
+  safe_to_remove = character(),
+  shared = list(),
+  draw_trigger = NULL
 )
 ```
 
@@ -65,6 +67,18 @@ ptr_module_server(
   [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
   for the curated default set and full semantics. Defaults to
   [`character()`](https://rdrr.io/r/base/character.html).
+
+- shared:
+
+  Named list of Shiny reactives (or empty list). See
+  [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md)
+  for details.
+
+- draw_trigger:
+
+  Optional Shiny reactive (or `NULL`). See
+  [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md)
+  for details.
 
 ## Value
 

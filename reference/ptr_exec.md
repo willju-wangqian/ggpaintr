@@ -10,7 +10,9 @@ ptr_exec(
   input,
   envir = parent.frame(),
   expr_check = TRUE,
-  safe_to_remove = character()
+  safe_to_remove = character(),
+  resolved_data = NULL,
+  last_click_inputs = NULL
 )
 ```
 
@@ -75,6 +77,25 @@ ptr_exec(
   [`element_geom()`](https://ggplot2.tidyverse.org/reference/element.html).
   `geom_*()` / `stat_*()` standalone layers are always preserved.
   Defaults to [`character()`](https://rdrr.io/r/base/character.html).
+
+- resolved_data:
+
+  Optional named list of Shiny `reactiveVal`s, one per data-pipeline
+  layer (see `ptr_obj$data_pipeline_info`), each holding the most
+  recently cached data frame for that layer. When supplied, the layer's
+  data argument is replaced with the cached frame before evaluation, so
+  the data pipeline is not re-executed. Pass `NULL` (the default) to
+  fall back to evaluating the live data expression.
+
+- last_click_inputs:
+
+  Optional named list of placeholder-input snapshots, one per
+  data-pipeline layer, captured at the moment the layer's "Update data"
+  button was last clicked. When supplied, the snapshotted values (rather
+  than the live `input`) are substituted into the data-pipeline
+  placeholders during code-text generation, so the displayed code
+  matches the cached frame the plot was rendered against. Pass `NULL`
+  (the default) to use the live `input` values.
 
 ## Value
 

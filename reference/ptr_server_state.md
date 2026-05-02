@@ -16,6 +16,8 @@ ptr_server_state(
   checkbox_defaults = NULL,
   expr_check = TRUE,
   safe_to_remove = character(),
+  shared = list(),
+  draw_trigger = NULL,
   ns = shiny::NS(NULL),
   server_ns = ns
 )
@@ -107,6 +109,25 @@ ptr_server_state(
   [`element_geom()`](https://ggplot2.tidyverse.org/reference/element.html).
   `geom_*()` / `stat_*()` standalone layers are always preserved.
   Defaults to [`character()`](https://rdrr.io/r/base/character.html).
+
+- shared:
+
+  Named list of Shiny reactives (or `NULL`/empty list). Each name must
+  match a `shared = "<id>"` annotation on a placeholder in the formula.
+  When a placeholder carries a `shared` annotation, its per-instance
+  widget is suppressed and its runtime value is read from the matching
+  reactive instead. Use this to drive multiple ptr_obj instances from a
+  single externally-rendered control. Defaults to an empty list (no
+  shared bindings).
+
+- draw_trigger:
+
+  Optional Shiny reactive (or `NULL`). When non-`NULL`, firing the
+  reactive triggers a redraw in addition to the local draw button. Used
+  by
+  [`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md)
+  to wire a top-level "draw all" button into every plot. Defaults to
+  `NULL`.
 
 - ns:
 

@@ -23,6 +23,7 @@
     <li><a class="dropdown-item" href="../articles/ggpaintr-workflow.html">ggpaintr Workflow</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-extensibility.html">ggpaintr Extensibility</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-placeholder-registry.html">Custom Placeholders with the ggpaintr Registry</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -52,7 +53,9 @@
 <span>  <span class="va">input</span>,</span>
 <span>  envir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sys.parent.html" class="external-link">parent.frame</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  expr_check <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  safe_to_remove <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>  safe_to_remove <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  resolved_data <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  last_click_inputs <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -97,6 +100,25 @@ leaves them empty. Extends the curated default set: <code><a href="https://ggplo
 <code><a href="https://ggplot2.tidyverse.org/reference/vars.html" class="external-link">vars()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_line()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_rect()</a></code>,
 <code><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_point()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_polygon()</a></code>, <code><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_geom()</a></code>. <code>geom_*()</code> /
 <code>stat_*()</code> standalone layers are always preserved. Defaults to <code><a href="https://rdrr.io/r/base/character.html" class="external-link">character()</a></code>.</p></dd>
+
+
+<dt id="arg-resolved-data">resolved_data<a class="anchor" aria-label="anchor" href="#arg-resolved-data"></a></dt>
+<dd><p>Optional named list of Shiny <code>reactiveVal</code>s, one per
+data-pipeline layer (see <code>ptr_obj$data_pipeline_info</code>), each holding the
+most recently cached data frame for that layer. When supplied, the
+layer's data argument is replaced with the cached frame before
+evaluation, so the data pipeline is not re-executed. Pass <code>NULL</code>
+(the default) to fall back to evaluating the live data expression.</p></dd>
+
+
+<dt id="arg-last-click-inputs">last_click_inputs<a class="anchor" aria-label="anchor" href="#arg-last-click-inputs"></a></dt>
+<dd><p>Optional named list of placeholder-input snapshots,
+one per data-pipeline layer, captured at the moment the layer's
+"Update data" button was last clicked. When supplied, the snapshotted
+values (rather than the live <code>input</code>) are substituted into the
+data-pipeline placeholders during code-text generation, so the
+displayed code matches the cached frame the plot was rendered against.
+Pass <code>NULL</code> (the default) to use the live <code>input</code> values.</p></dd>
 
 </dl></div>
     <div class="section level2">

@@ -6,6 +6,8 @@
   : Build a ggpaintr Shiny App
 - [`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)
   : Build a ggpaintr Shiny App with a bslib Theme
+- [`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md)
+  : Multi-Plot Shiny App With Shared Placeholder Controls
 
 ## Configuration
 

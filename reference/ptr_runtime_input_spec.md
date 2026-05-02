@@ -22,7 +22,10 @@ ptr_runtime_input_spec(ptr_obj)
 ## Value
 
 A base `data.frame` with columns `input_id`, `role`, `layer_name`,
-`keyword`, `param_key`, and `source_id`.
+`keyword`, `param_key`, `source_id`, and `shared`. The `shared` column
+carries the user-supplied identifier from a call-form placeholder (e.g.,
+`num(shared = "year_filter")`); it is `NA_character_` for bare
+placeholders and for non-placeholder rows.
 
 ## Details
 
@@ -53,4 +56,10 @@ ptr_runtime_input_spec(obj)
 #> 3              labs_2    placeholder       labs    text     title     labs_2
 #> 4 geom_point_checkbox layer_checkbox geom_point    <NA>      <NA>       <NA>
 #> 5       labs_checkbox layer_checkbox       labs    <NA>      <NA>       <NA>
+#>   shared
+#> 1   <NA>
+#> 2   <NA>
+#> 3   <NA>
+#> 4   <NA>
+#> 5   <NA>
 ```

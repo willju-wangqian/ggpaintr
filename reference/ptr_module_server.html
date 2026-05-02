@@ -29,6 +29,7 @@ renderUI() is namespaced with session$ns."><meta property="og:image" content="ht
     <li><a class="dropdown-item" href="../articles/ggpaintr-workflow.html">ggpaintr Workflow</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-extensibility.html">ggpaintr Extensibility</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-placeholder-registry.html">Custom Placeholders with the ggpaintr Registry</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -64,7 +65,9 @@ server-side ids stay local to the module, while UI generated from
 <span>  placeholders <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  checkbox_defaults <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  expr_check <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  safe_to_remove <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>  safe_to_remove <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  shared <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  draw_trigger <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -108,6 +111,16 @@ layer checkboxes. See <code><a href="ptr_server_state.html">ptr_server_state()</
 zero-argument calls should be dropped after placeholder substitution
 leaves them empty. See <code><a href="ptr_app.html">ptr_app()</a></code> for the curated default set and full
 semantics. Defaults to <code><a href="https://rdrr.io/r/base/character.html" class="external-link">character()</a></code>.</p></dd>
+
+
+<dt id="arg-shared">shared<a class="anchor" aria-label="anchor" href="#arg-shared"></a></dt>
+<dd><p>Named list of Shiny reactives (or empty list). See
+<code><a href="ptr_server_state.html">ptr_server_state()</a></code> for details.</p></dd>
+
+
+<dt id="arg-draw-trigger">draw_trigger<a class="anchor" aria-label="anchor" href="#arg-draw-trigger"></a></dt>
+<dd><p>Optional Shiny reactive (or <code>NULL</code>). See
+<code><a href="ptr_server_state.html">ptr_server_state()</a></code> for details.</p></dd>
 
 </dl></div>
     <div class="section level2">

@@ -1,6 +1,7 @@
 # ggpaintr Workflow
 
 ``` r
+
 library(ggpaintr)
 ```
 
@@ -57,13 +58,13 @@ on/off checkbox in the UI so the viewer can add or drop them.
 `ggpaintr` ships with five built-in keywords. They differ in what widget
 they produce and what kind of value they feed back into the ggplot call.
 
-| Keyword  | Widget                                                                                                                             | Produces at runtime          | Typical use                               |
-|----------|------------------------------------------------------------------------------------------------------------------------------------|------------------------------|-------------------------------------------|
-| `var`    | [`shinyWidgets::pickerInput()`](https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html) of data-frame columns           | column name as a symbol      | mappings like `x = var`, `color = var`    |
-| `text`   | [`textInput()`](https://rdrr.io/pkg/shiny/man/textInput.html)                                                                      | string literal               | `labs(title = text)`, category filters    |
-| `num`    | [`numericInput()`](https://rdrr.io/pkg/shiny/man/numericInput.html)                                                                | numeric value                | `size = num`, `alpha = num`               |
-| `expr`   | [`textInput()`](https://rdrr.io/pkg/shiny/man/textInput.html) (parsed as R expression)                                             | arbitrary R expression       | `facet_wrap(expr)`, `aes(x = expr)` maths |
-| `upload` | [`fileInput()`](https://rdrr.io/pkg/shiny/man/fileInput.html) + name [`textInput()`](https://rdrr.io/pkg/shiny/man/textInput.html) | a named data frame in memory | supply the dataset from the browser       |
+| Keyword | Widget | Produces at runtime | Typical use |
+|----|----|----|----|
+| `var` | [`shinyWidgets::pickerInput()`](https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html) of data-frame columns | column name as a symbol | mappings like `x = var`, `color = var` |
+| `text` | [`textInput()`](https://rdrr.io/pkg/shiny/man/textInput.html) | string literal | `labs(title = text)`, category filters |
+| `num` | [`numericInput()`](https://rdrr.io/pkg/shiny/man/numericInput.html) | numeric value | `size = num`, `alpha = num` |
+| `expr` | [`textInput()`](https://rdrr.io/pkg/shiny/man/textInput.html) (parsed as R expression) | arbitrary R expression | `facet_wrap(expr)`, `aes(x = expr)` maths |
+| `upload` | [`fileInput()`](https://rdrr.io/pkg/shiny/man/fileInput.html) + name [`textInput()`](https://rdrr.io/pkg/shiny/man/textInput.html) | a named data frame in memory | supply the dataset from the browser |
 
 Each subsection below shows the minimum formula that exercises the
 keyword.
@@ -78,6 +79,7 @@ selected name is injected as a symbol, so the expression `aes(x = var)`
 becomes `aes(x = Sepal.Length)`.
 
 ``` r
+
 ptr_app(
   "ggplot(data = mtcars, aes(x = var, y = var)) +
      geom_point()"
@@ -116,6 +118,7 @@ character literal — it is **not** parsed as R code. Use it for titles,
 labels, and other pure string inputs.
 
 ``` r
+
 ptr_app(
   "ggplot(data = mtcars, aes(x = var, y = var)) +
      geom_point() +
@@ -131,6 +134,7 @@ value is a plain number, suitable for arguments like `size`, `alpha`,
 `width`, or `binwidth`.
 
 ``` r
+
 ptr_app(
   "ggplot(data = mtcars, aes(x = var, y = var)) +
      geom_point(size = num)"
@@ -147,6 +151,7 @@ Because `expr` evaluates user input, it is gated by an expression safety
 check. The check is on by default; see the `expr_check` argument in §3.
 
 ``` r
+
 ptr_app(
   "ggplot(data = mtcars, aes(x = var, y = var)) +
      geom_point() +
@@ -167,6 +172,7 @@ placeholders that reference that name are wired to the uploaded data
 frame once the upload completes.
 
 ``` r
+
 ptr_app(
   "ggplot(data = upload, aes(x = var, y = var)) +
      geom_point()"
@@ -178,6 +184,7 @@ ptr_app(
 Placeholders compose. Here is a formula that uses all five:
 
 ``` r
+
 ptr_app(
   "ggplot(data = upload, aes(x = var, y = var)) +
      geom_point(aes(color = var), size = num) +
@@ -212,6 +219,7 @@ extra runtime dependencies beyond `shiny`.
 Full signature:
 
 ``` r
+
 ptr_app(
   formula,
   envir = parent.frame(),
@@ -221,17 +229,18 @@ ptr_app(
 )
 ```
 
-| Argument       | Default                                                    | What it does                                                                                            |
-|----------------|------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
-| `formula`      | —                                                          | A single formula string using ggpaintr placeholders. Required.                                          |
-| `envir`        | [`parent.frame()`](https://rdrr.io/r/base/sys.parent.html) | Environment used to resolve bare data object names (e.g. `data = mtcars`) in the formula.               |
-| `ui_text`      | `NULL`                                                     | Optional named list of UI copy overrides (labels, help text, placeholders). See extensibility vignette. |
-| `placeholders` | `NULL`                                                     | Optional custom placeholder definitions or a full registry. See placeholder-registry vignette.          |
-| `expr_check`   | `TRUE`                                                     | Controls `expr` placeholder safety validation. See §3.3.                                                |
+| Argument | Default | What it does |
+|----|----|----|
+| `formula` | — | A single formula string using ggpaintr placeholders. Required. |
+| `envir` | [`parent.frame()`](https://rdrr.io/r/base/sys.parent.html) | Environment used to resolve bare data object names (e.g. `data = mtcars`) in the formula. |
+| `ui_text` | `NULL` | Optional named list of UI copy overrides (labels, help text, placeholders). See extensibility vignette. |
+| `placeholders` | `NULL` | Optional custom placeholder definitions or a full registry. See placeholder-registry vignette. |
+| `expr_check` | `TRUE` | Controls `expr` placeholder safety validation. See §3.3. |
 
 Smallest working example:
 
 ``` r
+
 ptr_app(
   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
 )
@@ -248,6 +257,7 @@ look without writing any Shiny UI code yourself.
 Full signature:
 
 ``` r
+
 ptr_app_bslib(
   formula,
   envir = parent.frame(),
@@ -259,15 +269,15 @@ ptr_app_bslib(
 )
 ```
 
-| Argument       | Default                                                    | What it does                                                                                                                                            |
-|----------------|------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `formula`      | —                                                          | A single formula string using ggpaintr placeholders. Required.                                                                                          |
-| `envir`        | [`parent.frame()`](https://rdrr.io/r/base/sys.parent.html) | Environment used to resolve bare data object names in the formula.                                                                                      |
-| `ui_text`      | `NULL`                                                     | Optional named list of UI copy overrides. Same contract as [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md).              |
-| `placeholders` | `NULL`                                                     | Optional custom placeholder definitions or a registry. Same contract as [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md). |
-| `expr_check`   | `TRUE`                                                     | Controls `expr` placeholder validation. See §3.3.                                                                                                       |
-| `theme`        | `NULL` (→ `bslib::bs_theme(version = 5, "flatly")`)        | A [`bslib::bs_theme()`](https://rstudio.github.io/bslib/reference/bs_theme.html) object. Pass your own to restyle.                                      |
-| `title`        | `"ggpaintr"`                                               | The page header title. Also overridable via `ui_text$shell$title$label`.                                                                                |
+| Argument | Default | What it does |
+|----|----|----|
+| `formula` | — | A single formula string using ggpaintr placeholders. Required. |
+| `envir` | [`parent.frame()`](https://rdrr.io/r/base/sys.parent.html) | Environment used to resolve bare data object names in the formula. |
+| `ui_text` | `NULL` | Optional named list of UI copy overrides. Same contract as [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md). |
+| `placeholders` | `NULL` | Optional custom placeholder definitions or a registry. Same contract as [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md). |
+| `expr_check` | `TRUE` | Controls `expr` placeholder validation. See §3.3. |
+| `theme` | `NULL` (→ `bslib::bs_theme(version = 5, "flatly")`) | A [`bslib::bs_theme()`](https://rstudio.github.io/bslib/reference/bs_theme.html) object. Pass your own to restyle. |
+| `title` | `"ggpaintr"` | The page header title. Also overridable via `ui_text$shell$title$label`. |
 
 Requires `bslib`. If the package is not installed, the function errors
 at call time.
@@ -275,6 +285,7 @@ at call time.
 Example with a different theme:
 
 ``` r
+
 ptr_app_bslib(
   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
   theme = bslib::bs_theme(version = 5, bootswatch = "minty"),
@@ -307,10 +318,10 @@ against a curated denylist of dangerous functions (file I/O, system
 calls, environment manipulation). The `expr_check` argument controls
 that check:
 
-| `expr_check` value                                            | Behavior                                                                                          |
-|---------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
-| `TRUE` (default)                                              | Use the built-in denylist — recommended for interactive use.                                      |
-| `FALSE`                                                       | Disable all checking. Only safe when the app is running locally and you trust every user.         |
+| `expr_check` value | Behavior |
+|----|----|
+| `TRUE` (default) | Use the built-in denylist — recommended for interactive use. |
+| `FALSE` | Disable all checking. Only safe when the app is running locally and you trust every user. |
 | A list with `deny_list` and/or `allow_list` character vectors | Replace / augment the denylist. If both are given, denied entries are removed from the allowlist. |
 
 Leave it at `TRUE` unless you have a specific reason to change it.
@@ -327,6 +338,7 @@ state per layer, so users land on a sensible starting view and can
 toggle alternatives in.
 
 ``` r
+
 ptr_app(
   formula = paste(
     "ggplot(data = mtcars, aes(x = var, y = var)) +",
@@ -350,6 +362,7 @@ calls produces layer names `geom_point` and `geom_point-2`. To address
 them as a group, pass a logical vector at the bare key:
 
 ``` r
+
 list(geom_point = c(TRUE, FALSE))      # 1st on, 2nd off
 list(geom_point = FALSE)               # 1st off, 2nd defaults to TRUE (padded)
 list(`geom_point-2` = FALSE)           # address one specific instance (backticks required)
@@ -406,6 +419,7 @@ when you call
 works.
 
 ``` r
+
 mtcars2 <- dplyr::mutate(mtcars, cyl = factor(cyl))
 ptr_app(
   "ggplot(data = mtcars2, aes(x = var, y = var)) + geom_point()"
@@ -424,6 +438,7 @@ the name is the symbol the uploaded data binds to inside the generated
 ggplot call.
 
 ``` r
+
 ptr_app(
   "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
 )
@@ -450,6 +465,7 @@ through `data =`, call
 yourself first:
 
 ``` r
+
 dirty <- data.frame(`miles per gallon` = mtcars$mpg, `# cyl` = mtcars$cyl,
                     check.names = FALSE)
 names(dirty)
@@ -504,6 +520,7 @@ to touch either one.
 A tiny illustration of the first step:
 
 ``` r
+
 obj <- ptr_parse_formula(
   "ggplot(data = mtcars, aes(x = var, y = var)) +
      geom_point(aes(color = var), size = num) +
@@ -522,6 +539,7 @@ corresponding layer.
 And the second step — inspecting the inputs the runtime expects:
 
 ``` r
+
 spec <- ptr_runtime_input_spec(obj)
 spec
 #>              input_id           role layer_name keyword param_key
@@ -532,14 +550,14 @@ spec
 #> 5              labs_2    placeholder       labs    text     title
 #> 6 geom_point_checkbox layer_checkbox geom_point    <NA>      <NA>
 #> 7       labs_checkbox layer_checkbox       labs    <NA>      <NA>
-#>        source_id
-#> 1     ggplot_3_2
-#> 2     ggplot_3_3
-#> 3 geom_point_2_2
-#> 4   geom_point_3
-#> 5         labs_2
-#> 6           <NA>
-#> 7           <NA>
+#>        source_id shared
+#> 1     ggplot_3_2   <NA>
+#> 2     ggplot_3_3   <NA>
+#> 3 geom_point_2_2   <NA>
+#> 4   geom_point_3   <NA>
+#> 5         labs_2   <NA>
+#> 6           <NA>   <NA>
+#> 7           <NA>   <NA>
 ```
 
 Columns in the returned data frame:

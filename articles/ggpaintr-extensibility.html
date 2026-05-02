@@ -43,6 +43,7 @@
     <li><a class="dropdown-item" href="../articles/ggpaintr-workflow.html">ggpaintr Workflow</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-extensibility.html">ggpaintr Extensibility</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-placeholder-registry.html">Custom Placeholders with the ggpaintr Registry</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul>
 </li>
@@ -611,6 +612,9 @@ on a <code>num</code> or <code>empty_text</code> on a <code>text</code>
 <span><span class="va">defaults</span><span class="op">$</span><span class="va">defaults</span><span class="op">$</span><span class="va">text</span></span>
 <span><span class="co">#&gt; $label</span></span>
 <span><span class="co">#&gt; [1] "Enter text for {param}"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $placeholder</span></span>
+<span><span class="co">#&gt; [1] "Plain text - quotes are added automatically"</span></span>
 <span><span class="va">defaults</span><span class="op">$</span><span class="va">defaults</span><span class="op">$</span><span class="va">num</span></span>
 <span><span class="co">#&gt; $label</span></span>
 <span><span class="co">#&gt; [1] "Enter a number for {param}"</span></span></code></pre></div>
@@ -790,6 +794,9 @@ less-specific scopes.</p>
 <span><span class="co">#&gt; $label</span></span>
 <span><span class="co">#&gt; [1] "Enter text"</span></span>
 <span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $placeholder</span></span>
+<span><span class="co">#&gt; [1] "Plain text - quotes are added automatically"</span></span>
+<span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $help</span></span>
 <span><span class="co">#&gt; [1] "Generic help (from defaults)"</span></span></code></pre></div>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
@@ -801,6 +808,9 @@ less-specific scopes.</p>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt; $label</span></span>
 <span><span class="co">#&gt; [1] "Plot title"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $placeholder</span></span>
+<span><span class="co">#&gt; [1] "Plain text - quotes are added automatically"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $help</span></span>
 <span><span class="co">#&gt; [1] "Arg-specific help (from params$title)"</span></span></code></pre></div>
@@ -814,11 +824,11 @@ less-specific scopes.</p>
 <span><span class="co">#&gt; $label</span></span>
 <span><span class="co">#&gt; [1] "labs(title = …) override"</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $help</span></span>
-<span><span class="co">#&gt; [1] "Layer-specific help (from layers$labs)"</span></span>
-<span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $placeholder</span></span>
-<span><span class="co">#&gt; [1] "e.g. Weight vs MPG"</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "e.g. Weight vs MPG"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $help</span></span>
+<span><span class="co">#&gt; [1] "Layer-specific help (from layers$labs)"</span></span></code></pre></div>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># A different layer with the same keyword/param — no layers entry</span></span>
 <span><span class="co"># exists, so resolution falls back to params.</span></span>
@@ -828,6 +838,9 @@ less-specific scopes.</p>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt; $label</span></span>
 <span><span class="co">#&gt; [1] "Plot title"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $placeholder</span></span>
+<span><span class="co">#&gt; [1] "Plain text - quotes are added automatically"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $help</span></span>
 <span><span class="co">#&gt; [1] "Arg-specific help (from params$title)"</span></span></code></pre></div>
@@ -1052,7 +1065,13 @@ object.</li>
 <span><span class="co">#&gt; 2          ggplot_3_3    placeholder     ggplot     var         y ggplot_3_3</span></span>
 <span><span class="co">#&gt; 3              labs_2    placeholder       labs    text     title     labs_2</span></span>
 <span><span class="co">#&gt; 4 geom_point_checkbox layer_checkbox geom_point    &lt;NA&gt;      &lt;NA&gt;       &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 5       labs_checkbox layer_checkbox       labs    &lt;NA&gt;      &lt;NA&gt;       &lt;NA&gt;</span></span></code></pre></div>
+<span><span class="co">#&gt; 5       labs_checkbox layer_checkbox       labs    &lt;NA&gt;      &lt;NA&gt;       &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;   shared</span></span>
+<span><span class="co">#&gt; 1   &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 2   &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 3   &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 4   &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 5   &lt;NA&gt;</span></span></code></pre></div>
 <p><code>spec</code> tells you exactly which <code>input_id</code>s the
 runtime expects. The <code>role</code> column distinguishes the three
 kinds of input: a placeholder value, a per-layer on/off checkbox, and

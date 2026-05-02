@@ -73,10 +73,11 @@ already namespaced by ggpaintr; use it directly.
 ## Data-aware placeholders (`bind_ui`)
 
 If the widget needs to read columns or values from the dataset (a
-multi-column selector inside `dplyr::select()`, a faceting variable
-picker, etc.), the dataset is not available at registration time – it
-depends on the user's formula and on input values. Use `bind_ui` to
-register a Shiny `renderUI()` for the widget.
+multi-column selector inside
+[`dplyr::select()`](https://dplyr.tidyverse.org/reference/select.html),
+a faceting variable picker, etc.), the dataset is not available at
+registration time – it depends on the user's formula and on input
+values. Use `bind_ui` to register a Shiny `renderUI()` for the widget.
 
 The recommended pattern is the empty-container shape used by the
 built-in `var` placeholder: `build_ui` returns a placeholder

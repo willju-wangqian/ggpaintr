@@ -1,6 +1,7 @@
 # Using ggpaintr from an LLM with ellmer
 
 ``` r
+
 library(ggpaintr)
 ```
 
@@ -39,6 +40,7 @@ turn.
 ## 2. Quick start — three lines of setup
 
 ``` r
+
 library(ellmer)
 library(ggpaintr)
 
@@ -73,10 +75,10 @@ the full manual whether or not it is relevant.
 
 The primer/tool split is a lightweight form of retrieval:
 
-| Layer                  | When it loads            | What it teaches                                  |
-|------------------------|--------------------------|--------------------------------------------------|
-| Primer                 | Every turn (~290 tokens) | ggpaintr exists; 3-level model; decision rule.   |
-| `ggpaintr_docs(topic)` | On demand                | One focused runnable example (~300–1300 tokens). |
+| Layer | When it loads | What it teaches |
+|----|----|----|
+| Primer | Every turn (~290 tokens) | ggpaintr exists; 3-level model; decision rule. |
+| `ggpaintr_docs(topic)` | On demand | One focused runnable example (~300–1300 tokens). |
 
 The primer has an explicit rule: *“Before writing R code for an
 interactive plot task, call `ggpaintr_docs(topic)` to fetch the runnable
@@ -86,6 +88,7 @@ the LLM reliably reach for the tool instead of hallucinating an API.
 ## 4. The available topics
 
 ``` r
+
 ptr_llm_topics()
 #>  [1] "custom_placeholder"   "formula_syntax"       "level1_ptr_app"      
 #>  [4] "level1_ptr_options"   "level2_custom_ids"    "level2_embed"        
@@ -95,18 +98,18 @@ ptr_llm_topics()
 
 A short guide to each:
 
-| Topic                  | When the LLM should call it                                                                                                               |
-|------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| `overview`             | First orientation — the 3-level model and decision rule.                                                                                  |
-| `formula_syntax`       | Which placeholder keyword goes where; `var` vs formula-level transforms.                                                                  |
-| `level1_ptr_app`       | Quick turn-key app; no custom Shiny.                                                                                                      |
-| `level2_embed`         | Embed ggpaintr inside the user’s own Shiny app.                                                                                           |
-| `level2_custom_ids`    | Avoid id collisions with host-app widgets via [`ptr_build_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.md). |
-| `level2_ui_text`       | Override labels, help, placeholders; six-section cascade.                                                                                 |
-| `level3_headless`      | Render plots without Shiny — batch reports, fixtures, static sites.                                                                       |
-| `level3_custom_render` | Own [`renderPlot()`](https://rdrr.io/pkg/shiny/man/renderPlot.html) with host-app post-processing (theme picker, etc.).                   |
-| `level3_gg_extra`      | Round-trip host layers into the generated code pane.                                                                                      |
-| `custom_placeholder`   | Date pickers, sliders, any widget not in the five built-ins.                                                                              |
+| Topic | When the LLM should call it |
+|----|----|
+| `overview` | First orientation — the 3-level model and decision rule. |
+| `formula_syntax` | Which placeholder keyword goes where; `var` vs formula-level transforms. |
+| `level1_ptr_app` | Quick turn-key app; no custom Shiny. |
+| `level2_embed` | Embed ggpaintr inside the user’s own Shiny app. |
+| `level2_custom_ids` | Avoid id collisions with host-app widgets via [`ptr_build_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.md). |
+| `level2_ui_text` | Override labels, help, placeholders; six-section cascade. |
+| `level3_headless` | Render plots without Shiny — batch reports, fixtures, static sites. |
+| `level3_custom_render` | Own [`renderPlot()`](https://rdrr.io/pkg/shiny/man/renderPlot.html) with host-app post-processing (theme picker, etc.). |
+| `level3_gg_extra` | Round-trip host layers into the generated code pane. |
+| `custom_placeholder` | Date pickers, sliders, any widget not in the five built-ins. |
 
 Every topic’s first runnable code block includes a
 [`library()`](https://rdrr.io/r/base/library.html) preamble, so the
@@ -119,6 +122,7 @@ is useful when writing integration tests or checking content before
 release:
 
 ``` r
+
 # Head of the primer
 cat(substr(ptr_llm_primer(), 1, 400), "\n...")
 #> # ggpaintr — R package for generating ggplot Shiny apps from formula strings
@@ -132,6 +136,7 @@ cat(substr(ptr_llm_primer(), 1, 400), "\n...")
 ```
 
 ``` r
+
 # A full topic payload
 cat(ptr_llm_topic("level1_ptr_app"))
 ```
@@ -197,6 +202,7 @@ The tool definition is provider-neutral — the same registration line
 works with every chat constructor ellmer exports.
 
 ``` r
+
 # Anthropic
 chat <- chat_anthropic(system_prompt = ptr_llm_primer(),
                        model = "claude-sonnet-4-6")
@@ -228,6 +234,7 @@ is a thin convenience wrapper. If you need to customise the tool
 (different name, tighter description, extra arguments), do it by hand:
 
 ``` r
+
 library(ellmer)
 
 ggpaintr_docs <- tool(
@@ -271,6 +278,7 @@ object wraps the underlying R function — you can still call the function
 directly for tests or sanity checks:
 
 ``` r
+
 # Pull a topic without a chat session.
 payload <- ptr_llm_topic("level2_embed")
 nchar(payload)
