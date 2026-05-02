@@ -303,14 +303,13 @@ ptr_build_pipeline_layer_controls <- function(ptr_obj, layer_name,
     ui_meta$id <- ui_id
     spec <- ptr_obj$placeholders[[meta$keyword]]
     effective_param <- meta$param
-    if (ptr_param_is_unnamed(effective_param)) {
-      verb <- ptr_enclosing_verb_name(
-        ptr_obj$expr_list[[layer_name]],
-        meta$index_path
-      )
-      if (!is.null(verb)) {
-        effective_param <- paste0(verb, "()")
-      }
+    verb <- ptr_enclosing_verb_name(
+      ptr_obj$expr_list[[layer_name]],
+      meta$index_path
+    )
+    param_was_unnamed <- ptr_param_is_unnamed(effective_param)
+    if (param_was_unnamed && !is.null(verb)) {
+      effective_param <- paste0(verb, "()")
     }
     copy <- ptr_resolve_ui_text(
       "control",
@@ -320,6 +319,9 @@ ptr_build_pipeline_layer_controls <- function(ptr_obj, layer_name,
       ui_text = effective_ui_text,
       placeholders = ptr_obj$placeholders
     )
+    if (!param_was_unnamed && !is.null(verb) && !is.null(copy$label)) {
+      copy$label <- paste0(copy$label, " in ", verb, "()")
+    }
     spec$build_ui(ui_id, copy, ui_meta, context)
   })
   controls <- controls[!vapply(controls, is.null, logical(1))]

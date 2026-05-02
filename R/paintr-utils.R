@@ -265,10 +265,24 @@ ptr_enclosing_verb_name <- function(layer_expr, index_path) {
     sub_path <- if (depth == 0L) integer(0) else index_path[seq_len(depth)]
     ancestor <- expr_pluck(layer_expr, sub_path)
     if (!is.call(ancestor)) next
-    head <- ancestor[[1L]]
-    if (!is.symbol(head)) next
-    nm <- as.character(head)
+    nm <- ptr_call_head_name(ancestor[[1L]])
+    if (is.null(nm)) next
     if (!nm %in% pruneable_operator_names) return(nm)
+  }
+  NULL
+}
+
+# Resolve the bare function name from a call's head, handling both bare
+# symbols (`filter`) and namespaced refs (`dplyr::filter`, `dplyr:::filter`).
+# Returns NULL when the head is something else (anonymous function, etc.).
+ptr_call_head_name <- function(head) {
+  if (is.symbol(head)) return(as.character(head))
+  if (is.call(head) && length(head) == 3L) {
+    op <- head[[1L]]
+    if (is.symbol(op) && as.character(op) %in% c("::", ":::")) {
+      rhs <- head[[3L]]
+      if (is.symbol(rhs)) return(as.character(rhs))
+    }
   }
   NULL
 }

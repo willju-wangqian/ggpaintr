@@ -98,6 +98,31 @@ test_that("ptr_trim_and_eval drops a verb whose marker-trim leaves a 0-column fr
   expect_identical(res$expr, quote(mtcars))
 })
 
+test_that("ptr_trim_and_eval emits a verbose trim reason when eval fails non-trivially", {
+  marker <- ptr_unset_data_marker()
+  # An env without dplyr loaded: stats::filter masks dplyr::filter and the
+  # call errors. The verb is dropped to keep the app alive, but with
+  # ggpaintr.verbose=TRUE the reason should hit the console.
+  bare_env <- new.env(parent = baseenv())
+  bare_env$mtcars <- datasets::mtcars
+  expr <- quote(filter(mtcars, cyl == 6))
+
+  withr::with_options(list(ggpaintr.verbose = TRUE), {
+    expect_message(
+      res <- ptr_trim_and_eval(expr, bare_env, marker),
+      regexp = "Pipeline step filter\\(\\) trimmed"
+    )
+    expect_true(res$ok)
+    expect_identical(res$value, datasets::mtcars)
+  })
+
+  withr::with_options(list(ggpaintr.verbose = FALSE), {
+    expect_no_message(
+      ptr_trim_and_eval(expr, bare_env, marker)
+    )
+  })
+})
+
 test_that("ptr_trim_and_eval preserves a user-authored 0-column verb when no marker present", {
   # The user wrote select(mtcars, c()) by hand — no placeholder involved.
   # Scope rule: only drop a 0-col result when a marker was actually trimmed.

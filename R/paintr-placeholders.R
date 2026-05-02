@@ -1038,7 +1038,14 @@ ptr_trim_and_eval <- function(expr, eval_env, marker) {
   had_marker_arg <- length(args) >= 3L && any(!keep[3:length(args)])
   trimmed <- as.call(args[keep])
 
-  result <- tryCatch(eval(trimmed, envir = eval_env), error = function(e) NULL)
+  trim_reason <- NULL
+  result <- tryCatch(
+    eval(trimmed, envir = eval_env),
+    error = function(e) {
+      trim_reason <<- conditionMessage(e)
+      NULL
+    }
+  )
   if (!is.null(result)) {
     # Scoped fallback: if a placeholder marker was trimmed out of this verb
     # AND the trimmed eval degenerated to a 0-column data frame
@@ -1061,6 +1068,14 @@ ptr_trim_and_eval <- function(expr, eval_env, marker) {
   }
 
   if (length(args) >= 2L) {
+    if (!is.null(trim_reason) && ptr_verbose()) {
+      verb <- ptr_call_head_name(expr[[1L]])
+      verb_label <- if (is.null(verb)) deparse(expr[[1L]])[1L] else paste0(verb, "()")
+      cli::cli_inform(paste0(
+        "Pipeline step ", verb_label,
+        " trimmed (eval failed): ", trim_reason
+      ))
+    }
     return(list(ok = TRUE, value = args[[2]], expr = upstream_expr))
   }
   list(ok = FALSE, value = NULL, expr = NULL)

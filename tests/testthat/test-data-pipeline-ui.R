@@ -140,3 +140,24 @@ test_that("data-pipeline placeholder labels name the enclosing verb call", {
   expect_match(rendered, "Enter text for filter()", fixed = TRUE)
   expect_false(grepl("for this setting", rendered, fixed = TRUE))
 })
+
+test_that("namespaced verbs (dplyr::filter) still resolve as the verb name", {
+  obj <- ptr_parse_formula(
+    "iris |> dplyr::filter(Species != text) |> ggplot(aes(x = var)) + geom_point()"
+  )
+  rendered <- ui_text(ggpaintr:::ptr_get_layer_switcher_ui(obj))
+
+  expect_match(rendered, "Enter text for filter()", fixed = TRUE)
+  expect_false(grepl("Enter text for ggplot()", rendered, fixed = TRUE))
+})
+
+test_that("named pipeline args label themselves with `<param> in <verb>()`", {
+  obj <- ptr_parse_formula(
+    "mtcars |> head(n = num) |> ggplot(aes(x = var)) + geom_point()"
+  )
+  rendered <- ui_text(ggpaintr:::ptr_get_layer_switcher_ui(obj))
+
+  expect_match(rendered, "Enter a number for n in head()", fixed = TRUE)
+  # The bare-named form (no verb context) should not appear:
+  expect_false(grepl("Enter a number for n<", rendered, fixed = TRUE))
+})
