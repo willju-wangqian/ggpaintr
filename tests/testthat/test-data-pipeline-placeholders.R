@@ -85,6 +85,32 @@ test_that("ptr_trim_and_eval returns ok=FALSE when the root symbol is unresolvab
   expect_null(res$value)
 })
 
+test_that("ptr_trim_and_eval drops a verb whose marker-trim leaves a 0-column frame", {
+  # dplyr::select(mtcars) succeeds and returns a 0-column tibble. Without the
+  # scoped fallback, downstream verbs would silently break on that frame.
+  skip_if_not_installed("dplyr")
+  marker <- ptr_unset_data_marker()
+  expr <- bquote(dplyr::select(mtcars, .(marker)))
+  res <- ptr_trim_and_eval(expr, make_pipeline_eval_env(), marker)
+
+  expect_true(res$ok)
+  expect_identical(res$value, datasets::mtcars)
+  expect_identical(res$expr, quote(mtcars))
+})
+
+test_that("ptr_trim_and_eval preserves a user-authored 0-column verb when no marker present", {
+  # The user wrote select(mtcars, c()) by hand — no placeholder involved.
+  # Scope rule: only drop a 0-col result when a marker was actually trimmed.
+  skip_if_not_installed("dplyr")
+  marker <- ptr_unset_data_marker()
+  expr <- quote(dplyr::select(mtcars, c()))
+  res <- ptr_trim_and_eval(expr, make_pipeline_eval_env(), marker)
+
+  expect_true(res$ok)
+  expect_s3_class(res$value, "data.frame")
+  expect_identical(ncol(res$value), 0L)
+})
+
 # ---------------------------------------------------------------------------
 # ptr_resolve_layer_data integration
 # ---------------------------------------------------------------------------

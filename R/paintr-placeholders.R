@@ -1035,10 +1035,23 @@ ptr_trim_and_eval <- function(expr, eval_env, marker) {
       if (ptr_expr_contains_marker(args[[i]], marker)) keep[i] <- FALSE
     }
   }
+  had_marker_arg <- length(args) >= 3L && any(!keep[3:length(args)])
   trimmed <- as.call(args[keep])
 
   result <- tryCatch(eval(trimmed, envir = eval_env), error = function(e) NULL)
   if (!is.null(result)) {
+    # Scoped fallback: if a placeholder marker was trimmed out of this verb
+    # AND the trimmed eval degenerated to a 0-column data frame
+    # (e.g. dplyr::select(.data) with no remaining selectors), drop the
+    # verb entirely so downstream calls keep working. Skipped when no
+    # marker was present, so a user-authored degenerate call like
+    # `select(mtcars, c())` is preserved as written.
+    if (had_marker_arg && is.data.frame(result) && ncol(result) == 0L) {
+      if (length(args) >= 2L) {
+        return(list(ok = TRUE, value = args[[2]], expr = upstream_expr))
+      }
+      return(list(ok = FALSE, value = NULL, expr = NULL))
+    }
     expr_args <- args
     if (length(expr_args) >= 2L && !is.null(upstream_expr)) {
       expr_args[[2]] <- upstream_expr
