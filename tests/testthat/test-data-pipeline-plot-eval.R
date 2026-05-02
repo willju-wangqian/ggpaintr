@@ -343,6 +343,32 @@ test_that("code_text drops a wrapper call whose trimmed form would error", {
   expect_false(grepl("sample_n()", result$code_text, fixed = TRUE))
 })
 
+test_that("top-level pipe survives when an upstream chain step trims out", {
+  pipeline_env <- new.env(parent = .GlobalEnv)
+  pipeline_env$diamonds <- ggplot2::diamonds
+  pipeline_env$sample_n <- dplyr::sample_n
+  pipeline_env$filter <- dplyr::filter
+
+  obj <- ptr_parse_formula(paste0(
+    "diamonds |> sample_n(num) |> filter(price > num) |>",
+    "  ggplot(aes(x = carat, y = price)) + geom_point()"
+  ))
+  num_ids <- obj$data_pipeline_info[["ggplot"]]$placeholder_ids
+  input <- list("geom_point_checkbox" = TRUE)
+  input[[num_ids[[1]]]] <- NA_real_
+  input[[num_ids[[2]]]] <- 1000L
+
+  result <- shiny::isolate(
+    ptr_complete_expr(obj, input, envir = pipeline_env)
+  )
+
+  expect_match(result$code_text, "diamonds |>", fixed = TRUE)
+  expect_match(result$code_text, "filter(price > 1000L)", fixed = TRUE)
+  expect_match(result$code_text, "|>", fixed = TRUE)
+  expect_false(grepl("ggplot(filter(diamonds", result$code_text, fixed = TRUE))
+  expect_false(grepl("sample_n", result$code_text, fixed = TRUE))
+})
+
 test_that("code_text keeps a wrapper call whose trimmed form succeeds (head with no n)", {
   pipeline_env <- new.env(parent = .GlobalEnv)
   pipeline_env$mtcars <- datasets::mtcars

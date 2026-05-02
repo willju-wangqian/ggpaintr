@@ -234,9 +234,15 @@ ptr_complete_expr <- function(ptr_obj, input, envir = parent.frame(),
     pipe_chain_ops <- if (is.null(pipe_op)) character() else pipe_op
   }
   if (length(pipe_chain_ops) > 0L && "ggplot" %in% names(code_text_list)) {
+    ggplot_expr <- ptr_processed_expr_list[["ggplot"]]
+    effective_depth <- expr_left_spine_depth(ggplot_expr)
+    effective_ops <- utils::tail(
+      pipe_chain_ops,
+      min(length(pipe_chain_ops), effective_depth)
+    )
     code_text_list[["ggplot"]] <- render_ggplot_with_pipe_chain(
-      ptr_processed_expr_list[["ggplot"]],
-      pipe_chain_ops
+      ggplot_expr,
+      effective_ops
     )
   }
 
