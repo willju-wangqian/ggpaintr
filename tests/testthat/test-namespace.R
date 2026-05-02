@@ -36,8 +36,8 @@ test_that("distinct ns values produce disjoint rendered placeholder ids", {
   s2 <- ptr_server_state(.formula_two_vars, ns = shiny::NS("page2"))
 
   shiny::isolate({
-    ui1 <- paste(as.character(ptr_get_tab_ui(s1$obj(), ns_fn = s1$ui_ns_fn)), collapse = "\n")
-    ui2 <- paste(as.character(ptr_get_tab_ui(s2$obj(), ns_fn = s2$ui_ns_fn)), collapse = "\n")
+    ui1 <- paste(as.character(ptr_get_layer_switcher_ui(s1$obj(), ns_fn = s1$ui_ns_fn)), collapse = "\n")
+    ui2 <- paste(as.character(ptr_get_layer_switcher_ui(s2$obj(), ns_fn = s2$ui_ns_fn)), collapse = "\n")
     expect_match(ui1, 'id="page1-var-ggplot_3_2"', fixed = TRUE)
     expect_match(ui2, 'id="page2-var-ggplot_3_2"', fixed = TRUE)
   })

@@ -155,6 +155,8 @@ list(
   rds_fixture = rds_fixture,
   bad_fixture = bad_fixture
 )
+
+devtools::load_all(".")
 ```
 
 Upload fixture paths to use during manual testing:
@@ -775,6 +777,154 @@ Expected checks:
 -   `outputCode` contains `as.Date("2024-01-04")` after the draw.
 -   Changing the selected date updates both the plot and the generated code.
 
+## Formula 13: Layer Switcher (picker + hidden tabset + sub-tabs)
+
+This app exercises the new control-panel layout: a `pickerInput()` chooses the active layer, a hidden `tabsetPanel()` swaps panel bodies, and each layer's body splits into "Data" + "Controls" sub-tabs when both kinds of controls exist (or just "Data" / just flat controls when only one kind exists). The single "Update plot" button stays below the tabset.
+
+```{r formula-13, eval=FALSE}
+ptr_app("
+mtcars |> head(num) |> ggplot(aes(x = var, y = var)) +
+  geom_point(size = num, alpha = num) +
+  geom_smooth(method = text) +
+  labs(title = text)
+")
+```
+
+Suggested manual inputs:
+
+-   open the **Layer** picker and confirm it lists `ggplot`, `geom_point`, `geom_smooth`, `labs`
+-   pick `ggplot` and confirm two sub-tabs appear: **Data** + **Controls**
+-   inside **Data**, set the `head(num)` input and click **Update data**
+-   inside **Controls**, pick `x = mpg`, `y = disp`
+-   pick `geom_point` and confirm only a flat block of controls (no sub-tabs); set `size = 2`, `alpha = 0.6`
+-   pick `geom_smooth` and confirm only a flat block; set `method = "lm"` (no quotes typed in)
+-   pick `labs` and set `title = Switcher demo`
+-   click **Update plot**
+
+Expected checks:
+
+-   Selecting a different layer in the picker swaps the visible panel body without reloading the page.
+-   Only one panel body is visible at a time; the others remain in the DOM but hidden (no horizontal tab strip).
+-   The `ggplot` layer panel has two sub-tabs (`Data`, `Controls`) because it has both pipeline and non-pipeline placeholders.
+-   The `geom_point`, `geom_smooth`, and `labs` panels render their controls flat (no inner tabset) because they have no data pipeline.
+-   The `Update data` button only appears inside a Data sub-tab.
+-   The `Update plot` button is rendered exactly once, sitting below the tabset.
+-   The `ggplot` panel does NOT show an "Include this layer in the plot" checkbox; every other layer panel does.
+-   Toggling each non-ggplot layer's checkbox visually grays out (`opacity ≈ 0.5`) the panel's content while keeping the inputs interactive; the layer is removed from the plot and from `outputCode` while unchecked.
+-   Re-checking a previously-unchecked layer restores both the visual state and the layer in the plot/code.
+
+## Formula 13B: Picker + Sub-Tab `ui_text` Overrides
+
+```{r formula-13b, eval=FALSE}
+ptr_app(
+  "mtcars |> head(num) |> ggplot(aes(x = var, y = var)) +
+     geom_point(size = num)",
+  ui_text = list(
+    shell = list(
+      layer_picker = list(label = "Choose layer"),
+      data_subtab = list(label = "Pipeline"),
+      controls_subtab = list(label = "Aesthetics")
+    )
+  )
+)
+```
+
+Expected checks:
+
+-   The picker label reads `Choose layer` (not `Layer`).
+-   The `ggplot` panel's sub-tabs are labeled `Pipeline` and `Aesthetics` (not `Data` / `Controls`).
+-   Other defaults (`Update plot`, `Update data`, layer checkbox label) remain unchanged.
+
+## Formula 14: Data-Pipeline Placeholders (single layer)
+
+This app exercises the new data-pipeline workflow: placeholders inside a `data = ...` chain are tracked separately, edited inside the Data sub-tab, and applied only when the user clicks **Update data**. The cached data drives the `var` pickers and the rendered plot until the next click.
+
+```{r formula-14, eval=FALSE}
+ptr_app("
+mtcars |> filter(cyl == num) |> head(num) |>
+  ggplot(aes(x = var, y = var)) +
+  geom_point()
+")
+```
+
+Suggested manual inputs (in order):
+
+1.  Open the `ggplot` layer's **Data** sub-tab.
+2.  Confirm two `num` controls appear, labeled `Enter a number for filter()` and `Enter a number for head()` (verb-named, not generic).
+3.  Set `filter(num) = 6`, `head(num) = 10`. Confirm a "stale data" hint or styling appears on the **Update data** button before clicking.
+4.  Click **Update data**.
+5.  Switch to the **Controls** sub-tab and pick `x = mpg`, `y = disp`. Confirm both pickers list mtcars columns (proving the cache resolved successfully).
+6.  Click **Update plot**.
+7.  Change `head(num)` to `3` but do NOT click **Update data** yet.
+8.  Inspect the code panel and the plot.
+9.  Click **Update data**, then **Update plot** again.
+
+Expected checks:
+
+-   `var` pickers are empty / disabled until the first **Update data** click successfully resolves the pipeline.
+-   After **Update data** succeeds, both `x` and `y` pickers offer mtcars column names.
+-   The plot renders only after **Update plot** is clicked.
+-   `outputCode` shows the full piped expression with the values that were active at the last **Update data** click — not the current typed inputs.
+-   When step 7 leaves an unapplied edit on the Data tab, a stale-data signal is visible (CSS class on the **Update data** button or accompanying notice). Clicking **Update data** clears the signal.
+-   Generated code matches the cache, not the typed-but-unapplied input.
+-   Selecting a column in `x` then re-clicking **Update data** preserves the previously-selected column name as long as it still exists in the refreshed dataset.
+
+## Formula 14B: Multiple Data-Pipeline Layers
+
+This formula puts a different pipeline on `ggplot()` and on `geom_point()`, exercising the per-layer independence of the Data sub-tab + Update Data button.
+
+```{r formula-14b, eval=FALSE}
+ptr_app("
+mtcars |> head(num) |>
+  ggplot(aes(x = var, y = var)) +
+  geom_point(data = mtcars |> dplyr::filter(num > 0), color = 'red')
+")
+```
+
+Expected checks:
+
+-   The `ggplot` layer panel and the `geom_point` layer panel each have their own **Data** sub-tab with their own placeholder controls.
+-   Each layer has its own **Update data** button; clicking one does not retrigger the other.
+-   `outputCode` reflects each layer's last applied pipeline independently.
+-   Clicking **Update data** on one layer does not reset the typed-but-unapplied state on the other layer.
+
+## Formula 14C: Nested `data = ...` Pipe Source Preservation
+
+```{r formula-14c, eval=FALSE}
+ptr_app("
+ggplot(
+  data = mtcars |> filter(cyl == num) |> head(num),
+  mapping = aes(x = var, y = var)
+) + geom_point()
+")
+```
+
+Expected checks:
+
+-   Pipeline placeholder controls still appear inside the `ggplot` layer's Data sub-tab even though the chain lives inside a named `data = ...` argument.
+-   `outputCode` after **Update data** + **Update plot** includes the `mtcars |> filter(...) |> head(...)` pipeline verbatim with the typed numeric values substituted.
+
+## Formula 14D: Text-Placeholder Quote Stripping in a Pipeline
+
+```{r formula-14d, eval=FALSE}
+ptr_app("
+iris |> dplyr::filter(Species != text) |>
+  ggplot(aes(x = var, y = var)) +
+  geom_point()
+")
+```
+
+Suggested manual inputs:
+
+-   In the Data sub-tab, type `"setosa"` (with quotes) into the `text` control.
+-   Click **Update data**, then **Update plot**.
+
+Expected checks:
+
+-   The control hints that quotes are not required (e.g. tooltip / placeholder text "no quotes").
+-   The cached data and the generated code use a single quoted string, not a double-quoted one (`Species != "setosa"`, not `Species != "\"setosa\""`).
+-   Removing the quotes from the input and clicking **Update data** + **Update plot** produces the same result.
+
 ## Final Checklist
 
 -   The manual sweep covers wrapper apps, upload flows, copy rules,
@@ -803,5 +953,15 @@ Expected checks:
 -   Embedded apps built from `ptr_server_state()` and the bind helpers still support custom outputs or observers around `ptr_state`.
 -   Custom `renderPlot()` workflows can use `ptr_extract_plot()` and keep the rest of the default runtime behavior intact.
 -   Custom placeholder controls render correctly, participate in code generation, and work alongside built-in placeholders.
+-   The layer switcher renders one outer panel per layer behind a `pickerInput()`; only the picked panel is visible at a time.
+-   Per-layer Data + Controls sub-tabs appear only when the layer has both pipeline and non-pipeline placeholders; pipeline-only layers show just a Data sub-tab; controls-only layers render flat.
+-   The single Update Plot button remains below the tabset; the Update Data button is per-layer and lives inside the layer's Data sub-tab.
+-   Toggling a layer's checkbox grays out (`opacity ~ 0.5`) the layer's content and removes it from the plot/code without locking inputs.
+-   `ui_text` overrides for `layer_picker`, `data_subtab`, and `controls_subtab` change the picker label and sub-tab labels.
+-   Data-pipeline placeholder edits stay un-applied until **Update data** is clicked; a stale-data signal appears on the button when typed input differs from the cache.
+-   `outputCode` mirrors the cache as of the last **Update data** click (typed-but-unapplied edits are not reflected until the next click).
+-   `var` pickers populate from the cache after **Update data**; previously-selected columns are preserved across cache rebuilds when still present.
+-   Pipeline placeholders survive nested `data = ...` arguments and label themselves with the enclosing verb (e.g. `Enter a number for filter()`).
+-   `text` placeholders inside a pipeline strip matching outer quotes and the control hints "no quotes".
 -   Remaining internal-only or philosophy-boundary edge cases are reviewed in
     `tests/manual/ggpaintr-edge-cases.Rmd`.

@@ -444,29 +444,83 @@ ptr_setup_controls <- function(input,
     shiny::req(ptr_state$obj())
     obj <- ptr_state$obj()
     ui_ns_fn <- ptr_state$ui_ns_fn %||% shiny::NS(NULL)
-    data_tab <- ptr_get_data_tab_ui(
-      obj,
-      ui_text = ptr_state$effective_ui_text,
-      ns_fn = ui_ns_fn
-    )
-    layer_tab <- ptr_get_tab_ui(
+    ptr_get_layer_switcher_ui(
       obj,
       ui_text = ptr_state$effective_ui_text,
       ns_fn = ui_ns_fn,
       checkbox_defaults = ptr_state$checkbox_defaults
     )
-    shiny::column(
-      12,
-      if (!is.null(data_tab)) {
-        shiny::tagList(shiny::h4("Data"), data_tab)
-      },
-      layer_tab
-    )
   })
 
+  ptr_setup_layer_switcher_observers(input, ptr_state)
   ptr_setup_data_pipeline_observers(input, ptr_state)
 
   invisible(ptr_state)
+}
+
+
+#' Wire Picker -> Hidden TabsetPanel + Layer Toggle Class Observers
+#'
+#' Registers two kinds of observers used by the layer switcher:
+#'
+#'   1. one observer that listens to the layer `pickerInput()` and calls
+#'      `shiny::updateTabsetPanel()` so the matching hidden tab body becomes
+#'      visible;
+#'   2. one observer per non-ggplot layer that listens to the layer-toggle
+#'      checkbox and toggles a `ptr-layer-disabled` CSS class on the
+#'      layer's content `<div>` via the `ptr_set_class` custom-message
+#'      handler.
+#'
+#' @param input Shiny `input` object.
+#' @param ptr_state A `ptr_state` object.
+#'
+#' @return Invisibly `NULL`.
+#' @noRd
+ptr_setup_layer_switcher_observers <- function(input, ptr_state) {
+  obj <- shiny::isolate(ptr_state$obj())
+  if (is.null(obj)) return(invisible(NULL))
+  layer_names <- names(obj$keywords_list)
+  if (length(layer_names) == 0L) return(invisible(NULL))
+
+  ui_ns_fn <- ptr_state$ui_ns_fn %||% shiny::NS(NULL)
+  layer_select_local_id <- "ptr_layer_select"
+  layer_tabset_local_id <- "ptr_layer_tabset"
+
+  shiny::observeEvent(input[[layer_select_local_id]], {
+    selected <- input[[layer_select_local_id]]
+    if (is.null(selected) || !nzchar(selected)) return()
+    session <- shiny::getDefaultReactiveDomain()
+    if (is.null(session)) return()
+    shiny::updateTabsetPanel(
+      session,
+      layer_tabset_local_id,
+      selected = selected
+    )
+  })
+
+  toggle_layers <- setdiff(layer_names, "ggplot")
+  for (layer_name in toggle_layers) {
+    local({
+      ln <- layer_name
+      checkbox_local_id <- ptr_checkbox_input_id(ln)
+      content_dom_id <- ptr_ns_id(ui_ns_fn, ptr_layer_panel_content_id(ln))
+      shiny::observe({
+        is_on <- isTRUE(input[[checkbox_local_id]])
+        session <- shiny::getDefaultReactiveDomain()
+        if (is.null(session)) return()
+        session$sendCustomMessage(
+          "ptr_set_class",
+          list(
+            id = content_dom_id,
+            class = "ptr-layer-disabled",
+            add = !is_on
+          )
+        )
+      })
+    })
+  }
+
+  invisible(NULL)
 }
 
 # Wire reactives that maintain the per-layer resolved-data cache, drive the
@@ -1427,7 +1481,13 @@ ptr_server <- function(input,
 ptr_resolve_shell_ui_text <- function(ui_text = NULL) {
   list(
     title_copy = ptr_resolve_ui_text("title", ui_text = ui_text),
-    draw_copy = ptr_resolve_ui_text("draw_button", ui_text = ui_text)
+    draw_copy = ptr_resolve_ui_text("draw_button", ui_text = ui_text),
+    layer_picker_copy = ptr_resolve_ui_text("layer_picker", ui_text = ui_text),
+    data_subtab_copy = ptr_resolve_ui_text("data_subtab", ui_text = ui_text),
+    controls_subtab_copy = ptr_resolve_ui_text(
+      "controls_subtab",
+      ui_text = ui_text
+    )
   )
 }
 

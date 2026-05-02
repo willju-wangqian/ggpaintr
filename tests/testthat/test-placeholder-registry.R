@@ -90,7 +90,7 @@ test_that("custom placeholders participate in copy rules and generated UI", {
     ui_text = rules
   )
   obj <- ptr_parse_formula(test_date_formula, placeholders = registry)
-  ui <- ptr_get_tab_ui(obj, ui_text = rules)
+  ui <- ptr_get_layer_switcher_ui(obj, ui_text = rules)
   ui_text <- placeholder_ui_text(ui)
 
   expect_identical(resolved$label, "Reference date")

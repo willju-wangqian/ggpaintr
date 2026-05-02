@@ -149,7 +149,7 @@ test_that("ui builders use resolved copy for uploads and common controls", {
   text_input <- ui_text(generate_ui_text("labs_2", "title", layer_name = "labs"))
   num_input <- ui_text(generate_ui_num("geom_point_2", "alpha", layer_name = "geom_point"))
   expr_input <- ui_text(generate_ui_expr("facet_grid_2", list(NULL), layer_name = "facet_grid"))
-  checkbox <- ui_insert_checkbox(list(), "geom_point")[[1]]
+  checkbox <- ptr_layer_checkbox_tag("geom_point")
 
   expect_match(upload_text, "Choose a data file", fixed = TRUE)
   expect_match(upload_text, "Optional dataset name", fixed = TRUE)
@@ -176,7 +176,7 @@ test_that("tab UI does not expose parser-style unnamed argument labels", {
     "ggplot(data = iris, aes(x = var, y = var)) + facet_wrap(expr)"
   )
 
-  tab_text <- ui_text(ptr_get_tab_ui(obj))
+  tab_text <- ui_text(ptr_get_layer_switcher_ui(obj))
 
   expect_match(tab_text, "Facet by", fixed = TRUE)
   expect_no_match(tab_text, "argument 1")
@@ -202,6 +202,7 @@ test_that("ptr_ui_text_component_paths keys are exhaustive", {
   paths <- ptr_ui_text_component_paths()
   expected <- c(
     "title", "draw_button", "update_data_button",
+    "layer_picker", "data_subtab", "controls_subtab",
     "upload_file", "upload_name", "layer_checkbox"
   )
   expect_setequal(names(paths), expected)

@@ -176,8 +176,7 @@ generate_ui_var <- function(data_var,
 #'
 #' @return A named list of UI controls by layer.
 #' @noRd
-ptr_build_ui_list <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL),
-                              checkbox_defaults = NULL) {
+ptr_build_ui_list <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL)) {
   effective_ui_text <- ptr_merge_ui_text(
     ui_text,
     placeholders = ptr_obj$placeholders
@@ -232,115 +231,233 @@ ptr_build_ui_list <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL),
     })
 
     names(ui) <- names(keywords_list[[i]])
-    ui_insert_checkbox(
-      ui, layer_name,
-      ui_text = effective_ui_text,
-      ns_fn = ns_fn,
-      checkbox_defaults = checkbox_defaults
-    )
+    ui
   })
 
   rlang::set_names(ui_list, layer_names)
 }
 
 
-#' Add Layer Checkboxes to a UI List
+#' Build a Single Layer-Toggle Checkbox Tag
 #'
-#' @param ui A list of UI elements for one layer.
-#' @param nn The layer name.
-#' @param ui_text Effective or user-supplied copy rules.
-#' @param ns_fn A namespace function `character -> character`.
+#' Returns a `shiny::checkboxInput()` that controls whether a layer is
+#' included in the rendered plot. Returns `NULL` for the synthetic `ggplot`
+#' layer, which has no toggle.
 #'
-#' @return A list of UI elements, possibly prefixed with a checkbox.
 #' @noRd
-ui_insert_checkbox <- function(ui, nn, ui_text = NULL, ns_fn = shiny::NS(NULL),
-                               checkbox_defaults = NULL) {
-  if (nn == "ggplot") {
-    return(ui)
+ptr_layer_checkbox_tag <- function(layer_name, ui_text = NULL,
+                                   ns_fn = shiny::NS(NULL),
+                                   checkbox_defaults = NULL) {
+  if (identical(layer_name, "ggplot")) {
+    return(NULL)
   }
-
   copy <- ptr_resolve_ui_text("layer_checkbox", ui_text = ui_text)
-  id <- ptr_ns_id(ns_fn, ptr_checkbox_input_id(nn))
-  default_value <- if (!is.null(checkbox_defaults) && nn %in% names(checkbox_defaults)) {
-    checkbox_defaults[[nn]]
+  id <- ptr_ns_id(ns_fn, ptr_checkbox_input_id(layer_name))
+  default_value <- if (!is.null(checkbox_defaults) &&
+    layer_name %in% names(checkbox_defaults)) {
+    checkbox_defaults[[layer_name]]
   } else {
     TRUE
   }
-  checkbox <- shiny::checkboxInput(id, label = copy$label, value = default_value)
-
-  ui <- c(list(checkbox), ui)
-  names(ui)[1] <- id
-  ui
+  shiny::checkboxInput(id, label = copy$label, value = default_value)
 }
 
-#' Wrap Layer Controls in Tabs
-#'
-#' @param ui_list A named list of UI lists.
-#'
-#' @return A `tabsetPanel()`.
-#' @noRd
-tab_wrap_ui <- function(ui_list) {
-  assertthat::assert_that(!is.null(names(ui_list)))
-
-  tab_list <- unname(
-    purrr::map2(
-      ui_list,
-      names(ui_list),
-      function(ui, .nn) do.call(shiny::tabPanel, c(.nn, unname(ui)))
-    )
-  )
-
-  do.call(shiny::tabsetPanel, tab_list)
+# Local id for the per-layer content wrapper. The outer switcher targets
+# this id when toggling the `ptr-layer-disabled` class.
+ptr_layer_panel_content_id <- function(layer_name) {
+  paste0("ptr_layer_content_", layer_name)
 }
-
-#' Build the Tabbed Control UI for a Parsed Formula
-#'
-#' @param ptr_obj A `ptr_obj`.
-#' @param ui_text Effective or user-supplied copy rules.
-#' @param ns_fn A namespace function `character -> character`.
-#'
-#' @return A Shiny UI object or `NULL`.
-#' @noRd
-ptr_get_tab_ui <- function(ptr_obj, ui_text = NULL, ns_fn = shiny::NS(NULL),
-                           checkbox_defaults = NULL) {
-  if (!inherits(ptr_obj, "ptr_obj")) {
-    return(NULL)
-  }
-
-  tab_wrap_ui(
-    ptr_build_ui_list(
-      ptr_obj,
-      ui_text = ptr_merge_ui_text(
-        ui_text,
-        placeholders = ptr_obj$placeholders
-      ),
-      ns_fn = ns_fn,
-      checkbox_defaults = checkbox_defaults
-    )
-  )
-}
-
-
-# Data-pipeline tabset (Phase B)
-#
-# When a parsed formula contains placeholders inside a data-argument call
-# expression (e.g. `mtcars |> head(num) |> ggplot(aes(x = var))`), those
-# placeholders are tracked in `ptr_obj$data_pipeline_info`, keyed by layer
-# name. `ptr_get_data_tab_ui()` renders one sub-tab per such layer with the
-# relevant placeholder controls plus an "Update data" actionButton. The
-# button is wired up in Phase C; in Phase B it is purely decorative.
 
 ptr_update_data_input_id <- function(layer_name) {
   paste0("ptr_update_data_", layer_name)
 }
 
-ptr_get_data_tab_ui <- function(ptr_obj, ui_text = NULL,
-                                ns_fn = shiny::NS(NULL)) {
-  if (!inherits(ptr_obj, "ptr_obj")) {
-    return(NULL)
+# Build the data-pipeline controls for a single layer. Returns a list with
+# `controls` (UI tags) and `button` (the Update Data actionButton tag).
+ptr_build_pipeline_layer_controls <- function(ptr_obj, layer_name,
+                                              effective_ui_text,
+                                              ns_fn) {
+  pipeline_info <- ptr_obj$data_pipeline_info %||% list()
+  info <- pipeline_info[[layer_name]]
+  if (is.null(info)) {
+    return(list(controls = list(), button = NULL))
   }
-  pipeline_info <- ptr_obj$data_pipeline_info
-  if (is.null(pipeline_info) || length(pipeline_info) == 0L) {
+  layer_metas <- ptr_obj$placeholder_map[[layer_name]]
+  context <- ptr_define_placeholder_context(
+    ptr_obj,
+    ui_text = effective_ui_text
+  )
+  context$ui_ns_fn <- ns_fn
+
+  controls <- lapply(info$placeholder_ids, function(id) {
+    meta <- layer_metas[[id]]
+    if (is.null(meta)) {
+      return(NULL)
+    }
+    ui_id <- if (identical(meta$keyword, "var")) {
+      id
+    } else {
+      ptr_ns_id(ns_fn, id)
+    }
+    ui_meta <- meta
+    ui_meta$id <- ui_id
+    spec <- ptr_obj$placeholders[[meta$keyword]]
+    effective_param <- meta$param
+    if (ptr_param_is_unnamed(effective_param)) {
+      verb <- ptr_enclosing_verb_name(
+        ptr_obj$expr_list[[layer_name]],
+        meta$index_path
+      )
+      if (!is.null(verb)) {
+        effective_param <- paste0(verb, "()")
+      }
+    }
+    copy <- ptr_resolve_ui_text(
+      "control",
+      keyword = meta$keyword,
+      layer_name = meta$layer_name,
+      param = effective_param,
+      ui_text = effective_ui_text,
+      placeholders = ptr_obj$placeholders
+    )
+    spec$build_ui(ui_id, copy, ui_meta, context)
+  })
+  controls <- controls[!vapply(controls, is.null, logical(1))]
+
+  update_data_copy <- ptr_resolve_ui_text(
+    "update_data_button",
+    ui_text = effective_ui_text,
+    placeholders = ptr_obj$placeholders
+  )
+  button <- shiny::actionButton(
+    ptr_ns_id(ns_fn, ptr_update_data_input_id(layer_name)),
+    update_data_copy$label
+  )
+
+  list(controls = controls, button = button)
+}
+
+# Build the inner content of one layer's panel: a tabsetPanel with two
+# sub-tabs ("Data" + "Controls") when both kinds of controls exist, a
+# single Data tabset when only pipeline placeholders exist, or a flat
+# tagList of controls when there is no data pipeline.
+ptr_build_layer_panel_inner <- function(controls_ui,
+                                        pipeline_ui,
+                                        update_data_button_tag,
+                                        data_subtab_label,
+                                        controls_subtab_label) {
+  has_pipeline <- length(pipeline_ui) > 0L
+  has_controls <- length(controls_ui) > 0L
+
+  data_panel_body <- if (has_pipeline) {
+    c(unname(pipeline_ui), list(update_data_button_tag))
+  } else {
+    NULL
+  }
+
+  if (has_pipeline && has_controls) {
+    do.call(
+      shiny::tabsetPanel,
+      list(
+        do.call(shiny::tabPanel, c(data_subtab_label, data_panel_body)),
+        do.call(
+          shiny::tabPanel,
+          c(controls_subtab_label, unname(controls_ui))
+        )
+      )
+    )
+  } else if (has_pipeline) {
+    do.call(
+      shiny::tabsetPanel,
+      list(do.call(shiny::tabPanel, c(data_subtab_label, data_panel_body)))
+    )
+  } else if (has_controls) {
+    do.call(shiny::tagList, unname(controls_ui))
+  } else {
+    NULL
+  }
+}
+
+# Build a single per-layer panel: layer-toggle checkbox at top, then the
+# inner content wrapped in a div whose id is targeted by the disabled-
+# layer class handler.
+ptr_build_layer_panel <- function(layer_name,
+                                  ptr_obj,
+                                  controls_ui,
+                                  pipeline_ui,
+                                  update_data_button_tag,
+                                  data_subtab_label,
+                                  controls_subtab_label,
+                                  ui_text,
+                                  ns_fn,
+                                  checkbox_defaults) {
+  checkbox <- ptr_layer_checkbox_tag(
+    layer_name,
+    ui_text = ui_text,
+    ns_fn = ns_fn,
+    checkbox_defaults = checkbox_defaults
+  )
+  inner <- ptr_build_layer_panel_inner(
+    controls_ui = controls_ui,
+    pipeline_ui = pipeline_ui,
+    update_data_button_tag = update_data_button_tag,
+    data_subtab_label = data_subtab_label,
+    controls_subtab_label = controls_subtab_label
+  )
+  default_on <- if (identical(layer_name, "ggplot")) {
+    TRUE
+  } else if (!is.null(checkbox_defaults) &&
+    layer_name %in% names(checkbox_defaults)) {
+    isTRUE(checkbox_defaults[[layer_name]])
+  } else {
+    TRUE
+  }
+  content_div <- shiny::div(
+    id = ptr_ns_id(ns_fn, ptr_layer_panel_content_id(layer_name)),
+    class = if (default_on) {
+      "ptr-layer-content"
+    } else {
+      "ptr-layer-content ptr-layer-disabled"
+    },
+    inner
+  )
+  body <- if (is.null(checkbox)) {
+    list(content_div)
+  } else {
+    list(checkbox, content_div)
+  }
+  do.call(shiny::tabPanel, c(list(layer_name), body))
+}
+
+#' Build the Layer-Switcher Control UI
+#'
+#' Renders a `pickerInput()` paired with a hidden `tabsetPanel()` whose
+#' panels are keyed by ggplot layer. Each layer panel has a top-level
+#' include-this-layer checkbox; when the layer has data-pipeline
+#' placeholders, the panel body splits into "Data" + "Controls" sub-tabs
+#' (or just "Data" when the layer has no other placeholders), otherwise
+#' the controls render flat.
+#'
+#' @param ptr_obj A `ptr_obj`.
+#' @param ui_text Effective or user-supplied copy rules.
+#' @param ns_fn A namespace function `character -> character`.
+#' @param checkbox_defaults Optional named-logical vector of layer toggle
+#'   defaults.
+#' @param layer_select_id Local id (un-namespaced) for the layer
+#'   `pickerInput()`.
+#' @param layer_tabset_id Local id (un-namespaced) for the hidden
+#'   `tabsetPanel()`.
+#'
+#' @return A `shiny::tagList()` or `NULL` when `ptr_obj` is not a
+#'   `ptr_obj`.
+#' @noRd
+ptr_get_layer_switcher_ui <- function(ptr_obj,
+                                      ui_text = NULL,
+                                      ns_fn = shiny::NS(NULL),
+                                      checkbox_defaults = NULL,
+                                      layer_select_id = "ptr_layer_select",
+                                      layer_tabset_id = "ptr_layer_tabset") {
+  if (!inherits(ptr_obj, "ptr_obj")) {
     return(NULL)
   }
 
@@ -348,72 +465,78 @@ ptr_get_data_tab_ui <- function(ptr_obj, ui_text = NULL,
     ui_text,
     placeholders = ptr_obj$placeholders
   )
-  context <- ptr_define_placeholder_context(
+  shell_copy <- ptr_resolve_shell_ui_text(effective_ui_text)
+
+  controls_map <- ptr_build_ui_list(
     ptr_obj,
-    ui_text = effective_ui_text
-  )
-  context$ui_ns_fn <- ns_fn
-
-  update_data_copy <- ptr_resolve_ui_text(
-    "update_data_button",
     ui_text = effective_ui_text,
-    placeholders = ptr_obj$placeholders
+    ns_fn = ns_fn
   )
 
-  panels <- lapply(names(pipeline_info), function(layer_name) {
-    info <- pipeline_info[[layer_name]]
-    layer_metas <- ptr_obj$placeholder_map[[layer_name]]
+  layer_names <- names(ptr_obj$keywords_list)
+  pipeline_info <- ptr_obj$data_pipeline_info %||% list()
 
-    controls <- lapply(info$placeholder_ids, function(id) {
-      meta <- layer_metas[[id]]
-      if (is.null(meta)) {
-        return(NULL)
-      }
-      ui_id <- if (identical(meta$keyword, "var")) {
-        id
-      } else {
-        ptr_ns_id(ns_fn, id)
-      }
-      ui_meta <- meta
-      ui_meta$id <- ui_id
-      spec <- ptr_obj$placeholders[[meta$keyword]]
-      effective_param <- meta$param
-      if (ptr_param_is_unnamed(effective_param)) {
-        verb <- ptr_enclosing_verb_name(
-          ptr_obj$expr_list[[layer_name]],
-          meta$index_path
-        )
-        if (!is.null(verb)) {
-          effective_param <- paste0(verb, "()")
-        }
-      }
-      copy <- ptr_resolve_ui_text(
-        "control",
-        keyword = meta$keyword,
-        layer_name = meta$layer_name,
-        param = effective_param,
-        ui_text = effective_ui_text,
-        placeholders = ptr_obj$placeholders
+  panels <- lapply(layer_names, function(layer_name) {
+    controls_ui <- controls_map[[layer_name]] %||% list()
+    controls_ui <- controls_ui[!vapply(controls_ui, is.null, logical(1))]
+
+    pipeline_ui <- list()
+    update_data_button_tag <- NULL
+    if (layer_name %in% names(pipeline_info)) {
+      built <- ptr_build_pipeline_layer_controls(
+        ptr_obj,
+        layer_name,
+        effective_ui_text,
+        ns_fn
       )
-      spec$build_ui(ui_id, copy, ui_meta, context)
-    })
-    controls <- controls[!vapply(controls, is.null, logical(1))]
+      pipeline_ui <- built$controls
+      update_data_button_tag <- built$button
+    }
 
-    button <- shiny::actionButton(
-      ptr_ns_id(ns_fn, ptr_update_data_input_id(layer_name)),
-      update_data_copy$label
-    )
-
-    do.call(
-      shiny::tabPanel,
-      c(layer_name, unname(controls), list(button))
+    ptr_build_layer_panel(
+      layer_name = layer_name,
+      ptr_obj = ptr_obj,
+      controls_ui = controls_ui,
+      pipeline_ui = pipeline_ui,
+      update_data_button_tag = update_data_button_tag,
+      data_subtab_label = shell_copy$data_subtab_copy$label,
+      controls_subtab_label = shell_copy$controls_subtab_copy$label,
+      ui_text = effective_ui_text,
+      ns_fn = ns_fn,
+      checkbox_defaults = checkbox_defaults
     )
   })
 
+  picker_id <- ptr_ns_id(ns_fn, layer_select_id)
+  tabset_full_id <- ptr_ns_id(ns_fn, layer_tabset_id)
+
+  hidden_tabset <- do.call(
+    shiny::tabsetPanel,
+    c(list(id = tabset_full_id, type = "hidden"), unname(panels))
+  )
+
+  picker <- shinyWidgets::pickerInput(
+    inputId = picker_id,
+    label = shell_copy$layer_picker_copy$label,
+    choices = layer_names,
+    selected = if (length(layer_names) > 0L) layer_names[[1L]] else NULL
+  )
+
   shiny::tagList(
     ptr_data_pipeline_class_handler_script(),
-    do.call(shiny::tabsetPanel, panels)
+    ptr_layer_switcher_style_tag(),
+    picker,
+    hidden_tabset
   )
+}
+
+# Inline CSS for the "layer disabled" visual state. Opacity gives the
+# grayed-out look; controls remain interactive so the user can still
+# stage edits and re-enable the layer.
+ptr_layer_switcher_style_tag <- function() {
+  shiny::tags$style(shiny::HTML(
+    ".ptr-layer-disabled { opacity: 0.5; }"
+  ))
 }
 
 # Inline JS that registers a Shiny custom message handler used by the server

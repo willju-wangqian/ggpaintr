@@ -10,6 +10,9 @@ ptr_ui_text_component_paths <- function() {
     title              = c("shell", "title"),
     draw_button        = c("shell", "draw_button"),
     update_data_button = c("shell", "update_data_button"),
+    layer_picker       = c("shell", "layer_picker"),
+    data_subtab        = c("shell", "data_subtab"),
+    controls_subtab    = c("shell", "controls_subtab"),
     upload_file        = c("upload", "file"),
     upload_name        = c("upload", "name"),
     layer_checkbox     = c("layer_checkbox")
@@ -40,7 +43,10 @@ ptr_default_ui_text <- function(placeholders = NULL) {
         title = list(label = "ggpaintr Plot Builder"),
         draw_button = list(label = "Update plot"),
         update_data_button = list(label = "Update data"),
-        update_data_stale_class = "ptr-update-data-stale"
+        update_data_stale_class = "ptr-update-data-stale",
+        layer_picker = list(label = "Layer"),
+        data_subtab = list(label = "Data"),
+        controls_subtab = list(label = "Controls")
       ),
       upload = list(
         file = list(label = "Choose a data file"),
@@ -312,7 +318,8 @@ ptr_validate_ui_text <- function(ui_text, placeholders = NULL) {
   if (!is.null(ui_text$shell)) {
     allowed_shell <- c(
       "title", "draw_button", "update_data_button",
-      "update_data_stale_class"
+      "update_data_stale_class",
+      "layer_picker", "data_subtab", "controls_subtab"
     )
     unknown_shell <- setdiff(names(ui_text$shell), allowed_shell)
     if (length(unknown_shell) > 0) {

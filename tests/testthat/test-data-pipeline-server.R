@@ -181,11 +181,11 @@ test_that("update click on an unresolvable pipeline leaves the cache untouched",
 # UI: data-tab UI emits the custom-message handler script
 # ---------------------------------------------------------------------------
 
-test_that("ptr_get_data_tab_ui includes the ptr_set_class custom-message handler", {
+test_that("ptr_get_layer_switcher_ui includes the ptr_set_class custom-message handler", {
   obj <- ptr_parse_formula(
     "mtcars |> head(num) |> ggplot(aes(x = var, y = var)) + geom_point()"
   )
-  rendered <- paste(as.character(ptr_get_data_tab_ui(obj)), collapse = "\n")
+  rendered <- paste(as.character(ptr_get_layer_switcher_ui(obj)), collapse = "\n")
   expect_match(rendered, "ptr_set_class", fixed = TRUE)
   expect_match(rendered, "addCustomMessageHandler", fixed = TRUE)
 })

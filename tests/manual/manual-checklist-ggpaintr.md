@@ -111,3 +111,64 @@ For known unresolved boundaries and reproducible edge-case examples, see
 3. Confirm the inline error disappears after the successful redraw.
 4. Confirm the plot renders normally again.
 5. Confirm `outputCode` updates to the corrected code.
+
+## Layer switcher checks
+
+1. Launch:
+
+   ```r
+   ptr_app("
+   mtcars |> head(num) |> ggplot(aes(x = var, y = var)) +
+     geom_point(size = num) + geom_smooth(method = text) + labs(title = text)
+   ")
+   ```
+
+2. Confirm the control panel shows a `pickerInput()` labeled `Layer` with all four layer names; only one panel body is visible at a time.
+3. With `ggplot` selected, confirm two sub-tabs appear (`Data`, `Controls`); Data holds the pipeline `num` control and an `Update data` button, Controls holds the `var` pickers.
+4. With `geom_point` / `geom_smooth` / `labs` selected, confirm controls render flat (no inner sub-tabs) since none of those layers have a data pipeline.
+5. Confirm `Update plot` is rendered exactly once, sitting below the tabset.
+6. Confirm only the non-`ggplot` layer panels show an `Include this layer in the plot` checkbox at the top.
+7. Toggle a layer's checkbox off and confirm the panel content visually grays out (`opacity ~ 0.5`) while the inputs stay clickable; confirm the layer disappears from both the plot and `outputCode`. Re-check and confirm everything restores.
+8. Re-launch the app with `ui_text = list(shell = list(layer_picker = list(label = "Choose layer"), data_subtab = list(label = "Pipeline"), controls_subtab = list(label = "Aesthetics")))` and confirm those three labels override defaults while everything else (Update plot, Update data, layer checkbox) keeps default copy.
+
+## Data-pipeline placeholder checks
+
+1. Launch:
+
+   ```r
+   ptr_app("
+   mtcars |> filter(cyl == num) |> head(num) |>
+     ggplot(aes(x = var, y = var)) + geom_point()
+   ")
+   ```
+
+2. In the `ggplot` layer's Data sub-tab, confirm the two `num` controls are labeled `Enter a number for filter()` and `Enter a number for head()` (verb-aware, not generic).
+3. Confirm `var` pickers in the Controls sub-tab are empty until `Update data` succeeds.
+4. Set `filter(num) = 6`, `head(num) = 10`, click `Update data`, and confirm the `var` pickers populate with mtcars columns.
+5. Pick `x = mpg`, `y = disp`, click `Update plot`, and confirm the plot renders.
+6. Change `head(num)` to `3` without clicking `Update data`. Confirm a stale-data signal appears on the `Update data` button (extra CSS class) and that `outputCode` and the plot still reflect the previous cache (`head(10)`), not `head(3)`.
+7. Click `Update data`. Confirm the stale signal clears, `outputCode` now shows `head(3)`, and the `var` pickers retain `mpg`/`disp` (selection preserved).
+8. Click `Update plot` and confirm the new plot is rendered.
+9. Re-launch with two pipeline-bearing layers:
+
+   ```r
+   ptr_app("
+   mtcars |> head(num) |> ggplot(aes(x = var, y = var)) +
+     geom_point(data = mtcars |> dplyr::filter(num > 0), color = 'red')
+   ")
+   ```
+
+   Confirm each layer panel has its own Data sub-tab and its own `Update data` button. Edit each separately and confirm the buttons fire independently — clicking `Update data` for `geom_point` does not refresh the `ggplot` cache, and vice versa.
+10. Re-launch with a nested `data = ...` chain:
+
+    ```r
+    ptr_app("
+    ggplot(
+      data = mtcars |> filter(cyl == num) |> head(num),
+      mapping = aes(x = var, y = var)
+    ) + geom_point()
+    ")
+    ```
+
+    Confirm pipeline controls still surface in the Data sub-tab and that `outputCode` after `Update data` + `Update plot` includes the full piped expression.
+11. Launch a pipeline with a `text` placeholder, e.g. `iris |> dplyr::filter(Species != text) |> ggplot(aes(x = var, y = var)) + geom_point()`. Type `"setosa"` (with quotes), click `Update data`, then `Update plot`. Confirm the cached filter and `outputCode` use a single set of quotes (`Species != "setosa"`, not double-escaped).

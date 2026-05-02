@@ -30,14 +30,14 @@ test_that("ptr_module_server returns module-scoped ptr_state", {
   })
 })
 
-test_that("ptr_get_tab_ui can namespace dynamic module controls separately from runtime ids", {
+test_that("ptr_get_layer_switcher_ui can namespace dynamic module controls separately from runtime ids", {
   state <- ptr_server_state(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
   obj <- shiny::isolate(state$obj())
   rendered <- paste(
     as.character(
-      ptr_get_tab_ui(
+      ptr_get_layer_switcher_ui(
         obj,
         ns_fn = shiny::NS("plot1")
       )

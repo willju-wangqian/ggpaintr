@@ -287,7 +287,7 @@ test_that("ptr_server_state errors are surfaced from validator", {
 })
 
 # ---------------------------------------------------------------------------
-# Render path: ui_insert_checkbox honors checkbox_defaults
+# Render path: ptr_layer_checkbox_tag honors checkbox_defaults
 # ---------------------------------------------------------------------------
 
 extract_checkbox_value <- function(tag) {
@@ -297,46 +297,42 @@ extract_checkbox_value <- function(tag) {
   grepl("checked=\"checked\"", html, fixed = TRUE)
 }
 
-test_that("ui_insert_checkbox emits value=FALSE when checkbox_defaults says so", {
-  ui <- list()
-  out <- ui_insert_checkbox(
-    ui, "geom_point",
+test_that("ptr_layer_checkbox_tag emits value=FALSE when checkbox_defaults says so", {
+  out <- ptr_layer_checkbox_tag(
+    "geom_point",
     ui_text = NULL,
     ns_fn = shiny::NS(NULL),
     checkbox_defaults = c(geom_point = FALSE)
   )
-  expect_false(extract_checkbox_value(out[[1]]))
+  expect_false(extract_checkbox_value(out))
 })
 
-test_that("ui_insert_checkbox emits value=TRUE when key absent", {
-  ui <- list()
-  out <- ui_insert_checkbox(
-    ui, "geom_point",
+test_that("ptr_layer_checkbox_tag emits value=TRUE when key absent", {
+  out <- ptr_layer_checkbox_tag(
+    "geom_point",
     ui_text = NULL,
     ns_fn = shiny::NS(NULL),
     checkbox_defaults = c(geom_smooth = FALSE)
   )
-  expect_true(extract_checkbox_value(out[[1]]))
+  expect_true(extract_checkbox_value(out))
 })
 
-test_that("ui_insert_checkbox emits value=TRUE when checkbox_defaults is NULL", {
-  ui <- list()
-  out <- ui_insert_checkbox(
-    ui, "geom_point",
+test_that("ptr_layer_checkbox_tag emits value=TRUE when checkbox_defaults is NULL", {
+  out <- ptr_layer_checkbox_tag(
+    "geom_point",
     ui_text = NULL,
     ns_fn = shiny::NS(NULL),
     checkbox_defaults = NULL
   )
-  expect_true(extract_checkbox_value(out[[1]]))
+  expect_true(extract_checkbox_value(out))
 })
 
 test_that("ggplot layer never gets a checkbox regardless of checkbox_defaults", {
-  ui <- list("dummy" = "x")
-  out <- ui_insert_checkbox(
-    ui, "ggplot",
+  out <- ptr_layer_checkbox_tag(
+    "ggplot",
     ui_text = NULL,
     ns_fn = shiny::NS(NULL),
     checkbox_defaults = c(ggplot = FALSE)
   )
-  expect_identical(out, list("dummy" = "x"))
+  expect_null(out)
 })
