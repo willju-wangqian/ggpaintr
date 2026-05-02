@@ -9,6 +9,7 @@ reference:
     contents:
       - ptr_app
       - ptr_app_bslib
+      - ptr_app_grid
   - title: Configuration
     desc: Set package-wide defaults that apply to every app in the session.
     contents:
@@ -68,4 +69,5 @@ articles:
       - ggpaintr-workflow
       - ggpaintr-extensibility
       - ggpaintr-placeholder-registry
+      - ggpaintr-gallery
       - ggpaintr-llm
