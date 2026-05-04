@@ -100,6 +100,36 @@ Shiny module those functions wrap a real namespace. Always namespace
 }
 }
 
+\section{Context fields by hook}{
+ggpaintr invokes hooks from several construction sites ("roles"). Not
+every site populates every context field; assume only the fields listed
+below are guaranteed. If a hook reads a field outside its guarantee set,
+use \verb{field \%||\% <fallback>} and document the dependency.
+\itemize{
+\item \code{resolve_input(input, id, meta, context)} -- guaranteed: \code{ptr_obj},
+\code{placeholders}, \code{ui_text}, \code{envir}, \code{expr_check}, \code{ns_fn}. May be set:
+\code{eval_env}, \code{var_column_map}, \code{shared_bindings} (set in pipeline,
+aesthetic, runtime roles; not set in ui-bind).
+\item \code{resolve_expr(value, meta, context)} -- guaranteed: \code{ptr_obj},
+\code{placeholders}, \code{ui_text}, \code{envir}, \code{expr_check}. Guaranteed in pipeline
+and runtime roles only: \code{var_column_map} (use of which by a custom
+placeholder will fail loudly if the construction site forgot to
+populate it; the built-in \code{var} placeholder relies on this).
+\item \code{bind_ui(input, output, metas, context)} -- guaranteed: \code{ptr_obj},
+\code{placeholders}, \code{ui_text}, \code{envir}, \code{expr_check}, \code{ns_fn}, \code{ui_ns_fn}.
+\code{var_column_map} and \code{eval_env} are rebuilt lazily by the built-in \code{var}
+bind hook when missing; custom hooks may do the same via
+\code{\link[=ptr_resolve_layer_data]{ptr_resolve_layer_data()}}.
+\item \code{prepare_eval_env(input, metas, eval_env, context)} -- guaranteed:
+\code{ptr_obj}, \code{placeholders}, \code{envir}, \code{ns_fn}.
+}
+
+Roles map to construction sites: \emph{pipeline} = data-pipeline observer
+(re-eval on Update Data click); \emph{aesthetic} = main draw observer (Draw
+click); \emph{runtime} = \code{ptr_complete_expr()} for code-extraction; \emph{ui-bind}
+= deferred-UI registration via \code{\link[=ptr_bind_placeholder_ui]{ptr_bind_placeholder_ui()}}.
+}
+
 \examples{
 # ---- Data-independent placeholder: a date picker -------------------------
 date_placeholder <- ptr_define_placeholder(

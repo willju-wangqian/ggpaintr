@@ -175,3 +175,14 @@ test_that("text placeholder default copy hints that quotes are added automatical
     ignore.case = TRUE
   )
 })
+
+test_that("ptr_validate_var_input aborts loudly when var_column_map is missing", {
+  context <- new.env(parent = emptyenv())
+  context$var_column_map <- NULL
+  meta <- list(id = "ggplot_3_2", layer_name = "ggplot")
+
+  expect_error(
+    ptr_validate_var_input("mpg", meta, context),
+    "context\\$var_column_map is NULL"
+  )
+})

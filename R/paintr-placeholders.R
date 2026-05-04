@@ -55,6 +55,35 @@
 #' `meta$id` via [ptr_ns_id()] before assigning into `output` or referencing
 #' `input`.
 #'
+#' # Context fields by hook
+#'
+#' ggpaintr invokes hooks from several construction sites ("roles"). Not
+#' every site populates every context field; assume only the fields listed
+#' below are guaranteed. If a hook reads a field outside its guarantee set,
+#' use `field %||% <fallback>` and document the dependency.
+#'
+#' * `resolve_input(input, id, meta, context)` -- guaranteed: `ptr_obj`,
+#'   `placeholders`, `ui_text`, `envir`, `expr_check`, `ns_fn`. May be set:
+#'   `eval_env`, `var_column_map`, `shared_bindings` (set in pipeline,
+#'   aesthetic, runtime roles; not set in ui-bind).
+#' * `resolve_expr(value, meta, context)` -- guaranteed: `ptr_obj`,
+#'   `placeholders`, `ui_text`, `envir`, `expr_check`. Guaranteed in pipeline
+#'   and runtime roles only: `var_column_map` (use of which by a custom
+#'   placeholder will fail loudly if the construction site forgot to
+#'   populate it; the built-in `var` placeholder relies on this).
+#' * `bind_ui(input, output, metas, context)` -- guaranteed: `ptr_obj`,
+#'   `placeholders`, `ui_text`, `envir`, `expr_check`, `ns_fn`, `ui_ns_fn`.
+#'   `var_column_map` and `eval_env` are rebuilt lazily by the built-in `var`
+#'   bind hook when missing; custom hooks may do the same via
+#'   [ptr_resolve_layer_data()].
+#' * `prepare_eval_env(input, metas, eval_env, context)` -- guaranteed:
+#'   `ptr_obj`, `placeholders`, `envir`, `ns_fn`.
+#'
+#' Roles map to construction sites: *pipeline* = data-pipeline observer
+#' (re-eval on Update Data click); *aesthetic* = main draw observer (Draw
+#' click); *runtime* = `ptr_complete_expr()` for code-extraction; *ui-bind*
+#' = deferred-UI registration via [ptr_bind_placeholder_ui()].
+#'
 #' @param keyword A single syntactic placeholder name used inside the formula.
 #' @param build_ui Function with signature `(id, copy, meta, context)` returning
 #'   a Shiny UI control or placeholder. `id` is already namespaced.
@@ -1060,13 +1089,41 @@ ptr_resolve_data_pipeline_expr <- function(layer_expr,
   layer_metas <- ptr_obj$placeholder_map[[layer_name]]
   substituted <- layer_expr
 
+  # Pre-substitute every pipeline placeholder keyword to the unset marker so
+  # the in-loop upstream trim never evaluates a literal keyword (e.g. dplyr
+  # would otherwise interpret a bare `var` as a column name and error).
+  for (id in placeholder_ids) {
+    meta <- layer_metas[[id]]
+    expr_pluck(substituted, meta$index_path) <- marker
+  }
+
   for (id in placeholder_ids) {
     meta <- layer_metas[[id]]
     spec <- ptr_obj$placeholders[[meta$keyword]]
 
+    # Each pipeline placeholder sees the data flowing INTO its containing
+    # verb (verb itself excluded). Trim the partially-substituted layer expr
+    # at this position: the verb holding the still-unresolved marker drops
+    # out, prior placeholders are already substituted, later markers cause
+    # their verbs to drop. The result is the upstream column set for `var`.
+    upstream <- ptr_trim_and_eval(substituted[[data_arg_index]], eval_env, marker)
+    has_df <- isTRUE(upstream$ok) && is.data.frame(upstream$value)
+    context$var_column_map[[layer_name]] <- list(
+      has_data = has_df,
+      columns = if (has_df) names(upstream$value) else NULL
+    )
+
     value <- tryCatch(
       ptr_resolve_placeholder_input(spec, input, meta, context),
-      error = function(e) NULL
+      error = function(e) {
+        if (ptr_verbose()) {
+          cli::cli_warn(paste0(
+            "Pipeline input resolve failed for {.val ", meta$id,
+            "} ({meta$keyword}): ", conditionMessage(e)
+          ))
+        }
+        NULL
+      }
     )
 
     replacement <- marker
@@ -1074,7 +1131,15 @@ ptr_resolve_data_pipeline_expr <- function(layer_expr,
         !(is.character(value) && length(value) == 1L && !nzchar(value))) {
       resolved <- tryCatch(
         ptr_resolve_placeholder_expr(spec, value, meta, context),
-        error = function(e) NULL
+        error = function(e) {
+          if (ptr_verbose()) {
+            cli::cli_warn(paste0(
+              "Pipeline expr resolve failed for {.val ", meta$id,
+              "} ({meta$keyword}): ", conditionMessage(e)
+            ))
+          }
+          NULL
+        }
       )
       if (!is.null(resolved) &&
           !identical(resolved, ptr_missing_expr_symbol())) {
@@ -1323,6 +1388,8 @@ ptr_validate_var_input <- function(value, meta, context) {
     rlang::abort(paste0("Input '", meta$id, "' must select exactly one column name."))
   }
 
+  ptr_require_context_field(context, "var_column_map", "ptr_validate_var_input")
+
   column_info <- context$var_column_map[[meta$layer_name]]
   if (is.null(column_info)) {
     rlang::abort(paste0("Input '", meta$id, "' cannot be resolved because no dataset information is available for layer '", meta$layer_name, "'."))
@@ -1349,6 +1416,81 @@ ptr_validate_var_input <- function(value, meta, context) {
 #'
 #' @return A named list of generated `var` UI controls.
 #' @noRd
+#' Compute Per-Placeholder Upstream Column Sets for Pipeline `var` Widgets
+#'
+#' For each pipeline placeholder in a layer, return the column set of the
+#' data flowing INTO that placeholder's containing verb (verb itself
+#' excluded). Mirrors the per-iteration algorithm in
+#' `ptr_resolve_data_pipeline_expr`. Used by `ptr_bind_var_ui_impl` to keep
+#' a pipeline `var` widget's choice list anchored to its positional upstream
+#' instead of narrowing with each successful click.
+#'
+#' @param ptr_obj A parsed ptr object.
+#' @param layer_name Layer name (e.g. `"ggplot"`).
+#' @param input A Shiny input-like object.
+#' @param context A placeholder context.
+#' @param eval_env Evaluation environment.
+#'
+#' @return A named list keyed by placeholder id with `list(has_data,
+#'   columns)`. Empty list if the layer has no pipeline placeholders.
+#' @noRd
+ptr_pipeline_upstream_columns <- function(ptr_obj, layer_name, input,
+                                          context, eval_env) {
+  pipeline <- ptr_obj$data_pipeline_info[[layer_name]]
+  if (is.null(pipeline)) {
+    return(list())
+  }
+
+  marker <- ptr_unset_data_marker()
+  layer_metas <- ptr_obj$placeholder_map[[layer_name]]
+  substituted <- ptr_obj$expr_list[[layer_name]]
+
+  for (id in pipeline$placeholder_ids) {
+    expr_pluck(substituted, layer_metas[[id]]$index_path) <- marker
+  }
+
+  result <- list()
+  saved_var_column_map <- context$var_column_map
+  on.exit(context$var_column_map <- saved_var_column_map, add = TRUE)
+
+  for (id in pipeline$placeholder_ids) {
+    meta <- layer_metas[[id]]
+    spec <- ptr_obj$placeholders[[meta$keyword]]
+
+    upstream <- ptr_trim_and_eval(
+      substituted[[pipeline$data_arg_index]], eval_env, marker
+    )
+    has_df <- isTRUE(upstream$ok) && is.data.frame(upstream$value)
+    result[[id]] <- list(
+      has_data = has_df,
+      columns = if (has_df) names(upstream$value) else NULL
+    )
+
+    value <- tryCatch(
+      ptr_resolve_placeholder_input(spec, input, meta, context),
+      error = function(e) NULL
+    )
+    replacement <- marker
+    if (!is.null(value) &&
+        !(is.character(value) && length(value) == 1L && !nzchar(value))) {
+      # ptr_resolve_placeholder_expr for var consults var_column_map; supply
+      # the positional upstream so chained-var resolution sees the right set.
+      context$var_column_map <- list()
+      context$var_column_map[[layer_name]] <- result[[id]]
+      resolved <- tryCatch(
+        ptr_resolve_placeholder_expr(spec, value, meta, context),
+        error = function(e) NULL
+      )
+      if (!is.null(resolved) &&
+          !identical(resolved, ptr_missing_expr_symbol())) {
+        replacement <- resolved
+      }
+    }
+    expr_pluck(substituted, meta$index_path) <- replacement
+  }
+  result
+}
+
 ptr_bind_var_ui_impl <- function(input, output, metas, context) {
   ptr_obj <- context$ptr_obj
   eval_env <- context$eval_env
@@ -1381,16 +1523,30 @@ ptr_bind_var_ui_impl <- function(input, output, metas, context) {
   metas_by_layer <- split(metas, vapply(metas, `[[`, character(1), "layer_name"))
 
   for (layer_name in names(metas_by_layer)) {
-    column_info <- context$var_column_map[[layer_name]]
-    if (is.null(column_info)) {
-      column_info <- list(has_data = FALSE, columns = NULL)
+    pipeline <- ptr_obj$data_pipeline_info[[layer_name]]
+    pipeline_ids <- if (!is.null(pipeline)) pipeline$placeholder_ids else character(0)
+    pipeline_upstream <- if (length(pipeline_ids) > 0L) {
+      ptr_pipeline_upstream_columns(ptr_obj, layer_name, input, context, eval_env)
+    } else {
+      list()
     }
 
-    if (!isTRUE(column_info$has_data)) {
-      next
+    aes_column_info <- context$var_column_map[[layer_name]]
+    if (is.null(aes_column_info)) {
+      aes_column_info <- list(has_data = FALSE, columns = NULL)
     }
 
     for (meta in metas_by_layer[[layer_name]]) {
+      column_info <- if (meta$id %in% pipeline_ids) {
+        pipeline_upstream[[meta$id]] %||% list(has_data = FALSE, columns = NULL)
+      } else {
+        aes_column_info
+      }
+
+      if (!isTRUE(column_info$has_data)) {
+        next
+      }
+
       ui_id <- ptr_ns_id(context$ui_ns_fn %||% shiny::NS(NULL), meta$id)
       current_selection <- tryCatch(
         shiny::isolate(input[[ui_id]]),

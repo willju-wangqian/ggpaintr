@@ -902,6 +902,31 @@ ptr_verbose <- function() {
   ptr_get_setting(ptr_settings$verbose)
 }
 
+
+#' Assert That a Hook's Required Context Field Is Populated
+#'
+#' Helper for placeholder hooks that depend on a specific `context$<field>`
+#' being non-NULL. Raises an internal-error abort identifying the hook and
+#' the missing field, so under-populated contexts surface at the call site
+#' rather than degrading silently.
+#'
+#' @param context A placeholder context env.
+#' @param field A single field name read from `context`.
+#' @param hook A short identifier for the calling hook (used in the error).
+#'
+#' @return Invisibly, `context`.
+#' @noRd
+ptr_require_context_field <- function(context, field, hook) {
+  if (is.null(context[[field]])) {
+    rlang::abort(paste0(
+      "Internal: context$", field, " is NULL but required by ", hook,
+      "(). The caller built a placeholder context without populating ",
+      field, "; this is a bug in the construction site, not in user input."
+    ))
+  }
+  invisible(context)
+}
+
 # Default denylist for expr placeholder safety
 unsafe_expr_denylist <- c(
   # system escape

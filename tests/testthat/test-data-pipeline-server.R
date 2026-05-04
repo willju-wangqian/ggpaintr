@@ -149,6 +149,113 @@ test_that("ptr_build_var_column_map falls back to live resolution when cache is 
 # Failure path
 # ---------------------------------------------------------------------------
 
+test_that("pipeline var click narrows the resolved cache to the picked column", {
+  pipeline_env <- make_pipeline_server_env()
+
+  server_wrapper <- function(input, output, session) {
+    session$userData$ptr_state <- ptr_server(
+      input, output, session,
+      "mtcars |> dplyr::select(var) |> ggplot(aes(x = var)) + geom_histogram()",
+      envir = pipeline_env
+    )
+  }
+
+  shiny::testServer(server_wrapper, {
+    state <- session$userData$ptr_state
+    obj <- shiny::isolate(state$obj())
+    pid <- obj$data_pipeline_info[["ggplot"]]$placeholder_ids[[1]]
+    btn <- ptr_update_data_input_id("ggplot")
+
+    expect_identical(ncol(state$resolved_data[["ggplot"]]()), 11L)
+
+    args <- list()
+    args[[pid]] <- "mpg"
+    args[[btn]] <- 1
+    do.call(session$setInputs, args)
+
+    cached <- state$resolved_data[["ggplot"]]()
+    expect_s3_class(cached, "data.frame")
+    expect_identical(ncol(cached), 1L)
+    expect_identical(names(cached), "mpg")
+  })
+})
+
+test_that("chained pipeline vars use position-correct upstream column sets", {
+  pipeline_env <- make_pipeline_server_env()
+
+  server_wrapper <- function(input, output, session) {
+    session$userData$ptr_state <- ptr_server(
+      input, output, session,
+      paste(
+        "mtcars |> dplyr::select(var) |> dplyr::select(var)",
+        "|> ggplot(aes(x = var)) + geom_histogram()"
+      ),
+      envir = pipeline_env
+    )
+  }
+
+  shiny::testServer(server_wrapper, {
+    state <- session$userData$ptr_state
+    obj <- shiny::isolate(state$obj())
+    pids <- obj$data_pipeline_info[["ggplot"]]$placeholder_ids
+    btn <- ptr_update_data_input_id("ggplot")
+
+    args <- list()
+    args[[pids[[1]]]] <- "mpg"
+    args[[pids[[2]]]] <- "mpg"
+    args[[btn]] <- 1
+    do.call(session$setInputs, args)
+
+    cached <- state$resolved_data[["ggplot"]]()
+    expect_identical(ncol(cached), 1L)
+    expect_identical(names(cached), "mpg")
+
+    # Second var sees only {mpg} as upstream; picking `cyl` must abort
+    # validation and leave the cache untouched.
+    args2 <- list()
+    args2[[pids[[2]]]] <- "cyl"
+    args2[[btn]] <- 2
+    do.call(session$setInputs, args2)
+
+    expect_identical(names(state$resolved_data[["ggplot"]]()), "mpg")
+  })
+})
+
+test_that("pipeline var dropdown stays anchored to positional upstream after click", {
+  skip_if_not_installed("dplyr")
+  pipeline_env <- make_pipeline_server_env()
+
+  server_wrapper <- function(input, output, session) {
+    session$userData$ptr_state <- ptr_server(
+      input, output, session,
+      "mtcars |> dplyr::select(var) |> ggplot(aes(x = var)) + geom_histogram()",
+      envir = pipeline_env
+    )
+  }
+
+  shiny::testServer(server_wrapper, {
+    state <- session$userData$ptr_state
+    obj <- shiny::isolate(state$obj())
+    pipe_id <- obj$data_pipeline_info[["ggplot"]]$placeholder_ids[[1]]
+    btn <- ptr_update_data_input_id("ggplot")
+
+    args <- list()
+    args[[pipe_id]] <- "mpg"
+    args[[btn]] <- 1
+    do.call(session$setInputs, args)
+    session$elapse(500)
+
+    expect_identical(names(state$resolved_data[["ggplot"]]()), "mpg")
+
+    rendered <- paste(as.character(state$var_ui_list()[[pipe_id]]), collapse = " ")
+    options <- regmatches(rendered, gregexpr("value=\"[^\"]+\"", rendered))[[1]]
+    expect_setequal(
+      sub('value="([^"]+)"', "\\1", options),
+      names(datasets::mtcars)
+    )
+  })
+})
+
 test_that("update click on an unresolvable pipeline leaves the cache untouched", {
   pipeline_env <- make_pipeline_server_env()
 
