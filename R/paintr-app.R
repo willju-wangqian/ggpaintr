@@ -1004,6 +1004,8 @@ ptr_gg_extra <- function(ptr_state, ...) {
 #'   ui_text = list(shell = list(draw_button = list(label = "Render plot")))
 #' )
 #' inherits(ui, "shiny.tag.list")
+#' @seealso `vignette("ggpaintr-extensibility")` section 6 for the contract
+#'   governing what the rendered control panel may contain.
 #' @export
 ptr_input_ui <- function(ids = ptr_build_ids(), ui_text = NULL,
                          ns = shiny::NS(NULL)) {

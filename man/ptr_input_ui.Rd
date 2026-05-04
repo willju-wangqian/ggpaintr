@@ -30,3 +30,7 @@ ui <- ptr_input_ui(
 )
 inherits(ui, "shiny.tag.list")
 }
+\seealso{
+\code{vignette("ggpaintr-extensibility")} section 6 for the contract
+governing what the rendered control panel may contain.
+}
