@@ -1,10 +1,14 @@
 ---
-status: proposed
+status: superseded
 created: 2026-05-02
+superseded: 2026-05-06
+superseded-by: ../../.claude/specs/core-rewrite.md
 size: large
 depends-on: 01-public-ui-api (weakly)
 blocks: 03-docs-rewrite
 ---
+
+> **Superseded by [core-rewrite](../../.claude/specs/core-rewrite.md).** The data-aware helper this plan proposes is delivered structurally by the rewrite's `ptr_define_placeholder_consumer` constructor (registry section in core-rewrite, BDD scenarios in `core-rewrite-bdd.md` under "P6 — ui-build" and "Registry Contracts"). The rewrite makes data-awareness a node-class distinction (`ptr_ph_data_consumer` vs `ptr_ph_data_source`) so consumers receive a resolved `cols` vector from the core; no per-author marker plumbing or `bind_ui` hook is needed. The cleaner authoring surface this plan was reaching for is the registry's reduced hook list (≤5 hooks for consumers).
 
 # Concern 02 — Helper / wrapper for data-aware custom placeholders
 
