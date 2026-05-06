@@ -1,0 +1,286 @@
+# P6 — per-node UI dispatch.
+#
+# `build_ui_for(node, ...)` is the S3 generic that callers (the layer-panel
+# scaffolding in P6 and `ptr_module_*`) invoke once per tree node that
+# wants Shiny widgets. The dispatch:
+#   1. resolves the human-readable label via `ptr_resolve_ui_text`
+#   2. namespaces `node$id` (and the source's `companion_id`) via `ns_fn`
+#   3. forwards to the registered `build_ui` hook with a resolved label
+#
+# The hook only ever sees a final id and a final label string. It never
+# resolves copy paths or ns prefixes itself.
+
+#' Build a Shiny UI Widget for a Typed-Tree Node
+#'
+#' S3 generic dispatched per node class. Resolves the human-readable label
+#' through `ptr_resolve_ui_text`, namespaces the node's id (and any
+#' `companion_id` for source nodes) via `ns_fn`, and forwards to the
+#' registered `build_ui` hook for the placeholder's keyword.
+#'
+#' @param node A typed AST node (e.g. `ptr_ph_value`, `ptr_ph_data_consumer`,
+#'   `ptr_ph_data_source`, `ptr_layer`).
+#' @param ... Additional arguments. Recognized by built-in methods:
+#'   `cols` (for consumers), `ui_text`, `placeholders`, `layer_name`,
+#'   `ns_fn`, `cols_map`, `checkbox_defaults`, `shell_copy`.
+#'
+#' @return A `shiny.tag` (or NULL for nodes that emit no UI).
+#' @keywords internal
+#' @export
+build_ui_for <- function(node, ...) UseMethod("build_ui_for")
+
+#' @export
+build_ui_for.default <- function(node, ...) NULL
+
+#' @export
+build_ui_for.ptr_literal <- function(node, ...) NULL
+
+#' @export
+build_ui_for.ptr_missing <- function(node, ...) NULL
+
+#' @export
+build_ui_for.ptr_user_expr <- function(node, ...) NULL
+
+#' @export
+build_ui_for.ptr_ph_value <- function(node,
+                                       ui_text = NULL,
+                                       placeholders = NULL,
+                                       layer_name = NULL,
+                                       ns_fn = identity,
+                                       ...) {
+  invoke_build_ui(node, ui_text = ui_text, placeholders = placeholders,
+                  layer_name = layer_name, ns_fn = ns_fn, extra = list(),
+                  ...)
+}
+
+#' @export
+build_ui_for.ptr_ph_data_consumer <- function(node,
+                                                cols = character(),
+                                                ui_text = NULL,
+                                                placeholders = NULL,
+                                                layer_name = NULL,
+                                                ns_fn = identity,
+                                                ...) {
+  invoke_build_ui(node, ui_text = ui_text, placeholders = placeholders,
+                  layer_name = layer_name, ns_fn = ns_fn,
+                  extra = list(cols = cols), ...)
+}
+
+#' @export
+build_ui_for.ptr_ph_data_source <- function(node,
+                                              ui_text = NULL,
+                                              placeholders = NULL,
+                                              layer_name = NULL,
+                                              ns_fn = identity,
+                                              ...) {
+  rendered_node <- node
+  rendered_node$id <- ns_fn(node$id)
+  if (!is.null(node$companion_id)) {
+    rendered_node$companion_id <- ns_fn(node$companion_id)
+  }
+  copy <- ptr_resolve_ui_text(
+    "control",
+    keyword = node$keyword,
+    layer_name = layer_name,
+    param = node$param,
+    ui_text = ui_text,
+    placeholders = placeholders
+  )
+  entry <- ptr_registry_v2_lookup(node$keyword)
+  if (is.null(entry) || is.null(entry$build_ui)) {
+    rlang::abort(paste0(
+      "No `build_ui` hook registered for placeholder `", node$keyword, "`."
+    ))
+  }
+  entry$build_ui(rendered_node, label = copy$label, ...)
+}
+
+# ---- ptr_layer panel scaffolding ----
+
+#' @export
+build_ui_for.ptr_layer <- function(node,
+                                    cols_map = list(),
+                                    ui_text = NULL,
+                                    placeholders = NULL,
+                                    ns_fn = identity,
+                                    checkbox_defaults = NULL,
+                                    shell_copy = NULL,
+                                    ...) {
+  layer_name <- node$name
+  pipeline_phs <- find_layer_placeholders(node$data_arg)
+  control_phs  <- find_layer_placeholders(node$children)
+
+  pipeline_ui <- lapply(pipeline_phs, function(ph) {
+    cols <- cols_map[[ph$id %||% ""]] %||% character()
+    build_ui_for(ph, cols = cols, ui_text = ui_text,
+                 placeholders = placeholders, layer_name = layer_name,
+                 ns_fn = ns_fn)
+  })
+  control_ui <- lapply(control_phs, function(ph) {
+    cols <- cols_map[[ph$id %||% ""]] %||% character()
+    build_ui_for(ph, cols = cols, ui_text = ui_text,
+                 placeholders = placeholders, layer_name = layer_name,
+                 ns_fn = ns_fn)
+  })
+  pipeline_ui <- pipeline_ui[!vapply(pipeline_ui, is.null, logical(1))]
+  control_ui  <- control_ui[!vapply(control_ui, is.null, logical(1))]
+
+  update_button <- if (!is.null(node$update_data_input_id)) {
+    shell_copy <- shell_copy %||% layer_panel_default_shell_copy(ui_text)
+    shiny::actionButton(
+      ns_fn(node$update_data_input_id),
+      label = shell_copy$update_data_label %||% "Update Data"
+    )
+  } else NULL
+
+  data_label     <- (shell_copy %||% layer_panel_default_shell_copy(ui_text))$data_subtab_label %||% "Data"
+  controls_label <- (shell_copy %||% layer_panel_default_shell_copy(ui_text))$controls_subtab_label %||% "Controls"
+
+  inner <- layer_panel_inner(
+    pipeline_ui = pipeline_ui,
+    control_ui = control_ui,
+    update_button = update_button,
+    data_label = data_label,
+    controls_label = controls_label
+  )
+
+  default_on <- resolve_layer_default(layer_name, checkbox_defaults,
+                                      node$default_active)
+
+  content_div <- shiny::div(
+    id = ns_fn(layer_panel_content_id(layer_name)),
+    class = if (default_on) "ptr-layer-content" else "ptr-layer-content ptr-layer-disabled",
+    inner
+  )
+
+  body <- if (is.null(node$active_input_id)) {
+    list(content_div)
+  } else {
+    list(
+      shiny::checkboxInput(
+        ns_fn(node$active_input_id),
+        label = (shell_copy %||% layer_panel_default_shell_copy(ui_text))$layer_checkbox_label %||% layer_name,
+        value = default_on
+      ),
+      content_div
+    )
+  }
+  do.call(shiny::tabPanel, c(list(layer_name), body))
+}
+
+# Walk a typed-tree subtree and return every node where `pred(node)` is TRUE,
+# in pre-order. The `upstream` field is skipped because it is a metadata
+# pointer at a (possibly shared) subtree elsewhere in the AST and recursing
+# into it would double-count nodes.
+find_nodes <- function(node, pred) {
+  out <- list()
+  visit <- function(x) {
+    if (is_ptr_node(x)) {
+      if (pred(x)) out[[length(out) + 1L]] <<- x
+      for (nm in names(x)) {
+        if (identical(nm, "upstream")) next
+        visit(x[[nm]])
+      }
+    } else if (is.list(x)) {
+      for (el in x) visit(el)
+    }
+  }
+  visit(node)
+  out
+}
+
+# Recurse into a typed-tree subtree (or a list of children) and return every
+# placeholder node encountered, in formula order.
+find_layer_placeholders <- function(x) {
+  out <- list()
+  visit <- function(n) {
+    if (is.null(n)) return()
+    if (is_ptr_placeholder(n)) {
+      out[[length(out) + 1L]] <<- n
+      return()
+    }
+    if (is_ptr_node(n)) {
+      for (nm in names(n)) {
+        if (nm %in% c("upstream")) next
+        visit(n[[nm]])
+      }
+    } else if (is.list(n)) {
+      for (el in n) visit(el)
+    }
+  }
+  visit(x)
+  out
+}
+
+layer_panel_inner <- function(pipeline_ui, control_ui, update_button,
+                               data_label, controls_label) {
+  has_pipeline <- length(pipeline_ui) > 0L
+  has_controls <- length(control_ui) > 0L
+
+  data_panel_body <- if (has_pipeline) {
+    c(unname(pipeline_ui),
+      if (!is.null(update_button)) list(update_button) else list())
+  } else NULL
+
+  if (has_pipeline && has_controls) {
+    do.call(shiny::tabsetPanel, list(
+      do.call(shiny::tabPanel, c(data_label, data_panel_body)),
+      do.call(shiny::tabPanel, c(controls_label, unname(control_ui)))
+    ))
+  } else if (has_pipeline) {
+    do.call(shiny::tabsetPanel, list(
+      do.call(shiny::tabPanel, c(data_label, data_panel_body))
+    ))
+  } else if (has_controls) {
+    do.call(shiny::tagList, unname(control_ui))
+  } else {
+    NULL
+  }
+}
+
+layer_panel_content_id <- function(layer_name) {
+  paste0("ptr_layer_content_", layer_name)
+}
+
+resolve_layer_default <- function(layer_name, checkbox_defaults,
+                                   default_active) {
+  if (identical(layer_name, "ggplot")) return(TRUE)
+  if (!is.null(checkbox_defaults) &&
+      layer_name %in% names(checkbox_defaults)) {
+    return(isTRUE(checkbox_defaults[[layer_name]]))
+  }
+  isTRUE(default_active %||% TRUE)
+}
+
+layer_panel_default_shell_copy <- function(ui_text) {
+  list(
+    data_subtab_label = ptr_resolve_ui_text("data_subtab", ui_text = ui_text)$label,
+    controls_subtab_label = ptr_resolve_ui_text("controls_subtab", ui_text = ui_text)$label,
+    update_data_label = ptr_resolve_ui_text("update_data_button", ui_text = ui_text)$label,
+    layer_checkbox_label = ptr_resolve_ui_text("layer_checkbox", ui_text = ui_text)$label,
+    layer_picker_label = ptr_resolve_ui_text("layer_picker", ui_text = ui_text)$label
+  )
+}
+
+# ---- internal helper ----
+
+invoke_build_ui <- function(node, ui_text, placeholders, layer_name,
+                            ns_fn, extra, ...) {
+  rendered_node <- node
+  rendered_node$id <- ns_fn(node$id)
+  copy <- ptr_resolve_ui_text(
+    "control",
+    keyword = node$keyword,
+    layer_name = layer_name,
+    param = node$param,
+    ui_text = ui_text,
+    placeholders = placeholders
+  )
+  entry <- ptr_registry_v2_lookup(node$keyword)
+  if (is.null(entry) || is.null(entry$build_ui)) {
+    rlang::abort(paste0(
+      "No `build_ui` hook registered for placeholder `", node$keyword, "`."
+    ))
+  }
+  do.call(entry$build_ui,
+          c(list(rendered_node, label = copy$label), extra, list(...)))
+}
