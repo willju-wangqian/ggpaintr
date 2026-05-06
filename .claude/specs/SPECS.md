@@ -12,4 +12,5 @@ Reference material lives elsewhere:
 
 ## Active Decisions
 
+- [core-rewrite](core-rewrite.md) — typed AST + 12 visitor passes; replaces flat-map runtime, splits source/consumer placeholder roles, makes pipes structural (linked BDD: [core-rewrite-bdd.md](core-rewrite-bdd.md))
 - [checkbox-defaults](checkbox-defaults.md) — initial layer-checkbox state via `checkbox_defaults` arg on the 4 formula-taking exported functions
