@@ -751,11 +751,11 @@ This document is the executable behavior surface for the rewrite designed in [co
 
 ## P9 — prune
 
-### P9.1 — Positional missing arg escalates the call
+### P9.1 — Positional missing arg drops via two paths (operator vs non-operator)
 
 - **Given** a `ptr_call` for `filter(year >= ptr_missing())`
 - **When** P9 prunes
-- **Then** `>=` becomes `ptr_missing()` (positional missing in `>=`); then `filter(ptr_missing())` (positional missing) becomes `ptr_missing()`.
+- **Then** `>=` is an operator → operator-escalation path returns `ptr_missing()`. The outer `filter(ptr_missing())` is a non-operator with a positional `ptr_missing` arg → relaxed P9 drops the arg → `filter()` empty. Because `filter` is NOT in `default_drop_when_empty()`, the empty call survives and renders as `filter()` (eval: identity on `.data`). If the user adds `filter` to `safe_to_remove`, the empty call would drop instead.
 
 ### P9.2 — Named missing arg dropped
 
@@ -787,11 +787,11 @@ This document is the executable behavior surface for the rewrite designed in [co
 - **When** P9 prunes via the public render entry point
 - **Then** the `pcp_theme` layer is dropped.
 
-### P9.7 — Pipeline stage with missing dropped
+### P9.7 — Pipeline stage with positional missing keeps the call empty
 
-- **Given** the formula `"mtcars |> filter(year >= num) |> ggplot(...)"` with `num` unset
+- **Given** the formula `"mtcars |> head(num) |> ggplot(aes(x = mpg))"` with `num` unset
 - **When** P9 prunes
-- **Then** the resulting pipeline is `mtcars |> ggplot(...)`; the `filter` stage is dropped.
+- **Then** the positional `ptr_missing` arg drops from `head`, leaving `head()` empty. `head` is NOT in `default_drop_when_empty()`, so the empty call survives and the pipeline renders as `mtcars |> head() |> ggplot(aes(x = mpg))`. Eval relies on `head`'s default `n = 6`. (Under strict P9 the entire `head(num)` call would have escalated, dropping the stage; that contradicted P12.1 and was relaxed.)
 
 ### P9.8 — Pipeline collapses to single stage when only one remains
 
@@ -821,13 +821,13 @@ This document is the executable behavior surface for the rewrite designed in [co
 
 - **Given** `subset(mtcars, mpg > ptr_missing())`
 - **When** P9 prunes
-- **Then** `>` escalates (positional missing) → `subset(mtcars, ptr_missing())` → named-or-positional? `subset`'s second arg is positional (not named), so escalates → `subset(mtcars)`.
+- **Then** `>` is an operator → operator-escalation path returns `ptr_missing()`. The outer `subset(mtcars, ptr_missing())` is non-operator with a positional `ptr_missing` arg → relaxed P9 drops the arg, leaving `subset(mtcars)` (one arg remaining, call survives).
 
 ### P9.13 — Operator escalation works for unary operators
 
-- **Given** `filter(!ptr_missing())`
+- **Given** the bare unary call `!ptr_missing()`
 - **When** P9 prunes
-- **Then** `!` escalates → `filter(ptr_missing())` → `ptr_missing()`.
+- **Then** `!` is in `pruneable_operator_names` → operator-escalation path returns `ptr_missing()`. (If wrapped as `filter(!ptr_missing())`, the outer `filter(ptr_missing())` would then drop the positional arg under relaxed P9, leaving `filter()` empty — which survives unless `filter` is in `safe_to_remove`.)
 
 ### P9.14 — Layer with `active = FALSE` dropped entirely
 
@@ -869,7 +869,7 @@ This document is the executable behavior surface for the rewrite designed in [co
 
 - **Given** the formula `"... + geom_point(aes(colour = var))"` with `var` unset
 - **When** P9 prunes
-- **Then** the named `colour` arg is dropped from `aes`, leaving `aes()`; `aes` is NOT in default `remove_set` so it survives empty; `geom_point(aes())` survives because `geom_point` is standalone-eligible. Equivalent code: `geom_point(aes())` reduces to `geom_point()` if `aes` IS in remove_set; otherwise `geom_point(aes())` survives.
+- **Then** the named `colour` arg is dropped from `aes`, leaving `aes()` empty. `aes` IS in `default_drop_when_empty()` and is not standalone, so the empty call returns `ptr_missing()` (drop sentinel). The wrapping `geom_point(aes())` is non-operator with a positional `ptr_missing` arg → relaxed P9 drops the arg → `geom_point()` empty. `geom_point` is standalone-eligible, so the layer survives as `geom_point()`.
 
 ### P9.21 — Top-level `theme(plot.title = text)` collapses with text missing
 
@@ -1119,7 +1119,7 @@ This document is the executable behavior surface for the rewrite designed in [co
 
 ---
 
-## G1–G9 cross-cutting commitments
+## G1–G10 cross-cutting commitments
 
 ### G1.1 — `ptr_resolve_checkbox_defaults` NULL → all-TRUE
 
@@ -1185,13 +1185,13 @@ This document is the executable behavior surface for the rewrite designed in [co
 
 - **Given** `mpg > ptr_missing()` after substitution
 - **When** P9 prunes
-- **Then** the call escalates to `ptr_missing()` (operators are calls; positional missing rule applies).
+- **Then** the call escalates to `ptr_missing()` via the operator-escalation path (first branch of `prune_walk.ptr_call`; operators in `pruneable_operator_names` always escalate on a missing operand, independent of the relaxed positional-missing rule for non-operators).
 
 ### G2.2 — Inequality inside `subset` collapses upward
 
 - **Given** `subset(mtcars, mpg > ptr_missing())` after substitution
 - **When** P9 prunes
-- **Then** the result equals `subset(mtcars)`; the second positional arg's escalation drops the arg.
+- **Then** `>` operator escalates → second positional arg of `subset` becomes `ptr_missing` → relaxed P9 drops the arg → `subset(mtcars)` survives.
 
 ### G2.3 — Unary operator missing operand escalates
 
@@ -1271,11 +1271,11 @@ This document is the executable behavior surface for the rewrite designed in [co
 - **When** P8 + P9 + P10 run
 - **Then** the rendered code contains `geom_point()` even though `geom_point` could be in `remove_set`.
 
-### G6.1 — Initial seed by trim-to-root
+### G6.1 — Initial seed via relaxed P9
 
 - **Given** app start with the formula `"mtcars |> head(num) |> filter(year > num) |> ggplot(...)"`, no input set
 - **When** P12 initializes
-- **Then** `state$resolved_data[[layer]]` materializes from the pruned pipeline (both verbs dropped) — `mtcars` itself.
+- **Then** under relaxed P9: `head(num)` empty drops the arg → `head()` empty (head NOT in `default_drop_when_empty`) → survives. `year > num` operator escalates → `filter(ptr_missing)` → drop arg → `filter()` empty (filter NOT in `default_drop_when_empty`) → survives. Pipeline = `mtcars |> head() |> filter()`. Eval: `head(mtcars)` (default n = 6), then `filter(.)` (identity), so `state$resolved_data[[layer]]` is a 6-row frame with `mtcars` columns. (The original "both verbs dropped — mtcars itself" reading was the strict-P9 outcome and contradicted P12.1; the relaxed rule supersedes it.)
 
 ### G6.2 — Atomic snapshot success
 
@@ -1324,6 +1324,27 @@ This document is the executable behavior surface for the rewrite designed in [co
 - **Given** the new file layout (`paintr-translate.R`, `paintr-substitute.R`, `paintr-prune.R`, `paintr-render.R`, `paintr-eval.R`, `paintr-registry.R`, `paintr-builtins.R`, `paintr-classify.R`, plus untouched `paintr-app.R`, `paintr-copy.R`, `paintr-options.R`, `paintr-llm.R`)
 - **When** `devtools::document()` and `devtools::check()` run
 - **Then** 0 errors, 0 warnings; NAMESPACE regenerates correctly.
+
+### G10.1 — Drop-when-empty rule (relaxed P9)
+
+- **Given** a `ptr_call` after substitution
+- **When** P9's `prune_walk.ptr_call` runs
+- **Then** the rule has three branches, in order:
+  1. **Operator escalation.** If `bare_call_name(node$fun) %in% pruneable_operator_names` AND any pruned arg is `ptr_missing` → return `ptr_missing()`. Operators always escalate; this is independent of the drop-when-empty list.
+  2. **Drop missing args.** Otherwise, walk args; drop both named-missing and positional-missing args (relaxed P9).
+  3. **Drop-when-empty.** If the call is now zero-arg AND `bare_call_name(node$fun)` is in `remove_set` (= `default_drop_when_empty()` ∪ user `safe_to_remove`) AND `is_standalone(name)` is FALSE → return `ptr_missing()` (the drop sentinel; reuses `ptr_missing` so parent walkers and pipeline-stage filtering compose without protocol changes). Otherwise the empty call survives and renders as `verb()`, relying on the verb's own defaults at eval (e.g. `head()` → 6 rows).
+
+### G10.2 — `default_drop_when_empty` is rename of `default_safe_to_remove`
+
+- **Given** the renamed helper in `R/paintr-utils.R`
+- **When** `ptr_prune` builds `remove_set`
+- **Then** the new name carries the unified semantic ("drop the call when it goes empty"). The old `default_safe_to_remove` symbol persists as a thin alias for legacy callers in `paintr-runtime.R`; the alias is removed at the 4c cutover.
+
+### G10.3 — Empty calls not in the list survive at any nesting depth
+
+- **Given** `head()` empty (after positional-missing drop) inside a pipeline OR as a regular argument
+- **When** P9 prunes
+- **Then** the call survives unchanged (`head` is not in `default_drop_when_empty`). Eval errors from partial-arg calls (e.g. `filter(year)` after a sibling drop) are NOT silently swallowed by prune — they surface via Phase 4a safe wrappers (`ptr_complete_expr_safe_v2`) as user-visible inline errors.
 
 ---
 

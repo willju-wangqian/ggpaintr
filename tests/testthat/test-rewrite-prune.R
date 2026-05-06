@@ -50,14 +50,35 @@ test_that("P9.6 user safe_to_remove extends remove_set", {
   expect_false(any(vapply(p$layers, function(l) l$name == "pcp_theme", logical(1))))
 })
 
-test_that("P9.7 pipeline stage with missing dropped", {
+test_that("P9.7 positional missing in pipeline stage drops the arg, keeps the call", {
+  # Per relaxed P9 (P12.1): empty `num` drops the arg from `head(num)`,
+  # leaving `head()` empty. `head` is NOT in default_drop_when_empty, so the
+  # call survives and renders as-is — eval relies on head's default n = 6.
   r <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = mpg))")
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s)
   ggp <- p$layers[[1]]
-  # data_arg should now be just mtcars (or a 1-stage pipeline)
-  expect_true(is_ptr_literal(ggp$data_arg) ||
-              (is_ptr_pipeline(ggp$data_arg) && length(ggp$data_arg$stages) == 1L))
+  expect_true(is_ptr_pipeline(ggp$data_arg))
+  expect_equal(length(ggp$data_arg$stages), 2L)
+  head_stage <- ggp$data_arg$stages[[2L]]
+  expect_true(is_ptr_call(head_stage))
+  expect_equal(bare_call_name(head_stage$fun), "head")
+  expect_equal(length(head_stage$args), 0L)
+})
+
+test_that("P9.7b empty call IN default_drop_when_empty drops from pipeline", {
+  # `aes` is in default_drop_when_empty. With var empty, `aes(x = var)` becomes
+  # `aes()` empty -> drop sentinel -> the wrapping pipeline-or-arg drops it.
+  r <- ptr_translate("mtcars |> ggplot(aes(x = var))")
+  s <- ptr_substitute(r, input_snapshot = list())
+  p <- ptr_prune(s)
+  ggp <- p$layers[[1]]
+  # data_arg pipeline has just mtcars (single stage -> collapsed to literal),
+  # ggplot's children should not include the empty aes() arg.
+  arg_names <- names(ggp$children) %||% rep_len("", length(ggp$children))
+  expect_false(any(vapply(ggp$children, function(c) {
+    is_ptr_call(c) && identical(bare_call_name(c$fun), "aes")
+  }, logical(1))))
 })
 
 test_that("P9.8 pipeline collapses to single stage when only one remains", {

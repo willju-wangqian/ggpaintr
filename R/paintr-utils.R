@@ -568,7 +568,7 @@ ptr_can_stand_alone <- function(fn_name) {
 #'
 #' @return A character vector of bare function names.
 #' @noRd
-default_safe_to_remove <- function() {
+default_drop_when_empty <- function() {
   c(
     "theme", "labs", "xlab", "ylab", "ggtitle",
     "facet_wrap", "facet_grid", "facet_null",
@@ -580,6 +580,8 @@ default_safe_to_remove <- function() {
     "element_point", "element_polygon", "element_geom"
   )
 }
+
+default_safe_to_remove <- default_drop_when_empty
 
 #' Validate a User-Supplied `safe_to_remove` Vector
 #'

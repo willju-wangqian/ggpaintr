@@ -17,7 +17,7 @@
 
 ptr_prune <- function(node, safe_to_remove = NULL,
                       is_standalone = NULL) {
-  remove_set <- unique(c(default_safe_to_remove(),
+  remove_set <- unique(c(default_drop_when_empty(),
                          validate_safe_to_remove(safe_to_remove)))
   is_standalone <- is_standalone %||% ptr_default_is_standalone
   if (!is.function(is_standalone)) {
@@ -59,27 +59,14 @@ prune_walk.ptr_layer <- function(node, remove_set, is_standalone) {
     arg_names <- names(node$children) %||% rep_len("", length(node$children))
     new_children <- list()
     new_names <- character()
-    positional_missing <- FALSE
     for (i in seq_along(node$children)) {
       pruned <- prune_walk(node$children[[i]], remove_set, is_standalone)
-      if (is_ptr_missing(pruned)) {
-        if (!nzchar(arg_names[i])) {
-          positional_missing <- TRUE
-          break
-        }
-        next
-      }
+      if (is_ptr_missing(pruned)) next
       new_children[[length(new_children) + 1L]] <- pruned
       new_names <- c(new_names, arg_names[i])
     }
     names(new_children) <- new_names
     node$children <- new_children
-    if (positional_missing) {
-      if (!is_standalone(node$name) && node$name %in% remove_set) return(NULL)
-      if (!is_standalone(node$name)) return(NULL)
-      # Standalone layer with positional missing in body — strip args.
-      node$children <- list()
-    }
   }
   empty <- length(node$children) == 0L && is.null(node$data_arg)
   if (empty && node$name %in% remove_set && !is_standalone(node$name)) {
@@ -91,22 +78,22 @@ prune_walk.ptr_layer <- function(node, remove_set, is_standalone) {
 #' @export
 prune_walk.ptr_call <- function(node, remove_set, is_standalone) {
   arg_names <- names(node$args) %||% rep_len("", length(node$args))
-  new_args <- list()
-  new_names <- character()
-  for (i in seq_along(node$args)) {
-    pruned <- prune_walk(node$args[[i]], remove_set, is_standalone)
-    if (is_ptr_missing(pruned)) {
-      if (!nzchar(arg_names[i])) {
-        return(ptr_missing())
-      }
-      next
-    }
-    new_args[[length(new_args) + 1L]] <- pruned
-    new_names <- c(new_names, arg_names[i])
-  }
-  names(new_args) <- new_names
-  node$args <- new_args
+  pruned_args <- lapply(node$args, prune_walk,
+                        remove_set = remove_set,
+                        is_standalone = is_standalone)
   bare <- bare_call_name(node$fun)
+  if (!is.null(bare) && bare %in% pruneable_operator_names) {
+    if (any(vapply(pruned_args, is_ptr_missing, logical(1)))) {
+      return(ptr_missing())
+    }
+    names(pruned_args) <- arg_names
+    node$args <- pruned_args
+    return(node)
+  }
+  keep <- !vapply(pruned_args, is_ptr_missing, logical(1))
+  new_args <- pruned_args[keep]
+  names(new_args) <- arg_names[keep]
+  node$args <- new_args
   if (length(new_args) == 0L && !is.null(bare) &&
       bare %in% remove_set && !is_standalone(bare)) {
     return(ptr_missing())

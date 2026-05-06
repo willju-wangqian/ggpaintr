@@ -53,7 +53,7 @@ test_that("ptr_server_state_v2 rejects non-function ns", {
 
 # ---- testServer integration: pipeline observers ----
 
-test_that("P12.1 / G6.1 — initial cache seeded via trim-to-root", {
+test_that("P12.1 — initial cache seeded via trim-to-root", {
   e <- .server_test_env()
   server <- function(input, output, session) {
     session$userData$state <- ptr_server_v2(
@@ -66,9 +66,9 @@ test_that("P12.1 / G6.1 — initial cache seeded via trim-to-root", {
     state <- session$userData$state
     cached <- state$resolved_data[["ggplot"]]()
     expect_s3_class(cached, "data.frame")
-    # Per G6.1 trim-to-root: missing num drops the entire head() stage
-    # (positional missing escalates), leaving `mtcars` itself.
-    expect_equal(nrow(cached), nrow(mtcars))
+    # Per relaxed P9 (P12.1): missing num drops the arg, head() survives empty.
+    # head(mtcars) defaults to n = 6.
+    expect_equal(nrow(cached), 6L)
   })
 })
 

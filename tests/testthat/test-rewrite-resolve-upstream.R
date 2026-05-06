@@ -38,7 +38,10 @@ test_that("placeholder inside pipeline substitutes from snapshot", {
   expect_equal(nrow(result), 3L)
 })
 
-test_that("missing placeholder prunes pipeline stage (G6.1 trim-to-root)", {
+test_that("missing positional placeholder drops arg but keeps the call (P12.1)", {
+  # Per relaxed P9: empty `num` drops the arg from `head(num)`, leaving
+  # `head()` empty. head() at eval uses its default n = 6, so the upstream
+  # data has 6 rows.
   tree <- ptr_translate("mtcars |> head(num) |> ggplot()")
   data_arg <- tree$layers[[1L]]$data_arg
   result <- ptr_resolve_upstream(
@@ -47,8 +50,7 @@ test_that("missing placeholder prunes pipeline stage (G6.1 trim-to-root)", {
     eval_env = .test_env()
   )
   expect_s3_class(result, "data.frame")
-  # head() default is 6 rows; with num missing, head stage drops, leaving mtcars
-  expect_equal(nrow(result), nrow(mtcars))
+  expect_equal(nrow(result), 6L)
 })
 
 test_that("entire pipeline pruning to missing returns NULL", {

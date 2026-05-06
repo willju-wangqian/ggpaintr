@@ -33,13 +33,14 @@ test_that("P10.5 mixed pipe chain preserves both ops", {
   expect_match(txt, "mtcars %>% head\\(2\\) \\|> ggplot")
 })
 
-test_that("P10.6 chained pipe drops middle-link arg when placeholder empty", {
+test_that("P10.6 chained pipe keeps middle-link call empty when placeholder empty", {
+  # Per relaxed P9 (P12.1): empty num drops the arg, head() survives empty
+  # and renders. Eval relies on head's default n = 6.
   r <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = mpg))")
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s)
   txt <- ptr_render(p)
-  expect_match(txt, "mtcars \\|> ggplot")
-  expect_false(grepl("head", txt, fixed = TRUE))
+  expect_match(txt, "mtcars \\|> head\\(\\) \\|> ggplot")
 })
 
 test_that("P10.7 pkg::fn heads preserved", {
