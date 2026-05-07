@@ -133,11 +133,15 @@ test_that("P8.13 var aborts on column not in upstream", {
 })
 
 test_that("P8.14 var aborts on multiple selected columns", {
+  # Arity is now policed by `var`'s own resolve_expr (the framework no
+  # longer rejects multi-value consumer inputs — that allowed legacy
+  # multi-column patterns like a `colvars` selectInput to resolve to
+  # `c(...)`).
   r <- ptr_translate("ggplot(mtcars, aes(x = var))")
   id <- .id_of(r, "var")
   expect_error(
     ptr_substitute(r, input_snapshot = setNames(list(c("mpg", "hp")), id)),
-    "multiple"
+    "single column name"
   )
 })
 

@@ -97,12 +97,10 @@ substitute_walk.ptr_ph_data_consumer <- function(node, ctx) {
     return(ptr_missing())
   }
   if (is_missing_value_input(node, value)) return(ptr_missing())
-  if (length(value) > 1L) {
-    rlang::abort(paste0(
-      "Placeholder `", node$keyword, "` (id=", node$id %||% "?",
-      ") got multiple values; expected exactly one."
-    ))
-  }
+  # Arity is the placeholder's responsibility: built-in `var` rejects
+  # length != 1 in its `validate_input`; custom multi-column consumers
+  # (e.g. a `colvars` selectInput with multiple = TRUE) accept vectors
+  # and emit `c(...)` from `resolve_expr`.
   entry <- ptr_registry_lookup(node$keyword)
   if (!is.null(entry$validate_input)) {
     cols <- ctx$upstream_cols[[node$id %||% ""]]
