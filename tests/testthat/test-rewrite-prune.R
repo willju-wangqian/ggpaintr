@@ -171,3 +171,15 @@ test_that("P9.22 top-level standalone geom_point() survives even when in remove_
   layer_names <- vapply(p$layers, function(l) l$name, character(1))
   expect_true("geom_point" %in% layer_names)
 })
+
+test_that("P9.17 depth limit triggers abort", {
+  # Build a hand-rolled 105-deep typed AST of nested ptr_call nodes that
+  # bypasses translate (otherwise P1/P5's depth caps would catch it first).
+  # ptr_prune's pre-walk guard mirrors the depth=100 contract used by
+  # check_translate_depth (P1) and validate_expr_safety (P5).
+  inner <- ptr_literal(quote(x))
+  for (i in seq_len(110)) {
+    inner <- ptr_call(rlang::sym("f"), list(inner), expr = NULL)
+  }
+  expect_error(ptr_prune(inner), "depth")
+})

@@ -23,6 +23,7 @@ ptr_prune <- function(node, safe_to_remove = NULL,
   if (!is.function(is_standalone)) {
     rlang::abort("`is_standalone` must be a function (name -> logical) or NULL.")
   }
+  check_prune_depth(node)
   prune_walk(node, remove_set = remove_set, is_standalone = is_standalone)
 }
 
@@ -153,4 +154,22 @@ bare_call_name <- function(fun) {
     }
   }
   NULL
+}
+
+
+# Depth-limit guard mirroring P1 translate / P5 safety. Defends `ptr_prune`'s
+# public entry point against pathologically nested hand-built typed ASTs that
+# bypass translate (where parse + check_translate_depth would have caught it).
+check_prune_depth <- function(node, max_depth = 100L, .depth = 0L) {
+  if (.depth > max_depth) {
+    rlang::abort(paste0(
+      "Prune walk exceeds maximum depth (", max_depth, ")."
+    ))
+  }
+  if (is.list(node)) {
+    for (i in seq_along(node)) {
+      check_prune_depth(node[[i]], max_depth = max_depth, .depth = .depth + 1L)
+    }
+  }
+  invisible(NULL)
 }
