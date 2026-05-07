@@ -55,9 +55,44 @@ render_pipeline_body <- function(node) {
 
 #' @export
 render_walk.ptr_call <- function(node) {
+  if (is.symbol(node$fun)) {
+    name <- as.character(node$fun)
+    arg_names <- names(node$args) %||% rep_len("", length(node$args))
+    all_unnamed <- !any(nzchar(arg_names))
+    if (all_unnamed && length(node$args) == 2L && is_binary_infix_op(name)) {
+      lhs <- render_binary_operand(node$args[[1]])
+      rhs <- render_binary_operand(node$args[[2]])
+      return(paste0(lhs, " ", name, " ", rhs))
+    }
+    if (all_unnamed && length(node$args) == 1L &&
+        name %in% c("-", "+", "!")) {
+      return(paste0(name, render_binary_operand(node$args[[1]])))
+    }
+  }
   head_text <- call_head_text(node$fun)
   args_text <- render_arg_list(node$args)
   paste0(head_text, "(", args_text, ")")
+}
+
+# Built-in binary infix operators plus any user-defined %xxx% form.
+is_binary_infix_op <- function(name) {
+  if (name %in% c("+", "-", "*", "/", "^", "%%", "%/%",
+                  "==", "!=", "<", ">", "<=", ">=",
+                  "&", "|", "&&", "||",
+                  ":", "%in%")) return(TRUE)
+  grepl("^%[^%]*%$", name)
+}
+
+# Conservative parenthesisation: wrap an operand if it is itself a binary
+# infix call. Over-parenthesises in some cases (e.g. `(a + b) + c`) but is
+# always semantically correct without a precedence table.
+render_binary_operand <- function(arg) {
+  txt <- render_walk(arg)
+  if (inherits(arg, "ptr_call") && is.symbol(arg$fun) &&
+      is_binary_infix_op(as.character(arg$fun))) {
+    return(paste0("(", txt, ")"))
+  }
+  txt
 }
 
 render_arg_list <- function(args) {

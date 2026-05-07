@@ -102,17 +102,83 @@ ptr_app(
   "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
 )
 
-# 11. Custom placeholder via the new three-constructor API.
+# 11. Custom placeholder via the three-constructor API.
+#
+# Hook contract (rewrite, post-cutover):
+#   value role:    build_ui(node, label = NULL, ...)            -> id is node$id
+#                  resolve_expr(value, node, ...)               -> scalar/expr/NULL
+#   consumer role: build_ui(node, cols, label = NULL,
+#                           selected = character(0), ...)        -> id is node$id;
+#                                                                   cols is the
+#                                                                   upstream column
+#                                                                   name vector
+#                  resolve_expr(value, node, ...)               -> single-valued
+#                                                                   (length(value)>1
+#                                                                   is rejected by
+#                                                                   substitute_walk)
+#                  validate_input(value, upstream_cols)          -> TRUE or msg
+#   source role:   build_ui(node, label = NULL, ...)            -> id is node$id;
+#                                                                   companion via
+#                                                                   node$companion_id
+#                  resolve_data(value, node, ...)               -> data.frame
+#
+# Returning NULL from resolve_expr is how a placeholder declares "missing"
+# at runtime so the argument drops out of the generated code (matches the
+# legacy ptr_missing_expr() role).
+
+# 11a. Non-data-aware value placeholder -- pct slider mapped to alpha.
 ptr_define_placeholder_value(
   keyword     = "pct",
-  build_ui    = function(node, id, label, ...) {
-    sliderInput(id, label = label, min = 0, max = 100, value = 50)
+  build_ui    = function(node, label = NULL, ...) {
+    sliderInput(node$id, label = label %||% "Percent",
+                min = 0, max = 100, value = 50)
   },
   resolve_expr = function(value, node, ...) value / 100,
   copy_defaults = list(label = "Pick a percentage for {param}")
 )
 ptr_app(
   "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point(alpha = pct)"
+)
+
+# 11b. Data-aware consumer placeholder -- a vanilla selectInput drop-in
+#      replacement for `var`. `cols` is the resolved upstream column-name
+#      vector (passed automatically by ptr_setup_consumer_uis); `selected`
+#      survives renderUI re-fires so the user's pick is preserved across
+#      stage toggles and Update Data clicks.
+ptr_define_placeholder_consumer(
+  keyword = "dropvar",
+  build_ui = function(node, cols = character(), label = NULL,
+                      selected = character(0), ...) {
+    selectInput(
+      node$id, label = label %||% "Pick a column",
+      choices = c("", cols),
+      selected = if (length(selected)) selected[1] else ""
+    )
+  },
+  resolve_expr = function(value, node, ...) {
+    if (!is.character(value) || length(value) != 1L || !nzchar(value)) {
+      return(NULL)
+    }
+    rlang::sym(value)
+  },
+  copy_defaults = list(label = "Column for {param}")
+)
+ptr_app(
+  "ggplot(data = mtcars, aes(x = dropvar, y = dropvar)) + geom_point()"
+)
+
+# 11c. Custom data-aware placeholder + multi-stage pipeline + multi-layer.
+#      Pipeline: subset() -> head(num); aes uses the custom dropvar;
+#      geom_point/geom_smooth/labs each consume different built-ins.
+#      Exercises every join-point: stage_enabled checkbox, Update Data
+#      atomic snapshot, layer checkbox, custom consumer picker, and the
+#      P5 re-walk on resolve_expr returning a symbol.
+ptr_app(
+  "iris |> subset(Species == text) |> head(num) |>
+     ggplot(aes(x = dropvar, y = dropvar, color = dropvar)) +
+     geom_point(size = num) +
+     geom_smooth(method = expr) +
+     labs(title = text)"
 )
 
 # 12. ui_text overrides -- every label and the title are user-customizable.
@@ -207,8 +273,15 @@ shiny::testServer(function(input, output, session) {
 #   untouched.
 # - (10) Upload a CSV with reserved-word column names (`if`, `NULL`,
 #   `TRUE`) and watch the var dropdowns still work (P11.5 normalization).
-# - (11) The registered `pct` placeholder picks up the `{param}`
+# - (11a) The registered `pct` placeholder picks up the `{param}`
 #   interpolation in copy automatically.
+# - (11b) `dropvar` mirrors the builtin `var` but with a vanilla
+#   selectInput. Watch the `selected` argument: the choice is preserved
+#   across renderUI re-fires (toggle a layer off/on, re-pick the column,
+#   confirm the picker doesn't snap back to the first option).
+# - (11c) Toggle the head() stage checkbox -- the layers downstream
+#   refresh; click Update Data to commit the snapshot. dropvar in `color`
+#   exercises the consumer picker through aes() inside a non-ggplot layer.
 # - (15) Moving the shared slider invalidates both plots' state in one
 #   user action -- no per-plot button-clicks needed.
 # - (16) Clicking "Toggle log-scale" repeatedly demonstrates that
