@@ -55,3 +55,40 @@ test_that("P3 bare-symbol placeholders pass through unchanged", {
   # Bare-symbol id is the raw layer-encoded id, NOT prefixed with "shared_".
   expect_false(startsWith(consumers[[1]]$id, "shared_"))
 })
+
+# ---- P3.6+ — ptr_validate_shared_bindings + runtime fallback ----
+
+test_that("P3.6 missing shared binding falls back to ptr_missing at substitute", {
+  # Formula carries `shared = "axis"` but caller supplies no matching
+  # entry in shared_bindings → P8 should treat the placeholder as missing.
+  r <- ptr_translate(
+    'ggplot(mtcars, aes(x = var(shared = "axis"))) + geom_point()'
+  )
+  s <- ptr_substitute(r, input_snapshot = list(), shared_bindings = list())
+  missings <- find_nodes(s, is_ptr_missing)
+  expect_gte(length(missings), 1L)
+})
+
+test_that("P3.7 ptr_validate_shared_bindings accepts NULL and empty list", {
+  expect_identical(ptr_validate_shared_bindings(NULL), list())
+  expect_identical(ptr_validate_shared_bindings(list()), list())
+})
+
+test_that("P3.8 ptr_validate_shared_bindings rejects non-list", {
+  expect_error(ptr_validate_shared_bindings("not-a-list"), "list")
+})
+
+test_that("P3.9 ptr_validate_shared_bindings requires names", {
+  unnamed <- list(shiny::reactive(1), shiny::reactive(2))
+  expect_error(ptr_validate_shared_bindings(unnamed), "name")
+})
+
+test_that("P3.10 ptr_validate_shared_bindings rejects duplicate names", {
+  dup <- list(a = shiny::reactive(1), a = shiny::reactive(2))
+  expect_error(ptr_validate_shared_bindings(dup), "duplicate|unique")
+})
+
+test_that("P3.11 ptr_validate_shared_bindings rejects non-reactive values", {
+  bad <- list(a = 1, b = "two")
+  expect_error(ptr_validate_shared_bindings(bad), "reactive")
+})
