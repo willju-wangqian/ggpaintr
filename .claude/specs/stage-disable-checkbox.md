@@ -168,8 +168,8 @@ Deferred to a follow-up UI iteration; not blocking the gate-2 functionality:
 
 ### BDD (`core-rewrite-bdd.md`)
 
-- [ ] New §G11 (or §P13) "Stage-Disable Checkbox — Gate-2 Runtime Safety Valve" capturing: predicate scope, recursion rule, disable-strip semantics, immediate-vs-Update-Plot timing, coexistence with `default_drop_when_empty` and layer-toggle, edge cases (empty pipeline, all stages disabled, leftmost-stage strip, single-call data_arg).
-- [ ] Cross-link to `p9-relax.md` "Forward Compatibility" section (gate 1 vs gate 2 framing).
+- [x] New §G11 "Stage-Disable Checkbox — Gate-2 Runtime Safety Valve" capturing: predicate scope, recursion rule, disable-strip semantics, immediate-vs-Update-Plot timing, coexistence with `default_drop_when_empty` and layer-toggle, edge cases (empty pipeline, all stages disabled, leftmost-stage strip, single-call data_arg).
+- [x] Cross-link to `p9-relax.md` "Forward Compatibility" section (gate 1 vs gate 2 framing).
 
 ### Verification
 

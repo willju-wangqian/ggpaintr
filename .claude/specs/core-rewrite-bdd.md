@@ -1348,6 +1348,114 @@ This document is the executable behavior surface for the rewrite designed in [co
 
 ---
 
+## G11 — stage-disable checkbox (gate-2 runtime safety valve)
+
+Per `.claude/specs/stage-disable-checkbox.md`. P9 relax (§G10.1) is gate 1: empty placeholders auto-drop their arg. G11 covers gate 2: a per-call user-toggleable checkbox that strips a still-erroring stage from the data flow before substitute. The two gates handle disjoint failure modes — see `.claude/specs/p9-relax.md` "Forward Compatibility" for the framing.
+
+### G11.1 — `is_data_chain_call` predicate scope
+
+- **Given** a typed AST
+- **When** `assign_stage_ids` walks
+- **Then** a `ptr_call` node receives a `stage_id` iff (a) it sits in a "data-arg position" (a layer's `data_arg`, OR a pipeline stage at any k ≥ 1 where the stage itself is a call, OR the data-arg position of an enclosing qualifying `ptr_call` — defined as the arg named `data` or `.data`, OR the first positional arg if no such name is bound) AND (b) its subtree contains ≥ 1 `ptr_ph_*` node.
+
+### G11.2 — Mechanical recursion through nested data-arg position
+
+- **Given** `geom_point(data = filter(head(mtcars, num1), num2))`
+- **When** `assign_stage_ids` walks
+- **Then** both `filter(...)` and `head(...)` get a `stage_id` (recursion through the `data` arg of `filter` reaches `head`); no verb-list gate is consulted — recursion is purely structural through the data-arg position.
+
+### G11.3 — Bare-data stages and predicate args do not qualify
+
+- **Given** a pipeline `mtcars |> filter(num)` and a layer `geom_point(data = mtcars)`
+- **When** `assign_stage_ids` walks
+- **Then** `mtcars` (a bare symbol) gets no `stage_id` (predicate (a) requires a `ptr_call`); `num` inside `filter(num)` is not eligible either (it is a predicate, not a data-arg position; the placeholder lives in the predicate). The `filter` call itself qualifies — its subtree contains the placeholder and it sits at pipeline stage k=2.
+
+### G11.4 — Stage k ≥ 2 disable drops the stage wholesale
+
+- **Given** a pipeline `mtcars |> filter(num) |> select(mpg, var)` with `filter`'s `stage_id` set to FALSE
+- **When** `disable_walk` runs
+- **Then** the entire `filter(...)` stage is removed from the pipeline's `stages` list, leaving `mtcars |> select(mpg, var)`. The first positional arg of stage k ≥ 2 is a predicate (not data) — replacing the call with that arg would inject a predicate where a stage belongs. Dropping wholesale is the only correct rewrite for pipeline form.
+
+### G11.5 — Stage k = 1 disable replaces with data-arg child
+
+- **Given** `filter(head(mtcars, num1), num2) |> mutate(num3)` with the outer `filter` (stage k = 1) disabled
+- **When** `disable_walk` runs
+- **Then** the call is replaced with its data-arg child (the first positional arg, `head(mtcars, num1)`), yielding `head(mtcars, num1) |> mutate(num3)`. Stage 1 IS the data source — its first positional arg IS data, identical to the non-pipeline single-call case.
+
+### G11.6 — Nested non-pipeline call: outer disable exposes inner
+
+- **Given** `geom_point(data = filter(head(mtcars, num1), num2))` with `filter`'s `stage_id` set to FALSE
+- **When** `disable_walk` runs
+- **Then** the layer's `data_arg` becomes `head(mtcars, num1)` — `filter` is replaced with its data-arg child. `head`'s `stage_id` (still TRUE) is preserved.
+
+### G11.7 — Nested call: both disabled collapses to bare data
+
+- **Given** the same tree with both `filter` and `head` disabled
+- **When** `disable_walk` runs
+- **Then** the layer's `data_arg` becomes the bare `mtcars` symbol — recursion bottoms out at the innermost data-arg child.
+
+### G11.8 — Single-call data_arg disable yields ptr_missing when no data-arg child
+
+- **Given** a layer `geom_point(data = my_summarize(num))` whose stage has no data-arg child (no named `data`/`.data`, no positional first arg of the right shape)
+- **When** the single call is disabled
+- **Then** `disable_walk` returns `ptr_missing()` for that node. P9 prune then drops the layer's `data_arg`, falling back to ggplot inheritance.
+
+### G11.9 — Empty `stage_enabled` is identity
+
+- **Given** any tree and `stage_enabled = list()` (or `setNames(rep(TRUE, n), all_stage_ids)`)
+- **When** `disable_walk` runs
+- **Then** the tree is returned structurally identical — no stage drops, no replacement.
+
+### G11.10 — Leftmost-stage drop preserves pipeline tail
+
+- **Given** `head(mtcars, num) |> filter(var > 0) |> ggplot(...)` with stage 1 (`head`) disabled
+- **When** `disable_walk` runs
+- **Then** the pipeline's first stage becomes the surviving call's data-arg child (`mtcars`), yielding `mtcars |> filter(var > 0) |> ggplot(...)`. The pipeline as a whole survives because k = 1's "replace with data-arg child" rewrite supplies the new leftmost stage.
+
+### G11.11 — All stages disabled in a pipeline collapses upstream to ptr_missing
+
+- **Given** `mtcars |> head(num) |> filter(var > 0)` with every `stage_id` FALSE
+- **When** `disable_walk` then P9 prune run
+- **Then** the pipeline's stages list is empty post-disable; P9's pipeline-zero-stages rule converts it to `ptr_missing()`. Downstream substitute / eval handle it like any other empty upstream.
+
+### G11.12 — Apply timing: dropdowns immediate, plot waits for Update Plot
+
+- **Given** the user toggles a stage checkbox while the app runs
+- **When** the checkbox observer fires
+- **Then** `state$stage_enabled` invalidates immediately; per-position upstreams (`var` choices) refresh; the layer panel re-renders with the disabled stage's placeholder UI greyed via the existing `ptr-layer-disabled` class. The plot itself is **not** re-rendered until the user clicks Update Plot — same gate as live placeholder edits in the new model.
+
+### G11.13 — Cache invalidation is automatic
+
+- **Given** a previously-cached `ptr_resolve_upstream` result for a subtree
+- **When** a stage in that subtree is toggled
+- **Then** the cache key (deparse of the post-substitute expression) differs because `disable_walk` runs *before* substitute — the substituted expression text changes naturally, so the cache misses without any explicit invalidation step.
+
+### G11.14 — Coexistence with `default_drop_when_empty`
+
+- **Given** a stage whose call IS in `default_drop_when_empty` (e.g. `head`) AND whose placeholder is empty AND whose `stage_enabled` is TRUE
+- **When** the resolve pipeline runs
+- **Then** gate 1 (P9 relax) handles the empty-arg case automatically (positional drop, leaving `head()`). The checkbox remains visible regardless. The two gates are independent: gate 1 drops the *arg*; gate 2 drops the *stage*. Membership in `default_drop_when_empty` does NOT suppress the checkbox.
+
+### G11.15 — Coexistence with layer-toggle
+
+- **Given** a layer with `default_active = TRUE` containing a stage with `stage_id` set, and the user has toggled the layer OFF
+- **When** the layer is disabled at the layer level
+- **Then** the stage-checkbox state is preserved in `state$stage_enabled` but irrelevant — the whole layer is dropped by P9. When the user re-enables the layer, the stage-checkbox state reapplies. No grey-out cascade between the two checkboxes (matches the existing pattern for `var` placeholders inside disabled layers).
+
+### G11.16 — Stage-id reconciliation across re-translate
+
+- **Given** the user edits the formula such that some stages persist structurally and others vanish
+- **When** translate runs and `reconcile_stage_enabled(state$stage_enabled(), new_tree)` fires
+- **Then** new ids default TRUE; surviving ids carry forward their TRUE/FALSE state; vanished ids drop. P4's stage-id derivation (`<layer_name>+<index-path>+stage_enabled`) makes "structural edits reset, value edits don't" consistent with placeholder-id semantics.
+
+### G11.17 — Input-spec emits stage_enabled rows
+
+- **Given** a tree with N calls carrying `stage_id`
+- **When** `ptr_runtime_input_spec_v2` builds the spec
+- **Then** the spec contains one row per `stage_id` with `role = "stage_enabled"`, populating the same columns as placeholder rows (`input_id`, `role`, `layer_name`, `keyword`, `param_key`, `source_id`, `shared`).
+
+---
+
 ## End-to-end scenarios (multiple passes)
 
 ### E1. Upload + var cascade
