@@ -80,6 +80,27 @@ test_that("P10.11 code text reflects snapshotted values when supplied", {
   expect_false(grepl("head(num)", txt, fixed = TRUE))
 })
 
+test_that("P10.12 code text falls back to live input when no snapshot", {
+  # The "snapshot" passed to ptr_substitute IS the live-input projection at
+  # the caller boundary (server.R wires reactiveValuesToList(input) as the
+  # snapshot). This test exercises both halves of the contract:
+  #   (a) live input "num = 5" → code text contains head(5)
+  #   (b) no snapshot at all → the placeholder is missing → P9 drops the
+  #       arg and the code text shows the empty-form head().
+  r <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = mpg))")
+  num_id <- find_nodes(r,
+                       function(x) is_ptr_placeholder(x) && x$keyword == "num")[[1]]$id
+
+  txt_live <- ptr_render(ptr_prune(
+    ptr_substitute(r, input_snapshot = stats::setNames(list(5), num_id))
+  ))
+  expect_match(txt_live, "head\\(5\\)")
+
+  txt_none <- ptr_render(ptr_prune(ptr_substitute(r, input_snapshot = list())))
+  expect_match(txt_none, "head\\(\\)")
+  expect_false(grepl("head(num)", txt_none, fixed = TRUE))
+})
+
 test_that("P10.13 nested data = ... pipe round-trips with inner pipeline", {
   r <- ptr_translate("ggplot(data = mtcars |> filter(num > 0))")
   s <- ptr_substitute(r, input_snapshot = list())
