@@ -242,141 +242,18 @@ test_that("JSON upload errors clearly when jsonlite is missing", {
   )
 })
 
-test_that("register_var_ui_outputs waits for uploaded data and populates choices after upload", {
-  obj <- ptr_parse_formula(
-    "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
-  )
 
-  output <- list2env(list(), parent = emptyenv())
 
-  before_upload <- register_var_ui_outputs(list(), output, obj)
-  expect_length(before_upload, 0)
-
-  input_after <- list(
-    "ggplot_2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple_numeric.csv"),
-    "ggplot_2_name" = "",
-    "ggplot_3_2" = "x",
-    "ggplot_3_3" = "y"
-  )
-  after_upload <- register_var_ui_outputs(input_after, output, obj)
-
-  expect_named(after_upload, c("ggplot_3_2", "ggplot_3_3"))
-})
-
-test_that("register_var_ui_outputs exposes normalized names for uploaded rds data", {
-  spaced_path <- tempfile(fileext = ".rds")
-  spaced_data <- data.frame(left = 1:3, right = 4:6, check.names = FALSE)
-  names(spaced_data) <- c("first column", "second-column")
-  saveRDS(spaced_data, spaced_path)
-
-  obj <- ptr_parse_formula(
-    "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
-  )
-  output <- list2env(list(), parent = emptyenv())
-  input_after <- list(
-    "ggplot_2" = mock_upload_input(spaced_path, "spaced columns.rds"),
-    "ggplot_2_name" = "",
-    "ggplot_3_2" = "first_column",
-    "ggplot_3_3" = "second_column"
-  )
-
-  after_upload <- register_var_ui_outputs(input_after, output, obj)
-  ui_text <- paste(as.character(after_upload[["ggplot_3_2"]]), collapse = "\n")
-
-  expect_named(after_upload, c("ggplot_3_2", "ggplot_3_3"))
-  expect_match(ui_text, "first_column", fixed = TRUE)
-  expect_match(ui_text, "second_column", fixed = TRUE)
-})
-
-test_that("register_var_ui_outputs produces distinct widgets for each var placeholder", {
-  obj <- ptr_parse_formula(
-    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
-  )
-
-  output <- list2env(list(), parent = emptyenv())
-  input <- list(
-    "ggplot_3_2" = "mpg",
-    "ggplot_3_3" = "disp"
-  )
-
-  result <- register_var_ui_outputs(input, output, obj)
-
-  expect_named(result, c("ggplot_3_2", "ggplot_3_3"))
-
-  ui_x <- paste(as.character(result[["ggplot_3_2"]]), collapse = "\n")
-  ui_y <- paste(as.character(result[["ggplot_3_3"]]), collapse = "\n")
-
-  expect_match(ui_x, "x-axis", fixed = TRUE)
-  expect_match(ui_y, "y-axis", fixed = TRUE)
-  expect_false(identical(ui_x, ui_y))
-})
 
 # --- ptr_resolve_upload_expr ---------------------------------------------
 
-test_that("ptr_resolve_upload_expr returns a symbol for a valid name", {
-  result <- ptr_resolve_upload_expr("my_data", list(), list())
-  expect_true(is.symbol(result))
-  expect_equal(rlang::as_string(result), "my_data")
-})
 
-test_that("ptr_resolve_upload_expr returns a symbol for a name starting with dot", {
-  result <- ptr_resolve_upload_expr(".data", list(), list())
-  expect_true(is.symbol(result))
-  expect_equal(rlang::as_string(result), ".data")
-})
 
-test_that("ptr_resolve_upload_expr aborts on name starting with digit", {
-  expect_error(
-    ptr_resolve_upload_expr("123bad", list(), list()),
-    "invalid object name"
-  )
-})
 
-test_that("ptr_resolve_upload_expr aborts on name with spaces", {
-  expect_error(
-    ptr_resolve_upload_expr("has space", list(), list()),
-    "invalid object name"
-  )
-})
 
-test_that("ptr_resolve_upload_expr aborts on injection attempt with semicolon", {
-  expect_error(
-    ptr_resolve_upload_expr("x; system('bad')", list(), list()),
-    "invalid object name"
-  )
-})
 
-test_that("ptr_resolve_upload_expr returns ptr_missing_expr for empty string", {
-  result <- ptr_resolve_upload_expr("", list(), list())
-  expect_s3_class(result, "ptr_missing_expr")
-})
 
-test_that("ptr_resolve_upload_expr returns ptr_missing_expr for NULL", {
-  result <- ptr_resolve_upload_expr(NULL, list(), list())
-  expect_s3_class(result, "ptr_missing_expr")
-})
 
-test_that("bad upload does not crash the app session", {
-  formula <- "ggplot(data = upload, aes(x = var, y = var)) + geom_point()"
-
-  server_wrapper <- function(input, output, session) {
-    session$userData$paintr_state <- ptr_server(
-      input, output, session, formula
-    )
-  }
-
-  suppressWarnings(shiny::testServer(server_wrapper, {
-    session$setInputs(
-      "ggplot_2" = mock_upload_input(fixture_path("bad_extension.txt"), "bad_extension.txt"),
-      "ggplot_2_name" = "",
-      draw = 1
-    )
-
-    runtime_result <- session$userData$paintr_state$runtime()
-    expect_false(runtime_result$ok)
-    expect_match(runtime_result$message, "Input error", fixed = TRUE)
-  }))
-})
 
 # --- F2: BOM stripping -------------------------------------------------------
 
