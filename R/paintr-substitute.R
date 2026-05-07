@@ -90,6 +90,12 @@ substitute_walk.ptr_ph_value <- function(node, ctx) {
 #' @export
 substitute_walk.ptr_ph_data_consumer <- function(node, ctx) {
   value <- read_placeholder_value(node, ctx)
+  # Empty-string sentinel from a prepended placeholder choice (e.g. the
+  # var picker's "Pick a column" disabled option) is treated as missing —
+  # the user has not yet chosen a real value.
+  if (is.character(value) && length(value) == 1L && !nzchar(value)) {
+    return(ptr_missing())
+  }
   if (is_missing_value_input(node, value)) return(ptr_missing())
   if (length(value) > 1L) {
     rlang::abort(paste0(

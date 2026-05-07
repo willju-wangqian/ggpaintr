@@ -388,6 +388,15 @@ runtime_upstream_cols <- function(state, snapshot = list()) {
   consumers <- find_nodes(tree, is_ptr_ph_data_consumer)
   for (c in consumers) {
     if (is.null(c$id)) next
+    layer_name <- c$layer_name
+    if (!is.null(layer_name) &&
+        !is.null(state$resolved_data[[layer_name]])) {
+      df <- state$resolved_data[[layer_name]]()
+      if (!is.null(df)) {
+        out[[c$id]] <- names(df)
+        next
+      }
+    }
     df <- ptr_resolve_upstream(
       c$upstream,
       snapshot = snapshot,
@@ -422,21 +431,20 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
   ui_text <- state$effective_ui_text
   placeholders <- state$placeholders
 
-  # Spec L76 + BDD G11.12: consumer dropdowns refresh on live placeholder
-  # edits. The reactive reads `input` directly so any placeholder change
-  # invalidates `cols_memo`; per-position upstream is then re-resolved with
-  # the live snapshot. Plot rendering remains gated separately by
-  # `ptr_setup_runtime`.
+  # `cols_memo` invalidation drives `renderUI`, which rebuilds the consumer
+  # picker DOM and clobbers any user selection (verified in a real browser
+  # session: picking a column reverted to the first choice mid-typing
+  # because the live-snapshot dep flushed cols_memo on every keystroke).
+  # We depend only on state-level reactives that change on stage toggle or
+  # Update Data click, so the picker stays stable while the user types
+  # placeholder values. The empty-snapshot fallback in
+  # runtime_upstream_cols then handles the seam correctly for both literal
+  # data_arg layers and pipeline-data layers (state$resolved_data hit).
   cols_memo <- shiny::reactive({
-    spec <- state$input_spec
-    snapshot <- list()
-    if (nrow(spec) > 0L) {
-      for (i in seq_len(nrow(spec))) {
-        raw_id <- spec$input_id[i]
-        snapshot[[raw_id]] <- input[[ns(raw_id)]]
-      }
-    }
-    runtime_upstream_cols(state, snapshot)
+    state$tree()
+    state$stage_enabled()
+    for (rv in state$resolved_data) rv()
+    runtime_upstream_cols(state, snapshot = list())
   })
 
   consumers <- find_nodes(tree, is_ptr_ph_data_consumer)

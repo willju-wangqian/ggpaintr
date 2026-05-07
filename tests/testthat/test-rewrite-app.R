@@ -75,10 +75,13 @@ test_that("minimal var-using example: pickers populated from literal `data =`", 
   })
 })
 
-test_that("var picker renders with no default selection", {
-  # Regression: shinyWidgets::pickerInput defaulted to the first choice,
-  # so a fresh app launched with `aes(x = mpg, y = mpg)` (var pickers
-  # silently bound to the first column) instead of waiting for the user.
+test_that("var picker uses prepended-disabled-placeholder pattern", {
+  # Empirically (verified in a real browser), shinyWidgets::pickerInput
+  # with `selected = character(0)` still emits the first column as the
+  # input value because the underlying <select> defaults to its first
+  # option. The reliable fix is a prepended <option value=""> placeholder
+  # marked disabled so the user cannot reselect it after picking a real
+  # column; substitute treats "" as missing.
   parts <- ptr_app_components(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
     envir = .app_test_env()
@@ -86,11 +89,11 @@ test_that("var picker renders with no default selection", {
   shiny::testServer(parts$server, {
     session$setInputs(.dummy = 1)
     x_picker <- output$`ggplot_1_1_var_NA_ui`$html
-    # The rendered <select> must not pre-select any option.
-    # `selected="selected"` is the only HTML form for an option default;
-    # `data-none-selected-text=` is unrelated and should be present.
-    expect_false(grepl('selected="selected"', x_picker, fixed = TRUE))
-    expect_match(x_picker, "data-none-selected-text=", fixed = TRUE)
+    # The empty-string placeholder option must be present and disabled.
+    expect_match(x_picker, '<option value=""', fixed = TRUE)
+    expect_match(x_picker, 'disabled="disabled"', fixed = TRUE)
+    # A real column option must NOT be the default selection.
+    expect_false(grepl('value="mpg" selected', x_picker, fixed = TRUE))
   })
 })
 

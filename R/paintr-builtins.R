@@ -77,12 +77,25 @@ ptr_builtin_expr_resolve_expr <- function(value, node, ...) {
 
 ptr_builtin_var_build_ui <- function(node, cols = character(), label = NULL, ...) {
   picker_label <- label %||% "Pick a column"
+  # shinyWidgets::pickerInput with `selected = character(0)` (single-select)
+  # still ships the first <option> as the input value to the server — the
+  # underlying <select> defaults to its first child, and selectpicker.js
+  # mirrors that. Verified empirically in a real browser session: bare,
+  # `selected = character(0)`, and `none-selected-text` all return the
+  # first column at first launch. The reliable fix is a prepended
+  # placeholder choice with value "" (treated as missing in
+  # is_missing_value_input), disabled so the user cannot re-pick it after
+  # choosing a real column.
+  prepended <- stats::setNames("", picker_label)
+  combined <- c(prepended, cols)
   shinyWidgets::pickerInput(
     inputId = node$id,
     label = picker_label,
-    choices = cols,
-    selected = character(0),
-    options = list(`none-selected-text` = picker_label)
+    choices = combined,
+    selected = "",
+    choicesOpt = list(
+      disabled = c(TRUE, rep(FALSE, length(cols)))
+    )
   )
 }
 
