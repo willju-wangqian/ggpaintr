@@ -119,6 +119,19 @@ test_that("P8.12 var returns symbol for valid column choice", {
   expect_true(any(vapply(lits, function(l) is.symbol(l$expr) && as.character(l$expr) == "mpg", logical(1))))
 })
 
+test_that("P8.13 var aborts on column not in upstream", {
+  r <- ptr_translate("ggplot(mtcars, aes(x = var))")
+  id <- .id_of(r, "var")
+  expect_error(
+    ptr_substitute(
+      r,
+      input_snapshot = stats::setNames(list("cyl"), id),
+      upstream_cols = stats::setNames(list(c("mpg")), id)
+    ),
+    "not in upstream"
+  )
+})
+
 test_that("P8.14 var aborts on multiple selected columns", {
   r <- ptr_translate("ggplot(mtcars, aes(x = var))")
   id <- .id_of(r, "var")
