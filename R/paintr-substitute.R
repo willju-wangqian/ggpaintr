@@ -164,11 +164,19 @@ is_missing_value_input <- function(node, value) {
   if (is.null(value)) return(TRUE)
   if (length(value) == 0L) return(TRUE)
   if (node$keyword == "num") {
-    if (is.numeric(value) && all(is.na(value))) return(TRUE)
-    if (is.character(value) && (length(value) == 0L || !nzchar(value[[1]]))) return(TRUE)
+    # numericInput's blank state arrives at the server as logical `NA`
+    # (not NA_real_), which earlier checks missed because `is.numeric(NA)`
+    # is FALSE. Catch any all-NA scalar regardless of storage type.
+    if (length(value) == 1L && is.atomic(value) && is.na(value)) return(TRUE)
+    if (is.character(value) && !nzchar(value[[1]])) return(TRUE)
   }
   if (node$keyword == "expr") {
-    if (is.character(value) && (length(value) == 0L || !nzchar(value[[1]]))) return(TRUE)
+    if (is.character(value) && !nzchar(value[[1]])) return(TRUE)
+  }
+  if (node$keyword == "text") {
+    # textInput's blank state is `""`; treat as missing so empty `labs(title = text)`
+    # collapses to nothing rather than rendering `labs(title = "")`.
+    if (is.character(value) && !nzchar(value[[1]])) return(TRUE)
   }
   FALSE
 }

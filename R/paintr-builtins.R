@@ -76,10 +76,13 @@ ptr_builtin_expr_resolve_expr <- function(value, node, ...) {
 # ---- var --------------------------------------------------------------------
 
 ptr_builtin_var_build_ui <- function(node, cols = character(), label = NULL, ...) {
+  picker_label <- label %||% "Pick a column"
   shinyWidgets::pickerInput(
     inputId = node$id,
-    label = label %||% "Pick a column",
-    choices = cols
+    label = picker_label,
+    choices = cols,
+    selected = character(0),
+    options = list(`none-selected-text` = picker_label)
   )
 }
 

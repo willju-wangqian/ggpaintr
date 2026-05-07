@@ -221,6 +221,34 @@ test_that("P8.24 shared bindings override snapshot", {
   expect_true(any(vapply(lits, function(l) is.numeric(l$expr) && length(l$expr) == 1L && l$expr == 7, logical(1))))
 })
 
+test_that("P8.26 empty `text` input prunes to ptr_missing (named arg drops)", {
+  # `labs(title = text, x = text, y = text)` with all three text inputs
+  # blank should collapse to nothing, not `labs(title = "", x = "", y = "")`.
+  r <- ptr_translate("ggplot(mtcars) + geom_point() + labs(title = text, x = text, y = text)")
+  ph_ids <- vapply(
+    find_nodes(r, function(x) is_ptr_placeholder(x) && x$keyword == "text"),
+    function(p) p$id, character(1)
+  )
+  snap <- stats::setNames(as.list(rep("", length(ph_ids))), ph_ids)
+  pruned <- ptr_prune(ptr_substitute(r, input_snapshot = snap))
+  rendered <- ptr_render(pruned)
+  expect_false(grepl("labs\\(", rendered))
+  expect_false(grepl('title = ""', rendered, fixed = TRUE))
+})
+
+test_that("P8.27 logical NA from numericInput prunes a `num` placeholder", {
+  # numericInput emits logical `NA` (not NA_real_) when blank; the
+  # earlier `is.numeric(value) && all(is.na(value))` check missed this
+  # because is.numeric(NA) is FALSE.
+  r <- ptr_translate("ggplot(mtcars) + geom_point(size = num)")
+  num_id <- .id_of(r, "num")
+  snap <- stats::setNames(list(NA), num_id)  # logical NA
+  pruned <- ptr_prune(ptr_substitute(r, input_snapshot = snap))
+  rendered <- ptr_render(pruned)
+  expect_false(grepl("size = ", rendered, fixed = TRUE))
+  expect_false(grepl("NA_real_", rendered, fixed = TRUE))
+})
+
 test_that("P8.25 P5 re-screens denied calls returned by resolve_expr", {
   # Spec L98: when `resolve_expr` returns a language object that contains a
   # denied call, P5 must catch it at substitute time. Translate-time P5 saw

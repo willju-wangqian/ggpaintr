@@ -75,6 +75,25 @@ test_that("minimal var-using example: pickers populated from literal `data =`", 
   })
 })
 
+test_that("var picker renders with no default selection", {
+  # Regression: shinyWidgets::pickerInput defaulted to the first choice,
+  # so a fresh app launched with `aes(x = mpg, y = mpg)` (var pickers
+  # silently bound to the first column) instead of waiting for the user.
+  parts <- ptr_app_components(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+    envir = .app_test_env()
+  )
+  shiny::testServer(parts$server, {
+    session$setInputs(.dummy = 1)
+    x_picker <- output$`ggplot_1_1_var_NA_ui`$html
+    # The rendered <select> must not pre-select any option.
+    # `selected="selected"` is the only HTML form for an option default;
+    # `data-none-selected-text=` is unrelated and should be present.
+    expect_false(grepl('selected="selected"', x_picker, fixed = TRUE))
+    expect_match(x_picker, "data-none-selected-text=", fixed = TRUE)
+  })
+})
+
 test_that("ptr_app emits an Update Plot trigger button", {
   # Spec L142 + BDD G11.12: standalone `ptr_app` carries an Update Plot
   # button so the plot is gated behind an explicit click rather than
