@@ -7,19 +7,28 @@
 # The interactive app sections at the bottom run only under `interactive()`.
 # Highlight + send a single `ptr_app(...)` line to your R session to launch
 # one app at a time.
-
+devtools::load_all(".", export_all = FALSE)
 library(shiny)
 library(ggplot2)
+
+# Bind every ggpaintr name (exported + internal) into the script's env from
+# the namespace. Under `devtools::load_all()` + `library(ggpaintr)`, the
+# export env holds copies of exported functions whose closure is `package:`
+# rather than the namespace, which breaks S3 dispatch through internal
+# generics like prune_walk / render_walk / classify_walk. Local bindings
+# defined here are searched before `package:`, so all calls below — bare
+# `ptr_app(...)` pastes included — resolve to the namespace version where
+# the S3 method table actually lives.
+local({
+  ns <- asNamespace("ggpaintr")
+  for (nm in ls(ns, all.names = FALSE)) {
+    assign(nm, get(nm, envir = ns), envir = globalenv())
+  }
+})
 
 # ---------------------------------------------------------------------------
 # Static checks (no Shiny launch needed)
 # ---------------------------------------------------------------------------
-
-# `ptr_translate` and `ptr_render` are unexported internals — reach through
-# `:::` so S3 dispatch resolves correctly under `devtools::load_all()`.
-# Public users call `ptr_app()`, which doesn't need this.
-ptr_translate <- ggpaintr:::ptr_translate
-ptr_render    <- ggpaintr:::ptr_render
 
 # 1. Parse a formula -> typed AST. Inspect the tree shape.
 tree <- ptr_translate(

@@ -139,6 +139,7 @@ ptr_server <- function(input, output, session, formula,
   ptr_setup_stage_enabled(state, input, output, session)
   ptr_setup_runtime(state, input, output, session)
   ptr_setup_consumer_uis(state, input, output, session)
+  ptr_setup_layer_picker(state, input, output, session)
   ptr_register_plot(output, state)
   ptr_register_error(output, state)
   ptr_register_code(output, state)
@@ -268,65 +269,118 @@ validate_pipeline_atomic <- function(layer, snapshot, state) {
 # ---- runtime observer ----
 
 ptr_setup_runtime <- function(state, input, output, session) {
+  ns <- state$server_ns_fn
   shiny::observe({
-    if (!is.null(state$draw_trigger)) state$draw_trigger()
+    # Spec L142 + BDD G11.12 — plot rendering is gated on a single trigger
+    # ("Update Plot" for standalone, "Draw all" for grid). We take a dep on
+    # exactly one of those reactives; everything else is isolated so live
+    # placeholder edits do not re-render the plot.
+    if (!is.null(state$draw_trigger)) {
+      state$draw_trigger()
+    } else {
+      input[[ns("ptr_update_plot")]]
+    }
 
-    spec <- state$input_spec
-    ns <- state$server_ns_fn
-    snapshot <- list()
-    if (nrow(spec) > 0L) {
-      for (i in seq_len(nrow(spec))) {
-        raw_id <- spec$input_id[i]
-        snapshot[[raw_id]] <- input[[ns(raw_id)]]
+    shiny::isolate({
+      spec <- state$input_spec
+      snapshot <- list()
+      if (nrow(spec) > 0L) {
+        for (i in seq_len(nrow(spec))) {
+          raw_id <- spec$input_id[i]
+          snapshot[[raw_id]] <- input[[ns(raw_id)]]
+        }
       }
-    }
 
-    tree <- state$tree()
-    stage_enabled <- state$stage_enabled()
-    tree <- disable_walk(tree, stage_enabled)
-    upstream_cols <- runtime_upstream_cols(state)
+      tree <- state$tree()
+      stage_enabled <- state$stage_enabled()
+      tree <- disable_walk(tree, stage_enabled)
+      upstream_cols <- runtime_upstream_cols(state, snapshot)
 
-    res <- ptr_complete_expr_safe(
-      tree,
-      snapshot = snapshot,
-      shared_bindings = state$shared_bindings,
-      eval_env = state$eval_env,
-      safe_to_remove = state$safe_to_remove,
-      upstream_cols = upstream_cols
+      res <- ptr_complete_expr_safe(
+        tree,
+        snapshot = snapshot,
+        shared_bindings = state$shared_bindings,
+        eval_env = state$eval_env,
+        safe_to_remove = state$safe_to_remove,
+        upstream_cols = upstream_cols
+      )
+      # Spec L105 + L217 (G6.3 terminal upstream): once a layer's `data_arg`
+      # has been pre-resolved into `state$resolved_data` (initial seed at
+      # app start, or post-snapshot after Update Data), replace the
+      # pruned layer's `data_arg` with a literal carrying the cached frame.
+      # `code_text` is already rendered above from the original pruned
+      # tree, so the user-visible code panel still shows the pipeline; eval
+      # below consumes the cached value rather than re-running the pipeline.
+      res$pruned <- inject_resolved_data(res$pruned, state)
+      res <- ptr_assemble_plot_safe(res, expr_check = state$expr_check)
+
+      extras <- state$extras()
+      if (isTRUE(res$ok) && length(extras) > 0L) {
+        res$plot <- Reduce(`+`, extras, res$plot)
+      }
+      res <- ptr_validate_plot_render_safe(res)
+      state$runtime(res)
+    })
+  })
+  invisible(state)
+}
+
+# Walk the pruned tree and replace each pipeline-data layer's `data_arg`
+# with a `ptr_literal` carrying the cached frame from
+# `state$resolved_data[[layer$name]]`. Layers without a cache entry (no
+# Update Data button, or seed not yet computed) are left intact, so eval
+# falls back to evaluating the original (post-substitute) `data_arg`.
+inject_resolved_data <- function(pruned, state) {
+  if (!is_ptr_root(pruned)) return(pruned)
+  if (is.null(pruned)) return(pruned)
+  for (i in seq_along(pruned$layers)) {
+    layer <- pruned$layers[[i]]
+    if (!is_ptr_layer(layer)) next
+    rv <- state$resolved_data[[layer$name]]
+    if (is.null(rv)) next
+    df <- rv()
+    if (is.null(df)) next
+    pruned$layers[[i]]$data_arg <- ptr_literal(df)
+  }
+  pruned
+}
+
+# Sync the layer-select picker (`ptr_layer_select`) with the hidden tabset
+# (`ptr_layer_tabset`) that holds per-layer panels. Without this, picker
+# changes don't switch which panel is shown.
+ptr_setup_layer_picker <- function(state, input, output, session) {
+  ns <- state$server_ns_fn
+  shiny::observeEvent(input[[ns("ptr_layer_select")]], {
+    shiny::updateTabsetPanel(
+      session, ns("ptr_layer_tabset"),
+      selected = input[[ns("ptr_layer_select")]]
     )
-    res <- ptr_assemble_plot_safe(res, expr_check = state$expr_check)
-
-    extras <- state$extras()
-    if (isTRUE(res$ok) && length(extras) > 0L) {
-      res$plot <- Reduce(`+`, extras, res$plot)
-    }
-    res <- ptr_validate_plot_render_safe(res)
-    state$runtime(res)
   })
   invisible(state)
 }
 
 # Per-consumer column set, keyed by consumer raw id. Used to validate `var`
 # selections at substitute time and to drive `cols` for picker UI updates.
-runtime_upstream_cols <- function(state) {
+#
+# Spec L76 + L217 (G6.3 dual upstream): choices come from
+# `ptr_resolve_upstream(node$upstream, ...)` — the per-position upstream,
+# resolved against whatever snapshot the caller supplies. Callers in P12's
+# reactive layer pass the LIVE input snapshot so consumer pickers reflect
+# placeholder edits immediately (BDD G11.12). The earlier preference for
+# `state$resolved_data[[layer_name]]` conflated terminal upstream
+# (the layer's `data_arg` post-snapshot) with per-position upstream
+# (each consumer's own `node$upstream`); they differ for consumers in
+# upstream pipeline stages.
+runtime_upstream_cols <- function(state, snapshot = list()) {
   tree <- shiny::isolate(state$tree())
   stage_enabled <- state$stage_enabled()
   out <- list()
   consumers <- find_nodes(tree, is_ptr_ph_data_consumer)
   for (c in consumers) {
     if (is.null(c$id)) next
-    layer_name <- c$layer_name
-    if (!is.null(layer_name) &&
-        !is.null(state$resolved_data[[layer_name]])) {
-      df <- state$resolved_data[[layer_name]]()
-      if (!is.null(df)) {
-        out[[c$id]] <- names(df)
-        next
-      }
-    }
     df <- ptr_resolve_upstream(
       c$upstream,
-      snapshot = list(),
+      snapshot = snapshot,
       shared_bindings = state$shared_bindings,
       eval_env = state$eval_env,
       cache = state$upstream_cache,
@@ -358,8 +412,21 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
   ui_text <- state$effective_ui_text
   placeholders <- state$placeholders
 
+  # Spec L76 + BDD G11.12: consumer dropdowns refresh on live placeholder
+  # edits. The reactive reads `input` directly so any placeholder change
+  # invalidates `cols_memo`; per-position upstream is then re-resolved with
+  # the live snapshot. Plot rendering remains gated separately by
+  # `ptr_setup_runtime`.
   cols_memo <- shiny::reactive({
-    runtime_upstream_cols(state)
+    spec <- state$input_spec
+    snapshot <- list()
+    if (nrow(spec) > 0L) {
+      for (i in seq_len(nrow(spec))) {
+        raw_id <- spec$input_id[i]
+        snapshot[[raw_id]] <- input[[ns(raw_id)]]
+      }
+    }
+    runtime_upstream_cols(state, snapshot)
   })
 
   consumers <- find_nodes(tree, is_ptr_ph_data_consumer)

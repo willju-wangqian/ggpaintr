@@ -89,6 +89,10 @@ ptr_app_bslib <- function(formula,
       full_screen = TRUE,
       bslib::card_header("Plot"),
       bslib::card_body(
+        shiny::actionButton(
+          ns("ptr_update_plot"),
+          label = shell_copy$update_plot_label %||% "Update Plot"
+        ),
         shiny::plotOutput(ns("ptr_plot")),
         shiny::textOutput(ns("ptr_error"))
       )

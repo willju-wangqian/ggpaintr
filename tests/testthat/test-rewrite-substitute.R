@@ -220,3 +220,18 @@ test_that("P8.24 shared bindings override snapshot", {
   lits <- find_nodes(sub, is_ptr_literal)
   expect_true(any(vapply(lits, function(l) is.numeric(l$expr) && length(l$expr) == 1L && l$expr == 7, logical(1))))
 })
+
+test_that("P8.25 P5 re-screens denied calls returned by resolve_expr", {
+  # Spec L98: when `resolve_expr` returns a language object that contains a
+  # denied call, P5 must catch it at substitute time. Translate-time P5 saw
+  # only the formula with the placeholder; the user-typed `expr` value is
+  # parsed and inserted by `ptr_builtin_expr_resolve_expr`, so the denylist
+  # walker has to run again before the result enters the tree.
+  r <- ptr_translate("ggplot(mtcars) + geom_point() + facet_wrap(expr)")
+  expr_id <- .id_of(r, "expr")
+  expect_error(
+    ptr_substitute(r, input_snapshot = setNames(list("system('rm -rf /')"),
+                                                expr_id)),
+    "system"
+  )
+})

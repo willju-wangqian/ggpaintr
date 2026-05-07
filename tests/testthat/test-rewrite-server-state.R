@@ -217,3 +217,29 @@ test_that("ptr_extract_* surface the runtime fields", {
     expect_null(ptr_extract_error(state))
   })
 })
+
+test_that("inject_resolved_data swaps data_arg for the cached frame (spec L105)", {
+  # Pruned tree: ggplot(data = mtcars) layer + geom_point() layer. After
+  # injection with a 3-row cache for the ggplot layer, that layer's
+  # data_arg is a ptr_literal carrying the cached frame; geom_point has
+  # no cache entry and is left intact.
+  r <- ptr_translate("ggplot(data = mtcars, aes(x = mpg)) + geom_point()")
+  r <- ptr_classify_data(r)
+  r <- ptr_assign_ids(r)
+  r <- ptr_shared_bind(r)
+  pruned <- ptr_prune(ptr_substitute(r, input_snapshot = list()))
+
+  fake_state <- list(
+    resolved_data = list(ggplot = function() utils::head(mtcars, 3))
+  )
+  injected <- inject_resolved_data(pruned, fake_state)
+
+  ggplot_layer <- injected$layers[[1L]]
+  expect_s3_class(ggplot_layer$data_arg, "ptr_literal")
+  expect_s3_class(ggplot_layer$data_arg$expr, "data.frame")
+  expect_equal(nrow(ggplot_layer$data_arg$expr), 3L)
+
+  # Layers without a cache entry are untouched.
+  geom_layer <- injected$layers[[2L]]
+  expect_null(geom_layer$data_arg)
+})

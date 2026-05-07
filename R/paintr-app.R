@@ -105,6 +105,10 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
         hidden_tabset
       ),
       shiny::mainPanel(
+        shiny::actionButton(
+          ns("ptr_update_plot"),
+          label = shell_copy$update_plot_label %||% "Update Plot"
+        ),
         shiny::plotOutput(ns("ptr_plot")),
         shiny::verbatimTextOutput(ns("ptr_code")),
         shiny::textOutput(ns("ptr_error"))

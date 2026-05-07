@@ -75,6 +75,55 @@ test_that("minimal var-using example: pickers populated from literal `data =`", 
   })
 })
 
+test_that("ptr_app emits an Update Plot trigger button", {
+  # Spec L142 + BDD G11.12: standalone `ptr_app` carries an Update Plot
+  # button so the plot is gated behind an explicit click rather than
+  # re-rendering on every keystroke.
+  parts <- ptr_app_components(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+    envir = .app_test_env()
+  )
+  ui_html <- as.character(parts$ui)
+  expect_match(ui_html, 'id="ptr_update_plot"', fixed = TRUE)
+})
+
+test_that("layer-select picker drives the hidden tabset", {
+  # Regression: the layer picker (`ptr_layer_select`) was rendered but never
+  # wired to `updateTabsetPanel(ptr_layer_tabset)`, so picker changes left
+  # the visible panel unchanged. A placeholder-free layer like geom_point()
+  # exposed this most visibly: switching to it appeared to do nothing.
+  parts <- ptr_app_components(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+    envir = .app_test_env()
+  )
+
+  spy <- new.env(parent = emptyenv())
+  spy$calls <- list()
+  trace(
+    shiny::updateTabsetPanel,
+    tracer = bquote({
+      .spy <- .(spy)
+      .spy$calls[[length(.spy$calls) + 1L]] <- list(
+        inputId = inputId, selected = selected
+      )
+    }),
+    print = FALSE
+  )
+  on.exit(untrace(shiny::updateTabsetPanel), add = TRUE)
+
+  shiny::testServer(parts$server, {
+    session$setInputs(ptr_layer_select = "geom_point")
+    session$flushReact()
+    session$setInputs(ptr_layer_select = "ggplot")
+    session$flushReact()
+  })
+
+  selecteds <- vapply(spy$calls, function(c) c$selected, character(1))
+  inputIds  <- vapply(spy$calls, function(c) c$inputId,  character(1))
+  expect_true(all(inputIds == "ptr_layer_tabset"))
+  expect_true(all(c("geom_point", "ggplot") %in% selecteds))
+})
+
 # ---- module variants — namespacing isolation (E6) ----
 
 test_that("ptr_module_server ids are namespaced by id", {

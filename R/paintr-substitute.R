@@ -183,4 +183,20 @@ validate_resolve_expr_return <- function(x, keyword) {
       class(x)[1L]
     ))
   }
+  # Spec L98: re-run P5 on code returned by `resolve_expr` before it
+  # enters the tree. Translate-time P5 saw the original formula; resolve
+  # hooks can synthesize new calls (especially for the `expr` keyword),
+  # and the denylist must screen them again.
+  if (is.language(x) || is.expression(x)) {
+    placeholder_names <- ptr_registry_keywords()
+    if (is.expression(x)) {
+      for (e in x) {
+        validate_expr_safety(e, expr_check = TRUE,
+                             placeholder_names = placeholder_names)
+      }
+    } else {
+      validate_expr_safety(x, expr_check = TRUE,
+                           placeholder_names = placeholder_names)
+    }
+  }
 }
