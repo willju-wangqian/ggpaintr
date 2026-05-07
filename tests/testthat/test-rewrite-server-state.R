@@ -158,7 +158,7 @@ test_that("runtime observer populates state$runtime with code_text and plot", {
   }
   shiny::testServer(server, {
     state <- session$userData$state
-    session$setInputs(.dummy = 1)  # force a flush so observe() runs
+    session$setInputs(ptr_update_plot = 1L)  # gated on Update Plot click
     res <- state$runtime()
     expect_true(isTRUE(res$ok), info = res$error %||% "ok")
     expect_match(res$code_text, "ggplot")
@@ -211,10 +211,41 @@ test_that("ptr_extract_* surface the runtime fields", {
   }
   shiny::testServer(server, {
     state <- session$userData$state
-    session$setInputs(.dummy = 1)
+    session$setInputs(ptr_update_plot = 1L)  # gated on Update Plot click
     expect_s3_class(ptr_extract_plot(state), "ggplot")
     expect_match(ptr_extract_code(state), "geom_point")
     expect_null(ptr_extract_error(state))
+  })
+})
+
+test_that("runtime is gated: no eval until Update Plot click (BDD G11.12)", {
+  # Spec G11.12: plot is not rendered until the user clicks Update Plot.
+  # Specifically, no expression evaluation happens at all on first launch
+  # — `state$runtime()` stays NULL until the trigger fires, so the plot,
+  # code, and error outputs all render blank.
+  e <- .server_test_env()
+  server <- function(input, output, session) {
+    session$userData$state <- ptr_server(
+      input, output, session,
+      "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+      envir = e
+    )
+  }
+  shiny::testServer(server, {
+    state <- session$userData$state
+    expect_null(state$runtime())
+
+    # Picking vars without clicking Update Plot must still leave runtime NULL.
+    session$setInputs(ggplot_1_1_var_NA = "mpg", ggplot_1_2_var_NA = "hp")
+    session$flushReact()
+    expect_null(state$runtime())
+
+    # First click fires the runtime.
+    session$setInputs(ptr_update_plot = 1L)
+    session$flushReact()
+    res <- state$runtime()
+    expect_true(isTRUE(res$ok))
+    expect_match(res$code_text, "aes\\(x = mpg, y = hp\\)")
   })
 })
 

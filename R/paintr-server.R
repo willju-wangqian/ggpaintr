@@ -270,16 +270,26 @@ validate_pipeline_atomic <- function(layer, snapshot, state) {
 
 ptr_setup_runtime <- function(state, input, output, session) {
   ns <- state$server_ns_fn
+
+  # Spec L142 + BDD G11.12 — plot rendering is gated on a single trigger
+  # ("Update Plot" for standalone, "Draw all" for grid). With
+  # `ignoreInit = TRUE` the observer does nothing until the user clicks;
+  # state$runtime() stays NULL, so the plot/code/error outputs all
+  # render blank on first launch. No expression eval happens until
+  # the user opts in via the trigger.
+  trigger <- if (!is.null(state$draw_trigger)) {
+    state$draw_trigger
+  } else {
+    shiny::reactive(input[[ns("ptr_update_plot")]])
+  }
+
   shiny::observe({
-    # Spec L142 + BDD G11.12 — plot rendering is gated on a single trigger
-    # ("Update Plot" for standalone, "Draw all" for grid). We take a dep on
-    # exactly one of those reactives; everything else is isolated so live
-    # placeholder edits do not re-render the plot.
-    if (!is.null(state$draw_trigger)) {
-      state$draw_trigger()
-    } else {
-      input[[ns("ptr_update_plot")]]
-    }
+    val <- trigger()
+    # actionButton starts at 0 (or NULL before first interaction); the
+    # standalone Update Plot button and the grid Draw-all button both use
+    # this convention. Skip until the first real click.
+    if (is.null(val)) return(invisible())
+    if (is.numeric(val) && val < 1L) return(invisible())
 
     shiny::isolate({
       spec <- state$input_spec

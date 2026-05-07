@@ -39,10 +39,10 @@ test_that("ptr_app_components server wires runtime end-to-end", {
     envir = .app_test_env()
   )
   shiny::testServer(parts$server, {
-    session$setInputs(.dummy = 1)
+    # Spec G11.12: runtime is gated on Update Plot. Simulate a click so
+    # the runtime fires and `output$ptr_code` populates.
+    session$setInputs(ptr_update_plot = 1L)
     res <- session$userData$state %||% NULL
-    # ptr_server returns state but moduleServer/closure swallows it; access
-    # the reactive output instead.
     expect_match(output$ptr_code, "geom_point")
   })
 })
