@@ -228,6 +228,40 @@ ptr_app_grid(
   )
 )
 
+# 16a. Level-3 render override -- use plotly::ggplotly() instead of the
+#      default renderPlot. Demonstrates that `ptr_extract_plot()` (and
+#      the underlying `state$runtime()` reactive) exposes the fitted
+#      ggplot for any backend that consumes a ggplot — plotly,
+#      ggiraph, gganimate, Cairo, etc.
+#
+#      The default ptr_plot output is still bound by ptr_module_server;
+#      placing only `plotly::plotlyOutput()` on screen means the user
+#      sees the plotly version. (We don't strip the default binding —
+#      it's a harmless no-op when no plotOutput is rendered.)
+#      Reading `state$runtime()` outside `isolate` is what wires the
+#      plotly re-render to Update Plot clicks.
+#      Requires `install.packages("plotly")`.
+{
+  formula <- "ggplot(data = mpg,
+                     aes(x = displ, y = hwy, color = var, text = var)) +
+                geom_point(size = num, alpha = num)"
+  ui <- fluidPage(
+    fluidRow(
+      column(5, ptr_module_ui("plotly_demo", formula)),
+      column(7, plotly::plotlyOutput("interactive_plot", height = "500px"))
+    )
+  )
+  server <- function(input, output, session) {
+    state <- ptr_module_server("plotly_demo", formula)
+    output$interactive_plot <- plotly::renderPlotly({
+      res <- state$runtime()                     # reactive dep
+      shiny::req(isTRUE(res$ok), res$plot)
+      plotly::ggplotly(res$plot, tooltip = "text")
+    })
+  }
+  shinyApp(ui, server)
+}
+
 # 16. Programmatic ggplot extras -- attach scales/themes from the server side.
 {
   ui <- fluidPage(
@@ -284,6 +318,11 @@ shiny::testServer(function(input, output, session) {
 #   exercises the consumer picker through aes() inside a non-ggplot layer.
 # - (15) Moving the shared slider invalidates both plots' state in one
 #   user action -- no per-plot button-clicks needed.
+# - (16a) Pick a column for `color`, a column for `text`, and any size
+#   / alpha numbers; click Update Plot. The plotly panel re-renders
+#   with hover tooltips driven by the `text` aesthetic. Same ggpaintr
+#   state would also drive ggiraph, gganimate, or any other backend
+#   that consumes a `ggplot` — only the renderXxx call changes.
 # - (16) Clicking "Toggle log-scale" repeatedly demonstrates that
 #   ptr_gg_extra REPLACES the extras list on each call (per P12.10-12).
 # - Denylist sweep: try `system2`, `eval`, `parse`, `do.call`, `attr<-`
