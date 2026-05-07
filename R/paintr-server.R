@@ -68,19 +68,19 @@ ptr_server_state <- function(formula,
   resolved_cd <- ptr_resolve_checkbox_defaults(checkbox_defaults,
                                                 expr_list_proxy)
 
-  pipeline_layer_names <- character()
+  data_layer_names <- character()
   for (l in tree$layers) {
-    if (!is.null(l$update_data_input_id)) {
-      pipeline_layer_names <- c(pipeline_layer_names, l$name)
+    if (!is.null(l$update_data_input_id) || is_bare_data_source_layer(l)) {
+      data_layer_names <- c(data_layer_names, l$name)
     }
   }
   resolved_data <- stats::setNames(
-    lapply(pipeline_layer_names, function(.) shiny::reactiveVal(NULL)),
-    pipeline_layer_names
+    lapply(data_layer_names, function(.) shiny::reactiveVal(NULL)),
+    data_layer_names
   )
   last_click_inputs <- stats::setNames(
-    lapply(pipeline_layer_names, function(.) shiny::reactiveVal(NULL)),
-    pipeline_layer_names
+    lapply(data_layer_names, function(.) shiny::reactiveVal(NULL)),
+    data_layer_names
   )
 
   initial_stage_ids <- collect_stage_ids(tree)
@@ -148,12 +148,44 @@ ptr_server <- function(input, output, session, formula,
 
 # ---- per-pipeline-layer observers ----
 
+is_bare_data_source_layer <- function(layer) {
+  if (!is_ptr_layer(layer)) return(FALSE)
+  if (is.null(layer$data_arg)) return(FALSE)
+  is_ptr_ph_data_source(layer$data_arg)
+}
+
 ptr_setup_pipelines <- function(state, input, output, session) {
   tree <- shiny::isolate(state$tree())
   ns <- state$server_ns_fn
 
   for (layer in tree$layers) {
-    if (is.null(layer$update_data_input_id)) next
+    if (is.null(layer$update_data_input_id)) {
+      if (is_bare_data_source_layer(layer)) {
+        local({
+          lyr <- layer
+          ln <- lyr$name
+          src <- lyr$data_arg
+          src_id <- ns(src$id)
+          comp_id <- if (!is.null(src$companion_id)) ns(src$companion_id) else NULL
+          entry <- ptr_registry_lookup(src$keyword)
+
+          shiny::observe({
+            file_info <- input[[src_id]]
+            if (!is.null(comp_id)) input[[comp_id]]  # take dep
+            if (is.null(file_info) || is.null(file_info$datapath)) {
+              state$resolved_data[[ln]](NULL)
+              return(invisible())
+            }
+            df <- if (!is.null(entry) && !is.null(entry$resolve_data)) {
+              tryCatch(entry$resolve_data(file_info, src),
+                       error = function(e) NULL)
+            } else NULL
+            state$resolved_data[[ln]](df)
+          })
+        })
+      }
+      next
+    }
 
     # Bind layer-specific values via local() so each iteration captures freshly.
     local({
