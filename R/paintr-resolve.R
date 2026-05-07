@@ -39,7 +39,7 @@ ptr_resolve_upstream <- function(subtree,
     }
   }
 
-  ph_names <- ptr_registry_v2_keywords()
+  ph_names <- ptr_registry_keywords()
   validate_expr_safety(expr, expr_check = expr_check,
                        placeholder_names = ph_names)
 

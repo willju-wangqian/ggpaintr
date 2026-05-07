@@ -1,11 +1,9 @@
 #' Build a ggpaintr Shiny App with a bslib Theme
 #'
-#' A themed variant of [ptr_app()] that lays out the generated controls and
+#' A themed variant of `ptr_app()` that lays out the generated controls and
 #' outputs inside a [bslib::page_sidebar()] shell with [bslib::card()]
-#' containers. Intended as a worked example of how to reskin `ggpaintr` using
-#' only its public API: the wrapper calls [ptr_build_ids()], [ptr_input_ui()],
-#' and [ptr_server()] and composes outputs from the id contract with plain
-#' `shiny` primitives — no internal helpers are touched.
+#' containers. Builds per-layer panels via the typed-AST UI dispatch and
+#' wires the new `ptr_server` end-to-end.
 #'
 #' Requires the `bslib` package. Install it with `install.packages("bslib")`.
 #'
@@ -14,20 +12,16 @@
 #'   the app.
 #' @param ui_text Optional named list of copy overrides for UI labels, helper
 #'   text, and placeholders.
-#' @param placeholders Optional custom placeholder definitions or an existing
-#'   placeholder registry.
 #' @param checkbox_defaults Optional named list of initial checked states for
-#'   layer checkboxes. See [ptr_server_state()].
-#' @param expr_check Controls `expr` placeholder validation. See [ptr_app()].
+#'   layer checkboxes.
+#' @param expr_check Controls `expr` placeholder validation.
 #' @param safe_to_remove Character vector of additional function names whose
 #'   zero-argument calls should be dropped after placeholder substitution
-#'   leaves them empty. See [ptr_app()] for the curated default set and full
-#'   semantics. Defaults to `character()`.
+#'   leaves them empty. Defaults to `character()`.
 #' @param theme A `bslib` theme object. Defaults to a Bootstrap 5 Flatly
 #'   bootswatch. Pass any [bslib::bs_theme()] result to customize.
 #' @param title App title shown in the page header.
-#' @param ns An optional namespace function (`character -> character`). See
-#'   [ptr_server_state()] for details.
+#' @param ns An optional namespace function (`character -> character`).
 #'
 #' @return A `shiny.appobj`.
 #' @examples

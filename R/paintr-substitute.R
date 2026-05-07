@@ -74,7 +74,7 @@ substitute_walk.ptr_missing <- function(node, ctx) node
 substitute_walk.ptr_ph_value <- function(node, ctx) {
   value <- read_placeholder_value(node, ctx)
   if (is_missing_value_input(node, value)) return(ptr_missing())
-  entry <- ptr_registry_v2_lookup(node$keyword)
+  entry <- ptr_registry_lookup(node$keyword)
   if (is.null(entry)) {
     rlang::abort(paste0("No registry entry for placeholder keyword `", node$keyword, "`."))
   }
@@ -97,7 +97,7 @@ substitute_walk.ptr_ph_data_consumer <- function(node, ctx) {
       ") got multiple values; expected exactly one."
     ))
   }
-  entry <- ptr_registry_v2_lookup(node$keyword)
+  entry <- ptr_registry_lookup(node$keyword)
   if (!is.null(entry$validate_input)) {
     cols <- ctx$upstream_cols[[node$id %||% ""]]
     if (!is.null(cols)) {
@@ -133,7 +133,7 @@ substitute_walk.ptr_ph_data_source <- function(node, ctx) {
       "Only valid R identifiers are accepted."
     ))
   }
-  entry <- ptr_registry_v2_lookup(node$keyword)
+  entry <- ptr_registry_lookup(node$keyword)
   resolved <- if (!is.null(entry) && !is.null(entry$resolve_expr)) {
     entry$resolve_expr(name_value, node)
   } else {

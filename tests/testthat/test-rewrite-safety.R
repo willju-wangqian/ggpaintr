@@ -110,7 +110,7 @@ test_that("P5.16 custom resolve_expr returning denylisted character literal bloc
     resolve_expr = function(value, node, ...) "system"
   )
   on.exit({
-    ptr_registry_v2_clear()
+    ptr_registry_clear()
     ptr_register_builtins()
   })
   r <- ptr_translate("ggplot(mtcars) + labs(title = danger)")

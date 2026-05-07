@@ -28,7 +28,7 @@ Inside a custom \code{bind_ui(input, output, metas, context)} use:
 output_id <- ptr_ns_id(context$ui_ns_fn \%||\% shiny::NS(NULL), meta$id)
 }\if{html}{\out{</div>}}
 
-Under \code{\link[=ptr_app]{ptr_app()}} both \code{ns_fn} and \code{ui_ns_fn} default to \code{shiny::NS(NULL)}
+Under \code{ptr_app()} both \code{ns_fn} and \code{ui_ns_fn} default to \code{shiny::NS(NULL)}
 so the namespaced id equals \code{meta$id}. When ggpaintr is embedded inside a
 Shiny module (any wrapper that supplies a real namespace), they wrap a
 module namespace and the two ids diverge. Always go through \code{ptr_ns_id()}
@@ -38,7 +38,4 @@ rather than building the id string yourself.
 ns <- shiny::NS("mod1")
 ptr_ns_id(ns, "ggplot_3_2")
 ptr_ns_id(shiny::NS(NULL), "ggplot_3_2")
-}
-\seealso{
-\code{\link[=ptr_define_placeholder]{ptr_define_placeholder()}}, \code{\link[=ptr_resolve_layer_data]{ptr_resolve_layer_data()}}.
 }

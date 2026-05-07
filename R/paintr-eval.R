@@ -14,7 +14,7 @@ ptr_eval <- function(node, eval_env = parent.frame(), expr_check = TRUE) {
     rlang::abort("No layers to evaluate (after pruning).")
   }
   exprs <- lapply(node$layers, layer_to_eval_expr)
-  ph_names <- ptr_registry_v2_keywords()
+  ph_names <- ptr_registry_keywords()
   for (e in exprs) {
     validate_expr_safety(e, expr_check = expr_check, placeholder_names = ph_names)
   }

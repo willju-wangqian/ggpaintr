@@ -10,7 +10,7 @@ ptr_validate_tree_safety <- function(node, expr_check = TRUE) {
   if (resolved$mode == "off") {
     return(invisible(TRUE))
   }
-  ph_names <- ptr_registry_v2_keywords()
+  ph_names <- ptr_registry_keywords()
   walk_ptr_safety(node, expr_check = expr_check, ph_names = ph_names)
 }
 

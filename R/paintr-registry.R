@@ -3,12 +3,12 @@
 # in paintr-placeholders.R is undisturbed during cohabitation.
 
 .ptr_registry <- new.env(parent = emptyenv())
-.ptr_registry_v2_initialized <- new.env(parent = emptyenv())
-.ptr_registry_v2_initialized$done <- FALSE
+.ptr_registry_initialized <- new.env(parent = emptyenv())
+.ptr_registry_initialized$done <- FALSE
 
-ensure_registry_v2_initialized <- function() {
-  if (isTRUE(.ptr_registry_v2_initialized$done)) return(invisible(NULL))
-  .ptr_registry_v2_initialized$done <- TRUE
+ensure_registry_initialized <- function() {
+  if (isTRUE(.ptr_registry_initialized$done)) return(invisible(NULL))
+  .ptr_registry_initialized$done <- TRUE
   if (length(ls(.ptr_registry)) > 0L) return(invisible(NULL))
   if (exists("ptr_register_builtins", mode = "function")) {
     ptr_register_builtins()
@@ -16,29 +16,29 @@ ensure_registry_v2_initialized <- function() {
   invisible(NULL)
 }
 
-ptr_registry_v2_clear <- function() {
+ptr_registry_clear <- function() {
   rm(list = ls(.ptr_registry), envir = .ptr_registry)
-  .ptr_registry_v2_initialized$done <- FALSE
+  .ptr_registry_initialized$done <- FALSE
   invisible(NULL)
 }
 
-ptr_registry_v2_lookup <- function(keyword) {
-  ensure_registry_v2_initialized()
+ptr_registry_lookup <- function(keyword) {
+  ensure_registry_initialized()
   if (!exists(keyword, envir = .ptr_registry, inherits = FALSE)) {
     return(NULL)
   }
   get(keyword, envir = .ptr_registry, inherits = FALSE)
 }
 
-ptr_registry_v2_keywords <- function() {
-  ensure_registry_v2_initialized()
+ptr_registry_keywords <- function() {
+  ensure_registry_initialized()
   ls(.ptr_registry)
 }
 
-ptr_registry_v2_data_aware_keywords <- function() {
+ptr_registry_data_aware_keywords <- function() {
   out <- character()
-  for (kw in ptr_registry_v2_keywords()) {
-    entry <- ptr_registry_v2_lookup(kw)
+  for (kw in ptr_registry_keywords()) {
+    entry <- ptr_registry_lookup(kw)
     if (isTRUE(entry$data_aware)) out <- c(out, kw)
   }
   out
@@ -111,7 +111,7 @@ validate_copy_defaults <- function(copy_defaults) {
   invisible(TRUE)
 }
 
-ptr_registry_v2_register <- function(entry) {
+ptr_registry_register <- function(entry) {
   if (exists(entry$keyword, envir = .ptr_registry, inherits = FALSE)) {
     cli::cli_warn("Overwriting placeholder registry entry: {.val {entry$keyword}}.")
   }
@@ -141,7 +141,7 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
     build_ui = build_ui, resolve_expr = resolve_expr,
     copy_defaults = copy_defaults
   )
-  ptr_registry_v2_register(entry)
+  ptr_registry_register(entry)
 }
 
 #' Define a data-consumer placeholder (e.g. column picker)
@@ -170,7 +170,7 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
     validate_input = validate_input,
     copy_defaults = copy_defaults
   )
-  ptr_registry_v2_register(entry)
+  ptr_registry_register(entry)
 }
 
 #' Define a data-source placeholder (e.g. upload, database table)
@@ -206,5 +206,5 @@ ptr_define_placeholder_source <- function(keyword, build_ui, resolve_data,
     resolve_data = resolve_data, companion_id_fn = companion_id_fn,
     copy_defaults = copy_defaults
   )
-  ptr_registry_v2_register(entry)
+  ptr_registry_register(entry)
 }

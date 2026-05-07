@@ -343,7 +343,7 @@ translate_call <- function(expr) {
 detect_placeholder <- function(expr) {
   kw <- placeholder_keyword(expr)
   if (is.null(kw)) return(NULL)
-  entry <- ptr_registry_v2_lookup(kw)
+  entry <- ptr_registry_lookup(kw)
   if (is.null(entry)) return(NULL)
   shared <- extract_shared(expr, kw)
   list(keyword = kw, entry = entry, shared = shared)
@@ -352,12 +352,12 @@ detect_placeholder <- function(expr) {
 placeholder_keyword <- function(expr) {
   if (is.symbol(expr)) {
     nm <- as.character(expr)
-    if (nm %in% ptr_registry_v2_keywords()) return(nm)
+    if (nm %in% ptr_registry_keywords()) return(nm)
     return(NULL)
   }
   if (is.call(expr) && is.symbol(expr[[1L]])) {
     nm <- as.character(expr[[1L]])
-    if (nm %in% ptr_registry_v2_keywords()) return(nm)
+    if (nm %in% ptr_registry_keywords()) return(nm)
   }
   NULL
 }

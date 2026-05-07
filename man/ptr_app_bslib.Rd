@@ -26,36 +26,29 @@ the app.}
 text, and placeholders.}
 
 \item{checkbox_defaults}{Optional named list of initial checked states for
-layer checkboxes. See \code{\link[=ptr_server_state]{ptr_server_state()}}.}
+layer checkboxes.}
 
-\item{expr_check}{Controls \code{expr} placeholder validation. See \code{\link[=ptr_app]{ptr_app()}}.}
+\item{expr_check}{Controls \code{expr} placeholder validation.}
 
 \item{safe_to_remove}{Character vector of additional function names whose
 zero-argument calls should be dropped after placeholder substitution
-leaves them empty. See \code{\link[=ptr_app]{ptr_app()}} for the curated default set and full
-semantics. Defaults to \code{character()}.}
+leaves them empty. Defaults to \code{character()}.}
 
 \item{theme}{A \code{bslib} theme object. Defaults to a Bootstrap 5 Flatly
 bootswatch. Pass any \code{\link[bslib:bs_theme]{bslib::bs_theme()}} result to customize.}
 
 \item{title}{App title shown in the page header.}
 
-\item{ns}{An optional namespace function (\code{character -> character}). See
-\code{\link[=ptr_server_state]{ptr_server_state()}} for details.}
-
-\item{placeholders}{Optional custom placeholder definitions or an existing
-placeholder registry.}
+\item{ns}{An optional namespace function (\code{character -> character}).}
 }
 \value{
 A \code{shiny.appobj}.
 }
 \description{
-A themed variant of \code{\link[=ptr_app]{ptr_app()}} that lays out the generated controls and
+A themed variant of \code{ptr_app()} that lays out the generated controls and
 outputs inside a \code{\link[bslib:page_sidebar]{bslib::page_sidebar()}} shell with \code{\link[bslib:card]{bslib::card()}}
-containers. Intended as a worked example of how to reskin \code{ggpaintr} using
-only its public API: the wrapper calls \code{\link[=ptr_build_ids]{ptr_build_ids()}}, \code{\link[=ptr_input_ui]{ptr_input_ui()}},
-and \code{\link[=ptr_server]{ptr_server()}} and composes outputs from the id contract with plain
-\code{shiny} primitives — no internal helpers are touched.
+containers. Builds per-layer panels via the typed-AST UI dispatch and
+wires the new \code{ptr_server} end-to-end.
 }
 \details{
 Requires the \code{bslib} package. Install it with \code{install.packages("bslib")}.

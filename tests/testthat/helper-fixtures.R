@@ -1,6 +1,5 @@
 library(assertthat)
 library(ggplot2)
-library(purrr)
 library(rlang)
 library(shiny)
 library(shinyWidgets)

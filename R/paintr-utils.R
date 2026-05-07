@@ -648,35 +648,6 @@ validate_safe_to_remove <- function(safe_to_remove,
   }
   safe_to_remove
 }
-
-#' Prune Empty-Call Artifacts Left by Placeholder Substitution
-#'
-#' Single bottom-up walk that combines two jobs the old pipeline did
-#' separately: (1) sweep `_NULL_PLACEHOLDER` sentinel symbols out of
-#' argument slots, and (2) collapse zero-arg calls whose name is in
-#' the curated/user remove set. Names not in the set (third-party
-#' helpers like `aes_pcp()`, `pcp_arrange()`, `pcp_theme()`) are kept
-#' regardless of how they got empty — being absent from the set is the
-#' "we don't know if removal is safe" signal.
-#'
-#' Subtrees produced by an `expr` placeholder (where `orig` at this
-#' path is a bare symbol — i.e. the placeholder name) are honoured
-#' verbatim: substitution wins over the remove set, because typing
-#' something into an `expr` input is an explicit "keep this" signal.
-#' Mechanically this falls out of the `is.call(orig)` guard — when
-#' `orig` is not a call (symbol or `NULL`), nothing inside the
-#' substituted subtree is flagged.
-#'
-#' @param post The post-substitution expression.
-#' @param orig The pre-substitution expression at the same path.
-#' @param remove_set Character vector — curated default plus user
-#'   `safe_to_remove`.
-#' @param .depth Internal recursion depth.
-#' @param max_depth Recursion safety cap.
-#'
-#' @return Either the cleaned expression, or the `_NULL_PLACEHOLDER`
-#'   sentinel signalling the parent should drop this slot.
-#' @noRd
 pruneable_operator_names <- c(
   "+", "-", "*", "/", "^", "%%", "%/%", "%*%",
   "<", ">", "<=", ">=", "==", "!=",
@@ -689,125 +660,6 @@ is_pruneable_operator_call <- function(x) {
   head <- x[[1L]]
   if (!is.symbol(head)) return(FALSE)
   as.character(head) %in% pruneable_operator_names
-}
-
-prune_empty_substitution_artifacts <- function(post,
-                                                orig,
-                                                remove_set,
-                                                .depth = 0L,
-                                                max_depth = 100L) {
-  if (.depth > max_depth) {
-    rlang::abort("Expression nesting exceeds maximum depth.")
-  }
-  sentinel <- ptr_missing_expr_symbol()
-
-  if (.depth == 0L) {
-    if (is.symbol(post) && identical(post, sentinel)) return(NULL)
-    if (!is.call(post)) return(post)
-  }
-  if (!is.call(post)) return(post)
-
-  if (length(post) > 1L) {
-    for (i in 2:length(post)) {
-      child <- post[[i]]
-      orig_child <- if (is.call(orig) && i <= length(orig)) orig[[i]] else NULL
-      if (is.call(child)) {
-        post[[i]] <- prune_empty_substitution_artifacts(
-          child, orig_child, remove_set, .depth + 1L, max_depth
-        )
-      }
-    }
-  }
-
-  if (is_pruneable_operator_call(post) && length(post) > 1L) {
-    for (i in 2:length(post)) {
-      slot <- post[[i]]
-      if (is.symbol(slot) && identical(slot, sentinel)) {
-        return(sentinel)
-      }
-    }
-  }
-
-  if (length(post) > 1L) {
-    for (i in length(post):2) {
-      slot <- post[[i]]
-      if (is.symbol(slot) && identical(slot, sentinel)) {
-        post[[i]] <- NULL
-      }
-    }
-  }
-
-  if (.depth > 0L && length(post) == 1L) {
-    nm <- rlang::call_name(post)
-    if (!is.null(nm) && nm %in% remove_set && is.call(orig)) {
-      return(sentinel)
-    }
-  }
-
-  post
-}
-
-#' Remove Empty Non-Standalone Layers from an Expression List
-#'
-#' Top-level companion to `prune_empty_substitution_artifacts()`. Drop a
-#' layer iff (a) it is a zero-arg call, (b) its name is in the curated /
-#' user `remove_set`, and (c) it is not a `geom_*`/`stat_*` standalone
-#' layer. Names not in `remove_set` (e.g. third-party helpers like
-#' `pcp_theme()`) are kept by default — the user can opt specific names
-#' in via `safe_to_remove`.
-#'
-#' Layers whose original entry was a bare symbol (e.g. `+ expr`) are
-#' skipped — whatever the user supplied via the `expr` placeholder
-#' replaces the entire layer and is honoured verbatim, even if its
-#' name is in `remove_set`.
-#'
-#' @param expr_list A named list of post-substitution layer expressions.
-#' @param original_expr_list The pre-substitution layer list.
-#' @param remove_set Character vector of names safe to remove.
-#'
-#' @return The filtered expression list.
-#' @noRd
-ptr_remove_empty_nonstandalone_layers <- function(expr_list,
-                                                  original_expr_list = NULL,
-                                                  remove_set = default_safe_to_remove()) {
-  for (nn in names(expr_list)) {
-    expr <- expr_list[[nn]]
-    if (is.null(expr) || nn == "ggplot") next
-    # Layer originally a bare symbol (e.g. `+ expr`): substitution wins, keep
-    # whatever the user supplied verbatim.
-    if (!is.null(original_expr_list) && is.symbol(original_expr_list[[nn]])) next
-    if (!(is.call(expr) && length(expr) == 1L)) next
-
-    nm <- rlang::call_name(expr)
-    if (is.null(nm)) next
-    if (!nm %in% remove_set) next
-    if (ptr_can_stand_alone(nm)) next
-
-    if (ptr_verbose()) {
-      cli::cli_inform(paste0("Layer ", nm, "() removed (no arguments provided)."))
-    }
-    expr_list[[nn]] <- NULL
-  }
-  expr_list
-}
-
-#' Drop `NULL` Elements from a List
-#'
-#' @param x A list or `NULL`.
-#'
-#' @return A list without `NULL` values, or `NULL`.
-#' @noRd
-check_remove_null <- function(x) {
-  if (is.null(x)) {
-    return(NULL)
-  }
-
-  x <- x[!vapply(x, is.null, logical(1))]
-  if (length(x) == 0) {
-    return(NULL)
-  }
-
-  x
 }
 
 #' Apply a Namespace Function to a Placeholder Id
@@ -824,7 +676,7 @@ check_remove_null <- function(x) {
 #' output_id <- ptr_ns_id(context$ui_ns_fn %||% shiny::NS(NULL), meta$id)
 #' ```
 #'
-#' Under [ptr_app()] both `ns_fn` and `ui_ns_fn` default to `shiny::NS(NULL)`
+#' Under `ptr_app()` both `ns_fn` and `ui_ns_fn` default to `shiny::NS(NULL)`
 #' so the namespaced id equals `meta$id`. When ggpaintr is embedded inside a
 #' Shiny module (any wrapper that supplies a real namespace), they wrap a
 #' module namespace and the two ids diverge. Always go through `ptr_ns_id()`
@@ -835,7 +687,6 @@ check_remove_null <- function(x) {
 #' @param id A single id string (e.g., `meta$id` from a placeholder context).
 #'
 #' @return The namespaced id string.
-#' @seealso [ptr_define_placeholder()], [ptr_resolve_layer_data()].
 #' @examples
 #' ns <- shiny::NS("mod1")
 #' ptr_ns_id(ns, "ggplot_3_2")
@@ -845,56 +696,6 @@ ptr_ns_id <- function(ns_fn, id) {
   ns_fn(id)
 }
 
-#' Rewrite All Placeholder Ids in a `ptr_obj` Through a Namespace Function
-#'
-#' Applies `ns_fn` to every id stored in `ptr_obj$id_list` and
-#' `ptr_obj$placeholder_map`. Normal `ptr_state` construction keeps parsed
-#' placeholder ids raw and namespaces them at the UI/server boundary; this
-#' helper remains available for focused tests and advanced internal rewrites.
-#'
-#' @param ptr_obj A `ptr_obj`.
-#' @param ns_fn A namespace function `character -> character`.
-#'
-#' @return A `ptr_obj` with rewritten ids.
-#' @noRd
-ptr_ns_obj <- function(ptr_obj, ns_fn) {
-  # Rewrite id_list: list[layer_name][[j]] = id_string
-  ptr_obj$id_list <- lapply(ptr_obj$id_list, function(layer_ids) {
-    lapply(layer_ids, function(id) ns_fn(id))
-  })
-
-  # Rewrite placeholder_map keys and $id field:
-  # list[layer_name][[id]] = {id, keyword, layer_name, param, index_path}
-  ptr_obj$placeholder_map <- lapply(ptr_obj$placeholder_map, function(layer_meta) {
-    new_meta <- list()
-    for (old_id in names(layer_meta)) {
-      entry <- layer_meta[[old_id]]
-      entry$id <- ns_fn(old_id)
-      new_meta[[ns_fn(old_id)]] <- entry
-    }
-    new_meta
-  })
-
-  # Rewrite index_path_list names (they are named by id)
-  ptr_obj$index_path_list <- lapply(ptr_obj$index_path_list, function(layer_paths) {
-    old_names <- names(layer_paths)
-    if (!is.null(old_names)) {
-      names(layer_paths) <- vapply(old_names, ns_fn, character(1))
-    }
-    layer_paths
-  })
-
-  # Rewrite checkbox_id_list values through ns_fn; names (layer names) stay intact
-  if (!is.null(ptr_obj$checkbox_id_list)) {
-    old_names <- names(ptr_obj$checkbox_id_list)
-    ptr_obj$checkbox_id_list <- stats::setNames(
-      vapply(unname(ptr_obj$checkbox_id_list), ns_fn, character(1)),
-      old_names
-    )
-  }
-
-  ptr_obj
-}
 
 #' Check Whether ggpaintr Verbose Mode Is Active
 #'

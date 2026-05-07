@@ -31,10 +31,10 @@ ptr_ui_text_component_paths <- function() {
 #' @return A named list of default copy rules.
 #' @noRd
 ptr_default_ui_text <- function(placeholders = NULL) {
-  placeholder_registry <- ptr_merge_placeholders(placeholders)
-  default_placeholder_copy <- lapply(
-    placeholder_registry,
-    ptr_define_placeholder_copy_defaults
+  kws <- ptr_registry_keywords()
+  default_placeholder_copy <- stats::setNames(
+    lapply(kws, function(kw) ptr_registry_lookup(kw)$copy_defaults),
+    kws
   )
 
   structure(
@@ -167,7 +167,7 @@ ptr_ui_text_leaf_fields <- function() {
 #' @return A character vector.
 #' @noRd
 ptr_ui_text_keywords <- function(placeholders = NULL) {
-  names(ptr_merge_placeholders(placeholders))
+  ptr_registry_keywords()
 }
 
 #' Detect Whether a Parameter Is Unnamed
@@ -549,22 +549,6 @@ ptr_deep_merge_ui_text <- function(base, overrides) {
   result
 }
 
-#' Extract Known Parameter Keys from a Parsed Formula Object
-#'
-#' Returns the set of parameter keys present in the formula, excluding NA and
-#' `__unnamed__`. Used to warn on misspelled `ui_text$params` overrides.
-#'
-#' @param ptr_obj A `ptr_obj` as returned by `ptr_parse_formula()`.
-#'
-#' @return A character vector of known param keys, or `NULL` if `ptr_obj` is
-#'   not a `ptr_obj`.
-#' @noRd
-ptr_known_param_keys_from_obj <- function(ptr_obj) {
-  if (!inherits(ptr_obj, "ptr_obj")) return(NULL)
-  spec <- ptr_runtime_input_spec(ptr_obj)
-  keys <- unique(spec$param_key[!is.na(spec$param_key)])
-  setdiff(keys, "__unnamed__")
-}
 
 #' Build Effective Copy Rules
 #'

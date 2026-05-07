@@ -93,7 +93,7 @@ assign_id_to_placeholder <- function(node, layer_name, path, param) {
     node$param <- if (is.null(param) || is.na(param)) NA_character_ else param
   }
   if (is_ptr_ph_data_source(node)) {
-    entry <- ptr_registry_v2_lookup(node$keyword)
+    entry <- ptr_registry_lookup(node$keyword)
     if (!is.null(entry$companion_id_fn)) {
       node$companion_id <- entry$companion_id_fn(node$id)
     }

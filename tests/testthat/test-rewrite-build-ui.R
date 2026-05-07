@@ -115,7 +115,7 @@ test_that("build_ui_for renders id through ns_fn", {
 
 test_that("P6.14 custom placeholder UI invokes registered build_ui", {
   withr::defer({
-    if (exists("ptr_registry_v2_clear")) ptr_registry_v2_clear()
+    if (exists("ptr_registry_clear")) ptr_registry_clear()
     ptr_register_builtins()
   })
   hook_called <- FALSE

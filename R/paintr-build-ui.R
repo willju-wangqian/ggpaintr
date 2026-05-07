@@ -85,7 +85,7 @@ build_ui_for.ptr_ph_data_source <- function(node,
     ui_text = ui_text,
     placeholders = placeholders
   )
-  entry <- ptr_registry_v2_lookup(node$keyword)
+  entry <- ptr_registry_lookup(node$keyword)
   if (is.null(entry) || is.null(entry$build_ui)) {
     rlang::abort(paste0(
       "No `build_ui` hook registered for placeholder `", node$keyword, "`."
@@ -338,7 +338,7 @@ invoke_build_ui <- function(node, ui_text, placeholders, layer_name,
     ui_text = ui_text,
     placeholders = placeholders
   )
-  entry <- ptr_registry_v2_lookup(node$keyword)
+  entry <- ptr_registry_lookup(node$keyword)
   if (is.null(entry) || is.null(entry$build_ui)) {
     rlang::abort(paste0(
       "No `build_ui` hook registered for placeholder `", node$keyword, "`."
