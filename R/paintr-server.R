@@ -317,6 +317,12 @@ ptr_setup_runtime <- function(state, input, output, session) {
 
   shiny::observe({
     val <- trigger()
+    # Re-fire whenever extras change (e.g. after `ptr_gg_extra()`), so
+    # programmatic scales/themes attach without a manual Update Plot.
+    # Reading the reactiveVal here (outside the isolate below) registers
+    # the dep; the trigger gate still prevents firing before the user
+    # has opted in via the first click.
+    state$extras()
     # actionButton starts at 0 (or NULL before first interaction); the
     # standalone Update Plot button and the grid Draw-all button both use
     # this convention. Skip until the first real click.
@@ -633,7 +639,9 @@ ptr_gg_extra <- function(state, exprs = list()) {
     }
     evaluated[[length(evaluated) + 1L]] <- val
   }
-  current <- shiny::isolate(state$extras())
-  state$extras(c(current, evaluated))
+  # Replace-per-call: each invocation overwrites the previously captured
+  # extras (legacy semantics; documented in `dev/scripts/feature-sweep.R`
+  # note 16). To accumulate, the caller passes the merged list themselves.
+  state$extras(evaluated)
   invisible(state)
 }
