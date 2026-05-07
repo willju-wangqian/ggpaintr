@@ -253,6 +253,20 @@ test_that("P8.27 logical NA from numericInput prunes a `num` placeholder", {
   expect_false(grepl("NA_real_", rendered, fixed = TRUE))
 })
 
+test_that("non-numeric string in `num` snapshot prunes the arg", {
+  # Adversarial path: programmatic `Shiny.setInputValue("...num", "abc")`
+  # bypasses numericInput's client-side validation. as.numeric("abc") is
+  # NA_real_ with a warning; resolve_expr returns NULL so substitute drops
+  # the arg rather than rendering `size = NA_real_`.
+  r <- ptr_translate("ggplot(mtcars) + geom_point(size = num)")
+  num_id <- .id_of(r, "num")
+  snap <- stats::setNames(list("abc"), num_id)
+  pruned <- ptr_prune(ptr_substitute(r, input_snapshot = snap))
+  rendered <- ptr_render(pruned)
+  expect_false(grepl("size = ", rendered, fixed = TRUE))
+  expect_false(grepl("NA_real_", rendered, fixed = TRUE))
+})
+
 test_that("P8.25 P5 re-screens denied calls returned by resolve_expr", {
   # Spec L98: when `resolve_expr` returns a language object that contains a
   # denied call, P5 must catch it at substitute time. Translate-time P5 saw

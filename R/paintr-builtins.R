@@ -49,7 +49,12 @@ ptr_builtin_num_build_ui <- function(node, label = NULL, ...) {
 }
 
 ptr_builtin_num_resolve_expr <- function(value, node, ...) {
-  as.numeric(value)
+  # `as.numeric("abc")` is `NA_real_` with a warning. Drop those cases via
+  # NULL so substitute marks the arg as missing and prune deletes it,
+  # rather than splicing `NA_real_` into the rendered code.
+  out <- suppressWarnings(as.numeric(value))
+  if (length(out) != 1L || is.na(out)) return(NULL)
+  out
 }
 
 # ---- expr -------------------------------------------------------------------
