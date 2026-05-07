@@ -40,7 +40,6 @@
 ptr_app_bslib <- function(formula,
                           envir = parent.frame(),
                           ui_text = NULL,
-                          placeholders = NULL,
                           checkbox_defaults = NULL,
                           expr_check = TRUE,
                           safe_to_remove = character(),
@@ -54,14 +53,34 @@ ptr_app_bslib <- function(formula,
   }
   safe_to_remove <- validate_safe_to_remove(safe_to_remove)
 
-  ids <- ptr_build_ids()
   if (is.null(theme)) {
     theme <- bslib::bs_theme(version = 5, bootswatch = "flatly")
   }
-
   if (!is.null(ui_text$shell$title$label)) {
     title <- ui_text$shell$title$label
   }
+
+  tree <- ptr_translate(formula, expr_check = expr_check)
+  shell_copy <- layer_panel_default_shell_copy(ui_text)
+  layer_names <- vapply(tree$layers, function(l) l$name, character(1))
+
+  panels <- lapply(tree$layers, function(layer) {
+    build_ui_for(layer,
+                 ui_text = ui_text,
+                 ns_fn = ns,
+                 checkbox_defaults = checkbox_defaults,
+                 shell_copy = shell_copy)
+  })
+  picker <- shinyWidgets::pickerInput(
+    inputId = ns("ptr_layer_select"),
+    label = shell_copy$layer_picker_label %||% "Layer",
+    choices = layer_names,
+    selected = if (length(layer_names)) layer_names[1L] else NULL
+  )
+  hidden_tabset <- do.call(
+    shiny::tabsetPanel,
+    c(list(id = ns("ptr_layer_tabset"), type = "hidden"), panels)
+  )
 
   ui <- bslib::page_sidebar(
     title = title,
@@ -69,37 +88,34 @@ ptr_app_bslib <- function(formula,
     sidebar = bslib::sidebar(
       title = "Controls",
       width = 340,
-      ptr_input_ui(ids = ids, ui_text = ui_text)
+      picker,
+      hidden_tabset
     ),
     bslib::card(
       full_screen = TRUE,
       bslib::card_header("Plot"),
       bslib::card_body(
-        shiny::plotOutput(ids$plot_output),
-        shiny::uiOutput(ids$error_output)
+        shiny::plotOutput(ns("ptr_plot")),
+        shiny::textOutput(ns("ptr_error"))
       )
     ),
     bslib::card(
       bslib::card_header("Generated code"),
       bslib::card_body(
-        shiny::verbatimTextOutput(ids$code_output)
+        shiny::verbatimTextOutput(ns("ptr_code"))
       )
     )
   )
 
   server <- function(input, output, session) {
     ptr_server(
-      input,
-      output,
-      session,
-      formula,
+      input, output, session, formula,
       envir = envir,
       ui_text = ui_text,
-      placeholders = placeholders,
-      ids = ids,
       checkbox_defaults = checkbox_defaults,
       expr_check = expr_check,
-      safe_to_remove = safe_to_remove
+      safe_to_remove = safe_to_remove,
+      ns = ns
     )
     invisible(NULL)
   }

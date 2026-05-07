@@ -185,7 +185,7 @@ test_that("P8.20/P8.21 custom resolve_expr return-type whitelist enforced", {
     build_ui = function(node, ...) NULL,
     resolve_expr = function(value, node, ...) new.env()
   )
-  on.exit(suppressWarnings(ptr_register_builtins_v2()))
+  on.exit(suppressWarnings(ptr_register_builtins()))
   r <- ptr_translate("ggplot(mtcars) + labs(title = badret)")
   id <- .id_of(r, "badret")
   expect_error(

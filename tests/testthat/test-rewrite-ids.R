@@ -76,8 +76,8 @@ test_that("P4.9 input_spec returns raw ids regardless of ns", {
                       ns_fn = shiny::NS(NULL))
   r2 <- ptr_translate("ggplot(mtcars) + geom_point(size = num)",
                       ns_fn = shiny::NS("plot1"))
-  s1 <- ptr_runtime_input_spec_v2(r1)
-  s2 <- ptr_runtime_input_spec_v2(r2)
+  s1 <- ptr_runtime_input_spec(r1)
+  s2 <- ptr_runtime_input_spec(r2)
   expect_equal(s1$input_id, s2$input_id)
   expect_false(any(grepl("^plot1-", s2$input_id)))
 })

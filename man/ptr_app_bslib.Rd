@@ -8,7 +8,6 @@ ptr_app_bslib(
   formula,
   envir = parent.frame(),
   ui_text = NULL,
-  placeholders = NULL,
   checkbox_defaults = NULL,
   expr_check = TRUE,
   safe_to_remove = character(),
@@ -25,9 +24,6 @@ the app.}
 
 \item{ui_text}{Optional named list of copy overrides for UI labels, helper
 text, and placeholders.}
-
-\item{placeholders}{Optional custom placeholder definitions or an existing
-placeholder registry.}
 
 \item{checkbox_defaults}{Optional named list of initial checked states for
 layer checkboxes. See \code{\link[=ptr_server_state]{ptr_server_state()}}.}
@@ -46,6 +42,9 @@ bootswatch. Pass any \code{\link[bslib:bs_theme]{bslib::bs_theme()}} result to c
 
 \item{ns}{An optional namespace function (\code{character -> character}). See
 \code{\link[=ptr_server_state]{ptr_server_state()}} for details.}
+
+\item{placeholders}{Optional custom placeholder definitions or an existing
+placeholder registry.}
 }
 \value{
 A \code{shiny.appobj}.

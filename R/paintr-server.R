@@ -1,14 +1,14 @@
 # P12 — server-state + observer wiring for the typed-AST core.
 #
-# `ptr_server_state_v2` builds a long-lived state list that the Shiny server
+# `ptr_server_state` builds a long-lived state list that the Shiny server
 # carries: the typed tree, per-pipeline-layer resolved-data caches, the latest
 # runtime result (post-substitute → post-prune → post-eval), the resolved
 # checkbox-defaults vector, and an upstream-resolution memo cache.
 #
-# `ptr_server_v2` is the wiring sugar that calls the state constructor and
+# `ptr_server` is the wiring sugar that calls the state constructor and
 # attaches the observers (pipeline updates + runtime).
 
-ptr_server_state_v2 <- function(formula,
+ptr_server_state <- function(formula,
                                 envir = parent.frame(),
                                 ui_text = NULL,
                                 checkbox_defaults = NULL,
@@ -83,27 +83,27 @@ ptr_server_state_v2 <- function(formula,
     ui_ns_fn = ns,
     server_ns_fn = server_ns,
     ns_fn = server_ns,
-    input_spec = ptr_runtime_input_spec_v2(tree)
-  ), class = c("ptr_state_v2", "ptr_state", "list"))
+    input_spec = ptr_runtime_input_spec(tree)
+  ), class = c("ptr_state", "list"))
 }
 
 # ---- public wiring entry point ----
 
-ptr_server_v2 <- function(input, output, session, formula,
+ptr_server <- function(input, output, session, formula,
                           envir = parent.frame(), ...) {
-  state <- ptr_server_state_v2(formula, envir = envir, ...)
-  ptr_setup_pipelines_v2(state, input, output, session)
-  ptr_setup_stage_enabled_v2(state, input, output, session)
-  ptr_setup_runtime_v2(state, input, output, session)
-  ptr_register_plot_v2(output, state)
-  ptr_register_error_v2(output, state)
-  ptr_register_code_v2(output, state)
+  state <- ptr_server_state(formula, envir = envir, ...)
+  ptr_setup_pipelines(state, input, output, session)
+  ptr_setup_stage_enabled(state, input, output, session)
+  ptr_setup_runtime(state, input, output, session)
+  ptr_register_plot(output, state)
+  ptr_register_error(output, state)
+  ptr_register_code(output, state)
   state
 }
 
 # ---- per-pipeline-layer observers ----
 
-ptr_setup_pipelines_v2 <- function(state, input, output, session) {
+ptr_setup_pipelines <- function(state, input, output, session) {
   tree <- shiny::isolate(state$tree())
   ns <- state$server_ns_fn
 
@@ -134,8 +134,8 @@ ptr_setup_pipelines_v2 <- function(state, input, output, session) {
       # starts as NULL); we don't ignoreInit so the first non-NULL value
       # (the first click in a fresh session) still fires.
       shiny::observeEvent(input[[uid]], {
-        snapshot <- snapshot_for_layer_v2(lyr, input, state)
-        ok <- validate_pipeline_atomic_v2(lyr, snapshot, state)
+        snapshot <- snapshot_for_layer(lyr, input, state)
+        ok <- validate_pipeline_atomic(lyr, snapshot, state)
         if (!isTRUE(ok)) return(invisible())
         new_data <- ptr_resolve_upstream(
           lyr$data_arg,
@@ -154,7 +154,7 @@ ptr_setup_pipelines_v2 <- function(state, input, output, session) {
       state$is_stale_env[[ln]] <- shiny::reactive({
         last <- state$last_click_inputs[[ln]]()
         if (is.null(last)) return(FALSE)
-        current <- snapshot_for_layer_v2(lyr, input, state)
+        current <- snapshot_for_layer(lyr, input, state)
         !identical(current, last)
       })
     })
@@ -168,7 +168,7 @@ ptr_setup_pipelines_v2 <- function(state, input, output, session) {
 # Mirror checkbox inputs into `state$stage_enabled`. Each stage-id input
 # starts NULL; only after the user toggles does it produce a value, so we
 # use ignoreNULL = TRUE. The reactiveVal carries the canonical bool.
-ptr_setup_stage_enabled_v2 <- function(state, input, output, session) {
+ptr_setup_stage_enabled <- function(state, input, output, session) {
   tree <- shiny::isolate(state$tree())
   ns <- state$server_ns_fn
   for (sid in collect_stage_ids(tree)) {
@@ -187,7 +187,7 @@ ptr_setup_stage_enabled_v2 <- function(state, input, output, session) {
 
 # Build a snapshot keyed by raw id from the placeholders inside one layer's
 # pipeline (`data_arg` subtree).
-snapshot_for_layer_v2 <- function(layer, input, state) {
+snapshot_for_layer <- function(layer, input, state) {
   ns <- state$server_ns_fn
   out <- list()
   for (ph in find_layer_placeholders(layer$data_arg)) {
@@ -202,7 +202,7 @@ snapshot_for_layer_v2 <- function(layer, input, state) {
 
 # Per-position validation: each consumer's chosen value must lie within its
 # own upstream's column set. Missing values are skipped (will be pruned).
-validate_pipeline_atomic_v2 <- function(layer, snapshot, state) {
+validate_pipeline_atomic <- function(layer, snapshot, state) {
   for (ph in find_layer_placeholders(layer$data_arg)) {
     if (!is_ptr_ph_data_consumer(ph)) next
     val <- snapshot[[ph$id %||% ""]]
@@ -223,7 +223,7 @@ validate_pipeline_atomic_v2 <- function(layer, snapshot, state) {
 
 # ---- runtime observer ----
 
-ptr_setup_runtime_v2 <- function(state, input, output, session) {
+ptr_setup_runtime <- function(state, input, output, session) {
   shiny::observe({
     if (!is.null(state$draw_trigger)) state$draw_trigger()
 
@@ -240,9 +240,9 @@ ptr_setup_runtime_v2 <- function(state, input, output, session) {
     tree <- state$tree()
     stage_enabled <- state$stage_enabled()
     tree <- disable_walk(tree, stage_enabled)
-    upstream_cols <- runtime_upstream_cols_v2(state)
+    upstream_cols <- runtime_upstream_cols(state)
 
-    res <- ptr_complete_expr_safe_v2(
+    res <- ptr_complete_expr_safe(
       tree,
       snapshot = snapshot,
       shared_bindings = state$shared_bindings,
@@ -250,13 +250,13 @@ ptr_setup_runtime_v2 <- function(state, input, output, session) {
       safe_to_remove = state$safe_to_remove,
       upstream_cols = upstream_cols
     )
-    res <- ptr_assemble_plot_safe_v2(res, expr_check = state$expr_check)
+    res <- ptr_assemble_plot_safe(res, expr_check = state$expr_check)
 
     extras <- state$extras()
     if (isTRUE(res$ok) && length(extras) > 0L) {
       res$plot <- Reduce(`+`, extras, res$plot)
     }
-    res <- ptr_validate_plot_render_safe_v2(res)
+    res <- ptr_validate_plot_render_safe(res)
     state$runtime(res)
   })
   invisible(state)
@@ -264,7 +264,7 @@ ptr_setup_runtime_v2 <- function(state, input, output, session) {
 
 # Per-consumer column set, keyed by consumer raw id. Used to validate `var`
 # selections at substitute time and to drive `cols` for picker UI updates.
-runtime_upstream_cols_v2 <- function(state) {
+runtime_upstream_cols <- function(state) {
   tree <- shiny::isolate(state$tree())
   stage_enabled <- state$stage_enabled()
   out <- list()
@@ -302,7 +302,7 @@ consumer_layer_name <- function(tree, consumer_id) {
 
 # ---- public output bindings ----
 
-ptr_register_plot_v2 <- function(output, state) {
+ptr_register_plot <- function(output, state) {
   output[[state$ui_ns_fn("ptr_plot")]] <- shiny::renderPlot({
     res <- state$runtime()
     shiny::req(isTRUE(res$ok), res$plot)
@@ -311,7 +311,7 @@ ptr_register_plot_v2 <- function(output, state) {
   invisible(state)
 }
 
-ptr_register_error_v2 <- function(output, state) {
+ptr_register_error <- function(output, state) {
   output[[state$ui_ns_fn("ptr_error")]] <- shiny::renderText({
     res <- state$runtime()
     if (is.null(res) || isTRUE(res$ok)) "" else (res$error %||% "")
@@ -319,7 +319,7 @@ ptr_register_error_v2 <- function(output, state) {
   invisible(state)
 }
 
-ptr_register_code_v2 <- function(output, state) {
+ptr_register_code <- function(output, state) {
   output[[state$ui_ns_fn("ptr_code")]] <- shiny::renderText({
     res <- state$runtime()
     if (is.null(res)) "" else (res$code_text %||% "")
@@ -327,13 +327,13 @@ ptr_register_code_v2 <- function(output, state) {
   invisible(state)
 }
 
-ptr_extract_plot_v2  <- function(state) shiny::isolate(state$runtime())$plot
-ptr_extract_error_v2 <- function(state) shiny::isolate(state$runtime())$error
-ptr_extract_code_v2  <- function(state) shiny::isolate(state$runtime())$code_text
+ptr_extract_plot  <- function(state) shiny::isolate(state$runtime())$plot
+ptr_extract_error <- function(state) shiny::isolate(state$runtime())$error
+ptr_extract_code  <- function(state) shiny::isolate(state$runtime())$code_text
 
 # ---- ptr_gg_extra ----
 
-ptr_gg_extra_v2 <- function(state, exprs = list()) {
+ptr_gg_extra <- function(state, exprs = list()) {
   if (!is.list(exprs) || !length(exprs)) return(invisible(state))
   evaluated <- list()
   for (e in exprs) {

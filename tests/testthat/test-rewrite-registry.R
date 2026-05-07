@@ -121,7 +121,7 @@ test_that("source constructor defaults resolve_expr to symbol of value", {
 
 test_that("translate dispatches placeholders to correct node class via role", {
   ptr_registry_v2_clear()
-  ptr_register_builtins_v2()
+  ptr_register_builtins()
   r <- ptr_translate("ggplot(my_local_df, aes(x = var, y = num)) + geom_point(color = text)")
   values <- find_nodes(r, is_ptr_ph_value)
   consumers <- find_nodes(r, is_ptr_ph_data_consumer)

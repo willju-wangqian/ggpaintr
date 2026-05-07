@@ -2,37 +2,37 @@
 # `ptr_define_placeholder`. Stored in an isolated env so the legacy registry
 # in paintr-placeholders.R is undisturbed during cohabitation.
 
-.ptr_registry_v2 <- new.env(parent = emptyenv())
+.ptr_registry <- new.env(parent = emptyenv())
 .ptr_registry_v2_initialized <- new.env(parent = emptyenv())
 .ptr_registry_v2_initialized$done <- FALSE
 
 ensure_registry_v2_initialized <- function() {
   if (isTRUE(.ptr_registry_v2_initialized$done)) return(invisible(NULL))
   .ptr_registry_v2_initialized$done <- TRUE
-  if (length(ls(.ptr_registry_v2)) > 0L) return(invisible(NULL))
-  if (exists("ptr_register_builtins_v2", mode = "function")) {
-    ptr_register_builtins_v2()
+  if (length(ls(.ptr_registry)) > 0L) return(invisible(NULL))
+  if (exists("ptr_register_builtins", mode = "function")) {
+    ptr_register_builtins()
   }
   invisible(NULL)
 }
 
 ptr_registry_v2_clear <- function() {
-  rm(list = ls(.ptr_registry_v2), envir = .ptr_registry_v2)
+  rm(list = ls(.ptr_registry), envir = .ptr_registry)
   .ptr_registry_v2_initialized$done <- FALSE
   invisible(NULL)
 }
 
 ptr_registry_v2_lookup <- function(keyword) {
   ensure_registry_v2_initialized()
-  if (!exists(keyword, envir = .ptr_registry_v2, inherits = FALSE)) {
+  if (!exists(keyword, envir = .ptr_registry, inherits = FALSE)) {
     return(NULL)
   }
-  get(keyword, envir = .ptr_registry_v2, inherits = FALSE)
+  get(keyword, envir = .ptr_registry, inherits = FALSE)
 }
 
 ptr_registry_v2_keywords <- function() {
   ensure_registry_v2_initialized()
-  ls(.ptr_registry_v2)
+  ls(.ptr_registry)
 }
 
 ptr_registry_v2_data_aware_keywords <- function() {
@@ -112,10 +112,10 @@ validate_copy_defaults <- function(copy_defaults) {
 }
 
 ptr_registry_v2_register <- function(entry) {
-  if (exists(entry$keyword, envir = .ptr_registry_v2, inherits = FALSE)) {
+  if (exists(entry$keyword, envir = .ptr_registry, inherits = FALSE)) {
     cli::cli_warn("Overwriting placeholder registry entry: {.val {entry$keyword}}.")
   }
-  assign(entry$keyword, entry, envir = .ptr_registry_v2)
+  assign(entry$keyword, entry, envir = .ptr_registry)
   invisible(entry)
 }
 

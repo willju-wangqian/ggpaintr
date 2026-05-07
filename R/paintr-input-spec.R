@@ -8,7 +8,7 @@
   "param_key", "source_id", "shared"
 )
 
-ptr_runtime_input_spec_v2 <- function(node) {
+ptr_runtime_input_spec <- function(node) {
   if (!is_ptr_root(node)) {
     rlang::abort("ptr_runtime_input_spec expects a ptr_root.")
   }

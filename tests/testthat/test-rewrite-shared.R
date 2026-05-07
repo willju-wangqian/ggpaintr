@@ -24,7 +24,7 @@ test_that("P3.3 shared metadata surfaces in runtime input spec", {
   r <- ptr_translate(
     'ggplot(mtcars, aes(x = mpg)) + geom_point(size = num(shared = "size_filter"))'
   )
-  spec <- ptr_runtime_input_spec_v2(r)
+  spec <- ptr_runtime_input_spec(r)
   ph_rows <- spec[spec$role %in% "placeholder", ]
   size_rows <- ph_rows[ph_rows$keyword == "num", ]
   expect_equal(nrow(size_rows), 1L)
@@ -33,7 +33,7 @@ test_that("P3.3 shared metadata surfaces in runtime input spec", {
 
 test_that("P3.4 upload companion row carries shared", {
   r <- ptr_translate('ggplot(data = upload(shared = "ds"))')
-  spec <- ptr_runtime_input_spec_v2(r)
+  spec <- ptr_runtime_input_spec(r)
   upload_rows <- spec[spec$keyword %in% "upload", ]
   expect_equal(nrow(upload_rows), 2L)  # placeholder + companion
   expect_true(all(upload_rows$shared == "ds"))
@@ -41,7 +41,7 @@ test_that("P3.4 upload companion row carries shared", {
 
 test_that("P3.5 bare-symbol placeholder has shared = NA in input spec", {
   r <- ptr_translate("ggplot(aes(x = var)) + geom_point()")
-  spec <- ptr_runtime_input_spec_v2(r)
+  spec <- ptr_runtime_input_spec(r)
   var_rows <- spec[spec$keyword %in% "var", ]
   expect_equal(nrow(var_rows), 1L)
   expect_true(is.na(var_rows$shared))

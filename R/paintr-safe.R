@@ -10,11 +10,11 @@
 #   pruned    post-substitute, post-prune typed tree (NULL on failure)
 #   eval_env  the env to pass to ptr_eval (carried through so resolve hooks
 #             that bind names — e.g., upload — are visible)
-#   plot      the assembled ggplot (NULL until ptr_assemble_plot_safe_v2)
+#   plot      the assembled ggplot (NULL until ptr_assemble_plot_safe)
 #   error     conditionMessage(e) when ok=FALSE
 #   condition the original condition object when ok=FALSE
 
-ptr_complete_expr_safe_v2 <- function(node,
+ptr_complete_expr_safe <- function(node,
                                    snapshot = list(),
                                    shared_bindings = list(),
                                    eval_env = parent.frame(),
@@ -64,7 +64,7 @@ ptr_complete_expr_safe_v2 <- function(node,
   })
 }
 
-ptr_assemble_plot_safe_v2 <- function(result, expr_check = TRUE) {
+ptr_assemble_plot_safe <- function(result, expr_check = TRUE) {
   if (!isTRUE(result$ok)) return(result)
 
   pruned <- result$pruned
@@ -92,7 +92,7 @@ ptr_assemble_plot_safe_v2 <- function(result, expr_check = TRUE) {
   })
 }
 
-ptr_validate_plot_render_safe_v2 <- function(result) {
+ptr_validate_plot_render_safe <- function(result) {
   if (!isTRUE(result$ok)) return(result)
   if (is.null(result$plot)) return(result)
 

@@ -111,7 +111,7 @@ test_that("P5.16 custom resolve_expr returning denylisted character literal bloc
   )
   on.exit({
     ptr_registry_v2_clear()
-    ptr_register_builtins_v2()
+    ptr_register_builtins()
   })
   r <- ptr_translate("ggplot(mtcars) + labs(title = danger)")
   id <- find_nodes(r,

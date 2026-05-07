@@ -1,4 +1,4 @@
-# Built-in placeholders registered against `.ptr_registry_v2`.
+# Built-in placeholders registered against `.ptr_registry`.
 #
 # Wiring summary:
 #   text  -> value     (textInput)
@@ -123,7 +123,7 @@ ptr_builtin_upload_resolve_data <- function(value, node, ...) {
 
 # ---- registration -----------------------------------------------------------
 
-ptr_register_builtins_v2 <- function() {
+ptr_register_builtins <- function() {
   ptr_define_placeholder_value(
     keyword = "text",
     build_ui = ptr_builtin_text_build_ui,
@@ -160,7 +160,7 @@ ptr_register_builtins_v2 <- function() {
 }
 
 .onLoad <- function(libname, pkgname) {
-  ptr_register_builtins_v2()
+  ptr_register_builtins()
 }
 
 `%||%` <- function(a, b) if (is.null(a)) b else a

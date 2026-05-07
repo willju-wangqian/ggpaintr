@@ -188,9 +188,9 @@ test_that("ptr_resolve_upstream: re-enabled stage restores behavior", {
 
 # ---- input-spec -----------------------------------------------------------
 
-test_that("ptr_runtime_input_spec_v2: emits stage_enabled rows", {
+test_that("ptr_runtime_input_spec: emits stage_enabled rows", {
   tree <- ptr_translate("mtcars |> filter(num) |> ggplot()")
-  spec <- ptr_runtime_input_spec_v2(tree)
+  spec <- ptr_runtime_input_spec(tree)
   stage_rows <- spec[spec$role == "stage_enabled", , drop = FALSE]
   expect_equal(nrow(stage_rows), 1L)
   expect_equal(stage_rows$input_id, "ggplot+2+stage_enabled")
@@ -199,8 +199,8 @@ test_that("ptr_runtime_input_spec_v2: emits stage_enabled rows", {
 
 # ---- server state ---------------------------------------------------------
 
-test_that("ptr_server_state_v2: stage_enabled initialized with all-TRUE", {
-  state <- ptr_server_state_v2(
+test_that("ptr_server_state: stage_enabled initialized with all-TRUE", {
+  state <- ptr_server_state(
     "mtcars |> head(num) |> ggplot()",
     envir = .test_env()
   )
@@ -209,10 +209,10 @@ test_that("ptr_server_state_v2: stage_enabled initialized with all-TRUE", {
   expect_true(isTRUE(cur[["ggplot+2+stage_enabled"]]))
 })
 
-test_that("ptr_server_v2: toggle input flips state$stage_enabled", {
+test_that("ptr_server: toggle input flips state$stage_enabled", {
   e <- .test_env()
   server <- function(input, output, session) {
-    session$userData$state <- ptr_server_v2(
+    session$userData$state <- ptr_server(
       input, output, session,
       "mtcars |> head(num) |> ggplot()",
       envir = e
