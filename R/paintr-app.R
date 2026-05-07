@@ -102,16 +102,16 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
     shiny::sidebarLayout(
       shiny::sidebarPanel(
         picker,
-        hidden_tabset
-      ),
-      shiny::mainPanel(
+        hidden_tabset,
         shiny::actionButton(
           ns("ptr_update_plot"),
-          label = shell_copy$update_plot_label %||% "Update Plot"
-        ),
+          label = shell_copy$update_plot_label %||% "Update plot"
+        )
+      ),
+      shiny::mainPanel(
         shiny::plotOutput(ns("ptr_plot")),
-        shiny::verbatimTextOutput(ns("ptr_code")),
-        shiny::textOutput(ns("ptr_error"))
+        shiny::uiOutput(ns("ptr_error")),
+        shiny::verbatimTextOutput(ns("ptr_code"))
       )
     )
   )

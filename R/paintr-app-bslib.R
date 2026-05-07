@@ -83,18 +83,18 @@ ptr_app_bslib <- function(formula,
       title = "Controls",
       width = 340,
       picker,
-      hidden_tabset
+      hidden_tabset,
+      shiny::actionButton(
+        ns("ptr_update_plot"),
+        label = shell_copy$update_plot_label %||% "Update plot"
+      )
     ),
     bslib::card(
       full_screen = TRUE,
       bslib::card_header("Plot"),
       bslib::card_body(
-        shiny::actionButton(
-          ns("ptr_update_plot"),
-          label = shell_copy$update_plot_label %||% "Update Plot"
-        ),
         shiny::plotOutput(ns("ptr_plot")),
-        shiny::textOutput(ns("ptr_error"))
+        shiny::uiOutput(ns("ptr_error"))
       )
     ),
     bslib::card(

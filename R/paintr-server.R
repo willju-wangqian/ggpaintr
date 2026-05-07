@@ -335,6 +335,32 @@ ptr_setup_runtime <- function(state, input, output, session) {
   invisible(state)
 }
 
+# Build the styled inline error UI (red bordered card). Ported from
+# legacy paintr (paintr-runtime.R::ptr_error_ui) — gives the user a
+# visually distinct error box rather than raw text. Returns NULL when
+# the message is missing/blank so renderUI emits nothing.
+ptr_error_ui <- function(message) {
+  if (is.null(message) || identical(trimws(message), "")) {
+    return(NULL)
+  }
+  shiny::tags$div(
+    style = paste(
+      "margin-top: 12px;",
+      "margin-bottom: 12px;",
+      "padding: 12px;",
+      "border: 1px solid #c62828;",
+      "border-radius: 4px;",
+      "background-color: #fff3f3;",
+      "color: #7f1d1d;"
+    ),
+    shiny::tags$strong("Error"),
+    shiny::tags$div(
+      style = "white-space: pre-wrap; margin-top: 6px;",
+      message
+    )
+  )
+}
+
 # Walk the pruned tree and replace each pipeline-data layer's `data_arg`
 # with a `ptr_literal` carrying the cached frame from
 # `state$resolved_data[[layer$name]]`. Layers without a cache entry (no
@@ -503,14 +529,11 @@ ptr_register_plot <- function(output, state) {
 #' @rdname ptr_register
 #' @export
 ptr_register_error <- function(output, state) {
-  output[[state$ui_ns_fn("ptr_error")]] <- shiny::renderText({
+  output[[state$ui_ns_fn("ptr_error")]] <- shiny::renderUI({
     res <- state$runtime()
-    if (is.null(res) || isTRUE(res$ok)) return("")
-    # cli/rlang error messages contain raw ANSI escape sequences
-    # (e.g. \033[38;5;255m). Browsers render those as literal text,
-    # so we strip them — the legacy paintr did the same in its
-    # `format_runtime_error` helper.
-    cli::ansi_strip(res$error %||% "")
+    if (is.null(res) || isTRUE(res$ok)) return(NULL)
+    msg <- cli::ansi_strip(res$error %||% "")
+    ptr_error_ui(msg)
   })
   invisible(state)
 }
