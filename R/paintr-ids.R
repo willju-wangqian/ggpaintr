@@ -22,7 +22,7 @@ ptr_assign_ids <- function(node, ns_fn = shiny::NS(NULL)) {
       )
     }
   }
-  node
+  assign_stage_ids(node)
 }
 
 validate_ns_fn <- function(ns_fn) {

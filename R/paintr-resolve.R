@@ -12,11 +12,14 @@ ptr_resolve_upstream <- function(subtree,
                                  eval_env = parent.frame(),
                                  cache = NULL,
                                  expr_check = TRUE,
-                                 normalize_columns = TRUE) {
+                                 normalize_columns = TRUE,
+                                 stage_enabled = list()) {
   if (is.null(subtree)) return(NULL)
   if (!is_ptr_node(subtree)) {
     rlang::abort("`subtree` must be a typed AST node or NULL.")
   }
+
+  subtree <- disable_walk(subtree, stage_enabled)
 
   subbed <- ptr_substitute(
     subtree,

@@ -106,22 +106,44 @@ build_ui_for.ptr_layer <- function(node,
                                     shell_copy = NULL,
                                     ...) {
   layer_name <- node$name
-  pipeline_phs <- find_layer_placeholders(node$data_arg)
+  pipeline_entries <- find_layer_placeholders_with_stage(node$data_arg)
   control_phs  <- find_layer_placeholders(node$children)
 
-  pipeline_ui <- lapply(pipeline_phs, function(ph) {
+  seen_stage_ids <- character()
+  pipeline_ui <- list()
+  for (entry in pipeline_entries) {
+    ph <- entry$ph
+    sid <- entry$stage_id
     cols <- cols_map[[ph$id %||% ""]] %||% character()
-    build_ui_for(ph, cols = cols, ui_text = ui_text,
-                 placeholders = placeholders, layer_name = layer_name,
-                 ns_fn = ns_fn)
-  })
+    ui <- build_ui_for(ph, cols = cols, ui_text = ui_text,
+                       placeholders = placeholders, layer_name = layer_name,
+                       ns_fn = ns_fn)
+    if (is.null(ui)) next
+    if (!is.na(sid)) {
+      first_in_stage <- !sid %in% seen_stage_ids
+      if (first_in_stage) {
+        seen_stage_ids <- c(seen_stage_ids, sid)
+        ui <- shiny::div(
+          class = "ptr-stage-row",
+          shiny::checkboxInput(
+            inputId = ns_fn(sid), label = NULL, value = TRUE,
+            width = "auto"
+          ),
+          ui
+        )
+      } else {
+        ui <- shiny::div(class = "ptr-stage-row", ui)
+      }
+    }
+    pipeline_ui[[length(pipeline_ui) + 1L]] <- ui
+  }
+
   control_ui <- lapply(control_phs, function(ph) {
     cols <- cols_map[[ph$id %||% ""]] %||% character()
     build_ui_for(ph, cols = cols, ui_text = ui_text,
                  placeholders = placeholders, layer_name = layer_name,
                  ns_fn = ns_fn)
   })
-  pipeline_ui <- pipeline_ui[!vapply(pipeline_ui, is.null, logical(1))]
   control_ui  <- control_ui[!vapply(control_ui, is.null, logical(1))]
 
   update_button <- if (!is.null(node$update_data_input_id)) {
@@ -208,6 +230,47 @@ find_layer_placeholders <- function(x) {
     }
   }
   visit(x)
+  out
+}
+
+
+# Like `find_layer_placeholders`, but each entry is a list with `ph` and the
+# innermost enclosing call's `stage_id` (or NA_character_ if none). Used to
+# attach stage-disable checkboxes to the first placeholder of each stage.
+find_layer_placeholders_with_stage <- function(x) {
+  out <- list()
+  visit <- function(n, current_sid) {
+    if (is.null(n)) return()
+    if (is_ptr_placeholder(n)) {
+      out[[length(out) + 1L]] <<- list(ph = n, stage_id = current_sid)
+      return()
+    }
+    if (is_ptr_call(n)) {
+      sid <- if (!is.null(n$stage_id)) n$stage_id else current_sid
+      for (a in n$args) visit(a, sid)
+      return()
+    }
+    if (is_ptr_pipeline(n)) {
+      for (s in n$stages) {
+        if (is_ptr_call(s) && !is.null(s$stage_id)) {
+          # Stage IS the call: its args descend with the stage's id.
+          for (a in s$args) visit(a, s$stage_id)
+        } else {
+          visit(s, NA_character_)
+        }
+      }
+      return()
+    }
+    if (is_ptr_node(n)) {
+      for (nm in names(n)) {
+        if (identical(nm, "upstream")) next
+        visit(n[[nm]], current_sid)
+      }
+    } else if (is.list(n)) {
+      for (el in n) visit(el, current_sid)
+    }
+  }
+  visit(x, NA_character_)
   out
 }
 

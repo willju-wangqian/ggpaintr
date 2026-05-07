@@ -57,6 +57,12 @@ ptr_server_state_v2 <- function(formula,
     pipeline_layer_names
   )
 
+  initial_stage_ids <- collect_stage_ids(tree)
+  initial_stage_enabled <- stats::setNames(
+    rep(list(TRUE), length(initial_stage_ids)),
+    initial_stage_ids
+  )
+
   structure(list(
     tree = shiny::reactiveVal(tree),
     runtime = shiny::reactiveVal(NULL),
@@ -73,6 +79,7 @@ ptr_server_state_v2 <- function(formula,
     last_click_inputs = last_click_inputs,
     is_stale_env = new.env(parent = emptyenv()),
     upstream_cache = new.env(parent = emptyenv()),
+    stage_enabled = shiny::reactiveVal(initial_stage_enabled),
     ui_ns_fn = ns,
     server_ns_fn = server_ns,
     ns_fn = server_ns,
@@ -86,6 +93,7 @@ ptr_server_v2 <- function(input, output, session, formula,
                           envir = parent.frame(), ...) {
   state <- ptr_server_state_v2(formula, envir = envir, ...)
   ptr_setup_pipelines_v2(state, input, output, session)
+  ptr_setup_stage_enabled_v2(state, input, output, session)
   ptr_setup_runtime_v2(state, input, output, session)
   ptr_register_plot_v2(output, state)
   ptr_register_error_v2(output, state)
@@ -115,7 +123,8 @@ ptr_setup_pipelines_v2 <- function(state, input, output, session) {
         shared_bindings = state$shared_bindings,
         eval_env = state$eval_env,
         cache = state$upstream_cache,
-        expr_check = state$expr_check
+        expr_check = state$expr_check,
+        stage_enabled = shiny::isolate(state$stage_enabled())
       )
       state$resolved_data[[ln]](seed)
       state$last_click_inputs[[ln]](list())
@@ -134,7 +143,8 @@ ptr_setup_pipelines_v2 <- function(state, input, output, session) {
           shared_bindings = state$shared_bindings,
           eval_env = state$eval_env,
           cache = state$upstream_cache,
-          expr_check = state$expr_check
+          expr_check = state$expr_check,
+          stage_enabled = state$stage_enabled()
         )
         state$resolved_data[[ln]](new_data)
         state$last_click_inputs[[ln]](snapshot)
@@ -147,6 +157,29 @@ ptr_setup_pipelines_v2 <- function(state, input, output, session) {
         current <- snapshot_for_layer_v2(lyr, input, state)
         !identical(current, last)
       })
+    })
+  }
+  invisible(state)
+}
+
+
+# ---- per-stage-enabled observers ----
+
+# Mirror checkbox inputs into `state$stage_enabled`. Each stage-id input
+# starts NULL; only after the user toggles does it produce a value, so we
+# use ignoreNULL = TRUE. The reactiveVal carries the canonical bool.
+ptr_setup_stage_enabled_v2 <- function(state, input, output, session) {
+  tree <- shiny::isolate(state$tree())
+  ns <- state$server_ns_fn
+  for (sid in collect_stage_ids(tree)) {
+    local({
+      sid_local <- sid
+      bound_id <- ns(sid_local)
+      shiny::observeEvent(input[[bound_id]], {
+        cur <- state$stage_enabled()
+        cur[[sid_local]] <- isTRUE(input[[bound_id]])
+        state$stage_enabled(cur)
+      }, ignoreNULL = TRUE)
     })
   }
   invisible(state)
@@ -205,6 +238,8 @@ ptr_setup_runtime_v2 <- function(state, input, output, session) {
     }
 
     tree <- state$tree()
+    stage_enabled <- state$stage_enabled()
+    tree <- disable_walk(tree, stage_enabled)
     upstream_cols <- runtime_upstream_cols_v2(state)
 
     res <- ptr_complete_expr_safe_v2(
@@ -231,6 +266,7 @@ ptr_setup_runtime_v2 <- function(state, input, output, session) {
 # selections at substitute time and to drive `cols` for picker UI updates.
 runtime_upstream_cols_v2 <- function(state) {
   tree <- shiny::isolate(state$tree())
+  stage_enabled <- state$stage_enabled()
   out <- list()
   consumers <- find_nodes(tree, is_ptr_ph_data_consumer)
   for (c in consumers) {
@@ -250,7 +286,8 @@ runtime_upstream_cols_v2 <- function(state) {
       shared_bindings = state$shared_bindings,
       eval_env = state$eval_env,
       cache = state$upstream_cache,
-      expr_check = state$expr_check
+      expr_check = state$expr_check,
+      stage_enabled = stage_enabled
     )
     if (!is.null(df)) out[[c$id]] <- names(df)
   }

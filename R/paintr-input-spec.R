@@ -14,6 +14,7 @@ ptr_runtime_input_spec_v2 <- function(node) {
   }
   ph_rows <- list()
   layer_rows <- list()
+  stage_rows <- list()
   for (layer in node$layers) {
     if (is_ptr_layer(layer)) {
       pls <- collect_layer_placeholders(layer)
@@ -37,6 +38,13 @@ ptr_runtime_input_spec_v2 <- function(node) {
           layer_name = layer$name
         )
       }
+      for (sid in collect_stage_ids(layer)) {
+        stage_rows[[length(stage_rows) + 1L]] <- empty_row(
+          input_id = sid,
+          role = "stage_enabled",
+          layer_name = layer$name
+        )
+      }
     } else if (is_ptr_placeholder(layer)) {
       ph_rows[[length(ph_rows) + 1L]] <- placeholder_row(
         layer, layer$name %||% layer$keyword
@@ -48,7 +56,7 @@ ptr_runtime_input_spec_v2 <- function(node) {
       }
     }
   }
-  rows_to_data_frame(c(ph_rows, layer_rows))
+  rows_to_data_frame(c(ph_rows, layer_rows, stage_rows))
 }
 
 collect_layer_placeholders <- function(layer) {
