@@ -161,8 +161,17 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
 #' @export
 ptr_module_server <- function(id, formula, envir = parent.frame(), ...) {
   shiny::moduleServer(id, function(input, output, session) {
+    # Two namespaces are needed under moduleServer:
+    #   ns         = session$ns  -> wraps tag inputIds rendered server-side
+    #                              via renderUI (Shiny does NOT auto-namespace
+    #                              tag attributes emitted from dynamic output).
+    #   server_ns  = NS(NULL)    -> identity for input[[]] / output[[]] /
+    #                              updateXxx(session, id, ...) lookups, since
+    #                              moduleServer's session already
+    #                              auto-namespaces those keys.
     ptr_server(input, output, session, formula,
-                  envir = envir, ns = session$ns, ...)
+                  envir = envir, ns = session$ns,
+                  server_ns = shiny::NS(NULL), ...)
   })
 }
 

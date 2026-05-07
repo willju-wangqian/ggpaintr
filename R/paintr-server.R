@@ -511,7 +511,11 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
     local({
       node <- c
       raw_id <- node$id
-      output_id <- ui_ns(consumer_output_id(raw_id))
+      # `output[[...]]` keys are server-side lookups; under moduleServer the
+      # session auto-namespaces them. Use `ns` (= server_ns_fn). The picker
+      # tag rendered inside `renderUI` below uses `ui_ns` for its inputId
+      # because dynamic tag attributes are NOT auto-namespaced.
+      output_id <- ns(consumer_output_id(raw_id))
       cols_reactive <- shiny::reactive({
         cols_memo()[[raw_id]] %||% character()
       })
@@ -550,7 +554,7 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
 #' @name ptr_register
 #' @export
 ptr_register_plot <- function(output, state) {
-  output[[state$ui_ns_fn("ptr_plot")]] <- shiny::renderPlot({
+  output[[state$server_ns_fn("ptr_plot")]] <- shiny::renderPlot({
     res <- state$runtime()
     shiny::req(isTRUE(res$ok), res$plot)
     res$plot
@@ -561,7 +565,7 @@ ptr_register_plot <- function(output, state) {
 #' @rdname ptr_register
 #' @export
 ptr_register_error <- function(output, state) {
-  output[[state$ui_ns_fn("ptr_error")]] <- shiny::renderUI({
+  output[[state$server_ns_fn("ptr_error")]] <- shiny::renderUI({
     res <- state$runtime()
     if (is.null(res) || isTRUE(res$ok)) return(NULL)
     msg <- cli::ansi_strip(res$error %||% "")
@@ -573,7 +577,7 @@ ptr_register_error <- function(output, state) {
 #' @rdname ptr_register
 #' @export
 ptr_register_code <- function(output, state) {
-  output[[state$ui_ns_fn("ptr_code")]] <- shiny::renderText({
+  output[[state$server_ns_fn("ptr_code")]] <- shiny::renderText({
     res <- state$runtime()
     if (is.null(res)) "" else (res$code_text %||% "")
   })
