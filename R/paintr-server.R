@@ -647,28 +647,27 @@ ptr_extract_code  <- function(state) {
 #' the existing extras untouched.
 #'
 #' @param state A `ptr_state` from [ptr_server_state()].
-#' @param exprs A list of expressions or quosures producing `ggplot2` layers
-#'   (e.g. `list(quote(ggplot2::scale_x_log10()))`).
+#' @param ... `ggplot2` layer expressions (e.g.
+#'   `ptr_gg_extra(state, ggplot2::scale_x_log10(), theme_minimal())`).
+#'   Captured unevaluated and stored as quosures, then evaluated in
+#'   `state$eval_env`. Eval errors propagate and leave the existing
+#'   extras untouched (atomic update).
 #'
 #' @return `state`, invisibly.
 #' @export
-ptr_gg_extra <- function(state, exprs = list()) {
-  if (!is.list(exprs) || !length(exprs)) return(invisible(state))
-  evaluated <- list()
-  for (e in exprs) {
-    val <- if (rlang::is_quosure(e)) {
-      rlang::eval_tidy(e, env = state$eval_env)
-    } else {
-      eval(e, envir = state$eval_env)
-    }
-    evaluated[[length(evaluated) + 1L]] <- val
-  }
+ptr_gg_extra <- function(state, ...) {
+  quos <- rlang::enquos(..., .named = FALSE)
+  if (length(quos) == 0L) return(invisible(state))
+  # Evaluate all quosures up-front; if any raises, the assignment to
+  # `state$extras_exprs` / `state$extras` below never runs, so a failed
+  # call leaves the existing extras intact (P12.12).
+  evaluated <- lapply(quos, rlang::eval_tidy, env = state$eval_env)
   # Replace-per-call: each invocation overwrites the previously captured
   # extras (legacy semantics; documented in `dev/scripts/feature-sweep.R`
-  # note 16). To accumulate, the caller passes the merged list themselves.
-  # Update source exprs first so renderText that reads both
-  # `state$extras_exprs()` and `state$extras()` sees a consistent pair.
-  state$extras_exprs(exprs)
+  # note 16). Update source exprs first so any renderText that reads
+  # both `state$extras_exprs()` and `state$extras()` sees a consistent
+  # pair under reactive flushing.
+  state$extras_exprs(quos)
   state$extras(evaluated)
   invisible(state)
 }

@@ -273,7 +273,7 @@ ptr_app_grid(
       "p", "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()"
     )
     observeEvent(input$add_log, {
-      ptr_gg_extra(state, list(quote(ggplot2::scale_x_log10())))
+      ptr_gg_extra(state, ggplot2::scale_x_log10())
     })
   }
   shinyApp(ui, server)

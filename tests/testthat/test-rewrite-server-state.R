@@ -172,16 +172,16 @@ test_that("P12.10 ptr_gg_extra captures extras", {
   e <- .server_test_env()
   state <- ptr_server_state("ggplot(mtcars) + geom_point()", envir = e)
   shiny::isolate({
-    ptr_gg_extra(state, list(quote(ggplot2::scale_x_log10())))
+    ptr_gg_extra(state, ggplot2::scale_x_log10())
     expect_equal(length(state$extras()), 1L)
   })
 })
 
-test_that("P12.11 ptr_gg_extra no-op on empty list", {
+test_that("P12.11 ptr_gg_extra no-op when no args", {
   e <- .server_test_env()
   state <- ptr_server_state("ggplot(mtcars) + geom_point()", envir = e)
   shiny::isolate({
-    ptr_gg_extra(state, list())
+    ptr_gg_extra(state)
     expect_equal(length(state$extras()), 0L)
   })
 })
@@ -191,7 +191,7 @@ test_that("P12.12 ptr_gg_extra leaves extras untouched on eval failure", {
   state <- ptr_server_state("ggplot(mtcars) + geom_point()", envir = e)
   shiny::isolate({
     expect_error(
-      ptr_gg_extra(state, list(quote(does_not_exist_xyz()))),
+      ptr_gg_extra(state, does_not_exist_xyz()),
       "does_not_exist_xyz"
     )
     expect_equal(length(state$extras()), 0L)
