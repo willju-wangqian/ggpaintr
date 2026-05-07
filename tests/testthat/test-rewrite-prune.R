@@ -183,3 +183,53 @@ test_that("P9.17 depth limit triggers abort", {
   }
   expect_error(ptr_prune(inner), "depth")
 })
+
+# ---- P9.23–P9.26 — gap-fillers from test-prune-empty-substitution.R ----
+
+test_that("P9.23 facet_wrap(vars(var)) drops when var missing (cascade)", {
+  r <- ptr_translate("ggplot(mtcars) + geom_point() + facet_wrap(vars(var))")
+  s <- ptr_substitute(r, input_snapshot = list())
+  p <- ptr_prune(s)
+  layer_names <- vapply(p$layers, function(l) l$name, character(1))
+  expect_false("facet_wrap" %in% layer_names)
+})
+
+test_that("P9.24 annotation_custom(grob = expr) drops when expr missing", {
+  r <- ptr_translate(
+    "ggplot(mtcars) + geom_point() + annotation_custom(grob = expr)"
+  )
+  s <- ptr_substitute(r, input_snapshot = list())
+  p <- ptr_prune(s)
+  layer_names <- vapply(p$layers, function(l) l$name, character(1))
+  expect_false("annotation_custom" %in% layer_names)
+})
+
+test_that("P9.25 binary operator inside data_arg escalates when operand missing", {
+  # `subset(mtcars, mpg > num)` with num missing: the `>` operator has a
+  # positional missing operand → escalates to ptr_missing per P9 (G2);
+  # the surrounding subset call's positional second arg is now missing →
+  # subset itself escalates. Exercises G2 (operator escalation) and the
+  # nested-cascade rule together.
+  r <- ptr_translate("ggplot(subset(mtcars, mpg > num)) + geom_point()")
+  s <- ptr_substitute(r, input_snapshot = list())
+  p <- ptr_prune(s)
+  rendered <- ptr_render(p)
+  expect_false(grepl(">", rendered, fixed = TRUE))
+})
+
+test_that("P9.26 anonymous-head call (paren-wrapped) is preserved by prune", {
+  # `(function(x) x)(text)` with text supplied via input_snapshot — the
+  # call-head is itself a call (not a symbol). The pruner can't match
+  # `call_name` to remove_set, so the wrapper survives.
+  r <- ptr_translate(
+    "ggplot(mtcars) + geom_point() + labs(title = (function(x) x)(text))"
+  )
+  ph_id <- find_nodes(
+    r,
+    function(n) is_ptr_placeholder(n) && n$keyword == "text"
+  )[[1]]$id
+  s <- ptr_substitute(r, input_snapshot = stats::setNames(list("hi"), ph_id))
+  p <- ptr_prune(s)
+  rendered <- ptr_render(p)
+  expect_true(grepl("function", rendered, fixed = TRUE))
+})
