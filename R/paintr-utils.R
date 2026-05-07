@@ -1,60 +1,8 @@
-#' Determine an Expression's Structural Type
-#'
-#' Internal helper used while traversing ggplot-like calls.
-#'
-#' @param x An R expression object.
-#'
-#' @return A single string describing the expression type.
-#' @noRd
-expr_type <- function(x) {
-  if (rlang::is_syntactic_literal(x)) {
-    "constant"
-  } else if (is.symbol(x)) {
-    "symbol"
-  } else if (is.call(x)) {
-    "call"
-  } else if (is.pairlist(x)) {
-    "pairlist"
-  } else {
-    typeof(x)
-  }
-}
-
-#' Flatten `+`-Separated Plot Layers
-#'
-#' @param x An expression or call.
-#'
-#' @return A nested structure with plot layers separated.
-#' @noRd
-handle_call_break_sum <- function(x, .depth = 0L, max_depth = 100L) {
-  if (rlang::is_call(x, "+")) {
-    lapply(x[-1], break_sum, .depth = .depth + 1L, max_depth = max_depth)
-  } else {
-    x
-  }
-}
 
 
 # Recursively rewrite `lhs %>% rhs(args)` into `rhs(lhs, args)`. Used so that
 # magrittr-style formulas are evaluated and inspected as ordinary calls without
 # requiring magrittr at runtime. Native `|>` is already desugared by R's parser.
-rewrite_magrittr_pipe <- function(x) {
-  if (rlang::is_call(x, "%>%")) {
-    lhs <- rewrite_magrittr_pipe(x[[2]])
-    rhs <- rewrite_magrittr_pipe(x[[3]])
-    if (rlang::is_call(rhs)) {
-      return(as.call(c(list(rhs[[1]], lhs), as.list(rhs)[-1])))
-    }
-    return(rlang::call2(rhs, lhs))
-  }
-  if (rlang::is_call(x)) {
-    return(as.call(lapply(as.list(x), rewrite_magrittr_pipe)))
-  }
-  if (rlang::is_pairlist(x)) {
-    return(as.pairlist(lapply(x, rewrite_magrittr_pipe)))
-  }
-  x
-}
 
 # Detect the chain of pipe operators feeding the top-level `ggplot(...)` call in
 # `formula_text`. Returns a character vector of operators ("|>" or "%>%") in
@@ -62,87 +10,10 @@ rewrite_magrittr_pipe <- function(x) {
 # `ggplot(`. Empty character vector if `ggplot(...)` is not pipe-fed. Used only
 # for code-panel display so the rendered code mirrors the user's surface form
 # rather than the AST after pipe desugaring.
-detect_ggplot_pipe_chain <- function(formula_text) {
-  pd <- tryCatch(
-    utils::getParseData(parse(text = formula_text, keep.source = TRUE)),
-    error = function(e) NULL
-  )
-  if (is.null(pd) || nrow(pd) == 0L) return(character())
-
-  id_to_row <- stats::setNames(seq_len(nrow(pd)), as.character(pd$id))
-  row_of <- function(id) {
-    if (is.na(id) || id == 0L) return(NA_integer_)
-    r <- id_to_row[as.character(id)]
-    if (is.na(r)) NA_integer_ else unname(r)
-  }
-
-  pipe_op_of <- function(expr_id) {
-    kids <- which(pd$parent == expr_id)
-    if (length(kids) == 0L) return(NULL)
-    pipe_kid <- kids[
-      pd$token[kids] == "PIPE" |
-        (pd$token[kids] == "SPECIAL" & pd$text[kids] == "%>%")
-    ]
-    if (length(pipe_kid) == 0L) return(NULL)
-    if (pd$token[pipe_kid[1]] == "PIPE") "|>" else "%>%"
-  }
-
-  ordered_kid_ids <- function(expr_id) {
-    kids <- which(pd$parent == expr_id)
-    if (length(kids) == 0L) return(integer())
-    pd$id[kids[order(pd$line1[kids], pd$col1[kids])]]
-  }
-
-  gg_rows <- which(pd$token == "SYMBOL_FUNCTION_CALL" & pd$text == "ggplot")
-  if (length(gg_rows) == 0L) return(character())
-
-  for (gg_row in gg_rows) {
-    name_expr_row <- row_of(pd$parent[gg_row])
-    if (is.na(name_expr_row)) next
-    call_expr_id <- pd$parent[name_expr_row]
-    if (is.na(call_expr_id) || call_expr_id == 0L) next
-
-    ops_right <- character()
-    cur_id <- call_expr_id
-    repeat {
-      cur_row <- row_of(cur_id)
-      if (is.na(cur_row)) break
-      par_id <- pd$parent[cur_row]
-      if (is.na(par_id) || par_id == 0L) break
-      op <- pipe_op_of(par_id)
-      if (is.null(op)) break
-      kid_ids <- ordered_kid_ids(par_id)
-      if (length(kid_ids) == 0L || kid_ids[length(kid_ids)] != cur_id) break
-      ops_right <- c(ops_right, op)
-      cur_id <- par_id
-    }
-
-    ops_left <- character()
-    repeat {
-      if (is.null(pipe_op_of(cur_id))) break
-      kid_ids <- ordered_kid_ids(cur_id)
-      if (length(kid_ids) == 0L) break
-      lhs_id <- kid_ids[1]
-      lhs_op <- pipe_op_of(lhs_id)
-      if (is.null(lhs_op)) break
-      ops_left <- c(lhs_op, ops_left)
-      cur_id <- lhs_id
-    }
-
-    chain <- c(ops_left, ops_right)
-    if (length(chain) > 0L) return(chain)
-  }
-
-  character()
-}
 
 
 # Back-compat wrapper: returns the operator immediately preceding `ggplot(`, or
 # NULL if none.
-detect_ggplot_pipe_op <- function(formula_text) {
-  chain <- detect_ggplot_pipe_chain(formula_text)
-  if (length(chain) == 0L) NULL else chain[length(chain)]
-}
 
 
 # Render a `ggplot(...)` call back into a pipe chain matching the source form.
@@ -153,267 +24,21 @@ detect_ggplot_pipe_op <- function(formula_text) {
 # level, and joins the deparsed pieces with the captured operators. Falls back
 # to plain `expr_text` if the chain cannot be walked (e.g. pruning removed the
 # nested call).
-render_ggplot_with_pipe_chain <- function(ggplot_expr, pipe_ops) {
-  if (length(pipe_ops) == 0L) {
-    return(rlang::expr_text(ggplot_expr))
-  }
-  n <- length(pipe_ops)
-  level_calls <- vector("list", n + 1L)
-  level_calls[[1]] <- ggplot_expr
-  for (k in seq_len(n)) {
-    parent_expr <- level_calls[[k]]
-    if (!rlang::is_call(parent_expr) || length(parent_expr) < 2L) {
-      return(rlang::expr_text(ggplot_expr))
-    }
-    level_calls[[k + 1L]] <- parent_expr[[2]]
-  }
-  drop_arg1 <- function(call_expr) {
-    if (!rlang::is_call(call_expr) || length(call_expr) < 2L) return(call_expr)
-    args <- as.list(call_expr)
-    as.call(c(list(args[[1]]), args[-c(1L, 2L)]))
-  }
-  indent <- "  "
-  reindent <- function(text) gsub("\n", paste0("\n", indent), text, fixed = TRUE)
-  links <- character(n + 1L)
-  links[1] <- reindent(rlang::expr_text(level_calls[[n + 1L]]))
-  for (i in 2:(n + 1L)) {
-    level_idx <- n + 2L - i
-    links[i] <- reindent(rlang::expr_text(drop_arg1(level_calls[[level_idx]])))
-  }
-  out <- links[1]
-  for (i in 2:(n + 1L)) {
-    out <- paste0(out, " ", pipe_ops[i - 1L], "\n", indent, links[i])
-  }
-  out
-}
 
 
 # Back-compat wrapper used by callers that still pass a single op.
-render_ggplot_with_pipe <- function(ggplot_expr, pipe_op) {
-  render_ggplot_with_pipe_chain(ggplot_expr, pipe_op)
-}
 
-#' Recursively Split Plot Expressions
-#'
-#' @param x An expression or call.
-#'
-#' @return A split representation of the expression.
-#' @noRd
-break_sum <- function(x, .depth = 0L, max_depth = 100L) {
-  if (.depth > max_depth) {
-    rlang::abort("Formula nesting exceeds maximum depth.")
-  }
-  switch(
-    expr_type(x),
-    symbol = x,
-    constant = x,
-    call = handle_call_break_sum(x, .depth, max_depth),
-    pairlist = as.pairlist(lapply(x, break_sum, .depth = .depth + 1L,
-                                  max_depth = max_depth))
-  )
-}
-
-#' Get a Call or Symbol Name
-#'
-#' @param x An expression object.
-#'
-#' @return A function or symbol name when available.
-#' @noRd
-get_fun_names <- function(x) {
-  if (rlang::is_call(x)) {
-    nm <- rlang::call_name(x)
-    if (!is.null(nm)) return(nm)
-    return(deparse(x[[1]], width.cutoff = 60L)[[1]])
-  }
-
-  if (rlang::is_symbol(x)) {
-    return(rlang::as_string(x))
-  }
-
-  deparse(x)
-}
-
-#' Pluck an Expression by Index Path
-#'
-#' @param .x An expression-like object.
-#' @param index_path An index vector.
-#'
-#' @return The plucked expression or `NULL`.
-#' @noRd
-expr_pluck <- function(.x, index_path) {
-  if (length(index_path) == 0L) return(.x)
-  tryCatch(.x[[index_path]], error = function(e) NULL)
-}
 
 # Walk up `index_path` from a placeholder slot in `layer_expr`, returning the
 # function name of the nearest non-operator enclosing call. Used to label
 # data-pipeline placeholder controls when the placeholder's direct parameter
 # is unnamed (otherwise `{param}` resolves to the generic "this setting").
 # Returns NULL if no such call exists.
-expr_left_spine_depth <- function(expr) {
-  depth <- 0L
-  while (rlang::is_call(expr) && length(expr) >= 2L) {
-    expr <- expr[[2]]
-    depth <- depth + 1L
-  }
-  depth
-}
 
-ptr_enclosing_verb_name <- function(layer_expr, index_path) {
-  if (is.null(index_path) || length(index_path) == 0L) return(NULL)
-  for (depth in (length(index_path) - 1L):0L) {
-    sub_path <- if (depth == 0L) integer(0) else index_path[seq_len(depth)]
-    ancestor <- expr_pluck(layer_expr, sub_path)
-    if (!is.call(ancestor)) next
-    nm <- ptr_call_head_name(ancestor[[1L]])
-    if (is.null(nm)) next
-    if (!nm %in% pruneable_operator_names) return(nm)
-  }
-  NULL
-}
 
 # Resolve the bare function name from a call's head, handling both bare
 # symbols (`filter`) and namespaced refs (`dplyr::filter`, `dplyr:::filter`).
 # Returns NULL when the head is something else (anonymous function, etc.).
-ptr_call_head_name <- function(head) {
-  if (is.symbol(head)) return(as.character(head))
-  if (is.call(head) && length(head) == 3L) {
-    op <- head[[1L]]
-    if (is.symbol(op) && as.character(op) %in% c("::", ":::")) {
-      rhs <- head[[3L]]
-      if (is.symbol(rhs)) return(as.character(rhs))
-    }
-  }
-  NULL
-}
-
-#' Replace an Expression by Index Path
-#'
-#' @param .x An expression-like object.
-#' @param index_path An index vector.
-#' @param value A replacement value.
-#'
-#' @return The updated expression object.
-#' @noRd
-`expr_pluck<-` <- function(.x, index_path, value) {
-  if (length(index_path) == 0L) return(value)
-  tryCatch(
-    .x[[index_path]] <- value,
-    error = function(e) {
-      rlang::abort(
-        paste0(
-          "Failed to substitute expression at index path [",
-          paste(index_path, collapse = ", "),
-          "]: ", e$message
-        ),
-        parent = e
-      )
-    }
-  )
-
-  .x
-}
-
-#' Locate Placeholder Paths Inside an Expression
-#'
-#' @param x An expression to inspect.
-#' @param target Placeholder symbols to detect.
-#' @param current_path Internal recursion path.
-#' @param result Internal accumulator.
-#'
-#' @return A list of index paths.
-#' @noRd
-get_index_path <- function(x,
-                           target = c("var", "text", "num", "expr", "upload"),
-                           current_path = numeric(),
-                           result = list(),
-                           max_depth = 100L) {
-  if (length(current_path) > max_depth) {
-    rlang::abort(paste0(
-      "Formula nesting exceeds maximum depth (", max_depth, "). ",
-      "Check for excessively nested expressions."
-    ))
-  }
-  # Bare-symbol layer: the whole expression IS the placeholder.
-  if (length(current_path) == 0L && is.symbol(x)) {
-    if (rlang::as_string(x) %in% target) {
-      return(list(integer(0)))
-    }
-    return(result)
-  }
-  # Call-form layer at top level: `num(shared = "x")` as the entire layer.
-  if (length(current_path) == 0L && is.call(x) &&
-      is.symbol(x[[1]]) && rlang::as_string(x[[1]]) %in% target) {
-    return(list(integer(0)))
-  }
-  for (i in seq_along(x)) {
-    new_path <- c(current_path, i)
-    if (is.call(x[[i]])) {
-      head_sym <- x[[i]][[1]]
-      if (is.symbol(head_sym) && rlang::as_string(head_sym) %in% target) {
-        result <- c(result, list(new_path))
-      } else {
-        result <- get_index_path(x[[i]], target, new_path, result, max_depth)
-      }
-    } else if (is.symbol(x[[i]])) {
-      if (rlang::as_string(x[[i]]) %in% target) {
-        result <- c(result, list(new_path))
-      }
-    }
-  }
-
-  result
-}
-
-#' Parse a Placeholder Token Into Keyword and Metadata
-#'
-#' Accepts either a bare symbol (`num`) or a call form (`num(shared = "year")`)
-#' and returns a list with the placeholder keyword plus annotation metadata.
-#' Aborts on unknown or positional arguments.
-#'
-#' @param token An R symbol or call.
-#'
-#' @return A list with `keyword` (string) and `shared` (string or `NULL`).
-#' @noRd
-parse_placeholder_token <- function(token) {
-  if (is.symbol(token)) {
-    return(list(keyword = rlang::as_string(token), shared = NULL))
-  }
-  if (is.call(token) && is.symbol(token[[1]])) {
-    keyword <- rlang::as_string(token[[1]])
-    args <- as.list(token)[-1]
-    if (length(args) == 0L) {
-      return(list(keyword = keyword, shared = NULL))
-    }
-    arg_names <- names(args)
-    if (is.null(arg_names) || any(!nzchar(arg_names))) {
-      rlang::abort(paste0(
-        "Placeholder `", keyword, "(...)` requires named arguments only. ",
-        "Positional arguments are not allowed. ",
-        "Use `shared = \"<id>\"` to declare a shared placeholder."
-      ))
-    }
-    unknown <- setdiff(arg_names, "shared")
-    if (length(unknown) > 0L) {
-      rlang::abort(paste0(
-        "Placeholder `", keyword, "(...)` got unknown argument(s): ",
-        paste0("`", unknown, "`", collapse = ", "),
-        ". Only `shared = \"<id>\"` is currently supported."
-      ))
-    }
-    shared <- args$shared
-    if (!is.null(shared)) {
-      if (!is.character(shared) || length(shared) != 1L || !nzchar(shared)) {
-        rlang::abort(paste0(
-          "Placeholder `", keyword, "(shared = ...)`: ",
-          "`shared` must be a single non-empty string."
-        ))
-      }
-    }
-    return(list(keyword = keyword, shared = shared))
-  }
-  rlang::abort("parse_placeholder_token: token must be a symbol or call.")
-}
 
 
 #' Validate the `shared` Bindings Argument to ptr_server()
@@ -470,95 +95,6 @@ handle_duplicate_names <- function(x) {
   x
 }
 
-#' Build a Stable Placeholder Id
-#'
-#' @param index_path An index path.
-#' @param func_name A call name.
-#'
-#' @return A single encoded id string.
-#' @noRd
-encode_id <- function(index_path, func_name) {
-  paste(c(func_name, index_path), collapse = "_")
-}
-
-#' Read a Parameter Name from an Expression Path
-#'
-#' @param .expr A call expression.
-#' @param .path An index path.
-#'
-#' @return The parameter name or `NULL`.
-#' @noRd
-get_expr_param <- function(.expr, .path) {
-  if (length(.path) == 0L) return(NULL)
-  if (length(.path) > 1) {
-    current_index <- .path[1]
-    current_expr <- .expr[[current_index]]
-    current_names <- names(current_expr)
-
-    if (is.call(current_expr) && is.null(current_names)) {
-      return(get_expr_param(current_expr, .path[-1]))
-    }
-
-    if (!is.null(current_names)) {
-      return(current_names[.path[2]])
-    }
-  }
-
-  expr_names <- names(.expr)
-  if (!is.null(expr_names)) {
-    return(expr_names[.path])
-  }
-
-  NULL
-}
-
-#' Remove Placeholder Marker Symbols
-#'
-#' @param .expr An expression object.
-#' @param target The placeholder marker symbol.
-#' @param current_path Internal recursion path.
-#'
-#' @return The cleaned expression.
-#' @noRd
-expr_remove_null <- function(.expr,
-                             target = rlang::sym("_NULL_PLACEHOLDER"),
-                             current_path = numeric(),
-                             max_depth = 100L) {
-  if (length(current_path) > max_depth) {
-    rlang::abort("Expression nesting exceeds maximum depth.")
-  }
-  if (length(.expr) == 0L) return(.expr)
-  # Bare-symbol layer: nothing to recurse into — drop if it matches the target.
-  if (length(current_path) == 0L && is.symbol(.expr)) {
-    if (identical(.expr, target)) return(NULL)
-    return(.expr)
-  }
-  for (i in length(.expr):1) {
-    new_path <- c(current_path, i)
-    if (is.call(.expr[[i]])) {
-      .expr[[i]] <- expr_remove_null(.expr[[i]], target, new_path, max_depth)
-    } else if (is.symbol(.expr[[i]]) && identical(.expr[[i]], target)) {
-      .expr[[i]] <- NULL
-    }
-  }
-
-  .expr
-}
-
-#' Check Whether a Layer Can Stand Alone Without Arguments
-#'
-#' Layers like `geom_*()` and `stat_*()` can inherit aesthetics from
-#' the base `ggplot()` call, so they are valid even with no arguments.
-#'
-#' @param fn_name A single function name string.
-#'
-#' @return `TRUE` if the layer can be called with zero arguments.
-#' @noRd
-ptr_can_stand_alone <- function(fn_name) {
-  if (is.null(fn_name)) return(FALSE)
-  standalone_prefixes <- c("geom_", "stat_")
-  any(startsWith(fn_name, standalone_prefixes))
-}
 
 #' Curated Default `safe_to_remove` Set
 #'
@@ -696,39 +232,6 @@ ptr_ns_id <- function(ns_fn, id) {
   ns_fn(id)
 }
 
-
-#' Check Whether ggpaintr Verbose Mode Is Active
-#'
-#' @return A single logical value.
-#' @noRd
-ptr_verbose <- function() {
-  ptr_get_setting(ptr_settings$verbose)
-}
-
-
-#' Assert That a Hook's Required Context Field Is Populated
-#'
-#' Helper for placeholder hooks that depend on a specific `context$<field>`
-#' being non-NULL. Raises an internal-error abort identifying the hook and
-#' the missing field, so under-populated contexts surface at the call site
-#' rather than degrading silently.
-#'
-#' @param context A placeholder context env.
-#' @param field A single field name read from `context`.
-#' @param hook A short identifier for the calling hook (used in the error).
-#'
-#' @return Invisibly, `context`.
-#' @noRd
-ptr_require_context_field <- function(context, field, hook) {
-  if (is.null(context[[field]])) {
-    rlang::abort(paste0(
-      "Internal: context$", field, " is NULL but required by ", hook,
-      "(). The caller built a placeholder context without populating ",
-      field, "; this is a bug in the construction site, not in user input."
-    ))
-  }
-  invisible(context)
-}
 
 # Default denylist for expr placeholder safety
 unsafe_expr_denylist <- c(
