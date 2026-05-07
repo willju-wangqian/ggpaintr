@@ -8,6 +8,32 @@
 # `ptr_server` is the wiring sugar that calls the state constructor and
 # attaches the observers (pipeline updates + runtime).
 
+#' Long-Lived Server State for a `ggpaintr` Formula
+#'
+#' Builds the `ptr_state` list consumed by [ptr_server()] and the friend
+#' helpers (`ptr_register_*`, `ptr_extract_*`, `ptr_gg_extra`). Holds the
+#' typed AST as a `reactiveVal`, the runtime result, per-pipeline-layer
+#' resolved-data caches, the input snapshot machinery, and the shared
+#' bindings / draw trigger when used inside [ptr_app_grid()].
+#'
+#' @param formula A single formula string with `ggpaintr` placeholders.
+#' @param envir Environment used to resolve local data objects.
+#' @param ui_text Optional named list of copy overrides.
+#' @param checkbox_defaults Optional named list of initial checked states for
+#'   layer checkboxes.
+#' @param expr_check Controls `expr` placeholder validation.
+#' @param safe_to_remove Character vector of additional function names whose
+#'   zero-argument calls should be dropped after substitution.
+#' @param shared Named list of reactives (one per shared key) supplied by an
+#'   outer wrapper such as [ptr_app_grid()]. Defaults to `list()`.
+#' @param draw_trigger Optional reactive whose invalidation forces a redraw
+#'   (e.g. the grid app's "Draw all" button).
+#' @param ns A namespace function used for rendered ids (UI side).
+#' @param server_ns A namespace function used for server-side input lookups.
+#'   Defaults to `ns`.
+#'
+#' @return A `ptr_state` list (S3 class `c("ptr_state", "list")`).
+#' @export
 ptr_server_state <- function(formula,
                                 envir = parent.frame(),
                                 ui_text = NULL,
@@ -89,6 +115,23 @@ ptr_server_state <- function(formula,
 
 # ---- public wiring entry point ----
 
+#' Wire a `ggpaintr` Server From a Formula
+#'
+#' Convenience wrapper that builds the `ptr_state` via [ptr_server_state()]
+#' and attaches the per-pipeline observers, stage-enabled toggles, runtime
+#' observer, and plot/code/error output bindings. Returns the state list so
+#' embedders can attach extras (`ptr_gg_extra`) or drive the typed tree
+#' programmatically.
+#'
+#' @param input,output,session The standard Shiny server arguments.
+#' @param formula A single formula string with `ggpaintr` placeholders.
+#' @param envir Environment used to resolve local data objects.
+#' @param ... Forwarded to [ptr_server_state()] (e.g. `shared`,
+#'   `draw_trigger`, `ui_text`, `checkbox_defaults`, `expr_check`,
+#'   `safe_to_remove`, `ns`).
+#'
+#' @return The `ptr_state` list, invisibly.
+#' @export
 ptr_server <- function(input, output, session, formula,
                           envir = parent.frame(), ...) {
   state <- ptr_server_state(formula, envir = envir, ...)
@@ -302,6 +345,18 @@ consumer_layer_name <- function(tree, consumer_id) {
 
 # ---- public output bindings ----
 
+#' Register Plot / Error / Code Outputs
+#'
+#' Attaches the standard plot, error, and code outputs to the Shiny `output`
+#' object. Already invoked by [ptr_server()]; exposed for embedders that
+#' compose outputs manually.
+#'
+#' @param output The Shiny output object.
+#' @param state A `ptr_state` from [ptr_server_state()].
+#'
+#' @return The `output` object, invisibly.
+#' @name ptr_register
+#' @export
 ptr_register_plot <- function(output, state) {
   output[[state$ui_ns_fn("ptr_plot")]] <- shiny::renderPlot({
     res <- state$runtime()
@@ -311,6 +366,8 @@ ptr_register_plot <- function(output, state) {
   invisible(state)
 }
 
+#' @rdname ptr_register
+#' @export
 ptr_register_error <- function(output, state) {
   output[[state$ui_ns_fn("ptr_error")]] <- shiny::renderText({
     res <- state$runtime()
@@ -319,6 +376,8 @@ ptr_register_error <- function(output, state) {
   invisible(state)
 }
 
+#' @rdname ptr_register
+#' @export
 ptr_register_code <- function(output, state) {
   output[[state$ui_ns_fn("ptr_code")]] <- shiny::renderText({
     res <- state$runtime()
@@ -327,12 +386,44 @@ ptr_register_code <- function(output, state) {
   invisible(state)
 }
 
+#' Extract Runtime Outputs From a `ptr_state`
+#'
+#' Read the latest plot object, error message, or generated code text from
+#' the runtime result stored on a `ptr_state`. Use these to compose custom
+#' UIs or to test the runtime in `shiny::testServer`.
+#'
+#' @param state A `ptr_state` from [ptr_server_state()].
+#'
+#' @return `ptr_extract_plot` returns a `ggplot` object (or `NULL` on
+#'   failure); `ptr_extract_error` returns a string or `NULL`;
+#'   `ptr_extract_code` returns a single string.
+#' @name ptr_extract
+#' @export
 ptr_extract_plot  <- function(state) shiny::isolate(state$runtime())$plot
+
+#' @rdname ptr_extract
+#' @export
 ptr_extract_error <- function(state) shiny::isolate(state$runtime())$error
+
+#' @rdname ptr_extract
+#' @export
 ptr_extract_code  <- function(state) shiny::isolate(state$runtime())$code_text
 
 # ---- ptr_gg_extra ----
 
+#' Add `ggplot2` Layers Programmatically
+#'
+#' Evaluate one or more `ggplot2` expressions and attach the results as
+#' "extras" on the state. Extras are folded into the plot during the next
+#' runtime cycle when `state$runtime()$ok` is `TRUE`. Eval failures leave
+#' the existing extras untouched.
+#'
+#' @param state A `ptr_state` from [ptr_server_state()].
+#' @param exprs A list of expressions or quosures producing `ggplot2` layers
+#'   (e.g. `list(quote(ggplot2::scale_x_log10()))`).
+#'
+#' @return `state`, invisibly.
+#' @export
 ptr_gg_extra <- function(state, exprs = list()) {
   if (!is.list(exprs) || !length(exprs)) return(invisible(state))
   evaluated <- list()

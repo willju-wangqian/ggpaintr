@@ -2,6 +2,27 @@
 # UI builder (per-layer panels via `build_ui_for.ptr_layer`) and the server
 # wiring (`ptr_server`).
 
+#' Build a Shiny App from a `ggpaintr` Formula
+#'
+#' Translates `formula` into the typed AST, builds the per-layer panel UI,
+#' and wires the server end-to-end. Returns a `shiny.appobj` ready to be run.
+#'
+#' @param formula A single formula string with `ggpaintr` placeholders.
+#' @param envir Environment used to resolve local data objects.
+#' @param ui_text Optional named list of copy overrides for UI labels and
+#'   placeholders.
+#' @param checkbox_defaults Optional named list of initial checked states for
+#'   layer checkboxes.
+#' @param expr_check Controls `expr` placeholder validation. `TRUE` (default)
+#'   applies the built-in safety walker; `FALSE` disables checking.
+#' @param safe_to_remove Character vector of additional function names whose
+#'   zero-argument calls should be dropped after placeholder substitution
+#'   leaves them empty. Defaults to `character()`.
+#' @param ns A namespace function (`character -> character`), typically
+#'   `shiny::NS(id)` or `shiny::NS(NULL)`.
+#'
+#' @return A `shiny.appobj`.
+#' @export
 ptr_app <- function(formula,
                        envir = parent.frame(),
                        ui_text = NULL,
@@ -94,6 +115,19 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
 
 # ---- Module variants ----
 
+#' Module UI for a `ggpaintr` Formula
+#'
+#' Namespaced UI side of a Shiny module wrapping a `ggpaintr` formula. Pair
+#' with [ptr_module_server()].
+#'
+#' @param id Module id; the namespace prefix for inputs and outputs.
+#' @param formula A single formula string with `ggpaintr` placeholders.
+#' @param ui_text Optional named list of copy overrides.
+#' @param checkbox_defaults Optional named list of initial checked states.
+#' @param expr_check Controls `expr` placeholder validation. Defaults to `TRUE`.
+#'
+#' @return A Shiny tag list.
+#' @export
 ptr_module_ui <- function(id, formula, ui_text = NULL,
                              checkbox_defaults = NULL, expr_check = TRUE) {
   tree <- ptr_translate(formula, expr_check = expr_check)
@@ -105,6 +139,22 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
   )
 }
 
+#' Module Server for a `ggpaintr` Formula
+#'
+#' Namespaced server side of a Shiny module wrapping a `ggpaintr` formula.
+#' Pair with [ptr_module_ui()]. Additional arguments are forwarded to
+#' [ptr_server_state()] (e.g. `shared`, `draw_trigger`, `expr_check`,
+#' `safe_to_remove`, `ui_text`, `checkbox_defaults`).
+#'
+#' @param id Module id; must match the id passed to [ptr_module_ui()].
+#' @param formula A single formula string with `ggpaintr` placeholders.
+#' @param envir Environment used to resolve local data objects.
+#' @param ... Forwarded to [ptr_server_state()].
+#'
+#' @return The `ptr_state` list from [ptr_server_state()] (returned by the
+#'   inner module session for advanced wiring; usually consumed for its
+#'   side effects only).
+#' @export
 ptr_module_server <- function(id, formula, envir = parent.frame(), ...) {
   shiny::moduleServer(id, function(input, output, session) {
     ptr_server(input, output, session, formula,
@@ -114,6 +164,24 @@ ptr_module_server <- function(id, formula, envir = parent.frame(), ...) {
 
 # ---- Grid app: N plots + top-level shared widgets + draw-all ----
 
+#' Grid App: Multiple `ggpaintr` Plots With Shared Controls
+#'
+#' Builds a fluid layout of N plot modules with a top-level `wellPanel` for
+#' shared input widgets and a "Draw all" button that triggers a redraw across
+#' every plot. Each plot's `shared = "..."` placeholders read from the
+#' corresponding entry in `shared_ui` instead of rendering local widgets.
+#'
+#' @param plots A list of formula strings, one per plot.
+#' @param shared_ui Named list mapping shared key → `function(id) -> shiny.tag`
+#'   builder. Names must match the `shared = "..."` annotations used in
+#'   `plots`. Pass `list()` if there are no shared placeholders.
+#' @param envir Environment used to resolve local data objects.
+#' @param title App title shown in the page header.
+#' @param draw_all_label Label for the draw-all action button.
+#' @param expr_check Controls `expr` placeholder validation. Defaults to `TRUE`.
+#'
+#' @return A `shiny.appobj`.
+#' @export
 ptr_app_grid <- function(plots,
                             shared_ui = list(),
                             envir = parent.frame(),

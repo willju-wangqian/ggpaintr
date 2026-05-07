@@ -8,6 +8,18 @@
   "param_key", "source_id", "shared"
 )
 
+#' Runtime Input Spec for a Typed AST
+#'
+#' Walks the typed AST and returns one row per node that needs a Shiny
+#' binding: placeholder rows first (with companion rows adjacent for
+#' upload-style sources), then derived layer rows (`layer_checkbox`,
+#' `layer_update_data`, `stage_enabled`).
+#'
+#' @param node A `ptr_root` node returned by `ptr_translate()`.
+#'
+#' @return A `data.frame` with columns `input_id`, `role`, `layer_name`,
+#'   `keyword`, `param_key`, `source_id`, and `shared`.
+#' @export
 ptr_runtime_input_spec <- function(node) {
   if (!is_ptr_root(node)) {
     rlang::abort("ptr_runtime_input_spec expects a ptr_root.")
