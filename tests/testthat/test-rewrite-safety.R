@@ -137,3 +137,58 @@ test_that("P5.18 empty layers report as no-layers, not as a safety error", {
   expect_false(grepl("denylist|not allowed|depth|maliciously",
                      conditionMessage(e)))
 })
+
+# ---- P5.19–P5.22 — parameterized denylist coverage (port of
+# test-{denylist-batch2,denylist-pass2,denylist-step3-entries,
+# safety-fixes,safety-hardening}.R) ----
+
+test_that("P5.19 every entry in unsafe_expr_denylist blocks `geom_point() + entry()`", {
+  denylist <- get("unsafe_expr_denylist", envir = asNamespace("ggpaintr"))
+  # Operators (`<<-`, `->>`) — covered by P5.13 super-assign. Assignment-form
+  # entries (`attr<-`, etc.) — covered by P5.20. Plain function-name entries
+  # are everything else.
+  plain <- denylist[!grepl("(<-|>>)$", denylist) & denylist != "<<-"]
+  for (fn in plain) {
+    formula <- paste0(
+      "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point() + `",
+      fn, "`()"
+    )
+    expect_error(
+      ptr_translate(formula, expr_check = TRUE),
+      info = paste("denylist entry not blocking:", fn)
+    )
+  }
+})
+
+test_that("P5.20 backtick-quoted assignment-form entries block", {
+  denylist <- get("unsafe_expr_denylist", envir = asNamespace("ggpaintr"))
+  assign_forms <- denylist[grepl("<-$", denylist) & denylist != "<<-"]
+  for (entry in assign_forms) {
+    formula <- paste0(
+      "ggplot(mtcars) + geom_point() + `", entry, "`(x, value = 1)"
+    )
+    expect_error(
+      ptr_translate(formula, expr_check = TRUE),
+      info = paste("assignment-form entry not blocking:", entry)
+    )
+  }
+})
+
+test_that("P5.21 deeply nested IIFE wrapping a denylist call still blocks", {
+  expect_error(
+    ptr_translate(
+      "ggplot(mtcars) + geom_point() + (function() (function() (function() system('id'))())())()",
+      expr_check = TRUE
+    ),
+    "system"
+  )
+})
+
+test_that("P5.22 namespaced safe calls pass denylist (no false positive)", {
+  expect_no_error(
+    ptr_translate(
+      "ggplot2::ggplot(mtcars, aes(x = mpg, y = hp)) + ggplot2::geom_point()",
+      expr_check = TRUE
+    )
+  )
+})
