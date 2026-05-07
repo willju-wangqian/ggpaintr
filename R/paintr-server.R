@@ -93,6 +93,11 @@ ptr_server_state <- function(formula,
     tree = shiny::reactiveVal(tree),
     runtime = shiny::reactiveVal(NULL),
     extras = shiny::reactiveVal(list()),
+    # Source expressions paired with `extras`. `ptr_gg_extra()` updates
+    # both atomically so the code panel can append the user-typed source
+    # (extras themselves are evaluated ggplot objects with no
+    # round-trippable deparse).
+    extras_exprs = shiny::reactiveVal(list()),
     eval_env = envir,
     expr_check = expr_check,
     safe_to_remove = safe_to_remove,
@@ -582,10 +587,27 @@ ptr_register_error <- function(output, state) {
 
 #' @rdname ptr_register
 #' @export
+# Render the code-panel text for a runtime result + extras source list.
+# Used by both `ptr_register_code` (reactive output) and
+# `ptr_extract_code` (read accessor).
+format_code_with_extras <- function(res, extras_exprs) {
+  base <- if (is.null(res)) "" else (res$code_text %||% "")
+  if (is.null(res) || !isTRUE(res$ok) || length(extras_exprs) == 0L) {
+    return(base)
+  }
+  extra_text <- vapply(extras_exprs, function(e) {
+    if (rlang::is_quosure(e)) rlang::quo_text(e) else
+      paste(deparse(e), collapse = " ")
+  }, character(1))
+  if (!nzchar(base)) {
+    return(paste(extra_text, collapse = " +\n  "))
+  }
+  paste(c(base, extra_text), collapse = " +\n  ")
+}
+
 ptr_register_code <- function(output, state) {
   output[[state$server_ns_fn("ptr_code")]] <- shiny::renderText({
-    res <- state$runtime()
-    if (is.null(res)) "" else (res$code_text %||% "")
+    format_code_with_extras(state$runtime(), state$extras_exprs())
   })
   invisible(state)
 }
@@ -611,7 +633,9 @@ ptr_extract_error <- function(state) shiny::isolate(state$runtime())$error
 
 #' @rdname ptr_extract
 #' @export
-ptr_extract_code  <- function(state) shiny::isolate(state$runtime())$code_text
+ptr_extract_code  <- function(state) {
+  shiny::isolate(format_code_with_extras(state$runtime(), state$extras_exprs()))
+}
 
 # ---- ptr_gg_extra ----
 
@@ -642,6 +666,9 @@ ptr_gg_extra <- function(state, exprs = list()) {
   # Replace-per-call: each invocation overwrites the previously captured
   # extras (legacy semantics; documented in `dev/scripts/feature-sweep.R`
   # note 16). To accumulate, the caller passes the merged list themselves.
+  # Update source exprs first so renderText that reads both
+  # `state$extras_exprs()` and `state$extras()` sees a consistent pair.
+  state$extras_exprs(exprs)
   state$extras(evaluated)
   invisible(state)
 }
