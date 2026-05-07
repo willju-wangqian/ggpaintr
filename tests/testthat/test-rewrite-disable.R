@@ -58,20 +58,20 @@ test_that("assign_stage_ids: pipeline stage with placeholder gets stage_id", {
   pipe <- tree$layers[[1L]]$data_arg
   expect_null(pipe$stages[[1L]]$stage_id)            # mtcars symbol
   expect_equal(pipe$stages[[2L]]$stage_id,
-               "ggplot+2+stage_enabled")            # filter(num)
+               "ggplot_2_stage_enabled")            # filter(num)
 })
 
 test_that("assign_stage_ids: stage without placeholder skipped", {
   tree <- ptr_translate("mtcars |> filter(num) |> select(mpg) |> ggplot()")
   stages <- tree$layers[[1L]]$data_arg$stages
-  expect_equal(stages[[2L]]$stage_id, "ggplot+2+stage_enabled")
+  expect_equal(stages[[2L]]$stage_id, "ggplot_2_stage_enabled")
   expect_null(stages[[3L]]$stage_id)
 })
 
 test_that("assign_stage_ids: single-call data_arg gets stage_id at path 0", {
   tree <- ptr_translate("ggplot() + geom_point(data = filter(mtcars, num))")
   geom <- Filter(function(l) l$name == "geom_point", tree$layers)[[1L]]
-  expect_equal(geom$data_arg$stage_id, "geom_point+0+stage_enabled")
+  expect_equal(geom$data_arg$stage_id, "geom_point_0_stage_enabled")
 })
 
 test_that("assign_stage_ids: nested non-pipeline calls each get a stage_id", {
@@ -80,9 +80,9 @@ test_that("assign_stage_ids: nested non-pipeline calls each get a stage_id", {
   )
   geom <- Filter(function(l) l$name == "geom_point", tree$layers)[[1L]]
   outer <- geom$data_arg
-  expect_equal(outer$stage_id, "geom_point+0+stage_enabled")
+  expect_equal(outer$stage_id, "geom_point_0_stage_enabled")
   inner <- outer$args[[1L]]
-  expect_equal(inner$stage_id, "geom_point+1+stage_enabled")
+  expect_equal(inner$stage_id, "geom_point_1_stage_enabled")
 })
 
 test_that("assign_stage_ids: re-translate of identical formula is deterministic", {
@@ -100,7 +100,7 @@ test_that("disable_walk: empty stage_enabled is identity", {
 
 test_that("disable_walk: TRUE-valued stage left alone", {
   tree <- ptr_translate("mtcars |> filter(num) |> ggplot()")
-  sid <- "ggplot+2+stage_enabled"
+  sid <- "ggplot_2_stage_enabled"
   out <- disable_walk(tree, stats::setNames(list(TRUE), sid))
   pipe <- out$layers[[1L]]$data_arg
   expect_equal(length(pipe$stages), 2L)
@@ -108,7 +108,7 @@ test_that("disable_walk: TRUE-valued stage left alone", {
 
 test_that("disable_walk: FALSE-valued pipeline stage drops from stages list", {
   tree <- ptr_translate("mtcars |> filter(num) |> ggplot()")
-  sid <- "ggplot+2+stage_enabled"
+  sid <- "ggplot_2_stage_enabled"
   out <- disable_walk(tree, stats::setNames(list(FALSE), sid))
   pipe <- out$layers[[1L]]$data_arg
   expect_equal(length(pipe$stages), 1L)
@@ -117,7 +117,7 @@ test_that("disable_walk: FALSE-valued pipeline stage drops from stages list", {
 
 test_that("disable_walk: FALSE single-call data_arg replaces with first arg", {
   tree <- ptr_translate("ggplot() + geom_point(data = filter(mtcars, num))")
-  sid <- "geom_point+0+stage_enabled"
+  sid <- "geom_point_0_stage_enabled"
   out <- disable_walk(tree, stats::setNames(list(FALSE), sid))
   geom <- Filter(function(l) l$name == "geom_point", out$layers)[[1L]]
   expect_true(is_ptr_literal(geom$data_arg))
@@ -128,7 +128,7 @@ test_that("disable_walk: nested calls — outer disabled exposes inner", {
   tree <- ptr_translate(
     "ggplot() + geom_point(data = filter(head(mtcars, num), num))"
   )
-  outer_sid <- "geom_point+0+stage_enabled"
+  outer_sid <- "geom_point_0_stage_enabled"
   out <- disable_walk(tree, stats::setNames(list(FALSE), outer_sid))
   geom <- Filter(function(l) l$name == "geom_point", out$layers)[[1L]]
   expect_true(is_ptr_call(geom$data_arg))
@@ -140,8 +140,8 @@ test_that("disable_walk: nested calls — both disabled collapses to bare data",
     "ggplot() + geom_point(data = filter(head(mtcars, num), num))"
   )
   out <- disable_walk(tree, list(
-    "geom_point+0+stage_enabled" = FALSE,
-    "geom_point+1+stage_enabled" = FALSE
+    "geom_point_0_stage_enabled" = FALSE,
+    "geom_point_1_stage_enabled" = FALSE
   ))
   geom <- Filter(function(l) l$name == "geom_point", out$layers)[[1L]]
   expect_true(is_ptr_literal(geom$data_arg))
@@ -154,7 +154,7 @@ test_that("ptr_resolve_upstream: disabled head stage strips from upstream", {
   tree <- ptr_translate("mtcars |> head(num) |> ggplot()")
   data_arg <- tree$layers[[1L]]$data_arg
   num_id <- find_nodes(data_arg, is_ptr_ph_value)[[1L]]$id
-  sid <- "ggplot+2+stage_enabled"
+  sid <- "ggplot_2_stage_enabled"
   result <- ptr_resolve_upstream(
     data_arg,
     snapshot = stats::setNames(list(2), num_id),
@@ -168,7 +168,7 @@ test_that("ptr_resolve_upstream: disabled head stage strips from upstream", {
 test_that("ptr_resolve_upstream: re-enabled stage restores behavior", {
   tree <- ptr_translate("mtcars |> head(num) |> ggplot()")
   data_arg <- tree$layers[[1L]]$data_arg
-  sid <- "ggplot+2+stage_enabled"
+  sid <- "ggplot_2_stage_enabled"
   num_id <- find_nodes(data_arg, is_ptr_ph_value)[[1L]]$id
   r_disabled <- ptr_resolve_upstream(
     data_arg,
@@ -193,7 +193,7 @@ test_that("ptr_runtime_input_spec: emits stage_enabled rows", {
   spec <- ptr_runtime_input_spec(tree)
   stage_rows <- spec[spec$role == "stage_enabled", , drop = FALSE]
   expect_equal(nrow(stage_rows), 1L)
-  expect_equal(stage_rows$input_id, "ggplot+2+stage_enabled")
+  expect_equal(stage_rows$input_id, "ggplot_2_stage_enabled")
   expect_equal(stage_rows$layer_name, "ggplot")
 })
 
@@ -205,8 +205,8 @@ test_that("ptr_server_state: stage_enabled initialized with all-TRUE", {
     envir = .test_env()
   )
   cur <- shiny::isolate(state$stage_enabled())
-  expect_named(cur, "ggplot+2+stage_enabled")
-  expect_true(isTRUE(cur[["ggplot+2+stage_enabled"]]))
+  expect_named(cur, "ggplot_2_stage_enabled")
+  expect_true(isTRUE(cur[["ggplot_2_stage_enabled"]]))
 })
 
 test_that("ptr_server: toggle input flips state$stage_enabled", {
@@ -220,8 +220,8 @@ test_that("ptr_server: toggle input flips state$stage_enabled", {
   }
   shiny::testServer(server, {
     state <- session$userData$state
-    session$setInputs(`ggplot+2+stage_enabled` = FALSE)
+    session$setInputs(`ggplot_2_stage_enabled` = FALSE)
     cur <- state$stage_enabled()
-    expect_false(isTRUE(cur[["ggplot+2+stage_enabled"]]))
+    expect_false(isTRUE(cur[["ggplot_2_stage_enabled"]]))
   })
 })

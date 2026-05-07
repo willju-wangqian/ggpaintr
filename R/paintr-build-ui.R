@@ -20,8 +20,11 @@
 #' @param node A typed AST node (e.g. `ptr_ph_value`, `ptr_ph_data_consumer`,
 #'   `ptr_ph_data_source`, `ptr_layer`).
 #' @param ... Additional arguments. Recognized by built-in methods:
-#'   `cols` (for consumers), `ui_text`, `placeholders`, `layer_name`,
-#'   `ns_fn`, `cols_map`, `checkbox_defaults`, `shell_copy`.
+#'   `ui_text`, `placeholders`, `layer_name`, `ns_fn`, `checkbox_defaults`,
+#'   `shell_copy`. Consumer placeholders emit only a `uiOutput` container at
+#'   static build time; their picker is rendered server-side via
+#'   `ptr_setup_consumer_uis()`, which calls the registry's `build_ui(node,
+#'   cols, ...)` inside `renderUI` once cols are resolved.
 #'
 #' @return A `shiny.tag` (or NULL for nodes that emit no UI).
 #' @keywords internal
@@ -54,15 +57,9 @@ build_ui_for.ptr_ph_value <- function(node,
 
 #' @export
 build_ui_for.ptr_ph_data_consumer <- function(node,
-                                                cols = character(),
-                                                ui_text = NULL,
-                                                placeholders = NULL,
-                                                layer_name = NULL,
                                                 ns_fn = identity,
                                                 ...) {
-  invoke_build_ui(node, ui_text = ui_text, placeholders = placeholders,
-                  layer_name = layer_name, ns_fn = ns_fn,
-                  extra = list(cols = cols), ...)
+  shiny::uiOutput(ptr_render_id(consumer_output_id(node$id), ns_fn))
 }
 
 #' @export
@@ -98,7 +95,6 @@ build_ui_for.ptr_ph_data_source <- function(node,
 
 #' @export
 build_ui_for.ptr_layer <- function(node,
-                                    cols_map = list(),
                                     ui_text = NULL,
                                     placeholders = NULL,
                                     ns_fn = identity,
@@ -114,8 +110,7 @@ build_ui_for.ptr_layer <- function(node,
   for (entry in pipeline_entries) {
     ph <- entry$ph
     sid <- entry$stage_id
-    cols <- cols_map[[ph$id %||% ""]] %||% character()
-    ui <- build_ui_for(ph, cols = cols, ui_text = ui_text,
+    ui <- build_ui_for(ph, ui_text = ui_text,
                        placeholders = placeholders, layer_name = layer_name,
                        ns_fn = ns_fn)
     if (is.null(ui)) next
@@ -139,8 +134,7 @@ build_ui_for.ptr_layer <- function(node,
   }
 
   control_ui <- lapply(control_phs, function(ph) {
-    cols <- cols_map[[ph$id %||% ""]] %||% character()
-    build_ui_for(ph, cols = cols, ui_text = ui_text,
+    build_ui_for(ph, ui_text = ui_text,
                  placeholders = placeholders, layer_name = layer_name,
                  ns_fn = ns_fn)
   })

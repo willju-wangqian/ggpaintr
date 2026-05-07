@@ -36,8 +36,8 @@ data_arg_position <- function(call) {
 }
 
 stage_id_from_path <- function(layer_name, path) {
-  path_str <- if (length(path) == 0L) "0" else paste(path, collapse = ".")
-  paste0(layer_name, "+", path_str, "+stage_enabled")
+  path_str <- if (length(path) == 0L) "0" else paste(path, collapse = "_")
+  paste0(layer_name, "_", path_str, "_stage_enabled")
 }
 
 # ---- P4 hook --------------------------------------------------------------

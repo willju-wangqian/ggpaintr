@@ -47,6 +47,34 @@ test_that("ptr_app_components server wires runtime end-to-end", {
   })
 })
 
+test_that("minimal var-using example: pickers populated from literal `data =`", {
+  # Regression for the empty-dropdown bug. The documented minimal example
+  # `aes(x = var, y = var)` with `data = mtcars` should yield two pickers,
+  # each populated with the columns of `mtcars`. The static UI emits an
+  # empty `uiOutput` per consumer; the server's renderUI fills it on the
+  # first reactive flush.
+  parts <- ptr_app_components(
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+    envir = .app_test_env()
+  )
+  ui_html <- as.character(parts$ui)
+  expect_match(ui_html, "id=\"ggplot_1_1_var_NA_ui\"", fixed = TRUE)
+  expect_match(ui_html, "id=\"ggplot_1_2_var_NA_ui\"", fixed = TRUE)
+
+  shiny::testServer(parts$server, {
+    session$setInputs(.dummy = 1)
+    x_picker <- output$`ggplot_1_1_var_NA_ui`$html
+    y_picker <- output$`ggplot_1_2_var_NA_ui`$html
+    # both pickers are shinyWidgets selectpickers populated with mtcars cols
+    expect_match(x_picker, "selectpicker")
+    expect_match(y_picker, "selectpicker")
+    for (col in c("mpg", "cyl", "hp")) {
+      expect_match(x_picker, col)
+      expect_match(y_picker, col)
+    }
+  })
+})
+
 # ---- module variants — namespacing isolation (E6) ----
 
 test_that("ptr_module_server ids are namespaced by id", {

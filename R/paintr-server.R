@@ -138,6 +138,7 @@ ptr_server <- function(input, output, session, formula,
   ptr_setup_pipelines(state, input, output, session)
   ptr_setup_stage_enabled(state, input, output, session)
   ptr_setup_runtime(state, input, output, session)
+  ptr_setup_consumer_uis(state, input, output, session)
   ptr_register_plot(output, state)
   ptr_register_error(output, state)
   ptr_register_code(output, state)
@@ -314,7 +315,7 @@ runtime_upstream_cols <- function(state) {
   consumers <- find_nodes(tree, is_ptr_ph_data_consumer)
   for (c in consumers) {
     if (is.null(c$id)) next
-    layer_name <- consumer_layer_name(tree, c$id)
+    layer_name <- c$layer_name
     if (!is.null(layer_name) &&
         !is.null(state$resolved_data[[layer_name]])) {
       df <- state$resolved_data[[layer_name]]()
@@ -337,10 +338,53 @@ runtime_upstream_cols <- function(state) {
   out
 }
 
-# Look up which layer a consumer belongs to (by id-prefix convention).
-consumer_layer_name <- function(tree, consumer_id) {
-  parts <- strsplit(consumer_id, "+", fixed = TRUE)[[1L]]
-  if (length(parts) >= 1L) parts[1L] else NULL
+
+# ---- per-consumer UI observers ----
+#
+# Bridges P12 (reactive cols) and P6 (consumer build_ui). For every
+# `ptr_ph_data_consumer` in the tree, we render its widget inside a
+# `renderUI` so that whenever upstream cols change the picker is rebuilt
+# with the fresh `cols`. The static UI emits an empty `uiOutput` container
+# at `consumer_output_id(node$id)`; this function fills it.
+#
+# `cols_memo` is a once-per-tick reactive that calls `runtime_upstream_cols`
+# exactly once and returns the full per-consumer named list, so two
+# consumers in the same tick share the computation.
+
+ptr_setup_consumer_uis <- function(state, input, output, session) {
+  tree <- shiny::isolate(state$tree())
+  ns <- state$server_ns_fn
+  ui_ns <- state$ui_ns_fn
+  ui_text <- state$effective_ui_text
+  placeholders <- state$placeholders
+
+  cols_memo <- shiny::reactive({
+    runtime_upstream_cols(state)
+  })
+
+  consumers <- find_nodes(tree, is_ptr_ph_data_consumer)
+  for (c in consumers) {
+    if (is.null(c$id)) next
+    local({
+      node <- c
+      raw_id <- node$id
+      output_id <- ui_ns(consumer_output_id(raw_id))
+      cols_reactive <- shiny::reactive({
+        cols_memo()[[raw_id]] %||% character()
+      })
+      output[[output_id]] <- shiny::renderUI({
+        invoke_build_ui(
+          node,
+          ui_text = ui_text,
+          placeholders = placeholders,
+          layer_name = node$layer_name,
+          ns_fn = ui_ns,
+          extra = list(cols = cols_reactive())
+        )
+      })
+    })
+  }
+  invisible(state)
 }
 
 # ---- public output bindings ----

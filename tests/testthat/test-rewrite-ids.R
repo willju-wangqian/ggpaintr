@@ -1,14 +1,12 @@
 # P4 — id-encoding. Raw ids of the form
-# `<layer_name>+<dot-joined-index-path>+<keyword>+<shared-or-NA>`.
+# `<layer_name>_<underscore-joined-index-path>_<keyword>_<shared-or-NA>`.
 
 test_that("P4.1 raw id format combines layer, path, keyword, shared", {
   r <- ptr_translate("ggplot(mtcars, aes(x = mpg)) + geom_point(color = text, size = num)")
   texts <- find_nodes(r, function(x) is_ptr_ph_value(x) && x$keyword == "text")
   nums <- find_nodes(r, function(x) is_ptr_ph_value(x) && x$keyword == "num")
-  expect_match(texts[[1]]$id,
-               "^geom_point\\+[0-9.]+\\+text\\+NA$")
-  expect_match(nums[[1]]$id,
-               "^geom_point\\+[0-9.]+\\+num\\+NA$")
+  expect_match(texts[[1]]$id, "^geom_point_[0-9_]+_text_NA$")
+  expect_match(nums[[1]]$id, "^geom_point_[0-9_]+_num_NA$")
 })
 
 test_that("P4.2 ns_fn applied at UI emit (raw ids on tree, ns at render)", {

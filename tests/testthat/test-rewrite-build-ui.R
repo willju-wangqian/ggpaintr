@@ -46,21 +46,32 @@ test_that("P6.2 num placeholder UI renders a numeric-style input", {
 
 # ---- P6.3 / P6.4 — var consumer ----
 
-test_that("P6.3 var consumer UI receives resolved cols", {
+test_that("P6.3 var consumer static UI emits a uiOutput container", {
   tree <- ptr_translate("ggplot(mtcars, aes(x = var)) + geom_point()")
   node <- .ph_by_keyword(tree, "var")
-  ui <- build_ui_for(node, cols = c("mpg", "hp"), layer_name = "ggplot")
-  # selectInput option list contains "mpg" and "hp"
+  ui <- build_ui_for(node, layer_name = "ggplot")
   rendered <- as.character(ui)
+  expect_match(rendered, "shiny-html-output")
+  expect_match(rendered, paste0("id=\"", consumer_output_id(node$id), "\""), fixed = TRUE)
+})
+
+test_that("P6.3 registry build_ui renders pickerInput populated with cols", {
+  tree <- ptr_translate("ggplot(mtcars, aes(x = var)) + geom_point()")
+  node <- .ph_by_keyword(tree, "var")
+  entry <- ptr_registry_lookup("var")
+  picker <- entry$build_ui(node, cols = c("mpg", "hp"), label = "Pick a column")
+  rendered <- as.character(picker)
+  expect_match(rendered, "selectpicker")
   expect_match(rendered, "mpg")
   expect_match(rendered, "hp")
 })
 
-test_that("P6.4 var consumer with empty cols still renders", {
+test_that("P6.4 var consumer with empty cols still renders an empty container", {
   tree <- ptr_translate("ggplot(mtcars, aes(x = var)) + geom_point()")
   node <- .ph_by_keyword(tree, "var")
-  ui <- build_ui_for(node, cols = character(), layer_name = "ggplot")
-  expect_true(length(.find_tags(ui, has_id = node$id)) > 0L)
+  ui <- build_ui_for(node, layer_name = "ggplot")
+  rendered <- as.character(ui)
+  expect_match(rendered, paste0("id=\"", consumer_output_id(node$id), "\""), fixed = TRUE)
 })
 
 # ---- P6.5 — upload source paired widgets ----
