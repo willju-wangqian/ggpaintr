@@ -67,3 +67,102 @@ test_that("two ptr_module_server_v2 instances do not collide", {
   expect_no_match(as.character(ui_a), "b-ptr_plot")
   expect_no_match(as.character(ui_b), "a-ptr_plot")
 })
+
+# ---- ptr_app_grid_v2 (BDD P12.16) ----
+
+test_that("ptr_app_grid_v2 returns a shiny app object", {
+  app <- ptr_app_grid_v2(
+    plots = list(
+      'ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point(size = num(shared = "sz"))',
+      'ggplot(data = mtcars, aes(x = hp, y = mpg)) + geom_point(size = num(shared = "sz"))'
+    ),
+    shared_ui = list(
+      sz = function(id) shiny::sliderInput(id, "Size", 1, 10, value = 3)
+    ),
+    envir = .app_test_env()
+  )
+  expect_s3_class(app, "shiny.appobj")
+})
+
+test_that("ptr_app_grid_components_v2 UI contains shared widget id and per-plot module ids", {
+  parts <- ptr_app_grid_components_v2(
+    plots = list(
+      'ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point(size = num(shared = "sz"))',
+      'ggplot(data = mtcars, aes(x = hp, y = mpg)) + geom_point(size = num(shared = "sz"))'
+    ),
+    shared_ui = list(
+      sz = function(id) shiny::sliderInput(id, "Size", 1, 10, value = 3)
+    ),
+    envir = .app_test_env()
+  )
+  ui_html <- as.character(parts$ui)
+  expect_match(ui_html, "id=\"sz\"", fixed = TRUE)
+  expect_match(ui_html, "plot_1-", fixed = TRUE)
+  expect_match(ui_html, "plot_2-", fixed = TRUE)
+})
+
+test_that("ptr_app_grid_v2 works with no shared controls", {
+  app <- ptr_app_grid_v2(
+    plots = list("ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point()"),
+    shared_ui = list(),
+    envir = .app_test_env()
+  )
+  expect_s3_class(app, "shiny.appobj")
+})
+
+test_that("ptr_app_grid_v2 rejects empty plots list", {
+  expect_error(
+    ptr_app_grid_v2(plots = list(), shared_ui = list()),
+    "length\\(plots\\)"
+  )
+})
+
+test_that("ptr_app_grid_v2 rejects non-string plot entries", {
+  expect_error(
+    ptr_app_grid_v2(plots = list(42), shared_ui = list()),
+    "is_string"
+  )
+})
+
+test_that("ptr_app_grid_v2 rejects shared_ui without unique non-empty names", {
+  expect_error(
+    ptr_app_grid_v2(
+      plots = list("ggplot(data = mtcars) + geom_point(aes(x = wt, y = mpg))"),
+      shared_ui = list(function(id) shiny::sliderInput(id, "x", 1, 10, 5)),
+      envir = .app_test_env()
+    ),
+    "unique non-empty names"
+  )
+})
+
+test_that("ptr_app_grid_v2 rejects non-function shared_ui entries", {
+  expect_error(
+    ptr_app_grid_v2(
+      plots = list("ggplot(data = mtcars) + geom_point(aes(x = wt, y = mpg))"),
+      shared_ui = list(sz = "not a function"),
+      envir = .app_test_env()
+    ),
+    "must be a function"
+  )
+})
+
+test_that("ptr_app_grid_components_v2 UI includes the draw-all button", {
+  parts <- ptr_app_grid_components_v2(
+    plots = list("ggplot(data = mtcars) + geom_point(aes(x = wt, y = mpg))"),
+    shared_ui = list(),
+    envir = .app_test_env()
+  )
+  ui_html <- as.character(parts$ui)
+  expect_match(ui_html, "ptr_grid_draw_all", fixed = TRUE)
+})
+
+test_that("ptr_app_grid_components_v2 draw-all button label is configurable", {
+  parts <- ptr_app_grid_components_v2(
+    plots = list("ggplot(data = mtcars) + geom_point(aes(x = wt, y = mpg))"),
+    shared_ui = list(),
+    draw_all_label = "Refresh everything",
+    envir = .app_test_env()
+  )
+  ui_html <- as.character(parts$ui)
+  expect_match(ui_html, "Refresh everything", fixed = TRUE)
+})

@@ -113,3 +113,119 @@ ptr_module_server_v2 <- function(id, formula, envir = parent.frame(), ...) {
                   envir = envir, ns = session$ns, ...)
   })
 }
+
+# ---- Grid app: N plots + top-level shared widgets + draw-all ----
+
+ptr_app_grid_v2 <- function(plots,
+                            shared_ui = list(),
+                            envir = parent.frame(),
+                            title = "ggpaintr grid",
+                            draw_all_label = "Draw all",
+                            expr_check = TRUE) {
+  parts <- ptr_app_grid_components_v2(
+    plots = plots,
+    shared_ui = shared_ui,
+    envir = envir,
+    title = title,
+    draw_all_label = draw_all_label,
+    expr_check = expr_check
+  )
+  shiny::shinyApp(ui = parts$ui, server = parts$server)
+}
+
+ptr_app_grid_components_v2 <- function(plots,
+                                       shared_ui = list(),
+                                       envir = parent.frame(),
+                                       title = "ggpaintr grid",
+                                       draw_all_label = "Draw all",
+                                       expr_check = TRUE) {
+  if (is.character(plots)) plots <- as.list(plots)
+  assertthat::assert_that(
+    is.list(plots),
+    length(plots) >= 1L,
+    all(vapply(plots, rlang::is_string, logical(1)))
+  )
+  assertthat::assert_that(is.list(shared_ui))
+  if (length(shared_ui) > 0L) {
+    nms <- names(shared_ui)
+    if (is.null(nms) || any(!nzchar(nms)) || any(duplicated(nms))) {
+      rlang::abort(
+        "`shared_ui` must have unique non-empty names matching the `shared` annotations in `plots`."
+      )
+    }
+    is_fn <- vapply(shared_ui, is.function, logical(1))
+    if (!all(is_fn)) {
+      rlang::abort(
+        "Every entry of `shared_ui` must be a function `function(id) -> shiny.tag`."
+      )
+    }
+  }
+
+  shared_names <- names(shared_ui)
+  plot_module_ids <- paste0("plot_", seq_along(plots))
+  n_plots <- length(plots)
+  col_width <- max(1L, 12L %/% n_plots)
+  draw_all_id <- "ptr_grid_draw_all"
+
+  shared_panel <- if (length(shared_ui) > 0L) {
+    shiny::wellPanel(
+      do.call(
+        shiny::tagList,
+        c(
+          lapply(shared_names, function(nm) shared_ui[[nm]](nm)),
+          list(shiny::actionButton(draw_all_id, draw_all_label))
+        )
+      )
+    )
+  } else {
+    shiny::wellPanel(shiny::actionButton(draw_all_id, draw_all_label))
+  }
+
+  plot_columns <- do.call(
+    shiny::fluidRow,
+    lapply(seq_along(plots), function(i) {
+      shiny::column(
+        width = col_width,
+        ptr_module_ui_v2(plot_module_ids[[i]], plots[[i]], expr_check = expr_check)
+      )
+    })
+  )
+
+  ui <- shiny::fluidPage(
+    shiny::titlePanel(title),
+    shared_panel,
+    plot_columns
+  )
+
+  force(plots)
+  force(envir)
+  force(expr_check)
+
+  server <- function(input, output, session) {
+    shared_reactives <- if (length(shared_names) > 0L) {
+      stats::setNames(
+        lapply(shared_names, function(nm) shiny::reactive(input[[nm]])),
+        shared_names
+      )
+    } else {
+      list()
+    }
+    draw_all_trigger <- shiny::reactive(input[[draw_all_id]])
+
+    for (i in seq_along(plots)) {
+      local({
+        idx <- i
+        ptr_module_server_v2(
+          plot_module_ids[[idx]],
+          formula = plots[[idx]],
+          envir = envir,
+          expr_check = expr_check,
+          shared = shared_reactives,
+          draw_trigger = draw_all_trigger
+        )
+      })
+    }
+  }
+
+  list(ui = ui, server = server)
+}
