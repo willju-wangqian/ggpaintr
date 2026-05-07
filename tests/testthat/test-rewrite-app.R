@@ -75,13 +75,13 @@ test_that("minimal var-using example: pickers populated from literal `data =`", 
   })
 })
 
-test_that("var picker uses prepended-disabled-placeholder pattern", {
-  # Empirically (verified in a real browser), shinyWidgets::pickerInput
-  # with `selected = character(0)` still emits the first column as the
-  # input value because the underlying <select> defaults to its first
-  # option. The reliable fix is a prepended <option value=""> placeholder
-  # marked disabled so the user cannot reselect it after picking a real
-  # column; substitute treats "" as missing.
+test_that("var picker uses multiple + maxOptions=1 for empty-default + click-to-deselect", {
+  # The legacy paintr trick: shinyWidgets pickerInput with `multiple = TRUE`
+  # plus `maxOptions = 1L` gives two behaviours single-select cannot:
+  #   - input value starts as character(0), not the first column;
+  #   - clicking the currently-selected column deselects it.
+  # Single-select with `selected = character(0)` was empirically broken
+  # (verified in a real browser: still shipped first column as input value).
   parts <- ptr_app_components(
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
     envir = .app_test_env()
@@ -89,11 +89,12 @@ test_that("var picker uses prepended-disabled-placeholder pattern", {
   shiny::testServer(parts$server, {
     session$setInputs(.dummy = 1)
     x_picker <- output$`ggplot_1_1_var_NA_ui`$html
-    # The empty-string placeholder option must be present and disabled.
-    expect_match(x_picker, '<option value=""', fixed = TRUE)
-    expect_match(x_picker, 'disabled="disabled"', fixed = TRUE)
-    # A real column option must NOT be the default selection.
+    # Multiple-mode renders <select multiple>.
+    expect_match(x_picker, "multiple", fixed = TRUE)
+    # No real column should be the default selection.
     expect_false(grepl('value="mpg" selected', x_picker, fixed = TRUE))
+    # The maxOptions option is wired via data attribute (selectpicker-side).
+    expect_match(x_picker, "data-max-options=\"1\"", fixed = TRUE)
   })
 })
 

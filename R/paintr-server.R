@@ -458,13 +458,18 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
         cols_memo()[[raw_id]] %||% character()
       })
       output[[output_id]] <- shiny::renderUI({
+        cols <- cols_reactive()
+        # Preserve the user's current pick across renderUI re-fires
+        # (cols change, layer toggle, etc.). `intersect` inside the
+        # builtin's build_ui drops it if it's no longer a valid column.
+        current <- shiny::isolate(input[[ns(raw_id)]])
         invoke_build_ui(
           node,
           ui_text = ui_text,
           placeholders = placeholders,
           layer_name = node$layer_name,
           ns_fn = ui_ns,
-          extra = list(cols = cols_reactive())
+          extra = list(cols = cols, selected = current %||% character(0))
         )
       })
     })
@@ -500,7 +505,12 @@ ptr_register_plot <- function(output, state) {
 ptr_register_error <- function(output, state) {
   output[[state$ui_ns_fn("ptr_error")]] <- shiny::renderText({
     res <- state$runtime()
-    if (is.null(res) || isTRUE(res$ok)) "" else (res$error %||% "")
+    if (is.null(res) || isTRUE(res$ok)) return("")
+    # cli/rlang error messages contain raw ANSI escape sequences
+    # (e.g. \033[38;5;255m). Browsers render those as literal text,
+    # so we strip them — the legacy paintr did the same in its
+    # `format_runtime_error` helper.
+    cli::ansi_strip(res$error %||% "")
   })
   invisible(state)
 }

@@ -75,26 +75,27 @@ ptr_builtin_expr_resolve_expr <- function(value, node, ...) {
 
 # ---- var --------------------------------------------------------------------
 
-ptr_builtin_var_build_ui <- function(node, cols = character(), label = NULL, ...) {
+ptr_builtin_var_build_ui <- function(node, cols = character(),
+                                     label = NULL,
+                                     selected = character(0), ...) {
   picker_label <- label %||% "Pick a column"
-  # shinyWidgets::pickerInput with `selected = character(0)` (single-select)
-  # still ships the first <option> as the input value to the server — the
-  # underlying <select> defaults to its first child, and selectpicker.js
-  # mirrors that. Verified empirically in a real browser session: bare,
-  # `selected = character(0)`, and `none-selected-text` all return the
-  # first column at first launch. The reliable fix is a prepended
-  # placeholder choice with value "" (treated as missing in
-  # is_missing_value_input), disabled so the user cannot re-pick it after
-  # choosing a real column.
-  prepended <- stats::setNames("", picker_label)
-  combined <- c(prepended, cols)
+  # Legacy paintr trick: `multiple = TRUE` + `maxOptions = 1L`. This buys
+  # two real-browser behaviours that single-select pickerInput can't:
+  #   1. No first-choice default at launch (input value starts as
+  #      character(0), not the first column — verified in a probe app).
+  #   2. Clicking the currently-selected column deselects it (the
+  #      old single-select picker silently ignored the click).
+  # `noneSelectedText` is the placeholder shown when nothing is picked.
+  retained <- intersect(selected, cols)
   shinyWidgets::pickerInput(
     inputId = node$id,
     label = picker_label,
-    choices = combined,
-    selected = "",
-    choicesOpt = list(
-      disabled = c(TRUE, rep(FALSE, length(cols)))
+    choices = cols,
+    selected = retained,
+    multiple = TRUE,
+    options = shinyWidgets::pickerOptions(
+      noneSelectedText = picker_label,
+      maxOptions = 1L
     )
   )
 }
