@@ -181,6 +181,39 @@ ptr_app(
      labs(title = text)"
 )
 
+# 11d. Multi-column data-aware consumer (`colvars`) -- selectInput with
+#      multiple = TRUE that resolves to a `c("col_a", "col_b", ...)`
+#      character vector. Drops directly into any data-shaping verb that
+#      takes a column-name vector: `subset(data, select = ...)`,
+#      `dplyr::select(data, all_of(...))`, `tidyr::pivot_longer(cols =
+#      all_of(...))`, etc. Demonstrates that the rewrite no longer
+#      enforces single-value semantics on consumers — arity is the
+#      placeholder's own responsibility (`var` still requires a single
+#      column via its own `validate_input` / `resolve_expr`).
+ptr_define_placeholder_consumer(
+  keyword = "colvars",
+  build_ui = function(node, cols = character(), label = NULL,
+                      selected = character(0), ...) {
+    selectInput(
+      node$id, label = label %||% "Columns",
+      choices = cols,
+      selected = intersect(selected, cols),
+      multiple = TRUE
+    )
+  },
+  resolve_expr = function(value, node, ...) {
+    if (length(value) == 0L) return(NULL)
+    # `c("Sepal.Length", "Petal.Length")` as a call object that drops
+    # straight into the substituted tree.
+    rlang::call2("c", !!!as.list(value))
+  },
+  copy_defaults = list(label = "Columns for {param}")
+)
+ptr_app(
+  "iris |> subset(select = colvars) |>
+     ggplot(aes(x = Sepal.Length)) + geom_histogram(bins = num)"
+)
+
 # 12. ui_text overrides -- every label and the title are user-customizable.
 ptr_app(
   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
@@ -316,6 +349,11 @@ shiny::testServer(function(input, output, session) {
 # - (11c) Toggle the head() stage checkbox -- the layers downstream
 #   refresh; click Update Data to commit the snapshot. dropvar in `color`
 #   exercises the consumer picker through aes() inside a non-ggplot layer.
+# - (11d) Pick two or more columns in the colvars picker, click Update
+#   Data -- the code panel shows `subset(select = c("..", ".."))`. The
+#   selectable column set comes from upstream `iris` (cols passed by
+#   the framework); `var` running in the same app would still reject
+#   multi-select via its own validate_input.
 # - (15) Moving the shared slider invalidates both plots' state in one
 #   user action -- no per-plot button-clicks needed.
 # - (16a) Pick a column for `color`, a column for `text`, and any size
@@ -329,3 +367,17 @@ shiny::testServer(function(input, output, session) {
 #   etc. as malicious formulas; every entry of
 #   `ggpaintr:::unsafe_expr_denylist` blocks at translate time.
 # ---------------------------------------------------------------------------
+
+
+library(ggpcp)
+data(flea, package = "GGally")
+
+ptr_app(
+  "ggplot(data = flea |>
+                  pcp_select(expr) |>
+                  pcp_scale(method = 'uniminmax') |>
+                  pcp_arrange(),
+          mapping = aes_pcp()) +
+     geom_pcp_axes() +
+     geom_pcp(aes(colour = species))"
+)
