@@ -1,7 +1,8 @@
 # P5 — safety. Walks the typed tree; each visit delegates to the existing
-# `validate_expr_safety` walker. Phase 1 covers P5.1–P5.15 + P5.18.
-# P5.16 (denied-char-literal returned by resolve_expr) and P5.17
-# (post-substitution recheck) are deferred to P8/P11 phases.
+# `validate_expr_safety` walker. P5.1–P5.15 exercise translate-time checks;
+# P5.16/P5.17 exercise the post-substitute recheck inside `ptr_eval`;
+# P5.18 confirms an empty post-prune layer list is reported as a no-layers
+# error rather than as a safety abort.
 
 test_that("P5.1 denylist symbol blocked (`system`)", {
   expect_error(ptr_translate("ggplot(mtcars) + geom_point(data = system('id'))"),
@@ -98,6 +99,41 @@ test_that("P5.15 depth limit triggers safety abort", {
   expect_error(validate_expr_safety(e), "depth")
 })
 
-test_that("P5.18 post-prune empty layers surface as 'no layers' (deferred)", {
-  skip("P5.18: P11 phase wires the no-layers vs safety distinction.")
+test_that("P5.16 custom resolve_expr returning denylisted character literal blocked", {
+  # Custom value placeholder whose resolve_expr returns the string "system".
+  # Substitute wraps it in ptr_literal("system"); the layer's eval expression
+  # ends up containing the string literal. P11 re-runs validate_expr_safety
+  # per layer, which descends into character literals (cf. P5.8) and aborts.
+  ptr_define_placeholder_value(
+    keyword = "danger",
+    build_ui = function(node, ...) NULL,
+    resolve_expr = function(value, node, ...) "system"
+  )
+  on.exit({
+    ptr_registry_v2_clear()
+    ptr_register_builtins_v2()
+  })
+  r <- ptr_translate("ggplot(mtcars) + labs(title = danger)")
+  id <- find_nodes(r,
+                   function(x) is_ptr_placeholder(x) && x$keyword == "danger")[[1]]$id
+  s <- ptr_substitute(r, input_snapshot = stats::setNames(list("anything"), id))
+  p <- ptr_prune(s)
+  expect_error(ptr_eval(p), "system")
+})
+
+test_that("P5.17 ptr_eval re-runs safety on each layer post-substitute", {
+  # Build a ptr_root by hand whose layer is a ptr_user_expr containing a
+  # denylist call. Bypassing translate proves the per-layer recheck inside
+  # ptr_eval is independent of the translate-time check.
+  bad_layer <- ptr_user_expr(quote(system("id")))
+  root <- ptr_root(layers = list(bad_layer))
+  expect_error(ptr_eval(root), "system")
+})
+
+test_that("P5.18 empty layers report as no-layers, not as a safety error", {
+  empty <- ptr_root(layers = list(), expr = NULL)
+  expect_error(ptr_eval(empty), "[Nn]o layers")
+  e <- tryCatch(ptr_eval(empty), error = identity)
+  expect_false(grepl("denylist|not allowed|depth|maliciously",
+                     conditionMessage(e)))
 })
