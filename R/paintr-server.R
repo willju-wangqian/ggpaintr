@@ -562,9 +562,16 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
       #   - upstream producer-input changes (`text`/`num`/`expr` in our
       #     own upstream): read through `state$producer_input[[id]]`,
       #     which is debounced with a dynamically auto-flipped window.
+      #   - inner Data/Controls tab activation: switching to Controls
+      #     invalidates control-tab consumers, ditto Data; lets Bootstrap
+      #     keep all panes in DOM but still gives consumers a refresh
+      #     hook on tab visit (Decision D3 in lazy-consumer-resolve.md).
       #   - global: Update Plot click invalidates every consumer.
       upstream_consumer_ids <- find_consumer_ids_in_upstream(node$upstream)
       upstream_producer_ids <- find_producer_ids_in_upstream(node$upstream)
+      subtab_id <- if (!is.null(node$layer_name)) {
+        paste0(node$layer_name, "_subtab")
+      } else NULL
 
       entry_reactive <- shiny::reactive({
         state$tree()
@@ -577,6 +584,7 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
           val <- if (!is.null(r)) r() else input[[ns(pid)]]
           if (!is.null(val)) producer_values[[pid]] <- val
         }
+        if (!is.null(subtab_id)) input[[ns(subtab_id)]]
         input[[ns("ptr_update_plot")]]
 
         snapshot <- producer_values

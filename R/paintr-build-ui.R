@@ -147,7 +147,9 @@ build_ui_for.ptr_layer <- function(node,
     pipeline_ui = pipeline_ui,
     control_ui = control_ui,
     data_label = data_label,
-    controls_label = controls_label
+    controls_label = controls_label,
+    layer_name = layer_name,
+    ns_fn = ns_fn
   )
 
   default_on <- resolve_layer_default(layer_name, checkbox_defaults,
@@ -260,19 +262,31 @@ find_layer_placeholders_with_stage <- function(x) {
 }
 
 layer_panel_inner <- function(pipeline_ui, control_ui,
-                               data_label, controls_label) {
+                               data_label, controls_label,
+                               layer_name = NULL, ns_fn = identity) {
   has_pipeline <- length(pipeline_ui) > 0L
   has_controls <- length(control_ui) > 0L
 
   data_panel_body <- if (has_pipeline) unname(pipeline_ui) else NULL
 
+  # Tabset id makes the active-tab name observable as
+  # `input[[<layer>_subtab]]` so per-consumer reactives can dep on
+  # tab activation (Decision D3 in lazy-consumer-resolve.md). NULL when
+  # there's no tabset (controls-only layer); reading a missing input is
+  # an inert dep.
+  subtab_id <- if (!is.null(layer_name)) {
+    ns_fn(paste0(layer_name, "_subtab"))
+  } else NULL
+
   if (has_pipeline && has_controls) {
     do.call(shiny::tabsetPanel, list(
+      id = subtab_id,
       do.call(shiny::tabPanel, c(data_label, data_panel_body)),
       do.call(shiny::tabPanel, c(controls_label, unname(control_ui)))
     ))
   } else if (has_pipeline) {
     do.call(shiny::tabsetPanel, list(
+      id = subtab_id,
       do.call(shiny::tabPanel, c(data_label, data_panel_body))
     ))
   } else if (has_controls) {
