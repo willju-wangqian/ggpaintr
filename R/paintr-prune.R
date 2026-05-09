@@ -70,7 +70,10 @@ prune_walk.ptr_layer <- function(node, remove_set, is_standalone) {
     node$children <- new_children
   }
   empty <- length(node$children) == 0L && is.null(node$data_arg)
-  if (empty && node$name %in% remove_set && !is_standalone(node$name)) {
+  if (empty &&
+      name_matches_remove_set(node$name, qualified_layer_name(node$expr),
+                              remove_set) &&
+      !is_standalone(node$name)) {
     return(NULL)
   }
   node
@@ -96,7 +99,9 @@ prune_walk.ptr_call <- function(node, remove_set, is_standalone) {
   names(new_args) <- arg_names[keep]
   node$args <- new_args
   if (length(new_args) == 0L && !is.null(bare) &&
-      bare %in% remove_set && !is_standalone(bare)) {
+      name_matches_remove_set(bare, qualified_call_name(node$fun),
+                              remove_set) &&
+      !is_standalone(bare)) {
     return(ptr_missing())
   }
   node
@@ -153,6 +158,61 @@ bare_call_name <- function(fun) {
       return(bare_call_name(fun[[2L]]))
     }
   }
+  NULL
+}
+
+# Resolve a function reference into a "pkg::name" key.
+# - `pkg::name` / `pkg:::name`  -> exact "pkg::name".
+# - bare symbol -> follow the user's attached search path via `get()` (so
+#   `select` resolves to dplyr::select iff dplyr is attached, MASS::select iff
+#   only MASS is attached), then report the function's HOME namespace via
+#   `environment(fn)`. Reporting the home namespace correctly ignores
+#   re-exports — e.g. ggpaintr re-exports ggplot2::theme, but
+#   `environment(theme)` is `asNamespace("ggplot2")` so the key is still
+#   `"ggplot2::theme"`. Returns NULL when no qualified key can be derived.
+qualified_call_name <- function(fun) {
+  if (is.symbol(fun)) {
+    nm <- as.character(fun)
+    fn <- tryCatch(get(nm, mode = "function"), error = function(e) NULL)
+    if (is.null(fn)) return(NULL)
+    env <- environment(fn)
+    if (is.null(env) || !isNamespace(env)) return(NULL)
+    pkg <- getNamespaceName(env)
+    return(paste0(pkg, "::", nm))
+  }
+  if (is.call(fun)) {
+    op <- fun[[1L]]
+    if (identical(op, quote(`::`)) || identical(op, quote(`:::`))) {
+      return(paste0(as.character(fun[[2L]]), "::", as.character(fun[[3L]])))
+    }
+    if (identical(op, quote(`(`))) {
+      return(qualified_call_name(fun[[2L]]))
+    }
+  }
+  NULL
+}
+
+# Match either bare or qualified key against the remove_set.
+# `remove_set` mixes user-supplied bare entries (match any namespace) with
+# default-supplied qualified entries (require exact pkg match).
+name_matches_remove_set <- function(bare, qualified, remove_set) {
+  (!is.null(bare) && bare %in% remove_set) ||
+    (!is.null(qualified) && qualified %in% remove_set)
+}
+
+# Extract a qualified name from a layer-level expression. Mirrors
+# `layer_call_name()` in paintr-translate.R but resolves bare symbols via
+# the search path.
+qualified_layer_name <- function(expr) {
+  if (is.call(expr)) {
+    head <- expr[[1L]]
+    if (is.symbol(head) && as.character(head) %in% c("%>%", "|>") &&
+        length(expr) >= 3L) {
+      return(qualified_layer_name(expr[[3L]]))
+    }
+    return(qualified_call_name(head))
+  }
+  if (is.symbol(expr)) return(qualified_call_name(expr))
   NULL
 }
 

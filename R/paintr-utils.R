@@ -98,22 +98,207 @@ handle_duplicate_names <- function(x) {
 
 #' Curated Default `safe_to_remove` Set
 #'
-#' Stock ggplot2 names where a zero-argument call after placeholder
-#' substitution is provably a no-op or an error and is therefore safe
-#' to drop. Extends via the user-supplied `safe_to_remove` argument.
+#' Bare function names whose zero-argument call after placeholder
+#' substitution is provably a no-op, returns a meaningless empty
+#' tibble, or errors — and is therefore safe to drop. Curated from
+#' ggplot2 plus eight tidyverse packages by empirically testing every
+#' exported function with `f()` and `df %>% f()` on R 4.5.3 and keeping
+#' only those whose zero-arg behaviour is unambiguously meaningless.
+#' Names with a useful zero-arg API (e.g. `n()`, `today()`, `count()`,
+#' `tally()`, `cur_*()`) are deliberately excluded. Extends via the
+#' user-supplied `safe_to_remove` argument.
 #'
 #' @return A character vector of bare function names.
 #' @noRd
 default_drop_when_empty <- function() {
   c(
-    "theme", "labs", "xlab", "ylab", "ggtitle",
-    "facet_wrap", "facet_grid", "facet_null",
-    "xlim", "ylim", "lims", "expand_limits",
-    "guides", "annotate",
-    "annotation_custom", "annotation_map", "annotation_raster",
-    "aes", "aes_", "aes_q", "aes_string", "vars",
-    "element_text", "element_line", "element_rect",
-    "element_point", "element_polygon", "element_geom"
+    ggplot2_drop_names(),
+    dplyr_drop_names(),
+    tidyr_drop_names(),
+    tibble_drop_names(),
+    pillar_drop_names(),
+    purrr_drop_names(),
+    stringr_drop_names(),
+    forcats_drop_names(),
+    lubridate_drop_names(),
+    hms_drop_names()
+  )
+}
+
+# ggplot2
+ggplot2_drop_names <- function() {
+  c(
+    "ggplot2::aes", "ggplot2::aes_", "ggplot2::aes_q", "ggplot2::aes_string",
+    "ggplot2::annotate", "ggplot2::annotation_custom", "ggplot2::annotation_map",
+    "ggplot2::annotation_raster", "ggplot2::element_geom",
+    "ggplot2::element_line", "ggplot2::element_point",
+    "ggplot2::element_polygon", "ggplot2::element_rect", "ggplot2::element_text",
+    "ggplot2::expand_limits", "ggplot2::facet_grid", "ggplot2::facet_null",
+    "ggplot2::facet_wrap", "ggplot2::ggtitle", "ggplot2::guides",
+    "ggplot2::labs", "ggplot2::lims", "ggplot2::theme", "ggplot2::xlab",
+    "ggplot2::xlim", "ggplot2::ylab", "ggplot2::ylim"
+  )
+}
+
+# dplyr
+dplyr_drop_names <- function() {
+  c(
+    "dplyr::across", "dplyr::all_equal", "dplyr::anti_join", "dplyr::arrange",
+    "dplyr::arrange_all", "dplyr::arrange_at", "dplyr::arrange_if",
+    "dplyr::between", "dplyr::c_across", "dplyr::case_match", "dplyr::case_when",
+    "dplyr::common_by", "dplyr::copy_to", "dplyr::cross_join", "dplyr::cumall",
+    "dplyr::cumany", "dplyr::cummean", "dplyr::desc", "dplyr::distinct_at",
+    "dplyr::distinct_if", "dplyr::distinct_prepare", "dplyr::explain",
+    "dplyr::filter", "dplyr::filter_all", "dplyr::filter_at", "dplyr::filter_if",
+    "dplyr::filter_out", "dplyr::full_join", "dplyr::group_by",
+    "dplyr::group_by_all", "dplyr::group_by_at", "dplyr::group_by_if",
+    "dplyr::if_all", "dplyr::if_any", "dplyr::if_else", "dplyr::inner_join",
+    "dplyr::left_join", "dplyr::mutate", "dplyr::mutate_all", "dplyr::mutate_at",
+    "dplyr::mutate_if", "dplyr::na_if", "dplyr::near", "dplyr::nest_join",
+    "dplyr::nth", "dplyr::ntile", "dplyr::order_by", "dplyr::pick",
+    "dplyr::reframe", "dplyr::relocate", "dplyr::rename", "dplyr::rename_all",
+    "dplyr::rename_at", "dplyr::rename_if", "dplyr::rename_with",
+    "dplyr::right_join", "dplyr::same_src", "dplyr::sample_n", "dplyr::select",
+    "dplyr::select_at", "dplyr::select_if", "dplyr::semi_join",
+    "dplyr::show_query", "dplyr::slice", "dplyr::slice_max", "dplyr::slice_min",
+    "dplyr::summarise", "dplyr::summarise_all", "dplyr::summarise_at",
+    "dplyr::summarise_if", "dplyr::summarize", "dplyr::summarize_all",
+    "dplyr::summarize_at", "dplyr::summarize_if", "dplyr::top_frac",
+    "dplyr::top_n", "dplyr::transmute", "dplyr::transmute_all",
+    "dplyr::transmute_at", "dplyr::transmute_if", "dplyr::union_all",
+    "dplyr::vars"
+  )
+}
+
+# tidyr
+tidyr_drop_names <- function() {
+  c(
+    "tidyr::build_longer_spec", "tidyr::build_wider_spec", "tidyr::chop",
+    "tidyr::drop_na_", "tidyr::expand", "tidyr::expand_", "tidyr::extract",
+    "tidyr::extract_", "tidyr::fill_", "tidyr::full_seq", "tidyr::gather_",
+    "tidyr::hoist", "tidyr::nest_", "tidyr::pivot_longer",
+    "tidyr::pivot_longer_spec", "tidyr::pivot_wider", "tidyr::pivot_wider_spec",
+    "tidyr::separate", "tidyr::separate_", "tidyr::separate_longer_delim",
+    "tidyr::separate_longer_position", "tidyr::separate_rows_",
+    "tidyr::separate_wider_delim", "tidyr::separate_wider_position",
+    "tidyr::separate_wider_regex", "tidyr::spread", "tidyr::spread_",
+    "tidyr::tidyr_legacy", "tidyr::unchop", "tidyr::uncount", "tidyr::unite",
+    "tidyr::unite_", "tidyr::unnest_auto", "tidyr::unnest_longer",
+    "tidyr::unnest_wider", "tidyr::unpack"
+  )
+}
+
+# tibble
+tibble_drop_names <- function() {
+  c(
+    "tibble::column_to_rownames", "tibble::enframe"
+  )
+}
+
+
+# pillar
+pillar_drop_names <- function() {
+  c(
+    "pillar::char", "pillar::num"
+  )
+}
+
+# purrr
+purrr_drop_names <- function() {
+  c(
+    "purrr::accumulate", "purrr::accumulate2", "purrr::assign_in",
+    "purrr::cross2", "purrr::cross3", "purrr::detect", "purrr::detect_index",
+    "purrr::discard", "purrr::discard_at", "purrr::every", "purrr::flatten_chr",
+    "purrr::flatten_dbl", "purrr::flatten_df", "purrr::flatten_dfr",
+    "purrr::flatten_int", "purrr::flatten_lgl", "purrr::flatten_raw",
+    "purrr::has_element", "purrr::head_while", "purrr::imap", "purrr::imap_chr",
+    "purrr::imap_dbl", "purrr::imap_dfc", "purrr::imap_dfr", "purrr::imap_int",
+    "purrr::imap_lgl", "purrr::imap_raw", "purrr::imap_vec", "purrr::imodify",
+    "purrr::in_parallel", "purrr::insistently", "purrr::iwalk", "purrr::keep",
+    "purrr::keep_at", "purrr::list_c", "purrr::list_cbind",
+    "purrr::list_flatten", "purrr::list_rbind", "purrr::list_simplify",
+    "purrr::list_transpose", "purrr::lmap", "purrr::lmap_at", "purrr::lmap_if",
+    "purrr::map", "purrr::map_at", "purrr::map_chr", "purrr::map_dbl",
+    "purrr::map_depth", "purrr::map_df", "purrr::map_dfc", "purrr::map_dfr",
+    "purrr::map_if", "purrr::map_int", "purrr::map_lgl", "purrr::map_raw",
+    "purrr::map_vec", "purrr::map2", "purrr::map2_chr", "purrr::map2_dbl",
+    "purrr::map2_df", "purrr::map2_dfc", "purrr::map2_dfr", "purrr::map2_int",
+    "purrr::map2_lgl", "purrr::map2_raw", "purrr::map2_vec", "purrr::modify",
+    "purrr::modify_at", "purrr::modify_depth", "purrr::modify_if",
+    "purrr::modify_in", "purrr::modify2", "purrr::negate", "purrr::none",
+    "purrr::partial", "purrr::pmap", "purrr::pmap_chr", "purrr::pmap_dbl",
+    "purrr::pmap_df", "purrr::pmap_dfc", "purrr::pmap_dfr", "purrr::pmap_int",
+    "purrr::pmap_lgl", "purrr::pmap_raw", "purrr::pmap_vec", "purrr::possibly",
+    "purrr::prepend", "purrr::pwalk", "purrr::quietly", "purrr::rate_reset",
+    "purrr::rate_sleep", "purrr::rdunif", "purrr::reduce", "purrr::reduce2",
+    "purrr::rerun", "purrr::safely", "purrr::slowly", "purrr::some",
+    "purrr::tail_while", "purrr::walk", "purrr::walk2"
+  )
+}
+
+# stringr
+stringr_drop_names <- function() {
+  c(
+    "stringr::invert_match", "stringr::str_conv", "stringr::str_detect",
+    "stringr::str_dup", "stringr::str_ends", "stringr::str_equal",
+    "stringr::str_extract", "stringr::str_extract_all", "stringr::str_ilike",
+    "stringr::str_interp", "stringr::str_like", "stringr::str_locate",
+    "stringr::str_locate_all", "stringr::str_match", "stringr::str_match_all",
+    "stringr::str_pad", "stringr::str_remove", "stringr::str_remove_all",
+    "stringr::str_replace", "stringr::str_replace_all", "stringr::str_split",
+    "stringr::str_split_1", "stringr::str_split_fixed", "stringr::str_split_i",
+    "stringr::str_starts", "stringr::str_subset", "stringr::str_to_camel",
+    "stringr::str_to_kebab", "stringr::str_to_snake", "stringr::str_trunc",
+    "stringr::str_which"
+  )
+}
+
+# forcats
+forcats_drop_names <- function() {
+  c(
+    "forcats::fct_anon", "forcats::fct_collapse", "forcats::fct_count",
+    "forcats::fct_drop", "forcats::fct_expand", "forcats::fct_explicit_na",
+    "forcats::fct_infreq", "forcats::fct_inorder", "forcats::fct_inseq",
+    "forcats::fct_lump", "forcats::fct_lump_lowfreq", "forcats::fct_lump_min",
+    "forcats::fct_lump_n", "forcats::fct_lump_prop", "forcats::fct_match",
+    "forcats::fct_na_level_to_value", "forcats::fct_na_value_to_level",
+    "forcats::fct_other", "forcats::fct_recode", "forcats::fct_relabel",
+    "forcats::fct_relevel", "forcats::fct_reorder", "forcats::fct_reorder2",
+    "forcats::fct_rev", "forcats::fct_shift", "forcats::fct_shuffle",
+    "forcats::fct_unify", "forcats::fct_unique", "forcats::first2",
+    "forcats::last2", "forcats::lvls_expand", "forcats::lvls_reorder",
+    "forcats::lvls_revalue", "forcats::lvls_union"
+  )
+}
+
+# lubridate
+lubridate_drop_names <- function() {
+  c(
+    "lubridate::%--%", "lubridate::add_with_rollback", "lubridate::am",
+    "lubridate::ceiling_date", "lubridate::cyclic_encoding",
+    "lubridate::date_decimal", "lubridate::day", "lubridate::days_in_month",
+    "lubridate::decimal_date", "lubridate::dst", "lubridate::epiweek",
+    "lubridate::epiyear", "lubridate::fast_strptime",
+    "lubridate::fit_to_timeline", "lubridate::floor_date",
+    "lubridate::force_tzs", "lubridate::hour", "lubridate::int_aligns",
+    "lubridate::int_diff", "lubridate::int_end", "lubridate::int_flip",
+    "lubridate::int_overlaps", "lubridate::int_shift",
+    "lubridate::int_standardize", "lubridate::int_start", "lubridate::isoweek",
+    "lubridate::isoyear", "lubridate::leap_year", "lubridate::mday",
+    "lubridate::minute", "lubridate::month", "lubridate::period_to_seconds",
+    "lubridate::pm", "lubridate::pretty_dates", "lubridate::qday",
+    "lubridate::quarter", "lubridate::reclass_date", "lubridate::rollback",
+    "lubridate::rollbackward", "lubridate::rollforward", "lubridate::round_date",
+    "lubridate::second", "lubridate::seconds_to_period", "lubridate::semester",
+    "lubridate::stamp", "lubridate::stamp_date", "lubridate::stamp_time",
+    "lubridate::wday", "lubridate::week", "lubridate::yday", "lubridate::year"
+  )
+}
+
+# hms
+hms_drop_names <- function() {
+  c(
+    "hms::ceiling_hms", "hms::floor_hms", "hms::round_hms"
   )
 }
 
@@ -161,23 +346,21 @@ validate_safe_to_remove <- function(safe_to_remove,
       call = call
     )
   }
-  bad_ns <- grepl("::", safe_to_remove, fixed = TRUE)
-  if (any(bad_ns)) {
+  parts <- strsplit(safe_to_remove, "::", fixed = TRUE)
+  bad <- vapply(parts, function(p) {
+    if (length(p) == 1L) {
+      return(p != make.names(p) || !nzchar(p))
+    }
+    if (length(p) == 2L) {
+      return(any(!nzchar(p)) || any(p != make.names(p)))
+    }
+    TRUE
+  }, logical(1))
+  if (any(bad)) {
     rlang::abort(
       cli::format_error(c(
-        "{.arg {arg}} entries must be bare function names.",
-        x = "Namespaced entries are not supported: {.val {safe_to_remove[bad_ns]}}.",
-        i = "Matching is across {.code ::} forms; pass the bare name."
-      )),
-      call = call
-    )
-  }
-  bad_name <- safe_to_remove != make.names(safe_to_remove)
-  if (any(bad_name)) {
-    rlang::abort(
-      cli::format_error(c(
-        "{.arg {arg}} entries must be valid R names.",
-        x = "Invalid entries: {.val {safe_to_remove[bad_name]}}."
+        "{.arg {arg}} entries must be valid R names or {.code pkg::name} pairs.",
+        x = "Invalid entries: {.val {safe_to_remove[bad]}}."
       )),
       call = call
     )
