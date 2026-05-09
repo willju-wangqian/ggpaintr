@@ -27,16 +27,19 @@ test_that("ptr_server_state resolves checkbox_defaults", {
   expect_equal(state$checkbox_defaults[["geom_smooth"]], FALSE)
 })
 
-test_that("ptr_server_state builds resolved_data slots only for pipeline layers", {
+test_that("ptr_server_state builds resolved_data slots only for bare-data-source layers", {
+  # Pipeline-data layers no longer carry a click-gated cache; their
+  # consumers resolve lazily through `ptr_setup_consumer_uis()`. Only
+  # bare-data-source layers (e.g., `ggplot(data = upload, ...)`) keep a
+  # `resolved_data` slot for the upload reactive observer to write into.
   state <- ptr_server_state(
     "mtcars |> head(num) |> ggplot() + geom_point()",
     envir = .server_test_env()
   )
-  expect_named(state$resolved_data, "ggplot")
-  # geom_point has no pipeline → no resolved_data slot
+  expect_equal(length(state$resolved_data), 0L)
 })
 
-test_that("ptr_server_state with no pipeline layers has empty resolved_data", {
+test_that("ptr_server_state with literal-data layers has empty resolved_data", {
   state <- ptr_server_state(
     "ggplot(mtcars) + geom_point()",
     envir = .server_test_env()
@@ -49,100 +52,6 @@ test_that("ptr_server_state rejects non-function ns", {
     ptr_server_state("ggplot(mtcars)", ns = "module1"),
     "namespace function"
   )
-})
-
-# ---- testServer integration: pipeline observers ----
-
-test_that("P12.1 — initial cache seeded via trim-to-root", {
-  e <- .server_test_env()
-  server <- function(input, output, session) {
-    session$userData$state <- ptr_server(
-      input, output, session,
-      "mtcars |> head(num) |> ggplot(aes(x = mpg, y = hp)) + geom_point()",
-      envir = e
-    )
-  }
-  shiny::testServer(server, {
-    state <- session$userData$state
-    cached <- state$resolved_data[["ggplot"]]()
-    expect_s3_class(cached, "data.frame")
-    # Per relaxed P9 (P12.1): missing num drops the arg, head() survives empty.
-    # head(mtcars) defaults to n = 6.
-    expect_equal(nrow(cached), 6L)
-  })
-})
-
-test_that("P12.2 — Update Data click refreshes cache from current inputs", {
-  e <- .server_test_env()
-  server <- function(input, output, session) {
-    session$userData$state <- ptr_server(
-      input, output, session,
-      "mtcars |> head(num) |> ggplot(aes(x = mpg, y = hp))",
-      envir = e
-    )
-  }
-  shiny::testServer(server, {
-    state <- session$userData$state
-    tree <- shiny::isolate(state$tree())
-    num_id <- find_nodes(tree, is_ptr_ph_value)[[1L]]$id
-
-    args <- list()
-    args[[num_id]] <- 3L
-    args[["ggplot_update_data"]] <- 1L
-    do.call(session$setInputs, args)
-
-    cached <- state$resolved_data[["ggplot"]]()
-    expect_equal(nrow(cached), 3L)
-  })
-})
-
-test_that("P12.3 / P12.4 — stale flag flips on input divergence and back on click", {
-  e <- .server_test_env()
-  server <- function(input, output, session) {
-    session$userData$state <- ptr_server(
-      input, output, session,
-      "mtcars |> head(num) |> ggplot(aes(x = mpg, y = hp))",
-      envir = e
-    )
-  }
-  shiny::testServer(server, {
-    state <- session$userData$state
-    tree <- shiny::isolate(state$tree())
-    num_id <- find_nodes(tree, is_ptr_ph_value)[[1L]]$id
-
-    expect_false(state$is_stale_env[["ggplot"]]())
-
-    do.call(session$setInputs, stats::setNames(list(7L), num_id))
-    expect_true(state$is_stale_env[["ggplot"]]())
-
-    args <- list()
-    args[[num_id]] <- 7L
-    args[["ggplot_update_data"]] <- 1L
-    do.call(session$setInputs, args)
-    expect_false(state$is_stale_env[["ggplot"]]())
-  })
-})
-
-test_that("P12.7 — unresolvable pipeline leaves cache untouched on click", {
-  e <- .server_test_env()
-  server <- function(input, output, session) {
-    session$userData$state <- ptr_server(
-      input, output, session,
-      "nonexistent_xyz |> head(num) |> ggplot()",
-      envir = e
-    )
-  }
-  shiny::testServer(server, {
-    state <- session$userData$state
-    expect_null(state$resolved_data[["ggplot"]]())
-    args <- list()
-    tree <- shiny::isolate(state$tree())
-    num_id <- find_nodes(tree, is_ptr_ph_value)[[1L]]$id
-    args[[num_id]] <- 3L
-    args[["ggplot_update_data"]] <- 1L
-    do.call(session$setInputs, args)
-    expect_null(state$resolved_data[["ggplot"]]())
-  })
 })
 
 # ---- runtime ----

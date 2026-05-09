@@ -16,3 +16,4 @@ Reference material lives elsewhere:
 - [checkbox-defaults](checkbox-defaults.md) — initial layer-checkbox state via `checkbox_defaults` arg on the 4 formula-taking exported functions
 - [p9-relax](p9-relax.md) — positional missing drops arg, not whole call; rename `default_safe_to_remove` → `default_drop_when_empty` (linked BDD: P9, P12, G2, G6)
 - [stage-disable-checkbox](stage-disable-checkbox.md) — per-data-manipulation-call checkbox as gate-2 runtime safety valve composing with relaxed P9; new `R/paintr-disable.R` + P4 stage-id hook + `disable_walk` before substitute (linked BDD: new §G11/§P13)
+- [lazy-consumer-resolve](lazy-consumer-resolve.md) — drop the per-layer Update Data button; per-consumer reactive cache keyed off `node$upstream`; producer inputs wrapped in dynamically-windowed `shiny::debounce` with auto-flip on slow evals; consumer `build_ui` contract extended to `(node, cols, data)`

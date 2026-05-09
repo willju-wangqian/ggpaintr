@@ -110,24 +110,6 @@ test_that("active layer content div has ptr-layer-content but not -disabled", {
   expect_equal(length(disabled_divs), 0L)
 })
 
-# ---- update-data button emission ----
-
-test_that("layer with pipeline placeholders emits Update Data button", {
-  tree <- ptr_translate("mtcars |> head(num) |> ggplot()")
-  layer <- .layer_by_name(tree, "ggplot")
-  panel <- build_ui_for(layer)
-  update_id <- "ggplot_update_data"
-  expect_true(length(.find_tags2(panel, has_id = update_id)) > 0L)
-})
-
-test_that("layer without pipeline placeholders does not emit Update Data button", {
-  tree <- ptr_translate("ggplot(mtcars) + geom_point()")
-  layer <- .layer_by_name(tree, "geom_point")
-  panel <- build_ui_for(layer)
-  update_id <- "geom_point_update_data"
-  expect_equal(length(.find_tags2(panel, has_id = update_id)), 0L)
-})
-
 # ---- ns_fn threading ----
 
 test_that("layer panel namespaces ids via ns_fn", {

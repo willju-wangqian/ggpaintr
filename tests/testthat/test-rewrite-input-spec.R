@@ -29,14 +29,6 @@ test_that("P7.3 layer checkbox rows follow placeholder rows; ggplot has none", {
                 min(which(spec$role %in% "layer_checkbox")))
 })
 
-test_that("P7.4 layer update-data rows present only for pipeline layers", {
-  r <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = var))")
-  spec <- ptr_runtime_input_spec(r)
-  ud_rows <- spec[spec$role %in% "layer_update_data", ]
-  expect_equal(nrow(ud_rows), 1L)
-  expect_equal(ud_rows$layer_name, "ggplot")
-})
-
 test_that("P7.5 empty placeholder formula returns 0-row data frame with all columns", {
   r <- ptr_translate("ggplot(mtcars, aes(x = mpg))")
   spec <- ptr_runtime_input_spec(r)

@@ -2,7 +2,7 @@
 # id of the form `<layer>_<underscore-joined-index-path>_<keyword>_<shared-or-NA>`,
 # along with the enclosing arg name (`param`). The enclosing layer name is
 # also stamped on the node as `node$layer_name`. Layer-derived ids
-# (`<layer>_checkbox`, `<layer>_update_data`) are attached to the layer node.
+# (`<layer>_checkbox`) are attached to the layer node.
 # `ns_fn` is validated and stored on the root for emit-time application.
 # Source companion ids are computed via the registry's `companion_id_fn`.
 
@@ -50,11 +50,6 @@ assign_ids_in_layer <- function(layer) {
       )
     }
   }
-  if (layer_has_pipeline_placeholders(layer)) {
-    layer$update_data_input_id <- paste0(layer$name, "_update_data")
-  } else {
-    layer$update_data_input_id <- NULL
-  }
   layer
 }
 
@@ -101,15 +96,6 @@ assign_id_to_placeholder <- function(node, layer_name, path, param) {
     }
   }
   node
-}
-
-# A layer needs an `_update_data` id only when its data_arg is a pipeline
-# AND that pipeline contains placeholders. Plain-data layers (e.g.,
-# `ggplot(mtcars, aes(x = var))`) don't get an update-data button.
-layer_has_pipeline_placeholders <- function(layer) {
-  if (is.null(layer$data_arg)) return(FALSE)
-  if (!is_ptr_pipeline(layer$data_arg)) return(FALSE)
-  walk_has_placeholder(layer$data_arg)
 }
 
 walk_has_placeholder <- function(node) {

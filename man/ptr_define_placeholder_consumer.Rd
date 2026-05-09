@@ -15,7 +15,8 @@ ptr_define_placeholder_consumer(
 \arguments{
 \item{keyword, build_ui, resolve_expr, copy_defaults}{See
 \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}. \code{build_ui} receives \code{cols} (resolved
-upstream column names).}
+upstream column names) and \code{data} (the resolved upstream data frame —
+\code{NULL} until upstream resolves).}
 
 \item{validate_input}{Optional \verb{function(value, upstream_cols)} returning
 \code{TRUE} or an error message string.}

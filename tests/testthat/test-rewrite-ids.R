@@ -48,21 +48,6 @@ test_that("P4.5 companion id for upload derived via registry's companion_id_fn",
   expect_equal(src$companion_id, paste0(src$id, "_name"))
 })
 
-test_that("P4.6 layer-update-data id absent for non-pipeline layers", {
-  r <- ptr_translate("ggplot(mtcars, aes(x = mpg)) + geom_point()")
-  for (l in r$layers) {
-    if (is_ptr_layer(l)) {
-      expect_null(l$update_data_input_id)
-    }
-  }
-})
-
-test_that("P4.7 layer-update-data id present for pipeline layers", {
-  r <- ptr_translate("mtcars |> filter(num > 0) |> ggplot(aes(x = var))")
-  ggp <- r$layers[[1]]
-  expect_equal(ggp$update_data_input_id, "ggplot_update_data")
-})
-
 test_that("P4.8 non-function ns_fn rejected", {
   expect_error(ptr_translate("ggplot(mtcars) + geom_point()", ns_fn = "string"))
   expect_error(ptr_translate("ggplot(mtcars) + geom_point()", ns_fn = 42L))

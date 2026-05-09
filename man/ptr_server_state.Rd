@@ -13,6 +13,7 @@ ptr_server_state(
   safe_to_remove = character(),
   shared = list(),
   draw_trigger = NULL,
+  producer_debounce_ms = NULL,
   ns = shiny::NS(NULL),
   server_ns = ns
 )
@@ -37,6 +38,14 @@ outer wrapper such as \code{\link[=ptr_app_grid]{ptr_app_grid()}}. Defaults to \
 
 \item{draw_trigger}{Optional reactive whose invalidation forces a redraw
 (e.g. the grid app's "Draw all" button).}
+
+\item{producer_debounce_ms}{Optional. Controls the debounce window applied
+to producer-style placeholder inputs (\code{text}, \code{num}, \code{expr}) before they
+invalidate downstream consumer caches. \code{NULL} (default) enables auto
+mode: window starts at 0 ms and the runtime flips to 300 ms after three
+consecutive upstream resolutions exceed 150 ms (and back to 0 after five
+consecutive resolutions under 80 ms). Pass \code{0} to force off forever, or a
+positive integer to pin a manual window.}
 
 \item{ns}{A namespace function used for rendered ids (UI side).}
 

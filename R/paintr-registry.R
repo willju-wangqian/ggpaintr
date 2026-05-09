@@ -148,7 +148,8 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #'
 #' @param keyword,build_ui,resolve_expr,copy_defaults See
 #'   [ptr_define_placeholder_value()]. `build_ui` receives `cols` (resolved
-#'   upstream column names).
+#'   upstream column names) and `data` (the resolved upstream data frame —
+#'   `NULL` until upstream resolves).
 #' @param validate_input Optional `function(value, upstream_cols)` returning
 #'   `TRUE` or an error message string.
 #' @export
@@ -158,7 +159,7 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
                                             label = "Pick a column for {param}"
                                           )) {
   validate_keyword(keyword)
-  validate_hook(build_ui, "build_ui", c("node", "cols"))
+  validate_hook(build_ui, "build_ui", c("node", "cols", "data"))
   validate_hook(resolve_expr, "resolve_expr", c("value", "node"))
   if (!is.null(validate_input)) {
     validate_hook(validate_input, "validate_input", c("value", "upstream_cols"))

@@ -17,5 +17,5 @@ A \code{data.frame} with columns \code{input_id}, \code{role}, \code{layer_name}
 Walks the typed AST and returns one row per node that needs a Shiny
 binding: placeholder rows first (with companion rows adjacent for
 upload-style sources), then derived layer rows (\code{layer_checkbox},
-\code{layer_update_data}, \code{stage_enabled}).
+\code{stage_enabled}).
 }

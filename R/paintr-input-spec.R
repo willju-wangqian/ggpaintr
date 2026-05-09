@@ -13,7 +13,7 @@
 #' Walks the typed AST and returns one row per node that needs a Shiny
 #' binding: placeholder rows first (with companion rows adjacent for
 #' upload-style sources), then derived layer rows (`layer_checkbox`,
-#' `layer_update_data`, `stage_enabled`).
+#' `stage_enabled`).
 #'
 #' @param node A `ptr_root` node returned by `ptr_translate()`.
 #'
@@ -40,13 +40,6 @@ ptr_runtime_input_spec <- function(node) {
         layer_rows[[length(layer_rows) + 1L]] <- empty_row(
           input_id = layer$active_input_id,
           role = "layer_checkbox",
-          layer_name = layer$name
-        )
-      }
-      if (!is.null(layer$update_data_input_id)) {
-        layer_rows[[length(layer_rows) + 1L]] <- empty_row(
-          input_id = layer$update_data_input_id,
-          role = "layer_update_data",
           layer_name = layer$name
         )
       }

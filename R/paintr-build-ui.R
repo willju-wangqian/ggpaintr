@@ -140,21 +140,12 @@ build_ui_for.ptr_layer <- function(node,
   })
   control_ui  <- control_ui[!vapply(control_ui, is.null, logical(1))]
 
-  update_button <- if (!is.null(node$update_data_input_id)) {
-    shell_copy <- shell_copy %||% layer_panel_default_shell_copy(ui_text)
-    shiny::actionButton(
-      ns_fn(node$update_data_input_id),
-      label = shell_copy$update_data_label %||% "Update Data"
-    )
-  } else NULL
-
   data_label     <- (shell_copy %||% layer_panel_default_shell_copy(ui_text))$data_subtab_label %||% "Data"
   controls_label <- (shell_copy %||% layer_panel_default_shell_copy(ui_text))$controls_subtab_label %||% "Controls"
 
   inner <- layer_panel_inner(
     pipeline_ui = pipeline_ui,
     control_ui = control_ui,
-    update_button = update_button,
     data_label = data_label,
     controls_label = controls_label
   )
@@ -268,15 +259,12 @@ find_layer_placeholders_with_stage <- function(x) {
   out
 }
 
-layer_panel_inner <- function(pipeline_ui, control_ui, update_button,
+layer_panel_inner <- function(pipeline_ui, control_ui,
                                data_label, controls_label) {
   has_pipeline <- length(pipeline_ui) > 0L
   has_controls <- length(control_ui) > 0L
 
-  data_panel_body <- if (has_pipeline) {
-    c(unname(pipeline_ui),
-      if (!is.null(update_button)) list(update_button) else list())
-  } else NULL
+  data_panel_body <- if (has_pipeline) unname(pipeline_ui) else NULL
 
   if (has_pipeline && has_controls) {
     do.call(shiny::tabsetPanel, list(
@@ -312,7 +300,6 @@ layer_panel_default_shell_copy <- function(ui_text) {
   list(
     data_subtab_label = ptr_resolve_ui_text("data_subtab", ui_text = ui_text)$label,
     controls_subtab_label = ptr_resolve_ui_text("controls_subtab", ui_text = ui_text)$label,
-    update_data_label = ptr_resolve_ui_text("update_data_button", ui_text = ui_text)$label,
     layer_checkbox_label = ptr_resolve_ui_text("layer_checkbox", ui_text = ui_text)$label,
     layer_picker_label = ptr_resolve_ui_text("layer_picker", ui_text = ui_text)$label
   )

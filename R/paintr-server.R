@@ -28,6 +28,13 @@
 #'   outer wrapper such as [ptr_app_grid()]. Defaults to `list()`.
 #' @param draw_trigger Optional reactive whose invalidation forces a redraw
 #'   (e.g. the grid app's "Draw all" button).
+#' @param producer_debounce_ms Optional. Controls the debounce window applied
+#'   to producer-style placeholder inputs (`text`, `num`, `expr`) before they
+#'   invalidate downstream consumer caches. `NULL` (default) enables auto
+#'   mode: window starts at 0 ms and the runtime flips to 300 ms after three
+#'   consecutive upstream resolutions exceed 150 ms (and back to 0 after five
+#'   consecutive resolutions under 80 ms). Pass `0` to force off forever, or a
+#'   positive integer to pin a manual window.
 #' @param ns A namespace function used for rendered ids (UI side).
 #' @param server_ns A namespace function used for server-side input lookups.
 #'   Defaults to `ns`.
@@ -42,6 +49,7 @@ ptr_server_state <- function(formula,
                                 safe_to_remove = character(),
                                 shared = list(),
                                 draw_trigger = NULL,
+                                producer_debounce_ms = NULL,
                                 ns = shiny::NS(NULL),
                                 server_ns = ns) {
   if (!is.function(ns)) {
@@ -52,6 +60,21 @@ ptr_server_state <- function(formula,
   }
   if (!is.null(draw_trigger) && !shiny::is.reactive(draw_trigger)) {
     rlang::abort("`draw_trigger` must be a Shiny reactive or NULL.")
+  }
+  if (!is.null(producer_debounce_ms)) {
+    if (!is.numeric(producer_debounce_ms) ||
+        length(producer_debounce_ms) != 1L ||
+        is.na(producer_debounce_ms) ||
+        producer_debounce_ms < 0) {
+      rlang::abort(
+        "`producer_debounce_ms` must be a single non-negative number, or NULL."
+      )
+    }
+    initial_debounce_ms <- as.integer(producer_debounce_ms)
+    debounce_mode <- "manual"
+  } else {
+    initial_debounce_ms <- 0L
+    debounce_mode <- "auto"
   }
   shared_bindings <- ptr_validate_shared_bindings(shared)
   safe_to_remove <- validate_safe_to_remove(safe_to_remove)
@@ -70,15 +93,11 @@ ptr_server_state <- function(formula,
 
   data_layer_names <- character()
   for (l in tree$layers) {
-    if (!is.null(l$update_data_input_id) || is_bare_data_source_layer(l)) {
+    if (is_bare_data_source_layer(l)) {
       data_layer_names <- c(data_layer_names, l$name)
     }
   }
   resolved_data <- stats::setNames(
-    lapply(data_layer_names, function(.) shiny::reactiveVal(NULL)),
-    data_layer_names
-  )
-  last_click_inputs <- stats::setNames(
     lapply(data_layer_names, function(.) shiny::reactiveVal(NULL)),
     data_layer_names
   )
@@ -88,6 +107,11 @@ ptr_server_state <- function(formula,
     rep(list(TRUE), length(initial_stage_ids)),
     initial_stage_ids
   )
+
+  producer_perf_env <- new.env(parent = emptyenv())
+  producer_perf_env$slow_count <- 0L
+  producer_perf_env$fast_count <- 0L
+  producer_perf_env$first_eval_done <- FALSE
 
   structure(list(
     tree = shiny::reactiveVal(tree),
@@ -107,10 +131,19 @@ ptr_server_state <- function(formula,
     shared_bindings = shared_bindings,
     draw_trigger = draw_trigger,
     resolved_data = resolved_data,
-    last_click_inputs = last_click_inputs,
-    is_stale_env = new.env(parent = emptyenv()),
     upstream_cache = new.env(parent = emptyenv()),
     stage_enabled = shiny::reactiveVal(initial_stage_enabled),
+    # Producer-input debounce + auto-flip (D7 / D8). `producer_input` is
+    # populated by `ptr_setup_producer_inputs()` after the server boots;
+    # entries are debounced reactives reading `input[[ns(id)]]`. The
+    # `producer_debounce_ms` window is read dynamically by every debounced
+    # reactive, so flipping it at runtime takes effect on the next
+    # invalidation without recreating the reactive (verified against
+    # `shiny::debounce` source).
+    producer_input = new.env(parent = emptyenv()),
+    producer_debounce_ms = shiny::reactiveVal(initial_debounce_ms),
+    producer_debounce_mode = debounce_mode,
+    producer_perf_env = producer_perf_env,
     ui_ns_fn = ns,
     server_ns_fn = server_ns,
     ns_fn = server_ns,
@@ -140,6 +173,7 @@ ptr_server_state <- function(formula,
 ptr_server <- function(input, output, session, formula,
                           envir = parent.frame(), ...) {
   state <- ptr_server_state(formula, envir = envir, ...)
+  ptr_setup_producer_inputs(state, input, output, session)
   ptr_setup_pipelines(state, input, output, session)
   ptr_setup_stage_enabled(state, input, output, session)
   ptr_setup_runtime(state, input, output, session)
@@ -163,85 +197,121 @@ ptr_setup_pipelines <- function(state, input, output, session) {
   tree <- shiny::isolate(state$tree())
   ns <- state$server_ns_fn
 
+  # Bare-data-source layers reactively resolve their `data_arg` from the
+  # source widget (e.g. an upload's file input) and cache the resolved df
+  # on `state$resolved_data[[ln]]`. Pipeline-data layers no longer have a
+  # click-gated cache; their consumers resolve lazily through the
+  # per-consumer reactive in `ptr_setup_consumer_uis()`.
   for (layer in tree$layers) {
-    if (is.null(layer$update_data_input_id)) {
-      if (is_bare_data_source_layer(layer)) {
-        local({
-          lyr <- layer
-          ln <- lyr$name
-          src <- lyr$data_arg
-          src_id <- ns(src$id)
-          comp_id <- if (!is.null(src$companion_id)) ns(src$companion_id) else NULL
-          entry <- ptr_registry_lookup(src$keyword)
-
-          shiny::observe({
-            file_info <- input[[src_id]]
-            if (!is.null(comp_id)) input[[comp_id]]  # take dep
-            if (is.null(file_info) || is.null(file_info$datapath)) {
-              state$resolved_data[[ln]](NULL)
-              return(invisible())
-            }
-            df <- if (!is.null(entry) && !is.null(entry$resolve_data)) {
-              tryCatch(entry$resolve_data(file_info, src),
-                       error = function(e) NULL)
-            } else NULL
-            state$resolved_data[[ln]](df)
-          })
-        })
-      }
-      next
-    }
-
-    # Bind layer-specific values via local() so each iteration captures freshly.
+    if (!is_bare_data_source_layer(layer)) next
     local({
       lyr <- layer
       ln <- lyr$name
-      uid <- ns(lyr$update_data_input_id)
+      src <- lyr$data_arg
+      src_id <- ns(src$id)
+      comp_id <- if (!is.null(src$companion_id)) ns(src$companion_id) else NULL
+      entry <- ptr_registry_lookup(src$keyword)
 
-      # G6.1 — initial seed: prune on empty snapshot, eval, store.
-      seed <- ptr_resolve_upstream(
-        lyr$data_arg,
-        snapshot = list(),
-        shared_bindings = state$shared_bindings,
-        eval_env = state$eval_env,
-        cache = state$upstream_cache,
-        expr_check = state$expr_check,
-        stage_enabled = shiny::isolate(state$stage_enabled())
-      )
-      state$resolved_data[[ln]](seed)
-      state$last_click_inputs[[ln]](list())
-
-      # G6.2 / G6.3 — Update-Data click: validate atomically. ignoreNULL keeps
-      # the handler dormant until the user actually clicks (input[[uid]]
-      # starts as NULL); we don't ignoreInit so the first non-NULL value
-      # (the first click in a fresh session) still fires.
-      shiny::observeEvent(input[[uid]], {
-        snapshot <- snapshot_for_layer(lyr, input, state)
-        ok <- validate_pipeline_atomic(lyr, snapshot, state)
-        if (!isTRUE(ok)) return(invisible())
-        new_data <- ptr_resolve_upstream(
-          lyr$data_arg,
-          snapshot = snapshot,
-          shared_bindings = state$shared_bindings,
-          eval_env = state$eval_env,
-          cache = state$upstream_cache,
-          expr_check = state$expr_check,
-          stage_enabled = state$stage_enabled()
-        )
-        state$resolved_data[[ln]](new_data)
-        state$last_click_inputs[[ln]](snapshot)
-      }, ignoreNULL = TRUE)
-
-      # Stale flag.
-      state$is_stale_env[[ln]] <- shiny::reactive({
-        last <- state$last_click_inputs[[ln]]()
-        if (is.null(last)) return(FALSE)
-        current <- snapshot_for_layer(lyr, input, state)
-        !identical(current, last)
+      shiny::observe({
+        file_info <- input[[src_id]]
+        if (!is.null(comp_id)) input[[comp_id]]  # take dep
+        if (is.null(file_info) || is.null(file_info$datapath)) {
+          state$resolved_data[[ln]](NULL)
+          return(invisible())
+        }
+        df <- if (!is.null(entry) && !is.null(entry$resolve_data)) {
+          tryCatch(entry$resolve_data(file_info, src),
+                   error = function(e) NULL)
+        } else NULL
+        state$resolved_data[[ln]](df)
       })
     })
   }
   invisible(state)
+}
+
+
+# Wire one debounced reactive per `ptr_ph_value` (text/num/expr) input. The
+# debounce window is read dynamically from `state$producer_debounce_ms`, so
+# the auto-flip in `record_eval_time()` (D8) can flip every producer's
+# window in unison without recreating the reactive graph. Consumer-side
+# pickers (`var`) are NOT debounced — their commits are intentional, not
+# noisy keystrokes.
+ptr_setup_producer_inputs <- function(state, input, output, session) {
+  tree <- shiny::isolate(state$tree())
+  ns <- state$server_ns_fn
+  for (p in find_nodes(tree, is_ptr_ph_value)) {
+    if (is.null(p$id)) next
+    local({
+      raw_id <- p$id
+      r <- shiny::reactive({ input[[ns(raw_id)]] })
+      state$producer_input[[raw_id]] <- shiny::debounce(
+        r,
+        millis = function() state$producer_debounce_ms()
+      )
+    })
+  }
+  invisible(state)
+}
+
+# Auto-flip thresholds for the producer-debounce mechanism (D8). Internal
+# constants; not exposed as `ptr_app` arguments. Asymmetric thresholds
+# (FAST_THRESHOLD < SLOW_THRESHOLD) and asymmetric counts
+# (CONSECUTIVE_FAST > CONSECUTIVE_SLOW) provide hysteresis to prevent flap
+# at values near the boundary, with a slight bias toward staying debounced.
+.PTR_SLOW_THRESHOLD_MS         <- 150
+.PTR_FAST_THRESHOLD_MS         <- 80
+.PTR_CONSECUTIVE_SLOW_REQUIRED <- 3L
+.PTR_CONSECUTIVE_FAST_REQUIRED <- 5L
+.PTR_DEFAULT_DEBOUNCE_WINDOW   <- 300L
+
+# Update the auto-flip counters after a single upstream resolve. Implements
+# the symmetric flip-flop in spec D8 — see `lazy-consumer-resolve.md`.
+# The very first eval per session is excluded (cold-start bias).
+record_eval_time <- function(state, elapsed_ms) {
+  if (identical(state$producer_debounce_mode, "manual")) return(invisible())
+  perf <- state$producer_perf_env
+  if (!isTRUE(perf$first_eval_done)) {
+    perf$first_eval_done <- TRUE
+    return(invisible())
+  }
+  current_ms <- shiny::isolate(state$producer_debounce_ms())
+  if (current_ms == 0L) {
+    if (elapsed_ms > .PTR_SLOW_THRESHOLD_MS) {
+      perf$slow_count <- perf$slow_count + 1L
+      if (perf$slow_count >= .PTR_CONSECUTIVE_SLOW_REQUIRED) {
+        state$producer_debounce_ms(.PTR_DEFAULT_DEBOUNCE_WINDOW)
+        perf$slow_count <- 0L
+        perf$fast_count <- 0L
+        if (ptr_get_setting(ptr_settings$verbose)) {
+          cli::cli_inform(paste0(
+            "Producer debounce auto-enabled (",
+            .PTR_DEFAULT_DEBOUNCE_WINDOW,
+            " ms): slow upstream resolution detected."
+          ))
+        }
+      }
+    } else {
+      perf$slow_count <- 0L
+    }
+  } else {
+    if (elapsed_ms < .PTR_FAST_THRESHOLD_MS) {
+      perf$fast_count <- perf$fast_count + 1L
+      if (perf$fast_count >= .PTR_CONSECUTIVE_FAST_REQUIRED) {
+        state$producer_debounce_ms(0L)
+        perf$fast_count <- 0L
+        perf$slow_count <- 0L
+        if (ptr_get_setting(ptr_settings$verbose)) {
+          cli::cli_inform(
+            "Producer debounce auto-disabled: upstream resolution back to fast."
+          )
+        }
+      }
+    } else {
+      perf$fast_count <- 0L
+    }
+  }
+  invisible()
 }
 
 
@@ -269,40 +339,6 @@ ptr_setup_stage_enabled <- function(state, input, output, session) {
 
 # Build a snapshot keyed by raw id from the placeholders inside one layer's
 # pipeline (`data_arg` subtree).
-snapshot_for_layer <- function(layer, input, state) {
-  ns <- state$server_ns_fn
-  out <- list()
-  for (ph in find_layer_placeholders(layer$data_arg)) {
-    if (is.null(ph$id)) next
-    out[[ph$id]] <- input[[ns(ph$id)]]
-    if (is_ptr_ph_data_source(ph) && !is.null(ph$companion_id)) {
-      out[[ph$companion_id]] <- input[[ns(ph$companion_id)]]
-    }
-  }
-  out
-}
-
-# Per-position validation: each consumer's chosen value must lie within its
-# own upstream's column set. Missing values are skipped (will be pruned).
-validate_pipeline_atomic <- function(layer, snapshot, state) {
-  for (ph in find_layer_placeholders(layer$data_arg)) {
-    if (!is_ptr_ph_data_consumer(ph)) next
-    val <- snapshot[[ph$id %||% ""]]
-    if (is.null(val) || !nzchar(as.character(val[1L]) %||% "")) next
-    cols_df <- ptr_resolve_upstream(
-      ph$upstream,
-      snapshot = snapshot,
-      shared_bindings = state$shared_bindings,
-      eval_env = state$eval_env,
-      cache = state$upstream_cache,
-      expr_check = state$expr_check
-    )
-    if (is.null(cols_df)) next
-    if (!all(val %in% names(cols_df))) return(FALSE)
-  }
-  TRUE
-}
-
 # ---- runtime observer ----
 
 ptr_setup_runtime <- function(state, input, output, session) {
@@ -357,13 +393,14 @@ ptr_setup_runtime <- function(state, input, output, session) {
         safe_to_remove = state$safe_to_remove,
         upstream_cols = upstream_cols
       )
-      # Spec L105 + L217 (G6.3 terminal upstream): once a layer's `data_arg`
-      # has been pre-resolved into `state$resolved_data` (initial seed at
-      # app start, or post-snapshot after Update Data), replace the
-      # pruned layer's `data_arg` with a literal carrying the cached frame.
-      # `code_text` is already rendered above from the original pruned
-      # tree, so the user-visible code panel still shows the pipeline; eval
-      # below consumes the cached value rather than re-running the pipeline.
+      # Spec L105 + L217 (G6.3 terminal upstream): bare-data-source layers
+      # (e.g. `ggplot(data = upload, ...)`) have their resolved frame cached
+      # in `state$resolved_data[[layer$name]]` by the upload observer. Swap
+      # the pruned layer's `data_arg` with a literal carrying that frame so
+      # eval below skips re-running the resolve. `code_text` was rendered
+      # above from the original pruned tree, so the user-visible code panel
+      # still shows the source expression. Pipeline-data layers no longer
+      # have a click-gated cache (lazy-consumer-resolve) and fall through.
       res$pruned <- inject_resolved_data(res$pruned, state)
       res <- ptr_assemble_plot_safe(res, expr_check = state$expr_check)
 
@@ -404,11 +441,11 @@ ptr_error_ui <- function(message) {
   )
 }
 
-# Walk the pruned tree and replace each pipeline-data layer's `data_arg`
-# with a `ptr_literal` carrying the cached frame from
-# `state$resolved_data[[layer$name]]`. Layers without a cache entry (no
-# Update Data button, or seed not yet computed) are left intact, so eval
-# falls back to evaluating the original (post-substitute) `data_arg`.
+# Walk the pruned tree and, for any layer with a cached frame in
+# `state$resolved_data[[layer$name]]`, replace its `data_arg` with a
+# `ptr_literal` carrying that frame. Only bare-data-source layers carry a
+# cache after the lazy-consumer-resolve refactor; layers without a slot
+# fall through and eval the original (post-substitute) `data_arg`.
 inject_resolved_data <- function(pruned, state) {
   if (!is_ptr_root(pruned)) return(pruned)
   if (is.null(pruned)) return(pruned)
@@ -450,7 +487,7 @@ ptr_setup_layer_picker <- function(state, input, output, session) {
 # (the layer's `data_arg` post-snapshot) with per-position upstream
 # (each consumer's own `node$upstream`); they differ for consumers in
 # upstream pipeline stages.
-runtime_upstream_cols <- function(state, snapshot = list()) {
+runtime_upstream_data <- function(state, snapshot = list()) {
   tree <- shiny::isolate(state$tree())
   stage_enabled <- state$stage_enabled()
   out <- list()
@@ -462,7 +499,7 @@ runtime_upstream_cols <- function(state, snapshot = list()) {
         !is.null(state$resolved_data[[layer_name]])) {
       df <- state$resolved_data[[layer_name]]()
       if (!is.null(df)) {
-        out[[c$id]] <- names(df)
+        out[[c$id]] <- list(cols = names(df), data = df)
         next
       }
     }
@@ -475,9 +512,17 @@ runtime_upstream_cols <- function(state, snapshot = list()) {
       expr_check = state$expr_check,
       stage_enabled = stage_enabled
     )
-    if (!is.null(df)) out[[c$id]] <- names(df)
+    if (!is.null(df)) out[[c$id]] <- list(cols = names(df), data = df)
   }
   out
+}
+
+# Backward-compat wrapper for callers that only need column names
+# (validation/substitute path). The richer per-consumer data lives on
+# `runtime_upstream_data`; this wrapper extracts the cols slot.
+runtime_upstream_cols <- function(state, snapshot = list()) {
+  res <- runtime_upstream_data(state, snapshot)
+  lapply(res, function(x) x$cols)
 }
 
 
@@ -500,38 +545,52 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
   ui_text <- state$effective_ui_text
   placeholders <- state$placeholders
 
-  # `cols_memo` invalidation drives `renderUI`, which rebuilds the consumer
-  # picker DOM and clobbers any user selection (verified in a real browser
-  # session: picking a column reverted to the first choice mid-typing
-  # because the live-snapshot dep flushed cols_memo on every keystroke).
-  # We depend only on state-level reactives that change on stage toggle or
-  # Update Data click, so the picker stays stable while the user types
-  # placeholder values. The empty-snapshot fallback in
-  # runtime_upstream_cols then handles the seam correctly for both literal
-  # data_arg layers and pipeline-data layers (state$resolved_data hit).
-  cols_memo <- shiny::reactive({
-    state$tree()
-    state$stage_enabled()
-    for (rv in state$resolved_data) rv()
-    runtime_upstream_cols(state, snapshot = list())
-  })
-
   consumers <- find_nodes(tree, is_ptr_ph_data_consumer)
   for (c in consumers) {
     if (is.null(c$id)) next
     local({
       node <- c
       raw_id <- node$id
-      # `output[[...]]` keys are server-side lookups; under moduleServer the
-      # session auto-namespaces them. Use `ns` (= server_ns_fn). The picker
-      # tag rendered inside `renderUI` below uses `ui_ns` for its inputId
-      # because dynamic tag attributes are NOT auto-namespaced.
       output_id <- ns(consumer_output_id(raw_id))
-      cols_reactive <- shiny::reactive({
-        cols_memo()[[raw_id]] %||% character()
+
+      # Per-consumer dep set:
+      #   - structural: tree, stage_enabled
+      #   - bare-data layer resolves: state$resolved_data reactiveVals
+      #   - upstream consumer-input commits (other `var` pickers in our
+      #     own upstream): selecting a column above us invalidates our
+      #     cache so our choices reflect that pick.
+      #   - upstream producer-input changes (`text`/`num`/`expr` in our
+      #     own upstream): read through `state$producer_input[[id]]`,
+      #     which is debounced with a dynamically auto-flipped window.
+      #   - global: Update Plot click invalidates every consumer.
+      upstream_consumer_ids <- find_consumer_ids_in_upstream(node$upstream)
+      upstream_producer_ids <- find_producer_ids_in_upstream(node$upstream)
+
+      entry_reactive <- shiny::reactive({
+        state$tree()
+        state$stage_enabled()
+        for (rv in state$resolved_data) rv()
+        for (cid in upstream_consumer_ids) input[[ns(cid)]]
+        producer_values <- list()
+        for (pid in upstream_producer_ids) {
+          r <- state$producer_input[[pid]]
+          val <- if (!is.null(r)) r() else input[[ns(pid)]]
+          if (!is.null(val)) producer_values[[pid]] <- val
+        }
+        input[[ns("ptr_update_plot")]]
+
+        snapshot <- producer_values
+        for (cid in upstream_consumer_ids) {
+          val <- input[[ns(cid)]]
+          if (!is.null(val)) snapshot[[cid]] <- val
+        }
+        runtime_consumer_entry(state, node, snapshot)
       })
+
       output[[output_id]] <- shiny::renderUI({
-        cols <- cols_reactive()
+        entry <- entry_reactive()
+        cols <- entry$cols %||% character()
+        data <- entry$data
         # Preserve the user's current pick across renderUI re-fires
         # (cols change, layer toggle, etc.). `intersect` inside the
         # builtin's build_ui drops it if it's no longer a valid column.
@@ -542,12 +601,95 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
           placeholders = placeholders,
           layer_name = node$layer_name,
           ns_fn = ui_ns,
-          extra = list(cols = cols, selected = current %||% character(0))
+          extra = list(cols = cols, data = data,
+                       selected = current %||% character(0))
         )
       })
     })
   }
   invisible(state)
+}
+
+# Walk a consumer's `node$upstream` subtree and return the ids of every
+# data-aware consumer encountered. Drives the per-consumer reactive cache:
+# any commit on an upstream consumer's picker invalidates this consumer.
+find_consumer_ids_in_upstream <- function(upstream) {
+  if (is.null(upstream)) return(character())
+  ids <- character()
+  visit <- function(n) {
+    if (is.null(n)) return()
+    if (is_ptr_ph_data_consumer(n) && !is.null(n$id)) {
+      ids <<- c(ids, n$id)
+      return()
+    }
+    if (is_ptr_node(n)) {
+      for (nm in names(n)) {
+        if (identical(nm, "upstream")) next
+        visit(n[[nm]])
+      }
+    } else if (is.list(n)) {
+      for (el in n) visit(el)
+    }
+  }
+  visit(upstream)
+  unique(ids)
+}
+
+
+# Walk a consumer's `node$upstream` and return ids of every `ptr_ph_value`
+# (text/num/expr) producer encountered. Drives the per-consumer reactive
+# cache: producer values flow through the shared debounced reactives in
+# `state$producer_input`, so producer keystrokes invalidate downstream
+# consumers only after the (possibly auto-flipped) debounce window elapses.
+find_producer_ids_in_upstream <- function(upstream) {
+  if (is.null(upstream)) return(character())
+  ids <- character()
+  visit <- function(n) {
+    if (is.null(n)) return()
+    if (is_ptr_ph_value(n) && !is.null(n$id)) {
+      ids <<- c(ids, n$id)
+      return()
+    }
+    if (is_ptr_node(n)) {
+      for (nm in names(n)) {
+        if (identical(nm, "upstream")) next
+        visit(n[[nm]])
+      }
+    } else if (is.list(n)) {
+      for (el in n) visit(el)
+    }
+  }
+  visit(upstream)
+  unique(ids)
+}
+
+# Resolve a single consumer's upstream against a snapshot, mirroring the
+# per-consumer slot of runtime_upstream_data. Bare-data layers short-circuit
+# via the cached `state$resolved_data` slot; pipeline-data layers fall
+# through to a fresh `ptr_resolve_upstream` call.
+runtime_consumer_entry <- function(state, node, snapshot = list()) {
+  layer_name <- node$layer_name
+  if (!is.null(layer_name) &&
+      !is.null(state$resolved_data[[layer_name]])) {
+    df <- state$resolved_data[[layer_name]]()
+    if (!is.null(df)) {
+      return(list(cols = names(df), data = df))
+    }
+  }
+  t0 <- Sys.time()
+  df <- ptr_resolve_upstream(
+    node$upstream,
+    snapshot = snapshot,
+    shared_bindings = state$shared_bindings,
+    eval_env = state$eval_env,
+    cache = state$upstream_cache,
+    expr_check = state$expr_check,
+    stage_enabled = shiny::isolate(state$stage_enabled())
+  )
+  elapsed_ms <- as.numeric(Sys.time() - t0, units = "secs") * 1000
+  record_eval_time(state, elapsed_ms)
+  if (is.null(df)) return(NULL)
+  list(cols = names(df), data = df)
 }
 
 # ---- public output bindings ----
