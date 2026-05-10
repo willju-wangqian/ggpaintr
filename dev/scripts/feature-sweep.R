@@ -254,7 +254,7 @@ ptr_app_bslib(
 ptr_app_grid(
   plots = list(
     'ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point(size = num(shared = "sz"))',
-    'ggplot(data = mtcars, aes(x = wt,  y = qsec)) + geom_point(size = num(shared = "sz"))'
+    'ggplot(data = mtcars, aes(x = wt,  y = qsec)) + geom_point(alpha = num(shared = "sz")/10)'
   ),
   shared_ui = list(
     sz = function(id) sliderInput(id, "Point size", min = 1, max = 10, value = 3)
@@ -372,9 +372,29 @@ shiny::testServer(function(input, output, session) {
 library(ggpcp)
 data(flea, package = "GGally")
 
+ptr_define_placeholder_consumer(
+  keyword = "colvars",
+  build_ui = function(node, cols = character(), label = NULL,
+                      selected = character(0), ...) {
+    selectInput(
+      node$id, label = label %||% "Columns",
+      choices = cols,
+      selected = intersect(selected, cols),
+      multiple = TRUE
+    )
+  },
+  resolve_expr = function(value, node, ...) {
+    if (length(value) == 0L) return(NULL)
+    # `c("Sepal.Length", "Petal.Length")` as a call object that drops
+    # straight into the substituted tree.
+    rlang::call2("c", !!!as.list(value))
+  },
+  copy_defaults = list(label = "Columns for {param}")
+)
+
 ptr_app(
   "ggplot(data = flea |>
-                  pcp_select(expr) |>
+                  pcp_select(colvars) |>
                   pcp_scale(method = 'uniminmax') |>
                   pcp_arrange(),
           mapping = aes_pcp()) +

@@ -40,6 +40,7 @@ local({
 library(shiny)
 library(ggplot2)
 library(rlang)
+library(tidyverse)
 ```
 
 ## 2. What this vignette is
@@ -141,7 +142,7 @@ Every aesthetic, alpha, size, span, and the two coordinate ranges is now a widge
 
 ## 5. Data-cleaning pipelines into `ggplot()`
 
-`ggpaintr` parses any expression that evaluates to a `ggplot` object, including the common "clean, then plot" pipeline where the data is piped into `ggplot()`. Pipeline stages with placeholders get a per-layer **Data** sub-tab in the sidebar plus an **Update Data** button that atomically validates every consumer's selection against the resolved upstream columns before the snapshot updates.
+`ggpaintr` parses any expression that evaluates to a `ggplot` object, including the common "clean, then plot" pipeline where the data is piped into `ggplot()`. Pipeline stages with placeholders get a per-layer **Data** sub-tab in the sidebar; column pickers further down the pipeline lazily resolve their upstream against the current Data-tab inputs, so picking a column in stage one immediately refreshes the choices for stage two without requiring an explicit "apply" click.
 
 ```{r pipe-original}
 library(dplyr)
@@ -155,6 +156,11 @@ mpg |>
   geom_point(alpha = 0.5)
 ```
 
+```{r}
+lm(expr, data = mtcars)
+```
+
+
 The same pipeline parameterized — the two `filter` thresholds and the point alpha become widgets:
 
 ```{r pipe-paintr}
@@ -166,7 +172,7 @@ ptr_app(
      dplyr::group_by(class) |>
      dplyr::filter(dplyr::n() > num) |>
      dplyr::ungroup() |>
-     ggplot(aes(displ, hwy, color = class)) +
+     ggplot(aes(var, var, color = class)) +
      geom_point(alpha = num) +
      labs(title = text)"
 )
@@ -554,3 +560,32 @@ If a section above introduced an unfamiliar piece of the API, the canonical refe
 - `?ptr_define_placeholder_value`, `?ptr_define_placeholder_consumer`, `?ptr_define_placeholder_source` — the three constructors that extend the registry.
 - `?ptr_extract_plot`, `?ptr_extract_code`, `?ptr_extract_error`, `?ptr_gg_extra` — the embed-time accessors used by the plotly / ggiraph / extras sections.
 - `dev/scripts/feature-sweep.R` — the developer feature sweep, which exercises every join-point above plus error paths and the denylist.
+
+
+```{r}
+library(tidyverse)
+
+# Pipeline Example
+iris %>%
+  filter(Sepal.Length > 5) %>%
+  mutate(Sepal.Area = Sepal.Length * Sepal.Width) %>%
+  ggplot(aes(x = Species, y = Sepal.Area, fill = Species)) +
+  geom_boxplot() +
+  labs(title = "Piped Data Processing to Plot",
+       y = "Sepal Area (Length * Width)")
+
+
+ptr_app(
+  'iris %>%
+  filter(Sepal.Length > num) %>%
+  mutate(new_var = var * var) %>%
+  ggplot(aes(x = var, y = var, fill = var)) +
+  geom_boxplot() +
+  labs(title = "Piped Data Processing to Plot",
+       y = "Sepal Area (Length * Width)")
+  '
+)
+```
+
+
+

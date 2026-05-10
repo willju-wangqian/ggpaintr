@@ -928,6 +928,11 @@ ptr_app("
 mtcars |> dplyr::select(var) |> dplyr::select(var) |>
   ggplot(aes(x = var))
 ")
+
+ptr_app(
+  "mtcars |> filter(var) |> filter(var) |>
+   ggplot(aes(x = var))"
+)
 ```
 
 Expected checks:
