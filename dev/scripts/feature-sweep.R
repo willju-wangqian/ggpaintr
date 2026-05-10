@@ -211,7 +211,7 @@ ptr_define_placeholder_consumer(
 )
 ptr_app(
   "iris |> subset(select = colvars) |>
-     ggplot(aes(x = Sepal.Length)) + geom_histogram(bins = num)"
+     ggplot() + geom_histogram(aes(x = var), bins = num)"
 )
 
 # 12. ui_text overrides -- every label and the title are user-customizable.

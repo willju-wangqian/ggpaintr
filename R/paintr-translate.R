@@ -248,7 +248,12 @@ extract_call_data_arg <- function(expr) {
   if ("data" %in% arg_names) {
     return(translate_node(args[[match("data", arg_names)]]))
   }
-  if (arg_names[1L] == "") {
+  # Only ggplot() takes `data` as its first positional argument.
+  # geom_*()/stat_*() take `mapping` first, so positional matching there
+  # would misroute aes() into the layer's data pipeline.
+  head <- expr[[1L]]
+  if (is.symbol(head) && identical(as.character(head), "ggplot") &&
+      arg_names[1L] == "") {
     return(translate_node(args[[1L]]))
   }
   NULL
