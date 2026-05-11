@@ -301,22 +301,75 @@ ptr_app(
      labs(subtitle = paste(\"showing\", num(shared = \"n\"), \"rows\"))"
 )
 
-# 15d. §5.6 host gate — shared `var` (data-consumer) is unsupported in
-#      single-plot `ptr_app()` and errors with an actionable message
-#      pointing at `ptr_app_grid()`. The error fires at server startup,
-#      so launching this app shows the abort in the console (and the app
-#      window stays blank). Use `ptr_app_grid()` with a `shared_ui` entry
-#      for `axis` if you need a column picker shared across plots.
+# 15d. Shared `var` (data-consumer) host-resolved end-to-end.
+#      Both `ptr_app()` and `ptr_app_grid()` auto-bind shared `var`
+#      widgets at host scope. The host picks ONE upstream per shared
+#      key from these rules:
+#        - same source dataset across all occurrences, identical
+#          upstream chains  -> use the upstream (cols reflect transforms).
+#        - same source, divergent upstreams                -> fall back to
+#          source cols (so a column the user picks may not exist for
+#          some layers — that's surfaced as a runtime error, by design).
+#        - different source datasets                       -> resolver
+#          error: in-slot alert in the shared section + a mirrored entry
+#          in the error panel (single-plot only; grid has no host-level
+#          error panel, so the alert in the shared widget slot is the
+#          single source).
+#      The shared `var(shared = "v")` picker drives both x in ggplot
+#      and y in geom_point in lockstep.
 ptr_app(
-  "ggplot(data = mtcars, aes(x = var(shared = \"axis\"), y = mpg)) +
-     geom_point()"
+  "ggplot(data = mtcars, aes(x = var(shared = \"v\"), y = mpg)) +
+     geom_point(aes(y = var(shared = \"v\")))"
 )
 
+# 15e. Diverging sources — shared `v` references mtcars in one layer
+#      and iris in another. Resolver detects the divergence; the shared
+#      section shows a red alert ("layers use different source datasets")
+#      and the error panel mirrors it. The picker is replaced with the
+#      alert, so no choice is presented; downstream substitution sees
+#      `ctx$shared[["v"]]` as NULL → the shared placeholder drops out
+#      via `ptr_missing()`.
+ptr_app(
+  "ggplot(data = mtcars, aes(x = var(shared = \"v\"))) +
+     geom_point(data = iris, aes(y = var(shared = \"v\")))"
+)
+
+# 15f. Same source, divergent upstreams — both layers narrow `mtcars`
+#      via `dplyr::select`, but to different column subsets. Resolver
+#      falls back to the source (mtcars), so the picker shows EVERY
+#      mtcars column. Picking `mpg` works for ggplot's layer (mpg is in
+#      the first select) but fails for geom_point's (mpg not in second
+#      select) — the failure surfaces in the plot's error panel. By
+#      design: user is responsible for picking a column valid in every
+#      layer's narrowed scope.
+ptr_app(
+  "ggplot(data = mtcars |> dplyr::select(mpg, cyl), aes(x = var(shared = \"v\"))) +
+     geom_point(data = mtcars |> dplyr::select(hp, wt), aes(y = var(shared = \"v\")))"
+)
+
+# 15g. Grid auto-render of shared `var` (no `shared_ui` supplied). One
+#      top-level picker drives the shared key across all plot modules.
+#      Same resolution contract as single-plot.
 ptr_app_grid(
   plots = list(
     'ggplot(data = mtcars, aes(x = var(shared = "v"), y = var)) + geom_point(size = num)',
     'ggplot(data = mtcars, aes(x = wt,  y = var(shared = "v"))) + geom_point(alpha = num)'
   )
+)
+
+# 15h. Self-reference / cross-key dependency neutralized by truncation.
+#      When a shared widget's upstream chain itself contains other
+#      placeholders, the host truncates exclusive of the first inner
+#      placeholder. So `var(shared = "b")`'s shared upstream below is
+#      `mtcars |> filter(...)` (the chain stops at the inner
+#      `select(var(shared = "a"))`). Both `a` and `b` end up resolved
+#      against the same source-side prefix and share consistently —
+#      no circular-dep error, no manual ordering required.
+ptr_app(
+  "mtcars |>
+     dplyr::filter(mpg > 10) |>
+     dplyr::select(var(shared = \"a\"), gear) |>
+     ggplot(aes(x = var(shared = \"b\"), y = gear)) + geom_point()"
 )
 
 # 16a. Level-3 render override -- use plotly::ggplotly() instead of the

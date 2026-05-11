@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Plan 06 — Shared placeholders: validation + implementation plan</title>
+<style>
+  :root { --fg:#1a1a1a; --muted:#666; --bg:#fafafa; --card:#fff; --border:#e2e2e2;
+          --ok:#1f7a3e; --stale:#a35a00; --bad:#a3260c; --code-bg:#f3f3f3; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+         max-width: 980px; margin: 2rem auto; padding: 0 1.25rem; color: var(--fg);
+         background: var(--bg); line-height: 1.55; }
+  h1 { border-bottom: 2px solid var(--fg); padding-bottom: .3rem; }
+  h2 { margin-top: 2.2rem; border-bottom: 1px solid var(--border); padding-bottom: .2rem; }
+  h3 { margin-top: 1.6rem; }
+  code, pre { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  code { background: var(--code-bg); padding: .1em .35em; border-radius: 3px; font-size: 92%; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); padding: .8rem 1rem;
+        border-radius: 6px; overflow-x: auto; font-size: 88%; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; background: var(--card); }
+  th, td { border: 1px solid var(--border); padding: .55rem .7rem; vertical-align: top; text-align: left; }
+  th { background: #f0f0f0; }
+  .ok    { color: var(--ok);    font-weight: 600; }
+  .stale { color: var(--stale); font-weight: 600; }
+  .bad   { color: var(--bad);   font-weight: 600; }
+  .callout { background: var(--card); border-left: 4px solid var(--fg); padding: .7rem 1rem;
+             margin: 1rem 0; border-radius: 0 4px 4px 0; }
+  .callout.warn { border-left-color: var(--bad); }
+  .callout.note { border-left-color: var(--ok); }
+  .small { color: var(--muted); font-size: 90%; }
+  .demo { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+           padding: .75rem; font-size: 88%; }
+  .panel h4 { margin: 0 0 .5rem 0; font-size: 95%; }
+  .widget { background: #eef3fb; border: 1px solid #b9cbe8; border-radius: 4px;
+            padding: .3rem .5rem; margin: .25rem 0; font-family: ui-monospace, monospace;
+            font-size: 85%; }
+  .widget.dup { background: #fbe9e3; border-color: #e8b5a3; }
+  .widget.fold { background: #e7f1e8; border-color: #b6d6bb; }
+  .tab { display: inline-block; padding: .15rem .55rem; border: 1px solid var(--border);
+         border-bottom: none; border-radius: 4px 4px 0 0; background: #ececec; font-size: 85%; }
+  .tab.active { background: var(--card); font-weight: 600; }
+  ul.tight li { margin: .15rem 0; }
+</style>
+</head>
+<body>
+
+<h1>Plan 06 revisited — Shared placeholders &amp; UI cohesion</h1>
+<p class="small">Working tree: <code>core-rewrite-impl</code> · Source-of-truth verified
+against <code>R/paintr-shared.R</code>, <code>paintr-substitute.R</code>,
+<code>paintr-build-ui.R</code>, <code>paintr-app.R</code>, <code>paintr-server.R</code>,
+<code>paintr-utils.R</code>, <code>paintr-resolve.R</code>.</p>
+
+<div class="callout warn">
+<strong>Heads-up:</strong> Plan 06 was written against the pre-rewrite layout
+(<code>R/paintr-placeholders.R</code>, <code>R/paintr-ui.R</code>,
+<code>ptr_setup_data_pipeline_observers</code>, per-layer
+<code>ptr_update_data_&lt;layer&gt;</code> buttons). Those files and that
+button-driven model no longer exist. About half of plan 06's decisions are
+already realised by the rewrite; the other half — auto-render + dedup +
+validation — remain real bugs and are the scope of this implementation.
+</div>
+
+<h2>1. Current architecture (verified)</h2>
+
+<h3>1.1 How <code>shared = "..."</code> works today</h3>
+<ol>
+  <li><strong>Translate stage</strong> — <code>ptr_translate()</code> calls
+      <code>ptr_shared_bind()</code> (<code>R/paintr-shared.R:6</code>). For every
+      placeholder with a non-NULL <code>shared</code> key, its <code>id</code> is
+      rewritten to the canonical form <code>shared_&lt;key&gt;</code>. So
+      <code>var(shared = "axis")</code> in layer A and layer B end up sharing the
+      same Shiny <code>inputId</code>.</li>
+  <li><strong>UI build</strong> — <code>build_ui_for.ptr_layer</code>
+      (<code>R/paintr-build-ui.R:96</code>) collects every placeholder in the
+      layer via <code>find_layer_placeholders()</code> with <em>no filter on the
+      <code>shared</code> field</em>. Each call emits a widget whose
+      <code>inputId</code> is the canonical id — so the same widget can be
+      rendered N times across N tabs.</li>
+  <li><strong>Server resolve</strong> — <code>read_placeholder_value()</code>
+      (<code>R/paintr-substitute.R:155</code>) consults
+      <code>ctx$shared[[node$shared]]</code> first; if NULL it returns NULL, which
+      flows through <code>is_missing_value_input()</code> and becomes
+      <code>ptr_missing()</code>. The local widget's input value
+      (<code>ctx$snapshot[[node$id]]</code>) is <em>never read</em> for shared
+      nodes.</li>
+  <li><strong>Validation</strong> — <code>ptr_validate_shared_bindings()</code>
+      (<code>R/paintr-utils.R:54</code>) checks the embedder-supplied list is
+      reactive-valued with unique names. It does <em>not</em> cross-check that
+      every name matches a formula annotation, nor that every formula annotation
+      has a binding.</li>
+  <li><strong>Grid host</strong> — <code>ptr_app_grid_components()</code>
+      (<code>R/paintr-app.R:214</code>) takes <code>shared_ui = list(key = function(id) ...)</code>,
+      renders the widgets in a top-level <code>wellPanel</code>, wires each key's
+      <code>input[[key]]</code> into a reactive, and passes the reactives to
+      <code>ptr_module_server(..., shared = ...)</code>. Each module's resolver
+      then finds them in <code>ctx$shared</code>.</li>
+  <li><strong>Single-plot host</strong> — <code>ptr_build_app_ui()</code>
+      (<code>R/paintr-app.R:74</code>) renders only the layer picker, hidden
+      tabset, and a single <code>ptr_update_plot</code> button. No shared section.
+      <code>ptr_app()</code> never threads a <code>shared = ...</code> argument
+      down.</li>
+</ol>
+
+<h3>1.2 The three concrete defects this implies</h3>
+
+<table>
+<tr><th>#</th><th>Defect</th><th>Source evidence</th></tr>
+<tr>
+  <td>B1</td>
+  <td><strong>Single-plot shared placeholders are inert.</strong>
+      Widget renders, but resolver only reads <code>ctx$shared</code>, which is
+      always empty when invoked through <code>ptr_app()</code> →
+      <code>ptr_missing()</code> every time.</td>
+  <td><code>paintr-substitute.R:155-164</code>;
+      <code>paintr-app.R:25-72</code> (no <code>shared=</code> threaded).</td>
+</tr>
+<tr>
+  <td>B2</td>
+  <td><strong>Duplicate DOM input ids across layer tabs.</strong>
+      A <code>shared = "x"</code> referenced from layer A's aesthetic and
+      layer B's pipeline yields two widgets with the same
+      <code>inputId = "shared_x"</code>. Shiny tolerates it but it's an
+      HTML spec violation and a footgun for any future
+      <code>updateXxxInput()</code> call.</td>
+  <td><code>paintr-build-ui.R:201-220</code> (<code>find_layer_placeholders</code>
+      has no <code>$shared</code> filter).</td>
+</tr>
+<tr>
+  <td>B3</td>
+  <td><strong>Silent mis-binding on the grid path.</strong>
+      Typos in either direction (formula uses <code>shared = "n"</code> but
+      caller passes <code>shared_ui = list(rows = ...)</code>, or vice versa)
+      produce no warning. Widget renders for nothing, or formula reference
+      silently resolves to missing.</td>
+  <td><code>paintr-utils.R:54-74</code> never sees the formula tree.</td>
+</tr>
+</table>
+
+<h2>2. Plan 06 decisions — validation matrix</h2>
+
+<p class="small">Legend:
+<span class="ok">VALID</span> = adopt as written ·
+<span class="stale">STALE</span> = already done or premise changed; drop ·
+<span class="bad">REVISIT</span> = idea still relevant but reshape for new architecture.</p>
+
+<table>
+<tr><th>ID</th><th>Decision (plan 06)</th><th>Status</th><th>Why</th></tr>
+<tr>
+  <td>D5</td>
+  <td>Remove per-layer "Update Data" button.</td>
+  <td><span class="stale">STALE — already done</span></td>
+  <td>Rewrite has a single bottom <code>ptr_update_plot</code> button; producer
+      reactives are debounced (<code>paintr-server.R:239-254</code>). Nothing
+      to remove.</td>
+</tr>
+<tr>
+  <td>D6</td>
+  <td>Pipeline re-eval triggers (Draw click + tab activation),
+      snapshot-cache-keyed.</td>
+  <td><span class="stale">STALE — superseded</span></td>
+  <td>Current model: debounced producer reactives + lazy
+      <code>ptr_setup_consumer_uis</code> + <code>ptr_setup_layer_picker</code>'s
+      tab activation already give us the effect without the cache-key
+      apparatus.</td>
+</tr>
+<tr>
+  <td>D7'</td>
+  <td>Auto-render shared widgets in a per-instance shared section when the
+      embedder supplies no binding.</td>
+  <td><span class="ok">VALID</span></td>
+  <td>Fixes B1. Single-plot host has nowhere to put the widget today.</td>
+</tr>
+<tr>
+  <td>D8</td>
+  <td>Suppress local controls for shared placeholders in both Data &amp; Controls
+      tabs.</td>
+  <td><span class="ok">VALID</span></td>
+  <td>Fixes B2. Filter belongs inside <code>find_layer_placeholders()</code>
+      / <code>find_layer_placeholders_with_stage()</code>.</td>
+</tr>
+<tr>
+  <td>D9</td>
+  <td>Conditional refresh button in shared panel.</td>
+  <td><span class="stale">STALE — niche gone</span></td>
+  <td>Premised on D5/D6's cache model. With debounced reactives, the
+      shared input already invalidates downstream consumers without a button
+      click. Drop unless we surface a concrete user complaint.</td>
+</tr>
+<tr>
+  <td>D10</td>
+  <td>Refresh button semantics: eager re-eval, no redraw.</td>
+  <td><span class="stale">STALE</span></td>
+  <td>N/A once D9 is dropped.</td>
+</tr>
+<tr>
+  <td>L4'</td>
+  <td>Foldable shared section above the layer picker for single-plot flows.</td>
+  <td><span class="ok">VALID</span></td>
+  <td>Right placement. <code>ptr_build_app_ui()</code> is the single UI
+      construction site (<code>paintr-app.R:74</code>); the new section is
+      prepended to its <code>sidebarPanel</code> children. No new public
+      surface.</td>
+</tr>
+<tr>
+  <td>M1</td>
+  <td>Multi-reference dedup: one widget in the first-reference layer
+      (or shared section).</td>
+  <td><span class="bad">REVISIT</span></td>
+  <td>With D7' + L4' adopted, the natural dedup is "one widget in the
+      shared section, never inside any layer tab" — simpler than M1's
+      first-reference rule. Recommend collapsing M1 into D7'/D8.</td>
+</tr>
+<tr>
+  <td>Q1</td>
+  <td>Validation: error on missing-from-formula, warn on extra-in-bindings.</td>
+  <td><span class="ok">VALID</span></td>
+  <td>Fixes B3. Tree is available at <code>ptr_server_state()</code> entry;
+      cross-check is cheap.</td>
+</tr>
+<tr>
+  <td>Q2</td>
+  <td>Choice-list source for data-aware shared <code>var</code> widgets.</td>
+  <td><span class="bad">REVISIT</span></td>
+  <td>Real but ties into plan 05's pipeline-var resolution. Defer until 05
+      lands or pick "union of layer column-maps" as the default and revisit.</td>
+</tr>
+<tr>
+  <td>Q3</td>
+  <td>Foldable section default state.</td>
+  <td><span class="ok">VALID — decide: unfolded</span></td>
+  <td>Shared widgets drive plot behaviour. Hiding them by default makes the
+      single-plot case look broken.</td>
+</tr>
+<tr>
+  <td>Q4</td>
+  <td>Refresh button copy.</td>
+  <td><span class="stale">STALE</span></td>
+  <td>Drops with D9.</td>
+</tr>
+<tr>
+  <td>Q5</td>
+  <td>Stale-flag UI replacement.</td>
+  <td><span class="stale">STALE</span></td>
+  <td>No per-layer button to indicate against. Producer-debounce already
+      ate this concern.</td>
+</tr>
+<tr>
+  <td>Q6</td>
+  <td><code>var_column_map</code> for shared <code>var</code> widget itself.</td>
+  <td><span class="bad">REVISIT</span></td>
+  <td>Becomes "what column-map does the shared section use for a
+      <code>var</code>-typed shared widget?" — defer with Q2.</td>
+</tr>
+</table>
+
+<h2>3. What this session lands</h2>
+
+<p>Three coherent changes. Together they make
+<code>shared = "..."</code> self-sufficient in <code>ptr_app()</code> and
+fix two latent bugs.</p>
+
+<table>
+<tr><th>Change</th><th>Decision(s)</th><th>Fixes</th><th>Public API impact</th></tr>
+<tr>
+  <td>C1: Dedup — shared placeholders never render inside a layer panel.</td>
+  <td>D8 + M1</td>
+  <td>B2</td>
+  <td>None. Internal filter.</td>
+</tr>
+<tr>
+  <td>C2: Single-plot shared section — auto-render shared widgets above the
+      layer picker; wire the reactives into <code>ptr_server(shared = …)</code>
+      with no embedder action.</td>
+  <td>D7' + L4' + Q3</td>
+  <td>B1</td>
+  <td>Visual only. No new args. <code>ptr_app()</code> signature unchanged.</td>
+</tr>
+<tr>
+  <td>C3: Cross-check shared bindings ↔ formula annotations.</td>
+  <td>Q1</td>
+  <td>B3</td>
+  <td><code>ptr_validate_shared_bindings()</code> gains a
+      <code>tree</code> argument (internal).</td>
+</tr>
+</table>
+
+<h3>3.1 Out of scope (deferred)</h3>
+<ul class="tight">
+  <li>Q2 / Q6 — shared <code>var</code> column-map source. Depends on plan 05.</li>
+  <li>Refresh-button model (D9/D10) — dropped unless a user complaint resurfaces.</li>
+  <li>Mirrored-and-synced rendering (M2) — never required.</li>
+  <li>Grid host visual restyle — purely cosmetic.</li>
+</ul>
+
+<h2>4. Visual demos</h2>
+
+<h3>4.1 Today (single-plot, broken)</h3>
+<p>Formula: <code>ggplot(aes(x = var(shared = "axis"), y = var(shared = "axis"))) + geom_point(size = num(shared = "sz"))</code></p>
+<div class="demo">
+  <div class="panel">
+    <h4>Sidebar — before</h4>
+    <div class="widget">[picker] Layer ▾ ggplot · geom_point</div>
+    <div><span class="tab active">ggplot</span><span class="tab">geom_point</span></div>
+    <div class="widget dup">var input #shared_axis  (x)</div>
+    <div class="widget dup">var input #shared_axis  (y, dup id)</div>
+    <div class="widget">[button] Update plot</div>
+    <p class="small bad">B1: widgets are inert (resolver ignores them).<br>
+       B2: <code>x</code> and <code>y</code> emit duplicate <code>inputId</code>.</p>
+  </div>
+  <div class="panel">
+    <h4>Switch to geom_point tab</h4>
+    <div><span class="tab">ggplot</span><span class="tab active">geom_point</span></div>
+    <div class="widget dup">num input #shared_sz</div>
+    <p class="small bad">Switching to <code>geom_point</code> would also
+      re-render the <code>shared_axis</code> widget if it appeared in
+      <code>aes()</code> on this layer — second DOM duplication.</p>
+  </div>
+</div>
+
+<h3>4.2 After (single-plot, fixed)</h3>
+<div class="demo">
+  <div class="panel">
+    <h4>Sidebar — after</h4>
+    <div class="widget fold">▾ Shared inputs</div>
+    <div class="widget fold">&nbsp;&nbsp;var input #shared_axis</div>
+    <div class="widget fold">&nbsp;&nbsp;num input #shared_sz</div>
+    <div class="widget">[picker] Layer ▾ ggplot · geom_point</div>
+    <div><span class="tab active">ggplot</span><span class="tab">geom_point</span></div>
+    <div class="small">(no shared widgets here)</div>
+    <div class="widget">[button] Update plot</div>
+    <p class="small ok">B1 fixed: section reactives wired into
+      <code>ptr_server(shared = …)</code>.<br>
+       B2 fixed: shared placeholders filtered out of layer panels.</p>
+  </div>
+  <div class="panel">
+    <h4>Grid host (unchanged)</h4>
+    <div class="widget fold">[shared_ui$rows]  slider 1–32</div>
+    <div class="widget">[button] Draw all</div>
+    <div class="small">Plot 1 module ▸ picker + tabset</div>
+    <div class="small">Plot 2 module ▸ picker + tabset</div>
+    <p class="small">Grid path keeps embedder-supplied
+      <code>shared_ui</code> behaviour. Single-plot auto-render is purely
+      additive.</p>
+  </div>
+</div>
+
+<h3>4.3 Validation error preview (C3)</h3>
+<pre>&gt; ptr_app("ggplot(aes(x = var(shared = 'axis'))) + geom_point()")
+# (single-plot path, no embedder bindings → auto-section renders. No error.)
+
+&gt; ptr_app_grid(
++   plots = list("ggplot(aes(x = var(shared = 'axis'))) + geom_point()"),
++   shared_ui = list(axsi = function(id) shinyWidgets::pickerInput(id, ...))
++ )
+Error in ptr_validate_shared_bindings():
+! `shared_ui` references key "axsi" which is not used in any plot formula.
+  Did you mean "axis"?
+
+&gt; ptr_app_grid(
++   plots = list("ggplot(aes(x = var(shared = 'axis'), y = var(shared = 'sz'))) + geom_point()"),
++   shared_ui = list(axis = function(id) ...)   # missing "sz"
++ )
+Error in ptr_validate_shared_bindings():
+! Formula references shared key "sz" but `shared_ui` has no entry for it.</pre>
+
+<h2>5. Implementation plan</h2>
+
+<h3>5.1 Files touched</h3>
+<table>
+<tr><th>File</th><th>Change</th></tr>
+<tr><td><code>R/paintr-build-ui.R</code></td>
+    <td>Filter shared placeholders out of <code>find_layer_placeholders()</code>
+        and <code>find_layer_placeholders_with_stage()</code>. New helper
+        <code>collect_shared_placeholders(tree)</code> returns one entry per
+        unique <code>shared</code> key (first-occurrence wins for
+        <code>build_ui</code> selection).</td></tr>
+<tr><td><code>R/paintr-app.R</code></td>
+    <td><code>ptr_build_app_ui()</code> renders an optional shared section
+        (collapsible <code>shiny::tags$details(open = "open", …)</code>)
+        prepended to the <code>sidebarPanel</code> children when
+        <code>collect_shared_placeholders(tree)</code> is non-empty.
+        <code>ptr_app_components()</code> threads a
+        <code>shared = local_shared_reactives</code> argument into
+        <code>ptr_server()</code>; reactives read
+        <code>input[[ns("shared_&lt;key&gt;")]]</code> and are stored under the
+        raw <code>&lt;key&gt;</code> (see §5.4).</td></tr>
+<tr><td><code>R/paintr-utils.R</code></td>
+    <td><code>ptr_validate_shared_bindings(shared, tree = NULL)</code> — when
+        <code>tree</code> is supplied, cross-check keys against
+        <code>collect_shared_placeholders(tree)</code>. Error on
+        keys-in-bindings ∖ keys-in-formula; error on keys-in-formula ∖
+        keys-in-bindings <em>only when called from a host that requires
+        external binding</em> (i.e. grid). Single-plot host bypasses the
+        missing-from-formula check because it auto-binds.</td></tr>
+<tr><td><code>R/paintr-server.R</code></td>
+    <td><code>ptr_server_state()</code> passes the tree into
+        <code>ptr_validate_shared_bindings()</code>. No new fields.</td></tr>
+<tr><td><code>tests/testthat/test-rewrite-shared.R</code> (new)</td>
+    <td>Cover: (a) single-plot auto-render renders one widget per key, none
+        inside layer tabs; (b) <strong>B1 regression</strong> via
+        <code>shiny::testServer(ptr_app_components(...)$server, { … })</code>:
+        set <code>session$setInputs(shared_x = value)</code>, assert the
+        downstream consumer reactive (e.g. <code>state$runtime()</code>) picks
+        up <code>value</code> rather than resolving to
+        <code>ptr_missing()</code>; (c) validation errors on typo /
+        missing key in grid path; (d) M1 dedup — same key in two layers
+        renders once; (e) translate-clean assertion: every node returned by
+        <code>find_layer_placeholders(layer)</code> has
+        <code>is.null(node$shared)</code>.</td></tr>
+<tr><td><code>tests/manual/manual-test-ggpaintr.Rmd</code></td>
+    <td>Add a "Single-plot shared inputs" checklist item: collapsible
+        section visible, slider drives multi-layer plot, no widget in the
+        layer tabs.</td></tr>
+</table>
+
+<h3>5.2 Step sequence</h3>
+<ol>
+  <li><strong>Filter helper.</strong> Add <code>is_shared_placeholder()</code> in
+      <code>paintr-build-ui.R</code>; gate it inside both
+      <code>find_layer_placeholders*</code>. Run translate + build-ui tests.</li>
+  <li><strong>Collector.</strong> Add <code>collect_shared_placeholders(tree)</code>
+      walking <code>tree$layers</code>; dedup on canonical id; return
+      <code>list(list(key=, node=, ns_id=))</code>.</li>
+  <li><strong>Shared section UI.</strong> In <code>ptr_build_app_ui()</code>,
+      if collector non-empty, wrap a <code>shiny::tags$details(open = NA, …)</code>
+      around <code>build_ui_for(node, …)</code> for each entry. Place above
+      the picker.</li>
+  <li><strong>Auto-bind reactives.</strong> In <code>ptr_app_components()</code>'s
+      server, build <code>shared_reactives</code> the same way
+      <code>ptr_app_grid_components()</code> already does
+      (<code>paintr-app.R:281</code>), pass to <code>ptr_server(shared = …)</code>.
+      Use the key (not canonical id) for the reactive name to match resolver
+      expectations.</li>
+  <li><strong>Validation cross-check.</strong> Extend
+      <code>ptr_validate_shared_bindings()</code>; thread tree from
+      <code>ptr_server_state()</code>. Add a <code>strict_missing</code> flag so
+      the single-plot caller suppresses the "key in formula has no binding"
+      error (it auto-binds instead).</li>
+  <li><strong>Tests.</strong> Add <code>test-rewrite-shared.R</code> per 5.1.
+      Run <code>devtools::test()</code>.</li>
+  <li><strong>R CMD check.</strong> No new exports, no NAMESPACE drift.
+      Run <code>devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))</code>.</li>
+  <li><strong>Manual checklist.</strong> Update
+      <code>tests/manual/manual-test-ggpaintr.Rmd</code> only when steps 1–7
+      pass clean.</li>
+</ol>
+
+<h3>5.4 Keying contract (don't get this wrong)</h3>
+
+<p>Three names look interchangeable but aren't. Pin them explicitly:</p>
+
+<table>
+<tr><th>Symbol</th><th>Value for <code>shared = "axis"</code></th><th>Set by</th><th>Read by</th></tr>
+<tr><td><code>node$shared</code></td><td><code>"axis"</code> (raw key)</td>
+    <td><code>ptr_translate</code> via <code>extract_shared()</code>
+        (<code>paintr-translate.R:370</code>)</td>
+    <td><code>read_placeholder_value()</code>
+        (<code>paintr-substitute.R:156</code>): looks up
+        <code>ctx$shared[["axis"]]</code></td></tr>
+<tr><td><code>node$id</code></td><td><code>"shared_axis"</code> (canonical)</td>
+    <td><code>ptr_shared_bind()</code>
+        (<code>paintr-shared.R:32-40</code>)</td>
+    <td><code>build_ui_for</code> sets <code>inputId = ns_fn(node$id)</code>;
+        producer-input setup binds
+        <code>input[[ns(node$id)]]</code></td></tr>
+<tr><td>shared_reactives list name</td><td><code>"axis"</code> (raw key)</td>
+    <td><strong>New</strong> server block in
+        <code>ptr_app_components()</code></td>
+    <td><code>ctx$shared[[node$shared]]</code></td></tr>
+</table>
+
+<p>Concretely, the auto-bind block is:</p>
+<pre>shared_entries &lt;- collect_shared_placeholders(tree)   # one per unique key
+shared_keys    &lt;- vapply(shared_entries, `[[`, character(1), "key")
+shared_reactives &lt;- stats::setNames(
+  lapply(shared_keys, function(k) {
+    canonical &lt;- paste0("shared_", k)             # matches ptr_shared_bind
+    shiny::reactive(input[[ns(canonical)]])
+  }),
+  shared_keys                                       # named by raw key
+)
+ptr_server(input, output, session, formula, ...,
+              shared = shared_reactives, ns = ns)</pre>
+
+<p>This mirrors <code>ptr_app_grid_components()</code> (<code>paintr-app.R:281-288</code>)
+except the grid host uses bare-key ids (<code>shared_ui[[nm]](nm)</code> →
+<code>inputId = nm</code>), so its <code>input[[nm]]</code> read is correct
+<em>for that host</em>. Single-plot uses <code>build_ui_for()</code> on the
+node, which respects the canonical id — hence the
+<code>paste0("shared_", k)</code> step. Don't copy-paste the grid block
+without this adjustment.</p>
+
+<h3>5.5 Namespace threading</h3>
+
+<p><code>ptr_app()</code> calls <code>ptr_app_components(ns = shiny::NS(NULL))</code>
+(<code>paintr-app.R:31</code>). That makes <code>ns</code> the identity
+function; the rendered <code>inputId</code> is the bare string
+<code>"shared_axis"</code>, and <code>input[[ns("shared_axis")]] ==
+input[["shared_axis"]]</code>. No <code>session$ns</code> dance needed —
+that's only for <code>ptr_module_server()</code>, which already wires
+shared reactives via the grid host's pre-existing path.
+<strong>Net</strong>: the auto-bind block above is correct as-written for
+<code>ptr_app()</code>; do not introduce a separate <code>server_ns</code>
+on top of it.</p>
+
+<h3>5.6 Host gating for shared <code>var</code> (data-consumer) placeholders</h3>
+
+<p><code>ptr_ph_data_consumer</code> nodes need
+<code>ctx$upstream_cols[[node$id]]</code> populated by
+<code>ptr_setup_consumer_uis()</code> per-layer. A shared widget rendered
+outside any layer panel has no consumer-ui setup, so its column choices
+have no source. Until plan 05 lands, gate this at the host:</p>
+<ul class="tight">
+  <li>The gate lives in <strong><code>ptr_server_state()</code></strong>
+      (<code>paintr-server.R:43</code>), <em>not</em> in
+      <code>ptr_translate()</code> — translate is host-agnostic and is
+      shared with the grid path, which can legitimately handle a shared
+      <code>var</code> if the embedder supplies a column-aware widget.</li>
+  <li>Condition: <code>any(vapply(collect_shared_placeholders(tree),
+      function(e) inherits(e$node, "ptr_ph_data_consumer"), logical(1)))</code>
+      AND <code>length(shared) == 0L</code> (no external bindings) AND the
+      single-plot host (detect via <code>identical(ns, shiny::NS(NULL))</code>
+      OR pass an explicit <code>auto_bind_shared = TRUE</code> flag from
+      <code>ptr_app_components()</code>).</li>
+  <li>Error message: "Shared <code>var(shared = '…')</code> placeholders
+      are not yet supported in single-plot <code>ptr_app()</code>. Use
+      <code>ptr_app_grid()</code> with <code>shared_ui</code> for now."</li>
+</ul>
+<p><strong>Confirmed in scope for C2:</strong> shared <code>num</code>,
+<code>text</code>, <code>expr</code>, <code>upload</code> — none of these
+read <code>ctx$upstream_cols</code> in
+<code>substitute_walk.ptr_ph_value</code>
+(<code>paintr-substitute.R:74-88</code>), so they work end-to-end with the
+auto-bind block above.</p>
+
+<h3>5.7 Risk register</h3>
+<table>
+<tr><th>Risk</th><th>Mitigation</th></tr>
+<tr><td>Shared <code>var</code> in single-plot is unsupported (no
+    column-map outside a layer tab).</td>
+    <td>Gated at <code>ptr_server_state()</code> with an actionable error.
+        See §5.6.</td></tr>
+<tr><td>D8 filter has a hole — a residual shared widget renders inside a
+    layer tab and collides with the section widget on the same
+    canonical id.</td>
+    <td>Test (e) in §5.1 asserts
+        <code>find_layer_placeholders(layer)</code> returns no node with
+        non-null <code>$shared</code>.</td></tr>
+<tr><td><code>tags$details</code> styling varies across Shiny themes /
+    bslib variants.</td>
+    <td>Acceptable — semantic HTML degrades gracefully. Cosmetic polish is
+        out of scope.</td></tr>
+<tr><td>Tree is built twice on the single-plot path (once in
+    <code>ptr_build_app_ui</code>, once in <code>ptr_server_state</code>).</td>
+    <td>Already true today; pre-existing. Optional follow-up: thread the
+        tree through <code>ptr_app_components</code>. Not blocking C1–C3.</td></tr>
+</table>
+
+<h2>6. Success criteria</h2>
+<ul class="tight">
+  <li><code>ptr_app()</code> with one or more <code>shared = "..."</code>
+      annotations renders a single widget per key in the shared section, no
+      duplicates in layer tabs, and the widget's value drives the plot.</li>
+  <li><code>ptr_app_grid()</code> behaviour unchanged on the happy path; typos
+      in either direction now raise informative errors at server-state
+      construction time.</li>
+  <li>Automated coverage: new <code>test-rewrite-shared.R</code> green; no
+      regressions in existing rewrite tests.</li>
+  <li>R CMD check: 0 errors, 0 warnings.</li>
+  <li>Manual checklist updated with the new single-plot shared-section
+      scenario.</li>
+</ul>
+
+<p class="small">Confidence in this plan: <strong>86/100</strong> after the
+§5.4–§5.6 patches and the source-code audit (every cited function and
+symbol verified to exist; one fabricated <code>output[[control_panel]]</code>
+reference removed). Residual unknown: whether the §5.6 gate using
+<code>identical(ns, shiny::NS(NULL))</code> is robust enough as a host
+discriminator, or whether <code>ptr_app_components()</code> should pass
+an explicit <code>auto_bind_shared</code> flag (recommended if the
+implementer hits any edge during step 5).</p>
+
+</body>
+</html>
