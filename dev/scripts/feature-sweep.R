@@ -357,7 +357,55 @@ ptr_app_grid(
   )
 )
 
-# 15h. Self-reference / cross-key dependency neutralized by truncation.
+# 15i. Shared CUSTOM consumer placeholder. The host-resolution machinery
+#      dispatches on the S3 class `ptr_ph_data_consumer`, which custom
+#      consumers (registered via `ptr_define_placeholder_consumer`)
+#      inherit. The host calls the registry hook with `cols`, `data`,
+#      `selected`, exactly as the per-layer path would. So
+#      `dropvar(shared = "v")` (the vanilla selectInput consumer from
+#      block 11b) Just Works — one selectInput in the shared section,
+#      driving both layers.
+#
+#      NOTE: relies on `dropvar` being defined; run block 11b first, or
+#      uncomment the registration below.
+# ptr_define_placeholder_consumer(
+#   keyword = "dropvar",
+#   build_ui = function(node, cols = character(), label = NULL,
+#                       selected = character(0), ...) {
+#     selectInput(node$id, label = label %||% "Pick a column",
+#                 choices = c("", cols),
+#                 selected = if (length(selected)) selected[1] else "")
+#   },
+#   resolve_expr = function(value, node, ...) {
+#     if (!is.character(value) || length(value) != 1L || !nzchar(value)) return(NULL)
+#     rlang::sym(value)
+#   },
+#   copy_defaults = list(label = "Column for {param}")
+# )
+ptr_app(
+  "ggplot(data = mtcars, aes(x = dropvar(shared = \"v\"), y = mpg)) +
+     geom_point(aes(y = dropvar(shared = \"v\")))"
+)
+
+# 15j. Shared SOURCE placeholder (`upload(shared = "ds")`). The shared
+#      section renders ONE file-input widget plus its dataset-name
+#      companion at the canonical id; both layers read the same
+#      uploaded frame as their data source. Steps to verify:
+#        1. Upload a small CSV (mtcars-like with numeric columns).
+#        2. Confirm the `var` pickers in BOTH layers populate with the
+#           uploaded columns.
+#        3. Pick x / y for each layer; click Update Plot.
+#        4. Confirm both geoms render against the same dataset.
+#      Note: shared SOURCE wiring predates plan 06 — the upload widget
+#      and resolved-data path are exercised here for end-to-end sanity,
+#      not because the host-resolution change touches sources.
+ptr_app(
+  "ggplot(data = upload(shared = \"ds\"), aes(x = var, y = var)) +
+     geom_point() +
+     geom_smooth(method = \"lm\")"
+)
+
+# 15k. Self-reference / cross-key dependency neutralized by truncation.
 #      When a shared widget's upstream chain itself contains other
 #      placeholders, the host truncates exclusive of the first inner
 #      placeholder. So `var(shared = "b")`'s shared upstream below is
