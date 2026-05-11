@@ -61,6 +61,15 @@ ptr_app_components <- function(formula,
 
   shared_entries <- collect_shared_placeholders(tree)
   shared_keys <- vapply(shared_entries, `[[`, character(1), "key")
+  shared_resolutions <- ptr_resolve_shared_consumers(tree)
+  consumer_keys <- names(shared_resolutions)
+  representative_nodes <- lapply(consumer_keys, function(k) {
+    nodes <- collect_shared_consumer_occurrences(tree)[[k]]
+    n <- nodes[[1L]]
+    n$id <- canonical_shared_id(k)
+    n
+  })
+  names(representative_nodes) <- consumer_keys
 
   server <- function(input, output, session) {
     shared_reactives <- if (length(shared_keys) > 0L) {
@@ -74,7 +83,7 @@ ptr_app_components <- function(formula,
     } else {
       list()
     }
-    ptr_server(
+    state <- ptr_server(
       input, output, session, formula,
       envir = envir,
       ui_text = ui_text,
@@ -85,6 +94,17 @@ ptr_app_components <- function(formula,
       ns = ns,
       auto_bind_shared = TRUE
     )
+    if (length(consumer_keys) > 0L) {
+      ptr_bind_shared_consumer_uis(
+        output = output, input = input, ns = ns,
+        resolutions = shared_resolutions,
+        representative_nodes = representative_nodes,
+        ui_text = ui_text,
+        eval_env = envir,
+        expr_check = expr_check,
+        errors_rv = state$shared_resolution_errors
+      )
+    }
   }
   list(ui = ui, server = server)
 }
@@ -275,12 +295,13 @@ ptr_app_grid_components <- function(plots,
     }
   }
 
+  trees <- lapply(plots, ptr_translate, expr_check = expr_check)
+
   # Union of shared keys across every plot's formula. First-occurrence
   # node per key drives the auto-rendered default widget for keys the
   # embedder didn't supply via `shared_ui`.
   shared_first_node <- list()
-  for (formula in plots) {
-    tree <- ptr_translate(formula, expr_check = expr_check)
+  for (tree in trees) {
     for (entry in collect_shared_placeholders(tree)) {
       if (is.null(shared_first_node[[entry$key]])) {
         shared_first_node[[entry$key]] <- entry$node
@@ -298,6 +319,23 @@ ptr_app_grid_components <- function(plots,
     ))
   }
   auto_keys <- setdiff(formula_keys, embedder_keys)
+
+  # Per-key resolution for shared `var` (data-consumer) placeholders. The
+  # host owns these widgets — module-side consumer setup skips them.
+  shared_resolutions <- ptr_resolve_shared_consumers(trees)
+  consumer_keys <- names(shared_resolutions)
+  # Auto-render path uses the bare key as id; representative node for
+  # the host renderUI gets the same id so output[[consumer_output_id(k)]]
+  # binds to the rendered uiOutput. Embedder-supplied keys are not in
+  # `consumer_keys` unless the embedder happens to be supplying a
+  # consumer (rare: the embedder usually writes a ui from scratch); when
+  # they are, we still bind a host renderUI at the bare-key output id.
+  representative_nodes <- lapply(consumer_keys, function(k) {
+    n <- collect_shared_consumer_occurrences(trees)[[k]][[1L]]
+    n$id <- k
+    n
+  })
+  names(representative_nodes) <- consumer_keys
 
   shared_names <- c(embedder_keys, auto_keys)
   plot_module_ids <- paste0("plot_", seq_along(plots))
@@ -355,6 +393,17 @@ ptr_app_grid_components <- function(plots,
       list()
     }
     draw_all_trigger <- shiny::reactive(input[[draw_all_id]])
+
+    if (length(consumer_keys) > 0L) {
+      ptr_bind_shared_consumer_uis(
+        output = output, input = input, ns = identity,
+        resolutions = shared_resolutions,
+        representative_nodes = representative_nodes,
+        eval_env = envir,
+        expr_check = expr_check,
+        errors_rv = NULL  # grid has no host-level error panel; in-slot only
+      )
+    }
 
     for (i in seq_along(plots)) {
       local({

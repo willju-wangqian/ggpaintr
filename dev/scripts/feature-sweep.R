@@ -261,6 +261,13 @@ ptr_app_grid(
   )
 )
 
+ptr_app_grid(
+  plots = list(
+    'ggplot(data = mtcars, aes(x = var, y = var)) + geom_point(size = num(shared = "sz"))',
+    'ggplot(data = mtcars, aes(x = wt,  y = var)) + geom_point(alpha = num(shared = "sz")/10)'
+  )
+)
+
 # 15b. Single-plot shared section (plan 06). `ptr_app()` auto-renders one
 #      widget per unique `shared = "<key>"` key in a collapsible
 #      `<details>` section above the layer picker; the same key referenced
@@ -303,6 +310,13 @@ ptr_app(
 ptr_app(
   "ggplot(data = mtcars, aes(x = var(shared = \"axis\"), y = mpg)) +
      geom_point()"
+)
+
+ptr_app_grid(
+  plots = list(
+    'ggplot(data = mtcars, aes(x = var(shared = "v"), y = var)) + geom_point(size = num)',
+    'ggplot(data = mtcars, aes(x = wt,  y = var(shared = "v"))) + geom_point(alpha = num)'
+  )
 )
 
 # 16a. Level-3 render override -- use plotly::ggplotly() instead of the

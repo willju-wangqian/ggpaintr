@@ -38,11 +38,10 @@
 #' @param ns A namespace function used for rendered ids (UI side).
 #' @param server_ns A namespace function used for server-side input lookups.
 #'   Defaults to `ns`.
-#' @param auto_bind_shared If `TRUE`, the host (single-plot `ptr_app()`)
-#'   auto-binds shared widgets in a top-level shared section. Relaxes the
-#'   "missing-from-bindings" check in `ptr_validate_shared_bindings()` and
-#'   activates the shared-`var` consumer gate (single-plot cannot resolve
-#'   columns for a shared widget rendered outside any layer panel).
+#' @param auto_bind_shared If `TRUE`, the host (single-plot `ptr_app()`
+#'   or `ptr_app_grid()` auto-render path) binds shared widgets at host
+#'   scope. Relaxes the "missing-from-bindings" check in
+#'   `ptr_validate_shared_bindings()` (the host auto-binds instead).
 #'
 #' @return A `ptr_state` list (S3 class `c("ptr_state", "list")`).
 #' @export
@@ -90,19 +89,6 @@ ptr_server_state <- function(formula,
     shared, tree = tree,
     strict_missing = !isTRUE(auto_bind_shared)
   )
-
-  if (isTRUE(auto_bind_shared)) {
-    shared_entries <- collect_shared_placeholders(tree)
-    has_shared_consumer <- any(vapply(shared_entries, function(e) {
-      inherits(e$node, "ptr_ph_data_consumer")
-    }, logical(1)))
-    if (has_shared_consumer) {
-      rlang::abort(paste0(
-        "Shared `var(shared = '...')` placeholders are not yet supported in ",
-        "single-plot `ptr_app()`. Use `ptr_app_grid()` with `shared_ui` for now."
-      ))
-    }
-  }
 
   layer_names <- vapply(tree$layers, function(l) l$name, character(1))
   # `ptr_resolve_checkbox_defaults` keys off `names(expr_list)`; supply a
@@ -167,6 +153,10 @@ ptr_server_state <- function(formula,
     producer_debounce_ms = shiny::reactiveVal(initial_debounce_ms),
     producer_debounce_mode = debounce_mode,
     producer_perf_env = producer_perf_env,
+    # Host-level resolver errors for shared `var` widgets, surfaced into
+    # the error panel by `ptr_register_error()`. Populated by
+    # `ptr_bind_shared_consumer_uis()` when auto-binding.
+    shared_resolution_errors = shiny::reactiveVal(character()),
     ui_ns_fn = ns,
     server_ns_fn = server_ns,
     ns_fn = server_ns,
@@ -565,6 +555,10 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
   consumers <- find_nodes(tree, is_ptr_ph_data_consumer)
   for (c in consumers) {
     if (is.null(c$id)) next
+    # Shared consumers are owned by the host (single-plot sidebar /
+    # grid top panel) via `ptr_bind_shared_consumer_uis()`; skip here
+    # so we don't double-write to the same output id.
+    if (!is.null(c$shared)) next
     local({
       node <- c
       raw_id <- node$id
@@ -633,6 +627,86 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
     })
   }
   invisible(state)
+}
+
+
+# Bind a top-level renderUI per shared `var(shared = "<key>")` key. The
+# renderUI either emits the placeholder's normal picker (using a host-
+# resolved upstream) or an inline alert when resolution failed. Errors
+# also propagate to `errors_rv` (a reactiveVal) so a host-level error
+# panel can mirror them.
+#
+# `representative_nodes` is a named list (key -> placeholder node). The
+# host is expected to set `node$id` to the id used by its rendered
+# `uiOutput` so `output[[consumer_output_id(node$id)]]` lines up.
+ptr_bind_shared_consumer_uis <- function(output, input, ns,
+                                            resolutions,
+                                            representative_nodes,
+                                            ui_text = NULL,
+                                            placeholders = NULL,
+                                            eval_env = parent.frame(),
+                                            expr_check = TRUE,
+                                            errors_rv = NULL) {
+  # Push host-level resolver errors (per key) into the reactive bag.
+  if (!is.null(errors_rv)) {
+    err_msgs <- character()
+    for (k in names(resolutions)) {
+      if (identical(resolutions[[k]]$kind, "error")) {
+        err_msgs <- c(err_msgs, paste0(
+          "Shared `var(shared = \"", k, "\")`: ",
+          resolutions[[k]]$error
+        ))
+      }
+    }
+    errors_rv(err_msgs)
+  }
+
+  for (key in names(resolutions)) {
+    local({
+      k <- key
+      resolution <- resolutions[[k]]
+      rep_node <- representative_nodes[[k]]
+      if (is.null(rep_node)) return(NULL)
+      output_id <- ns(consumer_output_id(rep_node$id))
+
+      output[[output_id]] <- shiny::renderUI({
+        if (identical(resolution$kind, "error")) {
+          return(shiny::div(
+            class = "alert alert-danger",
+            shiny::strong(paste0(
+              "Shared `var(shared = \"", k, "\")` cannot be resolved."
+            )),
+            shiny::br(),
+            resolution$error
+          ))
+        }
+        df <- tryCatch(
+          ptr_resolve_upstream(
+            resolution$value,
+            snapshot = list(),
+            shared_bindings = list(),
+            eval_env = eval_env,
+            cache = NULL,
+            expr_check = expr_check,
+            stage_enabled = list()
+          ),
+          error = function(e) NULL
+        )
+        cols <- if (!is.null(df)) names(df) else character()
+        current <- shiny::isolate(input[[ns(rep_node$id)]])
+        invoke_build_ui(
+          rep_node,
+          ui_text = ui_text,
+          placeholders = placeholders,
+          layer_name = NULL,
+          ns_fn = ns,
+          extra = list(cols = cols, data = df,
+                       selected = current %||% character(0))
+        )
+      })
+    })
+  }
+  invisible(NULL)
 }
 
 # Walk a consumer's `node$upstream` subtree and return the ids of every
@@ -745,9 +819,13 @@ ptr_register_plot <- function(output, state) {
 ptr_register_error <- function(output, state) {
   output[[state$server_ns_fn("ptr_error")]] <- shiny::renderUI({
     res <- state$runtime()
-    if (is.null(res) || isTRUE(res$ok)) return(NULL)
-    msg <- cli::ansi_strip(res$error %||% "")
-    ptr_error_ui(msg)
+    shared_errs <- state$shared_resolution_errors()
+    runtime_msg <- if (!is.null(res) && !isTRUE(res$ok)) {
+      cli::ansi_strip(res$error %||% "")
+    } else NULL
+    parts <- c(shared_errs, if (!is.null(runtime_msg)) runtime_msg)
+    if (length(parts) == 0L) return(NULL)
+    ptr_error_ui(paste(parts, collapse = "\n"))
   })
   invisible(state)
 }

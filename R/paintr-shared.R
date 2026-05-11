@@ -34,6 +34,147 @@ collect_then_rewrite_shared <- function(root) {
 
 canonical_shared_id <- function(key) paste0("shared_", key)
 
+
+# ---- shared-consumer upstream resolution -----------------------------------
+#
+# Per the host contract (plan 06 follow-up): the shared widget for a
+# `var(shared = "<key>")` placeholder lives at host scope (single-plot
+# sidebar or grid top panel). To populate its picker we need ONE upstream
+# per key, derived from possibly multiple per-layer occurrences.
+#
+# Algorithm:
+#   1. For each occurrence, compute its "shared upstream" by truncating
+#      the raw upstream chain at the first stage (in evaluation order)
+#      that contains any placeholder. Keep the prefix from the source
+#      side, exclusive of that stage. This naturally handles same-key
+#      self-reference (the inner occurrence's upstream is cut off so
+#      it never feeds the outer one).
+#   2. Compare across occurrences:
+#        - source datasets differ                  -> error
+#        - sources match, all upstreams identical  -> use the upstream
+#        - sources match, upstreams differ         -> use the source
+#
+# Returned shape from `resolve_shared_consumer`:
+#   list(kind = "upstream"|"source"|"error",
+#        value = <ptr_node or NULL>,
+#        error = <chr or NULL>)
+
+# TRUE if `n` (or any descendant, modulo the `upstream` back-pointer) is
+# a placeholder node.
+contains_placeholder <- function(n) {
+  found <- FALSE
+  visit <- function(x) {
+    if (found || is.null(x)) return()
+    if (is_ptr_placeholder(x)) { found <<- TRUE; return() }
+    if (is_ptr_node(x)) {
+      for (nm in names(x)) {
+        if (identical(nm, "upstream")) next
+        visit(x[[nm]])
+      }
+    } else if (is.list(x)) {
+      for (el in x) visit(el)
+    }
+  }
+  visit(n)
+  found
+}
+
+# Bottom-most data leaf of an upstream chain. For a pipeline, this is
+# `stages[[1]]`; for a non-pipeline single-stage upstream (e.g. a bare
+# data literal), it's the node itself.
+extract_source_leaf <- function(upstream) {
+  if (is.null(upstream)) return(NULL)
+  if (is_ptr_pipeline(upstream)) {
+    if (length(upstream$stages) == 0L) return(NULL)
+    return(extract_source_leaf(upstream$stages[[1L]]))
+  }
+  upstream
+}
+
+# Truncate `upstream` at the first stage (source-to-consumer order) that
+# contains a placeholder. Returns the truncated subtree, or NULL if no
+# placeholder-free prefix remains (only happens when the source itself
+# is a placeholder).
+truncate_upstream_at_placeholder <- function(upstream) {
+  if (is.null(upstream)) return(NULL)
+  if (is_ptr_pipeline(upstream)) {
+    keep <- list()
+    for (stage in upstream$stages) {
+      if (contains_placeholder(stage)) break
+      keep[[length(keep) + 1L]] <- stage
+    }
+    if (length(keep) == 0L) return(NULL)
+    if (length(keep) == 1L) return(keep[[1L]])
+    p <- upstream
+    p$stages <- keep
+    return(p)
+  }
+  if (contains_placeholder(upstream)) return(NULL)
+  upstream
+}
+
+# Walk one or more typed-AST trees and bucket every shared
+# `ptr_ph_data_consumer` node by its `$shared` key. Returns a named list
+# of lists of nodes.
+collect_shared_consumer_occurrences <- function(trees) {
+  if (!is.list(trees) || is_ptr_node(trees)) trees <- list(trees)
+  buckets <- list()
+  for (tr in trees) {
+    consumers <- find_nodes(tr, function(x) {
+      is_ptr_ph_data_consumer(x) && !is.null(x$shared)
+    })
+    for (c in consumers) {
+      key <- c$shared
+      buckets[[key]] <- c(buckets[[key]] %||% list(), list(c))
+    }
+  }
+  buckets
+}
+
+# Apply the contract above to one bucket of occurrences.
+resolve_shared_consumer <- function(occurrences) {
+  if (length(occurrences) == 0L) {
+    return(list(kind = "error",
+                error = "internal: no occurrences"))
+  }
+  truncated <- lapply(occurrences, function(n) {
+    truncate_upstream_at_placeholder(n$upstream)
+  })
+  if (any(vapply(truncated, is.null, logical(1)))) {
+    return(list(kind = "error",
+                error = paste0("Shared `var` upstream is entirely placeholder-",
+                               "based; no source dataset to resolve choices from.")))
+  }
+  sources <- lapply(truncated, extract_source_leaf)
+  src1 <- sources[[1L]]
+  if (length(sources) > 1L) {
+    for (i in 2:length(sources)) {
+      if (!identical(src1, sources[[i]])) {
+        return(list(kind = "error",
+                    error = paste0("Shared `var` references diverge: layers ",
+                                   "use different source datasets, so a ",
+                                   "single picker cannot serve them all.")))
+      }
+    }
+  }
+  up1 <- truncated[[1L]]
+  all_eq <- TRUE
+  if (length(truncated) > 1L) {
+    for (i in 2:length(truncated)) {
+      if (!identical(up1, truncated[[i]])) { all_eq <- FALSE; break }
+    }
+  }
+  if (all_eq) list(kind = "upstream", value = up1)
+  else list(kind = "source", value = src1)
+}
+
+# Convenience: per-key resolution for one or more trees.
+ptr_resolve_shared_consumers <- function(trees) {
+  buckets <- collect_shared_consumer_occurrences(trees)
+  if (length(buckets) == 0L) return(list())
+  lapply(buckets, resolve_shared_consumer)
+}
+
 rewrite_shared <- function(x, canonical) {
   if (is_ptr_placeholder(x) && !is.null(x$shared)) {
     new_id <- canonical[[x$shared]]

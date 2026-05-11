@@ -220,15 +220,60 @@ test_that("P06.g grid rejects shared_ui keys not present in any formula", {
   )
 })
 
-# Gate: shared `var` (data-consumer) in single-plot is rejected with an
-# actionable error.
-test_that("P06 gate: shared `var` in single-plot errors at server-state build", {
+# (h) Single-plot shared `var`: top-level uiOutput emits a picker
+#     populated with columns from the resolved upstream.
+test_that("P06.h shared `var` in single-plot renders picker with upstream cols", {
   parts <- ptr_app_components(
     'ggplot(data = mtcars, aes(x = var(shared = "axis"), y = mpg)) + geom_point()',
     envir = .shared_test_env()
   )
-  expect_error(
-    shiny::testServer(parts$server, { session$setInputs(.dummy = 1) }),
-    "single-plot"
+  ui_html <- as.character(parts$ui)
+  expect_match(ui_html, 'id="shared_axis_ui"', fixed = TRUE)
+  shiny::testServer(parts$server, {
+    session$flushReact()
+    rendered <- output$`shared_axis_ui`
+    html_str <- if (is.list(rendered) && !is.null(rendered$html)) rendered$html else as.character(rendered)
+    expect_match(html_str, "mpg")
+    expect_match(html_str, "cyl")
+  })
+})
+
+# (i) Single-plot shared `var` with diverging sources: top-level renderUI
+#     emits an alert AND the error panel mirrors it.
+test_that("P06.i diverging sources surface as alert + error-panel entry", {
+  parts <- ptr_app_components(
+    'ggplot(data = mtcars, aes(x = var(shared = "v"))) + geom_point(data = iris, aes(y = var(shared = "v")))',
+    envir = .shared_test_env(list(iris = iris))
   )
+  shiny::testServer(parts$server, {
+    session$flushReact()
+    rendered <- output$`shared_v_ui`
+    html_str <- if (is.list(rendered) && !is.null(rendered$html)) rendered$html else as.character(rendered)
+    expect_match(html_str, "alert")
+    expect_match(html_str, "different source")
+    err <- output$ptr_error
+    err_html <- if (is.list(err) && !is.null(err$html)) err$html else as.character(err)
+    expect_match(err_html, "different source")
+  })
+})
+
+# (j) Same source, different upstream: falls back to source columns.
+test_that("P06.j same source, different upstreams falls back to source", {
+  parts <- ptr_app_components(
+    paste0(
+      'ggplot(data = mtcars |> dplyr::select(mpg, cyl), aes(x = var(shared = "v"))) + ',
+      'geom_point(data = mtcars |> dplyr::select(hp, wt), aes(y = var(shared = "v")))'
+    ),
+    envir = .shared_test_env()
+  )
+  shiny::testServer(parts$server, {
+    session$flushReact()
+    rendered <- output$`shared_v_ui`
+    html_str <- if (is.list(rendered) && !is.null(rendered$html)) rendered$html else as.character(rendered)
+    # Source = mtcars; should expose every mtcars column, not just the
+    # intersection of the two select() narrowings.
+    for (col in c("mpg", "cyl", "hp", "wt", "qsec", "gear")) {
+      expect_match(html_str, col)
+    }
+  })
 })
