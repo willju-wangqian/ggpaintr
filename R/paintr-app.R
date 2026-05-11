@@ -55,10 +55,25 @@ ptr_app_components <- function(formula,
     tree,
     ui_text = ui_text,
     checkbox_defaults = checkbox_defaults,
-    ns = ns
+    ns = ns,
+    render_shared_section = TRUE
   )
 
+  shared_entries <- collect_shared_placeholders(tree)
+  shared_keys <- vapply(shared_entries, `[[`, character(1), "key")
+
   server <- function(input, output, session) {
+    shared_reactives <- if (length(shared_keys) > 0L) {
+      stats::setNames(
+        lapply(shared_keys, function(k) {
+          canonical <- canonical_shared_id(k)
+          shiny::reactive(input[[ns(canonical)]])
+        }),
+        shared_keys
+      )
+    } else {
+      list()
+    }
     ptr_server(
       input, output, session, formula,
       envir = envir,
@@ -66,7 +81,9 @@ ptr_app_components <- function(formula,
       checkbox_defaults = checkbox_defaults,
       expr_check = expr_check,
       safe_to_remove = safe_to_remove,
-      ns = ns
+      shared = shared_reactives,
+      ns = ns,
+      auto_bind_shared = TRUE
     )
   }
   list(ui = ui, server = server)
@@ -74,7 +91,8 @@ ptr_app_components <- function(formula,
 
 ptr_build_app_ui <- function(tree, ui_text = NULL,
                                 checkbox_defaults = NULL,
-                                ns = shiny::NS(NULL)) {
+                                ns = shiny::NS(NULL),
+                                render_shared_section = FALSE) {
   shell_copy <- layer_panel_default_shell_copy(ui_text)
   layer_names <- vapply(tree$layers, function(l) l$name, character(1))
 
@@ -97,17 +115,34 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
     c(list(id = ns("ptr_layer_tabset"), type = "hidden"), panels)
   )
 
+  shared_section <- if (isTRUE(render_shared_section)) {
+    shared_entries <- collect_shared_placeholders(tree)
+    if (length(shared_entries) > 0L) {
+      widgets <- lapply(shared_entries, function(e) {
+        build_ui_for(e$node, ui_text = ui_text, ns_fn = ns)
+      })
+      widgets <- widgets[!vapply(widgets, is.null, logical(1))]
+      if (length(widgets) > 0L) {
+        shiny::wellPanel(do.call(shiny::tagList, widgets))
+      } else NULL
+    } else NULL
+  } else NULL
+
+  sidebar_children <- list(
+    shared_section,
+    picker,
+    hidden_tabset,
+    shiny::actionButton(
+      ns("ptr_update_plot"),
+      label = shell_copy$update_plot_label %||% "Update plot"
+    )
+  )
+  sidebar_children <- sidebar_children[!vapply(sidebar_children, is.null, logical(1))]
+
   shiny::fluidPage(
     shiny::titlePanel(ptr_resolve_ui_text("title", ui_text = ui_text)$label %||% ""),
     shiny::sidebarLayout(
-      shiny::sidebarPanel(
-        picker,
-        hidden_tabset,
-        shiny::actionButton(
-          ns("ptr_update_plot"),
-          label = shell_copy$update_plot_label %||% "Update plot"
-        )
-      ),
+      do.call(shiny::sidebarPanel, sidebar_children),
       shiny::mainPanel(
         shiny::plotOutput(ns("ptr_plot")),
         shiny::uiOutput(ns("ptr_error")),
@@ -240,25 +275,55 @@ ptr_app_grid_components <- function(plots,
     }
   }
 
-  shared_names <- names(shared_ui)
+  # Union of shared keys across every plot's formula. First-occurrence
+  # node per key drives the auto-rendered default widget for keys the
+  # embedder didn't supply via `shared_ui`.
+  shared_first_node <- list()
+  for (formula in plots) {
+    tree <- ptr_translate(formula, expr_check = expr_check)
+    for (entry in collect_shared_placeholders(tree)) {
+      if (is.null(shared_first_node[[entry$key]])) {
+        shared_first_node[[entry$key]] <- entry$node
+      }
+    }
+  }
+  formula_keys <- names(shared_first_node)
+  embedder_keys <- names(shared_ui)
+  extra_in_ui <- setdiff(embedder_keys, formula_keys)
+  if (length(extra_in_ui) > 0L) {
+    rlang::abort(paste0(
+      "`shared_ui` references key ",
+      paste0("\"", extra_in_ui, "\"", collapse = ", "),
+      " which is not used in any plot formula."
+    ))
+  }
+  auto_keys <- setdiff(formula_keys, embedder_keys)
+
+  shared_names <- c(embedder_keys, auto_keys)
   plot_module_ids <- paste0("plot_", seq_along(plots))
   n_plots <- length(plots)
   col_width <- max(1L, 12L %/% n_plots)
   draw_all_id <- "ptr_grid_draw_all"
 
-  shared_panel <- if (length(shared_ui) > 0L) {
-    shiny::wellPanel(
-      do.call(
-        shiny::tagList,
-        c(
-          lapply(shared_names, function(nm) shared_ui[[nm]](nm)),
-          list(shiny::actionButton(draw_all_id, draw_all_label))
-        )
-      )
+  shared_widgets <- c(
+    lapply(embedder_keys, function(nm) shared_ui[[nm]](nm)),
+    lapply(auto_keys, function(k) {
+      node <- shared_first_node[[k]]
+      # Match the embedder convention: widget id is the bare key, so
+      # `input[[key]]` reads the value (no canonical-id `ns()` wrap).
+      node$id <- k
+      build_ui_for(node, ns_fn = identity)
+    })
+  )
+  shared_widgets <- shared_widgets[!vapply(shared_widgets, is.null, logical(1))]
+
+  shared_panel <- shiny::wellPanel(
+    do.call(
+      shiny::tagList,
+      c(shared_widgets,
+        list(shiny::actionButton(draw_all_id, draw_all_label)))
     )
-  } else {
-    shiny::wellPanel(shiny::actionButton(draw_all_id, draw_all_label))
-  }
+  )
 
   plot_columns <- do.call(
     shiny::fluidRow,

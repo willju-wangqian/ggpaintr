@@ -980,5 +980,6 @@ Expected checks:
 -   Selected `var` columns survive reactive re-renders driven by upstream cascades when still valid.
 -   Pipeline placeholders survive nested `data = ...` arguments and label themselves with the enclosing verb (e.g. `Enter a number for filter()`).
 -   `text` placeholders inside a pipeline strip matching outer quotes and the control hints "no quotes".
+-   Single-plot shared inputs — collapsible section above picker drives multi-layer plot; no shared widgets inside layer tabs.
 -   Remaining internal-only or philosophy-boundary edge cases are reviewed in
     `tests/manual/ggpaintr-edge-cases.Rmd`.

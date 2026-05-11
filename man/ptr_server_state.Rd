@@ -15,7 +15,8 @@ ptr_server_state(
   draw_trigger = NULL,
   producer_debounce_ms = NULL,
   ns = shiny::NS(NULL),
-  server_ns = ns
+  server_ns = ns,
+  auto_bind_shared = FALSE
 )
 }
 \arguments{
@@ -51,6 +52,12 @@ positive integer to pin a manual window.}
 
 \item{server_ns}{A namespace function used for server-side input lookups.
 Defaults to \code{ns}.}
+
+\item{auto_bind_shared}{If \code{TRUE}, the host (single-plot \code{ptr_app()})
+auto-binds shared widgets in a top-level shared section. Relaxes the
+"missing-from-bindings" check in \code{ptr_validate_shared_bindings()} and
+activates the shared-\code{var} consumer gate (single-plot cannot resolve
+columns for a shared widget rendered outside any layer panel).}
 }
 \value{
 A \code{ptr_state} list (S3 class \code{c("ptr_state", "list")}).

@@ -253,12 +253,56 @@ ptr_app_bslib(
 #     plots; the "Draw all" button at the top forces a redraw of every panel.
 ptr_app_grid(
   plots = list(
-    'ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point(size = num(shared = "sz"))',
-    'ggplot(data = mtcars, aes(x = wt,  y = qsec)) + geom_point(alpha = num(shared = "sz")/10)'
+    'ggplot(data = mtcars, aes(x = var, y = var)) + geom_point(size = num(shared = "sz"))',
+    'ggplot(data = mtcars, aes(x = wt,  y = var)) + geom_point(alpha = num(shared = "sz")/10)'
   ),
   shared_ui = list(
     sz = function(id) sliderInput(id, "Point size", min = 1, max = 10, value = 3)
   )
+)
+
+# 15b. Single-plot shared section (plan 06). `ptr_app()` auto-renders one
+#      widget per unique `shared = "<key>"` key in a collapsible
+#      `<details>` section above the layer picker; the same key referenced
+#      from multiple layers shows up as ONE widget that drives both layers
+#      in lockstep. Watch:
+#        - "Shared inputs" section sits above the Layer picker.
+#        - `sz` slider drives both geom_point size and geom_smooth size.
+#        - `ttl` text box flows into labs(title = ...).
+#        - The geom_point Controls tab is empty (no per-layer size widget),
+#          since the shared placeholder filter (C1) keeps `num(shared=...)`
+#          out of layer panels.
+#      Validation: typo a key the formula doesn't use (e.g. swap "sz" to
+#      "szz" in one layer only) and confirm grid-style cross-checks fire
+#      via `ptr_app_grid()` instead — single-plot auto-binds and never
+#      complains about extra/missing keys.
+ptr_app(
+  "ggplot(data = mtcars, aes(x = mpg, y = hp)) +
+     geom_point(size = num(shared = \"sz\")) +
+     geom_smooth(size = num(shared = \"sz\"), method = \"lm\") +
+     labs(title = text(shared = \"ttl\"))"
+)
+
+# 15c. Same shared key referenced from BOTH a pipeline stage and an aes
+#      mapping — still one widget, drives both. Move the `head(num(...))`
+#      slider; the plotted point count changes AND the title updates in
+#      lockstep because they read the same shared key.
+ptr_app(
+  "mtcars |> head(num(shared = \"n\")) |>
+     ggplot(aes(x = mpg, y = hp)) +
+     geom_point() +
+     labs(subtitle = paste(\"showing\", num(shared = \"n\"), \"rows\"))"
+)
+
+# 15d. §5.6 host gate — shared `var` (data-consumer) is unsupported in
+#      single-plot `ptr_app()` and errors with an actionable message
+#      pointing at `ptr_app_grid()`. The error fires at server startup,
+#      so launching this app shows the abort in the console (and the app
+#      window stays blank). Use `ptr_app_grid()` with a `shared_ui` entry
+#      for `axis` if you need a column picker shared across plots.
+ptr_app(
+  "ggplot(data = mtcars, aes(x = var(shared = \"axis\"), y = mpg)) +
+     geom_point()"
 )
 
 # 16a. Level-3 render override -- use plotly::ggplotly() instead of the

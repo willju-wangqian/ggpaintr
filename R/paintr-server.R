@@ -38,6 +38,11 @@
 #' @param ns A namespace function used for rendered ids (UI side).
 #' @param server_ns A namespace function used for server-side input lookups.
 #'   Defaults to `ns`.
+#' @param auto_bind_shared If `TRUE`, the host (single-plot `ptr_app()`)
+#'   auto-binds shared widgets in a top-level shared section. Relaxes the
+#'   "missing-from-bindings" check in `ptr_validate_shared_bindings()` and
+#'   activates the shared-`var` consumer gate (single-plot cannot resolve
+#'   columns for a shared widget rendered outside any layer panel).
 #'
 #' @return A `ptr_state` list (S3 class `c("ptr_state", "list")`).
 #' @export
@@ -51,7 +56,8 @@ ptr_server_state <- function(formula,
                                 draw_trigger = NULL,
                                 producer_debounce_ms = NULL,
                                 ns = shiny::NS(NULL),
-                                server_ns = ns) {
+                                server_ns = ns,
+                                auto_bind_shared = FALSE) {
   if (!is.function(ns)) {
     rlang::abort("`ns` must be a namespace function (e.g. shiny::NS(\"id\")).")
   }
@@ -76,10 +82,27 @@ ptr_server_state <- function(formula,
     initial_debounce_ms <- 0L
     debounce_mode <- "auto"
   }
-  shared_bindings <- ptr_validate_shared_bindings(shared)
   safe_to_remove <- validate_safe_to_remove(safe_to_remove)
 
   tree <- ptr_translate(formula, expr_check = expr_check)
+
+  shared_bindings <- ptr_validate_shared_bindings(
+    shared, tree = tree,
+    strict_missing = !isTRUE(auto_bind_shared)
+  )
+
+  if (isTRUE(auto_bind_shared)) {
+    shared_entries <- collect_shared_placeholders(tree)
+    has_shared_consumer <- any(vapply(shared_entries, function(e) {
+      inherits(e$node, "ptr_ph_data_consumer")
+    }, logical(1)))
+    if (has_shared_consumer) {
+      rlang::abort(paste0(
+        "Shared `var(shared = '...')` placeholders are not yet supported in ",
+        "single-plot `ptr_app()`. Use `ptr_app_grid()` with `shared_ui` for now."
+      ))
+    }
+  }
 
   layer_names <- vapply(tree$layers, function(l) l$name, character(1))
   # `ptr_resolve_checkbox_defaults` keys off `names(expr_list)`; supply a
@@ -344,31 +367,25 @@ ptr_setup_stage_enabled <- function(state, input, output, session) {
 ptr_setup_runtime <- function(state, input, output, session) {
   ns <- state$server_ns_fn
 
-  # Spec L142 + BDD G11.12 — plot rendering is gated on a single trigger
-  # ("Update Plot" for standalone, "Draw all" for grid). With
-  # `ignoreInit = TRUE` the observer does nothing until the user clicks;
-  # state$runtime() stays NULL, so the plot/code/error outputs all
-  # render blank on first launch. No expression eval happens until
-  # the user opts in via the trigger.
-  trigger <- if (!is.null(state$draw_trigger)) {
-    state$draw_trigger
-  } else {
-    shiny::reactive(input[[ns("ptr_update_plot")]])
+  # Spec L142 + BDD G11.12 — runtime fires on ANY user trigger:
+  # the per-instance Update Plot button OR the host-supplied
+  # `draw_trigger` (e.g. grid app's "Draw all" button), plus extras
+  # changes (`ptr_gg_extra()`). Each invalidation runs the body, but
+  # the boot-skip guard below holds the first eval back until the user
+  # has actually clicked something or extras are non-empty (testServer
+  # does not auto-flush at session start, so we cannot rely on
+  # `observeEvent(..., ignoreInit = TRUE)` for that semantics).
+  triggered <- function() {
+    up <- input[[ns("ptr_update_plot")]]
+    da <- if (!is.null(state$draw_trigger)) state$draw_trigger() else NULL
+    extras <- state$extras()
+    (!is.null(up) && is.numeric(up) && up >= 1L) ||
+      (!is.null(da) && is.numeric(da) && da >= 1L) ||
+      (length(extras) > 0L)
   }
 
   shiny::observe({
-    val <- trigger()
-    # Re-fire whenever extras change (e.g. after `ptr_gg_extra()`), so
-    # programmatic scales/themes attach without a manual Update Plot.
-    # Reading the reactiveVal here (outside the isolate below) registers
-    # the dep; the trigger gate still prevents firing before the user
-    # has opted in via the first click.
-    state$extras()
-    # actionButton starts at 0 (or NULL before first interaction); the
-    # standalone Update Plot button and the grid Draw-all button both use
-    # this convention. Skip until the first real click.
-    if (is.null(val)) return(invisible())
-    if (is.numeric(val) && val < 1L) return(invisible())
+    if (!triggered()) return(invisible())
 
     shiny::isolate({
       spec <- state$input_spec
@@ -735,8 +752,6 @@ ptr_register_error <- function(output, state) {
   invisible(state)
 }
 
-#' @rdname ptr_register
-#' @export
 # Render the code-panel text for a runtime result + extras source list.
 # Used by both `ptr_register_code` (reactive output) and
 # `ptr_extract_code` (read accessor).
@@ -755,6 +770,8 @@ format_code_with_extras <- function(res, extras_exprs) {
   paste(c(base, extra_text), collapse = " +\n  ")
 }
 
+#' @rdname ptr_register
+#' @export
 ptr_register_code <- function(output, state) {
   output[[state$server_ns_fn("ptr_code")]] <- shiny::renderText({
     format_code_with_extras(state$runtime(), state$extras_exprs())

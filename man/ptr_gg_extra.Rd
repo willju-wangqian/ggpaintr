@@ -4,13 +4,16 @@
 \alias{ptr_gg_extra}
 \title{Add \code{ggplot2} Layers Programmatically}
 \usage{
-ptr_gg_extra(state, exprs = list())
+ptr_gg_extra(state, ...)
 }
 \arguments{
 \item{state}{A \code{ptr_state} from \code{\link[=ptr_server_state]{ptr_server_state()}}.}
 
-\item{exprs}{A list of expressions or quosures producing \code{ggplot2} layers
-(e.g. \code{list(quote(ggplot2::scale_x_log10()))}).}
+\item{...}{\code{ggplot2} layer expressions (e.g.
+\code{ptr_gg_extra(state, ggplot2::scale_x_log10(), theme_minimal())}).
+Captured unevaluated and stored as quosures, then evaluated in
+\code{state$eval_env}. Eval errors propagate and leave the existing
+extras untouched (atomic update).}
 }
 \value{
 \code{state}, invisibly.

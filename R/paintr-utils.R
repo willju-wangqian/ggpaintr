@@ -51,26 +51,63 @@
 #'
 #' @return A named list of reactives (possibly empty).
 #' @noRd
-ptr_validate_shared_bindings <- function(shared) {
-  if (is.null(shared)) return(list())
+ptr_validate_shared_bindings <- function(shared, tree = NULL,
+                                            strict_missing = TRUE) {
+  if (is.null(shared)) shared <- list()
   if (!is.list(shared)) {
     rlang::abort("`shared` must be a named list of reactives (or NULL).")
   }
-  if (length(shared) == 0L) return(list())
-  nms <- names(shared)
-  if (is.null(nms) || any(!nzchar(nms)) || any(duplicated(nms))) {
-    rlang::abort(
-      "`shared` must have unique non-empty names; each name must match a `shared = \"<id>\"` annotation in the formula."
+  if (length(shared) > 0L) {
+    nms <- names(shared)
+    if (is.null(nms) || any(!nzchar(nms)) || any(duplicated(nms))) {
+      rlang::abort(
+        "`shared` must have unique non-empty names; each name must match a `shared = \"<id>\"` annotation in the formula."
+      )
+    }
+    is_reactive <- vapply(shared, shiny::is.reactive, logical(1))
+    if (!all(is_reactive)) {
+      bad <- nms[!is_reactive]
+      rlang::abort(paste0(
+        "`shared` values must be Shiny reactives. Non-reactive entries: ",
+        paste0("`", bad, "`", collapse = ", "), "."
+      ))
+    }
+  }
+
+  if (!is.null(tree)) {
+    formula_keys <- vapply(
+      collect_shared_placeholders(tree),
+      `[[`, character(1), "key"
     )
+    binding_keys <- names(shared) %||% character()
+
+    extra <- setdiff(binding_keys, formula_keys)
+    if (length(extra) > 0L) {
+      hint <- if (length(formula_keys) > 0L) {
+        paste0(" Available formula keys: ",
+               paste0("\"", formula_keys, "\"", collapse = ", "), ".")
+      } else {
+        " The formula declares no `shared = \"...\"` annotations."
+      }
+      rlang::abort(paste0(
+        "`shared` references key ",
+        paste0("\"", extra, "\"", collapse = ", "),
+        " which is not used in any plot formula.", hint
+      ))
+    }
+
+    if (isTRUE(strict_missing)) {
+      missing <- setdiff(formula_keys, binding_keys)
+      if (length(missing) > 0L) {
+        rlang::abort(paste0(
+          "Formula references shared key ",
+          paste0("\"", missing, "\"", collapse = ", "),
+          " but `shared` has no entry for it."
+        ))
+      }
+    }
   }
-  is_reactive <- vapply(shared, shiny::is.reactive, logical(1))
-  if (!all(is_reactive)) {
-    bad <- nms[!is_reactive]
-    rlang::abort(paste0(
-      "`shared` values must be Shiny reactives. Non-reactive entries: ",
-      paste0("`", bad, "`", collapse = ", "), "."
-    ))
-  }
+
   shared
 }
 

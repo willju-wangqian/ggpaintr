@@ -197,13 +197,20 @@ find_nodes <- function(node, pred) {
   out
 }
 
+is_shared_placeholder <- function(x) {
+  is_ptr_placeholder(x) && !is.null(x$shared)
+}
+
 # Recurse into a typed-tree subtree (or a list of children) and return every
-# placeholder node encountered, in formula order.
+# placeholder node encountered, in formula order. Shared placeholders
+# (`shared = "<key>"`) are excluded — they render once in a host-level
+# shared section, never inside a layer panel.
 find_layer_placeholders <- function(x) {
   out <- list()
   visit <- function(n) {
     if (is.null(n)) return()
     if (is_ptr_placeholder(n)) {
+      if (is_shared_placeholder(n)) return()
       out[[length(out) + 1L]] <<- n
       return()
     }
@@ -229,6 +236,7 @@ find_layer_placeholders_with_stage <- function(x) {
   visit <- function(n, current_sid) {
     if (is.null(n)) return()
     if (is_ptr_placeholder(n)) {
+      if (is_shared_placeholder(n)) return()
       out[[length(out) + 1L]] <<- list(ph = n, stage_id = current_sid)
       return()
     }
@@ -258,6 +266,37 @@ find_layer_placeholders_with_stage <- function(x) {
     }
   }
   visit(x, NA_character_)
+  out
+}
+
+# Walk the full tree and return one entry per unique `shared` key. The first
+# occurrence (in formula order) wins for the node used to drive `build_ui_for`.
+# Returned entries: list(key = chr, node = ptr_placeholder, ns_id = canonical id).
+collect_shared_placeholders <- function(tree) {
+  seen <- character()
+  out <- list()
+  visit <- function(n) {
+    if (is.null(n)) return()
+    if (is_shared_placeholder(n)) {
+      key <- n$shared
+      if (!key %in% seen) {
+        seen <<- c(seen, key)
+        out[[length(out) + 1L]] <<- list(
+          key = key, node = n, ns_id = n$id
+        )
+      }
+      return()
+    }
+    if (is_ptr_node(n)) {
+      for (nm in names(n)) {
+        if (identical(nm, "upstream")) next
+        visit(n[[nm]])
+      }
+    } else if (is.list(n)) {
+      for (el in n) visit(el)
+    }
+  }
+  visit(tree)
   out
 }
 

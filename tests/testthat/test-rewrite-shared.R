@@ -92,3 +92,143 @@ test_that("P3.11 ptr_validate_shared_bindings rejects non-reactive values", {
   bad <- list(a = 1, b = "two")
   expect_error(ptr_validate_shared_bindings(bad), "reactive")
 })
+
+# ---- Plan 06 — shared section + dedup + cross-check ----
+
+.shared_test_env <- function(extras = list()) {
+  list2env(c(list(mtcars = mtcars), extras), parent = globalenv())
+}
+
+# (a) Single-plot auto-render: one widget per key in the shared section,
+#     none inside layer tabs.
+test_that("P06.a single-plot renders shared widget once in shared section", {
+  parts <- ptr_app_components(
+    'ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point(size = num(shared = "sz"))',
+    envir = .shared_test_env()
+  )
+  ui_html <- as.character(parts$ui)
+  # The shared widget id appears exactly once in the rendered DOM.
+  matches <- gregexpr('id="shared_sz"', ui_html, fixed = TRUE)[[1L]]
+  expect_equal(sum(matches > 0L), 1L)
+})
+
+# (b) B1 regression — shared widget value drives the runtime.
+test_that("P06.b shared input value flows into rendered code", {
+  parts <- ptr_app_components(
+    'ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point(size = num(shared = "sz"))',
+    envir = .shared_test_env()
+  )
+  shiny::testServer(parts$server, {
+    session$setInputs(shared_sz = 7)
+    session$setInputs(ptr_update_plot = 1L)
+    expect_match(output$ptr_code, "size = 7", fixed = TRUE)
+  })
+})
+
+# (c) Validation: extra binding key (typo) raises error when tree is supplied.
+test_that("P06.c validation errors on extra binding key (typo)", {
+  tree <- ptr_translate(
+    'ggplot(data = mtcars, aes(x = mpg)) + geom_point(size = num(shared = "axis"))'
+  )
+  expect_error(
+    ptr_validate_shared_bindings(
+      list(axsi = shiny::reactive(1)),
+      tree = tree
+    ),
+    "axsi"
+  )
+})
+
+# (c') Validation: missing-from-bindings key raises error in strict mode.
+test_that("P06.c' validation errors on missing binding key (strict)", {
+  tree <- ptr_translate(
+    'ggplot(data = mtcars, aes(x = mpg)) + geom_point(size = num(shared = "sz"))'
+  )
+  expect_error(
+    ptr_validate_shared_bindings(list(), tree = tree, strict_missing = TRUE),
+    "sz"
+  )
+  # Single-plot host (strict_missing = FALSE) tolerates the empty bindings.
+  expect_silent(
+    ptr_validate_shared_bindings(list(), tree = tree, strict_missing = FALSE)
+  )
+})
+
+# (d) M1 dedup — same shared key referenced from two layers renders once.
+test_that("P06.d dedup: same key in two layers renders once", {
+  parts <- ptr_app_components(
+    paste0(
+      'ggplot(data = mtcars, aes(x = mpg, y = hp)) + ',
+      'geom_point(size = num(shared = "sz")) + ',
+      'geom_line(size = num(shared = "sz"))'
+    ),
+    envir = .shared_test_env()
+  )
+  ui_html <- as.character(parts$ui)
+  matches <- gregexpr('id="shared_sz"', ui_html, fixed = TRUE)[[1L]]
+  expect_equal(sum(matches > 0L), 1L)
+})
+
+# (e) Translate-clean assertion: no shared placeholder leaks into the
+#     per-layer placeholder list.
+test_that("P06.e find_layer_placeholders excludes shared placeholders", {
+  tree <- ptr_translate(
+    'ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point(size = num(shared = "sz"))'
+  )
+  expect_gte(length(collect_shared_placeholders(tree)), 1L)
+  for (layer in tree$layers) {
+    phs <- find_layer_placeholders(layer$children)
+    expect_true(all(vapply(phs, function(p) is.null(p$shared), logical(1))))
+    pipe_phs <- find_layer_placeholders_with_stage(layer$data_arg)
+    expect_true(all(vapply(pipe_phs,
+                           function(e) is.null(e$ph$shared),
+                           logical(1))))
+  }
+})
+
+# (f) Grid auto-render: `ptr_app_grid` with no `shared_ui` for a key
+#     referenced in formulas auto-renders the default widget at the
+#     top-level shared panel (mirrors single-plot's auto-bind).
+test_that("P06.f grid auto-renders default widget for unbound shared key", {
+  parts <- ptr_app_grid_components(
+    plots = list(
+      "ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point(size = num(shared = \"sz\"))",
+      "ggplot(data = mtcars, aes(x = wt,  y = qsec)) + geom_point(alpha = num(shared = \"sz\")/10)"
+    ),
+    shared_ui = list(),
+    envir = .shared_test_env()
+  )
+  ui_html <- as.character(parts$ui)
+  expect_match(ui_html, 'id="sz"', fixed = TRUE)
+  # The bare-key widget appears once at the top-level panel, not inside
+  # any module (modules don't render shared widgets at all).
+  bare_matches <- gregexpr('id="sz"', ui_html, fixed = TRUE)[[1L]]
+  expect_equal(sum(bare_matches > 0L), 1L)
+})
+
+# (g) Grid still rejects extra keys in shared_ui that no formula uses.
+test_that("P06.g grid rejects shared_ui keys not present in any formula", {
+  expect_error(
+    ptr_app_grid_components(
+      plots = list(
+        "ggplot(data = mtcars, aes(x = mpg)) + geom_point(size = num(shared = \"sz\"))"
+      ),
+      shared_ui = list(typo = function(id) shiny::sliderInput(id, "x", 1, 10, 5)),
+      envir = .shared_test_env()
+    ),
+    "typo"
+  )
+})
+
+# Gate: shared `var` (data-consumer) in single-plot is rejected with an
+# actionable error.
+test_that("P06 gate: shared `var` in single-plot errors at server-state build", {
+  parts <- ptr_app_components(
+    'ggplot(data = mtcars, aes(x = var(shared = "axis"), y = mpg)) + geom_point()',
+    envir = .shared_test_env()
+  )
+  expect_error(
+    shiny::testServer(parts$server, { session$setInputs(.dummy = 1) }),
+    "single-plot"
+  )
+})
