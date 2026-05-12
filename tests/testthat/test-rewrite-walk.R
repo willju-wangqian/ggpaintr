@@ -145,18 +145,20 @@ test_that("ptr_assert_ids_assigned aborts on an un-id'd placeholder", {
   expect_silent(ptr_assert_ids_assigned(root2))
 })
 
-test_that("ptr_assert_classified aborts on a consumer with no upstream and on a source with one", {
+test_that("ptr_assert_classified aborts when a data source carries an upstream", {
+  # A consumer with NULL upstream is legitimate (no data source in scope), so
+  # that is not flagged; a source with an upstream is a contradiction.
   consumer <- ptr_ph_data_consumer(keyword = "var", expr = quote(x))  # upstream NULL
-  root <- ptr_root(layers = list(ptr_layer(
+  ok <- ptr_root(layers = list(ptr_layer(
     name = "ggplot", expr = quote(ggplot()),
     children = list(mapping = ptr_call(fun = quote(aes), args = list(x = consumer), expr = quote(aes(x = x))))
   )), expr = quote(ggplot()))
-  expect_error(ptr_assert_classified(root), "upstream")
+  expect_silent(ptr_assert_classified(ok))
 
   src <- ptr_ph_data_source(keyword = "upload", expr = quote(upload))
   src$upstream <- ptr_literal(expr = quote(mtcars))
-  root2 <- ptr_root(layers = list(src), expr = quote(upload))
-  expect_error(ptr_assert_classified(root2), "non-NULL `upstream`")
+  bad <- ptr_root(layers = list(src), expr = quote(upload))
+  expect_error(ptr_assert_classified(bad), "non-NULL `upstream`")
 })
 
 test_that("ptr_assert_no_placeholders aborts when a placeholder survives", {

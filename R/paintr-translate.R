@@ -61,6 +61,8 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
     root <- ptr_assign_ids(root, ns_fn = ns_fn)
     root <- ptr_classify_data(root)
     root <- ptr_shared_bind(root)
+    ptr_assert_ids_assigned(root)
+    ptr_assert_classified(root)
   }
   root
 }

@@ -172,16 +172,13 @@ ptr_assert_ids_assigned <- function(tree) {
   invisible(tree)
 }
 
-# After `ptr_classify_data`: consumers carry an `upstream`; sources have none.
+# After `ptr_classify_data`: a data-source placeholder produces data, so it
+# never carries an `upstream`. (We can't symmetrically assert that every
+# consumer has a non-NULL `upstream`: `classify_walk` sets it to the enclosing
+# data context, which is legitimately NULL when no data source is in scope —
+# e.g. `ggplot(aes(x = var()))` — and an unset list element is NULL in R, so
+# "ran but ctx was NULL" is indistinguishable from "didn't run".)
 ptr_assert_classified <- function(tree) {
-  miss <- ptr_collect(tree, function(n) {
-    is_ptr_ph_data_consumer(n) && is.null(n$upstream)
-  })
-  if (length(miss)) {
-    rlang::abort(
-      "Internal: a `var` consumer has no `upstream` — ptr_classify_data() did not run or did not reach it."
-    )
-  }
   src <- ptr_collect(tree, function(n) {
     is_ptr_ph_data_source(n) && !is.null(n$upstream)
   })
