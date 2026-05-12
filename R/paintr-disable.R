@@ -42,61 +42,33 @@ stage_id_from_path <- function(layer_name, path) {
 
 # ---- P4 hook --------------------------------------------------------------
 
-# Annotate the typed root with stage_ids on every chain-eligible call.
-# Run at the end of `ptr_assign_ids`; idempotent — safe to re-run.
+# Annotate the typed root with stage_ids on every chain-eligible call along
+# each layer's data-arg chain. Run at the end of `ptr_assign_ids`; idempotent.
+#
+# Implemented on `ptr_rewrite_pre`: the traversal cursor's `in_data_position`
+# flag is exactly "this node sits on the data spine". A non-pipeline call there
+# gets a stage_id from its `path`; a pipeline there gets stage_ids stamped on
+# each data-chain stage from `c(path, i)` — including stage 1 (the source) and
+# stages k >= 2 (which take data implicitly, so their *args* are not on the
+# spine — `in_data_position` is FALSE for them, matching the old chain walk's
+# "only stage 1 recurses into data-arg position").
 assign_stage_ids <- function(node) {
   if (!is_ptr_root(node)) return(node)
-  for (i in seq_along(node$layers)) {
-    layer <- node$layers[[i]]
-    if (is_ptr_layer(layer) && !is.null(layer$data_arg)) {
-      node$layers[[i]]$data_arg <- assign_stage_ids_chain(
-        layer$data_arg, layer_name = layer$name, path = integer()
-      )
-    }
-  }
-  node
-}
-
-# Walk the data-manipulation chain rooted at `node`. For each call along the
-# chain whose subtree contains a placeholder, attach a stage_id derived from
-# its index path. The chain follows pipelines (each stage is a chain element)
-# and recurses into a non-pipeline call's data-arg position. Walk ends at
-# bare symbols / non-calls.
-assign_stage_ids_chain <- function(node, layer_name, path) {
-  if (is.null(node)) return(NULL)
-  if (is_ptr_pipeline(node)) {
-    for (i in seq_along(node$stages)) {
-      stage <- node$stages[[i]]
-      sub_path <- c(path, i)
-      if (is_data_chain_call(stage)) {
-        stage$stage_id <- stage_id_from_path(layer_name, sub_path)
-        # Only the leftmost stage's args sit in data-arg position; downstream
-        # stages take their data implicitly from the previous stage.
-        if (i == 1L) {
-          pos <- data_arg_position(stage)
-          if (!is.null(pos)) {
-            stage$args[[pos]] <- assign_stage_ids_chain(
-              stage$args[[pos]], layer_name = layer_name,
-              path = c(sub_path, pos)
-            )
-          }
+  ptr_rewrite_pre(node, function(n, cur) {
+    if (!isTRUE(cur$in_data_position)) return(n)
+    if (is_ptr_pipeline(n)) {
+      for (i in seq_along(n$stages)) {
+        s <- n$stages[[i]]
+        if (is_data_chain_call(s)) {
+          s$stage_id <- stage_id_from_path(cur$layer_name, c(cur$path, i))
+          n$stages[[i]] <- s
         }
-        node$stages[[i]] <- stage
       }
+    } else if (is_data_chain_call(n)) {
+      n$stage_id <- stage_id_from_path(cur$layer_name, cur$path)
     }
-    return(node)
-  }
-  if (is_data_chain_call(node)) {
-    node$stage_id <- stage_id_from_path(layer_name, path)
-    pos <- data_arg_position(node)
-    if (!is.null(pos)) {
-      node$args[[pos]] <- assign_stage_ids_chain(
-        node$args[[pos]], layer_name = layer_name, path = c(path, pos)
-      )
-    }
-    return(node)
-  }
-  node
+    n
+  })
 }
 
 # Collect every stage_id present in the tree, in formula order.

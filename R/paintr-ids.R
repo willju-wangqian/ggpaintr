@@ -6,23 +6,23 @@
 # `ns_fn` is validated and stored on the root for emit-time application.
 # Source companion ids are computed via the registry's `companion_id_fn`.
 
+# One cursor-threaded pre-order pass stamps every placeholder's id (the
+# traversal cursor supplies `layer_name` / `path` / `param`); a second pass
+# (`assign_stage_ids`) stamps stage-disable ids on the data-arg chain. Both
+# run on `ptr_rewrite_pre` so the "where am I" bookkeeping lives once, in the
+# traversal — not hand-threaded here.
 ptr_assign_ids <- function(node, ns_fn = shiny::NS(NULL)) {
   if (!is_ptr_root(node)) {
     rlang::abort("ptr_assign_ids expects a ptr_root.")
   }
   validate_ns_fn(ns_fn)
   node$ns_fn <- ns_fn
-  for (i in seq_along(node$layers)) {
-    layer <- node$layers[[i]]
-    if (is_ptr_layer(layer)) {
-      node$layers[[i]] <- assign_ids_in_layer(layer)
-    } else if (is_ptr_placeholder(layer)) {
-      node$layers[[i]] <- assign_id_to_placeholder(
-        layer, layer_name = layer$keyword, path = integer(),
-        param = NA_character_
-      )
+  node <- ptr_rewrite_pre(node, function(n, cur) {
+    if (is_ptr_placeholder(n)) {
+      return(assign_id_to_placeholder(n, cur$layer_name, cur$path, cur$param))
     }
-  }
+    n
+  })
   assign_stage_ids(node)
 }
 
@@ -31,54 +31,6 @@ validate_ns_fn <- function(ns_fn) {
     rlang::abort("`ns_fn` must be a function (use shiny::NS or shiny::NS(NULL)).")
   }
   invisible(TRUE)
-}
-
-assign_ids_in_layer <- function(layer) {
-  if (!is.null(layer$data_arg)) {
-    layer$data_arg <- assign_ids_walk(
-      layer$data_arg, layer_name = layer$name, path = integer(),
-      param = "data"
-    )
-  }
-  if (length(layer$children) > 0L) {
-    arg_names <- names(layer$children) %||% rep_len("", length(layer$children))
-    for (i in seq_along(layer$children)) {
-      child_param <- if (nzchar(arg_names[i])) arg_names[i] else NA_character_
-      layer$children[[i]] <- assign_ids_walk(
-        layer$children[[i]], layer_name = layer$name,
-        path = i, param = child_param
-      )
-    }
-  }
-  layer
-}
-
-assign_ids_walk <- function(node, layer_name, path, param) {
-  if (is.null(node)) return(NULL)
-  if (is_ptr_placeholder(node)) {
-    return(assign_id_to_placeholder(node, layer_name, path, param))
-  }
-  if (is_ptr_call(node)) {
-    arg_names <- names(node$args) %||% rep_len("", length(node$args))
-    for (i in seq_along(node$args)) {
-      child_param <- if (nzchar(arg_names[i])) arg_names[i] else NA_character_
-      node$args[[i]] <- assign_ids_walk(
-        node$args[[i]], layer_name = layer_name,
-        path = c(path, i), param = child_param
-      )
-    }
-    return(node)
-  }
-  if (is_ptr_pipeline(node)) {
-    for (i in seq_along(node$stages)) {
-      node$stages[[i]] <- assign_ids_walk(
-        node$stages[[i]], layer_name = layer_name,
-        path = c(path, i), param = param
-      )
-    }
-    return(node)
-  }
-  node
 }
 
 assign_id_to_placeholder <- function(node, layer_name, path, param) {

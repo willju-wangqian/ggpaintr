@@ -10,6 +10,8 @@ ptr_eval <- function(node, eval_env = parent.frame(), expr_check = TRUE) {
   if (!is_ptr_root(node)) {
     rlang::abort("ptr_eval expects a ptr_root.")
   }
+  ptr_assert_no_placeholders(node)
+  ptr_assert_no_missing(node)
   if (length(node$layers) == 0L) {
     rlang::abort("No layers to evaluate (after pruning).")
   }
