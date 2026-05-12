@@ -440,35 +440,31 @@ ptr_setup_runtime <- function(state, input, output, session) {
         }
       }
 
-      tree <- state$tree()
-      stage_enabled <- state$stage_enabled()
-      tree <- disable_walk(tree, stage_enabled)
+      # `upstream_cols` is deeply state-coupled (reads `state$tree()`,
+      # `state$resolved_data`, `state$upstream_cache`, ...) so it stays
+      # here, computed against the live state, and is passed in to the
+      # otherwise-pure `ptr_exec_headless()`.
       upstream_cols <- runtime_upstream_cols(state, snapshot)
 
-      res <- ptr_complete_expr_safe(
-        tree,
-        snapshot = snapshot,
-        shared_bindings = state$shared_bindings,
-        eval_env = state$eval_env,
-        safe_to_remove = state$safe_to_remove,
-        upstream_cols = upstream_cols
-      )
       # Spec L105 + L217 (G6.3 terminal upstream): bare-data-source layers
       # (e.g. `ggplot(data = upload, ...)`) have their resolved frame cached
-      # in `state$resolved_data[[layer$name]]` by the upload observer. Swap
-      # the pruned layer's `data_arg` with a literal carrying that frame so
-      # eval below skips re-running the resolve. `code_text` was rendered
-      # above from the original pruned tree, so the user-visible code panel
-      # still shows the source expression. Pipeline-data layers no longer
-      # have a click-gated cache (lazy-consumer-resolve) and fall through.
-      res$pruned <- inject_resolved_data(res$pruned, state)
-      res <- ptr_assemble_plot_safe(res, expr_check = state$expr_check)
-
-      extras <- state$extras()
-      if (isTRUE(res$ok) && length(extras) > 0L) {
-        res$plot <- Reduce(`+`, extras, res$plot)
-      }
-      res <- ptr_validate_plot_render_safe(res)
+      # in `state$resolved_data[[layer$name]]` by the upload observer. The
+      # headless step swaps the pruned layer's `data_arg` with a literal
+      # carrying that frame so eval skips re-running the resolve; `code_text`
+      # is rendered from the original pruned tree, so the user-visible code
+      # panel still shows the source expression.
+      res <- ptr_exec_headless(
+        tree            = state$tree(),
+        snapshot        = snapshot,
+        shared_bindings = state$shared_bindings,
+        eval_env        = state$eval_env,
+        safe_to_remove  = state$safe_to_remove,
+        expr_check      = state$expr_check,
+        extras          = state$extras(),
+        stage_enabled   = state$stage_enabled(),
+        resolved_data   = lapply(state$resolved_data, function(rv) rv()),
+        upstream_cols   = upstream_cols
+      )
       state$runtime(res)
     })
   })
@@ -507,14 +503,22 @@ ptr_error_ui <- function(message) {
 # cache after the lazy-consumer-resolve refactor; layers without a slot
 # fall through and eval the original (post-substitute) `data_arg`.
 inject_resolved_data <- function(pruned, state) {
+  inject_resolved_data_list(
+    pruned,
+    lapply(state$resolved_data, function(rv) rv())
+  )
+}
+
+# Plain-list core of inject_resolved_data(): `frames` is a named list mapping
+# layer name -> data.frame (or NULL). For each ptr_layer whose name has a
+# non-null frame, replace `data_arg` with a literal carrying that frame.
+inject_resolved_data_list <- function(pruned, frames) {
   if (!is_ptr_root(pruned)) return(pruned)
   if (is.null(pruned)) return(pruned)
   for (i in seq_along(pruned$layers)) {
     layer <- pruned$layers[[i]]
     if (!is_ptr_layer(layer)) next
-    rv <- state$resolved_data[[layer$name]]
-    if (is.null(rv)) next
-    df <- rv()
+    df <- frames[[layer$name]]
     if (is.null(df)) next
     pruned$layers[[i]]$data_arg <- ptr_literal(df)
   }
