@@ -168,6 +168,52 @@ test_that("two ptr_module_server instances do not collide", {
   expect_no_match(as.character(ui_b), "a-ptr_plot")
 })
 
+# ---- Level-2 split UI: ptr_controls_ui / ptr_outputs_ui ----
+
+test_that("ptr_controls_ui emits the control ids (no output ids)", {
+  ui <- ptr_controls_ui(
+    "x",
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  )
+  rendered <- as.character(ui)
+  expect_match(rendered, "x-ptr_update_plot")
+  expect_match(rendered, "x-ptr_layer_select")
+  expect_match(rendered, "x-ptr_layer_tabset")
+  # carries the layer-disabled CSS assets along
+  expect_match(rendered, "ptr-layer-disabled")
+  # outputs live in ptr_outputs_ui(), not here
+  expect_no_match(rendered, "x-ptr_plot")
+  expect_no_match(rendered, "x-ptr_code")
+})
+
+test_that("ptr_outputs_ui emits the output ids (no control ids)", {
+  ui <- ptr_outputs_ui("x")
+  rendered <- as.character(ui)
+  expect_match(rendered, "x-ptr_plot")
+  expect_match(rendered, "x-ptr_error")
+  expect_match(rendered, "x-ptr_code")
+  expect_no_match(rendered, "x-ptr_layer_select")
+})
+
+test_that("split-UI ids line up with ptr_module_server end-to-end", {
+  fml <- "ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point()"
+  # The split fragments and the module server share one id; the server binds
+  # purely by id, so the runtime must fire and populate the code output.
+  ctl <- as.character(ptr_controls_ui("p1", fml))
+  out <- as.character(ptr_outputs_ui("p1"))
+  expect_match(ctl, "p1-ptr_update_plot")
+  expect_match(out, "p1-ptr_code")
+
+  shiny::testServer(
+    ptr_module_server,
+    args = list(id = "p1", formula = fml, envir = .app_test_env()),
+    {
+      session$setInputs(ptr_update_plot = 1L)
+      expect_match(output$ptr_code, "geom_point")
+    }
+  )
+})
+
 # ---- ptr_app_grid (BDD P12.16) ----
 
 test_that("ptr_app_grid returns a shiny app object", {

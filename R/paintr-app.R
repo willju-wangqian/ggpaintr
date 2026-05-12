@@ -221,6 +221,58 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
   )
 }
 
+#' Control Widgets for an Embedded `ggpaintr` Formula
+#'
+#' UI fragment containing only the generated controls (layer picker, per-layer
+#' parameter panels, the "Update plot" button) for a `ggpaintr` formula. Place
+#' it anywhere in your app's layout; pair with [ptr_outputs_ui()] for the
+#' plot/error/code panes and [ptr_module_server()] for the server logic. `id`
+#' must match the `id` passed to [ptr_module_server()] / [ptr_outputs_ui()].
+#'
+#' @param id Module id; the namespace prefix for inputs. Must match the `id`
+#'   passed to [ptr_module_server()] and [ptr_outputs_ui()].
+#' @param formula A single formula string with `ggpaintr` placeholders.
+#' @param ui_text Optional named list of copy overrides.
+#' @param checkbox_defaults Optional named list of initial checked states.
+#' @param expr_check Controls `expr` placeholder validation. Defaults to `TRUE`.
+#'
+#' @return A [shiny::tagList()].
+#' @seealso [ptr_outputs_ui()], [ptr_module_ui()], [ptr_module_server()]
+#' @export
+ptr_controls_ui <- function(id, formula, ui_text = NULL,
+                            checkbox_defaults = NULL, expr_check = TRUE) {
+  tree <- ptr_translate(formula, expr_check = expr_check)
+  # ptr_layer_assets() must ride along: ptr_build_app_ui() injects it at
+  # fluidPage level, but in the split layout there is no combiner -- without it
+  # the layer-disabled CSS cue silently breaks. The controls side owns it since
+  # the layer panels live here. Harmless if included twice on a page.
+  do.call(
+    shiny::tagList,
+    c(
+      list(ptr_layer_assets()),
+      ptr_controls_panel(tree, ui_text = ui_text,
+                         checkbox_defaults = checkbox_defaults,
+                         ns = shiny::NS(id), render_shared_section = FALSE)
+    )
+  )
+}
+
+#' Plot / Error / Code Panes for an Embedded `ggpaintr` Formula
+#'
+#' UI fragment containing only the plot, inline error, and generated-code
+#' outputs for a `ggpaintr` formula. Pair with [ptr_controls_ui()] and
+#' [ptr_module_server()]. `id` must match the `id` passed to those.
+#'
+#' @param id Module id; the namespace prefix for outputs. Must match the `id`
+#'   passed to [ptr_controls_ui()] and [ptr_module_server()].
+#'
+#' @return A [shiny::tagList()].
+#' @seealso [ptr_controls_ui()], [ptr_module_ui()], [ptr_module_server()]
+#' @export
+ptr_outputs_ui <- function(id) {
+  ptr_outputs_panel(shiny::NS(id))
+}
+
 #' Module Server for a `ggpaintr` Formula
 #'
 #' Namespaced server side of a Shiny module wrapping a `ggpaintr` formula.
