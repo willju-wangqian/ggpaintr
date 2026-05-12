@@ -111,6 +111,10 @@ ptr_validate_shared_bindings <- function(shared, tree = NULL,
   shared
 }
 
+# Drop NULL elements from a list (e.g. before assembling a `shiny::tagList`
+# whose builders may return NULL for nodes that emit no UI).
+drop_null <- function(x) x[!vapply(x, is.null, logical(1))]
+
 #' Suffix Duplicate Layer Names
 #'
 #' @param x A character vector of names.
@@ -602,6 +606,25 @@ validate_expr_safety <- function(expr, expr_check = TRUE,
     return(invisible(TRUE))
   }
 
+  # A bare name is forbidden iff it is in the active check list (denylist
+  # mode) or in the curated `unsafe_expr_denylist` regardless (allowlist
+  # mode still blocks the always-dangerous names appearing as data).
+  deny_hit <- function(name) {
+    if (resolved$mode == "denylist") {
+      name %in% resolved$fns
+    } else {
+      name %in% unsafe_expr_denylist
+    }
+  }
+  check_name <- function(name, where) {
+    if (isTRUE(deny_hit(name))) {
+      rlang::abort(paste0(
+        "expr placeholder: `", name, "` is not allowed (", where, "). ",
+        "Set expr_check = FALSE to allow arbitrary expressions."
+      ))
+    }
+  }
+
   max_depth <- 100L
   walk_expr <- function(x, .depth = 0L) {
     if (.depth > max_depth) {
@@ -616,64 +639,14 @@ validate_expr_safety <- function(expr, expr_check = TRUE,
       }
       return(invisible(NULL))
     }
-    if (is.character(x) && length(x) == 1L) {
-      if (resolved$mode == "denylist" && x %in% resolved$fns) {
-        rlang::abort(paste0(
-          "expr placeholder: `", x,
-          "` is not allowed (found as string literal). ",
-          "Set expr_check = FALSE to allow ",
-          "arbitrary expressions."
-        ))
-      }
-      if (resolved$mode == "allowlist" && x %in% unsafe_expr_denylist) {
-        rlang::abort(paste0(
-          "expr placeholder: `", x,
-          "` is not allowed (found as string literal). ",
-          "Set expr_check = FALSE to allow ",
-          "arbitrary expressions."
-        ))
-      }
-      return(invisible(NULL))
-    }
-    if (is.character(x) && length(x) > 1L) {
-      for (el in x) {
-        if (resolved$mode == "denylist" && el %in% resolved$fns) {
-          rlang::abort(paste0(
-            "expr placeholder: `", el,
-            "` is not allowed (found in character vector). ",
-            "Set expr_check = FALSE to allow ",
-            "arbitrary expressions."
-          ))
-        }
-        if (resolved$mode == "allowlist" && el %in% unsafe_expr_denylist) {
-          rlang::abort(paste0(
-            "expr placeholder: `", el,
-            "` is not allowed (found in character vector). ",
-            "Set expr_check = FALSE to allow ",
-            "arbitrary expressions."
-          ))
-        }
-      }
+    if (is.character(x)) {
+      where <- if (length(x) == 1L) "found as string literal" else
+        "found in character vector"
+      for (el in x) check_name(el, where)
       return(invisible(NULL))
     }
     if (is.symbol(x)) {
-      sym_name <- as.character(x)
-      if (resolved$mode == "denylist" && sym_name %in% resolved$fns) {
-        rlang::abort(paste0(
-          "expr placeholder: `", sym_name,
-          "` is not allowed (found as symbol reference). ",
-          "Set expr_check = FALSE to allow ",
-          "arbitrary expressions."
-        ))
-      }
-      if (resolved$mode == "allowlist" && sym_name %in% unsafe_expr_denylist) {
-        rlang::abort(paste0(
-          "expr placeholder: `", sym_name,
-          "` is not allowed (found as symbol reference). ",
-          "Set expr_check = FALSE to allow ",
-          "arbitrary expressions."
-        ))
-      }
+      check_name(as.character(x), "found as symbol reference")
       return(invisible(NULL))
     }
     if (is.call(x)) {

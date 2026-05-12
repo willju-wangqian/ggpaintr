@@ -386,21 +386,19 @@ ptr_setup_stage_enabled <- function(state, input, output, session) {
 ptr_setup_runtime <- function(state, input, output, session) {
   ns <- state$server_ns_fn
 
-  # Spec L142 + BDD G11.12 — runtime fires on ANY user trigger:
-  # the per-instance Update Plot button OR the host-supplied
-  # `draw_trigger` (e.g. grid app's "Draw all" button), plus extras
-  # changes (`ptr_gg_extra()`). Each invalidation runs the body, but
-  # the boot-skip guard below holds the first eval back until the user
-  # has actually clicked something or extras are non-empty (testServer
-  # does not auto-flush at session start, so we cannot rely on
-  # `observeEvent(..., ignoreInit = TRUE)` for that semantics).
+  # Spec L142 + BDD G11.12 — runtime fires on ANY user trigger: the
+  # per-instance Update Plot button OR the host-supplied `draw_trigger`
+  # (e.g. grid app's "Draw all" button), plus extras changes
+  # (`ptr_gg_extra()`). The body re-runs on every invalidation of those
+  # three but bails until one has actually fired. An
+  # `observeEvent(..., ignoreInit = TRUE)` can't replace this guard:
+  # under `shiny::testServer` the first `setInputs()` IS the observer's
+  # creation flush, which `ignoreInit` would swallow.
+  clicked <- function(x) is.numeric(x) && length(x) == 1L && x >= 1L
   triggered <- function() {
-    up <- input[[ns("ptr_update_plot")]]
-    da <- if (!is.null(state$draw_trigger)) state$draw_trigger() else NULL
-    extras <- state$extras()
-    (!is.null(up) && is.numeric(up) && up >= 1L) ||
-      (!is.null(da) && is.numeric(da) && da >= 1L) ||
-      (length(extras) > 0L)
+    clicked(input[[ns("ptr_update_plot")]]) ||
+      (!is.null(state$draw_trigger) && clicked(state$draw_trigger())) ||
+      length(state$extras()) > 0L
   }
 
   shiny::observe({
@@ -765,57 +763,30 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
   invisible(NULL)
 }
 
-# Walk a consumer's `node$upstream` subtree and return the ids of every
-# data-aware consumer encountered. Drives the per-consumer reactive cache:
-# any commit on an upstream consumer's picker invalidates this consumer.
-find_consumer_ids_in_upstream <- function(upstream) {
+# Ids of every placeholder matching `pred` inside a consumer's
+# `node$upstream` subtree, deduplicated. Drives the per-consumer reactive
+# cache — see the two named wrappers below for the two predicates in use.
+collect_upstream_ids <- function(upstream, pred) {
   if (is.null(upstream)) return(character())
   ids <- character()
-  visit <- function(n) {
-    if (is.null(n)) return()
-    if (is_ptr_ph_data_consumer(n) && !is.null(n$id)) {
-      ids <<- c(ids, n$id)
-      return()
-    }
-    if (is_ptr_node(n)) {
-      for (nm in names(n)) {
-        if (identical(nm, "upstream")) next
-        visit(n[[nm]])
-      }
-    } else if (is.list(n)) {
-      for (el in n) visit(el)
-    }
-  }
-  visit(upstream)
+  ptr_walk(upstream, function(n) {
+    if (pred(n) && !is.null(n$id)) ids[[length(ids) + 1L]] <<- n$id
+  })
   unique(ids)
 }
 
+# Upstream `var` consumers: any commit on an upstream consumer's picker
+# invalidates this consumer.
+find_consumer_ids_in_upstream <- function(upstream) {
+  collect_upstream_ids(upstream, is_ptr_ph_data_consumer)
+}
 
-# Walk a consumer's `node$upstream` and return ids of every `ptr_ph_value`
-# (text/num/expr) producer encountered. Drives the per-consumer reactive
-# cache: producer values flow through the shared debounced reactives in
-# `state$producer_input`, so producer keystrokes invalidate downstream
-# consumers only after the (possibly auto-flipped) debounce window elapses.
+# Upstream `ptr_ph_value` producers (text/num/expr): their values flow
+# through the shared debounced reactives in `state$producer_input`, so
+# producer keystrokes invalidate downstream consumers only after the
+# (possibly auto-flipped) debounce window elapses.
 find_producer_ids_in_upstream <- function(upstream) {
-  if (is.null(upstream)) return(character())
-  ids <- character()
-  visit <- function(n) {
-    if (is.null(n)) return()
-    if (is_ptr_ph_value(n) && !is.null(n$id)) {
-      ids <<- c(ids, n$id)
-      return()
-    }
-    if (is_ptr_node(n)) {
-      for (nm in names(n)) {
-        if (identical(nm, "upstream")) next
-        visit(n[[nm]])
-      }
-    } else if (is.list(n)) {
-      for (el in n) visit(el)
-    }
-  }
-  visit(upstream)
-  unique(ids)
+  collect_upstream_ids(upstream, is_ptr_ph_value)
 }
 
 # Resolve a single consumer's upstream against a snapshot, mirroring the

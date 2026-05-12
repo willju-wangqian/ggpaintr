@@ -142,7 +142,7 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
       widgets <- lapply(shared_entries, function(e) {
         build_ui_for(e$node, ui_text = ui_text, ns_fn = ns)
       })
-      widgets <- widgets[!vapply(widgets, is.null, logical(1))]
+      widgets <- drop_null(widgets)
       if (length(widgets) > 0L) {
         shiny::wellPanel(do.call(shiny::tagList, widgets))
       } else NULL
@@ -158,7 +158,7 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
       label = shell_copy$update_plot_label %||% "Update plot"
     )
   )
-  sidebar_children <- sidebar_children[!vapply(sidebar_children, is.null, logical(1))]
+  sidebar_children <- drop_null(sidebar_children)
 
   shiny::fluidPage(
     shiny::titlePanel(ptr_resolve_ui_text("title", ui_text = ui_text)$label %||% ""),
@@ -354,7 +354,7 @@ ptr_app_grid_components <- function(plots,
       build_ui_for(node, ns_fn = identity)
     })
   )
-  shared_widgets <- shared_widgets[!vapply(shared_widgets, is.null, logical(1))]
+  shared_widgets <- drop_null(shared_widgets)
 
   shared_panel <- shiny::wellPanel(
     do.call(

@@ -64,15 +64,21 @@ ptr_complete_expr_safe <- function(node,
   })
 }
 
+# Mark a result as failed at `stage`, recording the condition (if any).
+fail_result <- function(result, stage, error, condition = NULL) {
+  result$ok <- FALSE
+  result$stage <- stage
+  result$error <- error
+  result$condition <- condition
+  result
+}
+
 ptr_assemble_plot_safe <- function(result, expr_check = TRUE) {
   if (!isTRUE(result$ok)) return(result)
 
   pruned <- result$pruned
   if (!is_ptr_root(pruned) || length(pruned$layers) == 0L) {
-    result$ok <- FALSE
-    result$stage <- "plot"
-    result$error <- "No layers to render (after pruning)."
-    return(result)
+    return(fail_result(result, "plot", "No layers to render (after pruning)."))
   }
 
   tryCatch({
@@ -83,10 +89,7 @@ ptr_assemble_plot_safe <- function(result, expr_check = TRUE) {
     )
     result
   }, error = function(e) {
-    result$ok <- FALSE
-    result$stage <- "plot"
-    result$error <- conditionMessage(e)
-    result$condition <- e
+    result <- fail_result(result, "plot", conditionMessage(e), e)
     result$plot <- NULL
     result
   })
@@ -100,10 +103,6 @@ ptr_validate_plot_render_safe <- function(result) {
     ggplot2::ggplot_build(result$plot)
     result
   }, error = function(e) {
-    result$ok <- FALSE
-    result$stage <- "plot"
-    result$error <- conditionMessage(e)
-    result$condition <- e
-    result
+    fail_result(result, "plot", conditionMessage(e), e)
   })
 }

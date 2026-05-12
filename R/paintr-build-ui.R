@@ -102,6 +102,7 @@ build_ui_for.ptr_layer <- function(node,
                                     shell_copy = NULL,
                                     ...) {
   layer_name <- node$name
+  shell_copy <- shell_copy %||% layer_panel_default_shell_copy(ui_text)
   pipeline_entries <- find_layer_placeholders_with_stage(node$data_arg)
   control_phs  <- find_layer_placeholders(node$children)
 
@@ -138,10 +139,10 @@ build_ui_for.ptr_layer <- function(node,
                  placeholders = placeholders, layer_name = layer_name,
                  ns_fn = ns_fn)
   })
-  control_ui  <- control_ui[!vapply(control_ui, is.null, logical(1))]
+  control_ui  <- drop_null(control_ui)
 
-  data_label     <- (shell_copy %||% layer_panel_default_shell_copy(ui_text))$data_subtab_label %||% "Data"
-  controls_label <- (shell_copy %||% layer_panel_default_shell_copy(ui_text))$controls_subtab_label %||% "Controls"
+  data_label     <- shell_copy$data_subtab_label %||% "Data"
+  controls_label <- shell_copy$controls_subtab_label %||% "Controls"
 
   inner <- layer_panel_inner(
     pipeline_ui = pipeline_ui,
@@ -167,7 +168,7 @@ build_ui_for.ptr_layer <- function(node,
     list(
       shiny::checkboxInput(
         ns_fn(node$active_input_id),
-        label = (shell_copy %||% layer_panel_default_shell_copy(ui_text))$layer_checkbox_label %||% layer_name,
+        label = shell_copy$layer_checkbox_label %||% layer_name,
         value = default_on
       ),
       content_div
@@ -176,55 +177,24 @@ build_ui_for.ptr_layer <- function(node,
   do.call(shiny::tabPanel, c(list(layer_name), body))
 }
 
-# Walk a typed-tree subtree and return every node where `pred(node)` is TRUE,
-# in pre-order. The `upstream` field is skipped because it is a metadata
-# pointer at a (possibly shared) subtree elsewhere in the AST and recursing
-# into it would double-count nodes.
-find_nodes <- function(node, pred) {
-  out <- list()
-  visit <- function(x) {
-    if (is_ptr_node(x)) {
-      if (pred(x)) out[[length(out) + 1L]] <<- x
-      for (nm in names(x)) {
-        if (identical(nm, "upstream")) next
-        visit(x[[nm]])
-      }
-    } else if (is.list(x)) {
-      for (el in x) visit(el)
-    }
-  }
-  visit(node)
-  out
-}
+# Every node where `pred(node)` is TRUE, in pre-order. See `ptr_walk()` in
+# paintr-walk.R for the traversal (the `upstream` back-pointer is skipped).
+find_nodes <- function(node, pred) ptr_collect(node, pred)
 
 is_shared_placeholder <- function(x) {
   is_ptr_placeholder(x) && !is.null(x$shared)
 }
 
-# Recurse into a typed-tree subtree (or a list of children) and return every
-# placeholder node encountered, in formula order. Shared placeholders
-# (`shared = "<key>"`) are excluded — they render once in a host-level
-# shared section, never inside a layer panel.
+# Every placeholder node in a subtree (or list of children), in formula
+# order. Shared placeholders (`shared = "<key>"`) are excluded — they render
+# once in a host-level shared section, never inside a layer panel — but
+# still terminate descent (a placeholder has no placeholder children).
 find_layer_placeholders <- function(x) {
-  out <- list()
-  visit <- function(n) {
-    if (is.null(n)) return()
-    if (is_ptr_placeholder(n)) {
-      if (is_shared_placeholder(n)) return()
-      out[[length(out) + 1L]] <<- n
-      return()
-    }
-    if (is_ptr_node(n)) {
-      for (nm in names(n)) {
-        if (nm %in% c("upstream")) next
-        visit(n[[nm]])
-      }
-    } else if (is.list(n)) {
-      for (el in n) visit(el)
-    }
-  }
-  visit(x)
-  out
+  ptr_collect(
+    x,
+    pred = function(n) is_ptr_placeholder(n) && !is_shared_placeholder(n),
+    prune = is_ptr_placeholder
+  )
 }
 
 
@@ -269,34 +239,18 @@ find_layer_placeholders_with_stage <- function(x) {
   out
 }
 
-# Walk the full tree and return one entry per unique `shared` key. The first
-# occurrence (in formula order) wins for the node used to drive `build_ui_for`.
-# Returned entries: list(key = chr, node = ptr_placeholder, ns_id = canonical id).
+# One entry per unique `shared` key, first occurrence (formula order) winning
+# for the node used to drive `build_ui_for`. Entries:
+# list(key = chr, node = ptr_placeholder, ns_id = canonical id).
 collect_shared_placeholders <- function(tree) {
   seen <- character()
   out <- list()
-  visit <- function(n) {
-    if (is.null(n)) return()
-    if (is_shared_placeholder(n)) {
-      key <- n$shared
-      if (!key %in% seen) {
-        seen <<- c(seen, key)
-        out[[length(out) + 1L]] <<- list(
-          key = key, node = n, ns_id = n$id
-        )
-      }
-      return()
+  ptr_walk(tree, function(n) {
+    if (is_shared_placeholder(n) && !(n$shared %in% seen)) {
+      seen <<- c(seen, n$shared)
+      out[[length(out) + 1L]] <<- list(key = n$shared, node = n, ns_id = n$id)
     }
-    if (is_ptr_node(n)) {
-      for (nm in names(n)) {
-        if (identical(nm, "upstream")) next
-        visit(n[[nm]])
-      }
-    } else if (is.list(n)) {
-      for (el in n) visit(el)
-    }
-  }
-  visit(tree)
+  }, prune = is_shared_placeholder)
   out
 }
 

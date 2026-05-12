@@ -102,21 +102,10 @@ assign_stage_ids_chain <- function(node, layer_name, path) {
 # Collect every stage_id present in the tree, in formula order.
 collect_stage_ids <- function(node) {
   out <- character()
-  visit <- function(x) {
-    if (is_ptr_node(x)) {
-      sid <- x$stage_id
-      if (!is.null(sid) && nzchar(sid)) {
-        out[[length(out) + 1L]] <<- sid
-      }
-      for (nm in names(x)) {
-        if (identical(nm, "upstream")) next
-        visit(x[[nm]])
-      }
-    } else if (is.list(x)) {
-      for (el in x) visit(el)
-    }
-  }
-  visit(node)
+  ptr_walk(node, function(x) {
+    sid <- x$stage_id
+    if (!is.null(sid) && nzchar(sid)) out[[length(out) + 1L]] <<- sid
+  })
   out
 }
 
