@@ -422,9 +422,15 @@ ptr_setup_runtime <- function(state, input, output, session) {
   # creation flush, which `ignoreInit` would swallow.
   clicked <- function(x) is.numeric(x) && length(x) == 1L && x >= 1L
   triggered <- function() {
-    clicked(input[[ns("ptr_update_plot")]]) ||
-      (!is.null(state$draw_trigger) && clicked(state$draw_trigger())) ||
-      length(state$extras()) > 0L
+    # Read ALL three reactive sources every call -- no `||` short-circuit.
+    # If we let `||` short-circuit after the per-instance Update Plot button,
+    # the enclosing observe never establishes a dependency on `draw_trigger`
+    # / `extras`, so once a panel's own button has fired the grid app's
+    # "Draw all" (and `ptr_gg_extra()` changes) stop redrawing it.
+    update_clicked <- clicked(input[[ns("ptr_update_plot")]])
+    draw_clicked <- !is.null(state$draw_trigger) && clicked(state$draw_trigger())
+    extras_present <- length(state$extras()) > 0L
+    update_clicked || draw_clicked || extras_present
   }
 
   shiny::observe({

@@ -200,3 +200,36 @@ test_that("a well-formed ptr_server_state passes ptr_validate_state", {
   )
   expect_true(ptr_validate_state(state))
 })
+
+# ---- runtime observer dependency: no `||` short-circuit ----
+
+test_that("runtime re-runs on a post-Update-Plot extras change", {
+  # Regression: `triggered()` in ptr_setup_runtime() must read ALL of
+  # `input$ptr_update_plot`, `draw_trigger`, and `extras` on every call --
+  # not let `||` short-circuit after the Update Plot click. Otherwise the
+  # runtime observer never establishes a dependency on `extras` /
+  # `draw_trigger`, so `ptr_gg_extra()` changes (and the grid app's
+  # "Draw all" trigger) stop redrawing a panel once its own Update Plot
+  # has fired. `extras` and `draw_trigger` share that root cause; testing
+  # the `extras` branch guards both.
+  e <- .server_test_env()
+  server <- function(input, output, session) {
+    session$userData$state <- ptr_server(
+      input, output, session,
+      "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()",
+      envir = e
+    )
+  }
+  shiny::testServer(server, {
+    state <- session$userData$state
+    session$setInputs(ptr_update_plot = 1L)
+    rt_before <- state$runtime()
+    expect_false(is.null(rt_before))
+
+    ptr_gg_extra(state, ggplot2::theme_void())
+    session$flushReact()
+    rt_after <- state$runtime()
+    # Observer re-ran -> fresh runtime result object.
+    expect_false(identical(rt_before, rt_after))
+  })
+})
