@@ -9,6 +9,18 @@ test_that("P11.1 plain ggplot evaluates to a ggplot object", {
   expect_s3_class(pl, "ggplot")
 })
 
+test_that("P11.1b geom_* layer data arg is passed named, not positional", {
+  # `geom_point()` takes `mapping` first; a positional data frame there
+  # triggers "`mapping` must be created by `aes()`". The layer's
+  # `data = ...` must be reconstructed as a named argument.
+  r <- ptr_translate(
+    "ggplot() + geom_point(data = iris, aes(x = Sepal.Length, y = Sepal.Width))"
+  )
+  s <- ptr_substitute(r)
+  p <- ptr_prune(s)
+  expect_s3_class(ptr_eval(p), "ggplot")
+})
+
 test_that("P11.2 pipeline folds via desugar (head(mtcars, 2))", {
   r <- ptr_translate("mtcars |> head(2) |> ggplot(aes(x = mpg))")
   s <- ptr_substitute(r)

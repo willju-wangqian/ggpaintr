@@ -42,6 +42,14 @@
 #'   or `ptr_app_grid()` auto-render path) binds shared widgets at host
 #'   scope. Relaxes the "missing-from-bindings" check in
 #'   `ptr_validate_shared_bindings()` (the host auto-binds instead).
+#' @param shared_resolutions Named list (keyed by raw shared key) of
+#'   host-computed resolutions for shared data-consumer (`var`) widgets,
+#'   as returned by `ptr_resolve_shared_consumers()`. When an entry is
+#'   present, the runtime validates that key's selection against the
+#'   host-resolved upstream (the same data the host picker was built
+#'   from) instead of the per-layer `node$upstream`, so a value valid in
+#'   the host picker is never rejected by one layer's narrower upstream.
+#'   Defaults to `list()` (no host resolutions; per-layer behaviour).
 #'
 #' @return A `ptr_state` list (S3 class `c("ptr_state", "list")`).
 #' @export
@@ -56,7 +64,8 @@ ptr_server_state <- function(formula,
                                 producer_debounce_ms = NULL,
                                 ns = shiny::NS(NULL),
                                 server_ns = ns,
-                                auto_bind_shared = FALSE) {
+                                auto_bind_shared = FALSE,
+                                shared_resolutions = list()) {
   if (!is.function(ns)) {
     rlang::abort("`ns` must be a namespace function (e.g. shiny::NS(\"id\")).")
   }
@@ -138,6 +147,7 @@ ptr_server_state <- function(formula,
     effective_ui_text = ui_text,
     checkbox_defaults = resolved_cd,
     shared_bindings = shared_bindings,
+    shared_resolutions = if (is.list(shared_resolutions)) shared_resolutions else list(),
     draw_trigger = draw_trigger,
     resolved_data = resolved_data,
     upstream_cache = new.env(parent = emptyenv()),
@@ -238,6 +248,25 @@ ptr_setup_pipelines <- function(state, input, output, session) {
         } else NULL
         state$resolved_data[[ln]](df)
       })
+
+      # Auto-fill the dataset-name companion from the uploaded filename
+      # when the user left it blank. Without a name, `substitute_walk`
+      # on the source placeholder yields `ptr_missing()`, so the code
+      # panel drops the `data = ...` argument entirely (the plot itself
+      # still renders, since `inject_resolved_data()` patches the eval
+      # tree). Never clobber a name the user typed.
+      if (!is.null(comp_id)) {
+        shiny::observeEvent(input[[src_id]], {
+          fi <- input[[src_id]]
+          nm <- ptr_upload_autoname(
+            input[[comp_id]],
+            if (!is.null(fi)) fi$name else NULL
+          )
+          if (!is.null(nm)) {
+            shiny::updateTextInput(session, comp_id, value = nm)
+          }
+        })
+      }
     })
   }
   invisible(state)
@@ -501,6 +530,33 @@ runtime_upstream_data <- function(state, snapshot = list()) {
   consumers <- find_nodes(tree, is_ptr_ph_data_consumer)
   for (c in consumers) {
     if (is.null(c$id)) next
+    # Shared consumers: when the host supplied a resolution for this key,
+    # validate against the host-resolved upstream (the data the host
+    # picker was built from), not the per-layer `node$upstream`. The
+    # latter can be a narrower pipeline that legitimately omits a column
+    # the host picker offered, and would wrongly reject the selection —
+    # and because every occurrence shares the canonical id, the per-layer
+    # path also clobbers across layers nondeterministically. Falls
+    # through to the per-position path when no host resolution exists
+    # (custom embedder owns the widget).
+    if (!is.null(c$shared)) {
+      res <- state$shared_resolutions[[c$shared]]
+      if (!is.null(res)) {
+        if (!identical(res$kind, "error") && !is.null(res$value)) {
+          df <- ptr_resolve_upstream(
+            res$value,
+            snapshot = list(),
+            shared_bindings = list(),
+            eval_env = state$eval_env,
+            cache = NULL,
+            expr_check = state$expr_check,
+            stage_enabled = list()
+          )
+          if (!is.null(df)) out[[c$id]] <- list(cols = names(df), data = df)
+        }
+        next
+      }
+    }
     layer_name <- c$layer_name
     if (!is.null(layer_name) &&
         !is.null(state$resolved_data[[layer_name]])) {

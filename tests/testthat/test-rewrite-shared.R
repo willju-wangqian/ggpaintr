@@ -257,6 +257,32 @@ test_that("P06.i diverging sources surface as alert + error-panel entry", {
   })
 })
 
+# (k) Runtime: shared `var` selection is validated against the
+#     host-resolved upstream, not a per-layer narrowing. With diverging
+#     upstreams the host picker is built from the common source
+#     (`mtcars`); a column valid there must not be rejected at
+#     substitute time just because one layer's `select()` omits it.
+test_that("P06.k shared var validates against host-resolved upstream", {
+  parts <- ptr_app_components(
+    paste0(
+      'ggplot(data = mtcars |> dplyr::select(mpg, cyl), aes(x = var(shared = "v"))) + ',
+      'geom_point(data = mtcars |> dplyr::select(hp, wt), aes(y = var(shared = "v")))'
+    ),
+    envir = .shared_test_env()
+  )
+  shiny::testServer(parts$server, {
+    session$setInputs(shared_v = "mpg")
+    session$flushReact()
+    session$setInputs(ptr_update_plot = 1L)
+    code <- output$ptr_code
+    if (is.null(code)) code <- ""
+    # Substitution succeeded (the picked column reached the code panel)
+    # and the per-layer-upstream rejection did not fire.
+    expect_match(code, "mpg")
+    expect_false(grepl("not in upstream", code))
+  })
+})
+
 # (j) Same source, different upstream: falls back to source columns.
 test_that("P06.j same source, different upstreams falls back to source", {
   parts <- ptr_app_components(

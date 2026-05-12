@@ -370,3 +370,16 @@ test_that("F5: 'NULL.csv' produces default name 'NULL_'", {
 test_that("F5: 'normal.csv' produces default name 'normal' (happy path)", {
   expect_equal(ptr_upload_default_name("normal.csv"), "normal")
 })
+
+test_that("ptr_upload_autoname derives a default only when the companion is blank", {
+  # Drives the upload observer in ptr_setup_pipelines(): a blank
+  # dataset-name companion is auto-filled from the uploaded filename so
+  # the code panel can render `data = <name>`; a name the user typed is
+  # never overwritten.
+  expect_equal(ptr_upload_autoname(NULL, "my_penguins.csv"), "my_penguins")
+  expect_equal(ptr_upload_autoname("", "data set.tsv"), "data_set")
+  expect_null(ptr_upload_autoname("keep_me", "other.csv"))
+  expect_null(ptr_upload_autoname(NULL, NULL))
+  expect_null(ptr_upload_autoname(NULL, ""))
+  expect_null(ptr_upload_autoname(NULL, character(0)))
+})

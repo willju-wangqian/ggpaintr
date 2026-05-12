@@ -42,7 +42,12 @@ layer_to_eval_expr <- function(layer) {
     return(as.call(c(list(head_expr), child_args)))
   }
   data_expr <- node_to_lang(layer$data_arg)
-  as.call(c(list(head_expr), list(data_expr), child_args))
+  # Emit `data = ...` (named), not positional: `ggplot()` takes `data`
+  # first, but `geom_*()`/`stat_*()` take `mapping` first, so a positional
+  # data slot there misroutes the frame into `mapping` ("`mapping` must be
+  # created by `aes()`"). The original formula carried `data =` explicitly
+  # for those layers; reconstruct it the same way.
+  as.call(c(list(head_expr), list(data = data_expr), child_args))
 }
 
 layer_head_lang <- function(layer) {

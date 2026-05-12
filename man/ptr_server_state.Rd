@@ -16,7 +16,8 @@ ptr_server_state(
   producer_debounce_ms = NULL,
   ns = shiny::NS(NULL),
   server_ns = ns,
-  auto_bind_shared = FALSE
+  auto_bind_shared = FALSE,
+  shared_resolutions = list()
 )
 }
 \arguments{
@@ -53,11 +54,19 @@ positive integer to pin a manual window.}
 \item{server_ns}{A namespace function used for server-side input lookups.
 Defaults to \code{ns}.}
 
-\item{auto_bind_shared}{If \code{TRUE}, the host (single-plot \code{ptr_app()})
-auto-binds shared widgets in a top-level shared section. Relaxes the
-"missing-from-bindings" check in \code{ptr_validate_shared_bindings()} and
-activates the shared-\code{var} consumer gate (single-plot cannot resolve
-columns for a shared widget rendered outside any layer panel).}
+\item{auto_bind_shared}{If \code{TRUE}, the host (single-plot \code{ptr_app()}
+or \code{ptr_app_grid()} auto-render path) binds shared widgets at host
+scope. Relaxes the "missing-from-bindings" check in
+\code{ptr_validate_shared_bindings()} (the host auto-binds instead).}
+
+\item{shared_resolutions}{Named list (keyed by raw shared key) of
+host-computed resolutions for shared data-consumer (\code{var}) widgets,
+as returned by \code{ptr_resolve_shared_consumers()}. When an entry is
+present, the runtime validates that key's selection against the
+host-resolved upstream (the same data the host picker was built
+from) instead of the per-layer \code{node$upstream}, so a value valid in
+the host picker is never rejected by one layer's narrower upstream.
+Defaults to \code{list()} (no host resolutions; per-layer behaviour).}
 }
 \value{
 A \code{ptr_state} list (S3 class \code{c("ptr_state", "list")}).

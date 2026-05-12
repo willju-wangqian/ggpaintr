@@ -29,6 +29,31 @@ ptr_upload_default_name <- function(file_name) {
   make.names(file_stem)
 }
 
+#' Pick the Auto-Filled Dataset Name for an Upload Companion
+#'
+#' Returns the name to write into an upload's dataset-name companion
+#' input, or `NULL` to leave it alone. A default derived from the
+#' uploaded filename is only offered when the user has not typed a name
+#' yet (so an explicit name is never clobbered) and a usable filename is
+#' available.
+#'
+#' @param current_name The companion input's current value.
+#' @param file_name The uploaded filename (`fileInput()` `$name`).
+#'
+#' @return A syntactic R object name, or `NULL`.
+#' @noRd
+ptr_upload_autoname <- function(current_name, file_name) {
+  if (!is.null(current_name) && is.character(current_name) &&
+      length(current_name) == 1L && nzchar(current_name)) {
+    return(NULL)
+  }
+  if (is.null(file_name) || !is.character(file_name) ||
+      length(file_name) != 1L || !nzchar(file_name)) {
+    return(NULL)
+  }
+  ptr_upload_default_name(file_name)
+}
+
 #' Read Uploaded Paintr Data
 #'
 #' @param file_info A Shiny `fileInput()` value.

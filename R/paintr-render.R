@@ -35,10 +35,18 @@ render_walk.ptr_layer <- function(node) {
     return(paste0(head_text, "(", child_args, ")"))
   }
   data_text <- render_walk(node$data_arg)
-  if (nzchar(child_args)) {
-    paste0(head_text, "(", data_text, ", ", child_args, ")")
+  # Render `data = ...` (named) for the same reason eval emits it named:
+  # `geom_*()`/`stat_*()` take `mapping` first, so positional data text is
+  # not round-trippable. An empty/missing data slot collapses to nothing.
+  if (nzchar(data_text)) {
+    data_text <- paste0("data = ", data_text)
+    if (nzchar(child_args)) {
+      paste0(head_text, "(", data_text, ", ", child_args, ")")
+    } else {
+      paste0(head_text, "(", data_text, ")")
+    }
   } else {
-    paste0(head_text, "(", data_text, ")")
+    paste0(head_text, "(", child_args, ")")
   }
 }
 

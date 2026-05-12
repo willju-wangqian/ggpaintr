@@ -4,13 +4,21 @@
 
 test_that("P10.1 single-layer ggplot formula round-trips", {
   r <- ptr_translate("ggplot(mtcars, aes(x = mpg))")
-  expect_equal(ptr_render(r), "ggplot(mtcars, aes(x = mpg))")
+  # data_arg is re-emitted named (`data = ...`) so the code is
+  # round-trippable for layers whose first positional formal is `mapping`.
+  expect_equal(ptr_render(r), "ggplot(data = mtcars, aes(x = mpg))")
+})
+
+test_that("P10.1c geom_* layer data renders as `data = ...`", {
+  r <- ptr_translate("ggplot() + geom_point(data = iris, aes(x = Sepal.Length))")
+  expect_match(ptr_render(r), "geom_point(data = iris, aes(x = Sepal.Length))",
+               fixed = TRUE)
 })
 
 test_that("P10.2 layers joined with ' +\\n  '", {
   r <- ptr_translate("ggplot(mtcars) + geom_point() + geom_smooth()")
   txt <- ptr_render(r)
-  expect_equal(txt, "ggplot(mtcars) +\n  geom_point() +\n  geom_smooth()")
+  expect_equal(txt, "ggplot(data = mtcars) +\n  geom_point() +\n  geom_smooth()")
 })
 
 test_that("P10.3 native pipe surface preserved as |>", {

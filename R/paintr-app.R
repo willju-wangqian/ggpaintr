@@ -92,7 +92,8 @@ ptr_app_components <- function(formula,
       safe_to_remove = safe_to_remove,
       shared = shared_reactives,
       ns = ns,
-      auto_bind_shared = TRUE
+      auto_bind_shared = TRUE,
+      shared_resolutions = shared_resolutions
     )
     if (length(consumer_keys) > 0L) {
       ptr_bind_shared_consumer_uis(
@@ -414,6 +415,7 @@ ptr_app_grid_components <- function(plots,
           envir = envir,
           expr_check = expr_check,
           shared = shared_reactives,
+          shared_resolutions = shared_resolutions,
           draw_trigger = draw_all_trigger
         )
       })
