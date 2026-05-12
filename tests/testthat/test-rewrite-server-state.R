@@ -183,3 +183,20 @@ test_that("inject_resolved_data swaps data_arg for the cached frame (spec L105)"
   geom_layer <- injected$layers[[2L]]
   expect_null(geom_layer$data_arg)
 })
+
+# ---- ptr_validate_state guard ----
+
+test_that("ptr_register_* abort on a malformed state", {
+  expect_error(ptr_register_plot(list(), list()), "ptr_state|missing required")
+  expect_error(ptr_register_error(list(), list()), "ptr_state|missing required")
+  expect_error(ptr_register_code(list(), list()), "ptr_state|missing required")
+  expect_error(ptr_register_plot(list(), "not a list"), "must be a `ptr_state`")
+})
+
+test_that("a well-formed ptr_server_state passes ptr_validate_state", {
+  state <- ptr_server_state(
+    "ggplot(mtcars) + geom_point()",
+    envir = .server_test_env()
+  )
+  expect_true(ptr_validate_state(state))
+})

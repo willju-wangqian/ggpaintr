@@ -147,3 +147,36 @@ test_that("registering same keyword twice warns", {
   ), "Overwriting")
   ptr_registry_clear()
 })
+
+# ---- Phase 5.1 — copy-field whitelist at placeholder definition ----
+
+test_that("validate_copy_defaults rejects unknown copy fields", {
+  withr::defer({
+    if (exists("ptr_registry_clear")) ptr_registry_clear()
+    ptr_register_builtins()
+  })
+  expect_error(
+    ptr_define_placeholder_value(
+      "kw_bad",
+      build_ui = function(node, ...) NULL,
+      resolve_expr = function(value, node, ...) value,
+      copy_defaults = list(tooltip = "x")
+    ),
+    "unsupported field"
+  )
+})
+
+test_that("validate_copy_defaults accepts every supported leaf field", {
+  withr::defer({
+    if (exists("ptr_registry_clear")) ptr_registry_clear()
+    ptr_register_builtins()
+  })
+  expect_silent(
+    ptr_define_placeholder_value(
+      "kw_ok",
+      build_ui = function(node, ...) NULL,
+      resolve_expr = function(value, node, ...) value,
+      copy_defaults = list(label = "L", help = "H", placeholder = "P", empty_text = "E")
+    )
+  )
+})

@@ -174,6 +174,31 @@ ptr_server_state <- function(formula,
   ), class = c("ptr_state", "list"))
 }
 
+# Lightweight shape check for the `ptr_state` object created by
+# `ptr_server_state()`. Public functions that take `state` (the
+# `ptr_register_*` wirings, the `ptr_extract_*` accessors) run this first so
+# a mis-constructed state fails loudly instead of erroring deep in a reactive.
+ptr_validate_state <- function(state) {
+  if (!is.list(state)) {
+    rlang::abort("`state` must be a `ptr_state` list (from `ptr_server_state()`).")
+  }
+  needed <- c("tree", "runtime", "extras", "extras_exprs",
+              "server_ns_fn", "ui_ns_fn", "eval_env", "input_spec")
+  miss <- setdiff(needed, names(state))
+  if (length(miss) > 0L) {
+    rlang::abort(paste0(
+      "`state` is missing required entries: ", paste(miss, collapse = ", "), "."
+    ))
+  }
+  for (nm in c("tree", "runtime", "extras", "extras_exprs",
+               "server_ns_fn", "ui_ns_fn")) {
+    if (!is.function(state[[nm]])) {
+      rlang::abort(paste0("`state$", nm, "` must be a function."))
+    }
+  }
+  invisible(TRUE)
+}
+
 # ---- public wiring entry point ----
 
 #' Wire a `ggpaintr` Server From a Formula
@@ -202,6 +227,7 @@ ptr_server <- function(input, output, session, formula,
   ptr_setup_runtime(state, input, output, session)
   ptr_setup_consumer_uis(state, input, output, session)
   ptr_setup_layer_picker(state, input, output, session)
+  ptr_setup_layer_panel_classes(state, input, output, session)
   ptr_register_plot(output, state)
   ptr_register_error(output, state)
   ptr_register_code(output, state)
@@ -506,6 +532,36 @@ ptr_setup_layer_picker <- function(state, input, output, session) {
       selected = input[[ns("ptr_layer_select")]]
     )
   })
+  invisible(state)
+}
+
+# Keep each layer panel's `ptr-layer-disabled` class in sync with its
+# include-checkbox. The class is set once at UI-build time; here we toggle
+# it at runtime via the `ptr_set_class` custom message (handler injected by
+# `ptr_layer_assets()`). The content-div id is `layer_panel_content_id()`
+# namespaced with the *UI* ns (the same `ns_fn` `build_ui_for.ptr_layer`
+# used); the checkbox input is read with the server ns.
+ptr_setup_layer_panel_classes <- function(state, input, output, session) {
+  ns <- state$server_ns_fn
+  ui_ns <- state$ui_ns_fn
+  spec <- state$input_spec
+  ck_rows <- spec[spec$role == "layer_checkbox", , drop = FALSE]
+  for (i in seq_len(nrow(ck_rows))) {
+    local({
+      input_id <- ck_rows$input_id[[i]]
+      layer_name <- ck_rows$layer_name[[i]]
+      dom_id <- ui_ns(layer_panel_content_id(layer_name))
+      shiny::observeEvent(input[[ns(input_id)]], {
+        val <- input[[ns(input_id)]]
+        if (is.null(val)) return()
+        session$sendCustomMessage("ptr_set_class", list(
+          id = dom_id,
+          cls = "ptr-layer-disabled",
+          add = !isTRUE(val)
+        ))
+      }, ignoreNULL = FALSE, ignoreInit = FALSE)
+    })
+  }
   invisible(state)
 }
 
@@ -833,9 +889,15 @@ runtime_consumer_entry <- function(state, node, snapshot = list()) {
 #' @name ptr_register
 #' @export
 ptr_register_plot <- function(output, state) {
+  ptr_validate_state(state)
   output[[state$server_ns_fn("ptr_plot")]] <- shiny::renderPlot({
     res <- state$runtime()
-    shiny::req(isTRUE(res$ok), res$plot)
+    if (is.null(res) || !isTRUE(res$ok) || is.null(res$plot)) {
+      # Blank the device so a failed render doesn't leave the previous
+      # plot lingering on screen (matches legacy graphics::plot.new()).
+      graphics::plot.new()
+      return(invisible(NULL))
+    }
     res$plot
   })
   invisible(state)
@@ -844,6 +906,7 @@ ptr_register_plot <- function(output, state) {
 #' @rdname ptr_register
 #' @export
 ptr_register_error <- function(output, state) {
+  ptr_validate_state(state)
   output[[state$server_ns_fn("ptr_error")]] <- shiny::renderUI({
     res <- state$runtime()
     shared_errs <- state$shared_resolution_errors()
@@ -878,6 +941,7 @@ format_code_with_extras <- function(res, extras_exprs) {
 #' @rdname ptr_register
 #' @export
 ptr_register_code <- function(output, state) {
+  ptr_validate_state(state)
   output[[state$server_ns_fn("ptr_code")]] <- shiny::renderText({
     format_code_with_extras(state$runtime(), state$extras_exprs())
   })

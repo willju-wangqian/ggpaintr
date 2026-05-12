@@ -161,6 +161,7 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
   sidebar_children <- drop_null(sidebar_children)
 
   shiny::fluidPage(
+    ptr_layer_assets(),
     shiny::titlePanel(ptr_resolve_ui_text("title", ui_text = ui_text)$label %||% ""),
     shiny::sidebarLayout(
       do.call(shiny::sidebarPanel, sidebar_children),

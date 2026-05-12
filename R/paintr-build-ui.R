@@ -49,9 +49,12 @@ build_ui_for.ptr_ph_value <- function(node,
                                        placeholders = NULL,
                                        layer_name = NULL,
                                        ns_fn = identity,
+                                       param_override = NULL,
+                                       label_suffix = NULL,
                                        ...) {
   invoke_build_ui(node, ui_text = ui_text, placeholders = placeholders,
                   layer_name = layer_name, ns_fn = ns_fn, extra = list(),
+                  param_override = param_override, label_suffix = label_suffix,
                   ...)
 }
 
@@ -88,7 +91,20 @@ build_ui_for.ptr_ph_data_source <- function(node,
       "No `build_ui` hook registered for placeholder `", node$keyword, "`."
     ))
   }
-  entry$build_ui(rendered_node, label = copy$label, ...)
+  fmls <- names(formals(entry$build_ui))
+  accepts_dots <- "..." %in% fmls
+  extra_named <- build_ui_copy_args(fmls, copy)
+  if (identical(node$keyword, "upload") &&
+      (accepts_dots || "file_copy" %in% fmls)) {
+    extra_named$file_copy <- ptr_resolve_ui_text(
+      "upload_file", ui_text = ui_text, placeholders = placeholders
+    )
+    extra_named$name_copy <- ptr_resolve_ui_text(
+      "upload_name", ui_text = ui_text, placeholders = placeholders
+    )
+  }
+  do.call(entry$build_ui,
+          c(list(rendered_node, label = copy$label), extra_named, list(...)))
 }
 
 # ---- ptr_layer panel scaffolding ----
@@ -111,9 +127,17 @@ build_ui_for.ptr_layer <- function(node,
   for (entry in pipeline_entries) {
     ph <- entry$ph
     sid <- entry$stage_id
+    verb <- entry$verb
+    has_verb <- !is.null(verb) && !is.na(verb) && nzchar(verb)
+    param_override <- if (has_verb && ptr_param_is_unnamed(ph$param)) {
+      paste0(verb, "()")
+    } else NULL
+    label_suffix <- if (has_verb) paste0(" in ", verb, "()") else NULL
     ui <- build_ui_for(ph, ui_text = ui_text,
                        placeholders = placeholders, layer_name = layer_name,
-                       ns_fn = ns_fn)
+                       ns_fn = ns_fn,
+                       param_override = param_override,
+                       label_suffix = label_suffix)
     if (is.null(ui)) next
     if (!is.na(sid)) {
       first_in_stage <- !sid %in% seen_stage_ids
@@ -203,25 +227,32 @@ find_layer_placeholders <- function(x) {
 # attach stage-disable checkboxes to the first placeholder of each stage.
 find_layer_placeholders_with_stage <- function(x) {
   out <- list()
-  visit <- function(n, current_sid) {
+  call_head_name <- function(fun) {
+    if (is.symbol(fun)) as.character(fun) else NA_character_
+  }
+  visit <- function(n, current_sid, current_verb) {
     if (is.null(n)) return()
     if (is_ptr_placeholder(n)) {
       if (is_shared_placeholder(n)) return()
-      out[[length(out) + 1L]] <<- list(ph = n, stage_id = current_sid)
+      out[[length(out) + 1L]] <<- list(
+        ph = n, stage_id = current_sid, verb = current_verb
+      )
       return()
     }
     if (is_ptr_call(n)) {
       sid <- if (!is.null(n$stage_id)) n$stage_id else current_sid
-      for (a in n$args) visit(a, sid)
+      verb <- call_head_name(n$fun)
+      for (a in n$args) visit(a, sid, verb)
       return()
     }
     if (is_ptr_pipeline(n)) {
       for (s in n$stages) {
         if (is_ptr_call(s) && !is.null(s$stage_id)) {
           # Stage IS the call: its args descend with the stage's id.
-          for (a in s$args) visit(a, s$stage_id)
+          verb <- call_head_name(s$fun)
+          for (a in s$args) visit(a, s$stage_id, verb)
         } else {
-          visit(s, NA_character_)
+          visit(s, NA_character_, NA_character_)
         }
       }
       return()
@@ -229,13 +260,13 @@ find_layer_placeholders_with_stage <- function(x) {
     if (is_ptr_node(n)) {
       for (nm in names(n)) {
         if (identical(nm, "upstream")) next
-        visit(n[[nm]], current_sid)
+        visit(n[[nm]], current_sid, current_verb)
       }
     } else if (is.list(n)) {
-      for (el in n) visit(el, current_sid)
+      for (el in n) visit(el, current_sid, current_verb)
     }
   }
-  visit(x, NA_character_)
+  visit(x, NA_character_, NA_character_)
   out
 }
 
@@ -314,24 +345,59 @@ layer_panel_default_shell_copy <- function(ui_text) {
 
 # ---- internal helper ----
 
+# Custom-message handler + CSS used to grey out a layer panel when its
+# include-checkbox is unticked. Injected once per app shell via tags$head().
+# Hand-rolled (no shinyjs dependency); the JS guard makes it idempotent so
+# the grid app, which embeds several module UIs, doesn't re-register it.
+ptr_layer_assets <- function() {
+  shiny::tagList(
+    shiny::tags$script(shiny::HTML(paste0(
+      "(function(){",
+      "if (window.__ptr_set_class_registered) return;",
+      "window.__ptr_set_class_registered = true;",
+      "Shiny.addCustomMessageHandler('ptr_set_class', function(m){",
+      "var el = document.getElementById(m.id); if(!el) return;",
+      "if (m.add) el.classList.add(m.cls); else el.classList.remove(m.cls);",
+      "});",
+      "})();"
+    ))),
+    shiny::tags$style(shiny::HTML(
+      ".ptr-layer-disabled{opacity:0.5;pointer-events:none;}"
+    ))
+  )
+}
+
+# Decide whether the resolved `copy` leaf list can be forwarded to a
+# `build_ui` hook as `copy =`. Third-party hooks declaring only
+# `function(node, label)` (no `...`, no `copy`) must not break.
+build_ui_copy_args <- function(fmls, copy) {
+  if ("..." %in% fmls || "copy" %in% fmls) list(copy = copy) else list()
+}
+
 invoke_build_ui <- function(node, ui_text, placeholders, layer_name,
-                            ns_fn, extra, ...) {
+                            ns_fn, extra,
+                            param_override = NULL, label_suffix = NULL, ...) {
   rendered_node <- node
   rendered_node$id <- ns_fn(node$id)
   copy <- ptr_resolve_ui_text(
     "control",
     keyword = node$keyword,
     layer_name = layer_name,
-    param = node$param,
+    param = param_override %||% node$param,
     ui_text = ui_text,
     placeholders = placeholders
   )
+  if (!is.null(label_suffix) && nzchar(label_suffix) && !is.null(copy$label)) {
+    copy$label <- paste0(copy$label, label_suffix)
+  }
   entry <- ptr_registry_lookup(node$keyword)
   if (is.null(entry) || is.null(entry$build_ui)) {
     rlang::abort(paste0(
       "No `build_ui` hook registered for placeholder `", node$keyword, "`."
     ))
   }
+  extra_named <- build_ui_copy_args(names(formals(entry$build_ui)), copy)
   do.call(entry$build_ui,
-          c(list(rendered_node, label = copy$label), extra, list(...)))
+          c(list(rendered_node, label = copy$label), extra_named, extra,
+            list(...)))
 }

@@ -77,6 +77,7 @@ ptr_app_bslib <- function(formula,
   )
 
   ui <- bslib::page_sidebar(
+    ptr_layer_assets(),
     title = title,
     theme = theme,
     sidebar = bslib::sidebar(

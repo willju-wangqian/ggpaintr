@@ -11,13 +11,25 @@
 # UI hooks here are minimal but callable; the app/UI layer wires them up
 # at the cutover phase.
 
+# Wrap a control in a tagList with a helpText note when `help` is a
+# non-empty string; otherwise return the control unchanged. Mirrors the
+# legacy `ptr_attach_help()` from paintr-ui.R.
+attach_help <- function(ui, help) {
+  if (is.null(help) || !nzchar(trimws(help))) return(ui)
+  shiny::tagList(ui, shiny::helpText(help))
+}
+
 # ---- text -------------------------------------------------------------------
 
-ptr_builtin_text_build_ui <- function(node, label = NULL, ...) {
-  shiny::textInput(
-    inputId = node$id,
-    label = label %||% "Enter a value",
-    value = ""
+ptr_builtin_text_build_ui <- function(node, label = NULL, copy = NULL, ...) {
+  attach_help(
+    shiny::textInput(
+      inputId = node$id,
+      label = label %||% "Enter a value",
+      value = "",
+      placeholder = copy$placeholder
+    ),
+    copy$help
   )
 }
 
@@ -40,11 +52,14 @@ strip_matched_quote_pair <- function(s) {
 
 # ---- num --------------------------------------------------------------------
 
-ptr_builtin_num_build_ui <- function(node, label = NULL, ...) {
-  shiny::numericInput(
-    inputId = node$id,
-    label = label %||% "Enter a number",
-    value = NA_real_
+ptr_builtin_num_build_ui <- function(node, label = NULL, copy = NULL, ...) {
+  attach_help(
+    shiny::numericInput(
+      inputId = node$id,
+      label = label %||% "Enter a number",
+      value = NA_real_
+    ),
+    copy$help
   )
 }
 
@@ -59,11 +74,15 @@ ptr_builtin_num_resolve_expr <- function(value, node, ...) {
 
 # ---- expr -------------------------------------------------------------------
 
-ptr_builtin_expr_build_ui <- function(node, label = NULL, ...) {
-  shiny::textAreaInput(
-    inputId = node$id,
-    label = label %||% "Enter an expression",
-    value = ""
+ptr_builtin_expr_build_ui <- function(node, label = NULL, copy = NULL, ...) {
+  attach_help(
+    shiny::textAreaInput(
+      inputId = node$id,
+      label = label %||% "Enter an expression",
+      value = "",
+      placeholder = copy$placeholder
+    ),
+    copy$help
   )
 }
 
@@ -71,9 +90,20 @@ ptr_builtin_expr_resolve_expr <- function(value, node, ...) {
   if (!is.character(value) || length(value) != 1L || !nzchar(value)) {
     rlang::abort("expr placeholder requires exactly one expression as a string.")
   }
-  exprs <- rlang::parse_exprs(value)
+  exprs <- tryCatch(
+    rlang::parse_exprs(value),
+    error = function(e) {
+      rlang::abort(paste0(
+        "expr placeholder: could not parse input as R expression: ",
+        conditionMessage(e)
+      ))
+    }
+  )
   if (length(exprs) != 1L) {
-    rlang::abort("expr placeholder requires exactly one expression.")
+    rlang::abort(paste0(
+      "expr placeholder: input must contain exactly one expression, but ",
+      length(exprs), " were found."
+    ))
   }
   exprs[[1]]
 }
@@ -81,9 +111,10 @@ ptr_builtin_expr_resolve_expr <- function(value, node, ...) {
 # ---- var --------------------------------------------------------------------
 
 ptr_builtin_var_build_ui <- function(node, cols = character(),
-                                     label = NULL,
+                                     label = NULL, copy = NULL,
                                      selected = character(0), ...) {
   picker_label <- label %||% "Pick a column"
+  none_text <- copy$empty_text %||% picker_label
   # Legacy paintr trick: `multiple = TRUE` + `maxOptions = 1L`. This buys
   # two real-browser behaviours that single-select pickerInput can't:
   #   1. No first-choice default at launch (input value starts as
@@ -92,16 +123,19 @@ ptr_builtin_var_build_ui <- function(node, cols = character(),
   #      old single-select picker silently ignored the click).
   # `noneSelectedText` is the placeholder shown when nothing is picked.
   retained <- intersect(selected, cols)
-  shinyWidgets::pickerInput(
-    inputId = node$id,
-    label = picker_label,
-    choices = cols,
-    selected = retained,
-    multiple = TRUE,
-    options = shinyWidgets::pickerOptions(
-      noneSelectedText = picker_label,
-      maxOptions = 1L
-    )
+  attach_help(
+    shinyWidgets::pickerInput(
+      inputId = node$id,
+      label = picker_label,
+      choices = cols,
+      selected = retained,
+      multiple = TRUE,
+      options = shinyWidgets::pickerOptions(
+        noneSelectedText = none_text,
+        maxOptions = 1L
+      )
+    ),
+    copy$help
   )
 }
 
@@ -124,16 +158,31 @@ ptr_builtin_var_validate_input <- function(value, upstream_cols) {
 
 # ---- upload -----------------------------------------------------------------
 
-ptr_builtin_upload_build_ui <- function(node, label = NULL, ...) {
+# Kept in sync with the extensions `ptr_read_uploaded_data()` dispatches on.
+ptr_upload_accept_formats <- function() {
+  c(".csv", ".tsv", ".rds", ".xlsx", ".xls", ".json")
+}
+
+ptr_builtin_upload_build_ui <- function(node, label = NULL, copy = NULL,
+                                        file_copy = NULL, name_copy = NULL,
+                                        ...) {
   shiny::tagList(
-    shiny::fileInput(
-      inputId = node$id,
-      label = label %||% "Upload data"
+    attach_help(
+      shiny::fileInput(
+        inputId = node$id,
+        label = file_copy$label %||% label %||% "Choose a data file",
+        accept = ptr_upload_accept_formats()
+      ),
+      file_copy$help
     ),
-    shiny::textInput(
-      inputId = node$companion_id %||% paste0(node$id, "_name"),
-      label = "Dataset name",
-      value = ""
+    attach_help(
+      shiny::textInput(
+        inputId = node$companion_id %||% paste0(node$id, "_name"),
+        label = name_copy$label %||% "Optional dataset name",
+        value = "",
+        placeholder = name_copy$placeholder
+      ),
+      name_copy$help
     )
   )
 }
@@ -150,7 +199,10 @@ ptr_register_builtins <- function() {
     keyword = "text",
     build_ui = ptr_builtin_text_build_ui,
     resolve_expr = ptr_builtin_text_resolve_expr,
-    copy_defaults = list(label = "Enter a value for {param}")
+    copy_defaults = list(
+      label = "Enter a value for {param}",
+      placeholder = "Plain text - quotes are added automatically"
+    )
   )
   ptr_define_placeholder_value(
     keyword = "num",
@@ -169,7 +221,10 @@ ptr_register_builtins <- function() {
     build_ui = ptr_builtin_var_build_ui,
     resolve_expr = ptr_builtin_var_resolve_expr,
     validate_input = ptr_builtin_var_validate_input,
-    copy_defaults = list(label = "Pick a column for {param}")
+    copy_defaults = list(
+      label = "Pick a column for {param}",
+      empty_text = "Choose one column"
+    )
   )
   ptr_define_placeholder_source(
     keyword = "upload",

@@ -383,3 +383,53 @@ test_that("ptr_upload_autoname derives a default only when the companion is blan
   expect_null(ptr_upload_autoname(NULL, ""))
   expect_null(ptr_upload_autoname(NULL, character(0)))
 })
+
+# --- Phase 1.5 / 1.6: upload widget accept filter + copy-driven labels -------
+
+.upload_node_from <- function(formula = "upload |> ggplot()") {
+  tree <- ptr_translate(formula)
+  hits <- find_nodes(tree, function(n) {
+    is_ptr_placeholder(n) && identical(n$keyword, "upload")
+  })
+  hits[[1L]]
+}
+
+test_that("upload build_ui restores the accept filter on the file input", {
+  node <- .upload_node_from()
+  ui <- build_ui_for(node, layer_name = "ggplot")
+  rendered <- as.character(ui)
+  expect_match(rendered, 'type="file"')
+  expect_match(rendered, "accept=\".csv,.tsv,.rds,.xlsx,.xls,.json\"", fixed = TRUE)
+})
+
+test_that("upload labels/help are driven by upload_file / upload_name copy", {
+  node <- .upload_node_from()
+  ui <- build_ui_for(
+    node, layer_name = "ggplot",
+    ui_text = list(upload = list(
+      file = list(label = "Pick your CSV", help = "file help here"),
+      name = list(label = "Name it", placeholder = "eg sales", help = "name help here")
+    ))
+  )
+  rendered <- as.character(ui)
+  expect_match(rendered, "Pick your CSV")
+  expect_match(rendered, "file help here")
+  expect_match(rendered, "Name it")
+  expect_match(rendered, 'placeholder="eg sales"', fixed = TRUE)
+  expect_match(rendered, "name help here")
+})
+
+test_that("upload uses the resolved default copy when no override is given", {
+  node <- .upload_node_from()
+  ui <- build_ui_for(node, layer_name = "ggplot")
+  rendered <- as.character(ui)
+  expect_match(rendered, "Choose a data file")
+  expect_match(rendered, "Optional dataset name")
+})
+
+test_that("the removed shell$update_data_button copy key is still rejected", {
+  expect_error(
+    ptr_validate_ui_text(list(shell = list(update_data_button = list(label = "x")))),
+    "unsupported"
+  )
+})

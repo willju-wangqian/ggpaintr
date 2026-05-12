@@ -119,3 +119,83 @@ test_that("layer panel namespaces ids via ns_fn", {
   panel <- build_ui_for(layer, ns_fn = ns)
   expect_true(length(.find_tags2(panel, has_id = ns("geom_point_checkbox"))) > 0L)
 })
+
+# ---- Phase 4.1 — pipeline-stage placeholder labels get " in verb()" ----
+
+test_that("pipeline-stage placeholder label gets the ' in verb()' suffix", {
+  tree <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = var))")
+  layer <- .layer_by_name(tree, "ggplot")
+  panel <- build_ui_for(layer)
+  expect_match(as.character(panel), "in head\\(\\)")
+})
+
+test_that("unnamed-arg pipeline placeholder uses 'verb()' as the copy param key", {
+  tree <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = var))")
+  layer <- .layer_by_name(tree, "ggplot")
+  panel <- build_ui_for(
+    layer,
+    ui_text = list(params = list(`head()` = list(num = list(label = "How many rows"))))
+  )
+  expect_match(as.character(panel), "How many rows in head\\(\\)")
+})
+
+test_that("named-arg pipeline placeholder keeps its param key and gets the suffix", {
+  tree <- ptr_translate("mtcars |> transform(n = num) |> ggplot(aes(x = var))")
+  layer <- .layer_by_name(tree, "ggplot")
+  panel <- build_ui_for(layer)
+  expect_match(as.character(panel), "in transform\\(\\)")
+})
+
+# ---- Phase 3 — layer-disabled visual cue ----
+
+test_that("app shells inject the ptr_set_class handler + disabled-panel CSS", {
+  f <- "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()"
+  for (ui in list(ptr_app_components(f)$ui, ptr_module_ui("m", f))) {
+    rendered <- as.character(ui)
+    expect_match(rendered, "ptr_set_class")
+    expect_match(rendered, "ptr-layer-disabled")
+  }
+  # bslib path injects ptr_layer_assets() the same way; the shinyApp object
+  # hides its $ui, so assert the helper itself renders the handler + CSS.
+  assets <- as.character(ptr_layer_assets())
+  expect_match(assets, "ptr_set_class")
+  expect_match(assets, "ptr-layer-disabled")
+})
+
+test_that("toggling a layer include-checkbox sends ptr_set_class", {
+  e <- list2env(list(mtcars = mtcars), parent = globalenv())
+  sent <- new.env(parent = emptyenv())
+  sent$msgs <- list()
+  server <- function(input, output, session) {
+    session$userData$state <- ptr_server(
+      input, output, session,
+      "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()",
+      envir = e
+    )
+  }
+  shiny::testServer(server, {
+    state <- session$userData$state
+    session$sendCustomMessage <- function(type, message) {
+      sent$msgs[[length(sent$msgs) + 1L]] <- list(type = type, message = message)
+    }
+    spec <- state$input_spec
+    ck <- spec$input_id[spec$role == "layer_checkbox"][[1]]
+    content_id <- layer_panel_content_id(
+      spec$layer_name[spec$role == "layer_checkbox"][[1]]
+    )
+
+    do.call(session$setInputs, stats::setNames(list(FALSE), ck))
+    session$flushReact()
+    off_msgs <- Filter(function(m) identical(m$type, "ptr_set_class") &&
+                         identical(m$message$id, content_id), sent$msgs)
+    expect_true(length(off_msgs) >= 1L)
+    expect_true(isTRUE(off_msgs[[length(off_msgs)]]$message$add))
+    expect_equal(off_msgs[[length(off_msgs)]]$message$cls, "ptr-layer-disabled")
+
+    do.call(session$setInputs, stats::setNames(list(TRUE), ck))
+    session$flushReact()
+    on_msgs <- Filter(function(m) identical(m$type, "ptr_set_class") &&
+                        identical(m$message$id, content_id), sent$msgs)
+    expect_false(isTRUE(on_msgs[[length(on_msgs)]]$message$add))
+  })
+})

@@ -89,8 +89,8 @@ validate_hook <- function(fn, hook_name, required_args = character()) {
   invisible(TRUE)
 }
 
-# Permissive validation: a named list of length-1 character values. Field
-# whitelist (label/tooltip/placeholder/help/...) tightens at P6 wiring.
+# A named list of length-1 character values, whose names are restricted to
+# the supported copy leaf fields (`ptr_ui_text_leaf_fields()`).
 validate_copy_defaults <- function(copy_defaults) {
   if (is.null(copy_defaults)) return(invisible(TRUE))
   if (!is.list(copy_defaults)) {
@@ -99,6 +99,14 @@ validate_copy_defaults <- function(copy_defaults) {
   nms <- names(copy_defaults)
   if (is.null(nms) || any(!nzchar(nms)) || anyDuplicated(nms)) {
     rlang::abort("`copy_defaults` must have unique, non-empty names.")
+  }
+  unknown <- setdiff(nms, ptr_ui_text_leaf_fields())
+  if (length(unknown) > 0L) {
+    rlang::abort(paste0(
+      "`copy_defaults` has unsupported field(s): ",
+      paste(sort(unknown), collapse = ", "),
+      ". Allowed: ", paste(ptr_ui_text_leaf_fields(), collapse = ", "), "."
+    ))
   }
   for (i in seq_along(copy_defaults)) {
     v <- copy_defaults[[i]]

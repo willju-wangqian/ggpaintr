@@ -122,6 +122,100 @@ test_that("build_ui_for renders id through ns_fn", {
   expect_match(rendered, fixed = TRUE, ns(node$id))
 })
 
+# ---- Phase 1 — copy fidelity: help / placeholder / empty_text reach widgets ----
+
+test_that("text widget renders placeholder + help from resolved copy", {
+  tree <- ptr_translate("ggplot(mtcars) + geom_point(color = text)")
+  node <- .ph_by_keyword(tree, "text")
+  ui <- build_ui_for(
+    node, layer_name = "geom_point",
+    ui_text = list(params = list(color = list(text = list(
+      label = "L", help = "H-help", placeholder = "P-ph"
+    ))))
+  )
+  rendered <- as.character(ui)
+  expect_match(rendered, 'placeholder="P-ph"', fixed = TRUE)
+  expect_match(rendered, "help-block")
+  expect_match(rendered, "H-help")
+})
+
+test_that("text widget carries the restored default placeholder", {
+  tree <- ptr_translate("ggplot(mtcars) + geom_point(color = text)")
+  node <- .ph_by_keyword(tree, "text")
+  ui <- build_ui_for(node, layer_name = "geom_point")
+  expect_match(as.character(ui), "quotes are added automatically")
+  expect_equal(
+    ptr_default_ui_text()$defaults$text$placeholder,
+    "Plain text - quotes are added automatically"
+  )
+})
+
+test_that("expr widget renders placeholder + help from resolved copy", {
+  tree <- ptr_translate("ggplot(mtcars) + geom_point() + facet_wrap(expr)")
+  node <- .ph_by_keyword(tree, "expr")
+  ui <- build_ui_for(
+    node, layer_name = "facet_wrap",
+    ui_text = list(layers = list(facet_wrap = list(expr = list(
+      `__unnamed__` = list(placeholder = "~ Species", help = "facet help")
+    ))))
+  )
+  rendered <- as.character(ui)
+  expect_match(rendered, "textarea")
+  expect_match(rendered, "~ Species")
+  expect_match(rendered, "facet help")
+})
+
+test_that("num widget renders help only (no placeholder attr)", {
+  tree <- ptr_translate("ggplot(mtcars) + geom_point(size = num)")
+  node <- .ph_by_keyword(tree, "num")
+  ui <- build_ui_for(
+    node, layer_name = "geom_point",
+    ui_text = list(params = list(size = list(num = list(help = "0 to 1"))))
+  )
+  rendered <- as.character(ui)
+  expect_match(rendered, "help-block")
+  expect_match(rendered, "0 to 1")
+})
+
+test_that("var picker honors copy$empty_text via noneSelectedText", {
+  tree <- ptr_translate("ggplot(mtcars, aes(x = var)) + geom_point()")
+  node <- .ph_by_keyword(tree, "var")
+  entry <- ptr_registry_lookup("var")
+
+  default_copy <- ptr_resolve_ui_text("control", keyword = "var", param = "x")
+  picker_default <- entry$build_ui(node, cols = c("mpg", "hp"),
+                                   label = "Pick a column", copy = default_copy)
+  expect_match(as.character(picker_default), "Choose one column")
+
+  custom_copy <- ptr_resolve_ui_text(
+    "control", keyword = "var", param = "x",
+    ui_text = list(params = list(x = list(var = list(empty_text = "Pick me"))))
+  )
+  picker_custom <- entry$build_ui(node, cols = c("mpg", "hp"),
+                                  label = "Pick a column", copy = custom_copy)
+  expect_match(as.character(picker_custom), "Pick me")
+})
+
+test_that("var default copy carries empty_text", {
+  expect_equal(ptr_default_ui_text()$defaults$var$empty_text, "Choose one column")
+})
+
+test_that("a third-party build_ui hook without `...`/`copy` is not passed copy", {
+  withr::defer({
+    if (exists("ptr_registry_clear")) ptr_registry_clear()
+    ptr_register_builtins()
+  })
+  ptr_define_placeholder_value(
+    keyword = "plain_widget",
+    build_ui = function(node, label) shiny::textInput(node$id, label),
+    resolve_expr = function(value, node) value
+  )
+  tree <- ptr_translate("ggplot(mtcars) + geom_point(color = plain_widget)")
+  node <- .ph_by_keyword(tree, "plain_widget")
+  expect_silent(ui <- build_ui_for(node, layer_name = "geom_point"))
+  expect_true(length(.find_tags(ui, has_id = node$id)) > 0L)
+})
+
 # ---- P6.14 — custom placeholder hook invoked ----
 
 test_that("P6.14 custom placeholder UI invokes registered build_ui", {

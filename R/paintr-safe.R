@@ -58,17 +58,32 @@ ptr_complete_expr_safe <- function(node,
       pruned = NULL,
       eval_env = eval_env,
       plot = NULL,
-      error = conditionMessage(e),
+      error = ptr_format_runtime_message("complete", conditionMessage(e)),
       condition = e
     )
   })
+}
+
+# Stamp a stage-specific prefix onto a runtime error message. Idempotent:
+# re-applying it to an already-prefixed message is a no-op. Mirrors legacy
+# "Input error: ..." (input/substitute stage) and "Plot error: ..." (the
+# eval/render stage).
+ptr_format_runtime_message <- function(stage, msg) {
+  if (is.null(msg) || !nzchar(msg)) return(msg)
+  prefix <- switch(stage,
+    complete = "Input error: ",
+    plot = "Plot error: ",
+    ""
+  )
+  if (!nzchar(prefix) || startsWith(msg, prefix)) return(msg)
+  paste0(prefix, msg)
 }
 
 # Mark a result as failed at `stage`, recording the condition (if any).
 fail_result <- function(result, stage, error, condition = NULL) {
   result$ok <- FALSE
   result$stage <- stage
-  result$error <- error
+  result$error <- ptr_format_runtime_message(stage, error)
   result$condition <- condition
   result
 }
