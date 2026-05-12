@@ -97,17 +97,7 @@ classify_walk.ptr_ph_data_source <- function(node, ctx_data) {
   node
 }
 
-#' @export
-classify_walk.ptr_ph_value <- function(node, ctx_data) node
-
-#' @export
-classify_walk.ptr_user_expr <- function(node, ctx_data) node
-
-#' @export
-classify_walk.ptr_literal <- function(node, ctx_data) node
-
-#' @export
-classify_walk.ptr_missing <- function(node, ctx_data) node
-
+# Everything else — value/expr placeholders, literals, missing, and any
+# unrecognised node — carries no data context and is returned unchanged.
 #' @export
 classify_walk.default <- function(node, ctx_data) node
