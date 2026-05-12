@@ -178,7 +178,21 @@ ptr_resolve_shared_consumers <- function(trees) {
 rewrite_shared <- function(x, canonical) {
   if (is_ptr_placeholder(x) && !is.null(x$shared)) {
     new_id <- canonical[[x$shared]]
-    if (!is.null(new_id)) x$id <- new_id
+    if (!is.null(new_id)) {
+      x$id <- new_id
+      # Keep paired ids (e.g. an upload source's dataset-name companion)
+      # in sync with the canonical id. Without this, two occurrences of
+      # `upload(shared = "ds")` in different layers keep the distinct
+      # companion ids `ptr_assign_ids()` gave them, so only the first
+      # occurrence's companion widget is rendered/read and the other
+      # layer's `data = ...` silently drops out.
+      if (is_ptr_ph_data_source(x) && !is.null(x$companion_id)) {
+        entry <- ptr_registry_lookup(x$keyword)
+        if (!is.null(entry) && !is.null(entry$companion_id_fn)) {
+          x$companion_id <- entry$companion_id_fn(new_id)
+        }
+      }
+    }
     return(x)
   }
   if (is_ptr_node(x)) {

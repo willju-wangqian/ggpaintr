@@ -283,6 +283,23 @@ test_that("P06.k shared var validates against host-resolved upstream", {
   })
 })
 
+# (l2) Shared upload source occurrences across layers share a single
+#      canonical id AND companion id, so one widget drives every layer's
+#      `data = ...` (otherwise the 2nd+ layer's data arg silently drops).
+test_that("P06.l2 shared upload occurrences share canonical id + companion", {
+  r <- ptr_translate(paste0(
+    'ggplot(data = upload(shared = "ds"), aes(x = var, y = var)) + ',
+    'geom_point(data = upload(shared = "ds"), aes(x = var, y = var))'
+  ))
+  srcs <- lapply(r$layers, function(l) l$data_arg)
+  expect_true(all(vapply(srcs, is_ptr_ph_data_source, logical(1))))
+  expect_equal(unique(vapply(srcs, function(s) s$id, character(1))), "shared_ds")
+  expect_equal(
+    unique(vapply(srcs, function(s) s$companion_id, character(1))),
+    "shared_ds_name"
+  )
+})
+
 # (j) Same source, different upstream: falls back to source columns.
 test_that("P06.j same source, different upstreams falls back to source", {
   parts <- ptr_app_components(
