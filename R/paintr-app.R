@@ -56,7 +56,8 @@ ptr_app_components <- function(formula,
     ui_text = ui_text,
     checkbox_defaults = checkbox_defaults,
     ns = ns,
-    render_shared_section = TRUE
+    render_shared_section = TRUE,
+    app_chrome = TRUE
   )
 
   shared_entries <- collect_shared_placeholders(tree)
@@ -166,32 +167,94 @@ ptr_controls_panel <- function(tree, ui_text = NULL,
 # Output contents for an embedded formula: plot + error + code, in that DOM
 # order. The ids are the contract ptr_register_plot()/_error()/_code() write to.
 ptr_outputs_panel <- function(ns = shiny::NS(NULL)) {
-  shiny::tagList(
-    shiny::plotOutput(ns("ptr_plot")),
-    shiny::uiOutput(ns("ptr_error")),
-    shiny::verbatimTextOutput(ns("ptr_code"))
+  code_icon <- shiny::HTML(
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4"></path><path d="m6 8-4 4 4 4"></path><path d="m14.5 4-5 16"></path></svg>'
+  )
+  shiny::tags$div(
+    class = "ptr-output",
+    shiny::tags$div(
+      class = "ptr-card ptr-card--plot",
+      shiny::tags$div(
+        class = "ptr-card__head",
+        shiny::tags$h3(class = "ptr-card__title", "Plot"),
+        shiny::tags$button(
+          type = "button",
+          class = "ptr-icon-btn ptr-code-toggle",
+          title = "Show generated code",
+          `aria-label` = "Show generated code",
+          code_icon
+        )
+      ),
+      shiny::tags$div(
+        class = "ptr-card__body",
+        shiny::plotOutput(ns("ptr_plot")),
+        shiny::uiOutput(ns("ptr_error"))
+      )
+    ),
+    shiny::tags$div(
+      class = "ptr-code-window",
+      shiny::tags$div(
+        class = "ptr-code-window__head",
+        shiny::tags$span(class = "ptr-code-window__title", shiny::HTML("&lt;/&gt; Generated code")),
+        shiny::tags$span(
+          class = "ptr-code-window__actions",
+          shiny::tags$button(type = "button", class = "ptr-copy-btn", "Copy"),
+          shiny::tags$button(
+            type = "button", class = "ptr-code-window__close",
+            title = "Close", `aria-label` = "Close",
+            shiny::HTML("&times;")
+          )
+        )
+      ),
+      shiny::tags$div(
+        class = "ptr-code-window__body",
+        shiny::verbatimTextOutput(ns("ptr_code"))
+      )
+    )
   )
 }
 
 ptr_build_app_ui <- function(tree, ui_text = NULL,
                                 checkbox_defaults = NULL,
                                 ns = shiny::NS(NULL),
-                                render_shared_section = FALSE) {
+                                render_shared_section = FALSE,
+                                app_chrome = FALSE) {
   # NOTE: ptr_layer_assets() (the layer-disabled CSS) must stay as the first
   # fluidPage child -- it is the regression guard for the layer cue.
+  title <- ptr_resolve_ui_text("title", ui_text = ui_text)$label %||% ""
+  header <- if (isTRUE(app_chrome)) {
+    ptr_app_header(if (nzchar(title)) title else "ggpaintr")
+  } else if (nzchar(title)) {
+    shiny::titlePanel(title)
+  } else {
+    NULL
+  }
   shiny::fluidPage(
     ptr_layer_assets(),
-    shiny::titlePanel(ptr_resolve_ui_text("title", ui_text = ui_text)$label %||% ""),
-    shiny::sidebarLayout(
-      do.call(
-        shiny::sidebarPanel,
-        ptr_controls_panel(tree, ui_text = ui_text,
-                           checkbox_defaults = checkbox_defaults,
-                           ns = ns,
-                           render_shared_section = render_shared_section)
-      ),
-      shiny::mainPanel(ptr_outputs_panel(ns))
+    ptr_ui_assets(),
+    shiny::tags$div(
+      class = "ptr-app",
+      header,
+      shiny::sidebarLayout(
+        do.call(
+          shiny::sidebarPanel,
+          ptr_controls_panel(tree, ui_text = ui_text,
+                             checkbox_defaults = checkbox_defaults,
+                             ns = ns,
+                             render_shared_section = render_shared_section)
+        ),
+        shiny::mainPanel(ptr_outputs_panel(ns))
+      )
     )
+  )
+}
+
+# Slim header bar that replaces titlePanel() on the polished default shell.
+ptr_app_header <- function(title) {
+  shiny::tags$header(
+    class = "ptr-app__header",
+    shiny::tags$div(class = "ptr-app__mark", "g"),
+    shiny::tags$h1(class = "ptr-app__title", title)
   )
 }
 
@@ -431,10 +494,16 @@ ptr_app_grid_components <- function(plots,
   shared_widgets <- drop_null(shared_widgets)
 
   shared_panel <- shiny::wellPanel(
-    do.call(
-      shiny::tagList,
-      c(shared_widgets,
-        list(shiny::actionButton(draw_all_id, draw_all_label)))
+    shiny::div(
+      class = "ptr-shared-panel",
+      shiny::tags$p(class = "ptr-shared-panel__title", "Shared controls"),
+      shiny::tags$p(class = "ptr-shared-panel__hint",
+                    "These widgets are linked across every plot below."),
+      do.call(
+        shiny::tagList,
+        c(shared_widgets,
+          list(shiny::actionButton(draw_all_id, draw_all_label)))
+      )
     )
   )
 
@@ -449,9 +518,14 @@ ptr_app_grid_components <- function(plots,
   )
 
   ui <- shiny::fluidPage(
-    shiny::titlePanel(title),
-    shared_panel,
-    plot_columns
+    ptr_layer_assets(),
+    ptr_ui_assets(),
+    shiny::tags$div(
+      class = "ptr-app",
+      ptr_app_header(if (nzchar(title)) title else "ggpaintr grid"),
+      shared_panel,
+      plot_columns
+    )
   )
 
   force(plots)

@@ -480,18 +480,10 @@ ptr_error_ui <- function(message) {
     return(NULL)
   }
   shiny::tags$div(
-    style = paste(
-      "margin-top: 12px;",
-      "margin-bottom: 12px;",
-      "padding: 12px;",
-      "border: 1px solid #c62828;",
-      "border-radius: 4px;",
-      "background-color: #fff3f3;",
-      "color: #7f1d1d;"
-    ),
+    class = "ptr-alert ptr-alert--error",
     shiny::tags$strong("Error"),
     shiny::tags$div(
-      style = "white-space: pre-wrap; margin-top: 6px;",
+      class = "ptr-alert__detail",
       message
     )
   )
@@ -946,9 +938,14 @@ format_code_with_extras <- function(res, extras_exprs) {
 #' @export
 ptr_register_code <- function(output, state) {
   ptr_validate_state(state)
-  output[[state$server_ns_fn("ptr_code")]] <- shiny::renderText({
+  code_id <- state$server_ns_fn("ptr_code")
+  output[[code_id]] <- shiny::renderText({
     format_code_with_extras(state$runtime(), state$extras_exprs())
   })
+  # The generated-code panel lives inside a mini-window that is hidden
+  # (display:none) until the user opens it; without this, Shiny suspends the
+  # output and the panel renders empty when first revealed.
+  shiny::outputOptions(output, code_id, suspendWhenHidden = FALSE)
   invisible(state)
 }
 
