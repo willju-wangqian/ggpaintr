@@ -941,6 +941,44 @@ Expected checks:
 -   Pick a single column in the first `var` (e.g. `mpg`). Confirm the second `var`'s choices collapse to just that one column on the next Shiny flush — no apply click needed.
 -   Pick `mpg` in the second `var` too, click **Update plot**, and confirm `outputCode` shows `mtcars |> dplyr::select(mpg) |> dplyr::select(mpg) |> ggplot(...)`.
 
+## Formula 15: Split-UI Embedding (`ptr_controls_ui` / `ptr_outputs_ui`)
+
+This app exercises the Level-2 split-UI surface: `ptr_controls_ui()` emits just the controls fragment and `ptr_outputs_ui()` just the plot/error/code fragment, so the embedder can place them independently in a host layout. All three calls (`ptr_controls_ui`, `ptr_outputs_ui`, `ptr_module_server`) share the same module `id`; no host-app wiring is needed.
+
+```{r formula-15-split-ui, eval=FALSE}
+fml <- "ggplot(data = iris, aes(x = var, y = var)) +
+  geom_point(aes(color = var), size = num) +
+  labs(title = text)"
+
+ui <- fluidPage(
+  titlePanel("My dashboard"),
+  fluidRow(
+    column(3, ptr_controls_ui("p1", fml)),
+    column(6, ptr_outputs_ui("p1")),
+    column(3, wellPanel(h4("My own widgets"), sliderInput("noise", "Noise", 0, 1, 0.2)))
+  )
+)
+
+server <- function(input, output, session) {
+  ptr_module_server("p1", fml)
+}
+
+shinyApp(ui, server)
+```
+
+Suggested manual sequence:
+
+-   Launch the app and confirm the controls sit in the left column, the (empty) plot/error/code panes in the middle, and the host's own `wellPanel` on the right.
+-   Confirm the layer picker, per-layer panels, and the single **Update plot** button all render in the controls column.
+-   Use `x = Sepal.Length`, `y = Sepal.Width`, `color = Species`, `size = 2`, `title = Split UI test`, then click **Update plot**.
+
+Expected checks:
+
+-   The plot, inline error area, and generated code all populate in the middle column even though the controls live in a separate fragment — the shared `id` is the only thing tying them together.
+-   The host's own widgets coexist with the ggpaintr fragments with no namespace collisions.
+-   Toggling a layer's checkbox still grays out (`opacity ≈ 0.5`) that layer's content and removes it from the plot/code — i.e. `ptr_layer_assets()` rode along with `ptr_controls_ui()`.
+-   Behavior is otherwise identical to the same formula run through `ptr_module_ui()` + `ptr_module_server()`.
+
 ## Final Checklist
 
 -   The manual sweep covers wrapper apps, upload flows, copy rules,
@@ -967,6 +1005,7 @@ Expected checks:
 -   No default control label shows parser-style fallback text such as `argument 1`.
 -   Custom `ui_text` override only the targeted prompts while untargeted controls stay on the defaults.
 -   Embedded apps built from `ptr_server_state()` and the bind helpers still support custom outputs or observers around `ptr_state`.
+-   Split-UI embedding: `ptr_controls_ui(id, formula)` and `ptr_outputs_ui(id)` can be placed independently in a host layout; sharing one `id` with `ptr_module_server()` is all the wiring needed, and the layer-disabled CSS cue still works because `ptr_controls_ui()` carries `ptr_layer_assets()`.
 -   Custom `renderPlot()` workflows can use `ptr_extract_plot()` and keep the rest of the default runtime behavior intact.
 -   Custom placeholder controls render correctly, participate in code generation, and work alongside built-in placeholders.
 -   The layer switcher renders one outer panel per layer behind a `pickerInput()`; only the picked panel is visible at a time.
