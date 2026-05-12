@@ -110,10 +110,13 @@ ptr_app_components <- function(formula,
   list(ui = ui, server = server)
 }
 
-ptr_build_app_ui <- function(tree, ui_text = NULL,
-                                checkbox_defaults = NULL,
-                                ns = shiny::NS(NULL),
-                                render_shared_section = FALSE) {
+# Sidebar contents for an embedded formula: optional shared section + layer
+# picker + hidden tabset + the "Update plot" button. Returns a list of tags so
+# callers can do.call(shiny::sidebarPanel, .) or wrap in shiny::tagList().
+ptr_controls_panel <- function(tree, ui_text = NULL,
+                               checkbox_defaults = NULL,
+                               ns = shiny::NS(NULL),
+                               render_shared_section = FALSE) {
   shell_copy <- layer_panel_default_shell_copy(ui_text)
   layer_names <- vapply(tree$layers, function(l) l$name, character(1))
 
@@ -149,7 +152,7 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
     } else NULL
   } else NULL
 
-  sidebar_children <- list(
+  drop_null(list(
     shared_section,
     picker,
     hidden_tabset,
@@ -157,19 +160,37 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
       ns("ptr_update_plot"),
       label = shell_copy$update_plot_label %||% "Update plot"
     )
-  )
-  sidebar_children <- drop_null(sidebar_children)
+  ))
+}
 
+# Output contents for an embedded formula: plot + error + code, in that DOM
+# order. The ids are the contract ptr_register_plot()/_error()/_code() write to.
+ptr_outputs_panel <- function(ns = shiny::NS(NULL)) {
+  shiny::tagList(
+    shiny::plotOutput(ns("ptr_plot")),
+    shiny::uiOutput(ns("ptr_error")),
+    shiny::verbatimTextOutput(ns("ptr_code"))
+  )
+}
+
+ptr_build_app_ui <- function(tree, ui_text = NULL,
+                                checkbox_defaults = NULL,
+                                ns = shiny::NS(NULL),
+                                render_shared_section = FALSE) {
+  # NOTE: ptr_layer_assets() (the layer-disabled CSS) must stay as the first
+  # fluidPage child -- it is the regression guard for the layer cue.
   shiny::fluidPage(
     ptr_layer_assets(),
     shiny::titlePanel(ptr_resolve_ui_text("title", ui_text = ui_text)$label %||% ""),
     shiny::sidebarLayout(
-      do.call(shiny::sidebarPanel, sidebar_children),
-      shiny::mainPanel(
-        shiny::plotOutput(ns("ptr_plot")),
-        shiny::uiOutput(ns("ptr_error")),
-        shiny::verbatimTextOutput(ns("ptr_code"))
-      )
+      do.call(
+        shiny::sidebarPanel,
+        ptr_controls_panel(tree, ui_text = ui_text,
+                           checkbox_defaults = checkbox_defaults,
+                           ns = ns,
+                           render_shared_section = render_shared_section)
+      ),
+      shiny::mainPanel(ptr_outputs_panel(ns))
     )
   )
 }

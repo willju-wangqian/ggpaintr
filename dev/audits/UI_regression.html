@@ -26,7 +26,8 @@
 <body>
 
 <h1>Level 2 UI placement regression <span class="tag tag-reg">REGRESSION</span></h1>
-<p class="meta">Repo: <code>ggpaintr-rewrite</code> · branch <code>core-rewrite-impl</code> · recorded 2026-05-11 · author note for follow-up work</p>
+<p class="meta">Repo: <code>ggpaintr-rewrite</code> · branch <code>core-rewrite-impl</code> · recorded 2026-05-11 · re-verified against commit <code>1d1769b</code> · author note for follow-up work</p>
+<blockquote><strong>Source state.</strong> Commit <code>fc17766</code> ("restore unintentional UI/feedback regressions") already patched a <em>different</em> batch of rewrite regressions (copy/help text, <code>var</code> empty-text, upload <code>accept</code> filter, layer-disabled CSS cue, "Input error:"/"Plot error:" prefixes, pipeline-stage label suffixes, copy-field whitelist, <code>ptr_validate_state()</code> guards) — see <code>dev/legacy-audit.html</code> / <code>dev/patch-plan.html</code>. NAMESPACE was unchanged there; the Level-2 split-UI regression below is <em>not</em> covered by that work and is what this plan addresses. Side effects of <code>fc17766</code> relevant to this plan: <code>ptr_build_app_ui()</code> now injects <code>ptr_layer_assets()</code> (the layer-disabled CSS), and <code>ptr_server()</code> now also calls <code>ptr_setup_layer_panel_classes()</code> — both accounted for below.</blockquote>
 
 <p>
 The core rewrite preserves <strong>Level 1</strong> (turn-key apps) and <strong>Level 3</strong> (extract plot/code/error from a live instance, custom render path) but
@@ -168,9 +169,12 @@ ptr_outputs_panel &lt;- function(ns = shiny::NS(NULL)) {
 }
 
 # Combiner — unchanged public behavior; ptr_module_ui() / ptr_app_components() keep calling this.
+# NOTE: ptr_layer_assets() (the layer-disabled CSS, added in fc17766) must stay
+# as the first fluidPage child — it is the regression guard for the layer cue.
 ptr_build_app_ui &lt;- function(tree, ui_text = NULL, checkbox_defaults = NULL,
                              ns = shiny::NS(NULL), render_shared_section = FALSE) {
   shiny::fluidPage(
+    ptr_layer_assets(),
     shiny::titlePanel(ptr_resolve_ui_text("title", ui_text = ui_text)$label %||% ""),
     shiny::sidebarLayout(
       do.call(shiny::sidebarPanel,
@@ -196,8 +200,15 @@ ptr_build_app_ui &lt;- function(tree, ui_text = NULL, checkbox_defaults = NULL,
 ptr_controls_ui &lt;- function(id, formula, ui_text = NULL, checkbox_defaults = NULL,
                             expr_check = TRUE) {
   tree &lt;- ptr_translate(formula, expr_check = expr_check)
-  shiny::tagList(!!!ptr_controls_panel(tree, ui_text, checkbox_defaults,
-                                       ns = shiny::NS(id), render_shared_section = FALSE))
+  # ptr_layer_assets() must ride along: the combiner injects it at fluidPage
+  # level, but in the split layout there is no combiner — without it the
+  # layer-disabled CSS cue (fc17766) silently breaks. Controls side owns it
+  # since the layer panels live here. Harmless if included twice on a page.
+  shiny::tagList(
+    ptr_layer_assets(),
+    !!!ptr_controls_panel(tree, ui_text, checkbox_defaults,
+                          ns = shiny::NS(id), render_shared_section = FALSE)
+  )
 }
 
 #' Plot / error / code panes for an embedded ggpaintr formula
@@ -212,8 +223,9 @@ ptr_outputs_ui &lt;- function(id) {
 }</pre>
 <p>(<code>!!!</code> splice needs <code>rlang</code>, already a dependency; or use <code>do.call(shiny::tagList, ptr_controls_panel(...))</code>.)</p>
 
-<h3>A3. Server side — nothing to change, one thing to verify</h3>
+<h3>A3. Server side — nothing to change, two things to be aware of</h3>
 <p><code>ptr_module_server(id, formula, ...)</code> already binds purely by id (it forwards to <code>ptr_server()</code>, which reads/writes <code>input[[ns("ptr_layer_select")]]</code>, <code>output[[ns("ptr_plot")]]</code>, etc.). It does not care whether the UI came from <code>ptr_module_ui()</code> or from <code>ptr_controls_ui()</code>+<code>ptr_outputs_ui()</code> — provided the same <code>id</code> is used everywhere. Verify with a test (A5). The control-side ids (<code>ptr_layer_select</code>, <code>ptr_layer_tabset</code>, <code>ptr_update_plot</code>, the producer-input ids, the consumer <code>uiOutput</code> ids from <code>build_ui_for()</code>) come from <code>ptr_controls_panel()</code>; the output-side ids (<code>ptr_plot</code>/<code>ptr_error</code>/<code>ptr_code</code>) come from <code>ptr_outputs_panel()</code> — both already match what the server expects, because they're the same builders the combiner uses.</p>
+<p>Two notes on the current <code>ptr_server()</code> (post-<code>fc17766</code>): it now also calls <code>ptr_setup_layer_panel_classes(state, input, output, session)</code> (toggles the layer-disabled class per include checkbox) and the <code>ptr_register_plot/_error/_code()</code> calls are now wrapped by <code>ptr_validate_state()</code> guards, and <code>ptr_register_plot()</code> blanks the device via <code>graphics::plot.new()</code> on a failed runtime instead of <code>shiny::req()</code>. None of this changes the id contract or anything Part A touches — just don't be surprised by the extra observer / guards when reading the file.</p>
 
 <h3>A4. Usage the plan enables</h3>
 <pre>ui &lt;- fluidPage(
@@ -243,7 +255,7 @@ server &lt;- function(input, output, session) {
 <h2>Part B — Internal headless runtime</h2>
 
 <div style="border:1px solid #c9a000;background:#fffbe6;border-radius:5px;padding:.6rem 1rem;margin:1rem 0">
-<strong>Read before you start Part B</strong> — two facts verified against the current source; the pseudo-code below is illustrative and got some defaults wrong.
+<strong>Read before you start Part B</strong> — two facts verified against the current source (re-confirmed at commit <code>1d1769b</code>: <code>ptr_setup_runtime</code>, <code>inject_resolved_data</code>, and the <code>R/paintr-safe.R</code> helpers are unchanged by <code>fc17766</code>'s server.R/safe.R edits — those touched <code>ptr_setup_layer_panel_classes</code>, <code>ptr_validate_state</code>, register guards, and <code>fail_result</code>/<code>ptr_format_runtime_message</code>, not the runtime pipeline). The pseudo-code below is illustrative and got some defaults wrong.
 <ol style="margin-bottom:0">
   <li><strong>Exact signatures of the lifted helpers</strong> (do not "tidy" the defaults — pass through verbatim):
     <ul>
