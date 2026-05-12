@@ -401,7 +401,7 @@ ptr_app(
 #      not because the host-resolution change touches sources.
 ptr_app(
   "ggplot(data = upload(shared = \"ds\"), aes(x = var, y = var)) +
-     geom_point() +
+     geom_point(data = upload(shared = \"ds\"), aes(x = var, y = var)) +
      geom_smooth(method = \"lm\")"
 )
 
