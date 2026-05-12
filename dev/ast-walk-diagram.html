@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ggpaintr — how the AST walk works</title>
+<style>
+  :root{
+    --root:#334155; --layer:#6366f1; --pipeline:#0d9488; --call:#2563eb;
+    --phval:#d97706; --phcons:#ea580c; --phsrc:#9333ea; --post:#16a34a; --sym:#64748b;
+    --bg:#f8fafc; --panel:#ffffff; --line:#e2e8f0; --ink:#1e293b; --muted:#64748b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14.5px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  header{padding:1.3rem 1.6rem .8rem;background:#fff;border-bottom:1px solid var(--line)}
+  header h1{margin:0 0 .25rem;font-size:1.45rem}
+  header p{margin:0;color:var(--muted);max-width:70ch}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:.92em;background:#f1f5f9;padding:1px 4px;border-radius:3px}
+  .wrap{max-width:1280px;margin:0 auto;padding:1.2rem 1.6rem 4rem}
+  section{margin-top:2.2rem}
+  h2{font-size:1.15rem;margin:0 0 .2rem;border-bottom:1px solid var(--line);padding-bottom:.3rem}
+  h2 .hint{font-weight:400;font-size:.8rem;color:var(--muted);float:right}
+
+  /* lifecycle stepper */
+  .pipeline{display:flex;flex-wrap:wrap;gap:.4rem;align-items:stretch;margin-top:.9rem}
+  .stage{flex:1 1 0;min-width:104px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:.55rem .6rem;cursor:pointer;transition:.12s;position:relative}
+  .stage:hover{border-color:#94a3b8;transform:translateY(-1px)}
+  .stage.active{border-color:var(--call);box-shadow:0 0 0 2px rgba(37,99,235,.15)}
+  .stage .ph{font-size:.7rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+  .stage .nm{font-weight:600;font-size:.86rem;margin-top:.15rem;word-break:break-word}
+  .stage .wk{margin-top:.3rem;font-size:.74rem;color:var(--call)}
+  .stage.user{background:#fffbeb;border-style:dashed}
+  .stage.user .wk{color:#b45309}
+  .arrow{align-self:center;color:#cbd5e1;font-size:1.1rem;padding:0 .05rem}
+  #stageDetail{margin-top:.8rem;background:#fff;border:1px solid var(--line);border-radius:8px;padding:.8rem 1rem;min-height:3.4rem}
+  #stageDetail .t{font-weight:600;margin-bottom:.25rem}
+  #stageDetail .m{color:var(--muted)}
+  #stageDetail.empty .m{font-style:italic}
+
+  /* main two-column */
+  .cols{display:grid;grid-template-columns:1.35fr 1fr;gap:1.1rem;margin-top:.9rem}
+  @media(max-width:980px){.cols{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem 1.1rem}
+
+  /* tree */
+  .tree{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13px;line-height:1.5}
+  .tree ul{list-style:none;margin:0;padding-left:1.2rem;border-left:1px dashed #cbd5e1}
+  .tree>ul{padding-left:0;border-left:none}
+  .tree li{margin:.18rem 0;position:relative}
+  .rel{color:var(--muted);font-size:11.5px;margin-right:.3rem}
+  .node{display:inline-flex;align-items:center;gap:.4rem;border:1px solid;border-radius:6px;padding:.12rem .5rem;cursor:pointer;background:#fff;transition:.1s;white-space:nowrap}
+  .node:hover{filter:brightness(.97);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .node.sel{box-shadow:0 0 0 2px #0f172a;font-weight:600}
+  .node.visiting{animation:pulse 1s ease}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(15,23,42,.5)}100%{box-shadow:0 0 0 10px rgba(15,23,42,0)}}
+  .node .lbl{font-weight:500}
+  .badge{font-size:10px;text-transform:uppercase;letter-spacing:.04em;background:rgba(0,0,0,.08);padding:0 4px;border-radius:3px}
+  .visit-no{display:inline-block;min-width:1.3em;text-align:center;background:#0f172a;color:#fff;border-radius:3px;font-size:10.5px;margin-right:.3rem;padding:0 2px}
+  .upstream-from{outline:2px solid var(--phcons);outline-offset:2px}
+  .upstream-to{outline:2px dashed var(--pipeline);outline-offset:2px;background:#ecfdf5!important}
+  /* kind colours */
+  .k-ptr_root{border-color:var(--root);color:var(--root)}
+  .k-ptr_layer{border-color:var(--layer);color:var(--layer)}
+  .k-ptr_pipeline{border-color:var(--pipeline);color:var(--pipeline)}
+  .k-ptr_call{border-color:var(--call);color:var(--call)}
+  .k-ptr_ph_value{border-color:var(--phval);color:var(--phval)}
+  .k-ptr_ph_data_consumer{border-color:var(--phcons);color:var(--phcons)}
+  .k-ptr_ph_data_source{border-color:var(--phsrc);color:var(--phsrc)}
+  .k-symbol{border-color:var(--sym);color:var(--sym)}
+  .k-post{border-color:var(--post);color:var(--post)}
+
+  /* detail panel */
+  #nodeDetail .crumb{font-size:11.5px;color:var(--muted);margin-bottom:.3rem}
+  #nodeDetail h3{margin:.1rem 0 .4rem;font-size:1rem;font-family:"SF Mono",Menlo,monospace}
+  #nodeDetail table{border-collapse:collapse;width:100%;font-size:12.5px;margin:.4rem 0 .6rem}
+  #nodeDetail td{border:1px solid var(--line);padding:.25rem .45rem;vertical-align:top}
+  #nodeDetail td.f{color:var(--muted);font-family:"SF Mono",monospace;white-space:nowrap;width:1%}
+  #nodeDetail td.v{font-family:"SF Mono",monospace}
+  #nodeDetail .role{color:#0f172a;background:#f8fafc;border-left:3px solid #cbd5e1;padding:.5rem .65rem;border-radius:0 6px 6px 0}
+  #nodeDetail .role b{color:#b45309}
+  .btn{font:inherit;font-size:12.5px;border:1px solid var(--line);background:#fff;border-radius:6px;padding:.3rem .55rem;cursor:pointer}
+  .btn:hover{border-color:#94a3b8}
+  .btn.on{background:#0f172a;color:#fff;border-color:#0f172a}
+  .legend{display:flex;flex-wrap:wrap;gap:.35rem .6rem;margin-top:.6rem;font-size:12px}
+  .legend span{display:inline-flex;align-items:center;gap:.3rem}
+  .sw{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+  /* walker section */
+  .wkbar{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.9rem}
+  .wkgrid{display:grid;grid-template-columns:1.05fr 1fr;gap:1.1rem;margin-top:.9rem}
+  @media(max-width:980px){.wkgrid{grid-template-columns:1fr}}
+  #walkerInfo h3{margin:.1rem 0 .3rem;font-family:"SF Mono",monospace;font-size:1.02rem}
+  #walkerInfo .meta{font-size:12.5px;color:var(--muted);margin-bottom:.5rem}
+  #walkerInfo .meta b{color:var(--ink)}
+  #walkerInfo table{border-collapse:collapse;width:100%;font-size:12.5px}
+  #walkerInfo td{border:1px solid var(--line);padding:.3rem .5rem;vertical-align:top}
+  #walkerInfo td.c{font-family:"SF Mono",monospace;color:#0f172a;white-space:nowrap;width:1%;background:#f8fafc}
+  #walkerInfo .skip{margin-top:.55rem;font-size:12.5px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:.45rem .6rem}
+  #log{font-family:"SF Mono",Menlo,monospace;font-size:12px;background:#0f172a;color:#e2e8f0;border-radius:8px;padding:.7rem .8rem;height:340px;overflow:auto;white-space:pre-wrap}
+  #log .step{color:#7dd3fc}
+  #log .do{color:#fbbf24}
+  #log .skip{color:#fb7185}
+  #log .info{color:#94a3b8}
+  .runbar{display:flex;gap:.4rem;align-items:center;margin-bottom:.5rem}
+  .small{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <h1>ggpaintr — how the AST walk works</h1>
+  <p>A ggpaintr formula is parsed into a <b>typed AST</b> of <code>ptr_*</code> nodes. Several <b>walks</b> over that tree turn it into Shiny widgets, then (on every "Update plot") into a finished <code>ggplot</code> + the code-panel text. Click the lifecycle steps, click any tree node, and pick a walker to animate its traversal.</p>
+</header>
+
+<div class="wrap">
+
+<!-- ───────────────────────── lifecycle ───────────────────────── -->
+<section>
+  <h2>1 · Lifecycle of a formula <span class="hint">click a step</span></h2>
+  <div class="pipeline" id="pipeline"></div>
+  <div id="stageDetail" class="empty"><div class="m">Select a step above to see what it does and which walk it runs.</div></div>
+</section>
+
+<!-- ───────────────────────── the AST ───────────────────────── -->
+<section>
+  <h2>2 · The typed AST <span class="hint">click a node</span></h2>
+  <p class="small">Example formula: <code>mtcars |&gt; filter(cyl &gt;= num) |&gt; ggplot(aes(x = var, y = mpg)) + geom_point(color = text)</code></p>
+  <div class="cols">
+    <div class="card">
+      <div class="tree" id="tree"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="card" id="nodeDetail">
+      <div class="crumb">Pick a node from the tree on the left.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────── walkers ───────────────────────── -->
+<section>
+  <h2>3 · The walks <span class="hint">pick one, then "Animate traversal"</span></h2>
+  <div class="wkbar" id="wkbar"></div>
+  <div class="wkgrid">
+    <div class="card" id="walkerInfo"></div>
+    <div class="card">
+      <div class="runbar">
+        <button class="btn" id="btnAnim">▶ Animate traversal</button>
+        <button class="btn" id="btnStep">Step ▸</button>
+        <button class="btn" id="btnReset">Reset</button>
+        <span class="small" id="snapNote"></span>
+      </div>
+      <div id="log"><span class="info">The traversal narration appears here. For the transform walks it follows the structural recursion (root→layers, layer→data_arg+children, pipeline→stages, call→args) and shows what the walk does at each node. The <code>upstream</code> pointer on a <code>var</code> node is deliberately NOT followed — that rule lives once, in <code>ptr_walk()</code>.</span></div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<script>
+//////////////////// the example AST ////////////////////
+const sym = (id,name,role)=>({id,kind:"symbol",label:name,fields:{},role:role||"A bare symbol (column or value reference) — left untouched by every walk.",children:[]});
+
+const NUM_PH = {id:"ph-num",kind:"ptr_ph_value",label:"ptr_ph_value",badge:"num",
+  fields:{id:'"ggplot_1_2_1_2"',keyword:'"num"',param:"NA",expr:"num(...)",shared:"NULL"},
+  role:"A value placeholder → a <code>numericInput</code> widget. At substitute time it becomes <code>ptr_literal(&lt;the number typed&gt;)</code>, or <code>ptr_missing()</code> if the box is blank.",children:[]};
+const CYL = sym("sym-cyl","cyl","A column reference inside the filter predicate.");
+const GE_CALL = {id:"call-ge",kind:"ptr_call",label:"ptr_call  >=",
+  fields:{fun:"`>=`",args:"x = cyl,  y = &lt;num&gt;",stage_id:"NULL"},
+  role:"The predicate <code>cyl &gt;= num</code>. An operator is just a call; the placeholder sits in its second argument. (Prune treats operators specially: any missing operand collapses the whole call.)",children:[
+    {rel:"args[1]",node:CYL},{rel:"args[2]",node:NUM_PH}]};
+const FILTER_CALL = {id:"call-filter",kind:"ptr_call",label:"ptr_call  filter",badge:"stage",
+  fields:{fun:"dplyr::filter",args:"&lt;cyl &gt;= num&gt;",stage_id:'"ggplot_1_2_stage_enabled"'},
+  role:"A data-manipulation <b>stage</b>. Because its subtree contains a placeholder, <code>assign_stage_ids</code> gave it a <code>stage_id</code> — which becomes an enable/disable checkbox in the UI. <code>disable_walk</code> drops this whole call when the box is unchecked.",children:[
+    {rel:"args[1]",node:GE_CALL}]};
+const MTCARS = sym("data-mtcars","mtcars","Stage 1 of the pipeline — the source data frame.");
+const PIPELINE = {id:"pipe",kind:"ptr_pipeline",label:"ptr_pipeline  |>",
+  fields:{op:'"|>"',stages:"[ mtcars ,  filter(...) ]",expr:"mtcars |> filter(cyl >= num)"},
+  role:"<code>mtcars |&gt; filter(cyl &gt;= num)</code> — the data chain feeding <code>ggplot()</code>. Stage 1 is the data source; stage k≥2 takes its data implicitly from the previous stage. Prune collapses a 1-stage pipeline down to that stage; 0 stages → <code>ptr_missing</code>.",children:[
+    {rel:"stages[1]",node:MTCARS},{rel:"stages[2]",node:FILTER_CALL}]};
+
+const VAR_PH = {id:"ph-var",kind:"ptr_ph_data_consumer",label:"ptr_ph_data_consumer",badge:"var",
+  fields:{id:'"ggplot_1_3_x"',keyword:'"var"',param:'"x"',layer_name:'"ggplot"',upstream:"→ ptr_pipeline  (the data chain)"},
+  role:"A data <b>consumer</b> → a column-picker widget. It must know which columns to offer, so <code>classify_walk</code> stamps <b>upstream</b> onto it: a pointer to the AST subtree that produces the data flowing into this position (here, <code>mtcars |&gt; filter(...)</code>). <b>Every walk SKIPS the <code>upstream</code> field</b> when recursing, or it would re-traverse — and double-count — nodes that live elsewhere in the tree. Click “show upstream link”.",
+  upstreamTarget:"pipe",children:[]};
+const MPG = sym("sym-mpg","mpg","A fixed column reference — not a placeholder.");
+const AES_CALL = {id:"call-aes",kind:"ptr_call",label:"ptr_call  aes",
+  fields:{fun:"ggplot2::aes",args:"x = &lt;var&gt;,  y = mpg"},
+  role:"The aesthetic mapping <code>aes(x = var, y = mpg)</code>. <code>x</code> is a <code>var</code> placeholder; <code>y</code> is fixed.",children:[
+    {rel:"args$x",node:VAR_PH},{rel:"args$y",node:MPG}]};
+
+const TEXT_PH = {id:"ph-text",kind:"ptr_ph_value",label:"ptr_ph_value",badge:"text",
+  fields:{id:'"geom_point_1_color"',keyword:'"text"',param:'"color"',shared:"NULL"},
+  role:"A value placeholder → a <code>textInput</code>. Used as <code>geom_point(color = text)</code>. <b>Empty string ⇒ treated as missing ⇒ the whole <code>color =</code> argument is pruned away</b>, so the code panel just shows <code>geom_point()</code>.",children:[]};
+
+const AST = {id:"root",kind:"ptr_root",label:"ptr_root",
+  fields:{layers:"[ ggplot ,  geom_point ]"},
+  role:"The top of the typed tree — an ordered list of plot layers. <code>classify_walk</code> visits the <code>ggplot</code> layer first so its data becomes the default for the others; prune drops any layer that comes back NULL/missing.",children:[
+    {rel:"layers[1]",node:{id:"lyr-ggplot",kind:"ptr_layer",label:'ptr_layer "ggplot"',
+      fields:{name:'"ggplot"',active:"TRUE",active_input_id:"NULL  (always-on)",default_active:"TRUE"},
+      role:"One plot layer. Its <code>data_arg</code> is the data-manipulation chain; its <code>children</code> are the call arguments — here just the <code>aes()</code> mapping. <code>classify_walk</code>: this layer's <code>data_arg</code> becomes the data context handed to its children (and, since it's the <code>ggplot</code> layer, the default for later layers too).",children:[
+        {rel:"data_arg",node:PIPELINE},{rel:"children[1]",node:AES_CALL}]}},
+    {rel:"layers[2]",node:{id:"lyr-geom",kind:"ptr_layer",label:'ptr_layer "geom_point"',
+      fields:{name:'"geom_point"',data_arg:"NULL",active:"TRUE",active_input_id:"NULL  (always-on)"},
+      role:"A geom layer added with <code>+</code>. No data chain, so its children inherit the incoming data context. Its only child is the <code>color = text</code> argument. <code>geom_*</code> layers are “standalone” — prune never deletes them even if they end up empty.",children:[
+        {rel:"children$color",node:TEXT_PH}]}}]};
+
+//////////////////// lifecycle steps ////////////////////
+const STAGES = [
+  {ph:"parse + build tree",nm:"ptr_translate()",wk:"+ classify_walk · assign_stage_ids",
+   t:"ptr_translate(formula)",
+   m:"Parses the string, desugars <code>%>%</code> / <code>|></code> into ordinary calls, builds the typed AST, assigns each placeholder a stable id (<code>ptr_assign_ids</code>) and each data-chain stage a <code>stage_id</code> (<code>assign_stage_ids</code>), then runs <b>classify_walk</b> (= <code>ptr_classify_data</code>) to stamp <code>upstream</code> onto every <code>var</code> consumer."},
+  {ph:"build the sidebar",nm:"build_ui_for()",wk:"+ ptr_collect / find_nodes",
+   t:"build_ui_for(node, …) — once per node, plus the collector walks",
+   m:"S3 dispatch turns each placeholder node into a Shiny widget, wrapped in per-layer panels. The collector walks (<code>find_layer_placeholders</code>, <code>collect_stage_ids</code>, <code>collect_shared_placeholders</code>, …) — all built on the generic <b>ptr_walk / ptr_collect</b> combinator — gather the nodes that need widgets, stage checkboxes, and shared-section widgets."},
+  {ph:"user clicks",nm:"⟳ Update plot",wk:"(triggers the runtime observer)",user:true,
+   t:"the runtime is gated — nothing below runs until the user clicks Update Plot (or the grid app's “Draw all”, or ptr_gg_extra())",
+   m:"On launch <code>state$runtime()</code> is <code>NULL</code> and the plot/code/error outputs are blank. The first trigger fires the observer that runs the steps below, against a fresh snapshot of every input value."},
+  {ph:"drop disabled stages",nm:"disable_walk()",wk:"S3 transform walk",
+   t:"disable_walk(tree, stage_enabled)",
+   m:"Reads the live stage-checkbox states. A disabled pipeline stage (k≥2) is dropped wholesale; a disabled non-pipeline call collapses to its data-argument child (or <code>ptr_missing</code>). Runs before substitute so the rest of the pipeline never sees the disabled subtree."},
+  {ph:"fill placeholders",nm:"ptr_substitute()",wk:"substitute_walk",
+   t:"ptr_substitute(tree, snapshot, shared_bindings, …)   — step 1 of ptr_complete_expr_safe()",
+   m:"<b>substitute_walk</b> replaces each placeholder with the value the user supplied: <code>ptr_ph_value</code> → <code>ptr_literal</code> / <code>ptr_user_expr</code> / <code>ptr_missing</code>; <code>ptr_ph_data_consumer</code> → validate the column against <code>upstream_cols</code>, then <code>ptr_literal(sym)</code>; <code>ptr_ph_data_source</code> → resolve the uploaded-dataset name. A layer whose checkbox is off is marked <code>active = FALSE</code> here."},
+  {ph:"delete the holes",nm:"ptr_prune()",wk:"prune_walk",
+   t:"ptr_prune(subbed, safe_to_remove, is_standalone)   — step 2",
+   m:"<b>prune_walk</b> removes whatever substitution left empty: <code>ptr_missing</code> named args are dropped; an empty operator call collapses; an empty removable, non-standalone call/layer is deleted; a 1-stage pipeline collapses to its stage; <code>ptr_user_expr</code> is never touched (spec G5)."},
+  {ph:"deparse to text",nm:"ptr_render()",wk:"render_walk",
+   t:"ptr_render(pruned)   — step 3",
+   m:"<b>render_walk</b> walks the pruned tree and produces the <i>string</i> shown in the code panel — rebuilding pipe chains, rendering binary operators infix, deparsing literals, emitting <code>ptr_user_expr</code> text verbatim. (It returns text, not a tree.)"},
+  {ph:"build the plot",nm:"ptr_eval()",wk:"node_to_lang + eval",
+   t:"ptr_eval(pruned, eval_env, expr_check)   — inside ptr_assemble_plot_safe()",
+   m:"Converts the pruned typed tree into an ordinary R <code>language</code> object (re-applying <code>ptr_user_expr</code> safety checks) and <code>eval()</code>s it in the data environment, yielding the <code>ggplot</code> object. Bare-data-source layers get their cached resolved frame injected first so the upload isn't re-read."},
+  {ph:"sanity-check",nm:"ggplot_build()",wk:"—",
+   t:"ptr_validate_plot_render_safe(result)",
+   m:"Calls <code>ggplot2::ggplot_build()</code> so a plot that errors only when drawn (bad aesthetic, missing column, …) surfaces as an inline error instead of crashing the reactive graph. Then <code>state$runtime()</code> is updated and the plot/code/error outputs render."}
+];
+
+//////////////////// walker specs ////////////////////
+const KINDORDER = ["ptr_root","ptr_layer","ptr_pipeline","ptr_call","ptr_ph_value","ptr_ph_data_consumer","ptr_ph_data_source","ptr_user_expr / ptr_literal / ptr_missing","symbol","every ptr_node","plain list"];
+const WALKERS = {
+  classify_walk:{
+    label:"classify_walk", family:"S3 transform visitor",
+    when:"Once, at translate time, as <code>ptr_classify_data(tree)</code>.",
+    purpose:"Carries a <code>ctx_data</code> pointer down the tree and stamps it onto every <code>var</code> consumer as <code>node$upstream</code> — that's the data subtree the picker reads its column choices from.",
+    rules:{
+      ptr_root:"Visit the <code>ggplot</code> layer first; whatever data it carries becomes the default context for the other layers. Then visit the rest.",
+      ptr_layer:"If the layer has a <code>data_arg</code>, that subtree IS the context for its children; otherwise children inherit the incoming context.",
+      ptr_pipeline:"Stage 1 sees the incoming context; stage k sees a pipeline of stages 1..k-1 (the data after the earlier steps).",
+      ptr_call:"Pass the context straight through to every argument.",
+      ptr_ph_data_consumer:"★ <code>node$upstream &lt;- ctx_data</code>. This is the whole point of the pass.",
+      ptr_ph_data_source:"Sources PRODUCE data → <code>node$upstream &lt;- NULL</code>.",
+      "ptr_user_expr / ptr_literal / ptr_missing":"Returned unchanged.",
+      "symbol":"Returned unchanged."},
+    skip:"This pass <i>writes</i> <code>upstream</code>; it never recurses into one.",
+    skipKind:false},
+  disable_walk:{
+    label:"disable_walk", family:"S3 transform visitor",
+    when:"Every Update-Plot trigger, before substitute. Driven by <code>stage_enabled</code> (live checkbox states).",
+    purpose:"Removes data-chain stages whose enable-checkbox is off, so the rest of the pipeline never sees them.",
+    rules:{
+      ptr_root:"Recurse into each layer.",
+      ptr_layer:"Recurse into <code>data_arg</code> and <code>children</code>.",
+      ptr_pipeline:"For stage k≥2: if its <code>stage_id</code> is disabled, drop the whole stage. (Stage 1 is data — it falls through to the call rule.)",
+      ptr_call:"Recurse into args. Then if this call's <code>stage_id</code> is disabled, collapse it to its data-argument child (or <code>ptr_missing</code> if it has none).",
+      "ptr_user_expr / ptr_literal / ptr_missing":"Returned unchanged.","symbol":"Returned unchanged.","ptr_ph_value":"Returned unchanged.","ptr_ph_data_consumer":"Returned unchanged.","ptr_ph_data_source":"Returned unchanged."},
+    skip:"Recursion never descends into <code>upstream</code>.",
+    skipKind:false},
+  substitute_walk:{
+    label:"substitute_walk", family:"S3 transform visitor",
+    when:"Every trigger — step 1 of <code>ptr_complete_expr_safe()</code>. Driven by the input <code>snapshot</code>.",
+    purpose:"Replaces every placeholder with the value the user supplied (or with <code>ptr_missing</code> when the input is blank/invalid).",
+    rules:{
+      ptr_root:"Recurse into layers.",
+      ptr_layer:"If <code>active_input_id</code> is in the snapshot and FALSE → mark <code>active = FALSE</code> (prune drops it later). Recurse into <code>data_arg</code> + <code>children</code>.",
+      ptr_pipeline:"Recurse into stages.",
+      ptr_call:"Recurse into args.",
+      ptr_ph_value:"Read the input. Blank/NA → <code>ptr_missing()</code>. <code>expr</code> keyword → <code>ptr_user_expr(parsed)</code>. Otherwise → <code>ptr_literal(value)</code>.",
+      ptr_ph_data_consumer:"Read the column pick; validate it against <code>upstream_cols[id]</code>. Empty → <code>ptr_missing()</code>; else → <code>ptr_literal(sym)</code>.",
+      ptr_ph_data_source:"Read the companion name input (the uploaded dataset's name). Blank → <code>ptr_missing()</code>; else → <code>ptr_literal(sym)</code>.",
+      "ptr_user_expr / ptr_literal / ptr_missing":"Already resolved → unchanged.","symbol":"Unchanged."},
+    skip:"<code>upstream</code> is a stamped pointer, not a child to substitute — skipped.",
+    skipKind:false},
+  prune_walk:{
+    label:"prune_walk", family:"S3 transform visitor",
+    when:"Every trigger — step 2. Driven by <code>safe_to_remove</code> + an <code>is_standalone</code> predicate.",
+    purpose:"Deletes the holes substitution left behind so the code is clean and evaluable.",
+    rules:{
+      ptr_root:"Prune each layer; drop any that came back NULL or <code>ptr_missing</code>.",
+      ptr_layer:"<code>active == FALSE</code> → NULL. Prune <code>data_arg</code> + <code>children</code> (named missing args dropped). If the layer ends up empty AND its name is removable AND it isn't a standalone geom → NULL.",
+      ptr_call:"Prune args. Operator call: any missing operand → the whole call is <code>ptr_missing</code>. Normal call: drop missing named args; if 0 args left, name is removable, not standalone → <code>ptr_missing</code>.",
+      ptr_pipeline:"Prune stages; drop missing ones. 0 stages → <code>ptr_missing</code>; 1 stage → collapse to it.",
+      ptr_ph_value:"Not yet substituted (shouldn't happen on the live path) → <code>ptr_missing()</code>.",
+      ptr_ph_data_consumer:"→ <code>ptr_missing()</code>.",ptr_ph_data_source:"→ <code>ptr_missing()</code>.",
+      "ptr_user_expr / ptr_literal / ptr_missing":"<code>ptr_user_expr</code>: identity, never recursed, never dropped (spec G5). <code>ptr_literal</code>/<code>ptr_missing</code>: unchanged.","symbol":"Unchanged."},
+    skip:"Recursion never descends into <code>upstream</code>.",
+    skipKind:false},
+  render_walk:{
+    label:"render_walk", family:"S3 transform visitor (returns text)",
+    when:"Every trigger — step 3, inside <code>ptr_render(pruned)</code>. A pure read.",
+    purpose:"Deparses the pruned tree into the string shown in the code panel.",
+    rules:{
+      ptr_root:"Render each layer; join with <code>&nbsp;+\\n&nbsp;&nbsp;</code>.",
+      ptr_layer:"Render the head call; if the layer is pipe-fed, prepend the pipe chain.",
+      ptr_pipeline:"Join stage texts with the pipe operator.",
+      ptr_call:"<code>head(arg1, name = arg2, …)</code> — binary infix operators (<code>a &gt;= b</code>) rendered infix instead.",
+      ptr_ph_value:"Render a placeholder marker (only seen if something wasn't substituted).",ptr_ph_data_consumer:"(placeholder marker)",ptr_ph_data_source:"(placeholder marker)",
+      "ptr_user_expr / ptr_literal / ptr_missing":"<code>ptr_user_expr</code>: emit the user's expression text verbatim. <code>ptr_literal</code>: deparse the value. <code>ptr_missing</code>: shouldn't reach here after prune.","symbol":"Emit the symbol name."},
+    skip:"Recursion never descends into <code>upstream</code>.",
+    skipKind:false},
+  ptr_collect:{
+    label:"ptr_walk / ptr_collect", family:"Generic pre-order traversal (not S3)",
+    when:"The UI builders and the reactive layer: <code>find_nodes</code>, <code>find_layer_placeholders</code>, <code>collect_shared_placeholders</code>, <code>collect_stage_ids</code>, <code>collect_upstream_ids</code> — all of them.",
+    purpose:"Visit every node in pre-order and gather the ones matching a predicate. Optionally a <code>prune</code> callback stops descent below a match.",
+    rules:{
+      "every ptr_node":"Call <code>visit(node)</code>. If <code>prune(node)</code> is TRUE, stop here; otherwise descend into every child slot.",
+      "plain list":"Recurse element-wise.",
+      "symbol":"Not a <code>ptr_node</code> → ignored as a leaf."},
+    skip:"Skips <code>upstream</code> by default (<code>descend_upstream = FALSE</code>). <b>This is the single place the “skip upstream” rule lives</b> — it used to be copy-pasted into seven separate walkers.",
+    skipKind:true}
+};
+const WALKER_ORDER = ["classify_walk","disable_walk","substitute_walk","prune_walk","render_walk","ptr_collect"];
+
+//////////////////// example snapshot for the substitute animation ////////////////////
+const SNAP = {"ph-num":{txt:"num = 6",res:"ptr_literal(6)",cls:"k-post"},
+              "ph-var":{txt:'var = "wt"',res:'ptr_literal(`wt`)',cls:"k-post"},
+              "ph-text":{txt:'text = ""  (blank)',res:"ptr_missing()",cls:"k-symbol"}};
+
+//////////////////// build the DOM ////////////////////
+const $ = s=>document.querySelector(s);
+const KINDS = [["ptr_root","root"],["ptr_layer","layer"],["ptr_pipeline","pipeline"],["ptr_call","call"],["ptr_ph_value","ph_value (text/num/expr)"],["ptr_ph_data_consumer","ph_data_consumer (var)"],["ptr_ph_data_source","ph_data_source (upload)"],["k-post","post-substitute: literal / user_expr / missing"],["symbol","bare symbol"]];
+
+// --- lifecycle stepper ---
+const pipeEl = $("#pipeline");
+STAGES.forEach((s,i)=>{
+  if(i) pipeEl.insertAdjacentHTML("beforeend",'<div class="arrow">›</div>');
+  const d=document.createElement("div");
+  d.className="stage"+(s.user?" user":"");
+  d.innerHTML=`<div class="ph">${s.ph}</div><div class="nm">${s.nm}</div><div class="wk">${s.wk}</div>`;
+  d.onclick=()=>{
+    document.querySelectorAll(".stage").forEach(x=>x.classList.remove("active"));
+    d.classList.add("active");
+    const sd=$("#stageDetail"); sd.classList.remove("empty");
+    sd.innerHTML=`<div class="t">${s.t}</div><div class="m">${s.m}</div>`;
+  };
+  pipeEl.appendChild(d);
+});
+
+// --- legend ---
+$("#legend").innerHTML = KINDS.map(([k,t])=>`<span><span class="sw" style="background:${k==='symbol'?'var(--sym)':k==='k-post'?'var(--post)':'var(--'+k.replace('ptr_','').replace('ph_value','phval').replace('ph_data_consumer','phcons').replace('ph_data_source','phsrc').replace('_','')+')'}"></span>${t}</span>`).join("");
+// fix legend swatch colours explicitly (the replace chain above is brittle) :
+[["ptr_root","--root"],["ptr_layer","--layer"],["ptr_pipeline","--pipeline"],["ptr_call","--call"],["ptr_ph_value","--phval"],["ptr_ph_data_consumer","--phcons"],["ptr_ph_data_source","--phsrc"],["k-post","--post"],["symbol","--sym"]].forEach(([k,v],i)=>{
+  const sw=$("#legend").children[i].querySelector(".sw"); if(sw) sw.style.background=`var(${v})`;
+});
+
+// --- tree ---
+let selectedId=null;
+function nodeHTML(n){
+  const cls = n.kind==="symbol"?"k-symbol":("k-"+n.kind);
+  const badge = n.badge?`<span class="badge">${n.badge}</span>`:"";
+  return `<span class="node ${cls}" data-id="${n.id}"><span class="visit-no" style="display:none"></span><span class="lbl">${n.label}</span>${badge}</span>`;
+}
+function renderTree(entry){
+  // entry = {rel, node}
+  const n=entry.node;
+  let html=`<li>`+(entry.rel?`<span class="rel">${entry.rel} =</span>`:"")+nodeHTML(n);
+  if(n.children&&n.children.length){
+    html+=`<ul>`+n.children.map(renderTree).join("")+`</ul>`;
+  }
+  html+=`</li>`;
+  return html;
+}
+$("#tree").innerHTML=`<ul>`+renderTree({rel:null,node:AST})+`</ul>`;
+
+// index nodes by id for quick lookup
+const NODES={};
+(function idx(n){NODES[n.id]=n; (n.children||[]).forEach(c=>idx(c.node));})(AST);
+
+// node detail panel
+function showNode(id){
+  selectedId=id;
+  document.querySelectorAll(".node").forEach(e=>e.classList.toggle("sel", e.dataset.id===id));
+  document.querySelectorAll(".node").forEach(e=>e.classList.remove("upstream-from","upstream-to"));
+  const n=NODES[id];
+  const rows=Object.entries(n.fields).map(([f,v])=>`<tr><td class="f">${f}</td><td class="v">${v}</td></tr>`).join("")
+    || `<tr><td class="v" style="color:var(--muted)">— a leaf; no <code>ptr_node</code> fields —</td></tr>`;
+  const upBtn = n.upstreamTarget?`<button class="btn" id="showUp" style="margin-bottom:.5rem">⇢ show upstream link</button>`:"";
+  $("#nodeDetail").innerHTML=`
+    <div class="crumb">selected node</div>
+    <h3 style="color:${n.kind==='symbol'?'var(--sym)':'var(--'+kvar(n.kind)+')'}">${n.label}${n.badge?'  ['+n.badge+']':''}</h3>
+    <div class="small" style="margin:-.2rem 0 .5rem">class: <code>c("${n.kind}"${n.kind!=='symbol'?', "ptr_node"':''})</code></div>
+    ${upBtn}
+    <table>${rows}</table>
+    <div class="role">${n.role}</div>`;
+  if(n.upstreamTarget){
+    $("#showUp").onclick=()=>{
+      document.querySelector(`.node[data-id="${n.id}"]`).classList.add("upstream-from");
+      document.querySelector(`.node[data-id="${n.upstreamTarget}"]`).classList.add("upstream-to");
+    };
+  }
+}
+function kvar(kind){return ({ptr_root:"root",ptr_layer:"layer",ptr_pipeline:"pipeline",ptr_call:"call",ptr_ph_value:"phval",ptr_ph_data_consumer:"phcons",ptr_ph_data_source:"phsrc"})[kind]||"sym";}
+$("#tree").addEventListener("click",e=>{const el=e.target.closest(".node"); if(el) showNode(el.dataset.id);});
+
+//////////////////// walker section ////////////////////
+let currentWalker=null;
+const wkbar=$("#wkbar");
+WALKER_ORDER.forEach(k=>{
+  const b=document.createElement("button");
+  b.className="btn"; b.textContent=WALKERS[k].label;
+  b.onclick=()=>selectWalker(k,b);
+  wkbar.appendChild(b);
+});
+function selectWalker(k,btn){
+  currentWalker=k; resetAnim();
+  document.querySelectorAll("#wkbar .btn").forEach(x=>x.classList.remove("on"));
+  btn.classList.add("on");
+  const w=WALKERS[k];
+  const ruleRows = KINDORDER.filter(kk=>w.rules[kk]).map(kk=>`<tr><td class="c">${kk}</td><td>${w.rules[kk]}</td></tr>`).join("");
+  $("#walkerInfo").innerHTML=`
+    <h3>${w.label}</h3>
+    <div class="meta"><b>${w.family}</b> &nbsp;·&nbsp; ${w.when}</div>
+    <p style="margin:.2rem 0 .6rem">${w.purpose}</p>
+    <table>${ruleRows}</table>
+    <div class="skip"><b>upstream:</b> ${w.skip}</div>`;
+  $("#snapNote").innerHTML = k==="substitute_walk" ? 'using snapshot <code>num=6, var="wt", text=""</code>' :
+                             k==="ptr_collect" ? 'gathering <code>ptr_ph_value</code> nodes (like <code>find_nodes(tree, is_ptr_ph_value)</code>)' : '';
+}
+
+// ---- traversal sequence builders ----
+// Each step: {id, action:"step"|"do"|"skip"|"info", text}
+function buildSequence(k){
+  const seq=[];
+  const W=WALKERS[k];
+  const visit=n=>{
+    seq.push({id:n.id,kind:"step",text:`visit  ${n.label}${n.badge?' ['+n.badge+']':''}`});
+    // walker-specific "what it does here"
+    if(k==="classify_walk"){
+      if(n.kind==="ptr_root") seq.push({id:n.id,kind:"info",text:`   → visit the "ggplot" layer first; its data_arg becomes the default context`});
+      if(n.kind==="ptr_layer"&&n.id==="lyr-ggplot") seq.push({id:n.id,kind:"info",text:`   → data_arg (the pipeline) is now the data context for this layer's children`});
+      if(n.kind==="ptr_layer"&&n.id==="lyr-geom") seq.push({id:n.id,kind:"info",text:`   → no data_arg; children inherit the incoming (ggplot's) context`});
+      if(n.kind==="ptr_pipeline") seq.push({id:n.id,kind:"info",text:`   → stage 1 sees incoming ctx; stage 2 (filter) sees stage 1 (mtcars) as its ctx`});
+      if(n.id==="ph-var") seq.push({id:n.id,kind:"do",text:`   ★ node$upstream <- ctx_data   (= the pipeline mtcars |> filter(...))`});
+    }
+    if(k==="disable_walk"){
+      if(n.id==="call-filter") seq.push({id:n.id,kind:"do",text:`   stage_id "ggplot_1_2_stage_enabled" — if its checkbox were OFF, this whole call would be dropped (here: ON, kept)`});
+    }
+    if(k==="substitute_walk"){
+      if(n.id==="lyr-ggplot"||n.id==="lyr-geom") seq.push({id:n.id,kind:"info",text:`   active_input_id is NULL → layer stays active`});
+      if(SNAP[n.id]) seq.push({id:n.id,kind:"do",text:`   ${SNAP[n.id].txt}  →  ${SNAP[n.id].res}`});
+      if(n.id==="sym-cyl"||n.id==="sym-mpg"||n.id==="data-mtcars") seq.push({id:n.id,kind:"info",text:`   not a placeholder → unchanged`});
+    }
+    if(k==="prune_walk"){
+      if(n.id==="ph-text") seq.push({id:n.id,kind:"do",text:`   was ptr_missing (blank text) → drop the "color =" arg from geom_point`});
+      if(n.id==="lyr-geom") seq.push({id:n.id,kind:"do",text:`   geom_point now has 0 args, but it's standalone (geom_*) → kept as geom_point()`});
+      if(n.id==="call-ge") seq.push({id:n.id,kind:"info",text:`   operator >= ; operand <num> was substituted to literal 6 → cyl >= 6, kept`});
+      if(n.id==="ph-num"||n.id==="ph-var") seq.push({id:n.id,kind:"info",text:`   (already a ptr_literal after substitute — nothing to prune)`});
+    }
+    if(k==="render_walk"){
+      if(n.kind==="ptr_pipeline") seq.push({id:n.id,kind:"do",text:`   join stages with " |> "  →  mtcars |> filter(cyl >= 6)`});
+      if(n.id==="call-ge") seq.push({id:n.id,kind:"do",text:`   binary operator → rendered infix:  cyl >= 6`});
+      if(n.id==="call-aes") seq.push({id:n.id,kind:"do",text:`   head(args)  →  aes(x = wt, y = mpg)`});
+      if(n.id==="root") seq.push({id:n.id,kind:"info",text:`   final text: mtcars |> filter(cyl >= 6) |> ggplot(aes(x = wt, y = mpg)) + geom_point()`});
+    }
+    if(k==="ptr_collect"){
+      const isMatch = n.kind==="ptr_ph_value";
+      if(isMatch) seq.push({id:n.id,kind:"do",text:`   ✓ matches is_ptr_ph_value → collect (id ${n.fields.id})`});
+    }
+    // descend
+    const kids = childrenForWalk(k,n);
+    kids.forEach(c=>{
+      if(c.skipUpstream){ seq.push({id:n.id,kind:"skip",text:`   ⨯ skip the "upstream" pointer of ${n.label} (lives elsewhere in the tree)`}); return; }
+      visit(c.node);
+    });
+  };
+  // root entry — for classify, conceptually ggplot-first; our layers are already in that order
+  visit(AST);
+  return seq;
+}
+// which children a given walk descends into, in order. We also synthesise an
+// explicit "upstream skip" entry for the var consumer so the rule is visible.
+function childrenForWalk(k,n){
+  let kids = (n.children||[]).map(c=>({node:c.node}));
+  // the var consumer has an `upstream` slot that is NOT in `children`; show the skip
+  if(n.id==="ph-var") kids = [{skipUpstream:true}].concat(kids);
+  return kids;
+}
+
+// ---- animation engine ----
+let SEQ=[], pos=0, timer=null;
+function clearVisitNos(){document.querySelectorAll(".node .visit-no").forEach(e=>{e.style.display="none";e.textContent="";});document.querySelectorAll(".node").forEach(e=>e.classList.remove("visiting"));}
+function resetAnim(){clearInterval(timer);timer=null;SEQ=[];pos=0;clearVisitNos();
+  $("#log").innerHTML='<span class="info">Pick "Animate traversal" or "Step ▸".</span>';}
+function ensureSeq(){ if(!currentWalker){alert("Pick a walker first (the buttons above the log).");return false;} if(!SEQ.length){SEQ=buildSequence(currentWalker);pos=0;$("#log").innerHTML="";} return true; }
+let visitCounter=0;
+function applyStep(s){
+  const logEl=$("#log");
+  const cls = s.kind==="step"?"step":s.kind==="do"?"do":s.kind==="skip"?"skip":"info";
+  let line = s.text;
+  if(s.kind==="step"){
+    visitCounter++;
+    const node=document.querySelector(`.node[data-id="${s.id}"]`);
+    if(node){
+      const vn=node.querySelector(".visit-no"); vn.style.display="inline-block"; vn.textContent=visitCounter;
+      document.querySelectorAll(".node").forEach(e=>e.classList.remove("visiting"));
+      node.classList.add("visiting");
+      node.scrollIntoView({block:"nearest",behavior:"smooth"});
+    }
+    line = `${visitCounter}. ${line}`;
+  }
+  logEl.insertAdjacentHTML("beforeend",`<span class="${cls}">${escapeHtml(line)}\n</span>`);
+  logEl.scrollTop=logEl.scrollHeight;
+}
+function escapeHtml(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function stepOnce(){ if(!ensureSeq())return; if(pos>=SEQ.length){applyStep({kind:"info",text:"— done —"});clearInterval(timer);timer=null;return;} applyStep(SEQ[pos++]); }
+$("#btnStep").onclick=()=>{ if(pos===0){visitCounter=0;clearVisitNos();} stepOnce(); };
+$("#btnAnim").onclick=()=>{
+  if(!ensureSeq())return;
+  if(timer){clearInterval(timer);timer=null;$("#btnAnim").textContent="▶ Animate traversal";return;}
+  if(pos>=SEQ.length){visitCounter=0;pos=0;clearVisitNos();$("#log").innerHTML="";}
+  if(pos===0){visitCounter=0;clearVisitNos();}
+  $("#btnAnim").textContent="❚❚ Pause";
+  timer=setInterval(()=>{ if(pos>=SEQ.length){clearInterval(timer);timer=null;$("#btnAnim").textContent="▶ Animate traversal";applyStep({kind:"info",text:"— done —"});return;} stepOnce(); },650);
+};
+$("#btnReset").onclick=()=>{visitCounter=0;resetAnim(); if(currentWalker){const b=[...document.querySelectorAll("#wkbar .btn")].find(x=>x.textContent===WALKERS[currentWalker].label); if(b)selectWalker(currentWalker,b);} };
+
+// open something by default
+selectWalker("substitute_walk",[...document.querySelectorAll("#wkbar .btn")].find(b=>b.textContent===WALKERS.substitute_walk.label));
+showNode("ph-var");
+$("#pipeline").children[0].click();
+</script>
+</body>
+</html>

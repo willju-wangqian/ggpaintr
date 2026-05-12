@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ggpaintr rewrite — regression patch plan (detailed)</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.55; max-width: 1180px; margin: 2rem auto; padding: 0 1.5rem; color: #1a1a1a; }
+  h1 { border-bottom: 3px solid #333; padding-bottom: .3rem; }
+  h2 { margin-top: 2.6rem; border-bottom: 2px solid #555; padding-bottom: .2rem; }
+  h3 { margin-top: 1.8rem; background:#f0f0f0; padding:.3rem .6rem; border-left:4px solid #555; }
+  h4 { margin: 1.1rem 0 .3rem; }
+  code { background: #f4f4f4; padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
+  pre { background: #f7f7f9; border: 1px solid #ddd; border-left: 4px solid #4a90d9; border-radius: 4px; padding: .8rem 1rem; overflow-x: auto; font-size: 0.86rem; line-height: 1.45; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.92rem; }
+  th, td { border: 1px solid #ccc; padding: 6px 9px; text-align: left; vertical-align: top; }
+  th { background: #efefef; }
+  .meta { font-size:0.88rem; color:#444; margin:.2rem 0 .6rem; }
+  .meta b { color:#000; }
+  .pri-P0 { color:#fff; background:#c0392b; font-weight:bold; padding:1px 7px; border-radius:3px; font-size:0.8em; }
+  .pri-P1 { color:#1a1a1a; background:#f1c40f; font-weight:bold; padding:1px 7px; border-radius:3px; font-size:0.8em; }
+  .pri-P2 { color:#fff; background:#2980b9; font-weight:bold; padding:1px 7px; border-radius:3px; font-size:0.8em; }
+  .pri-P3 { color:#fff; background:#7f8c8d; font-weight:bold; padding:1px 7px; border-radius:3px; font-size:0.8em; }
+  .risk-L { color:#1e7e34; font-weight:bold; } .risk-M { color:#b9770e; font-weight:bold; } .risk-H { color:#c0392b; font-weight:bold; }
+  .adv { color:#fff; background:#8e44ad; padding:1px 6px; border-radius:3px; font-size:0.78em; }
+  .note { background:#fffbe6; border:1px solid #f0e0a0; border-radius:4px; padding:.5rem .9rem; margin:.6rem 0; font-size:0.9rem; }
+  blockquote { border-left:4px solid #888; background:#f7f7f7; margin:1rem 0; padding:.5rem 1rem; }
+  .toc { background:#f7f7f7; border:1px solid #ddd; padding:.7rem 1.2rem; border-radius:6px; }
+  ul.checklist { list-style:none; padding-left:1rem; } ul.checklist li::before { content:"\2610  "; }
+  .del { color:#a00; } .add { color:#070; }
+</style>
+</head>
+<body>
+
+<h1>ggpaintr rewrite — Regression Patch Plan <span style="font-size:0.55em;color:#888;">(detailed, with code sketches)</span></h1>
+<p class="meta">Target: <code>/Users/willju/Research/ggpaintr-rewrite</code> · branch <code>core-rewrite-impl</code> · companion: <code>dev/legacy-audit.html</code> · drafted 2026-05-11 · <b>plan only — no code changed.</b></p>
+
+<blockquote>
+<b>Scope:</b> fix the <em>unintentional</em> regressions surfaced by the audit. <b>Out of scope</b> (deliberate redesign — keep as-is): process-global registry &amp; removal of <code>placeholders=</code>; the click-gated data-pipeline cache + "Update data" button + stale-notice; the value/source/consumer hook redesign &amp; removal of <code>resolve_input</code>/<code>bind_ui</code>/<code>prepare_eval_env</code>; removed L2/L3 exports (<code>ptr_parse_formula</code>, <code>ptr_exec</code>, <code>ptr_input_ui</code>, <code>ptr_build_ids</code>, <code>ptr_resolve_layer_data</code>, …); the <code>ptr_extract_*</code> argument change; <code>ptr_module_ui</code> now requiring <code>formula</code>; <code>ptr_gg_extra</code> return-value change; the producer-debounce auto-flip &amp; default; the <code>expr</code> single-line→multi-line widget. <span class="adv">ADVISORY</span> items are recommendations for you to decide, not committed tasks.
+</blockquote>
+
+<div class="note"><b>Correction vs. the first-draft plan:</b> the <code>upload_file</code> / <code>upload_name</code> <code>ui_text</code> components <em>already exist</em> in the rewrite (<code>ptr_ui_text_component_paths()</code>, <code>ptr_default_ui_text()$upload</code>, accepted by <code>ptr_validate_ui_text()</code>). The regression is narrower: the <code>upload</code> <code>build_ui</code> hook ignores them and hard-codes labels. Likewise <code>ptr_error_ui()</code> is already ported into <code>paintr-server.R</code> — it just isn't unit-tested. Items below are adjusted accordingly.</div>
+
+<nav class="toc">
+<strong>Phases</strong>
+<ul>
+  <li><a href="#p1">Phase 1 — Widget copy fidelity</a> (help / placeholder / empty_text reach widgets; upload accept + copy-driven labels)</li>
+  <li><a href="#p2">Phase 2 — Error &amp; render feedback</a> (clear canvas on failure; stage-prefixed error text)</li>
+  <li><a href="#p3">Phase 3 — Layer-disabled visual cue</a></li>
+  <li><a href="#p4">Phase 4 — Data-pipeline control labels</a> ("in <code>mutate()</code>")</li>
+  <li><a href="#p5">Phase 5 — Definition / robustness</a> (copy-field whitelist; <code>ptr_validate_state</code>; expr_check thread; expr msg)</li>
+  <li><a href="#p6">Phase 6 — Tests</a></li>
+  <li><a href="#p7">Phase 7 — Advisory / housekeeping</a></li>
+  <li><a href="#seq">Sequencing, risks &amp; verification</a></li>
+</ul>
+</nav>
+
+<p><b>Priority:</b> <span class="pri-P0">P0</span> user-visible regression — fix first &nbsp; <span class="pri-P1">P1</span> user-visible — fix soon &nbsp; <span class="pri-P2">P2</span> robustness/fidelity &nbsp; <span class="pri-P3">P3</span> minor/cosmetic. &nbsp; <b>Risk:</b> <span class="risk-L">Low</span> / <span class="risk-M">Med</span> / <span class="risk-H">High</span>. &nbsp; All sketches are <em>illustrative</em> — match surrounding style, names, and the actual signatures shown in the audit.</p>
+
+<!-- ============================================================ -->
+<h2 id="p1">Phase 1 — Widget copy fidelity</h2>
+<p><b>Root cause</b> (audit V1/V2): <code>build_ui_for</code> resolves the full <code>ui_text</code> copy list (<code>label</code>, <code>help</code>, <code>placeholder</code>, <code>empty_text</code> — all four are valid leaves per <code>ptr_ui_text_leaf_fields()</code>) but forwards <strong>only <code>copy$label</code></strong> to the placeholder <code>build_ui</code> hook (see <code>invoke_build_ui()</code> and <code>build_ui_for.ptr_ph_data_source()</code> in <code>R/paintr-build-ui.R</code>). The builtin hooks therefore emit bare widgets. <code>ptr_default_ui_text()</code> already carries rich <code>help</code>/<code>placeholder</code> copy (e.g. <code>params$alpha$num$help</code>, <code>params$legend.position$text$help</code>, <code>layers$facet_wrap$expr$__unnamed__$placeholder</code>) — none of it reaches the screen. <code>upload</code>'s <code>build_ui</code> additionally ignores the <code>upload$file</code>/<code>upload$name</code> copy and drops the <code>accept</code> filter.</p>
+
+<h3 id="i11">1.1 <span class="pri-P0">P0</span> — Forward the whole resolved <code>copy</code> list to <code>build_ui</code> hooks &nbsp;<span class="risk-M">Med</span></h3>
+<p class="meta"><b>Files:</b> <code>R/paintr-build-ui.R</code> (<code>invoke_build_ui</code>, <code>build_ui_for.ptr_ph_data_source</code>) — and nothing in <code>paintr-server.R</code> (<code>ptr_setup_consumer_uis</code> already routes through <code>invoke_build_ui</code>, so it inherits the fix). <b>Why "whole list":</b> future leaf fields then need no re-plumbing; keep <code>label =</code> as a separate arg for back-compat with custom hooks declaring only <code>function(node, label, ...)</code>.</p>
+<pre><code># R/paintr-build-ui.R
+
+invoke_build_ui &lt;- function(node, ui_text, placeholders, layer_name,
+                            ns_fn, extra, ...) {
+  rendered_node &lt;- node
+  rendered_node$id &lt;- ns_fn(node$id)
+  copy &lt;- ptr_resolve_ui_text(
+    "control",
+    keyword = node$keyword, layer_name = layer_name, param = node$param,
+    ui_text = ui_text, placeholders = placeholders
+  )
+  entry &lt;- ptr_registry_lookup(node$keyword)
+  if (is.null(entry) || is.null(entry$build_ui)) {
+    rlang::abort(paste0("No `build_ui` hook registered for placeholder `",
+                        node$keyword, "`."))
+  }
+  do.call(
+    entry$build_ui,
+    c(list(rendered_node,
+           label = copy$label,
+<span class="add">           copy  = copy),          # &lt;-- NEW: full resolved leaf list</span>
+      extra, list(...))
+  )
+}
+
+# build_ui_for.ptr_ph_data_source(): same edit — currently calls
+#   entry$build_ui(rendered_node, label = copy$label, ...)
+# change to
+<span class="add">  entry$build_ui(rendered_node, label = copy$label, copy = copy, ...)</span>
+</code></pre>
+<p>Note: <code>build_ui_for.ptr_ph_data_source</code> currently resolves <code>copy</code> via the <code>"control"</code> component for the source node itself. For <code>upload</code> we additionally want the <code>upload_file</code>/<code>upload_name</code> components — handled in 1.6/1.7 below (resolve them in the dispatch and pass as <code>file_copy=</code>/<code>name_copy=</code>, or have the upload hook resolve them; the plan picks the dispatch-side approach to keep hooks copy-free).</p>
+
+<h3 id="i12">1.2 <span class="pri-P0">P0</span> — Re-introduce <code>attach_help()</code> and have every builtin hook use <code>copy$help</code> &nbsp;<span class="risk-L">Low</span></h3>
+<p class="meta"><b>Files:</b> <code>R/paintr-builtins.R</code> (add the helper near the top, or a tiny new <code>R/paintr-help.R</code>; unexported). Mirrors legacy <code>paintr-ui.R::ptr_attach_help</code>.</p>
+<pre><code># R/paintr-builtins.R  (internal helper)
+
+# Wrap a control in a tagList with a helpText note when `help` is a
+# non-empty string; otherwise return the control unchanged.
+attach_help &lt;- function(ui, help) {
+  if (is.null(help) || !nzchar(trimws(help))) return(ui)
+  shiny::tagList(ui, shiny::helpText(help))
+}
+
+# --- text: now consumes copy$placeholder + copy$help -------------------
+ptr_builtin_text_build_ui &lt;- function(node, label = NULL, copy = NULL, ...) {
+  attach_help(
+    shiny::textInput(
+      inputId = node$id,
+      label   = label %||% "Enter a value",
+<span class="add">      value       = "",
+      placeholder = copy$placeholder</span>     # NULL =&gt; no placeholder attr; fine
+    ),
+<span class="add">    copy$help</span>
+  )
+}
+
+# --- num: help only (legacy had no placeholder hint) -------------------
+ptr_builtin_num_build_ui &lt;- function(node, label = NULL, copy = NULL, ...) {
+  attach_help(
+    shiny::numericInput(node$id, label %||% "Enter a number", value = NA_real_),
+<span class="add">    copy$help</span>
+  )
+}
+
+# --- expr: keep textAreaInput (intentional change), add placeholder+help
+ptr_builtin_expr_build_ui &lt;- function(node, label = NULL, copy = NULL, ...) {
+  attach_help(
+    shiny::textAreaInput(
+      inputId = node$id,
+      label   = label %||% "Enter an expression",
+<span class="add">      value       = "",
+      placeholder = copy$placeholder</span>
+    ),
+<span class="add">    copy$help</span>
+  )
+}
+</code></pre>
+
+<h3 id="i13">1.3 <span class="pri-P1">P1</span> — Restore the <code>text</code> placeholder hint as a default &nbsp;<span class="risk-L">Low</span></h3>
+<p class="meta"><b>Files:</b> <code>R/paintr-builtins.R</code> (in <code>ptr_register_builtins()</code>). Legacy default: <code>placeholder = "Plain text - quotes are added automatically"</code>.</p>
+<pre><code>ptr_define_placeholder_value(
+  keyword      = "text",
+  build_ui     = ptr_builtin_text_build_ui,
+  resolve_expr = ptr_builtin_text_resolve_expr,
+  copy_defaults = list(
+    label       = "Enter a value for {param}",
+<span class="add">    placeholder = "Plain text - quotes are added automatically"</span>
+  )
+)
+# (`expr` keyword: optionally add an analogous `placeholder` default, e.g.
+#  "An R expression, e.g. ~ Species" — legacy used per-layer placeholders
+#  like layers$facet_wrap$expr$__unnamed__$placeholder = "~ Species", which
+#  already exist; a generic default is optional.)
+</code></pre>
+<p class="note"><b>Whitelist interaction:</b> Phase 5.1 tightens <code>validate_copy_defaults()</code> to reject copy fields not in <code>ptr_ui_text_leaf_fields()</code> = <code>c("label","help","placeholder","empty_text")</code>. <code>placeholder</code> and (for <code>var</code>) <code>empty_text</code> are in that set, so these defaults are accepted. Land 5.1 <em>after</em> 1.3/1.5 or in the same change so the suite stays green at every commit.</p>
+
+<h3 id="i15">1.4 <span class="pri-P1">P1</span> — <code>var</code> picker: honor <code>copy$empty_text</code> + restore its default &nbsp;<span class="risk-M">Med</span></h3>
+<p class="meta"><b>Files:</b> <code>R/paintr-builtins.R</code> (<code>ptr_builtin_var_build_ui</code>, <code>ptr_register_builtins</code>). The <code>var</code> hook is invoked via <code>invoke_build_ui()</code> inside <code>ptr_setup_consumer_uis</code>'s <code>renderUI</code> — after 1.1 it receives <code>copy</code>. Legacy default copy: <code>label = "Choose a column for {param}"</code>, <code>empty_text = "Choose one column"</code>; legacy used <code>noneSelectedText = copy$empty_text</code>.</p>
+<pre><code>ptr_builtin_var_build_ui &lt;- function(node, cols = character(),
+                                     label = NULL, copy = NULL,
+                                     selected = character(0), ...) {
+  picker_label &lt;- label %||% "Pick a column"
+<span class="add">  none_text    &lt;- copy$empty_text %||% picker_label</span>
+  retained &lt;- intersect(selected, cols)
+  attach_help(
+    shinyWidgets::pickerInput(
+      inputId = node$id, label = picker_label,
+      choices = cols, selected = retained, multiple = TRUE,
+      options = shinyWidgets::pickerOptions(
+<span class="add">        noneSelectedText = none_text,</span>
+        maxOptions = 1L
+      )
+    ),
+<span class="add">    copy$help</span>
+  )
+}
+
+# ptr_register_builtins(): var keyword
+ptr_define_placeholder_consumer(
+  keyword      = "var",
+  build_ui     = ptr_builtin_var_build_ui,
+  resolve_expr = ptr_builtin_var_resolve_expr,
+  validate_input = ptr_builtin_var_validate_input,
+  copy_defaults = list(
+<span class="add">    label      = "Choose a column for {param}",  # was "Pick a column for {param}"
+    empty_text = "Choose one column"</span>
+  )
+)
+</code></pre>
+<p><b>Decision point</b> <span class="adv">ADVISORY</span>: restoring the exact legacy label wording ("Choose a column…" vs the current "Pick a column…") is borderline-cosmetic. If you'd rather keep "Pick a column", drop that line and just add <code>empty_text</code>. Note <code>params$x$var$label = "Choose the x-axis column"</code> etc. already override the per-param wording, so the generic default is only visible for unmapped params.</p>
+
+<h3 id="i16">1.5 <span class="pri-P0">P0</span> — <code>upload</code>: restore the <code>accept</code> filter &nbsp;<span class="risk-L">Low</span></h3>
+<p class="meta"><b>Files:</b> <code>R/paintr-builtins.R</code> (<code>ptr_builtin_upload_build_ui</code>). Legacy: <code>accept = c(".csv", ".tsv", ".rds", ".xlsx", ".xls", ".json")</code> — keep this in sync with what <code>ptr_read_uploaded_data()</code> actually handles (verify against <code>R/paintr-upload.R</code>).</p>
+<pre><code>shiny::fileInput(
+  inputId = node$id,
+  label   = ...,
+<span class="add">  accept  = c(".csv", ".tsv", ".rds", ".xlsx", ".xls", ".json")</span>
+)
+</code></pre>
+
+<h3 id="i17">1.6 <span class="pri-P1">P1</span> — <code>upload</code>: drive labels/help from <code>upload_file</code> / <code>upload_name</code> copy &nbsp;<span class="risk-M">Med</span></h3>
+<p class="meta"><b>Files:</b> <code>R/paintr-build-ui.R</code> (in <code>build_ui_for.ptr_ph_data_source</code>, special-case <code>node$keyword == "upload"</code> to also resolve the two upload components and pass them along), <code>R/paintr-builtins.R</code> (<code>ptr_builtin_upload_build_ui</code> uses them). The components &amp; defaults already exist (<code>ptr_ui_text_component_paths()</code>: <code>upload_file = c("upload","file")</code>, <code>upload_name = c("upload","name")</code>; <code>ptr_default_ui_text()$upload$file/name</code> with label/placeholder/help; <code>ptr_validate_ui_text()</code> accepts <code>upload$file</code>/<code>upload$name</code>).</p>
+<pre><code># R/paintr-build-ui.R  — build_ui_for.ptr_ph_data_source, after resolving `copy`:
+<span class="add">  file_copy &lt;- name_copy &lt;- NULL
+  if (identical(node$keyword, "upload")) {
+    file_copy &lt;- ptr_resolve_ui_text("upload_file", ui_text = ui_text,
+                                     placeholders = placeholders)
+    name_copy &lt;- ptr_resolve_ui_text("upload_name", ui_text = ui_text,
+                                     placeholders = placeholders)
+  }
+  entry$build_ui(rendered_node, label = copy$label, copy = copy,
+                 file_copy = file_copy, name_copy = name_copy, ...)</span>
+
+# R/paintr-builtins.R
+ptr_builtin_upload_build_ui &lt;- function(node, label = NULL, copy = NULL,
+<span class="add">                                        file_copy = NULL, name_copy = NULL,</span> ...) {
+  shiny::tagList(
+    attach_help(
+      shiny::fileInput(
+        inputId = node$id,
+<span class="add">        label   = file_copy$label %||% label %||% "Choose a data file",</span>
+        accept  = c(".csv", ".tsv", ".rds", ".xlsx", ".xls", ".json")
+      ),
+<span class="add">      file_copy$help</span>
+    ),
+    attach_help(
+      shiny::textInput(
+        inputId     = node$companion_id %||% paste0(node$id, "_name"),
+<span class="add">        label       = name_copy$label %||% "Optional dataset name",
+        value       = "",
+        placeholder = name_copy$placeholder</span>
+      ),
+<span class="add">      name_copy$help</span>
+    )
+  )
+}
+</code></pre>
+<p class="note"><b>Watch:</b> the resolved <code>upload_name$help</code> default already mentions the accepted formats — keep that string and the <code>accept</code> vector consistent. Do <em>not</em> reintroduce the removed <code>shell$update_data_button</code> / <code>shell$update_data_stale_class</code> keys.</p>
+
+<!-- ============================================================ -->
+<h2 id="p2">Phase 2 — Error &amp; render feedback</h2>
+
+<h3 id="i21">2.1 <span class="pri-P0">P0</span> — Clear the plot canvas on a failed render &nbsp;<span class="risk-L">Low</span></h3>
+<p class="meta"><b>File:</b> <code>R/paintr-server.R</code> (<code>ptr_register_plot</code>). Today it does <code>shiny::req(isTRUE(res$ok), res$plot)</code> — under <code>req()</code> failure the output simply doesn't update, so the previous plot lingers (audit 3.4). Legacy did <code>graphics::plot.new(); return(invisible(NULL))</code>.</p>
+<pre><code>ptr_register_plot &lt;- function(output, state) {
+<span class="add">  ptr_validate_state(state)                       # Phase 5.2</span>
+  output[[state$server_ns_fn("ptr_plot")]] &lt;- shiny::renderPlot({
+    res &lt;- state$runtime()
+<span class="del">    shiny::req(isTRUE(res$ok), res$plot)
+    res$plot</span>
+<span class="add">    if (is.null(res) || !isTRUE(res$ok) || is.null(res$plot)) {
+      graphics::plot.new()                          # blank the device
+      return(invisible(NULL))
+    }
+    res$plot</span>
+  })
+  invisible(state)
+}
+</code></pre>
+<p class="note"><code>graphics</code> is a base-priority package; using it via <code>::</code> needs no <code>DESCRIPTION</code> entry (and won't trigger an <code>R CMD check</code> NOTE unless you add it to Imports). Legacy used <code>graphics::plot.new()</code> the same way.</p>
+
+<h3 id="i22">2.2 <span class="pri-P1">P1</span> — Restore stage-prefixed runtime error messages &nbsp;<span class="risk-M">Med</span></h3>
+<p class="meta"><b>Files:</b> <code>R/paintr-safe.R</code> (stamp the prefix where <code>$error</code> is set — the result already carries <code>$stage</code> = <code>"complete"</code> | <code>"plot"</code>), or <code>R/paintr-server.R</code> (apply at <code>ptr_register_error</code> / <code>ptr_extract_error</code>). Prefer stamping in <code>paintr-safe.R</code> so both the inline UI and <code>ptr_extract_error()</code> get it for free. Legacy text: <code>"Input error: …"</code> for the input/substitute stage, <code>"Plot error: …"</code> for the eval/render stage.</p>
+<pre><code># R/paintr-safe.R  — add a small formatter, route both error sites through it.
+
+ptr_format_runtime_message &lt;- function(stage, msg) {
+  if (is.null(msg) || !nzchar(msg)) return(msg)
+  prefix &lt;- switch(stage, complete = "Input error: ", plot = "Plot error: ", "")
+  if (startsWith(msg, prefix)) return(msg)           # idempotent
+  paste0(prefix, msg)
+}
+
+# ptr_complete_expr_safe(): in the `error = function(e)` branch, replace
+#   error = conditionMessage(e)
+# with
+<span class="add">  error = ptr_format_runtime_message("complete", conditionMessage(e))</span>
+
+# fail_result(): when callers pass stage/error, format there:
+fail_result &lt;- function(result, stage, error, condition = NULL) {
+  result$ok        &lt;- FALSE
+  result$stage     &lt;- stage
+<span class="add">  result$error     &lt;- ptr_format_runtime_message(stage, error)</span>
+  result$condition &lt;- condition
+  result
+}
+# (`ptr_assemble_plot_safe` / `ptr_validate_plot_render_safe` already call
+#  fail_result(result, "plot", conditionMessage(e), e) and the "No layers
+#  to render" message — those will pick up the "Plot error: " prefix.
+#  Optionally exempt the "No layers" string if you don't want it prefixed.)
+</code></pre>
+<p><code>ptr_register_error()</code> and <code>ptr_extract_error()</code> need <em>no change</em> — they read <code>res$error</code>, which now carries the prefix. Keep the existing <code>cli::ansi_strip()</code> in <code>ptr_register_error</code>.</p>
+
+<h3 id="i23">2.3 <span class="pri-P3">P3</span> <span class="adv">ADVISORY</span> — "no layers" wording &nbsp;<span class="risk-L">Low</span></h3>
+<p class="meta">Legacy: <code>"No plot layers remain after processing the selected inputs."</code>; rewrite: <code>"No layers to render (after pruning)."</code> (<code>ptr_assemble_plot_safe</code>) / <code>"No layers to evaluate (after pruning)."</code> (<code>ptr_eval</code>). Restore the legacy phrasing, or leave it — your call; either way it'll be wrapped by 2.2.</p>
+
+<!-- ============================================================ -->
+<h2 id="p3">Phase 3 — Layer-disabled visual cue</h2>
+<p><b>Root cause</b> (audit V3): the <code>ptr-layer-disabled</code> class is applied <em>only at UI-construction time</em> in <code>build_ui_for.ptr_layer()</code> (<code>class = if (default_on) "ptr-layer-content" else "ptr-layer-content ptr-layer-disabled"</code>) and never updated when the user toggles the layer's include-checkbox (<code>node$active_input_id</code>) at runtime. The layer still drops from the plot (the runtime observer reads the checkbox via <code>state$input_spec</code> / <code>disable_walk</code>), but the panel isn't greyed. Legacy toggled the class via a <code>ptr_set_class</code> custom-message handler + a CSS rule (<code>ptr_layer_switcher_style_tag</code> / <code>ptr_data_pipeline_class_handler_script</code>) + an observer per layer (<code>ptr_setup_layer_switcher_observers</code>).</p>
+
+<h3 id="i31">3.1 <span class="pri-P1">P1</span> — JS message handler + CSS, injected into the app head &nbsp;<span class="risk-M">Med</span></h3>
+<p class="meta"><b>Files:</b> add an internal helper (e.g. in <code>R/paintr-build-ui.R</code> or a new <code>R/paintr-assets.R</code>); call it from the head of every app shell — <code>ptr_build_app_ui()</code> (<code>R/paintr-app.R</code>), <code>ptr_app_bslib()</code> (<code>R/paintr-app-bslib.R</code>), and <code>ptr_module_ui()</code> (<code>R/paintr-app.R</code>). <b>Do not</b> add <code>shinyjs</code> to <code>DESCRIPTION</code> — hand-roll the handler.</p>
+<pre><code># internal: returns a tagList of a &lt;script&gt; (custom message handler) and a
+# &lt;style&gt; with the disabled-panel rule. Inject once per app via tags$head().
+ptr_layer_assets &lt;- function() {
+  shiny::tagList(
+    shiny::tags$script(shiny::HTML(
+      "Shiny.addCustomMessageHandler('ptr_set_class', function(m){",
+      "  var el = document.getElementById(m.id); if(!el) return;",
+      "  if (m.add) el.classList.add(m.cls); else el.classList.remove(m.cls);",
+      "});"
+    )),
+    shiny::tags$style(shiny::HTML(
+      ".ptr-layer-disabled{opacity:.5;pointer-events:none;}"
+    ))
+  )
+}
+
+# e.g. in ptr_build_app_ui():  shiny::fluidPage( shiny::tags$head(ptr_layer_assets()), ... )
+# e.g. in ptr_app_bslib():     bslib::page_sidebar(..., shiny::tags$head(ptr_layer_assets()))
+# e.g. in ptr_module_ui():     shiny::tagList(ptr_layer_assets(), ...existing UI...)
+</code></pre>
+
+<h3 id="i32">3.2 <span class="pri-P1">P1</span> — Server observer toggling the class on each layer's content div &nbsp;<span class="risk-M">Med</span></h3>
+<p class="meta"><b>Files:</b> <code>R/paintr-server.R</code> (new <code>ptr_setup_layer_panel_classes()</code>, called from <code>ptr_server()</code> alongside <code>ptr_setup_layer_picker()</code>). The content-div id is built by <code>layer_panel_content_id(layer_name)</code> (already in <code>R/paintr-build-ui.R</code>) and namespaced with the <em>UI</em> ns at build time — so the observer must namespace with the same UI ns. Drive it off the layer-include checkbox inputs, which are named <code>node$active_input_id</code> and live in <code>state$input_spec</code> with <code>role == "layer_checkbox"</code>.</p>
+<pre><code># R/paintr-server.R
+ptr_setup_layer_panel_classes &lt;- function(state, input, output, session) {
+  ns      &lt;- state$server_ns_fn      # for reading input ids
+  ui_ns   &lt;- state$ui_ns_fn          # for the DOM element id (matches build_ui)
+  spec    &lt;- state$input_spec
+  ck_rows &lt;- spec[spec$role == "layer_checkbox", , drop = FALSE]
+  for (i in seq_len(nrow(ck_rows))) {
+    local({
+      input_id   &lt;- ck_rows$input_id[i]
+      layer_name &lt;- ck_rows$layer_name[i]
+      dom_id     &lt;- ui_ns(layer_panel_content_id(layer_name))
+      shiny::observeEvent(input[[ns(input_id)]], {
+        session$sendCustomMessage("ptr_set_class", list(
+          id  = dom_id,
+          cls = "ptr-layer-disabled",
+          add = !isTRUE(input[[ns(input_id)]])
+        ))
+      }, ignoreNULL = FALSE)
+    })
+  }
+  invisible(state)
+}
+
+# ptr_server():  ... ptr_setup_layer_picker(...); ptr_setup_layer_panel_classes(state, input, output, session)
+</code></pre>
+<p class="note"><b>Verify before coding:</b> (a) the exact column names/roles in <code>state$input_spec</code> for layer checkboxes — the audit reported <code>role == "layer_checkbox"</code> and a <code>layer_name</code> column; confirm in <code>R/paintr-input-spec.R</code>. (b) Whether <code>state</code> exposes both a UI ns (<code>ui_ns_fn</code>) and a server ns (<code>server_ns_fn</code>) — the consumer code uses both, so it should. (c) That <code>build_ui_for.ptr_layer</code> uses the <em>same</em> ns (<code>ns_fn</code>) it's passed for both the checkbox and the content div — it does (<code>ns_fn(node$active_input_id)</code> and <code>ns_fn(layer_panel_content_id(layer_name))</code>), so the observer's <code>ui_ns</code> must equal whatever <code>ns_fn</code> the app passed into <code>build_ui_for</code>. If those can differ, thread one canonical ns.</p>
+
+<!-- ============================================================ -->
+<h2 id="p4">Phase 4 — Data-pipeline control labels</h2>
+
+<h3 id="i41">4.1 <span class="pri-P2">P2</span> — Append "in <code>verb()</code>" to pipeline-stage placeholder labels &nbsp;<span class="risk-M">Med</span></h3>
+<p class="meta"><b>Files:</b> <code>R/paintr-build-ui.R</code> (the pipeline-entries loop in <code>build_ui_for.ptr_layer</code>, and/or <code>find_layer_placeholders_with_stage</code> to also surface the enclosing verb name); optionally a small ported helper. Legacy <code>ptr_enclosing_verb_name()</code> took the head symbol of the innermost enclosing call (e.g. <code>mutate</code>, <code>filter</code>) and (a) appended <code>" in mutate()"</code> to the resolved label and (b) used <code>"mutate()"</code> as the <code>param</code> key when the placeholder occupied an unnamed argument.</p>
+<p>Today <code>find_layer_placeholders_with_stage()</code> returns <code>list(ph = ..., stage_id = ...)</code> per entry. <code>stage_id</code> already comes from the enclosing <code>ptr_call$stage_id</code>; the verb name is the head of that same call. Two implementation options:</p>
+<pre><code># Option A — carry the verb in the entry (preferred: keeps build_ui_for thin)
+# In find_layer_placeholders_with_stage(), when descending into a ptr_call
+# with a stage_id, also record the head symbol name:
+#   verb &lt;- if (is.symbol(n$fun)) as.character(n$fun) else NA_character_
+#   out[[k]] &lt;- list(ph = a_descendant, stage_id = n$stage_id, verb = verb)
+# (propagate `verb` the same way `current_sid` is propagated.)
+
+# In build_ui_for.ptr_layer()'s pipeline loop:
+for (entry in pipeline_entries) {
+  ph   &lt;- entry$ph
+  sid  &lt;- entry$stage_id
+  verb &lt;- entry$verb                               # NA when not in a verb call
+  # Resolve copy here (instead of inside build_ui_for) so we can decorate:
+  param_for_copy &lt;- if (is.na(ph$param) || is.null(ph$param)) {
+<span class="add">    if (!is.na(verb)) paste0(verb, "()") else ph$param</span>     # legacy unnamed-arg key
+  } else ph$param
+  ui &lt;- build_ui_for(ph, ui_text = ui_text, placeholders = placeholders,
+                     layer_name = layer_name, ns_fn = ns_fn,
+<span class="add">                     param_override = param_for_copy,
+                     label_suffix   = if (!is.na(verb)) paste0(" in ", verb, "()") else NULL</span>)
+  ...
+}
+</code></pre>
+<p class="note">Threading <code>param_override</code> / <code>label_suffix</code> through <code>build_ui_for.ptr_ph_value</code> → <code>invoke_build_ui</code> is a couple of extra args (default <code>NULL</code>): <code>invoke_build_ui</code> uses <code>param = param_override %||% node$param</code> when resolving copy, and appends <code>label_suffix</code> to <code>copy$label</code> before passing it to the hook. <b>Option B</b> (simpler, less invasive): do the label decoration entirely inside the loop by resolving copy there and passing a literal <code>label =</code> down a new <code>build_ui_for(..., label = decorated)</code> path — but that duplicates the copy-resolution call. Pick A.</p>
+
+<!-- ============================================================ -->
+<h2 id="p5">Phase 5 — Definition / robustness regressions</h2>
+
+<h3 id="i51">5.1 <span class="pri-P2">P2</span> — Re-enforce the copy-field whitelist at placeholder definition &nbsp;<span class="risk-L">Low</span></h3>
+<p class="meta"><b>File:</b> <code>R/paintr-registry.R</code> (<code>validate_copy_defaults</code>) — uses <code>ptr_ui_text_leaf_fields()</code> from <code>R/paintr-copy.R</code> = <code>c("label","help","placeholder","empty_text")</code>. Mirrors legacy <code>ptr_validate_placeholder</code>'s rejection of unknown copy fields. Its current comment literally says "Field whitelist (label/tooltip/placeholder/help/...) tightens at P6 wiring" — this is that tightening (and drop the bogus <code>tooltip</code> from the comment).</p>
+<pre><code>validate_copy_defaults &lt;- function(copy_defaults) {
+  if (is.null(copy_defaults)) return(invisible(TRUE))
+  if (!is.list(copy_defaults)) rlang::abort("`copy_defaults` must be a named list.")
+  nms &lt;- names(copy_defaults)
+  if (is.null(nms) || any(!nzchar(nms)) || anyDuplicated(nms)) {
+    rlang::abort("`copy_defaults` must have unique, non-empty names.")
+  }
+<span class="add">  unknown &lt;- setdiff(nms, ptr_ui_text_leaf_fields())
+  if (length(unknown) &gt; 0L) {
+    rlang::abort(paste0(
+      "`copy_defaults` has unsupported field(s): ", paste(sort(unknown), collapse = ", "),
+      ". Allowed: ", paste(ptr_ui_text_leaf_fields(), collapse = ", "), "."
+    ))
+  }</span>
+  for (i in seq_along(copy_defaults)) {
+    v &lt;- copy_defaults[[i]]
+    if (!is.character(v) || length(v) != 1L || is.na(v)) {
+      rlang::abort(paste0("`copy_defaults$", nms[[i]], "` must be a single non-NA string."))
+    }
+  }
+  invisible(TRUE)
+}
+</code></pre>
+
+<h3 id="i52">5.2 <span class="pri-P2">P2</span> — Re-add a lightweight <code>ptr_validate_state()</code> guard &nbsp;<span class="risk-L">Low</span></h3>
+<p class="meta"><b>File:</b> <code>R/paintr-server.R</code> (define near <code>ptr_server_state</code>; call from <code>ptr_register_plot/error/code</code> and any other public function taking <code>state</code>). Legacy <code>ptr_validate_state</code> asserted the state had the right shape before wiring.</p>
+<pre><code>ptr_validate_state &lt;- function(state) {
+  if (!is.list(state)) rlang::abort("`state` must be a `ptr_state` list (from `ptr_server_state()`).")
+  needed_reactive &lt;- c("tree", "runtime", "extras", "extras_exprs")
+  needed_other    &lt;- c("server_ns_fn", "eval_env")        # extend to match actual fields
+  miss &lt;- setdiff(c(needed_reactive, needed_other), names(state))
+  if (length(miss) &gt; 0L) {
+    rlang::abort(paste0("`state` is missing required entries: ", paste(miss, collapse = ", "), "."))
+  }
+  for (nm in c(needed_reactive, "server_ns_fn")) {
+    if (!is.function(state[[nm]])) rlang::abort(paste0("`state$", nm, "` must be a function/reactive."))
+  }
+  invisible(TRUE)
+}
+# ptr_register_plot/error/code(): first line  ->  ptr_validate_state(state)
+</code></pre>
+<p class="note">Confirm the exact field set of <code>ptr_state</code> in <code>ptr_server_state()</code> before finalizing the lists — the audit's reconstructed field list (1.5 in the audit) is the starting point; only assert fields the public functions actually rely on, to avoid coupling the guard to internals.</p>
+
+<h3 id="i53">5.3 <span class="pri-P3">P3</span> <span class="adv">ADVISORY</span> — Thread <code>expr_check</code> through <code>ptr_substitute()</code> &nbsp;<span class="risk-M">Med</span></h3>
+<p class="meta"><b>Files:</b> <code>R/paintr-substitute.R</code> (<code>ptr_substitute</code> signature → carry <code>expr_check</code> in its walk ctx; <code>validate_resolve_expr_return</code> uses it instead of hardcoded <code>TRUE</code>), <code>R/paintr-safe.R</code> (<code>ptr_complete_expr_safe</code> passes <code>state$expr_check</code> down to <code>ptr_substitute</code>). Effect: a user's custom <code>deny_list</code>/<code>allow_list</code> or <code>expr_check = FALSE</code> applies to resolver-synthesized code too, not just to the final eval-stage check. Currently this is "always strict on synthesized code" — safe, just not configurable there. Skip if you're fine with that.</p>
+<pre><code># R/paintr-substitute.R
+ptr_substitute &lt;- function(node, input_snapshot = list(), shared_bindings = list(),
+                           eval_env = parent.frame(), upstream_cols = list(),
+<span class="add">                           expr_check = TRUE</span>) { ... carry in ctx ... }
+
+# validate_resolve_expr_return(...):  replace
+#   validate_expr_safety(e, expr_check = TRUE,  placeholder_names = ph_names)
+# with
+<span class="add">  validate_expr_safety(e, expr_check = ctx$expr_check, placeholder_names = ph_names)</span>
+
+# R/paintr-safe.R — ptr_complete_expr_safe(): add an `expr_check = TRUE` param and
+#   subbed &lt;- ptr_substitute(node, ..., expr_check = expr_check)
+# and pass state$expr_check from ptr_setup_runtime() like it already does for ptr_assemble_plot_safe().
+</code></pre>
+
+<h3 id="i54">5.4 <span class="pri-P3">P3</span> <span class="adv">ADVISORY</span> — <code>expr</code> parse-error wording &nbsp;<span class="risk-L">Low</span></h3>
+<p class="meta"><b>File:</b> <code>R/paintr-builtins.R</code> (<code>ptr_builtin_expr_resolve_expr</code>). Legacy: <code>"expr placeholder: could not parse input as R expression: &lt;parser msg&gt;"</code> and <code>"input must contain exactly one expression, but N were found."</code></p>
+<pre><code>ptr_builtin_expr_resolve_expr &lt;- function(value, node, ...) {
+  if (!is.character(value) || length(value) != 1L || !nzchar(value)) {
+    rlang::abort("expr placeholder requires exactly one expression as a string.")
+  }
+<span class="add">  exprs &lt;- tryCatch(rlang::parse_exprs(value), error = function(e)
+    rlang::abort(paste0("expr placeholder: could not parse input as R expression: ",
+                        conditionMessage(e))))
+  if (length(exprs) != 1L) {
+    rlang::abort(paste0("expr placeholder: input must contain exactly one expression, but ",
+                        length(exprs), " were found."))
+  }</span>
+  exprs[[1]]
+}
+</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="p6">Phase 6 — Tests</h2>
+<p>testthat ed. 3; <code>tests/testthat/test-*.R</code>; helpers <code>helper-*.R</code>; fixtures in <code>tests/testthat/fixtures/</code>. Where the rewrite renders Shiny tags, assert against the rendered HTML with <code>as.character()</code> / <code>htmltools::renderTags()</code> or by walking the tag list; for server behavior use <code>shiny::testServer()</code>. Add each paired test in the same change as its fix (TDD-friendly).</p>
+
+<h3>6a. Tests paired with the fixes</h3>
+<table>
+<tr><th>For</th><th>File → assertions</th></tr>
+<tr><td>1.1–1.4</td><td><code>test-rewrite-build-ui.R</code> (and/or <code>test-copy-rules.R</code>): build a <code>text</code> widget with a <code>ui_text</code> override <code>params$x$text = list(label="L", help="H", placeholder="P")</code> → rendered HTML contains a <code>shiny-html-output</code>-free <code>&lt;input ... placeholder="P"&gt;</code> and a sibling <code>&lt;span class="help-block"&gt;H&lt;/span&gt;</code> (the <code>helpText</code> node). Same for <code>expr</code> (textarea + placeholder + help) and <code>num</code> (help only). For <code>var</code>: render via the consumer path (or call <code>invoke_build_ui(node, ..., extra=list(cols=c("a","b"), data=NULL, selected=character(0)))</code>) with <code>empty_text</code> set → <code>noneSelectedText</code> in the picker options equals the override; with no override it equals the resolved default <code>"Choose one column"</code>. Also: <code>ptr_default_ui_text()</code>'s <code>text</code> default carries the restored <code>placeholder</code>; <code>var</code> default carries <code>empty_text = "Choose one column"</code>.</td></tr>
+<tr><td>1.5–1.6</td><td><code>test-upload.R</code>: <code>upload</code> <code>build_ui</code> HTML contains <code>accept=".csv,.tsv,.rds,.xlsx,.xls,.json"</code> on the <code>&lt;input type="file"&gt;</code>; the file-input label = resolved <code>upload_file$label</code> (override it via <code>ui_text$upload$file$label</code> and assert); the companion <code>&lt;input type="text"&gt;</code> label/placeholder come from <code>upload_name</code> (override and assert); <code>file_copy$help</code> renders as a <code>helpText</code>. Regression guard: <code>ptr_validate_ui_text(list(shell=list(update_data_button=list(label="x"))))</code> still errors (we did not reintroduce that key).</td></tr>
+<tr><td>2.1</td><td>New <code>test-rewrite-runtime-feedback.R</code> via <code>shiny::testServer</code> on a tiny app: drive a formula whose render fails (e.g. a placeholder left empty so "no layers", or a bad <code>expr</code>); assert the <code>ptr_plot</code> output's render expression, when evaluated, calls <code>graphics::plot.new()</code> and returns <code>NULL</code> (spy on <code>graphics::plot.new</code> with <code>testthat::with_mocked_bindings</code> / <code>local_mocked_bindings</code>), i.e. it does <em>not</em> retain a prior plot.</td></tr>
+<tr><td>2.2</td><td><code>test-rewrite-runtime-feedback.R</code>: an input/substitute-stage failure → <code>state$runtime()$error</code> (and <code>ptr_extract_error(state)</code>) starts with <code>"Input error: "</code>; an eval/render-stage failure → starts with <code>"Plot error: "</code>; the prefix is not double-applied; ANSI escapes are stripped in <code>ptr_register_error</code>'s output (feed an error message containing <code>cli</code> styling and assert <code>cli::ansi_strip</code> applied). Also: blank/no error → <code>ptr_extract_error(state)</code> is <code>NULL</code>/<code>""</code> and <code>ptr_error_ui("")</code> returns <code>NULL</code> (covers the §4 <code>ptr_error_ui</code>-contract gap).</td></tr>
+<tr><td>3.1–3.2</td><td><code>test-rewrite-app.R</code> or <code>test-rewrite-layer-panel.R</code>: (UI) <code>ptr_build_app_ui(formula)</code> / <code>ptr_app_bslib(formula)</code> / <code>ptr_module_ui(id, formula)</code> HTML contains the <code>ptr_set_class</code> custom-message-handler script and the <code>.ptr-layer-disabled</code> style; (server) via <code>shiny::testServer</code>, set a layer's include-checkbox input to <code>FALSE</code> → a <code>session$sendCustomMessage("ptr_set_class", list(id=&lt;ui-ns'd content id&gt;, cls="ptr-layer-disabled", add=TRUE))</code> was sent (capture via a message recorder); set it back to <code>TRUE</code> → <code>add=FALSE</code>. Use a formula with ≥1 optional layer (e.g. <code>"ggplot(...) + geom_point()"</code>).</td></tr>
+<tr><td>4.1</td><td><code>test-rewrite-layer-panel.R</code>: a formula like <code>"data |&gt; mutate(z = var) |&gt; ggplot(aes(x = z))"</code> (or whatever the supported pipeline form is) → the rendered label for the pipeline placeholder ends with <code>" in mutate()"</code>; with a <code>ui_text</code> override keyed on <code>params[["mutate()"]]$var$label</code> (the unnamed-arg key) the override takes effect (proves the <code>"mutate()"</code> param key path).</td></tr>
+<tr><td>5.1</td><td><code>test-rewrite-registry.R</code>: <code>ptr_define_placeholder_value("k", build_ui = function(node, ...) NULL, resolve_expr = function(value, node, ...) value, copy_defaults = list(tooltip = "x"))</code> aborts with an "unsupported field(s)" message; <code>copy_defaults = list(label="L", help="H", placeholder="P", empty_text="E")</code> is accepted.</td></tr>
+<tr><td>5.2</td><td><code>test-rewrite-server-state.R</code>: <code>ptr_register_plot(structure(list(), class=NULL), state = list())</code> aborts via <code>ptr_validate_state</code>; a well-formed <code>ptr_server_state(...)</code> passes.</td></tr>
+<tr><td>5.3 (if done)</td><td><code>test-rewrite-safety.R</code>: with <code>expr_check = list(deny_list = "myEvilFn")</code> and a placeholder whose <code>resolve_expr</code> synthesizes <code>myEvilFn(1)</code>, <code>ptr_complete_expr_safe()</code> returns <code>ok = FALSE</code> (rejected at substitute); with <code>expr_check = FALSE</code>, the same synthesized call is <em>not</em> rejected at substitute (and the eval-stage default still rejects the standard denylist — assert both halves).</td></tr>
+</table>
+
+<h3>6b. Standalone §4 coverage gaps</h3>
+<table>
+<tr><th>Gap</th><th>Test</th></tr>
+<tr><td><code>ptr_validate_ui_text</code> abort-path completeness</td><td>Extend <code>test-copy-rules.R</code> — one <code>expect_error()</code> per rejectable region: unknown top-level section; unknown <code>shell</code> entry; unknown <code>upload</code> entry; unknown <code>defaults</code> keyword; unknown <code>params$&lt;p&gt;</code> keyword; non-list <code>params$&lt;p&gt;</code>; unknown <code>layers$&lt;l&gt;</code> keyword; non-list <code>layers$&lt;l&gt;</code> / <code>layers$&lt;l&gt;$&lt;kw&gt;</code>; bad <code>layer_checkbox</code> leaf; non-string leaf value (use <code>ptr_validate_ui_text_leaf</code> indirectly).</td></tr>
+<tr><td><code>ns</code> consistency negative case</td><td>Add to <code>test-rewrite-ids.R</code>: rendering UI with <code>ns_fn = shiny::NS("a")</code> but resolving server-side ids with <code>shiny::NS("b")</code> yields non-matching input ids (the UI/server ns must agree — the contract <code>build_ui_for</code> + the runtime observer rely on); and <code>shiny::NS(NULL)</code> is identity at every layer (extend existing assertions to also cover the layer-content div id and the consumer <code>_ui</code> output id).</td></tr>
+<tr><td>Documented supported use cases smoke test</td><td>New <code>test-rewrite-supported-use-cases.R</code> + <code>tests/testthat/fixtures/supported-formulas.R</code> (a character vector of the formula strings appearing in <code>README.Rmd</code> / vignettes / <code>inst/llm/topics/formula_syntax.md</code>). For each: <code>ptr_translate()</code> → <code>ptr_assign_ids()</code> → <code>ptr_substitute()</code> (with stub inputs filling required placeholders) → <code>ptr_prune()</code> → <code>ptr_eval()</code> (in a env with the example data) → <code>expect_s3_class(., "ggplot")</code>; and <code>render_walk()</code> produces a parseable expression. Guards against silent breakage of documented behavior.</td></tr>
+<tr><td>NAMESPACE export-set guard</td><td>New <code>test-rewrite-namespace.R</code>: <code>expect_snapshot(sort(getNamespaceExports("ggpaintr")))</code> (or compare to an explicit expected vector). Catches accidental export drift after the big API change.</td></tr>
+<tr><td>Dedupe-layer-names edge cases</td><td>Add to <code>test-rewrite-translate.R</code>: a formula with 4 identical layer names → suffixes <code>-2/-3/-4</code>; two independent duplicate groups in one formula each get their own suffix sequence; a non-duplicate formula is unchanged; single-layer unchanged. (If a standalone <code>dedupe_layer_names()</code>/<code>handle_duplicate_names()</code> helper exists, also unit-test it directly with empty/length-1 vectors.)</td></tr>
+<tr><td><code>ptr_reserved_words</code> / <code>.ptr_reserved</code> contents</td><td>Small test (e.g. in <code>test-rewrite-registry.R</code>): <code>.ptr_reserved</code> (or whatever the rewrite's reserved-name list is) is a non-empty character vector that includes the R keywords and literal constants (<code>if</code>, <code>function</code>, <code>TRUE</code>, <code>NULL</code>, <code>NA</code>, <code>...</code>, the <code>NA_*_</code> forms) and that <code>validate_keyword()</code> rejects each of them; and that column-name handling renames such names (cross-check with <code>test-rewrite-resolve-upstream.R</code> P11.5/P11.6 if that's where it lives).</td></tr>
+<tr><td><code>pkg:::fn</code> in a denylisted call</td><td>Add to <code>test-rewrite-safety.R</code>: an <code>expr</code> placeholder value <code>"base:::system('echo hi')"</code> (and a layer head <code>base:::system(...)</code>) is rejected by <code>validate_expr_safety</code>/<code>walk_ptr_safety</code>; a non-denylisted triple-colon call (e.g. <code>somepkg:::helper(x)</code>) is preserved through translate/render.</td></tr>
+<tr><td>Graceful degradation: <code>var</code> with no / unknown upstream data</td><td>Add to <code>test-rewrite-resolve-upstream.R</code> / <code>test-rewrite-lazy-consumer.R</code>: a layer whose <code>data_arg</code> references an unresolvable object → <code>ptr_resolve_upstream()</code> returns <code>NULL</code> (no abort) and the consumer's <code>renderUI</code> emits a picker with empty <code>choices</code> (no crash); a <code>var</code> input naming a column absent from a resolvable upstream → <code>ptr_builtin_var_validate_input()</code> returns the error <em>string</em> (not an abort) and the runtime surfaces it as an "Input error: …" inline message rather than killing the reactive graph.</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="p7">Phase 7 — Advisory / housekeeping (not regressions; your call)</h2>
+<ul>
+  <li><span class="adv">ADVISORY</span> <b>Version bump + NEWS.</b> <code>DESCRIPTION</code> is still <code>0.9.1</code> despite a large breaking API change. Bump (<code>0.10.0</code> or <code>1.0.0</code>) and add a <code>NEWS.md</code> section listing removed/changed exports. Independent of this patch work.</li>
+  <li><span class="adv">ADVISORY</span> <b>Vestigial <code>placeholders=</code> params.</b> <code>ptr_merge_ui_text</code> / <code>ptr_resolve_ui_text</code> / <code>ptr_default_ui_text</code> / <code>ptr_compact_ui_text</code> / <code>ptr_validate_ui_text</code> / <code>ptr_ui_text_keywords</code> all accept <code>placeholders=</code> but it funnels to <code>ptr_ui_text_keywords()</code> whose body is just <code>ptr_registry_keywords()</code> — ignored (registry is global). Either drop the parameter (signature change) or add an explicit <code>@param placeholders Ignored; retained for backward compatibility.</code> Decide alongside the version bump.</li>
+  <li><span class="adv">ADVISORY</span> <b>Docs sweep.</b> Not restoring the removed L2/L3 surface — but check <code>inst/llm/topics/level2_*</code> / <code>level3_*</code> and the vignettes don't still document <code>ptr_parse_formula</code>/<code>ptr_exec</code>/<code>ptr_input_ui</code>/<code>ptr_build_ids</code>/<code>ptr_define_placeholder</code>/<code>ptr_missing_expr</code> or the old <code>ptr_extract_*</code> calling convention. Separate doc task.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="seq">Sequencing, risks &amp; verification</h2>
+
+<h3>Suggested order (each step ships with its paired tests)</h3>
+<ol>
+  <li><b>1.1 + 1.2</b> (the copy-plumbing) — everything else in Phase 1 builds on it.</li>
+  <li><b>1.3 + 1.4 + 5.1</b> together (restoring the <code>text</code>/<code>var</code> copy defaults must land with the whitelist tightening, or pick whichever order keeps the suite green).</li>
+  <li><b>1.5 + 1.6</b> (upload accept + copy-driven labels).</li>
+  <li><b>2.1, 2.2</b> (render/error feedback) — independent, small.</li>
+  <li><b>5.2</b> (<code>ptr_validate_state</code>) — independent, small; wire it into the <code>ptr_register_*</code> functions touched in 2.1.</li>
+  <li><b>4.1</b> (verb-suffix labels) — independent; needs the small verb-extraction addition to <code>find_layer_placeholders_with_stage</code>.</li>
+  <li><b>3.1 + 3.2</b> (layer-disabled cue) — highest risk; do last. Confirm the ns/id assumptions in 3.2's note first.</li>
+  <li><b>5.3, 5.4</b> — optional; any time.</li>
+  <li><b>6b</b> standalone tests — any time.</li>
+  <li><b>Phase 7</b> — separate decisions.</li>
+</ol>
+
+<h3>Risks &amp; watch-outs</h3>
+<ul>
+  <li><b>Custom <code>build_ui</code> hooks that declare only <code>function(node, label)</code>.</b> Passing the extra <code>copy =</code> arg (1.1) would error for a hook with no <code>...</code>. The registry's <code>validate_hook()</code> only warns, doesn't enforce <code>...</code>. Mitigation: pass <code>copy</code> via <code>do.call</code> only if the hook accepts <code>copy</code> or <code>...</code> — e.g. <code>fmls &lt;- names(formals(entry$build_ui)); if (!"..." %in% fmls &amp;&amp; !"copy" %in% fmls) drop the copy arg</code>. Cheap and keeps third-party hooks working. Same consideration for <code>file_copy</code>/<code>name_copy</code> (upload-only, so only the builtin hook is affected — safe).</li>
+  <li><b>Consumer (<code>var</code>) path.</b> <code>var</code> widgets are rendered server-side in <code>ptr_setup_consumer_uis()</code> via <code>invoke_build_ui()</code> — so the 1.1 fix flows through automatically; no separate server change needed. Just confirm <code>ptr_setup_consumer_uis</code> still passes <code>ui_text</code>/<code>placeholders</code>/<code>layer_name</code> into <code>invoke_build_ui</code> (it does today).</li>
+  <li><b>Layer-content id contract (Phase 3).</b> The DOM id is <code>ns_fn(layer_panel_content_id(layer_name))</code> built with whatever <code>ns_fn</code> the app passed to <code>build_ui_for.ptr_layer</code>; the observer must namespace with the <em>same</em> function. If <code>state$ui_ns_fn</code> and the <code>ns_fn</code> used at build time can diverge, thread one canonical UI ns. Don't duplicate the id string — call <code>layer_panel_content_id()</code> on both sides.</li>
+  <li><b>No NAMESPACE change expected.</b> <code>attach_help</code>, <code>ptr_layer_assets</code>, <code>ptr_setup_layer_panel_classes</code>, <code>ptr_validate_state</code>, <code>ptr_format_runtime_message</code>, the verb helper — all internal/unexported. Re-using existing <code>upload_file</code>/<code>upload_name</code> copy keys touches no exports. So <code>devtools::document()</code> isn't required unless a roxygen <code>@param</code> on an exported function changes (5.3 changes none of the exported signatures — it adds an internal-only param to internal functions).</li>
+  <li><b>Don't reanimate the intentional removals.</b> Phase 1.6 must not pull back <code>shell$update_data_button</code> / <code>shell$update_data_stale_class</code> or the "Update data" button; Phase 3 reuses the <code>ptr_set_class</code> mechanism but only for layer-include toggling, not a stale-data button.</li>
+</ul>
+
+<h3>Verification gate (after each phase, and once at the end)</h3>
+<ul class="checklist">
+  <li><code>devtools::test()</code> — 0 failures; the paired tests for the phase are present and pass.</li>
+  <li><code>devtools::test(filter = "&lt;touched test file&gt;")</code> during iteration.</li>
+  <li><code>devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran", "--no-manual"))</code> — 0 errors / 0 warnings (project rule).</li>
+  <li>Manual smoke (per <code>.claude/rules/testing.md</code> manual coverage): launch <code>ptr_app()</code> with a formula using <code>text</code> + <code>num</code> + <code>expr</code> + <code>var</code> + <code>upload</code> placeholders and a <code>ui_text</code> override setting <code>help</code>/<code>placeholder</code>/<code>empty_text</code>/<code>upload$file</code>/<code>upload$name</code> — confirm they render; toggle a layer include-checkbox — confirm the panel greys out and un-greys; trigger a plot error — confirm the canvas blanks and the message reads "Plot error: …"; check a pipeline placeholder label reads "… in mutate()".</li>
+  <li>Re-render <code>README.Rmd</code> only if an example formula / copy default shown there changed (none planned).</li>
+  <li>Optionally annotate the resolved items in <code>dev/legacy-audit.html</code>.</li>
+</ul>
+
+<h3>Out of scope (restated)</h3>
+<p>Global registry &amp; <code>placeholders=</code> removal · click-gated data-pipeline cache + "Update data" button + stale-notice · value/source/consumer hook redesign &amp; removal of <code>resolve_input</code>/<code>bind_ui</code>/<code>prepare_eval_env</code> · removed exports <code>ptr_parse_formula</code>/<code>ptr_exec</code>/<code>ptr_assemble_plot</code>/<code>ptr_input_ui</code>/<code>ptr_output_ui</code>/<code>ptr_setup_controls</code>/<code>ptr_register_draw</code>/<code>ptr_build_ids</code>/<code>ptr_resolve_layer_data</code>/<code>ptr_missing_expr</code>/<code>ptr_define_placeholder</code>/<code>ptr_merge_placeholders</code> · <code>ptr_extract_*</code> argument change · <code>ptr_module_ui</code> now requiring <code>formula</code> · <code>ptr_gg_extra</code> return-value change · producer-debounce auto-flip &amp; default · <code>expr</code> single-line→multi-line widget · the <code>ptr_obj</code> field surface / per-stage pipe-op vector (round-trip verified intact).</p>
+
+</body>
+</html>

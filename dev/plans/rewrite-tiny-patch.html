@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ggpaintr — rewrite tiny patch: cursor-threaded traversal + tree validators</title>
+<style>
+  body{font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:980px;margin:2rem auto;padding:0 1.3rem;color:#1c2330}
+  h1{font-size:1.7rem;border-bottom:2px solid #d0d7de;padding-bottom:.35rem}
+  h2{font-size:1.28rem;margin-top:2.4rem;border-bottom:1px solid #e3e8ee;padding-bottom:.25rem}
+  h3{font-size:1.06rem;margin-top:1.7rem}
+  h4{font-size:.98rem;margin-top:1.2rem;color:#374151}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:.9em;background:#f1f3f5;padding:1px 4px;border-radius:3px}
+  pre{background:#f6f8fa;border:1px solid #e1e6eb;border-radius:6px;padding:.8rem 1rem;overflow-x:auto;font-size:13px;line-height:1.5}
+  pre .c{color:#6b7280}            /* comment */
+  pre .k{color:#0550ae;font-weight:600} /* keyword/fn */
+  pre .s{color:#0a7c3a}            /* string */
+  pre .hl{background:#fff3bf}
+  table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:13.5px}
+  th,td{border:1px solid #dde3ea;padding:.45rem .6rem;text-align:left;vertical-align:top}
+  th{background:#f0f3f6}
+  td.m{font-family:"SF Mono",Menlo,monospace;white-space:nowrap;width:1%;background:#fafbfc}
+  blockquote{border-left:3px solid #d4a017;background:#fffdf3;margin:1rem 0;padding:.55rem .85rem;border-radius:0 6px 6px 0}
+  blockquote.warn{border-left-color:#c0392b;background:#fdf2f2}
+  blockquote.no{border-left-color:#6b7280;background:#f7f8f9}
+  .pill{display:inline-block;font-size:11.5px;border:1px solid #cbd5e1;border-radius:10px;padding:0 7px;background:#f0f4f8;color:#475569;margin-left:.3rem}
+  .file{font-family:"SF Mono",monospace;font-size:12.5px;color:#475569;background:#eef2f6;border:1px solid #dde3ea;border-radius:4px;padding:0 5px}
+  ul.tight li{margin:.2rem 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+  @media(max-width:820px){.grid2{grid-template-columns:1fr}}
+  .grid2 h4{margin-top:.2rem}
+  .lede{color:#475569}
+  hr{border:none;border-top:1px solid #e3e8ee;margin:2rem 0}
+</style>
+</head>
+<body>
+
+<h1>Rewrite tiny patch — cursor-threaded traversal &amp; tree validators</h1>
+<p class="lede">This document supersedes the deleted <span class="file">dev/ast-traversal-handoff.md</span>. It keeps the parts of that handoff that are still load-bearing, records what already landed, and turns the two ideas worth doing next — a <b>traversal cursor</b> and <b>tree validators</b> — into a concrete, low-risk patch with reference to the actual rewrite source. Every code block below is either quoted current source (marked <span class="file">file</span>) or proposed pseudocode (clearly labelled). <b>If you implement this, do not drift from the stated id formats and acceptance criteria.</b></p>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<h2>0 · Status of the original handoff <span class="pill">read this first</span></h2>
+
+<h4>Already landed (as of commit <code>fc17766</code>, branch <code>core-rewrite-impl</code>; suite: <b>916 pass / 0 fail</b>)</h4>
+<ul class="tight">
+  <li><span class="file">R/paintr-walk.R</span> exists, with a <em>leaner</em> API than the handoff proposed: <code>ptr_walk(node, visit, descend_upstream = FALSE, prune = NULL)</code> (pre-order side-effecting visit) and <code>ptr_collect(node, pred, …)</code> (gather matching nodes; <code>prune = pred</code> stops descent below a match). The "skip <code>upstream</code> by default" rule lives here, once. <em>(Added in commit <code>653b81c</code>; untouched by the later <code>fc17766</code> UI-regression fix, which built on top of it cleanly.)</em></li>
+  <li>The read-side collectors are ported onto it: <code>find_nodes</code>, <code>find_layer_placeholders</code>, <code>collect_shared_placeholders</code> (<span class="file">R/paintr-build-ui.R</span>), <code>collect_stage_ids</code> (<span class="file">R/paintr-disable.R</span>), and the new <code>collect_upstream_ids(upstream, pred)</code> which replaced the two near-identical <code>find_{consumer,producer}_ids_in_upstream</code> functions (<span class="file">R/paintr-server.R</span>).</li>
+  <li><code>classify_walk</code>'s four trivial passthrough methods were folded into <code>classify_walk.default</code> (<span class="file">R/paintr-classify.R</span>).</li>
+  <li>Other cleanup from the same batch that the patch below sits next to: <code>drop_null()</code> helper (<span class="file">R/paintr-utils.R</span>); <code>fail_result()</code> in <span class="file">R/paintr-safe.R</span> — now (post-<code>fc17766</code>) also stamps the error through <code>ptr_format_runtime_message(stage, …)</code>, so any abort routed through the safe wrappers picks up an <code>"Input error: "</code> / <code>"Plot error: "</code> prefix; the <code>ptr_setup_runtime</code> trigger guard tidied to a <code>clicked()</code> helper.</li>
+  <li>The full <code>devtools::test()</code> suite is green (916 tests; <code>R CMD check --as-cran</code> 0/0; NAMESPACE unchanged). (The original handoff's "Current State" claimed full tests fail on <code>ptr_layer_checkbox_tag</code>, <code>generate_ui_var</code>, etc. — that was already stale and is doubly so now.)</li>
+</ul>
+
+<h4>Not done, and what this patch picks up</h4>
+<ul class="tight">
+  <li><b>Traversal cursor</b> (handoff §3) — <em>not built</em>. <code>ptr_assign_ids</code> (<span class="file">R/paintr-ids.R</span>) and <code>assign_stage_ids</code> (<span class="file">R/paintr-disable.R</span>) still hand-thread <code>(layer_name, path, param)</code> in two separate bespoke recursions, and <code>disable_walk</code> re-derives "data-arg position" via <code>data_arg_position()</code>. Neither of those files was touched by <code>fc17766</code>, so the §1 plan below still applies verbatim. → <b>Part A</b>.</li>
+  <li><b>Tree validators</b> (handoff §5) — <em>not built</em>. Pass-order mistakes and "a placeholder/missing reached <code>ptr_eval</code>" still surface as cryptic Shiny errors. → <b>Part B</b>.</li>
+  <li>(Still intentionally <em>not</em> ported onto <code>ptr_collect</code>: <code>find_layer_placeholders_with_stage</code> in <span class="file">R/paintr-build-ui.R</span> — it threads <code>stage_id</code> <em>and</em> <code>verb</code> context down the data-arg chain (the <code>verb</code> bit was added by <code>fc17766</code> for the "label <i>in verb()</i>" copy), so it is a stateful walk that wouldn't simplify via the plain collector. A cursor (Part A) <em>could</em> subsume it later — out of scope here. Likewise <code>walk_has_placeholder</code> stays a narrow recursion.)</li>
+</ul>
+
+<h4>Deliberately <em>not</em> in this patch (and why) — see <a href="#scope">§3</a></h4>
+<p>The handoff's centrepiece — a generic <code>ptr_rewrite(pre, post, descend, cursor)</code> primitive plus porting <code>substitute_walk</code> / <code>prune_walk</code> / <code>disable_walk</code> onto it — is <b>declined for now</b>. Having read those five S3 visitors: their container methods carry essential per-pass logic, the shared recursion in each is ~4 lines, and a fat callback signature risks hiding pass behaviour — the exact "too-clever walker" risk the handoff itself lists. Revisit only if a new structural node class is actually added.</p>
+
+<hr>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<h2>1 · Part A — the traversal cursor</h2>
+
+<h3>1.1 · Why: two passes hand-thread the same state</h3>
+<p>Placeholder ids and stage ids are <b>location-derived</b>. Today that location is recomputed by two separate recursions over the same tree.</p>
+
+<div class="grid2">
+<div>
+<h4><span class="file">R/paintr-ids.R</span> — <code>assign_ids_walk()</code> (current)</h4>
+<pre><span class="c"># threads (layer_name, path, param) down by hand</span>
+assign_ids_walk &lt;- <span class="k">function</span>(node, layer_name, path, param) {
+  <span class="k">if</span> (is.null(node)) <span class="k">return</span>(NULL)
+  <span class="k">if</span> (is_ptr_placeholder(node))
+    <span class="k">return</span>(assign_id_to_placeholder(node, layer_name, path, param))
+  <span class="k">if</span> (is_ptr_call(node)) {
+    arg_names &lt;- names(node$args) %||% rep_len(<span class="s">""</span>, length(node$args))
+    <span class="k">for</span> (i <span class="k">in</span> seq_along(node$args)) {
+      child_param &lt;- <span class="k">if</span> (nzchar(arg_names[i])) arg_names[i] <span class="k">else</span> NA_character_
+      node$args[[i]] &lt;- assign_ids_walk(node$args[[i]], layer_name,
+                                       path = c(path, i), param = child_param)
+    }
+    <span class="k">return</span>(node)
+  }
+  <span class="k">if</span> (is_ptr_pipeline(node)) {
+    <span class="k">for</span> (i <span class="k">in</span> seq_along(node$stages))
+      node$stages[[i]] &lt;- assign_ids_walk(node$stages[[i]], layer_name,
+                                         path = c(path, i), param = param)  <span class="c"># param passes through</span>
+    <span class="k">return</span>(node)
+  }
+  node
+}</pre>
+</div>
+<div>
+<h4><span class="file">R/paintr-disable.R</span> — <code>assign_stage_ids_chain()</code> (current)</h4>
+<pre><span class="c"># threads (layer_name, path) down by hand, but ONLY along the data-arg chain</span>
+assign_stage_ids_chain &lt;- <span class="k">function</span>(node, layer_name, path) {
+  <span class="k">if</span> (is.null(node)) <span class="k">return</span>(NULL)
+  <span class="k">if</span> (is_ptr_pipeline(node)) {
+    <span class="k">for</span> (i <span class="k">in</span> seq_along(node$stages)) {
+      stage &lt;- node$stages[[i]]; sub_path &lt;- c(path, i)
+      <span class="k">if</span> (is_data_chain_call(stage)) {                <span class="c"># ptr_call && walk_has_placeholder()</span>
+        stage$stage_id &lt;- stage_id_from_path(layer_name, sub_path)
+        <span class="k">if</span> (i == 1L) {                                <span class="c"># only stage 1 is in data-arg position</span>
+          pos &lt;- data_arg_position(stage)
+          <span class="k">if</span> (!is.null(pos)) stage$args[[pos]] &lt;- assign_stage_ids_chain(
+            stage$args[[pos]], layer_name, path = c(sub_path, pos))
+        }
+        node$stages[[i]] &lt;- stage
+      }
+    }
+    <span class="k">return</span>(node)
+  }
+  <span class="k">if</span> (is_data_chain_call(node)) {
+    node$stage_id &lt;- stage_id_from_path(layer_name, path)
+    pos &lt;- data_arg_position(node)
+    <span class="k">if</span> (!is.null(pos)) node$args[[pos]] &lt;- assign_stage_ids_chain(
+      node$args[[pos]], layer_name, path = c(path, pos))
+    <span class="k">return</span>(node)
+  }
+  node
+}</pre>
+</div>
+</div>
+
+<p>Both recursions reconstruct exactly the same thing: <i>"where am I in the tree, which layer am I under, and is this an argument-in-data-position?"</i> A <b>cursor</b> makes that the traversal's job, computed once.</p>
+
+<h3>1.2 · The cursor object</h3>
+<p>A plain list, fields populated as known at each location (sparse is fine):</p>
+
+<pre><span class="c"># R/paintr-walk.R  (proposed)</span>
+ptr_cursor &lt;- <span class="k">function</span>(layer_name      = NA_character_,
+                       path            = integer(),     <span class="c"># index path relative to the layer</span>
+                       slot            = NA_character_, <span class="c"># "layers" | "data_arg" | "children" | "args" | "stages"</span>
+                       param           = NA_character_, <span class="c"># nearest enclosing argument NAME, or NA</span>
+                       in_data_position = FALSE,        <span class="c"># TRUE iff this node sits where pipeline data flows</span>
+                       pipeline_index  = NA_integer_) { <span class="c"># this node's stage index, if a pipeline stage</span>
+  <span class="k">list</span>(layer_name = layer_name, path = path, slot = slot, param = param,
+       in_data_position = in_data_position, pipeline_index = pipeline_index)
+}</pre>
+
+<h4>How the cursor updates as you descend each container kind</h4>
+<p>These rules <b>must reproduce today's <code>path</code> exactly</b> (see §1.5). Reading <code>assign_ids_in_layer()</code> + <code>assign_ids_walk()</code> + <code>assign_stage_ids()</code>:</p>
+
+<table>
+<tr><th>parent node</th><th>descending into…</th><th>child <code>layer_name</code></th><th>child <code>path</code></th><th>child <code>param</code></th><th>child <code>in_data_position</code></th><th>child <code>pipeline_index</code></th></tr>
+<tr><td class="m">ptr_root</td><td class="m">layers[i]</td><td>the child layer's <code>$name</code></td><td><code>integer()</code> (reset per layer)</td><td>NA</td><td>FALSE</td><td>NA</td></tr>
+<tr><td class="m">ptr_layer</td><td class="m">data_arg</td><td>parent's <code>layer_name</code></td><td><code>integer()</code></td><td><code>"data"</code></td><td><b>TRUE</b></td><td>NA</td></tr>
+<tr><td class="m">ptr_layer</td><td class="m">children[i] (name nm)</td><td>parent's <code>layer_name</code></td><td><code>c(i)</code></td><td><code>nm</code> if non-empty else NA</td><td>FALSE</td><td>NA</td></tr>
+<tr><td class="m">ptr_call</td><td class="m">args[i] (name nm)</td><td>parent's <code>layer_name</code></td><td><code>c(parent$path, i)</code></td><td><code>nm</code> if non-empty else NA</td><td><code>parent$in_data_position &amp;&amp; i == data_arg_position(parent)</code></td><td>NA</td></tr>
+<tr><td class="m">ptr_pipeline</td><td class="m">stages[i]</td><td>parent's <code>layer_name</code></td><td><code>c(parent$path, i)</code></td><td>parent's <code>param</code> (passed through — matches current code)</td><td><code>parent$in_data_position &amp;&amp; i == 1L</code> &nbsp;<span class="c"># stage 1 is the data source; k≥2 take data implicitly</span></td><td><code>i</code></td></tr>
+</table>
+
+<blockquote class="warn"><b>Do not drift — path semantics.</b> <code>path</code> is the integer vector relative to the enclosing layer. It is <em>empty</em> for a node sitting directly in <code>data_arg</code>; the literal string <code>"0"</code> only appears at id-formatting time. A <code>var</code> placeholder at <code>children[1] → aes(...) → args[1]</code> has <code>path = c(1, 1)</code> ⇒ id ends <code>…_1_1_var_NA</code> (this exact example is in the comment block of <code>R/paintr-ids.R</code>). The <code>filter()</code> stage of <code>ggplot</code>'s <code>data_arg</code> pipeline (stages = <code>[mtcars, filter(...)]</code>) has <code>path = c(2)</code> ⇒ stage id <code>"ggplot_2_stage_enabled"</code>. <b>Verify against <code>tests/testthat/test-rewrite-ids.R</code> and the row order/ids in <code>ptr_runtime_input_spec()</code> (<span class="file">R/paintr-input-spec.R</span>).</b></blockquote>
+
+<h3>1.3 · The traversal primitive that threads it</h3>
+<p>A small <em>top-down rewrite</em> — visit each <code>ptr_node</code> with <code>fn(node, cursor)</code> <b>before</b> its children; <code>fn</code> returns a (possibly modified) node; the cursor for each child is derived per the table above. This is the minimal primitive the cursor needs; it is <em>not</em> the general <code>ptr_rewrite(pre, post, descend)</code> from the old handoff (no bottom-up phase, no descend callback). Hardcode the five container shapes here — do not introduce a <code>ptr_children</code> generic until a new node class actually exists.</p>
+
+<pre><span class="c"># R/paintr-walk.R  (proposed)  — top-down rewrite, cursor-threaded.</span>
+<span class="c"># `fn(node, cur)` is called on every ptr_node before its children and must</span>
+<span class="c"># return a ptr_node (usually the same one, possibly with fields stamped).</span>
+<span class="c"># The `upstream` slot is never descended (same rule as ptr_walk()).</span>
+ptr_rewrite_pre &lt;- <span class="k">function</span>(node, fn, cur = ptr_cursor()) {
+  <span class="k">if</span> (!is_ptr_node(node)) {
+    <span class="k">if</span> (is.list(node)) <span class="k">return</span>(lapply(node, ptr_rewrite_pre, fn = fn, cur = cur))
+    <span class="k">return</span>(node)
+  }
+  node &lt;- fn(node, cur)
+  <span class="k">if</span> (!is_ptr_node(node)) <span class="k">return</span>(node)   <span class="c"># fn may have replaced it with a leaf</span>
+
+  desc &lt;- <span class="k">function</span>(child, slot, idx, nm)
+    ptr_rewrite_pre(child, fn, ptr_cursor_descend(cur, node, slot, idx, nm))
+
+  <span class="k">if</span> (is_ptr_root(node)) {
+    <span class="k">for</span> (i <span class="k">in</span> seq_along(node$layers)) node$layers[[i]] &lt;- desc(node$layers[[i]], <span class="s">"layers"</span>, i, NA_character_)
+  } <span class="k">else if</span> (is_ptr_layer(node)) {
+    <span class="k">if</span> (!is.null(node$data_arg)) node$data_arg &lt;- desc(node$data_arg, <span class="s">"data_arg"</span>, NA_integer_, NA_character_)
+    nms &lt;- names(node$children) %||% rep_len(<span class="s">""</span>, length(node$children))
+    <span class="k">for</span> (i <span class="k">in</span> seq_along(node$children)) node$children[[i]] &lt;- desc(node$children[[i]], <span class="s">"children"</span>, i, nms[i])
+  } <span class="k">else if</span> (is_ptr_call(node)) {
+    nms &lt;- names(node$args) %||% rep_len(<span class="s">""</span>, length(node$args))
+    <span class="k">for</span> (i <span class="k">in</span> seq_along(node$args)) node$args[[i]] &lt;- desc(node$args[[i]], <span class="s">"args"</span>, i, nms[i])
+  } <span class="k">else if</span> (is_ptr_pipeline(node)) {
+    <span class="k">for</span> (i <span class="k">in</span> seq_along(node$stages)) node$stages[[i]] &lt;- desc(node$stages[[i]], <span class="s">"stages"</span>, i, NA_character_)
+  }
+  <span class="c"># placeholders / literal / missing / user_expr: no structural children — nothing to descend</span>
+  node
+}
+
+<span class="c"># Derive the child cursor from the parent cursor + (slot, 1-based index, arg name).</span>
+<span class="c"># Encodes the table in §1.2 — this is the ONE place those rules live.</span>
+ptr_cursor_descend &lt;- <span class="k">function</span>(cur, parent, slot, idx, nm) {
+  nm_or_na &lt;- <span class="k">if</span> (!is.na(nm) &amp;&amp; nzchar(nm)) nm <span class="k">else</span> NA_character_
+  <span class="k">if</span> (slot == <span class="s">"layers"</span>)
+    <span class="k">return</span>(ptr_cursor(layer_name = parent$layers[[idx]]$name, path = integer(), slot = slot))
+  <span class="k">if</span> (slot == <span class="s">"data_arg"</span>)
+    <span class="k">return</span>(ptr_cursor(layer_name = cur$layer_name, path = integer(), slot = slot,
+                       param = <span class="s">"data"</span>, in_data_position = TRUE))
+  <span class="k">if</span> (slot == <span class="s">"children"</span>)
+    <span class="k">return</span>(ptr_cursor(layer_name = cur$layer_name, path = idx, slot = slot, param = nm_or_na))
+  <span class="k">if</span> (slot == <span class="s">"args"</span>) {
+    pos &lt;- data_arg_position(parent)                       <span class="c"># NULL or the data-arg index</span>
+    <span class="k">return</span>(ptr_cursor(layer_name = cur$layer_name, path = c(cur$path, idx), slot = slot,
+                       param = nm_or_na,
+                       in_data_position = isTRUE(cur$in_data_position) &amp;&amp; identical(idx, pos)))
+  }
+  <span class="k">if</span> (slot == <span class="s">"stages"</span>)
+    <span class="k">return</span>(ptr_cursor(layer_name = cur$layer_name, path = c(cur$path, idx), slot = slot,
+                       param = cur$param,
+                       in_data_position = isTRUE(cur$in_data_position) &amp;&amp; idx == 1L,
+                       pipeline_index = idx))
+  ptr_cursor(layer_name = cur$layer_name)                  <span class="c"># defensive</span>
+}</pre>
+
+<h3>1.4 · How <code>ptr_assign_ids</code> becomes one cursor-threaded pass</h3>
+<p>The id format is unchanged — copy it verbatim from <code>assign_id_to_placeholder()</code> / <code>stage_id_from_path()</code>:</p>
+<pre><span class="c"># placeholder id  (from R/paintr-ids.R, must stay byte-identical):</span>
+<span class="c">#   path_str    = if (length(path) == 0) "0" else paste(path, collapse = "_")</span>
+<span class="c">#   shared_part = node$shared %||% "NA"</span>
+<span class="c">#   id          = paste0(layer_name, "_", path_str, "_", node$keyword, "_", shared_part)</span>
+<span class="c"># stage id  (from R/paintr-disable.R::stage_id_from_path):</span>
+<span class="c">#   id = paste0(layer_name, "_", path_str, "_stage_enabled")</span>
+</pre>
+
+<pre><span class="c"># R/paintr-ids.R  (proposed rewrite — replaces ptr_assign_ids + assign_ids_walk +</span>
+<span class="c"># assign_ids_in_layer; folds in assign_stage_ids).  Keep assign_id_to_placeholder</span>
+<span class="c"># and stage_id_from_path exactly as they are; only the recursion changes.</span>
+ptr_assign_ids &lt;- <span class="k">function</span>(node, ns_fn = shiny::NS(NULL)) {
+  <span class="k">if</span> (!is_ptr_root(node)) rlang::abort(<span class="s">"ptr_assign_ids expects a ptr_root."</span>)
+  validate_ns_fn(ns_fn)
+  node$ns_fn &lt;- ns_fn
+  ptr_rewrite_pre(node, <span class="k">function</span>(n, cur) {
+    <span class="k">if</span> (is_ptr_placeholder(n)) {
+      <span class="c"># NB: a placeholder that IS a layer (rare: a bare `upload` as a layer) keeps</span>
+      <span class="c"># the special-cased layer_name = n$keyword from the old code path — handle that</span>
+      <span class="c"># by setting cur$layer_name = n$keyword in ptr_cursor_descend's "layers" branch</span>
+      <span class="c"># when parent$layers[[idx]] is itself a placeholder. (See current ptr_assign_ids.)</span>
+      <span class="k">return</span>(assign_id_to_placeholder(n, cur$layer_name, cur$path, cur$param))
+    }
+    <span class="k">if</span> (is_ptr_call(n) &amp;&amp; isTRUE(cur$in_data_position) &amp;&amp; walk_has_placeholder(n)) {
+      n$stage_id &lt;- stage_id_from_path(cur$layer_name, cur$path)
+    }
+    n
+  })
+}</pre>
+
+<blockquote class="warn"><b>Do not drift — stage-id placement.</b> Today, <code>assign_stage_ids_chain</code> only stamps a <code>stage_id</code> on a call that is (i) a <code>ptr_call</code>, (ii) <code>walk_has_placeholder(call)</code>, and (iii) structurally on the data-arg chain (it only recurses into <code>data_arg_position()</code>). The cursor's <code>in_data_position</code> flag is what makes condition (iii) explicit. Two things that <em>must</em> still hold: (a) for a <b>pipeline</b>, every stage that is a data-chain call gets a <code>stage_id</code> from its <code>c(path, i)</code> — including stage 1 (the source) <em>and</em> stages k≥2 — but only stage 1's args are recursed into for nested chains (stages k≥2 take data implicitly); the cursor table encodes "stage k≥2's <code>in_data_position</code> is FALSE", so a <code>ptr_call</code> argument <em>inside</em> stage k≥2 will not be treated as a chain link — match that. (b) <code>walk_has_placeholder</code> stays as the gate; it's a narrow recursion (only into <code>$args</code>/<code>$stages</code>) and intentionally <em>not</em> the same as scanning all node fields — keep it. After the rewrite, <code>collect_stage_ids(tree)</code> (already on <code>ptr_walk</code>) must return the same set in the same order.</blockquote>
+
+<p><b>Lower-risk alternative if the merge feels too hot:</b> keep <code>ptr_assign_ids</code> and <code>assign_stage_ids</code> as two <em>logical</em> passes, but implement each via <code>ptr_rewrite_pre</code> + the cursor instead of two bespoke recursions. You still delete the duplicated <code>(layer_name, path, param)</code> threading; you just don't share the single traversal. Do this first if you want the smallest possible diff.</p>
+
+<h3>1.5 · Acceptance criteria — Part A</h3>
+<ul class="tight">
+  <li>Every placeholder's <code>id</code>, <code>param</code>, <code>layer_name</code>, and (for sources) <code>companion_id</code> are <b>byte-identical</b> to before. (<code>companion_id</code> is still computed by the registry's <code>companion_id_fn</code> inside <code>assign_id_to_placeholder</code> — don't move that.)</li>
+  <li>Every <code>stage_id</code> is byte-identical; <code>collect_stage_ids(tree)</code> returns the same vector in the same order; <code>disable_walk</code> behaviour is unchanged.</li>
+  <li><code>ptr_runtime_input_spec()</code> output (rows + order + ids) is unchanged. (This is the strongest single regression test for this part.)</li>
+  <li>New test file <span class="file">tests/testthat/test-rewrite-walk.R</span>: build a small typed tree by hand, run <code>ptr_rewrite_pre</code> collecting <code>(node-class, cursor)</code> at every node, and assert the cursor fields (<code>path</code>, <code>layer_name</code>, <code>param</code>, <code>in_data_position</code>, <code>pipeline_index</code>) match a hand-written expectation — including that <code>upstream</code> is not descended.</li>
+  <li><code>devtools::test(filter = "rewrite")</code> green after the change.</li>
+</ul>
+
+<hr>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<h2>2 · Part B — tree validators</h2>
+
+<h3>2.1 · Why</h3>
+<p>The transform pipeline is order-sensitive: <code>classify_walk</code> must run before substitute (it writes <code>upstream</code>, read by <code>substitute_walk.ptr_ph_data_consumer</code>); <code>ptr_substitute</code> must run before <code>ptr_prune</code> before <code>ptr_render</code>/<code>ptr_eval</code>. When that's violated — or when a future change leaves a placeholder or a <code>ptr_missing</code> in the tree handed to <code>ptr_eval</code> — the failure today is a confusing error from deep inside <code>eval()</code> or <code>ggplot2</code>. A handful of cheap <code>assertthat</code>-style checks at the pass boundaries turn those into local, named AST errors. Because <code>ptr_assemble_plot_safe()</code> already wraps <code>ptr_eval</code> in <code>tryCatch</code>, an abort from a validator surfaces as a clean inline error in the app instead of a crash — that's the point.</p>
+
+<h3>2.2 · Proposed validators <span class="pill">internal, in R/paintr-walk.R</span></h3>
+<p>All built on the existing <code>ptr_collect</code> / <code>ptr_walk</code>. Each is O(number of nodes).</p>
+
+<pre><span class="c"># R/paintr-walk.R  (proposed)</span>
+
+<span class="c"># After ptr_assign_ids: every placeholder has a non-NA id.</span>
+ptr_assert_ids_assigned &lt;- <span class="k">function</span>(tree) {
+  bad &lt;- ptr_collect(tree, <span class="k">function</span>(n) is_ptr_placeholder(n) &amp;&amp; (is.null(n$id) || is.na(n$id)))
+  <span class="k">if</span> (length(bad))
+    rlang::abort(paste0(<span class="s">"Internal: "</span>, length(bad),
+      <span class="s">" placeholder(s) without an id reached a pass that needs one (keyword(s): "</span>,
+      paste(unique(vapply(bad, `[[`, character(1), <span class="s">"keyword"</span>)), collapse = <span class="s">", "</span>), <span class="s">")."</span>))
+}
+
+<span class="c"># After ptr_classify_data: consumers carry an `upstream`; sources have none.</span>
+ptr_assert_classified &lt;- <span class="k">function</span>(tree) {
+  miss &lt;- ptr_collect(tree, <span class="k">function</span>(n) is_ptr_ph_data_consumer(n) &amp;&amp; is.null(n$upstream))
+  <span class="k">if</span> (length(miss))
+    rlang::abort(<span class="s">"Internal: a `var` consumer has no `upstream` — ptr_classify_data() did not run or did not reach it."</span>)
+  src  &lt;- ptr_collect(tree, <span class="k">function</span>(n) is_ptr_ph_data_source(n) &amp;&amp; !is.null(n$upstream))
+  <span class="k">if</span> (length(src))
+    rlang::abort(<span class="s">"Internal: a data-source placeholder has a non-NULL `upstream` (sources produce data)."</span>)
+}
+
+<span class="c"># Before ptr_eval / ptr_render: substitution must have removed every placeholder.</span>
+ptr_assert_no_placeholders &lt;- <span class="k">function</span>(tree) {
+  bad &lt;- ptr_collect(tree, is_ptr_placeholder)
+  <span class="k">if</span> (length(bad))
+    rlang::abort(paste0(<span class="s">"Internal: "</span>, length(bad),
+      <span class="s">" unresolved placeholder(s) reached evaluation — ptr_substitute() did not run, or pass order is wrong (keyword(s): "</span>,
+      paste(unique(vapply(bad, `[[`, character(1), <span class="s">"keyword"</span>)), collapse = <span class="s">", "</span>), <span class="s">")."</span>))
+}
+
+<span class="c"># After ptr_prune, before ptr_eval: no ptr_missing should remain.</span>
+ptr_assert_no_missing &lt;- <span class="k">function</span>(tree) {
+  bad &lt;- ptr_collect(tree, is_ptr_missing)
+  <span class="k">if</span> (length(bad))
+    rlang::abort(paste0(<span class="s">"Internal: "</span>, length(bad), <span class="s">" `ptr_missing` node(s) survived pruning."</span>))
+}
+
+<span class="c"># Test-only / debug-flag-only (NOT on the hot path): no node-id appears twice when</span>
+<span class="c"># descending WITH `upstream`. Guards a future bug where classify_walk points an</span>
+<span class="c"># `upstream` at a descendant of the consumer, creating a cycle. O(nodes) but the</span>
+<span class="c"># with-upstream walk can blow up on pathological hand-built trees, so don't ship it</span>
+<span class="c"># in the reactive path.</span>
+ptr_assert_acyclic &lt;- <span class="k">function</span>(tree) {
+  seen &lt;- new.env(parent = emptyenv())
+  ptr_walk(tree, descend_upstream = TRUE, visit = <span class="k">function</span>(n) {
+    id &lt;- n$id
+    <span class="k">if</span> (!is.null(id) &amp;&amp; !is.na(id)) {
+      <span class="k">if</span> (!is.null(seen[[id]])) rlang::abort(paste0(<span class="s">"Internal: node id `"</span>, id, <span class="s">"` visited twice — cyclic `upstream`?"</span>))
+      seen[[id]] &lt;- TRUE
+    }
+  })
+}</pre>
+
+<h3>2.3 · Where to wire them</h3>
+<table>
+<tr><th>call site</th><th>validator(s)</th><th>note</th></tr>
+<tr><td class="m">end of <code>ptr_translate()</code><br><span class="file">R/paintr-translate.R</span></td><td><code>ptr_assert_ids_assigned(tree)</code><br><code>ptr_assert_classified(tree)</code></td><td>Translate already runs <code>ptr_assign_ids</code> then <code>ptr_classify_data</code>; assert their post-conditions. Cheap; runs once per formula.</td></tr>
+<tr><td class="m">top of <code>ptr_eval()</code><br><span class="file">R/paintr-eval.R</span><br>(or in <code>ptr_assemble_plot_safe()</code>, <span class="file">R/paintr-safe.R</span>)</td><td><code>ptr_assert_no_placeholders(pruned)</code><br><code>ptr_assert_no_missing(pruned)</code></td><td>The safe wrapper's <code>tryCatch</code> turns either abort into the app's inline error panel — exactly the desired behaviour — and (post-<code>fc17766</code>) <code>fail_result()</code> runs the message through <code>ptr_format_runtime_message("plot", …)</code>, so it shows up as <code>"Plot error: Internal: …"</code>. Putting the assert in <code>ptr_eval</code> also covers direct callers in tests.</td></tr>
+<tr><td class="m">tests only / behind <code>options(ptr.debug=TRUE)</code></td><td><code>ptr_assert_acyclic(tree)</code></td><td>Keep off the reactive hot path.</td></tr>
+</table>
+
+<h3>2.4 · Acceptance criteria — Part B</h3>
+<ul class="tight">
+  <li>No behaviour change on any valid input — every existing test stays green, including the rewrite-error tests that check inline-error surfacing.</li>
+  <li>New tests (e.g. in <span class="file">tests/testthat/test-rewrite-walk.R</span>): build deliberately-broken trees — a tree with an un-id'd placeholder, a consumer with <code>upstream = NULL</code>, a tree handed to <code>ptr_eval</code> with a stray <code>ptr_ph_value</code>, a pruned tree with a leftover <code>ptr_missing</code>, and (for <code>ptr_assert_acyclic</code>) a tree whose <code>upstream</code> points back into itself — and assert each validator aborts with a message mentioning the cause.</li>
+  <li>The validators are <b>internal</b> (no <code>@export</code>); they appear only in <span class="file">NAMESPACE</span>'s implicit set, not the public surface.</li>
+</ul>
+
+<hr>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<h2 id="scope">3 · Scope &amp; non-goals</h2>
+<blockquote class="no">
+<b>In scope (this patch):</b> the <code>ptr_cursor</code> object + <code>ptr_rewrite_pre</code> + <code>ptr_cursor_descend</code> in <span class="file">R/paintr-walk.R</span>; rewriting <code>ptr_assign_ids</code> (and folding in <code>assign_stage_ids</code>, or keeping it a separate cursor-threaded pass — implementer's call) onto it; the <code>ptr_assert_*</code> validators + their wiring at two pass boundaries; new tests in <span class="file">test-rewrite-walk.R</span>. Internal helpers only — no public API change.
+</blockquote>
+<blockquote class="no">
+<b>Out of scope (declined, not deferred-with-intent):</b>
+<ul class="tight">
+<li>A general <code>ptr_rewrite(pre, post, descend, include_upstream)</code> bottom-up rewrite primitive, and porting <code>substitute_walk</code> / <code>prune_walk</code> / <code>disable_walk</code> / <code>classify_walk</code> onto it. <b>Why:</b> their container methods are not boilerplate — <code>classify_walk</code> threads a non-trivial data context (ggplot-layer-first ordering; building a pipeline-prefix as the context for stage k); <code>prune_walk</code> does operator-call escalation, positional-missing escalation, arg-name preservation, drop-when-empty, pipeline collapse, and the layer-drop policy; <code>disable_walk</code> has the stage-1-vs-stage-k≥2 distinction. The shared recursion in each is ~4 lines. A fat callback signature would hide that logic — the "too-clever walker" risk the original handoff itself lists. Revisit only if a genuinely new structural node class is added (then a <code>ptr_children()</code>/<code>ptr_replace_children()</code> generic earns its keep).</li>
+<li>A <code>ptr_children()</code> generic. Hardcode the five container shapes inside <code>ptr_rewrite_pre</code>; the indirection isn't worth it for one consumer.</li>
+<li><code>ptr_render</code> / <code>ptr_eval</code> refactors — they are conversions (tree → text / tree → <code>language</code>), not tree rewrites; leave them.</li>
+<li><code>ptr_translate</code> — owns the raw-R-to-typed-AST special cases (top-level <code>+</code>, pipe desugaring, placeholder parsing, layer-call detection, call-form <code>shared</code>); stays custom.</li>
+<li>Replacing the typed AST with an external R AST library (<code>lobstr</code>, <code>treesitter.r</code>, <code>xmlparsedata</code>, <code>astgrepr</code>, …). ggpaintr's hard problem is <em>semantic</em> traversal — ggplot layer inheritance, pipe <code>upstream</code> pointers, placeholder roles, Shiny ids, shared bindings, data-source nodes, pruning policy — not R syntax traversal. Those tools are useful for source-location/lint/refactor work, not for ggpaintr's runtime model.</li>
+<li>Creating or modifying anything under <span class="file">.claude/specs/</span> on the strength of this plan alone. This is design input, not an accepted architectural decision.</li>
+</ul>
+</blockquote>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<h2>4 · Implementation order</h2>
+<ol>
+<li><b>Add the kernel.</b> <code>ptr_cursor()</code>, <code>ptr_cursor_descend()</code>, <code>ptr_rewrite_pre()</code> in <span class="file">R/paintr-walk.R</span>. Add <span class="file">test-rewrite-walk.R</span> asserting cursor field values on a hand-built tree and that <code>upstream</code> is not descended. <code>devtools::test(filter = "rewrite")</code>.</li>
+<li><b>Port ids.</b> Rewrite <code>ptr_assign_ids</code> onto <code>ptr_rewrite_pre</code> (folding in <code>assign_stage_ids</code>, or keeping it a second cursor-threaded pass). Keep <code>assign_id_to_placeholder</code> and <code>stage_id_from_path</code> verbatim. Verify ids / stage ids / <code>ptr_runtime_input_spec()</code> unchanged. <code>devtools::test()</code> (full — this touches a foundational pass).</li>
+<li><b>Add validators.</b> <code>ptr_assert_*</code> in <span class="file">R/paintr-walk.R</span> + their tests (broken-tree fixtures). <code>devtools::test(filter = "rewrite")</code>.</li>
+<li><b>Wire validators.</b> Calls in <code>ptr_translate()</code> and <code>ptr_eval()</code> per §2.3. <code>devtools::test()</code> full. Confirm the rewrite-error tests still surface inline errors (the validators are <em>additional</em> guards, not replacements).</li>
+</ol>
+<p>Each step is independently revertible. Do not start step <i>n+1</i> until step <i>n</i>'s suite is green.</p>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<h2>5 · Decision log (carried forward + updated)</h2>
+<ul class="tight">
+<li><b>Keep ggpaintr's typed AST</b> rather than adopting an external AST framework — ggpaintr needs domain semantics, not R syntax traversal. <span class="pill">unchanged</span></li>
+<li><b>Skip <code>upstream</code> by default</b> in every traversal — prevents accidental cycles and duplicate work. <span class="pill">now enforced in <code>ptr_walk()</code></span></li>
+<li><b>Port read-side collectors before mutation passes</b> — lower risk, validates the API. <span class="pill">done: <code>ptr_collect</code> + 5 collectors</span></li>
+<li><b>Add a traversal cursor before any further pass rewrites</b> — the cursor is the missing piece that makes id assignment and data-position queries declarative. <span class="pill">this patch, Part A</span></li>
+<li><b>Add tree validators at pass boundaries</b> — converts pass-order / pass-omission bugs into local AST errors that the safe wrappers surface cleanly. <span class="pill">this patch, Part B</span></li>
+<li><b>Do NOT build a general <code>ptr_rewrite(pre, post, descend)</code> / port substitute·prune·disable</b> — their container logic isn't boilerplate; the win is ~4 lines/pass against a real "hidden behaviour" risk. <span class="pill">new decision, 2026-05-11</span></li>
+<li><b>Defer any <code>.claude/specs/</code> decision</b> — this remains design input. <span class="pill">unchanged</span></li>
+</ul>
+
+<p style="margin-top:2rem;color:#6b7280;font-size:13px;border-top:1px solid #e3e8ee;padding-top:.6rem">Confidence the cursor/path rules above reproduce current ids: ~75/100 — the rules were derived by reading <code>assign_ids_in_layer</code> / <code>assign_ids_walk</code> / <code>assign_id_to_placeholder</code> / <code>assign_stage_ids_chain</code>, but the <code>in_data_position</code> ⇄ <code>data_arg_position()</code> interaction for nested data-chain calls is the subtle bit; the implementer must verify against <code>test-rewrite-ids.R</code> and <code>ptr_runtime_input_spec()</code> before trusting it.</p>
+
+</body>
+</html>

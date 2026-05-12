@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ggpaintr rewrite — Level 2 UI placement regression</title>
+<style>
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; max-width: 60rem; margin: 2rem auto; padding: 0 1.25rem; color: #1a1a1a; }
+  h1 { font-size: 1.7rem; border-bottom: 2px solid #ddd; padding-bottom: .3rem; }
+  h2 { font-size: 1.25rem; margin-top: 2rem; }
+  h3 { font-size: 1.05rem; margin-top: 1.4rem; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  code { background: #f3f3f3; padding: .1em .35em; border-radius: 3px; font-size: .92em; }
+  pre { background: #f7f7f7; border: 1px solid #e2e2e2; border-radius: 5px; padding: .8rem 1rem; overflow-x: auto; font-size: .88rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .93rem; }
+  th, td { border: 1px solid #ddd; padding: .45rem .6rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f0; }
+  .tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: .12em .5em; border-radius: 3px; vertical-align: middle; }
+  .tag-reg { background: #ffe0e0; color: #8a1f1f; }
+  .tag-ok { background: #e1f3e1; color: #1f6a1f; }
+  .meta { color: #666; font-size: .85rem; }
+  blockquote { border-left: 4px solid #d0b000; background: #fffbe6; margin: 1rem 0; padding: .5rem 1rem; }
+  ul { padding-left: 1.4rem; }
+  .lost { color: #8a1f1f; }
+</style>
+</head>
+<body>
+
+<h1>Level 2 UI placement regression <span class="tag tag-reg">REGRESSION</span></h1>
+<p class="meta">Repo: <code>ggpaintr-rewrite</code> · branch <code>core-rewrite-impl</code> · recorded 2026-05-11 · author note for follow-up work</p>
+
+<p>
+The core rewrite preserves <strong>Level 1</strong> (turn-key apps) and <strong>Level 3</strong> (extract plot/code/error from a live instance, custom render path) but
+<strong>drops the Level 2 capability to position the control UI and the plot/error/code UI independently inside an existing Shiny layout.</strong>
+In the rewrite, embedding ggpaintr into another app is all-or-nothing: <code>ptr_module_ui()</code> emits a complete page; there is no public API to get "just the controls" and "just the outputs" as separate UI fragments.
+</p>
+
+<h2>What Level 2 was in legacy ggpaintr</h2>
+<p>Legacy exposed two routes. The fine-grained route gave full layout freedom:</p>
+<table>
+  <tr><th>Legacy export</th><th>Role</th><th>In rewrite?</th></tr>
+  <tr><td><code>ptr_input_ui(ids, ui_text, ns)</code></td><td>Returns the control fragment only (<code>uiOutput(control_panel)</code> + draw <code>actionButton</code>)</td><td class="lost">removed</td></tr>
+  <tr><td><code>ptr_output_ui(ids, ns)</code></td><td>Returns the output fragment only (<code>plotOutput</code>, error <code>uiOutput</code>, code <code>verbatimTextOutput</code>)</td><td class="lost">removed</td></tr>
+  <tr><td><code>ptr_build_ids(...)</code></td><td>Lets the embedder choose the DOM ids for control panel / draw button / plot / error / code</td><td class="lost">removed</td></tr>
+  <tr><td><code>ptr_server_state(...)</code></td><td>Builds the reactive state</td><td class="tag tag-ok">kept</td></tr>
+  <tr><td><code>ptr_setup_controls(input, output, state)</code></td><td>Wires the control widgets without binding outputs</td><td class="lost">removed (now internal <code>ptr_setup_*</code>, not exported, and not separable)</td></tr>
+  <tr><td><code>ptr_register_draw(input, state)</code></td><td>Wires the draw button</td><td class="lost">removed (folded into <code>ptr_setup_*</code>)</td></tr>
+  <tr><td><code>ptr_register_plot / _error / _code(output, state)</code></td><td>Bind each output individually</td><td class="tag tag-ok">kept &amp; exported</td></tr>
+</table>
+
+<p>Because the control fragment and the output fragment were separate return values with caller-chosen ids, a legacy user could write:</p>
+<pre>ui &lt;- fluidPage(
+  titlePanel("My dashboard"),
+  fluidRow(
+    column(3, ptr_input_ui()),                # controls here
+    column(6, ptr_output_ui()),               # plot/error/code here
+    column(3, my_own_sidebar_widgets())       # and my own stuff alongside
+  )
+)
+server &lt;- function(input, output, session) {
+  st &lt;- ptr_server_state("ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()")
+  ptr_setup_controls(input, output, st)
+  ptr_register_draw(input, st)
+  ptr_register_plot(output, st); ptr_register_error(output, st); ptr_register_code(output, st)
+}</pre>
+
+<h2>What Level 2 is in the rewrite today</h2>
+<p>Only the module pair is public, and <code>ptr_module_ui()</code> returns a finished <code>fluidPage</code>:</p>
+<pre># R/paintr-app.R — ptr_build_app_ui(), called by ptr_module_ui()
+shiny::fluidPage(
+  shiny::titlePanel(...),
+  shiny::sidebarLayout(
+    do.call(shiny::sidebarPanel, sidebar_children),     # layer picker + hidden tabset + "Update plot"
+    shiny::mainPanel(
+      shiny::plotOutput(ns("ptr_plot")),
+      shiny::uiOutput(ns("ptr_error")),
+      shiny::verbatimTextOutput(ns("ptr_code"))
+    )
+  )
+)</pre>
+<ul>
+  <li>The control widgets and the plot/error/code outputs are welded into one <code>sidebarLayout</code>. The embedder gets one opaque block; they cannot put the controls in their app's own sidebar and the plot in their own main panel.</li>
+  <li>Output ids are hard-coded: <code>ptr_plot</code>, <code>ptr_error</code>, <code>ptr_code</code> (plus <code>ptr_layer_select</code>, <code>ptr_layer_tabset</code>, <code>ptr_update_plot</code>), namespaced under <code>NS(id)</code>. No <code>ids =</code> argument anywhere.</li>
+  <li><code>ptr_server()</code> bundles output registration into the wiring step — it calls <code>ptr_setup_producer_inputs / _pipelines / _stage_enabled / _runtime / _consumer_uis / _layer_picker</code> <em>and</em> <code>ptr_register_plot / _error / _code</code>. There is no exported entry point that wires the controls but leaves output placement to the caller.</li>
+  <li><code>ptr_register_plot/_error/_code(output, state)</code> are exported and <em>do</em> let you re-bind an output (last assignment wins, so a custom <code>renderPlotly</code> can override <code>ptr_plot</code>) — that is the Level 3 story and it still works. But it does not restore layout freedom, because the only thing that emits the <em>control</em> widgets is <code>ptr_build_app_ui()</code>, which also emits the outputs. <code>build_ui_for()</code> is exported but driving it correctly (picker + hidden tabset + ids matching <code>ptr_setup_layer_picker</code>'s expectations) amounts to re-implementing <code>ptr_build_app_ui()</code>.</li>
+</ul>
+
+<blockquote>
+Net effect: a Level 2 user can drop ggpaintr in as a self-contained panel, but cannot do what the legacy README/extensibility vignette advertised — "decide where to put the control UI and where to put the plot/error/code UI" without touching the host app.
+</blockquote>
+
+<h2>Suggested fixes (pick one or combine)</h2>
+<ol>
+  <li><strong>Split the UI builder.</strong> Factor <code>ptr_build_app_ui()</code> into <code>ptr_controls_ui(tree_or_formula, ns, ui_text, checkbox_defaults)</code> and <code>ptr_outputs_ui(ns)</code>, with <code>ptr_module_ui()</code> kept as the thin combiner (back-compat). Embedders place the two fragments wherever they want; the namespace argument keeps ids consistent with <code>ptr_module_server()</code>.</li>
+  <li><strong>Re-introduce configurable ids.</strong> Bring back something like <code>ptr_build_ids(plot = "ptr_plot", error = "ptr_error", code = "ptr_code", layer_select = ..., update = ...)</code> and thread it through <code>ptr_server()</code> / <code>ptr_register_*()</code> so the hard-coded names aren't a hidden contract.</li>
+  <li><strong>Expose a controls-only setup.</strong> Export <code>ptr_setup_controls(state, input, output, session)</code> that runs the internal <code>ptr_setup_*</code> group <em>without</em> the <code>ptr_register_*</code> calls; have <code>ptr_server()</code> call it plus the registers. Then an embedder can wire controls and choose which outputs to bind / where.</li>
+</ol>
+<p>Option 1 + 3 together most closely restores the legacy Level 2 ergonomics; option 2 is the smaller, lower-risk first step.</p>
+
+<h2>Related: restore the headless path as internal-only <span class="tag tag-reg">TODO</span></h2>
+<p>
+The rewrite dropped the legacy headless chain (<code>ptr_parse_formula()</code> → <code>ptr_exec()</code> → <code>ptr_extract_*()</code> on a detached runtime result; the rewrite's <code>ptr_extract_*()</code> now take a live <code>ptr_state</code>).
+Decision: <strong>add it back, but unexported / internal only.</strong> Rationale — these benefits are real and don't need a running Shiny session:
+</p>
+<ul>
+  <li><strong>Batch report generation</strong> — knit N plots from a parameter grid in an <code>.Rmd</code> without starting a server.</li>
+  <li><strong>Runtime regression tests</strong> — assert on <code>runtime$ok</code> / <code>stage</code> / <code>code_text</code> without <code>shiny::testServer()</code> scaffolding.</li>
+</ul>
+<p>
+The "give me the generated ggplot code, I don't want the app" use case is judged rare and is <em>not</em> a reason on its own — but it falls out of the same internals for free.
+</p>
+<p>Shape:</p>
+<ul>
+  <li>Internal helpers (no <code>@export</code>, not in NAMESPACE): a parse step (<code>ptr_translate()</code> already exists internally) and a headless exec step that returns the detached runtime list (<code>ok</code>, <code>stage</code>, <code>error</code>, <code>plot</code>, <code>code_text</code>, …) — i.e. factor the body of <code>ptr_setup_runtime()</code> so the pure computation is callable without reactives.</li>
+  <li><strong>Keep it wrapped:</strong> reuse it inside <code>ptr_setup_runtime()</code> and inside the test/report helpers; do not let the detached-result API leak into the public surface. If a public need appears later, export then — not now.</li>
+</ul>
+
+<hr>
+
+<h1>Implementation plan</h1>
+<p class="meta">Two independent parts. Part A restores the Level-2 split-UI capability; Part B re-adds the headless runtime as internal-only. Do Part A first (no behavior change, low risk), then Part B (pure refactor + new internal helper). All code below is illustrative — match the surrounding style and the <em>exact</em> current call sequences; do not invent new behavior.</p>
+
+<h2>Part A — Split-UI for Level 2</h2>
+
+<h3>A1. Factor <code>ptr_build_app_ui()</code> into internal panel builders (no behavior change)</h3>
+<p>In <code>R/paintr-app.R</code>, pull the two halves of the current <code>ptr_build_app_ui()</code> body out into unexported helpers, and rewrite <code>ptr_build_app_ui()</code> as the combiner. The rendered output must be byte-for-byte identical so existing UI snapshot tests stay green.</p>
+<pre># R/paintr-app.R  (internal)
+
+# Sidebar contents: shared section (optional) + layer picker + hidden tabset + Update button.
+# Returns a list of tags (so callers can do.call(sidebarPanel, .) or wrap in tagList()).
+ptr_controls_panel &lt;- function(tree, ui_text = NULL, checkbox_defaults = NULL,
+                               ns = shiny::NS(NULL), render_shared_section = FALSE) {
+  shell_copy   &lt;- layer_panel_default_shell_copy(ui_text)
+  layer_names  &lt;- vapply(tree$layers, function(l) l$name, character(1))
+
+  panels &lt;- lapply(tree$layers, function(layer) {
+    build_ui_for(layer, ui_text = ui_text, ns_fn = ns,
+                 checkbox_defaults = checkbox_defaults, shell_copy = shell_copy)
+  })
+  picker &lt;- shinyWidgets::pickerInput(
+    inputId = ns("ptr_layer_select"),
+    label   = shell_copy$layer_picker_label %||% "Layer",
+    choices = layer_names,
+    selected = if (length(layer_names)) layer_names[1L] else NULL
+  )
+  hidden_tabset &lt;- do.call(shiny::tabsetPanel,
+    c(list(id = ns("ptr_layer_tabset"), type = "hidden"), panels))
+
+  shared_section &lt;- if (isTRUE(render_shared_section)) {
+    entries &lt;- collect_shared_placeholders(tree)
+    widgets &lt;- drop_null(lapply(entries, function(e) build_ui_for(e$node, ui_text = ui_text, ns_fn = ns)))
+    if (length(widgets)) shiny::wellPanel(do.call(shiny::tagList, widgets)) else NULL
+  } else NULL
+
+  drop_null(list(
+    shared_section, picker, hidden_tabset,
+    shiny::actionButton(ns("ptr_update_plot"), label = shell_copy$update_plot_label %||% "Update plot")
+  ))
+}
+
+# Output contents: plot + error + code, in that DOM order. ids are the contract
+# ptr_register_plot()/_error()/_code() write to.
+ptr_outputs_panel &lt;- function(ns = shiny::NS(NULL)) {
+  shiny::tagList(
+    shiny::plotOutput(ns("ptr_plot")),
+    shiny::uiOutput(ns("ptr_error")),
+    shiny::verbatimTextOutput(ns("ptr_code"))
+  )
+}
+
+# Combiner — unchanged public behavior; ptr_module_ui() / ptr_app_components() keep calling this.
+ptr_build_app_ui &lt;- function(tree, ui_text = NULL, checkbox_defaults = NULL,
+                             ns = shiny::NS(NULL), render_shared_section = FALSE) {
+  shiny::fluidPage(
+    shiny::titlePanel(ptr_resolve_ui_text("title", ui_text = ui_text)$label %||% ""),
+    shiny::sidebarLayout(
+      do.call(shiny::sidebarPanel,
+              ptr_controls_panel(tree, ui_text, checkbox_defaults, ns, render_shared_section)),
+      shiny::mainPanel(ptr_outputs_panel(ns))
+    )
+  )
+}</pre>
+
+<h3>A2. New <em>exported</em> Level-2 split API</h3>
+<p>Two thin wrappers, also in <code>R/paintr-app.R</code>, next to <code>ptr_module_ui()</code>. They impose no layout — the embedder drops the fragments wherever they want. Keep the signature shape consistent with <code>ptr_module_ui(id, formula, ...)</code>: <code>id</code> first-or-named, formula-based (parsing the formula twice — once here, once in <code>ptr_module_server()</code> — is already what <code>ptr_module_ui()</code>+<code>ptr_module_server()</code> do today, so it's fine).</p>
+<pre># R/paintr-app.R  (exported)
+
+#' Control widgets for an embedded ggpaintr formula
+#'
+#' UI fragment containing only the generated controls (layer picker, per-layer
+#' parameter panels, the "Update plot" button). Place it anywhere in your app's
+#' layout; pair with [ptr_outputs_ui()] for the plot/error/code panes and
+#' [ptr_module_server()] for the server logic. `id` must match the `id` passed
+#' to [ptr_module_server()] / [ptr_outputs_ui()].
+#' @return A [shiny::tagList()].
+#' @export
+ptr_controls_ui &lt;- function(id, formula, ui_text = NULL, checkbox_defaults = NULL,
+                            expr_check = TRUE) {
+  tree &lt;- ptr_translate(formula, expr_check = expr_check)
+  shiny::tagList(!!!ptr_controls_panel(tree, ui_text, checkbox_defaults,
+                                       ns = shiny::NS(id), render_shared_section = FALSE))
+}
+
+#' Plot / error / code panes for an embedded ggpaintr formula
+#'
+#' UI fragment containing only the plot, inline error, and generated-code
+#' outputs. Pair with [ptr_controls_ui()] and [ptr_module_server()]. `id` must
+#' match the `id` passed to those.
+#' @return A [shiny::tagList()].
+#' @export
+ptr_outputs_ui &lt;- function(id) {
+  ptr_outputs_panel(shiny::NS(id))
+}</pre>
+<p>(<code>!!!</code> splice needs <code>rlang</code>, already a dependency; or use <code>do.call(shiny::tagList, ptr_controls_panel(...))</code>.)</p>
+
+<h3>A3. Server side — nothing to change, one thing to verify</h3>
+<p><code>ptr_module_server(id, formula, ...)</code> already binds purely by id (it forwards to <code>ptr_server()</code>, which reads/writes <code>input[[ns("ptr_layer_select")]]</code>, <code>output[[ns("ptr_plot")]]</code>, etc.). It does not care whether the UI came from <code>ptr_module_ui()</code> or from <code>ptr_controls_ui()</code>+<code>ptr_outputs_ui()</code> — provided the same <code>id</code> is used everywhere. Verify with a test (A5). The control-side ids (<code>ptr_layer_select</code>, <code>ptr_layer_tabset</code>, <code>ptr_update_plot</code>, the producer-input ids, the consumer <code>uiOutput</code> ids from <code>build_ui_for()</code>) come from <code>ptr_controls_panel()</code>; the output-side ids (<code>ptr_plot</code>/<code>ptr_error</code>/<code>ptr_code</code>) come from <code>ptr_outputs_panel()</code> — both already match what the server expects, because they're the same builders the combiner uses.</p>
+
+<h3>A4. Usage the plan enables</h3>
+<pre>ui &lt;- fluidPage(
+  titlePanel("My dashboard"),
+  fluidRow(
+    column(3, ptr_controls_ui("p1", "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()")),
+    column(6, ptr_outputs_ui("p1")),
+    column(3, my_own_widgets())
+  )
+)
+server &lt;- function(input, output, session) {
+  ptr_module_server("p1", "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()")
+}</pre>
+
+<h3>A5. Docs &amp; tests</h3>
+<ul>
+  <li><code>devtools::document()</code> → NAMESPACE gains <code>ptr_controls_ui</code>, <code>ptr_outputs_ui</code>; <code>man/</code> pages generated.</li>
+  <li>Unit: <code>ptr_controls_ui("x", "...")</code> returns a tag containing <code>x-ptr_update_plot</code> and <code>x-ptr_layer_select</code>; <code>ptr_outputs_ui("x")</code> returns a tag containing <code>x-ptr_plot</code>, <code>x-ptr_error</code>, <code>x-ptr_code</code>. (Grep the rendered HTML via <code>as.character()</code>.)</li>
+  <li>Integration via <code>shiny::testServer(ptr_module_server, args = list(id = "p1", formula = F), { session$setInputs(`ptr_update_plot` = 1, ...); expect_true(isTRUE(<the runtime state>$ok)) })</code> — confirms the split UI's ids line up with the server. (Mirror an existing <code>ptr_module_server</code> test.)</li>
+  <li>Existing <code>ptr_build_app_ui</code> / app-UI snapshot tests must be unchanged — that's the regression guard for A1.</li>
+  <li>Manual: add a <code>tests/manual/</code> snippet showing the split layout.</li>
+</ul>
+
+<h3>A6. Deferred (do NOT do unless asked)</h3>
+<p>Making the hard-coded <code>ptr_*</code> ids configurable (a revived <code>ptr_build_ids()</code> threaded through <code>ptr_server()</code>/<code>ptr_register_*()</code>). Not needed for layout freedom — sharing one <code>id</code> across the three calls already suffices. Leave the ids fixed.</p>
+
+<h2>Part B — Internal headless runtime</h2>
+
+<div style="border:1px solid #c9a000;background:#fffbe6;border-radius:5px;padding:.6rem 1rem;margin:1rem 0">
+<strong>Read before you start Part B</strong> — two facts verified against the current source; the pseudo-code below is illustrative and got some defaults wrong.
+<ol style="margin-bottom:0">
+  <li><strong>Exact signatures of the lifted helpers</strong> (do not "tidy" the defaults — pass through verbatim):
+    <ul>
+      <li><code>ptr_complete_expr_safe(node, snapshot = list(), shared_bindings = list(), eval_env = parent.frame(), safe_to_remove = NULL, is_standalone = NULL, upstream_cols = list())</code> — note the extra <code>is_standalone</code> arg, <code>safe_to_remove</code> defaults <code>NULL</code> (not <code>character()</code>), <code>upstream_cols</code> defaults <code>list()</code> (not <code>NULL</code>). Defined in <code>R/paintr-safe.R</code>.</li>
+      <li><code>ptr_assemble_plot_safe(result, expr_check = TRUE)</code> — passthrough when <code>!result$ok</code>. <code>ptr_validate_plot_render_safe(result)</code> — single arg. Both in <code>R/paintr-safe.R</code>.</li>
+      <li><code>runtime_upstream_cols(state, snapshot = list())</code> → wraps <code>runtime_upstream_data(state, snapshot)</code>. <strong>This pair is deeply state-coupled and reactive</strong> (reads <code>state$tree()</code>, <code>state$stage_enabled()</code>, <code>state$shared_resolutions</code>, <code>state$resolved_data[[..]]()</code>, <code>state$upstream_cache</code>, <code>state$expr_check</code>, …; runs under <code>shiny::isolate()</code>). <strong>Do NOT move them and do NOT call them from <code>ptr_exec_headless()</code>.</strong> Keep <code>upstream_cols</code> a plain <em>input parameter</em> of <code>ptr_exec_headless()</code>: the reactive caller (<code>ptr_setup_runtime</code>) keeps computing it via <code>runtime_upstream_cols(state, snapshot)</code> and passes the result in; the headless caller (<code>ptr_run_formula</code>) computes its own via a tiny new pure helper that calls the already-pure <code>ptr_resolve_upstream(value, snapshot, shared_bindings, eval_env, cache, expr_check, stage_enabled)</code> directly on each data-consumer node's <code>$upstream</code> — no <code>state</code>, no <code>isolate</code>. In headless mode it's fine for that helper to ignore the bare-data-source-layer shortcut and always resolve from <code>$upstream</code>.</li>
+    </ul>
+  </li>
+  <li><strong><code>inject_resolved_data()</code> has exactly one caller</strong> — <code>ptr_setup_runtime()</code> at <code>R/paintr-server.R:464</code>. Nothing else in <code>R/</code> touches it, so the split is safe and local. Its body is trivial: for each <code>is_ptr_layer</code> layer whose <code>name</code> is a key in the resolved-data map with a non-null frame, <code>layer$data_arg &lt;- ptr_literal(df)</code>. So: new <code>inject_resolved_data_list(pruned, list_of_frames)</code> does the work; existing <code>inject_resolved_data(pruned, state)</code> becomes a one-liner — <code>inject_resolved_data_list(pruned, lapply(state$resolved_data, function(rv) rv()))</code>.</li>
+</ol>
+</div>
+
+<h3>B1. Extract the pure computation from <code>ptr_setup_runtime()</code></h3>
+<p>The body of <code>ptr_setup_runtime()</code>'s <code>shiny::isolate({...})</code> block is already a pure function of (tree, input snapshot, stage-enabled map, resolved-data map, extras, eval env, safe-to-remove, expr_check). Lift it verbatim into an unexported helper; have the observer build the inputs and call it. <strong>Do not change the call sequence or the result shape</strong> — the runtime list keys (<code>ok</code>, <code>stage</code>, <code>error</code>, <code>plot</code>, <code>code_text</code>, <code>pruned</code>, …) and the order <code>ptr_complete_expr_safe → inject_resolved_data → ptr_assemble_plot_safe → (+ extras) → ptr_validate_plot_render_safe</code> must be preserved exactly.</p>
+<pre># R/paintr-server.R (or new R/paintr-headless.R), internal — NOT exported
+
+# `resolved_data`: plain named list (layer name -> data.frame or NULL), already
+#   de-reactived by the caller. `upstream_cols`: as today (caller passes the
+#   value it already computes). `stage_enabled`: named list (stage id -> logical).
+ptr_exec_headless &lt;- function(tree, snapshot,
+                              shared_bindings = list(),
+                              eval_env       = parent.frame(),
+                              safe_to_remove = character(),
+                              expr_check     = TRUE,
+                              extras         = list(),
+                              stage_enabled  = NULL,
+                              resolved_data  = list(),
+                              upstream_cols  = NULL) {
+  if (!is.null(stage_enabled)) tree &lt;- disable_walk(tree, stage_enabled)
+  res &lt;- ptr_complete_expr_safe(
+    tree, snapshot = snapshot, shared_bindings = shared_bindings,
+    eval_env = eval_env, safe_to_remove = safe_to_remove, upstream_cols = upstream_cols
+  )
+  res$pruned &lt;- inject_resolved_data_list(res$pruned, resolved_data)   # see note
+  res &lt;- ptr_assemble_plot_safe(res, expr_check = expr_check)
+  if (isTRUE(res$ok) &amp;&amp; length(extras)) res$plot &lt;- Reduce(`+`, extras, res$plot)
+  ptr_validate_plot_render_safe(res)
+}</pre>
+<p><strong>Note on <code>inject_resolved_data</code>:</strong> the current helper is <code>inject_resolved_data(pruned, state)</code> and reads <code>state$resolved_data[[layer$name]]()</code>. Split it: keep a <code>inject_resolved_data_list(pruned, list_of_frames)</code> that does the actual substitution from a plain list, and make the existing <code>inject_resolved_data(pruned, state)</code> a one-liner that builds <code>lapply(state$resolved_data, function(rv) rv())</code> and calls the list version. <code>ptr_setup_runtime()</code>'s observer then becomes:</p>
+<pre>shiny::observe({
+  if (!triggered()) return(invisible())
+  shiny::isolate({
+    spec     &lt;- state$input_spec
+    snapshot &lt;- stats::setNames(lapply(spec$input_id, function(id) input[[ns(id)]]), spec$input_id)
+    upstream_cols &lt;- runtime_upstream_cols(state, snapshot)
+    res &lt;- ptr_exec_headless(
+      tree           = state$tree(),
+      snapshot       = snapshot,
+      shared_bindings= state$shared_bindings,
+      eval_env       = state$eval_env,
+      safe_to_remove = state$safe_to_remove,
+      expr_check     = state$expr_check,
+      extras         = state$extras(),
+      stage_enabled  = state$stage_enabled(),
+      resolved_data  = lapply(state$resolved_data, function(rv) rv()),
+      upstream_cols  = upstream_cols
+    )
+    state$runtime(res)
+  })
+})</pre>
+<p>(Behavior identical — the only change is that the computation now lives in a callable function. Existing runtime / <code>testServer</code> tests are the regression guard.)</p>
+
+<h3>B2. Internal convenience wrapper for the common case</h3>
+<pre># internal — NOT exported
+# inputs: named by RAW input_id (the `input_id` column of ptr_runtime_input_spec()),
+#   not namespaced. Anything not supplied falls back to a sensible default
+#   (layer_checkbox -> TRUE, stage_enabled -> TRUE, others -> NULL).
+ptr_run_formula &lt;- function(formula, inputs = list(), envir = parent.frame(),
+                            expr_check = TRUE, safe_to_remove = character(),
+                            checkbox_defaults = NULL) {
+  tree     &lt;- ptr_translate(formula, expr_check = expr_check)
+  spec     &lt;- ptr_runtime_input_spec(tree)
+  snapshot &lt;- ptr_default_snapshot(spec, tree, checkbox_defaults)   # small new internal helper
+  snapshot[names(inputs)] &lt;- inputs
+  upstream_cols &lt;- ptr_headless_upstream_cols(tree, snapshot)        # static analog of runtime_upstream_cols
+  ptr_exec_headless(tree, snapshot, eval_env = envir,
+                    safe_to_remove = validate_safe_to_remove(safe_to_remove),
+                    expr_check = expr_check, upstream_cols = upstream_cols)
+}</pre>
+<p><code>ptr_default_snapshot()</code>: iterate <code>spec</code>, set <code>role == "layer_checkbox"</code> and <code>role == "stage_enabled"</code> rows to <code>TRUE</code> (respecting <code>checkbox_defaults</code> for the former via the existing <code>ptr_resolve_checkbox_defaults()</code> path), everything else <code>NULL</code>. <code>ptr_headless_upstream_cols()</code>: for a bare-data-source layer whose value is a symbol resolvable in <code>envir</code>, return its column names; otherwise <code>NULL</code> — i.e. the no-Shiny analog of what <code>runtime_upstream_cols()</code> derives from live inputs. Keep it minimal; data-consumer (<code>var</code>) widgets in headless mode just need the upstream columns so completion can validate.</p>
+
+<h3>B3. Wire it up</h3>
+<ul>
+  <li><code>tests/testthat/test-runtime-headless.R</code> (new): drive <code>ptr_run_formula()</code> over several formulas (point, bar, facet, <code>labs(title = text)</code>, an <code>upload</code>-free <code>var</code> chain) plus failure cases (missing required aes → <code>res$ok == FALSE</code>, <code>res$stage == "complete"</code>; bad <code>expr</code> → caught). Internals are loaded by <code>devtools::test()</code>, so call <code>ptr_run_formula()</code> directly (or <code>ggpaintr:::</code> if running outside <code>load_all()</code>).</li>
+  <li>Optionally migrate the runtime assertions that currently spin up <code>shiny::testServer</code> just to check <code>res$ok</code>/<code>stage</code>/<code>code_text</code> over to <code>ptr_run_formula()</code> — faster, less scaffolding. Keep the <code>testServer</code> tests that genuinely exercise reactivity.</li>
+  <li>Batch-report example: a snippet under <code>tests/manual/</code> (or <code>dev/</code>) that knits N plots from a parameter grid via <code>ggpaintr:::ptr_run_formula(fml, inputs = grid_row)$plot</code>, with a comment that <code>ptr_run_formula</code> is internal/unstable.</li>
+</ul>
+
+<h3>B4. Keep wrapped — explicit non-goals</h3>
+<ul>
+  <li>No <code>@export</code> on <code>ptr_exec_headless</code>, <code>ptr_run_formula</code>, <code>ptr_default_snapshot</code>, <code>ptr_headless_upstream_cols</code>, <code>inject_resolved_data_list</code>; no <code>man/</code> pages; not referenced in README/vignettes as public API.</li>
+  <li>If a real user need for a public headless API appears later, export <em>then</em> (with a settled name and a <code>man/</code> page) — not now.</li>
+</ul>
+
+<h2>Sequencing &amp; acceptance checks</h2>
+<ol>
+  <li>Part A1–A2 (UI split + exports), then <code>devtools::document()</code>.</li>
+  <li>Part A5 tests added; <code>devtools::test()</code> green, including untouched UI snapshot tests.</li>
+  <li>Part B1 refactor (no behavior change) — <code>devtools::test()</code> still green (runtime/<code>testServer</code> tests are the guard).</li>
+  <li>Part B2–B3 (internal wrapper + new headless tests).</li>
+  <li><code>devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran", "--no-manual"))</code> → 0 errors, 0 warnings, 0 new NOTEs.</li>
+  <li>Update <code>tests/manual/</code> docs for the split-UI layout (manual-coverage rule for human-interaction changes). Do <strong>not</strong> touch <code>dev/developer-notes.md</code> unless explicitly asked.</li>
+</ol>
+
+</body>
+</html>
