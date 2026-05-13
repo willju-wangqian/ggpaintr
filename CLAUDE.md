@@ -41,6 +41,7 @@ Reserve `Read` for `.Rmd`, `.md`, `.yml`, and for roxygen comment text outside f
 - `dev/developer-notes.md` is human-maintained only — do not edit unless the user explicitly asks.
 - Stored task files (`dev/tasks/*.md`) stay unchanged unless the user explicitly asks to edit them.
 - Do not create ad-hoc markdown files in `.claude/specs/`.
+- Architectural decision records live in `dev/adr/` (not `docs/` — that's pkgdown's generated, gitignored output). Agent-skill config lives in `dev/agents/` (see `## Agent skills` below).
 
 ## Harness Config
 
@@ -55,3 +56,17 @@ Reserve `Read` for `.Rmd`, `.md`, `.yml`, and for roxygen comment text outside f
 - README render: devtools::load_all("."); rmarkdown::render("README.Rmd", envir = globalenv())
 - Conventions: tidyverse style, snake_case, 2-space indent
 - Auto-approve start: true
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs live as markdown files under `.scratch/<feature>/` in this repo — no remote tracker. See `dev/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default canonical vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`), recorded as a `Status:` line in each issue file. See `dev/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context. The project's domain language lives in this file (`CLAUDE.md`) — there is no separate `CONTEXT.md`. Architectural decisions live in `dev/adr/`. See `dev/agents/domain.md`.

@@ -1,6 +1,6 @@
 # Public API audit — post-core-rewrite
 
-Goal: every exported name is meaningful to a real user tier; no internal that should be exported; no stale exports; no stale arguments. Decisions reached in the grill-with-docs session on `core-rewrite-impl`. See `docs/adr/0002-public-api-tiering-and-trims.md` for the rationale.
+Goal: every exported name is meaningful to a real user tier; no internal that should be exported; no stale exports; no stale arguments. Decisions reached in the grill-with-docs session on `core-rewrite-impl`. See `dev/adr/0002-public-api-tiering-and-trims.md` for the rationale.
 
 ## Resulting public tiers (target end state)
 
@@ -50,5 +50,5 @@ Deliberately **not** public: `ptr_translate` (would commit the node-class contra
 
 ## Execution notes
 
-- `_pkgdown` rebuild **blocked** (pre-existing): `pkgdown::build_site_github_pages()` refuses to `clean_site()` because `docs/` is non-empty and not pkgdown-built (it holds `docs/adr/`). Needs a repo-level decision (e.g. a `destination:` in `_pkgdown.yml` or relocating ADRs) before the site can build. The `_pkgdown.yml` reference index itself is rewritten and valid.
+- `_pkgdown` rebuild: the `clean_site()` blocker (ADRs sitting inside pkgdown's `docs/` output dir) is resolved — ADRs moved to `dev/adr/`. The `_pkgdown.yml` reference index is rewritten and valid. The build still fails further on a pre-existing `articles:` config issue: that list references vignettes (`ggpaintr-workflow`, ...) that aren't in `vignettes/` yet — they're parked in `dev/vignettes-pending-port/`. Out of scope here.
 - Renamed functions in shipped docs/scratch (`inst/llm/*`, `tests/manual/*`, `tests/browser/*`, `dev/*`) still reference `ptr_merge_ui_text` / `ptr_server_state` / `ptr_runtime_input_spec` / `ptr_ns_id` — left for the parked vignette/docs-rewrite pass.
