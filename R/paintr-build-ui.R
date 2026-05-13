@@ -239,7 +239,15 @@ find_layer_placeholders_with_stage <- function(x) {
     }
     if (is_ptr_call(n)) {
       sid <- if (!is.null(n$stage_id)) n$stage_id else current_sid
-      verb <- call_head_name(n$fun)
+      # Keep the *stage's* verb: only adopt this call's head when it is itself
+      # a stage, or when no verb has been picked yet. Otherwise a nested call
+      # like `Species == text` inside `subset(...)` would mis-report "==" as
+      # the verb for the placeholder.
+      verb <- if (!is.null(n$stage_id) || is.na(current_verb)) {
+        call_head_name(n$fun)
+      } else {
+        current_verb
+      }
       for (a in n$args) visit(a, sid, verb)
       return()
     }

@@ -118,3 +118,53 @@ test_that("P10.13 nested data = ... pipe round-trips with inner pipeline", {
   # collapses entirely — degrades to bare mtcars. Either way, no fold.
   expect_true(grepl("mtcars", txt, fixed = TRUE))
 })
+
+test_that("P10.14 short calls stay inline (under RENDER_WIDTH)", {
+  r <- ptr_translate("ggplot(mtcars) + geom_point(aes(x = mpg, y = wt), size = 2)")
+  expect_equal(
+    ptr_render(r),
+    "ggplot(data = mtcars) +\n  geom_point(aes(x = mpg, y = wt), size = 2)"
+  )
+})
+
+test_that("P10.15 over-wide calls expand one argument per line", {
+  r <- ptr_translate(paste0(
+    "ggplot(diamonds) + geom_histogram(aes(x = carat, fill = cut, weight = price), ",
+    "bins = 40, position = position_dodge2(preserve = \"single\", padding = 0.1))"
+  ))
+  txt <- ptr_render(r)
+  expect_match(txt, "geom_histogram(\n    aes(x = carat, fill = cut, weight = price),\n",
+               fixed = TRUE)
+  expect_match(txt, "\n    bins = 40,\n", fixed = TRUE)
+  expect_match(txt, "\n  )", fixed = TRUE)  # closing paren on its own line, at the call indent
+  # every line stays within the 80-column budget
+  expect_true(all(nchar(strsplit(txt, "\n", fixed = TRUE)[[1]]) <= 80L))
+})
+
+test_that("P10.16 one-sided formula renders without redundant parens", {
+  r <- ptr_translate("ggplot(mtcars) + facet_wrap(~drv)")
+  expect_match(ptr_render(r), "facet_wrap(~drv)", fixed = TRUE)
+})
+
+test_that("P10.17 over-wide pipe chain breaks at each pipe operator", {
+  r <- ptr_translate(paste0(
+    "iris |> head(200) |> ",
+    "ggplot(aes(x = Sepal.Length, y = Sepal.Width, color = Species)) + geom_point()"
+  ))
+  txt <- ptr_render(r)
+  expect_equal(
+    txt,
+    paste0(
+      "iris |>\n",
+      "  head(200) |>\n",
+      "  ggplot(aes(x = Sepal.Length, y = Sepal.Width, color = Species)) +\n",
+      "  geom_point()"
+    )
+  )
+  expect_true(all(nchar(strsplit(txt, "\n", fixed = TRUE)[[1]]) <= 80L))
+})
+
+test_that("P10.18 short pipe chains stay on one line", {
+  r <- ptr_translate("mtcars |> head(2) |> ggplot(aes(x = mpg))")
+  expect_equal(ptr_render(r), "mtcars |> head(2) |> ggplot(aes(x = mpg))")
+})

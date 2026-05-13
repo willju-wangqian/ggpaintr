@@ -150,6 +150,16 @@ test_that("named-arg pipeline placeholder keeps its param key and gets the suffi
   expect_match(as.character(panel), "in transform\\(\\)")
 })
 
+test_that("placeholder nested in a sub-expression names the stage verb, not the inner call", {
+  # `text` is the RHS of `Species == text`, itself an argument to `subset()`.
+  # The label/copy key must report the stage verb `subset()`, never `==()`.
+  tree <- ptr_translate("iris |> subset(Species == text) |> ggplot(aes(x = var))")
+  layer <- .layer_by_name(tree, "ggplot")
+  panel <- as.character(build_ui_for(layer))
+  expect_match(panel, "Enter a value for subset\\(\\)")
+  expect_no_match(panel, "==\\(\\)")
+})
+
 # ---- Phase 3 — layer-disabled visual cue ----
 
 test_that("app shells inject the ptr_set_class handler + disabled-panel CSS", {

@@ -61,7 +61,10 @@
 /* Only the sidebarPanel sticks (it renders as <form class="well">); the
    grid app's shared wellPanel renders as <div class="well"> and must scroll
    normally, otherwise it overlaps the panels below it. */
-.ptr-app form.well { position: sticky; top: 16px; }
+/* z-index keeps the sidebar's stacking context above the output column, so a
+   pickerInput dropdown that opens downward isn't occluded by the plot card
+   when the layout stacks vertically (narrow window). */
+.ptr-app form.well { position: sticky; top: 16px; z-index: 2; }
 
 /* grid app: the shared-controls panel header */
 .ptr-shared-panel { margin-bottom: 22px; }
