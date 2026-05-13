@@ -128,7 +128,7 @@ test_that("P8.13 var aborts on column not in upstream", {
       input_snapshot = stats::setNames(list("cyl"), id),
       upstream_cols = stats::setNames(list(c("mpg")), id)
     ),
-    "not in upstream"
+    "not in the data"
   )
 })
 
@@ -160,7 +160,7 @@ test_that("P8.16 upload aborts on injection attempt (invalid R name)", {
   src <- find_nodes(r, is_ptr_ph_data_source)[[1]]
   expect_error(
     ptr_substitute(r, input_snapshot = setNames(list("x; system('id')"), src$companion_id)),
-    "valid R name"
+    "valid R variable name"
   )
 })
 

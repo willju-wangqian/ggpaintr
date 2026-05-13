@@ -88,7 +88,9 @@ build_ui_for.ptr_ph_data_source <- function(node,
   entry <- ptr_registry_lookup(node$keyword)
   if (is.null(entry) || is.null(entry$build_ui)) {
     rlang::abort(paste0(
-      "No `build_ui` hook registered for placeholder `", node$keyword, "`."
+      "Placeholder `", node$keyword, "` has no `build_ui` function. Pass ",
+      "`build_ui = function(node, label, ...)` when registering it -- see ",
+      "`?ptr_define_placeholder_value`."
     ))
   }
   fmls <- names(formals(entry$build_ui))
@@ -449,12 +451,22 @@ invoke_build_ui <- function(node, ui_text, placeholders, layer_name,
     placeholders = placeholders
   )
   if (!is.null(label_suffix) && nzchar(label_suffix) && !is.null(copy$label)) {
-    copy$label <- paste0(copy$label, label_suffix)
+    # `label_suffix` is " in verb()". For an unnamed positional arg the verb is
+    # also fed into the `{param}` slot of the copy template (param_override),
+    # so a default like "Enter a number for {param}" already resolves to
+    # "...for head()". Appending " in head()" on top of that double-names the
+    # verb -- only append when the label does not already mention it.
+    verb_token <- trimws(sub("^\\s*in\\s+", "", label_suffix))
+    if (!nzchar(verb_token) || !grepl(verb_token, copy$label, fixed = TRUE)) {
+      copy$label <- paste0(copy$label, label_suffix)
+    }
   }
   entry <- ptr_registry_lookup(node$keyword)
   if (is.null(entry) || is.null(entry$build_ui)) {
     rlang::abort(paste0(
-      "No `build_ui` hook registered for placeholder `", node$keyword, "`."
+      "Placeholder `", node$keyword, "` has no `build_ui` function. Pass ",
+      "`build_ui = function(node, label, ...)` when registering it -- see ",
+      "`?ptr_define_placeholder_value`."
     ))
   }
   extra_named <- build_ui_copy_args(names(formals(entry$build_ui)), copy)

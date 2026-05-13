@@ -31,8 +31,9 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
   }
   if (length(exprs) > 1L) {
     rlang::abort(paste0(
-      "Formula must contain exactly one top-level expression ",
-      "(found ", length(exprs), "). Did you forget a `+`?"
+      "A plot formula must be a single ggplot expression, but ",
+      length(exprs), " were found. Join layers with `+`, e.g. ",
+      "`ggplot(...) + geom_point(...)`."
     ))
   }
 
@@ -72,7 +73,8 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
 check_translate_depth <- function(x, max_depth, .depth = 0L) {
   if (.depth > max_depth) {
     rlang::abort(paste0(
-      "Formula nesting exceeds maximum depth (", max_depth, ")."
+      "The formula is nested too deeply (limit: ", max_depth, " levels). ",
+      "Simplify it -- see `?ptr_app` for the expected formula shape."
     ))
   }
   if (is.call(x) || is.pairlist(x)) {

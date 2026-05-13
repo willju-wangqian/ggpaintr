@@ -540,8 +540,8 @@ resolve_expr_check <- function(expr_check) {
 
   if (!is.list(expr_check)) {
     rlang::abort(paste0(
-      "expr_check must be TRUE, FALSE, or a list ",
-      "with 'deny_list' and/or 'allow_list'."
+      "`expr_check` must be TRUE, FALSE, or a list with ",
+      "`deny_list` and/or `allow_list` -- see `?ptr_app`."
     ))
   }
 
@@ -619,8 +619,10 @@ validate_expr_safety <- function(expr, expr_check = TRUE,
   check_name <- function(name, where) {
     if (isTRUE(deny_hit(name))) {
       rlang::abort(paste0(
-        "expr placeholder: `", name, "` is not allowed (", where, "). ",
-        "Set expr_check = FALSE to allow arbitrary expressions."
+        "`", name, "` is not allowed in an `expr` input (", where, "). ",
+        "Use a different function, or -- only if you trust the input -- ",
+        "relax it via `expr_check`, e.g. ",
+        "`expr_check = list(allow_list = \"", name, "\")`. See `?ptr_app`."
       ))
     }
   }
@@ -629,8 +631,8 @@ validate_expr_safety <- function(expr, expr_check = TRUE,
   walk_expr <- function(x, .depth = 0L) {
     if (.depth > max_depth) {
       rlang::abort(
-        paste0("Expression nesting exceeds maximum depth (", max_depth, "). ",
-               "The expression may be too complex or maliciously crafted.")
+        paste0("The expression in this `expr` input is nested too deeply ",
+               "(limit: ", max_depth, "). Simplify it.")
       )
     }
     if (is.pairlist(x)) {
@@ -675,19 +677,21 @@ validate_expr_safety <- function(expr, expr_check = TRUE,
         blocked <- fn_names[fn_names %in% resolved$fns]
         if (length(blocked) > 0) {
           rlang::abort(paste0(
-            "expr placeholder: `", blocked[[1]],
-            "` is not allowed. ",
-            "Set expr_check = FALSE to allow ",
-            "arbitrary expressions."
+            "`", blocked[[1]], "` is not allowed in an `expr` input. ",
+            "Use a different function, or -- only if you trust the input -- ",
+            "relax it via `expr_check`, e.g. ",
+            "`expr_check = list(allow_list = \"", blocked[[1]], "\")`. ",
+            "See `?ptr_app`."
           ))
         }
       } else {
         if (length(fn_names) > 0 && !any(fn_names %in% resolved$fns)) {
           rlang::abort(paste0(
-            "expr placeholder: `", fn_names[[1]],
-            "` is not in the allowlist. ",
-            "Set expr_check = FALSE to allow ",
-            "arbitrary expressions."
+            "`", fn_names[[1]], "` is not in this app's `allow_list` for ",
+            "`expr` inputs. Add it: ",
+            "`expr_check = list(allow_list = \"", fn_names[[1]], "\")`; ",
+            "or pass `expr_check = FALSE` if you trust the input. ",
+            "See `?ptr_app`."
           ))
         }
       }

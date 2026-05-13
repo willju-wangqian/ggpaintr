@@ -195,10 +195,10 @@ ptr_assert_no_placeholders <- function(tree) {
   bad <- ptr_collect(tree, is_ptr_placeholder)
   if (length(bad)) {
     rlang::abort(paste0(
-      "Internal: ", length(bad),
-      " unresolved placeholder(s) reached evaluation — ptr_substitute() did not run, or pass order is wrong (keyword(s): ",
+      "Internal error: ", length(bad),
+      " unresolved placeholder(s) reached evaluation (keyword(s): ",
       paste(unique(vapply(bad, `[[`, character(1), "keyword")), collapse = ", "),
-      ")."
+      "). Please report this at https://github.com/willju-wangqian/ggpaintr/issues."
     ))
   }
   invisible(tree)

@@ -96,7 +96,7 @@ test_that("P5.15 depth limit triggers safety abort", {
   # Build a deep call programmatically and walk it directly.
   e <- quote(x)
   for (i in seq_len(110)) e <- call("f", e)
-  expect_error(validate_expr_safety(e), "depth")
+  expect_error(validate_expr_safety(e), "nested too deeply")
 })
 
 test_that("P5.16 custom resolve_expr returning denylisted character literal blocked", {

@@ -120,13 +120,17 @@ test_that("layer panel namespaces ids via ns_fn", {
   expect_true(length(.find_tags2(panel, has_id = ns("geom_point_checkbox"))) > 0L)
 })
 
-# ---- Phase 4.1 — pipeline-stage placeholder labels get " in verb()" ----
+# ---- Phase 4.1 — pipeline-stage placeholder labels name the verb ----
 
-test_that("pipeline-stage placeholder label gets the ' in verb()' suffix", {
+test_that("pipeline-stage placeholder label names the verb via {param}", {
   tree <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = var))")
   layer <- .layer_by_name(tree, "ggplot")
   panel <- build_ui_for(layer)
-  expect_match(as.character(panel), "in head\\(\\)")
+  # Default copy is "Enter a number for {param}"; for an unnamed positional arg
+  # the verb fills {param}, giving "...for head()" -- and we do NOT also append
+  # " in head()" on top of that.
+  expect_match(as.character(panel), "Enter a number for head\\(\\)")
+  expect_no_match(as.character(panel), "head\\(\\) in head\\(\\)")
 })
 
 test_that("unnamed-arg pipeline placeholder uses 'verb()' as the copy param key", {

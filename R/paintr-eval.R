@@ -99,7 +99,11 @@ node_to_lang <- function(node) {
   }
   if (is_ptr_pipeline(node)) return(pipeline_to_eval_expr(node))
   if (is_ptr_missing(node)) {
-    rlang::abort("ptr_missing reached eval; should have been pruned by P9.")
+    rlang::abort(paste0(
+      "Internal error: a missing-value node reached evaluation; it should ",
+      "have been removed earlier. Please report this at ",
+      "https://github.com/willju-wangqian/ggpaintr/issues."
+    ))
   }
   if (is_ptr_placeholder(node)) {
     rlang::abort(paste0(

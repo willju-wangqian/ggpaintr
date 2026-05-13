@@ -88,7 +88,10 @@ ptr_builtin_expr_build_ui <- function(node, label = NULL, copy = NULL, ...) {
 
 ptr_builtin_expr_resolve_expr <- function(value, node, ...) {
   if (!is.character(value) || length(value) != 1L || !nzchar(value)) {
-    rlang::abort("expr placeholder requires exactly one expression as a string.")
+    rlang::abort(paste0(
+      "An `expr` input must contain a single R expression written as text ",
+      "(for example: `factor(cyl)`)."
+    ))
   }
   exprs <- tryCatch(
     rlang::parse_exprs(value),
@@ -141,7 +144,7 @@ ptr_builtin_var_build_ui <- function(node, cols = character(),
 
 ptr_builtin_var_resolve_expr <- function(value, node, ...) {
   if (!is.character(value) || length(value) != 1L || !nzchar(value)) {
-    rlang::abort("var placeholder requires a single column name.")
+    rlang::abort("A `var` input must be a single column name.")
   }
   rlang::sym(value)
 }
@@ -151,7 +154,7 @@ ptr_builtin_var_validate_input <- function(value, upstream_cols) {
     return(paste0("Expected a single column; got ", length(value), "."))
   }
   if (!value %in% upstream_cols) {
-    return(paste0("Column ", value, " is not in upstream."))
+    return(paste0("Column `", value, "` is not in the data."))
   }
   TRUE
 }

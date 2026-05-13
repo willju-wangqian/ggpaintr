@@ -253,7 +253,11 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
 ptr_app_header <- function(title) {
   shiny::tags$header(
     class = "ptr-app__header",
-    shiny::tags$div(class = "ptr-app__mark", "g"),
+    shiny::tags$img(
+      class = "ptr-app__mark",
+      src = "ggpaintr/ggpaintr-logo.png",
+      alt = "ggpaintr"
+    ),
     shiny::tags$h1(class = "ptr-app__title", title)
   )
 }

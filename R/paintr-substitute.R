@@ -76,7 +76,12 @@ substitute_walk.ptr_ph_value <- function(node, ctx) {
   if (is_missing_value_input(node, value)) return(ptr_missing())
   entry <- ptr_registry_lookup(node$keyword)
   if (is.null(entry)) {
-    rlang::abort(paste0("No registry entry for placeholder keyword `", node$keyword, "`."))
+    rlang::abort(paste0(
+      "Placeholder `", node$keyword, "` is not registered. Register it with ",
+      "`ptr_define_placeholder_value()`, `ptr_define_placeholder_consumer()`, ",
+      "or `ptr_define_placeholder_source()` before launching -- see ",
+      "`?ptr_define_placeholder_value`."
+    ))
   }
   resolved <- entry$resolve_expr(value, node)
   if (is.null(resolved)) return(ptr_missing())
@@ -133,8 +138,9 @@ substitute_walk.ptr_ph_data_source <- function(node, ctx) {
   }
   if (make.names(name_value) != name_value) {
     rlang::abort(paste0(
-      "Upload name `", name_value, "` is not a valid R name. ",
-      "Only valid R identifiers are accepted."
+      "Upload name `", name_value, "` is not a valid R variable name. ",
+      "Use letters, numbers, dots, and underscores, starting with a letter ",
+      "-- for example: `my_data`."
     ))
   }
   entry <- ptr_registry_lookup(node$keyword)

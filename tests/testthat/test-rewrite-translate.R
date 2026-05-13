@@ -99,9 +99,9 @@ test_that("P1.11 single-layer formula without + is one layer", {
 
 test_that("P1.12 multi-expression formulas rejected", {
   expect_error(ptr_translate("ggplot(mtcars)\nggplot(iris)"),
-               "exactly one top-level expression")
+               "must be a single ggplot expression")
   expect_error(ptr_translate("ggplot(mtcars); ggplot(iris)"),
-               "exactly one top-level expression")
+               "must be a single ggplot expression")
 })
 
 test_that("P1.13 empty/whitespace formulas rejected", {
@@ -118,9 +118,9 @@ test_that("P1.14 depth limit triggers abort", {
     s
   }
   expect_error(ptr_translate(build_nested(15), max_depth = 10L),
-               "exceeds maximum depth")
+               "nested too deeply")
   expect_error(ptr_translate(build_nested(11), max_depth = 10L),
-               "exceeds maximum depth")
+               "nested too deeply")
   expect_silent(ptr_translate(build_nested(10), max_depth = 10L,
                               expr_check = FALSE))
 })

@@ -353,9 +353,10 @@ record_eval_time <- function(state, elapsed_ms) {
         perf$fast_count <- 0L
         if (ptr_get_setting(ptr_settings$verbose)) {
           cli::cli_inform(paste0(
-            "Producer debounce auto-enabled (",
+            "ggpaintr: refreshing column choices has been slow, so edits to ",
+            "text, number, and expression inputs now take effect after a ",
             .PTR_DEFAULT_DEBOUNCE_WINDOW,
-            " ms): slow upstream resolution detected."
+            " ms pause. Disable with `producer_debounce_ms = 0` -- see `?ptr_app`."
           ))
         }
       }
@@ -370,9 +371,10 @@ record_eval_time <- function(state, elapsed_ms) {
         perf$fast_count <- 0L
         perf$slow_count <- 0L
         if (ptr_get_setting(ptr_settings$verbose)) {
-          cli::cli_inform(
-            "Producer debounce auto-disabled: upstream resolution back to fast."
-          )
+          cli::cli_inform(paste0(
+            "ggpaintr: column choices are refreshing quickly again -- edits to ",
+            "text, number, and expression inputs now take effect immediately."
+          ))
         }
       }
     } else {
