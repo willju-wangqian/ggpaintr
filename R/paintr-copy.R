@@ -573,9 +573,6 @@ ptr_deep_merge_ui_text <- function(base, overrides) {
 #'
 #' @param ui_text `NULL` (return defaults), a named list of overrides, or an
 #'   already-merged `ptr_ui_text` object (returned unchanged).
-#' @param known_param_keys Optional character vector of parameter keys present
-#'   in the formula. When supplied, any key in `ui_text$params` that is not in
-#'   this set triggers a `cli::cli_warn()` so the user can catch misspellings.
 #'
 #' @return A `ptr_ui_text` object containing the merged copy rules.
 #'
@@ -590,8 +587,7 @@ ptr_deep_merge_ui_text <- function(base, overrides) {
 #' )
 #' rules$shell$draw_button$label
 #' @export
-ptr_ui_text <- function(ui_text = NULL,
-                        known_param_keys = NULL) {
+ptr_ui_text <- function(ui_text = NULL) {
   if (inherits(ui_text, "ptr_ui_text")) {
     return(ui_text)
   }
@@ -603,17 +599,6 @@ ptr_ui_text <- function(ui_text = NULL,
 
   ptr_validate_ui_text(ui_text)
   ui_text <- ptr_normalize_ui_text(ui_text)
-
-  if (!is.null(known_param_keys) && !is.null(ui_text$params)) {
-    unknown <- setdiff(names(ui_text$params), known_param_keys)
-    if (length(unknown) > 0) {
-      cli::cli_warn(c(
-        "Unknown {.code ui_text$params} key{?s}: {.val {unknown}}",
-        i = "These overrides will be silently ignored because they don't match any aesthetic in the formula.",
-        i = "Known keys: {.val {known_param_keys}}"
-      ))
-    }
-  }
 
   merged <- ptr_deep_merge_ui_text(unclass(defaults), ui_text)
   class(merged) <- "ptr_ui_text"

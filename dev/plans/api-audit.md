@@ -33,7 +33,7 @@ Deliberately **not** public: `ptr_translate` (would commit the node-class contra
 
 ### Keep (recategorize / document better — not trim)
 - [x] `ptr_resolve_ui_text` — recategorize Tier-3/introspection. Add a worked extensibility example that calls it inside a custom `build_ui` hook so a placeholder author labels their control through the same override chain as built-ins.
-- [ ] `known_param_keys=` on `ptr_ui_text` — keep (real feature: warns on misspelled `ui_text$params` keys). Wire it from `ptr_ui_text`'s own internal callers so it's actually exercised.
+- [x] ~~`known_param_keys=` on `ptr_ui_text` — keep (real feature). Wire it from `ptr_ui_text`'s own internal callers.~~ **Reversed by maintainer decision: dropped the argument and its warn-on-unknown branch entirely** — it was never wired to a caller holding the formula's param keys, and wiring it cleanly meant a runtime-path change with an alias-normalization edge case judged not worth it. `ptr_ui_text()` is now `function(ui_text = NULL)`.
 - [x] `build_ui_for` `…` contract — after dropping `placeholders`, re-verify `ui_text`, `layer_name`, `ns_fn`, `checkbox_defaults`, `shell_copy` are all actually passed; fix the roxygen to match. A Tier-3 author reads that list as the contract.
 
 ### Docs
@@ -50,6 +50,5 @@ Deliberately **not** public: `ptr_translate` (would commit the node-class contra
 
 ## Execution notes
 
-- `known_param_keys=` wiring **deferred**: `ptr_ui_text`'s only internal callers (`ptr_resolve_ui_text`, `ptr_compact_ui_text`) don't carry the formula's param-key set, so wiring it means having `ptr_init_state` / `ptr_app_components` build the merged `effective_ui_text` once with `known_param_keys = <keys from the translated tree>` — a small runtime-path change best done on its own. Arg kept; not yet exercised.
 - `_pkgdown` rebuild **blocked** (pre-existing): `pkgdown::build_site_github_pages()` refuses to `clean_site()` because `docs/` is non-empty and not pkgdown-built (it holds `docs/adr/`). Needs a repo-level decision (e.g. a `destination:` in `_pkgdown.yml` or relocating ADRs) before the site can build. The `_pkgdown.yml` reference index itself is rewritten and valid.
 - Renamed functions in shipped docs/scratch (`inst/llm/*`, `tests/manual/*`, `tests/browser/*`, `dev/*`) still reference `ptr_merge_ui_text` / `ptr_server_state` / `ptr_runtime_input_spec` / `ptr_ns_id` — left for the parked vignette/docs-rewrite pass.

@@ -4,15 +4,11 @@
 \alias{ptr_ui_text}
 \title{Inspect, validate, and pre-merge ggpaintr UI copy}
 \usage{
-ptr_ui_text(ui_text = NULL, known_param_keys = NULL)
+ptr_ui_text(ui_text = NULL)
 }
 \arguments{
 \item{ui_text}{\code{NULL} (return defaults), a named list of overrides, or an
 already-merged \code{ptr_ui_text} object (returned unchanged).}
-
-\item{known_param_keys}{Optional character vector of parameter keys present
-in the formula. When supplied, any key in \code{ui_text$params} that is not in
-this set triggers a \code{cli::cli_warn()} so the user can catch misspellings.}
 }
 \value{
 A \code{ptr_ui_text} object containing the merged copy rules.
