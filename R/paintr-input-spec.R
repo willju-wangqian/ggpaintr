@@ -8,7 +8,7 @@
   "param_key", "source_id", "shared"
 )
 
-#' Runtime Input Spec for a Typed AST
+#' Runtime input spec for a typed AST (internal)
 #'
 #' Walks the typed AST and returns one row per node that needs a Shiny
 #' binding: placeholder rows first (with companion rows adjacent for
@@ -19,7 +19,7 @@
 #'
 #' @return A `data.frame` with columns `input_id`, `role`, `layer_name`,
 #'   `keyword`, `param_key`, `source_id`, and `shared`.
-#' @export
+#' @noRd
 ptr_runtime_input_spec <- function(node) {
   if (!is_ptr_root(node)) {
     rlang::abort("ptr_runtime_input_spec expects a ptr_root.")
