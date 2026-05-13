@@ -273,7 +273,11 @@
     <div class="label">Expected</div>
     <div><code>colvars</code> widget offers the same column names the built-in <code>var</code> pickers do.</div>
     <div class="label">Status</div>
-    <div>Reproduces on tip <code>119b8ab</code> after a real upload — confirmed <code>0</code> options on the <code>colvars</code> <code>&lt;select&gt;</code> while sibling <code>var</code> selects show all uploaded columns.</div>
+    <div>
+      Reproduces on tip <code>119b8ab</code> after a real upload — confirmed <code>0</code> options on the <code>colvars</code> <code>&lt;select&gt;</code> while sibling <code>var</code> selects show all uploaded columns.
+      <br><br>
+      <strong>Update 2026-05-13 — verified FALSE POSITIVE.</strong> Live App-C verification on <code>fix/feature-coverage-bugs-2026-05-12</code> with instrumented <code>runtime_consumer_entry</code> / <code>invoke_build_ui</code> showed the framework passes <code>cols = [&quot;a&quot;,&quot;b&quot;]</code> to <code>colvars</code>' <code>build_ui</code> correctly, and the widget renders with those choices selectable. The original DOM probe (<code>select.options.length</code>) misreads <code>shiny::selectInput()</code> output because <code>selectize.js</code> moves <code>&lt;option&gt;</code> children out of the <code>&lt;select&gt;</code> at init; the real options live on <code>select.selectize.options</code>. The built-in <code>var</code> picker uses <code>shinyWidgets::pickerInput()</code> (bootstrap-select), which keeps <code>&lt;option&gt;</code> children — that's why the same probe worked for one widget but not the other. See <code>dev/tasks/bug-4-browser-followup.md</code> for the full verification trace.
+    </div>
   </div>
 </div>
 

@@ -1,30 +1,43 @@
-# BUG-4 — browser follow-up: custom consumer gets empty cols after upload
+# BUG-4 — verified FALSE POSITIVE (resolved 2026-05-13)
 
-Status: pending browser-harness verification. Filed 2026-05-13 during the local autonomous bug-fix loop.
+Status: **not a bug**. Original report's DOM probe misread `shiny::selectInput()`'s rendered HTML.
 
-## Symptom (from the original report)
+## What the 2026-05-12 report claimed
 
-App C (`ptr_app(ex3_formula)`) — after uploading `tests/testthat/fixtures/penguins.csv` into both `ggplot_1_upload_NA` and `geom_line_0_upload_NA`, the `select(colvars)` custom-consumer widget renders with `<select>` containing 0 options. Sibling built-in `var` consumers in the same pipeline (`mutate`, `filter`, `aes(x = var, y = var, color = var)`) show all uploaded columns.
+App C (`ptr_app(ex3_formula)`) — after uploading a CSV into both `#ggplot_1_upload_NA` and `#geom_line_0_upload_NA`, the `select(colvars)` custom-consumer widget appears to render with `<select>` containing 0 options, while sibling built-in `var` consumers in the same pipeline populate normally.
 
-The traced suspicion was that the framework passes `cols = character()` to the custom-consumer `build_ui` while the built-in `var` consumer at the same upstream depth gets the columns.
+## What's actually happening
 
-## What was tried locally
+`colvars`' `build_ui` (in `dev/scripts/feature-coverage-examples.R`) calls `shiny::selectInput(..., multiple = TRUE)`. That widget initializes **selectize.js**, which removes the `<option>` children from the underlying `<select>` element and stashes them on the `selectize` instance (`select.selectize.options`). Querying `selectInput.options.length` therefore returns 0 even when the widget is fully populated.
 
-- Direct call to `ptr_resolve_upstream()` at the colvars node's upstream subtree: returns the full column set (parity with sibling var consumers).
-- `testServer()` reproduction (`tests/testthat/test-regression-bugs-2026-05-12.R::BUG-4`) — wiring upload → companion id → `state$resolved_sources` and reading every consumer's `<id>_ui` output to force `renderUI` evaluation: the custom-consumer `build_ui` receives the same cols as the built-in `var` `build_ui` at the same depth. Test passes.
-- Inspected: `runtime_consumer_entry`, `ptr_setup_consumer_uis`'s `entry_reactive` snapshot, `find_source_companion_ids_in_upstream`, `invoke_build_ui` and `build_ui_copy_args`. No data-path branch is keyed on the keyword — `var` and a custom consumer at the same depth go through identical code.
+The built-in `var` build_ui uses `shinyWidgets::pickerInput()` (bootstrap-select), which keeps `<option>` children in place — so the same DOM probe (`select.options.length`) is meaningful for `var` but meaningless for `colvars`.
 
-## Why this is shipped as-is
+## Verification (2026-05-13, on `fix/feature-coverage-bugs-2026-05-12` @ 76cae03)
 
-The runtime contract (custom-consumer parity with built-in `var` at the same upstream depth) is now pinned by the `testServer()` test, so any future regression that breaks the headless path is caught. The original report's screenshot-level symptom (empty `<select>`) was not reproducible without the real browser; it may have been transient render-timing in Chrome, or specific to the autoname-companion debounce vs. the renderUI invalidation order — both of which `testServer()` collapses.
+Live App C with instrumented `runtime_consumer_entry` and `invoke_build_ui`, drove the upload via Chrome MCP, then read the colvars widget's true state:
 
-## What to verify in the browser harness
+```
+runtime_consumer_entry  -> cols = ["a","b"] for both colvars and every var consumer
+invoke_build_ui         -> extra$cols = ["a","b"] reaches the colvars build_ui
+colvars <select>.options.length === 0          (matches the report's reading)
+colvars select.selectize.options === {a, b}    (real state — populated)
+colvars select.selectize.open() dropdown       -> renders [a, b] as clickable items
+```
 
-1. Launch `dev/scripts/feature-coverage-examples.R` App C exactly as the original report did (`ptr_app(ex3_formula)`, port 4321).
-2. Upload `tests/testthat/fixtures/penguins.csv` into both `#ggplot_1_upload_NA` and `#geom_line_0_upload_NA`.
-3. After both auto-name companions settle to `"penguins"`, inspect `document.getElementById("ggplot_3_1_colvars_NA").options.length` and compare with `document.getElementById("ggplot_4_1_1_var_NA").options.length`.
-4. If colvars is still 0 while var is 8, the bug is real and the next step is to instrument `ptr_setup_consumer_uis`' `entry_reactive` to log the snapshot fed into `runtime_consumer_entry` at the colvars node id — focusing on whether the upload-companion key is missing from the snapshot at the moment colvars renders.
+Conclusion: the widget was always populated. The browser-test report's verdict was a probe-level misread, not a runtime failure.
 
-## Acceptance
+## What stays as-is
 
-The browser-side check at step 3 above (colvars option count > 0 after upload completes) is the definitive acceptance test. The headless regression test catches the contract-level violation but cannot stand in for the browser path.
+- `61d8e98 fix(bug-4): pin runtime parity ...` — keep. The headless test it added (`tests/testthat/test-regression-bugs-2026-05-12.R::BUG-4`) pins a real, useful invariant: a custom `ptr_define_placeholder_consumer()` build_ui receives the same `cols` as the built-in `var` consumer at the same upstream pipeline depth. That invariant *would* break if anyone keyed `runtime_consumer_entry` or `invoke_build_ui`'s `extra` payload on the keyword in the future. Worth keeping as a guardrail.
+- The HTML bug report's BUG-4 entry should be read alongside this file.
+
+## Reusable browser probe for future custom-consumer checks
+
+When verifying that a `selectInput`-based widget is populated, do NOT inspect `<option>` children. Instead, in browser JS:
+
+```js
+const sel = document.getElementById('<widget_id>');
+sel.selectize
+  ? Object.keys(sel.selectize.options)   // selectize-backed (shiny::selectInput)
+  : Array.from(sel.options).map(o => o.value)  // plain <select> or pickerInput
+```

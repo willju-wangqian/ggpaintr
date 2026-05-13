@@ -48,8 +48,16 @@ test_that("BUG-3: ptr_app_grid() validates shared keys against the union across 
 })
 
 test_that("BUG-4: custom ptr_define_placeholder_consumer() receives upstream column vector", {
-  # Repro: at the same upstream pipeline depth, a custom consumer's build_ui
-  # must receive the same `cols` vector as a built-in `var` consumer.
+  # NOTE (2026-05-13): the report's BUG-4 turned out to be a probe-level
+  # false positive (selectize.js moves <option> children out of the <select>
+  # element, so `select.options.length === 0` even when the widget is
+  # populated). See dev/tasks/bug-4-browser-followup.md for the verification.
+  #
+  # This test still has value as a contract: a custom consumer's build_ui
+  # must receive the same `cols` vector as the built-in `var` consumer at the
+  # same upstream pipeline depth. If anyone keys `runtime_consumer_entry` or
+  # `invoke_build_ui`'s `extra` payload on the keyword in the future, this
+  # guard rail fires.
   kw <- paste0("bug4cv_", as.integer(Sys.time()))
   captured <- new.env(parent = emptyenv())
   captured$bu_calls <- list()
