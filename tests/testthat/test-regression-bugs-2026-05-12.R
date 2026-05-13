@@ -11,13 +11,22 @@
 #   BUG-1 → BUG-3 → BUG-4 → BUG-2 → BUG-6 → BUG-5
 
 test_that("BUG-1: ptr_define_placeholder_source() without companion_id_fn does not emit NA companion id", {
-  skip("BUG-1 pending — reproduction TBD by diagnose pass")
-  # Repro outline:
-  #   - Build ex1_tree as in dev/scripts/feature-coverage-examples.R
-  #     (ptr_define_placeholder_source('pick_ds', ..., no companion_id_fn).
-  #   - spec <- ptr_runtime_input_spec(ex1_tree)
-  #   - Expect: no row with role == "source_companion" AND is.na(input_id)
-  #     i.e. either no source_companion row at all, or input_id is a non-NA nzchar string.
+  kw <- paste0("bug1src_", as.integer(Sys.time()))
+  ptr_define_placeholder_source(
+    keyword      = kw,
+    build_ui     = function(node, label = NULL, ...) NULL,
+    resolve_data = function(value, node, ...) mtcars
+    # NOTE: no companion_id_fn
+  )
+  withr::defer(ptr_clear_placeholder(kw))
+
+  formula <- sprintf("%s |> head(num) |> ggplot(aes(x = var, y = var))", kw)
+  tree <- ptr_translate(formula, expr_check = FALSE)
+  spec <- ptr_runtime_input_spec(tree)
+
+  bad <- spec$role == "source_companion" & is.na(spec$input_id)
+  expect_false(any(bad),
+               info = "no source_companion row should have an NA input_id")
 })
 
 test_that("BUG-3: ptr_app_grid() validates shared keys against the union across plots", {

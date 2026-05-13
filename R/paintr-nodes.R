@@ -51,7 +51,7 @@ ptr_ph_data_consumer <- function(id = NA_character_, keyword, param = NA_charact
 }
 
 ptr_ph_data_source <- function(id = NA_character_, keyword, param = NA_character_,
-                              expr, shared = NULL, companion_id = NA_character_) {
+                              expr, shared = NULL, companion_id = NULL) {
   new_ptr_node(
     "ptr_ph_data_source",
     id = id, keyword = keyword, param = param, expr = expr,
