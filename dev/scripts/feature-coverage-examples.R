@@ -20,7 +20,9 @@
 #   * all 3 custom-placeholder constructors:
 #       ptr_define_placeholder_value()    -> `range` (non-data widget)
 #       ptr_define_placeholder_consumer() -> `colvars` (+ optional validate_input hook)
-#       ptr_define_placeholder_source()   -> `pick_ds` (produces a data frame)
+#       ptr_define_placeholder_source()   -> `pick_ds` (produces a data frame;
+#                                            both `resolve_data` AND `resolve_expr`
+#                                            hooks overridden)
 #   * `resolve_expr()` / `resolve_data()` returning NULL == "missing" -> arg dropped
 #   * `copy_defaults` with `{param}` interpolation
 #   * process-global registry (re-sourcing warns + overwrites the keyword)
@@ -34,23 +36,35 @@
 #   * empty-placeholder cleanup of curated removable calls (`facet_wrap`, `labs`)
 #   * `safe_to_remove =` (opt a 3rd-party function into the cleanup pass)
 #   * every `ptr_app()` argument: envir, ui_text (via ptr_ui_text(), all 6
-#     sections + `__unnamed__` positional key), checkbox_defaults, expr_check, css
-#   * `ptr_app_bslib()` with its bslib-only `theme` / `title` arguments
+#     sections + every `shell` sub-key + both `upload` sub-keys + every leaf
+#     field including `empty_text` + the `__unnamed__` positional key),
+#     checkbox_defaults, expr_check, safe_to_remove, css
+#   * every `ptr_app_bslib()` argument including the bslib-only `theme` / `title`
 #
 # Example 2 (`ex2_*`) -- everything that is not a single `ptr_app()` call:
 #   * `ptr_app_grid()` + `shared_ui` + draw-all + `title` / `draw_all_label` / `css`
-#   * split-UI embed: `ptr_controls_ui()` + `ptr_outputs_ui()` + `ptr_module_server()`
-#   * Shiny-module embed: `ptr_module_ui()` + `ptr_module_server()` returning state,
+#   * split-UI embed: `ptr_controls_ui()` + `ptr_outputs_ui(css=)` + `ptr_module_server()`
+#   * Shiny-module embed: `ptr_module_ui()` with every arg (id, formula, ui_text,
+#     checkbox_defaults, expr_check, css) + `ptr_module_server()` returning state,
 #     a user-owned output pane fed by the reactive `state$runtime()`, and `ptr_gg_extra()`
 #   * granular wiring: `ptr_init_state()` + `ptr_setup_*()` (internal) +
 #     `ptr_register_plot()` / `ptr_register_error()` / `ptr_register_code()`
 #   * headless extraction via `shiny::testServer()` + `ptr_server()` +
 #     `ptr_extract_plot()` / `ptr_extract_code()` / `ptr_extract_error()`
+#   * pure-headless helpers (no Shiny session): `ptr_run_formula()` one-shot
+#     + `ptr_translate()` + `ptr_default_snapshot()` + `ptr_exec_headless()`
 #   * `ptr_runtime_input_spec()` on a parsed tree
-#   * `ptr_resolve_ui_text()` lookup
+#   * `ptr_resolve_ui_text()` lookup across every documented `component` value
+#     (title / draw_button / draw_all_button / layer_picker / data_subtab /
+#      controls_subtab / upload_file / upload_name / layer_checkbox / control)
 #   * `ptr_options()` read / set / round-trip
-#   * `ptr_llm_primer()` / `ptr_llm_topics()` / `ptr_llm_topic()` / `ptr_llm_register()`
-#   * `expr` denylist + `expr_check` toggle (translate-time block)
+#   * `ptr_llm_primer()` / `ptr_llm_topics()` / `ptr_llm_topic()` /
+#     `ptr_llm_register(chat, tool_name = ...)`
+#   * `expr_check` in every form: TRUE / FALSE / list(deny_list=) /
+#     list(allow_list=) (translate-time block)
+#   * `shared = "<id>"` on every value-placeholder kind (num, text, expr) plus
+#     consumer kinds (var, custom `colvars`)
+#   * `ptr_clear_placeholder()` tear-down (final commented block)
 #
 # Example 3 (`ex3_*`) -- the original probe formula, verbatim:
 #   * the `upload` keyword end-to-end (used as pipeline head AND `data = upload`
@@ -119,8 +133,10 @@ ptr_define_placeholder_consumer(
 )
 
 # (c) ptr_define_placeholder_source -- data-aware; PRODUCES a data frame.
-#     `resolve_data` returns the frame; `resolve_expr` is left at its default
-#     (the dataset symbol) so the generated code reads `mpg |> ...`.
+#     `resolve_data` returns the frame; `resolve_expr` is explicitly
+#     overridden (rather than left at the constructor's default
+#     `rlang::sym(value)`) to demonstrate the hook + gate the NULL
+#     "missing" return when no dataset is picked yet.
 ptr_define_placeholder_source(
   keyword       = "pick_ds",
   build_ui      = function(node, label = NULL, ...) {
@@ -130,6 +146,10 @@ ptr_define_placeholder_source(
   resolve_data  = function(value, node, ...) {
     if (is.null(value) || !nzchar(value)) return(NULL)
     get(value, envir = asNamespace("ggplot2"))
+  },
+  resolve_expr  = function(value, node, ...) {
+    if (is.null(value) || !nzchar(value)) return(NULL)  # NULL == "missing"
+    rlang::sym(value)
   },
   copy_defaults = list(label = "Dataset for {param}")
 )
@@ -167,20 +187,28 @@ ex1_formula <- "
     ggplot(aes(x = var, y = var, color = var)) +
     geom_point(alpha = num(shared = 'lvl'), size = num(shared = 'lvl')) +
     geom_smooth(method = expr, se = FALSE) +
-    geom_line(data = ex1_local, aes(x = Eng.L, y = Hwy.MPG)) +
+    geom_line(data = pick_ds, aes(x = var, y = var)) +
     facet_wrap(expr) +
     coord_cartesian(xlim = range, ylim = range) +
     labs(title = text, x = text)
 "
 
-# Copy overrides touching all six `ui_text` sections + the `__unnamed__`
-# positional-argument key (facet_wrap registers copy under it).
+# Copy overrides touching all six `ui_text` sections, every `shell` sub-key,
+# both `upload` sub-keys, every leaf field (`label` / `help` / `placeholder` /
+# `empty_text`), and the `__unnamed__` positional-argument key (facet_wrap
+# registers copy under it).
 ex1_ui_text <- ptr_ui_text(list(
-  shell          = list(title       = list(label = "Feature-coverage demo"),
-                        draw_button  = list(label = "Render plot")),
-  upload         = list(name = list(label = "Name this dataset")),
+  shell          = list(title           = list(label = "Feature-coverage demo"),
+                        draw_button     = list(label = "Render plot"),
+                        draw_all_button = list(label = "Render all"),
+                        layer_picker    = list(label = "Pick a layer"),
+                        data_subtab     = list(label = "Data inputs"),
+                        controls_subtab = list(label = "Plot controls")),
+  upload         = list(file = list(label = "Upload data file"),
+                        name = list(label = "Name this dataset")),
   layer_checkbox = list(label = "Include this layer in the plot"),
-  defaults       = list(num   = list(help  = "Any number works here."),
+  defaults       = list(num   = list(help       = "Any number works here.",
+                                     empty_text = "No number yet"),
                         range = list(label = "A 0-100 range for {param}")),
   params         = list(title = list(text = list(label = "Plot title"))),
   layers         = list(facet_wrap = list(expr = list(`__unnamed__` =
@@ -216,6 +244,8 @@ if (interactive()) {
     envir             = environment(),
     ui_text           = ex1_ui_text,
     checkbox_defaults = list(geom_smooth = FALSE),
+    expr_check        = TRUE,
+    safe_to_remove    = "pcp_theme",
     theme             = bslib::bs_theme(version = 5, bootswatch = "minty"),
     title             = "Feature-coverage demo (bslib)"
   )
@@ -271,10 +301,21 @@ ex2_grid_b  <- "ggplot(iris |> dplyr::select(Species, colvars(shared = 'cv')),
 print(ptr_runtime_input_spec(ptr_translate(ex2_simple)))
 
 # --- ptr_resolve_ui_text() lookup -------------------------------------------
+# `control` (placeholder leaf) takes the full coordinates (keyword/param/layer).
 print(ptr_resolve_ui_text(
   "control", keyword = "text", param = "title", layer_name = "labs",
   ui_text = list(params = list(title = list(text = list(label = "My title"))))
 ))
+# Every other documented `component` value resolves shell-level labels that
+# do not need a placeholder coordinate. Iterate them all so the resolver's
+# shell/upload/layer-checkbox branches are exercised.
+for (comp in c("title", "draw_button", "draw_all_button",
+               "layer_picker", "data_subtab", "controls_subtab",
+               "upload_file", "upload_name", "layer_checkbox")) {
+  res <- ptr_resolve_ui_text(comp)
+  cat(sprintf("EX2 resolve_ui_text[%s]$label = %s\n",
+              comp, res$label %||% "<unset>"))
+}
 
 # --- ptr_options(): read / set / round-trip ---------------------------------
 ex2_old_opts <- ptr_options(verbose = TRUE, checkbox_default_all_other_layer = FALSE)
@@ -299,6 +340,27 @@ tryCatch(
                 expr_check = list(deny_list = "eval")),
   error = function(e) message("custom deny_list blocked: ", conditionMessage(e))
 )
+# `allow_list =` switches the safety walker to strict whitelist mode -- ONLY
+# names in the list are permitted; combine with `deny_list =` to whitelist
+# minus a few names.
+invisible(ptr_translate(
+  "ggplot(mtcars) + geom_point() + labs(title = log(1))",
+  expr_check = list(allow_list = c("ggplot", "geom_point", "labs",
+                                   "aes", "log", "+"))
+))
+tryCatch(
+  ptr_translate("ggplot(mtcars) + geom_point() + labs(title = system('id'))",
+                expr_check = list(allow_list = c("ggplot", "geom_point", "labs"))),
+  error = function(e) message("allow_list blocked: ", conditionMessage(e))
+)
+
+# --- shared = on every value-placeholder kind (`text`, `expr`, in addition to
+# `num` / `var` / `colvars` already exercised above). Translate-time check
+# (the live grid app in Example 2a wires `num`/`colvars` shared widgets).
+print(ptr_runtime_input_spec(ptr_translate(
+  "ggplot(mtcars) + geom_point() + labs(title = text(shared = 'st'), subtitle = text(shared = 'st')) + facet_wrap(expr(shared = 'fc'))",
+  expr_check = FALSE
+)))
 
 # --- granular server wiring: ptr_init_state() + ptr_setup_*() + ptr_register_*()
 #     This is exactly what ptr_server() does internally; spelled out here to
@@ -332,13 +394,26 @@ shiny::testServer(function(input, output, session) {
   cat("EX2 error:", ptr_extract_error(session$userData$st) %||% "<none>", "\n")
 })
 
+# --- pure headless: no Shiny session at all ----------------------------------
+# `ptr_run_formula()` is the one-shot helper; `ptr_exec_headless()` is the
+# inner step that takes an already-parsed tree + a value snapshot, and
+# `ptr_default_snapshot()` produces the snapshot from the tree's input spec.
+ex2_run <- ptr_run_formula(ex2_simple, inputs = list(), envir = environment())
+cat("EX2 ptr_run_formula ok:", ex2_run$ok, "\n")
+cat("EX2 ptr_run_formula code:\n", ex2_run$code_text, "\n")
+ex2_tree <- ptr_translate(ex2_simple)
+ex2_snap <- ptr_default_snapshot(ptr_runtime_input_spec(ex2_tree), ex2_tree)
+ex2_exec <- ptr_exec_headless(ex2_tree, ex2_snap, eval_env = environment())
+cat("EX2 ptr_exec_headless ok:", ex2_exec$ok, "\n")
+
 # --- LLM helpers -------------------------------------------------------------
 cat("EX2 llm topics:", paste(ptr_llm_topics(), collapse = ", "), "\n")
 invisible(ptr_llm_primer())
 invisible(ptr_llm_topic(ptr_llm_topics()[[1L]]))
 if (requireNamespace("ellmer", quietly = TRUE)) {
   tryCatch(
-    ptr_llm_register(ellmer::chat_openai()),       # needs a configured Chat / API key
+    # `tool_name =` renames the registered tool; the default is "ggpaintr_help".
+    ptr_llm_register(ellmer::chat_openai(), tool_name = "ggpaintr_help"),
     error = function(e) message("ptr_llm_register needs a configured ellmer Chat: ",
                                 conditionMessage(e))
   )
@@ -371,7 +446,7 @@ if (interactive()) {
       column(4, ptr_controls_ui("embed", ex2_simple,
                                 ui_text = list(shell = list(title = list(label = "Embedded"))),
                                 css = ex_css)),
-      column(8, ptr_outputs_ui("embed"))
+      column(8, ptr_outputs_ui("embed", css = ex_css))
     )
   )
   server_split <- function(input, output, session) {
@@ -383,7 +458,11 @@ if (interactive()) {
   ui_mod <- fluidPage(
     actionButton("toggle_log", "Toggle log-x"),
     fluidRow(
-      column(5, ptr_module_ui("m", ex2_simple)),
+      column(5, ptr_module_ui("m", ex2_simple,
+                              ui_text = list(shell = list(title = list(label = "Module"))),
+                              checkbox_defaults = list(),
+                              expr_check = TRUE,
+                              css = ex_css)),
       column(7, plotOutput("my_plot", height = "420px"))
     )
   )
@@ -407,14 +486,31 @@ if (interactive()) {
 }
 
 # ----------------------------------------------------------------------------
+# Tear-down: ptr_clear_placeholder() rolls back a process-global keyword.
+# Uncomment to roll all three custom keywords back to "unregistered" so the
+# next `source()` does not emit "duplicate keyword" warnings; commented out
+# by default because the live apps above re-use them.
+# ----------------------------------------------------------------------------
+# ptr_clear_placeholder("range")
+# ptr_clear_placeholder("colvars")
+# ptr_clear_placeholder("pick_ds")
+
+# ----------------------------------------------------------------------------
 # Coverage notes
 # ----------------------------------------------------------------------------
 # Not mechanically reachable from a script:
 #   * the *runtime* denylist rejection -- a user pasting e.g. `system(...)` into
-#     an `expr` widget. The translate-time block above is the static analogue.
+#     an `expr` widget. The translate-time block above is the static analogue
+#     for the `expr_check` denylist + allowlist forms.
 #   * `ptr_define_placeholder_source(companion_id_fn = ...)` -- the companion-id
 #     pattern for a "dataset name" sidecar input; see `ptr_builtin_upload_build_ui`.
 #   * real file uploads of every accepted format (.csv/.tsv/.rds/.xlsx/.xls/.json)
 #     -- exercised via the `upload` keyword in the basic probe formula + manual
 #     tests under tests/manual/.
+#   * `ptr_register_builtins()` -- auto-called from `.onLoad`; not meaningful
+#     to invoke from a user script.
+#   * `ptr_init_state(producer_debounce_ms / shared_resolutions / auto_bind_shared
+#     / plots / server_ns)` -- advanced args exercised transitively by
+#     `ptr_app_grid()` and `ptr_app()`; a direct script invocation would be
+#     artificial and not user-facing.
 # ----------------------------------------------------------------------------
