@@ -5,9 +5,9 @@
    knob is a one-line override. */
 
 .ptr-app {
-  --ptr-bg: #f6f7f9;
+  --ptr-bg: #fafbfc;
   --ptr-surface: #ffffff;
-  --ptr-border: #e2e5e9;
+  --ptr-border: #e7e9ee;
   --ptr-ink: #1f2530;
   --ptr-muted: #6b7280;
   --ptr-accent: #c1372c;
