@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ggpaintr feature-coverage browser-audit report — 2026-05-13 (post-fix verify)</title>
+<style>
+  :root {
+    --bg: #fafbfc;
+    --fg: #1f2328;
+    --muted: #57606a;
+    --card: #ffffff;
+    --border: #d0d7de;
+    --danger: #cf222e;
+    --danger-bg: #ffebe9;
+    --warn: #9a6700;
+    --warn-bg: #fff8c5;
+    --ok: #1a7f37;
+    --ok-bg: #dafbe1;
+    --info: #0969da;
+    --code-bg: #f6f8fa;
+  }
+  html { box-sizing: border-box; }
+  *, *::before, *::after { box-sizing: inherit; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 1040px; margin: 0 auto; padding: 32px 24px 80px; }
+  h1 { font-size: 30px; margin: 0 0 4px; }
+  h2 { font-size: 22px; margin: 40px 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  h3 { font-size: 17px; margin: 18px 0 8px; }
+  p { margin: 8px 0; }
+  a { color: var(--info); }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .meta code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  code, pre {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    overflow-x: auto;
+    margin: 8px 0;
+  }
+  :not(pre) > code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; vertical-align: top; text-align: left; }
+  th { background: var(--code-bg); }
+  .badge {
+    display: inline-block; padding: 1px 8px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; vertical-align: middle;
+  }
+  .b-danger { color: var(--danger); background: var(--danger-bg); }
+  .b-warn   { color: var(--warn);   background: var(--warn-bg); }
+  .b-ok     { color: var(--ok);     background: var(--ok-bg); }
+  .b-info   { color: var(--info);   background: #ddf4ff; }
+  .ok-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-left: 6px solid var(--ok); border-radius: 6px;
+    padding: 16px 18px; margin: 14px 0;
+  }
+  .summary-counts {
+    display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0 24px;
+  }
+  .summary-counts div {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px 14px; min-width: 140px;
+  }
+  .summary-counts strong { font-size: 22px; display: block; }
+  .summary-counts span { color: var(--muted); font-size: 13px; }
+  ul, ol { margin: 6px 0 8px 0; padding-left: 22px; }
+  li { margin: 3px 0; }
+  hr { border: 0; border-top: 1px solid var(--border); margin: 24px 0; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>ggpaintr feature-coverage browser-audit report</h1>
+<p class="meta">
+  Run date: 2026-05-13 (post-fix verification round).<br>
+  Source under test: <code>dev/scripts/feature-coverage-examples.R</code> — six apps (1a, 1b, 2a, 2b, 2c, 3).<br>
+  Driver: Claude in Chrome (claude-in-chrome MCP), launchers under <code>/tmp/ggp-launchers/</code>, background <code>Rscript</code> on port 4321.<br>
+  Commit at run start: <code>8722c23</code> (<em>chore(audit): widget-aware browser probe + browser-tester filing rules</em>).<br>
+  Branch: <code>core-rewrite-impl</code>.<br>
+  Probe: widget-class-aware reader from <code>dev/scripts/audit-probe.js</code>; <code>$el.find("option")</code> for <code>pickerInput</code>, <code>Object.keys(selectize.options)</code> for <code>selectInput(multiple = TRUE)</code>.<br>
+  Scope: re-run the 2026-05-13 audit's checklist on the post-fix HEAD; confirm BUG-A2 + BUG-B1 stay closed, BUG-A1 stays a verified false positive, and no new regressions.
+</p>
+
+<h2>Summary</h2>
+<div class="summary-counts">
+  <div><strong>6 / 6</strong><span>apps launched</span></div>
+  <div><strong>6 / 6</strong><span>apps fully usable</span></div>
+  <div><strong>~70</strong><span>features tested</span></div>
+  <div><strong>0</strong><span>bugs filed</span></div>
+  <div><strong>0 / 0 / 0</strong><span>high / med / low</span></div>
+  <div><strong>0</strong><span>features blocked</span></div>
+</div>
+
+<table>
+  <thead>
+    <tr><th>App</th><th>Launcher</th><th>Launched?</th><th>Usable?</th><th>Notes</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1a — <code>ptr_app(ex1_formula, …)</code> turn-key</td>
+      <td><code>app1a.R</code></td>
+      <td><span class="badge b-ok">Yes</span></td>
+      <td><span class="badge b-ok">Yes — clean</span></td>
+      <td>Every checklist item from the 2026-05-13 round passes. BUG-A2 fix verified (shared num shows override). BUG-A1 stays a verified false positive (aes pickers refresh after <code>pick_ds</code> switch). Denylist runtime block, render, code panel, layer-level <code>data</code>, empty-placeholder cleanup, <code>ex_css</code> font all OK.</td>
+    </tr>
+    <tr>
+      <td>1b — <code>ptr_app_bslib(ex1_formula, …)</code></td>
+      <td><code>app1b.R</code></td>
+      <td><span class="badge b-ok">Yes</span></td>
+      <td><span class="badge b-ok">Yes — clean</span></td>
+      <td>BUG-B1 fix verified: explicit <code>title = "Feature-coverage demo (bslib)"</code> wins over <code>ui_text$shell$title$label = "Feature-coverage demo"</code> — page title, navbar brand, and h1 all render the <code>title=</code> argument. Override copies (help, range, layer checkbox) all present.</td>
+    </tr>
+    <tr>
+      <td>2a — <code>ptr_app_grid(plots = list(ex2_grid_a, ex2_grid_b), …)</code></td>
+      <td><code>app2a.R</code></td>
+      <td><span class="badge b-ok">Yes</span></td>
+      <td><span class="badge b-ok">Yes — clean</span></td>
+      <td>Title "Two iris views, shared column pick", <code>draw_all_label = "Render both"</code>, both plots rendered with shared <code>cv</code>/<code>pt</code> propagated into generated code.</td>
+    </tr>
+    <tr>
+      <td>2b — split-UI embed (<code>ptr_controls_ui</code>+<code>ptr_outputs_ui</code>)</td>
+      <td><code>app2b.R</code></td>
+      <td><span class="badge b-ok">Yes</span></td>
+      <td><span class="badge b-ok">Yes — clean</span></td>
+      <td>Module-namespaced controls (<code>embed-</code>), Update plot wired, <code>ex_css</code> attached (monospace body), plot renders, code resolves.</td>
+    </tr>
+    <tr>
+      <td>2c — module embed + <code>ptr_gg_extra</code></td>
+      <td><code>app2c.R</code></td>
+      <td><span class="badge b-ok">Yes</span></td>
+      <td><span class="badge b-ok">Yes — clean</span></td>
+      <td>Module title "Module" rendered, user-owned <code>my_plot</code> re-renders from <code>state$runtime()</code>, <code>ptr_gg_extra(state, scale_x_log10())</code> appears in generated code on toggle.</td>
+    </tr>
+    <tr>
+      <td>3 — <code>ptr_app(ex3_formula)</code> upload</td>
+      <td><code>app3.R</code></td>
+      <td><span class="badge b-ok">Yes</span></td>
+      <td><span class="badge b-ok">Yes — clean</span></td>
+      <td>JS-driven <code>DataTransfer</code> upload reaches both <code>upload</code> sites; <code>_name</code> companions auto-fill ("penguins"); every downstream picker (colvars, var, aes, shared) populates with the CSV's columns; plot renders.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="ok-card">
+  <strong>No bugs to file.</strong> All three closures from the 2026-05-13 round hold on
+  <code>8722c23</code>: BUG-A1 stays a verified probe artifact, BUG-A2's
+  override now reaches the shared widget, BUG-B1's explicit <code>title=</code>
+  takes precedence. The audit-launcher pattern and widget-aware probe both
+  caught what they were designed to catch.
+</div>
+
+<h2>App 1a — <code>ptr_app(ex1_formula, …)</code> turn-key</h2>
+
+<h3>PASS</h3>
+<ul>
+  <li><code>pick_ds</code> dropdown lists <code>mpg / diamonds / midwest / economics</code> (read via <code>selectize.options</code>).</li>
+  <li>Initial column propagation on <code>mpg</code>: <code>colvars</code> (selectize) and per-stage <code>var</code> pickers (pickerInput) list the 11 mpg columns.</li>
+  <li>Aes <code>x / y / color</code> pickers under <code>ggplot(...)</code> populate to the same 11 mpg columns once the "Plot controls" subtab is active.</li>
+  <li>Pipeline-stage enable checkboxes (head, select, mutate, filter) present and on by default with namespaced labels (<code>head()</code> / <code>select()</code> / <code>mutate()</code> / <code>filter()</code>).</li>
+  <li>Per-layer enable checkboxes for every layer (<code>geom_point</code>, <code>geom_smooth</code>, <code>geom_line</code>, <code>facet_wrap</code>, <code>coord_cartesian</code>, <code>labs</code>); <code>geom_smooth</code> starts <em>UNCHECKED</em> (matches <code>checkbox_defaults = list(geom_smooth = FALSE)</code>).</li>
+  <li>Layer-checkbox override label "Include this layer in the plot" rendered for every layer.</li>
+  <li>Range sliders (<code>coord_cartesian</code>): two-handle, 0–100, labels render the <code>defaults$range</code> override "A 0-100 range for xlim" / "A 0-100 range for ylim".</li>
+  <li><code>ui_text</code> overrides: page title <em>Feature-coverage demo</em>, draw button <em>Render plot</em>, layer-picker label <em>Pick a layer</em>, sub-tab labels <em>Data inputs</em> / <em>Plot controls</em>.</li>
+  <li><strong>BUG-A2 fix holds</strong>: the shared <code>num(shared='lvl')</code> widget's help block renders the override "Any number works here." — three occurrences across the rendered DOM. The old alpha-specific copy ("Enter a value between 0 and 1.") returns zero hits.</li>
+  <li>Source switch propagation: setting <code>pick_ds</code> from <code>mpg</code> to <code>diamonds</code> refreshes the aes pickers to the 10 diamonds columns (<code>carat, cut, color, …, z</code>). Pipeline-stage and <code>colvars</code> pickers also refresh once their hosting tab is brought back into view — see <em>Notes on hidden-tab pickers</em> below.</li>
+  <li><strong>Render plot</strong> button (<code>#ptr_update_plot</code>) renders a real ggplot. With <code>pick_ds = mpg</code>, aes = (<code>displ</code>, <code>hwy</code>, <code>drv</code>), shared <code>lvl</code> = 0.6, head <code>num</code> = 20, the generated code reads:
+  <pre>mpg |> head(20) |> ggplot(aes(x = displ, y = hwy, color = drv)) +
+  geom_point(alpha = 0.6, size = 0.6) +
+  geom_line(data = mpg) +
+  coord_cartesian(xlim = c(0L, 100L), ylim = c(0L, 100L))</pre>
+  Shared <code>num</code> propagates into both <code>alpha</code> and <code>size</code> of <code>geom_point</code>; layer-level <code>data = pick_ds</code> resolves to <code>geom_line(data = mpg)</code>; empty placeholders (select / mutate / filter / facet_wrap / labs / geom_smooth) are dropped from the generated code.</li>
+  <li><strong>expr denylist runtime block</strong>: enable <code>geom_smooth</code>, paste <code>system('id')</code> into its method input, click Render — inline error appears: <em>"Input error: <code>system</code> is not allowed in an <code>expr</code> input. Use a different function, or -- only if you trust the input -- relax it via <code>expr_check</code>, e.g. <code>expr_check = list(allow_list = "system")</code>."</em> Code pane clears.</li>
+  <li>Successful render after clearing the offending expr restores the code pane and the inline error disappears.</li>
+  <li><code>css = ex_css</code>: <code>getComputedStyle(document.body).fontFamily</code> reports <code>"ui-monospace, monospace"</code>; the stylesheet is linked from the page <code>&lt;head&gt;</code>.</li>
+</ul>
+
+<h3>FAIL</h3>
+<ul><li>None.</li></ul>
+
+<h3>Notes on hidden-tab pickers</h3>
+<p>
+A first probe after switching <code>pick_ds</code> while the "Plot controls"
+outer tab was active read the aes pickers as refreshed (diamonds, 10 cols)
+but the stage pickers and <code>colvars</code> as stale (mpg, 11 cols). The
+state corrected itself once the "Data inputs" tab was brought back into
+view, with every picker reading the new 10 diamonds columns. This is the
+standard Shiny suspended-output behavior — <code>renderUI</code> outputs in
+a hidden tab don't tick over until visibility resumes — and not a runtime
+bug. The shape is the same as the BUG-4 / BUG-A1 probe artifacts the
+project has already filed twice (see
+<code>dev/audit/feature-coverage-2026-05-13-resolution.md</code>); recorded
+here so future audits read pickers in their natural tab and don't refile.
+</p>
+
+<h3>NEVER-EXERCISED</h3>
+<ul>
+  <li><code>validate_input</code> hook on <code>colvars</code> firing — selectize only allows known columns, so the "unknown column(s)" branch is unreachable through UI interaction (unchanged from prior round).</li>
+  <li><code>safe_to_remove = "pcp_theme"</code> — the formula doesn't reference <code>pcp_theme</code>, so opt-in cleanup has nothing to act on (unchanged).</li>
+</ul>
+
+<h2>App 1b — <code>ptr_app_bslib(ex1_formula, …)</code></h2>
+
+<h3>PASS</h3>
+<ul>
+  <li><strong>BUG-B1 fix holds</strong>: the launcher passes both <code>title = "Feature-coverage demo (bslib)"</code> and <code>ui_text = ex1_ui_text</code> where <code>shell$title$label = "Feature-coverage demo"</code>. Result on this run: <code>document.title</code>, the navbar-brand, and the rendered h1 all read "Feature-coverage demo (bslib)" — the explicit <code>title=</code> argument wins, matching the new <code>@section Precedence</code> in <code>?ptr_app_bslib</code>.</li>
+  <li>bslib shell renders (sidebar layout via <code>bslib-page-sidebar</code> body class).</li>
+  <li><code>ui_text</code> overrides as in App 1a: 3 occurrences of "Any number works here." (BUG-A2 fix), 2 range labels ("A 0-100 range for {xlim,ylim}"), 4 layer-checkbox "Include this layer in the plot" labels.</li>
+  <li>BUG-A1 hypothesis (aes pickers stale after <code>pick_ds</code> switch) does not reproduce — same R-side wiring as 1a.</li>
+</ul>
+
+<h3>FAIL</h3>
+<ul><li>None.</li></ul>
+
+<h2>App 2a — <code>ptr_app_grid(plots = list(ex2_grid_a, ex2_grid_b), …)</code></h2>
+
+<h3>PASS</h3>
+<ul>
+  <li>Header h2 "Two iris views, shared column pick" rendered from the <code>title=</code> arg.</li>
+  <li>Three action buttons: <code>ptr_grid_draw_all</code> ("Render both"), <code>plot_1-ptr_update_plot</code>, <code>plot_2-ptr_update_plot</code>.</li>
+  <li>Shared <code>cv</code> (selectize, multiple): 4 iris features, defaulted to <code>["Sepal.Length", "Sepal.Width"]</code>.</li>
+  <li>Shared <code>pt</code> slider: value 0.6, range 0–1.</li>
+  <li>"Render both" produces two plots simultaneously, each 720px wide, with code panes resolving the shared selections:
+  <pre>ggplot(
+  data = iris |> dplyr::select(Species, c("Sepal.Length", "Sepal.Width")),
+  aes(x = Species, y = Sepal.Length, fill = Species)
+) +
+  geom_boxplot()
+
+ggplot(
+  data = iris |> dplyr::select(Species, c("Sepal.Length", "Sepal.Width")),
+  aes(x = Sepal.Length, y = Sepal.Width, color = Species)
+) +
+  geom_point(alpha = 0.6)</pre>
+  Both <code>colvars(shared = 'cv')</code> sites pick up the same selection; <code>num(shared = 'pt')</code> feeds <code>geom_point(alpha = 0.6)</code> on plot 2.</li>
+</ul>
+
+<h3>FAIL</h3>
+<ul><li>None.</li></ul>
+
+<h2>App 2b — split-UI embed (<code>ptr_controls_ui</code> + <code>ptr_outputs_ui</code>)</h2>
+
+<h3>PASS</h3>
+<ul>
+  <li>Module-namespaced controls under <code>embed-</code> id prefix (layer select, layer checkboxes, num input, text input). Render button <code>embed-ptr_update_plot</code>.</li>
+  <li><code>css = ex_css</code> attached: body font-family resolves to <code>"ui-monospace, monospace"</code>; 4 ggpaintr stylesheets in the page <code>&lt;head&gt;</code>.</li>
+  <li>Setting <code>embed-geom_point_1_num_NA = 4</code> and clicking Update plot renders the plot (1563px) with code <code>ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point(size = 4)</code>.</li>
+  <li>The shell title override "Embedded" has no rendering target in the split UI (expected, recorded in the 2026-05-13 audit).</li>
+</ul>
+
+<h3>FAIL</h3>
+<ul><li>None.</li></ul>
+
+<h2>App 2c — module embed + <code>ptr_gg_extra</code></h2>
+
+<h3>PASS</h3>
+<ul>
+  <li>Module shell renders with title "Module" (from <code>ui_text$shell$title$label = "Module"</code>).</li>
+  <li>Outer "Toggle log-x" button (<code>toggle_log</code>) and module Update plot (<code>m-ptr_update_plot</code>) both wired.</li>
+  <li>User-owned <code>plotOutput("my_plot")</code> renders independently of the module's own plot pane after first Update plot click; both images present.</li>
+  <li>Clicking "Toggle log-x" once and re-rendering rewrites the generated code to:
+  <pre>ggplot(data = mtcars, aes(x = mpg, y = hp)) +
+  geom_point(size = 5) +
+  ggplot2::scale_x_log10()</pre>
+  Confirms <code>ptr_gg_extra(state, ggplot2::scale_x_log10())</code> appended its layer through the module's <code>state$runtime()</code> path.</li>
+</ul>
+
+<h3>FAIL</h3>
+<ul><li>None.</li></ul>
+
+<h2>App 3 — <code>ptr_app(ex3_formula)</code> upload</h2>
+
+<h3>PASS</h3>
+<ul>
+  <li>UI structure correct: two <code>&lt;input type="file"&gt;</code> elements (<code>ggplot_1_upload_NA</code> for the pipeline head and <code>geom_line_0_upload_NA</code> for the layer-level data) with <code>accept=".csv,.tsv,.rds,.xlsx,.xls,.json"</code>. Both have <code>_name</code> companion text fields.</li>
+  <li>Upload driven from Chrome MCP via <code>DataTransfer</code> (the working pattern preserved at <code>/tmp/ggp-launchers/upload.js</code>): both file inputs receive a synthetic <code>penguins.csv</code>, both <code>_name</code> fields auto-fill to "penguins".</li>
+  <li>Downstream pickers all populate with the CSV's 8 columns (<code>species, island, bill_length_mm, bill_depth_mm, flipper_length_mm, body_mass_g, sex, year</code>): pipeline <code>colvars</code> (selectize), mutate / filter <code>var</code> pickers (pickerInput), aes <code>x/y/color</code> pickers (pickerInput), and the shared <code>var(shared = 'v')</code> widget (pickerInput).</li>
+  <li>End-to-end render succeeds (1552px plot, no errors) with code:
+  <pre>penguins |>
+  head(50) |>
+  ggplot(aes(x = bill_length_mm, y = bill_depth_mm, color = species)) +
+  geom_point(alpha = species, size = species) +
+  geom_line(data = penguins)</pre>
+  Confirms: (a) <code>head(num)</code> resolves; (b) layer-level <code>data = upload</code> on <code>geom_line</code> resolves to the uploaded dataset, named from the <code>_name</code> companion; (c) the shared <code>var(shared = 'v')</code> propagates to both <code>alpha</code> and <code>size</code> of <code>geom_point</code>; (d) empty placeholders (select / mutate / filter / facet_wrap / labs) are dropped from the generated code.</li>
+</ul>
+
+<h3>FAIL</h3>
+<ul><li>None.</li></ul>
+
+<h2>Resolution table — against 2026-05-13 round</h2>
+
+<table>
+  <thead>
+    <tr><th>Item</th><th>2026-05-13 status</th><th>This round (8722c23)</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>BUG-A1 — aes pickers stale after <code>pick_ds</code> switch</td>
+      <td>Filed MEDIUM, later verified false positive (probe-level misread) — see <code>dev/audit/feature-coverage-2026-05-13-resolution.md</code></td>
+      <td><span class="badge b-ok">Holds</span> — aes pickers refresh to the new dataset; the only observable "stale" reading came from a hidden-tab suspended <code>renderUI</code> and self-corrected on tab activation. Recorded as a note, not refiled.</td>
+    </tr>
+    <tr>
+      <td>BUG-A2 — <code>defaults$num$help</code> override ignored by shared <code>num</code> widget</td>
+      <td>Filed LOW, fixed in <code>47f9329</code> (rep-node <code>node$param &lt;- NULL</code> when shared spans more than one distinct param)</td>
+      <td><span class="badge b-ok">Closed</span> — shared widget help reads "Any number works here." (override), three occurrences in the DOM; zero occurrences of the old alpha-specific copy.</td>
+    </tr>
+    <tr>
+      <td>BUG-B1 — <code>ptr_app_bslib(title = …)</code> ignored when <code>ui_text$shell$title</code> set</td>
+      <td>Filed LOW, fixed in <code>47f9329</code> (<code>title=NULL</code> default + explicit-arg precedence + <code>@section Precedence</code>)</td>
+      <td><span class="badge b-ok">Closed</span> — page <code>&lt;title&gt;</code>, navbar brand, and h1 all render the explicit <code>title=</code> arg.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Hard rules — observed</h2>
+<ul>
+  <li>Used the widget-class-aware probe at <code>dev/scripts/audit-probe.js</code> for every picker read (<code>$el.find("option")</code> for <code>pickerInput</code>, <code>Object.keys(selectize.options)</code> for selectize-backed <code>selectInput(multiple = TRUE)</code>). No raw <code>document.getElementById(id).options</code> reads on a ggpaintr <code>var</code> / <code>colvars</code> / <code>pick_ds</code> picker.</li>
+  <li>No bug filed. The hidden-tab observation that briefly looked like a regression (stage pickers reading the old dataset) was excluded after one tab-activation re-read showed the correct state — same disposition the project's filing rules call for. R-side spy not attached because no bug-filing decision was on the table.</li>
+  <li>No source files edited; the launchers under <code>/tmp/ggp-launchers/</code> were reused from the prior round unchanged.</li>
+</ul>
+
+<h2>Suggested next steps</h2>
+<ul>
+  <li>Audit closes the loop. Update <code>MEMORY.md</code> to point at this report so the next session sees that the 8722c23 HEAD has clean coverage across all six apps.</li>
+  <li>The hidden-tab suspended-<code>renderUI</code> caveat is now documented in two audits and in the resolution doc; if it surfaces a third time consider folding a note into the audit-probe header so the next reader catches it before re-deriving it from scratch.</li>
+</ul>
+
+</main>
+</body>
+</html>
