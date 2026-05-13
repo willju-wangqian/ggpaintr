@@ -48,12 +48,82 @@ test_that("BUG-3: ptr_app_grid() validates shared keys against the union across 
 })
 
 test_that("BUG-4: custom ptr_define_placeholder_consumer() receives upstream column vector", {
-  skip("BUG-4 pending — reproduction TBD by diagnose pass")
-  # Repro outline:
-  #   - Register a custom consumer 'colvars' whose build_ui captures `cols`.
-  #   - Run testServer() with ex3_formula; simulate the upload session_set_input.
-  #   - Expect: captured cols equals the uploaded frame's column names
-  #     (same set the built-in `var` consumers see at the same pipeline depth).
+  # Repro: at the same upstream pipeline depth, a custom consumer's build_ui
+  # must receive the same `cols` vector as a built-in `var` consumer.
+  kw <- paste0("bug4cv_", as.integer(Sys.time()))
+  captured <- new.env(parent = emptyenv())
+  captured$bu_calls <- list()
+  ptr_define_placeholder_consumer(
+    keyword = kw,
+    build_ui = function(node, label = NULL, cols = character(),
+                        data = NULL, selected = character(), ...) {
+      captured$bu_calls[[length(captured$bu_calls) + 1L]] <<-
+        list(kw = "custom", id = node$id, cols = cols)
+      shiny::selectInput(node$id, label, choices = cols, multiple = TRUE)
+    },
+    resolve_expr = function(value, node, ...) {
+      if (length(value) == 0L) return(NULL)
+      do.call(call, c(list("c"), as.list(value)))
+    }
+  )
+  withr::defer(ptr_clear_placeholder(kw))
+
+  # Spy on the built-in `var` build_ui to capture its cols too.
+  orig_var_bu <- getFromNamespace("ptr_builtin_var_build_ui", "ggpaintr")
+  new_var_bu <- function(node, cols = character(), label = NULL,
+                        copy = NULL, selected = character(0), ...) {
+    captured$bu_calls[[length(captured$bu_calls) + 1L]] <<-
+      list(kw = "var", id = node$id, cols = cols)
+    orig_var_bu(node, cols = cols, label = label, copy = copy,
+                selected = selected, ...)
+  }
+  assignInNamespace("ptr_builtin_var_build_ui", new_var_bu, "ggpaintr")
+  withr::defer({
+    assignInNamespace("ptr_builtin_var_build_ui", orig_var_bu, "ggpaintr")
+    suppressWarnings(ptr_register_builtins())
+  })
+  suppressWarnings(ptr_register_builtins())
+
+  formula <- sprintf(
+    "upload |> head(num) |> %s(%s) |> dplyr::mutate(new_var = var + var) |> ggplot(aes(x = var, y = var))",
+    "dplyr::select", kw
+  )
+
+  shiny::testServer(function(input, output, session) {
+    st <- ptr_server(input, output, session, formula, expr_check = FALSE)
+    session$userData$state <- st
+  }, {
+    st <- session$userData$state
+    upl <- find_nodes(st$tree(), is_ptr_ph_data_source)[[1L]]
+    df_fake <- head(iris)
+    assign("fakeup", df_fake, envir = st$eval_env)
+    do.call(session$setInputs,
+            stats::setNames(list("fakeup"), upl$companion_id))
+    st$resolved_sources[[upl$id]](df_fake)
+    # Force renderUI evaluation by reading every consumer output id.
+    for (cnode in find_nodes(st$tree(), is_ptr_ph_data_consumer)) {
+      if (!is.null(cnode$shared)) next
+      tryCatch(output[[paste0(cnode$id, "_ui")]], error = function(e) NULL)
+    }
+  })
+
+  # Last build_ui call per consumer is the post-upload one.
+  last_by_id <- list()
+  for (c in captured$bu_calls) last_by_id[[c$id]] <- c
+  custom_calls <- Filter(function(c) c$kw == "custom", last_by_id)
+  var_calls    <- Filter(function(c) c$kw == "var",    last_by_id)
+  expect_true(length(custom_calls) >= 1L,
+              info = "custom consumer build_ui must be invoked at least once")
+  expect_true(length(var_calls) >= 1L,
+              info = "built-in var build_ui must be invoked at least once")
+  custom_cols <- custom_calls[[1L]]$cols
+  expected <- names(df_fake <- head(iris))
+  expect_equal(custom_cols, expected,
+               info = "custom consumer must receive the uploaded frame's columns")
+  for (vc in var_calls) {
+    expect_equal(vc$cols, expected,
+                 info = sprintf("var %s must receive the uploaded frame's columns", vc$id))
+  }
 })
 
 test_that("BUG-2: ui_text$shell$draw_button$label propagates to the draw button", {
