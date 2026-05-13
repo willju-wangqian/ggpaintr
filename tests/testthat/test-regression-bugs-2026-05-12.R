@@ -144,11 +144,23 @@ test_that("BUG-2: ui_text$shell$draw_button$label propagates to the draw button"
 })
 
 test_that("BUG-6: pipeline-stage enable-checkbox labels show the pipeline verb", {
-  skip("BUG-6 pending — reproduction TBD by diagnose pass")
-  # Repro outline:
-  #   - parsed <- ptr_parse_formula(ex1_formula)
-  #   - Pull the stage labels generator (whatever feeds the Data sub-tab checkboxes).
-  #   - Expect head() / mutate() / filter() / select() — NOT "+()", ">()", or "".
+  formula <- paste0(
+    "mtcars |> head(num) |> dplyr::select(var) |> ",
+    "dplyr::mutate(new = var + num) |> dplyr::filter(var > num) |> ",
+    "ggplot(aes(x = var, y = var))"
+  )
+  tree <- ptr_translate(formula, expr_check = FALSE)
+  layer <- tree$layers[[1L]]
+  entries <- ggpaintr:::find_layer_placeholders_with_stage(layer$data_arg)
+  verbs <- vapply(entries, function(e) e$verb %||% NA_character_, character(1))
+  # Drop the head-of-pipeline source entry (no stage); keep verbs once.
+  unique_verbs <- unique(verbs[!is.na(verbs)])
+  expect_true(all(c("head", "select", "mutate", "filter") %in% unique_verbs),
+              info = sprintf("got verbs: %s",
+                             paste(unique_verbs, collapse = ", ")))
+  # And specifically: no inner-operator verbs.
+  expect_false(any(c("+", ">", "==", "*") %in% unique_verbs),
+               info = "inner-operator verbs leaked to stage labels")
 })
 
 test_that("BUG-5: successful draw clears stale shared-picker error from #ptr_error", {

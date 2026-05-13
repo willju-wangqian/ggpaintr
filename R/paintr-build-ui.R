@@ -277,7 +277,8 @@ find_layer_placeholders <- function(x) {
 find_layer_placeholders_with_stage <- function(x) {
   out <- list()
   call_head_name <- function(fun) {
-    if (is.symbol(fun)) as.character(fun) else NA_character_
+    nm <- bare_call_name(fun)
+    if (is.null(nm) || !nzchar(nm)) NA_character_ else nm
   }
   visit <- function(n, current_sid, current_verb) {
     if (is.null(n)) return()
