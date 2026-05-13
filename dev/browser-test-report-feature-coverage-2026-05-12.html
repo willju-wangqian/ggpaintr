@@ -336,6 +336,44 @@
   </div>
 </div>
 
+<!-- BUG 7 -->
+<div class="bug severity-medium">
+  <div class="bug-head">
+    <span class="badge b-warn">MEDIUM</span>
+    <h3>BUG-7 — <code>validate_input</code> rejects <code>NULL</code>-on-valid (idiomatic R)</h3>
+    <span class="breaks">found during interactive App C testing 2026-05-13</span>
+  </div>
+  <div class="grid">
+    <div class="label">Trigger</div>
+    <div>App C, <code>ex3_formula</code>. After upload, pick a column in the <code>colvars</code> selectize and click "Update plot". The custom <code>colvars</code>' <code>validate_input</code> returns <code>NULL</code> on valid (the standard R idiom for "no message to report"); the framework's check at <code>paintr-substitute.R:114</code> was <code>if (!isTRUE(ok))</code>, which treats <code>NULL</code> as a failure.</div>
+    <div class="label">Observed</div>
+    <div><code>Input error: Invalid value for placeholder `colvars`: validation failed.</code></div>
+    <div class="label">Root cause</div>
+    <div>Roxygen docs at <code>paintr-registry.R:226-227</code> said "returning <code>TRUE</code> or an error message string" — but R authors reach for the <code>NULL = no error</code> idiom by default. Built-in <code>var</code> returns <code>TRUE</code> so it happened to work.</div>
+    <div class="label">Fix shape</div>
+    <div>Accept <code>TRUE</code> or <code>NULL</code> as valid; treat character vector as the error message; anything else fails closed with the generic message. Roxygen updated to document both forms (fix shipped 2026-05-13, commit forthcoming).</div>
+  </div>
+</div>
+
+<!-- BUG 8 -->
+<div class="bug severity-high">
+  <div class="bug-head">
+    <span class="badge b-danger">HIGH</span>
+    <h3>BUG-8 — shared <code>var(shared = 'v')</code> doesn't resolve through an <code>upload</code> data source</h3>
+    <span class="breaks">found during interactive App C testing 2026-05-13</span>
+  </div>
+  <div class="grid">
+    <div class="label">Trigger</div>
+    <div>App C, <code>ex3_formula</code>. The formula has <code>geom_point(alpha = var(shared = 'v'), size = var(shared = 'v'))</code> on an <code>upload |&gt; head(num) |&gt; select(colvars) |&gt; ...</code> pipeline. Upload a CSV.</div>
+    <div class="label">Observed</div>
+    <div>Error pane persists post-upload: "Shared <code>var(shared = "v")</code>: This shared picker has no dataset to list columns from — its data is produced entirely by other inputs that aren't filled in yet…". The shared widget never populates.</div>
+    <div class="label">Root cause</div>
+    <div>Shared-widget resolution was purely static: <code>truncate_upstream_at_placeholder()</code> in <code>paintr-shared.R</code> returned <code>NULL</code> whenever the pipeline's source stage was a placeholder, including data-source placeholders like <code>upload</code> that DO resolve at runtime via their companion input. The resulting <code>kind = "error"</code> binding was set once at init and never re-evaluated when the upload landed. <code>ptr_bind_shared_consumer_uis()</code> also passed <code>snapshot = list()</code> and <code>eval_env = parent.frame()</code>, neither of which can see runtime-resolved data.</div>
+    <div class="label">Fix shape</div>
+    <div>(a) Data-source placeholders are now valid at a pipeline's head — <code>truncate_upstream_at_placeholder()</code> keeps them as the source instead of returning NULL. (b) <code>ptr_bind_shared_consumer_uis()</code> grew an optional <code>state =</code> arg; when wired (single-plot host), the renderUI depends on <code>state$resolved_sources</code>, builds a snapshot from upload companion ids, and resolves through <code>state$eval_env</code> — matching what non-shared consumers already do. Grid host still binds statically (no per-plot state at host level). Fix shipped 2026-05-13, commit forthcoming.</div>
+  </div>
+</div>
+
 <h2>Re-run vs. new commits</h2>
 <p>
   Three commits landed during the test window and were re-tested on 2026-05-13:

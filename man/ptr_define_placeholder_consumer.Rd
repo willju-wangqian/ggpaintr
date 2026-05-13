@@ -19,7 +19,9 @@ upstream column names) and \code{data} (the resolved upstream data frame —
 \code{NULL} until upstream resolves).}
 
 \item{validate_input}{Optional \verb{function(value, upstream_cols)} returning
-\code{TRUE} or an error message string.}
+\code{TRUE} or \code{NULL} for a valid input, or a character error message string.
+\code{NULL}-on-valid follows the standard R "no message to report" idiom; the
+built-in \code{var} consumer returns \code{TRUE}, but both forms are accepted.}
 }
 \description{
 Define a data-consumer placeholder (e.g. column picker)

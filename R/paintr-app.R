@@ -125,7 +125,8 @@ ptr_make_app_server <- function(formula, tree, envir, ui_text,
         ui_text = ui_text,
         eval_env = envir,
         expr_check = expr_check,
-        errors_rv = state$shared_resolution_errors
+        errors_rv = state$shared_resolution_errors,
+        state = state
       )
     }
   }

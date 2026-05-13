@@ -199,3 +199,97 @@ test_that("BUG-5: successful draw clears stale shared-picker error from #ptr_err
                                "warning after a successful draw; got: ", txt))
   })
 })
+
+# Bugs reported by interactive testing 2026-05-13 (post-loop):
+
+test_that("BUG-7: validate_input may return NULL for a valid input (idiomatic R)", {
+  # The roxygen contract for `validate_input` previously said "TRUE or an
+  # error message string" — and the framework strictly required `TRUE`. Users
+  # following R's standard "NULL means no error to report" idiom hit a
+  # confusing "validation failed." abort. Fix accepts both TRUE and NULL.
+  kw <- paste0("bug7val_", as.integer(Sys.time()))
+  validate_calls <- 0L
+  ptr_define_placeholder_consumer(
+    keyword = kw,
+    build_ui = function(node, label = NULL, cols = character(), ...) NULL,
+    resolve_expr = function(value, node, ...) {
+      if (length(value) == 0L) return(NULL)
+      rlang::sym(value)
+    },
+    validate_input = function(value, upstream_cols) {
+      validate_calls <<- validate_calls + 1L
+      bad <- setdiff(value, upstream_cols)
+      if (length(bad)) sprintf("unknown: %s", paste(bad, collapse = ", "))
+      else NULL                                 # <- idiomatic "no error"
+    }
+  )
+  withr::defer(ptr_clear_placeholder(kw))
+
+  formula <- sprintf(
+    "iris |> dplyr::select(%s) |> ggplot(aes(x = var, y = var))", kw
+  )
+  tree <- ptr_translate(formula, expr_check = FALSE)
+  consumer_node <- find_nodes(tree, function(n) {
+    is_ptr_ph_data_consumer(n) && identical(n$keyword, kw)
+  })[[1L]]
+  snapshot <- list()
+  snapshot[[consumer_node$id]] <- "Sepal.Length"
+  upstream_cols <- list()
+  upstream_cols[[consumer_node$id]] <- names(iris)
+
+  expect_silent(
+    ptr_substitute(tree, input_snapshot = snapshot,
+                   shared_bindings = list(),
+                   eval_env = globalenv(),
+                   upstream_cols = upstream_cols)
+  )
+  expect_true(validate_calls >= 1L,
+              info = "validate_input must have run at least once during substitute")
+
+  # An invalid value (column not in iris) must still abort with the custom
+  # message, not the generic "validation failed".
+  snapshot[[consumer_node$id]] <- "definitely_not_a_column"
+  expect_error(
+    ptr_substitute(tree, input_snapshot = snapshot,
+                   shared_bindings = list(),
+                   eval_env = globalenv(),
+                   upstream_cols = upstream_cols),
+    "unknown: definitely_not_a_column"
+  )
+})
+
+test_that("BUG-8: shared `var(shared='v')` resolves through an upload data source", {
+  # The 2026-05-12 report missed this; it surfaced from interactive testing.
+  # `var(shared = 'v')` deep inside a geom on an `upload`-headed pipeline
+  # was returning the static "no dataset to list columns from" error because
+  # `truncate_upstream_at_placeholder()` refused any upstream whose source
+  # was a placeholder. Data-source placeholders (which resolve at runtime
+  # via their companion input) are now treated as a valid source.
+
+  # Unit-level: truncate_upstream_at_placeholder keeps an upload-source.
+  formula <- paste0(
+    "upload |> ggplot(aes(x = var, y = var)) + ",
+    "geom_point(size = var(shared = 'v'))"
+  )
+  tree <- ptr_translate(formula, expr_check = FALSE)
+  shared_nodes <- find_nodes(tree, function(n) {
+    is_ptr_ph_data_consumer(n) && !is.null(n$shared)
+  })
+  expect_true(length(shared_nodes) >= 1L)
+  truncated <- ggpaintr:::truncate_upstream_at_placeholder(
+    shared_nodes[[1L]]$upstream
+  )
+  expect_false(is.null(truncated),
+               info = paste0("truncate_upstream_at_placeholder must accept an ",
+                             "upstream whose source is a data-source placeholder ",
+                             "(returning NULL is what fed the stale error)"))
+
+  # Integration-level: resolve_shared_consumers returns kind == "upstream",
+  # not kind == "error", for this tree.
+  resolutions <- ptr_resolve_shared_consumers(tree)
+  expect_true("v" %in% names(resolutions))
+  expect_equal(resolutions$v$kind, "upstream",
+               info = "shared resolver should yield a runtime upstream binding")
+  expect_false(grepl("no dataset to list columns",
+                     resolutions$v$error %||% "", fixed = TRUE))
+})

@@ -224,7 +224,9 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #'   upstream column names) and `data` (the resolved upstream data frame —
 #'   `NULL` until upstream resolves).
 #' @param validate_input Optional `function(value, upstream_cols)` returning
-#'   `TRUE` or an error message string.
+#'   `TRUE` or `NULL` for a valid input, or a character error message string.
+#'   `NULL`-on-valid follows the standard R "no message to report" idiom; the
+#'   built-in `var` consumer returns `TRUE`, but both forms are accepted.
 #' @export
 ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
                                           validate_input = NULL,

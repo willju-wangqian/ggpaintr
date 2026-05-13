@@ -864,7 +864,8 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
                                             ui_text = NULL,
                                             eval_env = parent.frame(),
                                             expr_check = TRUE,
-                                            errors_rv = NULL) {
+                                            errors_rv = NULL,
+                                            state = NULL) {
   # Push host-level resolver errors (per key) into the reactive bag.
   if (!is.null(errors_rv)) {
     err_msgs <- character()
@@ -886,6 +887,13 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
       rep_node <- representative_nodes[[k]]
       if (is.null(rep_node)) return(NULL)
       output_id <- ns(consumer_output_id(rep_node$id))
+      # Upload-companion ids in our resolved upstream. When `state` is
+      # provided, the renderUI below builds a snapshot from these so
+      # `ptr_resolve_upstream` can substitute a data-source placeholder
+      # (e.g. `upload`) with its uploaded dataset symbol at runtime.
+      upstream_source_companion_ids <- if (!is.null(resolution$value)) {
+        find_source_companion_ids_in_upstream(resolution$value)
+      } else character()
 
       output[[output_id]] <- shiny::renderUI({
         if (identical(resolution$kind, "error")) {
@@ -898,12 +906,30 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
             resolution$error
           ))
         }
+        # When `state` is wired, prefer the runtime env (where
+        # `ptr_setup_pipelines()` binds resolved upload data) and react
+        # to data-source resolution so the picker refreshes once a file
+        # lands. Snapshot is built from upload-companion input values so
+        # `ptr_substitute` can resolve a data-source placeholder to its
+        # dataset symbol; without these, an `upload`-headed upstream
+        # would prune away and `ptr_resolve_upstream` would return NULL
+        # even though the data is sitting in `state$eval_env`.
+        snap <- list()
+        use_env <- eval_env
+        if (!is.null(state)) {
+          for (rv in state$resolved_sources) rv()
+          use_env <- state$eval_env
+          for (cmp in upstream_source_companion_ids) {
+            val <- input[[ns(cmp)]]
+            if (!is.null(val)) snap[[cmp]] <- val
+          }
+        }
         df <- tryCatch(
           ptr_resolve_upstream(
             resolution$value,
-            snapshot = list(),
+            snapshot = snap,
             shared_bindings = list(),
-            eval_env = eval_env,
+            eval_env = use_env,
             cache = NULL,
             expr_check = expr_check,
             stage_enabled = list()

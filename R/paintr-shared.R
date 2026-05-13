@@ -99,7 +99,17 @@ truncate_upstream_at_placeholder <- function(upstream) {
   if (is.null(upstream)) return(NULL)
   if (is_ptr_pipeline(upstream)) {
     keep <- list()
-    for (stage in upstream$stages) {
+    for (i in seq_along(upstream$stages)) {
+      stage <- upstream$stages[[i]]
+      # First stage may be a data-source placeholder (e.g. `upload`,
+      # `pick_ds`). Those resolve to a real data frame at runtime via
+      # their companion input, so they're valid as a "source" for a
+      # shared widget. Subsequent placeholder-containing stages still
+      # truncate the prefix as before.
+      if (i == 1L && is_ptr_ph_data_source(stage)) {
+        keep[[length(keep) + 1L]] <- stage
+        next
+      }
       if (contains_placeholder(stage)) break
       keep[[length(keep) + 1L]] <- stage
     }
@@ -109,7 +119,12 @@ truncate_upstream_at_placeholder <- function(upstream) {
     p$stages <- keep
     return(p)
   }
-  if (contains_placeholder(upstream)) return(NULL)
+  # Bare-source upstream (no pipeline). A data-source placeholder is
+  # still a valid runtime source; other placeholders are not.
+  if (contains_placeholder(upstream)) {
+    if (is_ptr_ph_data_source(upstream)) return(upstream)
+    return(NULL)
+  }
   upstream
 }
 

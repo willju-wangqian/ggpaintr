@@ -111,7 +111,10 @@ substitute_walk.ptr_ph_data_consumer <- function(node, ctx) {
     cols <- ctx$upstream_cols[[node$id %||% ""]]
     if (!is.null(cols)) {
       ok <- entry$validate_input(value, cols)
-      if (!isTRUE(ok)) {
+      # Accept TRUE or NULL as "valid" -- NULL is the standard R idiom for
+      # "no message to report". A character vector is the error message.
+      # Any other return value fails closed with a generic message.
+      if (!is.null(ok) && !isTRUE(ok)) {
         rlang::abort(paste0(
           "Invalid value for placeholder `", node$keyword, "`: ",
           if (is.character(ok)) ok else "validation failed."

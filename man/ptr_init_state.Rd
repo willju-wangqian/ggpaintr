@@ -17,7 +17,8 @@ ptr_init_state(
   ns = shiny::NS(NULL),
   server_ns = ns,
   auto_bind_shared = FALSE,
-  shared_resolutions = list()
+  shared_resolutions = list(),
+  plots = NULL
 )
 }
 \arguments{
