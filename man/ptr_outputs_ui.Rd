@@ -4,11 +4,15 @@
 \alias{ptr_outputs_ui}
 \title{Plot / Error / Code Panes for an Embedded \code{ggpaintr} Formula}
 \usage{
-ptr_outputs_ui(id)
+ptr_outputs_ui(id, css = NULL)
 }
 \arguments{
 \item{id}{Module id; the namespace prefix for outputs. Must match the \code{id}
 passed to \code{\link[=ptr_controls_ui]{ptr_controls_ui()}} and \code{\link[=ptr_module_server]{ptr_module_server()}}.}
+
+\item{css}{Optional character vector of paths to additional CSS files;
+linked after \code{ggpaintr}'s bundled stylesheet so its rules win. See
+\code{\link[=ptr_app]{ptr_app()}} for the full semantics. Defaults to \code{NULL}.}
 }
 \value{
 A \code{\link[shiny:reexports]{shiny::tagList()}}.

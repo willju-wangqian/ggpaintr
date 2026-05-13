@@ -87,6 +87,15 @@ For known unresolved boundaries and reproducible edge-case examples, see
 6. Confirm the custom plot renderer can add styling while the default error and code binders still work.
 7. Confirm the custom plot renderer clears the plot when `ptr_extract_plot()` returns `NULL`.
 
+## Custom CSS checks
+
+1. Write a small `overrides.css` (e.g. `.ptr-app__title { color: crimson; }` and a `background-image: url(./mark.svg)` somewhere) next to a `mark.svg`.
+2. Launch `ptr_app(formula, css = "overrides.css")` and confirm the title turns crimson — i.e. the user stylesheet loads *after* the bundled one and wins.
+3. Confirm the relative `url(./mark.svg)` resolves (image shows), proving the file is served as a static resource rather than inlined.
+4. Pass a non-existent path and a non-`.css` path; confirm each aborts with a clear message.
+5. Launch a `ptr_module_ui()` / split `ptr_controls_ui()` + `ptr_outputs_ui()` embed with `css =` and confirm the override applies there too, and that the bundled `ggpaintr.css` (cards, code window) still renders in the split form.
+6. Pass `css = c("a.css", "b.css")` with conflicting rules; confirm `b.css` wins (later in the vector → later in the cascade).
+
 ## Placeholder registry checks
 
 1. Launch an app with a custom placeholder registry built by `ptr_merge_placeholders()`.

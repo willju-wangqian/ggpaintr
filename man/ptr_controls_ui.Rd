@@ -9,7 +9,8 @@ ptr_controls_ui(
   formula,
   ui_text = NULL,
   checkbox_defaults = NULL,
-  expr_check = TRUE
+  expr_check = TRUE,
+  css = NULL
 )
 }
 \arguments{
@@ -24,6 +25,10 @@ for the full schema and current defaults.}
 \item{checkbox_defaults}{Optional named list of initial checked states.}
 
 \item{expr_check}{Controls \code{expr} placeholder validation. Defaults to \code{TRUE}.}
+
+\item{css}{Optional character vector of paths to additional CSS files;
+linked after \code{ggpaintr}'s bundled stylesheet so its rules win. See
+\code{\link[=ptr_app]{ptr_app()}} for the full semantics. Defaults to \code{NULL}.}
 }
 \value{
 A \code{\link[shiny:reexports]{shiny::tagList()}}.

@@ -120,41 +120,9 @@ build_ui_for.ptr_layer <- function(node,
   pipeline_entries <- find_layer_placeholders_with_stage(node$data_arg)
   control_phs  <- find_layer_placeholders(node$children)
 
-  seen_stage_ids <- character()
-  pipeline_ui <- list()
-  for (entry in pipeline_entries) {
-    ph <- entry$ph
-    sid <- entry$stage_id
-    verb <- entry$verb
-    has_verb <- !is.null(verb) && !is.na(verb) && nzchar(verb)
-    param_override <- if (has_verb && ptr_param_is_unnamed(ph$param)) {
-      paste0(verb, "()")
-    } else NULL
-    label_suffix <- if (has_verb) paste0(" in ", verb, "()") else NULL
-    ui <- build_ui_for(ph, ui_text = ui_text,
-                       layer_name = layer_name,
-                       ns_fn = ns_fn,
-                       param_override = param_override,
-                       label_suffix = label_suffix)
-    if (is.null(ui)) next
-    if (!is.na(sid)) {
-      first_in_stage <- !sid %in% seen_stage_ids
-      if (first_in_stage) {
-        seen_stage_ids <- c(seen_stage_ids, sid)
-        ui <- shiny::div(
-          class = "ptr-stage-row",
-          shiny::checkboxInput(
-            inputId = ns_fn(sid), label = NULL, value = TRUE,
-            width = "auto"
-          ),
-          ui
-        )
-      } else {
-        ui <- shiny::div(class = "ptr-stage-row", ui)
-      }
-    }
-    pipeline_ui[[length(pipeline_ui) + 1L]] <- ui
-  }
+  pipeline_ui <- build_pipeline_stage_ui(
+    pipeline_entries, ui_text = ui_text, layer_name = layer_name, ns_fn = ns_fn
+  )
 
   control_ui <- lapply(control_phs, function(ph) {
     build_ui_for(ph, ui_text = ui_text,
@@ -197,6 +165,88 @@ build_ui_for.ptr_layer <- function(node,
     )
   }
   do.call(shiny::tabPanel, c(list(layer_name), body))
+}
+
+# Render the Data sub-tab body: pipeline placeholders grouped by stage.
+# Each pipeline stage -- a `subset()`, `mutate()`, ... call carrying a
+# `stage_id` -- becomes a `.ptr-stage` block: a `.ptr-stage-head` checkbox
+# whose label is the verb (`verb()`), then the stage's placeholder widgets
+# in an indented `.ptr-stage-fields`. Unticking the checkbox drops the
+# stage from the generated pipeline (wired up in paintr-server.R via the
+# `stage_id` input). The per-widget " in verb()" label suffix is dropped
+# inside a stage group -- the header already names the verb -- but kept for
+# a stand-alone pipeline placeholder (no enclosing stage), which renders
+# bare in a `.ptr-stage-row`.
+#
+# `entries` is the output of `find_layer_placeholders_with_stage()`, in
+# formula order; placeholders of one stage are contiguous. A `seen` guard
+# stops a second appearance of the same `stage_id` from emitting a
+# duplicate checkbox (it would collide on `inputId`).
+build_pipeline_stage_ui <- function(entries, ui_text, layer_name, ns_fn) {
+  build_ph <- function(entry, drop_suffix) {
+    ph <- entry$ph
+    verb <- entry$verb
+    has_verb <- !is.null(verb) && !is.na(verb) && nzchar(verb)
+    param_override <- if (has_verb && ptr_param_is_unnamed(ph$param)) {
+      paste0(verb, "()")
+    } else NULL
+    label_suffix <- if (has_verb && !drop_suffix) {
+      paste0(" in ", verb, "()")
+    } else NULL
+    build_ui_for(ph, ui_text = ui_text, layer_name = layer_name,
+                 ns_fn = ns_fn, param_override = param_override,
+                 label_suffix = label_suffix)
+  }
+  out <- list()
+  seen <- character()
+  i <- 1L
+  n <- length(entries)
+  while (i <= n) {
+    sid <- entries[[i]]$stage_id
+    if (is.na(sid)) {
+      ui <- build_ph(entries[[i]], drop_suffix = FALSE)
+      if (!is.null(ui)) {
+        out[[length(out) + 1L]] <- shiny::div(class = "ptr-stage-row", ui)
+      }
+      i <- i + 1L
+      next
+    }
+    verb <- entries[[i]]$verb
+    fields <- list()
+    j <- i
+    while (j <= n && !is.na(entries[[j]]$stage_id) &&
+           identical(entries[[j]]$stage_id, sid)) {
+      ui <- build_ph(entries[[j]], drop_suffix = TRUE)
+      if (!is.null(ui)) fields[[length(fields) + 1L]] <- ui
+      j <- j + 1L
+    }
+    if (length(fields) > 0L) {
+      if (sid %in% seen) {
+        out[[length(out) + 1L]] <- shiny::div(
+          class = "ptr-stage-fields", fields
+        )
+      } else {
+        seen <- c(seen, sid)
+        has_verb <- !is.null(verb) && !is.na(verb) && nzchar(verb)
+        head_label <- if (has_verb) {
+          shiny::tags$code(paste0(verb, "()"))
+        } else NULL
+        out[[length(out) + 1L]] <- shiny::div(
+          class = "ptr-stage",
+          shiny::div(
+            class = "ptr-stage-head",
+            shiny::checkboxInput(
+              inputId = ns_fn(sid), label = head_label, value = TRUE,
+              width = "auto"
+            )
+          ),
+          shiny::div(class = "ptr-stage-fields", fields)
+        )
+      }
+    }
+    i <- j
+  }
+  out
 }
 
 # Every node where `pred(node)` is TRUE, in pre-order. See `ptr_walk()` in
@@ -367,9 +417,19 @@ ptr_layer_assets <- function() {
       "});",
       "})();"
     ))),
-    shiny::tags$style(shiny::HTML(
-      ".ptr-layer-disabled{opacity:0.5;pointer-events:none;}"
-    ))
+    shiny::tags$style(shiny::HTML(paste0(
+      ".ptr-layer-disabled{opacity:0.5;pointer-events:none;}",
+      # structural layout for pipeline-stage groups (Data sub-tab) -- the
+      # polished default app refines colours in ggpaintr.css, but the
+      # indent/left-rule must hold for every app shell, including bslib.
+      ".ptr-stage{margin-bottom:16px;}",
+      ".ptr-stage:last-child,.ptr-stage-row:last-child{margin-bottom:0;}",
+      ".ptr-stage-head{margin-bottom:6px;}",
+      ".ptr-stage-head .form-group,.ptr-stage-head .checkbox{margin:0;}",
+      ".ptr-stage-fields{margin-left:8px;padding-left:14px;",
+      "border-left:2px solid #d7dbe0;}",
+      ".ptr-stage-row{margin-bottom:14px;}"
+    )))
   )
 }
 
@@ -394,6 +454,46 @@ ptr_ui_assets <- function() {
     ),
     shiny::tags$script(shiny::HTML(ptr_ui_js()))
   )
+}
+
+# Resolve user-supplied stylesheet paths into <link> tags, served as static
+# resources (not inlined) so relative url(...) refs and HTTP caching work.
+# Each distinct parent directory is registered once under a hash-derived
+# prefix; re-running is idempotent (addResourcePath overwrites a same-named
+# prefix harmlessly). Emitted *after* ggpaintr.css so user rules win on equal
+# specificity. Returns NULL when `css` is NULL so callers can splice it
+# unconditionally into a tagList().
+ptr_user_css_assets <- function(css) {
+  if (is.null(css)) {
+    return(NULL)
+  }
+  assertthat::assert_that(
+    is.character(css), length(css) >= 1L, all(nzchar(css))
+  )
+  missing_files <- css[!file.exists(css)]
+  if (length(missing_files) > 0L) {
+    rlang::abort(c(
+      "`css` file(s) not found:",
+      rlang::set_names(missing_files, "x")
+    ))
+  }
+  bad_ext <- css[!grepl("\\.css$", css, ignore.case = TRUE)]
+  if (length(bad_ext) > 0L) {
+    rlang::abort(c(
+      "`css` paths must point to `.css` files:",
+      rlang::set_names(bad_ext, "x")
+    ))
+  }
+  links <- lapply(css, function(path) {
+    dir <- normalizePath(dirname(path), mustWork = TRUE)
+    prefix <- paste0("ggpaintr-user-", substr(rlang::hash(dir), 1L, 12L))
+    shiny::addResourcePath(prefix, dir)
+    shiny::tags$link(
+      rel = "stylesheet", type = "text/css",
+      href = paste0(prefix, "/", basename(path))
+    )
+  })
+  do.call(shiny::tagList, links)
 }
 
 ptr_ui_js <- function() {

@@ -18,6 +18,11 @@
 #' @param safe_to_remove Character vector of additional function names whose
 #'   zero-argument calls should be dropped after placeholder substitution
 #'   leaves them empty. Defaults to `character()`.
+#' @param css Optional character vector of paths to additional CSS files. Each
+#'   is served as a static resource and linked after `ggpaintr`'s bundled
+#'   stylesheet, so its rules override the default `.ptr-*` styling. Relative
+#'   `url(...)` references inside a file resolve against that file's own
+#'   directory. Defaults to `NULL` (no extra stylesheet).
 #'
 #' @return A `shiny.appobj`.
 #' @export
@@ -26,14 +31,16 @@ ptr_app <- function(formula,
                        ui_text = NULL,
                        checkbox_defaults = NULL,
                        expr_check = TRUE,
-                       safe_to_remove = character()) {
+                       safe_to_remove = character(),
+                       css = NULL) {
   parts <- ptr_app_components(
     formula,
     envir = envir,
     ui_text = ui_text,
     checkbox_defaults = checkbox_defaults,
     expr_check = expr_check,
-    safe_to_remove = safe_to_remove
+    safe_to_remove = safe_to_remove,
+    css = css
   )
   shiny::shinyApp(ui = parts$ui, server = parts$server)
 }
@@ -44,7 +51,8 @@ ptr_app_components <- function(formula,
                                   checkbox_defaults = NULL,
                                   expr_check = TRUE,
                                   safe_to_remove = character(),
-                                  ns = shiny::NS(NULL)) {
+                                  ns = shiny::NS(NULL),
+                                  css = NULL) {
   tree <- ptr_translate(formula, expr_check = expr_check)
 
   ui <- ptr_build_app_ui(
@@ -53,7 +61,8 @@ ptr_app_components <- function(formula,
     checkbox_defaults = checkbox_defaults,
     ns = ns,
     render_shared_section = TRUE,
-    app_chrome = TRUE
+    app_chrome = TRUE,
+    css = css
   )
 
   shared_entries <- collect_shared_placeholders(tree)
@@ -214,7 +223,8 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
                                 checkbox_defaults = NULL,
                                 ns = shiny::NS(NULL),
                                 render_shared_section = FALSE,
-                                app_chrome = FALSE) {
+                                app_chrome = FALSE,
+                                css = NULL) {
   # NOTE: ptr_layer_assets() (the layer-disabled CSS) must stay as the first
   # fluidPage child -- it is the regression guard for the layer cue.
   title <- ptr_resolve_ui_text("title", ui_text = ui_text)$label %||% ""
@@ -228,6 +238,7 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
   shiny::fluidPage(
     ptr_layer_assets(),
     ptr_ui_assets(),
+    ptr_user_css_assets(css),
     shiny::tags$div(
       class = "ptr-app",
       header,
@@ -271,17 +282,22 @@ ptr_app_header <- function(title) {
 #'   for the full schema and current defaults.
 #' @param checkbox_defaults Optional named list of initial checked states.
 #' @param expr_check Controls `expr` placeholder validation. Defaults to `TRUE`.
+#' @param css Optional character vector of paths to additional CSS files;
+#'   linked after `ggpaintr`'s bundled stylesheet so its rules win. See
+#'   [ptr_app()] for the full semantics. Defaults to `NULL`.
 #'
 #' @return A Shiny tag list.
 #' @export
 ptr_module_ui <- function(id, formula, ui_text = NULL,
-                             checkbox_defaults = NULL, expr_check = TRUE) {
+                             checkbox_defaults = NULL, expr_check = TRUE,
+                             css = NULL) {
   tree <- ptr_translate(formula, expr_check = expr_check)
   ptr_build_app_ui(
     tree,
     ui_text = ui_text,
     checkbox_defaults = checkbox_defaults,
-    ns = shiny::NS(id)
+    ns = shiny::NS(id),
+    css = css
   )
 }
 
@@ -300,21 +316,27 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
 #'   for the full schema and current defaults.
 #' @param checkbox_defaults Optional named list of initial checked states.
 #' @param expr_check Controls `expr` placeholder validation. Defaults to `TRUE`.
+#' @param css Optional character vector of paths to additional CSS files;
+#'   linked after `ggpaintr`'s bundled stylesheet so its rules win. See
+#'   [ptr_app()] for the full semantics. Defaults to `NULL`.
 #'
 #' @return A [shiny::tagList()].
 #' @seealso [ptr_outputs_ui()], [ptr_module_ui()], [ptr_module_server()]
 #' @export
 ptr_controls_ui <- function(id, formula, ui_text = NULL,
-                            checkbox_defaults = NULL, expr_check = TRUE) {
+                            checkbox_defaults = NULL, expr_check = TRUE,
+                            css = NULL) {
   tree <- ptr_translate(formula, expr_check = expr_check)
-  # ptr_layer_assets() must ride along: ptr_build_app_ui() injects it at
-  # fluidPage level, but in the split layout there is no combiner -- without it
-  # the layer-disabled CSS cue silently breaks. The controls side owns it since
-  # the layer panels live here. Harmless if included twice on a page.
+  # ptr_layer_assets() + ptr_ui_assets() must ride along: ptr_build_app_ui()
+  # injects them at fluidPage level, but in the split layout there is no
+  # combiner -- without them the layer-disabled CSS cue and the bundled
+  # ggpaintr.css/code-window JS silently go missing. The controls side owns
+  # them since the layer panels live here. Harmless if included twice on a
+  # page (both are idempotent / dedupe to the same href).
   do.call(
     shiny::tagList,
     c(
-      list(ptr_layer_assets()),
+      list(ptr_layer_assets(), ptr_ui_assets(), ptr_user_css_assets(css)),
       ptr_controls_panel(tree, ui_text = ui_text,
                          checkbox_defaults = checkbox_defaults,
                          ns = shiny::NS(id), render_shared_section = FALSE)
@@ -330,12 +352,19 @@ ptr_controls_ui <- function(id, formula, ui_text = NULL,
 #'
 #' @param id Module id; the namespace prefix for outputs. Must match the `id`
 #'   passed to [ptr_controls_ui()] and [ptr_module_server()].
+#' @param css Optional character vector of paths to additional CSS files;
+#'   linked after `ggpaintr`'s bundled stylesheet so its rules win. See
+#'   [ptr_app()] for the full semantics. Defaults to `NULL`.
 #'
 #' @return A [shiny::tagList()].
 #' @seealso [ptr_controls_ui()], [ptr_module_ui()], [ptr_module_server()]
 #' @export
-ptr_outputs_ui <- function(id) {
-  ptr_outputs_panel(shiny::NS(id))
+ptr_outputs_ui <- function(id, css = NULL) {
+  shiny::tagList(
+    ptr_ui_assets(),
+    ptr_user_css_assets(css),
+    ptr_outputs_panel(shiny::NS(id))
+  )
 }
 
 #' Module Server for a `ggpaintr` Formula
@@ -387,6 +416,9 @@ ptr_module_server <- function(id, formula, envir = parent.frame(), ...) {
 #' @param title App title shown in the page header.
 #' @param draw_all_label Label for the draw-all action button.
 #' @param expr_check Controls `expr` placeholder validation. Defaults to `TRUE`.
+#' @param css Optional character vector of paths to additional CSS files,
+#'   linked once at the page level after `ggpaintr`'s bundled stylesheet so
+#'   its rules win. See [ptr_app()] for the full semantics. Defaults to `NULL`.
 #'
 #' @return A `shiny.appobj`.
 #' @export
@@ -395,14 +427,16 @@ ptr_app_grid <- function(plots,
                             envir = parent.frame(),
                             title = "ggpaintr grid",
                             draw_all_label = "Draw all",
-                            expr_check = TRUE) {
+                            expr_check = TRUE,
+                            css = NULL) {
   parts <- ptr_app_grid_components(
     plots = plots,
     shared_ui = shared_ui,
     envir = envir,
     title = title,
     draw_all_label = draw_all_label,
-    expr_check = expr_check
+    expr_check = expr_check,
+    css = css
   )
   shiny::shinyApp(ui = parts$ui, server = parts$server)
 }
@@ -412,7 +446,8 @@ ptr_app_grid_components <- function(plots,
                                        envir = parent.frame(),
                                        title = "ggpaintr grid",
                                        draw_all_label = "Draw all",
-                                       expr_check = TRUE) {
+                                       expr_check = TRUE,
+                                       css = NULL) {
   if (is.character(plots)) plots <- as.list(plots)
   assertthat::assert_that(
     is.list(plots),
@@ -522,6 +557,7 @@ ptr_app_grid_components <- function(plots,
   ui <- shiny::fluidPage(
     ptr_layer_assets(),
     ptr_ui_assets(),
+    ptr_user_css_assets(css),
     shiny::tags$div(
       class = "ptr-app",
       ptr_app_header(if (nzchar(title)) title else "ggpaintr grid"),

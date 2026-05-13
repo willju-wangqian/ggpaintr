@@ -10,7 +10,8 @@ ptr_app_grid(
   envir = parent.frame(),
   title = "ggpaintr grid",
   draw_all_label = "Draw all",
-  expr_check = TRUE
+  expr_check = TRUE,
+  css = NULL
 )
 }
 \arguments{
@@ -27,6 +28,10 @@ builder. Names must match the \code{shared = "..."} annotations used in
 \item{draw_all_label}{Label for the draw-all action button.}
 
 \item{expr_check}{Controls \code{expr} placeholder validation. Defaults to \code{TRUE}.}
+
+\item{css}{Optional character vector of paths to additional CSS files,
+linked once at the page level after \code{ggpaintr}'s bundled stylesheet so
+its rules win. See \code{\link[=ptr_app]{ptr_app()}} for the full semantics. Defaults to \code{NULL}.}
 }
 \value{
 A \code{shiny.appobj}.

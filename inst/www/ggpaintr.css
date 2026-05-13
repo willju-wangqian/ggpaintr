@@ -13,6 +13,7 @@
   --ptr-accent: #c1372c;
   --ptr-accent-strong: #9a2b22;
   --ptr-accent-weak: rgba(193, 55, 44, 0.13);
+  --ptr-accent-line: rgba(193, 55, 44, 0.22);
   --ptr-radius: 10px;
   --ptr-radius-sm: 7px;
   --ptr-shadow: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
@@ -107,6 +108,23 @@
 
 /* hidden-tabset layer panels: keep the panel content tidy */
 .ptr-app .tab-content { margin-top: 6px; }
+
+/* ---- pipeline stage groups (layer Data sub-tab) ----
+   Structure + spacing live in ptr_layer_assets() so every app shell
+   gets them; here we only refine colours for the polished default app.
+   `.ptr-stage-head` carries the include checkbox labelled `verb()`;
+   `.ptr-stage-fields` holds that verb's placeholder widgets, indented
+   under a left rule. Built in build_pipeline_stage_ui() (paintr-build-ui.R). */
+.ptr-app .ptr-stage-fields { border-left-color: var(--ptr-border); }
+.ptr-app .ptr-stage-head code {
+  font-family: var(--ptr-mono);
+  font-size: 12.5px;
+  color: var(--ptr-accent-strong);
+  background: var(--ptr-accent-weak);
+  border: 1px solid var(--ptr-accent-line);
+  padding: 1px 6px;
+  border-radius: 5px;
+}
 
 /* ---- output area ---- */
 .ptr-output { display: flex; flex-direction: column; gap: 16px; }

@@ -136,18 +136,42 @@ test_that("pipeline-stage placeholder label names the verb via {param}", {
 test_that("unnamed-arg pipeline placeholder uses 'verb()' as the copy param key", {
   tree <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = var))")
   layer <- .layer_by_name(tree, "ggplot")
-  panel <- build_ui_for(
+  panel <- as.character(build_ui_for(
     layer,
     ui_text = list(params = list(`head()` = list(num = list(label = "How many rows"))))
-  )
-  expect_match(as.character(panel), "How many rows in head\\(\\)")
+  ))
+  # the `head()` param key still resolves the custom label ...
+  expect_match(panel, "How many rows")
+  # ... but the verb is named once, by the stage-group header -- not as a
+  # per-widget " in head()" suffix.
+  expect_match(panel, "<code>head\\(\\)</code>")
+  expect_no_match(panel, "How many rows in head")
 })
 
-test_that("named-arg pipeline placeholder keeps its param key and gets the suffix", {
+test_that("a pipeline placeholder's widget no longer carries the ' in verb()' suffix", {
   tree <- ptr_translate("mtcars |> transform(n = num) |> ggplot(aes(x = var))")
   layer <- .layer_by_name(tree, "ggplot")
+  panel <- as.character(build_ui_for(layer))
+  expect_match(panel, "ptr-stage-head")
+  expect_match(panel, "<code>transform\\(\\)</code>")
+  expect_no_match(panel, "in transform\\(\\)")
+})
+
+# ---- pipeline-stage groups ----
+
+test_that("pipeline stages render as .ptr-stage groups with a verb-labelled checkbox", {
+  tree <- ptr_translate(
+    "mtcars |> subset(mpg > num) |> head(num) |> ggplot(aes(x = var))"
+  )
+  layer <- .layer_by_name(tree, "ggplot")
   panel <- build_ui_for(layer)
-  expect_match(as.character(panel), "in transform\\(\\)")
+  expect_equal(length(.find_tags2(panel, has_class = "ptr-stage-head")), 2L)
+  expect_true(length(.find_tags2(panel, has_class = "ptr-stage-fields")) >= 2L)
+  txt <- as.character(panel)
+  expect_match(txt, "<code>subset\\(\\)</code>")
+  expect_match(txt, "<code>head\\(\\)</code>")
+  # the stage checkboxes are wired on the stage_id input
+  expect_match(txt, "stage_enabled")
 })
 
 test_that("placeholder nested in a sub-expression names the stage verb, not the inner call", {

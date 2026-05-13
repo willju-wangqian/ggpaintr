@@ -10,7 +10,8 @@ ptr_app(
   ui_text = NULL,
   checkbox_defaults = NULL,
   expr_check = TRUE,
-  safe_to_remove = character()
+  safe_to_remove = character(),
+  css = NULL
 )
 }
 \arguments{
@@ -30,6 +31,12 @@ applies the built-in safety walker; \code{FALSE} disables checking.}
 \item{safe_to_remove}{Character vector of additional function names whose
 zero-argument calls should be dropped after placeholder substitution
 leaves them empty. Defaults to \code{character()}.}
+
+\item{css}{Optional character vector of paths to additional CSS files. Each
+is served as a static resource and linked after \code{ggpaintr}'s bundled
+stylesheet, so its rules override the default \verb{.ptr-*} styling. Relative
+\code{url(...)} references inside a file resolve against that file's own
+directory. Defaults to \code{NULL} (no extra stylesheet).}
 }
 \value{
 A \code{shiny.appobj}.
