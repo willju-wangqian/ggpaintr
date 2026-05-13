@@ -12,8 +12,7 @@ ptr_app_bslib(
   expr_check = TRUE,
   safe_to_remove = character(),
   theme = NULL,
-  title = "ggpaintr",
-  ns = shiny::NS(NULL)
+  title = "ggpaintr"
 )
 }
 \arguments{
@@ -38,8 +37,6 @@ leaves them empty. Defaults to \code{character()}.}
 bootswatch. Pass any \code{\link[bslib:bs_theme]{bslib::bs_theme()}} result to customize.}
 
 \item{title}{App title shown in the page header.}
-
-\item{ns}{An optional namespace function (\code{character -> character}).}
 }
 \value{
 A \code{shiny.appobj}.

@@ -16,7 +16,7 @@ ptr_register_code(output, state)
 \arguments{
 \item{output}{The Shiny output object.}
 
-\item{state}{A \code{ptr_state} from \code{\link[=ptr_server_state]{ptr_server_state()}}.}
+\item{state}{A \code{ptr_state} from \code{\link[=ptr_init_state]{ptr_init_state()}}.}
 }
 \value{
 The \code{output} object, invisibly.

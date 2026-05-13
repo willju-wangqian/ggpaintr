@@ -224,7 +224,7 @@ ptr_assert_acyclic <- function(tree) {
     id <- n$id
     if (!is.null(id) && !is.na(id)) {
       if (!is.null(seen[[id]])) {
-        rlang::abort(paste0("Internal: node id `", id, "` visited twice — cyclic `upstream`?"))
+        rlang::abort(paste0("Internal: node id `", id, "` visited twice - cyclic `upstream`?"))
       }
       seen[[id]] <- TRUE
     }

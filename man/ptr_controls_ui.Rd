@@ -18,7 +18,8 @@ passed to \code{\link[=ptr_module_server]{ptr_module_server()}} and \code{\link[
 
 \item{formula}{A single formula string with \code{ggpaintr} placeholders.}
 
-\item{ui_text}{Optional named list of copy overrides.}
+\item{ui_text}{Optional named list of copy overrides; see \code{\link[=ptr_ui_text]{ptr_ui_text()}}
+for the full schema and current defaults.}
 
 \item{checkbox_defaults}{Optional named list of initial checked states.}
 

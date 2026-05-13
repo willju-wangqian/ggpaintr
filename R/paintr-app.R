@@ -9,8 +9,8 @@
 #'
 #' @param formula A single formula string with `ggpaintr` placeholders.
 #' @param envir Environment used to resolve local data objects.
-#' @param ui_text Optional named list of copy overrides for UI labels and
-#'   placeholders.
+#' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
+#'   for the full schema and current defaults.
 #' @param checkbox_defaults Optional named list of initial checked states for
 #'   layer checkboxes.
 #' @param expr_check Controls `expr` placeholder validation. `TRUE` (default)
@@ -18,8 +18,6 @@
 #' @param safe_to_remove Character vector of additional function names whose
 #'   zero-argument calls should be dropped after placeholder substitution
 #'   leaves them empty. Defaults to `character()`.
-#' @param ns A namespace function (`character -> character`), typically
-#'   `shiny::NS(id)` or `shiny::NS(NULL)`.
 #'
 #' @return A `shiny.appobj`.
 #' @export
@@ -28,16 +26,14 @@ ptr_app <- function(formula,
                        ui_text = NULL,
                        checkbox_defaults = NULL,
                        expr_check = TRUE,
-                       safe_to_remove = character(),
-                       ns = shiny::NS(NULL)) {
+                       safe_to_remove = character()) {
   parts <- ptr_app_components(
     formula,
     envir = envir,
     ui_text = ui_text,
     checkbox_defaults = checkbox_defaults,
     expr_check = expr_check,
-    safe_to_remove = safe_to_remove,
-    ns = ns
+    safe_to_remove = safe_to_remove
   )
   shiny::shinyApp(ui = parts$ui, server = parts$server)
 }
@@ -271,7 +267,8 @@ ptr_app_header <- function(title) {
 #'
 #' @param id Module id; the namespace prefix for inputs and outputs.
 #' @param formula A single formula string with `ggpaintr` placeholders.
-#' @param ui_text Optional named list of copy overrides.
+#' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
+#'   for the full schema and current defaults.
 #' @param checkbox_defaults Optional named list of initial checked states.
 #' @param expr_check Controls `expr` placeholder validation. Defaults to `TRUE`.
 #'
@@ -299,7 +296,8 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
 #' @param id Module id; the namespace prefix for inputs. Must match the `id`
 #'   passed to [ptr_module_server()] and [ptr_outputs_ui()].
 #' @param formula A single formula string with `ggpaintr` placeholders.
-#' @param ui_text Optional named list of copy overrides.
+#' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
+#'   for the full schema and current defaults.
 #' @param checkbox_defaults Optional named list of initial checked states.
 #' @param expr_check Controls `expr` placeholder validation. Defaults to `TRUE`.
 #'
@@ -344,15 +342,15 @@ ptr_outputs_ui <- function(id) {
 #'
 #' Namespaced server side of a Shiny module wrapping a `ggpaintr` formula.
 #' Pair with [ptr_module_ui()]. Additional arguments are forwarded to
-#' [ptr_server_state()] (e.g. `shared`, `draw_trigger`, `expr_check`,
+#' [ptr_init_state()] (e.g. `shared`, `draw_trigger`, `expr_check`,
 #' `safe_to_remove`, `ui_text`, `checkbox_defaults`).
 #'
 #' @param id Module id; must match the id passed to [ptr_module_ui()].
 #' @param formula A single formula string with `ggpaintr` placeholders.
 #' @param envir Environment used to resolve local data objects.
-#' @param ... Forwarded to [ptr_server_state()].
+#' @param ... Forwarded to [ptr_init_state()].
 #'
-#' @return The `ptr_state` list from [ptr_server_state()] (returned by the
+#' @return The `ptr_state` list from [ptr_init_state()] (returned by the
 #'   inner module session for advanced wiring; usually consumed for its
 #'   side effects only).
 #' @export

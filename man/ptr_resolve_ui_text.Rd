@@ -2,37 +2,43 @@
 % Please edit documentation in R/paintr-copy.R
 \name{ptr_resolve_ui_text}
 \alias{ptr_resolve_ui_text}
-\title{Resolve Copy for One Control or App Element}
+\title{Resolve copy for one ggpaintr control or app element}
 \usage{
 ptr_resolve_ui_text(
   component,
   keyword = NULL,
-  layer_name = NULL,
   param = NULL,
-  ui_text = NULL,
-  placeholders = NULL
+  layer_name = NULL,
+  ui_text = NULL
 )
 }
 \arguments{
-\item{component}{One of \code{title}, \code{draw_button}, \code{upload_file},
-\code{upload_name}, \code{layer_checkbox}, or \code{control}.}
+\item{component}{One of \code{title}, \code{draw_button}, \code{draw_all_button},
+\code{layer_picker}, \code{data_subtab}, \code{controls_subtab}, \code{upload_file},
+\code{upload_name}, \code{layer_checkbox}, or \code{control} (for a placeholder
+control, in which case \code{keyword} is required).}
 
-\item{keyword}{Optional placeholder keyword.}
+\item{keyword}{Placeholder keyword (e.g. \code{"var"}, \code{"num"}); required when
+\code{component = "control"}.}
 
-\item{layer_name}{Optional layer name.}
+\item{param}{Optional parameter / aesthetic name (e.g. \code{"x"}); only used
+when \code{component = "control"}.}
 
-\item{param}{Optional parameter name.}
+\item{layer_name}{Optional layer name (e.g. \code{"facet_wrap"}); only used
+when \code{component = "control"}, to pick up a \verb{layers$<layer>$...} override.}
 
-\item{ui_text}{Effective or user-supplied copy rules.}
-
-\item{placeholders}{Optional custom placeholder definitions or an effective
-placeholder registry.}
+\item{ui_text}{\code{NULL}, a list of overrides, or an already-merged
+\code{ptr_ui_text} object (see \code{\link[=ptr_ui_text]{ptr_ui_text()}}).}
 }
 \value{
 A named list with \code{label}, \code{help}, \code{placeholder}, and \code{empty_text}.
 }
 \description{
-Resolve Copy for One Control or App Element
+Looks up the effective label/help/placeholder for a single UI element,
+applying the \code{defaults -> params -> layers} specificity chain and
+interpolating the \code{{param}} / \code{{layer}} tokens. Placeholder authors can
+call this inside a custom \code{build_ui} hook so their control is labelled
+through the same override chain as the built-in controls.
 }
 \examples{
 # Resolve copy for the title element
@@ -40,4 +46,16 @@ ptr_resolve_ui_text("title")
 
 # Resolve copy for a var control on the x-axis
 ptr_resolve_ui_text("control", keyword = "var", param = "x")
+
+# Inside a custom `build_ui` hook, label the control through the same
+# override chain ggpaintr uses for built-in controls:
+my_build_ui <- function(node, label, ...) {
+  copy <- ptr_resolve_ui_text(
+    "control",
+    keyword = node$keyword,
+    param = node$param,
+    ui_text = list(...)$ui_text
+  )
+  shiny::textInput(node$id, label = copy$label \%||\% label)
+}
 }

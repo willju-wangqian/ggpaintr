@@ -199,8 +199,8 @@ test_that("ptr_runtime_input_spec: emits stage_enabled rows", {
 
 # ---- server state ---------------------------------------------------------
 
-test_that("ptr_server_state: stage_enabled initialized with all-TRUE", {
-  state <- ptr_server_state(
+test_that("ptr_init_state: stage_enabled initialized with all-TRUE", {
+  state <- ptr_init_state(
     "mtcars |> head(num) |> ggplot()",
     envir = .test_env()
   )

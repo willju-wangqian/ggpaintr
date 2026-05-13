@@ -13,7 +13,7 @@ ptr_server(input, output, session, formula, envir = parent.frame(), ...)
 
 \item{envir}{Environment used to resolve local data objects.}
 
-\item{...}{Forwarded to \code{\link[=ptr_server_state]{ptr_server_state()}} (e.g. \code{shared},
+\item{...}{Forwarded to \code{\link[=ptr_init_state]{ptr_init_state()}} (e.g. \code{shared},
 \code{draw_trigger}, \code{ui_text}, \code{checkbox_defaults}, \code{expr_check},
 \code{safe_to_remove}, \code{ns}).}
 }
@@ -21,7 +21,7 @@ ptr_server(input, output, session, formula, envir = parent.frame(), ...)
 The \code{ptr_state} list, invisibly.
 }
 \description{
-Convenience wrapper that builds the \code{ptr_state} via \code{\link[=ptr_server_state]{ptr_server_state()}}
+Convenience wrapper that builds the \code{ptr_state} via \code{\link[=ptr_init_state]{ptr_init_state()}}
 and attaches the per-pipeline observers, stage-enabled toggles, runtime
 observer, and plot/code/error output bindings. Returns the state list so
 embedders can attach extras (\code{ptr_gg_extra}) or drive the typed tree

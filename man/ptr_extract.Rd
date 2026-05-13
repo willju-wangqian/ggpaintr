@@ -14,7 +14,7 @@ ptr_extract_error(state)
 ptr_extract_code(state)
 }
 \arguments{
-\item{state}{A \code{ptr_state} from \code{\link[=ptr_server_state]{ptr_server_state()}}.}
+\item{state}{A \code{ptr_state} from \code{\link[=ptr_init_state]{ptr_init_state()}}.}
 }
 \value{
 \code{ptr_extract_plot} returns a \code{ggplot} object (or \code{NULL} on

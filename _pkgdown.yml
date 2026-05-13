@@ -5,25 +5,27 @@ home:
   title: ggpaintr
   description: Build formula-driven Shiny apps for ggplot2.
 reference:
-  - title: Start here
+  - title: End users
+    desc: Turn a ggplot-style formula into a ready-to-run Shiny app, and configure session-wide defaults and data prep.
     contents:
       - ptr_app
       - ptr_app_bslib
       - ptr_app_grid
-  - title: Configuration
-    desc: Set package-wide defaults that apply to every app in the session.
-    contents:
       - ptr_options
-  - title: Shiny integration
-    desc: Embed ggpaintr inside a larger Shiny app while keeping package-owned runtime behavior.
+      - ptr_normalize_column_names
+      - ptr_ui_text
+  - title: Shiny embedders
+    desc: Drop ggpaintr's generated controls and outputs into a larger Shiny app while keeping the package-owned runtime.
     contents:
       - ptr_module_ui
       - ptr_module_server
+      - ptr_controls_ui
+      - ptr_outputs_ui
       - ptr_server
-      - ptr_build_ids
-      - ptr_server_state
-      - ptr_setup_controls
-      - ptr_register_draw
+  - title: Advanced embedders
+    desc: Drive the typed tree programmatically, test with shiny::testServer, or own the plot/code/error outputs.
+    contents:
+      - ptr_init_state
       - ptr_register_plot
       - ptr_register_error
       - ptr_register_code
@@ -31,31 +33,15 @@ reference:
       - ptr_extract_error
       - ptr_extract_code
       - ptr_gg_extra
-      - ptr_input_ui
-      - ptr_output_ui
-  - title: Placeholder extensibility
-    desc: Register and reuse supported custom placeholder types without editing package internals.
-    contents:
-      - ptr_define_placeholder
-      - ptr_merge_placeholders
-      - ptr_missing_expr
-      - ptr_resolve_layer_data
-      - ptr_ns_id
-  - title: Data preparation
-    contents:
-      - ptr_normalize_column_names
-  - title: Advanced runtime
-    desc: Low-level helpers intentionally exported for advanced tests, tooling, and custom runtime workflows.
-    contents:
-      - ptr_parse_formula
-      - ptr_runtime_input_spec
-      - ptr_exec
-      - ptr_assemble_plot
-  - title: Copy customization
-    contents:
-      - ptr_merge_ui_text
       - ptr_resolve_ui_text
-  - title: LLM integration
+  - title: Placeholder authors
+    desc: Register supported custom placeholder types and their UI hooks without editing package internals.
+    contents:
+      - ptr_define_placeholder_value
+      - ptr_define_placeholder_consumer
+      - ptr_define_placeholder_source
+      - build_ui_for
+  - title: LLM tooling
     desc: Expose ggpaintr's documentation bundle to ellmer-backed coding assistants.
     contents:
       - ptr_llm_primer

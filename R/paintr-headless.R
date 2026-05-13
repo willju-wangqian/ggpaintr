@@ -88,7 +88,7 @@ ptr_default_snapshot <- function(spec, tree, checkbox_defaults = NULL) {
   layer_names <- vapply(tree$layers, function(l) l$name, character(1))
   # `ptr_resolve_checkbox_defaults()` keys off `names(expr_list)`; feed it a
   # named placeholder list so the layer names land where it expects them
-  # (mirrors `ptr_server_state()`).
+  # (mirrors `ptr_init_state()`).
   expr_list_proxy <- stats::setNames(
     as.list(rep(NA, length(layer_names))),
     layer_names

@@ -9,6 +9,7 @@ ptr_ui_text_component_paths <- function() {
   list(
     title              = c("shell", "title"),
     draw_button        = c("shell", "draw_button"),
+    draw_all_button    = c("shell", "draw_all_button"),
     layer_picker       = c("shell", "layer_picker"),
     data_subtab        = c("shell", "data_subtab"),
     controls_subtab    = c("shell", "controls_subtab"),
@@ -24,12 +25,9 @@ ptr_ui_text_component_paths <- function() {
 #' this object when they want to refine defaults or add support for new common
 #' parameters in one place.
 #'
-#' @param placeholders Optional custom placeholder definitions or an effective
-#'   placeholder registry.
-#'
 #' @return A named list of default copy rules.
 #' @noRd
-ptr_default_ui_text <- function(placeholders = NULL) {
+ptr_default_ui_text <- function() {
   kws <- ptr_registry_keywords()
   default_placeholder_copy <- stats::setNames(
     lapply(kws, function(kw) ptr_registry_lookup(kw)$copy_defaults),
@@ -41,6 +39,7 @@ ptr_default_ui_text <- function(placeholders = NULL) {
       shell = list(
         title = list(label = "ggpaintr Plot Builder"),
         draw_button = list(label = "Update plot"),
+        draw_all_button = list(label = "Draw all"),
         layer_picker = list(label = "Layer"),
         data_subtab = list(label = "Data"),
         controls_subtab = list(label = "Controls")
@@ -158,12 +157,9 @@ ptr_ui_text_leaf_fields <- function() {
 
 #' Return Allowed Copy Keywords
 #'
-#' @param placeholders Optional custom placeholder definitions or an effective
-#'   placeholder registry.
-#'
 #' @return A character vector.
 #' @noRd
-ptr_ui_text_keywords <- function(placeholders = NULL) {
+ptr_ui_text_keywords <- function() {
   ptr_registry_keywords()
 }
 
@@ -281,12 +277,10 @@ ptr_validate_ui_text_leaf <- function(x, path) {
 #' Validate Copy Rules
 #'
 #' @param ui_text User-supplied copy rules.
-#' @param placeholders Optional custom placeholder definitions or an effective
-#'   placeholder registry.
 #'
 #' @return Invisibly returns `TRUE`.
 #' @noRd
-ptr_validate_ui_text <- function(ui_text, placeholders = NULL) {
+ptr_validate_ui_text <- function(ui_text) {
   if (is.null(ui_text)) {
     return(invisible(TRUE))
   }
@@ -314,7 +308,7 @@ ptr_validate_ui_text <- function(ui_text, placeholders = NULL) {
 
   if (!is.null(ui_text$shell)) {
     allowed_shell <- c(
-      "title", "draw_button",
+      "title", "draw_button", "draw_all_button",
       "layer_picker", "data_subtab", "controls_subtab"
     )
     unknown_shell <- setdiff(names(ui_text$shell), allowed_shell)
@@ -354,7 +348,7 @@ ptr_validate_ui_text <- function(ui_text, placeholders = NULL) {
   if (!is.null(ui_text$defaults)) {
     unknown_defaults <- setdiff(
       names(ui_text$defaults),
-      ptr_ui_text_keywords(placeholders)
+      ptr_ui_text_keywords()
     )
     if (length(unknown_defaults) > 0) {
       rlang::abort(paste0(
@@ -383,7 +377,7 @@ ptr_validate_ui_text <- function(ui_text, placeholders = NULL) {
 
       unknown_keywords <- setdiff(
         names(param_rules),
-        ptr_ui_text_keywords(placeholders)
+        ptr_ui_text_keywords()
       )
       if (length(unknown_keywords) > 0) {
         rlang::abort(paste0(
@@ -413,7 +407,7 @@ ptr_validate_ui_text <- function(ui_text, placeholders = NULL) {
 
       unknown_keywords <- setdiff(
         names(layer_rules),
-        ptr_ui_text_keywords(placeholders)
+        ptr_ui_text_keywords()
       )
       if (length(unknown_keywords) > 0) {
         rlang::abort(paste0(
@@ -539,11 +533,46 @@ ptr_deep_merge_ui_text <- function(base, overrides) {
 }
 
 
-#' Build Effective Copy Rules
+#' Inspect, validate, and pre-merge ggpaintr UI copy
 #'
-#' @param ui_text Optional user-supplied rules.
-#' @param placeholders Optional custom placeholder definitions or an effective
-#'   placeholder registry.
+#' Returns the effective copy tree ggpaintr uses to label every generated
+#' control. Call it with no arguments to see the current defaults, or pass
+#' `ui_text =` a list of overrides to get back a validated, merged
+#' `ptr_ui_text` object. That object can be reused across `ptr_app()` /
+#' `ptr_server()` calls — those entry points short-circuit when handed an
+#' already-merged `ptr_ui_text`, so the overrides are validated once.
+#'
+#' Use it to (1) discover the override schema (`names(ptr_ui_text())` and
+#' the section below), and (2) fail fast on a malformed override list before
+#' launching an app — `ptr_ui_text()` raises on unknown sections, keywords,
+#' or leaf fields.
+#'
+#' @section UI text schema:
+#' Override lists mirror the structure of `ptr_ui_text()`. Recognised paths
+#' (every leaf is a named list of the fields below):
+#'
+#' - `shell$title$<leaf>`
+#' - `shell$draw_button$<leaf>`
+#' - `shell$draw_all_button$<leaf>`
+#' - `shell$layer_picker$<leaf>`
+#' - `shell$data_subtab$<leaf>`
+#' - `shell$controls_subtab$<leaf>`
+#' - `upload$file$<leaf>`
+#' - `upload$name$<leaf>`
+#' - `layer_checkbox$<leaf>`
+#' - `defaults$<keyword>$<leaf>` — per placeholder keyword (`var`, `text`,
+#'   `num`, `expr`, `upload`, ...)
+#' - `params$<param>$<keyword>$<leaf>` — per aesthetic/argument name
+#'   (`x`, `y`, `color`, ...); aliases (`colour`, `size`) are normalized
+#' - `layers$<layer_name>$<keyword>$<param>$<leaf>` — per layer override
+#'   (use `__unnamed__` as `<param>` for positional arguments)
+#'
+#' Leaf fields are `label`, `help`, `placeholder`, and `empty_text`. Leaf
+#' strings may use the `{param}` and `{layer}` tokens, which are interpolated
+#' at resolve time.
+#'
+#' @param ui_text `NULL` (return defaults), a named list of overrides, or an
+#'   already-merged `ptr_ui_text` object (returned unchanged).
 #' @param known_param_keys Optional character vector of parameter keys present
 #'   in the formula. When supplied, any key in `ui_text$params` that is not in
 #'   this set triggers a `cli::cli_warn()` so the user can catch misspellings.
@@ -552,28 +581,27 @@ ptr_deep_merge_ui_text <- function(base, overrides) {
 #'
 #' @examples
 #' # Default rules
-#' rules <- ptr_merge_ui_text()
+#' rules <- ptr_ui_text()
 #' rules$shell$title$label
 #'
 #' # Override the draw button label
-#' rules <- ptr_merge_ui_text(
+#' rules <- ptr_ui_text(
 #'   ui_text = list(shell = list(draw_button = list(label = "Render")))
 #' )
 #' rules$shell$draw_button$label
 #' @export
-ptr_merge_ui_text <- function(ui_text = NULL,
-                             placeholders = NULL,
-                             known_param_keys = NULL) {
+ptr_ui_text <- function(ui_text = NULL,
+                        known_param_keys = NULL) {
   if (inherits(ui_text, "ptr_ui_text")) {
     return(ui_text)
   }
 
-  defaults <- ptr_default_ui_text(placeholders = placeholders)
+  defaults <- ptr_default_ui_text()
   if (is.null(ui_text)) {
     return(defaults)
   }
 
-  ptr_validate_ui_text(ui_text, placeholders = placeholders)
+  ptr_validate_ui_text(ui_text)
   ui_text <- ptr_normalize_ui_text(ui_text)
 
   if (!is.null(known_param_keys) && !is.null(ui_text$params)) {
@@ -635,17 +663,12 @@ ptr_compact_ui_text_branch <- function(current, defaults = NULL) {
 #' Compact Effective Copy Rules to Custom Overrides
 #'
 #' @param ui_text Optional user-supplied or effective copy rules.
-#' @param placeholders Optional custom placeholder definitions or an effective
-#'   placeholder registry.
 #'
 #' @return A named list of custom overrides or `NULL`.
 #' @noRd
-ptr_compact_ui_text <- function(ui_text = NULL, placeholders = NULL) {
-  effective_ui_text <- ptr_merge_ui_text(
-    ui_text,
-    placeholders = placeholders
-  )
-  default_ui_text <- ptr_default_ui_text(placeholders = placeholders)
+ptr_compact_ui_text <- function(ui_text = NULL) {
+  effective_ui_text <- ptr_ui_text(ui_text)
+  default_ui_text <- ptr_default_ui_text()
 
   ptr_compact_ui_text_branch(
     unclass(effective_ui_text),
@@ -653,16 +676,26 @@ ptr_compact_ui_text <- function(ui_text = NULL, placeholders = NULL) {
   )
 }
 
-#' Resolve Copy for One Control or App Element
+#' Resolve copy for one ggpaintr control or app element
 #'
-#' @param component One of `title`, `draw_button`, `upload_file`,
-#'   `upload_name`, `layer_checkbox`, or `control`.
-#' @param keyword Optional placeholder keyword.
-#' @param layer_name Optional layer name.
-#' @param param Optional parameter name.
-#' @param ui_text Effective or user-supplied copy rules.
-#' @param placeholders Optional custom placeholder definitions or an effective
-#'   placeholder registry.
+#' Looks up the effective label/help/placeholder for a single UI element,
+#' applying the `defaults -> params -> layers` specificity chain and
+#' interpolating the `{param}` / `{layer}` tokens. Placeholder authors can
+#' call this inside a custom `build_ui` hook so their control is labelled
+#' through the same override chain as the built-in controls.
+#'
+#' @param component One of `title`, `draw_button`, `draw_all_button`,
+#'   `layer_picker`, `data_subtab`, `controls_subtab`, `upload_file`,
+#'   `upload_name`, `layer_checkbox`, or `control` (for a placeholder
+#'   control, in which case `keyword` is required).
+#' @param keyword Placeholder keyword (e.g. `"var"`, `"num"`); required when
+#'   `component = "control"`.
+#' @param param Optional parameter / aesthetic name (e.g. `"x"`); only used
+#'   when `component = "control"`.
+#' @param layer_name Optional layer name (e.g. `"facet_wrap"`); only used
+#'   when `component = "control"`, to pick up a `layers$<layer>$...` override.
+#' @param ui_text `NULL`, a list of overrides, or an already-merged
+#'   `ptr_ui_text` object (see [ptr_ui_text()]).
 #'
 #' @return A named list with `label`, `help`, `placeholder`, and `empty_text`.
 #'
@@ -672,14 +705,25 @@ ptr_compact_ui_text <- function(ui_text = NULL, placeholders = NULL) {
 #'
 #' # Resolve copy for a var control on the x-axis
 #' ptr_resolve_ui_text("control", keyword = "var", param = "x")
+#'
+#' # Inside a custom `build_ui` hook, label the control through the same
+#' # override chain ggpaintr uses for built-in controls:
+#' my_build_ui <- function(node, label, ...) {
+#'   copy <- ptr_resolve_ui_text(
+#'     "control",
+#'     keyword = node$keyword,
+#'     param = node$param,
+#'     ui_text = list(...)$ui_text
+#'   )
+#'   shiny::textInput(node$id, label = copy$label %||% label)
+#' }
 #' @export
 ptr_resolve_ui_text <- function(component,
                                 keyword = NULL,
-                                layer_name = NULL,
                                 param = NULL,
-                                ui_text = NULL,
-                                placeholders = NULL) {
-  rules <- ptr_merge_ui_text(ui_text, placeholders = placeholders)
+                                layer_name = NULL,
+                                ui_text = NULL) {
+  rules <- ptr_ui_text(ui_text)
 
   component_map <- ptr_ui_text_component_paths()
 

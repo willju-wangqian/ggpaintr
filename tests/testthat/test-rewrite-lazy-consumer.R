@@ -182,11 +182,11 @@ test_that("D8 manual mode skips auto-flip", {
   })
 })
 
-# ---- ptr_server_state validates producer_debounce_ms ----
+# ---- ptr_init_state validates producer_debounce_ms ----
 
-test_that("ptr_server_state rejects negative producer_debounce_ms", {
+test_that("ptr_init_state rejects negative producer_debounce_ms", {
   expect_error(
-    ptr_server_state(
+    ptr_init_state(
       "ggplot(mtcars)",
       envir = .lc_test_env(),
       producer_debounce_ms = -1
@@ -195,8 +195,8 @@ test_that("ptr_server_state rejects negative producer_debounce_ms", {
   )
 })
 
-test_that("ptr_server_state with NULL producer_debounce_ms enables auto mode", {
-  state <- ptr_server_state(
+test_that("ptr_init_state with NULL producer_debounce_ms enables auto mode", {
+  state <- ptr_init_state(
     "ggplot(mtcars)",
     envir = .lc_test_env()
   )
@@ -204,8 +204,8 @@ test_that("ptr_server_state with NULL producer_debounce_ms enables auto mode", {
   expect_equal(shiny::isolate(state$producer_debounce_ms()), 0L)
 })
 
-test_that("ptr_server_state with positive producer_debounce_ms uses manual mode", {
-  state <- ptr_server_state(
+test_that("ptr_init_state with positive producer_debounce_ms uses manual mode", {
+  state <- ptr_init_state(
     "ggplot(mtcars)",
     envir = .lc_test_env(),
     producer_debounce_ms = 500

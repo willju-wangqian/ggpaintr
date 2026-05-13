@@ -12,7 +12,7 @@ ptr_strip_dedup_suffix <- function(x) sub("-[0-9]+$", "", x)
 #' unknown keys. Returns a length-N named logical vector keyed by the
 #' non-`ggplot` entries of `names(expr_list)`, in formula order, with no `NA`.
 #'
-#' @param checkbox_defaults `NULL` or a named list (see `ptr_server_state()`).
+#' @param checkbox_defaults `NULL` or a named list (see `ptr_init_state()`).
 #' @param expr_list The parsed formula's expression list (used only for
 #'   `names()`).
 #' @return Named logical vector.

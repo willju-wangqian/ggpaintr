@@ -1,4 +1,4 @@
-# Tests for `ptr_server_state`, `ptr_server` observers, and the
+# Tests for `ptr_init_state`, `ptr_server` observers, and the
 # `ptr_extract_*` accessors. Reactivity tests use `shiny::testServer`.
 
 .server_test_env <- function(extras = list()) {
@@ -7,8 +7,8 @@
 
 # ---- Pure state shape ----
 
-test_that("ptr_server_state returns a typed-state structure", {
-  state <- ptr_server_state(
+test_that("ptr_init_state returns a typed-state structure", {
+  state <- ptr_init_state(
     "ggplot(mtcars) + geom_point()",
     envir = .server_test_env()
   )
@@ -17,8 +17,8 @@ test_that("ptr_server_state returns a typed-state structure", {
   expect_true(is.function(state$tree))  # reactiveVal is a function
 })
 
-test_that("ptr_server_state resolves checkbox_defaults", {
-  state <- ptr_server_state(
+test_that("ptr_init_state resolves checkbox_defaults", {
+  state <- ptr_init_state(
     "ggplot(mtcars) + geom_point() + geom_smooth()",
     checkbox_defaults = list(geom_smooth = FALSE),
     envir = .server_test_env()
@@ -27,29 +27,29 @@ test_that("ptr_server_state resolves checkbox_defaults", {
   expect_equal(state$checkbox_defaults[["geom_smooth"]], FALSE)
 })
 
-test_that("ptr_server_state builds resolved_data slots only for bare-data-source layers", {
+test_that("ptr_init_state builds resolved_data slots only for bare-data-source layers", {
   # Pipeline-data layers no longer carry a click-gated cache; their
   # consumers resolve lazily through `ptr_setup_consumer_uis()`. Only
   # bare-data-source layers (e.g., `ggplot(data = upload, ...)`) keep a
   # `resolved_data` slot for the upload reactive observer to write into.
-  state <- ptr_server_state(
+  state <- ptr_init_state(
     "mtcars |> head(num) |> ggplot() + geom_point()",
     envir = .server_test_env()
   )
   expect_equal(length(state$resolved_data), 0L)
 })
 
-test_that("ptr_server_state with literal-data layers has empty resolved_data", {
-  state <- ptr_server_state(
+test_that("ptr_init_state with literal-data layers has empty resolved_data", {
+  state <- ptr_init_state(
     "ggplot(mtcars) + geom_point()",
     envir = .server_test_env()
   )
   expect_equal(length(state$resolved_data), 0L)
 })
 
-test_that("ptr_server_state rejects non-function ns", {
+test_that("ptr_init_state rejects non-function ns", {
   expect_error(
-    ptr_server_state("ggplot(mtcars)", ns = "module1"),
+    ptr_init_state("ggplot(mtcars)", ns = "module1"),
     "namespace function"
   )
 })
@@ -79,7 +79,7 @@ test_that("runtime observer populates state$runtime with code_text and plot", {
 
 test_that("P12.10 ptr_gg_extra captures extras", {
   e <- .server_test_env()
-  state <- ptr_server_state("ggplot(mtcars) + geom_point()", envir = e)
+  state <- ptr_init_state("ggplot(mtcars) + geom_point()", envir = e)
   shiny::isolate({
     ptr_gg_extra(state, ggplot2::scale_x_log10())
     expect_equal(length(state$extras()), 1L)
@@ -88,7 +88,7 @@ test_that("P12.10 ptr_gg_extra captures extras", {
 
 test_that("P12.11 ptr_gg_extra no-op when no args", {
   e <- .server_test_env()
-  state <- ptr_server_state("ggplot(mtcars) + geom_point()", envir = e)
+  state <- ptr_init_state("ggplot(mtcars) + geom_point()", envir = e)
   shiny::isolate({
     ptr_gg_extra(state)
     expect_equal(length(state$extras()), 0L)
@@ -97,7 +97,7 @@ test_that("P12.11 ptr_gg_extra no-op when no args", {
 
 test_that("P12.12 ptr_gg_extra leaves extras untouched on eval failure", {
   e <- .server_test_env()
-  state <- ptr_server_state("ggplot(mtcars) + geom_point()", envir = e)
+  state <- ptr_init_state("ggplot(mtcars) + geom_point()", envir = e)
   shiny::isolate({
     expect_error(
       ptr_gg_extra(state, does_not_exist_xyz()),
@@ -193,8 +193,8 @@ test_that("ptr_register_* abort on a malformed state", {
   expect_error(ptr_register_plot(list(), "not a list"), "must be a `ptr_state`")
 })
 
-test_that("a well-formed ptr_server_state passes ptr_validate_state", {
-  state <- ptr_server_state(
+test_that("a well-formed ptr_init_state passes ptr_validate_state", {
+  state <- ptr_init_state(
     "ggplot(mtcars) + geom_point()",
     envir = .server_test_env()
   )

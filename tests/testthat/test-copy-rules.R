@@ -15,7 +15,7 @@ test_that("copy rules validate supported sections and leaf fields", {
 })
 
 test_that("copy rules normalize aliases and merge precedence field by field", {
-  rules <- ptr_merge_ui_text(
+  rules <- ptr_ui_text(
     list(
       defaults = list(var = list(empty_text = "Pick one column")),
       params = list(colour = list(var = list(label = "Choose a colour column"))),
@@ -141,7 +141,7 @@ test_that("ptr_resolve_ui_text errors on unknown component", {
 test_that("ptr_ui_text_component_paths keys are exhaustive", {
   paths <- ptr_ui_text_component_paths()
   expected <- c(
-    "title", "draw_button",
+    "title", "draw_button", "draw_all_button",
     "layer_picker", "data_subtab", "controls_subtab",
     "upload_file", "upload_name", "layer_checkbox"
   )
@@ -190,7 +190,7 @@ test_that("linewidth$num label is the generic 'Size'", {
 
 test_that("warn-on-unknown fires when misspelled param key supplied with known_param_keys", {
   expect_warning(
-    ptr_merge_ui_text(
+    ptr_ui_text(
       ui_text = list(params = list(colur = list(var = list(label = "X")))),
       known_param_keys = c("color", "x", "y")
     ),
@@ -200,7 +200,7 @@ test_that("warn-on-unknown fires when misspelled param key supplied with known_p
 
 test_that("warn-on-unknown does NOT fire when known_param_keys = NULL (back-compat)", {
   expect_no_warning(
-    ptr_merge_ui_text(
+    ptr_ui_text(
       ui_text = list(params = list(colur = list(var = list(label = "X"))))
     )
   )
@@ -208,7 +208,7 @@ test_that("warn-on-unknown does NOT fire when known_param_keys = NULL (back-comp
 
 test_that("warn-on-unknown does NOT fire when known_param_keys is empty but no params supplied", {
   expect_no_warning(
-    ptr_merge_ui_text(
+    ptr_ui_text(
       ui_text = list(shell = list(title = list(label = "My App"))),
       known_param_keys = c("color", "x", "y")
     )
@@ -218,7 +218,7 @@ test_that("warn-on-unknown does NOT fire when known_param_keys is empty but no p
 test_that("alias normalization: user-supplied 'size' key does NOT warn when known_param_keys = c('linewidth')", {
   # size normalizes to linewidth before the unknown-key check, so no warning
   expect_no_warning(
-    ptr_merge_ui_text(
+    ptr_ui_text(
       ui_text = list(params = list(size = list(num = list(label = "My size")))),
       known_param_keys = c("linewidth", "x", "y")
     )

@@ -10,8 +10,7 @@ ptr_app(
   ui_text = NULL,
   checkbox_defaults = NULL,
   expr_check = TRUE,
-  safe_to_remove = character(),
-  ns = shiny::NS(NULL)
+  safe_to_remove = character()
 )
 }
 \arguments{
@@ -19,8 +18,8 @@ ptr_app(
 
 \item{envir}{Environment used to resolve local data objects.}
 
-\item{ui_text}{Optional named list of copy overrides for UI labels and
-placeholders.}
+\item{ui_text}{Optional named list of copy overrides; see \code{\link[=ptr_ui_text]{ptr_ui_text()}}
+for the full schema and current defaults.}
 
 \item{checkbox_defaults}{Optional named list of initial checked states for
 layer checkboxes.}
@@ -31,9 +30,6 @@ applies the built-in safety walker; \code{FALSE} disables checking.}
 \item{safe_to_remove}{Character vector of additional function names whose
 zero-argument calls should be dropped after placeholder substitution
 leaves them empty. Defaults to \code{character()}.}
-
-\item{ns}{A namespace function (\code{character -> character}), typically
-\code{shiny::NS(id)} or \code{shiny::NS(NULL)}.}
 }
 \value{
 A \code{shiny.appobj}.

@@ -7,7 +7,7 @@
 ptr_gg_extra(state, ...)
 }
 \arguments{
-\item{state}{A \code{ptr_state} from \code{\link[=ptr_server_state]{ptr_server_state()}}.}
+\item{state}{A \code{ptr_state} from \code{\link[=ptr_init_state]{ptr_init_state()}}.}
 
 \item{...}{\code{ggplot2} layer expressions (e.g.
 \code{ptr_gg_extra(state, ggplot2::scale_x_log10(), theme_minimal())}).

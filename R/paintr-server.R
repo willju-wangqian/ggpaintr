@@ -1,6 +1,6 @@
 # P12 — server-state + observer wiring for the typed-AST core.
 #
-# `ptr_server_state` builds a long-lived state list that the Shiny server
+# `ptr_init_state` builds a long-lived state list that the Shiny server
 # carries: the typed tree, per-pipeline-layer resolved-data caches, the latest
 # runtime result (post-substitute → post-prune → post-eval), the resolved
 # checkbox-defaults vector, and an upstream-resolution memo cache.
@@ -8,17 +8,28 @@
 # `ptr_server` is the wiring sugar that calls the state constructor and
 # attaches the observers (pipeline updates + runtime).
 
-#' Long-Lived Server State for a `ggpaintr` Formula
+#' Construct the ggpaintr runtime state container
 #'
-#' Builds the `ptr_state` list consumed by [ptr_server()] and the friend
-#' helpers (`ptr_register_*`, `ptr_extract_*`, `ptr_gg_extra`). Holds the
-#' typed AST as a `reactiveVal`, the runtime result, per-pipeline-layer
-#' resolved-data caches, the input snapshot machinery, and the shared
-#' bindings / draw trigger when used inside [ptr_app_grid()].
+#' Builds the `ptr_state` object — the translated typed AST (as a
+#' `reactiveVal`), the runtime result, the per-layer resolved-data caches,
+#' the eval environment, the input-snapshot machinery, and the shared
+#' bindings / draw trigger — used by [ptr_server()] and the advanced-embedder
+#' helpers ([ptr_register_plot()] / [ptr_register_error()] /
+#' [ptr_register_code()], [ptr_extract_plot()] / [ptr_extract_error()] /
+#' [ptr_extract_code()], [ptr_gg_extra()]).
+#'
+#' This is a *state container*, not a from-scratch reactive-app builder: it
+#' allocates the reactives but does not attach the pipeline / runtime
+#' observers (those live in internal `ptr_setup_*` helpers wired by
+#' [ptr_server()]). Reach for `ptr_init_state()` directly when you want to
+#' drive the typed tree programmatically or exercise ggpaintr under
+#' [shiny::testServer()]; for a fully wired app use [ptr_server()] (and
+#' override its outputs via the `ptr_register_*` helpers as needed).
 #'
 #' @param formula A single formula string with `ggpaintr` placeholders.
 #' @param envir Environment used to resolve local data objects.
-#' @param ui_text Optional named list of copy overrides.
+#' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
+#'   for the full schema and current defaults.
 #' @param checkbox_defaults Optional named list of initial checked states for
 #'   layer checkboxes.
 #' @param expr_check Controls `expr` placeholder validation.
@@ -53,7 +64,7 @@
 #'
 #' @return A `ptr_state` list (S3 class `c("ptr_state", "list")`).
 #' @export
-ptr_server_state <- function(formula,
+ptr_init_state <- function(formula,
                                 envir = parent.frame(),
                                 ui_text = NULL,
                                 checkbox_defaults = NULL,
@@ -175,12 +186,12 @@ ptr_server_state <- function(formula,
 }
 
 # Lightweight shape check for the `ptr_state` object created by
-# `ptr_server_state()`. Public functions that take `state` (the
+# `ptr_init_state()`. Public functions that take `state` (the
 # `ptr_register_*` wirings, the `ptr_extract_*` accessors) run this first so
 # a mis-constructed state fails loudly instead of erroring deep in a reactive.
 ptr_validate_state <- function(state) {
   if (!is.list(state)) {
-    rlang::abort("`state` must be a `ptr_state` list (from `ptr_server_state()`).")
+    rlang::abort("`state` must be a `ptr_state` list (from `ptr_init_state()`).")
   }
   needed <- c("tree", "runtime", "extras", "extras_exprs",
               "server_ns_fn", "ui_ns_fn", "eval_env", "input_spec")
@@ -203,7 +214,7 @@ ptr_validate_state <- function(state) {
 
 #' Wire a `ggpaintr` Server From a Formula
 #'
-#' Convenience wrapper that builds the `ptr_state` via [ptr_server_state()]
+#' Convenience wrapper that builds the `ptr_state` via [ptr_init_state()]
 #' and attaches the per-pipeline observers, stage-enabled toggles, runtime
 #' observer, and plot/code/error output bindings. Returns the state list so
 #' embedders can attach extras (`ptr_gg_extra`) or drive the typed tree
@@ -212,7 +223,7 @@ ptr_validate_state <- function(state) {
 #' @param input,output,session The standard Shiny server arguments.
 #' @param formula A single formula string with `ggpaintr` placeholders.
 #' @param envir Environment used to resolve local data objects.
-#' @param ... Forwarded to [ptr_server_state()] (e.g. `shared`,
+#' @param ... Forwarded to [ptr_init_state()] (e.g. `shared`,
 #'   `draw_trigger`, `ui_text`, `checkbox_defaults`, `expr_check`,
 #'   `safe_to_remove`, `ns`).
 #'
@@ -220,7 +231,7 @@ ptr_validate_state <- function(state) {
 #' @export
 ptr_server <- function(input, output, session, formula,
                           envir = parent.frame(), ...) {
-  state <- ptr_server_state(formula, envir = envir, ...)
+  state <- ptr_init_state(formula, envir = envir, ...)
   ptr_setup_producer_inputs(state, input, output, session)
   ptr_setup_pipelines(state, input, output, session)
   ptr_setup_stage_enabled(state, input, output, session)
@@ -664,7 +675,6 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
   ns <- state$server_ns_fn
   ui_ns <- state$ui_ns_fn
   ui_text <- state$effective_ui_text
-  placeholders <- state$placeholders
 
   consumers <- find_nodes(tree, is_ptr_ph_data_consumer)
   for (c in consumers) {
@@ -731,7 +741,6 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
         invoke_build_ui(
           node,
           ui_text = ui_text,
-          placeholders = placeholders,
           layer_name = node$layer_name,
           ns_fn = ui_ns,
           extra = list(cols = cols, data = data,
@@ -757,7 +766,6 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
                                             resolutions,
                                             representative_nodes,
                                             ui_text = NULL,
-                                            placeholders = NULL,
                                             eval_env = parent.frame(),
                                             expr_check = TRUE,
                                             errors_rv = NULL) {
@@ -811,7 +819,6 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
         invoke_build_ui(
           rep_node,
           ui_text = ui_text,
-          placeholders = placeholders,
           layer_name = NULL,
           ns_fn = ns,
           extra = list(cols = cols, data = df,
@@ -887,7 +894,7 @@ runtime_consumer_entry <- function(state, node, snapshot = list()) {
 #' compose outputs manually.
 #'
 #' @param output The Shiny output object.
-#' @param state A `ptr_state` from [ptr_server_state()].
+#' @param state A `ptr_state` from [ptr_init_state()].
 #'
 #' @return The `output` object, invisibly.
 #' @name ptr_register
@@ -963,7 +970,7 @@ ptr_register_code <- function(output, state) {
 #' the runtime result stored on a `ptr_state`. Use these to compose custom
 #' UIs or to test the runtime in `shiny::testServer`.
 #'
-#' @param state A `ptr_state` from [ptr_server_state()].
+#' @param state A `ptr_state` from [ptr_init_state()].
 #'
 #' @return `ptr_extract_plot` returns a `ggplot` object (or `NULL` on
 #'   failure); `ptr_extract_error` returns a string or `NULL`;
@@ -991,7 +998,7 @@ ptr_extract_code  <- function(state) {
 #' runtime cycle when `state$runtime()$ok` is `TRUE`. Eval failures leave
 #' the existing extras untouched.
 #'
-#' @param state A `ptr_state` from [ptr_server_state()].
+#' @param state A `ptr_state` from [ptr_init_state()].
 #' @param ... `ggplot2` layer expressions (e.g.
 #'   `ptr_gg_extra(state, ggplot2::scale_x_log10(), theme_minimal())`).
 #'   Captured unevaluated and stored as quosures, then evaluated in

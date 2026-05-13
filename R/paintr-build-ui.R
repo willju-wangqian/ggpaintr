@@ -20,7 +20,7 @@
 #' @param node A typed AST node (e.g. `ptr_ph_value`, `ptr_ph_data_consumer`,
 #'   `ptr_ph_data_source`, `ptr_layer`).
 #' @param ... Additional arguments. Recognized by built-in methods:
-#'   `ui_text`, `placeholders`, `layer_name`, `ns_fn`, `checkbox_defaults`,
+#'   `ui_text`, `layer_name`, `ns_fn`, `checkbox_defaults`,
 #'   `shell_copy`. Consumer placeholders emit only a `uiOutput` container at
 #'   static build time; their picker is rendered server-side via
 #'   `ptr_setup_consumer_uis()`, which calls the registry's `build_ui(node,
@@ -46,13 +46,12 @@ build_ui_for.ptr_user_expr <- function(node, ...) NULL
 #' @export
 build_ui_for.ptr_ph_value <- function(node,
                                        ui_text = NULL,
-                                       placeholders = NULL,
                                        layer_name = NULL,
                                        ns_fn = identity,
                                        param_override = NULL,
                                        label_suffix = NULL,
                                        ...) {
-  invoke_build_ui(node, ui_text = ui_text, placeholders = placeholders,
+  invoke_build_ui(node, ui_text = ui_text,
                   layer_name = layer_name, ns_fn = ns_fn, extra = list(),
                   param_override = param_override, label_suffix = label_suffix,
                   ...)
@@ -68,7 +67,6 @@ build_ui_for.ptr_ph_data_consumer <- function(node,
 #' @export
 build_ui_for.ptr_ph_data_source <- function(node,
                                               ui_text = NULL,
-                                              placeholders = NULL,
                                               layer_name = NULL,
                                               ns_fn = identity,
                                               ...) {
@@ -80,10 +78,9 @@ build_ui_for.ptr_ph_data_source <- function(node,
   copy <- ptr_resolve_ui_text(
     "control",
     keyword = node$keyword,
-    layer_name = layer_name,
     param = node$param,
-    ui_text = ui_text,
-    placeholders = placeholders
+    layer_name = layer_name,
+    ui_text = ui_text
   )
   entry <- ptr_registry_lookup(node$keyword)
   if (is.null(entry) || is.null(entry$build_ui)) {
@@ -99,10 +96,10 @@ build_ui_for.ptr_ph_data_source <- function(node,
   if (identical(node$keyword, "upload") &&
       (accepts_dots || "file_copy" %in% fmls)) {
     extra_named$file_copy <- ptr_resolve_ui_text(
-      "upload_file", ui_text = ui_text, placeholders = placeholders
+      "upload_file", ui_text = ui_text
     )
     extra_named$name_copy <- ptr_resolve_ui_text(
-      "upload_name", ui_text = ui_text, placeholders = placeholders
+      "upload_name", ui_text = ui_text
     )
   }
   do.call(entry$build_ui,
@@ -114,7 +111,6 @@ build_ui_for.ptr_ph_data_source <- function(node,
 #' @export
 build_ui_for.ptr_layer <- function(node,
                                     ui_text = NULL,
-                                    placeholders = NULL,
                                     ns_fn = identity,
                                     checkbox_defaults = NULL,
                                     shell_copy = NULL,
@@ -136,7 +132,7 @@ build_ui_for.ptr_layer <- function(node,
     } else NULL
     label_suffix <- if (has_verb) paste0(" in ", verb, "()") else NULL
     ui <- build_ui_for(ph, ui_text = ui_text,
-                       placeholders = placeholders, layer_name = layer_name,
+                       layer_name = layer_name,
                        ns_fn = ns_fn,
                        param_override = param_override,
                        label_suffix = label_suffix)
@@ -162,7 +158,7 @@ build_ui_for.ptr_layer <- function(node,
 
   control_ui <- lapply(control_phs, function(ph) {
     build_ui_for(ph, ui_text = ui_text,
-                 placeholders = placeholders, layer_name = layer_name,
+                 layer_name = layer_name,
                  ns_fn = ns_fn)
   })
   control_ui  <- drop_null(control_ui)
@@ -437,7 +433,7 @@ build_ui_copy_args <- function(fmls, copy) {
   if ("..." %in% fmls || "copy" %in% fmls) list(copy = copy) else list()
 }
 
-invoke_build_ui <- function(node, ui_text, placeholders, layer_name,
+invoke_build_ui <- function(node, ui_text, layer_name,
                             ns_fn, extra,
                             param_override = NULL, label_suffix = NULL, ...) {
   rendered_node <- node
@@ -445,10 +441,9 @@ invoke_build_ui <- function(node, ui_text, placeholders, layer_name,
   copy <- ptr_resolve_ui_text(
     "control",
     keyword = node$keyword,
-    layer_name = layer_name,
     param = param_override %||% node$param,
-    ui_text = ui_text,
-    placeholders = placeholders
+    layer_name = layer_name,
+    ui_text = ui_text
   )
   if (!is.null(label_suffix) && nzchar(label_suffix) && !is.null(copy$label)) {
     # `label_suffix` is " in verb()". For an unnamed positional arg the verb is

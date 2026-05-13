@@ -13,16 +13,16 @@ ptr_module_server(id, formula, envir = parent.frame(), ...)
 
 \item{envir}{Environment used to resolve local data objects.}
 
-\item{...}{Forwarded to \code{\link[=ptr_server_state]{ptr_server_state()}}.}
+\item{...}{Forwarded to \code{\link[=ptr_init_state]{ptr_init_state()}}.}
 }
 \value{
-The \code{ptr_state} list from \code{\link[=ptr_server_state]{ptr_server_state()}} (returned by the
+The \code{ptr_state} list from \code{\link[=ptr_init_state]{ptr_init_state()}} (returned by the
 inner module session for advanced wiring; usually consumed for its
 side effects only).
 }
 \description{
 Namespaced server side of a Shiny module wrapping a \code{ggpaintr} formula.
 Pair with \code{\link[=ptr_module_ui]{ptr_module_ui()}}. Additional arguments are forwarded to
-\code{\link[=ptr_server_state]{ptr_server_state()}} (e.g. \code{shared}, \code{draw_trigger}, \code{expr_check},
+\code{\link[=ptr_init_state]{ptr_init_state()}} (e.g. \code{shared}, \code{draw_trigger}, \code{expr_check},
 \code{safe_to_remove}, \code{ui_text}, \code{checkbox_defaults}).
 }
