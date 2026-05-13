@@ -157,6 +157,37 @@
   </tbody>
 </table>
 
+<h2>Resolution status (updated 2026-05-13)</h2>
+<table>
+  <thead><tr><th>Bug</th><th>Status</th><th>Closing commit(s)</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>BUG-1</td><td><span class="badge b-ok">Fixed</span></td>
+      <td><code>11b6860</code> (outer: NA-cascade) + <code>c0d5467</code> (deep: companion-less resolution end-to-end)</td>
+      <td><code>11b6860</code> cleared the reported <code>map$get: NA</code> stack; <code>c0d5467</code> closes the iceberg underneath (substitute walk, pipeline-head observer, consumer snapshot were still upload-shaped). Regression test in <code>tests/testthat/test-regression-bugs-2026-05-12.R</code> ("BUG-1 deep") guards the deep path; verified red→green against pre-<code>c0d5467</code> state.</td></tr>
+    <tr><td>BUG-2</td><td><span class="badge b-ok">Fixed</span></td>
+      <td><code>12933d6</code></td>
+      <td><code>shell$draw_button$label</code> now flows through <code>ptr_resolve_ui_text("draw_button", ...)</code> into <code>shell_copy$update_plot_label</code>. Verified on HEAD by rendering the UI: button reads <code>Render plot</code> when the override is set.</td></tr>
+    <tr><td>BUG-3</td><td><span class="badge b-ok">Fixed</span></td>
+      <td><code>9746ad0</code></td>
+      <td><code>ptr_validate_shared_bindings</code> now validates against the union of keys across all plot formulas. Verified on HEAD: <code>ptr_app_grid(plots = list(ex2_grid_a, ex2_grid_b), shared_ui = list(cv, pt))</code> initialises silently and renders.</td></tr>
+    <tr><td>BUG-4</td><td><span class="badge b-info">False positive</span></td>
+      <td><code>bb6c50d</code> (doc)</td>
+      <td>Probe-level artefact: <code>selectize.js</code> reparents <code>&lt;option&gt;</code> children out of the <code>&lt;select&gt;</code>. See same-row "Update 2026-05-13" note below.</td></tr>
+    <tr><td>BUG-5</td><td><span class="badge b-ok">Fixed</span></td>
+      <td><code>76cae03</code></td>
+      <td>Successful draw clears <code>#ptr_error</code>.</td></tr>
+    <tr><td>BUG-6</td><td><span class="badge b-ok">Fixed</span></td>
+      <td><code>430c9ed</code></td>
+      <td>Stage-checkbox labels use the namespace-aware verb name.</td></tr>
+    <tr><td>BUG-7</td><td><span class="badge b-ok">Fixed</span></td>
+      <td><code>177817c</code></td>
+      <td><code>validate_input</code> accepts <code>NULL</code> / <code>TRUE</code> as valid.</td></tr>
+    <tr><td>BUG-8</td><td><span class="badge b-ok">Fixed</span></td>
+      <td><code>177817c</code></td>
+      <td>Shared <code>var(shared)</code> resolves through an upload source.</td></tr>
+  </tbody>
+</table>
+
 <h2>What's broken</h2>
 
 <!-- BUG 1 -->
