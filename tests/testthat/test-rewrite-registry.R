@@ -180,3 +180,64 @@ test_that("validate_copy_defaults accepts every supported leaf field", {
     )
   )
 })
+
+# ---- ptr_clear_placeholder ----
+
+.clean_registry <- function() {
+  withr::defer_parent({
+    if (exists("ptr_registry_clear")) ptr_registry_clear()
+    ptr_register_builtins()
+  })
+}
+
+test_that("ptr_clear_placeholder(keyword) removes one user placeholder", {
+  .clean_registry()
+  ptr_define_placeholder_value(
+    "kw_one", build_ui = function(node, ...) NULL,
+    resolve_expr = function(value, node, ...) value
+  )
+  ptr_define_placeholder_value(
+    "kw_two", build_ui = function(node, ...) NULL,
+    resolve_expr = function(value, node, ...) value
+  )
+  expect_true("kw_one" %in% ptr_registry_keywords())
+  expect_message(ret <- ptr_clear_placeholder("kw_one"), "kw_one")
+  expect_equal(ret, "kw_one")
+  expect_false("kw_one" %in% ptr_registry_keywords())
+  expect_true("kw_two" %in% ptr_registry_keywords())
+  expect_true(all(ptr_builtin_keywords() %in% ptr_registry_keywords()))
+})
+
+test_that("ptr_clear_placeholder() removes every user placeholder, keeps built-ins", {
+  .clean_registry()
+  ptr_define_placeholder_value(
+    "kw_a", build_ui = function(node, ...) NULL,
+    resolve_expr = function(value, node, ...) value
+  )
+  ptr_define_placeholder_consumer(
+    "kw_b", build_ui = function(node, cols, data, ...) NULL,
+    resolve_expr = function(value, node, ...) value
+  )
+  expect_message(ret <- ptr_clear_placeholder(), "kw_a")
+  expect_setequal(ret, c("kw_a", "kw_b"))
+  expect_setequal(ptr_registry_keywords(), ptr_builtin_keywords())
+})
+
+test_that("ptr_clear_placeholder() errors on an unknown keyword", {
+  .clean_registry()
+  expect_error(ptr_clear_placeholder("no_such_kw"), "no_such_kw")
+})
+
+test_that("ptr_clear_placeholder() refuses to clear a built-in placeholder", {
+  .clean_registry()
+  expect_error(ptr_clear_placeholder("var"), "built-in")
+  expect_true("var" %in% ptr_registry_keywords())
+})
+
+test_that("ptr_clear_placeholder() with nothing to clear informs and returns empty", {
+  if (exists("ptr_registry_clear")) ptr_registry_clear()
+  ptr_register_builtins()
+  .clean_registry()
+  expect_message(ret <- ptr_clear_placeholder(), "[Nn]o user-registered")
+  expect_equal(ret, character())
+})

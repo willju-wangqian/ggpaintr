@@ -22,6 +22,71 @@ ptr_registry_clear <- function() {
   invisible(NULL)
 }
 
+#' Remove user-registered placeholders
+#'
+#' Unregisters placeholders added with [ptr_define_placeholder_value()],
+#' [ptr_define_placeholder_consumer()], or [ptr_define_placeholder_source()].
+#' The five built-in placeholders (`var`, `text`, `num`, `expr`, `upload`) are
+#' never removed.
+#'
+#' @param keyword Optional single string. When supplied, only that placeholder
+#'   is removed. When omitted (the default), every user-registered placeholder
+#'   is removed.
+#'
+#' @return The character vector of keywords that were removed, invisibly.
+#'
+#' @examples
+#' ptr_define_placeholder_value(
+#'   "demo_kw",
+#'   build_ui = function(node, ...) shiny::textInput(node$id, "demo"),
+#'   resolve_expr = function(value, node, ...) value
+#' )
+#' ptr_clear_placeholder("demo_kw")
+#' @export
+ptr_clear_placeholder <- function(keyword = NULL) {
+  ensure_registry_initialized()
+  builtins <- ptr_builtin_keywords()
+  registered <- ls(.ptr_registry)
+
+  if (is.null(keyword)) {
+    custom <- setdiff(registered, builtins)
+    if (length(custom) == 0L) {
+      cli::cli_inform(c(i = "No user-registered placeholders to clear."))
+      return(invisible(character()))
+    }
+    rm(list = custom, envir = .ptr_registry)
+    cli::cli_inform(c(
+      v = "Cleared {length(custom)} placeholder{?s}: {.val {sort(custom)}}."
+    ))
+    return(invisible(custom))
+  }
+
+  assertthat::assert_that(
+    is.character(keyword), length(keyword) == 1L,
+    !is.na(keyword), nzchar(keyword)
+  )
+  if (keyword %in% builtins) {
+    rlang::abort(paste0(
+      "`", keyword, "` is a built-in placeholder and cannot be cleared."
+    ))
+  }
+  if (!keyword %in% registered) {
+    custom <- setdiff(registered, builtins)
+    rlang::abort(c(
+      paste0("No placeholder named `", keyword, "` is registered."),
+      i = if (length(custom) > 0L) {
+        paste0("Registered placeholders: ",
+               paste0("`", sort(custom), "`", collapse = ", "), ".")
+      } else {
+        "No user-registered placeholders exist."
+      }
+    ))
+  }
+  rm(list = keyword, envir = .ptr_registry)
+  cli::cli_inform(c(v = "Cleared placeholder: {.val {keyword}}."))
+  invisible(keyword)
+}
+
 ptr_registry_lookup <- function(keyword) {
   ensure_registry_initialized()
   if (!exists(keyword, envir = .ptr_registry, inherits = FALSE)) {

@@ -197,6 +197,13 @@ ptr_builtin_upload_resolve_data <- function(value, node, ...) {
 
 # ---- registration -----------------------------------------------------------
 
+# Keywords registered by `ptr_register_builtins()`. Maintained by hand --
+# `ptr_clear_placeholder()` uses this to tell built-ins (which it refuses to
+# drop) apart from user-registered placeholders.
+ptr_builtin_keywords <- function() {
+  c("text", "num", "expr", "var", "upload")
+}
+
 ptr_register_builtins <- function() {
   ptr_define_placeholder_value(
     keyword = "text",
