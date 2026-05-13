@@ -135,15 +135,20 @@ collect_shared_consumer_occurrences <- function(trees) {
 resolve_shared_consumer <- function(occurrences) {
   if (length(occurrences) == 0L) {
     return(list(kind = "error",
-                error = "internal: no occurrences"))
+                error = paste0("Internal error: no occurrences for this ",
+                               "shared key. Please report this at ",
+                               "https://github.com/willju-wangqian/ggpaintr/issues.")))
   }
   truncated <- lapply(occurrences, function(n) {
     truncate_upstream_at_placeholder(n$upstream)
   })
   if (any(vapply(truncated, is.null, logical(1)))) {
     return(list(kind = "error",
-                error = paste0("Shared `var` upstream is entirely placeholder-",
-                               "based; no source dataset to resolve choices from.")))
+                error = paste0("This shared picker has no dataset to list ",
+                               "columns from -- its data is produced entirely ",
+                               "by other inputs that aren't filled in yet. Fill ",
+                               "those in, or base the picker on a concrete ",
+                               "dataset.")))
   }
   sources <- lapply(truncated, extract_source_leaf)
   src1 <- sources[[1L]]
@@ -151,9 +156,11 @@ resolve_shared_consumer <- function(occurrences) {
     for (i in 2:length(sources)) {
       if (!identical(src1, sources[[i]])) {
         return(list(kind = "error",
-                    error = paste0("Shared `var` references diverge: layers ",
-                                   "use different source datasets, so a ",
-                                   "single picker cannot serve them all.")))
+                    error = paste0("This shared picker is used on plots built ",
+                                   "from different datasets, so one column list ",
+                                   "can't apply to all of them. Point them at ",
+                                   "the same dataset, or give each plot its own ",
+                                   "`var` (without `shared =`).")))
       }
     }
   }

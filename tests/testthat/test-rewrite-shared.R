@@ -250,10 +250,10 @@ test_that("P06.i diverging sources surface as alert + error-panel entry", {
     rendered <- output$`shared_v_ui`
     html_str <- if (is.list(rendered) && !is.null(rendered$html)) rendered$html else as.character(rendered)
     expect_match(html_str, "alert")
-    expect_match(html_str, "different source")
+    expect_match(html_str, "different datasets")
     err <- output$ptr_error
     err_html <- if (is.list(err) && !is.null(err$html)) err$html else as.character(err)
-    expect_match(err_html, "different source")
+    expect_match(err_html, "different datasets")
   })
 })
 
