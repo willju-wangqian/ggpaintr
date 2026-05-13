@@ -131,6 +131,34 @@ ptr_init_state <- function(formula,
     data_layer_names
   )
 
+  # Data-source placeholders that are NOT a layer's bare `data_arg` -- e.g.
+  # `upload` at the head of a pipeline (`upload |> head(num) |> ggplot(...)`).
+  # A bare-layer source has its resolved frame swapped into `data_arg` by
+  # `inject_resolved_data()`; a pipeline-head source survives substitution
+  # only as a symbol, so `ptr_setup_pipelines()` binds the resolved frame
+  # into `eval_env` and bumps these reactiveVals so the per-consumer reactives
+  # in `ptr_setup_consumer_uis()` re-resolve once a file lands. Keyed by
+  # source-node id.
+  bare_source_ids <- vapply(
+    tree$layers,
+    function(l) {
+      if (is_bare_data_source_layer(l)) l$data_arg$id %||% NA_character_
+      else NA_character_
+    },
+    character(1)
+  )
+  bare_source_ids <- bare_source_ids[!is.na(bare_source_ids)]
+  pipeline_source_ids <- character()
+  for (s in find_nodes(tree, is_ptr_ph_data_source)) {
+    if (!is.null(s$id) && !(s$id %in% bare_source_ids)) {
+      pipeline_source_ids <- c(pipeline_source_ids, s$id)
+    }
+  }
+  resolved_sources <- stats::setNames(
+    lapply(pipeline_source_ids, function(.) shiny::reactiveVal(NULL)),
+    pipeline_source_ids
+  )
+
   initial_stage_ids <- collect_stage_ids(tree)
   initial_stage_enabled <- stats::setNames(
     rep(list(TRUE), length(initial_stage_ids)),
@@ -151,7 +179,10 @@ ptr_init_state <- function(formula,
     # (extras themselves are evaluated ggplot objects with no
     # round-trippable deparse).
     extras_exprs = shiny::reactiveVal(list()),
-    eval_env = envir,
+    # A child of the caller's env so the pipeline-head data-source observer
+    # in `ptr_setup_pipelines()` can bind uploaded frames under their
+    # dataset name without mutating the caller's environment.
+    eval_env = new.env(parent = envir),
     expr_check = expr_check,
     safe_to_remove = safe_to_remove,
     raw_ui_text = ui_text,
@@ -161,6 +192,7 @@ ptr_init_state <- function(formula,
     shared_resolutions = if (is.list(shared_resolutions)) shared_resolutions else list(),
     draw_trigger = draw_trigger,
     resolved_data = resolved_data,
+    resolved_sources = resolved_sources,
     upstream_cache = new.env(parent = emptyenv()),
     stage_enabled = shiny::reactiveVal(initial_stage_enabled),
     # Producer-input debounce + auto-flip (D7 / D8). `producer_input` is
@@ -292,21 +324,73 @@ ptr_setup_pipelines <- function(state, input, output, session) {
       # panel drops the `data = ...` argument entirely (the plot itself
       # still renders, since `inject_resolved_data()` patches the eval
       # tree). Never clobber a name the user typed.
-      if (!is.null(comp_id)) {
-        shiny::observeEvent(input[[src_id]], {
-          fi <- input[[src_id]]
-          nm <- ptr_upload_autoname(
-            input[[comp_id]],
-            if (!is.null(fi)) fi$name else NULL
-          )
-          if (!is.null(nm)) {
-            shiny::updateTextInput(session, comp_id, value = nm)
-          }
-        })
-      }
+      ptr_bind_source_autoname(src_id, comp_id, input, session)
+    })
+  }
+
+  # Data-source placeholders that are NOT a layer's bare `data_arg` --
+  # e.g. `upload |> head(num) |> ... |> ggplot(...)`. A bare-layer source
+  # has its resolved frame swapped into `data_arg` by
+  # `inject_resolved_data()`; a pipeline-head source survives substitution
+  # only as a symbol (`<name> |> head(num) |> ...`), so the resolved frame
+  # must be bound under `<name>` in `state$eval_env` for the lazy consumer
+  # resolves (`ptr_resolve_upstream()`) *and* the plot eval to find it.
+  # Setting `state$resolved_sources[[id]]` invalidates the per-consumer
+  # reactives in `ptr_setup_consumer_uis()` so downstream pickers refresh.
+  for (src in find_nodes(tree, is_ptr_ph_data_source)) {
+    if (is.null(src$id) || is.null(state$resolved_sources[[src$id]])) next
+    local({
+      node <- src
+      sid <- node$id
+      src_id <- ns(sid)
+      comp_id <- if (!is.null(node$companion_id)) ns(node$companion_id) else NULL
+      entry <- ptr_registry_lookup(node$keyword)
+      slot <- state$resolved_sources[[sid]]
+
+      shiny::observe({
+        file_info <- input[[src_id]]
+        nm <- if (!is.null(comp_id)) input[[comp_id]] else NULL
+        if (is.null(file_info) || is.null(file_info$datapath)) {
+          slot(NULL)
+          return(invisible())
+        }
+        df <- if (!is.null(entry) && !is.null(entry$resolve_data)) {
+          tryCatch(entry$resolve_data(file_info, node), error = function(e) NULL)
+        } else NULL
+        # Bind under the (possibly auto-filled) companion name so the
+        # pipeline `<name> |> ...` is evaluable. An invalid name is left
+        # for `substitute_walk.ptr_ph_data_source()` to reject loudly when
+        # the pipeline is substituted.
+        if (!is.null(df) && is.character(nm) && length(nm) == 1L &&
+            nzchar(nm) && make.names(nm) == nm) {
+          assign(nm, df, envir = state$eval_env)
+        }
+        slot(df)
+      })
+
+      ptr_bind_source_autoname(src_id, comp_id, input, session)
     })
   }
   invisible(state)
+}
+
+# Auto-fill a data source's dataset-name companion input from the uploaded
+# filename, but only when the user left it blank (`ptr_upload_autoname()`
+# returns NULL otherwise -- never clobbering a name the user typed). Shared
+# by the bare-layer and pipeline-head source wiring in
+# `ptr_setup_pipelines()`. `src_id` / `comp_id` are already namespaced.
+ptr_bind_source_autoname <- function(src_id, comp_id, input, session) {
+  if (is.null(comp_id)) return(invisible())
+  shiny::observeEvent(input[[src_id]], {
+    fi <- input[[src_id]]
+    auto <- ptr_upload_autoname(
+      input[[comp_id]],
+      if (!is.null(fi)) fi$name else NULL
+    )
+    if (!is.null(auto)) {
+      shiny::updateTextInput(session, comp_id, value = auto)
+    }
+  })
 }
 
 
@@ -704,6 +788,8 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
       #   - global: Update Plot click invalidates every consumer.
       upstream_consumer_ids <- find_consumer_ids_in_upstream(node$upstream)
       upstream_producer_ids <- find_producer_ids_in_upstream(node$upstream)
+      upstream_source_companion_ids <-
+        find_source_companion_ids_in_upstream(node$upstream)
       subtab_id <- if (!is.null(node$layer_name)) {
         paste0(node$layer_name, "_subtab")
       } else NULL
@@ -712,6 +798,11 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
         state$tree()
         state$stage_enabled()
         for (rv in state$resolved_data) rv()
+        # Upstream `upload`-style sources: their resolved frame is bound
+        # into `state$eval_env` by `ptr_setup_pipelines()`, which also
+        # bumps `state$resolved_sources` -- depend on it so we re-resolve
+        # once a file lands (the dataset-name companion is read below).
+        for (rv in state$resolved_sources) rv()
         for (cid in upstream_consumer_ids) input[[ns(cid)]]
         producer_values <- list()
         for (pid in upstream_producer_ids) {
@@ -726,6 +817,10 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
         for (cid in upstream_consumer_ids) {
           val <- input[[ns(cid)]]
           if (!is.null(val)) snapshot[[cid]] <- val
+        }
+        for (cmp in upstream_source_companion_ids) {
+          val <- input[[ns(cmp)]]
+          if (!is.null(val)) snapshot[[cmp]] <- val
         }
         runtime_consumer_entry(state, node, snapshot)
       })
@@ -854,6 +949,24 @@ find_consumer_ids_in_upstream <- function(upstream) {
 # (possibly auto-flipped) debounce window elapses.
 find_producer_ids_in_upstream <- function(upstream) {
   collect_upstream_ids(upstream, is_ptr_ph_value)
+}
+
+# Dataset-name companion ids of every `ptr_ph_data_source` in a consumer's
+# `node$upstream` (e.g. an `upload` at the head of the pipeline). Their text
+# values must be in the substitute snapshot for the source to resolve to a
+# symbol rather than prune away; the resolved frame itself is bound into
+# `state$eval_env` by `ptr_setup_pipelines()`. (`collect_upstream_ids()`
+# returns `node$id`; here we need `node$companion_id`, hence the bespoke
+# walk.)
+find_source_companion_ids_in_upstream <- function(upstream) {
+  if (is.null(upstream)) return(character())
+  ids <- character()
+  ptr_walk(upstream, function(n) {
+    if (is_ptr_ph_data_source(n) && !is.null(n$companion_id)) {
+      ids[[length(ids) + 1L]] <<- n$companion_id
+    }
+  })
+  unique(ids)
 }
 
 # Resolve a single consumer's upstream against a snapshot, mirroring the

@@ -82,9 +82,9 @@ prune_walk.ptr_layer <- function(node, remove_set, is_standalone) {
 #' @export
 prune_walk.ptr_call <- function(node, remove_set, is_standalone) {
   arg_names <- names(node$args) %||% rep_len("", length(node$args))
-  pruned_args <- lapply(node$args, prune_walk,
-                        remove_set = remove_set,
-                        is_standalone = is_standalone)
+  pruned_args <- lapply(node$args, function(a) {
+    prune_walk(a, remove_set = remove_set, is_standalone = is_standalone)
+  })
   bare <- bare_call_name(node$fun)
   if (!is.null(bare) && bare %in% pruneable_operator_names) {
     if (any(vapply(pruned_args, is_ptr_missing, logical(1)))) {
