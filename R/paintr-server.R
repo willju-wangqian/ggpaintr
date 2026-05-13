@@ -938,7 +938,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
         )
         cols <- if (!is.null(df)) names(df) else character()
         current <- shiny::isolate(input[[ns(rep_node$id)]])
-        invoke_build_ui(
+        picker <- invoke_build_ui(
           rep_node,
           ui_text = ui_text,
           layer_name = NULL,
@@ -947,10 +947,42 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
                        selected = current %||% character(0)),
           label_override = rep_node$shared_label
         )
+        # Soft advisory: when upstream resolution returns NULL and the
+        # cause is an unresolved data-source placeholder (e.g. `upload`
+        # not yet provided, `pick_ds` not yet picked), surface that
+        # inline rather than letting the picker silently render empty.
+        # Distinguished from a hard error: stays out of `#ptr_error`.
+        if (is.null(df)) {
+          pending <- pending_data_source_keywords(resolution$value)
+          if (length(pending) > 0L) {
+            advisory <- shiny::div(
+              class = "alert alert-warning",
+              "Data source not yet provided for this shared picker: ",
+              shiny::strong(paste(pending, collapse = ", ")),
+              ". Fill it in to populate the column list."
+            )
+            return(shiny::tagList(advisory, picker))
+          }
+        }
+        picker
       })
     })
   }
   invisible(NULL)
+}
+
+# Keywords of every data-source placeholder reachable from `upstream`.
+# Used by `ptr_bind_shared_consumer_uis()` to label the soft advisory it
+# shows when a shared picker's upstream has an unresolved source.
+pending_data_source_keywords <- function(upstream) {
+  if (is.null(upstream)) return(character())
+  keywords <- character()
+  ptr_walk(upstream, function(n) {
+    if (is_ptr_ph_data_source(n)) {
+      keywords[[length(keywords) + 1L]] <<- n$keyword %||% "data source"
+    }
+  })
+  unique(keywords)
 }
 
 # Ids of every placeholder matching `pred` inside a consumer's

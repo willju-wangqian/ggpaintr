@@ -258,6 +258,46 @@ test_that("BUG-7: validate_input may return NULL for a valid input (idiomatic R)
   )
 })
 
+test_that("BUG-8 advisory: pending data-source keywords surfaced for inline alert", {
+  # When a shared picker's upstream contains an unresolved data-source
+  # placeholder, the renderUI in `ptr_bind_shared_consumer_uis()` shows a
+  # `alert-warning` naming those source keywords (rather than rendering a
+  # silently-empty picker or pushing a hard error to #ptr_error).
+  formula <- paste0(
+    "upload |> ggplot(aes(x = var, y = var)) + ",
+    "geom_point(size = var(shared = 'v'))"
+  )
+  tree <- ptr_translate(formula, expr_check = FALSE)
+  shared_node <- find_nodes(tree, function(n) {
+    is_ptr_ph_data_consumer(n) && !is.null(n$shared)
+  })[[1L]]
+  pending <- ggpaintr:::pending_data_source_keywords(shared_node$upstream)
+  expect_equal(pending, "upload",
+               info = "shared widget pre-upload advisory should name `upload`")
+
+  # Multiple distinct sources in a shared upstream should each appear.
+  # Define a second data-source placeholder for the test, then build a
+  # toy upstream tree by hand at the keyword level.
+  kw <- paste0("bug8src_", as.integer(Sys.time()))
+  ptr_define_placeholder_source(
+    keyword = kw,
+    build_ui = function(node, label = NULL, ...) NULL,
+    resolve_data = function(value, node, ...) NULL
+  )
+  withr::defer(ptr_clear_placeholder(kw))
+  formula2 <- sprintf(
+    "%s |> ggplot(aes(x = var, y = var)) + geom_point(size = var(shared = 'w'))",
+    kw
+  )
+  tree2 <- ptr_translate(formula2, expr_check = FALSE)
+  shared_node2 <- find_nodes(tree2, function(n) {
+    is_ptr_ph_data_consumer(n) && !is.null(n$shared)
+  })[[1L]]
+  pending2 <- ggpaintr:::pending_data_source_keywords(shared_node2$upstream)
+  expect_equal(pending2, kw,
+               info = "advisory should name any custom data-source keyword, not only `upload`")
+})
+
 test_that("BUG-8: shared `var(shared='v')` resolves through an upload data source", {
   # The 2026-05-12 report missed this; it surfaced from interactive testing.
   # `var(shared = 'v')` deep inside a geom on an `upload`-headed pipeline
