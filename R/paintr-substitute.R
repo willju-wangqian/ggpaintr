@@ -130,27 +130,36 @@ substitute_walk.ptr_ph_data_consumer <- function(node, ctx) {
 
 #' @export
 substitute_walk.ptr_ph_data_source <- function(node, ctx) {
-  name_value <- if (!is.null(node$companion_id)) {
-    ctx$snapshot[[node$companion_id]]
-  } else {
-    NULL
-  }
-  if (is.null(name_value) || !is.character(name_value) ||
-      length(name_value) != 1L || !nzchar(name_value)) {
-    return(ptr_missing())
-  }
-  if (make.names(name_value) != name_value) {
-    rlang::abort(paste0(
-      "Upload name `", name_value, "` is not a valid R variable name. ",
-      "Use letters, numbers, dots, and underscores, starting with a letter ",
-      "-- for example: `my_data`."
-    ))
-  }
   entry <- ptr_registry_lookup(node$keyword)
-  resolved <- if (!is.null(entry) && !is.null(entry$resolve_expr)) {
-    entry$resolve_expr(name_value, node)
+  if (!is.null(node$companion_id)) {
+    # Companion-driven source (e.g. `upload`): the companion text input
+    # carries the binding name; resolve_expr maps name -> symbol.
+    name_value <- ctx$snapshot[[node$companion_id]]
+    if (is.null(name_value) || !is.character(name_value) ||
+        length(name_value) != 1L || !nzchar(name_value)) {
+      return(ptr_missing())
+    }
+    if (make.names(name_value) != name_value) {
+      rlang::abort(paste0(
+        "Upload name `", name_value, "` is not a valid R variable name. ",
+        "Use letters, numbers, dots, and underscores, starting with a letter ",
+        "-- for example: `my_data`."
+      ))
+    }
+    resolved <- if (!is.null(entry) && !is.null(entry$resolve_expr)) {
+      entry$resolve_expr(name_value, node)
+    } else {
+      rlang::sym(name_value)
+    }
   } else {
-    rlang::sym(name_value)
+    # Companion-less source (e.g. a `selectInput`-style chooser): the
+    # source's own input value drives resolve_expr directly. NULL/empty
+    # value or NULL return from the hook -> prune the slot.
+    value <- ctx$snapshot[[node$id %||% ""]]
+    if (is.null(value)) return(ptr_missing())
+    if (is.null(entry) || is.null(entry$resolve_expr)) return(ptr_missing())
+    resolved <- entry$resolve_expr(value, node)
+    if (is.null(resolved)) return(ptr_missing())
   }
   validate_resolve_expr_return(resolved, node$keyword)
   ptr_literal(resolved)

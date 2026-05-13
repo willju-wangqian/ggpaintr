@@ -308,7 +308,7 @@ ptr_setup_pipelines <- function(state, input, output, session) {
       shiny::observe({
         file_info <- input[[src_id]]
         if (!is.null(comp_id)) input[[comp_id]]  # take dep
-        if (is.null(file_info) || is.null(file_info$datapath)) {
+        if (is.null(file_info)) {
           state$resolved_data[[ln]](NULL)
           return(invisible())
         }
@@ -350,21 +350,35 @@ ptr_setup_pipelines <- function(state, input, output, session) {
 
       shiny::observe({
         file_info <- input[[src_id]]
-        nm <- if (!is.null(comp_id)) input[[comp_id]] else NULL
-        if (is.null(file_info) || is.null(file_info$datapath)) {
+        if (is.null(file_info)) {
           slot(NULL)
           return(invisible())
         }
         df <- if (!is.null(entry) && !is.null(entry$resolve_data)) {
           tryCatch(entry$resolve_data(file_info, node), error = function(e) NULL)
         } else NULL
-        # Bind under the (possibly auto-filled) companion name so the
-        # pipeline `<name> |> ...` is evaluable. An invalid name is left
-        # for `substitute_walk.ptr_ph_data_source()` to reject loudly when
-        # the pipeline is substituted.
-        if (!is.null(df) && is.character(nm) && length(nm) == 1L &&
-            nzchar(nm) && make.names(nm) == nm) {
-          assign(nm, df, envir = state$eval_env)
+        # Bind the resolved frame under the same symbol that
+        # `substitute_walk.ptr_ph_data_source()` will produce, so the
+        # pipeline `<name> |> ...` is evaluable.
+        # - companion-driven sources (upload): name = the companion text input;
+        #   invalid names are left for the substitute walk to reject loudly.
+        # - companion-less sources (e.g. selectInput chooser): name comes from
+        #   `entry$resolve_expr(value, node)` -- has to be a symbol whose
+        #   character form is a valid R name.
+        binding_name <- if (!is.null(comp_id)) {
+          nm <- input[[comp_id]]
+          if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
+              make.names(nm) == nm) nm else NULL
+        } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
+          sym <- tryCatch(entry$resolve_expr(file_info, node),
+                          error = function(e) NULL)
+          if (is.symbol(sym)) {
+            cand <- as.character(sym)
+            if (nzchar(cand) && make.names(cand) == cand) cand else NULL
+          } else NULL
+        } else NULL
+        if (!is.null(df) && !is.null(binding_name)) {
+          assign(binding_name, df, envir = state$eval_env)
         }
         slot(df)
       })
@@ -791,6 +805,8 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
       upstream_producer_ids <- find_producer_ids_in_upstream(node$upstream)
       upstream_source_companion_ids <-
         find_source_companion_ids_in_upstream(node$upstream)
+      upstream_source_self_ids <-
+        find_source_self_ids_in_upstream(node$upstream)
       subtab_id <- if (!is.null(node$layer_name)) {
         paste0(node$layer_name, "_subtab")
       } else NULL
@@ -822,6 +838,10 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
         for (cmp in upstream_source_companion_ids) {
           val <- input[[ns(cmp)]]
           if (!is.null(val)) snapshot[[cmp]] <- val
+        }
+        for (sid in upstream_source_self_ids) {
+          val <- input[[ns(sid)]]
+          if (!is.null(val)) snapshot[[sid]] <- val
         }
         runtime_consumer_entry(state, node, snapshot)
       })
@@ -894,6 +914,9 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
       upstream_source_companion_ids <- if (!is.null(resolution$value)) {
         find_source_companion_ids_in_upstream(resolution$value)
       } else character()
+      upstream_source_self_ids <- if (!is.null(resolution$value)) {
+        find_source_self_ids_in_upstream(resolution$value)
+      } else character()
 
       output[[output_id]] <- shiny::renderUI({
         if (identical(resolution$kind, "error")) {
@@ -922,6 +945,10 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
           for (cmp in upstream_source_companion_ids) {
             val <- input[[ns(cmp)]]
             if (!is.null(val)) snap[[cmp]] <- val
+          }
+          for (sid in upstream_source_self_ids) {
+            val <- input[[ns(sid)]]
+            if (!is.null(val)) snap[[sid]] <- val
           }
         }
         df <- tryCatch(
@@ -1024,6 +1051,23 @@ find_source_companion_ids_in_upstream <- function(upstream) {
   ptr_walk(upstream, function(n) {
     if (is_ptr_ph_data_source(n) && !is.null(n$companion_id)) {
       ids[[length(ids) + 1L]] <<- n$companion_id
+    }
+  })
+  unique(ids)
+}
+
+# Companion-less data sources (e.g. a `selectInput` chooser): for these,
+# `substitute_walk.ptr_ph_data_source()` reads the source's *own* input id
+# directly out of the snapshot, so we must seed `snapshot[[node$id]]` for
+# the upstream to substitute past the head. Companion-driven sources are
+# handled by `find_source_companion_ids_in_upstream()`.
+find_source_self_ids_in_upstream <- function(upstream) {
+  if (is.null(upstream)) return(character())
+  ids <- character()
+  ptr_walk(upstream, function(n) {
+    if (is_ptr_ph_data_source(n) && is.null(n$companion_id) &&
+        !is.null(n$id)) {
+      ids[[length(ids) + 1L]] <<- n$id
     }
   })
   unique(ids)
