@@ -1035,6 +1035,11 @@ ptr_register_error <- function(output, state) {
   ptr_validate_state(state)
   output[[state$server_ns_fn("ptr_error")]] <- shiny::renderUI({
     res <- state$runtime()
+    # A successful draw clears the error pane. The unresolvable-shared-picker
+    # advisory still surfaces inline on the shared widget itself
+    # (`ptr_bind_shared_consumer_uis`), so dropping it here just suppresses
+    # the stale stack-up in `#ptr_error` after the plot has rendered.
+    if (!is.null(res) && isTRUE(res$ok)) return(NULL)
     shared_errs <- state$shared_resolution_errors()
     runtime_msg <- if (!is.null(res) && !isTRUE(res$ok)) {
       cli::ansi_strip(res$error %||% "")

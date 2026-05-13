@@ -164,10 +164,30 @@ test_that("BUG-6: pipeline-stage enable-checkbox labels show the pipeline verb",
 })
 
 test_that("BUG-5: successful draw clears stale shared-picker error from #ptr_error", {
-  skip("BUG-5 pending — likely needs testServer() or browser harness")
-  # Repro outline:
-  #   - testServer(ptr_server, args=list(parsed = ex3_formula), ...)
-  #   - Simulate pre-upload state → error string set; then upload + draw.
-  #   - Expect error reactive to clear after successful render.
-  # If unreachable via testServer(), defer to the browser harness as acceptance test.
+  formula <- paste0(
+    "mtcars |> ggplot(aes(x = var, y = var)) + ",
+    "geom_point(size = var(shared = 'v'))"
+  )
+  shiny::testServer(function(input, output, session) {
+    st <- ptr_server(input, output, session, formula, expr_check = FALSE,
+                     auto_bind_shared = TRUE)
+    session$userData$state <- st
+  }, {
+    st <- session$userData$state
+    # Simulate the shared resolver having latched an error early (pre-draw)
+    # and a subsequently-successful draw landing in state$runtime.
+    st$shared_resolution_errors(
+      "Shared `var(shared = \"v\")` cannot be resolved."
+    )
+    st$runtime(list(
+      ok = TRUE, plot = ggplot2::ggplot(),
+      code_text = "ggplot(mtcars) + geom_point()"
+    ))
+    rendered <- tryCatch(output$ptr_error, error = function(e) e)
+    if (inherits(rendered, "error")) rendered <- NULL
+    txt <- if (is.null(rendered)) "" else as.character(rendered)
+    expect_false(grepl("cannot be resolved", txt, fixed = TRUE),
+                 info = paste0("error pane should not show stale shared-picker ",
+                               "warning after a successful draw; got: ", txt))
+  })
 })
