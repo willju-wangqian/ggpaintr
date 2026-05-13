@@ -634,7 +634,8 @@ ptr_app_grid_components <- function(plots,
           expr_check = expr_check,
           shared = shared_reactives,
           shared_resolutions = shared_resolutions,
-          draw_trigger = draw_all_trigger
+          draw_trigger = draw_all_trigger,
+          plots = plots
         )
       })
     }

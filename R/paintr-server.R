@@ -76,7 +76,8 @@ ptr_init_state <- function(formula,
                                 ns = shiny::NS(NULL),
                                 server_ns = ns,
                                 auto_bind_shared = FALSE,
-                                shared_resolutions = list()) {
+                                shared_resolutions = list(),
+                                plots = NULL) {
   if (!is.function(ns)) {
     rlang::abort("`ns` must be a namespace function (e.g. shiny::NS(\"id\")).")
   }
@@ -106,7 +107,7 @@ ptr_init_state <- function(formula,
   tree <- ptr_translate(formula, expr_check = expr_check)
 
   shared_bindings <- ptr_validate_shared_bindings(
-    shared, tree = tree,
+    shared, tree = tree, plots = plots,
     strict_missing = !isTRUE(auto_bind_shared)
   )
 

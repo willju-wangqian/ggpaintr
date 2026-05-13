@@ -52,6 +52,7 @@
 #' @return A named list of reactives (possibly empty).
 #' @noRd
 ptr_validate_shared_bindings <- function(shared, tree = NULL,
+                                            plots = NULL,
                                             strict_missing = TRUE) {
   if (is.null(shared)) shared <- list()
   if (!is.list(shared)) {
@@ -74,11 +75,24 @@ ptr_validate_shared_bindings <- function(shared, tree = NULL,
     }
   }
 
-  if (!is.null(tree)) {
-    formula_keys <- vapply(
-      collect_shared_placeholders(tree),
-      `[[`, character(1), "key"
-    )
+  union_keys <- NULL
+  if (!is.null(plots)) {
+    if (!is.list(plots)) plots <- list(plots)
+    plot_trees <- lapply(plots, function(p) {
+      if (is_ptr_root(p)) p else ptr_translate(p, expr_check = FALSE)
+    })
+    union_keys <- unique(unlist(lapply(plot_trees, function(t) {
+      vapply(collect_shared_placeholders(t), `[[`, character(1), "key")
+    })))
+  }
+
+  if (!is.null(tree) || !is.null(union_keys)) {
+    tree_keys <- if (!is.null(tree)) {
+      vapply(collect_shared_placeholders(tree), `[[`, character(1), "key")
+    } else {
+      character()
+    }
+    formula_keys <- if (!is.null(union_keys)) union_keys else tree_keys
     binding_keys <- names(shared) %||% character()
 
     extra <- setdiff(binding_keys, formula_keys)
@@ -86,18 +100,25 @@ ptr_validate_shared_bindings <- function(shared, tree = NULL,
       hint <- if (length(formula_keys) > 0L) {
         paste0(" Available formula keys: ",
                paste0("\"", formula_keys, "\"", collapse = ", "), ".")
+      } else if (!is.null(union_keys)) {
+        " None of the plot formulas declare `shared = \"...\"` annotations."
       } else {
         " The formula declares no `shared = \"...\"` annotations."
+      }
+      where <- if (!is.null(union_keys)) {
+        " which is not used in any of the plot formulas."
+      } else {
+        " which is not used in the plot formula."
       }
       rlang::abort(paste0(
         "`shared` references key ",
         paste0("\"", extra, "\"", collapse = ", "),
-        " which is not used in any plot formula.", hint
+        where, hint
       ))
     }
 
-    if (isTRUE(strict_missing)) {
-      missing <- setdiff(formula_keys, binding_keys)
+    if (isTRUE(strict_missing) && !is.null(tree)) {
+      missing <- setdiff(tree_keys, binding_keys)
       if (length(missing) > 0L) {
         rlang::abort(paste0(
           "Formula references shared key ",

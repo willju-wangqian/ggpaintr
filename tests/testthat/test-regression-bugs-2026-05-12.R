@@ -30,12 +30,21 @@ test_that("BUG-1: ptr_define_placeholder_source() without companion_id_fn does n
 })
 
 test_that("BUG-3: ptr_app_grid() validates shared keys against the union across plots", {
-  skip("BUG-3 pending — reproduction TBD by diagnose pass")
-  # Repro outline:
-  #   - shared <- list(cv = ..., pt = ...)
-  #   - plots  <- list(ex2_grid_a, ex2_grid_b)   # 'pt' only used by _b
-  #   - expect_silent(ptr_validate_shared_bindings(shared, plots = plots))
-  #   - Also: validating per-plot (only ex2_grid_a) must not abort when 'pt' is in shared.
+  fa <- "iris |> ggplot(aes(x = var(shared = 'cv'), y = var(shared = 'cv'))) + geom_point()"
+  fb <- "iris |> ggplot(aes(x = var(shared = 'cv'), y = var(shared = 'cv'))) + geom_point(size = num(shared = 'pt'))"
+  shared <- list(cv = shiny::reactiveVal(NULL), pt = shiny::reactiveVal(NULL))
+
+  # Cross-plot validation: 'pt' is used by fb, so passing both plots must be silent.
+  expect_silent(ptr_validate_shared_bindings(shared, plots = list(fa, fb)))
+
+  # Per-plot context: validating against just fa (which doesn't use 'pt') must
+  # not abort when the embedder passes the full `plots` set — fa's module
+  # legitimately receives bindings for keys used by other plots.
+  ta <- ptr_translate(fa, expr_check = FALSE)
+  expect_silent(
+    ptr_validate_shared_bindings(shared, tree = ta, plots = list(fa, fb),
+                                 strict_missing = FALSE)
+  )
 })
 
 test_that("BUG-4: custom ptr_define_placeholder_consumer() receives upstream column vector", {
