@@ -407,7 +407,8 @@ layer_panel_default_shell_copy <- function(ui_text) {
     data_subtab_label = ptr_resolve_ui_text("data_subtab", ui_text = ui_text)$label,
     controls_subtab_label = ptr_resolve_ui_text("controls_subtab", ui_text = ui_text)$label,
     layer_checkbox_label = ptr_resolve_ui_text("layer_checkbox", ui_text = ui_text)$label,
-    layer_picker_label = ptr_resolve_ui_text("layer_picker", ui_text = ui_text)$label
+    layer_picker_label = ptr_resolve_ui_text("layer_picker", ui_text = ui_text)$label,
+    update_plot_label = ptr_resolve_ui_text("draw_button", ui_text = ui_text)$label
   )
 }
 

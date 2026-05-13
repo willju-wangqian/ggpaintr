@@ -127,14 +127,20 @@ test_that("BUG-4: custom ptr_define_placeholder_consumer() receives upstream col
 })
 
 test_that("BUG-2: ui_text$shell$draw_button$label propagates to the draw button", {
-  skip("BUG-2 pending — reproduction TBD by diagnose pass")
-  # Repro outline:
-  #   - ui_text <- list(shell = list(draw_button = list(label = "Render plot")))
-  #   - Build the shell via the same path ptr_app() uses; extract the button's label.
-  #   - Expect "Render plot", not "Update plot".
-  # Likely fix location: paintr-app.R:191 reads shell_copy$update_plot_label,
-  # but layer_panel_default_shell_copy() in paintr-build-ui.R:404-411 stores the
-  # override under shell_copy$draw_button$label.
+  ui_text <- ptr_ui_text(list(
+    shell = list(draw_button = list(label = "Render plot"))
+  ))
+  shell_copy <- ggpaintr:::layer_panel_default_shell_copy(ui_text)
+  expect_equal(shell_copy$update_plot_label, "Render plot")
+
+  # End-to-end through the app components: the draw button tag's label leaf
+  # must carry the override.
+  parts <- ptr_app_components("ggplot()", ui_text = ui_text, expr_check = FALSE)
+  ui_html <- as.character(parts$ui)
+  expect_true(grepl('id="ptr_update_plot"', ui_html, fixed = TRUE),
+              info = "draw button must be present in UI")
+  expect_true(grepl(">Render plot<", ui_html, fixed = TRUE),
+              info = "draw button label must read 'Render plot'")
 })
 
 test_that("BUG-6: pipeline-stage enable-checkbox labels show the pipeline verb", {
