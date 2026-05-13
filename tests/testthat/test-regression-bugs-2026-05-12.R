@@ -29,6 +29,73 @@ test_that("BUG-1: ptr_define_placeholder_source() without companion_id_fn does n
                info = "no source_companion row should have an NA input_id")
 })
 
+test_that("BUG-1 deep: companion-less source resolves through to downstream var consumers", {
+  # Companion `11b6860` (2026-05-13) cleared the NA-input-id cascade; companion
+  # `c0d5467` closed the deeper layer where, even with a NULL companion_id, the
+  # pipeline-head observer / `substitute_walk.ptr_ph_data_source` /
+  # consumer-snapshot construction were still upload-shaped. This regression
+  # guards the end-to-end resolution: selecting a dataset on a no-companion
+  # source must populate downstream `var` pickers with that dataset's columns.
+  kw <- paste0("bug1deep_", as.integer(Sys.time()))
+  ptr_define_placeholder_source(
+    keyword      = kw,
+    build_ui     = function(node, label = NULL, ...) {
+      shiny::selectInput(node$id, label, choices = c("mtcars", "iris"))
+    },
+    resolve_data = function(value, node, ...) {
+      if (is.null(value) || !nzchar(value)) return(NULL)
+      get(value, envir = asNamespace("datasets"))
+    }
+    # NOTE: no companion_id_fn — the deep path under test
+  )
+  withr::defer(ptr_clear_placeholder(kw))
+
+  # Spy on the built-in `var` build_ui to capture the cols vector the
+  # framework feeds it post-resolution.
+  captured <- new.env(parent = emptyenv())
+  captured$cols_by_id <- list()
+  orig_var_bu <- getFromNamespace("ptr_builtin_var_build_ui", "ggpaintr")
+  new_var_bu <- function(node, cols = character(), label = NULL,
+                         copy = NULL, selected = character(0), ...) {
+    captured$cols_by_id[[node$id]] <<- cols
+    orig_var_bu(node, cols = cols, label = label, copy = copy,
+                selected = selected, ...)
+  }
+  assignInNamespace("ptr_builtin_var_build_ui", new_var_bu, "ggpaintr")
+  withr::defer({
+    assignInNamespace("ptr_builtin_var_build_ui", orig_var_bu, "ggpaintr")
+    suppressWarnings(ptr_register_builtins())
+  })
+  suppressWarnings(ptr_register_builtins())
+
+  formula <- sprintf("%s |> head(num) |> ggplot(aes(x = var, y = var))", kw)
+
+  shiny::testServer(function(input, output, session) {
+    st <- ptr_server(input, output, session, formula, expr_check = FALSE)
+    session$userData$state <- st
+  }, {
+    st <- session$userData$state
+    src <- find_nodes(st$tree(), is_ptr_ph_data_source)[[1L]]
+    expect_null(src$companion_id,
+                info = "constructor default must remain NULL post `11b6860`")
+    # Drive the source's own input id (no companion).
+    do.call(session$setInputs,
+            stats::setNames(list("mtcars"), src$id))
+    # Read consumer outputs so their renderUI fires.
+    for (cnode in find_nodes(st$tree(), is_ptr_ph_data_consumer)) {
+      if (!is.null(cnode$shared)) next
+      tryCatch(output[[paste0(cnode$id, "_ui")]], error = function(e) NULL)
+    }
+  })
+
+  expect_true(length(captured$cols_by_id) >= 1L,
+              info = "at least one downstream var build_ui must be invoked")
+  for (id in names(captured$cols_by_id)) {
+    expect_equal(captured$cols_by_id[[id]], names(mtcars),
+                 info = sprintf("var %s must receive mtcars columns", id))
+  }
+})
+
 test_that("BUG-3: ptr_app_grid() validates shared keys against the union across plots", {
   fa <- "iris |> ggplot(aes(x = var(shared = 'cv'), y = var(shared = 'cv'))) + geom_point()"
   fb <- "iris |> ggplot(aes(x = var(shared = 'cv'), y = var(shared = 'cv'))) + geom_point(size = num(shared = 'pt'))"
