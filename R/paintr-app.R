@@ -89,6 +89,18 @@ ptr_make_app_server <- function(formula, tree, envir, ui_text,
     n <- nodes[[1L]]
     n$id <- canonical_shared_id(k)
     n$shared_label <- shared_widget_label(nodes)
+    # Multi-param shared widget: clear the first-occurrence param so
+    # copy resolution falls through to `defaults$<keyword>` instead of
+    # dragging the leading occurrence's `params$<param>$<keyword>` over
+    # the user's override. Mirrors the same logic in
+    # `collect_shared_placeholders()` for value-shared widgets.
+    params <- vapply(nodes, function(x) x$param %||% NA_character_,
+                     character(1))
+    distinct_params <- unique(params[!is.na(params) & nzchar(params) &
+                                       params != "__unnamed__"])
+    if (length(distinct_params) > 1L) {
+      n$param <- NA_character_
+    }
     n
   })
   names(representative_nodes) <- consumer_keys
@@ -540,6 +552,16 @@ ptr_app_grid_components <- function(plots,
     n <- occ[[1L]]
     n$id <- k
     n$shared_label <- shared_widget_label(occ)
+    # Multi-param shared widget: clear the leading param so copy
+    # resolution falls through to `defaults$<keyword>` (same fix as in
+    # `ptr_make_app_server()` / `collect_shared_placeholders()`).
+    params <- vapply(occ, function(x) x$param %||% NA_character_,
+                     character(1))
+    distinct_params <- unique(params[!is.na(params) & nzchar(params) &
+                                       params != "__unnamed__"])
+    if (length(distinct_params) > 1L) {
+      n$param <- NA_character_
+    }
     n
   })
   names(representative_nodes) <- consumer_keys

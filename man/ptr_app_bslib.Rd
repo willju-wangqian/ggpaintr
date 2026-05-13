@@ -12,7 +12,7 @@ ptr_app_bslib(
   expr_check = TRUE,
   safe_to_remove = character(),
   theme = NULL,
-  title = "ggpaintr"
+  title = NULL
 )
 }
 \arguments{
@@ -36,7 +36,9 @@ leaves them empty. Defaults to \code{character()}.}
 \item{theme}{A \code{bslib} theme object. Defaults to a Bootstrap 5 Flatly
 bootswatch. Pass any \code{\link[bslib:bs_theme]{bslib::bs_theme()}} result to customize.}
 
-\item{title}{App title shown in the page header.}
+\item{title}{App title shown in the page header. When \code{NULL}
+(the default), the title is taken from \code{ui_text$shell$title$label}
+if supplied, otherwise from a hardcoded fallback.}
 }
 \value{
 A \code{shiny.appobj}.
@@ -50,6 +52,14 @@ wires the new \code{ptr_server} end-to-end.
 \details{
 Requires the \code{bslib} package. Install it with \code{install.packages("bslib")}.
 }
+\section{Precedence}{
+
+If both \code{title} and \code{ui_text$shell$title$label} are supplied, the
+explicit \code{title} argument wins. Pass \code{title = NULL} (or omit it) to
+have the bslib navbar brand follow the same \code{ui_text} overrides the
+non-bslib \code{ptr_app()} shell uses.
+}
+
 \examples{
 if (interactive()) {
 ptr_app_bslib(

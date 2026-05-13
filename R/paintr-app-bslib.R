@@ -20,7 +20,15 @@
 #'   leaves them empty. Defaults to `character()`.
 #' @param theme A `bslib` theme object. Defaults to a Bootstrap 5 Flatly
 #'   bootswatch. Pass any [bslib::bs_theme()] result to customize.
-#' @param title App title shown in the page header.
+#' @param title App title shown in the page header. When `NULL`
+#'   (the default), the title is taken from `ui_text$shell$title$label`
+#'   if supplied, otherwise from a hardcoded fallback.
+#'
+#' @section Precedence:
+#' If both `title` and `ui_text$shell$title$label` are supplied, the
+#' explicit `title` argument wins. Pass `title = NULL` (or omit it) to
+#' have the bslib navbar brand follow the same `ui_text` overrides the
+#' non-bslib `ptr_app()` shell uses.
 #'
 #' @return A `shiny.appobj`.
 #' @examples
@@ -37,7 +45,7 @@ ptr_app_bslib <- function(formula,
                           expr_check = TRUE,
                           safe_to_remove = character(),
                           theme = NULL,
-                          title = "ggpaintr") {
+                          title = NULL) {
   if (!requireNamespace("bslib", quietly = TRUE)) {
     rlang::abort(
       "Package 'bslib' is required for ptr_app_bslib(). Install it with install.packages(\"bslib\")."
@@ -49,8 +57,14 @@ ptr_app_bslib <- function(formula,
   if (is.null(theme)) {
     theme <- bslib::bs_theme(version = 5, bootswatch = "flatly")
   }
-  if (!is.null(ui_text$shell$title$label)) {
-    title <- ui_text$shell$title$label
+  # Precedence: an explicit `title =` wins (this arg only exists on the
+  # bslib path -- users who pass it have explicitly asked for that string
+  # in the navbar brand). When absent, fall through to
+  # `ui_text$shell$title$label` (the same source the non-bslib path
+  # respects), then to a hardcoded default. Documented under
+  # `@section Precedence` in the man page.
+  if (is.null(title)) {
+    title <- ui_text$shell$title$label %||% "ggpaintr"
   }
 
   tree <- ptr_translate(formula, expr_check = expr_check)

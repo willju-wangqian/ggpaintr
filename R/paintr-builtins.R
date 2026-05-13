@@ -53,14 +53,28 @@ strip_matched_quote_pair <- function(s) {
 # ---- num --------------------------------------------------------------------
 
 ptr_builtin_num_build_ui <- function(node, label = NULL, copy = NULL, ...) {
-  attach_help(
-    shiny::numericInput(
-      inputId = node$id,
-      label = label %||% "Enter a number",
-      value = NA_real_
-    ),
-    copy$help
+  control <- shiny::numericInput(
+    inputId = node$id,
+    label = label %||% "Enter a number",
+    value = NA_real_
   )
+  # Render `copy$empty_text` as the underlying `<input>`'s `placeholder`
+  # attribute, so the empty-state hint shows in the box before the user
+  # types a value. `shiny::numericInput()` does not expose `placeholder`,
+  # so reach into the rendered tag and stamp it on. Empty out the rendered
+  # `value="NA"` at the same time -- otherwise the placeholder never shows.
+  if (!is.null(copy$empty_text) && nzchar(copy$empty_text)) {
+    for (i in seq_along(control$children)) {
+      child <- control$children[[i]]
+      if (inherits(child, "shiny.tag") && identical(child$name, "input")) {
+        child$attribs$placeholder <- copy$empty_text
+        child$attribs$value <- ""
+        control$children[[i]] <- child
+        break
+      }
+    }
+  }
+  attach_help(control, copy$help)
 }
 
 ptr_builtin_num_resolve_expr <- function(value, node, ...) {

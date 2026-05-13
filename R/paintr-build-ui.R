@@ -349,7 +349,23 @@ collect_shared_placeholders <- function(tree) {
   }, prune = is_shared_placeholder)
   lapply(order, function(k) {
     nodes <- buckets[[k]]
-    list(key = k, node = nodes[[1L]], ns_id = nodes[[1L]]$id,
+    rep_node <- nodes[[1L]]
+    # When a shared widget serves more than one distinct param (e.g.
+    # `alpha = num(shared = 'lvl')` *and* `size = num(shared = 'lvl')`),
+    # the first occurrence's `param` would otherwise drag a param-specific
+    # rule (`rules$params$alpha$num`) over the user's `defaults$num`
+    # override at copy-resolution time. Clearing `param` here makes the
+    # resolver fall through to `defaults$<keyword>`, matching the multi-
+    # param widget's actual scope. Single-param shared widgets keep their
+    # param so the param-specific copy still applies.
+    params <- vapply(nodes, function(n) n$param %||% NA_character_,
+                     character(1))
+    distinct_params <- unique(params[!is.na(params) & nzchar(params) &
+                                       params != "__unnamed__"])
+    if (length(distinct_params) > 1L) {
+      rep_node$param <- NA_character_
+    }
+    list(key = k, node = rep_node, ns_id = nodes[[1L]]$id,
          occurrences = nodes, label_override = shared_widget_label(nodes))
   })
 }
