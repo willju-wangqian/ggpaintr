@@ -1,0 +1,67 @@
+# Regression tests for the six bugs filed in
+# `dev/browser-test-report-feature-coverage-2026-05-12.html`.
+#
+# Loop convention: each bug starts skipped. To work a bug,
+#   1. remove its `skip()` line
+#   2. flesh out a minimal failing reproduction (red)
+#   3. fix the bug in R/paintr-*.R (green)
+#   4. commit, then move to the next bug.
+#
+# Order (chosen 2026-05-13):
+#   BUG-1 → BUG-3 → BUG-4 → BUG-2 → BUG-6 → BUG-5
+
+test_that("BUG-1: ptr_define_placeholder_source() without companion_id_fn does not emit NA companion id", {
+  skip("BUG-1 pending — reproduction TBD by diagnose pass")
+  # Repro outline:
+  #   - Build ex1_tree as in dev/scripts/feature-coverage-examples.R
+  #     (ptr_define_placeholder_source('pick_ds', ..., no companion_id_fn).
+  #   - spec <- ptr_runtime_input_spec(ex1_tree)
+  #   - Expect: no row with role == "source_companion" AND is.na(input_id)
+  #     i.e. either no source_companion row at all, or input_id is a non-NA nzchar string.
+})
+
+test_that("BUG-3: ptr_app_grid() validates shared keys against the union across plots", {
+  skip("BUG-3 pending — reproduction TBD by diagnose pass")
+  # Repro outline:
+  #   - shared <- list(cv = ..., pt = ...)
+  #   - plots  <- list(ex2_grid_a, ex2_grid_b)   # 'pt' only used by _b
+  #   - expect_silent(ptr_validate_shared_bindings(shared, plots = plots))
+  #   - Also: validating per-plot (only ex2_grid_a) must not abort when 'pt' is in shared.
+})
+
+test_that("BUG-4: custom ptr_define_placeholder_consumer() receives upstream column vector", {
+  skip("BUG-4 pending — reproduction TBD by diagnose pass")
+  # Repro outline:
+  #   - Register a custom consumer 'colvars' whose build_ui captures `cols`.
+  #   - Run testServer() with ex3_formula; simulate the upload session_set_input.
+  #   - Expect: captured cols equals the uploaded frame's column names
+  #     (same set the built-in `var` consumers see at the same pipeline depth).
+})
+
+test_that("BUG-2: ui_text$shell$draw_button$label propagates to the draw button", {
+  skip("BUG-2 pending — reproduction TBD by diagnose pass")
+  # Repro outline:
+  #   - ui_text <- list(shell = list(draw_button = list(label = "Render plot")))
+  #   - Build the shell via the same path ptr_app() uses; extract the button's label.
+  #   - Expect "Render plot", not "Update plot".
+  # Likely fix location: paintr-app.R:191 reads shell_copy$update_plot_label,
+  # but layer_panel_default_shell_copy() in paintr-build-ui.R:404-411 stores the
+  # override under shell_copy$draw_button$label.
+})
+
+test_that("BUG-6: pipeline-stage enable-checkbox labels show the pipeline verb", {
+  skip("BUG-6 pending — reproduction TBD by diagnose pass")
+  # Repro outline:
+  #   - parsed <- ptr_parse_formula(ex1_formula)
+  #   - Pull the stage labels generator (whatever feeds the Data sub-tab checkboxes).
+  #   - Expect head() / mutate() / filter() / select() — NOT "+()", ">()", or "".
+})
+
+test_that("BUG-5: successful draw clears stale shared-picker error from #ptr_error", {
+  skip("BUG-5 pending — likely needs testServer() or browser harness")
+  # Repro outline:
+  #   - testServer(ptr_server, args=list(parsed = ex3_formula), ...)
+  #   - Simulate pre-upload state → error string set; then upload + draw.
+  #   - Expect error reactive to clear after successful render.
+  # If unreachable via testServer(), defer to the browser harness as acceptance test.
+})

@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ggpaintr feature-coverage browser-test report — 2026-05-12</title>
+<style>
+  :root {
+    --bg: #fafbfc;
+    --fg: #1f2328;
+    --muted: #57606a;
+    --card: #ffffff;
+    --border: #d0d7de;
+    --danger: #cf222e;
+    --danger-bg: #ffebe9;
+    --warn: #9a6700;
+    --warn-bg: #fff8c5;
+    --ok: #1a7f37;
+    --ok-bg: #dafbe1;
+    --info: #0969da;
+    --code-bg: #f6f8fa;
+  }
+  html { box-sizing: border-box; }
+  *, *::before, *::after { box-sizing: inherit; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 1040px; margin: 0 auto; padding: 32px 24px 80px; }
+  h1 { font-size: 30px; margin: 0 0 4px; }
+  h2 { font-size: 22px; margin: 40px 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  h3 { font-size: 17px; margin: 18px 0 8px; }
+  p { margin: 8px 0; }
+  a { color: var(--info); }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .meta code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  code, pre {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    overflow-x: auto;
+    margin: 8px 0;
+  }
+  :not(pre) > code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; vertical-align: top; text-align: left; }
+  th { background: var(--code-bg); }
+  .badge {
+    display: inline-block; padding: 1px 8px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; vertical-align: middle;
+  }
+  .b-danger { color: var(--danger); background: var(--danger-bg); }
+  .b-warn   { color: var(--warn);   background: var(--warn-bg); }
+  .b-ok     { color: var(--ok);     background: var(--ok-bg); }
+  .b-info   { color: var(--info);   background: #ddf4ff; }
+  .bug, .ok-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-left-width: 6px; border-radius: 6px;
+    padding: 16px 18px; margin: 14px 0;
+  }
+  .bug.severity-high   { border-left-color: var(--danger); }
+  .bug.severity-medium { border-left-color: var(--warn); }
+  .bug.severity-low    { border-left-color: var(--info); }
+  .ok-card { border-left-color: var(--ok); }
+  .bug-head {
+    display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .bug-head h3 { margin: 0; }
+  .bug-head .breaks { color: var(--muted); font-size: 13px; }
+  .label { font-weight: 600; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .grid { display: grid; grid-template-columns: 110px 1fr; gap: 4px 14px; margin-top: 8px; }
+  ul, ol { margin: 6px 0 8px 0; padding-left: 22px; }
+  li { margin: 3px 0; }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .pill { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--code-bg); color: var(--muted); }
+  hr { border: 0; border-top: 1px solid var(--border); margin: 24px 0; }
+  .summary-counts {
+    display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0 24px;
+  }
+  .summary-counts div {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px 14px; min-width: 140px;
+  }
+  .summary-counts strong { font-size: 22px; display: block; }
+  .summary-counts span { color: var(--muted); font-size: 13px; }
+  details { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; margin: 8px 0; }
+  details summary { cursor: pointer; font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>ggpaintr feature-coverage browser-test report</h1>
+<p class="meta">
+  Run dates: 2026-05-12 (initial), 2026-05-13 (re-run against latest <code>core-rewrite-impl</code>).<br>
+  Source under test: <code>dev/scripts/feature-coverage-examples.R</code> — three apps (<code>ex1_*</code> turn-key, <code>ex3_*</code> upload, <code>ex2_grid_a/b</code> grid) plus the module-embed app.<br>
+  Driver: Claude in Chrome, manual launchers under <code>/tmp/ggp-launchers/</code>, background <code>Rscript</code> on port 4321.<br>
+  Latest tested commit: <code>119b8ab</code> (<em>add example code</em>). The three commits that landed during the initial run — <code>119b8ab</code>, <code>6b2c31f</code> (shared widgets in <code>ptr_app_bslib()</code> + combined multi-param labels), <code>f7aabef</code> (<code>ptr_clear_placeholder()</code>) — <strong>do not fix any of the six bugs below</strong>; each was reproduced verbatim on the latest tip.<br>
+  Scope: exploratory bug-hunting; no source files were edited.
+</p>
+
+<h2>Summary</h2>
+<div class="summary-counts">
+  <div><strong>5 / 5</strong><span>apps launched</span></div>
+  <div><strong>1 / 5</strong><span>apps fully usable</span></div>
+  <div><strong>6</strong><span>bugs filed</span></div>
+  <div><strong>2 / 3 / 1</strong><span>high / medium / low</span></div>
+</div>
+
+<table>
+  <thead>
+    <tr><th>App</th><th>Launcher</th><th>Launched?</th><th>Usable?</th><th>Notes</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>A — <code>ptr_app(ex1_formula, …)</code> turn-key</td>
+      <td><code>appA.R</code></td>
+      <td><span class="badge b-ok">Yes</span></td>
+      <td><span class="badge b-danger">No — broken</span></td>
+      <td>BUG-1 bricks every column picker; BUG-2 ignores <code>shell$draw_button$label</code>; BUG-6 mislabels stage checkboxes.</td>
+    </tr>
+    <tr>
+      <td>B — <code>ptr_app_bslib(ex1_formula, …)</code></td>
+      <td><code>appB.R</code></td>
+      <td><span class="badge b-ok">Yes</span></td>
+      <td><span class="badge b-danger">No — broken</span></td>
+      <td>Same BUG-1/BUG-2/BUG-6 as App A. Plus: <code>title</code> arg ignored (overridden by <code>ui_text</code> shell title).</td>
+    </tr>
+    <tr>
+      <td>C — <code>ptr_app(ex3_formula)</code> upload</td>
+      <td><code>appC.R</code></td>
+      <td><span class="badge b-ok">Yes</span></td>
+      <td><span class="badge b-warn">Partial</span></td>
+      <td>Upload + plot works; BUG-4 (custom <code>colvars</code> consumer empty) and BUG-5 (stale error pane).</td>
+    </tr>
+    <tr>
+      <td>D — <code>ptr_app_grid(plots = list(ex2_grid_a, ex2_grid_b), …)</code></td>
+      <td><code>appD.R</code></td>
+      <td><span class="badge b-ok">Yes</span></td>
+      <td><span class="badge b-danger">No — broken</span></td>
+      <td>BUG-3 aborts <code>ptr_validate_shared_bindings</code> at module init; neither plot ever renders.</td>
+    </tr>
+    <tr>
+      <td>E — module embed (<code>ptr_module_ui</code>/<code>ptr_module_server</code>/<code>ptr_gg_extra</code>, <code>ex2_simple</code>)</td>
+      <td><code>appE.R</code></td>
+      <td><span class="badge b-ok">Yes</span></td>
+      <td><span class="badge b-ok">Yes — fully working</span></td>
+      <td>End-to-end verified, including <code>scale_x_log10()</code> via <code>ptr_gg_extra()</code>.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>What's broken</h2>
+
+<!-- BUG 1 -->
+<div class="bug severity-high">
+  <div class="bug-head">
+    <span class="badge b-danger">HIGH</span>
+    <h3>BUG-1 — <code>ptr_define_placeholder_source()</code> without <code>companion_id_fn</code> bricks every downstream column picker</h3>
+    <span class="breaks">breaks App A &amp; App B</span>
+  </div>
+  <div class="grid">
+    <div class="label">Trigger</div>
+    <div>App A / App B (formula <code>pick_ds |&gt; head(num) |&gt; dplyr::select(colvars) |&gt; dplyr::mutate(metric = var + log(var)) |&gt; dplyr::filter(var &gt; num) |&gt; ggplot(aes(x = var, y = var, color = var)) + …</code>). <code>pick_ds</code> is defined via <code>ptr_define_placeholder_source()</code> with <strong>no</strong> <code>companion_id_fn</code>.</div>
+    <div class="label">Observed</div>
+    <div>
+      The console floods with this stack, repeated for <code>output$ggplot_3_1_colvars_NA_ui</code>, <code>output$ggplot_4_1_1_var_NA_ui</code>, <code>output$ggplot_4_1_2_1_var_NA_ui</code>, <code>output$ggplot_5_1_1_var_NA_ui</code>, plus once at <code>observe [paintr-server.R#352]</code> and once at <code>observeEvent(input[[src_id]]) [paintr-server.R#386]</code>:
+<pre>Warning: Error in map$get: key must be not be "" or NA
+  144: map$get
+  143: .values$get
+  142: .subset2(x, "impl")$get
+  141: [[.reactivevalues
+  139: &lt;reactive&gt; [/Users/willju/Research/ggpaintr-rewrite/R/paintr-server.R#822]
+  117: entry_reactive
+  116: renderUI [/Users/willju/Research/ggpaintr-rewrite/R/paintr-server.R#829]
+  115: func
+   99: output$ggplot_3_1_colvars_NA_ui
+    1: shiny::runApp</pre>
+      Every <code>&lt;div id="…_ui"&gt;</code> for the pipeline consumer / aes <code>var</code> pickers stays in the <code>recalculating</code> CSS state forever; the Data sub-tab shows the <code>select()</code> enable checkbox with no widget under it; clicking "Update plot" silently does nothing (<code>#ptr_code</code> stays empty, no plot, no error).
+    </div>
+    <div class="label">Root cause</div>
+    <div>
+      <code>ptr_runtime_input_spec(ex1_tree)</code> emits a <code>role = source_companion</code> row for <code>pick_ds</code> with <code>input_id = NA</code> and <code>source_id = ggplot_1_pick_ds_NA</code>. In <code>ptr_setup_pipelines()</code> (<code>paintr-server.R</code> ~L340-373):
+<pre>comp_id &lt;- if (!is.null(node$companion_id)) ns(node$companion_id) else NULL</pre>
+      <code>node$companion_id</code> here is <code>NA</code> (not <code>NULL</code>), so the guard passes and a bogus namespaced id is built. The companion-autoname observer (L384-393) and the upstream-companion read in the consumer-UI reactive (<code>paintr-server.R</code> L821-822, <code>for (cmp in upstream_source_companion_ids) val &lt;- input[[ns(cmp)]]</code>) then both hit <code>input[[ns(NA)]]</code> → the <code>reactiveValues</code> map rejects empty/NA keys. The <code>!is.null()</code> checks need to also reject <code>NA</code> and non-<code>nzchar</code> ids — or a source with no <code>companion_id_fn</code> shouldn't emit a <code>source_companion</code> node at all.
+    </div>
+    <div class="label">Expected</div>
+    <div><code>pick_ds</code> resolves to a <code>ggplot2</code> dataset, the consumer pickers populate with that dataset's columns, and switching <code>pick_ds</code> refreshes the downstream column choices.</div>
+    <div class="label">Status</div>
+    <div>Reproduces on tip <code>119b8ab</code> — log shows 6 <code>map$get</code> errors at the same four source locations (<code>paintr-server.R:352, 386, 822, 829</code>) on a fresh launch.</div>
+  </div>
+</div>
+
+<!-- BUG 3 -->
+<div class="bug severity-high">
+  <div class="bug-head">
+    <span class="badge b-danger">HIGH</span>
+    <h3>BUG-3 — <code>ptr_app_grid()</code> aborts when a <code>shared_ui</code> key is unused in the first plot formula</h3>
+    <span class="breaks">breaks App D</span>
+  </div>
+  <div class="grid">
+    <div class="label">Trigger</div>
+    <div>App D — <code>ptr_app_grid(plots = list(ex2_grid_a, ex2_grid_b), shared_ui = list(cv = …, pt = …), …)</code>. <code>ex2_grid_a</code> uses only <code>colvars(shared = 'cv')</code>; <code>ex2_grid_b</code> uses both <code>colvars(shared = 'cv')</code> <em>and</em> <code>num(shared = 'pt')</code>.</div>
+    <div class="label">Observed</div>
+    <div>
+<pre>Warning: Error in ptr_validate_shared_bindings: `shared` references key "pt" which is not used in any plot formula. Available formula keys: "cv".
+  …
+  57: ptr_validate_shared_bindings [/Users/willju/Research/ggpaintr-rewrite/R/paintr-utils.R#92]
+  56: ptr_init_state [/Users/willju/Research/ggpaintr-rewrite/R/paintr-server.R#108]
+  55: ptr_server [/Users/willju/Research/ggpaintr-rewrite/R/paintr-server.R#266]
+  54: module [/Users/willju/Research/ggpaintr-rewrite/R/paintr-app.R#420]
+  …
+  40: server [/Users/willju/Research/ggpaintr-rewrite/R/paintr-app.R#628]
+   1: shiny::runApp</pre>
+      Both plot panels render the title / layer picker / "Update plot" button, but <code>plot_1-ptr_plot</code> and <code>plot_2-ptr_plot</code> stay <code>recalculating</code>. "Render both" (works as a click target — wired correctly) and the per-plot "Update plot" buttons produce no plot, no code, no error.
+    </div>
+    <div class="label">Root cause</div>
+    <div>Validation runs per-plot-module against the <em>full</em> <code>shared</code> list, so initialising the <code>plot_1</code> module (formula <code>ex2_grid_a</code>, only key <code>cv</code>) trips on the presence of <code>pt</code>. The diagnostic ("not used in any plot formula") is also factually wrong from the user's POV — <code>pt</code> <em>is</em> used by <code>ex2_grid_b</code>; the validator only saw one formula's keys. Validate <code>shared</code> against the union across plots, and let a shared widget unused by a given plot pass for that plot's module.</div>
+    <div class="label">Status</div>
+    <div>Reproduces on tip <code>119b8ab</code> — same stack, both plot outputs stuck <code>recalculating</code>.</div>
+  </div>
+</div>
+
+<!-- BUG 2 -->
+<div class="bug severity-medium">
+  <div class="bug-head">
+    <span class="badge b-warn">MEDIUM</span>
+    <h3>BUG-2 — <code>ui_text$shell$draw_button$label</code> override is silently ignored</h3>
+    <span class="breaks">affects App A &amp; App B</span>
+  </div>
+  <div class="grid">
+    <div class="label">Trigger</div>
+    <div>App A / App B with <code>ui_text = ex1_ui_text</code>, which sets <code>shell = list(… draw_button = list(label = "Render plot"))</code>.</div>
+    <div class="label">Observed</div>
+    <div>Draw button reads <strong>"Update plot"</strong> (the package default). The sibling override <code>shell$title$label = "Feature-coverage demo"</code> <em>does</em> take effect (page header + <code>document.title</code>), so the override-parsing path works; only the draw-button leaf is dropped.</div>
+    <div class="label">Root cause</div>
+    <div>
+      <code>paintr-app.R:191</code> reads
+<pre>label = shell_copy$update_plot_label %||% "Update plot"</pre>
+      But <code>layer_panel_default_shell_copy()</code> in <code>paintr-build-ui.R:404-411</code> only populates <code>data_subtab_label</code>, <code>controls_subtab_label</code>, <code>layer_checkbox_label</code>, <code>layer_picker_label</code> — there is no <code>update_plot_label</code> key. The copy registry maps the override to <code>c("shell", "draw_button")</code>, i.e. <code>shell_copy$draw_button$label</code>, which the app never reads. The bslib shell shares the same path. (<code>draw_all_label</code> for the grid is a separate function arg and works — see App D.)
+    </div>
+    <div class="label">Expected</div>
+    <div>Draw button reads "Render plot".</div>
+    <div class="label">Status</div>
+    <div>Reproduces on tip <code>119b8ab</code> — <code>document.getElementById('ptr_update_plot').innerText === "Update plot"</code> in both App A and App B.</div>
+  </div>
+</div>
+
+<!-- BUG 4 -->
+<div class="bug severity-medium">
+  <div class="bug-head">
+    <span class="badge b-warn">MEDIUM</span>
+    <h3>BUG-4 — custom <code>ptr_define_placeholder_consumer()</code> widget gets empty <code>cols</code> after upload</h3>
+    <span class="breaks">affects App C; would affect A/B too once BUG-1 lands</span>
+  </div>
+  <div class="grid">
+    <div class="label">Trigger</div>
+    <div>App C — formula <code>ex3_formula</code>. Upload <code>tests/testthat/fixtures/penguins.csv</code> into <code>ggplot_1_upload_NA</code> and <code>geom_line_0_upload_NA</code>.</div>
+    <div class="label">Observed</div>
+    <div>
+      Upload completes ("Upload complete" UI, auto-name companion correctly fills to "penguins"). Built-in <code>var</code> pickers downstream — <code>ggplot_4_1_1_var_NA</code> / <code>ggplot_4_1_2_var_NA</code> (the <code>mutate(new_var = var + var)</code> pickers), <code>ggplot_5_1_1_var_NA</code> (<code>filter</code>), and the <code>ggplot_1_{1,2,3}_var_NA</code> aes pickers — all populate with the uploaded frame's column names. But the <strong><code>colvars</code> widget for <code>select(colvars)</code> (<code>ggplot_3_1_colvars_NA</code>) renders with an empty <code>&lt;select&gt;</code> (0 options)</strong> — i.e. the custom-consumer <code>build_ui</code> received <code>cols = character()</code>:
+<pre>{ "colvarsOpts": [], "colvarsText": "Columns for this setting",
+  "v411Opts": 8, "err": "Shared `var(shared = \"v\")`: …" }</pre>
+      So the framework isn't passing the upstream column vector to a placeholder created via <code>ptr_define_placeholder_consumer()</code>, while it does for the built-in <code>var</code> consumer at the same depth.
+    </div>
+    <div class="label">Expected</div>
+    <div><code>colvars</code> widget offers the same column names the built-in <code>var</code> pickers do.</div>
+    <div class="label">Status</div>
+    <div>Reproduces on tip <code>119b8ab</code> after a real upload — confirmed <code>0</code> options on the <code>colvars</code> <code>&lt;select&gt;</code> while sibling <code>var</code> selects show all uploaded columns.</div>
+  </div>
+</div>
+
+<!-- BUG 5 -->
+<div class="bug severity-low">
+  <div class="bug-head">
+    <span class="badge b-info">LOW</span>
+    <h3>BUG-5 — stale "shared picker cannot be resolved" message stays in <code>#ptr_error</code> after a successful draw</h3>
+    <span class="breaks">UX nit; affects App C</span>
+  </div>
+  <div class="grid">
+    <div class="label">Trigger</div>
+    <div>App C, pre-upload state. The <code>var(shared = 'v')</code> picker shows (in the Shared-controls panel <em>and</em> the <code>#ptr_error</code> pane) the advisory <em>"Shared `var(shared = "v")` cannot be resolved. This shared picker has no dataset to list columns from …"</em>. Reasonable as an advisory.</div>
+    <div class="label">Observed</div>
+    <div>After uploading <code>penguins.csv</code>, filling x/y/color, facet, title, and clicking "Update plot": the plot renders fine and <code>#ptr_code</code> shows a valid program —
+<pre>penguins |&gt;
+  head() |&gt;
+  ggplot(aes(x = bill_length_mm, y = body_mass_g, color = species)) +
+  geom_point() +
+  geom_line(data = penguins) +
+  facet_wrap(~species) +
+  labs(title = "Test")</pre>
+      — but the <code>#ptr_error</code> pane <strong>still shows</strong> the "Shared `var(shared = "v")` cannot be resolved" message.
+    </div>
+    <div class="label">Expected</div>
+    <div>A successful draw clears the error pane, or the unresolvable-shared-picker condition is surfaced only in the shared-controls panel (advisory) — not in <code>#ptr_error</code> after the plot already rendered by dropping that aesthetic.</div>
+    <div class="label">Status</div>
+    <div>Reproduces on tip <code>119b8ab</code>.</div>
+  </div>
+</div>
+
+<!-- BUG 6 -->
+<div class="bug severity-low">
+  <div class="bug-head">
+    <span class="badge b-info">LOW</span>
+    <h3>BUG-6 — misleading pipeline-stage enable-checkbox labels</h3>
+    <span class="breaks">UX nit; affects A &amp; B</span>
+  </div>
+  <div class="grid">
+    <div class="label">Trigger</div>
+    <div>App A / App B, "Data" sub-tab.</div>
+    <div class="label">Observed</div>
+    <div>
+      Per-stage enable checkboxes are labelled by the innermost call wrapping the first placeholder rather than by the pipeline verb:
+      <ul>
+        <li><code>head(num)</code> → <strong>"head()"</strong> (fine)</li>
+        <li><code>dplyr::mutate(metric = var + log(var))</code> → <strong>"+()"</strong> (the inner <code>+</code> call)</li>
+        <li><code>dplyr::filter(var &gt; num)</code> → <strong>"&gt;()"</strong> (the inner <code>&gt;</code> call)</li>
+        <li><code>dplyr::select(colvars)</code> → <strong>(empty)</strong> — the <code>::</code>-namespaced call yields no name</li>
+      </ul>
+    </div>
+    <div class="label">Expected</div>
+    <div>Each stage checkbox is labelled with its verb — "mutate()", "filter()", "select()", etc.</div>
+    <div class="label">Status</div>
+    <div>Reproduces on tip <code>119b8ab</code> — visible in App A's Data sub-tab screenshot.</div>
+  </div>
+</div>
+
+<h2>Re-run vs. new commits</h2>
+<p>
+  Three commits landed during the test window and were re-tested on 2026-05-13:
+</p>
+<table>
+  <thead><tr><th>Commit</th><th>Summary</th><th>Fixes any bug?</th></tr></thead>
+  <tbody>
+    <tr><td><code>119b8ab</code></td><td>add example code (the test report + <code>feature-coverage-examples.R</code>)</td><td><span class="badge b-warn">No code change</span></td></tr>
+    <tr><td><code>6b2c31f</code></td><td>feat(ui): shared widgets in <code>ptr_app_bslib()</code> + combined multi-param labels</td><td><span class="badge b-danger">No</span> — touches shared-widget plumbing but doesn't address BUG-1/3/4/5</td></tr>
+    <tr><td><code>f7aabef</code></td><td>feat(api): <code>ptr_clear_placeholder()</code></td><td><span class="badge b-danger">No</span> — registry helper only</td></tr>
+  </tbody>
+</table>
+<p>Every bug above was reproduced on the latest tip with identical error messages and identical line numbers.</p>
+
+<h2>Verified working</h2>
+
+<div class="ok-card">
+  <h3>App E — module embed + <code>ptr_gg_extra()</code></h3>
+  <ul>
+    <li><code>ptr_module_ui("m", ex2_simple)</code> + <code>ptr_module_server("m", ex2_simple)</code> render and wire correctly under the <code>m-</code> namespace.</li>
+    <li><code>geom_point(size = num)</code> and <code>labs(title = text)</code> widgets work; "Update plot" produces <code>ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point(size = 3) + labs(title = "Module embed test")</code> and renders the plot.</li>
+    <li>User-owned <code>output$my_plot</code> (reading <code>state$runtime()$plot + theme_minimal()</code>) renders on the first "Update plot" click and re-renders on subsequent clicks.</li>
+    <li><code>ptr_gg_extra(state, ggplot2::scale_x_log10())</code>: "Toggle log-x" → "Update plot" appends <code>ggplot2::scale_x_log10()</code> to the generated code and the user pane re-renders. ✔</li>
+  </ul>
+</div>
+
+<div class="ok-card">
+  <h3>App C — upload formula (partial)</h3>
+  <ul>
+    <li>File upload via the <code>upload</code> fileInput works; the <code>_name</code> companion auto-fills from the filename ("penguins"); the dataset-name companion observer fires correctly.</li>
+    <li>Pipeline <code>var</code> widgets (<code>mutate</code> / <code>filter</code> transforms) and the <code>ggplot(aes(x/y/color = var))</code> pickers refresh from the uploaded frame's columns — confirming lazy upstream resolution through <code>|&gt;</code>.</li>
+    <li>Generated code matches the formula minus dropped empty-arg pieces; plot renders; no R errors in <code>appC.log</code> after the upload.</li>
+    <li>Pre-upload state correctly shows an advisory for the unresolvable shared <code>var</code> picker rather than crashing.</li>
+  </ul>
+</div>
+
+<div class="ok-card">
+  <h3>App A &amp; App D — partial shell verifications</h3>
+  <ul>
+    <li>App A: <code>checkbox_defaults = list(geom_smooth = FALSE)</code> honoured — <code>geom_smooth_checkbox</code> starts unchecked, others checked.</li>
+    <li>App A: <code>ui_text</code> shell title override ("Feature-coverage demo") applied to page header <em>and</em> <code>document.title</code>.</li>
+    <li>App A: <code>coord_cartesian</code> <code>range</code> sliders render via <code>ptr_define_placeholder_value()</code> with default <code>c(0, 100)</code>.</li>
+    <li>App A: Layer picker lists all seven layers (<code>ggplot, geom_point, geom_smooth, geom_line, facet_wrap, coord_cartesian, labs</code>).</li>
+    <li>App D: Grid shell renders — title bar "Two iris views, shared column pick", "Render both" button (so the grid-specific <code>draw_all_label</code> arg <em>is</em> wired, unlike BUG-2), shared <code>cv</code> multi-select (pre-selected <code>Sepal.Length, Sepal.Width</code>) and <code>pt</code> slider (default 0.6, step 0.05), two per-plot panels each with a layer picker and "Update plot".</li>
+  </ul>
+</div>
+
+<div class="ok-card">
+  <h3>Translate-time denylist + headless helpers (source-time blocks)</h3>
+  <ul>
+    <li><code>ptr_translate("… labs(title = system('id'))")</code> aborts with the expected <em>"`system` is not allowed in an `expr` input …"</em> message; <code>expr_check = FALSE</code> bypasses it; <code>expr_check = list(deny_list = …)</code> swaps in a custom list and <code>eval</code> is then blocked. <em>(The runtime denylist could not be exercised because every reachable app's <code>expr</code> widget is either absent (<code>ex2_simple</code>) or unreachable through BUG-1 (<code>ex1_formula</code>'s <code>facet_wrap(expr)</code> / <code>geom_smooth(method = expr)</code>).)</em></li>
+    <li><code>ptr_options()</code> / <code>ptr_resolve_ui_text()</code> / <code>ptr_runtime_input_spec()</code> / the <code>testServer()</code> + <code>ptr_server()</code> headless-extraction blocks / <code>ptr_llm_*()</code> topic helpers — all run clean on <code>source()</code>.</li>
+  </ul>
+</div>
+
+<h2>Minor / cosmetic observations (not filed as bugs)</h2>
+<ul>
+  <li>App B (bslib): the <code>ptr_app_bslib(… title = "Feature-coverage demo (bslib)")</code> window title is overridden by the <code>ui_text</code> shell title — both the navbar and <code>document.title</code> read "Feature-coverage demo", not "… (bslib)". May be intended precedence; flagging because the example treats them as distinct knobs.</li>
+  <li>App D: <code>document.title</code> for the grid app is the default "ggpaintr Plot Builder", not the grid <code>title</code> ("Two iris views, shared column pick"). The <code>title</code> arg sets only the on-page header.</li>
+  <li>All <code>num</code> widgets render as <code>&lt;input type="number" value="NA"&gt;</code> when unset. <code>value="NA"</code> is not a valid HTML number value so it displays blank — harmless, but it's literally the string "NA" in the DOM.</li>
+  <li>Browser console only ever showed Chrome-extension noise (<em>"A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received"</em>); no app-originated JS errors anywhere.</li>
+</ul>
+
+<h2>Headlines</h2>
+<ol>
+  <li><strong>BUG-1 (high):</strong> a <code>ptr_define_placeholder_source()</code> placeholder created without <code>companion_id_fn</code> emits a <code>source_companion</code> node with <code>input_id = NA</code>, which throws <code>map$get: key must be not be "" or NA</code> in <code>ptr_setup_pipelines()</code> and in every downstream consumer-UI reactive — bricking the whole pipeline and all column pickers. Breaks App A and App B entirely.</li>
+  <li><strong>BUG-3 (high):</strong> <code>ptr_app_grid()</code> aborts in <code>ptr_validate_shared_bindings()</code> if a <code>shared_ui</code> key is used only in a non-first plot formula — breaks App D entirely.</li>
+  <li><strong>BUG-2 (medium):</strong> <code>ui_text$shell$draw_button$label</code> is silently ignored by <code>ptr_app()</code>/<code>ptr_app_bslib()</code> (reads a non-existent <code>shell_copy$update_plot_label</code>).</li>
+  <li><strong>BUG-4 (medium):</strong> a custom <code>ptr_define_placeholder_consumer()</code> widget gets <code>cols = character()</code> (empty option list) after an upload while built-in <code>var</code> consumers in the same pipeline get the columns.</li>
+  <li><strong>BUG-5 / BUG-6 (low):</strong> stale shared-picker error left in the error pane after a successful draw; misleading pipeline-stage checkbox labels (<code>+()</code>, <code>&gt;()</code>, blank for <code>dplyr::select</code>).</li>
+</ol>
+
+<p style="margin-top:24px; color: var(--muted); font-size: 13px;">App E (module embed + <code>ptr_gg_extra</code>) is the one fully-working app. Confidence in the bug diagnoses: 86 — mechanisms traced to source line numbers from the R logs; App A/B/D "unusable" verdicts are firm; BUG-4's exact cause (vs. an artefact of the empty <code>select</code> stage) is the least certain.</p>
+
+</main>
+</body>
+</html>
