@@ -112,6 +112,71 @@ test_that("P06.a single-plot renders shared widget once in shared section", {
   expect_equal(sum(matches > 0L), 1L)
 })
 
+# (a3) A shared `var` referenced under more than one param gets a combined
+#      label, not the per-param copy of whichever occurrence came first.
+test_that("shared_widget_label combines params for multi-param shared var", {
+  one <- collect_shared_consumer_occurrences(
+    ptr_translate('ggplot(data = mtcars, aes(alpha = var(shared = "v"))) + geom_point()')
+  )[["v"]]
+  expect_null(shared_widget_label(one))
+
+  two <- collect_shared_consumer_occurrences(ptr_translate(paste0(
+    'ggplot(data = mtcars, aes(alpha = var(shared = "v"))) + ',
+    'geom_point(aes(size = var(shared = "v")))'
+  )))[["v"]]
+  expect_equal(shared_widget_label(two), "Pick a column for: alpha, size")
+
+  # value placeholders shared under several params drop the param entirely
+  # rather than borrow the first occurrence's "...for size".
+  num_two <- collect_shared_placeholders(ptr_translate(paste0(
+    'ggplot(data = mtcars, aes(x = mpg)) + ',
+    'geom_point(size = num(shared = "sz")) + geom_line(alpha = num(shared = "sz"))'
+  )))
+  expect_equal(
+    Filter(function(e) e$key == "sz", num_two)[[1L]]$label_override,
+    "Enter a number"
+  )
+  # ...but a value placeholder shared under the *same* param keeps the copy.
+  num_one <- collect_shared_placeholders(ptr_translate(paste0(
+    'ggplot(data = mtcars, aes(x = mpg)) + ',
+    'geom_point(size = num(shared = "sz")) + geom_line(size = num(shared = "sz"))'
+  )))
+  expect_null(Filter(function(e) e$key == "sz", num_one)[[1L]]$label_override)
+
+  tree <- ptr_translate(paste0(
+    'ggplot(data = mtcars, aes(alpha = var(shared = "v"))) + ',
+    'geom_point(aes(size = var(shared = "v")))'
+  ))
+  entry <- Filter(function(e) e$key == "v", collect_shared_placeholders(tree))[[1L]]
+  expect_equal(entry$label_override, "Pick a column for: alpha, size")
+})
+
+# (a4) End to end: the combined label reaches the rendered shared picker,
+#      and the shared-controls panel announces itself.
+test_that("shared section renders combined label + panel heading", {
+  parts <- ptr_app_components(
+    paste0(
+      'ggplot(data = mtcars, aes(alpha = var(shared = "v"))) + ',
+      'geom_point(aes(size = var(shared = "v")))'
+    ),
+    envir = .shared_test_env()
+  )
+  ui_html <- as.character(parts$ui)
+  expect_match(ui_html, "ptr-shared-panel__title", fixed = TRUE)
+  expect_match(ui_html, "Shared controls", fixed = TRUE)
+
+  shiny::testServer(parts$server, {
+    session$flushReact()
+    rendered <- output$`shared_v_ui`
+    html_str <- if (is.list(rendered) && !is.null(rendered$html)) {
+      rendered$html
+    } else {
+      as.character(rendered)
+    }
+    expect_match(html_str, "Pick a column for: alpha, size", fixed = TRUE)
+  })
+})
+
 # (b) B1 regression — shared widget value drives the runtime.
 test_that("P06.b shared input value flows into rendered code", {
   parts <- ptr_app_components(

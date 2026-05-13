@@ -131,6 +131,38 @@ collect_shared_consumer_occurrences <- function(trees) {
   buckets
 }
 
+# Param-less form of a placeholder's default label -- e.g. "Enter a number"
+# from the copy default "Enter a number for {param}", "Pick a column" from
+# "Pick a column for {param}". Used when a shared key spans multiple params,
+# so a single per-param label ("...for size") would mislead.
+shared_widget_base_label <- function(keyword, fallback) {
+  tmpl <- ptr_registry_lookup(keyword)$copy_defaults$label
+  if (is.null(tmpl) || !nzchar(tmpl)) return(fallback)
+  out <- trimws(sub("\\s*(for\\s+)?\\{[^}]*\\}.*$", "", tmpl))
+  if (nzchar(out)) out else fallback
+}
+
+# Label for a shared widget referenced under more than one parameter, e.g. one
+# `var(shared = "v")` feeding both `alpha` and `size` -- a single per-param
+# copy ("Choose the transparency column") would mislead. Returns NULL ("keep
+# the normal per-param copy") when there is only one distinct param. For a data
+# consumer the params are enumerated ("Pick a column for: alpha, size"); for a
+# value placeholder we fall back to the param-less default ("Enter a number"),
+# since listing widget-arg names there reads worse than it helps.
+shared_widget_label <- function(occurrences) {
+  if (length(occurrences) == 0L) return(NULL)
+  node1 <- occurrences[[1L]]
+  params <- vapply(occurrences, function(n) n$param %||% "", character(1))
+  params <- unique(params[nzchar(params) & params != "__unnamed__"])
+  if (length(params) <= 1L) return(NULL)
+  if (is_ptr_ph_data_consumer(node1)) {
+    paste0(shared_widget_base_label(node1$keyword, "Pick a column"),
+           " for: ", paste(params, collapse = ", "))
+  } else {
+    shared_widget_base_label(node1$keyword, "Set a value")
+  }
+}
+
 # Apply the contract above to one bucket of occurrences.
 resolve_shared_consumer <- function(occurrences) {
   if (length(occurrences) == 0L) {

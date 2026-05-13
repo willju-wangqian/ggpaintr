@@ -75,20 +75,47 @@ ptr_app_bslib <- function(formula,
     c(list(id = ns("ptr_layer_tabset"), type = "hidden"), panels)
   )
 
-  ui <- bslib::page_sidebar(
-    ptr_layer_assets(),
-    title = title,
-    theme = theme,
-    sidebar = bslib::sidebar(
-      title = "Controls",
-      width = 340,
+  # Shared widgets (`var(shared = ...)`, `num(shared = ...)`, ...) live once
+  # at the top of the sidebar, above the per-layer picker -- same contract as
+  # `ptr_app()`'s shared section. Consumer placeholders emit a `uiOutput`
+  # container here; their picker is rendered server-side by
+  # `ptr_bind_shared_consumer_uis()` (wired via `ptr_make_app_server()`).
+  shared_widgets <- drop_null(lapply(
+    collect_shared_placeholders(tree),
+    function(e) build_ui_for(e$node, ui_text = ui_text, ns_fn = ns,
+                             label_override = e$label_override)
+  ))
+  shared_section <- if (length(shared_widgets) > 0L) {
+    shiny::tagList(
+      shiny::tags$p(class = "ptr-shared-panel__title fw-bold mb-1",
+                    "Shared controls"),
+      shiny::tags$p(class = "ptr-shared-panel__hint text-muted small mb-2",
+                    "One value here is reused everywhere it is referenced."),
+      do.call(shiny::tagList, shared_widgets),
+      shiny::tags$hr()
+    )
+  } else {
+    NULL
+  }
+
+  sidebar <- do.call(bslib::sidebar, c(
+    list(title = "Controls", width = 340),
+    drop_null(list(
+      shared_section,
       picker,
       hidden_tabset,
       shiny::actionButton(
         ns("ptr_update_plot"),
         label = shell_copy$update_plot_label %||% "Update plot"
       )
-    ),
+    ))
+  ))
+
+  ui <- bslib::page_sidebar(
+    ptr_layer_assets(),
+    title = title,
+    theme = theme,
+    sidebar = sidebar,
     bslib::card(
       full_screen = TRUE,
       bslib::card_header("Plot"),
@@ -105,18 +132,12 @@ ptr_app_bslib <- function(formula,
     )
   )
 
-  server <- function(input, output, session) {
-    ptr_server(
-      input, output, session, formula,
-      envir = envir,
-      ui_text = ui_text,
-      checkbox_defaults = checkbox_defaults,
-      expr_check = expr_check,
-      safe_to_remove = safe_to_remove,
-      ns = ns
-    )
-    invisible(NULL)
-  }
+  server <- ptr_make_app_server(
+    formula, tree,
+    envir = envir, ui_text = ui_text,
+    checkbox_defaults = checkbox_defaults, expr_check = expr_check,
+    safe_to_remove = safe_to_remove, ns = ns
+  )
 
   shiny::shinyApp(ui = ui, server = server)
 }

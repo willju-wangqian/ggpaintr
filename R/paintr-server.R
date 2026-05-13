@@ -917,7 +917,8 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
           layer_name = NULL,
           ns_fn = ns,
           extra = list(cols = cols, data = df,
-                       selected = current %||% character(0))
+                       selected = current %||% character(0)),
+          label_override = rep_node$shared_label
         )
       })
     })

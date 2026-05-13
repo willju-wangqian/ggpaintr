@@ -64,7 +64,22 @@ ptr_app_components <- function(formula,
     app_chrome = TRUE,
     css = css
   )
+  server <- ptr_make_app_server(
+    formula, tree,
+    envir = envir, ui_text = ui_text,
+    checkbox_defaults = checkbox_defaults, expr_check = expr_check,
+    safe_to_remove = safe_to_remove, ns = ns
+  )
+  list(ui = ui, server = server)
+}
 
+# The server closure shared by `ptr_app()` / `ptr_app_components()` and
+# `ptr_app_bslib()`: wires `ptr_server()` plus the host-side shared-widget
+# binding (`ptr_bind_shared_consumer_uis()`). `tree` is the translated AST,
+# already in hand at the call site (it also drives the UI there).
+ptr_make_app_server <- function(formula, tree, envir, ui_text,
+                                checkbox_defaults, expr_check,
+                                safe_to_remove, ns) {
   shared_entries <- collect_shared_placeholders(tree)
   shared_keys <- vapply(shared_entries, `[[`, character(1), "key")
   shared_resolutions <- ptr_resolve_shared_consumers(tree)
@@ -73,11 +88,12 @@ ptr_app_components <- function(formula,
     nodes <- collect_shared_consumer_occurrences(tree)[[k]]
     n <- nodes[[1L]]
     n$id <- canonical_shared_id(k)
+    n$shared_label <- shared_widget_label(nodes)
     n
   })
   names(representative_nodes) <- consumer_keys
 
-  server <- function(input, output, session) {
+  function(input, output, session) {
     shared_reactives <- if (length(shared_keys) > 0L) {
       stats::setNames(
         lapply(shared_keys, function(k) {
@@ -113,7 +129,6 @@ ptr_app_components <- function(formula,
       )
     }
   }
-  list(ui = ui, server = server)
 }
 
 # Sidebar contents for an embedded formula: optional shared section + layer
@@ -149,11 +164,20 @@ ptr_controls_panel <- function(tree, ui_text = NULL,
     shared_entries <- collect_shared_placeholders(tree)
     if (length(shared_entries) > 0L) {
       widgets <- lapply(shared_entries, function(e) {
-        build_ui_for(e$node, ui_text = ui_text, ns_fn = ns)
+        build_ui_for(e$node, ui_text = ui_text, ns_fn = ns,
+                     label_override = e$label_override)
       })
       widgets <- drop_null(widgets)
       if (length(widgets) > 0L) {
-        shiny::wellPanel(do.call(shiny::tagList, widgets))
+        shiny::wellPanel(
+          shiny::div(
+            class = "ptr-shared-panel",
+            shiny::tags$p(class = "ptr-shared-panel__title", "Shared controls"),
+            shiny::tags$p(class = "ptr-shared-panel__hint",
+                          "One value here is reused everywhere it is referenced."),
+            do.call(shiny::tagList, widgets)
+          )
+        )
       } else NULL
     } else NULL
   } else NULL
@@ -476,13 +500,18 @@ ptr_app_grid_components <- function(plots,
   # node per key drives the auto-rendered default widget for keys the
   # embedder didn't supply via `shared_ui`.
   shared_first_node <- list()
+  shared_occ <- list()
   for (tree in trees) {
     for (entry in collect_shared_placeholders(tree)) {
       if (is.null(shared_first_node[[entry$key]])) {
         shared_first_node[[entry$key]] <- entry$node
       }
+      shared_occ[[entry$key]] <- c(shared_occ[[entry$key]] %||% list(),
+                                   entry$occurrences)
     }
   }
+  # Multi-param detection must see *every* plot's occurrences, not one tree's.
+  shared_label_override <- lapply(shared_occ, shared_widget_label)
   formula_keys <- names(shared_first_node)
   embedder_keys <- names(shared_ui)
   extra_in_ui <- setdiff(embedder_keys, formula_keys)
@@ -506,8 +535,10 @@ ptr_app_grid_components <- function(plots,
   # consumer (rare: the embedder usually writes a ui from scratch); when
   # they are, we still bind a host renderUI at the bare-key output id.
   representative_nodes <- lapply(consumer_keys, function(k) {
-    n <- collect_shared_consumer_occurrences(trees)[[k]][[1L]]
+    occ <- collect_shared_consumer_occurrences(trees)[[k]]
+    n <- occ[[1L]]
     n$id <- k
+    n$shared_label <- shared_widget_label(occ)
     n
   })
   names(representative_nodes) <- consumer_keys
@@ -525,7 +556,8 @@ ptr_app_grid_components <- function(plots,
       # Match the embedder convention: widget id is the bare key, so
       # `input[[key]]` reads the value (no canonical-id `ns()` wrap).
       node$id <- k
-      build_ui_for(node, ns_fn = identity)
+      build_ui_for(node, ns_fn = identity,
+                   label_override = shared_label_override[[k]])
     })
   )
   shared_widgets <- drop_null(shared_widgets)

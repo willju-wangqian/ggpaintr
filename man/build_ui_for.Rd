@@ -11,8 +11,9 @@ build_ui_for(node, ...)
 \code{ptr_ph_data_source}, \code{ptr_layer}).}
 
 \item{...}{Additional arguments. Recognized by built-in methods:
-\code{ui_text}, \code{layer_name}, \code{ns_fn}, \code{checkbox_defaults},
-\code{shell_copy}. Consumer placeholders emit only a \code{uiOutput} container at
+\code{ui_text}, \code{layer_name}, \code{ns_fn}, \code{checkbox_defaults}, \code{shell_copy},
+\code{label_override} (force a specific widget label, used for shared widgets
+referenced under several params). Consumer placeholders emit only a \code{uiOutput} container at
 static build time; their picker is rendered server-side via
 \code{ptr_setup_consumer_uis()}, which calls the registry's \code{build_ui(node, cols, ...)} inside \code{renderUI} once cols are resolved.}
 }

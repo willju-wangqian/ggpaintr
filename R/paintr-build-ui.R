@@ -20,8 +20,9 @@
 #' @param node A typed AST node (e.g. `ptr_ph_value`, `ptr_ph_data_consumer`,
 #'   `ptr_ph_data_source`, `ptr_layer`).
 #' @param ... Additional arguments. Recognized by built-in methods:
-#'   `ui_text`, `layer_name`, `ns_fn`, `checkbox_defaults`,
-#'   `shell_copy`. Consumer placeholders emit only a `uiOutput` container at
+#'   `ui_text`, `layer_name`, `ns_fn`, `checkbox_defaults`, `shell_copy`,
+#'   `label_override` (force a specific widget label, used for shared widgets
+#'   referenced under several params). Consumer placeholders emit only a `uiOutput` container at
 #'   static build time; their picker is rendered server-side via
 #'   `ptr_setup_consumer_uis()`, which calls the registry's `build_ui(node,
 #'   cols, ...)` inside `renderUI` once cols are resolved.
@@ -328,17 +329,28 @@ find_layer_placeholders_with_stage <- function(x) {
 
 # One entry per unique `shared` key, first occurrence (formula order) winning
 # for the node used to drive `build_ui_for`. Entries:
-# list(key = chr, node = ptr_placeholder, ns_id = canonical id).
+# list(key = chr, node = ptr_placeholder, ns_id = canonical id,
+#      occurrences = list of nodes, label_override = chr or NULL).
+# `occurrences` holds every shared node for the key in *this* tree (callers
+# spanning several trees -- e.g. `ptr_app_grid()` -- union these before
+# deriving a label). `label_override` is the label for this tree alone:
+# non-NULL only when the key is referenced under more than one parameter, so
+# a single per-param copy label would mislead (see `shared_widget_label()`).
 collect_shared_placeholders <- function(tree) {
-  seen <- character()
-  out <- list()
+  order <- character()
+  buckets <- list()
   ptr_walk(tree, function(n) {
-    if (is_shared_placeholder(n) && !(n$shared %in% seen)) {
-      seen <<- c(seen, n$shared)
-      out[[length(out) + 1L]] <<- list(key = n$shared, node = n, ns_id = n$id)
+    if (is_shared_placeholder(n)) {
+      k <- n$shared
+      if (!(k %in% order)) order <<- c(order, k)
+      buckets[[k]] <<- c(buckets[[k]] %||% list(), list(n))
     }
   }, prune = is_shared_placeholder)
-  out
+  lapply(order, function(k) {
+    nodes <- buckets[[k]]
+    list(key = k, node = nodes[[1L]], ns_id = nodes[[1L]]$id,
+         occurrences = nodes, label_override = shared_widget_label(nodes))
+  })
 }
 
 layer_panel_inner <- function(pipeline_ui, control_ui,
@@ -543,7 +555,8 @@ build_ui_copy_args <- function(fmls, copy) {
 
 invoke_build_ui <- function(node, ui_text, layer_name,
                             ns_fn, extra,
-                            param_override = NULL, label_suffix = NULL, ...) {
+                            param_override = NULL, label_suffix = NULL,
+                            label_override = NULL, ...) {
   rendered_node <- node
   rendered_node$id <- ns_fn(node$id)
   copy <- ptr_resolve_ui_text(
@@ -553,6 +566,9 @@ invoke_build_ui <- function(node, ui_text, layer_name,
     layer_name = layer_name,
     ui_text = ui_text
   )
+  if (!is.null(label_override)) {
+    copy$label <- label_override
+  }
   if (!is.null(label_suffix) && nzchar(label_suffix) && !is.null(copy$label)) {
     # `label_suffix` is " in verb()". For an unnamed positional arg the verb is
     # also fed into the `{param}` slot of the copy template (param_override),
