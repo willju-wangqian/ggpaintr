@@ -672,112 +672,38 @@ ptr_app_grid_components <- function(plots,
     all(vapply(plots, rlang::is_string, logical(1)))
   )
   assertthat::assert_that(is.list(shared_ui))
-  if (length(shared_ui) > 0L) {
-    nms <- names(shared_ui)
-    if (is.null(nms) || any(!nzchar(nms)) || any(duplicated(nms))) {
-      rlang::abort(
-        "`shared_ui` must have unique non-empty names matching the `shared` annotations in `plots`."
-      )
-    }
-    is_fn <- vapply(shared_ui, is.function, logical(1))
-    if (!all(is_fn)) {
-      rlang::abort(
-        "Every entry of `shared_ui` must be a function `function(id) -> shiny.tag`."
-      )
-    }
-  }
 
+  # The grid delegates its shared-widget panel + server-side reactives to
+  # `ptr_shared_ui()` / `ptr_shared_server()` (PR-B of the
+  # shared-multi-instance plan). This consolidates the inline shared
+  # panel and the inline `ptr_bind_shared_consumer_uis()` wiring that
+  # used to live here. The widget inputIds therefore migrate from the
+  # bare-key form (e.g. `"col"`) to `canonical_shared_id("col")` = `"shared_col"`,
+  # matching the single-instance `ptr_app()` convention.
   trees <- lapply(plots, ptr_translate, expr_check = expr_check)
+  any_shared <- any(vapply(trees, function(tr) {
+    length(collect_shared_placeholders(tr)) > 0L ||
+      length(collect_shared_consumer_occurrences(tr)) > 0L
+  }, logical(1)))
 
-  # Union of shared keys across every plot's formula. First-occurrence
-  # node per key drives the auto-rendered default widget for keys the
-  # embedder didn't supply via `shared_ui`.
-  shared_first_node <- list()
-  shared_occ <- list()
-  for (tree in trees) {
-    for (entry in collect_shared_placeholders(tree)) {
-      if (is.null(shared_first_node[[entry$key]])) {
-        shared_first_node[[entry$key]] <- entry$node
-      }
-      shared_occ[[entry$key]] <- c(shared_occ[[entry$key]] %||% list(),
-                                   entry$occurrences)
-    }
+  if (!any_shared && length(shared_ui) > 0L) {
+    rlang::abort(
+      "`shared_ui` was supplied but no plot formula declares a `shared = \"...\"` annotation."
+    )
   }
-  # Multi-param detection must see *every* plot's occurrences, not one tree's.
-  shared_label_override <- lapply(shared_occ, shared_widget_label)
-  formula_keys <- names(shared_first_node)
-  embedder_keys <- names(shared_ui)
-  extra_in_ui <- setdiff(embedder_keys, formula_keys)
-  if (length(extra_in_ui) > 0L) {
-    rlang::abort(paste0(
-      "`shared_ui` references key ",
-      paste0("\"", extra_in_ui, "\"", collapse = ", "),
-      " which is not used in any plot formula."
-    ))
-  }
-  auto_keys <- setdiff(formula_keys, embedder_keys)
 
-  # Per-key resolution for shared `var` (data-consumer) placeholders. The
-  # host owns these widgets — module-side consumer setup skips them.
-  shared_resolutions <- ptr_resolve_shared_consumers(trees)
-  consumer_keys <- names(shared_resolutions)
-  # Auto-render path uses the bare key as id; representative node for
-  # the host renderUI gets the same id so output[[consumer_output_id(k)]]
-  # binds to the rendered uiOutput. Embedder-supplied keys are not in
-  # `consumer_keys` unless the embedder happens to be supplying a
-  # consumer (rare: the embedder usually writes a ui from scratch); when
-  # they are, we still bind a host renderUI at the bare-key output id.
-  representative_nodes <- lapply(consumer_keys, function(k) {
-    occ <- collect_shared_consumer_occurrences(trees)[[k]]
-    n <- occ[[1L]]
-    n$id <- k
-    n$shared_label <- shared_widget_label(occ)
-    # Multi-param shared widget: clear the leading param so copy
-    # resolution falls through to `defaults$<keyword>` (same fix as in
-    # `ptr_make_app_server()` / `collect_shared_placeholders()`).
-    params <- vapply(occ, function(x) x$param %||% NA_character_,
-                     character(1))
-    distinct_params <- unique(params[!is.na(params) & nzchar(params) &
-                                       params != "__unnamed__"])
-    if (length(distinct_params) > 1L) {
-      n$param <- NA_character_
-    }
-    n
-  })
-  names(representative_nodes) <- consumer_keys
+  shared_panel <- if (any_shared) {
+    ptr_shared_ui(
+      formulas = plots,
+      shared_ui = shared_ui,
+      expr_check = expr_check,
+      draw_all_label = draw_all_label
+    )
+  } else NULL
 
-  shared_names <- c(embedder_keys, auto_keys)
   plot_module_ids <- paste0("plot_", seq_along(plots))
   n_plots <- length(plots)
   col_width <- max(1L, 12L %/% n_plots)
-  draw_all_id <- "ptr_grid_draw_all"
-
-  shared_widgets <- c(
-    lapply(embedder_keys, function(nm) shared_ui[[nm]](nm)),
-    lapply(auto_keys, function(k) {
-      node <- shared_first_node[[k]]
-      # Match the embedder convention: widget id is the bare key, so
-      # `input[[key]]` reads the value (no canonical-id `ns()` wrap).
-      node$id <- k
-      build_ui_for(node, ns_fn = identity,
-                   label_override = shared_label_override[[k]])
-    })
-  )
-  shared_widgets <- drop_null(shared_widgets)
-
-  shared_panel <- shiny::wellPanel(
-    shiny::div(
-      class = "ptr-shared-panel",
-      shiny::tags$p(class = "ptr-shared-panel__title", "Shared controls"),
-      shiny::tags$p(class = "ptr-shared-panel__hint",
-                    "These widgets are linked across every plot below."),
-      do.call(
-        shiny::tagList,
-        c(shared_widgets,
-          list(shiny::actionButton(draw_all_id, draw_all_label)))
-      )
-    )
-  )
 
   plot_columns <- do.call(
     shiny::fluidRow,
@@ -806,40 +732,24 @@ ptr_app_grid_components <- function(plots,
   force(expr_check)
 
   server <- function(input, output, session) {
-    shared_reactives <- if (length(shared_names) > 0L) {
-      stats::setNames(
-        lapply(shared_names, function(nm) shiny::reactive(input[[nm]])),
-        shared_names
+    state <- if (any_shared) {
+      ptr_shared_server(
+        formulas = plots, envir = envir, expr_check = expr_check
       )
-    } else {
-      list()
-    }
-    draw_all_trigger <- shiny::reactive(input[[draw_all_id]])
-
-    if (length(consumer_keys) > 0L) {
-      ptr_bind_shared_consumer_uis(
-        output = output, input = input, ns = identity,
-        resolutions = shared_resolutions,
-        representative_nodes = representative_nodes,
-        eval_env = envir,
-        expr_check = expr_check,
-        errors_rv = NULL  # grid has no host-level error panel; in-slot only
-      )
-    }
+    } else NULL
 
     for (i in seq_along(plots)) {
       local({
         idx <- i
-        ptr_module_server(
+        args <- list(
           plot_module_ids[[idx]],
           formula = plots[[idx]],
           envir = envir,
           expr_check = expr_check,
-          shared = shared_reactives,
-          shared_resolutions = shared_resolutions,
-          draw_trigger = draw_all_trigger,
           plots = plots
         )
+        if (!is.null(state)) args$shared_state <- state
+        do.call(ptr_module_server, args)
       })
     }
   }

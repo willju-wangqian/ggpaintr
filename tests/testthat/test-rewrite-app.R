@@ -242,7 +242,10 @@ test_that("ptr_app_grid_components UI contains shared widget id and per-plot mod
     envir = .app_test_env()
   )
   ui_html <- as.character(parts$ui)
-  expect_match(ui_html, "id=\"sz\"", fixed = TRUE)
+  # PR-B (shared-multi-instance): shared widget ids now use the
+  # canonical `shared_<key>` form, so the embedder-supplied builder
+  # receives `"shared_sz"` rather than the bare `"sz"`.
+  expect_match(ui_html, "id=\"shared_sz\"", fixed = TRUE)
   expect_match(ui_html, "plot_1-", fixed = TRUE)
   expect_match(ui_html, "plot_2-", fixed = TRUE)
 })
@@ -273,7 +276,9 @@ test_that("ptr_app_grid rejects non-string plot entries", {
 test_that("ptr_app_grid rejects shared_ui without unique non-empty names", {
   expect_error(
     ptr_app_grid(
-      plots = list("ggplot(data = mtcars) + geom_point(aes(x = wt, y = mpg))"),
+      plots = list(
+        'ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), size = num(shared = "sz"))'
+      ),
       shared_ui = list(function(id) shiny::sliderInput(id, "x", 1, 10, 5)),
       envir = .app_test_env()
     ),
@@ -284,7 +289,9 @@ test_that("ptr_app_grid rejects shared_ui without unique non-empty names", {
 test_that("ptr_app_grid rejects non-function shared_ui entries", {
   expect_error(
     ptr_app_grid(
-      plots = list("ggplot(data = mtcars) + geom_point(aes(x = wt, y = mpg))"),
+      plots = list(
+        'ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), size = num(shared = "sz"))'
+      ),
       shared_ui = list(sz = "not a function"),
       envir = .app_test_env()
     ),
@@ -293,18 +300,28 @@ test_that("ptr_app_grid rejects non-function shared_ui entries", {
 })
 
 test_that("ptr_app_grid_components UI includes the draw-all button", {
+  # Post-PR-B (shared-multi-instance plan): the draw-all button is owned
+  # by `ptr_shared_ui()` and gated on `length(plots) >= 2` together with
+  # at least one shared placeholder somewhere across the formulas. Use a
+  # two-plot grid sharing one `var()` consumer to exercise it.
   parts <- ptr_app_grid_components(
-    plots = list("ggplot(data = mtcars) + geom_point(aes(x = wt, y = mpg))"),
+    plots = list(
+      'ggplot(mtcars) + geom_point(aes(x = var(shared = "c"), y = mpg))',
+      'ggplot(mtcars) + geom_line(aes(x = var(shared = "c"), y = hp))'
+    ),
     shared_ui = list(),
     envir = .app_test_env()
   )
   ui_html <- as.character(parts$ui)
-  expect_match(ui_html, "ptr_grid_draw_all", fixed = TRUE)
+  expect_match(ui_html, "ptr_shared_draw_all", fixed = TRUE)
 })
 
 test_that("ptr_app_grid_components draw-all button label is configurable", {
   parts <- ptr_app_grid_components(
-    plots = list("ggplot(data = mtcars) + geom_point(aes(x = wt, y = mpg))"),
+    plots = list(
+      'ggplot(mtcars) + geom_point(aes(x = var(shared = "c"), y = mpg))',
+      'ggplot(mtcars) + geom_line(aes(x = var(shared = "c"), y = hp))'
+    ),
     shared_ui = list(),
     draw_all_label = "Refresh everything",
     envir = .app_test_env()

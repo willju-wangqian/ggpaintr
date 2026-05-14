@@ -264,10 +264,11 @@ test_that("P06.f grid auto-renders default widget for unbound shared key", {
     envir = .shared_test_env()
   )
   ui_html <- as.character(parts$ui)
-  expect_match(ui_html, 'id="sz"', fixed = TRUE)
-  # The bare-key widget appears once at the top-level panel, not inside
-  # any module (modules don't render shared widgets at all).
-  bare_matches <- gregexpr('id="sz"', ui_html, fixed = TRUE)[[1L]]
+  # PR-B (shared-multi-instance): shared widget ids now use the
+  # canonical `shared_<key>` form, matching the single-instance
+  # `ptr_app()` convention.
+  expect_match(ui_html, 'id="shared_sz"', fixed = TRUE)
+  bare_matches <- gregexpr('id="shared_sz"', ui_html, fixed = TRUE)[[1L]]
   expect_equal(sum(bare_matches > 0L), 1L)
 })
 
