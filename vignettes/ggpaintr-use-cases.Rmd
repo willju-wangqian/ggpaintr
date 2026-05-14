@@ -50,6 +50,38 @@ ggplot(iris, aes(x = var, y = var, color = var)) +
 
 The full grammar reference — including positional-argument behavior, `shared = "<id>"` annotation, and the empty-call cleanup rule — lives at `?ptr_app`.
 
+## Data pipelines in the formula
+
+A layer's data argument is allowed to be a pipeline. Both `|>` and `%>%` are accepted, and the two can be mixed in the same chain. Each pipeline stage that contains a placeholder gets its own row of widgets under the layer's **Data** subtab, plus a per-stage enable/disable toggle that rewrites the generated code as if that step were never there. Column pickers downstream of a stage lazily re-resolve their column choices against the current Data-subtab inputs, so changing a filter threshold immediately refreshes the picker below it.
+
+```{r pipeline-formula-tour}
+ptr_app(
+  "mpg |>
+     dplyr::filter(displ > num) |>
+     dplyr::group_by(class) |>
+     dplyr::filter(dplyr::n() > num) |>
+     dplyr::ungroup() |>
+     ggplot(aes(var, var, color = class)) +
+     geom_point(alpha = num)"
+)
+```
+
+See `vignette(\"ggpaintr-gallery\")` § 4 for the same example with the original `dplyr` pipeline alongside the parameterized version.
+
+### What we expect to work
+
+- **Both pipe operators**, possibly mixed in the same chain: `df %>% filter(...) |> ggplot(...)`.
+- **Bare-symbol stage heads**: `filter(...)`, `head(...)`, `transform(...)`.
+- **Namespaced stage heads**: `dplyr::filter(...)`, `tidyr:::pivot_longer(...)`.
+- **Parenthesised heads**: `(filter)(...)` — used occasionally to disambiguate function lookup.
+- **`upload` as the pipeline head**: `upload |> dplyr::filter(...) |> ggplot(...)`. The upload widget feeds the pipeline; every downstream stage and placeholder resolves against the uploaded data.
+- **Per-layer pipelines on multi-layer formulas**: each layer can have its own data-arg pipeline (`ggplot(data = df1 |> filter(...)) + geom_smooth(data = df2 |> filter(...))`) — the Data subtabs are scoped per layer.
+- **Placeholders in any stage**: `var`, `text`, `num`, `expr` inside any stage's call resolve as if that stage were a regular layer call.
+
+### What we know does **not** work yet
+
+- **Anonymous functions as pipe stages.** `df |> (\(x) x[x$cyl > 4, ])() |> ggplot(...)` and `df |> (function(x) ...)() |> ggplot(...)` are not supported. The runtime resolves each stage's name from its call head; an inline lambda has no name, so the stage cannot be assigned a stable Shiny id or a layer label, and the Data subtab cannot render. The expression-level safety walker still inspects the lambda body, but the surrounding pipeline machinery does not. Workaround: lift the anonymous function to a named helper in the calling environment, then use it as a bare-symbol stage (`df |> my_helper() |> ggplot(...)`).
+
 ## L1 — All-in-one entry point
 
 L1 is the dominant use case: hand ggpaintr a formula, get back a running Shiny app. Three entry points cover the common layouts.
@@ -196,6 +228,32 @@ server <- function(input, output, session) {
 ```
 
 `?ptr_init_state` documents the advanced arguments: `shared` (host-level shared bindings), `draw_trigger` (custom redraw reactive), `producer_debounce_ms` (data-source debouncing), and the namespace controls.
+
+### How input ids are built — and how to avoid colliding with them
+
+The framework names every widget it emits from the formula's syntax, so the same formula always produces the same ids. When you mix ggpaintr UI with your own widgets in the same Shiny namespace, the cleanest fix is to wrap the embed in `ptr_module_ui()` / `ptr_module_server()` with a unique `id` — everything ggpaintr emits then lives under `<id>-…` and your top-level inputs cannot collide. If you can't namespace, the surface to avoid is:
+
+**Layer names.** Each top-level call in the formula contributes a layer name equal to the function being called (`ggplot`, `geom_point`, `facet_wrap`, …). Repeats get `-2`, `-3`, … suffixes:
+
+| Formula fragment                          | Layer names                      |
+|-------------------------------------------|----------------------------------|
+| `geom_point() + geom_smooth()`            | `geom_point`, `geom_smooth`      |
+| `geom_point() + geom_point()`             | `geom_point`, `geom_point-2`     |
+
+**Per-placeholder input ids** follow `<layer>_<path>_<keyword>_<shared-or-NA>`, where `<path>` is the underscore-joined positional index path into the call. For example, `aes(x = var, y = var)` inside the `ggplot()` layer yields `ggplot_1_1_var_NA` and `ggplot_1_2_var_NA`; a shared annotation `var(shared = "x_col")` lands at `ggplot_1_1_var_x_col`.
+
+**Layer-derived ids:**
+
+| Pattern                                          | What it is                                                  |
+|--------------------------------------------------|-------------------------------------------------------------|
+| `<layer>_checkbox`                               | "include this layer" toggle (no checkbox on `ggplot`)       |
+| `<layer>_<path>_stage_enabled`                   | per-stage toggle on `%>%` / `|>` data-arg pipelines         |
+| `<placeholder-id>_ui`                            | `renderUI` container for a consumer placeholder             |
+| `<layer>_subtab`, `ptr_layer_content_<layer>`    | internal layer-nav and panel-container ids                  |
+
+**Top-level package-owned ids.** The framework writes to a fixed set of `ptr_`-prefixed top-level ids and they are **not** user-configurable: `ptr_plot` (plotOutput), `ptr_error` (uiOutput), `ptr_code` (verbatimTextOutput), `ptr_update_plot` (draw button), plus internal layer-nav inputs `ptr_layer_select` / `ptr_layer_tabset`. Treat the whole `ptr_` prefix as reserved.
+
+> Rule of thumb: in a host app's top-level namespace, don't author Shiny inputs or outputs whose ids start with `ptr_`, or match `<layer-name-from-your-formula>_…`. If that feels brittle, wrap the embed in `ptr_module_ui()` / `ptr_module_server()` with a unique `id` and the collision surface disappears entirely.
 
 ## L3 — Custom rendering via extract accessors
 

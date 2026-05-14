@@ -78,6 +78,71 @@ ptr_app(
 
 `ptr_resolve_ui_text(component, keyword, param, layer_name, ui_text)` is the lower-level lookup the runtime uses to fetch the resolved copy for a single UI slot. Embedders writing custom UIs that mix ggpaintr-driven labels with their own copy can call it directly; most users do not need it.
 
+## Styling with CSS
+
+ggpaintr ships a bundled stylesheet (`ggpaintr.css`) and a stable, BEM-style class vocabulary under the `ptr-*` prefix. Three customization surfaces, in order of how invasive they are:
+
+### Surface 1 — class hooks ggpaintr already emits
+
+Every region of the default shell carries a stable class you can target from your own CSS. The vocabulary is BEM (`block`, `block__element`, `block--modifier`) and is committed surface; future releases will not silently rename these.
+
+| Region                  | Block             | Notable elements                                                                                              |
+|-------------------------|-------------------|---------------------------------------------------------------------------------------------------------------|
+| Outer shell             | `.ptr-app`        | `.ptr-app__header`, `.ptr-app__mark`, `.ptr-app__title`                                                       |
+| Plot card               | `.ptr-card`       | `.ptr-card--plot`, `.ptr-card__head`, `.ptr-card__title`, `.ptr-card__body`                                   |
+| Output area             | `.ptr-output`     | —                                                                                                             |
+| Generated-code window   | `.ptr-code-window`| `.ptr-code-window__head`, `.ptr-code-window__title`, `.ptr-code-window__actions`, `.ptr-code-window__close`, `.ptr-code-window__body`, `.ptr-copy-btn`, `.ptr-code-toggle`, `.ptr-icon-btn` |
+| Shared-controls panel   | `.ptr-shared-panel` | `.ptr-shared-panel__title`, `.ptr-shared-panel__hint`                                                       |
+| Pipeline stage rows     | `.ptr-stage`      | `.ptr-stage-head`, `.ptr-stage-fields`, `.ptr-stage-row`                                                      |
+| Inline errors           | `.ptr-alert`      | `.ptr-alert--error`, `.ptr-alert__detail`                                                                     |
+
+### Surface 2 — injecting your own stylesheet with `css =`
+
+Every public entry point (`ptr_app()`, `ptr_app_bslib()`, `ptr_app_grid()`, `ptr_module_ui()`, `ptr_controls_ui()`, `ptr_outputs_ui()`) accepts a `css =` argument: a character vector of paths to `.css` files. Each file is registered as a static resource and linked **after** the bundled stylesheet, so your rules win at equal specificity. Relative `url(...)` references resolve against each file's own directory, so you can ship images next to the stylesheet.
+
+```{r css-example, eval = FALSE}
+ptr_app(
+  "ggplot(mtcars, aes(var, var)) + geom_point()",
+  css = "my-theme.css"
+)
+```
+
+A minimal `my-theme.css` that recolours the title bar and tightens the card padding:
+
+```css
+.ptr-app__header { background: #1f2937; color: #f9fafb; }
+.ptr-app__title  { font-family: "Inter", sans-serif; letter-spacing: -0.01em; }
+.ptr-card__body  { padding: 0.5rem 0.75rem; }
+```
+
+The `css =` argument validates each path: missing files and non-`.css` extensions abort at construction time with a clear message — typos surface before first browser load.
+
+### Surface 3 — Bootstrap theming via `ptr_app_bslib()`
+
+For app-wide colour / typography / spacing changes, prefer `ptr_app_bslib(theme = bslib::bs_theme(...))` over hand-written CSS. The default is `bslib::bs_theme(version = 5, bootswatch = "flatly")`; pass any other `bs_theme()` result to override.
+
+```{r bslib-theme, eval = FALSE}
+ptr_app_bslib(
+  "ggplot(mtcars, aes(var, var)) + geom_point()",
+  theme = bslib::bs_theme(
+    version    = 5,
+    bootswatch = "minty",
+    primary    = "#264653",
+    base_font  = bslib::font_google("Inter")
+  )
+)
+```
+
+The bslib variables drive the Bootstrap chrome (buttons, tabs, sidebars). The `.ptr-*` classes still respond to `css =` on top — combine the two when a bootswatch is *almost* what you want.
+
+### What is **not** stable surface
+
+The `.ptr-*` table above is the committed contract. Outside that:
+
+- Internal markup details — element order, nesting depth, descendant tag names — may change between releases even when class names stay. Style by class, not by structural selectors like `.ptr-card > div:nth-child(2)`.
+- Classes emitted by upstream Shiny, shinyWidgets, and bslib (`.shiny-input-container`, `.selectize-control`, `.form-control`, `.btn-primary`, …) belong to those packages, not ggpaintr — their stability is governed there.
+- Anything matching `^ptr_` is an **id** (Shiny input/output id), not a class; styling against Shiny ids is allowed but brittle, since ids are namespaced by host modules.
+
 ## Adding a new widget type
 
 ggpaintr ships five built-in placeholder keywords (`var`, `text`, `num`, `expr`, `upload`). Three constructors let you register your own. They write to a **process-global** registry, so call each one once per R session before launching any app that uses the new keyword. Re-registering an existing keyword warns and overwrites; `ptr_clear_placeholder()` (below) removes registrations between sessions.
