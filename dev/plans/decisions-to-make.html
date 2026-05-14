@@ -264,6 +264,95 @@
   decision once the user has bandwidth.</p>
 </div>
 
+<div class="card">
+  <h3>
+    <span class="pill open">open</span>
+    <span class="pill api">API</span>
+    3. Route <code>title=</code> through <code>ui_text$shell$title$label</code>
+  </h3>
+
+  <p><em>Surfaced by:</em> api-audit follow-through (2026-05-14). The grill-with-docs
+  audit on 2026-05-12 recommended trimming <code>title=</code> from
+  <code>ptr_app_bslib()</code> and <code>ptr_app_grid()</code> so a single copy
+  channel (<code>ui_text$shell$title$label</code>) owns the app title across every
+  entry point. Other audit items have landed (commit <code>37e8768</code>); this
+  one is still pending.</p>
+
+  <p><em>Current state:</em></p>
+  <ul>
+    <li><code>ptr_app_bslib(title = NULL, ...)</code> — keeps a separate
+        <code>title=</code> arg <em>and</em> consults
+        <code>ui_text$shell$title$label</code>, with an <code>@section
+        Precedence</code> documenting that <code>title=</code> wins. Two ways to set
+        the same thing.</li>
+    <li><code>ptr_app_grid(title = "ggpaintr grid", ...)</code> — separate arg,
+        no <code>ui_text</code> fallback path documented.</li>
+    <li><code>ptr_app()</code> — already only honours
+        <code>ui_text$shell$title$label</code>; no <code>title=</code> arg. This
+        is the target shape.</li>
+  </ul>
+
+  <p><em>Proposed change:</em> remove <code>title=</code> from both
+  <code>ptr_app_bslib()</code> and <code>ptr_app_grid()</code>; route the bslib
+  navbar brand and the grid page header through
+  <code>ui_text$shell$title$label</code> unconditionally. Delete the
+  <code>@section Precedence</code> block on <code>ptr_app_bslib()</code> (it
+  describes a fallback path that no longer exists).</p>
+
+  <p><em>Recommendation:</em> Take the trim. Implements the audit decision
+  (ADR <code>dev/adr/0002-public-api-tiering-and-trims.md</code>) and removes
+  one of the two remaining shell-chrome arg redundancies.</p>
+
+  <p><em>Touchpoints if approved:</em></p>
+  <ul>
+    <li><code>R/paintr-app-bslib.R</code> — drop the <code>title=</code> param,
+        delete the <code>@section Precedence</code> block, read the brand from
+        the resolved <code>ui_text</code>.</li>
+    <li><code>R/paintr-app.R</code> (<code>ptr_app_grid</code>) — drop the
+        <code>title=</code> param, read the page header from
+        <code>ui_text$shell$title$label</code>.</li>
+    <li>Regenerate <code>man/ptr_app_bslib.Rd</code> +
+        <code>man/ptr_app_grid.Rd</code> via <code>devtools::document()</code>.</li>
+    <li>Search-and-update any examples / tests that pass <code>title =</code>.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3>
+    <span class="pill open">open</span>
+    <span class="pill api">API</span>
+    4. Route <code>draw_all_label=</code> through <code>ui_text$shell$draw_all_button$label</code>
+  </h3>
+
+  <p><em>Surfaced by:</em> api-audit follow-through (2026-05-14). Same audit
+  cycle as decision #3; same pattern — a chrome-string arg duplicates a
+  channel <code>ui_text</code> already owns.</p>
+
+  <p><em>Current state:</em>
+  <code>ptr_app_grid(draw_all_label = "Draw all", ...)</code> keeps the
+  &quot;Draw all&quot; button label as a positional-ish arg, while
+  <code>ptr_default_ui_text()$shell$draw_all_button$label</code> already holds
+  the same string as a copy default. No precedence is documented; whichever
+  the implementation reads first wins, which is a bug magnet.</p>
+
+  <p><em>Proposed change:</em> drop <code>draw_all_label=</code> from
+  <code>ptr_app_grid()</code>; the button label flows entirely through
+  <code>ui_text$shell$draw_all_button$label</code>, with the default coming
+  from <code>ptr_default_ui_text()</code>.</p>
+
+  <p><em>Recommendation:</em> Take the trim. Bundles cleanly with decision #3
+  (one focused commit removes both chrome-string redundancies).</p>
+
+  <p><em>Touchpoints if approved:</em></p>
+  <ul>
+    <li><code>R/paintr-app.R</code> (<code>ptr_app_grid</code> +
+        <code>ptr_app_grid_components</code>) — drop the param and any
+        internal threading.</li>
+    <li>Regenerate <code>man/ptr_app_grid.Rd</code>.</li>
+    <li>Tests that pass <code>draw_all_label =</code>.</li>
+  </ul>
+</div>
+
 <h2>Resolved (then move to ADR / api-audit)</h2>
 
 <p class="meta">None yet.</p>
