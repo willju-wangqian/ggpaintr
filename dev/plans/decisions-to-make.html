@@ -188,6 +188,82 @@
   </ul>
 </div>
 
+<div class="card">
+  <h3>
+    <span class="pill open">open</span>
+    <span class="pill api">scope</span>
+    2. <code>inst/llm/primer.md</code> is from a previous API generation
+  </h3>
+
+  <p><em>Surfaced by:</em> step 8 pkgdown rebuild (commit pending) of the
+  vignette-rewrite cycle. Building the site succeeded, but
+  <code>ggpaintr-llm.html</code> still references <code>ptr_build_ids()</code>
+  in its topic-catalog table — and the underlying
+  <code>inst/llm/primer.md</code> references many other API names that no
+  longer exist.</p>
+
+  <p><em>Dead names surveyed in <code>inst/llm/primer.md</code>:</em></p>
+  <ul>
+    <li><code>ptr_input_ui()</code>, <code>ptr_output_ui()</code> — verified
+        absent from <code>NAMESPACE</code>. Replaced by
+        <code>ptr_controls_ui()</code> / <code>ptr_outputs_ui()</code>.</li>
+    <li><code>ptr_server_state(formula, ...)</code> — verified absent.
+        Replaced by <code>ptr_init_state(formula, ...)</code>.</li>
+    <li><code>ptr_setup_controls(input, output, ptr_state)</code> — verified
+        absent. Equivalent wiring is now folded into <code>ptr_server()</code>
+        and <code>ptr_module_server()</code>.</li>
+    <li><code>ptr_build_ids(...)</code> — verified absent. No replacement;
+        the "rename the five configurable top-level ids" feature no longer
+        exists in the post-rewrite API.</li>
+    <li>"Four binders" framing — current API has three binders
+        (<code>ptr_register_plot</code> / <code>_error</code> / <code>_code</code>).
+        The fourth (<code>ptr_register_draw</code>) was removed.</li>
+    <li>Headless workflow (<code>level3_headless</code> topic) — per the
+        vignette plan's locked decisions, headless is internal-only and
+        must not appear in any public-facing primer or vignette.</li>
+  </ul>
+
+  <p><em>What the primer is and why this matters:</em>
+  <code>inst/llm/primer.md</code> + <code>inst/llm/topics/*.md</code> are the
+  documentation bundle <code>ptr_llm_register()</code> exposes to
+  ellmer-backed coding assistants. When an LLM calls
+  <code>llm_primer()</code> at runtime, it gets this text verbatim. A stale
+  primer means assistants hallucinate the previous API generation, which is
+  worse than no primer at all.</p>
+
+  <p><em>Out of scope for step 8:</em> The vignette rewrite plan said
+  &quot;ggpaintr-llm: kept, unchanged. No changes.&quot; That decision scoped
+  the <em>vignette</em> body; it did not survey the underlying
+  <code>inst/llm/</code> bundle. The bundle's staleness pre-dates this
+  cycle.</p>
+
+  <p><em>Scope of the fix when prioritised:</em></p>
+  <ul>
+    <li>Rewrite <code>inst/llm/primer.md</code> against the post-rewrite
+        API surface — 3-level model (L1 turn-key, L2 embed, L3 custom
+        rendering via <code>state$runtime()</code> + extract accessors).</li>
+    <li>Audit <code>inst/llm/topics/*.md</code>: delete or rewrite topic
+        files for dead features (<code>level3_headless</code>,
+        <code>level2_custom_ids</code>, anything referencing the four
+        binders or <code>ptr_input_ui</code> / <code>ptr_output_ui</code>).</li>
+    <li>Refresh the topic catalog table in
+        <code>vignettes/ggpaintr-llm.Rmd</code> to match the rewritten
+        topics — the table appears to be hand-maintained, not generated.</li>
+    <li>Cross-link to <code>vignette("ggpaintr-use-cases")</code> from the
+        primer rather than re-teaching the same material; same for safety.</li>
+    <li>Add a regression test that grep-scans
+        <code>inst/llm/primer.md</code> + each topic file for any name
+        that is not in <code>NAMESPACE</code> (catches future drift).</li>
+  </ul>
+
+  <p><em>Recommendation:</em> File as a tracked task before the API freeze.
+  This is a substantial standalone rewrite, not a quick fix; folding it
+  into the current vignette commit chain would balloon scope. The
+  vignette rewrite plan locked &quot;ggpaintr-llm unchanged&quot;; that decision
+  needs a follow-up &quot;but the underlying primer bundle does need rewriting&quot;
+  decision once the user has bandwidth.</p>
+</div>
+
 <h2>Resolved (then move to ADR / api-audit)</h2>
 
 <p class="meta">None yet.</p>
