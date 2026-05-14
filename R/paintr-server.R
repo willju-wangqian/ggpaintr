@@ -211,6 +211,13 @@ ptr_init_state <- function(formula,
     # the error panel by `ptr_register_error()`. Populated by
     # `ptr_bind_shared_consumer_uis()` when auto-binding.
     shared_resolution_errors = shiny::reactiveVal(character()),
+    # Per-source resolve-stage errors (e.g. uploading a file with an
+    # unsupported extension). Populated by the upload/source observers in
+    # `ptr_setup_pipelines()` and surfaced inline by `ptr_register_error()`
+    # so the user sees the abort message verbatim instead of the
+    # downstream "object '<name>' not found". Keyed by source id (or layer
+    # name for bare-data sources). A successful resolve clears that key.
+    resolve_errors = shiny::reactiveVal(stats::setNames(list(), character())),
     ui_ns_fn = ns,
     server_ns_fn = server_ns,
     ns_fn = server_ns,
@@ -280,6 +287,21 @@ ptr_server <- function(input, output, session, formula,
 
 # ---- per-pipeline-layer observers ----
 
+# Record / clear an upload-or-source resolve error in `state$resolve_errors`.
+# `id` is the resolution-stage key (a layer name for bare-data sources, a
+# source-node id for pipeline-head sources); `msg` is the abort message, or
+# `NULL` to clear. The error panel reads the resulting named list via
+# `ptr_register_error()`.
+set_resolve_error <- function(state, id, msg) {
+  cur <- state$resolve_errors()
+  if (is.null(msg)) {
+    cur[[id]] <- NULL
+  } else {
+    cur[[id]] <- msg
+  }
+  state$resolve_errors(cur)
+}
+
 is_bare_data_source_layer <- function(layer) {
   if (!is_ptr_layer(layer)) return(FALSE)
   if (is.null(layer$data_arg)) return(FALSE)
@@ -309,13 +331,18 @@ ptr_setup_pipelines <- function(state, input, output, session) {
         file_info <- input[[src_id]]
         if (!is.null(comp_id)) input[[comp_id]]  # take dep
         if (is.null(file_info)) {
+          set_resolve_error(state, ln, NULL)
           state$resolved_data[[ln]](NULL)
           return(invisible())
         }
         df <- if (!is.null(entry) && !is.null(entry$resolve_data)) {
           tryCatch(entry$resolve_data(file_info, src),
-                   error = function(e) NULL)
+                   error = function(e) {
+                     set_resolve_error(state, ln, conditionMessage(e))
+                     NULL
+                   })
         } else NULL
+        if (!is.null(df)) set_resolve_error(state, ln, NULL)
         state$resolved_data[[ln]](df)
       })
 
@@ -351,12 +378,18 @@ ptr_setup_pipelines <- function(state, input, output, session) {
       shiny::observe({
         file_info <- input[[src_id]]
         if (is.null(file_info)) {
+          set_resolve_error(state, sid, NULL)
           slot(NULL)
           return(invisible())
         }
         df <- if (!is.null(entry) && !is.null(entry$resolve_data)) {
-          tryCatch(entry$resolve_data(file_info, node), error = function(e) NULL)
+          tryCatch(entry$resolve_data(file_info, node),
+                   error = function(e) {
+                     set_resolve_error(state, sid, conditionMessage(e))
+                     NULL
+                   })
         } else NULL
+        if (!is.null(df)) set_resolve_error(state, sid, NULL)
         # Bind the resolved frame under the same symbol that
         # `substitute_walk.ptr_ph_data_source()` will produce, so the
         # pipeline `<name> |> ...` is evaluable.
@@ -1137,16 +1170,22 @@ ptr_register_error <- function(output, state) {
   ptr_validate_state(state)
   output[[state$server_ns_fn("ptr_error")]] <- shiny::renderUI({
     res <- state$runtime()
+    # `resolve_errors` is checked first: if an upload (or other source
+    # resolver) aborted, the user should see THAT message, not the
+    # downstream "object '<name>' not found" that bubbles up at eval time.
+    resolve_errs <- unname(unlist(state$resolve_errors()))
     # A successful draw clears the error pane. The unresolvable-shared-picker
     # advisory still surfaces inline on the shared widget itself
     # (`ptr_bind_shared_consumer_uis`), so dropping it here just suppresses
     # the stale stack-up in `#ptr_error` after the plot has rendered.
-    if (!is.null(res) && isTRUE(res$ok)) return(NULL)
+    if (!is.null(res) && isTRUE(res$ok) && length(resolve_errs) == 0L) {
+      return(NULL)
+    }
     shared_errs <- state$shared_resolution_errors()
     runtime_msg <- if (!is.null(res) && !isTRUE(res$ok)) {
       cli::ansi_strip(res$error %||% "")
     } else NULL
-    parts <- c(shared_errs, if (!is.null(runtime_msg)) runtime_msg)
+    parts <- c(resolve_errs, shared_errs, if (!is.null(runtime_msg)) runtime_msg)
     if (length(parts) == 0L) return(NULL)
     ptr_error_ui(paste(parts, collapse = "\n"))
   })
