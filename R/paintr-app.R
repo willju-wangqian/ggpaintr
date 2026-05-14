@@ -407,13 +407,40 @@ ptr_app_header <- function(title) {
 ptr_module_ui <- function(id, formula, ui_text = NULL,
                              checkbox_defaults = NULL, expr_check = TRUE,
                              css = NULL) {
-  tree <- ptr_translate(formula, expr_check = expr_check)
-  ptr_build_app_ui(
-    tree,
-    ui_text = ui_text,
-    checkbox_defaults = checkbox_defaults,
-    ns = shiny::NS(id),
-    css = css
+  # Composition of the split-mode pair wrapped in the same chrome
+  # `ptr_build_app_ui()` emits (fluidPage > div.ptr-app > sidebarLayout)
+  # so the DOM, inputIds and outputIds the previous monolithic
+  # implementation produced are preserved.
+  #
+  # `ptr_controls_ui()` already calls
+  # `ptr_controls_panel(..., render_shared_section = FALSE)`, the key
+  # property the shared-multi-instance design relies on: each module
+  # suppresses its own inline shared section so `ptr_shared_ui()` owns
+  # the page-level panel. The cosmetic cost of composing
+  # `ptr_controls_ui()` + `ptr_outputs_ui()` here is one duplicate
+  # `<link>`/`<script>` per module instance (both assets are idempotent
+  # against the same href, so the browser dedupes them).
+  title <- ptr_resolve_ui_text("title", ui_text = ui_text)$label %||% ""
+  header <- if (nzchar(title)) shiny::titlePanel(title) else NULL
+  shiny::fluidPage(
+    shiny::tags$div(
+      class = "ptr-app",
+      header,
+      shiny::sidebarLayout(
+        shiny::sidebarPanel(
+          ptr_controls_ui(
+            id = id, formula = formula,
+            ui_text = ui_text,
+            checkbox_defaults = checkbox_defaults,
+            expr_check = expr_check,
+            css = css
+          )
+        ),
+        shiny::mainPanel(
+          ptr_outputs_ui(id = id, css = css)
+        )
+      )
+    )
   )
 }
 
@@ -490,16 +517,81 @@ ptr_outputs_ui <- function(id, css = NULL) {
 #' [ptr_init_state()] (e.g. `shared`, `draw_trigger`, `expr_check`,
 #' `safe_to_remove`, `ui_text`, `checkbox_defaults`).
 #'
+#' When the formula declares any `shared = "..."` placeholder, pass the
+#' `ptr_shared_state` returned by [ptr_shared_server()] as `shared_state =`.
+#' The state's `shared` / `draw_trigger` / `shared_resolutions` slots are
+#' unpacked and forwarded to [ptr_init_state()]; if an explicit `shared = ...`
+#' / `draw_trigger = ...` / `shared_resolutions = ...` is also passed via
+#' `...`, that explicit value wins.
+#'
 #' @param id Module id; must match the id passed to [ptr_module_ui()].
 #' @param formula A single formula string with `ggpaintr` placeholders.
 #' @param envir Environment used to resolve local data objects.
 #' @param ... Forwarded to [ptr_init_state()].
+#' @param shared_state Optional `ptr_shared_state` returned by
+#'   [ptr_shared_server()]. When supplied, populates `shared`,
+#'   `draw_trigger`, and `shared_resolutions` defaults. Required when the
+#'   formula declares a `shared = "..."` placeholder and the equivalent
+#'   `...` arguments are not supplied directly.
 #'
 #' @return The `ptr_state` list from [ptr_init_state()] (returned by the
 #'   inner module session for advanced wiring; usually consumed for its
 #'   side effects only).
+#' @seealso [ptr_module_ui()], [ptr_shared_ui()], [ptr_shared_server()].
 #' @export
-ptr_module_server <- function(id, formula, envir = parent.frame(), ...) {
+ptr_module_server <- function(id, formula, envir = parent.frame(), ...,
+                                 shared_state = NULL) {
+  dots <- list(...)
+
+  # `shared_state` is the convenience path: a one-shot bundle produced by
+  # `ptr_shared_server()` carrying `shared`, `draw_trigger`,
+  # `shared_resolutions`. Equivalent (and still public) escape hatch is to
+  # pass each of those directly via `...`; explicit `...` entries win when
+  # both are supplied.
+  if (!is.null(shared_state)) {
+    validate_ptr_shared_state(shared_state)
+    if (is.null(dots$shared))             dots$shared <- shared_state$shared
+    if (is.null(dots$draw_trigger))       dots$draw_trigger <- shared_state$draw_trigger
+    if (is.null(dots$shared_resolutions)) dots$shared_resolutions <- shared_state$shared_resolutions
+  }
+
+  # Pre-flight contract checks: surface a clear, module-scoped message
+  # *before* delegating to `ptr_server()`, whose generic validator can't
+  # know that the embedder forgot a `shared_state` argument.
+  pre_tree <- ptr_translate(formula, expr_check = FALSE)
+  declared_value_keys <- vapply(
+    collect_shared_placeholders(pre_tree), `[[`, character(1), "key"
+  )
+  declared_consumer_keys <- names(collect_shared_consumer_occurrences(pre_tree))
+  declared_keys <- unique(c(declared_value_keys, declared_consumer_keys))
+
+  if (length(declared_keys) > 0L &&
+      is.null(shared_state) &&
+      length(dots$shared %||% list()) == 0L &&
+      length(dots$shared_resolutions %||% list()) == 0L) {
+    rlang::abort(paste0(
+      "`ptr_module_server()` was given a formula with shared placeholder",
+      if (length(declared_keys) == 1L) "" else "s",
+      " (",
+      paste0("\"", declared_keys, "\"", collapse = ", "),
+      "), but `shared_state = NULL` and no `shared = ...` was supplied. Build a `ptr_shared_state` with `ptr_shared_server()` and pass it as `shared_state =`."
+    ))
+  }
+
+  # Soft warning: state is supplied but a formula key has no entry in it.
+  # We fall through to `ptr_server()` with `auto_bind_shared = TRUE` so it
+  # treats the missing entry as "host did not wire it" rather than aborting
+  # with the strict-validator error.
+  missing_keys <- setdiff(declared_keys, names(dots$shared %||% list()))
+  if (length(missing_keys) > 0L &&
+      length(dots$shared %||% list()) > 0L) {
+    cli::cli_warn(c(
+      "!" = "Formula for module {.val {id}} has shared key(s) not covered by {.code shared_state$shared}: {.val {missing_keys}}.",
+      "i" = "Those pickers will read unbound inputs."
+    ))
+    if (is.null(dots$auto_bind_shared)) dots$auto_bind_shared <- TRUE
+  }
+
   shiny::moduleServer(id, function(input, output, session) {
     # Two namespaces are needed under moduleServer:
     #   ns         = session$ns  -> wraps tag inputIds rendered server-side
@@ -509,9 +601,15 @@ ptr_module_server <- function(id, formula, envir = parent.frame(), ...) {
     #                              updateXxx(session, id, ...) lookups, since
     #                              moduleServer's session already
     #                              auto-namespaces those keys.
-    ptr_server(input, output, session, formula,
-                  envir = envir, ns = session$ns,
-                  server_ns = shiny::NS(NULL), ...)
+    do.call(
+      ptr_server,
+      c(
+        list(input = input, output = output, session = session,
+             formula = formula, envir = envir,
+             ns = session$ns, server_ns = shiny::NS(NULL)),
+        dots
+      )
+    )
   })
 }
 

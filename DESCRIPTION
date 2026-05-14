@@ -48,6 +48,7 @@ Suggests:
     bslib (>= 0.5.0),
     dplyr,
     ellmer,
+    htmltools,
     jsonlite,
     knitr,
     pkgdown,

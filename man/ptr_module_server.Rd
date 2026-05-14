@@ -4,7 +4,13 @@
 \alias{ptr_module_server}
 \title{Module Server for a \code{ggpaintr} Formula}
 \usage{
-ptr_module_server(id, formula, envir = parent.frame(), ...)
+ptr_module_server(
+  id,
+  formula,
+  envir = parent.frame(),
+  ...,
+  shared_state = NULL
+)
 }
 \arguments{
 \item{id}{Module id; must match the id passed to \code{\link[=ptr_module_ui]{ptr_module_ui()}}.}
@@ -14,6 +20,12 @@ ptr_module_server(id, formula, envir = parent.frame(), ...)
 \item{envir}{Environment used to resolve local data objects.}
 
 \item{...}{Forwarded to \code{\link[=ptr_init_state]{ptr_init_state()}}.}
+
+\item{shared_state}{Optional \code{ptr_shared_state} returned by
+\code{\link[=ptr_shared_server]{ptr_shared_server()}}. When supplied, populates \code{shared},
+\code{draw_trigger}, and \code{shared_resolutions} defaults. Required when the
+formula declares a \code{shared = "..."} placeholder and the equivalent
+\code{...} arguments are not supplied directly.}
 }
 \value{
 The \code{ptr_state} list from \code{\link[=ptr_init_state]{ptr_init_state()}} (returned by the
@@ -25,4 +37,15 @@ Namespaced server side of a Shiny module wrapping a \code{ggpaintr} formula.
 Pair with \code{\link[=ptr_module_ui]{ptr_module_ui()}}. Additional arguments are forwarded to
 \code{\link[=ptr_init_state]{ptr_init_state()}} (e.g. \code{shared}, \code{draw_trigger}, \code{expr_check},
 \code{safe_to_remove}, \code{ui_text}, \code{checkbox_defaults}).
+}
+\details{
+When the formula declares any \code{shared = "..."} placeholder, pass the
+\code{ptr_shared_state} returned by \code{\link[=ptr_shared_server]{ptr_shared_server()}} as \verb{shared_state =}.
+The state's \code{shared} / \code{draw_trigger} / \code{shared_resolutions} slots are
+unpacked and forwarded to \code{\link[=ptr_init_state]{ptr_init_state()}}; if an explicit \code{shared = ...}
+/ \code{draw_trigger = ...} / \code{shared_resolutions = ...} is also passed via
+\code{...}, that explicit value wins.
+}
+\seealso{
+\code{\link[=ptr_module_ui]{ptr_module_ui()}}, \code{\link[=ptr_shared_ui]{ptr_shared_ui()}}, \code{\link[=ptr_shared_server]{ptr_shared_server()}}.
 }
