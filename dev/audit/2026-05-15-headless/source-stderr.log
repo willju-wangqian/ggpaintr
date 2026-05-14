@@ -1,0 +1,24 @@
+ℹ Loading ggpaintr
+Loading required package: ggplot2
+
+Attaching package: ‘rlang’
+
+The following object is masked from ‘package:assertthat’:
+
+    has_name
+
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+denylist blocked at translate: `system` is not allowed in an `expr` input. Use a different function, or -- only if you trust the input -- relax it via `expr_check`, e.g. `expr_check = list(allow_list = "system")`. See `?ptr_app`.
+custom deny_list blocked: `eval` is not allowed in an `expr` input. Use a different function, or -- only if you trust the input -- relax it via `expr_check`, e.g. `expr_check = list(allow_list = "eval")`. See `?ptr_app`.
+allow_list blocked: `system` is not in this app's `allow_list` for `expr` inputs. Add it: `expr_check = list(allow_list = "system")`; or pass `expr_check = FALSE` if you trust the input. See `?ptr_app`.
+Using model = "gpt-4.1".

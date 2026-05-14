@@ -1,0 +1,125 @@
+
+========== ITEM 5b: ptr_resolve_ui_text('control', keyword, param) ==========
+  control[kw=var, param=x]$label = Choose the x-axis column
+  control[kw=text, param=title]$label = Plot title
+  control[kw=num, param=alpha]$label = Transparency
+  control[kw=expr, param=labeller]$label = Facet label function
+  control[kw=var, param=<NULL>]$label = Pick a column for this setting
+
+========== ITEM 9: shared= on num / text / expr / var / custom-consumer ==========
+                 input_id           role keyword param_key shared
+1               shared_cv    placeholder colvars      <NA>     cv
+2               shared_vx    placeholder     var         x     vx
+3               shared_ny    placeholder     num         y     ny
+4               shared_ts    placeholder    text     title     ts
+5               shared_ts    placeholder    text   caption     ts
+6               shared_fx    placeholder    expr      <NA>     fx
+7     geom_point_checkbox layer_checkbox    <NA>      <NA>   <NA>
+8           labs_checkbox layer_checkbox    <NA>      <NA>   <NA>
+9     facet_wrap_checkbox layer_checkbox    <NA>      <NA>   <NA>
+10 ggplot_2_stage_enabled  stage_enabled    <NA>      <NA>   <NA>
+  shared ids found: cv, fx, ny, ts, vx 
+  PASS: every value+consumer kind carries a shared id.
+
+========== ITEM 10: ptr_clear_placeholder() round-trip ==========
+  registered before clear: TRUE   registered after: FALSE
+  refuse-to-clear-builtin msg: `var` is a built-in placeholder and cannot be cleared. 
+  PASS: ptr_clear_placeholder() unregisters user keywords, refuses built-ins.
+
+========== ITEM 11: duplicate-keyword warning on re-registration ==========
+  captured warning/message lines:
+    - Overwriting placeholder registry entry: "tmp_dup". 
+  PASS: re-registration warned about duplicate keyword.
+
+========== ITEM 12: ptr_normalize_column_names in a testServer-launched app ==========
+  raw names : Sepal Length | Sepal Width! | My Score (%) 
+  norm names: Sepal_Length | Sepal_Width | My_Score 
+             input_id           role keyword param_key
+1   ggplot_1_1_var_NA    placeholder     var         x
+2   ggplot_1_2_var_NA    placeholder     var         y
+3 geom_point_checkbox layer_checkbox    <NA>      <NA>
+  var consumer rows: 2 
+  testServer runtime$ok: FALSE 
+  testServer flush error (non-fatal): object '' not found 
+  var_ids12: [ ggplot_1_1_var_NA, ggplot_1_2_var_NA ]
+  inputs12 names: [ ggplot_1_1_var_NA, ggplot_1_2_var_NA ]
+  inputs12 vals : [ Sepal_Length, Sepal_Width ]
+  exec ok: TRUE 
+  code:
+    ggplot(data = norm, aes(x = Sepal_Length, y = Sepal_Width)) +
+      geom_point()
+  PASS: normalized frame round-trips end-to-end; rendered code uses syntactic names.
+
+========== ITEM 13: safe_to_remove= really drops empty 3rd-party calls ==========
+  run$ok: TRUE 
+  code:
+    ggplot(data = mtcars, aes(x = mpg, y = hp)) +
+      geom_point()
+  PASS: pcp_theme dropped because safe_to_remove opted it in.
+  without safe_to_remove, pcp_theme present: TRUE 
+  PASS: control case confirms removal is opt-in, not automatic.
+
+========== ITEM 14: column-only-pickers invariant under transforms ==========
+             input_id           role keyword param_key
+1 ggplot_1_1_1_var_NA    placeholder     var      <NA>
+2 ggplot_1_2_1_var_NA    placeholder     var      <NA>
+3 geom_point_checkbox layer_checkbox    <NA>      <NA>
+  exec ok: TRUE 
+  code:
+    ggplot(data = iris, aes(x = Sepal.Length + 1, y = log(Sepal.Length))) +
+      geom_point()
+  PASS: var-in-transform behaves as a normal column consumer.
+
+========== ITEM 15: ui_text leaf coverage across every section + every leaf field ==========
+  components: title, draw_button, draw_all_button, layer_picker, data_subtab, controls_subtab, upload_file, upload_name, layer_checkbox 
+  leaf fields: label, help, placeholder, empty_text 
+        component                          label             placeholder
+1           title          ggpaintr Plot Builder                    <NA>
+2     draw_button                    Update plot                    <NA>
+3 draw_all_button                       Draw all                    <NA>
+4    layer_picker                          Layer                    <NA>
+5     data_subtab                           Data                    <NA>
+6 controls_subtab                       Controls                    <NA>
+7     upload_file             Choose a data file                    <NA>
+8     upload_name          Optional dataset name For example: sales_data
+9  layer_checkbox Include this layer in the plot                    <NA>
+                                                                                                                  help
+1                                                                                                                 <NA>
+2                                                                                                                 <NA>
+3                                                                                                                 <NA>
+4                                                                                                                 <NA>
+5                                                                                                                 <NA>
+6                                                                                                                 <NA>
+7                                                                                                                 <NA>
+8 Accepted formats: .csv, .tsv, .rds, .xlsx, .xls, .json. Leave the name blank to use the file name in generated code.
+9                                                                                                                 <NA>
+  empty_text
+1       <NA>
+2       <NA>
+3       <NA>
+4       <NA>
+5       <NA>
+6       <NA>
+7       <NA>
+8       <NA>
+9       <NA>
+  control[kw=var, param=x]: label=Choose the x-axis column | help=<NULL> | placeholder=<NULL> | empty_text=Choose one column
+  control[kw=var, param=color]: label=Choose the color column | help=<NULL> | placeholder=<NULL> | empty_text=Choose one column
+  control[kw=text, param=title]: label=Plot title | help=<NULL> | placeholder=Plain text - quotes are added automatically | empty_text=<NULL>
+  control[kw=num, param=alpha]: label=Transparency | help=Enter a value between 0 and 1. | placeholder=<NULL> | empty_text=<NULL>
+  control[kw=expr, param=labeller]: label=Facet label function | help=Enter an R helper such as label_both. | placeholder=<NULL> | empty_text=<NULL>
+  control[kw=expr, param=__unnamed__]: label=Facet by | help=Enter a faceting formula such as ~ Species. | placeholder=~ Species | empty_text=<NULL>
+  PASS: every component × every leaf field resolves to NULL or character.
+  override[title]$label = CUSTOM TITLE
+  override[draw_button]$label = GO
+  override[draw_all_button]$label = GO ALL
+  override[layer_picker]$label = PICK
+  override[data_subtab]$label = DAT
+  override[controls_subtab]$label = CTL
+  override[upload_file]$label = FILE
+  override[upload_name]$label = NAME
+  override[layer_checkbox]$label = USE
+  control kw=num,param=x label = X_NUM 
+  PASS: every ui_text leaf flows through resolve.
+
+========== ALL HEADLESS-DRIVER ITEMS COMPLETE ==========

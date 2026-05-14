@@ -1,0 +1,181 @@
+EX1 layers: ggplot | geom_point | geom_smooth | geom_line | facet_wrap | coord_cartesian | labs 
+                     input_id           role      layer_name keyword param_key
+1         ggplot_1_pick_ds_NA    placeholder          ggplot pick_ds      data
+2           ggplot_2_1_num_NA    placeholder          ggplot     num      <NA>
+3       ggplot_3_1_colvars_NA    placeholder          ggplot colvars      <NA>
+4         ggplot_4_1_1_var_NA    placeholder          ggplot     var      <NA>
+5       ggplot_4_1_2_1_var_NA    placeholder          ggplot     var      <NA>
+6         ggplot_5_1_1_var_NA    placeholder          ggplot     var      <NA>
+7         ggplot_5_1_2_num_NA    placeholder          ggplot     num      <NA>
+8           ggplot_1_1_var_NA    placeholder          ggplot     var         x
+9           ggplot_1_2_var_NA    placeholder          ggplot     var         y
+10          ggplot_1_3_var_NA    placeholder          ggplot     var     color
+11                 shared_lvl    placeholder      geom_point     num     alpha
+12                 shared_lvl    placeholder      geom_point     num      size
+13      geom_smooth_1_expr_NA    placeholder     geom_smooth    expr    method
+14     geom_line_0_pick_ds_NA    placeholder       geom_line pick_ds      data
+15       geom_line_1_1_var_NA    placeholder       geom_line     var         x
+16       geom_line_1_2_var_NA    placeholder       geom_line     var         y
+17       facet_wrap_1_expr_NA    placeholder      facet_wrap    expr      <NA>
+18 coord_cartesian_1_range_NA    placeholder coord_cartesian   range      xlim
+19 coord_cartesian_2_range_NA    placeholder coord_cartesian   range      ylim
+20             labs_1_text_NA    placeholder            labs    text     title
+21             labs_2_text_NA    placeholder            labs    text         x
+22        geom_point_checkbox layer_checkbox      geom_point    <NA>      <NA>
+23       geom_smooth_checkbox layer_checkbox     geom_smooth    <NA>      <NA>
+24         geom_line_checkbox layer_checkbox       geom_line    <NA>      <NA>
+25        facet_wrap_checkbox layer_checkbox      facet_wrap    <NA>      <NA>
+26   coord_cartesian_checkbox layer_checkbox coord_cartesian    <NA>      <NA>
+27              labs_checkbox layer_checkbox            labs    <NA>      <NA>
+28     ggplot_2_stage_enabled  stage_enabled          ggplot    <NA>      <NA>
+29     ggplot_3_stage_enabled  stage_enabled          ggplot    <NA>      <NA>
+30     ggplot_4_stage_enabled  stage_enabled          ggplot    <NA>      <NA>
+31     ggplot_5_stage_enabled  stage_enabled          ggplot    <NA>      <NA>
+                source_id shared
+1     ggplot_1_pick_ds_NA   <NA>
+2                    <NA>   <NA>
+3                    <NA>   <NA>
+4                    <NA>   <NA>
+5                    <NA>   <NA>
+6                    <NA>   <NA>
+7                    <NA>   <NA>
+8                    <NA>   <NA>
+9                    <NA>   <NA>
+10                   <NA>   <NA>
+11                   <NA>    lvl
+12                   <NA>    lvl
+13                   <NA>   <NA>
+14 geom_line_0_pick_ds_NA   <NA>
+15                   <NA>   <NA>
+16                   <NA>   <NA>
+17                   <NA>   <NA>
+18                   <NA>   <NA>
+19                   <NA>   <NA>
+20                   <NA>   <NA>
+21                   <NA>   <NA>
+22                   <NA>   <NA>
+23                   <NA>   <NA>
+24                   <NA>   <NA>
+25                   <NA>   <NA>
+26                   <NA>   <NA>
+27                   <NA>   <NA>
+28                   <NA>   <NA>
+29                   <NA>   <NA>
+30                   <NA>   <NA>
+31                   <NA>   <NA>
+EX3 layers: ggplot | geom_point | geom_line | facet_wrap | labs 
+                     input_id             role layer_name keyword param_key
+1          ggplot_1_upload_NA      placeholder     ggplot  upload      data
+2     ggplot_1_upload_NA_name source_companion     ggplot  upload      data
+3           ggplot_2_1_num_NA      placeholder     ggplot     num      <NA>
+4       ggplot_3_1_colvars_NA      placeholder     ggplot colvars      <NA>
+5         ggplot_4_1_1_var_NA      placeholder     ggplot     var      <NA>
+6         ggplot_4_1_2_var_NA      placeholder     ggplot     var      <NA>
+7         ggplot_5_1_1_var_NA      placeholder     ggplot     var      <NA>
+8         ggplot_5_1_2_num_NA      placeholder     ggplot     num      <NA>
+9           ggplot_1_1_var_NA      placeholder     ggplot     var         x
+10          ggplot_1_2_var_NA      placeholder     ggplot     var         y
+11          ggplot_1_3_var_NA      placeholder     ggplot     var     color
+12                   shared_v      placeholder geom_point     var     alpha
+13                   shared_v      placeholder geom_point     var      size
+14      geom_line_0_upload_NA      placeholder  geom_line  upload      data
+15 geom_line_0_upload_NA_name source_companion  geom_line  upload      data
+16       geom_line_1_1_var_NA      placeholder  geom_line     var         x
+17       geom_line_1_2_var_NA      placeholder  geom_line     var         y
+18       facet_wrap_1_expr_NA      placeholder facet_wrap    expr      <NA>
+19             labs_1_text_NA      placeholder       labs    text     title
+20        geom_point_checkbox   layer_checkbox geom_point    <NA>      <NA>
+21         geom_line_checkbox   layer_checkbox  geom_line    <NA>      <NA>
+22        facet_wrap_checkbox   layer_checkbox facet_wrap    <NA>      <NA>
+23              labs_checkbox   layer_checkbox       labs    <NA>      <NA>
+24     ggplot_2_stage_enabled    stage_enabled     ggplot    <NA>      <NA>
+25     ggplot_3_stage_enabled    stage_enabled     ggplot    <NA>      <NA>
+26     ggplot_4_stage_enabled    stage_enabled     ggplot    <NA>      <NA>
+27     ggplot_5_stage_enabled    stage_enabled     ggplot    <NA>      <NA>
+               source_id shared
+1     ggplot_1_upload_NA   <NA>
+2     ggplot_1_upload_NA   <NA>
+3                   <NA>   <NA>
+4                   <NA>   <NA>
+5                   <NA>   <NA>
+6                   <NA>   <NA>
+7                   <NA>   <NA>
+8                   <NA>   <NA>
+9                   <NA>   <NA>
+10                  <NA>   <NA>
+11                  <NA>   <NA>
+12                  <NA>      v
+13                  <NA>      v
+14 geom_line_0_upload_NA   <NA>
+15 geom_line_0_upload_NA   <NA>
+16                  <NA>   <NA>
+17                  <NA>   <NA>
+18                  <NA>   <NA>
+19                  <NA>   <NA>
+20                  <NA>   <NA>
+21                  <NA>   <NA>
+22                  <NA>   <NA>
+23                  <NA>   <NA>
+24                  <NA>   <NA>
+25                  <NA>   <NA>
+26                  <NA>   <NA>
+27                  <NA>   <NA>
+             input_id           role layer_name keyword param_key source_id
+1 geom_point_1_num_NA    placeholder geom_point     num      size      <NA>
+2      labs_1_text_NA    placeholder       labs    text     title      <NA>
+3 geom_point_checkbox layer_checkbox geom_point    <NA>      <NA>      <NA>
+4       labs_checkbox layer_checkbox       labs    <NA>      <NA>      <NA>
+  shared
+1   <NA>
+2   <NA>
+3   <NA>
+4   <NA>
+$label
+[1] "My title"
+
+$placeholder
+[1] "Plain text - quotes are added automatically"
+
+EX2 resolve_ui_text[title]$label = ggpaintr Plot Builder
+EX2 resolve_ui_text[draw_button]$label = Update plot
+EX2 resolve_ui_text[draw_all_button]$label = Draw all
+EX2 resolve_ui_text[layer_picker]$label = Layer
+EX2 resolve_ui_text[data_subtab]$label = Data
+EX2 resolve_ui_text[controls_subtab]$label = Controls
+EX2 resolve_ui_text[upload_file]$label = Choose a data file
+EX2 resolve_ui_text[upload_name]$label = Optional dataset name
+EX2 resolve_ui_text[layer_checkbox]$label = Include this layer in the plot
+$verbose
+[1] TRUE
+
+$checkbox_default_all_other_layer
+[1] FALSE
+
+             input_id           role layer_name keyword param_key source_id
+1           shared_st    placeholder       labs    text     title      <NA>
+2           shared_st    placeholder       labs    text  subtitle      <NA>
+3           shared_fc    placeholder facet_wrap    expr      <NA>      <NA>
+4 geom_point_checkbox layer_checkbox geom_point    <NA>      <NA>      <NA>
+5       labs_checkbox layer_checkbox       labs    <NA>      <NA>      <NA>
+6 facet_wrap_checkbox layer_checkbox facet_wrap    <NA>      <NA>      <NA>
+  shared
+1     st
+2     st
+3     fc
+4   <NA>
+5   <NA>
+6   <NA>
+EX2 manual-wired code:
+ ggplot(data = mtcars, aes(x = mpg, y = hp)) +
+  geom_point() 
+EX2 ptr_server code:
+ ggplot(data = mtcars, aes(x = mpg, y = hp)) +
+  geom_point() 
+EX2 plot class: ggplot2::ggplot ggplot ggplot2::gg S7_object gg 
+EX2 error: <none> 
+EX2 ptr_run_formula ok: TRUE 
+EX2 ptr_run_formula code:
+ ggplot(data = mtcars, aes(x = mpg, y = hp)) +
+  geom_point() 
+EX2 ptr_exec_headless ok: TRUE 
+EX2 llm topics: custom_placeholder, formula_syntax, level1_ptr_app, level1_ptr_options, level2_custom_ids, level2_embed, level2_namespacing, level2_ui_text, level3_custom_render, level3_gg_extra, level3_headless, overview 

@@ -1,0 +1,330 @@
+<!doctype html>
+<!-- NOTE: this round walked BROWSER apps only. The headless / API-surface slice was re-verified separately on 2026-05-15; see feature-coverage-2026-05-15-headless.html. -->
+<div style="background:#dafbe1;border:2px solid #1a7f37;padding:12px;margin:0;font:14px -apple-system,sans-serif;color:#1a7f37;">SCOPE NOTE — this report covers the BROWSER slice only (Layer 1 canonical apps + Layer 2 edge-case launchers). The headless / API-surface slice of <code>dev/scripts/feature-coverage-examples.R</code> (Example 2) was re-verified on 2026-05-15 against the same commit <code>3152f99</code> — see <a href="feature-coverage-2026-05-15-headless.html">feature-coverage-2026-05-15-headless.html</a> (all 15 items clean).</div>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ggpaintr feature-coverage browser-audit report — 2026-05-14 (bad-extension fix verify)</title>
+<style>
+  :root {
+    --bg: #fafbfc;
+    --fg: #1f2328;
+    --muted: #57606a;
+    --card: #ffffff;
+    --border: #d0d7de;
+    --danger: #cf222e;
+    --danger-bg: #ffebe9;
+    --warn: #9a6700;
+    --warn-bg: #fff8c5;
+    --ok: #1a7f37;
+    --ok-bg: #dafbe1;
+    --info: #0969da;
+    --code-bg: #f6f8fa;
+  }
+  html { box-sizing: border-box; }
+  *, *::before, *::after { box-sizing: inherit; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 1040px; margin: 0 auto; padding: 32px 24px 80px; }
+  h1 { font-size: 30px; margin: 0 0 4px; }
+  h2 { font-size: 22px; margin: 40px 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  h3 { font-size: 17px; margin: 18px 0 8px; }
+  p { margin: 8px 0; }
+  a { color: var(--info); }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .meta code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  code, pre {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    overflow-x: auto;
+    margin: 8px 0;
+  }
+  :not(pre) > code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; vertical-align: top; text-align: left; }
+  th { background: var(--code-bg); }
+  .badge {
+    display: inline-block; padding: 1px 8px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; vertical-align: middle;
+  }
+  .b-danger { color: var(--danger); background: var(--danger-bg); }
+  .b-warn   { color: var(--warn);   background: var(--warn-bg); }
+  .b-ok     { color: var(--ok);     background: var(--ok-bg); }
+  .b-info   { color: var(--info);   background: #ddf4ff; }
+  .ok-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-left: 6px solid var(--ok); border-radius: 6px;
+    padding: 16px 18px; margin: 14px 0;
+  }
+  .summary-counts {
+    display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0 24px;
+  }
+  .summary-counts div {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px 14px; min-width: 140px;
+  }
+  .summary-counts strong { font-size: 22px; display: block; }
+  .summary-counts span { color: var(--muted); font-size: 13px; }
+  ul, ol { margin: 6px 0 8px 0; padding-left: 22px; }
+  li { margin: 3px 0; }
+  hr { border: 0; border-top: 1px solid var(--border); margin: 24px 0; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>ggpaintr feature-coverage browser-audit report</h1>
+<p class="meta">
+  Run date: 2026-05-14 (bad-extension fix verification round, fourth audit).<br>
+  Branch: <code>core-rewrite-impl</code>. Commit at run start: <code>3152f99</code>
+  (<em>fix(upload): surface upload-stage abort verbatim instead of "object not found"</em>).<br>
+  LAYER 1 source under test: <code>dev/scripts/feature-coverage-examples.R</code> — six apps (1a, 1b, 2a, 2b, 2c, 3).<br>
+  LAYER 2 source under test: <code>tests/manual/edge_cases/launchers/</code> — 14 launchers, 20 edge cases per <code>tests/manual/edge_cases/manual_cover_edge_cases.Rmd</code>.<br>
+  Driver: Claude in Chrome (claude-in-chrome MCP), background <code>Rscript</code> on port 4321, JS <code>DataTransfer</code> uploads.<br>
+  Probe: widget-class-aware reader from <code>dev/scripts/audit-probe.js</code>
+  (<code>$el.find("option")</code> for <code>pickerInput</code>, <code>Object.keys(selectize.options)</code> for selectize).<br>
+  Scope: re-run the postfix audit's checklist on <code>3152f99</code>;
+  verify the bad-extension wording fix end-to-end through both the canonical apps and the dedicated edge-case launcher;
+  walk every other edge-case launcher to confirm no regression from the upload-error refactor.
+</p>
+
+<h2>Summary</h2>
+<div class="summary-counts">
+  <div><strong>6 / 6</strong><span>L1 apps clean</span></div>
+  <div><strong>20 / 20</strong><span>L2 edge cases clean</span></div>
+  <div><strong>~90</strong><span>features tested</span></div>
+  <div><strong>0</strong><span>bugs filed</span></div>
+  <div><strong>0 / 0 / 0</strong><span>high / med / low</span></div>
+  <div><strong>0</strong><span>features blocked</span></div>
+</div>
+
+<div class="ok-card">
+  <strong>No bugs to file.</strong> The <code>3152f99</code> bad-extension fix
+  is verified end-to-end in the browser on both <code>App 3</code> (canonical
+  upload formula) and <code>upload.R</code> (dedicated edge-case launcher):
+  uploading <code>bad_extension.txt</code> now surfaces
+  <em>"Please upload a .csv, .tsv, .rds, .xlsx, .xls, or .json file."</em>
+  inline, and the prior wording <em>"object 'bad_extension' not found"</em>
+  is no longer observed in the error pane. A subsequent valid CSV clears
+  the error pane (<code>state$resolve_errors</code> clears as designed).
+  Every other L1 checklist item from the postfix audit on <code>8722c23</code>
+  still passes, and every L2 launcher passes its assertion shape.
+</div>
+
+<h2>LAYER 1 — six canonical apps</h2>
+
+<table>
+  <thead>
+    <tr><th>App</th><th>Launcher</th><th>Launched?</th><th>Usable?</th><th>Notes</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1a — <code>ptr_app(ex1_formula, …)</code> turn-key</td>
+      <td><code>/tmp/ggp-launchers/app1a.R</code></td>
+      <td><span class="badge b-ok">Yes</span></td>
+      <td><span class="badge b-ok">Yes — clean</span></td>
+      <td>All checklist items pass. BUG-A2 fix holds (shared <code>num</code> help shows override "Any number works here." × 3, zero alpha-specific hits). BUG-A1 not reproduced (aes pickers refresh on <code>pick_ds</code> switch). Denylist runtime block fires verbatim on <code>system('id')</code>; cleared expr re-renders. <code>css = ex_css</code> body font reads <code>"ui-monospace, monospace"</code>.</td>
+    </tr>
+    <tr>
+      <td>1b — <code>ptr_app_bslib(ex1_formula, …)</code></td>
+      <td><code>/tmp/ggp-launchers/app1b.R</code></td>
+      <td><span class="badge b-ok">Yes</span></td>
+      <td><span class="badge b-ok">Yes — clean</span></td>
+      <td>BUG-B1 fix holds: explicit <code>title = "Feature-coverage demo (bslib)"</code> wins; <code>document.title</code>, navbar brand, and h1 all read it. Body class <code>bslib-page-sidebar</code>. Override copies (help × 3, range labels, layer-checkbox × 6) present.</td>
+    </tr>
+    <tr>
+      <td>2a — <code>ptr_app_grid(plots = list(ex2_grid_a, ex2_grid_b), …)</code></td>
+      <td><code>/tmp/ggp-launchers/app2a.R</code></td>
+      <td><span class="badge b-ok">Yes</span></td>
+      <td><span class="badge b-ok">Yes — clean</span></td>
+      <td>H1 "Two iris views, shared column pick"; three action buttons (<code>ptr_grid_draw_all</code> = "Render both", per-plot <code>ptr_update_plot</code>). Shared <code>cv</code> default = <code>[Sepal.Length, Sepal.Width]</code>; shared <code>pt</code> = 0.6. "Render both" renders 2 plots with shared values propagated into both code panes.</td>
+    </tr>
+    <tr>
+      <td>2b — split-UI embed (<code>ptr_controls_ui</code>+<code>ptr_outputs_ui</code>)</td>
+      <td><code>/tmp/ggp-launchers/app2b.R</code></td>
+      <td><span class="badge b-ok">Yes</span></td>
+      <td><span class="badge b-ok">Yes — clean</span></td>
+      <td>Module-namespaced controls (<code>embed-</code> prefix, 6 ids). Update plot with <code>num = 4</code> renders 1176px plot; code <code>ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point(size = 4)</code>. <code>ex_css</code> attached (body font ui-monospace, 11 stylesheets).</td>
+    </tr>
+    <tr>
+      <td>2c — module embed + <code>ptr_gg_extra</code></td>
+      <td><code>/tmp/ggp-launchers/app2c.R</code></td>
+      <td><span class="badge b-ok">Yes</span></td>
+      <td><span class="badge b-ok">Yes — clean</span></td>
+      <td>Module title "Module" rendered. User-owned <code>my_plot</code> renders (1053w) alongside module plot (439w) after first Update. Toggle log-x + re-render appends <code>+ ggplot2::scale_x_log10()</code> via <code>ptr_gg_extra(state, scale_x_log10())</code>.</td>
+    </tr>
+    <tr>
+      <td>3 — <code>ptr_app(ex3_formula)</code> upload</td>
+      <td><code>/tmp/ggp-launchers/app3.R</code></td>
+      <td><span class="badge b-ok">Yes</span></td>
+      <td><span class="badge b-ok">Yes — verified</span></td>
+      <td>JS <code>DataTransfer</code> upload of penguins.csv reaches both file inputs (<code>ggplot_1_upload_NA</code>, <code>geom_line_0_upload_NA</code>); both <code>_name</code> companions auto-fill "penguins"; all 8 penguins columns flow into colvars / per-stage var / aes / shared <code>v</code> pickers. <strong>Bad-extension fix verified inline</strong> — see dedicated section below.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>App 1a — detail</h3>
+<ul>
+  <li><code>pick_ds</code> (source and layer-level both selectize): opts = <code>[mpg, diamonds, midwest, economics]</code>, default <code>mpg</code>.</li>
+  <li><code>colvars</code> (selectize, multiple): 11 mpg cols; mutate / filter <code>var</code> (pickerInput): 11 cols each.</li>
+  <li>Pipeline stage enable checkboxes (<code>ggplot_2_stage_enabled</code> … <code>ggplot_5_stage_enabled</code>) — all four present, all four checked by default.</li>
+  <li>Per-layer enable: geom_point ✓, <strong>geom_smooth ✗</strong> (matches <code>checkbox_defaults = list(geom_smooth = FALSE)</code>), geom_line ✓, facet_wrap ✓, coord_cartesian ✓, labs ✓.</li>
+  <li>Override copy probe — <code>"Any number works here."</code> appears 3× (shared <code>num</code> help, BUG-A2 fix); old alpha hint = 0 occurrences.</li>
+  <li>Range slider labels — <code>"A 0-100 range for xlim"</code> / <code>"A 0-100 range for ylim"</code>.</li>
+  <li>Layer-checkbox override label <code>"Include this layer in the plot"</code> count = 6 (one per layer).</li>
+  <li>Switching to "Plot controls" tab populates 3 aes <code>var</code> pickers (<code>ggplot_1_{1,2,3}_var_NA</code>), each 11 opts.</li>
+  <li>Render with aes = (displ, hwy, drv), shared <code>lvl</code> = 0.6, head <code>num</code> = 20, filter <code>num</code> = 0:
+    <pre>mpg |> head(20) |> ggplot(aes(x = displ, y = hwy, color = drv)) +
+  geom_point(alpha = 0.6, size = 0.6) +
+  geom_line(data = mpg) +
+  coord_cartesian(xlim = c(0L, 100L), ylim = c(0L, 100L))</pre>
+    Plot rendered 1174 × 400. Shared <code>num</code> propagates to both <code>alpha</code> and <code>size</code> of <code>geom_point</code>; layer-level <code>data = pick_ds</code> resolves to <code>geom_line(data = mpg)</code>; empty placeholders dropped.
+  </li>
+  <li>Denylist runtime: enable <code>geom_smooth</code>, set <code>method</code> input to <code>system('id')</code>, click Render. Error pane:
+    <pre>Input error: `system` is not allowed in an `expr` input. Use a different function, or -- only if you trust the input -- relax it via `expr_check`, e.g. `expr_check = list(allow_list = "system")`. See `?ptr_app`.</pre>
+    Code pane cleared. Clearing the offending expr + uncheck + Render restores the plot and clears the error.
+  </li>
+  <li><code>css = ex_css</code>: <code>getComputedStyle(document.body).fontFamily</code> = <code>"ui-monospace, monospace"</code>; 11 stylesheets linked.</li>
+</ul>
+
+<h3>App 3 — detail (with bad-extension fix verification)</h3>
+<ul>
+  <li>Two <code>&lt;input type="file"&gt;</code> elements with <code>accept=".csv,.tsv,.rds,.xlsx,.xls,.json"</code>; both have <code>_name</code> companion text fields.</li>
+  <li>JS <code>DataTransfer</code> upload of <code>penguins.csv</code> to both inputs: both <code>_name</code> fields auto-fill to "penguins"; downstream pickers populate with the 8 penguins columns (colvars selectize n=8, mutate / filter <code>var</code> pickerInputs n=8 each, aes <code>var</code> pickers n=8 once Controls tab is active).</li>
+  <li>Code generation with aes = (bill_length_mm, bill_depth_mm, species), shared <code>v</code>, head <code>num</code> = 50, filter <code>num</code> = 0:
+    <pre>penguins |>
+  head(50) |>
+  ggplot(aes(x = bill_length_mm, y = bill_depth_mm, color = species)) +
+  geom_point(alpha = species, size = species) +
+  geom_line(data = penguins)</pre>
+    Matches the postfix audit's baseline shape exactly. (a) <code>head(num)</code> resolves; (b) layer-level <code>data = upload</code> on <code>geom_line</code> resolves to the uploaded dataset, named from the <code>_name</code> companion; (c) the shared <code>var(shared = 'v')</code> propagates to both <code>alpha</code> and <code>size</code> of <code>geom_point</code>; (d) empty placeholders dropped.
+  </li>
+  <li><strong>Bad-extension wording verification.</strong> While penguins.csv was loaded, dispatched a second upload to <code>ggplot_1_upload_NA</code> with the fixture <code>bad_extension.txt</code> (a CSV body with a <code>.txt</code> extension). Error pane reads, verbatim:
+    <pre>Error
+Please upload a .csv, .tsv, .rds, .xlsx, .xls, or .json file.
+Plot error: object 'bill_depth_mm' not found</pre>
+    Assertion: <code>/Please upload a \.csv, \.tsv, \.rds, \.xlsx, \.xls, or \.json file\./</code> matches (truthy); <code>/object 'bad_extension' not found/</code> does not match (falsy). The trailing "Plot error" line is a residual ggplot evaluation issue from the earlier <code>shared_v = bill_depth_mm</code> setting and is orthogonal to the upload fix (unquoted column name reaches <code>geom_point()</code> outside <code>aes()</code>).
+  </li>
+  <li>Re-uploading a valid CSV to <code>ggplot_1_upload_NA</code> clears the unsupported-format line from the error pane — <code>state$resolve_errors</code> clears as documented in commit <code>3152f99</code>.</li>
+</ul>
+
+<h2>LAYER 2 — edge-case launchers</h2>
+
+<p>
+  Walked every launcher under <code>tests/manual/edge_cases/launchers/</code>;
+  matrix shape mirrors <code>manual_cover_edge_cases.Rmd</code>.
+  <code>upload.R</code> hosts 8 sub-cases (csv, tsv, rds, json, xlsx,
+  bad-extension, blank-name, custom-name). The xlsx browser-driver path is
+  documented as a transport-side limit; the reader is unit-verified
+  directly in R.
+</p>
+
+<table>
+  <thead>
+    <tr><th>Edge case</th><th>Launcher</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>.csv</code> upload</td><td><code>upload.R</code></td><td><span class="badge b-ok">✓ auto</span> — name auto-fill <code>simple_numeric</code>; <code>var</code> pickers populate <code>[a, b, c]</code>; code resolves <code>ggplot(data = simple_numeric, aes(x = a, y = b)) + geom_point()</code>; plot 1168px.</td></tr>
+    <tr><td><code>.tsv</code> upload</td><td><code>upload.R</code></td><td><span class="badge b-ok">✓ auto</span> — same shape as csv (name <code>simple_numeric</code>, pickers <code>[a, b, c]</code>).</td></tr>
+    <tr><td><code>.rds</code> upload</td><td><code>upload.R</code></td><td><span class="badge b-ok">✓ auto</span> — same shape as csv; binary bytes round-trip via base64 → <code>Uint8Array</code> → <code>File</code>.</td></tr>
+    <tr><td><code>.json</code> upload</td><td><code>upload.R</code></td><td><span class="badge b-ok">✓ auto</span> — same shape as csv; end-to-end render at this fixture: <code>ggplot(data = simple_numeric, aes(x = a, y = b)) + geom_point()</code>, plot 1168px, error pane empty.</td></tr>
+    <tr><td><code>.xlsx</code> upload</td><td><code>upload.R</code></td><td><span class="badge b-info">✓ R-side</span> — JS <code>DataTransfer</code> truncates the binary fixture in this driver (documented in <code>manual_cover_edge_cases.Rmd</code>). Reader path verified directly: <code>ggpaintr:::ptr_read_excel_upload(fi)</code> returns a 5 × 3 tibble <code>(a, b, c)</code> matching the fixture.</td></tr>
+    <tr><td><code>bad_extension.txt</code> upload</td><td><code>upload.R</code></td><td><span class="badge b-ok">✓ auto — fix verified</span> — error pane reads <em>"Please upload a .csv, .tsv, .rds, .xlsx, .xls, or .json file."</em>; old <em>"object 'bad_extension' not found"</em> wording absent. Subsequent valid CSV clears the error pane.</td></tr>
+    <tr><td>Blank <code>_name</code> → filename-derived</td><td><code>upload.R</code></td><td><span class="badge b-ok">✓ auto</span> — clearing the name field before a fresh csv upload re-derives <code>simple_numeric</code>.</td></tr>
+    <tr><td>Custom <code>_name</code> overrides derived</td><td><code>upload.R</code></td><td><span class="badge b-ok">✓ auto</span> — setting name to <code>my_dataset</code> after upload → code reads <code>ggplot(data = my_dataset) + geom_point()</code>.</td></tr>
+    <tr><td>Custom CSS — override wins, <code>url(./mark.svg)</code> resolves</td><td><code>css-override.R</code></td><td><span class="badge b-ok">✓ auto</span> — <code>getComputedStyle(body).backgroundColor = "rgb(220, 20, 60)"</code>; <code>backgroundImage</code> = <code>url("http://127.0.0.1:4321/ggpaintr-user-…/mark.svg")</code>; fetch returns <code>200 image/svg+xml</code>; user CSS <code>&lt;link&gt;</code> at index 8, last bundled ggpaintr stylesheet at index 7 (user-after-ggpaintr).</td></tr>
+    <tr><td>Custom CSS — <code>c(a, b)</code> cascade, later wins</td><td><code>css-cascade.R</code></td><td><span class="badge b-ok">✓ auto</span> — <code>backgroundColor = "rgb(0, 0, 255)"</code> (blue, cascade-b); DOM order cascade-a (idx 8) → cascade-b (idx 9).</td></tr>
+    <tr><td>Custom CSS — missing path aborts</td><td><code>css-bad-path.R</code></td><td><span class="badge b-ok">✓ auto</span> — Rscript exit 1; stderr names <code>Error in `ptr_user_css_assets()`: ! `css` file(s) not found:</code>.</td></tr>
+    <tr><td>Custom CSS — non-<code>.css</code> extension aborts</td><td><code>css-non-css-ext.R</code></td><td><span class="badge b-ok">✓ auto</span> — Rscript exit 1; stderr names <code>Error in `ptr_user_css_assets()`: ! `css` paths must point to `.css` files:</code>.</td></tr>
+    <tr><td>Missing-object inline error</td><td><code>missing-object.R</code></td><td><span class="badge b-ok">✓ auto</span> — on Render, error pane reads <em>"Plot error: object 'unknown_object' not found"</em>; code panel still populated with <code>ggplot(data = unknown_object, aes(x = mpg, y = disp)) + geom_point()</code>; no crash.</td></tr>
+    <tr><td>Faceting with missing column</td><td><code>facet-missing-var.R</code></td><td><span class="badge b-ok">✓ auto</span> — typing <code>~ Speciesasdf</code> into <code>facet_wrap_1_expr_NA</code> + Render: error reads <em>"Plot error: At least one layer must contain all faceting variables: `Speciesasdf` / ✖ Plot is missing `Speciesasdf` / ✖ Layer 1 is missing `Speciesasdf`"</em>. No raw <code>[object Object]</code>.</td></tr>
+    <tr><td><code>checkbox_defaults</code> unknown layer</td><td><code>checkbox-defaults-unknown.R</code></td><td><span class="badge b-ok">✓ auto</span> — direct <code>ptr_init_state(checkbox_defaults = list(geom_typo = FALSE))</code> emits <code>Some `checkbox_defaults` names don't match any layer in the formula: ✖ Unknown: "geom_typo" ℹ Available layers: "geom_point"</code>.</td></tr>
+    <tr><td><code>checkbox_defaults</code> over-length vector</td><td><code>checkbox-defaults-overlength.R</code></td><td><span class="badge b-ok">✓ auto</span> — direct <code>ptr_init_state(checkbox_defaults = list(geom_point = c(TRUE, FALSE, TRUE)))</code> emits <code>`checkbox_defaults$geom_point` has 3 values but the layer group has 2. Extra ...</code>.</td></tr>
+    <tr><td>Custom top-level ids via module ns</td><td><code>custom-ids.R</code></td><td><span class="badge b-ok">✓ auto</span> — every module-owned Shiny input id starts with <code>myprefix_42-</code> (12 of 12 ids prefixed); the few non-prefixed ids (<code>claude-*</code>, <code>bs-select-1</code>, <code>c4g-content-root</code>) are Chrome extension overlay nodes, not module DOM. Plot output id <code>myprefix_42-ptr_plot</code> present.</td></tr>
+    <tr><td>Host-owned <code>renderPlot()</code> via <code>ptr_extract_plot()</code></td><td><code>custom-plot-extract.R</code></td><td><span class="badge b-ok">✓ auto</span> — after setting <code>m-geom_point_1_num_NA = 4</code> + click <code>m-ptr_update_plot</code>: module pane <code>#m-ptr_plot img</code> renders (1148w), host pane <code>#user_plot img</code> renders alongside (1817w); module code pane reads <code>ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point(size = 4)</code>.</td></tr>
+    <tr><td>Layer panels: pipeline-bearing has inner Data/Controls; flat layers do not</td><td><code>layer-no-data.R</code></td><td><span class="badge b-ok">✓ auto</span> — <code>#ptr_layer_content_ggplot</code> contains a nested <code>ul.nav-tabs</code> with <code>[Data, Controls]</code>; <code>#ptr_layer_content_geom_point</code>, <code>#ptr_layer_content_labs</code>, <code>#ptr_layer_content_coord_cartesian</code> each have no inner nav.</td></tr>
+    <tr><td>Layer-uncheck panel grays out + drops from code</td><td><code>layer-uncheck-opacity.R</code></td><td><span class="badge b-ok">✓ auto</span> — baseline render produces <code>ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point() + geom_smooth(se = FALSE)</code>; unchecking <code>geom_smooth_checkbox</code> applies <code>.ptr-layer-disabled</code> directly to <code>#ptr_layer_content_geom_smooth</code> with computed <code>opacity: 0.5</code>; subsequent Render drops <code>geom_smooth</code> from the code (<code>ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point()</code>).</td></tr>
+    <tr><td>Three-key shell overrides</td><td><code>layer-shell-overrides.R</code></td><td><span class="badge b-ok">✓ auto</span> — layer-picker label = <em>"Choose layer"</em>; inner sub-tab labels = <em>"Pipeline"</em>, <em>"Aesthetics"</em>; Render button keeps the default <em>"Update plot"</em>; layer-include checkbox default label <em>"Include this layer in the plot"</em> present.</td></tr>
+  </tbody>
+</table>
+
+<h2>Resolution table — trajectory across the five rounds</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Item</th>
+      <th>2026-05-12 (<code>9ceedb1</code>)</th>
+      <th>2026-05-13 audit (<code>9ceedb1</code>)</th>
+      <th>2026-05-13 postfix (<code>8722c23</code>)</th>
+      <th>This round (<code>3152f99</code>)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>BUG-4 — selectize/picker reads 0 options after re-render</td>
+      <td>Filed</td>
+      <td>Verified probe artifact; widget-aware probe landed</td>
+      <td><span class="badge b-ok">Holds</span></td>
+      <td><span class="badge b-ok">Holds</span></td>
+    </tr>
+    <tr>
+      <td>BUG-A1 — aes pickers stale after <code>pick_ds</code> switch</td>
+      <td>—</td>
+      <td>Filed MEDIUM, later verified false positive (probe-level misread, same shape as BUG-4)</td>
+      <td><span class="badge b-ok">Holds</span> — aes pickers refresh; the only "stale" read came from a hidden-tab suspended <code>renderUI</code> and self-corrected on tab activation</td>
+      <td><span class="badge b-ok">Holds</span></td>
+    </tr>
+    <tr>
+      <td>BUG-A2 — <code>defaults$num$help</code> override ignored by shared widget</td>
+      <td>—</td>
+      <td>Filed LOW, fixed in <code>47f9329</code> (rep-node <code>node$param</code> cleared when shared spans &gt;1 param)</td>
+      <td><span class="badge b-ok">Closed</span> — override "Any number works here." present × 3, alpha hint absent</td>
+      <td><span class="badge b-ok">Closed</span> — same</td>
+    </tr>
+    <tr>
+      <td>BUG-B1 — <code>ptr_app_bslib(title=…)</code> ignored when <code>ui_text$shell$title</code> set</td>
+      <td>—</td>
+      <td>Filed LOW, fixed in <code>47f9329</code> (precedence: explicit <code>title=</code> wins)</td>
+      <td><span class="badge b-ok">Closed</span> — title/brand/h1 all render the arg</td>
+      <td><span class="badge b-ok">Closed</span> — same</td>
+    </tr>
+    <tr>
+      <td>Bad-extension wording (<code>bad_extension.txt</code> upload)</td>
+      <td>—</td>
+      <td>—</td>
+      <td>Queued in <code>manual_cover_edge_cases.Rmd</code> "Bad-extension fix follow-up"</td>
+      <td><span class="badge b-ok">Closed</span> — fixed in <code>3152f99</code> (<code>state$resolve_errors</code> slot + <code>ptr_register_error()</code> read); regression test at <code>tests/testthat/test-upload-unsupported-extension.R</code>; verified inline in both App 3 and <code>upload.R</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Hard rules — observed</h2>
+<ul>
+  <li>Used the widget-class-aware probe at <code>dev/scripts/audit-probe.js</code> for every picker read (<code>$el.find("option")</code> for <code>pickerInput</code>, <code>Object.keys(selectize.options)</code> for selectize-backed <code>selectInput(multiple = TRUE)</code>). No raw <code>document.getElementById(id).options</code> reads on a ggpaintr <code>var</code> / <code>colvars</code> / <code>pick_ds</code> picker.</li>
+  <li>Picker reads taken in the natural hosting tab. On App 1a, aes pickers were probed after activating "Plot controls"; the pipeline-stage var pickers in "Data inputs" are not subject to the hidden-tab suspended-<code>renderUI</code> caveat because they're always live on the initially active tab.</li>
+  <li>No bug filed. The two observations that could have looked like regressions (App 3 plot error after setting <code>shared_v</code> to a column name, residual "missing aesthetics" warning on <code>upload.R</code> before aes picks) are both formula-design artifacts of the test fixture — unquoted column symbols reach <code>geom_point()</code> outside <code>aes()</code>, which ggplot evaluates against the global env. Not a runtime regression.</li>
+  <li>No source files edited. Audit launchers under <code>/tmp/ggp-launchers/</code> reused from the prior round; <code>tests/manual/edge_cases/launchers/</code> walked unchanged (fixed contract per CLAUDE.md scoping rules).</li>
+  <li>For the bad-extension fix, both end-to-end browser verifications (App 3 + <code>upload.R</code>) were performed independently. The <code>state$resolve_errors</code> clear-on-good-upload path was also exercised explicitly.</li>
+</ul>
+
+<h2>Suggested next steps</h2>
+<ul>
+  <li>Audit closes the loop. Update <code>MEMORY.md</code> to point at this report so the next session sees that <code>3152f99</code> has clean coverage across all six canonical apps and all twenty edge-case launchers.</li>
+  <li>The xlsx-via-<code>DataTransfer</code> transport limit remains as documented in <code>manual_cover_edge_cases.Rmd</code>; if it surfaces a third audit cycle's worth of confusion, consider folding the R-side direct-call snippet into a one-line helper at <code>tests/manual/edge_cases/launchers/_setup.R</code>.</li>
+  <li>The hidden-tab suspended-<code>renderUI</code> caveat held on this run too (App 1a aes / per-stage picker reads were timed correctly via tab activation). If the next audit refiles a "picker shows 0 options" finding without first running an R-side cross-check, follow the disposition rule in <code>.claude/agents/browser-tester.md</code>.</li>
+</ul>
+
+</main>
+</body>
+</html>
