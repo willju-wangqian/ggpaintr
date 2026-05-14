@@ -19,18 +19,158 @@ knitr::opts_chunk$set(
 
 This vignette answers the question *how do I tailor ggpaintr's defaults?* Companion vignettes cover the use-case ladder (`vignette("ggpaintr-use-cases")`), the safety story (`vignette("ggpaintr-safety")`), real ggplot recipes (`vignette("ggpaintr-gallery")`), and LLM integration (`vignette("ggpaintr-llm")`).
 
+Every chunk is marked `eval = interactive()` and is runnable as-is at the R prompt after:
+
+```{r libs}
+library(ggpaintr)
+```
+
 ## Rewriting copy with `ui_text`
 
-<!-- TODO:
-- six-section override catalog
-- merge precedence rules
-- helpers: ptr_ui_text, ptr_resolve_ui_text
--->
+Every label, placeholder, and help string in the generated UI comes from a deep-merged copy-rules tree. ggpaintr ships a set of defaults; you override any subset by passing `ui_text =` to the entry point. Only the keys you spell out change — everything else stays at its built-in value.
+
+### The six override sections
+
+| Section          | What it controls |
+|------------------|------------------|
+| `shell`          | Outer chrome — app title, draw / draw-all buttons, layer picker label, data / controls subtab labels. |
+| `upload`         | The `upload` placeholder widget — file-picker label, optional-dataset-name label / placeholder / help text. |
+| `layer_checkbox` | The "Include this layer in the plot" toggle on each layer panel. |
+| `defaults`       | Per-keyword copy defaults — one entry per registered placeholder, including custom ones (auto-populated from `copy_defaults` passed at registration time). |
+| `params`         | Per-parameter overrides — copy that applies when a placeholder appears as the `x`, `color`, `title`, `alpha`, … argument of a layer. |
+| `layers`         | Per-layer overrides — copy that applies to one placeholder occurrence inside one specific layer call (e.g. the positional `expr` of `facet_wrap()`). |
+
+The first three sections are flat: one fixed lookup path per UI slot. The last three are nested by keyword — and, for `layers`, by layer name × keyword × parameter — letting you scope an override to a single placeholder, a single parameter, or a single layer.
+
+### Merge precedence
+
+When the runtime needs the copy for a *control* (the widget rendered for one placeholder occurrence in one layer), it deep-merges three rules in order:
+
+1. `defaults[[keyword]]` — most general.
+2. `params[[param_key]][[keyword]]` — keyed by the surrounding parameter name.
+3. `layers[[layer_name]][[keyword]][[param_key]]` — keyed by the layer the placeholder lives in.
+
+Each later rule wins on fields it specifies; fields it omits fall back to the earlier rule. For the other UI slots (chrome, upload widget, layer checkbox) the resolution path is fixed — the override either replaces a leaf field or does not.
+
+### Building overrides
+
+```{r ui-text-example}
+custom_text <- ptr_ui_text(list(
+  shell = list(
+    title       = list(label = "Iris explorer"),
+    draw_button = list(label = "Render")
+  ),
+  params = list(
+    x     = list(var  = list(label = "X variable")),
+    title = list(text = list(label = "Plot heading"))
+  )
+))
+
+ptr_app(
+  "ggplot(iris, aes(var, var, color = var)) +
+     geom_point() +
+     labs(title = text)",
+  ui_text = custom_text
+)
+```
+
+`ptr_ui_text()` validates the partial override and returns a fully-merged `ptr_ui_text` object. Passing the bare list (without wrapping it in `ptr_ui_text()`) works too — the entry points call it internally — but using it explicitly catches typos in section keys at registration time rather than at render time.
+
+`ptr_resolve_ui_text(component, keyword, param, layer_name, ui_text)` is the lower-level lookup the runtime uses to fetch the resolved copy for a single UI slot. Embedders writing custom UIs that mix ggpaintr-driven labels with their own copy can call it directly; most users do not need it.
 
 ## Adding a new widget type
 
-<!-- TODO: introduce the three constructors (ptr_define_placeholder_value / _consumer / _source) one at a time, each with a worked example. Source material: gallery §3 "Three reusable custom placeholders" (range / colvars / date). -->
+ggpaintr ships five built-in placeholder keywords (`var`, `text`, `num`, `expr`, `upload`). Three constructors let you register your own. They write to a **process-global** registry, so call each one once per R session before launching any app that uses the new keyword. Re-registering an existing keyword warns and overwrites; `ptr_clear_placeholder()` (below) removes registrations between sessions.
+
+| Constructor | Use when the widget … |
+|---|---|
+| `ptr_define_placeholder_value()`    | … is not data-aware. Sliders, text, numeric, date, color pickers. |
+| `ptr_define_placeholder_consumer()` | … needs upstream column names. Column pickers, multi-column selectors. |
+| `ptr_define_placeholder_source()`   | … *produces* a data frame. Database queries, built-in datasets, custom readers. |
+
+Each constructor takes a `build_ui` hook (the Shiny tag) and a resolver hook (how to turn the user's input into a substituted expression). `resolve_expr()` returning `NULL` is the *drop this argument* signal — the substitute pass strips the corresponding argument from the generated code, exactly like the built-in `var` keyword returning `NULL` for an empty pick.
+
+The three subsections below introduce one constructor at a time with a worked example.
+
+### Value placeholders — `ptr_define_placeholder_value()`
+
+The simplest case: a widget whose value depends on nothing outside itself. Here is a `range` keyword that renders a `sliderInput()` and substitutes a `c(lo, hi)` call into the formula.
+
+```{r value-range}
+ptr_define_placeholder_value(
+  keyword       = "range",
+  build_ui      = function(node, label = NULL, ...) {
+    sliderInput(node$id, label = label %||% "Range",
+                min = 0, max = 100, value = c(0, 100), step = 0.1)
+  },
+  resolve_expr  = function(value, node, ...) {
+    if (is.null(value) || length(value) != 2L) return(NULL)
+    rlang::expr(c(!!value[1], !!value[2]))
+  },
+  copy_defaults = list(label = "Range for {param}")
+)
+```
+
+`node$id` is the rendered widget's Shiny input id (already namespaced for you); `label` is the resolved `ui_text` label for this slot, so any host-supplied override flows through automatically. `copy_defaults` becomes `defaults$range` in the `ui_text` tree; the `{param}` token interpolates the surrounding parameter name at render time.
+
+### Consumer placeholders — `ptr_define_placeholder_consumer()`
+
+A consumer is data-aware: its `build_ui` hook receives `cols` (the upstream column-name vector) and, if needed, `data` (the resolved upstream data frame — `NULL` until upstream resolves). The runtime walks the formula's pipeline and resolves the data context for you, including through `|>` chains; there is no walker to write.
+
+```{r consumer-colvars}
+ptr_define_placeholder_consumer(
+  keyword       = "colvars",
+  build_ui      = function(node, cols = character(), label = NULL,
+                           selected = character(0), ...) {
+    selectInput(node$id, label = label %||% "Columns",
+                choices = cols, selected = intersect(selected, cols),
+                multiple = TRUE)
+  },
+  resolve_expr  = function(value, node, ...) {
+    if (length(value) == 0L) return(NULL)
+    rlang::call2("c", !!!as.list(value))
+  },
+  copy_defaults = list(label = "Columns for {param}")
+)
+```
+
+Consumer constructors also accept an optional `validate_input = function(value, upstream_cols)` callback. It returns `TRUE` (or `NULL`) when the input is valid, or an error-message string otherwise. The built-in `var` consumer uses it to surface "Column `foo` was removed from the upstream data" messages when the data shape changes mid-session.
+
+### Source placeholders — `ptr_define_placeholder_source()`
+
+A source placeholder *produces* a data frame. Use this for widgets the rest of the formula reads from — built-in datasets, database queries, programmatic samples — without an `upload` placeholder doing the work.
+
+```{r source-dataset}
+ptr_define_placeholder_source(
+  keyword       = "dataset",
+  build_ui      = function(node, label = NULL, ...) {
+    selectInput(node$id, label = label %||% "Built-in dataset",
+                choices = c("iris", "mtcars", "diamonds", "economics"))
+  },
+  resolve_data  = function(value, node, ...) {
+    if (is.null(value) || !nzchar(value)) return(NULL)
+    switch(value,
+      iris      = iris,
+      mtcars    = mtcars,
+      diamonds  = ggplot2::diamonds,
+      economics = ggplot2::economics,
+      NULL)
+  },
+  copy_defaults = list(label = "Built-in dataset for {param}")
+)
+```
+
+`resolve_data` returns the data frame to feed downstream consumers. `resolve_expr` defaults to substituting the bare keyword (`rlang::sym(value)`) into the generated code, which is right when `value` is the name of a global object. Override `resolve_expr` to substitute something else (e.g. `expr(read.csv(!!path))`) when the generated code should re-fetch the data rather than carry a reference.
+
+`companion_id_fn = function(id) <companion_id>` pairs the primary widget with a sibling — the built-in `upload` source uses it for the "Optional dataset name" textbox. Most sources do not need it.
 
 ## Unregistering
 
-<!-- TODO: ptr_clear_placeholder for cleanup between sessions / examples. -->
+Custom placeholders live in a process-global registry. Call `ptr_clear_placeholder()` between sessions, inside tests, or when re-running this vignette interactively, to wipe user-registered keywords without restarting R:
+
+```{r unregister, eval = FALSE}
+ptr_clear_placeholder("range")  # remove one keyword
+ptr_clear_placeholder()         # remove every user-registered keyword
+```
+
+The five built-ins (`var`, `text`, `num`, `expr`, `upload`) are protected — passing one to `ptr_clear_placeholder()` errors. Re-registering an existing keyword via any of the three constructors above overwrites the previous entry (with a `cli` notice); you do not need to clear first.
