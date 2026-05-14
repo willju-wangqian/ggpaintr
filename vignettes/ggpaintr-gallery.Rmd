@@ -128,7 +128,7 @@ Each pipeline stage gets its own enable/disable checkbox (G11). Toggling a stage
 
 The recipe is the same in both subsections: lay out `ptr_module_ui("id", formula)` for the sidebar + default plot panel, add a second column with the alternative output, and in the server use `state <- ptr_module_server("id", formula)` to wire everything up, then bind your custom output to `state$runtime()`.
 
-### 6.1 plotly tooltips
+### 5.1 plotly tooltips
 
 Original — a hover-tooltipped scatter:
 
@@ -175,7 +175,7 @@ shinyApp(ui, server)
 
 Reading `state$runtime()` outside `isolate()` is what wires the plotly re-render to Update Plot clicks; `req(isTRUE(res$ok), res$plot)` keeps the panel quiet between draws and on transient error states.
 
-### 6.2 ggiraph tooltips and click handling
+### 5.2 ggiraph tooltips and click handling
 
 Original — interactive points with a colour-picked highlight:
 
@@ -232,7 +232,7 @@ shinyApp(ui, server)
 
 `ggpaintr` does not know about extension geoms — it sees them as ordinary layer calls and parameterizes their arguments the same way it parameterizes core geoms. The five examples below cover a parallel-coordinates plot, ridge densities, repelled labels, alluvial flows, and `ggdist` distribution slabs.
 
-### 7.1 ggpcp — parallel coordinates
+### 6.1 ggpcp — parallel coordinates
 
 Original (uses the `flea` dataset shipped by `GGally`):
 
@@ -267,7 +267,7 @@ ptr_app(
 )
 ```
 
-### 7.2 ggridges — ridge densities
+### 6.2 ggridges — ridge densities
 
 Original (uses `lincoln_weather` shipped by `ggridges`):
 
@@ -296,7 +296,7 @@ ptr_app(
 )
 ```
 
-### 7.3 ggrepel — labelled scatter
+### 6.3 ggrepel — labelled scatter
 
 Original — label cars by row name, repelling overlaps:
 
@@ -330,7 +330,7 @@ ptr_app(
 
 `envir = environment()` is the seam that lets the runtime see the local `mt` data frame. `ptr_app()` defaults to `parent.frame()`, which would pick up `mt` here automatically; passing `environment()` is explicit.
 
-### 7.4 ggalluvial — flow diagrams
+### 6.4 ggalluvial — flow diagrams
 
 Original (uses the `vaccinations` dataset shipped by `ggalluvial`):
 
@@ -361,7 +361,7 @@ ptr_app(
 )
 ```
 
-### 7.5 ggdist — distribution visualizations
+### 6.5 ggdist — distribution visualizations
 
 Original — half-eye distributions per cylinder count:
 
