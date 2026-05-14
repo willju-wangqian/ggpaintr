@@ -392,13 +392,65 @@ source_groups <- list(
        link_base = "../../")
 )
 
-# Cache file contents to avoid 35 * N re-reads.
-read_text_cached <- local({
+# ----------------------------------------------------------------------------
+# Coverage detection: PARSE the source, deparse code-only (comments dropped).
+# For testthat files, further restrict to text inside `test_that(...)` bodies
+# so that mentioning a feature in a top-level setup helper or comment does
+# NOT count as coverage. A feature counts as covered by a file only if at
+# least one of its search_terms appears in that file's in-test code.
+# ----------------------------------------------------------------------------
+
+is_testthat_file <- function(path) {
+  grepl("/tests/testthat/test-[^/]+\\.R$", path)
+}
+
+# Deparse every top-level expression. base::parse() strips comments, so the
+# resulting string contains code only.
+parse_code_only <- function(path) {
+  exprs <- tryCatch(parse(path, keep.source = FALSE),
+                    error = function(e) NULL)
+  if (is.null(exprs)) {
+    # Fall back to a comment-stripped line scan so non-R sources (e.g. files
+    # we may later add) still match. For R sources this branch is unused.
+    lines <- tryCatch(readLines(path, warn = FALSE), error = function(e) "")
+    lines <- sub("(^|[^\\\\])#.*$", "\\1", lines)   # drop trailing comments
+    return(paste(lines, collapse = "\n"))
+  }
+  paste(vapply(seq_along(exprs),
+               function(i) paste(deparse(exprs[[i]], width.cutoff = 500L),
+                                 collapse = "\n"),
+               character(1)),
+        collapse = "\n")
+}
+
+# Collect every `test_that(desc, { body })` body text from a parsed file.
+# A feature only counts as covered by a testthat file when at least one term
+# appears inside such a body.
+extract_test_bodies <- function(path) {
+  exprs <- tryCatch(parse(path, keep.source = FALSE),
+                    error = function(e) NULL)
+  if (is.null(exprs)) return("")
+  bodies <- character()
+  for (i in seq_along(exprs)) {
+    e <- exprs[[i]]
+    if (is.call(e) && length(e) >= 3L &&
+        identical(e[[1]], as.name("test_that"))) {
+      bodies <- c(bodies, paste(deparse(e[[3]], width.cutoff = 500L),
+                                collapse = "\n"))
+    }
+  }
+  paste(bodies, collapse = "\n")
+}
+
+# Cache the *search text* per file (parsed + restricted to test_that for
+# testthat sources, full code body otherwise). Built once, reused for every
+# feature row.
+read_search_text <- local({
   cache <- new.env(parent = emptyenv())
   function(path) {
     if (!is.null(cache[[path]])) return(cache[[path]])
-    txt <- tryCatch(paste(readLines(path, warn = FALSE), collapse = "\n"),
-                    error = function(e) "")
+    txt <- if (is_testthat_file(path)) extract_test_bodies(path)
+           else                         parse_code_only(path)
     cache[[path]] <- txt
     txt
   }
@@ -413,7 +465,8 @@ source_files <- lapply(source_groups, function(g) Sys.glob(g$glob))
 match_files <- function(files, terms) {
   hits <- character()
   for (f in files) {
-    txt <- read_text_cached(f)
+    txt <- read_search_text(f)
+    if (!nzchar(txt)) next
     if (any(vapply(terms, function(t) grepl(t, txt, fixed = TRUE),
                    logical(1)))) {
       hits <- c(hits, f)
@@ -428,16 +481,26 @@ rows <- lapply(features, function(feat) {
   for (i in seq_along(source_groups)) {
     cov[[i]] <- match_files(source_files[[i]], feat$search_terms)
   }
-  total_hits <- sum(lengths(cov))
   feat$coverage <- cov
-  feat$covered  <- total_hits > 0L
+  feat$has_testthat <- length(cov$testthat) > 0L
+  feat$has_demo     <- length(cov$examples) > 0L || length(cov$driver) > 0L
+  # Three-level status:
+  #   "tested"  - at least one tests/testthat/test-*.R hit
+  #   "demo"    - canonical example or headless driver only (weaker; not unit-tested)
+  #   "none"    - no source contains any search term
+  feat$status <- if (feat$has_testthat) "tested"
+                 else if (feat$has_demo) "demo"
+                 else                     "none"
   feat
 })
 
-# Sanity counter
-covered_n <- sum(vapply(rows, function(r) isTRUE(r$covered), logical(1)))
-cat(sprintf("Feature bank: %d rows, %d covered, %d uncovered.\n",
-            length(rows), covered_n, length(rows) - covered_n))
+# Sanity counters
+tested_n <- sum(vapply(rows, function(r) r$status == "tested", logical(1)))
+demo_n   <- sum(vapply(rows, function(r) r$status == "demo",   logical(1)))
+none_n   <- sum(vapply(rows, function(r) r$status == "none",   logical(1)))
+covered_n <- tested_n + demo_n
+cat(sprintf("Feature bank: %d rows -- %d tested, %d demo-only, %d uncovered.\n",
+            length(rows), tested_n, demo_n, none_n))
 
 # ----------------------------------------------------------------------------
 # 4. Render HTML.
@@ -486,12 +549,18 @@ ord <- order(
 )
 rows <- rows[ord]
 
+status_badge <- function(s) {
+  switch(s,
+    tested = '<span class="badge b-ok">tested</span>',
+    demo   = '<span class="badge b-warn">demo only</span>',
+    none   = '<span class="badge b-danger">none</span>'
+  )
+}
+
 tbody_rows <- vapply(rows, function(feat) {
-  status <- if (isTRUE(feat$covered)) '<span class="badge b-ok">covered</span>'
-            else                       '<span class="badge b-danger">none</span>'
   sprintf(
     paste0(
-      '<tr data-category="%s" data-covered="%s">',
+      '<tr data-category="%s" data-status="%s">',
       '<td class="col-name"><code>%s</code></td>',
       '<td class="col-cat">%s</td>',
       '<td class="col-where"><code>%s</code></td>',
@@ -501,12 +570,12 @@ tbody_rows <- vapply(rows, function(feat) {
       '</tr>'
     ),
     esc(feat$category),
-    if (isTRUE(feat$covered)) "yes" else "no",
+    esc(feat$status),
     esc(feat$name),
     esc(feat$category),
     esc(feat$defined_at),
     esc(feat$description),
-    status,
+    status_badge(feat$status),
     render_coverage_cell(feat)
   )
 }, character(1))
@@ -517,7 +586,7 @@ head_sha <- tryCatch(
   error = function(e) "(unknown)"
 )
 
-html <- sprintf('<!doctype html>
+head_tpl <- '<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -568,16 +637,16 @@ html <- sprintf('<!doctype html>
   .controls select, .controls input {
     font: inherit; padding: 4px 8px; border: 1px solid var(--border); border-radius: 4px;
   }
-  table { width: 100%%; border-collapse: collapse; font-size: 13px; margin: 0 0 20px; background: var(--card); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 20px; background: var(--card); }
   th, td { border: 1px solid var(--border); padding: 6px 8px; vertical-align: top; text-align: left; }
   th { background: var(--code-bg); cursor: pointer; user-select: none; position: sticky; top: 0; }
   th.sortable::after { content: " \\2195"; color: var(--muted); font-size: 11px; }
-  .col-name { width: 19%%; }
-  .col-cat { width: 11%%; white-space: nowrap; }
-  .col-where { width: 16%%; white-space: nowrap; }
-  .col-desc { width: 26%%; }
-  .col-status { width: 7%%; text-align: center; }
-  .col-cov { width: 21%%; font-size: 12px; }
+  .col-name { width: 19%; }
+  .col-cat { width: 11%; white-space: nowrap; }
+  .col-where { width: 16%; white-space: nowrap; }
+  .col-desc { width: 26%; }
+  .col-status { width: 7%; text-align: center; }
+  .col-cov { width: 21%; font-size: 12px; }
   .src-grp { margin-bottom: 4px; line-height: 1.4; }
   .src-grp:last-child { margin-bottom: 0; }
   .src-label { display: inline-block; min-width: 0; color: var(--muted); font-size: 11px;
@@ -599,25 +668,34 @@ html <- sprintf('<!doctype html>
 <h1>ggpaintr feature bank with coverage status</h1>
 <p class="meta">
   Single source of truth for every documented ggpaintr feature and where it is exercised.
-  Generated: <code>%s</code>. Branch HEAD: <code>%s</code>.<br>
+  Generated: <code>__TODAY__</code>. Branch HEAD: <code>__SHA__</code>.<br>
   Re-generate with <code>Rscript dev/feature_bank/build-feature-bank.R</code>.
 </p>
 
 <div class="summary-counts">
-  <div><strong>%d</strong><span>total features</span></div>
-  <div><strong>%d</strong><span>covered</span></div>
-  <div><strong>%d</strong><span>uncovered</span></div>
+  <div><strong>__TOTAL__</strong><span>total features</span></div>
+  <div><strong>__TESTED__</strong><span>tested (testthat)</span></div>
+  <div><strong>__DEMO__</strong><span>demo only</span></div>
+  <div><strong>__UNCOVERED__</strong><span>uncovered</span></div>
 </div>
 
 <h2>How coverage is detected</h2>
 <p>
   Each row carries a set of search terms (function names, argument names, behavior keywords).
-  A coverage source counts as evidence if at least one term appears literally in its file body.
-  Sources searched: <code>tests/testthat/test-*.R</code> (automated),
-  <code>dev/scripts/feature-coverage-examples.R</code> (canonical demo + headless source-eval),
-  and <code>dev/audit/2026-05-15-headless/driver-headless.R</code> (supplemental headless audit).
-  An <code>uncovered</code> badge means none of these contain a literal mention -- either the
-  feature genuinely lacks coverage, or its search terms need refinement in
+  Each source file is parsed with <code>base::parse()</code> and the resulting expressions
+  are <code>deparse</code>d back to text -- this drops every comment, so a feature mentioned
+  only in a <code>#</code>-comment does <em>not</em> count. For <code>tests/testthat/test-*.R</code>
+  files the search is further restricted to text inside <code>test_that(...)</code> bodies,
+  so a name dropped in a top-level helper or setup block does not by itself satisfy a row.
+  A source counts as evidence when at least one term appears literally in that restricted text.
+  Sources searched: <code>tests/testthat/test-*.R</code> (automated; in-test bodies only),
+  <code>dev/scripts/feature-coverage-examples.R</code> (canonical demo + headless source-eval; full code),
+  and <code>dev/audit/2026-05-15-headless/driver-headless.R</code> (supplemental headless audit; full code).
+  Status badges are three-level: <span class="badge b-ok">tested</span> when at least one
+  <code>tests/testthat/test-*.R</code> file hits, <span class="badge b-warn">demo only</span>
+  when only the canonical example or the headless driver hits (the row is exercised but has no
+  dedicated unit test), <span class="badge b-danger">none</span> when no source contains any
+  search term -- either the feature genuinely lacks coverage, or its search terms need refinement in
   <code>dev/feature_bank/build-feature-bank.R</code>.
 </p>
 
@@ -627,13 +705,14 @@ html <- sprintf('<!doctype html>
   <label>Category:</label>
   <select id="catfilter">
     <option value="">(all)</option>
-%s
+__OPTIONS__
   </select>
   <label>Status:</label>
   <select id="covfilter">
     <option value="">(all)</option>
-    <option value="yes">covered</option>
-    <option value="no">uncovered</option>
+    <option value="tested">tested (testthat)</option>
+    <option value="demo">demo only</option>
+    <option value="none">uncovered</option>
   </select>
   <span id="visible-count" class="badge b-info"></span>
 </div>
@@ -650,7 +729,7 @@ html <- sprintf('<!doctype html>
 </tr>
 </thead>
 <tbody>
-%s
+__TBODY__
 </tbody>
 </table>
 
@@ -679,7 +758,7 @@ html <- sprintf('<!doctype html>
     rows.forEach(function (tr) {
       var matchQ   = !q   || tr.textContent.toLowerCase().indexOf(q) !== -1;
       var matchCat = !cat || tr.dataset.category === cat;
-      var matchCov = !cov || tr.dataset.covered  === cov;
+      var matchCov = !cov || tr.dataset.status === cov;
       var show = matchQ && matchCat && matchCov;
       tr.classList.toggle("row-hide", !show);
       if (show) n++;
@@ -712,11 +791,31 @@ html <- sprintf('<!doctype html>
 </main>
 </body>
 </html>
-', esc(today), esc(head_sha),
-   length(rows), covered_n, length(rows) - covered_n,
-   paste(sprintf('    <option value="%s">%s</option>',
-                 esc(category_order), esc(category_order)), collapse = "\n"),
-   paste(tbody_rows, collapse = "\n"))
+'
+
+# Token replacement: avoids R sprintf's 8192-char format-length limit and
+# any back-reference interpretation issues in the replacement text.
+literal_replace <- function(text, needle, replacement) {
+  pieces <- strsplit(text, needle, fixed = TRUE)[[1]]
+  if (length(pieces) <= 1L) return(text)
+  paste(pieces, collapse = replacement)
+}
+
+options_str <- paste(
+  sprintf('    <option value="%s">%s</option>',
+          esc(category_order), esc(category_order)),
+  collapse = "\n"
+)
+
+html <- head_tpl
+html <- literal_replace(html, "__TODAY__",     esc(today))
+html <- literal_replace(html, "__SHA__",       esc(head_sha))
+html <- literal_replace(html, "__TOTAL__",     as.character(length(rows)))
+html <- literal_replace(html, "__TESTED__",    as.character(tested_n))
+html <- literal_replace(html, "__DEMO__",      as.character(demo_n))
+html <- literal_replace(html, "__UNCOVERED__", as.character(none_n))
+html <- literal_replace(html, "__OPTIONS__",   options_str)
+html <- literal_replace(html, "__TBODY__",     paste(tbody_rows, collapse = "\n"))
 
 out_path <- "dev/feature_bank/feature-bank.html"
 writeLines(html, out_path)
