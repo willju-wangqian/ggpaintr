@@ -23,7 +23,7 @@ xaringanExtra::use_clipboard()
 
 ## 1. Setup
 
-Every chunk in this vignette is marked `eval = interactive()` — they will not run during vignette build, but each block is runnable as-is at the R prompt. Before launching any of them, load the development copy of the package and bind its internals into your global environment so S3 dispatch through internal generics (`prune_walk`, `render_walk`, `classify_walk`, `build_ui_for`, …) resolves to the namespace where the method tables actually live. This is the same setup used by `dev/scripts/feature-sweep.R`:
+Every chunk in this vignette is marked `eval = interactive()` — they will not run during vignette build, but each block is runnable as-is at the R prompt. Before launching any of them, load the development copy of the package and bind its internals into your global environment so S3 dispatch through internal generics (`prune_walk`, `render_walk`, `classify_walk`, `build_ui_for`, …) resolves to the namespace where the method tables actually live:
 
 ```{r dev-setup, eval = TRUE}
 devtools::load_all(".", export_all = FALSE)
@@ -49,67 +49,9 @@ The other vignettes teach the workflow piece by piece. This one shows what the p
 
 Copy a chunk into a session, install the extension package named at the top of the section if you do not have it, and run it. The examples assume the setup chunks above have already executed.
 
-## 3. Three reusable custom placeholders
+Several gallery sections below reference custom placeholders — `range` (a slider returning a length-2 numeric), `colvars` (a multi-column picker), and `date` (a date-range picker) — alongside the five built-ins (`var`, `text`, `num`, `expr`, `upload`). The three constructors that register such widgets (`ptr_define_placeholder_value()`, `ptr_define_placeholder_consumer()`, `ptr_define_placeholder_source()`), the full hook contract, and a worked example for each are covered in `vignette("ggpaintr-customization")`. Run the placeholder-registration chunk from that vignette once per R session before launching any gallery example that uses these keywords.
 
-ggpaintr ships five built-in placeholder keywords (`var`, `text`, `num`, `expr`, `upload`). Anything else — date pickers, sliders bound to a fixed range, multi-column selectors — is registered through one of three constructors:
-
-- `ptr_define_placeholder_value()` — non-data-aware widgets (sliders, text, numeric, date).
-- `ptr_define_placeholder_consumer()` — data-aware widgets that need the upstream column-name vector (column pickers).
-- `ptr_define_placeholder_source()` — data-aware widgets that *produce* a data frame (file uploads, datasets).
-
-Registration is process-global: call each constructor once per R session. Re-running a chunk warns about the duplicate keyword and overwrites the previous entry.
-
-Three custom placeholders show up across the gallery: `range` (a slider returning a length-2 numeric), `colvars` (a multi-select for column names), and `date` (a date-range picker).
-
-```{r placeholders}
-ptr_define_placeholder_value(
-  keyword       = "range",
-  build_ui      = function(node, label = NULL, ...) {
-    sliderInput(node$id, label = label %||% "Range",
-                min = 0, max = 100, value = c(0, 100), step = 0.1)
-  },
-  resolve_expr  = function(value, node, ...) {
-    if (is.null(value) || length(value) != 2L) return(NULL)
-    rlang::expr(c(!!value[1], !!value[2]))
-  },
-  copy_defaults = list(label = "Range for {param}")
-)
-
-ptr_define_placeholder_consumer(
-  keyword       = "colvars",
-  build_ui      = function(node, cols = character(), label = NULL,
-                           selected = character(0), ...) {
-    selectInput(node$id, label = label %||% "Columns",
-                choices = cols, selected = intersect(selected, cols),
-                multiple = TRUE)
-  },
-  resolve_expr  = function(value, node, ...) {
-    if (length(value) == 0L) return(NULL)
-    rlang::call2("c", !!!as.list(value))
-  },
-  copy_defaults = list(label = "Columns for {param}")
-)
-
-ptr_define_placeholder_value(
-  keyword       = "date",
-  build_ui      = function(node, label = NULL, ...) {
-    dateRangeInput(node$id, label = label %||% "Date range",
-                   start = "1970-01-01", end = "2015-04-01")
-  },
-  resolve_expr  = function(value, node, ...) {
-    if (is.null(value) || length(value) != 2L) return(NULL)
-    rlang::expr(c(as.Date(!!as.character(value[1])),
-                  as.Date(!!as.character(value[2]))))
-  },
-  copy_defaults = list(label = "Date range for {param}")
-)
-```
-
-The consumer's `cols` argument arrives populated with the upstream column-name vector — the runtime resolves the data context (including through any `|>` chain) before invoking `build_ui`. There is no walker to write; the framework handles it.
-
-`resolve_expr()` returning `NULL` is the "missing" signal: the substitute pass drops the corresponding argument from the generated code, exactly like `var` returning `NULL` for an empty pick.
-
-## 4. A realistic ggplot2 graphic, parameterized
+## 3. A realistic ggplot2 graphic, parameterized
 
 A typical exploratory plot stacks several layers and reads several hard-coded constants. Here is a multi-layer fuel-economy chart from the `mpg` dataset:
 
@@ -140,7 +82,7 @@ ptr_app(
 
 Every aesthetic, alpha, size, span, and the two coordinate ranges is now a widget. Rebuilding the original graphic from the running app is a matter of picking those values; the code panel under the plot lifts the selections back into a static script.
 
-## 5. Data-cleaning pipelines into `ggplot()`
+## 4. Data-cleaning pipelines into `ggplot()`
 
 `ggpaintr` parses any expression that evaluates to a `ggplot` object, including the common "clean, then plot" pipeline where the data is piped into `ggplot()`. Pipeline stages with placeholders get a per-layer **Data** sub-tab in the sidebar; column pickers further down the pipeline lazily resolve their upstream against the current Data-tab inputs, so picking a column in stage one immediately refreshes the choices for stage two without requiring an explicit "apply" click.
 
@@ -180,7 +122,7 @@ ptr_app(
 
 Each pipeline stage gets its own enable/disable checkbox (G11). Toggling a stage off rewrites the generated code as if that step were never there; toggle it back on and the threshold widget resurfaces. Note also that `var` (and any custom consumer like `colvars`) introspects the upstream data automatically — pipe-walking through `|>` chains is part of the runtime, not your placeholder code.
 
-## 6. Interactive output packages
+## 5. Interactive output packages
 
 `ggpaintr` does not lock you into `renderPlot`. The runtime's `state$runtime()` reactive returns a list whose `$plot` slot is the fitted `ggplot` object, suitable for any backend that accepts a `ggplot` — `plotly` and `ggiraph` are the two most common. `ptr_extract_plot(state)` is the same accessor in non-reactive contexts.
 
@@ -286,7 +228,7 @@ server <- function(input, output, session) {
 shinyApp(ui, server)
 ```
 
-## 7. ggplot2 extension packages
+## 6. ggplot2 extension packages
 
 `ggpaintr` does not know about extension geoms — it sees them as ordinary layer calls and parameterizes their arguments the same way it parameterizes core geoms. The five examples below cover a parallel-coordinates plot, ridge densities, repelled labels, alluvial flows, and `ggdist` distribution slabs.
 
@@ -451,141 +393,17 @@ ptr_app(
 )
 ```
 
-## 8. Shared placeholders — one widget, two graphics
+## 7. Where to go next
 
-`ptr_app_grid()` is the turn-key entry point for multi-plot apps with shared widgets. Annotate any placeholder occurrence with `keyword(shared = "<id>")`; pass `shared_ui = list(<id> = function(id) widget_tag)` so the framework knows what tag to render at the top. The `<id>` namespace is shared across every formula in `plots`, so editing the top widget propagates to every plot.
+This gallery is the recipe book. The other vignettes answer different user questions:
 
-Original — two static views of the iris dataset coupled by a shared column choice:
+- **`vignette("ggpaintr-use-cases")`** — the three-level ladder. L1 all-in-one (`ptr_app()` / `ptr_app_bslib()` / `ptr_app_grid()`); L2 embed in your own Shiny app (`ptr_controls_ui` / `ptr_outputs_ui` / `ptr_server` and the module pair `ptr_module_ui` / `ptr_module_server`); L3 custom rendering via the extract accessors (`ptr_extract_plot()` / `_code()` / `_error()` and `ptr_gg_extra()`). The plotly / ggiraph examples in §5 above are the canonical L3 worked examples — use-cases L3 cross-links back here.
+- **`vignette("ggpaintr-customization")`** — `ui_text` overrides, the three custom-placeholder constructors (full hook contract and worked examples — the `range` / `colvars` / `date` constructors used throughout this gallery live there), and the shared-placeholder pattern for one widget driving multiple plots.
+- **`vignette("ggpaintr-safety")`** — `expr_check`, the denylist + AST-walker safety model, upload trust boundary, public-deployment checklist.
+- **`vignette("ggpaintr-llm")`** — wiring ggpaintr up as an LLM-callable tool with ellmer.
 
-```{r shared-original}
-library(dplyr)
-library(tidyr)
-library(ggpcp)
-
-picked <- c("Sepal.Length", "Sepal.Width", "Petal.Length")
-
-p1 <- iris |>
-  pcp_select(Species, dplyr::all_of(picked)) |>
-  pcp_scale(method = "uniminmax") |>
-  pcp_arrange() |>
-  ggplot(aes_pcp()) +
-    geom_pcp_axes() +
-    geom_pcp(aes(colour = Species))
-
-p2 <- iris |>
-  dplyr::select(Species, dplyr::all_of(picked)) |>
-  tidyr::pivot_longer(-Species, names_to = "metric") |>
-  ggplot(aes(metric, value, fill = Species)) +
-    geom_boxplot()
-
-# Display side-by-side with patchwork::wrap_plots(p1, p2) or similar.
-```
-
-ggpaintr version — one shared `selectInput` at the top of the grid, two formulas referencing `colvars(shared = "vars")`. Picking columns in the shared control updates both plots together when you click **Draw all**:
-
-```{r shared-paintr}
-library(ggpcp)
-
-ptr_app_grid(
-  plots = list(
-    "ggplot(data = iris |>
-                    pcp_select(Species, colvars(shared = 'vars')) |>
-                    pcp_scale(method = 'uniminmax') |>
-                    pcp_arrange(),
-            mapping = aes_pcp()) +
-       geom_pcp_axes() +
-       geom_pcp(aes(colour = Species))",
-
-    "ggplot(data = iris |>
-                    dplyr::select(Species, colvars(shared = 'vars')) |>
-                    tidyr::pivot_longer(-Species, names_to = 'metric'),
-            aes(x = metric, y = value, fill = Species)) +
-       geom_boxplot()"
-  ),
-  shared_ui = list(
-    vars = function(id) {
-      selectInput(id, "Columns to plot",
-                  choices  = setdiff(names(iris), "Species"),
-                  selected = c("Sepal.Length", "Sepal.Width", "Petal.Length"),
-                  multiple = TRUE)
-    }
-  )
-)
-```
-
-The shared-id mechanism works for any placeholder keyword — built-in `num(shared = "sz")` paired with `shared_ui = list(sz = function(id) sliderInput(...))` is the simplest two-line example; `colvars(shared = "vars")` above shows the same pattern for a custom consumer.
-
-## 9. Programmatic extras and headless extraction
-
-`ptr_gg_extra(state, ...)` attaches scales, themes, or any expression that combines with `+ <plot>` to the rendered output without changing the formula. Each call replaces the previously captured extras; `ptr_extract_code(state)` includes them in the printable code.
-
-```{r gg-extra}
-formula <- "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()"
-
-ui <- fluidPage(
-  actionButton("add_log", "Toggle log-scale"),
-  ptr_module_ui("p", formula)
-)
-server <- function(input, output, session) {
-  state <- ptr_module_server("p", formula)
-  observeEvent(input$add_log, {
-    ptr_gg_extra(state, ggplot2::scale_x_log10())
-  })
-}
-
-shinyApp(ui, server)
-```
-
-For headless use — composing custom UIs, snapshot tests, or pre-flight rendering — drive `ptr_server()` through `shiny::testServer()` and read the accessors directly:
-
-```{r headless}
-shiny::testServer(function(input, output, session) {
-  state <- ptr_server(
-    input, output, session,
-    "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()"
-  )
-  session$setInputs(.dummy = 1)
-  session$userData$paintr <- state
-}, {
-  cat("CODE:\n", ptr_extract_code(session$userData$paintr), "\n")
-  cat("PLOT class:", class(ptr_extract_plot(session$userData$paintr)), "\n")
-})
-```
-
-## 10. Where to go next
-
-If a section above introduced an unfamiliar piece of the API, the canonical references are:
+For canonical API reference, follow the `?fn` links:
 
 - `?ptr_app`, `?ptr_module_ui`, `?ptr_module_server`, `?ptr_app_grid` — entry points.
 - `?ptr_define_placeholder_value`, `?ptr_define_placeholder_consumer`, `?ptr_define_placeholder_source` — the three constructors that extend the registry.
-- `?ptr_extract_plot`, `?ptr_extract_code`, `?ptr_extract_error`, `?ptr_gg_extra` — the embed-time accessors used by the plotly / ggiraph / extras sections.
-- `dev/scripts/feature-sweep.R` — the developer feature sweep, which exercises every join-point above plus error paths and the denylist.
-
-
-```{r}
-library(tidyverse)
-
-# Pipeline Example
-iris %>%
-  filter(Sepal.Length > 5) %>%
-  mutate(Sepal.Area = Sepal.Length * Sepal.Width) %>%
-  ggplot(aes(x = Species, y = Sepal.Area, fill = Species)) +
-  geom_boxplot() +
-  labs(title = "Piped Data Processing to Plot",
-       y = "Sepal Area (Length * Width)")
-
-
-ptr_app(
-  'iris %>%
-  filter(Sepal.Length > num) %>%
-  mutate(new_var = var * var) %>%
-  ggplot(aes(x = var, y = var, fill = var)) +
-  geom_boxplot() +
-  labs(title = "Piped Data Processing to Plot",
-       y = "Sepal Area (Length * Width)")
-  '
-)
-```
-
-
-
+- `?ptr_extract_plot`, `?ptr_extract_code`, `?ptr_extract_error`, `?ptr_gg_extra` — the embed-time accessors used by the plotly / ggiraph sections.
