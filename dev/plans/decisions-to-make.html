@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ggpaintr — decisions to make</title>
+<style>
+  :root {
+    --bg:#fafbfc; --fg:#1f2328; --muted:#57606a;
+    --card:#ffffff; --border:#d0d7de;
+    --danger:#cf222e; --danger-bg:#ffebe9;
+    --warn:#9a6700;  --warn-bg:#fff8c5;
+    --ok:#1a7f37;    --ok-bg:#dafbe1;
+    --info:#0969da;  --info-bg:#ddf4ff;
+    --code-bg:#f6f8fa;
+  }
+  html { box-sizing: border-box; }
+  *, *::before, *::after { box-sizing: inherit; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 1180px; margin: 0 auto; padding: 28px 24px 80px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 32px 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+  h3 { font-size: 15px; margin: 18px 0 6px; }
+  p { margin: 6px 0; }
+  a { color: var(--info); }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+  .meta code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  code, pre {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+  }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  pre  { background: var(--code-bg); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); overflow-x: auto; }
+  pre code { padding: 0; background: transparent; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+  th, td { border: 1px solid var(--border); padding: 6px 9px; text-align: left; vertical-align: top; font-size: 13.5px; }
+  th { background: var(--code-bg); font-weight: 600; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 18px; margin: 14px 0;
+  }
+  .card h3 { margin-top: 0; }
+  .pill {
+    display: inline-block; padding: 1px 8px; border-radius: 999px;
+    font-size: 11.5px; font-weight: 600; vertical-align: middle;
+  }
+  .pill.open    { background: var(--warn-bg); color: var(--warn); }
+  .pill.locked  { background: var(--ok-bg);   color: var(--ok); }
+  .pill.api     { background: var(--info-bg); color: var(--info); }
+  .callout {
+    border-left: 3px solid var(--info); background: var(--info-bg); color: #032f62;
+    padding: 8px 12px; border-radius: 4px; margin: 10px 0;
+  }
+</style>
+</head>
+<body>
+<main>
+
+<h1>ggpaintr — decisions to make</h1>
+<p class="meta">
+  Started 2026-05-14 · branch <code>core-rewrite-impl</code> · sibling to
+  <code>vignette-rewrite-plan.html</code> · holds questions surfaced during
+  the vignette rewrite that need a decision before the public API freezes.
+</p>
+
+<div class="callout">
+  This file is the staging ground for decisions the vignette work cannot
+  resolve unilaterally. Each entry has a recommendation but is not locked
+  until the user approves. Once decided, move the entry into the API-audit
+  checklist (see memory <code>api-audit</code>) and delete it from here.
+</div>
+
+<h2>Open decisions</h2>
+
+<div class="card">
+  <h3>
+    <span class="pill open">open</span>
+    <span class="pill api">API</span>
+    1. Redundancy: <code>ptr_extract_plot()</code> / <code>_error()</code> vs. <code>state$runtime()$plot</code> / <code>$error</code>
+  </h3>
+
+  <p><em>Surfaced by:</em> use-cases vignette L3 drafting (commit <code>c7da43d</code>).
+  The plan framed L3 as &quot;extract accessors inside <code>renderPlotly()</code>&quot;, but the
+  accessors wrap <code>shiny::isolate()</code>, so used inside a reactive renderer they
+  silently break reactivity. The canonical pattern (verified against
+  gallery §5.1) is <code>state$runtime()$plot</code> directly. That leaves the
+  extract accessors redundant for plot / error.</p>
+
+  <p><em>Verified bodies</em> (<code>R/paintr-server.R:1241-1251</code>):</p>
+
+  <table>
+    <thead>
+      <tr><th>Accessor</th><th>Body</th><th>Pure wrapper?</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>ptr_extract_plot(state)</code></td>
+        <td><code>shiny::isolate(state$runtime())$plot</code></td>
+        <td>Yes — 1-liner.</td>
+      </tr>
+      <tr>
+        <td><code>ptr_extract_error(state)</code></td>
+        <td><code>shiny::isolate(state$runtime())$error</code></td>
+        <td>Yes — 1-liner.</td>
+      </tr>
+      <tr>
+        <td><code>ptr_extract_code(state)</code></td>
+        <td><code>shiny::isolate(format_code_with_extras(state$runtime(), state$extras_exprs()))</code></td>
+        <td><strong>No</strong> — folds <code>ptr_gg_extra()</code> extras into the code text the same way the bundled <code>output$ptr_code</code> does. Re-implementing this on the host side duplicates <code>format_code_with_extras()</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p><em>Origin:</em> Per the vignette plan's verification trail,
+  <code>testServer</code> was the intended L3 use-case for these accessors
+  (&quot;use them to snapshot the runtime under <code>shiny::testServer</code>&quot;).
+  That justification is gone: the plan refuted &quot;extract accessors render
+  under <code>testServer</code>&quot; and banned <code>testServer</code> from vignettes.
+  The internal-only headless runtime also no longer needs the public
+  accessors. Plot / error accessors are left without a primary use-case;
+  the code accessor still earns its keep.</p>
+
+  <p><em>Options:</em></p>
+
+  <table>
+    <thead>
+      <tr><th>Option</th><th>Action</th><th>Cost / risk</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>A — Un-export plot / error, keep code</td>
+        <td>Remove <code>@export</code> from <code>ptr_extract_plot</code> and
+        <code>ptr_extract_error</code>. Keep <code>ptr_extract_code</code>.
+        Use-cases L3 teaches <code>state$runtime()$plot</code> /
+        <code>$error</code> directly.</td>
+        <td>Cleanest. Honest about which accessor pulls its weight. Breaking
+        for any external caller relying on the two un-exports — likely none
+        in practice (the rewrite branch is unreleased). Vignette L3 already
+        frames it correctly; minor edit only.</td>
+      </tr>
+      <tr>
+        <td>B — Drop <code>shiny::isolate()</code> from the accessors</td>
+        <td>Rewrite <code>ptr_extract_plot</code> / <code>_error</code> to
+        return <code>state$runtime()$plot</code> / <code>$error</code>
+        without isolation. Then they take the reactive dep when used inside
+        a render block (matching user expectation from the function names);
+        callers who want a snapshot wrap externally with
+        <code>shiny::isolate()</code>.</td>
+        <td>Behavior change, not API change. Universal pattern, names earn
+        their keep. Requires updating tests that rely on the
+        isolate-by-default contract. Slightly more invasive than (A).</td>
+      </tr>
+      <tr>
+        <td>C — Status quo</td>
+        <td>Leave the accessors exported with current isolation. Use-cases
+        L3 frames them as &quot;non-reactive snapshot accessors&quot; (current
+        state).</td>
+        <td>Permanent mild API redundancy. Documentation has to keep
+        explaining when each pattern applies. No code change.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p><em>Recommendation:</em> Option <strong>A</strong>. It matches the
+  api-audit memory's un-exports direction, the use-cases vignette only
+  needs a small edit (drop the &quot;<code>ptr_extract_error(state)</code> is
+  the non-reactive counterpart&quot; lines), and the one non-redundant
+  accessor (<code>ptr_extract_code</code>) is kept for the case it
+  uniquely covers.</p>
+
+  <p><em>Touchpoints if A is chosen:</em></p>
+  <ul>
+    <li><code>R/paintr-server.R</code> — strip <code>@export</code> from
+        <code>ptr_extract_plot</code> / <code>_error</code>; regenerate
+        <code>NAMESPACE</code> via <code>devtools::document()</code>.</li>
+    <li><code>man/ptr_extract.Rd</code> — split or trim so the un-exported
+        names disappear from the rendered docs (or move them to
+        <code>@noRd</code>).</li>
+    <li><code>vignettes/ggpaintr-use-cases.Rmd</code> — drop the two
+        sentences naming the un-exported accessors in the L3 section.</li>
+    <li><code>_pkgdown.yml</code> — remove <code>ptr_extract_plot</code> /
+        <code>ptr_extract_error</code> from the &quot;Advanced embedders&quot;
+        section.</li>
+    <li>API-audit checklist (<code>dev/plans/api-audit.md</code>) — once
+        merged, list the un-exports under &quot;tiers / un-exports&quot;.</li>
+  </ul>
+</div>
+
+<h2>Resolved (then move to ADR / api-audit)</h2>
+
+<p class="meta">None yet.</p>
+
+</main>
+</body>
+</html>
