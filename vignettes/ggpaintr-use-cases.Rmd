@@ -1,0 +1,52 @@
+---
+title: "Use cases"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Use cases}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment   = "#>",
+  warning   = FALSE,
+  message   = FALSE,
+  eval      = interactive()
+)
+```
+
+This vignette answers the question *how do I use ggpaintr for my situation?* Companion vignettes cover tailoring defaults (`vignette("ggpaintr-customization")`), sharing safely (`vignette("ggpaintr-safety")`), real ggplot recipes (`vignette("ggpaintr-gallery")`), and LLM integration (`vignette("ggpaintr-llm")`).
+
+## Formula tour
+
+<!-- TODO: compact 5-placeholder table (var/text/num/expr/upload) + one worked example. Full grammar lives at ?ptr_app. -->
+
+## L1 — All-in-one entry point
+
+<!-- TODO:
+- ptr_app() / ptr_app_bslib() / ptr_app_grid()
+- empty-call cleanup by example
+- local data with non-syntactic columns via ptr_normalize_column_names()
+-->
+
+## L2 — Embed in your own Shiny app
+
+<!-- TODO:
+- non-module path: ptr_controls_ui + ptr_outputs_ui + ptr_server
+- module path: ptr_module_ui + ptr_module_server
+- split outputs with ptr_register_plot / _code / _error
+- ptr_init_state for advanced init
+-->
+
+## L3 — Custom rendering via extract accessors
+
+<!-- TODO:
+- ptr_extract_plot(state) inside renderPlotly() / renderGirafe() / custom renderer
+- ptr_extract_code(state) for own code panel
+- ptr_extract_error(state) for custom error UI
+- ptr_gg_extra(state, ...) for host-app layer injection
+- ALL examples are full running apps — no testServer
+- cross-link gallery §6 (plotly/ggiraph) as canonical worked examples
+-->

@@ -1,0 +1,40 @@
+---
+title: "Customization"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Customization}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment   = "#>",
+  warning   = FALSE,
+  message   = FALSE,
+  eval      = interactive()
+)
+```
+
+This vignette answers the question *how do I tailor ggpaintr's defaults?* Companion vignettes cover the use-case ladder (`vignette("ggpaintr-use-cases")`), the safety story (`vignette("ggpaintr-safety")`), real ggplot recipes (`vignette("ggpaintr-gallery")`), and LLM integration (`vignette("ggpaintr-llm")`).
+
+## Rewriting copy with `ui_text`
+
+<!-- TODO:
+- six-section override catalog
+- merge precedence rules
+- helpers: ptr_ui_text, ptr_resolve_ui_text
+-->
+
+## Adding a new widget type
+
+<!-- TODO: hook contract across ptr_define_placeholder_value / _consumer / _source. Full worked example (absorbs gallery §3 "Three reusable custom placeholders"). -->
+
+## Sharing one widget across two plots
+
+<!-- TODO: shared-placeholder pattern (absorbs gallery §8). -->
+
+## Unregistering
+
+<!-- TODO: ptr_clear_placeholder for cleanup between sessions / examples. -->

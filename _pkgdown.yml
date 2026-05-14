@@ -52,8 +52,8 @@ articles:
   - title: Guides
     navbar: ggpaintr
     contents:
-      - ggpaintr-workflow
-      - ggpaintr-extensibility
-      - ggpaintr-placeholder-registry
+      - ggpaintr-use-cases
+      - ggpaintr-customization
+      - ggpaintr-safety
       - ggpaintr-gallery
       - ggpaintr-llm

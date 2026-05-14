@@ -1,0 +1,40 @@
+---
+title: "Safety"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Safety}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment   = "#>",
+  warning   = FALSE,
+  message   = FALSE,
+  eval      = interactive()
+)
+```
+
+This vignette answers the question *how do I share this with untrusted users?* Companion vignettes cover the use-case ladder (`vignette("ggpaintr-use-cases")`), tailoring defaults (`vignette("ggpaintr-customization")`), real ggplot recipes (`vignette("ggpaintr-gallery")`), and LLM integration (`vignette("ggpaintr-llm")`).
+
+## The `expr_check` flag
+
+<!-- TODO: what it does, when (never) to turn it off. -->
+
+## The denylist boundary
+
+<!-- TODO: ~151 entries, treated as complete. AST walker is the actual safety mechanism, not the denylist alone. -->
+
+## Upload trust model
+
+<!-- TODO: what's accepted, where normalization happens, what the host can / can't restrict. -->
+
+## Public-deployment recipe
+
+<!-- TODO: shinyapps.io / Posit Connect checklist; what to lock down at each level. -->
+
+## Trade-off table: L1 vs L2 vs L3
+
+<!-- TODO: deployment surface per level, default settings, what additional surface a host introduces. Strictly ggpaintr-provided surface (host-introduced surfaces only as cautionary side-notes). -->
