@@ -29,11 +29,7 @@ This vignette answers the question *how do I tailor ggpaintr's defaults?* Compan
 
 ## Adding a new widget type
 
-<!-- TODO: hook contract across ptr_define_placeholder_value / _consumer / _source. Full worked example (absorbs gallery §3 "Three reusable custom placeholders"). -->
-
-## Sharing one widget across two plots
-
-<!-- TODO: shared-placeholder pattern (absorbs gallery §8). -->
+<!-- TODO: introduce the three constructors (ptr_define_placeholder_value / _consumer / _source) one at a time, each with a worked example. Source material: gallery §3 "Three reusable custom placeholders" (range / colvars / date). -->
 
 ## Unregistering
 
