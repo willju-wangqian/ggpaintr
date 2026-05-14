@@ -23,25 +23,15 @@ xaringanExtra::use_clipboard()
 
 ## 1. Setup
 
-Every chunk in this vignette is marked `eval = interactive()` — they will not run during vignette build, but each block is runnable as-is at the R prompt. Before launching any of them, load the development copy of the package and bind its internals into your global environment so S3 dispatch through internal generics (`prune_walk`, `render_walk`, `classify_walk`, `build_ui_for`, …) resolves to the namespace where the method tables actually live:
-
-```{r dev-setup, eval = TRUE}
-devtools::load_all(".", export_all = FALSE)
-
-local({
-  ns <- asNamespace("ggpaintr")
-  for (nm in ls(ns, all.names = FALSE)) {
-    assign(nm, get(nm, envir = ns), envir = globalenv())
-  }
-})
-```
+Every chunk in this vignette is marked `eval = interactive()` — they will not run during vignette build, but each block is runnable as-is at the R prompt after:
 
 ```{r libs, eval = TRUE}
+library(ggpaintr)   # also attaches ggplot2
 library(shiny)
-library(ggplot2)
 library(rlang)
-library(tidyverse)
 ```
+
+Some sections also load `dplyr`, `plotly`, `ggiraph`, or one of the ggplot2 extension packages (`ggpcp`, `ggridges`, `ggrepel`, `ggalluvial`, `ggdist`). Each section names what it needs.
 
 ## 2. What this vignette is
 
@@ -97,11 +87,6 @@ mpg |>
   ggplot(aes(displ, hwy, color = class)) +
   geom_point(alpha = 0.5)
 ```
-
-```{r}
-lm(expr, data = mtcars)
-```
-
 
 The same pipeline parameterized — the two `filter` thresholds and the point alpha become widgets:
 

@@ -69,6 +69,13 @@ host-resolved upstream (the same data the host picker was built
 from) instead of the per-layer \code{node$upstream}, so a value valid in
 the host picker is never rejected by one layer's narrower upstream.
 Defaults to \code{list()} (no host resolutions; per-layer behaviour).}
+
+\item{plots}{Optional list of formula strings for grid contexts. When
+supplied (typically by \code{\link[=ptr_app_grid]{ptr_app_grid()}}), the validator for \code{shared}
+bindings cross-checks shared-key references against every plot's
+placeholder set, so a \code{shared = "..."} annotation that exists in
+plot 2 but not plot 1 still validates. Defaults to \code{NULL} (single-
+plot context — only \code{formula} is checked).}
 }
 \value{
 A \code{ptr_state} list (S3 class \code{c("ptr_state", "list")}).

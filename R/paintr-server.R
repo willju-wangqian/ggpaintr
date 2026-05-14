@@ -61,6 +61,12 @@
 #'   from) instead of the per-layer `node$upstream`, so a value valid in
 #'   the host picker is never rejected by one layer's narrower upstream.
 #'   Defaults to `list()` (no host resolutions; per-layer behaviour).
+#' @param plots Optional list of formula strings for grid contexts. When
+#'   supplied (typically by [ptr_app_grid()]), the validator for `shared`
+#'   bindings cross-checks shared-key references against every plot's
+#'   placeholder set, so a `shared = "..."` annotation that exists in
+#'   plot 2 but not plot 1 still validates. Defaults to `NULL` (single-
+#'   plot context — only `formula` is checked).
 #'
 #' @return A `ptr_state` list (S3 class `c("ptr_state", "list")`).
 #' @export
