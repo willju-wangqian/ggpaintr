@@ -17,13 +17,31 @@ ptr_define_placeholder_source(
 \item{keyword, build_ui, copy_defaults}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.}
 
 \item{resolve_data}{Function \verb{function(value, node, ...)} returning a
-data.frame.}
+data.frame (or \code{NULL} to signal "no data yet").}
 
-\item{resolve_expr}{Optional override; default returns \code{rlang::sym(value)}.}
+\item{resolve_expr}{Optional override. Default returns \code{rlang::sym(value)},
+i.e. substitutes the bare keyword (e.g. the user-typed dataset name)
+into the generated code. Override when the generated code should
+re-fetch the data rather than reference an in-session object — for
+example, \code{function(value, node, ...) rlang::expr(read.csv(!!path))}.}
 
-\item{companion_id_fn}{Optional \verb{function(id) -> companion_id} for paired
-widgets (e.g. upload-name).}
+\item{companion_id_fn}{Optional \verb{function(id) -> companion_id_string}.
+Use this when the source widget needs \strong{two} bound Shiny inputs that
+both participate in the runtime substitution cycle: one at \code{node$id}
+(the data payload) and one at \code{node$companion_id} (a sibling input,
+typically a name or override). The framework calls this function with
+the primary id and namespaces the returned companion id alongside it,
+so a single \code{build_ui} can render both widgets and both values reach
+\code{resolve_data} / \code{resolve_expr} through \code{node}. Most sources do not
+need it — one bound input is the common case. The built-in \code{upload}
+uses it to attach the "Optional dataset name" textbox: the file
+contents bind to \code{node$id}, the user-typed dataset name binds to
+\code{node$companion_id}, and the substitution uses the name as the symbol
+inserted into the generated code. Pass \code{NULL} (default) when one
+input suffices.}
 }
 \description{
-Define a data-source placeholder (e.g. upload, database table)
+A \emph{source} placeholder produces a data frame the rest of the formula
+reads from. Built-in example: \code{upload}. Custom examples: database
+tables, built-in datasets, URL fetches.
 }

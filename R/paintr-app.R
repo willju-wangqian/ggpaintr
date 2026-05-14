@@ -6,18 +6,28 @@
 #'
 #' Translates `formula` into the typed AST, builds the per-layer panel UI,
 #' and wires the server end-to-end. Returns a `shiny.appobj` ready to be run.
+#' This page is the canonical reference for the formula grammar and the
+#' empty-call cleanup rule used by every public entry point.
 #'
-#' @param formula A single formula string with `ggpaintr` placeholders.
+#' @param formula A single formula string with `ggpaintr` placeholders. See
+#'   **Formula grammar** below.
 #' @param envir Environment used to resolve local data objects.
 #' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
 #'   for the full schema and current defaults.
 #' @param checkbox_defaults Optional named list of initial checked states for
 #'   layer checkboxes.
-#' @param expr_check Controls `expr` placeholder validation. `TRUE` (default)
-#'   applies the built-in safety walker; `FALSE` disables checking.
+#' @param expr_check Controls `expr` placeholder validation. Three modes:
+#'   `TRUE` (default) applies the built-in denylist + AST walker;
+#'   `FALSE` disables all validation (for local prototyping with trusted
+#'   input only); a `list` with `deny_list` and/or `allow_list` entries
+#'   (character vectors) customises the policy without disabling it. See
+#'   `vignette("ggpaintr-safety")` for the walker model.
 #' @param safe_to_remove Character vector of additional function names whose
 #'   zero-argument calls should be dropped after placeholder substitution
-#'   leaves them empty. Defaults to `character()`.
+#'   leaves them empty. Defaults to `character()`. See **Empty-call cleanup**
+#'   below. A user-typed `expr` always wins — whatever the user enters into
+#'   an `expr` box is honoured verbatim, even if its top-level name is in
+#'   `safe_to_remove`.
 #' @param css Optional character vector of paths to additional CSS files. Each
 #'   is served as a static resource and linked after `ggpaintr`'s bundled
 #'   stylesheet, so its rules override the default `.ptr-*` styling. Relative
@@ -25,6 +35,75 @@
 #'   directory. Defaults to `NULL` (no extra stylesheet).
 #'
 #' @return A `shiny.appobj`.
+#'
+#' @section Formula grammar:
+#' A `ggpaintr` formula is a single `ggplot()` call written as a string. Drop
+#' one of five placeholder keywords anywhere a value would normally go, and
+#' the runtime substitutes the user's input back into the expression at
+#' render time.
+#'
+#' \describe{
+#'   \item{`var`}{Column picker, data-aware. Renders as a `selectInput`
+#'   populated with the upstream data's column-name vector. Example:
+#'   `aes(x = var)`.}
+#'   \item{`text`}{Free-text input. Renders as a `textInput`. Example:
+#'   `labs(title = text)`.}
+#'   \item{`num`}{Numeric input. Renders as a `numericInput`. Example:
+#'   `geom_point(size = num)`.}
+#'   \item{`expr`}{Code editor, validated by `expr_check`. The only keyword
+#'   that accepts arbitrary R code; see `vignette("ggpaintr-safety")` for
+#'   the model. Example: `facet_wrap(expr)`.}
+#'   \item{`upload`}{File picker, returns a data frame. Renders as a
+#'   `fileInput` plus an optional dataset-name textbox. Accepted formats:
+#'   `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, `.json`. Uploaded data is
+#'   normalized via [ptr_normalize_column_names()] automatically. Example:
+#'   `ggplot(upload, ...)`.}
+#' }
+#'
+#' Any keyword occurrence may carry `shared = "<id>"` to lift the widget out
+#' of its per-layer panel into a top-level shared section. Used by
+#' [ptr_app_grid()] to drive multiple plots from one control. See
+#' `vignette("ggpaintr-use-cases")` for worked examples of each keyword.
+#'
+#' @section Empty-call cleanup:
+#' When a placeholder resolves to "missing" (an empty `var` pick, a blank
+#' `text`, a cleared `num`, an unchecked layer checkbox), its argument is
+#' dropped from the generated code. If the surrounding call is left empty
+#' and its bare name is in the curated cleanup list, the whole call
+#' disappears too. This rule applies to both placeholder-driven empties and
+#' user-authored literal empty calls like `+ labs()`.
+#'
+#' Curated `ggplot2` names that are dropped when empty:
+#'
+#' \preformatted{theme, labs, xlab, ylab, ggtitle,
+#' facet_wrap, facet_grid, facet_null,
+#' xlim, ylim, lims, expand_limits,
+#' guides, annotate, annotation_custom,
+#' annotation_map, annotation_raster,
+#' aes, aes_, aes_q, aes_string, vars,
+#' element_text, element_line, element_rect,
+#' element_point, element_polygon, element_geom}
+#'
+#' Empty calls to similar no-op helpers from `dplyr`, `tidyr`, `tibble`,
+#' `pillar`, `purrr`, `stringr`, `forcats`, `lubridate`, and `hms` are
+#' covered by the same rule.
+#'
+#' `geom_*()` and `stat_*()` layers are **never** dropped, regardless of
+#' whether they end up empty — they inherit their aesthetics from
+#' `ggplot()` and remain meaningful with no arguments.
+#'
+#' `element_blank()` is intentionally **not** in the cleanup list: its
+#' empty form is a meaningful "suppress" directive, not a no-op.
+#'
+#' Third-party helpers (e.g. `pcp_theme()` from `ggpcp`) are not in the
+#' cleanup list — being absent is the "removal safety unknown" signal.
+#' Use `safe_to_remove = c("pcp_theme")` to opt a specific name in.
+#'
+#' @seealso [ptr_app_bslib()] for the same contract with a `bslib` theme;
+#'   [ptr_app_grid()] for multi-plot apps with shared widgets;
+#'   [ptr_define_placeholder_value()] et al. for registering custom
+#'   keywords; [ptr_ui_text()] for copy overrides;
+#'   `vignette("ggpaintr-use-cases")` for tutorial examples.
 #' @export
 ptr_app <- function(formula,
                        envir = parent.frame(),
@@ -444,6 +523,9 @@ ptr_module_server <- function(id, formula, envir = parent.frame(), ...) {
 #' shared input widgets and a "Draw all" button that triggers a redraw across
 #' every plot. Each plot's `shared = "..."` placeholders read from the
 #' corresponding entry in `shared_ui` instead of rendering local widgets.
+#'
+#' For the formula grammar (placeholder keywords, `shared = "<id>"`
+#' annotation, empty-call cleanup), see [ptr_app()].
 #'
 #' @param plots A list of formula strings, one per plot.
 #' @param shared_ui Named list mapping shared key → `function(id) -> shiny.tag`

@@ -3,6 +3,15 @@
 #' Normalize incoming column names so `var` placeholders can require exact,
 #' syntactic, unique column-name matches at runtime.
 #'
+#' Uploaded data is normalized automatically by the runtime — every
+#' successful `upload` placeholder passes through this function (or its
+#' `data.frame`-coercing sibling for non-`data.frame` returns from
+#' `readRDS` / `readxl` / `jsonlite`). Call `ptr_normalize_column_names()`
+#' yourself only for **in-session** data frames you reference by name from
+#' a formula. If a local data frame has spaces, reserved words, or
+#' duplicates in its column names, pipe it through this function before
+#' passing it to `ptr_app()`.
+#'
 #' @param data A data frame or an object coercible with `as.data.frame()`.
 #'
 #' @return A tabular object with `ggpaintr`-safe column names. Existing

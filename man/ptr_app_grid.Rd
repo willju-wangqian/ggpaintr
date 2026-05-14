@@ -42,3 +42,7 @@ shared input widgets and a "Draw all" button that triggers a redraw across
 every plot. Each plot's \code{shared = "..."} placeholders read from the
 corresponding entry in \code{shared_ui} instead of rendering local widgets.
 }
+\details{
+For the formula grammar (placeholder keywords, \code{shared = "<id>"}
+annotation, empty-call cleanup), see \code{\link[=ptr_app]{ptr_app()}}.
+}

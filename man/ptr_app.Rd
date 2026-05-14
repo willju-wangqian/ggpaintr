@@ -15,7 +15,8 @@ ptr_app(
 )
 }
 \arguments{
-\item{formula}{A single formula string with \code{ggpaintr} placeholders.}
+\item{formula}{A single formula string with \code{ggpaintr} placeholders. See
+\strong{Formula grammar} below.}
 
 \item{envir}{Environment used to resolve local data objects.}
 
@@ -25,12 +26,19 @@ for the full schema and current defaults.}
 \item{checkbox_defaults}{Optional named list of initial checked states for
 layer checkboxes.}
 
-\item{expr_check}{Controls \code{expr} placeholder validation. \code{TRUE} (default)
-applies the built-in safety walker; \code{FALSE} disables checking.}
+\item{expr_check}{Controls \code{expr} placeholder validation. Three modes:
+\code{TRUE} (default) applies the built-in denylist + AST walker;
+\code{FALSE} disables all validation (for local prototyping with trusted
+input only); a \code{list} with \code{deny_list} and/or \code{allow_list} entries
+(character vectors) customises the policy without disabling it. See
+\code{vignette("ggpaintr-safety")} for the walker model.}
 
 \item{safe_to_remove}{Character vector of additional function names whose
 zero-argument calls should be dropped after placeholder substitution
-leaves them empty. Defaults to \code{character()}.}
+leaves them empty. Defaults to \code{character()}. See \strong{Empty-call cleanup}
+below. A user-typed \code{expr} always wins — whatever the user enters into
+an \code{expr} box is honoured verbatim, even if its top-level name is in
+\code{safe_to_remove}.}
 
 \item{css}{Optional character vector of paths to additional CSS files. Each
 is served as a static resource and linked after \code{ggpaintr}'s bundled
@@ -44,4 +52,80 @@ A \code{shiny.appobj}.
 \description{
 Translates \code{formula} into the typed AST, builds the per-layer panel UI,
 and wires the server end-to-end. Returns a \code{shiny.appobj} ready to be run.
+This page is the canonical reference for the formula grammar and the
+empty-call cleanup rule used by every public entry point.
+}
+\section{Formula grammar}{
+
+A \code{ggpaintr} formula is a single \code{ggplot()} call written as a string. Drop
+one of five placeholder keywords anywhere a value would normally go, and
+the runtime substitutes the user's input back into the expression at
+render time.
+
+\describe{
+\item{\code{var}}{Column picker, data-aware. Renders as a \code{selectInput}
+populated with the upstream data's column-name vector. Example:
+\code{aes(x = var)}.}
+\item{\code{text}}{Free-text input. Renders as a \code{textInput}. Example:
+\code{labs(title = text)}.}
+\item{\code{num}}{Numeric input. Renders as a \code{numericInput}. Example:
+\code{geom_point(size = num)}.}
+\item{\code{expr}}{Code editor, validated by \code{expr_check}. The only keyword
+that accepts arbitrary R code; see \code{vignette("ggpaintr-safety")} for
+the model. Example: \code{facet_wrap(expr)}.}
+\item{\code{upload}}{File picker, returns a data frame. Renders as a
+\code{fileInput} plus an optional dataset-name textbox. Accepted formats:
+\code{.csv}, \code{.tsv}, \code{.rds}, \code{.xlsx}, \code{.xls}, \code{.json}. Uploaded data is
+normalized via \code{\link[=ptr_normalize_column_names]{ptr_normalize_column_names()}} automatically. Example:
+\code{ggplot(upload, ...)}.}
+}
+
+Any keyword occurrence may carry \code{shared = "<id>"} to lift the widget out
+of its per-layer panel into a top-level shared section. Used by
+\code{\link[=ptr_app_grid]{ptr_app_grid()}} to drive multiple plots from one control. See
+\code{vignette("ggpaintr-use-cases")} for worked examples of each keyword.
+}
+
+\section{Empty-call cleanup}{
+
+When a placeholder resolves to "missing" (an empty \code{var} pick, a blank
+\code{text}, a cleared \code{num}, an unchecked layer checkbox), its argument is
+dropped from the generated code. If the surrounding call is left empty
+and its bare name is in the curated cleanup list, the whole call
+disappears too. This rule applies to both placeholder-driven empties and
+user-authored literal empty calls like \code{+ labs()}.
+
+Curated \code{ggplot2} names that are dropped when empty:
+
+\preformatted{theme, labs, xlab, ylab, ggtitle,
+facet_wrap, facet_grid, facet_null,
+xlim, ylim, lims, expand_limits,
+guides, annotate, annotation_custom,
+annotation_map, annotation_raster,
+aes, aes_, aes_q, aes_string, vars,
+element_text, element_line, element_rect,
+element_point, element_polygon, element_geom}
+
+Empty calls to similar no-op helpers from \code{dplyr}, \code{tidyr}, \code{tibble},
+\code{pillar}, \code{purrr}, \code{stringr}, \code{forcats}, \code{lubridate}, and \code{hms} are
+covered by the same rule.
+
+\verb{geom_*()} and \verb{stat_*()} layers are \strong{never} dropped, regardless of
+whether they end up empty — they inherit their aesthetics from
+\code{ggplot()} and remain meaningful with no arguments.
+
+\code{element_blank()} is intentionally \strong{not} in the cleanup list: its
+empty form is a meaningful "suppress" directive, not a no-op.
+
+Third-party helpers (e.g. \code{pcp_theme()} from \code{ggpcp}) are not in the
+cleanup list — being absent is the "removal safety unknown" signal.
+Use \code{safe_to_remove = c("pcp_theme")} to opt a specific name in.
+}
+
+\seealso{
+\code{\link[=ptr_app_bslib]{ptr_app_bslib()}} for the same contract with a \code{bslib} theme;
+\code{\link[=ptr_app_grid]{ptr_app_grid()}} for multi-plot apps with shared widgets;
+\code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}} et al. for registering custom
+keywords; \code{\link[=ptr_ui_text]{ptr_ui_text()}} for copy overrides;
+\code{vignette("ggpaintr-use-cases")} for tutorial examples.
 }

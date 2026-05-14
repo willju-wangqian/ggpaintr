@@ -24,6 +24,9 @@
 #'   (the default), the title is taken from `ui_text$shell$title$label`
 #'   if supplied, otherwise from a hardcoded fallback.
 #'
+#' For the formula grammar (placeholder keywords, shared annotation,
+#' empty-call cleanup), see [ptr_app()].
+#'
 #' @section Precedence:
 #' If both `title` and `ui_text$shell$title$label` are supplied, the
 #' explicit `title` argument wins. Pass `title = NULL` (or omit it) to

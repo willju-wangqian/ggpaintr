@@ -38,7 +38,10 @@ bootswatch. Pass any \code{\link[bslib:bs_theme]{bslib::bs_theme()}} result to c
 
 \item{title}{App title shown in the page header. When \code{NULL}
 (the default), the title is taken from \code{ui_text$shell$title$label}
-if supplied, otherwise from a hardcoded fallback.}
+if supplied, otherwise from a hardcoded fallback.
+
+For the formula grammar (placeholder keywords, shared annotation,
+empty-call cleanup), see \code{\link[=ptr_app]{ptr_app()}}.}
 }
 \value{
 A \code{shiny.appobj}.

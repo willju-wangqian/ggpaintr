@@ -251,12 +251,32 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 
 #' Define a data-source placeholder (e.g. upload, database table)
 #'
+#' A *source* placeholder produces a data frame the rest of the formula
+#' reads from. Built-in example: `upload`. Custom examples: database
+#' tables, built-in datasets, URL fetches.
+#'
 #' @param keyword,build_ui,copy_defaults See [ptr_define_placeholder_value()].
 #' @param resolve_data Function `function(value, node, ...)` returning a
-#'   data.frame.
-#' @param resolve_expr Optional override; default returns `rlang::sym(value)`.
-#' @param companion_id_fn Optional `function(id) -> companion_id` for paired
-#'   widgets (e.g. upload-name).
+#'   data.frame (or `NULL` to signal "no data yet").
+#' @param resolve_expr Optional override. Default returns `rlang::sym(value)`,
+#'   i.e. substitutes the bare keyword (e.g. the user-typed dataset name)
+#'   into the generated code. Override when the generated code should
+#'   re-fetch the data rather than reference an in-session object — for
+#'   example, `function(value, node, ...) rlang::expr(read.csv(!!path))`.
+#' @param companion_id_fn Optional `function(id) -> companion_id_string`.
+#'   Use this when the source widget needs **two** bound Shiny inputs that
+#'   both participate in the runtime substitution cycle: one at `node$id`
+#'   (the data payload) and one at `node$companion_id` (a sibling input,
+#'   typically a name or override). The framework calls this function with
+#'   the primary id and namespaces the returned companion id alongside it,
+#'   so a single `build_ui` can render both widgets and both values reach
+#'   `resolve_data` / `resolve_expr` through `node`. Most sources do not
+#'   need it — one bound input is the common case. The built-in `upload`
+#'   uses it to attach the "Optional dataset name" textbox: the file
+#'   contents bind to `node$id`, the user-typed dataset name binds to
+#'   `node$companion_id`, and the substitution uses the name as the symbol
+#'   inserted into the generated code. Pass `NULL` (default) when one
+#'   input suffices.
 #' @export
 ptr_define_placeholder_source <- function(keyword, build_ui, resolve_data,
                                         resolve_expr = NULL,
