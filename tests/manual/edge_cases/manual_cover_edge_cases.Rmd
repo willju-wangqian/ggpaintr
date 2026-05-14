@@ -1,0 +1,124 @@
+---
+title: "ggpaintr Edge-Case Coverage — Manual Companion"
+date: "`r format(Sys.Date())`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(eval = FALSE, comment = "#>", collapse = TRUE)
+```
+
+# Purpose
+
+This document accompanies `tests/manual/edge_cases/launchers/`. Each launcher encodes one edge case from `tests/manual/manual-checklist-ggpaintr.md` that was previously left as a manual check. The launchers are designed so that the **same edge case can be exercised either by hand (open a browser to `http://127.0.0.1:4321`) or under browser automation** (Claude in Chrome MCP, Selenium, Playwright).
+
+The audit on 2026-05-13 drove every launcher end-to-end with Chrome MCP. This file records what passed, what needed adjustment, what crosses an automation-tool boundary, and what surfaced as follow-up work on ggpaintr itself.
+
+# How to run
+
+From the repo root:
+
+``` bash
+# (one-time) generate the tabular fixtures
+Rscript tests/manual/edge_cases/fixtures/generate.R
+
+# (per case) boot one launcher
+Rscript tests/manual/edge_cases/launchers/upload.R
+# then open http://127.0.0.1:4321
+```
+
+Every launcher uses port `4321`. Kill the previous one before starting the next:
+
+``` bash
+kill $(lsof -i :4321 -sTCP:LISTEN -t)
+```
+
+# Coverage matrix
+
+What the 2026-05-13 audit ran (driver = Claude in Chrome MCP). Status legend: **✓ auto** = passed under automation; **✓ manual** = the maintainer verified by hand because the automation transport can't reach this case; **⧗ queued** = behaviour confirmed under automation but flagged for a follow-up code change. No row is left open.
+
+| Edge case | Launcher | Result |
+|---|---|---|
+| `.csv` upload | `upload.R` | ✓ auto — name derived → `simple_numeric`, picker = `[a,b,c]`, code resolved |
+| `.tsv` upload | `upload.R` | ✓ auto — same shape as csv |
+| `.rds` upload | `upload.R` | ✓ auto — same shape as csv |
+| `.xlsx` upload | `upload.R` | ✓ manual — maintainer-verified (2026-05-13). JS `DataTransfer` upload of the binary fixture is unreliable in the audit driver (see §Known automation limit); the R reader path is verified directly. |
+| `.json` upload | `upload.R` | ✓ auto — same shape as csv |
+| `bad_extension.txt` upload | `upload.R` | ⧗ queued — app does not crash; inline error fires, but message currently reads "object 'bad_extension' not found" downstream of the unsupported-extension abort. **Decision: change to surface the unsupported-format wording instead.** Tracked as the fix in §Bad-extension fix follow-up. |
+| Blank `_name` → filename-derived | `upload.R` | ✓ auto — name field auto-fills to `simple_numeric` after csv upload |
+| Custom `_name` overrides derived | `upload.R` | ✓ auto — overwriting `_name` to `my_dataset` → code uses `my_dataset` |
+| Custom CSS — override wins, `url(./mark.svg)` resolves | `css-override.R` | ✓ auto — `body.background-color = rgb(220,20,60)`; `body.background-image` points to `/ggpaintr-user-*/mark.svg`; `fetch()` returns 200 `image/svg+xml`; user CSS link is LAST in `<link>` ordering |
+| Custom CSS — `c(a, b)` cascade, later wins | `css-cascade.R` | ✓ auto — `body.background-color = rgb(0, 0, 255)` (blue, from `cascade-b.css`); links in DOM order `a → b` |
+| Custom CSS — missing path aborts | `css-bad-path.R` | ✓ auto — `Rscript` exits 1 with `Error in ptr_user_css_assets(): \`css\` file(s) not found: ✖ tests/manual/edge_cases/css/this-file-does-not-exist.css` |
+| Custom CSS — non-`.css` extension aborts | `css-non-css-ext.R` | ✓ auto — `Rscript` exits 1 with `Error in ptr_user_css_assets(): \`css\` paths must point to \`.css\` files: ✖ tests/manual/edge_cases/css/not-a-stylesheet.notcss` |
+| Missing-object inline error | `missing-object.R` | ✓ auto — app launches; on Render, inline error reads `Plot error: object 'unknown_object' not found`; code panel still updates; no crash |
+| Faceting with missing column | `facet-missing-var.R` | ✓ auto — on Render with `~ Speciesasdf`, inline error reads `Plot error: At least one layer must contain all faceting variables: 'Speciesasdf' / ✖ Plot is missing 'Speciesasdf' / ✖ Layer 1 is missing 'Speciesasdf'`; no raw `[object Object]` |
+| `checkbox_defaults` unknown layer | `checkbox-defaults-unknown.R` | ✓ auto — console warning `Some checkbox_defaults names don't match any layer in the formula: ✖ Unknown: "geom_typo" ℹ Available layers: "geom_point"` (verified by calling `ptr_init_state()` directly; `ptr_app()` fires it on server boot) |
+| `checkbox_defaults` over-length vector | `checkbox-defaults-overlength.R` | ✓ auto — console warning `checkbox_defaults$geom_point has 3 values but the layer group has 2. Extra values dropped.` and the recognized prefix `c(TRUE, FALSE)` is applied |
+| Custom top-level ids via module ns | `custom-ids.R` | ✓ auto — every Shiny input/button/output id in the DOM starts with the custom prefix `myprefix_42-` (4/4 inputs prefixed, 0 non-prefixed); plot renders to `myprefix_42-ptr_plot` |
+| Host-owned `renderPlot()` via `ptr_extract_plot()` | `custom-plot-extract.R` | ✓ auto — host pane `#user_plot` renders (width 2415px) alongside the module's own plot; default code binder still updates. Note: `ptr_extract_plot()` is a non-reactive `isolate()` wrapper, so the host renderer must take the `state$runtime()` reactive dependency itself first. |
+| Layer panels: pipeline-bearing has Data/Controls; flat layers do not | `layer-no-data.R` | ✓ auto — `ggplot` layer's panel contains a nested `<ul class="nav nav-tabs">` with `["Data", "Controls"]`; `geom_point` / `labs` / `coord_cartesian` panels each have `innerNavCount = 0` |
+| Layer-uncheck panel grays out + drops from code | `layer-uncheck-opacity.R` | ✓ auto — on unchecking `geom_smooth_checkbox`, a `<div class="ptr-layer-content ptr-layer-disabled">` appears with computed `opacity: 0.5`; generated code drops `geom_smooth()` after re-render |
+| Three-key shell overrides | `layer-shell-overrides.R` | ✓ auto — `layer_picker` label reads "Choose layer"; inner sub-tabs read "Pipeline" / "Aesthetics"; Render button keeps default "Update plot"; layer-checkbox keeps default "Include this layer in the plot" |
+
+# Known automation limit
+
+## `.xlsx` upload via browser-driven `DataTransfer`
+
+The audit driver uploads files by base64-encoding the fixture into a JS string, decoding it client-side with `atob()`, wrapping the bytes in a `File` object, attaching to `DataTransfer`, assigning `el.files`, then dispatching a `change` event. This works cleanly for text formats (`.csv`, `.tsv`, `.json`) and even for `.rds`. It does **not** survive intact for the `.xlsx` fixture in the driver used here:
+
+- Original fixture: 5142 bytes (verified via `file(1)` and `readxl::read_excel()` directly).
+- Bytes that reach the Shiny server's temp file: 4941 bytes (starts with the zip magic `PK..` but trailing bytes are clipped).
+- Server-side error from an instrumented `ptr_read_uploaded_data()`: `Could not read 'simple_numeric.xlsx' as an Excel file: zip file '/var/folders/.../0.xlsx' cannot be opened`.
+
+The R reader itself is fine — verified directly:
+
+``` r
+file_info <- list(
+  name = "simple_numeric.xlsx",
+  datapath = "tests/manual/edge_cases/fixtures/simple_numeric.xlsx",
+  size = 5142
+)
+ggpaintr:::ptr_read_excel_upload(file_info)
+#> # A tibble: 5 × 3
+#>       a     b     c
+#>   <dbl> <dbl> <dbl>
+#> 1   1.1    10   0.5
+#> 2   2.2    20   0.6
+#> 3   3.3    30   0.7
+#> 4   4.4    40   0.8
+#> 5   5.5    50   0.9
+```
+
+The boundary is at the **automation transport layer**, not in ggpaintr. The maintainer manually verified the end-to-end xlsx upload on 2026-05-13: clicking the file picker and selecting `simple_numeric.xlsx` populates the dataset name, fills the var pickers with `a, b, c`, and renders the plot correctly.
+
+If a future audit needs to re-verify xlsx automatically, options are: (a) drive uploads via Chrome MCP's `file_upload` tool against a real file path instead of JS `DataTransfer`; (b) use a Playwright-based driver whose binary upload path is byte-faithful; (c) keep the manual check item explicit.
+
+# Bad-extension fix follow-up
+
+Status as of 2026-05-13: **queued for a code change.** Maintainer decision: surface the unsupported-format wording inline.
+
+What's happening now: when the user uploads `bad_extension.txt`:
+
+- The upload widget accepts the file (the `_name` companion auto-fills with `bad_extension`).
+- `ptr_read_uploaded_data()` hits the `.txt` branch and calls `rlang::abort(ptr_unsupported_upload_message())` — *"Please upload a .csv, .tsv, .rds, .xlsx, .xls, or .json file."*
+- That abort is swallowed by `tryCatch(entry$resolve_data(...), error = function(e) NULL)` at `R/paintr-server.R:316` and `:358`; downstream the resolved data is `NULL`.
+- Code generation proceeds with the unbound symbol; the plot eval then fails with `Plot error: object 'bad_extension' not found`, which is what surfaces inline.
+
+The fix (queued, not yet implemented): replace the silent-NULL swallow with a path that stores the original abort message in a new `state$resolve_errors` slot, and have the existing error binder display it. After the fix, the inline error should read the unsupported-format message verbatim instead of the downstream "not found".
+
+Reproduction for the fixer: `Rscript tests/manual/edge_cases/launchers/upload.R`; open the page; in DevTools console run the `bad_extension.txt` upload payload (see `tests/manual/edge_cases/fixtures/bad_extension.txt`); click Render; assert the inline error text contains "Please upload a .csv, .tsv".
+
+# Stable invariants exercised
+
+The launchers + assertions encoded in the **Coverage matrix** above protect:
+
+- Five upload reader paths (csv / tsv / rds / json / xlsx) round-trip, plus name-derive and custom-name overrides.
+- CSS user-overrides win the cascade in the rendered DOM; relative `url()` paths resolve to Shiny-served static resources; multi-file `css = c(a, b)` cascade respects later-wins; missing path and wrong-extension paths both abort `ptr_app()` at construction time with clearly-named files.
+- `unknown_object` data → inline error names the missing object; faceting with a missing column surfaces ggplot2's `At least one layer must contain all faceting variables: …` instead of raw `[object Object]`.
+- `checkbox_defaults` warns for unknown keys and over-length vectors at `ptr_init_state()` time.
+- Module-ns lets the host pick top-level id prefix; `ptr_extract_plot()` is a non-reactive snapshot helper (host wraps it under a `state$runtime()` dependency).
+- The layer-panel layout is conditional on data pipeline presence; the layer-include checkbox grays out the panel via `ptr-layer-disabled` (opacity 0.5); three shell `ui_text` keys (`layer_picker`, `data_subtab`, `controls_subtab`) flow into the rendered labels.

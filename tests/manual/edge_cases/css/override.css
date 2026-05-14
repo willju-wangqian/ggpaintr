@@ -1,0 +1,18 @@
+/* tests/manual/edge_cases/css/override.css
+ * Sentinel rules — designed to be cheap to assert from the browser via
+ * getComputedStyle. Each rule changes one property to a distinctive value
+ * so that "the user stylesheet loaded and won the cascade" is checkable
+ * without a screenshot.
+ *
+ * Rules:
+ *   body background turns crimson — confirms override wins over bundled CSS.
+ *   .ptr-app__title (if present) turns crimson — text-color override sentinel.
+ *   .well outline-width 7px solid lime — second-property sentinel (in case
+ *     bundled CSS already sets a body bg).
+ *   body::after pulls a background-image URL — confirms relative url(./mark.svg)
+ *     resolves to a Shiny-served static resource.
+ */
+body { background-color: crimson !important; }
+.ptr-app__title { color: crimson !important; }
+.well, .well-sm, .well-lg { outline: 7px solid lime !important; }
+body { background-image: url(./mark.svg) !important; background-repeat: no-repeat !important; background-position: top right !important; }

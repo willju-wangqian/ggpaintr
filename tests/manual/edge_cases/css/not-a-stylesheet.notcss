@@ -1,0 +1,4 @@
+/* sentinel — wrong extension on purpose, ptr_app() should reject `css =` paths
+ * that don't end in `.css`. This file exists so the rejection-by-extension
+ * path has a real file to point at (vs. a missing-file path). */
+body { background-color: orange !important; }

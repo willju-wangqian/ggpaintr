@@ -1,0 +1,4 @@
+/* cascade-b.css — second in a `css = c("a", "b")` vector.
+ * Sets body background-color to blue. Should WIN because later-in-vector =
+ * later in the cascade. */
+body { background-color: blue !important; }
