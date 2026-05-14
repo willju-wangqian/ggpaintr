@@ -19,36 +19,270 @@ knitr::opts_chunk$set(
 
 This vignette answers the question *how do I use ggpaintr for my situation?* Companion vignettes cover tailoring defaults (`vignette("ggpaintr-customization")`), sharing safely (`vignette("ggpaintr-safety")`), real ggplot recipes (`vignette("ggpaintr-gallery")`), and LLM integration (`vignette("ggpaintr-llm")`).
 
+Every chunk is marked `eval = interactive()` and is runnable as-is at the R prompt after:
+
+```{r libs}
+library(ggpaintr)
+```
+
 ## Formula tour
 
-<!-- TODO: compact 5-placeholder table (var/text/num/expr/upload) + one worked example. Full grammar lives at ?ptr_app. -->
+A ggpaintr formula is a single `ggplot()` call written as text. Drop one of five placeholder keywords anywhere a value would normally go, and the runtime substitutes the user's input back into the expression at render time. The five keywords are:
+
+| Keyword  | Becomes                                       | Example formula fragment        | Renders as                                       |
+|----------|-----------------------------------------------|---------------------------------|--------------------------------------------------|
+| `var`    | column picker (data-aware `selectInput`)      | `aes(x = var, y = var)`         | two dropdowns scoped to the upstream data's columns |
+| `text`   | free-text input                               | `labs(title = text)`            | one text field                                   |
+| `num`    | numeric input                                 | `geom_point(size = num)`        | one numeric input                                |
+| `expr`   | code editor (validated against a denylist)    | `facet_wrap(expr)`              | one expression box; see `vignette("ggpaintr-safety")` for the validation model |
+| `upload` | file picker (returns a data frame)            | `ggplot(upload, …)`             | one file picker + an optional dataset-name field |
+
+A formula that exercises four of the five:
+
+```{r formula-tour}
+ptr_app("
+ggplot(iris, aes(x = var, y = var, color = var)) +
+  geom_point(size = num) +
+  labs(title = text) +
+  facet_wrap(expr)
+")
+```
+
+The full grammar reference — including positional-argument behavior, `shared = "<id>"` annotation, and the empty-call cleanup rule — lives at `?ptr_app`.
 
 ## L1 — All-in-one entry point
 
-<!-- TODO:
-- ptr_app() / ptr_app_bslib() / ptr_app_grid()
-- ptr_app_grid() multi-plot pattern + shared-placeholder pattern
-  (shared = "<id>" + shared_ui), absorbing old gallery §8
-- empty-call cleanup by example
-- local data with non-syntactic columns via ptr_normalize_column_names()
--->
+L1 is the dominant use case: hand ggpaintr a formula, get back a running Shiny app. Three entry points cover the common layouts.
+
+| Entry point        | Use when                                                                 |
+|--------------------|--------------------------------------------------------------------------|
+| `ptr_app()`        | Default layout. The built-in chrome (title, layer picker, plot pane, code pane) is enough. |
+| `ptr_app_bslib()`  | Same contract as `ptr_app()` but rendered with a `bslib` theme.          |
+| `ptr_app_grid()`   | Multiple formulas, one app — each plot gets its own tile, optionally with shared widgets at the top. |
+
+### Single plot — `ptr_app()` / `ptr_app_bslib()`
+
+```{r app-basic}
+ptr_app(
+  "ggplot(iris, aes(var, var, color = var)) + geom_point() + labs(title = text)"
+)
+```
+
+`ptr_app_bslib()` accepts the same `formula` + `ui_text` + `expr_check` + `safe_to_remove` arguments as `ptr_app()`; the only delta is a `bslib::page_navbar()` shell instead of `shiny::fluidPage()`.
+
+### Multiple plots and shared widgets — `ptr_app_grid()`
+
+`ptr_app_grid()` is the turn-key entry point for multi-plot apps with shared widgets. It takes a list of formulas in `plots =` and renders one tile per formula. Annotate any placeholder occurrence with `keyword(shared = "<id>")`; pass `shared_ui = list(<id> = function(id) widget_tag)` so the framework knows what tag to render at the top of the page. The `<id>` namespace is shared across every formula in `plots`, so editing the top widget propagates to every plot.
+
+```{r app-grid-shared}
+ptr_app_grid(
+  plots = list(
+    "ggplot(iris, aes(x = var, y = Sepal.Length, fill = Species)) +
+       geom_boxplot()",
+    "ggplot(iris, aes(x = var, y = Sepal.Width, fill = Species)) +
+       geom_violin()"
+  ),
+  shared_ui = list()  # no shared= annotations above; the first var stays per-tile
+)
+```
+
+Adding `shared = "metric"` to both `var` occurrences and supplying `shared_ui = list(metric = function(id) selectInput(id, "Metric", names(iris)))` lifts the column choice into a single widget that drives both plots when the user clicks **Draw all**. The shared mechanism works for any keyword — built-in `num(shared = "sz")` paired with `shared_ui = list(sz = function(id) sliderInput(id, "Size", 1, 10, 3))` is the simplest two-line example; custom consumers work the same way (see `vignette("ggpaintr-customization")` for registering custom widget types).
+
+### Empty-call cleanup
+
+A placeholder that resolves to "missing" (an empty `var` pick, a blank `text`, a cleared `num`) drops its argument from the generated code. When that leaves an empty call whose name is in ggpaintr's curated cleanup list, the whole call disappears too:
+
+```r
+ptr_app("
+ggplot(iris, aes(x = var, y = var)) +
+  geom_point() +
+  labs(title = text) +              # title empty → labs() empty → labs() dropped
+  facet_wrap(expr)                  # expr empty → facet_wrap() empty → facet_wrap() dropped
+")
+```
+
+The cleanup list covers safe ggplot2 no-ops: `theme()`, `labs()`, `xlab` / `ylab` / `ggtitle`, `facet_wrap` / `facet_grid` / `facet_null`, `xlim` / `ylim` / `lims`, `expand_limits`, `guides`, `annotate`, and the empty mapping helpers (`aes()`, `vars()`). Third-party helpers (e.g. `pcp_theme()` from `ggpcp`) are *not* in the cleanup list — being absent is the "removal safety unknown" signal. Pass `safe_to_remove = c("pcp_theme")` to opt a specific name into the cleanup pass. An `expr` placeholder whose user supplies an expression always wins: whatever was typed is honoured verbatim, even if its top-level name is in `safe_to_remove`.
+
+### Local data with non-syntactic columns
+
+`var` placeholders need syntactic, unique column names — `Sepal.Length` is fine, `"Sepal Length"` is not, and `iris` deliberately ships clean. If your local data has spaces, reserved words, or duplicates in its names, pipe it through `ptr_normalize_column_names()` before referencing it from a formula:
+
+```{r normalize-cols}
+messy <- data.frame(
+  check.names = FALSE,
+  "first column"  = 1:3,
+  "if"            = 4:6
+)
+clean <- ptr_normalize_column_names(messy)
+names(clean)
+#> "first.column" "if."
+
+ptr_app("ggplot(clean, aes(x = var, y = var)) + geom_point()")
+```
+
+Uploaded data goes through the same normalization automatically; the manual call is only needed for data already in your R session. `?ptr_normalize_column_names` documents the exact rules (`make.names()` plus uniqueness + reserved-word collision avoidance).
 
 ## L2 — Embed in your own Shiny app
 
-<!-- TODO:
-- non-module path: ptr_controls_ui + ptr_outputs_ui + ptr_server
-- module path: ptr_module_ui + ptr_module_server
-- split outputs with ptr_register_plot / _code / _error
-- ptr_init_state for advanced init
--->
+L2 is "I already have a Shiny app and want to drop a ggpaintr-driven block somewhere inside it." Two paths cover the common cases: a Shiny module (one id, two helpers) or a free-form split (UI + outputs placed wherever you want).
+
+### Module path — `ptr_module_ui()` / `ptr_module_server()`
+
+The compact option. One `id`, controls + outputs live next to each other inside the module's namespace.
+
+```{r module-app}
+formula <- "ggplot(iris, aes(var, var, color = var)) + geom_point()"
+
+ui <- shiny::fluidPage(
+  shiny::titlePanel("My host app"),
+  ptr_module_ui("p", formula)
+)
+server <- function(input, output, session) {
+  ptr_module_server("p", formula)
+}
+
+shiny::shinyApp(ui, server)
+```
+
+`ptr_module_server()` returns the `ptr_state` from `ptr_init_state()` so embedders that want to react to it (e.g. call `ptr_gg_extra()`, read `ptr_extract_*()`) can capture it; otherwise the side effects are all that matter. `...` is forwarded to `ptr_init_state()` — so `ui_text =`, `checkbox_defaults =`, `expr_check =`, `safe_to_remove =`, and `shared =` are all available here too.
+
+### Non-module path — `ptr_controls_ui()` + `ptr_outputs_ui()` + `ptr_server()`
+
+When you want the controls in one part of the page and the plot in another, split the UI:
+
+```{r split-app}
+formula <- "ggplot(iris, aes(var, var, color = var)) + geom_point()"
+
+ui <- shiny::fluidPage(
+  shiny::titlePanel("Custom layout"),
+  shiny::sidebarLayout(
+    shiny::sidebarPanel(
+      ptr_controls_ui("p", formula)   # widgets only
+    ),
+    shiny::mainPanel(
+      shiny::tags$h3("Plot + code + errors"),
+      ptr_outputs_ui("p")             # plot / error / code outputs
+    )
+  )
+)
+server <- function(input, output, session) {
+  shiny::moduleServer("p", function(input, output, session) {
+    ptr_server(input, output, session, formula)
+  })
+}
+
+shiny::shinyApp(ui, server)
+```
+
+`ptr_controls_ui()` and `ptr_outputs_ui()` are the two halves that `ptr_module_ui()` renders together. The `id` must match across all three of `ptr_controls_ui()`, `ptr_outputs_ui()`, and the `moduleServer()` wrapping `ptr_server()`. `ptr_server()` registers `ptr_register_plot()` / `_error()` / `_code()` for you — `ptr_outputs_ui()` reserves the three canonical output slots (`ptr_plot`, `ptr_error`, `ptr_code`) that those registrations target.
+
+### Splitting outputs further
+
+`ptr_register_plot()`, `ptr_register_error()`, and `ptr_register_code()` are exposed for embedders who want fewer than three outputs (drop the code pane, for example), or who want to drive the outputs from their own `ptr_init_state()` without `ptr_server()`'s opinionated bundle. Each accepts `(output, state)` and writes to a canonical, namespaced output id; pair with `plotOutput()` / `uiOutput()` / `verbatimTextOutput()` at the namespaced output id.
+
+If you need custom output names — your own `plotOutput("my_chart")` rather than ggpaintr's `ptr_plot` — that is L3 below: read the latest plot with `ptr_extract_plot(state)` inside your own `renderPlot()` block.
+
+### `ptr_init_state()` for advanced init
+
+`ptr_init_state(formula, ...)` is what `ptr_server()` and `ptr_module_server()` call under the hood. Use it directly when you want the state object without auto-registered outputs — for example, to drive a single plot but compose your own code pane somewhere else:
+
+```{r init-state}
+server <- function(input, output, session) {
+  shiny::moduleServer("p", function(input, output, session) {
+    state <- ptr_init_state(formula = "ggplot(iris, aes(var, var)) + geom_point()")
+    ptr_register_plot(output, state)  # only the plot; no error / code panes
+  })
+}
+```
+
+`?ptr_init_state` documents the advanced arguments: `shared` (host-level shared bindings), `draw_trigger` (custom redraw reactive), `producer_debounce_ms` (data-source debouncing), and the namespace controls.
 
 ## L3 — Custom rendering via extract accessors
 
-<!-- TODO:
-- ptr_extract_plot(state) inside renderPlotly() / renderGirafe() / custom renderer
-- ptr_extract_code(state) for own code panel
-- ptr_extract_error(state) for custom error UI
-- ptr_gg_extra(state, ...) for host-app layer injection
-- ALL examples are full running apps — no testServer
-- cross-link gallery §6 (plotly/ggiraph) as canonical worked examples
--->
+L3 is "I want my own renderer." The runtime stays inside ggpaintr; you swap the *output* with whatever Plotly / ggiraph / custom host you prefer.
+
+There are two reading paths off a `ptr_state`, and the choice depends on whether you are inside a reactive context:
+
+| Inside a `renderX({...})` / `reactive({...})` / `observeEvent({...})` | Outside reactive contexts (tests, download handlers, snapshots) |
+|----|----|
+| Read `state$runtime()` and unpack its slots (`$ok`, `$plot`, `$code_text`, `$error`). This takes the reactive dependency that wires re-renders to *Update plot* clicks. | Call `ptr_extract_plot(state)` / `ptr_extract_code(state)` / `ptr_extract_error(state)`. These accessors wrap `shiny::isolate()` — they return the *current* value without registering a reactive dependency. |
+
+Mixing the two in a render block — calling `ptr_extract_plot(state)` inside `renderPlotly({...})` — silently breaks reactivity (the block fires once on mount and never again). Stick to `state$runtime()` inside reactive blocks.
+
+### Custom plot renderer — `state$runtime()$plot` inside `renderPlotly()`
+
+The pattern: wire `ptr_module_server()` for the runtime, then unpack `state$runtime()` inside a `plotly::renderPlotly()` block (or `ggiraph::renderGirafe()`, or any custom renderer). Place your own output container; omit `ptr_outputs_ui()` if you do not want the bundled plot pane (its auto-registered outputs stay inert when no UI consumer exists).
+
+```{r l3-plotly}
+formula <- "ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"
+
+ui <- shiny::fluidPage(
+  shiny::fluidRow(
+    shiny::column(5, ptr_module_ui("p", formula)),
+    shiny::column(7, plotly::plotlyOutput("custom_plot", height = "500px"))
+  )
+)
+server <- function(input, output, session) {
+  state <- ptr_module_server("p", formula)
+  output$custom_plot <- plotly::renderPlotly({
+    res <- state$runtime()
+    shiny::req(isTRUE(res$ok), res$plot)
+    plotly::ggplotly(res$plot)
+  })
+}
+
+shiny::shinyApp(ui, server)
+```
+
+`req(isTRUE(res$ok), res$plot)` keeps the panel quiet between draws and on transient error states.
+
+`vignette("ggpaintr-gallery")` §5 *Interactive output packages* is the canonical worked-example reference for the L3 pattern — it shows the full plotly and ggiraph setups end-to-end, including the ggiraph variant with click handling and a custom-placeholder colour picker. The chunk above is the minimal scaffold; gallery §5 is the runnable recipe.
+
+### Custom code panel
+
+Bind to `state$runtime()` inside `renderText({...})` and pull `code_text` off it. Inside the same server as the `state <-` assignment above:
+
+```{r l3-code-pane}
+output$my_code <- shiny::renderText({
+  state$runtime()$code_text %||% ""
+})
+```
+
+For non-reactive contexts (a download handler, a snapshot test), use the public accessor `ptr_extract_code(state)`. It returns a single string and includes any `ptr_gg_extra()` expressions captured on the state.
+
+### Custom error UI
+
+`state$runtime()$error` is the latest runtime error string (or `NULL` when the last cycle succeeded). Inside the same server:
+
+```{r l3-error-ui}
+output$my_status <- shiny::renderUI({
+  msg <- state$runtime()$error
+  if (is.null(msg)) shiny::tags$div(class = "status-ok", "Plot is up to date")
+  else              shiny::tags$div(class = "status-error", msg)
+})
+```
+
+`ptr_extract_error(state)` is the non-reactive counterpart.
+
+### Programmatic layer injection — `ptr_gg_extra()`
+
+`ptr_gg_extra(state, ...)` evaluates one or more `ggplot2` expressions and attaches the results as "extras" on the state. The runtime folds them into the rendered plot during the next cycle, and `state$runtime()$code_text` (and `ptr_extract_code(state)`) include them in the printable code. Each call replaces the previously captured extras — pass everything you want layered on in a single call.
+
+```{r l3-gg-extra}
+formula <- "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()"
+
+ui <- shiny::fluidPage(
+  shiny::actionButton("add_log", "Toggle log-scale"),
+  ptr_module_ui("p", formula)
+)
+server <- function(input, output, session) {
+  state <- ptr_module_server("p", formula)
+  shiny::observeEvent(input$add_log, {
+    ptr_gg_extra(state, ggplot2::scale_x_log10())
+  })
+}
+
+shiny::shinyApp(ui, server)
+```
+
+Eval errors from the captured expressions leave the existing extras untouched (atomic update). Extras are also suppressed automatically when the underlying runtime reports a failure, so stale extras from a prior successful draw never surface during an error state.
