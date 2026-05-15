@@ -19,7 +19,7 @@ collect_then_rewrite_shared <- function(root) {
     }
     if (is_ptr_node(x)) {
       for (nm in names(x)) visit_collect(x[[nm]])
-    } else if (is.list(x)) {
+    } else if (is.list(x) && !is.pairlist(x)) {
       for (el in x) visit_collect(el)
     }
   }
@@ -81,7 +81,7 @@ contains_placeholder <- function(n) {
         if (identical(nm, "upstream")) next
         visit(x[[nm]])
       }
-    } else if (is.list(x)) {
+    } else if (is.list(x) && !is.pairlist(x)) {
       for (el in x) visit(el)
     }
   }

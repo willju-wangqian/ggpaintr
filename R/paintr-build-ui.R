@@ -310,7 +310,7 @@ find_layer_placeholders_with_stage <- function(x) {
         if (identical(nm, "upstream")) next
         visit(n[[nm]], current_sid, current_verb)
       }
-    } else if (is.list(n)) {
+    } else if (is.list(n) && !is.pairlist(n)) {
       for (el in n) visit(el, current_sid, current_verb)
     }
   }

@@ -22,7 +22,7 @@ ptr_walk <- function(node, visit, descend_upstream = FALSE, prune = NULL) {
         if (!descend_upstream && identical(nm, "upstream")) next
         rec(x[[nm]])
       }
-    } else if (is.list(x)) {
+    } else if (is.list(x) && !is.pairlist(x)) {
       for (el in x) rec(el)
     }
     invisible()
