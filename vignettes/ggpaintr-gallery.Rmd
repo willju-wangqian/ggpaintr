@@ -235,9 +235,9 @@ tibble(k = 1:9) |>
     theme_minimal()
 ```
 
-> **Known limitation.** The formula below uses an anonymous function inside `map()`. The runtime's expression-to-text renderer mangles `function(.k) ...` literals (they reprint as `function(as.pairlist(alist(.k = )), ..., NULL)`), so the generated-code pane will display a malformed call and re-running the rendered code will error. The example is kept here for shape; lift the lambda to a named helper at the top of your script for a runnable variant — see §4.2 for the pattern.
+The clustered columns are fixed here rather than a `colvars` picker: `colvars` is a *consumer* placeholder and resolves its choices against the pipeline's upstream data, which at this point is `tibble(k = ...)` — not `iris`. The parameterized knobs are the cluster range (`expr(shared = "k")`, reused for the x-axis breaks) and the point size.
 
-```{r kmeans-paintr, eval = FALSE}
+```{r kmeans-paintr}
 library(dplyr)
 library(tidyr)
 library(purrr)
@@ -247,7 +247,8 @@ ptr_app(
   'tibble(k = expr(shared = "k")) |>
      mutate(
        kmeans  = map(k, function(.k) kmeans(
-         scale(iris[, colvars]),
+         scale(iris[, c("Sepal.Length", "Sepal.Width",
+                        "Petal.Length", "Petal.Width")]),
          centers = .k, nstart = 25)),
        glanced = map(kmeans, broom::glance)
      ) |>
@@ -366,9 +367,7 @@ penguins |>
     theme(legend.position = "none")
 ```
 
-> **Known limitation.** The formula below also relies on anonymous functions inside `map()`. As with §4.3 (k-means), the runtime's expression-to-text renderer mangles `function(.d) ...` literals, so the generated-code pane will be malformed even when the plot reactive succeeds. The shape is shown here for reference; lift the lambdas to named helpers at the top of your script for a runnable variant.
-
-```{r coefs-paintr, eval = FALSE}
+```{r coefs-paintr}
 library(palmerpenguins)
 library(dplyr)
 library(tidyr)
