@@ -233,7 +233,7 @@ build_pipeline_stage_ui <- function(entries, ui_text, layer_name, ns_fn) {
           shiny::tags$code(paste0(verb, "()"))
         } else NULL
         out[[length(out) + 1L]] <- shiny::div(
-          class = "ptr-stage",
+          class = "ptr-stage", id = ns_fn(paste0(sid, "_stage_block")),
           shiny::div(
             class = "ptr-stage-head",
             shiny::checkboxInput(
@@ -458,6 +458,7 @@ wrap_shared_widgets_with_stage_blocks <- function(entries, widgets,
     } else NULL
     out[[length(out) + 1L]] <- shiny::div(
       class = "ptr-stage",
+      id = ns_fn(paste0(st$stage_id, "_stage_block")),
       shiny::div(
         class = "ptr-stage-head",
         shiny::checkboxInput(
@@ -550,6 +551,7 @@ ptr_layer_assets <- function() {
     ))),
     shiny::tags$style(shiny::HTML(paste0(
       ".ptr-layer-disabled{opacity:0.5;pointer-events:none;}",
+      ".ptr-stage-disabled{opacity:0.5;}",
       # structural layout for pipeline-stage groups (Data sub-tab) -- the
       # polished default app refines colours in ggpaintr.css, but the
       # indent/left-rule must hold for every app shell, including bslib.

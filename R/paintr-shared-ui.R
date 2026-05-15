@@ -265,6 +265,7 @@ ptr_shared_ui <- function(formulas,
       } else NULL
       shiny::div(
         class = "ptr-stage",
+        id = paste0(shared_stage_input_id(k), "_block"),
         shiny::div(
           class = "ptr-stage-head",
           shiny::checkboxInput(
@@ -385,16 +386,34 @@ ptr_shared_server <- function(formulas,
     rlang::abort("`draw_trigger` must be a Shiny reactive or NULL.")
   }
 
+  # For each shared key, build a reactive that reads `input$shared_<key>`
+  # at the host's top-level namespace -- modules cannot reach that slot
+  # through their own snapshot path. When the embedder supplies an
+  # override for a key, the picker input still wins **once the user
+  # actually picks something**; the override only seeds the initial value
+  # (and the picker's default selection) so first render isn't empty.
+  # NULL / "" / NA in the input slot mean "not picked yet" -> fall through
+  # to the override.
+  is_unset_shared <- function(v) {
+    is.null(v) ||
+      (is.character(v) && length(v) == 1L && !nzchar(v)) ||
+      (is.atomic(v) && length(v) == 1L && is.na(v))
+  }
   shared_reactives <- stats::setNames(
     lapply(formula_keys, function(k) {
       cid <- canonical_shared_id(k)
-      shiny::reactive(input[[cid]])
+      override_rv <- shared[[k]]
+      if (is.null(override_rv)) {
+        shiny::reactive(input[[cid]])
+      } else {
+        shiny::reactive({
+          v <- input[[cid]]
+          if (is_unset_shared(v)) override_rv() else v
+        })
+      }
     }),
     formula_keys
   )
-  if (length(shared) > 0L) {
-    for (nm in names(shared)) shared_reactives[[nm]] <- shared[[nm]]
-  }
 
   effective_draw_trigger <- if (!is.null(draw_trigger)) {
     draw_trigger
@@ -446,6 +465,25 @@ ptr_shared_server <- function(formulas,
       names(orphan_info)
     )
   } else list()
+
+  # Visual grey-out of the shared stage block when its checkbox is off.
+  # Mirrors `ptr_setup_layer_panel_classes()` -- uses the `ptr_set_class`
+  # custom message registered by `ptr_layer_assets()`.
+  for (k in names(orphan_info)) {
+    local({
+      sid_input <- shared_stage_input_id(k)
+      block_dom_id <- paste0(sid_input, "_block")
+      shiny::observeEvent(input[[sid_input]], {
+        val <- input[[sid_input]]
+        if (is.null(val)) return()
+        session$sendCustomMessage("ptr_set_class", list(
+          id = block_dom_id,
+          cls = "ptr-stage-disabled",
+          add = !isTRUE(val)
+        ))
+      }, ignoreNULL = FALSE, ignoreInit = FALSE)
+    })
+  }
 
   new_ptr_shared_state(
     shared = shared_reactives,

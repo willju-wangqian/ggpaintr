@@ -545,14 +545,22 @@ record_eval_time <- function(state, elapsed_ms) {
 ptr_setup_stage_enabled <- function(state, input, output, session) {
   tree <- shiny::isolate(state$tree())
   ns <- state$server_ns_fn
+  ui_ns <- state$ui_ns_fn
   for (sid in collect_stage_ids(tree)) {
     local({
       sid_local <- sid
       bound_id <- ns(sid_local)
+      block_dom_id <- ui_ns(paste0(sid_local, "_stage_block"))
       shiny::observeEvent(input[[bound_id]], {
+        val <- input[[bound_id]]
         cur <- state$stage_enabled()
-        cur[[sid_local]] <- isTRUE(input[[bound_id]])
+        cur[[sid_local]] <- isTRUE(val)
         state$stage_enabled(cur)
+        session$sendCustomMessage("ptr_set_class", list(
+          id = block_dom_id,
+          cls = "ptr-stage-disabled",
+          add = !isTRUE(val)
+        ))
       }, ignoreNULL = TRUE)
     })
   }
