@@ -1,0 +1,33 @@
+case	status	notes
+uc1	PASS	formula tour; widgets and update plot work; final code rendered
+uc2	PASS	pipeline; stages + nums + vars under Controls subtab; final code OK
+uc3	PASS	basic iris scatter
+uc4	PASS	ptr_app_grid two formulas; both render
+uc5	BUG	vignette comment says #> 'first.column' 'if.' but function returns 'first_column' 'if_'. Stale doc.
+uc6	PASS	ptr_module
+uc7	PASS	controls_ui + outputs_ui split
+uc8	PASS	ptr_init_state plot only
+uc9	PASS	plotly L3 renders with 3 traces
+uc10	PASS	ptr_gg_extra appends scale_x_log10 into code pane
+cu1	PASS	ui_text overrides applied (title, button label, X label, title label)
+cu2	PASS	css= loads my-theme.css, header bg + Inter font applied
+cu3	PASS	range placeholder slider; xlim(c(0L,100L)) in code
+cu4	BUG	vignette claims dplyr::select(dplyr::all_of(c(...))) but actual code is dplyr::select(c(...)) — vignette text wrong
+cu5	PASS	numrange consumer; data-aware slider bounds; filtered code rendered
+cu6	PASS	dataset source placeholder; iris -> downstream var pickers populate
+g1	PASS	mpg multi-layer; needs custom range placeholder registered first (vignette omits this)
+g2	PASS	pipe filter+group+filter
+g3	PASS	PCA with custom palette + colvars + shared num
+g4	BUG	at ptr_app construction: visit_collect -> is_ptr_placeholder -> inherits: 'el' is missing. Formula uses expr(shared="k") twice incl. inside tibble().
+g5	PASS	regression diagnostics; expr widget accepts formula
+g6	PASS	rolling time-series with shared var
+g7	BUG	same parser error as g4: visit_collect el missing. Pattern: map(data, function(.d) lm(expr, ...)) inside mutate.
+g8	PASS	plotly L3 with custom range
+g9	PASS	ggiraph L3 with custom color picker
+g10	PASS	ggpcp parallel coords; colvars splices into pcp_select
+g11	BUG	lincoln_weather has non-syntactic columns (Mean Temperature [F]); var picker rejects. Vignette must normalize first.
+g12	PASS	ggrepel labelled scatter; local mt data via envir
+g13	PASS	ggalluvial flows
+g14	PASS	ggdist halfeye
+llm-vignette	INFO	not browser-tested; non-Shiny content (LLM/ellmer integration); skipped per protocol
+safety-vignette	INFO	no runnable {r} chunks (only ```r static samples); skipped

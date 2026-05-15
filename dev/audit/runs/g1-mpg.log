@@ -1,0 +1,41 @@
+ℹ No user-registered placeholders to clear.
+
+Listening on http://127.0.0.1:4321
+`geom_smooth()` using formula = 'y ~ x'
+Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,  :
+  span too small.   fewer data values than degrees of freedom.
+Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,  :
+  pseudoinverse used at 5.6935
+Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,  :
+  neighborhood radius 0.5065
+Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,  :
+  reciprocal condition number  0
+Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,  :
+  There are other near singularities as well. 0.65044
+Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,  :
+  pseudoinverse used at 4.008
+Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,  :
+  neighborhood radius 0.708
+Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,  :
+  reciprocal condition number  1.6135e-17
+Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,  :
+  There are other near singularities as well. 0.25
+`geom_smooth()` using formula = 'y ~ x'
+Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,  :
+  span too small.   fewer data values than degrees of freedom.
+Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,  :
+  pseudoinverse used at 5.6935
+Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,  :
+  neighborhood radius 0.5065
+Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,  :
+  reciprocal condition number  0
+Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,  :
+  There are other near singularities as well. 0.65044
+Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,  :
+  pseudoinverse used at 4.008
+Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,  :
+  neighborhood radius 0.708
+Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,  :
+  reciprocal condition number  1.6135e-17
+Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,  :
+  There are other near singularities as well. 0.25

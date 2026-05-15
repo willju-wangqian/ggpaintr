@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Vignette example end-to-end audit — 2026-05-15</title>
+<style>
+  :root { --ok:#15803d; --bug:#b91c1c; --info:#6b7280; --bg:#f8fafc; --code:#0f172a; }
+  html,body { background:var(--bg); color:#111827; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; margin:0; padding:0; }
+  main { max-width:1080px; margin:0 auto; padding:32px 24px; }
+  h1 { font-size:22px; margin:0 0 4px 0; }
+  h2 { font-size:17px; margin:32px 0 8px 0; padding-bottom:4px; border-bottom:1px solid #e5e7eb; }
+  h3 { font-size:14px; margin:18px 0 6px 0; color:#374151; }
+  .subtitle { color:var(--info); margin-bottom:24px; }
+  table { border-collapse:collapse; width:100%; margin:8px 0 16px 0; font-size:13px; background:#fff; }
+  th,td { padding:6px 10px; text-align:left; vertical-align:top; border-bottom:1px solid #e5e7eb; }
+  th { background:#f1f5f9; font-weight:600; }
+  .pass { color:var(--ok); font-weight:600; }
+  .bug  { color:var(--bug); font-weight:600; }
+  .info { color:var(--info); font-weight:600; }
+  code, pre { font-family: ui-monospace,Menlo,Consolas,monospace; }
+  code { background:#eef2f7; padding:1px 5px; border-radius:3px; font-size:12.5px; }
+  pre  { background:var(--code); color:#e2e8f0; padding:12px 14px; border-radius:6px; overflow:auto; font-size:12px; }
+  .bug-card { background:#fff; border:1px solid #fecaca; border-left:4px solid var(--bug); border-radius:6px; padding:12px 16px; margin:12px 0; }
+  .bug-card h3 { margin-top:0; color:var(--bug); }
+  .patched { background:#fff; border:1px solid #bbf7d0; border-left:4px solid var(--ok); border-radius:6px; padding:12px 16px; margin:12px 0; }
+  .meta { font-size:12px; color:var(--info); }
+  ul { margin:6px 0 10px 22px; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Vignette example end-to-end audit</h1>
+<p class="subtitle">Date: 2026-05-15 · Branch: <code>vignette-review</code> · Method: each <code>ptr_app*()</code> example launched on <code>127.0.0.1:4321</code>, exercised via Chrome MCP (set inputs, click Update plot, inspect <code>#ptr_plot</code> / <code>#ptr_error</code> / <code>#ptr_code</code>).</p>
+
+<h2>Summary</h2>
+<table>
+  <tr><th>Vignette</th><th>Examples tested</th><th>Pass</th><th>Bugs</th></tr>
+  <tr><td><code>ggpaintr-use-cases.Rmd</code></td><td>10</td><td>10</td><td>1 (doc-only)</td></tr>
+  <tr><td><code>ggpaintr-customization.Rmd</code></td><td>6</td><td>6</td><td>1 (doc-only)</td></tr>
+  <tr><td><code>ggpaintr-gallery.Rmd</code></td><td>14</td><td>11</td><td>3 (1 doc, 2 runtime)</td></tr>
+  <tr><td><code>ggpaintr-safety.Rmd</code></td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td><code>ggpaintr-llm.Rmd</code></td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+<p class="meta">Safety vignette has only static <code>```r</code> code blocks (no runnable <code>{r}</code> chunks). LLM vignette is about ellmer integration; <code>ptr_llm_*()</code> calls were verified to load without errors. Neither was browser-tested.</p>
+
+<h2>Bugs found</h2>
+
+<div class="bug-card">
+<h3>BUG&nbsp;1 — UC5: stale <code>#&gt;</code> comment in <code>ptr_normalize_column_names()</code> example</h3>
+<p>Vignette claimed:</p>
+<pre>names(clean)
+#&gt; "first.column" "if."</pre>
+<p>Actual output (verified):</p>
+<pre>[1] "first_column" "if_"</pre>
+<p>The function replaces non-syntactic characters with <code>_</code>, not <code>.</code>. Patched <code>vignettes/ggpaintr-use-cases.Rmd</code>.</p>
+</div>
+
+<div class="bug-card">
+<h3>BUG&nbsp;2 — CU4: <code>dplyr::all_of()</code> claim in colvars walk-through</h3>
+<p>Vignette claimed the rendered code would be <code>mtcars |&gt; dplyr::select(dplyr::all_of(c('mpg', 'hp', 'wt')))</code>. Browser-verified actual output is <code>mtcars |&gt; dplyr::select(c("mpg", "hp", "wt"))</code> — there is no <code>all_of()</code> wrap because the example's <code>resolve_expr</code> returns <code>rlang::call2("c", …)</code>. Patched <code>vignettes/ggpaintr-customization.Rmd</code>.</p>
+</div>
+
+<div class="bug-card">
+<h3>BUG&nbsp;3 — Gallery: <code>range</code> / <code>colvars</code> placeholders referenced but never registered</h3>
+<p>Gallery §3, §4.1–4.6, §5.1, §6.1 use custom <code>range</code> / <code>colvars</code> keywords. §2 told the reader to "Run the placeholder-registration chunk from <code>ggpaintr-customization</code>", but that vignette has the registrations scattered across multiple worked-example chunks and was easy to miss. Added a single concrete <code>custom-placeholders-setup</code> chunk in §2 of the gallery that registers both keywords. Examples now copy-paste-runnable after one setup chunk.</p>
+</div>
+
+<div class="bug-card">
+<h3>BUG&nbsp;4 — Gallery §6.2 (ridges): <code>lincoln_weather</code> non-syntactic columns</h3>
+<p>The <code>ggridges::lincoln_weather</code> dataset ships with names like <code>"Mean Temperature [F]"</code>. The <code>var</code> placeholder requires syntactic identifiers, so the picker rejects the column with <code>Input error: Invalid value for placeholder `var`: Column `Mean.Temperature..F.` is not in the data.</code> Patched <code>vignettes/ggpaintr-gallery.Rmd</code> §6.2 to run <code>ptr_normalize_column_names(lincoln_weather)</code> first, with a cross-link to the use-cases vignette §"Local data with non-syntactic columns".</p>
+</div>
+
+<div class="bug-card">
+<h3>BUG&nbsp;5 (runtime, partial source-fix landed) — Parser crash on <code>function(.x) …</code> formals inside formulas</h3>
+<p>Gallery §4.3 (k-means) and §4.6 (group-wise regression) both crashed at <code>ptr_app()</code> construction time:</p>
+<pre>Error in visit_collect(x[[nm]]) :
+  argument "el" is missing, with no default
+Calls: source ... visit_collect -&gt; is_ptr_placeholder -&gt; is_ptr_ph_value -&gt; inherits</pre>
+<p>Root cause: AST walkers (<code>visit_collect</code> in <code>R/paintr-shared.R</code>, <code>visit</code> in <code>find_layer_placeholders_with_stage</code> in <code>R/paintr-build-ui.R</code>, <code>rec</code> in <code>ptr_walk</code> in <code>R/paintr-walk.R</code>) iterated <code>for (el in x) visit(el)</code> over any <code>is.list(x)</code>. R's <code>is.list()</code> is also <code>TRUE</code> for <code>pairlist</code>, and function formals are represented as a pairlist whose elements with no default are the missing-argument marker (<code>quote(expr=)</code>). Force-evaluating the loop variable inside the recursive call raised the "argument 'el' is missing" error.</p>
+<p>Patched all three walkers to skip pairlists (<code>is.list(x) &amp;&amp; !is.pairlist(x)</code>). Full test suite still passes (<code>devtools::test()</code>). The two gallery formulas now <em>parse</em> cleanly and the plot reactive succeeds.</p>
+<p><em>Remaining (separate) source bug:</em> the AST→text re-renderer emits <code>function(.k) body</code> as <code>function(as.pairlist(alist(.k = )), body, NULL)</code>. The generated-code pane therefore shows a malformed snippet that errors if pasted back into R. Marked the affected gallery chunks (<code>kmeans-paintr</code>, <code>coefs-paintr</code>) as <code>eval = FALSE</code> with a "Known limitation" callout pointing at the §4.2 named-helper workaround pattern.</p>
+</div>
+
+<h2>What was patched</h2>
+
+<div class="patched">
+<h3>Vignette text</h3>
+<ul>
+  <li><code>vignettes/ggpaintr-use-cases.Rmd</code> — fix <code>#&gt;</code> comment in <code>normalize-cols</code> chunk (BUG 1).</li>
+  <li><code>vignettes/ggpaintr-customization.Rmd</code> — remove incorrect <code>dplyr::all_of()</code> claim in colvars walk-through (BUG 2).</li>
+  <li><code>vignettes/ggpaintr-gallery.Rmd</code> — add <code>custom-placeholders-setup</code> chunk in §2 (BUG 3); normalize <code>lincoln_weather</code> in §6.2 (BUG 4); add Known-Limitation callouts on §4.3 and §4.6 with <code>eval = FALSE</code> (BUG 5 follow-up).</li>
+</ul>
+</div>
+
+<div class="patched">
+<h3>Source (R)</h3>
+<ul>
+  <li><code>R/paintr-shared.R</code> — guard <code>visit_collect</code> and <code>visit</code> (in <code>has_unresolved_placeholder</code>) against pairlists.</li>
+  <li><code>R/paintr-build-ui.R</code> — guard <code>visit</code> in <code>find_layer_placeholders_with_stage</code> against pairlists.</li>
+  <li><code>R/paintr-walk.R</code> — guard <code>ptr_walk</code>'s <code>rec</code> against pairlists.</li>
+</ul>
+<p><code>devtools::test()</code> still passes (only pre-existing temp-path warnings under <code>test-user-css.R</code>).</p>
+</div>
+
+<div class="patched">
+<h3>Test artifacts (kept under <code>dev/audit/runs/</code>)</h3>
+<p>One self-contained R file per example (<code>uc1-formula-tour.R</code> … <code>g14-dist.R</code>), shared <code>_gallery_helpers.R</code> registration script, <code>my-theme.css</code> stylesheet for the CU2 example, <code>_runner.R</code> (sources a script into <code>globalenv()</code> and prints the resulting <code>shiny.appobj</code>), <code>_sweep.sh</code> (kills any prior process on port 4321 then boots the runner), and <code>_results.tsv</code> for the case-by-case verdict.</p>
+</div>
+
+<h2>Per-case detail</h2>
+
+<h3>ggpaintr-use-cases.Rmd</h3>
+<table>
+<tr><th>Chunk</th><th>Status</th><th>Notes</th></tr>
+<tr><td><code>formula-tour</code></td><td class="pass">PASS</td><td>4-of-5 placeholders; <code>var</code> + <code>num</code> + <code>text</code> + <code>expr</code> all rendered and updated the code pane after Update plot.</td></tr>
+<tr><td><code>pipeline-formula-tour</code></td><td class="pass">PASS</td><td>Pipeline stages exposed per-stage enable + threshold widgets under the ggplot layer's <strong>Controls</strong> subtab.</td></tr>
+<tr><td><code>app-basic</code></td><td class="pass">PASS</td><td>—</td></tr>
+<tr><td><code>app-grid-shared</code></td><td class="pass">PASS</td><td>Two-tile grid, both <em>Update plot</em> buttons render their tile.</td></tr>
+<tr><td><code>normalize-cols</code></td><td class="bug">DOC BUG</td><td>BUG 1 above — comment said <code>#&gt; "first.column" "if."</code>; actual is <code>"first_column" "if_"</code>.</td></tr>
+<tr><td><code>module-app</code></td><td class="pass">PASS</td><td>Module path inside a host page.</td></tr>
+<tr><td><code>split-app</code></td><td class="pass">PASS</td><td><code>ptr_controls_ui</code> + <code>ptr_outputs_ui</code> + <code>ptr_server</code>.</td></tr>
+<tr><td><code>init-state</code></td><td class="pass">PASS</td><td>Plot output registered alone (no code/error pane).</td></tr>
+<tr><td><code>l3-plotly</code></td><td class="pass">PASS</td><td>3 plotly traces rendered after <em>Update plot</em>.</td></tr>
+<tr><td><code>l3-gg-extra</code></td><td class="pass">PASS</td><td>"Toggle log-scale" appends <code>ggplot2::scale_x_log10()</code> to the code pane.</td></tr>
+</table>
+
+<h3>ggpaintr-customization.Rmd</h3>
+<table>
+<tr><th>Chunk</th><th>Status</th><th>Notes</th></tr>
+<tr><td><code>ui-text-example</code></td><td class="pass">PASS</td><td>Title → "Iris explorer"; draw button → "Render"; X label / title label overrides applied.</td></tr>
+<tr><td><code>css-example</code></td><td class="pass">PASS</td><td>Bundled stylesheet plus user stylesheet served; header background and font apply. Added <code>dev/audit/runs/my-theme.css</code> as the missing artifact the chunk implies.</td></tr>
+<tr><td><code>value-range-app</code></td><td class="pass">PASS</td><td><code>xlim(c(0L, 100L))</code> rendered.</td></tr>
+<tr><td><code>consumer-colvars-app</code></td><td class="bug">DOC BUG</td><td>BUG 2 — vignette text claimed <code>dplyr::select(dplyr::all_of(...))</code>; actual is <code>dplyr::select(c(...))</code>.</td></tr>
+<tr><td><code>consumer-numrange-app</code></td><td class="pass">PASS</td><td>Slider bounds come from <code>range(mtcars$mpg)</code>; filter call rendered.</td></tr>
+<tr><td><code>source-dataset-app</code></td><td class="pass">PASS</td><td>Picking <em>iris</em> populates downstream <code>var</code> pickers.</td></tr>
+</table>
+
+<h3>ggpaintr-gallery.Rmd</h3>
+<table>
+<tr><th>Chunk</th><th>Status</th><th>Notes</th></tr>
+<tr><td><code>mpg-paintr</code> (§3)</td><td class="pass">PASS*</td><td>Works after <code>custom-placeholders-setup</code> chunk added in §2 (BUG 3).</td></tr>
+<tr><td><code>pipe-paintr</code> (§4.1)</td><td class="pass">PASS</td><td>—</td></tr>
+<tr><td><code>pca-paintr</code> (§4.2)</td><td class="pass">PASS*</td><td>Registers <code>palette</code> inline; needs <code>colvars</code> from §2 setup.</td></tr>
+<tr><td><code>kmeans-paintr</code> (§4.3)</td><td class="bug">SOURCE BUG → eval=FALSE</td><td>BUG 5 — parser crash fixed in source; AST→text re-renderer still mangles <code>function(.k) …</code>. Chunk now <code>eval = FALSE</code> with Known-Limitation callout.</td></tr>
+<tr><td><code>regress-paintr</code> (§4.4)</td><td class="pass">PASS</td><td>Top-level <code>expr</code> for the formula; <code>var</code> pickers see augmented columns.</td></tr>
+<tr><td><code>rolling-paintr</code> (§4.5)</td><td class="pass">PASS</td><td><code>var(shared = "y")</code> single picker drives both layers.</td></tr>
+<tr><td><code>coefs-paintr</code> (§4.6)</td><td class="bug">SOURCE BUG → eval=FALSE</td><td>BUG 5 — same anonymous-function rendering issue. Marked <code>eval = FALSE</code> with callout.</td></tr>
+<tr><td><code>plotly-paintr</code> (§5.1)</td><td class="pass">PASS*</td><td>7 plotly traces (one per <em>class</em>) after column picks. Needs <code>range</code> from §2 setup.</td></tr>
+<tr><td><code>ggiraph-paintr</code> (§5.2)</td><td class="pass">PASS</td><td>Registers <code>color</code> inline; ggiraph SVG renders.</td></tr>
+<tr><td><code>pcp-paintr</code> (§6.1)</td><td class="pass">PASS*</td><td>Needs <code>colvars</code> + <code>range</code> from §2 setup. <code>pcp_select(c("species", …))</code> rendered.</td></tr>
+<tr><td><code>ridges-paintr</code> (§6.2)</td><td class="bug">DOC BUG (patched)</td><td>BUG 4 — added <code>ptr_normalize_column_names(lincoln_weather)</code> step ahead of the formula.</td></tr>
+<tr><td><code>repel-paintr</code> (§6.3)</td><td class="pass">PASS</td><td>Local <code>mt</code> data via explicit <code>envir = environment()</code>.</td></tr>
+<tr><td><code>alluvial-paintr</code> (§6.4)</td><td class="pass">PASS</td><td>—</td></tr>
+<tr><td><code>dist-paintr</code> (§6.5)</td><td class="pass">PASS</td><td>—</td></tr>
+</table>
+<p class="meta">PASS* = passes after the §2 <code>custom-placeholders-setup</code> chunk is run once in the same session.</p>
+
+<h3>ggpaintr-safety.Rmd</h3>
+<p>All R-looking blocks are static (<code>```r</code>, not <code>```{r}</code>); they are reference snippets, not runnable chunks. No browser sessions launched. Content read for correctness: the three <code>expr_check</code> modes (<code>TRUE</code> / <code>FALSE</code> / <code>list(...)</code>) and the placeholder list reflect the current <code>R/paintr-utils.R</code> denylist and <code>validate_expr_safety()</code> implementation.</p>
+
+<h3>ggpaintr-llm.Rmd</h3>
+<p>Most chunks are <code>eval = FALSE</code> (chat-session demos for <code>ellmer</code>); the rest call <code>ptr_llm_topics()</code> / <code>ptr_llm_topic()</code> / <code>ptr_llm_primer()</code> which were spot-checked at the R prompt and return as documented. No browser-testable surface.</p>
+
+<h2>How to reproduce</h2>
+<p>From the repo root, with the package built:</p>
+<pre>dev/audit/runs/_sweep.sh dev/audit/runs/uc1-formula-tour.R
+# then open http://127.0.0.1:4321/ in a browser.</pre>
+<p>One R file per example under <code>dev/audit/runs/</code> (named <code>uc&lt;n&gt;-</code>, <code>cu&lt;n&gt;-</code>, <code>g&lt;n&gt;-</code>); the <code>_sweep.sh</code> helper kills any prior process on port 4321 and starts a fresh one via <code>_runner.R</code>. The <code>_results.tsv</code> file is the raw verdict log written during the audit.</p>
+
+</main>
+</body>
+</html>
