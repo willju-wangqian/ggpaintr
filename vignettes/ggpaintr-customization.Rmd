@@ -281,6 +281,37 @@ ptr_app("mtcars |> dplyr::select(dplyr::all_of(colvars))")
 
 The picker's choices are populated from `mtcars`'s column names — that is `cols` in `build_ui`. Pick two or three columns; the rendered code becomes `mtcars |> dplyr::select(dplyr::all_of(c('mpg', 'hp', 'wt')))`. Clear the picker and `resolve_expr` returns `NULL`, so the `all_of(...)` arg is pruned rather than spliced as `NULL`.
 
+#### Reading values, not just column names — the `data` argument
+
+`cols` is enough when the widget only needs to know *which columns exist*. When the widget's bounds, choices, or defaults depend on the **values** themselves, declare `data` in the signature — the framework hands you the upstream data frame, refreshed whenever upstream resolves. A range slider whose `min`/`max` come from the column itself is the prototypical case:
+
+```{r consumer-numrange}
+ptr_define_placeholder_consumer(
+  keyword       = "numrange",
+  build_ui      = function(node, cols = character(), data = NULL,
+                           label = NULL, ...) {
+    num_cols <- cols[vapply(data[cols], is.numeric, logical(1))]
+    col      <- num_cols[1] %||% ""
+    rng      <- if (nzchar(col)) range(data[[col]], na.rm = TRUE) else c(0, 1)
+    sliderInput(node$id, label = label %||% "Range",
+                min = rng[1], max = rng[2], value = rng)
+  },
+  resolve_expr  = function(value, ...) {
+    if (is.null(value)) return(NULL)
+    rlang::call2("c", value[1], value[2])
+  },
+  copy_defaults = list(label = "Range for {param}")
+)
+```
+
+```{r consumer-numrange-app}
+ptr_app("mtcars |> dplyr::filter(mpg >= numrange[1]) |> ggplot(aes(x = var, y = var)) |> geom_point()")
+
+ptr_app("mtcars |> ggplot(aes(x = var, y = var)) |> geom_point()")
+```
+
+The slider's bounds are `range(mtcars$mpg)` — not a hard-coded guess — because `data` carries the actual frame. `data` is `NULL` before upstream resolves, so guard for it (the `if (nzchar(col))` fallback above does this). Note that `numrange` splices `c(lo, hi)` and the formula reads `numrange[1]` / `numrange[2]` to pull the bounds; `%in%` would do set membership, not a range check, so don't reach for it here.
+
 ### Source placeholders — `ptr_define_placeholder_source()`
 
 A source placeholder *produces* a data frame. Use this for widgets the rest of the formula reads from — built-in datasets, database queries, programmatic samples — without an `upload` placeholder doing the work.
