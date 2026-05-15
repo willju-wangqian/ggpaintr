@@ -39,7 +39,37 @@ The other vignettes teach the workflow piece by piece. This one shows what the p
 
 Copy a chunk into a session, install the extension package named at the top of the section if you do not have it, and run it. The examples assume the setup chunks above have already executed.
 
-Several gallery sections below reference custom placeholders — `range` (a slider returning a length-2 numeric), `colvars` (a multi-column picker), and `date` (a date-range picker) — alongside the five built-ins (`var`, `text`, `num`, `expr`, `upload`). The three constructors that register such widgets (`ptr_define_placeholder_value()`, `ptr_define_placeholder_consumer()`, `ptr_define_placeholder_source()`), the full hook contract, and a worked example for each are covered in `vignette("ggpaintr-customization")`. Run the placeholder-registration chunk from that vignette once per R session before launching any gallery example that uses these keywords.
+Several gallery sections below reference custom placeholders — `range` (a slider returning a length-2 numeric), `colvars` (a multi-column picker), and `date` (a date-range picker) — alongside the five built-ins (`var`, `text`, `num`, `expr`, `upload`). The three constructors that register such widgets (`ptr_define_placeholder_value()`, `ptr_define_placeholder_consumer()`, `ptr_define_placeholder_source()`), the full hook contract, and a worked example for each are covered in `vignette("ggpaintr-customization")`. Run the setup chunk below once per R session before launching any gallery example that uses these keywords.
+
+```{r custom-placeholders-setup}
+ptr_define_placeholder_value(
+  keyword = "range",
+  build_ui = function(node, label = NULL, ...) {
+    shiny::sliderInput(node$id, label = label %||% "Range",
+                       min = -100, max = 100, value = c(0, 50), step = 0.1)
+  },
+  resolve_expr = function(value, node, ...) {
+    if (is.null(value) || length(value) != 2L) return(NULL)
+    rlang::expr(c(!!value[1], !!value[2]))
+  },
+  copy_defaults = list(label = "Range for {param}")
+)
+
+ptr_define_placeholder_consumer(
+  keyword = "colvars",
+  build_ui = function(node, cols = character(), label = NULL,
+                      selected = character(0), ...) {
+    shiny::selectInput(node$id, label = label %||% "Columns",
+                       choices = cols, selected = intersect(selected, cols),
+                       multiple = TRUE)
+  },
+  resolve_expr = function(value, node, ...) {
+    if (length(value) == 0L) return(NULL)
+    rlang::call2("c", !!!as.list(value))
+  },
+  copy_defaults = list(label = "Columns for {param}")
+)
+```
 
 ## 3. A realistic ggplot2 graphic, parameterized
 
@@ -205,7 +235,9 @@ tibble(k = 1:9) |>
     theme_minimal()
 ```
 
-```{r kmeans-paintr}
+> **Known limitation.** The formula below uses an anonymous function inside `map()`. The runtime's expression-to-text renderer mangles `function(.k) ...` literals (they reprint as `function(as.pairlist(alist(.k = )), ..., NULL)`), so the generated-code pane will display a malformed call and re-running the rendered code will error. The example is kept here for shape; lift the lambda to a named helper at the top of your script for a runnable variant — see §4.2 for the pattern.
+
+```{r kmeans-paintr, eval = FALSE}
 library(dplyr)
 library(tidyr)
 library(purrr)
@@ -334,7 +366,9 @@ penguins |>
     theme(legend.position = "none")
 ```
 
-```{r coefs-paintr}
+> **Known limitation.** The formula below also relies on anonymous functions inside `map()`. As with §4.3 (k-means), the runtime's expression-to-text renderer mangles `function(.d) ...` literals, so the generated-code pane will be malformed even when the plot reactive succeeds. The shape is shown here for reference; lift the lambdas to named helpers at the top of your script for a runnable variant.
+
+```{r coefs-paintr, eval = FALSE}
 library(palmerpenguins)
 library(dplyr)
 library(tidyr)
@@ -526,11 +560,15 @@ ggplot(lincoln_weather,
 
 ggpaintr version — bandwidth, scale, and the colour aesthetic become widgets:
 
+`lincoln_weather` ships with non-syntactic column names (`Mean Temperature [F]`, …). The `var` placeholder needs syntactic identifiers, so we normalize first; see `vignette("ggpaintr-use-cases")` §"Local data with non-syntactic columns".
+
 ```{r ridges-paintr}
 library(ggridges)
 
+lincoln_weather_clean <- ptr_normalize_column_names(lincoln_weather)
+
 ptr_app(
-  "ggplot(data = lincoln_weather, aes(x = var, y = var, fill = ..x..)) +
+  "ggplot(data = lincoln_weather_clean, aes(x = var, y = var, fill = ..x..)) +
      geom_density_ridges_gradient(scale = num,
                                   rel_min_height = num,
                                   bandwidth = num) +
