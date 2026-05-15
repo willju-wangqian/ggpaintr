@@ -201,3 +201,28 @@ test_that("P10.19 bracket / accessor heads render in syntactic form", {
     )
   )
 })
+
+test_that("P10.20 namespaced reference as an argument renders as pkg::name", {
+  expect_equal(
+    ptr_render(ptr_translate(
+      "mtcars |> purrr::map(broom::glance) |> ggplot(aes(mpg, hp)) + geom_point()"
+    )),
+    paste0(
+      "mtcars |>\n",
+      "  purrr::map(broom::glance) |>\n",
+      "  ggplot(aes(mpg, hp)) +\n",
+      "  geom_point()"
+    )
+  )
+  expect_equal(
+    ptr_render(ptr_translate(
+      "mtcars |> purrr::map(broom:::glance) |> ggplot(aes(mpg, hp)) + geom_point()"
+    )),
+    paste0(
+      "mtcars |>\n",
+      "  purrr::map(broom:::glance) |>\n",
+      "  ggplot(aes(mpg, hp)) +\n",
+      "  geom_point()"
+    )
+  )
+})
