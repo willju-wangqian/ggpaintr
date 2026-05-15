@@ -619,6 +619,35 @@ ptr_user_css_assets <- function(css) {
   do.call(shiny::tagList, links)
 }
 
+
+# Single asset bundle used by every raw-Shiny entry point. Emits, in order:
+#   1. ptr_layer_assets()      -- inline structural CSS (.ptr-stage-*) + the
+#      ptr_set_class custom-message JS handler. Both must ride along inside
+#      module embeddings because they are not file-scoped.
+#   2. ptr_ui_assets()         -- <link> to ggpaintr.css (the cosmetic theme,
+#      scoped under .ptr-app) + the code-mini-window JS.
+#   3. ptr_user_css_assets(css) -- user override stylesheets, linked *after*
+#      ggpaintr.css so equal-specificity rules win.
+#
+# Idempotent: every component is safe to emit more than once on a page
+# (script handlers self-register; <link> tags dedupe at the browser;
+# addResourcePath is idempotent for the same prefix). ptr_module_ui()
+# nests ptr_controls_ui() + ptr_outputs_ui(), which together emit this
+# bundle three times -- that is fine by construction.
+#
+# Not exported: ggpaintr users never need to inject assets manually.
+# Note: ptr_app_bslib() deliberately bypasses this bundle (it must NOT
+# link ggpaintr.css because its rules are gated on .ptr-app, which the
+# bslib page chrome does not provide). The bslib path calls
+# ptr_layer_assets() directly for structural stage CSS only.
+ptr_assets <- function(css = NULL) {
+  shiny::tagList(
+    ptr_layer_assets(),
+    ptr_ui_assets(),
+    ptr_user_css_assets(css)
+  )
+}
+
 ptr_ui_js <- function() {
   paste0(
     "(function(){",

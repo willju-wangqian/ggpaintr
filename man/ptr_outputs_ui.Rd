@@ -28,5 +28,5 @@ outputs for a \code{ggpaintr} formula. Pair with \code{\link[=ptr_controls_ui]{p
 host-side scaffolding.
 }
 \seealso{
-\code{\link[=ptr_controls_ui]{ptr_controls_ui()}}, \code{\link[=ptr_module_ui]{ptr_module_ui()}}, \code{\link[=ptr_module_server]{ptr_module_server()}}
+\code{\link[=ptr_controls_ui]{ptr_controls_ui()}}, \code{\link[=ptr_module_ui]{ptr_module_ui()}}, \code{\link[=ptr_module_server]{ptr_module_server()}}, \code{\link[=ptr_css]{ptr_css()}}
 }

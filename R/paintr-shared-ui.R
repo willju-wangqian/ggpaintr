@@ -162,17 +162,21 @@ shared_consumer_representatives <- function(trees) {
 #'   formula translation. Default `TRUE`.
 #' @param draw_all_label Label for the "Draw all" button. The button is
 #'   rendered only when `length(formulas) >= 2`.
+#' @param css Optional character vector of paths to additional CSS files;
+#'   linked after `ggpaintr`'s bundled stylesheet so its rules win. See
+#'   [ptr_app()] for the full semantics. Defaults to `NULL`.
 #'
 #' @return A `shiny.tag` wellPanel suitable for direct placement in the
 #'   embedder's UI.
 #' @seealso [`ptr_shared_server()`], [`ptr_module_ui()`],
-#'   [`ptr_module_server()`].
+#'   [`ptr_module_server()`], [ptr_css()].
 #' @export
 ptr_shared_ui <- function(formulas,
                           shared_ui = list(),
                           ui_text = NULL,
                           expr_check = TRUE,
-                          draw_all_label = "Draw all") {
+                          draw_all_label = "Draw all",
+                          css = NULL) {
   assertthat::assert_that(is.list(shared_ui))
   trees <- shared_translate_formulas(formulas, expr_check = expr_check)
   formula_count <- length(trees)
@@ -284,6 +288,7 @@ ptr_shared_ui <- function(formulas,
 
   shiny::tags$div(
     class = "ptr-app",
+    ptr_assets(css = css),
     shiny::wellPanel(
       do.call(shiny::div, c(list(class = "ptr-shared-panel"), body))
     )

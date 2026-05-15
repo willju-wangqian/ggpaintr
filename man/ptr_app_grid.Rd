@@ -46,3 +46,6 @@ corresponding entry in \code{shared_ui} instead of rendering local widgets.
 For the formula grammar (placeholder keywords, \code{shared = "<id>"}
 annotation, empty-call cleanup), see \code{\link[=ptr_app]{ptr_app()}}.
 }
+\seealso{
+\code{\link[=ptr_css]{ptr_css()}} for the \verb{css =} argument and themable CSS custom properties.
+}

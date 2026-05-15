@@ -45,5 +45,5 @@ server logic. The fragment self-wraps in \verb{<div class="ptr-app">} so the
 bundled stylesheet attaches without any host-side scaffolding.
 }
 \seealso{
-\code{\link[=ptr_outputs_ui]{ptr_outputs_ui()}}, \code{\link[=ptr_module_ui]{ptr_module_ui()}}, \code{\link[=ptr_module_server]{ptr_module_server()}}
+\code{\link[=ptr_outputs_ui]{ptr_outputs_ui()}}, \code{\link[=ptr_module_ui]{ptr_module_ui()}}, \code{\link[=ptr_module_server]{ptr_module_server()}}, \code{\link[=ptr_css]{ptr_css()}}
 }

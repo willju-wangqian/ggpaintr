@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CSS audit and unification proposals — 2026-05-15</title>
+<style>
+  body { font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 900px; margin: 32px auto; padding: 0 16px; color: #1f2530; }
+  h1 { font-size: 22px; border-bottom: 1px solid #e7e9ee; padding-bottom: 6px; }
+  h2 { font-size: 17px; margin-top: 28px; border-bottom: 1px solid #f1f3f5; padding-bottom: 4px; }
+  h3 { font-size: 14px; margin-top: 18px; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; font-size: 12.5px; }
+  code { background: #f6f7f9; padding: 1px 5px; border-radius: 4px; }
+  pre { background: #f6f7f9; padding: 12px 14px; border-radius: 6px; overflow: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; margin: 8px 0; }
+  th, td { border: 1px solid #e7e9ee; padding: 6px 9px; text-align: left; vertical-align: top; }
+  th { background: #fafbfc; font-weight: 650; }
+  .ok { color: #15803d; }
+  .bad { color: #b91c1c; }
+  .warn { color: #b45309; }
+  .muted { color: #6b7280; font-size: 12.5px; }
+  .callout { background: #fef9c3; border-left: 3px solid #ca8a04; padding: 10px 14px; margin: 10px 0; font-size: 13px; border-radius: 4px; }
+  .callout--info { background: #eff6ff; border-color: #2563eb; }
+</style>
+</head>
+<body>
+
+<h1>CSS audit and unification proposals</h1>
+<p class="muted">2026-05-15 · static inspection · audit + proposals, no code edits this round</p>
+
+<h2>1. Summary</h2>
+<ul>
+<li>The bundled stylesheet (<code>inst/www/ggpaintr.css</code>) and the inline structural CSS (<code>ptr_layer_assets()</code>) only fire inside elements that carry the <code>.ptr-app</code> class. End users do not know <code>.ptr-app</code> exists, so an entry point that fails to self-wrap produces unstyled output and the user sees "ggpaintr looks different here".</li>
+<li>Of the seven public UI entry points, <strong>all seven currently self-wrap</strong> in <code>.ptr-app</code> (bslib emits its own page chrome but inherits the <code>.ptr-stage-*</code> structural rules from <code>ptr_layer_assets()</code>). The drift is on the <strong>asset side</strong>, not the wrapper side: each entry point hand-assembles its own asset bundle, and the bundles do not match.</li>
+<li>Concretely: <code>ptr_shared_ui()</code> wraps in <code>.ptr-app</code> but injects <em>none</em> of <code>ptr_layer_assets() / ptr_ui_assets() / ptr_user_css_assets()</code>. It works today only because it is always rendered next to <code>ptr_module_ui()</code> (which does inject them), so the page picks the assets up by accident. As a standalone fragment it would render unstyled.</li>
+<li>The <code>css =</code> override portal is exposed by <code>ptr_app</code>, <code>ptr_app_grid</code>, <code>ptr_module_ui</code>, <code>ptr_controls_ui</code>, <code>ptr_outputs_ui</code>. It is <strong>not exposed</strong> by <code>ptr_shared_ui</code>; <code>ptr_app_bslib</code> uses bslib's <code>theme =</code> instead.</li>
+<li>The leading proposal (#2) makes every raw-Shiny entry point pass through a single asset bundle and a uniform <code>css = NULL</code> arg. The supporting proposal (#1) folds the bundle assembly into one internal helper (<code>ptr_assets()</code>) so the matrix below collapses from "many partial calls" to "one call per entry point".</li>
+</ul>
+
+<h2>2. Per-entry-point matrix</h2>
+
+<p class="muted">Columns: self-wraps in <code>.ptr-app</code>; injects <code>ptr_layer_assets()</code> (inline stage CSS + class-toggle JS); injects <code>ptr_ui_assets()</code> (link to <code>ggpaintr.css</code> + code-window JS); accepts <code>css =</code> arg (path-only); the disabled-stage cue actually renders when used standalone.</p>
+
+<table>
+<thead>
+<tr><th>Entry point</th><th>Self-wraps</th><th><code>ptr_layer_assets()</code></th><th><code>ptr_ui_assets()</code></th><th><code>css =</code></th><th>Disabled cue (standalone)</th></tr>
+</thead>
+<tbody>
+<tr><td><code>ptr_app</code> (<code>R/paintr-app.R:108</code>)</td>
+    <td class="ok">yes (via <code>ptr_build_app_ui</code>:365)</td>
+    <td class="ok">yes (:361)</td>
+    <td class="ok">yes (:362)</td>
+    <td class="ok">yes (:114)</td>
+    <td class="ok">yes</td></tr>
+<tr><td><code>ptr_app_grid</code> (<code>:667</code>)</td>
+    <td class="ok">yes (:748)</td>
+    <td class="ok">yes (:744)</td>
+    <td class="ok">yes (:745)</td>
+    <td class="ok">yes (:673)</td>
+    <td class="ok">yes</td></tr>
+<tr><td><code>ptr_module_ui</code> (<code>:413</code>)</td>
+    <td class="ok">yes (:433)</td>
+    <td class="warn">indirect — via the nested <code>ptr_controls_ui</code> call (:437)</td>
+    <td class="warn">indirect — via the nested <code>ptr_controls_ui</code> / <code>ptr_outputs_ui</code> calls</td>
+    <td class="ok">yes (:415)</td>
+    <td class="ok">yes</td></tr>
+<tr><td><code>ptr_controls_ui</code> (<code>:479</code>)</td>
+    <td class="ok">yes (:495)</td>
+    <td class="ok">yes (:499)</td>
+    <td class="ok">yes (:499)</td>
+    <td class="ok">yes (:481)</td>
+    <td class="ok">yes</td></tr>
+<tr><td><code>ptr_outputs_ui</code> (<code>:528</code>)</td>
+    <td class="ok">yes (:530)</td>
+    <td class="bad">no</td>
+    <td class="ok">yes (:531)</td>
+    <td class="ok">yes (:528)</td>
+    <td class="bad">N/A — fragment carries no stages, but disabled-cue class-toggle JS handler is missing if rendered without <code>ptr_controls_ui</code> on the same page</td></tr>
+<tr><td><code>ptr_shared_ui</code> (<code>R/paintr-shared-ui.R:171</code>)</td>
+    <td class="ok">yes (:286)</td>
+    <td class="bad">no</td>
+    <td class="bad">no</td>
+    <td class="bad">no</td>
+    <td class="bad">no — orphan-stage block (line 266, <code>controllable_region()</code>) ships with no class-toggle JS handler and no <code>.ptr-stage-disabled</code> CSS unless another entry point on the page injects them</td></tr>
+<tr><td><code>ptr_app_bslib</code> (<code>R/paintr-app-bslib.R:44</code>)</td>
+    <td class="bad">no — emits <code>bslib::page_sidebar</code> chrome, no <code>.ptr-app</code> wrap</td>
+    <td class="ok">yes (:137)</td>
+    <td class="bad">no</td>
+    <td class="bad">no — has <code>theme =</code> (bslib) instead</td>
+    <td class="warn">structural <code>.ptr-stage-*</code> rules from <code>ptr_layer_assets()</code> fire (they are <em>not</em> scoped under <code>.ptr-app</code>); cosmetic rules from <code>ggpaintr.css</code> do not fire</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+<strong>Key finding.</strong> The "users see inconsistent appearance across entry points" symptom maps to two distinct asset-side gaps, not to the wrap mechanism:
+<ol>
+<li><code>ptr_shared_ui()</code> injects no assets. It only renders correctly because it shares a page with <code>ptr_module_ui()</code>. As an independently-mounted fragment it would lose every cue.</li>
+<li><code>ptr_outputs_ui()</code> skips <code>ptr_layer_assets()</code>. If a host page mounts <code>ptr_outputs_ui()</code> without also mounting <code>ptr_controls_ui()</code>, the class-toggle JS handler that adds <code>.ptr-stage-disabled</code> is missing. Not a current bug — but a latent foot-gun.</li>
+</ol>
+</div>
+
+<h2>3. Asset inventory</h2>
+
+<h3>3.1 The bundled stylesheet</h3>
+<ul>
+<li><code>inst/www/ggpaintr.css</code> — 254 lines, every rule scoped under <code>.ptr-app</code> (file header comment, line 2). Served under the resource prefix <code>ggpaintr/</code> (registered in <code>ptr_ui_assets()</code>, <code>R/paintr-build-ui.R:570</code>). Linked as <code>&lt;link href="ggpaintr/ggpaintr.css"&gt;</code> at <code>R/paintr-build-ui.R:576</code>.</li>
+<li>Defines: CSS custom-property tokens (<code>--ptr-bg</code>, <code>--ptr-surface</code>, <code>--ptr-border</code>, <code>--ptr-ink</code>, <code>--ptr-muted</code>, <code>--ptr-accent</code>, <code>--ptr-accent-strong</code>, <code>--ptr-accent-weak</code>, <code>--ptr-accent-line</code>, <code>--ptr-radius</code>, <code>--ptr-radius-sm</code>, <code>--ptr-shadow</code>, <code>--ptr-shadow-lg</code>, <code>--ptr-font</code>, <code>--ptr-mono</code>); header bar; sidebar/wellPanel chrome; sticky-sidebar rule; shared-panel header copy; form control radius; primary action button; layer tabset; stage-fields border refinement; output cards; icon buttons; alert; code mini-window.</li>
+<li>Every rule is gated on <code>.ptr-app</code>. Removing the wrap removes <em>all</em> cosmetic styling.</li>
+</ul>
+
+<h3>3.2 Inline style blocks emitted from R</h3>
+<ul>
+<li><code>ptr_layer_assets()</code> (<code>R/paintr-build-ui.R:521</code>) — one <code>&lt;script&gt;</code> + one <code>&lt;style&gt;</code>. The script registers the <code>ptr_set_class</code> custom Shiny message handler (used by the server to toggle <code>.ptr-stage-disabled</code> / <code>.ptr-layer-disabled</code>). The style block declares:
+  <ul>
+    <li><code>.ptr-layer-disabled</code> (opacity + pointer-events-none) — fires <em>unscoped</em>.</li>
+    <li><code>.ptr-stage-disabled .ptr-stage-head code</code> / <code>label</code> / <code>.ptr-stage-fields</code> — the named visual cue. Fires <em>unscoped</em>.</li>
+    <li><code>.ptr-stage</code>, <code>.ptr-stage-head</code>, <code>.ptr-stage-fields</code>, <code>.ptr-stage-row</code> — structural margin/padding/border. Fires <em>unscoped</em>.</li>
+  </ul>
+  <em>Important:</em> these rules are <strong>not</strong> scoped under <code>.ptr-app</code>. They fire wherever they are injected, including inside <code>bslib::page_sidebar</code> output. This is intentional per the comment at <code>:546</code>: structural layout for pipeline stages must hold for every app shell, including bslib.
+</li>
+<li><code>ggpaintr.css:50</code> refines <code>.ptr-stage-fields</code> border colour <em>under</em> <code>.ptr-app</code> — so colour drifts between bslib and raw-Shiny shells, structure does not.</li>
+</ul>
+
+<h3>3.3 Per-element <code>style=</code> attributes</h3>
+<p>None on a fast pass through <code>R/paintr-*.R</code>. No drive-by inline styles in the source.</p>
+
+<h3>3.4 User-override pipeline</h3>
+<ul>
+<li><code>ptr_user_css_assets(css)</code> (<code>R/paintr-build-ui.R:589</code>) — takes a character vector of <code>.css</code> file paths. Validates that every path exists and ends in <code>.css</code>; aborts with a path-not-found / wrong-extension error otherwise. Each distinct parent directory is registered once under a hash-derived <code>ggpaintr-user-&lt;hash&gt;</code> resource prefix; the function emits one <code>&lt;link&gt;</code> per path. Returns <code>NULL</code> when <code>css = NULL</code> so callers can splice unconditionally.</li>
+<li>Comment at <code>:587</code>: "Emitted <em>after</em> <code>ggpaintr.css</code> so user rules win on equal specificity." This invariant is preserved at every call site today.</li>
+<li>The arg accepts paths only (string form would never have worked). Inline string CSS would require <code>&lt;style&gt;</code> blocks, which strict Content-Security-Policy headers reject; linked stylesheets served from <code>addResourcePath</code> pass CSP. Path-only is the right contract.</li>
+</ul>
+
+<h2>4. Class-name taxonomy</h2>
+
+<table>
+<thead><tr><th>Class</th><th>Defined in</th><th>Emitted by</th><th>Role</th></tr></thead>
+<tbody>
+<tr><td><code>.ptr-app</code></td><td><code>ggpaintr.css:7</code>; nested neutraliser <code>:33</code></td><td>every entry point's outermost wrap</td><td>scope gate; root for every cosmetic rule</td></tr>
+<tr><td><code>.ptr-app__header</code> / <code>__mark</code> / <code>__title</code></td><td><code>ggpaintr.css:43-61</code></td><td><code>ptr_app_header()</code></td><td>top bar (logo + title)</td></tr>
+<tr><td><code>.ptr-controls</code></td><td><code>ggpaintr.css:64</code></td><td>(none — declared, no current emitter)</td><td>dead selector</td></tr>
+<tr><td><code>.ptr-shared-panel</code> / <code>__title</code> / <code>__hint</code></td><td><code>ggpaintr.css:81-95</code></td><td><code>ptr_controls_panel</code>, <code>ptr_shared_ui</code>, <code>ptr_app_bslib</code></td><td>shared-controls panel header copy</td></tr>
+<tr><td><code>.ptr-stage</code> / <code>-head</code> / <code>-fields</code> / <code>-row</code></td><td>structural in <code>ptr_layer_assets()</code>; cosmetic refinements in <code>ggpaintr.css:128-134</code></td><td><code>controllable_region()</code> in <code>R/paintr-region.R</code>, <code>build_pipeline_stage_ui</code>, <code>wrap_shared_widgets_with_stage_blocks</code></td><td>pipeline-stage block</td></tr>
+<tr><td><code>.ptr-stage-disabled</code></td><td>inline in <code>ptr_layer_assets()</code> (<code>:539-544</code>)</td><td>added at runtime by the <code>ptr_set_class</code> Shiny message; sent from <code>R/paintr-server.R:579</code>, <code>R/paintr-shared-ui.R:475</code></td><td>visual cue when a stage's checkbox is unticked</td></tr>
+<tr><td><code>.ptr-layer-disabled</code></td><td>inline in <code>ptr_layer_assets()</code> (<code>:534</code>)</td><td>same custom-message machinery</td><td>greys out a tabset layer panel</td></tr>
+<tr><td><code>.ptr-output</code></td><td><code>ggpaintr.css:143</code></td><td><code>ptr_outputs_panel</code></td><td>vertical stack of plot/code/error cards</td></tr>
+<tr><td><code>.ptr-card</code> / <code>__head</code> / <code>__title</code> / <code>__body</code> / <code>--plot</code></td><td><code>ggpaintr.css:144-159</code></td><td><code>ptr_outputs_panel</code></td><td>plot card chrome</td></tr>
+<tr><td><code>.ptr-icon-btn</code></td><td><code>ggpaintr.css:162</code></td><td><code>ptr_outputs_panel</code> (code-window toggle)</td><td>icon button</td></tr>
+<tr><td><code>.ptr-alert</code> / <code>__detail</code> / <code>--error</code></td><td><code>ggpaintr.css:182-194</code></td><td><code>ptr_error_ui</code></td><td>inline error panel</td></tr>
+<tr><td><code>.ptr-code-window</code> / <code>__head</code> / <code>__title</code> / <code>__actions</code> / <code>__close</code> / <code>__body</code></td><td><code>ggpaintr.css:197-241</code></td><td><code>ptr_outputs_panel</code></td><td>draggable code mini-window</td></tr>
+<tr><td><code>.ptr-copy-btn</code>, <code>.ptr-code-toggle</code></td><td><code>ggpaintr.css:230, 197</code></td><td><code>ptr_outputs_panel</code></td><td>code-window controls</td></tr>
+</tbody>
+</table>
+
+<p class="muted">Naming is consistent (BEM-ish: <code>block</code>, <code>block__elem</code>, <code>block--modifier</code>) for everything except the stage cluster (<code>.ptr-stage-head</code> uses a single hyphen, not <code>__head</code>). Minor; not load-bearing.</p>
+
+<p class="muted">Dead selector noted above: <code>.ptr-controls</code> at <code>ggpaintr.css:64</code> has no current emitter — the selector is grouped with <code>.well</code> in the same rule, so removing it changes nothing visually but tidies the source.</p>
+
+<h2>5. Visual-cue rules (per state, per entry point)</h2>
+
+<table>
+<thead><tr><th>State</th><th>Trigger</th><th>Rule lives in</th><th>Fires inside <code>.ptr-app</code>?</th><th>Fires outside <code>.ptr-app</code>?</th></tr></thead>
+<tbody>
+<tr><td>Stage disabled</td><td>JS adds <code>.ptr-stage-disabled</code></td><td>inline <code>ptr_layer_assets()</code></td><td class="ok">yes</td><td class="ok">yes (unscoped)</td></tr>
+<tr><td>Layer disabled</td><td>JS adds <code>.ptr-layer-disabled</code></td><td>inline <code>ptr_layer_assets()</code></td><td class="ok">yes</td><td class="ok">yes (unscoped)</td></tr>
+<tr><td>Action button (primary)</td><td>presence of <code>.btn.action-button</code></td><td><code>ggpaintr.css:103</code></td><td class="ok">yes (red)</td><td class="bad">no (default grey)</td></tr>
+<tr><td>Action button hover/focus/active</td><td>pseudo-classes</td><td><code>ggpaintr.css:114</code></td><td class="ok">yes</td><td class="bad">no</td></tr>
+<tr><td>Error / alert</td><td><code>.ptr-alert--error</code></td><td><code>ggpaintr.css:189</code></td><td class="ok">yes</td><td class="bad">no</td></tr>
+<tr><td>Plot card chrome</td><td><code>.ptr-card</code></td><td><code>ggpaintr.css:144</code></td><td class="ok">yes</td><td class="bad">no</td></tr>
+<tr><td>Sidebar chrome</td><td><code>.well</code> + <code>.ptr-app</code></td><td><code>ggpaintr.css:65</code></td><td class="ok">yes</td><td class="bad">no</td></tr>
+<tr><td>Icon button hover</td><td><code>.ptr-icon-btn:hover</code></td><td><code>ggpaintr.css:178</code></td><td class="ok">yes</td><td class="bad">no</td></tr>
+<tr><td>Code window open</td><td><code>.ptr-open</code> on <code>.ptr-code-window</code></td><td><code>ggpaintr.css:213</code></td><td class="ok">yes</td><td class="bad">no</td></tr>
+</tbody>
+</table>
+
+<p class="muted">The disabled-state cues are the only rules that survive outside <code>.ptr-app</code>. Every other rule is gated on the wrapper. That asymmetry is what the proposal is fixing.</p>
+
+<h2>6. Override surface</h2>
+<ul>
+<li><strong><code>css =</code> arg.</strong> Path-only; accepts a character vector of <code>.css</code> file paths. Linked after <code>ggpaintr.css</code> so user rules win on equal specificity. Exposed by: <code>ptr_app</code>, <code>ptr_app_grid</code>, <code>ptr_module_ui</code>, <code>ptr_controls_ui</code>, <code>ptr_outputs_ui</code>. <em>Not</em> exposed by <code>ptr_shared_ui</code> or <code>ptr_app_bslib</code>.</li>
+<li><strong>CSS custom properties.</strong> The fifteen <code>--ptr-*</code> tokens listed in §3.1. These are the structured-override target — a user-supplied stylesheet can re-declare them inside a <code>.ptr-app</code> selector to retheme without touching individual rules. Not currently documented in user-facing roxygen.</li>
+<li><strong>bslib <code>theme =</code>.</strong> Only on <code>ptr_app_bslib</code>. Compiles a Sass-based theme; does not interact with <code>ggpaintr.css</code> (which fails to fire under bslib because there is no <code>.ptr-app</code> wrap).</li>
+</ul>
+
+<h2>7. Cascade &amp; scoping risk</h2>
+<ul>
+<li><strong>Nested <code>.ptr-app</code></strong> (the module-inside-module case). <code>ggpaintr.css:33</code> neutralises <code>background</code> and <code>min-height</code> on the inner wrap. Nothing else neutralises — so any rule on a child of <code>.ptr-app</code> applies once for each wrap. Audit found one consequence: <code>.ptr-app form.well { position: sticky; ... }</code> (<code>:75</code>) would apply to a nested <code>form.well</code> too, but in practice the grid app's <code>wellPanel</code> renders as <code>div.well</code>, not <code>form.well</code>, so the bug it protects against does not regress.</li>
+<li><strong>Stacking-context trap.</strong> Comment at <code>R/paintr-build-ui.R:535</code> records that an earlier <code>.ptr-stage-disabled { opacity: 0.5 }</code> rule created a stacking context that clipped picker dropdowns. The current rule (text colour + border + faint background) avoids <code>opacity</code> / <code>filter</code> on stage ancestors. This is the only documented stacking-context interaction; no other rule in <code>ggpaintr.css</code> sets <code>opacity</code>, <code>filter</code>, or <code>transform</code> on an ancestor of a picker.</li>
+<li><strong>Host-page bleed.</strong> The <code>.ptr-app</code> scope is the protection. Anything inside the wrapper inherits ggpaintr styling; anything outside is untouched. Verified by reading <code>ggpaintr.css</code> top-to-bottom: every selector either starts with <code>.ptr-app</code>, is nested inside a <code>.ptr-app …</code> selector, or is one of the <code>.ptr-stage-*</code> structural rules that are intentionally unscoped (and only emit if R-side code adds the class). No bare element selectors, no global resets.</li>
+<li><strong>z-index.</strong> Two rules set <code>z-index</code>: <code>.ptr-app form.well { z-index: 2 }</code> (sidebar stacking context, <code>:75</code>) and <code>.ptr-code-window { z-index: 1080 }</code> (above Bootstrap modal range). No conflict with Bootstrap 3 stacking but worth re-checking under bslib / Bootstrap 5 if <code>ptr_app_bslib</code> ever inherits the code window.</li>
+<li><strong>Specificity.</strong> User-supplied <code>css =</code> files link <em>after</em> <code>ggpaintr.css</code>, so equal specificity yields to the user. If a user wants to override a doubly-scoped rule like <code>.ptr-app .btn.action-button</code>, they have to match the specificity (any equal-or-higher selector wins because of source order). Not unusual; worth one line in the docs.</li>
+</ul>
+
+<h2>8. Proposal #2 (leading): entry-point unification</h2>
+
+<h3>Problem</h3>
+<p>The per-entry-point matrix in §2 shows that two raw-Shiny entry points (<code>ptr_shared_ui</code>, <code>ptr_outputs_ui</code>) are asset-incomplete in ways that today are masked by the fact that they always render next to a sibling entry point that fills in the gap. The masking is fragile: any future use case that mounts these fragments independently (custom layouts, alternate hosts, tests) will see broken styling. <code>ptr_shared_ui</code> additionally lacks the <code>css =</code> override portal.</p>
+
+<h3>Proposed change</h3>
+<ol>
+<li><strong>Every raw-Shiny entry point self-wraps in <code>.ptr-app</code>.</strong> Already true for all five. Make this an invariant that future entry points must preserve; cover it with a test.</li>
+<li><strong>Every raw-Shiny entry point routes assets through a single <code>ptr_assets(css = NULL)</code> bundle.</strong> See Proposal #1.</li>
+<li><strong>Every raw-Shiny entry point accepts <code>css = NULL</code> (path-only, same arg name).</strong> The two that don't today are <code>ptr_shared_ui</code> (add it) and the partial-asset-injection cases in the matrix (the new <code>ptr_assets()</code> bundle handles them by construction).</li>
+<li><strong>Documentation.</strong> Add a shared roxygen topic (e.g. <code>?ptr_css</code>) enumerating the fifteen <code>--ptr-*</code> custom properties as the structured-override target, plus a one-line specificity note. Every entry-point man page cross-references it via <code>@seealso</code>.</li>
+</ol>
+
+<h3>Files touched (proposal-time estimate)</h3>
+<ul>
+<li><code>R/paintr-build-ui.R</code> — add <code>ptr_assets()</code> (Proposal #1).</li>
+<li><code>R/paintr-app.R</code> — replace per-entry-point asset assembly in <code>ptr_build_app_ui</code>, <code>ptr_app_grid_components</code>, <code>ptr_module_ui</code>, <code>ptr_controls_ui</code>, <code>ptr_outputs_ui</code> with single <code>ptr_assets(css = css)</code> call. <code>ptr_outputs_ui</code> gains <code>ptr_layer_assets()</code>'s class-toggle JS (via the bundle) so the standalone case no longer depends on a sibling.</li>
+<li><code>R/paintr-shared-ui.R</code> — <code>ptr_shared_ui</code> gains <code>css = NULL</code> arg; calls <code>ptr_assets(css = css)</code>; closes the "shared-ui injects nothing" gap in the matrix.</li>
+<li><code>man/ptr_css.Rd</code> (new) — shared documentation topic.</li>
+<li>Every entry-point man page — add <code>@seealso ptr_css</code>.</li>
+</ul>
+
+<h3>Risks</h3>
+<ul>
+<li><strong>Idempotency of double-injected assets.</strong> When <code>ptr_module_ui</code> nests <code>ptr_controls_ui</code> + <code>ptr_outputs_ui</code>, the new bundle would be emitted three times on one page. The current comment at <code>R/paintr-app.R:427</code> already states the assets are idempotent (linking the same <code>href</code> twice is harmless; <code>addResourcePath</code> is idempotent; the class-toggle script self-registers behind <code>window.__ptr_set_class_registered</code>). Verify in the implementation that this still holds for the consolidated bundle.</li>
+<li><strong>Source-order specificity invariant.</strong> User <code>css =</code> must continue to link <em>after</em> <code>ggpaintr.css</code>. Encode this ordering inside <code>ptr_assets()</code> and lock it with a test that inspects the rendered <code>&lt;head&gt;</code>.</li>
+<li><strong><code>ptr_app_bslib</code> divergence stays.</strong> The bslib path will continue to lack <code>ggpaintr.css</code> cosmetic styling because it does not wrap in <code>.ptr-app</code>. Documented limitation; <em>not</em> in scope for this proposal. Deferred (§10).</li>
+</ul>
+
+<h3>Acceptance criteria</h3>
+<ol>
+<li><strong>Wrap invariant.</strong> Every raw-Shiny entry point produces an outermost tag carrying <code>class = "ptr-app"</code>. Verified by mounting each entry point with a minimal fixture and asserting the rendered HTML.</li>
+<li><strong>Override invariant.</strong> Every raw-Shiny entry point accepts <code>css = NULL</code>. Verified by signature inspection (<code>formals()</code>) plus a smoke test per entry point that passes a fixture <code>.css</code> and asserts the resulting <code>&lt;link&gt;</code> appears <em>after</em> the <code>ggpaintr.css</code> link in the rendered head.</li>
+<li><strong>Visual-cue invariant.</strong> The <code>.ptr-stage-disabled</code> rule renders identically across the five raw-Shiny entry points. Verified by inspecting that each emits the same <code>ptr_assets()</code> bundle.</li>
+<li><strong>Documentation invariant.</strong> <code>?ptr_css</code> exists and enumerates the fifteen <code>--ptr-*</code> tokens with current default values; every raw-Shiny entry-point man page cross-references it.</li>
+</ol>
+
+<h2>9. Proposal #1 (supporting): <code>ptr_assets()</code> bundle</h2>
+
+<h3>Problem</h3>
+<p>Today every entry point hand-assembles <code>list(ptr_layer_assets(), ptr_ui_assets(), ptr_user_css_assets(css))</code> in some subset and order. The drift is visible in the matrix above: <code>ptr_outputs_ui</code> omits <code>ptr_layer_assets()</code>, <code>ptr_shared_ui</code> omits everything. Adding a new asset (e.g. a future icon-font link) would require editing every entry point. This is the same problem the <code>controllable_region()</code> helper solved for stage DOM in commit <code>cefc9bf</code>.</p>
+
+<h3>Proposed change</h3>
+<pre>ptr_assets &lt;- function(css = NULL) {
+  shiny::tagList(
+    ptr_layer_assets(),    # inline structural CSS + class-toggle JS
+    ptr_ui_assets(),       # &lt;link&gt; to ggpaintr.css + code-window JS
+    ptr_user_css_assets(css)  # user override (after ggpaintr.css)
+  )
+}</pre>
+<ul>
+<li>Internal — not exported. Per <a href="../../dev/adr/">[[api-audit]]</a> the goal is to shrink the public surface, not grow it.</li>
+<li>Every entry point's asset-assembly collapses to <code>ptr_assets(css = css)</code>.</li>
+<li>The internal split between "rules in the file" (<code>ggpaintr.css</code>) and "rules in the inline shim" (<code>ptr_layer_assets()</code>) stays as a documented private choice: cosmetic + cacheable + CSP-friendly rules live in the file; structural rules that must hold inside any shell (including bslib) live in the inline shim. Comment block on <code>ptr_assets()</code> records the rationale.</li>
+<li>Idempotent: linking the same <code>href</code> twice is harmless; <code>addResourcePath</code> is idempotent; class-toggle script self-registers behind <code>window.__ptr_set_class_registered</code> (<code>R/paintr-build-ui.R:525</code>).</li>
+</ul>
+
+<h3>Files touched</h3>
+<ul>
+<li><code>R/paintr-build-ui.R</code> — add <code>ptr_assets()</code> next to the three existing helpers; keep them as internal building blocks (they are used independently by <code>ptr_app_bslib</code> for the layer-assets-only case).</li>
+<li><code>R/paintr-app.R</code> — replace five call sites.</li>
+<li><code>R/paintr-shared-ui.R</code> — add the call site (today: zero asset injection).</li>
+</ul>
+
+<h3>Risks</h3>
+<ul>
+<li><strong>bslib path keeps using <code>ptr_layer_assets()</code> directly.</strong> Do not route <code>ptr_app_bslib</code> through <code>ptr_assets()</code> — it must <em>not</em> inject <code>ggpaintr.css</code> (no <code>.ptr-app</code> wrap; would link a stylesheet that fires nothing). The bslib path is the one entry point that still hand-picks its assets, deliberately. Document this exception inline.</li>
+<li><strong>Resource-path registration cost.</strong> <code>ptr_ui_assets()</code> calls <code>shiny::addResourcePath("ggpaintr", …)</code>; doing it three times per page when nested is harmless but worth a comment.</li>
+</ul>
+
+<h3>Acceptance criteria</h3>
+<p>Covered by Proposal #2's acceptance criteria. No separate criteria — Proposal #1 is the mechanism, Proposal #2 is the contract.</p>
+
+<h2>10. Deferred</h2>
+<ul>
+<li><strong>bslib theme story.</strong> <code>ptr_app_bslib</code> currently lives in a separate substrate: bslib emits its own page chrome, the <code>.ptr-app</code> wrap is absent, <code>ggpaintr.css</code> does not fire, and the override hook is bslib's <code>theme =</code> (not <code>css =</code>). Two questions deferred:
+  <ol>
+    <li>Should <code>ptr_app_bslib</code> also wrap in <code>.ptr-app</code> so <code>ggpaintr.css</code> cosmetic rules apply? Would mean reconciling bslib tokens with our <code>--ptr-*</code> tokens (or letting them clash and documenting which wins).</li>
+    <li>Should <code>ptr_app_bslib</code> grow a <code>css =</code> arg alongside <code>theme =</code>? Only useful if (1) lands.</li>
+  </ol>
+  Both are bigger design decisions than the entry-point unification in Proposal #2. Defer to a future ADR.</li>
+<li><strong>Structured <code>theme = list(accent = ...)</code> arg on raw-Shiny entry points.</strong> Sugar over <code>css =</code> targeting the <code>--ptr-*</code> tokens. Reject for now (YAGNI; <code>css =</code> + documented tokens is already sufficient). Revisit if multiple users ask.</li>
+<li><strong>Dead-selector cleanup.</strong> <code>.ptr-controls</code> at <code>ggpaintr.css:64</code> has no current emitter. Remove in the same PR that lands Proposal #1 as a drive-by tidy. Not load-bearing.</li>
+<li><strong>BEM-style consistency in stage classes.</strong> <code>.ptr-stage-head</code> uses single-hyphen; the rest of the codebase prefers <code>__elem</code>. Renaming is mechanical but breaks any user CSS that targets these. Not worth the churn unless a larger naming pass happens.</li>
+</ul>
+
+<h2>11. Acceptance criteria summary</h2>
+<ol>
+<li>Wrap invariant on every raw-Shiny entry point (tested).</li>
+<li>Override invariant on every raw-Shiny entry point: <code>css = NULL</code> arg, path-only, linked after <code>ggpaintr.css</code> (tested).</li>
+<li>Visual-cue invariant: <code>.ptr-stage-disabled</code> renders identically across raw-Shiny entry points (verified by single-bundle invariant).</li>
+<li><code>?ptr_css</code> documents the fifteen <code>--ptr-*</code> tokens; every entry-point man page cross-references it.</li>
+</ol>
+
+<h2>12. Open questions</h2>
+<ul>
+<li><strong>Needs runtime verification.</strong> Per the agreed methodology, every claim in this audit is static. The following are flagged for a runtime check before being escalated into ADR or plan work:
+  <ul>
+    <li>Whether <code>ptr_shared_ui</code> mounted as a standalone fragment (without a sibling <code>ptr_module_ui</code> on the page) actually loses the disabled-stage cue, or whether the class-toggle JS is somehow inherited.</li>
+    <li>Whether <code>ptr_outputs_ui</code> mounted standalone loses the class-toggle handler (almost certain given the static reading, but the matrix would benefit from a probe).</li>
+    <li>Whether <code>ptr_app_bslib</code> with a stage-bearing formula actually exhibits the disabled cue. The static reading says yes (structural rules in <code>ptr_layer_assets()</code> are unscoped) but the visual rendering inside bslib's grid system has not been eyeballed.</li>
+    <li>z-index interaction between <code>.ptr-code-window</code> (1080) and any bslib offcanvas / modal in <code>ptr_app_bslib</code> (only matters if the code window is ever wired into the bslib path).</li>
+  </ul>
+  Per <code>browser-probe-pitfalls</code> (auto-memory): probe results need an R-side cross-check before any finding is filed.
+</li>
+<li><strong>Should <code>ptr_assets()</code> become <code>ptr_app_assets()</code>?</strong> Naming consistency with the existing <code>ptr_app_header()</code> pattern. Decide at implementation time; not load-bearing.</li>
+<li><strong>What happens to <code>ptr_layer_assets()</code> / <code>ptr_ui_assets()</code> / <code>ptr_user_css_assets()</code>?</strong> Keep them internal (still used independently by the bslib path), or fold them into <code>ptr_assets()</code> as private locals? Recommendation: keep them. They are independently useful for the bslib path and any future shell that needs partial asset injection.</li>
+</ul>
+
+</body>
+</html>

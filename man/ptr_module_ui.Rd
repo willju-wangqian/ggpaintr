@@ -36,3 +36,6 @@ A Shiny tag list.
 Namespaced UI side of a Shiny module wrapping a \code{ggpaintr} formula. Pair
 with \code{\link[=ptr_module_server]{ptr_module_server()}}.
 }
+\seealso{
+\code{\link[=ptr_css]{ptr_css()}} for the \verb{css =} argument and themable CSS custom properties.
+}

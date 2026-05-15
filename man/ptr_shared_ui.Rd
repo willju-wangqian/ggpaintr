@@ -9,7 +9,8 @@ ptr_shared_ui(
   shared_ui = list(),
   ui_text = NULL,
   expr_check = TRUE,
-  draw_all_label = "Draw all"
+  draw_all_label = "Draw all",
+  css = NULL
 )
 }
 \arguments{
@@ -28,6 +29,10 @@ formula translation. Default \code{TRUE}.}
 
 \item{draw_all_label}{Label for the "Draw all" button. The button is
 rendered only when \code{length(formulas) >= 2}.}
+
+\item{css}{Optional character vector of paths to additional CSS files;
+linked after \code{ggpaintr}'s bundled stylesheet so its rules win. See
+\code{\link[=ptr_app]{ptr_app()}} for the full semantics. Defaults to \code{NULL}.}
 }
 \value{
 A \code{shiny.tag} wellPanel suitable for direct placement in the
@@ -50,5 +55,5 @@ annotation -- calling this function is a declaration of intent.
 }
 \seealso{
 \code{\link[=ptr_shared_server]{ptr_shared_server()}}, \code{\link[=ptr_module_ui]{ptr_module_ui()}},
-\code{\link[=ptr_module_server]{ptr_module_server()}}.
+\code{\link[=ptr_module_server]{ptr_module_server()}}, \code{\link[=ptr_css]{ptr_css()}}.
 }

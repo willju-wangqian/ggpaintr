@@ -61,8 +61,7 @@
 }
 
 /* ---- sidebar / controls ---- */
-.ptr-app .well,
-.ptr-app .ptr-controls {
+.ptr-app .well {
   background: var(--ptr-surface);
   border: 1px solid var(--ptr-border);
   border-radius: var(--ptr-radius);

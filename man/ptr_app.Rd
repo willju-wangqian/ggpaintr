@@ -126,6 +126,7 @@ Use \code{safe_to_remove = c("pcp_theme")} to opt a specific name in.
 \code{\link[=ptr_app_bslib]{ptr_app_bslib()}} for the same contract with a \code{bslib} theme;
 \code{\link[=ptr_app_grid]{ptr_app_grid()}} for multi-plot apps with shared widgets;
 \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}} et al. for registering custom
-keywords; \code{\link[=ptr_ui_text]{ptr_ui_text()}} for copy overrides;
+keywords; \code{\link[=ptr_ui_text]{ptr_ui_text()}} for copy overrides; \code{\link[=ptr_css]{ptr_css()}} for the
+\verb{css =} argument and themable CSS custom properties;
 \code{vignette("ggpaintr-use-cases")} for tutorial examples.
 }

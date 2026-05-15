@@ -102,7 +102,8 @@
 #' @seealso [ptr_app_bslib()] for the same contract with a `bslib` theme;
 #'   [ptr_app_grid()] for multi-plot apps with shared widgets;
 #'   [ptr_define_placeholder_value()] et al. for registering custom
-#'   keywords; [ptr_ui_text()] for copy overrides;
+#'   keywords; [ptr_ui_text()] for copy overrides; [ptr_css()] for the
+#'   `css =` argument and themable CSS custom properties;
 #'   `vignette("ggpaintr-use-cases")` for tutorial examples.
 #' @export
 ptr_app <- function(formula,
@@ -358,9 +359,7 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
     NULL
   }
   shiny::fluidPage(
-    ptr_layer_assets(),
-    ptr_ui_assets(),
-    ptr_user_css_assets(css),
+    ptr_assets(css = css),
     shiny::tags$div(
       class = "ptr-app",
       header,
@@ -409,6 +408,7 @@ ptr_app_header <- function(title) {
 #'   [ptr_app()] for the full semantics. Defaults to `NULL`.
 #'
 #' @return A Shiny tag list.
+#' @seealso [ptr_css()] for the `css =` argument and themable CSS custom properties.
 #' @export
 ptr_module_ui <- function(id, formula, ui_text = NULL,
                              checkbox_defaults = NULL, expr_check = TRUE,
@@ -474,19 +474,12 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
 #'   [ptr_app()] for the full semantics. Defaults to `NULL`.
 #'
 #' @return A [shiny::tagList()].
-#' @seealso [ptr_outputs_ui()], [ptr_module_ui()], [ptr_module_server()]
+#' @seealso [ptr_outputs_ui()], [ptr_module_ui()], [ptr_module_server()], [ptr_css()]
 #' @export
 ptr_controls_ui <- function(id = NULL, formula, ui_text = NULL,
                             checkbox_defaults = NULL, expr_check = TRUE,
                             css = NULL) {
   tree <- ptr_translate(formula, expr_check = expr_check)
-  # ptr_layer_assets() + ptr_ui_assets() must ride along: ptr_build_app_ui()
-  # injects them at fluidPage level, but in the split layout there is no
-  # combiner -- without them the layer-disabled CSS cue and the bundled
-  # ggpaintr.css/code-window JS silently go missing. The controls side owns
-  # them since the layer panels live here. Harmless if included twice on a
-  # page (both are idempotent / dedupe to the same href).
-  #
   # The `.ptr-app` wrapper attaches the bundled stylesheet (which is scoped
   # under that class). When this helper is rendered inside a larger
   # `.ptr-app` (e.g. `ptr_module_ui()`'s outer wrap), `ggpaintr.css`
@@ -496,7 +489,7 @@ ptr_controls_ui <- function(id = NULL, formula, ui_text = NULL,
     do.call(
       shiny::tagList,
       c(
-        list(ptr_layer_assets(), ptr_ui_assets(), ptr_user_css_assets(css)),
+        list(ptr_assets(css = css)),
         ptr_controls_panel(tree, ui_text = ui_text,
                            checkbox_defaults = checkbox_defaults,
                            ns = shiny::NS(id), render_shared_section = FALSE)
@@ -523,13 +516,12 @@ ptr_controls_ui <- function(id = NULL, formula, ui_text = NULL,
 #'   [ptr_app()] for the full semantics. Defaults to `NULL`.
 #'
 #' @return A [shiny::tagList()].
-#' @seealso [ptr_controls_ui()], [ptr_module_ui()], [ptr_module_server()]
+#' @seealso [ptr_controls_ui()], [ptr_module_ui()], [ptr_module_server()], [ptr_css()]
 #' @export
 ptr_outputs_ui <- function(id = NULL, css = NULL) {
   shiny::tags$div(
     class = "ptr-app",
-    ptr_ui_assets(),
-    ptr_user_css_assets(css),
+    ptr_assets(css = css),
     ptr_outputs_panel(shiny::NS(id))
   )
 }
@@ -663,6 +655,7 @@ ptr_module_server <- function(id, formula, envir = parent.frame(), ...,
 #'   its rules win. See [ptr_app()] for the full semantics. Defaults to `NULL`.
 #'
 #' @return A `shiny.appobj`.
+#' @seealso [ptr_css()] for the `css =` argument and themable CSS custom properties.
 #' @export
 ptr_app_grid <- function(plots,
                             shared_ui = list(),
@@ -718,6 +711,9 @@ ptr_app_grid_components <- function(plots,
   }
 
   shared_panel <- if (any_shared) {
+    # Leave `css = NULL` here: the grid page already injects the user
+    # stylesheet at fluidPage level via ptr_assets(css = css). Threading
+    # `css = css` through would emit the same <link> twice on this page.
     ptr_shared_ui(
       formulas = plots,
       shared_ui = shared_ui,
@@ -741,9 +737,7 @@ ptr_app_grid_components <- function(plots,
   )
 
   ui <- shiny::fluidPage(
-    ptr_layer_assets(),
-    ptr_ui_assets(),
-    ptr_user_css_assets(css),
+    ptr_assets(css = css),
     shiny::tags$div(
       class = "ptr-app",
       ptr_app_header(if (nzchar(title)) title else "ggpaintr grid"),
