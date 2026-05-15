@@ -259,7 +259,13 @@ ptr_controls_panel <- function(tree, ui_text = NULL,
         build_ui_for(e$node, ui_text = ui_text, ns_fn = ns,
                      label_override = e$label_override)
       })
-      widgets <- drop_null(widgets)
+      keep <- !vapply(widgets, is.null, logical(1))
+      widgets <- widgets[keep]
+      kept_entries <- shared_entries[keep]
+      orphan_stages <- collect_orphan_shared_stages(tree)
+      widgets <- wrap_shared_widgets_with_stage_blocks(
+        kept_entries, widgets, orphan_stages, ns
+      )
       if (length(widgets) > 0L) {
         shiny::wellPanel(
           shiny::div(
@@ -553,6 +559,7 @@ ptr_module_server <- function(id, formula, envir = parent.frame(), ...,
     if (is.null(dots$shared))             dots$shared <- shared_state$shared
     if (is.null(dots$draw_trigger))       dots$draw_trigger <- shared_state$draw_trigger
     if (is.null(dots$shared_resolutions)) dots$shared_resolutions <- shared_state$shared_resolutions
+    if (is.null(dots$shared_stage_enabled)) dots$shared_stage_enabled <- shared_state$shared_stage_enabled
   }
 
   # Pre-flight contract checks: surface a clear, module-scoped message

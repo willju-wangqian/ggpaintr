@@ -83,6 +83,7 @@ ptr_init_state <- function(formula,
                                 server_ns = ns,
                                 auto_bind_shared = FALSE,
                                 shared_resolutions = list(),
+                                shared_stage_enabled = list(),
                                 plots = NULL) {
   if (!is.function(ns)) {
     rlang::abort("`ns` must be a namespace function (e.g. shiny::NS(\"id\")).")
@@ -278,9 +279,11 @@ ptr_validate_state <- function(state) {
 ptr_server <- function(input, output, session, formula,
                           envir = parent.frame(), ...) {
   state <- ptr_init_state(formula, envir = envir, ...)
+  shared_stage_enabled <- list(...)[["shared_stage_enabled"]] %||% list()
   ptr_setup_producer_inputs(state, input, output, session)
   ptr_setup_pipelines(state, input, output, session)
   ptr_setup_stage_enabled(state, input, output, session)
+  ptr_setup_shared_stage_enabled(state, shared_stage_enabled)
   ptr_setup_runtime(state, input, output, session)
   ptr_setup_consumer_uis(state, input, output, session)
   ptr_setup_layer_picker(state, input, output, session)
@@ -551,6 +554,42 @@ ptr_setup_stage_enabled <- function(state, input, output, session) {
         cur[[sid_local]] <- isTRUE(input[[bound_id]])
         state$stage_enabled(cur)
       }, ignoreNULL = TRUE)
+    })
+  }
+  invisible(state)
+}
+
+
+# Mirror `shared_state$shared_stage_enabled` reactives into this module's
+# `state$stage_enabled` for every orphan pipeline stage in this tree. Each
+# orphan stage has at least one shared key; if any of those keys has a
+# reactive in `shared_stage_enabled`, that reactive drives the stage's
+# enabled flag in this module's state. This is how `ptr_app_grid()` /
+# `ptr_shared_ui()` propagate one shared-panel checkbox to many per-module
+# pipelines (the inputs themselves live outside any module namespace).
+ptr_setup_shared_stage_enabled <- function(state, shared_stage_enabled) {
+  if (length(shared_stage_enabled %||% list()) == 0L) return(invisible(state))
+  tree <- shiny::isolate(state$tree())
+  orphans <- collect_orphan_shared_stages(tree)
+  if (length(orphans) == 0L) return(invisible(state))
+  for (st in orphans) {
+    keys <- intersect(st$shared_keys, names(shared_stage_enabled))
+    if (length(keys) == 0L) next
+    # When several shared keys cohabit one orphan stage, any of them
+    # disabling drops the stage (AND of TRUEs == stage on). Rare in
+    # practice but the semantic stays consistent with the "checkbox =
+    # this stage runs" promise.
+    local({
+      sid_local <- st$stage_id
+      keys_local <- keys
+      shiny::observe({
+        flags <- vapply(keys_local, function(k) {
+          isTRUE(shared_stage_enabled[[k]]())
+        }, logical(1))
+        cur <- state$stage_enabled()
+        cur[[sid_local]] <- all(flags)
+        state$stage_enabled(cur)
+      })
     })
   }
   invisible(state)

@@ -17,12 +17,14 @@
 
 # ---- ptr_shared_state ------------------------------------------------------
 
-new_ptr_shared_state <- function(shared, draw_trigger, shared_resolutions) {
+new_ptr_shared_state <- function(shared, draw_trigger, shared_resolutions,
+                                 shared_stage_enabled = list()) {
   structure(
     list(
       shared = shared,
       draw_trigger = draw_trigger,
-      shared_resolutions = shared_resolutions
+      shared_resolutions = shared_resolutions,
+      shared_stage_enabled = shared_stage_enabled
     ),
     class = c("ptr_shared_state", "list")
   )
@@ -49,6 +51,19 @@ validate_ptr_shared_state <- function(x) {
   }
   if (!is.list(x$shared_resolutions)) {
     rlang::abort("`shared_state$shared_resolutions` must be a (possibly empty) named list.")
+  }
+  sse <- x$shared_stage_enabled %||% list()
+  if (!is.list(sse)) {
+    rlang::abort("`shared_state$shared_stage_enabled` must be a (possibly empty) named list of reactives.")
+  }
+  if (length(sse) > 0L) {
+    nms <- names(sse)
+    if (is.null(nms) || any(!nzchar(nms)) || any(duplicated(nms))) {
+      rlang::abort("`shared_state$shared_stage_enabled` must have unique non-empty names.")
+    }
+    if (!all(vapply(sse, shiny::is.reactive, logical(1)))) {
+      rlang::abort("`shared_state$shared_stage_enabled` values must be Shiny reactives.")
+    }
   }
   invisible(x)
 }
@@ -227,7 +242,40 @@ ptr_shared_ui <- function(formulas,
       )
     }
   })
-  shared_widgets <- drop_null(shared_widgets)
+  kept_mask <- !vapply(shared_widgets, is.null, logical(1))
+  shared_widgets <- shared_widgets[kept_mask]
+  rendered_keys <- formula_keys[kept_mask]
+
+  # Wrap widgets whose key hosts at least one orphan pipeline stage (a
+  # stage whose only placeholders are shared) in a `.ptr-stage` block. The
+  # head checkbox uses a synthetic input id (`shared_stage_input_id(k)`);
+  # `ptr_shared_server()` exposes its value as a reactive that each module
+  # mirrors into its own `state$stage_enabled` for the underlying stage_ids
+  # (see paintr-server.R).
+  orphan_info <- collect_shared_stage_keys(trees)
+  if (length(orphan_info) > 0L && length(shared_widgets) > 0L) {
+    shared_widgets <- lapply(seq_along(shared_widgets), function(i) {
+      k <- rendered_keys[[i]]
+      w <- shared_widgets[[i]]
+      info <- orphan_info[[k]]
+      if (is.null(info)) return(w)
+      verbs <- info$verbs
+      head_label <- if (length(verbs) > 0L) {
+        shiny::tags$code(paste0(paste(verbs, collapse = "/"), "()"))
+      } else NULL
+      shiny::div(
+        class = "ptr-stage",
+        shiny::div(
+          class = "ptr-stage-head",
+          shiny::checkboxInput(
+            inputId = shared_stage_input_id(k),
+            label = head_label, value = TRUE, width = "auto"
+          )
+        ),
+        shiny::div(class = "ptr-stage-fields", w)
+      )
+    })
+  }
 
   body <- c(
     list(
@@ -378,9 +426,31 @@ ptr_shared_server <- function(formulas,
     output$ptr_shared_errors <- shiny::renderUI({ NULL })
   }
 
+  # One reactive per shared key whose orphan pipeline stages should be
+  # toggleable from the shared panel. Default to TRUE so that an unset
+  # input (no checkbox rendered, or panel not yet touched) preserves the
+  # existing semantics (stages enabled). Each `ptr_module_server()` mirrors
+  # the value into its own `state$stage_enabled` for every orphan stage_id
+  # in that module's tree -- see `ptr_setup_shared_stage_enabled()` in
+  # paintr-server.R.
+  orphan_info <- collect_shared_stage_keys(trees)
+  shared_stage_enabled <- if (length(orphan_info) > 0L) {
+    stats::setNames(
+      lapply(names(orphan_info), function(k) {
+        sid_input <- shared_stage_input_id(k)
+        shiny::reactive({
+          v <- input[[sid_input]]
+          if (is.null(v)) TRUE else isTRUE(v)
+        })
+      }),
+      names(orphan_info)
+    )
+  } else list()
+
   new_ptr_shared_state(
     shared = shared_reactives,
     draw_trigger = effective_draw_trigger,
-    shared_resolutions = shared_resolutions
+    shared_resolutions = shared_resolutions,
+    shared_stage_enabled = shared_stage_enabled
   )
 }

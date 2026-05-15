@@ -370,6 +370,107 @@ collect_shared_placeholders <- function(tree) {
   })
 }
 
+
+# Pipeline stages whose only placeholders are shared. These stages get no
+# checkbox from `build_pipeline_stage_ui()` (it skips shared placeholders),
+# so the shared section is responsible for rendering one. Returns a list of
+# `list(stage_id, verb, shared_keys)` in tree order.
+collect_orphan_shared_stages <- function(tree) {
+  out <- list()
+  ptr_walk(tree, function(n) {
+    if (!is_ptr_call(n) || is.null(n$stage_id)) return()
+    phs <- ptr_collect(n, is_ptr_placeholder, prune = is_ptr_placeholder)
+    if (length(phs) == 0L) return()
+    if (!all(vapply(phs, is_shared_placeholder, logical(1)))) return()
+    keys <- unique(vapply(phs, function(p) p$shared, character(1)))
+    out[[length(out) + 1L]] <<- list(
+      stage_id = n$stage_id,
+      verb = bare_call_name(n$fun) %||% NA_character_,
+      shared_keys = keys
+    )
+  })
+  out
+}
+
+
+# Per-key orphan-stage info across one or many trees. Returns a named list
+# `<key> -> list(verbs = chr, stages = list(list(tree_idx, stage_id)))`,
+# only for keys with at least one orphan stage somewhere. Used by
+# `ptr_shared_ui()` (which renders one synthetic checkbox per key) and by
+# `ptr_shared_server()` (which exposes a reactive per key for mirroring).
+collect_shared_stage_keys <- function(trees) {
+  if (is_ptr_node(trees)) trees <- list(trees)
+  by_key <- list()
+  for (i in seq_along(trees)) {
+    for (st in collect_orphan_shared_stages(trees[[i]])) {
+      for (k in st$shared_keys) {
+        b <- by_key[[k]] %||% list(verbs = character(), stages = list())
+        if (!is.na(st$verb) && nzchar(st$verb)) {
+          b$verbs <- unique(c(b$verbs, st$verb))
+        }
+        b$stages[[length(b$stages) + 1L]] <- list(
+          tree_idx = i, stage_id = st$stage_id
+        )
+        by_key[[k]] <- b
+      }
+    }
+  }
+  by_key
+}
+
+# Wrap the shared-section widgets in `.ptr-stage` blocks for any pipeline
+# stage that hosts only shared placeholders. The head checkbox uses
+# `ns_fn(stage_id)` so `ptr_setup_stage_enabled()` picks it up via the same
+# observer wiring as the non-shared per-layer Data panel -- one canonical
+# stage_id input, one path into `state$stage_enabled`, one `disable_walk()`
+# pass at evaluation. Widget order follows `entries`; subsequent widgets
+# whose key belongs to an already-emitted stage are folded into a bare
+# `.ptr-stage-fields` div (mirrors the `seen` guard in
+# `build_pipeline_stage_ui()`).
+wrap_shared_widgets_with_stage_blocks <- function(entries, widgets,
+                                                  orphan_stages, ns_fn) {
+  key_to_stage <- list()
+  for (st in orphan_stages) {
+    for (k in st$shared_keys) {
+      if (is.null(key_to_stage[[k]])) key_to_stage[[k]] <- st
+    }
+  }
+  if (length(key_to_stage) == 0L) return(widgets)
+
+  out <- list()
+  emitted <- character()
+  for (i in seq_along(entries)) {
+    w <- widgets[[i]]
+    if (is.null(w)) next
+    st <- key_to_stage[[entries[[i]]$key]]
+    if (is.null(st)) {
+      out[[length(out) + 1L]] <- w
+      next
+    }
+    if (st$stage_id %in% emitted) {
+      out[[length(out) + 1L]] <- shiny::div(class = "ptr-stage-fields", w)
+      next
+    }
+    emitted <- c(emitted, st$stage_id)
+    has_verb <- !is.null(st$verb) && !is.na(st$verb) && nzchar(st$verb)
+    head_label <- if (has_verb) {
+      shiny::tags$code(paste0(st$verb, "()"))
+    } else NULL
+    out[[length(out) + 1L]] <- shiny::div(
+      class = "ptr-stage",
+      shiny::div(
+        class = "ptr-stage-head",
+        shiny::checkboxInput(
+          inputId = ns_fn(st$stage_id), label = head_label, value = TRUE,
+          width = "auto"
+        )
+      ),
+      shiny::div(class = "ptr-stage-fields", w)
+    )
+  }
+  out
+}
+
 layer_panel_inner <- function(pipeline_ui, control_ui,
                                data_label, controls_label,
                                layer_name = NULL, ns_fn = identity) {

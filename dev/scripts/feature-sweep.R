@@ -413,12 +413,69 @@ ptr_app(
 #      `select(var(shared = "a"))`). Both `a` and `b` end up resolved
 #      against the same source-side prefix and share consistently —
 #      no circular-dep error, no manual ordering required.
+#
+#      NEW: the shared panel now also hosts a stage(verb) checkbox for
+#      any pipeline stage whose only placeholder is shared. The
+#      `dplyr::select(var(shared = "a"), gear)` stage above is exactly
+#      that — its widget for "a" is wrapped in a `select()`-labelled
+#      `.ptr-stage` head checkbox. Untick it to drop that select() stage
+#      at evaluation; the picker for "a" stays usable (other layers /
+#      formulas could still reference it). The `var(shared = "b")` aes
+#      placeholder is NOT inside a pipeline stage, so it renders bare.
 ptr_app(
   "mtcars |>
      dplyr::filter(mpg > 10) |>
      dplyr::select(var(shared = \"a\"), gear) |>
      ggplot(aes(x = var(shared = \"b\"), y = gear)) + geom_point()"
 )
+
+# 15l. Shared stage(verb) checkbox in `ptr_app_grid()` — one checkbox in
+#      the shared panel prunes the orphan stage in EVERY plot module that
+#      hosts an occurrence of the shared key inside a pipeline stage.
+#      Watch:
+#        - Single head checkbox at the top of the shared panel, labelled
+#          `select()/filter()` (union of verbs across both formulas).
+#        - Untick it → plot 1's `dplyr::select(var(shared="a"), mpg)` AND
+#          plot 2's `dplyr::filter(var(shared="a") > 0)` both drop their
+#          stage simultaneously on the next "Draw all".
+#        - The shared picker for "a" stays usable.
+ptr_app_grid(
+  plots = list(
+    "mtcars |> dplyr::select(var(shared = \"a\"), mpg) |>
+       ggplot(aes(x = mpg, y = mpg)) + geom_point()",
+    "mtcars |> dplyr::filter(var(shared = \"a\") > 0) |>
+       ggplot(aes(x = mpg, y = mpg)) + geom_point()"
+  )
+)
+
+# 15m. Same feature exposed through the host-authored `ptr_shared_ui()` /
+#      `ptr_shared_server()` pair, for embedders that own their own
+#      layout. The synthetic checkbox input id is `shared_<key>_stage_enabled`
+#      (here `shared_a_stage_enabled`); `ptr_shared_server()` exposes its
+#      value via `state$shared_stage_enabled$a`, and each
+#      `ptr_module_server()` mirrors it into its module's stage pruning.
+{
+  formulas <- c(
+    "mtcars |> dplyr::select(var(shared = \"a\"), mpg) |>
+       ggplot(aes(x = mpg, y = mpg)) + geom_point()",
+    "mtcars |> dplyr::filter(var(shared = \"a\") > 0) |>
+       ggplot(aes(x = mpg, y = mpg)) + geom_point()"
+  )
+  ui <- fluidPage(
+    titlePanel("Shared stage(verb) checkbox via ptr_shared_ui()"),
+    ptr_shared_ui(formulas),
+    fluidRow(
+      column(6, ptr_module_ui("plot_1", formulas[[1]])),
+      column(6, ptr_module_ui("plot_2", formulas[[2]]))
+    )
+  )
+  server <- function(input, output, session) {
+    shared_state <- ptr_shared_server(formulas)
+    ptr_module_server("plot_1", formulas[[1]], shared_state = shared_state)
+    ptr_module_server("plot_2", formulas[[2]], shared_state = shared_state)
+  }
+  shinyApp(ui, server)
+}
 
 # 16a. Level-3 render override -- use plotly::ggplotly() instead of the
 #      default renderPlot. Demonstrates that `ptr_extract_plot()` (and

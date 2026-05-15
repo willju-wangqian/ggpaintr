@@ -97,11 +97,16 @@ ptr_app_bslib <- function(formula,
   # `ptr_app()`'s shared section. Consumer placeholders emit a `uiOutput`
   # container here; their picker is rendered server-side by
   # `ptr_bind_shared_consumer_uis()` (wired via `ptr_make_app_server()`).
-  shared_widgets <- drop_null(lapply(
-    collect_shared_placeholders(tree),
-    function(e) build_ui_for(e$node, ui_text = ui_text, ns_fn = ns,
-                             label_override = e$label_override)
-  ))
+  shared_entries <- collect_shared_placeholders(tree)
+  raw_widgets <- lapply(shared_entries, function(e) {
+    build_ui_for(e$node, ui_text = ui_text, ns_fn = ns,
+                 label_override = e$label_override)
+  })
+  keep <- !vapply(raw_widgets, is.null, logical(1))
+  shared_widgets <- wrap_shared_widgets_with_stage_blocks(
+    shared_entries[keep], raw_widgets[keep],
+    collect_orphan_shared_stages(tree), ns
+  )
   shared_section <- if (length(shared_widgets) > 0L) {
     shiny::tagList(
       shiny::tags$p(class = "ptr-shared-panel__title fw-bold mb-1",

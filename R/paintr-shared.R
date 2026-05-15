@@ -35,6 +35,16 @@ collect_then_rewrite_shared <- function(root) {
 canonical_shared_id <- function(key) paste0("shared_", key)
 
 
+# Synthetic Shiny input id for the shared-panel stage(verb) checkbox. One
+# checkbox per shared key controls every orphan pipeline stage that hosts
+# that key (across every formula in a `ptr_app_grid()` / `ptr_shared_ui()`
+# bundle). Distinct from `canonical_shared_id()` to avoid colliding with
+# the shared widget input itself.
+shared_stage_input_id <- function(key) {
+  paste0(canonical_shared_id(key), "_stage_enabled")
+}
+
+
 # ---- shared-consumer upstream resolution -----------------------------------
 #
 # Per the host contract (plan 06 follow-up): the shared widget for a
