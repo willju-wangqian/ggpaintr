@@ -121,6 +121,13 @@ prune_walk.ptr_pipeline <- function(node, remove_set, is_standalone) {
 }
 
 #' @export
+prune_walk.ptr_closure <- function(node, remove_set, is_standalone) {
+  node$body <- prune_walk(node$body, remove_set = remove_set,
+                          is_standalone = is_standalone)
+  node
+}
+
+#' @export
 prune_walk.ptr_user_expr <- function(node, remove_set, is_standalone) node
 
 #' @export

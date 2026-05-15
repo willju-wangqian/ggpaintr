@@ -62,6 +62,12 @@ substitute_walk.ptr_pipeline <- function(node, ctx) {
 }
 
 #' @export
+substitute_walk.ptr_closure <- function(node, ctx) {
+  node$body <- substitute_walk(node$body, ctx)
+  node
+}
+
+#' @export
 substitute_walk.ptr_user_expr <- function(node, ctx) node
 
 #' @export

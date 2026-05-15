@@ -298,6 +298,13 @@ translate_node <- function(expr) {
     if (!is.null(ph)) {
       return(build_placeholder_node(expr, ph))
     }
+    if (identical(head, as.name("function"))) {
+      return(ptr_closure(
+        formals = expr[[2L]],
+        body    = translate_node(expr[[3L]]),
+        expr    = expr
+      ))
+    }
     return(translate_call(expr))
   }
   if (is.symbol(expr)) {

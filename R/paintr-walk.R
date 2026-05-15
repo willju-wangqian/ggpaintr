@@ -101,6 +101,13 @@ ptr_cursor_descend <- function(cur, parent, slot, idx, nm) {
                       in_data_position = isTRUE(cur$in_data_position) && idx == 1L,
                       pipeline_index = idx))
   }
+  if (identical(slot, "body")) {
+    # Anonymous-function body: a fresh expression scope. Extend the path so
+    # ids stay unique, reset param (the body's own calls re-derive it), and
+    # leave data position (a lambda body is never the layer's data arg).
+    return(ptr_cursor(layer_name = cur$layer_name, path = c(cur$path, idx),
+                      slot = slot, param = NA_character_))
+  }
   ptr_cursor(layer_name = cur$layer_name)            # defensive
 }
 
@@ -141,6 +148,8 @@ ptr_rewrite_pre <- function(node, fn, cur = ptr_cursor()) {
     for (i in seq_along(node$stages)) {
       node$stages[[i]] <- desc(node$stages[[i]], "stages", i, NA_character_)
     }
+  } else if (is_ptr_closure(node)) {
+    node$body <- desc(node$body, "body", 2L, NA_character_)
   }
   # placeholders / ptr_literal / ptr_missing / ptr_user_expr: no structural
   # children to descend.

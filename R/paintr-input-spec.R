@@ -79,6 +79,10 @@ collect_layer_placeholders <- function(layer) {
       for (s in x$stages) visit(s)
       return(invisible())
     }
+    if (is_ptr_closure(x)) {
+      visit(x$body)
+      return(invisible())
+    }
   }
   if (!is.null(layer$data_arg)) visit(layer$data_arg)
   if (length(layer$children) > 0L) {

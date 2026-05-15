@@ -67,6 +67,16 @@ ptr_literal <- function(expr) {
   new_ptr_node("ptr_literal", expr = expr)
 }
 
+# An anonymous-function literal (`function(.x) body`). `formals` is the raw
+# formals pairlist, kept verbatim so the closure can be reconstructed and
+# deparsed correctly. `body` is a translated child node, so placeholders
+# inside the lambda body still resolve. A `function` call is *not* an
+# ordinary call (its components are formals/body/srcref, not positional
+# args), so it needs its own node rather than going through `ptr_call`.
+ptr_closure <- function(formals, body, expr) {
+  new_ptr_node("ptr_closure", formals = formals, body = body, expr = expr)
+}
+
 ptr_missing <- function() {
   new_ptr_node("ptr_missing")
 }
@@ -83,5 +93,6 @@ is_ptr_placeholder <- function(x) {
   is_ptr_ph_value(x) || is_ptr_ph_data_consumer(x) || is_ptr_ph_data_source(x)
 }
 is_ptr_user_expr <- function(x) inherits(x, "ptr_user_expr")
+is_ptr_closure <- function(x) inherits(x, "ptr_closure")
 is_ptr_literal <- function(x) inherits(x, "ptr_literal")
 is_ptr_missing <- function(x) inherits(x, "ptr_missing")

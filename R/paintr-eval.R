@@ -97,6 +97,9 @@ node_to_lang <- function(node) {
     args <- node_list_to_lang(node$args)
     return(as.call(c(list(head), args)))
   }
+  if (is_ptr_closure(node)) {
+    return(call("function", node$formals, node_to_lang(node$body)))
+  }
   if (is_ptr_pipeline(node)) return(pipeline_to_eval_expr(node))
   if (is_ptr_missing(node)) {
     rlang::abort(paste0(
@@ -116,7 +119,10 @@ node_to_lang <- function(node) {
 node_list_to_lang <- function(args) {
   if (length(args) == 0L) return(list())
   out <- vector("list", length(args))
-  for (i in seq_along(args)) out[[i]] <- node_to_lang(args[[i]])
+  # `out[i] <- list(x)` (not `out[[i]] <- x`): a node whose lang is `NULL`
+  # (e.g. a literal `y = NULL` arg) must keep its slot. `[[<-` with NULL
+  # deletes the element, which would desync `out` from `names(args)`.
+  for (i in seq_along(args)) out[i] <- list(node_to_lang(args[[i]]))
   names(out) <- names(args)
   out
 }

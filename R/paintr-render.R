@@ -191,6 +191,11 @@ render_walk.ptr_literal <- function(node, indent = 0L) {
 }
 
 #' @export
+render_walk.ptr_closure <- function(node, indent = 0L) {
+  rlang::expr_text(call("function", node$formals, node_to_lang(node$body)))
+}
+
+#' @export
 render_walk.ptr_user_expr <- function(node, indent = 0L) {
   rlang::expr_text(node$inner)
 }
