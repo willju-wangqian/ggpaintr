@@ -36,9 +36,15 @@ test_that("P10.4 magrittr pipe surface preserved as %>%", {
 })
 
 test_that("P10.5 mixed pipe chain preserves both ops", {
+  # Multi-stage pipes always break one stage per line. The outer `|>` joins
+  # the magrittr upstream to the terminal layer; that upstream is itself a
+  # pipeline and so also breaks at its own `%>%`.
   r <- ptr_translate("mtcars %>% head(2) |> ggplot(aes(x = mpg))")
   txt <- ptr_render(r)
-  expect_match(txt, "mtcars %>% head\\(2\\) \\|> ggplot")
+  expect_equal(
+    txt,
+    "mtcars %>%\n  head(2) |>\n  ggplot(aes(x = mpg))"
+  )
 })
 
 test_that("P10.6 chained pipe keeps middle-link call empty when placeholder empty", {
@@ -48,7 +54,7 @@ test_that("P10.6 chained pipe keeps middle-link call empty when placeholder empt
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s)
   txt <- ptr_render(p)
-  expect_match(txt, "mtcars \\|> head\\(\\) \\|> ggplot")
+  expect_match(txt, "mtcars \\|>\\n  head\\(\\) \\|>\\n  ggplot")
 })
 
 test_that("P10.7 pkg::fn heads preserved", {
@@ -164,7 +170,10 @@ test_that("P10.17 over-wide pipe chain breaks at each pipe operator", {
   expect_true(all(nchar(strsplit(txt, "\n", fixed = TRUE)[[1]]) <= 80L))
 })
 
-test_that("P10.18 short pipe chains stay on one line", {
+test_that("P10.18 multi-stage pipe chains always break one stage per line", {
   r <- ptr_translate("mtcars |> head(2) |> ggplot(aes(x = mpg))")
-  expect_equal(ptr_render(r), "mtcars |> head(2) |> ggplot(aes(x = mpg))")
+  expect_equal(
+    ptr_render(r),
+    "mtcars |>\n  head(2) |>\n  ggplot(aes(x = mpg))"
+  )
 })

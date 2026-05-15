@@ -75,18 +75,11 @@ render_pipeline_body <- function(node, indent = 0L) {
 }
 
 # Lay out a pipe chain. `seg_thunks` is a list of `function(col) -> text`, one
-# per segment; `op` is the pipe operator (`|>` or `%>%`). Inline if the joined
-# form fits within `RENDER_WIDTH` from column `indent`, else one segment per
-# line with the operator trailing each line and continuations at `indent + 2`.
+# per segment; `op` is the pipe operator (`|>` or `%>%`). Single-segment chains
+# render inline; any multi-stage chain prints one segment per line with the
+# operator trailing each line and continuations at `indent + 2`.
 render_pipe_chain <- function(seg_thunks, op, indent) {
-  sep <- paste0(" ", op, " ")
-  inline <- vapply(seg_thunks, function(f) f(indent), character(1))
-  one_line <- paste(inline, collapse = sep)
-  if (length(seg_thunks) == 1L ||
-      (!grepl("\n", one_line, fixed = TRUE) &&
-       indent + nchar(one_line) <= RENDER_WIDTH)) {
-    return(one_line)
-  }
+  if (length(seg_thunks) == 1L) return(seg_thunks[[1]](indent))
   child <- indent + 2L
   pad <- strrep(" ", child)
   parts <- c(seg_thunks[[1]](indent),
