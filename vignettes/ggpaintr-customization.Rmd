@@ -344,7 +344,7 @@ ptr_app("mtcars |> dplyr::select(colvars) |>
         ggplot(aes(x = var, y = var)) + geom_point()")
 ```
 
-The picker's choices are populated from `mtcars`'s column names — that is `cols` in `build_ui`. Pick two or three columns; the rendered code becomes `mtcars |> dplyr::select(dplyr::all_of(c('mpg', 'hp', 'wt')))`. Clear the picker and `resolve_expr` returns `NULL`, so the `all_of(...)` arg is pruned rather than spliced as `NULL`.
+The picker's choices are populated from `mtcars`'s column names — that is `cols` in `build_ui`. Pick two or three columns; the rendered code becomes `mtcars |> dplyr::select(c('mpg', 'hp', 'wt'))`. Clear the picker and `resolve_expr` returns `NULL`, so the `c(...)` arg is pruned rather than spliced as `NULL`.
 
 #### Reading values, not just column names — the `data` argument
 
