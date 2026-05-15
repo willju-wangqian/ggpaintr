@@ -4,7 +4,8 @@ ptr_app(
   'tibble(k = expr(shared = "k")) |>
      mutate(
        kmeans  = map(k, function(.k) kmeans(
-         scale(iris[, colvars]),
+         scale(iris[, c("Sepal.Length", "Sepal.Width",
+                        "Petal.Length", "Petal.Width")]),
          centers = .k, nstart = 25)),
        glanced = map(kmeans, broom::glance)
      ) |>

@@ -38,7 +38,7 @@
   <tr><th>Vignette</th><th>Examples tested</th><th>Pass</th><th>Bugs</th></tr>
   <tr><td><code>ggpaintr-use-cases.Rmd</code></td><td>10</td><td>10</td><td>1 (doc-only)</td></tr>
   <tr><td><code>ggpaintr-customization.Rmd</code></td><td>6</td><td>6</td><td>1 (doc-only)</td></tr>
-  <tr><td><code>ggpaintr-gallery.Rmd</code></td><td>14</td><td>11</td><td>3 (1 doc, 2 runtime)</td></tr>
+  <tr><td><code>ggpaintr-gallery.Rmd</code></td><td>14</td><td>14</td><td>3 fixed (1 doc, 1 source — 4 defects, 1 design)</td></tr>
   <tr><td><code>ggpaintr-safety.Rmd</code></td><td>—</td><td>—</td><td>—</td></tr>
   <tr><td><code>ggpaintr-llm.Rmd</code></td><td>—</td><td>—</td><td>—</td></tr>
 </table>
@@ -71,15 +71,17 @@
 <p>The <code>ggridges::lincoln_weather</code> dataset ships with names like <code>"Mean Temperature [F]"</code>. The <code>var</code> placeholder requires syntactic identifiers, so the picker rejects the column with <code>Input error: Invalid value for placeholder `var`: Column `Mean.Temperature..F.` is not in the data.</code> Patched <code>vignettes/ggpaintr-gallery.Rmd</code> §6.2 to run <code>ptr_normalize_column_names(lincoln_weather)</code> first, with a cross-link to the use-cases vignette §"Local data with non-syntactic columns".</p>
 </div>
 
-<div class="bug-card">
-<h3>BUG&nbsp;5 (runtime, partial source-fix landed) — Parser crash on <code>function(.x) …</code> formals inside formulas</h3>
-<p>Gallery §4.3 (k-means) and §4.6 (group-wise regression) both crashed at <code>ptr_app()</code> construction time:</p>
-<pre>Error in visit_collect(x[[nm]]) :
-  argument "el" is missing, with no default
-Calls: source ... visit_collect -&gt; is_ptr_placeholder -&gt; is_ptr_ph_value -&gt; inherits</pre>
-<p>Root cause: AST walkers (<code>visit_collect</code> in <code>R/paintr-shared.R</code>, <code>visit</code> in <code>find_layer_placeholders_with_stage</code> in <code>R/paintr-build-ui.R</code>, <code>rec</code> in <code>ptr_walk</code> in <code>R/paintr-walk.R</code>) iterated <code>for (el in x) visit(el)</code> over any <code>is.list(x)</code>. R's <code>is.list()</code> is also <code>TRUE</code> for <code>pairlist</code>, and function formals are represented as a pairlist whose elements with no default are the missing-argument marker (<code>quote(expr=)</code>). Force-evaluating the loop variable inside the recursive call raised the "argument 'el' is missing" error.</p>
-<p>Patched all three walkers to skip pairlists (<code>is.list(x) &amp;&amp; !is.pairlist(x)</code>). Full test suite still passes (<code>devtools::test()</code>). The two gallery formulas now <em>parse</em> cleanly and the plot reactive succeeds.</p>
-<p><em>Remaining (separate) source bug:</em> the AST→text re-renderer emits <code>function(.k) body</code> as <code>function(as.pairlist(alist(.k = )), body, NULL)</code>. The generated-code pane therefore shows a malformed snippet that errors if pasted back into R. Marked the affected gallery chunks (<code>kmeans-paintr</code>, <code>coefs-paintr</code>) as <code>eval = FALSE</code> with a "Known limitation" callout pointing at the §4.2 named-helper workaround pattern.</p>
+<div class="patched">
+<h3>BUG&nbsp;5 (runtime, FULLY FIXED) — anonymous <code>function(.x) …</code> literals inside formulas</h3>
+<p>Gallery §4.3 (k-means) and §4.6 (group-wise regression) failed on <code>function(.x) …</code> lambdas inside <code>map()</code>. Four distinct defects, all now fixed and regression-tested (<code>tests/testthat/test-rewrite-closure.R</code>, 9 cases):</p>
+<ol>
+  <li><strong>Parser crash.</strong> AST walkers (<code>visit_collect</code> in <code>R/paintr-shared.R</code>, <code>visit</code> in <code>find_layer_placeholders_with_stage</code> in <code>R/paintr-build-ui.R</code>, <code>rec</code> in <code>ptr_walk</code> in <code>R/paintr-walk.R</code>) iterated <code>for (el in x) visit(el)</code> over any <code>is.list(x)</code>. <code>is.list()</code> is also <code>TRUE</code> for pairlists; function formals are a pairlist whose no-default elements are the missing-argument marker, so forcing the loop variable raised <code>argument "el" is missing</code>. Fixed: skip pairlists (<code>is.list(x) &amp;&amp; !is.pairlist(x)</code>).</li>
+  <li><strong>Mis-translation.</strong> <code>translate_call()</code> treated <code>function(.k) body</code> (a length-4 call: <code>function</code>, formals-pairlist, body, srcref) as an ordinary <code>head(arg, arg, arg)</code> call, so the formals round-tripped through a literal node and the srcref became a bogus 3rd argument — re-rendering as <code>function(as.pairlist(alist(.k = )), body, NULL)</code>. Fixed: a dedicated <code>ptr_closure</code> node (constructor + predicate in <code>R/paintr-nodes.R</code>) that keeps the formals pairlist verbatim and translates only the body, with matching <code>node_to_lang</code> / <code>render_walk</code> / <code>substitute_walk</code> / <code>prune_walk</code> methods and a <code>"body"</code> cursor slot in <code>ptr_rewrite_pre</code> so closure-body placeholders get ids.</li>
+  <li><strong>Server input wiring.</strong> <code>collect_layer_placeholders()</code> in <code>R/paintr-input-spec.R</code> (which builds the runtime input spec / snapshot) handled <code>ptr_call</code>/<code>ptr_pipeline</code> but not closures, so a placeholder inside a lambda body got a widget yet its typed value never reached substitution (the code pane showed the arg pruned away). Fixed: added a <code>ptr_closure</code> branch that recurses into <code>$body</code>.</li>
+  <li><strong>Pre-existing, closure-independent.</strong> <code>node_list_to_lang()</code> built args with <code>out[[i]] &lt;- node_to_lang(...)</code>; when a node's lang is <code>NULL</code> (e.g. a literal <code>labs(y = NULL)</code> arg) <code>[[&lt;-</code> <em>deletes</em> the slot, desyncing the list from <code>names(args)</code> → <code>'names' attribute [n] must be the same length as the vector [n-1]</code>. This bit any formula with a literal <code>NULL</code> argument, independent of closures. Fixed: <code>out[i] &lt;- list(node_to_lang(...))</code> preserves NULL slots.</li>
+</ol>
+<p>Both §4.3 and §4.6 now run end-to-end in the browser (verified: plot renders, no error, code pane shows correct <code>function(.k) …</code> / <code>function(.d) …</code>). §4.6 reverted to a normal runnable chunk. §4.3 additionally had a design error — it fed <code>colvars</code> (a <em>consumer</em> placeholder that resolves against pipeline upstream, which here is <code>tibble(k = …)</code>, not <code>iris</code>) — corrected to the fixed four-column <code>iris[, c(...)]</code> set matching the §4.3 original recipe.</p>
+<p><em>Minor cosmetic, not fixed (out of scope):</em> the code pane renders <code>broom::glance</code> as <code>::(broom, glance)</code> (prefix instead of infix <code>::</code>). It evaluates correctly; only the displayed text is ugly.</p>
 </div>
 
 <h2>What was patched</h2>
@@ -89,18 +91,23 @@ Calls: source ... visit_collect -&gt; is_ptr_placeholder -&gt; is_ptr_ph_value -
 <ul>
   <li><code>vignettes/ggpaintr-use-cases.Rmd</code> — fix <code>#&gt;</code> comment in <code>normalize-cols</code> chunk (BUG 1).</li>
   <li><code>vignettes/ggpaintr-customization.Rmd</code> — remove incorrect <code>dplyr::all_of()</code> claim in colvars walk-through (BUG 2).</li>
-  <li><code>vignettes/ggpaintr-gallery.Rmd</code> — add <code>custom-placeholders-setup</code> chunk in §2 (BUG 3); normalize <code>lincoln_weather</code> in §6.2 (BUG 4); add Known-Limitation callouts on §4.3 and §4.6 with <code>eval = FALSE</code> (BUG 5 follow-up).</li>
+  <li><code>vignettes/ggpaintr-gallery.Rmd</code> — add <code>custom-placeholders-setup</code> chunk in §2 (BUG 3); normalize <code>lincoln_weather</code> in §6.2 (BUG 4); §4.6 left runnable and §4.3 corrected from a misused <code>colvars</code> consumer to the fixed iris column set (BUG 5, now fully fixed in source).</li>
 </ul>
 </div>
 
 <div class="patched">
 <h3>Source (R)</h3>
 <ul>
-  <li><code>R/paintr-shared.R</code> — guard <code>visit_collect</code> and <code>visit</code> (in <code>has_unresolved_placeholder</code>) against pairlists.</li>
+  <li><code>R/paintr-shared.R</code> — guard <code>visit_collect</code> and <code>visit</code> against pairlists.</li>
   <li><code>R/paintr-build-ui.R</code> — guard <code>visit</code> in <code>find_layer_placeholders_with_stage</code> against pairlists.</li>
-  <li><code>R/paintr-walk.R</code> — guard <code>ptr_walk</code>'s <code>rec</code> against pairlists.</li>
+  <li><code>R/paintr-walk.R</code> — guard <code>ptr_walk</code>'s <code>rec</code> against pairlists; add a <code>ptr_closure</code> branch + <code>"body"</code> cursor slot to <code>ptr_rewrite_pre</code> so closure-body placeholders get ids.</li>
+  <li><code>R/paintr-nodes.R</code> — new <code>ptr_closure</code> node constructor + <code>is_ptr_closure()</code> predicate.</li>
+  <li><code>R/paintr-translate.R</code> — translate <code>function(.x) …</code> to a <code>ptr_closure</code> (formals kept verbatim, body recursed) instead of a generic call.</li>
+  <li><code>R/paintr-eval.R</code> — <code>node_to_lang</code> branch reconstructing <code>call("function", formals, body)</code>; <code>node_list_to_lang()</code> now uses <code>out[i] &lt;- list(...)</code> so literal-<code>NULL</code> args keep their slot.</li>
+  <li><code>R/paintr-render.R</code>, <code>R/paintr-substitute.R</code>, <code>R/paintr-prune.R</code> — <code>ptr_closure</code> S3 methods (render reconstructs a genuine <code>function</code> call; substitute/prune recurse into the body).</li>
+  <li><code>R/paintr-input-spec.R</code> — <code>collect_layer_placeholders()</code> recurses into closure bodies so their placeholders reach the runtime input snapshot.</li>
 </ul>
-<p><code>devtools::test()</code> still passes (only pre-existing temp-path warnings under <code>test-user-css.R</code>).</p>
+<p>Regression coverage added: <code>tests/testthat/test-rewrite-closure.R</code> (9 cases). Full suite: <strong>FAIL 0 | PASS 1298</strong> (5 pre-existing, unrelated <code>test-user-css.R</code> temp-path warnings).</p>
 </div>
 
 <div class="patched">
@@ -142,10 +149,10 @@ Calls: source ... visit_collect -&gt; is_ptr_placeholder -&gt; is_ptr_ph_value -
 <tr><td><code>mpg-paintr</code> (§3)</td><td class="pass">PASS*</td><td>Works after <code>custom-placeholders-setup</code> chunk added in §2 (BUG 3).</td></tr>
 <tr><td><code>pipe-paintr</code> (§4.1)</td><td class="pass">PASS</td><td>—</td></tr>
 <tr><td><code>pca-paintr</code> (§4.2)</td><td class="pass">PASS*</td><td>Registers <code>palette</code> inline; needs <code>colvars</code> from §2 setup.</td></tr>
-<tr><td><code>kmeans-paintr</code> (§4.3)</td><td class="bug">SOURCE BUG → eval=FALSE</td><td>BUG 5 — parser crash fixed in source; AST→text re-renderer still mangles <code>function(.k) …</code>. Chunk now <code>eval = FALSE</code> with Known-Limitation callout.</td></tr>
+<tr><td><code>kmeans-paintr</code> (§4.3)</td><td class="pass">PASS (fixed)</td><td>BUG 5 — closure now parses/renders/evals correctly; verified end-to-end in browser. Example also corrected: misused <code>colvars</code> consumer → fixed iris column set.</td></tr>
 <tr><td><code>regress-paintr</code> (§4.4)</td><td class="pass">PASS</td><td>Top-level <code>expr</code> for the formula; <code>var</code> pickers see augmented columns.</td></tr>
 <tr><td><code>rolling-paintr</code> (§4.5)</td><td class="pass">PASS</td><td><code>var(shared = "y")</code> single picker drives both layers.</td></tr>
-<tr><td><code>coefs-paintr</code> (§4.6)</td><td class="bug">SOURCE BUG → eval=FALSE</td><td>BUG 5 — same anonymous-function rendering issue. Marked <code>eval = FALSE</code> with callout.</td></tr>
+<tr><td><code>coefs-paintr</code> (§4.6)</td><td class="pass">PASS (fixed)</td><td>BUG 5 — closure with substituted <code>expr</code> now builds the forest plot end-to-end; verified in browser. Chunk left runnable.</td></tr>
 <tr><td><code>plotly-paintr</code> (§5.1)</td><td class="pass">PASS*</td><td>7 plotly traces (one per <em>class</em>) after column picks. Needs <code>range</code> from §2 setup.</td></tr>
 <tr><td><code>ggiraph-paintr</code> (§5.2)</td><td class="pass">PASS</td><td>Registers <code>color</code> inline; ggiraph SVG renders.</td></tr>
 <tr><td><code>pcp-paintr</code> (§6.1)</td><td class="pass">PASS*</td><td>Needs <code>colvars</code> + <code>range</code> from §2 setup. <code>pcp_select(c("species", …))</code> rendered.</td></tr>

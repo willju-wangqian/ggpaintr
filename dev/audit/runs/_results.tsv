@@ -18,10 +18,10 @@ cu6	PASS	dataset source placeholder; iris -> downstream var pickers populate
 g1	PASS	mpg multi-layer; needs custom range placeholder registered first (vignette omits this)
 g2	PASS	pipe filter+group+filter
 g3	PASS	PCA with custom palette + colvars + shared num
-g4	BUG	at ptr_app construction: visit_collect -> is_ptr_placeholder -> inherits: 'el' is missing. Formula uses expr(shared="k") twice incl. inside tibble().
+g4	PASS	FIXED: closure (function(.k)) now parses/renders/evals; vignette colvars->fixed iris cols. Verified in browser.
 g5	PASS	regression diagnostics; expr widget accepts formula
 g6	PASS	rolling time-series with shared var
-g7	BUG	same parser error as g4: visit_collect el missing. Pattern: map(data, function(.d) lm(expr, ...)) inside mutate.
+g7	PASS	FIXED: closure with substituted expr builds forest plot end-to-end. Verified in browser.
 g8	PASS	plotly L3 with custom range
 g9	PASS	ggiraph L3 with custom color picker
 g10	PASS	ggpcp parallel coords; colvars splices into pcp_select
