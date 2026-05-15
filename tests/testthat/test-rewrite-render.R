@@ -177,3 +177,27 @@ test_that("P10.18 multi-stage pipe chains always break one stage per line", {
     "mtcars |>\n  head(2) |>\n  ggplot(aes(x = mpg))"
   )
 })
+
+test_that("P10.19 bracket / accessor heads render in syntactic form", {
+  expect_equal(
+    ptr_render(ptr_translate(
+      "mtcars |> dplyr::filter(mpg >= c(10, 20)[1]) |> ggplot(aes(x = mpg, y = hp)) + geom_point()"
+    )),
+    paste0(
+      "mtcars |>\n",
+      "  dplyr::filter(mpg >= c(10, 20)[1]) |>\n",
+      "  ggplot(aes(x = mpg, y = hp)) +\n",
+      "  geom_point()"
+    )
+  )
+  expect_equal(
+    ptr_render(ptr_translate(
+      'mtcars |> ggplot(aes(x = mtcars$mpg, y = mtcars[["hp"]])) + geom_point()'
+    )),
+    paste0(
+      "mtcars |>\n",
+      "  ggplot(aes(x = mtcars$mpg, y = mtcars[[\"hp\"]])) +\n",
+      "  geom_point()"
+    )
+  )
+})

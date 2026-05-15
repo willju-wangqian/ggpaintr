@@ -102,6 +102,26 @@ render_walk.ptr_call <- function(node, indent = 0L) {
         name %in% c("-", "+", "!", "~")) {
       return(paste0(name, render_binary_operand(node$args[[1]], indent)))
     }
+    # Bracket / extractor forms: render `x[i, j]`, `x[[i]]`, `x$y`, `x@y`
+    # in their syntactic form rather than as `[(x, i, j)` etc. Names on
+    # bracket args (e.g. `drop = FALSE`) are preserved.
+    if (length(node$args) >= 1L && name %in% c("[", "[[")) {
+      lhs <- render_binary_operand(node$args[[1]], indent)
+      rest <- node$args[-1L]
+      if (length(rest) == 0L) {
+        close <- if (name == "[") "]" else "]]"
+        return(paste0(lhs, name, close))
+      }
+      inner_pieces <- render_arg_pieces(rest, indent + nchar(lhs) + nchar(name))
+      close <- if (name == "[") "]" else "]]"
+      return(paste0(lhs, name, paste(inner_pieces, collapse = ", "), close))
+    }
+    if (all_unnamed && length(node$args) == 2L && name %in% c("$", "@")) {
+      lhs <- render_binary_operand(node$args[[1]], indent)
+      rhs_node <- node$args[[2]]
+      rhs <- if (is.symbol(rhs_node)) as.character(rhs_node) else render_walk(rhs_node, indent)
+      return(paste0(lhs, name, rhs))
+    }
   }
   head_text <- call_head_text(node$fun)
   render_call_text(head_text, node$args, indent)
