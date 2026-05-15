@@ -31,7 +31,7 @@ library(shiny)
 library(rlang)
 ```
 
-Some sections also load `dplyr`, `plotly`, `ggiraph`, or one of the ggplot2 extension packages (`ggpcp`, `ggridges`, `ggrepel`, `ggalluvial`, `ggdist`). Each section names what it needs.
+Some sections also load `dplyr`, `tidyr`, `purrr`, `broom`, `slider`, `palmerpenguins`, `plotly`, `ggiraph`, `colourpicker`, or one of the ggplot2 extension packages (`ggpcp`, `ggridges`, `ggrepel`, `ggalluvial`, `ggdist`). Each section names what it needs.
 
 ## 2. What this vignette is
 
@@ -76,6 +76,10 @@ Every aesthetic, alpha, size, span, and the two coordinate ranges is now a widge
 
 `ggpaintr` parses any expression that evaluates to a `ggplot` object, including the common "clean, then plot" pipeline where the data is piped into `ggplot()`. Pipeline stages with placeholders get a per-layer **Data** sub-tab in the sidebar; column pickers further down the pipeline lazily resolve their upstream against the current Data-tab inputs, so picking a column in stage one immediately refreshes the choices for stage two without requiring an explicit "apply" click.
 
+The six sub-sections below scale from a one-line filter to full broom-driven analyses. Each pairs the static `ggplot2` graphic an analyst would actually write with the `ptr_app()` formula that exposes its knobs.
+
+### 4.1 Filter, group, and plot
+
 ```{r pipe-original}
 library(dplyr)
 
@@ -106,6 +110,260 @@ ptr_app(
 ```
 
 Each pipeline stage gets its own enable/disable checkbox (G11). Toggling a stage off rewrites the generated code as if that step were never there; toggle it back on and the threshold widget resurfaces. Note also that `var` (and any custom consumer like `colvars`) introspects the upstream data automatically — pipe-walking through `|>` chains is part of the runtime, not your placeholder code.
+
+### 4.2 PCA scores with 95% confidence ellipses
+
+A classic exploratory move — project numeric columns onto their first two principal components, colour by a grouping factor, and overlay confidence ellipses. The `do_pca()` helper keeps the lambda out of the pipe (anonymous-function pipe stages are unsupported by the runtime — see `vignette("ggpaintr-use-cases")`).
+
+```{r pca-original}
+library(dplyr)
+library(broom)
+
+do_pca <- function(d, cols) {
+  broom::augment(prcomp(d[, cols], scale. = TRUE), d)
+}
+
+iris |>
+  do_pca(c("Sepal.Length", "Sepal.Width", "Petal.Length", "Petal.Width")) |>
+  ggplot(aes(.fittedPC1, .fittedPC2, color = Species)) +
+    stat_ellipse(level = 0.95, linewidth = 0.8) +
+    geom_point(alpha = 0.8, size = 2) +
+    scale_color_brewer(palette = "Dark2") +
+    labs(title = "Iris in PC space, with 95% ellipses",
+         x = "PC1", y = "PC2") +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+```
+
+The ggpaintr version introduces a small custom **palette** placeholder so the ColorBrewer palette becomes a dropdown, lets the user pick which numeric columns enter PCA via `colvars`, and re-uses `num(shared = "n")` across the ellipse `level` and the title — moving one slider redraws both.
+
+```{r pca-paintr}
+library(dplyr)
+library(broom)
+
+ptr_define_placeholder_value(
+  keyword       = "palette",
+  build_ui      = function(node, label = NULL, ...) {
+    shiny::selectInput(
+      node$id, label = label %||% "ColorBrewer palette",
+      choices = c("Dark2", "Set1", "Set2", "Set3", "Paired", "Accent"),
+      selected = "Dark2"
+    )
+  },
+  resolve_expr  = function(value, node, ...) {
+    if (is.null(value) || identical(value, "")) return(NULL)
+    as.character(value)
+  },
+  copy_defaults = list(label = "Palette for {param}")
+)
+
+do_pca <- function(d, cols) {
+  broom::augment(prcomp(d[, cols], scale. = TRUE), d)
+}
+
+ptr_app(
+  'iris |>
+     do_pca(colvars) |>
+     ggplot(aes(.fittedPC1, .fittedPC2, color = Species)) +
+       stat_ellipse(level = num(shared = "n"), linewidth = num) +
+       geom_point(alpha = num, size = num) +
+       scale_color_brewer(palette = palette) +
+       labs(title = paste0("Iris in PC space, with ",
+                           as.character(100 * num(shared = "n")),
+                           "% ellipses"),
+            x = text, y = text) +
+       theme_minimal() +
+       theme(legend.position = "bottom")'
+)
+```
+
+### 4.3 K-means elbow plot
+
+Tibble of `k`, map `kmeans()` over it, glance for `tot.withinss`, plot. `expr(shared = "k")` is the single source of truth for both the cluster range and the x-axis breaks — type `1:9` or `c(2, 3, 5, 8)` and the chart redraws end-to-end.
+
+```{r kmeans-original}
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(broom)
+
+tibble(k = 1:9) |>
+  mutate(
+    kmeans  = map(k, function(.k) kmeans(
+      scale(iris[, c("Sepal.Length", "Sepal.Width",
+                     "Petal.Length", "Petal.Width")]),
+      centers = .k, nstart = 25)),
+    glanced = map(kmeans, broom::glance)
+  ) |>
+  unnest(glanced) |>
+  ggplot(aes(k, tot.withinss)) +
+    geom_line(color = "gray50") +
+    geom_point(size = 3, color = "#0072B2") +
+    scale_x_continuous(breaks = 1:9) +
+    labs(title = "Elbow plot for k-means on iris",
+         x = "Number of clusters", y = "Total within-cluster SS") +
+    theme_minimal()
+```
+
+```{r kmeans-paintr}
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(broom)
+
+ptr_app(
+  'tibble(k = expr(shared = "k")) |>
+     mutate(
+       kmeans  = map(k, function(.k) kmeans(
+         scale(iris[, colvars]),
+         centers = .k, nstart = 25)),
+       glanced = map(kmeans, broom::glance)
+     ) |>
+     unnest(glanced) |>
+     ggplot(aes(k, tot.withinss)) +
+       geom_line(color = "gray50") +
+       geom_point(size = num, color = "#0072B2") +
+       scale_x_continuous(breaks = expr(shared = "k")) +
+       labs(title = text, x = text, y = text) +
+       theme_minimal()'
+)
+```
+
+### 4.4 Regression diagnostics
+
+`broom::augment()` turns an `lm` fit into a tidy data frame whose `.fitted`, `.resid`, `.hat`, `.std.resid`, and `.cooksd` columns are the staples of regression diagnostics. Make the model formula an `expr` widget and the diagnostic axes a pair of `var` pickers — one app, every standard diagnostic plot (residuals vs fitted, scale-location, leverage).
+
+```{r regress-original}
+library(broom)
+
+broom::augment(lm(mpg ~ wt + cyl + hp, data = mtcars)) |>
+  ggplot(aes(.fitted, .resid)) +
+    geom_hline(yintercept = 0, color = "gray60", linetype = 2) +
+    geom_point(alpha = 0.7, size = 2.5, color = "#D55E00") +
+    geom_smooth(method = "loess", se = FALSE, span = 0.75) +
+    labs(title = "Residuals vs fitted (mpg ~ wt + cyl + hp)",
+         x = "Fitted", y = "Residual") +
+    theme_minimal()
+```
+
+```{r regress-paintr}
+library(broom)
+
+ptr_app(
+  'broom::augment(lm(expr, data = mtcars)) |>
+     ggplot(aes(x = var, y = var)) +
+       geom_hline(yintercept = 0, color = "gray60", linetype = 2) +
+       geom_point(alpha = num, size = num, color = "#D55E00") +
+       geom_smooth(method = "loess", se = FALSE, span = num) +
+       labs(title = text, x = text, y = text) +
+       theme_minimal()'
+)
+```
+
+The `expr` widget accepts the full formula `mpg ~ wt + cyl + hp`; the `var` pickers downstream populate from the augmented frame so `.fitted`, `.resid`, `.hat`, `.std.resid`, `.cooksd` all appear as choices.
+
+### 4.5 Rolling time-series
+
+`economics` (shipped with `ggplot2`) holds 40+ years of monthly US macro indicators. The standard recipe — pick a series, overlay an *n*-month rolling mean — turns into two widgets: `var(shared = "y")` chooses the series (used both raw and in the rolling computation) and `num` picks the window size.
+
+```{r rolling-original}
+library(dplyr)
+
+roll_mean <- function(x, n) {
+  as.numeric(stats::filter(x, rep(1 / n, n), sides = 1))
+}
+
+economics |>
+  mutate(roll = roll_mean(unemploy, 12)) |>
+  ggplot(aes(date, unemploy)) +
+    geom_line(color = "gray70") +
+    geom_line(aes(y = roll), color = "#0072B2", linewidth = 1) +
+    labs(title = "US unemployment with 12-month rolling mean",
+         x = NULL, y = "Persons (thousands)") +
+    theme_minimal()
+```
+
+```{r rolling-paintr}
+library(dplyr)
+
+roll_mean <- function(x, n) {
+  as.numeric(stats::filter(x, rep(1 / n, n), sides = 1))
+}
+
+ptr_app(
+  'economics |>
+     mutate(roll = roll_mean(var(shared = "y"), num)) |>
+     ggplot(aes(date, var(shared = "y"))) +
+       geom_line(color = "gray70") +
+       geom_line(aes(y = roll), color = "#0072B2", linewidth = num) +
+       labs(title = text, x = text, y = text) +
+       theme_minimal()'
+)
+```
+
+`var(shared = "y")` is the canonical pattern when the same column drives both the data step *and* the plot aesthetic — without it, you would have two pickers the user has to keep in sync by hand.
+
+### 4.6 Group-wise regression coefficients
+
+A small-multiples regression: nest by a grouping factor, fit one `lm` per group, tidy the coefficients with confidence intervals, plot as a forest. The model formula stays as `expr` so a reader can swap responses or predictors at will.
+
+```{r coefs-original}
+library(palmerpenguins)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(broom)
+
+penguins |>
+  tidyr::drop_na(bill_depth_mm, bill_length_mm) |>
+  group_by(species) |>
+  tidyr::nest() |>
+  mutate(
+    fit  = map(data, function(.d) lm(bill_depth_mm ~ bill_length_mm, data = .d)),
+    tidy = map(fit,  function(.f) broom::tidy(.f, conf.int = TRUE))
+  ) |>
+  unnest(tidy) |>
+  filter(term == "bill_length_mm") |>
+  ggplot(aes(estimate, species, color = species)) +
+    geom_vline(xintercept = 0, color = "gray60", linetype = 2) +
+    geom_pointrange(aes(xmin = conf.low, xmax = conf.high), size = 0.8) +
+    scale_color_brewer(palette = "Dark2") +
+    labs(title = "Slope of bill depth ~ bill length, by species",
+         x = "Estimate (95% CI)", y = NULL) +
+    theme_minimal() +
+    theme(legend.position = "none")
+```
+
+```{r coefs-paintr}
+library(palmerpenguins)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(broom)
+
+ptr_app(
+  'penguins |>
+     tidyr::drop_na() |>
+     group_by(species) |>
+     tidyr::nest() |>
+     mutate(
+       fit  = map(data, function(.d) lm(expr, data = .d)),
+       tidy = map(fit,  function(.f) broom::tidy(.f, conf.int = TRUE))
+     ) |>
+     unnest(tidy) |>
+     filter(term == text) |>
+     ggplot(aes(estimate, species, color = species)) +
+       geom_vline(xintercept = 0, color = "gray60", linetype = 2) +
+       geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
+                       size = num) +
+       scale_color_brewer(palette = "Dark2") +
+       labs(title = text, x = text, y = NULL) +
+       theme_minimal() +
+       theme(legend.position = "none")'
+)
+```
+
+`filter(term == text)` is how you let the user pick which coefficient to display — type `bill_length_mm` for slopes, `(Intercept)` for intercepts.
 
 ## 5. Interactive output packages
 
