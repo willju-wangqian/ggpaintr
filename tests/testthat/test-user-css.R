@@ -20,9 +20,13 @@ test_that("a valid .css file becomes a linked stylesheet served as a resource", 
   expect_match(html, "<link[^>]+rel=\"stylesheet\"")
   expect_match(html, "/overrides\\.css\"")
 
-  # the file's directory was registered as a static resource path
-  expect_true(normalizePath(dir) %in%
-                vapply(shiny::resourcePaths(), normalizePath, character(1)))
+  # the file's directory was registered as a static resource path.
+  # `mustWork = FALSE` keeps normalizePath quiet about unrelated, already
+  # deleted temp dirs that other test files left in the process-global
+  # Shiny resource registry; `dir` itself still resolves on both sides.
+  expect_true(normalizePath(dir, mustWork = FALSE) %in%
+                vapply(shiny::resourcePaths(),
+                       normalizePath, character(1), mustWork = FALSE))
 })
 
 test_that("multiple files in one directory share one resource prefix", {
