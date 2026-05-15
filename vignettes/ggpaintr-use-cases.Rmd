@@ -146,7 +146,7 @@ messy <- data.frame(
 )
 clean <- ptr_normalize_column_names(messy)
 names(clean)
-#> "first.column" "if."
+#> "first_column" "if_"
 
 ptr_app("ggplot(clean, aes(x = var, y = var)) + geom_point()")
 ```
