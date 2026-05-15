@@ -155,7 +155,71 @@ ggpaintr ships five built-in placeholder keywords (`var`, `text`, `num`, `expr`,
 
 Each constructor takes a `build_ui` hook (the Shiny tag) and a resolver hook (how to turn the user's input into a substituted expression). `resolve_expr()` returning `NULL` is the *drop this argument* signal — the substitute pass strips the corresponding argument from the generated code, exactly like the built-in `var` keyword returning `NULL` for an empty pick.
 
-The three subsections below introduce one constructor at a time with a worked example.
+The three subsections below introduce one constructor at a time with a worked example. Skim "How a placeholder runs" first — the mental model makes the hook signatures land.
+
+### How a placeholder runs
+
+A placeholder is *not* a widget; it is a **rule** that ggpaintr applies twice each time the user touches the app:
+
+1. **Parse.** When `ptr_app("...formula...")` starts, ggpaintr parses the formula and, for every token whose name matches a registered keyword (`var`, `pct`, `range`, …), creates a *node*. A node remembers where the token appeared and gets a namespaced Shiny `id`. You never construct nodes by hand — the framework hands one to your hook.
+2. **Render UI (your `build_ui`).** For each node, ggpaintr calls your `build_ui(node, label, …)`. Whatever Shiny tag you return is dropped into the layer's control panel. You **must** set the widget's `inputId` to `node$id` — that is the wire connecting the widget to step 3.
+3. **User types or clicks.** Standard Shiny: the widget's current value is `input[[node$id]]`. The framework watches every node's input and triggers step 4 whenever something changes.
+4. **Resolve to code (your `resolve_expr`).** ggpaintr calls `resolve_expr(value, node)` with the widget's current value. Your job is to return an **R expression** — not a value — that will be spliced into the rendered call at the placeholder's position. The framework then runs the substituted call to produce the plot, and prints the rendered call to the code window so the user sees a reproducible snippet.
+5. **Render data (sources only — your `resolve_data`).** Source placeholders have a third hook that returns the actual data frame downstream consumers read column names from. It runs alongside `resolve_expr`.
+
+So the two hooks do different things at different times. `build_ui` runs once per node at app start. `resolve_expr` runs every time the widget value changes. The split is what lets the same registration drive both the UI *and* the generated code.
+
+#### What `node` carries
+
+Inside either hook, `node` is a small list. The fields you can read:
+
+| Field              | Meaning                                                                                                                                                |
+|--------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `node$id`          | Namespaced Shiny input id. Pass as `inputId` of your widget in `build_ui`. In `resolve_expr` it just identifies which node you are resolving.          |
+| `node$keyword`     | The registered keyword (`"pct"`, `"range"`, …). Mostly useful when one `build_ui` is shared across keywords.                                          |
+| `node$param`       | The formal argument the placeholder is bound to (e.g. `"alpha"` for `geom_point(alpha = pct)`), or `NA_character_` for unnamed positional uses.       |
+| `node$companion_id`| Source placeholders only, when `companion_id_fn` is set. Namespaced id of the sibling input. See *Source placeholders* below.                          |
+
+You should not mutate `node` — copy out the fields you need.
+
+#### What `value` looks like
+
+`value` is whatever Shiny stores at `input[[node$id]]` — typed exactly as the widget emits it. The common shapes:
+
+| Widget                                    | Type of `value`                                                       |
+|-------------------------------------------|-----------------------------------------------------------------------|
+| `textInput`, `selectInput` (single)       | length-1 character; `""` when empty.                                  |
+| `numericInput`                            | length-1 numeric; can be `NA_real_` or `NULL` before first input.     |
+| `selectInput(multiple = TRUE)`, picker    | character vector; `character(0)` when nothing is selected.            |
+| `sliderInput(value = c(lo, hi))`          | length-2 numeric.                                                     |
+| `checkboxInput`                           | length-1 logical.                                                     |
+| `fileInput`                               | one-row data frame with columns `name`, `size`, `type`, `datapath`.   |
+| Custom widget                             | whatever you push via `session$sendInputMessage()`.                   |
+
+**Always validate `value` first.** The framework calls `resolve_expr` on every change, including before the user has touched anything. Treat empty / `NULL` / wrong-length input as "no value yet" and return `NULL` (see next).
+
+#### What `resolve_expr` must return
+
+The framework splices your return value into the call at the placeholder's position. Allowed return types:
+
+| Return                                  | Splices as                                          | Build with                                  |
+|-----------------------------------------|-----------------------------------------------------|---------------------------------------------|
+| Scalar atomic (numeric/character/…)     | A literal (`0.4`, `"red"`, `TRUE`)                  | `value`, or `as.numeric(value)`, …          |
+| `name` / `symbol`                       | A bare identifier (`cyl`)                           | `rlang::sym(value)`                         |
+| `call` / `language`                     | A call (`factor(cyl)`, `c(0, 100)`)                 | `rlang::expr()`, `rlang::call2()`, `!!`     |
+| `NULL`                                  | **Prunes** this argument from the call entirely     | `return(NULL)`                              |
+
+The `NULL`-prunes-the-argument rule is central. It is how the built-in `var` placeholder makes `geom_point(color = var)` render as `geom_point()` until the user actually picks a column — *not* as `geom_point(color = NULL)`. Use it generously: any time the input is empty, blank, or otherwise unusable, return `NULL` and let the framework drop the argument. For inputs that are *malformed* (a non-parseable expression, a non-numeric string in a numeric slot), throw with `rlang::abort()` instead — the runtime surfaces the message inline.
+
+#### Where copy comes from
+
+Your registration's `copy_defaults` becomes `defaults[[keyword]]` in the `ui_text` tree (covered in the first half of this vignette). At render time the framework merges `defaults` → `params[[param]]` → `layers[[layer]][[keyword]][[param]]` and passes the result into `build_ui`:
+
+- The resolved `label` is passed as the `label` argument — always declare it.
+- Any other leaf field you put in `copy_defaults` (`help`, `placeholder`, `empty_text`) is offered as a same-named argument if `build_ui` declares it. The convention used by the built-ins is to also accept a `copy = NULL` list and read `copy$help` etc. off it — both styles work.
+- Always end the signature with `...` so future fields pass through harmlessly.
+
+Strings in `copy_defaults` may contain `{param}`; the framework interpolates it with the surrounding formal-argument name (e.g. `"Enter a value for {param}"` becomes `"Enter a value for alpha"`).
 
 ### Value placeholders — `ptr_define_placeholder_value()`
 
@@ -177,6 +241,14 @@ ptr_define_placeholder_value(
 ```
 
 `node$id` is the rendered widget's Shiny input id (already namespaced for you); `label` is the resolved `ui_text` label for this slot, so any host-supplied override flows through automatically. `copy_defaults` becomes `defaults$range` in the `ui_text` tree; the `{param}` token interpolates the surrounding parameter name at render time.
+
+Now use it. Drop a `range` token into a formula and launch:
+
+```{r value-range-app}
+ptr_app("ggplot(mtcars, aes(mpg, hp)) + geom_point() + xlim(range)")
+```
+
+The slider appears in the layer panel; dragging it re-renders the plot and updates the code window to `... + xlim(c(15, 30))`. If your hook returns `NULL` for some inputs (not the case for a slider, but the convention applies to all keywords), the framework drops the corresponding argument from the rendered call rather than splicing `NULL` literally.
 
 ### Consumer placeholders — `ptr_define_placeholder_consumer()`
 
@@ -200,6 +272,14 @@ ptr_define_placeholder_consumer(
 ```
 
 Consumer constructors also accept an optional `validate_input = function(value, upstream_cols)` callback. It returns `TRUE` (or `NULL`) when the input is valid, or an error-message string otherwise. The built-in `var` consumer uses it to surface "Column `foo` was removed from the upstream data" messages when the data shape changes mid-session.
+
+Wire it into an app to see the multi-select picker react to the upstream data:
+
+```{r consumer-colvars-app}
+ptr_app("mtcars |> dplyr::select(dplyr::all_of(colvars))")
+```
+
+The picker's choices are populated from `mtcars`'s column names — that is `cols` in `build_ui`. Pick two or three columns; the rendered code becomes `mtcars |> dplyr::select(dplyr::all_of(c('mpg', 'hp', 'wt')))`. Clear the picker and `resolve_expr` returns `NULL`, so the `all_of(...)` arg is pruned rather than spliced as `NULL`.
 
 ### Source placeholders — `ptr_define_placeholder_source()`
 
@@ -228,6 +308,24 @@ ptr_define_placeholder_source(
 `resolve_data` returns the data frame to feed downstream consumers. `resolve_expr` defaults to substituting the bare keyword (`rlang::sym(value)`) into the generated code, which is right when `value` is the name of a global object. Override `resolve_expr` to substitute something else (e.g. `expr(read.csv(!!path))`) when the generated code should re-fetch the data rather than carry a reference.
 
 `companion_id_fn = function(id) <companion_id>` pairs the primary widget with a sibling — the built-in `upload` source uses it for the "Optional dataset name" textbox. Most sources do not need it.
+
+Drop the `dataset` keyword in as the first stage of a pipeline:
+
+```{r source-dataset-app}
+ptr_app("ggplot(dataset, aes(var, var)) + geom_point()")
+```
+
+Pick *iris* in the dropdown — that runs `resolve_data("iris")`, which returns `iris`. The two downstream `var` consumers receive the iris columns in `cols`, populate their pickers, and the rendered code becomes `ggplot(iris, aes(Sepal.Length, Petal.Length)) + geom_point()` once the user picks columns. `resolve_expr` was not overridden, so the default `rlang::sym(value)` splices the bare symbol `iris`. If you wanted the code window to show `ggplot(read.csv("path/to/iris.csv"), …)` instead, you would override `resolve_expr` to return that `expr()` — the data the app reads from is unchanged, only the spliced text differs.
+
+### Common pitfalls
+
+- **Forgetting `inputId = node$id`.** Without it the widget exists but its value never reaches `resolve_expr`. Symptom: the widget renders, the user types, nothing happens. Always copy `node$id` straight into the underlying Shiny constructor.
+- **Returning a `character` when you wanted a symbol.** `resolve_expr = function(value, ...) value` for a column picker splices `"cyl"` (a string literal) into the call, which then errors as `geom_point(color = "cyl")` — `"cyl"` is treated as a constant color, not a column. Wrap with `rlang::sym(value)` to splice the bare identifier.
+- **Forgetting to handle empty input.** Shiny calls your hook before the user has touched anything. Treat `NULL`, `character(0)`, `NA`, and empty strings as "no value yet" and `return(NULL)` — the framework will prune the argument, and the layer continues to work.
+- **Confusing `resolve_expr` with `resolve_data`.** For source placeholders the two run together but mean different things: `resolve_data` produces the **actual data frame** downstream consumers read; `resolve_expr` produces the **text that goes in the rendered call**. They can disagree on purpose (e.g. show `read.csv("…")` in the code while reading uploaded bytes at runtime).
+- **Dropping `...` from the signature.** The framework may add new named arguments to its `build_ui` invocation in future versions; without `...` the call fails. Always end every hook signature with `...`.
+- **Re-registering inside a reactive.** The registry is process-global; calling `ptr_define_placeholder_*()` repeatedly inside a Shiny observer wastes work and emits an "Overwriting placeholder registry entry" notice each time. Register once at script top level, before `ptr_app()`.
+- **Returning the data instead of an expression from `resolve_expr`.** A common confusion for source placeholders: `resolve_expr` does *not* return the data frame — it returns the snippet that *names* the data in the rendered code. `resolve_data` returns the actual data.
 
 ## Unregistering
 

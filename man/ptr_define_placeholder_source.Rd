@@ -14,16 +14,33 @@ ptr_define_placeholder_source(
 )
 }
 \arguments{
-\item{keyword, build_ui, copy_defaults}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.}
+\item{keyword, copy_defaults}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}. See
+\code{vignette("ggpaintr-customization")} § "Source placeholders" for the
+tutorial.}
 
-\item{resolve_data}{Function \verb{function(value, node, ...)} returning a
-data.frame (or \code{NULL} to signal "no data yet").}
+\item{build_ui}{\verb{function(node, label, ...)} returning a Shiny tag —
+same shape as in \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}. With
+\code{companion_id_fn} set, render \strong{two} bound inputs in the same tag,
+one with \code{inputId = node$id} (data payload) and one with
+\code{inputId = node$companion_id} (sibling input — typically the
+user-facing dataset name spliced into the rendered code).}
 
-\item{resolve_expr}{Optional override. Default returns \code{rlang::sym(value)},
-i.e. substitutes the bare keyword (e.g. the user-typed dataset name)
-into the generated code. Override when the generated code should
-re-fetch the data rather than reference an in-session object — for
-example, \code{function(value, node, ...) rlang::expr(read.csv(!!path))}.}
+\item{resolve_data}{\verb{function(value, node, ...)} returning a
+\code{data.frame} (the data downstream consumers read from), or \code{NULL} to
+signal "no data yet". Throw via \code{rlang::abort()} for malformed
+inputs.}
+
+\item{resolve_expr}{Optional. \verb{function(value, node, ...)} returning
+the expression spliced into the rendered code at the placeholder's
+position — i.e. \emph{how the data is referred to} in the reproducible
+call, not the data itself. Default \code{rlang::sym(value)} works when the
+widget's value is already the symbol you want. Override to make the
+rendered code re-fetch instead of referencing an in-session object,
+e.g. \code{function(value, node, ...) rlang::expr(read.csv(!!value$datapath))}.
+With \code{companion_id_fn} set, \code{value} here is the \emph{companion} input's
+value (e.g. the typed dataset name), \strong{not} the primary payload —
+the built-in \code{upload} relies on this so the default splices the typed
+name as a bare symbol.}
 
 \item{companion_id_fn}{Optional \verb{function(id) -> companion_id_string}.
 Use this when the source widget needs \strong{two} bound Shiny inputs that

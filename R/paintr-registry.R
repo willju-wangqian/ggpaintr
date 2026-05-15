@@ -194,12 +194,70 @@ ptr_registry_register <- function(entry) {
 
 #' Define a value placeholder
 #'
-#' @param keyword Single non-empty string; valid R name; not reserved.
-#' @param build_ui Function `function(node, ...)` returning a Shiny tag.
-#' @param resolve_expr Function `function(value, node, ...)` returning the
-#'   substituted expression. Allowed return types: numeric, character, logical,
-#'   integer, NULL, language, symbol, expression.
-#' @param copy_defaults Named list of single-string default copy entries.
+#' Register a new keyword (e.g. `pct`, `color`, `date`) that ggpaintr will
+#' recognise as a substitutable token in a formula. The keyword's widget
+#' is built by `build_ui`; the widget's value is turned back into the R
+#' code spliced into the rendered call by `resolve_expr`. See
+#' `vignette("ggpaintr-customization")` § "Adding a new widget type" for
+#' the lifecycle walk-through, signatures table, and runnable
+#' `ptr_app()` examples — this help page is reference.
+#'
+#' Three roles. Pick this constructor for a *value* placeholder (a
+#' self-contained widget like a slider, color picker, or numeric input).
+#' Use [ptr_define_placeholder_consumer()] when the widget needs the
+#' upstream column names (column pickers). Use
+#' [ptr_define_placeholder_source()] when the widget *produces* the data
+#' the rest of the formula reads from (file upload, dataset chooser).
+#'
+#' @param keyword Single non-empty string. Must be a syntactically valid R
+#'   name (passes `make.names()`) and not an R reserved word. This is the
+#'   token users type in the formula, e.g. `geom_point(alpha = pct)`.
+#'
+#' @param build_ui `function(node, label, ...)` returning a Shiny tag.
+#'   Pass `node$id` as the underlying widget's `inputId`. Read `node$keyword`
+#'   and `node$param` if you need them. The framework also passes any
+#'   `copy_defaults` field you declare by name (`help`, `placeholder`,
+#'   `empty_text`) — or accept a `copy = NULL` list and read them off it.
+#'   Always end the signature with `...`.
+#'
+#' @param resolve_expr `function(value, node, ...)` returning the R
+#'   expression spliced into the rendered call. `value` is
+#'   `input[[node$id]]` — whatever Shiny stores for that widget. Allowed
+#'   return types: scalar atomic (numeric / character / logical /
+#'   integer), `name`/`symbol` (build with `rlang::sym()`),
+#'   `call`/`language` (build with `rlang::expr()`), or `NULL` to **prune
+#'   the argument** from the rendered call. Use `NULL` for empty / not-yet
+#'   input; throw with `rlang::abort()` for malformed input.
+#'
+#' @param copy_defaults Named list of single non-NA character defaults
+#'   feeding the `ui_text` tree. Allowed names: `label`, `help`,
+#'   `placeholder`, `empty_text`. Strings may contain `{param}`, which is
+#'   interpolated to the surrounding formal-argument name at render time.
+#'
+#' @return Invisibly, the registry entry list. Called for its side effect
+#'   of registering the placeholder in the package-global registry. Use
+#'   [ptr_clear_placeholder()] to remove it.
+#'
+#' @seealso `vignette("ggpaintr-customization")` for the tutorial;
+#'   [ptr_define_placeholder_consumer()], [ptr_define_placeholder_source()],
+#'   [ptr_clear_placeholder()].
+#'
+#' @examples
+#' # A percentage placeholder: user types a number 0-100; we splice
+#' # the fraction 0-1 into the rendered call.
+#' ptr_define_placeholder_value(
+#'   keyword = "pct",
+#'   build_ui = function(node, label, ...) {
+#'     shiny::numericInput(node$id, label = label, value = 50,
+#'                         min = 0, max = 100, step = 1)
+#'   },
+#'   resolve_expr = function(value, node, ...) {
+#'     if (length(value) != 1L || !is.finite(value)) return(NULL)
+#'     value / 100
+#'   },
+#'   copy_defaults = list(label = "Percent for {param}")
+#' )
+#' ptr_clear_placeholder("pct")
 #' @export
 ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
                                        copy_defaults = list(
@@ -219,14 +277,58 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 
 #' Define a data-consumer placeholder (e.g. column picker)
 #'
-#' @param keyword,build_ui,resolve_expr,copy_defaults See
-#'   [ptr_define_placeholder_value()]. `build_ui` receives `cols` (resolved
-#'   upstream column names) and `data` (the resolved upstream data frame —
-#'   `NULL` until upstream resolves).
-#' @param validate_input Optional `function(value, upstream_cols)` returning
-#'   `TRUE` or `NULL` for a valid input, or a character error message string.
-#'   `NULL`-on-valid follows the standard R "no message to report" idiom; the
-#'   built-in `var` consumer returns `TRUE`, but both forms are accepted.
+#' A *consumer* placeholder is a value placeholder that additionally
+#' receives the columns of the upstream data frame — typically a column
+#' picker. The built-in example is `var`. See
+#' `vignette("ggpaintr-customization")` § "Consumer placeholders" for the
+#' tutorial.
+#'
+#' @param keyword,copy_defaults See [ptr_define_placeholder_value()].
+#'
+#' @param build_ui `function(node, cols, data, label, ...)` returning a
+#'   Shiny tag. `cols` is a character vector of upstream column names
+#'   (use as `choices`); `character(0)` before upstream resolves. `data`
+#'   is the upstream data frame, or `NULL` while pending — read it only
+#'   when you need column types / levels / ranges.
+#'
+#' @param resolve_expr `function(value, node, ...)`. For a column picker
+#'   the typical body is `rlang::sym(value)` so the bare column name is
+#'   spliced as an identifier rather than a string literal. See
+#'   [ptr_define_placeholder_value()] for allowed return types and the
+#'   `NULL`-prunes-the-argument convention.
+#'
+#' @param validate_input Optional `function(value, upstream_cols)` called
+#'   before `resolve_expr`. Return `TRUE` / `NULL` to accept; return a
+#'   single character string to reject (surfaced inline as the error
+#'   message, layer pruned). Useful when a stale selection no longer
+#'   matches any upstream column after a data swap.
+#'
+#' @return Invisibly, the registry entry list. Use [ptr_clear_placeholder()]
+#'   to remove it.
+#'
+#' @seealso `vignette("ggpaintr-customization")` for the tutorial;
+#'   [ptr_define_placeholder_value()], [ptr_define_placeholder_source()].
+#'
+#' @examples
+#' # A consumer that picks a numeric-only column.
+#' ptr_define_placeholder_consumer(
+#'   keyword = "numvar",
+#'   build_ui = function(node, cols, data, label, ...) {
+#'     numeric_cols <- if (is.null(data)) character(0) else
+#'       names(data)[vapply(data, is.numeric, logical(1))]
+#'     shiny::selectInput(node$id, label = label, choices = numeric_cols,
+#'                        selected = character(0))
+#'   },
+#'   resolve_expr = function(value, node, ...) {
+#'     if (length(value) != 1L || !nzchar(value)) return(NULL)
+#'     rlang::sym(value)
+#'   },
+#'   validate_input = function(value, upstream_cols) {
+#'     if (length(value) == 1L && value %in% upstream_cols) TRUE
+#'     else "Pick a column that exists in the upstream data."
+#'   }
+#' )
+#' ptr_clear_placeholder("numvar")
 #' @export
 ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
                                           validate_input = NULL,
@@ -255,14 +357,33 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #' reads from. Built-in example: `upload`. Custom examples: database
 #' tables, built-in datasets, URL fetches.
 #'
-#' @param keyword,build_ui,copy_defaults See [ptr_define_placeholder_value()].
-#' @param resolve_data Function `function(value, node, ...)` returning a
-#'   data.frame (or `NULL` to signal "no data yet").
-#' @param resolve_expr Optional override. Default returns `rlang::sym(value)`,
-#'   i.e. substitutes the bare keyword (e.g. the user-typed dataset name)
-#'   into the generated code. Override when the generated code should
-#'   re-fetch the data rather than reference an in-session object — for
-#'   example, `function(value, node, ...) rlang::expr(read.csv(!!path))`.
+#' @param keyword,copy_defaults See [ptr_define_placeholder_value()]. See
+#'   `vignette("ggpaintr-customization")` § "Source placeholders" for the
+#'   tutorial.
+#'
+#' @param build_ui `function(node, label, ...)` returning a Shiny tag —
+#'   same shape as in [ptr_define_placeholder_value()]. With
+#'   `companion_id_fn` set, render **two** bound inputs in the same tag,
+#'   one with `inputId = node$id` (data payload) and one with
+#'   `inputId = node$companion_id` (sibling input — typically the
+#'   user-facing dataset name spliced into the rendered code).
+#'
+#' @param resolve_data `function(value, node, ...)` returning a
+#'   `data.frame` (the data downstream consumers read from), or `NULL` to
+#'   signal "no data yet". Throw via `rlang::abort()` for malformed
+#'   inputs.
+#'
+#' @param resolve_expr Optional. `function(value, node, ...)` returning
+#'   the expression spliced into the rendered code at the placeholder's
+#'   position — i.e. *how the data is referred to* in the reproducible
+#'   call, not the data itself. Default `rlang::sym(value)` works when the
+#'   widget's value is already the symbol you want. Override to make the
+#'   rendered code re-fetch instead of referencing an in-session object,
+#'   e.g. `function(value, node, ...) rlang::expr(read.csv(!!value$datapath))`.
+#'   With `companion_id_fn` set, `value` here is the *companion* input's
+#'   value (e.g. the typed dataset name), **not** the primary payload —
+#'   the built-in `upload` relies on this so the default splices the typed
+#'   name as a bare symbol.
 #' @param companion_id_fn Optional `function(id) -> companion_id_string`.
 #'   Use this when the source widget needs **two** bound Shiny inputs that
 #'   both participate in the runtime substitution cycle: one at `node$id`

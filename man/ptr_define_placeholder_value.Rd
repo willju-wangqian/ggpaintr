@@ -12,16 +12,72 @@ ptr_define_placeholder_value(
 )
 }
 \arguments{
-\item{keyword}{Single non-empty string; valid R name; not reserved.}
+\item{keyword}{Single non-empty string. Must be a syntactically valid R
+name (passes \code{make.names()}) and not an R reserved word. This is the
+token users type in the formula, e.g. \code{geom_point(alpha = pct)}.}
 
-\item{build_ui}{Function \verb{function(node, ...)} returning a Shiny tag.}
+\item{build_ui}{\verb{function(node, label, ...)} returning a Shiny tag.
+Pass \code{node$id} as the underlying widget's \code{inputId}. Read \code{node$keyword}
+and \code{node$param} if you need them. The framework also passes any
+\code{copy_defaults} field you declare by name (\code{help}, \code{placeholder},
+\code{empty_text}) — or accept a \code{copy = NULL} list and read them off it.
+Always end the signature with \code{...}.}
 
-\item{resolve_expr}{Function \verb{function(value, node, ...)} returning the
-substituted expression. Allowed return types: numeric, character, logical,
-integer, NULL, language, symbol, expression.}
+\item{resolve_expr}{\verb{function(value, node, ...)} returning the R
+expression spliced into the rendered call. \code{value} is
+\code{input[[node$id]]} — whatever Shiny stores for that widget. Allowed
+return types: scalar atomic (numeric / character / logical /
+integer), \code{name}/\code{symbol} (build with \code{rlang::sym()}),
+\code{call}/\code{language} (build with \code{rlang::expr()}), or \code{NULL} to \strong{prune
+the argument} from the rendered call. Use \code{NULL} for empty / not-yet
+input; throw with \code{rlang::abort()} for malformed input.}
 
-\item{copy_defaults}{Named list of single-string default copy entries.}
+\item{copy_defaults}{Named list of single non-NA character defaults
+feeding the \code{ui_text} tree. Allowed names: \code{label}, \code{help},
+\code{placeholder}, \code{empty_text}. Strings may contain \code{{param}}, which is
+interpolated to the surrounding formal-argument name at render time.}
+}
+\value{
+Invisibly, the registry entry list. Called for its side effect
+of registering the placeholder in the package-global registry. Use
+\code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}} to remove it.
 }
 \description{
-Define a value placeholder
+Register a new keyword (e.g. \code{pct}, \code{color}, \code{date}) that ggpaintr will
+recognise as a substitutable token in a formula. The keyword's widget
+is built by \code{build_ui}; the widget's value is turned back into the R
+code spliced into the rendered call by \code{resolve_expr}. See
+\code{vignette("ggpaintr-customization")} § "Adding a new widget type" for
+the lifecycle walk-through, signatures table, and runnable
+\code{ptr_app()} examples — this help page is reference.
+}
+\details{
+Three roles. Pick this constructor for a \emph{value} placeholder (a
+self-contained widget like a slider, color picker, or numeric input).
+Use \code{\link[=ptr_define_placeholder_consumer]{ptr_define_placeholder_consumer()}} when the widget needs the
+upstream column names (column pickers). Use
+\code{\link[=ptr_define_placeholder_source]{ptr_define_placeholder_source()}} when the widget \emph{produces} the data
+the rest of the formula reads from (file upload, dataset chooser).
+}
+\examples{
+# A percentage placeholder: user types a number 0-100; we splice
+# the fraction 0-1 into the rendered call.
+ptr_define_placeholder_value(
+  keyword = "pct",
+  build_ui = function(node, label, ...) {
+    shiny::numericInput(node$id, label = label, value = 50,
+                        min = 0, max = 100, step = 1)
+  },
+  resolve_expr = function(value, node, ...) {
+    if (length(value) != 1L || !is.finite(value)) return(NULL)
+    value / 100
+  },
+  copy_defaults = list(label = "Percent for {param}")
+)
+ptr_clear_placeholder("pct")
+}
+\seealso{
+\code{vignette("ggpaintr-customization")} for the tutorial;
+\code{\link[=ptr_define_placeholder_consumer]{ptr_define_placeholder_consumer()}}, \code{\link[=ptr_define_placeholder_source]{ptr_define_placeholder_source()}},
+\code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}}.
 }

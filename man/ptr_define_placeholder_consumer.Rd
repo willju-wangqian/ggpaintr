@@ -13,16 +13,59 @@ ptr_define_placeholder_consumer(
 )
 }
 \arguments{
-\item{keyword, build_ui, resolve_expr, copy_defaults}{See
-\code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}. \code{build_ui} receives \code{cols} (resolved
-upstream column names) and \code{data} (the resolved upstream data frame —
-\code{NULL} until upstream resolves).}
+\item{keyword, copy_defaults}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.}
 
-\item{validate_input}{Optional \verb{function(value, upstream_cols)} returning
-\code{TRUE} or \code{NULL} for a valid input, or a character error message string.
-\code{NULL}-on-valid follows the standard R "no message to report" idiom; the
-built-in \code{var} consumer returns \code{TRUE}, but both forms are accepted.}
+\item{build_ui}{\verb{function(node, cols, data, label, ...)} returning a
+Shiny tag. \code{cols} is a character vector of upstream column names
+(use as \code{choices}); \code{character(0)} before upstream resolves. \code{data}
+is the upstream data frame, or \code{NULL} while pending — read it only
+when you need column types / levels / ranges.}
+
+\item{resolve_expr}{\verb{function(value, node, ...)}. For a column picker
+the typical body is \code{rlang::sym(value)} so the bare column name is
+spliced as an identifier rather than a string literal. See
+\code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}} for allowed return types and the
+\code{NULL}-prunes-the-argument convention.}
+
+\item{validate_input}{Optional \verb{function(value, upstream_cols)} called
+before \code{resolve_expr}. Return \code{TRUE} / \code{NULL} to accept; return a
+single character string to reject (surfaced inline as the error
+message, layer pruned). Useful when a stale selection no longer
+matches any upstream column after a data swap.}
+}
+\value{
+Invisibly, the registry entry list. Use \code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}}
+to remove it.
 }
 \description{
-Define a data-consumer placeholder (e.g. column picker)
+A \emph{consumer} placeholder is a value placeholder that additionally
+receives the columns of the upstream data frame — typically a column
+picker. The built-in example is \code{var}. See
+\code{vignette("ggpaintr-customization")} § "Consumer placeholders" for the
+tutorial.
+}
+\examples{
+# A consumer that picks a numeric-only column.
+ptr_define_placeholder_consumer(
+  keyword = "numvar",
+  build_ui = function(node, cols, data, label, ...) {
+    numeric_cols <- if (is.null(data)) character(0) else
+      names(data)[vapply(data, is.numeric, logical(1))]
+    shiny::selectInput(node$id, label = label, choices = numeric_cols,
+                       selected = character(0))
+  },
+  resolve_expr = function(value, node, ...) {
+    if (length(value) != 1L || !nzchar(value)) return(NULL)
+    rlang::sym(value)
+  },
+  validate_input = function(value, upstream_cols) {
+    if (length(value) == 1L && value \%in\% upstream_cols) TRUE
+    else "Pick a column that exists in the upstream data."
+  }
+)
+ptr_clear_placeholder("numvar")
+}
+\seealso{
+\code{vignette("ggpaintr-customization")} for the tutorial;
+\code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}, \code{\link[=ptr_define_placeholder_source]{ptr_define_placeholder_source()}}.
 }
