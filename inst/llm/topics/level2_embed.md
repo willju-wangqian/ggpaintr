@@ -50,35 +50,43 @@ formula <- "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
 
 ui <- fluidPage(
   sidebarLayout(
-    sidebarPanel(ptr_controls_ui("p", formula)),  # widgets only
-    mainPanel(ptr_outputs_ui("p"))                # plot / error / code
+    sidebarPanel(ptr_controls_ui(formula = formula)),  # widgets only
+    mainPanel(ptr_outputs_ui())                        # plot / error / code
   )
 )
 
 server <- function(input, output, session) {
-  shiny::moduleServer("p", function(input, output, session) {
-    ptr_server(input, output, session, formula)
-  })
+  ptr_server(input, output, session, formula)
 }
 
 shinyApp(ui, server)
 ```
 
-`ptr_controls_ui("p", formula)`, `ptr_outputs_ui("p")`, and the
-`moduleServer("p", ...)` wrapper **must share the same `id`**. The
-controls UI builds widgets under that namespace; the outputs UI reserves
-the three canonical output slots (`ptr_plot`, `ptr_error`, `ptr_code`)
-that `ptr_server()` writes to via `ptr_register_plot()` /
+The single-embedding case (above) needs no `id` and no `moduleServer()`
+wrapper: each split helper self-wraps in `<div class="ptr-app">` so the
+bundled stylesheet attaches, and `ptr_server()` reads `session$ns`
+automatically when nested inside `moduleServer()`. The outputs UI
+reserves the three canonical output slots (`ptr_plot`, `ptr_error`,
+`ptr_code`) that `ptr_server()` writes to via `ptr_register_plot()` /
 `ptr_register_error()` / `ptr_register_code()`.
+
+Pass a matching `id` to all three (`ptr_controls_ui("p", formula)`,
+`ptr_outputs_ui("p")`, and `shiny::moduleServer("p", function(input,
+output, session) ptr_server(input, output, session, formula))`) only
+when you need a Shiny module namespace — e.g. two ggpaintr embeddings
+on the same page, or a sidebar mixing ggpaintr widgets with
+hand-written ones that could collide on ids.
 
 ## What each call does
 
 - `ptr_module_ui(id, formula, ui_text, checkbox_defaults, expr_check, css)` —
   composed sidebar+main panel; an `id`-keyed wrapper around
   `ptr_controls_ui()` + `ptr_outputs_ui()`.
-- `ptr_controls_ui(id, formula, ...)` — `tagList` of layer picker,
-  per-layer parameter panels, draw button.
-- `ptr_outputs_ui(id, css)` — plot pane + inline error pane + code pane.
+- `ptr_controls_ui(id = NULL, formula, ...)` — layer picker, per-layer
+  parameter panels, draw button. `id` is optional; supply it only to
+  namespace the embedding.
+- `ptr_outputs_ui(id = NULL, css)` — plot pane + inline error pane +
+  code pane. `id` is optional; must match `ptr_controls_ui()` when set.
 - `ptr_server(input, output, session, formula, ...)` — wires
   `ptr_init_state()` and registers all three output binders. Returns the
   state object.

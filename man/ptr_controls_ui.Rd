@@ -5,7 +5,7 @@
 \title{Control Widgets for an Embedded \code{ggpaintr} Formula}
 \usage{
 ptr_controls_ui(
-  id,
+  id = NULL,
   formula,
   ui_text = NULL,
   checkbox_defaults = NULL,
@@ -14,8 +14,11 @@ ptr_controls_ui(
 )
 }
 \arguments{
-\item{id}{Module id; the namespace prefix for inputs. Must match the \code{id}
-passed to \code{\link[=ptr_module_server]{ptr_module_server()}} and \code{\link[=ptr_outputs_ui]{ptr_outputs_ui()}}.}
+\item{id}{Optional module id; the namespace prefix for inputs. Defaults to
+\code{NULL} (identity namespace) for the single-embedding case. When set,
+must match the \code{id} passed to \code{\link[=ptr_outputs_ui]{ptr_outputs_ui()}} and the
+\code{shiny::moduleServer()} wrapping \code{\link[=ptr_server]{ptr_server()}} (or to
+\code{\link[=ptr_module_server]{ptr_module_server()}}).}
 
 \item{formula}{A single formula string with \code{ggpaintr} placeholders.}
 
@@ -37,8 +40,9 @@ A \code{\link[shiny:reexports]{shiny::tagList()}}.
 UI fragment containing only the generated controls (layer picker, per-layer
 parameter panels, the "Update plot" button) for a \code{ggpaintr} formula. Place
 it anywhere in your app's layout; pair with \code{\link[=ptr_outputs_ui]{ptr_outputs_ui()}} for the
-plot/error/code panes and \code{\link[=ptr_module_server]{ptr_module_server()}} for the server logic. \code{id}
-must match the \code{id} passed to \code{\link[=ptr_module_server]{ptr_module_server()}} / \code{\link[=ptr_outputs_ui]{ptr_outputs_ui()}}.
+plot/error/code panes and \code{\link[=ptr_server]{ptr_server()}} (or \code{\link[=ptr_module_server]{ptr_module_server()}}) for the
+server logic. The fragment self-wraps in \verb{<div class="ptr-app">} so the
+bundled stylesheet attaches without any host-side scaffolding.
 }
 \seealso{
 \code{\link[=ptr_outputs_ui]{ptr_outputs_ui()}}, \code{\link[=ptr_module_ui]{ptr_module_ui()}}, \code{\link[=ptr_module_server]{ptr_module_server()}}

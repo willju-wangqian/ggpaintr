@@ -276,7 +276,8 @@ Consumer constructors also accept an optional `validate_input = function(value, 
 Wire it into an app to see the multi-select picker react to the upstream data:
 
 ```{r consumer-colvars-app}
-ptr_app("mtcars |> dplyr::select(dplyr::all_of(colvars))")
+ptr_app("mtcars |> dplyr::select(colvars) |> 
+        ggplot(aes(x = var, y = var)) + geom_point()")
 ```
 
 The picker's choices are populated from `mtcars`'s column names — that is `cols` in `build_ui`. Pick two or three columns; the rendered code becomes `mtcars |> dplyr::select(dplyr::all_of(c('mpg', 'hp', 'wt')))`. Clear the picker and `resolve_expr` returns `NULL`, so the `all_of(...)` arg is pruned rather than spliced as `NULL`.
@@ -305,9 +306,13 @@ ptr_define_placeholder_consumer(
 ```
 
 ```{r consumer-numrange-app}
-ptr_app("mtcars |> dplyr::filter(mpg >= numrange[1]) |> ggplot(aes(x = var, y = var)) |> geom_point()")
-
-ptr_app("mtcars |> ggplot(aes(x = var, y = var)) |> geom_point()")
+ptr_app("
+mtcars |> 
+  dplyr::filter(mpg >= numrange(shared = 'n')[1],
+                mpg <= numrange(shared = 'n')[2]) |> 
+  ggplot(aes(x = var, y = var)) +
+  geom_point()
+")
 ```
 
 The slider's bounds are `range(mtcars$mpg)` — not a hard-coded guess — because `data` carries the actual frame. `data` is `NULL` before upstream resolves, so guard for it (the `if (nzchar(col))` fallback above does this). Note that `numrange` splices `c(lo, hi)` and the formula reads `numrange[1]` / `numrange[2]` to pull the bounds; `%in%` would do set membership, not a range check, so don't reach for it here.
@@ -326,11 +331,11 @@ ptr_define_placeholder_source(
   resolve_data  = function(value, node, ...) {
     if (is.null(value) || !nzchar(value)) return(NULL)
     switch(value,
-      iris      = iris,
-      mtcars    = mtcars,
-      diamonds  = ggplot2::diamonds,
-      economics = ggplot2::economics,
-      NULL)
+           iris      = iris,
+           mtcars    = mtcars,
+           diamonds  = ggplot2::diamonds,
+           economics = ggplot2::economics,
+           NULL)
   },
   copy_defaults = list(label = "Built-in dataset for {param}")
 )

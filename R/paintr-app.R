@@ -455,11 +455,15 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
 #' UI fragment containing only the generated controls (layer picker, per-layer
 #' parameter panels, the "Update plot" button) for a `ggpaintr` formula. Place
 #' it anywhere in your app's layout; pair with [ptr_outputs_ui()] for the
-#' plot/error/code panes and [ptr_module_server()] for the server logic. `id`
-#' must match the `id` passed to [ptr_module_server()] / [ptr_outputs_ui()].
+#' plot/error/code panes and [ptr_server()] (or [ptr_module_server()]) for the
+#' server logic. The fragment self-wraps in `<div class="ptr-app">` so the
+#' bundled stylesheet attaches without any host-side scaffolding.
 #'
-#' @param id Module id; the namespace prefix for inputs. Must match the `id`
-#'   passed to [ptr_module_server()] and [ptr_outputs_ui()].
+#' @param id Optional module id; the namespace prefix for inputs. Defaults to
+#'   `NULL` (identity namespace) for the single-embedding case. When set,
+#'   must match the `id` passed to [ptr_outputs_ui()] and the
+#'   `shiny::moduleServer()` wrapping [ptr_server()] (or to
+#'   [ptr_module_server()]).
 #' @param formula A single formula string with `ggpaintr` placeholders.
 #' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
 #'   for the full schema and current defaults.
@@ -472,7 +476,7 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
 #' @return A [shiny::tagList()].
 #' @seealso [ptr_outputs_ui()], [ptr_module_ui()], [ptr_module_server()]
 #' @export
-ptr_controls_ui <- function(id, formula, ui_text = NULL,
+ptr_controls_ui <- function(id = NULL, formula, ui_text = NULL,
                             checkbox_defaults = NULL, expr_check = TRUE,
                             css = NULL) {
   tree <- ptr_translate(formula, expr_check = expr_check)
@@ -482,13 +486,21 @@ ptr_controls_ui <- function(id, formula, ui_text = NULL,
   # ggpaintr.css/code-window JS silently go missing. The controls side owns
   # them since the layer panels live here. Harmless if included twice on a
   # page (both are idempotent / dedupe to the same href).
-  do.call(
-    shiny::tagList,
-    c(
-      list(ptr_layer_assets(), ptr_ui_assets(), ptr_user_css_assets(css)),
-      ptr_controls_panel(tree, ui_text = ui_text,
-                         checkbox_defaults = checkbox_defaults,
-                         ns = shiny::NS(id), render_shared_section = FALSE)
+  #
+  # The `.ptr-app` wrapper attaches the bundled stylesheet (which is scoped
+  # under that class). When this helper is rendered inside a larger
+  # `.ptr-app` (e.g. `ptr_module_ui()`'s outer wrap), `ggpaintr.css`
+  # neutralises the nested duplicate's `min-height: 100vh` / background.
+  shiny::tags$div(
+    class = "ptr-app",
+    do.call(
+      shiny::tagList,
+      c(
+        list(ptr_layer_assets(), ptr_ui_assets(), ptr_user_css_assets(css)),
+        ptr_controls_panel(tree, ui_text = ui_text,
+                           checkbox_defaults = checkbox_defaults,
+                           ns = shiny::NS(id), render_shared_section = FALSE)
+      )
     )
   )
 }
@@ -497,10 +509,15 @@ ptr_controls_ui <- function(id, formula, ui_text = NULL,
 #'
 #' UI fragment containing only the plot, inline error, and generated-code
 #' outputs for a `ggpaintr` formula. Pair with [ptr_controls_ui()] and
-#' [ptr_module_server()]. `id` must match the `id` passed to those.
+#' [ptr_server()] (or [ptr_module_server()]). The fragment self-wraps in
+#' `<div class="ptr-app">` so the bundled stylesheet attaches without any
+#' host-side scaffolding.
 #'
-#' @param id Module id; the namespace prefix for outputs. Must match the `id`
-#'   passed to [ptr_controls_ui()] and [ptr_module_server()].
+#' @param id Optional module id; the namespace prefix for outputs. Defaults
+#'   to `NULL` (identity namespace) for the single-embedding case. When set,
+#'   must match the `id` passed to [ptr_controls_ui()] and the
+#'   `shiny::moduleServer()` wrapping [ptr_server()] (or to
+#'   [ptr_module_server()]).
 #' @param css Optional character vector of paths to additional CSS files;
 #'   linked after `ggpaintr`'s bundled stylesheet so its rules win. See
 #'   [ptr_app()] for the full semantics. Defaults to `NULL`.
@@ -508,8 +525,9 @@ ptr_controls_ui <- function(id, formula, ui_text = NULL,
 #' @return A [shiny::tagList()].
 #' @seealso [ptr_controls_ui()], [ptr_module_ui()], [ptr_module_server()]
 #' @export
-ptr_outputs_ui <- function(id, css = NULL) {
-  shiny::tagList(
+ptr_outputs_ui <- function(id = NULL, css = NULL) {
+  shiny::tags$div(
+    class = "ptr-app",
     ptr_ui_assets(),
     ptr_user_css_assets(css),
     ptr_outputs_panel(shiny::NS(id))

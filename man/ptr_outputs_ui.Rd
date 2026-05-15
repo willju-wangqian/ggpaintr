@@ -4,11 +4,14 @@
 \alias{ptr_outputs_ui}
 \title{Plot / Error / Code Panes for an Embedded \code{ggpaintr} Formula}
 \usage{
-ptr_outputs_ui(id, css = NULL)
+ptr_outputs_ui(id = NULL, css = NULL)
 }
 \arguments{
-\item{id}{Module id; the namespace prefix for outputs. Must match the \code{id}
-passed to \code{\link[=ptr_controls_ui]{ptr_controls_ui()}} and \code{\link[=ptr_module_server]{ptr_module_server()}}.}
+\item{id}{Optional module id; the namespace prefix for outputs. Defaults
+to \code{NULL} (identity namespace) for the single-embedding case. When set,
+must match the \code{id} passed to \code{\link[=ptr_controls_ui]{ptr_controls_ui()}} and the
+\code{shiny::moduleServer()} wrapping \code{\link[=ptr_server]{ptr_server()}} (or to
+\code{\link[=ptr_module_server]{ptr_module_server()}}).}
 
 \item{css}{Optional character vector of paths to additional CSS files;
 linked after \code{ggpaintr}'s bundled stylesheet so its rules win. See
@@ -20,7 +23,9 @@ A \code{\link[shiny:reexports]{shiny::tagList()}}.
 \description{
 UI fragment containing only the plot, inline error, and generated-code
 outputs for a \code{ggpaintr} formula. Pair with \code{\link[=ptr_controls_ui]{ptr_controls_ui()}} and
-\code{\link[=ptr_module_server]{ptr_module_server()}}. \code{id} must match the \code{id} passed to those.
+\code{\link[=ptr_server]{ptr_server()}} (or \code{\link[=ptr_module_server]{ptr_module_server()}}). The fragment self-wraps in
+\verb{<div class="ptr-app">} so the bundled stylesheet attaches without any
+host-side scaffolding.
 }
 \seealso{
 \code{\link[=ptr_controls_ui]{ptr_controls_ui()}}, \code{\link[=ptr_module_ui]{ptr_module_ui()}}, \code{\link[=ptr_module_server]{ptr_module_server()}}

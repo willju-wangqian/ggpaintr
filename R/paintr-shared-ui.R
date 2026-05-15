@@ -282,8 +282,11 @@ ptr_shared_ui <- function(formulas,
     list(shiny::uiOutput("ptr_shared_errors"))
   )
 
-  shiny::wellPanel(
-    do.call(shiny::div, c(list(class = "ptr-shared-panel"), body))
+  shiny::tags$div(
+    class = "ptr-app",
+    shiny::wellPanel(
+      do.call(shiny::div, c(list(class = "ptr-shared-panel"), body))
+    )
   )
 }
 

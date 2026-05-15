@@ -43,7 +43,7 @@ User owns the layout/chrome; ggpaintr owns the plot pipeline.
 
 - `ptr_module_ui(id, formula, ui_text, checkbox_defaults, expr_check, css)` — composed sidebar+main UI under module namespace `id`.
 - `ptr_module_server(id, formula, envir = parent.frame(), ..., shared_state = NULL)` — wraps `moduleServer(id, ...)`; returns the `ptr_state`.
-- `ptr_controls_ui(id, formula, ...)` + `ptr_outputs_ui(id, css)` — split-mode pair when controls and outputs need to live in different parts of the page. Pair with `shiny::moduleServer(id, ...)` wrapping `ptr_server()`.
+- `ptr_controls_ui(id = NULL, formula, ...)` + `ptr_outputs_ui(id = NULL, css)` — split-mode pair when controls and outputs need to live in different parts of the page. Each fragment self-wraps in `<div class="ptr-app">` so the bundled stylesheet attaches. Single-embedding: call `ptr_server(input, output, session, formula)` at the top of the server function (no `moduleServer()` needed, no `id` needed). Multi-embedding or host id collisions: pass a matching `id` to both helpers and wrap `ptr_server()` in `shiny::moduleServer(id, ...)`.
 - `ptr_server(input, output, session, formula, ...)` — builds the state and binds plot/error/code outputs. Returns the state.
 - `ptr_init_state(formula, ...)` — state container alone, no auto-registered outputs. Use to compose custom output bundles (advanced; `ptr_server()` and `ptr_module_server()` already call it).
 - Output binders (drop or replace any): `ptr_register_plot(output, state)`, `ptr_register_error(output, state)`, `ptr_register_code(output, state)`.
@@ -53,7 +53,7 @@ User owns the layout/chrome; ggpaintr owns the plot pipeline.
 
 ### Ids and namespacing
 
-- There is **no `ns =` argument** and **no `ptr_build_ids()` helper.** Namespacing is the module `id` passed to `ptr_module_ui()` / `ptr_module_server()` (or to `ptr_controls_ui()` / `ptr_outputs_ui()` / the wrapping `moduleServer()`).
+- There is **no `ns =` argument** and **no `ptr_build_ids()` helper.** When namespacing is needed, it comes from the module `id` passed to `ptr_module_ui()` / `ptr_module_server()` (or to `ptr_controls_ui()` / `ptr_outputs_ui()` / the wrapping `moduleServer()`). The split helpers default to no namespace (`id = NULL`), which is the right choice for a single embedding.
 - Top-level ids inside any module namespace are package-owned and fixed: `ptr_plot`, `ptr_error`, `ptr_code`, `ptr_update_plot`, plus internal layer-nav controls (`ptr_layer_select`, `ptr_layer_tabset`). Treat the whole `ptr_` prefix as reserved.
 - Per-placeholder input ids follow `<layer>_<path>_<keyword>_<shared-or-NA>` (deterministic — same formula → same ids).
 

@@ -10,7 +10,7 @@ Level 1 — turn-key app
         ↓ builds on
 Level 2 — embed in your own Shiny app
   ptr_module_ui(id, formula)  ptr_module_server(id, formula)
-  ptr_controls_ui(id, formula) ptr_outputs_ui(id)
+  ptr_controls_ui(id = NULL, formula) ptr_outputs_ui(id = NULL)
   ptr_server(input, output, session, formula)
   ptr_shared_ui(formulas, shared_ui)
   ptr_shared_server(formulas)

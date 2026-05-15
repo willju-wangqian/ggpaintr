@@ -18,6 +18,7 @@ ptr_init_state(
   server_ns = ns,
   auto_bind_shared = FALSE,
   shared_resolutions = list(),
+  shared_stage_enabled = list(),
   plots = NULL
 )
 }

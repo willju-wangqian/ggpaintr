@@ -282,8 +282,22 @@ ptr_validate_state <- function(state) {
 #' @export
 ptr_server <- function(input, output, session, formula,
                           envir = parent.frame(), ...) {
-  state <- ptr_init_state(formula, envir = envir, ...)
-  shared_stage_enabled <- list(...)[["shared_stage_enabled"]] %||% list()
+  dots <- list(...)
+  # When called inside `shiny::moduleServer(id, ...)` without explicit
+  # `ns` / `server_ns`, auto-wire them the same way `ptr_module_server()`
+  # does: tags emitted via `renderUI` must carry the module prefix
+  # (`session$ns`), while `input[[]]` / `output[[]]` / `updateXxx()` use
+  # bare ids since the moduleServer session auto-namespaces those. At the
+  # top level, `session$ns` is `NS(NULL)`, so both paths collapse to the
+  # historical identity behaviour. Top-level callers like `ptr_app()` pass
+  # `ns` explicitly and skip this branch.
+  if (is.null(dots$ns) && inherits(session, "session_proxy")) {
+    dots$ns <- session$ns
+    if (is.null(dots$server_ns)) dots$server_ns <- shiny::NS(NULL)
+  }
+  state <- do.call(ptr_init_state,
+                   c(list(formula = formula, envir = envir), dots))
+  shared_stage_enabled <- dots[["shared_stage_enabled"]] %||% list()
   ptr_setup_producer_inputs(state, input, output, session)
   ptr_setup_pipelines(state, input, output, session)
   ptr_setup_stage_enabled(state, input, output, session)

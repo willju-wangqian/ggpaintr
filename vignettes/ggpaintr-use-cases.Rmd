@@ -189,24 +189,24 @@ ui <- shiny::fluidPage(
   shiny::titlePanel("Custom layout"),
   shiny::sidebarLayout(
     shiny::sidebarPanel(
-      ptr_controls_ui("p", formula)   # widgets only
+      ptr_controls_ui(formula = formula)   # widgets only
     ),
     shiny::mainPanel(
       shiny::tags$h3("Plot + code + errors"),
-      ptr_outputs_ui("p")             # plot / error / code outputs
+      ptr_outputs_ui()                     # plot / error / code outputs
     )
   )
 )
 server <- function(input, output, session) {
-  shiny::moduleServer("p", function(input, output, session) {
-    ptr_server(input, output, session, formula)
-  })
+  ptr_server(input, output, session, formula)
 }
 
 shiny::shinyApp(ui, server)
 ```
 
-`ptr_controls_ui()` and `ptr_outputs_ui()` are the two halves that `ptr_module_ui()` renders together. The `id` must match across all three of `ptr_controls_ui()`, `ptr_outputs_ui()`, and the `moduleServer()` wrapping `ptr_server()`. `ptr_server()` registers `ptr_register_plot()` / `_error()` / `_code()` for you — `ptr_outputs_ui()` reserves the three canonical output slots (`ptr_plot`, `ptr_error`, `ptr_code`) that those registrations target.
+`ptr_controls_ui()` and `ptr_outputs_ui()` are the two halves that `ptr_module_ui()` renders together; each one self-wraps in a `<div class="ptr-app">` so the bundled stylesheet attaches without any host-side scaffolding. `ptr_server()` registers `ptr_register_plot()` / `_error()` / `_code()` for you — `ptr_outputs_ui()` reserves the three canonical output slots (`ptr_plot`, `ptr_error`, `ptr_code`) that those registrations target.
+
+If you need to embed more than one `ggpaintr` formula on the same page — or share a sidebar with hand-written widgets that might collide — pass a matching `id` to all three: `ptr_controls_ui("p", formula)`, `ptr_outputs_ui("p")`, and `shiny::moduleServer("p", function(input, output, session) ptr_server(input, output, session, formula))`. The single-formula case (the example above) needs neither the `id` nor the `moduleServer()` wrapper.
 
 ### Splitting outputs further
 
@@ -220,10 +220,8 @@ If you need custom output names — your own `plotOutput("my_chart")` rather tha
 
 ```{r init-state}
 server <- function(input, output, session) {
-  shiny::moduleServer("p", function(input, output, session) {
-    state <- ptr_init_state(formula = "ggplot(iris, aes(var, var)) + geom_point()")
-    ptr_register_plot(output, state)  # only the plot; no error / code panes
-  })
+  state <- ptr_init_state(formula = "ggplot(iris, aes(var, var)) + geom_point()")
+  ptr_register_plot(output, state)  # only the plot; no error / code panes
 }
 ```
 

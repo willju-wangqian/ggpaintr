@@ -28,6 +28,16 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* Nested .ptr-app: the split helpers (ptr_controls_ui / ptr_outputs_ui /
+   ptr_shared_ui) each self-wrap in `.ptr-app` so the bundled stylesheet
+   attaches without any host-side scaffolding. When those fragments live
+   inside an outer .ptr-app (ptr_module_ui / ptr_app), neutralise the
+   redundant chrome on the inner wrap. */
+.ptr-app .ptr-app {
+  background: transparent;
+  min-height: 0;
+}
+
 /* ---- header bar (replaces titlePanel) ---- */
 .ptr-app__header {
   display: flex;
