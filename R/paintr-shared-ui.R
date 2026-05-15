@@ -263,17 +263,8 @@ ptr_shared_ui <- function(formulas,
       head_label <- if (length(verbs) > 0L) {
         shiny::tags$code(paste0(paste(verbs, collapse = "/"), "()"))
       } else NULL
-      shiny::div(
-        class = "ptr-stage",
-        id = paste0(shared_stage_input_id(k), "_block"),
-        shiny::div(
-          class = "ptr-stage-head",
-          shiny::checkboxInput(
-            inputId = shared_stage_input_id(k),
-            label = head_label, value = TRUE, width = "auto"
-          )
-        ),
-        shiny::div(class = "ptr-stage-fields", w)
+      controllable_region(
+        shared_stage_input_id(k), head_label, w, ns_fn = identity
       )
     })
   }
@@ -472,7 +463,7 @@ ptr_shared_server <- function(formulas,
   for (k in names(orphan_info)) {
     local({
       sid_input <- shared_stage_input_id(k)
-      block_dom_id <- paste0(sid_input, "_block")
+      block_dom_id <- paste0(sid_input, "_stage_block")
       shiny::observeEvent(input[[sid_input]], {
         val <- input[[sid_input]]
         if (is.null(val)) return()

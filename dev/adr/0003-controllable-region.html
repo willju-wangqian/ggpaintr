@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0003 — Controllable-region UI abstraction</title>
+<style>
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.6rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .8rem; border-radius: 4px; overflow-x: auto; font-size: 13px; }
+  .meta { color: #555; font-size: 13px; }
+  .callout { border-left: 4px solid #c79100; background: #fff7df; padding: .6rem .9rem; margin: .8rem 0; }
+</style>
+</head>
+<body>
+
+<h1>ADR 0003 — Controllable-region UI abstraction</h1>
+<p class="meta">Status: <strong>Accepted</strong> · Date: 2026-05-15 · Plan: <code>dev/plans/2026-05-14-controllable-region.html</code> · Audit ref: <code>dev/audit/2026-05-14-compatibility.html</code> §3.3 (recommendation #1, partially closed — UI half).</p>
+
+<h2>Context</h2>
+<p>The "checkbox above a region greys out the region and removes its
+contribution at eval time" affordance was emitted by three separate
+sites:</p>
+<ul>
+  <li><code>build_pipeline_stage_ui()</code> — per-module pipeline-stage block.</li>
+  <li><code>wrap_shared_widgets_with_stage_blocks()</code> — module-side wrap of shared widgets that belong to an orphan stage.</li>
+  <li><code>ptr_shared_ui()</code> — cross-module shared-orphan stage in the shared panel.</li>
+</ul>
+<p>All three open-coded the same DOM tree (<code>.ptr-stage</code>
+wrapper, <code>.ptr-stage-head</code> with a <code>checkboxInput()</code>,
+<code>.ptr-stage-fields</code> body) and the same id convention
+(<code>&lt;sid&gt;_stage_block</code>). Two of them additionally emitted a
+bare <code>.ptr-stage-fields</code> "continuation" div under a
+<code>seen</code>/<code>emitted</code> guard.</p>
+
+<p>The drift risk was concrete: the 2026-05-15 visual-cue change had to
+be made in CSS only because the three call sites already agreed on the
+class names — but a future edit that touches one site's wrapper class
+(e.g. adds a marker class for a new affordance) would silently diverge
+from the other two.</p>
+
+<h2>Decision</h2>
+<p>Introduce one internal file <code>R/paintr-region.R</code> with two
+helpers:</p>
+<pre>controllable_region(region_id, head_label, body, ns_fn = identity, default_on = TRUE)
+controllable_region_continuation(body)</pre>
+<p>The three call sites above now build their wrappers through these
+helpers. The DOM contract — class names, id format
+(<code>&lt;ns&gt;(&lt;region_id&gt;_stage_block)</code>), checkbox
+<code>inputId</code> = <code>&lt;ns&gt;(&lt;region_id&gt;)</code> — lives
+in exactly one place.</p>
+
+<p>Observer wiring is <em>not</em> part of this abstraction. The three
+existing observer setups (<code>ptr_setup_stage_enabled</code>,
+<code>ptr_setup_shared_stage_enabled</code>, and the in-line CSS-class
+observer in <code>ptr_shared_server</code>) stay separate because their
+reactive shapes are not symmetric: an
+<code>observeEvent(input[[id]], …)</code> binder cannot replace one whose
+trigger is an external reactive without obscuring real timing
+differences. See plan §2 callout and §10 follow-up.</p>
+
+<h2>Consequences</h2>
+<ul>
+  <li><strong>Single DOM emitter.</strong> Future "grey out X" affordances become a one-line caller of <code>controllable_region()</code>; they still write their own observer in whichever shape matches.</li>
+  <li><strong>One DOM-id format change.</strong> The shared-panel orphan-stage block previously used <code>&lt;sid_input&gt;_block</code>; it now uses <code>&lt;sid_input&gt;_stage_block</code> like every other caller. The companion CSS-class observer in <code>ptr_shared_server()</code> was updated in the same commit. No public selector or test depended on the old suffix.</li>
+  <li><strong>No public API change.</strong> Helpers are unexported and `ptr_`-unprefixed (internal-only convention).</li>
+  <li><strong>Visual-cue contract unchanged.</strong> The disabled affordance keeps the 2026-05-15 strikethrough + muted labels + dashed border + faint tint combo, anchored to <code>.ptr-stage-disabled .ptr-stage-head</code> / <code>.ptr-stage-fields</code> / <code>label</code>. No <code>opacity</code>, <code>filter</code>, or <code>transform</code> may be reintroduced on any wrapper this helper emits — picker dropdowns are descendants and would otherwise be clipped by a stacking context.</li>
+  <li><strong>Test guard against drift.</strong> <code>tests/testthat/test-controllable-region.R</code> asserts the continuation helper's class string equals the inner-fields class of the full helper, so a class rename in one helper without the other becomes a test failure.</li>
+</ul>
+
+<h2>Out of scope (deferred to plan §10)</h2>
+<ul>
+  <li>Observer/state binder unification.</li>
+  <li>A <code>region_is_disabled</code> predicate (only one caller exists today).</li>
+  <li>Layer-level checkbox unification (<code>ptr-layer-disabled</code> path; different semantic).</li>
+  <li>Public "register your own region kind" API.</li>
+</ul>
+
+<h2>Verification</h2>
+<ul>
+  <li><code>devtools::test()</code> — full suite green (1250 PASS, 0 FAIL).</li>
+  <li>SC1 — exactly one <code>shiny::div(class = "ptr-stage", …)</code> emitter in <code>R/</code> (the helper).</li>
+  <li>SC3 — three region kinds covered by <code>test-controllable-region.R</code>: pipeline-stage shape (CR.1, CR.2), continuation (CR.3), fabricated kind (CR.4).</li>
+  <li>SC7 — manual stack-order check against a picker inside a disabled stage; CSS unchanged from main.</li>
+</ul>
+
+</body>
+</html>

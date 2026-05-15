@@ -223,25 +223,15 @@ build_pipeline_stage_ui <- function(entries, ui_text, layer_name, ns_fn) {
     }
     if (length(fields) > 0L) {
       if (sid %in% seen) {
-        out[[length(out) + 1L]] <- shiny::div(
-          class = "ptr-stage-fields", fields
-        )
+        out[[length(out) + 1L]] <- controllable_region_continuation(fields)
       } else {
         seen <- c(seen, sid)
         has_verb <- !is.null(verb) && !is.na(verb) && nzchar(verb)
         head_label <- if (has_verb) {
           shiny::tags$code(paste0(verb, "()"))
         } else NULL
-        out[[length(out) + 1L]] <- shiny::div(
-          class = "ptr-stage", id = ns_fn(paste0(sid, "_stage_block")),
-          shiny::div(
-            class = "ptr-stage-head",
-            shiny::checkboxInput(
-              inputId = ns_fn(sid), label = head_label, value = TRUE,
-              width = "auto"
-            )
-          ),
-          shiny::div(class = "ptr-stage-fields", fields)
+        out[[length(out) + 1L]] <- controllable_region(
+          sid, head_label, fields, ns_fn = ns_fn
         )
       }
     }
@@ -448,7 +438,7 @@ wrap_shared_widgets_with_stage_blocks <- function(entries, widgets,
       next
     }
     if (st$stage_id %in% emitted) {
-      out[[length(out) + 1L]] <- shiny::div(class = "ptr-stage-fields", w)
+      out[[length(out) + 1L]] <- controllable_region_continuation(w)
       next
     }
     emitted <- c(emitted, st$stage_id)
@@ -456,17 +446,8 @@ wrap_shared_widgets_with_stage_blocks <- function(entries, widgets,
     head_label <- if (has_verb) {
       shiny::tags$code(paste0(st$verb, "()"))
     } else NULL
-    out[[length(out) + 1L]] <- shiny::div(
-      class = "ptr-stage",
-      id = ns_fn(paste0(st$stage_id, "_stage_block")),
-      shiny::div(
-        class = "ptr-stage-head",
-        shiny::checkboxInput(
-          inputId = ns_fn(st$stage_id), label = head_label, value = TRUE,
-          width = "auto"
-        )
-      ),
-      shiny::div(class = "ptr-stage-fields", w)
+    out[[length(out) + 1L]] <- controllable_region(
+      st$stage_id, head_label, w, ns_fn = ns_fn
     )
   }
   out
@@ -551,7 +532,16 @@ ptr_layer_assets <- function() {
     ))),
     shiny::tags$style(shiny::HTML(paste0(
       ".ptr-layer-disabled{opacity:0.5;pointer-events:none;}",
-      ".ptr-stage-disabled{opacity:0.5;}",
+      # Visual cue for an unticked stage. Avoids `opacity`/`filter` on any
+      # ancestor of a picker's `.dropdown-menu` so popovers stack
+      # correctly; relies on text colour + border + background instead,
+      # which dims custom placeholder widgets "for free".
+      ".ptr-stage-disabled .ptr-stage-head code{",
+      "text-decoration:line-through;color:#999;}",
+      ".ptr-stage-disabled label{color:#999;}",
+      ".ptr-stage-disabled .ptr-stage-fields{",
+      "border-left-style:dashed;border-left-color:#d0d4d9;",
+      "background-color:rgba(0,0,0,0.025);}",
       # structural layout for pipeline-stage groups (Data sub-tab) -- the
       # polished default app refines colours in ggpaintr.css, but the
       # indent/left-rule must hold for every app shell, including bslib.
