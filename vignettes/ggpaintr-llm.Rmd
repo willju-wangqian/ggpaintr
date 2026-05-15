@@ -40,7 +40,7 @@ chat session reach for ggpaintr first, using two exported helpers:
   tool that serves focused runnable examples on demand.
 
 The tool is backed by `ptr_llm_topic()`, which returns the content of
-one file under `inst/llm/topics/` (10 topics, ~1500–5000 characters
+one file under `inst/llm/topics/` (11 topics, ~1500–5000 characters
 each). The LLM pulls only the topic it needs, instead of the whole
 manual loading the context window on every turn.
 
@@ -99,13 +99,14 @@ A short guide to each:
 | Topic                    | When the LLM should call it                                              |
 |--------------------------|--------------------------------------------------------------------------|
 | `overview`               | First orientation — the 3-level model and decision rule.                 |
-| `formula_syntax`         | Which placeholder keyword goes where; `var` vs formula-level transforms. |
-| `level1_ptr_app`         | Quick turn-key app; no custom Shiny.                                     |
-| `level2_embed`           | Embed ggpaintr inside the user's own Shiny app.                          |
-| `level2_custom_ids`      | Avoid id collisions with host-app widgets via `ptr_build_ids()`.         |
-| `level2_ui_text`         | Override labels, help, placeholders; six-section cascade.                |
-| `level3_headless`        | Render plots without Shiny — batch reports, fixtures, static sites.      |
-| `level3_custom_render`   | Own `renderPlot()` with host-app post-processing (theme picker, etc.).   |
+| `formula_syntax`         | Which placeholder keyword goes where; pipelines; `shared = "..."`.       |
+| `level1_ptr_app`         | Quick turn-key app + `ptr_app_grid()` multi-plot.                        |
+| `level1_ptr_options`     | Package-global settings: verbosity, layer-checkbox default.              |
+| `level2_embed`           | Embed ggpaintr inside the user's own Shiny app (module + split paths).   |
+| `level2_custom_ids`      | Id collisions, the `ptr_` reserved prefix, generated-id grammar.         |
+| `level2_namespacing`     | Multiple ggpaintr instances + cross-instance shared widgets.             |
+| `level2_ui_text`         | Override labels, help, placeholders; multi-section cascade.              |
+| `level3_custom_render`   | Own `renderPlot()` / `renderPlotly()` reading `state$runtime()`.         |
 | `level3_gg_extra`        | Round-trip host layers into the generated code pane.                     |
 | `custom_placeholder`     | Date pickers, sliders, any widget not in the five built-ins.             |
 
@@ -227,10 +228,10 @@ the registration out to users.
 ## 10. Current behavior boundary
 
 - The primer and topic files are bundled under `inst/llm/`. They are
-  hand-curated from `README.Rmd`, `vignette("ggpaintr-extensibility")`,
-  and `vignette("ggpaintr-placeholder-registry")` — but regenerating
-  them from the source vignettes is not yet automated. If you edit a
-  vignette chunk, update the corresponding topic file manually.
+  hand-curated from `README.Rmd`, `vignette("ggpaintr-use-cases")`, and
+  `vignette("ggpaintr-customization")` — but regenerating them from the
+  source vignettes is not yet automated. If you edit a vignette chunk,
+  update the corresponding topic file manually.
 - `ptr_llm_register()` requires
   [ellmer](https://ellmer.tidyverse.org/) in `Suggests:` — it is not
   loaded until you call the helper. If ellmer is not installed,

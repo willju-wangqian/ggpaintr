@@ -1,8 +1,10 @@
 # Level 2 — copy overrides with `ui_text`
 
 `ui_text` is the single argument for customising every user-visible
-string ggpaintr renders. Pass it to `ptr_server_state()`, `ptr_server()`,
-`ptr_app()`, or `ptr_app_bslib()`.
+string ggpaintr renders. Pass it to `ptr_app()`, `ptr_app_bslib()`,
+`ptr_app_grid()`, `ptr_module_ui()`, `ptr_module_server()`,
+`ptr_controls_ui()`, `ptr_init_state()`, `ptr_server()`, or
+`ptr_shared_ui()`.
 
 ## The four leaf fields
 
@@ -16,26 +18,21 @@ string ggpaintr renders. Pass it to `ptr_server_state()`, `ptr_server()`,
 Unused fields are ignored (e.g. `empty_text` on a `text` widget is
 accepted but never rendered).
 
-Per-placeholder support (verified against `R/paintr-ui.R`):
+## Top-level sections
 
-| Placeholder    | label | help | placeholder | empty_text |
-|----------------|:-----:|:----:|:-----------:|:----------:|
-| `var`          |  ✅   |  ✅  |      —      |     ✅     |
-| `text`         |  ✅   |  ✅  |     ✅      |      —     |
-| `num`          |  ✅   |  ✅  |      —      |      —     |
-| `expr`         |  ✅   |  ✅  |     ✅      |      —     |
-| `upload` file  |  ✅   |  —   |      —      |      —     |
-| `upload` name  |  ✅   |  ✅  |     ✅      |      —     |
+Chrome sections (**1-to-1** mapping, no cascade):
 
-## Six top-level sections
-
-Three chrome sections (**1-to-1** mapping, no cascade):
-
-| Key              | Role                                              |
-|------------------|---------------------------------------------------|
-| `shell`          | Page `title` and `draw_button` labels.            |
-| `upload`         | Paired `file` + `name` widgets for `upload`.      |
-| `layer_checkbox` | The per-layer "include this layer" toggle.        |
+| Key                            | Role                                              |
+|--------------------------------|---------------------------------------------------|
+| `shell$title`                  | Page title.                                       |
+| `shell$draw_button`            | "Update plot" button.                             |
+| `shell$draw_all_button`        | `ptr_app_grid()` "Draw all" button.               |
+| `shell$layer_picker`           | Layer-select dropdown.                            |
+| `shell$data_subtab`            | "Data" subtab label inside a layer panel.         |
+| `shell$controls_subtab`        | "Controls" subtab label inside a layer panel.     |
+| `upload$file`                  | `upload` keyword's file picker.                   |
+| `upload$name`                  | `upload` keyword's "Optional dataset name" input. |
+| `layer_checkbox`               | Per-layer "include this layer" toggle.            |
 
 Three per-placeholder sections (**cascade** — least specific → most):
 
@@ -88,6 +85,11 @@ ptr_resolve_ui_text("control", keyword = "text",
                     ui_text = ui_text)
 ```
 
+`component = "control"` resolves the placeholder cascade above; other
+component names (`"title"`, `"draw_button"`, `"layer_checkbox"`,
+`"upload_file"`, `"upload_name"`, etc.) read directly from the chrome
+paths.
+
 ## Chrome example
 
 ```r
@@ -105,15 +107,16 @@ ui_text <- list(
 )
 ```
 
-`shell` only accepts `title` / `draw_button`; `upload` only accepts
-`file` / `name`. Any other key at those levels is a validation error.
+Any leaf field name outside the four allowed (`label`, `help`,
+`placeholder`, `empty_text`) is a validation error.
 
 ## Validating a `ui_text` list
 
-Pipe it through `ptr_merge_ui_text(ui_text)`. It validates structure and
-leaf-field names (errors), and warns on `params` keys that do not match
-any placeholder in a parsed formula (warnings). Returns a `ptr_ui_text`
-object recognised downstream so the merge is not repeated.
+`ptr_ui_text(ui_text)` runs the validator, normalizes aliases, deep-merges
+your overrides over the defaults, and returns a `ptr_ui_text` object.
+Pass it through if you want to inspect the merged tree or surface errors
+ahead of time; downstream calls also accept the bare `list` and run the
+same validation themselves, so this is optional.
 
 ## Full embed with copy overrides
 
@@ -128,25 +131,22 @@ ui_text <- list(
     label = "Plot title", placeholder = "e.g. Weight vs MPG"))))
 )
 
+formula <- "ggplot(data = mtcars, aes(x = var, y = var)) +
+              geom_point() + labs(title = text)"
+
 ui <- fluidPage(
   titlePanel(ptr_resolve_ui_text("title", ui_text = ui_text)$label),
-  sidebarLayout(
-    sidebarPanel(ptr_input_ui(ui_text = ui_text)),
-    mainPanel(ptr_output_ui())
-  )
+  ptr_module_ui("p", formula, ui_text = ui_text)
 )
 
 server <- function(input, output, session) {
-  ptr_state <- ptr_server_state(
-    "ggplot(data = mtcars, aes(x = var, y = var)) +
-       geom_point() + labs(title = text)",
-    ui_text = ui_text
-  )
-  ptr_setup_controls(input, output, ptr_state)
-  ptr_register_draw(input, ptr_state)
-  ptr_register_plot(output, ptr_state)
-  ptr_register_error(output, ptr_state)
-  ptr_register_code(output, ptr_state)
+  ptr_module_server("p", formula, ui_text = ui_text)
 }
+
 shinyApp(ui, server)
 ```
+
+Pass the same `ui_text` to both the UI and the server — `ptr_module_ui()`
+builds the widget labels from it; `ptr_module_server()` forwards it to
+`ptr_init_state()` so any server-side renders (validation messages,
+dynamic widget refreshes) read the same merged tree.

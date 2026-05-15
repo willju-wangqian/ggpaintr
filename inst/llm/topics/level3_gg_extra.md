@@ -6,58 +6,46 @@ can reproduce the exact plot they see.
 
 ## Pattern
 
-`ptr_gg_extra(ptr_state, ...)` captures ggplot components added outside
-the runtime and stores them on `ptr_state$extras`. The default
-`ptr_register_code()` picks them up and appends them to the code text
+`ptr_gg_extra(state, ...)` evaluates one or more `ggplot2` expressions
+and attaches the results as "extras" on the state. The runtime folds
+them into the rendered plot during the next cycle, and `state$runtime()$code_text`
+(plus `ptr_extract_code(state)`) include them in the printable code
 whenever the runtime succeeds.
 
 ```r
 library(shiny); library(ggpaintr); library(ggplot2)
 
+formula <- "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+
 ui <- fluidPage(
-  sidebarLayout(
-    sidebarPanel(
-      ptr_input_ui(),
-      checkboxInput("with_smooth", "Add geom_smooth()", FALSE)
-    ),
-    mainPanel(ptr_output_ui())
-  )
+  checkboxInput("with_smooth", "Add geom_smooth()", FALSE),
+  ptr_module_ui("p", formula)
 )
 
 server <- function(input, output, session) {
-  ptr_state <- ptr_server_state(
-    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
-  )
+  state <- ptr_module_server("p", formula)
 
-  ptr_setup_controls(input, output, ptr_state)
-  ptr_register_draw(input, ptr_state)
-  ptr_register_error(output, ptr_state)
-  ptr_register_code(output, ptr_state)
-
-  output$outputPlot <- renderPlot({
-    plot_obj <- ptr_extract_plot(ptr_state$runtime())
-    if (is.null(plot_obj)) {
-      graphics::plot.new()
-      return(invisible(NULL))
-    }
-
-    # Replace-semantics: one call, every extra you want.
-    extras <- if (isTRUE(input$with_smooth)) {
+  # Recompute extras whenever the host toggle flips. ptr_gg_extra() is
+  # replace-semantics: one call, every extra you want.
+  shiny::observe({
+    if (isTRUE(input$with_smooth)) {
       ptr_gg_extra(
-        ptr_state,
+        state,
         theme_minimal(base_size = 16),
         geom_smooth(method = "lm", se = FALSE)
       )
     } else {
-      ptr_gg_extra(ptr_state, theme_minimal(base_size = 16))
+      ptr_gg_extra(state, theme_minimal(base_size = 16))
     }
-
-    plot_obj + extras
   })
 }
 
 shinyApp(ui, server)
 ```
+
+The bundled plot pane (`ptr_plot`, written by `ptr_register_plot()` inside
+`ptr_module_server()`) picks up the extras automatically — the plot
+**and** the code pane stay in sync without writing a custom renderer.
 
 ## Contract — memorise these four points
 
@@ -66,20 +54,42 @@ shinyApp(ui, server)
 2. **Suppressed on failure.** When the runtime reports `ok = FALSE`, the
    code binder ignores extras — stale values from a prior successful
    draw do not leak into a failed-draw code pane.
-3. **Plain list return.** Dispatched through `ggplot2::ggplot_add.list`,
-   so `plot_obj + ptr_gg_extra(...)` behaves exactly like
-   `plot_obj + list(...)`.
-4. **Not wired into `ptr_app()`.** Only meaningful when you own a
-   `renderPlot({...})` built on `ptr_server_state()` +
-   `ptr_register_*()` binders.
+3. **Plain list return.** `ptr_gg_extra()` returns the state invisibly;
+   the captured extras are stored on `state$extras` and folded into the
+   plot during the next runtime cycle (via `ggplot2::ggplot_add.list`).
+4. **Works with the bundled UI.** Unlike the previous API, you do *not*
+   need to write a custom `renderPlot()` — `ptr_module_ui()` /
+   `ptr_module_server()` (or `ptr_app()`) honor extras through the
+   standard plot pane.
 
-## Custom code binder
+## Custom plot renderer
 
-If you write your own code-output binder (instead of
-`ptr_register_code()`), call:
+If you also own the plot renderer (Plotly, ggiraph, …), the same
+`ptr_gg_extra()` call updates `state$runtime()$code_text` *and*
+`state$runtime()$plot`. Read `state$runtime()` inside your renderer —
+the extras are already folded in:
 
 ```r
-ptr_extract_code(ptr_state$runtime(), extras = ptr_state$extras())
+output$custom_plot <- plotly::renderPlotly({
+  res <- state$runtime()
+  shiny::req(isTRUE(res$ok), res$plot)
+  plotly::ggplotly(res$plot)
+})
 ```
 
-That is exactly what `ptr_register_code()` passes internally.
+## Custom code pane
+
+If you write your own code-output binder, read from `state$runtime()`
+or call the accessor:
+
+```r
+output$my_code <- shiny::renderText({
+  state$runtime()$code_text %||% ""
+})
+
+# Or, outside reactive contexts:
+ptr_extract_code(state)
+```
+
+`ptr_extract_code(state)` already appends the captured extras when the
+runtime succeeded — no extra threading needed.

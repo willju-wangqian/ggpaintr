@@ -60,8 +60,8 @@ ptr_llm_topics <- function() {
 #' focused example instead of the entire manual.
 #'
 #' Each topic is derived from (and kept in sync with) either
-#' `README.Rmd` or one of the two vignettes
-#' (`ggpaintr-extensibility`, `ggpaintr-placeholder-registry`).
+#' `README.Rmd` or one of the post-rewrite vignettes
+#' (`ggpaintr-use-cases`, `ggpaintr-customization`).
 #'
 #' @param name Topic name. Must be one of [ptr_llm_topics()].
 #' @return A single character string.
@@ -166,10 +166,17 @@ ptr_llm_register <- function(chat, tool_name = "ggpaintr_docs") {
         paste0(
           "Which ggpaintr topic to fetch. ",
           "Pick based on the user's task: overview for the 3-level ",
-          "model; level1_ptr_app for a turn-key app; level2_* for ",
-          "embedding in the user's own Shiny app; level3_* for ",
-          "headless or custom renderPlot() use; custom_placeholder ",
-          "for widget types beyond var/text/num/expr/upload."
+          "model; formula_syntax for placeholder grammar and ",
+          "`shared = ...`; level1_ptr_app for a turn-key app ",
+          "(single plot or grid); level1_ptr_options for ",
+          "session-wide defaults; level2_embed for embedding in the ",
+          "user's own Shiny app via module or split paths; ",
+          "level2_custom_ids and level2_namespacing for id and ",
+          "multi-instance concerns; level2_ui_text for copy ",
+          "overrides; level3_custom_render for custom renderers reading ",
+          "state$runtime(); level3_gg_extra to round-trip host ",
+          "layers into the code pane; custom_placeholder for widget ",
+          "types beyond var/text/num/expr/upload."
         )
       )
     )

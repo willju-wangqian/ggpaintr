@@ -1,102 +1,111 @@
-# Level 2 — multiple ggpaintr instances in one session with `ns`
+# Level 2 — multiple ggpaintr instances and shared widgets
 
 Use when: more than one ggpaintr instance lives in the same Shiny
-session — two tabs, a side-by-side comparison, or a module instantiated
-several times. Without `ns`, their widget ids collide.
+session — two tabs, side-by-side comparison, multi-plot dashboard.
 
-## `ns` — what it is and where it goes
+There is **no `ns =` argument** on Level-2 helpers. Namespacing happens
+through the **module `id`** you pass to `ptr_module_ui()` /
+`ptr_module_server()` (or to the `id` argument of `ptr_controls_ui()` /
+`ptr_outputs_ui()` and the `moduleServer()` wrapping `ptr_server()`).
+Each `id` is its own namespace; widget ids in different modules never
+collide.
 
-`ns` is a function of shape `character -> character`. The default
-`shiny::NS(NULL)` is the identity (no prefix), reproducing pre-`ns`
-behavior. Pass `shiny::NS("my_prefix")` to prefix every widget id
-ggpaintr owns — top-level ids on `ptr_state$ids`, per-placeholder
-input ids, checkbox ids, and dynamic `var` output ids — with
-`"my_prefix-"`.
-
-The same `ns` must be threaded through three call sites per instance:
-
-- `ptr_input_ui(ns = ns)`
-- `ptr_output_ui(ns = ns)`
-- `ptr_server_state(..., ns = ns)` (or `ptr_server(..., ns = ns)`)
-
-The `ids =` argument is independent. Sharing the same `custom_ids`
-across instances is safe — `ns` is what disambiguates them.
-
-## Example — two tabs, disjoint ids
+## Disjoint embeds — different `id`s
 
 ```r
 library(shiny); library(ggpaintr)
 
-ns_a <- shiny::NS("plot_a")
-ns_b <- shiny::NS("plot_b")
-
 ui <- fluidPage(
   tabsetPanel(
-    tabPanel("A",
-      fluidRow(
-        column(4, ptr_input_ui(ns = ns_a)),
-        column(8, ptr_output_ui(ns = ns_a))
-      )),
-    tabPanel("B",
-      fluidRow(
-        column(4, ptr_input_ui(ns = ns_b)),
-        column(8, ptr_output_ui(ns = ns_b))
-      ))
+    tabPanel("A", ptr_module_ui(
+      "plot_a",
+      "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+    )),
+    tabPanel("B", ptr_module_ui(
+      "plot_b",
+      "ggplot(iris, aes(x = var, y = var)) + geom_point()"
+    ))
   )
 )
 
 server <- function(input, output, session) {
-  ptr_server(
-    input, output, session,
-    formula = "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
-    ns      = ns_a
-  )
-  ptr_server(
-    input, output, session,
-    formula = "ggplot(data = iris, aes(x = var, y = var)) + geom_point()",
-    ns      = ns_b
-  )
+  ptr_module_server("plot_a",
+    "ggplot(mtcars, aes(x = var, y = var)) + geom_point()")
+  ptr_module_server("plot_b",
+    "ggplot(iris, aes(x = var, y = var)) + geom_point()")
 }
 
 shinyApp(ui, server)
 ```
 
-## Pattern — inside `shiny::moduleServer()`
+Two formulas, two ids, two independent ggpaintr widgets sets. Nothing
+else to wire — the `id` does the namespacing.
 
-Pass `session$ns`. It is a namespace function identical in shape to
-`shiny::NS(id)` for the enclosing module id, so the UI (built with
-`shiny::NS(id)`) and the server agree. ggpaintr applies `ns` exactly
-once to raw ids, so no double-prefixing occurs.
+## Sharing widgets across instances — `ptr_shared_ui()` + `ptr_shared_server()`
+
+When two or more embeds need to **share** a placeholder value (one X
+column drives both plots, for example), use the `shared = "<key>"`
+annotation on the placeholder occurrences and render one top-level
+shared panel:
 
 ```r
-tab_ui <- function(id) {
-  ns <- shiny::NS(id)
-  shiny::tagList(ptr_input_ui(ns = ns), ptr_output_ui(ns = ns))
+library(shiny); library(ggpaintr)
+
+formula_a <- "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Length,
+                                fill = Species)) + geom_boxplot()"
+formula_b <- "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Width,
+                                fill = Species)) + geom_violin()"
+formulas  <- list(formula_a, formula_b)
+
+ui <- fluidPage(
+  ptr_shared_ui(formulas),                           # one shared panel
+  fluidRow(
+    column(6, ptr_module_ui("plot_a", formula_a)),
+    column(6, ptr_module_ui("plot_b", formula_b))
+  )
+)
+
+server <- function(input, output, session) {
+  shared <- ptr_shared_server(formulas)              # one shared server
+  ptr_module_server("plot_a", formula_a, shared_state = shared)
+  ptr_module_server("plot_b", formula_b, shared_state = shared)
 }
 
-tab_server <- function(id, formula) {
-  shiny::moduleServer(id, function(input, output, session) {
-    ptr_server(input, output, session, formula = formula, ns = session$ns)
-  })
-}
+shinyApp(ui, server)
 ```
 
-## Notes
+What happens:
 
-- **Failure mode:** reusing the same `ns` (or leaving it default) on
-  two instances in one session — the resolved ids collide and Shiny
-  silently keeps only the last `output[[id]] <-` assignment. One
-  instance appears empty. No error is raised.
-- **Sanity check** in the console after wiring:
+- `ptr_shared_ui(formulas)` scans every formula for `shared = "..."`
+  annotations and emits **one** wellPanel with one widget per distinct
+  key. A "Draw all" button appears when `length(formulas) >= 2`.
+- `ptr_shared_server(formulas)` builds the matching reactives, runs the
+  shared-consumer resolution, and returns a `ptr_shared_state`.
+- `ptr_module_server(..., shared_state = shared)` threads that state
+  into each module, so the per-module pickers read from the shared
+  inputs instead of rendering their own copy.
 
-  ```r
-  state_a <- ptr_server_state(formula_a, ns = ns_a)
-  state_b <- ptr_server_state(formula_b, ns = ns_b)
-  length(intersect(unlist(state_a$ids), unlist(state_b$ids)))  # expect 0
-  ```
-- **Do not pre-namespace ids yourself.** Pass raw ids (from
-  `ptr_build_ids()`) plus `ns =`; ggpaintr applies `ns` once
-  internally. Passing already-prefixed ids together with a non-identity
-  `ns` double-prefixes.
-- `ns` is accepted by: `ptr_server_state()`, `ptr_input_ui()`,
-  `ptr_output_ui()`, `ptr_server()`, `ptr_app()`, `ptr_app_bslib()`.
+`shared_ui = list(<key> = function(id) <tag>)` on `ptr_shared_ui()` lets
+you replace the auto-built widget for a specific key (e.g. swap the
+auto-built column picker for a `sliderInput`).
+
+## When to skip `ptr_shared_*()`
+
+`ptr_shared_ui()` errors if no formula declares a `shared = "..."`
+annotation. For instances that don't need to share anything, use plain
+`ptr_module_ui()` / `ptr_module_server()` with distinct `id`s — no
+shared helpers required.
+
+## Failure modes
+
+- **Same `id` on two instances.** Shiny silently keeps only the last
+  `output[[id]] <-` assignment; one instance appears empty, no error.
+  Always give each `ptr_module_ui()` / `ptr_module_server()` a distinct
+  literal `id`.
+- **`shared = "..."` declared but `shared_state` not threaded.**
+  `ptr_module_server()` aborts with a clear "build a `ptr_shared_state`
+  with `ptr_shared_server()`" message.
+- **`shared_ui` builder produces the wrong widget kind.** The runtime
+  validates that the resolved value is compatible with each downstream
+  placeholder type — e.g. a slider feeding a `var` consumer will
+  surface as an inline validation error.
