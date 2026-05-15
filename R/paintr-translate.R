@@ -400,6 +400,75 @@ extract_shared <- function(expr, keyword) {
   shared_val
 }
 
+# Detect formulas that pipe a `ggplot()` object into a subsequent call, e.g.
+# `mtcars |> ggplot(aes(...)) |> geom_point()`. This evaluates to
+# `geom_point(<ggplot>)` (the geom receives the plot as its first arg),
+# which fails with "mapping must be created by aes()". We don't rewrite —
+# just surface a diagnostic so the user knows to use `+` for layers. Returns
+# a character vector of warning messages (one per detected misuse).
+detect_pipe_layer_misuse <- function(root) {
+  if (!is_ptr_root(root)) return(character())
+  warnings <- character()
+  for (layer in root$layers) {
+    if (!is_ptr_layer(layer)) next
+    warnings <- c(warnings, pipe_layer_warnings_for_layer(layer))
+  }
+  unique(warnings)
+}
+
+pipe_layer_warnings_for_layer <- function(layer) {
+  out <- character()
+  da <- layer$data_arg
+  if (!is_ptr_pipeline(da)) return(out)
+  stages <- da$stages
+  ggplot_idx <- which(vapply(stages, is_ggplot_call_node, logical(1)))
+  if (length(ggplot_idx) == 0L) return(out)
+  trailing <- stages[seq_len(length(stages))[-seq_len(max(ggplot_idx))]]
+  for (s in trailing) {
+    nm <- pipe_stage_display_name(s)
+    if (!is.null(nm)) out <- c(out, pipe_layer_misuse_msg(nm))
+  }
+  if (isTRUE(layer_is_piped(layer))) {
+    nm <- layer$name %||% "<layer>"
+    out <- c(out, pipe_layer_misuse_msg(nm))
+  }
+  out
+}
+
+is_ggplot_call_node <- function(node) {
+  if (!is_ptr_call(node)) return(FALSE)
+  head <- node$fun
+  if (is.symbol(head)) return(identical(as.character(head), "ggplot"))
+  if (is.call(head) && length(head) >= 3L &&
+      is.symbol(head[[1L]]) &&
+      as.character(head[[1L]]) %in% c("::", ":::") &&
+      is.symbol(head[[3L]])) {
+    return(as.character(head[[3L]]) == "ggplot")
+  }
+  FALSE
+}
+
+pipe_stage_display_name <- function(node) {
+  if (!is_ptr_call(node)) return(NULL)
+  head <- node$fun
+  if (is.symbol(head)) return(as.character(head))
+  if (is.call(head) && length(head) >= 3L &&
+      is.symbol(head[[1L]]) &&
+      as.character(head[[1L]]) %in% c("::", ":::") &&
+      is.symbol(head[[3L]])) {
+    return(paste0(as.character(head[[2L]]), "::", as.character(head[[3L]])))
+  }
+  NULL
+}
+
+pipe_layer_misuse_msg <- function(layer_name) {
+  paste0(
+    "It looks like `|>` is being used to add the `", layer_name,
+    "()` layer to a `ggplot()`. ggplot layers must be added with `+`, ",
+    "not `|>` -- try `... + ", layer_name, "()` instead."
+  )
+}
+
 build_placeholder_node <- function(expr, ph) {
   role <- ph$entry$role
   switch(

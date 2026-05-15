@@ -112,6 +112,7 @@ ptr_init_state <- function(formula,
   safe_to_remove <- validate_safe_to_remove(safe_to_remove)
 
   tree <- ptr_translate(formula, expr_check = expr_check)
+  pipe_layer_warnings <- detect_pipe_layer_misuse(tree)
 
   shared_bindings <- ptr_validate_shared_bindings(
     shared, tree = tree, plots = plots,
@@ -195,6 +196,9 @@ ptr_init_state <- function(formula,
     safe_to_remove = safe_to_remove,
     raw_ui_text = ui_text,
     effective_ui_text = ui_text,
+    # Static diagnostics from `ptr_translate()` — surfaced in `#ptr_error`
+    # alongside runtime errors. Set once at init; never mutates.
+    pipe_layer_warnings = pipe_layer_warnings,
     checkbox_defaults = resolved_cd,
     shared_bindings = shared_bindings,
     shared_resolutions = if (is.list(shared_resolutions)) shared_resolutions else list(),
@@ -1227,18 +1231,23 @@ ptr_register_error <- function(output, state) {
     # resolver) aborted, the user should see THAT message, not the
     # downstream "object '<name>' not found" that bubbles up at eval time.
     resolve_errs <- unname(unlist(state$resolve_errors()))
+    pipe_warns <- state$pipe_layer_warnings %||% character()
     # A successful draw clears the error pane. The unresolvable-shared-picker
     # advisory still surfaces inline on the shared widget itself
     # (`ptr_bind_shared_consumer_uis`), so dropping it here just suppresses
     # the stale stack-up in `#ptr_error` after the plot has rendered.
-    if (!is.null(res) && isTRUE(res$ok) && length(resolve_errs) == 0L) {
+    # Static formula diagnostics (`pipe_layer_warnings`) persist even after a
+    # successful draw -- the formula didn't change.
+    if (!is.null(res) && isTRUE(res$ok) && length(resolve_errs) == 0L &&
+        length(pipe_warns) == 0L) {
       return(NULL)
     }
     shared_errs <- state$shared_resolution_errors()
     runtime_msg <- if (!is.null(res) && !isTRUE(res$ok)) {
       cli::ansi_strip(res$error %||% "")
     } else NULL
-    parts <- c(resolve_errs, shared_errs, if (!is.null(runtime_msg)) runtime_msg)
+    parts <- c(pipe_warns, resolve_errs, shared_errs,
+               if (!is.null(runtime_msg)) runtime_msg)
     if (length(parts) == 0L) return(NULL)
     ptr_error_ui(paste(parts, collapse = "\n"))
   })
