@@ -353,6 +353,130 @@
   </ul>
 </div>
 
+<div class="card">
+  <h3>
+    <span class="pill open">open</span>
+    <span class="pill api">API</span>
+    5. Custom-layout wrappers need a documented output-id contract and an exported assets helper
+  </h3>
+
+  <p><em>Surfaced by:</em> grilling session 2026-05-15 on the
+  &quot;<code>ptr_app_bslib()</code> as wrapper demo&quot; reframing. To
+  reposition <code>ptr_app_bslib()</code> as a demonstration that wrappers are
+  easy to write with the <strong>public</strong> API, the function will be
+  rewritten on top of <code>ptr_controls_ui()</code> + <code>ptr_outputs_ui()</code>
+  + <code>ptr_server()</code> (decision: Q7 option A, single-card output
+  layout). That rewrite uncovered two real gaps that limit any wrapper author
+  who wants a layout finer-grained than <code>ptr_outputs_ui()</code>'s
+  bundled arrangement.</p>
+
+  <p><em>Gap 1 — output ids are an implicit contract.</em>
+  <code>ptr_register_plot()</code> / <code>_code()</code> / <code>_error()</code>
+  (and <code>ptr_server()</code> which calls them) write to namespaced output
+  slots with fixed ids <code>&quot;ptr_plot&quot;</code> /
+  <code>&quot;ptr_code&quot;</code> / <code>&quot;ptr_error&quot;</code>
+  (verified <code>R/paintr-server.R:1225,1242,1294</code>). Nothing in the
+  exported documentation tells a wrapper author &quot;place a
+  <code>plotOutput(ns(&quot;ptr_plot&quot;))</code> in your layout and
+  <code>ptr_server()</code> will fill it.&quot; The contract is only
+  discoverable by reading <code>ptr_outputs_panel()</code> source.</p>
+
+  <p><em>Gap 2 — <code>ptr_assets()</code> is unexported.</em>
+  <code>ptr_outputs_ui()</code> wraps its contents in
+  <code>&lt;div class=&quot;ptr-app&quot;&gt;</code> and injects
+  <code>ptr_assets(css = ...)</code> so the bundled stylesheet attaches. A
+  wrapper author who hand-places the three outputs in their own layout (e.g.
+  plot in one <code>bslib::card</code>, code in another) needs that wrapper
+  and asset linkage themselves. Currently they would have to call
+  <code>ggpaintr:::ptr_assets()</code> and hand-write
+  <code>&lt;div class=&quot;ptr-app&quot;&gt;</code> — both undocumented, both
+  unexported. So splitting plot and code into separate cards on the
+  <em>public</em> API is currently impossible without <code>ggpaintr:::</code>
+  namespacing.</p>
+
+  <p><em>Gap 3 — single-formula <code>var(shared = &quot;...&quot;)</code>
+  coordination has no public wrapper path.</em> When one formula declares
+  the same <code>shared</code> key on multiple placeholders (the canonical
+  <code>ptr_app()</code> shared widget case), <code>ptr_app()</code> uses
+  the internal <code>ptr_make_app_server</code> helper to manually build the
+  shared reactives and call <code>ptr_server(..., auto_bind_shared = TRUE)</code>.
+  <code>ptr_module_server()</code> &mdash; the public wrapper-friendly path
+  &mdash; aborts with a clear pre-flight error unless the caller supplies a
+  pre-built <code>ptr_shared_state</code>. <code>ptr_shared_ui()</code> /
+  <code>ptr_shared_server()</code> exist for the multi-formula case but
+  require explicit <code>shared_ui =</code> builders and at least one
+  declared shared key &mdash; they do not act as a no-op for a single
+  formula. Discovered <em>after</em> the bslib demo rewrite landed; the
+  shipping <code>ptr_app_bslib()</code> documents the limitation.</p>
+
+  <p><em>Why this is bigger than the bslib demo:</em> any L2 embedder who
+  wants the bundled CSS but a custom layout hits gap 2; any L2 embedder who
+  wants to place plot / code / error individually hits gap 1; any wrapper
+  that wants <code>ptr_app()</code>-style single-formula shared coordination
+  hits gap 3. All three silently push users toward <code>:::</code> calls in
+  production code.</p>
+
+  <p><em>Options:</em></p>
+
+  <table>
+    <thead>
+      <tr><th>Option</th><th>Action</th><th>Cost / risk</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>A — Export <code>ptr_assets()</code>, document the output-id contract</td>
+        <td>Add <code>@export</code> to <code>ptr_assets()</code>. Add a
+        &quot;Output ids&quot; section to <code>?ptr_server</code> /
+        <code>?ptr_register_plot</code> documenting the three fixed ids and
+        the namespace convention. No new functions.</td>
+        <td>Cheapest. One un-export reversed, one documentation block added.
+        Output-id contract becomes a public commitment — renaming the slots
+        later becomes a breaking change.</td>
+      </tr>
+      <tr>
+        <td>B — Export <code>ptr_assets()</code>; add named output primitives</td>
+        <td>Add <code>ptr_plot_output(id = NULL)</code> /
+        <code>ptr_code_output(id = NULL)</code> /
+        <code>ptr_error_output(id = NULL)</code> as thin exported wrappers
+        around <code>shiny::plotOutput()</code> etc. with the correct ids
+        baked in. Wrapper authors call those instead of memorising the id
+        strings.</td>
+        <td>Three new exports + an export. Larger surface; hides the id
+        contract behind helpers (which is also a long-term commitment, just
+        a friendlier one).</td>
+      </tr>
+      <tr>
+        <td>C — Status quo, weaken the wrapper-demo pitch</td>
+        <td>Leave the API as-is. Customization vignette says &quot;you can
+        write a wrapper as long as you accept the bundled output layout from
+        <code>ptr_outputs_ui()</code>; finer-grained layouts need internal
+        helpers and are on the roadmap.&quot;</td>
+        <td>No code change. The wrapper-demo pitch is honest but partial;
+        future users wanting split layouts have no public path.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p><em>Recommendation:</em> Defer to a follow-up cycle and ship the bslib
+  demo with option C framing in the customization vignette. The current
+  reframing work doesn't require the API change — the simpler single-card
+  layout (Q7 option A) is genuinely a better demo. When the API is revisited
+  (api-audit cycle), option <strong>A</strong> is the lowest-cost durable
+  fix; option B is only worth it if a second motivating use case appears.</p>
+
+  <p><em>Touchpoints if A is later approved:</em></p>
+  <ul>
+    <li><code>R/paintr-assets.R</code> (or wherever <code>ptr_assets</code>
+        lives) — add <code>@export</code> + roxygen docs.</li>
+    <li><code>R/paintr-server.R</code> — extend <code>@section</code> on
+        <code>ptr_register_*</code> / <code>ptr_server</code> documenting the
+        three fixed output ids.</li>
+    <li>Regenerate <code>NAMESPACE</code> + <code>man/</code>.</li>
+    <li><code>vignettes/ggpaintr-customization.Rmd</code> — revise the
+        wrapper demo section to show a split-card layout as a second example.</li>
+  </ul>
+</div>
+
 <h2>Resolved (then move to ADR / api-audit)</h2>
 
 <p class="meta">None yet.</p>

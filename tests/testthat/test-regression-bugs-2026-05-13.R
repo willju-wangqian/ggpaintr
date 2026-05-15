@@ -184,26 +184,12 @@ test_that("BUG-A2: ui_text$defaults$num overrides reach the shared num widget", 
                info = "alpha-specific built-in help must not bleed into shared widget")
 })
 
-test_that("BUG-B1: explicit ptr_app_bslib(title=) wins over ui_text$shell$title$label", {
-  skip_if_not_installed("bslib")
-  formula <- "ggplot(mtcars) + geom_point()"
-  ut <- ptr_ui_text(list(shell = list(title = list(label = "From ui_text"))))
-  app <- ptr_app_bslib(formula, ui_text = ut,
-                       title = "From title arg",
-                       expr_check = FALSE)
-  rendered <- app_ui_html(app)
-  expect_true(grepl("From title arg", rendered, fixed = TRUE),
-              info = "explicit title= must appear in rendered bslib UI")
-  expect_false(grepl("From ui_text", rendered, fixed = TRUE),
-               info = "ui_text$shell$title$label must not override explicit title=")
-})
-
-test_that("BUG-B1: ptr_app_bslib falls back to ui_text$shell$title when title= absent", {
+test_that("BUG-B1: ptr_app_bslib reads its title from ui_text$shell$title$label", {
   skip_if_not_installed("bslib")
   formula <- "ggplot(mtcars) + geom_point()"
   ut <- ptr_ui_text(list(shell = list(title = list(label = "From ui_text"))))
   app <- ptr_app_bslib(formula, ui_text = ut, expr_check = FALSE)
   rendered <- app_ui_html(app)
   expect_true(grepl("From ui_text", rendered, fixed = TRUE),
-              info = "absent title= falls back to ui_text$shell$title$label")
+              info = "ui_text$shell$title$label must reach the rendered bslib navbar brand")
 })

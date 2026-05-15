@@ -9,13 +9,16 @@ reference:
     desc: Turn a ggplot-style formula into a ready-to-run Shiny app, and configure session-wide defaults and data prep.
     contents:
       - ptr_app
-      - ptr_app_bslib
       - ptr_app_grid
       - ptr_shared_ui
       - ptr_shared_server
       - ptr_options
       - ptr_normalize_column_names
       - ptr_ui_text
+  - title: Wrapper examples
+    desc: Worked examples of writing custom wrappers on top of the public ggpaintr primitives. See `vignette("ggpaintr-customization")` § "Writing your own wrapper".
+    contents:
+      - ptr_app_bslib
   - title: Shiny embedders
     desc: Drop ggpaintr's generated controls and outputs into a larger Shiny app while keeping the package-owned runtime.
     contents:

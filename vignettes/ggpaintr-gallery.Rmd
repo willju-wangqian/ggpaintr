@@ -640,7 +640,7 @@ ptr_app(
 
 This gallery is the recipe book. The other vignettes answer different user questions:
 
-- **`vignette("ggpaintr-use-cases")`** — the three-level ladder. L1 all-in-one (`ptr_app()` / `ptr_app_bslib()` / `ptr_app_grid()`); L2 embed in your own Shiny app (`ptr_controls_ui` / `ptr_outputs_ui` / `ptr_server` and the module pair `ptr_module_ui` / `ptr_module_server`); L3 custom rendering via the extract accessors (`ptr_extract_plot()` / `_code()` / `_error()` and `ptr_gg_extra()`). The plotly / ggiraph examples in §5 above are the canonical L3 worked examples — use-cases L3 cross-links back here.
+- **`vignette("ggpaintr-use-cases")`** — the three-level ladder. L1 all-in-one (`ptr_app()` / `ptr_app_grid()`); L2 embed in your own Shiny app (`ptr_controls_ui` / `ptr_outputs_ui` / `ptr_server` and the module pair `ptr_module_ui` / `ptr_module_server`); L3 custom rendering via the extract accessors (`ptr_extract_plot()` / `_code()` / `_error()` and `ptr_gg_extra()`). The plotly / ggiraph examples in §5 above are the canonical L3 worked examples — use-cases L3 cross-links back here. For a custom page shell or theme, see `vignette("ggpaintr-customization")` § "Writing your own wrapper".
 - **`vignette("ggpaintr-customization")`** — `ui_text` overrides, the three custom-placeholder constructors (full hook contract and worked examples — the `range` / `colvars` / `date` constructors used throughout this gallery live there), and the shared-placeholder pattern for one widget driving multiple plots.
 - **`vignette("ggpaintr-safety")`** — `expr_check`, the denylist + AST-walker safety model, upload trust boundary, public-deployment checklist.
 - **`vignette("ggpaintr-llm")`** — wiring ggpaintr up as an LLM-callable tool with ellmer.

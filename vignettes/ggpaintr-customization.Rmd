@@ -67,7 +67,7 @@ custom_text <- ptr_ui_text(list(
 ))
 
 ptr_app(
-  "ggplot(iris, aes(var, var, color = var)) +
+  "ggplot(iris, aes(x = var, y = var, color = var)) +
      geom_point() +
      labs(title = text)",
   ui_text = custom_text
@@ -98,7 +98,7 @@ Every region of the default shell carries a stable class you can target from you
 
 ### Surface 2 — injecting your own stylesheet with `css =`
 
-Every public entry point (`ptr_app()`, `ptr_app_bslib()`, `ptr_app_grid()`, `ptr_module_ui()`, `ptr_controls_ui()`, `ptr_outputs_ui()`) accepts a `css =` argument: a character vector of paths to `.css` files. Each file is registered as a static resource and linked **after** the bundled stylesheet, so your rules win at equal specificity. Relative `url(...)` references resolve against each file's own directory, so you can ship images next to the stylesheet.
+Every public entry point (`ptr_app()`, `ptr_app_grid()`, `ptr_module_ui()`, `ptr_controls_ui()`, `ptr_outputs_ui()`) accepts a `css =` argument: a character vector of paths to `.css` files. Each file is registered as a static resource and linked **after** the bundled stylesheet, so your rules win at equal specificity. Relative `url(...)` references resolve against each file's own directory, so you can ship images next to the stylesheet.
 
 ```{r css-example, eval = FALSE}
 ptr_app(
@@ -117,24 +117,6 @@ A minimal `my-theme.css` that recolours the title bar and tightens the card padd
 
 The `css =` argument validates each path: missing files and non-`.css` extensions abort at construction time with a clear message — typos surface before first browser load.
 
-### Surface 3 — Bootstrap theming via `ptr_app_bslib()`
-
-For app-wide colour / typography / spacing changes, prefer `ptr_app_bslib(theme = bslib::bs_theme(...))` over hand-written CSS. The default is `bslib::bs_theme(version = 5, bootswatch = "flatly")`; pass any other `bs_theme()` result to override.
-
-```{r bslib-theme, eval = FALSE}
-ptr_app_bslib(
-  "ggplot(mtcars, aes(var, var)) + geom_point()",
-  theme = bslib::bs_theme(
-    version    = 5,
-    bootswatch = "minty",
-    primary    = "#264653",
-    base_font  = bslib::font_google("Inter")
-  )
-)
-```
-
-The bslib variables drive the Bootstrap chrome (buttons, tabs, sidebars). The `.ptr-*` classes still respond to `css =` on top — combine the two when a bootswatch is *almost* what you want.
-
 ### What is **not** stable surface
 
 The `.ptr-*` table above is the committed contract. Outside that:
@@ -142,6 +124,88 @@ The `.ptr-*` table above is the committed contract. Outside that:
 - Internal markup details — element order, nesting depth, descendant tag names — may change between releases even when class names stay. Style by class, not by structural selectors like `.ptr-card > div:nth-child(2)`.
 - Classes emitted by upstream Shiny, shinyWidgets, and bslib (`.shiny-input-container`, `.selectize-control`, `.form-control`, `.btn-primary`, …) belong to those packages, not ggpaintr — their stability is governed there.
 - Anything matching `^ptr_` is an **id** (Shiny input/output id), not a class; styling against Shiny ids is allowed but brittle, since ids are namespaced by host modules.
+
+## Writing your own wrapper
+
+When CSS alone is not enough — you want a different page shell, a theme system like `bslib`, or a layout that does not map onto `ptr_app()`'s defaults — write a thin wrapper around the public ggpaintr primitives. The three pieces a single-formula wrapper composes are:
+
+- `ptr_controls_ui(id, formula, ...)` — the layer picker, per-layer parameter panels, and the "Update plot" button, packaged in a `<div class="ptr-app">` so the bundled stylesheet attaches.
+- `ptr_outputs_ui(id)` — the plot pane, inline error, and generated-code reveal, same wrapper.
+- `ptr_module_server(id, formula, ...)` — the server side. Forwards `ui_text` / `checkbox_defaults` / `expr_check` / `safe_to_remove` / `envir` to [ptr_init_state()] and wires all the reactivity, including shared widgets declared with `var(shared = "...")` inside the same formula.
+
+The package ships one worked example as an exported function, `ptr_app_bslib()`. It is not a recommended primary entry point — `ptr_app()` and `ptr_app_grid()` are. Its purpose is to *demonstrate* the wrapper pattern. The entire source is short enough to read in one screen:
+
+```{r ptr-app-bslib-source, eval = FALSE}
+ptr_app_bslib <- function(formula,
+                          envir = parent.frame(),
+                          ui_text = NULL,
+                          checkbox_defaults = NULL,
+                          expr_check = TRUE,
+                          safe_to_remove = character(),
+                          theme = NULL) {
+  if (!requireNamespace("bslib", quietly = TRUE)) {
+    rlang::abort("Package 'bslib' is required for ptr_app_bslib().")
+  }
+  if (is.null(theme)) {
+    theme <- bslib::bs_theme(version = 5, bootswatch = "flatly")
+  }
+  id <- "ptr"
+  title <- ptr_resolve_ui_text("title", ui_text = ui_text)$label %||% "ggpaintr"
+
+  ui <- bslib::page_sidebar(
+    title = title,
+    theme = theme,
+    sidebar = bslib::sidebar(
+      title = "Controls",
+      ptr_controls_ui(id = id, formula = formula, ui_text = ui_text,
+                      checkbox_defaults = checkbox_defaults,
+                      expr_check = expr_check)
+    ),
+    bslib::card(full_screen = TRUE, ptr_outputs_ui(id = id))
+  )
+
+  server <- function(input, output, session) {
+    ptr_module_server(id, formula = formula, envir = envir,
+                      ui_text = ui_text,
+                      checkbox_defaults = checkbox_defaults,
+                      expr_check = expr_check,
+                      safe_to_remove = safe_to_remove)
+  }
+
+  shiny::shinyApp(ui = ui, server = server)
+}
+```
+
+Everything ggpaintr-specific in that source is on the public API. The only non-ggpaintr pieces are the `bslib::page_sidebar()` shell and the `theme =` passthrough to `bslib::bs_theme()`; those belong to `bslib`, not to ggpaintr. A wrapper is free to expose any downstream-library args alongside the ggpaintr ones it forwards.
+
+### Wrappers compose
+
+Wrappers built this way compose freely. A "dark mode" variant is one line:
+
+```{r ptr-app-dark, eval = FALSE}
+ptr_app_dark <- function(formula, ...) {
+  ptr_app_bslib(
+    formula,
+    theme = bslib::bs_theme(version = 5, bootswatch = "darkly"),
+    ...
+  )
+}
+```
+
+The same template extends to other shells (`bslib::page_navbar()`, a custom `shiny::fluidPage()` with bespoke chrome, a `flexdashboard`-style page) — swap the UI half and leave the `ptr_module_server()` half alone.
+
+### Public-API limits
+
+Two cases the wrapper pattern above does **not** cover on the public API today:
+
+- **Split output layouts.** `ptr_outputs_ui()` bundles the plot, inline error, and generated-code panes as a single block. Layouts that need to place the plot and code in separate containers (for example, two side-by-side `bslib::card()`s) are not expressible without reaching into unexported helpers.
+- **Single-formula `var(shared = "...")` coordination.** When one formula declares the same `shared` key on multiple placeholders, `ptr_app()` auto-builds a combined widget at the top of the sidebar. The wiring for this lives in an internal helper; `ptr_module_server()` (the public path) aborts unless you pass a pre-built `ptr_shared_state`. The recommended path for this case is `ptr_app()` itself, or `ptr_app_grid()` with explicit `shared_ui =` builders.
+
+Both gaps are tracked for a future API cycle.
+
+### Background
+
+`ptr_app_bslib()` was originally documented as a co-equal entry point alongside `ptr_app()` and `ptr_app_grid()`. Repositioning it as a demonstration wrapper makes the function's purpose honest — the value it carries is not "the official bslib variant of ggpaintr" but "a worked example of how short a wrapper can be when the public API does the heavy lifting." Users who want a `bslib` theme can still call `ptr_app_bslib()` directly; users who want a different theme, layout, or shell should write their own wrapper using the same recipe.
 
 ## Adding a new widget type
 

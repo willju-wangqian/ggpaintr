@@ -1,17 +1,30 @@
-#' Build a ggpaintr Shiny App with a bslib Theme
+#' Bslib-Themed App: A Demonstration Wrapper
 #'
-#' A themed variant of `ptr_app()` that lays out the generated controls and
-#' outputs inside a [bslib::page_sidebar()] shell with [bslib::card()]
-#' containers. Builds per-layer panels via the typed-AST UI dispatch and
-#' wires the new `ptr_server` end-to-end.
+#' A small wrapper that composes the public ggpaintr primitives
+#' ([ptr_controls_ui()], [ptr_outputs_ui()], [ptr_module_server()]) inside a
+#' [bslib::page_sidebar()] shell. Exported so users who want a quick
+#' `bslib`-themed app can call it directly, but its primary purpose is to
+#' illustrate the wrapper pattern documented in
+#' `vignette("ggpaintr-customization")` § "Writing your own wrapper" — the
+#' entire source is short enough to copy and adapt for any other layout or
+#' theme.
 #'
-#' Requires the `bslib` package. Install it with `install.packages("bslib")`.
+#' For the recommended primary entry points, see [ptr_app()] and
+#' [ptr_app_grid()]. Requires the `bslib` package
+#' (`install.packages("bslib")`).
+#'
+#' Single-formula `var(shared = "...")` coordination is not supported on this
+#' wrapper — the auto-built shared widgets `ptr_app()` provides require an
+#' internal helper that is not part of the public API today. Use [ptr_app()]
+#' for that case, or [ptr_app_grid()] (with explicit `shared_ui =`
+#' builders) for multi-formula shared coordination.
 #'
 #' @param formula A single formula string using `ggpaintr` placeholders.
 #' @param envir Environment used to resolve local data objects when building
 #'   the app.
 #' @param ui_text Optional named list of copy overrides for UI labels, helper
-#'   text, and placeholders.
+#'   text, and placeholders. The app title is read from
+#'   `ui_text$shell$title$label`; defaults to `"ggpaintr"`.
 #' @param checkbox_defaults Optional named list of initial checked states for
 #'   layer checkboxes.
 #' @param expr_check Controls `expr` placeholder validation.
@@ -19,19 +32,13 @@
 #'   zero-argument calls should be dropped after placeholder substitution
 #'   leaves them empty. Defaults to `character()`.
 #' @param theme A `bslib` theme object. Defaults to a Bootstrap 5 Flatly
-#'   bootswatch. Pass any [bslib::bs_theme()] result to customize.
-#' @param title App title shown in the page header. When `NULL`
-#'   (the default), the title is taken from `ui_text$shell$title$label`
-#'   if supplied, otherwise from a hardcoded fallback.
+#'   bootswatch. Pass any [bslib::bs_theme()] result to customize. This is a
+#'   `bslib` passthrough and is not part of the ggpaintr public surface the
+#'   wrapper demonstrates — wrappers are free to expose downstream-library
+#'   args like this in addition to whatever ggpaintr primitives they compose.
 #'
 #' For the formula grammar (placeholder keywords, shared annotation,
 #' empty-call cleanup), see [ptr_app()].
-#'
-#' @section Precedence:
-#' If both `title` and `ui_text$shell$title$label` are supplied, the
-#' explicit `title` argument wins. Pass `title = NULL` (or omit it) to
-#' have the bslib navbar brand follow the same `ui_text` overrides the
-#' non-bslib `ptr_app()` shell uses.
 #'
 #' @return A `shiny.appobj`.
 #' @examples
@@ -47,119 +54,48 @@ ptr_app_bslib <- function(formula,
                           checkbox_defaults = NULL,
                           expr_check = TRUE,
                           safe_to_remove = character(),
-                          theme = NULL,
-                          title = NULL) {
+                          theme = NULL) {
   if (!requireNamespace("bslib", quietly = TRUE)) {
     rlang::abort(
       "Package 'bslib' is required for ptr_app_bslib(). Install it with install.packages(\"bslib\")."
     )
   }
-  ns <- shiny::NS(NULL)
-  safe_to_remove <- validate_safe_to_remove(safe_to_remove)
-
   if (is.null(theme)) {
     theme <- bslib::bs_theme(version = 5, bootswatch = "flatly")
   }
-  # Precedence: an explicit `title =` wins (this arg only exists on the
-  # bslib path -- users who pass it have explicitly asked for that string
-  # in the navbar brand). When absent, fall through to
-  # `ui_text$shell$title$label` (the same source the non-bslib path
-  # respects), then to a hardcoded default. Documented under
-  # `@section Precedence` in the man page.
-  if (is.null(title)) {
-    title <- ui_text$shell$title$label %||% "ggpaintr"
-  }
-
-  tree <- ptr_translate(formula, expr_check = expr_check)
-  shell_copy <- layer_panel_default_shell_copy(ui_text)
-  layer_names <- vapply(tree$layers, function(l) l$name, character(1))
-
-  panels <- lapply(tree$layers, function(layer) {
-    build_ui_for(layer,
-                 ui_text = ui_text,
-                 ns_fn = ns,
-                 checkbox_defaults = checkbox_defaults,
-                 shell_copy = shell_copy)
-  })
-  picker <- shinyWidgets::pickerInput(
-    inputId = ns("ptr_layer_select"),
-    label = shell_copy$layer_picker_label %||% "Layer",
-    choices = layer_names,
-    selected = if (length(layer_names)) layer_names[1L] else NULL
-  )
-  hidden_tabset <- do.call(
-    shiny::tabsetPanel,
-    c(list(id = ns("ptr_layer_tabset"), type = "hidden"), panels)
-  )
-
-  # Shared widgets (`var(shared = ...)`, `num(shared = ...)`, ...) live once
-  # at the top of the sidebar, above the per-layer picker -- same contract as
-  # `ptr_app()`'s shared section. Consumer placeholders emit a `uiOutput`
-  # container here; their picker is rendered server-side by
-  # `ptr_bind_shared_consumer_uis()` (wired via `ptr_make_app_server()`).
-  shared_entries <- collect_shared_placeholders(tree)
-  raw_widgets <- lapply(shared_entries, function(e) {
-    build_ui_for(e$node, ui_text = ui_text, ns_fn = ns,
-                 label_override = e$label_override)
-  })
-  keep <- !vapply(raw_widgets, is.null, logical(1))
-  shared_widgets <- wrap_shared_widgets_with_stage_blocks(
-    shared_entries[keep], raw_widgets[keep],
-    collect_orphan_shared_stages(tree), ns
-  )
-  shared_section <- if (length(shared_widgets) > 0L) {
-    shiny::tagList(
-      shiny::tags$p(class = "ptr-shared-panel__title fw-bold mb-1",
-                    "Shared controls"),
-      shiny::tags$p(class = "ptr-shared-panel__hint text-muted small mb-2",
-                    "One value here is reused everywhere it is referenced."),
-      do.call(shiny::tagList, shared_widgets),
-      shiny::tags$hr()
-    )
-  } else {
-    NULL
-  }
-
-  sidebar <- do.call(bslib::sidebar, c(
-    list(title = "Controls", width = 340),
-    drop_null(list(
-      shared_section,
-      picker,
-      hidden_tabset,
-      shiny::actionButton(
-        ns("ptr_update_plot"),
-        label = shell_copy$update_plot_label %||% "Update plot"
-      )
-    ))
-  ))
+  id <- "ptr"
+  title <- ptr_resolve_ui_text("title", ui_text = ui_text)$label %||%
+    "ggpaintr"
 
   ui <- bslib::page_sidebar(
-    ptr_layer_assets(),
     title = title,
     theme = theme,
-    sidebar = sidebar,
-    bslib::card(
-      full_screen = TRUE,
-      bslib::card_header("Plot"),
-      bslib::card_body(
-        shiny::plotOutput(ns("ptr_plot")),
-        shiny::uiOutput(ns("ptr_error"))
+    sidebar = bslib::sidebar(
+      title = "Controls",
+      ptr_controls_ui(
+        id = id, formula = formula,
+        ui_text = ui_text,
+        checkbox_defaults = checkbox_defaults,
+        expr_check = expr_check
       )
     ),
     bslib::card(
-      bslib::card_header("Generated code"),
-      bslib::card_body(
-        shiny::verbatimTextOutput(ns("ptr_code"))
-      )
+      full_screen = TRUE,
+      ptr_outputs_ui(id = id)
     )
   )
 
-  server <- ptr_make_app_server(
-    formula, tree,
-    envir = envir, ui_text = ui_text,
-    checkbox_defaults = checkbox_defaults, expr_check = expr_check,
-    safe_to_remove = safe_to_remove, ns = ns
-  )
+  server <- function(input, output, session) {
+    ptr_module_server(
+      id,
+      formula = formula,
+      envir = envir,
+      ui_text = ui_text,
+      checkbox_defaults = checkbox_defaults,
+      expr_check = expr_check,
+      safe_to_remove = safe_to_remove
+    )
+  }
 
   shiny::shinyApp(ui = ui, server = server)
 }

@@ -647,7 +647,9 @@ ptr_module_server <- function(id, formula, envir = parent.frame(), ...,
 #'   builder. Names must match the `shared = "..."` annotations used in
 #'   `plots`. Pass `list()` if there are no shared placeholders.
 #' @param envir Environment used to resolve local data objects.
-#' @param title App title shown in the page header.
+#' @param ui_text Optional named list of copy overrides. The page header
+#'   reads `ui_text$shell$title$label`; defaults to `"ggpaintr grid"`. See
+#'   [ptr_ui_text()] for the full schema.
 #' @param draw_all_label Label for the draw-all action button.
 #' @param expr_check Controls `expr` placeholder validation. Defaults to `TRUE`.
 #' @param css Optional character vector of paths to additional CSS files,
@@ -660,7 +662,7 @@ ptr_module_server <- function(id, formula, envir = parent.frame(), ...,
 ptr_app_grid <- function(plots,
                             shared_ui = list(),
                             envir = parent.frame(),
-                            title = "ggpaintr grid",
+                            ui_text = NULL,
                             draw_all_label = "Draw all",
                             expr_check = TRUE,
                             css = NULL) {
@@ -668,7 +670,7 @@ ptr_app_grid <- function(plots,
     plots = plots,
     shared_ui = shared_ui,
     envir = envir,
-    title = title,
+    ui_text = ui_text,
     draw_all_label = draw_all_label,
     expr_check = expr_check,
     css = css
@@ -679,10 +681,12 @@ ptr_app_grid <- function(plots,
 ptr_app_grid_components <- function(plots,
                                        shared_ui = list(),
                                        envir = parent.frame(),
-                                       title = "ggpaintr grid",
+                                       ui_text = NULL,
                                        draw_all_label = "Draw all",
                                        expr_check = TRUE,
                                        css = NULL) {
+  title <- ptr_resolve_ui_text("title", ui_text = ui_text)$label %||%
+    "ggpaintr grid"
   if (is.character(plots)) plots <- as.list(plots)
   assertthat::assert_that(
     is.list(plots),
@@ -740,7 +744,7 @@ ptr_app_grid_components <- function(plots,
     ptr_assets(css = css),
     shiny::tags$div(
       class = "ptr-app",
-      ptr_app_header(if (nzchar(title)) title else "ggpaintr grid"),
+      ptr_app_header(title),
       shared_panel,
       plot_columns
     )

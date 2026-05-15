@@ -2,7 +2,7 @@
 % Please edit documentation in R/paintr-app-bslib.R
 \name{ptr_app_bslib}
 \alias{ptr_app_bslib}
-\title{Build a ggpaintr Shiny App with a bslib Theme}
+\title{Bslib-Themed App: A Demonstration Wrapper}
 \usage{
 ptr_app_bslib(
   formula,
@@ -11,8 +11,7 @@ ptr_app_bslib(
   checkbox_defaults = NULL,
   expr_check = TRUE,
   safe_to_remove = character(),
-  theme = NULL,
-  title = NULL
+  theme = NULL
 )
 }
 \arguments{
@@ -22,7 +21,8 @@ ptr_app_bslib(
 the app.}
 
 \item{ui_text}{Optional named list of copy overrides for UI labels, helper
-text, and placeholders.}
+text, and placeholders. The app title is read from
+\code{ui_text$shell$title$label}; defaults to \code{"ggpaintr"}.}
 
 \item{checkbox_defaults}{Optional named list of initial checked states for
 layer checkboxes.}
@@ -34,11 +34,10 @@ zero-argument calls should be dropped after placeholder substitution
 leaves them empty. Defaults to \code{character()}.}
 
 \item{theme}{A \code{bslib} theme object. Defaults to a Bootstrap 5 Flatly
-bootswatch. Pass any \code{\link[bslib:bs_theme]{bslib::bs_theme()}} result to customize.}
-
-\item{title}{App title shown in the page header. When \code{NULL}
-(the default), the title is taken from \code{ui_text$shell$title$label}
-if supplied, otherwise from a hardcoded fallback.
+bootswatch. Pass any \code{\link[bslib:bs_theme]{bslib::bs_theme()}} result to customize. This is a
+\code{bslib} passthrough and is not part of the ggpaintr public surface the
+wrapper demonstrates — wrappers are free to expose downstream-library
+args like this in addition to whatever ggpaintr primitives they compose.
 
 For the formula grammar (placeholder keywords, shared annotation,
 empty-call cleanup), see \code{\link[=ptr_app]{ptr_app()}}.}
@@ -47,22 +46,26 @@ empty-call cleanup), see \code{\link[=ptr_app]{ptr_app()}}.}
 A \code{shiny.appobj}.
 }
 \description{
-A themed variant of \code{ptr_app()} that lays out the generated controls and
-outputs inside a \code{\link[bslib:page_sidebar]{bslib::page_sidebar()}} shell with \code{\link[bslib:card]{bslib::card()}}
-containers. Builds per-layer panels via the typed-AST UI dispatch and
-wires the new \code{ptr_server} end-to-end.
+A small wrapper that composes the public ggpaintr primitives
+(\code{\link[=ptr_controls_ui]{ptr_controls_ui()}}, \code{\link[=ptr_outputs_ui]{ptr_outputs_ui()}}, \code{\link[=ptr_module_server]{ptr_module_server()}}) inside a
+\code{\link[bslib:page_sidebar]{bslib::page_sidebar()}} shell. Exported so users who want a quick
+\code{bslib}-themed app can call it directly, but its primary purpose is to
+illustrate the wrapper pattern documented in
+\code{vignette("ggpaintr-customization")} § "Writing your own wrapper" — the
+entire source is short enough to copy and adapt for any other layout or
+theme.
 }
 \details{
-Requires the \code{bslib} package. Install it with \code{install.packages("bslib")}.
-}
-\section{Precedence}{
+For the recommended primary entry points, see \code{\link[=ptr_app]{ptr_app()}} and
+\code{\link[=ptr_app_grid]{ptr_app_grid()}}. Requires the \code{bslib} package
+(\code{install.packages("bslib")}).
 
-If both \code{title} and \code{ui_text$shell$title$label} are supplied, the
-explicit \code{title} argument wins. Pass \code{title = NULL} (or omit it) to
-have the bslib navbar brand follow the same \code{ui_text} overrides the
-non-bslib \code{ptr_app()} shell uses.
+Single-formula \code{var(shared = "...")} coordination is not supported on this
+wrapper — the auto-built shared widgets \code{ptr_app()} provides require an
+internal helper that is not part of the public API today. Use \code{\link[=ptr_app]{ptr_app()}}
+for that case, or \code{\link[=ptr_app_grid]{ptr_app_grid()}} (with explicit \verb{shared_ui =}
+builders) for multi-formula shared coordination.
 }
-
 \examples{
 if (interactive()) {
 ptr_app_bslib(

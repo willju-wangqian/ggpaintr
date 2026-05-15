@@ -50,19 +50,20 @@ formula becomes one widget:
 
 `library(ggpaintr)` also attaches `ggplot2`, so bare `ggplot()` /
 `aes()` / `geom_*()` calls work directly inside formula strings. For a
-bslib-themed variant with the same API, use `ptr_app_bslib()`; for a
-grid layout, `ptr_app_grid()`.
+grid layout, use `ptr_app_grid()`. To swap in a custom page shell or
+theme, write a thin wrapper on top of the public primitives — see
+`vignette("ggpaintr-customization")` § “Writing your own wrapper”.
 
 ## More topics
 
 -   **`vignette("ggpaintr-use-cases")` — *Use cases*.** The three-level
     ladder for how to use ggpaintr: L1 all-in-one (`ptr_app()` /
-    `ptr_app_bslib()` / `ptr_app_grid()`), L2 embed in your own Shiny
-    app (`ptr_controls_ui` / `ptr_outputs_ui` / `ptr_server` and the
-    module pair `ptr_module_ui` / `ptr_module_server`), and L3 custom
-    rendering via the extract accessors (`ptr_extract_plot()` /
-    `_code()` / `_error()`). Opens with a compact tour of the 5
-    placeholder keywords.
+    `ptr_app_grid()`), L2 embed in your own Shiny app (`ptr_controls_ui`
+    / `ptr_outputs_ui` / `ptr_server` and the module pair
+    `ptr_module_ui` / `ptr_module_server`), and L3 custom rendering via
+    the extract accessors (`ptr_extract_plot()` / `_code()` /
+    `_error()`). Opens with a compact tour of the 5 placeholder
+    keywords.
 
 -   **`vignette("ggpaintr-customization")` — *Customization*.** Rewrite
     ggpaintr’s built-in copy with `ui_text`, register your own widget

@@ -35,5 +35,5 @@ app <- ptr_app_grid(
       shiny::sliderInput(id, "Rows to show", min = 2, max = 32, value = 6, step = 1)
     }
   ),
-  title = "ggpaintr grid: shared × data pipeline"
+  ui_text = list(shell = list(title = list(label = "ggpaintr grid: shared × data pipeline")))
 )

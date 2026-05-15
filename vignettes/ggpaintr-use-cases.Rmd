@@ -84,23 +84,22 @@ See `vignette(\"ggpaintr-gallery\")` § 4 for the same example with the original
 
 ## L1 — All-in-one entry point
 
-L1 is the dominant use case: hand ggpaintr a formula, get back a running Shiny app. Three entry points cover the common layouts.
+L1 is the dominant use case: hand ggpaintr a formula, get back a running Shiny app. Two entry points cover the common layouts.
 
 | Entry point        | Use when                                                                 |
 |--------------------|--------------------------------------------------------------------------|
 | `ptr_app()`        | Default layout. The built-in chrome (title, layer picker, plot pane, code pane) is enough. |
-| `ptr_app_bslib()`  | Same contract as `ptr_app()` but rendered with a `bslib` theme.          |
 | `ptr_app_grid()`   | Multiple formulas, one app — each plot gets its own tile, optionally with shared widgets at the top. |
 
-### Single plot — `ptr_app()` / `ptr_app_bslib()`
+For a different page shell or theme, write a thin wrapper on top of the public ggpaintr primitives — see `vignette("ggpaintr-customization")` § "Writing your own wrapper" for the recipe and a worked example.
+
+### Single plot — `ptr_app()`
 
 ```{r app-basic}
 ptr_app(
   "ggplot(iris, aes(var, var, color = var)) + geom_point() + labs(title = text)"
 )
 ```
-
-`ptr_app_bslib()` accepts the same `formula` + `ui_text` + `expr_check` + `safe_to_remove` arguments as `ptr_app()`; the only delta is a `bslib::page_navbar()` shell instead of `shiny::fluidPage()`.
 
 ### Multiple plots and shared widgets — `ptr_app_grid()`
 

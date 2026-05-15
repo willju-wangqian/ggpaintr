@@ -8,7 +8,7 @@ ptr_app_grid(
   plots,
   shared_ui = list(),
   envir = parent.frame(),
-  title = "ggpaintr grid",
+  ui_text = NULL,
   draw_all_label = "Draw all",
   expr_check = TRUE,
   css = NULL
@@ -23,7 +23,9 @@ builder. Names must match the \code{shared = "..."} annotations used in
 
 \item{envir}{Environment used to resolve local data objects.}
 
-\item{title}{App title shown in the page header.}
+\item{ui_text}{Optional named list of copy overrides. The page header
+reads \code{ui_text$shell$title$label}; defaults to \code{"ggpaintr grid"}. See
+\code{\link[=ptr_ui_text]{ptr_ui_text()}} for the full schema.}
 
 \item{draw_all_label}{Label for the draw-all action button.}
 
