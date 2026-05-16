@@ -117,7 +117,19 @@ ptr_app_grid(
 )
 ```
 
-Adding `shared = "metric"` to both `var` occurrences and supplying `shared_ui = list(metric = function(id) selectInput(id, "Metric", names(iris)))` lifts the column choice into a single widget that drives both plots when the user clicks **Draw all**. The shared mechanism works for any keyword — built-in `num(shared = "sz")` paired with `shared_ui = list(sz = function(id) sliderInput(id, "Size", 1, 10, 3))` is the simplest two-line example; custom consumers work the same way (see `vignette("ggpaintr-customization")` for registering custom widget types).
+Adding `shared = 'metric'` to both `var` occurrences and supplying `shared_ui = list(metric = function(id) selectInput(id, "Metric", names(iris)))` lifts the column choice into a single widget that drives both plots when the user clicks **Draw all**. The shared mechanism works for any keyword — built-in `num(shared = "sz")` paired with `shared_ui = list(sz = function(id) sliderInput(id, "Size", 1, 10, 3))` is the simplest two-line example; custom consumers work the same way (see `vignette("ggpaintr-customization")` for registering custom widget types).
+
+```{r app-grid-shared-added}
+ptr_app_grid(
+  plots = list(
+    "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Length, fill = Species)) +
+       geom_boxplot()",
+    "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Width, fill = Species)) +
+       geom_violin()"
+  ),
+  shared_ui = list(metric = function(id) selectInput(id, "Metric", names(iris)))
+)
+```
 
 ### Empty-call cleanup
 
@@ -213,18 +225,63 @@ If you need to embed more than one `ggpaintr` formula on the same page — or sh
 
 If you need custom output names — your own `plotOutput("my_chart")` rather than ggpaintr's `ptr_plot` — that is L3 below: read the latest plot with `ptr_extract_plot(state)` inside your own `renderPlot()` block.
 
-### `ptr_init_state()` for advanced init
+### Shared widgets across embedded plots — `ptr_shared_ui()` / `ptr_shared_server()`
 
-`ptr_init_state(formula, ...)` is what `ptr_server()` and `ptr_module_server()` call under the hood. Use it directly when you want the state object without auto-registered outputs — for example, to drive a single plot but compose your own code pane somewhere else:
+`ptr_app_grid()` (L1) builds a shared-widget panel for you. When you embed two or more ggpaintr blocks in your *own* Shiny app and want one widget to drive all of them, wire that panel by hand with the same two primitives `ptr_app_grid()` uses internally: `ptr_shared_ui()` for the panel tag and `ptr_shared_server()` for the linked reactives. Annotate the placeholder with `keyword(shared = "<id>")` in every formula, exactly as in the L1 grid example.
+
+The contract:
+
+- `ptr_shared_ui(formulas, shared_ui = list(), ...)` — pass the **same list of formula strings** you will hand to the modules. Returns one wrapped panel tag; place it wherever you want on the page. `shared_ui` maps each `<id>` to a `function(id) -> shiny.tag`, identical to the `ptr_app_grid()` argument; a `var(shared = "...")` consumer needs no entry (its picker is built for you).
+- `ptr_shared_server(formulas, ...)` — call inside your server function. Returns a `ptr_shared_state` bundle carrying `shared`, `draw_trigger`, `shared_resolutions`, and `shared_stage_enabled`.
+- `ptr_module_server(id, formula, shared_state = <bundle>)` — pass the bundle to every per-plot module. `shared_state =` is the convenience path; its slots are also accepted individually through `...`, and explicit `...` entries win.
+
+```{r l2-shared}
+plots <- list(
+  "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Length, fill = Species)) + geom_boxplot()",
+  "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Width,  fill = Species)) + geom_violin()"
+)
+
+ui <- shiny::fluidPage(
+  shiny::titlePanel("My host app"),
+  ptr_shared_ui(
+    formulas  = plots,
+    shared_ui = list(metric = function(id) shiny::selectInput(id, "Metric", names(iris)))
+  ),
+  shiny::fluidRow(
+    shiny::column(6, ptr_module_ui("plot_1", plots[[1]])),
+    shiny::column(6, ptr_module_ui("plot_2", plots[[2]]))
+  )
+)
+server <- function(input, output, session) {
+  shared <- ptr_shared_server(formulas = plots)
+  ptr_module_server("plot_1", plots[[1]], shared_state = shared)
+  ptr_module_server("plot_2", plots[[2]], shared_state = shared)
+}
+
+shiny::shinyApp(ui, server)
+```
+
+`ptr_shared_ui()` emits a **Draw all** button (top-level input id `ptr_shared_draw_all`) whenever `formulas` has two or more entries; the per-module **Update plot** buttons still work independently. Calling either primitive with a `formulas` list that declares no `shared = "..."` annotation is an error — drop the panel and use the plain L2 embed if nothing is shared.
+
+For an **L3** custom renderer with shared widgets, keep this exact wiring and additionally capture each module's returned state — `state1 <- ptr_module_server("plot_1", plots[[1]], shared_state = shared)` — then read `state1$runtime()` inside your own `renderPlotly()` / `renderGirafe()` block as in the L3 section below. The shared panel feeds the modules; the modules feed your custom renderers.
+
+### `ptr_init_state()` and the advanced runtime arguments
+
+`ptr_init_state(formula, ...)` is the state constructor that `ptr_server()` and `ptr_module_server()` call under the hood. It builds the `ptr_state` object but does **not** wire any inputs or start the runtime: `state$runtime()` stays `NULL` until `ptr_server()` installs the input/runtime observers (those `ptr_setup_*` steps are internal and not exported). So you do not drive a plot from `ptr_init_state()` alone — reach its advanced arguments by passing them through the `...` of `ptr_server()` / `ptr_module_server()`, which forward verbatim to it:
 
 ```{r init-state}
 server <- function(input, output, session) {
-  state <- ptr_init_state(formula = "ggplot(iris, aes(var, var)) + geom_point()")
-  ptr_register_plot(output, state)  # only the plot; no error / code panes
+  state <- ptr_server(
+    input, output, session,
+    formula = "ggplot(iris, aes(var, var)) + geom_point()",
+    producer_debounce_ms = 300,                       # advanced ptr_init_state() arg, threaded through
+    draw_trigger = shiny::reactive(input$my_button)
+  )
+  # state$runtime() / ptr_extract_*(state) are now usable; render your own panes off it.
 }
 ```
 
-`?ptr_init_state` documents the advanced arguments: `shared` (host-level shared bindings), `draw_trigger` (custom redraw reactive), `producer_debounce_ms` (data-source debouncing), and the namespace controls.
+`?ptr_init_state` documents every advanced argument: `shared` (host-level shared bindings), `shared_resolutions` / `shared_stage_enabled` (the remaining `ptr_shared_state` slots — see "Shared widgets across embedded plots" above), `draw_trigger` (custom redraw reactive), `producer_debounce_ms` (data-source debouncing), and the `ns` / `server_ns` namespace controls. All of them are accepted by `ptr_server()` and `ptr_module_server()` through `...`.
 
 ### How input ids are built — and how to avoid colliding with them
 
@@ -266,19 +323,19 @@ Mixing the two in a render block — calling `ptr_extract_plot(state)` inside `r
 
 ### Custom plot renderer — `state$runtime()$plot` inside `renderPlotly()`
 
-The pattern: wire `ptr_module_server()` for the runtime, then unpack `state$runtime()` inside a `plotly::renderPlotly()` block (or `ggiraph::renderGirafe()`, or any custom renderer). Place your own output container; omit `ptr_outputs_ui()` if you do not want the bundled plot pane (its auto-registered outputs stay inert when no UI consumer exists).
+The pattern: wire the runtime with the **non-module split** so you can leave the bundled plot pane out entirely, then unpack `state$runtime()` inside a `plotly::renderPlotly()` block (or `ggiraph::renderGirafe()`, or any custom renderer). The split path is what makes "omit the bundled pane" concrete: render `ptr_controls_ui()` for the widgets, render **no** `ptr_outputs_ui()`, and place your own output container instead. `ptr_server()` still registers the canonical `ptr_plot` / `ptr_error` / `ptr_code` outputs, but with no UI slot bound to them they stay inert — and it returns the same `ptr_state` you read with `state$runtime()`.
 
 ```{r l3-plotly}
 formula <- "ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"
 
 ui <- shiny::fluidPage(
   shiny::fluidRow(
-    shiny::column(5, ptr_module_ui("p", formula)),
+    shiny::column(5, ptr_controls_ui(formula = formula)),            # widgets only — no ptr_outputs_ui()
     shiny::column(7, plotly::plotlyOutput("custom_plot", height = "500px"))
   )
 )
 server <- function(input, output, session) {
-  state <- ptr_module_server("p", formula)
+  state <- ptr_server(input, output, session, formula)               # runtime wired; bundled outputs registered but inert
   output$custom_plot <- plotly::renderPlotly({
     res <- state$runtime()
     shiny::req(isTRUE(res$ok), res$plot)
@@ -291,7 +348,65 @@ shiny::shinyApp(ui, server)
 
 `req(isTRUE(res$ok), res$plot)` keeps the panel quiet between draws and on transient error states.
 
+If you would rather keep ggpaintr's chrome *and* add a second custom view, the module path works too — `state <- ptr_module_server("p", formula)` next to `ptr_module_ui("p", formula)` — but `ptr_module_ui()` always composes `ptr_controls_ui()` **and** `ptr_outputs_ui()`, so the bundled plot pane renders alongside your custom one. There is no argument to drop it from the module path; use the split above when you want exactly one plot.
+
 `vignette("ggpaintr-gallery")` §5 *Interactive output packages* is the canonical worked-example reference for the L3 pattern — it shows the full plotly and ggiraph setups end-to-end, including the ggiraph variant with click handling and a custom-placeholder colour picker. The chunk above is the minimal scaffold; gallery §5 is the runnable recipe.
+
+### Shared widgets driving custom renderers
+
+Combine the L2 shared panel with L3 custom outputs: one `ptr_shared_ui()` panel feeds the modules, each module's returned state feeds its own `plotly::renderPlotly()`. The wiring is the L2 shared recipe plus a captured `state` per module — the modules need their own namespaces (each formula's per-placeholder ids would otherwise collide), so the module path, not the split, is the right tool here.
+
+```{r l3-shared}
+plots <- list(
+  "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Length, fill = Species)) + geom_boxplot()",
+  "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Width,  fill = Species)) + geom_violin()"
+)
+
+ui <- shiny::fluidPage(
+  ptr_shared_ui(
+    formulas  = plots,
+    shared_ui = list(metric = function(id) shiny::selectInput(id, "Metric", names(iris)))
+  ),
+  shiny::fluidRow(
+    shiny::column(3, ptr_controls_ui("plot_1", plots[[1]])),
+    shiny::column(9, plotly::plotlyOutput("custom_1")),
+  ),
+  shiny::fluidRow(
+    shiny::column(3, ptr_controls_ui("plot_2", plots[[2]])),
+    shiny::column(9, plotly::plotlyOutput("custom_2")),
+  )
+)
+server <- function(input, output, session) {
+  shared <- ptr_shared_server(formulas = plots)
+  state1 <- ptr_module_server("plot_1", plots[[1]], shared_state = shared)
+  state2 <- ptr_module_server("plot_2", plots[[2]], shared_state = shared)
+  output$custom_1 <- plotly::renderPlotly({
+    res <- state1$runtime(); shiny::req(isTRUE(res$ok), res$plot)
+    plotly::ggplotly(res$plot)
+  })
+  output$custom_2 <- plotly::renderPlotly({
+    res <- state2$runtime(); shiny::req(isTRUE(res$ok), res$plot)
+    plotly::ggplotly(res$plot)
+  })
+}
+
+shiny::shinyApp(ui, server)
+```
+
+`ptr_module_ui()` is replaced by `ptr_controls_ui("plot_N", ...)` + your own `plotlyOutput()` so each tile shows exactly one (custom) plot, not the bundled pane alongside it.
+
+**Passing the shared bundle to `ptr_server()` instead of `ptr_module_server()`.** `ptr_server()` has no `shared_state =` parameter — only `ptr_module_server()` does. The bundle is a plain list, so for a single-plot custom renderer with no module wrapper, spread its four slots through `ptr_server()`'s `...` (this is exactly what `ptr_module_server()` does internally before delegating):
+
+```{r l3-shared-server}
+shared <- ptr_shared_server(formulas = list(formula))   # formula carries a shared = "..." annotation
+state  <- ptr_server(
+  input, output, session, formula,
+  shared               = shared$shared,
+  draw_trigger         = shared$draw_trigger,
+  shared_resolutions   = shared$shared_resolutions,
+  shared_stage_enabled = shared$shared_stage_enabled
+)
+```
 
 ### Custom code panel
 
