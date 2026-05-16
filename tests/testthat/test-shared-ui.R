@@ -21,6 +21,18 @@ test_that("S-UI.2 ptr_shared_ui renders a wellPanel with the canonical shared in
   expect_match(html, "shared_col_ui", fixed = TRUE)
 })
 
+test_that("S-UI.2b ptr_shared_ui stays bare .ptr-app (no --page canvas)", {
+  # The shared panel is a region fragment placed in a host layout (its own
+  # row above the plots); it must size to its contents, not opt into the
+  # full-viewport `ptr-app--page` backdrop.
+  tag <- ptr_shared_ui(
+    'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()'
+  )
+  html <- as.character(htmltools::renderTags(tag)$html)
+  expect_match(html, 'class="ptr-app"', fixed = TRUE)
+  expect_false(grepl("ptr-app--page", html, fixed = TRUE))
+})
+
 test_that("S-UI.3 draw-all button is gated on length(formulas) >= 2", {
   one <- ptr_shared_ui(
     'ggplot(mtcars, aes(x = var(shared = "k"), y = mpg)) + geom_point()'

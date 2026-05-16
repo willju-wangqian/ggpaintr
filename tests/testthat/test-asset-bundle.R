@@ -161,6 +161,27 @@ test_that("verb-badge rule owns its font-weight (order-independent vs Bootstrap)
   expect_match(block, "font-weight\\s*:\\s*550")
 })
 
+test_that("page canvas is opt-in: bare .ptr-app has no 100vh, --page does", {
+  # The full-viewport backdrop is opt-in. Bare `.ptr-app` is just the
+  # themed scope (so an embedded ptr_module_ui/ptr_ui_page or a region
+  # half sizes to its content, not the host's whole column). Only the
+  # standalone entrypoints add `ptr-app--page`, which carries the
+  # `min-height:100vh` canvas. Regression: bare `.ptr-app` must NOT
+  # declare `min-height:100vh`; `.ptr-app--page` must.
+  css <- readLines(system.file("www", "ggpaintr.css", package = "ggpaintr"))
+  txt <- paste(css, collapse = "\n")
+  bare <- regmatches(
+    txt, regexpr("\\.ptr-app\\s*\\{[^}]*\\}", txt)
+  )
+  expect_length(bare, 1L)
+  expect_no_match(bare, "100vh")
+  page <- regmatches(
+    txt, regexpr("\\.ptr-app\\.ptr-app--page\\s*\\{[^}]*\\}", txt)
+  )
+  expect_length(page, 1L)
+  expect_match(page, "min-height\\s*:\\s*100vh")
+})
+
 test_that("composing the bundle keeps the legacy ggpaintr/ resource prefix served", {
   # Regression: ptr_ui_header() references the logo by the absolute path
   # "ggpaintr/ggpaintr-logo.png". The old core_assets_tags() served the

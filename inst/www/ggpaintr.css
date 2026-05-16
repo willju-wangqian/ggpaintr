@@ -24,18 +24,27 @@
   background: var(--ptr-bg);
   color: var(--ptr-ink);
   font-family: var(--ptr-font);
-  min-height: 100vh;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Nested .ptr-app: the split helpers (ptr_controls_ui / ptr_outputs_ui /
-   ptr_shared_ui) each self-wrap in `.ptr-app` so the bundled stylesheet
-   attaches without any host-side scaffolding. When those fragments live
-   inside an outer .ptr-app (ptr_module_ui / ptr_app), neutralise the
-   redundant chrome on the inner wrap. */
+/* The full-viewport backdrop is OPT-IN. Bare `.ptr-app` is just the themed
+   scope: a fragment or an embeddable shell (ptr_controls_ui /
+   ptr_outputs_ui / ptr_shared_ui / ptr_module_ui / ptr_ui_page) sizes to
+   its content, so dropping it into a host column / sidebar never stretches
+   that cell floor-to-ceiling. Only the standalone entrypoints (ptr_app /
+   ptr_app_grid) add `ptr-app--page`, which paints the full-window canvas.
+   Specificity (0,2,0) > bare `.ptr-app` (0,1,0). */
+.ptr-app.ptr-app--page {
+  min-height: 100vh;
+}
+
+/* Nested .ptr-app: the split helpers each self-wrap in `.ptr-app` so the
+   bundled stylesheet attaches without host-side scaffolding. When a
+   fragment lives inside an outer `.ptr-app` (e.g. a region half composed
+   by ptr_app / ptr_module_ui), drop the inner wrap's redundant opaque
+   background so it does not repaint the canvas. */
 .ptr-app .ptr-app {
   background: transparent;
-  min-height: 0;
 }
 
 /* ---- header bar (replaces titlePanel) ---- */

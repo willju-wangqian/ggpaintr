@@ -104,6 +104,47 @@ test_that("ptr_controls_ui = ptr_ui_assets + ptr_ui_controls (still self-wrapped
   expect_match(rendered, "ptr-app", fixed = TRUE)         # self-wraps
 })
 
+# ---- only standalone entrypoints own the full-viewport page canvas ----
+# The full-viewport `min-height:100vh` backdrop is opt-in via the
+# `ptr-app--page` modifier. Only the standalone entrypoints (ptr_app /
+# ptr_app_grid) add it. Everything designed to embed in a host app -- the
+# region halves (ptr_controls_ui/ptr_outputs_ui/ptr_shared_ui),
+# ptr_module_ui, ptr_ui_page -- stays bare `.ptr-app` so it sizes to its
+# content instead of stretching the host's column/sidebar floor-to-ceiling.
+
+test_that("region self-wraps stay bare .ptr-app (no --page canvas)", {
+  ctl <- as.character(ptr_controls_ui("x", fml))
+  out <- as.character(ptr_outputs_ui("x"))
+  expect_match(ctl, 'class="ptr-app"', fixed = TRUE)
+  expect_no_match(ctl, "ptr-app--page", fixed = TRUE)
+  expect_match(out, 'class="ptr-app"', fixed = TRUE)
+  expect_no_match(out, "ptr-app--page", fixed = TRUE)
+})
+
+test_that("ptr_ui_page stays bare .ptr-app so it embeds (no --page canvas)", {
+  html <- render_with_deps(ptr_ui_page(ptr_ui_plot()))
+  expect_match(html, 'class="ptr-app"', fixed = TRUE)
+  expect_no_match(html, "ptr-app--page", fixed = TRUE)
+})
+
+test_that("ptr_module_ui stays bare .ptr-app so it embeds (no --page canvas)", {
+  html <- render_with_deps(ptr_module_ui("m", fml))
+  expect_match(html, 'class="ptr-app"', fixed = TRUE)
+  expect_no_match(html, "ptr-app--page", fixed = TRUE)
+})
+
+test_that("ptr_app / ptr_app_grid are standalone -> carry ptr-app--page", {
+  app <- render_with_deps(ptr_app_components(fml)$ui)
+  grid <- render_with_deps(
+    ptr_app_grid_components(list(fml, fml))$ui
+  )
+  expect_match(app, "ptr-app--page", fixed = TRUE)
+  expect_match(grid, "ptr-app--page", fixed = TRUE)
+  # the grid composes N ptr_module_ui()s inside its one --page shell:
+  # exactly one element owns the canvas, not one per plot tile.
+  expect_equal(count_occurrences(grid, "ptr-app--page"), 1L)
+})
+
 # ---- ptr_ui_assets ----
 
 test_that("ptr_ui_assets emits the full bundle, == internal ptr_assets()", {

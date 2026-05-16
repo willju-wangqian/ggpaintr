@@ -506,7 +506,10 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
   shiny::fluidPage(
     ptr_assets(css = css),
     shiny::tags$div(
-      class = "ptr-app",
+      # `--page`: ptr_app() is a standalone entrypoint -> owns the full
+      # viewport. Embeddable shells (ptr_module_ui / ptr_ui_page) and the
+      # region halves stay bare so they fit a host layout.
+      class = "ptr-app ptr-app--page",
       header,
       shiny::sidebarLayout(
         do.call(
@@ -689,15 +692,12 @@ ptr_ui_controls <- function(id = NULL, formula, ui_text = NULL,
 ptr_controls_ui <- function(id = NULL, formula, ui_text = NULL,
                             checkbox_defaults = NULL, expr_check = TRUE,
                             css = NULL) {
-  # The `.ptr-app` wrapper attaches the bundled stylesheet (scoped under
-  # that class) when this composite is used standalone (L2). There is NO
-  # `.ptr-app .ptr-app` neutralisation rule in ggpaintr.css; when this is
-  # nested inside an outer `.ptr-app` (e.g. `ptr_module_ui()`'s wrap, or a
-  # grid cell) the inner `.ptr-app` keeps `min-height:100vh`/background --
-  # acceptable because it is a *descendant* inside a flowed layout cell,
-  # not a vertical sibling. Only sibling stacking (N pieces each
-  # self-wrapping) was the bug; the L3 single-shell model (`ptr_ui_page()`)
-  # is what prevents that, not a CSS rule.
+  # Bare `.ptr-app` is *only* the themed stylesheet scope -- it carries no
+  # full-viewport canvas (that is opt-in via `ptr-app--page`, added only by
+  # the standalone entrypoints ptr_app / ptr_app_grid). This composite is
+  # made to be dropped into a host layout (e.g. a `sidebarPanel()` of a
+  # hand-written `sidebarLayout()`, the documented non-module split), so it
+  # must size to its content, never stretch the host cell.
   shiny::tags$div(
     class = "ptr-app",
     ptr_ui_assets(css = css),
@@ -734,6 +734,9 @@ ptr_controls_ui <- function(id = NULL, formula, ui_text = NULL,
 #'   [ptr_ui_code_toggle()], [ptr_controls_ui()], [ptr_module_ui()], [ptr_css()]
 #' @export
 ptr_outputs_ui <- function(id = NULL, css = NULL) {
+  # Bare `.ptr-app`: themed scope only, no page canvas (see ptr_controls_ui).
+  # This output half is the other side of the documented non-module split
+  # and lives in a host `mainPanel()`; it sizes to its content.
   shiny::tags$div(
     class = "ptr-app",
     ptr_ui_assets(css = css),
@@ -984,7 +987,11 @@ ptr_app_grid_components <- function(plots,
   ui <- shiny::fluidPage(
     ptr_assets(css = css),
     shiny::tags$div(
-      class = "ptr-app",
+      # `--page`: ptr_app_grid() is a standalone entrypoint -> owns the
+      # full viewport. The per-plot ptr_module_ui() shells nested inside
+      # stay bare, so exactly one element claims the canvas (not one per
+      # tile).
+      class = "ptr-app ptr-app--page",
       ptr_ui_header(title),
       shared_panel,
       plot_columns

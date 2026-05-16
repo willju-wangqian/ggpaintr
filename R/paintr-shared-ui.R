@@ -286,6 +286,9 @@ ptr_shared_ui <- function(formulas,
     list(shiny::uiOutput("ptr_shared_errors"))
   )
 
+  # Bare `.ptr-app`: themed scope only, no page canvas (see ptr_controls_ui).
+  # The shared panel is dropped into a host layout (its own row above the
+  # plots), so it sizes to its content, not the full viewport.
   shiny::tags$div(
     class = "ptr-app",
     ptr_assets(css = css),
