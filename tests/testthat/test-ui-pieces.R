@@ -113,6 +113,72 @@ test_that("ptr_ui_assets emits the full bundle, == internal ptr_assets()", {
   expect_match(rendered, "ggpaintr-layer.css", fixed = TRUE)   # structural dep
 })
 
+# ---- ptr_ui_page shell ----
+
+test_that("ptr_ui_page emits exactly one .ptr-app inside a Bootstrap page", {
+  ui <- ptr_ui_page(ptr_ui_controls(formula = fml), ptr_ui_plot())
+  # fluidPage() returns a tagList (bootstrapPage chrome), not a bare tag
+  expect_true(inherits(ui, "shiny.tag.list") || inherits(ui, "shiny.tag"))
+  html <- render_with_deps(ui)
+  # one theme scope, default fluidPage -> Bootstrap container-fluid
+  expect_equal(count_occurrences(html, 'class="ptr-app"'), 1L)
+  expect_match(html, "container-fluid", fixed = TRUE)
+  # the deduped bundle is present
+  expect_equal(count_occurrences(html, "/ggpaintr.css\""), 1L)
+  expect_equal(count_occurrences(html, "ggpaintr-ui.js"), 1L)
+  expect_equal(count_occurrences(html, "ggpaintr-layer.js"), 1L)
+})
+
+test_that("ptr_ui_page page= swaps the page builder; non-function errors", {
+  for (pg in list(shiny::fillPage, shiny::bootstrapPage, shiny::fixedPage)) {
+    html <- render_with_deps(ptr_ui_page(ptr_ui_plot(), page = pg))
+    expect_equal(count_occurrences(html, 'class="ptr-app"'), 1L)
+    expect_match(html, "/ggpaintr.css\"")
+  }
+  # fixedPage -> container (not container-fluid)
+  expect_match(render_with_deps(ptr_ui_page(page = shiny::fixedPage)),
+               "container", fixed = TRUE)
+  expect_error(ptr_ui_page(page = 1), "function")
+  expect_error(ptr_ui_page(page = "fluidPage"), "function")
+})
+
+test_that("ptr_ui_page css= threads through and links after ggpaintr.css", {
+  dir <- withr::local_tempdir()
+  f <- file.path(dir, "mine.css"); writeLines(".ptr-app{}", f)
+  html <- render_with_deps(ptr_ui_page(ptr_ui_plot(), css = f))
+  pos_bundled <- regexpr('/ggpaintr\\.css"', html)
+  pos_user <- regexpr("/mine\\.css", html)
+  expect_gt(pos_bundled, 0L)
+  expect_gt(pos_user, 0L)
+  expect_lt(pos_bundled, pos_user)
+})
+
+test_that("htmlDependency dedupes a page nesting several asset emitters", {
+  # Grid-like: the shell injects ptr_assets() once, and each self-wrapping
+  # ptr_controls_ui() composite injects it again. htmltools must collapse
+  # every ggpaintr dependency to a single <head> injection.
+  ui <- ptr_ui_page(
+    shiny::fluidRow(
+      shiny::column(6, ptr_controls_ui("a", fml)),
+      shiny::column(6, ptr_controls_ui("b", fml))
+    )
+  )
+  html <- render_with_deps(ui)
+  expect_equal(count_occurrences(html, "/ggpaintr.css\""), 1L)
+  expect_equal(count_occurrences(html, "ggpaintr-ui.js"), 1L)
+  expect_equal(count_occurrences(html, "ggpaintr-layer.js"), 1L)
+  expect_equal(count_occurrences(html, "ggpaintr-layer.css"), 1L)
+})
+
+test_that("ptr_register_* are not exported (dead post-rewrite surface)", {
+  exports <- getNamespaceExports("ggpaintr")
+  expect_false("ptr_register_plot" %in% exports)
+  expect_false("ptr_register_error" %in% exports)
+  expect_false("ptr_register_code" %in% exports)
+  # but they still exist internally (ptr_server's sole caller)
+  expect_true(is.function(ggpaintr:::ptr_register_plot))
+})
+
 # ---- ptr_ui_header ----
 
 test_that("ptr_ui_header renders the branded header; default title is ggpaintr", {
