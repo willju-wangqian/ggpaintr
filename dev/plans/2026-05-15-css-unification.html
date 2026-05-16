@@ -28,6 +28,10 @@
 <h1>Plan: unify CSS &amp; asset injection across raw-Shiny entry points</h1>
 <p class="footnote">Date: 2026-05-15 · Branch hint: <code>feat/css-unification</code> · Audit reference: <code>dev/audit/2026-05-15-css-unification.html</code></p>
 
+<div class="danger">
+  <strong>Superseded in part (2026-05-16) — see ADR 0004.</strong> This plan shipped as written, but §2's locked row <em>"Bundle export: internal (no <code>@export</code>)"</em> and the framing <em>"users do not need to inject ggpaintr assets manually / public surface should shrink"</em> are <strong>superseded for the L3 hand-composition path</strong> by <code>dev/adr/0004-l3-ui-piece-model.html</code>: <code>ptr_ui_assets()</code> is now exported as the escape-hatch injector for non-<code>fluidPage</code> roots, and the internal emitter was renamed <code>ptr_ui_assets→core_assets_tags</code> (so §3.1's prose naming is stale). Assets are additionally converted to a deduped <code>htmltools::htmlDependency()</code> per ADR 0004 §3.3. The rest of this plan (the internal <code>ptr_assets()</code> bundle, source order, <code>?ptr_css</code> topic, <code>ptr_shared_ui(css=)</code>) remains accurate and in force. Content intentionally left unrewritten — this is a historical record.
+</div>
+
 <div class="callout">
   <strong>One-line summary.</strong> Collapse five different hand-rolled asset bundles into a single internal helper <code>ptr_assets(css = NULL)</code>; add the <code>css =</code> override portal to the one raw-Shiny entry point that lacks it (<code>ptr_shared_ui</code>); document the fifteen <code>--ptr-*</code> custom properties in a shared roxygen topic <code>?ptr_css</code>. <code>ptr_app_bslib</code> is intentionally untouched — its substrate is different and the bslib theme story is deferred.
 </div>

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0004 — L3 UI-piece model, single shell, and the assets-internal supersession</title>
+<style>
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  ul { margin-top: .3rem; }
+  .meta { color: #555; font-size: 13px; }
+  .danger { border-left: 4px solid #c0392b; background: #fde7e7; padding: .6rem .9rem; margin: .8rem 0; }
+</style>
+</head>
+<body>
+
+<h1>ADR 0004 — L3 UI-piece model, single <code>ptr_ui_page()</code> shell, and the assets-internal supersession</h1>
+<p class="meta">Status: <strong>accepted</strong> · Date: 2026-05-16 · Supersedes: <code>dev/plans/2026-05-15-css-unification.html</code> §2 row <em>"Bundle export: internal"</em> (for the L3 path only) · Related: ADR 0002 (public-API tiering), ADR 0003 (controllable-region unification) · Implementation plan: <code>dev/plans/2026-05-16-l3-piece-model.html</code></p>
+
+<h2>Context</h2>
+<p>The typed-AST rewrite's L3 narrative was redefined to <em>"own every piece of ggpaintr's public UI"</em>: one exported builder per pane (<code>ptr_ui_plot</code>/<code>ptr_ui_error</code>/<code>ptr_ui_code</code>/<code>ptr_ui_code_toggle</code>/<code>ptr_ui_controls</code>/<code>ptr_ui_header</code>), composed by hand and wired with the existing server API. Field use of the first cut (commit <code>822ba35</code>) exposed that (1) bare pieces under a non-Bootstrap root render the layer <code>pickerInput</code> unstyled; (2) the hand-written <code>div(class="ptr-app")</code> + <code>ptr_ui_assets()</code> ritual is a non-obvious footgun; (3) making each piece self-wrap is <em>unsafe</em> — <code>.ptr-app</code> carries <code>min-height:100vh</code> with no nested/sibling neutralization, so the canonical sibling layout would stack N viewport-heights; and (4) <code>ptr_register_plot/error/code</code> are exported but unusable without the internal-only runtime, i.e. dead, mis-documented surface.</p>
+
+<p>Resolving (2)+(3) requires a single exported page shell that owns the one <code>.ptr-app</code> scope and the asset bundle, with bare pieces dropped inside it. That shell, plus the pre-existing need for an escape-hatch asset injector on non-<code>fluidPage</code> roots, <strong>conflicts with an already-implemented decision</strong>: the css-unification plan (in-tree, not ADR-formalized) §2 locked <em>"assets bundle stays internal; users never need to inject ggpaintr assets manually; the public surface should shrink, not grow"</em>. The L3 "own every piece" model invalidates that decision's premise — hand-composition for non-Bootstrap-page roots is a legitimate manual-injection need that did not exist when only the self-wrapping bundle entry points did.</p>
+
+<h2>Decision</h2>
+<ul>
+  <li><strong>Add exported <code>ptr_ui_page(..., page = shiny::fluidPage, css = NULL)</code></strong> as the single L3 shell: it is the Bootstrap page, owns the one <code>.ptr-app</code> div, and injects the asset bundle. Pieces stay <strong>bare</strong> (no per-piece <code>.ptr-app</code>/assets/<code>css</code>). Per-piece self-wrap is rejected (Defect 3); a <code>.ptr-app</code> "shell-vs-scope" CSS split is rejected (visual-regression risk to every existing app).</li>
+  <li><strong><code>page=</code> contract:</strong> any Bootstrap-3 page builder whose <code>...</code> are tag children (<code>fluidPage</code> default, <code>fixedPage</code>, <code>fillPage</code>, <code>bootstrapPage</code>, <code>basicPage</code>). <code>navbarPage</code> (positional <code>title</code> + <code>tabPanel</code> children) and bslib/BS5 pages are out of contract; their supported path is the documented hand-decomposition recipe.</li>
+  <li><strong>Supersede css-unification §2 for the L3 path:</strong> <code>ptr_ui_assets()</code> stays <em>exported</em> as the manual-injection escape hatch for out-of-contract roots. This is a conscious, recorded reversal of the "assets internal" lock — justified by the new L3 requirement, not drift. <code>ptr_assets()</code> remains the internal bundle name; the internal emitter renamed <code>ptr_ui_assets→core_assets_tags</code> (commit <code>822ba35</code>) is retained; the css-unification plan's §3.1 prose is stale and carries a superseded banner (not rewritten — ADR/plan immutability).</li>
+  <li><strong>Assets become a deduped <code>htmltools::htmlDependency()</code></strong> so nesting shells/pieces injects one <code>&lt;head&gt;</code> copy; the ad-hoc JS registration guards are deleted.</li>
+  <li><strong>Un-export <code>ptr_register_plot/error/code</code></strong> (dead post-rewrite surface); delete the L2 "Splitting outputs further" subsection that documented an impossible use case.</li>
+  <li><strong><code>?ptr_css</code> and every <code>[ptr_css()]</code> link are deliberate and stay.</strong> An earlier conclusion to "fix the dangling links" was wrong (it is a roxygen-only token-doc topic, <code>R/paintr-css-doc.R</code>). Recorded here, mirroring ADR 0002's "do not fix the missing function back" hazard.</li>
+  <li><strong>All renames are deferred to the API-audit pass</strong> (<code>dev/plans/api-audit.md</code>). Doing them piecemeal pre-empts holistic tiering and double-churns just-rewritten docs.</li>
+</ul>
+
+<div class="danger">
+  <strong>Locked naming contracts (the audit must honor, not re-litigate):</strong>
+  <ul>
+    <li><code>ptr_module_ui</code>/<code>ptr_module_server</code> are a deliberate sealed-bundle naming exception — <em>not</em> folded into the <code>ptr_ui_*</code>/<code>ptr_*</code> grammar.</li>
+    <li><code>ptr_ui_outputs</code> ≡ <code>ptr_ui_plot_code(error = TRUE)</code> — an intentional discoverability alias (different default DOM), not a duplicate to be deduped away. Post-audit names: <code>ptr_ui_plot_code</code> (default <code>error=FALSE</code>), <code>ptr_ui_outputs</code> (error nested).</li>
+    <li>Post-audit server family: <code>ptr_server</code>, <code>ptr_shared_resolve</code> (from <code>ptr_shared_server</code>), <code>ptr_module_server</code>. UI family: <code>ptr_ui_*</code>.</li>
+  </ul>
+</div>
+
+<h2>Consequences</h2>
+<ul>
+  <li>The public surface <em>grows</em> by <code>ptr_ui_page()</code> and retains <code>ptr_ui_assets()</code> — a deliberate, ADR-recorded exception to ADR 0002 / css-unification's "shrink, not grow" stance, scoped strictly to the L3 hand-composition requirement. It shrinks by three (<code>ptr_register_*</code>), net.</li>
+  <li>Breaking for anyone on this dev cycle's snapshot: <code>ptr_register_*</code> gone; the L3 hand-<code>div.ptr-app</code> recipe replaced by <code>ptr_ui_page()</code>. No deprecation (single user, pre-1.0).</li>
+  <li>"Exported but its required runtime companions are internal" remains a portal smell (ADR 0002) — <code>ptr_register_*</code> was a fresh instance and is removed accordingly.</li>
+  <li>css-unification's §2 assets-internal row is now historically inaccurate; it is superseded-in-part, banner-marked, not rewritten. Future readers must treat ADR 0004 as the live decision for assets exposure.</li>
+  <li>The API-audit pass owns all renaming, the long-term fate of <code>ptr_ui_assets()</code> exposure, and the §2.1/locked-contracts execution.</li>
+</ul>
+
+</body>
+</html>
