@@ -45,33 +45,23 @@
 <table>
   <tr><th>Section</th><th>Blocks</th><th>Pass</th><th>Findings</th></tr>
   <tr><td>Static checks (1–5)</td><td>5</td><td><span class="pass">5</span></td><td>0</td></tr>
-  <tr><td>Interactive apps (6–16, 15a–15m, 16a)</td><td>27</td><td><span class="pass">27</span></td><td>2 script-doc, 1 source bug</td></tr>
+  <tr><td>Interactive apps (6–16, 15a–15m, 16a)</td><td>27</td><td><span class="pass">27</span></td><td>2 script-doc (F-2 retracted)</td></tr>
   <tr><td>testServer accessors (17)</td><td>1</td><td><span class="pass">1</span></td><td>1 script-doc</td></tr>
   <tr><td>Third-party extension (ggpcp)</td><td>1</td><td><span class="pass">1</span></td><td>0</td></tr>
-  <tr><td><b>Total</b></td><td><b>34</b></td><td class="pass"><b>34 functional</b></td><td><b>4 (1 source · 3 script-doc)</b></td></tr>
+  <tr><td><b>Total</b></td><td><b>34</b></td><td class="pass"><b>34 functional</b></td><td><b>3 script-doc (all fixed) · F-2 retracted</b></td></tr>
 </table>
-<p class="meta">Every feature works when driven correctly. No crashes, no hangs, no reactive deadlocks. The one genuine code defect is in upload-sourced code generation (F-2). The other three findings are defects in <code>feature-sweep.R</code> itself (broken / misleading example blocks), not in the package.</p>
+<p class="meta">Every feature works when driven correctly. No crashes, no hangs, no reactive deadlocks. <b>No source defects.</b> The three remaining findings are defects in <code>feature-sweep.R</code> itself (broken / misleading example blocks), since fixed. F-2 (originally filed as a HIGH upload code-gen bug) was a <b>false positive</b> caused by a flawed <code>ptr_server</code>-direct test harness and is retracted — see the F-2 card.</p>
 
 <h2>Findings</h2>
 
-<div class="bug-card">
-<h3>F-2 &nbsp;<span class="sev sev-high">HIGH · SOURCE</span> &nbsp; Upload-sourced plots emit code with no <code>data =</code> and no read line</h3>
-<p>Affects every <code>upload</code> / <code>upload(shared=…)</code> app — blocks <b>10</b> and <b>15j</b>.</p>
-<p>The upload resolver is correct: <code>ptr_resolve_upload_info()</code> returns the data frame, the object name, and a <code>code_text</code> of <code>&lt;name&gt; &lt;- read.csv("file.csv")</code>. The plot also renders (resolved data is injected into the eval environment). <b>But the generated/copy code drops the data source entirely:</b></p>
-<pre>formula:  ggplot(data = upload, aes(x = var, y = var)) + geom_point()
-inputs :  upload = plain.csv (cols mpg,hp,wt), dataset name "mydata", x=mpg, y=hp
-
-ptr_extract_code() actual:
-  ggplot(aes(x = mpg, y = hp)) +
-    geom_point()
-
-expected (cf. built-in source, block 17):
-  mydata &lt;- read.csv("upload_plain.csv")
-  ggplot(data = mydata, aes(x = mpg, y = hp)) +
-    geom_point()</pre>
-<p>Reserved-word variant (CSV columns <code>if</code>/<code>NULL</code>/<code>TRUE</code>): columns normalize via <code>read.csv(check.names=TRUE)</code> to <code>if.</code>/<code>NULL.</code>/<code>TRUE.</code> and the code is <code>ggplot(aes(x = if., y = NULL.)) + geom_point()</code> — still no data. A built-in source (block 17) correctly emits <code>data = mtcars</code>, so this is specific to the upload path.</p>
-<p><b>Impact:</b> the headline "copy-pasteable generated code" guarantee is broken for any upload-sourced app — the displayed code, pasted into R, errors (no data object). Plot itself is unaffected.</p>
-<p class="meta">Repro: <code>shiny::testServer</code> + <code>ptr_server("ggplot(data = upload, aes(x=var,y=var))+geom_point()")</code>; set the upload fileinfo input + dataset-name + var inputs + <code>ptr_update_plot=1</code>; <code>ptr_extract_code()</code> omits both the assignment line and <code>data =</code>.</p>
+<div class="bug-card low">
+<h3>F-2 &nbsp;<span class="sev sev-low">RETRACTED · FALSE POSITIVE</span> &nbsp; Upload-sourced code generation works correctly</h3>
+<p><b>This finding was wrong.</b> Real-world verification (maintainer, browser, penguins.csv uploaded into the block-15j formula) shows the generated code is correct — the dataset name appears in <i>both</i> <code>ggplot()</code> and the <code>geom_point()</code> data argument:</p>
+<pre>ggplot(data = penguins, aes(x = bill_length_mm, y = bill_depth_mm)) +
+  geom_point(data = penguins) +
+  geom_smooth(method = "lm")</pre>
+<p><b>Root cause of the false positive (testing error, not a package defect):</b> the original "repro" drove bare <code>ptr_server()</code> inside <code>shiny::testServer</code> with a hand-poked fileinfo input, no module <code>ns</code>, and a partial reactive flush. That harness does <i>not</i> reproduce <code>ptr_app()</code>'s upload → data-source → code-generation wiring (renderUI/observer cycle that substitutes the resolved object name into the code). The audit had <i>already documented this exact limitation for 15j</i> ("shared auto-binding is performed by <code>ptr_app()</code>, not <code>ptr_server()</code>") but failed to apply the same skepticism to the block-10 result, and instead promoted a harness artifact to a HIGH-severity source bug. Browser file upload being blocked by the automation environment is what prevented catching this directly.</p>
+<p><b>Net:</b> the upload path (blocks 10 &amp; 15j) generates correct, copy-pasteable code. No source defect. No package change needed.</p>
 </div>
 
 <div class="bug-card med">
@@ -100,7 +90,7 @@ expected (cf. built-in source, block 17):
 
 <div class="note">
 <h3>Testing limitation — browser file upload</h3>
-<p>The automation environment blocks Chrome DevTools <code>DOM.setFileInputFiles</code> (<code>"Not allowed"</code>), so the file picker in blocks <b>10</b> and <b>15j</b> could not be driven through the browser. Both upload widgets <b>render correctly</b> in-browser (Browse + dataset-name companion + accepted-formats note: <code>.csv,.tsv,.rds,.xlsx,.xls,.json</code>; 15j shows one shared widget in the shared section feeding both layers). The upload data-flow for block 10 was instead validated headlessly via <code>shiny::testServer</code> + <code>ptr_server</code> with a real fileinfo (this is how F-2 was found). Block 15j's full data-flow is not headlessly testable because shared auto-binding is performed by <code>ptr_app()</code>, not <code>ptr_server()</code>; its widget render is verified and F-2 applies to its code path.</p>
+<p>The automation environment blocks Chrome DevTools <code>DOM.setFileInputFiles</code> (<code>"Not allowed"</code>), so the file picker in blocks <b>10</b> and <b>15j</b> could not be driven through the browser. Both upload widgets <b>render correctly</b> in-browser (Browse + dataset-name companion + accepted-formats note: <code>.csv,.tsv,.rds,.xlsx,.xls,.json</code>; 15j shows one shared widget in the shared section feeding both layers). An attempt to validate block 10's data-flow headlessly via <code>shiny::testServer</code> + bare <code>ptr_server</code> produced a <b>false positive (F-2, retracted)</b>: that harness does not reproduce <code>ptr_app()</code>'s upload → data-source → code-gen wiring, so it wrongly appeared to drop <code>data =</code>. Real-world browser upload (maintainer, penguins.csv) confirms the generated code is correct. Lesson: a bare-<code>ptr_server</code> <code>testServer</code> harness is not a faithful proxy for <code>ptr_app()</code> on the upload/data-source path (or the shared-binding path — already noted for 15j); when the browser path is blocked, an unreproduced testServer result must be flagged as inconclusive, not filed as a defect.</p>
 </div>
 
 <h2>Block-by-block results</h2>
@@ -122,7 +112,7 @@ expected (cf. built-in source, block 17):
   <tr><td>7</td><td>Multi-layer text/num/expr, <code>checkbox_defaults</code></td><td class="pass">PASS</td><td>geom_smooth correctly starts OFF; full code incl. <code>labs()</code> correct</td></tr>
   <tr><td>8</td><td>Pipeline <code>head(num)</code>, per-stage checkbox</td><td class="pass">PASS</td><td><code>num</code>→<code>head(10)</code>; uncheck drops stage. <span class="warn">F-1</span></td></tr>
   <tr><td>9</td><td><code>expr</code> facet_wrap, G5 provenance</td><td class="pass">PASS</td><td><code>… + facet_wrap(~cyl)</code></td></tr>
-  <tr><td>10</td><td>Upload source, reserved-word normalize</td><td class="pass">PASS*</td><td>widget OK; data-flow via testServer. <span class="bug">F-2</span></td></tr>
+  <tr><td>10</td><td>Upload source, reserved-word normalize</td><td class="pass">PASS</td><td>widget OK; code-gen correct (F-2 retracted — real upload emits <code>data = &lt;name&gt;</code>)</td></tr>
   <tr><td>11a</td><td>Custom <code>pct</code> value placeholder</td><td class="pass">PASS</td><td><code>{param}</code>→"alpha" label; <code>resolve_expr</code> value/100 → <code>alpha=0.5</code></td></tr>
   <tr><td>11b</td><td>Custom <code>dropvar</code> consumer</td><td class="pass">PASS</td><td>resolves via <code>rlang::sym</code> to bare column</td></tr>
   <tr><td>11c</td><td>Custom consumer + multi-stage + multi-layer</td><td class="pass">PASS</td><td><code>iris|&gt;subset(Species=="setosa")|&gt;head(30)|&gt;ggplot(…)+geom_point(size=3)+geom_smooth(method=lm)+labs(title=…)</code>; stage-disable works</td></tr>
@@ -139,7 +129,7 @@ expected (cf. built-in source, block 17):
   <tr><td>15f</td><td>Same source, divergent upstreams</td><td class="pass">PASS</td><td>by-design fallback to source; bad pick → graceful <code>#ptr_error</code> ("Aesthetics must be …")</td></tr>
   <tr><td>15g</td><td>Grid auto shared <code>var</code></td><td class="pass">PASS</td><td>top-level picker drives all modules</td></tr>
   <tr><td>15i</td><td>Shared custom consumer (<code>dropvar</code>)</td><td class="pass">PASS</td><td>S3 <code>ptr_ph_data_consumer</code> host-resolution dispatch works</td></tr>
-  <tr><td>15j</td><td>Shared <code>upload</code> source</td><td class="pass">PASS*</td><td>widget renders correctly; data-flow not headlessly testable. <span class="bug">F-2</span> applies</td></tr>
+  <tr><td>15j</td><td>Shared <code>upload</code> source</td><td class="pass">PASS</td><td>widget renders; real upload (penguins.csv) confirmed to emit <code>data = penguins</code> in both layers</td></tr>
   <tr><td>15k</td><td>Self-reference / cross-key truncation</td><td class="pass">PASS</td><td>orphan-stage checkbox + bare aes placeholder; no circular-dep error</td></tr>
   <tr><td>15l</td><td>Grid shared stage(verb) checkbox</td><td class="pass">PASS</td><td>one "select/filter()" checkbox prunes orphan stage in both modules</td></tr>
   <tr><td>15m</td><td><code>ptr_shared_ui</code>/<code>ptr_shared_server</code> pair</td><td class="pass">PASS</td><td>embedder API; same behavior as 15l with custom titlePanel</td></tr>
