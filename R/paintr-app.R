@@ -615,6 +615,14 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
 #' wherever you like, and wire the server with [ptr_server()] /
 #' [ptr_module_server()].
 #'
+#' Because the panel includes a `shinyWidgets::pickerInput()` (the layer
+#' selector) and the Bootstrap grid, it must be rendered inside a
+#' Bootstrap page root — `shiny::fluidPage()`, `bootstrapPage()`,
+#' `fillPage()`, … — so Shiny loads Bootstrap. A bare `shiny::tags$div()`
+#' root leaves the picker unstyled (`ptr_ui_assets()` ships ggpaintr's
+#' own CSS/JS, not Bootstrap). The reliable shape is
+#' `fluidPage(ptr_ui_assets(), div(class = "ptr-app", ptr_ui_controls(...), ...))`.
+#'
 #' For finer control still — placing individual placeholder widgets
 #' independently rather than the whole panel — use the exported
 #' [build_ui_for()] generic on the nodes of `ptr_translate(formula)`.

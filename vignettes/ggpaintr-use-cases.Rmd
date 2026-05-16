@@ -470,10 +470,11 @@ The pieces:
 | `ptr_ui_code_toggle(id, plot_error)` | Plot + slide-out code, wired to the show-code toggle — exactly the block the bundled apps render | `plot_error` nests the inline error (default `TRUE`) |
 | `ptr_ui_assets(css)` | The CSS/JS bundle (theme + structural CSS + code-window JS + your `css`) | `css` |
 
-Two facts make the difference between L3 working and looking broken:
+Three facts make the difference between L3 working and looking broken:
 
-1. **The pieces emit no assets and no wrapper.** Unlike `ptr_controls_ui()` / `ptr_outputs_ui()` (which self-wrap in `<div class="ptr-app">` and inject assets), the L3 pieces are bare. The bundled `ggpaintr.css` theme is scoped under `.ptr-app`, so a hand-composed page must (a) include `ptr_ui_assets()` once — anywhere; it is idempotent and self-deduping — and (b) wrap the region you want themed in `shiny::tags$div(class = "ptr-app", …)`. Skip either and the widgets still *work* but lose the ggpaintr styling.
-2. **The slide-out code toggle is opt-in.** A standalone `ptr_ui_code()` is a plain, always-visible panel that needs no wiring. The draggable slide-out window (with the show-code button, Copy, Close, drag) only works when the plot and a `style = "window"` code pane sit inside one `.ptr-output` scope wired together — use `ptr_ui_code_toggle()` for that exact bundle. Without it, place `ptr_ui_plot()` and `ptr_ui_code()` independently and the code pane simply stands on its own.
+1. **Keep a Bootstrap page at the root.** ggpaintr's controls use a `shinyWidgets::pickerInput()` (the layer selector) and the Bootstrap grid (`fluidRow()` / `column()` / `sidebarLayout()`). Those need Bootstrap's own CSS/JS, which Shiny loads **only** when the outermost UI object is a Bootstrap page builder — `shiny::fluidPage()`, `bootstrapPage()`, `fillPage()`, `navbarPage()`, …. A bare `shiny::tags$div()` root is *not* enough: the picker renders unstyled/broken even with `ptr_ui_assets()` present, because that bundle is ggpaintr's *own* CSS/JS (theme + code-window behaviour), not Bootstrap. The bundled `ptr_app()` / `ptr_module_ui()` always wrap in `fluidPage()` for exactly this reason — so should you.
+2. **The pieces emit no assets and no wrapper.** Unlike `ptr_controls_ui()` / `ptr_outputs_ui()` (which self-wrap in `<div class="ptr-app">` and inject assets), the L3 pieces are bare. The bundled `ggpaintr.css` theme is scoped under `.ptr-app`, so inside the Bootstrap page you must (a) include `ptr_ui_assets()` once — anywhere; it is idempotent and self-deduping — and (b) wrap the region you want themed in `shiny::tags$div(class = "ptr-app", …)`. Skip either and the widgets still *work* but lose the ggpaintr styling. The reliable shape, mirroring the bundled apps, is `fluidPage(ptr_ui_assets(), div(class = "ptr-app", …pieces…))`.
+3. **The slide-out code toggle is opt-in.** A standalone `ptr_ui_code()` is a plain, always-visible panel that needs no wiring. The draggable slide-out window (with the show-code button, Copy, Close, drag) only works when the plot and a `style = "window"` code pane sit inside one `.ptr-output` scope wired together — use `ptr_ui_code_toggle()` for that exact bundle. Without it, place `ptr_ui_plot()` and `ptr_ui_code()` independently and the code pane simply stands on its own.
 
 Ids must line up: pass the same `id` to every piece and to the server (a `shiny::moduleServer(id, …)` wrapping `ptr_server()`, or `ptr_module_server(id, …)`). The single-embedding case needs neither the `id` nor the wrapper.
 
@@ -482,18 +483,20 @@ A fully hand-laid-out page — header, controls, plot, error, and code each in t
 ```{r l3-pieces}
 formula <- "ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"
 
-ui <- shiny::tags$div(
-  class = "ptr-app",                       # scopes the bundled theme
-  ptr_ui_assets(),                         # include the CSS/JS bundle once
-  ptr_ui_header("Iris explorer"),
-  shiny::fluidRow(
-    shiny::column(4, ptr_ui_controls(formula = formula)),
-    shiny::column(8, ptr_ui_plot(error = FALSE))   # plot only; error placed below
-  ),
-  ptr_ui_error(),                          # error banner in its own row
-  shiny::tags$details(
-    shiny::tags$summary("Generated code"),
-    ptr_ui_code()                          # plain, always-visible code panel
+ui <- shiny::fluidPage(                     # Bootstrap page root — loads pickerInput / grid deps
+  ptr_ui_assets(),                          # include the CSS/JS bundle once
+  shiny::tags$div(
+    class = "ptr-app",                      # scopes the bundled theme
+    ptr_ui_header("Iris explorer"),
+    shiny::fluidRow(
+      shiny::column(4, ptr_ui_controls(formula = formula)),
+      shiny::column(8, ptr_ui_plot(error = FALSE))   # plot only; error placed below
+    ),
+    ptr_ui_error(),                         # error banner in its own row
+    shiny::tags$details(
+      shiny::tags$summary("Generated code"),
+      ptr_ui_code()                         # plain, always-visible code panel
+    )
   )
 )
 server <- function(input, output, session) {
@@ -506,13 +509,15 @@ shiny::shinyApp(ui, server)
 Want the familiar slide-out code window while still owning the surrounding layout? Swap the plot + code pieces for the one wiring helper:
 
 ```{r l3-pieces-toggle}
-ui <- shiny::tags$div(
-  class = "ptr-app",
+ui <- shiny::fluidPage(
   ptr_ui_assets(),
-  ptr_ui_header("Iris explorer"),
-  shiny::sidebarLayout(
-    shiny::sidebarPanel(ptr_ui_controls(formula = formula)),
-    shiny::mainPanel(ptr_ui_code_toggle())   # plot + inline error + slide-out code, wired
+  shiny::tags$div(
+    class = "ptr-app",
+    ptr_ui_header("Iris explorer"),
+    shiny::sidebarLayout(
+      shiny::sidebarPanel(ptr_ui_controls(formula = formula)),
+      shiny::mainPanel(ptr_ui_code_toggle())   # plot + inline error + slide-out code, wired
+    )
   )
 )
 # server unchanged
@@ -530,16 +535,18 @@ plots <- list(
   "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Width,  fill = Species)) + geom_violin()"
 )
 
-ui <- shiny::tags$div(
-  class = "ptr-app",
+ui <- shiny::fluidPage(
   ptr_ui_assets(),
-  ptr_shared_ui(
-    formulas  = plots,
-    shared_ui = list(metric = function(id) shiny::selectInput(id, "Metric", names(iris)))
-  ),
-  shiny::fluidRow(
-    shiny::column(6, ptr_ui_controls("p1", plots[[1]]), ptr_ui_plot("p1")),
-    shiny::column(6, ptr_ui_controls("p2", plots[[2]]), ptr_ui_plot("p2"))
+  shiny::tags$div(
+    class = "ptr-app",
+    ptr_shared_ui(
+      formulas  = plots,
+      shared_ui = list(metric = function(id) shiny::selectInput(id, "Metric", names(iris)))
+    ),
+    shiny::fluidRow(
+      shiny::column(6, ptr_ui_controls("p1", plots[[1]]), ptr_ui_plot("p1")),
+      shiny::column(6, ptr_ui_controls("p2", plots[[2]]), ptr_ui_plot("p2"))
+    )
   )
 )
 server <- function(input, output, session) {
