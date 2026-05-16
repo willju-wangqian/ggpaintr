@@ -14,8 +14,7 @@
 #' `reactiveVal`), the runtime result, the per-layer resolved-data caches,
 #' the eval environment, the input-snapshot machinery, and the shared
 #' bindings / draw trigger — used by [ptr_server()] and the advanced-embedder
-#' helpers ([ptr_register_plot()] / [ptr_register_error()] /
-#' [ptr_register_code()], [ptr_extract_plot()] / [ptr_extract_error()] /
+#' accessors ([ptr_extract_plot()] / [ptr_extract_error()] /
 #' [ptr_extract_code()], [ptr_gg_extra()]).
 #'
 #' This is a *state container*, not a from-scratch reactive-app builder: it
@@ -23,8 +22,7 @@
 #' observers (those live in internal `ptr_setup_*` helpers wired by
 #' [ptr_server()]). Reach for `ptr_init_state()` directly when you want to
 #' drive the typed tree programmatically or exercise ggpaintr under
-#' [shiny::testServer()]; for a fully wired app use [ptr_server()] (and
-#' override its outputs via the `ptr_register_*` helpers as needed).
+#' [shiny::testServer()]; for a fully wired app use [ptr_server()].
 #'
 #' @param formula A single formula string with `ggpaintr` placeholders.
 #' @param envir Environment used to resolve local data objects.
@@ -1234,18 +1232,11 @@ runtime_consumer_entry <- function(state, node, snapshot = list()) {
 
 # ---- public output bindings ----
 
-#' Register Plot / Error / Code Outputs
-#'
-#' Attaches the standard plot, error, and code outputs to the Shiny `output`
-#' object. Already invoked by [ptr_server()]; exposed for embedders that
-#' compose outputs manually.
-#'
-#' @param output The Shiny output object.
-#' @param state A `ptr_state` from [ptr_init_state()].
-#'
-#' @return The `output` object, invisibly.
-#' @name ptr_register
-#' @export
+# Internal output bindings. Attach the standard plot, error, and code
+# outputs to the Shiny `output` object. Sole caller is `ptr_server()`
+# (via `ptr_setup_runtime()`), which calls all three unconditionally;
+# each reads `state$runtime()`, populated only by the internal
+# `ptr_setup_runtime()`. Not a public composition surface post-rewrite.
 ptr_register_plot <- function(output, state) {
   ptr_validate_state(state)
   output[[state$server_ns_fn("ptr_plot")]] <- shiny::renderPlot({
@@ -1261,8 +1252,6 @@ ptr_register_plot <- function(output, state) {
   invisible(state)
 }
 
-#' @rdname ptr_register
-#' @export
 ptr_register_error <- function(output, state) {
   ptr_validate_state(state)
   output[[state$server_ns_fn("ptr_error")]] <- shiny::renderUI({
@@ -1312,8 +1301,6 @@ format_code_with_extras <- function(res, extras_exprs) {
   paste(c(base, extra_text), collapse = " +\n  ")
 }
 
-#' @rdname ptr_register
-#' @export
 ptr_register_code <- function(output, state) {
   ptr_validate_state(state)
   code_id <- state$server_ns_fn("ptr_code")

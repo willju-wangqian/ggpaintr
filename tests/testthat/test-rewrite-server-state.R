@@ -187,10 +187,12 @@ test_that("inject_resolved_data swaps data_arg for the cached frame (spec L105)"
 # ---- ptr_validate_state guard ----
 
 test_that("ptr_register_* abort on a malformed state", {
-  expect_error(ptr_register_plot(list(), list()), "ptr_state|missing required")
-  expect_error(ptr_register_error(list(), list()), "ptr_state|missing required")
-  expect_error(ptr_register_code(list(), list()), "ptr_state|missing required")
-  expect_error(ptr_register_plot(list(), "not a list"), "must be a `ptr_state`")
+  # ptr_register_* are internal (un-exported) post-rewrite; sole caller is
+  # ptr_server() via ptr_setup_runtime(). Reach them with ::: for this guard.
+  expect_error(ggpaintr:::ptr_register_plot(list(), list()), "ptr_state|missing required")
+  expect_error(ggpaintr:::ptr_register_error(list(), list()), "ptr_state|missing required")
+  expect_error(ggpaintr:::ptr_register_code(list(), list()), "ptr_state|missing required")
+  expect_error(ggpaintr:::ptr_register_plot(list(), "not a list"), "must be a `ptr_state`")
 })
 
 test_that("a well-formed ptr_init_state passes ptr_validate_state", {

@@ -219,12 +219,6 @@ shiny::shinyApp(ui, server)
 
 If you need to embed more than one `ggpaintr` formula on the same page — or share a sidebar with hand-written widgets that might collide — pass a matching `id` to all three: `ptr_controls_ui("p", formula)`, `ptr_outputs_ui("p")`, and `shiny::moduleServer("p", function(input, output, session) ptr_server(input, output, session, formula))`. The single-formula case (the example above) needs neither the `id` nor the `moduleServer()` wrapper.
 
-### Splitting outputs further
-
-`ptr_register_plot()`, `ptr_register_error()`, and `ptr_register_code()` are exposed for embedders who want fewer than three outputs (drop the code pane, for example), or who want to drive the outputs from their own `ptr_init_state()` without `ptr_server()`'s opinionated bundle. Each accepts `(output, state)` and writes to a canonical, namespaced output id; pair with `plotOutput()` / `uiOutput()` / `verbatimTextOutput()` at the namespaced output id.
-
-If you need custom output names — your own `plotOutput("my_chart")` rather than ggpaintr's `ptr_plot` — read the latest plot from the returned `state` inside your own `renderPlot()` block; see *Custom rendering off the returned `state`* below (it is an L2 capability, since the server functions return `state`). If instead you want to own the *placement and markup* of each pane (plot / error / code / controls) while keeping ggpaintr's renderer, that is **L3** — one exported function per UI piece; see *L3 — Own every piece of the UI*.
-
 ### Shared widgets across embedded plots — `ptr_shared_ui()` / `ptr_shared_server()`
 
 `ptr_app_grid()` (L1) builds a shared-widget panel for you. When you embed two or more ggpaintr blocks in your *own* Shiny app and want one widget to drive all of them, wire that panel by hand with the same two primitives `ptr_app_grid()` uses internally: `ptr_shared_ui()` for the panel tag and `ptr_shared_server()` for the linked reactives. Annotate the placeholder with `keyword(shared = "<id>")` in every formula, exactly as in the L1 grid example.

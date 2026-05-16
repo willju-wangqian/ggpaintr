@@ -92,8 +92,7 @@ Builds the \code{ptr_state} object — the translated typed AST (as a
 \code{reactiveVal}), the runtime result, the per-layer resolved-data caches,
 the eval environment, the input-snapshot machinery, and the shared
 bindings / draw trigger — used by \code{\link[=ptr_server]{ptr_server()}} and the advanced-embedder
-helpers (\code{\link[=ptr_register_plot]{ptr_register_plot()}} / \code{\link[=ptr_register_error]{ptr_register_error()}} /
-\code{\link[=ptr_register_code]{ptr_register_code()}}, \code{\link[=ptr_extract_plot]{ptr_extract_plot()}} / \code{\link[=ptr_extract_error]{ptr_extract_error()}} /
+accessors (\code{\link[=ptr_extract_plot]{ptr_extract_plot()}} / \code{\link[=ptr_extract_error]{ptr_extract_error()}} /
 \code{\link[=ptr_extract_code]{ptr_extract_code()}}, \code{\link[=ptr_gg_extra]{ptr_gg_extra()}}).
 }
 \details{
@@ -102,6 +101,5 @@ allocates the reactives but does not attach the pipeline / runtime
 observers (those live in internal \verb{ptr_setup_*} helpers wired by
 \code{\link[=ptr_server]{ptr_server()}}). Reach for \code{ptr_init_state()} directly when you want to
 drive the typed tree programmatically or exercise ggpaintr under
-\code{\link[shiny:testServer]{shiny::testServer()}}; for a fully wired app use \code{\link[=ptr_server]{ptr_server()}} (and
-override its outputs via the \verb{ptr_register_*} helpers as needed).
+\code{\link[shiny:testServer]{shiny::testServer()}}; for a fully wired app use \code{\link[=ptr_server]{ptr_server()}}.
 }

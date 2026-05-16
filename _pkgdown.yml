@@ -38,12 +38,9 @@ reference:
       - ptr_ui_code_toggle
       - ptr_ui_assets
   - title: Advanced embedders
-    desc: Drive the typed tree programmatically, test with shiny::testServer, or own the plot/code/error outputs.
+    desc: Drive the typed tree programmatically, test with shiny::testServer, or read runtime outputs off the returned state.
     contents:
       - ptr_init_state
-      - ptr_register_plot
-      - ptr_register_error
-      - ptr_register_code
       - ptr_extract_plot
       - ptr_extract_error
       - ptr_extract_code
