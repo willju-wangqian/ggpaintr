@@ -564,7 +564,7 @@ ptr_layer_assets <- function() {
 # page with several ggpaintr modules (e.g. ptr_app_grid()) works correctly.
 # Harmless if included more than once: the script self-registers a single
 # delegated listener.
-ptr_ui_assets <- function() {
+core_assets_tags <- function() {
   www <- system.file("www", package = "ggpaintr")
   if (nzchar(www)) {
     shiny::addResourcePath("ggpaintr", www)
@@ -624,7 +624,7 @@ ptr_user_css_assets <- function(css) {
 #   1. ptr_layer_assets()      -- inline structural CSS (.ptr-stage-*) + the
 #      ptr_set_class custom-message JS handler. Both must ride along inside
 #      module embeddings because they are not file-scoped.
-#   2. ptr_ui_assets()         -- <link> to ggpaintr.css (the cosmetic theme,
+#   2. core_assets_tags()      -- <link> to ggpaintr.css (the cosmetic theme,
 #      scoped under .ptr-app) + the code-mini-window JS.
 #   3. ptr_user_css_assets(css) -- user override stylesheets, linked *after*
 #      ggpaintr.css so equal-specificity rules win.
@@ -635,7 +635,7 @@ ptr_user_css_assets <- function(css) {
 # nests ptr_controls_ui() + ptr_outputs_ui(), which together emit this
 # bundle three times -- that is fine by construction.
 #
-# Not exported: ggpaintr users never need to inject assets manually.
+# The internal entry point; the exported wrapper is ptr_ui_assets().
 # Note: ptr_app_bslib() deliberately bypasses this bundle (it must NOT
 # link ggpaintr.css because its rules are gated on .ptr-app, which the
 # bslib page chrome does not provide). The bslib path calls
@@ -643,9 +643,31 @@ ptr_user_css_assets <- function(css) {
 ptr_assets <- function(css = NULL) {
   shiny::tagList(
     ptr_layer_assets(),
-    ptr_ui_assets(),
+    core_assets_tags(),
     ptr_user_css_assets(css)
   )
+}
+
+#' Bundled CSS / JS Assets Piece for `ggpaintr`
+#'
+#' The full `ggpaintr` asset bundle as a [shiny::tagList()]: structural
+#' layer CSS + the `ptr_set_class` message handler, the bundled
+#' `ggpaintr.css` theme `<link>`, the code-window JavaScript, and any
+#' user override stylesheets. The single-piece UI builders
+#' ([ptr_ui_plot()], [ptr_ui_controls()], ...) emit **no** assets, so an
+#' L3 page that composes pieces by hand must include this once (anywhere
+#' on the page; it is idempotent and self-deduping). The bundled apps and
+#' the `ptr_*_ui()` composites inject it for you.
+#'
+#' @param css Optional character vector of paths to additional CSS files;
+#'   linked after `ggpaintr`'s bundled stylesheet so its rules win. See
+#'   [ptr_app()] for the full semantics. Defaults to `NULL`.
+#'
+#' @return A [shiny::tagList()].
+#' @seealso [ptr_ui_plot()], [ptr_ui_controls()], [ptr_ui_code_toggle()], [ptr_css()]
+#' @export
+ptr_ui_assets <- function(css = NULL) {
+  ptr_assets(css = css)
 }
 
 ptr_ui_js <- function() {

@@ -71,6 +71,12 @@ from) instead of the per-layer \code{node$upstream}, so a value valid in
 the host picker is never rejected by one layer's narrower upstream.
 Defaults to \code{list()} (no host resolutions; per-layer behaviour).}
 
+\item{shared_stage_enabled}{Named list (keyed by raw shared key) of
+reactives, each returning a logical, that toggle the orphan pipeline
+stages owned by that shared key (as carried in a
+\code{\link[=ptr_shared_server]{ptr_shared_server()}} bundle). A missing or unset entry leaves the
+stage enabled. Defaults to \code{list()}.}
+
 \item{plots}{Optional list of formula strings for grid contexts. When
 supplied (typically by \code{\link[=ptr_app_grid]{ptr_app_grid()}}), the validator for \code{shared}
 bindings cross-checks shared-key references against every plot's

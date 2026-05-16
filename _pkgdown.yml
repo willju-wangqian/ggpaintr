@@ -27,6 +27,16 @@ reference:
       - ptr_controls_ui
       - ptr_outputs_ui
       - ptr_server
+  - title: UI pieces (L3)
+    desc: Own every piece of ggpaintr's public UI — one exported builder per pane. Compose them freely and wire with `ptr_server()` / `ptr_module_server()`. See `vignette("ggpaintr-use-cases")` § "L3 — Own every piece of the UI".
+    contents:
+      - ptr_ui_header
+      - ptr_ui_controls
+      - ptr_ui_plot
+      - ptr_ui_error
+      - ptr_ui_code
+      - ptr_ui_code_toggle
+      - ptr_ui_assets
   - title: Advanced embedders
     desc: Drive the typed tree programmatically, test with shiny::testServer, or own the plot/code/error outputs.
     contents:

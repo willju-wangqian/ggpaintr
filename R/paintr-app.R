@@ -292,34 +292,54 @@ ptr_controls_panel <- function(tree, ui_text = NULL,
   ))
 }
 
-# Output contents for an embedded formula: plot + error + code, in that DOM
-# order. The ids are the contract ptr_register_plot()/_error()/_code() write to.
-ptr_outputs_panel <- function(ns = shiny::NS(NULL)) {
-  code_icon <- shiny::HTML(
+# ---- Output panes: shared builders + public pieces ----
+#
+# `ptr_outputs_panel()` (the bundled `.ptr-output` block used by
+# `ptr_app()` / `ptr_module_ui()`) and the exported single-piece
+# functions below are both assembled from the same `*_tag()` builders, so
+# the bundled DOM, input ids and output ids are byte-identical to the
+# pre-split implementation. The ids `ptr_plot` / `ptr_error` / `ptr_code`
+# are the contract `ptr_register_plot()` / `_error()` / `_code()` write to.
+
+# SVG used for the show-code toggle button in the plot card head.
+code_toggle_icon <- function() {
+  shiny::HTML(
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4"></path><path d="m6 8-4 4 4 4"></path><path d="m14.5 4-5 16"></path></svg>'
   )
-  shiny::tags$div(
-    class = "ptr-output",
-    shiny::tags$div(
-      class = "ptr-card ptr-card--plot",
-      shiny::tags$div(
-        class = "ptr-card__head",
-        shiny::tags$h3(class = "ptr-card__title", "Plot"),
-        shiny::tags$button(
-          type = "button",
-          class = "ptr-icon-btn ptr-code-toggle",
-          title = "Show generated code",
-          `aria-label` = "Show generated code",
-          code_icon
-        )
-      ),
-      shiny::tags$div(
-        class = "ptr-card__body",
-        shiny::plotOutput(ns("ptr_plot")),
-        shiny::uiOutput(ns("ptr_error"))
+}
+
+error_slot_tag <- function(ns) {
+  shiny::uiOutput(ns("ptr_error"))
+}
+
+plot_card_tag <- function(ns, error = TRUE, code_toggle = FALSE) {
+  head_kids <- list(shiny::tags$h3(class = "ptr-card__title", "Plot"))
+  if (isTRUE(code_toggle)) {
+    head_kids <- c(head_kids, list(
+      shiny::tags$button(
+        type = "button",
+        class = "ptr-icon-btn ptr-code-toggle",
+        title = "Show generated code",
+        `aria-label` = "Show generated code",
+        code_toggle_icon()
       )
-    ),
-    shiny::tags$div(
+    ))
+  }
+  body_kids <- list(shiny::plotOutput(ns("ptr_plot")))
+  if (isTRUE(error)) {
+    body_kids <- c(body_kids, list(error_slot_tag(ns)))
+  }
+  shiny::tags$div(
+    class = "ptr-card ptr-card--plot",
+    do.call(shiny::tags$div, c(list(class = "ptr-card__head"), head_kids)),
+    do.call(shiny::tags$div, c(list(class = "ptr-card__body"), body_kids))
+  )
+}
+
+code_block_tag <- function(ns, style = c("panel", "window")) {
+  style <- match.arg(style)
+  if (identical(style, "window")) {
+    return(shiny::tags$div(
       class = "ptr-code-window",
       shiny::tags$div(
         class = "ptr-code-window__head",
@@ -338,7 +358,132 @@ ptr_outputs_panel <- function(ns = shiny::NS(NULL)) {
         class = "ptr-code-window__body",
         shiny::verbatimTextOutput(ns("ptr_code"))
       )
+    ))
+  }
+  shiny::tags$div(
+    class = "ptr-card ptr-card--code",
+    shiny::tags$div(
+      class = "ptr-card__head",
+      shiny::tags$h3(class = "ptr-card__title", "Generated code")
+    ),
+    shiny::tags$div(
+      class = "ptr-card__body",
+      shiny::verbatimTextOutput(ns("ptr_code"))
     )
+  )
+}
+
+# Bundled `.ptr-output` block: plot (+ inline error) + slide-out code
+# window, wired to the show-code toggle. Byte-identical to the
+# pre-split implementation; consumed by ptr_app() / ptr_module_ui().
+ptr_outputs_panel <- function(ns = shiny::NS(NULL)) {
+  shiny::tags$div(
+    class = "ptr-output",
+    plot_card_tag(ns, error = TRUE, code_toggle = TRUE),
+    code_block_tag(ns, style = "window")
+  )
+}
+
+#' Plot Pane Piece for a `ggpaintr` Formula
+#'
+#' The plot card on its own: a `shiny::plotOutput()` bound to the
+#' `ptr_plot` id the server writes to (see [ptr_server()]). One of the
+#' single-piece UI builders for the L3 "own every UI piece" workflow;
+#' place it anywhere in your own layout and wire the server with
+#' [ptr_server()] / [ptr_module_server()].
+#'
+#' @param id Optional module id; the namespace prefix for the output.
+#'   Defaults to `NULL` (identity namespace) for the single-embedding
+#'   case. When set, must match the `id` passed to the other piece
+#'   functions and to the `shiny::moduleServer()` wrapping [ptr_server()]
+#'   (or to [ptr_module_server()]).
+#' @param error If `TRUE` (default) the inline error slot
+#'   ([ptr_ui_error()]) is nested in the card body, reproducing the
+#'   bundled layout. Set `FALSE` to place [ptr_ui_error()] elsewhere.
+#' @param code_toggle If `TRUE`, render the show-code button in the card
+#'   header. The button only does anything when the page also contains a
+#'   slide-out [ptr_ui_code()] wired via [ptr_ui_code_toggle()]; the
+#'   bundled apps set this for you. Defaults to `FALSE`.
+#'
+#' @return A [shiny::tag].
+#' @seealso [ptr_ui_error()], [ptr_ui_code()], [ptr_ui_code_toggle()],
+#'   [ptr_ui_controls()], [ptr_server()]
+#' @export
+ptr_ui_plot <- function(id = NULL, error = TRUE, code_toggle = FALSE) {
+  plot_card_tag(shiny::NS(id), error = error, code_toggle = code_toggle)
+}
+
+#' Inline Error Pane Piece for a `ggpaintr` Formula
+#'
+#' The inline error slot on its own: a `shiny::uiOutput()` bound to the
+#' `ptr_error` id the server writes parse/runtime error alerts to (see
+#' [ptr_server()]). One of the single-piece UI builders for the L3 "own
+#' every UI piece" workflow.
+#'
+#' @param id Optional module id; the namespace prefix for the output.
+#'   Defaults to `NULL` (identity namespace). When set, must match the
+#'   `id` passed to the other piece functions and the server wiring.
+#'
+#' @return A [shiny::tag].
+#' @seealso [ptr_ui_plot()], [ptr_ui_code()], [ptr_ui_controls()], [ptr_server()]
+#' @export
+ptr_ui_error <- function(id = NULL) {
+  error_slot_tag(shiny::NS(id))
+}
+
+#' Generated-Code Pane Piece for a `ggpaintr` Formula
+#'
+#' The generated-code output on its own: a `shiny::verbatimTextOutput()`
+#' bound to the `ptr_code` id the server writes to (see [ptr_server()]).
+#' One of the single-piece UI builders for the L3 "own every UI piece"
+#' workflow.
+#'
+#' @param id Optional module id; the namespace prefix for the output.
+#'   Defaults to `NULL` (identity namespace). When set, must match the
+#'   `id` passed to the other piece functions and the server wiring.
+#' @param style `"panel"` (default) renders a plain, always-visible code
+#'   card suitable for free placement. `"window"` renders the draggable
+#'   slide-out window (with Copy / Close) used by the bundled apps; it is
+#'   hidden until toggled and only works when wired via
+#'   [ptr_ui_code_toggle()].
+#'
+#' @return A [shiny::tag].
+#' @seealso [ptr_ui_code_toggle()], [ptr_ui_plot()], [ptr_server()]
+#' @export
+ptr_ui_code <- function(id = NULL, style = c("panel", "window")) {
+  code_block_tag(shiny::NS(id), style = match.arg(style))
+}
+
+#' Toggle-Wired Plot + Slide-Out Code Block
+#'
+#' Convenience helper that returns the plot card and the slide-out
+#' generated-code window wrapped in the `.ptr-output` scope the bundled
+#' JavaScript needs, with the show-code button wired to open/close and
+#' drag the code window. This is exactly the block [ptr_app()] and
+#' [ptr_module_ui()] render internally.
+#'
+#' Use this when you want the familiar toggle behaviour while still
+#' owning the surrounding layout. For fully independent placement of the
+#' plot and code panes (no toggle), use bare [ptr_ui_plot()] and
+#' [ptr_ui_code()] instead — a standalone [ptr_ui_code()] is always
+#' visible and needs no wiring.
+#'
+#' @param id Optional module id; the namespace prefix for the outputs.
+#'   Defaults to `NULL` (identity namespace). When set, must match the
+#'   `id` passed to [ptr_ui_controls()] and the server wiring.
+#' @param plot_error If `TRUE` (default) the inline error slot is nested
+#'   in the plot card body, matching the bundled layout. Set `FALSE` to
+#'   place [ptr_ui_error()] yourself.
+#'
+#' @return A [shiny::tag].
+#' @seealso [ptr_ui_plot()], [ptr_ui_code()], [ptr_outputs_ui()], [ptr_server()]
+#' @export
+ptr_ui_code_toggle <- function(id = NULL, plot_error = TRUE) {
+  ns <- shiny::NS(id)
+  shiny::tags$div(
+    class = "ptr-output",
+    plot_card_tag(ns, error = plot_error, code_toggle = TRUE),
+    code_block_tag(ns, style = "window")
   )
 }
 
@@ -352,7 +497,7 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
   # fluidPage child -- it is the regression guard for the layer cue.
   title <- ptr_resolve_ui_text("title", ui_text = ui_text)$label %||% ""
   header <- if (isTRUE(app_chrome)) {
-    ptr_app_header(if (nzchar(title)) title else "ggpaintr")
+    ptr_ui_header(if (nzchar(title)) title else "ggpaintr")
   } else if (nzchar(title)) {
     shiny::titlePanel(title)
   } else {
@@ -377,8 +522,18 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
   )
 }
 
-# Slim header bar that replaces titlePanel() on the polished default shell.
-ptr_app_header <- function(title) {
+#' App Header Piece for `ggpaintr`
+#'
+#' The slim branded header bar (logo + title) the polished default shell
+#' uses in place of `shiny::titlePanel()`. One of the single-piece UI
+#' builders for the L3 "own every UI piece" workflow.
+#'
+#' @param title Heading text. Defaults to `"ggpaintr"`.
+#'
+#' @return A [shiny::tag].
+#' @seealso [ptr_ui_controls()], [ptr_ui_plot()], [ptr_app()]
+#' @export
+ptr_ui_header <- function(title = "ggpaintr") {
   shiny::tags$header(
     class = "ptr-app__header",
     shiny::tags$img(
@@ -450,6 +605,51 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
   )
 }
 
+#' Controls Piece for a `ggpaintr` Formula
+#'
+#' The generated control widgets (layer picker, per-layer parameter
+#' panels, the "Update plot" button) as a bare [shiny::tagList()] with
+#' **no** `.ptr-app` wrapper and **no** bundled assets. One of the
+#' single-piece UI builders for the L3 "own every UI piece" workflow:
+#' compose it with [ptr_ui_assets()] and the output pieces, place each
+#' wherever you like, and wire the server with [ptr_server()] /
+#' [ptr_module_server()].
+#'
+#' For finer control still — placing individual placeholder widgets
+#' independently rather than the whole panel — use the exported
+#' [build_ui_for()] generic on the nodes of `ptr_translate(formula)`.
+#'
+#' @param id Optional module id; the namespace prefix for inputs.
+#'   Defaults to `NULL` (identity namespace). When set, must match the
+#'   `id` passed to the other piece functions and the server wiring.
+#' @param formula A single formula string with `ggpaintr` placeholders.
+#' @param ui_text Optional named list of copy overrides; see
+#'   [ptr_ui_text()] for the full schema and current defaults.
+#' @param checkbox_defaults Optional named list of initial checked states.
+#' @param expr_check Controls `expr` placeholder validation. Defaults to
+#'   `TRUE`.
+#' @param render_shared_section If `TRUE`, include the inline "Shared
+#'   controls" section for any `shared = "..."` placeholders. Defaults to
+#'   `FALSE` (the embedded default — use [ptr_shared_ui()] for the
+#'   page-level shared panel).
+#'
+#' @return A [shiny::tagList()].
+#' @seealso [ptr_ui_assets()], [ptr_ui_plot()], [ptr_ui_code()],
+#'   [build_ui_for()], [ptr_server()]
+#' @export
+ptr_ui_controls <- function(id = NULL, formula, ui_text = NULL,
+                            checkbox_defaults = NULL, expr_check = TRUE,
+                            render_shared_section = FALSE) {
+  tree <- ptr_translate(formula, expr_check = expr_check)
+  do.call(
+    shiny::tagList,
+    ptr_controls_panel(tree, ui_text = ui_text,
+                       checkbox_defaults = checkbox_defaults,
+                       ns = shiny::NS(id),
+                       render_shared_section = render_shared_section)
+  )
+}
+
 #' Control Widgets for an Embedded `ggpaintr` Formula
 #'
 #' UI fragment containing only the generated controls (layer picker, per-layer
@@ -457,7 +657,8 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
 #' it anywhere in your app's layout; pair with [ptr_outputs_ui()] for the
 #' plot/error/code panes and [ptr_server()] (or [ptr_module_server()]) for the
 #' server logic. The fragment self-wraps in `<div class="ptr-app">` so the
-#' bundled stylesheet attaches without any host-side scaffolding.
+#' bundled stylesheet attaches without any host-side scaffolding. This is a
+#' thin convenience composite of [ptr_ui_assets()] + [ptr_ui_controls()].
 #'
 #' @param id Optional module id; the namespace prefix for inputs. Defaults to
 #'   `NULL` (identity namespace) for the single-embedding case. When set,
@@ -479,21 +680,17 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
 ptr_controls_ui <- function(id = NULL, formula, ui_text = NULL,
                             checkbox_defaults = NULL, expr_check = TRUE,
                             css = NULL) {
-  tree <- ptr_translate(formula, expr_check = expr_check)
   # The `.ptr-app` wrapper attaches the bundled stylesheet (which is scoped
   # under that class). When this helper is rendered inside a larger
   # `.ptr-app` (e.g. `ptr_module_ui()`'s outer wrap), `ggpaintr.css`
   # neutralises the nested duplicate's `min-height: 100vh` / background.
   shiny::tags$div(
     class = "ptr-app",
-    do.call(
-      shiny::tagList,
-      c(
-        list(ptr_assets(css = css)),
-        ptr_controls_panel(tree, ui_text = ui_text,
-                           checkbox_defaults = checkbox_defaults,
-                           ns = shiny::NS(id), render_shared_section = FALSE)
-      )
+    ptr_ui_assets(css = css),
+    ptr_ui_controls(
+      id = id, formula = formula, ui_text = ui_text,
+      checkbox_defaults = checkbox_defaults, expr_check = expr_check,
+      render_shared_section = FALSE
     )
   )
 }
@@ -504,7 +701,10 @@ ptr_controls_ui <- function(id = NULL, formula, ui_text = NULL,
 #' outputs for a `ggpaintr` formula. Pair with [ptr_controls_ui()] and
 #' [ptr_server()] (or [ptr_module_server()]). The fragment self-wraps in
 #' `<div class="ptr-app">` so the bundled stylesheet attaches without any
-#' host-side scaffolding.
+#' host-side scaffolding. This is a thin convenience composite of
+#' [ptr_ui_assets()] + [ptr_ui_code_toggle()]; for fully independent
+#' placement use the single pieces [ptr_ui_plot()], [ptr_ui_error()],
+#' [ptr_ui_code()] directly.
 #'
 #' @param id Optional module id; the namespace prefix for outputs. Defaults
 #'   to `NULL` (identity namespace) for the single-embedding case. When set,
@@ -516,13 +716,14 @@ ptr_controls_ui <- function(id = NULL, formula, ui_text = NULL,
 #'   [ptr_app()] for the full semantics. Defaults to `NULL`.
 #'
 #' @return A [shiny::tagList()].
-#' @seealso [ptr_controls_ui()], [ptr_module_ui()], [ptr_module_server()], [ptr_css()]
+#' @seealso [ptr_ui_plot()], [ptr_ui_error()], [ptr_ui_code()],
+#'   [ptr_ui_code_toggle()], [ptr_controls_ui()], [ptr_module_ui()], [ptr_css()]
 #' @export
 ptr_outputs_ui <- function(id = NULL, css = NULL) {
   shiny::tags$div(
     class = "ptr-app",
-    ptr_assets(css = css),
-    ptr_outputs_panel(shiny::NS(id))
+    ptr_ui_assets(css = css),
+    ptr_ui_code_toggle(id = id)
   )
 }
 
@@ -744,7 +945,7 @@ ptr_app_grid_components <- function(plots,
     ptr_assets(css = css),
     shiny::tags$div(
       class = "ptr-app",
-      ptr_app_header(title),
+      ptr_ui_header(title),
       shared_panel,
       plot_columns
     )

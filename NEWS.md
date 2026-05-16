@@ -1,5 +1,11 @@
 # ggpaintr (development version)
 
+## New features
+
+- **L3 — own every piece of the UI.** Every piece of ggpaintr's public UI now has its own exported builder: `ptr_ui_header()`, `ptr_ui_controls()`, `ptr_ui_plot()`, `ptr_ui_error()`, `ptr_ui_code()`, `ptr_ui_code_toggle()`, and `ptr_ui_assets()`. Compose exactly the pieces you want, place each anywhere in your own layout, and wire them with the existing server API (`ptr_server()` / `ptr_module_server()`). The bundled `ptr_app()` / `ptr_module_ui()` / `ptr_outputs_ui()` / `ptr_controls_ui()` paths are reimplemented as thin composites of these pieces and emit byte-identical DOM — no behavior or performance change. The pieces emit no assets and no `.ptr-app` wrapper: include `ptr_ui_assets()` once and wrap the themed region in `<div class="ptr-app">`. See `vignette("ggpaintr-use-cases")` § "L3 — Own every piece of the UI".
+- `ptr_server()` now accepts a `ptr_shared_server()` bundle directly via `shared_state =`, mirroring `ptr_module_server()`. Wiring a page-level `ptr_shared_ui()` panel to a single embedded or custom-rendered plot no longer requires spreading the four bundle slots through `...`.
+- The custom-renderer pattern (reading `state$runtime()` for your own `renderPlotly()` / `renderGirafe()`) is now documented as an L2 capability — both `ptr_server()` and `ptr_module_server()` return the `ptr_state`, so it needs nothing beyond embedding.
+
 ## Behavior changes
 
 - **Custom placeholder registration is now process-global.** The legacy `placeholders = ptr_merge_placeholders(...)` argument has been removed from every public entry point (`ptr_app()`, `ptr_app_bslib()`, `ptr_app_grid()`, `ptr_module_ui()`, `ptr_module_server()`, `ptr_server()`, `ptr_translate()`, `ptr_render()`). Custom placeholders are now defined once per R session via `ptr_define_placeholder_value() / _consumer() / _source()`, which write directly into an internal global registry. All instances in that session see the same registry.

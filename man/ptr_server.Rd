@@ -4,7 +4,15 @@
 \alias{ptr_server}
 \title{Wire a \code{ggpaintr} Server From a Formula}
 \usage{
-ptr_server(input, output, session, formula, envir = parent.frame(), ...)
+ptr_server(
+  input,
+  output,
+  session,
+  formula,
+  envir = parent.frame(),
+  ...,
+  shared_state = NULL
+)
 }
 \arguments{
 \item{input, output, session}{The standard Shiny server arguments.}
@@ -16,6 +24,14 @@ ptr_server(input, output, session, formula, envir = parent.frame(), ...)
 \item{...}{Forwarded to \code{\link[=ptr_init_state]{ptr_init_state()}} (e.g. \code{shared},
 \code{draw_trigger}, \code{ui_text}, \code{checkbox_defaults}, \code{expr_check},
 \code{safe_to_remove}, \code{ns}).}
+
+\item{shared_state}{Optional \code{ptr_shared_state} bundle from
+\code{\link[=ptr_shared_server]{ptr_shared_server()}}. When supplied, its \code{shared}, \code{draw_trigger},
+\code{shared_resolutions} and \code{shared_stage_enabled} slots seed the
+matching \code{\link[=ptr_init_state]{ptr_init_state()}} arguments (an explicit value passed
+through \code{...} still wins). This is the convenience path for wiring a
+page-level \code{\link[=ptr_shared_ui]{ptr_shared_ui()}} panel to a single embedded plot — the
+same bundle \code{\link[=ptr_module_server]{ptr_module_server()}} accepts. Defaults to \code{NULL}.}
 }
 \value{
 The \code{ptr_state} list, invisibly.
@@ -26,4 +42,7 @@ and attaches the per-pipeline observers, stage-enabled toggles, runtime
 observer, and plot/code/error output bindings. Returns the state list so
 embedders can attach extras (\code{ptr_gg_extra}) or drive the typed tree
 programmatically.
+}
+\seealso{
+\code{\link[=ptr_shared_server]{ptr_shared_server()}}, \code{\link[=ptr_module_server]{ptr_module_server()}}
 }

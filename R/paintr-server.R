@@ -61,6 +61,11 @@
 #'   from) instead of the per-layer `node$upstream`, so a value valid in
 #'   the host picker is never rejected by one layer's narrower upstream.
 #'   Defaults to `list()` (no host resolutions; per-layer behaviour).
+#' @param shared_stage_enabled Named list (keyed by raw shared key) of
+#'   reactives, each returning a logical, that toggle the orphan pipeline
+#'   stages owned by that shared key (as carried in a
+#'   [ptr_shared_server()] bundle). A missing or unset entry leaves the
+#'   stage enabled. Defaults to `list()`.
 #' @param plots Optional list of formula strings for grid contexts. When
 #'   supplied (typically by [ptr_app_grid()]), the validator for `shared`
 #'   bindings cross-checks shared-key references against every plot's
@@ -277,12 +282,33 @@ ptr_validate_state <- function(state) {
 #' @param ... Forwarded to [ptr_init_state()] (e.g. `shared`,
 #'   `draw_trigger`, `ui_text`, `checkbox_defaults`, `expr_check`,
 #'   `safe_to_remove`, `ns`).
+#' @param shared_state Optional `ptr_shared_state` bundle from
+#'   [ptr_shared_server()]. When supplied, its `shared`, `draw_trigger`,
+#'   `shared_resolutions` and `shared_stage_enabled` slots seed the
+#'   matching [ptr_init_state()] arguments (an explicit value passed
+#'   through `...` still wins). This is the convenience path for wiring a
+#'   page-level [ptr_shared_ui()] panel to a single embedded plot — the
+#'   same bundle [ptr_module_server()] accepts. Defaults to `NULL`.
 #'
 #' @return The `ptr_state` list, invisibly.
+#' @seealso [ptr_shared_server()], [ptr_module_server()]
 #' @export
 ptr_server <- function(input, output, session, formula,
-                          envir = parent.frame(), ...) {
+                          envir = parent.frame(), ...,
+                          shared_state = NULL) {
   dots <- list(...)
+  # `shared_state` mirrors `ptr_module_server()`'s convenience path: a
+  # one-shot bundle from `ptr_shared_server()` carrying `shared`,
+  # `draw_trigger`, `shared_resolutions`, `shared_stage_enabled`. Each
+  # slot only seeds the corresponding `...`/`ptr_init_state()` arg when
+  # the caller did not pass it explicitly (explicit `...` wins).
+  if (!is.null(shared_state)) {
+    validate_ptr_shared_state(shared_state)
+    if (is.null(dots$shared))               dots$shared <- shared_state$shared
+    if (is.null(dots$draw_trigger))         dots$draw_trigger <- shared_state$draw_trigger
+    if (is.null(dots$shared_resolutions))   dots$shared_resolutions <- shared_state$shared_resolutions
+    if (is.null(dots$shared_stage_enabled)) dots$shared_stage_enabled <- shared_state$shared_stage_enabled
+  }
   # When called inside `shiny::moduleServer(id, ...)` without explicit
   # `ns` / `server_ns`, auto-wire them the same way `ptr_module_server()`
   # does: tags emitted via `renderUI` must carry the module prefix

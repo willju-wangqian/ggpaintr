@@ -25,8 +25,12 @@ UI fragment containing only the plot, inline error, and generated-code
 outputs for a \code{ggpaintr} formula. Pair with \code{\link[=ptr_controls_ui]{ptr_controls_ui()}} and
 \code{\link[=ptr_server]{ptr_server()}} (or \code{\link[=ptr_module_server]{ptr_module_server()}}). The fragment self-wraps in
 \verb{<div class="ptr-app">} so the bundled stylesheet attaches without any
-host-side scaffolding.
+host-side scaffolding. This is a thin convenience composite of
+\code{\link[=ptr_ui_assets]{ptr_ui_assets()}} + \code{\link[=ptr_ui_code_toggle]{ptr_ui_code_toggle()}}; for fully independent
+placement use the single pieces \code{\link[=ptr_ui_plot]{ptr_ui_plot()}}, \code{\link[=ptr_ui_error]{ptr_ui_error()}},
+\code{\link[=ptr_ui_code]{ptr_ui_code()}} directly.
 }
 \seealso{
-\code{\link[=ptr_controls_ui]{ptr_controls_ui()}}, \code{\link[=ptr_module_ui]{ptr_module_ui()}}, \code{\link[=ptr_module_server]{ptr_module_server()}}, \code{\link[=ptr_css]{ptr_css()}}
+\code{\link[=ptr_ui_plot]{ptr_ui_plot()}}, \code{\link[=ptr_ui_error]{ptr_ui_error()}}, \code{\link[=ptr_ui_code]{ptr_ui_code()}},
+\code{\link[=ptr_ui_code_toggle]{ptr_ui_code_toggle()}}, \code{\link[=ptr_controls_ui]{ptr_controls_ui()}}, \code{\link[=ptr_module_ui]{ptr_module_ui()}}, \code{\link[=ptr_css]{ptr_css()}}
 }

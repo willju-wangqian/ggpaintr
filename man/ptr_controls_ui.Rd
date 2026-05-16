@@ -42,7 +42,8 @@ parameter panels, the "Update plot" button) for a \code{ggpaintr} formula. Place
 it anywhere in your app's layout; pair with \code{\link[=ptr_outputs_ui]{ptr_outputs_ui()}} for the
 plot/error/code panes and \code{\link[=ptr_server]{ptr_server()}} (or \code{\link[=ptr_module_server]{ptr_module_server()}}) for the
 server logic. The fragment self-wraps in \verb{<div class="ptr-app">} so the
-bundled stylesheet attaches without any host-side scaffolding.
+bundled stylesheet attaches without any host-side scaffolding. This is a
+thin convenience composite of \code{\link[=ptr_ui_assets]{ptr_ui_assets()}} + \code{\link[=ptr_ui_controls]{ptr_ui_controls()}}.
 }
 \seealso{
 \code{\link[=ptr_outputs_ui]{ptr_outputs_ui()}}, \code{\link[=ptr_module_ui]{ptr_module_ui()}}, \code{\link[=ptr_module_server]{ptr_module_server()}}, \code{\link[=ptr_css]{ptr_css()}}
