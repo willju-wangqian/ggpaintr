@@ -73,8 +73,10 @@ test_that("ptr_app() links the bundled stylesheet before the user stylesheet", {
     "ggplot(mtcars) + geom_point(aes(x = var, y = var))",
     css = f
   )
-  html <- render_html(parts$ui)
-  pos_bundled <- regexpr("ggpaintr/ggpaintr\\.css", html)
+  # ggpaintr.css ships as an htmlDependency now; render deps + body so the
+  # head injection is visible alongside the body-level user <link>.
+  html <- render_with_deps(parts$ui)
+  pos_bundled <- regexpr('/ggpaintr\\.css"', html)
   pos_user <- regexpr("/mine\\.css", html)
   expect_gt(pos_bundled, 0L)
   expect_gt(pos_user, 0L)
@@ -84,6 +86,6 @@ test_that("ptr_app() links the bundled stylesheet before the user stylesheet", {
 test_that("split module form ships ggpaintr.css (regression)", {
   controls <- ptr_controls_ui("p", "ggplot(mtcars) + geom_point(aes(x = var))")
   outputs <- ptr_outputs_ui("p")
-  expect_match(render_html(controls), "ggpaintr/ggpaintr\\.css")
-  expect_match(render_html(outputs), "ggpaintr/ggpaintr\\.css")
+  expect_match(render_with_deps(controls), '/ggpaintr\\.css"')
+  expect_match(render_with_deps(outputs), '/ggpaintr\\.css"')
 })

@@ -1,9 +1,11 @@
 # Behaviour: every raw-Shiny entry point routes through the ptr_assets()
 # bundle and exposes the same `css =` override portal in the same order
-# (ggpaintr.css before user css).
+# (the structural-layer dependency, then ggpaintr.css, then user css).
+# ggpaintr.css / the JS handlers ship as htmlDependency objects post
+# refactor, so render dependencies + body together (see helper-assets.R).
 
 render_ui <- function(ui) {
-  as.character(htmltools::renderTags(ui)$html)
+  render_with_deps(ui)
 }
 
 linked_csses <- function(html) {
@@ -79,7 +81,7 @@ test_that("user css links after ggpaintr.css", {
   base <- basename(f)
   for (nm in names(uis)) {
     html <- render_ui(uis[[nm]])
-    pos_bundled <- regexpr("ggpaintr/ggpaintr\\.css", html)
+    pos_bundled <- regexpr('/ggpaintr\\.css"', html)
     pos_user <- regexpr(paste0("/", base), html)
     expect_gt(pos_bundled, 0L)
     expect_gt(pos_user, 0L)
@@ -87,10 +89,14 @@ test_that("user css links after ggpaintr.css", {
   }
 })
 
-test_that("ptr_assets() is idempotent under nested injection", {
+test_that("htmlDependency dedupes the bundle under nested injection", {
+  # ptr_module_ui() nests controls + outputs, emitting ptr_assets() three
+  # times; htmltools collapses each dependency to one <head> injection.
   ui <- ptr_module_ui("m", fixture_formula)
   html <- render_ui(ui)
-  expect_match(html, "__ptr_set_class_registered", fixed = TRUE)
+  expect_equal(count_occurrences(html, "ggpaintr-layer.js"), 1L)
+  expect_equal(count_occurrences(html, "ggpaintr-ui.js"), 1L)
+  expect_equal(count_occurrences(html, "/ggpaintr.css\""), 1L)
 })
 
 test_that("ptr_shared_ui accepts css = path", {
@@ -104,19 +110,19 @@ test_that("ptr_shared_ui accepts css = path", {
   )
   html <- render_ui(ui)
   expect_match(html, basename(f), fixed = TRUE)
-  expect_match(html, ".ptr-stage", fixed = TRUE)
+  expect_match(html, "ggpaintr-layer", fixed = TRUE)
 })
 
 test_that("ptr_assets() emits assets in the documented order", {
   f <- write_temp_css()
   html <- render_ui(ptr_assets(css = f))
-  pos_set_class <- regexpr("ptr_set_class", html)
-  pos_bundled <- regexpr("ggpaintr/ggpaintr\\.css", html)
+  pos_layer <- regexpr('/ggpaintr-layer\\.css"', html)
+  pos_bundled <- regexpr('/ggpaintr\\.css"', html)
   pos_user <- regexpr(paste0("/", basename(f)), html)
-  expect_gt(pos_set_class, 0L)
+  expect_gt(pos_layer, 0L)
   expect_gt(pos_bundled, 0L)
   expect_gt(pos_user, 0L)
-  expect_lt(pos_set_class, pos_bundled)
+  expect_lt(pos_layer, pos_bundled)
   expect_lt(pos_bundled, pos_user)
 })
 

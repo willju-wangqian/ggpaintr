@@ -186,18 +186,19 @@ test_that("placeholder nested in a sub-expression names the stage verb, not the 
 
 # ---- Phase 3 — layer-disabled visual cue ----
 
-test_that("app shells inject the ptr_set_class handler + disabled-panel CSS", {
+test_that("app shells inject the structural-layer dependency", {
   f <- "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()"
   for (ui in list(ptr_app_components(f)$ui, ptr_module_ui("m", f))) {
-    rendered <- as.character(ui)
-    expect_match(rendered, "ptr_set_class")
-    expect_match(rendered, "ptr-layer-disabled")
+    rendered <- render_with_deps(ui)
+    # ptr_set_class + .ptr-layer-disabled now ship in ggpaintr-layer.{js,css}
+    # as an htmlDependency rather than inline tags.
+    expect_match(rendered, "ggpaintr-layer.js", fixed = TRUE)
+    expect_match(rendered, "ggpaintr-layer.css", fixed = TRUE)
   }
-  # bslib path injects ptr_layer_assets() the same way; the shinyApp object
-  # hides its $ui, so assert the helper itself renders the handler + CSS.
-  assets <- as.character(ptr_layer_assets())
-  expect_match(assets, "ptr_set_class")
-  expect_match(assets, "ptr-layer-disabled")
+  # bslib path includes only this dependency; assert the helper emits it.
+  assets <- render_with_deps(shiny::tagList(ptr_layer_assets()))
+  expect_match(assets, "ggpaintr-layer.js", fixed = TRUE)
+  expect_match(assets, "ggpaintr-layer.css", fixed = TRUE)
 })
 
 test_that("toggling a layer include-checkbox sends ptr_set_class", {

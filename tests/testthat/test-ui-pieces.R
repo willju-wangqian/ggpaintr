@@ -98,22 +98,19 @@ test_that("ptr_ui_controls emits control ids with NO .ptr-app wrapper or assets"
 })
 
 test_that("ptr_controls_ui = ptr_ui_assets + ptr_ui_controls (still self-wrapped)", {
-  rendered <- as.character(ptr_controls_ui("x", fml))
-  expect_match(rendered, "x-ptr_update_plot")
-  expect_match(rendered, "ptr-layer-disabled")   # carries assets
-  expect_match(rendered, "ptr-app")              # self-wraps
+  rendered <- render_with_deps(ptr_controls_ui("x", fml))
+  expect_match(rendered, "x-ptr_update_plot", fixed = TRUE)
+  expect_match(rendered, "ggpaintr-layer", fixed = TRUE)  # carries assets
+  expect_match(rendered, "ptr-app", fixed = TRUE)         # self-wraps
 })
 
 # ---- ptr_ui_assets ----
 
 test_that("ptr_ui_assets emits the full bundle, == internal ptr_assets()", {
-  expect_identical(
-    as.character(ptr_ui_assets()),
-    as.character(ptr_assets())
-  )
-  rendered <- as.character(ptr_ui_assets())
-  expect_match(rendered, "ggpaintr.css")
-  expect_match(rendered, "ptr-layer-disabled")
+  expect_identical(ptr_ui_assets(), ptr_assets())
+  rendered <- render_with_deps(ptr_ui_assets())
+  expect_match(rendered, "ggpaintr.css", fixed = TRUE)         # cosmetic dep
+  expect_match(rendered, "ggpaintr-layer.css", fixed = TRUE)   # structural dep
 })
 
 # ---- ptr_ui_header ----

@@ -41,6 +41,7 @@ Depends:
 Imports:
     assertthat (>= 0.2.0),
     cli (>= 2.2.0),
+    htmltools,
     rlang (>= 1.0.0),
     shiny (>= 1.6.0),
     shinyWidgets (>= 0.6.4)
@@ -48,7 +49,6 @@ Suggests:
     bslib (>= 0.5.0),
     dplyr,
     ellmer,
-    htmltools,
     jsonlite,
     knitr,
     pkgdown,

@@ -1,0 +1,22 @@
+/* Structural layer / pipeline-stage CSS. Must ride along inside every app
+   shell (including bslib, which deliberately does NOT link the cosmetic
+   ggpaintr.css) because the indent / left-rule and the disabled-stage cue
+   are layout, not theme. The polished default app refines colours in
+   ggpaintr.css on top of this. */
+
+.ptr-layer-disabled{opacity:0.5;pointer-events:none;}
+
+/* Visual cue for an unticked stage. Avoids opacity/filter on any ancestor
+   of a picker's .dropdown-menu so popovers stack correctly; relies on text
+   colour + border + background instead, which dims custom placeholder
+   widgets "for free". */
+.ptr-stage-disabled .ptr-stage-head code{text-decoration:line-through;color:#999;}
+.ptr-stage-disabled label{color:#999;}
+.ptr-stage-disabled .ptr-stage-fields{border-left-style:dashed;border-left-color:#d0d4d9;background-color:rgba(0,0,0,0.025);}
+
+.ptr-stage{margin-bottom:16px;}
+.ptr-stage:last-child,.ptr-stage-row:last-child{margin-bottom:0;}
+.ptr-stage-head{margin-bottom:6px;}
+.ptr-stage-head .form-group,.ptr-stage-head .checkbox{margin:0;}
+.ptr-stage-fields{margin-left:8px;padding-left:14px;border-left:2px solid #d7dbe0;}
+.ptr-stage-row{margin-bottom:14px;}

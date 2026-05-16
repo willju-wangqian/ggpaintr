@@ -514,68 +514,44 @@ layer_panel_default_shell_copy <- function(ui_text) {
 
 # ---- internal helper ----
 
-# Custom-message handler + CSS used to grey out a layer panel when its
-# include-checkbox is unticked. Injected once per app shell via tags$head().
-# Hand-rolled (no shinyjs dependency); the JS guard makes it idempotent so
-# the grid app, which embeds several module UIs, doesn't re-register it.
+# Structural layer/pipeline-stage CSS + the `ptr_set_class` custom-message
+# handler used to grey out a layer panel when its include-checkbox is
+# unticked. Shipped as files (inst/www/ggpaintr-layer.{css,js}) and emitted
+# as an htmlDependency (name "ggpaintr-layer") so htmltools dedupes it to a
+# single <head> injection no matter how many module UIs a page nests --
+# replacing the old hand-rolled `window.__ptr_set_class_registered` JS guard.
+# `ptr_app_bslib()` includes only this dependency (never `core_assets_dep()`)
+# because the layout rules are theme-agnostic but the cosmetic ggpaintr.css
+# is Bootstrap-3/.ptr-app scoped.
 ptr_layer_assets <- function() {
-  shiny::tagList(
-    shiny::tags$script(shiny::HTML(paste0(
-      "(function(){",
-      "if (window.__ptr_set_class_registered) return;",
-      "window.__ptr_set_class_registered = true;",
-      "Shiny.addCustomMessageHandler('ptr_set_class', function(m){",
-      "var el = document.getElementById(m.id); if(!el) return;",
-      "if (m.add) el.classList.add(m.cls); else el.classList.remove(m.cls);",
-      "});",
-      "})();"
-    ))),
-    shiny::tags$style(shiny::HTML(paste0(
-      ".ptr-layer-disabled{opacity:0.5;pointer-events:none;}",
-      # Visual cue for an unticked stage. Avoids `opacity`/`filter` on any
-      # ancestor of a picker's `.dropdown-menu` so popovers stack
-      # correctly; relies on text colour + border + background instead,
-      # which dims custom placeholder widgets "for free".
-      ".ptr-stage-disabled .ptr-stage-head code{",
-      "text-decoration:line-through;color:#999;}",
-      ".ptr-stage-disabled label{color:#999;}",
-      ".ptr-stage-disabled .ptr-stage-fields{",
-      "border-left-style:dashed;border-left-color:#d0d4d9;",
-      "background-color:rgba(0,0,0,0.025);}",
-      # structural layout for pipeline-stage groups (Data sub-tab) -- the
-      # polished default app refines colours in ggpaintr.css, but the
-      # indent/left-rule must hold for every app shell, including bslib.
-      ".ptr-stage{margin-bottom:16px;}",
-      ".ptr-stage:last-child,.ptr-stage-row:last-child{margin-bottom:0;}",
-      ".ptr-stage-head{margin-bottom:6px;}",
-      ".ptr-stage-head .form-group,.ptr-stage-head .checkbox{margin:0;}",
-      ".ptr-stage-fields{margin-left:8px;padding-left:14px;",
-      "border-left:2px solid #d7dbe0;}",
-      ".ptr-stage-row{margin-bottom:14px;}"
-    )))
+  htmltools::htmlDependency(
+    name = "ggpaintr-layer",
+    version = as.character(utils::packageVersion("ggpaintr")),
+    src = c(file = system.file("www", package = "ggpaintr")),
+    stylesheet = "ggpaintr-layer.css",
+    script = "ggpaintr-layer.js",
+    all_files = FALSE
   )
 }
 
-# Static assets for the polished default app shell: the bundled stylesheet
-# (inst/www/ggpaintr.css, served under the "ggpaintr" resource prefix) plus a
-# small client-only JS handler that powers the code mini-window (toggle from
-# the </> icon, drag by its title bar, copy-to-clipboard). All behaviour is
-# DOM-local -- it scopes lookups to the nearest .ptr-output ancestor -- so a
-# page with several ggpaintr modules (e.g. ptr_app_grid()) works correctly.
-# Harmless if included more than once: the script self-registers a single
-# delegated listener.
-core_assets_tags <- function() {
-  www <- system.file("www", package = "ggpaintr")
-  if (nzchar(www)) {
-    shiny::addResourcePath("ggpaintr", www)
-  }
-  shiny::tagList(
-    shiny::tags$link(
-      rel = "stylesheet",
-      type = "text/css",
-      href = "ggpaintr/ggpaintr.css"
-    ),
-    shiny::tags$script(shiny::HTML(ptr_ui_js()))
+# Cosmetic assets for the polished default app shell: the bundled
+# stylesheet (inst/www/ggpaintr.css, scoped under .ptr-app) plus the
+# client-only JS that powers the code mini-window (toggle from the </>
+# icon, drag by its title bar, copy-to-clipboard). All behaviour is
+# DOM-local -- it scopes lookups to the nearest .ptr-output ancestor -- so
+# a page with several ggpaintr modules (e.g. ptr_app_grid()) works
+# correctly. Emitted as an htmlDependency (name "ggpaintr") so htmltools
+# dedupes it to a single <head> injection regardless of how many shells /
+# pieces a page nests -- replacing the old hand-rolled
+# `window.__ptr_ui_assets_registered` JS guard.
+core_assets_dep <- function() {
+  htmltools::htmlDependency(
+    name = "ggpaintr",
+    version = as.character(utils::packageVersion("ggpaintr")),
+    src = c(file = system.file("www", package = "ggpaintr")),
+    stylesheet = "ggpaintr.css",
+    script = "ggpaintr-ui.js",
+    all_files = FALSE
   )
 }
 
@@ -621,43 +597,46 @@ ptr_user_css_assets <- function(css) {
 
 
 # Single asset bundle used by every raw-Shiny entry point. Emits, in order:
-#   1. ptr_layer_assets()      -- inline structural CSS (.ptr-stage-*) + the
-#      ptr_set_class custom-message JS handler. Both must ride along inside
-#      module embeddings because they are not file-scoped.
-#   2. core_assets_tags()      -- <link> to ggpaintr.css (the cosmetic theme,
-#      scoped under .ptr-app) + the code-mini-window JS.
+#   1. ptr_layer_assets()       -- htmlDependency "ggpaintr-layer":
+#      structural stage CSS + the ptr_set_class custom-message handler.
+#   2. core_assets_dep()        -- htmlDependency "ggpaintr": ggpaintr.css
+#      (the cosmetic theme, scoped under .ptr-app) + the code-window JS.
 #   3. ptr_user_css_assets(css) -- user override stylesheets, linked *after*
 #      ggpaintr.css so equal-specificity rules win.
 #
-# Idempotent: every component is safe to emit more than once on a page
-# (script handlers self-register; <link> tags dedupe at the browser;
-# addResourcePath is idempotent for the same prefix). ptr_module_ui()
-# nests ptr_controls_ui() + ptr_outputs_ui(), which together emit this
-# bundle three times -- that is fine by construction.
+# Components 1 & 2 are htmlDependency objects, so htmltools dedupes each to
+# a single <head> injection no matter how many times the bundle is emitted
+# on a page. ptr_module_ui() nests ptr_controls_ui() + ptr_outputs_ui(),
+# which together emit this bundle three times -- htmltools collapses that
+# to one of each dependency. (Component 3 is plain <link> tags; each
+# distinct user stylesheet is registered once via addResourcePath, which
+# is itself idempotent for the same prefix.)
 #
 # The internal entry point; the exported wrapper is ptr_ui_assets().
-# Note: ptr_app_bslib() deliberately bypasses this bundle (it must NOT
-# link ggpaintr.css because its rules are gated on .ptr-app, which the
-# bslib page chrome does not provide). The bslib path calls
-# ptr_layer_assets() directly for structural stage CSS only.
+# Note: ptr_app_bslib() must NOT link ggpaintr.css (its rules are gated on
+# .ptr-app, which the bslib page chrome does not provide); it includes
+# only the "ggpaintr-layer" dependency for structural stage CSS.
 ptr_assets <- function(css = NULL) {
   shiny::tagList(
     ptr_layer_assets(),
-    core_assets_tags(),
+    core_assets_dep(),
     ptr_user_css_assets(css)
   )
 }
 
 #' Bundled CSS / JS Assets Piece for `ggpaintr`
 #'
-#' The full `ggpaintr` asset bundle as a [shiny::tagList()]: structural
-#' layer CSS + the `ptr_set_class` message handler, the bundled
-#' `ggpaintr.css` theme `<link>`, the code-window JavaScript, and any
-#' user override stylesheets. The single-piece UI builders
-#' ([ptr_ui_plot()], [ptr_ui_controls()], ...) emit **no** assets, so an
-#' L3 page that composes pieces by hand must include this once (anywhere
-#' on the page; it is idempotent and self-deduping). The bundled apps and
-#' the `ptr_*_ui()` composites inject it for you.
+#' The full `ggpaintr` asset bundle as a [shiny::tagList()]: the
+#' structural-layer dependency (`ptr_set_class` handler + stage CSS), the
+#' cosmetic `ggpaintr.css` theme dependency + code-window JavaScript, and
+#' any user override stylesheets. The CSS/JS ship as
+#' [htmltools::htmlDependency()] objects, so emitting this anywhere on a
+#' page — even several times — yields exactly one `<head>` injection of
+#' each. The single-piece UI builders ([ptr_ui_plot()],
+#' [ptr_ui_controls()], ...) emit **no** assets; an L3 page that composes
+#' pieces by hand normally gets them from the page shell, or includes
+#' this directly for a non-`fluidPage` root. The bundled apps and the
+#' `ptr_*_ui()` composites inject it for you.
 #'
 #' @param css Optional character vector of paths to additional CSS files;
 #'   linked after `ggpaintr`'s bundled stylesheet so its rules win. See
@@ -668,44 +647,6 @@ ptr_assets <- function(css = NULL) {
 #' @export
 ptr_ui_assets <- function(css = NULL) {
   ptr_assets(css = css)
-}
-
-ptr_ui_js <- function() {
-  paste0(
-    "(function(){",
-    "if (window.__ptr_ui_assets_registered) return;",
-    "window.__ptr_ui_assets_registered = true;",
-    "function owner(el){return el ? el.closest('.ptr-output') : null;}",
-    "document.addEventListener('click', function(e){",
-    "  var toggle = e.target.closest('.ptr-code-toggle');",
-    "  if (toggle){var o=owner(toggle); if(o){var w=o.querySelector('.ptr-code-window'); if(w) w.classList.toggle('ptr-open');} return;}",
-    "  var close = e.target.closest('.ptr-code-window__close');",
-    "  if (close){var w=close.closest('.ptr-code-window'); if(w) w.classList.remove('ptr-open'); return;}",
-    "  var copy = e.target.closest('.ptr-copy-btn');",
-    "  if (copy){",
-    "    var w=copy.closest('.ptr-code-window'); if(!w) return;",
-    "    var pre=w.querySelector('pre'); var txt=pre ? pre.textContent : '';",
-    "    if(!copy.dataset.orig) copy.dataset.orig = copy.textContent;",
-    "    var flash=function(msg){copy.textContent=msg; setTimeout(function(){copy.textContent=copy.dataset.orig;},1500);};",
-    "    var fallback=function(){var ok=false; try{var ta=document.createElement('textarea'); ta.value=txt; ta.style.cssText='position:fixed;top:0;left:0;opacity:0'; document.body.appendChild(ta); ta.focus(); ta.select(); ok=document.execCommand('copy'); document.body.removeChild(ta);}catch(err){} flash(ok ? 'Copied' : 'Copy failed');};",
-    "    if(navigator.clipboard && navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){flash('Copied');}, fallback);} else {fallback();}",
-    "    return;",
-    "  }",
-    "});",
-    "document.addEventListener('pointerdown', function(e){",
-    "  var head = e.target.closest('.ptr-code-window__head');",
-    "  if (!head || e.target.closest('button')) return;",
-    "  var win = head.closest('.ptr-code-window'); if(!win) return;",
-    "  var r = win.getBoundingClientRect();",
-    "  win.style.left = r.left + 'px'; win.style.top = r.top + 'px';",
-    "  var dx = e.clientX - r.left, dy = e.clientY - r.top;",
-    "  try { head.setPointerCapture(e.pointerId); } catch(err) {}",
-    "  function move(ev){win.style.left=(ev.clientX-dx)+'px'; win.style.top=(ev.clientY-dy)+'px';}",
-    "  function up(){head.removeEventListener('pointermove',move); head.removeEventListener('pointerup',up);}",
-    "  head.addEventListener('pointermove', move); head.addEventListener('pointerup', up);",
-    "});",
-    "})();"
-  )
 }
 
 # Decide whether the resolved `copy` leaf list can be forwarded to a

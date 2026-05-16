@@ -15,14 +15,17 @@ linked after \code{ggpaintr}'s bundled stylesheet so its rules win. See
 A \code{\link[shiny:reexports]{shiny::tagList()}}.
 }
 \description{
-The full \code{ggpaintr} asset bundle as a \code{\link[shiny:reexports]{shiny::tagList()}}: structural
-layer CSS + the \code{ptr_set_class} message handler, the bundled
-\code{ggpaintr.css} theme \verb{<link>}, the code-window JavaScript, and any
-user override stylesheets. The single-piece UI builders
-(\code{\link[=ptr_ui_plot]{ptr_ui_plot()}}, \code{\link[=ptr_ui_controls]{ptr_ui_controls()}}, ...) emit \strong{no} assets, so an
-L3 page that composes pieces by hand must include this once (anywhere
-on the page; it is idempotent and self-deduping). The bundled apps and
-the \verb{ptr_*_ui()} composites inject it for you.
+The full \code{ggpaintr} asset bundle as a \code{\link[shiny:reexports]{shiny::tagList()}}: the
+structural-layer dependency (\code{ptr_set_class} handler + stage CSS), the
+cosmetic \code{ggpaintr.css} theme dependency + code-window JavaScript, and
+any user override stylesheets. The CSS/JS ship as
+\code{\link[htmltools:htmlDependency]{htmltools::htmlDependency()}} objects, so emitting this anywhere on a
+page — even several times — yields exactly one \verb{<head>} injection of
+each. The single-piece UI builders (\code{\link[=ptr_ui_plot]{ptr_ui_plot()}},
+\code{\link[=ptr_ui_controls]{ptr_ui_controls()}}, ...) emit \strong{no} assets; an L3 page that composes
+pieces by hand normally gets them from the page shell, or includes
+this directly for a non-\code{fluidPage} root. The bundled apps and the
+\verb{ptr_*_ui()} composites inject it for you.
 }
 \seealso{
 \code{\link[=ptr_ui_plot]{ptr_ui_plot()}}, \code{\link[=ptr_ui_controls]{ptr_ui_controls()}}, \code{\link[=ptr_ui_code_toggle]{ptr_ui_code_toggle()}}, \code{\link[=ptr_css]{ptr_css()}}

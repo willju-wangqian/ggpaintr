@@ -179,8 +179,8 @@ test_that("ptr_controls_ui emits the control ids (no output ids)", {
   expect_match(rendered, "x-ptr_update_plot")
   expect_match(rendered, "x-ptr_layer_select")
   expect_match(rendered, "x-ptr_layer_tabset")
-  # carries the layer-disabled CSS assets along
-  expect_match(rendered, "ptr-layer-disabled")
+  # carries the structural-layer asset dependency along
+  expect_match(render_with_deps(ui), "ggpaintr-layer", fixed = TRUE)
   # outputs live in ptr_outputs_ui(), not here
   expect_no_match(rendered, "x-ptr_plot")
   expect_no_match(rendered, "x-ptr_code")
