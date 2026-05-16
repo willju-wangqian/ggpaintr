@@ -127,6 +127,11 @@
 .ptr-app .ptr-stage-fields { border-left-color: var(--ptr-border); }
 .ptr-app .ptr-stage-head code {
   font-family: var(--ptr-mono);
+  /* Own the weight here (specificity 0,2,1): the badge would otherwise
+     inherit from its checkbox label, where ggpaintr's 550 ties Bootstrap's
+     .checkbox-label 400 at (0,1,1) and the winner flips with stylesheet
+     load order. */
+  font-weight: 550;
   font-size: 12.5px;
   color: var(--ptr-accent-strong);
   background: var(--ptr-accent-weak);

@@ -141,6 +141,26 @@ test_that("grid path emits user css exactly once (no double link via shared_ui)"
   expect_equal(user_hits, 1L)
 })
 
+test_that("verb-badge rule owns its font-weight (order-independent vs Bootstrap)", {
+  # Regression: the pipeline-verb <code> badge has no own font-weight, so it
+  # inherited weight from its checkbox <label>. ggpaintr `.ptr-app label`
+  # {550} and Bootstrap `.checkbox label` {400} tie at specificity (0,1,1),
+  # so the winner is decided by stylesheet load order. The asset->
+  # htmlDependency refactor flipped that order (ggpaintr.css now loads
+  # *before* bootstrap.min.css), silently dropping the badge from 550 to
+  # 400. The badge must declare its own weight on `.ptr-app
+  # .ptr-stage-head code` (specificity 0,2,1) so it wins regardless of
+  # load order.
+  css <- readLines(system.file("www", "ggpaintr.css", package = "ggpaintr"))
+  txt <- paste(css, collapse = "\n")
+  block <- regmatches(
+    txt,
+    regexpr("\\.ptr-app \\.ptr-stage-head code\\s*\\{[^}]*\\}", txt)
+  )
+  expect_length(block, 1L)
+  expect_match(block, "font-weight\\s*:\\s*550")
+})
+
 test_that("composing the bundle keeps the legacy ggpaintr/ resource prefix served", {
   # Regression: ptr_ui_header() references the logo by the absolute path
   # "ggpaintr/ggpaintr-logo.png". The old core_assets_tags() served the
