@@ -735,6 +735,32 @@ ptr_outputs_ui <- function(id = NULL, css = NULL) {
   )
 }
 
+#' Page shell for hand-composed ggpaintr UIs
+#'
+#' Wraps composed L3 pieces in a Bootstrap page + the single `.ptr-app`
+#' theme scope + the (deduped) asset bundle. The only thing an L3 user
+#' must remember.
+#'
+#' @param ... UI children (pieces, layout, your own widgets).
+#' @param page A Bootstrap-3 page builder whose `...` are tag children:
+#'   `shiny::fluidPage` (default), `fixedPage`, `fillPage`,
+#'   `bootstrapPage`, `basicPage`. NOT `navbarPage` (needs a positional
+#'   `title` + `tabPanel` children) and NOT bslib/BS5 pages (the bundled
+#'   CSS is Bootstrap-3-scoped -- see [ptr_app_bslib()]). For those roots,
+#'   compose by hand: see the decomposition example in
+#'   `vignette("ggpaintr-use-cases")`.
+#' @param css Optional character vector of extra stylesheet paths,
+#'   linked after `ggpaintr.css`. See [ptr_css()].
+#' @seealso [ptr_ui_plot()], [ptr_ui_controls()], [ptr_server()], [ptr_css()]
+#' @export
+ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
+  assertthat::assert_that(is.function(page))
+  page(
+    ptr_assets(css = css),                       # internal bundle (htmlDependency)
+    shiny::tags$div(class = "ptr-app", ...)
+  )
+}
+
 #' Module Server for a `ggpaintr` Formula
 #'
 #' Namespaced server side of a Shiny module wrapping a `ggpaintr` formula.

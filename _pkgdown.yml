@@ -30,6 +30,7 @@ reference:
   - title: UI pieces (L3)
     desc: Own every piece of ggpaintr's public UI — one exported builder per pane. Compose them freely and wire with `ptr_server()` / `ptr_module_server()`. See `vignette("ggpaintr-use-cases")` § "L3 — Own every piece of the UI".
     contents:
+      - ptr_ui_page
       - ptr_ui_header
       - ptr_ui_controls
       - ptr_ui_plot
