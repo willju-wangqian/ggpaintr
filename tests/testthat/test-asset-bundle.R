@@ -140,3 +140,17 @@ test_that("grid path emits user css exactly once (no double link via shared_ui)"
   user_hits <- sum(grepl(paste0("/", basename(f), "$"), hrefs))
   expect_equal(user_hits, 1L)
 })
+
+test_that("composing the bundle keeps the legacy ggpaintr/ resource prefix served", {
+  # Regression: ptr_ui_header() references the logo by the absolute path
+  # "ggpaintr/ggpaintr-logo.png". The old core_assets_tags() served the
+  # whole inst/www dir under the "ggpaintr" resource prefix; the
+  # htmlDependency rewrite must keep doing so or the logo 404s.
+  ptr_assets()  # side-effect: registers the resource path
+  www <- normalizePath(system.file("www", package = "ggpaintr"),
+                       mustWork = FALSE)
+  registered <- vapply(shiny::resourcePaths(), normalizePath,
+                       character(1), mustWork = FALSE)
+  expect_true(www %in% registered)
+  expect_true(file.exists(file.path(www, "ggpaintr-logo.png")))
+})

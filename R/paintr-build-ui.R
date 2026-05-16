@@ -545,10 +545,18 @@ ptr_layer_assets <- function() {
 # pieces a page nests -- replacing the old hand-rolled
 # `window.__ptr_ui_assets_registered` JS guard.
 core_assets_dep <- function() {
+  www <- system.file("www", package = "ggpaintr")
+  # The CSS/JS ride as a deduped htmlDependency, but ptr_ui_header() still
+  # references the logo by the legacy absolute path "ggpaintr/..."; keep the
+  # whole www dir served under that resource prefix so the logo (and any
+  # other absolute-path asset) resolves regardless of the dependency lib path.
+  if (nzchar(www)) {
+    shiny::addResourcePath("ggpaintr", www)
+  }
   htmltools::htmlDependency(
     name = "ggpaintr",
     version = as.character(utils::packageVersion("ggpaintr")),
-    src = c(file = system.file("www", package = "ggpaintr")),
+    src = c(file = www),
     stylesheet = "ggpaintr.css",
     script = "ggpaintr-ui.js",
     all_files = FALSE
