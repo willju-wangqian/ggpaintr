@@ -274,6 +274,13 @@ ptr_validate_state <- function(state) {
 #' embedders can attach extras (`ptr_gg_extra`) or drive the typed tree
 #' programmatically.
 #'
+#' The bindings write to a fixed set of `ptr_`-prefixed top-level ids
+#' (`ptr_plot`, `ptr_error`, `ptr_code`, `ptr_update_plot`, plus the
+#' internal layer-nav inputs). Treat the whole `ptr_` prefix as reserved
+#' — most relevant when hand-placing L3 pieces. The single source of truth
+#' for the id contract (and the `ptr_module_*()` namespacing fix) is the
+#' *"How input ids are built"* section of `vignette("ggpaintr-use-cases")`.
+#'
 #' @param input,output,session The standard Shiny server arguments.
 #' @param formula A single formula string with `ggpaintr` placeholders.
 #' @param envir Environment used to resolve local data objects.

@@ -617,11 +617,12 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
 #'
 #' Because the panel includes a `shinyWidgets::pickerInput()` (the layer
 #' selector) and the Bootstrap grid, it must be rendered inside a
-#' Bootstrap page root — `shiny::fluidPage()`, `bootstrapPage()`,
-#' `fillPage()`, … — so Shiny loads Bootstrap. A bare `shiny::tags$div()`
-#' root leaves the picker unstyled (`ptr_ui_assets()` ships ggpaintr's
-#' own CSS/JS, not Bootstrap). The reliable shape is
-#' `fluidPage(ptr_ui_assets(), div(class = "ptr-app", ptr_ui_controls(...), ...))`.
+#' Bootstrap page that also carries the `.ptr-app` theme scope and the
+#' asset bundle. Don't assemble that scaffolding by hand: wrap your
+#' composed pieces in [ptr_ui_page()], which *is* the Bootstrap page and
+#' owns the single `.ptr-app` scope + the (deduped) assets. For a
+#' `navbarPage` or bslib root (which `ptr_ui_page()` does not cover) see
+#' the decomposition recipe in `vignette("ggpaintr-use-cases")`.
 #'
 #' For finer control still — placing individual placeholder widgets
 #' independently rather than the whole panel — use the exported
@@ -642,8 +643,8 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
 #'   page-level shared panel).
 #'
 #' @return A [shiny::tagList()].
-#' @seealso [ptr_ui_assets()], [ptr_ui_plot()], [ptr_ui_code()],
-#'   [build_ui_for()], [ptr_server()]
+#' @seealso [ptr_ui_page()], [ptr_ui_assets()], [ptr_ui_plot()],
+#'   [ptr_ui_code()], [build_ui_for()], [ptr_server()]
 #' @export
 ptr_ui_controls <- function(id = NULL, formula, ui_text = NULL,
                             checkbox_defaults = NULL, expr_check = TRUE,
@@ -688,10 +689,15 @@ ptr_ui_controls <- function(id = NULL, formula, ui_text = NULL,
 ptr_controls_ui <- function(id = NULL, formula, ui_text = NULL,
                             checkbox_defaults = NULL, expr_check = TRUE,
                             css = NULL) {
-  # The `.ptr-app` wrapper attaches the bundled stylesheet (which is scoped
-  # under that class). When this helper is rendered inside a larger
-  # `.ptr-app` (e.g. `ptr_module_ui()`'s outer wrap), `ggpaintr.css`
-  # neutralises the nested duplicate's `min-height: 100vh` / background.
+  # The `.ptr-app` wrapper attaches the bundled stylesheet (scoped under
+  # that class) when this composite is used standalone (L2). There is NO
+  # `.ptr-app .ptr-app` neutralisation rule in ggpaintr.css; when this is
+  # nested inside an outer `.ptr-app` (e.g. `ptr_module_ui()`'s wrap, or a
+  # grid cell) the inner `.ptr-app` keeps `min-height:100vh`/background --
+  # acceptable because it is a *descendant* inside a flowed layout cell,
+  # not a vertical sibling. Only sibling stacking (N pieces each
+  # self-wrapping) was the bug; the L3 single-shell model (`ptr_ui_page()`)
+  # is what prevents that, not a CSS rule.
   shiny::tags$div(
     class = "ptr-app",
     ptr_ui_assets(css = css),

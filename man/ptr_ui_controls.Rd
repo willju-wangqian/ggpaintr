@@ -48,17 +48,18 @@ wherever you like, and wire the server with \code{\link[=ptr_server]{ptr_server(
 \details{
 Because the panel includes a \code{shinyWidgets::pickerInput()} (the layer
 selector) and the Bootstrap grid, it must be rendered inside a
-Bootstrap page root — \code{shiny::fluidPage()}, \code{bootstrapPage()},
-\code{fillPage()}, … — so Shiny loads Bootstrap. A bare \code{shiny::tags$div()}
-root leaves the picker unstyled (\code{ptr_ui_assets()} ships ggpaintr's
-own CSS/JS, not Bootstrap). The reliable shape is
-\code{fluidPage(ptr_ui_assets(), div(class = "ptr-app", ptr_ui_controls(...), ...))}.
+Bootstrap page that also carries the \code{.ptr-app} theme scope and the
+asset bundle. Don't assemble that scaffolding by hand: wrap your
+composed pieces in \code{\link[=ptr_ui_page]{ptr_ui_page()}}, which \emph{is} the Bootstrap page and
+owns the single \code{.ptr-app} scope + the (deduped) assets. For a
+\code{navbarPage} or bslib root (which \code{ptr_ui_page()} does not cover) see
+the decomposition recipe in \code{vignette("ggpaintr-use-cases")}.
 
 For finer control still — placing individual placeholder widgets
 independently rather than the whole panel — use the exported
 \code{\link[=build_ui_for]{build_ui_for()}} generic on the nodes of \code{ptr_translate(formula)}.
 }
 \seealso{
-\code{\link[=ptr_ui_assets]{ptr_ui_assets()}}, \code{\link[=ptr_ui_plot]{ptr_ui_plot()}}, \code{\link[=ptr_ui_code]{ptr_ui_code()}},
-\code{\link[=build_ui_for]{build_ui_for()}}, \code{\link[=ptr_server]{ptr_server()}}
+\code{\link[=ptr_ui_page]{ptr_ui_page()}}, \code{\link[=ptr_ui_assets]{ptr_ui_assets()}}, \code{\link[=ptr_ui_plot]{ptr_ui_plot()}},
+\code{\link[=ptr_ui_code]{ptr_ui_code()}}, \code{\link[=build_ui_for]{build_ui_for()}}, \code{\link[=ptr_server]{ptr_server()}}
 }

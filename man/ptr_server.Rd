@@ -43,6 +43,14 @@ observer, and plot/code/error output bindings. Returns the state list so
 embedders can attach extras (\code{ptr_gg_extra}) or drive the typed tree
 programmatically.
 }
+\details{
+The bindings write to a fixed set of \code{ptr_}-prefixed top-level ids
+(\code{ptr_plot}, \code{ptr_error}, \code{ptr_code}, \code{ptr_update_plot}, plus the
+internal layer-nav inputs). Treat the whole \code{ptr_} prefix as reserved
+— most relevant when hand-placing L3 pieces. The single source of truth
+for the id contract (and the \verb{ptr_module_*()} namespacing fix) is the
+\emph{"How input ids are built"} section of \code{vignette("ggpaintr-use-cases")}.
+}
 \seealso{
 \code{\link[=ptr_shared_server]{ptr_shared_server()}}, \code{\link[=ptr_module_server]{ptr_module_server()}}
 }
