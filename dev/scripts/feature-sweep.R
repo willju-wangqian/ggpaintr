@@ -82,9 +82,9 @@ ptr_app(
 )
 
 # 8. Pipeline data placeholder -- num threads through head() before ggplot
-#    sees the data, drives the per-layer Data sub-tab, the Update Data
-#    button (G6 atomic snapshot), and the new G11 stage-enabled toggles
-#    (one checkbox per pipeline stage).
+#    sees the data, drives the per-layer Data sub-tab and the G11
+#    stage-enabled toggles (one checkbox per pipeline stage). Everything
+#    is committed via the single "Update plot" button.
 ptr_app(
   "mtcars |> head(num) |> ggplot(aes(x = var, y = var)) + geom_point()"
 )
@@ -144,7 +144,7 @@ ptr_app(
 #      replacement for `var`. `cols` is the resolved upstream column-name
 #      vector (passed automatically by ptr_setup_consumer_uis); `selected`
 #      survives renderUI re-fires so the user's pick is preserved across
-#      stage toggles and Update Data clicks.
+#      stage toggles and Update plot clicks.
 ptr_define_placeholder_consumer(
   keyword = "dropvar",
   build_ui = function(node, cols = character(), label = NULL,
@@ -170,8 +170,8 @@ ptr_app(
 # 11c. Custom data-aware placeholder + multi-stage pipeline + multi-layer.
 #      Pipeline: subset() -> head(num); aes uses the custom dropvar;
 #      geom_point/geom_smooth/labs each consume different built-ins.
-#      Exercises every join-point: stage_enabled checkbox, Update Data
-#      atomic snapshot, layer checkbox, custom consumer picker, and the
+#      Exercises every join-point: stage_enabled checkbox, the single
+#      Update plot button, layer checkbox, custom consumer picker, and the
 #      P5 re-walk on resolve_expr returning a symbol.
 ptr_app(
   "iris |> subset(Species == text) |> head(num) |>
@@ -229,7 +229,9 @@ ptr_app_bslib(
   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point() +
    labs(title = text)",
   theme = bslib::bs_theme(version = 5, bootswatch = "minty"),
-  title = "ggpaintr x bslib"
+  # ptr_app_bslib() has no `title` arg; the shell title is set through
+  # the `ui_text` shell slot (same contract as ptr_app()).
+  ui_text = list(shell = list(title = list(label = "ggpaintr x bslib")))
 )
 
 # 14. Module wrappers -- two namespaced instances side by side, no collisions.
@@ -540,7 +542,10 @@ shiny::testServer(function(input, output, session) {
     input, output, session,
     "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()"
   )
-  session$setInputs(.dummy = 1)
+  # `state$runtime()` is a reactiveVal(NULL) until the Update plot button
+  # fires; trigger it (and flush) so the accessors below see real output.
+  session$setInputs(ptr_update_plot = 1)
+  session$flushReact()
   session$userData$paintr <- state
 }, {
   cat("CODE:\n", ptr_extract_code(session$userData$paintr), "\n")
@@ -550,10 +555,9 @@ shiny::testServer(function(input, output, session) {
 # ---------------------------------------------------------------------------
 # Things to specifically poke at as you click through:
 #
-# - (8) Watch the Data sub-tab: per-stage checkbox (G11) + Update Data
-#   button (G6 atomic snapshot). Edit a var to a non-existent column,
-#   click Update Data -- the inline error appears and the cache is left
-#   untouched.
+# - (8) Watch the Data sub-tab: per-stage checkbox (G11). Edit a var to
+#   a non-existent column, click "Update plot" -- the inline error panel
+#   appears.
 # - (10) Upload a CSV with reserved-word column names (`if`, `NULL`,
 #   `TRUE`) and watch the var dropdowns still work (P11.5 normalization).
 # - (11a) The registered `pct` placeholder picks up the `{param}`
@@ -563,10 +567,10 @@ shiny::testServer(function(input, output, session) {
 #   across renderUI re-fires (toggle a layer off/on, re-pick the column,
 #   confirm the picker doesn't snap back to the first option).
 # - (11c) Toggle the head() stage checkbox -- the layers downstream
-#   refresh; click Update Data to commit the snapshot. dropvar in `color`
+#   refresh; click "Update plot" to redraw. dropvar in `color`
 #   exercises the consumer picker through aes() inside a non-ggplot layer.
-# - (11d) Pick two or more columns in the colvars picker, click Update
-#   Data -- the code panel shows `subset(select = c("..", ".."))`. The
+# - (11d) Pick two or more columns in the colvars picker, click
+#   "Update plot" -- the code panel shows `subset(select = c("..", ".."))`. The
 #   selectable column set comes from upstream `iris` (cols passed by
 #   the framework); `var` running in the same app would still reject
 #   multi-select via its own validate_input.

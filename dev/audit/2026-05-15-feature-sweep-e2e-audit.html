@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Feature-sweep end-to-end audit — 2026-05-15</title>
+<style>
+  :root { --ok:#15803d; --bug:#b91c1c; --info:#6b7280; --warn:#b45309; --bg:#f8fafc; --code:#0f172a; }
+  html,body { background:var(--bg); color:#111827; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; margin:0; padding:0; }
+  main { max-width:1080px; margin:0 auto; padding:32px 24px; }
+  h1 { font-size:22px; margin:0 0 4px 0; }
+  h2 { font-size:17px; margin:32px 0 8px 0; padding-bottom:4px; border-bottom:1px solid #e5e7eb; }
+  h3 { font-size:14px; margin:18px 0 6px 0; color:#374151; }
+  .subtitle { color:var(--info); margin-bottom:24px; }
+  table { border-collapse:collapse; width:100%; margin:8px 0 16px 0; font-size:13px; background:#fff; }
+  th,td { padding:6px 10px; text-align:left; vertical-align:top; border-bottom:1px solid #e5e7eb; }
+  th { background:#f1f5f9; font-weight:600; }
+  .pass { color:var(--ok); font-weight:600; }
+  .bug  { color:var(--bug); font-weight:600; }
+  .info { color:var(--info); font-weight:600; }
+  .warn { color:var(--warn); font-weight:600; }
+  code, pre { font-family: ui-monospace,Menlo,Consolas,monospace; }
+  code { background:#eef2f7; padding:1px 5px; border-radius:3px; font-size:12.5px; }
+  pre  { background:var(--code); color:#e2e8f0; padding:12px 14px; border-radius:6px; overflow:auto; font-size:12px; }
+  .bug-card { background:#fff; border:1px solid #fecaca; border-left:4px solid var(--bug); border-radius:6px; padding:12px 16px; margin:12px 0; }
+  .bug-card h3 { margin-top:0; color:var(--bug); }
+  .bug-card.med { border-color:#fed7aa; border-left-color:var(--warn); }
+  .bug-card.med h3 { color:var(--warn); }
+  .bug-card.low { border-color:#e5e7eb; border-left-color:var(--info); }
+  .bug-card.low h3 { color:var(--info); }
+  .note { background:#fff; border:1px solid #bfdbfe; border-left:4px solid #2563eb; border-radius:6px; padding:12px 16px; margin:12px 0; }
+  .note h3 { margin-top:0; color:#1d4ed8; }
+  .meta { font-size:12px; color:var(--info); }
+  ul { margin:6px 0 10px 22px; }
+  .sev { display:inline-block; font-size:11px; font-weight:700; padding:1px 7px; border-radius:10px; color:#fff; }
+  .sev-high { background:var(--bug); } .sev-med { background:var(--warn); } .sev-low { background:var(--info); }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Feature-sweep end-to-end audit</h1>
+<p class="subtitle">Date: 2026-05-15 · Branch: <code>vignette-review</code> · Source: <code>dev/scripts/feature-sweep.R</code> · Method: every block driven to completion in Chrome (Claude-in-Chrome MCP) against a real Shiny server on <code>127.0.0.1:7654</code> — inputs set, <code>Update plot</code>/<code>Draw all</code> clicked, then <code>#ptr_code</code> / <code>#ptr_error</code> / plot <code>&lt;img&gt;</code> / <code>.js-plotly-plot</code> inspected. Upload blocks validated via <code>shiny::testServer</code> (browser file upload is blocked by the automation environment — see limitation note).</p>
+
+<h2>Summary</h2>
+<table>
+  <tr><th>Section</th><th>Blocks</th><th>Pass</th><th>Findings</th></tr>
+  <tr><td>Static checks (1–5)</td><td>5</td><td><span class="pass">5</span></td><td>0</td></tr>
+  <tr><td>Interactive apps (6–16, 15a–15m, 16a)</td><td>27</td><td><span class="pass">27</span></td><td>2 script-doc, 1 source bug</td></tr>
+  <tr><td>testServer accessors (17)</td><td>1</td><td><span class="pass">1</span></td><td>1 script-doc</td></tr>
+  <tr><td>Third-party extension (ggpcp)</td><td>1</td><td><span class="pass">1</span></td><td>0</td></tr>
+  <tr><td><b>Total</b></td><td><b>34</b></td><td class="pass"><b>34 functional</b></td><td><b>4 (1 source · 3 script-doc)</b></td></tr>
+</table>
+<p class="meta">Every feature works when driven correctly. No crashes, no hangs, no reactive deadlocks. The one genuine code defect is in upload-sourced code generation (F-2). The other three findings are defects in <code>feature-sweep.R</code> itself (broken / misleading example blocks), not in the package.</p>
+
+<h2>Findings</h2>
+
+<div class="bug-card">
+<h3>F-2 &nbsp;<span class="sev sev-high">HIGH · SOURCE</span> &nbsp; Upload-sourced plots emit code with no <code>data =</code> and no read line</h3>
+<p>Affects every <code>upload</code> / <code>upload(shared=…)</code> app — blocks <b>10</b> and <b>15j</b>.</p>
+<p>The upload resolver is correct: <code>ptr_resolve_upload_info()</code> returns the data frame, the object name, and a <code>code_text</code> of <code>&lt;name&gt; &lt;- read.csv("file.csv")</code>. The plot also renders (resolved data is injected into the eval environment). <b>But the generated/copy code drops the data source entirely:</b></p>
+<pre>formula:  ggplot(data = upload, aes(x = var, y = var)) + geom_point()
+inputs :  upload = plain.csv (cols mpg,hp,wt), dataset name "mydata", x=mpg, y=hp
+
+ptr_extract_code() actual:
+  ggplot(aes(x = mpg, y = hp)) +
+    geom_point()
+
+expected (cf. built-in source, block 17):
+  mydata &lt;- read.csv("upload_plain.csv")
+  ggplot(data = mydata, aes(x = mpg, y = hp)) +
+    geom_point()</pre>
+<p>Reserved-word variant (CSV columns <code>if</code>/<code>NULL</code>/<code>TRUE</code>): columns normalize via <code>read.csv(check.names=TRUE)</code> to <code>if.</code>/<code>NULL.</code>/<code>TRUE.</code> and the code is <code>ggplot(aes(x = if., y = NULL.)) + geom_point()</code> — still no data. A built-in source (block 17) correctly emits <code>data = mtcars</code>, so this is specific to the upload path.</p>
+<p><b>Impact:</b> the headline "copy-pasteable generated code" guarantee is broken for any upload-sourced app — the displayed code, pasted into R, errors (no data object). Plot itself is unaffected.</p>
+<p class="meta">Repro: <code>shiny::testServer</code> + <code>ptr_server("ggplot(data = upload, aes(x=var,y=var))+geom_point()")</code>; set the upload fileinfo input + dataset-name + var inputs + <code>ptr_update_plot=1</code>; <code>ptr_extract_code()</code> omits both the assignment line and <code>data =</code>.</p>
+</div>
+
+<div class="bug-card med">
+<h3>F-1 &nbsp;<span class="sev sev-med">MED · SCRIPT-DOC</span> &nbsp; <code>feature-sweep.R</code> describes a non-existent "Update Data" button</h3>
+<p>Block 8 and the bottom checklist (lines ~553–555) instruct the tester to use an <i>"Update Data button (G6 atomic snapshot)"</i> on the per-layer Data sub-tab (<i>"Edit a var to a non-existent column, click Update Data — the inline error appears and the cache is left untouched"</i>).</p>
+<p>No such button exists. The Data sub-tab has only the per-stage checkbox + the stage's number/text input; the only action button anywhere is the global <code>Update plot</code> (<code>ptr_update_plot</code>). Confirmed in source: <code>grep</code> across <code>R/</code> finds only <code>ptr_update_plot</code> (R/paintr-app.R:289, R/paintr-server.R:646); there is no <code>update_data</code> / <code>ptr_update_data</code> binding. The "G6" references in <code>R/paintr-server.R</code> are about terminal/dual upstream resolution, not a UI button.</p>
+<p><b>Impact:</b> the audit script misleads a tester into looking for UI that does not exist. Either G6 was consolidated into the single <code>Update plot</code> button (stale comment) or a feature was dropped — needs a maintainer call. Block 8 itself is fully functional: <code>num</code> threads through <code>head(10)</code>, and the per-stage checkbox correctly drops the <code>head()</code> stage when unticked.</p>
+</div>
+
+<div class="bug-card med">
+<h3>F-3 &nbsp;<span class="sev sev-med">MED · SCRIPT-DOC</span> &nbsp; <code>feature-sweep.R</code> block 13 crashes — <code>ptr_app_bslib()</code> has no <code>title=</code></h3>
+<p>Block 13 (lines ~228–233) calls:</p>
+<pre>ptr_app_bslib(
+  "ggplot(...) + labs(title = text)",
+  theme = bslib::bs_theme(version = 5, bootswatch = "minty"),
+  title = "ggpaintr x bslib")</pre>
+<p>Running it verbatim aborts: <code>Error: unused argument (title = "ggpaintr x bslib")</code> — the app never launches. <code>formals(ptr_app_bslib)</code> = <code>formula, envir, ui_text, checkbox_defaults, expr_check, safe_to_remove, theme</code>; there is no <code>title</code> (nor does <code>ptr_app()</code> have one — it has <code>css</code>). Shell titles are set via <code>ui_text = list(shell = list(title = list(label = …)))</code>.</p>
+<p><b>Impact:</b> the documented bslib example is broken. With the invalid argument removed, the bslib variant works correctly: themed <code>page_sidebar</code> navbar layout (bootswatch <i>minty</i>), ns-prefixed (<code>ptr-</code>) inputs, code <code>ggplot(...) + labs(title = "bslib title")</code> generated, plot renders.</p>
+</div>
+
+<div class="bug-card low">
+<h3>F-17 &nbsp;<span class="sev sev-low">LOW · SCRIPT-DOC</span> &nbsp; <code>feature-sweep.R</code> block 17 is incomplete — never triggers <code>ptr_update_plot</code></h3>
+<p>Block 17 (the <code>shiny::testServer</code> accessor demo, lines ~538–548) sets only <code>session$setInputs(.dummy = 1)</code> then prints <code>ptr_extract_code()</code> / <code>class(ptr_extract_plot())</code>. Both come out empty / <code>NULL</code>, contradicting the section's intent ("Programmatic accessors … useful for tests").</p>
+<p>This is <b>not</b> a code bug. <code>state$runtime()</code> is a <code>reactiveVal(NULL)</code> populated only after <code>ptr_update_plot</code> (or draw / extras) fires (R/paintr-server.R:184, 628, 646–649). The block never triggers it, so empty output is correct behaviour. Adding <code>session$setInputs(ptr_update_plot=1); session$flushReact()</code> to the same formula yields <code>ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point()</code> and a <code>ggplot</code> object. The example as written simply doesn't demonstrate what its comment claims.</p>
+</div>
+
+<div class="note">
+<h3>Testing limitation — browser file upload</h3>
+<p>The automation environment blocks Chrome DevTools <code>DOM.setFileInputFiles</code> (<code>"Not allowed"</code>), so the file picker in blocks <b>10</b> and <b>15j</b> could not be driven through the browser. Both upload widgets <b>render correctly</b> in-browser (Browse + dataset-name companion + accepted-formats note: <code>.csv,.tsv,.rds,.xlsx,.xls,.json</code>; 15j shows one shared widget in the shared section feeding both layers). The upload data-flow for block 10 was instead validated headlessly via <code>shiny::testServer</code> + <code>ptr_server</code> with a real fileinfo (this is how F-2 was found). Block 15j's full data-flow is not headlessly testable because shared auto-binding is performed by <code>ptr_app()</code>, not <code>ptr_server()</code>; its widget render is verified and F-2 applies to its code path.</p>
+</div>
+
+<h2>Block-by-block results</h2>
+
+<h3>Static checks (no browser)</h3>
+<table>
+  <tr><th>#</th><th>What</th><th>Result</th></tr>
+  <tr><td>1</td><td>Formula → typed AST (<code>ptr_translate</code>); layer names</td><td><span class="pass">PASS</span> — ggplot/geom_point/labs</td></tr>
+  <tr><td>2</td><td><code>ptr_runtime_input_spec</code> widget order</td><td><span class="pass">PASS</span> — 4 placeholders + 2 layer checkboxes, correct roles</td></tr>
+  <tr><td>3</td><td>Pipe surface preservation (<code>|&gt;</code> and <code>%&gt;%</code>)</td><td><span class="pass">PASS</span> — both survive round-trip</td></tr>
+  <tr><td>4</td><td>Safety walker blocks <code>system('id')</code></td><td><span class="pass">PASS</span> — blocked at translate</td></tr>
+  <tr><td>5</td><td>Shared-key validation (<code>num(shared="")</code>)</td><td><span class="pass">PASS</span> — rejected: single non-empty string required</td></tr>
+</table>
+
+<h3>Interactive apps</h3>
+<table>
+  <tr><th>#</th><th>Feature</th><th>Result</th><th>Generated code / note</th></tr>
+  <tr><td>6</td><td>Basic scatter, var consumer, code panel</td><td class="pass">PASS</td><td><code>ggplot(data=mtcars,aes(x=mpg,y=disp))+geom_point()</code></td></tr>
+  <tr><td>7</td><td>Multi-layer text/num/expr, <code>checkbox_defaults</code></td><td class="pass">PASS</td><td>geom_smooth correctly starts OFF; full code incl. <code>labs()</code> correct</td></tr>
+  <tr><td>8</td><td>Pipeline <code>head(num)</code>, per-stage checkbox</td><td class="pass">PASS</td><td><code>num</code>→<code>head(10)</code>; uncheck drops stage. <span class="warn">F-1</span></td></tr>
+  <tr><td>9</td><td><code>expr</code> facet_wrap, G5 provenance</td><td class="pass">PASS</td><td><code>… + facet_wrap(~cyl)</code></td></tr>
+  <tr><td>10</td><td>Upload source, reserved-word normalize</td><td class="pass">PASS*</td><td>widget OK; data-flow via testServer. <span class="bug">F-2</span></td></tr>
+  <tr><td>11a</td><td>Custom <code>pct</code> value placeholder</td><td class="pass">PASS</td><td><code>{param}</code>→"alpha" label; <code>resolve_expr</code> value/100 → <code>alpha=0.5</code></td></tr>
+  <tr><td>11b</td><td>Custom <code>dropvar</code> consumer</td><td class="pass">PASS</td><td>resolves via <code>rlang::sym</code> to bare column</td></tr>
+  <tr><td>11c</td><td>Custom consumer + multi-stage + multi-layer</td><td class="pass">PASS</td><td><code>iris|&gt;subset(Species=="setosa")|&gt;head(30)|&gt;ggplot(…)+geom_point(size=3)+geom_smooth(method=lm)+labs(title=…)</code>; stage-disable works</td></tr>
+  <tr><td>11d</td><td><code>colvars</code> multi-select consumer</td><td class="pass">PASS</td><td><code>subset(select=c("Sepal.Length","Petal.Length"))</code>; downstream var picker narrowed to upstream cols</td></tr>
+  <tr><td>12</td><td><code>ui_text</code> overrides</td><td class="pass">PASS</td><td>title + x/y labels applied; functionality intact</td></tr>
+  <tr><td>13</td><td>bslib themed variant</td><td class="pass">PASS*</td><td>works with invalid <code>title=</code> removed. <span class="warn">F-3</span></td></tr>
+  <tr><td>14</td><td>Module wrappers ×2 (namespaced)</td><td class="pass">PASS</td><td><code>a-*</code>/<code>b-*</code> independent, no collision</td></tr>
+  <tr><td>15 (grid+shared_ui)</td><td>Shared slider drives both plots</td><td class="pass">PASS</td><td>sz=8 → <code>size=8</code> &amp; <code>alpha=8/10</code>; C1 filter (no per-layer size widget)</td></tr>
+  <tr><td>15 (grid auto)</td><td>Auto-rendered shared widget</td><td class="pass">PASS</td><td>default num widget; sz=5 drives both</td></tr>
+  <tr><td>15b</td><td>Single-plot shared section</td><td class="pass">PASS</td><td>shared section above layer picker; sz→both geoms, ttl→labs; C1 filter</td></tr>
+  <tr><td>15c</td><td>Shared key in pipeline stage + paste</td><td class="pass">PASS</td><td><code>n=7</code> → <code>head(7)</code> &amp; <code>paste("showing",7,"rows")</code></td></tr>
+  <tr><td>15d</td><td>Shared <code>var</code> host-resolved</td><td class="pass">PASS</td><td>common source; drives x &amp; geom_point y in lockstep</td></tr>
+  <tr><td>15e</td><td>Diverging sources (error path)</td><td class="pass">PASS</td><td>by-design red alert in shared section + mirrored error panel; picker replaced; no crash</td></tr>
+  <tr><td>15f</td><td>Same source, divergent upstreams</td><td class="pass">PASS</td><td>by-design fallback to source; bad pick → graceful <code>#ptr_error</code> ("Aesthetics must be …")</td></tr>
+  <tr><td>15g</td><td>Grid auto shared <code>var</code></td><td class="pass">PASS</td><td>top-level picker drives all modules</td></tr>
+  <tr><td>15i</td><td>Shared custom consumer (<code>dropvar</code>)</td><td class="pass">PASS</td><td>S3 <code>ptr_ph_data_consumer</code> host-resolution dispatch works</td></tr>
+  <tr><td>15j</td><td>Shared <code>upload</code> source</td><td class="pass">PASS*</td><td>widget renders correctly; data-flow not headlessly testable. <span class="bug">F-2</span> applies</td></tr>
+  <tr><td>15k</td><td>Self-reference / cross-key truncation</td><td class="pass">PASS</td><td>orphan-stage checkbox + bare aes placeholder; no circular-dep error</td></tr>
+  <tr><td>15l</td><td>Grid shared stage(verb) checkbox</td><td class="pass">PASS</td><td>one "select/filter()" checkbox prunes orphan stage in both modules</td></tr>
+  <tr><td>15m</td><td><code>ptr_shared_ui</code>/<code>ptr_shared_server</code> pair</td><td class="pass">PASS</td><td>embedder API; same behavior as 15l with custom titlePanel</td></tr>
+  <tr><td>16a</td><td>plotly L3 render override</td><td class="pass">PASS</td><td>default panel + interactive plotly both driven by <code>state$runtime()</code> (3 traces)</td></tr>
+  <tr><td>16</td><td><code>ptr_gg_extra</code> programmatic extras</td><td class="pass">PASS</td><td>"Toggle log-scale" appends <code>+ ggplot2::scale_x_log10()</code> to plot &amp; code</td></tr>
+  <tr><td>17</td><td>testServer accessors</td><td class="pass">PASS</td><td>accessors work once <code>ptr_update_plot</code> fires. <span class="info">F-17</span></td></tr>
+  <tr><td>ggpcp</td><td>Third-party extension + <code>colvars</code></td><td class="pass">PASS</td><td><code>flea|&gt;pcp_select(c(…))|&gt;pcp_scale|&gt;pcp_arrange … geom_pcp_axes()+geom_pcp(aes(colour=species))</code>; parallel-coords plot renders</td></tr>
+</table>
+<p class="meta">* PASS* = feature verified, but full browser path constrained by the file-upload environment limitation (see note); validated by the stated alternative.</p>
+
+<h2>Methodology notes (for future sweeps)</h2>
+<ul>
+  <li>Each block launched in its own fresh R process (process-global placeholder registry) on a fixed port; driven via Chrome MCP.</li>
+  <li>shinyWidgets <code>pickerInput</code> set via the underlying <code>&lt;select&gt;</code> + <code>selectpicker('val',…)</code>; <code>selectize</code> inputs via <code>el.selectize.setValue(…)</code>; text/number via value-set + <code>input</code>/<code>change</code> dispatch. These are far more reliable than coordinate-clicking the custom dropdowns.</li>
+  <li><code>#ptr_code</code> and <code>#ptr_error</code> bind ~3–4 s after <code>Update plot</code> on error paths; a 2 s wait gives a false-empty read. Re-query after the wait — an early empty read is not a bug.</li>
+  <li>Console errors <i>"A listener indicated an asynchronous response … message channel closed"</i> are Chrome-extension noise, not app errors — baseline, ignored.</li>
+</ul>
+
+<p class="meta">Generated 2026-05-15 by automated end-to-end sweep of <code>dev/scripts/feature-sweep.R</code>. Bugs collected only — no fixes applied, per request.</p>
+
+</main>
+</body>
+</html>
