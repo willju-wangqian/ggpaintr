@@ -493,10 +493,8 @@ ui <- shiny::fluidPage(                     # Bootstrap page root — loads pick
       shiny::column(8, ptr_ui_plot(error = FALSE))   # plot only; error placed below
     ),
     ptr_ui_error(),                         # error banner in its own row
-    shiny::tags$details(
-      shiny::tags$summary("Generated code"),
-      ptr_ui_code()                         # plain, always-visible code panel
-    )
+    ptr_ui_code()                           # plain, always-visible code card
+                                            #   (carries its own "Generated code" header)
   )
 )
 server <- function(input, output, session) {
@@ -505,6 +503,8 @@ server <- function(input, output, session) {
 
 shiny::shinyApp(ui, server)
 ```
+
+`ptr_ui_code()` (style `"panel"`, the default) already renders its own bordered card with a "Generated code" header — drop it straight into your layout; do **not** bury it inside a collapsed `shiny::tags$details()`, or only the disclosure summary shows. (If you *want* it collapsible, pass `open = NA` to `tags$details()` so it starts expanded, or accept that it is hidden until the user clicks.) All three panes — plot, error, code — are empty until the first *Update plot* click, exactly as in the bundled app.
 
 Want the familiar slide-out code window while still owning the surrounding layout? Swap the plot + code pieces for the one wiring helper:
 
