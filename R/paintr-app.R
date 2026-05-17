@@ -634,21 +634,31 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #' @param css Optional character vector of paths to additional CSS files;
 #'   linked after `ggpaintr`'s bundled stylesheet so its rules win. See
 #'   [ptr_app()] for the full semantics. Defaults to `NULL`.
+#' @param shared Optional coordinator object from [ptr_shared()] for the
+#'   multi-instance embedding. Forwarded verbatim to [ptr_ui_controls()].
+#'   When `NULL` (the single-instance default) the inline "Shared controls"
+#'   section renders **every** `shared = "..."` placeholder in `formula`.
+#'   When a `ptr_shared_spec` is supplied, its cross-formula keys
+#'   (`shared$panel_keys`) are excluded here because they belong to the one
+#'   standalone [ptr_shared_panel()]; only this formula's formula-local
+#'   shared keys render inline. Defaults to `NULL`.
 #'
 #' @return A Shiny tag list.
 #' @seealso [ptr_css()] for the `css =` argument and themable CSS custom properties.
 #' @export
 ptr_module_ui <- function(id, formula, ui_text = NULL,
                              checkbox_defaults = NULL, expr_check = TRUE,
-                             css = NULL) {
+                             css = NULL, shared = NULL) {
   # Self-contained L2 shell: fluidPage > div.ptr-app > sidebarLayout, built
   # by composing the bare L3 pieces + combinators (no reimplementation).
   # The asset bundle is emitted once here -- the folded ptr_ui_controls()
   # and the output combinators emit none -- and htmlDependency dedupes it
   # page-wide. Bare `.ptr-app` only: no `--page` canvas (that stays opt-in
-  # for ptr_app() / ptr_app_grid()). Single-formula module => shared = NULL,
-  # so ptr_ui_controls() renders every shared key inline (single-instance);
-  # no standalone shared panel is emitted.
+  # for ptr_app() / ptr_app_grid()). `shared` is forwarded verbatim to
+  # ptr_ui_controls(): NULL (default) => single-instance, every shared key
+  # renders inline; a ptr_shared_spec => exclude shared$panel_keys from the
+  # inline section (they belong to the standalone ptr_shared_panel()).
+  # ptr_module_ui itself emits no standalone shared panel.
   title <- ptr_resolve_ui_text("title", ui_text = ui_text)$label %||% ""
   header <- if (nzchar(title)) shiny::titlePanel(title) else NULL
   shiny::fluidPage(
@@ -663,7 +673,7 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
             ui_text = ui_text,
             checkbox_defaults = checkbox_defaults,
             expr_check = expr_check,
-            shared = NULL
+            shared = shared
           )
         ),
         shiny::mainPanel(

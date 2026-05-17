@@ -10,7 +10,8 @@ ptr_module_ui(
   ui_text = NULL,
   checkbox_defaults = NULL,
   expr_check = TRUE,
-  css = NULL
+  css = NULL,
+  shared = NULL
 )
 }
 \arguments{
@@ -28,6 +29,15 @@ for the full schema and current defaults.}
 \item{css}{Optional character vector of paths to additional CSS files;
 linked after \code{ggpaintr}'s bundled stylesheet so its rules win. See
 \code{\link[=ptr_app]{ptr_app()}} for the full semantics. Defaults to \code{NULL}.}
+
+\item{shared}{Optional coordinator object from \code{\link[=ptr_shared]{ptr_shared()}} for the
+multi-instance embedding. Forwarded verbatim to \code{\link[=ptr_ui_controls]{ptr_ui_controls()}}.
+When \code{NULL} (the single-instance default) the inline "Shared controls"
+section renders \strong{every} \code{shared = "..."} placeholder in \code{formula}.
+When a \code{ptr_shared_spec} is supplied, its cross-formula keys
+(\code{shared$panel_keys}) are excluded here because they belong to the one
+standalone \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}; only this formula's formula-local
+shared keys render inline. Defaults to \code{NULL}.}
 }
 \value{
 A Shiny tag list.
