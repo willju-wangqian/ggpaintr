@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0005 — L2/L3 redesign: self-contained vs bare convention, shared coordinator, output combinators</title>
+<style>
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.2rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .danger { border-left: 4px solid #c0392b; background: #fde7e7; padding: .6rem .9rem; margin: .8rem 0; }
+  .note  { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+</style>
+</head>
+<body>
+
+<h1>ADR 0005 — L2/L3 redesign: <code>ptr_&lt;x&gt;</code> vs <code>ptr_ui_&lt;x&gt;</code> convention, shared coordinator, output combinators</h1>
+<p class="meta">Status: <strong>accepted</strong> · Date: 2026-05-16 ·
+<strong>Supersedes</strong>: ADR 0004 in full (the L3 UI-piece model and <em>all</em> its locked naming contracts); the deferred-rename list in <code>dev/plans/api-audit.md</code> as it stood before this date; the ADR-0002 tiering rows for the shared/outputs/controls families. ·
+Related: ADR 0002 (public-API tiering), ADR 0003 (controllable region) ·
+Domain language: <code>CONTEXT.md</code> (authoritative; all sections marked <em>LOCKED 2026-05-16</em>) ·
+Implementation plan: <code>dev/plans/api-audit.md</code> (rewritten this date)</p>
+
+<h2>Context</h2>
+<p>ADR 0004 defined L3 as "own every piece" with bare <code>ptr_ui_*</code> builders, a single <code>ptr_ui_page()</code> shell, and self-wrapping composites (<code>ptr_controls_ui</code>/<code>ptr_outputs_ui</code>/<code>ptr_shared_ui</code>) coexisting at L2. A grill-with-docs audit of that plan (2026-05-16) found the model under-specified and internally inconsistent on three independent axes:</p>
+<ul>
+  <li><strong>Layer conflation.</strong> Every <code>*_ui → ptr_ui_*</code> rename in the old api-audit list silently moved a <em>self-wrapping</em> composite into the <em>bare</em>-piece namespace (<code>ptr_controls_ui</code>, <code>ptr_outputs_ui</code>, <code>ptr_shared_ui</code> all self-wrap <code>.ptr-app</code>+assets). The plan never distinguished the two layers.</li>
+  <li><strong>Shared model was wrong.</strong> "Shared" was treated as inherently multi-formula; in fact a single formula can use shared keys (an inline section), and the multi-formula panel is a different surface with global ids and a top-level server. No code path partitioned keys by cross-formula occurrence — the desired routing did not exist.</li>
+  <li><strong>Outputs were non-orthogonal.</strong> <code>ptr_ui_plot</code> carried <code>error=</code>/<code>code_toggle=</code> flags and a prebuilt <code>ptr_ui_code_toggle</code> composite duplicated them, contradicting "own every piece."</li>
+</ul>
+<p>The shell-burden objection (multi-instance ⇒ multiple <code>ptr_ui_page()</code> calls; L2 users should not have to think about <code>.ptr-app</code>) made "unify on one shell" unacceptable. The conclusion was a structural redesign of the L2/L3 boundary, not a rename pass.</p>
+
+<h2>Decision</h2>
+
+<h3>1. Naming convention (global)</h3>
+<p><strong><code>ptr_&lt;x&gt;</code> = L2 self-contained</strong> (owns its own <code>.ptr-app</code> + asset bundle; drop into the host app; no shell to remember). <strong><code>ptr_ui_&lt;x&gt;</code> = L3 bare</strong> (emits only its widgets; the L3 user supplies their own Shiny / optional <code>ptr_ui_page</code>). This rule governs the entire API. The <code>ptr_embed_*</code> idea explored mid-audit is rejected.</p>
+
+<h3>2. Levels</h3>
+<ul>
+  <li><strong>L1</strong> — <code>ptr_app</code>, <code>ptr_app_grid</code>, <code>ptr_app_bslib</code> (unchanged).</li>
+  <li><strong>L2</strong> — embed with the default layout. Entry: <code>ptr_module_ui</code>/<code>ptr_module_server</code> (the sealed-bundle exception keeps its established names; not read as generic <code>ptr_&lt;x&gt;</code>). Plus the multi-instance shared trio (below). The non-module split <code>ptr_controls_ui</code>/<code>ptr_outputs_ui</code> is <strong>removed</strong>.</li>
+  <li><strong>L3</strong> — own the layout / render path. Bare <code>ptr_ui_*</code> pieces + combinators; optional <code>ptr_ui_page</code>. <strong>Custom render is L3</strong> (the enabling <code>state</code> is returned at the L2 server boundary, but using it to replace a pane is owning the render path). The server side is unchanged from L2; a piece with no UI is a no-op.</li>
+</ul>
+
+<h3>3. Shared model</h3>
+<p><strong>Partition rule:</strong> a shared key referenced in <em>exactly one</em> formula renders in that formula's inline <strong>shared section</strong> (folded into <code>ptr_ui_controls</code> / the module sidebar, controls-namespaced, driven by that formula's own server). A key referenced in <em>≥2</em> formulas renders in the one standalone <strong>shared panel</strong> (global ids, top-level <code>ptr_shared_server</code>).</p>
+<ul>
+  <li><strong>One instance</strong> ⇒ no coordinator; all shared keys auto-render inline. No panel, ever.</li>
+  <li><strong>Multiple instances</strong> ⇒ the user builds a <strong>coordinator</strong> once: <code>obj &lt;- ptr_shared(formulas, shared_ui, ui_text, expr_check, draw_all_label)</code> — a pure, non-reactive object that computes the partition and is the single source of truth. Consumed by exactly three functions, which take only <code>obj</code>: <code>ptr_shared_panel(obj, css)</code> (L2 self-contained panel), <code>ptr_ui_shared_panel(obj)</code> (L3 bare panel), <code>ptr_shared_server(obj)</code> (reactive bundle, unchanged downstream into <code>ptr_module_server(shared_state=)</code>).</li>
+  <li>The old <code>ptr_module_ui(shared_panel=)</code> boolean is removed; routing is governed solely by presence of <code>shared=obj</code> + the count-based partition.</li>
+</ul>
+
+<h3>4. Outputs — orthogonal pieces + combinators</h3>
+<p><code>ptr_ui_plot(id)</code> / <code>ptr_ui_error(id)</code> / <code>ptr_ui_code(id, style)</code> are <strong>truly bare</strong> (no behavior flags). Behavior is added by nestable combinators: <code>ptr_ui_inline_error(plot, error)</code>, <code>ptr_ui_toggle_code(plotish, code)</code>. These are pure DOM-structure helpers with no server coupling — the bundled JS (<code>inst/www/ggpaintr-ui.js</code>) drives the toggle DOM-locally off <code>.ptr-output</code>/<code>.ptr-code-toggle</code>/<code>.ptr-code-window</code> classes. The default L2 layout (plot + inline error + toggle code) lives <em>only</em> inside the rebuilt <code>ptr_module_ui</code>.</p>
+
+<h3>5. <code>ptr_module_ui</code> rebuilt on the L3 API</h3>
+<p><code>ptr_module_ui</code>/<code>ptr_module_server</code> keep their names and external contract (DOM ids <code>ptr_plot</code>/<code>ptr_error</code>/<code>ptr_code</code> preserved) but are reimplemented as an internal composition of bare pieces + their own self-contained shell + combinators + (single-formula) the auto inline shared section.</p>
+
+<div class="danger">
+  <strong>Superseded — do NOT carry forward (a future reader will find these in old docs):</strong>
+  <ul>
+    <li>ADR 0004's locked contracts in full: <code>ptr_ui_outputs ≡ ptr_ui_plot_code(error=TRUE)</code>; the enumerated bare-piece set; <code>ptr_shared_server → ptr_shared_resolve</code>; <code>ptr_ui_code_toggle → ptr_ui_plot_code</code>. <strong>None of these survive.</strong> <code>ptr_shared_server</code> keeps its name.</li>
+    <li>All intermediate names from the 2026-05-16 audit conversation: <code>ptr_embed_controls/outputs/shared</code>, <code>ptr_ui_inputs</code>, <code>include_error_panel</code>, the "keep both layers / fix names" framing. Void — only the design in this ADR + <code>CONTEXT.md</code> stands.</li>
+    <li><code>project-headless-removed</code> memory's "custom rendering demoted to an L2 subsection" clause. <strong>Only that clause</strong> — the no-headless / no-<code>testServer</code>-as-a-feature prohibition in that same memory <em>still stands</em>.</li>
+  </ul>
+</div>
+
+<h2>Rejected alternatives</h2>
+<ul>
+  <li><strong>Unify on one shell</strong> (L2 routed through <code>ptr_ui_page</code>): rejected — multi-instance ⇒ multiple page calls; imposes shell awareness on L2 users who should never see <code>.ptr-app</code>.</li>
+  <li><strong>Per-key partition override</strong> (force a count-1 key into the panel within a multi-formula app): rejected — re-introduces a UI/server disagreement vector; the only lever is whether a coordinator exists.</li>
+  <li><strong>Single-instance "promote to standalone panel for prominence"</strong>: rejected — one instance is always inline; keeps code paths minimal.</li>
+  <li><strong>Keep flags + add combinators</strong>, or <strong>keep the self-wrapping composite layer</strong>: rejected — the dual-path maintenance cost the audit set out to remove.</li>
+  <li><strong>Expose <code>state$server_ns_fn</code>/<code>ui_ns_fn</code> as a public custom-output escape hatch</strong>: rejected — <code>state</code> is server-side only (unusable from UI); the canonical "<code>ptr_server</code> inside the user's own <code>moduleServer(id)</code>" pattern makes ns automatic and these unnecessary. They stay internal plumbing.</li>
+</ul>
+
+<h2>Consequences</h2>
+<ul>
+  <li>This is a breaking, structural change with no deprecation (single user, pre-1.0). The public surface is re-shaped, not merely renamed.</li>
+  <li>The cross-formula <strong>partition algorithm is net-new</strong> — <code>collect_shared_placeholders()</code> is single-tree today; nothing counts cross-formula occurrence. New logic + dedicated tests.</li>
+  <li><strong>UI↔server partition consistency</strong> is a correctness invariant: <code>ptr_shared</code> (UI) and <code>ptr_shared_server</code> (server) must derive identical partitions from the same <code>obj</code>; <code>ptr_module_server</code>'s <code>shared_state</code> path must mirror only formula-local keys (the panel owns cross-formula keys via the top-level server).</li>
+  <li>Large downstream fallout, each its own implementation pass (enumerated in <code>dev/plans/api-audit.md</code>): the use-cases vignette, the LLM topics, README L-level summary, and the testthat suite (<code>test-ui-pieces</code>, <code>test-rewrite-app</code>, <code>test-asset-bundle</code>, <code>test-user-css</code>, shared tests, copy tests).</li>
+  <li>The "exported but its runtime companions are internal" portal smell (ADR 0002) is explicitly honored: <code>server_ns_fn</code>/<code>ui_ns_fn</code> remain non-public.</li>
+  <li>CLAUDE.md's "no separate <code>CONTEXT.md</code>" statement is now false and is corrected; <code>CONTEXT.md</code> is the authoritative domain language for this model.</li>
+</ul>
+
+</body>
+</html>

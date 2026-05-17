@@ -69,4 +69,4 @@ Default canonical vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `
 
 ### Domain docs
 
-Single-context. The project's domain language lives in this file (`CLAUDE.md`) — there is no separate `CONTEXT.md`. Architectural decisions live in `dev/adr/`. See `dev/agents/domain.md`.
+Single-context. The L2/L3 embedding model, UI-piece taxonomy, and shared-coordinator language live in `CONTEXT.md` (authoritative, created 2026-05-16, locked by ADR 0005). General project/build conventions stay in this file. Architectural decisions live in `dev/adr/`. See `dev/agents/domain.md`.

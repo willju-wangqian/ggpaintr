@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>L2/L3 redesign — Step 08: LLM topics rewrite (#LLM)</title>
+<style>body{font:15px/1.55 -apple-system,system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1.2rem;color:#1b1d22}h1{border-bottom:2px solid #1b1d22;padding-bottom:.3rem}h2{margin-top:1.6rem;border-bottom:1px solid #ccd}code{background:#f4f4f7;padding:1px 4px;border-radius:3px;font-size:90%}pre{background:#f4f4f7;padding:.7rem;border-radius:5px;overflow-x:auto;font-size:13px}.meta{color:#555;font-size:13px}.bdd{background:#f7f9ff;border-left:4px solid #4169e1;padding:.5rem .8rem;margin:.6rem 0;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:13px}</style>
+</head><body>
+
+<h1>Step 08 — LLM topics rewrite (pass #LLM)</h1>
+<p class="meta">Phase 7 (parallel with Step 07). Large, separate. Target: <code>inst/llm/topics/*</code>, <code>inst/llm/primer.md</code>. Authority: ADR 0005 · <code>CONTEXT.md</code>.</p>
+
+<h2>Goal</h2>
+<p>Rewrite the LLM-facing topic corpus so generated guidance matches the shipped API. <code>ptr_llm_*</code> function signatures do not change; only emitted content.</p>
+
+<h2>Files</h2>
+<ul>
+<li><code>inst/llm/topics/level2_*.md</code>, <code>level3_*.md</code> — re-derive from CONTEXT.md L2/L3.</li>
+<li><code>level2_custom_ids.md</code> — id table: keep <code>ptr_plot/ptr_error/ptr_code</code>; reflect bare pieces + combinators; the canonical <code>moduleServer(id)</code> ns story.</li>
+<li><code>level3_custom_render.md</code> — now the primary L3 render story (was L2).</li>
+<li><code>formula_syntax.md</code>, <code>overview.md</code> — shared section vs panel wording per the partition rule.</li>
+<li><code>primer.md</code> — top-level model summary.</li>
+</ul>
+
+<h2>Success criteria</h2>
+<ul>
+<li>No topic mentions a removed symbol (<code>ptr_controls_ui</code>, <code>ptr_outputs_ui</code>, <code>ptr_ui_code_toggle</code>, <code>ptr_shared_ui</code>) or the <code>ptr_ui_plot</code> flags or <code>state$server_ns_fn</code> as a user tool.</li>
+<li>Topics state the convention (<code>ptr_&lt;x&gt;</code> L2 self-contained / <code>ptr_ui_&lt;x&gt;</code> L3 bare), the partition rule, single-vs-multi-instance, and the combinator recipe.</li>
+<li>Custom render is presented as L3 with the safe <code>moduleServer</code> pattern; no headless/<code>testServer</code> promise.</li>
+<li><code>ptr_llm_topics()</code> enumerates the updated set with no dangling topic id; the corpus regenerates via the documented build with no error.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+<li>Content-only; do not change <code>ptr_llm_*</code> code/signatures.</li>
+<li>Stay consistent with Step 07 (vignette) — same examples, same names; these two must not diverge.</li>
+<li>Do not introduce a "headless" or "extract-accessor level" framing.</li>
+<li>Run after Steps 01–06 land (topics must describe shipped behavior).</li>
+</ul>
+
+<h2>BDD</h2>
+<div class="bdd">Feature: LLM corpus matches shipped API
+
+  Scenario: No removed symbol leaks into guidance
+    When every file under inst/llm/topics is scanned
+    Then none contains ptr_controls_ui / ptr_outputs_ui / ptr_ui_code_toggle / ptr_shared_ui
+      And none recommends state$server_ns_fn to users
+
+  Scenario: Topic enumeration is intact
+    When ptr_llm_topics() is called
+    Then every listed topic id resolves to a file
+      And ptr_llm_topic() returns content for each without error
+
+  Scenario: Levels described per CONTEXT.md
+    Given the level2_* and level3_* topics
+    Then L2 = ptr_module_* (+ shared trio multi-instance), no split
+      And L3 = bare ptr_ui_* + combinators (+ optional ptr_ui_page)
+      And custom render is L3 with the moduleServer(id) pattern</div>
+
+<h2>Verify</h2>
+<pre>Rscript -e 'devtools::load_all("."); ptr_llm_topics(); invisible(lapply(ptr_llm_topics(), ptr_llm_topic))'
+# + the documented LLM corpus build</pre>
+</body></html>

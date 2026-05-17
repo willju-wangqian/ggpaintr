@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>L2/L3 redesign — Step 03: orthogonal outputs + combinators (#O)</title>
+<style>body{font:15px/1.55 -apple-system,system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1.2rem;color:#1b1d22}h1{border-bottom:2px solid #1b1d22;padding-bottom:.3rem}h2{margin-top:1.6rem;border-bottom:1px solid #ccd}code{background:#f4f4f7;padding:1px 4px;border-radius:3px;font-size:90%}pre{background:#f4f4f7;padding:.7rem;border-radius:5px;overflow-x:auto;font-size:13px}.meta{color:#555;font-size:13px}.bdd{background:#f7f9ff;border-left:4px solid #4169e1;padding:.5rem .8rem;margin:.6rem 0;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:13px}</style>
+</head><body>
+
+<h1>Step 03 — Orthogonal outputs + combinators (pass #O)</h1>
+<p class="meta">Phase 3 (independent of shared; parallelisable with Steps 01–02). Authority: ADR 0005 §4 · <code>CONTEXT.md</code> §"Combinator".</p>
+
+<h2>Goal</h2>
+<p>Make output pieces truly bare and move behavior into nestable combinators. Remove <code>error=</code>/<code>code_toggle=</code> from <code>ptr_ui_plot</code> (<code>R/paintr-app.R:412–413</code>). Delete <code>ptr_ui_code_toggle</code> (<code>R/paintr-app.R:480–487</code>). Add <code>ptr_ui_inline_error(plot, error)</code> and <code>ptr_ui_toggle_code(plotish, code)</code>.</p>
+
+<h2>Verified mechanism (no server coupling)</h2>
+<p><code>inst/www/ggpaintr-ui.js</code> drives the toggle DOM-locally: click <code>.ptr-code-toggle</code> → nearest <code>.ptr-output</code> ancestor → toggle <code>.ptr-code-window</code>'s <code>.ptr-open</code>. Combinators only need to emit that markup. Reuse <code>plot_card_tag</code> (<code>:315</code>), <code>code_block_tag</code> (<code>:339</code>), the <code>.ptr-output</code> wrapper (<code>ptr_outputs_panel</code>, <code>~:376</code>).</p>
+
+<h2>Signatures</h2>
+<pre>ptr_ui_plot(id = NULL)                 # bare: just the plot slot. NO error=/code_toggle=
+ptr_ui_error(id = NULL)                # bare (unchanged)
+ptr_ui_code(id = NULL, style = c("panel","window"))  # bare (unchanged)
+ptr_ui_inline_error(plot, error)       # -> .ptr-output card with error inline
+ptr_ui_toggle_code(plotish, code)      # -> wraps plotish + code; code behind </> toggle
+# nest: ptr_ui_toggle_code(ptr_ui_inline_error(ptr_ui_plot(id), ptr_ui_error(id)), ptr_ui_code(id))</pre>
+
+<h2>Success criteria</h2>
+<ul>
+<li><code>ptr_ui_plot</code> arity is <code>function(id = NULL)</code> — no behavior flags. Grep shows no remaining <code>error=</code>/<code>code_toggle=</code> callers except the new combinators / Step 05.</li>
+<li><code>ptr_ui_code_toggle</code> removed from <code>NAMESPACE</code> and source; its only internal caller (<code>ptr_outputs_ui</code>) is itself removed in Step 05's prerequisite or rewired there.</li>
+<li>Combinators are nestable and return a single tag; the innermost <code>plotish</code> may be a bare <code>ptr_ui_plot()</code> or the output of <code>ptr_ui_inline_error()</code>.</li>
+<li>Snapshot test: <code>ptr_ui_toggle_code(ptr_ui_inline_error(ptr_ui_plot("p"), ptr_ui_error("p")), ptr_ui_code("p"))</code> produces DOM with one <code>.ptr-output</code>, a <code>.ptr-code-toggle</code> and a <code>.ptr-code-window</code> sharing it, and ids <code>p-ptr_plot</code>/<code>p-ptr_error</code>/<code>p-ptr_code</code> — i.e. functionally equivalent to the deleted <code>ptr_ui_code_toggle("p")</code>.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+<li>Pure DOM helpers — no <code>session</code>, no reactivity, no change to the server-registered ids (<code>ptr_plot</code>/<code>ptr_error</code>/<code>ptr_code</code>).</li>
+<li>Must not require the bundled JS to change. If the existing JS scoping (<code>closest('.ptr-output')</code>) cannot resolve a nested composition, fix the markup, not the JS — and document why.</li>
+<li>No deprecation alias for <code>ptr_ui_code_toggle</code>.</li>
+<li>Do not touch <code>ptr_module_ui</code> internals here (Step 05 consumes these combinators).</li>
+</ul>
+
+<h2>BDD</h2>
+<div class="bdd">Feature: Compose the output region from bare pieces
+
+  Scenario: Bare plot has no behavior flags
+    Given the exported ptr_ui_plot
+    When its formals are inspected
+    Then they are exactly ("id")
+      And calling ptr_ui_plot("p") yields a plot slot with id "p-ptr_plot" and no toggle button
+
+  Scenario: Toggle-code combinator reproduces the old composite
+    Given ui &lt;- ptr_ui_toggle_code(ptr_ui_inline_error(ptr_ui_plot("p"), ptr_ui_error("p")), ptr_ui_code("p"))
+    Then the HTML has one ".ptr-output" containing both a ".ptr-code-toggle" and a ".ptr-code-window"
+      And it carries ids "p-ptr_plot", "p-ptr_error", "p-ptr_code"
+      And it is DOM-equivalent to the (now-removed) ptr_ui_code_toggle("p")
+
+  Scenario: Toggle works in the browser without server wiring
+    Given the composed UI mounted in a page that includes the asset bundle
+    When the user clicks the ".ptr-code-toggle" button
+    Then the sibling ".ptr-code-window" gains class "ptr-open"
+      And no Shiny input/output is required for this
+
+  Scenario: Inline-error alone (no code)
+    Given ui &lt;- ptr_ui_inline_error(ptr_ui_plot("p"), ptr_ui_error("p"))
+    Then it renders the plot card with the error region inline
+      And it contains no ".ptr-code-toggle"</div>
+
+<h2>Verify</h2>
+<pre>Rscript -e 'devtools::document(); devtools::test(filter="ui-pieces")'</pre>
+</body></html>

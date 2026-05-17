@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>L2/L3 redesign — Step 04: fold shared section into ptr_ui_controls (#C)</title>
+<style>body{font:15px/1.55 -apple-system,system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1.2rem;color:#1b1d22}h1{border-bottom:2px solid #1b1d22;padding-bottom:.3rem}h2{margin-top:1.6rem;border-bottom:1px solid #ccd}code{background:#f4f4f7;padding:1px 4px;border-radius:3px;font-size:90%}pre{background:#f4f4f7;padding:.7rem;border-radius:5px;overflow-x:auto;font-size:13px}.meta{color:#555;font-size:13px}.bdd{background:#f7f9ff;border-left:4px solid #4169e1;padding:.5rem .8rem;margin:.6rem 0;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:13px}</style>
+</head><body>
+
+<h1>Step 04 — Fold the shared section into <code>ptr_ui_controls</code> (pass #C)</h1>
+<p class="meta">Phase 4. Depends on: Step 01 (needs <code>obj</code> for exclude-keys). Authority: ADR 0005 §3 · <code>CONTEXT.md</code> §"Shared coordinator consumers".</p>
+
+<h2>Goal</h2>
+<p>The formula-local shared section is part of the controls piece (decision 2026-05-16). Factor the existing inline-section block out of <code>ptr_controls_panel</code> (<code>R/paintr-app.R:256–282</code>) into a helper, and have <code>ptr_ui_controls</code> (<code>R/paintr-app.R:651–662</code>) render it, excluding <code>obj</code>'s panel-owned keys.</p>
+
+<h2>Signature</h2>
+<pre>ptr_ui_controls(id = NULL, formula, ui_text = NULL,
+                checkbox_defaults = NULL, expr_check = TRUE,
+                shared = NULL)        # `shared` is an obj from ptr_shared(); NULL = single-instance
+# internal helper:
+shared_section_tags(tree, ui_text, ns, exclude_keys = character())</pre>
+
+<h2>Success criteria</h2>
+<ul>
+<li>The shared-section construction at <code>app.R:256–282</code> is extracted verbatim-equivalent into <code>shared_section_tags()</code>, parameterised by <code>exclude_keys</code>.</li>
+<li><code>ptr_ui_controls(id, formula)</code> with no <code>shared</code> renders layer controls + a shared section containing <em>all</em> the formula's shared keys (single-instance behavior).</li>
+<li><code>ptr_ui_controls(id, formula, shared = obj)</code> renders the section with keys in <code>obj$panel_keys</code> <strong>excluded</strong> (those belong to <code>ptr_shared_panel</code>/<code>ptr_ui_shared_panel</code>).</li>
+<li>The old internal <code>render_shared_section</code> boolean flag is gone from the public piece; any internal default-layout caller uses the new helper.</li>
+<li>Section widgets remain namespaced via the controls' <code>ns</code> (NOT identity) — unchanged from today.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+<li>No new export — this is folded <em>into</em> <code>ptr_ui_controls</code> (ADR 0005 rejected a separate <code>ptr_ui_shared_section</code> piece).</li>
+<li><code>shared = obj</code> is read-only/pure; do not derive a partition here — consume <code>obj$panel_keys</code> (Step 01 owns the algorithm).</li>
+<li>Do not regress the existing DOM/ids for the non-shared parts (layer picker <code>ptr_layer_select</code>, hidden tabset, <code>ptr_update_plot</code>) — guarded by <code>test-ui-pieces.R</code>.</li>
+<li><code>ptr_module_ui</code> rewiring is Step 05, not here.</li>
+</ul>
+
+<h2>BDD</h2>
+<div class="bdd">Feature: Controls piece owns the formula-local shared section
+
+  Scenario: Single instance renders all shared keys inline
+    Given f = "...num(shared='A')... num(shared='A')... num(shared='X')"
+    When ui &lt;- ptr_ui_controls("p", f)            # no `shared`
+    Then the HTML contains controls-namespaced inputs "p-shared_A" and "p-shared_X"
+      And it contains the layer picker "p-ptr_layer_select"
+
+  Scenario: Panel-owned keys are excluded from the section
+    Given obj with panel_keys = c("B")
+      And f1 = "...num(shared='A')... num(shared='B')..."
+    When ui &lt;- ptr_ui_controls("p1", f1, shared = obj)
+    Then the HTML contains "p1-shared_A"
+      And it does NOT contain any "shared_B" / "p1-shared_B"
+      And p1's layer controls are unchanged vs the no-shared case
+
+  Scenario: No shared placeholders ⇒ no section, no error
+    Given f = "ggplot(mtcars) + geom_point(size = num())"   # not shared
+    When ui &lt;- ptr_ui_controls("p", f)
+    Then no ".ptr-shared-panel" element is rendered
+      And the layer controls render normally</div>
+
+<h2>Verify</h2>
+<pre>Rscript -e 'devtools::test(filter="ui-pieces")'</pre>
+</body></html>

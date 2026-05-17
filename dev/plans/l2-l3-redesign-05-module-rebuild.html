@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>L2/L3 redesign — Step 05: ptr_module_ui rebuilt on the L3 API (#M)</title>
+<style>body{font:15px/1.55 -apple-system,system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1.2rem;color:#1b1d22}h1{border-bottom:2px solid #1b1d22;padding-bottom:.3rem}h2{margin-top:1.6rem;border-bottom:1px solid #ccd}code{background:#f4f4f7;padding:1px 4px;border-radius:3px;font-size:90%}pre{background:#f4f4f7;padding:.7rem;border-radius:5px;overflow-x:auto;font-size:13px}.meta{color:#555;font-size:13px}.bdd{background:#f7f9ff;border-left:4px solid #4169e1;padding:.5rem .8rem;margin:.6rem 0;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:13px}.crit{border-left:4px solid #c0392b;background:#fde7e7;padding:.5rem .8rem}</style>
+</head><body>
+
+<h1>Step 05 — <code>ptr_module_ui</code> rebuilt on the L3 API (pass #M)</h1>
+<p class="meta">Phase 5. Depends on: Steps 03 (combinators) + 04 (folded controls). Authority: ADR 0005 §5. Also removes <code>ptr_controls_ui</code>/<code>ptr_outputs_ui</code>.</p>
+
+<h2>Goal</h2>
+<p>Reimplement <code>ptr_module_ui</code> (<code>R/paintr-app.R:570–608</code>) as an internal composition of bare pieces + its own self-contained shell + combinators + (single-formula) the folded inline shared section. Delete <code>ptr_controls_ui</code> (<code>:691–709</code>) and <code>ptr_outputs_ui</code> (<code>:736–745</code>); rewire all callers.</p>
+
+<h2>Internal target shape</h2>
+<pre>ptr_module_ui(id, formula, ui_text=NULL, checkbox_defaults=NULL,
+              expr_check=TRUE, css=NULL) =
+  own_shell(css,                                  # fluidPage > div.ptr-app + assets
+    sidebarLayout(
+      sidebarPanel( ptr_ui_controls(id, formula, ui_text, checkbox_defaults,
+                                    expr_check, shared = NULL) ),
+      mainPanel( ptr_ui_toggle_code(
+                   ptr_ui_inline_error(ptr_ui_plot(id), ptr_ui_error(id)),
+                   ptr_ui_code(id)) )))</pre>
+
+<h2>Success criteria</h2>
+<ul>
+<li><strong>External contract preserved:</strong> rendered DOM ids (<code>&lt;id&gt;-ptr_plot</code>/<code>-ptr_error</code>/<code>-ptr_code</code>/<code>-ptr_layer_select</code>/<code>-ptr_update_plot</code>) and the inputId set are byte-identical to the pre-redesign <code>ptr_module_ui</code>. <code>ptr_module_server</code> unchanged still drives it.</li>
+<li><code>ptr_controls_ui</code>, <code>ptr_outputs_ui</code> removed from <code>NAMESPACE</code> + source.</li>
+<li>Internal callers rewired: <code>ptr_module_ui</code> itself (was app.R:595), <code>ptr_app_bslib</code> (<code>R/paintr-app-bslib.R:75</code>).</li>
+<li>Roxygen <code>[ptr_controls_ui()]</code>/<code>[ptr_outputs_ui()]</code> links removed/redirected. Known sites (verified 2026-05-16, treat as <strong>non-exhaustive</strong> — re-grep before editing): <code>R/paintr-css-doc.R:4</code>; <code>R/paintr-app-bslib.R:4</code>; <code>R/paintr-app.R</code> lines <code>479, 669, 677, 690, 715, 725, 734</code>. Authoritative check is <code>grep -rn '\[ptr_controls_ui()\]\|\[ptr_outputs_ui()\]' R/</code> returning zero, and <code>R CMD check</code> clean (covered with Step 07 for prose, but man-page xrefs must resolve at this step).</li>
+<li><code>devtools::check()</code> 0/0; <code>test-rewrite-app.R</code> + <code>test-ui-pieces.R</code> green.</li>
+</ul>
+
+<h2>Constraints</h2>
+<div class="crit">DOM/id parity is the hard gate. If composition changes any server-targeted id, <code>ptr_module_server</code> breaks silently. Snapshot the old <code>ptr_module_ui("m", f)</code> HTML <em>before</em> this step and diff after.</div>
+<ul>
+<li>The shell here is <code>ptr_module_ui</code>'s own (self-contained, L2) — <strong>not</strong> <code>ptr_ui_page</code> (ADR 0005 rejected routing L2 through the shell).</li>
+<li>Bare <code>.ptr-app</code> only (no <code>--page</code> canvas — that stays opt-in for <code>ptr_app</code>/<code>ptr_app_grid</code>).</li>
+<li>No deprecation shims for the removed split functions.</li>
+<li>Single-formula module ⇒ <code>shared = NULL</code> (inline section shows all its shared keys). Multi-instance shared wiring is the user's job at L2 via <code>ptr_shared</code>; <code>ptr_module_ui</code> takes no <code>shared_panel=</code> boolean (removed, ADR 0005).</li>
+</ul>
+
+<h2>BDD</h2>
+<div class="bdd">Feature: Module bundle rebuilt without contract drift
+
+  Scenario: DOM/id parity with the pre-redesign module
+    Given a snapshot of the old ptr_module_ui("m", f) HTML
+    When ptr_module_ui("m", f) is rendered after the rebuild
+    Then the set of element ids is identical to the snapshot
+      And "m-ptr_plot", "m-ptr_error", "m-ptr_code" are present
+      And ptr_module_server("m", f) renders into them unchanged
+
+  Scenario: Split functions are gone
+    Given the package namespace
+    Then exists("ptr_controls_ui") and exists("ptr_outputs_ui") are FALSE for exported API
+      And ptr_app_bslib() still builds (rewired off the removed split)
+
+  Scenario: Single-formula module shows its shared keys inline
+    Given f using num(shared='A') twice
+    When ptr_module_ui("m", f) is rendered
+    Then "m-shared_A" appears in the sidebar
+      And no standalone ".ptr-shared-panel" outside the module is emitted
+
+  Scenario: R CMD check has no dangling man links
+    When devtools::check(document=FALSE, args=c("--as-cran","--no-manual")) runs
+    Then there are 0 errors and 0 warnings
+      And no Rd xref to ptr_controls_ui/ptr_outputs_ui remains</div>
+
+<h2>Verify</h2>
+<pre>Rscript -e 'devtools::document(); devtools::test(filter="rewrite-app"); devtools::test(filter="ui-pieces")'
+Rscript -e 'devtools::check(document=FALSE, manual=FALSE, args=c("--as-cran","--no-manual"))'</pre>
+</body></html>
