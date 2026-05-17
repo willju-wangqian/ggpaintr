@@ -16,7 +16,7 @@ Implementation is **not done** — the code still reflects the pre-redesign API.
 | 02 | `l2-l3-redesign-02-server-consistency.html` | #P2 — UI↔server partition invariant; `ptr_shared_server(obj)` | 01 | ✅ done — 2026-05-16, `vignette-review` @ `30b24ca` |
 | 03 | `l2-l3-redesign-03-orthogonal-outputs.html` | #O — bare outputs + combinators; drop `ptr_ui_plot` flags; del `ptr_ui_code_toggle` | — (∥ 01) | ✅ done — 2026-05-16, `vignette-review` @ `ed1ad6b` (merge of `bd876c9`) |
 | 04 | `l2-l3-redesign-04-fold-shared-section.html` | #C — fold shared section into `ptr_ui_controls(shared=obj)` | 01 | ✅ done — 2026-05-16, `vignette-review` @ `2d94fa7` (merge of `f65535c`) |
-| 05 | `l2-l3-redesign-05-module-rebuild.html` | #M — rebuild `ptr_module_ui`; remove `ptr_controls_ui`/`ptr_outputs_ui` | 03, 04 | **unblocked** (03+04 merged) — pending |
+| 05 | `l2-l3-redesign-05-module-rebuild.html` | #M — rebuild `ptr_module_ui`; remove `ptr_controls_ui`/`ptr_outputs_ui` | 03, 04 | ✅ done — 2026-05-16, `vignette-review` @ `49a0580` (merge of `50a4955`) — keystone met (`ptr_ui_code_toggle` family eliminated) |
 | 06 | `l2-l3-redesign-06-app-grid-coordinator.html` | #G — route `ptr_app_grid` through the coordinator | 01, 02 | ✅ done — 2026-05-16, `vignette-review` @ `95b3208` (merge of `6aa4e9c`) |
 | 07 | `l2-l3-redesign-07-vignette.html` | #DOC — rewrite `ggpaintr-use-cases.Rmd` | 01–06 | pending |
 | 08 | `l2-l3-redesign-08-llm-topics.html` | #LLM — rewrite `inst/llm/topics/*` | 01–06 | pending |

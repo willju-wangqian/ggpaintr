@@ -204,9 +204,14 @@ test_that("grid app: flipping the shared-stage checkbox disables stages in every
     envir = new.env(parent = baseenv())
   )
   # Inject a per-module state capture: wrap ptr_module_server to record
-  # the state object it returns, keyed by module id.
+  # the state object it returns, keyed by module id. The call we need to
+  # intercept is *internal* to ptr_app_grid_components' server
+  # (do.call(ptr_module_server, ...)); assignInNamespace cannot reach it
+  # under devtools (the coordinator resolves the binding via the attached
+  # package env, not the namespace). local_mocked_bindings rebinds the
+  # name the package itself looks up, so the internal call is captured.
   module_states <- new.env(parent = emptyenv())
-  orig_ms <- getFromNamespace("ptr_module_server", "ggpaintr")
+  orig_ms <- ggpaintr:::ptr_module_server
   capt_ms <- function(id, formula, ...) {
     res <- orig_ms(id, formula, ...)
     # `ptr_module_server` returns the moduleServer result, which IS the
@@ -214,9 +219,8 @@ test_that("grid app: flipping the shared-stage checkbox disables stages in every
     module_states[[id]] <- res
     res
   }
-  assignInNamespace("ptr_module_server", capt_ms, "ggpaintr")
-  withr::defer(
-    assignInNamespace("ptr_module_server", orig_ms, "ggpaintr")
+  testthat::local_mocked_bindings(
+    ptr_module_server = capt_ms, .package = "ggpaintr"
   )
   shiny::testServer(parts$server, {
     session$flushReact()
