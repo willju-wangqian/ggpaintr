@@ -39,3 +39,42 @@ When behavior changes on the maintained path:
 - if `ui_text` behavior changes, update `test-copy-rules.R` + manual copy checks
 - if placeholder-registry behavior changes, update
   `test-placeholder-registry.R` + manual placeholder checks
+
+## Browser e2e (shinytest2) — hard-won gotchas
+
+These cost a full debugging cycle once. Read before adding any shinytest2 test.
+
+- **Boot an app *directory* that `pkgload::load_all()`s — never a parent-built
+  `shiny.appobj`.** shinytest2 runs the app in a fresh child R process. A
+  serialized appobj makes that child resolve `library(ggpaintr)` to the
+  **stale system-installed** ggpaintr (pkgload `_build/` is empty; an old
+  pre-redesign 0.9.1 is installed at the system library), so the suite
+  silently tests dead code (e.g. an old `ptr_shared_server` →
+  coordinator-boot crash) while *looking* green. Pattern in use:
+  `tests/testthat/fixtures/vignette-apps/<slug>/app.R`, first line
+  `pkgload::load_all(Sys.getenv("GGP_PKG"), quiet=TRUE, helpers=FALSE,
+  attach_testthat=FALSE)`; test sets
+  `withr::local_envvar(GGP_PKG = normalizePath(test_path("..","..")))` and
+  `AppDriver$new(test_path("fixtures","vignette-apps",slug))`. The `app.R`
+  body stays verbatim-equivalent to the source it represents (diffable).
+- **Do not call `app$get_values()`.** It snapshots *every* output and 500s
+  ("invalid char in json text") on custom-renderer apps whose host output is
+  in a pre-draw `shiny.silent.error` state. Assert with targeted
+  `app$get_html("#id")` / `app$get_value(output="id")` instead.
+- **ggpaintr only re-renders on the Update/Draw click.** Setting a
+  placeholder widget never updates an output by itself, so
+  `app$set_inputs(id = value)` with the default `wait_ = TRUE` *times out*.
+  Use `wait_ = FALSE` for every placeholder set, then click the draw button.
+- **`var` pickers for source/consumer placeholders are suspended.** They live
+  in a `renderUI` under the layer's "Data" subtab and aren't bound until that
+  subtab is shown. Set the source/consumer input, then
+  `set_inputs(<layer>_subtab = "Controls")`, `wait_for_idle()`, *then* set the
+  var pickers — otherwise "Unable to find input binding".
+- **Gating:** every test starts `skip_on_cran(); skip_if_not_installed(
+  "shinytest2")` (+ `chromote` + per-example extension pkg). `devtools::test()`
+  sets `NOT_CRAN=true` so AppDriver runs; R CMD check (CRAN) → all-skip. A
+  clean all-skip (SKIP n / FAIL 0) without the browser stack is correct, not
+  a failure.
+- Wrap `AppDriver$new()` in scoped `suppressWarnings()` (the "Failed to locate
+  globals" / htmlDependency-prefix warnings are benign — see project memory);
+  never blanket-suppress assertion output.
