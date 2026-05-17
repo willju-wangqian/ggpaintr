@@ -96,6 +96,7 @@ Exported `ptr_ui_assets(css)` — manual asset injector, *only* for out-of-`ptr_
 - An **L1** entry point internally composes the same pieces an **L3** user composes by hand; **L2** is the default-layout middle.
 - A **shared placeholder** surfaces as a **shared section** (single-formula, inline in controls) *or* a **shared panel** (multi-formula, standalone, global ids) — never both for the same key on the same page.
 - A **shared panel** pairs 1:1 with a top-level `ptr_shared_server()`; **bare pieces** / **embed composites** pair with `ptr_server()` / `ptr_module_server()` by matching `id`.
+- The **partition rule decides *ownership*, not just placement**: the *one widget* for a key — including a `var (shared = …)` consumer's column picker — is **rendered and server-bound by whoever owns its surface**. A **formula-local** key is owned by **that one instance's own server**; a **panel** key (≥2 formulas) is owned by the **standalone panel + top-level `ptr_shared_server()`**. The host server owns **only** panel keys; it never reaches into a formula-local key. Single-instance has no panel, so the instance owns every shared key.
 - The **page shell** contains **bare pieces**; an **embed composite** is (conceptually) a bare piece already wrapped in its own shell.
 
 ## Flagged ambiguities
@@ -103,6 +104,8 @@ Exported `ptr_ui_assets(css)` — manual asset injector, *only* for out-of-`ptr_
 - **"shared panel"** was used for *both* the inline single-formula section and the standalone multi-formula wellPanel. **Resolved**: these are distinct — **shared section** (inline, `render_shared_section`) vs **shared panel** (standalone, global ids, top-level server). Any design or doc must say which.
 - **"L2 split" vs "L3 pieces"**: `ptr_controls_ui`/`ptr_outputs_ui` (self-wrapping composites) vs `ptr_ui_*` (bare). Earlier audit notes mislabeled cross-layer renames as mechanical. The redesign may delete the composite layer from L2 entirely.
 - **"custom render path"** — current vignette/memory place it at L2 ("needs nothing beyond L2"); the redesign moves it back to **L3**. Unresolved; pending ADR 0005.
+- **"empty shared panel"** — a multi-instance app where every shared key is formula-local (no ≥2-formula key) leaves the panel with nothing to show. **Resolved (grill 2026-05-17)**: this is a **valid configuration, not an error** — the panel must render **nothing** (no empty "Shared controls" box, no orphan Draw-all); each instance still renders its own inline section, and the top-level `ptr_shared_server()` stays a safe no-op.
+- **"who binds a formula-local `var (shared=)`"** — the standalone-panel server was found also binding *formula-local* consumer pickers (global ids), contradicting "the owning instance binds it". **Resolved (grill 2026-05-17)**: the host server binds **only** panel keys; the owning instance binds every formula-local key (consumer or value). One partition, one owner, no double-bind.
 
 ## Example dialogue
 

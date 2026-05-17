@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Plan — Shared section: formula-local var(shared=) binding, ptr_module_ui shared=, copy, empty-panel</title>
+<style>
+body{font:15px/1.55 -apple-system,Segoe UI,Roboto,sans-serif;max-width:60rem;margin:2rem auto;padding:0 1.2rem;color:#1a1a1a}
+h1{font-size:1.5rem;border-bottom:2px solid #c0392b;padding-bottom:.3rem}
+h2{font-size:1.2rem;margin-top:2rem;border-bottom:1px solid #ddd;padding-bottom:.2rem}
+h3{font-size:1.02rem;margin-top:1.4rem}
+code{background:#f4f4f4;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
+pre{background:#f7f7f7;border:1px solid #e3e3e3;border-radius:5px;padding:.7rem .9rem;overflow-x:auto;font-size:.86rem}
+.gherkin{background:#fbf7ef;border-left:4px solid #c89b3c;padding:.5rem .9rem;white-space:pre-wrap;font-size:.88rem}
+.crit{background:#eef6ee;border-left:4px solid #3a8a3a;padding:.5rem .9rem}
+.con{background:#fdeeee;border-left:4px solid #c0392b;padding:.5rem .9rem}
+.dod{background:#eef2fb;border-left:4px solid #3a5aa8;padding:.5rem .9rem}
+table{border-collapse:collapse;width:100%;margin:.6rem 0}th,td{border:1px solid #ddd;padding:.35rem .5rem;text-align:left;font-size:.9rem}th{background:#f0f0f0}
+.tag{display:inline-block;background:#c0392b;color:#fff;font-size:.7rem;padding:.1rem .45rem;border-radius:3px;vertical-align:middle}
+</style>
+</head>
+<body>
+
+<h1>Plan — Shared section correctness, API, copy &amp; empty-render</h1>
+<p><strong>Date:</strong> 2026-05-17 &nbsp;|&nbsp; <strong>Branch:</strong> <code>vignette-review</code> &nbsp;|&nbsp; <strong>Origin:</strong> grill-with-docs session (this conversation) &nbsp;|&nbsp; <strong>Governing decision:</strong> ADR 0005 + <code>CONTEXT.md</code> (shared section/panel partition; ownership clarifications added 2026-05-17)</p>
+
+<h2>Problem</h2>
+<p>A multi-instance app (the user's repro: two <code>ptr_module_ui</code>/<code>ptr_module_server</code> plots + a <code>ptr_shared_panel(obj)</code>) renders the standalone panel's value widget (<code>sz</code>) but the per-formula <strong>inline shared sections show no <code>ax1</code>/<code>ax2</code> picker</strong>. A formula-local <code>var(shared = "k")</code> consumer key is emitted as an empty <code>uiOutput</code> that nothing ever fills.</p>
+
+<h3>Root cause (traced end-to-end, evidence in session)</h3>
+<ul>
+<li><strong>B1 — no binder for formula-local shared consumers in the embed path.</strong> <code>ptr_setup_consumer_uis()</code> (<code>R/paintr-server.R:916–919</code>) deliberately <code>next</code>s every <code>c$shared</code> consumer, delegating to the host binder <code>ptr_bind_shared_consumer_uis()</code>. <code>ptr_make_app_server</code> (single-instance) calls that binder explicitly (<code>R/paintr-app.R:163–186, 212–223</code>); <strong><code>ptr_module_server</code> never does</strong>. So a formula-local consumer key's namespaced <code>uiOutput</code> (<code>&lt;id&gt;-shared_&lt;key&gt;_ui</code>) is never populated. Value keys (e.g. <code>num(shared=)</code>) work because they are static widgets self-bound by <code>ptr_module_server</code>'s <code>local_shared</code> reactives.</li>
+<li><strong>B1b — <code>ptr_shared_server</code> is internally inconsistent.</strong> Its <code>shared_reactives</code> correctly restrict to <code>obj$panel_keys</code>, and its comment states formula-local keys are bound by each module — but its consumer block calls <code>ptr_bind_shared_consumer_uis</code> for <em>all</em> <code>consumer_keys</code> at global <code>ns = identity</code> ids (<code>R/paintr-shared-ui.R</code> <code>ptr_shared_server</code> body), i.e. it also (mis)binds formula-local consumers at ids no panel emits. <code>ptr_app_grid</code>'s server is structurally identical (<code>ptr_shared_server(obj)</code> + per-plot <code>ptr_module_server</code>), so grid has the same defect.</li>
+<li><strong>B2 — <code>ptr_module_ui</code> has no <code>shared=</code> parameter</strong> (<code>R/paintr-app.R:640</code>); it hardcodes <code>ptr_ui_controls(..., shared = NULL)</code> so <code>obj$panel_keys</code> can never be excluded ⇒ panel keys also render inline (double-render). CONTEXT.md: "routing is governed solely by presence of <code>shared=obj</code>".</li>
+<li><strong>D5 — misleading copy.</strong> Inline hint "One value here is reused everywhere it is referenced" overclaims (the inline section is formula-local; "everywhere" implies cross-plot). Panel hint "linked across every plot below" hard-codes layout ("below") and overclaims ("every plot"; panel keys are the ≥2-formula subset). Both strings are hardcoded literals, not <code>ui_text</code>-resolved.</li>
+<li><strong>D6 — empty panel renders.</strong> <code>shared_panel_body_tag()</code> (<code>R/paintr-shared-coordinator.R:165</code>) always emits the wellPanel + title + hint + Draw-all + errors slot even when zero widgets render (e.g. all keys formula-local ⇒ <code>panel_keys = character(0)</code>): a confusing empty "Shared controls" box.</li>
+</ul>
+
+<h3>Verified baseline (do not regress)</h3>
+<p><strong>Single-instance <code>ptr_app()</code> with <code>var(shared=)</code> is CORRECT today</strong> (empirically verified 2026-05-17): <code>collect_shared_placeholders</code> rep id is already canonical (<code>shared_&lt;key&gt;</code>), inline emits <code>shared_ax1_ui</code> (ns identity), <code>ptr_make_app_server</code>'s host binder fills <code>shared_ax1_ui</code> → match. The fix must keep single-instance byte-stable.</p>
+
+<h2>Decisions (locked this session)</h2>
+<table>
+<tr><th>#</th><th>Decision</th></tr>
+<tr><td>B1</td><td>Extract one internal helper <code>ptr_bind_local_shared_consumers(tree, output, input, ns, host_owned_keys = character(), …)</code> that performs the assemble-representatives + <code>ptr_bind_shared_consumer_uis</code> call once. Both <code>ptr_make_app_server</code> and <code>ptr_module_server</code> call it. Single binder implementation; the duplicated ~20-line preamble is eliminated.</td></tr>
+<tr><td>B1b</td><td>Uniform partition: <code>ptr_shared_server</code>'s consumer-UI binding is restricted to <code>panel_keys ∩ consumer_keys</code> (same partition as <code>shared_reactives</code>). Host owns <em>only</em> panel keys; the owning instance owns every formula-local key. No double-bind.</td></tr>
+<tr><td>B2</td><td><code>ptr_module_ui</code> gains <code>shared = NULL</code>, forwarded verbatim to <code>ptr_ui_controls(shared = shared)</code>. Consistent with <code>ptr_shared_panel(obj)</code> / <code>ptr_ui_controls(shared=)</code>. <code>NULL</code> ⇒ single-instance (render all keys); <code>obj</code> ⇒ exclude <code>obj$panel_keys</code> from the inline section.</td></tr>
+<tr><td>D5</td><td>Scoped copy + <code>ui_text</code>-overridable. Inline hint → <em>"Drives every place this variable appears in this plot."</em> Panel hint → <em>"Drives every plot that uses it."</em> Titles stay "Shared controls". New <code>shell</code> keys in <code>ptr_default_ui_text()</code>, resolved via <code>ptr_resolve_ui_text("shell", …)</code>; overridable through <code>ptr_shared(ui_text=)</code> / <code>ptr_module_ui(ui_text=)</code>.</td></tr>
+<tr><td>D6</td><td><code>shared_panel_body_tag()</code> / <code>ptr_shared_panel()</code> return <code>NULL</code> when zero widgets render. Inline <code>shared_section_tags()</code> keeps its existing self-NULL. Losing the cross-module "Draw all" in the no-panel-keys case is accepted. <code>ptr_shared_server(obj)</code> must remain a safe no-op when <code>panel_keys</code> is empty and the <code>ptr_shared_errors</code>/<code>ptr_shared_draw_all</code> ids are absent.</td></tr>
+</table>
+<p>No new ADR: all four implement the already-locked ADR 0005 / CONTEXT.md contract or are reversible low-lock-in choices. CONTEXT.md "Relationships" + "Flagged ambiguities" updated this session.</p>
+
+<h2>Build order</h2>
+<p><strong>W2 → W1 → W4 → W3.</strong> W2 (mechanical) makes the inline exclude correct so W1 can be validated against the right widget set. W1 is the core fix. W4 depends on W1's partition being correct (empty-panel only well-defined once ownership is uniform). W3 is independent (copy) and lands last. Each item is independently testable and shippable.</p>
+
+<hr>
+
+<h2>W2 — <span class="tag">B2</span> <code>ptr_module_ui</code> gains <code>shared=</code></h2>
+<p><strong>Files:</strong> <code>R/paintr-app.R</code> (<code>ptr_module_ui</code> ~640–677), roxygen + <code>devtools::document()</code>.</p>
+<div class="crit"><strong>Success Criteria</strong>
+<ul>
+<li><code>formals(ptr_module_ui)</code> includes <code>shared = NULL</code>; it is passed unchanged into the internal <code>ptr_ui_controls(..., shared = shared)</code> call.</li>
+<li><code>shared = NULL</code> (default) ⇒ inline section renders every shared key of the formula (single-instance behaviour, byte-identical to pre-change for the no-arg call).</li>
+<li><code>shared = obj</code> (a <code>ptr_shared_spec</code>) ⇒ inline section excludes <code>obj$panel_keys</code>; a non-<code>ptr_shared_spec</code> non-NULL value errors via the existing <code>ptr_ui_controls</code> assertion.</li>
+</ul></div>
+<div class="con"><strong>Constraints</strong>
+<ul>
+<li>Do not change argument order of existing params; add <code>shared = NULL</code> after <code>expr_check</code>, before/after <code>css</code> consistently with <code>ptr_ui_controls</code>.</li>
+<li>No change to <code>ptr_module_ui</code>'s asset emission, shell structure, or output combinators.</li>
+<li>Update roxygen <code>@param shared</code>; regenerate NAMESPACE/man via <code>devtools::document()</code> (never hand-edit).</li>
+</ul></div>
+<div class="gherkin">Feature: ptr_module_ui shared= excludes panel keys
+  Scenario: Multi-instance embed with a coordinator
+    Given obj &lt;- ptr_shared(formulas = list(f1, f2)) with panel_keys == "sz"
+    And f1 declares var(shared="ax1") (formula-local) and num(shared="sz")
+    When ui &lt;- ptr_module_ui("plot_1", f1, shared = obj)
+    Then as.character(ui) contains an input/uiOutput id ending "shared_ax1_ui"
+    And as.character(ui) does NOT contain any id for "shared_sz"
+  Scenario: Single-instance default
+    Given f1 declares num(shared="sz")
+    When ui &lt;- ptr_module_ui("plot_1", f1)
+    Then as.character(ui) contains an id ending "shared_sz"
+    And the output is byte-identical to the pre-change ptr_module_ui("plot_1", f1)</div>
+<div class="dod"><strong>Definition of Done</strong> — run the authoritative gate (see global DoD block) plus targeted unit file:
+<pre>NOT_CRAN=true Rscript -e 'devtools::test(filter = "module-ui")'</pre>
+Expected: <code>FAIL 0 | WARN 0 | SKIP 0 | PASS &gt;0</code> including new exclude/byte-stable assertions. (If no <code>test-module-ui.R</code> exists, add it.)</div>
+
+<hr>
+
+<h2>W1 — <span class="tag">B1</span><span class="tag">B1b</span> Formula-local shared-consumer binder, uniform partition</h2>
+<p><strong>Files:</strong> <code>R/paintr-server.R</code> (new <code>ptr_bind_local_shared_consumers()</code> near <code>ptr_bind_shared_consumer_uis</code> ~1016), <code>R/paintr-app.R</code> (<code>ptr_make_app_server</code> 160–225 use helper; <code>ptr_module_server</code> 797–903 call helper inside <code>moduleServer</code> after <code>ptr_server</code>), <code>R/paintr-shared-ui.R</code> (<code>ptr_shared_server</code> consumer block → <code>panel_keys ∩ consumer_keys</code>).</p>
+<div class="crit"><strong>Success Criteria</strong>
+<ul>
+<li>New internal <code>ptr_bind_local_shared_consumers(tree, output, input, ns, host_owned_keys = character(), ui_text = NULL, eval_env = parent.frame(), expr_check = TRUE, errors_rv = NULL, state = NULL)</code>: assembles per-key representative nodes (id forced to <code>canonical_shared_id(k)</code>, multi-param clearing, <code>shared_label</code>) for the tree's shared <em>consumer</em> keys <strong>excluding</strong> <code>host_owned_keys</code>, then calls <code>ptr_bind_shared_consumer_uis()</code> once. Returns invisibly.</li>
+<li><code>ptr_make_app_server</code> calls it with <code>host_owned_keys = character(0)</code> (single-instance owns all); the inline <code>shared_resolutions</code>/<code>representative_nodes</code> preamble (<code>R/paintr-app.R:163–186</code>) and the explicit binder call (<code>212–223</code>) are replaced by the helper. Single-instance behaviour byte-stable.</li>
+<li><code>ptr_module_server</code> calls it inside <code>moduleServer</code> after the <code>ptr_server</code> call, with <code>ns = session$ns</code> and <code>host_owned_keys =</code> the panel keys present in the bundle (<code>names(dots$shared)</code> from <code>ptr_shared_server</code>) so only formula-local consumer keys are bound under the module namespace.</li>
+<li><code>ptr_shared_server</code>'s consumer block builds <code>representative_nodes</code> and calls <code>ptr_bind_shared_consumer_uis</code> for <code>intersect(consumer_keys, panel_keys)</code> only; with no panel consumer keys it does <em>not</em> call the binder and still clears <code>output$ptr_shared_errors</code> safely.</li>
+<li>The user's repro renders <code>ax1</code> in plot_1's inline section and <code>ax2</code> in plot_2's; <code>sz</code> appears <strong>only</strong> in the standalone panel (not duplicated inline — requires W2).</li>
+</ul></div>
+<div class="con"><strong>Constraints</strong>
+<ul>
+<li><strong>No new binder logic</strong> — the helper wraps the existing <code>ptr_bind_shared_consumer_uis</code>; do not reimplement consumer renderUI.</li>
+<li>The over-broad skip at <code>R/paintr-server.R:916–919</code> stays (formula-local keys are bound by the helper, not by <code>ptr_setup_consumer_uis</code>) — do not delete the skip; that path remains owned by the host/helper to avoid double-write.</li>
+<li>Exactly one renderUI per shared consumer key across the whole page (no formula-local key bound by both the helper and <code>ptr_shared_server</code>; no panel key bound by a module).</li>
+<li>Single-instance <code>ptr_app()</code> and existing <code>ptr_app_grid()</code> output ids/behaviour unchanged except the now-fixed formula-local consumer.</li>
+<li>Use <code>rlang::abort</code>/<code>cli</code> conventions; helper is unexported (no <code>ptr_</code>-export), snake_case, 2-space indent.</li>
+</ul></div>
+<div class="gherkin">Feature: formula-local var(shared=) binds in every host
+  Background:
+    Given f1 = ggplot(iris, aes(x=var(shared="ax1"), y=var(shared="ax1"), color=Species)) + geom_point(size=num(shared="sz"))
+    And   f2 = ggplot(iris, aes(x=var(shared="ax2"), y=Sepal.Width, color=Species)) + geom_point(size=num(shared="sz"))
+    And   obj = ptr_shared(list(f1,f2), shared_ui=list(sz=function(id) shiny::sliderInput(id,"Size",1,6,3)))
+    And   obj$panel_keys == "sz"
+
+  Scenario: Embed path renders the formula-local picker
+    Given ui = fluidPage(ptr_shared_panel(obj),
+                         fluidRow(column(6, ptr_module_ui("plot_1", f1, shared=obj)),
+                                  column(6, ptr_module_ui("plot_2", f2, shared=obj))))
+    And server wires ptr_shared_server(obj) + ptr_module_server("plot_1", f1, shared_state=sh) + ("plot_2", f2, shared_state=sh)
+    When the app boots in a headless browser
+    Then plot_1's inline shared section shows a populated "ax1" column picker
+    And  plot_2's inline shared section shows a populated "ax2" column picker
+    And  "sz" appears once, only in the standalone panel
+    And  selecting ax1 then clicking plot_1's Update redraws plot_1 with that x column
+
+  Scenario: ptr_app_grid (same host shape)
+    When app = ptr_app_grid(list(f1,f2), shared_ui=list(sz=function(id) shiny::sliderInput(id,"Size",1,6,3)))
+    And the app boots in a headless browser
+    Then each grid cell shows its own formula-local axis picker populated
+    And "sz" is the only widget in the standalone shared panel
+
+  Scenario: No double-bind for a cross-formula (panel) consumer key
+    Given f1,f2 both reference var(shared="cc") so "cc" is a panel key
+    When the app boots
+    Then exactly one column picker for "cc" exists in the DOM (in the panel, global id), none inside any module
+
+  Scenario: Single-instance unchanged
+    When app = ptr_app(f1)
+    Then the inline shared section renders ax1 and sz exactly as before this change (regression-stable)</div>
+<div class="dod"><strong>Definition of Done</strong> — the project authoritative gate, run and seen green by the implementer:
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong> (N ≥ 1583 baseline + new tests). <strong>Proxy traps — do NOT accept as the gate:</strong> (1) a raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> <em>without</em> <code>NOT_CRAN</code>, or (2) <code>R CMD check --as-cran</code> — both fire <code>skip_on_cran()</code> so every shinytest2 browser test (the embed + grid scenarios above) <strong>silently SKIPs</strong>; a "green, SKIP n" there is not done. The embed &amp; grid browser scenarios above MUST run and pass (requires <code>shinytest2</code> + <code>chromote</code> + Chrome). New e2e fixtures: <code>tests/testthat/fixtures/vignette-apps/&lt;slug&gt;/app.R</code> (first line <code>pkgload::load_all(Sys.getenv("GGP_PKG"), …)</code>) for one embed app and one grid app, each with a formula-local <code>var(shared=)</code> + a panel key, asserted via <code>app$get_html("#…")</code> (never <code>app$get_values()</code>; placeholder sets use <code>wait_ = FALSE</code> then click Update).</div>
+
+<hr>
+
+<h2>W4 — <span class="tag">D6</span> Empty shared panel renders nothing</h2>
+<p><strong>Files:</strong> <code>R/paintr-shared-coordinator.R</code> (<code>shared_panel_body_tag</code> 165–237, <code>ptr_shared_panel</code> 258–270, <code>ptr_ui_shared_panel</code>), <code>R/paintr-shared-ui.R</code> (assert <code>ptr_shared_server</code> empty-<code>panel_keys</code> no-op — covered by W1b but explicitly tested here).</p>
+<div class="crit"><strong>Success Criteria</strong>
+<ul>
+<li><code>shared_panel_body_tag(obj, keys)</code> returns <code>NULL</code> when the post-filter rendered-widget set is empty (no panel keys, or all filtered to NULL); consequently <code>ptr_shared_panel(obj)</code> and <code>ptr_ui_shared_panel(obj)</code> return <code>NULL</code> (or an empty tag list that emits no DOM) — no <code>.ptr-shared-panel</code>, no title/hint, no Draw-all, no <code>ptr_shared_errors</code> markup.</li>
+<li>When ≥1 widget renders, output is byte-identical to before (title/hint changes are W3's, not W4's).</li>
+<li><code>ptr_shared_server(obj)</code> with empty <code>panel_keys</code> constructs without error and is a no-op: returns a valid <code>ptr_shared_state</code> (empty <code>shared</code> reactives, <code>draw_trigger</code> NULL when <code>formula_count &lt; 2</code> else the absent-input reactive harmlessly), and rendering into the absent <code>ptr_shared_errors</code>/<code>ptr_shared_draw_all</code> ids does not error.</li>
+</ul></div>
+<div class="con"><strong>Constraints</strong>
+<ul>
+<li>Not an error path: a formula-local-only multi-instance app is valid; never <code>abort()</code> for empty <code>panel_keys</code>.</li>
+<li>Do not suppress the inline section here (it already self-NULLs).</li>
+<li>No change to the partition computation or to which keys are panel keys.</li>
+</ul></div>
+<div class="gherkin">Feature: empty shared panel is not rendered
+  Scenario: Multi-instance, all keys formula-local
+    Given f1 declares only var(shared="ax1"), f2 declares only var(shared="ax2")
+    And obj = ptr_shared(list(f1,f2)); obj$panel_keys is character(0)
+    When tag = ptr_shared_panel(obj)
+    Then tag is NULL OR as.character(tag) contains no "ptr-shared-panel" and no "Shared controls"
+  Scenario: server stays a safe no-op
+    Given the same obj inside a testServer/AppDriver session with no ptr_shared_* ids in the UI
+    When ptr_shared_server(obj) runs
+    Then it returns a ptr_shared_state without error and no console error is emitted
+  Scenario: Non-empty panel unaffected
+    Given obj with panel_keys == "sz"
+    When tag = ptr_shared_panel(obj)
+    Then as.character(tag) contains "ptr-shared-panel" and the sz widget id</div>
+<div class="dod"><strong>Definition of Done</strong> — authoritative gate (same command + proxy-trap caveat as W1) green, plus:
+<pre>NOT_CRAN=true Rscript -e 'devtools::test(filter = "shared-coordinator")'</pre>
+Expected <code>FAIL 0 | WARN 0 | SKIP 0 | PASS &gt;0</code> including the empty-panel NULL assertion and the empty-<code>panel_keys</code> <code>ptr_shared_server</code> no-op assertion (testServer-level).</div>
+
+<hr>
+
+<h2>W3 — <span class="tag">D5</span> Scoped, ui_text-overridable copy</h2>
+<p><strong>Files:</strong> <code>R/paintr-copy.R</code> (<code>ptr_default_ui_text()</code> <code>shell</code> block ~30–90), <code>R/paintr-app.R</code> (<code>shared_section_tags</code> 238–270 — resolve title/hint), <code>R/paintr-shared-coordinator.R</code> (<code>shared_panel_body_tag</code> 165–237 — resolve title/hint), <code>tests/testthat/test-copy-rules.R</code> + manual copy docs.</p>
+<div class="crit"><strong>Success Criteria</strong>
+<ul>
+<li><code>ptr_default_ui_text()$shell</code> gains: <code>shared_section_title="Shared controls"</code>, <code>shared_section_hint="Drives every place this variable appears in this plot."</code>, <code>shared_panel_title="Shared controls"</code>, <code>shared_panel_hint="Drives every plot that uses it."</code></li>
+<li><code>shared_section_tags()</code> renders title/hint via <code>ptr_resolve_ui_text("shell", ui_text=ui_text)$shared_section_*</code>; <code>shared_panel_body_tag()</code> via <code>...$shared_panel_*</code> (from <code>obj$ui_text</code>). No hardcoded literal strings remain for these.</li>
+<li>User override flows: <code>ptr_shared(formulas, ui_text=list(shell=list(shared_panel_hint="…")))</code> and <code>ptr_module_ui(…, ui_text=list(shell=list(shared_section_hint="…")))</code> change the rendered text; absent override falls back to the new defaults via the existing merge.</li>
+</ul></div>
+<div class="con"><strong>Constraints</strong>
+<ul>
+<li>Add keys under the existing <code>shell</code> component (already a registered <code>ptr_ui_text_component_paths()</code> path) — do not introduce a new component unless <code>ptr_ui_text_component_paths()</code> requires it; if a new path is needed, register it there.</li>
+<li>Copy strings exactly as in Success Criteria (decided this session); titles unchanged ("Shared controls").</li>
+<li>The merge must remain shallow-safe: a partial user <code>shell</code> override must not drop the other shell keys (use the existing deep/right-merge path).</li>
+</ul></div>
+<div class="gherkin">Feature: shared copy is scoped and overridable
+  Scenario: defaults
+    When ui = ptr_module_ui("p", "ggplot(iris,aes(x=var(shared='a')))+geom_point()")
+    Then as.character(ui) contains "Drives every place this variable appears in this plot."
+    And  does NOT contain "reused everywhere it is referenced"
+  Scenario: panel default
+    When tag = ptr_shared_panel(ptr_shared(list(f1,f2)))   # f1,f2 share key "sz"
+    Then as.character(tag) contains "Drives every plot that uses it."
+    And  does NOT contain "linked across every plot below"
+  Scenario: embedder override
+    When tag = ptr_shared_panel(ptr_shared(list(f1,f2), ui_text=list(shell=list(shared_panel_hint="X-LINK"))))
+    Then as.character(tag) contains "X-LINK"
+    And  the other shell defaults (e.g. draw_all_button label) are unchanged</div>
+<div class="dod"><strong>Definition of Done</strong> — authoritative gate (W1 command + proxy-trap caveat) green, plus:
+<pre>NOT_CRAN=true Rscript -e 'devtools::test(filter = "copy-rules")'</pre>
+Expected <code>FAIL 0 | WARN 0 | SKIP 0 | PASS &gt;0</code> including default-string, no-stale-string, and override scenarios. Update <code>tests/manual/</code> copy checklist for the new shared keys.</div>
+
+<hr>
+
+<h2>Cross-cutting Definition of Done</h2>
+<div class="dod">
+<p>Before claiming the plan complete, the implementer must, in order:</p>
+<ol>
+<li><strong>Authoritative full-suite gate</strong> (run it, see the output):
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong>. <code>devtools::test()</code> is equivalent (sets <code>NOT_CRAN=true</code>).</li>
+<li><strong>Named proxy traps</strong> — none of these substitute for step 1: a raw <code>test_dir()</code>/<code>test_file()</code> without <code>NOT_CRAN</code>, or <code>R CMD check --as-cran</code>; both make <code>skip_on_cran()</code> fire so every shinytest2 browser test (the W1 embed + grid scenarios) <strong>silently SKIPs</strong>. "Green with SKIP n" off those harnesses is NOT done. If the browser stack (<code>shinytest2</code>+<code>chromote</code>+Chrome) is absent, a clean all-skip is acceptable ONLY if explicitly reported, never hidden, and the embed/grid scenarios are then unverified (block completion).</li>
+<li><code>devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))</code> → 0 errors / 0 warnings (3 by-design NOTEs expected).</li>
+<li><code>devtools::document()</code> run; NAMESPACE/man committed; no roxygen drift.</li>
+<li>Manual proof of the original repro fixed: boot the user's exact snippet (with <code>shared = obj</code> added to the two <code>ptr_module_ui</code> calls per W2) and confirm <code>ax1</code>/<code>ax2</code> pickers populate and <code>sz</code> is panel-only.</li>
+</ol>
+</div>
+
+<h2>Integration discipline <span class="tag">scope</span><span class="tag">independence</span><span class="tag">ordering</span></h2>
+<div class="dod">
+<p><strong>Scope &amp; ownership (item 5).</strong> Each work item owns exactly the files listed in its section. No W edits another W's files. <strong>Generated artefacts are integration-deferred:</strong> <code>NAMESPACE</code> and <code>man/</code> are <em>not</em> merge-resolved — after all W merge, the integrator runs <code>devtools::document()</code> once on the integrated branch and commits the regenerated output. A W's own commit may include its <code>devtools::document()</code> output for local DoD, but conflicts in <code>NAMESPACE</code>/<code>man/</code> at merge are resolved by regeneration, never by hand.</p>
+<p><strong>Ordering &amp; revertable integration (item 9).</strong> Build order <strong>W2 → W1 → W4 → W3</strong>. Each W is implemented in its <strong>own git worktree off <code>vignette-review</code></strong> (the base), independently testable. The user merges <strong>one W at a time, <code>--no-ff</code></strong>, so any single W is revertable as one merge commit. W1 depends on W2 (correct exclude set) and W4 depends on W1 (uniform partition); a dependent W is rebased on the base only after its blocker has merged. W3 is independent and may merge in any slot.</p>
+<p><strong>Independence (item 6).</strong> Any "done / suite green / scope clean" from a W worktree session, sub-agent, or a prior turn is the reporter's <em>claim</em>, produced by the same fallible process — it is evidence for what to check, never proof. The integrator does <strong>not</strong> trust a status block: for every W merge the integrator independently re-runs the cross-cutting authoritative gate command (<code>NOT_CRAN=true … test_dir</code>) on the merged result and confirms <strong>FAIL 0 / ERROR 0 / SKIP 0</strong> with the browser scenarios actually executed (not SKIPped — see proxy traps), plus checks the W's Success Criteria and Constraints against the diff, before accepting the merge.</p>
+<p><strong>Surface, don't absorb (item 8).</strong> Any defect, inconsistency, or scope question discovered while implementing a W that is not already covered by that W's Success Criteria is <strong>surfaced as a tracked follow-up</strong> (a new issue file under <code>.scratch/&lt;feature&gt;/</code> per <code>dev/agents/issue-tracker.md</code>) and reported in the merge summary — it is <strong>never</strong> silently fixed inside the W (scope creep) nor papered over to make the gate pass. If a discovered defect blocks the W's DoD, stop and escalate; do not widen scope unilaterally.</p>
+</div>
+
+<h2>Out of scope</h2>
+<ul>
+<li>The denylist / formula-parsing safety (project memory: complete).</li>
+<li>Any L2/L3 rename beyond adding <code>shared=</code> to <code>ptr_module_ui</code> (that is the api-audit plan's job).</li>
+<li>Re-deriving the partition anywhere outside <code>ptr_shared()</code> (single source of truth — ADR 0005).</li>
+<li>A non-Shiny / headless path (does not exist; project memory).</li>
+</ul>
+
+<!-- implementable: PASS date=2026-05-17 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=3eecef78ce3d -->
+</body>
+</html>
