@@ -227,6 +227,49 @@ ptr_make_app_server <- function(formula, tree, envir, ui_text,
 # Sidebar contents for an embedded formula: optional shared section + layer
 # picker + hidden tabset + the "Update plot" button. Returns a list of tags so
 # callers can do.call(shiny::sidebarPanel, .) or wrap in shiny::tagList().
+# Build the formula-local "Shared controls" wellPanel for `tree`, or NULL
+# when the formula declares no shared placeholders (or every shared key is
+# excluded). Factored verbatim-equivalent out of `ptr_controls_panel()` so
+# `ptr_ui_controls()` can render it directly. `exclude_keys` are the
+# coordinator's cross-formula keys (`obj$panel_keys`) that belong to the
+# standalone `ptr_shared_panel()` instead of this inline section; with the
+# default empty set the result is byte-identical to the old inline block
+# (single-instance: every shared key renders here). Widgets stay namespaced
+# via the controls' `ns` (NOT identity).
+shared_section_tags <- function(tree, ui_text = NULL, ns = shiny::NS(NULL),
+                                exclude_keys = character()) {
+  shared_entries <- collect_shared_placeholders(tree)
+  if (length(exclude_keys) > 0L && length(shared_entries) > 0L) {
+    keep0 <- !vapply(shared_entries,
+                     function(e) e$key %in% exclude_keys, logical(1))
+    shared_entries <- shared_entries[keep0]
+  }
+  if (length(shared_entries) > 0L) {
+    widgets <- lapply(shared_entries, function(e) {
+      build_ui_for(e$node, ui_text = ui_text, ns_fn = ns,
+                   label_override = e$label_override)
+    })
+    keep <- !vapply(widgets, is.null, logical(1))
+    widgets <- widgets[keep]
+    kept_entries <- shared_entries[keep]
+    orphan_stages <- collect_orphan_shared_stages(tree)
+    widgets <- wrap_shared_widgets_with_stage_blocks(
+      kept_entries, widgets, orphan_stages, ns
+    )
+    if (length(widgets) > 0L) {
+      shiny::wellPanel(
+        shiny::div(
+          class = "ptr-shared-panel",
+          shiny::tags$p(class = "ptr-shared-panel__title", "Shared controls"),
+          shiny::tags$p(class = "ptr-shared-panel__hint",
+                        "One value here is reused everywhere it is referenced."),
+          do.call(shiny::tagList, widgets)
+        )
+      )
+    } else NULL
+  } else NULL
+}
+
 ptr_controls_panel <- function(tree, ui_text = NULL,
                                checkbox_defaults = NULL,
                                ns = shiny::NS(NULL),
@@ -254,31 +297,7 @@ ptr_controls_panel <- function(tree, ui_text = NULL,
   )
 
   shared_section <- if (isTRUE(render_shared_section)) {
-    shared_entries <- collect_shared_placeholders(tree)
-    if (length(shared_entries) > 0L) {
-      widgets <- lapply(shared_entries, function(e) {
-        build_ui_for(e$node, ui_text = ui_text, ns_fn = ns,
-                     label_override = e$label_override)
-      })
-      keep <- !vapply(widgets, is.null, logical(1))
-      widgets <- widgets[keep]
-      kept_entries <- shared_entries[keep]
-      orphan_stages <- collect_orphan_shared_stages(tree)
-      widgets <- wrap_shared_widgets_with_stage_blocks(
-        kept_entries, widgets, orphan_stages, ns
-      )
-      if (length(widgets) > 0L) {
-        shiny::wellPanel(
-          shiny::div(
-            class = "ptr-shared-panel",
-            shiny::tags$p(class = "ptr-shared-panel__title", "Shared controls"),
-            shiny::tags$p(class = "ptr-shared-panel__hint",
-                          "One value here is reused everywhere it is referenced."),
-            do.call(shiny::tagList, widgets)
-          )
-        )
-      } else NULL
-    } else NULL
+    shared_section_tags(tree, ui_text = ui_text, ns = ns)
   } else NULL
 
   drop_null(list(
@@ -640,26 +659,34 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
 #' @param checkbox_defaults Optional named list of initial checked states.
 #' @param expr_check Controls `expr` placeholder validation. Defaults to
 #'   `TRUE`.
-#' @param render_shared_section If `TRUE`, include the inline "Shared
-#'   controls" section for any `shared = "..."` placeholders. Defaults to
-#'   `FALSE` (the embedded default — use [ptr_shared_ui()] for the
-#'   page-level shared panel).
+#' @param shared Optional coordinator object from [ptr_shared()] for the
+#'   multi-instance embedding. When `NULL` (the single-instance default)
+#'   the inline "Shared controls" section renders **every** `shared =
+#'   "..."` placeholder in `formula`. When a `ptr_shared_spec` is supplied,
+#'   its cross-formula keys (`shared$panel_keys`) are excluded here because
+#'   they belong to the one standalone [ptr_shared_panel()]; only this
+#'   formula's formula-local shared keys render inline.
 #'
 #' @return A [shiny::tagList()].
 #' @seealso [ptr_ui_page()], [ptr_ui_assets()], [ptr_ui_plot()],
-#'   [ptr_ui_code()], [build_ui_for()], [ptr_server()]
+#'   [ptr_ui_code()], [build_ui_for()], [ptr_shared()], [ptr_server()]
 #' @export
 ptr_ui_controls <- function(id = NULL, formula, ui_text = NULL,
                             checkbox_defaults = NULL, expr_check = TRUE,
-                            render_shared_section = FALSE) {
-  tree <- ptr_translate(formula, expr_check = expr_check)
-  do.call(
-    shiny::tagList,
-    ptr_controls_panel(tree, ui_text = ui_text,
-                       checkbox_defaults = checkbox_defaults,
-                       ns = shiny::NS(id),
-                       render_shared_section = render_shared_section)
+                            shared = NULL) {
+  assertthat::assert_that(
+    is.null(shared) || inherits(shared, "ptr_shared_spec")
   )
+  tree <- ptr_translate(formula, expr_check = expr_check)
+  ns <- shiny::NS(id)
+  exclude_keys <- if (is.null(shared)) character() else shared$panel_keys
+  section <- shared_section_tags(tree, ui_text = ui_text, ns = ns,
+                                 exclude_keys = exclude_keys)
+  body <- ptr_controls_panel(tree, ui_text = ui_text,
+                             checkbox_defaults = checkbox_defaults,
+                             ns = ns,
+                             render_shared_section = FALSE)
+  do.call(shiny::tagList, drop_null(c(list(section), body)))
 }
 
 #' Control Widgets for an Embedded `ggpaintr` Formula
@@ -698,13 +725,24 @@ ptr_controls_ui <- function(id = NULL, formula, ui_text = NULL,
   # made to be dropped into a host layout (e.g. a `sidebarPanel()` of a
   # hand-written `sidebarLayout()`, the documented non-module split), so it
   # must size to its content, never stretch the host cell.
+  #
+  # Step 04: the public `ptr_ui_controls()` lost its "suppress all" mode --
+  # with no `shared` it renders every shared key inline (single-instance).
+  # The split/module path still needs the inline section suppressed so
+  # `ptr_shared_ui()` owns the page-level panel, so this composite calls the
+  # internal `ptr_controls_panel(render_shared_section = FALSE)` directly.
+  # That preserves the previous DOM byte-for-byte until Step 05 rebuilds the
+  # module path on the coordinator.
+  tree <- ptr_translate(formula, expr_check = expr_check)
   shiny::tags$div(
     class = "ptr-app",
     ptr_ui_assets(css = css),
-    ptr_ui_controls(
-      id = id, formula = formula, ui_text = ui_text,
-      checkbox_defaults = checkbox_defaults, expr_check = expr_check,
-      render_shared_section = FALSE
+    do.call(
+      shiny::tagList,
+      ptr_controls_panel(tree, ui_text = ui_text,
+                         checkbox_defaults = checkbox_defaults,
+                         ns = shiny::NS(id),
+                         render_shared_section = FALSE)
     )
   )
 }
