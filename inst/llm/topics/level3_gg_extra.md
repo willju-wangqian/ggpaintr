@@ -1,73 +1,42 @@
 # Level 3 — round-trip host layers into the code pane with `ptr_gg_extra()`
 
-Use when: same as `level3_custom_render`, but the host-added theme /
-layer / scale must ALSO appear in the generated-code output so a reader
-can reproduce the exact plot they see.
+Use when: a host-added layer / theme / scale must appear in the **generated-code** output as well as the plot, so a reader can reproduce the exact plot they see. (Plain `+ theme` in a custom renderer shows in the plot but never in the code pane — that gap is what `ptr_gg_extra()` closes.)
 
 ## Pattern
 
-`ptr_gg_extra(state, ...)` evaluates one or more `ggplot2` expressions
-and attaches the results as "extras" on the state. The runtime folds
-them into the rendered plot during the next cycle, and `state$runtime()$code_text`
-(plus `ptr_extract_code(state)`) include them in the printable code
-whenever the runtime succeeds.
+`ptr_gg_extra(state, ...)` evaluates one or more `ggplot2` expressions and attaches the results as "extras" on the state. The runtime folds them into the rendered plot during the next cycle, and `state$runtime()$code_text` (plus `ptr_extract_code(state)`) include them in the printable code whenever the runtime succeeds. The bundled plot pane picks the extras up automatically — the plot **and** the code pane stay in sync without writing a custom renderer.
 
 ```r
 library(shiny); library(ggpaintr); library(ggplot2)
 
-formula <- "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+formula <- "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()"
 
 ui <- fluidPage(
-  checkboxInput("with_smooth", "Add geom_smooth()", FALSE),
+  actionButton("add_log", "Toggle log-scale"),
   ptr_module_ui("p", formula)
 )
-
 server <- function(input, output, session) {
   state <- ptr_module_server("p", formula)
-
-  # Recompute extras whenever the host toggle flips. ptr_gg_extra() is
-  # replace-semantics: one call, every extra you want.
-  shiny::observe({
-    if (isTRUE(input$with_smooth)) {
-      ptr_gg_extra(
-        state,
-        theme_minimal(base_size = 16),
-        geom_smooth(method = "lm", se = FALSE)
-      )
-    } else {
-      ptr_gg_extra(state, theme_minimal(base_size = 16))
-    }
+  shiny::observeEvent(input$add_log, {
+    ptr_gg_extra(state, ggplot2::scale_x_log10())
   })
 }
 
 shinyApp(ui, server)
 ```
 
-The bundled plot pane (`ptr_plot`, written by `ptr_register_plot()` inside
-`ptr_module_server()`) picks up the extras automatically — the plot
-**and** the code pane stay in sync without writing a custom renderer.
+`ptr_module_server()` returns `state` (the `ptr_state` from `ptr_init_state()`); the bundled `ptr_plot` pane and the `ptr_code` pane both reflect the extras after the next runtime cycle.
 
 ## Contract — memorise these four points
 
-1. **Replace, not append.** Each call overwrites the previously captured
-   extras. Pass every component you want in a single call.
-2. **Suppressed on failure.** When the runtime reports `ok = FALSE`, the
-   code binder ignores extras — stale values from a prior successful
-   draw do not leak into a failed-draw code pane.
-3. **Plain list return.** `ptr_gg_extra()` returns the state invisibly;
-   the captured extras are stored on `state$extras` and folded into the
-   plot during the next runtime cycle (via `ggplot2::ggplot_add.list`).
-4. **Works with the bundled UI.** Unlike the previous API, you do *not*
-   need to write a custom `renderPlot()` — `ptr_module_ui()` /
-   `ptr_module_server()` (or `ptr_app()`) honor extras through the
-   standard plot pane.
+1. **Replace, not append.** Each call overwrites the previously captured extras. Pass every component you want layered on in a single call.
+2. **Atomic update.** Eval errors from the captured expressions leave the existing extras untouched.
+3. **Suppressed on failure.** When the runtime reports `ok = FALSE`, the code binder ignores extras — stale values from a prior successful draw never leak into a failed-draw code pane.
+4. **Works with the bundled UI.** You do *not* need a custom `renderPlot()` — `ptr_module_ui()` / `ptr_module_server()` (or `ptr_app()`) honor extras through the standard plot pane and code pane.
 
-## Custom plot renderer
+## With a custom renderer
 
-If you also own the plot renderer (Plotly, ggiraph, …), the same
-`ptr_gg_extra()` call updates `state$runtime()$code_text` *and*
-`state$runtime()$plot`. Read `state$runtime()` inside your renderer —
-the extras are already folded in:
+If you also own the plot renderer (Plotly, ggiraph, …), the same `ptr_gg_extra()` call updates `state$runtime()$code_text` *and* `state$runtime()$plot`. Read `state$runtime()` inside your renderer — the extras are already folded in:
 
 ```r
 output$custom_plot <- plotly::renderPlotly({
@@ -77,19 +46,19 @@ output$custom_plot <- plotly::renderPlotly({
 })
 ```
 
+For the full custom-render scaffold (the `moduleServer(id)` + `ptr_server()` pattern, `NS(id)` in the UI), see `level3_custom_render`.
+
 ## Custom code pane
 
-If you write your own code-output binder, read from `state$runtime()`
-or call the accessor:
+If you write your own code-output binder, read from `state$runtime()` inside a reactive context or use the accessor outside one:
 
 ```r
 output$my_code <- shiny::renderText({
   state$runtime()$code_text %||% ""
 })
 
-# Or, outside reactive contexts:
+# Or, outside reactive contexts (download handler, snapshot):
 ptr_extract_code(state)
 ```
 
-`ptr_extract_code(state)` already appends the captured extras when the
-runtime succeeded — no extra threading needed.
+`ptr_extract_code(state)` already appends the captured extras when the runtime succeeded — no extra threading needed.
