@@ -5,7 +5,14 @@
 </head><body>
 
 <h1>Step 08 — LLM topics rewrite (pass #LLM)</h1>
-<p class="meta">Phase 7 (parallel with Step 07). Large, separate. Target: <code>inst/llm/topics/*</code>, <code>inst/llm/primer.md</code>. Authority: ADR 0005 · <code>CONTEXT.md</code>.</p>
+<p class="meta">Phase 7 (parallel with Step 07; run downstream of the merged Step 07 vignette). Large, separate. Target: <code>inst/llm/topics/*</code>, <code>inst/llm/primer.md</code>. Authority: ADR 0005 · <code>CONTEXT.md</code>.</p>
+
+<p style="border-left:4px solid #2c7;background:#eafaf0;padding:.6rem .9rem;margin:.8rem 0">
+<strong>✅ COMPLETE</strong> — 2026-05-17, branch <code>l2l3-step-08-llm-topics</code>, content @ <code>e1e6b09</code>.
+All success criteria met. Verify gate green: <code>ptr_llm_topics()</code> enumerates 12 topics, every id resolves, <code>invisible(lapply(ptr_llm_topics(), ptr_llm_topic))</code> + <code>ptr_llm_primer()</code> return non-empty with no error. Removed-symbol scan over <code>inst/llm/</code> is zero (the only <code>server_ns_fn</code> / <code>testServer</code> / <code>headless</code> hits are the mandated "internal, not a user tool" / "no headless path" prohibitions); no <code>ptr_ui_plot</code> flags; no dangling topic id.
+Taxonomy rename: <code>level2_embed → level2_module</code>, <code>level2_namespacing → level2_shared</code>; net-new <code>level3_layout</code> (bare pieces + combinators + optional <code>ptr_ui_page</code> + navbar/bslib <code>ptr_ui_assets</code> escape hatch); <code>level3_custom_render</code> reframed as the primary L3 render story (<code>moduleServer(id)</code> + <code>ptr_server()</code> + <code>NS(id)</code>). <code>custom_placeholder.md</code> / <code>level1_ptr_options.md</code> left intact (already clean of removed symbols and split content).
+08↔07 consistency verified: every canonical formula string, combinator nest recipe, <code>NS(id)</code> pattern, id grammar, and the <code>ptr_gg_extra</code> example mirror <code>vignettes/ggpaintr-use-cases.Rmd</code> verbatim — zero divergence.
+Content-only; no <code>ptr_llm_*</code> code/signature change; <code>R/</code> · <code>tests/</code> · <code>NAMESPACE</code> · <code>man/</code> untouched. Pre-existing fallout (not from this step): <code>devtools::load_all()</code> warns that stale NAMESPACE exports <code>ptr_controls_ui</code> / <code>ptr_outputs_ui</code> / <code>ptr_ui_code_toggle</code> have no backing function (already removed by Steps 03/05) — reconciliation is Step 10's gate per the api-audit index.</p>
 
 <h2>Goal</h2>
 <p>Rewrite the LLM-facing topic corpus so generated guidance matches the shipped API. <code>ptr_llm_*</code> function signatures do not change; only emitted content.</p>
