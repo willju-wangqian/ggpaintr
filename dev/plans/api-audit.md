@@ -10,18 +10,18 @@ Implementation is **not done** — the code still reflects the pre-redesign API.
 
 ## Step pieces (dependency-ordered)
 
-| Step | File | Pass | Depends on |
-|---|---|---|---|
-| 01 | `l2-l3-redesign-01-coordinator.html` | #S — `ptr_shared()` + net-new partition; split `ptr_shared_ui` | — |
-| 02 | `l2-l3-redesign-02-server-consistency.html` | #P2 — UI↔server partition invariant; `ptr_shared_server(obj)` | 01 |
-| 03 | `l2-l3-redesign-03-orthogonal-outputs.html` | #O — bare outputs + combinators; drop `ptr_ui_plot` flags; del `ptr_ui_code_toggle` | — (∥ 01) |
-| 04 | `l2-l3-redesign-04-fold-shared-section.html` | #C — fold shared section into `ptr_ui_controls(shared=obj)` | 01 |
-| 05 | `l2-l3-redesign-05-module-rebuild.html` | #M — rebuild `ptr_module_ui`; remove `ptr_controls_ui`/`ptr_outputs_ui` | 03, 04 |
-| 06 | `l2-l3-redesign-06-app-grid-coordinator.html` | #G — route `ptr_app_grid` through the coordinator | 01, 02 |
-| 07 | `l2-l3-redesign-07-vignette.html` | #DOC — rewrite `ggpaintr-use-cases.Rmd` | 01–06 |
-| 08 | `l2-l3-redesign-08-llm-topics.html` | #LLM — rewrite `inst/llm/topics/*` | 01–06 |
-| 09 | `l2-l3-redesign-09-memory-claude.html` | #MEM — strike "demoted to L2" clause; memory/CLAUDE.md sweep | 01–06 |
-| 10 | `l2-l3-redesign-10-tests.html` | #TEST — suite sweep + new regressions + pkgdown retier (final gate) | 01–09 |
+| Step | File | Pass | Depends on | Status |
+|---|---|---|---|---|
+| 01 | `l2-l3-redesign-01-coordinator.html` | #S — `ptr_shared()` + net-new partition; split `ptr_shared_ui` | — | ✅ done — 2026-05-16, `vignette-review` @ `78c58e5` |
+| 02 | `l2-l3-redesign-02-server-consistency.html` | #P2 — UI↔server partition invariant; `ptr_shared_server(obj)` | 01 | pending |
+| 03 | `l2-l3-redesign-03-orthogonal-outputs.html` | #O — bare outputs + combinators; drop `ptr_ui_plot` flags; del `ptr_ui_code_toggle` | — (∥ 01) | pending |
+| 04 | `l2-l3-redesign-04-fold-shared-section.html` | #C — fold shared section into `ptr_ui_controls(shared=obj)` | 01 | pending |
+| 05 | `l2-l3-redesign-05-module-rebuild.html` | #M — rebuild `ptr_module_ui`; remove `ptr_controls_ui`/`ptr_outputs_ui` | 03, 04 | pending |
+| 06 | `l2-l3-redesign-06-app-grid-coordinator.html` | #G — route `ptr_app_grid` through the coordinator | 01, 02 | pending |
+| 07 | `l2-l3-redesign-07-vignette.html` | #DOC — rewrite `ggpaintr-use-cases.Rmd` | 01–06 | pending |
+| 08 | `l2-l3-redesign-08-llm-topics.html` | #LLM — rewrite `inst/llm/topics/*` | 01–06 | pending |
+| 09 | `l2-l3-redesign-09-memory-claude.html` | #MEM — strike "demoted to L2" clause; memory/CLAUDE.md sweep | 01–06 | pending |
+| 10 | `l2-l3-redesign-10-tests.html` | #TEST — suite sweep + new regressions + pkgdown retier (final gate) | 01–09 | pending |
 
 Steps 01–02 are highest-risk (net-new cross-formula partition + the UI↔server consistency invariant). 03 can run parallel to 01–02. 07–09 are large, separate, post-code passes. 10 is the gate.
 

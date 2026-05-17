@@ -7,6 +7,12 @@
 <h1>Step 01 — Shared coordinator + net-new partition (pass #S)</h1>
 <p class="meta">Phase 1 (no deps; everything shared depends on this). Authority: <code>dev/adr/0005-l2-l3-redesign.html</code> · Contract: <code>CONTEXT.md</code> §"Shared coordinator". <strong>Highest-risk step.</strong></p>
 
+<p style="border-left:4px solid #2c7;background:#eafaf0;padding:.6rem .9rem;margin:.8rem 0">
+<strong>✅ COMPLETE</strong> — 2026-05-16, branch <code>vignette-review</code> @ <code>78c58e5</code>.
+All success criteria met; verify gate green (<code>devtools::document()</code> clean, <code>test-shared-partition</code> 17 pass / 0 fail).
+Coordinator trio lives in <code>R/paintr-shared-coordinator.R</code>; <code>shared_partition()</code> is the net-new pure fn; <code>ptr_shared_server</code> took the <code>obj</code> signature (partition-aware wiring deferred to Step 02).
+Plan-sanctioned deferred fallout: <code>ptr_app_grid</code> (<code>R/paintr-app.R</code>) still calls the removed <code>ptr_shared_ui</code> → Step 06; broader suite reconciles in Steps 02/05/10.</p>
+
 <h2>Goal</h2>
 <p>Introduce the partition (per shared key: # of formulas referencing it; ==1 ⇒ formula-local, ≥2 ⇒ panel) as a pure function, and split <code>ptr_shared_ui</code> (<code>R/paintr-shared-ui.R:173–298</code>) into three exports: <code>ptr_shared()</code> (coordinator), <code>ptr_shared_panel()</code> (L2 self-contained UI), <code>ptr_ui_shared_panel()</code> (L3 bare UI). <code>ptr_shared_server</code> keeps its name; signature changes <code>formulas → obj</code> (server wiring is Step 02).</p>
 
