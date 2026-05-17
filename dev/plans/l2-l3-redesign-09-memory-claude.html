@@ -7,6 +7,12 @@
 <h1>Step 09 — Memory + CLAUDE.md reconcile (pass #MEM)</h1>
 <p class="meta">Phase 7. Small but distinct review surface (touches <code>~/.claude</code> memory + repo CLAUDE.md). Authority: ADR 0005.</p>
 
+<p style="border-left:4px solid #2c7;background:#eafaf0;padding:.6rem .9rem;margin:.8rem 0">
+<strong>✅ COMPLETE</strong> — 2026-05-16, branch <code>l2l3-step-09-memory-claude</code> (base <code>4ccfbc5</code>).
+All success criteria met. The 2026-05-16 "already done" CLAUDE.md/index work was <em>verified, not redone</em>: repo <code>CLAUDE.md</code> §"Domain docs" points at <code>CONTEXT.md</code> as authoritative (<code>grep -n 'CONTEXT.md' CLAUDE.md</code> → line 72, no "no separate CONTEXT.md"); <code>MEMORY.md</code> api-audit index line carries "impl NOT done".
+Remaining goal done in global auto-memory (<code>~/.claude/projects/-Users-willju-Research-ggpaintr/memory/</code>, not git-tracked here): <code>project-headless-removed</code> — struck only the "custom rendering demoted to an L2 subsection" clause → custom render now stated as L3 via the canonical <code>moduleServer(id)</code> pattern; the "no public headless / no <code>testServer</code> feature" prohibition (para lines 10–18 + the "add a headless example" guard) preserved verbatim.
+Per the wider success-criteria grep (adds <code>ptr_ui_outputs|ptr_controls_ui</code>), every voided-contract hit now sits in a REMOVED/VOID/superseded note, never live guidance: <code>project-headless-removed</code> L2/L3 bullets annotated superseded (ADR 0005 Steps 03/05); <code>feedback-wrapper-scope</code> primitive names annotated superseded while its wrapper-scope principle is kept verbatim; <code>api-audit</code> hits were already VOID notes (no change). This branch carries only this HTML status flip — global memory edits are intentionally not git-tracked.</p>
+
 <div class="done">Already done in the 2026-05-16 session (verify, don't redo): repo <code>CLAUDE.md</code> §"Domain docs" now points to <code>CONTEXT.md</code>; auto-memory <code>api-audit.md</code> + <code>MEMORY.md</code> index rewritten to ADR 0005.</div>
 
 <h2>Remaining goal</h2>
