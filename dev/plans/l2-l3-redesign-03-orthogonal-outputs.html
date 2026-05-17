@@ -35,6 +35,7 @@ ptr_ui_toggle_code(plotish, code)      # -> wraps plotish + code; code behind </
 <li>Must not require the bundled JS to change. If the existing JS scoping (<code>closest('.ptr-output')</code>) cannot resolve a nested composition, fix the markup, not the JS — and document why.</li>
 <li>No deprecation alias for <code>ptr_ui_code_toggle</code>.</li>
 <li>Do not touch <code>ptr_module_ui</code> internals here (Step 05 consumes these combinators).</li>
+<li><strong>Generated files are deferred.</strong> Run <code>devtools::document()</code> as a local verify check only — it must stay clean — but do <strong>not</strong> commit the regenerated <code>NAMESPACE</code>/<code>man/*.Rd</code> on this feature branch (<code>git restore NAMESPACE man/</code> before committing). Step 10 is the global doc gate and owns the committed doc tree; per-branch commits of generated output are the sole source of cross-step <code>NAMESPACE</code>/<code>man/*.Rd</code> merge conflicts (this step is the <em>only</em> one of 03/04/06 with a real <code>NAMESPACE</code> delta — the <code>ptr_ui_code_toggle</code> removal + two combinator exports — and <code>man/ptr_ui_controls.Rd</code> overlaps Step 04). <code>devtools::test()</code> uses <code>load_all()</code> and needs no committed <code>NAMESPACE</code>, so the per-branch test gate still passes.</li>
 </ul>
 
 <h2>BDD</h2>
@@ -64,5 +65,7 @@ ptr_ui_toggle_code(plotish, code)      # -> wraps plotish + code; code behind </
       And it contains no ".ptr-code-toggle"</div>
 
 <h2>Verify</h2>
-<pre>Rscript -e 'devtools::document(); devtools::test(filter="ui-pieces")'</pre>
+<pre>Rscript -e 'devtools::document(); devtools::test(filter="ui-pieces")'
+# document() here is a VERIFY check (must be clean), not a commit:
+# `git restore NAMESPACE man/` before committing this branch — Step 10 owns the doc tree.</pre>
 </body></html>

@@ -32,6 +32,7 @@ shared_section_tags(tree, ui_text, ns, exclude_keys = character())</pre>
 <li><code>shared = obj</code> is read-only/pure; do not derive a partition here — consume <code>obj$panel_keys</code> (Step 01 owns the algorithm).</li>
 <li>Do not regress the existing DOM/ids for the non-shared parts (layer picker <code>ptr_layer_select</code>, hidden tabset, <code>ptr_update_plot</code>) — guarded by <code>test-ui-pieces.R</code>.</li>
 <li><code>ptr_module_ui</code> rewiring is Step 05, not here.</li>
+<li><strong>Generated files are deferred.</strong> If you run <code>devtools::document()</code> it is a local verify check only — do <strong>not</strong> commit the regenerated <code>NAMESPACE</code>/<code>man/*.Rd</code> on this feature branch (<code>git restore NAMESPACE man/</code> before committing). Step 10 is the global doc gate and owns the committed doc tree; per-branch commits of generated output are the sole source of cross-step merge conflicts. This step changes no exports (<code>ptr_ui_controls</code> stays exported; signature change only) so its only generated delta is <code>man/ptr_ui_controls.Rd</code> — which Step 03 also rewrites, so committing it here guarantees a 3→4 conflict. <code>devtools::test()</code> uses <code>load_all()</code> and needs no committed <code>NAMESPACE</code>, so the per-branch test gate still passes.</li>
 </ul>
 
 <h2>BDD</h2>

@@ -25,6 +25,7 @@
 <li>Reuse Step 01/02 outputs; do not re-derive partition.</li>
 <li>Preserve the <code>ptr_app_grid</code> "Draw all" affordance (renders when ≥2 formulas) — now sourced from <code>obj</code>'s <code>draw_all_label</code>.</li>
 <li>Keep the <code>.ptr-app--page</code> full-viewport canvas opt-in behavior for the L1 entry points (unchanged).</li>
+<li><strong>Generated files are deferred.</strong> If you run <code>devtools::document()</code> it is a local verify check only — do <strong>not</strong> commit the regenerated <code>NAMESPACE</code>/<code>man/*.Rd</code> on this feature branch (<code>git restore NAMESPACE man/</code> before committing). Step 10 is the global doc gate and owns the committed doc tree; per-branch commits of generated output are the sole source of cross-step merge conflicts. This step changes no exports (<code>ptr_app_grid</code> stays exported; <code>ptr_app_grid_components</code> is internal); its generated delta is the <code>ptr_shared_ui</code>→coordinator <code>@seealso</code>/Rd churn, which overlaps Step 03's link sweep on <code>man/ptr_css.Rd</code>/<code>man/ptr_server.Rd</code>. <code>devtools::test()</code> uses <code>load_all()</code> and needs no committed <code>NAMESPACE</code>, so the full-suite verify still runs.</li>
 </ul>
 
 <h2>BDD</h2>
