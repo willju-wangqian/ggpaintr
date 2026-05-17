@@ -2,25 +2,23 @@
 % Please edit documentation in R/paintr-shared-ui.R
 \name{ptr_shared_server}
 \alias{ptr_shared_server}
-\title{Server-Side Counterpart to ptr_shared_ui()}
+\title{Server-Side Counterpart to the Shared Coordinator}
 \usage{
 ptr_shared_server(
-  formulas,
+  obj,
   envir = parent.frame(),
-  expr_check = TRUE,
   shared = list(),
   draw_trigger = NULL
 )
 }
 \arguments{
-\item{formulas}{A character vector or list of formula strings,
-matching the ones passed to \code{\link[=ptr_shared_ui]{ptr_shared_ui()}}.}
+\item{obj}{A \code{ptr_shared_spec} from \code{\link[=ptr_shared]{ptr_shared()}} -- the single
+source of truth for the cross-formula partition. Replaces the old
+\code{formulas}/\code{expr_check} arguments, which are now baked into \code{obj}.}
 
 \item{envir}{Environment used to resolve symbols in the shared
 \code{var()} upstream chains. Default \code{\link[=parent.frame]{parent.frame()}} picks up the
 embedder's caller scope so \code{mtcars} etc. resolve naturally.}
-
-\item{expr_check}{Whether to validate \code{expr} placeholders.}
 
 \item{shared}{Optional named list overriding the auto-derived
 reactives. Each named entry replaces the reactive for that key;
@@ -38,19 +36,17 @@ A \code{ptr_shared_state} S3 object with public fields \code{shared},
 }
 \description{
 Builds the shared input reactives and binds the host-level
-\code{var(shared = "...")} consumer pickers for the \code{\link[=ptr_shared_ui]{ptr_shared_ui()}}
-panel. Returns a \code{ptr_shared_state} that the embedder threads into
-each \code{\link[=ptr_module_server]{ptr_module_server()}} via the \code{shared_state} argument.
+\code{var(shared = "...")} consumer pickers for the \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}.
+Returns a \code{ptr_shared_state} that the embedder threads into each
+\code{\link[=ptr_module_server]{ptr_module_server()}} via the \code{shared_state} argument.
 }
 \details{
 Reads its session via \code{\link[shiny:domains]{shiny::getDefaultReactiveDomain()}} -- call
 it inside the top-level Shiny server function (or any reactive
 context that inherits the session). Errors when called outside any
 reactive domain.
-
-Errors when no formula declares a \code{shared = "..."} annotation -- the
-pair is a declaration of intent.
 }
 \seealso{
-\code{\link[=ptr_shared_ui]{ptr_shared_ui()}}, \code{\link[=ptr_module_server]{ptr_module_server()}}.
+\code{\link[=ptr_shared]{ptr_shared()}}, \code{\link[=ptr_shared_panel]{ptr_shared_panel()}},
+\code{\link[=ptr_module_server]{ptr_module_server()}}.
 }
