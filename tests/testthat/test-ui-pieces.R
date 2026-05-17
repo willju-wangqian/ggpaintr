@@ -139,6 +139,51 @@ test_that("ptr_controls_ui = ptr_ui_assets + ptr_ui_controls (still self-wrapped
   expect_match(rendered, "ptr-app", fixed = TRUE)         # self-wraps
 })
 
+# ---- Step 04: ptr_ui_controls owns the formula-local shared section ----
+# (#C / ADR 0005 §3). No `shared` => single instance, every shared key
+# renders inline. `shared = obj` => obj$panel_keys (cross-formula) excluded
+# because they belong to the standalone ptr_shared_panel().
+
+fml_shared_local <- paste0(
+  'ggplot(mtcars) + ',
+  'geom_point(aes(x = mpg, y = hp), alpha = num(shared = "A"), ',
+  'size = num(shared = "A")) + ',
+  'geom_line(aes(x = mpg, y = wt), linewidth = num(shared = "X"))'
+)
+
+test_that("ptr_ui_controls (no shared) renders all shared keys inline", {
+  rendered <- as.character(ptr_ui_controls("p", fml_shared_local))
+  expect_match(rendered, "p-shared_A", fixed = TRUE)
+  expect_match(rendered, "p-shared_X", fixed = TRUE)
+  expect_match(rendered, "p-ptr_layer_select", fixed = TRUE)
+  expect_match(rendered, "ptr-shared-panel", fixed = TRUE)
+})
+
+test_that("ptr_ui_controls(shared = obj) excludes obj$panel_keys", {
+  f1 <- paste0('ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), ',
+               'alpha = num(shared = "B"), size = num(shared = "A"))')
+  f2 <- paste0('ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), ',
+               'alpha = num(shared = "B"), size = num(shared = "C"))')
+  obj <- ptr_shared(c(f1, f2))
+  expect_identical(obj$panel_keys, "B")  # B is cross-formula
+
+  rendered <- as.character(ptr_ui_controls("p1", f1, shared = obj))
+  expect_match(rendered, "p1-shared_A", fixed = TRUE)       # formula-local
+  expect_no_match(rendered, "shared_B")                     # panel-owned
+  expect_match(rendered, "p1-ptr_layer_select", fixed = TRUE)  # unchanged
+
+  # the layer controls are byte-identical with vs without `shared`
+  bare <- as.character(ptr_ui_controls("p1", f1))
+  expect_match(bare, "p1-shared_B", fixed = TRUE)  # inline when single-inst
+})
+
+test_that("ptr_ui_controls with no shared placeholders renders no section", {
+  f <- "ggplot(mtcars) + geom_point(size = num())"
+  rendered <- as.character(ptr_ui_controls("p", f))
+  expect_no_match(rendered, "ptr-shared-panel")
+  expect_match(rendered, "p-ptr_layer_select", fixed = TRUE)
+})
+
 # ---- only standalone entrypoints own the full-viewport page canvas ----
 # The full-viewport `min-height:100vh` backdrop is opt-in via the
 # `ptr-app--page` modifier. Only the standalone entrypoints (ptr_app /
