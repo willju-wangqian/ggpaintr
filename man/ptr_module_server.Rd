@@ -47,5 +47,6 @@ unpacked and forwarded to \code{\link[=ptr_init_state]{ptr_init_state()}}; if an
 \code{...}, that explicit value wins.
 }
 \seealso{
-\code{\link[=ptr_module_ui]{ptr_module_ui()}}, \code{\link[=ptr_shared_ui]{ptr_shared_ui()}}, \code{\link[=ptr_shared_server]{ptr_shared_server()}}.
+\code{\link[=ptr_module_ui]{ptr_module_ui()}}, \code{\link[=ptr_shared]{ptr_shared()}}, \code{\link[=ptr_shared_panel]{ptr_shared_panel()}},
+\code{\link[=ptr_shared_server]{ptr_shared_server()}}.
 }

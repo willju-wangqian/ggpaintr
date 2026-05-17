@@ -13,7 +13,7 @@ Implementation is **not done** — the code still reflects the pre-redesign API.
 | Step | File | Pass | Depends on | Status |
 |---|---|---|---|---|
 | 01 | `l2-l3-redesign-01-coordinator.html` | #S — `ptr_shared()` + net-new partition; split `ptr_shared_ui` | — | ✅ done — 2026-05-16, `vignette-review` @ `78c58e5` |
-| 02 | `l2-l3-redesign-02-server-consistency.html` | #P2 — UI↔server partition invariant; `ptr_shared_server(obj)` | 01 | pending |
+| 02 | `l2-l3-redesign-02-server-consistency.html` | #P2 — UI↔server partition invariant; `ptr_shared_server(obj)` | 01 | ✅ done — 2026-05-16, `vignette-review` (commit pending) |
 | 03 | `l2-l3-redesign-03-orthogonal-outputs.html` | #O — bare outputs + combinators; drop `ptr_ui_plot` flags; del `ptr_ui_code_toggle` | — (∥ 01) | pending |
 | 04 | `l2-l3-redesign-04-fold-shared-section.html` | #C — fold shared section into `ptr_ui_controls(shared=obj)` | 01 | pending |
 | 05 | `l2-l3-redesign-05-module-rebuild.html` | #M — rebuild `ptr_module_ui`; remove `ptr_controls_ui`/`ptr_outputs_ui` | 03, 04 | pending |

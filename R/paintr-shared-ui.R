@@ -184,9 +184,12 @@ ptr_shared_server <- function(obj,
   input <- session$input
   output <- session$output
 
-  # Step 01: consume the coordinator's precomputed trees/keys verbatim. The
-  # partition-aware split (panel-owned vs formula-local reactives) is Step
-  # 02; behaviour here is unchanged from the old `formulas` signature.
+  # Step 02 (#P2): consume the coordinator's precomputed partition as the
+  # single source of truth (ADR 0005). `panel_keys` are the cross-formula
+  # keys this top-level server owns; formula-local keys are intentionally
+  # absent from the bundle and bound by each module itself (the module's
+  # `auto_bind_shared` self-bind path). `formula_keys` is kept only to
+  # validate `shared =` override names against the full declared set.
   trees <- obj$trees
   formula_count <- obj$formula_count
   expr_check <- obj$expr_check
@@ -196,6 +199,7 @@ ptr_shared_server <- function(obj,
   shared_resolutions <- ptr_resolve_shared_consumers(trees)
   consumer_keys <- names(shared_resolutions)
   formula_keys <- obj$formula_keys
+  panel_keys <- obj$panel_keys
 
   assertthat::assert_that(is.list(shared))
   if (length(shared) > 0L) {
@@ -221,21 +225,24 @@ ptr_shared_server <- function(obj,
     rlang::abort("`draw_trigger` must be a Shiny reactive or NULL.")
   }
 
-  # For each shared key, build a reactive that reads `input$shared_<key>`
-  # at the host's top-level namespace -- modules cannot reach that slot
-  # through their own snapshot path. When the embedder supplies an
-  # override for a key, the picker input still wins **once the user
-  # actually picks something**; the override only seeds the initial value
-  # (and the picker's default selection) so first render isn't empty.
-  # NULL / "" / NA in the input slot mean "not picked yet" -> fall through
-  # to the override.
+  # Build one reactive per **panel** (cross-formula) key, reading
+  # `input$shared_<key>` at the host's top-level namespace -- modules
+  # cannot reach that slot through their own snapshot path. Formula-local
+  # keys are deliberately excluded: they have exactly one consuming
+  # formula, so the owning module binds them itself (Step 02 invariant --
+  # exactly one widget per shared key, correctly scoped). When the embedder
+  # supplies an override for a panel key, the picker input still wins
+  # **once the user actually picks something**; the override only seeds the
+  # initial value (and the picker's default selection) so first render
+  # isn't empty. NULL / "" / NA in the input slot mean "not picked yet" ->
+  # fall through to the override.
   is_unset_shared <- function(v) {
     is.null(v) ||
       (is.character(v) && length(v) == 1L && !nzchar(v)) ||
       (is.atomic(v) && length(v) == 1L && is.na(v))
   }
   shared_reactives <- stats::setNames(
-    lapply(formula_keys, function(k) {
+    lapply(panel_keys, function(k) {
       cid <- canonical_shared_id(k)
       override_rv <- shared[[k]]
       if (is.null(override_rv)) {
@@ -247,7 +254,7 @@ ptr_shared_server <- function(obj,
         })
       }
     }),
-    formula_keys
+    panel_keys
   )
 
   effective_draw_trigger <- if (!is.null(draw_trigger)) {

@@ -1,6 +1,10 @@
 # Contract tests for `ptr_module_server(..., shared_state = ...)`. Covers
-# the new convenience path plus the abort/warn pre-flight checks the plan
-# specifies (dev/plans/shared-ui-multi-instance.html, "Success criteria").
+# the convenience path plus the abort/warn pre-flight checks. Post Step 02
+# (#P2): with a `ptr_shared_state` supplied, a formula key missing from the
+# bundle is formula-local BY CONSTRUCTION (the coordinator never omits a
+# panel key) -- the module self-binds it silently. The "not in the shared
+# list" heads-up now fires ONLY on the raw escape-hatch path (a partial
+# `shared =` passed without a `ptr_shared_state`).
 
 test_that("M-SHR.1 aborts when formula has shared key but shared_state is NULL", {
   expect_error(
@@ -18,15 +22,16 @@ test_that("M-SHR.1 aborts when formula has shared key but shared_state is NULL",
 })
 
 test_that("M-SHR.2 escape hatch: passing shared= via ... bypasses the abort", {
-  formulas <- c(
+  obj <- ptr_shared(c(
     'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
     'ggplot(mtcars, aes(x = var(shared = "col"), y = hp)) + geom_line()'
-  )
+  ))
   expect_silent({
     server <- function(input, output, session) {
-      state <- ptr_shared_server(formulas, envir = globalenv())
+      state <- ptr_shared_server(obj, envir = globalenv())
       ptr_module_server(
-        "plot_1", formulas[[1]],
+        "plot_1",
+        'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
         envir = globalenv(),
         shared = state$shared,
         shared_resolutions = state$shared_resolutions,
@@ -53,50 +58,54 @@ test_that("M-SHR.3 shared_state non-ptr_shared_state value aborts", {
   )
 })
 
-test_that("M-SHR.4 warns when a formula key is missing from shared_state$shared", {
-  # Plot 1 declares `var(shared = "col")` AND `num(shared = "a")`; the
-  # shared state covers only "col". `ptr_module_server()` must surface the
-  # gap with a cli warning, then keep going.
-  formulas <- c(
-    'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point(alpha = num(shared = "a"))'
-  )
+test_that("M-SHR.4 shared_state path is silent for a formula-local key", {
+  # f1 declares cross-formula "col" AND formula-local "a"; f2 only "col".
+  # The coordinator's bundle covers "col" only -- "a" is formula-local by
+  # construction, so the module self-binds it WITHOUT a warning.
+  f1 <- 'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point(alpha = num(shared = "a"))'
+  f2 <- 'ggplot(mtcars, aes(x = var(shared = "col"), y = hp)) + geom_line()'
+  obj <- ptr_shared(c(f1, f2))
+  expect_silent({
+    server <- function(input, output, session) {
+      state <- ptr_shared_server(obj, envir = globalenv())
+      ptr_module_server("plot_1", f1, envir = globalenv(), shared_state = state)
+    }
+    shiny::testServer(server, {})
+  })
+})
+
+test_that("M-SHR.4b raw escape-hatch partial shared= warns (reworded)", {
+  # No `ptr_shared_state`: caller hand-passes a partial `shared =`. We
+  # cannot tell a deliberately-local key from a forgotten one, so a
+  # reworded heads-up fires and the key is bound locally.
+  f1 <- 'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point(alpha = num(shared = "a"))'
   expect_warning(
     {
       server <- function(input, output, session) {
-        # Build a state that omits "a" by sharing a custom one-key reactive
-        # list. `ptr_shared_server()` itself wouldn't omit, so we build
-        # the state by hand to exercise the gap detection.
-        partial <- structure(
-          list(
-            shared = list(col = shiny::reactive(NULL)),
-            draw_trigger = NULL,
-            shared_resolutions = list()
-          ),
-          class = c("ptr_shared_state", "list")
-        )
         ptr_module_server(
-          "plot_1", formulas[[1]],
+          "plot_1", f1,
           envir = globalenv(),
-          shared_state = partial
+          shared = list(col = shiny::reactive(NULL))
         )
       }
       shiny::testServer(server, {})
     },
-    "not covered"
+    "absent from the supplied"
   )
 })
 
 test_that("M-SHR.5 shared_state convenience path delegates to ptr_server cleanly", {
-  formulas <- c(
+  obj <- ptr_shared(c(
     'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
     'ggplot(mtcars, aes(x = var(shared = "col"), y = hp)) + geom_line()'
-  )
+  ))
   # No abort, no warning -- happy-path wiring.
   expect_silent({
     server <- function(input, output, session) {
-      state <- ptr_shared_server(formulas, envir = globalenv())
+      state <- ptr_shared_server(obj, envir = globalenv())
       ptr_module_server(
-        "plot_1", formulas[[1]],
+        "plot_1",
+        'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
         envir = globalenv(),
         shared_state = state
       )

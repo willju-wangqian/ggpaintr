@@ -797,7 +797,8 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #' @return The `ptr_state` list from [ptr_init_state()] (returned by the
 #'   inner module session for advanced wiring; usually consumed for its
 #'   side effects only).
-#' @seealso [ptr_module_ui()], [ptr_shared_ui()], [ptr_shared_server()].
+#' @seealso [ptr_module_ui()], [ptr_shared()], [ptr_shared_panel()],
+#'   [ptr_shared_server()].
 #' @export
 ptr_module_server <- function(id, formula, envir = parent.frame(), ...,
                                  shared_state = NULL) {
@@ -839,21 +840,54 @@ ptr_module_server <- function(id, formula, envir = parent.frame(), ...,
     ))
   }
 
-  # Soft warning: state is supplied but a formula key has no entry in it.
-  # We fall through to `ptr_server()` with `auto_bind_shared = TRUE` so it
-  # treats the missing entry as "host did not wire it" rather than aborting
-  # with the strict-validator error.
+  # Keys this formula declares but that are absent from `dots$shared`.
+  # Step 02 (#P2): `ptr_shared_server()` puts ONLY cross-formula (panel)
+  # keys in the bundle; a formula-local key is intentionally absent and is
+  # bound by this module itself. Either way the module self-binds the
+  # missing key under its own namespace, so route through `ptr_server()`
+  # with `auto_bind_shared = TRUE` instead of tripping the strict-missing
+  # validator.
   missing_keys <- setdiff(declared_keys, names(dots$shared %||% list()))
-  if (length(missing_keys) > 0L &&
-      length(dots$shared %||% list()) > 0L) {
-    cli::cli_warn(c(
-      "!" = "Formula for module {.val {id}} has shared key(s) not covered by {.code shared_state$shared}: {.val {missing_keys}}.",
-      "i" = "Those pickers will read unbound inputs."
-    ))
-    if (is.null(dots$auto_bind_shared)) dots$auto_bind_shared <- TRUE
+  if (length(missing_keys) > 0L) {
+    if (!is.null(shared_state)) {
+      # Convenience path: the `ptr_shared_state` bundle is authoritative.
+      # The coordinator never omits a panel key, so a missing key is
+      # formula-local by construction -- this is the expected, correct
+      # flow. No warning; just enable local self-binding.
+      if (is.null(dots$auto_bind_shared)) dots$auto_bind_shared <- TRUE
+    } else if (length(dots$shared %||% list()) > 0L) {
+      # Raw escape-hatch path: the caller hand-passed a partial `shared =`
+      # without a `ptr_shared_state`. We cannot tell a deliberately
+      # formula-local key from one the caller forgot to wire, so keep a
+      # heads-up -- reworded to say plainly what happens next.
+      cli::cli_warn(c(
+        "!" = "Module {.val {id}}: shared key(s) {.val {missing_keys}} are declared in the formula but absent from the supplied {.code shared} list.",
+        "i" = "Binding them locally within this module. If they were meant to be cross-formula, build the wiring with {.fn ptr_shared_server} and pass it as {.code shared_state =}."
+      ))
+      if (is.null(dots$auto_bind_shared)) dots$auto_bind_shared <- TRUE
+    }
   }
 
   shiny::moduleServer(id, function(input, output, session) {
+    # Self-bind every formula-local key: build one reactive per missing
+    # key reading this module's own (auto-namespaced) `input$shared_<key>`.
+    # `auto_bind_shared = TRUE` only relaxes the strict-missing validator;
+    # the actual binding is this reactive, mirroring single-plot
+    # `ptr_app()` (see the `shared_reactives` builder there). Host/panel
+    # entries already in `dots$shared` win -- we only fill the gap.
+    if (length(missing_keys) > 0L) {
+      local_shared <- stats::setNames(
+        lapply(missing_keys, function(k) {
+          cid <- canonical_shared_id(k)
+          shiny::reactive(input[[cid]])
+        }),
+        missing_keys
+      )
+      dots$shared <- utils::modifyList(
+        local_shared, dots$shared %||% list()
+      )
+    }
+
     # Two namespaces are needed under moduleServer:
     #   ns         = session$ns  -> wraps tag inputIds rendered server-side
     #                              via renderUI (Shiny does NOT auto-namespace

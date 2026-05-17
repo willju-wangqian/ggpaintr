@@ -54,6 +54,7 @@ Suggests:
     pkgdown,
     readxl,
     rmarkdown,
+    shinytest2,
     testthat (>= 3.1.7),
     withr,
     writexl,
