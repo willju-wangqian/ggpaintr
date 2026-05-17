@@ -1062,13 +1062,14 @@ ptr_app_grid_components <- function(plots,
   )
   assertthat::assert_that(is.list(shared_ui))
 
-  # The grid delegates its shared-widget panel + server-side reactives to
-  # `ptr_shared_ui()` / `ptr_shared_server()` (PR-B of the
-  # shared-multi-instance plan). This consolidates the inline shared
-  # panel and the inline `ptr_bind_shared_consumer_uis()` wiring that
-  # used to live here. The widget inputIds therefore migrate from the
-  # bare-key form (e.g. `"col"`) to `canonical_shared_id("col")` = `"shared_col"`,
-  # matching the single-instance `ptr_app()` convention.
+  # Step 06 (#G): the L1 grid routes through the same coordinator as the
+  # L2/L3 embed path (ADR 0005 §3). `ptr_shared()` computes the
+  # cross-formula partition once and is the single source of truth;
+  # `ptr_shared_panel()` renders the standalone panel and
+  # `ptr_shared_server()` the matching reactive bundle -- no second
+  # partition implementation here. Widget inputIds use the
+  # `canonical_shared_id("col")` = `"shared_col"` form, matching the
+  # single-instance `ptr_app()` convention.
   trees <- lapply(plots, ptr_translate, expr_check = expr_check)
   any_shared <- any(vapply(trees, function(tr) {
     length(collect_shared_placeholders(tr)) > 0L ||
@@ -1081,16 +1082,25 @@ ptr_app_grid_components <- function(plots,
     )
   }
 
-  shared_panel <- if (any_shared) {
-    # Leave `css = NULL` here: the grid page already injects the user
-    # stylesheet at fluidPage level via ptr_assets(css = css). Threading
-    # `css = css` through would emit the same <link> twice on this page.
-    ptr_shared_ui(
+  # `any_shared` is only the "does a coordinator exist" gate (ADR 0005:
+  # multiple-instance ⇒ coordinator). The count-based partition itself
+  # lives entirely inside `ptr_shared()` — not re-derived here.
+  obj <- if (any_shared) {
+    ptr_shared(
       formulas = plots,
       shared_ui = shared_ui,
+      ui_text = ui_text,
       expr_check = expr_check,
       draw_all_label = draw_all_label
     )
+  } else NULL
+
+  shared_panel <- if (!is.null(obj)) {
+    # Leave `css = NULL` here: the grid page already injects the user
+    # stylesheet at fluidPage level via ptr_assets(css = css). The bundled
+    # htmlDependency dedups, so the nested `.ptr-app` panel is theme scope
+    # only and emits no second <link>.
+    ptr_shared_panel(obj, css = NULL)
   } else NULL
 
   plot_module_ids <- paste0("plot_", seq_along(plots))
@@ -1124,12 +1134,11 @@ ptr_app_grid_components <- function(plots,
   force(plots)
   force(envir)
   force(expr_check)
+  force(obj)
 
   server <- function(input, output, session) {
-    state <- if (any_shared) {
-      ptr_shared_server(
-        formulas = plots, envir = envir, expr_check = expr_check
-      )
+    state <- if (!is.null(obj)) {
+      ptr_shared_server(obj, envir = envir)
     } else NULL
 
     for (i in seq_along(plots)) {

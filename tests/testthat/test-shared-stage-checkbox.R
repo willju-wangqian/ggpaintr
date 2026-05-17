@@ -139,10 +139,6 @@ test_that("ptr_ui_shared_panel emits one synthetic stage checkbox for the union 
 })
 
 test_that("ptr_app_grid_components UI carries the synthetic shared-stage checkbox", {
-  skip(paste(
-    "Deferred to L2/L3 redesign step 06 (ptr_app_grid -> coordinator):",
-    "ptr_app_grid_components still calls the removed ptr_shared_ui."
-  ))
   parts <- ptr_app_grid_components(plots = grid_plots, expr_check = FALSE)
   ui_html <- paste(as.character(parts$ui), collapse = "")
   expect_match(ui_html, "id=\"shared_a_stage_enabled\"", fixed = TRUE)
@@ -199,10 +195,6 @@ test_that("ptr_setup_shared_stage_enabled mirrors a FALSE reactive into state$st
 })
 
 test_that("grid app: flipping the shared-stage checkbox disables stages in every module", {
-  skip(paste(
-    "Deferred to L2/L3 redesign step 06 (ptr_app_grid -> coordinator):",
-    "ptr_app_grid_components still calls the removed ptr_shared_ui."
-  ))
   # End-to-end: build the grid server, run testServer, flip the
   # synthetic input, and confirm BOTH plot modules' `state$stage_enabled`
   # has its orphan stage_id set to FALSE. This is the user-visible
