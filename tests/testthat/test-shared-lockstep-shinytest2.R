@@ -15,6 +15,12 @@ test_that("S-P2.D exactly one #shared_B; #shared_A only under its module", {
   skip_if_not_installed("shinytest2")
   skip_if_not_installed("chromote")
 
+  # An earlier `css =` test may have left a dead `ggpaintr-user-*` resource
+  # path (tempdir gone, registration lingers). shinytest2 replays the
+  # parent's resourcePaths() into the app subprocess and a dead one aborts
+  # app startup -> this test errors order-dependently in the full suite.
+  prune_dead_ggpaintr_resource_paths()
+
   f1 <- 'ggplot(mtcars) + geom_point(aes(x = var(shared = "B"), y = mpg), size = num(shared = "A"))'
   f2 <- 'ggplot(mtcars) + geom_point(aes(x = var(shared = "B"), y = hp))'
   obj <- ptr_shared(c(f1, f2))
