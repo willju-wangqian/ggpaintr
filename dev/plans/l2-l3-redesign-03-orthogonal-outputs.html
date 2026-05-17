@@ -7,6 +7,12 @@
 <h1>Step 03 — Orthogonal outputs + combinators (pass #O)</h1>
 <p class="meta">Phase 3 (independent of shared; parallelisable with Steps 01–02). Authority: ADR 0005 §4 · <code>CONTEXT.md</code> §"Combinator".</p>
 
+<p style="border-left:4px solid #2c7;background:#eafaf0;padding:.6rem .9rem;margin:.8rem 0">
+<strong>✅ COMPLETE</strong> — 2026-05-16, branch <code>l2l3-step-03-outputs</code> @ <code>bd876c9</code> (test unskip follow-up <code>HEAD</code>).
+All Step-03-owned success criteria met; <code>devtools::document()</code> clean. <code>test-ui-pieces</code> = <strong>FAIL 1</strong> / SKIP 1 / PASS 96 — the one FAIL is the pre-existing Step 02 <code>ptr_shared_server</code>-API test, left <em>unskipped and visible</em> by request (so Step 10's suite sweep cannot miss it), not a Step 03 regression. Every Step-03 piece/combinator test passes.
+<code>ptr_ui_plot</code> is now <code>function(id = NULL)</code> (bare; formals == <code>"id"</code>); <code>ptr_ui_code_toggle</code> deleted (no alias); net-new <code>ptr_ui_inline_error</code> / <code>ptr_ui_toggle_code</code> combinators in the <code>R/paintr-app.R</code> output-piece region. Shared helpers <code>code_toggle_button()</code> / <code>code_window_tag()</code> extracted so <code>code_block_tag(style="window")</code> and <code>ptr_outputs_panel()</code> stay byte-identical — <strong>no JS change</strong> (decision: only <code>ptr_ui_toggle_code</code> owns the single <code>.ptr-output</code>; <code>ptr_ui_inline_error</code> emits none since it has no toggle — resolves the CONTEXT.md "one .ptr-output" tension).
+Plan-sanctioned deferred fallout: <code>ptr_outputs_ui</code> (hence <code>ptr_module_ui</code>/<code>ptr_app_grid</code>/<code>ptr_app_bslib</code>) still calls the removed <code>ptr_ui_code_toggle</code> → Step 05 rewires; <code>ptr_shared_server</code> API test is pre-existing Step 02 fallout → Step 10 suite sweep. Generated <code>NAMESPACE</code>/<code>man/</code> restored per constraint (Step 10 owns the doc tree); the only real NAMESPACE delta is <code>−ptr_ui_code_toggle</code> / <code>+ptr_ui_inline_error</code> / <code>+ptr_ui_toggle_code</code>.</p>
+
 <h2>Goal</h2>
 <p>Make output pieces truly bare and move behavior into nestable combinators. Remove <code>error=</code>/<code>code_toggle=</code> from <code>ptr_ui_plot</code> (<code>R/paintr-app.R:412–413</code>). Delete <code>ptr_ui_code_toggle</code> (<code>R/paintr-app.R:480–487</code>). Add <code>ptr_ui_inline_error(plot, error)</code> and <code>ptr_ui_toggle_code(plotish, code)</code>.</p>
 
