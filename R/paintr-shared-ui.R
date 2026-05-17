@@ -265,13 +265,19 @@ ptr_shared_server <- function(obj,
     NULL
   }
 
-  if (length(consumer_keys) > 0L) {
-    representative_nodes <- shared_consumer_representatives(trees)
+  # Bug B1b fix: the host owns ONLY cross-formula (panel) consumer keys --
+  # the same partition `shared_reactives` uses. Formula-local consumer keys
+  # are bound by each owning `ptr_module_server()` under its own namespace
+  # (the helper's embed call); binding them here too would double-write at
+  # global ids no panel emits. Route through the single binder helper,
+  # marking the formula-local keys as host-owned-elsewhere so only
+  # `panel_keys ∩ consumer_keys` are bound at `ns = identity`.
+  panel_consumer_keys <- intersect(consumer_keys, panel_keys)
+  if (length(panel_consumer_keys) > 0L) {
     errors_rv <- shiny::reactiveVal(character())
-    ptr_bind_shared_consumer_uis(
-      output = output, input = input, ns = identity,
-      resolutions = shared_resolutions,
-      representative_nodes = representative_nodes,
+    ptr_bind_local_shared_consumers(
+      tree = trees, output = output, input = input, ns = identity,
+      host_owned_keys = setdiff(consumer_keys, panel_keys),
       eval_env = envir,
       expr_check = expr_check,
       errors_rv = errors_rv
@@ -282,8 +288,10 @@ ptr_shared_server <- function(obj,
       ptr_error_ui(paste(msgs, collapse = "\n"))
     })
   } else {
-    # No consumer keys to surface, but the embedder still has the slot in
-    # the panel; clear it explicitly so a stale prior render does not stick.
+    # No panel consumer keys to surface, but the embedder still has the
+    # slot in the panel; clear it explicitly so a stale prior render does
+    # not stick. Safe no-op when `panel_keys` is empty (formula-local-only
+    # multi-instance app) and the `ptr_shared_errors` id is absent.
     output$ptr_shared_errors <- shiny::renderUI({ NULL })
   }
 

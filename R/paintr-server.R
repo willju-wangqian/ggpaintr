@@ -1020,7 +1020,17 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
                                             eval_env = parent.frame(),
                                             expr_check = TRUE,
                                             errors_rv = NULL,
-                                            state = NULL) {
+                                            state = NULL,
+                                            ui_ns = ns) {
+  # `ns` namespaces server-side `output[[]]` / `input[[]]` slots; `ui_ns`
+  # namespaces the `inputId` of the tag this renderUI emits. They differ
+  # under `moduleServer`: there `output`/`input` are auto-namespaced (so
+  # `ns` = identity / `NS(NULL)` = `state$server_ns_fn`), but Shiny does
+  # NOT auto-namespace a string `inputId` on a dynamically rendered tag,
+  # so it must be wrapped explicitly with `session$ns` = `ui_ns` =
+  # `state$ui_ns_fn`. Single-instance / panel hosts pass one ns for both,
+  # so the `ui_ns = ns` default keeps them byte-stable (mirrors the
+  # server_ns/ui_ns split already in `ptr_setup_consumer_uis`).
   # Push host-level resolver errors (per key) into the reactive bag.
   if (!is.null(errors_rv)) {
     err_msgs <- character()
@@ -1104,7 +1114,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
           rep_node,
           ui_text = ui_text,
           layer_name = NULL,
-          ns_fn = ns,
+          ns_fn = ui_ns,
           extra = list(cols = cols, data = df,
                        selected = current %||% character(0)),
           label_override = rep_node$shared_label
@@ -1130,6 +1140,44 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
       })
     })
   }
+  invisible(NULL)
+}
+
+# Bind every formula-local shared `var(shared = "...")` consumer picker for
+# one tree (or list of trees) at the supplied namespace, EXCLUDING any keys
+# the host already owns (`host_owned_keys`). This is the single binder
+# preamble: it assembles the per-key representative nodes (id forced to the
+# canonical `shared_<key>` id, multi-param param clearing, `shared_label`)
+# via `shared_consumer_representatives()` and then calls
+# `ptr_bind_shared_consumer_uis()` exactly once. Both `ptr_make_app_server`
+# (single-instance: `host_owned_keys = character(0)`, owns all) and
+# `ptr_module_server` (embed: `host_owned_keys =` the coordinator's panel
+# keys) route through here so there is one binder implementation and no
+# double-write to any shared consumer output id (ADR 0005 partition).
+ptr_bind_local_shared_consumers <- function(tree, output, input, ns,
+                                            host_owned_keys = character(),
+                                            ui_text = NULL,
+                                            eval_env = parent.frame(),
+                                            expr_check = TRUE,
+                                            errors_rv = NULL,
+                                            state = NULL,
+                                            ui_ns = ns) {
+  resolutions <- ptr_resolve_shared_consumers(tree)
+  keys <- setdiff(names(resolutions), host_owned_keys)
+  if (length(keys) == 0L) return(invisible(NULL))
+  resolutions <- resolutions[keys]
+  representative_nodes <- shared_consumer_representatives(tree)[keys]
+  ptr_bind_shared_consumer_uis(
+    output = output, input = input, ns = ns,
+    resolutions = resolutions,
+    representative_nodes = representative_nodes,
+    ui_text = ui_text,
+    eval_env = eval_env,
+    expr_check = expr_check,
+    errors_rv = errors_rv,
+    state = state,
+    ui_ns = ui_ns
+  )
   invisible(NULL)
 }
 

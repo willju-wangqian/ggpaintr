@@ -31,6 +31,12 @@
 #     single-instance-shared  L2 single-instance inline shared section
 #     l2-shared ............. L2 coordinator trio ptr_shared()/_panel()/_server()
 #                             (+ BDD: one shared panel widget drives both tiles)
+#     l2-shared-partition ... L2 partition: formula-local var(shared=) consumer
+#                             keys (ax1/ax2) bound per-module + a panel value
+#                             key (sz); asserts the inline pickers are POPULATED
+#                             (W1 #B1: the binder-less embed path)
+#     grid-shared-partition . L1 ptr_app_grid() same partition (formula-local
+#                             axis keys + panel sz); same host shape as embed
 #     l3-pieces ............. L3 bare pieces, hand-laid page (no combinators)
 #     l3-pieces-toggle ...... L3 combinators ptr_ui_inline_error()/_toggle_code()
 #     l3-plotly ............. L3 own-the-render-path: moduleServer + state$runtime()
@@ -65,11 +71,21 @@
 #     unit suite already exercise formula-specific behavior; e2e adds no new
 #     signal, and ~20 extra headless boots would break the runtime budget):
 #       use-cases:  formula-tour, pipeline-formula-tour, app-grid-shared
-#                   (empty shared_ui), normalize-cols, l2-shared-partition,
+#                   (empty shared_ui), normalize-cols,
 #                   l3-decompose (navbarPage/ptr_ui_assets escape hatch — UI
 #                   fragment, "server unchanged"), l3-shared, l3-pieces-shared
 #         -> represented by app-basic / app-grid-shared-added / l2-shared /
 #            l3-pieces / l3-plotly.
+#     NOTE (W1 #B1/#B1b): `l2-shared-partition` was previously listed here as
+#     "represented by l2-shared" — that was WRONG and is why bug B1 survived.
+#     `l2-shared`'s `var(shared='metric')` is referenced in BOTH formulas: a
+#     PANEL (cross-formula) consumer key, host-bound by `ptr_shared_server()`.
+#     `l2-shared-partition`'s `var(shared='ax1')` is referenced in ONE
+#     formula: a FORMULA-LOCAL consumer key, bound by `ptr_module_server()`
+#     itself. These are DISTINCT ownership paths (ADR 0005 partition); a panel
+#     key and a formula-local key must EACH have their own booting fixture.
+#     `l2-shared-partition` (embed) and `grid-shared-partition` (grid, same
+#     host shape) are therefore COVERED, not redundant.
 #       gallery §3, §4.1–4.6, §6.1–6.5 (mpg-paintr, pipe-paintr, pca-paintr,
 #         kmeans-paintr, regress-paintr, rolling-paintr, coefs-paintr,
 #         pcp-paintr, ridges-paintr, repel-paintr, alluvial-paintr, dist-paintr)
@@ -166,6 +182,65 @@ test_that("use-cases l2-shared: coordinator trio drives both module tiles", {
 
   # BDD: change the single shared panel widget -> every tile re-renders.
   set_input(app, "shared_metric", "Sepal.Length")
+  draw(app, "ptr_shared_draw_all")
+  expect_rendered(app, "#plot_1-ptr_plot", "ggplot")
+  expect_rendered(app, "#plot_2-ptr_plot", "ggplot")
+  expect_no_inline_error(app, "plot_1-ptr_error")
+  expect_no_inline_error(app, "plot_2-ptr_error")
+})
+
+test_that("use-cases l2-shared-partition: formula-local var(shared=) pickers are POPULATED in the embed path (W1 #B1/#B1b)", {
+  app <- boot_vignette_app("l2-shared-partition")
+  app$wait_for_idle(timeout = 25 * 1000)
+
+  # Host shape: panel holds only the cross-formula value key `sz`; the
+  # Draw-all button exists (>=2 formulas); both module plots present.
+  expect_dom_id(app, "shared_sz")            # panel slider (panel_keys == "sz")
+  expect_dom_id(app, "ptr_shared_draw_all")
+  expect_dom_id(app, "plot_1-ptr_plot")
+  expect_dom_id(app, "plot_2-ptr_plot")
+
+  # CORE W1 ASSERTION (must fail the way bug B1 fails): each formula-local
+  # var(shared=) consumer key renders a POPULATED column picker inside its
+  # owning module. Pre-fix these were blank uiOutputs (no host binder in the
+  # embed path) — DOM-present but empty, so a bare expect_dom_id would NOT
+  # have caught it. We assert a real iris column option is offered.
+  expect_picker_populated(app, "plot_1-shared_ax1", "Petal.Length")
+  expect_picker_populated(app, "plot_2-shared_ax2", "Petal.Length")
+
+  # W2 (#B2) exclude: the panel key `sz` is rendered once, in the standalone
+  # panel only — never duplicated inline (the fixture passes shared = obj).
+  expect_no_dom_id(app, "plot_1-shared_sz")
+  expect_no_dom_id(app, "plot_2-shared_sz")
+
+  # BDD: selecting a column in the formula-local picker then redrawing makes
+  # that plot use it (plot_1's x AND y are both var(shared='ax1')).
+  set_input(app, "plot_1-shared_ax1", "Petal.Length")
+  set_input(app, "plot_2-shared_ax2", "Sepal.Length")
+  draw(app, "ptr_shared_draw_all")
+  expect_rendered(app, "#plot_1-ptr_plot", "ggplot")
+  expect_rendered(app, "#plot_2-ptr_plot", "ggplot")
+  expect_no_inline_error(app, "plot_1-ptr_error")
+  expect_no_inline_error(app, "plot_2-ptr_error")
+  expect_match(app$get_value(output = "plot_1-ptr_code"), "Petal.Length")
+})
+
+test_that("grid-shared-partition: ptr_app_grid binds formula-local var(shared=) per cell (W1 #B1, same host shape)", {
+  app <- boot_vignette_app("grid-shared-partition")
+  app$wait_for_idle(timeout = 25 * 1000)
+
+  expect_dom_id(app, "shared_sz")            # panel slider, the only panel key
+  expect_dom_id(app, "ptr_shared_draw_all")
+  expect_dom_id(app, "plot_1-ptr_plot")
+  expect_dom_id(app, "plot_2-ptr_plot")
+
+  # Same core assertion on the grid host shape: each cell's formula-local
+  # axis picker is populated, not a blank uiOutput.
+  expect_picker_populated(app, "plot_1-shared_ax1", "Petal.Length")
+  expect_picker_populated(app, "plot_2-shared_ax2", "Petal.Length")
+
+  set_input(app, "plot_1-shared_ax1", "Petal.Length")
+  set_input(app, "plot_2-shared_ax2", "Sepal.Length")
   draw(app, "ptr_shared_draw_all")
   expect_rendered(app, "#plot_1-ptr_plot", "ggplot")
   expect_rendered(app, "#plot_2-ptr_plot", "ggplot")

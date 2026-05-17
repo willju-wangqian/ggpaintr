@@ -96,4 +96,28 @@ expect_no_inline_error <- function(app, error_output_id) {
   )
 }
 
+# Assert a rendered consumer/shared picker is *populated* — its element holds
+# a real column choice, not an empty uiOutput. A blank uiOutput still has its
+# container id present (so plain expect_dom_id passes), which is precisely how
+# bug B1 (formula-local var(shared=) never bound in the embed path) survived
+# every prior test. This asserts an actual rendered choice for a known column.
+expect_picker_populated <- function(app, input_id, choice) {
+  html <- app$get_html(paste0("#", input_id))
+  testthat::expect_true(
+    !is.null(html) && nzchar(html) && grepl(choice, html, fixed = TRUE),
+    label = paste0("picker #", input_id, " populated (offers \"",
+                   choice, "\"), not an empty uiOutput")
+  )
+}
+
+# Assert no DOM element with the given Shiny id exists (the inverse of
+# expect_dom_id). Used to prove a panel key is NOT double-rendered inline.
+expect_no_dom_id <- function(app, id) {
+  html <- app$get_html(paste0("#", id))
+  testthat::expect_true(
+    is.null(html) || !nzchar(html),
+    label = paste0("DOM id #", id, " absent")
+  )
+}
+
 if (!exists("%||%")) `%||%` <- function(a, b) if (is.null(a)) b else a
