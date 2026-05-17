@@ -1,8 +1,9 @@
 #' Bslib-Themed App: A Demonstration Wrapper
 #'
 #' A small wrapper that composes the public ggpaintr primitives
-#' ([ptr_controls_ui()], [ptr_outputs_ui()], [ptr_module_server()]) inside a
-#' [bslib::page_sidebar()] shell. Exported so users who want a quick
+#' ([ptr_ui_controls()], [ptr_ui_plot()], [ptr_ui_toggle_code()],
+#' [ptr_module_server()]) inside a [bslib::page_sidebar()] shell. Exported
+#' so users who want a quick
 #' `bslib`-themed app can call it directly, but its primary purpose is to
 #' illustrate the wrapper pattern documented in
 #' `vignette("ggpaintr-customization")` § "Writing your own wrapper" — the
@@ -72,16 +73,33 @@ ptr_app_bslib <- function(formula,
     theme = theme,
     sidebar = bslib::sidebar(
       title = "Controls",
-      ptr_controls_ui(
-        id = id, formula = formula,
-        ui_text = ui_text,
-        checkbox_defaults = checkbox_defaults,
-        expr_check = expr_check
+      # ptr_controls_ui()/ptr_outputs_ui() were removed (ADR 0005 §5); the
+      # wrapper now composes the public bare pieces + combinators directly.
+      # The `.ptr-app` div restores the themed scope the bslib page chrome
+      # does not provide, and ptr_ui_assets() ships the bundle (deduped
+      # page-wide by htmlDependency).
+      shiny::tags$div(
+        class = "ptr-app",
+        ptr_ui_assets(),
+        ptr_ui_controls(
+          id = id, formula = formula,
+          ui_text = ui_text,
+          checkbox_defaults = checkbox_defaults,
+          expr_check = expr_check,
+          shared = NULL
+        )
       )
     ),
     bslib::card(
       full_screen = TRUE,
-      ptr_outputs_ui(id = id)
+      shiny::tags$div(
+        class = "ptr-app",
+        ptr_ui_assets(),
+        ptr_ui_toggle_code(
+          ptr_ui_inline_error(ptr_ui_plot(id), ptr_ui_error(id)),
+          ptr_ui_code(id)
+        )
+      )
     )
   )
 

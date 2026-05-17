@@ -614,9 +614,10 @@ ptr_user_css_assets <- function(css) {
 #
 # Components 1 & 2 are htmlDependency objects, so htmltools dedupes each to
 # a single <head> injection no matter how many times the bundle is emitted
-# on a page. ptr_module_ui() nests ptr_controls_ui() + ptr_outputs_ui(),
-# which together emit this bundle three times -- htmltools collapses that
-# to one of each dependency. (Component 3 is plain <link> tags; each
+# on a page. ptr_module_ui() emits the bundle once; ptr_app_bslib()
+# emits it twice (sidebar + card .ptr-app scopes) -- htmltools collapses
+# any number of emissions to one of each dependency. (Component 3 is
+# plain <link> tags; each
 # distinct user stylesheet is registered once via addResourcePath, which
 # is itself idempotent for the same prefix.)
 #
@@ -651,7 +652,7 @@ ptr_assets <- function(css = NULL) {
 #'   [ptr_app()] for the full semantics. Defaults to `NULL`.
 #'
 #' @return A [shiny::tagList()].
-#' @seealso [ptr_ui_plot()], [ptr_ui_controls()], [ptr_ui_code_toggle()], [ptr_css()]
+#' @seealso [ptr_ui_plot()], [ptr_ui_controls()], [ptr_ui_toggle_code()], [ptr_css()]
 #' @export
 ptr_ui_assets <- function(css = NULL) {
   ptr_assets(css = css)

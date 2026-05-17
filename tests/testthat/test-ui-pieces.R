@@ -208,11 +208,8 @@ test_that("ptr_ui_page stays bare .ptr-app so it embeds (no --page canvas)", {
 })
 
 test_that("ptr_module_ui stays bare .ptr-app so it embeds (no --page canvas)", {
-  skip(paste(
-    "Step 03 deletes ptr_ui_code_toggle; ptr_module_ui still routes through",
-    "the (knowingly-dangling) ptr_outputs_ui until Step 05 rebuilds",
-    "ptr_module_ui on the combinators. Step 05 restores this assertion."
-  ))
+  # Step 05: ptr_module_ui rebuilt on the L3 combinators + its own
+  # self-contained shell, so this assertion is restored (skip removed).
   html <- render_with_deps(ptr_module_ui("m", fml))
   expect_match(html, 'class="ptr-app"', fixed = TRUE)
   expect_no_match(html, "ptr-app--page", fixed = TRUE)

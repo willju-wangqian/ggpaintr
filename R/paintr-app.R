@@ -641,37 +641,36 @@ ptr_ui_header <- function(title = "ggpaintr") {
 ptr_module_ui <- function(id, formula, ui_text = NULL,
                              checkbox_defaults = NULL, expr_check = TRUE,
                              css = NULL) {
-  # Composition of the split-mode pair wrapped in the same chrome
-  # `ptr_build_app_ui()` emits (fluidPage > div.ptr-app > sidebarLayout)
-  # so the DOM, inputIds and outputIds the previous monolithic
-  # implementation produced are preserved.
-  #
-  # `ptr_controls_ui()` already calls
-  # `ptr_controls_panel(..., render_shared_section = FALSE)`, the key
-  # property the shared-multi-instance design relies on: each module
-  # suppresses its own inline shared section so `ptr_shared_ui()` owns
-  # the page-level panel. The cosmetic cost of composing
-  # `ptr_controls_ui()` + `ptr_outputs_ui()` here is one duplicate
-  # `<link>`/`<script>` per module instance (both assets are idempotent
-  # against the same href, so the browser dedupes them).
+  # Self-contained L2 shell: fluidPage > div.ptr-app > sidebarLayout, built
+  # by composing the bare L3 pieces + combinators (no reimplementation).
+  # The asset bundle is emitted once here -- the folded ptr_ui_controls()
+  # and the output combinators emit none -- and htmlDependency dedupes it
+  # page-wide. Bare `.ptr-app` only: no `--page` canvas (that stays opt-in
+  # for ptr_app() / ptr_app_grid()). Single-formula module => shared = NULL,
+  # so ptr_ui_controls() renders every shared key inline (single-instance);
+  # no standalone shared panel is emitted.
   title <- ptr_resolve_ui_text("title", ui_text = ui_text)$label %||% ""
   header <- if (nzchar(title)) shiny::titlePanel(title) else NULL
   shiny::fluidPage(
     shiny::tags$div(
       class = "ptr-app",
+      ptr_ui_assets(css = css),
       header,
       shiny::sidebarLayout(
         shiny::sidebarPanel(
-          ptr_controls_ui(
+          ptr_ui_controls(
             id = id, formula = formula,
             ui_text = ui_text,
             checkbox_defaults = checkbox_defaults,
             expr_check = expr_check,
-            css = css
+            shared = NULL
           )
         ),
         shiny::mainPanel(
-          ptr_outputs_ui(id = id, css = css)
+          ptr_ui_toggle_code(
+            ptr_ui_inline_error(ptr_ui_plot(id), ptr_ui_error(id)),
+            ptr_ui_code(id)
+          )
         )
       )
     )
@@ -738,99 +737,6 @@ ptr_ui_controls <- function(id = NULL, formula, ui_text = NULL,
                              ns = ns,
                              render_shared_section = FALSE)
   do.call(shiny::tagList, drop_null(c(list(section), body)))
-}
-
-#' Control Widgets for an Embedded `ggpaintr` Formula
-#'
-#' UI fragment containing only the generated controls (layer picker, per-layer
-#' parameter panels, the "Update plot" button) for a `ggpaintr` formula. Place
-#' it anywhere in your app's layout; pair with [ptr_outputs_ui()] for the
-#' plot/error/code panes and [ptr_server()] (or [ptr_module_server()]) for the
-#' server logic. The fragment self-wraps in `<div class="ptr-app">` so the
-#' bundled stylesheet attaches without any host-side scaffolding. This is a
-#' thin convenience composite of [ptr_ui_assets()] + [ptr_ui_controls()].
-#'
-#' @param id Optional module id; the namespace prefix for inputs. Defaults to
-#'   `NULL` (identity namespace) for the single-embedding case. When set,
-#'   must match the `id` passed to [ptr_outputs_ui()] and the
-#'   `shiny::moduleServer()` wrapping [ptr_server()] (or to
-#'   [ptr_module_server()]).
-#' @param formula A single formula string with `ggpaintr` placeholders.
-#' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
-#'   for the full schema and current defaults.
-#' @param checkbox_defaults Optional named list of initial checked states.
-#' @param expr_check Controls `expr` placeholder validation. Defaults to `TRUE`.
-#' @param css Optional character vector of paths to additional CSS files;
-#'   linked after `ggpaintr`'s bundled stylesheet so its rules win. See
-#'   [ptr_app()] for the full semantics. Defaults to `NULL`.
-#'
-#' @return A [shiny::tagList()].
-#' @seealso [ptr_outputs_ui()], [ptr_module_ui()], [ptr_module_server()], [ptr_css()]
-#' @export
-ptr_controls_ui <- function(id = NULL, formula, ui_text = NULL,
-                            checkbox_defaults = NULL, expr_check = TRUE,
-                            css = NULL) {
-  # Bare `.ptr-app` is *only* the themed stylesheet scope -- it carries no
-  # full-viewport canvas (that is opt-in via `ptr-app--page`, added only by
-  # the standalone entrypoints ptr_app / ptr_app_grid). This composite is
-  # made to be dropped into a host layout (e.g. a `sidebarPanel()` of a
-  # hand-written `sidebarLayout()`, the documented non-module split), so it
-  # must size to its content, never stretch the host cell.
-  #
-  # Step 04: the public `ptr_ui_controls()` lost its "suppress all" mode --
-  # with no `shared` it renders every shared key inline (single-instance).
-  # The split/module path still needs the inline section suppressed so
-  # `ptr_shared_ui()` owns the page-level panel, so this composite calls the
-  # internal `ptr_controls_panel(render_shared_section = FALSE)` directly.
-  # That preserves the previous DOM byte-for-byte until Step 05 rebuilds the
-  # module path on the coordinator.
-  tree <- ptr_translate(formula, expr_check = expr_check)
-  shiny::tags$div(
-    class = "ptr-app",
-    ptr_ui_assets(css = css),
-    do.call(
-      shiny::tagList,
-      ptr_controls_panel(tree, ui_text = ui_text,
-                         checkbox_defaults = checkbox_defaults,
-                         ns = shiny::NS(id),
-                         render_shared_section = FALSE)
-    )
-  )
-}
-
-#' Plot / Error / Code Panes for an Embedded `ggpaintr` Formula
-#'
-#' UI fragment containing only the plot, inline error, and generated-code
-#' outputs for a `ggpaintr` formula. Pair with [ptr_controls_ui()] and
-#' [ptr_server()] (or [ptr_module_server()]). The fragment self-wraps in
-#' `<div class="ptr-app">` so the bundled stylesheet attaches without any
-#' host-side scaffolding. This is a thin convenience composite of
-#' [ptr_ui_assets()] + [ptr_ui_code_toggle()]; for fully independent
-#' placement use the single pieces [ptr_ui_plot()], [ptr_ui_error()],
-#' [ptr_ui_code()] directly.
-#'
-#' @param id Optional module id; the namespace prefix for outputs. Defaults
-#'   to `NULL` (identity namespace) for the single-embedding case. When set,
-#'   must match the `id` passed to [ptr_controls_ui()] and the
-#'   `shiny::moduleServer()` wrapping [ptr_server()] (or to
-#'   [ptr_module_server()]).
-#' @param css Optional character vector of paths to additional CSS files;
-#'   linked after `ggpaintr`'s bundled stylesheet so its rules win. See
-#'   [ptr_app()] for the full semantics. Defaults to `NULL`.
-#'
-#' @return A [shiny::tagList()].
-#' @seealso [ptr_ui_plot()], [ptr_ui_error()], [ptr_ui_code()],
-#'   [ptr_ui_code_toggle()], [ptr_controls_ui()], [ptr_module_ui()], [ptr_css()]
-#' @export
-ptr_outputs_ui <- function(id = NULL, css = NULL) {
-  # Bare `.ptr-app`: themed scope only, no page canvas (see ptr_controls_ui).
-  # This output half is the other side of the documented non-module split
-  # and lives in a host `mainPanel()`; it sizes to its content.
-  shiny::tags$div(
-    class = "ptr-app",
-    ptr_ui_assets(css = css),
-    ptr_ui_code_toggle(id = id)
-  )
 }
 
 #' Page shell for hand-composed ggpaintr UIs
