@@ -21,7 +21,7 @@ Implementation is **not done** — the code still reflects the pre-redesign API.
 | 07 | `l2-l3-redesign-07-vignette.html` | #DOC — rewrite `ggpaintr-use-cases.Rmd` | 01–06 | ✅ done — 2026-05-17, `vignette-review` @ `e081ca8` (merge of `e4dc145`) — renders clean, zero removed symbols |
 | 08 | `l2-l3-redesign-08-llm-topics.html` | #LLM — rewrite `inst/llm/topics/*` | 01–06 | ✅ done — 2026-05-17, `vignette-review` @ `e5cf3f6` (merge of `e1e6b09`) — `ptr_llm_topics()` clean, 08↔07 consistent |
 | 09 | `l2-l3-redesign-09-memory-claude.html` | #MEM — strike "demoted to L2" clause; memory/CLAUDE.md sweep | 01–06 | ✅ done — 2026-05-17, `vignette-review` @ `8394373` (merge of `c73873e`; substantive edits in global `~/.claude` memory, not git-tracked) |
-| 10 | `l2-l3-redesign-10-tests.html` | #TEST — suite sweep + new regressions + pkgdown retier (final gate) | 01–09 | pending |
+| 10 | `l2-l3-redesign-10-tests.html` | #TEST — suite sweep + new regressions + pkgdown retier (final gate) | 01–09 | ✅ done — 2026-05-17, `vignette-review` — test FAIL 0/ERROR 0/SKIP 1/PASS 1481, check 0E/0W, pkgdown clean; NAMESPACE/man regen; doc-rot in non-use-cases vignettes = tracked follow-up |
 
 Steps 01–02 are highest-risk (net-new cross-formula partition + the UI↔server consistency invariant). 03 can run parallel to 01–02. 07–09 are large, separate, post-code passes. 10 is the gate.
 
