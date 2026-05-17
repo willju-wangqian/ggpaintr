@@ -57,6 +57,22 @@ Reserve `Read` for `.Rmd`, `.md`, `.yml`, and for roxygen comment text outside f
 - Conventions: tidyverse style, snake_case, 2-space indent
 - Auto-approve start: true
 
+### Authoritative gate (Definition of Done) — read before claiming green
+
+The authoritative full-suite gate for this project is:
+
+```
+NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'
+```
+
+Expected: **FAIL 0 / ERROR 0 / SKIP 0 / PASS N** (N = 1583 as of 2026-05-17 `vignette-review`; the count grows — what matters is 0/0/0). `devtools::test()` is equivalent (it sets `NOT_CRAN=true` itself).
+
+> ⚠ Proxy trap — do not be fooled: a raw `Rscript -e 'testthat::test_dir()/test_file()'` (no `NOT_CRAN`) and `R CMD check --as-cran` both make `skip_on_cran()` fire, so **every shinytest2 browser test silently SKIPs**. A "green, SKIP n" from that harness is NOT the gate and has masked a real ERROR for an entire multi-step effort. Only `NOT_CRAN=true` / `devtools::test()` exercises the browser tests. Never claim the suite green, merge a branch, mark a step done, or clear context off the skipping harness.
+
+Other gates: `devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))` → 0 errors / 0 warnings (3 by-design NOTEs are expected: CRAN incoming "new submission", `.git`, top-level `CONTEXT.md`). Docs: `source("dev/build-pkgdown.R"); build_pkgdown_clean()` → clean. Browser e2e needs `shinytest2` + `chromote` + Chrome; absent → clean all-skip is acceptable but must be reported, not hidden.
+
+Every plan for this project takes its **Definition of Done** from this block. Audit/enforce a plan with `/implementable <plan-path>`.
+
 ## Agent skills
 
 ### Issue tracker
