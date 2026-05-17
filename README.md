@@ -58,15 +58,18 @@ theme, write a thin wrapper on top of the public primitives — see
 
 -   **`vignette("ggpaintr-use-cases")` — *Use cases*.** The three-level
     ladder for how to use ggpaintr: L1 all-in-one (`ptr_app()` /
-    `ptr_app_grid()`), L2 embed in your own Shiny app (`ptr_controls_ui`
-    / `ptr_outputs_ui` / `ptr_server` and the module pair
-    `ptr_module_ui` / `ptr_module_server`, plus custom rendering off the
-    returned `state` via `ptr_extract_plot()` / `_code()` / `_error()`),
-    and L3 own every piece of the UI (one exported function per pane:
-    `ptr_ui_header()` / `ptr_ui_controls()` / `ptr_ui_plot()` /
-    `ptr_ui_error()` / `ptr_ui_code()` / `ptr_ui_code_toggle()` /
-    `ptr_ui_assets()`). Opens with a compact tour of the 5 placeholder
-    keywords.
+    `ptr_app_grid()`), L2 embed in your own Shiny app with the
+    self-contained module pair (`ptr_module_ui()` /
+    `ptr_module_server()`) plus the shared-coordinator trio
+    (`ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()`) for
+    cross-plot widgets, and L3 own every piece of the UI — bare builders
+    (`ptr_ui_header()` / `ptr_ui_controls()` / `ptr_ui_plot()` /
+    `ptr_ui_error()` / `ptr_ui_code()` / `ptr_ui_assets()`) plus the
+    nestable combinators (`ptr_ui_inline_error()` /
+    `ptr_ui_toggle_code()`) and the optional `ptr_ui_page()` shell,
+    including custom rendering off the returned `state` via
+    `ptr_extract_plot()` / `_code()` / `_error()`. Opens with a compact
+    tour of the 5 placeholder keywords.
 
 -   **`vignette("ggpaintr-customization")` — *Customization*.** Rewrite
     ggpaintr’s built-in copy with `ui_text`, register your own widget

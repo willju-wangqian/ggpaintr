@@ -164,19 +164,26 @@ ptr_llm_register <- function(chat, tool_name = "ggpaintr_docs") {
       name = ellmer::type_enum(
         topic_names,
         paste0(
-          "Which ggpaintr topic to fetch. ",
-          "Pick based on the user's task: overview for the 3-level ",
-          "model; formula_syntax for placeholder grammar and ",
-          "`shared = ...`; level1_ptr_app for a turn-key app ",
-          "(single plot or grid); level1_ptr_options for ",
-          "session-wide defaults; level2_embed for embedding in the ",
-          "user's own Shiny app via module or split paths; ",
-          "level2_custom_ids and level2_namespacing for id and ",
-          "multi-instance concerns; level2_ui_text for copy ",
-          "overrides; level3_custom_render for custom renderers reading ",
-          "state$runtime(); level3_gg_extra to round-trip host ",
-          "layers into the code pane; custom_placeholder for widget ",
-          "types beyond var/text/num/expr/upload."
+          "Which ggpaintr topic to fetch. Pick based on the user's ",
+          "task: overview for the 3-level L1/L2/L3 model; ",
+          "formula_syntax for the 5 placeholder keywords, pipelines, ",
+          "and `shared = \"...\"` + the partition rule; level1_ptr_app ",
+          "for a turn-key app (single plot or `ptr_app_grid()` ",
+          "multi-plot); level1_ptr_options for session-wide defaults; ",
+          "level2_module for the self-contained module pair ",
+          "(ptr_module_ui / ptr_module_server), single vs multi ",
+          "instance; level2_shared for multiple instances + the ",
+          "shared coordinator trio (ptr_shared -> ptr_shared_panel / ",
+          "ptr_shared_server); level2_custom_ids for id collisions ",
+          "and the input-id grammar; level2_ui_text for copy ",
+          "overrides; level3_layout for bare ptr_ui_* pieces + the ",
+          "combinators + the optional ptr_ui_page shell; ",
+          "level3_custom_render for your own renderPlot()/",
+          "renderPlotly() off state$runtime() via the ",
+          "moduleServer(id) pattern; level3_gg_extra to round-trip ",
+          "host layers into the plot and code pane; ",
+          "custom_placeholder for widget types beyond ",
+          "var/text/num/expr/upload."
         )
       )
     )
