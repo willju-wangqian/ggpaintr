@@ -32,7 +32,7 @@
 <li>Every runnable example in the inventory has a passing <code>shinytest2</code> test that (a) boots without error, (b) renders the documented inputs, (c) survives one real interaction with the plot + code outputs updating, (d) shows no inline error on the happy path.</li>
 <li>With <code>shinytest2</code> + <code>chromote</code> installed the suite is fully green; without them every test <code>skip</code>s cleanly (<code>skip_on_cran()</code> + <code>skip_if_not_installed("shinytest2")</code>) — no spurious failure.</li>
 <li>The factories construct the <em>same</em> app code the vignette presents (incl. lifted <code>eval=FALSE</code> chunks) — a reviewer can diff factory ⇄ vignette and see equivalence.</li>
-<li><code>devtools::test()</code> remains green overall; the new file adds the only new skips (browser-gated), no new failures.</li>
+<li>The project Authoritative Gate (<code>NOT_CRAN=true devtools::test()</code>) holds at <code>FAIL 0 / ERROR 0 / SKIP 0</code>; this plan adds passing browser tests — no new failures and no new skips under the authoritative gate.</li>
 <li>Excluded chunks are enumerated with a stated reason; nothing runnable is silently dropped.</li>
 </ul>
 
@@ -85,10 +85,14 @@
     Then every vignette example is listed as covered or excluded-with-reason
       And no runnable example is omitted silently</div>
 
-<h2>Verify</h2>
-<pre>Rscript -e 'devtools::test(filter="e2e-vignette-examples-shinytest2")'   # green with shinytest2+chromote; all-skip without
-Rscript -e 'devtools::test()'                                          # whole suite still green; only new skips are browser-gated
-# authoring aid only (not committed): claude-in-chrome to discover selectors for gallery/bslib flows</pre>
+<h2>Definition of Done (authoritative)</h2>
+<pre>NOT_CRAN=true Rscript -e 'devtools::test()'   # == project CLAUDE.md Authoritative Gate
+# EXPECTED: FAIL 0 / ERROR 0 / SKIP 0 / PASS N   (0/0/0 is the invariant; N grows with the suite)
+# Plan-scoped subset: NOT_CRAN=true Rscript -e 'devtools::test(filter="e2e-vignette-examples-shinytest2")' -> 0/0/0/100
+# authoring aid only (never committed): claude-in-chrome to discover selectors for gallery/bslib flows</pre>
+<p class="crit"><strong>Proxy trap (do not be fooled):</strong> a raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> (no <code>NOT_CRAN</code>) and <code>R CMD check --as-cran</code> both make <code>skip_on_cran()</code> fire, so every shinytest2 test silently SKIPs. A "green, SKIP n" from that harness is NOT the gate (it masked a real lockstep ERROR for this entire effort). Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> is authoritative.</p>
+<p><strong>Independence:</strong> any implementer/agent "done / green / scope-clean" report — including this plan's ✅ status block — is a claim to verify, never proof. The integrator independently re-runs the Definition-of-Done command and reads the ledger; the status block is not evidence.</p>
+<p><strong>Baseline / drift:</strong> the invariant is <code>FAIL 0 / ERROR 0 / SKIP 0</code> from the project Authoritative Gate (the PASS count grows with the suite — do not hardcode N). The earlier "<code>SKIP 1 / PASS 1481</code>" baseline was the proxy-masked number — the SKIP <em>was</em> a hidden ERROR; resolved at commit <code>77a927e</code>. Pre-existing reds, if any, are tracked in <code>dev/notes/</code>, never silently rebaselined.</p>
 
 <div style="border-left:4px solid #2e8b57;background:#eafaf1;padding:.7rem 1rem;margin:1.4rem 0;border-radius:0 5px 5px 0">
 <h2 style="border:0;margin-top:0">✅ COMPLETE</h2>
@@ -104,4 +108,5 @@ Rscript -e 'devtools::test()'                                          # whole s
 </ul>
 <p><strong>⚠ Caveat — pre-existing failure (out of scope, reported not hidden):</strong> the plan's whole-suite baseline ("FAIL 0 / ERROR 0 / SKIP 1 / PASS 1481") was measured where the lone other shinytest2 test skipped for lack of a browser. With chromote present, <code>devtools::test()</code> is <strong>FAIL 1 / SKIP 0 / PASS 1581</strong> — the +100 are this plan's (all pass); the single FAIL is <code>test-shared-lockstep-shinytest2.R:64</code> (<code>Expected count_id("shared_B") to equal 1</code>), which <strong>fails identically in isolation</strong> (<code>devtools::test(filter="shared-lockstep-shinytest2")</code> → FAIL 1 / PASS 1) with my files not even loaded. That file is committed in <code>30b24ca</code> (redesign Step 02), unmodified here, and the sibling <em>vignette-prose-sweep</em> plan's own status block already documents this same failure as <strong>pre-existing on base <code>a6ccbb4</code></strong>. Fixing it is forbidden by this plan's constraints (no <code>R/</code> / other-plan edits; redesign Steps 01–10 own that surface). <strong>Zero failures attributable to this change.</strong> Browser stack confirmed resolvable in the dev env (shinytest2 + chromote + Chrome at <code>/Applications/Google Chrome.app</code>).</p>
 </div>
+<!-- implementable: PASS date=2026-05-17 gate="NOT_CRAN=true devtools::test()" hash=8b8532ef5c3c -->
 </body></html>

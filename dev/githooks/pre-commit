@@ -1,0 +1,72 @@
+#!/bin/sh
+# implementable: pre-commit enforcement hook.
+# Refuses a commit that stages a plan/spec file lacking a CURRENT
+# `implementable: PASS` stamp (present AND content-hash matches the
+# staged blob). Non-plan commits pass untouched.
+# Bypass (deliberate, human only): git commit --no-verify
+#
+# Installed by the `implementable` skill via core.hooksPath. If another
+# pre-commit chained this, that wrapper sources it; this script only
+# concerns itself with plan stamps.
+
+set -u
+
+# --- sha256 (portable: Linux sha256sum, macOS shasum) ---
+sha256_12() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum | cut -c1-12
+  else
+    shasum -a 256 | cut -c1-12
+  fi
+}
+
+# --- which staged files are plans we govern? ---
+is_plan() {
+  case "$1" in
+    dev/plans/*.html|dev/plans/*.md|*-plan.md) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+bad=""
+for f in $staged; do
+  is_plan "$f" || continue
+
+  # staged blob (what is actually being committed, not the worktree)
+  content=$(git show ":$f" 2>/dev/null) || continue
+
+  stamp=$(printf '%s\n' "$content" | grep 'implementable: PASS' | tail -n1)
+  if [ -z "$stamp" ]; then
+    bad="$bad
+  $f  — no 'implementable: PASS' stamp"
+    continue
+  fi
+
+  recorded=$(printf '%s\n' "$stamp" | sed -n 's/.*hash=\([0-9a-f]\{12\}\).*/\1/p')
+  if [ -z "$recorded" ]; then
+    bad="$bad
+  $f  — stamp present but no parseable hash=<12hex>"
+    continue
+  fi
+
+  # recompute over content with the stamp line(s) removed
+  actual=$(printf '%s\n' "$content" | grep -v 'implementable: PASS' | sha256_12)
+
+  if [ "$recorded" != "$actual" ]; then
+    bad="$bad
+  $f  — stamp STALE (plan changed since it was blessed: recorded=$recorded actual=$actual)"
+  fi
+done
+
+if [ -n "$bad" ]; then
+  printf '%s\n' "✗ implementable hook: blocked commit — plan(s) not provably implementable:$bad" >&2
+  printf '%s\n' "" >&2
+  printf '%s\n' "Fix: run  /implementable <plan-path>  to audit, patch, and re-stamp." >&2
+  printf '%s\n' "Deliberate override (human, not an agent): git commit --no-verify" >&2
+  exit 1
+fi
+
+exit 0
