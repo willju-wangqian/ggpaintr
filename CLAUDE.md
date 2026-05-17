@@ -67,9 +67,12 @@ NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::t
 
 Expected: **FAIL 0 / ERROR 0 / SKIP 0 / PASS N** (N = 1583 as of 2026-05-17 `vignette-review`; the count grows — what matters is 0/0/0). `devtools::test()` is equivalent (it sets `NOT_CRAN=true` itself).
 
-> ⚠ Proxy trap — do not be fooled: a raw `Rscript -e 'testthat::test_dir()/test_file()'` (no `NOT_CRAN`) and `R CMD check --as-cran` both make `skip_on_cran()` fire, so **every shinytest2 browser test silently SKIPs**. A "green, SKIP n" from that harness is NOT the gate and has masked a real ERROR for an entire multi-step effort. Only `NOT_CRAN=true` / `devtools::test()` exercises the browser tests. Never claim the suite green, merge a branch, mark a step done, or clear context off the skipping harness.
+> ⚠ Proxy trap — do not be fooled (corrected 2026-05-17, empirically verified):
+> - A raw `Rscript -e 'testthat::test_dir()/test_file()'` with **no `NOT_CRAN`** → `skip_on_cran()` fires → **every shinytest2 browser test silently SKIPs**. "green, SKIP n" off that is NOT the gate.
+> - `devtools::check(... --as-cran)` does **NOT** make `skip_on_cran()` fire (devtools runs the check subprocess with `NOT_CRAN=true`). The browser fixtures instead **cleanly SKIP** via `boot_vignette_app()`'s source-root guard (no `DESCRIPTION` in the `.Rcheck` sandbox). If a check run shows the e2e file **ERRORing** (`R CMD check found ERRORs`, pkgload "DESCRIPTION not found"), that guard is missing/broken — a **harness defect, not a product failure, and never the gate**.
+> - Only `NOT_CRAN=true` / `devtools::test()` **runs** the browser tests (source tree present → 0 SKIP). That alone is the gate. Never claim the suite green, merge a branch, mark a step done, or clear context off the skipping/erroring harness.
 
-Other gates: `devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))` → 0 errors / 0 warnings (3 by-design NOTEs are expected: CRAN incoming "new submission", `.git`, top-level `CONTEXT.md`). Docs: `source("dev/build-pkgdown.R"); build_pkgdown_clean()` → clean. Browser e2e needs `shinytest2` + `chromote` + Chrome; absent → clean all-skip is acceptable but must be reported, not hidden.
+Other gates: `devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))` → 0 errors / 0 warnings (by-design NOTEs expected: CRAN incoming "new submission", `.git`, top-level `CONTEXT.md`); the e2e browser file **cleanly SKIPs** here via the source-root guard — a non-zero-error check means that guard regressed, not a product failure (see proxy-trap block above). Docs: `source("dev/build-pkgdown.R"); build_pkgdown_clean()` → clean. Browser e2e needs `shinytest2` + `chromote` + Chrome; absent → clean all-skip is acceptable but must be reported, not hidden.
 
 Every plan for this project takes its **Definition of Done** from this block. Audit/enforce a plan with `/implementable <plan-path>`.
 

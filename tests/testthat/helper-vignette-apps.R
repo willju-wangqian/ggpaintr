@@ -21,7 +21,22 @@ boot_vignette_app <- function(slug) {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("shinytest2")
   testthat::skip_if_not_installed("chromote")
-  withr::local_envvar(GGP_PKG = normalizePath(testthat::test_path("..", "..")))
+  # Source-root guard. The fixture app.R boots via
+  # pkgload::load_all(Sys.getenv("GGP_PKG")); that needs the package SOURCE
+  # tree (a DESCRIPTION at GGP_PKG). `skip_on_cran()` above does NOT cover
+  # `devtools::check()`: devtools runs the check subprocess with
+  # NOT_CRAN=true, so skip_on_cran() does not fire even under --as-cran, and
+  # the fixtures would otherwise run inside the .Rcheck sandbox where
+  # test_path("..","..") has no DESCRIPTION -> pkgload::load_all() ERRORs.
+  # Skipping on absent DESCRIPTION turns that into a clean SKIP under check
+  # while the NOT_CRAN=true test_dir authoritative gate (source tree present)
+  # still RUNs every browser test. See CLAUDE.md authoritative-gate block.
+  pkg <- normalizePath(testthat::test_path("..", ".."), mustWork = FALSE)
+  testthat::skip_if(
+    !file.exists(file.path(pkg, "DESCRIPTION")),
+    "e2e vignette-app boot needs the package source root (pkgload::load_all); absent under the R CMD check .Rcheck sandbox"
+  )
+  withr::local_envvar(GGP_PKG = pkg)
   app_dir <- testthat::test_path("fixtures", "vignette-apps", slug)
   # The "Failed to locate globals" / htmlDependency-prefix warnings on
   # AppDriver$new() are benign and documented in project memory; scope the
