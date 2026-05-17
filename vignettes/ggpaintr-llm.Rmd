@@ -102,11 +102,12 @@ A short guide to each:
 | `formula_syntax`         | Which placeholder keyword goes where; pipelines; `shared = "..."`.       |
 | `level1_ptr_app`         | Quick turn-key app + `ptr_app_grid()` multi-plot.                        |
 | `level1_ptr_options`     | Package-global settings: verbosity, layer-checkbox default.              |
-| `level2_embed`           | Embed ggpaintr inside the user's own Shiny app (module + split paths).   |
+| `level2_module`          | Embed the self-contained default-layout block (`ptr_module_ui()` / `ptr_module_server()`) in the user's own Shiny app. |
 | `level2_custom_ids`      | Id collisions, the `ptr_` reserved prefix, generated-id grammar.         |
-| `level2_namespacing`     | Multiple ggpaintr instances + cross-instance shared widgets.             |
+| `level2_shared`          | Multiple ggpaintr instances + the shared-coordinator trio (`ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()`) for cross-instance widgets. |
 | `level2_ui_text`         | Override labels, help, placeholders; multi-section cascade.              |
 | `level3_custom_render`   | Own `renderPlot()` / `renderPlotly()` reading `state$runtime()`.         |
+| `level3_layout`          | Own the layout — bare `ptr_ui_*` pieces, the two combinators, the optional `ptr_ui_page()` shell. |
 | `level3_gg_extra`        | Round-trip host layers into the generated code pane.                     |
 | `custom_placeholder`     | Date pickers, sliders, any widget not in the five built-ins.             |
 
