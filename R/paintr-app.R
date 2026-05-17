@@ -163,27 +163,6 @@ ptr_make_app_server <- function(formula, tree, envir, ui_text,
   shared_entries <- collect_shared_placeholders(tree)
   shared_keys <- vapply(shared_entries, `[[`, character(1), "key")
   shared_resolutions <- ptr_resolve_shared_consumers(tree)
-  consumer_keys <- names(shared_resolutions)
-  representative_nodes <- lapply(consumer_keys, function(k) {
-    nodes <- collect_shared_consumer_occurrences(tree)[[k]]
-    n <- nodes[[1L]]
-    n$id <- canonical_shared_id(k)
-    n$shared_label <- shared_widget_label(nodes)
-    # Multi-param shared widget: clear the first-occurrence param so
-    # copy resolution falls through to `defaults$<keyword>` instead of
-    # dragging the leading occurrence's `params$<param>$<keyword>` over
-    # the user's override. Mirrors the same logic in
-    # `collect_shared_placeholders()` for value-shared widgets.
-    params <- vapply(nodes, function(x) x$param %||% NA_character_,
-                     character(1))
-    distinct_params <- unique(params[!is.na(params) & nzchar(params) &
-                                       params != "__unnamed__"])
-    if (length(distinct_params) > 1L) {
-      n$param <- NA_character_
-    }
-    n
-  })
-  names(representative_nodes) <- consumer_keys
 
   function(input, output, session) {
     shared_reactives <- if (length(shared_keys) > 0L) {
@@ -209,18 +188,19 @@ ptr_make_app_server <- function(formula, tree, envir, ui_text,
       auto_bind_shared = TRUE,
       shared_resolutions = shared_resolutions
     )
-    if (length(consumer_keys) > 0L) {
-      ptr_bind_shared_consumer_uis(
-        output = output, input = input, ns = ns,
-        resolutions = shared_resolutions,
-        representative_nodes = representative_nodes,
-        ui_text = ui_text,
-        eval_env = envir,
-        expr_check = expr_check,
-        errors_rv = state$shared_resolution_errors,
-        state = state
-      )
-    }
+    # Single-instance owns every shared consumer key (no coordinator),
+    # so `host_owned_keys = character(0)`. Behaviour byte-stable: the
+    # helper assembles the same representative nodes the inline preamble
+    # used and calls the same binder once.
+    ptr_bind_local_shared_consumers(
+      tree = tree, output = output, input = input, ns = ns,
+      host_owned_keys = character(0),
+      ui_text = ui_text,
+      eval_env = envir,
+      expr_check = expr_check,
+      errors_rv = state$shared_resolution_errors,
+      state = state
+    )
   }
 }
 
@@ -873,6 +853,13 @@ ptr_module_server <- function(id, formula, envir = parent.frame(), ...,
     }
   }
 
+  # Panel (cross-formula) keys the coordinator owns: exactly the keys in
+  # the bundle BEFORE the local self-bind augmentation below mixes in the
+  # formula-local keys. The module must bind only the formula-local shared
+  # consumer pickers (the binder-less path, bug B1), never a panel key the
+  # host already renders -- so this set is the helper's `host_owned_keys`.
+  host_owned_keys <- names(dots$shared %||% list())
+
   shiny::moduleServer(id, function(input, output, session) {
     # Self-bind every formula-local key: build one reactive per missing
     # key reading this module's own (auto-namespaced) `input$shared_<key>`.
@@ -901,7 +888,7 @@ ptr_module_server <- function(id, formula, envir = parent.frame(), ...,
     #                              updateXxx(session, id, ...) lookups, since
     #                              moduleServer's session already
     #                              auto-namespaces those keys.
-    do.call(
+    state <- do.call(
       ptr_server,
       c(
         list(input = input, output = output, session = session,
@@ -910,6 +897,27 @@ ptr_module_server <- function(id, formula, envir = parent.frame(), ...,
         dots
       )
     )
+    # Bug B1 fix: the embed path has no host binder for formula-local
+    # shared consumers. Bind them here under the module namespace,
+    # excluding the coordinator's panel keys (`host_owned_keys`) so the
+    # cross-formula pickers stay host-owned (no double-write). Mirrors
+    # the single-instance `ptr_make_app_server` call.
+    # Under moduleServer, `output`/`input` are auto-namespaced so the
+    # slot lookups use the identity server-ns (`state$server_ns_fn` =
+    # NS(NULL)); the dynamically rendered picker's `inputId` is NOT
+    # auto-namespaced, so it must be wrapped with `state$ui_ns_fn`
+    # (= session$ns). Exact mirror of `ptr_setup_consumer_uis`.
+    ptr_bind_local_shared_consumers(
+      tree = pre_tree, output = output, input = input,
+      ns = state$server_ns_fn,
+      ui_ns = state$ui_ns_fn,
+      host_owned_keys = host_owned_keys,
+      eval_env = envir,
+      expr_check = state$expr_check,
+      errors_rv = state$shared_resolution_errors,
+      state = state
+    )
+    state
   })
 }
 
