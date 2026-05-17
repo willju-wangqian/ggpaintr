@@ -38,6 +38,9 @@ table{border-collapse:collapse;width:100%;margin:.6rem 0}th,td{border:1px solid 
 <h3>Verified baseline (do not regress)</h3>
 <p><strong>Single-instance <code>ptr_app()</code> with <code>var(shared=)</code> is CORRECT today</strong> (empirically verified 2026-05-17): <code>collect_shared_placeholders</code> rep id is already canonical (<code>shared_&lt;key&gt;</code>), inline emits <code>shared_ax1_ui</code> (ns identity), <code>ptr_make_app_server</code>'s host binder fills <code>shared_ax1_ui</code> → match. The fix must keep single-instance byte-stable.</p>
 
+<h3>Why prior tests missed it (coverage gap W1 must close)</h3>
+<p>The repro is the verbatim vignette chunk <code>l2-shared-partition</code> (<code>vignettes/ggpaintr-use-cases.Rmd:265–295</code>), yet the e2e suite never failed for three compounding reasons: (1) <code>tests/testthat/test-e2e-vignette-examples-shinytest2.R:67–71</code> explicitly classifies <code>l2-shared-partition</code> as <em>"structurally redundant … represented by … l2-shared"</em> — but the <code>l2-shared</code> fixture's <code>var(shared='metric')</code> is referenced in <strong>both</strong> formulas (a <strong>panel</strong> key, the working path), whereas <code>l2-shared-partition</code>'s <code>var(shared='ax1')</code> is <strong>formula-local</strong> (the binder-less path) — the "redundant" judgement collapsed the exact panel-vs-formula-local-consumer ownership axis the bug lives on; (2) the booted shared fixtures assert only structure (<code>expect_dom_id</code>, <code>expect_rendered("#plot","ggplot")</code>, <code>expect_no_inline_error</code>) and the bug is a <em>blank <code>uiOutput</code> whose container still exists</em>, so <code>expect_dom_id</code> passes; no test asserts a formula-local <code>var(shared=)</code> picker is <strong>populated</strong>; (3) knit-time only constructs <code>shiny::shinyApp()</code>, never runs the server's <code>renderUI</code>. <strong>W1 must close this</strong> — see W1 Success Criteria / DoD.</p>
+
 <h2>Decisions (locked this session)</h2>
 <table>
 <tr><th>#</th><th>Decision</th></tr>
@@ -95,6 +98,7 @@ Expected: <code>FAIL 0 | WARN 0 | SKIP 0 | PASS &gt;0</code> including new exclu
 <li><code>ptr_module_server</code> calls it inside <code>moduleServer</code> after the <code>ptr_server</code> call, with <code>ns = session$ns</code> and <code>host_owned_keys =</code> the panel keys present in the bundle (<code>names(dots$shared)</code> from <code>ptr_shared_server</code>) so only formula-local consumer keys are bound under the module namespace.</li>
 <li><code>ptr_shared_server</code>'s consumer block builds <code>representative_nodes</code> and calls <code>ptr_bind_shared_consumer_uis</code> for <code>intersect(consumer_keys, panel_keys)</code> only; with no panel consumer keys it does <em>not</em> call the binder and still clears <code>output$ptr_shared_errors</code> safely.</li>
 <li>The user's repro renders <code>ax1</code> in plot_1's inline section and <code>ax2</code> in plot_2's; <code>sz</code> appears <strong>only</strong> in the standalone panel (not duplicated inline — requires W2).</li>
+<li><strong>Coverage-gap closure.</strong> The <code>l2-shared-partition</code> chunk is <strong>promoted to its own COVERED e2e fixture</strong> <code>tests/testthat/fixtures/vignette-apps/l2-shared-partition/app.R</code> (boot scaffold + body verbatim-equivalent to the vignette chunk, with <code>shared = obj</code> added to both <code>ptr_module_ui</code> calls per W2), with a dedicated <code>test_that</code> that asserts the formula-local <code>ax1</code>/<code>ax2</code> column pickers are <strong>populated</strong> (a real column choice is settable / present), not merely DOM-present. The false-redundancy comment block at <code>tests/testthat/test-e2e-vignette-examples-shinytest2.R:67–71</code> is corrected: <code>l2-shared-partition</code> is removed from the "represented by … l2-shared" proxy list and a one-line note records that a panel (cross-formula) key and a formula-local consumer key are <strong>distinct ownership paths</strong> and must each have a booting fixture.</li>
 </ul></div>
 <div class="con"><strong>Constraints</strong>
 <ul>
@@ -103,6 +107,7 @@ Expected: <code>FAIL 0 | WARN 0 | SKIP 0 | PASS &gt;0</code> including new exclu
 <li>Exactly one renderUI per shared consumer key across the whole page (no formula-local key bound by both the helper and <code>ptr_shared_server</code>; no panel key bound by a module).</li>
 <li>Single-instance <code>ptr_app()</code> and existing <code>ptr_app_grid()</code> output ids/behaviour unchanged except the now-fixed formula-local consumer.</li>
 <li>Use <code>rlang::abort</code>/<code>cli</code> conventions; helper is unexported (no <code>ptr_</code>-export), snake_case, 2-space indent.</li>
+<li><strong>Assertion must be able to fail the way the bug fails.</strong> The new fixture's test must assert a <em>populated picker</em> (settable/visible column choice), never just <code>expect_dom_id</code> — a blank <code>uiOutput</code> passes <code>expect_dom_id</code>, which is precisely why the bug survived. New fixture <code>app.R</code> stays verbatim-equivalent to the vignette chunk (diffable) per the existing <code>fixtures/vignette-apps</code> convention.</li>
 </ul></div>
 <div class="gherkin">Feature: formula-local var(shared=) binds in every host
   Background:
@@ -135,10 +140,18 @@ Expected: <code>FAIL 0 | WARN 0 | SKIP 0 | PASS &gt;0</code> including new exclu
 
   Scenario: Single-instance unchanged
     When app = ptr_app(f1)
-    Then the inline shared section renders ax1 and sz exactly as before this change (regression-stable)</div>
+    Then the inline shared section renders ax1 and sz exactly as before this change (regression-stable)
+
+  Scenario: Coverage gap closed — the vignette repro is a booting, populated-asserting fixture
+    Given fixture tests/testthat/fixtures/vignette-apps/l2-shared-partition/app.R verbatim-equivalent to chunk l2-shared-partition
+    When the e2e suite runs under NOT_CRAN with the browser stack
+    Then a test_that boots that fixture
+    And it asserts plot_1's ax1 picker has a real column choice (settable, not an empty container)
+    And it asserts plot_2's ax2 picker has a real column choice
+    And test-e2e-vignette-examples-shinytest2.R:67-71 no longer lists l2-shared-partition as represented-by l2-shared</div>
 <div class="dod"><strong>Definition of Done</strong> — the project authoritative gate, run and seen green by the implementer:
 <pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
-Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong> (N ≥ 1583 baseline + new tests). <strong>Proxy traps — do NOT accept as the gate:</strong> (1) a raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> <em>without</em> <code>NOT_CRAN</code>, or (2) <code>R CMD check --as-cran</code> — both fire <code>skip_on_cran()</code> so every shinytest2 browser test (the embed + grid scenarios above) <strong>silently SKIPs</strong>; a "green, SKIP n" there is not done. The embed &amp; grid browser scenarios above MUST run and pass (requires <code>shinytest2</code> + <code>chromote</code> + Chrome). New e2e fixtures: <code>tests/testthat/fixtures/vignette-apps/&lt;slug&gt;/app.R</code> (first line <code>pkgload::load_all(Sys.getenv("GGP_PKG"), …)</code>) for one embed app and one grid app, each with a formula-local <code>var(shared=)</code> + a panel key, asserted via <code>app$get_html("#…")</code> (never <code>app$get_values()</code>; placeholder sets use <code>wait_ = FALSE</code> then click Update).</div>
+Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong> (N ≥ 1583 baseline + new tests). <strong>Proxy traps — do NOT accept as the gate:</strong> (1) a raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> <em>without</em> <code>NOT_CRAN</code>, or (2) <code>R CMD check --as-cran</code> — both fire <code>skip_on_cran()</code> so every shinytest2 browser test (the embed + grid scenarios above) <strong>silently SKIPs</strong>; a "green, SKIP n" there is not done. The embed &amp; grid browser scenarios above MUST run and pass (requires <code>shinytest2</code> + <code>chromote</code> + Chrome). New e2e fixtures: <code>tests/testthat/fixtures/vignette-apps/l2-shared-partition/app.R</code> (the promoted embed repro) <strong>and</strong> a grid fixture, each with a formula-local <code>var(shared=)</code> + a panel key, first line <code>pkgload::load_all(Sys.getenv("GGP_PKG"), …)</code>, asserted via <code>app$get_html("#…")</code> for a <strong>populated</strong> picker (never <code>app$get_values()</code>, never bare <code>expect_dom_id</code>; placeholder sets use <code>wait_ = FALSE</code> then click Update). DoD also requires the corrected <code>test-e2e-vignette-examples-shinytest2.R:67–71</code> comment (l2-shared-partition de-listed from the proxy set). A green run where the new <code>l2-shared-partition</code> <code>test_that</code> is SKIPped (browser stack absent) is <strong>not</strong> done — it must execute.</div>
 
 <hr>
 
@@ -239,6 +252,6 @@ Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong>. <code>devtools::t
 <li>A non-Shiny / headless path (does not exist; project memory).</li>
 </ul>
 
-<!-- implementable: PASS date=2026-05-17 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=3eecef78ce3d -->
+<!-- implementable: PASS date=2026-05-17 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'" hash=aba61ea10982 -->
 </body>
 </html>
