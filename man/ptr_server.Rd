@@ -30,7 +30,7 @@ ptr_server(
 \code{shared_resolutions} and \code{shared_stage_enabled} slots seed the
 matching \code{\link[=ptr_init_state]{ptr_init_state()}} arguments (an explicit value passed
 through \code{...} still wins). This is the convenience path for wiring a
-page-level \code{\link[=ptr_shared_ui]{ptr_shared_ui()}} panel to a single embedded plot — the
+page-level \code{\link[=ptr_shared_panel]{ptr_shared_panel()}} panel to a single embedded plot — the
 same bundle \code{\link[=ptr_module_server]{ptr_module_server()}} accepts. Defaults to \code{NULL}.}
 }
 \value{

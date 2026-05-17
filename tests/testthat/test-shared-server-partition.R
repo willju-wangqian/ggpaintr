@@ -139,3 +139,73 @@ test_that("S-P2.2 formula-local key is module-scoped, not panel-owned", {
     expect_equal(ptr_extract_code(p2), p2_code_before)
   })
 })
+
+test_that("S-P2.4 canonical f1=A+A+B / f2=C+C+B end-to-end via the coordinator", {
+  # Step 10 gate scenario (ADR 0005 / api-audit global gate): A twice-local
+  # to f1, C twice-local to f2, B cross-formula. Driven through the REAL
+  # ptr_app_grid coordinator -- the module-server call is internal, so it
+  # must be intercepted with local_mocked_bindings (assignInNamespace cannot
+  # reach an internal call under devtools; see test-shared-stage-checkbox.R).
+  cf1 <- paste0('ggplot(mtcars) + geom_point(aes(x = var(shared = "B"), ',
+                'y = mpg), size = num(shared = "A"), ',
+                'alpha = num(shared = "A"))')
+  cf2 <- paste0('ggplot(mtcars) + geom_point(aes(x = var(shared = "B"), ',
+                'y = hp), size = num(shared = "C"), ',
+                'alpha = num(shared = "C"))')
+
+  # (a) Partition is authoritative: B -> panel, A -> f1-local, C -> f2-local.
+  obj <- ptr_shared(formulas = list(cf1, cf2))
+  expect_equal(obj$panel_keys, "B")
+  expect_equal(obj$local_keys_by_formula[[1]], "A")
+  expect_equal(obj$local_keys_by_formula[[2]], "C")
+
+  # (b) The standalone panel owns exactly the cross-formula key.
+  panel_html <- paste(as.character(ptr_ui_shared_panel(obj)), collapse = "")
+  expect_match(panel_html, "shared_B", fixed = TRUE)
+  expect_no_match(panel_html, "shared_A", fixed = TRUE)
+  expect_no_match(panel_html, "shared_C", fixed = TRUE)
+
+  # (c) Formula-local keys render under their own module only.
+  grid_html <- paste(
+    as.character(ptr_app_grid_components(
+      list(cf1, cf2), expr_check = FALSE,
+      envir = new.env(parent = baseenv())
+    )$ui),
+    collapse = ""
+  )
+  expect_match(grid_html, "plot_1-shared_A", fixed = TRUE)
+  expect_match(grid_html, "plot_2-shared_C", fixed = TRUE)
+  expect_no_match(grid_html, "plot_1-shared_C", fixed = TRUE)
+  expect_no_match(grid_html, "plot_2-shared_A", fixed = TRUE)
+
+  # (d) The single panel B widget drives BOTH plots in lockstep.
+  parts <- ptr_app_grid_components(
+    list(cf1, cf2), expr_check = FALSE,
+    envir = new.env(parent = baseenv())
+  )
+  ms <- new.env(parent = emptyenv())
+  orig_ms <- ggpaintr:::ptr_module_server
+  testthat::local_mocked_bindings(
+    ptr_module_server = function(id, formula, ...) {
+      r <- orig_ms(id, formula, ...)
+      ms[[id]] <- r
+      r
+    },
+    .package = "ggpaintr"
+  )
+  shiny::testServer(parts$server, {
+    session$flushReact()
+    p1 <- ms[["plot_1"]]
+    p2 <- ms[["plot_2"]]
+
+    session$setInputs(shared_B = "wt", ptr_shared_draw_all = 1L)
+    session$flushReact()
+    expect_match(ptr_extract_code(p1), "x = wt", fixed = TRUE)
+    expect_match(ptr_extract_code(p2), "x = wt", fixed = TRUE)
+
+    session$setInputs(shared_B = "drat", ptr_shared_draw_all = 2L)
+    session$flushReact()
+    expect_match(ptr_extract_code(p1), "x = drat", fixed = TRUE)
+    expect_match(ptr_extract_code(p2), "x = drat", fixed = TRUE)
+  })
+})

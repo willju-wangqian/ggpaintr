@@ -54,19 +54,23 @@ test_that("BUG-1 deep: companion-less source resolves through to downstream var 
   # framework feeds it post-resolution.
   captured <- new.env(parent = emptyenv())
   captured$cols_by_id <- list()
-  orig_var_bu <- getFromNamespace("ptr_builtin_var_build_ui", "ggpaintr")
+  orig_var_bu <- ggpaintr:::ptr_builtin_var_build_ui
   new_var_bu <- function(node, cols = character(), label = NULL,
                          copy = NULL, selected = character(0), ...) {
     captured$cols_by_id[[node$id]] <<- cols
     orig_var_bu(node, cols = cols, label = label, copy = copy,
                 selected = selected, ...)
   }
-  assignInNamespace("ptr_builtin_var_build_ui", new_var_bu, "ggpaintr")
-  withr::defer({
-    assignInNamespace("ptr_builtin_var_build_ui", orig_var_bu, "ggpaintr")
-    suppressWarnings(ptr_register_builtins())
-  })
+  # local_mocked_bindings intercepts the package's INTERNAL call to
+  # ptr_builtin_var_build_ui (via the builtin registry). assignInNamespace
+  # cannot reach it under devtools: the package resolves the binding through
+  # the attached package env, not the patched namespace, so the spy never
+  # fires and captured$cols_by_id stays empty.
+  testthat::local_mocked_bindings(
+    ptr_builtin_var_build_ui = new_var_bu, .package = "ggpaintr"
+  )
   suppressWarnings(ptr_register_builtins())
+  withr::defer(suppressWarnings(ptr_register_builtins()))
 
   formula <- sprintf("%s |> head(num) |> ggplot(aes(x = var, y = var))", kw)
 
@@ -144,7 +148,7 @@ test_that("BUG-4: custom ptr_define_placeholder_consumer() receives upstream col
   withr::defer(ptr_clear_placeholder(kw))
 
   # Spy on the built-in `var` build_ui to capture its cols too.
-  orig_var_bu <- getFromNamespace("ptr_builtin_var_build_ui", "ggpaintr")
+  orig_var_bu <- ggpaintr:::ptr_builtin_var_build_ui
   new_var_bu <- function(node, cols = character(), label = NULL,
                         copy = NULL, selected = character(0), ...) {
     captured$bu_calls[[length(captured$bu_calls) + 1L]] <<-
@@ -152,12 +156,13 @@ test_that("BUG-4: custom ptr_define_placeholder_consumer() receives upstream col
     orig_var_bu(node, cols = cols, label = label, copy = copy,
                 selected = selected, ...)
   }
-  assignInNamespace("ptr_builtin_var_build_ui", new_var_bu, "ggpaintr")
-  withr::defer({
-    assignInNamespace("ptr_builtin_var_build_ui", orig_var_bu, "ggpaintr")
-    suppressWarnings(ptr_register_builtins())
-  })
+  # See the BUG-1-deep note: local_mocked_bindings reaches the package's
+  # internal builtin-registry call; assignInNamespace does not under devtools.
+  testthat::local_mocked_bindings(
+    ptr_builtin_var_build_ui = new_var_bu, .package = "ggpaintr"
+  )
   suppressWarnings(ptr_register_builtins())
+  withr::defer(suppressWarnings(ptr_register_builtins()))
 
   formula <- sprintf(
     "upload |> head(num) |> %s(%s) |> dplyr::mutate(new_var = var + var) |> ggplot(aes(x = var, y = var))",

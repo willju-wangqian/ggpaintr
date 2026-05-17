@@ -28,5 +28,5 @@ this directly for a non-\code{fluidPage} root. The bundled apps and the
 \verb{ptr_*_ui()} composites inject it for you.
 }
 \seealso{
-\code{\link[=ptr_ui_plot]{ptr_ui_plot()}}, \code{\link[=ptr_ui_controls]{ptr_ui_controls()}}, \code{\link[=ptr_ui_code_toggle]{ptr_ui_code_toggle()}}, \code{\link[=ptr_css]{ptr_css()}}
+\code{\link[=ptr_ui_plot]{ptr_ui_plot()}}, \code{\link[=ptr_ui_controls]{ptr_ui_controls()}}, \code{\link[=ptr_ui_toggle_code]{ptr_ui_toggle_code()}}, \code{\link[=ptr_css]{ptr_css()}}
 }

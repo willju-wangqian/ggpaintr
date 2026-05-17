@@ -170,8 +170,8 @@ test_that("two ptr_module_server instances do not collide", {
 
 # ---- Level-2 split UI: ptr_controls_ui / ptr_outputs_ui ----
 
-test_that("ptr_controls_ui emits the control ids (no output ids)", {
-  ui <- ptr_controls_ui(
+test_that("ptr_ui_controls emits the control ids (no output ids)", {
+  ui <- ptr_ui_controls(
     "x",
     "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
   )
@@ -179,15 +179,22 @@ test_that("ptr_controls_ui emits the control ids (no output ids)", {
   expect_match(rendered, "x-ptr_update_plot")
   expect_match(rendered, "x-ptr_layer_select")
   expect_match(rendered, "x-ptr_layer_tabset")
-  # carries the structural-layer asset dependency along
-  expect_match(render_with_deps(ui), "ggpaintr-layer", fixed = TRUE)
-  # outputs live in ptr_outputs_ui(), not here
+  # Orthogonality: a bare L3 piece carries only the widget deps it needs,
+  # NOT the ggpaintr bundle (assets come from ptr_ui_assets / ptr_ui_page /
+  # ptr_module_ui — asserted in test-asset-bundle / test-ui-pieces).
+  dep_names <- vapply(htmltools::findDependencies(ui),
+                      function(d) d$name, character(1))
+  expect_false("ggpaintr-layer" %in% dep_names)
+  # outputs live in the output combinators, not here
   expect_no_match(rendered, "x-ptr_plot")
   expect_no_match(rendered, "x-ptr_code")
 })
 
-test_that("ptr_outputs_ui emits the output ids (no control ids)", {
-  ui <- ptr_outputs_ui("x")
+test_that("output combinators emit the output ids (no control ids)", {
+  ui <- ptr_ui_toggle_code(
+    ptr_ui_inline_error(ptr_ui_plot("x"), ptr_ui_error("x")),
+    ptr_ui_code("x")
+  )
   rendered <- as.character(ui)
   expect_match(rendered, "x-ptr_plot")
   expect_match(rendered, "x-ptr_error")
@@ -195,14 +202,13 @@ test_that("ptr_outputs_ui emits the output ids (no control ids)", {
   expect_no_match(rendered, "x-ptr_layer_select")
 })
 
-test_that("split-UI ids line up with ptr_module_server end-to-end", {
+test_that("ptr_module_ui ids line up with ptr_module_server end-to-end", {
   fml <- "ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point()"
-  # The split fragments and the module server share one id; the server binds
+  # The module UI and the module server share one id; the server binds
   # purely by id, so the runtime must fire and populate the code output.
-  ctl <- as.character(ptr_controls_ui("p1", fml))
-  out <- as.character(ptr_outputs_ui("p1"))
-  expect_match(ctl, "p1-ptr_update_plot")
-  expect_match(out, "p1-ptr_code")
+  ui <- as.character(ptr_module_ui("p1", fml))
+  expect_match(ui, "p1-ptr_update_plot")
+  expect_match(ui, "p1-ptr_code")
 
   shiny::testServer(
     ptr_module_server,

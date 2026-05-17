@@ -4,7 +4,7 @@
 \alias{ptr_ui_plot}
 \title{Plot Pane Piece for a \code{ggpaintr} Formula}
 \usage{
-ptr_ui_plot(id = NULL, error = TRUE, code_toggle = FALSE)
+ptr_ui_plot(id = NULL)
 }
 \arguments{
 \item{id}{Optional module id; the namespace prefix for the output.
@@ -12,15 +12,6 @@ Defaults to \code{NULL} (identity namespace) for the single-embedding
 case. When set, must match the \code{id} passed to the other piece
 functions and to the \code{shiny::moduleServer()} wrapping \code{\link[=ptr_server]{ptr_server()}}
 (or to \code{\link[=ptr_module_server]{ptr_module_server()}}).}
-
-\item{error}{If \code{TRUE} (default) the inline error slot
-(\code{\link[=ptr_ui_error]{ptr_ui_error()}}) is nested in the card body, reproducing the
-bundled layout. Set \code{FALSE} to place \code{\link[=ptr_ui_error]{ptr_ui_error()}} elsewhere.}
-
-\item{code_toggle}{If \code{TRUE}, render the show-code button in the card
-header. The button only does anything when the page also contains a
-slide-out \code{\link[=ptr_ui_code]{ptr_ui_code()}} wired via \code{\link[=ptr_ui_code_toggle]{ptr_ui_code_toggle()}}; the
-bundled apps set this for you. Defaults to \code{FALSE}.}
 }
 \value{
 A \link[shiny:reexports]{shiny::tag}.
@@ -32,7 +23,14 @@ single-piece UI builders for the L3 "own every UI piece" workflow;
 place it anywhere in your own layout and wire the server with
 \code{\link[=ptr_server]{ptr_server()}} / \code{\link[=ptr_module_server]{ptr_module_server()}}.
 }
+\details{
+The piece is \strong{truly bare}: just the plot card, with no error slot and
+no show-code button. Behaviour is added compositionally by the
+combinators \code{\link[=ptr_ui_inline_error]{ptr_ui_inline_error()}} (nests an error slot in the card
+body) and \code{\link[=ptr_ui_toggle_code]{ptr_ui_toggle_code()}} (adds the \verb{</>} toggle + slide-out
+code window) — not by flags on this function.
+}
 \seealso{
-\code{\link[=ptr_ui_error]{ptr_ui_error()}}, \code{\link[=ptr_ui_code]{ptr_ui_code()}}, \code{\link[=ptr_ui_code_toggle]{ptr_ui_code_toggle()}},
-\code{\link[=ptr_ui_controls]{ptr_ui_controls()}}, \code{\link[=ptr_server]{ptr_server()}}
+\code{\link[=ptr_ui_error]{ptr_ui_error()}}, \code{\link[=ptr_ui_code]{ptr_ui_code()}}, \code{\link[=ptr_ui_inline_error]{ptr_ui_inline_error()}},
+\code{\link[=ptr_ui_toggle_code]{ptr_ui_toggle_code()}}, \code{\link[=ptr_ui_controls]{ptr_ui_controls()}}, \code{\link[=ptr_server]{ptr_server()}}
 }

@@ -208,7 +208,7 @@ still call the function directly for tests or sanity checks:
 
 ```{r test-direct}
 # Pull a topic without a chat session.
-payload <- ptr_llm_topic("level2_embed")
+payload <- ptr_llm_topic("level2_module")
 nchar(payload)
 ```
 

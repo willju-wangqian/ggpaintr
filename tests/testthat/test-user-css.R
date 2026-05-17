@@ -83,9 +83,10 @@ test_that("ptr_app() links the bundled stylesheet before the user stylesheet", {
   expect_lt(pos_bundled, pos_user)
 })
 
-test_that("split module form ships ggpaintr.css (regression)", {
-  controls <- ptr_controls_ui("p", "ggplot(mtcars) + geom_point(aes(x = var))")
-  outputs <- ptr_outputs_ui("p")
-  expect_match(render_with_deps(controls), '/ggpaintr\\.css"')
-  expect_match(render_with_deps(outputs), '/ggpaintr\\.css"')
+test_that("module UI ships ggpaintr.css (regression)", {
+  # Post-redesign the L2 split is gone; the self-contained ptr_module_ui()
+  # is what carries the bundled stylesheet (bare L3 pieces are assetless
+  # by design — orthogonality contract, covered in test-rewrite-app).
+  ui <- ptr_module_ui("p", "ggplot(mtcars) + geom_point(aes(x = var))")
+  expect_match(render_with_deps(ui), '/ggpaintr\\.css"')
 })

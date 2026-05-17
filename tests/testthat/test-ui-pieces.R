@@ -132,11 +132,14 @@ test_that("ptr_ui_controls emits control ids with NO .ptr-app wrapper or assets"
   expect_no_match(rendered, "ggpaintr.css")
 })
 
-test_that("ptr_controls_ui = ptr_ui_assets + ptr_ui_controls (still self-wrapped)", {
-  rendered <- render_with_deps(ptr_controls_ui("x", fml))
+test_that("ptr_module_ui self-wraps in .ptr-app and carries the bundle", {
+  # Post-redesign successor of the removed self-wrapped ptr_controls_ui
+  # composite: the assets+wrapper contract now lives in ptr_module_ui
+  # (bare L3 pieces are assetless — asserted just above).
+  rendered <- render_with_deps(ptr_module_ui("x", fml))
   expect_match(rendered, "x-ptr_update_plot", fixed = TRUE)
-  expect_match(rendered, "ggpaintr-layer", fixed = TRUE)  # carries assets
-  expect_match(rendered, "ptr-app", fixed = TRUE)         # self-wraps
+  expect_match(rendered, "/ggpaintr.css\"", fixed = TRUE)  # carries assets
+  expect_match(rendered, "ptr-app", fixed = TRUE)          # self-wraps
 })
 
 # ---- Step 04: ptr_ui_controls owns the formula-local shared section ----
@@ -191,15 +194,6 @@ test_that("ptr_ui_controls with no shared placeholders renders no section", {
 # region halves (ptr_controls_ui/ptr_outputs_ui/ptr_shared_ui),
 # ptr_module_ui, ptr_ui_page -- stays bare `.ptr-app` so it sizes to its
 # content instead of stretching the host's column/sidebar floor-to-ceiling.
-
-test_that("region self-wraps stay bare .ptr-app (no --page canvas)", {
-  # ptr_outputs_ui is intentionally dangling this step (its only call was
-  # the deleted ptr_ui_code_toggle); Step 05 rebuilds it on the combinators
-  # and re-asserts its bare-.ptr-app contract there.
-  ctl <- as.character(ptr_controls_ui("x", fml))
-  expect_match(ctl, 'class="ptr-app"', fixed = TRUE)
-  expect_no_match(ctl, "ptr-app--page", fixed = TRUE)
-})
 
 test_that("ptr_ui_page stays bare .ptr-app so it embeds (no --page canvas)", {
   html <- render_with_deps(ptr_ui_page(ptr_ui_plot()))
@@ -274,12 +268,12 @@ test_that("ptr_ui_page css= threads through and links after ggpaintr.css", {
 
 test_that("htmlDependency dedupes a page nesting several asset emitters", {
   # Grid-like: the shell injects ptr_assets() once, and each self-wrapping
-  # ptr_controls_ui() composite injects it again. htmltools must collapse
-  # every ggpaintr dependency to a single <head> injection.
+  # ptr_module_ui() injects it again. htmltools must collapse every
+  # ggpaintr dependency to a single <head> injection.
   ui <- ptr_ui_page(
     shiny::fluidRow(
-      shiny::column(6, ptr_controls_ui("a", fml)),
-      shiny::column(6, ptr_controls_ui("b", fml))
+      shiny::column(6, ptr_module_ui("a", fml)),
+      shiny::column(6, ptr_module_ui("b", fml))
     )
   )
   html <- render_with_deps(ui)
@@ -298,6 +292,26 @@ test_that("ptr_register_* are not exported (dead post-rewrite surface)", {
   expect_true(is.function(ggpaintr:::ptr_register_plot))
 })
 
+test_that("L2/L3 redesign API surface: removed symbols gone, new symbols exported", {
+  # ADR 0005 / Step 10 BDD "API surface asserted". No deprecation shims.
+  exports <- getNamespaceExports("ggpaintr")
+  for (gone in c("ptr_controls_ui", "ptr_outputs_ui",
+                 "ptr_ui_code_toggle", "ptr_shared_ui")) {
+    expect_false(gone %in% exports, info = paste(gone, "must be removed"))
+    expect_false(exists(gone, where = asNamespace("ggpaintr"),
+                        inherits = FALSE),
+                 info = paste(gone, "must not exist internally either"))
+  }
+  for (added in c("ptr_shared", "ptr_shared_panel", "ptr_ui_shared_panel",
+                  "ptr_ui_inline_error", "ptr_ui_toggle_code")) {
+    expect_true(added %in% exports, info = paste(added, "must be exported"))
+    expect_true(is.function(get(added, envir = asNamespace("ggpaintr"))),
+                info = paste(added, "must be a function"))
+  }
+  # ptr_ui_plot is flag-free post-redesign (no error=/code_toggle=).
+  expect_equal(names(formals(ptr_ui_plot)), "id")
+})
+
 # ---- ptr_ui_header ----
 
 test_that("ptr_ui_header renders the branded header; default title is ggpaintr", {
@@ -309,17 +323,15 @@ test_that("ptr_ui_header renders the branded header; default title is ggpaintr",
 # ---- ptr_server(shared_state = ...) ----
 
 test_that("ptr_server accepts a ptr_shared_server() bundle via shared_state", {
-  # NOT skipped, by request: this is a pre-existing failure (base = FAIL 1)
-  # from Step 02 changing ptr_shared_server() to require a ptr_shared()
-  # spec, not (formulas, envir=). Out of Step 03's surface; left as a
-  # VISIBLE FAIL so the suite sweep in Step 10 can't miss it.
+  # Step 02 changed ptr_shared_server() to take a ptr_shared() spec, not
+  # (formulas, envir=). Step 10 brings this onto the new coordinator API.
   formulas <- c(
     'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
     'ggplot(mtcars, aes(x = var(shared = "col"), y = hp))  + geom_line()'
   )
   expect_silent({
     server <- function(input, output, session) {
-      shared <- ptr_shared_server(formulas, envir = globalenv())
+      shared <- ptr_shared_server(ptr_shared(formulas), envir = globalenv())
       ptr_server(
         input, output, session,
         formula = formulas[[1]],

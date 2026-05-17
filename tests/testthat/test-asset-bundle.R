@@ -26,19 +26,19 @@ write_temp_css <- function() {
 }
 
 mount_calls <- function(css = NULL) {
+  # Post-redesign self-wrapping (.ptr-app) css-accepting entry points: the
+  # L2 split (ptr_controls_ui/ptr_outputs_ui) is gone; the coordinator's
+  # standalone panel is ptr_shared_panel(obj, css=). Bare L3 pieces are
+  # assetless and not enumerated here.
+  shared_obj <- ptr_shared(list(
+    "ggplot(mtcars) + geom_point(aes(x = var(shared = \"x\")))",
+    "ggplot(mtcars) + geom_point(aes(x = var(shared = \"x\")))"
+  ))
   list(
     ptr_app          = ptr_app_components(fixture_formula, css = css)$ui,
     ptr_app_grid     = ptr_app_grid_components(list(fixture_formula), css = css)$ui,
     ptr_module_ui    = ptr_module_ui("m", fixture_formula, css = css),
-    ptr_controls_ui  = ptr_controls_ui("p", fixture_formula, css = css),
-    ptr_outputs_ui   = ptr_outputs_ui("p", css = css),
-    ptr_shared_ui    = ptr_shared_ui(
-      formulas = list(
-        "ggplot(mtcars) + geom_point(aes(x = var(shared = \"x\")))",
-        "ggplot(mtcars) + geom_point(aes(x = var(shared = \"x\")))"
-      ),
-      css = css
-    )
+    ptr_shared_panel = ptr_shared_panel(shared_obj, css = css)
   )
 }
 
@@ -56,9 +56,7 @@ test_that("every raw-Shiny entry point accepts css = path", {
     ptr_app          = ptr_app,
     ptr_app_grid     = ptr_app_grid,
     ptr_module_ui    = ptr_module_ui,
-    ptr_controls_ui  = ptr_controls_ui,
-    ptr_outputs_ui   = ptr_outputs_ui,
-    ptr_shared_ui    = ptr_shared_ui
+    ptr_shared_panel = ptr_shared_panel
   )
   for (nm in names(fns)) {
     expect_true("css" %in% names(formals(fns[[nm]])),
@@ -99,13 +97,13 @@ test_that("htmlDependency dedupes the bundle under nested injection", {
   expect_equal(count_occurrences(html, "/ggpaintr.css\""), 1L)
 })
 
-test_that("ptr_shared_ui accepts css = path", {
+test_that("ptr_shared_panel accepts css = path", {
   f <- write_temp_css()
-  ui <- ptr_shared_ui(
-    formulas = list(
+  ui <- ptr_shared_panel(
+    ptr_shared(list(
       "ggplot(mtcars) + geom_point(aes(x = var(shared = \"x\")))",
       "ggplot(mtcars) + geom_point(aes(x = var(shared = \"x\")))"
-    ),
+    )),
     css = f
   )
   html <- render_ui(ui)

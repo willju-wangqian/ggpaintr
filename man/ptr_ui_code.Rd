@@ -15,7 +15,7 @@ Defaults to \code{NULL} (identity namespace). When set, must match the
 card suitable for free placement. \code{"window"} renders the draggable
 slide-out window (with Copy / Close) used by the bundled apps; it is
 hidden until toggled and only works when wired via
-\code{\link[=ptr_ui_code_toggle]{ptr_ui_code_toggle()}}.}
+\code{\link[=ptr_ui_toggle_code]{ptr_ui_toggle_code()}}.}
 }
 \value{
 A \link[shiny:reexports]{shiny::tag}.
@@ -27,5 +27,5 @@ One of the single-piece UI builders for the L3 "own every UI piece"
 workflow.
 }
 \seealso{
-\code{\link[=ptr_ui_code_toggle]{ptr_ui_code_toggle()}}, \code{\link[=ptr_ui_plot]{ptr_ui_plot()}}, \code{\link[=ptr_server]{ptr_server()}}
+\code{\link[=ptr_ui_toggle_code]{ptr_ui_toggle_code()}}, \code{\link[=ptr_ui_plot]{ptr_ui_plot()}}, \code{\link[=ptr_server]{ptr_server()}}
 }

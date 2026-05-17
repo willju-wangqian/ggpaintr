@@ -61,19 +61,23 @@ test_that("BUG-A1: aes `var` pickers refresh through pds -> diamonds -> colvars 
 
   captured <- new.env(parent = emptyenv())
   captured$cols_by_id <- list()
-  orig_var_bu <- getFromNamespace("ptr_builtin_var_build_ui", "ggpaintr")
+  orig_var_bu <- ggpaintr:::ptr_builtin_var_build_ui
   new_var_bu <- function(node, cols = character(), label = NULL,
                          copy = NULL, selected = character(0), ...) {
     captured$cols_by_id[[node$id]] <<- cols
     orig_var_bu(node, cols = cols, label = label, copy = copy,
                 selected = selected, ...)
   }
-  assignInNamespace("ptr_builtin_var_build_ui", new_var_bu, "ggpaintr")
-  withr::defer({
-    assignInNamespace("ptr_builtin_var_build_ui", orig_var_bu, "ggpaintr")
-    suppressWarnings(ptr_register_builtins())
-  })
+  # local_mocked_bindings intercepts the package's INTERNAL call to
+  # ptr_builtin_var_build_ui (via the builtin registry). assignInNamespace
+  # cannot reach it under devtools: the package resolves the binding through
+  # the attached package env, not the patched namespace, so the spy never
+  # fires and captured$cols_by_id stays empty.
+  testthat::local_mocked_bindings(
+    ptr_builtin_var_build_ui = new_var_bu, .package = "ggpaintr"
+  )
   suppressWarnings(ptr_register_builtins())
+  withr::defer(suppressWarnings(ptr_register_builtins()))
 
   formula <- sprintf(paste(
     "%s |> head(num) |> dplyr::select(%s) |>",

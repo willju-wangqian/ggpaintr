@@ -10,7 +10,7 @@ ptr_ui_controls(
   ui_text = NULL,
   checkbox_defaults = NULL,
   expr_check = TRUE,
-  render_shared_section = FALSE
+  shared = NULL
 )
 }
 \arguments{
@@ -28,10 +28,12 @@ Defaults to \code{NULL} (identity namespace). When set, must match the
 \item{expr_check}{Controls \code{expr} placeholder validation. Defaults to
 \code{TRUE}.}
 
-\item{render_shared_section}{If \code{TRUE}, include the inline "Shared
-controls" section for any \code{shared = "..."} placeholders. Defaults to
-\code{FALSE} (the embedded default — use \code{\link[=ptr_shared_ui]{ptr_shared_ui()}} for the
-page-level shared panel).}
+\item{shared}{Optional coordinator object from \code{\link[=ptr_shared]{ptr_shared()}} for the
+multi-instance embedding. When \code{NULL} (the single-instance default)
+the inline "Shared controls" section renders \strong{every} \code{shared = "..."} placeholder in \code{formula}. When a \code{ptr_shared_spec} is supplied,
+its cross-formula keys (\code{shared$panel_keys}) are excluded here because
+they belong to the one standalone \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}; only this
+formula's formula-local shared keys render inline.}
 }
 \value{
 A \code{\link[shiny:reexports]{shiny::tagList()}}.
@@ -61,5 +63,5 @@ independently rather than the whole panel — use the exported
 }
 \seealso{
 \code{\link[=ptr_ui_page]{ptr_ui_page()}}, \code{\link[=ptr_ui_assets]{ptr_ui_assets()}}, \code{\link[=ptr_ui_plot]{ptr_ui_plot()}},
-\code{\link[=ptr_ui_code]{ptr_ui_code()}}, \code{\link[=build_ui_for]{build_ui_for()}}, \code{\link[=ptr_server]{ptr_server()}}
+\code{\link[=ptr_ui_code]{ptr_ui_code()}}, \code{\link[=build_ui_for]{build_ui_for()}}, \code{\link[=ptr_shared]{ptr_shared()}}, \code{\link[=ptr_server]{ptr_server()}}
 }

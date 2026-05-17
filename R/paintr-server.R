@@ -292,7 +292,7 @@ ptr_validate_state <- function(state) {
 #'   `shared_resolutions` and `shared_stage_enabled` slots seed the
 #'   matching [ptr_init_state()] arguments (an explicit value passed
 #'   through `...` still wins). This is the convenience path for wiring a
-#'   page-level [ptr_shared_ui()] panel to a single embedded plot — the
+#'   page-level [ptr_shared_panel()] panel to a single embedded plot — the
 #'   same bundle [ptr_module_server()] accepts. Defaults to `NULL`.
 #'
 #' @return The `ptr_state` list, invisibly.
