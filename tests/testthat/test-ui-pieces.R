@@ -267,11 +267,10 @@ test_that("ptr_ui_header renders the branded header; default title is ggpaintr",
 # ---- ptr_server(shared_state = ...) ----
 
 test_that("ptr_server accepts a ptr_shared_server() bundle via shared_state", {
-  skip(paste(
-    "Pre-existing (base FAIL 1): Step 02 changed ptr_shared_server() to",
-    "require a ptr_shared() spec, not (formulas, envir=). Not Step 03's",
-    "surface; Step 10 owns the full-suite sweep / shared-API test rewrite."
-  ))
+  # NOT skipped, by request: this is a pre-existing failure (base = FAIL 1)
+  # from Step 02 changing ptr_shared_server() to require a ptr_shared()
+  # spec, not (formulas, envir=). Out of Step 03's surface; left as a
+  # VISIBLE FAIL so the suite sweep in Step 10 can't miss it.
   formulas <- c(
     'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
     'ggplot(mtcars, aes(x = var(shared = "col"), y = hp))  + geom_line()'
