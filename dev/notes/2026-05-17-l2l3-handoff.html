@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>L2/L3 redesign — session handoff / state (2026-05-17)</title>
+<style>body{font:15px/1.55 -apple-system,system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1.2rem;color:#1b1d22}h1{border-bottom:2px solid #1b1d22;padding-bottom:.3rem}h2{margin-top:1.6rem;border-bottom:1px solid #ccd}code{background:#f4f4f7;padding:1px 4px;border-radius:3px;font-size:90%}pre{background:#f4f4f7;padding:.7rem;border-radius:5px;overflow-x:auto;font-size:13px}.meta{color:#555;font-size:13px}.ok{border-left:4px solid #2c7;background:#eafaf0;padding:.5rem .8rem}.crit{border-left:4px solid #c0392b;background:#fde7e7;padding:.5rem .8rem}</style>
+</head><body>
+
+<h1>L2/L3 redesign — session handoff / state</h1>
+<p class="meta">2026-05-17. Branch <code>vignette-review</code> @ <code>77a927e</code>. This is the narrative continuation doc; durable reusable lessons live in auto-memory (don't duplicate them here), authoritative design lives in <code>dev/adr/0005-l2-l3-redesign.html</code> + <code>CONTEXT.md</code> (LOCKED 2026-05-16).</p>
+
+<div class="ok"><strong>Status: complete.</strong> L2/L3 redesign Steps 01–10, the three follow-up plans (vignette-prose-sweep, llm-materials-audit, e2e-browser), the LLM-audit findings A/B/C fixes, and the shinytest2 isolation fix are <strong>all merged</strong> on <code>vignette-review</code>. No blocking open items.</p></div>
+
+<h2>Verified gate (the real one)</h2>
+<pre>NOT_CRAN=true devtools::test()  →  FAIL 0 / ERROR 0 / SKIP 0 / PASS 1583
+devtools::check(document=FALSE, manual=FALSE, --as-cran --no-manual)  →  0 errors / 0 warnings
+   (3 NOTEs, all by-design/environmental: CRAN new-submission, .git, top-level CONTEXT.md)
+build_pkgdown_clean()  →  clean (reference index retiered L1/L2/L3 per CONTEXT.md)</pre>
+<div class="crit"><strong>Gate gotcha — do not be fooled:</strong> a raw <code>Rscript -e 'testthat::test_dir()'</code> does <em>not</em> set <code>NOT_CRAN</code>, so it all-skips every browser (shinytest2) test. A "green, SKIP n" from that ad-hoc harness can hide a real ERROR (it masked a pre-existing lockstep failure for the whole effort). Always confirm with <code>NOT_CRAN=true</code> or <code>devtools::test()</code> before claiming green.</div>
+
+<h2>Where the durable record lives (don't re-derive)</h2>
+<ul>
+<li><strong>Design (authoritative):</strong> <code>dev/adr/0005-l2-l3-redesign.html</code>; <code>CONTEXT.md</code> (LOCKED — L1/L2/L3 model, partition rule, combinators, naming convention).</li>
+<li><strong>Per-step plans + ✅ status blocks:</strong> <code>dev/plans/l2-l3-redesign-0{1..10}-*.html</code>; index = <code>dev/plans/api-audit.md</code> (rows 01–10 all ✅).</li>
+<li><strong>Follow-up plans (all ✅):</strong> <code>dev/plans/2026-05-17-vignette-prose-sweep.html</code>, <code>-llm-materials-audit.html</code>, <code>-e2e-browser-vignette-examples.html</code>.</li>
+<li><strong>Findings:</strong> <code>dev/notes/2026-05-17-llm-audit-findings.md</code> — A/B FIXED, C auto-resolved (commit <code>22c84c7</code>).</li>
+<li><strong>Reusable engineering lessons:</strong> auto-memory (<code>~/.claude/projects/-Users-willju-Research-ggpaintr/memory/</code>) — keys: <code>shinytest2-appdir-pkgload</code>, <code>project-mock-internal-calls</code>, <code>feedback-parallel-worktree-workflow</code>, <code>project-llm-audit-followups</code>. These auto-load in future sessions.</li>
+<li><strong>git history</strong> is the authoritative change log — every step is a <code>--no-ff</code> merge commit with a scope-verifying message.</li>
+</ul>
+
+<h2>Notable closed items (so they aren't re-opened)</h2>
+<ul>
+<li>The 20 <code>regression-bugs-2026-05-12/13</code> FAILs were a fragile <code>assignInNamespace</code> probe defect (not a product regression — pds→consumer cascade verified correct); fixed via <code>local_mocked_bindings</code>. See memory <code>project-mock-internal-calls</code>.</li>
+<li><code>test-shared-lockstep-shinytest2.R</code> S-P2.D whole-suite-only ERROR = leaked process-global <code>ggpaintr-user-*</code> resource path replayed into the AppDriver child; fixed by <code>tests/testthat/helper-shinytest2.R::prune_dead_ggpaintr_resource_paths()</code>. Test + assertions preserved (correct), not deleted.</li>
+<li>NAMESPACE/man regenerated at Step 10; <code>ptr_shared_ui</code> Rd xrefs redirected to <code>ptr_shared_panel</code>. The deliberate <code>?ptr_css</code> / <code>[ptr_css()]</code> dangling link is intentional — never "fix" it.</li>
+<li>All redesign worktrees/branches removed; only <code>main</code>, <code>core-rewrite-impl</code>, <code>vignette-review</code> remain.</li>
+</ul>
+
+<h2>If continuing</h2>
+<p>Nothing is blocked. Natural next moves if desired: land <code>vignette-review</code> onto <code>main</code> (out of scope of this effort — user-driven); or pick up unrelated backlog. Any new large effort should follow the per-step-worktree workflow recorded in memory <code>feedback-parallel-worktree-workflow</code>.</p>
+</body></html>
