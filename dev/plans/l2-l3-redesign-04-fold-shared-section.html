@@ -7,6 +7,13 @@
 <h1>Step 04 — Fold the shared section into <code>ptr_ui_controls</code> (pass #C)</h1>
 <p class="meta">Phase 4. Depends on: Step 01 (needs <code>obj</code> for exclude-keys). Authority: ADR 0005 §3 · <code>CONTEXT.md</code> §"Shared coordinator consumers".</p>
 
+<p style="border-left:4px solid #2c7;background:#eafaf0;padding:.6rem .9rem;margin:.8rem 0">
+<strong>✅ COMPLETE</strong> — 2026-05-16, branch <code>l2l3-step-04-shared-fold</code> @ <code>f65535c</code>.
+All success criteria met; verify gate green (<code>test-ui-pieces</code> 90 pass / 1 pre-existing fail — the Step-02-era <code>ptr_shared_server(formulas, …)</code> stale test at <code>:285</code>, base also 1 fail; Step 10 owns the suite sweep). <code>devtools::document()</code> clean.
+Inline block extracted verbatim-equivalent into <code>shared_section_tags(tree, ui_text, ns, exclude_keys)</code>; <code>ptr_ui_controls</code> dropped <code>render_shared_section</code>, gained <code>shared=</code> (NULL ⇒ all keys inline; <code>ptr_shared_spec</code> ⇒ excludes <code>obj$panel_keys</code>).
+<code>ptr_controls_panel</code> keeps its <code>render_shared_section</code> boolean (now delegating to the helper) so <code>ptr_build_app_ui</code>/<code>ptr_app</code> + <code>test-shared-stage-checkbox</code> stay byte-identical; <code>ptr_controls_ui</code> calls <code>ptr_controls_panel</code> directly with <code>render_shared_section=FALSE</code> to preserve module-path suppression until Step 05.
+Plan-sanctioned deferred fallout: generated <code>man/ptr_ui_controls.Rd</code> not committed (Step 10 owns the doc tree; overlaps Step 03).</p>
+
 <h2>Goal</h2>
 <p>The formula-local shared section is part of the controls piece (decision 2026-05-16). Factor the existing inline-section block out of <code>ptr_controls_panel</code> (<code>R/paintr-app.R:256–282</code>) into a helper, and have <code>ptr_ui_controls</code> (<code>R/paintr-app.R:651–662</code>) render it, excluding <code>obj</code>'s panel-owned keys.</p>
 
