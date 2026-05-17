@@ -312,18 +312,24 @@ error_slot_tag <- function(ns) {
   shiny::uiOutput(ns("ptr_error"))
 }
 
+# The show-code `</>` button. The bundled JS keys off the `.ptr-code-toggle`
+# class and the nearest `.ptr-output` ancestor only -- it does not care where
+# in the card head this sits. Shared by plot_card_tag() and the
+# ptr_ui_toggle_code() combinator so the markup never diverges.
+code_toggle_button <- function() {
+  shiny::tags$button(
+    type = "button",
+    class = "ptr-icon-btn ptr-code-toggle",
+    title = "Show generated code",
+    `aria-label` = "Show generated code",
+    code_toggle_icon()
+  )
+}
+
 plot_card_tag <- function(ns, error = TRUE, code_toggle = FALSE) {
   head_kids <- list(shiny::tags$h3(class = "ptr-card__title", "Plot"))
   if (isTRUE(code_toggle)) {
-    head_kids <- c(head_kids, list(
-      shiny::tags$button(
-        type = "button",
-        class = "ptr-icon-btn ptr-code-toggle",
-        title = "Show generated code",
-        `aria-label` = "Show generated code",
-        code_toggle_icon()
-      )
-    ))
+    head_kids <- c(head_kids, list(code_toggle_button()))
   }
   body_kids <- list(shiny::plotOutput(ns("ptr_plot")))
   if (isTRUE(error)) {
@@ -336,29 +342,36 @@ plot_card_tag <- function(ns, error = TRUE, code_toggle = FALSE) {
   )
 }
 
+# The slide-out code window chrome (drag-by-title-bar head with Copy/Close +
+# a body), parameterised on the code-output content it wraps. Shared by
+# code_block_tag(style = "window") -- which feeds it the namespaced
+# verbatimTextOutput -- and the ptr_ui_toggle_code() combinator, which feeds
+# it an already-built bare ptr_ui_code() piece. The bundled JS toggles
+# `.ptr-open` on `.ptr-code-window`; structure here must keep that class.
+code_window_tag <- function(body) {
+  shiny::tags$div(
+    class = "ptr-code-window",
+    shiny::tags$div(
+      class = "ptr-code-window__head",
+      shiny::tags$span(class = "ptr-code-window__title", shiny::HTML("&lt;/&gt; Generated code")),
+      shiny::tags$span(
+        class = "ptr-code-window__actions",
+        shiny::tags$button(type = "button", class = "ptr-copy-btn", "Copy"),
+        shiny::tags$button(
+          type = "button", class = "ptr-code-window__close",
+          title = "Close", `aria-label` = "Close",
+          shiny::HTML("&times;")
+        )
+      )
+    ),
+    shiny::tags$div(class = "ptr-code-window__body", body)
+  )
+}
+
 code_block_tag <- function(ns, style = c("panel", "window")) {
   style <- match.arg(style)
   if (identical(style, "window")) {
-    return(shiny::tags$div(
-      class = "ptr-code-window",
-      shiny::tags$div(
-        class = "ptr-code-window__head",
-        shiny::tags$span(class = "ptr-code-window__title", shiny::HTML("&lt;/&gt; Generated code")),
-        shiny::tags$span(
-          class = "ptr-code-window__actions",
-          shiny::tags$button(type = "button", class = "ptr-copy-btn", "Copy"),
-          shiny::tags$button(
-            type = "button", class = "ptr-code-window__close",
-            title = "Close", `aria-label` = "Close",
-            shiny::HTML("&times;")
-          )
-        )
-      ),
-      shiny::tags$div(
-        class = "ptr-code-window__body",
-        shiny::verbatimTextOutput(ns("ptr_code"))
-      )
-    ))
+    return(code_window_tag(shiny::verbatimTextOutput(ns("ptr_code"))))
   }
   shiny::tags$div(
     class = "ptr-card ptr-card--code",
@@ -392,25 +405,24 @@ ptr_outputs_panel <- function(ns = shiny::NS(NULL)) {
 #' place it anywhere in your own layout and wire the server with
 #' [ptr_server()] / [ptr_module_server()].
 #'
+#' The piece is **truly bare**: just the plot card, with no error slot and
+#' no show-code button. Behaviour is added compositionally by the
+#' combinators [ptr_ui_inline_error()] (nests an error slot in the card
+#' body) and [ptr_ui_toggle_code()] (adds the `</>` toggle + slide-out
+#' code window) — not by flags on this function.
+#'
 #' @param id Optional module id; the namespace prefix for the output.
 #'   Defaults to `NULL` (identity namespace) for the single-embedding
 #'   case. When set, must match the `id` passed to the other piece
 #'   functions and to the `shiny::moduleServer()` wrapping [ptr_server()]
 #'   (or to [ptr_module_server()]).
-#' @param error If `TRUE` (default) the inline error slot
-#'   ([ptr_ui_error()]) is nested in the card body, reproducing the
-#'   bundled layout. Set `FALSE` to place [ptr_ui_error()] elsewhere.
-#' @param code_toggle If `TRUE`, render the show-code button in the card
-#'   header. The button only does anything when the page also contains a
-#'   slide-out [ptr_ui_code()] wired via [ptr_ui_code_toggle()]; the
-#'   bundled apps set this for you. Defaults to `FALSE`.
 #'
 #' @return A [shiny::tag].
-#' @seealso [ptr_ui_error()], [ptr_ui_code()], [ptr_ui_code_toggle()],
-#'   [ptr_ui_controls()], [ptr_server()]
+#' @seealso [ptr_ui_error()], [ptr_ui_code()], [ptr_ui_inline_error()],
+#'   [ptr_ui_toggle_code()], [ptr_ui_controls()], [ptr_server()]
 #' @export
-ptr_ui_plot <- function(id = NULL, error = TRUE, code_toggle = FALSE) {
-  plot_card_tag(shiny::NS(id), error = error, code_toggle = code_toggle)
+ptr_ui_plot <- function(id = NULL) {
+  plot_card_tag(shiny::NS(id), error = FALSE, code_toggle = FALSE)
 }
 
 #' Inline Error Pane Piece for a `ggpaintr` Formula
@@ -445,45 +457,84 @@ ptr_ui_error <- function(id = NULL) {
 #'   card suitable for free placement. `"window"` renders the draggable
 #'   slide-out window (with Copy / Close) used by the bundled apps; it is
 #'   hidden until toggled and only works when wired via
-#'   [ptr_ui_code_toggle()].
+#'   [ptr_ui_toggle_code()].
 #'
 #' @return A [shiny::tag].
-#' @seealso [ptr_ui_code_toggle()], [ptr_ui_plot()], [ptr_server()]
+#' @seealso [ptr_ui_toggle_code()], [ptr_ui_plot()], [ptr_server()]
 #' @export
 ptr_ui_code <- function(id = NULL, style = c("panel", "window")) {
   code_block_tag(shiny::NS(id), style = match.arg(style))
 }
 
-#' Toggle-Wired Plot + Slide-Out Code Block
+#' Nest an Inline Error Slot in a Plot Piece
 #'
-#' Convenience helper that returns the plot card and the slide-out
-#' generated-code window wrapped in the `.ptr-output` scope the bundled
-#' JavaScript needs, with the show-code button wired to open/close and
-#' drag the code window. This is exactly the block [ptr_app()] and
-#' [ptr_module_ui()] render internally.
+#' Output combinator: takes an already-built bare plot piece
+#' ([ptr_ui_plot()]) and an already-built bare error piece
+#' ([ptr_ui_error()]) and returns the plot card with the error slot
+#' rendered **inline in the card body** — the layout the bundled apps use.
+#' Pure DOM structure; no server coupling (the server registers
+#' `ptr_plot` / `ptr_error` regardless). Nestable inside
+#' [ptr_ui_toggle_code()].
 #'
-#' Use this when you want the familiar toggle behaviour while still
-#' owning the surrounding layout. For fully independent placement of the
-#' plot and code panes (no toggle), use bare [ptr_ui_plot()] and
-#' [ptr_ui_code()] instead — a standalone [ptr_ui_code()] is always
-#' visible and needs no wiring.
+#' This combinator does **not** add the `.ptr-output` toggle scope (it has
+#' no toggle, so it needs none); [ptr_ui_toggle_code()] owns that wrapper.
 #'
-#' @param id Optional module id; the namespace prefix for the outputs.
-#'   Defaults to `NULL` (identity namespace). When set, must match the
-#'   `id` passed to [ptr_ui_controls()] and the server wiring.
-#' @param plot_error If `TRUE` (default) the inline error slot is nested
-#'   in the plot card body, matching the bundled layout. Set `FALSE` to
-#'   place [ptr_ui_error()] yourself.
+#' @param plot A plot piece, typically `ptr_ui_plot(id)`. Must be the
+#'   `.ptr-card--plot` card so the error can be appended to its body.
+#' @param error An error piece, typically `ptr_ui_error(id)` built with
+#'   the same `id` as `plot`.
 #'
-#' @return A [shiny::tag].
-#' @seealso [ptr_ui_plot()], [ptr_ui_code()], [ptr_outputs_ui()], [ptr_server()]
+#' @return A [shiny::tag] — the plot card with `error` nested in its body.
+#' @seealso [ptr_ui_plot()], [ptr_ui_error()], [ptr_ui_toggle_code()]
 #' @export
-ptr_ui_code_toggle <- function(id = NULL, plot_error = TRUE) {
-  ns <- shiny::NS(id)
+ptr_ui_inline_error <- function(plot, error) {
+  # The plot piece is plot_card_tag()'s output:
+  #   div.ptr-card.ptr-card--plot > [ div.ptr-card__head, div.ptr-card__body ]
+  # Append the error slot to the card body (child 2) so it renders inline,
+  # reproducing the deleted ptr_ui_code_toggle()'s in-body error placement.
+  plot$children[[2]] <- shiny::tagAppendChild(plot$children[[2]], error)
+  plot
+}
+
+#' Wire a Plot-ish Piece to a Slide-Out Code Window via the `</>` Toggle
+#'
+#' Output combinator: wraps a plot-ish tag (a bare [ptr_ui_plot()] or the
+#' output of [ptr_ui_inline_error()]) and a bare code piece
+#' ([ptr_ui_code()]) in the single `.ptr-output` scope the bundled
+#' JavaScript needs, injecting the `</>` show-code button into the plot
+#' card head and presenting the code inside the draggable slide-out
+#' `.ptr-code-window` (with Copy / Close). The button hides/shows that
+#' window purely DOM-locally — no Shiny input/output is involved. This is
+#' the toggle layout [ptr_app()] / [ptr_module_ui()] render internally.
+#'
+#' Use this when you want the familiar toggle behaviour while still owning
+#' the surrounding layout. For fully independent placement of the plot and
+#' code panes (no toggle), keep the bare pieces uncombined — a standalone
+#' [ptr_ui_code()] is always visible and needs no wiring.
+#'
+#' @param plotish A plot-ish tag: a bare `ptr_ui_plot(id)` or
+#'   `ptr_ui_inline_error(ptr_ui_plot(id), ptr_ui_error(id))`. Must be the
+#'   `.ptr-card--plot` card so the toggle button can be added to its head.
+#' @param code A code piece, typically `ptr_ui_code(id)` built with the
+#'   same `id`. Its style is irrelevant — this combinator supplies the
+#'   slide-out window chrome around it.
+#'
+#' @return A [shiny::tag] — one `.ptr-output` containing `plotish` (with
+#'   the toggle button) and the `.ptr-code-window`-wrapped `code`.
+#' @seealso [ptr_ui_plot()], [ptr_ui_code()], [ptr_ui_inline_error()],
+#'   [ptr_ui_controls()], [ptr_server()]
+#' @export
+ptr_ui_toggle_code <- function(plotish, code) {
+  # Inject the `</>` button into the plot card head (child 1). The JS only
+  # needs it inside the shared `.ptr-output`; placing it in the head matches
+  # the deleted ptr_ui_code_toggle()'s DOM and the card CSS.
+  plotish$children[[1]] <- shiny::tagAppendChild(
+    plotish$children[[1]], code_toggle_button()
+  )
   shiny::tags$div(
     class = "ptr-output",
-    plot_card_tag(ns, error = plot_error, code_toggle = TRUE),
-    code_block_tag(ns, style = "window")
+    plotish,
+    code_window_tag(code)
   )
 }
 
