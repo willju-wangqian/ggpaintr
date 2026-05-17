@@ -40,7 +40,7 @@ ptr_app(formula, expr_check = list(               # custom
 ))
 ```
 
-`expr_check` is accepted on every public entry point that builds the AST: `ptr_app()`, `ptr_app_bslib()`, `ptr_app_grid()`, `ptr_controls_ui()`, `ptr_module_ui()`, `ptr_module_server()` (via `...` to `ptr_init_state()`), `ptr_server()` (same), `ptr_init_state()`. Default `TRUE` everywhere.
+`expr_check` is accepted on every public entry point that builds the AST: `ptr_app()`, `ptr_app_bslib()`, `ptr_app_grid()`, `ptr_ui_controls()`, `ptr_module_ui()`, `ptr_module_server()` (via `...` to `ptr_init_state()`), `ptr_server()` (same), `ptr_init_state()`. Default `TRUE` everywhere.
 
 ### The three modes
 
