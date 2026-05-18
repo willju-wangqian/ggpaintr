@@ -135,12 +135,19 @@ test_that("use-cases app-grid-shared-added: L1 ptr_app_grid with shared widget",
   expect_dom_id(app, "plot_1-ptr_plot")
   expect_dom_id(app, "plot_2-ptr_plot")
 
-  set_input(app, "shared_metric", "Sepal.Length")  # x of both plots
+  # "Petal.Width" is a literal in neither grid formula, so its appearance
+  # in a cell's code proves the shared widget drove that cell (not a render
+  # on defaults).
+  set_input(app, "shared_metric", "Petal.Width")  # x of both plots
   draw(app, "ptr_shared_draw_all")
   expect_rendered(app, "#plot_1-ptr_plot", "ggplot")
   expect_rendered(app, "#plot_2-ptr_plot", "ggplot")
   expect_no_inline_error(app, "plot_1-ptr_error")
   expect_no_inline_error(app, "plot_2-ptr_error")
+  expect_match(app$get_value(output = "plot_1-ptr_code"), "Petal.Width",
+               fixed = TRUE)
+  expect_match(app$get_value(output = "plot_2-ptr_code"), "Petal.Width",
+               fixed = TRUE)
 })
 
 test_that("use-cases module-app: L2 ptr_module_ui/ptr_module_server", {
@@ -164,12 +171,19 @@ test_that("use-cases single-instance-shared: inline shared section, no coordinat
   expect_dom_id(app, "ptr_update_plot")
   expect_dom_id(app, "ptr_plot")
 
-  # One shared key drives both x and y of the single plot.
-  set_input(app, "shared_col", "Sepal.Length")
+  # One shared key drives both x and y of the single plot. "Petal.Width"
+  # is a literal nowhere in the formula, so its presence in the code can
+  # only come from the inline shared widget propagating.
+  set_input(app, "shared_col", "Petal.Width")
   draw(app, "ptr_update_plot")
   expect_rendered(app, "#ptr_plot", "ggplot")
   expect_code_nonempty(app, "ptr_code")
   expect_no_inline_error(app, "ptr_error")
+  # B1-class: the inline shared var picker must be POPULATED (not an empty
+  # uiOutput), and the chosen column must reach the generated code.
+  expect_picker_populated(app, "shared_col", "Petal.Width")
+  expect_match(app$get_value(output = "ptr_code"), "Petal.Width",
+               fixed = TRUE)
 })
 
 test_that("use-cases l2-shared: coordinator trio drives both module tiles", {
@@ -181,12 +195,19 @@ test_that("use-cases l2-shared: coordinator trio drives both module tiles", {
   expect_dom_id(app, "plot_2-ptr_plot")
 
   # BDD: change the single shared panel widget -> every tile re-renders.
-  set_input(app, "shared_metric", "Sepal.Length")
+  # "Petal.Width" is a literal in NEITHER formula (y is Sepal.Length /
+  # Sepal.Width), so its presence in a tile's code can only come from the
+  # shared widget propagating — a true propagation proof, not "renders".
+  set_input(app, "shared_metric", "Petal.Width")
   draw(app, "ptr_shared_draw_all")
   expect_rendered(app, "#plot_1-ptr_plot", "ggplot")
   expect_rendered(app, "#plot_2-ptr_plot", "ggplot")
   expect_no_inline_error(app, "plot_1-ptr_error")
   expect_no_inline_error(app, "plot_2-ptr_error")
+  expect_match(app$get_value(output = "plot_1-ptr_code"), "Petal.Width",
+               fixed = TRUE)
+  expect_match(app$get_value(output = "plot_2-ptr_code"), "Petal.Width",
+               fixed = TRUE)
 })
 
 test_that("use-cases l2-shared-partition: formula-local var(shared=) pickers are POPULATED in the embed path (W1 #B1/#B1b)", {
