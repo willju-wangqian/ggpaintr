@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ggpaintr Roxygen2 Documentation Audit (Fresh, 2026-05-18)</title>
+<style>
+  :root {
+    --red:    #c1372c;
+    --orange: #e07b00;
+    --gray:   #6b7280;
+    --green:  #22863a;
+    --bg:     #fafbfc;
+    --surface: #ffffff;
+    --border: #e7e9ee;
+    --ink:    #1f2530;
+    --muted:  #6b7280;
+    --radius: 8px;
+    --mono:   "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink);
+    background: var(--bg);
+    padding: 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 6px; }
+  h2 { font-size: 1.2rem; font-weight: 600; margin: 32px 0 12px; border-bottom: 2px solid var(--border); padding-bottom: 6px; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 20px 0 8px; }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+  code { font-family: var(--mono); font-size: 12.5px; background: #f0f2f5; padding: 1px 5px; border-radius: 3px; }
+  p { margin-bottom: 10px; }
+  ul { padding-left: 22px; margin-bottom: 10px; }
+  li { margin-bottom: 4px; }
+
+  /* Summary cards */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    text-align: center;
+  }
+  .card .num { font-size: 2rem; font-weight: 700; }
+  .card .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .card.critical .num { color: var(--red); }
+  .card.major   .num { color: var(--orange); }
+  .card.minor   .num { color: var(--gray); }
+  .card.clean   .num { color: var(--green); }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px; }
+  th {
+    background: #f0f2f5;
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+  }
+  td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: #f7f8fa; }
+
+  /* Severity badges */
+  .sev {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .sev-critical { background: #fde8e8; color: var(--red); }
+  .sev-major    { background: #fef3e0; color: var(--orange); }
+  .sev-minor    { background: #f0f2f5; color: var(--gray); }
+
+  /* Row status colours */
+  .row-critical td:first-child { border-left: 4px solid var(--red); }
+  .row-major    td:first-child { border-left: 4px solid var(--orange); }
+  .row-minor    td:first-child { border-left: 4px solid #c9cdd4; }
+  .row-clean    td:first-child { border-left: 4px solid var(--green); }
+
+  /* Per-function table colour-coded worst severity */
+  .fn-critical { background: #fff5f5; }
+  .fn-major    { background: #fffbf0; }
+  .fn-minor    { background: #fafbfc; }
+  .fn-clean    { background: #f0fff4; }
+
+  /* Issue detail */
+  .issue-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin-bottom: 14px;
+  }
+  .issue-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+  }
+  .fn-name { font-family: var(--mono); font-size: 13px; font-weight: 600; }
+  .issue-type { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .issue-desc { font-size: 13px; color: var(--ink); }
+
+  /* Pattern blocks */
+  .pattern-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--orange);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin-bottom: 14px;
+  }
+  .pattern-block h4 { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<h1>ggpaintr Roxygen2 Documentation Audit</h1>
+<p class="meta">Generated: 2026-05-18 &nbsp;·&nbsp; Branch: vignette-review &nbsp;·&nbsp; Scope: all 36 exported symbols from NAMESPACE &nbsp;·&nbsp; Fresh audit — no reference to prior reports</p>
+
+<!-- ═══════════════════════════════════════════════════════════ SUMMARY -->
+<h2>Summary</h2>
+
+<div class="summary-grid">
+  <div class="card critical"><div class="num">2</div><div class="label">Critical issues</div></div>
+  <div class="card major">  <div class="num">11</div><div class="label">Major issues</div></div>
+  <div class="card minor">  <div class="num">16</div><div class="label">Minor issues</div></div>
+  <div class="card clean">  <div class="num">14</div><div class="label">Clean functions</div></div>
+  <div class="card">        <div class="num">36</div><div class="label">Total exported</div></div>
+</div>
+
+<h3>Issue counts by type</h3>
+<table>
+  <tr><th>Issue type</th><th>Critical</th><th>Major</th><th>Minor</th><th>Total</th></tr>
+  <tr><td>@return — inaccurate / missing</td><td>1</td><td>3</td><td>1</td><td>5</td></tr>
+  <tr><td>@param — missing parameter</td><td>0</td><td>3</td><td>3</td><td>6</td></tr>
+  <tr><td>@param — inaccurate description</td><td>0</td><td>1</td><td>2</td><td>3</td></tr>
+  <tr><td>@seealso — broken link (unexported target)</td><td>1</td><td>1</td><td>0</td><td>2</td></tr>
+  <tr><td>@seealso — missing obvious link</td><td>0</td><td>0</td><td>5</td><td>5</td></tr>
+  <tr><td>@examples — missing</td><td>0</td><td>1</td><td>0</td><td>1</td></tr>
+  <tr><td>@examples — interactive guard missing</td><td>0</td><td>0</td><td>3</td><td>3</td></tr>
+  <tr><td>Accuracy — description contradicts implementation</td><td>0</td><td>2</td><td>2</td><td>4</td></tr>
+  <tr><td>@export / @keywords internal consistency</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+  <tr><td><strong>Total</strong></td><td><strong>2</strong></td><td><strong>11</strong></td><td><strong>16</strong></td><td><strong>29</strong></td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════ PER-FUNCTION TABLE -->
+<h2>Per-Function Status</h2>
+<table>
+  <tr>
+    <th>Function</th>
+    <th>File</th>
+    <th>Worst severity</th>
+    <th>Issue count</th>
+    <th>Notes</th>
+  </tr>
+
+  <tr class="fn-major">
+    <td><code>ptr_app</code></td>
+    <td>paintr-app.R</td>
+    <td><span class="sev sev-major">Major</span></td>
+    <td>2</td>
+    <td>Broken <code>[ptr_css()]</code> seealso; missing <code>@seealso ptr_shared()</code></td>
+  </tr>
+  <tr class="fn-major">
+    <td><code>ptr_app_bslib</code></td>
+    <td>paintr-app-bslib.R</td>
+    <td><span class="sev sev-major">Major</span></td>
+    <td>2</td>
+    <td><code>@seealso</code> missing; <code>@return</code> present but no mention that single-formula <code>shared=</code> is unsupported (described in body text only)</td>
+  </tr>
+  <tr class="fn-major">
+    <td><code>ptr_app_grid</code></td>
+    <td>paintr-app.R</td>
+    <td><span class="sev sev-major">Major</span></td>
+    <td>2</td>
+    <td>Broken <code>[ptr_css()]</code> seealso; missing <code>@seealso ptr_shared()</code> / <code>ptr_shared_server()</code></td>
+  </tr>
+  <tr class="fn-critical">
+    <td><code>ptr_server</code></td>
+    <td>paintr-server.R</td>
+    <td><span class="sev sev-critical">Critical</span></td>
+    <td>2</td>
+    <td><code>@return</code> says "invisibly" but body returns <code>state</code> without <code>invisible()</code>; <code>...</code> param does not list all forwarded args</td>
+  </tr>
+  <tr class="fn-minor">
+    <td><code>ptr_init_state</code></td>
+    <td>paintr-server.R</td>
+    <td><span class="sev sev-minor">Minor</span></td>
+    <td>2</td>
+    <td>Missing <code>@seealso ptr_shared_server()</code>; example only calls <code>is.list(state)</code> — does not exercise any non-trivial field</td>
+  </tr>
+  <tr class="fn-clean">
+    <td><code>ptr_extract_plot</code></td>
+    <td>paintr-server.R</td>
+    <td><span class="sev" style="background:#e6f4ea;color:#22863a">Clean</span></td>
+    <td>0</td>
+    <td>Documented via <code>@rdname ptr_extract</code>; accurate</td>
+  </tr>
+  <tr class="fn-clean">
+    <td><code>ptr_extract_error</code></td>
+    <td>paintr-server.R</td>
+    <td><span class="sev" style="background:#e6f4ea;color:#22863a">Clean</span></td>
+    <td>0</td>
+    <td>Documented via <code>@rdname ptr_extract</code>; accurate</td>
+  </tr>
+  <tr class="fn-minor">
+    <td><code>ptr_extract_code</code></td>
+    <td>paintr-server.R</td>
+    <td><span class="sev sev-minor">Minor</span></td>
+    <td>1</td>
+    <td>Documented via <code>@rdname ptr_extract</code>; <code>@return</code> for this variant should clarify extras are appended, not just "a single string"</td>
+  </tr>
+  <tr class="fn-minor">
+    <td><code>ptr_gg_extra</code></td>
+    <td>paintr-server.R</td>
+    <td><span class="sev sev-minor">Minor</span></td>
+    <td>1</td>
+    <td>Replace-per-call semantics (each call <em>overwrites</em> extras) only documented in inline comments, not the public doc</td>
+  </tr>
+  <tr class="fn-major">
+    <td><code>ptr_module_ui</code></td>
+    <td>paintr-app.R</td>
+    <td><span class="sev sev-major">Major</span></td>
+    <td>2</td>
+    <td>Broken <code>[ptr_css()]</code> seealso; <code>@return</code> says "Shiny tag list" but body wraps in <code>fluidPage</code> — a <code>shiny.tag</code>, not a bare <code>tagList</code></td>
+  </tr>
+  <tr class="fn-clean">
+    <td><code>ptr_module_server</code></td>
+    <td>paintr-app.R</td>
+    <td><span class="sev" style="background:#e6f4ea;color:#22863a">Clean</span></td>
+    <td>0</td>
+    <td>All params documented; accurate return; good examples</td>
+  </tr>
+  <tr class="fn-major">
+    <td><code>ptr_ui_controls</code></td>
+    <td>paintr-app.R</td>
+    <td><span class="sev sev-major">Major</span></td>
+    <td>2</td>
+    <td><code>[build_ui_for()]</code> in prose links to unexported generic; missing <code>@seealso ptr_shared()</code></td>
+  </tr>
+  <tr class="fn-minor">
+    <td><code>ptr_ui_page</code></td>
+    <td>paintr-app.R</td>
+    <td><span class="sev sev-minor">Minor</span></td>
+    <td>1</td>
+    <td>Example runs outside <code>if (interactive())</code> but calls no Shiny infrastructure — runnable; minor missing <code>@seealso ptr_ui_header()</code></td>
+  </tr>
+  <tr class="fn-minor">
+    <td><code>ptr_ui_header</code></td>
+    <td>paintr-app.R</td>
+    <td><span class="sev sev-minor">Minor</span></td>
+    <td>1</td>
+    <td>Missing <code>@seealso ptr_ui_page()</code>; the seealso chain doesn't include the page shell</td>
+  </tr>
+  <tr class="fn-clean">
+    <td><code>ptr_ui_plot</code></td>
+    <td>paintr-app.R</td>
+    <td><span class="sev" style="background:#e6f4ea;color:#22863a">Clean</span></td>
+    <td>0</td>
+    <td>Accurate; good seealso chain</td>
+  </tr>
+  <tr class="fn-clean">
+    <td><code>ptr_ui_error</code></td>
+    <td>paintr-app.R</td>
+    <td><span class="sev" style="background:#e6f4ea;color:#22863a">Clean</span></td>
+    <td>0</td>
+    <td>Accurate; good seealso chain</td>
+  </tr>
+  <tr class="fn-clean">
+    <td><code>ptr_ui_code</code></td>
+    <td>paintr-app.R</td>
+    <td><span class="sev" style="background:#e6f4ea;color:#22863a">Clean</span></td>
+    <td>0</td>
+    <td>Accurate; <code>style</code> param well-documented</td>
+  </tr>
+  <tr class="fn-clean">
+    <td><code>ptr_ui_inline_error</code></td>
+    <td>paintr-app.R</td>
+    <td><span class="sev" style="background:#e6f4ea;color:#22863a">Clean</span></td>
+    <td>0</td>
+    <td>Accurate; combinator contract clearly stated</td>
+  </tr>
+  <tr class="fn-minor">
+    <td><code>ptr_ui_toggle_code</code></td>
+    <td>paintr-app.R</td>
+    <td><span class="sev sev-minor">Minor</span></td>
+    <td>1</td>
+    <td>Example is outside <code>if (interactive())</code> and safe, but no mention that <code>code</code> must use <code>style = "window"</code> for the toggle to work correctly</td>
+  </tr>
+  <tr class="fn-minor">
+    <td><code>ptr_ui_assets</code></td>
+    <td>paintr-build-ui.R</td>
+    <td><span class="sev sev-minor">Minor</span></td>
+    <td>1</td>
+    <td>Broken <code>[ptr_css()]</code> seealso (unexported target)</td>
+  </tr>
+  <tr class="fn-major">
+    <td><code>ptr_shared</code></td>
+    <td>paintr-shared-coordinator.R</td>
+    <td><span class="sev sev-major">Major</span></td>
+    <td>2</td>
+    <td><code>@return</code> lists <code>panel_keys</code> / <code>local_keys_by_formula</code> as "public fields" but omits all other public slots actually used by callers (<code>formula_keys</code>, <code>formula_count</code>, <code>draw_all_label</code>); missing <code>@seealso ptr_module_ui()</code></td>
+  </tr>
+  <tr class="fn-minor">
+    <td><code>ptr_shared_panel</code></td>
+    <td>paintr-shared-coordinator.R</td>
+    <td><span class="sev sev-minor">Minor</span></td>
+    <td>1</td>
+    <td>Missing <code>@seealso ptr_module_ui()</code> / <code>ptr_module_server()</code></td>
+  </tr>
+  <tr class="fn-minor">
+    <td><code>ptr_ui_shared_panel</code></td>
+    <td>paintr-shared-coordinator.R</td>
+    <td><span class="sev sev-minor">Minor</span></td>
+    <td>1</td>
+    <td>Missing <code>@seealso ptr_module_ui()</code>; seealso chain omits the module pair</td>
+  </tr>
+  <tr class="fn-major">
+    <td><code>ptr_shared_server</code></td>
+    <td>paintr-shared-ui.R</td>
+    <td><span class="sev sev-major">Major</span></td>
+    <td>2</td>
+    <td><code>@return</code> mentions <code>shared_stage_enabled</code> as a field but does not document its semantics (named list of reactives per shared key, toggling orphan pipeline stages); <code>@param shared</code> says "override auto-derived reactives" but does not note the override only seeds initial value (picker still wins once user interacts)</td>
+  </tr>
+  <tr class="fn-clean">
+    <td><code>ptr_normalize_column_names</code></td>
+    <td>paintr-data.R</td>
+    <td><span class="sev" style="background:#e6f4ea;color:#22863a">Clean</span></td>
+    <td>0</td>
+    <td>Accurate; example is runnable; edge cases noted</td>
+  </tr>
+  <tr class="fn-clean">
+    <td><code>ptr_options</code></td>
+    <td>paintr-options.R</td>
+    <td><span class="sev" style="background:#e6f4ea;color:#22863a">Clean</span></td>
+    <td>0</td>
+    <td>Two-mode return documented; settings section complete</td>
+  </tr>
+  <tr class="fn-minor">
+    <td><code>ptr_ui_text</code></td>
+    <td>paintr-copy.R</td>
+    <td><span class="sev sev-minor">Minor</span></td>
+    <td>1</td>
+    <td>Schema section is thorough; missing note that <code>shell$shared_panel_title</code> and <code>shell$shared_panel_hint</code> are valid override paths (used in <code>shared_panel_body_tag</code>)</td>
+  </tr>
+  <tr class="fn-major">
+    <td><code>ptr_resolve_ui_text</code></td>
+    <td>paintr-copy.R</td>
+    <td><span class="sev sev-major">Major</span></td>
+    <td>2</td>
+    <td><code>component</code> param's accepted values listed in prose but not in the <code>@param</code> itself — the value set is split between param doc and examples; <code>upload_file</code> / <code>upload_name</code> listed in prose but the canonical names in <code>ptr_ui_text_component_paths()</code> are <code>upload</code> sub-keys accessed through a path — mismatch creates confusion</td>
+  </tr>
+  <tr class="fn-major">
+    <td><code>ptr_clear_placeholder</code></td>
+    <td>paintr-registry.R</td>
+    <td><span class="sev sev-major">Major</span></td>
+    <td>1</td>
+    <td>Missing <code>@examples</code> showing the <code>NULL</code> (clear-all) form — only the single-keyword form is shown</td>
+  </tr>
+  <tr class="fn-minor">
+    <td><code>ptr_define_placeholder_value</code></td>
+    <td>paintr-registry.R</td>
+    <td><span class="sev sev-minor">Minor</span></td>
+    <td>1</td>
+    <td><code>build_ui</code> param says "also passes copy_defaults fields by name (help, placeholder, empty_text) — or accept a copy=NULL list" — the "or" path is inconsistently described; the hook actually receives <code>copy = &lt;list&gt;</code> (never <code>NULL</code>) when <code>copy</code> is in formals</td>
+  </tr>
+  <tr class="fn-clean">
+    <td><code>ptr_define_placeholder_consumer</code></td>
+    <td>paintr-registry.R</td>
+    <td><span class="sev" style="background:#e6f4ea;color:#22863a">Clean</span></td>
+    <td>0</td>
+    <td>All hooks documented; <code>validate_input</code> return contract stated; good example</td>
+  </tr>
+  <tr class="fn-critical">
+    <td><code>ptr_define_placeholder_source</code></td>
+    <td>paintr-registry.R</td>
+    <td><span class="sev sev-critical">Critical</span></td>
+    <td>2</td>
+    <td>Missing <code>@return</code> tag entirely; <code>resolve_expr</code> companion-id semantics ("value here is the companion input's value, not the primary payload") are described only inline in a nested clause, not in the main param description — easy to miss for a custom source author</td>
+  </tr>
+  <tr class="fn-clean">
+    <td><code>ptr_llm_primer</code></td>
+    <td>paintr-llm.R</td>
+    <td><span class="sev" style="background:#e6f4ea;color:#22863a">Clean</span></td>
+    <td>0</td>
+    <td>Accurate; seealso chain complete</td>
+  </tr>
+  <tr class="fn-clean">
+    <td><code>ptr_llm_topics</code></td>
+    <td>paintr-llm.R</td>
+    <td><span class="sev" style="background:#e6f4ea;color:#22863a">Clean</span></td>
+    <td>0</td>
+    <td>Accurate</td>
+  </tr>
+  <tr class="fn-clean">
+    <td><code>ptr_llm_topic</code></td>
+    <td>paintr-llm.R</td>
+    <td><span class="sev" style="background:#e6f4ea;color:#22863a">Clean</span></td>
+    <td>0</td>
+    <td>Accurate; error contract stated</td>
+  </tr>
+  <tr class="fn-minor">
+    <td><code>ptr_llm_register</code></td>
+    <td>paintr-llm.R</td>
+    <td><span class="sev sev-minor">Minor</span></td>
+    <td>1</td>
+    <td>Example lacks <code>library(ellmer)</code> namespace qualification on <code>chat_anthropic</code> inside <code>if (interactive())</code> — inconsistent style with rest of package (uses bare <code>chat_anthropic()</code> without <code>ellmer::</code>)</td>
+  </tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════ ISSUE DETAILS -->
+<h2>Issue Detail</h2>
+
+<!-- CRITICAL -->
+<h3>Critical</h3>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_server</span>
+    <span class="sev sev-critical">Critical</span>
+    <span class="issue-type">@return — inaccurate</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-server.R · line ~308</span>
+  </div>
+  <div class="issue-desc">
+    Doc states <code>@return The `ptr_state` list, invisibly.</code> but the function body ends with <code>state</code> (not <code>invisible(state)</code>). The return is visible. Callers who rely on the invisibility promise (e.g. piping into nothing in a <code>server = function(...) { ptr_server(...) }</code> context) will not be affected in practice, but the contract is wrong and the discrepancy between <code>ptr_server</code> (visible) and <code>ptr_module_server</code> (also returns <code>state</code> from <code>moduleServer</code>, effectively invisible) is undocumented.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_define_placeholder_source</span>
+    <span class="sev sev-critical">Critical</span>
+    <span class="issue-type">@return — missing</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-registry.R · line ~354</span>
+  </div>
+  <div class="issue-desc">
+    The function has no <code>@return</code> tag at all. The sibling constructors <code>ptr_define_placeholder_value</code> and <code>ptr_define_placeholder_consumer</code> both document their return as "invisibly, the registry entry list" — this function returns the same thing (<code>ptr_registry_register(entry)</code> invisibly) but the omission leaves a blank in the rendered help page and breaks consistency for custom-source authors who consult all three reference pages.
+  </div>
+</div>
+
+<!-- MAJOR -->
+<h3>Major</h3>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_server</span>
+    <span class="sev sev-major">Major</span>
+    <span class="issue-type">@param — incomplete</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-server.R · line ~297</span>
+  </div>
+  <div class="issue-desc">
+    The <code>...</code> param description says "Forwarded to <code>ptr_init_state()</code> (e.g. <code>shared</code>, <code>draw_trigger</code>, <code>ui_text</code>, <code>checkbox_defaults</code>, <code>expr_check</code>, <code>safe_to_remove</code>, <code>ns</code>)" but omits <code>producer_debounce_ms</code>, <code>auto_bind_shared</code>, <code>shared_resolutions</code>, <code>shared_stage_enabled</code>, and <code>plots</code>, all of which are valid in <code>ptr_init_state()</code>. Users of advanced features have no discoverability from this page.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_module_ui</span>
+    <span class="sev sev-major">Major</span>
+    <span class="issue-type">@return — inaccurate type</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-app.R · line ~677</span>
+  </div>
+  <div class="issue-desc">
+    Doc says <code>@return A Shiny tag list.</code> The implementation returns <code>shiny::fluidPage(...)</code> which is a <code>shiny.tag</code> (a <code>div</code> node), not a <code>tagList</code>. The distinction matters when callers check <code>inherits(ui, "shiny.tag.list")</code> vs <code>"shiny.tag"</code> or attempt to append children.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_ui_controls</span>
+    <span class="sev sev-major">Major</span>
+    <span class="issue-type">@seealso — broken link (unexported)</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-app.R · line ~748</span>
+  </div>
+  <div class="issue-desc">
+    The doc says "For finer control … use the exported <code>[build_ui_for()]</code> generic on the nodes of <code>ptr_translate(formula)</code>." The <code>[build_ui_for()]</code> cross-reference links to a symbol that is only registered as <code>S3method(build_ui_for, ...)</code> — it is <strong>not</strong> <code>export()</code>ed in NAMESPACE. Both the claim that it is "exported" and the hyperlink are incorrect. Roxygen will generate a broken link when rendering the reference page.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_app</span>
+    <span class="sev sev-major">Major</span>
+    <span class="issue-type">@seealso — broken link (unexported)</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-app.R · line ~105</span>
+  </div>
+  <div class="issue-desc">
+    <code>@seealso</code> includes <code>[ptr_css()]</code>. <code>ptr_css</code> is tagged <code>@keywords internal</code> and <code>NULL</code> — it is a doc-only alias with no function body and is not in <code>export()</code> in NAMESPACE. The <code>[ptr_css()]</code> hyperlink will render as a broken reference. Same broken link appears in <code>ptr_app_grid</code>, <code>ptr_module_ui</code>, <code>ptr_ui_page</code>, <code>ptr_ui_assets</code>, and <code>ptr_shared_panel</code>.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_shared</span>
+    <span class="sev sev-major">Major</span>
+    <span class="issue-type">@return — incomplete slot list</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-shared-coordinator.R · line ~87</span>
+  </div>
+  <div class="issue-desc">
+    <code>@return</code> says "Public fields: <code>panel_keys</code> (cross-formula keys), <code>local_keys_by_formula</code> (per-formula inline keys)." In practice the callers (<code>ptr_shared_server</code>, <code>ptr_shared_panel</code>, <code>ptr_ui_shared_panel</code>, <code>ptr_module_server</code>) also read <code>formula_keys</code>, <code>formula_count</code>, <code>draw_all_label</code>, <code>trees</code>, <code>firsts</code>, <code>consumer_reps</code>, and <code>shared_ui</code>. Advertising only two fields as "public" will confuse advanced embedders who read the return value directly.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_shared_server</span>
+    <span class="sev sev-major">Major</span>
+    <span class="issue-type">@return + @param — partial/inaccurate</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-shared-ui.R · line ~165</span>
+  </div>
+  <div class="issue-desc">
+    <strong>(a)</strong> <code>@return</code> mentions <code>shared_stage_enabled</code> in passing ("a named list of reactives, one per shared key, indicating whether that key's shared stage is active") but does not state when the list is non-empty (only when any formula contains a stage-enabled checkbox — an orphan stage). An empty list is the common case; users who receive an empty <code>shared_stage_enabled</code> and don't know why have no guidance here.
+    <br><br>
+    <strong>(b)</strong> <code>@param shared</code> says each named entry "replaces" the reactive for that key. The implementation shows the override only seeds the initial value — once the user picks something in the panel's picker, <code>input[[cid]]</code> wins (the override is only a fallback for the unset/empty input state). The word "replaces" overstates the override's permanence.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_resolve_ui_text</span>
+    <span class="sev sev-major">Major</span>
+    <span class="issue-type">@param — incomplete value set</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-copy.R · line ~688</span>
+  </div>
+  <div class="issue-desc">
+    The <code>@param component</code> description lists accepted values inline in prose ("One of <code>title</code>, <code>draw_button</code>, …") but the authoritative list is <code>ptr_ui_text_component_paths()</code> (not inspectable without reading source). The prose list includes <code>upload_file</code> and <code>upload_name</code> as if they are top-level component names, but in the implementation these are reached through the <code>"upload"</code> sub-key path, not as stand-alone component identifiers. A user passing <code>component = "upload_file"</code> would get an "Unknown copy component" error. The <code>@param</code> should enumerate the exact accepted string values matching the keys in <code>ptr_ui_text_component_paths()</code> plus <code>"control"</code>.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_clear_placeholder</span>
+    <span class="sev sev-major">Major</span>
+    <span class="issue-type">@examples — missing clear-all form</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-registry.R · line ~38</span>
+  </div>
+  <div class="issue-desc">
+    The <code>@examples</code> block only shows the single-keyword removal form. The function's most distinctive behavior — calling with <code>keyword = NULL</code> (default) to remove <em>all</em> user-registered placeholders at once — has no example. This is the form most users will reach for in a teardown / session-reset context.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_app_bslib</span>
+    <span class="sev sev-major">Major</span>
+    <span class="issue-type">Accuracy — limitation not in @return or @section</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-app-bslib.R · line ~17</span>
+  </div>
+  <div class="issue-desc">
+    The single-formula <code>var(shared = "...")</code> limitation is described in a paragraph of the function description but not highlighted in a dedicated <code>@section</code> or bold callout. Given that <code>ptr_app()</code> handles this case transparently, users hitting the limitation have no obvious path to a solution unless they read the full description. The fix is to add a <code>@section Limitations:</code> or a <code>@note</code> tag.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_app_grid / ptr_app / ptr_app_bslib</span>
+    <span class="sev sev-major">Major</span>
+    <span class="issue-type">@seealso — missing ptr_shared() entry point</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-app.R · lines ~102, ~1038; R/paintr-app-bslib.R</span>
+  </div>
+  <div class="issue-desc">
+    None of the three top-level app builders link to <code>ptr_shared()</code> / <code>ptr_shared_server()</code> in their <code>@seealso</code>. A user wanting to add shared controls to <code>ptr_app_grid()</code> will not find the coordinator API from the function's help page. <code>ptr_app_grid()</code> mentions the coordinator pattern in the description but does not cross-reference it.
+  </div>
+</div>
+
+<!-- MINOR -->
+<h3>Minor</h3>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_extract_code</span>
+    <span class="sev sev-minor">Minor</span>
+    <span class="issue-type">@return — incomplete</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-server.R · ~rdname ptr_extract</span>
+  </div>
+  <div class="issue-desc">
+    The shared <code>@return</code> says "<code>ptr_extract_code</code> returns a single string." It does not mention that extras added via <code>ptr_gg_extra()</code> are appended to the code output. A user comparing code pane output with <code>ptr_extract_code()</code> offline may be surprised by the additional lines.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_gg_extra</span>
+    <span class="sev sev-minor">Minor</span>
+    <span class="issue-type">Accuracy — replace-per-call semantics undocumented</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-server.R · line ~1448</span>
+  </div>
+  <div class="issue-desc">
+    The doc says "Evaluate one or more <code>ggplot2</code> expressions and attach the results as 'extras'." It does not state that each call <em>replaces</em> (not appends) all previously set extras. The inline source comment says "Replace-per-call: each invocation overwrites the previously captured extras." This is non-obvious behavior that should appear in the public doc.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_init_state</span>
+    <span class="sev sev-minor">Minor</span>
+    <span class="issue-type">@seealso — missing ptr_shared_server()</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-server.R · line ~22</span>
+  </div>
+  <div class="issue-desc">
+    <code>@seealso</code> lists <code>ptr_server()</code> and the extract/gg_extra group but not <code>ptr_shared_server()</code>, which is the primary way to populate the <code>shared</code> / <code>draw_trigger</code> params. Users of the advanced API reaching <code>ptr_init_state()</code> directly need that link.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_ui_toggle_code</span>
+    <span class="sev sev-minor">Minor</span>
+    <span class="issue-type">@param — missing behavioral constraint</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-app.R · line ~527</span>
+  </div>
+  <div class="issue-desc">
+    <code>@param code</code> says "A code piece, typically <code>ptr_ui_code(id)</code>… Its style is irrelevant — this combinator supplies the slide-out window chrome around it." However the JS toggle button only hides/shows the <code>.ptr-code-window</code> wrapper this combinator supplies. If someone passes a <code>ptr_ui_code(id, style = "panel")</code> they get a visible, always-on panel nested in the slide-out window. The "style is irrelevant" claim is technically true but practically misleading — the user experience will be wrong.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_ui_assets</span>
+    <span class="sev sev-minor">Minor</span>
+    <span class="issue-type">@seealso — broken link (unexported)</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-build-ui.R · line ~654</span>
+  </div>
+  <div class="issue-desc">
+    <code>@seealso</code> includes <code>[ptr_css()]</code> which is <code>@keywords internal</code> / not exported. Will render as a broken reference link.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_shared_panel / ptr_ui_shared_panel</span>
+    <span class="sev sev-minor">Minor</span>
+    <span class="issue-type">@seealso — missing module pair links</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-shared-coordinator.R · lines ~248, ~289</span>
+  </div>
+  <div class="issue-desc">
+    Neither panel function links to <code>ptr_module_ui()</code> or <code>ptr_module_server()</code> in <code>@seealso</code>. The panels are only useful when paired with those module calls; the link is the obvious navigation path for a user building a multi-instance embedding.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_ui_text</span>
+    <span class="sev sev-minor">Minor</span>
+    <span class="issue-type">@section — incomplete schema</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-copy.R · line ~566</span>
+  </div>
+  <div class="issue-desc">
+    The UI text schema section does not mention <code>shell$shared_panel_title</code> and <code>shell$shared_panel_hint</code>, which are valid override paths consumed by <code>shared_panel_body_tag()</code> and therefore reachable through <code>ptr_ui_text()</code>. Users customising the shared panel copy have no documentation entry.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_define_placeholder_value</span>
+    <span class="sev sev-minor">Minor</span>
+    <span class="issue-type">@param — ambiguous copy= description</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-registry.R · line ~217</span>
+  </div>
+  <div class="issue-desc">
+    <code>@param build_ui</code> says the framework passes copy_defaults fields "by name … or accept a <code>copy = NULL</code> list and read them off it." The "or" implies <code>copy</code> can be <code>NULL</code>. In practice, when <code>"copy"</code> is in the hook's formal arguments, the framework passes <code>list(copy = resolved_copy_list)</code> — the value is always a list, never <code>NULL</code>. The description should say "accept a <code>copy</code> argument (always a list with the resolved leaf fields)."
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_define_placeholder_source</span>
+    <span class="sev sev-minor">Minor</span>
+    <span class="issue-type">@param — companion semantics buried</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-registry.R · line ~376</span>
+  </div>
+  <div class="issue-desc">
+    <code>@param resolve_expr</code> has the critical caveat "With <code>companion_id_fn</code> set, <code>value</code> here is the companion input's value … not the primary payload" buried in the middle of a multi-sentence description. This is the most error-prone aspect of the companion pattern — a custom source author who misses it will pass the wrong value to their downstream code. This deserves a dedicated <code>@section Companion inputs:</code> or at minimum a leading sentence in the param.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_ui_page</span>
+    <span class="sev sev-minor">Minor</span>
+    <span class="issue-type">@seealso — missing ptr_ui_header()</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-app.R · line ~814</span>
+  </div>
+  <div class="issue-desc">
+    <code>ptr_ui_header()</code> is the branded header piece intended for use alongside <code>ptr_ui_page()</code> in L3 layouts, but is not linked from <code>ptr_ui_page()</code>'s seealso chain.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_ui_header</span>
+    <span class="sev sev-minor">Minor</span>
+    <span class="issue-type">@seealso — missing ptr_ui_page()</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-app.R · line ~632</span>
+  </div>
+  <div class="issue-desc">
+    <code>ptr_ui_header()</code> seealso lists <code>ptr_ui_controls()</code>, <code>ptr_ui_plot()</code>, and <code>ptr_app()</code> but not <code>ptr_ui_page()</code>, the page shell it is designed to drop into.
+  </div>
+</div>
+
+<div class="issue-block">
+  <div class="issue-header">
+    <span class="fn-name">ptr_llm_register</span>
+    <span class="sev sev-minor">Minor</span>
+    <span class="issue-type">@examples — namespace inconsistency</span>
+    <span style="font-size:12px;color:#6b7280">R/paintr-llm.R · line ~121</span>
+  </div>
+  <div class="issue-desc">
+    The example uses bare <code>chat_anthropic()</code> after <code>library(ellmer)</code>. The rest of the package avoids <code>library()</code> in examples and uses <code>pkg::fn()</code> throughout. If the example is intended to be stand-alone (inside <code>if (interactive())</code>), <code>ellmer::chat_anthropic()</code> is the correct style per the package conventions.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ PATTERNS -->
+<h2>Systematic Patterns</h2>
+
+<div class="pattern-block">
+  <h4>Pattern 1 — Broken <code>[ptr_css()]</code> cross-reference (6 functions)</h4>
+  <p><code>ptr_css</code> is a <code>@keywords internal</code> / <code>NULL</code> doc alias — no function body, not in <code>export()</code>. Yet <code>ptr_app</code>, <code>ptr_app_grid</code>, <code>ptr_module_ui</code>, <code>ptr_ui_page</code>, <code>ptr_ui_assets</code>, and <code>ptr_shared_panel</code> all include <code>[ptr_css()]</code> in their <code>@seealso</code>. These will render as broken hyperlinks in the pkgdown reference. Fix: change each to plain text "see <code>?ptr_css</code> for CSS custom properties" or remove the link and inline the summary.</p>
+</div>
+
+<div class="pattern-block">
+  <h4>Pattern 2 — <code>@seealso</code> chains don't close the multi-instance API loop</h4>
+  <p><code>ptr_shared()</code> / <code>ptr_shared_server()</code> are absent from the seealso of all three app builders (<code>ptr_app</code>, <code>ptr_app_grid</code>, <code>ptr_app_bslib</code>) and from both panel functions. The multi-instance coordinator trio (<code>ptr_shared → ptr_shared_panel / ptr_shared_server</code>) forms a tight usage cluster — all six functions should cross-reference each other and the module pair that consumes the state.</p>
+</div>
+
+<div class="pattern-block">
+  <h4>Pattern 3 — Advanced <code>ptr_init_state()</code> params undiscoverable from <code>ptr_server()</code></h4>
+  <p><code>ptr_server()</code>'s <code>...</code> param lists only 7 of the 12 forwarded <code>ptr_init_state()</code> arguments. The omitted five (<code>producer_debounce_ms</code>, <code>auto_bind_shared</code>, <code>shared_resolutions</code>, <code>shared_stage_enabled</code>, <code>plots</code>) are the ones advanced embedders use for debounce tuning and shared-coordinator wiring. A user who never reads <code>ptr_init_state()</code>'s own help page has no signal these exist.</p>
+</div>
+
+<div class="pattern-block">
+  <h4>Pattern 4 — replace-vs-append semantics only in source comments, not public docs</h4>
+  <p><code>ptr_gg_extra()</code>'s replace-per-call behavior is documented in an inline source comment ("Replace-per-call: each invocation overwrites") but not in the roxygen block. Similarly, <code>ptr_shared_server()</code>'s <code>shared</code> override being a fallback (not a permanent replacement) is stated in a secondary clause. Both represent non-obvious divergences from what a reasonable caller would assume ("add extras" → accumulate; "override" → permanent). These should appear in the public docs, not just source comments.</p>
+</div>
+
+<div class="pattern-block">
+  <h4>Pattern 5 — L3 piece seealso chains are incomplete at the page-shell level</h4>
+  <p>The L3 UI pieces (<code>ptr_ui_plot</code>, <code>ptr_ui_error</code>, <code>ptr_ui_code</code>, etc.) link to each other well, but <code>ptr_ui_page()</code> and <code>ptr_ui_header()</code> are inconsistently present in the chains. A user composing a hand-built L3 layout following the seealso trail from <code>ptr_ui_controls()</code> may not discover <code>ptr_ui_page()</code> — the shell that makes the pieces actually render correctly.</p>
+</div>
+
+<hr style="margin: 40px 0; border: none; border-top: 1px solid var(--border);">
+<p style="color: var(--muted); font-size: 12px;">Audit methodology: NAMESPACE read for export list; <code>mcp__serena__get_symbols_overview</code> + <code>find_symbol(include_body=true)</code> per source file; roxygen blocks and function bodies cross-checked manually. No previous audit reports consulted.</p>
+
+</body>
+</html>
