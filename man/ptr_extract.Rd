@@ -26,3 +26,18 @@ Read the latest plot object, error message, or generated code text from
 the runtime result stored on a \code{ptr_state}. Use these to compose custom
 UIs or to test the runtime in \code{shiny::testServer}.
 }
+\section{Reactive contexts}{
+
+Each function wraps its read in \code{\link[shiny:isolate]{shiny::isolate()}}, so it works in both
+reactive and non-reactive contexts and returns the current value without
+establishing a reactive dependency.
+
+\strong{Do not call these inside a \code{render*{}} block} if you want the output
+to update when the plot rerenders. Because \code{isolate()} suppresses the
+dependency on \code{state$runtime()}, the render block fires once on mount and
+never again. Inside a reactive context, read \code{state$runtime()} directly —
+that takes the dependency and re-fires on every \emph{Update plot} click.
+Reserve \verb{ptr_extract_*} for non-reactive contexts: download handlers,
+\code{\link[shiny:testServer]{shiny::testServer()}} assertions, and one-shot reads outside any session.
+}
+

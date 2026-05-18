@@ -1380,6 +1380,19 @@ ptr_register_code <- function(output, state) {
 #' @return `ptr_extract_plot` returns a `ggplot` object (or `NULL` on
 #'   failure); `ptr_extract_error` returns a string or `NULL`;
 #'   `ptr_extract_code` returns a single string.
+#'
+#' @section Reactive contexts:
+#' Each function wraps its read in [shiny::isolate()], so it works in both
+#' reactive and non-reactive contexts and returns the current value without
+#' establishing a reactive dependency.
+#'
+#' **Do not call these inside a `render*{}` block** if you want the output
+#' to update when the plot rerenders. Because `isolate()` suppresses the
+#' dependency on `state$runtime()`, the render block fires once on mount and
+#' never again. Inside a reactive context, read `state$runtime()` directly —
+#' that takes the dependency and re-fires on every *Update plot* click.
+#' Reserve `ptr_extract_*` for non-reactive contexts: download handlers,
+#' [shiny::testServer()] assertions, and one-shot reads outside any session.
 #' @name ptr_extract
 #' @export
 ptr_extract_plot  <- function(state) shiny::isolate(state$runtime())$plot
