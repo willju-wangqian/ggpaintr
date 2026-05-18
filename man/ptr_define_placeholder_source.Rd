@@ -62,3 +62,22 @@ A \emph{source} placeholder produces a data frame the rest of the formula
 reads from. Built-in example: \code{upload}. Custom examples: database
 tables, built-in datasets, URL fetches.
 }
+\examples{
+# A minimal in-memory dataset source (picks from pre-loaded data frames).
+ptr_define_placeholder_source(
+  keyword = "dataset",
+  build_ui = function(node, label, ...) {
+    shiny::selectInput(node$id, label = label,
+                       choices = c("mtcars", "iris"))
+  },
+  resolve_data = function(value, node, ...) {
+    if (length(value) != 1L || !nzchar(value)) return(NULL)
+    get(value, envir = as.environment("package:datasets"))
+  }
+)
+ptr_clear_placeholder("dataset")
+}
+\seealso{
+\code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}, \code{\link[=ptr_define_placeholder_consumer]{ptr_define_placeholder_consumer()}},
+\code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}}.
+}

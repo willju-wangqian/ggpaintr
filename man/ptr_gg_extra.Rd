@@ -24,3 +24,12 @@ Evaluate one or more \code{ggplot2} expressions and attach the results as
 runtime cycle when \code{state$runtime()$ok} is \code{TRUE}. Eval failures leave
 the existing extras untouched.
 }
+\examples{
+shiny::isolate({
+  state <- ptr_init_state(
+    "ggplot(mtcars, aes(x = wt, y = mpg)) + geom_point()"
+  )
+  state <- ptr_gg_extra(state, ggplot2::theme_minimal())
+  ptr_extract_code(state)
+})
+}

@@ -652,6 +652,8 @@ ptr_assets <- function(css = NULL) {
 #'
 #' @return A [shiny::tagList()].
 #' @seealso [ptr_ui_plot()], [ptr_ui_controls()], [ptr_ui_toggle_code()], [ptr_css()]
+#' @examples
+#' ptr_ui_assets()
 #' @export
 ptr_ui_assets <- function(css = NULL) {
   ptr_assets(css = css)

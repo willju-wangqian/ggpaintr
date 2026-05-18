@@ -25,8 +25,10 @@ Defaults to \code{NULL} (identity namespace). When set, must match the
 
 \item{checkbox_defaults}{Optional named list of initial checked states.}
 
-\item{expr_check}{Controls \code{expr} placeholder validation. Defaults to
-\code{TRUE}.}
+\item{expr_check}{Controls \code{expr} placeholder validation: \code{TRUE} (default)
+applies the built-in denylist + AST walker; \code{FALSE} disables all
+validation; a \code{list} with \code{deny_list}/\code{allow_list} entries customises
+the policy. See \code{vignette("ggpaintr-safety")}.}
 
 \item{shared}{Optional coordinator object from \code{\link[=ptr_shared]{ptr_shared()}} for the
 multi-instance embedding. When \code{NULL} (the single-instance default)
@@ -61,7 +63,13 @@ For finer control still — placing individual placeholder widgets
 independently rather than the whole panel — use the exported
 \code{\link[=build_ui_for]{build_ui_for()}} generic on the nodes of \code{ptr_translate(formula)}.
 }
+\examples{
+ptr_ui_controls(
+  id = "p",
+  formula = "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+)
+}
 \seealso{
 \code{\link[=ptr_ui_page]{ptr_ui_page()}}, \code{\link[=ptr_ui_assets]{ptr_ui_assets()}}, \code{\link[=ptr_ui_plot]{ptr_ui_plot()}},
-\code{\link[=ptr_ui_code]{ptr_ui_code()}}, \code{\link[=build_ui_for]{build_ui_for()}}, \code{\link[=ptr_shared]{ptr_shared()}}, \code{\link[=ptr_server]{ptr_server()}}
+\code{\link[=ptr_ui_code]{ptr_ui_code()}}, \code{\link[=ptr_shared]{ptr_shared()}}, \code{\link[=ptr_server]{ptr_server()}}
 }

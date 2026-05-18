@@ -29,6 +29,15 @@ Wraps composed L3 pieces in a Bootstrap page + the single \code{.ptr-app}
 theme scope + the (deduped) asset bundle. The only thing an L3 user
 must remember.
 }
+\examples{
+f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+ptr_ui_page(
+  shiny::sidebarLayout(
+    shiny::sidebarPanel(ptr_ui_controls(id = "p", formula = f)),
+    shiny::mainPanel(ptr_ui_plot("p"))
+  )
+)
+}
 \seealso{
 \code{\link[=ptr_ui_plot]{ptr_ui_plot()}}, \code{\link[=ptr_ui_controls]{ptr_ui_controls()}}, \code{\link[=ptr_server]{ptr_server()}}, \code{\link[=ptr_css]{ptr_css()}}
 }

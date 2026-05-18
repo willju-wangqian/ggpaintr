@@ -27,7 +27,10 @@ text, and placeholders. The app title is read from
 \item{checkbox_defaults}{Optional named list of initial checked states for
 layer checkboxes.}
 
-\item{expr_check}{Controls \code{expr} placeholder validation.}
+\item{expr_check}{Controls \code{expr} placeholder validation: \code{TRUE} (default)
+applies the built-in denylist + AST walker; \code{FALSE} disables all
+validation; a \code{list} with \code{deny_list}/\code{allow_list} entries customises
+the policy. See \code{vignette("ggpaintr-safety")}.}
 
 \item{safe_to_remove}{Character vector of additional function names whose
 zero-argument calls should be dropped after placeholder substitution

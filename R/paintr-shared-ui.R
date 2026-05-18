@@ -169,6 +169,19 @@ shared_consumer_representatives <- function(trees) {
 #'   that key's shared stage is active for each embedded module).
 #' @seealso [`ptr_shared()`], [`ptr_shared_panel()`],
 #'   [`ptr_module_server()`].
+#' @examples
+#' if (interactive()) {
+#'   obj <- ptr_shared(c(
+#'     "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
+#'     "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+#'   ))
+#'   shiny::shinyApp(
+#'     ui = shiny::fluidPage(ptr_shared_panel(obj)),
+#'     server = function(input, output, session) {
+#'       ptr_shared_server(obj)
+#'     }
+#'   )
+#' }
 #' @export
 ptr_shared_server <- function(obj,
                               envir = parent.frame(),

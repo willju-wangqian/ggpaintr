@@ -27,6 +27,9 @@ pieces by hand normally gets them from the page shell, or includes
 this directly for a non-\code{fluidPage} root. The bundled apps and the
 \verb{ptr_*_ui()} composites inject it for you.
 }
+\examples{
+ptr_ui_assets()
+}
 \seealso{
 \code{\link[=ptr_ui_plot]{ptr_ui_plot()}}, \code{\link[=ptr_ui_controls]{ptr_ui_controls()}}, \code{\link[=ptr_ui_toggle_code]{ptr_ui_toggle_code()}}, \code{\link[=ptr_css]{ptr_css()}}
 }

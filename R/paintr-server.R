@@ -30,7 +30,10 @@
 #'   for the full schema and current defaults.
 #' @param checkbox_defaults Optional named list of initial checked states for
 #'   layer checkboxes.
-#' @param expr_check Controls `expr` placeholder validation.
+#' @param expr_check Controls `expr` placeholder validation: `TRUE` (default)
+#'   applies the built-in denylist + AST walker; `FALSE` disables all
+#'   validation; a `list` with `deny_list`/`allow_list` entries customises
+#'   the policy. See `vignette("ggpaintr-safety")`.
 #' @param safe_to_remove Character vector of additional function names whose
 #'   zero-argument calls should be dropped after substitution.
 #' @param shared Named list of reactives (one per shared key) supplied by an
@@ -72,6 +75,13 @@
 #'   plot context — only `formula` is checked).
 #'
 #' @return A `ptr_state` list (S3 class `c("ptr_state", "list")`).
+#' @examples
+#' shiny::isolate({
+#'   state <- ptr_init_state(
+#'     "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+#'   )
+#'   is.list(state)
+#' })
 #' @export
 ptr_init_state <- function(formula,
                                 envir = parent.frame(),
@@ -297,6 +307,25 @@ ptr_validate_state <- function(state) {
 #'
 #' @return The `ptr_state` list, invisibly.
 #' @seealso [ptr_shared_server()], [ptr_module_server()]
+#' @examples
+#' if (interactive()) {
+#'   f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+#'   shiny::shinyApp(
+#'     ui = shiny::fluidPage(
+#'       ptr_ui_assets(),
+#'       shiny::tags$div(
+#'         class = "ptr-app",
+#'         shiny::sidebarLayout(
+#'           shiny::sidebarPanel(ptr_ui_controls(formula = f)),
+#'           shiny::mainPanel(ptr_ui_plot())
+#'         )
+#'       )
+#'     ),
+#'     server = function(input, output, session) {
+#'       ptr_server(input, output, session, f)
+#'     }
+#'   )
+#' }
 #' @export
 ptr_server <- function(input, output, session, formula,
                           envir = parent.frame(), ...,
@@ -1394,6 +1423,13 @@ ptr_register_code <- function(output, state) {
 #' Reserve `ptr_extract_*` for non-reactive contexts: download handlers,
 #' [shiny::testServer()] assertions, and one-shot reads outside any session.
 #' @name ptr_extract
+#' @examples
+#' shiny::isolate({
+#'   state <- ptr_init_state(
+#'     "ggplot(mtcars, aes(x = wt, y = mpg)) + geom_point()"
+#'   )
+#'   ptr_extract_code(state)
+#' })
 #' @export
 ptr_extract_plot  <- function(state) shiny::isolate(state$runtime())$plot
 
@@ -1424,6 +1460,14 @@ ptr_extract_code  <- function(state) {
 #'   extras untouched (atomic update).
 #'
 #' @return `state`, invisibly.
+#' @examples
+#' shiny::isolate({
+#'   state <- ptr_init_state(
+#'     "ggplot(mtcars, aes(x = wt, y = mpg)) + geom_point()"
+#'   )
+#'   state <- ptr_gg_extra(state, ggplot2::theme_minimal())
+#'   ptr_extract_code(state)
+#' })
 #' @export
 ptr_gg_extra <- function(state, ...) {
   quos <- rlang::enquos(..., .named = FALSE)

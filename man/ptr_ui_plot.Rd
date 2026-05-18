@@ -30,6 +30,9 @@ combinators \code{\link[=ptr_ui_inline_error]{ptr_ui_inline_error()}} (nests an 
 body) and \code{\link[=ptr_ui_toggle_code]{ptr_ui_toggle_code()}} (adds the \verb{</>} toggle + slide-out
 code window) — not by flags on this function.
 }
+\examples{
+ptr_ui_plot("myplot")
+}
 \seealso{
 \code{\link[=ptr_ui_error]{ptr_ui_error()}}, \code{\link[=ptr_ui_code]{ptr_ui_code()}}, \code{\link[=ptr_ui_inline_error]{ptr_ui_inline_error()}},
 \code{\link[=ptr_ui_toggle_code]{ptr_ui_toggle_code()}}, \code{\link[=ptr_ui_controls]{ptr_ui_controls()}}, \code{\link[=ptr_server]{ptr_server()}}

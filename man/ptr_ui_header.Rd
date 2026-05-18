@@ -17,6 +17,10 @@ The slim branded header bar (logo + title) the polished default shell
 uses in place of \code{shiny::titlePanel()}. One of the single-piece UI
 builders for the L3 "own every UI piece" workflow.
 }
+\examples{
+ptr_ui_header()
+ptr_ui_header("My App")
+}
 \seealso{
 \code{\link[=ptr_ui_controls]{ptr_ui_controls()}}, \code{\link[=ptr_ui_plot]{ptr_ui_plot()}}, \code{\link[=ptr_app]{ptr_app()}}
 }

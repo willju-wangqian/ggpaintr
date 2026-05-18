@@ -41,3 +41,11 @@ Reserve \verb{ptr_extract_*} for non-reactive contexts: download handlers,
 \code{\link[shiny:testServer]{shiny::testServer()}} assertions, and one-shot reads outside any session.
 }
 
+\examples{
+shiny::isolate({
+  state <- ptr_init_state(
+    "ggplot(mtcars, aes(x = wt, y = mpg)) + geom_point()"
+  )
+  ptr_extract_code(state)
+})
+}

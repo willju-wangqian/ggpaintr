@@ -7,9 +7,14 @@
 ptr_ui_toggle_code(plotish, code)
 }
 \arguments{
-\item{plotish}{A plot-ish tag: a bare \code{ptr_ui_plot(id)} or
-\code{ptr_ui_inline_error(ptr_ui_plot(id), ptr_ui_error(id))}. Must be the
-\code{.ptr-card--plot} card so the toggle button can be added to its head.}
+\item{plotish}{A plot-ish tag. The designed input is a bare
+\code{ptr_ui_plot(id)} or \code{ptr_ui_inline_error(ptr_ui_plot(id), ptr_ui_error(id))} — a single \code{.ptr-card--plot} tag, where the toggle
+button is injected into the card head (DOM byte-identical to the
+bundled output block). An arbitrary custom output also works: a
+\code{shiny.tag.list} (e.g. \code{plotly::plotlyOutput()},
+\code{ggiraph::girafeOutput()}) or a childless single tag (e.g.
+\code{shiny::plotOutput()}) gets the toggle button as an explicit sibling
+inside the \code{.ptr-output} wrapper instead.}
 
 \item{code}{A code piece, typically \code{ptr_ui_code(id)} built with the
 same \code{id}. Its style is irrelevant — this combinator supplies the
@@ -34,6 +39,12 @@ Use this when you want the familiar toggle behaviour while still owning
 the surrounding layout. For fully independent placement of the plot and
 code panes (no toggle), keep the bare pieces uncombined — a standalone
 \code{\link[=ptr_ui_code]{ptr_ui_code()}} is always visible and needs no wiring.
+}
+\examples{
+ptr_ui_toggle_code(
+  ptr_ui_inline_error(ptr_ui_plot("p"), ptr_ui_error("p")),
+  ptr_ui_code("p", style = "window")
+)
 }
 \seealso{
 \code{\link[=ptr_ui_plot]{ptr_ui_plot()}}, \code{\link[=ptr_ui_code]{ptr_ui_code()}}, \code{\link[=ptr_ui_inline_error]{ptr_ui_inline_error()}},

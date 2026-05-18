@@ -29,7 +29,10 @@ reads \code{ui_text$shell$title$label}; defaults to \code{"ggpaintr grid"}. See
 
 \item{draw_all_label}{Label for the draw-all action button.}
 
-\item{expr_check}{Controls \code{expr} placeholder validation. Defaults to \code{TRUE}.}
+\item{expr_check}{Controls \code{expr} placeholder validation: \code{TRUE} (default)
+applies the built-in denylist + AST walker; \code{FALSE} disables all
+validation; a \code{list} with \code{deny_list}/\code{allow_list} entries customises
+the policy. See \code{vignette("ggpaintr-safety")}.}
 
 \item{css}{Optional character vector of paths to additional CSS files,
 linked once at the page level after \code{ggpaintr}'s bundled stylesheet so
@@ -47,6 +50,16 @@ corresponding entry in \code{shared_ui} instead of rendering local widgets.
 \details{
 For the formula grammar (placeholder keywords, \code{shared = "<id>"}
 annotation, empty-call cleanup), see \code{\link[=ptr_app]{ptr_app()}}.
+}
+\examples{
+if (interactive()) {
+  ptr_app_grid(
+    plots = list(
+      "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
+      "ggplot(mtcars, aes(x = var)) + geom_histogram()"
+    )
+  )
+}
 }
 \seealso{
 \code{\link[=ptr_css]{ptr_css()}} for the \verb{css =} argument and themable CSS custom properties.

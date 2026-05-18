@@ -398,6 +398,22 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #'   `node$companion_id`, and the substitution uses the name as the symbol
 #'   inserted into the generated code. Pass `NULL` (default) when one
 #'   input suffices.
+#' @seealso [ptr_define_placeholder_value()], [ptr_define_placeholder_consumer()],
+#'   [ptr_clear_placeholder()].
+#' @examples
+#' # A minimal in-memory dataset source (picks from pre-loaded data frames).
+#' ptr_define_placeholder_source(
+#'   keyword = "dataset",
+#'   build_ui = function(node, label, ...) {
+#'     shiny::selectInput(node$id, label = label,
+#'                        choices = c("mtcars", "iris"))
+#'   },
+#'   resolve_data = function(value, node, ...) {
+#'     if (length(value) != 1L || !nzchar(value)) return(NULL)
+#'     get(value, envir = as.environment("package:datasets"))
+#'   }
+#' )
+#' ptr_clear_placeholder("dataset")
 #' @export
 ptr_define_placeholder_source <- function(keyword, build_ui, resolve_data,
                                         resolve_expr = NULL,

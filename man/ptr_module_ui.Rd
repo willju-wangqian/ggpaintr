@@ -24,7 +24,10 @@ for the full schema and current defaults.}
 
 \item{checkbox_defaults}{Optional named list of initial checked states.}
 
-\item{expr_check}{Controls \code{expr} placeholder validation. Defaults to \code{TRUE}.}
+\item{expr_check}{Controls \code{expr} placeholder validation: \code{TRUE} (default)
+applies the built-in denylist + AST walker; \code{FALSE} disables all
+validation; a \code{list} with \code{deny_list}/\code{allow_list} entries customises
+the policy. See \code{vignette("ggpaintr-safety")}.}
 
 \item{css}{Optional character vector of paths to additional CSS files;
 linked after \code{ggpaintr}'s bundled stylesheet so its rules win. See
@@ -46,6 +49,13 @@ A Shiny tag list.
 Namespaced UI side of a Shiny module wrapping a \code{ggpaintr} formula. Pair
 with \code{\link[=ptr_module_server]{ptr_module_server()}}.
 }
+\examples{
+ui <- ptr_module_ui(
+  "plot1",
+  "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+)
+}
 \seealso{
-\code{\link[=ptr_css]{ptr_css()}} for the \verb{css =} argument and themable CSS custom properties.
+\code{\link[=ptr_module_server]{ptr_module_server()}}, \code{\link[=ptr_css]{ptr_css()}} for the \verb{css =} argument and
+themable CSS custom properties.
 }

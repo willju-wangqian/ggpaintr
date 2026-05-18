@@ -53,6 +53,13 @@ object: \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}, \code{\link[=ptr_ui
 Errors when no formula declares a \code{shared = "..."} annotation -- building
 the coordinator is a declaration of intent.
 }
+\examples{
+obj <- ptr_shared(c(
+  "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
+  "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+))
+obj$panel_keys   # "x" — shared by both formulas
+}
 \seealso{
 \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}, \code{\link[=ptr_ui_shared_panel]{ptr_ui_shared_panel()}},
 \code{\link[=ptr_shared_server]{ptr_shared_server()}}, \code{\link[=ptr_module_ui]{ptr_module_ui()}}.

@@ -33,7 +33,10 @@ for the full schema and current defaults.}
 \item{checkbox_defaults}{Optional named list of initial checked states for
 layer checkboxes.}
 
-\item{expr_check}{Controls \code{expr} placeholder validation.}
+\item{expr_check}{Controls \code{expr} placeholder validation: \code{TRUE} (default)
+applies the built-in denylist + AST walker; \code{FALSE} disables all
+validation; a \code{list} with \code{deny_list}/\code{allow_list} entries customises
+the policy. See \code{vignette("ggpaintr-safety")}.}
 
 \item{safe_to_remove}{Character vector of additional function names whose
 zero-argument calls should be dropped after substitution.}
@@ -102,4 +105,12 @@ observers (those live in internal \verb{ptr_setup_*} helpers wired by
 \code{\link[=ptr_server]{ptr_server()}}). Reach for \code{ptr_init_state()} directly when you want to
 drive the typed tree programmatically or exercise ggpaintr under
 \code{\link[shiny:testServer]{shiny::testServer()}}; for a fully wired app use \code{\link[=ptr_server]{ptr_server()}}.
+}
+\examples{
+shiny::isolate({
+  state <- ptr_init_state(
+    "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+  )
+  is.list(state)
+})
 }

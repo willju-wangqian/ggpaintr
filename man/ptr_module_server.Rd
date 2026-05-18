@@ -46,6 +46,17 @@ unpacked and forwarded to \code{\link[=ptr_init_state]{ptr_init_state()}}; if an
 / \code{draw_trigger = ...} / \code{shared_resolutions = ...} is also passed via
 \code{...}, that explicit value wins.
 }
+\examples{
+if (interactive()) {
+  f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+  shiny::shinyApp(
+    ui = shiny::fluidPage(ptr_module_ui("p", f)),
+    server = function(input, output, session) {
+      ptr_module_server("p", f)
+    }
+  )
+}
+}
 \seealso{
 \code{\link[=ptr_module_ui]{ptr_module_ui()}}, \code{\link[=ptr_shared]{ptr_shared()}}, \code{\link[=ptr_shared_panel]{ptr_shared_panel()}},
 \code{\link[=ptr_shared_server]{ptr_shared_server()}}.

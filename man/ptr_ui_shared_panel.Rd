@@ -18,6 +18,13 @@ The bare counterpart to \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}: ide
 \strong{no} asset bundle. The L3 user supplies their own shell / assets (e.g.
 via \code{\link[=ptr_ui_page]{ptr_ui_page()}}).
 }
+\examples{
+obj <- ptr_shared(c(
+  "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
+  "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+))
+ptr_ui_shared_panel(obj)
+}
 \seealso{
 \code{\link[=ptr_shared]{ptr_shared()}}, \code{\link[=ptr_shared_panel]{ptr_shared_panel()}},
 \code{\link[=ptr_shared_server]{ptr_shared_server()}}.

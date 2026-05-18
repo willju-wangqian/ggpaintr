@@ -122,6 +122,11 @@ cleanup list — being absent is the "removal safety unknown" signal.
 Use \code{safe_to_remove = c("pcp_theme")} to opt a specific name in.
 }
 
+\examples{
+if (interactive()) {
+  ptr_app("ggplot(mtcars, aes(x = var, y = var)) + geom_point()")
+}
+}
 \seealso{
 \code{\link[=ptr_app_bslib]{ptr_app_bslib()}} for the same contract with a \code{bslib} theme;
 \code{\link[=ptr_app_grid]{ptr_app_grid()}} for multi-plot apps with shared widgets;

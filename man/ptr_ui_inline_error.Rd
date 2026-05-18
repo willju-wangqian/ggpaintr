@@ -29,6 +29,9 @@ Pure DOM structure; no server coupling (the server registers
 This combinator does \strong{not} add the \code{.ptr-output} toggle scope (it has
 no toggle, so it needs none); \code{\link[=ptr_ui_toggle_code]{ptr_ui_toggle_code()}} owns that wrapper.
 }
+\examples{
+ptr_ui_inline_error(ptr_ui_plot("p"), ptr_ui_error("p"))
+}
 \seealso{
 \code{\link[=ptr_ui_plot]{ptr_ui_plot()}}, \code{\link[=ptr_ui_error]{ptr_ui_error()}}, \code{\link[=ptr_ui_toggle_code]{ptr_ui_toggle_code()}}
 }

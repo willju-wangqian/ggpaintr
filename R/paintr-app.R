@@ -105,6 +105,10 @@
 #'   keywords; [ptr_ui_text()] for copy overrides; [ptr_css()] for the
 #'   `css =` argument and themable CSS custom properties;
 #'   `vignette("ggpaintr-use-cases")` for tutorial examples.
+#' @examples
+#' if (interactive()) {
+#'   ptr_app("ggplot(mtcars, aes(x = var, y = var)) + geom_point()")
+#' }
 #' @export
 ptr_app <- function(formula,
                        envir = parent.frame(),
@@ -419,6 +423,8 @@ ptr_outputs_panel <- function(ns = shiny::NS(NULL)) {
 #' @return A [shiny::tag].
 #' @seealso [ptr_ui_error()], [ptr_ui_code()], [ptr_ui_inline_error()],
 #'   [ptr_ui_toggle_code()], [ptr_ui_controls()], [ptr_server()]
+#' @examples
+#' ptr_ui_plot("myplot")
 #' @export
 ptr_ui_plot <- function(id = NULL) {
   plot_card_tag(shiny::NS(id), error = FALSE, code_toggle = FALSE)
@@ -437,6 +443,8 @@ ptr_ui_plot <- function(id = NULL) {
 #'
 #' @return A [shiny::tag].
 #' @seealso [ptr_ui_plot()], [ptr_ui_code()], [ptr_ui_controls()], [ptr_server()]
+#' @examples
+#' ptr_ui_error("myplot")
 #' @export
 ptr_ui_error <- function(id = NULL) {
   error_slot_tag(shiny::NS(id))
@@ -460,6 +468,9 @@ ptr_ui_error <- function(id = NULL) {
 #'
 #' @return A [shiny::tag].
 #' @seealso [ptr_ui_toggle_code()], [ptr_ui_plot()], [ptr_server()]
+#' @examples
+#' ptr_ui_code("myplot")
+#' ptr_ui_code("myplot", style = "window")
 #' @export
 ptr_ui_code <- function(id = NULL, style = c("panel", "window")) {
   code_block_tag(shiny::NS(id), style = match.arg(style))
@@ -485,6 +496,8 @@ ptr_ui_code <- function(id = NULL, style = c("panel", "window")) {
 #'
 #' @return A [shiny::tag] — the plot card with `error` nested in its body.
 #' @seealso [ptr_ui_plot()], [ptr_ui_error()], [ptr_ui_toggle_code()]
+#' @examples
+#' ptr_ui_inline_error(ptr_ui_plot("p"), ptr_ui_error("p"))
 #' @export
 ptr_ui_inline_error <- function(plot, error) {
   # The plot piece is plot_card_tag()'s output:
@@ -528,6 +541,11 @@ ptr_ui_inline_error <- function(plot, error) {
 #'   the toggle button) and the `.ptr-code-window`-wrapped `code`.
 #' @seealso [ptr_ui_plot()], [ptr_ui_code()], [ptr_ui_inline_error()],
 #'   [ptr_ui_controls()], [ptr_server()]
+#' @examples
+#' ptr_ui_toggle_code(
+#'   ptr_ui_inline_error(ptr_ui_plot("p"), ptr_ui_error("p")),
+#'   ptr_ui_code("p", style = "window")
+#' )
 #' @export
 ptr_ui_toggle_code <- function(plotish, code) {
   # Dispatch on `plotish` structure so arbitrary custom outputs are safe:
@@ -612,6 +630,9 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
 #'
 #' @return A [shiny::tag].
 #' @seealso [ptr_ui_controls()], [ptr_ui_plot()], [ptr_app()]
+#' @examples
+#' ptr_ui_header()
+#' ptr_ui_header("My App")
 #' @export
 ptr_ui_header <- function(title = "ggpaintr") {
   shiny::tags$header(
@@ -637,7 +658,10 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
 #'   for the full schema and current defaults.
 #' @param checkbox_defaults Optional named list of initial checked states.
-#' @param expr_check Controls `expr` placeholder validation. Defaults to `TRUE`.
+#' @param expr_check Controls `expr` placeholder validation: `TRUE` (default)
+#'   applies the built-in denylist + AST walker; `FALSE` disables all
+#'   validation; a `list` with `deny_list`/`allow_list` entries customises
+#'   the policy. See `vignette("ggpaintr-safety")`.
 #' @param css Optional character vector of paths to additional CSS files;
 #'   linked after `ggpaintr`'s bundled stylesheet so its rules win. See
 #'   [ptr_app()] for the full semantics. Defaults to `NULL`.
@@ -651,7 +675,13 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #'   shared keys render inline. Defaults to `NULL`.
 #'
 #' @return A Shiny tag list.
-#' @seealso [ptr_css()] for the `css =` argument and themable CSS custom properties.
+#' @seealso [ptr_module_server()], [ptr_css()] for the `css =` argument and
+#'   themable CSS custom properties.
+#' @examples
+#' ui <- ptr_module_ui(
+#'   "plot1",
+#'   "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+#' )
 #' @export
 ptr_module_ui <- function(id, formula, ui_text = NULL,
                              checkbox_defaults = NULL, expr_check = TRUE,
@@ -724,8 +754,10 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
 #' @param ui_text Optional named list of copy overrides; see
 #'   [ptr_ui_text()] for the full schema and current defaults.
 #' @param checkbox_defaults Optional named list of initial checked states.
-#' @param expr_check Controls `expr` placeholder validation. Defaults to
-#'   `TRUE`.
+#' @param expr_check Controls `expr` placeholder validation: `TRUE` (default)
+#'   applies the built-in denylist + AST walker; `FALSE` disables all
+#'   validation; a `list` with `deny_list`/`allow_list` entries customises
+#'   the policy. See `vignette("ggpaintr-safety")`.
 #' @param shared Optional coordinator object from [ptr_shared()] for the
 #'   multi-instance embedding. When `NULL` (the single-instance default)
 #'   the inline "Shared controls" section renders **every** `shared =
@@ -737,6 +769,11 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
 #' @return A [shiny::tagList()].
 #' @seealso [ptr_ui_page()], [ptr_ui_assets()], [ptr_ui_plot()],
 #'   [ptr_ui_code()], [ptr_shared()], [ptr_server()]
+#' @examples
+#' ptr_ui_controls(
+#'   id = "p",
+#'   formula = "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+#' )
 #' @export
 ptr_ui_controls <- function(id = NULL, formula, ui_text = NULL,
                             checkbox_defaults = NULL, expr_check = TRUE,
@@ -775,6 +812,14 @@ ptr_ui_controls <- function(id = NULL, formula, ui_text = NULL,
 #' @return A `shiny.tag` — the Bootstrap page node ready to pass to
 #'   [shiny::shinyApp()] as `ui`.
 #' @seealso [ptr_ui_plot()], [ptr_ui_controls()], [ptr_server()], [ptr_css()]
+#' @examples
+#' f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+#' ptr_ui_page(
+#'   shiny::sidebarLayout(
+#'     shiny::sidebarPanel(ptr_ui_controls(id = "p", formula = f)),
+#'     shiny::mainPanel(ptr_ui_plot("p"))
+#'   )
+#' )
 #' @export
 ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
   assertthat::assert_that(is.function(page))
@@ -813,6 +858,16 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #'   side effects only).
 #' @seealso [ptr_module_ui()], [ptr_shared()], [ptr_shared_panel()],
 #'   [ptr_shared_server()].
+#' @examples
+#' if (interactive()) {
+#'   f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+#'   shiny::shinyApp(
+#'     ui = shiny::fluidPage(ptr_module_ui("p", f)),
+#'     server = function(input, output, session) {
+#'       ptr_module_server("p", f)
+#'     }
+#'   )
+#' }
 #' @export
 ptr_module_server <- function(id, formula, envir = parent.frame(), ...,
                                  shared_state = NULL) {
@@ -971,13 +1026,25 @@ ptr_module_server <- function(id, formula, envir = parent.frame(), ...,
 #'   reads `ui_text$shell$title$label`; defaults to `"ggpaintr grid"`. See
 #'   [ptr_ui_text()] for the full schema.
 #' @param draw_all_label Label for the draw-all action button.
-#' @param expr_check Controls `expr` placeholder validation. Defaults to `TRUE`.
+#' @param expr_check Controls `expr` placeholder validation: `TRUE` (default)
+#'   applies the built-in denylist + AST walker; `FALSE` disables all
+#'   validation; a `list` with `deny_list`/`allow_list` entries customises
+#'   the policy. See `vignette("ggpaintr-safety")`.
 #' @param css Optional character vector of paths to additional CSS files,
 #'   linked once at the page level after `ggpaintr`'s bundled stylesheet so
 #'   its rules win. See [ptr_app()] for the full semantics. Defaults to `NULL`.
 #'
 #' @return A `shiny.appobj`.
 #' @seealso [ptr_css()] for the `css =` argument and themable CSS custom properties.
+#' @examples
+#' if (interactive()) {
+#'   ptr_app_grid(
+#'     plots = list(
+#'       "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
+#'       "ggplot(mtcars, aes(x = var)) + geom_histogram()"
+#'     )
+#'   )
+#' }
 #' @export
 ptr_app_grid <- function(plots,
                             shared_ui = list(),

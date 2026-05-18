@@ -26,6 +26,10 @@ bound to the \code{ptr_code} id the server writes to (see \code{\link[=ptr_serve
 One of the single-piece UI builders for the L3 "own every UI piece"
 workflow.
 }
+\examples{
+ptr_ui_code("myplot")
+ptr_ui_code("myplot", style = "window")
+}
 \seealso{
 \code{\link[=ptr_ui_toggle_code]{ptr_ui_toggle_code()}}, \code{\link[=ptr_ui_plot]{ptr_ui_plot()}}, \code{\link[=ptr_server]{ptr_server()}}
 }

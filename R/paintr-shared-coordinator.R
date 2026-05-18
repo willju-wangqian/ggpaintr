@@ -89,6 +89,12 @@ shared_partition <- function(trees) {
 #'   keys). Deterministic and idempotent for a given `formulas`.
 #' @seealso [`ptr_shared_panel()`], [`ptr_ui_shared_panel()`],
 #'   [`ptr_shared_server()`], [`ptr_module_ui()`].
+#' @examples
+#' obj <- ptr_shared(c(
+#'   "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
+#'   "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+#' ))
+#' obj$panel_keys   # "x" — shared by both formulas
 #' @export
 ptr_shared <- function(formulas,
                        shared_ui = list(),
@@ -257,6 +263,12 @@ shared_panel_body_tag <- function(obj, keys) {
 #'   bundle, suitable for direct placement in the embedder's UI.
 #' @seealso [`ptr_shared()`], [`ptr_ui_shared_panel()`],
 #'   [`ptr_shared_server()`].
+#' @examples
+#' obj <- ptr_shared(c(
+#'   "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
+#'   "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+#' ))
+#' ptr_shared_panel(obj)
 #' @export
 ptr_shared_panel <- function(obj, css = NULL) {
   if (!inherits(obj, "ptr_shared_spec")) {
@@ -286,6 +298,12 @@ ptr_shared_panel <- function(obj, css = NULL) {
 #' @return A `shiny.tag` wellPanel with no wrapper and no injected assets.
 #' @seealso [`ptr_shared()`], [`ptr_shared_panel()`],
 #'   [`ptr_shared_server()`].
+#' @examples
+#' obj <- ptr_shared(c(
+#'   "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
+#'   "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+#' ))
+#' ptr_ui_shared_panel(obj)
 #' @export
 ptr_ui_shared_panel <- function(obj) {
   if (!inherits(obj, "ptr_shared_spec")) {

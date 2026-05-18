@@ -51,6 +51,26 @@ internal layer-nav inputs). Treat the whole \code{ptr_} prefix as reserved
 for the id contract (and the \verb{ptr_module_*()} namespacing fix) is the
 \emph{"How input ids are built"} section of \code{vignette("ggpaintr-use-cases")}.
 }
+\examples{
+if (interactive()) {
+  f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+  shiny::shinyApp(
+    ui = shiny::fluidPage(
+      ptr_ui_assets(),
+      shiny::tags$div(
+        class = "ptr-app",
+        shiny::sidebarLayout(
+          shiny::sidebarPanel(ptr_ui_controls(formula = f)),
+          shiny::mainPanel(ptr_ui_plot())
+        )
+      )
+    ),
+    server = function(input, output, session) {
+      ptr_server(input, output, session, f)
+    }
+  )
+}
+}
 \seealso{
 \code{\link[=ptr_shared_server]{ptr_shared_server()}}, \code{\link[=ptr_module_server]{ptr_module_server()}}
 }

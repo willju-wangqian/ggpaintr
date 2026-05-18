@@ -20,6 +20,9 @@ The inline error slot on its own: a \code{shiny::uiOutput()} bound to the
 \code{\link[=ptr_server]{ptr_server()}}). One of the single-piece UI builders for the L3 "own
 every UI piece" workflow.
 }
+\examples{
+ptr_ui_error("myplot")
+}
 \seealso{
 \code{\link[=ptr_ui_plot]{ptr_ui_plot()}}, \code{\link[=ptr_ui_code]{ptr_ui_code()}}, \code{\link[=ptr_ui_controls]{ptr_ui_controls()}}, \code{\link[=ptr_server]{ptr_server()}}
 }

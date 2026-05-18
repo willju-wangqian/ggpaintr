@@ -48,6 +48,20 @@ it inside the top-level Shiny server function (or any reactive
 context that inherits the session). Errors when called outside any
 reactive domain.
 }
+\examples{
+if (interactive()) {
+  obj <- ptr_shared(c(
+    "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
+    "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+  ))
+  shiny::shinyApp(
+    ui = shiny::fluidPage(ptr_shared_panel(obj)),
+    server = function(input, output, session) {
+      ptr_shared_server(obj)
+    }
+  )
+}
+}
 \seealso{
 \code{\link[=ptr_shared]{ptr_shared()}}, \code{\link[=ptr_shared_panel]{ptr_shared_panel()}},
 \code{\link[=ptr_module_server]{ptr_module_server()}}.
