@@ -48,7 +48,11 @@ Applied: in `test-e2e-vignette-examples-shinytest2.R`, §5.1 (plotly-paintr) and
 - *Primary:* `wait_for_idle` blocks until Shiny reports sustained reactive quiescence, so the only state `expect_no_inline_error` can observe is the post-flush settled one (proven clean by 39/40 pre-fix + the transient nature). The race is removed by construction.
 - *Confirmatory:* same JUnit-instrumented harness, before vs after — **pre-fix 1 fault / 40 runs; post-fix 0 faults / 40 runs** (40/40 `FAIL 0 / PASS 1639`, `/tmp/iss02fix/`). Statistical caveat: at the observed ~2.5% base rate, 0/40 alone has P(0 | unfixed) ≈ 0.36 — weak in isolation; it corroborates the mechanism argument, it does not independently prove elimination.
 
-Full authoritative gate re-run after the fix: `FAIL 0 / WARN 0 / SKIP 0 / PASS 1639` (no regression). The prune-asymmetry (separate latent isolation gap, NOT this occurrence's cause) remains open and is captured in `dev/notes/2026-05-17-e2e-gate-perf.html` for any future e2e-harness work — deliberately not folded in here (surface, don't conflate).
+Full authoritative gate re-run after the fix: `FAIL 0 / WARN 0 / SKIP 0 / PASS 1639` (no regression). The prune-asymmetry (separate latent isolation gap, NOT this occurrence's cause) was tracked in `dev/notes/2026-05-17-e2e-gate-perf.html` and is now **closed** — see below.
+
+## Prune-asymmetry closed 2026-05-18 (the separate latent gap, not this flake)
+
+`boot_vignette_app()` (`tests/testthat/helper-vignette-apps.R`) now calls `prune_dead_ggpaintr_resource_paths()` before `AppDriver$new()`, matching what `test-shared-lockstep-shinytest2.R:22` already did — the asymmetry is gone. Pruning a resource path whose dir no longer exists is a semantic no-op for live paths (helper-shinytest2.R), so this hardens isolation (esp. order-dependent css-test-then-vignette-boot sequences) with zero behaviour change. Authoritative gate after the fix: `FAIL 0 / WARN 0 / SKIP 0 / PASS 1655` — unchanged count, confirming the no-op-for-live-paths property. This also removes the hard isolation prerequisite for any future e2e parallelism (perf note Bottom line); the remaining parallelism work (split the e2e file, enable parallel config, re-trust via the 40× JUnit loop) stays deferred behind an explicit trigger.
 
 ## Notes
 

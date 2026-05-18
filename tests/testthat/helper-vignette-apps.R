@@ -37,6 +37,15 @@ boot_vignette_app <- function(slug) {
     "e2e vignette-app boot needs the package source root (pkgload::load_all); absent under the R CMD check .Rcheck sandbox"
   )
   withr::local_envvar(GGP_PKG = pkg)
+  # Close the resourcePath-leak isolation asymmetry: an earlier `css =` test
+  # can leave a process-global `ggpaintr-user-*` resource path pointing at a
+  # torn-down withr tempdir; AppDriver$new() replays parent resourcePaths()
+  # into the child and a dead entry aborts the child boot ("Couldn't
+  # normalize path"), order-dependently. test-shared-lockstep-shinytest2.R
+  # already prunes before its AppDriver boots; boot_vignette_app() did not —
+  # the asymmetry tracked in .scratch/shared-section-fix/issues/02. Pruning
+  # dead paths is a semantic no-op for live ones (see helper-shinytest2.R).
+  prune_dead_ggpaintr_resource_paths()
   app_dir <- testthat::test_path("fixtures", "vignette-apps", slug)
   # The "Failed to locate globals" / htmlDependency-prefix warnings on
   # AppDriver$new() are benign and documented in project memory; scope the
