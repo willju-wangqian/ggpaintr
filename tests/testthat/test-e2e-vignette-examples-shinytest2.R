@@ -239,6 +239,13 @@ test_that("grid-shared-partition: ptr_app_grid binds formula-local var(shared=) 
   expect_picker_populated(app, "plot_1-shared_ax1", "Petal.Length")
   expect_picker_populated(app, "plot_2-shared_ax2", "Petal.Length")
 
+  # issues/01 fix: ptr_app_grid_components() now forwards shared = obj to
+  # each cell's ptr_module_ui(), so the cross-formula panel key `sz` is
+  # excluded from the inline section and lives ONLY in the standalone
+  # panel above -- not double-rendered per cell.
+  expect_no_dom_id(app, "plot_1-shared_sz")
+  expect_no_dom_id(app, "plot_2-shared_sz")
+
   set_input(app, "plot_1-shared_ax1", "Petal.Length")
   set_input(app, "plot_2-shared_ax2", "Sepal.Length")
   draw(app, "ptr_shared_draw_all")

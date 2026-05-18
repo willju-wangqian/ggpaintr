@@ -1036,7 +1036,13 @@ ptr_app_grid_components <- function(plots,
     lapply(seq_along(plots), function(i) {
       shiny::column(
         width = col_width,
-        ptr_module_ui(plot_module_ids[[i]], plots[[i]], expr_check = expr_check)
+        # `shared = obj` so the coordinator's cross-formula panel keys are
+        # excluded from each cell's inline section (they belong to the one
+        # standalone ptr_shared_panel() above). obj is NULL when no formula
+        # declares `shared = "..."`, which ptr_module_ui() treats as the
+        # single-instance render-all default -- behaviour unchanged there.
+        ptr_module_ui(plot_module_ids[[i]], plots[[i]],
+                      expr_check = expr_check, shared = obj)
       )
     })
   )

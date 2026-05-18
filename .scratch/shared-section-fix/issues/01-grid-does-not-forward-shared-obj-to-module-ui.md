@@ -1,6 +1,10 @@
 # `ptr_app_grid()` does not forward `shared = obj` to its `ptr_module_ui()` cells → panel keys double-render inline
 
-Status: needs-triage
+Status: fixed
+
+## Resolution (2026-05-17)
+
+`ptr_app_grid_components()` (`R/paintr-app.R`) now calls `ptr_module_ui(plot_module_ids[[i]], plots[[i]], expr_check = expr_check, shared = obj)` — `obj` is `NULL` when no formula declares `shared = "..."` (ptr_module_ui's single-instance render-all default, behaviour unchanged), and the coordinator spec otherwise so panel keys are excluded from each cell's inline section. Locked by two new assertions in the `grid-shared-partition` e2e test (`tests/testthat/test-e2e-vignette-examples-shinytest2.R`): `expect_no_dom_id(app, "plot_1-shared_sz")` / `plot_2-shared_sz`. Authoritative gate green after the fix: `FAIL 0 / WARN 0 / SKIP 0 / PASS 1639` (the two new assertions account for 1637 → 1639 and would fail without the source change).
 
 ## Origin
 
