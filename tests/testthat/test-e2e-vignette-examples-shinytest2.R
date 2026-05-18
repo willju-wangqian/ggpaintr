@@ -335,6 +335,19 @@ test_that("use-cases l3-plotly: L3 own-the-render-path with state$runtime()", {
   set_input(app, "plot1-ggplot_1_2_var_NA", "Petal.Length")
   draw(app, "plot1-ptr_update_plot")
   expect_rendered(app, "#plot1-custom_plot", "plotly")
+  # Bug-1 + combinator lock: ptr_ui_code("plot1") under moduleServer("plot1")
+  # binds plot1-ptr_code (un-namespaced ptr_ui_code() left it empty), and the
+  # </> toggle composes with the raw plotly htmlwidget (plotlyOutput is a
+  # tagList, so the injected .ptr-code-toggle is a .ptr-output sibling, not
+  # wiped on render). Window starts closed; clicking the toggle opens it;
+  # the code pane then shows the run's generated code.
+  expect_no_match(app$get_html(".ptr-code-window") %||% "", "ptr-open",
+                  fixed = TRUE)
+  app$click(selector = ".ptr-code-toggle")
+  app$wait_for_idle(timeout = 5 * 1000)
+  expect_match(app$get_html(".ptr-code-window"), "ptr-open", fixed = TRUE)
+  expect_match(app$get_value(output = "plot1-ptr_code"), "Sepal.Length",
+               fixed = TRUE)
 })
 
 test_that("use-cases l3-gg-extra: ptr_gg_extra() programmatic layer injection", {

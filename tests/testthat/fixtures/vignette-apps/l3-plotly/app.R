@@ -11,7 +11,8 @@ ui <- ptr_ui_page(
   shiny::fluidRow(
     shiny::column(5, ptr_ui_controls("plot1", formula)),                   # widgets only
     shiny::column(7, plotly::plotlyOutput(shiny::NS("plot1")("custom_plot"),
-                                          height = "500px"))               # your own output
+                                          height = "500px") |>
+                    ptr_ui_toggle_code(ptr_ui_code("plot1")))               # your own output
   )
 )
 server <- function(input, output, session) {
