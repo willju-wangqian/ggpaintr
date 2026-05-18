@@ -43,7 +43,8 @@ standalone \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}; only this formul
 shared keys render inline. Defaults to \code{NULL}.}
 }
 \value{
-A Shiny tag list.
+A \code{shiny.tag} — a \code{fluidPage} shell containing the controls panel,
+plot output, and asset bundle.
 }
 \description{
 Namespaced UI side of a Shiny module wrapping a \code{ggpaintr} formula. Pair

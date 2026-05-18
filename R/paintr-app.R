@@ -674,7 +674,8 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #'   standalone [ptr_shared_panel()]; only this formula's formula-local
 #'   shared keys render inline. Defaults to `NULL`.
 #'
-#' @return A Shiny tag list.
+#' @return A `shiny.tag` — a `fluidPage` shell containing the controls panel,
+#'   plot output, and asset bundle.
 #' @seealso [ptr_module_server()], [ptr_css()] for the `css =` argument and
 #'   themable CSS custom properties.
 #' @examples
@@ -744,8 +745,8 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
 #' the decomposition recipe in `vignette("ggpaintr-use-cases")`.
 #'
 #' For finer control still — placing individual placeholder widgets
-#' independently rather than the whole panel — use the exported
-#' [build_ui_for()] generic on the nodes of `ptr_translate(formula)`.
+#' independently rather than the whole panel — register a custom placeholder
+#' type; see [ptr_define_placeholder_value()].
 #'
 #' @param id Optional module id; the namespace prefix for inputs.
 #'   Defaults to `NULL` (identity namespace). When set, must match the

@@ -60,8 +60,8 @@ owns the single \code{.ptr-app} scope + the (deduped) assets. For a
 the decomposition recipe in \code{vignette("ggpaintr-use-cases")}.
 
 For finer control still — placing individual placeholder widgets
-independently rather than the whole panel — use the exported
-\code{\link[=build_ui_for]{build_ui_for()}} generic on the nodes of \code{ptr_translate(formula)}.
+independently rather than the whole panel — register a custom placeholder
+type; see \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.
 }
 \examples{
 ptr_ui_controls(
