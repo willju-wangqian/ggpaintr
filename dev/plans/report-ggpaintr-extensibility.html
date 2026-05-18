@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ggpaintr Extensibility — Technical Reference</title>
+<style>
+  /* ── Reset & base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f8f9fb;
+    color: #1a1d23;
+    line-height: 1.65;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ── Sidebar TOC ── */
+  #toc {
+    width: 270px;
+    flex-shrink: 0;
+    background: #1e2129;
+    color: #c9cdd4;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 24px 0 40px;
+    font-size: 0.83rem;
+    line-height: 1.5;
+  }
+  #toc h2 {
+    color: #7c8494;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0 20px 10px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid #2e333d;
+  }
+  #toc ul { list-style: none; }
+  #toc > ul { padding: 8px 0; }
+  #toc li > a {
+    display: block;
+    padding: 5px 20px;
+    color: #9aa0ab;
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  #toc li > a:hover {
+    background: #272c36;
+    color: #e0e3ea;
+    border-left-color: #4d90fe;
+  }
+  #toc li.section > a {
+    color: #c9cdd4;
+    font-weight: 600;
+    padding-top: 12px;
+  }
+  #toc ul ul li > a { padding-left: 36px; font-size: 0.80rem; }
+  #toc ul ul ul li > a { padding-left: 52px; font-size: 0.77rem; color: #7c8494; }
+
+  /* ── Main content ── */
+  #content {
+    flex: 1;
+    min-width: 0;
+    padding: 48px 64px 80px 56px;
+    max-width: 960px;
+  }
+
+  h1 { font-size: 2rem; font-weight: 700; color: #0d1117; margin-bottom: 8px; }
+  .subtitle { color: #5c6370; font-size: 1rem; margin-bottom: 40px; }
+  h2 {
+    font-size: 1.45rem; font-weight: 700; color: #0d1117;
+    margin: 52px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #dee1e6;
+  }
+  h3 { font-size: 1.15rem; font-weight: 600; color: #1a2230; margin: 36px 0 12px; }
+  h4 { font-size: 0.97rem; font-weight: 600; color: #2c3544; margin: 24px 0 8px; }
+
+  p { margin: 0 0 14px; }
+  strong { font-weight: 600; }
+  em { font-style: italic; }
+  ul, ol { margin: 0 0 14px 22px; }
+  li { margin-bottom: 4px; }
+
+  a { color: #2470d4; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ── Code & pre ── */
+  code {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", Menlo, monospace;
+    font-size: 0.855em;
+    background: #eef1f5;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #c0392b;
+  }
+  pre {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", Menlo, monospace;
+    font-size: 0.83rem;
+    background: #1e2129;
+    color: #abb2bf;
+    border-radius: 6px;
+    padding: 20px 24px;
+    overflow-x: auto;
+    margin: 16px 0 22px;
+    line-height: 1.6;
+    border: 1px solid #2e333d;
+  }
+  pre code {
+    font-size: inherit;
+    background: none;
+    padding: 0;
+    color: inherit;
+    border-radius: 0;
+  }
+
+  /* Syntax token colours (hand-applied via <span>) */
+  .kw   { color: #c678dd; }  /* keywords: function, if, return */
+  .fn   { color: #61afef; }  /* function calls */
+  .str  { color: #98c379; }  /* strings */
+  .cm   { color: #5c6370; font-style: italic; }  /* comments */
+  .num  { color: #d19a66; }  /* numbers */
+  .arg  { color: #e06c75; }  /* argument names */
+  .op   { color: #56b6c2; }  /* operators, special punctuation */
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    margin: 16px 0 22px;
+  }
+  th {
+    background: #e8ebf0;
+    text-align: left;
+    padding: 9px 14px;
+    font-weight: 600;
+    border-bottom: 2px solid #cdd0d7;
+  }
+  td { padding: 8px 14px; border-bottom: 1px solid #dee1e6; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: #f4f5f8; }
+
+  /* ── Callout boxes ── */
+  .callout {
+    border-left: 4px solid;
+    padding: 14px 18px;
+    margin: 18px 0 22px;
+    border-radius: 0 5px 5px 0;
+    font-size: 0.9rem;
+  }
+  .callout.info    { border-color: #2470d4; background: #eef5ff; }
+  .callout.warn    { border-color: #e6840a; background: #fff8ee; }
+  .callout.danger  { border-color: #c0392b; background: #fff0f0; }
+  .callout p { margin-bottom: 6px; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout strong { font-weight: 700; }
+
+  /* ── API signature block ── */
+  .sig {
+    background: #f0f3f8;
+    border: 1px solid #cdd0d7;
+    border-radius: 5px;
+    padding: 12px 18px;
+    font-family: "JetBrains Mono", Menlo, monospace;
+    font-size: 0.83rem;
+    line-height: 1.7;
+    margin: 10px 0 18px;
+    white-space: pre-wrap;
+  }
+
+  /* ── Source ref badges ── */
+  .src {
+    display: inline-block;
+    background: #dde6f5;
+    color: #1a4288;
+    font-family: "JetBrains Mono", Menlo, monospace;
+    font-size: 0.75rem;
+    padding: 1px 7px;
+    border-radius: 3px;
+    margin-left: 6px;
+    white-space: nowrap;
+  }
+
+  /* ── Section dividers ── */
+  hr { border: none; border-top: 1px solid #dee1e6; margin: 40px 0; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SIDEBAR
+══════════════════════════════════════════════════════════════ -->
+<nav id="toc">
+  <h2>ggpaintr Extensibility</h2>
+  <ul>
+    <li class="section"><a href="#architecture">1. L1 / L2 / L3 Architecture</a></li>
+    <ul>
+      <li><a href="#arch-overview">Overview and motivation</a></li>
+      <li><a href="#arch-parse-layer">Parse layer: ptr_translate()</a></li>
+      <li><a href="#arch-l1">L1 — All-in-one</a></li>
+      <li><a href="#arch-l2">L2 — Self-contained embed</a></li>
+      <li><a href="#arch-l3">L3 — Own the layout / render path</a></li>
+      <li><a href="#arch-naming">Naming convention</a></li>
+      <li><a href="#arch-state">The ptr_state object</a></li>
+      <li><a href="#arch-ids">Output id contract</a></li>
+    </ul>
+    <li class="section"><a href="#examples">2. Working Examples</a></li>
+    <ul>
+      <li><a href="#ex-l1">L1: ptr_app() — one-shot app</a></li>
+      <li><a href="#ex-l1-pipeline">L1: pipeline formula</a></li>
+      <li><a href="#ex-l1-grid">L1: ptr_app_grid() — multi-plot</a></li>
+      <li><a href="#ex-l2-single">L2: single module embed</a></li>
+      <li><a href="#ex-l2-multi">L2: multiple linked modules</a></li>
+      <li><a href="#ex-l2-partition">L2: partition in action</a></li>
+      <li><a href="#ex-l3-pieces">L3: hand-laid-out pieces</a></li>
+      <li><a href="#ex-l3-toggle">L3: combinator recipe</a></li>
+      <li><a href="#ex-l3-plotly">L3: custom Plotly renderer</a></li>
+      <li><a href="#ex-l3-ggextra">L3: ptr_gg_extra()</a></li>
+      <li><a href="#ex-shared-single">Shared: single-instance inline</a></li>
+      <li><a href="#ex-shared-multi">Shared: cross-formula panel</a></li>
+    </ul>
+    <li class="section"><a href="#placeholders">3. Placeholder Justification</a></li>
+    <ul>
+      <li><a href="#ph-var">var — column picker</a></li>
+      <li><a href="#ph-text">text — free-text input</a></li>
+      <li><a href="#ph-num">num — numeric input</a></li>
+      <li><a href="#ph-expr">expr — code editor</a></li>
+      <li><a href="#ph-upload">upload — file picker</a></li>
+      <li><a href="#ph-custom">Custom placeholders</a></li>
+    </ul>
+  </ul>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════════
+     MAIN CONTENT
+══════════════════════════════════════════════════════════════ -->
+<main id="content">
+
+<h1>ggpaintr Extensibility — Technical Reference</h1>
+<p class="subtitle">A developer reference for embedding, extending, and integrating ggpaintr. Covers the L1/L2/L3 architecture, complete working examples, and placeholder design rationale. Every claim is grounded in source code read from <code>R/</code>, fixture apps in <code>tests/testthat/fixtures/vignette-apps/</code>, and the authoritative domain document <code>CONTEXT.md</code>.</p>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SECTION 1 — ARCHITECTURE
+══════════════════════════════════════════════════════════════ -->
+<h2 id="architecture">1. L1 / L2 / L3 Entry-Point Architecture</h2>
+
+<h3 id="arch-overview">Overview and motivation</h3>
+
+<p>ggpaintr converts a ggplot-like formula string into a running Shiny app. The formula may contain placeholder tokens (<code>var</code>, <code>text</code>, <code>num</code>, <code>expr</code>, <code>upload</code>) that become Shiny input widgets; substitution happens at render time. This single transformation pipeline is exposed at three levels of abstraction.</p>
+
+<p>The layered design solves a fundamental tension: a one-line entry point that handles 80 % of use cases must coexist with fine-grained control for the remaining 20 %. A flat API forces every embedder to know about Shiny module namespacing, asset injection, reactive wiring, and custom renderer lifecycle — details that only matter when the defaults are insufficient. A tiered API lets each level absorb exactly the complexity required.</p>
+
+<table>
+  <thead><tr><th>Level</th><th>Entry points</th><th>What the caller controls</th><th>What ggpaintr controls</th></tr></thead>
+  <tbody>
+    <tr><td><strong>L1</strong></td><td><code>ptr_app()</code>, <code>ptr_app_grid()</code></td><td>Formula string, minor style overrides</td><td>Everything: layout, reactive wiring, rendering, assets</td></tr>
+    <tr><td><strong>L2</strong></td><td><code>ptr_module_ui()</code> / <code>ptr_module_server()</code>, shared trio</td><td>Host layout, host navigation, placement of the module block</td><td>Default layout inside the block, reactive wiring, rendering, assets</td></tr>
+    <tr><td><strong>L3</strong></td><td><code>ptr_ui_*</code> bare pieces, combinators, <code>ptr_server()</code></td><td>Every piece of markup and placement, custom renderer off <code>state$runtime()</code></td><td>Reactive wiring only (producer inputs, pipeline, runtime observer, output registration)</td></tr>
+  </tbody>
+</table>
+
+<p>L1 is not a "simplified L2" — it internally composes the same bare pieces an L3 user assembles by hand (<code>ptr_app_components()</code> builds a tree, calls <code>ptr_build_app_ui()</code>, and wires <code>ptr_make_app_server()</code> <span class="src">R/paintr-app.R: ptr_app_components()</span>). The three levels are three views of the same runtime, not three separate implementations.</p>
+
+<h3 id="arch-parse-layer">Parse layer: <code>ptr_translate()</code></h3>
+
+<p>All three levels share a single formula-to-tree transformation. <code>ptr_translate(formula, expr_check = TRUE)</code> <span class="src">R/paintr-translate.R: ptr_translate()</span> performs these steps in order:</p>
+
+<ol>
+  <li>Pre-process native pipe (<code>|&gt;</code>) to make R's parser happy.</li>
+  <li>Parse the string with <code>rlang::parse_exprs()</code>. A formula must be a single expression; multiple top-level expressions are rejected.</li>
+  <li>Split on <code>+</code> operators to enumerate layers.</li>
+  <li>Translate each layer expression into a typed AST node tree (<code>ptr_root</code> → <code>ptr_layer</code>s → <code>ptr_call</code>s → <code>ptr_ph_*</code> leaves and <code>ptr_literal</code>/<code>ptr_closure</code> nodes).</li>
+  <li>Deduplicate layer names (repeated <code>geom_point</code> becomes <code>geom_point</code>, <code>geom_point-2</code>).</li>
+  <li>Run the safety walker (<code>ptr_validate_tree_safety()</code>) if <code>expr_check = TRUE</code> — this recursively checks every AST node, including <code>expr</code> placeholder bodies, against the denylist.</li>
+  <li>Annotate: assign stable input ids (<code>ptr_assign_ids()</code>), classify data-arg nodes (<code>ptr_classify_data()</code>), bind shared-key metadata (<code>ptr_shared_bind()</code>).</li>
+</ol>
+
+<p>The resulting <code>ptr_root</code> object is the single source of truth for both the UI builders (which read placeholder node ids to know what <code>inputId</code>s to emit) and the runtime (which reads the same ids to pull from <code>input$</code>). Ids are deterministic from the formula, so the same formula always produces the same widget ids.</p>
+
+<h3 id="arch-l1">L1 — All-in-one</h3>
+
+<p>L1 turns a formula string into a fully self-contained <code>shiny.appobj</code> in one call. Two entry points:</p>
+
+<div class="sig">ptr_app(
+  formula,
+  envir            = parent.frame(),
+  ui_text          = NULL,
+  checkbox_defaults = NULL,
+  expr_check       = TRUE,
+  safe_to_remove   = character(),
+  css              = NULL
+) → shiny.appobj                      # R/paintr-app.R: ptr_app()
+
+ptr_app_grid(
+  plots,                              # named or unnamed list of formula strings
+  shared_ui        = list(),
+  envir            = parent.frame(),
+  ui_text          = NULL,
+  draw_all_label   = "Draw all",
+  expr_check       = TRUE,
+  css              = NULL
+) → shiny.appobj                      # R/paintr-app.R: ptr_app_grid()</div>
+
+<p><code>ptr_app()</code> delegates immediately to <code>ptr_app_components()</code>, which calls <code>ptr_translate()</code>, then <code>ptr_build_app_ui()</code> and <code>ptr_make_app_server()</code>, and returns a list <code>list(ui, server)</code>. The returned objects are passed straight to <code>shiny::shinyApp()</code>.</p>
+
+<p><code>ptr_app_grid()</code> is <em>not</em> simply N × <code>ptr_app()</code> — it builds a shared coordinator internally (<code>ptr_app_grid_components()</code>), wires a top-level <strong>Draw all</strong> button whose click propagates to every module's runtime observer via a <code>draw_trigger</code> reactive, and places a standalone shared panel above the grid when any formula uses <code>shared = "..."</code> annotations.</p>
+
+<h3 id="arch-l2">L2 — Self-contained embed</h3>
+
+<p>L2 is "plug ggpaintr into my own Shiny app, accept the default layout." The module pair is the only default-layout block at L2; there is no controls-here/plot-there split at this level (that is L3).</p>
+
+<div class="sig">ptr_module_ui(
+  id, formula,
+  ui_text          = NULL,
+  checkbox_defaults = NULL,
+  expr_check       = TRUE,
+  css              = NULL,
+  shared           = NULL             # ptr_shared_spec from ptr_shared(), or NULL
+) → shiny.tag                         # R/paintr-app.R: ptr_module_ui()
+
+ptr_module_server(
+  id, formula,
+  envir            = parent.frame(),
+  ...,                                # forwarded to ptr_init_state()
+  shared_state     = NULL             # ptr_shared_state from ptr_shared_server()
+) → ptr_state invisibly               # R/paintr-app.R: ptr_module_server()</div>
+
+<p><code>ptr_module_ui()</code> is implemented by composing the L3 bare pieces — it internally calls <code>ptr_ui_controls()</code>, <code>ptr_ui_plot()</code>, <code>ptr_ui_error()</code>, <code>ptr_ui_code()</code>, and the two combinators, wrapping them in <code>fluidPage &gt; div.ptr-app &gt; sidebarLayout</code> <span class="src">R/paintr-app.R: ptr_module_ui() lines 649–688</span>. It emits the asset bundle once via <code>ptr_ui_assets()</code>; htmlDependency deduplicates it page-wide so N modules load assets once.</p>
+
+<p><code>ptr_module_server()</code> wraps <code>shiny::moduleServer(id, ...)</code>. Inside, it calls <code>ptr_server()</code> with the module session's auto-namespace plumbing (<code>ns = session$ns</code>, <code>server_ns = shiny::NS(NULL)</code>). It returns the <code>ptr_state</code> so the caller can react to it (e.g. call <code>ptr_gg_extra()</code>).</p>
+
+<p><strong>Shared trio (multi-instance only):</strong></p>
+
+<div class="sig">ptr_shared(
+  formulas,                           # list of formula strings
+  shared_ui        = list(),          # map: key → function(id) → shiny.tag
+  ui_text          = NULL,
+  expr_check       = TRUE,
+  draw_all_label   = "Draw all"
+) → ptr_shared_spec                   # R/paintr-shared-coordinator.R: ptr_shared()
+
+ptr_shared_panel(
+  obj,                                # ptr_shared_spec
+  css              = NULL
+) → shiny.tag | NULL                  # R/paintr-shared-coordinator.R: ptr_shared_panel()
+
+ptr_shared_server(
+  obj,                                # ptr_shared_spec
+  envir            = parent.frame(),
+  shared           = list(),          # reactive overrides for panel keys
+  draw_trigger     = NULL
+) → ptr_shared_state                  # R/paintr-shared-ui.R: ptr_shared_server()</div>
+
+<p><code>ptr_shared()</code> is a pure, non-reactive computation. It runs <code>ptr_translate()</code> on every formula, collects all <code>shared = "..."</code> annotations, and applies the <strong>partition rule</strong>: keys referenced by exactly one formula are <em>formula-local</em> (inline shared section inside that module's control panel); keys referenced by two or more formulas are <em>panel keys</em> (standalone shared panel, global ids). The resulting <code>ptr_shared_spec</code> is the single source of truth — <code>obj$panel_keys</code> and <code>obj$local_keys_by_formula</code> are read by the UI and server independently, ensuring they can never disagree.</p>
+
+<p><code>ptr_shared_panel()</code> renders only <code>obj$panel_keys</code>. It returns <code>NULL</code> when the panel body is empty (valid configuration — see below). It must be placed <strong>exactly once</strong> per page. The panel uses global, un-namespaced ids (<code>shared_&lt;key&gt;</code>, <code>ptr_shared_draw_all</code>, <code>ptr_shared_errors</code>); placing it more than once would produce duplicate ids.</p>
+
+<p><code>ptr_shared_server()</code> <strong>must be called at the top level</strong> of the server function, never inside <code>moduleServer()</code>. It reads <code>input$shared_&lt;key&gt;</code> at the top-level namespace (modules cannot reach those slots through their namespaced sessions). It returns a <code>ptr_shared_state</code> bundle, which is threaded into each <code>ptr_module_server(shared_state = ...)</code>.</p>
+
+<div class="callout warn">
+  <p><strong>Single-instance invariant:</strong> <code>ptr_shared()</code> / <code>ptr_shared_panel()</code> / <code>ptr_shared_server()</code> are strictly multi-instance API. One ggpaintr instance should never use them — every shared key is formula-local by definition, auto-renders inline, and requires no coordinator. <code>ptr_module_server()</code> given a <code>shared = "..."</code> formula without a coordinator wiring will <code>abort()</code> with a clear message.</p>
+</div>
+
+<h3 id="arch-l3">L3 — Own the layout and the render path</h3>
+
+<p>L3 gives the embedder control over every piece of markup and — critically — the ability to replace ggpaintr's built-in <code>renderPlot()</code> with any renderer (Plotly, ggiraph, custom). The enabling mechanism is the return value of <code>ptr_server()</code>: a <code>ptr_state</code> object that exposes a reactive <code>state$runtime()</code> from which the caller reads the computed ggplot object.</p>
+
+<div class="sig">ptr_server(
+  input, output, session,
+  formula,
+  envir            = parent.frame(),
+  ...,                                # forwarded to ptr_init_state()
+  shared_state     = NULL
+) → ptr_state                         # R/paintr-server.R: ptr_server()</div>
+
+<p><code>ptr_server()</code> is the L3 server entry point. Inside it calls <code>ptr_init_state()</code> to allocate reactive slots, then runs a sequence of setup functions in order:</p>
+
+<ol>
+  <li><code>ptr_setup_producer_inputs()</code> — builds debounced reactives for every placeholder's input slot.</li>
+  <li><code>ptr_setup_pipelines()</code> — wires upload / data-source observers.</li>
+  <li><code>ptr_setup_stage_enabled()</code> — toggles for per-stage pipeline enable/disable checkboxes.</li>
+  <li><code>ptr_setup_shared_stage_enabled()</code> — mirrors shared stage state into the module.</li>
+  <li><code>ptr_setup_runtime()</code> — the main observer: fires on <em>Update plot</em> click or <code>draw_trigger</code>, calls <code>ptr_exec_headless()</code>, stores the result in <code>state$runtime</code>.</li>
+  <li><code>ptr_setup_consumer_uis()</code> — <code>renderUI</code> observers that rebuild <code>var</code> column pickers when upstream data changes.</li>
+  <li><code>ptr_setup_layer_picker()</code> / <code>ptr_setup_layer_panel_classes()</code> — layer navigation tab wiring.</li>
+  <li><code>ptr_register_plot()</code> / <code>ptr_register_error()</code> / <code>ptr_register_code()</code> — bind the three canonical outputs to <code>output$ptr_plot</code>, <code>output$ptr_error</code>, <code>output$ptr_code</code>. These are always registered; if no UI piece is present for a given id, the binding is inert (Shiny simply never requests it).</li>
+</ol>
+
+<p>The L3 <strong>bare pieces</strong> emit only their widgets and carry no self-wrap, no asset bundle, and no theme scope:</p>
+
+<table>
+  <thead><tr><th>Function</th><th>Emits</th><th>Key contract</th></tr></thead>
+  <tbody>
+    <tr><td><code>ptr_ui_page(…, page, css)</code></td><td>Bootstrap page + single <code>.ptr-app</code> scope + asset bundle</td><td>L3-only shell; optional. The only place the asset bundle is injected on the L3 path. <span class="src">R/paintr-app.R: ptr_ui_page()</span></td></tr>
+    <tr><td><code>ptr_ui_header(title)</code></td><td>Branded header bar</td><td>Pure tag; no server coupling.</td></tr>
+    <tr><td><code>ptr_ui_controls(id, formula, …)</code></td><td>Layer picker + per-layer panels + <em>Update plot</em> button + inline shared section</td><td><code>shared = obj</code> → exclude panel keys from inline section. <span class="src">R/paintr-app.R: ptr_ui_controls()</span></td></tr>
+    <tr><td><code>ptr_ui_plot(id)</code></td><td>Bare plot card (<code>ptr_plot</code>)</td><td>No error slot, no toggle. <span class="src">R/paintr-app.R: ptr_ui_plot()</span></td></tr>
+    <tr><td><code>ptr_ui_error(id)</code></td><td>Bare inline error slot (<code>ptr_error</code>)</td><td>Stands alone or is nested by combinator.</td></tr>
+    <tr><td><code>ptr_ui_code(id, style)</code></td><td>Generated-code pane (<code>ptr_code</code>)</td><td><code>style = "panel"</code> (default, always visible) or <code>"window"</code> (slide-out chrome via combinator).</td></tr>
+    <tr><td><code>ptr_ui_inline_error(plot, error)</code></td><td><strong>Combinator</strong>: nests error inside plot card body</td><td>Pure DOM-structure. No server coupling. <span class="src">R/paintr-app.R: ptr_ui_inline_error()</span></td></tr>
+    <tr><td><code>ptr_ui_toggle_code(plotish, code)</code></td><td><strong>Combinator</strong>: wraps plot-ish + code in <code>&lt;/&gt;</code> slide-out layout</td><td>Accepts custom output containers (e.g. <code>plotlyOutput()</code>). <span class="src">R/paintr-app.R: ptr_ui_toggle_code()</span></td></tr>
+    <tr><td><code>ptr_ui_shared_panel(obj)</code></td><td>Bare cross-formula shared panel (no <code>css</code>)</td><td>L3 counterpart of <code>ptr_shared_panel()</code>.</td></tr>
+    <tr><td><code>ptr_ui_assets(css)</code></td><td>CSS/JS bundle (htmlDependency)</td><td>Escape hatch only — for <code>navbarPage</code> / bslib roots that <code>ptr_ui_page()</code> cannot cover.</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Combinator nesting:</strong> combinators take already-built pieces as arguments and return a new tag tree. They are nestable: the output block used internally by <code>ptr_app()</code> and <code>ptr_module_ui()</code> is exactly:</p>
+
+<pre><code><span class="fn">ptr_ui_toggle_code</span>(
+  <span class="fn">ptr_ui_inline_error</span>(<span class="fn">ptr_ui_plot</span>(id), <span class="fn">ptr_ui_error</span>(id)),
+  <span class="fn">ptr_ui_code</span>(id)
+)</code></pre>
+
+<h3 id="arch-naming">Naming convention</h3>
+
+<p>The <code>ptr_&lt;x&gt;</code> vs <code>ptr_ui_&lt;x&gt;</code> distinction encodes level ownership (locked in CONTEXT.md, enforced by ADR 0005):</p>
+
+<ul>
+  <li><strong><code>ptr_&lt;x&gt;</code></strong> = L2 self-contained: owns its own <code>.ptr-app</code> scope and asset bundle. Drop it into a host page with no scaffolding. Examples: <code>ptr_module_ui()</code>, <code>ptr_shared_panel()</code>.</li>
+  <li><strong><code>ptr_ui_&lt;x&gt;</code></strong> = L3 bare: emits only its widgets. The L3 user supplies their own Shiny shell (or uses <code>ptr_ui_page()</code>). Examples: <code>ptr_ui_controls()</code>, <code>ptr_ui_plot()</code>, <code>ptr_ui_inline_error()</code>.</li>
+</ul>
+
+<p>The exception is the module pair (<code>ptr_module_ui</code> / <code>ptr_module_server</code>), which use the <code>ptr_</code> prefix for historical reasons and are the L2 sealed-bundle exception documented in ADR 0004.</p>
+
+<h3 id="arch-state">The <code>ptr_state</code> object</h3>
+
+<p><code>ptr_init_state()</code> <span class="src">R/paintr-server.R: ptr_init_state()</span> allocates all reactive slots for one formula instance. The object is a named list of class <code>ptr_state</code>. The slots relevant to L3 integrators:</p>
+
+<table>
+  <thead><tr><th>Slot</th><th>Type</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>runtime</code></td><td><code>reactiveVal(NULL)</code></td><td>Set by <code>ptr_setup_runtime()</code> on every draw. Read as <code>state$runtime()</code> inside a reactive context. The value is a list with slots <code>$ok</code> (logical), <code>$plot</code> (ggplot2 object), <code>$code_text</code> (character), <code>$error</code> (character | NULL).</td></tr>
+    <tr><td><code>extras</code></td><td><code>reactiveVal(list())</code></td><td>ggplot2 layer objects appended by <code>ptr_gg_extra()</code>. Folded into the plot at render time.</td></tr>
+    <tr><td><code>eval_env</code></td><td><code>environment</code></td><td>Child of the caller's <code>envir</code>. Pipeline-head data sources resolve here.</td></tr>
+    <tr><td><code>draw_trigger</code></td><td>reactive | NULL</td><td>External draw trigger (e.g. shared panel's <em>Draw all</em> button).</td></tr>
+    <tr><td><code>ui_ns_fn</code></td><td>function</td><td><code>session$ns</code> under a module; <code>NS(NULL)</code> at top level. Namespace function for <code>renderUI</code>-emitted tag ids.</td></tr>
+    <tr><td><code>server_ns_fn</code></td><td>function</td><td><code>NS(NULL)</code> always (module session auto-namespaces <code>input</code>/<code>output</code>). Used by <code>ptr_register_plot()</code> etc. to address output slots.</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Two reading paths off <code>ptr_state</code>:</strong></p>
+
+<table>
+  <thead><tr><th>Context</th><th>How to read</th><th>Establishes reactive dependency?</th></tr></thead>
+  <tbody>
+    <tr><td>Inside <code>renderX()</code> / <code>reactive()</code> / <code>observeEvent()</code></td><td><code>state$runtime()</code> → unpack <code>$ok</code>, <code>$plot</code>, <code>$code_text</code>, <code>$error</code></td><td>Yes — re-runs on every draw</td></tr>
+    <tr><td>Outside reactive context (download handler, snapshot)</td><td><code>ptr_extract_plot(state)</code> / <code>ptr_extract_code(state)</code> / <code>ptr_extract_error(state)</code></td><td>No — wraps <code>shiny::isolate()</code></td></tr>
+  </tbody>
+</table>
+
+<div class="callout danger">
+  <p><strong>Never mix paths in a render block.</strong> Calling <code>ptr_extract_plot(state)</code> inside <code>renderPlotly({...})</code> silently breaks reactivity — the block fires once on mount and never again. Use <code>state$runtime()$plot</code> inside reactive contexts, <code>ptr_extract_*()</code> outside.</p>
+</div>
+
+<h3 id="arch-ids">Output id contract</h3>
+
+<p>The framework owns the <code>ptr_</code> id prefix. The canonical output ids (written by <code>ptr_register_*()</code> and read by the UI pieces) are:</p>
+
+<table>
+  <thead><tr><th>Id</th><th>Written by</th><th>Consumed by</th></tr></thead>
+  <tbody>
+    <tr><td><code>ptr_plot</code></td><td><code>ptr_register_plot()</code></td><td><code>ptr_ui_plot(id)</code> at <code>NS(id)("ptr_plot")</code></td></tr>
+    <tr><td><code>ptr_error</code></td><td><code>ptr_register_error()</code></td><td><code>ptr_ui_error(id)</code> at <code>NS(id)("ptr_error")</code></td></tr>
+    <tr><td><code>ptr_code</code></td><td><code>ptr_register_code()</code></td><td><code>ptr_ui_code(id)</code> at <code>NS(id)("ptr_code")</code></td></tr>
+    <tr><td><code>ptr_update_plot</code></td><td>rendered by <code>ptr_ui_controls()</code></td><td>read by <code>ptr_setup_runtime()</code></td></tr>
+    <tr><td><code>ptr_shared_draw_all</code></td><td>rendered by shared panel</td><td>read by <code>ptr_shared_server()</code></td></tr>
+    <tr><td><code>ptr_shared_errors</code></td><td><code>ptr_shared_server()</code></td><td>rendered in shared panel</td></tr>
+  </tbody>
+</table>
+
+<p>When ids are namespaced under a module (<code>id = "p"</code>), the full DOM id is <code>p-ptr_plot</code>, <code>p-ptr_error</code>, etc. Shared panel ids are <em>not</em> namespaced — they use the top-level session.</p>
+
+<hr>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SECTION 2 — EXAMPLES
+══════════════════════════════════════════════════════════════ -->
+<h2 id="examples">2. Complete Working Examples</h2>
+
+<p>All examples are runnable after <code>library(ggpaintr)</code>. The fixture apps in <code>tests/testthat/fixtures/vignette-apps/</code> are verbatim-equivalent to the corresponding vignette chunks and are used by the shinytest2 browser test suite.</p>
+
+<h3 id="ex-l1">L1 — Single plot: <code>ptr_app()</code></h3>
+
+<p>The minimal entry point. The formula uses three <code>var</code> placeholders (x-axis, y-axis, color), a <code>text</code> placeholder for the chart title, and a <code>num</code> placeholder for point size. The user gets a sidebar with three column pickers, a text field, a number input, and an <em>Update plot</em> button, plus a code pane showing the generated call.</p>
+
+<pre><code class="language-r"><span class="fn">library</span>(ggpaintr)
+
+<span class="fn">ptr_app</span>(
+  <span class="str">"ggplot(iris, aes(x = var, y = var, color = var)) +
+     geom_point(size = num) +
+     labs(title = text)"</span>
+)
+</code></pre>
+
+<p><strong>Why this formula?</strong> <code>iris</code> is in scope without any setup — it is an R base dataset, not an <code>upload</code>. The three <code>var</code> tokens resolve against <code>iris</code>'s columns at runtime; the <code>text</code> token allows an arbitrary chart title without restricting input to a fixed list; the <code>num</code> token accepts a numeric size value directly rather than forcing a string-parse. See <a href="#placeholders">§ 3</a> for full justification of each placeholder type.</p>
+
+<p>Source: <code>tests/testthat/fixtures/vignette-apps/app-basic/app.R</code>, vignette chunk <code>app-basic</code>.</p>
+
+<h3 id="ex-l1-pipeline">L1 — Pipeline formula</h3>
+
+<p>ggpaintr supports data-arg pipelines — a chain of <code>|&gt;</code> or <code>%&gt;%</code> stages before the final <code>ggplot()</code> call. Each stage that contains a placeholder gets its own widget row under the layer's <strong>Data</strong> subtab, plus a per-stage enable/disable toggle.</p>
+
+<pre><code class="language-r"><span class="fn">library</span>(ggpaintr)
+
+<span class="fn">ptr_app</span>(
+  <span class="str">"mpg |>
+     dplyr::filter(displ > num) |>
+     dplyr::group_by(class) |>
+     dplyr::filter(dplyr::n() > num) |>
+     dplyr::ungroup() |>
+     ggplot(aes(var, var, color = class)) +
+     geom_point(alpha = num)"</span>
+)
+</code></pre>
+
+<p><strong>What happens under the hood:</strong> <code>ptr_translate()</code> walks the pipeline chain and creates a <code>ptr_pipeline</code> node attached to the <code>ggplot</code> layer's data argument. Each pipeline stage containing a placeholder becomes a per-stage observer in <code>ptr_setup_pipelines()</code>. Column pickers for <code>var</code> downstream of a stage lazily re-resolve against the current filtered data — changing the displacement threshold immediately refreshes the picker options. The generated code panel shows the fully resolved pipeline.</p>
+
+<p>Note: anonymous lambda functions as pipeline stages (<code>df |> (\(x) x[x$cyl &gt; 4, ])()</code>) are not supported — the runtime cannot assign a stable Shiny id to a nameless stage. Lift lambdas to named helpers in the calling environment.</p>
+
+<h3 id="ex-l1-grid">L1 — Multiple plots: <code>ptr_app_grid()</code></h3>
+
+<p>Two plots with a shared x-axis column picker at the top. Annotating both <code>var</code> tokens with <code>shared = 'metric'</code> and supplying <code>shared_ui</code> promotes the picker to a single widget that drives both tiles when the user clicks <strong>Draw all</strong>.</p>
+
+<pre><code class="language-r"><span class="fn">library</span>(ggpaintr)
+
+<span class="fn">ptr_app_grid</span>(
+  <span class="arg">plots</span> = <span class="fn">list</span>(
+    <span class="str">"ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Length, fill = Species)) +
+       geom_boxplot()"</span>,
+    <span class="str">"ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Width, fill = Species)) +
+       geom_violin()"</span>
+  ),
+  <span class="arg">shared_ui</span> = <span class="fn">list</span>(<span class="arg">metric</span> = <span class="kw">function</span>(id) <span class="fn">selectInput</span>(id, <span class="str">"Metric"</span>, <span class="fn">names</span>(iris)))
+)
+</code></pre>
+
+<p>The <code>'metric'</code> key appears in both formulas → the partition rule sends it to the standalone shared panel at the top of the grid. Each plot still has its own <em>Update plot</em> button; the <strong>Draw all</strong> button fires both simultaneously. Internally, <code>ptr_app_grid_components()</code> builds a <code>ptr_shared_spec</code>, calls <code>ptr_shared_server()</code> at the top level, and wires the resulting bundle into two <code>ptr_module_server()</code> calls — the same machinery the L2 shared trio exposes.</p>
+
+<p>Source: <code>tests/testthat/fixtures/vignette-apps/app-grid-shared-added/app.R</code>, vignette chunk <code>app-grid-shared-added</code>.</p>
+
+<h3 id="ex-l2-single">L2 — Single module embed</h3>
+
+<p>The host app has its own navigation and layout; one ggpaintr block lives as a section inside it. <code>ptr_module_ui()</code> and <code>ptr_module_server()</code> handle namespacing automatically — all ggpaintr-generated widget ids are prefixed <code>p-</code>.</p>
+
+<pre><code class="language-r"><span class="fn">library</span>(ggpaintr)
+<span class="fn">library</span>(shiny)
+
+formula <span class="op">&lt;-</span> <span class="str">"ggplot(iris, aes(var, var, color = var)) + geom_point()"</span>
+
+ui <span class="op">&lt;-</span> <span class="fn">fluidPage</span>(
+  <span class="fn">titlePanel</span>(<span class="str">"My host app"</span>),
+  <span class="cm"># The host app could have its own sidebar, tabs, or other panels here.</span>
+  <span class="cm"># ptr_module_ui owns its own .ptr-app scope + asset bundle.</span>
+  <span class="fn">ptr_module_ui</span>(<span class="str">"p"</span>, formula)
+)
+server <span class="op">&lt;-</span> <span class="kw">function</span>(input, output, session) {
+  <span class="cm"># Returns the ptr_state invisibly; capture if you need ptr_gg_extra() etc.</span>
+  <span class="fn">ptr_module_server</span>(<span class="str">"p"</span>, formula)
+}
+
+<span class="fn">shinyApp</span>(ui, server)
+</code></pre>
+
+<p><strong>Why use L2 here instead of L1?</strong> The host app owns the page shell — <code>titlePanel()</code>, navigation, or other panels above/below the ggpaintr block. L1 <code>ptr_app()</code> builds a complete <code>shinyApp</code> that occupies the entire page. L2 drops a self-contained module into a larger app without interfering with the host's layout or its own Shiny inputs.</p>
+
+<p>Source: <code>tests/testthat/fixtures/vignette-apps/module-app/app.R</code>, vignette chunk <code>module-app</code>.</p>
+
+<h3 id="ex-l2-multi">L2 — Multiple linked modules</h3>
+
+<p>Two ggpaintr modules, each with a different formula (boxplot vs. violin), sharing a single x-axis column picker rendered in the shared panel above the modules. Changing the picker and clicking <strong>Draw all</strong> redraws both.</p>
+
+<pre><code class="language-r"><span class="fn">library</span>(ggpaintr)
+<span class="fn">library</span>(shiny)
+
+plots <span class="op">&lt;-</span> <span class="fn">list</span>(
+  <span class="str">"ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Length, fill = Species)) +
+     geom_boxplot()"</span>,
+  <span class="str">"ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Width,  fill = Species)) +
+     geom_violin()"</span>
+)
+
+<span class="cm"># Step 1: build the coordinator once from the full formula list.
+# 'metric' is referenced in both formulas → panel key → standalone panel.</span>
+obj <span class="op">&lt;-</span> <span class="fn">ptr_shared</span>(
+  <span class="arg">formulas</span> = plots,
+  <span class="arg">shared_ui</span> = <span class="fn">list</span>(<span class="arg">metric</span> = <span class="kw">function</span>(id) <span class="fn">selectInput</span>(id, <span class="str">"Metric"</span>, <span class="fn">names</span>(iris)))
+)
+
+ui <span class="op">&lt;-</span> <span class="fn">fluidPage</span>(
+  <span class="fn">titlePanel</span>(<span class="str">"My host app"</span>),
+  <span class="cm"># Step 2: the one standalone shared panel (Draw all + metric picker).
+  # Place it exactly once. Returns NULL when panel_keys is empty.</span>
+  <span class="fn">ptr_shared_panel</span>(obj),
+  <span class="fn">fluidRow</span>(
+    <span class="cm"># Step 3: pass obj to ptr_module_ui so it excludes panel keys from the
+    # inline shared section (they are already in the panel above).</span>
+    <span class="fn">column</span>(<span class="num">6</span>, <span class="fn">ptr_module_ui</span>(<span class="str">"plot_1"</span>, plots[[<span class="num">1</span>]], <span class="arg">shared</span> = obj)),
+    <span class="fn">column</span>(<span class="num">6</span>, <span class="fn">ptr_module_ui</span>(<span class="str">"plot_2"</span>, plots[[<span class="num">2</span>]], <span class="arg">shared</span> = obj))
+  )
+)
+server <span class="op">&lt;-</span> <span class="kw">function</span>(input, output, session) {
+  <span class="cm"># Step 4: call ptr_shared_server() ONCE at the top level — never inside
+  # moduleServer(). It reads input$shared_metric at the top-level namespace.</span>
+  sh <span class="op">&lt;-</span> <span class="fn">ptr_shared_server</span>(obj)
+  <span class="cm"># Step 5: thread the bundle into each module.</span>
+  <span class="fn">ptr_module_server</span>(<span class="str">"plot_1"</span>, plots[[<span class="num">1</span>]], <span class="arg">shared_state</span> = sh)
+  <span class="fn">ptr_module_server</span>(<span class="str">"plot_2"</span>, plots[[<span class="num">2</span>]], <span class="arg">shared_state</span> = sh)
+}
+
+<span class="fn">shinyApp</span>(ui, server)
+</code></pre>
+
+<p><strong>Namespace isolation in action:</strong> each module uses a unique <code>id</code> (<code>"plot_1"</code>, <code>"plot_2"</code>). ggpaintr-generated ids inside module 1 are <code>plot_1-ptr_plot</code>, <code>plot_1-ggplot_1_1_var_NA</code>, etc. Module 2's ids are <code>plot_2-ptr_plot</code>, <code>plot_2-ggplot_1_1_var_NA</code>, etc. They coexist without collision. The shared panel's ids (<code>shared_metric</code>, <code>ptr_shared_draw_all</code>) live at the top-level namespace, outside any module scope.</p>
+
+<p>Source: <code>tests/testthat/fixtures/vignette-apps/l2-shared/app.R</code>, vignette chunk <code>l2-shared</code>.</p>
+
+<h3 id="ex-l2-partition">L2 — Partition in action: mixed local and panel keys</h3>
+
+<p>This example demonstrates how the partition rule separates formula-local keys from panel keys. <code>ax1</code> appears only in plot 1, <code>ax2</code> only in plot 2, and <code>sz</code> appears in both — so only <code>sz</code> reaches the standalone panel; the axis pickers remain inline in each module's own control panel.</p>
+
+<pre><code class="language-r"><span class="fn">library</span>(ggpaintr)
+<span class="fn">library</span>(shiny)
+
+plots <span class="op">&lt;-</span> <span class="fn">list</span>(
+  <span class="str">"ggplot(iris, aes(x = var(shared = 'ax1'), y = var(shared = 'ax1'),
+                    color = Species)) + geom_point(size = num(shared = 'sz'))"</span>,
+  <span class="str">"ggplot(iris, aes(x = var(shared = 'ax2'), y = Sepal.Width,
+                    color = Species)) + geom_point(size = num(shared = 'sz'))"</span>
+)
+
+obj <span class="op">&lt;-</span> <span class="fn">ptr_shared</span>(<span class="arg">formulas</span> = plots)
+<span class="cm"># obj$panel_keys        → "sz"   (cross-formula → standalone panel)
+# obj$local_keys_by_formula[[1]] → "ax1" (only plot 1 → plot 1's inline section)
+# obj$local_keys_by_formula[[2]] → "ax2" (only plot 2 → plot 2's inline section)</span>
+
+ui <span class="op">&lt;-</span> <span class="fn">fluidPage</span>(
+  <span class="fn">ptr_shared_panel</span>(obj),  <span class="cm"># renders sz only; ax1, ax2 stay inline</span>
+  <span class="fn">fluidRow</span>(
+    <span class="fn">column</span>(<span class="num">6</span>, <span class="fn">ptr_module_ui</span>(<span class="str">"plot_1"</span>, plots[[<span class="num">1</span>]], <span class="arg">shared</span> = obj)),  <span class="cm"># ax1 inline</span>
+    <span class="fn">column</span>(<span class="num">6</span>, <span class="fn">ptr_module_ui</span>(<span class="str">"plot_2"</span>, plots[[<span class="num">2</span>]], <span class="arg">shared</span> = obj))   <span class="cm"># ax2 inline</span>
+  )
+)
+server <span class="op">&lt;-</span> <span class="kw">function</span>(input, output, session) {
+  sh <span class="op">&lt;-</span> <span class="fn">ptr_shared_server</span>(obj)
+  <span class="fn">ptr_module_server</span>(<span class="str">"plot_1"</span>, plots[[<span class="num">1</span>]], <span class="arg">shared_state</span> = sh)
+  <span class="fn">ptr_module_server</span>(<span class="str">"plot_2"</span>, plots[[<span class="num">2</span>]], <span class="arg">shared_state</span> = sh)
+}
+
+<span class="fn">shinyApp</span>(ui, server)
+</code></pre>
+
+<p><strong>What the partition rule enforces:</strong> ownership is exclusive. The <code>sz</code> widget lives exactly once (in the shared panel), and its reactive value is read from the top-level <code>input$shared_sz</code> by <code>ptr_shared_server()</code>. The modules never emit their own <code>sz</code> widgets — <code>ptr_module_ui(shared = obj)</code> excludes <code>obj$panel_keys</code> from each module's inline section. Double-binding (the host panel also binding formula-local keys, or vice versa) is explicitly prevented in <code>ptr_shared_server()</code> by the <code>panel_consumer_keys = intersect(consumer_keys, panel_keys)</code> guard.</p>
+
+<p>Source: <code>tests/testthat/fixtures/vignette-apps/l2-shared-partition/</code>, vignette chunk <code>l2-shared-partition</code>.</p>
+
+<h3 id="ex-l3-pieces">L3 — Hand-laid-out bare pieces</h3>
+
+<p>Every pane placed individually. Header, controls, plot, error, and code are in separate regions. <code>ptr_ui_page()</code> provides the Bootstrap shell and the single <code>.ptr-app</code> scope.</p>
+
+<pre><code class="language-r"><span class="fn">library</span>(ggpaintr)
+<span class="fn">library</span>(shiny)
+
+formula <span class="op">&lt;-</span> <span class="str">"ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"</span>
+
+ui <span class="op">&lt;-</span> <span class="fn">ptr_ui_page</span>(            <span class="cm"># Bootstrap page + single .ptr-app scope + asset bundle</span>
+  <span class="fn">ptr_ui_header</span>(<span class="str">"Iris explorer"</span>),
+  <span class="fn">fluidRow</span>(
+    <span class="fn">column</span>(<span class="num">4</span>, <span class="fn">ptr_ui_controls</span>(<span class="arg">formula</span> = formula)),
+    <span class="fn">column</span>(<span class="num">8</span>, <span class="fn">ptr_ui_plot</span>())   <span class="cm"># bare plot card; no error slot</span>
+  ),
+  <span class="fn">ptr_ui_error</span>(),               <span class="cm"># error banner in its own row</span>
+  <span class="fn">ptr_ui_code</span>()                  <span class="cm"># always-visible code card</span>
+)
+server <span class="op">&lt;-</span> <span class="kw">function</span>(input, output, session) {
+  <span class="cm"># ptr_server() registers ptr_plot, ptr_error, ptr_code.
+  # A piece you don't place is simply inert — its output binding fires into nothing.</span>
+  <span class="fn">ptr_server</span>(input, output, session, formula)
+}
+
+<span class="fn">shinyApp</span>(ui, server)
+</code></pre>
+
+<p><strong>Why this is L3, not L2:</strong> the caller owns the page markup — error is below the plot instead of inline; code is always visible instead of behind a toggle. <code>ptr_module_ui()</code> cannot produce this layout. The server side is identical to L2; the difference is entirely in the UI composition.</p>
+
+<p><strong>What <code>ptr_ui_page()</code> does (and what to do when it's not enough):</strong> it expands to <code>page(ptr_ui_assets(css), tags$div(class = "ptr-app", ...))</code>. For <code>navbarPage</code> or bslib roots, inline this expansion by hand: add <code>ptr_ui_assets()</code> once inside the tab and wrap pieces in <code>tags$div(class = "ptr-app", ...)</code>. <code>ptr_ui_assets()</code> is htmlDependency-backed and self-deduplicating, so repeating it across tabs is harmless.</p>
+
+<p>Source: <code>tests/testthat/fixtures/vignette-apps/l3-pieces/app.R</code>, vignette chunk <code>l3-pieces</code>.</p>
+
+<h3 id="ex-l3-toggle">L3 — Combinator recipe: slide-out code + inline error</h3>
+
+<p>The same layout as <code>ptr_app()</code> / <code>ptr_module_ui()</code> internally, but placed inside a custom host layout. The combinator call is byte-for-byte what those L2 functions produce, so behavior and performance match exactly.</p>
+
+<pre><code class="language-r"><span class="fn">library</span>(ggpaintr)
+<span class="fn">library</span>(shiny)
+
+formula <span class="op">&lt;-</span> <span class="str">"ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"</span>
+
+ui <span class="op">&lt;-</span> <span class="fn">ptr_ui_page</span>(
+  <span class="fn">ptr_ui_header</span>(<span class="str">"Iris explorer"</span>),
+  <span class="fn">sidebarLayout</span>(
+    <span class="fn">sidebarPanel</span>(<span class="fn">ptr_ui_controls</span>(<span class="arg">formula</span> = formula)),
+    <span class="fn">mainPanel</span>(
+      <span class="fn">ptr_ui_toggle_code</span>(              <span class="cm"># &lt;/&gt; slide-out toggle ...</span>
+        <span class="fn">ptr_ui_inline_error</span>(
+          <span class="fn">ptr_ui_plot</span>(),               <span class="cm"># ... around plot + inline error</span>
+          <span class="fn">ptr_ui_error</span>()
+        ),
+        <span class="fn">ptr_ui_code</span>()                   <span class="cm"># ... wrapped as the slide-out window</span>
+      )
+    )
+  )
+)
+<span class="cm"># server unchanged from l3-pieces</span>
+server <span class="op">&lt;-</span> <span class="kw">function</span>(input, output, session) {
+  <span class="fn">ptr_server</span>(input, output, session, formula)
+}
+
+<span class="fn">shinyApp</span>(ui, server)
+</code></pre>
+
+<p><strong>How the combinators work:</strong> <code>ptr_ui_inline_error(plot, error)</code> mutates the plot card's tag tree in-place — it appends the error slot to <code>plot$children[[2]]</code> (the card body) so errors render inline below the plot image. <code>ptr_ui_toggle_code(plotish, code)</code> injects a <code>&lt;/&gt;</code> button into the card head and wraps the whole thing in a <code>div.ptr-output</code> alongside a <code>.ptr-code-window</code> container. The bundled JavaScript in <code>inst/www/ggpaintr-ui.js</code> drives the slide-out animation purely DOM-locally off the CSS classes — no Shiny round-trip.</p>
+
+<p>Source: <code>tests/testthat/fixtures/vignette-apps/l3-pieces-toggle/app.R</code>, vignette chunk <code>l3-pieces-toggle</code>.</p>
+
+<h3 id="ex-l3-plotly">L3 — Custom Plotly renderer off <code>state$runtime()</code></h3>
+
+<p>This is the canonical L3 render-path pattern. The default <code>ptr_ui_plot()</code> / <code>renderPlot()</code> pair is <em>not</em> placed — with no UI slot for <code>ptr_plot</code>, the binding registered by <code>ptr_register_plot()</code> is inert. Instead, a <code>plotlyOutput()</code> is placed at a custom id and bound to <code>output$custom_plot</code> inside a <code>moduleServer()</code> that also holds the <code>ptr_server()</code> call.</p>
+
+<pre><code class="language-r"><span class="fn">library</span>(ggpaintr)
+<span class="fn">library</span>(shiny)
+<span class="fn">library</span>(plotly)
+
+formula <span class="op">&lt;-</span> <span class="str">"ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"</span>
+
+ui <span class="op">&lt;-</span> <span class="fn">ptr_ui_page</span>(
+  <span class="fn">fluidRow</span>(
+    <span class="fn">column</span>(<span class="num">5</span>,
+      <span class="cm"># ptr_ui_controls scoped to "plot1" namespace</span>
+      <span class="fn">ptr_ui_controls</span>(<span class="str">"plot1"</span>, formula)
+    ),
+    <span class="fn">column</span>(<span class="num">7</span>,
+      <span class="cm"># Custom output at the module-namespaced id NS("plot1")("custom_plot")</span>
+      <span class="fn">plotlyOutput</span>(<span class="fn">NS</span>(<span class="str">"plot1"</span>)(<span class="str">"custom_plot"</span>), <span class="arg">height</span> = <span class="str">"500px"</span>) <span class="op">|></span>
+        <span class="fn">ptr_ui_toggle_code</span>(<span class="fn">ptr_ui_code</span>(<span class="str">"plot1"</span>))  <span class="cm"># code pane still works</span>
+    )
+  )
+)
+
+server <span class="op">&lt;-</span> <span class="kw">function</span>(input, output, session) {
+  <span class="cm"># Wrap ptr_server() in your own moduleServer so namespacing is automatic
+  # and plain-Shiny-idiomatic. No internal namespace plumbing needed.</span>
+  <span class="fn">moduleServer</span>(<span class="str">"plot1"</span>, <span class="kw">function</span>(input, output, session) {
+    <span class="cm"># ptr_server() wires all reactive plumbing and registers ptr_plot
+    # (inert — no ptr_ui_plot in the UI), ptr_error, ptr_code.</span>
+    state <span class="op">&lt;-</span> <span class="fn">ptr_server</span>(input, output, session, formula)
+
+    <span class="cm"># Custom renderer reads the computed ggplot from state$runtime().</span>
+    output<span class="op">$</span>custom_plot <span class="op">&lt;-</span> <span class="fn">renderPlotly</span>({
+      res <span class="op">&lt;-</span> state<span class="op">$</span><span class="fn">runtime</span>()        <span class="cm"># reactive dependency → re-runs on draw</span>
+      <span class="fn">req</span>(<span class="fn">isTRUE</span>(res<span class="op">$</span>ok), res<span class="op">$</span>plot) <span class="cm"># quiet between draws and on error</span>
+      <span class="fn">ggplotly</span>(res<span class="op">$</span>plot)
+    })
+  })
+}
+
+<span class="fn">shinyApp</span>(ui, server)
+</code></pre>
+
+<p><strong>Why this is definitionally L3:</strong> the caller owns the render path. <code>ptr_server()</code> computes the ggplot2 object and stores it in <code>state$runtime()$plot</code>; using that value to drive a custom renderer (Plotly, ggiraph, any host) is owning the render path — the <em>enabling</em> return value lives at the L2 server boundary (<code>ptr_server()</code> returning <code>state</code>), but <em>using it to replace a pane</em> is by definition L3.</p>
+
+<p><strong>The <code>req(isTRUE(res$ok), res$plot)</code> guard:</strong> on the first reactive flush before any draw click, <code>state$runtime()</code> returns <code>NULL</code>. After a failed draw, it returns a list with <code>ok = FALSE</code>. Without the guard, Plotly's renderer throws a null-dereference. With it, the output stays quiet until a successful draw.</p>
+
+<p>Source: <code>tests/testthat/fixtures/vignette-apps/l3-plotly/app.R</code>, vignette chunk <code>l3-plotly</code>.</p>
+
+<h3 id="ex-l3-ggextra">L3 — Programmatic layer injection: <code>ptr_gg_extra()</code></h3>
+
+<p><code>ptr_gg_extra(state, ...)</code> <span class="src">R/paintr-server.R: ptr_gg_extra()</span> evaluates ggplot2 expressions and folds them into the rendered plot at the next draw cycle. This allows the host app to add layers, scales, or themes programmatically — for example, toggling a log scale in response to a button press. The code panel includes the injected expression in its output.</p>
+
+<pre><code class="language-r"><span class="fn">library</span>(ggpaintr)
+<span class="fn">library</span>(shiny)
+
+formula <span class="op">&lt;-</span> <span class="str">"ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()"</span>
+
+ui <span class="op">&lt;-</span> <span class="fn">fluidPage</span>(
+  <span class="fn">actionButton</span>(<span class="str">"add_log"</span>, <span class="str">"Add log scale"</span>),
+  <span class="fn">ptr_module_ui</span>(<span class="str">"p"</span>, formula)
+)
+server <span class="op">&lt;-</span> <span class="kw">function</span>(input, output, session) {
+  <span class="cm"># Capture the state returned by ptr_module_server.</span>
+  state <span class="op">&lt;-</span> <span class="fn">ptr_module_server</span>(<span class="str">"p"</span>, formula)
+  <span class="fn">observeEvent</span>(input<span class="op">$</span>add_log, {
+    <span class="cm"># Inject a scale; replaces any previous extras on this state.
+    # The runtime folds it in on the next Update plot click.</span>
+    <span class="fn">ptr_gg_extra</span>(state, ggplot2<span class="op">::</span><span class="fn">scale_x_log10</span>())
+  })
+}
+
+<span class="fn">shinyApp</span>(ui, server)
+</code></pre>
+
+<p><strong>Semantics:</strong> each <code>ptr_gg_extra()</code> call replaces all previously captured extras. Eval errors leave existing extras intact (atomic update). Extras are suppressed when the runtime reports a failure. <code>ptr_extract_code(state)</code> includes extras expressions in the returned string.</p>
+
+<h3 id="ex-shared-single">Shared placeholders — single instance: inline section</h3>
+
+<p>One ggpaintr instance with one key used twice. Both <code>x</code> and <code>y</code> axes are driven by the same column picker. The widget renders automatically in the inline shared section inside the control panel. No coordinator, no panel, no shared trio.</p>
+
+<pre><code class="language-r"><span class="fn">library</span>(ggpaintr)
+
+<span class="cm"># One instance, one key used twice: widget auto-renders inline. No coordinator.</span>
+<span class="fn">ptr_app</span>(
+  <span class="str">"ggplot(iris, aes(x = var(shared = 'col'), y = var(shared = 'col'),
+                    color = Species)) + geom_point()"</span>
+)
+</code></pre>
+
+<p><strong>What <code>shared = 'col'</code> does here:</strong> both <code>var</code> occurrences are annotated with the same key. <code>ptr_shared_bind()</code> (inside <code>ptr_translate()</code>) links them to a single canonical input id <code>shared_col</code>. The UI builder renders exactly one widget for that key in the shared section; both aes slots read from it at render time. This is the simplest use of shared placeholders and requires no multi-instance machinery.</p>
+
+<p>Source: <code>tests/testthat/fixtures/vignette-apps/single-instance-shared/app.R</code>, vignette chunk <code>single-instance-shared</code>.</p>
+
+<h3 id="ex-shared-multi">Shared placeholders — multiple instances: cross-formula panel</h3>
+
+<p>This is the same as the L2 multi-module example (<a href="#ex-l2-multi">§ 2.5</a>), repeated here in the shared-placeholder context to make the mechanic explicit.</p>
+
+<p>The key architectural point: <code>var(shared = 'metric')</code> tells the formula parser that this <code>var</code> token shares a common reactive value with every other occurrence of <code>'metric'</code> in the formula set. When the coordinator finds <code>'metric'</code> in both formulas, it assigns it to the shared panel. The panel renders one <code>selectInput</code> (supplied via <code>shared_ui</code>); <code>ptr_shared_server()</code> builds one reactive <code>input$shared_metric</code>; each module reads it from the <code>ptr_shared_state</code> bundle. The two plots never read each other's state directly — all cross-plot coordination flows through the top-level session's input namespace.</p>
+
+<hr>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SECTION 3 — PLACEHOLDER JUSTIFICATION
+══════════════════════════════════════════════════════════════ -->
+<h2 id="placeholders">3. Placeholder Justification</h2>
+
+<p>Each placeholder type corresponds to a specific <strong>data-analysis decision</strong> and a specific <strong>Shiny input widget</strong>. Choosing the wrong type produces either the wrong widget (the user can enter invalid values) or unnecessary restriction (the user cannot enter valid values). This section justifies every choice made in the examples above.</p>
+
+<h3 id="ph-var"><code>var</code> — column picker (data-aware <code>selectInput</code>)</h3>
+
+<p><strong>What it is:</strong> a <code>selectInput</code> whose choices are dynamically populated from the columns of the upstream data at the point where the placeholder appears in the formula. Implemented in <code>ptr_builtin_var_build_ui()</code> / <code>ptr_builtin_var_resolve_expr()</code> <span class="src">R/paintr-builtins.R</span>. The widget re-resolves its choices whenever upstream data changes (e.g. a filter stage changes the available columns, or an upload lands).</p>
+
+<p><strong>Role in the registry:</strong> <code>var</code> is a <em>data consumer</em> placeholder — it is registered via <code>ptr_define_placeholder_consumer()</code> and has a <code>resolve_expr</code> hook that converts the user's string selection to an unquoted symbol (e.g. <code>"Sepal.Length"</code> → <code>Sepal.Length</code>) for insertion into the ggplot2 aes call.</p>
+
+<p><strong>Why <code>var</code> and not <code>text</code> for aes mappings:</strong> <code>text</code> would allow the user to type any arbitrary string, including column names that do not exist, syntactically invalid R identifiers, or expressions that would silently misbehave. <code>var</code> restricts choices to actual columns of the upstream data, giving the analyst immediate visual feedback (the picker is pre-populated with valid options) and preventing the most common class of runtime errors ("object 'x' not found in data").</p>
+
+<p><strong>Uses in the examples:</strong></p>
+<ul>
+  <li><code>aes(x = var, y = var)</code> — axis column selection. The analyst wants to choose which numeric column maps to each axis; only actual data columns are valid.</li>
+  <li><code>aes(color = var)</code> — color group selection. Same rationale; the palette is computed from a column's levels.</li>
+  <li><code>aes(x = var(shared = 'metric'))</code> — shared axis selection. Same widget, but driven by the shared section/panel so it synchronizes across multiple plots or multiple occurrences in the same formula.</li>
+</ul>
+
+<p><strong>When <em>not</em> to use <code>var</code>:</strong> if the valid values are not data columns (e.g. a color name, a geom parameter that takes a string constant), use <code>text</code> or <code>num</code>. Using <code>var</code> against non-data positions would populate the picker with column names that are meaningless in that argument position.</p>
+
+<h3 id="ph-text"><code>text</code> — free-text input</h3>
+
+<p><strong>What it is:</strong> a plain <code>textInput</code> that accepts any string. Implemented in <code>ptr_builtin_text_build_ui()</code> / <code>ptr_builtin_text_resolve_expr()</code> <span class="src">R/paintr-builtins.R</span>. The resolved expression is a string literal — <code>"My title"</code> is substituted literally into the generated ggplot2 call.</p>
+
+<p><strong>Uses in the examples:</strong></p>
+<ul>
+  <li><code>labs(title = text)</code> — chart title. The analyst wants to type an arbitrary label; there is no restricted vocabulary. Using <code>var</code> here would populate the picker with column names (wrong domain); using <code>num</code> would force a number (wrong type). <code>text</code> is the only placeholder that accepts an arbitrary string.</li>
+</ul>
+
+<p><strong>Empty-string behavior:</strong> when <code>text</code> resolves to an empty string, the argument is treated as missing. If that leaves <code>labs()</code> with no arguments, and <code>labs</code> is in ggpaintr's curated cleanup list, the entire <code>labs()</code> call is dropped from the generated code. This avoids <code>labs(title = "")</code> appearing in the code pane.</p>
+
+<p><strong>When <em>not</em> to use <code>text</code>:</strong> for arbitrary R expressions (formulas, function calls), use <code>expr</code>. For numeric values, use <code>num</code> — <code>text</code> would require the user to type a number as a string, bypassing the numeric validation a <code>numericInput</code> provides.</p>
+
+<h3 id="ph-num"><code>num</code> — numeric input</h3>
+
+<p><strong>What it is:</strong> a <code>numericInput</code> that accepts a number. Implemented in <code>ptr_builtin_num_build_ui()</code> / <code>ptr_builtin_num_resolve_expr()</code> <span class="src">R/paintr-builtins.R</span>. The resolved expression is a numeric literal.</p>
+
+<p><strong>Uses in the examples:</strong></p>
+<ul>
+  <li><code>geom_point(size = num)</code> — point size. A continuous numeric value; only a number is valid here. Using <code>text</code> would allow "large" or "5px" — strings that ggplot2 would either reject or interpret unexpectedly. Using <code>var</code> would offer column names instead of numeric values.</li>
+  <li><code>dplyr::filter(displ &gt; num)</code> — filter threshold. The analyst sets a numeric cutoff; only a number makes sense. <code>num</code> ensures Shiny renders a numeric spinner with up/down arrows and validates the value as numeric before passing it to the pipeline.</li>
+  <li><code>geom_point(alpha = num)</code> — transparency level. A continuous value in [0, 1]; same rationale.</li>
+  <li><code>num(shared = 'sz')</code> — shared point size. Same widget type, driven by the shared section so it synchronizes across two <code>geom_point()</code> calls in different formulas.</li>
+</ul>
+
+<p><strong>When <em>not</em> to use <code>num</code>:</strong> for column selections, use <code>var</code>. For arbitrary expressions, use <code>expr</code>. For string labels, use <code>text</code>. <code>num</code> is exclusively for scalar numeric arguments where the analyst sets a threshold, size, or parameter value.</p>
+
+<h3 id="ph-expr"><code>expr</code> — code editor (validated against a denylist)</h3>
+
+<p><strong>What it is:</strong> a code-editor widget (ACE editor via <code>shinyAce</code>) that accepts an arbitrary R expression. The expression is parsed and checked by the safety walker before being substituted into the formula. Implemented in <code>ptr_builtin_expr_build_ui()</code> / <code>ptr_builtin_expr_resolve_expr()</code> <span class="src">R/paintr-builtins.R</span>.</p>
+
+<p><strong>Why <code>expr</code> exists:</strong> some ggplot2 arguments accept complex expressions — <code>facet_wrap(~var + var2)</code>, <code>scale_color_manual(values = c("red", "blue"))</code>, theme customizations. These cannot be expressed with <code>var</code>, <code>text</code>, or <code>num</code> because they are not a single column name, a string literal, or a scalar number. <code>expr</code> gives the analyst an escape hatch for arbitrary ggplot2 calls while still running the safety walker to prevent injection of dangerous code.</p>
+
+<p><strong>Uses in the examples:</strong></p>
+<ul>
+  <li><code>facet_wrap(expr)</code> in the formula tour example — the analyst types a faceting formula (e.g. <code>~Species</code> or <code>~Species + cut</code>). The argument domain is arbitrary R; only <code>expr</code> can accommodate this.</li>
+</ul>
+
+<p><strong>Safety model:</strong> the safety walker performs a recursive AST descent on the user-supplied expression, checking every node against the denylist (~151 entries) and structural rules. The denylist covers known-dangerous patterns but is <em>not</em> the primary safety mechanism; the walker's recursive inspection of all AST nodes (including lambda bodies and string literals) is the primary gate. See <code>vignette("ggpaintr-safety")</code> for the full model.</p>
+
+<p><strong>Empty-expression behavior:</strong> when <code>expr</code> is empty, the argument resolves as missing. If that leaves <code>facet_wrap()</code> with no arguments and <code>facet_wrap</code> is in the cleanup list, the call is dropped entirely. This is why the cleanup list matters — without it, <code>facet_wrap()</code> with no arguments would render as an error.</p>
+
+<p><strong>When <em>not</em> to use <code>expr</code>:</strong> use <code>var</code> for column selections (narrows the domain and prevents injection), <code>text</code> for string labels, <code>num</code> for numeric scalars. <code>expr</code> should only be used when the other three types are genuinely insufficient, because it widens the trust surface.</p>
+
+<h3 id="ph-upload"><code>upload</code> — file picker (returns a data frame)</h3>
+
+<p><strong>What it is:</strong> a file-upload widget (<code>fileInput</code>) that accepts CSV, TSV, Excel, or Parquet files and resolves to a data frame. Implemented in <code>ptr_builtin_upload_build_ui()</code> / <code>ptr_builtin_upload_resolve_data()</code> <span class="src">R/paintr-builtins.R</span>. It is a <em>data source</em> placeholder — registered via <code>ptr_define_placeholder_source()</code> — meaning its resolved value is a data frame that feeds downstream <code>var</code> column pickers.</p>
+
+<p><strong>Role in the data flow:</strong> when <code>upload</code> appears as the data argument of a <code>ggplot()</code> call or as the head of a pipeline (<code>upload |&gt; dplyr::filter(...) |&gt; ggplot(...)</code>), <code>ptr_setup_pipelines()</code> wires an observer that resolves the uploaded file to a data frame, stores it in the state, and triggers downstream <code>var</code> pickers to re-resolve their column choices against the new data. Column names are normalized via <code>ptr_normalize_column_names()</code> automatically on upload.</p>
+
+<p><strong>Why <code>upload</code> and not a static dataset reference:</strong> when the analyst's data is not in the R session at app-build time — it is in a user's local file system — <code>upload</code> provides the only path to get it into the plot. Using a static <code>ggplot(my_data, ...)</code> would hardcode the dataset; <code>upload</code> makes the data itself interactive.</p>
+
+<p><strong>Uses in the examples:</strong></p>
+<ul>
+  <li><code>ggplot(upload, aes(var, var))</code> — the entire data source comes from the user's uploaded file. Every downstream <code>var</code> picker refreshes its choices when a file is uploaded. This pattern allows the same app to be used with any CSV the analyst provides.</li>
+  <li><code>upload |&gt; dplyr::filter(...) |&gt; ggplot(...)</code> — the upload feeds a pipeline. The filter threshold is set by a <code>num</code> placeholder; the <code>var</code> pickers downstream resolve against the filtered columns. This is the most compositionally powerful use of <code>upload</code>.</li>
+</ul>
+
+<p><strong>When <em>not</em> to use <code>upload</code>:</strong> if the data is already in the R session (e.g. <code>iris</code>, <code>mtcars</code>), use a bare symbol reference in the formula. <code>upload</code> is for analyst-supplied external data. For a curated set of built-in datasets, register a custom data-source placeholder (see below).</p>
+
+<h3 id="ph-custom">Custom placeholders</h3>
+
+<p>ggpaintr's placeholder registry is open to extension. Three registration functions cover the three roles a placeholder can play:</p>
+
+<table>
+  <thead><tr><th>Registration function</th><th>Role</th><th>Resolved value</th></tr></thead>
+  <tbody>
+    <tr><td><code>ptr_define_placeholder_value(keyword, build_ui, resolve_expr, copy_defaults)</code></td><td>Value — a scalar expression substituted into the call</td><td>Any R expression (returned by <code>resolve_expr(value, node, ...)</code>)</td></tr>
+    <tr><td><code>ptr_define_placeholder_consumer(keyword, build_ui, resolve_expr, resolve_cols, copy_defaults)</code></td><td>Data consumer — a column or set of columns from upstream data</td><td>Symbol or expression referencing upstream columns</td></tr>
+    <tr><td><code>ptr_define_placeholder_source(keyword, build_ui, resolve_data, copy_defaults)</code></td><td>Data source — a data frame that feeds downstream pickers</td><td>A <code>data.frame</code></td></tr>
+  </tbody>
+</table>
+
+<p>The source placeholder is the most powerful extension point. The fixture app at <code>tests/testthat/fixtures/vignette-apps/source-dataset/app.R</code> shows a custom <code>dataset</code> placeholder that presents a dropdown of built-in R datasets and resolves to the selected data frame, replacing <code>upload</code> with a curated menu:</p>
+
+<pre><code class="language-r"><span class="fn">library</span>(ggpaintr)
+
+<span class="cm"># Register a custom data-source placeholder named "dataset".</span>
+<span class="fn">ptr_define_placeholder_source</span>(
+  <span class="arg">keyword</span>       = <span class="str">"dataset"</span>,
+  <span class="arg">build_ui</span>      = <span class="kw">function</span>(node, label = <span class="kw">NULL</span>, ...) {
+    <span class="fn">selectInput</span>(node<span class="op">$</span>id, <span class="arg">label</span> = label <span class="op">%||%</span> <span class="str">"Built-in dataset"</span>,
+                <span class="arg">choices</span> = <span class="fn">c</span>(<span class="str">"iris"</span>, <span class="str">"mtcars"</span>, <span class="str">"diamonds"</span>, <span class="str">"economics"</span>))
+  },
+  <span class="arg">resolve_data</span>  = <span class="kw">function</span>(value, node, ...) {
+    <span class="kw">if</span> (<span class="fn">is.null</span>(value) <span class="op">||</span> <span class="op">!</span><span class="fn">nzchar</span>(value)) <span class="kw">return</span>(<span class="kw">NULL</span>)
+    <span class="fn">switch</span>(value,
+           iris      = iris,
+           mtcars    = mtcars,
+           diamonds  = ggplot2<span class="op">::</span>diamonds,
+           economics = ggplot2<span class="op">::</span>economics,
+           <span class="kw">NULL</span>)
+  },
+  <span class="arg">copy_defaults</span> = <span class="fn">list</span>(<span class="arg">label</span> = <span class="str">"Built-in dataset for {param}"</span>)
+)
+
+<span class="cm"># Use the new keyword in a formula just like the built-in "upload".</span>
+<span class="fn">ptr_app</span>(<span class="str">"ggplot(dataset, aes(var, var)) + geom_point()"</span>)
+</code></pre>
+
+<p>The <code>build_ui</code> hook receives the <code>ptr_ph_data_source</code> node (with its stable <code>node$id</code>) and returns any Shiny tag. The <code>resolve_data</code> hook converts the widget's value to a data frame. Downstream <code>var</code> pickers automatically re-resolve against the returned frame whenever the selection changes — the same mechanism as <code>upload</code>.</p>
+
+<p>Source: <code>tests/testthat/fixtures/vignette-apps/source-dataset/app.R</code>, <code>R/paintr-registry.R: ptr_define_placeholder_source()</code>.</p>
+
+</main>
+
+</body>
+</html>

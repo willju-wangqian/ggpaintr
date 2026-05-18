@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ggpaintr — Formula Parsing &amp; Runtime: Technical Reference</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --sidebar-width: 260px;
+    --bg: #1a1d23;
+    --sidebar-bg: #141720;
+    --content-bg: #1e2130;
+    --border: #2d3147;
+    --text: #cdd6f4;
+    --muted: #6c7086;
+    --heading: #cba6f7;
+    --link: #89b4fa;
+    --link-hover: #b4d0fb;
+    --code-bg: #12141c;
+    --code-border: #313244;
+    --code-text: #a6e3a1;
+    --inline-code-bg: #2a2d3e;
+    --inline-code-text: #f38ba8;
+    --keyword: #cba6f7;
+    --string: #a6e3a1;
+    --number: #fab387;
+    --comment: #585b70;
+    --function-color: #89b4fa;
+    --operator: #89dceb;
+    --accent: #f5c2e7;
+    --warn-bg: #2a1f12;
+    --warn-border: #f38ba8;
+    --table-head: #2a2d3e;
+    --table-stripe: #1a1d2b;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    min-height: 100vh;
+    line-height: 1.65;
+    font-size: 15px;
+  }
+
+  /* ── sidebar ── */
+  #sidebar {
+    width: var(--sidebar-width);
+    flex-shrink: 0;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    position: fixed;
+    top: 0; left: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 24px 0 40px;
+  }
+
+  #sidebar .logo {
+    padding: 0 20px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--heading);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+
+  #sidebar nav ul { list-style: none; }
+
+  #sidebar nav ul li a {
+    display: block;
+    padding: 5px 20px;
+    font-size: 13px;
+    color: var(--muted);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  #sidebar nav ul li a:hover {
+    color: var(--text);
+    border-left-color: var(--heading);
+  }
+
+  #sidebar nav ul li.section-head a {
+    font-weight: 600;
+    color: var(--text);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    padding-top: 14px;
+    padding-bottom: 3px;
+  }
+
+  /* ── content ── */
+  #content {
+    margin-left: var(--sidebar-width);
+    flex: 1;
+    padding: 48px 56px 80px;
+    max-width: 900px;
+  }
+
+  h1 {
+    font-size: 2.1rem;
+    font-weight: 700;
+    color: var(--heading);
+    line-height: 1.25;
+    margin-bottom: 8px;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 40px;
+  }
+
+  h2 {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--heading);
+    margin: 56px 0 16px;
+    padding-top: 8px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 28px 0 10px;
+  }
+
+  h4 {
+    font-size: .95rem;
+    font-weight: 600;
+    color: var(--link);
+    margin: 20px 0 8px;
+  }
+
+  p { margin-bottom: 14px; }
+
+  a { color: var(--link); text-decoration: none; }
+  a:hover { color: var(--link-hover); text-decoration: underline; }
+
+  /* ── code ── */
+  code {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: .88em;
+    background: var(--inline-code-bg);
+    color: var(--inline-code-text);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 6px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    margin: 16px 0 20px;
+    position: relative;
+  }
+
+  pre code {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: .855em;
+    background: none;
+    padding: 0;
+    color: var(--code-text);
+    line-height: 1.7;
+  }
+
+  .lang-label {
+    position: absolute;
+    top: 8px; right: 12px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* R syntax coloring */
+  .kw  { color: var(--keyword); }
+  .st  { color: var(--string); }
+  .cm  { color: var(--comment); font-style: italic; }
+  .nm  { color: var(--number); }
+  .fn  { color: var(--function-color); }
+  .op  { color: var(--operator); }
+  .id  { color: var(--text); }
+
+  /* ── source refs ── */
+  .src-ref {
+    display: inline-block;
+    font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+    background: var(--inline-code-bg);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 0 6px;
+    border-radius: 3px;
+    margin-left: 4px;
+  }
+
+  /* ── callout / note ── */
+  .note {
+    background: var(--warn-bg);
+    border-left: 3px solid var(--warn-border);
+    padding: 12px 16px;
+    border-radius: 0 4px 4px 0;
+    margin: 16px 0;
+    font-size: .92em;
+  }
+
+  /* ── tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 20px;
+    font-size: .9em;
+  }
+
+  th {
+    background: var(--table-head);
+    color: var(--heading);
+    font-weight: 600;
+    text-align: left;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+  }
+
+  td {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) td { background: var(--table-stripe); }
+
+  /* ── diagram / flow ── */
+  .flow-box {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 16px 0 20px;
+  }
+
+  .flow-step {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 9px 16px;
+    font-size: .9em;
+    position: relative;
+  }
+
+  .flow-step::after {
+    content: "↓";
+    display: block;
+    text-align: center;
+    color: var(--muted);
+    font-size: 1.1em;
+    margin-top: 4px;
+  }
+
+  .flow-step:last-child::after { display: none; }
+
+  .flow-step .step-num {
+    color: var(--heading);
+    font-weight: 700;
+    margin-right: 8px;
+  }
+
+  /* ── hr ── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+  ul, ol { padding-left: 1.6em; margin-bottom: 14px; }
+  li { margin-bottom: 5px; }
+
+  strong { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<nav id="sidebar">
+  <div class="logo">ggpaintr — Internals</div>
+  <nav>
+    <ul>
+      <li class="section-head"><a href="#overview">Overview</a></li>
+      <li><a href="#s1">1 · Default Placeholders</a></li>
+      <li><a href="#s2">2 · Input Formula Structure</a></li>
+      <li><a href="#s3">3 · Parsing Mechanics</a></li>
+      <li><a href="#s4">4 · Recognizing Calls, Verbs, Operators</a></li>
+      <li><a href="#s5">5 · Recognizing Layers vs Arguments</a></li>
+      <li><a href="#s6">6 · Trimming Empty Calls</a></li>
+      <li><a href="#s7">7 · Registering Custom Placeholders</a></li>
+      <li><a href="#s8">8 · Custom Placeholder Compatibility</a></li>
+      <li><a href="#s9">9 · Building the Shiny App</a></li>
+      <li><a href="#s10">10 · Shared Placeholders</a></li>
+      <li><a href="#s11">11 · Multiple Instances &amp; ID Isolation</a></li>
+    </ul>
+  </nav>
+</nav>
+
+<main id="content">
+
+<h1>ggpaintr — Formula Parsing &amp; Runtime</h1>
+<p class="subtitle">Technical reference for package developers · Source at <code>R/paintr-translate.R</code>, <code>R/paintr-nodes.R</code>, <code>R/paintr-registry.R</code>, <code>R/paintr-server.R</code>, and siblings.</p>
+
+<hr>
+
+<section id="overview">
+<h2>Overview</h2>
+<p>ggpaintr converts a plain character string — called a <em>formula</em> — into a running Shiny application. The formula looks like a ggplot2 expression with special placeholder tokens (<code>var</code>, <code>text</code>, <code>num</code>, <code>expr</code>, <code>upload</code>) standing in for values the user will supply at runtime. The translation pipeline turns that string into a typed AST, assigns Shiny input IDs to each placeholder, builds the UI, and wires up a reactive server that substitutes live input values, prunes unset nodes, evaluates the resulting ggplot call, and renders the plot.</p>
+<p>The pipeline has three major phases:</p>
+<div class="flow-box">
+  <div class="flow-step"><span class="step-num">A</span><strong>Parse-time (static):</strong> <code>ptr_translate()</code> → typed AST (<code>ptr_root</code>) → ID assignment → data classification → shared-placeholder binding. Runs once when the app boots.</div>
+  <div class="flow-step"><span class="step-num">B</span><strong>UI build:</strong> Walk the AST to emit Shiny widgets and layout tags. Each placeholder node has a <code>build_ui</code> hook in the registry.</div>
+  <div class="flow-step"><span class="step-num">C</span><strong>Runtime (reactive):</strong> On each Update-Plot click, snapshot live input values → substitute into tree → prune missing → evaluate → render plot + code + errors.</div>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s1">
+<h2>1 · Default Placeholders</h2>
+
+<p>The five built-in placeholder types are registered by <code>ptr_register_builtins()</code> <span class="src-ref">R/paintr-builtins.R:220</span>, which is called lazily on first registry access via <code>ensure_registry_initialized()</code> <span class="src-ref">R/paintr-registry.R:8</span>. Every built-in is registered with one of three roles — <code>"value"</code>, <code>"consumer"</code>, or <code>"source"</code> — described in §7.</p>
+
+<table>
+<thead>
+<tr><th>Keyword</th><th>Role</th><th>Shiny widget</th><th>What it produces</th></tr>
+</thead>
+<tbody>
+<tr><td><code>text</code></td><td>value</td><td><code>shiny::textInput</code></td><td>A plain character string. The <code>resolve_expr</code> hook (<code>ptr_builtin_text_resolve_expr</code>) strips a single matched outer quote pair so the user can type <code>"hello"</code> or just <code>hello</code> and get the same result.</td></tr>
+<tr><td><code>num</code></td><td>value</td><td><code>shiny::numericInput</code></td><td>A numeric literal. <code>ptr_builtin_num_resolve_expr</code> coerces to <code>as.numeric()</code>; returns <code>NULL</code> (→ prune) if the box is empty or the value is non-numeric.</td></tr>
+<tr><td><code>expr</code></td><td>value</td><td><code>shiny::textAreaInput</code></td><td>An arbitrary R expression parsed via <code>rlang::parse_exprs()</code>. Must be exactly one expression. Resolves to a <code>ptr_user_expr</code> node (not a <code>ptr_literal</code>), so it bypasses the denylist safety check at eval time.</td></tr>
+<tr><td><code>var</code></td><td>consumer</td><td><code>shinyWidgets::pickerInput</code> (multi=TRUE, maxOptions=1)</td><td>A column name from the upstream data frame; resolves to <code>rlang::sym(value)</code>. The multi=TRUE + maxOptions=1 trick allows no-default-selection at launch and lets the user deselect the current pick. Column choices are populated reactively once upstream data resolves.</td></tr>
+<tr><td><code>upload</code></td><td>source</td><td><code>shiny::fileInput</code> + <code>shiny::textInput</code> (dataset-name companion)</td><td>A data frame read from an uploaded file. The companion text input holds the R symbol name under which the frame is bound in <code>state$eval_env</code>. <code>resolve_data</code> delegates to <code>ptr_read_uploaded_data()</code>. <code>companion_id_fn</code> = <code>ptr_upload_name_id</code>.</td></tr>
+</tbody>
+</table>
+
+<h3>Registry entry structure</h3>
+<p>Every entry stored in the registry is a plain R list. The exact fields depend on the role:</p>
+
+<pre><code><span class="cm"># role = "value"  (text, num, expr)</span>
+<span class="fn">list</span>(
+  keyword      = <span class="st">"num"</span>,
+  role         = <span class="st">"value"</span>,
+  data_aware   = <span class="nm">FALSE</span>,
+  build_ui     = <span class="id">ptr_builtin_num_build_ui</span>,      <span class="cm"># function(node, label, copy, ...)</span>
+  resolve_expr = <span class="id">ptr_builtin_num_resolve_expr</span>,   <span class="cm"># function(value, node, ...)</span>
+  copy_defaults = <span class="fn">list</span>(label = <span class="st">"Enter a number for {param}"</span>)
+)
+
+<span class="cm"># role = "consumer"  (var)</span>
+<span class="fn">list</span>(
+  keyword        = <span class="st">"var"</span>,
+  role           = <span class="st">"consumer"</span>,
+  data_aware     = <span class="nm">TRUE</span>,
+  build_ui       = <span class="id">ptr_builtin_var_build_ui</span>,      <span class="cm"># function(node, cols, data, label, copy, selected, ...)</span>
+  resolve_expr   = <span class="id">ptr_builtin_var_resolve_expr</span>,
+  validate_input = <span class="id">ptr_builtin_var_validate_input</span>, <span class="cm"># function(value, upstream_cols)</span>
+  copy_defaults  = <span class="fn">list</span>(label = <span class="st">"Pick a column for {param}"</span>, empty_text = <span class="st">"Choose one column"</span>)
+)
+
+<span class="cm"># role = "source"  (upload)</span>
+<span class="fn">list</span>(
+  keyword        = <span class="st">"upload"</span>,
+  role           = <span class="st">"source"</span>,
+  data_aware     = <span class="nm">TRUE</span>,
+  build_ui       = <span class="id">ptr_builtin_upload_build_ui</span>,  <span class="cm"># function(node, label, copy, file_copy, name_copy, ...)</span>
+  resolve_expr   = <span class="kw">function</span>(value, node, ...) <span class="fn">rlang::sym</span>(value),
+  resolve_data   = <span class="id">ptr_builtin_upload_resolve_data</span>, <span class="cm"># function(value, node, ...) -> data.frame</span>
+  companion_id_fn = <span class="id">ptr_upload_name_id</span>,          <span class="cm"># function(id) -> companion input id</span>
+  copy_defaults  = <span class="fn">list</span>(label = <span class="st">"Upload data for {param}"</span>)
+)
+</code></pre>
+<span class="lang-label">R</span>
+
+<p>The <code>build_ui</code> hook signature for a value placeholder is <code>function(node, label, copy, ...)</code>; for a consumer it receives <code>(node, cols, data, label, copy, selected, ...)</code> as well, supplying the column choices already resolved from upstream data; for a source placeholder it is just <code>function(node, label, copy, ...)</code>.</p>
+
+<p>The <code>copy_defaults</code> list carries label/placeholder/help text defaults used when the caller has not supplied custom <code>ui_text</code> overrides. Field names are free-form, but <code>label</code> and (for <code>var</code>) <code>empty_text</code> are the ones the built-in hooks read.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s2">
+<h2>2 · Input Formula Structure</h2>
+
+<p>A formula is a single character string containing a syntactically valid R expression. The only structural constraint imposed by ggpaintr (over and above R syntax) is that it must parse to <strong>exactly one expression</strong>, and that expression must be a ggplot2-style tree joined by <code>+</code>.</p>
+
+<h3>ggplot-only formula (no pipeline)</h3>
+<pre><code><span class="st">"ggplot(iris, aes(x = var, y = var, color = Species)) + geom_point(size = num)"</span>
+</code></pre>
+<p>Each call separated by <code>+</code> at the top level is one <em>layer</em> in ggpaintr's model. <code>ggplot()</code> itself is the first layer; <code>geom_point()</code> is the second. Each layer may contain placeholder tokens anywhere in its argument list (or nested inside <code>aes()</code>, etc.).</p>
+
+<h3>Formula with a dplyr pipeline as the data source</h3>
+<pre><code><span class="st">"ggplot(iris |> filter(Sepal.Length > num), aes(x = var, y = var)) + geom_point()"</span>
+</code></pre>
+<p>The first positional argument to <code>ggplot()</code> is the data. When that argument is itself a pipe chain, ggpaintr detects it via <code>is_pipe_head()</code> and wraps it in a <code>ptr_pipeline</code> node rather than a plain <code>ptr_call</code>. The pipeline is the <code>data_arg</code> of the enclosing <code>ptr_layer</code>.</p>
+
+<h3>Pipeline as a top-level layer prefix</h3>
+<pre><code><span class="st">"upload |> dplyr::filter(Sepal.Length > num) |> ggplot(aes(x = var, y = var)) + geom_point()"</span>
+</code></pre>
+<p>Here the entire left-hand side of <code>+</code> is a pipe chain terminating in <code>ggplot()</code>. <code>translate_layer()</code> detects the outer pipe operator and dispatches to <code>translate_piped_layer()</code>, which separates the upstream stages (everything before the terminal call) from the terminal call (<code>ggplot(...)</code>). The upstream stages become a <code>ptr_pipeline</code> node stored as <code>data_arg</code> of the <code>ptr_layer</code>.</p>
+
+<h3>The <code>+</code> separator</h3>
+<p>ggplot2 overloads the <code>+</code> operator to add layers to a plot object. ggpaintr leverages exactly this structure: the parsed R AST of a multi-layer formula is a left-recursive binary tree of <code>`+`(lhs, rhs)</code> calls. <code>split_top_plus()</code> <span class="src-ref">R/paintr-translate.R:89</span> flattens this tree into a flat list of sub-expressions by recursing into the left operand.</p>
+
+<pre><code><span class="cm"># R parse tree for:  A + B + C</span>
+<span class="cm">#   `+`(`+`(A, B), C)</span>
+<span class="cm">#</span>
+<span class="cm"># split_top_plus returns: list(A, B, C)</span>
+
+<span class="fn">split_top_plus</span> <span class="op">&lt;-</span> <span class="kw">function</span>(expr) {
+  <span class="kw">if</span> (<span class="fn">is.call</span>(expr) <span class="op">&amp;&amp;</span> <span class="fn">identical</span>(expr[[<span class="nm">1L</span>]], <span class="fn">quote</span>(<span class="op">`+`</span>)) <span class="op">&amp;&amp;</span> <span class="fn">length</span>(expr) <span class="op">==</span> <span class="nm">3L</span>) {
+    <span class="fn">c</span>(<span class="fn">split_top_plus</span>(expr[[<span class="nm">2L</span>]]), <span class="fn">list</span>(expr[[<span class="nm">3L</span>]]))
+  } <span class="kw">else</span> {
+    <span class="fn">list</span>(expr)
+  }
+}
+</code></pre>
+<span class="lang-label">R</span>
+
+<p>The pipe operators supported are <code>%&gt;%</code> (magrittr) and <code>|&gt;</code> (native R 4.1+). The native pipe is rewritten to a sentinel token before parsing to work around the fact that <code>|&gt;</code> desugars differently in R's AST than <code>%&gt;%</code> — see §3.</p>
+
+<div class="note">
+  <strong>Key constraint:</strong> <code>ptr_translate()</code> rejects any formula that parses to more than one top-level expression (i.e., semicolons or newline-separated statements). The <code>+</code> is the only supported layer separator. Assignment, loops, and multi-statement code are all invalid at the top level.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s3">
+<h2>3 · Formula Parsing Mechanics</h2>
+
+<p>The entry point is <code>ptr_translate(formula, expr_check, max_depth, ns_fn, annotate)</code> <span class="src-ref">R/paintr-translate.R:11</span>. It produces a <code>ptr_root</code> AST node holding a flat list of layer nodes. When <code>annotate = TRUE</code> (the default), it also assigns Shiny IDs, classifies data lineage, and resolves shared-placeholder groups before returning.</p>
+
+<div class="flow-box">
+  <div class="flow-step"><span class="step-num">1</span><strong>Pre-process native pipe</strong> — <code>preprocess_native_pipe(formula)</code> replaces every <code>|&gt;</code> token with a sentinel string using R's own parse data (<code>utils::getParseData</code>), so the expression can be re-parsed with <code>rlang::parse_exprs()</code> and the sentinel is distinguishable from <code>%&gt;%</code>.</div>
+  <div class="flow-step"><span class="step-num">2</span><strong>Parse to R expression</strong> — <code>rlang::parse_exprs(preprocessed)</code>. Must yield exactly one expression; zero or multiple → abort.</div>
+  <div class="flow-step"><span class="step-num">3</span><strong>Depth guard</strong> — <code>check_translate_depth(root_expr, max_depth)</code> walks the raw AST and aborts if nesting exceeds <code>max_depth</code> (default 100), protecting against pathological inputs that would exhaust the stack.</div>
+  <div class="flow-step"><span class="step-num">4</span><strong>Split on <code>+</code></strong> — <code>split_top_plus(root_expr)</code> returns a flat list of sub-expressions, one per ggplot layer.</div>
+  <div class="flow-step"><span class="step-num">5</span><strong>Translate each layer</strong> — <code>lapply(layer_exprs, translate_layer)</code>. Each sub-expression becomes a typed AST node (§4, §5).</div>
+  <div class="flow-step"><span class="step-num">6</span><strong>Deduplicate layer names</strong> — <code>dedupe_layer_names()</code>: if two layers have the same function name (e.g., two <code>geom_point</code> calls), they are renamed <code>geom_point</code> and <code>geom_point-2</code>. This ensures unique Shiny input-ID prefixes.</div>
+  <div class="flow-step"><span class="step-num">7</span><strong>Assign active-input IDs</strong> — Every layer except <code>ggplot</code> gets an <code>active_input_id</code> set to <code>&lt;name&gt;_checkbox</code>. This is the Shiny input controlling whether the layer is currently enabled (the "toggle layer" checkbox in the sidebar).</div>
+  <div class="flow-step"><span class="step-num">8</span><strong>Wrap in ptr_root</strong> — <code>ptr_root(layers, expr)</code> creates the root node holding all layers and the original expression for source display.</div>
+  <div class="flow-step"><span class="step-num">9</span><strong>Safety check</strong> — <code>ptr_validate_tree_safety(root, expr_check)</code> walks every node looking for forbidden patterns (dangerous function calls, direct <code>eval</code>, etc.) in the static formula AST.</div>
+  <div class="flow-step"><span class="step-num">10</span><strong>Annotate (when annotate=TRUE)</strong> — Three passes: (a) <code>ptr_assign_ids(root, ns_fn)</code>, (b) <code>ptr_classify_data(root)</code>, (c) <code>ptr_shared_bind(root)</code>.</div>
+</div>
+
+<h3>Step 1 in detail: native pipe preprocessing</h3>
+<p><code>preprocess_native_pipe()</code> <span class="src-ref">R/paintr-translate.R:175</span> uses <code>utils::getParseData(parse(text=formula, keep.source=TRUE))</code> to obtain the token table of the formula string, then searches for tokens with type <code>"PIPE"</code> (the native <code>|&gt;</code>). It replaces each occurrence <em>in-place</em> with the sentinel string <code>.ptr_pipe_native_sentinel</code> (a package-level character constant set to a value that is not a valid user identifier). Replacements are applied in reverse source order (right-to-left, bottom-to-top) so that column offsets remain valid as prior tokens are replaced.</p>
+
+<pre><code><span class="cm"># Input:  "upload |> filter(x > num) |> ggplot(aes(y = var))"</span>
+<span class="cm"># After:  "upload .ptr_pipe_native_sentinel filter(x > num) .ptr_pipe_native_sentinel ggplot(aes(y = var))"</span>
+<span class="cm"># The sentinel is a valid symbol name, so rlang::parse_exprs() parses it as</span>
+<span class="cm"># a binary infix call  `sentinel`(lhs, rhs)  -- structurally identical to %>%.</span>
+</code></pre>
+<span class="lang-label">R</span>
+
+<h3>Steps 10a–10c: annotation passes</h3>
+
+<h4>ptr_assign_ids — <span class="src-ref">R/paintr-ids.R:13</span></h4>
+<p>Performs a pre-order rewrite of the tree using <code>ptr_rewrite_pre()</code>. For every placeholder node encountered it calls <code>assign_id_to_placeholder(node, layer_name, path, param)</code> <span class="src-ref">R/paintr-ids.R:35</span>, which sets <code>node$id</code> to:</p>
+<pre><code><span class="id">node</span><span class="op">$</span><span class="id">id</span> <span class="op">&lt;-</span> <span class="fn">paste0</span>(layer_name, <span class="st">"_"</span>, path_str, <span class="st">"_"</span>, node<span class="op">$</span>keyword, <span class="st">"_"</span>, shared_part)
+<span class="cm"># e.g.: "ggplot_1_1_var_NA"  for the first var in ggplot(aes(x=var, ...))</span>
+<span class="cm">#       "ggplot_1_1_var_xcol" for var(shared="xcol") at the same position</span>
+</code></pre>
+<span class="lang-label">R</span>
+<p>where <code>path_str</code> is the underscore-joined positional index path from the layer root (e.g., child 1 of child 1 = <code>"1_1"</code>), and <code>shared_part</code> is either the shared key or <code>"NA"</code>.</p>
+<p>For <code>upload</code> (source) placeholders, if the registry entry has a <code>companion_id_fn</code>, the companion id (<code>ptr_upload_name_id(node$id)</code>) is stored on <code>node$companion_id</code>.</p>
+
+<h4>ptr_classify_data — <span class="src-ref">R/paintr-classify.R:5</span></h4>
+<p>Propagates <em>upstream data context</em> through the tree using <code>classify_walk()</code>. The context starts as <code>NULL</code> at the root. When a <code>ptr_layer</code> node has a non-NULL <code>data_arg</code>, the data-arg sub-tree becomes the context for that layer's children. The key action: every <code>ptr_ph_data_consumer</code> node receives <code>node$upstream &lt;- ctx_data</code> — a reference to the sub-tree that will produce the upstream data frame at runtime. This upstream reference is later used by <code>ptr_setup_consumer_uis()</code> to determine which reactive sources to depend on when rebuilding the column-picker UI.</p>
+
+<h4>ptr_shared_bind — <span class="src-ref">R/paintr-shared.R:5</span></h4>
+<p>Collects all placeholder nodes where <code>node$shared</code> is non-NULL, groups them by shared key, and calls <code>canonical_shared_id(key)</code> = <code>paste0("shared_", key)</code> to compute one canonical ID per key. It then rewrites every placeholder in a group to have <code>node$id &lt;- canonical_id</code>. As a result, all occurrences of the same shared key point at the same Shiny input ID — a single widget drives all of them.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s4">
+<h2>4 · Recognizing Function Calls, dplyr Verbs, Operators</h2>
+
+<p>ggpaintr does <strong>not</strong> maintain an explicit list of "dplyr verbs" during parsing. Classification at parse time is structural, not name-based. The distinction between a plain function call (→ <code>ptr_call</code>), a pipeline stage (→ element of <code>ptr_pipeline$stages</code>), and a ggplot layer (→ <code>ptr_layer</code>) is entirely determined by AST position and the presence of a pipe operator.</p>
+
+<h3>How translate_node dispatches</h3>
+<p><code>translate_node(expr)</code> <span class="src-ref">R/paintr-translate.R:290</span> is the recursive descent worker:</p>
+
+<pre><code><span class="fn">translate_node</span> <span class="op">&lt;-</span> <span class="kw">function</span>(expr) {
+  <span class="kw">if</span> (<span class="fn">is.call</span>(expr)) {
+    head <span class="op">&lt;-</span> expr[[<span class="nm">1L</span>]]
+    <span class="kw">if</span> (<span class="fn">is_pipe_head</span>(head))         <span class="kw">return</span>(<span class="fn">translate_pipeline</span>(expr))
+    ph <span class="op">&lt;-</span> <span class="fn">detect_placeholder</span>(expr)
+    <span class="kw">if</span> (<span class="op">!</span><span class="fn">is.null</span>(ph))               <span class="kw">return</span>(<span class="fn">build_placeholder_node</span>(expr, ph))
+    <span class="kw">if</span> (<span class="fn">identical</span>(head, <span class="fn">as.name</span>(<span class="st">"function"</span>)))
+                                    <span class="kw">return</span>(<span class="fn">ptr_closure</span>(...))
+    <span class="kw">return</span>(<span class="fn">translate_call</span>(expr))
+  }
+  <span class="kw">if</span> (<span class="fn">is.symbol</span>(expr)) {
+    ph <span class="op">&lt;-</span> <span class="fn">detect_placeholder</span>(expr)
+    <span class="kw">if</span> (<span class="op">!</span><span class="fn">is.null</span>(ph))               <span class="kw">return</span>(<span class="fn">build_placeholder_node</span>(expr, ph))
+    <span class="kw">return</span>(<span class="fn">ptr_literal</span>(expr))
+  }
+  <span class="fn">ptr_literal</span>(expr)
+}
+</code></pre>
+<span class="lang-label">R</span>
+
+<p>Crucially, <code>filter(x &gt; num)</code> inside a pipeline and <code>theme(axis.title = element_text(size = num))</code> inside a ggplot layer are both translated by <code>translate_call()</code> — producing a <code>ptr_call</code> node. The fact that <code>filter</code> is a dplyr verb is irrelevant to the parse-time translation.</p>
+
+<h3>Pipe detection</h3>
+<p><code>is_pipe_head(x)</code> <span class="src-ref">R/paintr-translate.R:157</span> returns <code>TRUE</code> when <code>x</code> is a symbol whose character form is <code>"%&gt;%"</code> or the sentinel string. No other operators trigger the pipeline path. This covers <code>[</code>, <code>$</code>, <code>::</code>, arithmetic, and all other operators — these are translated as <code>ptr_call</code> nodes (generic function calls) with their arguments recursively translated.</p>
+
+<h3>The <code>$</code> and <code>[</code> operators</h3>
+<p>R parses <code>df$col</code> as <code>`$`(df, col)</code> and <code>df[i, j]</code> as <code>`[`(df, i, j)</code> — both are call expressions whose head is the operator symbol. Because neither is a pipe-head symbol, <code>translate_node</code> treats them as plain calls via <code>translate_call()</code>. The operator symbol becomes <code>ptr_call$fun</code>; its operands are recursively translated as <code>ptr_call$args</code>. No special-casing is needed.</p>
+
+<h3>The dplyr verb list at prune time</h3>
+<p>The <em>only</em> place where dplyr verb names matter is in <strong>empty-call pruning</strong> (§6). The function <code>default_drop_when_empty()</code> <span class="src-ref">R/paintr-utils.R:174</span> returns a character vector of qualified names like <code>"dplyr::filter"</code>, <code>"dplyr::mutate"</code>, <code>"dplyr::group_by"</code>, etc. A call that names one of these and has zero children after pruning is dropped. This list is not consulted during parsing.</p>
+
+<h3>Placeholder detection</h3>
+<p><code>detect_placeholder(expr)</code> <span class="src-ref">R/paintr-translate.R:358</span> checks whether the head symbol (or the bare symbol itself for bare keywords like <code>var</code> used without parentheses) is a registered keyword. It calls <code>placeholder_keyword(expr)</code> which checks against <code>ptr_registry_keywords()</code> — the live set of all registered keyword names. It does <strong>not</strong> hardcode the five built-in names; any custom-registered keyword is automatically recognized.</p>
+
+<pre><code><span class="fn">placeholder_keyword</span> <span class="op">&lt;-</span> <span class="kw">function</span>(expr) {
+  <span class="kw">if</span> (<span class="fn">is.symbol</span>(expr)) {
+    nm <span class="op">&lt;-</span> <span class="fn">as.character</span>(expr)
+    <span class="kw">if</span> (nm <span class="op">%in%</span> <span class="fn">ptr_registry_keywords</span>()) <span class="kw">return</span>(nm)
+    <span class="kw">return</span>(<span class="nm">NULL</span>)
+  }
+  <span class="kw">if</span> (<span class="fn">is.call</span>(expr) <span class="op">&amp;&amp;</span> <span class="fn">is.symbol</span>(expr[[<span class="nm">1L</span>]])) {
+    nm <span class="op">&lt;-</span> <span class="fn">as.character</span>(expr[[<span class="nm">1L</span>]])
+    <span class="kw">if</span> (nm <span class="op">%in%</span> <span class="fn">ptr_registry_keywords</span>()) <span class="kw">return</span>(nm)
+  }
+  <span class="nm">NULL</span>
+}
+</code></pre>
+<span class="lang-label">R</span>
+
+<p>This means a call like <code>var(shared = "x")</code> is detected as a placeholder (keyword <code>"var"</code>, shared value <code>"x"</code>) before <code>translate_call</code> would process it. A bare symbol <code>var</code> (no parens) is also a valid placeholder — the empty-args form.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s5">
+<h2>5 · Recognizing Layers vs Arguments</h2>
+
+<p>The distinction between a <strong>layer</strong> and an <strong>argument</strong> is decided at two levels: the top-level split on <code>+</code>, and the dispatch inside <code>translate_layer()</code>.</p>
+
+<h3>Top-level: the + split</h3>
+<p>After <code>split_top_plus()</code>, each sub-expression becomes <em>exactly one layer</em>. There is no ambiguity at this point: everything at the top level of the <code>+</code> tree is a layer candidate, regardless of what function it calls. So <code>theme()</code>, <code>labs()</code>, and <code>scale_color_brewer()</code> all become layers — ggpaintr's model is structural, not semantic.</p>
+
+<h3>Layer-level: translate_layer dispatch</h3>
+<p><code>translate_layer(expr)</code> <span class="src-ref">R/paintr-translate.R:117</span> handles three cases:</p>
+<ol>
+  <li><strong>Placeholder</strong>: if <code>detect_placeholder(expr)</code> is non-NULL, the whole sub-expression is a placeholder layer (rare, but supported).</li>
+  <li><strong>Piped layer</strong>: if the head of the call is a pipe symbol (<code>is_pipe_head(expr[[1L]])</code>), dispatch to <code>translate_piped_layer()</code>. This handles the <code>upload |> filter(...) |> ggplot(...)</code> pattern.</li>
+  <li><strong>Plain layer</strong>: everything else → <code>translate_plain_layer()</code>.</li>
+</ol>
+
+<h3>The data_arg concept</h3>
+<p>The key structural differentiation inside a layer is the <strong>data argument</strong>. <code>extract_call_data_arg(expr)</code> <span class="src-ref">R/paintr-translate.R:246</span> applies a deliberate heuristic:</p>
+<ul>
+  <li>If the call has a named <code>data =</code> argument → that argument is the <code>data_arg</code>.</li>
+  <li>If the call head is the bare symbol <code>ggplot</code> and the first argument is positional (unnamed) → that first argument is the <code>data_arg</code>.</li>
+  <li>For any other call (<code>geom_*</code>, <code>stat_*</code>, etc.) — positional first arguments are <em>not</em> treated as data. The reason is that <code>geom_*()</code> and <code>stat_*()</code> take <code>mapping</code> as their first positional argument, so a positional first arg would misroute an <code>aes()</code> call into the data pipeline.</li>
+</ul>
+
+<pre><code><span class="cm"># ggplot(iris, aes(x = var))   → data_arg = ptr_literal(iris), children = [aes(...)]</span>
+<span class="cm"># geom_point(data = df, ...)   → data_arg = ptr_literal(df),   children = [...]</span>
+<span class="cm"># geom_point(aes(x = var))    → data_arg = NULL,               children = [aes(...)]</span>
+</code></pre>
+<span class="lang-label">R</span>
+
+<h3>Piped layer decomposition</h3>
+<p><code>translate_piped_layer(expr)</code> <span class="src-ref">R/paintr-translate.R:201</span> receives the full pipe chain whose terminal call is the ggplot layer head (e.g., <code>ggplot(...)</code>). It:</p>
+<ol>
+  <li>Calls <code>collect_pipe_stages(expr, op)</code> to walk the left-recursive pipe chain and collect all stage expressions in order.</li>
+  <li>Separates the terminal stage from the upstream stages.</li>
+  <li>Translates upstream stages individually via <code>translate_node()</code>.</li>
+  <li>Wraps the upstream stages in a <code>ptr_pipeline</code> node stored as <code>data_arg</code>.</li>
+  <li>Translates the terminal call's children (excluding the implicit piped-in first argument) and creates the <code>ptr_layer</code>.</li>
+</ol>
+<p>The layer's <code>name</code> comes from <code>layer_call_name(terminal)</code> — for a pipe-terminal expression the function looks at the RHS of the last pipe, which is the function being called.</p>
+
+<h3>layer_call_name</h3>
+<p><code>layer_call_name(expr)</code> <span class="src-ref">R/paintr-translate.R:133</span> extracts a string name from an expression for use as the layer's display/ID prefix. It handles: bare symbols, <code>pkg::fn</code> / <code>pkg:::fn</code> (returns just <code>fn</code>), parenthesized expressions <code>(fn)(...)</code> (recurses into parens), and pipe chains (recurses into the RHS terminal). For lambda heads or other non-symbol cases it falls back to <code>rlang::expr_text(head)</code>, which can produce an unwieldy string — this is a known limitation documented in project memory.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s6">
+<h2>6 · Trimming Empty Calls</h2>
+
+<p>Empty-call trimming happens at <strong>runtime</strong>, not at parse time. The function <code>ptr_prune(node, safe_to_remove, is_standalone)</code> <span class="src-ref">R/paintr-prune.R:17</span> is called inside <code>ptr_exec_headless()</code> after placeholder substitution has replaced every unset placeholder with a <code>ptr_missing</code> sentinel.</p>
+
+<h3>Why it is needed</h3>
+<p>Consider <code>filter(Sepal.Length &gt; num)</code> in a pipeline, where the user has not yet entered a value for <code>num</code>. After substitution, the call becomes effectively <code>filter(ptr_missing)</code>. Evaluating that would produce a runtime error (<code>filter</code> does not know about <code>ptr_missing</code>). Pruning detects the empty state and removes the entire <code>filter</code> call from the pipeline, letting the data pass through unchanged — a natural default behavior.</p>
+
+<h3>The prune walk</h3>
+<p>The S3 dispatch table for <code>prune_walk()</code> covers every node class. Key behaviors:</p>
+
+<table>
+<thead><tr><th>Node class</th><th>Prune behavior</th></tr></thead>
+<tbody>
+<tr><td><code>ptr_ph_value</code></td><td>Always returns <code>ptr_missing()</code>. An unsubstituted value placeholder cannot survive to eval.</td></tr>
+<tr><td><code>ptr_ph_data_consumer</code></td><td>Always returns <code>ptr_missing()</code>. Same logic.</td></tr>
+<tr><td><code>ptr_ph_data_source</code></td><td>Always returns <code>ptr_missing()</code>.</td></tr>
+<tr><td><code>ptr_call</code></td><td>Prunes each arg. Drops args that become <code>ptr_missing</code>. Returns the pruned call (even if all args are dropped — a bare call with no args is still a valid call for many functions).</td></tr>
+<tr><td><code>ptr_layer</code></td><td>Prunes <code>data_arg</code> and all children. If both are empty/NULL <em>and</em> the layer name is in the <code>remove_set</code> <em>and</em> <code>is_standalone(name)</code> returns <code>FALSE</code> → returns <code>NULL</code> (layer is dropped from the tree).</td></tr>
+<tr><td><code>ptr_pipeline</code></td><td>Prunes each stage. Stages that become <code>ptr_missing</code> are dropped. If all stages vanish → <code>ptr_missing()</code>. If only one stage remains → unwrap the pipeline, return that stage directly.</td></tr>
+</tbody>
+</table>
+
+<h3>The remove_set</h3>
+<p><code>default_drop_when_empty()</code> <span class="src-ref">R/paintr-utils.R:174</span> returns a union of qualified name lists from ggplot2, dplyr, tidyr, tibble, pillar, purrr, stringr, forcats, lubridate, and hms — covering all common tidyverse functions that should be silently dropped when they contain no resolved arguments. Examples: <code>"dplyr::filter"</code>, <code>"dplyr::mutate"</code>, <code>"dplyr::group_by"</code>, <code>"ggplot2::theme"</code>, <code>"ggplot2::labs"</code>.</p>
+<p>The caller can extend this with the <code>safe_to_remove</code> argument to <code>ptr_app()</code> / <code>ptr_init_state()</code>.</p>
+
+<h3>The is_standalone predicate</h3>
+<p><code>ptr_default_is_standalone(name)</code> <span class="src-ref">R/paintr-prune.R:29</span> returns <code>TRUE</code> for names starting with <code>"geom_"</code> or <code>"stat_"</code>. These layers are kept even when empty — a bare <code>geom_point()</code> with no arguments is a valid ggplot layer that uses inherited aesthetics from <code>ggplot()</code>. Non-standalone layers (e.g., <code>theme()</code> with all args gone) are dropped.</p>
+
+<h3>Name matching: bare vs qualified</h3>
+<p><code>name_matches_remove_set(bare, qualified, remove_set)</code> <span class="src-ref">R/paintr-prune.R:204</span> checks both the bare name (<code>"filter"</code>) and the qualified name (<code>"dplyr::filter"</code>) against the remove set. The qualified name is resolved at prune time via <code>qualified_call_name()</code> <span class="src-ref">R/paintr-utils.R:180</span>, which follows the search path to find the function's home namespace. This means a bare <code>filter</code> call that resolves to dplyr is correctly matched even without an explicit <code>dplyr::</code> prefix in the formula.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s7">
+<h2>7 · Registering Custom Placeholders</h2>
+
+<p>The public API provides three constructor functions, one per role:</p>
+
+<table>
+<thead><tr><th>Function</th><th>Role</th><th>data_aware</th><th>Mandatory hooks</th><th>Optional hooks</th></tr></thead>
+<tbody>
+<tr><td><code>ptr_define_placeholder_value()</code></td><td><code>"value"</code></td><td>FALSE</td><td><code>build_ui</code>, <code>resolve_expr</code></td><td><code>copy_defaults</code></td></tr>
+<tr><td><code>ptr_define_placeholder_consumer()</code></td><td><code>"consumer"</code></td><td>TRUE</td><td><code>build_ui</code>, <code>resolve_expr</code></td><td><code>validate_input</code>, <code>copy_defaults</code></td></tr>
+<tr><td><code>ptr_define_placeholder_source()</code></td><td><code>"source"</code></td><td>TRUE</td><td><code>build_ui</code>, <code>resolve_data</code></td><td><code>resolve_expr</code>, <code>companion_id_fn</code>, <code>copy_defaults</code></td></tr>
+</tbody>
+</table>
+
+<p>Each constructor validates its arguments (via <code>validate_keyword()</code>, <code>validate_hook()</code>, <code>validate_copy_defaults()</code>) and calls <code>ptr_registry_register(entry)</code> <span class="src-ref">R/paintr-registry.R:186</span>, which assigns the entry by keyword into the <code>.ptr_registry</code> environment. Overwriting an existing key emits a <code>cli::cli_warn()</code>.</p>
+
+<h3>The registry store</h3>
+<p>The registry is an R environment created at package load time:</p>
+<pre><code><span class="id">.ptr_registry</span> <span class="op">&lt;-</span> <span class="fn">new.env</span>(parent = <span class="fn">emptyenv</span>())  <span class="cm"># R/paintr-registry.R:4</span>
+</code></pre>
+<span class="lang-label">R</span>
+<p>It is a package-level (process-global) environment. A companion flag <code>.ptr_registry_initialized</code> tracks whether builtins have been registered. <code>ptr_registry_lookup(keyword)</code> <span class="src-ref">R/paintr-registry.R:89</span> calls <code>ensure_registry_initialized()</code> first, then does a simple <code>get(keyword, envir = .ptr_registry, inherits = FALSE)</code>. There is no concept of per-session or per-app registries.</p>
+
+<h3>Hook signatures (verified by validate_hook)</h3>
+<p><code>validate_hook(fn, name, required_args)</code> <span class="src-ref">R/paintr-registry.R</span> checks that the function's formals include the listed required argument names. The required args per hook:</p>
+
+<table>
+<thead><tr><th>Hook name</th><th>Required formals</th></tr></thead>
+<tbody>
+<tr><td><code>build_ui</code> (value)</td><td><code>node</code></td></tr>
+<tr><td><code>build_ui</code> (consumer)</td><td><code>node</code>, <code>cols</code>, <code>data</code></td></tr>
+<tr><td><code>build_ui</code> (source)</td><td><code>node</code></td></tr>
+<tr><td><code>resolve_expr</code></td><td><code>value</code>, <code>node</code></td></tr>
+<tr><td><code>resolve_data</code></td><td><code>value</code>, <code>node</code></td></tr>
+<tr><td><code>validate_input</code></td><td><code>value</code>, <code>upstream_cols</code></td></tr>
+<tr><td><code>companion_id_fn</code></td><td><code>id</code></td></tr>
+</tbody>
+</table>
+
+<p>All hooks should also accept <code>...</code> for forward compatibility — the framework passes additional context via <code>...</code> that may expand in future versions.</p>
+
+<h3>Keyword constraints</h3>
+<p><code>validate_keyword(keyword)</code> <span class="src-ref">R/paintr-registry.R:118</span> enforces:</p>
+<ul>
+  <li>Single non-NA non-empty string.</li>
+  <li>Not in <code>.ptr_reserved</code> — the R reserved words: <code>if</code>, <code>else</code>, <code>repeat</code>, <code>while</code>, <code>function</code>, <code>for</code>, <code>in</code>, <code>next</code>, <code>break</code>, <code>TRUE</code>, <code>FALSE</code>, <code>NULL</code>, <code>Inf</code>, <code>NaN</code>, <code>NA</code>, and the NA typed variants.</li>
+  <li><code>make.names(keyword) == keyword</code> — must be a syntactically valid R identifier (no spaces, no leading digits, etc.).</li>
+</ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="s8">
+<h2>8 · Custom Placeholder Compatibility</h2>
+
+<p>A custom placeholder is compatible with ggpaintr if and only if its hooks satisfy the following contracts at each phase of the pipeline.</p>
+
+<h3>At parse time (translate)</h3>
+<p>No special action is required from the author. <code>detect_placeholder()</code> / <code>placeholder_keyword()</code> check against the live registry, so any registered keyword is automatically recognized the next time <code>ptr_translate()</code> runs. The resulting node class is determined by the entry's <code>role</code> field — <code>"value"</code> → <code>ptr_ph_value</code>, <code>"consumer"</code> → <code>ptr_ph_data_consumer</code>, <code>"source"</code> → <code>ptr_ph_data_source</code>. The node carries <code>node$keyword</code>, <code>node$expr</code>, <code>node$shared</code> (NULL or a string), and after annotation, <code>node$id</code> and <code>node$layer_name</code>.</p>
+
+<h3>build_ui contract</h3>
+<p>The hook is called by <code>invoke_build_ui()</code> inside <code>ptr_setup_consumer_uis()</code> / <code>build_ui_for()</code>. It must return a valid <code>shiny.tag</code> or <code>shiny.tag.list</code> object. The <code>inputId</code> of all inputs the hook renders <strong>must be exactly <code>node$id</code></strong>. If the hook renders a companion input (like the upload dataset-name field), its id must match <code>node$companion_id</code>, which is computed by <code>companion_id_fn(node$id)</code> and stored on the node during ID assignment.</p>
+
+<h3>resolve_expr contract</h3>
+<p>Called during <code>substitute_walk()</code> with the live <code>value</code> from the Shiny input snapshot and the <code>node</code>. Must return:</p>
+<ul>
+  <li>A language object (R call, symbol, or scalar) to be spliced into the plot expression — wrapped in <code>ptr_literal(resolved)</code> by the caller.</li>
+  <li><code>NULL</code> to indicate "no value yet" → the slot becomes <code>ptr_missing()</code> and is pruned.</li>
+  <li>For the <code>expr</code> built-in specifically, returning an <code>rlang</code> language object causes the wrapper to emit a <code>ptr_user_expr</code> node instead of <code>ptr_literal</code>, which bypasses the safety denylist. Custom value placeholders should <strong>not</strong> return untrusted user-typed R expressions unless they perform their own safety validation.</li>
+</ul>
+
+<h3>resolve_data contract (source role only)</h3>
+<p>Called by <code>ptr_setup_pipelines()</code> when a source widget's input changes. Receives the raw Shiny file-input value (a list with <code>name</code>, <code>size</code>, <code>type</code>, <code>datapath</code> fields) and the <code>node</code>. Must return a data frame or <code>NULL</code>. Errors are caught by <code>tryCatch</code> in the observer and surfaced as resolve errors in the error panel.</p>
+
+<h3>validate_input contract (consumer role, optional)</h3>
+<p>Called during <code>substitute_walk.ptr_ph_data_consumer()</code> with the current <code>value</code> and <code>upstream_cols</code> (a character vector of column names from the resolved upstream data). Must return <code>TRUE</code> or <code>NULL</code> for "valid", or a character string error message for "invalid". Any other return type fails closed with a generic error.</p>
+
+<h3>ID conventions</h3>
+<p>The raw input ID on <code>node$id</code> is <em>not</em> namespaced. The server always reads inputs via <code>input[[ns(raw_id)]]</code> (where <code>ns</code> = <code>state$server_ns_fn</code>), and the UI must render the input with <code>inputId = ns_fn(raw_id)</code> (where <code>ns_fn</code> = <code>state$ui_ns_fn</code>). The <code>invoke_build_ui()</code> helper wraps the node's id correctly before calling <code>build_ui</code>, so the hook receives an already-namespaced id via <code>node$id</code> in the UI context. The raw id on the node in the static tree is always un-namespaced.</p>
+
+<h3>shared field</h3>
+<p>The <code>node$shared</code> field is <code>NULL</code> (not shared) or a string (shared key). After <code>ptr_shared_bind()</code>, all nodes sharing the same key have the same <code>node$id</code>. Custom placeholder hooks must not assume <code>node$id</code> is unique; it will be the canonical id <code>paste0("shared_", key)</code> for every node in a shared group.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s9">
+<h2>9 · Constructing the Final Shiny App from the Formula</h2>
+
+<p>The entry point for a standalone app is <code>ptr_app(formula, ...)</code> <span class="src-ref">R/paintr-app.R:108</span>, which delegates to <code>ptr_app_components()</code> to build a <code>ui</code> and a <code>server</code> closure, then wraps them in <code>shiny::shinyApp()</code>.</p>
+
+<h3>9.1 UI construction</h3>
+<p><code>ptr_build_app_ui(tree, ...)</code> walks the annotated <code>ptr_root</code> to produce the sidebar layout. The critical inner call is <code>build_ui_for(node, ...)</code>, an S3 generic dispatching on node class. For placeholder nodes it calls the registry's <code>build_ui</code> hook; for <code>ptr_layer</code> nodes it emits the layer's collapsible panel containing all its placeholder widgets.</p>
+<p>Consumer placeholders (<code>ptr_ph_data_consumer</code>, i.e., <code>var</code>) receive a <em>static shell</em> only at UI build time — their actual column-picker content is rendered by a <code>shiny::renderUI()</code> output registered in the server. This is because the available columns are unknown at UI-build time (the data has not been uploaded yet).</p>
+
+<h3>9.2 Server bootstrap — ptr_server()</h3>
+<p>The server function calls <code>ptr_server(input, output, session, formula, ...)</code> <span class="src-ref">R/paintr-server.R:300</span>, which first calls <code>ptr_init_state(formula, ...)</code> to build a <code>ptr_state</code> object, then registers six groups of observers/outputs:</p>
+
+<div class="flow-box">
+  <div class="flow-step"><span class="step-num">1</span><strong>ptr_setup_producer_inputs</strong> — wraps each value-placeholder input (text, num, expr) in a debounced reactive so rapid typing doesn't trigger expensive upstream-data recomputation on every keystroke.</div>
+  <div class="flow-step"><span class="step-num">2</span><strong>ptr_setup_pipelines</strong> — for each layer whose <code>data_arg</code> is an upload/source placeholder, registers an <code>observe()</code> that fires when the file input changes, calls <code>entry$resolve_data()</code>, and caches the resulting data frame in <code>state$resolved_data[[layer_name]](df)</code>. For pipeline-head sources (not a bare data_arg), binds the resolved frame into <code>state$eval_env</code> under the dataset name.</div>
+  <div class="flow-step"><span class="step-num">3</span><strong>ptr_setup_stage_enabled</strong> — registers observers that read each layer's checkbox input and update <code>state$stage_enabled()</code>.</div>
+  <div class="flow-step"><span class="step-num">4</span><strong>ptr_setup_runtime</strong> — the main reactive observer. Fires when the Update Plot button or the shared draw-all trigger fires (or when <code>ptr_gg_extra()</code> adds extras). Inside <code>shiny::isolate()</code>, snapshots all input values, resolves upstream column lists, calls <code>ptr_exec_headless()</code>, and stores the result in <code>state$runtime(res)</code>.</div>
+  <div class="flow-step"><span class="step-num">5</span><strong>ptr_setup_consumer_uis</strong> — for each <code>var</code> (consumer) placeholder, registers a <code>renderUI()</code> output. The reactive reads structural dependencies (tree, stage_enabled, resolved data), resolves the upstream data frame, extracts column names, and calls <code>invoke_build_ui()</code> with those columns to produce the picker HTML.</div>
+  <div class="flow-step"><span class="step-num">6</span><strong>ptr_register_plot / ptr_register_error / ptr_register_code</strong> — bind <code>output$ptr_plot</code>, <code>output$ptr_error</code>, <code>output$ptr_code</code> as standard Shiny render functions reading <code>state$runtime()</code>.</div>
+</div>
+
+<h3>9.3 The runtime execution pipeline — ptr_exec_headless()</h3>
+<p><code>ptr_exec_headless()</code> <span class="src-ref">R/paintr-headless.R:21</span> is a pure function (no Shiny reactive dependencies) that takes the tree, input snapshot, eval environment, and stage-enabled map, and returns a result list with <code>ok</code>, <code>plot</code>, <code>code_text</code>, and <code>error</code> slots. Its steps:</p>
+
+<div class="flow-box">
+  <div class="flow-step"><span class="step-num">A</span><strong>disable_walk</strong> — marks layers inactive according to <code>stage_enabled</code>. <code>prune_walk.ptr_layer</code> returns <code>NULL</code> for inactive layers.</div>
+  <div class="flow-step"><span class="step-num">B</span><strong>ptr_substitute</strong> — walks the tree and replaces every placeholder node with either a <code>ptr_literal</code> (the resolved value), a <code>ptr_user_expr</code> (for <code>expr</code> placeholders), or <code>ptr_missing()</code> (input empty / NULL). Shared bindings are read from <code>state$shared_bindings</code> (a named list of reactives).</div>
+  <div class="flow-step"><span class="step-num">C</span><strong>ptr_prune</strong> — removes all <code>ptr_missing</code> nodes and drops empty verb calls from the remove_set (see §6).</div>
+  <div class="flow-step"><span class="step-num">D</span><strong>inject_resolved_data_list</strong> — for bare-data-source layers, replaces the (already-pruned) <code>data_arg</code> with a <code>ptr_literal</code> wrapping the actual data frame object. This makes the eval step avoid re-running <code>resolve_data</code>; the code panel still shows the original source expression.</div>
+  <div class="flow-step"><span class="step-num">E</span><strong>ptr_assemble_plot_safe</strong> — calls <code>ptr_eval(pruned)</code>, which converts the pruned tree to R language objects via <code>layer_to_eval_expr()</code> and evaluates each layer, assembling the result with <code>Reduce(`+`, results)</code>.</div>
+  <div class="flow-step"><span class="step-num">F</span><strong>Extras</strong> — if <code>ptr_gg_extra()</code> has added extra ggplot objects, they are appended with <code>Reduce(`+`, extras, res$plot)</code>.</div>
+</div>
+
+<h3>9.4 layer_to_eval_expr and desugar_pipe_to_call</h3>
+<p><code>layer_to_eval_expr(layer)</code> <span class="src-ref">R/paintr-eval.R:26</span> converts a <code>ptr_layer</code> to a language object for <code>eval()</code>. If the layer has a piped <code>data_arg</code>, it calls <code>pipeline_to_eval_expr(layer$data_arg)</code> to build the pipeline expression and then <code>desugar_pipe_to_call(upstream, rhs)</code> to convert <code>x |&gt; f(a)</code> into the call form <code>f(x, a)</code> that <code>eval()</code> can execute without the magrittr or native-pipe runtime. This desugaring happens at eval time, not during parsing.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s10">
+<h2>10 · Shared Placeholders</h2>
+
+<h3>What problem they solve</h3>
+<p>Without shared placeholders, every occurrence of a keyword in the formula gets its own independent widget. This is correct for most use cases but creates redundancy when the same conceptual value should drive multiple places in one plot (e.g., the same column used for both x and color), or the same value should drive multiple plots in a multi-instance app.</p>
+<p>Shared placeholders collapse all occurrences of the same key to a single Shiny input widget. The user sees one control; all formula positions that reference that key track it in lockstep.</p>
+
+<h3>Annotation syntax</h3>
+<pre><code><span class="cm"># Single shared column picker drives both x and color</span>
+<span class="fn">ptr_app</span>(<span class="st">"ggplot(iris, aes(x = var(shared = 'col'), color = var(shared = 'col'))) + geom_point()"</span>)
+
+<span class="cm"># Shared size slider</span>
+<span class="fn">ptr_app</span>(<span class="st">"ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width)) + geom_point(size = num(shared = 'sz'))"</span>)
+</code></pre>
+<span class="lang-label">R</span>
+<p>The only supported argument inside a placeholder call is <code>shared = "&lt;key&gt;"</code>. Any other positional or named argument causes <code>extract_shared()</code> <span class="src-ref">R/paintr-translate.R:380</span> to abort with a clear error message.</p>
+
+<h3>Parse-time processing</h3>
+<ol>
+  <li><code>extract_shared(expr, keyword)</code> parses the shared argument from the call. Returns <code>NULL</code> for bare keywords (not shared) or the key string.</li>
+  <li>The key is stored on the node as <code>node$shared</code>.</li>
+  <li>After ID assignment, <code>ptr_shared_bind(root)</code> collects all nodes where <code>node$shared</code> is non-NULL, groups by key, and calls <code>canonical_shared_id(key)</code> = <code>paste0("shared_", key)</code>. Every node in a group is rewritten to have <code>node$id = canonical_id</code>. For source placeholders, the companion id is also rewritten through <code>companion_id_fn</code>.</li>
+</ol>
+
+<h3>Runtime: how shared bindings reach the server</h3>
+<p>In <code>ptr_make_app_server()</code> <span class="src-ref">R/paintr-app.R:160</span> (the single-instance path), the server closure builds a named list of <em>reactives</em>, one per shared key:</p>
+<pre><code><span class="id">shared_reactives</span> <span class="op">&lt;-</span> <span class="fn">setNames</span>(
+  <span class="fn">lapply</span>(shared_keys, <span class="kw">function</span>(k) {
+    canonical <span class="op">&lt;-</span> <span class="fn">canonical_shared_id</span>(k)          <span class="cm"># "shared_k"</span>
+    <span class="fn">shiny::reactive</span>(input[[<span class="fn">ns</span>(canonical)]])
+  }),
+  shared_keys
+)
+</code></pre>
+<span class="lang-label">R</span>
+<p>This list is passed to <code>ptr_server(..., shared = shared_reactives)</code>. In <code>ptr_substitute()</code>, when a placeholder node's <code>node$id</code> matches a key in <code>ctx$shared</code>, the value is read from <code>ctx$shared[[key]]()</code> (the reactive) rather than from the snapshot. This keeps the shared input decoupled from the snapshot-based individual inputs.</p>
+
+<h3>Single-instance vs multi-instance</h3>
+<p>The partition rule governs which surface renders the widget:</p>
+<ul>
+  <li><strong>Single instance</strong> (<code>ptr_app()</code>): every shared key is formula-local. All shared widgets render inside the formula's inline <em>shared section</em> — a <code>shiny::wellPanel()</code> automatically appended to the sidebar by <code>ptr_controls_panel()</code>. No coordinator object is needed.</li>
+  <li><strong>Multiple instances</strong> (<code>ptr_module_server()</code> + <code>ptr_shared()</code>): the coordinator's <code>shared_partition()</code> <span class="src-ref">R/paintr-shared-coordinator.R:27</span> classifies each key: ≥2 formulas → <em>panel key</em> (rendered in the standalone <code>ptr_shared_panel(obj)</code> with global un-namespaced ids); exactly 1 formula → <em>formula-local key</em> (rendered inline in that formula's module). The <code>ptr_shared_server(obj)</code> returns a <code>ptr_shared_state</code> bundle threaded into each <code>ptr_module_server(..., shared_state = sh)</code>.</li>
+</ul>
+
+<h3>Consumer placeholders (var) in shared context</h3>
+<p>A <code>var(shared = "k")</code> consumer does not render a static widget — it renders a column-picker via <code>renderUI()</code>. The ownership rule applies identically: if the key is formula-local, the owning module's <code>ptr_setup_consumer_uis()</code> + <code>ptr_bind_local_shared_consumers()</code> binds the picker. If the key is a panel key (≥2 formulas), the shared-panel server binds it using the representative node from the first formula that declared the consumer.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s11">
+<h2>11 · Multiple ggpaintr Instances in One Shiny Session</h2>
+
+<p>When a page embeds two or more independent ggpaintr modules, each with its own formula, the Shiny input IDs for their respective placeholder widgets must not collide. ggpaintr achieves this entirely through Shiny's standard module namespacing mechanism.</p>
+
+<h3>The two namespace functions</h3>
+<p>Each module instance operates with <strong>two distinct namespace functions</strong>:</p>
+<ul>
+  <li><code>state$ui_ns_fn</code> = <code>session$ns</code> — the module's namespace function. Applied to every <code>inputId</code> passed to <code>renderUI()</code> and every <code>outputId</code> in <code>uiOutput()</code>. Shiny's <code>moduleServer()</code> does <em>not</em> auto-namespace tag attributes emitted inside <code>renderUI()</code>, so these must be wrapped explicitly.</li>
+  <li><code>state$server_ns_fn</code> = <code>shiny::NS(NULL)</code> (identity) — used for <code>input[[id]]</code>, <code>output[[id]]</code>, and <code>updateXxx(session, id, ...)</code> lookups. Under <code>moduleServer()</code>, Shiny's session already applies the module prefix to these lookups automatically, so the server-side namespace function is the identity.</li>
+</ul>
+<p>At the top level (inside <code>ptr_app()</code>, no <code>moduleServer()</code>), both functions are <code>shiny::NS(NULL)</code> — the identity. This makes the behavior backward-compatible: all IDs remain as emitted by <code>ptr_assign_ids()</code>.</p>
+
+<h3>ID generation — ptr_assign_ids</h3>
+<p>Raw placeholder IDs are generated by <code>assign_id_to_placeholder()</code> <span class="src-ref">R/paintr-ids.R:35</span> as:</p>
+<pre><code><span class="id">paste0</span>(layer_name, <span class="st">"_"</span>, path_str, <span class="st">"_"</span>, keyword, <span class="st">"_"</span>, shared_or_NA)
+<span class="cm"># e.g. "ggplot_1_1_var_NA"</span>
+</code></pre>
+<span class="lang-label">R</span>
+<p>These raw IDs are layer-scoped, not globally unique. Two different formulas can both have <code>ggplot_1_1_var_NA</code>. Module namespacing makes them globally unique at the Shiny level: module A's input becomes <code>A-ggplot_1_1_var_NA</code>; module B's becomes <code>B-ggplot_1_1_var_NA</code>.</p>
+
+<h3>ptr_translate and ns_fn</h3>
+<p><code>ptr_translate(formula, ns_fn = shiny::NS(NULL))</code> accepts an <code>ns_fn</code> argument that is passed to <code>ptr_assign_ids()</code>. In the module path (<code>ptr_module_server()</code>), the pre-flight call to <code>ptr_translate(formula, expr_check = FALSE)</code> <span class="src-ref">R/paintr-app.R:833</span> uses the default identity function. The actual per-instance tree used at runtime is built fresh inside <code>ptr_server()</code> → <code>ptr_init_state()</code> → <code>ptr_translate()</code> with the module's <code>ns</code> function. So the static tree used for preflight checks has raw ids, and the live tree used for widget rendering has namespaced ids.</p>
+
+<h3>Shared panel IDs (cross-formula keys)</h3>
+<p>Panel keys use global, un-namespaced IDs — <code>shared_&lt;key&gt;</code>. The <code>ptr_shared_panel(obj)</code> UI renders these widgets outside any module namespace. The <code>ptr_shared_server(obj)</code> runs at the top level, never inside a <code>moduleServer()</code>. The modules read these inputs via a reactive passed through the <code>shared_state</code> bundle, where the reactive is simply <code>shiny::reactive(input[[canonical]])</code> — input here being the top-level server's input object, which sees the global ids directly.</p>
+
+<h3>Output IDs: ptr_plot, ptr_error, ptr_code</h3>
+<p>The output Shiny IDs <code>ptr_plot</code>, <code>ptr_error</code>, and <code>ptr_code</code> are fixed strings registered by <code>ptr_register_plot()</code> et al. via:</p>
+<pre><code><span class="id">output</span>[[<span class="id">state</span><span class="op">$</span><span class="fn">server_ns_fn</span>(<span class="st">"ptr_plot"</span>)]] <span class="op">&lt;-</span> <span class="fn">shiny::renderPlot</span>(...)
+</code></pre>
+<span class="lang-label">R</span>
+<p>Under <code>moduleServer()</code>, <code>server_ns_fn</code> is the identity, so <code>output[["ptr_plot"]]</code> is set — and <code>moduleServer</code>'s session auto-prefixes this to <code>A-ptr_plot</code> for module A. The UI counterpart uses <code>shiny::NS(id)("ptr_plot")</code> = <code>"A-ptr_plot"</code> in <code>ptr_ui_plot(id)</code>. Both sides agree on the namespaced ID without either needing to know the other's namespace string.</p>
+
+<h3>consumer output IDs</h3>
+<p>The dynamic column-picker output IDs are generated by <code>consumer_output_id(raw_id)</code> <span class="src-ref">R/paintr-ids.R:68</span> as a function of the raw placeholder ID (typically by appending an <code>_out</code> suffix). The server registers <code>output[[ns(consumer_output_id(raw_id))]]</code>; the UI emits a <code>uiOutput(ui_ns(consumer_output_id(raw_id)))</code>. Under module namespacing both sides apply their respective ns functions and remain in agreement.</p>
+</section>
+
+<hr>
+
+<p style="font-size:12px;color:var(--muted);margin-top:40px;">
+Generated 2026-05-18 from ggpaintr source tree (<code>vignette-review</code> branch).
+Key files: <code>R/paintr-translate.R</code>, <code>R/paintr-nodes.R</code>, <code>R/paintr-registry.R</code>, <code>R/paintr-builtins.R</code>,
+<code>R/paintr-classify.R</code>, <code>R/paintr-ids.R</code>, <code>R/paintr-shared.R</code>, <code>R/paintr-shared-coordinator.R</code>,
+<code>R/paintr-prune.R</code>, <code>R/paintr-substitute.R</code>, <code>R/paintr-eval.R</code>, <code>R/paintr-headless.R</code>,
+<code>R/paintr-server.R</code>, <code>R/paintr-app.R</code>, <code>R/paintr-utils.R</code>.
+</p>
+
+</main>
+</body>
+</html>
