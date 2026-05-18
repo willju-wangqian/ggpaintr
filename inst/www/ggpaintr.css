@@ -151,6 +151,10 @@
 
 /* ---- output area ---- */
 .ptr-output { display: flex; flex-direction: column; gap: 16px; }
+/* Sibling-case toggle (custom outputs: plotly/ggiraph/plotOutput). The card
+   path's button sits inside .ptr-card__head, not a direct .ptr-output child,
+   so it is unaffected by this rule. */
+.ptr-output > .ptr-code-toggle { align-self: flex-end; }
 .ptr-card {
   background: var(--ptr-surface);
   border: 1px solid var(--ptr-border);

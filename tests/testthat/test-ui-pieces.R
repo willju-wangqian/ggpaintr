@@ -119,6 +119,35 @@ test_that("ptr_ui_toggle_code code-style is irrelevant (combinator supplies wind
   expect_match(panel_in, "p-ptr_code")
 })
 
+test_that("ptr_ui_toggle_code wraps a plotly tagList sibling-style (no crash)", {
+  skip_if_not_installed("plotly")
+  ui <- ptr_ui_toggle_code(
+    plotly::plotlyOutput(shiny::NS("p")("x")),
+    ptr_ui_code("p")
+  )
+  rendered <- as.character(ui)
+  expect_equal(count_occurrences(rendered, "ptr-output"), 1L)
+  expect_match(rendered, "ptr-code-toggle")
+  expect_match(rendered, "ptr-code-window")
+  expect_match(rendered, "p-ptr_code")
+})
+
+test_that("ptr_ui_toggle_code wraps a childless plotOutput sibling-style (no crash)", {
+  # shiny::plotOutput() is a single shiny.tag with no children -- the old
+  # `plotish$children[[1]] <- ...` was subscript-out-of-bounds here.
+  expect_no_error(
+    ui <- ptr_ui_toggle_code(
+      shiny::plotOutput(shiny::NS("p")("x")),
+      ptr_ui_code("p")
+    )
+  )
+  rendered <- as.character(ui)
+  expect_equal(count_occurrences(rendered, "ptr-output"), 1L)
+  expect_match(rendered, "ptr-code-toggle")
+  expect_match(rendered, "ptr-code-window")
+  expect_match(rendered, "p-ptr_code")
+})
+
 # ---- ptr_ui_controls vs the ptr_controls_ui composite ----
 
 test_that("ptr_ui_controls emits control ids with NO .ptr-app wrapper or assets", {

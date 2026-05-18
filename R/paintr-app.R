@@ -511,9 +511,15 @@ ptr_ui_inline_error <- function(plot, error) {
 #' code panes (no toggle), keep the bare pieces uncombined — a standalone
 #' [ptr_ui_code()] is always visible and needs no wiring.
 #'
-#' @param plotish A plot-ish tag: a bare `ptr_ui_plot(id)` or
-#'   `ptr_ui_inline_error(ptr_ui_plot(id), ptr_ui_error(id))`. Must be the
-#'   `.ptr-card--plot` card so the toggle button can be added to its head.
+#' @param plotish A plot-ish tag. The designed input is a bare
+#'   `ptr_ui_plot(id)` or `ptr_ui_inline_error(ptr_ui_plot(id),
+#'   ptr_ui_error(id))` — a single `.ptr-card--plot` tag, where the toggle
+#'   button is injected into the card head (DOM byte-identical to the
+#'   bundled output block). An arbitrary custom output also works: a
+#'   `shiny.tag.list` (e.g. `plotly::plotlyOutput()`,
+#'   `ggiraph::girafeOutput()`) or a childless single tag (e.g.
+#'   `shiny::plotOutput()`) gets the toggle button as an explicit sibling
+#'   inside the `.ptr-output` wrapper instead.
 #' @param code A code piece, typically `ptr_ui_code(id)` built with the
 #'   same `id`. Its style is irrelevant — this combinator supplies the
 #'   slide-out window chrome around it.
@@ -524,15 +530,36 @@ ptr_ui_inline_error <- function(plot, error) {
 #'   [ptr_ui_controls()], [ptr_server()]
 #' @export
 ptr_ui_toggle_code <- function(plotish, code) {
-  # Inject the `</>` button into the plot card head (child 1). The JS only
-  # needs it inside the shared `.ptr-output`; placing it in the head matches
-  # the deleted ptr_ui_code_toggle()'s DOM and the card CSS.
-  plotish$children[[1]] <- shiny::tagAppendChild(
-    plotish$children[[1]], code_toggle_button()
-  )
+  # Dispatch on `plotish` structure so arbitrary custom outputs are safe:
+  #
+  #  - Designed path (ggpaintr card): a single `shiny.tag` whose
+  #    `children[[1]]` is a stable head (`ptr_ui_plot(id)` /
+  #    `ptr_ui_inline_error(ptr_ui_plot(id), ptr_ui_error(id))`). Keep the
+  #    exact prior behaviour: inject the `</>` button into that head so the
+  #    DOM stays byte-identical to the bundled `ptr_outputs_panel()` block.
+  #  - Otherwise (a `shiny.tag.list` like plotly/ggiraph, or a single
+  #    childless `shiny.tag` like `shiny::plotOutput()`): emit the toggle
+  #    button as an explicit sibling inside `.ptr-output`. No `$children`
+  #    mutation, so no subscript-out-of-bounds crash.
+  is_card <- inherits(plotish, "shiny.tag") &&
+    length(plotish$children %||% list()) >= 1L
+  if (is_card) {
+    # Inject the `</>` button into the plot card head (child 1). The JS only
+    # needs it inside the shared `.ptr-output`; placing it in the head matches
+    # the deleted ptr_ui_code_toggle()'s DOM and the card CSS.
+    plotish$children[[1]] <- shiny::tagAppendChild(
+      plotish$children[[1]], code_toggle_button()
+    )
+    return(shiny::tags$div(
+      class = "ptr-output",
+      plotish,
+      code_window_tag(code)
+    ))
+  }
   shiny::tags$div(
     class = "ptr-output",
     plotish,
+    code_toggle_button(),
     code_window_tag(code)
   )
 }

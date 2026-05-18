@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ptr_ui_toggle_code sibling-dispatch &mdash; before/after (2026-05-18)</title>
+<style>
+body{font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;background:#fafbfc;color:#1a1a2e}
+.wrap{max-width:1080px;margin:0 auto;padding:32px}
+h1{font-size:22px;margin:0 0 4px}.lede{color:#555;margin:0 0 24px}
+section{background:#fff;border:1px solid #e4e7eb;border-radius:10px;padding:20px 24px;margin:0 0 24px}
+h2{font-size:17px;margin:0 0 12px;border-bottom:1px solid #eee;padding-bottom:8px}
+h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:#7a7f87;margin:18px 0 6px}
+h4{font-size:12px;color:#9aa0a6;margin:12px 0 4px}
+.desc{color:#444;margin:0 0 8px}
+.render{border:1px dashed #c9ced4;border-radius:8px;padding:16px;background:#fff}
+pre.code{background:#0f1117;color:#cdd3de;padding:14px;border-radius:8px;overflow:auto;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;word-break:break-word}
+/* --- inlined ggpaintr.css (so the rendered blocks are accurate) --- */
+/* ggpaintr default app theme.
+   Scoped under .ptr-app so embedding ggpaintr as a Shiny module never
+   restyles the host page. Accent = cardinal, sampled from the cybird mark.
+   All colours/radii are CSS custom properties so a future ptr_options()
+   knob is a one-line override. */
+
+.ptr-app {
+  --ptr-bg: #fafbfc;
+  --ptr-surface: #ffffff;
+  --ptr-border: #e7e9ee;
+  --ptr-ink: #1f2530;
+  --ptr-muted: #6b7280;
+  --ptr-accent: #c1372c;
+  --ptr-accent-strong: #9a2b22;
+  --ptr-accent-weak: rgba(193, 55, 44, 0.13);
+  --ptr-accent-line: rgba(193, 55, 44, 0.22);
+  --ptr-radius: 10px;
+  --ptr-radius-sm: 7px;
+  --ptr-shadow: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --ptr-shadow-lg: 0 12px 28px rgba(16, 24, 40, 0.18), 0 2px 8px rgba(16, 24, 40, 0.10);
+  --ptr-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --ptr-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  background: var(--ptr-bg);
+  color: var(--ptr-ink);
+  font-family: var(--ptr-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The full-viewport backdrop is OPT-IN. Bare `.ptr-app` is just the themed
+   scope: a fragment or an embeddable shell (ptr_controls_ui /
+   ptr_outputs_ui / ptr_shared_ui / ptr_module_ui / ptr_ui_page) sizes to
+   its content, so dropping it into a host column / sidebar never stretches
+   that cell floor-to-ceiling. Only the standalone entrypoints (ptr_app /
+   ptr_app_grid) add `ptr-app--page`, which paints the full-window canvas.
+   Specificity (0,2,0) > bare `.ptr-app` (0,1,0). */
+.ptr-app.ptr-app--page {
+  min-height: 100vh;
+}
+
+/* Nested .ptr-app: the split helpers each self-wrap in `.ptr-app` so the
+   bundled stylesheet attaches without host-side scaffolding. When a
+   fragment lives inside an outer `.ptr-app` (e.g. a region half composed
+   by ptr_app / ptr_module_ui), drop the inner wrap's redundant opaque
+   background so it does not repaint the canvas. */
+.ptr-app .ptr-app {
+  background: transparent;
+}
+
+/* ---- header bar (replaces titlePanel) ---- */
+.ptr-app__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 22px;
+  margin: -15px -15px 18px;            /* cancel fluidPage container padding */
+  background: var(--ptr-surface);
+  border-bottom: 1px solid var(--ptr-border);
+}
+.ptr-app__mark {
+  height: 32px;
+  width: auto;
+  display: block;
+}
+.ptr-app__title {
+  font-size: 16px;
+  font-weight: 650;
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+/* ---- sidebar / controls ---- */
+.ptr-app .well {
+  background: var(--ptr-surface);
+  border: 1px solid var(--ptr-border);
+  border-radius: var(--ptr-radius);
+  box-shadow: var(--ptr-shadow);
+  padding: 18px;
+}
+/* Only the sidebarPanel sticks (it renders as <form class="well">); the
+   grid app's shared wellPanel renders as <div class="well"> and must scroll
+   normally, otherwise it overlaps the panels below it. */
+/* z-index keeps the sidebar's stacking context above the output column, so a
+   pickerInput dropdown that opens downward isn't occluded by the plot card
+   when the layout stacks vertically (narrow window). */
+.ptr-app form.well { position: sticky; top: 16px; z-index: 2; }
+
+/* grid app: the shared-controls panel header */
+.ptr-shared-panel { margin-bottom: 22px; }
+.ptr-shared-panel__title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ptr-muted);
+  font-weight: 650;
+  margin: 0 0 4px;
+}
+.ptr-shared-panel__hint {
+  font-size: 13px;
+  color: var(--ptr-muted);
+  margin: 0 0 14px;
+}
+.ptr-app .control-label,
+.ptr-app label { font-size: 13px; font-weight: 550; }
+.ptr-app .form-control,
+.ptr-app .selectize-input {
+  border-radius: var(--ptr-radius-sm);
+}
+
+/* primary action ("Update plot" / "Draw all") -- scoped to action buttons
+   only so it never bleeds onto pickerInput's .btn-default toggle. */
+.ptr-app .btn.action-button {
+  background: var(--ptr-accent);
+  border-color: var(--ptr-accent);
+  color: #fff;
+  font-weight: 600;
+  border-radius: var(--ptr-radius-sm);
+}
+.ptr-app .btn.action-button:hover,
+.ptr-app .btn.action-button:focus,
+.ptr-app .btn.action-button:active {
+  background: var(--ptr-accent-strong);
+  border-color: var(--ptr-accent-strong);
+  color: #fff;
+}
+
+/* hidden-tabset layer panels: keep the panel content tidy */
+.ptr-app .tab-content { margin-top: 6px; }
+
+/* ---- pipeline stage groups (layer Data sub-tab) ----
+   Structure + spacing live in ptr_layer_assets() so every app shell
+   gets them; here we only refine colours for the polished default app.
+   `.ptr-stage-head` carries the include checkbox labelled `verb()`;
+   `.ptr-stage-fields` holds that verb's placeholder widgets, indented
+   under a left rule. Built in build_pipeline_stage_ui() (paintr-build-ui.R). */
+.ptr-app .ptr-stage-fields { border-left-color: var(--ptr-border); }
+.ptr-app .ptr-stage-head code {
+  font-family: var(--ptr-mono);
+  /* Own the weight here (specificity 0,2,1): the badge would otherwise
+     inherit from its checkbox label, where ggpaintr's 550 ties Bootstrap's
+     .checkbox-label 400 at (0,1,1) and the winner flips with stylesheet
+     load order. */
+  font-weight: 550;
+  font-size: 12.5px;
+  color: var(--ptr-accent-strong);
+  background: var(--ptr-accent-weak);
+  border: 1px solid var(--ptr-accent-line);
+  padding: 1px 6px;
+  border-radius: 5px;
+}
+
+/* ---- output area ---- */
+.ptr-output { display: flex; flex-direction: column; gap: 16px; }
+/* Sibling-case toggle (custom outputs: plotly/ggiraph/plotOutput). The card
+   path's button sits inside .ptr-card__head, not a direct .ptr-output child,
+   so it is unaffected by this rule. */
+.ptr-output > .ptr-code-toggle { align-self: flex-end; }
+.ptr-card {
+  background: var(--ptr-surface);
+  border: 1px solid var(--ptr-border);
+  border-radius: var(--ptr-radius);
+  box-shadow: var(--ptr-shadow);
+  overflow: hidden;
+}
+.ptr-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--ptr-border);
+}
+.ptr-card__title { margin: 0; font-size: 13px; font-weight: 600; }
+.ptr-card__body { padding: 16px; }
+
+.ptr-icon-btn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 7px;
+  border: 1px solid var(--ptr-border);
+  background: #fff;
+  color: var(--ptr-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  line-height: 0;
+}
+.ptr-icon-btn:hover {
+  color: var(--ptr-accent-strong);
+  border-color: var(--ptr-accent);
+  background: var(--ptr-accent-weak);
+}
+.ptr-icon-btn svg { width: 15px; height: 15px; }
+
+/* inline error alert (rendered by ptr_error_ui) */
+.ptr-alert {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: var(--ptr-radius-sm);
+  font-size: 13.5px;
+}
+.ptr-alert--error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+.ptr-alert__detail { white-space: pre-wrap; margin-top: 6px; }
+
+/* ---- draggable code mini-window ---- */
+.ptr-code-window {
+  display: none;                       /* hidden until the </> icon is clicked */
+  position: fixed;
+  left: 50%;
+  top: 120px;
+  width: 460px;
+  max-width: 92vw;
+  background: var(--ptr-surface);
+  border: 1px solid var(--ptr-border);
+  border-radius: var(--ptr-radius);
+  box-shadow: var(--ptr-shadow-lg);
+  z-index: 1080;
+  overflow: hidden;
+}
+.ptr-code-window.ptr-open { display: block; }
+.ptr-code-window__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  background: #fafbfc;
+  border-bottom: 1px solid var(--ptr-border);
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+.ptr-code-window__title { font-size: 12.5px; font-weight: 600; color: var(--ptr-accent-strong); }
+.ptr-code-window__actions { display: flex; gap: 6px; align-items: center; }
+.ptr-copy-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--ptr-border);
+  background: #fff;
+  color: var(--ptr-ink);
+  cursor: pointer;
+}
+.ptr-copy-btn:hover { border-color: var(--ptr-accent); color: var(--ptr-accent-strong); }
+.ptr-code-window__close {
+  font-size: 15px;
+  line-height: 1;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ptr-muted);
+  cursor: pointer;
+}
+.ptr-code-window__close:hover { background: #f1f3f5; color: var(--ptr-ink); }
+.ptr-code-window__body { max-height: 320px; overflow: auto; }
+.ptr-code-window__body pre {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: #fbfcfd;
+  color: #0f172a;
+  font-family: var(--ptr-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  padding: 14px 16px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1><code>ptr_ui_toggle_code()</code> structural dispatch &mdash; before / after</h1>
+<p class="lede">CONDITIONAL B. Branch 1 (ggpaintr card) is byte-identical to before; branch 2 (tagList / childless single tag) emits the <code>&lt;/&gt;</code> toggle as an explicit <code>.ptr-output</code> sibling, removing the <code>shiny::plotOutput()</code> crash. The single new CSS rule <code>.ptr-output &gt; .ptr-code-toggle { align-self: flex-end; }</code> only matches the sibling case (the card button lives inside <code>.ptr-card__head</code>, not a direct <code>.ptr-output</code> child).</p>
+<section>
+<h2>(a) ptr_ui_plot("p") card &mdash; DESIGNED PATH, must be visually unchanged</h2>
+<h3>BEFORE (prior <code>ptr_ui_toggle_code()</code> behaviour)</h3>
+<p class="desc">Single <code>shiny.tag</code> (<code>.ptr-card--plot</code>) with a stable head child. The <code>&lt;/&gt;</code> button was injected into <code>children[[1]]</code> (the <code>.ptr-card__head</code>). <strong>Unchanged:</strong> branch 1 keeps this exact code path; output verified byte-identical to the prior function.</p>
+<h3>AFTER (this change) &mdash; live render</h3>
+<p class="desc">Toggle button sits inside <code>.ptr-card__head</code> next to the title (not a direct <code>.ptr-output</code> child) &mdash; the new CSS rule does not apply here.</p>
+<div class="render"><div class="ptr-output">
+  <div class="ptr-card ptr-card--plot">
+    <div class="ptr-card__head">
+      <h3 class="ptr-card__title">Plot</h3>
+      <button type="button" class="ptr-icon-btn ptr-code-toggle" title="Show generated code" aria-label="Show generated code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4"></path><path d="m6 8-4 4 4 4"></path><path d="m14.5 4-5 16"></path></svg></button>
+    </div>
+    <div class="ptr-card__body">
+      <div class="shiny-plot-output html-fill-item" id="p-ptr_plot" style="width:100%;height:400px;"></div>
+    </div>
+  </div>
+  <div class="ptr-code-window">
+    <div class="ptr-code-window__head">
+      <span class="ptr-code-window__title">&lt;/&gt; Generated code</span>
+      <span class="ptr-code-window__actions">
+        <button type="button" class="ptr-copy-btn">Copy</button>
+        <button type="button" class="ptr-code-window__close" title="Close" aria-label="Close">&times;</button>
+      </span>
+    </div>
+    <div class="ptr-code-window__body">
+      <div class="ptr-card ptr-card--code">
+        <div class="ptr-card__head">
+          <h3 class="ptr-card__title">Generated code</h3>
+        </div>
+        <div class="ptr-card__body">
+          <pre class="shiny-text-output noplaceholder" id="p-ptr_code"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div>
+<h4>AFTER markup</h4>
+<pre class="code">&lt;div class="ptr-output"&gt;
+  &lt;div class="ptr-card ptr-card--plot"&gt;
+    &lt;div class="ptr-card__head"&gt;
+      &lt;h3 class="ptr-card__title"&gt;Plot&lt;/h3&gt;
+      &lt;button type="button" class="ptr-icon-btn ptr-code-toggle" title="Show generated code" aria-label="Show generated code"&gt;&lt;svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"&gt;&lt;path d="m18 16 4-4-4-4"&gt;&lt;/path&gt;&lt;path d="m6 8-4 4 4 4"&gt;&lt;/path&gt;&lt;path d="m14.5 4-5 16"&gt;&lt;/path&gt;&lt;/svg&gt;&lt;/button&gt;
+    &lt;/div&gt;
+    &lt;div class="ptr-card__body"&gt;
+      &lt;div class="shiny-plot-output html-fill-item" id="p-ptr_plot" style="width:100%;height:400px;"&gt;&lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+  &lt;div class="ptr-code-window"&gt;
+    &lt;div class="ptr-code-window__head"&gt;
+      &lt;span class="ptr-code-window__title"&gt;&amp;lt;/&amp;gt; Generated code&lt;/span&gt;
+      &lt;span class="ptr-code-window__actions"&gt;
+        &lt;button type="button" class="ptr-copy-btn"&gt;Copy&lt;/button&gt;
+        &lt;button type="button" class="ptr-code-window__close" title="Close" aria-label="Close"&gt;&amp;times;&lt;/button&gt;
+      &lt;/span&gt;
+    &lt;/div&gt;
+    &lt;div class="ptr-code-window__body"&gt;
+      &lt;div class="ptr-card ptr-card--code"&gt;
+        &lt;div class="ptr-card__head"&gt;
+          &lt;h3 class="ptr-card__title"&gt;Generated code&lt;/h3&gt;
+        &lt;/div&gt;
+        &lt;div class="ptr-card__body"&gt;
+          &lt;pre class="shiny-text-output noplaceholder" id="p-ptr_code"&gt;&lt;/pre&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+</section>
+<section>
+<h2>(b) plotly::plotlyOutput(...) &mdash; SIBLING PATH</h2>
+<h3>BEFORE (prior <code>ptr_ui_toggle_code()</code> behaviour)</h3>
+<p class="desc"><code>plotly::plotlyOutput()</code> returns a <code>shiny.tag.list</code> (no <code>$children</code>). The old <code>plotish$children[[1]] &lt;- ...</code> assignment happened to append the button as a top-level list sibling &mdash; it worked correctly only by accident. Now it is an explicit, deliberate sibling.</p>
+<h3>AFTER (this change) &mdash; live render</h3>
+<p class="desc">Toggle button is an explicit direct child of <code>.ptr-output</code> &mdash; right-aligned by the new <code>align-self: flex-end</code> rule instead of being a stray full-width row.</p>
+<div class="render"><div class="ptr-output">
+  <div class="plotly html-widget html-widget-output shiny-report-size shiny-report-theme html-fill-item" id="p-x" style="width:100%;height:400px;"></div>
+  <button type="button" class="ptr-icon-btn ptr-code-toggle" title="Show generated code" aria-label="Show generated code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4"></path><path d="m6 8-4 4 4 4"></path><path d="m14.5 4-5 16"></path></svg></button>
+  <div class="ptr-code-window">
+    <div class="ptr-code-window__head">
+      <span class="ptr-code-window__title">&lt;/&gt; Generated code</span>
+      <span class="ptr-code-window__actions">
+        <button type="button" class="ptr-copy-btn">Copy</button>
+        <button type="button" class="ptr-code-window__close" title="Close" aria-label="Close">&times;</button>
+      </span>
+    </div>
+    <div class="ptr-code-window__body">
+      <div class="ptr-card ptr-card--code">
+        <div class="ptr-card__head">
+          <h3 class="ptr-card__title">Generated code</h3>
+        </div>
+        <div class="ptr-card__body">
+          <pre class="shiny-text-output noplaceholder" id="p-ptr_code"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div>
+<h4>AFTER markup</h4>
+<pre class="code">&lt;div class="ptr-output"&gt;
+  &lt;div class="plotly html-widget html-widget-output shiny-report-size shiny-report-theme html-fill-item" id="p-x" style="width:100%;height:400px;"&gt;&lt;/div&gt;
+  &lt;button type="button" class="ptr-icon-btn ptr-code-toggle" title="Show generated code" aria-label="Show generated code"&gt;&lt;svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"&gt;&lt;path d="m18 16 4-4-4-4"&gt;&lt;/path&gt;&lt;path d="m6 8-4 4 4 4"&gt;&lt;/path&gt;&lt;path d="m14.5 4-5 16"&gt;&lt;/path&gt;&lt;/svg&gt;&lt;/button&gt;
+  &lt;div class="ptr-code-window"&gt;
+    &lt;div class="ptr-code-window__head"&gt;
+      &lt;span class="ptr-code-window__title"&gt;&amp;lt;/&amp;gt; Generated code&lt;/span&gt;
+      &lt;span class="ptr-code-window__actions"&gt;
+        &lt;button type="button" class="ptr-copy-btn"&gt;Copy&lt;/button&gt;
+        &lt;button type="button" class="ptr-code-window__close" title="Close" aria-label="Close"&gt;&amp;times;&lt;/button&gt;
+      &lt;/span&gt;
+    &lt;/div&gt;
+    &lt;div class="ptr-code-window__body"&gt;
+      &lt;div class="ptr-card ptr-card--code"&gt;
+        &lt;div class="ptr-card__head"&gt;
+          &lt;h3 class="ptr-card__title"&gt;Generated code&lt;/h3&gt;
+        &lt;/div&gt;
+        &lt;div class="ptr-card__body"&gt;
+          &lt;pre class="shiny-text-output noplaceholder" id="p-ptr_code"&gt;&lt;/pre&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+</section>
+<section>
+<h2>(c) shiny::plotOutput(...) &mdash; SIBLING PATH (previously crashed)</h2>
+<h3>BEFORE (prior <code>ptr_ui_toggle_code()</code> behaviour)</h3>
+<p class="desc"><strong>ERRORED:</strong> <code>shiny::plotOutput()</code> is a single <code>shiny.tag</code> with <em>no</em> children, so <code>plotish$children[[1]] &lt;- ...</code> threw <code>Error: subscript out of bounds</code> &mdash; a hard crash. (Verified: the pre-change body errors here.)</p>
+<h3>AFTER (this change) &mdash; live render</h3>
+<p class="desc">No more crash. Toggle button is an explicit, right-aligned direct child of <code>.ptr-output</code>; structure is uniform with the plotly case.</p>
+<div class="render"><div class="ptr-output">
+  <div class="shiny-plot-output html-fill-item" id="p-x" style="width:100%;height:400px;"></div>
+  <button type="button" class="ptr-icon-btn ptr-code-toggle" title="Show generated code" aria-label="Show generated code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4"></path><path d="m6 8-4 4 4 4"></path><path d="m14.5 4-5 16"></path></svg></button>
+  <div class="ptr-code-window">
+    <div class="ptr-code-window__head">
+      <span class="ptr-code-window__title">&lt;/&gt; Generated code</span>
+      <span class="ptr-code-window__actions">
+        <button type="button" class="ptr-copy-btn">Copy</button>
+        <button type="button" class="ptr-code-window__close" title="Close" aria-label="Close">&times;</button>
+      </span>
+    </div>
+    <div class="ptr-code-window__body">
+      <div class="ptr-card ptr-card--code">
+        <div class="ptr-card__head">
+          <h3 class="ptr-card__title">Generated code</h3>
+        </div>
+        <div class="ptr-card__body">
+          <pre class="shiny-text-output noplaceholder" id="p-ptr_code"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div>
+<h4>AFTER markup</h4>
+<pre class="code">&lt;div class="ptr-output"&gt;
+  &lt;div class="shiny-plot-output html-fill-item" id="p-x" style="width:100%;height:400px;"&gt;&lt;/div&gt;
+  &lt;button type="button" class="ptr-icon-btn ptr-code-toggle" title="Show generated code" aria-label="Show generated code"&gt;&lt;svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"&gt;&lt;path d="m18 16 4-4-4-4"&gt;&lt;/path&gt;&lt;path d="m6 8-4 4 4 4"&gt;&lt;/path&gt;&lt;path d="m14.5 4-5 16"&gt;&lt;/path&gt;&lt;/svg&gt;&lt;/button&gt;
+  &lt;div class="ptr-code-window"&gt;
+    &lt;div class="ptr-code-window__head"&gt;
+      &lt;span class="ptr-code-window__title"&gt;&amp;lt;/&amp;gt; Generated code&lt;/span&gt;
+      &lt;span class="ptr-code-window__actions"&gt;
+        &lt;button type="button" class="ptr-copy-btn"&gt;Copy&lt;/button&gt;
+        &lt;button type="button" class="ptr-code-window__close" title="Close" aria-label="Close"&gt;&amp;times;&lt;/button&gt;
+      &lt;/span&gt;
+    &lt;/div&gt;
+    &lt;div class="ptr-code-window__body"&gt;
+      &lt;div class="ptr-card ptr-card--code"&gt;
+        &lt;div class="ptr-card__head"&gt;
+          &lt;h3 class="ptr-card__title"&gt;Generated code&lt;/h3&gt;
+        &lt;/div&gt;
+        &lt;div class="ptr-card__body"&gt;
+          &lt;pre class="shiny-text-output noplaceholder" id="p-ptr_code"&gt;&lt;/pre&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+</section>
+</div>
+</body>
+</html>
+
