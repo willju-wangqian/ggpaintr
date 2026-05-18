@@ -406,6 +406,14 @@ test_that("customization value-range: custom value placeholder", {
   expect_rendered(app, "#ptr_plot", "ggplot")
   expect_code_nonempty(app, "ptr_code")
   expect_no_inline_error(app, "ptr_error")
+  # B1-class: prove the custom value placeholder's resolve_expr actually
+  # reached the generated code (the non-default slider pair 10/40, distinct
+  # from the c(0,100) default), not merely that *some* code exists.
+  # shinytest2 delivers the slider value as integers, so resolve_expr's
+  # c(!!10L, !!40L) deparses to c(10L, 40L) — assert the verified-actual
+  # codegen (the non-default pair, distinct from the c(0,100) default).
+  code <- app$get_value(output = "ptr_code")
+  expect_match(code, "xlim(c(10L, 40L))", fixed = TRUE)
 })
 
 test_that("customization consumer-colvars: custom consumer placeholder", {
@@ -427,13 +435,19 @@ test_that("customization consumer-colvars: custom consumer placeholder", {
   expect_rendered(app, "#ptr_plot", "ggplot")
   expect_code_nonempty(app, "ptr_code")
   expect_no_inline_error(app, "ptr_error")
+  # B1-class: the consumer picker must be POPULATED with upstream columns
+  # (an empty selectInput would pass a bare expect_dom_id), and the selected
+  # columns must reach the generated dplyr::select() via resolve_expr.
+  expect_picker_populated(app, "ggplot_2_1_colvars_NA", "mpg")
+  expect_match(app$get_value(output = "ptr_code"), '"mpg".*"hp".*"wt"')
 })
 
 test_that("customization source-dataset: custom source placeholder", {
   app <- boot_vignette_app("source-dataset")
 
   expect_dom_id(app, "ptr_update_plot")
-  expect_dom_id(app, "ggplot_0_dataset_NA")  # the registered dataset selectInput
+  # The source selectInput has static choices, so it is populated at boot.
+  expect_picker_populated(app, "ggplot_0_dataset_NA", "iris")
 
   # Choose the source dataset; switch to the Controls subtab so the
   # downstream var-picker renderUI binds (suspended under the Data subtab).
@@ -446,4 +460,9 @@ test_that("customization source-dataset: custom source placeholder", {
   expect_rendered(app, "#ptr_plot", "ggplot")
   expect_code_nonempty(app, "ptr_code")
   expect_no_inline_error(app, "ptr_error")
+  # B1-class: prove the custom SOURCE actually resolved — the downstream var
+  # picker is populated from the resolved iris columns (empty if resolve_data
+  # never ran), and the selection reaches the generated code.
+  expect_picker_populated(app, "ggplot_1_1_var_NA", "Sepal.Length")
+  expect_match(app$get_value(output = "ptr_code"), "Sepal.Length", fixed = TRUE)
 })
