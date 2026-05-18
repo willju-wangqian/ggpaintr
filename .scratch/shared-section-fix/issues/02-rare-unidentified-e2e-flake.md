@@ -1,6 +1,6 @@
 # Rare unidentified intermittent failure in the NOT_CRAN e2e gate (~1 in 27)
 
-Status: fixed
+Status: durable fix implemented 2026-05-18 (race removed by construction; gate-clean) — statistical ≥40× corroboration optional/offered, not yet run
 
 ## Origin
 
@@ -68,3 +68,13 @@ During the independent audit of the conditional-B `ptr_ui_toggle_code` refactor 
 2. **Replace absence-after-timeout with a positive settled-state wait:** assert the host output *is* the rendered widget (`app$wait_for_value(output=...)` / `wait_for_js` on a deterministic DOM condition) and only then assert no inline error — causal ordering instead of a race against a timeout.
 
 Not blocking the current work (the change under audit is independently sound; clean authoritative pass obtained on byte-identical content), but this is now a known-recurring, mitigation-resistant flake that should get a scoped durable fix rather than another heuristic-timeout bump.
+
+## Durable fix implemented 2026-05-18 (supersedes the heuristic-timeout mitigation)
+
+**Corrected mechanism (the earlier "suspended consumer pickers / subtab-activation dance" sub-claim was inaccurate — verified):** §5.1/§5.2 set plain `aes(x=var,y=var)` pickers (`*-ggplot_1_{1,2}_var_NA`) with `set_input(wait_=FALSE)` and no subtab dance, and the suite passes ~97.5% — if those pickers were subtab-suspended it would fail ~100% ("Unable to find input binding"), not flake. So they are bound at boot; "direction 1" was moot. The real, sole mechanism is the **error-pane sampling race**: after `draw()`, `wait_for_idle` can return on a momentary busy-flag dip while the bundled error uiOutput still transiently holds a pre-quiescence `shiny.silent.error` value; the immediate `expect_no_inline_error` sample catches it.
+
+**Fix (direction 2 — positive settled-state wait):** new test helper `expect_host_settled(app, host_id, kind, error_output_id)` (`tests/testthat/helper-vignette-apps.R`). It `app$wait_for_js()`-polls (100ms) until, *simultaneously*, the host output's **innerHTML contains its post-render content marker** AND the error pane's innerHTML has no `ptr-alert--error` — then runs the existing `expect_rendered` + `expect_no_inline_error` (1:1 assertion count, gate stays PASS 1669). Markers were chosen **empirically** by probing each fixture's real post-draw DOM (a first attempt using `js-plotly-plot` failed: that token is on the plotly *container's own class*/outerHTML, not its children — corrected to `plot-container`, the plotly.js render-only child node; ggiraph `<svg`, ggplot `<img` are child content, verified). Applied at the three race sites: `gallery plotly-paintr §5.1`, `gallery ggiraph-paintr §5.2`, `use-cases l3-gg-extra` (both error checks; the separate pre-redraw `wait_for_idle` there is left — it serves the unrelated add_log→ptr_gg_extra registration, not error sampling).
+
+**Why this removes the race by construction (primary basis):** the figure-content marker exists only once the success render completed (downstream of the error clearing); a transient error keeps the predicate false so we keep polling instead of sampling; a *real* persistent error never satisfies the predicate so `wait_for_js` `rlang::abort()`s on timeout → a genuine test failure, never masked. We therefore only ever assert in the terminal success state — the sampling race is structurally impossible, not probabilistically reduced.
+
+**Verification status (honest):** authoritative gate clean `FAIL 0 / WARN 0 / SKIP 0 / PASS 1669` (proves no regression + the predicate is reached in terminal success for all three within 25s — a wrong predicate would `wait_for_js`-timeout). One clean run is *not* statistical proof for a ~2.5% event (P(0|unfixed)≈high for a single pass); the elimination claim rests on the mechanism above. Statistical corroboration = the issues/02 JUnit-instrumented ≥40× loop (0 faults vs the documented ~2.5%/3-clustered baseline), ≈40×~70s — offered, not yet run; deliberately framed as corroboration, not the basis.

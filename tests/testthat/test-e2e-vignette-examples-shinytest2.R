@@ -359,17 +359,18 @@ test_that("use-cases l3-gg-extra: ptr_gg_extra() programmatic layer injection", 
 
   # Formula uses literal aes(mpg, hp) -- no placeholders to set.
   draw(app, "p-ptr_update_plot")
-  expect_rendered(app, "#p-ptr_plot", "ggplot")
+  expect_host_settled(app, "p-ptr_plot", "ggplot", "p-ptr_error")
   expect_code_nonempty(app, "p-ptr_code")
-  expect_no_inline_error(app, "p-ptr_error")
   img_before <- app$get_html("#p-ptr_plot")
 
   # Inject an extra layer; the next runtime cycle folds it in (no error).
+  # The wait_for_idle here is a distinct concern -- it lets the
+  # observeEvent(input$add_log) -> ptr_gg_extra() register before the
+  # redraw; it is NOT the error-sampling settle (that is expect_host_settled).
   app$click("add_log")
   app$wait_for_idle(timeout = 25 * 1000)
   draw(app, "p-ptr_update_plot")
-  expect_rendered(app, "#p-ptr_plot", "ggplot")
-  expect_no_inline_error(app, "p-ptr_error")
+  expect_host_settled(app, "p-ptr_plot", "ggplot", "p-ptr_error")
   # B1-class: prove ptr_gg_extra() actually injected the layer, not that the
   # plot merely still renders. scale_x_log10() changes the x axis, so the
   # rendered <img> base64 must differ from the pre-injection render.
@@ -390,15 +391,11 @@ test_that("gallery plotly-paintr (§5.1): module + custom plotly host output", {
   set_input(app, "plotly_demo-ggplot_1_2_var_NA", "hwy")
   draw(app, "plotly_demo-ptr_update_plot")
   expect_rendered(app, "#plotly_demo-ptr_plot", "ggplot")  # bundled pane
-  expect_rendered(app, "#interactive_plot", "plotly")      # custom host output
-  # issues/02: a custom plotly host (req(isTRUE(res$ok))) drives an extra
-  # post-draw reactive flush; draw()'s first wait_for_idle can return while
-  # the bundled error pane still holds a transient unresolved-state value,
-  # which expect_no_inline_error then samples (~2.5%). Settle to full
-  # quiescence so the error reactive has reached its final (clear) state
-  # before sampling -- removes the race by construction, not statistically.
-  app$wait_for_idle(timeout = 25 * 1000)
-  expect_no_inline_error(app, "plotly_demo-ptr_error")
+  # issues/02 durable fix: poll for the terminal success state (custom host
+  # rendered AND error pane cleared, simultaneously) before asserting --
+  # deterministic, not a heuristic-timeout race. See expect_host_settled().
+  expect_host_settled(app, "interactive_plot", "plotly",
+                      "plotly_demo-ptr_error")
 })
 
 test_that("gallery ggiraph-paintr (§5.2): module + custom ggiraph host output", {
@@ -413,10 +410,9 @@ test_that("gallery ggiraph-paintr (§5.2): module + custom ggiraph host output",
   set_input(app, "ggiraph_demo-ggplot_1_2_var_NA", "hwy")
   draw(app, "ggiraph_demo-ptr_update_plot")
   expect_rendered(app, "#ggiraph_demo-ptr_plot", "ggplot")
-  expect_rendered(app, "#interactive_plot", "ggiraph")
-  # issues/02 (same custom-host post-draw flush race as §5.1, by parity).
-  app$wait_for_idle(timeout = 25 * 1000)
-  expect_no_inline_error(app, "ggiraph_demo-ptr_error")
+  # issues/02 durable fix (same as §5.1, by parity).
+  expect_host_settled(app, "interactive_plot", "ggiraph",
+                      "ggiraph_demo-ptr_error")
 })
 
 # --- ggpaintr-customization.Rmd ---------------------------------------------

@@ -120,6 +120,46 @@ expect_no_inline_error <- function(app, error_output_id) {
   )
 }
 
+# Wait until the app is provably in the terminal SUCCESS state, then assert
+# it: the host output shows its post-render marker AND the inline error pane
+# has cleared, *both simultaneously*. Replaces the fragile
+# `wait_for_idle(timeout); expect_no_inline_error()` pattern — wait_for_idle
+# can return on a momentary busy-flag dip while the error pane still
+# transiently holds a pre-quiescence shiny.silent.error value, which the
+# immediate sample then catches (issues/02 — a sampling race, not a product
+# bug; ~2.5%, and the heuristic-timeout mitigation proved insufficient,
+# clustering across §5.1/§5.2/l3-gg-extra). Polling for the combined
+# condition removes the race by construction: a transient error keeps the
+# predicate false (keep waiting), a *real* error never satisfies it
+# (wait_for_js times out -> a genuine test failure, not masked). Markers are
+# post-render-only tokens that appear in the host's *innerHTML* (child
+# content), verified empirically against each fixture. NB: `js-plotly-plot`
+# and `girafe`/`plotly` live on the output *container's own class*
+# (outerHTML), not its children, so they would never satisfy an innerHTML
+# check; the rendered figure's content markers are: plotly ->
+# `plot-container` (plotly.js builds `<div class="plot-container plotly">`
+# only on render), ggiraph -> `<svg` (the rendered graphic, a child),
+# ggplot -> `<img` (the base64 renderPlot image, a child).
+expect_host_settled <- function(app, host_id, kind, error_output_id,
+                                timeout = 25 * 1000) {
+  marker <- switch(kind,
+    ggplot  = "<img",
+    plotly  = "plot-container",
+    ggiraph = "<svg",
+    stop("unknown kind")
+  )
+  js <- sprintf(
+    paste0("(function(){var h=document.getElementById('%s');",
+           "var e=document.getElementById('%s');",
+           "return !!h && h.innerHTML.indexOf('%s')!==-1 && ",
+           "!!e && e.innerHTML.indexOf('ptr-alert--error')===-1;})()"),
+    host_id, error_output_id, marker
+  )
+  app$wait_for_js(js, timeout = timeout)
+  expect_rendered(app, paste0("#", host_id), kind)
+  expect_no_inline_error(app, error_output_id)
+}
+
 # Assert a rendered consumer/shared picker is *populated* — its element holds
 # a real column choice, not an empty uiOutput. A blank uiOutput still has its
 # container id present (so plain expect_dom_id passes), which is precisely how
