@@ -334,6 +334,13 @@ test_that("gallery plotly-paintr (§5.1): module + custom plotly host output", {
   draw(app, "plotly_demo-ptr_update_plot")
   expect_rendered(app, "#plotly_demo-ptr_plot", "ggplot")  # bundled pane
   expect_rendered(app, "#interactive_plot", "plotly")      # custom host output
+  # issues/02: a custom plotly host (req(isTRUE(res$ok))) drives an extra
+  # post-draw reactive flush; draw()'s first wait_for_idle can return while
+  # the bundled error pane still holds a transient unresolved-state value,
+  # which expect_no_inline_error then samples (~2.5%). Settle to full
+  # quiescence so the error reactive has reached its final (clear) state
+  # before sampling -- removes the race by construction, not statistically.
+  app$wait_for_idle(timeout = 25 * 1000)
   expect_no_inline_error(app, "plotly_demo-ptr_error")
 })
 
@@ -350,6 +357,8 @@ test_that("gallery ggiraph-paintr (§5.2): module + custom ggiraph host output",
   draw(app, "ggiraph_demo-ptr_update_plot")
   expect_rendered(app, "#ggiraph_demo-ptr_plot", "ggplot")
   expect_rendered(app, "#interactive_plot", "ggiraph")
+  # issues/02 (same custom-host post-draw flush race as §5.1, by parity).
+  app$wait_for_idle(timeout = 25 * 1000)
   expect_no_inline_error(app, "ggiraph_demo-ptr_error")
 })
 
