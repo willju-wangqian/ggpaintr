@@ -80,7 +80,7 @@
 #' xlim, ylim, lims, expand_limits,
 #' guides, annotate, annotation_custom,
 #' annotation_map, annotation_raster,
-#' aes, aes_, aes_q, aes_string, vars,
+#' aes, aes_, aes_q, aes_string,
 #' element_text, element_line, element_rect,
 #' element_point, element_polygon, element_geom}
 #'
