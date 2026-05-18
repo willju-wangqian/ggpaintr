@@ -272,7 +272,7 @@ plots <- list(
 
 obj <- ptr_shared(
   formulas  = plots,
-  shared_ui = list(sz = function(id) shiny::sliderInput(id, "Size", 1, 6, 3))
+  # shared_ui = list(sz = function(id) shiny::sliderInput(id, "Size", 1, 6, 3))
 )
 # sz → both formulas → standalone panel.  ax1 → only plot_1's inline section.
 # ax2 → only plot_2's inline section.
@@ -293,24 +293,6 @@ server <- function(input, output, session) {
 
 shiny::shinyApp(ui, server)
 ```
-
-### `ptr_init_state()` and the advanced runtime arguments
-
-`ptr_init_state(formula, ...)` is the state constructor that `ptr_server()` and `ptr_module_server()` call under the hood. It builds the `ptr_state` object but does **not** wire any inputs or start the runtime: `state$runtime()` stays `NULL` until `ptr_server()` installs the input/runtime observers (those `ptr_setup_*` steps are internal and not exported). So you do not drive a plot from `ptr_init_state()` alone — reach its advanced arguments by passing them through the `...` of `ptr_server()` / `ptr_module_server()`, which forward verbatim to it:
-
-```{r init-state}
-server <- function(input, output, session) {
-  state <- ptr_server(
-    input, output, session,
-    formula = "ggplot(iris, aes(var, var)) + geom_point()",
-    producer_debounce_ms = 300,                       # advanced ptr_init_state() arg, threaded through
-    draw_trigger = shiny::reactive(input$my_button)
-  )
-  # state$runtime() / ptr_extract_*(state) are now usable; render your own panes off it.
-}
-```
-
-`?ptr_init_state` documents every advanced argument: `shared` / `shared_resolutions` / `shared_stage_enabled` (the slots a `ptr_shared_server(obj)` bundle carries — passed for you via `shared_state =`, see *Multiple linked instances* above), `draw_trigger` (custom redraw reactive), `producer_debounce_ms` (data-source debouncing), and `auto_bind_shared` (the host-binds-shared-locally switch L1 flips internally for single-instance shared). All of them are accepted by `ptr_server()` and `ptr_module_server()` through `...`.
 
 ### How input ids are built — and how to avoid colliding with them
 
