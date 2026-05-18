@@ -2,13 +2,12 @@
 # this child app process so the e2e test exercises dev source, not a stale
 # system install. Everything below the >>> marker is verbatim-equivalent to
 # the named vignette chunk (factory <=> vignette equivalence, reviewable by
-# diff) EXCEPT the two `ptr_module_ui()` calls additionally pass `shared = obj`
-# -- the W2 (#B2) panel-key exclude, which the chunk predates. With it, the
-# panel key `sz` is rendered once (standalone panel only), never inline.
+# diff). The two `ptr_module_ui()` calls pass `shared = obj` (the W2 #B2
+# panel-key exclude) in BOTH the chunk and here, so the panel key `sz` is
+# rendered once (standalone panel only), never inline.
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
 library(shiny)
-# >>> verbatim: vignettes/ggpaintr-use-cases.Rmd chunk `l2-shared-partition`
-#     (+ `shared = obj` on the two ptr_module_ui() calls, per W2) >>>
+# >>> verbatim: vignettes/ggpaintr-use-cases.Rmd chunk `l2-shared-partition` >>>
 plots <- list(
   "ggplot(iris, aes(x = var(shared = 'ax1'), y = var(shared = 'ax1'),
                     color = Species)) + geom_point(size = num(shared = 'sz'))",

@@ -245,8 +245,8 @@ ui <- shiny::fluidPage(
   shiny::titlePanel("My host app"),
   ptr_shared_panel(obj),
   shiny::fluidRow(
-    shiny::column(6, ptr_module_ui("plot_1", plots[[1]])),
-    shiny::column(6, ptr_module_ui("plot_2", plots[[2]]))
+    shiny::column(6, ptr_module_ui("plot_1", plots[[1]], shared = obj)),
+    shiny::column(6, ptr_module_ui("plot_2", plots[[2]], shared = obj))
   )
 )
 server <- function(input, output, session) {

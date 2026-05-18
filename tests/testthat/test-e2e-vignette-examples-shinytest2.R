@@ -194,6 +194,14 @@ test_that("use-cases l2-shared: coordinator trio drives both module tiles", {
   expect_dom_id(app, "plot_1-ptr_plot")
   expect_dom_id(app, "plot_2-ptr_plot")
 
+  # `metric` is a panel key (both formulas) -> owned by the standalone
+  # ptr_shared_panel, excluded from each module's inline section via
+  # shared = obj. Assert NO empty inline shared section renders in either
+  # module (the presence-only gap that let this slip past the vignette
+  # audit; mirrors l2-shared-partition's expect_no_dom_id for sz).
+  expect_no_dom_id(app, "plot_1-shared_metric")
+  expect_no_dom_id(app, "plot_2-shared_metric")
+
   # BDD: change the single shared panel widget -> every tile re-renders.
   # "Petal.Width" is a literal in NEITHER formula (y is Sepal.Length /
   # Sepal.Width), so its presence in a tile's code can only come from the
