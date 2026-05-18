@@ -57,3 +57,14 @@ Full authoritative gate re-run after the fix: `FAIL 0 / WARN 0 / SKIP 0 / PASS 1
 ## Notes
 
 Low frequency, unattributed, not blocking (both gates deterministically green across 26+ runs and post-merge). Tracked so it is not silently forgotten; not in scope for the shared-section-fix plan (all of W1–W4 + the harness fix are complete and verified).
+
+## Recurrence 2026-05-18 — mitigation insufficient; 3-failure cluster (supersedes the "deterministically green" note above)
+
+During the independent audit of the conditional-B `ptr_ui_toggle_code` refactor (commit `ade426d`; the change is byte-identical on the affected paths so it **cannot** be the cause), one progress-reporter gate run produced **`FAIL 3 | PASS 1666`**. It did **not** reproduce — the immediately preceding and following runs (incl. a JUnit-instrumented run) were clean `1669/0/0/0`. So the 6414cbc mitigation (the extra `wait_for_idle(25s)` before `expect_no_inline_error` in §5.1/§5.2) is **demonstrably insufficient** — the race still fires, and worse than previously characterised: it can hit **multiple timing-sensitive custom-host tests in one run** (plotly-paintr §5.1 + ggiraph-paintr §5.2 + `l3-gg-extra`'s `img_before != img_after`), not just one. Prior framing was ~1/40 single-test; observed here = 3-in-one-run, intermittent.
+
+**Status: mechanism root-caused, NOT eliminated.** The captured root cause (suspended consumer pickers set without the subtab-activation dance → transient `shiny.silent.error` flushes into the custom host's error pane → `wait_for_idle` returns between the draw flush and the host re-render flush → assertion samples the transient) still stands. The gap is a reliable fix, not understanding. `wait_for_idle`-after-a-heuristic-timeout is the wrong primitive (it reports idle on a momentary busy-flag dip). Durable-fix directions (either/both, a separate scoped task — not yet done):
+
+1. **Remove the transient at source:** in §5.1/§5.2 (and any custom-host test that sets suspended consumer/var pickers), do the prescribed dance — set source/consumer, `set_inputs(<layer>_subtab="Controls")`, `wait_for_idle()`, *then* set the var pickers — so no consumer-resolution `shiny.silent.error` is ever produced to flush into the host pane.
+2. **Replace absence-after-timeout with a positive settled-state wait:** assert the host output *is* the rendered widget (`app$wait_for_value(output=...)` / `wait_for_js` on a deterministic DOM condition) and only then assert no inline error — causal ordering instead of a race against a timeout.
+
+Not blocking the current work (the change under audit is independently sound; clean authoritative pass obtained on byte-identical content), but this is now a known-recurring, mitigation-resistant flake that should get a scoped durable fix rather than another heuristic-timeout bump.
