@@ -32,7 +32,9 @@ button.}
 }
 \value{
 A \code{ptr_shared_state} S3 object with public fields \code{shared},
-\code{draw_trigger}, \code{shared_resolutions}.
+\code{draw_trigger}, \code{shared_resolutions}, and \code{shared_stage_enabled}
+(a named list of reactives, one per shared key, indicating whether
+that key's shared stage is active for each embedded module).
 }
 \description{
 Builds the shared input reactives and binds the host-level

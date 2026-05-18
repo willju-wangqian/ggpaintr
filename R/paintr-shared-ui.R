@@ -164,7 +164,9 @@ shared_consumer_representatives <- function(trees) {
 #'   button.
 #'
 #' @return A `ptr_shared_state` S3 object with public fields `shared`,
-#'   `draw_trigger`, `shared_resolutions`.
+#'   `draw_trigger`, `shared_resolutions`, and `shared_stage_enabled`
+#'   (a named list of reactives, one per shared key, indicating whether
+#'   that key's shared stage is active for each embedded module).
 #' @seealso [`ptr_shared()`], [`ptr_shared_panel()`],
 #'   [`ptr_module_server()`].
 #' @export

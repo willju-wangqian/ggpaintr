@@ -20,6 +20,10 @@ compose by hand: see the decomposition example in
 \item{css}{Optional character vector of extra stylesheet paths,
 linked after \code{ggpaintr.css}. See \code{\link[=ptr_css]{ptr_css()}}.}
 }
+\value{
+A \code{shiny.tag} — the Bootstrap page node ready to pass to
+\code{\link[shiny:shinyApp]{shiny::shinyApp()}} as \code{ui}.
+}
 \description{
 Wraps composed L3 pieces in a Bootstrap page + the single \code{.ptr-app}
 theme scope + the (deduped) asset bundle. The only thing an L3 user

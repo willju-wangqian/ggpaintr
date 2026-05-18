@@ -772,6 +772,8 @@ ptr_ui_controls <- function(id = NULL, formula, ui_text = NULL,
 #'   `vignette("ggpaintr-use-cases")`.
 #' @param css Optional character vector of extra stylesheet paths,
 #'   linked after `ggpaintr.css`. See [ptr_css()].
+#' @return A `shiny.tag` — the Bootstrap page node ready to pass to
+#'   [shiny::shinyApp()] as `ui`.
 #' @seealso [ptr_ui_plot()], [ptr_ui_controls()], [ptr_server()], [ptr_css()]
 #' @export
 ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
