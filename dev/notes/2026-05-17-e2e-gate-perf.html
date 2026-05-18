@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>e2e gate performance — serial Chromium boots (2026-05-17, OUT OF SCOPE)</title>
+<style>body{font:15px/1.55 -apple-system,system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1.2rem;color:#1b1d22}h1{border-bottom:2px solid #1b1d22;padding-bottom:.3rem}h2{margin-top:1.6rem;border-bottom:1px solid #ccd}code{background:#f4f4f7;padding:1px 4px;border-radius:3px;font-size:90%}pre{background:#f4f4f7;padding:.7rem;border-radius:5px;overflow-x:auto;font-size:13px}.meta{color:#555;font-size:13px}.crit{border-left:4px solid #c0392b;background:#fde7e7;padding:.5rem .8rem}.ok{border-left:4px solid #2c7;background:#eafaf0;padding:.5rem .8rem}</style>
+</head><body>
+
+<h1>e2e gate performance — serial Chromium boots</h1>
+<p class="meta">2026-05-17 · status: <strong>OUT OF SCOPE / tracked optimization</strong> · not part of any current plan · do not action without an explicit scoped task</p>
+
+<h2>Observation</h2>
+<p>The authoritative gate (<code>NOT_CRAN=true … testthat::test_dir("tests/testthat")</code>) takes ~80–86s wall. Per-file timing (from a JUnit/progress run, e.g. <code>/tmp/iss02/run_16.log</code>):</p>
+<pre>e2e-vignette-examples-shinytest2  [67.9s]
+all other ~1,500 unit tests       ~14s combined</pre>
+<p>So <strong>~83% of gate wall time is one file</strong>: <code>tests/testthat/test-e2e-vignette-examples-shinytest2.R</code>. Each <code>test_that</code> calls <code>boot_vignette_app()</code> (<code>tests/testthat/helper-vignette-apps.R</code>), which launches a <strong>fresh headless Chromium (chromote) + a Shiny subprocess that <code>pkgload::load_all()</code>s the whole package</strong>, per fixture, <strong>serially</strong>, for ~20+ fixtures. Chromium cold-boot + Shiny/app init dominates; the assertions are trivial.</p>
+
+<h2>Why this is not "just delete the slow tests"</h2>
+<div class="crit">The full e2e suite <strong>must remain mandatory at the merge / "done" gate</strong>. Skipping browser tests regularly is the exact proxy-trap that masked the W1 formula-local <code>var(shared=)</code> binder bug for an entire prior effort (see <code>CLAUDE.md</code> authoritative-gate block, corrected 2026-05-17, and project memory <code>shinytest2-appdir-pkgload</code>). "Slow" justifies keeping e2e out of the tight inner loop — never out of the gate.</div>
+<p>Current (correct) cadence: inner loop = <code>devtools::test(filter="&lt;file&gt;")</code> (seconds); gate = full <code>NOT_CRAN</code> suite incl. e2e at merge/done only; flake-hunt loops = explicit one-off backgrounded diagnostics, never regular.</p>
+
+<h2>Proposed direction (preferred)</h2>
+<p><strong>AppDriver / chromote reuse across fixtures.</strong> The serial per-fixture Chromium cold-boot is the dominant cost. A persistent chromote session / browser process reused across <code>boot_vignette_app()</code> calls (new tab or fresh <code>AppDriver</code> against a shared browser, app subprocess still per-fixture for isolation) should remove most of the ~68s. Net: a much cheaper gate with <em>no</em> reduction in coverage.</p>
+
+<h2>Alternative / complementary</h2>
+<ul>
+<li><strong>Split e2e into its own target.</strong> Inner-loop command = <code>test()</code> minus the e2e file; gate command = full incl. e2e. Pure cadence change, zero risk, but doesn't speed the gate itself.</li>
+<li><strong>Parallelise fixture boots</strong> (testthat parallel / future) — bounded by Chromium/port resource contention; note this repo already has order-dependent shinytest2 isolation history (commit <code>77a927e</code>; <code>.scratch/shared-section-fix/issues/02</code>), so parallelism must not reintroduce cross-test state bleed.</li>
+</ul>
+
+<h2>Risks / constraints for whoever picks this up</h2>
+<ul>
+<li>Browser/session reuse must preserve per-fixture isolation: the app subprocess <code>pkgload::load_all()</code>s dev source (see <code>shinytest2-appdir-pkgload</code> memory — stale system install hazard) and the resourcePath leak / <code>prune_dead_ggpaintr_resource_paths()</code> asymmetry (boot helper does <em>not</em> call it; <code>test-shared-lockstep-shinytest2.R</code> does — see issues/02 investigation notes) must be handled or the reuse will amplify, not fix, flakiness.</li>
+<li>Keep the source-root skip guard (<code>boot_vignette_app()</code>) so <code>devtools::check()</code> stays honest (CLAUDE.md proxy-trap block).</li>
+<li>Verify any reuse change against the JUnit-instrumented loop harness used for issues/02 (≥40× full suite, 0 faults) before trusting it.</li>
+</ul>
+
+<h2>References</h2>
+<ul>
+<li><code>tests/testthat/helper-vignette-apps.R</code> — <code>boot_vignette_app()</code> (per-fixture AppDriver/Chromium boot)</li>
+<li><code>tests/testthat/test-e2e-vignette-examples-shinytest2.R</code> — the ~68s file</li>
+<li><code>CLAUDE.md</code> — authoritative-gate block + corrected proxy-trap (why e2e stays gated)</li>
+<li><code>.scratch/shared-section-fix/issues/02-rare-unidentified-e2e-flake.md</code> — isolation hazards relevant to any reuse/parallelism</li>
+<li>project memory <code>shinytest2-appdir-pkgload</code></li>
+</ul>
+
+</body></html>
