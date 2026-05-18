@@ -383,6 +383,8 @@ Swap the page builder with `page =` when you want a different Bootstrap-3 root �
 Want the slide-out code window and inline error while still owning the surrounding layout? Compose the pieces with the two combinators — this nested call is exactly what `ptr_app()` / `ptr_module_ui()` render internally, so behaviour and performance match the all-in-one path:
 
 ```{r l3-pieces-toggle}
+formula <- "ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"
+
 ui <- ptr_ui_page(
   ptr_ui_header("Iris explorer"),
   shiny::sidebarLayout(
@@ -396,6 +398,11 @@ ui <- ptr_ui_page(
   )
 )
 # server unchanged
+server <- function(input, output, session) {
+  ptr_server(input, output, session, formula)   # binds ptr_plot / ptr_error / ptr_code
+}
+
+shiny::shinyApp(ui, server)
 ```
 
 `ptr_ui_inline_error()` nests the error slot in the plot card body; `ptr_ui_toggle_code()` injects the `</>` button and wraps the code piece in the draggable `.ptr-code-window`. The combinators are DOM-only — no extra server wiring; `ptr_server()` already registers all three outputs.
@@ -426,6 +433,11 @@ ui <- shiny::navbarPage(
   shiny::tabPanel("About", "Built with ggpaintr.")
 )
 # server unchanged
+server <- function(input, output, session) {
+  ptr_server(input, output, session, formula)   # binds ptr_plot / ptr_error / ptr_code
+}
+
+shiny::shinyApp(ui, server)
 ```
 
 This is exactly the body of `ptr_ui_page()` (`page(ptr_ui_assets(css), div(class = "ptr-app", …))`) inlined into the one tab — so it doubles as a transparent view of what the shell does for you. Keep `ptr_ui_assets()` and the `.ptr-app` wrapper *inside* each tab that hosts ggpaintr pieces; the asset bundle is self-deduping (htmlDependency), so repeating it across tabs costs nothing.
@@ -463,7 +475,8 @@ ui <- ptr_ui_page(
   shiny::fluidRow(
     shiny::column(5, ptr_ui_controls("plot1", formula)),                   # widgets only
     shiny::column(7, plotly::plotlyOutput(shiny::NS("plot1")("custom_plot"),
-                                          height = "500px"))               # your own output
+                                          height = "500px") |>
+                    ptr_ui_toggle_code(ptr_ui_code("plot1")))               # your own output
   )
 )
 server <- function(input, output, session) {
