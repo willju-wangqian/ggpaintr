@@ -131,6 +131,21 @@ ptr_app_grid(
 )
 ```
 
+By default every tile sits in one row. Pass `ncol =` and/or `nrow =` to wrap the tiles into a grid; the convention mirrors `ggplot2::facet_wrap()` — `NULL` (the default) means auto. Give one and the other is derived: `ncol` alone ⇒ `nrow = ceiling(n / ncol)`, `nrow` alone ⇒ `ncol = ceiling(n / nrow)`, both unset ⇒ a single row. Supplying both errors early if `ncol * nrow` cannot hold every plot. Tiles fill row-major and each tile takes a Bootstrap width of `12 %/% ncol` (so `ncol = 2` ⇒ half-width tiles).
+
+```{r app-grid-layout}
+ptr_app_grid(
+  plots = list(
+    "ggplot(iris, aes(x = var, y = Sepal.Length, fill = Species)) + geom_boxplot()",
+    "ggplot(iris, aes(x = var, y = Sepal.Width,  fill = Species)) + geom_violin()",
+    "ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width, color = Species)) + geom_point()",
+    "ggplot(iris, aes(x = Petal.Length)) + geom_histogram()"
+  ),
+  shared_ui = list(),
+  ncol = 2   # 4 plots → 2×2 grid (nrow auto-derives to 2)
+)
+```
+
 ### Empty-call cleanup
 
 A placeholder that resolves to "missing" (an empty `var` pick, a blank `text`, a cleared `num`) drops its argument from the generated code. When that leaves an empty call whose name is in ggpaintr's curated cleanup list, the whole call disappears too:
