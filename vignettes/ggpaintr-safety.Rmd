@@ -48,7 +48,7 @@ ptr_app(formula, expr_check = list(               # custom
 |-------------------------------------------------|-------------|---------------------------------------------------------------------------------------------------------|
 | `TRUE`                                          | denylist    | The curated ~151-entry denylist (see below). Any call to, symbol naming, or string literal mentioning a denied name aborts. |
 | `FALSE`                                         | off         | No validation. Whatever the user typed reaches the evaluator.                                            |
-| `list(deny_list = …, allow_list = …)`           | custom      | `deny_list` adds names to (or replaces) the default check. `allow_list` switches the walker to allowlist mode: only the names you list (plus the curated denylist's "always blocked" hits like `system`) survive. |
+| `list(deny_list = …, allow_list = …)`           | custom      | A bare `deny_list` (no `allow_list`) **replaces** the curated ~151-entry denylist with *only* the names you list — it does **not** add to it, so on its own it *weakens* the default protection. `allow_list` switches the walker to allowlist mode: only the names you list survive, and the curated "always-dangerous" names (e.g. `system`) stay blocked as bare symbols regardless. With both, the effective allow set is `allow_list` minus `deny_list`. There is no "add one name to the curated denylist" shortcut — to keep the curated protection while permitting a specific name, use `allow_list`. |
 
 ### When (never) to turn it off
 
@@ -121,7 +121,7 @@ The `.rds` reader is the most permissive in what bytes it accepts (an `.rds` fil
 
 Every successful upload passes through `ptr_normalize_column_names()` (or the equivalent `ptr_normalize_tabular_data()` for non-`data.frame` returns from `readRDS`/`readxl`/`jsonlite`). Column names that come in with spaces, reserved words, or duplicates leave normalized, syntactic, and unique. Downstream `var` placeholders therefore always see a clean column-name vector. You do not need to call `ptr_normalize_column_names()` yourself for uploaded data — only for in-session data frames you reference by name (see `vignette("ggpaintr-use-cases")` §L1).
 
-The file *stem* (name without extension) is also checked: uploads named after R reserved words are rejected at parse time, so a file called `if.csv` won't quietly shadow the `if` keyword if the user later types its stem into an `expr` box.
+The file *stem* (name without extension) is also sanitised: a stem matching an R reserved word is renamed (e.g. `if.csv` → dataset name `if_`), not rejected — the upload still succeeds under the safe name, so it won't quietly shadow the `if` keyword if the user later types its stem into an `expr` box.
 
 ### What is and isn't validated
 

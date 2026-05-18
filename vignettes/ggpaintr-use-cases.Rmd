@@ -144,7 +144,7 @@ ggplot(iris, aes(x = var, y = var)) +
 ")
 ```
 
-The cleanup list covers safe ggplot2 no-ops: `theme()`, `labs()`, `xlab` / `ylab` / `ggtitle`, `facet_wrap` / `facet_grid` / `facet_null`, `xlim` / `ylim` / `lims`, `expand_limits`, `guides`, `annotate`, and the empty mapping helpers (`aes()`, `vars()`). Third-party helpers (e.g. `pcp_theme()` from `ggpcp`) are *not* in the cleanup list — being absent is the "removal safety unknown" signal. Pass `safe_to_remove = c("pcp_theme")` to opt a specific name into the cleanup pass. An `expr` placeholder whose user supplies an expression always wins: whatever was typed is honoured verbatim, even if its top-level name is in `safe_to_remove`.
+The cleanup list covers safe ggplot2 no-ops: `theme()`, `labs()`, `xlab` / `ylab` / `ggtitle`, `facet_wrap` / `facet_grid` / `facet_null`, `xlim` / `ylim` / `lims`, `expand_limits`, `guides`, `annotate`, and the empty mapping helper (`aes()`). Third-party helpers (e.g. `pcp_theme()` from `ggpcp`) are *not* in the cleanup list — being absent is the "removal safety unknown" signal. Pass `safe_to_remove = c("pcp_theme")` to opt a specific name into the cleanup pass. An `expr` placeholder whose user supplies an expression always wins: whatever was typed is honoured verbatim, even if its top-level name is in `safe_to_remove`.
 
 ### Local data with non-syntactic columns
 
@@ -281,8 +281,8 @@ obj$panel_keys                       # "sz"
 ui <- shiny::fluidPage(
   ptr_shared_panel(obj),             # holds sz only
   shiny::fluidRow(
-    shiny::column(6, ptr_module_ui("plot_1", plots[[1]])),  # ax1 inline here
-    shiny::column(6, ptr_module_ui("plot_2", plots[[2]]))   # ax2 inline here
+    shiny::column(6, ptr_module_ui("plot_1", plots[[1]], shared = obj)),  # ax1 inline
+    shiny::column(6, ptr_module_ui("plot_2", plots[[2]], shared = obj))   # ax2 inline
   )
 )
 server <- function(input, output, session) {

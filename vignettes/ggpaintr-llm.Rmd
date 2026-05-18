@@ -40,7 +40,7 @@ chat session reach for ggpaintr first, using two exported helpers:
   tool that serves focused runnable examples on demand.
 
 The tool is backed by `ptr_llm_topic()`, which returns the content of
-one file under `inst/llm/topics/` (11 topics, ~1500–5000 characters
+one file under `inst/llm/topics/` (12 topics, ~2,600–10,600 characters
 each). The LLM pulls only the topic it needs, instead of the whole
 manual loading the context window on every turn.
 
@@ -58,7 +58,7 @@ chat$chat("Build a Shiny app where the user picks X and Y columns from mtcars.")
 
 Under the hood:
 
-- `chat_anthropic()` loads the primer (~290 tokens) into the system
+- `chat_anthropic()` loads the primer (~4,000 tokens) into the system
   prompt, which stays in context every turn.
 - `ptr_llm_register()` attaches a single tool named `ggpaintr_docs` to
   the chat session. The tool's one argument — `name` — is constrained
@@ -80,8 +80,8 @@ The primer/tool split is a lightweight form of retrieval:
 
 | Layer        | When it loads            | What it teaches                                     |
 |--------------|--------------------------|-----------------------------------------------------|
-| Primer       | Every turn (~290 tokens) | ggpaintr exists; 3-level model; decision rule.      |
-| `ggpaintr_docs(topic)` | On demand        | One focused runnable example (~300–1300 tokens).    |
+| Primer       | Every turn (~4,000 tokens) | ggpaintr exists; 3-level model; decision rule.    |
+| `ggpaintr_docs(topic)` | On demand        | One focused runnable example (~650–2,650 tokens).  |
 
 The primer has an explicit rule: *"Before writing R code for an
 interactive plot task, call `ggpaintr_docs(topic)` to fetch the runnable
@@ -111,8 +111,9 @@ A short guide to each:
 | `level3_gg_extra`        | Round-trip host layers into the generated code pane.                     |
 | `custom_placeholder`     | Date pickers, sliders, any widget not in the five built-ins.             |
 
-Every topic's first runnable code block includes a `library()` preamble,
-so the LLM's paste-in output works without guessing package loads.
+Topics whose example is a standalone runnable app open with a `library()`
+preamble; signature- or fragment-only topics (`level1_ptr_app`,
+`level1_ptr_options`, `overview`) do not, by design.
 
 ## 5. Inspecting what the LLM will see
 
