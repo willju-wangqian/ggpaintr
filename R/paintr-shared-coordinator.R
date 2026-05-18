@@ -198,6 +198,8 @@ shared_panel_body_tag <- function(obj, keys) {
   shared_widgets <- shared_widgets[kept_mask]
   rendered_keys <- keys[kept_mask]
 
+  if (length(shared_widgets) == 0L) return(NULL)
+
   # Wrap any rendered key that hosts an orphan pipeline stage (a stage whose
   # only placeholders are shared) in a `.ptr-stage` block; the head checkbox
   # uses the synthetic `shared_stage_input_id(k)` that `ptr_shared_server()`
@@ -219,11 +221,11 @@ shared_panel_body_tag <- function(obj, keys) {
     })
   }
 
+  shell_copy <- ptr_ui_text(ui_text)$shell
   body <- c(
     list(
-      shiny::tags$p(class = "ptr-shared-panel__title", "Shared controls"),
-      shiny::tags$p(class = "ptr-shared-panel__hint",
-                    "These widgets are linked across every plot below.")
+      shiny::tags$p(class = "ptr-shared-panel__title", shell_copy$shared_panel_title),
+      shiny::tags$p(class = "ptr-shared-panel__hint", shell_copy$shared_panel_hint)
     ),
     shared_widgets,
     if (obj$formula_count >= 2L) {
@@ -263,10 +265,12 @@ ptr_shared_panel <- function(obj, css = NULL) {
   # Bare `.ptr-app`: themed scope only, no `--page` canvas. The panel is a
   # region fragment dropped into a host layout (its own row above the
   # plots), so it sizes to its content, not the full viewport.
+  body <- shared_panel_body_tag(obj, obj$panel_keys)
+  if (is.null(body)) return(NULL)
   shiny::tags$div(
     class = "ptr-app",
     ptr_assets(css = css),
-    shared_panel_body_tag(obj, obj$panel_keys)
+    body
   )
 }
 

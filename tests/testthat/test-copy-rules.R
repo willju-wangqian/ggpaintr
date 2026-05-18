@@ -187,3 +187,53 @@ test_that("linewidth$num label is the generic 'Size'", {
   defaults <- ptr_default_ui_text()
   expect_equal(defaults$params$linewidth$num$label, "Size")
 })
+
+# --- W3 (D5): scoped, ui_text-overridable shared copy ---
+
+test_that("W3: shared section hint uses new scoped copy string", {
+  f <- 'ggplot(iris, aes(x = var(shared = "a"))) + geom_point()'
+  html <- paste(as.character(ptr_module_ui("p", f)), collapse = "\n")
+  expect_match(html, "Drives every place this variable appears in this plot.", fixed = TRUE)
+  expect_false(grepl("reused everywhere it is referenced", html, fixed = TRUE))
+})
+
+test_that("W3: shared panel hint uses new scoped copy string", {
+  f1 <- 'ggplot(mtcars, aes(x = var(shared = "sz"))) + geom_point()'
+  f2 <- 'ggplot(mtcars, aes(y = var(shared = "sz"))) + geom_point()'
+  tag <- ptr_shared_panel(ptr_shared(c(f1, f2)))
+  html <- paste(as.character(tag), collapse = "\n")
+  expect_match(html, "Drives every plot that uses it.", fixed = TRUE)
+  expect_false(grepl("linked across every plot below", html, fixed = TRUE))
+})
+
+test_that("W3: shared panel hint is overridable via ui_text", {
+  f1 <- 'ggplot(mtcars, aes(x = var(shared = "sz"))) + geom_point()'
+  f2 <- 'ggplot(mtcars, aes(y = var(shared = "sz"))) + geom_point()'
+  obj <- ptr_shared(c(f1, f2), ui_text = list(shell = list(shared_panel_hint = "X-LINK")))
+  html <- paste(as.character(ptr_shared_panel(obj)), collapse = "\n")
+  expect_match(html, "X-LINK", fixed = TRUE)
+  # other shell defaults unchanged: draw-all button still rendered
+  expect_match(html, "ptr_shared_draw_all", fixed = TRUE)
+})
+
+test_that("W3: default shell includes new shared copy keys", {
+  defaults <- ptr_default_ui_text()
+  expect_equal(defaults$shell$shared_section_title, "Shared controls")
+  expect_equal(defaults$shell$shared_section_hint,
+               "Drives every place this variable appears in this plot.")
+  expect_equal(defaults$shell$shared_panel_title, "Shared controls")
+  expect_equal(defaults$shell$shared_panel_hint, "Drives every plot that uses it.")
+})
+
+test_that("W3: ptr_validate_ui_text accepts plain string shared_panel_hint override", {
+  expect_true(ptr_validate_ui_text(list(
+    shell = list(shared_panel_hint = "Custom hint text")
+  )))
+})
+
+test_that("W3: ptr_validate_ui_text rejects non-string shared_panel_hint", {
+  expect_error(
+    ptr_validate_ui_text(list(shell = list(shared_panel_hint = 42L))),
+    "must be a single string"
+  )
+})
