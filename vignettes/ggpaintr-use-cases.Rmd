@@ -626,6 +626,6 @@ server <- function(input, output, session) {
 shiny::shinyApp(ui, server)
 ```
 
-### Placing individual placeholder widgets — `build_ui_for()`
+### Placing individual placeholder widgets
 
-`ptr_ui_controls()` is the whole controls panel, and it is the supported way to render the generated widgets: ggpaintr does not currently expose a public accessor for the parsed node tree, so hand-placing the *individual* placeholder widgets is not a supported public workflow. The `build_ui_for()` S3 generic — the one ggpaintr uses internally to turn one parsed node into its widget — is exported and its per-node contract is documented at `?build_ui_for` for advanced users who already hold node objects, but the means of obtaining those nodes is internal and may change between versions. To add custom widget *types*, register them instead — see `vignette("ggpaintr-customization")`.
+`ptr_ui_controls()` is the whole controls panel and is the supported way to render the generated widgets. ggpaintr does not expose a public accessor for the parsed node tree, so hand-placing individual placeholder widgets is not a supported workflow. To add custom widget *types*, register them instead — see `vignette("ggpaintr-customization")`.

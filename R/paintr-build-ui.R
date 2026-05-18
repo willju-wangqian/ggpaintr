@@ -29,22 +29,21 @@
 #'
 #' @return A `shiny.tag` (or NULL for nodes that emit no UI).
 #' @keywords internal
-#' @export
 build_ui_for <- function(node, ...) UseMethod("build_ui_for")
 
-#' @export
+#' @exportS3Method
 build_ui_for.default <- function(node, ...) NULL
 
-#' @export
+#' @exportS3Method
 build_ui_for.ptr_literal <- function(node, ...) NULL
 
-#' @export
+#' @exportS3Method
 build_ui_for.ptr_missing <- function(node, ...) NULL
 
-#' @export
+#' @exportS3Method
 build_ui_for.ptr_user_expr <- function(node, ...) NULL
 
-#' @export
+#' @exportS3Method
 build_ui_for.ptr_ph_value <- function(node,
                                        ui_text = NULL,
                                        layer_name = NULL,
@@ -58,14 +57,14 @@ build_ui_for.ptr_ph_value <- function(node,
                   ...)
 }
 
-#' @export
+#' @exportS3Method
 build_ui_for.ptr_ph_data_consumer <- function(node,
                                                 ns_fn = identity,
                                                 ...) {
   shiny::uiOutput(ptr_render_id(consumer_output_id(node$id), ns_fn))
 }
 
-#' @export
+#' @exportS3Method
 build_ui_for.ptr_ph_data_source <- function(node,
                                               ui_text = NULL,
                                               layer_name = NULL,
@@ -109,7 +108,7 @@ build_ui_for.ptr_ph_data_source <- function(node,
 
 # ---- ptr_layer panel scaffolding ----
 
-#' @export
+#' @exportS3Method
 build_ui_for.ptr_layer <- function(node,
                                     ui_text = NULL,
                                     ns_fn = identity,

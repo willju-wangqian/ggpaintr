@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ggpaintr Roxygen2 Documentation Audit</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; color: #1f2530; background: #f5f6f8; margin: 0; padding: 24px; }
+  h1 { font-size: 1.6em; margin: 0 0 4px; }
+  .subtitle { color: #6b7280; margin: 0 0 28px; font-size: 0.92em; }
+  h2 { font-size: 1.15em; margin: 32px 0 12px; border-bottom: 1px solid #e0e2e6; padding-bottom: 6px; }
+  h3 { font-size: 1em; margin: 20px 0 8px; color: #374151; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 24px; }
+  th { background: #1f2530; color: #fff; text-align: left; padding: 9px 12px; font-size: 0.88em; font-weight: 600; }
+  td { padding: 8px 12px; vertical-align: top; border-bottom: 1px solid #f0f1f3; font-size: 0.88em; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafbfc; }
+  .sev-critical { background: #fee2e2; color: #7f1d1d; border-radius: 4px; padding: 2px 7px; font-weight: 700; font-size: 0.82em; white-space: nowrap; }
+  .sev-major   { background: #fef3c7; color: #78350f; border-radius: 4px; padding: 2px 7px; font-weight: 700; font-size: 0.82em; white-space: nowrap; }
+  .sev-minor   { background: #e5e7eb; color: #374151; border-radius: 4px; padding: 2px 7px; font-weight: 700; font-size: 0.82em; white-space: nowrap; }
+  .status-clean    { background: #d1fae5; color: #065f46; border-radius: 4px; padding: 2px 7px; font-weight: 600; font-size: 0.82em; }
+  .status-issues   { background: #fef3c7; color: #78350f; border-radius: 4px; padding: 2px 7px; font-weight: 600; font-size: 0.82em; }
+  .status-critical { background: #fee2e2; color: #7f1d1d; border-radius: 4px; padding: 2px 7px; font-weight: 600; font-size: 0.82em; }
+  code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-family: "SFMono-Regular", Consolas, monospace; font-size: 0.9em; }
+  .issue-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 12px; padding: 14px 16px; }
+  .issue-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .issue-fn { font-weight: 700; font-size: 0.95em; }
+  .issue-file { color: #6b7280; font-size: 0.82em; }
+  .issue-type { background: #e0e7ff; color: #3730a3; border-radius: 4px; padding: 2px 7px; font-size: 0.78em; font-weight: 600; }
+  .issue-desc { color: #374151; font-size: 0.88em; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 28px; }
+  .summary-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 16px; text-align: center; }
+  .summary-num { font-size: 2em; font-weight: 800; }
+  .summary-label { font-size: 0.8em; color: #6b7280; margin-top: 2px; }
+  .num-critical { color: #dc2626; }
+  .num-major    { color: #d97706; }
+  .num-minor    { color: #6b7280; }
+  .num-clean    { color: #059669; }
+  .pattern-block { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 14px 16px; margin-bottom: 12px; }
+  .pattern-title { font-weight: 700; margin-bottom: 6px; }
+  ul { margin: 4px 0 0 0; padding-left: 20px; }
+  li { margin-bottom: 3px; }
+  .tag-acc { background: #fce7f3; color: #831843; border-radius: 4px; padding: 2px 7px; font-size: 0.78em; font-weight: 600; }
+  .tag-miss { background: #e0e7ff; color: #3730a3; border-radius: 4px; padding: 2px 7px; font-size: 0.78em; font-weight: 600; }
+  .tag-xref { background: #ecfdf5; color: #065f46; border-radius: 4px; padding: 2px 7px; font-size: 0.78em; font-weight: 600; }
+  .tag-ex  { background: #fff7ed; color: #7c2d12; border-radius: 4px; padding: 2px 7px; font-size: 0.78em; font-weight: 600; }
+  .tag-ret { background: #f0fdf4; color: #166534; border-radius: 4px; padding: 2px 7px; font-size: 0.78em; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>ggpaintr — Roxygen2 Documentation Audit</h1>
+<p class="subtitle">Generated 2026-05-18 &middot; Branch: vignette-review &middot; Scope: all exported functions in NAMESPACE</p>
+
+<h2>Executive Summary</h2>
+<div class="summary-grid">
+  <div class="summary-card"><div class="summary-num num-critical">0</div><div class="summary-label">Critical issues</div></div>
+  <div class="summary-card"><div class="summary-num num-major">5</div><div class="summary-label">Major issues</div></div>
+  <div class="summary-card"><div class="summary-num num-minor">26</div><div class="summary-label">Minor issues</div></div>
+  <div class="summary-card"><div class="summary-num num-clean">11</div><div class="summary-label">Clean functions</div></div>
+  <div class="summary-card"><div class="summary-num" style="color:#1f2530">37</div><div class="summary-label">Total exported</div></div>
+</div>
+
+<h2>Per-Function Status Table</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Function</th>
+      <th>File</th>
+      <th>Status</th>
+      <th>Issues (summary)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>ptr_app</code></td>
+      <td><code>paintr-app.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>No @examples</td>
+    </tr>
+    <tr>
+      <td><code>ptr_app_bslib</code></td>
+      <td><code>paintr-app-bslib.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td><code>@param expr_check</code> truncated (no mode detail; TRUE/FALSE/list modes undocumented)</td>
+    </tr>
+    <tr>
+      <td><code>ptr_app_grid</code></td>
+      <td><code>paintr-app.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>No @examples; <code>shared_ui</code> param lacks note about auto-coordinator vs manual</td>
+    </tr>
+    <tr>
+      <td><code>ptr_init_state</code></td>
+      <td><code>paintr-server.R</code></td>
+      <td><span class="status-clean">Clean</span></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>ptr_server</code></td>
+      <td><code>paintr-server.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>No @examples</td>
+    </tr>
+    <tr>
+      <td><code>ptr_extract_plot</code></td>
+      <td><code>paintr-server.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>No @examples (grouped rdoc); silent dependency-tracking trap undocumented: calling inside a reactive breaks re-run tracking because <code>shiny::isolate()</code> is applied internally</td>
+    </tr>
+    <tr>
+      <td><code>ptr_extract_error</code></td>
+      <td><code>paintr-server.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>Same as <code>ptr_extract_plot</code> — no examples, silent dependency-tracking trap undocumented</td>
+    </tr>
+    <tr>
+      <td><code>ptr_extract_code</code></td>
+      <td><code>paintr-server.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>Same as above</td>
+    </tr>
+    <tr>
+      <td><code>ptr_gg_extra</code></td>
+      <td><code>paintr-server.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>No @examples; @seealso missing (no link to <code>ptr_extract_plot</code> / <code>ptr_init_state</code>)</td>
+    </tr>
+    <tr>
+      <td><code>ptr_module_ui</code></td>
+      <td><code>paintr-app.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>No @examples; missing link to <code>ptr_module_server()</code> in @seealso</td>
+    </tr>
+    <tr>
+      <td><code>ptr_module_server</code></td>
+      <td><code>paintr-app.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>No @examples</td>
+    </tr>
+    <tr>
+      <td><code>ptr_ui_plot</code></td>
+      <td><code>paintr-app.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>No @examples</td>
+    </tr>
+    <tr>
+      <td><code>ptr_ui_error</code></td>
+      <td><code>paintr-app.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>No @examples; @seealso missing link to <code>ptr_ui_inline_error()</code></td>
+    </tr>
+    <tr>
+      <td><code>ptr_ui_code</code></td>
+      <td><code>paintr-app.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>No @examples</td>
+    </tr>
+    <tr>
+      <td><code>ptr_ui_inline_error</code></td>
+      <td><code>paintr-app.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>No @examples</td>
+    </tr>
+    <tr>
+      <td><code>ptr_ui_toggle_code</code></td>
+      <td><code>paintr-app.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>No @examples</td>
+    </tr>
+    <tr>
+      <td><code>ptr_ui_header</code></td>
+      <td><code>paintr-app.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>No @examples; @seealso could link <code>ptr_ui_page()</code></td>
+    </tr>
+    <tr>
+      <td><code>ptr_ui_controls</code></td>
+      <td><code>paintr-app.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>No @examples</td>
+    </tr>
+    <tr>
+      <td><code>ptr_ui_page</code></td>
+      <td><code>paintr-app.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>Missing @return entirely; no @examples</td>
+    </tr>
+    <tr>
+      <td><code>ptr_ui_assets</code></td>
+      <td><code>paintr-build-ui.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>No @examples</td>
+    </tr>
+    <tr>
+      <td><code>ptr_ui_text</code></td>
+      <td><code>paintr-copy.R</code></td>
+      <td><span class="status-clean">Clean</span></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>ptr_resolve_ui_text</code></td>
+      <td><code>paintr-copy.R</code></td>
+      <td><span class="status-clean">Clean</span></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>ptr_normalize_column_names</code></td>
+      <td><code>paintr-data.R</code></td>
+      <td><span class="status-clean">Clean</span></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>ptr_options</code></td>
+      <td><code>paintr-options.R</code></td>
+      <td><span class="status-clean">Clean</span></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>ptr_clear_placeholder</code></td>
+      <td><code>paintr-registry.R</code></td>
+      <td><span class="status-clean">Clean</span></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>ptr_define_placeholder_value</code></td>
+      <td><code>paintr-registry.R</code></td>
+      <td><span class="status-clean">Clean</span></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>ptr_define_placeholder_consumer</code></td>
+      <td><code>paintr-registry.R</code></td>
+      <td><span class="status-clean">Clean</span></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>ptr_define_placeholder_source</code></td>
+      <td><code>paintr-registry.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>No @examples; @seealso missing (unlike the other two <code>ptr_define_*</code> siblings which have it)</td>
+    </tr>
+    <tr>
+      <td><code>ptr_shared</code></td>
+      <td><code>paintr-shared-coordinator.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>No @examples</td>
+    </tr>
+    <tr>
+      <td><code>ptr_shared_panel</code></td>
+      <td><code>paintr-shared-coordinator.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>No @examples</td>
+    </tr>
+    <tr>
+      <td><code>ptr_ui_shared_panel</code></td>
+      <td><code>paintr-shared-coordinator.R</code></td>
+      <td><span class="status-clean">Clean</span></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>ptr_shared_server</code></td>
+      <td><code>paintr-shared-ui.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>@return lists only 3 public fields; actual <code>ptr_shared_state</code> has 4 (<code>shared_stage_enabled</code> missing); no @examples</td>
+    </tr>
+    <tr>
+      <td><code>ptr_llm_primer</code></td>
+      <td><code>paintr-llm.R</code></td>
+      <td><span class="status-clean">Clean</span></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>ptr_llm_topics</code></td>
+      <td><code>paintr-llm.R</code></td>
+      <td><span class="status-clean">Clean</span></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>ptr_llm_topic</code></td>
+      <td><code>paintr-llm.R</code></td>
+      <td><span class="status-clean">Clean</span></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>ptr_llm_register</code></td>
+      <td><code>paintr-llm.R</code></td>
+      <td><span class="status-clean">Clean</span></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>build_ui_for</code></td>
+      <td><code>paintr-build-ui.R</code></td>
+      <td><span class="status-issues">Issues</span></td>
+      <td>Tagged <code>@keywords internal</code> yet exported in NAMESPACE — inconsistency; no @examples; <code>@param ...</code> description has line-wrapped prose that reads awkwardly</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Issue Detail</h2>
+
+<h3>Critical Issues</h3>
+
+<p style="color:#6b7280;font-size:0.88em;font-style:italic;">None — all previously flagged critical issues were false positives (see audit notes).</p>
+
+<h3>Major Issues</h3>
+
+<div class="issue-card">
+  <div class="issue-header">
+    <span class="issue-fn">ptr_ui_page</span>
+    <span class="issue-file">R/paintr-app.R</span>
+    <span class="sev-major">Major</span>
+    <span class="tag-ret">Missing @return</span>
+  </div>
+  <div class="issue-desc">
+    <strong>@return is entirely absent.</strong> The Rd file has no <code>\value{}</code> section. <code>ptr_ui_page()</code> is a UI constructor — users cannot tell from the docs what it returns or how to embed it. All peer UI constructors document their return type (<code>shiny.tag</code> or <code>shiny::tagList()</code>).
+  </div>
+</div>
+
+<div class="issue-card">
+  <div class="issue-header">
+    <span class="issue-fn">ptr_shared_server</span>
+    <span class="issue-file">R/paintr-shared-ui.R</span>
+    <span class="sev-major">Major</span>
+    <span class="tag-acc">Accuracy — @return</span>
+  </div>
+  <div class="issue-desc">
+    <strong>@return lists 3 public fields; implementation has 4.</strong>
+    Doc: <code>"A ptr_shared_state S3 object with public fields shared, draw_trigger, shared_resolutions."</code>
+    The <code>new_ptr_shared_state()</code> constructor at line 22 also sets <code>shared_stage_enabled</code>, and <code>validate_ptr_shared_state()</code> reads and validates it. Callers who thread the bundle into <code>ptr_module_server()</code> depend on this field for stage-enabled toggles; omitting it from the docs makes the field effectively undiscoverable.
+  </div>
+</div>
+
+<div class="issue-card">
+  <div class="issue-header">
+    <span class="issue-fn">build_ui_for</span>
+    <span class="issue-file">R/paintr-build-ui.R</span>
+    <span class="sev-major">Major</span>
+    <span class="tag-acc">Accuracy — export vs internal</span>
+  </div>
+  <div class="issue-desc">
+    <strong>Marked <code>@keywords internal</code> yet exported in NAMESPACE.</strong>
+    The roxygen block includes <code>@keywords internal</code>, which conventionally means "not for end users". However the function is listed in <code>NAMESPACE</code> as <code>export(build_ui_for)</code> and is explicitly called out in the <code>ptr_ui_controls()</code> description as an L3 user-facing API. The <code>@keywords internal</code> tag causes pkgdown to hide it from the reference index, and CRAN checks may warn. Either remove the tag (if the export is intentional) or unexport the function.
+  </div>
+</div>
+
+
+<div class="issue-card">
+  <div class="issue-header">
+    <span class="issue-fn">ptr_extract_plot / ptr_extract_error / ptr_extract_code</span>
+    <span class="issue-file">R/paintr-server.R</span>
+    <span class="sev-major">Major</span>
+    <span class="tag-miss">Undocumented reactive gotcha</span>
+  </div>
+  <div class="issue-desc">
+    <strong>Calling inside a reactive silently breaks dependency tracking — not documented.</strong>
+    All three extractors wrap their read in <code>shiny::isolate(state$runtime())</code>, so they work correctly both inside and outside a reactive context. The undocumented trap is the <em>opposite</em> of what one might expect: calling them <strong>inside</strong> a reactive (e.g. inside <code>observe()</code> or <code>reactive()</code>) silently severs the reactive dependency — the caller will <strong>not</strong> re-run when <code>state$runtime()</code> updates. Users who expect live re-rendering based on these calls will be silently surprised. The @param or @details block should document this isolate-induced dependency breakage.
+  </div>
+</div>
+
+<div class="issue-card">
+  <div class="issue-header">
+    <span class="issue-fn">ptr_define_placeholder_source</span>
+    <span class="issue-file">R/paintr-registry.R</span>
+    <span class="sev-major">Major</span>
+    <span class="tag-miss">Missing @examples and @seealso</span>
+  </div>
+  <div class="issue-desc">
+    <strong>No @examples block; no @seealso cross-reference.</strong>
+    <code>ptr_define_placeholder_value</code> and <code>ptr_define_placeholder_consumer</code> both have detailed @examples and reciprocal @seealso links. <code>ptr_define_placeholder_source</code> has neither, despite being the most complex of the three constructors (companion_id_fn, resolve_data, dual-input pattern). This asymmetry will hurt discoverability for custom source authors.
+  </div>
+</div>
+
+<h3>Minor Issues</h3>
+
+<div class="issue-card">
+  <div class="issue-header">
+    <span class="issue-fn">ptr_app</span>
+    <span class="issue-file">R/paintr-app.R</span>
+    <span class="sev-minor">Minor</span>
+    <span class="tag-ex">Missing @examples</span>
+  </div>
+  <div class="issue-desc">
+    The primary entry-point function has no @examples block. It is a Shiny app builder and all examples would require <code>if (interactive())</code>, but the omission is noticeable given the extensive documentation otherwise present. <code>ptr_app_bslib</code> has a brief example; <code>ptr_app</code> should too.
+  </div>
+</div>
+
+<div class="issue-card">
+  <div class="issue-header">
+    <span class="issue-fn">ptr_app_grid</span>
+    <span class="issue-file">R/paintr-app.R</span>
+    <span class="sev-minor">Minor</span>
+    <span class="tag-ex">Missing @examples</span>
+  </div>
+  <div class="issue-desc">
+    No @examples. As a multi-plot entry-point, a brief two-formula example would be highly instructive, especially for the <code>shared_ui</code> argument.
+  </div>
+</div>
+
+<div class="issue-card">
+  <div class="issue-header">
+    <span class="issue-fn">ptr_module_ui</span>
+    <span class="issue-file">R/paintr-app.R</span>
+    <span class="sev-minor">Minor</span>
+    <span class="tag-xref">Missing @seealso link</span>
+  </div>
+  <div class="issue-desc">
+    <strong>@seealso does not link to <code>ptr_module_server()</code> — the mandatory pair function.</strong>
+    The description says "Pair with <code>ptr_module_server()</code>", but the @seealso block omits it. The canonical partner is missing from the cross-reference.
+  </div>
+</div>
+
+<div class="issue-card">
+  <div class="issue-header">
+    <span class="issue-fn">ptr_app_bslib</span>
+    <span class="issue-file">R/paintr-app-bslib.R</span>
+    <span class="sev-minor">Minor</span>
+    <span class="tag-miss">Incomplete @param</span>
+  </div>
+  <div class="issue-desc">
+    <strong><code>@param expr_check</code> is a stub.</strong>
+    The doc reads: <code>@param expr_check Controls `expr` placeholder validation.</code> — truncated, no mention of the three modes (TRUE / FALSE / list). Compare to the thorough treatment in <code>ptr_app()</code>. A blank <code>#'</code> line on line 41 properly separates the <code>@param theme</code> continuation from the following paragraph (not structurally malformed). The remaining gap is depth: users of <code>ptr_app_bslib()</code> cannot discover the FALSE / list modes without reading <code>ptr_app()</code>'s docs.
+  </div>
+</div>
+
+<div class="issue-card">
+  <div class="issue-header">
+    <span class="issue-fn">ptr_server</span>
+    <span class="issue-file">R/paintr-server.R</span>
+    <span class="sev-minor">Minor</span>
+    <span class="tag-ex">Missing @examples</span>
+  </div>
+  <div class="issue-desc">No @examples. As a low-level server function used in L3 embeddings, at minimum a skeletal <code>server &lt;- function(input, output, session) ptr_server(input, output, session, formula = "...")</code> example would help.</div>
+</div>
+
+<div class="issue-card">
+  <div class="issue-header">
+    <span class="issue-fn">ptr_extract_plot / ptr_extract_error / ptr_extract_code</span>
+    <span class="issue-file">R/paintr-server.R</span>
+    <span class="sev-minor">Minor</span>
+    <span class="tag-ex">Missing @examples</span>
+  </div>
+  <div class="issue-desc">No @examples in the grouped rdoc. These are specifically called out for use in <code>shiny::testServer()</code> but provide no illustration.</div>
+</div>
+
+<div class="issue-card">
+  <div class="issue-header">
+    <span class="issue-fn">ptr_gg_extra</span>
+    <span class="issue-file">R/paintr-server.R</span>
+    <span class="sev-minor">Minor</span>
+    <span class="tag-ex">Missing @examples</span>
+    <span class="tag-xref">Missing @seealso</span>
+  </div>
+  <div class="issue-desc">No @examples and no @seealso. Lacks links to <code>ptr_init_state()</code>, <code>ptr_extract_plot()</code>, which are the natural companions in the L3 programmatic workflow.</div>
+</div>
+
+<div class="issue-card">
+  <div class="issue-header">
+    <span class="issue-fn">ptr_module_server</span>
+    <span class="issue-file">R/paintr-app.R</span>
+    <span class="sev-minor">Minor</span>
+    <span class="tag-ex">Missing @examples</span>
+  </div>
+  <div class="issue-desc">No @examples. The module API is the primary integration path for custom layouts; an example showing <code>ptr_module_ui("id", ...) + ptr_module_server("id", ...)</code> inside <code>shinyApp()</code> would close the gap.</div>
+</div>
+
+<div class="issue-card">
+  <div class="issue-header">
+    <span class="issue-fn">ptr_ui_plot / ptr_ui_error / ptr_ui_code / ptr_ui_inline_error / ptr_ui_toggle_code / ptr_ui_header / ptr_ui_controls / ptr_ui_assets</span>
+    <span class="issue-file">R/paintr-app.R, paintr-build-ui.R</span>
+    <span class="sev-minor">Minor</span>
+    <span class="tag-ex">Missing @examples</span>
+  </div>
+  <div class="issue-desc">All eight L3 UI pieces lack @examples. Being UI functions these would naturally require <code>if (interactive())</code>, but even a <code>shiny::runApp(shiny::shinyApp(ptr_ui_page(ptr_ui_controls(...), ptr_ui_plot()), ...))</code> sketch would help users understand composition.</div>
+</div>
+
+<div class="issue-card">
+  <div class="issue-header">
+    <span class="issue-fn">ptr_shared / ptr_shared_panel / ptr_shared_server</span>
+    <span class="issue-file">paintr-shared-coordinator.R, paintr-shared-ui.R</span>
+    <span class="sev-minor">Minor</span>
+    <span class="tag-ex">Missing @examples</span>
+  </div>
+  <div class="issue-desc">The entire multi-instance shared-panel API has no @examples. Given the coordination complexity (ptr_shared → ptr_shared_panel + ptr_ui_shared_panel + ptr_shared_server → ptr_module_server(shared_state=)), even a skeleton example would substantially reduce the onboarding burden.</div>
+</div>
+
+<div class="issue-card">
+  <div class="issue-header">
+    <span class="issue-fn">ptr_ui_error</span>
+    <span class="issue-file">R/paintr-app.R</span>
+    <span class="sev-minor">Minor</span>
+    <span class="tag-xref">Missing @seealso</span>
+  </div>
+  <div class="issue-desc"><code>ptr_ui_inline_error()</code> is the primary combinator that uses <code>ptr_ui_error()</code> but is absent from its @seealso list.</div>
+</div>
+
+<div class="issue-card">
+  <div class="issue-header">
+    <span class="issue-fn">ptr_ui_header</span>
+    <span class="issue-file">R/paintr-app.R</span>
+    <span class="sev-minor">Minor</span>
+    <span class="tag-xref">Incomplete @seealso</span>
+  </div>
+  <div class="issue-desc">@seealso links to <code>ptr_ui_controls</code>, <code>ptr_ui_plot</code>, <code>ptr_app</code> but not to <code>ptr_ui_page()</code>, which is the natural container for L3 compositions using <code>ptr_ui_header()</code>.</div>
+</div>
+
+<div class="issue-card">
+  <div class="issue-header">
+    <span class="issue-fn">build_ui_for</span>
+    <span class="issue-file">R/paintr-build-ui.R</span>
+    <span class="sev-minor">Minor</span>
+    <span class="tag-miss">@param description line-wrap artifact</span>
+  </div>
+  <div class="issue-desc">The <code>@param ...</code> description has a sentence that continues across a line break without a blank line, leaving a run-on prose block in the Rd that is hard to read: "Consumer placeholders emit only a <code>uiOutput</code> container at static build time; their picker is rendered server-side..." This belongs in a <code>@details</code> or <code>@section</code> block rather than the dots param description.</div>
+</div>
+
+<div class="issue-card">
+  <div class="issue-header">
+    <span class="issue-fn">ptr_app_grid</span>
+    <span class="issue-file">R/paintr-app.R</span>
+    <span class="sev-minor">Minor</span>
+    <span class="tag-miss">@param shared_ui incomplete</span>
+  </div>
+  <div class="issue-desc"><code>@param shared_ui</code> does not explain what happens when a key in <code>plots</code> uses <code>shared = "x"</code> but <code>shared_ui</code> has no entry for <code>"x"</code> — the auto-render fallback is not mentioned. Contrast with <code>ptr_shared()</code>'s equivalent param, which explains the fallback clearly.</div>
+</div>
+
+<h2>Patterns</h2>
+
+<div class="pattern-block">
+  <div class="pattern-title">Pattern 1: Missing @examples on almost all interactive/Shiny functions (24 of 37 exported)</div>
+  <p>Every function that builds a Shiny UI piece, runs a server, or launches an app lacks @examples. The four LLM helpers and the two copy-rule functions are the main exceptions. At minimum, L1 entry points (<code>ptr_app</code>, <code>ptr_app_grid</code>) and the module pair (<code>ptr_module_ui</code>, <code>ptr_module_server</code>) should have <code>if (interactive()) { ... }</code> examples consistent with <code>ptr_app_bslib</code>.</p>
+</div>
+
+<div class="pattern-block">
+  <div class="pattern-title">Pattern 2: <code>ptr_css()</code> cross-references resolve correctly — not a broken-link issue</div>
+  <p><code>ptr_app</code>, <code>ptr_app_grid</code>, <code>ptr_module_ui</code>, <code>ptr_ui_assets</code>, and <code>ptr_ui_page</code> all link to <code>[ptr_css()]</code> in @seealso. <code>ptr_css</code> is a <code>@name</code>/<code>NULL</code> virtual Rd page defined in <code>R/paintr-css-doc.R</code>, tagged <code>@keywords internal</code>. It generates a valid Rd page and the cross-references resolve without a NOTE from <code>R CMD check</code>. No action needed on these links.</p>
+</div>
+
+<div class="pattern-block">
+  <div class="pattern-title">Pattern 3: @param depth inconsistency between entry points</div>
+  <p><code>ptr_app()</code>'s <code>@param expr_check</code> is thorough (three modes, vignette link). <code>ptr_app_bslib()</code>'s is a one-liner stub. <code>ptr_app_grid()</code>, <code>ptr_module_ui()</code>, <code>ptr_module_server()</code>, and <code>ptr_ui_controls()</code> say only "Defaults to TRUE". Users of the non-primary entry points cannot discover the FALSE / list modes without reading <code>ptr_app</code>'s docs. The full description (or a cross-reference like "See <code>ptr_app()</code>'s <code>expr_check</code> for the three modes") should appear consistently.</p>
+</div>
+
+<div class="pattern-block">
+  <div class="pattern-title">Pattern 4: All ptr_ui_* pieces missing @examples, hampering L3 discoverability</div>
+  <p>The entire L3 "own every UI piece" API (<code>ptr_ui_plot</code>, <code>ptr_ui_error</code>, <code>ptr_ui_code</code>, <code>ptr_ui_inline_error</code>, <code>ptr_ui_toggle_code</code>, <code>ptr_ui_header</code>, <code>ptr_ui_controls</code>, <code>ptr_ui_page</code>) has no @examples. Users discovering L3 via pkgdown or help() see descriptions but no skeleton showing how the pieces compose. A single multi-piece example shared via <code>@rdname</code> or placed in <code>ptr_ui_page</code> would close this gap efficiently.</p>
+</div>
+
+<div class="pattern-block">
+  <div class="pattern-title">Pattern 5: Shared API docs (ptr_shared / ptr_shared_panel / ptr_shared_server) have no examples</div>
+  <p>The multi-instance coordination API is the most complex part of the public surface and has no examples in any of its three main entry points. Given the required ordering (<code>ptr_shared</code> → UI placement → <code>ptr_shared_server</code> → <code>ptr_module_server(shared_state=)</code>), the absence of even a skeleton is a significant barrier to adoption.</p>
+</div>
+
+<h2>Notes on Omissions from This Audit</h2>
+<ul>
+  <li>S3 methods registered in NAMESPACE (<code>build_ui_for.ptr_layer</code>, <code>prune_walk.*</code>, etc.) are internal dispatch targets not documented as standalone help pages; they are excluded from this audit.</li>
+  <li><code>print.ptr_shared_state</code> is in NAMESPACE as an S3method but has no standalone roxygen block — this is standard for print methods and not flagged.</li>
+  <li><code>ptr_css</code> (the CSS token reference page) is a <code>@name</code>/<code>NULL</code> virtual Rd page in <code>R/paintr-css-doc.R</code>, tagged <code>@keywords internal</code>. It generates a valid Rd page; <code>[ptr_css()]</code> links from exported docs resolve correctly and produce no <code>R CMD check</code> NOTE.</li>
+</ul>
+
+</body>
+</html>

@@ -736,7 +736,7 @@ ptr_module_ui <- function(id, formula, ui_text = NULL,
 #'
 #' @return A [shiny::tagList()].
 #' @seealso [ptr_ui_page()], [ptr_ui_assets()], [ptr_ui_plot()],
-#'   [ptr_ui_code()], [build_ui_for()], [ptr_shared()], [ptr_server()]
+#'   [ptr_ui_code()], [ptr_shared()], [ptr_server()]
 #' @export
 ptr_ui_controls <- function(id = NULL, formula, ui_text = NULL,
                             checkbox_defaults = NULL, expr_check = TRUE,
