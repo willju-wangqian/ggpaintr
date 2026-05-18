@@ -284,6 +284,15 @@ test_that("use-cases l3-pieces-toggle: L3 combinators (inline error + toggle cod
   expect_rendered(app, "#ptr_plot", "ggplot")
   expect_code_nonempty(app, "ptr_code")
   expect_no_inline_error(app, "ptr_error")
+  # The test name promises the toggle-code combinator; assert its actual
+  # behavior, not just that #ptr_code exists. ptr_ui_toggle_code() wraps the
+  # code in a .ptr-code-window that starts closed; clicking the injected
+  # .ptr-code-toggle button flips the `ptr-open` class (ggpaintr-ui.js).
+  expect_no_match(app$get_html(".ptr-code-window") %||% "", "ptr-open",
+                  fixed = TRUE)
+  app$click(selector = ".ptr-code-toggle")
+  app$wait_for_idle(timeout = 5 * 1000)
+  expect_match(app$get_html(".ptr-code-window"), "ptr-open", fixed = TRUE)
 })
 
 test_that("use-cases l3-plotly: L3 own-the-render-path with state$runtime()", {
@@ -311,6 +320,7 @@ test_that("use-cases l3-gg-extra: ptr_gg_extra() programmatic layer injection", 
   expect_rendered(app, "#p-ptr_plot", "ggplot")
   expect_code_nonempty(app, "p-ptr_code")
   expect_no_inline_error(app, "p-ptr_error")
+  img_before <- app$get_html("#p-ptr_plot")
 
   # Inject an extra layer; the next runtime cycle folds it in (no error).
   app$click("add_log")
@@ -318,6 +328,11 @@ test_that("use-cases l3-gg-extra: ptr_gg_extra() programmatic layer injection", 
   draw(app, "p-ptr_update_plot")
   expect_rendered(app, "#p-ptr_plot", "ggplot")
   expect_no_inline_error(app, "p-ptr_error")
+  # B1-class: prove ptr_gg_extra() actually injected the layer, not that the
+  # plot merely still renders. scale_x_log10() changes the x axis, so the
+  # rendered <img> base64 must differ from the pre-injection render.
+  img_after <- app$get_html("#p-ptr_plot")
+  expect_false(identical(img_before, img_after))
 })
 
 # --- ggpaintr-gallery.Rmd ----------------------------------------------------
@@ -376,6 +391,11 @@ test_that("customization ui-text-example: ptr_ui_text copy overrides", {
   expect_rendered(app, "#ptr_plot", "ggplot")
   expect_code_nonempty(app, "ptr_code")
   expect_no_inline_error(app, "ptr_error")
+  # The test name promises copy overrides; assert the overridden strings
+  # actually rendered (stock defaults are NOT "Render"/"Iris explorer"), not
+  # merely that the app booted with some copy.
+  expect_match(app$get_html("#ptr_update_plot"), "Render", fixed = TRUE)
+  expect_match(app$get_html("body"), "Iris explorer", fixed = TRUE)
 })
 
 test_that("customization bslib: page_sidebar wrapper (ptr_app_bslib)", {
