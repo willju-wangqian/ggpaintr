@@ -973,6 +973,8 @@ ptr_module_server <- function(id, formula, envir = parent.frame(), ...,
 #' @param css Optional character vector of paths to additional CSS files,
 #'   linked once at the page level after `ggpaintr`'s bundled stylesheet so
 #'   its rules win. See [ptr_app()] for the full semantics. Defaults to `NULL`.
+#' @param ncol Number of plot columns. Default \code{NULL} auto-computes from \code{nrow} or places all plots in one row.
+#' @param nrow Number of plot rows. Default \code{NULL} auto-computes from \code{ncol}.
 #'
 #' @return A `shiny.appobj`.
 #' @seealso [ptr_css()] for the `css =` argument and themable CSS custom properties.
@@ -983,7 +985,9 @@ ptr_app_grid <- function(plots,
                             ui_text = NULL,
                             draw_all_label = "Draw all",
                             expr_check = TRUE,
-                            css = NULL) {
+                            css = NULL,
+                            ncol = NULL,
+                            nrow = NULL) {
   parts <- ptr_app_grid_components(
     plots = plots,
     shared_ui = shared_ui,
@@ -991,7 +995,9 @@ ptr_app_grid <- function(plots,
     ui_text = ui_text,
     draw_all_label = draw_all_label,
     expr_check = expr_check,
-    css = css
+    css = css,
+    ncol = ncol,
+    nrow = nrow
   )
   shiny::shinyApp(ui = parts$ui, server = parts$server)
 }
@@ -1002,7 +1008,9 @@ ptr_app_grid_components <- function(plots,
                                        ui_text = NULL,
                                        draw_all_label = "Draw all",
                                        expr_check = TRUE,
-                                       css = NULL) {
+                                       css = NULL,
+                                       ncol = NULL,
+                                       nrow = NULL) {
   title <- ptr_resolve_ui_text("title", ui_text = ui_text)$label %||%
     "ggpaintr grid"
   if (is.character(plots)) plots <- as.list(plots)
@@ -1056,23 +1064,61 @@ ptr_app_grid_components <- function(plots,
 
   plot_module_ids <- paste0("plot_", seq_along(plots))
   n_plots <- length(plots)
-  col_width <- max(1L, 12L %/% n_plots)
 
-  plot_columns <- do.call(
-    shiny::fluidRow,
-    lapply(seq_along(plots), function(i) {
-      shiny::column(
-        width = col_width,
-        # `shared = obj` so the coordinator's cross-formula panel keys are
-        # excluded from each cell's inline section (they belong to the one
-        # standalone ptr_shared_panel() above). obj is NULL when no formula
-        # declares `shared = "..."`, which ptr_module_ui() treats as the
-        # single-instance render-all default -- behaviour unchanged there.
-        ptr_module_ui(plot_module_ids[[i]], plots[[i]],
-                      expr_check = expr_check, shared = obj)
-      )
-    })
-  )
+  # Resolve ncol/nrow (NULL = auto, matching facet_wrap convention)
+  if (is.null(ncol) && is.null(nrow)) {
+    ncol <- n_plots
+    nrow <- 1L
+  } else if (is.null(ncol)) {
+    assertthat::assert_that(
+      rlang::is_integerish(nrow, n = 1L) && nrow >= 1L,
+      msg = "`nrow` must be a positive integer."
+    )
+    nrow <- as.integer(nrow)
+    ncol <- ceiling(n_plots / nrow)
+  } else if (is.null(nrow)) {
+    assertthat::assert_that(
+      rlang::is_integerish(ncol, n = 1L) && ncol >= 1L,
+      msg = "`ncol` must be a positive integer."
+    )
+    ncol <- as.integer(ncol)
+    nrow <- ceiling(n_plots / ncol)
+  } else {
+    assertthat::assert_that(
+      rlang::is_integerish(ncol, n = 1L) && ncol >= 1L,
+      msg = "`ncol` must be a positive integer."
+    )
+    assertthat::assert_that(
+      rlang::is_integerish(nrow, n = 1L) && nrow >= 1L,
+      msg = "`nrow` must be a positive integer."
+    )
+    ncol <- as.integer(ncol)
+    nrow <- as.integer(nrow)
+    if (ncol * nrow < n_plots) {
+      rlang::abort(paste0(
+        "`ncol * nrow` (", ncol * nrow, ") < `length(plots)` (", n_plots, "). ",
+        "Increase `ncol`, `nrow`, or both."
+      ))
+    }
+  }
+
+  col_width <- max(1L, 12L %/% ncol)
+
+  plot_area <- do.call(shiny::tagList, lapply(seq_len(nrow), function(r) {
+    row_start <- (r - 1L) * ncol + 1L
+    row_end   <- min(r * ncol, n_plots)
+    if (row_start > n_plots) return(NULL)
+    do.call(
+      shiny::fluidRow,
+      lapply(row_start:row_end, function(i) {
+        shiny::column(
+          width = col_width,
+          ptr_module_ui(plot_module_ids[[i]], plots[[i]],
+                        expr_check = expr_check, shared = obj)
+        )
+      })
+    )
+  }))
 
   ui <- shiny::fluidPage(
     ptr_assets(css = css),
@@ -1084,7 +1130,7 @@ ptr_app_grid_components <- function(plots,
       class = "ptr-app ptr-app--page",
       ptr_ui_header(title),
       shared_panel,
-      plot_columns
+      plot_area
     )
   )
 

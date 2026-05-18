@@ -11,7 +11,9 @@ ptr_app_grid(
   ui_text = NULL,
   draw_all_label = "Draw all",
   expr_check = TRUE,
-  css = NULL
+  css = NULL,
+  ncol = NULL,
+  nrow = NULL
 )
 }
 \arguments{
@@ -34,6 +36,10 @@ reads \code{ui_text$shell$title$label}; defaults to \code{"ggpaintr grid"}. See
 \item{css}{Optional character vector of paths to additional CSS files,
 linked once at the page level after \code{ggpaintr}'s bundled stylesheet so
 its rules win. See \code{\link[=ptr_app]{ptr_app()}} for the full semantics. Defaults to \code{NULL}.}
+
+\item{ncol}{Number of plot columns. Default \code{NULL} auto-computes from \code{nrow} or places all plots in one row.}
+
+\item{nrow}{Number of plot rows. Default \code{NULL} auto-computes from \code{ncol}.}
 }
 \value{
 A \code{shiny.appobj}.
