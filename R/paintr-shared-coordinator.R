@@ -221,11 +221,11 @@ shared_panel_body_tag <- function(obj, keys) {
     })
   }
 
+  shell_copy <- ptr_ui_text(ui_text)$shell
   body <- c(
     list(
-      shiny::tags$p(class = "ptr-shared-panel__title", "Shared controls"),
-      shiny::tags$p(class = "ptr-shared-panel__hint",
-                    "These widgets are linked across every plot below.")
+      shiny::tags$p(class = "ptr-shared-panel__title", shell_copy$shared_panel_title),
+      shiny::tags$p(class = "ptr-shared-panel__hint", shell_copy$shared_panel_hint)
     ),
     shared_widgets,
     if (obj$formula_count >= 2L) {

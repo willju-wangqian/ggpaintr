@@ -42,7 +42,11 @@ ptr_default_ui_text <- function() {
         draw_all_button = list(label = "Draw all"),
         layer_picker = list(label = "Layer"),
         data_subtab = list(label = "Data"),
-        controls_subtab = list(label = "Controls")
+        controls_subtab = list(label = "Controls"),
+        shared_section_title = "Shared controls",
+        shared_section_hint  = "Drives every place this variable appears in this plot.",
+        shared_panel_title   = "Shared controls",
+        shared_panel_hint    = "Drives every plot that uses it."
       ),
       upload = list(
         file = list(label = "Choose a data file"),
@@ -307,10 +311,15 @@ ptr_validate_ui_text <- function(ui_text) {
   }
 
   if (!is.null(ui_text$shell)) {
-    allowed_shell <- c(
+    shell_leaf_keys <- c(
       "title", "draw_button", "draw_all_button",
       "layer_picker", "data_subtab", "controls_subtab"
     )
+    shell_string_keys <- c(
+      "shared_section_title", "shared_section_hint",
+      "shared_panel_title", "shared_panel_hint"
+    )
+    allowed_shell <- c(shell_leaf_keys, shell_string_keys)
     unknown_shell <- setdiff(names(ui_text$shell), allowed_shell)
     if (length(unknown_shell) > 0) {
       rlang::abort(paste0(
@@ -321,7 +330,14 @@ ptr_validate_ui_text <- function(ui_text) {
     }
 
     for (name in names(ui_text$shell)) {
-      ptr_validate_ui_text_leaf(ui_text$shell[[name]], paste0("ui_text$shell$", name))
+      if (name %in% shell_string_keys) {
+        val <- ui_text$shell[[name]]
+        if (!is.character(val) || length(val) != 1L) {
+          rlang::abort(paste0("ui_text$shell$", name, " must be a single string."))
+        }
+      } else {
+        ptr_validate_ui_text_leaf(ui_text$shell[[name]], paste0("ui_text$shell$", name))
+      }
     }
   }
 

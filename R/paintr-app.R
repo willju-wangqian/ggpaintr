@@ -237,12 +237,12 @@ shared_section_tags <- function(tree, ui_text = NULL, ns = shiny::NS(NULL),
       kept_entries, widgets, orphan_stages, ns
     )
     if (length(widgets) > 0L) {
+      shell_copy <- ptr_ui_text(ui_text)$shell
       shiny::wellPanel(
         shiny::div(
           class = "ptr-shared-panel",
-          shiny::tags$p(class = "ptr-shared-panel__title", "Shared controls"),
-          shiny::tags$p(class = "ptr-shared-panel__hint",
-                        "One value here is reused everywhere it is referenced."),
+          shiny::tags$p(class = "ptr-shared-panel__title", shell_copy$shared_section_title),
+          shiny::tags$p(class = "ptr-shared-panel__hint", shell_copy$shared_section_hint),
           do.call(shiny::tagList, widgets)
         )
       )
