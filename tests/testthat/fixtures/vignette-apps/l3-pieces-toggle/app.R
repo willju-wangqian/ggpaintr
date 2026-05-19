@@ -23,7 +23,7 @@ ui <- ptr_ui_page(
 )
 # server unchanged
 server <- function(input, output, session) {
-  ptr_server(input, output, session, formula)
+  ptr_server(formula)
 }
 
 shiny::shinyApp(ui, server)

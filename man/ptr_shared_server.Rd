@@ -40,7 +40,7 @@ that key's shared stage is active for each embedded module).
 Builds the shared input reactives and binds the host-level
 \code{var(shared = "...")} consumer pickers for the \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}.
 Returns a \code{ptr_shared_state} that the embedder threads into each
-\code{\link[=ptr_module_server]{ptr_module_server()}} via the \code{shared_state} argument.
+\code{\link[=ptr_server]{ptr_server()}} via the \code{shared_state} argument.
 }
 \details{
 Reads its session via \code{\link[shiny:domains]{shiny::getDefaultReactiveDomain()}} -- call
@@ -64,5 +64,5 @@ if (interactive()) {
 }
 \seealso{
 \code{\link[=ptr_shared]{ptr_shared()}}, \code{\link[=ptr_shared_panel]{ptr_shared_panel()}},
-\code{\link[=ptr_module_server]{ptr_module_server()}}.
+\code{\link[=ptr_server]{ptr_server()}}.
 }

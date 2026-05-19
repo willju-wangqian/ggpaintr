@@ -2,7 +2,7 @@
 #'
 #' A small wrapper that composes the public ggpaintr primitives
 #' ([ptr_ui_controls()], [ptr_ui_plot()], [ptr_ui_toggle_code()],
-#' [ptr_module_server()]) inside a [bslib::page_sidebar()] shell. Exported
+#' [ptr_server()]) inside a [bslib::page_sidebar()] shell. Exported
 #' so users who want a quick
 #' `bslib`-themed app can call it directly, but its primary purpose is to
 #' illustrate the wrapper pattern documented in
@@ -107,7 +107,7 @@ ptr_app_bslib <- function(formula,
   )
 
   server <- function(input, output, session) {
-    ptr_module_server(
+    ptr_server(
       formula = formula,
       id = id,
       envir = envir,

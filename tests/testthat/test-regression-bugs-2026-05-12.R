@@ -75,7 +75,7 @@ test_that("BUG-1 deep: companion-less source resolves through to downstream var 
   formula <- sprintf("%s |> head(num) |> ggplot(aes(x = var, y = var))", kw)
 
   shiny::testServer(function(input, output, session) {
-    st <- ptr_server(input, output, session, formula, expr_check = FALSE)
+    st <- ptr_server_internal(input, output, session, formula, expr_check = FALSE)
     session$userData$state <- st
   }, {
     st <- session$userData$state
@@ -170,7 +170,7 @@ test_that("BUG-4: custom ptr_define_placeholder_consumer() receives upstream col
   )
 
   shiny::testServer(function(input, output, session) {
-    st <- ptr_server(input, output, session, formula, expr_check = FALSE)
+    st <- ptr_server_internal(input, output, session, formula, expr_check = FALSE)
     session$userData$state <- st
   }, {
     st <- session$userData$state
@@ -249,7 +249,7 @@ test_that("BUG-5: successful draw clears stale shared-picker error from #ptr_err
     "geom_point(size = var(shared = 'v'))"
   )
   shiny::testServer(function(input, output, session) {
-    st <- ptr_server(input, output, session, formula, expr_check = FALSE,
+    st <- ptr_server_internal(input, output, session, formula, expr_check = FALSE,
                      auto_bind_shared = TRUE)
     session$userData$state <- st
   }, {

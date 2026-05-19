@@ -11,7 +11,7 @@ ptr_ui_plot(id = NULL)
 Defaults to \code{NULL} (identity namespace) for the single-embedding
 case. When set, must match the \code{id} passed to the other piece
 functions and to the \code{shiny::moduleServer()} wrapping \code{\link[=ptr_server]{ptr_server()}}
-(or to \code{\link[=ptr_module_server]{ptr_module_server()}}).}
+(or to \code{\link[=ptr_server]{ptr_server()}}).}
 }
 \value{
 A \link[shiny:reexports]{shiny::tag}.
@@ -21,7 +21,7 @@ The plot card on its own: a \code{shiny::plotOutput()} bound to the
 \code{ptr_plot} id the server writes to (see \code{\link[=ptr_server]{ptr_server()}}). One of the
 single-piece UI builders for the L3 "own every UI piece" workflow;
 place it anywhere in your own layout and wire the server with
-\code{\link[=ptr_server]{ptr_server()}} / \code{\link[=ptr_module_server]{ptr_module_server()}}.
+\code{\link[=ptr_server]{ptr_server()}} / \code{\link[=ptr_server]{ptr_server()}}.
 }
 \details{
 The piece is \strong{truly bare}: just the plot card, with no error slot and

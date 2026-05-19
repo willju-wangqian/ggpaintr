@@ -3,10 +3,10 @@
 #
 # NOT a verbatim vignette chunk -- this is a constructed W1 (#B1/#B1b)
 # regression fixture: `ptr_app_grid()` has the SAME host shape as the embed
-# path (`ptr_shared_server()` + per-plot `ptr_module_server()`), so the
+# path (`ptr_shared_server()` + per-plot `ptr_server()`), so the
 # binder-less formula-local shared-consumer bug must be exercised on it too.
 # `ax1`/`ax2` are formula-local `var(shared=)` consumer keys (one consuming
-# formula each -> bound by each `ptr_module_server()` under its namespace);
+# formula each -> bound by each `ptr_server()` under its namespace);
 # `sz` is a cross-formula panel value key (both formulas -> standalone panel).
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
 library(shiny)

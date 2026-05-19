@@ -32,7 +32,7 @@ JavaScript needs, injecting the \verb{</>} show-code button into the plot
 card head and presenting the code inside the draggable slide-out
 \code{.ptr-code-window} (with Copy / Close). The button hides/shows that
 window purely DOM-locally — no Shiny input/output is involved. This is
-the toggle layout \code{\link[=ptr_app]{ptr_app()}} / \code{\link[=ptr_module_ui]{ptr_module_ui()}} render internally.
+the toggle layout \code{\link[=ptr_app]{ptr_app()}} / \code{\link[=ptr_ui]{ptr_ui()}} render internally.
 }
 \details{
 Use this when you want the familiar toggle behaviour while still owning

@@ -47,7 +47,7 @@ panels, the "Update plot" button) as a bare \code{\link[shiny:reexports]{shiny::
 single-piece UI builders for the L3 "own every UI piece" workflow:
 compose it with \code{\link[=ptr_ui_assets]{ptr_ui_assets()}} and the output pieces, place each
 wherever you like, and wire the server with \code{\link[=ptr_server]{ptr_server()}} /
-\code{\link[=ptr_module_server]{ptr_module_server()}}.
+\code{\link[=ptr_server]{ptr_server()}}.
 }
 \details{
 Because the panel includes a \code{shinyWidgets::pickerInput()} (the layer

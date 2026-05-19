@@ -1,7 +1,7 @@
 #' CSS customisation hooks for ggpaintr apps
 #'
 #' Every raw-Shiny entry point ([ptr_app()], [ptr_app_grid()],
-#' [ptr_module_ui()], [ptr_shared_panel()]) accepts a `css =` argument: a character vector of
+#' [ptr_ui()], [ptr_shared_panel()]) accepts a `css =` argument: a character vector of
 #' paths to `.css` files. Each path's parent directory is registered as a
 #' Shiny resource under a hash-derived prefix, and one `<link>` tag is
 #' emitted per file. User stylesheets are linked *after* `ggpaintr`'s

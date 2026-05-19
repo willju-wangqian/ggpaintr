@@ -14,7 +14,7 @@ ptr_shared(
 }
 \arguments{
 \item{formulas}{A character vector or list of formula strings, one per
-embedded \code{\link[=ptr_module_ui]{ptr_module_ui()}} instance.}
+embedded \code{\link[=ptr_ui]{ptr_ui()}} instance.}
 
 \item{shared_ui}{Named list of \verb{function(id) -> shiny.tag} builders, one
 per shared key the embedder wants to customise. Unsupplied keys are
@@ -62,5 +62,5 @@ obj$panel_keys   # "x" — shared by both formulas
 }
 \seealso{
 \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}, \code{\link[=ptr_ui_shared_panel]{ptr_ui_shared_panel()}},
-\code{\link[=ptr_shared_server]{ptr_shared_server()}}, \code{\link[=ptr_module_ui]{ptr_module_ui()}}.
+\code{\link[=ptr_shared_server]{ptr_shared_server()}}, \code{\link[=ptr_ui]{ptr_ui()}}.
 }

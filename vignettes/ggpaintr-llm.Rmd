@@ -102,7 +102,7 @@ A short guide to each:
 | `formula_syntax`         | Which placeholder keyword goes where; pipelines; `shared = "..."`.       |
 | `level1_ptr_app`         | Quick turn-key app + `ptr_app_grid()` multi-plot.                        |
 | `level1_ptr_options`     | Package-global settings: verbosity, layer-checkbox default.              |
-| `level2_module`          | Embed the self-contained default-layout block (`ptr_module_ui()` / `ptr_module_server()`) in the user's own Shiny app. |
+| `level2_module`          | Embed the self-contained default-layout block (`ptr_ui()` / `ptr_server()`) in the user's own Shiny app. |
 | `level2_custom_ids`      | Id collisions, the `ptr_` reserved prefix, generated-id grammar.         |
 | `level2_shared`          | Multiple ggpaintr instances + the shared-coordinator trio (`ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()`) for cross-instance widgets. |
 | `level2_ui_text`         | Override labels, help, placeholders; multi-section cascade.              |

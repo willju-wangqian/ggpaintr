@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0006 — Single public server entry; L3 is UI-side only; ptr_module_* rename</title>
+<style>
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.2rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .danger { border-left: 4px solid #c0392b; background: #fde7e7; padding: .6rem .9rem; margin: .8rem 0; }
+  .note  { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+</style>
+</head>
+<body>
+
+<h1>ADR 0006 — Single public server entry; L3 is UI-side only; <code>ptr_module_*</code> rename</h1>
+<p class="meta">Status: <strong>accepted</strong> · Date: 2026-05-18 ·
+<strong>Supersedes</strong>: ADR 0005 <em>in part</em> — its §2 L3 definition ("own the layout / <em>render path</em>"; "Custom render is L3 … using it to replace a pane is owning the render path"), its §2/§5 sealed-bundle name exception (<code>ptr_module_ui</code>/<code>ptr_module_server</code> "keep their established names"), and the <em>justification</em> of its Rejected-alternatives bullet on <code>state$server_ns_fn</code>/<code>ui_ns_fn</code> (the canonical "<code>ptr_server</code> inside the user's own <code>moduleServer(id)</code>" pattern). Also voids ADR 0004's surviving name protection for the <code>ptr_module_*</code> pair. ·
+<strong>Keeps from ADR 0005</strong>: §1 (<code>ptr_&lt;x&gt;</code> = self-contained / <code>ptr_ui_&lt;x&gt;</code> = bare convention), §3 (shared partition model), §4 (orthogonal outputs + combinators), and the <em>conclusion</em> that <code>state$server_ns_fn</code>/<code>ui_ns_fn</code> stay internal plumbing. ·
+Related: ADR 0002 (public-API tiering), ADR 0005 (L2/L3 redesign) ·
+Domain language: <code>CONTEXT.md</code> (lock re-pointed from ADR 0005 to this ADR) ·
+Implementation: order-sensitive rename + doc/roxygen/vignette fallout (this date)</p>
+
+<h2>Context</h2>
+<p>A grill-with-docs session (2026-05-18) tested ADR 0005's L3 definition against the code and found it internally inconsistent. ADR 0005 §2 defines L3 as "own the layout / <strong>render path</strong>" and <code>CONTEXT.md</code> (line 23) documents the <em>canonical custom-render server pattern</em> as bare <code>ptr_server()</code> inside the user's own <code>shiny::moduleServer(id, …)</code>. But the exported low-level engine <code>ptr_server()</code> <strong>cannot bind shared placeholders</strong>:</p>
+<ul>
+  <li><code>ptr_setup_consumer_uis()</code> (called by <code>ptr_server()</code>, <code>R/paintr-server.R</code>) skips every shared consumer: <code>if (!is.null(c$shared)) next</code> — comment: "Shared consumers are owned by the host … skip here so we don't double-write."</li>
+  <li>The engine performs <em>no</em> formula-local shared self-binding. That logic exists <strong>only</strong> in <code>ptr_module_server()</code>: the pre-flight contract abort, the <code>missing_keys → local_shared</code> reactive built off <code>input$shared_&lt;key&gt;</code>, and the post-call <code>ptr_bind_local_shared_consumers()</code> (an <em>unexported</em> helper an L3 user cannot call).</li>
+</ul>
+<p>Consequence: a legitimate single-instance self-shared formula such as <code>ggplot(mtcars, aes(x = var(shared = 'v'), y = var(shared = 'v'))) + geom_point()</code> works under <code>ptr_module_server()</code> but is <strong>silently dropped</strong> under the documented bare-<code>ptr_server</code> L3 pattern. This directly contradicts <code>CONTEXT.md</code> line 99 ("a formula-local shared key is owned by <em>that one instance's own server</em>") — the documented L3 instance server (bare <code>ptr_server</code>) does not in fact bind it. The defect is not in <code>ptr_server()</code>'s behaviour (its skip is a correct layering choice — shared binding is a <em>host</em> responsibility); the defect is in <strong>treating the low-level engine as a public L3 server pattern</strong>.</p>
+
+<h2>Decision</h2>
+
+<h3>1. One public server entry</h3>
+<p>ggpaintr exposes <strong>exactly one</strong> public server-side entry point. It owns shared-placeholder binding (formula-local self-bind + consumer pickers) for every supported configuration. The low-level engine that skips shared binding is <strong>not</strong> public API.</p>
+
+<h3>2. Rename swap (mechanical, order-sensitive)</h3>
+<table>
+  <tr><th>Old</th><th>New</th><th>Role</th></tr>
+  <tr><td><code>ptr_server</code> (4-arg engine)</td><td><code>ptr_server_internal</code></td><td>Unexported plumbing. <code>@keywords internal</code>, no <code>@export</code>.</td></tr>
+  <tr><td><code>ptr_module_server</code></td><td><code>ptr_server</code></td><td>The sole public server entry. Returns <code>state</code>.</td></tr>
+  <tr><td><code>ptr_module_ui</code></td><td><code>ptr_ui</code></td><td>The L2 self-contained UI bundle.</td></tr>
+</table>
+<p>The name <code>ptr_server</code> is <strong>reused for a different function with a different signature</strong> (<code>(input,output,session,formula,…)</code> → <code>(formula, id = NULL, …)</code>). The rename is therefore a <em>swap</em>, valid only in this order: (1) engine → <code>ptr_server_internal</code> everywhere (including the <code>do.call(ptr_server, …)</code> call site inside the former <code>ptr_module_server</code>, and any test/vignette/fixture calling the bare 4-arg form); (2) <code>ptr_module_server</code> → <code>ptr_server</code>; (3) <code>ptr_module_ui</code> → <code>ptr_ui</code>. Reversing (1)↔(2) aliases the two functions.</p>
+
+<h3>3. L3 is UI-side only</h3>
+<p>L3 means a <strong>UI-side split</strong>: bare <code>ptr_ui_*</code> pieces composed into the user's own layout (optionally <code>ptr_ui_page</code>). It is <strong>not</strong> a server-side concept. There is no user-authored <code>moduleServer</code> wrapping a ggpaintr engine. The server is always the single <code>ptr_server()</code>, at L2 <em>and</em> L3.</p>
+<p><strong>Custom render is done by extracting components from the <code>state</code> returned by <code>ptr_server()</code></strong> — e.g. <code>state &lt;- ptr_server(formula, id); output$my_plot &lt;- plotly::renderPlotly(state$runtime()$plot)</code> with the user's own widget at <code>shiny::NS(id)("my_plot")</code>. Custom render is not a separate level and not a server pattern; it is L3-UI fed by the one server entry's return value. ADR 0005 §2's "using <code>state</code> to replace a pane is owning the render path" framing is withdrawn.</p>
+
+<div class="note">
+  <strong>Kept intact from ADR 0005 (do not re-litigate):</strong> the <code>ptr_&lt;x&gt;</code> = self-contained / <code>ptr_ui_&lt;x&gt;</code> = bare naming convention (§1); the shared partition model and coordinator (§3); orthogonal output pieces + nestable combinators (§4); and the conclusion that <code>state$server_ns_fn</code>/<code>ui_ns_fn</code> remain non-public. Only their <em>justification</em> changes: those stay internal because there is one server entry and custom render extracts from its returned <code>state</code> — not because of a "<code>ptr_server</code>-inside-your-own-<code>moduleServer</code>" pattern, which no longer exists.
+</div>
+
+<div class="danger">
+  <strong>Superseded — do NOT carry forward (a future reader will find these in old docs):</strong>
+  <ul>
+    <li>ADR 0005 §2: "L3 — own the layout / <strong>render path</strong>" and "Custom render is L3 (… using it to replace a pane is owning the render path)." L3 is UI-side only; the server is unchanged and singular.</li>
+    <li>ADR 0005 §2/§5 + ADR 0004: the sealed-bundle exception keeping <code>ptr_module_ui</code>/<code>ptr_module_server</code> names. Both renamed (<code>ptr_ui</code>/<code>ptr_server</code>); the "module" qualifier is now misleading and void.</li>
+    <li><code>CONTEXT.md</code> line 23's "Canonical custom-render <em>server</em> pattern: <code>moduleServer(id, \(i,o,s){ state &lt;- ptr_server(i,o,s,formula); … })</code>" and the "<code>ptr_module_server</code> is the scope-hidden path / replacing panes uses <code>ptr_server</code> inside your own <code>moduleServer</code>" sentences. There is no public bare engine to wrap.</li>
+    <li>Any exported <code>ptr_server</code> with the old <code>(input, output, session, formula, …)</code> signature. That symbol is now <code>ptr_server_internal</code> and unexported; the name <code>ptr_server</code> is the formula-first public entry.</li>
+  </ul>
+</div>
+
+<h2>Rejected alternatives</h2>
+<ul>
+  <li><strong>Make the engine absorb formula-local self-binding</strong> so the bare-<code>ptr_server</code>-in-<code>moduleServer</code> pattern works with shared keys: rejected — duplicates host-binding logic into the engine, leaves two public server entries with overlapping responsibility, and enlarges the surface. This is exactly the dual-path maintenance cost ADR 0005 set out to remove.</li>
+  <li><strong>Export <code>ptr_bind_local_shared_consumers</code> as an L3 escape hatch</strong>: rejected — re-creates the "exported portal whose runtime companions are internal" smell ADR 0002/0005 explicitly fought; pushes namespace plumbing onto users.</li>
+  <li><strong>Keep <code>ptr_module_*</code> names</strong> (ADR 0005's sealed-bundle exception): rejected — with a single server entry the "module" qualifier no longer distinguishes anything and misleads (it implies a sibling non-module entry that no longer exists). <code>ptr_server</code>/<code>ptr_ui</code> are the honest names.</li>
+  <li><strong>Keep L3 as a server-side "own the render path" concept</strong> (ADR 0005 status quo): rejected — it is the source of the contradiction; no public engine should be wrapped by user <code>moduleServer</code> code, because the engine deliberately does not bind shared placeholders.</li>
+</ul>
+
+<h2>Consequences</h2>
+<ul>
+  <li>Breaking, no deprecation (single user, pre-1.0). The hardest-to-debug part is the <strong>name reused under a changed signature</strong>: external callers of old <code>ptr_server(input,output,session,formula)</code> silently bind to new <code>ptr_server(formula, id=NULL,…)</code>. In-repo instances are eliminated by the order-sensitive rename; external breakage is accepted.</li>
+  <li><code>CONTEXT.md</code>: the L3 section (lines 19–27), line 5 lock pointer (ADR 0005 → ADR 0006), line 23 canonical pattern, line 82 L3 surface, line 98 relationships, line 113 example dialogue — all rewritten to "L3 = UI-side split; one server entry <code>ptr_server</code>; custom render = extract from returned <code>state</code>."</li>
+  <li><code>vignettes/ggpaintr-use-cases.Rmd</code> L3 section (lines ≈340, 423, 464–469, 484, 569, 614) and any shinytest2 fixtures wired on bare <code>ptr_server</code>-in-<code>moduleServer</code> must be rewritten and re-verified against the authoritative test gate.</li>
+  <li>roxygen/NAMESPACE: <code>ptr_server_internal</code> loses <code>@export</code> (gains <code>@keywords internal</code>); the new <code>ptr_server</code> roxygen documents the extract-from-<code>state</code> custom-render pattern; <code>devtools::document()</code> regenerates NAMESPACE (<code>export(ptr_server)</code> retained for the new function; <code>ptr_server_internal</code> absent).</li>
+  <li>ADR 0002's "exported but companions internal" portal-smell guard is still honored — <code>state$server_ns_fn</code>/<code>ui_ns_fn</code> stay non-public; only the reason recorded for it changes (one entry + extract-from-state).</li>
+</ul>
+
+</body>
+</html>

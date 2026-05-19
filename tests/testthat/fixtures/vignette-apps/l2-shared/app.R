@@ -17,14 +17,14 @@ ui <- shiny::fluidPage(
   shiny::titlePanel("My host app"),
   ptr_shared_panel(obj),
   shiny::fluidRow(
-    shiny::column(6, ptr_module_ui(plots[[1]], "plot_1", shared = obj)),
-    shiny::column(6, ptr_module_ui(plots[[2]], "plot_2", shared = obj))
+    shiny::column(6, ptr_ui(plots[[1]], "plot_1", shared = obj)),
+    shiny::column(6, ptr_ui(plots[[2]], "plot_2", shared = obj))
   )
 )
 server <- function(input, output, session) {
   sh <- ptr_shared_server(obj)
-  ptr_module_server(plots[[1]], "plot_1", shared_state = sh)
-  ptr_module_server(plots[[2]], "plot_2", shared_state = sh)
+  ptr_server(plots[[1]], "plot_1", shared_state = sh)
+  ptr_server(plots[[2]], "plot_2", shared_state = sh)
 }
 
 shiny::shinyApp(ui, server)

@@ -5,7 +5,7 @@
 \title{CSS customisation hooks for ggpaintr apps}
 \description{
 Every raw-Shiny entry point (\code{\link[=ptr_app]{ptr_app()}}, \code{\link[=ptr_app_grid]{ptr_app_grid()}},
-\code{\link[=ptr_module_ui]{ptr_module_ui()}}, \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}) accepts a \verb{css =} argument: a character vector of
+\code{\link[=ptr_ui]{ptr_ui()}}, \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}) accepts a \verb{css =} argument: a character vector of
 paths to \code{.css} files. Each path's parent directory is registered as a
 Shiny resource under a hash-derived prefix, and one \verb{<link>} tag is
 emitted per file. User stylesheets are linked \emph{after} \code{ggpaintr}'s

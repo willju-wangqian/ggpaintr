@@ -5,7 +5,7 @@
 # runtime result (post-substitute → post-prune → post-eval), the resolved
 # checkbox-defaults vector, and an upstream-resolution memo cache.
 #
-# `ptr_server` is the wiring sugar that calls the state constructor and
+# `ptr_server_internal` is the wiring sugar that calls the state constructor and
 # attaches the observers (pipeline updates + runtime).
 
 #' Construct the ggpaintr runtime state container
@@ -276,8 +276,10 @@ ptr_validate_state <- function(state) {
 
 # ---- public wiring entry point ----
 
-#' Wire a `ggpaintr` Server From a Formula
+#' Internal: wire a `ggpaintr` server from a formula (engine)
 #'
+#' Unexported plumbing behind the single public [ptr_server()]; not a user
+#' entry point (ADR 0006 — it does not bind shared placeholders on its own).
 #' Convenience wrapper that builds the `ptr_state` via [ptr_init_state()]
 #' and attaches the per-pipeline observers, stage-enabled toggles, runtime
 #' observer, and plot/code/error output bindings. Returns the state list so
@@ -288,7 +290,7 @@ ptr_validate_state <- function(state) {
 #' (`ptr_plot`, `ptr_error`, `ptr_code`, `ptr_update_plot`, plus the
 #' internal layer-nav inputs). Treat the whole `ptr_` prefix as reserved
 #' — most relevant when hand-placing L3 pieces. The single source of truth
-#' for the id contract (and the `ptr_module_*()` namespacing fix) is the
+#' for the id contract (and the `ptr_server()` namespacing) is the
 #' *"How input ids are built"* section of `vignette("ggpaintr-use-cases")`.
 #'
 #' @param input,output,session The standard Shiny server arguments.
@@ -303,10 +305,10 @@ ptr_validate_state <- function(state) {
 #'   matching [ptr_init_state()] arguments (an explicit value passed
 #'   through `...` still wins). This is the convenience path for wiring a
 #'   page-level [ptr_shared_panel()] panel to a single embedded plot — the
-#'   same bundle [ptr_module_server()] accepts. Defaults to `NULL`.
+#'   same bundle [ptr_server()] accepts. Defaults to `NULL`.
 #'
 #' @return The `ptr_state` list.
-#' @seealso [ptr_shared_server()], [ptr_module_server()]
+#' @seealso [ptr_shared_server()], [ptr_server()]
 #' @examples
 #' if (interactive()) {
 #'   f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
@@ -322,16 +324,17 @@ ptr_validate_state <- function(state) {
 #'       )
 #'     ),
 #'     server = function(input, output, session) {
-#'       ptr_server(input, output, session, f)
+#'       ptr_server_internal(input, output, session, f)
 #'     }
 #'   )
 #' }
-#' @export
-ptr_server <- function(input, output, session, formula,
+#' @keywords internal
+#' @noRd
+ptr_server_internal <- function(input, output, session, formula,
                           envir = parent.frame(), ...,
                           shared_state = NULL) {
   dots <- list(...)
-  # `shared_state` mirrors `ptr_module_server()`'s convenience path: a
+  # `shared_state` mirrors `ptr_server()`'s convenience path: a
   # one-shot bundle from `ptr_shared_server()` carrying `shared`,
   # `draw_trigger`, `shared_resolutions`, `shared_stage_enabled`. Each
   # slot only seeds the corresponding `...`/`ptr_init_state()` arg when
@@ -344,7 +347,7 @@ ptr_server <- function(input, output, session, formula,
     if (is.null(dots$shared_stage_enabled)) dots$shared_stage_enabled <- shared_state$shared_stage_enabled
   }
   # When called inside `shiny::moduleServer(id, ...)` without explicit
-  # `ns` / `server_ns`, auto-wire them the same way `ptr_module_server()`
+  # `ns` / `server_ns`, auto-wire them the same way `ptr_server()`
   # does: tags emitted via `renderUI` must carry the module prefix
   # (`session$ns`), while `input[[]]` / `output[[]]` / `updateXxx()` use
   # bare ids since the moduleServer session auto-namespaces those. At the
@@ -1180,7 +1183,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
 # via `shared_consumer_representatives()` and then calls
 # `ptr_bind_shared_consumer_uis()` exactly once. Both `ptr_make_app_server`
 # (single-instance: `host_owned_keys = character(0)`, owns all) and
-# `ptr_module_server` (embed: `host_owned_keys =` the coordinator's panel
+# `ptr_server` (embed: `host_owned_keys =` the coordinator's panel
 # keys) route through here so there is one binder implementation and no
 # double-write to any shared consumer output id (ADR 0005 partition).
 ptr_bind_local_shared_consumers <- function(tree, output, input, ns,
@@ -1317,7 +1320,7 @@ runtime_consumer_entry <- function(state, node, snapshot = list()) {
 # ---- public output bindings ----
 
 # Internal output bindings. Attach the standard plot, error, and code
-# outputs to the Shiny `output` object. Sole caller is `ptr_server()`
+# outputs to the Shiny `output` object. Sole caller is `ptr_server_internal()`
 # (via `ptr_setup_runtime()`), which calls all three unconditionally;
 # each reads `state$runtime()`, populated only by the internal
 # `ptr_setup_runtime()`. Not a public composition surface post-rewrite.

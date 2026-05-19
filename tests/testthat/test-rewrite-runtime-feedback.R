@@ -18,7 +18,7 @@
 test_that("2.1 a failed render blanks the plot canvas", {
   e <- .feedback_env()
   server <- function(input, output, session) {
-    session$userData$state <- ptr_server(
+    session$userData$state <- ptr_server_internal(
       input, output, session,
       "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point() + facet_wrap(expr)",
       envir = e
@@ -48,7 +48,7 @@ test_that("2.1 a failed render blanks the plot canvas", {
 test_that("2.2 substitute-stage errors carry 'Input error: ' (not double-applied)", {
   e <- .feedback_env()
   server <- function(input, output, session) {
-    session$userData$state <- ptr_server(
+    session$userData$state <- ptr_server_internal(
       input, output, session,
       "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point() + facet_wrap(expr)",
       envir = e
@@ -73,7 +73,7 @@ test_that("2.2 substitute-stage errors carry 'Input error: ' (not double-applied
 test_that("2.2 a plot/eval-stage failure carries the 'Plot error: ' prefix", {
   e <- .feedback_env()
   server <- function(input, output, session) {
-    session$userData$state <- ptr_server(
+    session$userData$state <- ptr_server_internal(
       input, output, session,
       "ggplot(mtcars, aes(x = mpg)) + geom_point(aes(y = no_such_column))",
       envir = e
@@ -96,7 +96,7 @@ test_that("ptr_error_ui returns NULL for blank input; ptr_extract_error NULL whe
   expect_null(ptr_error_ui(NULL))
   e <- .feedback_env()
   server <- function(input, output, session) {
-    session$userData$state <- ptr_server(
+    session$userData$state <- ptr_server_internal(
       input, output, session,
       "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()",
       envir = e

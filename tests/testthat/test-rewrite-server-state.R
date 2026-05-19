@@ -1,4 +1,4 @@
-# Tests for `ptr_init_state`, `ptr_server` observers, and the
+# Tests for `ptr_init_state`, `ptr_server_internal` observers, and the
 # `ptr_extract_*` accessors. Reactivity tests use `shiny::testServer`.
 
 .server_test_env <- function(extras = list()) {
@@ -59,7 +59,7 @@ test_that("ptr_init_state rejects non-function ns", {
 test_that("runtime observer populates state$runtime with code_text and plot", {
   e <- .server_test_env()
   server <- function(input, output, session) {
-    session$userData$state <- ptr_server(
+    session$userData$state <- ptr_server_internal(
       input, output, session,
       "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()",
       envir = e
@@ -112,7 +112,7 @@ test_that("P12.12 ptr_gg_extra leaves extras untouched on eval failure", {
 test_that("ptr_extract_* surface the runtime fields", {
   e <- .server_test_env()
   server <- function(input, output, session) {
-    session$userData$state <- ptr_server(
+    session$userData$state <- ptr_server_internal(
       input, output, session,
       "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()",
       envir = e
@@ -134,7 +134,7 @@ test_that("runtime is gated: no eval until Update Plot click (BDD G11.12)", {
   # code, and error outputs all render blank.
   e <- .server_test_env()
   server <- function(input, output, session) {
-    session$userData$state <- ptr_server(
+    session$userData$state <- ptr_server_internal(
       input, output, session,
       "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
       envir = e
@@ -188,7 +188,7 @@ test_that("inject_resolved_data swaps data_arg for the cached frame (spec L105)"
 
 test_that("ptr_register_* abort on a malformed state", {
   # ptr_register_* are internal (un-exported) post-rewrite; sole caller is
-  # ptr_server() via ptr_setup_runtime(). Reach them with ::: for this guard.
+  # ptr_server_internal() via ptr_setup_runtime(). Reach them with ::: for this guard.
   expect_error(ggpaintr:::ptr_register_plot(list(), list()), "ptr_state|missing required")
   expect_error(ggpaintr:::ptr_register_error(list(), list()), "ptr_state|missing required")
   expect_error(ggpaintr:::ptr_register_code(list(), list()), "ptr_state|missing required")
@@ -216,7 +216,7 @@ test_that("runtime re-runs on a post-Update-Plot extras change", {
   # the `extras` branch guards both.
   e <- .server_test_env()
   server <- function(input, output, session) {
-    session$userData$state <- ptr_server(
+    session$userData$state <- ptr_server_internal(
       input, output, session,
       "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()",
       envir = e

@@ -613,7 +613,7 @@ ptr_user_css_assets <- function(css) {
 #
 # Components 1 & 2 are htmlDependency objects, so htmltools dedupes each to
 # a single <head> injection no matter how many times the bundle is emitted
-# on a page. ptr_module_ui() emits the bundle once; ptr_app_bslib()
+# on a page. ptr_ui() emits the bundle once; ptr_app_bslib()
 # emits it twice (sidebar + card .ptr-app scopes) -- htmltools collapses
 # any number of emissions to one of each dependency. (Component 3 is
 # plain <link> tags; each

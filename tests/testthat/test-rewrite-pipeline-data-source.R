@@ -55,7 +55,7 @@ test_that("pipeline-head `upload` resolves downstream consumers and renders", {
   formula <-
     "upload |> head(num) |> ggplot(aes(x = var, y = var)) + geom_point()"
   server <- function(input, output, session) {
-    session$userData$state <- ptr_server(input, output, session, formula,
+    session$userData$state <- ptr_server_internal(input, output, session, formula,
                                           envir = e)
   }
   shiny::testServer(server, {
@@ -118,7 +118,7 @@ test_that("pipeline-head `upload` populates the consumer picker UI (renderUI pat
     "ggplot(aes(x = var, y = var)) + geom_point()"
   )
   server <- function(input, output, session) {
-    session$userData$state <- ptr_server(input, output, session, formula,
+    session$userData$state <- ptr_server_internal(input, output, session, formula,
                                           envir = e)
   }
   shiny::testServer(server, {
@@ -150,7 +150,7 @@ test_that("pipeline-head source clears its slot when the file is removed", {
   formula <-
     "upload |> head(num) |> ggplot(aes(x = var, y = var)) + geom_point()"
   server <- function(input, output, session) {
-    session$userData$state <- ptr_server(input, output, session, formula,
+    session$userData$state <- ptr_server_internal(input, output, session, formula,
                                           envir = e)
   }
   shiny::testServer(server, {

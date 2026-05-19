@@ -7,7 +7,7 @@
 # `shared_consumer_representatives`), and `ptr_shared_server(obj)` -- which
 # builds the matching reactives, wires the top-level consumer pickers via
 # `ptr_bind_shared_consumer_uis()`, and returns a `ptr_shared_state` that
-# the embedder threads into each `ptr_module_server(..., shared_state = ...)`.
+# the embedder threads into each `ptr_server(..., shared_state = ...)`.
 #
 # Design constraints (see dev/plans/shared-ui-multi-instance.html):
 #   - NS(NULL) only; one panel per page; flat `shared_<key>` ids.
@@ -141,7 +141,7 @@ shared_consumer_representatives <- function(trees) {
 #' Builds the shared input reactives and binds the host-level
 #' `var(shared = "...")` consumer pickers for the [`ptr_shared_panel()`].
 #' Returns a `ptr_shared_state` that the embedder threads into each
-#' [`ptr_module_server()`] via the `shared_state` argument.
+#' [`ptr_server()`] via the `shared_state` argument.
 #'
 #' Reads its session via [`shiny::getDefaultReactiveDomain()`] -- call
 #' it inside the top-level Shiny server function (or any reactive
@@ -168,7 +168,7 @@ shared_consumer_representatives <- function(trees) {
 #'   (a named list of reactives, one per shared key, indicating whether
 #'   that key's shared stage is active for each embedded module).
 #' @seealso [`ptr_shared()`], [`ptr_shared_panel()`],
-#'   [`ptr_module_server()`].
+#'   [`ptr_server()`].
 #' @examples
 #' if (interactive()) {
 #'   obj <- ptr_shared(c(
@@ -282,7 +282,7 @@ ptr_shared_server <- function(obj,
 
   # Bug B1b fix: the host owns ONLY cross-formula (panel) consumer keys --
   # the same partition `shared_reactives` uses. Formula-local consumer keys
-  # are bound by each owning `ptr_module_server()` under its own namespace
+  # are bound by each owning `ptr_server()` under its own namespace
   # (the helper's embed call); binding them here too would double-write at
   # global ids no panel emits. Route through the single binder helper,
   # marking the formula-local keys as host-owned-elsewhere so only
@@ -313,7 +313,7 @@ ptr_shared_server <- function(obj,
   # One reactive per shared key whose orphan pipeline stages should be
   # toggleable from the shared panel. Default to TRUE so that an unset
   # input (no checkbox rendered, or panel not yet touched) preserves the
-  # existing semantics (stages enabled). Each `ptr_module_server()` mirrors
+  # existing semantics (stages enabled). Each `ptr_server()` mirrors
   # the value into its own `state$stage_enabled` for every orphan stage_id
   # in that module's tree -- see `ptr_setup_shared_stage_enabled()` in
   # paintr-server.R.

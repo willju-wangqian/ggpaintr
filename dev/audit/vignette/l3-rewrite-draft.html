@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DRAFT — ggpaintr-use-cases.Rmd L3 section rewrite (ADR 0006)</title>
+<style>
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 920px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.9rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.3rem; color:#222; }
+  h4 { margin-top: 1rem; color:#333; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .danger { border-left: 4px solid #c0392b; background: #fde7e7; padding: .6rem .9rem; margin: .8rem 0; }
+  .note  { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+  .new   { border-left: 4px solid #2960c0; background: #eaf0fb; padding: .6rem .9rem; margin: .8rem 0; }
+  del { color:#a33; background:#fbe9e9; } ins { color:#176a2b; background:#e7f7ec; text-decoration:none; }
+  .rmd { border:1px solid #cbd2dd; border-radius:6px; padding:.2rem 1rem .8rem; margin:.8rem 0; background:#fcfcfe; }
+  .rmd::before { content:"proposed .Rmd content"; font-size:11px; color:#789; letter-spacing:.04em; }
+</style>
+</head>
+<body>
+
+<h1>DRAFT for review — <code>vignettes/ggpaintr-use-cases.Rmd</code> L3 section rewrite</h1>
+<p class="meta">Governed by <code>dev/adr/0006-single-server-entry-l3-ui-only.html</code>. Nothing in <code>.Rmd</code> or the fixtures is edited yet — this is the proposed replacement for your approval. Lines refer to the current file (643 lines total); the L3 section is <strong>338–643</strong>.</p>
+
+<div class="note">
+<strong>Key finding (lowers risk):</strong> every <em>runnable code chunk</em> in the L3 section already uses the correct top-level pattern — <code>ptr_module_server(formula, id)</code> called in the plain <code>server</code> function, never a user-written <code>moduleServer</code> wrapping an engine (chunks <code>l3-pieces</code> :386, <code>l3-pieces-toggle</code> :417, <code>l3-decompose</code> :452, <code>l3-plotly</code> :502, <code>l3-shared</code> :593–594, <code>l3-pieces-shared</code> :634–635). After the ADR-0006 rename those become <code>ptr_server(formula, id)</code> — exactly the canonical pattern. <strong>So the chunks barely change; the dead model lives almost entirely in the surrounding prose and in one fake comment block (464–472).</strong>
+</div>
+
+<div class="danger">
+<strong>One correctness item the rename did <em>not</em> fix:</strong> the <code>.Rmd</code> was deliberately out of <code>sed</code> scope (it is task #5), so the chunks still literally say <code>ptr_module_server(...)</code> / <code>ptr_module_ui(...)</code> / <code>ptr_server(input,output,session,formula)</code> — symbols that <strong>no longer exist</strong>. <code>test_dir()</code> drives the <em>fixtures</em> (already renamed, gate green) not the <code>.Rmd</code>, so the suite stayed green, but <code>R CMD check</code> / pkgdown would now choke on these chunks. The rewrite must rename them <em>and</em> fix the prose in one pass.</p>
+</div>
+
+<h2>1. What changes conceptually</h2>
+<table>
+<tr><th>Old model (ADR 0005 / current vignette)</th><th>New model (ADR 0006)</th></tr>
+<tr><td>L3 = "own the layout <em>and the render path</em>"; render path is a server concept.</td><td>L3 = <strong>UI-side split only</strong>. The server is unchanged and singular.</td></tr>
+<tr><td>"Canonical pattern": nest <code>ptr_server(i,o,s,formula)</code> inside <em>your own</em> <code>shiny::moduleServer(id, …)</code>.</td><td><strong>No user-written <code>moduleServer</code>. No bare engine.</strong> Call the single <code>ptr_server(formula, id)</code> in the plain <code>server</code>; it namespaces internally and returns <code>state</code>.</td></tr>
+<tr><td>Two server entries to mention (<code>ptr_server()</code> / <code>ptr_module_server()</code>); a 4-arg form and a formula form.</td><td><strong>One</strong> public server entry: <code>ptr_server(formula, id = NULL, …)</code>. The old 4-arg engine is unexported <code>ptr_server_internal</code> — never mentioned to users.</td></tr>
+<tr><td>"Custom render is definitionally L3 because the enabling return value is at the L2 boundary…" (justification prose).</td><td>Custom render = <strong>extract components from the <code>state</code> returned by <code>ptr_server()</code></strong>: place your own widget at <code>NS(id)("x")</code>, write <code>output[[NS(id)("x")]] &lt;- renderPlotly(state$runtime()$plot)</code> at the top level. Still L3 (UI-side), not a server pattern, not a separate level.</td></tr>
+</table>
+
+<h2>2. Proposed rewritten prose (the parts that change)</h2>
+
+<h3>Heading + intro — lines 338–342</h3>
+<p><del>## L3 — Own the layout and the render path</del> → <ins>## L3 — Own the layout (UI-side split)</ins></p>
+<div class="rmd">
+<pre>## L3 — Own the layout (UI-side split)
+
+L3 is the level finer than L2: instead of one self-contained default-layout
+block, **every piece of ggpaintr's UI has its own bare exported function**
+(the `ptr_ui_&lt;x&gt;` half of the naming convention — emits only its widgets, no
+wrapper, no assets), so you can pick exactly the pieces you want and place
+each one anywhere in your own Shiny. **L3 is a UI-side split only — the
+server side does not change.** You still call the single public
+`ptr_server(formula, id)` exactly as at L2; the pieces write to / read from
+the same canonical ids it already targets, so a piece you never place is
+simply a no-op. And because `ptr_server()` **returns the `ptr_state`**, you
+can read the live plot/code/error off it and render them yourself.
+
+L3 owns one thing L2 does not: the **markup and placement** of every pane
+(including swapping a built-in pane for your own `plotly` / `ggiraph` /
+custom widget). The server is identical to L2 — there is no "render path"
+to own on the server, and no module wrapper to write.</pre>
+</div>
+
+<h3>Ids note — line 366</h3>
+<div class="rmd">
+<pre>Ids must line up: pass the same `id` to every piece and to `ptr_server(formula, id)`.
+A single embedding needs no `id` at all (`ptr_server(formula)`); you never write
+your own `shiny::moduleServer()` — `ptr_server()` does the namespacing for you.
+Hand-placing pieces makes id collisions most likely here, so keep the whole
+`ptr_`-prefixed top-level id set reserved — the full list and the namespacing
+note are the single source of truth in the *"How input ids are built"* section
+above (not duplicated here).</pre>
+</div>
+
+<h3>The render-path subsection — lines 460–484 (the biggest change)</h3>
+<p>Heading <del>#### Own the render path — custom renderers off <code>state</code> (L3)</del> → <ins>#### Custom renderers — read the plot off the returned <code>state</code> (L3)</ins>. The fake "canonical pattern" comment block (466–472) is <strong>replaced wholesale</strong>:</p>
+<div class="rmd">
+<pre>#### Custom renderers — read the plot off the returned `state` (L3)
+
+"I want my own renderer." `ptr_server()` **returns** the `ptr_state`, so you
+can swap ggpaintr's renderer for Plotly / ggiraph / any custom host. The
+runtime stays inside ggpaintr; you replace only the *output*. This is L3
+because it is a **UI-side** swap (you place your own output widget) — it is
+**not** a server pattern and there is no separate "render" level.
+
+**The canonical pattern**: place your output widget at `shiny::NS(id)(…)` in
+the UI, call the single `ptr_server(formula, id)` in your plain `server`
+function (it namespaces internally — you do **not** write a `moduleServer`),
+and bind your widget off the returned state:
+
+```r
+# UI:     plotly::plotlyOutput(shiny::NS("plot1")("my_plot"))
+#         + ptr_ui_controls(formula, "plot1")
+# server: state &lt;- ptr_server(formula, "plot1")
+#         output[[shiny::NS("plot1")("my_plot")]] &lt;-
+#           plotly::renderPlotly(state$runtime()$plot)
+```
+
+Because `ptr_server()` returns to your **top-level** server (it runs its own
+module session internally), Shiny does not auto-namespace your `output`
+assignment — wrap the id with `shiny::NS(id)()`, the same expression you used
+on the UI side. (Single embedding: omit the `id` and the `NS()` wrapper.)
+
+There are two reading paths off a `ptr_state`, and the choice depends on
+whether you are inside a reactive context:</pre>
+</div>
+<p>(The reactive-vs-isolate table at 476–480 is unchanged and still correct.)</p>
+
+<h4>Custom plot renderer prose — line 484</h4>
+<div class="rmd">
+<pre>Render `ptr_ui_controls(formula, id)` for the widgets, place your own output
+container at `shiny::NS(id)(...)`, and never place `ptr_ui_plot(id)` — with no
+UI slot bound to it the built-in `ptr_plot` output stays inert, so there is no
+bundled pane at all. The server is the canonical pattern above:
+`state &lt;- ptr_server(formula, id)` in your plain `server`, then bind your
+widget off `state$runtime()`.</pre>
+</div>
+<p>Chunk <code>l3-plotly</code> (486–511): only the rename change — <code>ptr_module_server(formula, "plot1")</code> → <code>ptr_server(formula, "plot1")</code> (line 502). Everything else (the <code>output[[shiny::NS("plot1")("custom_plot")]] &lt;- renderPlotly({ state$runtime() … })</code> body) already matches the new model.</p>
+
+<h4>Second-view paragraph — line 515</h4>
+<div class="rmd">
+<pre>If you would rather keep ggpaintr's chrome *and* add a second custom view,
+capture the state and render a second output off it — `ptr_ui(formula, "p")`
+in the UI plus `state &lt;- ptr_server(formula, "p")` in the server — but
+`ptr_ui()` always renders the bundled plot pane alongside your custom one.
+Use the bare-piece composition above when you want exactly one (custom) plot.</pre>
+</div>
+
+<h4>Custom code / error prose — lines 519, 531</h4>
+<p><del>Inside the same <code>moduleServer(id)</code> as the <code>state &lt;-</code> assignment above:</del> → <ins>In the same <code>server</code> function, after <code>state &lt;- ptr_server(formula, id)</code>:</ins> (both chunks <code>l3-code-pane</code> / <code>l3-error-ui</code> bodies unchanged; but their <code>output$my_code</code> / <code>output$my_status</code> should become <code>output[[shiny::NS(id)("my_code")]]</code> to match the top-level-namespacing rule — see Q2 below).</p>
+
+<h3>Shared-widgets-driving-custom-renderers — lines 567–610</h3>
+<p>Chunks <code>l3-shared</code> / <code>l3-pieces-shared</code>: rename only (<code>ptr_module_server</code>→<code>ptr_server</code> at 593–594, 634–635). Prose 569/608/610: drop the dead duality and the "each plot gets its own <code>moduleServer(id)</code>" phrasing — the per-plot namespacing now comes from <code>ptr_server(formula, id)</code> itself. Line 610's teaching (top-level call ⇒ wrap <code>output</code> with <code>NS(id)()</code>) is <strong>kept</strong> — it is correct and now applies to <code>ptr_server()</code> directly:</p>
+<div class="rmd">
+<pre>The coordinator feeds the per-plot `ptr_server()` calls; each returned `state`
+feeds your custom renderer. `ptr_shared_server(obj)` runs once at the top
+level (it is the one exception that is *not* `ptr_server`); its bundle is
+threaded into each `ptr_server(plots[[i]], "plot_i", shared_state = sh)`.
+
+`ptr_server()` namespaces each plot by its `id` internally and returns
+`state` to your top-level server. Because the call is at the top level,
+Shiny does not auto-namespace `output`: writing `output$custom` would bind
+the bare id `"custom"`, not the `"plot_1-custom"` the UI expects. Use
+`output[[shiny::NS(id)(name)]]` — the same id expression as the UI side.</pre>
+</div>
+
+<h2>3. Chunk-rename map (mechanical, inside otherwise-unchanged chunks)</h2>
+<table>
+<tr><th>Chunk / line</th><th>Old (broken — symbol gone)</th><th>New</th></tr>
+<tr><td>l3-pieces :386, l3-pieces-toggle :417, l3-decompose :452</td><td><code>ptr_module_server(formula)</code></td><td><code>ptr_server(formula)</code></td></tr>
+<tr><td>l3-plotly :502</td><td><code>ptr_module_server(formula, "plot1")</code></td><td><code>ptr_server(formula, "plot1")</code></td></tr>
+<tr><td>l3-shared :593–594, l3-pieces-shared :634–635</td><td><code>ptr_module_server(plots[[i]], …, shared_state = sh)</code></td><td><code>ptr_server(plots[[i]], …, shared_state = sh)</code></td></tr>
+<tr><td>prose :398, :423, :515</td><td><code>ptr_module_ui()</code> / <code>ptr_server()</code> duality</td><td><code>ptr_ui()</code> / single <code>ptr_server()</code></td></tr>
+<tr><td>comment block :466–472</td><td><code>moduleServer(...){ state &lt;- ptr_server(i,o,s,formula) }</code></td><td>replaced (see §2)</td></tr>
+</table>
+
+<h2>4. Fixture reconciliation (after you approve the prose)</h2>
+<p class="meta">Per project memory the fixture <code>app.R</code> "EXCEPT" header is the authoritative drift signal; I will read each before flattening.</p>
+<table>
+<tr><th>Fixture</th><th>Current line</th><th>Action</th></tr>
+<tr><td><code>l3-plotly/app.R</code> :20</td><td><code>state &lt;- ptr_server_internal(input, output, session, formula)</code> (drifted to the engine)</td><td>Bring to match corrected <code>l3-plotly</code> chunk: <code>state &lt;- ptr_server(formula, "plot1")</code> + top-level <code>output[[NS…]]</code>. Check EXCEPT header first.</td></tr>
+<tr><td><code>l3-pieces/app.R</code> :20</td><td><code>ptr_server_internal(input, output, session, formula)</code></td><td>→ <code>ptr_server(formula)</code> (matches l3-pieces chunk).</td></tr>
+<tr><td><code>l3-pieces-toggle/app.R</code> :26</td><td><code>ptr_server_internal(input, output, session, formula)</code></td><td>→ <code>ptr_server(formula)</code> (matches l3-pieces-toggle chunk).</td></tr>
+<tr><td>module-app, l2-shared(-partition), plotly-paintr, ggiraph-paintr, l3-gg-extra, grid-shared-partition</td><td>already <code>ptr_server(formula,id)</code>/<code>ptr_ui</code> post-rename</td><td>no change</td></tr>
+</table>
+<p>Then re-run the authoritative gate: <code>NOT_CRAN=true Rscript -e 'devtools::load_all("."); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code> — must show <strong>FAIL 0 / SKIP 0</strong> (SKIP 0 ⇒ the shinytest2 e2e actually ran the rewritten fixtures; a skipping harness does not count).</p>
+
+<h2>5. Open questions for you (before I touch the .Rmd)</h2>
+<ol>
+<li><strong>Heading wording.</strong> Proposed <code>## L3 — Own the layout (UI-side split)</code>. Alternative: <code>## L3 — Hand-compose the UI</code>. Preference?</li>
+<li><strong>Code/error chunk ids.</strong> <code>l3-code-pane</code>/<code>l3-error-ui</code> currently write <code>output$my_code</code> / <code>output$my_status</code> (bare ids). For consistency with the top-level-namespacing rule they should be <code>output[[shiny::NS(id)("my_code")]]</code>. Tighten them (my recommendation, correctness) or leave as-is (they are illustrative fragments, not full apps)?</li>
+<li><strong>Scope.</strong> Confirm the L1/L2 sections (1–337) stay untouched except the unavoidable <code>ptr_module_ui</code>/<code>ptr_module_server</code> rename (e.g. heading :196 "Module path — <code>ptr_module_ui()</code> / <code>ptr_module_server()</code>" → "Default-layout path — <code>ptr_ui()</code> / <code>ptr_server()</code>"). Or do you want L1/L2 reviewed too?</li>
+</ol>
+
+</body>
+</html>

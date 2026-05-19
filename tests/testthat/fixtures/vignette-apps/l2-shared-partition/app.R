@@ -2,7 +2,7 @@
 # this child app process so the e2e test exercises dev source, not a stale
 # system install. Everything below the >>> marker is verbatim-equivalent to
 # the named vignette chunk (factory <=> vignette equivalence, reviewable by
-# diff). The two `ptr_module_ui()` calls pass `shared = obj` (the W2 #B2
+# diff). The two `ptr_ui()` calls pass `shared = obj` (the W2 #B2
 # panel-key exclude) in BOTH the chunk and here, so the panel key `sz` is
 # rendered once (standalone panel only), never inline.
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
@@ -26,14 +26,14 @@ obj$panel_keys                       # "sz"
 ui <- shiny::fluidPage(
   ptr_shared_panel(obj),             # holds sz only
   shiny::fluidRow(
-    shiny::column(6, ptr_module_ui(plots[[1]], "plot_1", shared = obj)),  # ax1 inline here
-    shiny::column(6, ptr_module_ui(plots[[2]], "plot_2", shared = obj))   # ax2 inline here
+    shiny::column(6, ptr_ui(plots[[1]], "plot_1", shared = obj)),  # ax1 inline here
+    shiny::column(6, ptr_ui(plots[[2]], "plot_2", shared = obj))   # ax2 inline here
   )
 )
 server <- function(input, output, session) {
   sh <- ptr_shared_server(obj)
-  ptr_module_server(plots[[1]], "plot_1", shared_state = sh)
-  ptr_module_server(plots[[2]], "plot_2", shared_state = sh)
+  ptr_server(plots[[1]], "plot_1", shared_state = sh)
+  ptr_server(plots[[2]], "plot_2", shared_state = sh)
 }
 
 shiny::shinyApp(ui, server)

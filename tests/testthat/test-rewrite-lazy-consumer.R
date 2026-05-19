@@ -57,7 +57,7 @@ test_that("D6 build_ui receives the resolved upstream data frame", {
 
   e <- .lc_test_env()
   server <- function(input, output, session) {
-    session$userData$state <- ptr_server(
+    session$userData$state <- ptr_server_internal(
       input, output, session,
       "ggplot(mtcars, aes(x = captured_col))",
       envir = e

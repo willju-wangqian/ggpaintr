@@ -13,11 +13,11 @@ source("tests/manual/edge_cases/launchers/_setup.R")
 formula <- "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point(size = num)"
 
 ui <- fluidPage(
-  ptr_module_ui(formula, "m"),
+  ptr_ui(formula, "m"),
   plotOutput("user_plot", height = "300px")
 )
 server <- function(input, output, session) {
-  state <- ptr_module_server(formula, "m")
+  state <- ptr_server(formula, "m")
   output$user_plot <- renderPlot({
     res <- state$runtime()        # take the reactive dependency
     req(isTRUE(res$ok))

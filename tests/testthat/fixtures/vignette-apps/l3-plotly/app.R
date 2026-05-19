@@ -16,13 +16,11 @@ ui <- ptr_ui_page(
   )
 )
 server <- function(input, output, session) {
-  shiny::moduleServer("plot1", function(input, output, session) {
-    state <- ptr_server(input, output, session, formula)   # runtime wired; ptr_plot unbound = inert
-    output$custom_plot <- plotly::renderPlotly({
-      res <- state$runtime()
-      shiny::req(isTRUE(res$ok), res$plot)
-      plotly::ggplotly(res$plot)
-    })
+  state <- ptr_server(formula, "plot1")
+  output[[shiny::NS("plot1")("custom_plot")]] <- plotly::renderPlotly({
+    res <- state$runtime()
+    shiny::req(isTRUE(res$ok), res$plot)
+    plotly::ggplotly(res$plot)
   })
 }
 

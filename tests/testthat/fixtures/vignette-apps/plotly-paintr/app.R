@@ -29,13 +29,13 @@ formula <- "ggplot(data = mpg,
 
 ui <- fluidPage(
   fluidRow(
-    column(5, ptr_module_ui(formula, "plotly_demo")),
+    column(5, ptr_ui(formula, "plotly_demo")),
     column(7, plotly::plotlyOutput("interactive_plot", height = "500px"))
   )
 )
 
 server <- function(input, output, session) {
-  state <- ptr_module_server(formula, "plotly_demo")
+  state <- ptr_server(formula, "plotly_demo")
   output$interactive_plot <- plotly::renderPlotly({
     res <- state$runtime()
     shiny::req(isTRUE(res$ok), res$plot)

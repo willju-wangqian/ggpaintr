@@ -182,18 +182,18 @@ Uploaded data goes through the same normalization automatically; the manual call
 
 ## L2 — Embed in your own Shiny app
 
-L2 is "I already have a Shiny app and want to drop a ggpaintr-driven block somewhere inside it, keeping ggpaintr's default layout." The L2 surface is **self-contained** — every L2 function owns its own `.ptr-app` theme scope and bundled asset dependency, so it drops straight into a host page with no scaffolding (this is the `ptr_<x>` half of the naming convention; `ptr_ui_<x>` bare pieces are L3). There is exactly one default-layout block — the module pair — plus, for two or more linked plots, the shared trio:
+L2 is "I already have a Shiny app and want to drop a ggpaintr-driven block somewhere inside it, keeping ggpaintr's default layout." The L2 surface is **self-contained** — every L2 function owns its own `.ptr-app` theme scope and bundled asset dependency, so it drops straight into a host page with no scaffolding (this is the `ptr_<x>` half of the naming convention; `ptr_ui_<x>` bare pieces are L3). There is exactly one default-layout block — the self-contained `ptr_ui()` / `ptr_server()` pair — plus, for two or more linked plots, the shared trio:
 
 | L2 function | Role |
 |---|---|
-| `ptr_module_ui(formula, id = NULL)` / `ptr_module_server(formula, id = NULL)` | One self-contained default-layout block (sidebar controls + plot/code/error), namespaced by `id`. |
+| `ptr_ui(formula, id = NULL)` / `ptr_server(formula, id = NULL)` | One self-contained default-layout block (sidebar controls + plot/code/error), namespaced by `id`. |
 | `ptr_shared(formulas, …)` → `obj` | The shared **coordinator**: a pure object built once from the full formula set. Multi-instance only. |
 | `ptr_shared_panel(obj)` | The one standalone cross-formula shared panel (self-contained). |
 | `ptr_shared_server(obj)` | The reactive bundle threaded into each module via `shared_state =`. |
 
-There is **no** free-form controls-here / plot-there split at L2: the only default-layout block is the self-contained module pair. Placing the controls in one region and the plot in another — or replacing a built-in pane with your own renderer — is **L3** (own the layout / render path), covered below. L2 is strictly "default layout, dropped into your app."
+There is **no** free-form controls-here / plot-there split at L2: the only default-layout block is the self-contained `ptr_ui()` / `ptr_server()` pair. Placing the controls in one region and the plot in another — or replacing a built-in pane with your own renderer — is **L3** (own the layout — UI-side; the server stays the single `ptr_server()`), covered below. L2 is strictly "default layout, dropped into your app."
 
-### Module path — `ptr_module_ui()` / `ptr_module_server()`
+### Default-layout path — `ptr_ui()` / `ptr_server()`
 
 The compact option. Controls + outputs live next to each other inside the module's namespace. Note that `id` is not required if there is only one `ggpaintr` module.
 
@@ -202,16 +202,16 @@ formula <- "ggplot(iris, aes(var, var, color = var)) + geom_point()"
 
 ui <- shiny::fluidPage(
   shiny::titlePanel("My host app"),
-  ptr_module_ui(formula)
+  ptr_ui(formula)
 )
 server <- function(input, output, session) {
-  ptr_module_server(formula)
+  ptr_server(formula)
 }
 
 shiny::shinyApp(ui, server)
 ```
 
-`ptr_module_server()` returns the `ptr_state` from `ptr_init_state()` so embedders that want to react to it (e.g. call `ptr_gg_extra()`, read `ptr_extract_*()`) can capture it; otherwise the side effects are all that matter. `...` is forwarded to `ptr_init_state()` — so `ui_text =`, `checkbox_defaults =`, `expr_check =`, `safe_to_remove =`, and the shared-binding arguments are all available here too.
+`ptr_server()` returns the `ptr_state` from `ptr_init_state()` so embedders that want to react to it (e.g. call `ptr_gg_extra()`, read `ptr_extract_*()`) can capture it; otherwise the side effects are all that matter. `...` is forwarded to `ptr_init_state()` — so `ui_text =`, `checkbox_defaults =`, `expr_check =`, `safe_to_remove =`, and the shared-binding arguments are all available here too.
 
 ### Shared widgets: single instance vs. multiple instances
 
@@ -234,7 +234,7 @@ ptr_app(
 )
 ```
 
-`ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()` are **strictly multi-instance API** — a single-instance embedder never sees them. This is enforced, not just advised: `ptr_module_server()` given a `shared = "..."` formula with no coordinator wiring **errors on purpose**, telling you to build the coordinator. (One ggpaintr block driven entirely by one shared key is L1's `ptr_app()`, above; the module path is for *embedding alongside other instances*.)
+`ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()` are **strictly multi-instance API** — a single-instance embedder never sees them. This is enforced, not just advised: `ptr_server()` given a `shared = "..."` formula with no coordinator wiring **errors on purpose**, telling you to build the coordinator. (One ggpaintr block driven entirely by one shared key is L1's `ptr_app()`, above; the module path is for *embedding alongside other instances*.)
 
 - **Multiple instances** ⟹ you *must* build the coordinator once with `ptr_shared(formulas = list(…))`. It computes the partition: cross-formula keys (≥2 formulas) go to the one `ptr_shared_panel(obj)`; each formula's formula-local keys still render inline in that module. `obj` is a pure, non-reactive single source of truth, so the UI and server can never disagree about which key lives where.
 
@@ -245,7 +245,7 @@ When you embed two or more ggpaintr blocks in your own app and want one widget t
 - `ptr_shared(formulas, shared_ui = list(), ui_text = NULL, expr_check = TRUE, draw_all_label = "Draw all")` → `obj`. Pass the **same list of formula strings** you will hand to the modules. `shared_ui` maps each non-auto key to a `function(id) -> shiny.tag`; a `var(shared = "...")` consumer needs no entry (its picker is built for you), and a built-in `num`/`text` shared key also auto-builds if you omit it. `obj` carries the computed partition (`obj$panel_keys`, `obj$local_keys_by_formula`).
 - `ptr_shared_panel(obj, css = NULL)` — the **one** standalone panel, holding exactly `obj`'s cross-formula keys. Self-contained (owns its `.ptr-app` scope + assets); place it once, wherever you want on the page. `css =` is the L2 restyle hook (see `?ptr_app` / `?ptr_css`).
 - `ptr_shared_server(obj)` — call **once at the top level** of your server (never inside `moduleServer()`). Returns a `ptr_shared_state` bundle.
-- `ptr_module_server(formula, id, shared_state = <bundle>)` — pass the bundle to every per-plot module. Each module renders its own formula-local shared keys inline and reads the panel keys from the bundle.
+- `ptr_server(formula, id, shared_state = <bundle>)` — pass the bundle to every per-plot module. Each module renders its own formula-local shared keys inline and reads the panel keys from the bundle.
 
 ```{r l2-shared}
 plots <- list(
@@ -260,14 +260,14 @@ ui <- shiny::fluidPage(
   shiny::titlePanel("My host app"),
   ptr_shared_panel(obj),
   shiny::fluidRow(
-    shiny::column(6, ptr_module_ui(plots[[1]], "plot_1", shared = obj)),
-    shiny::column(6, ptr_module_ui(plots[[2]], "plot_2", shared = obj))
+    shiny::column(6, ptr_ui(plots[[1]], "plot_1", shared = obj)),
+    shiny::column(6, ptr_ui(plots[[2]], "plot_2", shared = obj))
   )
 )
 server <- function(input, output, session) {
   sh <- ptr_shared_server(obj)
-  ptr_module_server(plots[[1]], "plot_1", shared_state = sh)
-  ptr_module_server(plots[[2]], "plot_2", shared_state = sh)
+  ptr_server(plots[[1]], "plot_1", shared_state = sh)
+  ptr_server(plots[[2]], "plot_2", shared_state = sh)
 }
 
 shiny::shinyApp(ui, server)
@@ -296,14 +296,14 @@ obj$panel_keys                       # "sz"
 ui <- shiny::fluidPage(
   ptr_shared_panel(obj),             # holds sz only
   shiny::fluidRow(
-    shiny::column(6, ptr_module_ui(plots[[1]], "plot_1", shared = obj)),  # ax1 inline
-    shiny::column(6, ptr_module_ui(plots[[2]], "plot_2", shared = obj))   # ax2 inline
+    shiny::column(6, ptr_ui(plots[[1]], "plot_1", shared = obj)),  # ax1 inline
+    shiny::column(6, ptr_ui(plots[[2]], "plot_2", shared = obj))   # ax2 inline
   )
 )
 server <- function(input, output, session) {
   sh <- ptr_shared_server(obj)
-  ptr_module_server(plots[[1]], "plot_1", shared_state = sh)
-  ptr_module_server(plots[[2]], "plot_2", shared_state = sh)
+  ptr_server(plots[[1]], "plot_1", shared_state = sh)
+  ptr_server(plots[[2]], "plot_2", shared_state = sh)
 }
 
 shiny::shinyApp(ui, server)
@@ -311,7 +311,7 @@ shiny::shinyApp(ui, server)
 
 ### How input ids are built — and how to avoid colliding with them
 
-The framework names every widget it emits from the formula's syntax, so the same formula always produces the same ids. When you mix ggpaintr UI with your own widgets in the same Shiny namespace, the cleanest fix is to wrap the embed in `ptr_module_ui()` / `ptr_module_server()` with a unique `id` — everything ggpaintr emits then lives under `<id>-…` and your top-level inputs cannot collide. If you can't namespace, the surface to avoid is:
+The framework names every widget it emits from the formula's syntax, so the same formula always produces the same ids. When you mix ggpaintr UI with your own widgets in the same Shiny namespace, the cleanest fix is to wrap the embed in `ptr_ui()` / `ptr_server()` with a unique `id` — everything ggpaintr emits then lives under `<id>-…` and your top-level inputs cannot collide. If you can't namespace, the surface to avoid is:
 
 **Layer names.** Each top-level call in the formula contributes a layer name equal to the function being called (`ggplot`, `geom_point`, `facet_wrap`, …). Repeats get `-2`, `-3`, … suffixes:
 
@@ -333,13 +333,13 @@ The framework names every widget it emits from the formula's syntax, so the same
 
 **Top-level package-owned ids.** The framework writes to a fixed set of `ptr_`-prefixed top-level ids and they are **not** user-configurable: `ptr_plot` (plotOutput), `ptr_error` (uiOutput), `ptr_code` (verbatimTextOutput), `ptr_update_plot` (draw button), the cross-formula panel ids `ptr_shared_draw_all` / `ptr_shared_errors`, plus internal layer-nav inputs `ptr_layer_select` / `ptr_layer_tabset`. Treat the whole `ptr_` prefix as reserved.
 
-> Rule of thumb: in a host app's top-level namespace, don't author Shiny inputs or outputs whose ids start with `ptr_`, or match `<layer-name-from-your-formula>_…`. If that feels brittle, wrap the embed in `ptr_module_ui()` / `ptr_module_server()` with a unique `id` and the collision surface disappears entirely.
+> Rule of thumb: in a host app's top-level namespace, don't author Shiny inputs or outputs whose ids start with `ptr_`, or match `<layer-name-from-your-formula>_…`. If that feels brittle, wrap the embed in `ptr_ui()` / `ptr_server()` with a unique `id` and the collision surface disappears entirely.
 
-## L3 — Own the layout and the render path
+## L3 — Own the layout (UI-side split)
 
-L3 is the level finer than L2: instead of one self-contained default-layout block, **every piece of ggpaintr's UI has its own bare exported function** (the `ptr_ui_<x>` half of the naming convention — emits only its widgets, no wrapper, no assets), so you can pick exactly the pieces you want, place each one anywhere in your own Shiny, and — because the server returns the `ptr_state` — swap ggpaintr's renderer for your own. The server contract is unchanged from L2: the pieces write to / read from the same canonical ids `ptr_server()` already targets, so a piece you never place is simply a no-op.
+L3 is the level finer than L2: instead of one self-contained default-layout block, **every piece of ggpaintr's UI has its own bare exported function** (the `ptr_ui_<x>` half of the naming convention — emits only its widgets, no wrapper, no assets), so you can pick exactly the pieces you want and place each one anywhere in your own Shiny. **L3 is a UI-side split only — the server side does not change.** You still call the single public `ptr_server(formula, id)` exactly as at L2; the pieces write to / read from the same canonical ids it already targets, so a piece you never place is simply a no-op. And because `ptr_server()` **returns the `ptr_state`**, you can read the live plot/code/error off it and render them yourself.
 
-L3 owns two things L2 does not: the **markup and placement** of every pane, and the **render path** (your own `plotly` / `ggiraph` / custom renderer off `state`). Both are covered below.
+L3 owns one thing L2 does not: the **markup and placement** of every pane (including swapping a built-in pane for your own `plotly` / `ggiraph` / custom widget). The server is identical to L2 — there is no "render path" to own on the server, and no module wrapper to write.
 
 ### The bare pieces and combinators
 
@@ -361,9 +361,9 @@ The pieces are **truly orthogonal** — they take an `id` (and, where relevant, 
 Two facts shape how the bare pieces behave:
 
 1. **`ptr_ui_page()` is the only scaffolding to remember — and it is optional.** ggpaintr's controls use a `shinyWidgets::pickerInput()` and the Bootstrap grid, which need Bootstrap's own CSS/JS — Shiny loads those only when the outermost UI object is a Bootstrap page builder. Separately, the bundled theme is scoped under a single `.ptr-app`, and the pieces are deliberately bare (a per-piece self-wrap would stack N×`100vh` of empty background when pieces are vertical siblings). `ptr_ui_page()` resolves both at once: it *is* the Bootstrap page and owns the single `.ptr-app` scope + the deduped assets. You may instead write your own bare Shiny — but then you own that scaffolding (the `navbarPage`/bslib recipe below shows exactly what to reproduce).
-2. **Combinators add behaviour; flags do not.** A standalone `ptr_ui_code()` is a plain, always-visible panel that needs no wiring. The inline error and the draggable slide-out code window are produced by composing pieces through `ptr_ui_inline_error()` and `ptr_ui_toggle_code()` — they are pure DOM-structure helpers with no server coupling (the server registers `ptr_plot`/`ptr_error`/`ptr_code` regardless). They **nest**: `ptr_ui_toggle_code(ptr_ui_inline_error(ptr_ui_plot(id), ptr_ui_error(id)), ptr_ui_code(id))` is byte-for-byte the output block `ptr_app()` and `ptr_module_ui()` render internally.
+2. **Combinators add behaviour; flags do not.** A standalone `ptr_ui_code()` is a plain, always-visible panel that needs no wiring. The inline error and the draggable slide-out code window are produced by composing pieces through `ptr_ui_inline_error()` and `ptr_ui_toggle_code()` — they are pure DOM-structure helpers with no server coupling (the server registers `ptr_plot`/`ptr_error`/`ptr_code` regardless). They **nest**: `ptr_ui_toggle_code(ptr_ui_inline_error(ptr_ui_plot(id), ptr_ui_error(id)), ptr_ui_code(id))` is byte-for-byte the output block `ptr_app()` and `ptr_ui()` render internally.
 
-Ids must line up: pass the same `id` to every piece and to the server (a `shiny::moduleServer(id, …)` wrapping `ptr_server()`, or `ptr_module_server(formula, id = NULL, …)`). The single-embedding case needs neither the `id` nor the wrapper. Hand-placing pieces makes id collisions most likely here, so keep the whole `ptr_`-prefixed top-level id set reserved — the full list and the namespacing fix are the single source of truth in the *"How input ids are built"* section above (not duplicated here).
+Ids must line up: pass the same `id` to every piece and to `ptr_server(formula, id)`. A single embedding needs no `id` at all (`ptr_server(formula)`); you never write your own `shiny::moduleServer()` — `ptr_server()` does the namespacing for you. Hand-placing pieces makes id collisions most likely here, so keep the whole `ptr_`-prefixed top-level id set reserved — the full list and the namespacing fix are the single source of truth in the *"How input ids are built"* section above (not duplicated here).
 
 ### A fully hand-laid-out page
 
@@ -383,7 +383,7 @@ ui <- ptr_ui_page(                          # Bootstrap page + single .ptr-app +
   #   (carries its own "Generated code" header)
 )
 server <- function(input, output, session) {
-  ptr_module_server(formula)   # binds ptr_plot / ptr_error / ptr_code
+  ptr_server(formula)   # binds ptr_plot / ptr_error / ptr_code
 }
 
 shiny::shinyApp(ui, server)
@@ -395,7 +395,7 @@ Swap the page builder with `page =` when you want a different Bootstrap-3 root �
 
 ### The familiar slide-out code window — the combinator recipe
 
-Want the slide-out code window and inline error while still owning the surrounding layout? Compose the pieces with the two combinators — this nested call is exactly what `ptr_app()` / `ptr_module_ui()` render internally, so behaviour and performance match the all-in-one path:
+Want the slide-out code window and inline error while still owning the surrounding layout? Compose the pieces with the two combinators — this nested call is exactly what `ptr_app()` / `ptr_ui()` render internally, so behaviour and performance match the all-in-one path:
 
 ```{r l3-pieces-toggle}
 formula <- "ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"
@@ -414,7 +414,7 @@ ui <- ptr_ui_page(
 )
 # server unchanged
 server <- function(input, output, session) {
-  ptr_module_server(formula)  
+  ptr_server(formula)  
 }
 
 shiny::shinyApp(ui, server)
@@ -449,7 +449,7 @@ ui <- shiny::navbarPage(
 )
 # server unchanged
 server <- function(input, output, session) {
-  ptr_module_server(formula)   
+  ptr_server(formula)   
 }
 
 shiny::shinyApp(ui, server)
@@ -457,19 +457,21 @@ shiny::shinyApp(ui, server)
 
 This is exactly the body of `ptr_ui_page()` (`page(ptr_ui_assets(css), div(class = "ptr-app", …))`) inlined into the one tab — so it doubles as a transparent view of what the shell does for you. Keep `ptr_ui_assets()` and the `.ptr-app` wrapper *inside* each tab that hosts ggpaintr pieces; the asset bundle is self-deduping (htmlDependency), so repeating it across tabs costs nothing.
 
-### Own the render path — custom renderers off `state` (L3)
+### Custom renderers — read the plot off the returned `state` (L3)
 
-"I want my own renderer." Both `ptr_server()` and `ptr_module_server()` **return** the `ptr_state`, so you can swap ggpaintr's renderer for Plotly / ggiraph / any custom host. The runtime stays inside ggpaintr; you replace only the *output*. Owning the render path is definitionally L3 (the *enabling* return value lives at the L2 server boundary, but using it to replace a pane is owning the render path).
+"I want my own renderer." `ptr_server()` **returns** the `ptr_state`, so you can swap ggpaintr's renderer for Plotly / ggiraph / any custom host. The runtime stays inside ggpaintr; you replace only the *output*. This is L3 because it is a **UI-side** swap (you place your own output widget) — it is **not** a server pattern and there is no separate "render" level.
 
-**The canonical pattern** nests `ptr_server()` inside *your own* `shiny::moduleServer(id, …)`, and places your output widget at `shiny::NS(id)(…)` in the UI. Namespacing is then automatic and plain-Shiny-idiomatic — you never touch any internal namespace plumbing:
+**The canonical pattern**: place your output widget at `shiny::NS(id)(…)` in the UI, call the single `ptr_server(formula, id)` in your plain `server` function (it namespaces internally — you do **not** write a `moduleServer`), and bind your widget off the returned state:
 
 ```r
-# UI:     plotly::plotlyOutput(shiny::NS("plot1")("my_plot"))   + ptr_ui_controls(formula, "plot1")
-# server: shiny::moduleServer("plot1", function(input, output, session) {
-#           state <- ptr_server(input, output, session, formula)
-#           output$my_plot <- plotly::renderPlotly({ ... state$runtime() ... })
-#         })
+# UI:     plotly::plotlyOutput(shiny::NS("plot1")("my_plot"))
+#         + ptr_ui_controls(formula, "plot1")
+# server: state <- ptr_server(formula, "plot1")
+#         output[[shiny::NS("plot1")("my_plot")]] <-
+#           plotly::renderPlotly(state$runtime()$plot)
 ```
+
+Because `ptr_server()` returns to your **top-level** server (it runs its own module session internally), Shiny does not auto-namespace your `output` assignment — wrap the id with `shiny::NS(id)()`, the same expression you used on the UI side. (Single embedding: omit the `id` and the `NS()` wrapper.)
 
 There are two reading paths off a `ptr_state`, and the choice depends on whether you are inside a reactive context:
 
@@ -481,7 +483,7 @@ Mixing the two in a render block — calling `ptr_extract_plot(state)` inside `r
 
 #### Custom plot renderer — `state$runtime()$plot` inside `renderPlotly()`
 
-Render `ptr_ui_controls(formula, id)` for the widgets, place your own output container at `shiny::NS(id)(...)`, and never place `ptr_ui_plot(id)` — with no UI slot bound to it the built-in `ptr_plot` output stays inert, so there is no bundled pane at all. The server is the canonical pattern: `ptr_server()` inside your own `moduleServer(id)`.
+Render `ptr_ui_controls(formula, id)` for the widgets, place your own output container at `shiny::NS(id)(...)`, and never place `ptr_ui_plot(id)` — with no UI slot bound to it the built-in `ptr_plot` output stays inert, so there is no bundled pane at all. The server is the canonical pattern above: `state <- ptr_server(formula, id)` in your plain `server`, then bind your widget off `state$runtime()`.
 
 ```{r l3-plotly}
 formula <- "ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"
@@ -499,7 +501,7 @@ ui <- ptr_ui_page(
 )
 
 server <- function(input, output, session) {
-  state <- ptr_module_server(formula, "plot1")
+  state <- ptr_server(formula, "plot1")
   output[[shiny::NS("plot1")("custom_plot")]] <- plotly::renderPlotly({
     res <- state$runtime()
     shiny::req(isTRUE(res$ok), res$plot)
@@ -512,14 +514,14 @@ shiny::shinyApp(ui, server)
 
 `req(isTRUE(res$ok), res$plot)` keeps the panel quiet between draws and on transient error states. `vignette("ggpaintr-gallery")` §5 *Interactive output packages* is the canonical worked-example reference for this pattern — the full plotly and ggiraph setups end-to-end, including the ggiraph variant with click handling and a custom-placeholder colour picker. The chunk above is the minimal scaffold; gallery §5 is the runnable recipe.
 
-If you would rather keep ggpaintr's chrome *and* add a second custom view, capture the module's state and render a second output off it — `ptr_module_ui(formula, "p")` in the UI plus `state <- ptr_module_server(formula, "p")` in the server — but `ptr_module_ui()` always renders the bundled plot pane alongside your custom one. Use the bare-piece composition above when you want exactly one (custom) plot.
+If you would rather keep ggpaintr's chrome *and* add a second custom view, capture the module's state and render a second output off it — `ptr_ui(formula, "p")` in the UI plus `state <- ptr_server(formula, "p")` in the server — but `ptr_ui()` always renders the bundled plot pane alongside your custom one. Use the bare-piece composition above when you want exactly one (custom) plot.
 
 #### Custom code panel
 
-Bind to `state$runtime()` inside `renderText({...})` and pull `code_text` off it. Inside the same `moduleServer(id)` as the `state <-` assignment above:
+Bind to `state$runtime()` inside `renderText({...})` and pull `code_text` off it. In the same `server` function, after `state <- ptr_server(formula, "plot1")` (top-level call ⇒ wrap the output id with `shiny::NS(id)()`, exactly as on the UI side):
 
 ```{r l3-code-pane}
-output$my_code <- shiny::renderText({
+output[[shiny::NS("plot1")("my_code")]] <- shiny::renderText({
   state$runtime()$code_text %||% ""
 })
 ```
@@ -528,10 +530,10 @@ For non-reactive contexts (a download handler, a snapshot test), use the public 
 
 #### Custom error UI
 
-`state$runtime()$error` is the latest runtime error string (or `NULL` when the last cycle succeeded). Inside the same `moduleServer(id)`:
+`state$runtime()$error` is the latest runtime error string (or `NULL` when the last cycle succeeded). In the same `server` function, after `state <- ptr_server(formula, "plot1")`:
 
 ```{r l3-error-ui}
-output$my_status <- shiny::renderUI({
+output[[shiny::NS("plot1")("my_status")]] <- shiny::renderUI({
   msg <- state$runtime()$error
   if (is.null(msg)) shiny::tags$div(class = "status-ok", "Plot is up to date")
   else              shiny::tags$div(class = "status-error", msg)
@@ -549,11 +551,11 @@ formula <- "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()"
 
 ui <- shiny::fluidPage(
   shiny::actionButton("add_log", "Toggle log-scale"),
-  ptr_module_ui(formula)
+  ptr_ui(formula)
 )
 
 server <- function(input, output, session) {
-  state <- ptr_module_server(formula)
+  state <- ptr_server(formula)
   shiny::observeEvent(input$add_log, {
     ptr_gg_extra(state, ggplot2::scale_x_log10())
   })
@@ -566,7 +568,7 @@ Eval errors from the captured expressions leave the existing extras untouched (a
 
 #### Shared widgets driving custom renderers
 
-Combine the multi-instance shared coordinator with custom outputs: one `ptr_shared_server(obj)` bundle feeds every module's `ptr_server()`, and each module's returned `state` feeds its own `plotly::renderPlotly()`. Each plot gets its own `moduleServer(id)` so the per-placeholder ids never collide; the cross-formula key lives in the standalone `ptr_ui_shared_panel(obj)` (its keys are excluded from each `ptr_ui_controls(formula, id, shared = obj)`).
+Combine the multi-instance shared coordinator with custom outputs: one `ptr_shared_server(obj)` bundle feeds every per-plot `ptr_server()`, and each returned `state` feeds its own `plotly::renderPlotly()`. Each `ptr_server(formula, id)` namespaces its plot by `id` internally so the per-placeholder ids never collide; the cross-formula key lives in the standalone `ptr_ui_shared_panel(obj)` (its keys are excluded from each `ptr_ui_controls(formula, id, shared = obj)`).
 
 ```{r l3-shared}
 plots <- list(
@@ -590,8 +592,8 @@ ui <- ptr_ui_page(
 )
 server <- function(input, output, session) {
   sh <- ptr_shared_server(obj)                               # top level, once
-  state1 <- ptr_module_server(plots[[1]], "plot_1", shared_state = sh)
-  state2 <- ptr_module_server(plots[[2]], "plot_2", shared_state = sh)
+  state1 <- ptr_server(plots[[1]], "plot_1", shared_state = sh)
+  state2 <- ptr_server(plots[[2]], "plot_2", shared_state = sh)
   output[[shiny::NS("plot_1")("custom")]] <- plotly::renderPlotly({
     res <- state1$runtime(); shiny::req(isTRUE(res$ok), res$plot)
     plotly::ggplotly(res$plot)
@@ -605,9 +607,9 @@ server <- function(input, output, session) {
 shiny::shinyApp(ui, server)
 ```
 
-The coordinator feeds the modules; the modules feed your custom renderers. `ptr_shared_server(obj)` runs once at the top level (never inside `moduleServer()`); its bundle is threaded into each plot's `ptr_module_server()` via `shared_state =`.
+The coordinator feeds the per-plot `ptr_server()` calls; each returned `state` feeds your custom renderer. `ptr_shared_server(obj)` runs once at the top level (it is the one piece that is *not* `ptr_server`); its bundle is threaded into each `ptr_server(plots[[i]], "plot_i", shared_state = sh)`.
 
-`ptr_module_server()` returns `state` just like `ptr_server()`. Because the call is at the top-level server (not inside a `moduleServer()` closure), Shiny does **not** auto-namespace `output`: writing `output$custom` here would bind to the bare id `"custom"`, not the namespaced `"plot_1-custom"` the UI expects. Use `output[[shiny::NS(id)(name)]]` to apply the namespace explicitly — the same id expression you used on the UI side.
+`ptr_server()` namespaces each plot by its `id` internally and returns `state` to your top-level server. Because the call is at the top level, Shiny does **not** auto-namespace `output`: writing `output$custom` here would bind to the bare id `"custom"`, not the namespaced `"plot_1-custom"` the UI expects. Use `output[[shiny::NS(id)(name)]]` to apply the namespace explicitly — the same id expression you used on the UI side.
 
 ### L3 with shared widgets — default panes
 
@@ -631,8 +633,8 @@ ui <- ptr_ui_page(
 )
 server <- function(input, output, session) {
   sh <- ptr_shared_server(obj)
-  ptr_module_server(plots[[1]], "p1", shared_state = sh)
-  ptr_module_server(plots[[2]], "p2", shared_state = sh)
+  ptr_server(plots[[1]], "p1", shared_state = sh)
+  ptr_server(plots[[2]], "p2", shared_state = sh)
 }
 
 shiny::shinyApp(ui, server)

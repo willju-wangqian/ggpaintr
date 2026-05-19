@@ -28,13 +28,13 @@ test_that("S-P2.D exactly one #shared_B; #shared_A only under its module", {
 
   ui <- shiny::fluidPage(
     ptr_shared_panel(obj),
-    ptr_module_ui(f1, "p1"),
-    ptr_module_ui(f2, "p2")
+    ptr_ui(f1, "p1"),
+    ptr_ui(f2, "p2")
   )
   server <- function(input, output, session) {
     ss <- ptr_shared_server(obj, envir = e)
-    ptr_module_server(f1, "p1", envir = e, shared_state = ss)
-    ptr_module_server(f2, "p2", envir = e, shared_state = ss)
+    ptr_server(f1, "p1", envir = e, shared_state = ss)
+    ptr_server(f2, "p2", envir = e, shared_state = ss)
   }
   # shinytest2 statically scans the server fn for globals; it trips on
   # ggpaintr's recursive tree-walk locals (e.g. `rec`) and warns

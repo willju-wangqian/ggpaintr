@@ -55,7 +55,7 @@ test_that("ptr_ui_code rejects an unknown style", {
 # ---- output combinators: ptr_ui_inline_error / ptr_ui_toggle_code ----
 # ptr_ui_code_toggle is deleted; the bundled .ptr-output block is now
 # composed from bare pieces + these combinators. (Step 05 rebuilds
-# ptr_module_ui/ptr_outputs_ui on this same composition.)
+# ptr_ui/ptr_outputs_ui on this same composition.)
 
 test_that("ptr_ui_inline_error nests the error slot inline in the plot card", {
   ui <- ptr_ui_inline_error(ptr_ui_plot("p"), ptr_ui_error("p"))
@@ -161,11 +161,11 @@ test_that("ptr_ui_controls emits control ids with NO .ptr-app wrapper or assets"
   expect_no_match(rendered, "ggpaintr.css")
 })
 
-test_that("ptr_module_ui self-wraps in .ptr-app and carries the bundle", {
+test_that("ptr_ui self-wraps in .ptr-app and carries the bundle", {
   # Post-redesign successor of the removed self-wrapped ptr_controls_ui
-  # composite: the assets+wrapper contract now lives in ptr_module_ui
+  # composite: the assets+wrapper contract now lives in ptr_ui
   # (bare L3 pieces are assetless — asserted just above).
-  rendered <- render_with_deps(ptr_module_ui(fml, "x"))
+  rendered <- render_with_deps(ptr_ui(fml, "x"))
   expect_match(rendered, "x-ptr_update_plot", fixed = TRUE)
   expect_match(rendered, "/ggpaintr.css\"", fixed = TRUE)  # carries assets
   expect_match(rendered, "ptr-app", fixed = TRUE)          # self-wraps
@@ -221,7 +221,7 @@ test_that("ptr_ui_controls with no shared placeholders renders no section", {
 # `ptr-app--page` modifier. Only the standalone entrypoints (ptr_app /
 # ptr_app_grid) add it. Everything designed to embed in a host app -- the
 # region halves (ptr_controls_ui/ptr_outputs_ui/ptr_shared_ui),
-# ptr_module_ui, ptr_ui_page -- stays bare `.ptr-app` so it sizes to its
+# ptr_ui, ptr_ui_page -- stays bare `.ptr-app` so it sizes to its
 # content instead of stretching the host's column/sidebar floor-to-ceiling.
 
 test_that("ptr_ui_page stays bare .ptr-app so it embeds (no --page canvas)", {
@@ -230,17 +230,17 @@ test_that("ptr_ui_page stays bare .ptr-app so it embeds (no --page canvas)", {
   expect_no_match(html, "ptr-app--page", fixed = TRUE)
 })
 
-test_that("ptr_module_ui stays bare .ptr-app so it embeds (no --page canvas)", {
-  # Step 05: ptr_module_ui rebuilt on the L3 combinators + its own
+test_that("ptr_ui stays bare .ptr-app so it embeds (no --page canvas)", {
+  # Step 05: ptr_ui rebuilt on the L3 combinators + its own
   # self-contained shell, so this assertion is restored (skip removed).
-  html <- render_with_deps(ptr_module_ui(fml, "m"))
+  html <- render_with_deps(ptr_ui(fml, "m"))
   expect_match(html, 'class="ptr-app"', fixed = TRUE)
   expect_no_match(html, "ptr-app--page", fixed = TRUE)
 })
 
 test_that("ptr_app is standalone -> carries ptr-app--page", {
   # ptr_app_components() builds via ptr_outputs_panel() (unaffected here).
-  # The ptr_app_grid half composes ptr_module_ui() -> ptr_outputs_ui() ->
+  # The ptr_app_grid half composes ptr_ui() -> ptr_outputs_ui() ->
   # deleted ptr_ui_code_toggle; Step 05/06 restore the grid assertion.
   app <- render_with_deps(ptr_app_components(fml)$ui)
   expect_match(app, "ptr-app--page", fixed = TRUE)
@@ -297,12 +297,12 @@ test_that("ptr_ui_page css= threads through and links after ggpaintr.css", {
 
 test_that("htmlDependency dedupes a page nesting several asset emitters", {
   # Grid-like: the shell injects ptr_assets() once, and each self-wrapping
-  # ptr_module_ui() injects it again. htmltools must collapse every
+  # ptr_ui() injects it again. htmltools must collapse every
   # ggpaintr dependency to a single <head> injection.
   ui <- ptr_ui_page(
     shiny::fluidRow(
-      shiny::column(6, ptr_module_ui(fml, "a")),
-      shiny::column(6, ptr_module_ui(fml, "b"))
+      shiny::column(6, ptr_ui(fml, "a")),
+      shiny::column(6, ptr_ui(fml, "b"))
     )
   )
   html <- render_with_deps(ui)
@@ -317,7 +317,7 @@ test_that("ptr_register_* are not exported (dead post-rewrite surface)", {
   expect_false("ptr_register_plot" %in% exports)
   expect_false("ptr_register_error" %in% exports)
   expect_false("ptr_register_code" %in% exports)
-  # but they still exist internally (ptr_server's sole caller)
+  # but they still exist internally (ptr_server_internal's sole caller)
   expect_true(is.function(ggpaintr:::ptr_register_plot))
 })
 
@@ -349,9 +349,9 @@ test_that("ptr_ui_header renders the branded header; default title is ggpaintr",
   expect_match(as.character(ptr_ui_header()), "ggpaintr")
 })
 
-# ---- ptr_server(shared_state = ...) ----
+# ---- ptr_server_internal(shared_state = ...) ----
 
-test_that("ptr_server accepts a ptr_shared_server() bundle via shared_state", {
+test_that("ptr_server_internal accepts a ptr_shared_server() bundle via shared_state", {
   # Step 02 changed ptr_shared_server() to take a ptr_shared() spec, not
   # (formulas, envir=). Step 10 brings this onto the new coordinator API.
   formulas <- c(
@@ -361,7 +361,7 @@ test_that("ptr_server accepts a ptr_shared_server() bundle via shared_state", {
   expect_silent({
     server <- function(input, output, session) {
       shared <- ptr_shared_server(ptr_shared(formulas), envir = globalenv())
-      ptr_server(
+      ptr_server_internal(
         input, output, session,
         formula = formulas[[1]],
         envir = globalenv(),
@@ -372,11 +372,11 @@ test_that("ptr_server accepts a ptr_shared_server() bundle via shared_state", {
   })
 })
 
-test_that("ptr_server rejects a non-ptr_shared_state shared_state", {
+test_that("ptr_server_internal rejects a non-ptr_shared_state shared_state", {
   expect_error(
     {
       server <- function(input, output, session) {
-        ptr_server(
+        ptr_server_internal(
           input, output, session,
           formula = fml,
           shared_state = list(shared = list(), draw_trigger = NULL)

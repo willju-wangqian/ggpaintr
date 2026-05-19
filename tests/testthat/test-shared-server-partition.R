@@ -3,13 +3,13 @@
 # cross-formula (panel) keys; formula-local keys are bound by each module
 # itself. These are correctness-invariant tests, not feature tests.
 #
-# The lockstep scenarios wire `ptr_shared_server()` + two `ptr_module_server`
+# The lockstep scenarios wire `ptr_shared_server()` + two `ptr_server`
 # modules by hand (NOT via `ptr_app_grid`, whose coordinator routing is a
 # later step) and drive them through an app-level `shiny::testServer()`.
-# Per project memory a bare `ptr_server` testServer is not a faithful proxy
+# Per project memory a bare `ptr_server_internal` testServer is not a faithful proxy
 # for the real wiring, so the host server function below mirrors what an
 # embedder writes. Each module's returned `ptr_state` is captured by
-# shimming `ptr_module_server` in the package namespace (same technique as
+# shimming `ptr_server` in the package namespace (same technique as
 # test-shared-stage-checkbox.R's grid end-to-end test).
 
 f1 <- 'ggplot(mtcars) + geom_point(aes(x = var(shared = "B"), y = mpg), size = num(shared = "A"))'
@@ -44,20 +44,20 @@ test_that("S-P2.1 cross-formula key drives both plots in lockstep, one source", 
   obj <- ptr_shared(formulas = list(f1, f2))
 
   module_states <- new.env(parent = emptyenv())
-  orig_ms <- getFromNamespace("ptr_module_server", "ggpaintr")
+  orig_ms <- getFromNamespace("ptr_server", "ggpaintr")
   capt_ms <- function(formula, id = NULL, ...) {
     res <- orig_ms(formula, id, ...)
     module_states[[id]] <- res
     res
   }
-  assignInNamespace("ptr_module_server", capt_ms, "ggpaintr")
-  withr::defer(assignInNamespace("ptr_module_server", orig_ms, "ggpaintr"))
+  assignInNamespace("ptr_server", capt_ms, "ggpaintr")
+  withr::defer(assignInNamespace("ptr_server", orig_ms, "ggpaintr"))
 
   server <- function(input, output, session) {
     ss <- ggpaintr::ptr_shared_server(obj, envir = globalenv())
     session$userData$ss <- ss
-    ggpaintr::ptr_module_server(f1, "p1", envir = globalenv(), shared_state = ss)
-    ggpaintr::ptr_module_server(f2, "p2", envir = globalenv(), shared_state = ss)
+    ggpaintr::ptr_server(f1, "p1", envir = globalenv(), shared_state = ss)
+    ggpaintr::ptr_server(f2, "p2", envir = globalenv(), shared_state = ss)
   }
 
   shiny::testServer(server, {
@@ -91,20 +91,20 @@ test_that("S-P2.2 formula-local key is module-scoped, not panel-owned", {
   obj <- ptr_shared(formulas = list(f1, f2))
 
   module_states <- new.env(parent = emptyenv())
-  orig_ms <- getFromNamespace("ptr_module_server", "ggpaintr")
+  orig_ms <- getFromNamespace("ptr_server", "ggpaintr")
   capt_ms <- function(formula, id = NULL, ...) {
     res <- orig_ms(formula, id, ...)
     module_states[[id]] <- res
     res
   }
-  assignInNamespace("ptr_module_server", capt_ms, "ggpaintr")
-  withr::defer(assignInNamespace("ptr_module_server", orig_ms, "ggpaintr"))
+  assignInNamespace("ptr_server", capt_ms, "ggpaintr")
+  withr::defer(assignInNamespace("ptr_server", orig_ms, "ggpaintr"))
 
   server <- function(input, output, session) {
     ss <- ggpaintr::ptr_shared_server(obj, envir = globalenv())
     session$userData$ss <- ss
-    ggpaintr::ptr_module_server(f1, "p1", envir = globalenv(), shared_state = ss)
-    ggpaintr::ptr_module_server(f2, "p2", envir = globalenv(), shared_state = ss)
+    ggpaintr::ptr_server(f1, "p1", envir = globalenv(), shared_state = ss)
+    ggpaintr::ptr_server(f2, "p2", envir = globalenv(), shared_state = ss)
   }
 
   shiny::testServer(server, {
@@ -184,9 +184,9 @@ test_that("S-P2.4 canonical f1=A+A+B / f2=C+C+B end-to-end via the coordinator",
     envir = new.env(parent = baseenv())
   )
   ms <- new.env(parent = emptyenv())
-  orig_ms <- ggpaintr:::ptr_module_server
+  orig_ms <- ggpaintr:::ptr_server
   testthat::local_mocked_bindings(
-    ptr_module_server = function(formula, id = NULL, ...) {
+    ptr_server = function(formula, id = NULL, ...) {
       r <- orig_ms(formula, id, ...)
       ms[[id]] <- r
       r

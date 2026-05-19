@@ -87,7 +87,7 @@ test_that("BUG-A1: aes `var` pickers refresh through pds -> diamonds -> colvars 
   ), src_kw, cv_kw)
 
   shiny::testServer(function(input, output, session) {
-    st <- ptr_server(input, output, session, formula, expr_check = FALSE)
+    st <- ptr_server_internal(input, output, session, formula, expr_check = FALSE)
     session$userData$state <- st
   }, {
     st <- session$userData$state

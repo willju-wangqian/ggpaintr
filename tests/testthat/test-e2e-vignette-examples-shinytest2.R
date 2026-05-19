@@ -27,7 +27,7 @@
 #     app-basic ............. L1 ptr_app() canonical (+ the BDD interaction:
 #                             set a var input, re-draw, code reflects it)
 #     app-grid-shared-added . L1 ptr_app_grid() with a shared widget
-#     module-app ............ L2 ptr_module_ui()/ptr_module_server()
+#     module-app ............ L2 ptr_ui()/ptr_server()
 #     single-instance-shared  L2 single-instance inline shared section
 #     l2-shared ............. L2 coordinator trio ptr_shared()/_panel()/_server()
 #                             (+ BDD: one shared panel widget drives both tiles)
@@ -81,7 +81,7 @@
 #     `l2-shared`'s `var(shared='metric')` is referenced in BOTH formulas: a
 #     PANEL (cross-formula) consumer key, host-bound by `ptr_shared_server()`.
 #     `l2-shared-partition`'s `var(shared='ax1')` is referenced in ONE
-#     formula: a FORMULA-LOCAL consumer key, bound by `ptr_module_server()`
+#     formula: a FORMULA-LOCAL consumer key, bound by `ptr_server()`
 #     itself. These are DISTINCT ownership paths (ADR 0005 partition); a panel
 #     key and a formula-local key must EACH have their own booting fixture.
 #     `l2-shared-partition` (embed) and `grid-shared-partition` (grid, same
@@ -150,7 +150,7 @@ test_that("use-cases app-grid-shared-added: L1 ptr_app_grid with shared widget",
                fixed = TRUE)
 })
 
-test_that("use-cases module-app: L2 ptr_module_ui/ptr_module_server", {
+test_that("use-cases module-app: L2 ptr_ui/ptr_server", {
   app <- boot_vignette_app("module-app")
 
   expect_dom_id(app, "p-ptr_update_plot")
@@ -269,7 +269,7 @@ test_that("grid-shared-partition: ptr_app_grid binds formula-local var(shared=) 
   expect_picker_populated(app, "plot_2-shared_ax2", "Petal.Length")
 
   # issues/01 fix: ptr_app_grid_components() now forwards shared = obj to
-  # each cell's ptr_module_ui(), so the cross-formula panel key `sz` is
+  # each cell's ptr_ui(), so the cross-formula panel key `sz` is
   # excluded from the inline section and lives ONLY in the standalone
   # panel above -- not double-rendered per cell.
   expect_no_dom_id(app, "plot_1-shared_sz")

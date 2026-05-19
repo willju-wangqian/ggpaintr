@@ -51,7 +51,7 @@ A \code{shiny.appobj}.
 \description{
 A small wrapper that composes the public ggpaintr primitives
 (\code{\link[=ptr_ui_controls]{ptr_ui_controls()}}, \code{\link[=ptr_ui_plot]{ptr_ui_plot()}}, \code{\link[=ptr_ui_toggle_code]{ptr_ui_toggle_code()}},
-\code{\link[=ptr_module_server]{ptr_module_server()}}) inside a \code{\link[bslib:page_sidebar]{bslib::page_sidebar()}} shell. Exported
+\code{\link[=ptr_server]{ptr_server()}}) inside a \code{\link[bslib:page_sidebar]{bslib::page_sidebar()}} shell. Exported
 so users who want a quick
 \code{bslib}-themed app can call it directly, but its primary purpose is to
 illustrate the wrapper pattern documented in

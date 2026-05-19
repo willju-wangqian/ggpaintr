@@ -9,10 +9,10 @@ formula <- "ggplot(iris, aes(var, var, color = var)) + geom_point()"
 
 ui <- shiny::fluidPage(
   shiny::titlePanel("My host app"),
-  ptr_module_ui(formula, "p")
+  ptr_ui(formula, "p")
 )
 server <- function(input, output, session) {
-  ptr_module_server(formula, "p")
+  ptr_server(formula, "p")
 }
 
 shiny::shinyApp(ui, server)

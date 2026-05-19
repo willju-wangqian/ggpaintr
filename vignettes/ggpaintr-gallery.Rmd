@@ -402,7 +402,7 @@ ptr_app(
 
 `ggpaintr` does not lock you into `renderPlot`. The runtime's `state$runtime()` reactive returns a list whose `$plot` slot is the fitted `ggplot` object, suitable for any backend that accepts a `ggplot` — `plotly` and `ggiraph` are the two most common. `ptr_extract_plot(state)` is the same accessor in non-reactive contexts.
 
-The recipe is the same in both subsections: lay out `ptr_module_ui(formula, "id")` for the sidebar + default plot panel, add a second column with the alternative output, and in the server use `state <- ptr_module_server(formula, "id")` to wire everything up, then bind your custom output to `state$runtime()`.
+The recipe is the same in both subsections: lay out `ptr_ui(formula, "id")` for the sidebar + default plot panel, add a second column with the alternative output, and in the server use `state <- ptr_server(formula, "id")` to wire everything up, then bind your custom output to `state$runtime()`.
 
 ### 5.1 plotly tooltips
 
@@ -432,13 +432,13 @@ formula <- "ggplot(data = mpg,
 
 ui <- fluidPage(
   fluidRow(
-    column(5, ptr_module_ui(formula, "plotly_demo")),
+    column(5, ptr_ui(formula, "plotly_demo")),
     column(7, plotly::plotlyOutput("interactive_plot", height = "500px"))
   )
 )
 
 server <- function(input, output, session) {
-  state <- ptr_module_server(formula, "plotly_demo")
+  state <- ptr_server(formula, "plotly_demo")
   output$interactive_plot <- plotly::renderPlotly({
     res <- state$runtime()
     shiny::req(isTRUE(res$ok), res$plot)
@@ -487,13 +487,13 @@ formula <- "ggplot(data = mpg, aes(x = var, y = var)) +
 
 ui <- fluidPage(
   fluidRow(
-    column(5, ptr_module_ui(formula, "ggiraph_demo")),
+    column(5, ptr_ui(formula, "ggiraph_demo")),
     column(7, ggiraph::girafeOutput("interactive_plot", height = "500px"))
   )
 )
 
 server <- function(input, output, session) {
-  state <- ptr_module_server(formula, "ggiraph_demo")
+  state <- ptr_server(formula, "ggiraph_demo")
   output$interactive_plot <- ggiraph::renderGirafe({
     res <- state$runtime()
     shiny::req(isTRUE(res$ok), res$plot)
@@ -676,13 +676,13 @@ ptr_app(
 
 This gallery is the recipe book. The other vignettes answer different user questions:
 
-- **`vignette("ggpaintr-use-cases")`** — the three-level ladder. L1 all-in-one (`ptr_app()` / `ptr_app_grid()`); L2 embed in your own Shiny app keeping the default layout (the self-contained module pair `ptr_module_ui()` / `ptr_module_server()`, plus the shared trio `ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()` for two or more linked plots); L3 own every piece of the UI — one bare exported function per pane (`ptr_ui_header()` / `ptr_ui_controls()` / `ptr_ui_plot()` / `ptr_ui_error()` / `ptr_ui_code()` / `ptr_ui_shared_panel()`), the two combinators (`ptr_ui_inline_error()` / `ptr_ui_toggle_code()`), and the optional `ptr_ui_page()` shell — including owning the render path with your own renderer off the server-returned `state` (read `state$runtime()` inside a render block, or the `ptr_extract_plot()` / `_code()` / `_error()` accessors plus `ptr_gg_extra()` outside reactive contexts). The plotly / ggiraph examples in §5 above are the canonical worked examples for the L3 custom-renderer pattern — use-cases cross-links back here. For a custom page shell or theme, see `vignette("ggpaintr-customization")` § "Writing your own wrapper".
+- **`vignette("ggpaintr-use-cases")`** — the three-level ladder. L1 all-in-one (`ptr_app()` / `ptr_app_grid()`); L2 embed in your own Shiny app keeping the default layout (the self-contained pair `ptr_ui()` / `ptr_server()`, plus the shared trio `ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()` for two or more linked plots); L3 own every piece of the UI — one bare exported function per pane (`ptr_ui_header()` / `ptr_ui_controls()` / `ptr_ui_plot()` / `ptr_ui_error()` / `ptr_ui_code()` / `ptr_ui_shared_panel()`), the two combinators (`ptr_ui_inline_error()` / `ptr_ui_toggle_code()`), and the optional `ptr_ui_page()` shell — including custom rendering off the `state` that the single `ptr_server()` returns (read `state$runtime()` inside a render block, or the `ptr_extract_plot()` / `_code()` / `_error()` accessors plus `ptr_gg_extra()` outside reactive contexts). The plotly / ggiraph examples in §5 above are the canonical worked examples for the L3 custom-renderer pattern — use-cases cross-links back here. For a custom page shell or theme, see `vignette("ggpaintr-customization")` § "Writing your own wrapper".
 - **`vignette("ggpaintr-customization")`** — `ui_text` overrides, the three custom-placeholder constructors (full hook contract and worked examples — the `range` / `colvars` constructors used throughout this gallery live there), and the shared-placeholder pattern for one widget driving multiple plots.
 - **`vignette("ggpaintr-safety")`** — `expr_check`, the denylist + AST-walker safety model, upload trust boundary, public-deployment checklist.
 - **`vignette("ggpaintr-llm")`** — wiring ggpaintr up as an LLM-callable tool with ellmer.
 
 For canonical API reference, follow the `?fn` links:
 
-- `?ptr_app`, `?ptr_module_ui`, `?ptr_module_server`, `?ptr_app_grid` — entry points.
+- `?ptr_app`, `?ptr_ui`, `?ptr_server`, `?ptr_app_grid` — entry points.
 - `?ptr_define_placeholder_value`, `?ptr_define_placeholder_consumer`, `?ptr_define_placeholder_source` — the three constructors that extend the registry.
 - `?ptr_extract_plot`, `?ptr_extract_code`, `?ptr_extract_error`, `?ptr_gg_extra` — the embed-time accessors used by the plotly / ggiraph sections.

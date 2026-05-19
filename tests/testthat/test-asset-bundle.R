@@ -37,7 +37,7 @@ mount_calls <- function(css = NULL) {
   list(
     ptr_app          = ptr_app_components(fixture_formula, css = css)$ui,
     ptr_app_grid     = ptr_app_grid_components(list(fixture_formula), css = css)$ui,
-    ptr_module_ui    = ptr_module_ui(fixture_formula, "m", css = css),
+    ptr_ui    = ptr_ui(fixture_formula, "m", css = css),
     ptr_shared_panel = ptr_shared_panel(shared_obj, css = css)
   )
 }
@@ -55,7 +55,7 @@ test_that("every raw-Shiny entry point accepts css = path", {
   fns <- list(
     ptr_app          = ptr_app,
     ptr_app_grid     = ptr_app_grid,
-    ptr_module_ui    = ptr_module_ui,
+    ptr_ui    = ptr_ui,
     ptr_shared_panel = ptr_shared_panel
   )
   for (nm in names(fns)) {
@@ -88,9 +88,9 @@ test_that("user css links after ggpaintr.css", {
 })
 
 test_that("htmlDependency dedupes the bundle under nested injection", {
-  # ptr_module_ui() nests controls + outputs, emitting ptr_assets() three
+  # ptr_ui() nests controls + outputs, emitting ptr_assets() three
   # times; htmltools collapses each dependency to one <head> injection.
-  ui <- ptr_module_ui(fixture_formula, "m")
+  ui <- ptr_ui(fixture_formula, "m")
   html <- render_ui(ui)
   expect_equal(count_occurrences(html, "ggpaintr-layer.js"), 1L)
   expect_equal(count_occurrences(html, "ggpaintr-ui.js"), 1L)
@@ -161,7 +161,7 @@ test_that("verb-badge rule owns its font-weight (order-independent vs Bootstrap)
 
 test_that("page canvas is opt-in: bare .ptr-app has no 100vh, --page does", {
   # The full-viewport backdrop is opt-in. Bare `.ptr-app` is just the
-  # themed scope (so an embedded ptr_module_ui/ptr_ui_page or a region
+  # themed scope (so an embedded ptr_ui/ptr_ui_page or a region
   # half sizes to its content, not the host's whole column). Only the
   # standalone entrypoints add `ptr-app--page`, which carries the
   # `min-height:100vh` canvas. Regression: bare `.ptr-app` must NOT

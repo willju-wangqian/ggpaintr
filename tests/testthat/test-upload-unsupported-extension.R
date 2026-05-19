@@ -28,7 +28,7 @@ test_that("uploading an unsupported extension surfaces the abort in state$resolv
   formula <- "ggplot(data = upload, aes(x = a, y = b)) + geom_point()"
 
   shiny::testServer(function(input, output, session) {
-    st <- ptr_server(input, output, session, formula, expr_check = FALSE)
+    st <- ptr_server_internal(input, output, session, formula, expr_check = FALSE)
     session$userData$state <- st
   }, {
     st <- session$userData$state
@@ -79,7 +79,7 @@ test_that("clearing the file input clears the resolve error slot", {
   formula <- "ggplot(data = upload, aes(x = a, y = b)) + geom_point()"
 
   shiny::testServer(function(input, output, session) {
-    st <- ptr_server(input, output, session, formula, expr_check = FALSE)
+    st <- ptr_server_internal(input, output, session, formula, expr_check = FALSE)
     session$userData$state <- st
   }, {
     st <- session$userData$state

@@ -209,10 +209,10 @@ test_that("ptr_init_state: stage_enabled initialized with all-TRUE", {
   expect_true(isTRUE(cur[["ggplot_2_stage_enabled"]]))
 })
 
-test_that("ptr_server: toggle input flips state$stage_enabled", {
+test_that("ptr_server_internal: toggle input flips state$stage_enabled", {
   e <- .test_env()
   server <- function(input, output, session) {
-    session$userData$state <- ptr_server(
+    session$userData$state <- ptr_server_internal(
       input, output, session,
       "mtcars |> head(num) |> ggplot()",
       envir = e

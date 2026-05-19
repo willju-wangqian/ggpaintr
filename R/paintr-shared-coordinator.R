@@ -73,7 +73,7 @@ shared_partition <- function(trees) {
 #' the coordinator is a declaration of intent.
 #'
 #' @param formulas A character vector or list of formula strings, one per
-#'   embedded [`ptr_module_ui()`] instance.
+#'   embedded [`ptr_ui()`] instance.
 #' @param shared_ui Named list of `function(id) -> shiny.tag` builders, one
 #'   per shared key the embedder wants to customise. Unsupplied keys are
 #'   auto-rendered from the first formula that mentions them.
@@ -88,7 +88,7 @@ shared_partition <- function(trees) {
 #'   (cross-formula keys), `local_keys_by_formula` (per-formula inline
 #'   keys). Deterministic and idempotent for a given `formulas`.
 #' @seealso [`ptr_shared_panel()`], [`ptr_ui_shared_panel()`],
-#'   [`ptr_shared_server()`], [`ptr_module_ui()`].
+#'   [`ptr_shared_server()`], [`ptr_ui()`].
 #' @examples
 #' obj <- ptr_shared(c(
 #'   "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",

@@ -1,6 +1,6 @@
 # Public entry points for the typed-AST core. Each entry point composes the
 # UI builder (per-layer panels via `build_ui_for.ptr_layer`) and the server
-# wiring (`ptr_server`).
+# wiring (`ptr_server_internal`).
 
 #' Build a Shiny App from a `ggpaintr` Formula
 #'
@@ -158,7 +158,7 @@ ptr_app_components <- function(formula,
 }
 
 # The server closure shared by `ptr_app()` / `ptr_app_components()` and
-# `ptr_app_bslib()`: wires `ptr_server()` plus the host-side shared-widget
+# `ptr_app_bslib()`: wires `ptr_server_internal()` plus the host-side shared-widget
 # binding (`ptr_bind_shared_consumer_uis()`). `tree` is the translated AST,
 # already in hand at the call site (it also drives the UI there).
 ptr_make_app_server <- function(formula, tree, envir, ui_text,
@@ -180,7 +180,7 @@ ptr_make_app_server <- function(formula, tree, envir, ui_text,
     } else {
       list()
     }
-    state <- ptr_server(
+    state <- ptr_server_internal(
       input, output, session, formula,
       envir = envir,
       ui_text = ui_text,
@@ -298,7 +298,7 @@ ptr_controls_panel <- function(tree, ui_text = NULL,
 # ---- Output panes: shared builders + public pieces ----
 #
 # `ptr_outputs_panel()` (the bundled `.ptr-output` block used by
-# `ptr_app()` / `ptr_module_ui()`) and the exported single-piece
+# `ptr_app()` / `ptr_ui()`) and the exported single-piece
 # functions below are both assembled from the same `*_tag()` builders, so
 # the bundled DOM, input ids and output ids are byte-identical to the
 # pre-split implementation. The ids `ptr_plot` / `ptr_error` / `ptr_code`
@@ -391,7 +391,7 @@ code_block_tag <- function(ns, style = c("panel", "window")) {
 
 # Bundled `.ptr-output` block: plot (+ inline error) + slide-out code
 # window, wired to the show-code toggle. Byte-identical to the
-# pre-split implementation; consumed by ptr_app() / ptr_module_ui().
+# pre-split implementation; consumed by ptr_app() / ptr_ui().
 ptr_outputs_panel <- function(ns = shiny::NS(NULL)) {
   shiny::tags$div(
     class = "ptr-output",
@@ -406,7 +406,7 @@ ptr_outputs_panel <- function(ns = shiny::NS(NULL)) {
 #' `ptr_plot` id the server writes to (see [ptr_server()]). One of the
 #' single-piece UI builders for the L3 "own every UI piece" workflow;
 #' place it anywhere in your own layout and wire the server with
-#' [ptr_server()] / [ptr_module_server()].
+#' [ptr_server()] / [ptr_server()].
 #'
 #' The piece is **truly bare**: just the plot card, with no error slot and
 #' no show-code button. Behaviour is added compositionally by the
@@ -418,7 +418,7 @@ ptr_outputs_panel <- function(ns = shiny::NS(NULL)) {
 #'   Defaults to `NULL` (identity namespace) for the single-embedding
 #'   case. When set, must match the `id` passed to the other piece
 #'   functions and to the `shiny::moduleServer()` wrapping [ptr_server()]
-#'   (or to [ptr_module_server()]).
+#'   (or to [ptr_server()]).
 #'
 #' @return A [shiny::tag].
 #' @seealso [ptr_ui_error()], [ptr_ui_code()], [ptr_ui_inline_error()],
@@ -521,7 +521,7 @@ ptr_ui_inline_error <- function(plot, error) {
 #' card head and presenting the code inside the draggable slide-out
 #' `.ptr-code-window` (with Copy / Close). The button hides/shows that
 #' window purely DOM-locally — no Shiny input/output is involved. This is
-#' the toggle layout [ptr_app()] / [ptr_module_ui()] render internally.
+#' the toggle layout [ptr_app()] / [ptr_ui()] render internally.
 #'
 #' Use this when you want the familiar toggle behaviour while still owning
 #' the surrounding layout. For fully independent placement of the plot and
@@ -606,7 +606,7 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
     ptr_assets(css = css),
     shiny::tags$div(
       # `--page`: ptr_app() is a standalone entrypoint -> owns the full
-      # viewport. Embeddable shells (ptr_module_ui / ptr_ui_page) and the
+      # viewport. Embeddable shells (ptr_ui / ptr_ui_page) and the
       # region halves stay bare so they fit a host layout.
       class = "ptr-app ptr-app--page",
       header,
@@ -650,12 +650,15 @@ ptr_ui_header <- function(title = "ggpaintr") {
   )
 }
 
-# ---- Module variants ----
+# ---- L2 self-contained UI/server pair ----
 
-#' Module UI for a `ggpaintr` Formula
+#' Self-contained UI for a `ggpaintr` Formula
 #'
-#' Namespaced UI side of a Shiny module wrapping a `ggpaintr` formula. Pair
-#' with [ptr_module_server()].
+#' The L2 default-layout UI bundle for a `ggpaintr` formula: owns its own
+#' `.ptr-app` theme scope + asset bundle (nothing else to remember) and is
+#' namespaced by `id`. Pair with the single public [ptr_server()]. For a
+#' hand-composed L3 layout, use the bare `ptr_ui_*` pieces instead and pair
+#' them with the same [ptr_server()].
 #'
 #' @param formula A single formula string with `ggpaintr` placeholders.
 #' @param id Optional module id; the namespace prefix for inputs and outputs.
@@ -681,15 +684,15 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #'
 #' @return A `shiny.tag` — a `fluidPage` shell containing the controls panel,
 #'   plot output, and asset bundle.
-#' @seealso [ptr_module_server()], [ptr_css()] for the `css =` argument and
+#' @seealso [ptr_server()], [ptr_css()] for the `css =` argument and
 #'   themable CSS custom properties.
 #' @examples
-#' ui <- ptr_module_ui(
+#' ui <- ptr_ui(
 #'   "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
 #'   "plot1"
 #' )
 #' @export
-ptr_module_ui <- function(formula, id = NULL, ui_text = NULL,
+ptr_ui <- function(formula, id = NULL, ui_text = NULL,
                              checkbox_defaults = NULL, expr_check = TRUE,
                              css = NULL, shared = NULL) {
   # Self-contained L2 shell: fluidPage > div.ptr-app > sidebarLayout, built
@@ -701,7 +704,7 @@ ptr_module_ui <- function(formula, id = NULL, ui_text = NULL,
   # ptr_ui_controls(): NULL (default) => single-instance, every shared key
   # renders inline; a ptr_shared_spec => exclude shared$panel_keys from the
   # inline section (they belong to the standalone ptr_shared_panel()).
-  # ptr_module_ui itself emits no standalone shared panel.
+  # ptr_ui itself emits no standalone shared panel.
   title <- ptr_resolve_ui_text("title", ui_text = ui_text)$label %||% ""
   header <- if (nzchar(title)) shiny::titlePanel(title) else NULL
   shiny::fluidPage(
@@ -738,7 +741,7 @@ ptr_module_ui <- function(formula, id = NULL, ui_text = NULL,
 #' single-piece UI builders for the L3 "own every UI piece" workflow:
 #' compose it with [ptr_ui_assets()] and the output pieces, place each
 #' wherever you like, and wire the server with [ptr_server()] /
-#' [ptr_module_server()].
+#' [ptr_server()].
 #'
 #' Because the panel includes a `shinyWidgets::pickerInput()` (the layer
 #' selector) and the Bootstrap grid, it must be rendered inside a
@@ -835,48 +838,87 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
   )
 }
 
-#' Module Server for a `ggpaintr` Formula
+#' Server for a `ggpaintr` Formula
 #'
-#' Namespaced server side of a Shiny module wrapping a `ggpaintr` formula.
-#' Pair with [ptr_module_ui()]. Additional arguments are forwarded to
-#' [ptr_init_state()] (e.g. `shared`, `draw_trigger`, `expr_check`,
-#' `safe_to_remove`, `ui_text`, `checkbox_defaults`).
+#' The **single public server-side entry point** for a `ggpaintr` formula,
+#' used identically at L2 (default layout via [ptr_ui()]) and L3 (your own
+#' hand-composed layout from the bare `ptr_ui_*` pieces). It namespaces and
+#' wires the whole reactive engine, registers the built-in `ptr_plot` /
+#' `ptr_error` / `ptr_code` outputs (a piece you never place in the UI is a
+#' harmless no-op), and **returns the `ptr_state`** so you can drive a
+#' custom renderer. Additional arguments are forwarded to [ptr_init_state()]
+#' (e.g. `shared`, `draw_trigger`, `expr_check`, `safe_to_remove`,
+#' `ui_text`, `checkbox_defaults`).
+#'
+#' @section Custom render (L3):
+#' Custom rendering is **UI-side**: place your own output widget (e.g.
+#' `plotly::plotlyOutput()`) at `shiny::NS(id)("my_plot")`, never place
+#' [ptr_ui_plot()], and read the live plot off the returned state — there
+#' is **no** user-authored `moduleServer` wrapping any ggpaintr engine and
+#' **no** lower-level server function to reach for:
+#' ```
+#' # server:
+#' state <- ptr_server(formula, "p")
+#' output$my_plot <- plotly::renderPlotly(state$runtime()$plot)
+#' # ui: plotly::plotlyOutput(shiny::NS("p")("my_plot"))
+#' ```
+#' `state$runtime()` is reactive; `$plot` is the built ggplot/ggplot-like
+#' object, `$code` the generated source string, `$error` any inline error.
+#' See `vignette("ggpaintr-use-cases")`.
 #'
 #' When the formula declares any `shared = "..."` placeholder, pass the
 #' `ptr_shared_state` returned by [ptr_shared_server()] as `shared_state =`.
 #' The state's `shared` / `draw_trigger` / `shared_resolutions` slots are
 #' unpacked and forwarded to [ptr_init_state()]; if an explicit `shared = ...`
 #' / `draw_trigger = ...` / `shared_resolutions = ...` is also passed via
-#' `...`, that explicit value wins.
+#' `...`, that explicit value wins. (A single formula that reuses one
+#' `shared` key across several slots needs no `shared_state` — `ptr_server()`
+#' self-binds that formula-local key under its own namespace.)
 #'
 #' @param formula A single formula string with `ggpaintr` placeholders.
-#' @param id Optional module id; must match the id passed to [ptr_module_ui()].
-#'   Defaults to `NULL` (identity namespace, single-instance use).
+#' @param id Optional module id; must match the id passed to [ptr_ui()] or
+#'   to the bare L3 pieces. Defaults to `NULL` (identity namespace,
+#'   single-instance use).
 #' @param envir Environment used to resolve local data objects.
 #' @param ... Forwarded to [ptr_init_state()].
 #' @param shared_state Optional `ptr_shared_state` returned by
 #'   [ptr_shared_server()]. When supplied, populates `shared`,
 #'   `draw_trigger`, and `shared_resolutions` defaults. Required when the
-#'   formula declares a `shared = "..."` placeholder and the equivalent
-#'   `...` arguments are not supplied directly.
+#'   formula declares a `shared = "..."` placeholder driven by a
+#'   cross-formula [ptr_shared_panel()] and the equivalent `...` arguments
+#'   are not supplied directly.
 #'
-#' @return The `ptr_state` list from [ptr_init_state()] (returned by the
-#'   inner module session for advanced wiring; usually consumed for its
-#'   side effects only).
-#' @seealso [ptr_module_ui()], [ptr_shared()], [ptr_shared_panel()],
-#'   [ptr_shared_server()].
+#' @return The `ptr_state` list from [ptr_init_state()]. This is the
+#'   **supported L3 custom-render handle**: `state$runtime()$plot` /
+#'   `$code` / `$error`. (Its `server_ns_fn` / `ui_ns_fn` slots are
+#'   internal plumbing — not a public escape hatch.)
+#' @seealso [ptr_ui()], [ptr_ui_plot()], [ptr_shared()],
+#'   [ptr_shared_panel()], [ptr_shared_server()].
 #' @examples
 #' if (interactive()) {
 #'   f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+#'   # L2: default layout
 #'   shiny::shinyApp(
-#'     ui = shiny::fluidPage(ptr_module_ui(f, "p")),
+#'     ui = shiny::fluidPage(ptr_ui(f, "p")),
 #'     server = function(input, output, session) {
-#'       ptr_module_server(f, "p")
+#'       ptr_server(f, "p")
+#'     }
+#'   )
+#'   # L3: own the render path off the returned state
+#'   shiny::shinyApp(
+#'     ui = ptr_ui_page(
+#'       ptr_ui_controls(formula = f, id = "p"),
+#'       plotly::plotlyOutput(shiny::NS("p")("my_plot"))
+#'     ),
+#'     server = function(input, output, session) {
+#'       state <- ptr_server(f, "p")
+#'       output[[shiny::NS("p")("my_plot")]] <-
+#'         plotly::renderPlotly(state$runtime()$plot)
 #'     }
 #'   )
 #' }
 #' @export
-ptr_module_server <- function(formula, id = NULL, envir = parent.frame(), ...,
+ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
                                  shared_state = NULL) {
   dots <- list(...)
 
@@ -894,7 +936,7 @@ ptr_module_server <- function(formula, id = NULL, envir = parent.frame(), ...,
   }
 
   # Pre-flight contract checks: surface a clear, module-scoped message
-  # *before* delegating to `ptr_server()`, whose generic validator can't
+  # *before* delegating to `ptr_server_internal()`, whose generic validator can't
   # know that the embedder forgot a `shared_state` argument.
   pre_tree <- ptr_translate(formula, expr_check = FALSE)
   declared_value_keys <- vapply(
@@ -908,7 +950,7 @@ ptr_module_server <- function(formula, id = NULL, envir = parent.frame(), ...,
       length(dots$shared %||% list()) == 0L &&
       length(dots$shared_resolutions %||% list()) == 0L) {
     rlang::abort(paste0(
-      "`ptr_module_server()` was given a formula with shared placeholder",
+      "`ptr_server()` was given a formula with shared placeholder",
       if (length(declared_keys) == 1L) "" else "s",
       " (",
       paste0("\"", declared_keys, "\"", collapse = ", "),
@@ -920,7 +962,7 @@ ptr_module_server <- function(formula, id = NULL, envir = parent.frame(), ...,
   # Step 02 (#P2): `ptr_shared_server()` puts ONLY cross-formula (panel)
   # keys in the bundle; a formula-local key is intentionally absent and is
   # bound by this module itself. Either way the module self-binds the
-  # missing key under its own namespace, so route through `ptr_server()`
+  # missing key under its own namespace, so route through `ptr_server_internal()`
   # with `auto_bind_shared = TRUE` instead of tripping the strict-missing
   # validator.
   missing_keys <- setdiff(declared_keys, names(dots$shared %||% list()))
@@ -980,7 +1022,7 @@ ptr_module_server <- function(formula, id = NULL, envir = parent.frame(), ...,
     #                              moduleServer's session already
     #                              auto-namespaces those keys.
     state <- do.call(
-      ptr_server,
+      ptr_server_internal,
       c(
         list(input = input, output = output, session = session,
              formula = formula, envir = envir,
@@ -1189,7 +1231,7 @@ ptr_app_grid_components <- function(plots,
       lapply(row_start:row_end, function(i) {
         shiny::column(
           width = col_width,
-          ptr_module_ui(plots[[i]], plot_module_ids[[i]],
+          ptr_ui(plots[[i]], plot_module_ids[[i]],
                         expr_check = expr_check, shared = obj)
         )
       })
@@ -1200,7 +1242,7 @@ ptr_app_grid_components <- function(plots,
     ptr_assets(css = css),
     shiny::tags$div(
       # `--page`: ptr_app_grid() is a standalone entrypoint -> owns the
-      # full viewport. The per-plot ptr_module_ui() shells nested inside
+      # full viewport. The per-plot ptr_ui() shells nested inside
       # stay bare, so exactly one element claims the canvas (not one per
       # tile).
       class = "ptr-app ptr-app--page",
@@ -1231,7 +1273,7 @@ ptr_app_grid_components <- function(plots,
           plots = plots
         )
         if (!is.null(state)) args$shared_state <- state
-        do.call(ptr_module_server, args)
+        do.call(ptr_server, args)
       })
     }
   }

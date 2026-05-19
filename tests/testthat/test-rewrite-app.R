@@ -149,8 +149,8 @@ test_that("layer-select picker drives the hidden tabset", {
 
 # ---- module variants — namespacing isolation (E6) ----
 
-test_that("ptr_module_server ids are namespaced by id", {
-  ui <- ptr_module_ui(
+test_that("ptr_server ids are namespaced by id", {
+  ui <- ptr_ui(
     "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()",
     "m1"
   )
@@ -159,10 +159,10 @@ test_that("ptr_module_server ids are namespaced by id", {
   expect_match(rendered, "m1-ptr_layer_select")
 })
 
-test_that("two ptr_module_server instances do not collide", {
-  ui_a <- ptr_module_ui(
+test_that("two ptr_server instances do not collide", {
+  ui_a <- ptr_ui(
     "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()", "a")
-  ui_b <- ptr_module_ui(
+  ui_b <- ptr_ui(
     "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()", "b")
   expect_no_match(as.character(ui_a), "b-ptr_plot")
   expect_no_match(as.character(ui_b), "a-ptr_plot")
@@ -181,7 +181,7 @@ test_that("ptr_ui_controls emits the control ids (no output ids)", {
   expect_match(rendered, "x-ptr_layer_tabset")
   # Orthogonality: a bare L3 piece carries only the widget deps it needs,
   # NOT the ggpaintr bundle (assets come from ptr_ui_assets / ptr_ui_page /
-  # ptr_module_ui — asserted in test-asset-bundle / test-ui-pieces).
+  # ptr_ui — asserted in test-asset-bundle / test-ui-pieces).
   dep_names <- vapply(htmltools::findDependencies(ui),
                       function(d) d$name, character(1))
   expect_false("ggpaintr-layer" %in% dep_names)
@@ -202,19 +202,19 @@ test_that("output combinators emit the output ids (no control ids)", {
   expect_no_match(rendered, "x-ptr_layer_select")
 })
 
-test_that("ptr_module_ui ids line up with ptr_module_server end-to-end", {
+test_that("ptr_ui ids line up with ptr_server end-to-end", {
   fml <- "ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point()"
   # The module UI and the module server share one id; the server binds
   # purely by id, so the runtime must fire and populate the code output.
-  ui <- as.character(ptr_module_ui(fml, "p1"))
+  ui <- as.character(ptr_ui(fml, "p1"))
   expect_match(ui, "p1-ptr_update_plot")
   expect_match(ui, "p1-ptr_code")
 
   # shiny::isModuleServer requires the first formal to be "id"; use a thin
-  # adapter so shiny detects the module correctly while we test ptr_module_server.
+  # adapter so shiny detects the module correctly while we test ptr_server.
   shiny::testServer(
     function(id, formula, envir = globalenv(), ...) {
-      ptr_module_server(formula, id, envir = envir, ...)
+      ptr_server(formula, id, envir = envir, ...)
     },
     args = list(id = "p1", formula = fml, envir = .app_test_env()),
     {

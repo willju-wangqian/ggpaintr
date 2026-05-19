@@ -171,7 +171,7 @@ ptr_llm_register <- function(chat, tool_name = "ggpaintr_docs") {
           "for a turn-key app (single plot or `ptr_app_grid()` ",
           "multi-plot); level1_ptr_options for session-wide defaults; ",
           "level2_module for the self-contained module pair ",
-          "(ptr_module_ui / ptr_module_server), single vs multi ",
+          "(ptr_ui / ptr_server), single vs multi ",
           "instance; level2_shared for multiple instances + the ",
           "shared coordinator trio (ptr_shared -> ptr_shared_panel / ",
           "ptr_shared_server); level2_custom_ids for id collisions ",

@@ -17,7 +17,7 @@ ui <- ptr_ui_page(                          # Bootstrap page + single .ptr-app +
   ptr_ui_code()                             # plain, always-visible code card
 )
 server <- function(input, output, session) {
-  ptr_server(input, output, session, formula)   # binds ptr_plot / ptr_error / ptr_code
+  ptr_server(formula)   # binds ptr_plot / ptr_error / ptr_code
 }
 
 shiny::shinyApp(ui, server)
