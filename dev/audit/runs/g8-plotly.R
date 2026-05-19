@@ -7,12 +7,12 @@ formula <- "ggplot(data = mpg,
               coord_cartesian(xlim = range, ylim = range)"
 ui <- shiny::fluidPage(
   shiny::fluidRow(
-    shiny::column(5, ptr_module_ui("plotly_demo", formula)),
+    shiny::column(5, ptr_module_ui(formula, "plotly_demo")),
     shiny::column(7, plotly::plotlyOutput("interactive_plot", height = "500px"))
   )
 )
 server <- function(input, output, session) {
-  state <- ptr_module_server("plotly_demo", formula)
+  state <- ptr_module_server(formula, "plotly_demo")
   output$interactive_plot <- plotly::renderPlotly({
     res <- state$runtime()
     shiny::req(isTRUE(res$ok), res$plot)

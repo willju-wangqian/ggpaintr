@@ -37,7 +37,7 @@ mount_calls <- function(css = NULL) {
   list(
     ptr_app          = ptr_app_components(fixture_formula, css = css)$ui,
     ptr_app_grid     = ptr_app_grid_components(list(fixture_formula), css = css)$ui,
-    ptr_module_ui    = ptr_module_ui("m", fixture_formula, css = css),
+    ptr_module_ui    = ptr_module_ui(fixture_formula, "m", css = css),
     ptr_shared_panel = ptr_shared_panel(shared_obj, css = css)
   )
 }
@@ -90,7 +90,7 @@ test_that("user css links after ggpaintr.css", {
 test_that("htmlDependency dedupes the bundle under nested injection", {
   # ptr_module_ui() nests controls + outputs, emitting ptr_assets() three
   # times; htmltools collapses each dependency to one <head> injection.
-  ui <- ptr_module_ui("m", fixture_formula)
+  ui <- ptr_module_ui(fixture_formula, "m")
   html <- render_ui(ui)
   expect_equal(count_occurrences(html, "ggpaintr-layer.js"), 1L)
   expect_equal(count_occurrences(html, "ggpaintr-ui.js"), 1L)

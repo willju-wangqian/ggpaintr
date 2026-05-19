@@ -23,7 +23,7 @@ test_that("B2.1 ptr_module_ui has shared = NULL in its formals", {
 })
 
 test_that("B2.2 shared = NULL (default) renders every shared key inline", {
-  ui <- as.character(ptr_module_ui("plot_1", f1))
+  ui <- as.character(ptr_module_ui(f1, "plot_1"))
   # formula-local consumer key (var) AND value key (num) both inline
   expect_true(grepl("plot_1-shared_ax1_ui", ui, fixed = TRUE))
   expect_true(grepl("shared_sz", ui, fixed = TRUE))
@@ -34,8 +34,8 @@ test_that("B2.2b default forwarding is a no-op vs explicit shared = NULL", {
   # post-change default is shared = NULL forwarded verbatim. The two must be
   # byte-identical modulo Shiny's random tabsetid -> regression-stable for
   # the single-instance no-arg call.
-  a <- norm_tabsetid(as.character(ptr_module_ui("plot_1", f1)))
-  b <- norm_tabsetid(as.character(ptr_module_ui("plot_1", f1, shared = NULL)))
+  a <- norm_tabsetid(as.character(ptr_module_ui(f1, "plot_1")))
+  b <- norm_tabsetid(as.character(ptr_module_ui(f1, "plot_1", shared = NULL)))
   expect_identical(a, b)
 })
 
@@ -46,7 +46,7 @@ test_that("B2.3 shared = obj excludes obj$panel_keys from the inline section", {
   )
   expect_equal(obj$panel_keys, "sz")
 
-  ui <- as.character(ptr_module_ui("plot_1", f1, shared = obj))
+  ui <- as.character(ptr_module_ui(f1, "plot_1", shared = obj))
   # formula-local key still renders inline ...
   expect_true(grepl("plot_1-shared_ax1_ui", ui, fixed = TRUE))
   # ... the cross-formula panel key does NOT (owned by ptr_shared_panel())
@@ -55,7 +55,7 @@ test_that("B2.3 shared = obj excludes obj$panel_keys from the inline section", {
 
 test_that("B2.3b non-ptr_shared_spec non-NULL shared errors via ptr_ui_controls", {
   expect_error(
-    ptr_module_ui("plot_1", f1, shared = list(1)),
+    ptr_module_ui(f1, "plot_1", shared = list(1)),
     "ptr_shared_spec"
   )
 })
@@ -64,7 +64,7 @@ test_that("B2.4 shared = does not change argument order of existing params", {
   # Constraint: shared = NULL is appended; existing params keep position.
   expect_identical(
     names(formals(ptr_module_ui)),
-    c("id", "formula", "ui_text", "checkbox_defaults",
+    c("formula", "id", "ui_text", "checkbox_defaults",
       "expr_check", "css", "shared")
   )
 })

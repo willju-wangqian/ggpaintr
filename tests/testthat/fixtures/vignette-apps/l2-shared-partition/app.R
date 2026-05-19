@@ -26,14 +26,14 @@ obj$panel_keys                       # "sz"
 ui <- shiny::fluidPage(
   ptr_shared_panel(obj),             # holds sz only
   shiny::fluidRow(
-    shiny::column(6, ptr_module_ui("plot_1", plots[[1]], shared = obj)),  # ax1 inline here
-    shiny::column(6, ptr_module_ui("plot_2", plots[[2]], shared = obj))   # ax2 inline here
+    shiny::column(6, ptr_module_ui(plots[[1]], "plot_1", shared = obj)),  # ax1 inline here
+    shiny::column(6, ptr_module_ui(plots[[2]], "plot_2", shared = obj))   # ax2 inline here
   )
 )
 server <- function(input, output, session) {
   sh <- ptr_shared_server(obj)
-  ptr_module_server("plot_1", plots[[1]], shared_state = sh)
-  ptr_module_server("plot_2", plots[[2]], shared_state = sh)
+  ptr_module_server(plots[[1]], "plot_1", shared_state = sh)
+  ptr_module_server(plots[[2]], "plot_2", shared_state = sh)
 }
 
 shiny::shinyApp(ui, server)

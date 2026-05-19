@@ -657,9 +657,9 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #' Namespaced UI side of a Shiny module wrapping a `ggpaintr` formula. Pair
 #' with [ptr_module_server()].
 #'
+#' @param formula A single formula string with `ggpaintr` placeholders.
 #' @param id Optional module id; the namespace prefix for inputs and outputs.
 #'   Defaults to `NULL` (identity namespace, single-instance use).
-#' @param formula A single formula string with `ggpaintr` placeholders.
 #' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
 #'   for the full schema and current defaults.
 #' @param checkbox_defaults Optional named list of initial checked states.
@@ -685,11 +685,11 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #'   themable CSS custom properties.
 #' @examples
 #' ui <- ptr_module_ui(
-#'   "plot1",
-#'   "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+#'   "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
+#'   "plot1"
 #' )
 #' @export
-ptr_module_ui <- function(id = NULL, formula, ui_text = NULL,
+ptr_module_ui <- function(formula, id = NULL, ui_text = NULL,
                              checkbox_defaults = NULL, expr_check = TRUE,
                              css = NULL, shared = NULL) {
   # Self-contained L2 shell: fluidPage > div.ptr-app > sidebarLayout, built
@@ -849,9 +849,9 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #' / `draw_trigger = ...` / `shared_resolutions = ...` is also passed via
 #' `...`, that explicit value wins.
 #'
+#' @param formula A single formula string with `ggpaintr` placeholders.
 #' @param id Optional module id; must match the id passed to [ptr_module_ui()].
 #'   Defaults to `NULL` (identity namespace, single-instance use).
-#' @param formula A single formula string with `ggpaintr` placeholders.
 #' @param envir Environment used to resolve local data objects.
 #' @param ... Forwarded to [ptr_init_state()].
 #' @param shared_state Optional `ptr_shared_state` returned by
@@ -869,14 +869,14 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #' if (interactive()) {
 #'   f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
 #'   shiny::shinyApp(
-#'     ui = shiny::fluidPage(ptr_module_ui("p", f)),
+#'     ui = shiny::fluidPage(ptr_module_ui(f, "p")),
 #'     server = function(input, output, session) {
-#'       ptr_module_server("p", f)
+#'       ptr_module_server(f, "p")
 #'     }
 #'   )
 #' }
 #' @export
-ptr_module_server <- function(id = NULL, formula, envir = parent.frame(), ...,
+ptr_module_server <- function(formula, id = NULL, envir = parent.frame(), ...,
                                  shared_state = NULL) {
   dots <- list(...)
 
@@ -1189,7 +1189,7 @@ ptr_app_grid_components <- function(plots,
       lapply(row_start:row_end, function(i) {
         shiny::column(
           width = col_width,
-          ptr_module_ui(plot_module_ids[[i]], plots[[i]],
+          ptr_module_ui(plots[[i]], plot_module_ids[[i]],
                         expr_check = expr_check, shared = obj)
         )
       })
@@ -1224,8 +1224,8 @@ ptr_app_grid_components <- function(plots,
       local({
         idx <- i
         args <- list(
-          plot_module_ids[[idx]],
           formula = plots[[idx]],
+          id = plot_module_ids[[idx]],
           envir = envir,
           expr_check = expr_check,
           plots = plots

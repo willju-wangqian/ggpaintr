@@ -188,7 +188,7 @@ test_that("placeholder nested in a sub-expression names the stage verb, not the 
 
 test_that("app shells inject the structural-layer dependency", {
   f <- "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()"
-  for (ui in list(ptr_app_components(f)$ui, ptr_module_ui("m", f))) {
+  for (ui in list(ptr_app_components(f)$ui, ptr_module_ui(f, "m"))) {
     rendered <- render_with_deps(ui)
     # ptr_set_class + .ptr-layer-disabled now ship in ggpaintr-layer.{js,css}
     # as an htmlDependency rather than inline tags.

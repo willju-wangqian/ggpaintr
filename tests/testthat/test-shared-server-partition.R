@@ -45,8 +45,8 @@ test_that("S-P2.1 cross-formula key drives both plots in lockstep, one source", 
 
   module_states <- new.env(parent = emptyenv())
   orig_ms <- getFromNamespace("ptr_module_server", "ggpaintr")
-  capt_ms <- function(id, formula, ...) {
-    res <- orig_ms(id, formula, ...)
+  capt_ms <- function(formula, id = NULL, ...) {
+    res <- orig_ms(formula, id, ...)
     module_states[[id]] <- res
     res
   }
@@ -56,8 +56,8 @@ test_that("S-P2.1 cross-formula key drives both plots in lockstep, one source", 
   server <- function(input, output, session) {
     ss <- ggpaintr::ptr_shared_server(obj, envir = globalenv())
     session$userData$ss <- ss
-    ggpaintr::ptr_module_server("p1", f1, envir = globalenv(), shared_state = ss)
-    ggpaintr::ptr_module_server("p2", f2, envir = globalenv(), shared_state = ss)
+    ggpaintr::ptr_module_server(f1, "p1", envir = globalenv(), shared_state = ss)
+    ggpaintr::ptr_module_server(f2, "p2", envir = globalenv(), shared_state = ss)
   }
 
   shiny::testServer(server, {
@@ -92,8 +92,8 @@ test_that("S-P2.2 formula-local key is module-scoped, not panel-owned", {
 
   module_states <- new.env(parent = emptyenv())
   orig_ms <- getFromNamespace("ptr_module_server", "ggpaintr")
-  capt_ms <- function(id, formula, ...) {
-    res <- orig_ms(id, formula, ...)
+  capt_ms <- function(formula, id = NULL, ...) {
+    res <- orig_ms(formula, id, ...)
     module_states[[id]] <- res
     res
   }
@@ -103,8 +103,8 @@ test_that("S-P2.2 formula-local key is module-scoped, not panel-owned", {
   server <- function(input, output, session) {
     ss <- ggpaintr::ptr_shared_server(obj, envir = globalenv())
     session$userData$ss <- ss
-    ggpaintr::ptr_module_server("p1", f1, envir = globalenv(), shared_state = ss)
-    ggpaintr::ptr_module_server("p2", f2, envir = globalenv(), shared_state = ss)
+    ggpaintr::ptr_module_server(f1, "p1", envir = globalenv(), shared_state = ss)
+    ggpaintr::ptr_module_server(f2, "p2", envir = globalenv(), shared_state = ss)
   }
 
   shiny::testServer(server, {
@@ -186,8 +186,8 @@ test_that("S-P2.4 canonical f1=A+A+B / f2=C+C+B end-to-end via the coordinator",
   ms <- new.env(parent = emptyenv())
   orig_ms <- ggpaintr:::ptr_module_server
   testthat::local_mocked_bindings(
-    ptr_module_server = function(id, formula, ...) {
-      r <- orig_ms(id, formula, ...)
+    ptr_module_server = function(formula, id = NULL, ...) {
+      r <- orig_ms(formula, id, ...)
       ms[[id]] <- r
       r
     },

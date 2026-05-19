@@ -165,7 +165,7 @@ test_that("ptr_module_ui self-wraps in .ptr-app and carries the bundle", {
   # Post-redesign successor of the removed self-wrapped ptr_controls_ui
   # composite: the assets+wrapper contract now lives in ptr_module_ui
   # (bare L3 pieces are assetless — asserted just above).
-  rendered <- render_with_deps(ptr_module_ui("x", fml))
+  rendered <- render_with_deps(ptr_module_ui(fml, "x"))
   expect_match(rendered, "x-ptr_update_plot", fixed = TRUE)
   expect_match(rendered, "/ggpaintr.css\"", fixed = TRUE)  # carries assets
   expect_match(rendered, "ptr-app", fixed = TRUE)          # self-wraps
@@ -233,7 +233,7 @@ test_that("ptr_ui_page stays bare .ptr-app so it embeds (no --page canvas)", {
 test_that("ptr_module_ui stays bare .ptr-app so it embeds (no --page canvas)", {
   # Step 05: ptr_module_ui rebuilt on the L3 combinators + its own
   # self-contained shell, so this assertion is restored (skip removed).
-  html <- render_with_deps(ptr_module_ui("m", fml))
+  html <- render_with_deps(ptr_module_ui(fml, "m"))
   expect_match(html, 'class="ptr-app"', fixed = TRUE)
   expect_no_match(html, "ptr-app--page", fixed = TRUE)
 })
@@ -301,8 +301,8 @@ test_that("htmlDependency dedupes a page nesting several asset emitters", {
   # ggpaintr dependency to a single <head> injection.
   ui <- ptr_ui_page(
     shiny::fluidRow(
-      shiny::column(6, ptr_module_ui("a", fml)),
-      shiny::column(6, ptr_module_ui("b", fml))
+      shiny::column(6, ptr_module_ui(fml, "a")),
+      shiny::column(6, ptr_module_ui(fml, "b"))
     )
   )
   html <- render_with_deps(ui)

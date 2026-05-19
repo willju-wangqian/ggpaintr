@@ -212,8 +212,8 @@ test_that("grid app: flipping the shared-stage checkbox disables stages in every
   # name the package itself looks up, so the internal call is captured.
   module_states <- new.env(parent = emptyenv())
   orig_ms <- ggpaintr:::ptr_module_server
-  capt_ms <- function(id, formula, ...) {
-    res <- orig_ms(id, formula, ...)
+  capt_ms <- function(formula, id = NULL, ...) {
+    res <- orig_ms(formula, id, ...)
     # `ptr_module_server` returns the moduleServer result, which IS the
     # state list from `ptr_server`. Cache by id for later inspection.
     module_states[[id]] <- res

@@ -11,8 +11,8 @@ test_that("M-SHR.1 aborts when formula has shared key but shared_state is NULL",
     {
       server <- function(input, output, session) {
         ptr_module_server(
-          "plot_1",
-          'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()'
+          'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
+          "plot_1"
         )
       }
       shiny::testServer(server, {})
@@ -30,8 +30,8 @@ test_that("M-SHR.2 escape hatch: passing shared= via ... bypasses the abort", {
     server <- function(input, output, session) {
       state <- ptr_shared_server(obj, envir = globalenv())
       ptr_module_server(
-        "plot_1",
         'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
+        "plot_1",
         envir = globalenv(),
         shared = state$shared,
         shared_resolutions = state$shared_resolutions,
@@ -47,8 +47,8 @@ test_that("M-SHR.3 shared_state non-ptr_shared_state value aborts", {
     {
       server <- function(input, output, session) {
         ptr_module_server(
-          "plot_1",
           'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
+          "plot_1",
           shared_state = list(shared = list(), draw_trigger = NULL)
         )
       }
@@ -68,7 +68,7 @@ test_that("M-SHR.4 shared_state path is silent for a formula-local key", {
   expect_silent({
     server <- function(input, output, session) {
       state <- ptr_shared_server(obj, envir = globalenv())
-      ptr_module_server("plot_1", f1, envir = globalenv(), shared_state = state)
+      ptr_module_server(f1, "plot_1", envir = globalenv(), shared_state = state)
     }
     shiny::testServer(server, {})
   })
@@ -83,7 +83,7 @@ test_that("M-SHR.4b raw escape-hatch partial shared= warns (reworded)", {
     {
       server <- function(input, output, session) {
         ptr_module_server(
-          "plot_1", f1,
+          f1, "plot_1",
           envir = globalenv(),
           shared = list(col = shiny::reactive(NULL))
         )
@@ -104,8 +104,8 @@ test_that("M-SHR.5 shared_state convenience path delegates to ptr_server cleanly
     server <- function(input, output, session) {
       state <- ptr_shared_server(obj, envir = globalenv())
       ptr_module_server(
-        "plot_1",
         'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
+        "plot_1",
         envir = globalenv(),
         shared_state = state
       )

@@ -402,7 +402,7 @@ ptr_app(
 
 `ggpaintr` does not lock you into `renderPlot`. The runtime's `state$runtime()` reactive returns a list whose `$plot` slot is the fitted `ggplot` object, suitable for any backend that accepts a `ggplot` — `plotly` and `ggiraph` are the two most common. `ptr_extract_plot(state)` is the same accessor in non-reactive contexts.
 
-The recipe is the same in both subsections: lay out `ptr_module_ui("id", formula)` for the sidebar + default plot panel, add a second column with the alternative output, and in the server use `state <- ptr_module_server("id", formula)` to wire everything up, then bind your custom output to `state$runtime()`.
+The recipe is the same in both subsections: lay out `ptr_module_ui(formula, "id")` for the sidebar + default plot panel, add a second column with the alternative output, and in the server use `state <- ptr_module_server(formula, "id")` to wire everything up, then bind your custom output to `state$runtime()`.
 
 ### 5.1 plotly tooltips
 
@@ -432,13 +432,13 @@ formula <- "ggplot(data = mpg,
 
 ui <- fluidPage(
   fluidRow(
-    column(5, ptr_module_ui("plotly_demo", formula)),
+    column(5, ptr_module_ui(formula, "plotly_demo")),
     column(7, plotly::plotlyOutput("interactive_plot", height = "500px"))
   )
 )
 
 server <- function(input, output, session) {
-  state <- ptr_module_server("plotly_demo", formula)
+  state <- ptr_module_server(formula, "plotly_demo")
   output$interactive_plot <- plotly::renderPlotly({
     res <- state$runtime()
     shiny::req(isTRUE(res$ok), res$plot)
@@ -487,13 +487,13 @@ formula <- "ggplot(data = mpg, aes(x = var, y = var)) +
 
 ui <- fluidPage(
   fluidRow(
-    column(5, ptr_module_ui("ggiraph_demo", formula)),
+    column(5, ptr_module_ui(formula, "ggiraph_demo")),
     column(7, ggiraph::girafeOutput("interactive_plot", height = "500px"))
   )
 )
 
 server <- function(input, output, session) {
-  state <- ptr_module_server("ggiraph_demo", formula)
+  state <- ptr_module_server(formula, "ggiraph_demo")
   output$interactive_plot <- ggiraph::renderGirafe({
     res <- state$runtime()
     shiny::req(isTRUE(res$ok), res$plot)

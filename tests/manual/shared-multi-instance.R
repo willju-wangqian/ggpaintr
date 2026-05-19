@@ -21,15 +21,15 @@ ui <- fluidPage(
   titlePanel("ptr_shared_ui() multi-instance demo"),
   ptr_shared_ui(formulas),
   fluidRow(
-    column(6, ptr_module_ui("plot_1", formulas[[1]])),
-    column(6, ptr_module_ui("plot_2", formulas[[2]]))
+    column(6, ptr_module_ui(formulas[[1]], "plot_1")),
+    column(6, ptr_module_ui(formulas[[2]], "plot_2"))
   )
 )
 
 server <- function(input, output, session) {
   shared_state <- ptr_shared_server(formulas)
-  ptr_module_server("plot_1", formulas[[1]], shared_state = shared_state)
-  ptr_module_server("plot_2", formulas[[2]], shared_state = shared_state)
+  ptr_module_server(formulas[[1]], "plot_1", shared_state = shared_state)
+  ptr_module_server(formulas[[2]], "plot_2", shared_state = shared_state)
 }
 
 shinyApp(ui, server)

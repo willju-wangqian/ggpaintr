@@ -151,8 +151,8 @@ test_that("layer-select picker drives the hidden tabset", {
 
 test_that("ptr_module_server ids are namespaced by id", {
   ui <- ptr_module_ui(
-    "m1",
-    "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()"
+    "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()",
+    "m1"
   )
   rendered <- as.character(ui)
   expect_match(rendered, "m1-ptr_plot")
@@ -160,10 +160,10 @@ test_that("ptr_module_server ids are namespaced by id", {
 })
 
 test_that("two ptr_module_server instances do not collide", {
-  ui_a <- ptr_module_ui("a",
-    "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()")
-  ui_b <- ptr_module_ui("b",
-    "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()")
+  ui_a <- ptr_module_ui(
+    "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()", "a")
+  ui_b <- ptr_module_ui(
+    "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()", "b")
   expect_no_match(as.character(ui_a), "b-ptr_plot")
   expect_no_match(as.character(ui_b), "a-ptr_plot")
 })
@@ -206,12 +206,16 @@ test_that("ptr_module_ui ids line up with ptr_module_server end-to-end", {
   fml <- "ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point()"
   # The module UI and the module server share one id; the server binds
   # purely by id, so the runtime must fire and populate the code output.
-  ui <- as.character(ptr_module_ui("p1", fml))
+  ui <- as.character(ptr_module_ui(fml, "p1"))
   expect_match(ui, "p1-ptr_update_plot")
   expect_match(ui, "p1-ptr_code")
 
+  # shiny::isModuleServer requires the first formal to be "id"; use a thin
+  # adapter so shiny detects the module correctly while we test ptr_module_server.
   shiny::testServer(
-    ptr_module_server,
+    function(id, formula, envir = globalenv(), ...) {
+      ptr_module_server(formula, id, envir = envir, ...)
+    },
     args = list(id = "p1", formula = fml, envir = .app_test_env()),
     {
       session$setInputs(ptr_update_plot = 1L)

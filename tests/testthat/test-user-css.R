@@ -87,6 +87,6 @@ test_that("module UI ships ggpaintr.css (regression)", {
   # Post-redesign the L2 split is gone; the self-contained ptr_module_ui()
   # is what carries the bundled stylesheet (bare L3 pieces are assetless
   # by design — orthogonality contract, covered in test-rewrite-app).
-  ui <- ptr_module_ui("p", "ggplot(mtcars) + geom_point(aes(x = var))")
+  ui <- ptr_module_ui("ggplot(mtcars) + geom_point(aes(x = var))", "p")
   expect_match(render_with_deps(ui), '/ggpaintr\\.css"')
 })

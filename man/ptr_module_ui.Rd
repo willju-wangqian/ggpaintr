@@ -5,8 +5,8 @@
 \title{Module UI for a \code{ggpaintr} Formula}
 \usage{
 ptr_module_ui(
-  id,
   formula,
+  id = NULL,
   ui_text = NULL,
   checkbox_defaults = NULL,
   expr_check = TRUE,
@@ -15,9 +15,10 @@ ptr_module_ui(
 )
 }
 \arguments{
-\item{id}{Module id; the namespace prefix for inputs and outputs.}
-
 \item{formula}{A single formula string with \code{ggpaintr} placeholders.}
+
+\item{id}{Optional module id; the namespace prefix for inputs and outputs.
+Defaults to \code{NULL} (identity namespace, single-instance use).}
 
 \item{ui_text}{Optional named list of copy overrides; see \code{\link[=ptr_ui_text]{ptr_ui_text()}}
 for the full schema and current defaults.}
@@ -52,8 +53,8 @@ with \code{\link[=ptr_module_server]{ptr_module_server()}}.
 }
 \examples{
 ui <- ptr_module_ui(
-  "plot1",
-  "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+  "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
+  "plot1"
 )
 }
 \seealso{

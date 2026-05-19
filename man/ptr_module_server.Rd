@@ -5,17 +5,18 @@
 \title{Module Server for a \code{ggpaintr} Formula}
 \usage{
 ptr_module_server(
-  id,
   formula,
+  id = NULL,
   envir = parent.frame(),
   ...,
   shared_state = NULL
 )
 }
 \arguments{
-\item{id}{Module id; must match the id passed to \code{\link[=ptr_module_ui]{ptr_module_ui()}}.}
-
 \item{formula}{A single formula string with \code{ggpaintr} placeholders.}
+
+\item{id}{Optional module id; must match the id passed to \code{\link[=ptr_module_ui]{ptr_module_ui()}}.
+Defaults to \code{NULL} (identity namespace, single-instance use).}
 
 \item{envir}{Environment used to resolve local data objects.}
 
@@ -50,9 +51,9 @@ unpacked and forwarded to \code{\link[=ptr_init_state]{ptr_init_state()}}; if an
 if (interactive()) {
   f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
   shiny::shinyApp(
-    ui = shiny::fluidPage(ptr_module_ui("p", f)),
+    ui = shiny::fluidPage(ptr_module_ui(f, "p")),
     server = function(input, output, session) {
-      ptr_module_server("p", f)
+      ptr_module_server(f, "p")
     }
   )
 }

@@ -27,13 +27,13 @@ formula <- "ggplot(data = mpg, aes(x = var, y = var)) +
 
 ui <- fluidPage(
   fluidRow(
-    column(5, ptr_module_ui("ggiraph_demo", formula)),
+    column(5, ptr_module_ui(formula, "ggiraph_demo")),
     column(7, ggiraph::girafeOutput("interactive_plot", height = "500px"))
   )
 )
 
 server <- function(input, output, session) {
-  state <- ptr_module_server("ggiraph_demo", formula)
+  state <- ptr_module_server(formula, "ggiraph_demo")
   output$interactive_plot <- ggiraph::renderGirafe({
     res <- state$runtime()
     shiny::req(isTRUE(res$ok), res$plot)

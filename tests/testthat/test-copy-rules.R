@@ -192,7 +192,7 @@ test_that("linewidth$num label is the generic 'Size'", {
 
 test_that("W3: shared section hint uses new scoped copy string", {
   f <- 'ggplot(iris, aes(x = var(shared = "a"))) + geom_point()'
-  html <- paste(as.character(ptr_module_ui("p", f)), collapse = "\n")
+  html <- paste(as.character(ptr_module_ui(f, "p")), collapse = "\n")
   expect_match(html, "Drives every place this variable appears in this plot.", fixed = TRUE)
   expect_false(grepl("reused everywhere it is referenced", html, fixed = TRUE))
 })

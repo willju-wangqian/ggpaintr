@@ -238,15 +238,15 @@ ptr_app_bslib(
 {
   ui <- fluidPage(
     fluidRow(
-      column(6, ptr_module_ui("a",
-        "ggplot(mtcars, aes(x = var, y = var)) + geom_point()")),
-      column(6, ptr_module_ui("b",
-        "ggplot(iris, aes(x = var, y = var)) + geom_point()"))
+      column(6, ptr_module_ui(
+        "ggplot(mtcars, aes(x = var, y = var)) + geom_point()", "a")),
+      column(6, ptr_module_ui(
+        "ggplot(iris, aes(x = var, y = var)) + geom_point()", "b"))
     )
   )
   server <- function(input, output, session) {
-    ptr_module_server("a", "ggplot(mtcars, aes(x = var, y = var)) + geom_point()")
-    ptr_module_server("b", "ggplot(iris, aes(x = var, y = var)) + geom_point()")
+    ptr_module_server("ggplot(mtcars, aes(x = var, y = var)) + geom_point()", "a")
+    ptr_module_server("ggplot(iris, aes(x = var, y = var)) + geom_point()", "b")
   }
   shinyApp(ui, server)
 }
@@ -467,14 +467,14 @@ ptr_app_grid(
     titlePanel("Shared stage(verb) checkbox via ptr_shared_ui()"),
     ptr_shared_ui(formulas),
     fluidRow(
-      column(6, ptr_module_ui("plot_1", formulas[[1]])),
-      column(6, ptr_module_ui("plot_2", formulas[[2]]))
+      column(6, ptr_module_ui(formulas[[1]], "plot_1")),
+      column(6, ptr_module_ui(formulas[[2]], "plot_2"))
     )
   )
   server <- function(input, output, session) {
     shared_state <- ptr_shared_server(formulas)
-    ptr_module_server("plot_1", formulas[[1]], shared_state = shared_state)
-    ptr_module_server("plot_2", formulas[[2]], shared_state = shared_state)
+    ptr_module_server(formulas[[1]], "plot_1", shared_state = shared_state)
+    ptr_module_server(formulas[[2]], "plot_2", shared_state = shared_state)
   }
   shinyApp(ui, server)
 }
@@ -498,12 +498,12 @@ ptr_app_grid(
                 geom_point(size = num, alpha = num)"
   ui <- fluidPage(
     fluidRow(
-      column(5, ptr_module_ui("plotly_demo", formula)),
+      column(5, ptr_module_ui(formula, "plotly_demo")),
       column(7, plotly::plotlyOutput("interactive_plot", height = "500px"))
     )
   )
   server <- function(input, output, session) {
-    state <- ptr_module_server("plotly_demo", formula)
+    state <- ptr_module_server(formula, "plotly_demo")
     output$interactive_plot <- plotly::renderPlotly({
       res <- state$runtime()                     # reactive dep
       shiny::req(isTRUE(res$ok), res$plot)
@@ -517,7 +517,7 @@ ptr_app_grid(
 {
   ui <- fluidPage(
     actionButton("add_log", "Toggle log-scale"),
-    ptr_module_ui("p", "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()")
+    ptr_module_ui("ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()", "p")
   )
   server <- function(input, output, session) {
     state <- ptr_module_server(

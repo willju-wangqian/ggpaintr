@@ -450,7 +450,7 @@ if (interactive()) {
     )
   )
   server_split <- function(input, output, session) {
-    ptr_module_server("embed", ex2_simple)
+    ptr_module_server(ex2_simple, "embed")
   }
   shinyApp(ui_split, server_split)
 
@@ -458,7 +458,7 @@ if (interactive()) {
   ui_mod <- fluidPage(
     actionButton("toggle_log", "Toggle log-x"),
     fluidRow(
-      column(5, ptr_module_ui("m", ex2_simple,
+      column(5, ptr_module_ui(ex2_simple, "m",
                               ui_text = list(shell = list(title = list(label = "Module"))),
                               checkbox_defaults = list(),
                               expr_check = TRUE,
@@ -467,7 +467,7 @@ if (interactive()) {
     )
   )
   server_mod <- function(input, output, session) {
-    state <- ptr_module_server("m", ex2_simple)
+    state <- ptr_module_server(ex2_simple, "m")
     output$my_plot <- renderPlot({
       # Read `state$runtime()` directly (NOT `ptr_extract_plot()`, which is
       # `isolate()`-wrapped for non-reactive callers) so this pane re-renders
