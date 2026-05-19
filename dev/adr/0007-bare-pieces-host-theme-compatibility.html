@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0007 — Bare pieces vs. host-theme compatibility (DEFERRED — no decision)</title>
+<style>
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.2rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .danger { border-left: 4px solid #c0392b; background: #fde7e7; padding: .6rem .9rem; margin: .8rem 0; }
+  .note  { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+  .defer { border-left: 4px solid #d08a00; background: #fff6e5; padding: .6rem .9rem; margin: .8rem 0; }
+</style>
+</head>
+<body>
+
+<h1>ADR 0007 — Bare pieces vs. host-theme compatibility</h1>
+<p class="meta">Status: <strong>deferred — NO decision made</strong> · Date: 2026-05-19 ·
+Supersedes: <strong>nothing</strong> · Voids: <strong>nothing</strong> ·
+Related: ADR 0001 (polish default fluidPage UI), ADR 0005 (L2/L3 redesign — <code>ptr_&lt;x&gt;</code>/<code>ptr_ui_&lt;x&gt;</code> bare convention, "future <code>ptr_options()</code> knob" anticipated in <code>ggpaintr.css</code> header), ADR 0006 (single server entry; L3 = UI-side bare-piece composition) ·
+Domain language: <code>CONTEXT.md</code> (no change) ·
+Implementation: <strong>none</strong> — this ADR records an open design question and a recommendation only.</p>
+
+<div class="defer">
+  <strong>This ADR makes no decision.</strong> It captures a 2026-05-19 design discussion, the trade-offs, and a final recommendation, so the question is not re-discovered from scratch later. The maintainer has <strong>explicitly chosen to defer</strong>. Nothing in the codebase changes on the basis of this document. When the decision is taken, supersede this ADR (or add a "Decision" section and flip the status) — do not silently act on the recommendation below.
+</div>
+
+<h2>Context</h2>
+<p>While embedding ggpaintr's <strong>bare</strong> UI pieces (<code>ptr_ui_controls()</code>, <code>ptr_ui_plot()</code>, <code>ptr_ui_toggle_code()</code>, <code>ptr_ui_code()</code>, <code>ptr_ui_inline_error()</code>) into a <code>bslib::page_sidebar()</code> shell — without <code>ptr_ui_assets()</code> and without the <code>.ptr-app</code> wrapper — the components render visibly unstyled: giant native <code>&lt;h&gt;</code> headings, browser-default <code>Copy</code>/<code>×</code> buttons, a borderless card, a broken plot box. The maintainer expected "bare" to mean "a minimal-but-presentable default that coexists with / inherits the active Bootstrap/bslib theme." That expectation does not match the current design.</p>
+
+<h3>What "bare" actually means today</h3>
+<p>ggpaintr ships <strong>exactly one</strong> fixed, self-contained theme: <code>inst/www/ggpaintr.css</code>, loaded <em>only</em> by <code>ptr_ui_assets()</code> and entirely scoped under <code>.ptr-app</code>. Its header comment states the scoping exists for <strong>isolation</strong> — "embedding ggpaintr as a Shiny module never restyles the host page." Isolation is symmetric: the host's bslib/bootswatch theme also never reaches into ggpaintr. The single-piece builders emit <strong>no</strong> assets by design (per <code>ptr_ui_assets()</code> roxygen and <code>inst/llm/topics/level3_layout.md:26</code> — "the pieces are deliberately bare"). So "bare" = <em>structural HTML with zero intrinsic style</em>, not "neutral self-styling default." There is no built-in tier between "raw fragments" and "ggpaintr's fixed cardinal theme."</p>
+
+<h3>The markup splits into two categories — this is the crux</h3>
+<table>
+  <tr><th>Category</th><th>Elements</th><th>What "remove ggpaintr styling" yields</th></tr>
+  <tr>
+    <td><strong>1. Standard Shiny/Bootstrap components</strong></td>
+    <td><code>pickerInput</code> (<code>.form-control</code>/<code>.selectize-input</code>/<code>.btn-default</code>), <code>actionButton</code> (<code>.btn .action-button</code>), <code>sidebarPanel</code>/<code>wellPanel</code> (<code>.well</code>), <code>plotOutput</code>, <code>verbatimTextOutput</code></td>
+    <td><strong>Genuine default Shiny/Bootstrap.</strong> <code>ggpaintr.css</code> only <em>lightly overrides</em> these (radius tweak, accent on <code>.action-button</code>, surface on <code>.well</code>). Strip it → real defaults → bslib / other packages style them for free. The maintainer's "fall back to default, stays compatible" reasoning <strong>holds here</strong>.</td>
+  </tr>
+  <tr>
+    <td><strong>2. ggpaintr-invented elements</strong></td>
+    <td><code>.ptr-card</code>, <code>.ptr-card__head</code>, <code>.ptr-card__title</code>, <code>.ptr-card__body</code>, <code>.ptr-icon-btn</code>, <code>.ptr-copy-btn</code>, <code>.ptr-code-window</code> (draggable floating panel), <code>.ptr-alert</code>, <code>.ptr-app__header</code></td>
+    <td><strong>Raw unstyled HTML.</strong> Bootstrap/Shiny never defined these class names, so there is <em>nothing to fall back to</em>: "fall back" = zero matching rules = bare <code>&lt;div&gt;</code>/native <code>&lt;button&gt;</code>. This is exactly the unstyled screenshot. The "fall back to default" reasoning <strong>fails here.</strong></td>
+  </tr>
+</table>
+<p>The observed ugliness is dominated by Category 2 (the card chrome + icon buttons + code window built by <code>ptr_ui_toggle_code()</code>/<code>ptr_ui_code()</code>). The <code>plotOutput</code> itself is Category 1 and renders fine by default — the empty box is "no plot drawn yet," not a style break. Conclusion: a naive "disable the <code>--ptr-*</code> variables / disable ggpaintr.css" flag would deliver the desired result for Category 1 and the unstyled mess for Category 2, because Category 2 has no default state to revert to. Theme-neutrality for the <em>whole</em> surface is a markup question, not only a CSS question.</p>
+
+<h2>Options considered</h2>
+
+<h3>Option A — Token aliasing onto Bootstrap variables (CSS-only)</h3>
+<p>Redefine ggpaintr's design tokens with Bootstrap variables as the value and the current cardinal palette as the fallback, e.g. <code>--ptr-accent: var(--bs-primary, #c1372c)</code>, <code>--ptr-bg: var(--bs-body-bg, #fafbfc)</code>, <code>--ptr-ink: var(--bs-body-color, #1f2530)</code>, <code>--ptr-border: var(--bs-border-color, #e7e9ee)</code>. No flag, no API surface, self-adapting: standalone ggpaintr is byte-identical (fallbacks fire); inside a bslib page the chrome auto-picks the bootswatch palette. ~15-line CSS change. This is almost certainly what <code>ggpaintr.css:4-5</code> means by "a future <code>ptr_options()</code> knob is a one-line override."</p>
+<p><em>Closes:</em> the <strong>colour</strong> gap (Category 2 chrome coheres with the host palette). <em>Does not close:</em> structure — <code>.ptr-card</code> keeps ggpaintr geometry (radius/shadow/padding); there is no <code>--bs-*</code> a non-<code>.card</code> element auto-inherits shape from. Does <strong>not</strong> deliver "looks like default Shiny."</p>
+
+<h3>Option B — A <code>plain</code> / <code>bare = TRUE</code> rendering mode (markup change)</h3>
+<p>A mode on the piece builders / wrappers where "plain": (a) skips <code>ptr_ui_assets()</code> and the <code>.ptr-app</code> scope, and (b) substitutes standard Bootstrap components for the bespoke chrome — <code>.ptr-card</code> → <code>wellPanel()</code>/<code>.card</code>, icon buttons → <code>actionButton()</code>, the draggable code window → an inline <code>verbatimTextOutput</code> in a panel, <code>.ptr-alert</code> → Bootstrap <code>.alert</code>. Category 1 then needs nothing; Category 2 becomes real Bootstrap that bslib/other packages style for free. This is the <strong>only</strong> option that makes ggpaintr's whole output genuinely package-neutral.</p>
+<p><em>Cost:</em> a second rendering path to maintain and test, and "plain" loses identity features — the draggable floating code window has no standard equivalent and degrades to an inline panel. Touches the build-ui functions (ADR-locked UI layer), not just CSS.</p>
+
+<h3>Option C — Ship a minimal/reset stylesheet variant (CSS-only, opt-in)</h3>
+<p>An alternate stylesheet that gives the <code>.ptr-*</code> classes just enough neutral structure (border/padding via <code>var(--bs-*)</code>) to read as plain panels without imposing the cardinal theme. Middle ground: still ggpaintr-shaped, but visually quiet and host-coherent. Less faithful to "default Shiny" than B, cheaper than B, more than A.</p>
+
+<h3>Rejected outright</h3>
+<ul>
+  <li><strong>"Add a flag that just disables the <code>--ptr-*</code> variables and stays with default."</strong> Rejected as stated: false premise. Category 2 elements have no Bootstrap/Shiny default to revert to; disabling the tokens (or the whole stylesheet) deletes the theme without providing a substitute, reproducing the unstyled screenshot. The valid kernel of this idea survives as Option A (alias, don't delete) and Option B (provide a real standard-component substitute).</li>
+</ul>
+
+<h2>Trade-off (explicit)</h2>
+<table>
+  <tr><th></th><th>A — token aliasing</th><th>B — plain mode</th><th>C — reset stylesheet</th></tr>
+  <tr><td>Delivers "host-coherent colour"</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+  <tr><td>Delivers "looks like default Shiny / true package-neutral"</td><td>No (keeps ggpaintr geometry)</td><td><strong>Yes</strong></td><td>Partial (neutral, still ggpaintr-shaped)</td></tr>
+  <tr><td>New public API surface</td><td>None</td><td>A mode arg on builders/wrappers</td><td>One opt-in asset switch</td></tr>
+  <tr><td>Rendering paths to maintain</td><td>1</td><td><strong>2</strong></td><td>1 (two stylesheets)</td></tr>
+  <tr><td>Loses identity features</td><td>No</td><td>Yes (draggable code window → inline)</td><td>No</td></tr>
+  <tr><td>Surface touched</td><td>CSS only</td><td>build-ui markup (ADR-locked layer)</td><td>CSS only</td></tr>
+  <tr><td>Effort / risk</td><td>Low / low</td><td>High / medium</td><td>Medium / low</td></tr>
+</table>
+<p>The tension is structural, not cosmetic: ggpaintr deliberately ships <em>one opinionated, isolated theme</em>, and the word "bare" advertises a theme-agnostic neutrality the pieces do not actually have. <strong>A</strong> buys host-colour coherence almost for free but cannot make ggpaintr's invented chrome look like native Shiny. <strong>B</strong> is the only thing that fully satisfies the original expectation, but it is a dual-path commitment that erodes ggpaintr's visual identity and edits the ADR-locked UI layer. <strong>C</strong> is the compromise nobody specifically asked for. None of these is forced now: the bare pieces remain fully usable today with <code>ptr_ui_assets()</code> + <code>.ptr-app</code> (ggpaintr's theme inside the host shell) — the gap is "host-themed/neutral output," a polish concern, not a correctness defect.</p>
+
+<h2>Final recommendation (advisory only — not adopted)</h2>
+<p>If/when this is taken up: do <strong>Option A</strong> first as a standalone, low-risk, no-API step — it is the explicitly-anticipated token-knob, closes the colour half of the gap for every embedding context, and is byte-identical standalone. Treat full structural neutrality (<strong>Option B</strong>) as a <em>separate, later</em> decision, adopted only if a concrete need for true package-neutral output (not just host-coherent colour) materialises; if it is adopted, scope it as an explicit opt-in mode and accept the inline-code-window degradation rather than trying to preserve the draggable widget in plain mode. Do <strong>not</strong> bundle A and B into one change. <strong>Option C</strong> only if a consumer specifically needs "neutral but ggpaintr-shaped" — otherwise it is maintenance for an unrequested middle.</p>
+
+<div class="note">
+  <strong>Decision: none.</strong> Deferred at the maintainer's explicit request (2026-05-19). The recommendation above is captured to prevent re-deriving the analysis; it is <strong>not</strong> an instruction to implement. Any future actor: confirm this status is still "deferred" before acting, route the actual decision through brainstorming→ADR, and re-verify the two-category split and the <code>ggpaintr.css</code> token claims against current source (they were accurate as of 2026-05-19).
+</div>
+
+</body>
+</html>
