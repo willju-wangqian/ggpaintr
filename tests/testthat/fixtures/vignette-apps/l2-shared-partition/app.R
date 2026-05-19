@@ -9,7 +9,7 @@ pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_t
 library(shiny)
 # >>> verbatim: vignettes/ggpaintr-use-cases.Rmd chunk `l2-shared-partition` >>>
 plots <- list(
-  "ggplot(iris, aes(x = var(shared = 'ax1'), y = var(shared = 'ax1'),
+  "ggplot(iris, aes(x = var(shared = 'ax1'), y = var - var(shared = 'ax1'),
                     color = Species)) + geom_point(size = num(shared = 'sz'))",
   "ggplot(iris, aes(x = var(shared = 'ax2'), y = Sepal.Width,
                     color = Species)) + geom_point(size = num(shared = 'sz'))"
@@ -26,8 +26,8 @@ obj$panel_keys                       # "sz"
 ui <- shiny::fluidPage(
   ptr_shared_panel(obj),             # holds sz only
   shiny::fluidRow(
-    shiny::column(6, ptr_ui(plots[[1]], "plot_1", shared = obj)),  # ax1 inline here
-    shiny::column(6, ptr_ui(plots[[2]], "plot_2", shared = obj))   # ax2 inline here
+    shiny::column(6, ptr_ui(plots[[1]], "plot_1", shared = obj)),  # ax1 inline
+    shiny::column(6, ptr_ui(plots[[2]], "plot_2", shared = obj))   # ax2 inline
   )
 )
 server <- function(input, output, session) {

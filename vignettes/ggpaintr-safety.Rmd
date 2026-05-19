@@ -79,7 +79,7 @@ The denylist is the names the validator considers dangerous. The walker is *how*
 
 The list is **treated as complete** for the maintained branch. R is open enough that no finite enumeration is exhaustive — `get("system")()` would bypass any pure name-match if the walker did not also handle string literals, compound heads, and nested calls. New entries land only when a concrete bypass is demonstrated against the *walker*, not against the list alone.
 
-If your deployment needs an entry the curated list omits, use `expr_check = list(deny_list = "your_name")` rather than asking for an upstream addition. That keeps the curated list focused and your local policy in your hands.
+There is **no "add one name to the curated denylist" shortcut**: a bare `expr_check = list(deny_list = "your_name")` *replaces* the curated ~151-entry list with **only** `"your_name"` (see the `expr_check` table above), so using it to cover a single extra name silently drops the other ~150 protections — it weakens, not tightens. If you believe the curated list genuinely omits a dangerous name, treat it as a list/walker gap and report it (see *The AST walker* below and the closing note) rather than narrowing your own deployment to a one-entry denylist.
 
 ### The AST walker
 

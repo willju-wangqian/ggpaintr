@@ -150,19 +150,22 @@ test_that("use-cases app-grid-shared-added: L1 ptr_app_grid with shared widget",
                fixed = TRUE)
 })
 
-test_that("use-cases module-app: L2 ptr_ui/ptr_server", {
+test_that("use-cases module-app: L2 ptr_ui/ptr_server (id omitted)", {
   app <- boot_vignette_app("module-app")
 
-  expect_dom_id(app, "p-ptr_update_plot")
-  expect_dom_id(app, "p-ptr_plot")
-  expect_dom_id(app, "p-ptr_code")
+  # The vignette omits `id` (single ggpaintr module). id = NULL ->
+  # moduleServer(NULL) -> NS(NULL) identity -> ids are un-namespaced
+  # (bare), same shape as ptr_app(); no `p-` prefix.
+  expect_dom_id(app, "ptr_update_plot")
+  expect_dom_id(app, "ptr_plot")
+  expect_dom_id(app, "ptr_code")
 
-  set_input(app, "p-ggplot_1_1_var_NA", "Sepal.Length")
-  set_input(app, "p-ggplot_1_2_var_NA", "Petal.Length")
-  draw(app, "p-ptr_update_plot")
-  expect_rendered(app, "#p-ptr_plot", "ggplot")
-  expect_code_nonempty(app, "p-ptr_code")
-  expect_no_inline_error(app, "p-ptr_error")
+  set_input(app, "ggplot_1_1_var_NA", "Sepal.Length")
+  set_input(app, "ggplot_1_2_var_NA", "Petal.Length")
+  draw(app, "ptr_update_plot")
+  expect_rendered(app, "#ptr_plot", "ggplot")
+  expect_code_nonempty(app, "ptr_code")
+  expect_no_inline_error(app, "ptr_error")
 })
 
 test_that("use-cases single-instance-shared: inline shared section, no coordinator", {
@@ -171,9 +174,13 @@ test_that("use-cases single-instance-shared: inline shared section, no coordinat
   expect_dom_id(app, "ptr_update_plot")
   expect_dom_id(app, "ptr_plot")
 
-  # One shared key drives both x and y of the single plot. "Petal.Width"
-  # is a literal nowhere in the formula, so its presence in the code can
-  # only come from the inline shared widget propagating.
+  # y = var - var(shared='col'): the shared key `col` drives x AND one y
+  # operand; the OTHER y operand is a plain formula-local `var` the user
+  # must pick (an unselected var legitimately yields no mapping), so the
+  # happy path sets BOTH pickers. "Petal.Width" is a literal nowhere in
+  # the formula, so its presence in the code can only come from the
+  # inline shared widget propagating into both x and y.
+  set_input(app, "ggplot_1_2_1_var_NA", "Sepal.Length")  # unshared y operand
   set_input(app, "shared_col", "Petal.Width")
   draw(app, "ptr_update_plot")
   expect_rendered(app, "#ptr_plot", "ggplot")
@@ -243,7 +250,10 @@ test_that("use-cases l2-shared-partition: formula-local var(shared=) pickers are
   expect_no_dom_id(app, "plot_2-shared_sz")
 
   # BDD: selecting a column in the formula-local picker then redrawing makes
-  # that plot use it (plot_1's x AND y are both var(shared='ax1')).
+  # that plot use it (plot_1's x is var(shared='ax1') and y is
+  # var - var(shared='ax1'), so ax1 drives x and the shared y term; the
+  # other y operand is a plain formula-local var the user must also pick).
+  set_input(app, "plot_1-ggplot_1_2_1_var_NA", "Sepal.Length")  # unshared y operand
   set_input(app, "plot_1-shared_ax1", "Petal.Length")
   set_input(app, "plot_2-shared_ax2", "Sepal.Length")
   draw(app, "ptr_shared_draw_all")
