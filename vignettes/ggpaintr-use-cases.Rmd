@@ -349,7 +349,7 @@ The pieces are **truly orthogonal** — they take an `id` (and, where relevant, 
 |---|---|---|
 | `ptr_ui_page(…, page, css)` | The optional page shell: a Bootstrap-3 page + the single `.ptr-app` theme scope + the deduped asset bundle, wrapping the pieces you pass in `…` | `page` (default `shiny::fluidPage`), `css` |
 | `ptr_ui_header(title)` | The branded header bar (logo + title) | `title` (default `"ggpaintr"`) |
-| `ptr_ui_controls(id, formula, …)` | The generated control widgets (layer picker, per-layer panels, *Update plot*, inline shared section) | `id`, `formula`, `ui_text`, `checkbox_defaults`, `expr_check`, `shared` |
+| `ptr_ui_controls(formula, id = NULL, …)` | The generated control widgets (layer picker, per-layer panels, *Update plot*, inline shared section) | `id`, `formula`, `ui_text`, `checkbox_defaults`, `expr_check`, `shared` |
 | `ptr_ui_plot(id)` | The bare plot card (`ptr_plot`) — no error slot, no toggle | `id` |
 | `ptr_ui_error(id)` | The bare inline error slot (`ptr_error`) | `id` |
 | `ptr_ui_code(id, style)` | The bare generated-code pane (`ptr_code`) | `style = "panel"` (plain, always visible — default) or `"window"` (slide-out chrome, only meaningful via the toggle combinator) |
@@ -464,7 +464,7 @@ This is exactly the body of `ptr_ui_page()` (`page(ptr_ui_assets(css), div(class
 **The canonical pattern** nests `ptr_server()` inside *your own* `shiny::moduleServer(id, …)`, and places your output widget at `shiny::NS(id)(…)` in the UI. Namespacing is then automatic and plain-Shiny-idiomatic — you never touch any internal namespace plumbing:
 
 ```r
-# UI:     plotly::plotlyOutput(shiny::NS("plot1")("my_plot"))   + ptr_ui_controls("plot1", formula)
+# UI:     plotly::plotlyOutput(shiny::NS("plot1")("my_plot"))   + ptr_ui_controls(formula, "plot1")
 # server: shiny::moduleServer("plot1", function(input, output, session) {
 #           state <- ptr_server(input, output, session, formula)
 #           output$my_plot <- plotly::renderPlotly({ ... state$runtime() ... })
@@ -481,7 +481,7 @@ Mixing the two in a render block — calling `ptr_extract_plot(state)` inside `r
 
 #### Custom plot renderer — `state$runtime()$plot` inside `renderPlotly()`
 
-Render `ptr_ui_controls(id, formula)` for the widgets, place your own output container at `shiny::NS(id)(...)`, and never place `ptr_ui_plot(id)` — with no UI slot bound to it the built-in `ptr_plot` output stays inert, so there is no bundled pane at all. The server is the canonical pattern: `ptr_server()` inside your own `moduleServer(id)`.
+Render `ptr_ui_controls(formula, id)` for the widgets, place your own output container at `shiny::NS(id)(...)`, and never place `ptr_ui_plot(id)` — with no UI slot bound to it the built-in `ptr_plot` output stays inert, so there is no bundled pane at all. The server is the canonical pattern: `ptr_server()` inside your own `moduleServer(id)`.
 
 ```{r l3-plotly}
 formula <- "ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"
@@ -566,7 +566,7 @@ Eval errors from the captured expressions leave the existing extras untouched (a
 
 #### Shared widgets driving custom renderers
 
-Combine the multi-instance shared coordinator with custom outputs: one `ptr_shared_server(obj)` bundle feeds every module's `ptr_server()`, and each module's returned `state` feeds its own `plotly::renderPlotly()`. Each plot gets its own `moduleServer(id)` so the per-placeholder ids never collide; the cross-formula key lives in the standalone `ptr_ui_shared_panel(obj)` (its keys are excluded from each `ptr_ui_controls(id, formula, shared = obj)`).
+Combine the multi-instance shared coordinator with custom outputs: one `ptr_shared_server(obj)` bundle feeds every module's `ptr_server()`, and each module's returned `state` feeds its own `plotly::renderPlotly()`. Each plot gets its own `moduleServer(id)` so the per-placeholder ids never collide; the cross-formula key lives in the standalone `ptr_ui_shared_panel(obj)` (its keys are excluded from each `ptr_ui_controls(formula, id, shared = obj)`).
 
 ```{r l3-shared}
 plots <- list(
@@ -580,11 +580,11 @@ obj <- ptr_shared(formulas = plots,
 ui <- ptr_ui_page(
   ptr_ui_shared_panel(obj),                                  # cross-formula panel (bare, L3)
   shiny::fluidRow(
-    shiny::column(3, ptr_ui_controls("plot_1", plots[[1]], shared = obj)),
+    shiny::column(3, ptr_ui_controls(plots[[1]], "plot_1", shared = obj)),
     shiny::column(9, plotly::plotlyOutput(shiny::NS("plot_1")("custom")))
   ),
   shiny::fluidRow(
-    shiny::column(3, ptr_ui_controls("plot_2", plots[[2]], shared = obj)),
+    shiny::column(3, ptr_ui_controls(plots[[2]], "plot_2", shared = obj)),
     shiny::column(9, plotly::plotlyOutput(shiny::NS("plot_2")("custom")))
   )
 )
@@ -611,7 +611,7 @@ The coordinator feeds the modules; the modules feed your custom renderers. `ptr_
 
 ### L3 with shared widgets — default panes
 
-If you want the bare default panes (not a custom renderer) under L3, the shape is the same minus the custom outputs: build `obj`, place `ptr_ui_shared_panel(obj)` once, give each plot its own `ptr_ui_controls(id, formula, shared = obj)` + bare plot piece, and run one top-level `ptr_shared_server(obj)` threaded into each module's `ptr_server()`:
+If you want the bare default panes (not a custom renderer) under L3, the shape is the same minus the custom outputs: build `obj`, place `ptr_ui_shared_panel(obj)` once, give each plot its own `ptr_ui_controls(formula, id, shared = obj)` + bare plot piece, and run one top-level `ptr_shared_server(obj)` threaded into each module's `ptr_server()`:
 
 ```{r l3-pieces-shared}
 plots <- list(
@@ -625,8 +625,8 @@ obj <- ptr_shared(formulas = plots,
 ui <- ptr_ui_page(
   ptr_ui_shared_panel(obj),
   shiny::fluidRow(
-    shiny::column(6, ptr_ui_controls("p1", plots[[1]], shared = obj), ptr_ui_plot("p1")),
-    shiny::column(6, ptr_ui_controls("p2", plots[[2]], shared = obj), ptr_ui_plot("p2"))
+    shiny::column(6, ptr_ui_controls(plots[[1]], "p1", shared = obj), ptr_ui_plot("p1")),
+    shiny::column(6, ptr_ui_controls(plots[[2]], "p2", shared = obj), ptr_ui_plot("p2"))
   )
 )
 server <- function(input, output, session) {

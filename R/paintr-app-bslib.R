@@ -108,8 +108,8 @@ ptr_app_bslib <- function(formula,
 
   server <- function(input, output, session) {
     ptr_module_server(
-      id,
       formula = formula,
+      id = id,
       envir = envir,
       ui_text = ui_text,
       checkbox_defaults = checkbox_defaults,

@@ -172,8 +172,8 @@ test_that("two ptr_module_server instances do not collide", {
 
 test_that("ptr_ui_controls emits the control ids (no output ids)", {
   ui <- ptr_ui_controls(
-    "x",
-    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+    "x"
   )
   rendered <- as.character(ui)
   expect_match(rendered, "x-ptr_update_plot")

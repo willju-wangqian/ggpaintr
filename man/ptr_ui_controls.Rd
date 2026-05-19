@@ -5,8 +5,8 @@
 \title{Controls Piece for a \code{ggpaintr} Formula}
 \usage{
 ptr_ui_controls(
-  id = NULL,
   formula,
+  id = NULL,
   ui_text = NULL,
   checkbox_defaults = NULL,
   expr_check = TRUE,
@@ -14,11 +14,11 @@ ptr_ui_controls(
 )
 }
 \arguments{
+\item{formula}{A single formula string with \code{ggpaintr} placeholders.}
+
 \item{id}{Optional module id; the namespace prefix for inputs.
 Defaults to \code{NULL} (identity namespace). When set, must match the
 \code{id} passed to the other piece functions and the server wiring.}
-
-\item{formula}{A single formula string with \code{ggpaintr} placeholders.}
 
 \item{ui_text}{Optional named list of copy overrides; see
 \code{\link[=ptr_ui_text]{ptr_ui_text()}} for the full schema and current defaults.}
@@ -65,8 +65,8 @@ type; see \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_valu
 }
 \examples{
 ptr_ui_controls(
-  id = "p",
-  formula = "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+  "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
+  id = "p"
 )
 }
 \seealso{

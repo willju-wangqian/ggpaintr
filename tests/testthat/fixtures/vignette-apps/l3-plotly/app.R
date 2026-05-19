@@ -9,7 +9,7 @@ formula <- "ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"
 
 ui <- ptr_ui_page(
   shiny::fluidRow(
-    shiny::column(5, ptr_ui_controls("plot1", formula)),                   # widgets only
+    shiny::column(5, ptr_ui_controls(formula, "plot1")),                   # widgets only
     shiny::column(7, plotly::plotlyOutput(shiny::NS("plot1")("custom_plot"),
                                           height = "500px") |>
                     ptr_ui_toggle_code(ptr_ui_code("plot1")))               # your own output

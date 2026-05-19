@@ -753,10 +753,10 @@ ptr_module_ui <- function(formula, id = NULL, ui_text = NULL,
 #' independently rather than the whole panel — register a custom placeholder
 #' type; see [ptr_define_placeholder_value()].
 #'
+#' @param formula A single formula string with `ggpaintr` placeholders.
 #' @param id Optional module id; the namespace prefix for inputs.
 #'   Defaults to `NULL` (identity namespace). When set, must match the
 #'   `id` passed to the other piece functions and the server wiring.
-#' @param formula A single formula string with `ggpaintr` placeholders.
 #' @param ui_text Optional named list of copy overrides; see
 #'   [ptr_ui_text()] for the full schema and current defaults.
 #' @param checkbox_defaults Optional named list of initial checked states.
@@ -777,11 +777,11 @@ ptr_module_ui <- function(formula, id = NULL, ui_text = NULL,
 #'   [ptr_ui_code()], [ptr_shared()], [ptr_server()]
 #' @examples
 #' ptr_ui_controls(
-#'   id = "p",
-#'   formula = "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+#'   "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
+#'   id = "p"
 #' )
 #' @export
-ptr_ui_controls <- function(id = NULL, formula, ui_text = NULL,
+ptr_ui_controls <- function(formula, id = NULL, ui_text = NULL,
                             checkbox_defaults = NULL, expr_check = TRUE,
                             shared = NULL) {
   assertthat::assert_that(

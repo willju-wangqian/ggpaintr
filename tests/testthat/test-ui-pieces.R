@@ -151,7 +151,7 @@ test_that("ptr_ui_toggle_code wraps a childless plotOutput sibling-style (no cra
 # ---- ptr_ui_controls vs the ptr_controls_ui composite ----
 
 test_that("ptr_ui_controls emits control ids with NO .ptr-app wrapper or assets", {
-  rendered <- as.character(ptr_ui_controls("x", fml))
+  rendered <- as.character(ptr_ui_controls(fml, "x"))
   expect_match(rendered, "x-ptr_update_plot")
   expect_match(rendered, "x-ptr_layer_select")
   expect_match(rendered, "x-ptr_layer_tabset")
@@ -184,7 +184,7 @@ fml_shared_local <- paste0(
 )
 
 test_that("ptr_ui_controls (no shared) renders all shared keys inline", {
-  rendered <- as.character(ptr_ui_controls("p", fml_shared_local))
+  rendered <- as.character(ptr_ui_controls(fml_shared_local, "p"))
   expect_match(rendered, "p-shared_A", fixed = TRUE)
   expect_match(rendered, "p-shared_X", fixed = TRUE)
   expect_match(rendered, "p-ptr_layer_select", fixed = TRUE)
@@ -199,19 +199,19 @@ test_that("ptr_ui_controls(shared = obj) excludes obj$panel_keys", {
   obj <- ptr_shared(c(f1, f2))
   expect_identical(obj$panel_keys, "B")  # B is cross-formula
 
-  rendered <- as.character(ptr_ui_controls("p1", f1, shared = obj))
+  rendered <- as.character(ptr_ui_controls(f1, "p1", shared = obj))
   expect_match(rendered, "p1-shared_A", fixed = TRUE)       # formula-local
   expect_no_match(rendered, "shared_B")                     # panel-owned
   expect_match(rendered, "p1-ptr_layer_select", fixed = TRUE)  # unchanged
 
   # the layer controls are byte-identical with vs without `shared`
-  bare <- as.character(ptr_ui_controls("p1", f1))
+  bare <- as.character(ptr_ui_controls(f1, "p1"))
   expect_match(bare, "p1-shared_B", fixed = TRUE)  # inline when single-inst
 })
 
 test_that("ptr_ui_controls with no shared placeholders renders no section", {
   f <- "ggplot(mtcars) + geom_point(size = num())"
-  rendered <- as.character(ptr_ui_controls("p", f))
+  rendered <- as.character(ptr_ui_controls(f, "p"))
   expect_no_match(rendered, "ptr-shared-panel")
   expect_match(rendered, "p-ptr_layer_select", fixed = TRUE)
 })
