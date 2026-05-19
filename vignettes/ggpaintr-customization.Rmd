@@ -2,18 +2,18 @@
 title: "Customization"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Customization}
+%\VignetteIndexEntry{Customization}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
----
-
-```{r setup, include = FALSE}
+  ---
+  
+  ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment   = "#>",
-  warning   = FALSE,
-  message   = FALSE,
-  eval      = interactive()
+collapse = TRUE,
+comment   = "#>",
+warning   = FALSE,
+message   = FALSE,
+eval      = interactive()
 )
 ```
 
@@ -98,7 +98,7 @@ Every region of the default shell carries a stable class you can target from you
 
 ### Surface 2 — injecting your own stylesheet with `css =`
 
-Every self-contained entry point (`ptr_app()`, `ptr_app_grid()`, `ptr_module_ui()`, `ptr_shared_panel()`) accepts a `css =` argument — as does the optional L3 page shell `ptr_ui_page()`, and the `ptr_ui_assets(css =)` escape hatch for non-`ptr_ui_page()` roots: a character vector of paths to `.css` files. Each file is registered as a static resource and linked **after** the bundled stylesheet, so your rules win at equal specificity. Relative `url(...)` references resolve against each file's own directory, so you can ship images next to the stylesheet.
+Every self-contained entry point (`ptr_app()`, `ptr_app_grid()`, `ptr_ui()`, `ptr_shared_panel()`) accepts a `css =` argument — as does the optional L3 page shell `ptr_ui_page()`, and the `ptr_ui_assets(css =)` escape hatch for non-`ptr_ui_page()` roots: a character vector of paths to `.css` files. Each file is registered as a static resource and linked **after** the bundled stylesheet, so your rules win at equal specificity. Relative `url(...)` references resolve against each file's own directory, so you can ship images next to the stylesheet.
 
 ```{r css-example, eval = FALSE}
 ptr_app(
@@ -130,8 +130,8 @@ The `.ptr-*` table above is the committed contract. Outside that:
 When CSS alone is not enough — you want a different page shell, a theme system like `bslib`, or a layout that does not map onto `ptr_app()`'s defaults — write a thin wrapper around the public ggpaintr primitives. The non-module split (`ptr_controls_ui()` / `ptr_outputs_ui()`) was removed in the L2/L3 redesign (ADR 0005); a single-formula wrapper now composes the bare L3 pieces plus the scaffolding they need:
 
 - `ptr_ui_controls(formula, id = NULL, ...)` — the layer picker, per-layer parameter panels, and the "Update plot" button. It is **bare** (emits only its widgets, no wrapper, no assets), so the wrapper itself supplies the themed scope — a `shiny::tags$div(class = "ptr-app", ...)` — and the bundled stylesheet via `ptr_ui_assets()` (self-deduping page-wide through htmlDependency).
-- the output stack — `ptr_ui_toggle_code(ptr_ui_inline_error(ptr_ui_plot(id), ptr_ui_error(id)), ptr_ui_code(id))`: the plot card, inline error, and the slide-out generated-code window, composed from the bare panes by the two DOM-only combinators. This nested call is byte-for-byte what `ptr_app()` / `ptr_module_ui()` render internally.
-- `ptr_module_server(formula, id = NULL, ...)` — the server side. Forwards `ui_text` / `checkbox_defaults` / `expr_check` / `safe_to_remove` / `envir` to [ptr_init_state()] and wires all the reactivity, including shared widgets declared with `var(shared = "...")` inside the same formula.
+- the output stack — `ptr_ui_toggle_code(ptr_ui_inline_error(ptr_ui_plot(id), ptr_ui_error(id)), ptr_ui_code(id))`: the plot card, inline error, and the slide-out generated-code window, composed from the bare panes by the two DOM-only combinators. This nested call is byte-for-byte what `ptr_app()` / `ptr_ui()` render internally.
+- `ptr_server(formula, id = NULL, ...)` — the server side. Forwards `ui_text` / `checkbox_defaults` / `expr_check` / `safe_to_remove` / `envir` to [ptr_init_state()] and wires all the reactivity, including shared widgets declared with `var(shared = "...")` inside the same formula.
 
 The package ships one worked example as an exported function, `ptr_app_bslib()`. It is not a recommended primary entry point — `ptr_app()` and `ptr_app_grid()` are. Its purpose is to *demonstrate* the wrapper pattern. The entire source is short enough to read in one screen:
 
@@ -154,7 +154,7 @@ ptr_app_bslib <- function(formula,
   id <- "ptr"
   title <- ptr_resolve_ui_text("title", ui_text = ui_text)$label %||%
     "ggpaintr"
-
+  
   ui <- bslib::page_sidebar(
     title = title,
     theme = theme,
@@ -178,7 +178,7 @@ ptr_app_bslib <- function(formula,
       )
     ),
     bslib::card(
-      full_screen = TRUE,
+      # full_screen = TRUE,
       shiny::tags$div(
         class = "ptr-app",
         ptr_ui_assets(),
@@ -189,9 +189,9 @@ ptr_app_bslib <- function(formula,
       )
     )
   )
-
+  
   server <- function(input, output, session) {
-    ptr_module_server(
+    ptr_server(
       formula = formula,
       id = id,
       envir = envir,
@@ -201,7 +201,7 @@ ptr_app_bslib <- function(formula,
       safe_to_remove = safe_to_remove
     )
   }
-
+  
   shiny::shinyApp(ui = ui, server = server)
 }
 ```
@@ -222,13 +222,13 @@ ptr_app_dark <- function(formula, ...) {
 }
 ```
 
-The same template extends to other shells (`bslib::page_navbar()`, a custom `shiny::fluidPage()` with bespoke chrome, a `flexdashboard`-style page) — swap the UI half and leave the `ptr_module_server()` half alone.
+The same template extends to other shells (`bslib::page_navbar()`, a custom `shiny::fluidPage()` with bespoke chrome, a `flexdashboard`-style page) — swap the UI half and leave the `ptr_server()` half alone.
 
 ### Public-API limits
 
 The L2/L3 redesign closed the old split-output-layout gap: the bare pieces `ptr_ui_plot(id)`, `ptr_ui_error(id)`, and `ptr_ui_code(id)` are independently placeable, so a layout that puts the plot and the generated code in separate containers — two side-by-side `bslib::card()`s, say — is just a matter of dropping each piece where you want it instead of nesting them through the combinators (skip `ptr_ui_toggle_code()` / `ptr_ui_inline_error()` and the panes render plain and standalone). One case the wrapper pattern still does **not** cover on the public API:
 
-- **Single-formula `var(shared = "...")` coordination.** When one formula declares the same `shared` key on multiple placeholders, `ptr_app()` auto-builds the combined widget in that instance's inline shared section. A bare `ptr_module_server()` wrapper aborts on a `shared = "..."` formula unless you hand it a pre-built `ptr_shared_state` — and `ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()` are strictly multi-instance API (a single-instance embedder never builds the coordinator). The recommended path for a single shared-driven plot is `ptr_app()` itself, or `ptr_app_grid()` with explicit `shared_ui =` builders.
+- **Single-formula `var(shared = "...")` coordination.** When one formula declares the same `shared` key on multiple placeholders, `ptr_app()` auto-builds the combined widget in that instance's inline shared section. A bare `ptr_server()` wrapper aborts on a `shared = "..."` formula unless you hand it a pre-built `ptr_shared_state` — and `ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()` are strictly multi-instance API (a single-instance embedder never builds the coordinator). The recommended path for a single shared-driven plot is `ptr_app()` itself, or `ptr_app_grid()` with explicit `shared_ui =` builders.
 
 This gap is tracked for a future API cycle.
 
