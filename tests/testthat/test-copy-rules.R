@@ -237,3 +237,45 @@ test_that("W3: ptr_validate_ui_text rejects non-string shared_panel_hint", {
     "must be a single string"
   )
 })
+
+# --- W3b: shared-panel hints presented behind a help-icon tooltip ---
+# The hint text is no longer an always-visible paragraph; it sits inside a
+# focusable "?" trigger (.ptr-shared-panel__help) revealing a tooltip
+# (.ptr-shared-panel__tip). Text stays in the DOM (tooltip body + aria-label)
+# so it remains discoverable, ui_text-overridable, and assertable.
+
+test_that("W3b: shared section hint renders as a help-icon tooltip, not a bare paragraph", {
+  f <- 'ggplot(iris, aes(x = var(shared = "a"))) + geom_point()'
+  html <- paste(as.character(ptr_ui(f, "p")), collapse = "\n")
+  expect_match(html, "ptr-shared-panel__help", fixed = TRUE)
+  expect_match(html, "ptr-shared-panel__tip", fixed = TRUE)
+  expect_false(grepl("ptr-shared-panel__hint", html, fixed = TRUE))
+  expect_match(html, "Drives every place this variable appears in this plot.", fixed = TRUE)
+  expect_match(html, "aria-label", fixed = TRUE)
+})
+
+test_that("W3b: shared panel hint renders as a help-icon tooltip, not a bare paragraph", {
+  f1 <- 'ggplot(mtcars, aes(x = var(shared = "sz"))) + geom_point()'
+  f2 <- 'ggplot(mtcars, aes(y = var(shared = "sz"))) + geom_point()'
+  html <- paste(as.character(ptr_shared_panel(ptr_shared(c(f1, f2)))), collapse = "\n")
+  expect_match(html, "ptr-shared-panel__help", fixed = TRUE)
+  expect_match(html, "ptr-shared-panel__tip", fixed = TRUE)
+  expect_false(grepl("ptr-shared-panel__hint", html, fixed = TRUE))
+  expect_match(html, "Drives every plot that uses it.", fixed = TRUE)
+})
+
+test_that("W3b: help trigger is keyboard-focusable", {
+  f1 <- 'ggplot(mtcars, aes(x = var(shared = "sz"))) + geom_point()'
+  f2 <- 'ggplot(mtcars, aes(y = var(shared = "sz"))) + geom_point()'
+  html <- paste(as.character(ptr_shared_panel(ptr_shared(c(f1, f2)))), collapse = "\n")
+  expect_match(html, 'tabindex="0"', fixed = TRUE)
+})
+
+test_that("W3b: ui_text override still flows into the tooltip body", {
+  f1 <- 'ggplot(mtcars, aes(x = var(shared = "sz"))) + geom_point()'
+  f2 <- 'ggplot(mtcars, aes(y = var(shared = "sz"))) + geom_point()'
+  obj <- ptr_shared(c(f1, f2), ui_text = list(shell = list(shared_panel_hint = "X-LINK")))
+  html <- paste(as.character(ptr_shared_panel(obj)), collapse = "\n")
+  expect_match(html, "ptr-shared-panel__tip", fixed = TRUE)
+  expect_match(html, "X-LINK", fixed = TRUE)
+})

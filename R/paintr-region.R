@@ -55,3 +55,49 @@ controllable_region <- function(region_id, head_label, body,
 controllable_region_continuation <- function(body) {
   shiny::div(class = "ptr-stage-fields", body)
 }
+
+#' Shared-panel header (title + help-icon tooltip) — internal
+#'
+#' Single source of truth for the `.ptr-shared-panel` header DOM. Both the
+#' inline shared section (`shared_section_tags()` in paintr-app.R) and the
+#' grid shared-controls panel (`ptr_shared_panel()` in
+#' paintr-shared-coordinator.R) emit this header; routing both through one
+#' helper keeps the markup/a11y contract identical.
+#'
+#' The explanatory hint is no longer an always-visible paragraph. It lives
+#' behind a focusable `?` trigger and is revealed on hover/focus by CSS
+#' alone (no JS, no bslib — `ptr_app()` is plain shiny). The hint text stays
+#' in the DOM twice — as the trigger's `aria-label` (announced to assistive
+#' tech on focus) and as the visually-revealed `.ptr-shared-panel__tip`
+#' body (`aria-hidden`, so it is not double-announced).
+#'
+#' Contract (must not drift):
+#' - `<p class="ptr-shared-panel__title">` carries the title text, then a
+#'   `<span class="ptr-shared-panel__help" tabindex="0" aria-label="<hint>">`.
+#' - That span holds the literal `?` glyph followed by
+#'   `<span class="ptr-shared-panel__tip" aria-hidden="true"><hint></span>`.
+#' - No standalone `.ptr-shared-panel__hint` element is emitted.
+#'
+#' @param title Section/panel title string.
+#' @param hint Explanatory hint string (ui_text-overridable upstream).
+#'
+#' @return A `shiny.tag` `<p>` ready to insert into the panel.
+#' @keywords internal
+#' @noRd
+shared_panel_header <- function(title, hint) {
+  shiny::tags$p(
+    class = "ptr-shared-panel__title",
+    title,
+    shiny::tags$span(
+      class = "ptr-shared-panel__help",
+      tabindex = "0",
+      `aria-label` = hint,
+      "?",
+      shiny::tags$span(
+        class = "ptr-shared-panel__tip",
+        `aria-hidden` = "true",
+        hint
+      )
+    )
+  )
+}

@@ -245,8 +245,7 @@ shared_section_tags <- function(tree, ui_text = NULL, ns = shiny::NS(NULL),
       shiny::wellPanel(
         shiny::div(
           class = "ptr-shared-panel",
-          shiny::tags$p(class = "ptr-shared-panel__title", shell_copy$shared_section_title),
-          shiny::tags$p(class = "ptr-shared-panel__hint", shell_copy$shared_section_hint),
+          shared_panel_header(shell_copy$shared_section_title, shell_copy$shared_section_hint),
           do.call(shiny::tagList, widgets)
         )
       )
