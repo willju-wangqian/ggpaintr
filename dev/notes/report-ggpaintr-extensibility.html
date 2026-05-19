@@ -207,7 +207,7 @@
       <li><a href="#arch-parse-layer">Parse layer: ptr_translate()</a></li>
       <li><a href="#arch-l1">L1 — All-in-one</a></li>
       <li><a href="#arch-l2">L2 — Self-contained embed</a></li>
-      <li><a href="#arch-l3">L3 — Own the layout / render path</a></li>
+      <li><a href="#arch-l3">L3 — Own the layout (UI-side only)</a></li>
       <li><a href="#arch-naming">Naming convention</a></li>
       <li><a href="#arch-state">The ptr_state object</a></li>
       <li><a href="#arch-ids">Output id contract</a></li>
@@ -246,6 +246,9 @@
 
 <h1>ggpaintr Extensibility — Technical Reference</h1>
 <p class="subtitle">A developer reference for embedding, extending, and integrating ggpaintr. Covers the L1/L2/L3 architecture, complete working examples, and placeholder design rationale. Every claim is grounded in source code read from <code>R/</code>, fixture apps in <code>tests/testthat/fixtures/vignette-apps/</code>, and the authoritative domain document <code>CONTEXT.md</code>.</p>
+<div class="callout info">
+  <p><strong>Revised 2026-05-19 for ADR 0006 + the param reorders</strong> (commits <code>fa921fa</code> → <code>59f2880</code>). The pre-ADR-0006 names <code>ptr_module_ui</code> / <code>ptr_module_server</code> are gone: there is now <strong>one public server entry</strong> <code>ptr_server()</code> (its 4-arg engine is the unexported <code>ptr_server_internal()</code>), <code>ptr_ui()</code> is the L2 self-contained UI bundle, and <strong>L3 is UI-side only</strong> (no user <code>moduleServer</code> wrapping an engine; custom render = extract from <code>ptr_server()</code>'s returned <code>state</code>). Public signatures are formula-first: <code>ptr_ui(formula, id = NULL, …)</code>, <code>ptr_server(formula, id = NULL, …)</code>, <code>ptr_ui_controls(formula, id = NULL, …)</code>.</p>
+</div>
 
 <!-- ══════════════════════════════════════════════════════════════
      SECTION 1 — ARCHITECTURE
@@ -262,8 +265,8 @@
   <thead><tr><th>Level</th><th>Entry points</th><th>What the caller controls</th><th>What ggpaintr controls</th></tr></thead>
   <tbody>
     <tr><td><strong>L1</strong></td><td><code>ptr_app()</code>, <code>ptr_app_grid()</code></td><td>Formula string, minor style overrides</td><td>Everything: layout, reactive wiring, rendering, assets</td></tr>
-    <tr><td><strong>L2</strong></td><td><code>ptr_module_ui()</code> / <code>ptr_module_server()</code>, shared trio</td><td>Host layout, host navigation, placement of the module block</td><td>Default layout inside the block, reactive wiring, rendering, assets</td></tr>
-    <tr><td><strong>L3</strong></td><td><code>ptr_ui_*</code> bare pieces, combinators, <code>ptr_server()</code></td><td>Every piece of markup and placement, custom renderer off <code>state$runtime()</code></td><td>Reactive wiring only (producer inputs, pipeline, runtime observer, output registration)</td></tr>
+    <tr><td><strong>L2</strong></td><td><code>ptr_ui()</code> / <code>ptr_server()</code>, shared trio</td><td>Host layout, host navigation, placement of the self-contained block</td><td>Default layout inside the block, reactive wiring, rendering, assets</td></tr>
+    <tr><td><strong>L3</strong></td><td><code>ptr_ui_*</code> bare pieces + combinators (UI), the same <code>ptr_server()</code></td><td>Every piece of markup and placement; custom render by extracting from <code>ptr_server()</code>'s returned <code>state$runtime()</code></td><td>The single server entry <code>ptr_server()</code>: producer inputs, pipeline, runtime observer, output registration</td></tr>
   </tbody>
 </table>
 
@@ -315,29 +318,29 @@ ptr_app_grid(
 
 <h3 id="arch-l2">L2 — Self-contained embed</h3>
 
-<p>L2 is "plug ggpaintr into my own Shiny app, accept the default layout." The module pair is the only default-layout block at L2; there is no controls-here/plot-there split at this level (that is L3).</p>
+<p>L2 is "plug ggpaintr into my own Shiny app, accept the default layout." The <code>ptr_ui()</code> / <code>ptr_server()</code> bundle is the only default-layout block at L2; there is no controls-here/plot-there split at this level (that is L3). <span class="src">ADR 0006 renamed the former <code>ptr_module_ui</code>/<code>ptr_module_server</code> to these names and reordered parameters to <code>(formula, id = NULL, …)</code>.</span></p>
 
-<div class="sig">ptr_module_ui(
-  id    = NULL,                       # NULL → identity namespace (single-instance use)
+<div class="sig">ptr_ui(
   formula,
+  id    = NULL,                       # NULL → identity namespace (single-instance use)
   ui_text          = NULL,
   checkbox_defaults = NULL,
   expr_check       = TRUE,
   css              = NULL,
   shared           = NULL             # ptr_shared_spec from ptr_shared(), or NULL
-) → shiny.tag                         # R/paintr-app.R: ptr_module_ui()
+) → shiny.tag                         # R/paintr-app.R: ptr_ui()
 
-ptr_module_server(
-  id    = NULL,                       # NULL → identity namespace (single-instance use)
+ptr_server(
   formula,
+  id    = NULL,                       # NULL → identity namespace (single-instance use)
   envir            = parent.frame(),
   ...,                                # forwarded to ptr_init_state()
   shared_state     = NULL             # ptr_shared_state from ptr_shared_server()
-) → ptr_state invisibly               # R/paintr-app.R: ptr_module_server()</div>
+) → ptr_state invisibly               # R/paintr-app.R: ptr_server()</div>
 
-<p><code>ptr_module_ui()</code> is implemented by composing the L3 bare pieces — it internally calls <code>ptr_ui_controls()</code>, <code>ptr_ui_plot()</code>, <code>ptr_ui_error()</code>, <code>ptr_ui_code()</code>, and the two combinators, wrapping them in <code>fluidPage &gt; div.ptr-app &gt; sidebarLayout</code> <span class="src">R/paintr-app.R: ptr_module_ui() lines 649–688</span>. It emits the asset bundle once via <code>ptr_ui_assets()</code>; htmlDependency deduplicates it page-wide so N modules load assets once.</p>
+<p><code>ptr_ui()</code> is implemented by composing the L3 bare pieces — it internally calls <code>ptr_ui_controls()</code>, <code>ptr_ui_plot()</code>, <code>ptr_ui_error()</code>, <code>ptr_ui_code()</code>, and the two combinators, wrapping them in <code>fluidPage &gt; div.ptr-app &gt; sidebarLayout</code> <span class="src">R/paintr-app.R: ptr_ui()</span>. It emits the asset bundle once via <code>ptr_ui_assets()</code>; htmlDependency deduplicates it page-wide so N blocks load assets once.</p>
 
-<p><code>ptr_module_server()</code> wraps <code>shiny::moduleServer(id, ...)</code>. Inside, it calls <code>ptr_server()</code> with the module session's auto-namespace plumbing (<code>ns = session$ns</code>, <code>server_ns = shiny::NS(NULL)</code>). It returns the <code>ptr_state</code> so the caller can react to it (e.g. call <code>ptr_gg_extra()</code>).</p>
+<p><code>ptr_server()</code> is the <strong>single public server entry</strong> (ADR 0006). It wraps <code>shiny::moduleServer(id, ...)</code> and delegates to the unexported engine <code>ptr_server_internal()</code> with the module session's auto-namespace plumbing (<code>ns = session$ns</code>, <code>server_ns = shiny::NS(NULL)</code>). It owns shared-placeholder binding (formula-local self-bind + consumer pickers) for every supported configuration, and returns the <code>ptr_state</code> so the caller can react to it (e.g. call <code>ptr_gg_extra()</code>). The 4-argument engine that <em>skips</em> shared binding is <code>ptr_server_internal()</code> — unexported plumbing, not a public L3 server pattern.</p>
 
 <p><strong><code>id = NULL</code> for single-instance use:</strong> both functions accept <code>id = NULL</code> as a convenience for embedding a single ggpaintr block without picking an id string. <code>shiny::moduleServer(NULL, fn)</code> creates an identity-namespace child scope — <code>session$ns("foo") == "foo"</code> — so widget ids, output ids, and reactive lookups are identical to the top-level single-instance path. This is safe only when at most one ggpaintr block is on the page; use an explicit string id whenever multiple blocks coexist.</p>
 
@@ -367,25 +370,32 @@ ptr_shared_server(
 
 <p><code>ptr_shared_panel()</code> renders only <code>obj$panel_keys</code>. It returns <code>NULL</code> when the panel body is empty (valid configuration — see below). It must be placed <strong>exactly once</strong> per page. The panel uses global, un-namespaced ids (<code>shared_&lt;key&gt;</code>, <code>ptr_shared_draw_all</code>, <code>ptr_shared_errors</code>); placing it more than once would produce duplicate ids.</p>
 
-<p><code>ptr_shared_server()</code> <strong>must be called at the top level</strong> of the server function, never inside <code>moduleServer()</code>. It reads <code>input$shared_&lt;key&gt;</code> at the top-level namespace (modules cannot reach those slots through their namespaced sessions). It returns a <code>ptr_shared_state</code> bundle, which is threaded into each <code>ptr_module_server(shared_state = ...)</code>.</p>
+<p><code>ptr_shared_server()</code> <strong>must be called at the top level</strong> of the server function, never inside <code>moduleServer()</code>. It reads <code>input$shared_&lt;key&gt;</code> at the top-level namespace (modules cannot reach those slots through their namespaced sessions). It returns a <code>ptr_shared_state</code> bundle, which is threaded into each <code>ptr_server(shared_state = ...)</code>.</p>
 
 <div class="callout warn">
-  <p><strong>Single-instance invariant:</strong> <code>ptr_shared()</code> / <code>ptr_shared_panel()</code> / <code>ptr_shared_server()</code> are strictly multi-instance API. One ggpaintr instance should never use them — every shared key is formula-local by definition, auto-renders inline, and requires no coordinator. <code>ptr_module_server()</code> given a <code>shared = "..."</code> formula without a coordinator wiring will <code>abort()</code> with a clear message.</p>
+  <p><strong>Single-instance invariant:</strong> <code>ptr_shared()</code> / <code>ptr_shared_panel()</code> / <code>ptr_shared_server()</code> are strictly multi-instance API. One ggpaintr instance should never use them — every shared key is formula-local by definition, auto-renders inline, and requires no coordinator. <code>ptr_server()</code> given a <code>shared = "..."</code> formula without a coordinator wiring will <code>abort()</code> with a clear message.</p>
 </div>
 
-<h3 id="arch-l3">L3 — Own the layout and the render path</h3>
+<h3 id="arch-l3">L3 — Own the layout (UI-side only)</h3>
 
-<p>L3 gives the embedder control over every piece of markup and — critically — the ability to replace ggpaintr's built-in <code>renderPlot()</code> with any renderer (Plotly, ggiraph, custom). The enabling mechanism is the return value of <code>ptr_server()</code>: a <code>ptr_state</code> object that exposes a reactive <code>state$runtime()</code> from which the caller reads the computed ggplot object.</p>
+<div class="callout info">
+  <p><strong>ADR 0006:</strong> L3 is a <em>UI-side split</em> — bare <code>ptr_ui_*</code> pieces composed into the caller's own layout. It is <strong>not</strong> a server-side concept: there is no user-authored <code>moduleServer</code> wrapping a ggpaintr engine. The server is always the single <code>ptr_server()</code>, at L2 and L3 alike. Custom render is not a separate level and not a server pattern — it is L3-UI fed by the one server entry's returned <code>state</code>. ADR 0005's "L3 = own the render path" framing is withdrawn.</p>
+</div>
+
+<p>L3 gives the embedder control over every piece of markup and the ability to feed any renderer (Plotly, ggiraph, custom) instead of the built-in <code>renderPlot()</code>. The enabling mechanism is the return value of the one public <code>ptr_server()</code>: a <code>ptr_state</code> object exposing a reactive <code>state$runtime()</code> from which the caller reads the computed ggplot object.</p>
 
 <div class="sig">ptr_server(
-  input, output, session,
   formula,
+  id               = NULL,
   envir            = parent.frame(),
   ...,                                # forwarded to ptr_init_state()
   shared_state     = NULL
-) → ptr_state                         # R/paintr-server.R: ptr_server()</div>
+) → ptr_state                         # R/paintr-app.R: ptr_server() (the SOLE public server)
 
-<p><code>ptr_server()</code> is the L3 server entry point. Inside it calls <code>ptr_init_state()</code> to allocate reactive slots, then runs a sequence of setup functions in order:</p>
+# The 4-arg engine (input, output, session, formula, …) that skips shared
+# binding is now the UNEXPORTED ptr_server_internal() — not public API.</div>
+
+<p>The single public <code>ptr_server()</code> wraps <code>shiny::moduleServer(id, …)</code> and delegates to the unexported engine <code>ptr_server_internal()</code>, which calls <code>ptr_init_state()</code> to allocate reactive slots, then runs a sequence of setup functions in order:</p>
 
 <ol>
   <li><code>ptr_setup_producer_inputs()</code> — builds debounced reactives for every placeholder's input slot.</li>
@@ -405,7 +415,7 @@ ptr_shared_server(
   <tbody>
     <tr><td><code>ptr_ui_page(…, page, css)</code></td><td>Bootstrap page + single <code>.ptr-app</code> scope + asset bundle</td><td>L3-only shell; optional. The only place the asset bundle is injected on the L3 path. <span class="src">R/paintr-app.R: ptr_ui_page()</span></td></tr>
     <tr><td><code>ptr_ui_header(title)</code></td><td>Branded header bar</td><td>Pure tag; no server coupling.</td></tr>
-    <tr><td><code>ptr_ui_controls(id, formula, …)</code></td><td>Layer picker + per-layer panels + <em>Update plot</em> button + inline shared section</td><td><code>shared = obj</code> → exclude panel keys from inline section. <span class="src">R/paintr-app.R: ptr_ui_controls()</span></td></tr>
+    <tr><td><code>ptr_ui_controls(formula, id = NULL, …)</code></td><td>Layer picker + per-layer panels + <em>Update plot</em> button + inline shared section</td><td><code>shared = obj</code> → exclude panel keys from inline section. Params reordered to formula-first by ADR 0006 / commit 069e02b. <span class="src">R/paintr-app.R: ptr_ui_controls()</span></td></tr>
     <tr><td><code>ptr_ui_plot(id)</code></td><td>Bare plot card (<code>ptr_plot</code>)</td><td>No error slot, no toggle. <span class="src">R/paintr-app.R: ptr_ui_plot()</span></td></tr>
     <tr><td><code>ptr_ui_error(id)</code></td><td>Bare inline error slot (<code>ptr_error</code>)</td><td>Stands alone or is nested by combinator.</td></tr>
     <tr><td><code>ptr_ui_code(id, style)</code></td><td>Generated-code pane (<code>ptr_code</code>)</td><td><code>style = "panel"</code> (default, always visible) or <code>"window"</code> (slide-out chrome via combinator).</td></tr>
@@ -416,7 +426,7 @@ ptr_shared_server(
   </tbody>
 </table>
 
-<p><strong>Combinator nesting:</strong> combinators take already-built pieces as arguments and return a new tag tree. They are nestable: the output block used internally by <code>ptr_app()</code> and <code>ptr_module_ui()</code> is exactly:</p>
+<p><strong>Combinator nesting:</strong> combinators take already-built pieces as arguments and return a new tag tree. They are nestable: the output block used internally by <code>ptr_app()</code> and <code>ptr_ui()</code> is exactly:</p>
 
 <pre><code><span class="fn">ptr_ui_toggle_code</span>(
   <span class="fn">ptr_ui_inline_error</span>(<span class="fn">ptr_ui_plot</span>(id), <span class="fn">ptr_ui_error</span>(id)),
@@ -425,14 +435,14 @@ ptr_shared_server(
 
 <h3 id="arch-naming">Naming convention</h3>
 
-<p>The <code>ptr_&lt;x&gt;</code> vs <code>ptr_ui_&lt;x&gt;</code> distinction encodes level ownership (locked in CONTEXT.md, enforced by ADR 0005):</p>
+<p>The <code>ptr_&lt;x&gt;</code> vs <code>ptr_ui_&lt;x&gt;</code> distinction encodes level ownership (locked in CONTEXT.md; ADR 0005 §1, retained by ADR 0006):</p>
 
 <ul>
-  <li><strong><code>ptr_&lt;x&gt;</code></strong> = L2 self-contained: owns its own <code>.ptr-app</code> scope and asset bundle. Drop it into a host page with no scaffolding. Examples: <code>ptr_module_ui()</code>, <code>ptr_shared_panel()</code>.</li>
+  <li><strong><code>ptr_&lt;x&gt;</code></strong> = L2 self-contained: owns its own <code>.ptr-app</code> scope and asset bundle. Drop it into a host page with no scaffolding. Examples: <code>ptr_ui()</code>, <code>ptr_shared_panel()</code>.</li>
   <li><strong><code>ptr_ui_&lt;x&gt;</code></strong> = L3 bare: emits only its widgets. The L3 user supplies their own Shiny shell (or uses <code>ptr_ui_page()</code>). Examples: <code>ptr_ui_controls()</code>, <code>ptr_ui_plot()</code>, <code>ptr_ui_inline_error()</code>.</li>
 </ul>
 
-<p>The exception is the module pair (<code>ptr_module_ui</code> / <code>ptr_module_server</code>), which use the <code>ptr_</code> prefix for historical reasons and are the L2 sealed-bundle exception documented in ADR 0004.</p>
+<p><strong>No naming exception (ADR 0006).</strong> The former <code>ptr_module_ui</code> / <code>ptr_module_server</code> were renamed to <code>ptr_ui()</code> / <code>ptr_server()</code>, voiding ADR 0004/0005's sealed-bundle name exception: with a single public server entry the "module" qualifier no longer distinguished anything (it implied a sibling non-module entry that no longer exists). <code>ptr_ui()</code> is the L2 self-contained bundle — owns its own <code>.ptr-app</code> scope and assets, consistent with the <code>ptr_&lt;x&gt;</code> convention; <code>ptr_server()</code> is the sole public server (its 4-arg engine is the unexported <code>ptr_server_internal()</code>).</p>
 
 <h3 id="arch-state">The <code>ptr_state</code> object</h3>
 
@@ -546,13 +556,13 @@ ptr_shared_server(
 )
 </code></pre>
 
-<p>The <code>'metric'</code> key appears in both formulas → the partition rule sends it to the standalone shared panel at the top of the grid. Each plot still has its own <em>Update plot</em> button; the <strong>Draw all</strong> button fires both simultaneously. Internally, <code>ptr_app_grid_components()</code> builds a <code>ptr_shared_spec</code>, calls <code>ptr_shared_server()</code> at the top level, and wires the resulting bundle into two <code>ptr_module_server()</code> calls — the same machinery the L2 shared trio exposes.</p>
+<p>The <code>'metric'</code> key appears in both formulas → the partition rule sends it to the standalone shared panel at the top of the grid. Each plot still has its own <em>Update plot</em> button; the <strong>Draw all</strong> button fires both simultaneously. Internally, <code>ptr_app_grid_components()</code> builds a <code>ptr_shared_spec</code>, calls <code>ptr_shared_server()</code> at the top level, and wires the resulting bundle into two <code>ptr_server()</code> calls — the same machinery the L2 shared trio exposes.</p>
 
 <p>Source: <code>tests/testthat/fixtures/vignette-apps/app-grid-shared-added/app.R</code>, vignette chunk <code>app-grid-shared-added</code>.</p>
 
 <h3 id="ex-l2-single">L2 — Single module embed</h3>
 
-<p>The host app has its own navigation and layout; one ggpaintr block lives as a section inside it. <code>ptr_module_ui()</code> and <code>ptr_module_server()</code> handle namespacing automatically — all ggpaintr-generated widget ids are prefixed <code>p-</code>.</p>
+<p>The host app has its own navigation and layout; one ggpaintr block lives as a section inside it. When a single ggpaintr block is on the page the <code>id</code> is optional — omitting it (<code>id = NULL</code>) gives an identity namespace, so widget ids are un-prefixed (<code>ptr_plot</code>, <code>ptr_update_plot</code>, …), exactly like the L1 path. Pass an explicit string <code>id</code> only when multiple blocks coexist (see the next example).</p>
 
 <pre><code class="language-r"><span class="fn">library</span>(ggpaintr)
 <span class="fn">library</span>(shiny)
@@ -562,12 +572,12 @@ formula <span class="op">&lt;-</span> <span class="str">"ggplot(iris, aes(var, v
 ui <span class="op">&lt;-</span> <span class="fn">fluidPage</span>(
   <span class="fn">titlePanel</span>(<span class="str">"My host app"</span>),
   <span class="cm"># The host app could have its own sidebar, tabs, or other panels here.</span>
-  <span class="cm"># ptr_module_ui owns its own .ptr-app scope + asset bundle.</span>
-  <span class="fn">ptr_module_ui</span>(<span class="str">"p"</span>, formula)
+  <span class="cm"># ptr_ui owns its own .ptr-app scope + asset bundle. id omitted → single block.</span>
+  <span class="fn">ptr_ui</span>(formula)
 )
 server <span class="op">&lt;-</span> <span class="kw">function</span>(input, output, session) {
   <span class="cm"># Returns the ptr_state invisibly; capture if you need ptr_gg_extra() etc.</span>
-  <span class="fn">ptr_module_server</span>(<span class="str">"p"</span>, formula)
+  <span class="fn">ptr_server</span>(formula)
 }
 
 <span class="fn">shinyApp</span>(ui, server)
@@ -604,10 +614,10 @@ ui <span class="op">&lt;-</span> <span class="fn">fluidPage</span>(
   # Place it exactly once. Returns NULL when panel_keys is empty.</span>
   <span class="fn">ptr_shared_panel</span>(obj),
   <span class="fn">fluidRow</span>(
-    <span class="cm"># Step 3: pass obj to ptr_module_ui so it excludes panel keys from the
+    <span class="cm"># Step 3: pass obj to ptr_ui so it excludes panel keys from the
     # inline shared section (they are already in the panel above).</span>
-    <span class="fn">column</span>(<span class="num">6</span>, <span class="fn">ptr_module_ui</span>(<span class="str">"plot_1"</span>, plots[[<span class="num">1</span>]], <span class="arg">shared</span> = obj)),
-    <span class="fn">column</span>(<span class="num">6</span>, <span class="fn">ptr_module_ui</span>(<span class="str">"plot_2"</span>, plots[[<span class="num">2</span>]], <span class="arg">shared</span> = obj))
+    <span class="fn">column</span>(<span class="num">6</span>, <span class="fn">ptr_ui</span>(plots[[<span class="num">1</span>]], <span class="str">"plot_1"</span>, <span class="arg">shared</span> = obj)),
+    <span class="fn">column</span>(<span class="num">6</span>, <span class="fn">ptr_ui</span>(plots[[<span class="num">2</span>]], <span class="str">"plot_2"</span>, <span class="arg">shared</span> = obj))
   )
 )
 server <span class="op">&lt;-</span> <span class="kw">function</span>(input, output, session) {
@@ -615,8 +625,8 @@ server <span class="op">&lt;-</span> <span class="kw">function</span>(input, out
   # moduleServer(). It reads input$shared_metric at the top-level namespace.</span>
   sh <span class="op">&lt;-</span> <span class="fn">ptr_shared_server</span>(obj)
   <span class="cm"># Step 5: thread the bundle into each module.</span>
-  <span class="fn">ptr_module_server</span>(<span class="str">"plot_1"</span>, plots[[<span class="num">1</span>]], <span class="arg">shared_state</span> = sh)
-  <span class="fn">ptr_module_server</span>(<span class="str">"plot_2"</span>, plots[[<span class="num">2</span>]], <span class="arg">shared_state</span> = sh)
+  <span class="fn">ptr_server</span>(plots[[<span class="num">1</span>]], <span class="str">"plot_1"</span>, <span class="arg">shared_state</span> = sh)
+  <span class="fn">ptr_server</span>(plots[[<span class="num">2</span>]], <span class="str">"plot_2"</span>, <span class="arg">shared_state</span> = sh)
 }
 
 <span class="fn">shinyApp</span>(ui, server)
@@ -634,7 +644,7 @@ server <span class="op">&lt;-</span> <span class="kw">function</span>(input, out
 <span class="fn">library</span>(shiny)
 
 plots <span class="op">&lt;-</span> <span class="fn">list</span>(
-  <span class="str">"ggplot(iris, aes(x = var(shared = 'ax1'), y = var(shared = 'ax1'),
+  <span class="str">"ggplot(iris, aes(x = var(shared = 'ax1'), y = var - var(shared = 'ax1'),
                     color = Species)) + geom_point(size = num(shared = 'sz'))"</span>,
   <span class="str">"ggplot(iris, aes(x = var(shared = 'ax2'), y = Sepal.Width,
                     color = Species)) + geom_point(size = num(shared = 'sz'))"</span>
@@ -648,20 +658,20 @@ obj <span class="op">&lt;-</span> <span class="fn">ptr_shared</span>(<span class
 ui <span class="op">&lt;-</span> <span class="fn">fluidPage</span>(
   <span class="fn">ptr_shared_panel</span>(obj),  <span class="cm"># renders sz only; ax1, ax2 stay inline</span>
   <span class="fn">fluidRow</span>(
-    <span class="fn">column</span>(<span class="num">6</span>, <span class="fn">ptr_module_ui</span>(<span class="str">"plot_1"</span>, plots[[<span class="num">1</span>]], <span class="arg">shared</span> = obj)),  <span class="cm"># ax1 inline</span>
-    <span class="fn">column</span>(<span class="num">6</span>, <span class="fn">ptr_module_ui</span>(<span class="str">"plot_2"</span>, plots[[<span class="num">2</span>]], <span class="arg">shared</span> = obj))   <span class="cm"># ax2 inline</span>
+    <span class="fn">column</span>(<span class="num">6</span>, <span class="fn">ptr_ui</span>(plots[[<span class="num">1</span>]], <span class="str">"plot_1"</span>, <span class="arg">shared</span> = obj)),  <span class="cm"># ax1 inline</span>
+    <span class="fn">column</span>(<span class="num">6</span>, <span class="fn">ptr_ui</span>(plots[[<span class="num">2</span>]], <span class="str">"plot_2"</span>, <span class="arg">shared</span> = obj))   <span class="cm"># ax2 inline</span>
   )
 )
 server <span class="op">&lt;-</span> <span class="kw">function</span>(input, output, session) {
   sh <span class="op">&lt;-</span> <span class="fn">ptr_shared_server</span>(obj)
-  <span class="fn">ptr_module_server</span>(<span class="str">"plot_1"</span>, plots[[<span class="num">1</span>]], <span class="arg">shared_state</span> = sh)
-  <span class="fn">ptr_module_server</span>(<span class="str">"plot_2"</span>, plots[[<span class="num">2</span>]], <span class="arg">shared_state</span> = sh)
+  <span class="fn">ptr_server</span>(plots[[<span class="num">1</span>]], <span class="str">"plot_1"</span>, <span class="arg">shared_state</span> = sh)
+  <span class="fn">ptr_server</span>(plots[[<span class="num">2</span>]], <span class="str">"plot_2"</span>, <span class="arg">shared_state</span> = sh)
 }
 
 <span class="fn">shinyApp</span>(ui, server)
 </code></pre>
 
-<p><strong>What the partition rule enforces:</strong> ownership is exclusive. The <code>sz</code> widget lives exactly once (in the shared panel), and its reactive value is read from the top-level <code>input$shared_sz</code> by <code>ptr_shared_server()</code>. The modules never emit their own <code>sz</code> widgets — <code>ptr_module_ui(shared = obj)</code> excludes <code>obj$panel_keys</code> from each module's inline section. Double-binding (the host panel also binding formula-local keys, or vice versa) is explicitly prevented in <code>ptr_shared_server()</code> by the <code>panel_consumer_keys = intersect(consumer_keys, panel_keys)</code> guard.</p>
+<p><strong>What the partition rule enforces:</strong> ownership is exclusive. The <code>sz</code> widget lives exactly once (in the shared panel), and its reactive value is read from the top-level <code>input$shared_sz</code> by <code>ptr_shared_server()</code>. The modules never emit their own <code>sz</code> widgets — <code>ptr_ui(shared = obj)</code> excludes <code>obj$panel_keys</code> from each module's inline section. Double-binding (the host panel also binding formula-local keys, or vice versa) is explicitly prevented in <code>ptr_shared_server()</code> by the <code>panel_consumer_keys = intersect(consumer_keys, panel_keys)</code> guard.</p>
 
 <p>Source: <code>tests/testthat/fixtures/vignette-apps/l2-shared-partition/</code>, vignette chunk <code>l2-shared-partition</code>.</p>
 
@@ -686,13 +696,13 @@ ui <span class="op">&lt;-</span> <span class="fn">ptr_ui_page</span>(           
 server <span class="op">&lt;-</span> <span class="kw">function</span>(input, output, session) {
   <span class="cm"># ptr_server() registers ptr_plot, ptr_error, ptr_code.
   # A piece you don't place is simply inert — its output binding fires into nothing.</span>
-  <span class="fn">ptr_server</span>(input, output, session, formula)
+  <span class="fn">ptr_server</span>(formula)   <span class="cm"># single public server entry; id omitted</span>
 }
 
 <span class="fn">shinyApp</span>(ui, server)
 </code></pre>
 
-<p><strong>Why this is L3, not L2:</strong> the caller owns the page markup — error is below the plot instead of inline; code is always visible instead of behind a toggle. <code>ptr_module_ui()</code> cannot produce this layout. The server side is identical to L2; the difference is entirely in the UI composition.</p>
+<p><strong>Why this is L3, not L2:</strong> the caller owns the page markup — error is below the plot instead of inline; code is always visible instead of behind a toggle. <code>ptr_ui()</code> cannot produce this layout. The server side is identical to L2; the difference is entirely in the UI composition.</p>
 
 <p><strong>What <code>ptr_ui_page()</code> does (and what to do when it's not enough):</strong> it expands to <code>page(ptr_ui_assets(css), tags$div(class = "ptr-app", ...))</code>. For <code>navbarPage</code> or bslib roots, inline this expansion by hand: add <code>ptr_ui_assets()</code> once inside the tab and wrap pieces in <code>tags$div(class = "ptr-app", ...)</code>. <code>ptr_ui_assets()</code> is htmlDependency-backed and self-deduplicating, so repeating it across tabs is harmless.</p>
 
@@ -700,7 +710,7 @@ server <span class="op">&lt;-</span> <span class="kw">function</span>(input, out
 
 <h3 id="ex-l3-toggle">L3 — Combinator recipe: slide-out code + inline error</h3>
 
-<p>The same layout as <code>ptr_app()</code> / <code>ptr_module_ui()</code> internally, but placed inside a custom host layout. The combinator call is byte-for-byte what those L2 functions produce, so behavior and performance match exactly.</p>
+<p>The same layout as <code>ptr_app()</code> / <code>ptr_ui()</code> internally, but placed inside a custom host layout. The combinator call is byte-for-byte what those L2 functions produce, so behavior and performance match exactly.</p>
 
 <pre><code class="language-r"><span class="fn">library</span>(ggpaintr)
 <span class="fn">library</span>(shiny)
@@ -724,7 +734,7 @@ ui <span class="op">&lt;-</span> <span class="fn">ptr_ui_page</span>(
 )
 <span class="cm"># server unchanged from l3-pieces</span>
 server <span class="op">&lt;-</span> <span class="kw">function</span>(input, output, session) {
-  <span class="fn">ptr_server</span>(input, output, session, formula)
+  <span class="fn">ptr_server</span>(formula)   <span class="cm"># single public server entry; id omitted</span>
 }
 
 <span class="fn">shinyApp</span>(ui, server)
@@ -736,7 +746,7 @@ server <span class="op">&lt;-</span> <span class="kw">function</span>(input, out
 
 <h3 id="ex-l3-plotly">L3 — Custom Plotly renderer off <code>state$runtime()</code></h3>
 
-<p>This is the canonical L3 render-path pattern. The default <code>ptr_ui_plot()</code> / <code>renderPlot()</code> pair is <em>not</em> placed — with no UI slot for <code>ptr_plot</code>, the binding registered by <code>ptr_register_plot()</code> is inert. Instead, a <code>plotlyOutput()</code> is placed at a custom id and the custom renderer is registered via <code>ptr_module_server()</code>. The output is registered at the top level of the server using <code>output[[shiny::NS(id)(name)]]</code> — not <code>output$custom_plot</code> — because at the top level Shiny does <em>not</em> auto-namespace <code>output</code> slots, so <code>output$custom_plot</code> would bind to the bare id <code>"custom_plot"</code> instead of the module-namespaced id <code>"plot1-custom_plot"</code> that the UI emits.</p>
+<p>This is the canonical custom-render pattern: L3-UI fed by the one server entry's returned <code>state</code> (ADR 0006 — not a separate level or server pattern). The default <code>ptr_ui_plot()</code> / <code>renderPlot()</code> pair is <em>not</em> placed — with no UI slot for <code>ptr_plot</code>, the binding registered by <code>ptr_register_plot()</code> is inert. Instead, a <code>plotlyOutput()</code> is placed at a custom id and the custom renderer is registered via <code>ptr_server()</code>. The output is registered at the top level of the server using <code>output[[shiny::NS(id)(name)]]</code> — not <code>output$custom_plot</code> — because at the top level Shiny does <em>not</em> auto-namespace <code>output</code> slots, so <code>output$custom_plot</code> would bind to the bare id <code>"custom_plot"</code> instead of the module-namespaced id <code>"plot1-custom_plot"</code> that the UI emits.</p>
 
 <pre><code class="language-r"><span class="fn">library</span>(ggpaintr)
 <span class="fn">library</span>(shiny)
@@ -760,8 +770,8 @@ ui <span class="op">&lt;-</span> <span class="fn">ptr_ui_page</span>(
 )
 
 server <span class="op">&lt;-</span> <span class="kw">function</span>(input, output, session) {
-  <span class="cm"># ptr_module_server() returns the ptr_state; capture it to register custom outputs.</span>
-  state <span class="op">&lt;-</span> <span class="fn">ptr_module_server</span>(id, formula)
+  <span class="cm"># ptr_server() returns the ptr_state; capture it to register custom outputs.</span>
+  state <span class="op">&lt;-</span> <span class="fn">ptr_server</span>(formula, id)
 
   <span class="cm"># Register the custom renderer at the top level using the namespaced id.
   # output$custom_plot would bind to "custom_plot" (wrong);
@@ -776,9 +786,9 @@ server <span class="op">&lt;-</span> <span class="kw">function</span>(input, out
 <span class="fn">shinyApp</span>(ui, server)
 </code></pre>
 
-<p><strong>Why this is definitionally L3:</strong> the caller owns the render path. <code>ptr_module_server()</code> computes the ggplot2 object and stores it in <code>state$runtime()$plot</code>; using that value to drive a custom renderer (Plotly, ggiraph, any host) is owning the render path.</p>
+<p><strong>Why this is L3:</strong> the caller owns the UI/markup and feeds a custom renderer from the single <code>ptr_server()</code>'s returned <code>state</code>. The one server entry computes the ggplot2 object and stores it in <code>state$runtime()$plot</code>; reading that value to drive a custom renderer (Plotly, ggiraph, any host) is L3-UI consuming the server's output — <em>not</em> a separate "render-path" level and <em>not</em> a server pattern (ADR 0006 withdrew that framing).</p>
 
-<p><strong>Why <code>output[[shiny::NS(id)(name)]]</code> and not <code>output$custom_plot</code>:</strong> inside <code>moduleServer()</code>, Shiny's session auto-namespaces <code>output</code> slots, so <code>output$custom_plot</code> correctly maps to <code>"plot1-custom_plot"</code>. But <code>ptr_module_server()</code> is called from the <em>top-level</em> server function, where Shiny does <em>not</em> auto-namespace. At the top level <code>output$custom_plot</code> binds to the bare id <code>"custom_plot"</code>, which does not match the UI's <code>NS("plot1")("custom_plot")</code> = <code>"plot1-custom_plot"</code>. Using <code>output[[shiny::NS(id)("custom_plot")]]</code> inserts the namespace prefix explicitly, making both sides agree.</p>
+<p><strong>Why <code>output[[shiny::NS(id)(name)]]</code> and not <code>output$custom_plot</code>:</strong> inside <code>moduleServer()</code>, Shiny's session auto-namespaces <code>output</code> slots, so <code>output$custom_plot</code> correctly maps to <code>"plot1-custom_plot"</code>. But <code>ptr_server()</code> is called from the <em>top-level</em> server function, where Shiny does <em>not</em> auto-namespace. At the top level <code>output$custom_plot</code> binds to the bare id <code>"custom_plot"</code>, which does not match the UI's <code>NS("plot1")("custom_plot")</code> = <code>"plot1-custom_plot"</code>. Using <code>output[[shiny::NS(id)("custom_plot")]]</code> inserts the namespace prefix explicitly, making both sides agree.</p>
 
 <p><strong>The <code>req(isTRUE(res$ok), res$plot)</code> guard:</strong> on the first reactive flush before any draw click, <code>state$runtime()</code> returns <code>NULL</code>. After a failed draw, it returns a list with <code>ok = FALSE</code>. Without the guard, Plotly's renderer throws a null-dereference. With it, the output stays quiet until a successful draw.</p>
 
@@ -795,11 +805,11 @@ formula <span class="op">&lt;-</span> <span class="str">"ggplot(mtcars, aes(x = 
 
 ui <span class="op">&lt;-</span> <span class="fn">fluidPage</span>(
   <span class="fn">actionButton</span>(<span class="str">"add_log"</span>, <span class="str">"Add log scale"</span>),
-  <span class="fn">ptr_module_ui</span>(<span class="str">"p"</span>, formula)
+  <span class="fn">ptr_ui</span>(formula, <span class="str">"p"</span>)
 )
 server <span class="op">&lt;-</span> <span class="kw">function</span>(input, output, session) {
-  <span class="cm"># Capture the state returned by ptr_module_server.</span>
-  state <span class="op">&lt;-</span> <span class="fn">ptr_module_server</span>(<span class="str">"p"</span>, formula)
+  <span class="cm"># Capture the state returned by ptr_server.</span>
+  state <span class="op">&lt;-</span> <span class="fn">ptr_server</span>(formula, <span class="str">"p"</span>)
   <span class="fn">observeEvent</span>(input<span class="op">$</span>add_log, {
     <span class="cm"># Inject a scale; replaces any previous extras on this state.
     # The runtime folds it in on the next Update plot click.</span>

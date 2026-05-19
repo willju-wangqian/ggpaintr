@@ -316,6 +316,10 @@
 <h1>ggpaintr — Formula Parsing &amp; Runtime</h1>
 <p class="subtitle">Technical reference for package developers · Source at <code>R/paintr-translate.R</code>, <code>R/paintr-nodes.R</code>, <code>R/paintr-registry.R</code>, <code>R/paintr-server.R</code>, and siblings.</p>
 
+<div class="note">
+  <strong>Revised 2026-05-19 for ADR 0006</strong> (commits <code>fa921fa</code> → <code>59f2880</code>). The server-side surface changed: there is now <strong>one public server entry</strong>, <code>ptr_server(formula, id = NULL, …)</code> <span class="src-ref">R/paintr-app.R</span>, which wraps <code>shiny::moduleServer()</code> and delegates to the <em>unexported</em> 4-arg engine <code>ptr_server_internal(input, output, session, formula, …)</code> <span class="src-ref">R/paintr-server.R</span>. The former <code>ptr_module_server</code> is gone (it <em>is</em> the new <code>ptr_server</code>). §9.2 and §10–§11 below describe the engine internals reached <em>through</em> that single entry.
+</div>
+
 <hr>
 
 <section id="overview">
@@ -721,8 +725,8 @@
 <p><code>ptr_build_app_ui(tree, ...)</code> walks the annotated <code>ptr_root</code> to produce the sidebar layout. The critical inner call is <code>build_ui_for(node, ...)</code>, an S3 generic dispatching on node class. For placeholder nodes it calls the registry's <code>build_ui</code> hook; for <code>ptr_layer</code> nodes it emits the layer's collapsible panel containing all its placeholder widgets.</p>
 <p>Consumer placeholders (<code>ptr_ph_data_consumer</code>, i.e., <code>var</code>) receive a <em>static shell</em> only at UI build time — their actual column-picker content is rendered by a <code>shiny::renderUI()</code> output registered in the server. This is because the available columns are unknown at UI-build time (the data has not been uploaded yet).</p>
 
-<h3>9.2 Server bootstrap — ptr_server()</h3>
-<p>The server function calls <code>ptr_server(input, output, session, formula, ...)</code> <span class="src-ref">R/paintr-server.R:300</span>, which first calls <code>ptr_init_state(formula, ...)</code> to build a <code>ptr_state</code> object, then registers six groups of observers/outputs:</p>
+<h3>9.2 Server bootstrap — ptr_server() → ptr_server_internal()</h3>
+<p>The server function calls the single public entry <code>ptr_server(formula, id = NULL, ...)</code> <span class="src-ref">R/paintr-app.R</span>, which wraps <code>shiny::moduleServer(id, …)</code> and delegates to the unexported engine <code>ptr_server_internal(input, output, session, formula, ...)</code> <span class="src-ref">R/paintr-server.R</span>. The engine first calls <code>ptr_init_state(formula, ...)</code> to build a <code>ptr_state</code> object, then registers six groups of observers/outputs:</p>
 
 <div class="flow-box">
   <div class="flow-step"><span class="step-num">1</span><strong>ptr_setup_producer_inputs</strong> — wraps each value-placeholder input (text, num, expr) in a debounced reactive so rapid typing doesn't trigger expensive upstream-data recomputation on every keystroke.</div>
@@ -785,13 +789,13 @@
 )
 </code></pre>
 <span class="lang-label">R</span>
-<p>This list is passed to <code>ptr_server(..., shared = shared_reactives)</code>. In <code>ptr_substitute()</code>, when a placeholder node's <code>node$id</code> matches a key in <code>ctx$shared</code>, the value is read from <code>ctx$shared[[key]]()</code> (the reactive) rather than from the snapshot. This keeps the shared input decoupled from the snapshot-based individual inputs.</p>
+<p>This list is passed to <code>ptr_server_internal(..., shared = shared_reactives)</code> (the engine reached through the public <code>ptr_server()</code>). In <code>ptr_substitute()</code>, when a placeholder node's <code>node$id</code> matches a key in <code>ctx$shared</code>, the value is read from <code>ctx$shared[[key]]()</code> (the reactive) rather than from the snapshot. This keeps the shared input decoupled from the snapshot-based individual inputs.</p>
 
 <h3>Single-instance vs multi-instance</h3>
 <p>The partition rule governs which surface renders the widget:</p>
 <ul>
   <li><strong>Single instance</strong> (<code>ptr_app()</code>): every shared key is formula-local. All shared widgets render inside the formula's inline <em>shared section</em> — a <code>shiny::wellPanel()</code> automatically appended to the sidebar by <code>ptr_controls_panel()</code>. No coordinator object is needed.</li>
-  <li><strong>Multiple instances</strong> (<code>ptr_module_server()</code> + <code>ptr_shared()</code>): the coordinator's <code>shared_partition()</code> <span class="src-ref">R/paintr-shared-coordinator.R:27</span> classifies each key: ≥2 formulas → <em>panel key</em> (rendered in the standalone <code>ptr_shared_panel(obj)</code> with global un-namespaced ids); exactly 1 formula → <em>formula-local key</em> (rendered inline in that formula's module). The <code>ptr_shared_server(obj)</code> returns a <code>ptr_shared_state</code> bundle threaded into each <code>ptr_module_server(..., shared_state = sh)</code>.</li>
+  <li><strong>Multiple instances</strong> (<code>ptr_server()</code> + <code>ptr_shared()</code>): the coordinator's <code>shared_partition()</code> <span class="src-ref">R/paintr-shared-coordinator.R:27</span> classifies each key: ≥2 formulas → <em>panel key</em> (rendered in the standalone <code>ptr_shared_panel(obj)</code> with global un-namespaced ids); exactly 1 formula → <em>formula-local key</em> (rendered inline in that formula's module). The <code>ptr_shared_server(obj)</code> returns a <code>ptr_shared_state</code> bundle threaded into each <code>ptr_server(..., shared_state = sh)</code>.</li>
 </ul>
 
 <h3>Consumer placeholders (var) in shared context</h3>
@@ -830,7 +834,7 @@
 <p>These raw IDs are layer-scoped, not globally unique. Two different formulas can both have <code>ggplot_1_1_var_NA</code>. Module namespacing makes them globally unique at the Shiny level: module A's input becomes <code>A-ggplot_1_1_var_NA</code>; module B's becomes <code>B-ggplot_1_1_var_NA</code>.</p>
 
 <h3>ptr_translate and ns_fn</h3>
-<p><code>ptr_translate(formula, ns_fn = shiny::NS(NULL))</code> accepts an <code>ns_fn</code> argument that is passed to <code>ptr_assign_ids()</code>. In the module path (<code>ptr_module_server()</code>), the pre-flight call to <code>ptr_translate(formula, expr_check = FALSE)</code> <span class="src-ref">R/paintr-app.R:833</span> uses the default identity function. The actual per-instance tree used at runtime is built fresh inside <code>ptr_server()</code> → <code>ptr_init_state()</code> → <code>ptr_translate()</code> with the module's <code>ns</code> function. So the static tree used for preflight checks has raw ids, and the live tree used for widget rendering has namespaced ids.</p>
+<p><code>ptr_translate(formula, ns_fn = shiny::NS(NULL))</code> accepts an <code>ns_fn</code> argument that is passed to <code>ptr_assign_ids()</code>. In the module path (the public <code>ptr_server()</code> wrapping <code>shiny::moduleServer()</code>), the pre-flight call to <code>ptr_translate(formula, expr_check = FALSE)</code> <span class="src-ref">R/paintr-app.R</span> uses the default identity function. The actual per-instance tree used at runtime is built fresh inside <code>ptr_server()</code> → <code>ptr_server_internal()</code> → <code>ptr_init_state()</code> → <code>ptr_translate()</code> with the module's <code>ns</code> function. So the static tree used for preflight checks has raw ids, and the live tree used for widget rendering has namespaced ids.</p>
 
 <h3>Shared panel IDs (cross-formula keys)</h3>
 <p>Panel keys use global, un-namespaced IDs — <code>shared_&lt;key&gt;</code>. The <code>ptr_shared_panel(obj)</code> UI renders these widgets outside any module namespace. The <code>ptr_shared_server(obj)</code> runs at the top level, never inside a <code>moduleServer()</code>. The modules read these inputs via a reactive passed through the <code>shared_state</code> bundle, where the reactive is simply <code>shiny::reactive(input[[canonical]])</code> — input here being the top-level server's input object, which sees the global ids directly.</p>
@@ -849,7 +853,7 @@
 <hr>
 
 <p style="font-size:12px;color:var(--muted);margin-top:40px;">
-Generated 2026-05-18 from ggpaintr source tree (<code>vignette-review</code> branch).
+Generated 2026-05-18 from ggpaintr source tree (<code>vignette-review</code> branch); revised 2026-05-19 for ADR 0006 (commits <code>fa921fa</code> → <code>59f2880</code>).
 Key files: <code>R/paintr-translate.R</code>, <code>R/paintr-nodes.R</code>, <code>R/paintr-registry.R</code>, <code>R/paintr-builtins.R</code>,
 <code>R/paintr-classify.R</code>, <code>R/paintr-ids.R</code>, <code>R/paintr-shared.R</code>, <code>R/paintr-shared-coordinator.R</code>,
 <code>R/paintr-prune.R</code>, <code>R/paintr-substitute.R</code>, <code>R/paintr-eval.R</code>, <code>R/paintr-headless.R</code>,
