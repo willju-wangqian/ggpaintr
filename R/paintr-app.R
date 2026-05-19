@@ -500,12 +500,16 @@ ptr_ui_code <- function(id = NULL, style = c("panel", "window")) {
 #' ptr_ui_inline_error(ptr_ui_plot("p"), ptr_ui_error("p"))
 #' @export
 ptr_ui_inline_error <- function(plot, error) {
-  # The plot piece is plot_card_tag()'s output:
+  # Designed path: ptr_ui_plot() card —
   #   div.ptr-card.ptr-card--plot > [ div.ptr-card__head, div.ptr-card__body ]
-  # Append the error slot to the card body (child 2) so it renders inline,
-  # reproducing the deleted ptr_ui_code_toggle()'s in-body error placement.
-  plot$children[[2]] <- shiny::tagAppendChild(plot$children[[2]], error)
-  plot
+  # Append the error slot to the card body (child 2) so it renders inline.
+  # Fallback: arbitrary tag (e.g. bare plotOutput()) — return as siblings so
+  # the subscript-out-of-bounds crash does not fire.
+  if (inherits(plot, "shiny.tag") && length(plot$children %||% list()) >= 2L) {
+    plot$children[[2]] <- shiny::tagAppendChild(plot$children[[2]], error)
+    return(plot)
+  }
+  shiny::tagList(plot, error)
 }
 
 #' Wire a Plot-ish Piece to a Slide-Out Code Window via the `</>` Toggle
@@ -653,7 +657,8 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #' Namespaced UI side of a Shiny module wrapping a `ggpaintr` formula. Pair
 #' with [ptr_module_server()].
 #'
-#' @param id Module id; the namespace prefix for inputs and outputs.
+#' @param id Optional module id; the namespace prefix for inputs and outputs.
+#'   Defaults to `NULL` (identity namespace, single-instance use).
 #' @param formula A single formula string with `ggpaintr` placeholders.
 #' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
 #'   for the full schema and current defaults.
@@ -684,7 +689,7 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #'   "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
 #' )
 #' @export
-ptr_module_ui <- function(id, formula, ui_text = NULL,
+ptr_module_ui <- function(id = NULL, formula, ui_text = NULL,
                              checkbox_defaults = NULL, expr_check = TRUE,
                              css = NULL, shared = NULL) {
   # Self-contained L2 shell: fluidPage > div.ptr-app > sidebarLayout, built
@@ -844,7 +849,8 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #' / `draw_trigger = ...` / `shared_resolutions = ...` is also passed via
 #' `...`, that explicit value wins.
 #'
-#' @param id Module id; must match the id passed to [ptr_module_ui()].
+#' @param id Optional module id; must match the id passed to [ptr_module_ui()].
+#'   Defaults to `NULL` (identity namespace, single-instance use).
 #' @param formula A single formula string with `ggpaintr` placeholders.
 #' @param envir Environment used to resolve local data objects.
 #' @param ... Forwarded to [ptr_init_state()].
@@ -870,7 +876,7 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #'   )
 #' }
 #' @export
-ptr_module_server <- function(id, formula, envir = parent.frame(), ...,
+ptr_module_server <- function(id = NULL, formula, envir = parent.frame(), ...,
                                  shared_state = NULL) {
   dots <- list(...)
 

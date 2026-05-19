@@ -796,6 +796,15 @@
 
 <h3>Consumer placeholders (var) in shared context</h3>
 <p>A <code>var(shared = "k")</code> consumer does not render a static widget — it renders a column-picker via <code>renderUI()</code>. The ownership rule applies identically: if the key is formula-local, the owning module's <code>ptr_setup_consumer_uis()</code> + <code>ptr_bind_local_shared_consumers()</code> binds the picker. If the key is a panel key (≥2 formulas), the shared-panel server binds it using the representative node from the first formula that declared the consumer.</p>
+
+<h3>param field on shared placeholder nodes</h3>
+<p>Each placeholder node carries a <code>param</code> field — the name of the enclosing named argument (aesthetic or function parameter), or <code>NA_character_</code> when no named argument is in scope. This field is set during the cursor-descent walk in <code>ptr_cursor_descend()</code> <span class="src-ref">R/paintr-walk.R</span> and is used to drive the default <code>label</code> in UI text (e.g. <code>"Pick a column for y"</code>).</p>
+<p>The rule for positional (unnamed) arguments depends on context:</p>
+<ul>
+  <li><strong>Inside an expression context</strong> (parent cursor's <code>slot == "args"</code>, i.e. already inside a named-arg position such as <code>y = ...</code>): positional args inherit <code>cur$param</code> from the enclosing cursor. Example: in <code>y = var - var(shared = 'col')</code>, the <code>var(shared = 'col')</code> sub-expression is a positional arg inside the <code>y</code> expression — it correctly receives <code>param = "y"</code>.</li>
+  <li><strong>Pipeline stage args</strong> (parent cursor's <code>slot == "stages"</code>): positional args keep <code>param = NA_character_</code>, since pipeline stages have no enclosing aesthetic to inherit from.</li>
+</ul>
+<p>Prior to the 2026-05-18 fix, all positional args unconditionally got <code>param = NA_character_</code>, causing shared <code>var</code> nodes nested inside arithmetic expressions (e.g. <code>y = var - var(shared='col')</code>) to display unlabeled pickers. The fix adds the slot check so the aesthetic name propagates into sub-expressions while leaving pipeline-stage behavior unchanged.</p>
 </section>
 
 <!-- ============================================================ -->

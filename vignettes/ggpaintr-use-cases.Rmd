@@ -2,45 +2,45 @@
 title: "Use cases"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Use cases}
+%\VignetteIndexEntry{Use cases}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
----
-
-```{r setup, include = FALSE}
-knitr::opts_chunk$set(
+  ---
+  
+  ```{r setup, include = FALSE}
+  knitr::opts_chunk$set(
   collapse = TRUE,
   comment   = "#>",
   warning   = FALSE,
   message   = FALSE,
   eval      = interactive()
-)
-```
-
-This vignette answers the question *how do I use ggpaintr for my situation?* Companion vignettes cover tailoring defaults (`vignette("ggpaintr-customization")`), sharing safely (`vignette("ggpaintr-safety")`), real ggplot recipes (`vignette("ggpaintr-gallery")`), and LLM integration (`vignette("ggpaintr-llm")`).
-
-Every chunk is marked `eval = interactive()` and is runnable as-is at the R prompt after:
-
-```{r libs}
-library(ggpaintr)
-```
-
-## Formula tour
-
-A ggpaintr formula is a single `ggplot()` call written as text. Drop one of five placeholder keywords anywhere a value would normally go, and the runtime substitutes the user's input back into the expression at render time. The five keywords are:
-
-| Keyword  | Becomes                                       | Example formula fragment        | Renders as                                       |
-|----------|-----------------------------------------------|---------------------------------|--------------------------------------------------|
-| `var`    | column picker (data-aware `selectInput`)      | `aes(x = var, y = var)`         | two dropdowns scoped to the upstream data's columns |
-| `text`   | free-text input                               | `labs(title = text)`            | one text field                                   |
-| `num`    | numeric input                                 | `geom_point(size = num)`        | one numeric input                                |
-| `expr`   | code editor (validated against a denylist)    | `facet_wrap(expr)`              | one expression box; see `vignette("ggpaintr-safety")` for the validation model |
-| `upload` | file picker (returns a data frame)            | `ggplot(upload, …)`             | one file picker + an optional dataset-name field |
-
-A formula that exercises four of the five:
-
-```{r formula-tour}
-ptr_app("
+  )
+  ```
+  
+  This vignette answers the question *how do I use ggpaintr for my situation?* Companion vignettes cover tailoring defaults (`vignette("ggpaintr-customization")`), sharing safely (`vignette("ggpaintr-safety")`), real ggplot recipes (`vignette("ggpaintr-gallery")`), and LLM integration (`vignette("ggpaintr-llm")`).
+  
+  Every chunk is marked `eval = interactive()` and is runnable as-is at the R prompt after:
+  
+  ```{r libs}
+  library(ggpaintr)
+  ```
+  
+  ## Formula tour
+  
+  A ggpaintr formula is a single `ggplot()` call written as text. Drop one of five placeholder keywords anywhere a value would normally go, and the runtime substitutes the user's input back into the expression at render time. The five keywords are:
+  
+  | Keyword  | Becomes                                       | Example formula fragment        | Renders as                                       |
+  |----------|-----------------------------------------------|---------------------------------|--------------------------------------------------|
+  | `var`    | column picker (data-aware `selectInput`)      | `aes(x = var, y = var)`         | two dropdowns scoped to the upstream data's columns |
+  | `text`   | free-text input                               | `labs(title = text)`            | one text field                                   |
+  | `num`    | numeric input                                 | `geom_point(size = num)`        | one numeric input                                |
+  | `expr`   | code editor (validated against a denylist)    | `facet_wrap(expr)`              | one expression box; see `vignette("ggpaintr-safety")` for the validation model |
+  | `upload` | file picker (returns a data frame)            | `ggplot(upload, …)`             | one file picker + an optional dataset-name field |
+  
+  A formula that exercises four of the five:
+  
+  ```{r formula-tour}
+  ptr_app("
 ggplot(iris, aes(x = var, y = var, color = var)) +
   geom_point(size = num) +
   labs(title = text) +
@@ -153,9 +153,9 @@ A placeholder that resolves to "missing" (an empty `var` pick, a blank `text`, a
 ```r
 ptr_app("
 ggplot(iris, aes(x = var, y = var)) +
-  geom_point() +
-  labs(title = text) +              # title empty → labs() empty → labs() dropped
-  facet_wrap(expr)                  # expr empty → facet_wrap() empty → facet_wrap() dropped
+geom_point() +
+labs(title = text) +              # title empty → labs() empty → labs() dropped
+facet_wrap(expr)                  # expr empty → facet_wrap() empty → facet_wrap() dropped
 ")
 ```
 
@@ -229,12 +229,12 @@ The practical consequence is a hard split by **instance count**:
 ```{r single-instance-shared}
 # One instance, one key used twice: the widget auto-renders inline. No coordinator.
 ptr_app(
-  "ggplot(iris, aes(x = var(shared = 'col'), y = var(shared = 'col'),
+  "ggplot(iris, aes(x = var(shared = 'col'), y = var - var(shared = 'col'),
                     color = Species)) + geom_point()"
 )
 ```
 
-  `ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()` are **strictly multi-instance API** — a single-instance embedder never sees them. This is enforced, not just advised: `ptr_module_server()` given a `shared = "..."` formula with no coordinator wiring **errors on purpose**, telling you to build the coordinator. (One ggpaintr block driven entirely by one shared key is L1's `ptr_app()`, above; the module path is for *embedding alongside other instances*.)
+`ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()` are **strictly multi-instance API** — a single-instance embedder never sees them. This is enforced, not just advised: `ptr_module_server()` given a `shared = "..."` formula with no coordinator wiring **errors on purpose**, telling you to build the coordinator. (One ggpaintr block driven entirely by one shared key is L1's `ptr_app()`, above; the module path is for *embedding alongside other instances*.)
 
 - **Multiple instances** ⟹ you *must* build the coordinator once with `ptr_shared(formulas = list(…))`. It computes the partition: cross-formula keys (≥2 formulas) go to the one `ptr_shared_panel(obj)`; each formula's formula-local keys still render inline in that module. `obj` is a pure, non-reactive single source of truth, so the UI and server can never disagree about which key lives where.
 
@@ -254,7 +254,7 @@ plots <- list(
 )
 
 obj <- ptr_shared(formulas = plots,
-                   shared_ui = list(metric = function(id) shiny::selectInput(id, "Metric", names(iris))))
+                  shared_ui = list(metric = function(id) shiny::selectInput(id, "Metric", names(iris))))
 
 ui <- shiny::fluidPage(
   shiny::titlePanel("My host app"),
@@ -279,7 +279,7 @@ Here `metric` is used in both formulas, so the partition rule sends it to the st
 
 ```{r l2-shared-partition}
 plots <- list(
-  "ggplot(iris, aes(x = var(shared = 'ax1'), y = var(shared = 'ax1'),
+  "ggplot(iris, aes(x = var(shared = 'ax1'), y = var - var(shared = 'ax1'),
                     color = Species)) + geom_point(size = num(shared = 'sz'))",
   "ggplot(iris, aes(x = var(shared = 'ax2'), y = Sepal.Width,
                     color = Species)) + geom_point(size = num(shared = 'sz'))"
@@ -287,7 +287,7 @@ plots <- list(
 
 obj <- ptr_shared(
   formulas  = plots,
-  # shared_ui = list(sz = function(id) shiny::sliderInput(id, "Size", 1, 6, 3))
+  shared_ui = list(sz = function(id) shiny::sliderInput(id, "Size", 1, 6, 3))
 )
 # sz → both formulas → standalone panel.  ax1 → only plot_1's inline section.
 # ax2 → only plot_2's inline section.
@@ -380,7 +380,7 @@ ui <- ptr_ui_page(                          # Bootstrap page + single .ptr-app +
   ),
   ptr_ui_error(),                           # error banner in its own row
   ptr_ui_code()                             # plain, always-visible code card
-                                            #   (carries its own "Generated code" header)
+  #   (carries its own "Generated code" header)
 )
 server <- function(input, output, session) {
   ptr_server(input, output, session, formula)   # binds ptr_plot / ptr_error / ptr_code
@@ -488,10 +488,13 @@ formula <- "ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"
 
 ui <- ptr_ui_page(
   shiny::fluidRow(
-    shiny::column(5, ptr_ui_controls("plot1", formula)),                   # widgets only
-    shiny::column(7, plotly::plotlyOutput(shiny::NS("plot1")("custom_plot"),
-                                          height = "500px") |>
-                    ptr_ui_toggle_code(ptr_ui_code("plot1")))               # your own output
+    shiny::column(5, ptr_ui_controls("plot1", formula)),    # widgets only
+    shiny::column(
+      7, 
+      plotly::plotlyOutput(shiny::NS("plot1")("custom_plot"), # your own output
+                           height = "500px") |>
+        ptr_ui_toggle_code(ptr_ui_code("plot1"))
+    )               
   )
 )
 server <- function(input, output, session) {
@@ -572,7 +575,7 @@ plots <- list(
 )
 
 obj <- ptr_shared(formulas = plots,
-                   shared_ui = list(metric = function(id) shiny::selectInput(id, "Metric", names(iris))))
+                  shared_ui = list(metric = function(id) shiny::selectInput(id, "Metric", names(iris))))
 
 ui <- ptr_ui_page(
   ptr_ui_shared_panel(obj),                                  # cross-formula panel (bare, L3)
@@ -587,26 +590,24 @@ ui <- ptr_ui_page(
 )
 server <- function(input, output, session) {
   sh <- ptr_shared_server(obj)                               # top level, once
-  shiny::moduleServer("plot_1", function(input, output, session) {
-    state <- ptr_server(input, output, session, plots[[1]], shared_state = sh)
-    output$custom <- plotly::renderPlotly({
-      res <- state$runtime(); shiny::req(isTRUE(res$ok), res$plot)
-      plotly::ggplotly(res$plot)
-    })
+  state1 <- ptr_module_server("plot_1", plots[[1]], shared_state = sh)
+  state2 <- ptr_module_server("plot_2", plots[[2]], shared_state = sh)
+  output[[shiny::NS("plot_1")("custom")]] <- plotly::renderPlotly({
+    res <- state1$runtime(); shiny::req(isTRUE(res$ok), res$plot)
+    plotly::ggplotly(res$plot)
   })
-  shiny::moduleServer("plot_2", function(input, output, session) {
-    state <- ptr_server(input, output, session, plots[[2]], shared_state = sh)
-    output$custom <- plotly::renderPlotly({
-      res <- state$runtime(); shiny::req(isTRUE(res$ok), res$plot)
-      plotly::ggplotly(res$plot)
-    })
+  output[[shiny::NS("plot_2")("custom")]] <- plotly::renderPlotly({
+    res <- state2$runtime(); shiny::req(isTRUE(res$ok), res$plot)
+    plotly::ggplotly(res$plot)
   })
 }
 
 shiny::shinyApp(ui, server)
 ```
 
-The coordinator feeds the modules; the modules feed your custom renderers. `ptr_shared_server(obj)` runs once at the top level (never inside `moduleServer()`); its bundle is threaded into each plot's `ptr_server()` via `shared_state =`.
+The coordinator feeds the modules; the modules feed your custom renderers. `ptr_shared_server(obj)` runs once at the top level (never inside `moduleServer()`); its bundle is threaded into each plot's `ptr_module_server()` via `shared_state =`.
+
+`ptr_module_server()` returns `state` just like `ptr_server()`. Because the call is at the top-level server (not inside a `moduleServer()` closure), Shiny does **not** auto-namespace `output`: writing `output$custom` here would bind to the bare id `"custom"`, not the namespaced `"plot_1-custom"` the UI expects. Use `output[[shiny::NS(id)(name)]]` to apply the namespace explicitly — the same id expression you used on the UI side.
 
 ### L3 with shared widgets — default panes
 
@@ -619,7 +620,7 @@ plots <- list(
 )
 
 obj <- ptr_shared(formulas = plots,
-                   shared_ui = list(metric = function(id) shiny::selectInput(id, "Metric", names(iris))))
+                  shared_ui = list(metric = function(id) shiny::selectInput(id, "Metric", names(iris))))
 
 ui <- ptr_ui_page(
   ptr_ui_shared_panel(obj),

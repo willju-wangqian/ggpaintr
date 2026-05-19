@@ -318,7 +318,8 @@ ptr_app_grid(
 <p>L2 is "plug ggpaintr into my own Shiny app, accept the default layout." The module pair is the only default-layout block at L2; there is no controls-here/plot-there split at this level (that is L3).</p>
 
 <div class="sig">ptr_module_ui(
-  id, formula,
+  id    = NULL,                       # NULL → identity namespace (single-instance use)
+  formula,
   ui_text          = NULL,
   checkbox_defaults = NULL,
   expr_check       = TRUE,
@@ -327,7 +328,8 @@ ptr_app_grid(
 ) → shiny.tag                         # R/paintr-app.R: ptr_module_ui()
 
 ptr_module_server(
-  id, formula,
+  id    = NULL,                       # NULL → identity namespace (single-instance use)
+  formula,
   envir            = parent.frame(),
   ...,                                # forwarded to ptr_init_state()
   shared_state     = NULL             # ptr_shared_state from ptr_shared_server()
@@ -336,6 +338,8 @@ ptr_module_server(
 <p><code>ptr_module_ui()</code> is implemented by composing the L3 bare pieces — it internally calls <code>ptr_ui_controls()</code>, <code>ptr_ui_plot()</code>, <code>ptr_ui_error()</code>, <code>ptr_ui_code()</code>, and the two combinators, wrapping them in <code>fluidPage &gt; div.ptr-app &gt; sidebarLayout</code> <span class="src">R/paintr-app.R: ptr_module_ui() lines 649–688</span>. It emits the asset bundle once via <code>ptr_ui_assets()</code>; htmlDependency deduplicates it page-wide so N modules load assets once.</p>
 
 <p><code>ptr_module_server()</code> wraps <code>shiny::moduleServer(id, ...)</code>. Inside, it calls <code>ptr_server()</code> with the module session's auto-namespace plumbing (<code>ns = session$ns</code>, <code>server_ns = shiny::NS(NULL)</code>). It returns the <code>ptr_state</code> so the caller can react to it (e.g. call <code>ptr_gg_extra()</code>).</p>
+
+<p><strong><code>id = NULL</code> for single-instance use:</strong> both functions accept <code>id = NULL</code> as a convenience for embedding a single ggpaintr block without picking an id string. <code>shiny::moduleServer(NULL, fn)</code> creates an identity-namespace child scope — <code>session$ns("foo") == "foo"</code> — so widget ids, output ids, and reactive lookups are identical to the top-level single-instance path. This is safe only when at most one ggpaintr block is on the page; use an explicit string id whenever multiple blocks coexist.</p>
 
 <p><strong>Shared trio (multi-instance only):</strong></p>
 
@@ -726,55 +730,55 @@ server <span class="op">&lt;-</span> <span class="kw">function</span>(input, out
 <span class="fn">shinyApp</span>(ui, server)
 </code></pre>
 
-<p><strong>How the combinators work:</strong> <code>ptr_ui_inline_error(plot, error)</code> mutates the plot card's tag tree in-place — it appends the error slot to <code>plot$children[[2]]</code> (the card body) so errors render inline below the plot image. <code>ptr_ui_toggle_code(plotish, code)</code> injects a <code>&lt;/&gt;</code> button into the card head and wraps the whole thing in a <code>div.ptr-output</code> alongside a <code>.ptr-code-window</code> container. The bundled JavaScript in <code>inst/www/ggpaintr-ui.js</code> drives the slide-out animation purely DOM-locally off the CSS classes — no Shiny round-trip.</p>
+<p><strong>How the combinators work:</strong> <code>ptr_ui_inline_error(plot, error)</code> appends the error slot to the plot card's body. When <code>plot</code> is a proper ptr-card (a <code>shiny.tag</code> with at least two children, as emitted by <code>ptr_ui_plot()</code>), it appends to <code>plot$children[[2]]</code> so errors render inline below the plot image. When <code>plot</code> is a bare output tag (e.g. a plain <code>plotlyOutput()</code> with no card wrapper), it falls back to <code>tagList(plot, error)</code> — stacking the two elements without crashing. <code>ptr_ui_toggle_code(plotish, code)</code> injects a <code>&lt;/&gt;</code> button into the card head and wraps the whole thing in a <code>div.ptr-output</code> alongside a <code>.ptr-code-window</code> container. The bundled JavaScript in <code>inst/www/ggpaintr-ui.js</code> drives the slide-out animation purely DOM-locally off the CSS classes — no Shiny round-trip.</p>
 
 <p>Source: <code>tests/testthat/fixtures/vignette-apps/l3-pieces-toggle/app.R</code>, vignette chunk <code>l3-pieces-toggle</code>.</p>
 
 <h3 id="ex-l3-plotly">L3 — Custom Plotly renderer off <code>state$runtime()</code></h3>
 
-<p>This is the canonical L3 render-path pattern. The default <code>ptr_ui_plot()</code> / <code>renderPlot()</code> pair is <em>not</em> placed — with no UI slot for <code>ptr_plot</code>, the binding registered by <code>ptr_register_plot()</code> is inert. Instead, a <code>plotlyOutput()</code> is placed at a custom id and bound to <code>output$custom_plot</code> inside a <code>moduleServer()</code> that also holds the <code>ptr_server()</code> call.</p>
+<p>This is the canonical L3 render-path pattern. The default <code>ptr_ui_plot()</code> / <code>renderPlot()</code> pair is <em>not</em> placed — with no UI slot for <code>ptr_plot</code>, the binding registered by <code>ptr_register_plot()</code> is inert. Instead, a <code>plotlyOutput()</code> is placed at a custom id and the custom renderer is registered via <code>ptr_module_server()</code>. The output is registered at the top level of the server using <code>output[[shiny::NS(id)(name)]]</code> — not <code>output$custom_plot</code> — because at the top level Shiny does <em>not</em> auto-namespace <code>output</code> slots, so <code>output$custom_plot</code> would bind to the bare id <code>"custom_plot"</code> instead of the module-namespaced id <code>"plot1-custom_plot"</code> that the UI emits.</p>
 
 <pre><code class="language-r"><span class="fn">library</span>(ggpaintr)
 <span class="fn">library</span>(shiny)
 <span class="fn">library</span>(plotly)
 
 formula <span class="op">&lt;-</span> <span class="str">"ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"</span>
+id <span class="op">&lt;-</span> <span class="str">"plot1"</span>
 
 ui <span class="op">&lt;-</span> <span class="fn">ptr_ui_page</span>(
   <span class="fn">fluidRow</span>(
     <span class="fn">column</span>(<span class="num">5</span>,
       <span class="cm"># ptr_ui_controls scoped to "plot1" namespace</span>
-      <span class="fn">ptr_ui_controls</span>(<span class="str">"plot1"</span>, formula)
+      <span class="fn">ptr_ui_controls</span>(id, formula)
     ),
     <span class="fn">column</span>(<span class="num">7</span>,
       <span class="cm"># Custom output at the module-namespaced id NS("plot1")("custom_plot")</span>
-      <span class="fn">plotlyOutput</span>(<span class="fn">NS</span>(<span class="str">"plot1"</span>)(<span class="str">"custom_plot"</span>), <span class="arg">height</span> = <span class="str">"500px"</span>) <span class="op">|></span>
-        <span class="fn">ptr_ui_toggle_code</span>(<span class="fn">ptr_ui_code</span>(<span class="str">"plot1"</span>))  <span class="cm"># code pane still works</span>
+      <span class="fn">plotlyOutput</span>(<span class="fn">NS</span>(id)(<span class="str">"custom_plot"</span>), <span class="arg">height</span> = <span class="str">"500px"</span>) <span class="op">|></span>
+        <span class="fn">ptr_ui_toggle_code</span>(<span class="fn">ptr_ui_code</span>(id))  <span class="cm"># code pane still works</span>
     )
   )
 )
 
 server <span class="op">&lt;-</span> <span class="kw">function</span>(input, output, session) {
-  <span class="cm"># Wrap ptr_server() in your own moduleServer so namespacing is automatic
-  # and plain-Shiny-idiomatic. No internal namespace plumbing needed.</span>
-  <span class="fn">moduleServer</span>(<span class="str">"plot1"</span>, <span class="kw">function</span>(input, output, session) {
-    <span class="cm"># ptr_server() wires all reactive plumbing and registers ptr_plot
-    # (inert — no ptr_ui_plot in the UI), ptr_error, ptr_code.</span>
-    state <span class="op">&lt;-</span> <span class="fn">ptr_server</span>(input, output, session, formula)
+  <span class="cm"># ptr_module_server() returns the ptr_state; capture it to register custom outputs.</span>
+  state <span class="op">&lt;-</span> <span class="fn">ptr_module_server</span>(id, formula)
 
-    <span class="cm"># Custom renderer reads the computed ggplot from state$runtime().</span>
-    output<span class="op">$</span>custom_plot <span class="op">&lt;-</span> <span class="fn">renderPlotly</span>({
-      res <span class="op">&lt;-</span> state<span class="op">$</span><span class="fn">runtime</span>()        <span class="cm"># reactive dependency → re-runs on draw</span>
-      <span class="fn">req</span>(<span class="fn">isTRUE</span>(res<span class="op">$</span>ok), res<span class="op">$</span>plot) <span class="cm"># quiet between draws and on error</span>
-      <span class="fn">ggplotly</span>(res<span class="op">$</span>plot)
-    })
+  <span class="cm"># Register the custom renderer at the top level using the namespaced id.
+  # output$custom_plot would bind to "custom_plot" (wrong);
+  # output[[NS(id)("custom_plot")]] binds to "plot1-custom_plot" (correct).</span>
+  output[[<span class="fn">shiny::NS</span>(id)(<span class="str">"custom_plot"</span>)]] <span class="op">&lt;-</span> <span class="fn">renderPlotly</span>({
+    res <span class="op">&lt;-</span> state<span class="op">$</span><span class="fn">runtime</span>()        <span class="cm"># reactive dependency → re-runs on draw</span>
+    <span class="fn">req</span>(<span class="fn">isTRUE</span>(res<span class="op">$</span>ok), res<span class="op">$</span>plot) <span class="cm"># quiet between draws and on error</span>
+    <span class="fn">ggplotly</span>(res<span class="op">$</span>plot)
   })
 }
 
 <span class="fn">shinyApp</span>(ui, server)
 </code></pre>
 
-<p><strong>Why this is definitionally L3:</strong> the caller owns the render path. <code>ptr_server()</code> computes the ggplot2 object and stores it in <code>state$runtime()$plot</code>; using that value to drive a custom renderer (Plotly, ggiraph, any host) is owning the render path — the <em>enabling</em> return value lives at the L2 server boundary (<code>ptr_server()</code> returning <code>state</code>), but <em>using it to replace a pane</em> is by definition L3.</p>
+<p><strong>Why this is definitionally L3:</strong> the caller owns the render path. <code>ptr_module_server()</code> computes the ggplot2 object and stores it in <code>state$runtime()$plot</code>; using that value to drive a custom renderer (Plotly, ggiraph, any host) is owning the render path.</p>
+
+<p><strong>Why <code>output[[shiny::NS(id)(name)]]</code> and not <code>output$custom_plot</code>:</strong> inside <code>moduleServer()</code>, Shiny's session auto-namespaces <code>output</code> slots, so <code>output$custom_plot</code> correctly maps to <code>"plot1-custom_plot"</code>. But <code>ptr_module_server()</code> is called from the <em>top-level</em> server function, where Shiny does <em>not</em> auto-namespace. At the top level <code>output$custom_plot</code> binds to the bare id <code>"custom_plot"</code>, which does not match the UI's <code>NS("plot1")("custom_plot")</code> = <code>"plot1-custom_plot"</code>. Using <code>output[[shiny::NS(id)("custom_plot")]]</code> inserts the namespace prefix explicitly, making both sides agree.</p>
 
 <p><strong>The <code>req(isTRUE(res$ok), res$plot)</code> guard:</strong> on the first reactive flush before any draw click, <code>state$runtime()</code> returns <code>NULL</code>. After a failed draw, it returns a list with <code>ok = FALSE</code>. Without the guard, Plotly's renderer throws a null-dereference. With it, the output stays quiet until a successful draw.</p>
 

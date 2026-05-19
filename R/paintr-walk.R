@@ -92,7 +92,9 @@ ptr_cursor_descend <- function(cur, parent, slot, idx, nm) {
   if (identical(slot, "args")) {
     pos <- data_arg_position(parent)
     return(ptr_cursor(layer_name = cur$layer_name, path = c(cur$path, idx), slot = slot,
-                      param = nm_or_na,
+                      param = if (!is.na(nm_or_na)) nm_or_na
+                              else if (identical(cur$slot, "args")) cur$param
+                              else NA_character_,
                       in_data_position = isTRUE(cur$in_data_position) && identical(idx, pos)))
   }
   if (identical(slot, "stages")) {
