@@ -41,79 +41,79 @@ vignette: >
   
   ```{r formula-tour}
   ptr_app("
-ggplot(iris, aes(x = var, y = var, color = var)) +
+  ggplot(iris, aes(x = var, y = var, color = var)) +
   geom_point(size = num) +
   labs(title = text) +
   facet_wrap(expr)
-")
-```
-
-The full grammar reference — including positional-argument behavior, `shared = "<id>"` annotation, and the empty-call cleanup rule — lives at `?ptr_app`.
-
-## Data pipelines in the formula
-
-A layer's data argument is allowed to be a pipeline. Both `|>` and `%>%` are accepted, and the two can be mixed in the same chain. Each pipeline stage that contains a placeholder gets its own row of widgets under the layer's **Data** subtab, plus a per-stage enable/disable toggle that rewrites the generated code as if that step were never there. Column pickers downstream of a stage lazily re-resolve their column choices against the current Data-subtab inputs, so changing a filter threshold immediately refreshes the picker below it.
-
-```{r pipeline-formula-tour}
-ptr_app(
+  ")
+  ```
+  
+  The full grammar reference — including positional-argument behavior, `shared = "<id>"` annotation, and the empty-call cleanup rule — lives at `?ptr_app`.
+  
+  ## Data pipelines in the formula
+  
+  A layer's data argument is allowed to be a pipeline. Both `|>` and `%>%` are accepted, and the two can be mixed in the same chain. Each pipeline stage that contains a placeholder gets its own row of widgets under the layer's **Data** subtab, plus a per-stage enable/disable toggle that rewrites the generated code as if that step were never there. Column pickers downstream of a stage lazily re-resolve their column choices against the current Data-subtab inputs, so changing a filter threshold immediately refreshes the picker below it.
+  
+  ```{r pipeline-formula-tour}
+  ptr_app(
   "mpg |>
-     dplyr::filter(displ > num) |>
-     dplyr::group_by(class) |>
-     dplyr::filter(dplyr::n() > num) |>
-     dplyr::ungroup() |>
-     ggplot(aes(var, var, color = class)) +
-     geom_point(alpha = num)"
-)
-```
-
-See `vignette(\"ggpaintr-gallery\")` § 4 for the same example with the original `dplyr` pipeline alongside the parameterized version.
-
-### What we expect to work
-
-- **Both pipe operators**, possibly mixed in the same chain: `df %>% filter(...) |> ggplot(...)`.
-- **Bare-symbol stage heads**: `filter(...)`, `head(...)`, `transform(...)`.
-- **Namespaced stage heads**: `dplyr::filter(...)`, `tidyr:::pivot_longer(...)`.
-- **Parenthesised heads**: `(filter)(...)` — used occasionally to disambiguate function lookup.
-- **`upload` as the pipeline head**: `upload |> dplyr::filter(...) |> ggplot(...)`. The upload widget feeds the pipeline; every downstream stage and placeholder resolves against the uploaded data.
-- **Per-layer pipelines on multi-layer formulas**: each layer can have its own data-arg pipeline (`ggplot(data = df1 |> filter(...)) + geom_smooth(data = df2 |> filter(...))`) — the Data subtabs are scoped per layer.
-- **Placeholders in any stage**: `var`, `text`, `num`, `expr` inside any stage's call resolve as if that stage were a regular layer call.
-
-### What we know does **not** work yet
-
-- **Anonymous functions as pipe stages.** `df |> (\(x) x[x$cyl > 4, ])() |> ggplot(...)` and `df |> (function(x) ...)() |> ggplot(...)` are not supported. The runtime resolves each stage's name from its call head; an inline lambda has no name, so the stage cannot be assigned a stable Shiny id or a layer label, and the Data subtab cannot render. The expression-level safety walker still inspects the lambda body, but the surrounding pipeline machinery does not. Workaround: lift the anonymous function to a named helper in the calling environment, then use it as a bare-symbol stage (`df |> my_helper() |> ggplot(...)`).
-
-## L1 — All-in-one entry point
-
-L1 is the dominant use case: hand ggpaintr a formula, get back a running Shiny app. Two entry points cover the common layouts.
-
-| Entry point        | Use when                                                                 |
-|--------------------|--------------------------------------------------------------------------|
-| `ptr_app()`        | Default layout. The built-in chrome (title, layer picker, plot pane, code pane) is enough. |
-| `ptr_app_grid()`   | Multiple formulas, one app — each plot gets its own tile, optionally with shared widgets at the top. |
-
-For a different page shell or theme, write a thin wrapper on top of the public ggpaintr primitives — see `vignette("ggpaintr-customization")` § "Writing your own wrapper" for the recipe and a worked example.
-
-### Single plot — `ptr_app()`
-
-```{r app-basic}
-ptr_app(
+  dplyr::filter(displ > num) |>
+  dplyr::group_by(class) |>
+  dplyr::filter(dplyr::n() > num) |>
+  dplyr::ungroup() |>
+  ggplot(aes(var, var, color = class)) +
+  geom_point(alpha = num)"
+  )
+  ```
+  
+  See `vignette(\"ggpaintr-gallery\")` § 4 for the same example with the original `dplyr` pipeline alongside the parameterized version.
+  
+  ### What we expect to work
+  
+  - **Both pipe operators**, possibly mixed in the same chain: `df %>% filter(...) |> ggplot(...)`.
+  - **Bare-symbol stage heads**: `filter(...)`, `head(...)`, `transform(...)`.
+  - **Namespaced stage heads**: `dplyr::filter(...)`, `tidyr:::pivot_longer(...)`.
+  - **Parenthesised heads**: `(filter)(...)` — used occasionally to disambiguate function lookup.
+  - **`upload` as the pipeline head**: `upload |> dplyr::filter(...) |> ggplot(...)`. The upload widget feeds the pipeline; every downstream stage and placeholder resolves against the uploaded data.
+  - **Per-layer pipelines on multi-layer formulas**: each layer can have its own data-arg pipeline (`ggplot(data = df1 |> filter(...)) + geom_smooth(data = df2 |> filter(...))`) — the Data subtabs are scoped per layer.
+  - **Placeholders in any stage**: `var`, `text`, `num`, `expr` inside any stage's call resolve as if that stage were a regular layer call.
+  
+  ### What we know does **not** work yet
+  
+  - **Anonymous functions as pipe stages.** `df |> (\(x) x[x$cyl > 4, ])() |> ggplot(...)` and `df |> (function(x) ...)() |> ggplot(...)` are not supported. The runtime resolves each stage's name from its call head; an inline lambda has no name, so the stage cannot be assigned a stable Shiny id or a layer label, and the Data subtab cannot render. The expression-level safety walker still inspects the lambda body, but the surrounding pipeline machinery does not. Workaround: lift the anonymous function to a named helper in the calling environment, then use it as a bare-symbol stage (`df |> my_helper() |> ggplot(...)`).
+  
+  ## L1 — All-in-one entry point
+  
+  L1 is the dominant use case: hand ggpaintr a formula, get back a running Shiny app. Two entry points cover the common layouts.
+  
+  | Entry point        | Use when                                                                 |
+  |--------------------|--------------------------------------------------------------------------|
+  | `ptr_app()`        | Default layout. The built-in chrome (title, layer picker, plot pane, code pane) is enough. |
+  | `ptr_app_grid()`   | Multiple formulas, one app — each plot gets its own tile, optionally with shared widgets at the top. |
+  
+  For a different page shell or theme, write a thin wrapper on top of the public ggpaintr primitives — see `vignette("ggpaintr-customization")` § "Writing your own wrapper" for the recipe and a worked example.
+  
+  ### Single plot — `ptr_app()`
+  
+  ```{r app-basic}
+  ptr_app(
   "ggplot(iris, aes(var, var, color = var)) + geom_point() + labs(title = text)"
-)
-```
-
-### Multiple plots and shared widgets — `ptr_app_grid()`
-
-`ptr_app_grid()` is the turn-key entry point for multi-plot apps with shared widgets. It takes a list of formulas in `plots =` and renders one tile per formula. Annotate any placeholder occurrence with `keyword(shared = "<id>")`; pass `shared_ui = list(<id> = function(id) widget_tag)` so the framework knows what tag to render at the top of the page. The `<id>` namespace is shared across every formula in `plots`, so editing the top widget propagates to every plot. (Internally `ptr_app_grid()` now builds the same shared coordinator the L2 trio exposes — see *Multiple linked instances* below — but as an L1 entry point it hides that machinery behind `plots =` / `shared_ui =`.)
-
-```{r app-grid-shared}
-ptr_app_grid(
-  plots = list(
-    "ggplot(iris, aes(x = var, y = Sepal.Length, fill = Species)) +
+  )
+  ```
+  
+  ### Multiple plots and shared widgets — `ptr_app_grid()`
+  
+  `ptr_app_grid()` is the turn-key entry point for multi-plot apps with shared widgets. It takes a list of formulas in `plots =` and renders one tile per formula. Annotate any placeholder occurrence with `keyword(shared = "<id>")`; pass `shared_ui = list(<id> = function(id) widget_tag)` so the framework knows what tag to render at the top of the page. The `<id>` namespace is shared across every formula in `plots`, so editing the top widget propagates to every plot. (Internally `ptr_app_grid()` now builds the same shared coordinator the L2 trio exposes — see *Multiple linked instances* below — but as an L1 entry point it hides that machinery behind `plots =` / `shared_ui =`.)
+  
+  ```{r app-grid-shared}
+  ptr_app_grid(
+plots = list(
+"ggplot(iris, aes(x = var, y = Sepal.Length, fill = Species)) +
        geom_boxplot()",
-    "ggplot(iris, aes(x = var, y = Sepal.Width, fill = Species)) +
+"ggplot(iris, aes(x = var, y = Sepal.Width, fill = Species)) +
        geom_violin()"
-  ),
-  shared_ui = list()  # no shared= annotations above; the first var stays per-tile
+),
+shared_ui = list()  # no shared= annotations above; the first var stays per-tile
 )
 ```
 
@@ -195,17 +195,17 @@ There is **no** free-form controls-here / plot-there split at L2: the only defau
 
 ### Module path — `ptr_module_ui()` / `ptr_module_server()`
 
-The compact option. One `id`, controls + outputs live next to each other inside the module's namespace.
+The compact option. Controls + outputs live next to each other inside the module's namespace. Note that `id` is not required if there is only one `ggpaintr` module.
 
 ```{r module-app}
 formula <- "ggplot(iris, aes(var, var, color = var)) + geom_point()"
 
 ui <- shiny::fluidPage(
   shiny::titlePanel("My host app"),
-  ptr_module_ui(formula, "p")
+  ptr_module_ui(formula)
 )
 server <- function(input, output, session) {
-  ptr_module_server(formula, "p")
+  ptr_module_server(formula)
 }
 
 shiny::shinyApp(ui, server)
@@ -414,7 +414,7 @@ ui <- ptr_ui_page(
 )
 # server unchanged
 server <- function(input, output, session) {
-  ptr_server(input, output, session, formula)   # binds ptr_plot / ptr_error / ptr_code
+  ptr_module_server(formula)  
 }
 
 shiny::shinyApp(ui, server)
@@ -449,7 +449,7 @@ ui <- shiny::navbarPage(
 )
 # server unchanged
 server <- function(input, output, session) {
-  ptr_server(input, output, session, formula)   # binds ptr_plot / ptr_error / ptr_code
+  ptr_module_server(formula)   
 }
 
 shiny::shinyApp(ui, server)
@@ -488,7 +488,7 @@ formula <- "ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"
 
 ui <- ptr_ui_page(
   shiny::fluidRow(
-    shiny::column(5, ptr_ui_controls("plot1", formula)),    # widgets only
+    shiny::column(5, ptr_ui_controls(formula, "plot1")),    # widgets only
     shiny::column(
       7, 
       plotly::plotlyOutput(shiny::NS("plot1")("custom_plot"), # your own output
@@ -497,14 +497,13 @@ ui <- ptr_ui_page(
     )               
   )
 )
+
 server <- function(input, output, session) {
-  shiny::moduleServer("plot1", function(input, output, session) {
-    state <- ptr_server(input, output, session, formula)   # runtime wired; ptr_plot unbound = inert
-    output$custom_plot <- plotly::renderPlotly({
-      res <- state$runtime()
-      shiny::req(isTRUE(res$ok), res$plot)
-      plotly::ggplotly(res$plot)
-    })
+  state <- ptr_module_server(formula, "plot1")
+  output[[shiny::NS("plot1")("custom_plot")]] <- plotly::renderPlotly({
+    res <- state$runtime()
+    shiny::req(isTRUE(res$ok), res$plot)
+    plotly::ggplotly(res$plot)
   })
 }
 
@@ -550,10 +549,11 @@ formula <- "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()"
 
 ui <- shiny::fluidPage(
   shiny::actionButton("add_log", "Toggle log-scale"),
-  ptr_module_ui(formula, "p")
+  ptr_module_ui(formula)
 )
+
 server <- function(input, output, session) {
-  state <- ptr_module_server(formula, "p"
+  state <- ptr_module_server(formula)
   shiny::observeEvent(input$add_log, {
     ptr_gg_extra(state, ggplot2::scale_x_log10())
   })
@@ -631,12 +631,8 @@ ui <- ptr_ui_page(
 )
 server <- function(input, output, session) {
   sh <- ptr_shared_server(obj)
-  shiny::moduleServer("p1", function(input, output, session) {
-    ptr_server(input, output, session, plots[[1]], shared_state = sh)
-  })
-  shiny::moduleServer("p2", function(input, output, session) {
-    ptr_server(input, output, session, plots[[2]], shared_state = sh)
-  })
+  ptr_module_server(plots[[1]], "p1", shared_state = sh)
+  ptr_module_server(plots[[2]], "p2", shared_state = sh)
 }
 
 shiny::shinyApp(ui, server)
