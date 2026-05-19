@@ -34,7 +34,7 @@ page-level \code{\link[=ptr_shared_panel]{ptr_shared_panel()}} panel to a single
 same bundle \code{\link[=ptr_module_server]{ptr_module_server()}} accepts. Defaults to \code{NULL}.}
 }
 \value{
-The \code{ptr_state} list, invisibly.
+The \code{ptr_state} list.
 }
 \description{
 Convenience wrapper that builds the \code{ptr_state} via \code{\link[=ptr_init_state]{ptr_init_state()}}

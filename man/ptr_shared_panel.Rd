@@ -15,7 +15,8 @@ linked after \code{ggpaintr}'s bundled stylesheet so its rules win. See
 }
 \value{
 A \code{shiny.tag} \code{div.ptr-app} wrapping the wellPanel and the asset
-bundle, suitable for direct placement in the embedder's UI.
+bundle, suitable for direct placement in the embedder's UI, or \code{NULL}
+when no panel keys exist.
 }
 \description{
 Renders the single page-level \code{\link[shiny:wellPanel]{shiny::wellPanel()}} holding exactly the

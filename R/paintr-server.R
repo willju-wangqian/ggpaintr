@@ -305,7 +305,7 @@ ptr_validate_state <- function(state) {
 #'   page-level [ptr_shared_panel()] panel to a single embedded plot — the
 #'   same bundle [ptr_module_server()] accepts. Defaults to `NULL`.
 #'
-#' @return The `ptr_state` list, invisibly.
+#' @return The `ptr_state` list.
 #' @seealso [ptr_shared_server()], [ptr_module_server()]
 #' @examples
 #' if (interactive()) {

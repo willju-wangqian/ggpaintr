@@ -260,7 +260,8 @@ shared_panel_body_tag <- function(obj, keys) {
 #'   [ptr_app()] for the full semantics. Defaults to `NULL`.
 #'
 #' @return A `shiny.tag` `div.ptr-app` wrapping the wellPanel and the asset
-#'   bundle, suitable for direct placement in the embedder's UI.
+#'   bundle, suitable for direct placement in the embedder's UI, or `NULL`
+#'   when no panel keys exist.
 #' @seealso [`ptr_shared()`], [`ptr_ui_shared_panel()`],
 #'   [`ptr_shared_server()`].
 #' @examples
@@ -295,7 +296,8 @@ ptr_shared_panel <- function(obj, css = NULL) {
 #'
 #' @param obj A `ptr_shared_spec` from [`ptr_shared()`].
 #'
-#' @return A `shiny.tag` wellPanel with no wrapper and no injected assets.
+#' @return A `shiny.tag` wellPanel with no wrapper and no injected assets, or
+#'   `NULL` when no panel keys exist.
 #' @seealso [`ptr_shared()`], [`ptr_shared_panel()`],
 #'   [`ptr_shared_server()`].
 #' @examples

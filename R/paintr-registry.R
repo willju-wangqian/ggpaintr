@@ -398,6 +398,8 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #'   `node$companion_id`, and the substitution uses the name as the symbol
 #'   inserted into the generated code. Pass `NULL` (default) when one
 #'   input suffices.
+#' @return Invisibly, the registry entry list. Use [`ptr_clear_placeholder()`] to remove
+#'   the registration.
 #' @seealso [ptr_define_placeholder_value()], [ptr_define_placeholder_consumer()],
 #'   [ptr_clear_placeholder()].
 #' @examples

@@ -243,13 +243,3 @@ ptr_resolve_upload_info <- function(input, upload_id, strict = FALSE) {
   )
 }
 
-#' Clone an Evaluation Environment and Inject Uploads
-#'
-#' @param ptr_obj A `ptr_obj`.
-#' @param input A Shiny input-like object.
-#' @param envir A parent environment.
-#'
-#' @return An evaluation environment containing uploaded datasets and any other
-#'   placeholder-provided objects.
-#' @noRd
-

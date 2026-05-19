@@ -1,0 +1,102 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Roxygen ↔ source audit — 2026-05-18</title>
+<style>
+  :root { --ok:#15803d; --bug:#b91c1c; --info:#6b7280; --bg:#f8fafc; --code:#0f172a; }
+  html,body { background:var(--bg); color:#111827; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; margin:0; padding:0; }
+  main { max-width:1080px; margin:0 auto; padding:32px 24px; }
+  h1 { font-size:22px; margin:0 0 4px 0; }
+  h2 { font-size:17px; margin:32px 0 8px 0; padding-bottom:4px; border-bottom:1px solid #e5e7eb; }
+  h3 { font-size:14px; margin:18px 0 6px 0; color:#374151; }
+  .subtitle { color:var(--info); margin-bottom:24px; }
+  table { border-collapse:collapse; width:100%; margin:8px 0 16px 0; font-size:13px; background:#fff; }
+  th,td { padding:6px 10px; text-align:left; vertical-align:top; border-bottom:1px solid #e5e7eb; }
+  th { background:#f1f5f9; font-weight:600; }
+  .pass { color:var(--ok); font-weight:600; } .bug { color:var(--bug); font-weight:600; } .info { color:var(--info); font-weight:600; }
+  code, pre { font-family: ui-monospace,Menlo,Consolas,monospace; }
+  code { background:#eef2f7; padding:1px 5px; border-radius:3px; font-size:12.5px; }
+  pre  { background:var(--code); color:#e2e8f0; padding:12px 14px; border-radius:6px; overflow:auto; font-size:12px; }
+  .bug-card { background:#fff; border:1px solid #fecaca; border-left:4px solid var(--bug); border-radius:6px; padding:12px 16px; margin:12px 0; }
+  .bug-card h3 { margin-top:0; color:var(--bug); }
+  .patched { background:#fff; border:1px solid #bbf7d0; border-left:4px solid var(--ok); border-radius:6px; padding:12px 16px; margin:12px 0; }
+  .meta { font-size:12px; color:var(--info); } ul { margin:6px 0 10px 22px; }
+</style></head><body><main>
+
+<h1>Roxygen ↔ source audit — ggpaintr <code>R/paintr-*.R</code></h1>
+<p class="subtitle">2026-05-18 22h local · branch <code>vignette-review</code> · <code>3fcf9c2</code> · Method: every roxygen block in all 33 <code>R/paintr-*.R</code> files cross-checked against <code>formals()</code> (via Serena <code>find_symbol</code> + targeted source reads), the generated <code>NAMESPACE</code> (authoritative export state), actual return paths, and rewrite-era facts from project memory (dropped <code>placeholders=</code> arg, process-global registry, headless removed, <code>ptr_css</code> doc-only page). Report-only.</p>
+
+<h2>Summary</h2>
+<table>
+<tr><th>File</th><th>Doc blocks audited</th><th>Pass</th><th>Bug</th><th>Info</th></tr>
+<tr><td><code>R/paintr-app.R</code></td><td>11 (8 exported pieces + grid + module pair)</td><td class="pass">11</td><td>0</td><td>0</td></tr>
+<tr><td><code>R/paintr-app-bslib.R</code></td><td>1</td><td class="pass">1</td><td>0</td><td>0</td></tr>
+<tr><td><code>R/paintr-build-ui.R</code></td><td>2 (build_ui_for generic + 8 S3 methods; ptr_ui_assets)</td><td class="pass">2</td><td>0</td><td>0</td></tr>
+<tr><td><code>R/paintr-copy.R</code></td><td>2 exported (ptr_ui_text, ptr_resolve_ui_text) + 14 @noRd</td><td class="pass">2</td><td>0</td><td>0</td></tr>
+<tr><td><code>R/paintr-css-doc.R</code></td><td>1 (ptr_css doc-only page)</td><td class="pass">1</td><td>0</td><td>0</td></tr>
+<tr><td><code>R/paintr-data.R</code></td><td>1 exported + 4 @noRd</td><td class="pass">1</td><td>0</td><td>0</td></tr>
+<tr><td><code>R/paintr-headless.R</code></td><td>0 (all internal, no roxygen — header confirms not public)</td><td class="pass">—</td><td>0</td><td>0</td></tr>
+<tr><td><code>R/paintr-llm.R</code></td><td>4 exported</td><td class="pass">4</td><td>0</td><td>0</td></tr>
+<tr><td><code>R/paintr-options.R</code></td><td>1 exported + 2 @noRd</td><td class="pass">1</td><td>0</td><td>0</td></tr>
+<tr><td><code>R/paintr-region.R</code></td><td>2 @noRd (@rdname group)</td><td class="pass">2</td><td>0</td><td>0</td></tr>
+<tr><td><code>R/paintr-registry.R</code></td><td>4 exported (clear + define trio)</td><td class="pass">3</td><td>0</td><td>1</td></tr>
+<tr><td><code>R/paintr-server.R</code></td><td>6 exported (init_state, server, extract trio @rdname, gg_extra)</td><td class="pass">5</td><td class="bug">1</td><td>0</td></tr>
+<tr><td><code>R/paintr-shared.R</code></td><td>0 (all internal helpers)</td><td class="pass">—</td><td>0</td><td>0</td></tr>
+<tr><td><code>R/paintr-shared-coordinator.R</code></td><td>3 exported (ptr_shared, ptr_shared_panel, ptr_ui_shared_panel)</td><td class="pass">3</td><td>0</td><td>2</td></tr>
+<tr><td><code>R/paintr-shared-ui.R</code></td><td>2 (print.ptr_shared_state S3, ptr_shared_server)</td><td class="pass">2</td><td>0</td><td>0</td></tr>
+<tr><td><code>R/paintr-upload.R</code></td><td>~9 @noRd (incl. 1 orphaned)</td><td class="pass">8</td><td>0</td><td>1</td></tr>
+<tr><td>S3-walk files: <code>safety / substitute / render / prune / classify / disable</code></td><td>59 <code>@export</code> S3-method tags</td><td class="pass">59</td><td>0</td><td>0</td></tr>
+<tr><td><code>input-spec / checkbox-defaults / utils</code></td><td>@noRd-only (no man pages)</td><td class="pass">—</td><td>0</td><td>0</td></tr>
+<tr><td>0-roxygen files: <code>translate / resolve / eval / safe / walk / nodes / ids / builtins</code></td><td>0</td><td class="pass">—</td><td>0</td><td>0</td></tr>
+<tr><td><strong>Total</strong></td><td><strong>~110 man-page-bearing or S3 blocks</strong></td><td class="pass"><strong>~107</strong></td><td class="bug"><strong>1</strong></td><td class="info"><strong>4</strong></td></tr>
+</table>
+
+<p>NAMESPACE cross-check: all 36 <code>export()</code> entries have a matching source definition with the right tag; all <code>S3method()</code> registrations (build_ui_for ×8, classify_walk ×7, disable_walk ×5, prune_walk ×12, render_walk ×12, substitute_walk ×12, walk_ptr_safety ×11, print.ptr_shared_state) match the source <code>@export</code>/<code>@exportS3Method</code> tags exactly. No false <code>@export</code>, no NAMESPACE-without-tag drift, no <code>placeholders=</code> arg or removed-function references anywhere. The <code>[ptr_css()]</code> links resolve to the intentional doc-only page (<code>R/paintr-css-doc.R</code>, <code>@name ptr_css</code> + <code>man/ptr_css.Rd</code>) — not drift.</p>
+
+<h2>Findings</h2>
+
+<div class="bug-card">
+<h3>BUG — <code>R/paintr-server.R:308</code> · <code>ptr_server()</code> <code>@return</code> claims "invisibly" but the function returns visibly</h3>
+<p><strong>Doc text</strong> (line 308): <code>#' @return The `ptr_state` list, invisibly.</code> The <code>@description</code> (lines 283–285) also says "Returns the state list so embedders can attach extras".</p>
+<p><strong>Source</strong>: the function body's final expression is a bare <code>state</code> (line 372), immediately followed by the closing <code>}</code> (line 373). There is no <code>invisible()</code> wrapper anywhere on the return path. Verified by direct read of lines 358–373; the only <code>invisible()</code> calls in the function family belong to the unrelated internal <code>ptr_register_code()</code> helper (line 1398) and <code>ptr_gg_extra()</code> (lines 1474/1486). So <code>ptr_server(input, output, session, f)</code> returns its <code>ptr_state</code> <em>visibly</em> — at a REPL / in <code>shiny::testServer()</code> it auto-prints, contrary to the documented contract.</p>
+<p><strong>Why it matters</strong>: a user relying on the doc would expect no console output (e.g. not bother assigning the result, or expect <code>ptr_server(...)</code> at the end of a server function to print nothing). The sibling <code>ptr_extract_*</code> / <code>ptr_gg_extra</code> blocks correctly document visibility, so this is an isolated inaccuracy, not a house style.</p>
+<p><strong>Suggested correction (text only — not applied)</strong>: either change the doc to <code>#' @return The `ptr_state` list.</code> (drop "invisibly"), or, if the invisible contract is intended, change the source last line from <code>state</code> to <code>invisible(state)</code>. Pick one so doc and code agree; the doc-only edit is the lower-risk choice since visible return is the long-standing behaviour and tests/embedders may already rely on inspecting it. (Source must not be edited by this audit.)</p>
+</div>
+
+<h3>Info</h3>
+<table>
+<tr><th>File:line</th><th>Doc text / issue</th><th>Source reality</th><th>Suggested correction (text only)</th></tr>
+<tr>
+<td><code>R/paintr-registry.R</code> ~354–417 (block for <code>ptr_define_placeholder_source</code>; gap between <code>@param companion_id_fn</code> @ 400 and <code>@seealso</code> @ 401)</td>
+<td>No <code>@return</code> tag at all, unlike its two siblings <code>ptr_define_placeholder_value</code> (line 237: "Invisibly, the registry entry list…") and <code>ptr_define_placeholder_consumer</code> (line 306: same).</td>
+<td><code>ptr_define_placeholder_source()</code> ends with <code>ptr_registry_register(entry)</code> (line 442), and <code>ptr_registry_register</code> returns <code>invisible(entry)</code> (line 192) — identical contract to the other two. <code>man/ptr_define_placeholder_source.Rd</code> therefore has no <code>\value{}</code> section while its siblings do.</td>
+<td>Add a matching <code>@return</code>: <code>#' @return Invisibly, the registry entry list. Use [ptr_clear_placeholder()] to remove it.</code></td>
+</tr>
+<tr>
+<td><code>R/paintr-upload.R</code> 246–255 (end of file)</td>
+<td>Orphaned roxygen block: title "Clone an Evaluation Environment and Inject Uploads" with <code>@param ptr_obj</code>, <code>@param input</code>, <code>@param envir</code>, <code>@return</code>, <code>@noRd</code> — followed by <em>no function definition</em> (file ends at line 255).</td>
+<td>The documented function was removed in the rewrite but its <code>@noRd</code> comment block was left behind. Because it is <code>@noRd</code>, roxygen2 emits nothing, so there is no <code>man/</code> drift — purely dangling source comment.</td>
+<td>Delete the dangling block (lines 246–255) for tidiness. No user-facing impact.</td>
+</tr>
+<tr>
+<td><code>R/paintr-shared-coordinator.R</code> 262 (<code>ptr_shared_panel</code>) &amp; 298 (<code>ptr_ui_shared_panel</code>)</td>
+<td><code>@return A `shiny.tag` …</code> — does not mention the <code>NULL</code> path.</td>
+<td><code>ptr_shared_panel()</code> returns <code>NULL</code> when <code>shared_panel_body_tag()</code> yields <code>NULL</code> (line 281); <code>ptr_ui_shared_panel()</code> returns whatever <code>shared_panel_body_tag()</code> returns, which can be <code>NULL</code> (line 207, no panel keys render). Minor under-specification, not a misstatement.</td>
+<td>Append "(or <code>NULL</code> if the panel has no cross-formula keys to render)" to both <code>@return</code> lines.</td>
+</tr>
+<tr>
+<td><code>R/paintr-region.R</code> 53–56</td>
+<td><code>@rdname controllable_region</code> combined with <code>@noRd</code> on <code>controllable_region_continuation</code>.</td>
+<td><code>@noRd</code> wins (no Rd produced), so <code>@rdname</code> is inert — contradictory but harmless tag pair; no man-page drift.</td>
+<td>Drop the inert <code>@rdname controllable_region</code> line (cosmetic).</td>
+</tr>
+</table>
+
+<h2>Notes on non-findings (verified aligned, called out because they look suspicious)</h2>
+<ul>
+<li><code>ptr_shared_server</code> / <code>ptr_shared</code> / <code>ptr_shared_panel</code> are genuinely exported in the current <code>NAMESPACE</code> (lines 93–95) — the audit checklist's caution about example use of <code>ptr_shared_server</code> reflects an older rewrite phase; today the function exists and its <code>@examples</code> use only real API. Not a finding.</li>
+<li><code>build_ui_for</code> generic is <code>@keywords internal</code> + <code>@exportS3Method</code> on each method and is correctly absent from <code>export()</code> (only <code>S3method()</code> entries) — intentional, aligned.</li>
+<li><code>ptr_init_state</code>'s 15 formals are each documented exactly once with correct defaults; <code>@return</code> "S3 class <code>c(\"ptr_state\", \"list\")</code>" matches the literal class at line 249. The description's mention of <code>shiny::testServer()</code> is an advisory use-case note, not a false API claim — not a finding (project memory flags testServer faithfulness for app-level fidelity, which is orthogonal to this doc).</li>
+<li>The Empty-call cleanup curated list and CSS token table in <code>ptr_app</code>/<code>ptr_css</code> were checked for direction (include vs exclude) per the security-inverted-prose lesson; prose direction is correct (deny/cleanup framing matches code).</li>
+</ul>
+
+<p class="meta">Report-only audit. No file under <code>R/</code>, no <code>man/</code>, no <code>NAMESPACE</code> was modified, and <code>devtools::document()</code> was not run. Suggested corrections are text only and were not applied.</p>
+</main></body></html>

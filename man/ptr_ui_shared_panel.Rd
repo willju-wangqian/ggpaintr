@@ -10,7 +10,8 @@ ptr_ui_shared_panel(obj)
 \item{obj}{A \code{ptr_shared_spec} from \code{\link[=ptr_shared]{ptr_shared()}}.}
 }
 \value{
-A \code{shiny.tag} wellPanel with no wrapper and no injected assets.
+A \code{shiny.tag} wellPanel with no wrapper and no injected assets, or
+\code{NULL} when no panel keys exist.
 }
 \description{
 The bare counterpart to \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}: identical inner markup

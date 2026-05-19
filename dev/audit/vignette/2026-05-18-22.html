@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ggpaintr vignette static API audit</title>
+<style>
+  :root { --ok:#15803d; --bug:#b91c1c; --info:#6b7280; --bg:#f8fafc; --code:#0f172a; }
+  html,body { background:var(--bg); color:#111827; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; margin:0; padding:0; }
+  main { max-width:1080px; margin:0 auto; padding:32px 24px; }
+  h1 { font-size:22px; margin:0 0 4px 0; }
+  h2 { font-size:17px; margin:32px 0 8px 0; padding-bottom:4px; border-bottom:1px solid #e5e7eb; }
+  h3 { font-size:14px; margin:18px 0 6px 0; color:#374151; }
+  .subtitle { color:var(--info); margin-bottom:24px; }
+  table { border-collapse:collapse; width:100%; margin:8px 0 16px 0; font-size:13px; background:#fff; }
+  th,td { padding:6px 10px; text-align:left; vertical-align:top; border-bottom:1px solid #e5e7eb; }
+  th { background:#f1f5f9; font-weight:600; }
+  .pass { color:var(--ok); font-weight:600; }
+  .bug  { color:var(--bug); font-weight:600; }
+  .info { color:var(--info); font-weight:600; }
+  code, pre { font-family: ui-monospace,Menlo,Consolas,monospace; }
+  code { background:#eef2f7; padding:1px 5px; border-radius:3px; font-size:12.5px; }
+  pre  { background:var(--code); color:#e2e8f0; padding:12px 14px; border-radius:6px; overflow:auto; font-size:12px; }
+  .bug-card { background:#fff; border:1px solid #fecaca; border-left:4px solid var(--bug); border-radius:6px; padding:12px 16px; margin:12px 0; }
+  .bug-card h3 { margin-top:0; color:var(--bug); }
+  .patched { background:#fff; border:1px solid #bbf7d0; border-left:4px solid var(--ok); border-radius:6px; padding:12px 16px; margin:12px 0; }
+  .meta { font-size:12px; color:var(--info); }
+  ul { margin:6px 0 10px 22px; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>ggpaintr vignette static API audit</h1>
+<p class="subtitle">Date: 2026-05-18 · Branch: <code>vignette-review</code> · Commit: <code>3fcf9c2</code> · Method: static API check, no execution (no R run, no browser). Symbols resolved via Serena/grep against <code>R/paintr-*.R</code> + <code>NAMESPACE</code>; domain claims cross-checked against <code>CONTEXT.md</code> and project memory.</p>
+
+<h2>Summary</h2>
+<table>
+  <tr><th>Vignette</th><th>Statements / chunks audited</th><th><span class="pass">pass</span></th><th><span class="bug">bug</span></th><th><span class="info">info</span></th></tr>
+  <tr><td><code>ggpaintr-use-cases.Rmd</code></td><td>~70 (10 chunks + ~60 prose/grammar/id claims)</td><td>~68</td><td>0</td><td>2</td></tr>
+  <tr><td><code>ggpaintr-customization.Rmd</code></td><td>~55 (10 chunks + ~45 prose/API claims)</td><td>~54</td><td>0</td><td>1</td></tr>
+  <tr><td><code>ggpaintr-gallery.Rmd</code></td><td>~40 (14 app chunks + setup + prose)</td><td>~39</td><td>0</td><td>1</td></tr>
+  <tr><td><code>ggpaintr-safety.Rmd</code></td><td>~45 (4 static <code>r</code> blocks + denylist/walker prose)</td><td>~45</td><td>0</td><td>0</td></tr>
+  <tr><td><code>ggpaintr-llm.Rmd</code></td><td>~30 (8 chunks + topic table + token claims)</td><td>~29</td><td>0</td><td>1</td></tr>
+  <tr><td><strong>Total</strong></td><td><strong>~240</strong></td><td><strong>~235</strong></td><td><strong>0</strong></td><td><strong>5</strong></td></tr>
+</table>
+<p class="meta">No <strong>bug</strong>-severity findings. Two prior browser-audit bugs (UC5 stale <code>#&gt;</code>, CU4 <code>dplyr::all_of()</code>) are confirmed already patched in the current source. Every code-shaped literal (function names, argument names, formula tokens, override-section keys, reserved ids/separators, CSS class vocabulary, denylist category representatives, LLM topic set) was resolved against current source and matches. The remaining items are <strong>info</strong>: unverifiable runtime-output prose that a static check cannot confirm or falsify.</p>
+
+<h2>Findings</h2>
+
+<p>No bug cards: no nonexistent/renamed API, no inverted behavior, no false default, no headless/testServer public-path claim was found. The five <strong>info</strong> items below are imprecise/unverifiable-by-static-analysis only.</p>
+
+<table>
+  <tr><th>Sev</th><th>File:line</th><th>Quoted text</th><th>Source reality (verifier)</th><th>Suggested correction (not applied)</th></tr>
+
+  <tr>
+    <td><span class="info">info</span></td>
+    <td><code>ggpaintr-use-cases.Rmd:176</code></td>
+    <td><code>names(clean)</code> &rarr; <code>#&gt; "first_column" "if_"</code></td>
+    <td>Runtime output of <code>ptr_normalize_column_names()</code> (&rarr; <code>ptr_normalize_tabular_data()</code>, <code>R/paintr-data.R:30</code>). Logic is consistent with <code>make.names()</code>+dedupe+reserved-word handling (<code>?</code>-rule prose); the exact returned vector cannot be statically confirmed. This is the value the prior audit's BUG&nbsp;1 was patched <em>to</em> — it is now correct, not stale.</td>
+    <td>None needed. Recommend a tester-vignette / runnable assertion to lock the <code>#&gt;</code> value against future <code>ptr_normalize_*</code> changes.</td>
+  </tr>
+
+  <tr>
+    <td><span class="info">info</span></td>
+    <td><code>ggpaintr-use-cases.Rmd:134</code></td>
+    <td>"<code>ncol</code> alone &rArr; <code>nrow = ceiling(n / ncol)</code> … each tile takes a Bootstrap width of <code>12 %/% ncol</code>"</td>
+    <td><code>ptr_app_grid()</code> signature has <code>ncol = NULL, nrow = NULL</code> (<code>R/paintr-app.R:1057</code>); the derivation/width arithmetic is internal layout logic (<code>ptr_app_grid_components()</code>) not statically reproducible without execution. Consistent with recent commit <code>44806f2</code>/<code>44906f2</code>-style "document ncol/nrow" work.</td>
+    <td>None needed. Flag as a runtime-behavior claim; recommend a layout assertion in a tester-vignette for the <code>12 %/% ncol</code> tile width and the auto-derive rule.</td>
+  </tr>
+
+  <tr>
+    <td><span class="info">info</span></td>
+    <td><code>ggpaintr-customization.Rmd:344,376,447</code></td>
+    <td>"updates the code window to <code>... + xlim(c(15, 30))</code>"; "the rendered code becomes <code>mtcars |&gt; dplyr::select(c('mpg', 'hp', 'wt'))</code>"; "<code>ggplot(iris, aes(Sepal.Length, Petal.Length)) + geom_point()</code>"</td>
+    <td>Illustrative rendered-code strings depend on user input + the substitute/prune pass at runtime. The <code>resolve_expr</code> hooks shown (<code>rlang::expr(c(!!value[1], !!value[2]))</code>, <code>rlang::call2("c", …)</code>, default <code>rlang::sym(value)</code>) are correct against <code>R/paintr-registry.R</code>; the literal output text is not statically verifiable. (The earlier <code>dplyr::all_of()</code> wording — prior CU4 bug — is gone; current text is the corrected non-<code>all_of</code> form.)</td>
+    <td>None needed. Recommend a tester-vignette capturing the code-pane string for each custom-placeholder example.</td>
+  </tr>
+
+  <tr>
+    <td><span class="info">info</span></td>
+    <td><code>ggpaintr-gallery.Rmd</code> §3–§6 (<code>#&gt;</code>-free app chunks)</td>
+    <td>14 <code>ptr_app(...)</code> recipes plus the original static <code>ggplot2</code> graphics they parameterize.</td>
+    <td>All <code>ptr_app()</code> / <code>ptr_module_ui()</code> / <code>ptr_module_server()</code> / <code>ptr_define_placeholder_*()</code> calls and every formula token (<code>var</code>,<code>text</code>,<code>num</code>,<code>expr</code>,<code>upload</code>, custom <code>range</code>/<code>colvars</code>/<code>palette</code>/<code>color</code>) resolve correctly; <code>envir = environment()</code> seam (§6.3) matches <code>ptr_app(envir = parent.frame())</code> (<code>R/paintr-app.R:112</code>); anonymous-fn-pipe caveat (§4.2) matches project memory. Whether each app <em>renders</em> the intended plot is runtime-only.</td>
+    <td>None needed. The browser-e2e suite (per <code>.claude/rules/testing.md</code>) is the right gate for render correctness; static check passes.</td>
+  </tr>
+
+  <tr>
+    <td><span class="info">info</span></td>
+    <td><code>ggpaintr-llm.Rmd:45,61,82,84</code></td>
+    <td>"12 topics, ~2,600–10,600 characters each"; "the primer (~4,000 tokens)"; "One focused runnable example (~650–2,650 tokens)"</td>
+    <td>Verified: <code>inst/llm/topics/</code> has exactly 12 <code>.md</code> files, byte range 2,560–10,636 (matches "~2,600–10,600"); <code>inst/llm/primer.md</code> is 16,092 chars (&asymp;4,000 tokens at ~4 ch/tok); per-topic &asymp;640–2,660 tokens (matches "~650–2,650"). Token figures are approximations that depend on the tokenizer — directionally correct, not exactly assertable.</td>
+    <td>None needed. Figures are accurate within stated tilde-precision; no change.</td>
+  </tr>
+</table>
+
+<h2>Verified-correct highlights (pass)</h2>
+<table>
+  <tr><th>Claim area</th><th>Verifier</th></tr>
+  <tr><td>All exported symbols referenced across the 5 vignettes (<code>ptr_app</code>, <code>ptr_app_grid</code>, <code>ptr_app_bslib</code>, <code>ptr_module_ui/server</code>, <code>ptr_ui_*</code> pieces+combinators, <code>ptr_ui_page</code>, <code>ptr_shared/_panel/_server</code>, <code>ptr_ui_shared_panel</code>, <code>ptr_gg_extra</code>, <code>ptr_extract_plot/code/error</code>, <code>ptr_normalize_column_names</code>, <code>ptr_clear_placeholder</code>, <code>ptr_define_placeholder_value/consumer/source</code>, <code>ptr_ui_text</code>, <code>ptr_resolve_ui_text</code>, <code>ptr_options</code>, <code>ptr_llm_primer/topics/topic/register</code>) exist and are exported.</td><td><code>NAMESPACE</code> + Serena <code>find_symbol</code> on every definition</td></tr>
+  <tr><td>Signature/param-order claims: <code>ptr_module_ui/server(formula, id = NULL, …)</code>; <code>ptr_ui_controls(formula, id = NULL, …)</code>; <code>ptr_ui_code(id, style = c("panel","window"))</code>; <code>ptr_ui_header(title = "ggpaintr")</code>; <code>ptr_ui_page(…, page = shiny::fluidPage, css = NULL)</code>; <code>ptr_app(envir = parent.frame())</code>; <code>ptr_shared(formulas, shared_ui = list(), ui_text = NULL, expr_check = TRUE, draw_all_label = "Draw all")</code>; <code>ptr_shared_panel(obj, css = NULL)</code>; <code>ptr_gg_extra(state, ...)</code>; <code>ptr_define_placeholder_source(..., resolve_data, resolve_expr = NULL, companion_id_fn = NULL)</code> default <code>resolve_expr = rlang::sym(value)</code>; consumer <code>validate_input(value, upstream_cols)</code>.</td><td>Serena <code>find_symbol</code> bodies in <code>R/paintr-app.R</code>, <code>-registry.R</code>, <code>-shared-coordinator.R</code>, <code>-server.R</code>, <code>-copy.R</code></td></tr>
+  <tr><td>Safety: denylist is exactly <strong>151</strong> entries; <em>bare</em> <code>deny_list</code> <strong>replaces</strong> (does not add to) the curated list — i.e. weakens default protection (NOT inverted); <code>allow_list</code> switches to allowlist mode while curated names still block as bare symbols; walker recurses bare symbol / string literal (len 1 or N) / pairlist / call head+args / compound head / skips placeholder-annotation calls; depth cap = 100. Category representatives all present.</td><td><code>R/paintr-utils.R:448-684</code> (<code>resolve_expr_check</code>, <code>validate_expr_safety</code>); entry count computed</td></tr>
+  <tr><td>Upload: accepted extensions/readers (<code>read.csv</code> <code>UTF-8-BOM</code>, <code>read.delim</code>, <code>readRDS</code>, <code>readxl::read_excel</code>, <code>jsonlite::fromJSON(flatten=TRUE)</code>) and rejection message match exactly; suggested-dep packages in <code>DESCRIPTION</code> Suggests.</td><td><code>R/paintr-upload.R:71-234</code>; <code>DESCRIPTION</code></td></tr>
+  <tr><td>Six <code>ui_text</code> override sections (<code>shell</code>, <code>upload</code>, <code>layer_checkbox</code>, <code>defaults</code>, <code>params</code>, <code>layers</code>); merge precedence <code>defaults &rarr; params[[param]][[kw]] &rarr; layers[[layer]][[kw]][[param]]</code>; <code>defaults</code> auto-populated from <code>copy_defaults</code>.</td><td><code>R/paintr-copy.R:8-103,721-780</code></td></tr>
+  <tr><td>Id grammar: <code>&lt;layer&gt;_&lt;path&gt;_&lt;keyword&gt;_&lt;shared-or-NA&gt;</code> (e.g. <code>ggplot_1_1_var_NA</code>, <code>ggplot_1_1_var_x_col</code>); reserved top-level ids <code>ptr_plot</code>/<code>ptr_error</code>/<code>ptr_code</code>/<code>ptr_update_plot</code>/<code>ptr_shared_draw_all</code>/<code>ptr_shared_errors</code>/<code>ptr_layer_select</code>/<code>ptr_layer_tabset</code>; <code>&lt;placeholder-id&gt;_ui</code> renderUI container.</td><td><code>R/paintr-ids.R:39,76</code>; <code>R/paintr-shared-coordinator.R:238,240</code>; grep across <code>R/</code></td></tr>
+  <tr><td>CSS vocabulary table (<code>.ptr-app__*</code>, <code>.ptr-card*</code>, <code>.ptr-output</code>, <code>.ptr-code-window__*</code>, <code>.ptr-shared-panel__*</code>, <code>.ptr-stage*</code>, <code>.ptr-alert*</code>) all present; bundled stylesheet <code>inst/www/ggpaintr.css</code>.</td><td>grep over <code>inst/</code> + <code>R/</code></td></tr>
+  <tr><td>L1/L2/L3 model, "no public headless/non-Shiny path" (L3 = custom render off <code>state$runtime()</code>), registry process-global, <code>placeholders=</code> arg absent, anonymous-fn pipe stages unsupported, single-instance <code>shared</code> errors without coordinator.</td><td><code>CONTEXT.md</code>; project memory; <code>R/paintr-headless.R</code> (unexported); <code>ptr_module_server</code> abort path</td></tr>
+  <tr><td>LLM manual-registration chunk (<code>ellmer::tool(ptr_llm_topic, name=, description=, arguments=list(name=type_enum(ptr_llm_topics(), …)))</code>) matches <code>ptr_llm_register()</code>'s actual tool definition; enum snapshot semantics; ellmer in Suggests.</td><td><code>R/paintr-llm.R:19-193</code>; <code>DESCRIPTION</code></td></tr>
+</table>
+
+<p class="meta">Report-only audit. Nothing was executed (no R session, no browser, no test run). No files under <code>vignettes/</code>, <code>R/</code>, or any source were modified. Only this one HTML report was written, under <code>dev/audit/vignette/</code>. Runtime-output (<code>#&gt;</code>) and rendered-code/plot claims marked <strong>info</strong> are out of scope for a static API check and would need a runnable tester-vignette or the browser-e2e suite to lock down; they show no static contradiction.</p>
+
+</main>
+</body>
+</html>

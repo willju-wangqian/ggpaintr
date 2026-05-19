@@ -57,6 +57,10 @@ contents bind to \code{node$id}, the user-typed dataset name binds to
 inserted into the generated code. Pass \code{NULL} (default) when one
 input suffices.}
 }
+\value{
+Invisibly, the registry entry list. Use \code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}} to remove
+the registration.
+}
 \description{
 A \emph{source} placeholder produces a data frame the rest of the formula
 reads from. Built-in example: \code{upload}. Custom examples: database

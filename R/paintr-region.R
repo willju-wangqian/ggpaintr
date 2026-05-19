@@ -50,7 +50,6 @@ controllable_region <- function(region_id, head_label, body,
   )
 }
 
-#' @rdname controllable_region
 #' @keywords internal
 #' @noRd
 controllable_region_continuation <- function(body) {
