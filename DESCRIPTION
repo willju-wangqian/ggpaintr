@@ -52,6 +52,7 @@ Suggests:
     jsonlite,
     knitr,
     pkgdown,
+    plotly,
     readxl,
     rmarkdown,
     shinytest2,
