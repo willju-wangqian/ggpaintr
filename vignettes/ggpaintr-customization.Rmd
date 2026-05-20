@@ -226,11 +226,7 @@ The same template extends to other shells (`bslib::page_navbar()`, a custom `shi
 
 ### Public-API limits
 
-The L2/L3 redesign closed the old split-output-layout gap: the bare pieces `ptr_ui_plot(id)`, `ptr_ui_error(id)`, and `ptr_ui_code(id)` are independently placeable, so a layout that puts the plot and the generated code in separate containers — two side-by-side `bslib::card()`s, say — is just a matter of dropping each piece where you want it instead of nesting them through the combinators (skip `ptr_ui_toggle_code()` / `ptr_ui_inline_error()` and the panes render plain and standalone). One case the wrapper pattern still does **not** cover on the public API:
-
-- **Single-formula `var(shared = "...")` coordination.** When one formula declares the same `shared` key on multiple placeholders, `ptr_app()` auto-builds the combined widget in that instance's inline shared section. A bare `ptr_server()` wrapper aborts on a `shared = "..."` formula unless you hand it a pre-built `ptr_shared_state` — and `ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()` are strictly multi-instance API (a single-instance embedder never builds the coordinator). The recommended path for a single shared-driven plot is `ptr_app()` itself, or `ptr_app_grid()` with explicit `shared_ui =` builders.
-
-This gap is tracked for a future API cycle.
+The L2/L3 redesign closed the public-API gaps that the earlier `ptr_app_bslib()` wrapper was working around. The bare pieces `ptr_ui_plot(id)`, `ptr_ui_error(id)`, and `ptr_ui_code(id)` are independently placeable, so a layout that puts the plot and the generated code in separate containers — two side-by-side `bslib::card()`s, say — is just a matter of dropping each piece where you want it instead of nesting them through the combinators (skip `ptr_ui_toggle_code()` / `ptr_ui_inline_error()` and the panes render plain and standalone). Single-formula `var(shared = "...")` coordination also works on the bare path: `ptr_server()` self-binds every declared `shared` key under its own namespace and renders the widgets in that module's inline shared section, exactly like `ptr_app()` does — the `ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()` trio is only needed when you embed two or more ggpaintr blocks and want one widget to drive several of them.
 
 ### Background
 

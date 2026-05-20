@@ -65,14 +65,15 @@ output$my_plot <- plotly::renderPlotly(state$runtime()$plot)
 object, \verb{$code} the generated source string, \verb{$error} any inline error.
 See \code{vignette("ggpaintr-use-cases")}.
 
-When the formula declares any \code{shared = "..."} placeholder, pass the
-\code{ptr_shared_state} returned by \code{\link[=ptr_shared_server]{ptr_shared_server()}} as \verb{shared_state =}.
-The state's \code{shared} / \code{draw_trigger} / \code{shared_resolutions} slots are
-unpacked and forwarded to \code{\link[=ptr_init_state]{ptr_init_state()}}; if an explicit \code{shared = ...}
-/ \code{draw_trigger = ...} / \code{shared_resolutions = ...} is also passed via
-\code{...}, that explicit value wins. (A single formula that reuses one
-\code{shared} key across several slots needs no \code{shared_state} — \code{ptr_server()}
-self-binds that formula-local key under its own namespace.)
+For cross-formula coordination — multiple ggpaintr instances driven by
+one widget — build the coordinator with \code{\link[=ptr_shared_server]{ptr_shared_server()}} and pass
+the returned \code{ptr_shared_state} as \verb{shared_state =}. The state's
+\code{shared} / \code{draw_trigger} / \code{shared_resolutions} slots are unpacked and
+forwarded to \code{\link[=ptr_init_state]{ptr_init_state()}}; if an explicit \code{shared = ...} /
+\code{draw_trigger = ...} / \code{shared_resolutions = ...} is also passed via
+\code{...}, that explicit value wins. A single formula with \code{shared = "..."}
+placeholders needs no \code{shared_state} — \code{ptr_server()} self-binds every
+declared key under its own namespace, matching what \code{\link[=ptr_app]{ptr_app()}} does.
 }
 
 \examples{

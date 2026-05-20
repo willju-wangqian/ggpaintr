@@ -234,7 +234,7 @@ ptr_app(
 )
 ```
 
-`ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()` are **strictly multi-instance API** — a single-instance embedder never sees them. This is enforced, not just advised: `ptr_server()` given a `shared = "..."` formula with no coordinator wiring **errors on purpose**, telling you to build the coordinator. (One ggpaintr block driven entirely by one shared key is L1's `ptr_app()`, above; the module path is for *embedding alongside other instances*.)
+`ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()` are **multi-instance API** — a single-instance embedder never needs them. Bare `ptr_server()` on a `shared = "..."` formula self-binds every declared key under its own namespace and renders the widgets in that module's inline shared section, exactly like `ptr_app()` does. You only reach for the coordinator trio when you embed two or more ggpaintr blocks and want one widget to drive several of them.
 
 - **Multiple instances** ⟹ you *must* build the coordinator once with `ptr_shared(formulas = list(…))`. It computes the partition: cross-formula keys (≥2 formulas) go to the one `ptr_shared_panel(obj)`; each formula's formula-local keys still render inline in that module. `obj` is a pure, non-reactive single source of truth, so the UI and server can never disagree about which key lives where.
 

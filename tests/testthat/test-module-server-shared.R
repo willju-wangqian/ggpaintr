@@ -1,24 +1,29 @@
 # Contract tests for `ptr_server(..., shared_state = ...)`. Covers
-# the convenience path plus the abort/warn pre-flight checks. Post Step 02
+# the convenience path plus the warn pre-flight check. Post Step 02
 # (#P2): with a `ptr_shared_state` supplied, a formula key missing from the
 # bundle is formula-local BY CONSTRUCTION (the coordinator never omits a
 # panel key) -- the module self-binds it silently. The "not in the shared
 # list" heads-up now fires ONLY on the raw escape-hatch path (a partial
 # `shared =` passed without a `ptr_shared_state`).
+#
+# Single-instance fix: bare `ptr_server()` on a `shared = "..."` formula
+# with no coordinator wiring self-binds every declared key under its own
+# namespace (matches `ptr_app()`'s `auto_bind_shared = TRUE` path). The
+# coordinator trio is only needed for cross-formula coordination.
 
-test_that("M-SHR.1 aborts when formula has shared key but shared_state is NULL", {
-  expect_error(
-    {
-      server <- function(input, output, session) {
-        ptr_server(
-          'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
-          "plot_1"
-        )
-      }
-      shiny::testServer(server, {})
-    },
-    "shared_state = NULL"
-  )
+test_that("M-SHR.1 bare ptr_server() self-binds formula-local shared keys", {
+  # No shared_state, no shared = ..., one formula with one shared key
+  # reused across slots. Per the single-instance contract this must
+  # construct silently and bind the key under the module's own namespace.
+  expect_silent({
+    server <- function(input, output, session) {
+      ptr_server(
+        'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg - var(shared = "col"))) + geom_point()',
+        "plot_1"
+      )
+    }
+    shiny::testServer(server, {})
+  })
 })
 
 test_that("M-SHR.2 escape hatch: passing shared= via ... bypasses the abort", {

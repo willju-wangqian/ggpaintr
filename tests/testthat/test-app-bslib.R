@@ -21,14 +21,13 @@ test_that("ptr_app_bslib accepts a custom bslib theme", {
   expect_s3_class(app, "shiny.appobj")
 })
 
-test_that("ptr_app_bslib aborts when given a single-formula shared placeholder (public-API limit)", {
+test_that("ptr_app_bslib self-binds a single-formula shared placeholder", {
   skip_if_not_installed("bslib")
 
-  # Single-formula `var(shared = "...")` coordination is not expressible on
-  # the public wrapper API today; the auto-built shared widgets ptr_app()
-  # provides require an internal helper. The recommended path for this
-  # case is `ptr_app()` itself. Documented in
-  # `vignette("ggpaintr-customization")` under "Writing your own wrapper".
+  # Single-formula `var(shared = "...")` coordination now works through
+  # the bare wrapper: ptr_server() self-binds every declared key under
+  # the module's own namespace (matches ptr_app()'s auto_bind_shared
+  # path). Documented in vignette("ggpaintr-customization").
   app <- ptr_app_bslib(
     paste0(
       "ggplot(data = mtcars, aes(alpha = var(shared = \"v\"))) + ",
@@ -38,10 +37,9 @@ test_that("ptr_app_bslib aborts when given a single-formula shared placeholder (
   )
   expect_s3_class(app, "shiny.appobj")
 
-  expect_error(
+  expect_silent(
     shiny::testServer(app$serverFuncSource(), {
       session$flushReact()
-    }),
-    "shared placeholder"
+    })
   )
 })

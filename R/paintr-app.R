@@ -865,14 +865,15 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #' object, `$code` the generated source string, `$error` any inline error.
 #' See `vignette("ggpaintr-use-cases")`.
 #'
-#' When the formula declares any `shared = "..."` placeholder, pass the
-#' `ptr_shared_state` returned by [ptr_shared_server()] as `shared_state =`.
-#' The state's `shared` / `draw_trigger` / `shared_resolutions` slots are
-#' unpacked and forwarded to [ptr_init_state()]; if an explicit `shared = ...`
-#' / `draw_trigger = ...` / `shared_resolutions = ...` is also passed via
-#' `...`, that explicit value wins. (A single formula that reuses one
-#' `shared` key across several slots needs no `shared_state` — `ptr_server()`
-#' self-binds that formula-local key under its own namespace.)
+#' For cross-formula coordination — multiple ggpaintr instances driven by
+#' one widget — build the coordinator with [ptr_shared_server()] and pass
+#' the returned `ptr_shared_state` as `shared_state =`. The state's
+#' `shared` / `draw_trigger` / `shared_resolutions` slots are unpacked and
+#' forwarded to [ptr_init_state()]; if an explicit `shared = ...` /
+#' `draw_trigger = ...` / `shared_resolutions = ...` is also passed via
+#' `...`, that explicit value wins. A single formula with `shared = "..."`
+#' placeholders needs no `shared_state` — `ptr_server()` self-binds every
+#' declared key under its own namespace, matching what [ptr_app()] does.
 #'
 #' @param formula A single formula string with `ggpaintr` placeholders.
 #' @param id Optional module id; must match the id passed to [ptr_ui()] or
@@ -948,13 +949,10 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
       is.null(shared_state) &&
       length(dots$shared %||% list()) == 0L &&
       length(dots$shared_resolutions %||% list()) == 0L) {
-    rlang::abort(paste0(
-      "`ptr_server()` was given a formula with shared placeholder",
-      if (length(declared_keys) == 1L) "" else "s",
-      " (",
-      paste0("\"", declared_keys, "\"", collapse = ", "),
-      "), but `shared_state = NULL` and no `shared = ...` was supplied. Build a `ptr_shared_state` with `ptr_shared_server()` and pass it as `shared_state =`."
-    ))
+    # Single-instance: with no coordinator and no other formulas, every
+    # declared shared key is formula-local by construction. Self-bind
+    # under this module's namespace -- same path ptr_app() takes at L192.
+    if (is.null(dots$auto_bind_shared)) dots$auto_bind_shared <- TRUE
   }
 
   # Keys this formula declares but that are absent from `dots$shared`.
