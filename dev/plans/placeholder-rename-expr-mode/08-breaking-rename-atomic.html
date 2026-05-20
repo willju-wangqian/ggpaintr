@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-08 — Breaking rename (built-ins + vignettes + tests + UI toggle)</title>
+<style>
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.6rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .atomic { color: #882020; font-weight: bold; }
+  .danger { border-left: 4px solid #c0392b; background: #fde7e7; padding: .6rem .9rem; margin: .8rem 0; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+</style>
+</head>
+<body>
+
+<h1>PLAN-08 — Breaking rename (built-ins + vignettes + tests + UI toggle)</h1>
+<p class="meta">Owning ADR: <code>dev/adr/0009-pp-placeholders-and-expression-input.html</code> · Branch: <code>adr9/08-rename-atomic</code> · Parallelism: <span class="atomic">ATOMIC (single merge; everything flips together)</span> · Date: 2026-05-20</p>
+
+<div class="danger">
+  <strong>This plan must land as a single merge.</strong> It flips every formula in the codebase from <code>var/num/text/expr/upload</code> to <code>ppVar/ppNum/ppText/ppExpr/ppUpload</code> in lock-step. Splitting the changes across PRs would leave the suite red between merges (the authoritative gate, <code>NOT_CRAN=true devtools::test()</code>, requires 0/0/0 — and any single uncoordinated rename leaves stale fixtures using the wrong vocabulary).
+</div>
+
+<h2>What this plan does (self-contained)</h2>
+
+<p>The final, breaking step of the ADR-0009 work:</p>
+
+<ol>
+  <li>Re-register the five built-in placeholders under their new keyword names (<code>ppVar</code>, <code>ppNum</code>, <code>ppText</code>, <code>ppExpr</code>, <code>ppUpload</code>) in <code>R/paintr-builtins.R</code>. Each declares its <code>default_arg</code> helper (consumed by the parser as wired in PLAN-06).</li>
+  <li>Export plain-R callables for the five names: identity functions for <code>ppVar/ppNum/ppText/ppExpr</code>, a guard function for <code>ppUpload</code>. These are returned by the PLAN-03 define helpers; assign them to the keyword names at the top level of <code>R/paintr-builtins.R</code> with <code>@export</code> roxygen.</li>
+  <li>Remove the old keyword registrations. Old names cease to be placeholders. A formula that still says <code>var(mpg)</code> fails at translate-time with the standard "unknown keyword" error.</li>
+  <li>Rename every formula in <code>vignettes/</code>, <code>tests/testthat/</code>, <code>tests/testthat/fixtures/</code>, <code>tests/manual/</code>, <code>README.Rmd</code>, and any in-source roxygen example from old keywords to new ones.</li>
+  <li>Wire the two-version code-gen UI toggle in <code>R/paintr-app.R</code> / <code>R/paintr-shared-ui.R</code> (whichever currently renders the code panel). Default tab: "final code". Toggle to: "formula with placeholders". The toggle calls <code>ptr_render(root, preserve_placeholders = TRUE)</code> (PLAN-05).</li>
+  <li>Update <code>NEWS.md</code> with the breaking-change announcement and <code>DESCRIPTION</code> if any user-visible bump is appropriate.</li>
+  <li>Update <code>CONTEXT.md</code> only if it cites old keyword names (the placeholder taxonomy itself is unchanged; only the surface vocabulary moves).</li>
+</ol>
+
+<h2>Context from ADR 0009 (only the bits this plan touches)</h2>
+
+<p>Mapping:</p>
+
+<table>
+  <tr><th>Old keyword</th><th>New keyword</th><th>Role</th><th>default_arg helper</th><th>Plain-R export</th></tr>
+  <tr><td><code>var</code></td><td><code>ppVar</code></td><td>data_consumer</td><td><code>ptr_default_symbol_or_string()</code></td><td>identity</td></tr>
+  <tr><td><code>num</code></td><td><code>ppNum</code></td><td>value</td><td><code>ptr_default_numeric()</code></td><td>identity</td></tr>
+  <tr><td><code>text</code></td><td><code>ppText</code></td><td>value</td><td><code>ptr_default_string()</code></td><td>identity</td></tr>
+  <tr><td><code>expr</code></td><td><code>ppExpr</code></td><td>value</td><td><code>ptr_default_expression()</code></td><td>identity</td></tr>
+  <tr><td><code>upload</code></td><td><code>ppUpload</code></td><td>data_source</td><td>— (none; positional rejected)</td><td>guard</td></tr>
+</table>
+
+<p>Built-in registration sketch (post-rename):</p>
+
+<pre>#' @export
+ppVar &lt;- ptr_define_placeholder_consumer(
+  keyword     = "ppVar",
+  build_ui    = ptr_builtin_var_build_ui,
+  resolve_expr= ptr_builtin_var_resolve_expr,
+  validate_input = ptr_builtin_var_validate_input,
+  default_arg = ptr_default_symbol_or_string()
+)
+
+#' @export
+ppNum &lt;- ptr_define_placeholder_value(
+  keyword     = "ppNum",
+  build_ui    = ptr_builtin_num_build_ui,    # name per existing source
+  resolve_expr= ptr_builtin_num_resolve_expr,
+  default_arg = ptr_default_numeric()
+)
+
+# ppText, ppExpr similar...
+
+#' @export
+ppUpload &lt;- ptr_define_placeholder_source(
+  keyword     = "ppUpload",
+  build_ui    = ptr_builtin_upload_build_ui,
+  resolve_data= ptr_builtin_upload_resolve_data
+  # no default_arg, no named_args
+)</pre>
+
+<p>The existing built-in <code>build_ui</code> / <code>resolve_expr</code> / <code>resolve_data</code> implementations in <code>R/paintr-builtins.R</code> are <strong>kept verbatim</strong>; only the registration calls and the LHS names change.</p>
+
+<h2>Rename inventory (verified scope on 2026-05-20)</h2>
+
+<p>Files containing old keyword references (output from <code>grep -rln "\\bvar(\\|\\bnum(\\|\\btext(\\|\\bexpr(\\|\\bupload(" R/ vignettes/ tests/</code> on 2026-05-20; not all matches are placeholders — base R <code>var()</code>, <code>text(...)</code>, etc. appear too — so each hit requires per-line judgment):</p>
+
+<table>
+  <tr><th>Group</th><th>Files</th></tr>
+  <tr><td>R source — registration sites</td><td><code>R/paintr-builtins.R</code> (lines 222–253: <code>ptr_register_builtins</code>), <code>R/paintr-registry.R</code> (only built-in references), <code>R/paintr-builtins.R</code> hook bodies</td></tr>
+  <tr><td>R source — internal references to keywords as strings</td><td><code>R/paintr-walk.R</code>, <code>R/paintr-substitute.R</code>, <code>R/paintr-safety.R</code>, <code>R/paintr-build-ui.R</code>, <code>R/paintr-utils.R</code>, <code>R/paintr-shared.R</code>, <code>R/paintr-server.R</code>, <code>R/paintr-shared-ui.R</code>, <code>R/paintr-app-bslib.R</code>, <code>R/paintr-shared-coordinator.R</code>, <code>R/paintr-copy.R</code>. Each may carry literal "var" / "num" / etc. or default-copy strings keyed by keyword.</td></tr>
+  <tr><td>Vignettes</td><td><code>vignettes/ggpaintr-customization.Rmd</code>, <code>vignettes/ggpaintr-gallery.Rmd</code>, <code>vignettes/ggpaintr-safety.Rmd</code>, <code>vignettes/ggpaintr-use-cases.Rmd</code></td></tr>
+  <tr><td>Tests</td><td><code>tests/testthat/test-rewrite-render.R</code>, <code>test-shared-ui.R</code>, <code>test-rewrite-disable.R</code>, <code>test-copy-rules.R</code>, <code>test-rewrite-translate.R</code>, <code>test-rewrite-classify.R</code>, <code>test-rewrite-input-spec.R</code>, <code>test-rewrite-walk.R</code>, <code>test-runtime-headless.R</code>, <code>test-shared-coordinator.R</code>, <code>test-module-server-shared.R</code>, <code>test-shared-server.R</code>, and others (run the survey command below before editing).</td></tr>
+  <tr><td>Test helpers / fixtures</td><td><code>tests/testthat/helper-vignette-apps.R</code>, <code>tests/testthat/fixtures/vignette-apps/*/app.R</code></td></tr>
+  <tr><td>Manual tests</td><td><code>tests/manual/</code> (per-script audit; many are formula-bearing demo apps).</td></tr>
+  <tr><td>Docs</td><td><code>README.Rmd</code> (re-knit after edits), roxygen examples in R source.</td></tr>
+  <tr><td>News / metadata</td><td><code>NEWS.md</code>, <code>DESCRIPTION</code> (version bump if shipping).</td></tr>
+</table>
+
+<p><strong>Survey command (run on the worktree branch before editing):</strong></p>
+
+<pre>grep -rln '"var"\|"num"\|"text"\|"expr"\|"upload"\|\bvar(\|\bnum(\|\btext(\|\bexpr(\|\bupload(' R/ vignettes/ tests/ README.Rmd</pre>
+
+<p>Each file requires per-line judgement. Many <code>var(x)</code> hits in tests are <code>stats::var(x)</code> and must NOT be renamed. The conservative pattern is: <em>only</em> rename inside a formula string passed to <code>ptr_app()</code> / <code>ptr_server()</code>, or inside an unquoted-expression-mode formula. Anywhere outside a formula context, the symbol stays.</p>
+
+<h2>Files touched</h2>
+
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td><code>R/paintr-builtins.R</code></td><td>Replace the five registrations in <code>ptr_register_builtins()</code> with the new keyword names + <code>default_arg</code> helpers. Assign the returned runtime callables to top-level names <code>ppVar</code>, <code>ppNum</code>, <code>ppText</code>, <code>ppExpr</code>, <code>ppUpload</code> with <code>@export</code> roxygen. Remove or update any string lookups keyed on old names within the file (e.g. <code>ptr_builtin_keywords()</code> at line 217 must return the new vocabulary).</td></tr>
+  <tr><td><code>R/paintr-walk.R</code>, <code>R/paintr-substitute.R</code>, <code>R/paintr-safety.R</code>, <code>R/paintr-build-ui.R</code>, <code>R/paintr-utils.R</code>, <code>R/paintr-shared.R</code>, <code>R/paintr-server.R</code>, <code>R/paintr-shared-ui.R</code>, <code>R/paintr-app-bslib.R</code>, <code>R/paintr-shared-coordinator.R</code>, <code>R/paintr-copy.R</code></td><td>Update any literal-string references to the five old keywords (e.g. <code>"var"</code> → <code>"ppVar"</code>) in switch tables, default-copy maps, safety-walker allow-lists, etc.</td></tr>
+  <tr><td><code>R/paintr-app.R</code> or <code>R/paintr-shared-ui.R</code> (whichever owns the code panel)</td><td>Add the two-version toggle UI (radio or segmented control). The toggle's state drives whether the visible code panel reads <code>ptr_render(root)</code> or <code>ptr_render(root, preserve_placeholders = TRUE)</code>. Default tab: "final code". Label the toggle clearly ("Show formula with placeholders").</td></tr>
+  <tr><td><code>R/paintr-app.R</code></td><td>If the toggle drives an additional reactive, wire it into the server. The two render calls already exist (PLAN-05); this plan just toggles between them.</td></tr>
+  <tr><td>vignettes/* (all)</td><td>Mechanical rename of every old-keyword reference inside a formula string or expression-mode formula. Update prose that talks about the placeholder vocabulary.</td></tr>
+  <tr><td>tests/testthat/* (all)</td><td>Mechanical rename of every old-keyword reference inside a formula string or expression-mode formula. Per-line judgement to avoid renaming legitimate uses of <code>stats::var()</code>, <code>graphics::text()</code>, etc.</td></tr>
+  <tr><td>tests/testthat/fixtures/vignette-apps/*/app.R</td><td>Update fixture apps so they use the new vocabulary. These fixtures must stay in lock-step with the vignettes they mirror.</td></tr>
+  <tr><td>tests/manual/*</td><td>Update manual test scripts. Many of these are formula-bearing demo apps.</td></tr>
+  <tr><td>README.Rmd</td><td>Update example formulas; re-knit with <code>devtools::load_all(".")</code>; <code>rmarkdown::render("README.Rmd", envir = globalenv())</code>.</td></tr>
+  <tr><td>NEWS.md</td><td>Add a "Breaking changes" entry: "Placeholder keywords renamed from var/num/text/expr/upload to ppVar/ppNum/ppText/ppExpr/ppUpload. Migration: rename every placeholder call inside formula strings or unquoted-expression formulas. See ADR 0009 for rationale."</td></tr>
+  <tr><td>DESCRIPTION</td><td>Bump Version if shipping. Add a one-line Description tweak if needed.</td></tr>
+  <tr><td>NAMESPACE</td><td>Auto-regenerated by <code>devtools::document()</code>. New exports: <code>ppVar</code>, <code>ppNum</code>, <code>ppText</code>, <code>ppExpr</code>, <code>ppUpload</code>.</td></tr>
+  <tr><td>new <code>tests/testthat/test-rename-coverage.R</code></td><td>Sanity tests: <code>ptr_translate("var(mpg)")</code> aborts with an "unknown keyword" error; <code>ptr_translate("ppVar(mpg)")</code> succeeds; <code>ppVar(mpg)</code> as plain R inside a tidy-eval context returns the column value (identity); <code>ppUpload()</code> outside <code>ptr_app</code> aborts with the documented message.</td></tr>
+</table>
+
+<h2>Order of edits within this plan</h2>
+
+<p>Sequence designed to minimize the time the suite is red <em>within</em> the worktree (the merge is atomic, but during local development the working tree must converge to green):</p>
+
+<ol>
+  <li><strong>Step 1:</strong> Add new built-in registrations under ppX names in <code>R/paintr-builtins.R</code>, keeping the old <code>var/num/...</code> registrations in place. Both vocabularies are registered simultaneously. <code>ptr_builtin_keywords()</code> returns both old and new. Tests still pass.</li>
+  <li><strong>Step 2:</strong> Rename inside formulas across vignettes, tests, fixtures. Many places use old names; they keep passing because old names are still registered.</li>
+  <li><strong>Step 3:</strong> Run the suite (NOT_CRAN gate) — must be 0/0/0. If anything still uses the old names that should not, it surfaces here.</li>
+  <li><strong>Step 4:</strong> Remove the old registrations. <code>ptr_builtin_keywords()</code> returns only ppX names. Run the suite again — any stray use of an old keyword now hard-errors.</li>
+  <li><strong>Step 5:</strong> Update internal string lookups in R source that were keyed on old names (default-copy maps, safety-walker lists, etc.). Run the suite.</li>
+  <li><strong>Step 6:</strong> Wire the UI toggle.</li>
+  <li><strong>Step 7:</strong> Update NEWS, README, DESCRIPTION. Re-knit README. Run <code>devtools::document()</code>. Run <code>devtools::check()</code>.</li>
+  <li><strong>Step 8:</strong> Final authoritative-gate run (NOT_CRAN). Confirm 0/0/0.</li>
+</ol>
+
+<p>This is local-only sequencing — the merge itself is one PR. The user merges once and the entire flip happens.</p>
+
+<h2>Success Criteria</h2>
+
+<ol>
+  <li>Five new exports — <code>ppVar</code>, <code>ppNum</code>, <code>ppText</code>, <code>ppExpr</code>, <code>ppUpload</code> — appear in <code>NAMESPACE</code>.</li>
+  <li>Old keywords (<code>var</code>, <code>num</code>, <code>text</code>, <code>expr</code>, <code>upload</code>) are no longer registered in the placeholder registry. <code>ptr_registry_keywords()</code> returns only the new names plus any user-registered custom keywords.</li>
+  <li><code>ptr_translate("ppVar(mpg)")</code> succeeds and produces a placeholder node with <code>node$keyword == "ppVar"</code> and <code>node$default == "mpg"</code>.</li>
+  <li><code>ptr_translate("var(mpg)")</code> aborts with a "keyword not registered" error.</li>
+  <li><code>ppVar(mpg)</code> evaluated as plain R inside ggplot's tidy-eval (e.g. <code>ggplot_build()</code>) returns the column value — identity behaviour. The same plain-R histogram baseline and <code>ppVar(mpg)</code>-wrapped version produce identical plots.</li>
+  <li><code>ppUpload()</code> called outside <code>ptr_app()</code> aborts with the documented guard message.</li>
+  <li>Every vignette knits without error against the new vocabulary.</li>
+  <li>Every fixture app under <code>tests/testthat/fixtures/vignette-apps/</code> boots and exercises the new vocabulary.</li>
+  <li>The code panel in <code>ptr_app()</code> shows a toggle between "final code" and "formula with placeholders". Default view = final code. Switching the toggle shows the preserved form using the new keyword vocabulary.</li>
+  <li>The authoritative gate reports 0/0/0 PASS N where N is at least the baseline plus the new <code>test-rename-coverage.R</code> tests.</li>
+  <li><code>devtools::check(--as-cran)</code> → 0 errors / 0 warnings; by-design NOTEs allowed.</li>
+  <li>README re-knits cleanly with the new vocabulary; <code>README.md</code> diff is consistent with <code>README.Rmd</code>.</li>
+  <li>NEWS.md carries a clear "Breaking changes" entry.</li>
+</ol>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>No old-name aliases.</strong> ADR 0009 mandates a hard rename, no deprecation cycle. Old names cease to be placeholders entirely.</li>
+  <li><strong>Plain-R exports must not shadow base R.</strong> None of <code>ppVar</code>, <code>ppNum</code>, <code>ppText</code>, <code>ppExpr</code>, <code>ppUpload</code> exists in base R or in any common tidyverse package — verify with <code>?ppVar</code> etc. in a fresh R session, expecting "no documentation".</li>
+  <li><strong>The five exports must work as identity (or guard for ppUpload) when called outside <code>ptr_app()</code>.</strong> Tests cover this via <code>ggplot_build()</code>-flavored use.</li>
+  <li><strong>UI toggle defaults to "final code".</strong> Existing users see the same default they see today; the toggle is an opt-in.</li>
+  <li><strong>roxygen docs.</strong> Each exported plain-R function gets a one-paragraph roxygen with <code>@param</code>, <code>@return</code>, <code>@export</code>, and at least one <code>@examples</code> block showing both the in-formula use and the plain-R identity use.</li>
+  <li><strong>Use <code>devtools::document()</code> to regenerate NAMESPACE.</strong> Do not hand-edit.</li>
+  <li><strong>NOT_CRAN gate only.</strong> See proxy-trap list below.</li>
+  <li><strong>No emojis.</strong></li>
+  <li><strong>Re-knit README.</strong> Per CLAUDE.md, <code>README.Rmd</code> is the editable source.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>Feature: keyword rename is complete and consistent
+
+  Scenario: ppVar registered, var unregistered
+    Given a fresh package load via devtools::load_all(".")
+    When ptr_registry_keywords() is inspected
+    Then "ppVar" is among the registered keywords
+    And "var" is NOT among them
+
+  Scenario: ppVar(mpg) in a formula translates correctly
+    Given the formula string "ggplot(mtcars, aes(x = ppVar(mpg))) + geom_point()"
+    When ptr_translate is called
+    Then it succeeds
+    And the consumer placeholder node has keyword "ppVar" and default "mpg"
+
+  Scenario: var(mpg) in a formula errors
+    Given the formula string "ggplot(mtcars, aes(x = var(mpg))) + geom_point()"
+    When ptr_translate is called
+    Then it aborts with a message naming "var" as not-registered
+
+  Scenario: plain-R ppVar is identity
+    Given plain-R code: mtcars |> ggplot(aes(x = ppVar(mpg))) + geom_histogram()
+    When the plot is built via ggplot_build()
+    Then no error is raised
+    And the resulting histogram is identical to the baseline mtcars |> ggplot(aes(x = mpg)) + geom_histogram()
+
+  Scenario: plain-R ppUpload is a guard
+    Given plain-R code: ppUpload()
+    When evaluated outside ptr_app()
+    Then it aborts with the message "ppUpload() is only meaningful inside ptr_app()"
+
+  Scenario: UI toggle switches between code views
+    Given a running ptr_app with formula ppVar(mpg) and the user has not changed the picker
+    When the code panel's view-mode toggle is set to "final code"
+    Then the panel shows "aes(x = mpg)"
+    When the toggle is set to "formula with placeholders"
+    Then the panel shows "aes(x = ppVar(mpg))"
+
+  Scenario: vignettes knit cleanly
+    Given each .Rmd under vignettes/
+    When knitted with the new vocabulary
+    Then they produce HTML output without error
+
+  Scenario: fixture apps boot with the new vocabulary
+    Given each app.R under tests/testthat/fixtures/vignette-apps/
+    When started via shinytest2::AppDriver$new()
+    Then they boot without "keyword not registered" errors
+
+  Scenario: full suite green at the authoritative gate
+    Given the worktree at HEAD of branch adr9/08-rename-atomic
+    When NOT_CRAN=true devtools::test() is run
+    Then the output reports FAIL 0 / ERROR 0 / SKIP 0 / PASS N (where N is the new total)
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p><strong>Authoritative command:</strong></p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p><strong>Expected output:</strong> <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code>, where N is at least baseline + new rename-coverage tests.</p>
+
+<p><strong>Plus:</strong></p>
+
+<pre>Rscript -e 'devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))'</pre>
+
+<p>Expected: 0 errors / 0 warnings. By-design NOTEs allowed (CRAN incoming new-submission, <code>.git</code>, top-level <code>CONTEXT.md</code>).</p>
+
+<p><strong>Plus:</strong> README re-knit clean:</p>
+
+<pre>Rscript -e 'devtools::load_all("."); rmarkdown::render("README.Rmd", envir = globalenv())'</pre>
+
+<p><strong>Plus:</strong> Pkgdown build clean (the project's docs gate):</p>
+
+<pre>Rscript -e 'source("dev/build-pkgdown.R"); build_pkgdown_clean()'</pre>
+
+<p><strong>Plus:</strong> Sanity grep — no residual placeholder uses of the old names in formula contexts:</p>
+
+<pre>grep -rn '"var\b\|"num\b\|"text\b\|"expr\b\|"upload\b' R/paintr-builtins.R R/paintr-registry.R</pre>
+
+<p>Expected: zero hits (only the new names should appear as registered keywords).</p>
+
+<p><strong>Proxy traps — DO NOT be fooled:</strong></p>
+<ul>
+  <li><strong>Raw <code>Rscript -e 'testthat::test_dir(...)'</code> without <code>NOT_CRAN</code></strong>: <code>skip_on_cran()</code> fires and every shinytest2 browser test silently SKIPs. A "green" run off this is NOT the gate. Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> exercises the browser e2e.</li>
+  <li><strong><code>devtools::check --as-cran</code></strong>: does not run the e2e tests (devtools sets <code>NOT_CRAN=true</code> in the check subprocess, but the source-root guard in <code>boot_vignette_app()</code> causes the e2e file to cleanly SKIP). An ERROR on the e2e file there is a harness defect (source-root guard regressed), not a product failure.</li>
+  <li><strong>Browser stack absent locally</strong>: shinytest2 + chromote + Chrome are required. If absent, the e2e file SKIPs cleanly under the NOT_CRAN gate too — but that is NOT acceptable as the final gate. CI must run them.</li>
+  <li><strong>Sub-agent self-report</strong>: any "tests pass / scope clean" from a sub-agent or worktree-internal verification is a claim to verify, not proof. Run the gate yourself before declaring done.</li>
+  <li><strong>vignette↔fixture drift</strong> (project memory): fixture <code>app.R</code> headers carry "EXCEPT" notes that are authoritative drift signals. After renaming, re-audit fixture EXCEPT-headers and update them to reflect the new vocabulary.</li>
+</ul>
+
+<h2>Scope guard</h2>
+
+<h3>In scope</h3>
+<ul>
+  <li>Rename the five built-in placeholders in the registry and across all formula-bearing files.</li>
+  <li>Export plain-R identity / guard callables.</li>
+  <li>UI toggle wiring for the two-version code panel.</li>
+  <li>NEWS / DESCRIPTION / README updates.</li>
+  <li>New rename-coverage tests.</li>
+</ul>
+
+<h3>Out of scope</h3>
+<ul>
+  <li>Eval-with-safety variants of the default-arg helpers (ADR 0009 out-of-scope follow-up).</li>
+  <li>Rich inline error UX for default-validation failures (ADR 0009 out-of-scope follow-up).</li>
+  <li>Surfacing <code>node$named_args</code> in the preserve-mode renderer (ADR 0009 open follow-up).</li>
+  <li>Anything in <code>R/paintr-translate.R</code>, <code>R/paintr-registry.R</code>, <code>R/paintr-nodes.R</code>, <code>R/paintr-render.R</code> beyond the few literal-string updates noted above (those plans landed in 01–07).</li>
+</ul>
+
+<h2>Baseline</h2>
+
+<ul>
+  <li>PLAN-01 through PLAN-07 have all merged into the worktree's base branch.</li>
+  <li>Suite green at the authoritative gate (0/0/0 PASS N).</li>
+  <li>Worktree branched from the post-merge HEAD on branch <code>adr9/08-rename-atomic</code>.</li>
+  <li>Before edits, run the survey command in the rename inventory to enumerate every file that needs touching.</li>
+</ul>
+
+<h2>Independence (within this plan)</h2>
+
+<p>This plan is internally cohesive — it cannot be split. All seven prior plans must have landed for this plan's edits to make sense (without PLAN-01's helpers, the new built-in registrations cannot declare a <code>default_arg</code>; without PLAN-06's parser, the schema is not consulted; without PLAN-05's renderer, the toggle has nothing to switch between). PLAN-08 is the single, atomic step that turns the prior groundwork into externally observable change.</p>
+
+<div class="note">
+  <strong>Verification, 2026-05-20:</strong> The rename inventory was surveyed on 2026-05-20 via <code>grep -rln "\\bvar(\\|\\bnum(\\|..."</code> across <code>R/</code>, <code>vignettes/</code>, <code>tests/</code>. The hit list reflects raw substring matches; many are false positives (e.g. <code>stats::var()</code> in tests). Re-run the survey before editing and judge each hit per-line. Confirm <code>ptr_builtin_keywords()</code> (R/paintr-builtins.R:217) before editing, since it is a likely-touched switch table that gates which keywords are recognized as "built-in" by the registry-clear mechanism.
+</div>
+
+</body>
+</html>

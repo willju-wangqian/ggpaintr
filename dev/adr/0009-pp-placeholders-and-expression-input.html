@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0009 — pp-prefixed placeholders, expression-mode input, and registry-declared argument schema (PROPOSED)</title>
+<style>
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.2rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .danger { border-left: 4px solid #c0392b; background: #fde7e7; padding: .6rem .9rem; margin: .8rem 0; }
+  .note  { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+  .warn  { border-left: 4px solid #d68910; background: #fdf6e3; padding: .6rem .9rem; margin: .8rem 0; }
+</style>
+</head>
+<body>
+
+<h1>ADR 0009 — pp-prefixed placeholders, expression-mode input, and registry-declared argument schema</h1>
+<p class="meta">Status: <strong>proposed — implementation pending</strong> · Date: 2026-05-20 ·
+Supersedes: <strong>nothing</strong> (extends ADR 0006's placeholder surface) ·
+Voids: <strong>nothing yet</strong> (will void the bare <code>var/num/text/expr/upload</code> keyword vocabulary on merge) ·
+Related: ADR 0006 (single server entry; L3 = UI-only), ADR 0008 (placeholder freedom ceiling) ·
+Domain language: <code>CONTEXT.md</code> (placeholder taxonomy unchanged; keyword renames are notational) ·
+Implementation: <strong>none yet</strong> — this ADR records the locked design before any source edit.</p>
+
+<div class="warn">
+  <strong>Decision (proposed):</strong> Rename every placeholder keyword to a <code>pp</code>-prefixed camelCase form, add an <em>expression-mode</em> input alongside the existing string-mode, and move argument-schema enforcement from the parser into the placeholder registry so custom placeholders can opt into a positional default and named arguments through the same author API the built-ins use.
+</div>
+
+<h2>Context</h2>
+
+<p>Today's <code>ptr_app()</code> / <code>ptr_server()</code> accept a single <em>string</em> formula. Inside it, five keywords (<code>var</code>, <code>num</code>, <code>text</code>, <code>expr</code>, <code>upload</code>) mark placeholder slots; each accepts at most one named argument, <code>shared</code>, enforced by a single keyword-agnostic parser helper <code>extract_shared()</code> (<code>R/paintr-translate.R:381</code>). Anything else — positional args, other named args — is rejected at translate-time.</p>
+
+<p>Three pressures push against this surface:</p>
+
+<ol>
+  <li><strong>Defaults at formula authoring time.</strong> The current contract gives no way to write "this picker should boot defaulted to <code>mpg</code>" in the formula itself. Vignette demos boot blank; users coding example apps must either edit the rendered UI or push state through a separate mechanism.</li>
+  <li><strong>Editor / IDE ergonomics for the formula.</strong> A string formula gives up syntax highlighting, paren-matching, and IDE completion; ggplot-like surfaces look more natural unquoted. A real-language formula is closer to ggplot and `aes()` idioms.</li>
+  <li><strong>Custom-placeholder authors are second-class.</strong> Built-in placeholders use a parser-internal "only <code>shared</code> allowed" rule that custom placeholders inherit by default — there is no way for a custom <code>ppRange</code> to declare "I accept <code>c(0, 100)</code> as a default and a <code>step =</code> named arg." Any extension that needs richer authoring syntax has to monkey-patch <code>extract_shared</code>, which the public API does not expose.</li>
+</ol>
+
+<p>The bare keyword names (<code>var</code>, <code>num</code>) also collide with reader expectations: <code>var()</code> is <code>stats::var()</code> in base R; unprefixed names blend in with column names in <code>aes()</code> and obscure that they are placeholders. Renaming is a one-time cost; the resulting surface stays distinct and future-proof.</p>
+
+<h2>Decision</h2>
+
+<h3>1. Keyword rename — hard, in one step</h3>
+
+<table>
+  <tr><th>Old keyword</th><th>New keyword</th><th>Role (unchanged)</th></tr>
+  <tr><td><code>var</code></td><td><code>ppVar</code></td><td>consumer</td></tr>
+  <tr><td><code>num</code></td><td><code>ppNum</code></td><td>value</td></tr>
+  <tr><td><code>text</code></td><td><code>ppText</code></td><td>value</td></tr>
+  <tr><td><code>expr</code></td><td><code>ppExpr</code></td><td>value</td></tr>
+  <tr><td><code>upload</code></td><td><code>ppUpload</code></td><td>source</td></tr>
+</table>
+
+<p>The old names cease to be placeholders. A formula that uses <code>var(mpg)</code> or <code>upload()</code> errors at translate-time with a "<em>renamed: use ppX</em>" message. No deprecation cycle, no aliasing layer. The migration is mechanical and bounded; the long-term cost of dual vocabularies outweighs the one-time cost of renaming every vignette, test, and demo.</p>
+
+<p>camelCase is chosen over <code>pp_var</code> / <code>ph_var</code> / <code>var_</code> because, inside an <code>aes()</code> call surrounded by snake_case column names, the camelCase token <em>pops</em> visually as "not a column reference." The five symbols are the only camelCase exports in the package; the inconsistency cost with the surrounding <code>ptr_*</code> snake-case convention is paid in five places, not across the whole API.</p>
+
+<h3>2. Two input modes — string and unquoted expression</h3>
+
+<p><code>ptr_app()</code> and <code>ptr_server()</code> dispatch on the captured argument at the public boundary (via <code>substitute()</code> / <code>rlang::enexpr()</code>):</p>
+
+<ul>
+  <li><strong>String mode</strong> — <code>ptr_app("ggplot(aes(x = ppVar(mpg))) + geom_point()")</code>. Existing path. Goes through <code>preprocess_native_pipe()</code> (<code>R/paintr-translate.R:176</code>) so <code>|&gt;</code> survives as a sentinel, then <code>rlang::parse_exprs()</code>.</li>
+  <li><strong>Expression mode</strong> — <code>ptr_app(ggplot(aes(x = ppVar(mpg))) + geom_point())</code>. The argument is captured unevaluated and joins the existing pipeline at <code>ptr_translate()</code>'s step 4 (split top-level <code>+</code> into per-layer expressions). The native-pipe preprocess is skipped — R's parser has already desugared <code>|&gt;</code> at parse time, so the pipe surface is lost in expression mode. Users who want <code>|&gt;</code> preserved in generated code must either stay in string mode or use <code>%&gt;%</code>.</li>
+</ul>
+
+<p>Both modes accept the new keyword vocabulary; both produce the same typed AST downstream. The translate-time pipeline is unchanged from step 4 onward.</p>
+
+<h3>3. Plain-R exports</h3>
+
+<p>For expression-mode use to be transparent — i.e. for</p>
+<pre>mtcars |&gt; ggplot(aes(x = ppVar(mpg))) + geom_histogram()</pre>
+<p>to evaluate to the same histogram as the baseline <em>outside</em> <code>ptr_app()</code> — the placeholder keywords must be real R functions in scope. ggpaintr exports:</p>
+
+<table>
+  <tr><th>Symbol</th><th>Body</th><th>Why</th></tr>
+  <tr><td><code>ppVar</code> / <code>ppNum</code> / <code>ppText</code> / <code>ppExpr</code></td><td><code>function(x, ...) x</code> (identity)</td><td>Inside <code>aes()</code>, ggplot's tidy-eval will call the function with the data-context-evaluated arg; identity returns it unchanged.</td></tr>
+  <tr><td><code>ppUpload</code></td><td><code>function(...) rlang::abort("ppUpload() is only meaningful inside ptr_app()")</code></td><td>Upload has no plain-R semantic — its resolver expects a Shiny <code>fileInput()</code> value (<code>R/paintr-upload.R:63</code>), not a plain-R argument. Erroring is honest.</td></tr>
+</table>
+
+<h3>4. Registry-declared argument schema</h3>
+
+<p>Three new slots on the placeholder registry entry, set at <code>ptr_define_placeholder_*()</code> time:</p>
+
+<table>
+  <tr><th>Slot</th><th>Type</th><th>Default</th><th>Meaning</th></tr>
+  <tr><td><code>default_arg</code></td><td><code>NULL</code> or validator function</td><td><code>NULL</code></td><td>Schema for the (single) positional argument. <code>NULL</code> ⇒ positional rejected at translate-time. Function ⇒ called with the unevaluated AST of the positional; returns the canonical value (stored on <code>node$default</code>) or aborts with a keyword-specific message.</td></tr>
+  <tr><td><code>named_args</code></td><td>named list of validator functions</td><td><code>list()</code></td><td>Schema for additional named arguments beyond <code>shared</code>. Empty ⇒ unknown named args rejected. Each validator receives the unevaluated AST and returns the canonical value; results land on <code>node$named_args</code>.</td></tr>
+  <tr><td><code>runtime</code></td><td>function</td><td>identity (for <code>_value</code>/<code>_consumer</code>); guard (for <code>_source</code>)</td><td>The plain-R callable returned by <code>ptr_define_placeholder_*()</code>. Authors bind it to the keyword's name and <code>@export</code>. Override only when a custom plain-R body is genuinely needed.</td></tr>
+</table>
+
+<p>Reserved name: <code>shared</code> may not appear in <code>named_args</code>. Enforced at <code>ptr_define_placeholder_*()</code> registration (hard error) and again at translate-time (defensively).</p>
+
+<h3>5. Default-validator helpers</h3>
+
+<p>Shipped with the package; symbol policy is documented per helper, not per parser branch:</p>
+
+<table>
+  <tr><th>Helper</th><th>Bareword symbol</th><th>String literal</th><th>Numeric literal</th><th>Other</th><th>Used by</th></tr>
+  <tr><td><code>ptr_default_symbol_or_string()</code></td><td>accepted (as <em>column-name string</em>)</td><td>accepted</td><td>rejected</td><td>rejected</td><td><code>ppVar</code></td></tr>
+  <tr><td><code>ptr_default_string()</code></td><td>rejected</td><td>accepted</td><td>rejected</td><td>rejected</td><td><code>ppText</code></td></tr>
+  <tr><td><code>ptr_default_numeric()</code></td><td>rejected</td><td>rejected</td><td>accepted (scalar)</td><td>rejected</td><td><code>ppNum</code></td></tr>
+  <tr><td><code>ptr_default_numeric_vector(length = NULL)</code></td><td>rejected</td><td>rejected</td><td><code>c(...)</code> of numeric literals; optional length check</td><td>rejected</td><td>custom (e.g. hypothetical <code>ppRange</code>)</td></tr>
+  <tr><td><code>ptr_default_expression()</code></td><td>stored verbatim as language</td><td>stored as language</td><td>stored as language</td><td>stored as language</td><td><code>ppExpr</code></td></tr>
+</table>
+
+<p><strong>AST-only — no eval at translate-time.</strong> Helpers pattern-match the AST shape; they never call <code>eval()</code>. <code>ppExpr</code> defaults are kept as language objects and converted to <em>text</em> for the textarea, so user code is never executed at parse-time. The whole-formula safety walker remains the single eval-time gate.</p>
+
+<p><strong>Symbol policy lives in the helper, not the parser.</strong> For <code>ppVar(mpg)</code> and <code>ppRange(my_range)</code> the parser sees the same AST shape: a placeholder call with one symbol positional. Whether that symbol means "column name as a string" or "variable to dereference" is decided by the helper the keyword's definition selected. This mirrors ggplot's <code>aes()</code>: a verb decides what a bareword means.</p>
+
+<p>The first cut is <strong>literal-only across the board, except <code>ppVar</code></strong>. <code>ppVar</code> reads symbols as column-name strings (the established NSE convention every dplyr verb already uses); all other built-in helpers reject symbols. An eval-after-safety-walk variant (e.g. <code>ptr_default_numeric_vector_eval(env)</code>) is out of scope for this round — it can be added later as an additive change, because adopting it would require threading a caller environment through <code>ptr_app()</code> / <code>ptr_server()</code> / <code>ptr_translate()</code> and would open a translate-time eval surface the current design deliberately closes.</p>
+
+<h3>6. Parser change</h3>
+
+<p><code>extract_shared(expr, keyword)</code> (<code>R/paintr-translate.R:381</code>) becomes <code>extract_placeholder_args(expr, entry)</code>. It reads <code>entry$default_arg</code> and <code>entry$named_args</code> and applies the schema. Existing error texts ("positional args are not allowed", "got unknown argument(s)") survive as the no-schema-declared fallbacks. Validation failures produce keyword-specific messages supplied by the helpers.</p>
+
+<p>Storage on the placeholder node:</p>
+
+<pre>node$default     # validated positional, or NULL
+node$named_args  # named list of validated named args, or list()
+node$shared      # existing shared-key string, or NULL</pre>
+
+<h3>7. Define-helper surface returns the runtime callable</h3>
+
+<p><code>ptr_define_placeholder_value()</code>, <code>_consumer()</code>, <code>_source()</code> currently return the registry entry invisibly (<code>R/paintr-registry.R:307</code>). They will additionally return the runtime function (<code>function(x, ...) x</code> for value/consumer; guard for source), so authors write:</p>
+
+<pre>#' @export
+ppRange &lt;- ptr_define_placeholder_value(
+  keyword      = "ppRange",
+  build_ui     = my_range_ui,
+  resolve_expr = my_range_resolve,
+  default_arg  = ptr_default_numeric_vector(length = 2L),
+  named_args   = list(step = ptr_default_numeric())
+)</pre>
+
+<p>One statement registers the placeholder, returns the runtime callable, and the author binds it under the right name. Built-ins use the same surface in <code>paintr-builtins.R</code> — no special-casing.</p>
+
+<p><strong>Why <code>keyword =</code> stays an explicit string.</strong> R does not give a function access to the LHS of the <code>&lt;-</code> it is being assigned to: the RHS is fully evaluated before <code>&lt;-</code> binds. Walking <code>sys.calls()</code> for an enclosing assignment works in simple REPL contexts but breaks inside <code>lapply</code>, <code>local({...})</code>, <code>assign("X", ...)</code>, package-source files, and pipe contexts. <code>R6::R6Class("Foo", ...)</code> and <code>setClass("Foo", ...)</code> face the same constraint and both took the explicit-string path; this ADR follows that precedent. As a cheap safety net, the define helpers <em>may</em> do a best-effort <code>sys.calls()</code> walk and warn (not error) when the enclosing <code>&lt;-</code> LHS differs from <code>keyword =</code>; silent in non-assignment contexts.</p>
+
+<h3>8. Default + shared, combinable</h3>
+
+<p><code>ppVar(mpg, shared = "axis")</code> is legal. The positional default participates in shared-key resolution under the existing first-occurrence-in-formula-order rule (same rule that already governs label and widget-config conflicts among multiple <code>shared = "k"</code> occurrences). If two occurrences disagree on the default, the first wins silently; no translate-time abort.</p>
+
+<h3>9. Code-gen — two-version output, toggle in one panel</h3>
+
+<p>The code panel emits two strings:</p>
+
+<table>
+  <tr><th>Version</th><th>What it shows</th><th>Status</th></tr>
+  <tr><td><em>Final code</em></td><td><code>aes(x = mpg)</code> — placeholder erased, current pick spliced in. Today's substitution behavior; valid plain R the user can copy and run with no ggpaintr dependency.</td><td>default view</td></tr>
+  <tr><td><em>Formula with placeholders</em></td><td><code>aes(x = ppVar(mpg))</code> — placeholder preserved, current pick supplied as the default. Valid plain R because <code>ppVar</code> is the identity function (point 3); also valid input to <code>ptr_app()</code> in expression mode, round-tripping with the source formula.</td><td>toggle</td></tr>
+</table>
+
+<p>One panel, a toggle (radio or segmented control) between the two versions. The "formula with placeholders" view is the round-trippable form; the "final code" view is the publish-ready form.</p>
+
+<h2>Built-in declarations under this design</h2>
+
+<pre>ppVar &lt;- ptr_define_placeholder_consumer(
+  keyword     = "ppVar",
+  build_ui    = ptr_builtin_var_build_ui,
+  resolve_expr= ptr_builtin_var_resolve_expr,
+  validate_input = ptr_builtin_var_validate_input,
+  default_arg = ptr_default_symbol_or_string()
+)
+
+ppNum &lt;- ptr_define_placeholder_value(
+  keyword     = "ppNum", build_ui = ..., resolve_expr = ...,
+  default_arg = ptr_default_numeric()
+)
+
+ppText &lt;- ptr_define_placeholder_value(
+  keyword     = "ppText", build_ui = ..., resolve_expr = ...,
+  default_arg = ptr_default_string()
+)
+
+ppExpr &lt;- ptr_define_placeholder_value(
+  keyword     = "ppExpr", build_ui = ..., resolve_expr = ...,
+  default_arg = ptr_default_expression()
+)
+
+ppUpload &lt;- ptr_define_placeholder_source(
+  keyword     = "ppUpload", build_ui = ..., resolve_data = ...
+  # no default_arg, no named_args -- positional + unknown-named both rejected
+)</pre>
+
+<h2>Alternatives considered</h2>
+
+<h3>A. Keep <code>var/num/...</code> and add <code>ppVar/ppNum/...</code> as aliases</h3>
+<p>Rejected: two vocabularies in the codebase forever (or through a deprecation cycle that drags out the migration). Adds confusion to docs and vignettes for no offsetting benefit; the rename is mechanical and bounded.</p>
+
+<h3>B. Snake-case <code>pp_var</code> or trailing-underscore <code>var_</code></h3>
+<p>Rejected. <code>pp_var</code> matches tidyverse style but blends in with snake_case column names inside <code>aes()</code> — readers cannot see at a glance that a placeholder is present. <code>var_</code> looks like a typo and gives no semantic prefix. camelCase pops; the style inconsistency cost is contained to five symbols.</p>
+
+<h3>C. Side-effecting register that captures the symbol name via <code>substitute()</code></h3>
+<p><code>ptr_register_placeholder_value(ppRange, build_ui = ..., ...)</code> would assign <code>ppRange</code> into the caller scope. Rejected: side-effecting assignment is a poor fit for package source files (where roxygen's <code>@export</code> scanner relies on the <code>&lt;- function</code> pattern), and it removes the LHS as a visible declaration. The Option B return-value pattern keeps the <code>&lt;-</code> idiom intact.</p>
+
+<h3>D. Eval-with-safety for non-literal defaults this round</h3>
+<p>Rejected for the first cut. Evaluating <code>my_range</code> inside <code>ppRange(my_range)</code> at translate-time requires threading a caller environment through <code>ptr_app()</code> → <code>ptr_server()</code> → <code>ptr_translate()</code> → the validator, plus running a safety walker on the AST before eval to keep the translate-time eval surface honest. Doable, but additive; landing it now would bloat the contract while we are still proving out the simpler literal-only schema. Documented as an out-of-scope follow-up.</p>
+
+<h3>E. Allow defaults but keep them in a separate <code>defaults = list(...)</code> argument to <code>ptr_app()</code></h3>
+<p>Rejected: separates the default from the placeholder, requiring readers to cross-reference. The whole point of the in-formula default is co-locating it with the placeholder that uses it.</p>
+
+<h2>Consequences</h2>
+
+<h3>Breaking changes (intentional)</h3>
+<ul>
+  <li>Every formula in the codebase using <code>var/num/text/expr/upload</code> as a placeholder keyword must rename to the <code>pp</code>-prefixed form. Vignettes, fixture apps under <code>tests/testthat/fixtures/vignette-apps/</code>, the README, manual tests, and demo apps are all affected.</li>
+  <li>Custom-placeholder authors who registered under the old keywords must rename their registrations. The define helpers themselves keep their names (<code>ptr_define_placeholder_value/_consumer/_source</code>); only the example built-in keywords change.</li>
+  <li>Anyone calling <code>var()</code> / <code>num()</code> / etc. <em>as plain R outside <code>ptr_app()</code></em> (rare; was never documented to work) will see a "function not found" error unless they switch to <code>ppX</code>.</li>
+</ul>
+
+<h3>Non-breaking additions</h3>
+<ul>
+  <li>The <code>default_arg</code> and <code>named_args</code> slots are additive on the registry side; placeholders that omit them retain today's "only <code>shared</code> allowed" contract by default. Existing custom placeholders keep working under the rename without touching their definitions.</li>
+  <li>Expression-mode input is additive: string-mode formulas continue to work. The dispatch happens before any string-specific preprocessing.</li>
+</ul>
+
+<h3>Surface area gained</h3>
+<ul>
+  <li>Authors of custom placeholders gain a real argument-schema language without parser-internal patches. <code>ppRange(c(0, 100), step = 5)</code>-style placeholders become possible without monkey-patching <code>extract_shared</code>.</li>
+  <li>Vignette and demo apps can boot with sensible non-empty initial state. Today's empty-picker UX, which forces users to choose a column before the first plot renders, is no longer mandatory.</li>
+</ul>
+
+<h3>Surface area gained that we deliberately do not use yet</h3>
+<ul>
+  <li>Eval-with-safety variants of the default helpers are not shipped in this round. Adding them later does not require any further contract change — they slot into the existing <code>default_arg</code> field.</li>
+  <li>Rich inline error UX for default-validation failures is not in scope; translate-time abort with a keyword-specific message is sufficient as a first cut. Errors surface in the existing "could not parse formula" pathway.</li>
+</ul>
+
+<h2>Implementation impact (file-level, not yet edited)</h2>
+
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td><code>R/paintr-translate.R</code></td><td>Rename <code>extract_shared</code> → <code>extract_placeholder_args(expr, entry)</code>; dispatch to registry-declared validators; store <code>node$default</code> + <code>node$named_args</code>.</td></tr>
+  <tr><td><code>R/paintr-registry.R</code></td><td>Add <code>default_arg</code>, <code>named_args</code>, <code>runtime</code> parameters to <code>ptr_define_placeholder_value/_consumer/_source</code>. Validate them at registration (reject reserved <code>shared</code> in <code>named_args</code>; require <code>default_arg</code> to be <code>NULL</code> or a function). Return the runtime callable.</td></tr>
+  <tr><td><code>R/paintr-nodes.R</code></td><td>Placeholder node constructors (<code>ptr_ph_value</code>, <code>ptr_ph_data_consumer</code>, <code>ptr_ph_data_source</code>) gain <code>default</code> and <code>named_args</code> slots; existing <code>shared</code> slot unchanged.</td></tr>
+  <tr><td><code>R/paintr-builtins.R</code></td><td>Replace the five <code>var/num/text/expr/upload</code> registrations with their <code>pp*</code> equivalents. Each declares its <code>default_arg</code> helper. Identity / guard functions are returned by the define helpers and assigned to <code>ppVar</code> / … with <code>@export</code> roxygen.</td></tr>
+  <tr><td><code>R/paintr-app.R</code> (holds <em>both</em> public entries: <code>ptr_app</code> at line 113 and <code>ptr_server</code> at line 921; <code>R/paintr-server.R</code> contains internal helpers like <code>ptr_server_internal</code> / <code>ptr_init_state</code>, not the public surface)</td><td>Capture the formula argument with <code>substitute()</code> / <code>rlang::enexpr()</code> at the public boundary. If character, route through the existing string path. If language, deparse (or pass the AST directly into a refactored <code>ptr_translate()</code> entry point that skips the string-to-AST step).</td></tr>
+  <tr><td><code>R/paintr-build-ui.R</code></td><td>UI hooks read <code>node$default</code> as the initial <code>selected</code> when no persisted prior input exists; read <code>node$named_args</code> for custom-placeholder widget config.</td></tr>
+  <tr><td><code>R/paintr-shared.R</code> (shared binding/coordinator: <code>ptr_shared_bind</code> at line 6, <code>resolve_shared_consumer</code> at line 192)</td><td>When a placeholder has both <code>shared</code> and <code>default</code>, the first occurrence's default seeds the shared widget; later occurrences ignored (first-occurrence-wins, matching today's label/widget-config rule).</td></tr>
+  <tr><td><code>R/paintr-substitute.R</code></td><td>Value-substitution path threads <code>node$default</code> as the initial value when no persisted input exists yet (only for non-shared placeholders; shared placeholders take their initial value from the shared widget seeded via paintr-shared.R).</td></tr>
+  <tr><td><code>R/paintr-render.R</code> (<code>ptr_render</code> at line 15; <code>render_walk.ptr_ph_value</code> et al.)</td><td>Emit two strings — "final code" (current substitution, today's behavior) and "formula with placeholders" (preserve <code>ppX(current_pick)</code>). Add a parameter or sibling entry point that selects the variant; wire toggle into the existing code-panel UI.</td></tr>
+  <tr><td><code>R/paintr-safety.R</code></td><td>No structural change. Placeholder bodies remain skipped today; literal-only defaults preserve that contract. Add a brief comment recording the AST-only invariant for future reviewers.</td></tr>
+  <tr><td><code>vignettes/*</code>, <code>tests/testthat/test-*.R</code>, <code>tests/testthat/fixtures/vignette-apps/*</code>, <code>README.Rmd</code>, <code>tests/manual/*</code></td><td>Mechanical rename: <code>var(...)</code> → <code>ppVar(...)</code>, etc. Add new tests for default-validation, named-args, plain-R identity, expression-mode input, and the two code-gen versions.</td></tr>
+  <tr><td><code>NEWS.md</code>, <code>DESCRIPTION</code></td><td>Record the breaking change. No new dependency.</td></tr>
+</table>
+
+<h2>Open follow-ups (out of scope this round)</h2>
+<ul>
+  <li>Eval-with-safety variants of the default-arg helpers (e.g. <code>ptr_default_numeric_vector_eval(env)</code>) for placeholders that want to accept variable references like <code>ppRange(my_range)</code>. Requires caller-env threading and a translate-time safety pass; additive when ready.</li>
+  <li>A linter / validator for the new author API (cross-check that <code>keyword =</code> matches the LHS at the package source level; best-effort sys.calls warning is the runtime fallback).</li>
+  <li>Surfacing the <code>node$named_args</code> contents in the code-gen "formula with placeholders" view round-trip (today's sketch handles <code>node$default</code> only; named args need an analogous renderer pass).</li>
+</ul>
+
+<div class="note">
+  <strong>Status, 2026-05-20.</strong> This ADR records the design decided in a planning conversation on 2026-05-20. No source changes were made during that conversation. The next step is implementation: each row of the "Implementation impact" table is its own work item, and the breaking rename should land in a single PR that also updates every vignette, fixture, and test in lock-step, so the authoritative gate (<code>NOT_CRAN=true</code> <code>devtools::test()</code>, 0/0/0 in CLAUDE.md) flips cleanly from "all uses of old names" to "all uses of new names" without an intermediate red state. Source claims in this ADR (line numbers; the <code>extract_shared</code> contract; <code>file_info</code> shape; the <code>preprocess_native_pipe</code> mechanism; the registry-entry shape) were verified against the source on 2026-05-20; re-verify before implementing.
+</div>
+
+</body>
+</html>

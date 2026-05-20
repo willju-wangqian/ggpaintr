@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-06 — Parser argument schema (extract_placeholder_args)</title>
+<style>
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.6rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .seq { color: #b34b00; font-weight: bold; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+</style>
+</head>
+<body>
+
+<h1>PLAN-06 — Parser argument schema (<code>extract_placeholder_args</code>)</h1>
+<p class="meta">Owning ADR: <code>dev/adr/0009-pp-placeholders-and-expression-input.html</code> · Branch: <code>adr9/06-parser-schema</code> · Parallelism: <span class="seq">SEQUENTIAL (after PLAN-01, 02, 03)</span> · Date: 2026-05-20</p>
+
+<h2>What this plan does (self-contained)</h2>
+
+<p>Replaces the parser-internal, keyword-agnostic helper <code>extract_shared(expr, keyword)</code> with a registry-driven <code>extract_placeholder_args(expr, entry)</code>. The new helper reads <code>entry$default_arg</code> and <code>entry$named_args</code> from the registry entry and applies the per-keyword schema:</p>
+
+<ul>
+  <li>If <code>entry$default_arg</code> is <code>NULL</code>, reject any positional argument with today's error text.</li>
+  <li>Otherwise call <code>entry$default_arg(positional_arg_expr)</code>; store the canonical return on <code>node$default</code>.</li>
+  <li>For each named arg other than <code>shared</code>, look it up in <code>entry$named_args</code>; reject unknown names; call the validator; store on <code>node$named_args</code>.</li>
+  <li>Continue to extract <code>shared</code> as today; store on <code>node$shared</code>.</li>
+</ul>
+
+<p>Built-in registrations are <em>not</em> changed in this plan — they still register with <code>default_arg = NULL</code> and <code>named_args = list()</code>, so the parser's externally observable behaviour is identical to today (positional + unknown-named both rejected). PLAN-08 wires the actual default_arg helpers into the built-in registrations as part of the rename.</p>
+
+<h2>Context from ADR 0009 (only the bits this plan touches)</h2>
+
+<p>Per ADR 0009 §6 ("Parser change"):</p>
+
+<ul>
+  <li><code>extract_shared(expr, keyword)</code> at <code>R/paintr-translate.R:381</code> is renamed to <code>extract_placeholder_args(expr, entry)</code>.</li>
+  <li>Signature changes from receiving the keyword string to receiving the full registry entry — so the validator closures are reachable.</li>
+  <li>Existing error texts ("positional args are not allowed", "got unknown argument(s)") survive as the no-schema-declared fallbacks.</li>
+  <li>Validation failures coming back from a validator closure are translated to translate-time aborts; the validator's message becomes the user-facing error.</li>
+  <li>Validators receive the unevaluated AST. The parser never <code>eval()</code>s a placeholder's positional or named-arg AST.</li>
+</ul>
+
+<p>Storage on the placeholder node:</p>
+<pre>node$default     # validated positional, or NULL  (PLAN-02 added the slot)
+node$named_args  # named list of validated named args, or list()  (PLAN-02)
+node$shared      # existing slot, behaviour unchanged
+</pre>
+
+<h2>Current source (verified 2026-05-20)</h2>
+
+<table>
+  <tr><th>Item</th><th>Location</th><th>Notes</th></tr>
+  <tr><td><code>extract_shared(expr, keyword)</code></td><td><code>R/paintr-translate.R:381</code>–<code>408</code></td><td>Keyword-agnostic. Returns the shared key string or NULL. Aborts on positional / unknown-named.</td></tr>
+  <tr><td>Callers of <code>extract_shared</code></td><td><code>R/paintr-translate.R:364</code></td><td>Inside <code>translate_placeholder_call</code> (the call site that builds <code>list(keyword, entry, shared)</code> at line 365 and constructs the placeholder node at lines 484–490).</td></tr>
+  <tr><td>Registry lookup</td><td><code>ptr_registry_lookup(keyword)</code> at <code>R/paintr-registry.R:90</code></td><td>Returns the entry list. After PLAN-03, the entry carries <code>default_arg</code>, <code>named_args</code>, <code>runtime</code>.</td></tr>
+  <tr><td>Node constructors</td><td><code>ptr_ph_value</code> (R/paintr-nodes.R:36), <code>ptr_ph_data_consumer</code> (44), <code>ptr_ph_data_source</code> (53)</td><td>After PLAN-02, accept <code>default</code> and <code>named_args</code> parameters.</td></tr>
+</table>
+
+<h2>Files touched</h2>
+
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td><code>R/paintr-translate.R</code></td><td>Rename <code>extract_shared(expr, keyword)</code> → <code>extract_placeholder_args(expr, entry)</code>. Update its single caller (line 364) to look up the registry entry once (via <code>ptr_registry_lookup(keyword)</code>) and pass it to the new helper. The helper now returns a list with three fields: <code>shared</code>, <code>default</code>, <code>named_args</code>. Update the placeholder-node construction sites (lines ~484–490) to pass <code>default = ...</code> and <code>named_args = ...</code> through.</td></tr>
+  <tr><td>new <code>tests/testthat/test-extract-placeholder-args.R</code></td><td>Tests covering: positional rejected when <code>default_arg = NULL</code>; positional accepted when <code>default_arg</code> is set; named args other than <code>shared</code> rejected when <code>named_args = list()</code>; named args accepted when declared; <code>shared</code> still parsed identically; validator-aborts propagate as translate-time aborts; the AST is never <code>eval()</code>'d.</td></tr>
+</table>
+
+<h2>Target helper shape</h2>
+
+<pre>extract_placeholder_args &lt;- function(expr, entry) {
+  if (is.symbol(expr)) {
+    return(list(shared = NULL, default = NULL, named_args = list()))
+  }
+  if (length(expr) == 1L) {
+    # bare call without parens shouldn't happen but be defensive
+    return(list(shared = NULL, default = NULL, named_args = list()))
+  }
+  args      &lt;- as.list(expr[-1L])
+  arg_names &lt;- names(args) %||% rep_len("", length(args))
+  keyword   &lt;- entry$keyword
+
+  # Split named vs positional
+  named_idx &lt;- nzchar(arg_names)
+  named     &lt;- args[named_idx]
+  positional &lt;- args[!named_idx]
+
+  # Positional handling
+  default &lt;- NULL
+  if (length(positional) &gt;= 1L) {
+    if (is.null(entry$default_arg)) {
+      rlang::abort(paste0(
+        "Placeholder `", keyword, "(...)` accepts only named arguments; ",
+        "positional args are not allowed."
+      ))
+    }
+    if (length(positional) &gt; 1L) {
+      rlang::abort(paste0(
+        "Placeholder `", keyword, "(...)` accepts at most one positional ",
+        "argument (the default); got ", length(positional), "."
+      ))
+    }
+    default &lt;- entry$default_arg(positional[[1L]])
+  }
+
+  # Named handling
+  recognized &lt;- c("shared", names(entry$named_args %||% list()))
+  unknown    &lt;- setdiff(names(named), recognized)
+  if (length(unknown) &gt; 0L) {
+    rlang::abort(paste0(
+      "Placeholder `", keyword, "(...)` got unknown argument(s): ",
+      paste(unknown, collapse = ", "), ". ",
+      "Allowed: ", paste(recognized, collapse = ", "), "."
+    ))
+  }
+
+  # Validate each declared named arg
+  named_args_out &lt;- list()
+  for (nm in names(entry$named_args %||% list())) {
+    if (nm %in% names(named)) {
+      validator &lt;- entry$named_args[[nm]]
+      named_args_out[[nm]] &lt;- validator(named[[nm]])
+    }
+  }
+
+  # Extract shared (existing semantics, lifted out)
+  shared &lt;- extract_shared_value(named[["shared"]], keyword)
+
+  list(shared = shared, default = default, named_args = named_args_out)
+}
+
+extract_shared_value &lt;- function(shared_ast, keyword) {
+  if (is.null(shared_ast)) return(NULL)
+  if (!is.character(shared_ast) || length(shared_ast) != 1L ||
+      is.na(shared_ast) || !nzchar(shared_ast)) {
+    rlang::abort(paste0(
+      "`", keyword, "(shared = ...)` requires a single non-empty string."
+    ))
+  }
+  shared_ast
+}</pre>
+
+<h2>Call-site update</h2>
+
+<p>Today (R/paintr-translate.R around lines 360–366):</p>
+
+<pre>nm &lt;- as.character(expr[[1L]])
+if (!(nm %in% ptr_registry_keywords())) ...
+entry  &lt;- ptr_registry_lookup(nm)
+shared &lt;- extract_shared(expr, kw)
+list(keyword = kw, entry = entry, shared = shared)</pre>
+
+<p>After this plan:</p>
+
+<pre>entry &lt;- ptr_registry_lookup(kw)
+args  &lt;- extract_placeholder_args(expr, entry)
+list(keyword = kw, entry = entry,
+     shared = args$shared, default = args$default,
+     named_args = args$named_args)</pre>
+
+<p>Placeholder-node construction at lines ~484–490:</p>
+
+<pre>ptr_ph_value(
+  keyword = ph$keyword, expr = expr,
+  shared = ph$shared, default = ph$default, named_args = ph$named_args
+)</pre>
+
+<p>(Same shape for the consumer and source variants; pass through <code>upstream</code> / <code>companion_id</code> unchanged.)</p>
+
+<h2>Success Criteria</h2>
+
+<ol>
+  <li><code>extract_shared</code> is replaced by <code>extract_placeholder_args(expr, entry)</code> across all call sites.</li>
+  <li>For an entry with <code>default_arg = NULL</code> and <code>named_args = list()</code>, the helper behaves identically to today's <code>extract_shared</code>: positional → abort; unknown-named → abort; <code>shared = "k"</code> → returned in the shared field; non-string shared → abort.</li>
+  <li>For an entry with <code>default_arg = ptr_default_numeric()</code>, a call like <code>foo(5)</code> stores <code>5</code> on <code>node$default</code>.</li>
+  <li>For an entry with <code>named_args = list(step = ptr_default_numeric())</code>, a call like <code>foo(step = 0.5)</code> stores <code>list(step = 0.5)</code> on <code>node$named_args</code>.</li>
+  <li>For an entry with both, <code>foo(5, step = 0.5, shared = "k")</code> populates all three: <code>node$default = 5</code>, <code>node$named_args$step = 0.5</code>, <code>node$shared = "k"</code>.</li>
+  <li>Validator aborts propagate cleanly with the validator's message as the user-facing error.</li>
+  <li>The parser does not call <code>eval()</code> on any placeholder argument AST. (Inspectable by reading the source — no <code>eval</code>, <code>parse</code>, <code>get</code> calls inside the helper.)</li>
+  <li>All existing tests pass without modification; the new tests for the schema behaviour pass.</li>
+  <li>The authoritative gate reports 0/0/0 PASS N ≥ baseline + new tests.</li>
+</ol>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>Backward-compatible behaviour.</strong> Built-ins still register with <code>default_arg = NULL</code> and <code>named_args = list()</code> after this plan — the externally observable parsing behaviour does not change. PLAN-08 changes the built-in registrations.</li>
+  <li><strong>No registry changes.</strong> <code>R/paintr-registry.R</code> is untouched (PLAN-03 already added the slots).</li>
+  <li><strong>No node changes.</strong> <code>R/paintr-nodes.R</code> is untouched (PLAN-02 already added the slots).</li>
+  <li><strong>No eval at translate-time.</strong> Validators do the work; the helper itself only routes AST values to validators.</li>
+  <li><strong>Preserve existing error messages.</strong> The no-schema-declared positional-rejected message stays nearly verbatim ("Placeholder `keyword(...)` accepts only named arguments; positional args are not allowed.") so downstream tests that grep on this text keep passing.</li>
+  <li><strong>NOT_CRAN gate only.</strong></li>
+  <li><strong>No emojis.</strong></li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>Feature: parser dispatches placeholder argument validation through the registry
+
+  Scenario: positional rejected when default_arg is NULL
+    Given a registered placeholder with default_arg = NULL
+    When the formula contains foo(5)
+    Then ptr_translate aborts with the message "accepts only named arguments"
+
+  Scenario: positional accepted when default_arg is a numeric validator
+    Given a registered placeholder with default_arg = ptr_default_numeric()
+    When the formula contains foo(5)
+    Then ptr_translate succeeds
+    And the resulting node$default equals 5
+
+  Scenario: named arg rejected when not declared
+    Given a registered placeholder with named_args = list()
+    When the formula contains foo(label = "X")
+    Then ptr_translate aborts with the message "unknown argument(s): label"
+
+  Scenario: named arg accepted when declared
+    Given a registered placeholder with named_args = list(step = ptr_default_numeric())
+    When the formula contains foo(step = 0.5)
+    Then ptr_translate succeeds
+    And node$named_args$step equals 0.5
+
+  Scenario: shared continues to work
+    Given a registered placeholder
+    When the formula contains foo(shared = "k")
+    Then node$shared equals "k"
+    And node$default is NULL
+    And node$named_args is list()
+
+  Scenario: default + named + shared combine
+    Given a placeholder registered with default_arg, named_args, and shared support
+    When the formula contains foo(5, step = 0.5, shared = "k")
+    Then node$default = 5, node$named_args$step = 0.5, node$shared = "k"
+
+  Scenario: validator failure surfaces as translate-time abort
+    Given a placeholder registered with default_arg = ptr_default_numeric()
+    When the formula contains foo("not a number")
+    Then ptr_translate aborts with the validator's message
+    And the error is an rlang_error
+
+  Scenario: no eval on placeholder ASTs
+    Given a placeholder registered with default_arg = ptr_default_expression()
+    When the formula contains foo(system("rm -rf /"))
+    Then ptr_translate succeeds (the expression is stored as language)
+    And no system command is executed
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p><strong>Authoritative command:</strong></p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p><strong>Expected output:</strong> <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code>, with N ≥ baseline + new tests in <code>test-extract-placeholder-args.R</code>. Existing tests that exercise <code>extract_shared</code>'s error paths must continue to pass — the new helper preserves the same error messages on the no-schema path.</p>
+
+<p><strong>Plus:</strong> <code>devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))</code> → 0 errors / 0 warnings.</p>
+
+<p><strong>Plus:</strong> grep the source for the old helper name and confirm it is gone:</p>
+<pre>grep -nR "extract_shared\b" R/ tests/</pre>
+<p>Expected: zero hits (or only matches in changelog/comments).</p>
+
+<p><strong>Proxy traps:</strong></p>
+<ul>
+  <li>A single test on the new helper is not enough — run the full suite, which includes existing formula-parse tests that hit the same code path.</li>
+  <li>Iceberg-bug memory: "a 'fix' often clears only the visible crash; check other guards on the same invariant." This rename touches many call sites. After the change, grep for any residual reference to <code>extract_shared</code> in tests, helpers, and fixtures.</li>
+  <li>The <code>safety.R</code> walker treats placeholders specially via <code>placeholder_names</code>. Confirm that the new <code>node$default</code> and <code>node$named_args</code> fields do not introduce new traversal targets the walker should skip — see PLAN-07/08 for downstream changes that might interact.</li>
+</ul>
+
+<h2>Scope guard</h2>
+
+<h3>In scope</h3>
+<ul>
+  <li>Rename and rewrite of <code>extract_shared</code> → <code>extract_placeholder_args</code>.</li>
+  <li>Update the single call site in <code>translate_placeholder_call</code>.</li>
+  <li>Update placeholder-node construction sites to thread <code>default</code> and <code>named_args</code>.</li>
+  <li>New test file covering the schema behaviour.</li>
+</ul>
+
+<h3>Out of scope</h3>
+<ul>
+  <li>Anything in <code>R/paintr-registry.R</code> (PLAN-03).</li>
+  <li>Anything in <code>R/paintr-nodes.R</code> (PLAN-02).</li>
+  <li>Changing the keyword vocabulary (PLAN-08).</li>
+  <li>UI changes (PLAN-07/08).</li>
+  <li>Renderer changes (PLAN-05).</li>
+  <li>Expression-mode capture (PLAN-04).</li>
+</ul>
+
+<h2>Baseline</h2>
+
+<ul>
+  <li>PLAN-01, PLAN-02, PLAN-03 have already been merged into the worktree's base.</li>
+  <li>Suite green at the authoritative gate.</li>
+  <li>Worktree branched from the post-merge HEAD on branch <code>adr9/06-parser-schema</code>.</li>
+  <li>Before edits, confirm <code>extract_shared</code> is at line 381 of <code>R/paintr-translate.R</code> and is called once at line ~364.</li>
+</ul>
+
+<h2>Independence</h2>
+
+<p>This plan depends on PLAN-01/02/03 only for the slot/helper APIs it consumes. Internally, the behaviour stays backward-compatible because the built-ins still register without <code>default_arg</code> / <code>named_args</code> (PLAN-08 changes that). The suite stays green: existing tests exercise the no-schema path, which is preserved.</p>
+
+<div class="note">
+  <strong>Verification, 2026-05-20:</strong> Line numbers for <code>extract_shared</code> (381) and its caller at line 364 verified on 2026-05-20. Re-verify with <code>grep -n "extract_shared\b" R/paintr-translate.R</code> before editing.
+</div>
+
+</body>
+</html>

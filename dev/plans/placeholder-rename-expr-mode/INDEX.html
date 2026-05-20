@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0009 implementation plans — index</title>
+<style>
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.6rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .par { color: #1e7b34; font-weight: bold; }
+  .seq { color: #b34b00; font-weight: bold; }
+  .atomic { color: #882020; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>ADR 0009 implementation plans — index</h1>
+<p class="meta">Owning ADR: <code>dev/adr/0009-pp-placeholders-and-expression-input.html</code> · Base branch: <code>vignette-review</code> · Worktree root: <code>/Users/willju/Research/ggpaintr/.claude/worktrees/</code> · Date: 2026-05-20</p>
+
+<h2>Reading order</h2>
+<p>Every plan is <strong>self-contained</strong>: a fresh Claude session can read just its plan file and the ggpaintr source. ADR 0009 is only needed when a plan claim must be cross-checked against the original decision. Each plan satisfies the project's <code>/implementable</code> contract (Success Criteria, Constraints, BDD, Definition of Done, scope guard, baseline, independence).</p>
+
+<h2>Dependency map</h2>
+
+<table>
+  <tr><th>#</th><th>Plan</th><th>Touches</th><th>Depends on</th><th>Parallelism</th><th>Worktree branch</th></tr>
+  <tr><td>01</td><td><a href="01-default-validator-helpers.html">Default-validator helpers</a></td><td>new <code>R/paintr-default-args.R</code></td><td>—</td><td class="par">PARALLEL with 02, 03, 04, 05</td><td><code>adr9/01-default-arg-helpers</code></td></tr>
+  <tr><td>02</td><td><a href="02-placeholder-node-slots.html">Placeholder node slots</a></td><td><code>R/paintr-nodes.R</code></td><td>—</td><td class="par">PARALLEL with 01, 03, 04, 05</td><td><code>adr9/02-node-slots</code></td></tr>
+  <tr><td>03</td><td><a href="03-registry-slots-and-return-callable.html">Registry slots + define-helper return value</a></td><td><code>R/paintr-registry.R</code></td><td>—</td><td class="par">PARALLEL with 01, 02, 04, 05</td><td><code>adr9/03-registry-slots</code></td></tr>
+  <tr><td>04</td><td><a href="04-expression-mode-capture.html">Expression-mode capture</a></td><td><code>R/paintr-app.R</code>, <code>R/paintr-translate.R</code></td><td>—</td><td class="par">PARALLEL with 01, 02, 03, 05</td><td><code>adr9/04-expr-mode</code></td></tr>
+  <tr><td>05</td><td><a href="05-dual-mode-renderer.html">Dual-mode renderer</a></td><td><code>R/paintr-render.R</code></td><td>—</td><td class="par">PARALLEL with 01, 02, 03, 04</td><td><code>adr9/05-render-dual-mode</code></td></tr>
+  <tr><td>06</td><td><a href="06-parser-argument-schema.html">Parser argument schema</a></td><td><code>R/paintr-translate.R</code></td><td>01, 02, 03</td><td class="seq">SEQUENTIAL (after 01+02+03)</td><td><code>adr9/06-parser-schema</code></td></tr>
+  <tr><td>07</td><td><a href="07-ui-and-shared-default-seeding.html">UI hooks + shared coordinator default seeding</a></td><td><code>R/paintr-build-ui.R</code>, <code>R/paintr-shared.R</code>, <code>R/paintr-substitute.R</code></td><td>02, 06</td><td class="seq">SEQUENTIAL (after 02+06)</td><td><code>adr9/07-ui-shared-defaults</code></td></tr>
+  <tr><td>08</td><td><a href="08-breaking-rename-atomic.html">Breaking rename (builtins + vignettes + UI toggle)</a></td><td><code>R/paintr-builtins.R</code>, all <code>vignettes/</code>, all <code>tests/</code>, <code>README.Rmd</code>, <code>NEWS.md</code>, <code>DESCRIPTION</code></td><td>01, 02, 03, 04, 05, 06, 07</td><td class="atomic">ATOMIC (one merge, suite must stay 0/0/0 across the flip)</td><td><code>adr9/08-rename-atomic</code></td></tr>
+</table>
+
+<h2>Phasing</h2>
+
+<p><strong>Phase 1 (parallel)</strong> — plans 01, 02, 03, 04, 05. All branch off <code>vignette-review</code> HEAD. None changes externally observable behaviour. Suite stays green throughout. Merge order is free.</p>
+
+<p><strong>Phase 2 (sequential)</strong> — plan 06 lands after 01+02+03 are merged; plan 07 lands after 02+06 are merged. Plans 04 and 05 can still be in flight in parallel.</p>
+
+<p><strong>Phase 3 (atomic)</strong> — plan 08 lands last and flips every formula in the codebase from <code>var/num/text/expr/upload</code> to <code>ppVar/ppNum/ppText/ppExpr/ppUpload</code> in a single merge. Vignette, test, fixture, README, and built-in changes are bundled because the authoritative gate (<code>NOT_CRAN=true devtools::test()</code>, 0/0/0) would otherwise go red between merges.</p>
+
+<h2>Authoritative gate (shared across every plan)</h2>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p>Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong>. <code>devtools::test()</code> is equivalent (sets <code>NOT_CRAN=true</code> itself).</p>
+
+<p><strong>Proxy traps</strong> — never accept the suite as green from any of these:</p>
+<ul>
+  <li><code>Rscript -e 'testthat::test_dir()/test_file()'</code> without <code>NOT_CRAN</code>: <code>skip_on_cran()</code> fires and every shinytest2 browser test silently SKIPs.</li>
+  <li><code>devtools::check(... --as-cran)</code>: the e2e browser file cleanly SKIPs via the source-root guard in <code>boot_vignette_app()</code>; an ERROR there is a harness defect, never the product gate.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> actually runs the browser tests.</li>
+</ul>
+
+<h2>Per-plan worktree handling</h2>
+
+<p>Each plan owns its own worktree branch (column 6 above). Worktrees are pre-created off <code>vignette-review</code> HEAD (after the plans-and-ADR-fix commit). A fresh Claude session launched in a worktree should:</p>
+<ol>
+  <li>Read its own plan file at <code>dev/plans/placeholder-rename-expr-mode/&lt;NN-…&gt;.html</code> (self-contained spec).</li>
+  <li>Cross-reference ADR 0009 (<code>dev/adr/0009-pp-placeholders-and-expression-input.html</code>) <strong>only</strong> when a plan claim is ambiguous and the original decision needs verification.</li>
+  <li>Run the authoritative gate before claiming done.</li>
+  <li>For SEQUENTIAL plans (06, 07, 08): rebase onto the post-merge base before starting if upstream dependencies have already landed.</li>
+</ol>
+
+<p>The user merges plans one at a time and independently verifies each merge before launching the next dependent plan.</p>
+
+</body>
+</html>

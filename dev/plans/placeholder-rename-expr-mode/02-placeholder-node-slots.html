@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-02 — Placeholder node slots (default, named_args)</title>
+<style>
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.6rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .par { color: #1e7b34; font-weight: bold; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+</style>
+</head>
+<body>
+
+<h1>PLAN-02 — Placeholder node slots (default, named_args)</h1>
+<p class="meta">Owning ADR: <code>dev/adr/0009-pp-placeholders-and-expression-input.html</code> · Branch: <code>adr9/02-node-slots</code> · Parallelism: <span class="par">PARALLEL with PLAN-01, 03, 04, 05</span> · Depends on: nothing · Date: 2026-05-20</p>
+
+<h2>What this plan does (self-contained)</h2>
+
+<p>Adds two additive slots — <code>default</code> and <code>named_args</code> — to the three placeholder node constructors in <code>R/paintr-nodes.R</code>. The slots default to <code>NULL</code> and <code>list()</code> respectively, so every existing call site continues to produce identical node structures. PLAN-06 (parser) populates the slots; PLAN-07 (UI) and PLAN-08 (built-ins) consume them.</p>
+
+<p>This plan does not change any externally observable behaviour. It is data-shape groundwork: after merging, the node objects carry the new slots but the rest of the codebase still ignores them.</p>
+
+<h2>Context from ADR 0009 (only the bits this plan touches)</h2>
+
+<p>Per ADR 0009 §4 ("Registry-declared argument schema"), placeholder nodes need to carry two new pieces of validated data:</p>
+<ul>
+  <li><code>node$default</code> — the canonical value returned by the placeholder definition's <code>default_arg</code> validator. <code>NULL</code> when the placeholder call had no positional argument or the registry entry had no <code>default_arg</code> declared.</li>
+  <li><code>node$named_args</code> — a named list of canonical values, one entry per validated named argument declared in the registry entry's <code>named_args</code>. Empty list when none.</li>
+</ul>
+
+<p>The existing <code>node$shared</code> slot (a single character string or NULL) is unchanged. Reserved name "shared" continues to live on its own slot, not under <code>named_args</code>.</p>
+
+<h2>Current source (verified 2026-05-20)</h2>
+
+<p>The three placeholder node constructors live in <code>R/paintr-nodes.R</code>:</p>
+
+<table>
+  <tr><th>Constructor</th><th>Line</th><th>Current signature (existing)</th></tr>
+  <tr><td><code>ptr_ph_value</code></td><td>36</td><td><code>function(id = NA_character_, keyword, param = NA_character_, expr, shared = NULL)</code></td></tr>
+  <tr><td><code>ptr_ph_data_consumer</code></td><td>44</td><td><code>function(id = NA_character_, keyword, param = NA_character_, expr, shared = NULL, upstream = NULL)</code></td></tr>
+  <tr><td><code>ptr_ph_data_source</code></td><td>53</td><td><code>function(id = NA_character_, keyword, param = NA_character_, expr, shared = NULL, companion_id = NULL)</code></td></tr>
+</table>
+
+<p>The class predicates <code>is_ptr_ph_value</code>, <code>is_ptr_ph_data_consumer</code>, <code>is_ptr_ph_data_source</code> are at lines 89–91 of the same file. They check the S3 class membership, not the field list — so adding fields does not break them.</p>
+
+<h2>Files touched</h2>
+
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td><code>R/paintr-nodes.R</code></td><td>Add <code>default = NULL</code> and <code>named_args = list()</code> parameters to <code>ptr_ph_value</code>, <code>ptr_ph_data_consumer</code>, <code>ptr_ph_data_source</code>. Thread them into the <code>new_ptr_node(...)</code> call so they land on the resulting list.</td></tr>
+  <tr><td>new <code>tests/testthat/test-placeholder-node-slots.R</code></td><td>Tests that confirm the three constructors expose the new slots and default them to <code>NULL</code>/<code>list()</code>.</td></tr>
+</table>
+
+<h2>Construction shape (target)</h2>
+
+<pre>ptr_ph_value &lt;- function(id = NA_character_, keyword, param = NA_character_,
+                         expr, shared = NULL,
+                         default = NULL, named_args = list()) {
+  new_ptr_node(
+    class = "ptr_ph_value",
+    id = id, keyword = keyword, param = param, expr = expr,
+    shared = shared,
+    default = default, named_args = named_args
+  )
+}</pre>
+
+<p>Identical pattern for the consumer and source variants (each preserves its own existing extra slot — <code>upstream</code> and <code>companion_id</code> respectively).</p>
+
+<h2>Success Criteria</h2>
+
+<ol>
+  <li>The three constructors accept <code>default</code> and <code>named_args</code> parameters with the documented defaults.</li>
+  <li>A node built with no <code>default</code>/<code>named_args</code> arguments has <code>node$default == NULL</code> and <code>identical(node$named_args, list())</code>.</li>
+  <li>A node built with <code>default = "mpg"</code> exposes <code>node$default == "mpg"</code>; identical contract for arbitrary values.</li>
+  <li>A node built with <code>named_args = list(step = 5)</code> exposes <code>node$named_args$step == 5</code>.</li>
+  <li>The S3 class membership of each constructor's output is unchanged (<code>is_ptr_ph_value()</code>, etc., still return <code>TRUE</code>).</li>
+  <li>Every existing caller of the three constructors continues to compile and run; no caller in <code>R/paintr-*.R</code> needs to pass the new arguments (the defaults cover the no-arg case).</li>
+  <li>The authoritative gate reports 0/0/0 with at least the baseline PASS count plus the new tests.</li>
+</ol>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>No call-site changes.</strong> Do not edit any caller of the three constructors. They keep working because the new parameters have defaults.</li>
+  <li><strong>No registry changes.</strong> <code>R/paintr-registry.R</code> is not touched.</li>
+  <li><strong>No parser changes.</strong> <code>R/paintr-translate.R</code> is not touched.</li>
+  <li><strong>No validation.</strong> The constructors store whatever they are given; the registry/parser is responsible for shape-checking before the constructor is called.</li>
+  <li><strong>S3 class strings unchanged.</strong> Do not rename the class strings <code>ptr_ph_value</code>, <code>ptr_ph_data_consumer</code>, <code>ptr_ph_data_source</code>; many downstream files dispatch on them.</li>
+  <li><strong>Roxygen.</strong> Each constructor's roxygen block (or the file's header comment) gets a one-line note on the two new fields. Do not invent ceremonial multi-paragraph docs.</li>
+  <li><strong>NOT_CRAN gate only.</strong> See proxy-trap list below.</li>
+  <li><strong>No emojis.</strong></li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>Feature: placeholder node constructors carry default and named_args slots
+
+  Scenario: default slot defaults to NULL
+    Given a call to ptr_ph_value(keyword = "ppNum", expr = quote(ppNum()))
+    Then the resulting node$default is NULL
+
+  Scenario: default slot stores its argument verbatim
+    Given a call to ptr_ph_value(keyword = "ppNum", expr = quote(ppNum(5)), default = 5)
+    Then the resulting node$default equals 5
+
+  Scenario: named_args slot defaults to empty list
+    Given a call to ptr_ph_value(keyword = "ppNum", expr = quote(ppNum()))
+    Then identical(node$named_args, list()) is TRUE
+
+  Scenario: named_args slot stores a named list
+    Given a call to ptr_ph_value(keyword = "ppRange", expr = quote(ppRange(c(0,1), step = 0.5)),
+                                  named_args = list(step = 0.5))
+    Then node$named_args$step equals 0.5
+
+  Scenario: existing fields and class membership unchanged
+    Given a node built without the new parameters
+    Then is_ptr_ph_value(node) is TRUE
+    And node$keyword, node$param, node$expr, node$shared are populated identically to the baseline
+
+  Scenario: ptr_ph_data_consumer keeps its upstream slot
+    Given a call to ptr_ph_data_consumer(keyword = "ppVar", expr = quote(ppVar()), upstream = some_node)
+    Then node$upstream is unchanged
+    And node$default is NULL by default
+
+  Scenario: ptr_ph_data_source keeps its companion_id slot
+    Given a call to ptr_ph_data_source(keyword = "ppUpload", expr = quote(ppUpload()), companion_id = "x_name")
+    Then node$companion_id is unchanged
+    And node$default is NULL by default
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p><strong>Authoritative command:</strong></p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p><strong>Expected output:</strong> <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code> with N at least baseline + the new tests in <code>test-placeholder-node-slots.R</code>.</p>
+
+<p><strong>Plus:</strong> <code>devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))</code> → 0 errors / 0 warnings.</p>
+
+<p><strong>Proxy traps:</strong></p>
+<ul>
+  <li>Browser e2e tests rely on placeholder nodes being constructable with the documented shape. A passing <code>test_dir</code> with NOT_CRAN unset would skip the e2e file and miss regressions there — run with NOT_CRAN=true.</li>
+  <li><code>devtools::check --as-cran</code> e2e SKIP is expected and correct; ERROR there would indicate a deeper regression and is never the gate.</li>
+</ul>
+
+<h2>Scope guard</h2>
+
+<h3>In scope</h3>
+<ul>
+  <li>Adding two parameters to each of the three placeholder node constructors.</li>
+  <li>Tests covering the new slots' presence, defaults, and pass-through behaviour.</li>
+</ul>
+
+<h3>Out of scope</h3>
+<ul>
+  <li>Anything outside <code>R/paintr-nodes.R</code> and the new test file.</li>
+  <li>Validating shape of <code>default</code> or <code>named_args</code> arguments at construction (validation lives in the registry/parser layer).</li>
+  <li>Updating S3 dispatch methods (<code>render_walk.ptr_ph_*</code>, etc.) — they are tolerant of extra list fields and ignore the new ones.</li>
+  <li>Anything touching the parser or registry — PLAN-03 / PLAN-06.</li>
+</ul>
+
+<h2>Baseline</h2>
+
+<ul>
+  <li>Worktree checked out from <code>vignette-review</code> HEAD on branch <code>adr9/02-node-slots</code>.</li>
+  <li>Suite green at the authoritative gate (0/0/0 PASS N).</li>
+  <li>Before edits, confirm constructor signatures match the table above (lines 36, 44, 53 of <code>R/paintr-nodes.R</code>).</li>
+</ul>
+
+<h2>Independence</h2>
+
+<p>This plan lands cleanly without any other ADR-0009 plan having landed. The new slots are inert until the parser or built-ins populate them. <code>render_walk.ptr_ph_value</code> et al. read fields by name (<code>node$expr</code>, etc.); extra list members are silently ignored.</p>
+
+<div class="note">
+  <strong>Verification, 2026-05-20:</strong> Line numbers and constructor names in this plan were verified against <code>R/paintr-nodes.R</code> on 2026-05-20. Re-verify with <code>grep -n "^ptr_ph_\|^new_ptr_node" R/paintr-nodes.R</code> before editing if the file may have moved.
+</div>
+
+</body>
+</html>

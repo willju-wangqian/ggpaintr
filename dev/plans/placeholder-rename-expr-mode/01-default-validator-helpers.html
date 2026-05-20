@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-01 — Default-validator helpers</title>
+<style>
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.6rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .par { color: #1e7b34; font-weight: bold; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+</style>
+</head>
+<body>
+
+<h1>PLAN-01 — Default-validator helpers</h1>
+<p class="meta">Owning ADR: <code>dev/adr/0009-pp-placeholders-and-expression-input.html</code> · Branch: <code>adr9/01-default-arg-helpers</code> · Parallelism: <span class="par">PARALLEL with PLAN-02, 03, 04, 05</span> · Depends on: nothing · Date: 2026-05-20</p>
+
+<h2>What this plan does (self-contained)</h2>
+
+<p>Adds five small, pure-function helpers that ggpaintr will use to validate the unevaluated AST of a placeholder's positional default and named arguments. These helpers do not change any existing behaviour: they introduce new exported helpers that no other code calls yet. PLAN-03 (registry) and PLAN-06 (parser) will consume them later.</p>
+
+<p>Each helper accepts an unevaluated R expression (the AST captured by the parser) and either returns a canonical value or aborts with a clear, keyword-specific message. The helpers <strong>never call <code>eval()</code></strong> — they pattern-match the AST. Symbol policy is per-helper (see table below); the parser remains keyword-agnostic.</p>
+
+<h2>Context from ADR 0009 (only the bits this plan touches)</h2>
+
+<p>ADR 0009 specifies a registry-declared argument schema where the placeholder definition picks which validator runs on its positional argument. The validators ship as named helpers so authors do not have to write their own for common shapes. The symbol policy lives in the helper, not in the parser, so the same AST (<code>ppX(mpg)</code>) can mean "column-name string" in one keyword's definition and "rejected" in another.</p>
+
+<p>The five built-in helpers and their accept/reject matrix:</p>
+
+<table>
+  <tr><th>Helper</th><th>Bareword symbol</th><th>String literal</th><th>Numeric literal</th><th>c(...) literal</th><th>Other</th><th>Return</th></tr>
+  <tr><td><code>ptr_default_symbol_or_string()</code></td><td>accept (as column-name string)</td><td>accept</td><td>reject</td><td>reject</td><td>reject</td><td>single character string</td></tr>
+  <tr><td><code>ptr_default_string()</code></td><td>reject</td><td>accept</td><td>reject</td><td>reject</td><td>reject</td><td>single character string</td></tr>
+  <tr><td><code>ptr_default_numeric()</code></td><td>reject</td><td>reject</td><td>accept (scalar)</td><td>reject</td><td>reject</td><td>length-1 numeric</td></tr>
+  <tr><td><code>ptr_default_numeric_vector(length = NULL)</code></td><td>reject</td><td>reject</td><td>reject (or accept as length-1 if length permits)</td><td>accept if every element is a numeric literal; length check if non-NULL</td><td>reject</td><td>numeric vector</td></tr>
+  <tr><td><code>ptr_default_expression()</code></td><td>store verbatim as language</td><td>store as language</td><td>store as language</td><td>store as language</td><td>store as language</td><td>language object (unchanged input)</td></tr>
+</table>
+
+<h2>Files touched</h2>
+
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td>new <code>R/paintr-default-args.R</code></td><td>Define and export the five helpers above. Each is a factory function returning a closure (the actual validator) so call sites read <code>default_arg = ptr_default_numeric()</code> rather than <code>default_arg = ptr_default_numeric</code>.</td></tr>
+  <tr><td>new <code>tests/testthat/test-default-args.R</code></td><td>Unit tests covering every accept/reject case in the matrix, plus length-check behaviour for the vector helper.</td></tr>
+  <tr><td><code>NAMESPACE</code> (auto-generated)</td><td>Re-generated via <code>devtools::document()</code>. Do not hand-edit.</td></tr>
+</table>
+
+<h2>Helper contract (closure shape)</h2>
+
+<p>Every helper is a factory:</p>
+
+<pre>ptr_default_numeric &lt;- function() {
+  function(arg_expr) {
+    # arg_expr is unevaluated language (number, symbol, call, string, ...)
+    if (is.numeric(arg_expr) &amp;&amp; length(arg_expr) == 1L &amp;&amp; !is.na(arg_expr)) {
+      return(arg_expr)
+    }
+    rlang::abort(
+      "Default for this placeholder must be a single numeric literal."
+    )
+  }
+}</pre>
+
+<p>The closure is what gets stored in <code>entry$default_arg</code>. PLAN-06's parser calls it with the placeholder's positional arg AST and stores the returned canonical value on <code>node$default</code>.</p>
+
+<p><strong>Why factories rather than bare functions:</strong> some helpers (like <code>ptr_default_numeric_vector(length = 2L)</code>) need parameters. Making them all factories keeps the call shape uniform — every <code>default_arg = ptr_default_X()</code> reads the same way — and keeps the door open to per-helper configuration without a future API churn.</p>
+
+<h2>AST primer (for the agent implementing this)</h2>
+
+<p>Helpers receive the result of <code>arg_expr</code> from a placeholder call's AST. In R:</p>
+<ul>
+  <li><code>ppX(mpg)</code> → arg_expr is <code>mpg</code> (a <code>symbol</code>); test with <code>is.symbol()</code> and use <code>as.character()</code> for its name.</li>
+  <li><code>ppX("mpg")</code> → arg_expr is <code>"mpg"</code> (a <code>character</code> scalar).</li>
+  <li><code>ppX(5)</code> → arg_expr is <code>5</code> (a <code>numeric</code> scalar of length 1).</li>
+  <li><code>ppX(c(1, 2))</code> → arg_expr is a <code>call</code> (<code>is.call(x)</code> is TRUE); <code>x[[1]]</code> is the symbol <code>c</code>, <code>x[[2]]</code>, <code>x[[3]]</code>, ... are the literal arguments.</li>
+  <li><code>ppX(x + 1)</code> → arg_expr is a <code>call</code> (<code>+</code>); language object — for <code>ptr_default_expression()</code> only.</li>
+</ul>
+
+<p><strong>Do not call <code>eval()</code> on arg_expr.</strong> Pattern-match the AST shape only. This is the safety invariant that lets the whole-formula walker stay the single eval-time gate.</p>
+
+<h2>Success Criteria</h2>
+
+<ol>
+  <li><code>R/paintr-default-args.R</code> exists and exports five factory functions: <code>ptr_default_symbol_or_string</code>, <code>ptr_default_string</code>, <code>ptr_default_numeric</code>, <code>ptr_default_numeric_vector</code>, <code>ptr_default_expression</code>.</li>
+  <li>Each factory returns a closure of shape <code>function(arg_expr) -&gt; canonical_value | abort()</code>.</li>
+  <li>Symbol policy follows the accept/reject matrix above. <code>ptr_default_symbol_or_string()</code> returns the symbol's name as a character string when given a symbol; returns the string unchanged when given a string literal; aborts otherwise.</li>
+  <li><code>ptr_default_expression()</code> returns its input unchanged (it is purely a tag, not a transformer); helpful so the parser still stamps "this placeholder accepts a default" regardless of shape.</li>
+  <li><code>ptr_default_numeric_vector(length = 2L)</code> accepts <code>c(0, 1)</code> and rejects <code>c(0)</code> (length mismatch); without length argument, length is unchecked.</li>
+  <li>Every abort message is a single sentence naming the constraint (e.g. "Default for ppNum must be a single numeric literal.") and is produced via <code>rlang::abort()</code>, not <code>stop()</code>.</li>
+  <li>Helpers do not call <code>eval()</code>, <code>parse()</code>, or any deparse → reparse cycle on the input.</li>
+  <li>Unit tests in <code>tests/testthat/test-default-args.R</code> cover every cell of the matrix plus length-check behaviour. New tests are the only test additions; no existing test changes.</li>
+  <li>The authoritative gate (<code>NOT_CRAN=true devtools::test()</code>) reports 0/0/0 with at least the previously-passing tests still passing.</li>
+  <li><code>devtools::document()</code> regenerates <code>NAMESPACE</code> cleanly with five new <code>export()</code> lines.</li>
+</ol>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>No call sites yet.</strong> The five helpers are exported and tested, but nothing in <code>R/paintr-*.R</code> outside the new file calls them. PLAN-03 and PLAN-06 wire them up.</li>
+  <li><strong>No eval at translate-time.</strong> The closures must operate on AST only.</li>
+  <li><strong>No registry changes.</strong> <code>R/paintr-registry.R</code> is not touched in this plan.</li>
+  <li><strong>No parser changes.</strong> <code>R/paintr-translate.R</code> is not touched.</li>
+  <li><strong>No breaking changes.</strong> Existing public surface unchanged. The five helpers are pure additions.</li>
+  <li><strong>roxygen docs required.</strong> Each helper gets a roxygen block with <code>@param</code>, <code>@return</code>, <code>@export</code>, and at least one <code>@examples</code> block. Document the symbol policy explicitly per helper.</li>
+  <li><strong>No emojis</strong> in source or docs.</li>
+  <li><strong>NOT_CRAN gate only.</strong> Do not declare done off a raw <code>Rscript -e 'testthat::test_dir(...)'</code> run (proxy trap: silently skips browser e2e).</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>Feature: default-validator helpers reject and accept AST shapes per symbol policy
+
+  Scenario: ptr_default_numeric accepts a numeric literal
+    Given an instance of the validator from ptr_default_numeric()
+    When invoked with the AST 5
+    Then it returns 5
+
+  Scenario: ptr_default_numeric rejects a symbol
+    Given an instance of the validator from ptr_default_numeric()
+    When invoked with the symbol `mpg`
+    Then it aborts with a message naming "single numeric literal"
+    And the abort is an rlang_error (class "rlang_error")
+
+  Scenario: ptr_default_symbol_or_string accepts a bareword as column-name string
+    Given an instance of the validator from ptr_default_symbol_or_string()
+    When invoked with the symbol `mpg`
+    Then it returns the character string "mpg"
+
+  Scenario: ptr_default_symbol_or_string accepts a string literal verbatim
+    Given an instance of the validator from ptr_default_symbol_or_string()
+    When invoked with the string "miles per gallon"
+    Then it returns the character string "miles per gallon"
+
+  Scenario: ptr_default_numeric_vector enforces length when given
+    Given an instance of the validator from ptr_default_numeric_vector(length = 2L)
+    When invoked with the AST `c(1, 2)`
+    Then it returns the numeric vector c(1, 2)
+    And when invoked with the AST `c(1)` it aborts naming the expected length
+
+  Scenario: ptr_default_expression stores any language verbatim
+    Given an instance of the validator from ptr_default_expression()
+    When invoked with the AST `x + 1`
+    Then it returns the language object identical to the input
+    And no eval() is called
+
+  Scenario: helpers do not eval
+    Given any of the five validators
+    When invoked with the AST `system("rm -rf /")`
+    Then either the validator rejects on shape (e.g. ptr_default_numeric)
+    Or it stores the call verbatim as language (ptr_default_expression)
+    And the system command is never executed
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p><strong>Authoritative command (copy-paste from the project's CLAUDE.md):</strong></p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p><strong>Expected output:</strong> <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code> where N ≥ baseline. New tests in <code>test-default-args.R</code> appear in the count. <code>devtools::test()</code> is equivalent (it sets NOT_CRAN itself).</p>
+
+<p><strong>Plus:</strong> <code>devtools::document()</code> runs clean; <code>NAMESPACE</code> diff shows exactly five new <code>export()</code> lines and no other change.</p>
+
+<p><strong>Plus:</strong> <code>devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))</code> → 0 errors / 0 warnings. By-design NOTEs allowed (CRAN incoming new-submission, <code>.git</code>, top-level <code>CONTEXT.md</code>); e2e browser file cleanly SKIPs via source-root guard.</p>
+
+<p><strong>Proxy traps — do not be fooled:</strong></p>
+<ul>
+  <li><code>Rscript -e 'testthat::test_dir()'</code> without <code>NOT_CRAN</code> → browser e2e silently SKIPs. Suite looking "green" off that is not green.</li>
+  <li><code>devtools::check --as-cran</code> ERRORing on the e2e file means the source-root guard regressed — harness defect, not product. Do not claim done on a "check is red" reading; verify by running the NOT_CRAN gate.</li>
+  <li>A passing single-file <code>test_file("test-default-args.R")</code> is necessary but not sufficient — run the full suite.</li>
+</ul>
+
+<h2>Scope guard</h2>
+
+<h3>In scope</h3>
+<ul>
+  <li>New file <code>R/paintr-default-args.R</code> with five factory functions.</li>
+  <li>New file <code>tests/testthat/test-default-args.R</code> covering the matrix.</li>
+  <li>Roxygen docs + regenerated <code>NAMESPACE</code>.</li>
+</ul>
+
+<h3>Out of scope (do not touch)</h3>
+<ul>
+  <li><code>R/paintr-registry.R</code> — PLAN-03.</li>
+  <li><code>R/paintr-translate.R</code> — PLAN-06.</li>
+  <li><code>R/paintr-nodes.R</code> — PLAN-02.</li>
+  <li><code>R/paintr-builtins.R</code> — PLAN-08 (rename + re-register built-ins).</li>
+  <li>Any vignette, README, NEWS, or DESCRIPTION change — PLAN-08.</li>
+  <li>Eval-with-safety variants (e.g. <code>ptr_default_numeric_vector_eval()</code>) — explicitly deferred by ADR 0009.</li>
+</ul>
+
+<h2>Baseline (what must be true before starting)</h2>
+
+<ul>
+  <li>Worktree checked out from <code>vignette-review</code> HEAD on branch <code>adr9/01-default-arg-helpers</code>.</li>
+  <li><code>NOT_CRAN=true devtools::test()</code> reports 0/0/0 PASS N on the baseline (the suite is already green before this plan starts).</li>
+  <li><code>dev/adr/0009-pp-placeholders-and-expression-input.html</code> is present and reviewable.</li>
+</ul>
+
+<h2>Independence</h2>
+
+<p>This plan lands cleanly without any other ADR-0009 plan having landed. The five exported helpers are unused by the rest of the codebase. <code>devtools::check()</code> may emit a "exported but not used" diagnostic in some linters — that is expected and resolved when PLAN-03/06/08 wire the helpers into the registry and built-ins. R's <code>R CMD check</code> itself does <em>not</em> flag unused exports, so the project's check gate stays green.</p>
+
+<div class="note">
+  <strong>Verification of source claims in this plan, 2026-05-20:</strong> No source files are referenced by line number in this plan beyond the new file's intended path. The <em>only</em> external dependency is the existence of <code>rlang</code> as a package dependency (it is — see <code>DESCRIPTION</code>) and the <code>testthat</code> edition-3 test conventions described in <code>.claude/rules/testing.md</code>.
+</div>
+
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-05 — Dual-mode renderer (erased vs preserved placeholders)</title>
+<style>
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.6rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .par { color: #1e7b34; font-weight: bold; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+</style>
+</head>
+<body>
+
+<h1>PLAN-05 — Dual-mode renderer (erased vs preserved placeholders)</h1>
+<p class="meta">Owning ADR: <code>dev/adr/0009-pp-placeholders-and-expression-input.html</code> · Branch: <code>adr9/05-render-dual-mode</code> · Parallelism: <span class="par">PARALLEL with PLAN-01, 02, 03, 04</span> · Depends on: nothing · Date: 2026-05-20</p>
+
+<h2>What this plan does (self-contained)</h2>
+
+<p>Adds a single new parameter <code>preserve_placeholders</code> (default <code>FALSE</code>) to <code>ptr_render()</code> and threads it through the <code>render_walk.*</code> S3 dispatchers. When <code>FALSE</code>, the renderer behaves exactly as today (the placeholder node is rendered as its current substituted value — "final code"). When <code>TRUE</code>, the renderer emits the placeholder call shape <code>ppX(current_pick)</code> instead — the "formula with placeholders" view that round-trips as valid plain R (because <code>ppX</code> is exported as identity; see PLAN-08).</p>
+
+<p>This plan is purely renderer-side: it adds the capability to <code>ptr_render()</code> but does not wire any UI toggle. The toggle widget that switches between the two views in the running app lives in PLAN-08 (it must land with the rename to use the right keyword surface).</p>
+
+<h2>Context from ADR 0009 (only the bits this plan touches)</h2>
+
+<p>Per ADR 0009 §9 ("Code-gen — two-version output, toggle in one panel"):</p>
+
+<table>
+  <tr><th>Mode</th><th>What it shows</th><th>Purpose</th></tr>
+  <tr><td><em>Final code</em> (today's behaviour, default)</td><td><code>aes(x = mpg)</code> — placeholder erased, current pick spliced in</td><td>Publish-ready R the user can copy and run without ggpaintr</td></tr>
+  <tr><td><em>Formula with placeholders</em> (new view)</td><td><code>aes(x = ppVar(mpg))</code> — placeholder preserved with current pick as default</td><td>Round-trippable formula; valid plain R because ppVar is identity; valid input to ptr_app() in expression mode</td></tr>
+</table>
+
+<h2>Current source (verified 2026-05-20)</h2>
+
+<p><code>R/paintr-render.R</code>:</p>
+
+<table>
+  <tr><th>Function</th><th>Line</th><th>Notes</th></tr>
+  <tr><td><code>ptr_render(node)</code></td><td>15</td><td>Entry point; calls <code>render_walk(node, indent = 0L)</code>.</td></tr>
+  <tr><td><code>render_walk</code> (S3 generic)</td><td>19</td><td>Dispatches on node class.</td></tr>
+  <tr><td><code>render_walk.ptr_ph_value</code></td><td>209</td><td>Currently emits <code>rlang::expr_text(node$expr)</code> — i.e. the placeholder's <em>source</em> expression. Substitution happens elsewhere (in <code>paintr-substitute.R</code>'s walk that replaces placeholder nodes with their resolved values before rendering).</td></tr>
+  <tr><td><code>RENDER_WIDTH</code></td><td>13</td><td>Constant used for line-wrap decisions. Unchanged by this plan.</td></tr>
+</table>
+
+<p><strong>Key insight from reading the source:</strong> today, <em>"final code"</em> is produced by a substitution pass (<code>paintr-substitute.R</code>) that replaces placeholder nodes with their resolved value nodes <em>before</em> <code>ptr_render</code> walks the tree. The renderer itself never sees a placeholder node in the "final code" path; it just renders whatever the substitution pass left in place. The renderer's existing <code>render_walk.ptr_ph_value</code> at line 209 only fires when the tree still contains placeholder nodes (e.g. in tests, or for the new preserved-mode output we are adding).</p>
+
+<p>This plan therefore adds a sibling code path: a new <code>ptr_render(node, preserve_placeholders = TRUE)</code> mode that walks the <em>pre-substitution</em> tree (or a substituted tree where placeholder nodes were preserved with the current pick recorded on them — depending on how PLAN-08 wires the toggle).</p>
+
+<h2>Files touched</h2>
+
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td><code>R/paintr-render.R</code></td><td>Add <code>preserve_placeholders = FALSE</code> parameter to <code>ptr_render()</code>. Update <code>render_walk</code> generic to thread an <code>opts</code> argument (a list containing <code>preserve_placeholders</code> and the existing indent state) OR add the argument as a direct parameter to each <code>render_walk.*</code> method. Update <code>render_walk.ptr_ph_value</code> (line 209) and the parallel <code>render_walk.ptr_ph_data_consumer</code> / <code>render_walk.ptr_ph_data_source</code> methods so that when <code>preserve_placeholders = TRUE</code> they emit <code>keyword(current_pick)</code> where <code>current_pick</code> is read from a field PLAN-07/08 will set on the node at substitution time (placeholder name proposed: <code>node$current_pick</code>; document in the plan).</td></tr>
+  <tr><td>new <code>tests/testthat/test-render-dual-mode.R</code></td><td>Tests covering: <code>preserve_placeholders = FALSE</code> matches the existing renderer output exactly on a baseline tree; <code>preserve_placeholders = TRUE</code> emits <code>ppVar(mpg)</code> when given a placeholder node with <code>node$current_pick = "mpg"</code>; the two modes agree on all non-placeholder structure (whitespace, indentation, <code>+</code> joining, pipe chains).</td></tr>
+</table>
+
+<h2>Threading strategy</h2>
+
+<p>Two acceptable patterns; choose whichever keeps the diff smaller while staying internally consistent:</p>
+
+<ol>
+  <li><strong>Pass-through second arg.</strong> Every <code>render_walk.*</code> method gains a <code>preserve_placeholders</code> parameter (default <code>FALSE</code>). The generic and all dispatchers thread it. Easy to grep; mechanically verifiable.</li>
+  <li><strong>Options list.</strong> A single <code>opts</code> list contains <code>preserve_placeholders</code> and the existing <code>indent</code>. Cleaner for future per-render options; bigger diff today.</li>
+</ol>
+
+<p>Default to pattern (1) unless the diff becomes unwieldy. Pattern (1) keeps each S3 method's signature small and matches the existing <code>indent</code> argument shape.</p>
+
+<h2>Placeholder-mode rendering shape</h2>
+
+<p>For a placeholder node with <code>node$keyword = "ppVar"</code> and <code>node$current_pick = "mpg"</code>:</p>
+
+<table>
+  <tr><th>Mode</th><th>Output</th></tr>
+  <tr><td><code>preserve_placeholders = FALSE</code></td><td><code>mpg</code> (today's behaviour: substitution upstream has already replaced the placeholder node with a <code>ptr_literal</code> node holding the symbol <code>mpg</code>)</td></tr>
+  <tr><td><code>preserve_placeholders = TRUE</code></td><td><code>ppVar(mpg)</code> (placeholder preserved, current pick as the positional argument; uses the bareword form for symbol-or-string defaults, the quoted form for string defaults, the literal numeric for numeric defaults, etc.)</td></tr>
+</table>
+
+<p>Where the renderer encounters a placeholder node with no <code>current_pick</code> recorded (e.g. before the user has selected anything), it should emit <code>ppVar()</code> — the call with empty arg list — when <code>preserve_placeholders = TRUE</code>. This is a valid R call (the identity function accepts no args via the <code>...</code> sink). The "final code" mode would normally never see such a node (substitution would have pruned the layer), but if it does, fall back to today's <code>render_walk.ptr_ph_value</code> behaviour (<code>rlang::expr_text(node$expr)</code>).</p>
+
+<p><strong>Keyword-agnostic:</strong> the renderer reads <code>node$keyword</code> directly. After PLAN-08 renames the built-in keywords, the renderer emits the new names automatically with no further change here.</p>
+
+<p><strong>Symbol vs string formatting for the inner positional:</strong>
+<ul>
+  <li>For <code>ppVar</code> (<code>ptr_default_symbol_or_string</code>): emit the bareword (no quotes) — <code>ppVar(mpg)</code>.</li>
+  <li>For <code>ppText</code> (<code>ptr_default_string</code>): emit quoted — <code>ppText("hello")</code>.</li>
+  <li>For <code>ppNum</code> (<code>ptr_default_numeric</code>): emit numeric literal — <code>ppNum(5)</code>.</li>
+  <li>For <code>ppExpr</code> (<code>ptr_default_expression</code>): emit deparsed expression — <code>ppExpr(x + 1)</code>.</li>
+</ul>
+The renderer can decide by inspecting <code>typeof(node$current_pick)</code> and the registry's <code>default_arg</code> (looked up via <code>ptr_registry_lookup(node$keyword)</code>). For this plan, implement a small helper <code>format_placeholder_value(value, keyword)</code> that does the dispatch; tests cover each shape.</p>
+
+<h2>Success Criteria</h2>
+
+<ol>
+  <li><code>ptr_render(root)</code> with no second argument produces output identical to today's <code>ptr_render(root)</code> on every baseline tree.</li>
+  <li><code>ptr_render(root, preserve_placeholders = FALSE)</code> is equivalent to the no-arg form.</li>
+  <li><code>ptr_render(root, preserve_placeholders = TRUE)</code> emits the placeholder call form for every placeholder node in the tree, using its <code>current_pick</code> as the positional argument.</li>
+  <li>The two modes agree on all non-placeholder structure: identical whitespace, identical indentation, identical <code>+</code> joining, identical pipe chains.</li>
+  <li>Symbol-vs-string formatting follows the <code>default_arg</code>-implied shape (per the table above); a small helper handles the dispatch.</li>
+  <li>Placeholder nodes with no <code>current_pick</code> render as <code>ppX()</code> in preserve mode and as today (<code>expr_text(node$expr)</code>) in erase mode.</li>
+  <li>The authoritative gate reports 0/0/0 PASS N ≥ baseline + new tests in <code>test-render-dual-mode.R</code>.</li>
+</ol>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>No substitution-pass changes.</strong> <code>R/paintr-substitute.R</code> is not touched by this plan. PLAN-07/08 will set <code>node$current_pick</code> on placeholder nodes; until then, tests in this plan can stub a placeholder node with a hand-set <code>current_pick</code>.</li>
+  <li><strong>No UI changes.</strong> The toggle widget that picks between the two modes in the running app lives in PLAN-08.</li>
+  <li><strong>No keyword changes.</strong> The renderer reads <code>node$keyword</code> — works with both today's vocabulary (var/num/...) and tomorrow's (ppVar/ppNum/...).</li>
+  <li><strong>Backward-compat default.</strong> Calls that do not pass <code>preserve_placeholders</code> behave identically to today. Existing callers in the codebase (e.g. server-side code-gen) need not be modified by this plan.</li>
+  <li><strong>S3 method exports.</strong> Each <code>render_walk.*</code> method must keep its <code>@export</code> roxygen line; preserving S3 dispatch across packages is documented in the existing code.</li>
+  <li><strong>NOT_CRAN gate only.</strong></li>
+  <li><strong>No emojis.</strong></li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>Feature: ptr_render emits both erased and preserved placeholder views
+
+  Scenario: default mode matches today's output
+    Given any pre-substituted root with placeholders already replaced by literal nodes
+    When ptr_render(root) is called
+    Then the output matches the existing renderer's output character-for-character
+
+  Scenario: preserve mode emits ppVar(mpg) for a consumer placeholder
+    Given a placeholder node with keyword = "ppVar" and current_pick = "mpg"
+    When ptr_render(root, preserve_placeholders = TRUE) is called
+    Then the rendered text contains the substring "ppVar(mpg)"
+
+  Scenario: preserve mode emits ppText("hello") for a string-default placeholder
+    Given a placeholder node with keyword = "ppText" and current_pick = "hello"
+    When ptr_render(root, preserve_placeholders = TRUE) is called
+    Then the rendered text contains the substring 'ppText("hello")'
+
+  Scenario: preserve mode emits ppNum(5) for a numeric-default placeholder
+    Given a placeholder node with keyword = "ppNum" and current_pick = 5
+    When ptr_render(root, preserve_placeholders = TRUE) is called
+    Then the rendered text contains the substring "ppNum(5)"
+
+  Scenario: preserve mode handles missing current_pick
+    Given a placeholder node with keyword = "ppVar" and no current_pick
+    When ptr_render(root, preserve_placeholders = TRUE) is called
+    Then the rendered text contains the substring "ppVar()"
+
+  Scenario: non-placeholder structure agrees across modes
+    Given a baseline root with a known mix of layers, pipes, and aes calls
+    When both modes are rendered
+    Then their outputs differ only in the placeholder text segments
+    And whitespace, indentation, and + joins are identical
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p><strong>Authoritative command:</strong></p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p><strong>Expected output:</strong> <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code>, with N ≥ baseline + the new tests in <code>test-render-dual-mode.R</code>.</p>
+
+<p><strong>Plus:</strong> <code>devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))</code> → 0 errors / 0 warnings.</p>
+
+<p><strong>Proxy traps:</strong></p>
+<ul>
+  <li>A renderer test that just confirms "no crash" is not enough. Assert on the literal substring presence/absence (e.g. <code>grepl("ppVar(mpg)", out, fixed = TRUE)</code>).</li>
+  <li>Do not equate "preserve mode rendered something" with "preserve mode rendered the right shape." Test each placeholder kind (var/num/text/expr) for the correct inner-arg formatting.</li>
+</ul>
+
+<h2>Scope guard</h2>
+
+<h3>In scope</h3>
+<ul>
+  <li><code>ptr_render</code> signature change and thread-through to <code>render_walk.*</code>.</li>
+  <li>New format helper for inner-arg shape per default_arg type.</li>
+  <li>Tests covering both modes and inner-arg formatting.</li>
+</ul>
+
+<h3>Out of scope</h3>
+<ul>
+  <li>UI toggle widget (PLAN-08).</li>
+  <li>Setting <code>node$current_pick</code> during substitution (PLAN-07/08).</li>
+  <li>Renaming built-in keywords (PLAN-08).</li>
+  <li>Anything outside <code>R/paintr-render.R</code> and the new test file.</li>
+</ul>
+
+<h2>Baseline</h2>
+
+<ul>
+  <li>Worktree checked out from <code>vignette-review</code> HEAD on branch <code>adr9/05-render-dual-mode</code>.</li>
+  <li>Suite green at the authoritative gate (0/0/0 PASS N).</li>
+  <li>Before edits, confirm <code>ptr_render</code> at line 15 and <code>render_walk.ptr_ph_value</code> at line 209 of <code>R/paintr-render.R</code>.</li>
+</ul>
+
+<h2>Independence</h2>
+
+<p>This plan lands cleanly without any other ADR-0009 plan. The new <code>preserve_placeholders</code> parameter defaults to <code>FALSE</code>, so existing callers see identical behaviour. The preserve-mode output is only exercised by the new tests (with hand-crafted placeholder nodes). PLAN-08 later wires the UI toggle and ensures placeholder nodes carry <code>current_pick</code>.</p>
+
+<div class="note">
+  <strong>Verification, 2026-05-20:</strong> Line numbers for <code>ptr_render</code> (15), <code>render_walk</code> generic (19), and <code>render_walk.ptr_ph_value</code> (209) verified on 2026-05-20. Re-verify with <code>grep -n "^ptr_render\|^render_walk" R/paintr-render.R</code> before editing.
+</div>
+
+</body>
+</html>

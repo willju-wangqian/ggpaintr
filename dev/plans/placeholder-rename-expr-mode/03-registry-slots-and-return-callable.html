@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-03 — Registry slots + define-helper return value</title>
+<style>
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.6rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .par { color: #1e7b34; font-weight: bold; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+</style>
+</head>
+<body>
+
+<h1>PLAN-03 — Registry slots + define-helper return value</h1>
+<p class="meta">Owning ADR: <code>dev/adr/0009-pp-placeholders-and-expression-input.html</code> · Branch: <code>adr9/03-registry-slots</code> · Parallelism: <span class="par">PARALLEL with PLAN-01, 02, 04, 05</span> · Depends on: nothing · Date: 2026-05-20</p>
+
+<h2>What this plan does (self-contained)</h2>
+
+<p>Extends the three public define helpers (<code>ptr_define_placeholder_value</code>, <code>ptr_define_placeholder_consumer</code>, <code>ptr_define_placeholder_source</code>) with three new parameters: <code>default_arg</code>, <code>named_args</code>, and an optional <code>runtime</code> override. Validates the new parameters at registration time. Changes the return value from "invisibly, the registry entry" to "the runtime callable" so authors can write <code>ppRange &lt;- ptr_define_placeholder_value(keyword = "ppRange", ...)</code> in one statement. Adds a best-effort <code>sys.calls()</code> drift warning when the enclosing <code>&lt;-</code> LHS differs from the <code>keyword</code> string.</p>
+
+<p>This plan is additive: any existing call to <code>ptr_define_placeholder_*()</code> that omits the new parameters continues to register identical entries. Callers that ignore the return value (today's pattern in <code>R/paintr-builtins.R</code>) continue to work; the runtime callable is just returned and unused. PLAN-06 (parser) and PLAN-08 (built-ins) consume the new behavior later.</p>
+
+<h2>Context from ADR 0009 (only the bits this plan touches)</h2>
+
+<p>Per ADR 0009 §4 ("Registry-declared argument schema") and §7 ("Define-helper surface returns the runtime callable"), each registry entry gains:</p>
+
+<table>
+  <tr><th>Slot</th><th>Type</th><th>Default</th><th>Meaning</th></tr>
+  <tr><td><code>default_arg</code></td><td><code>NULL</code> or validator function (closure)</td><td><code>NULL</code></td><td>Schema for the (single) positional argument. <code>NULL</code> ⇒ positional rejected at translate-time. Closure ⇒ called by parser with unevaluated AST; returns canonical value or aborts.</td></tr>
+  <tr><td><code>named_args</code></td><td>named list of validator closures</td><td><code>list()</code></td><td>Schema for additional named arguments beyond <code>shared</code>. Each entry's closure receives the unevaluated AST and returns canonical value or aborts.</td></tr>
+</table>
+
+<p>And the define helpers now return a runtime callable:</p>
+
+<table>
+  <tr><th>Define helper</th><th>Returned runtime function (default)</th></tr>
+  <tr><td><code>ptr_define_placeholder_value()</code></td><td><code>function(x, ...) x</code> (identity)</td></tr>
+  <tr><td><code>ptr_define_placeholder_consumer()</code></td><td><code>function(x, ...) x</code> (identity; matches ppVar's <code>aes()</code> NSE shape)</td></tr>
+  <tr><td><code>ptr_define_placeholder_source()</code></td><td><code>function(...) rlang::abort(sprintf("%s() is only meaningful inside ptr_app()", <i>keyword</i>))</code></td></tr>
+</table>
+
+<p>Authors who want a custom plain-R body pass <code>runtime = function(...) ...</code>. Reserved name <code>shared</code> may not appear in <code>named_args</code> (hard error at registration).</p>
+
+<p><strong>Why <code>keyword =</code> stays explicit:</strong> R does not give a function access to the LHS of the <code>&lt;-</code> it is being assigned to (the RHS is fully evaluated before <code>&lt;-</code> binds). Walking <code>sys.calls()</code> works in simple REPL contexts but breaks inside <code>lapply</code>, <code>local({...})</code>, <code>assign("X", ...)</code>, package-source files, and pipe contexts. <code>R6::R6Class</code> and <code>setClass</code> took the explicit-string path for the same reason. As a cheap safety net, the define helpers do a best-effort <code>sys.calls()</code> walk and <em>warn</em> (not error) when the enclosing <code>&lt;-</code> LHS differs from <code>keyword =</code>; silent in non-assignment contexts.</p>
+
+<h2>Current source (verified 2026-05-20)</h2>
+
+<p><code>R/paintr-registry.R</code>:</p>
+
+<table>
+  <tr><th>Function</th><th>Line</th><th>Current signature (existing)</th><th>Current return</th></tr>
+  <tr><td><code>ptr_define_placeholder_value</code></td><td>262</td><td><code>function(keyword, build_ui, resolve_expr, copy_defaults = list(label = "Enter a value for {param}"))</code></td><td><code>invisible(ptr_registry_register(entry))</code> (entry list)</td></tr>
+  <tr><td><code>ptr_define_placeholder_consumer</code></td><td>333</td><td><code>function(keyword, build_ui, resolve_expr, validate_input = NULL, copy_defaults = list(label = "Pick a column for {param}"))</code></td><td>entry list (invisibly)</td></tr>
+  <tr><td><code>ptr_define_placeholder_source</code></td><td>420</td><td><code>function(keyword, build_ui, resolve_data, ...)</code></td><td>entry list (invisibly)</td></tr>
+  <tr><td><code>ptr_registry_register</code></td><td>187</td><td>stores entry under <code>entry$keyword</code> in the registry env</td><td>—</td></tr>
+</table>
+
+<p>The entry list shape today (from <code>ptr_define_placeholder_value</code>, lines 270–274):</p>
+
+<pre>entry &lt;- list(
+  keyword, role = "value", data_aware = FALSE,
+  build_ui, resolve_expr,
+  copy_defaults
+)</pre>
+
+<p>This plan adds <code>default_arg</code>, <code>named_args</code>, <code>runtime</code> to that list — three new fields, each with a clear default.</p>
+
+<h2>Files touched</h2>
+
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td><code>R/paintr-registry.R</code></td><td>Add <code>default_arg = NULL</code>, <code>named_args = list()</code>, <code>runtime = NULL</code> parameters to each of <code>ptr_define_placeholder_value</code>, <code>_consumer</code>, <code>_source</code>. Validate at registration. Generate the default runtime callable when <code>runtime = NULL</code>. Return the runtime callable (no longer just the registry entry). Add a private helper <code>ptr_check_keyword_lhs_drift(keyword)</code> that walks <code>sys.calls()</code> for the enclosing <code>&lt;-</code> and warns on mismatch.</td></tr>
+  <tr><td>new <code>tests/testthat/test-registry-slots.R</code></td><td>Tests for: new params present with documented defaults; validation rejects <code>shared</code> in <code>named_args</code>; validation rejects non-function/non-NULL <code>default_arg</code>; return value is the runtime callable; drift warning fires in REPL-shape calls and stays silent in <code>lapply</code> / no-assignment cases.</td></tr>
+</table>
+
+<h2>Target signature (one example; others mirror it)</h2>
+
+<pre>ptr_define_placeholder_value &lt;- function(keyword, build_ui, resolve_expr,
+                                          default_arg = NULL,
+                                          named_args = list(),
+                                          runtime = NULL,
+                                          copy_defaults = list(
+                                            label = "Enter a value for {param}"
+                                          )) {
+  validate_keyword(keyword)
+  validate_hook(build_ui, "build_ui", c("node"))
+  validate_hook(resolve_expr, "resolve_expr", c("value", "node"))
+  validate_default_arg(default_arg, keyword)
+  validate_named_args(named_args, keyword)
+  validate_copy_defaults(copy_defaults)
+  ptr_check_keyword_lhs_drift(keyword)
+
+  runtime_fn &lt;- runtime %||% function(x, ...) x
+  validate_hook(runtime_fn, "runtime", character())
+
+  entry &lt;- list(
+    keyword = keyword, role = "value", data_aware = FALSE,
+    build_ui = build_ui, resolve_expr = resolve_expr,
+    default_arg = default_arg, named_args = named_args,
+    runtime = runtime_fn,
+    copy_defaults = copy_defaults
+  )
+  ptr_registry_register(entry)
+  runtime_fn
+}</pre>
+
+<p>For <code>_source</code>, the default <code>runtime</code> is the guard:</p>
+
+<pre>runtime_fn &lt;- runtime %||% function(...) rlang::abort(
+  paste0("`", keyword, "()` is only meaningful inside `ptr_app()`.")
+)</pre>
+
+<p><code>%||%</code> is rlang's null-coalesce; it is already in use elsewhere in the package.</p>
+
+<h2>Validation rules</h2>
+
+<table>
+  <tr><th>Rule</th><th>How to enforce</th><th>Error class</th></tr>
+  <tr><td><code>default_arg</code> is NULL or a function</td><td><code>is.null(default_arg) || is.function(default_arg)</code></td><td><code>rlang_error</code></td></tr>
+  <tr><td><code>named_args</code> is a list (possibly empty), every element a function, every name non-empty character</td><td>walk <code>named_args</code> with <code>vapply(..., is.function, logical(1))</code> and <code>nzchar(names(named_args))</code></td><td><code>rlang_error</code></td></tr>
+  <tr><td>No element of <code>named_args</code> is named <code>"shared"</code></td><td><code>!("shared" %in% names(named_args))</code></td><td><code>rlang_error</code> with message naming "shared is reserved"</td></tr>
+  <tr><td><code>runtime</code> is NULL or a function</td><td><code>is.null(runtime) || is.function(runtime)</code></td><td><code>rlang_error</code></td></tr>
+</table>
+
+<h2>Drift-warning helper</h2>
+
+<pre>ptr_check_keyword_lhs_drift &lt;- function(keyword) {
+  calls &lt;- sys.calls()
+  for (i in seq.int(length(calls), 1L)) {
+    call &lt;- calls[[i]]
+    if (is.call(call) &amp;&amp; length(call) == 3L &amp;&amp;
+        identical(call[[1L]], quote(`&lt;-`))) {
+      lhs &lt;- call[[2L]]
+      if (is.symbol(lhs) &amp;&amp; !identical(as.character(lhs), keyword)) {
+        cli::cli_warn(
+          "Placeholder definition assigned to `{deparse(lhs)}` but registered under keyword \"{keyword}\". The LHS name and the keyword should match for the plain-R callable to be in scope under the same identifier."
+        )
+      }
+      return(invisible(NULL))
+    }
+  }
+  # No enclosing &lt;- found (e.g. inside lapply); silent.
+  invisible(NULL)
+}</pre>
+
+<h2>Success Criteria</h2>
+
+<ol>
+  <li>Each of <code>ptr_define_placeholder_value</code>, <code>_consumer</code>, <code>_source</code> accepts <code>default_arg</code>, <code>named_args</code>, <code>runtime</code> with documented defaults.</li>
+  <li>The registry entry list stored under <code>ptr_registry_register</code> carries the three new fields.</li>
+  <li><code>ptr_define_placeholder_value(keyword = "k", build_ui = ..., resolve_expr = ...)</code> returns a function (the runtime callable), not the registry entry. The return value passes <code>is.function()</code>.</li>
+  <li>The default <code>runtime</code> for <code>_value</code> and <code>_consumer</code> is <code>function(x, ...) x</code>; called with any single argument it returns that argument unchanged.</li>
+  <li>The default <code>runtime</code> for <code>_source</code> aborts with the documented message.</li>
+  <li>A user-supplied <code>runtime</code> overrides the default exactly.</li>
+  <li>Validation rejects <code>named_args = list(shared = ...)</code> with an <code>rlang_error</code> whose message names "shared is reserved".</li>
+  <li>Validation rejects <code>default_arg = "not a function"</code> with an <code>rlang_error</code>.</li>
+  <li>The drift-warning helper warns when an assignment <code>ppX &lt;- ptr_define_placeholder_value(keyword = "ppY", ...)</code> happens at the top of a script or in a package source file. It stays silent inside <code>lapply</code> and other no-enclosing-<code>&lt;-</code> contexts.</li>
+  <li>Existing calls to the three define helpers in <code>R/paintr-builtins.R</code> continue to compile and register entries that pass the no-default_arg path. (The current built-ins do not need to be modified in this plan.)</li>
+  <li>The authoritative gate reports 0/0/0 PASS N ≥ baseline + the new tests.</li>
+  <li><code>devtools::document()</code> regenerates roxygen cleanly with the new parameters documented.</li>
+</ol>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>Backward-compatible default behavior.</strong> A define call with no <code>default_arg</code>, no <code>named_args</code>, no <code>runtime</code> produces an entry that behaves <em>identically</em> to today (the parser, once PLAN-06 lands, sees <code>default_arg = NULL</code> and applies today's "only shared allowed" rule).</li>
+  <li><strong>No parser changes.</strong> <code>R/paintr-translate.R</code> is not touched.</li>
+  <li><strong>No node changes.</strong> <code>R/paintr-nodes.R</code> is not touched (PLAN-02 handles slots).</li>
+  <li><strong>No built-in re-registration.</strong> <code>R/paintr-builtins.R</code> is not touched in this plan. Built-ins migrate in PLAN-08.</li>
+  <li><strong>Return-value change is non-breaking</strong> only if today's callers ignore the return. Verify by grepping for assignments off these helpers in the existing source (today's pattern: bare-statement call inside <code>ptr_register_builtins</code>, no LHS).</li>
+  <li><strong>Drift warning, not error.</strong> Mismatched LHS does not break the call. The warning is informational; <code>cli::cli_warn</code> per project convention (not <code>warning()</code>).</li>
+  <li><strong>roxygen.</strong> Each define helper's roxygen gets a <code>@param</code> entry per new parameter, a <code>@return</code> line updated to "the runtime callable", and the existing examples re-validated.</li>
+  <li><strong>NOT_CRAN gate only.</strong></li>
+  <li><strong>No emojis.</strong></li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>Feature: define helpers carry the new arg-schema slots and return a runtime callable
+
+  Scenario: default_arg parameter is accepted and stored
+    Given a define call with default_arg = ptr_default_numeric()
+    When the entry is retrieved via ptr_registry_lookup("k")
+    Then entry$default_arg is the closure produced by ptr_default_numeric()
+
+  Scenario: named_args parameter is accepted and stored
+    Given a define call with named_args = list(step = ptr_default_numeric())
+    When the entry is retrieved
+    Then entry$named_args$step is the closure produced by ptr_default_numeric()
+
+  Scenario: shared cannot appear in named_args
+    Given a define call with named_args = list(shared = ptr_default_string())
+    When the call is made
+    Then ptr_define_placeholder_value aborts with an rlang_error
+    And the message includes "shared" and "reserved"
+
+  Scenario: default_arg must be NULL or function
+    Given a define call with default_arg = "not a function"
+    When the call is made
+    Then it aborts with an rlang_error
+
+  Scenario: return value is the runtime callable, not the registry entry
+    Given a define call ptr_define_placeholder_value(keyword = "k", build_ui = ..., resolve_expr = ...)
+    When inspected
+    Then the returned object passes is.function()
+    And calling the returned object with a single argument returns that argument unchanged
+
+  Scenario: _source's default runtime is a guard
+    Given a define call ptr_define_placeholder_source(keyword = "ppUpload", build_ui = ..., resolve_data = ...)
+    When the returned function is called outside ptr_app() context
+    Then it aborts with a message naming "only meaningful inside ptr_app()"
+
+  Scenario: runtime override is honoured
+    Given a define call with runtime = function(x) x * 2
+    When the returned function is called with 3
+    Then it returns 6
+
+  Scenario: drift warning on LHS mismatch
+    Given an assignment ppFoo <- ptr_define_placeholder_value(keyword = "ppBar", ...)
+    When the define call runs in the top-level script context
+    Then a cli warning is emitted naming both "ppFoo" and "ppBar"
+
+  Scenario: drift warning silent without enclosing <-
+    Given a define call inside lapply(names, function(k) ptr_define_placeholder_value(keyword = k, ...))
+    When the call runs
+    Then no drift warning is emitted
+
+  Scenario: existing built-in calls keep working
+    Given the existing calls in R/paintr-builtins.R (no default_arg, no named_args, no runtime)
+    When the package loads via devtools::load_all()
+    Then all built-ins register without error
+    And the registry entries carry default_arg = NULL, named_args = list(), runtime = function(x, ...) x (or guard for _source)
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p><strong>Authoritative command:</strong></p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p><strong>Expected output:</strong> <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code>, where N ≥ baseline + the new tests in <code>test-registry-slots.R</code>.</p>
+
+<p><strong>Plus:</strong> <code>devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))</code> → 0 errors / 0 warnings.</p>
+
+<p><strong>Plus:</strong> <code>devtools::document()</code> regenerates roxygen with the new <code>@param</code>/<code>@return</code> lines; <code>NAMESPACE</code> diff shows no new exports (the helpers themselves don't gain exports; their parameter list expanded).</p>
+
+<p><strong>Proxy traps:</strong></p>
+<ul>
+  <li>A passing single-file <code>test_file("test-registry-slots.R")</code> is necessary but not sufficient — run the full suite to catch any silently-broken built-in registration.</li>
+  <li><code>Rscript</code> without <code>NOT_CRAN</code> skips browser e2e. Use the gate command verbatim.</li>
+  <li><code>devtools::check</code> ERRORing on the e2e file is a harness defect (source-root guard regressed), never the gate.</li>
+</ul>
+
+<h2>Scope guard</h2>
+
+<h3>In scope</h3>
+<ul>
+  <li>Three define-helper signature extensions (new params, return-value change).</li>
+  <li>New private validators for <code>default_arg</code>, <code>named_args</code>, and the drift-warning helper.</li>
+  <li>Tests covering validation behavior, return value, and drift warning.</li>
+  <li>Roxygen updates and <code>devtools::document()</code>.</li>
+</ul>
+
+<h3>Out of scope</h3>
+<ul>
+  <li>Anything outside <code>R/paintr-registry.R</code> and the new test file.</li>
+  <li>Modifying existing calls in <code>R/paintr-builtins.R</code> (PLAN-08).</li>
+  <li>Modifying the parser to actually consume the new slots (PLAN-06).</li>
+  <li>The default-validator helper factories themselves (PLAN-01).</li>
+</ul>
+
+<h2>Baseline</h2>
+
+<ul>
+  <li>Worktree checked out from <code>vignette-review</code> HEAD on branch <code>adr9/03-registry-slots</code>.</li>
+  <li>Suite green at the authoritative gate (0/0/0 PASS N).</li>
+  <li>Before edits, confirm signatures match the table above (lines 262, 333, 420 of <code>R/paintr-registry.R</code>).</li>
+  <li><code>R/paintr-builtins.R</code> still uses the old keyword names (<code>var/num/text/expr/upload</code>) — that is fine; this plan does not depend on the rename.</li>
+</ul>
+
+<h2>Independence</h2>
+
+<p>This plan lands cleanly without any other ADR-0009 plan. The new parameters are optional and the existing built-ins do not pass them — so the registered entries keep their current shape, and the parser (unchanged in this plan) continues to apply the "only shared allowed" rule via the existing <code>extract_shared</code>. The runtime callable is returned but unused by the built-ins until PLAN-08 binds them under <code>ppX &lt;- ptr_define_placeholder_...()</code>.</p>
+
+<div class="note">
+  <strong>Verification, 2026-05-20:</strong> Line numbers for the three define helpers (262, 333, 420) and <code>ptr_registry_register</code> (187) verified against <code>R/paintr-registry.R</code> on 2026-05-20. Re-verify with <code>grep -n "^ptr_define_placeholder_\|^ptr_registry_register" R/paintr-registry.R</code> before editing if the file may have moved.
+</div>
+
+</body>
+</html>
