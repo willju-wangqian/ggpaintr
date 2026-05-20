@@ -48,6 +48,7 @@ dev/codex/runs/
 
 # Claude Code local config (personal, not shared)
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 
 # EWH artifacts (ephemeral, per-workflow-run)
 .claude/artifacts/
