@@ -1,0 +1,235 @@
+# Safety
+
+This vignette answers the question *how do I think about sharing
+ggpaintr-driven apps with untrusted users?* Companion vignettes cover
+the use-case ladder
+([`vignette("ggpaintr-use-cases")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-use-cases.md)),
+tailoring defaults
+([`vignette("ggpaintr-customization")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-customization.md)),
+real ggplot recipes
+([`vignette("ggpaintr-gallery")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-gallery.md)),
+and LLM integration
+([`vignette("ggpaintr-llm")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-llm.md)).
+
+ggpaintr was designed around the assumption that *the formula author is
+the package user* (i.e. you), while the *placeholder values* — including
+any `expr` boxes — may come from anywhere. Three boundaries handle the
+gap between those two trust levels:
+
+1.  **`expr_check`** — what controls validation of user-typed `expr`
+    input.
+2.  **The denylist + AST walker** — what the validator actually does.
+3.  **Upload trust** — what happens between "user picks a file" and a
+    data frame reaching
+    [`ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html).
+
+The rest of this vignette walks each in turn. ggpaintr has not been
+hardened for adversarial public deployment, and this package has no
+tests covering hosting / network / process-isolation scenarios — those
+concerns belong to the host environment (shinyapps.io configuration,
+Posit Connect roles, container limits, …), not to ggpaintr’s surface.
+
+## The `expr_check` flag
+
+The `expr` placeholder is the only formula keyword that accepts
+arbitrary R code. The other four (`var`, `text`, `num`, `upload`) accept
+atomic values or files — no code path runs whatever the user types as R.
+`expr_check` controls what happens to whatever lands inside an `expr`
+box before it reaches the runtime’s evaluator.
+
+``` r
+
+ptr_app(formula, expr_check = TRUE)               # default — denylist + walker
+ptr_app(formula, expr_check = FALSE)              # off — anything goes
+ptr_app(formula, expr_check = list(               # custom
+  allow_list = c("read.csv"),
+  deny_list  = c("get")
+))
+```
+
+`expr_check` is accepted on every public entry point that builds the
+AST:
+[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md),
+[`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md),
+[`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md),
+[`ptr_ui_controls()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_controls.md),
+[`ptr_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui.md),
+[`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
+(via `...` to
+[`ptr_init_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_init_state.md)),
+[`ptr_init_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_init_state.md).
+Default `TRUE` everywhere.
+
+### The three modes
+
+| `expr_check =` | Mode | What gets checked |
+|----|----|----|
+| `TRUE` | denylist | The curated ~151-entry denylist (see below). Any call to, symbol naming, or string literal mentioning a denied name aborts. |
+| `FALSE` | off | No validation. Whatever the user typed reaches the evaluator. |
+| `list(deny_list = …, allow_list = …)` | custom | A bare `deny_list` (no `allow_list`) **replaces** the curated ~151-entry denylist with *only* the names you list — it does **not** add to it, so on its own it *weakens* the default protection. `allow_list` switches the walker to allowlist mode: only the names you list survive, and the curated “always-dangerous” names (e.g. `system`) stay blocked as bare symbols regardless. With both, the effective allow set is `allow_list` minus `deny_list`. There is no “add one name to the curated denylist” shortcut — to keep the curated protection while permitting a specific name, use `allow_list`. |
+
+### When (never) to turn it off
+
+`expr_check = FALSE` is for *local prototyping with trusted input*.
+Concretely: you, at the R prompt, exploring a formula on a private
+dataset. It is never the right default for any app reachable by another
+person — co-workers on a shared dev server count.
+
+If a specific name you trust is blocked (e.g. `read.csv` because the
+denylist is conservative), the right fix is
+`expr_check = list(allow_list = "read.csv")`, not `expr_check = FALSE`.
+The list form keeps the walker active for everything else.
+
+## The denylist + AST walker
+
+The denylist is the names the validator considers dangerous. The walker
+is *how* it looks for them. Each does only half the job.
+
+### The denylist (151 entries, treated as complete)
+
+`unsafe_expr_denylist` lives in `R/paintr-utils.R`. It is the curated
+list of R names that are categorically unsafe to allow from untrusted
+input. Categories:
+
+| Category | Representative entries |
+|----|----|
+| system escape | `system`, `system2`, `shell`, `shell.exec`, `pipe` |
+| file I/O | `readLines`, `writeLines`, `readRDS`, `read.csv`, `download.file`, `unlink`, `file` |
+| deserialization / workspace I/O | `serialize`, `unserialize`, `load`, `save` |
+| meta-eval (denylist-bypass vectors) | `eval`, `parse`, `quote`, `bquote`, `do.call`, `match.fun`, `get`, `mget`, `str2lang`, `str2expression` |
+| environment / global state mutation | `<<-`, `->>`, `assign`, `attach`, `library`, `loadNamespace`, `options` |
+| dangerous base / native code | `on.exit`, `q`, `.Internal`, `.Call`, `.External`, `dyn.load` |
+| debugger / introspection | `debug`, `browser`, `parent.frame`, `environment`, `new.env` |
+| info disclosure | `Sys.getenv`, `getwd`, `list.files`, `Sys.glob`, `R.home` |
+| meta-dispatch / method injection | `exec`, `getExportedValue`, `delayedAssign`, `setClass`, `setMethod`, `unlockBinding` |
+| delayed / deferred execution | `reg.finalizer`, `addTaskCallback`, `setHook`, `packageEvent` |
+
+The list is **treated as complete** for the maintained branch. R is open
+enough that no finite enumeration is exhaustive — `get("system")()`
+would bypass any pure name-match if the walker did not also handle
+string literals, compound heads, and nested calls. New entries land only
+when a concrete bypass is demonstrated against the *walker*, not against
+the list alone.
+
+There is **no “add one name to the curated denylist” shortcut**: a bare
+`expr_check = list(deny_list = "your_name")` *replaces* the curated
+~151-entry list with **only** `"your_name"` (see the `expr_check` table
+above), so using it to cover a single extra name silently drops the
+other ~150 protections — it weakens, not tightens. If you believe the
+curated list genuinely omits a dangerous name, treat it as a list/walker
+gap and report it (see *The AST walker* below and the closing note)
+rather than narrowing your own deployment to a one-entry denylist.
+
+### The AST walker
+
+`validate_expr_safety()` (also in `paintr-utils.R`) is the recursive
+descent that turns "denylist" from a list of names into a check that
+actually catches things. Every `expr`-box input passes through it before
+the runtime evaluates the formula.
+
+What the walker does at each AST node:
+
+- **Bare symbol** → checked against the denylist by name (catches
+  `system` typed alone).
+- **String literal** (length 1 *or* longer) → every element checked
+  against the denylist (catches `do.call("system", …)` and
+  `c("safe", "system")` alike).
+- **Pairlist** (e.g. the formals of a `function(x)` inside the
+  expression) → recurse into every element.
+- **Call** → recurse into both the function head and every argument.
+  - **Compound head** (`(system)("ls")`, `base::eval(parsed)`) → recurse
+    into the head sub-expression first, then run the denylist check on
+    its deparsed name.
+  - **Placeholder annotation** (`num(shared = "x")`) → skipped. These
+    are formula DSL, not user code; their arguments are validated by the
+    parser at translation time.
+- **Depth cap** → 100 nested levels. Above that, the validator aborts
+  with "simplify it." This is a DoS guard against pathological inputs.
+
+The walker is what makes the denylist usable. A name-only check would
+miss every form that can construct a function reference from a string —
+`do.call("system", list("ls"))`, `getFromNamespace("system", "base")`,
+`eval(parse(text = "system('ls')"))`. The walker recurses through *all*
+of those, hitting the denied names wherever they appear.
+
+If you find a string that bypasses both the denylist and the walker,
+file a bug — the walker is the primary safety mechanism and is where
+bypasses get fixed first.
+
+## Upload trust model
+
+The `upload` placeholder is the second untrusted-input vector. Unlike
+`expr`, uploads do *not* execute user-supplied code — they parse
+user-supplied bytes as tabular data.
+
+### Accepted formats
+
+| Extension | Reader | Suggested-dep package |
+|----|----|----|
+| `.csv` | [`utils::read.csv()`](https://rdrr.io/r/utils/read.table.html) with `UTF-8-BOM` | base |
+| `.tsv` | [`utils::read.delim()`](https://rdrr.io/r/utils/read.table.html) | base |
+| `.rds` | [`base::readRDS()`](https://rdrr.io/r/base/readRDS.html) | base |
+| `.xlsx`, `.xls` | [`readxl::read_excel()`](https://readxl.tidyverse.org/reference/read_excel.html) | `readxl` |
+| `.json` | `jsonlite::fromJSON(flatten = TRUE)` | `jsonlite` |
+
+Any other extension is rejected with "Please upload a .csv, .tsv, .rds,
+.xlsx, .xls, or .json file." — no fallback parser, no `?ext` heuristic.
+JSON uploads must be an array of records; nested objects are flattened,
+nested arrays error out.
+
+The `.rds` reader is the most permissive in what bytes it accepts (an
+`.rds` file is an R serialization stream). It is included because users
+who already have data in R serialization format expect it; if your
+deployment serves untrusted users, consider an `expr_check` policy *and*
+a host-level upload filter — `.rds` content is opaque to ggpaintr until
+[`readRDS()`](https://rdrr.io/r/base/readRDS.html) runs.
+
+### Normalization happens automatically
+
+Every successful upload passes through
+[`ptr_normalize_column_names()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_normalize_column_names.md)
+(or the equivalent `ptr_normalize_tabular_data()` for non-`data.frame`
+returns from `readRDS`/`readxl`/`jsonlite`). Column names that come in
+with spaces, reserved words, or duplicates leave normalized, syntactic,
+and unique. Downstream `var` placeholders therefore always see a clean
+column-name vector. You do not need to call
+[`ptr_normalize_column_names()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_normalize_column_names.md)
+yourself for uploaded data — only for in-session data frames you
+reference by name (see
+[`vignette("ggpaintr-use-cases")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-use-cases.md)
+§L1).
+
+The file *stem* (name without extension) is also sanitised: a stem
+matching an R reserved word is renamed (e.g. `if.csv` → dataset name
+`if_`), not rejected — the upload still succeeds under the safe name, so
+it won’t quietly shadow the `if` keyword if the user later types its
+stem into an `expr` box.
+
+### What is and isn’t validated
+
+The upload pipeline validates *shape* (parseable as a recognised tabular
+format) and *names* (syntactic, unique, non-reserved). It does **not**
+validate:
+
+- **Values inside the data.** A column called `x` can contain any
+  numeric, character, factor, or list-column content the parser
+  produces.
+  [`ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html) will
+  fail at render time if a value is unusable, and the error surfaces
+  through `state$runtime()$error`; ggpaintr itself does not inspect cell
+  content.
+- **Schema or expected columns.** Nothing requires that an upload have
+  `Sepal.Length` just because the formula references it. A missing
+  referenced column shows up as a runtime error, not a parse-time
+  rejection.
+- **Size limits or rate limits.** Shiny’s `shiny.maxRequestSize` option
+  caps body size; that is host configuration, not a ggpaintr setting.
+  Per-user rate limits, file-count caps, or anti-abuse policies are
+  entirely the host’s problem.
+
+If you need any of those validations, layer them either above ggpaintr
+(a custom `placeholder_source` that wraps `upload` and enforces a schema
+— see
+[`vignette("ggpaintr-customization")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-customization.md))
+or below it (Shiny / nginx / reverse-proxy configuration at the
+deployment tier).

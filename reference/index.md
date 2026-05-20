@@ -1,104 +1,174 @@
 # Package index
 
-## Start here
+## L1 — All-in-one
+
+Turn a ggplot-style formula into a ready-to-run Shiny app. One formula →
+[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md);
+several linked plots →
+[`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md).
 
 - [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
-  : Build a ggpaintr Shiny App
-- [`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)
-  : Build a ggpaintr Shiny App with a bslib Theme
+  :
+
+  Build a Shiny App from a `ggpaintr` Formula
+
 - [`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md)
-  : Multi-Plot Shiny App With Shared Placeholder Controls
+  :
 
-## Configuration
+  Grid App: Multiple `ggpaintr` Plots With Shared Controls
 
-Set package-wide defaults that apply to every app in the session.
+## Session configuration
+
+Process-wide defaults, column-name normalisation, and UI copy overrides.
 
 - [`ptr_options()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_options.md)
   : Get or Set ggpaintr Package Options
-
-## Shiny integration
-
-Embed ggpaintr inside a larger Shiny app while keeping package-owned
-runtime behavior.
-
-- [`ptr_module_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_ui.md)
-  : Build ggpaintr UI for a Shiny Module
-- [`ptr_module_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_server.md)
-  : Register ggpaintr Server Logic for a Shiny Module
-- [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
-  : Register ggpaintr Server Logic
-- [`ptr_build_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.md)
-  : Build Standard Output Ids for ggpaintr Integration
-- [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md)
-  : Build Reactive Server State for ggpaintr
-- [`ptr_setup_controls()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_setup_controls.md)
-  : Bind the Generated Control Panel into a Shiny App
-- [`ptr_register_draw()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_draw.md)
-  : Bind Draw Behavior into a Shiny App
-- [`ptr_register_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_plot.md)
-  : Bind Default Plot Rendering into a Shiny App
-- [`ptr_register_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_error.md)
-  : Bind Default Error Rendering into a Shiny App
-- [`ptr_register_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_code.md)
-  : Bind Default Code Rendering into a Shiny App
-- [`ptr_extract_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_plot.md)
-  : Return the Built Plot from a Runtime Result
-- [`ptr_extract_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_error.md)
-  : Return Default Error UI from a Runtime Result
-- [`ptr_extract_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_code.md)
-  : Return Generated Code Text from a Runtime Result
-- [`ptr_gg_extra()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_gg_extra.md)
-  : Capture Out-of-Runtime ggplot Additions for the Code Output
-- [`ptr_input_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_input_ui.md)
-  : Build Default ggpaintr Control Widgets
-- [`ptr_output_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_output_ui.md)
-  : Build Default ggpaintr Output Widgets
-
-## Placeholder extensibility
-
-Register and reuse supported custom placeholder types without editing
-package internals.
-
-- [`ptr_define_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder.md)
-  : Construct a Custom ggpaintr Placeholder
-- [`ptr_merge_placeholders()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_merge_placeholders.md)
-  : Build the Effective Placeholder Registry for ggpaintr
-- [`ptr_missing_expr()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_missing_expr.md)
-  : Return the Sentinel for Removing a Placeholder Argument
-- [`ptr_resolve_layer_data()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_resolve_layer_data.md)
-  : Resolve the Dataset for a ggpaintr Layer
-- [`ptr_ns_id()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ns_id.md)
-  : Apply a Namespace Function to a Placeholder Id
-
-## Data preparation
 
 - [`ptr_normalize_column_names()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_normalize_column_names.md)
   :
 
   Normalize Dataset Column Names for `ggpaintr`
 
-## Advanced runtime
+- [`ptr_ui_text()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_text.md)
+  : Inspect, validate, and pre-merge ggpaintr UI copy
 
-Low-level helpers intentionally exported for advanced tests, tooling,
-and custom runtime workflows.
+## Wrapper examples
 
-- [`ptr_parse_formula()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_parse_formula.md)
-  : Parse a Paintr Formula
-- [`ptr_runtime_input_spec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_runtime_input_spec.md)
-  : Describe the Runtime Inputs for a Parsed Formula
-- [`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md)
-  : Build the Full Runtime Result for a Paintr App
-- [`ptr_assemble_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_assemble_plot.md)
-  : Build a Plot from Completed Layer Expressions
+Worked examples of writing custom wrappers on top of the public ggpaintr
+primitives. See
+[`vignette("ggpaintr-customization")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-customization.md)
+§ “Writing your own wrapper”.
 
-## Copy customization
+- [`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)
+  : Bslib-Themed App: A Demonstration Wrapper
 
-- [`ptr_merge_ui_text()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_merge_ui_text.md)
-  : Build Effective Copy Rules
+## L2 — Embed with the default layout
+
+Plug ggpaintr into your own Shiny app with its self-contained default
+layout. The module pair is the L2 entry; the shared coordinator
+([`ptr_shared()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared.md)
+→
+[`ptr_shared_panel()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_panel.md) +
+[`ptr_shared_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_server.md))
+links a cross-formula key across plots. See
+[`vignette("ggpaintr-use-cases")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-use-cases.md)
+§ “L2”.
+
+- [`ptr_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui.md)
+  :
+
+  Self-contained UI for a `ggpaintr` Formula
+
+- [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
+  :
+
+  Server for a `ggpaintr` Formula
+
+- [`ptr_shared()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared.md)
+  : Build the Shared Coordinator for a Multi-Instance Embedding
+
+- [`ptr_shared_panel()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_panel.md)
+  : Render the Standalone Shared Panel (L2, Self-Contained)
+
+- [`ptr_shared_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_server.md)
+  : Server-Side Counterpart to the Shared Coordinator
+
+## L3 — Own the layout / render path
+
+Own every piece of ggpaintr’s public UI — bare builders (no behaviour
+flags) plus nestable combinators. Compose freely under your own Shiny
+(optionally
+[`ptr_ui_page()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_page.md))
+and wire with
+[`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md).
+See
+[`vignette("ggpaintr-use-cases")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-use-cases.md)
+§ “L3”.
+
+- [`ptr_ui_page()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_page.md)
+  : Page shell for hand-composed ggpaintr UIs
+
+- [`ptr_ui_header()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_header.md)
+  :
+
+  App Header Piece for `ggpaintr`
+
+- [`ptr_ui_controls()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_controls.md)
+  :
+
+  Controls Piece for a `ggpaintr` Formula
+
+- [`ptr_ui_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_plot.md)
+  :
+
+  Plot Pane Piece for a `ggpaintr` Formula
+
+- [`ptr_ui_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_error.md)
+  :
+
+  Inline Error Pane Piece for a `ggpaintr` Formula
+
+- [`ptr_ui_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_code.md)
+  :
+
+  Generated-Code Pane Piece for a `ggpaintr` Formula
+
+- [`ptr_ui_shared_panel()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_shared_panel.md)
+  : Render the Standalone Shared Panel (L3, Bare)
+
+- [`ptr_ui_inline_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_inline_error.md)
+  : Nest an Inline Error Slot in a Plot Piece
+
+- [`ptr_ui_toggle_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_toggle_code.md)
+  :
+
+  Wire a Plot-ish Piece to a Slide-Out Code Window via the `</>` Toggle
+
+- [`ptr_ui_assets()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_assets.md)
+  :
+
+  Bundled CSS / JS Assets Piece for `ggpaintr`
+
+## Advanced embedders
+
+Drive the typed tree programmatically or read runtime outputs off the
+returned state.
+
+- [`ptr_init_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_init_state.md)
+  : Construct the ggpaintr runtime state container
+
+- [`ptr_extract_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract.md)
+  [`ptr_extract_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract.md)
+  [`ptr_extract_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract.md)
+  :
+
+  Extract Runtime Outputs From a `ptr_state`
+
+- [`ptr_gg_extra()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_gg_extra.md)
+  :
+
+  Add `ggplot2` Layers Programmatically
+
 - [`ptr_resolve_ui_text()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_resolve_ui_text.md)
-  : Resolve Copy for One Control or App Element
+  : Resolve copy for one ggpaintr control or app element
 
-## LLM integration
+## Placeholder authors
+
+Register supported custom placeholder types and their UI hooks without
+editing package internals.
+
+- [`ptr_define_placeholder_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_value.md)
+  : Define a value placeholder
+- [`ptr_define_placeholder_consumer()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_consumer.md)
+  : Define a data-consumer placeholder (e.g. column picker)
+- [`ptr_define_placeholder_source()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_source.md)
+  : Define a data-source placeholder (e.g. upload, database table)
+- [`ptr_clear_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_clear_placeholder.md)
+  : Remove user-registered placeholders
+- [`build_ui_for()`](https://willju-wangqian.github.io/ggpaintr/reference/build_ui_for.md)
+  : Build a Shiny UI Widget for a Typed-Tree Node
+
+## LLM tooling
 
 Expose ggpaintr’s documentation bundle to ellmer-backed coding
 assistants.

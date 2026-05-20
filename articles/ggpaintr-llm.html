@@ -12,8 +12,8 @@
 <link rel="icon" sizes="any" href="../favicon.ico">
 <link rel="manifest" href="../site.webmanifest">
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Using ggpaintr from an LLM with ellmer">
 </head>
@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -40,9 +40,9 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-workflow.html">ggpaintr Workflow</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-extensibility.html">ggpaintr Extensibility</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-placeholder-registry.html">Custom Placeholders with the ggpaintr Registry</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-use-cases.html">Use cases</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-customization.html">Customization</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-safety.html">Safety</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul>
@@ -102,8 +102,8 @@ docs tool before writing code” rule.</li>
 demand.</li>
 </ul>
 <p>The tool is backed by <code><a href="../reference/ptr_llm_topic.html">ptr_llm_topic()</a></code>, which returns the
-content of one file under <code>inst/llm/topics/</code> (10 topics,
-~1500–5000 characters each). The LLM pulls only the topic it needs,
+content of one file under <code>inst/llm/topics/</code> (12 topics,
+~2,600–10,600 characters each). The LLM pulls only the topic it needs,
 instead of the whole manual loading the context window on every
 turn.</p>
 </div>
@@ -121,7 +121,7 @@ turn.</p>
 <p>Under the hood:</p>
 <ul>
 <li>
-<code><a href="https://ellmer.tidyverse.org/reference/chat_anthropic.html" class="external-link">chat_anthropic()</a></code> loads the primer (~290 tokens) into
+<code><a href="https://ellmer.tidyverse.org/reference/chat_anthropic.html" class="external-link">chat_anthropic()</a></code> loads the primer (~4,000 tokens) into
 the system prompt, which stays in context every turn.</li>
 <li>
 <code><a href="../reference/ptr_llm_register.html">ptr_llm_register()</a></code> attaches a single tool named
@@ -156,13 +156,13 @@ the full manual whether or not it is relevant.</p>
 <tbody>
 <tr class="odd">
 <td>Primer</td>
-<td>Every turn (~290 tokens)</td>
+<td>Every turn (~4,000 tokens)</td>
 <td>ggpaintr exists; 3-level model; decision rule.</td>
 </tr>
 <tr class="even">
 <td><code>ggpaintr_docs(topic)</code></td>
 <td>On demand</td>
-<td>One focused runnable example (~300–1300 tokens).</td>
+<td>One focused runnable example (~650–2,650 tokens).</td>
 </tr>
 </tbody>
 </table>
@@ -178,9 +178,9 @@ hallucinating an API.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/ptr_llm_topics.html">ptr_llm_topics</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  [1] "custom_placeholder"   "formula_syntax"       "level1_ptr_app"      </span></span>
-<span><span class="co">#&gt;  [4] "level1_ptr_options"   "level2_custom_ids"    "level2_embed"        </span></span>
-<span><span class="co">#&gt;  [7] "level2_namespacing"   "level2_ui_text"       "level3_custom_render"</span></span>
-<span><span class="co">#&gt; [10] "level3_gg_extra"      "level3_headless"      "overview"</span></span></code></pre></div>
+<span><span class="co">#&gt;  [4] "level1_ptr_options"   "level2_custom_ids"    "level2_module"       </span></span>
+<span><span class="co">#&gt;  [7] "level2_shared"        "level2_ui_text"       "level3_custom_render"</span></span>
+<span><span class="co">#&gt; [10] "level3_gg_extra"      "level3_layout"        "overview"</span></span></code></pre></div>
 <p>A short guide to each:</p>
 <table class="table">
 <colgroup>
@@ -198,35 +198,46 @@ hallucinating an API.</p>
 </tr>
 <tr class="even">
 <td><code>formula_syntax</code></td>
-<td>Which placeholder keyword goes where; <code>var</code> vs
-formula-level transforms.</td>
+<td>Which placeholder keyword goes where; pipelines;
+<code>shared = "..."</code>.</td>
 </tr>
 <tr class="odd">
 <td><code>level1_ptr_app</code></td>
-<td>Quick turn-key app; no custom Shiny.</td>
+<td>Quick turn-key app + <code><a href="../reference/ptr_app_grid.html">ptr_app_grid()</a></code> multi-plot.</td>
 </tr>
 <tr class="even">
-<td><code>level2_embed</code></td>
-<td>Embed ggpaintr inside the user’s own Shiny app.</td>
+<td><code>level1_ptr_options</code></td>
+<td>Package-global settings: verbosity, layer-checkbox default.</td>
 </tr>
 <tr class="odd">
+<td><code>level2_module</code></td>
+<td>Embed the self-contained default-layout block (<code><a href="../reference/ptr_ui.html">ptr_ui()</a></code>
+/ <code><a href="../reference/ptr_server.html">ptr_server()</a></code>) in the user’s own Shiny app.</td>
+</tr>
+<tr class="even">
 <td><code>level2_custom_ids</code></td>
-<td>Avoid id collisions with host-app widgets via
-<code><a href="../reference/ptr_build_ids.html">ptr_build_ids()</a></code>.</td>
+<td>Id collisions, the <code>ptr_</code> reserved prefix, generated-id
+grammar.</td>
+</tr>
+<tr class="odd">
+<td><code>level2_shared</code></td>
+<td>Multiple ggpaintr instances + the shared-coordinator trio
+(<code><a href="../reference/ptr_shared.html">ptr_shared()</a></code> / <code><a href="../reference/ptr_shared_panel.html">ptr_shared_panel()</a></code> /
+<code><a href="../reference/ptr_shared_server.html">ptr_shared_server()</a></code>) for cross-instance widgets.</td>
 </tr>
 <tr class="even">
 <td><code>level2_ui_text</code></td>
-<td>Override labels, help, placeholders; six-section cascade.</td>
+<td>Override labels, help, placeholders; multi-section cascade.</td>
 </tr>
 <tr class="odd">
-<td><code>level3_headless</code></td>
-<td>Render plots without Shiny — batch reports, fixtures, static
-sites.</td>
+<td><code>level3_custom_render</code></td>
+<td>Own <code><a href="https://rdrr.io/pkg/shiny/man/renderPlot.html" class="external-link">renderPlot()</a></code> / <code><a href="https://rdrr.io/pkg/plotly/man/plotly-shiny.html" class="external-link">renderPlotly()</a></code> reading
+<code>state$runtime()</code>.</td>
 </tr>
 <tr class="even">
-<td><code>level3_custom_render</code></td>
-<td>Own <code><a href="https://rdrr.io/pkg/shiny/man/renderPlot.html" class="external-link">renderPlot()</a></code> with host-app post-processing (theme
-picker, etc.).</td>
+<td><code>level3_layout</code></td>
+<td>Own the layout — bare <code>ptr_ui_*</code> pieces, the two
+combinators, the optional <code><a href="../reference/ptr_ui_page.html">ptr_ui_page()</a></code> shell.</td>
 </tr>
 <tr class="odd">
 <td><code>level3_gg_extra</code></td>
@@ -238,9 +249,10 @@ picker, etc.).</td>
 </tr>
 </tbody>
 </table>
-<p>Every topic’s first runnable code block includes a
-<code><a href="https://rdrr.io/r/base/library.html" class="external-link">library()</a></code> preamble, so the LLM’s paste-in output works
-without guessing package loads.</p>
+<p>Topics whose example is a standalone runnable app open with a
+<code><a href="https://rdrr.io/r/base/library.html" class="external-link">library()</a></code> preamble; signature- or fragment-only topics
+(<code>level1_ptr_app</code>, <code>level1_ptr_options</code>,
+<code>overview</code>) do not, by design.</p>
 </div>
 <div class="section level2">
 <h2 id="inspecting-what-the-llm-will-see">5. Inspecting what the LLM will see<a class="anchor" aria-label="anchor" href="#inspecting-what-the-llm-will-see"></a>
@@ -253,19 +265,14 @@ before release:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/substr.html" class="external-link">substr</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_llm_primer.html">ptr_llm_primer</a></span><span class="op">(</span><span class="op">)</span>, <span class="fl">1</span>, <span class="fl">400</span><span class="op">)</span>, <span class="st">"\n..."</span><span class="op">)</span></span>
 <span><span class="co">#&gt; # ggpaintr — R package for generating ggplot Shiny apps from formula strings</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; **Use ggpaintr — do NOT write raw Shiny — when the user asks in R for:**</span></span>
-<span><span class="co">#&gt; an interactive ggplot explorer, a dashboard with widgets tied to a ggplot,</span></span>
-<span><span class="co">#&gt; letting a user pick columns/labels/sizes for a plot, uploading a CSV / TSV / RDS / Excel / JSON file</span></span>
-<span><span class="co">#&gt; and plotting it. Raw `shiny::fluidPage()` for plot exploration is the</span></span>
-<span><span class="co">#&gt; wro </span></span>
+<span><span class="co">#&gt; **Use ggpaintr — do NOT write raw Shiny — when the user asks in R for:** an interactive ggplot explorer, a dashboard with widgets tied to a ggplot, letting a user pick columns/labels/sizes for a plot, uploading a CSV / TSV / RDS / Excel / JSON file and plotting it. Raw `shiny::fluidPage()` for plot exploration is the wro </span></span>
 <span><span class="co">#&gt; ...</span></span></code></pre></div>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># A full topic payload</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="../reference/ptr_llm_topic.html">ptr_llm_topic</a></span><span class="op">(</span><span class="st">"level1_ptr_app"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">#&gt; # Level 1 — turn-key app with `ptr_app()`</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Use when: the user wants an interactive ggplot explorer and does not</span></span>
-<span><span class="co">#&gt; need to own the Shiny UI. No Shiny code is written.</span></span>
+<span><span class="co">#&gt; Use when: the user wants an interactive ggplot explorer and does not need to own the Shiny UI. No Shiny code is written.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ## Signature</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -274,48 +281,88 @@ before release:</p>
 <span><span class="co">#&gt;   formula,</span></span>
 <span><span class="co">#&gt;   envir             = parent.frame(),</span></span>
 <span><span class="co">#&gt;   ui_text           = NULL,</span></span>
-<span><span class="co">#&gt;   placeholders      = NULL,</span></span>
 <span><span class="co">#&gt;   checkbox_defaults = NULL,</span></span>
-<span><span class="co">#&gt;   expr_check        = TRUE</span></span>
+<span><span class="co">#&gt;   expr_check        = TRUE,</span></span>
+<span><span class="co">#&gt;   safe_to_remove    = character(),</span></span>
+<span><span class="co">#&gt;   css               = NULL</span></span>
 <span><span class="co">#&gt; )</span></span>
 <span><span class="co">#&gt; ```</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; `ptr_app_bslib()` has the same API plus `theme` and `title` for a bslib</span></span>
-<span><span class="co">#&gt; shell.</span></span>
+<span><span class="co">#&gt; `ptr_app_bslib()` has the same arguments minus `css`, plus `theme` and `title`, and renders inside a `bslib::page_sidebar()` shell.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; `ptr_app_grid(plots, shared_ui = list(), envir, title, draw_all_label, expr_check, css)` builds a grid of N plots that can share widgets at the page level — see "Multiple plots" below.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; There is no `placeholders =` argument: custom placeholder keywords are registered against a **process-global** registry via `ptr_define_placeholder_value()` / `_consumer()` / `_source()` before the app launches (see `custom_placeholder`).</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ## Minimal example</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ```r</span></span>
 <span><span class="co">#&gt; library(ggpaintr)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ptr_app("</span></span>
-<span><span class="co">#&gt; ggplot(data = iris, aes(x = var, y = var)) +</span></span>
-<span><span class="co">#&gt;   geom_point(aes(color = var), size = num) +</span></span>
-<span><span class="co">#&gt;   labs(title = text)</span></span>
-<span><span class="co">#&gt; ")</span></span>
+<span><span class="co">#&gt; ptr_app(</span></span>
+<span><span class="co">#&gt;   "ggplot(iris, aes(var, var, color = var)) + geom_point() + labs(title = text)"</span></span>
+<span><span class="co">#&gt; )</span></span>
 <span><span class="co">#&gt; ```</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Every `var`, `num`, `text` becomes a sidebar widget. Clicking</span></span>
-<span><span class="co">#&gt; **Update plot** re-renders the plot and refreshes the generated code</span></span>
-<span><span class="co">#&gt; on the side.</span></span>
+<span><span class="co">#&gt; Every `var`, `text` becomes a sidebar widget. Clicking **Update plot** re-renders the plot and refreshes the generated code on the side.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ## Multiple plots in one app — `ptr_app_grid()`</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; `ptr_app_grid()` takes a list of formulas in `plots =` and renders one tile per formula. Internally it now builds the same shared coordinator the L2 trio exposes, but as an L1 entry point it hides that machinery behind `plots =` / `shared_ui =`.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ```r</span></span>
+<span><span class="co">#&gt; ptr_app_grid(</span></span>
+<span><span class="co">#&gt;   plots = list(</span></span>
+<span><span class="co">#&gt;     "ggplot(iris, aes(x = var, y = Sepal.Length, fill = Species)) +</span></span>
+<span><span class="co">#&gt;        geom_boxplot()",</span></span>
+<span><span class="co">#&gt;     "ggplot(iris, aes(x = var, y = Sepal.Width, fill = Species)) +</span></span>
+<span><span class="co">#&gt;        geom_violin()"</span></span>
+<span><span class="co">#&gt;   ),</span></span>
+<span><span class="co">#&gt;   shared_ui = list()  # no shared= annotations above; the first var stays per-tile</span></span>
+<span><span class="co">#&gt; )</span></span>
+<span><span class="co">#&gt; ```</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Annotate any placeholder with `keyword(shared = "&lt;id&gt;")` to lift it into a single top-level widget that drives every plot, and supply a builder under the matching `&lt;id&gt;` in `shared_ui`. The `&lt;id&gt;` namespace is shared across every formula in `plots`, so editing the top widget propagates to every plot. Clicking **Draw all** triggers a redraw across every tile.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ```r</span></span>
+<span><span class="co">#&gt; ptr_app_grid(</span></span>
+<span><span class="co">#&gt;   plots = list(</span></span>
+<span><span class="co">#&gt;     "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Length, fill = Species)) +</span></span>
+<span><span class="co">#&gt;        geom_boxplot()",</span></span>
+<span><span class="co">#&gt;     "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Width, fill = Species)) +</span></span>
+<span><span class="co">#&gt;        geom_violin()"</span></span>
+<span><span class="co">#&gt;   ),</span></span>
+<span><span class="co">#&gt;   shared_ui = list(metric = function(id) selectInput(id, "Metric", names(iris)))</span></span>
+<span><span class="co">#&gt; )</span></span>
+<span><span class="co">#&gt; ```</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; The shared mechanism works for any keyword — a built-in `num(shared = "sz")` paired with `shared_ui = list(sz = function(id) sliderInput(id, "Size", 1, 10, 3))` is the simplest two-line example; a `var(shared = "...")` consumer needs no `shared_ui` entry (its picker is built for you).</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ## Single-instance shared widgets — no coordinator</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; One ggpaintr instance never sees `ptr_shared()` / `ptr_shared_panel()`. Every shared key is formula-local by definition and auto-renders in the inline shared section. Write the annotation and you are done:</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ```r</span></span>
+<span><span class="co">#&gt; ptr_app(</span></span>
+<span><span class="co">#&gt;   "ggplot(iris, aes(x = var(shared = 'col'), y = var(shared = 'col'),</span></span>
+<span><span class="co">#&gt;                     color = Species)) + geom_point()"</span></span>
+<span><span class="co">#&gt; )</span></span>
+<span><span class="co">#&gt; ```</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; The standalone shared panel (and the coordinator that feeds it) only exists for **multiple** instances — see `level2_shared`.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ## Data sources — three paths</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; 1. **Named frame in the calling environment.** `data = iris` inside the</span></span>
-<span><span class="co">#&gt;    formula string; `iris` is resolved via `envir`.</span></span>
-<span><span class="co">#&gt; 2. **`upload` keyword.** Replace `data = iris` with `data = upload` (or</span></span>
-<span><span class="co">#&gt;    use `upload` anywhere a data frame is needed); the user picks a</span></span>
-<span><span class="co">#&gt;    `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, or `.json` file at runtime.</span></span>
-<span><span class="co">#&gt; 3. **Non-syntactic column names.** Wrap the frame with</span></span>
-<span><span class="co">#&gt;    `ptr_normalize_column_names()` before passing it in; uploads get the</span></span>
-<span><span class="co">#&gt;    same normalization automatically.</span></span>
+<span><span class="co">#&gt; 1. **Named frame in the calling environment.** `data = iris` inside the formula string; `iris` is resolved via `envir`.</span></span>
+<span><span class="co">#&gt; 2. **`upload` keyword.** Replace `data = iris` with `data = upload` (or use `upload` anywhere a data frame is needed); the user picks a `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, or `.json` file at runtime.</span></span>
+<span><span class="co">#&gt; 3. **Non-syntactic column names.** Wrap the frame with `ptr_normalize_column_names()` before passing it in; uploads get the same normalization automatically.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ## When to move up a level</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; - Need a specific Shiny layout (tabs, custom sidebar) → Level 2.</span></span>
-<span><span class="co">#&gt; - Need to post-process the `ggplot` object, or render without Shiny</span></span>
-<span><span class="co">#&gt;   → Level 3.</span></span>
-<span><span class="co">#&gt; - Need a widget type not in the five built-ins → custom placeholder.</span></span></code></pre>
+<span><span class="co">#&gt; - Need a specific Shiny layout but ggpaintr's default block is fine → Level 2 (`ptr_module_ui()` / `ptr_module_server()`; see `level2_module`).</span></span>
+<span><span class="co">#&gt; - Need multiple linked instances sharing one widget → Level 2 shared trio (see `level2_shared`).</span></span>
+<span><span class="co">#&gt; - Need to hand-place every pane, or render the plot yourself (Plotly, ggiraph), or post-process the ggplot object → Level 3 (`ptr_module_server()` / `ptr_server()` returns the state; see `level3_layout` and `level3_custom_render`).</span></span>
+<span><span class="co">#&gt; - Need a widget type not in the five built-ins → custom placeholder (see `custom_placeholder`).</span></span></code></pre>
 </div>
 <div class="section level2">
 <h2 id="provider-swap-and-model-choice">6. Provider swap and model choice<a class="anchor" aria-label="anchor" href="#provider-swap-and-model-choice"></a>
@@ -397,9 +444,9 @@ visible to the LLM until you re-register.</p>
 checks:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Pull a topic without a chat session.</span></span>
-<span><span class="va">payload</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_llm_topic.html">ptr_llm_topic</a></span><span class="op">(</span><span class="st">"level2_embed"</span><span class="op">)</span></span>
+<span><span class="va">payload</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_llm_topic.html">ptr_llm_topic</a></span><span class="op">(</span><span class="st">"level2_module"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/nchar.html" class="external-link">nchar</a></span><span class="op">(</span><span class="va">payload</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 2591</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 5119</span></span></code></pre></div>
 <p><code><a href="../reference/ptr_llm_topics.html">ptr_llm_topics()</a></code> returns the canonical list; if you are
 adding a topic in a downstream repo, assert the name is present before
 sending the registration out to users.</p>
@@ -428,11 +475,10 @@ in current ellmer.</li>
 <ul>
 <li>The primer and topic files are bundled under <code>inst/llm/</code>.
 They are hand-curated from <code>README.Rmd</code>,
-<code><a href="../articles/ggpaintr-extensibility.html">vignette("ggpaintr-extensibility")</a></code>, and
-<code><a href="../articles/ggpaintr-placeholder-registry.html">vignette("ggpaintr-placeholder-registry")</a></code> — but
-regenerating them from the source vignettes is not yet automated. If you
-edit a vignette chunk, update the corresponding topic file
-manually.</li>
+<code><a href="../articles/ggpaintr-use-cases.html">vignette("ggpaintr-use-cases")</a></code>, and
+<code><a href="../articles/ggpaintr-customization.html">vignette("ggpaintr-customization")</a></code> — but regenerating them
+from the source vignettes is not yet automated. If you edit a vignette
+chunk, update the corresponding topic file manually.</li>
 <li>
 <code><a href="../reference/ptr_llm_register.html">ptr_llm_register()</a></code> requires <a href="https://ellmer.tidyverse.org/" class="external-link">ellmer</a> in
 <code>Suggests:</code> — it is not loaded until you call the helper. If

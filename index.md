@@ -1,21 +1,29 @@
 # ggpaintr
 
-Turn a ggplot-like formula string into a Shiny app. Placeholder keywords
-inside the formula (`var`, `text`, `num`, `expr`, `upload`) become input
-widgets automatically, and the same parsed object drives the UI, the
-runtime, and the generated code pane.
+## Overview
+
+ggpaintr turns a ggplot-like formula string into a running Shiny app.
+You write a single
+[`ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html) call
+as text, drop placeholder keywords (`var`, `text`, `num`, `expr`,
+`upload`) anywhere a value would normally go, and ggpaintr does the
+rest: each keyword becomes an input widget, the same parsed object
+drives the UI, the plot, and a live code pane, and editing any widget
+re-renders the plot.
+
+No Shiny UI or server code required. If you can write a ggplot call, you
+can ship an interactive version of it.
 
 ## Installation
 
 ``` r
 
+# Install the development version from GitHub:
 # install.packages("pak")
 pak::pkg_install("willju-wangqian/ggpaintr")
 ```
 
-## Quick start
-
-Paste this into an R session:
+## Usage
 
 ``` r
 
@@ -29,300 +37,92 @@ ggplot(data = iris, aes(x = var, y = var)) +
 ")
 ```
 
+That single call returns a running Shiny app. Each placeholder in the
+formula becomes one widget:
+
+- the three `var` tokens → column pickers populated from `iris`,
+- `num` → a numeric input (point size),
+- `text` → a text input (plot title),
+- `expr` → a code box for the facet spec (e.g. `vars(Species)`).
+
 [`library(ggpaintr)`](https://willju-wangqian.github.io/ggpaintr/) also
 attaches `ggplot2`, so bare
-[`ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html),
-[`aes()`](https://ggplot2.tidyverse.org/reference/aes.html), and
-`geom_*()` calls work directly inside formula strings.
+[`ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html) /
+[`aes()`](https://ggplot2.tidyverse.org/reference/aes.html) / `geom_*()`
+calls work directly inside formula strings. For a grid layout, use
+[`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md).
+To swap in a custom page shell or theme, write a thin wrapper on top of
+the public primitives — see
+[`vignette("ggpaintr-customization")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-customization.md)
+§ “Writing your own wrapper”.
 
-That single call parses the formula once and returns a running Shiny
-app. Every `var`, `num`, `text`, and `expr` token becomes a widget in
-the sidebar; editing a widget and clicking **Update plot** re-renders
-the plot and refreshes the generated ggplot code on the side. No Shiny
-UI or server code was written.
+## More topics
 
-For a bslib-themed variant with the same API, use
-[`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md).
+- **[`vignette("ggpaintr-use-cases")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-use-cases.md)
+  — *Use cases*.** The three-level ladder for how to use ggpaintr: L1
+  all-in-one
+  ([`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+  /
+  [`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md)),
+  L2 embed in your own Shiny app with the self-contained pair
+  ([`ptr_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui.md)
+  /
+  [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md))
+  plus the shared-coordinator trio
+  ([`ptr_shared()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared.md)
+  /
+  [`ptr_shared_panel()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_panel.md)
+  /
+  [`ptr_shared_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_server.md))
+  for cross-plot widgets, and L3 own every piece of the UI — bare
+  builders
+  ([`ptr_ui_header()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_header.md)
+  /
+  [`ptr_ui_controls()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_controls.md)
+  /
+  [`ptr_ui_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_plot.md)
+  /
+  [`ptr_ui_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_error.md)
+  /
+  [`ptr_ui_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_code.md)
+  /
+  [`ptr_ui_assets()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_assets.md))
+  plus the nestable combinators
+  ([`ptr_ui_inline_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_inline_error.md)
+  /
+  [`ptr_ui_toggle_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_toggle_code.md))
+  and the optional
+  [`ptr_ui_page()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_page.md)
+  shell, including custom rendering off the returned `state` via
+  [`ptr_extract_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract.md)
+  / `_code()` / `_error()`. Opens with a compact tour of the 5
+  placeholder keywords.
 
-## Formula syntax
+- **[`vignette("ggpaintr-customization")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-customization.md)
+  — *Customization*.** Rewrite ggpaintr’s built-in copy with `ui_text`,
+  register your own widget types with the three placeholder constructors
+  ([`ptr_define_placeholder_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_value.md)
+  / `_consumer()` / `_source()`), and share one widget across multiple
+  plots.
 
-A ggpaintr formula is a normal ggplot call as a string, with placeholder
-keywords anywhere a value would normally go. Each keyword maps to one
-widget and one runtime value.
+- **[`vignette("ggpaintr-safety")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-safety.md)
+  — *Safety*.** What `expr_check` does and when (never) to turn it off,
+  the denylist + AST-walker safety model, the upload trust boundary, and
+  a public-deployment checklist for shinyapps.io / Posit Connect.
 
-| Keyword | Widget | Runtime value | Typical use |
-|----|----|----|----|
-| `var` | column picker ([`shinyWidgets::pickerInput`](https://dreamrs.github.io/shinyWidgets/reference/pickerInput.html)) | column symbol | pick a column from the data frame |
-| `text` | `textInput` | string | free text (axis labels, titles, color names) |
-| `num` | `numericInput` | numeric | a number (point size, alpha, threshold) |
-| `expr` | code input | parsed R expression | raw R code (facet specs, label formulas) |
-| `upload` | `fileInput` + dataset name | data frame (`.csv` / `.tsv` / `.rds` / `.xlsx` / `.xls` / `.json`) | let the app receive a dataset at runtime |
+- **[`vignette("ggpaintr-gallery")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-gallery.md)
+  — *ggpaintr in the Wild*.** A gallery of complete ggplot2 and
+  extension-package graphics, each paired with the ggpaintr formula that
+  turns it into a Shiny app. Also the canonical worked-example reference
+  for plugging interactive output packages (plotly, ggiraph) into your
+  own app.
 
-Slot context decides each widget’s label and help text: the surrounding
-argument name, the layer it appears in, and the keyword together pick
-the default copy. You can override any of that with `ui_text`.
-
-`var` is a **column picker**. Formula-level transforms such as
-`aes(x = var + 1, y = log(var))` go in the formula itself — the picker
-still returns the column symbol, and the transform is applied around it.
-
-`expr` accepts anything
-[`rlang::parse_expr()`](https://rlang.r-lib.org/reference/parse_expr.html)
-can read, with a denylist guard against dangerous calls. The guard is
-controlled by the `expr_check` argument on
-[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
-/
-[`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md),
-which defaults to `TRUE` and should stay on unless you know what you are
-doing.
-
-`upload` accepts `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, and `.json`
-(array of records, with nested objects flattened) and normalizes column
-names automatically after read-in. Excel and JSON readers require the
-suggested packages `readxl` and `jsonlite` respectively. For local data
-with non-syntactic column names, call
-[`ptr_normalize_column_names()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_normalize_column_names.md)
-once before passing the frame in.
-
-For a worked walkthrough of every keyword, see
-[`vignette("ggpaintr-workflow")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-workflow.md).
-
-### What happens when a placeholder is left empty
-
-A formula slot can resolve to “no input” — the user clears a `text`
-field, leaves a `num` blank, or unchecks a layer. ggpaintr does not
-propagate that emptiness as `NULL` into ggplot2 (which would crash).
-Instead, after substitution, any zero-arg call whose name is in a
-curated cleanup list is dropped, and the cascade lifts cleanly through
-nested helpers.
-
-In practice this means `geom_point(aes(color = var), size = num)` with
-both inputs empty renders as `+ geom_point()` (inheriting aesthetics
-from the base
-[`ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html) call);
-`theme(plot.title = element_text(size = num))` with `num` empty drops
-the whole
-[`theme()`](https://ggplot2.tidyverse.org/reference/theme.html) layer;
-`facet_wrap(vars(var))` with `var` empty drops the facet.
-
-Curated cleanup names: `theme`, `labs`, `xlab`, `ylab`, `ggtitle`,
-`facet_wrap`/`grid`/`null`, `xlim`, `ylim`, `lims`, `expand_limits`,
-`guides`, `annotate`, `annotation_custom`/`map`/`raster`,
-`aes`/`aes_`/`aes_q`/`aes_string`, `vars`, and
-`element_text`/`line`/`rect`/`point`/`polygon`/`geom`. `geom_*()` and
-`stat_*()` layers are always kept (they fall back on inherited
-aesthetics).
-[`element_blank()`](https://ggplot2.tidyverse.org/reference/element.html)
-is intentionally not in the list — empty form is a meaningful “suppress”
-directive. To opt third-party functions into the cleanup pass (e.g. for
-a plugin’s theme helper), pass `safe_to_remove = c("pcp_theme")` to
-[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
-/
-[`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md).
-
-## Three levels of use
-
-ggpaintr is organized around three levels of integration. Pick the
-lowest level that covers what you need — the higher the level, the less
-code you write; the lower the level, the more control you have.
-
-### Level 1 — Turn-key app
-
-Call
-[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
-or
-[`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md).
-No Shiny code required. This is the right entry point for teaching,
-demoing, or quick data exploration.
-
-``` r
-
-ptr_app(
-  "ggplot(data = iris, aes(x = var, y = var)) +
-     geom_point() +
-     labs(title = text)"
-)
-```
-
-Both wrappers accept `ui_text` (copy overrides) and `placeholders`
-(custom placeholder types).
-[`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)
-adds `theme` and `title` for the bslib shell.
-
-Read
-[`vignette("ggpaintr-workflow")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-workflow.md)
-for the full list of arguments, the three data-source paths
-(`data = <frame>`, the `upload` keyword, and
-[`ptr_normalize_column_names()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_normalize_column_names.md)
-for non-syntactic local data), and a walk-through of what happens when
-you click **Update plot**.
-
-### Level 2 — Embed in your own Shiny app
-
-When you already have a Shiny app and want ggpaintr’s widgets and
-runtime to live inside it, Level 2 has two parallel integration routes:
-
-- Non-module embedding:
-  [`ptr_input_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_input_ui.md)
-  and
-  [`ptr_output_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_output_ui.md)
-  drop the generated controls and output panes into any UI, while
-  [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
-  wires up the server side in one call.
-- Shiny module embedding:
-  [`ptr_module_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_ui.md)
-  and
-  [`ptr_module_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_server.md)
-  provide a ready-to-use module pair for users who prefer modules or
-  already build apps with module habits.
-- The module API can also be read as a compact template for custom
-  modules; it keeps raw top-level ids as the module-local server
-  contract while rendering namespaced DOM ids with Shiny’s module
-  namespace.
-- For finer control, compose the individual `ptr_register_*()` helpers
-  (`ptr_register_draw`, `ptr_register_plot`, `ptr_register_code`,
-  `ptr_register_error`) or use
-  [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md) +
-  [`ptr_setup_controls()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_setup_controls.md)
-  to observe the underlying reactive state.
-- [`ptr_build_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.md)
-  remains available for non-module and advanced custom layouts that need
-  renamed raw top-level ids;
-  [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md)
-  exposes `raw_ids`, `ui_ids`, and `server_ids` for debugging namespace
-  wiring.
-- `ui_text` rewrites labels, help text, and shell chrome at any of six
-  sections (`shell`, `upload`, `layer_checkbox`, `defaults`, `params`,
-  `layers`).
-
-Read
-[`vignette("ggpaintr-extensibility")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-extensibility.md)
-for runnable examples of both Level 2 routes, the complete `ui_text`
-override catalog, and the six-section merge precedence rules.
-
-### Level 3 — Low-level developer API
-
-When Level 2 is not enough — batch reports, custom `renderPlot()`
-blocks, programmatic code generation, or building new ggpaintr-aware
-packages — drop to the parse / exec / extract helpers:
-
-- [`ptr_parse_formula()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_parse_formula.md)
-  parses a formula once and returns the shared object that every other
-  helper consumes.
-- [`ptr_runtime_input_spec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_runtime_input_spec.md)
-  enumerates the input ids the runtime expects, so you can build an
-  input list without a Shiny session.
-- [`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md)
-  runs the parsed formula against that input list, headlessly.
-- [`ptr_extract_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_plot.md),
-  [`ptr_extract_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_code.md),
-  [`ptr_extract_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_error.md)
-  pull the rendered plot, the generated code string, and any runtime
-  error out of the result.
-- [`ptr_gg_extra()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_gg_extra.md)
-  and
-  [`ptr_assemble_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_assemble_plot.md)
-  let a host app merge extra ggplot components into the embedded plot
-  while keeping the code pane in sync with what was actually drawn.
-- [`ptr_missing_expr()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_missing_expr.md)
-  is the sentinel a custom `resolve_expr` hook returns when its widget
-  has no value yet.
-
-Read
-[`vignette("ggpaintr-extensibility")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-extensibility.md)
-for runnable Level 3 recipes: a headless plot rendered to a png file
-with no Shiny, a custom `renderPlot()` that post-processes the ggplot
-object, a host app injecting layers with
-[`ptr_gg_extra()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_gg_extra.md),
-and programmatic code generation with
-[`ptr_extract_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_code.md).
-
-### Customizing placeholders
-
-Custom widget types — a date picker, a slider, a column-subset chooser —
-are defined with
-[`ptr_define_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder.md)
-and mixed in with
-[`ptr_merge_placeholders()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_merge_placeholders.md).
-They plug into every level:
-
-- Level 1: `ptr_app(formula, placeholders = ...)`.
-- Level 2: `ptr_server(..., placeholders = ...)`.
-- Level 3: `ptr_parse_formula(formula, placeholders = ...)`.
-
-A placeholder definition supplies up to five hooks (`build_ui`,
-`resolve_expr`, `resolve_input`, `bind_ui`, `prepare_eval_env`) of which
-the first two are required.
-
-See
-[`vignette("ggpaintr-placeholder-registry")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-placeholder-registry.md)
-for the full hook contract, a minimal end-to-end example, and the recipe
-for replacing a built-in widget with a custom one.
-
-## Where to go next
-
-- **[`vignette("ggpaintr-workflow")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-workflow.md)**
-  — formula syntax, every placeholder keyword, every
-  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
-  argument, data-source paths, and a conceptual tour of what happens
-  between click and plot. Read this first.
-- **[`vignette("ggpaintr-extensibility")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-extensibility.md)**
-  — Level 2 (embed in an existing Shiny app, override `ui_text`, custom
-  ids) and Level 3 (headless plot, custom `renderPlot()`,
-  [`ptr_gg_extra()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_gg_extra.md),
-  programmatic code generation). Read this when you outgrow
-  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md).
-- **[`vignette("ggpaintr-placeholder-registry")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-placeholder-registry.md)**
-  — the five placeholder hooks, required vs optional, worked examples of
-  adding a new widget type, and the recipe for replacing a built-in
-  placeholder.
+- **[`vignette("ggpaintr-llm")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-llm.md)
+  — *Using ggpaintr from an LLM with ellmer*.** Wire ggpaintr up as an
+  LLM-callable tool with ellmer: register the primer and the
+  topic-lookup tool, inspect what the model sees, swap providers/models,
+  and test without spending tokens.
 
 The [pkgdown reference](https://willju-wangqian.github.io/ggpaintr/)
-lists every exported function.
-
-## Stability guarantees
-
-- The five built-in placeholders — `var`, `text`, `num`, `expr`,
-  `upload` — are stable. Custom placeholders share the same parse, UI,
-  runtime, and copy-rule path.
-- `upload` accepts `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, and `.json`.
-  Other formats are outside the current boundary.
-- The supported surface is the exported `ptr_*` API (see `NAMESPACE`).
-  Anything not exported is implementation detail.
-- Only the top-level ids exposed by
-  [`ptr_build_ids()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_build_ids.md)
-  are configurable.
-- Package-global settings live behind
-  [`ptr_options()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_options.md)
-  — currently `verbose` (default `FALSE`) and
-  `checkbox_default_all_other_layer` (default `TRUE`). The function
-  follows base [`options()`](https://rdrr.io/r/base/options.html)
-  semantics: call with no arguments to read, with named logicals to set;
-  setters return the previous values for `do.call(ptr_options, old)`
-  round-trips.
-- Runtime failures are labeled `Input error` or `Plot error` and stay on
-  the shared inline error path.
-- Raw placeholder ids such as `"ggplot_3_2"` are not a stable
-  hand-authored API — discover them with
-  [`ptr_runtime_input_spec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_runtime_input_spec.md).
-  Deeper traversal details (`index_path` encoding, internal companion id
-  conventions) remain package internals.
-- The formula-string model is the current author-facing interface;
-  future hardening should compile it into a richer internal runtime
-  contract rather than replace that authoring model outright.
-
-## Current behavior boundary
-
-- Structural formula errors fail early during parsing.
-- `var` with no data source fails while preparing the UI.
-- `var` is a column picker. Formula-level transforms such as `var + 1`
-  or `log(var)` go in the formula text, not as input values.
-- Local data with non-syntactic column names must pass through
-  [`ptr_normalize_column_names()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_normalize_column_names.md)
-  first. Uploads apply the same normalization automatically.
-- Missing local data objects are deferred to draw-time inline errors.
-- Advanced integrations can customize the plot through
-  [`ptr_extract_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_plot.md)
-  inside a user-owned `renderPlot()`, with
-  [`ptr_gg_extra()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_gg_extra.md)
-  keeping the code pane in sync.
+lists every exported function. A longer, book-length introduction to
+ggpaintr is planned.

@@ -2,8 +2,108 @@
 
 ## ggpaintr (development version)
 
+### New features
+
+- **L3 — own every piece of the UI.** Every piece of ggpaintr’s public
+  UI now has its own exported builder:
+  [`ptr_ui_header()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_header.md),
+  [`ptr_ui_controls()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_controls.md),
+  [`ptr_ui_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_plot.md),
+  [`ptr_ui_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_error.md),
+  [`ptr_ui_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_code.md),
+  `ptr_ui_code_toggle()`, and
+  [`ptr_ui_assets()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_assets.md).
+  Compose exactly the pieces you want, place each anywhere in your own
+  layout, and wire them with the existing server API
+  ([`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
+  / `ptr_module_server()`). The bundled
+  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+  / `ptr_module_ui()` / `ptr_outputs_ui()` / `ptr_controls_ui()` paths
+  are reimplemented as thin composites of these pieces — same `<body>`
+  DOM, no behavior or performance change. The pieces are deliberately
+  *bare* (no assets, no `.ptr-app` wrapper); the new
+  **[`ptr_ui_page()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_page.md)**
+  shell wraps them in a Bootstrap page + the single `.ptr-app` theme
+  scope + the (deduped) asset bundle in one call, so that is all an L3
+  user has to remember. Swap the page builder with `page =` (`fluidPage`
+  default, also `fixedPage`/`fillPage`/`bootstrapPage`/`basicPage`); for
+  a `navbarPage` or bslib root use the documented decomposition recipe.
+  See
+  [`vignette("ggpaintr-use-cases")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-use-cases.md)
+  § “L3 — Own every piece of the UI”.
+- [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
+  now accepts a
+  [`ptr_shared_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_server.md)
+  bundle directly via `shared_state =`, mirroring `ptr_module_server()`.
+  Wiring a page-level `ptr_shared_ui()` panel to a single embedded or
+  custom-rendered plot no longer requires spreading the four bundle
+  slots through `...`.
+- The custom-renderer pattern (reading `state$runtime()` for your own
+  [`renderPlotly()`](https://rdrr.io/pkg/plotly/man/plotly-shiny.html) /
+  `renderGirafe()`) is now documented as an L2 capability — both
+  [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
+  and `ptr_module_server()` return the `ptr_state`, so it needs nothing
+  beyond embedding.
+
 ### Behavior changes
 
+- **`ptr_register_plot()` / `ptr_register_error()` /
+  `ptr_register_code()` are no longer exported.** Post-rewrite they only
+  ever ran inside
+  [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
+  (their sole caller, via the internal runtime setup) and rendered
+  nothing without it, so the “compose outputs manually” use case they
+  advertised was impossible. They remain as internal helpers; no
+  replacement is needed (use the L3 pieces +
+  [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md),
+  or read `state$runtime()` for a custom renderer). No deprecation cycle
+  — this dev cycle’s own surface, single pre-1.0 user.
+- **ggpaintr’s CSS/JS now ship as deduped
+  [`htmltools::htmlDependency()`](https://rstudio.github.io/htmltools/reference/htmlDependency.html)
+  bundles.** `ggpaintr.css`, the code-window JS, and the `ptr_set_class`
+  handler + stage CSS are emitted as two dependencies (`ggpaintr`,
+  `ggpaintr-layer`) instead of inline `<style>`/`<script>`/`<link>`
+  tags. htmltools collapses each to a single `<head>` injection no
+  matter how many shells/pieces a page nests, so the old
+  `window.__ptr_*_registered` JS guards are gone. Rendered `<body>` is
+  unchanged; only `<head>` asset emission differs. `htmltools` moves
+  from Suggests to Imports.
+- **Custom placeholder registration is now process-global.** The legacy
+  `placeholders = ptr_merge_placeholders(...)` argument has been removed
+  from every public entry point
+  ([`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md),
+  [`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md),
+  [`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md),
+  `ptr_module_ui()`, `ptr_module_server()`,
+  [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md),
+  `ptr_translate()`, `ptr_render()`). Custom placeholders are now
+  defined once per R session via
+  `ptr_define_placeholder_value() / _consumer() / _source()`, which
+  write directly into an internal global registry. All instances in that
+  session see the same registry.
+  - The hook signatures changed too: `build_ui(node, label = NULL, ...)`
+    for value/source,
+    `build_ui(node, cols, label = NULL, selected = character(0), ...)`
+    for consumer. The id is on `node$id` (and the source companion id on
+    `node$companion_id`); there is no separate `id` argument.
+    `resolve_expr(value, node, ...)` returning `NULL` is the new “drop
+    this argument” signal (replacing `ptr_missing_expr()`).
+  - Distribution: package authors should ship a setup function that
+    calls `ptr_define_placeholder_*()` (caller-driven), or auto-register
+    from `.onLoad` (drop-in). Either pattern works; pick by whether you
+    want the registration to be visible at the call site.
+  - Multi-instance limitation: two `ptr_module_server()` instances in
+    the same Shiny app cannot have *different* implementations of the
+    same keyword. The second registration overwrites the first (with a
+    [`cli::cli_warn`](https://cli.r-lib.org/reference/cli_abort.html)
+    notice). If you need divergent widgets per instance, prefix custom
+    keywords with a package-specific tag (`mypkg_pct` rather than
+    `pct`). A scoped per-instance registry override is on the table for
+    a future release.
+  - Test isolation: tests that register custom placeholders should
+    restore state with `ptr_registry_clear()` +
+    `ptr_register_builtins()` (currently internal) or run in a fresh R
+    session.
 - Extended the curated empty-call cleanup list with 14 more ggplot2
   names:
   [`annotation_custom()`](https://ggplot2.tidyverse.org/reference/annotation_custom.html),
@@ -42,15 +142,13 @@
   [`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md),
   `ptr_app_components()`,
   [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md),
-  [`ptr_module_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_module_server.md),
-  [`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md),
-  `ptr_complete_expr()`, and
-  [`ptr_exec()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_exec.md).
-  Empty calls whose name is not in the set (e.g. third-party helpers
-  like `pcp_theme()`, `pcp_arrange()`, or user-authored `aes_pcp()`) are
-  preserved by default — being absent from the set is the “removal
-  safety unknown” signal. Pass `safe_to_remove = c("pcp_theme")` to opt
-  a specific name into the cleanup pass.
+  `ptr_module_server()`, `ptr_server_state()`, `ptr_complete_expr()`,
+  and `ptr_exec()`. Empty calls whose name is not in the set
+  (e.g. third-party helpers like `pcp_theme()`, `pcp_arrange()`, or
+  user-authored `aes_pcp()`) are preserved by default — being absent
+  from the set is the “removal safety unknown” signal. Pass
+  `safe_to_remove = c("pcp_theme")` to opt a specific name into the
+  cleanup pass.
 - An `expr` placeholder, when the user supplies an expression, always
   wins over the cleanup pass: whatever the user typed into an `expr`
   input is honoured verbatim, even if its top-level name is in
@@ -71,17 +169,14 @@
 
 ### Documentation and exports
 
-- [`ptr_resolve_layer_data()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_resolve_layer_data.md)
-  and
-  [`ptr_ns_id()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ns_id.md)
-  are now exported with full docs. Custom data-aware placeholders should
-  call these helpers from a `bind_ui()` callback instead of replicating
-  the source-symbol walk or the namespace-function dance.
-- [`?ptr_define_placeholder`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder.md)
-  now documents the `bind_ui` contract, the contents of the placeholder
-  `context`, and the `meta$id` namespacing rule. A second runnable
-  example demonstrates a data-aware “numeric-columns-only” placeholder
-  using the public helpers.
+- `ptr_resolve_layer_data()` and `ptr_ns_id()` are now exported with
+  full docs. Custom data-aware placeholders should call these helpers
+  from a `bind_ui()` callback instead of replicating the source-symbol
+  walk or the namespace-function dance.
+- `?ptr_define_placeholder` now documents the `bind_ui` contract, the
+  contents of the placeholder `context`, and the `meta$id` namespacing
+  rule. A second runnable example demonstrates a data-aware
+  “numeric-columns-only” placeholder using the public helpers.
 
 ## ggpaintr 0.9.0
 
@@ -91,16 +186,13 @@
   — advanced helper for embedded apps that own their own
   `renderPlot({...})` block. Captures ggplot components (themes, scales,
   coords, …) added on top of
-  [`ptr_extract_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract_plot.md)
+  [`ptr_extract_plot()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_extract.md)
   and stores them on a new `ptr_state$extras` reactiveVal, so the
-  default code binder
-  ([`ptr_register_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_register_code.md))
-  appends them to the generated-code pane. Extras are suppressed
-  automatically when the underlying runtime reports a failure, so stale
-  extras from a prior successful draw never surface during an error
-  state. See
-  [`vignette("ggpaintr-extensibility")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-extensibility.md),
-  Recipe 3.
+  default code binder (`ptr_register_code()`) appends them to the
+  generated-code pane. Extras are suppressed automatically when the
+  underlying runtime reports a failure, so stale extras from a prior
+  successful draw never surface during an error state. See
+  `vignette("ggpaintr-extensibility")`, Recipe 3.
 - [`ptr_llm_primer()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_llm_primer.md),
   [`ptr_llm_topic()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_llm_topic.md),
   [`ptr_llm_topics()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_llm_topics.md),
@@ -123,17 +215,14 @@
 - Removed the Shiny app export feature: `ptr_generate_shiny()`,
   `ptr_register_export()`, the download button, and `ids$export_button`
   are gone. Use the public Shiny integration surface
-  ([`ptr_server_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server_state.md),
-  `ptr_register_*()`,
-  [`ptr_input_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_input_ui.md),
-  [`ptr_output_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_output_ui.md),
+  (`ptr_server_state()`, `ptr_register_*()`, `ptr_input_ui()`,
+  `ptr_output_ui()`,
   [`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md))
   to compose and distribute custom apps.
 - The placeholder distribution parameters `source_file`,
   `source_package`, `source_function`, and `on_missing` are removed from
-  [`ptr_define_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder.md).
-  They only existed to support the exporter. Hook functions should be
-  defined inline.
+  `ptr_define_placeholder()`. They only existed to support the exporter.
+  Hook functions should be defined inline.
 - The last commit before these removals is tagged
   `v0-pre-export-removal`.
 

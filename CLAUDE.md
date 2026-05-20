@@ -56,6 +56,9 @@ tool-call count and preserves context on large R source files.
 - Stored task files (`dev/tasks/*.md`) stay unchanged unless the user
   explicitly asks to edit them.
 - Do not create ad-hoc markdown files in `.claude/specs/`.
+- Architectural decision records live in `dev/adr/` (not `docs/` —
+  that’s pkgdown’s generated, gitignored output). Agent-skill config
+  lives in `dev/agents/` (see `## Agent skills` below).
 
 ## Harness Config
 
@@ -71,3 +74,64 @@ tool-call count and preserves context on large R source files.
   rmarkdown::render(“README.Rmd”, envir = globalenv())
 - Conventions: tidyverse style, snake_case, 2-space indent
 - Auto-approve start: true
+
+### Authoritative gate (Definition of Done) — read before claiming green
+
+The authoritative full-suite gate for this project is:
+
+    NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'
+
+Expected: **FAIL 0 / ERROR 0 / SKIP 0 / PASS N** (N = 1583 as of
+2026-05-17 `vignette-review`; the count grows — what matters is 0/0/0).
+`devtools::test()` is equivalent (it sets `NOT_CRAN=true` itself).
+
+> ⚠ Proxy trap — do not be fooled (corrected 2026-05-17, empirically
+> verified): - A raw `Rscript -e 'testthat::test_dir()/test_file()'`
+> with **no `NOT_CRAN`** → `skip_on_cran()` fires → **every shinytest2
+> browser test silently SKIPs**. “green, SKIP n” off that is NOT the
+> gate. - `devtools::check(... --as-cran)` does **NOT** make
+> `skip_on_cran()` fire (devtools runs the check subprocess with
+> `NOT_CRAN=true`). The browser fixtures instead **cleanly SKIP** via
+> `boot_vignette_app()`’s source-root guard (no `DESCRIPTION` in the
+> `.Rcheck` sandbox). If a check run shows the e2e file **ERRORing**
+> (`R CMD check found ERRORs`, pkgload “DESCRIPTION not found”), that
+> guard is missing/broken — a **harness defect, not a product failure,
+> and never the gate**. - Only `NOT_CRAN=true` / `devtools::test()`
+> **runs** the browser tests (source tree present → 0 SKIP). That alone
+> is the gate. Never claim the suite green, merge a branch, mark a step
+> done, or clear context off the skipping/erroring harness.
+
+Other gates:
+`devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))`
+→ 0 errors / 0 warnings (by-design NOTEs expected: CRAN incoming “new
+submission”, `.git`, top-level `CONTEXT.md`); the e2e browser file
+**cleanly SKIPs** here via the source-root guard — a non-zero-error
+check means that guard regressed, not a product failure (see proxy-trap
+block above). Docs:
+`source("dev/build-pkgdown.R"); build_pkgdown_clean()` → clean. Browser
+e2e needs `shinytest2` + `chromote` + Chrome; absent → clean all-skip is
+acceptable but must be reported, not hidden.
+
+Every plan for this project takes its **Definition of Done** from this
+block. Audit/enforce a plan with `/implementable <plan-path>`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs live as markdown files under `.scratch/<feature>/` in
+this repo — no remote tracker. See `dev/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default canonical vocabulary (`needs-triage`, `needs-info`,
+`ready-for-agent`, `ready-for-human`, `wontfix`), recorded as a
+`Status:` line in each issue file. See `dev/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context. The L2/L3 embedding model, UI-piece taxonomy, and
+shared-coordinator language live in `CONTEXT.md` (authoritative, created
+2026-05-16, locked by ADR 0005). General project/build conventions stay
+in this file. Architectural decisions live in `dev/adr/`. See
+`dev/agents/domain.md`.

@@ -1,0 +1,758 @@
+# Customization
+
+This vignette answers the question *how do I tailor ggpaintr’s
+defaults?* Companion vignettes cover the use-case ladder
+([`vignette("ggpaintr-use-cases")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-use-cases.md)),
+the safety story
+([`vignette("ggpaintr-safety")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-safety.md)),
+real ggplot recipes
+([`vignette("ggpaintr-gallery")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-gallery.md)),
+and LLM integration
+([`vignette("ggpaintr-llm")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-llm.md)).
+
+Every chunk is marked `eval = interactive()` and is runnable as-is at
+the R prompt after:
+
+``` r
+
+library(ggpaintr)
+```
+
+## Rewriting copy with `ui_text`
+
+Every label, placeholder, and help string in the generated UI comes from
+a deep-merged copy-rules tree. ggpaintr ships a set of defaults; you
+override any subset by passing `ui_text =` to the entry point. Only the
+keys you spell out change — everything else stays at its built-in value.
+
+### The six override sections
+
+| Section | What it controls |
+|----|----|
+| `shell` | Outer chrome — app title, draw / draw-all buttons, layer picker label, data / controls subtab labels. |
+| `upload` | The `upload` placeholder widget — file-picker label, optional-dataset-name label / placeholder / help text. |
+| `layer_checkbox` | The “Include this layer in the plot” toggle on each layer panel. |
+| `defaults` | Per-keyword copy defaults — one entry per registered placeholder, including custom ones (auto-populated from `copy_defaults` passed at registration time). |
+| `params` | Per-parameter overrides — copy that applies when a placeholder appears as the `x`, `color`, `title`, `alpha`, … argument of a layer. |
+| `layers` | Per-layer overrides — copy that applies to one placeholder occurrence inside one specific layer call (e.g. the positional `expr` of [`facet_wrap()`](https://ggplot2.tidyverse.org/reference/facet_wrap.html)). |
+
+The first three sections are flat: one fixed lookup path per UI slot.
+The last three are nested by keyword — and, for `layers`, by layer name
+× keyword × parameter — letting you scope an override to a single
+placeholder, a single parameter, or a single layer.
+
+### Merge precedence
+
+When the runtime needs the copy for a *control* (the widget rendered for
+one placeholder occurrence in one layer), it deep-merges three rules in
+order:
+
+1.  `defaults[[keyword]]` — most general.
+2.  `params[[param_key]][[keyword]]` — keyed by the surrounding
+    parameter name.
+3.  `layers[[layer_name]][[keyword]][[param_key]]` — keyed by the layer
+    the placeholder lives in.
+
+Each later rule wins on fields it specifies; fields it omits fall back
+to the earlier rule. For the other UI slots (chrome, upload widget,
+layer checkbox) the resolution path is fixed — the override either
+replaces a leaf field or does not.
+
+### Building overrides
+
+``` r
+
+custom_text <- ptr_ui_text(list(
+  shell = list(
+    title       = list(label = "Iris explorer"),
+    draw_button = list(label = "Render")
+  ),
+  params = list(
+    x     = list(var  = list(label = "X variable")),
+    title = list(text = list(label = "Plot heading"))
+  )
+))
+
+ptr_app(
+  "ggplot(iris, aes(x = var, y = var, color = var)) +
+     geom_point() +
+     labs(title = text)",
+  ui_text = custom_text
+)
+```
+
+[`ptr_ui_text()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_text.md)
+validates the partial override and returns a fully-merged `ptr_ui_text`
+object. Passing the bare list (without wrapping it in
+[`ptr_ui_text()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_text.md))
+works too — the entry points call it internally — but using it
+explicitly catches typos in section keys at registration time rather
+than at render time.
+
+`ptr_resolve_ui_text(component, keyword, param, layer_name, ui_text)` is
+the lower-level lookup the runtime uses to fetch the resolved copy for a
+single UI slot. Embedders writing custom UIs that mix ggpaintr-driven
+labels with their own copy can call it directly; most users do not need
+it.
+
+## Styling with CSS
+
+ggpaintr ships a bundled stylesheet (`ggpaintr.css`) and a stable,
+BEM-style class vocabulary under the `ptr-*` prefix. Three customization
+surfaces, in order of how invasive they are:
+
+### Surface 1 — class hooks ggpaintr already emits
+
+Every region of the default shell carries a stable class you can target
+from your own CSS. The vocabulary is BEM (`block`, `block__element`,
+`block--modifier`) and is committed surface; future releases will not
+silently rename these.
+
+| Region | Block | Notable elements |
+|----|----|----|
+| Outer shell | `.ptr-app` | `.ptr-app__header`, `.ptr-app__mark`, `.ptr-app__title` |
+| Plot card | `.ptr-card` | `.ptr-card--plot`, `.ptr-card__head`, `.ptr-card__title`, `.ptr-card__body` |
+| Output area | `.ptr-output` | — |
+| Generated-code window | `.ptr-code-window` | `.ptr-code-window__head`, `.ptr-code-window__title`, `.ptr-code-window__actions`, `.ptr-code-window__close`, `.ptr-code-window__body`, `.ptr-copy-btn`, `.ptr-code-toggle`, `.ptr-icon-btn` |
+| Shared-controls panel | `.ptr-shared-panel` | `.ptr-shared-panel__title`, `.ptr-shared-panel__hint` |
+| Pipeline stage rows | `.ptr-stage` | `.ptr-stage-head`, `.ptr-stage-fields`, `.ptr-stage-row` |
+| Inline errors | `.ptr-alert` | `.ptr-alert--error`, `.ptr-alert__detail` |
+
+### Surface 2 — injecting your own stylesheet with `css =`
+
+Every self-contained entry point
+([`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md),
+[`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md),
+[`ptr_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui.md),
+[`ptr_shared_panel()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_panel.md))
+accepts a `css =` argument — as does the optional L3 page shell
+[`ptr_ui_page()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_page.md),
+and the `ptr_ui_assets(css =)` escape hatch for
+non-[`ptr_ui_page()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_page.md)
+roots: a character vector of paths to `.css` files. Each file is
+registered as a static resource and linked **after** the bundled
+stylesheet, so your rules win at equal specificity. Relative `url(...)`
+references resolve against each file’s own directory, so you can ship
+images next to the stylesheet.
+
+``` r
+
+ptr_app(
+  "ggplot(mtcars, aes(var, var)) + geom_point()",
+  css = "my-theme.css"
+)
+```
+
+A minimal `my-theme.css` that recolours the title bar and tightens the
+card padding:
+
+``` css
+.ptr-app__header { background: #1f2937; color: #f9fafb; }
+.ptr-app__title  { font-family: "Inter", sans-serif; letter-spacing: -0.01em; }
+.ptr-card__body  { padding: 0.5rem 0.75rem; }
+```
+
+The `css =` argument validates each path: missing files and non-`.css`
+extensions abort at construction time with a clear message — typos
+surface before first browser load.
+
+### What is **not** stable surface
+
+The `.ptr-*` table above is the committed contract. Outside that:
+
+- Internal markup details — element order, nesting depth, descendant tag
+  names — may change between releases even when class names stay. Style
+  by class, not by structural selectors like
+  `.ptr-card > div:nth-child(2)`.
+- Classes emitted by upstream Shiny, shinyWidgets, and bslib
+  (`.shiny-input-container`, `.selectize-control`, `.form-control`,
+  `.btn-primary`, …) belong to those packages, not ggpaintr — their
+  stability is governed there.
+- Anything matching `^ptr_` is an **id** (Shiny input/output id), not a
+  class; styling against Shiny ids is allowed but brittle, since ids are
+  namespaced by host modules.
+
+## Writing your own wrapper
+
+When CSS alone is not enough — you want a different page shell, a theme
+system like `bslib`, or a layout that does not map onto
+[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)’s
+defaults — write a thin wrapper around the public ggpaintr primitives.
+The non-module split (`ptr_controls_ui()` / `ptr_outputs_ui()`) was
+removed in the L2/L3 redesign (ADR 0005); a single-formula wrapper now
+composes the bare L3 pieces plus the scaffolding they need:
+
+- `ptr_ui_controls(formula, id = NULL, ...)` — the layer picker,
+  per-layer parameter panels, and the “Update plot” button. It is
+  **bare** (emits only its widgets, no wrapper, no assets), so the
+  wrapper itself supplies the themed scope — a
+  `shiny::tags$div(class = "ptr-app", ...)` — and the bundled stylesheet
+  via
+  [`ptr_ui_assets()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_assets.md)
+  (self-deduping page-wide through htmlDependency).
+- the output stack —
+  `ptr_ui_toggle_code(ptr_ui_inline_error(ptr_ui_plot(id), ptr_ui_error(id)), ptr_ui_code(id))`:
+  the plot card, inline error, and the slide-out generated-code window,
+  composed from the bare panes by the two DOM-only combinators. This
+  nested call is byte-for-byte what
+  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+  /
+  [`ptr_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui.md)
+  render internally.
+- `ptr_server(formula, id = NULL, ...)` — the server side. Forwards
+  `ui_text` / `checkbox_defaults` / `expr_check` / `safe_to_remove` /
+  `envir` to \[ptr_init_state()\] and wires all the reactivity,
+  including shared widgets declared with `var(shared = "...")` inside
+  the same formula.
+
+The package ships one worked example as an exported function,
+[`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md).
+It is not a recommended primary entry point —
+[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+and
+[`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md)
+are. Its purpose is to *demonstrate* the wrapper pattern. The entire
+source is short enough to read in one screen:
+
+``` r
+
+ptr_app_bslib <- function(formula,
+                          envir = parent.frame(),
+                          ui_text = NULL,
+                          checkbox_defaults = NULL,
+                          expr_check = TRUE,
+                          safe_to_remove = character(),
+                          theme = NULL) {
+  if (!requireNamespace("bslib", quietly = TRUE)) {
+    rlang::abort(
+      "Package 'bslib' is required for ptr_app_bslib(). Install it with install.packages(\"bslib\")."
+    )
+  }
+  if (is.null(theme)) {
+    theme <- bslib::bs_theme(version = 5, bootswatch = "flatly")
+  }
+  id <- "ptr"
+  title <- ptr_resolve_ui_text("title", ui_text = ui_text)$label %||%
+    "ggpaintr"
+  
+  ui <- bslib::page_sidebar(
+    title = title,
+    theme = theme,
+    sidebar = bslib::sidebar(
+      title = "Controls",
+      # ptr_controls_ui()/ptr_outputs_ui() were removed (ADR 0005 §5); the
+      # wrapper now composes the public bare pieces + combinators directly.
+      # The `.ptr-app` div restores the themed scope the bslib page chrome
+      # does not provide, and ptr_ui_assets() ships the bundle (deduped
+      # page-wide by htmlDependency).
+      shiny::tags$div(
+        class = "ptr-app",
+        ptr_ui_assets(),
+        ptr_ui_controls(
+          id = id, formula = formula,
+          ui_text = ui_text,
+          checkbox_defaults = checkbox_defaults,
+          expr_check = expr_check,
+          shared = NULL
+        )
+      )
+    ),
+    bslib::card(
+      # full_screen = TRUE,
+      shiny::tags$div(
+        class = "ptr-app",
+        ptr_ui_assets(),
+        ptr_ui_toggle_code(
+          ptr_ui_inline_error(ptr_ui_plot(id), ptr_ui_error(id)),
+          ptr_ui_code(id)
+        )
+      )
+    )
+  )
+  
+  server <- function(input, output, session) {
+    ptr_server(
+      formula = formula,
+      id = id,
+      envir = envir,
+      ui_text = ui_text,
+      checkbox_defaults = checkbox_defaults,
+      expr_check = expr_check,
+      safe_to_remove = safe_to_remove
+    )
+  }
+  
+  shiny::shinyApp(ui = ui, server = server)
+}
+```
+
+Everything ggpaintr-specific in that source is on the public API, save
+the one internal
+[`ptr_resolve_ui_text()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_resolve_ui_text.md)
+title lookup — a wrapper of your own can equally hard-code its own title
+string. The only non-ggpaintr pieces are the
+[`bslib::page_sidebar()`](https://rstudio.github.io/bslib/reference/page_sidebar.html)
+shell and the `theme =` passthrough to
+[`bslib::bs_theme()`](https://rstudio.github.io/bslib/reference/bs_theme.html);
+those belong to `bslib`, not to ggpaintr. A wrapper is free to expose
+any downstream-library args alongside the ggpaintr ones it forwards.
+
+### Wrappers compose
+
+Wrappers built this way compose freely. A “dark mode” variant is one
+line:
+
+``` r
+
+ptr_app_dark <- function(formula, ...) {
+  ptr_app_bslib(
+    formula,
+    theme = bslib::bs_theme(version = 5, bootswatch = "darkly"),
+    ...
+  )
+}
+```
+
+The same template extends to other shells
+([`bslib::page_navbar()`](https://rstudio.github.io/bslib/reference/page_navbar.html),
+a custom
+[`shiny::fluidPage()`](https://rdrr.io/pkg/shiny/man/fluidPage.html)
+with bespoke chrome, a `flexdashboard`-style page) — swap the UI half
+and leave the
+[`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
+half alone.
+
+### Public-API limits
+
+The L2/L3 redesign closed the public-API gaps that the earlier
+[`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)
+wrapper was working around. The bare pieces `ptr_ui_plot(id)`,
+`ptr_ui_error(id)`, and `ptr_ui_code(id)` are independently placeable,
+so a layout that puts the plot and the generated code in separate
+containers — two side-by-side
+[`bslib::card()`](https://rstudio.github.io/bslib/reference/card.html)s,
+say — is just a matter of dropping each piece where you want it instead
+of nesting them through the combinators (skip
+[`ptr_ui_toggle_code()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_toggle_code.md)
+/
+[`ptr_ui_inline_error()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_inline_error.md)
+and the panes render plain and standalone). Single-formula
+`var(shared = "...")` coordination also works on the bare path:
+[`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
+self-binds every declared `shared` key under its own namespace and
+renders the widgets in that module’s inline shared section, exactly like
+[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+does — the
+[`ptr_shared()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared.md)
+/
+[`ptr_shared_panel()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_panel.md)
+/
+[`ptr_shared_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_server.md)
+trio is only needed when you embed two or more ggpaintr blocks and want
+one widget to drive several of them.
+
+### Background
+
+[`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)
+was originally documented as a co-equal entry point alongside
+[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+and
+[`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md).
+Repositioning it as a demonstration wrapper makes the function’s purpose
+honest — the value it carries is not “the official bslib variant of
+ggpaintr” but “a worked example of how short a wrapper can be when the
+public API does the heavy lifting.” Users who want a `bslib` theme can
+still call
+[`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)
+directly; users who want a different theme, layout, or shell should
+write their own wrapper using the same recipe.
+
+## Adding a new widget type
+
+ggpaintr ships five built-in placeholder keywords (`var`, `text`, `num`,
+`expr`, `upload`). Three constructors let you register your own. They
+write to a **process-global** registry, so call each one once per R
+session before launching any app that uses the new keyword.
+Re-registering an existing keyword warns and overwrites;
+[`ptr_clear_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_clear_placeholder.md)
+(below) removes registrations between sessions.
+
+| Constructor | Use when the widget … |
+|----|----|
+| [`ptr_define_placeholder_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_value.md) | … is not data-aware. Sliders, text, numeric, date, color pickers. |
+| [`ptr_define_placeholder_consumer()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_consumer.md) | … needs upstream column names. Column pickers, multi-column selectors. |
+| [`ptr_define_placeholder_source()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_source.md) | … *produces* a data frame. Database queries, built-in datasets, custom readers. |
+
+Each constructor takes a `build_ui` hook (the Shiny tag) and a resolver
+hook (how to turn the user’s input into a substituted expression).
+`resolve_expr()` returning `NULL` is the *drop this argument* signal —
+the substitute pass strips the corresponding argument from the generated
+code, exactly like the built-in `var` keyword returning `NULL` for an
+empty pick.
+
+The three subsections below introduce one constructor at a time with a
+worked example. Skim “How a placeholder runs” first — the mental model
+makes the hook signatures land.
+
+### How a placeholder runs
+
+A placeholder is *not* a widget; it is a **rule** that ggpaintr applies
+twice each time the user touches the app:
+
+1.  **Parse.** When `ptr_app("...formula...")` starts, ggpaintr parses
+    the formula and, for every token whose name matches a registered
+    keyword (`var`, `pct`, `range`, …), creates a *node*. A node
+    remembers where the token appeared and gets a namespaced Shiny `id`.
+    You never construct nodes by hand — the framework hands one to your
+    hook.
+2.  **Render UI (your `build_ui`).** For each node, ggpaintr calls your
+    `build_ui(node, label, …)`. Whatever Shiny tag you return is dropped
+    into the layer’s control panel. You **must** set the widget’s
+    `inputId` to `node$id` — that is the wire connecting the widget to
+    step 3.
+3.  **User types or clicks.** Standard Shiny: the widget’s current value
+    is `input[[node$id]]`. The framework watches every node’s input and
+    triggers step 4 whenever something changes.
+4.  **Resolve to code (your `resolve_expr`).** ggpaintr calls
+    `resolve_expr(value, node)` with the widget’s current value. Your
+    job is to return an **R expression** — not a value — that will be
+    spliced into the rendered call at the placeholder’s position. The
+    framework then runs the substituted call to produce the plot, and
+    prints the rendered call to the code window so the user sees a
+    reproducible snippet.
+5.  **Render data (sources only — your `resolve_data`).** Source
+    placeholders have a third hook that returns the actual data frame
+    downstream consumers read column names from. It runs alongside
+    `resolve_expr`.
+
+So the two hooks do different things at different times. `build_ui` runs
+once per node at app start. `resolve_expr` runs every time the widget
+value changes. The split is what lets the same registration drive both
+the UI *and* the generated code.
+
+#### What `node` carries
+
+Inside either hook, `node` is a small list. The fields you can read:
+
+| Field | Meaning |
+|----|----|
+| `node$id` | Namespaced Shiny input id. Pass as `inputId` of your widget in `build_ui`. In `resolve_expr` it just identifies which node you are resolving. |
+| `node$keyword` | The registered keyword (`"pct"`, `"range"`, …). Mostly useful when one `build_ui` is shared across keywords. |
+| `node$param` | The formal argument the placeholder is bound to (e.g. `"alpha"` for `geom_point(alpha = pct)`), or `NA_character_` for unnamed positional uses. |
+| `node$companion_id` | Source placeholders only, when `companion_id_fn` is set. Namespaced id of the sibling input. See *Source placeholders* below. |
+
+You should not mutate `node` — copy out the fields you need.
+
+#### What `value` looks like
+
+`value` is whatever Shiny stores at `input[[node$id]]` — typed exactly
+as the widget emits it. The common shapes:
+
+| Widget | Type of `value` |
+|----|----|
+| `textInput`, `selectInput` (single) | length-1 character; `""` when empty. |
+| `numericInput` | length-1 numeric; can be `NA_real_` or `NULL` before first input. |
+| `selectInput(multiple = TRUE)`, picker | character vector; `character(0)` when nothing is selected. |
+| `sliderInput(value = c(lo, hi))` | length-2 numeric. |
+| `checkboxInput` | length-1 logical. |
+| `fileInput` | one-row data frame with columns `name`, `size`, `type`, `datapath`. |
+| Custom widget | whatever you push via `session$sendInputMessage()`. |
+
+**Always validate `value` first.** The framework calls `resolve_expr` on
+every change, including before the user has touched anything. Treat
+empty / `NULL` / wrong-length input as “no value yet” and return `NULL`
+(see next).
+
+#### What `resolve_expr` must return
+
+The framework splices your return value into the call at the
+placeholder’s position. Allowed return types:
+
+| Return | Splices as | Build with |
+|----|----|----|
+| Scalar atomic (numeric/character/…) | A literal (`0.4`, `"red"`, `TRUE`) | `value`, or `as.numeric(value)`, … |
+| `name` / `symbol` | A bare identifier (`cyl`) | `rlang::sym(value)` |
+| `call` / `language` | A call (`factor(cyl)`, `c(0, 100)`) | [`rlang::expr()`](https://rlang.r-lib.org/reference/expr.html), [`rlang::call2()`](https://rlang.r-lib.org/reference/call2.html), `!!` |
+| `NULL` | **Prunes** this argument from the call entirely | `return(NULL)` |
+
+The `NULL`-prunes-the-argument rule is central. It is how the built-in
+`var` placeholder makes `geom_point(color = var)` render as
+[`geom_point()`](https://ggplot2.tidyverse.org/reference/geom_point.html)
+until the user actually picks a column — *not* as
+`geom_point(color = NULL)`. Use it generously: any time the input is
+empty, blank, or otherwise unusable, return `NULL` and let the framework
+drop the argument. For inputs that are *malformed* (a non-parseable
+expression, a non-numeric string in a numeric slot), throw with
+[`rlang::abort()`](https://rlang.r-lib.org/reference/abort.html) instead
+— the runtime surfaces the message inline.
+
+#### Where copy comes from
+
+Your registration’s `copy_defaults` becomes `defaults[[keyword]]` in the
+`ui_text` tree (covered in the first half of this vignette). At render
+time the framework merges `defaults` → `params[[param]]` →
+`layers[[layer]][[keyword]][[param]]` and passes the result into
+`build_ui`:
+
+- The resolved `label` is passed as the `label` argument — always
+  declare it.
+- Any other leaf field you put in `copy_defaults` (`help`,
+  `placeholder`, `empty_text`) is offered as a same-named argument if
+  `build_ui` declares it. The convention used by the built-ins is to
+  also accept a `copy = NULL` list and read `copy$help` etc. off it —
+  both styles work.
+- Always end the signature with `...` so future fields pass through
+  harmlessly.
+
+Strings in `copy_defaults` may contain `{param}`; the framework
+interpolates it with the surrounding formal-argument name
+(e.g. `"Enter a value for {param}"` becomes
+`"Enter a value for alpha"`).
+
+### Value placeholders — `ptr_define_placeholder_value()`
+
+The simplest case: a widget whose value depends on nothing outside
+itself. Here is a `range` keyword that renders a `sliderInput()` and
+substitutes a `c(lo, hi)` call into the formula.
+
+``` r
+
+ptr_define_placeholder_value(
+  keyword       = "range",
+  build_ui      = function(node, label = NULL, ...) {
+    sliderInput(node$id, label = label %||% "Range",
+                min = 0, max = 100, value = c(0, 100), step = 0.1)
+  },
+  resolve_expr  = function(value, node, ...) {
+    if (is.null(value) || length(value) != 2L) return(NULL)
+    rlang::expr(c(!!value[1], !!value[2]))
+  },
+  copy_defaults = list(label = "Range for {param}")
+)
+```
+
+`node$id` is the rendered widget’s Shiny input id (already namespaced
+for you); `label` is the resolved `ui_text` label for this slot, so any
+host-supplied override flows through automatically. `copy_defaults`
+becomes `defaults$range` in the `ui_text` tree; the `{param}` token
+interpolates the surrounding parameter name at render time.
+
+Now use it. Drop a `range` token into a formula and launch:
+
+``` r
+
+ptr_app("ggplot(mtcars, aes(mpg, hp)) + geom_point() + xlim(range)")
+```
+
+The slider appears in the layer panel; dragging it re-renders the plot
+and updates the code window to `... + xlim(c(15, 30))`. If your hook
+returns `NULL` for some inputs (not the case for a slider, but the
+convention applies to all keywords), the framework drops the
+corresponding argument from the rendered call rather than splicing
+`NULL` literally.
+
+### Consumer placeholders — `ptr_define_placeholder_consumer()`
+
+A consumer is data-aware: its `build_ui` hook receives `cols` (the
+upstream column-name vector) and, if needed, `data` (the resolved
+upstream data frame — `NULL` until upstream resolves). The runtime walks
+the formula’s pipeline and resolves the data context for you, including
+through `|>` chains; there is no walker to write.
+
+``` r
+
+ptr_define_placeholder_consumer(
+  keyword       = "colvars",
+  build_ui      = function(node, cols = character(), label = NULL,
+                           selected = character(0), ...) {
+    selectInput(node$id, label = label %||% "Columns",
+                choices = cols, selected = intersect(selected, cols),
+                multiple = TRUE)
+  },
+  resolve_expr  = function(value, node, ...) {
+    if (length(value) == 0L) return(NULL)
+    rlang::call2("c", !!!as.list(value))
+  },
+  copy_defaults = list(label = "Columns for {param}")
+)
+```
+
+Consumer constructors also accept an optional
+`validate_input = function(value, upstream_cols)` callback. It returns
+`TRUE` (or `NULL`) when the input is valid, or an error-message string
+otherwise. The built-in `var` consumer uses it to surface “Column `foo`
+was removed from the upstream data” messages when the data shape changes
+mid-session.
+
+Wire it into an app to see the multi-select picker react to the upstream
+data:
+
+``` r
+
+ptr_app("mtcars |> dplyr::select(colvars) |> 
+        ggplot(aes(x = var, y = var)) + geom_point()")
+```
+
+The picker’s choices are populated from `mtcars`’s column names — that
+is `cols` in `build_ui`. Pick two or three columns; the rendered code
+becomes `mtcars |> dplyr::select(c('mpg', 'hp', 'wt'))`. Clear the
+picker and `resolve_expr` returns `NULL`, so the `c(...)` arg is pruned
+rather than spliced as `NULL`.
+
+#### Reading values, not just column names — the `data` argument
+
+`cols` is enough when the widget only needs to know *which columns
+exist*. When the widget’s bounds, choices, or defaults depend on the
+**values** themselves, declare `data` in the signature — the framework
+hands you the upstream data frame, refreshed whenever upstream resolves.
+A range slider whose `min`/`max` come from the column itself is the
+prototypical case:
+
+``` r
+
+ptr_define_placeholder_consumer(
+  keyword       = "numrange",
+  build_ui      = function(node, cols = character(), data = NULL,
+                           label = NULL, ...) {
+    num_cols <- cols[vapply(data[cols], is.numeric, logical(1))]
+    col      <- num_cols[1] %||% ""
+    rng      <- if (nzchar(col)) range(data[[col]], na.rm = TRUE) else c(0, 1)
+    sliderInput(node$id, label = label %||% "Range",
+                min = rng[1], max = rng[2], value = rng)
+  },
+  resolve_expr  = function(value, ...) {
+    if (is.null(value)) return(NULL)
+    rlang::call2("c", value[1], value[2])
+  },
+  copy_defaults = list(label = "Range for {param}")
+)
+```
+
+``` r
+
+ptr_app("
+mtcars |> 
+  dplyr::filter(mpg >= numrange(shared = 'n')[1],
+                mpg <= numrange(shared = 'n')[2]) |> 
+  ggplot(aes(x = var, y = var)) +
+  geom_point()
+")
+```
+
+The slider’s bounds are `range(mtcars$mpg)` — not a hard-coded guess —
+because `data` carries the actual frame. `data` is `NULL` before
+upstream resolves, so guard for it (the `if (nzchar(col))` fallback
+above does this). Note that `numrange` splices `c(lo, hi)` and the
+formula reads `numrange[1]` / `numrange[2]` to pull the bounds; `%in%`
+would do set membership, not a range check, so don’t reach for it here.
+
+### Source placeholders — `ptr_define_placeholder_source()`
+
+A source placeholder *produces* a data frame. Use this for widgets the
+rest of the formula reads from — built-in datasets, database queries,
+programmatic samples — without an `upload` placeholder doing the work.
+
+``` r
+
+ptr_define_placeholder_source(
+  keyword       = "dataset",
+  build_ui      = function(node, label = NULL, ...) {
+    selectInput(node$id, label = label %||% "Built-in dataset",
+                choices = c("iris", "mtcars", "diamonds", "economics"))
+  },
+  resolve_data  = function(value, node, ...) {
+    if (is.null(value) || !nzchar(value)) return(NULL)
+    switch(value,
+           iris      = iris,
+           mtcars    = mtcars,
+           diamonds  = ggplot2::diamonds,
+           economics = ggplot2::economics,
+           NULL)
+  },
+  copy_defaults = list(label = "Built-in dataset for {param}")
+)
+```
+
+`resolve_data` returns the data frame to feed downstream consumers.
+`resolve_expr` defaults to substituting the bare keyword
+(`rlang::sym(value)`) into the generated code, which is right when
+`value` is the name of a global object. Override `resolve_expr` to
+substitute something else (e.g. `expr(read.csv(!!path))`) when the
+generated code should re-fetch the data rather than carry a reference.
+
+`companion_id_fn = function(id) <companion_id>` pairs the primary widget
+with a sibling — the built-in `upload` source uses it for the “Optional
+dataset name” textbox. Most sources do not need it.
+
+Drop the `dataset` keyword in as the first stage of a pipeline:
+
+``` r
+
+ptr_app("ggplot(dataset, aes(var, var)) + geom_point()")
+```
+
+Pick *iris* in the dropdown — that runs `resolve_data("iris")`, which
+returns `iris`. The two downstream `var` consumers receive the iris
+columns in `cols`, populate their pickers, and the rendered code becomes
+`ggplot(iris, aes(Sepal.Length, Petal.Length)) + geom_point()` once the
+user picks columns. `resolve_expr` was not overridden, so the default
+`rlang::sym(value)` splices the bare symbol `iris`. If you wanted the
+code window to show `ggplot(read.csv("path/to/iris.csv"), …)` instead,
+you would override `resolve_expr` to return that
+[`expr()`](https://rlang.r-lib.org/reference/expr.html) — the data the
+app reads from is unchanged, only the spliced text differs.
+
+### Common pitfalls
+
+- **Forgetting `inputId = node$id`.** Without it the widget exists but
+  its value never reaches `resolve_expr`. Symptom: the widget renders,
+  the user types, nothing happens. Always copy `node$id` straight into
+  the underlying Shiny constructor.
+- **Returning a `character` when you wanted a symbol.**
+  `resolve_expr = function(value, ...) value` for a column picker
+  splices `"cyl"` (a string literal) into the call, which then errors as
+  `geom_point(color = "cyl")` — `"cyl"` is treated as a constant color,
+  not a column. Wrap with `rlang::sym(value)` to splice the bare
+  identifier.
+- **Forgetting to handle empty input.** Shiny calls your hook before the
+  user has touched anything. Treat `NULL`, `character(0)`, `NA`, and
+  empty strings as “no value yet” and `return(NULL)` — the framework
+  will prune the argument, and the layer continues to work.
+- **Confusing `resolve_expr` with `resolve_data`.** For source
+  placeholders the two run together but mean different things:
+  `resolve_data` produces the **actual data frame** downstream consumers
+  read; `resolve_expr` produces the **text that goes in the rendered
+  call**. They can disagree on purpose (e.g. show `read.csv("…")` in the
+  code while reading uploaded bytes at runtime).
+- **Dropping `...` from the signature.** The framework may add new named
+  arguments to its `build_ui` invocation in future versions; without
+  `...` the call fails. Always end every hook signature with `...`.
+- **Re-registering inside a reactive.** The registry is process-global;
+  calling `ptr_define_placeholder_*()` repeatedly inside a Shiny
+  observer wastes work and emits an “Overwriting placeholder registry
+  entry” notice each time. Register once at script top level, before
+  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md).
+- **Returning the data instead of an expression from `resolve_expr`.** A
+  common confusion for source placeholders: `resolve_expr` does *not*
+  return the data frame — it returns the snippet that *names* the data
+  in the rendered code. `resolve_data` returns the actual data.
+
+## Unregistering
+
+Custom placeholders live in a process-global registry. Call
+[`ptr_clear_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_clear_placeholder.md)
+between sessions, inside tests, or when re-running this vignette
+interactively, to wipe user-registered keywords without restarting R:
+
+``` r
+
+ptr_clear_placeholder("range")  # remove one keyword
+ptr_clear_placeholder()         # remove every user-registered keyword
+```
+
+The five built-ins (`var`, `text`, `num`, `expr`, `upload`) are
+protected — passing one to
+[`ptr_clear_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_clear_placeholder.md)
+errors. Re-registering an existing keyword via any of the three
+constructors above overwrites the previous entry (with a `cli` notice);
+you do not need to clear first.
