@@ -52,9 +52,14 @@
   <tr><td><code>RENDER_WIDTH</code></td><td>13</td><td>Constant used for line-wrap decisions. Unchanged by this plan.</td></tr>
 </table>
 
-<p><strong>Key insight from reading the source:</strong> today, <em>"final code"</em> is produced by a substitution pass (<code>paintr-substitute.R</code>) that replaces placeholder nodes with their resolved value nodes <em>before</em> <code>ptr_render</code> walks the tree. The renderer itself never sees a placeholder node in the "final code" path; it just renders whatever the substitution pass left in place. The renderer's existing <code>render_walk.ptr_ph_value</code> at line 209 only fires when the tree still contains placeholder nodes (e.g. in tests, or for the new preserved-mode output we are adding).</p>
+<p><strong>Mechanism note (verify before relying on this for the design):</strong> the existing <code>render_walk.ptr_ph_value</code> at line 209 (and its <code>_data_consumer</code> / <code>_data_source</code> siblings at lines 212 / 215) emit <code>rlang::expr_text(node$expr)</code> — i.e. they print the placeholder's source expression. The "final code" view shown in today's app is therefore produced by a <em>substitution-before-render</em> pass (the <code>substitute_walk.ptr_ph_*</code> methods in <code>R/paintr-substitute.R</code> at lines 80 / 115 / 138) that rewrites placeholder nodes into literal / resolved nodes <em>before</em> <code>ptr_render</code> walks the tree. <strong>Implementer: read those <code>substitute_walk.*</code> bodies (lines 80–175 of <code>R/paintr-substitute.R</code>) and confirm the swap shape before adopting the plan's "preserve-mode walks pre-substitution tree" framing.</strong> The two possible designs are:</p>
 
-<p>This plan therefore adds a sibling code path: a new <code>ptr_render(node, preserve_placeholders = TRUE)</code> mode that walks the <em>pre-substitution</em> tree (or a substituted tree where placeholder nodes were preserved with the current pick recorded on them — depending on how PLAN-08 wires the toggle).</p>
+<ol>
+  <li><em>Two trees</em> — preserve-mode renders the pre-substitution AST; erase-mode renders the post-substitution AST. The substitute pass is called once and the result kept alongside the original. Cleanest if the substitute pass is referentially transparent on the root.</li>
+  <li><em>One tree with a flag</em> — placeholder nodes carry the current pick (proposed field: <code>node$current_pick</code>); the renderer chooses between emitting the literal pick (erase) or <code>ppX(pick)</code> (preserve). Requires PLAN-07/08 to set <code>current_pick</code> at substitution time.</li>
+</ol>
+
+<p>This plan assumes design (2) for the renderer-side change; PLAN-07 / PLAN-08 wire the <code>current_pick</code> setter. Tests in this plan stub <code>current_pick</code> by hand on synthetic placeholder nodes.</p>
 
 <h2>Files touched</h2>
 

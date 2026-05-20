@@ -59,21 +59,22 @@
 
 <table>
   <tr><th>Function</th><th>Line</th><th>Current signature (existing)</th><th>Current return</th></tr>
-  <tr><td><code>ptr_define_placeholder_value</code></td><td>262</td><td><code>function(keyword, build_ui, resolve_expr, copy_defaults = list(label = "Enter a value for {param}"))</code></td><td><code>invisible(ptr_registry_register(entry))</code> (entry list)</td></tr>
-  <tr><td><code>ptr_define_placeholder_consumer</code></td><td>333</td><td><code>function(keyword, build_ui, resolve_expr, validate_input = NULL, copy_defaults = list(label = "Pick a column for {param}"))</code></td><td>entry list (invisibly)</td></tr>
-  <tr><td><code>ptr_define_placeholder_source</code></td><td>420</td><td><code>function(keyword, build_ui, resolve_data, ...)</code></td><td>entry list (invisibly)</td></tr>
-  <tr><td><code>ptr_registry_register</code></td><td>187</td><td>stores entry under <code>entry$keyword</code> in the registry env</td><td>—</td></tr>
+  <tr><td><code>ptr_define_placeholder_value</code></td><td>261 (signature opens; body closes ~276)</td><td><code>function(keyword, build_ui, resolve_expr, copy_defaults = list(label = "Enter a value for {param}"))</code></td><td>returns whatever <code>ptr_registry_register(entry)</code> returns, which is <code>invisible(entry)</code> (registry.R:192)</td></tr>
+  <tr><td><code>ptr_define_placeholder_consumer</code></td><td>332 (signature opens)</td><td><code>function(keyword, build_ui, resolve_expr, validate_input = NULL, copy_defaults = list(label = "Pick a column for {param}"))</code></td><td>entry list (invisibly)</td></tr>
+  <tr><td><code>ptr_define_placeholder_source</code></td><td>419 (signature opens)</td><td><code>function(keyword, build_ui, resolve_data, resolve_expr = NULL, companion_id_fn = NULL, copy_defaults = list(label = "Provide a data source for {param}"))</code> — note: explicit named parameters, NOT a <code>...</code> sink. Re-verify with <code>grep -n "ptr_define_placeholder_source" R/paintr-registry.R</code> before editing.</td><td>entry list (invisibly)</td></tr>
+  <tr><td><code>ptr_registry_register</code></td><td>187 (signature; <code>invisible(entry)</code> return at line 192)</td><td>stores entry under <code>entry$keyword</code> in the registry env</td><td>—</td></tr>
 </table>
 
-<p>The entry list shape today (from <code>ptr_define_placeholder_value</code>, lines 270–274):</p>
+<p>Per-role entry-list shape today (the fields differ by role; the plan adds the three new fields to all three roles):</p>
 
-<pre>entry &lt;- list(
-  keyword, role = "value", data_aware = FALSE,
-  build_ui, resolve_expr,
-  copy_defaults
-)</pre>
+<table>
+  <tr><th>Role</th><th>Entry fields (existing)</th></tr>
+  <tr><td><code>_value</code></td><td><code>keyword, role = "value", data_aware = FALSE, build_ui, resolve_expr, copy_defaults</code></td></tr>
+  <tr><td><code>_consumer</code></td><td><code>keyword, role = "consumer", data_aware = TRUE, build_ui, resolve_expr, validate_input, copy_defaults</code></td></tr>
+  <tr><td><code>_source</code></td><td><code>keyword, role = "source", data_aware = TRUE, build_ui, resolve_data, resolve_expr, companion_id_fn, copy_defaults</code></td></tr>
+</table>
 
-<p>This plan adds <code>default_arg</code>, <code>named_args</code>, <code>runtime</code> to that list — three new fields, each with a clear default.</p>
+<p>This plan adds <code>default_arg</code>, <code>named_args</code>, <code>runtime</code> to every entry shape — three new fields per role, each with a clear default. Existing role-specific fields (<code>validate_input</code>, <code>resolve_data</code>, <code>companion_id_fn</code>, etc.) keep their current behaviour.</p>
 
 <h2>Files touched</h2>
 
@@ -284,7 +285,7 @@
 <ul>
   <li>Worktree checked out from <code>vignette-review</code> HEAD on branch <code>adr9/03-registry-slots</code>.</li>
   <li>Suite green at the authoritative gate (0/0/0 PASS N).</li>
-  <li>Before edits, confirm signatures match the table above (lines 262, 333, 420 of <code>R/paintr-registry.R</code>).</li>
+  <li>Before edits, confirm signatures match the table above (approx lines 261, 332, 419 of <code>R/paintr-registry.R</code>; re-grep with <code>grep -n "^ptr_define_placeholder_" R/paintr-registry.R</code> in case the file moved).</li>
   <li><code>R/paintr-builtins.R</code> still uses the old keyword names (<code>var/num/text/expr/upload</code>) — that is fine; this plan does not depend on the rename.</li>
 </ul>
 
@@ -293,7 +294,7 @@
 <p>This plan lands cleanly without any other ADR-0009 plan. The new parameters are optional and the existing built-ins do not pass them — so the registered entries keep their current shape, and the parser (unchanged in this plan) continues to apply the "only shared allowed" rule via the existing <code>extract_shared</code>. The runtime callable is returned but unused by the built-ins until PLAN-08 binds them under <code>ppX &lt;- ptr_define_placeholder_...()</code>.</p>
 
 <div class="note">
-  <strong>Verification, 2026-05-20:</strong> Line numbers for the three define helpers (262, 333, 420) and <code>ptr_registry_register</code> (187) verified against <code>R/paintr-registry.R</code> on 2026-05-20. Re-verify with <code>grep -n "^ptr_define_placeholder_\|^ptr_registry_register" R/paintr-registry.R</code> before editing if the file may have moved.
+  <strong>Verification, 2026-05-20:</strong> Line numbers for the three define helpers (approx 261, 332, 419) and <code>ptr_registry_register</code> (187, with <code>invisible(entry)</code> at 192) verified against <code>R/paintr-registry.R</code> on 2026-05-20. Re-verify with <code>grep -n "^ptr_define_placeholder_\|^ptr_registry_register" R/paintr-registry.R</code> before editing. Note that the original line numbers in earlier drafts of this plan were off-by-one; the values here reflect the corrected positions.
 </div>
 
 </body>

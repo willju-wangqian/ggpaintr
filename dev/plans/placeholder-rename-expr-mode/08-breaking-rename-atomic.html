@@ -38,7 +38,7 @@
   <li>Export plain-R callables for the five names: identity functions for <code>ppVar/ppNum/ppText/ppExpr</code>, a guard function for <code>ppUpload</code>. These are returned by the PLAN-03 define helpers; assign them to the keyword names at the top level of <code>R/paintr-builtins.R</code> with <code>@export</code> roxygen.</li>
   <li>Remove the old keyword registrations. Old names cease to be placeholders. A formula that still says <code>var(mpg)</code> fails at translate-time with the standard "unknown keyword" error.</li>
   <li>Rename every formula in <code>vignettes/</code>, <code>tests/testthat/</code>, <code>tests/testthat/fixtures/</code>, <code>tests/manual/</code>, <code>README.Rmd</code>, and any in-source roxygen example from old keywords to new ones.</li>
-  <li>Wire the two-version code-gen UI toggle in <code>R/paintr-app.R</code> / <code>R/paintr-shared-ui.R</code> (whichever currently renders the code panel). Default tab: "final code". Toggle to: "formula with placeholders". The toggle calls <code>ptr_render(root, preserve_placeholders = TRUE)</code> (PLAN-05).</li>
+  <li>Wire the two-version code-gen UI toggle. The code panel is rendered in <code>R/paintr-server.R</code> (verified 2026-05-20: code-output assembly at lines 200, 1373, 1397; <code>paintr-shared-ui.R</code> has no <code>verbatimTextOutput</code> / <code>codeOutput</code> hits). Default tab: "final code". Toggle to: "formula with placeholders". The toggle calls <code>ptr_render(root, preserve_placeholders = TRUE)</code> (PLAN-05). The toggle <em>widget</em> (the radio / segmented control itself) may live in the UI builder side — likely <code>R/paintr-app.R</code> or <code>R/paintr-shared-ui.R</code> depending on which generates the panel layout. Audit the UI shell with <code>grep -n "code" R/paintr-app.R R/paintr-shared-ui.R</code> to find where to inject the toggle markup before editing.</li>
   <li>Update <code>NEWS.md</code> with the breaking-change announcement and <code>DESCRIPTION</code> if any user-visible bump is appropriate.</li>
   <li>Update <code>CONTEXT.md</code> only if it cites old keyword names (the placeholder taxonomy itself is unchanged; only the surface vocabulary moves).</li>
 </ol>
@@ -94,8 +94,8 @@ ppUpload &lt;- ptr_define_placeholder_source(
 <table>
   <tr><th>Group</th><th>Files</th></tr>
   <tr><td>R source — registration sites</td><td><code>R/paintr-builtins.R</code> (lines 222–253: <code>ptr_register_builtins</code>), <code>R/paintr-registry.R</code> (only built-in references), <code>R/paintr-builtins.R</code> hook bodies</td></tr>
-  <tr><td>R source — internal references to keywords as strings</td><td><code>R/paintr-walk.R</code>, <code>R/paintr-substitute.R</code>, <code>R/paintr-safety.R</code>, <code>R/paintr-build-ui.R</code>, <code>R/paintr-utils.R</code>, <code>R/paintr-shared.R</code>, <code>R/paintr-server.R</code>, <code>R/paintr-shared-ui.R</code>, <code>R/paintr-app-bslib.R</code>, <code>R/paintr-shared-coordinator.R</code>, <code>R/paintr-copy.R</code>. Each may carry literal "var" / "num" / etc. or default-copy strings keyed by keyword.</td></tr>
-  <tr><td>Vignettes</td><td><code>vignettes/ggpaintr-customization.Rmd</code>, <code>vignettes/ggpaintr-gallery.Rmd</code>, <code>vignettes/ggpaintr-safety.Rmd</code>, <code>vignettes/ggpaintr-use-cases.Rmd</code></td></tr>
+  <tr><td>R source — internal references to keywords as strings</td><td><strong>Verified-positive (contain literal "var" / "num" / etc. as keyword references, 2026-05-20):</strong> <code>R/paintr-substitute.R</code>, <code>R/paintr-builtins.R</code>, <code>R/paintr-build-ui.R</code>, <code>R/paintr-copy.R</code>. <strong>Verified-empty (no keyword literals at audit time):</strong> <code>paintr-walk.R</code>, <code>paintr-safety.R</code>, <code>paintr-utils.R</code>, <code>paintr-shared.R</code>, <code>paintr-server.R</code>, <code>paintr-shared-ui.R</code>, <code>paintr-app-bslib.R</code>, <code>paintr-shared-coordinator.R</code>, <code>paintr-registry.R</code>. Re-run the survey command before editing to catch any drift; these files <em>may</em> grow keyword references in PLAN-06/07 work and the rename must catch them.</td></tr>
+  <tr><td>Vignettes</td><td><code>vignettes/ggpaintr-customization.Rmd</code>, <code>vignettes/ggpaintr-gallery.Rmd</code>, <code>vignettes/ggpaintr-safety.Rmd</code>, <code>vignettes/ggpaintr-use-cases.Rmd</code>, <code>vignettes/ggpaintr-llm.Rmd</code>. (The earlier draft of this plan missed <code>ggpaintr-llm.Rmd</code> — audited 2026-05-20.)</td></tr>
   <tr><td>Tests</td><td><code>tests/testthat/test-rewrite-render.R</code>, <code>test-shared-ui.R</code>, <code>test-rewrite-disable.R</code>, <code>test-copy-rules.R</code>, <code>test-rewrite-translate.R</code>, <code>test-rewrite-classify.R</code>, <code>test-rewrite-input-spec.R</code>, <code>test-rewrite-walk.R</code>, <code>test-runtime-headless.R</code>, <code>test-shared-coordinator.R</code>, <code>test-module-server-shared.R</code>, <code>test-shared-server.R</code>, and others (run the survey command below before editing).</td></tr>
   <tr><td>Test helpers / fixtures</td><td><code>tests/testthat/helper-vignette-apps.R</code>, <code>tests/testthat/fixtures/vignette-apps/*/app.R</code></td></tr>
   <tr><td>Manual tests</td><td><code>tests/manual/</code> (per-script audit; many are formula-bearing demo apps).</td></tr>
@@ -115,8 +115,8 @@ ppUpload &lt;- ptr_define_placeholder_source(
   <tr><th>File</th><th>Change</th></tr>
   <tr><td><code>R/paintr-builtins.R</code></td><td>Replace the five registrations in <code>ptr_register_builtins()</code> with the new keyword names + <code>default_arg</code> helpers. Assign the returned runtime callables to top-level names <code>ppVar</code>, <code>ppNum</code>, <code>ppText</code>, <code>ppExpr</code>, <code>ppUpload</code> with <code>@export</code> roxygen. Remove or update any string lookups keyed on old names within the file (e.g. <code>ptr_builtin_keywords()</code> at line 217 must return the new vocabulary).</td></tr>
   <tr><td><code>R/paintr-walk.R</code>, <code>R/paintr-substitute.R</code>, <code>R/paintr-safety.R</code>, <code>R/paintr-build-ui.R</code>, <code>R/paintr-utils.R</code>, <code>R/paintr-shared.R</code>, <code>R/paintr-server.R</code>, <code>R/paintr-shared-ui.R</code>, <code>R/paintr-app-bslib.R</code>, <code>R/paintr-shared-coordinator.R</code>, <code>R/paintr-copy.R</code></td><td>Update any literal-string references to the five old keywords (e.g. <code>"var"</code> → <code>"ppVar"</code>) in switch tables, default-copy maps, safety-walker allow-lists, etc.</td></tr>
-  <tr><td><code>R/paintr-app.R</code> or <code>R/paintr-shared-ui.R</code> (whichever owns the code panel)</td><td>Add the two-version toggle UI (radio or segmented control). The toggle's state drives whether the visible code panel reads <code>ptr_render(root)</code> or <code>ptr_render(root, preserve_placeholders = TRUE)</code>. Default tab: "final code". Label the toggle clearly ("Show formula with placeholders").</td></tr>
-  <tr><td><code>R/paintr-app.R</code></td><td>If the toggle drives an additional reactive, wire it into the server. The two render calls already exist (PLAN-05); this plan just toggles between them.</td></tr>
+  <tr><td><code>R/paintr-server.R</code> (code-panel rendering at lines 200, 1373, 1397)</td><td>Switch the code panel's rendered output between <code>ptr_render(root)</code> (today) and <code>ptr_render(root, preserve_placeholders = TRUE)</code> based on the toggle's reactive value. Two render calls, one reactive switch.</td></tr>
+  <tr><td><code>R/paintr-app.R</code> and/or <code>R/paintr-shared-ui.R</code> (UI shell for the code panel)</td><td>Add the toggle widget (radio or segmented control) to the code-panel UI markup. Default tab: "final code". Label clearly ("Show formula with placeholders"). Locate the existing panel markup with <code>grep -n "code" R/paintr-app.R R/paintr-shared-ui.R</code> before editing.</td></tr>
   <tr><td>vignettes/* (all)</td><td>Mechanical rename of every old-keyword reference inside a formula string or expression-mode formula. Update prose that talks about the placeholder vocabulary.</td></tr>
   <tr><td>tests/testthat/* (all)</td><td>Mechanical rename of every old-keyword reference inside a formula string or expression-mode formula. Per-line judgement to avoid renaming legitimate uses of <code>stats::var()</code>, <code>graphics::text()</code>, etc.</td></tr>
   <tr><td>tests/testthat/fixtures/vignette-apps/*/app.R</td><td>Update fixture apps so they use the new vocabulary. These fixtures must stay in lock-step with the vignettes they mirror.</td></tr>
@@ -254,11 +254,17 @@ ppUpload &lt;- ptr_define_placeholder_source(
 
 <pre>Rscript -e 'source("dev/build-pkgdown.R"); build_pkgdown_clean()'</pre>
 
-<p><strong>Plus:</strong> Sanity grep — no residual placeholder uses of the old names in formula contexts:</p>
+<p><strong>Plus:</strong> Sanity grep — no residual placeholder uses of the old names in formula or keyword-literal contexts:</p>
 
-<pre>grep -rn '"var\b\|"num\b\|"text\b\|"expr\b\|"upload\b' R/paintr-builtins.R R/paintr-registry.R</pre>
+<pre>grep -rn '"var"\|"num"\|"text"\|"expr"\|"upload"' \
+  R/paintr-builtins.R R/paintr-registry.R \
+  R/paintr-substitute.R R/paintr-build-ui.R R/paintr-copy.R</pre>
 
-<p>Expected: zero hits (only the new names should appear as registered keywords).</p>
+<p>Expected: zero hits in keyword-literal positions (only the new names should appear as registered keywords or in default-copy maps). Per-line judgement: legitimate uses of <code>var()</code>/<code>text()</code> in test expectations or doc prose are fine; only keyword-literal strings used by registry / substitute / build-ui / copy dispatching are in scope.</p>
+
+<p>Also extend the survey grep used <em>before</em> editing (see "Rename inventory") to catch any new keyword literals introduced by PLAN-06/07 work that landed between the survey and this PR:</p>
+
+<pre>grep -rn '"var"\|"num"\|"text"\|"expr"\|"upload"\|ptr_registry_lookup("var"\|ptr_registry_lookup("num"' R/ tests/ vignettes/ README.Rmd</pre>
 
 <p><strong>Proxy traps — DO NOT be fooled:</strong></p>
 <ul>
