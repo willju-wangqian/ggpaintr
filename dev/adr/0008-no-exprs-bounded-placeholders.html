@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0008 — No `exprs` placeholder; placeholders stay bounded (REJECTED — decision made)</title>
+<style>
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.2rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .danger { border-left: 4px solid #c0392b; background: #fde7e7; padding: .6rem .9rem; margin: .8rem 0; }
+  .note  { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+</style>
+</head>
+<body>
+
+<h1>ADR 0008 — No <code>exprs</code> placeholder; placeholders stay bounded</h1>
+<p class="meta">Status: <strong>rejected — decision made</strong> · Date: 2026-05-19 ·
+Supersedes: <strong>nothing</strong> · Voids: <strong>nothing</strong> ·
+Related: ADR 0005 / 0006 (L2/L3 redesign; single server entry) ·
+Domain language: <code>CONTEXT.md</code> (no change) ·
+Implementation: <strong>none</strong> — this ADR records a decision <em>not</em> to build a feature.</p>
+
+<div class="danger">
+  <strong>Decision: ggpaintr will not add an <code>exprs</code> (multi-line, structure-bearing, raw-code) placeholder.</strong> The existing <code>expr</code> placeholder — a single bounded R expression — stays as the maximum-freedom hole. This is a deliberate scope boundary, not a deferral.
+</div>
+
+<h2>Context</h2>
+<p>A 2026-05-19 discussion explored an <code>exprs</code> placeholder: a hole that takes multiple lines of arbitrary R and splices them into the formula at the token's structural position, so its content could add pipeline stages, add <code>+</code> layers, or supply the <code>ggplot()</code> base itself. Motivating sketches:</p>
+<pre>exprs |&gt; ggplot(...)               # exprs = data-pipeline head
+ggplot(...) + exprs + labs(...)    # exprs = several layers
+exprs + labs(...)                  # exprs = pipeline + base + layers
+mtcars |&gt; exprs |&gt; ggplot() + exprs # both, multiple holes</pre>
+<p>This started from a real bug report: a <code>+</code>-chain typed into the current <code>expr</code> placeholder (<code>geom_line() + ggtitle("abc")</code>) fails with <em>"Cannot add &lt;ggproto&gt; objects together"</em>. That bug is real and tracked separately; it does <strong>not</strong> motivate <code>exprs</code>. Standalone <code>geom_line() + ggtitle()</code> is itself misuse of <code>expr</code> (an isolated ggproto chain with no plot base), so "generalize <code>expr</code> to absorb it" was explicitly rejected as the wrong fix.</p>
+
+<h2>Why <code>exprs</code> is the wrong direction</h2>
+
+<h3>1. The reductio</h3>
+<p>Take <code>exprs</code> to its limit: one app, one <code>exprs</code> hole, user pastes arbitrary R, ggpaintr runs it. That is an R session wrapped in a Shiny app — a REPL with extra steps. It carries none of ggpaintr's value (a <em>structured</em> formula whose tokens become typed, validated, composable controls) and all of <code>eval</code>'s liability. A feature whose extreme case is meaningless is a feature aimed in the wrong direction. <strong>ggpaintr's job is to turn a structured plot grammar into controls, not to host free-form code.</strong></p>
+
+<h3>2. It breaks the typed-AST invariant</h3>
+<p>The post-rewrite pipeline parses the formula <em>once</em> into a typed tree; structure (<code>root$layers</code>, pipeline shape, <code>data_arg</code>) is fixed at translate time and placeholders are leaves within it. <code>substitute_walk.ptr_root</code> does a strict 1:1 in-place node replacement; <code>substitute_walk.ptr_ph_value</code> returns exactly one node; <code>ptr_eval</code> evaluates per layer and composes with <code>Reduce(`+`)</code>. <code>exprs</code> would make structure depend on runtime input, forcing a pre-parse text-macro phase and a full re-translate — reintroducing exactly the parse-time/runtime entanglement the typed-AST rewrite removed.</p>
+
+<h3>3. Every realization needs unforced design forks</h3>
+<table>
+  <tr><th>Forced question</th><th>Why it is unforced today</th></tr>
+  <tr><td>Empty hole → <code>ggplot() +  + labs()</code> invalid</td><td>Bounded placeholders prune cleanly; a structural hole needs bespoke dangling-operator pruning.</td></tr>
+  <tr><td>Placeholders nested inside <code>exprs</code> text</td><td>Widgets are built before content exists → chicken-and-egg with no good v1 answer.</td></tr>
+  <tr><td>Position scope (pipeline vs. layer vs. <code>aes()</code> arg)</td><td>Bounded placeholders have one well-defined slot; <code>exprs</code> has none.</td></tr>
+  <tr><td>Safety surface</td><td>Raises the trust boundary to "arbitrary R structure," widening what P5 must screen for no product gain.</td></tr>
+</table>
+<p>Multiple genuine forks with no obvious default is the signature of a feature that should not exist, not one that needs more design.</p>
+
+<h2>Decision</h2>
+<p><code>exprs</code> is <strong>rejected</strong>. The freedom ceiling for a placeholder is the existing <code>expr</code>: a <em>single</em>, bounded R expression occupying <em>one</em> well-defined slot, screened by P5. Placeholders are inputs to a structured grammar; they are not a code-injection surface. Users who need arbitrary R should write the Shiny app directly (the L3 path, ADR 0006) — that is the supported escape hatch, and it is honest about being code.</p>
+
+<h2>Consequences</h2>
+<ul>
+  <li>The "maximum freedom" principle is now recorded: ggpaintr deliberately does <strong>not</strong> maximize user freedom inside the formula DSL. Future "what if a placeholder could also do X structurally" proposals are answered by this ADR — route them to L3, not to a new placeholder.</li>
+  <li>The reported <code>expr</code> <code>+</code>-chain bug is unaffected by this decision and is handled on its own track (it is a misuse-reporting / error-message question, not a missing-feature one).</li>
+  <li>If this is ever revisited, supersede this ADR explicitly; do not add <code>exprs</code> by treating the rejection as a deferral.</li>
+</ul>
+
+<div class="note">
+  <strong>Decision made (reject), 2026-05-19, at the maintainer's explicit request.</strong> Recorded so the question is not re-opened from scratch. Source claims (1:1 <code>substitute_walk.ptr_root</code> replacement, single-node <code>ptr_ph_value</code> return, per-layer <code>ptr_eval</code> + <code>Reduce(`+`)</code>, <code>expr</code> single-expression contract) were verified against the source on 2026-05-19; re-verify before acting if revisiting.
+</div>
+
+</body>
+</html>

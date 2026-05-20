@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ggpaintr Rewrite — Non-Source Checklist</title>
+<style>
+  body { font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         max-width: 900px; margin: 2em auto; padding: 0 1em; color: #222; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: .3em; }
+  h2 { margin-top: 1.8em; border-bottom: 1px solid #ccc; padding-bottom: .2em; }
+  h3 { margin-top: 1.2em; color: #444; }
+  code, pre { font-family: "SF Mono", Menlo, monospace; font-size: 12.5px;
+              background: #f4f4f4; padding: 1px 4px; border-radius: 3px; }
+  ul { padding-left: 1.3em; }
+  li { margin: .25em 0; }
+  .note { color: #666; font-style: italic; font-size: 12.5px; }
+  .gate { background: #fff8dc; border-left: 3px solid #d4a017; padding: .6em 1em; margin: 1em 0; }
+  .meta { color: #888; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<h1>ggpaintr Rewrite — Non-Source Checklist</h1>
+<p class="meta">dev/notes/rewrite-non-source-checklist.html · 2026-05-20</p>
+
+<p><strong>Purpose.</strong> If we rewrite ggpaintr, the <code>R/paintr-*.R</code> source is only one layer. This file enumerates every <em>other</em> artifact in this repo that must move in lockstep with a source rewrite, grouped by category, so nothing is silently left behind referring to a function, file, or invariant that no longer exists.</p>
+
+<p><strong>How to use.</strong> Treat it as a pre-merge gate: walk the list, mark each item Done / N/A / Deferred. Anything Deferred needs a follow-up issue under <code>.scratch/</code>.</p>
+
+<h2>1. Generated documentation (must regenerate)</h2>
+<ul>
+  <li><strong>roxygen2 doc blocks</strong> in <code>R/paintr-*.R</code> — every <code>@param</code>, <code>@return</code>, <code>@examples</code>, <code>@inheritParams</code>, <code>@export</code> must match the rewritten signatures and behavior. Use <code>auditor-roxygen</code> agent.</li>
+  <li><strong><code>man/*.Rd</code></strong> — regenerate via <code>devtools::document()</code>; delete <code>.Rd</code> files for removed exports.</li>
+  <li><strong><code>NAMESPACE</code></strong> — auto-generated; verify diff matches intended public API. Never hand-edit.</li>
+  <li><strong>pkgdown site</strong> — <code>_pkgdown.yml</code> reference index sections must list only surviving exports; rebuild via <code>source("dev/build-pkgdown.R"); build_pkgdown_clean()</code>; the generated <code>docs/</code> tree is gitignored output but the input config is not.</li>
+  <li><strong>pkgdown favicon</strong> — <code>pkgdown/favicon/</code> is fine to keep unless branding changes.</li>
+</ul>
+
+<h2>2. README &amp; package metadata</h2>
+<ul>
+  <li><strong><code>README.Rmd</code></strong> — editable source; updates motivation, install snippet, minimum demo. Verify every <code>ptr_*</code> referenced still exists.</li>
+  <li><strong><code>README.md</code></strong> + <strong><code>README.html</code></strong> — regenerated outputs; re-knit with <code>devtools::load_all("."); rmarkdown::render("README.Rmd", envir = globalenv())</code>.</li>
+  <li><strong><code>DESCRIPTION</code></strong> — Version bump, Imports / Suggests churn (drop unused deps, add new ones), Title / Description prose if scope changes, Authors@R if contributors change.</li>
+  <li><strong><code>NEWS.md</code></strong> — add a new top section documenting every breaking change, new export, removed export, behavior change. This is the user-facing changelog; the rewrite is invisible without it.</li>
+  <li><strong><code>cran-comments.md</code></strong> + <strong><code>CRAN-SUBMISSION</code></strong> — refresh before any CRAN submission; reset to reflect this release's checks.</li>
+  <li><strong><code>LICENSE</code></strong> / <code>LICENSE.md</code> — only if the license itself changes (rare).</li>
+  <li><strong><code>.Rbuildignore</code></strong> — add any new dev-only paths (vignettes-pending-port, audit dirs, etc.) so they don't ship in the tarball.</li>
+  <li><strong><code>.gitignore</code></strong> — add new generated paths.</li>
+</ul>
+
+<h2>3. Vignettes (long-form docs)</h2>
+<p>All under <code>vignettes/</code>. Each is both prose <em>and</em> runnable code; both sides must hold.</p>
+<ul>
+  <li><code>ggpaintr-use-cases.Rmd</code> — main tour. Update every formula, every <code>ptr_*</code> call, every screenshot reference.</li>
+  <li><code>ggpaintr-customization.Rmd</code> — L2/L3 examples. Verify against current ADRs (0005, 0006).</li>
+  <li><code>ggpaintr-gallery.Rmd</code> — every gallery example must still run.</li>
+  <li><code>ggpaintr-llm.Rmd</code> — LLM-facing API surface; re-check function names and arg names exactly.</li>
+  <li><code>ggpaintr-safety.Rmd</code> — denylist + walker description; ensure security claims still match runtime code.</li>
+  <li><strong><code>dev/vignettes-pending-port/</code></strong> — staging area; either port forward or delete with a note in NEWS.</li>
+  <li>Run the <code>auditor-vignette</code> agent for prose↔code alignment and <code>tester-vignette</code> agent for runtime e2e of every chunk.</li>
+</ul>
+
+<h2>4. Tests &amp; fixtures</h2>
+<ul>
+  <li><strong><code>tests/testthat/test-*.R</code></strong> — every test calling a renamed/removed function fails closed; fix or delete. Re-derive coverage map (see <code>.claude/rules/testing.md</code>).</li>
+  <li><strong><code>tests/testthat/helper-*.R</code></strong> — shared helpers; refactor as signatures change.</li>
+  <li><strong><code>tests/testthat/fixtures/</code></strong> — including <code>vignette-apps/&lt;slug&gt;/app.R</code> files. These are <em>diffable mirrors of vignette chunks</em> (per <code>vignette-fixture-drift-ledger</code>); when a vignette chunk changes, the fixture's "EXCEPT" header is the authoritative drift signal — re-sync.</li>
+  <li><strong><code>tests/testthat/_snaps/</code></strong> — snapshot files; regenerate intentionally and review every diff, do not blanket-accept.</li>
+  <li><strong><code>tests/manual/</code></strong> — human-driven scripts (uploads, inline errors, custom integrations). Update to new API per <code>.claude/rules/testing.md</code>.</li>
+  <li><strong><code>tests/browser/</code></strong> — shinytest2 driver-level fixtures; check pkgload+app-dir pattern still holds (see project memory <code>shinytest2-appdir-pkgload</code>).</li>
+  <li><strong><code>tests/testthat.R</code></strong> — usually static, verify.</li>
+  <li>Re-run the authoritative gate: <code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code> → expect FAIL 0 / ERROR 0 / SKIP 0 / PASS N.</li>
+</ul>
+
+<h2>5. Bundled assets (<code>inst/</code>)</h2>
+<ul>
+  <li><strong><code>inst/www/</code></strong> — <code>ggpaintr.css</code>, <code>ggpaintr-layer.css</code>, <code>ggpaintr-ui.js</code>, <code>ggpaintr-layer.js</code>, <code>ggpaintr-logo.png</code>. CSS selectors and JS event hooks must match new UI DOM ids/classes; logo refs need <code>addResourcePath("ggpaintr")</code> (memory: <code>htmldependency-resource-prefix</code>).</li>
+  <li><strong><code>inst/extdata/</code></strong> — sample CSVs/RDS used by examples and tests; if column names change, regenerate.</li>
+  <li><strong><code>inst/figures/</code></strong> — README/vignette images; re-shoot if UI redesigned.</li>
+  <li><strong><code>inst/llm/</code></strong> — anything shipped for LLM consumers (prompts, schema dumps); regenerate from new API surface.</li>
+</ul>
+
+<h2>6. Domain &amp; architectural docs</h2>
+<ul>
+  <li><strong><code>CONTEXT.md</code></strong> — single-source domain doc (L2/L3 model, UI-piece taxonomy, shared-coordinator vocab); locked by ADR 0005, edited as part of any rewrite that changes those concepts.</li>
+  <li><strong><code>dev/adr/</code></strong> — open a new ADR for any decision the rewrite reverses or supersedes; mark old ones Superseded-By with a link. Do not silently change behavior an ADR documents.</li>
+  <li><strong><code>dev/developer-notes.md</code></strong> — human-maintained; user must ask before edits.</li>
+  <li><strong><code>dev/high-level-picture.md</code></strong> — refresh if architecture diagram changes.</li>
+  <li><strong><code>dev/feature_bank/</code></strong> — canonical feature record (memory: <code>project-feature-bank</code>); rebuild via <code>Rscript dev/feature_bank/build-feature-bank.R</code>.</li>
+  <li><strong><code>AGENTS.md</code></strong> — top-level agent instructions; only edit if process changes.</li>
+  <li><strong><code>CLAUDE.md</code></strong> — project conventions; touch only if the authoritative gate, source pattern, or build commands change.</li>
+</ul>
+
+<h2>7. Agent / harness config</h2>
+<ul>
+  <li><code>.claude/rules/coding.md</code>, <code>reviewing.md</code>, <code>testing.md</code>, <code>serena-tools.md</code> — refresh if conventions / file layouts shift.</li>
+  <li><code>dev/agents/issue-tracker.md</code>, <code>triage-labels.md</code>, <code>domain.md</code> — re-anchor any path/function refs.</li>
+  <li><code>.scratch/&lt;feature&gt;/</code> — open issues / PRDs; resolve or migrate.</li>
+  <li><code>dev/githooks/</code> — verify hooks still match build commands.</li>
+  <li><code>dev/scripts/</code> — utility scripts (e.g. <code>audit-probe.js</code>); re-check refs to ids/selectors.</li>
+</ul>
+
+<h2>8. CI &amp; build infrastructure</h2>
+<ul>
+  <li><code>.github/workflows/R-CMD-check.yaml</code> — R version matrix, system deps, cache keys.</li>
+  <li><code>.github/workflows/pkgdown.yaml</code> — publishing workflow; verify it still calls the right build entry.</li>
+  <li><code>.github/workflows/rhub.yaml</code> — release verification.</li>
+  <li><code>Dockerfile</code> + <code>.dockerignore</code> + <code>docker-compose.codex.yml</code> — container layer pins dep versions; bump alongside <code>DESCRIPTION</code>.</li>
+  <li><code>dev/build-pkgdown.R</code> — local doc build script; verify it still excludes <code>CLAUDE.md</code> from rendered output.</li>
+</ul>
+
+<h2>9. Audit / scratch / archive</h2>
+<ul>
+  <li><code>dev/audit/</code>, <code>dev/notes/</code>, <code>dev/plans/</code>, <code>dev/demo/</code>, <code>dev/assets/</code> — historical reports. Do <em>not</em> retroactively rewrite; instead, add a dated successor file noting which findings are now stale. Memory <code>vignette-fixture-drift-ledger</code> + <code>project-feature-bank</code> describe the canonical sources.</li>
+  <li><code>archive/</code> — frozen; leave alone.</li>
+  <li><code>dev/tasks/*.md</code> — stored task files; do not edit unless user asks (per project rules).</li>
+</ul>
+
+<h2>10. User-facing memory &amp; auto-memory</h2>
+<ul>
+  <li>Project <code>MEMORY.md</code> entries that name a renamed function (e.g. <code>ptr_module_server</code> → <code>ptr_server</code> as in ADR 0006) must be updated or marked superseded. Verify with grep before claiming any memory still applies.</li>
+</ul>
+
+<div class="gate">
+<strong>Definition of Done for a rewrite PR.</strong>
+<ol>
+  <li><code>devtools::document()</code> → no diff outside intended changes.</li>
+  <li><code>NOT_CRAN=true</code> full test suite → FAIL 0 / ERROR 0 / SKIP 0.</li>
+  <li><code>devtools::check(args = c("--as-cran","--no-manual"))</code> → 0 errors, 0 warnings; only the by-design NOTEs.</li>
+  <li><code>build_pkgdown_clean()</code> → clean.</li>
+  <li>README knit → no errors, screenshots current.</li>
+  <li>Every vignette renders end-to-end (<code>tester-vignette</code> agent passes).</li>
+  <li>NEWS.md has an entry for every external-visible change.</li>
+  <li>No memory entry names a non-existent function (grep against current <code>R/</code>).</li>
+</ol>
+</div>
+
+<p class="note">Source-grounded against current tree (<code>ls</code> of repo root, <code>dev/</code>, <code>vignettes/</code>, <code>inst/</code>, <code>.github/workflows/</code>, <code>tests/</code>, <code>dev/notes/</code> on 2026-05-20). Categories cross-referenced with <code>CLAUDE.md</code> "Harness Config" + "Source of Truth Rules" sections and the listed ADRs/memories.</p>
+
+</body>
+</html>

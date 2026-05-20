@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Vignette static API audit</title>
+<style>
+  :root { --ok:#15803d; --bug:#b91c1c; --info:#6b7280; --bg:#f8fafc; --code:#0f172a; }
+  html,body { background:var(--bg); color:#111827; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; margin:0; padding:0; }
+  main { max-width:1080px; margin:0 auto; padding:32px 24px; }
+  h1 { font-size:22px; margin:0 0 4px 0; }
+  h2 { font-size:17px; margin:32px 0 8px 0; padding-bottom:4px; border-bottom:1px solid #e5e7eb; }
+  h3 { font-size:14px; margin:18px 0 6px 0; color:#374151; }
+  .subtitle { color:var(--info); margin-bottom:24px; }
+  table { border-collapse:collapse; width:100%; margin:8px 0 16px 0; font-size:13px; background:#fff; }
+  th,td { padding:6px 10px; text-align:left; vertical-align:top; border-bottom:1px solid #e5e7eb; }
+  th { background:#f1f5f9; font-weight:600; }
+  .pass { color:var(--ok); font-weight:600; }
+  .bug  { color:var(--bug); font-weight:600; }
+  .info { color:var(--info); font-weight:600; }
+  code, pre { font-family: ui-monospace,Menlo,Consolas,monospace; }
+  code { background:#eef2f7; padding:1px 5px; border-radius:3px; font-size:12.5px; }
+  pre  { background:var(--code); color:#e2e8f0; padding:12px 14px; border-radius:6px; overflow:auto; font-size:12px; }
+  .bug-card { background:#fff; border:1px solid #fecaca; border-left:4px solid var(--bug); border-radius:6px; padding:12px 16px; margin:12px 0; }
+  .bug-card h3 { margin-top:0; color:var(--bug); }
+  .patched { background:#fff; border:1px solid #bbf7d0; border-left:4px solid var(--ok); border-radius:6px; padding:12px 16px; margin:12px 0; }
+  .meta { font-size:12px; color:var(--info); }
+  ul { margin:6px 0 10px 22px; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Vignette static API audit</h1>
+<p class="subtitle">Date: 2026-05-19 01h &middot; Branch: <code>vignette-review</code> &middot; HEAD: <code>a615b2a</code> &middot; Method: static API check against current <code>R/paintr-*.R</code> + <code>NAMESPACE</code> + <code>CONTEXT.md</code> &middot; no execution, no browser.</p>
+
+<h2>Summary</h2>
+<table>
+  <tr><th>Vignette</th><th>Statements + chunks audited</th><th><span class="pass">pass</span></th><th><span class="bug">bug</span></th><th><span class="info">info</span></th></tr>
+  <tr><td><code>ggpaintr-use-cases.Rmd</code></td><td>~70 (16 chunks, 5 static <code>r</code> blocks, ~50 prose claims)</td><td>~68</td><td>0</td><td>2</td></tr>
+  <tr><td><code>ggpaintr-customization.Rmd</code></td><td>~55 (13 chunks, 3 static <code>r</code> blocks, ~40 prose claims)</td><td>~54</td><td>0</td><td>1</td></tr>
+  <tr><td><code>ggpaintr-gallery.Rmd</code></td><td>~45 (29 chunks, ~16 prose claims)</td><td>~44</td><td>0</td><td>1</td></tr>
+  <tr><td><code>ggpaintr-safety.Rmd</code></td><td>~40 (all static <code>r</code>/<code>css</code> blocks + ~35 prose claims)</td><td>~40</td><td>0</td><td>0</td></tr>
+  <tr><td><code>ggpaintr-llm.Rmd</code></td><td>~30 (12 chunks + ~18 prose claims)</td><td>~29</td><td>0</td><td>1</td></tr>
+</table>
+<p class="meta">No HIGH/MED findings. Every ggpaintr symbol, argument, arg-order, formula token, id literal, override-field name, and behavioral claim resolved against current source/NAMESPACE. The ADR-0006 rename surface (<code>ptr_module_ui</code>/<code>ptr_module_server</code> &rarr; <code>ptr_ui</code>/<code>ptr_server</code>; single public server entry; L3 = UI-side only; no user-authored <code>moduleServer</code> wrapping an engine; no headless/<code>testServer</code> path) is correctly reflected in all five vignettes &mdash; the highest-risk drift class is clean.</p>
+
+<h2>Findings</h2>
+
+<p>No <span class="bug">bug</span>-severity findings. The items below are <span class="info">info</span> only (unverifiable runtime output or stale-but-harmless cross-reference). No corrections required to keep readers from broken code.</p>
+
+<table>
+  <tr><th>#</th><th>Sev</th><th>File:line</th><th>Quoted text</th><th>Source reality / note</th><th>Text-only suggestion</th></tr>
+
+  <tr>
+    <td>I1</td><td><span class="info">info</span></td>
+    <td><code>ggpaintr-use-cases.Rmd:176-177</code></td>
+    <td><code>names(clean)</code> &rarr; <code>#&gt; "first_column" "if_"</code></td>
+    <td>Runtime output comment &mdash; cannot be statically confirmed. Logic is consistent: <code>ptr_normalize_column_names()</code> &rarr; <code>ptr_normalize_tabular_data()</code> applies <code>make.names()</code>-style cleanup replacing non-syntactic chars with <code>_</code> and reserved-word collision avoidance (<code>R/paintr-data.R:42</code>). The <code>"if_"</code> reserved-word rename and <code>_</code> separator match the implementation; not flagged wrong.</td>
+    <td>None required. If a tester-vignette pass is run, assert <code>names(ptr_normalize_column_names(data.frame(check.names=FALSE,"first column"=1:3,"if"=4:6)))</code> equals <code>c("first_column","if_")</code>.</td>
+  </tr>
+
+  <tr>
+    <td>I2</td><td><span class="info">info</span></td>
+    <td><code>ggpaintr-use-cases.Rmd:237</code> / <code>ggpaintr-customization.Rmd:231</code></td>
+    <td>"<code>ptr_server()</code> given a <code>shared = "..."</code> formula with no coordinator wiring <strong>errors on purpose</strong>" / "A bare <code>ptr_server()</code> wrapper aborts on a <code>shared = "..."</code> formula unless you hand it a pre-built <code>ptr_shared_state</code>"</td>
+    <td><strong>Vignettes are correct.</strong> <code>ptr_server()</code> (<code>R/paintr-app.R</code> ~948) aborts when <code>length(declared_keys)&gt;0 &amp;&amp; is.null(shared_state) &amp;&amp; length(dots$shared)==0 &amp;&amp; length(dots$shared_resolutions)==0</code>. Note: the <code>ptr_server</code> roxygen and <code>CONTEXT.md:44</code> say a single formula reusing one key "self-binds &hellip; needs no <code>shared_state</code>" &mdash; that is a <em>roxygen/CONTEXT</em> drift vs the code, <strong>not</strong> a vignette defect. Single-instance shared belongs to <code>ptr_app()</code> (<code>auto_bind_shared = TRUE</code>, <code>R/paintr-app.R:192</code>), which both vignettes correctly route the single-instance reader to.</td>
+    <td>None for the vignettes. (Out of scope: reconcile <code>ptr_server</code> roxygen + <code>CONTEXT.md</code> with the abort guard.)</td>
+  </tr>
+
+  <tr>
+    <td>I3</td><td><span class="info">info</span></td>
+    <td><code>ggpaintr-customization.Rmd:130,163</code></td>
+    <td>"The non-module split (<code>ptr_controls_ui()</code> / <code>ptr_outputs_ui()</code>) was removed in the L2/L3 redesign (ADR 0005)" / comment "<code>ptr_controls_ui()/ptr_outputs_ui()</code> were removed (ADR 0005 §5)"</td>
+    <td>Accurate in substance: <code>ptr_controls_ui</code>/<code>ptr_outputs_ui</code> are absent from NAMESPACE (removed). ADR 0006 supersedes 0005 only on the <code>ptr_module_*</code>&rarr;<code>ptr_ui</code>/<code>ptr_server</code> rename + single-server-entry; the split removal itself is correctly attributed to the 0005 redesign. Stale-but-harmless attribution; no broken code.</td>
+    <td>Optional: append "(rename later finalized by ADR 0006)" for precision; not required.</td>
+  </tr>
+
+  <tr>
+    <td>I4</td><td><span class="info">info</span></td>
+    <td><code>ggpaintr-gallery.Rmd:444-452</code> (&sect;5), §5.1/§5.2</td>
+    <td>Worked-example <code>#&gt;</code>-style behavioral claims for the plotly/ggiraph custom-render apps ("Reading <code>state$runtime()</code> outside <code>isolate()</code> is what wires the plotly re-render to Update Plot clicks").</td>
+    <td>Statically consistent: <code>state$runtime()</code> is the reactive populated by <code>ptr_setup_runtime()</code> (<code>R/paintr-server.R:690</code>); result slots <code>ok/plot/code_text/error</code> exist (<code>R/paintr-headless.R:11</code>). <code>ptr_ui(formula,"id")</code> / <code>ptr_server(formula,"id")</code> arg order matches signatures. Runtime re-render timing is not statically provable.</td>
+    <td>None. Recommend tester-vignette confirms the plotly/ggiraph chunks re-render on Update Plot.</td>
+  </tr>
+
+  <tr>
+    <td>I5</td><td><span class="info">info</span></td>
+    <td><code>ggpaintr-llm.Rmd:44-45,84</code></td>
+    <td>"12 topics, ~2,600&ndash;10,600 characters each" / "~650&ndash;2,650 tokens" / primer "~4,000 tokens"</td>
+    <td><strong>Topic count verified: 12</strong> (<code>inst/llm/topics/</code> has exactly 12 <code>.md</code> files; the &sect;4 table lists all 12 names matching the files: <code>overview, formula_syntax, level1_ptr_app, level1_ptr_options, level2_module, level2_custom_ids, level2_shared, level2_ui_text, level3_custom_render, level3_layout, level3_gg_extra, custom_placeholder</code>). Character/token magnitude figures are unverifiable statically.</td>
+    <td>None. The load-bearing claim (12 topics, enum-constrained via <code>ptr_llm_topics()</code>) is correct; numeric size ranges are illustrative.</td>
+  </tr>
+</table>
+
+<h2>Verified-clean highlights (pass)</h2>
+<table>
+  <tr><th>Area</th><th>What was checked</th><th>Result</th></tr>
+  <tr><td>ADR-0006 rename surface</td><td>No <code>ptr_module_ui</code>/<code>ptr_module_server</code>/<code>ptr_server_internal</code>/<code>ptr_shared_ui</code> in any vignette; no user-authored <code>moduleServer</code> wrapping an engine; no <code>testServer</code>/headless/batch path implied</td><td><span class="pass">pass</span> (all 5)</td></tr>
+  <tr><td>Arg order after b226d21/069e02b</td><td><code>ptr_ui(formula,id)</code>, <code>ptr_server(formula,id,...,shared_state=)</code>, <code>ptr_ui_controls(formula,id=NULL,...)</code> &mdash; every call site uses formula-first order (use-cases L201-209,378,438,493,504; customization L171,194; gallery L435,441,490,496)</td><td><span class="pass">pass</span></td></tr>
+  <tr><td>L2/L3 surface</td><td><code>ptr_ui</code>, <code>ptr_server</code>, <code>ptr_ui_page</code>, <code>ptr_ui_header</code>, <code>ptr_ui_controls</code>, <code>ptr_ui_plot</code>, <code>ptr_ui_error</code>, <code>ptr_ui_code</code>, <code>ptr_ui_inline_error</code>, <code>ptr_ui_toggle_code</code>, <code>ptr_ui_assets</code>, <code>ptr_ui_shared_panel</code> &mdash; all exported, signatures match (incl. <code>ptr_ui_code(id,style=c("panel","window"))</code>)</td><td><span class="pass">pass</span></td></tr>
+  <tr><td>Shared trio</td><td><code>ptr_shared(formulas,shared_ui,ui_text,expr_check,draw_all_label)</code>, <code>ptr_shared_panel(obj,css=NULL)</code>, <code>ptr_shared_server(obj,...)</code>, <code>obj$panel_keys</code>/<code>obj$local_keys_by_formula</code> public fields, top-level-only <code>ptr_shared_server()</code> claim</td><td><span class="pass">pass</span></td></tr>
+  <tr><td>Custom-placeholder API</td><td><code>ptr_define_placeholder_value/_consumer/_source</code> + hook signatures (<code>build_ui(node,...)</code>, <code>resolve_expr(value,node,...)</code>, consumer <code>cols/data</code>, source <code>resolve_data</code>/<code>companion_id_fn</code>), <code>node$id/keyword/param/companion_id</code>, <code>ptr_clear_placeholder()</code> protects 5 built-ins, process-global registry</td><td><span class="pass">pass</span></td></tr>
+  <tr><td>Safety model (security-sensitive)</td><td>Modes table: <code>TRUE</code>=denylist, <code>FALSE</code>=off, <code>list(deny_list=)</code> <strong>REPLACES</strong> curated list (not additive, weakens default) &mdash; matches <code>resolve_expr_check()</code>; <code>allow_list</code> still blocks curated names as bare symbols &mdash; matches <code>validate_expr_safety()</code> allowlist branch. <strong>Not</strong> security-inverted. Denylist "151 entries" = exact count of <code>unsafe_expr_denylist</code> (151, verified). Walker description (bare symbol / string-literal / pairlist / call+compound-head recurse / placeholder-annotation skip / depth-100 cap) matches the recursive AST walk verbatim.</td><td><span class="pass">pass</span></td></tr>
+  <tr><td>Upload trust</td><td>Accepted formats + readers (<code>read.csv</code> UTF-8-BOM, <code>read.delim</code>, <code>readRDS</code>, <code>readxl::read_excel</code>, <code>jsonlite::fromJSON(flatten=TRUE)</code>) and reject message match <code>R/paintr-upload.R</code>; auto-normalization + <code>ptr_normalize_tabular_data</code> claim correct</td><td><span class="pass">pass</span></td></tr>
+  <tr><td>Id grammar (use-cases &sect;"How input ids are built")</td><td><code>&lt;layer&gt;_&lt;path&gt;_&lt;keyword&gt;_&lt;shared-or-NA&gt;</code> (= <code>paste0(layer,"_",path_str,"_",keyword,"_",shared_part)</code>, <code>R/paintr-ids.R:39</code>); <code>ggplot_1_1_var_NA</code>, <code>_ui</code> consumer container, <code>ptr_layer_select/ptr_layer_tabset/ptr_layer_content_</code>, <code>_subtab</code>, <code>_stage_enabled</code>, <code>_checkbox</code>, <code>ptr_update_plot</code>, <code>ptr_shared_draw_all</code>, <code>ptr_shared_errors</code> &mdash; every literal grep-verified in <code>R/</code></td><td><span class="pass">pass</span></td></tr>
+  <tr><td>ui_text / copy</td><td>Six override sections (<code>shell, upload, layer_checkbox, defaults, params, layers</code>), merge precedence <code>defaults &rarr; params[[param]] &rarr; layers[[layer]][[kw]][[param]]</code>, <code>ptr_ui_text()</code> + <code>ptr_resolve_ui_text(component,keyword,param,layer_name,ui_text)</code> signatures &amp; component enum match <code>R/paintr-copy.R</code></td><td><span class="pass">pass</span></td></tr>
+  <tr><td>Formula tokens / cleanup</td><td>5 keywords <code>var/text/num/expr/upload</code>; empty-call cleanup list (theme, labs, facet_*, xlim/ylim/lims, guides, annotate, aes&hellip;) &amp; <code>safe_to_remove=</code> + "user <code>expr</code> always wins" + geom_*/stat_* never dropped &mdash; all match <code>ptr_app</code> roxygen / <code>R/paintr-utils.R</code> drop-name tables</td><td><span class="pass">pass</span></td></tr>
+  <tr><td><code>ptr_app_bslib</code> source reproduction (customization L139-206)</td><td>Signature <code>(formula,envir,ui_text,checkbox_defaults,expr_check,safe_to_remove,theme=NULL)</code> and body composition (<code>ptr_ui_assets</code>, <code>ptr_ui_controls</code>, <code>ptr_ui_toggle_code(ptr_ui_inline_error(ptr_ui_plot(id),ptr_ui_error(id)),ptr_ui_code(id))</code>, <code>ptr_server</code>) match <code>R/paintr-app-bslib.R</code>; the one internal call <code>ptr_resolve_ui_text()</code> is exported (NAMESPACE)</td><td><span class="pass">pass</span></td></tr>
+  <tr><td>LLM helpers</td><td><code>ptr_llm_primer()</code>, <code>ptr_llm_register(chat,tool_name="ggpaintr_docs")</code>, <code>ptr_llm_topic(name)</code>, <code>ptr_llm_topics()</code> exported, signatures + ellmer-Suggests + enum-snapshot behavior match <code>R/paintr-llm.R</code></td><td><span class="pass">pass</span></td></tr>
+  <tr><td>Anonymous-fn pipe-stage limitation (use-cases L83, gallery L146)</td><td>Correctly documented as unsupported with named-helper workaround &mdash; consistent with project memory + <code>collect_orphan_shared_stages</code>/layer-naming fallback</td><td><span class="pass">pass</span></td></tr>
+</table>
+
+<p class="meta">Report-only. Nothing was executed; no browser was opened; no files under <code>vignettes/</code>, <code>R/</code>, <code>NAMESPACE</code>, or any source were modified. The single artifact written is this HTML report. Runtime <code>#&gt;</code> output and token/character magnitudes are flagged info (recommend a tester-vignette pass), not asserted wrong, because no code path statically contradicts them.</p>
+
+</main>
+</body>
+</html>
