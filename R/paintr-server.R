@@ -750,6 +750,12 @@ ptr_setup_runtime <- function(state, input, output, session) {
         resolved_data   = lapply(state$resolved_data, function(rv) rv()),
         upstream_cols   = upstream_cols
       )
+      # Attach the snapshot used for this run to the runtime result so
+      # preserve-mode rendering can stamp current_pick from the SAME
+      # values that final-mode substitute saw. Preserve thus shows
+      # exactly what was drawn — no disagreement with final on which
+      # picks were "set" (ADR 0009 bug-1 follow-up 2026-05-21).
+      res$snapshot <- snapshot
       state$runtime(res)
     })
   })
@@ -1400,21 +1406,14 @@ ptr_register_code <- function(output, state) {
     session <- shiny::getDefaultReactiveDomain()
     mode <- if (is.null(session)) NULL else session$input[[mode_id]]
     if (identical(mode, "preserve")) {
-      # Build the snapshot the SAME way the runtime path does — keyed by
-      # `raw_id` (un-namespaced node ids that match `node$id`), values
-      # read via the module's namespace function from `session$input`. So
-      # preserve mode and final mode agree on what each picker holds.
-      # Live (no Update-click gating) — preserve text refreshes on each
-      # input change so the user sees their picks immediately.
-      ns_fn <- state$server_ns_fn
-      spec <- state$input_spec
-      snapshot <- list()
-      if (!is.null(session) && !is.null(spec) && nrow(spec) > 0L) {
-        for (i in seq_len(nrow(spec))) {
-          raw_id <- spec$input_id[i]
-          snapshot[[raw_id]] <- session$input[[ns_fn(raw_id)]]
-        }
-      }
+      # Use the FROZEN snapshot the runtime locked at the last Update
+      # click (attached to `res$snapshot` by the runtime observer). Same
+      # source of truth as final-mode substitute -> the two modes always
+      # agree on which picks were "set". Until the user clicks Update,
+      # the runtime hasn't fired and `snapshot` is NULL -> every
+      # placeholder renders as `ppX()`, matching the empty plot panel.
+      res <- state$runtime()
+      snapshot <- if (is.null(res)) list() else res$snapshot %||% list()
       ptr_render(stamp_current_pick_walk(state$tree(), snapshot),
                  preserve_placeholders = TRUE)
     } else {
