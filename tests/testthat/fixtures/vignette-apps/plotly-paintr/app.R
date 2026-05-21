@@ -23,7 +23,7 @@ library(plotly)
 
 formula <- "ggplot(data = mpg,
                    aes(x = ppVar, y = ppVar, color = ppVar,
-                       ppText = paste(manufacturer, model, sep = ' '))) +
+                       text = paste(manufacturer, model, sep = ' '))) +
               geom_point(size = ppNum, alpha = ppNum) +
               coord_cartesian(xlim = range, ylim = range)"
 
@@ -39,7 +39,7 @@ server <- function(input, output, session) {
   output$interactive_plot <- plotly::renderPlotly({
     res <- state$runtime()
     shiny::req(isTRUE(res$ok), res$plot)
-    plotly::ggplotly(res$plot, tooltip = "ppText")
+    plotly::ggplotly(res$plot, tooltip = "text")
   })
 }
 
