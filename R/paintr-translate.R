@@ -62,6 +62,7 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
     root <- ptr_assign_ids(root, ns_fn = ns_fn)
     root <- ptr_classify_data(root)
     root <- ptr_shared_bind(root)
+    ptr_validate_shared_roles(root)
     ptr_assert_ids_assigned(root)
     ptr_assert_classified(root)
   }
@@ -361,8 +362,10 @@ detect_placeholder <- function(expr) {
   if (is.null(kw)) return(NULL)
   entry <- ptr_registry_lookup(kw)
   if (is.null(entry)) return(NULL)
-  shared <- extract_shared(expr, kw)
-  list(keyword = kw, entry = entry, shared = shared)
+  args <- extract_placeholder_args(expr, entry)
+  list(keyword = kw, entry = entry,
+       shared = args$shared, default = args$default,
+       named_args = args$named_args)
 }
 
 placeholder_keyword <- function(expr) {
@@ -378,33 +381,80 @@ placeholder_keyword <- function(expr) {
   NULL
 }
 
-extract_shared <- function(expr, keyword) {
-  if (is.symbol(expr)) return(NULL)
-  if (length(expr) == 1L) return(NULL)
-  args <- as.list(expr[-1L])
+# Parse a placeholder call's argument list against its registry entry's
+# schema (`entry$default_arg` + `entry$named_args`). Returns a list with
+# fields `shared`, `default`, `named_args`. Aborts on positional args when
+# the schema does not accept one, on unknown named args, and propagates
+# validator-aborts unchanged. NEVER eval()s a placeholder's argument AST --
+# validators receive the unevaluated language object.
+extract_placeholder_args <- function(expr, entry) {
+  empty <- list(shared = NULL, default = NULL, named_args = list())
+  if (is.symbol(expr)) return(empty)
+  if (length(expr) == 1L) return(empty)
+
+  args      <- as.list(expr[-1L])
   arg_names <- names(args) %||% rep_len("", length(args))
-  if (any(arg_names == "")) {
-    rlang::abort(paste0(
-      "Placeholder `", keyword, "(...)` accepts only the named ",
-      "`shared` argument; positional args are not allowed."
-    ))
+  keyword   <- entry$keyword
+
+  named_idx  <- nzchar(arg_names)
+  named      <- args[named_idx]
+  positional <- args[!named_idx]
+
+  # Positional handling
+  default <- NULL
+  if (length(positional) >= 1L) {
+    if (is.null(entry$default_arg)) {
+      rlang::abort(paste0(
+        "Placeholder `", keyword, "(...)` accepts only the named ",
+        "`shared` argument; positional args are not allowed."
+      ))
+    }
+    if (length(positional) > 1L) {
+      rlang::abort(paste0(
+        "Placeholder `", keyword, "(...)` accepts at most one positional ",
+        "argument (the default); got ", length(positional), "."
+      ))
+    }
+    default <- entry$default_arg(positional[[1L]])
   }
-  unknown <- setdiff(arg_names, "shared")
+
+  # Named handling
+  declared   <- names(entry$named_args %||% list())
+  recognized <- c("shared", declared)
+  unknown    <- setdiff(names(named), recognized)
   if (length(unknown) > 0L) {
     rlang::abort(paste0(
       "Placeholder `", keyword, "(...)` got unknown argument(s): ",
-      paste(unknown, collapse = ", "), ". Only `shared` is allowed."
+      paste(unknown, collapse = ", "), ". ",
+      "Allowed: ", paste(recognized, collapse = ", "), "."
     ))
   }
-  if (!"shared" %in% arg_names) return(NULL)
-  shared_val <- args[[match("shared", arg_names)]]
-  if (!is.character(shared_val) || length(shared_val) != 1L ||
-      is.na(shared_val) || !nzchar(shared_val)) {
+
+  named_args_out <- list()
+  for (nm in declared) {
+    if (nm %in% names(named)) {
+      validator <- entry$named_args[[nm]]
+      named_args_out[[nm]] <- validator(named[[nm]])
+    }
+  }
+
+  shared <- extract_shared_value(named[["shared"]], keyword)
+
+  list(shared = shared, default = default, named_args = named_args_out)
+}
+
+# Validate the shared= named argument (existing semantics, lifted out so
+# extract_placeholder_args stays readable). Returns the validated string
+# or NULL when shared is not supplied.
+extract_shared_value <- function(shared_ast, keyword) {
+  if (is.null(shared_ast)) return(NULL)
+  if (!is.character(shared_ast) || length(shared_ast) != 1L ||
+      is.na(shared_ast) || !nzchar(shared_ast)) {
     rlang::abort(paste0(
       "`", keyword, "(shared = ...)` requires a single non-empty string."
     ))
   }
-  shared_val
+  shared_ast
 }
 
 # Detect formulas that pipe a `ggplot()` object into a subsequent call, e.g.
@@ -481,14 +531,57 @@ build_placeholder_node <- function(expr, ph) {
   switch(
     role,
     "value" = ptr_ph_value(
-      keyword = ph$keyword, expr = expr, shared = ph$shared
+      keyword = ph$keyword, expr = expr, shared = ph$shared,
+      default = ph$default, named_args = ph$named_args
     ),
     "consumer" = ptr_ph_data_consumer(
-      keyword = ph$keyword, expr = expr, shared = ph$shared
+      keyword = ph$keyword, expr = expr, shared = ph$shared,
+      default = ph$default, named_args = ph$named_args
     ),
     "source" = ptr_ph_data_source(
-      keyword = ph$keyword, expr = expr, shared = ph$shared
+      keyword = ph$keyword, expr = expr, shared = ph$shared,
+      default = ph$default, named_args = ph$named_args
     ),
     rlang::abort(paste0("Unknown placeholder role: ", role))
   )
+}
+
+# B1.a (ADR 0009 edge-case): when two placeholder occurrences share the
+# same `shared` key but come from different roles (one ppVar consumer + one
+# ppNum value, for instance), one shared widget can't faithfully back both.
+# Abort at translate-time with a message naming the conflicting roles.
+ptr_validate_shared_roles <- function(root) {
+  occs <- collect_shared_occurrences(root)
+  for (key in names(occs)) {
+    bucket <- occs[[key]]
+    roles <- vapply(bucket, function(n) {
+      if (is_ptr_ph_data_consumer(n)) "consumer"
+      else if (is_ptr_ph_data_source(n)) "source"
+      else "value"
+    }, character(1))
+    if (length(unique(roles)) > 1L) {
+      keywords <- vapply(bucket, function(n) n$keyword, character(1))
+      rlang::abort(paste0(
+        "Shared key `\"", key, "\"` is used by placeholders with ",
+        "incompatible roles: ",
+        paste0(keywords, "=", roles, collapse = ", "), ". ",
+        "A shared widget can only back one role at a time."
+      ))
+    }
+  }
+  invisible(root)
+}
+
+# Walk the tree and bucket every placeholder occurrence (value, consumer,
+# source) by its `$shared` key. Returns a named list of lists of nodes.
+collect_shared_occurrences <- function(root) {
+  phs <- ptr_collect(root, function(x) {
+    is_ptr_placeholder(x) && !is.null(x$shared)
+  })
+  buckets <- list()
+  for (n in phs) {
+    key <- n$shared
+    buckets[[key]] <- c(buckets[[key]] %||% list(), list(n))
+  }
+  buckets
 }
