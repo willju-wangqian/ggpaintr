@@ -33,29 +33,40 @@ ptr_call <- function(fun, args, expr) {
   new_ptr_node("ptr_call", fun = fun, args = args, expr = expr)
 }
 
+# Placeholder nodes carry two additive slots populated by the registry/parser
+# (PLAN-06): `default` (the validated positional default-arg value, or NULL)
+# and `named_args` (a named list of validated named-argument values, empty
+# when none). The constructors store whatever they are given; shape-checking
+# happens upstream.
 ptr_ph_value <- function(id = NA_character_, keyword, param = NA_character_,
-                       expr, shared = NULL) {
+                       expr, shared = NULL,
+                       default = NULL, named_args = list()) {
   new_ptr_node(
     "ptr_ph_value",
-    id = id, keyword = keyword, param = param, expr = expr, shared = shared
+    id = id, keyword = keyword, param = param, expr = expr, shared = shared,
+    default = default, named_args = named_args
   )
 }
 
 ptr_ph_data_consumer <- function(id = NA_character_, keyword, param = NA_character_,
-                                expr, shared = NULL, upstream = NULL) {
+                                expr, shared = NULL, upstream = NULL,
+                                default = NULL, named_args = list()) {
   new_ptr_node(
     "ptr_ph_data_consumer",
     id = id, keyword = keyword, param = param, expr = expr,
-    shared = shared, upstream = upstream
+    shared = shared, upstream = upstream,
+    default = default, named_args = named_args
   )
 }
 
 ptr_ph_data_source <- function(id = NA_character_, keyword, param = NA_character_,
-                              expr, shared = NULL, companion_id = NULL) {
+                              expr, shared = NULL, companion_id = NULL,
+                              default = NULL, named_args = list()) {
   new_ptr_node(
     "ptr_ph_data_source",
     id = id, keyword = keyword, param = param, expr = expr,
-    shared = shared, companion_id = companion_id
+    shared = shared, companion_id = companion_id,
+    default = default, named_args = named_args
   )
 }
 
