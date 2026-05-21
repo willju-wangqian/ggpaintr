@@ -113,6 +113,7 @@
   <li><strong>roxygen docs required.</strong> Each helper gets a roxygen block with <code>@param</code>, <code>@return</code>, <code>@export</code>, and at least one <code>@examples</code> block. Document the symbol policy explicitly per helper.</li>
   <li><strong>No emojis</strong> in source or docs.</li>
   <li><strong>NOT_CRAN gate only.</strong> Do not declare done off a raw <code>Rscript -e 'testthat::test_dir(...)'</code> run (proxy trap: silently skips browser e2e).</li>
+  <li><strong>Surface-not-absorb.</strong> If during implementation you discover work outside this plan's "Files touched" scope — a related bug, a refactor opportunity, an adjacent test gap, a doc inconsistency — file it as a follow-up (add a new entry under <code>dev/plans/</code> or a one-line NEWS note) and STOP. Do NOT silently expand scope. Do NOT paper over by editing the out-of-scope file "while you're there." Returning a smaller correct change beats absorbing scope creep.</li>
 </ul>
 
 <h2>BDD scenarios</h2>
@@ -210,9 +211,12 @@
 
 <p>This plan lands cleanly without any other ADR-0009 plan having landed. The five exported helpers are unused by the rest of the codebase. <code>devtools::check()</code> may emit a "exported but not used" diagnostic in some linters — that is expected and resolved when PLAN-03/06/08 wire the helpers into the registry and built-ins. R's <code>R CMD check</code> itself does <em>not</em> flag unused exports, so the project's check gate stays green.</p>
 
+<p><strong>Verification independence.</strong> Any implementer self-report ("tests pass", "DoD met", "scope clean") is a <em>claim to be verified</em>, never proof. The integrator MUST re-run the authoritative gate command from the Definition of Done before merging this plan, and MUST NOT treat the implementer's report (or any status block in this plan) as a substitute for that re-run. This is the project-wide rule from CLAUDE.md, made explicit here so a fresh agent reading only this plan still inherits it.</p>
+
 <div class="note">
   <strong>Verification of source claims in this plan, 2026-05-20:</strong> No source files are referenced by line number in this plan beyond the new file's intended path. The <em>only</em> external dependency is the existence of <code>rlang</code> as a package dependency (it is — see <code>DESCRIPTION</code>) and the <code>testthat</code> edition-3 test conventions described in <code>.claude/rules/testing.md</code>.
 </div>
 
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=418b350e3ca7 -->
 </body>
 </html>

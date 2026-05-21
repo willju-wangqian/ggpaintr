@@ -182,6 +182,7 @@
   <li><strong>Drift warning, not error.</strong> Mismatched LHS does not break the call. The warning is informational; <code>cli::cli_warn</code> per project convention (not <code>warning()</code>).</li>
   <li><strong>roxygen.</strong> Each define helper's roxygen gets a <code>@param</code> entry per new parameter, a <code>@return</code> line updated to "the runtime callable", and the existing examples re-validated.</li>
   <li><strong>NOT_CRAN gate only.</strong></li>
+  <li><strong>Surface-not-absorb.</strong> If during implementation you discover work outside this plan's "Files touched" scope — a related bug, a refactor opportunity, an adjacent test gap, a doc inconsistency — file it as a follow-up (add a new entry under <code>dev/plans/</code> or a one-line NEWS note) and STOP. Do NOT silently expand scope. Do NOT paper over by editing the out-of-scope file "while you're there." Returning a smaller correct change beats absorbing scope creep.</li>
   <li><strong>No emojis.</strong></li>
 </ul>
 
@@ -293,9 +294,12 @@
 
 <p>This plan lands cleanly without any other ADR-0009 plan. The new parameters are optional and the existing built-ins do not pass them — so the registered entries keep their current shape, and the parser (unchanged in this plan) continues to apply the "only shared allowed" rule via the existing <code>extract_shared</code>. The runtime callable is returned but unused by the built-ins until PLAN-08 binds them under <code>ppX &lt;- ptr_define_placeholder_...()</code>.</p>
 
+<p><strong>Verification independence.</strong> Any implementer self-report ("tests pass", "DoD met", "scope clean") is a <em>claim to be verified</em>, never proof. The integrator MUST re-run the authoritative gate command from the Definition of Done before merging this plan, and MUST NOT treat the implementer's report (or any status block in this plan) as a substitute for that re-run. This is the project-wide rule from CLAUDE.md, made explicit here so a fresh agent reading only this plan still inherits it.</p>
+
 <div class="note">
   <strong>Verification, 2026-05-20:</strong> Line numbers for the three define helpers (approx 261, 332, 419) and <code>ptr_registry_register</code> (187, with <code>invisible(entry)</code> at 192) verified against <code>R/paintr-registry.R</code> on 2026-05-20. Re-verify with <code>grep -n "^ptr_define_placeholder_\|^ptr_registry_register" R/paintr-registry.R</code> before editing. Note that the original line numbers in earlier drafts of this plan were off-by-one; the values here reflect the corrected positions.
 </div>
 
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=8d808c8665c2 -->
 </body>
 </html>

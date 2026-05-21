@@ -173,6 +173,7 @@ ppUpload &lt;- ptr_define_placeholder_source(
   <li><strong>roxygen docs.</strong> Each exported plain-R function gets a one-paragraph roxygen with <code>@param</code>, <code>@return</code>, <code>@export</code>, and at least one <code>@examples</code> block showing both the in-formula use and the plain-R identity use.</li>
   <li><strong>Use <code>devtools::document()</code> to regenerate NAMESPACE.</strong> Do not hand-edit.</li>
   <li><strong>NOT_CRAN gate only.</strong> See proxy-trap list below.</li>
+  <li><strong>Surface-not-absorb.</strong> If during implementation you discover work outside this plan's "Files touched" scope — a related bug, a refactor opportunity, an adjacent test gap, a doc inconsistency — file it as a follow-up (add a new entry under <code>dev/plans/</code> or a one-line NEWS note) and STOP. Do NOT silently expand scope. Do NOT paper over by editing the out-of-scope file "while you're there." Returning a smaller correct change beats absorbing scope creep. (Within the in-scope rename: yes, every fixture/vignette/test using an old keyword IS in-scope by definition — that's the plan's mandate. Out-of-scope means adjacent unrelated changes.)</li>
   <li><strong>No emojis.</strong></li>
   <li><strong>Re-knit README.</strong> Per CLAUDE.md, <code>README.Rmd</code> is the editable source.</li>
 </ul>
@@ -307,9 +308,12 @@ ppUpload &lt;- ptr_define_placeholder_source(
 
 <p>This plan is internally cohesive — it cannot be split. All seven prior plans must have landed for this plan's edits to make sense (without PLAN-01's helpers, the new built-in registrations cannot declare a <code>default_arg</code>; without PLAN-06's parser, the schema is not consulted; without PLAN-05's renderer, the toggle has nothing to switch between). PLAN-08 is the single, atomic step that turns the prior groundwork into externally observable change.</p>
 
+<p><strong>Verification independence.</strong> Any implementer self-report ("tests pass", "DoD met", "scope clean") is a <em>claim to be verified</em>, never proof. The integrator MUST re-run the authoritative gate command from the Definition of Done before merging this plan, and MUST NOT treat the implementer's report (or any status block in this plan) as a substitute for that re-run. This is especially load-bearing for PLAN-08 because the rename is atomic — a partial flip leaves the suite red and the merge unsafe.</p>
+
 <div class="note">
   <strong>Verification, 2026-05-20:</strong> The rename inventory was surveyed on 2026-05-20 via <code>grep -rln "\\bvar(\\|\\bnum(\\|..."</code> across <code>R/</code>, <code>vignettes/</code>, <code>tests/</code>. The hit list reflects raw substring matches; many are false positives (e.g. <code>stats::var()</code> in tests). Re-run the survey before editing and judge each hit per-line. Confirm <code>ptr_builtin_keywords()</code> (R/paintr-builtins.R:217) before editing, since it is a likely-touched switch table that gates which keywords are recognized as "built-in" by the registry-clear mechanism.
 </div>
 
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=5b4607963320 -->
 </body>
 </html>

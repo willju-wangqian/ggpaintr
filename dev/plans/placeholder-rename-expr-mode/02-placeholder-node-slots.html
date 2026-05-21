@@ -98,6 +98,7 @@
   <li><strong>S3 class strings unchanged.</strong> Do not rename the class strings <code>ptr_ph_value</code>, <code>ptr_ph_data_consumer</code>, <code>ptr_ph_data_source</code>; many downstream files dispatch on them.</li>
   <li><strong>Roxygen.</strong> Each constructor's roxygen block (or the file's header comment) gets a one-line note on the two new fields. Do not invent ceremonial multi-paragraph docs.</li>
   <li><strong>NOT_CRAN gate only.</strong> See proxy-trap list below.</li>
+  <li><strong>Surface-not-absorb.</strong> If during implementation you discover work outside this plan's "Files touched" scope — a related bug, a refactor opportunity, an adjacent test gap, a doc inconsistency — file it as a follow-up (add a new entry under <code>dev/plans/</code> or a one-line NEWS note) and STOP. Do NOT silently expand scope. Do NOT paper over by editing the out-of-scope file "while you're there." Returning a smaller correct change beats absorbing scope creep.</li>
   <li><strong>No emojis.</strong></li>
 </ul>
 
@@ -182,9 +183,12 @@
 
 <p>This plan lands cleanly without any other ADR-0009 plan having landed. The new slots are inert until the parser or built-ins populate them. <code>render_walk.ptr_ph_value</code> et al. read fields by name (<code>node$expr</code>, etc.); extra list members are silently ignored.</p>
 
+<p><strong>Verification independence.</strong> Any implementer self-report ("tests pass", "DoD met", "scope clean") is a <em>claim to be verified</em>, never proof. The integrator MUST re-run the authoritative gate command from the Definition of Done before merging this plan, and MUST NOT treat the implementer's report (or any status block in this plan) as a substitute for that re-run. This is the project-wide rule from CLAUDE.md, made explicit here so a fresh agent reading only this plan still inherits it.</p>
+
 <div class="note">
   <strong>Verification, 2026-05-20:</strong> Line numbers and constructor names in this plan were verified against <code>R/paintr-nodes.R</code> on 2026-05-20. Re-verify with <code>grep -n "^ptr_ph_\|^new_ptr_node" R/paintr-nodes.R</code> before editing if the file may have moved.
 </div>
 
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=e512bcc007fa -->
 </body>
 </html>

@@ -124,6 +124,7 @@ The renderer can decide by inspecting <code>typeof(node$current_pick)</code> and
   <li><strong>Backward-compat default.</strong> Calls that do not pass <code>preserve_placeholders</code> behave identically to today. Existing callers in the codebase (e.g. server-side code-gen) need not be modified by this plan.</li>
   <li><strong>S3 method exports.</strong> Each <code>render_walk.*</code> method must keep its <code>@export</code> roxygen line; preserving S3 dispatch across packages is documented in the existing code.</li>
   <li><strong>NOT_CRAN gate only.</strong></li>
+  <li><strong>Surface-not-absorb.</strong> If during implementation you discover work outside this plan's "Files touched" scope — a related bug, a refactor opportunity, an adjacent test gap, a doc inconsistency — file it as a follow-up (add a new entry under <code>dev/plans/</code> or a one-line NEWS note) and STOP. Do NOT silently expand scope. Do NOT paper over by editing the out-of-scope file "while you're there." Returning a smaller correct change beats absorbing scope creep.</li>
   <li><strong>No emojis.</strong></li>
 </ul>
 
@@ -208,9 +209,12 @@ The renderer can decide by inspecting <code>typeof(node$current_pick)</code> and
 
 <p>This plan lands cleanly without any other ADR-0009 plan. The new <code>preserve_placeholders</code> parameter defaults to <code>FALSE</code>, so existing callers see identical behaviour. The preserve-mode output is only exercised by the new tests (with hand-crafted placeholder nodes). PLAN-08 later wires the UI toggle and ensures placeholder nodes carry <code>current_pick</code>.</p>
 
+<p><strong>Verification independence.</strong> Any implementer self-report ("tests pass", "DoD met", "scope clean") is a <em>claim to be verified</em>, never proof. The integrator MUST re-run the authoritative gate command from the Definition of Done before merging this plan, and MUST NOT treat the implementer's report (or any status block in this plan) as a substitute for that re-run. This is the project-wide rule from CLAUDE.md, made explicit here so a fresh agent reading only this plan still inherits it.</p>
+
 <div class="note">
   <strong>Verification, 2026-05-20:</strong> Line numbers for <code>ptr_render</code> (15), <code>render_walk</code> generic (19), and <code>render_walk.ptr_ph_value</code> (209) verified on 2026-05-20. Re-verify with <code>grep -n "^ptr_render\|^render_walk" R/paintr-render.R</code> before editing.
 </div>
 
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=e8914fb20b0d -->
 </body>
 </html>

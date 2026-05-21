@@ -148,6 +148,7 @@ if (is.symbol(formula_captured)) {
   <li><strong>The captured environment for symbol-resolution defaults to <code>parent.frame()</code></strong> via the existing <code>envir</code> arg. Do not invent a new env-capture mechanism.</li>
   <li><strong>Roxygen.</strong> Update <code>ptr_app</code>'s and <code>ptr_server</code>'s roxygen <code>@param formula</code> to document both modes; add an <code>@examples</code> block demonstrating the new surface.</li>
   <li><strong>NOT_CRAN gate only.</strong></li>
+  <li><strong>Surface-not-absorb.</strong> If during implementation you discover work outside this plan's "Files touched" scope — a related bug, a refactor opportunity, an adjacent test gap, a doc inconsistency — file it as a follow-up (add a new entry under <code>dev/plans/</code> or a one-line NEWS note) and STOP. Do NOT silently expand scope. Do NOT paper over by editing the out-of-scope file "while you're there." Returning a smaller correct change beats absorbing scope creep.</li>
   <li><strong>No emojis.</strong></li>
 </ul>
 
@@ -239,9 +240,12 @@ if (is.symbol(formula_captured)) {
 
 <p>This plan lands cleanly without any other ADR-0009 plan. The string-mode path is preserved verbatim, and the new expression-mode path uses today's keyword vocabulary. Once PLAN-08 renames the keywords, both modes carry the new names without further changes in <code>ptr_app</code> / <code>ptr_server</code>.</p>
 
+<p><strong>Verification independence.</strong> Any implementer self-report ("tests pass", "DoD met", "scope clean") is a <em>claim to be verified</em>, never proof. The integrator MUST re-run the authoritative gate command from the Definition of Done before merging this plan, and MUST NOT treat the implementer's report (or any status block in this plan) as a substitute for that re-run. This is the project-wide rule from CLAUDE.md, made explicit here so a fresh agent reading only this plan still inherits it.</p>
+
 <div class="note">
   <strong>Verification, 2026-05-20:</strong> Line numbers for <code>ptr_app</code> (113), <code>ptr_app_components</code> (132), <code>ptr_server</code> (921), and <code>ptr_translate</code> (12) verified on 2026-05-20. Re-verify with <code>grep -n "^ptr_app\b\|^ptr_server\b\|^ptr_app_components\b" R/paintr-app.R</code> and <code>grep -n "^ptr_translate\b" R/paintr-translate.R</code> before editing.
 </div>
 
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=8cdb300aa15a -->
 </body>
 </html>

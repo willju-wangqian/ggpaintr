@@ -197,6 +197,7 @@ list(keyword = kw, entry = entry,
   <li><strong>No eval at translate-time.</strong> Validators do the work; the helper itself only routes AST values to validators.</li>
   <li><strong>Preserve existing error messages.</strong> The no-schema-declared positional-rejected message stays nearly verbatim ("Placeholder `keyword(...)` accepts only named arguments; positional args are not allowed.") so downstream tests that grep on this text keep passing.</li>
   <li><strong>NOT_CRAN gate only.</strong></li>
+  <li><strong>Surface-not-absorb.</strong> If during implementation you discover work outside this plan's "Files touched" scope — a related bug, a refactor opportunity, an adjacent test gap, a doc inconsistency — file it as a follow-up (add a new entry under <code>dev/plans/</code> or a one-line NEWS note) and STOP. Do NOT silently expand scope. Do NOT paper over by editing the out-of-scope file "while you're there." Returning a smaller correct change beats absorbing scope creep.</li>
   <li><strong>No emojis.</strong></li>
 </ul>
 
@@ -305,9 +306,12 @@ list(keyword = kw, entry = entry,
 
 <p>This plan depends on PLAN-01/02/03 only for the slot/helper APIs it consumes. Internally, the behaviour stays backward-compatible because the built-ins still register without <code>default_arg</code> / <code>named_args</code> (PLAN-08 changes that). The suite stays green: existing tests exercise the no-schema path, which is preserved.</p>
 
+<p><strong>Verification independence.</strong> Any implementer self-report ("tests pass", "DoD met", "scope clean") is a <em>claim to be verified</em>, never proof. The integrator MUST re-run the authoritative gate command from the Definition of Done before merging this plan, and MUST NOT treat the implementer's report (or any status block in this plan) as a substitute for that re-run. This is the project-wide rule from CLAUDE.md, made explicit here so a fresh agent reading only this plan still inherits it.</p>
+
 <div class="note">
   <strong>Verification, 2026-05-20:</strong> Line numbers for <code>extract_shared</code> (380), its caller inside <code>detect_placeholder</code> (lines 359–366 with the call at 364), and <code>build_placeholder_node</code> (479–494 with placeholder constructor calls at 483 / 486 / 489) verified on 2026-05-20. Re-verify with <code>grep -n "extract_shared\b\|^detect_placeholder\|^build_placeholder_node\|ptr_ph_value(\|ptr_ph_data_consumer(\|ptr_ph_data_source(" R/paintr-translate.R</code> before editing.
 </div>
 
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=ef786edc6142 -->
 </body>
 </html>

@@ -140,6 +140,7 @@ do.call(entry$build_ui, c(build_ui_args, list(...)))</pre>
   <li><strong>No parser changes.</strong> PLAN-06 set <code>node$default</code>; this plan consumes it.</li>
   <li><strong>First-occurrence-wins silently.</strong> No warning on default conflicts among shared occurrences — consistent with today's label-conflict policy.</li>
   <li><strong>NOT_CRAN gate only.</strong> Browser-driven UI assertions require <code>NOT_CRAN=true</code>.</li>
+  <li><strong>Surface-not-absorb.</strong> If during implementation you discover work outside this plan's "Files touched" scope — a related bug, a refactor opportunity, an adjacent test gap, a doc inconsistency — file it as a follow-up (add a new entry under <code>dev/plans/</code> or a one-line NEWS note) and STOP. Do NOT silently expand scope. Do NOT paper over by editing the out-of-scope file "while you're there." Returning a smaller correct change beats absorbing scope creep.</li>
   <li><strong>No emojis.</strong></li>
 </ul>
 
@@ -238,9 +239,12 @@ do.call(entry$build_ui, c(build_ui_args, list(...)))</pre>
 
 <p>This plan depends on PLAN-02 (node$default slot) and PLAN-06 (parser populates it). It is independent of PLAN-08's keyword rename — the default-seeding logic reads <code>node$default</code> regardless of what the keyword is. After PLAN-08 lands, the new built-in keywords get their default-seeded widgets automatically.</p>
 
+<p><strong>Verification independence.</strong> Any implementer self-report ("tests pass", "DoD met", "scope clean") is a <em>claim to be verified</em>, never proof. The integrator MUST re-run the authoritative gate command from the Definition of Done before merging this plan, and MUST NOT treat the implementer's report (or any status block in this plan) as a substitute for that re-run. This is the project-wide rule from CLAUDE.md, made explicit here so a fresh agent reading only this plan still inherits it.</p>
+
 <div class="note">
   <strong>Verification, 2026-05-20:</strong> <code>R/paintr-shared.R</code> line 144 (<code>collect_shared_consumer_occurrences</code>), 177 (<code>shared_widget_label</code>), 192 (<code>resolve_shared_consumer</code>) verified on 2026-05-20. The build-ui call site that computes <code>selected</code> was not pinned to a single line during planning — locate it with <code>grep -n "selected\b" R/paintr-build-ui.R</code> before editing and document the line in the implementing PR.
 </div>
 
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=668c4ef0a7e6 -->
 </body>
 </html>
