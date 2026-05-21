@@ -1,7 +1,7 @@
 Package: ggpaintr
 Type: Package
 Title: Build Formula-Driven 'shiny' Apps for 'ggplot2'
-Version: 0.9.1
+Version: 0.9.2
 Authors@R: c(
     person(
       given = "Wangqian",
@@ -52,6 +52,7 @@ Suggests:
     jsonlite,
     knitr,
     pkgdown,
+    plotly,
     readxl,
     rmarkdown,
     shinytest2,

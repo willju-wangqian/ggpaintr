@@ -52,10 +52,12 @@ test_that("a closure literal renders back as function(.x) ... not mangled", {
 })
 
 test_that("a closure with a substituted placeholder evaluates end to end", {
+  skip_if_not_installed("dplyr")
+  skip_if_not_installed("tidyr")
+  skip_if_not_installed("purrr")
   withr::local_package("dplyr")
   withr::local_package("tidyr")
   withr::local_package("purrr")
-  withr::local_package("broom")
   r <- ptr_translate(
     "mtcars |>
        tidyr::nest(.by = cyl) |>
