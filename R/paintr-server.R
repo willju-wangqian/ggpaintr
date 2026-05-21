@@ -1391,8 +1391,19 @@ format_code_with_extras <- function(res, extras_exprs) {
 ptr_register_code <- function(output, state) {
   ptr_validate_state(state)
   code_id <- state$server_ns_fn("ptr_code")
+  mode_id <- state$server_ns_fn("ptr_code_mode")
   output[[code_id]] <- shiny::renderText({
-    format_code_with_extras(state$runtime(), state$extras_exprs())
+    # ADR 0009 / PLAN-08: respect the code-mode toggle. Default ("final"
+    # or NULL when the UI has no toggle) shows the substituted code;
+    # "preserve" re-renders the original tree with placeholders intact
+    # for copy/paste / learning.
+    session <- shiny::getDefaultReactiveDomain()
+    mode <- if (is.null(session)) NULL else session$input[[mode_id]]
+    if (identical(mode, "preserve")) {
+      ptr_render(state$tree(), preserve_placeholders = TRUE)
+    } else {
+      format_code_with_extras(state$runtime(), state$extras_exprs())
+    }
   })
   # The generated-code panel lives inside a mini-window that is hidden
   # (display:none) until the user opens it; without this, Shiny suspends the
