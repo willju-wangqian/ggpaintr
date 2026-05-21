@@ -262,6 +262,7 @@ ptr_register_builtins <- function() {
 
 .onLoad <- function(libname, pkgname) {
   ptr_register_builtins()
+  ptr_register_constant_fold_builtins()
 }
 
 `%||%` <- function(a, b) if (is.null(a)) b else a
