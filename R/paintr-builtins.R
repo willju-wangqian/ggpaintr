@@ -21,12 +21,20 @@ attach_help <- function(ui, help) {
 
 # ---- text -------------------------------------------------------------------
 
-ptr_builtin_text_build_ui <- function(node, label = NULL, copy = NULL, ...) {
+ptr_builtin_text_build_ui <- function(node, label = NULL, copy = NULL,
+                                      selected = NULL, ...) {
+  # PLAN-07: seed initial value from `selected` (orchestrator passes
+  # `node$default` here when no persisted input exists).
+  initial <- if (is.null(selected) || length(selected) == 0L) {
+    ""
+  } else {
+    as.character(selected)[[1L]]
+  }
   attach_help(
     shiny::textInput(
       inputId = node$id,
       label = label %||% "Enter a value",
-      value = "",
+      value = initial,
       placeholder = copy$placeholder
     ),
     copy$help
@@ -52,26 +60,42 @@ strip_matched_quote_pair <- function(s) {
 
 # ---- num --------------------------------------------------------------------
 
-ptr_builtin_num_build_ui <- function(node, label = NULL, copy = NULL, ...) {
+ptr_builtin_num_build_ui <- function(node, label = NULL, copy = NULL,
+                                     selected = NULL, ...) {
+  # PLAN-07: seed initial value from `selected` (orchestrator passes
+  # `node$default` here when no persisted input exists).
+  initial <- if (is.null(selected) || length(selected) == 0L) {
+    NA_real_
+  } else {
+    suppressWarnings(as.numeric(selected[[1L]]))
+  }
   control <- shiny::numericInput(
     inputId = node$id,
     label = label %||% "Enter a number",
-    value = NA_real_
+    value = initial
   )
-  # Render `copy$empty_text` as the underlying `<input>`'s `placeholder`
-  # attribute, so the empty-state hint shows in the box before the user
-  # types a value. `shiny::numericInput()` does not expose `placeholder`,
-  # so reach into the rendered tag and stamp it on. Empty out the rendered
-  # `value="NA"` at the same time -- otherwise the placeholder never shows.
-  if (!is.null(copy$empty_text) && nzchar(copy$empty_text)) {
-    for (i in seq_along(control$children)) {
-      child <- control$children[[i]]
-      if (inherits(child, "shiny.tag") && identical(child$name, "input")) {
+  has_initial <- !is.na(initial)
+  # shiny::numericInput unconditionally renders `value="<as.character(initial)>"`,
+  # which is the literal string "NA" when initial is NA_real_. Walk into the
+  # rendered `<input>` and (a) overwrite value with a clean numeric (or empty
+  # string when no seed), and (b) stamp `copy$empty_text` as the HTML placeholder
+  # attribute (numericInput does not expose `placeholder`). Both edits live on
+  # the same child so a single walk handles them.
+  for (i in seq_along(control$children)) {
+    child <- control$children[[i]]
+    if (inherits(child, "shiny.tag") && identical(child$name, "input")) {
+      if (!is.null(copy$empty_text) && nzchar(copy$empty_text)) {
         child$attribs$placeholder <- copy$empty_text
-        child$attribs$value <- ""
-        control$children[[i]] <- child
-        break
       }
+      if (has_initial) {
+        # Use formatC to keep integer-shaped seeds like 5 from rendering as "5.0".
+        child$attribs$value <- formatC(initial, format = "fg",
+                                       drop0trailing = TRUE)
+      } else if (!is.null(copy$empty_text) && nzchar(copy$empty_text)) {
+        child$attribs$value <- ""
+      }
+      control$children[[i]] <- child
+      break
     }
   }
   attach_help(control, copy$help)
@@ -88,12 +112,24 @@ ptr_builtin_num_resolve_expr <- function(value, node, ...) {
 
 # ---- expr -------------------------------------------------------------------
 
-ptr_builtin_expr_build_ui <- function(node, label = NULL, copy = NULL, ...) {
+ptr_builtin_expr_build_ui <- function(node, label = NULL, copy = NULL,
+                                      selected = NULL, ...) {
+  # PLAN-07: seed initial textarea value from `selected`. Strings render
+  # verbatim; a language default (from `ptr_default_expression`) is
+  # deparsed back to source text.
+  initial <- if (is.null(selected) ||
+                 (is.atomic(selected) && length(selected) == 0L)) {
+    ""
+  } else if (is.language(selected)) {
+    paste(deparse(selected), collapse = "\n")
+  } else {
+    as.character(selected)[[1L]]
+  }
   attach_help(
     shiny::textAreaInput(
       inputId = node$id,
       label = label %||% "Enter an expression",
-      value = "",
+      value = initial,
       placeholder = copy$placeholder
     ),
     copy$help
