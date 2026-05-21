@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0009 implementation workflow</title>
+<style>
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 920px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.6rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .danger { border-left: 4px solid #c0392b; background: #fde7e7; padding: .6rem .9rem; margin: .8rem 0; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+  .par { color: #1e7b34; font-weight: bold; }
+  .seq { color: #b34b00; font-weight: bold; }
+  .atomic { color: #882020; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>ADR 0009 implementation workflow — kickoff runbook</h1>
+<p class="meta">Owning ADR: <code>dev/adr/0009-pp-placeholders-and-expression-input.html</code> · Plans: <code>dev/plans/placeholder-rename-expr-mode/</code> · 8 pre-stamped /implementable plans · 8 pre-created worktrees · Base branch: <code>vignette-review</code> · Pre-commit hook live · Last sync: vignette-review at <code>37e425a</code></p>
+
+<h2>Mission</h2>
+
+<p>Implement ADR 0009 ("pp-prefixed placeholders, expression-mode input, registry-declared argument schema") by orchestrating implementation + audit sub-agents across 8 pre-created git worktrees, merging the work back to <code>vignette-review</code> in the order the plans declare, with independent verification at every step.</p>
+
+<h2>State you inherit (verify before starting)</h2>
+
+<ul>
+  <li><strong>Current working dir</strong>: <code>/Users/willju/Research/ggpaintr-rewrite-vignette-review/</code> on branch <code>vignette-review</code> at <code>37e425a</code>.</li>
+  <li><strong>8 worktrees</strong>, one per plan, all currently at <code>37e425a</code> (vignette-review HEAD with <code>main</code> merged in). Paths: <code>/Users/willju/Research/ggpaintr/.claude/worktrees/adr9-NN-…</code> for <code>NN ∈ {01, 02, 03, 04, 05, 06, 07, 08}</code>.</li>
+  <li><strong>Pre-commit hook</strong>: <code>core.hooksPath = dev/githooks</code>, <code>dev/githooks/pre-commit</code> active. Refuses commits that stage a plan-file with a stale <code>implementable: PASS</code> stamp. Plan files should not change during implementation; if a hook failure surfaces, that's a signal a sub-agent edited a plan it shouldn't have.</li>
+  <li><strong>Authoritative gate</strong> (project CLAUDE.md): <code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code> → expect <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code>. <code>devtools::test()</code> equivalent. Proxy traps: raw <code>test_dir</code> without <code>NOT_CRAN</code> skips browser e2e silently; <code>devtools::check --as-cran</code> e2e SKIP is correct; ERROR there is a harness defect, never the product gate.</li>
+  <li><strong>Memory</strong>: read <code>verify-subagent-claims</code> (sub-agent self-reports are claims to verify; cross-check HIGH-severity findings with <code>grep -n</code> / <code>shasum</code> before applying any fix) and <code>parallel-worktree-workflow</code>.</li>
+</ul>
+
+<h2>Sub-agent model</h2>
+
+<table>
+  <tr><th>Role</th><th>Tool</th><th>Model</th><th>Effort</th><th>Subagent type</th></tr>
+  <tr><td>Implementation</td><td>Agent</td><td>opus</td><td>high</td><td><code>general-purpose</code></td></tr>
+  <tr><td>Audit</td><td>Agent</td><td>opus</td><td>high</td><td><code>general-purpose</code></td></tr>
+</table>
+
+<p>Pass <code>model: "opus"</code> when invoking. No <code>isolation: "worktree"</code> — the worktrees are pre-created.</p>
+
+<h2>Plan dependency map</h2>
+
+<table>
+  <tr><th>#</th><th>Plan</th><th>Worktree</th><th>Parallelism</th><th>Depends on (merged into vignette-review)</th></tr>
+  <tr><td>01</td><td>default-validator-helpers</td><td><code>adr9-01-…</code></td><td class="par">PARALLEL</td><td>—</td></tr>
+  <tr><td>02</td><td>placeholder-node-slots</td><td><code>adr9-02-…</code></td><td class="par">PARALLEL</td><td>—</td></tr>
+  <tr><td>03</td><td>registry-slots-and-return-callable</td><td><code>adr9-03-…</code></td><td class="par">PARALLEL</td><td>—</td></tr>
+  <tr><td>04</td><td>expression-mode-capture</td><td><code>adr9-04-…</code></td><td class="par">PARALLEL</td><td>—</td></tr>
+  <tr><td>05</td><td>dual-mode-renderer</td><td><code>adr9-05-…</code></td><td class="par">PARALLEL</td><td>—</td></tr>
+  <tr><td>06</td><td>parser-argument-schema</td><td><code>adr9-06-…</code></td><td class="seq">SEQUENTIAL</td><td>01, 02, 03</td></tr>
+  <tr><td>07</td><td>ui-and-shared-default-seeding</td><td><code>adr9-07-…</code></td><td class="seq">SEQUENTIAL</td><td>02, 06</td></tr>
+  <tr><td>08</td><td>breaking-rename-atomic</td><td><code>adr9-08-…</code></td><td class="atomic">ATOMIC</td><td>01–07</td></tr>
+</table>
+
+<h2>Phased orchestration</h2>
+
+<h3>Phase 1 — parallel implementation + per-worktree audit (plans 01–05)</h3>
+
+<ol>
+  <li><strong>Spawn 5 implementer agents in parallel</strong>, one per worktree, in a single message with 5 <code>Agent</code> tool calls. Each agent gets the brief template below with its plan/worktree filled in. Model: opus, high effort.</li>
+  <li><strong>When each implementer reports done</strong>, immediately spawn an audit agent for that worktree (also opus, high effort). Audit briefs below. You may start audit-N while other implementers are still running — they don't share state.</li>
+  <li><strong>If implementer or auditor stops-and-reports</strong> (Success Criterion unmet, scope conflict, gate red they can't fix): surface to the user verbatim. Do NOT work around. Do NOT re-spawn with a "just do it" brief.</li>
+  <li><strong>Audit must independently re-run the authoritative gate</strong>. The implementer's "DoD met" is a claim, not proof (memory: <code>verify-subagent-claims</code>).</li>
+</ol>
+
+<h3>Phase 2 — sequential merges in plan order, with re-audit after each merge</h3>
+
+<p>Merge order: <strong>01 → 02 → 03 → 04 → 05 → 06 → 07 → 08</strong>. (Even though 01-05 are parallel-safe in implementation, merge them sequentially to keep history reviewable.)</p>
+
+<p>For each plan <strong>N</strong> in order:</p>
+<ol>
+  <li><strong>Pre-merge re-audit</strong> from the orchestrator: run the authoritative gate <em>in the worktree <code>adr9-N-…</code></em>. Expect 0/0/0. If red, halt and surface to user.</li>
+  <li><strong>Merge worktree into vignette-review</strong>: <code>git checkout vignette-review</code> (you're already on it) and <code>git merge adr9/NN-… --no-ff -m "merge: PLAN-NN &lt;slug&gt; (ADR 0009)"</code>. <code>--no-ff</code> keeps the per-plan merge commit visible in history.</li>
+  <li><strong>Post-merge re-audit</strong>: run the authoritative gate on <code>vignette-review</code>'s new HEAD. Expect 0/0/0. If red — a regression has been introduced by the interaction between N and previously-merged plans — halt and surface to user; do NOT proceed to plan N+1.</li>
+  <li><strong>Spawn a focused audit sub-agent</strong> on the merged state with the post-merge brief below: verify no out-of-scope files were touched; verify the plan's "Files touched" matches the actual diff; verify no plan-file stamps drifted.</li>
+  <li><strong>If everything green</strong>: this is the orchestrator's commit point. The merge commit IS the commit (no separate commit needed — the merge created it). Confirm <code>git log -1</code> shows the merge.</li>
+  <li><strong>Before starting plan N+1's implementer</strong> (if N+1 is sequential — 06, 07, 08): ff-merge <code>vignette-review</code> into the worktree branch <code>adr9/(N+1)</code> so the implementer sees the latest base. <code>git -C /…/adr9-(N+1)-… merge vignette-review --ff-only</code>. The worktree branch tip was previously at the pre-merge base; after this it has all of plan N's work + its own pending changes (none yet, since implementer hasn't started).</li>
+</ol>
+
+<h3>Phase 3 — atomic finale (plan 08)</h3>
+
+<p>Plan 08 is the breaking rename + UI toggle + vignette/test/fixture overhaul. After plans 01–07 are merged:</p>
+<ol>
+  <li>ff-merge <code>vignette-review</code> into <code>adr9/08-rename-atomic</code>.</li>
+  <li>Spawn the implementer for plan 08. This run will be the longest (touches the whole codebase).</li>
+  <li>When implementer reports done, spawn the audit agent for 08.</li>
+  <li>Pre-merge gate; merge into vignette-review with <code>--no-ff</code>; post-merge gate; final audit.</li>
+  <li>Surface a final summary to user: 8 plans merged, gate green, list of files touched, anything outstanding.</li>
+</ol>
+
+<h2>Implementer agent brief template</h2>
+
+<pre>You are implementing one ADR-0009 plan inside its dedicated git worktree.
+Operate inside the worktree only. Do NOT push. Do NOT merge any branch.
+Do NOT touch files outside the plan's "Files touched" section.
+
+**Worktree**: /Users/willju/Research/ggpaintr/.claude/worktrees/adr9-NN-&lt;slug&gt;
+**Checked-out branch**: adr9/NN-&lt;slug&gt;
+**Plan file** (inside the worktree): dev/plans/placeholder-rename-expr-mode/NN-&lt;slug&gt;.html
+**ADR cross-reference** (read-only): dev/adr/0009-pp-placeholders-and-expression-input.html
+**Project CLAUDE.md**: the worktree's CLAUDE.md is authoritative for tone,
+  test conventions, and the authoritative gate.
+
+**Workflow**:
+1. `cd /Users/willju/Research/ggpaintr/.claude/worktrees/adr9-NN-&lt;slug&gt;` as
+   your very first Bash call. Use absolute paths for all Read/Edit/Write.
+2. Read the plan in full. It satisfies the /implementable contract:
+   Success Criteria, Constraints, BDD, Definition of Done with the exact
+   authoritative gate command + proxy traps. Implement literally.
+3. Use Serena MCP (`mcp__serena__find_symbol`, `mcp__serena__get_symbols_overview`)
+   for R-symbol exploration. Use Read for prose/config/NAMESPACE/DESCRIPTION.
+4. Use rlang functions over base R for AST work per the ADR 0009 cross-cutting
+   rule (rlang::enexpr, expr, eval_bare, is_symbol, is_call, etc.).
+5. Run `Rscript -e 'devtools::document()'` to regenerate roxygen + NAMESPACE
+   when needed.
+6. Run the authoritative gate verbatim:
+   `NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'`
+   Expected: FAIL 0 / ERROR 0 / SKIP 0 / PASS N where N >= baseline + new tests.
+7. Also run `Rscript -e 'devtools::check(document=FALSE, manual=FALSE, args=c("--as-cran","--no-manual"))'`
+   and expect 0 errors / 0 warnings. By-design NOTEs allowed.
+8. Commit on the worktree's branch (already checked out). Multi-line message
+   referencing the plan name. Include `Co-Authored-By: Claude Opus 4.7 (1M context) &lt;noreply@anthropic.com&gt;`.
+
+**Stop and report (do not work around)** if:
+- A Success Criterion cannot be met as written.
+- The gate goes red and the fix would be outside the plan's "Files touched".
+- The plan disagrees with the source (re-verify; report drift rather than silently adapting).
+- The pre-commit hook refuses your commit (means you edited a stamped plan file
+  out of scope; do not bypass with --no-verify).
+
+**Proxy traps**:
+- Raw `Rscript -e 'testthat::test_dir(...)'` without `NOT_CRAN` skips browser
+  e2e silently — never the gate.
+- `devtools::check --as-cran` e2e SKIP is correct; ERROR there is a harness
+  regression, never the product gate.
+- A single-file `test_file(...)` pass is necessary but not sufficient.
+
+**Final report (under 500 words)**: files created/modified (absolute paths);
+the full PASS/FAIL/ERROR/SKIP counts from the NOT_CRAN gate; whether DoD is
+fully satisfied; the commit SHA; anything that surprised you.
+</pre>
+
+<h2>Per-worktree post-implementation audit brief template</h2>
+
+<pre>You are auditing one finished implementation against its plan. Read-only.
+Do NOT edit anything.
+
+**Worktree**: /Users/willju/Research/ggpaintr/.claude/worktrees/adr9-NN-&lt;slug&gt;
+**Plan**: dev/plans/placeholder-rename-expr-mode/NN-&lt;slug&gt;.html
+**Implementer's reported commit**: &lt;SHA from implementer report&gt;
+
+**What to verify**:
+1. Re-run the authoritative gate from the plan's Definition of Done VERBATIM.
+   Independent verification — don't trust the implementer's self-report.
+   Expected: FAIL 0 / ERROR 0 / SKIP 0 / PASS N.
+2. Files changed: `git -C &lt;worktree&gt; diff --stat &lt;merge-base&gt;..HEAD`.
+   Confirm every changed file is listed in the plan's "Files touched"
+   section. Flag any out-of-scope edits.
+3. Plan files unchanged in the diff (the pre-commit hook would have caught
+   this; double-check).
+4. Roxygen / NAMESPACE re-generated if exports added (the plan's success
+   criteria specify the expected export count; verify it matches).
+5. Stamps: every plan-file PASS stamp hash still matches its stripped
+   content (run the hook's check manually if uncertain).
+6. Cross-verify any HIGH-severity findings with grep/shasum BEFORE flagging
+   them as drift. Memory: `verify-subagent-claims`.
+
+**Output format** — one table:
+
+| Severity | Item | Implementer's claim | What you verified | Verdict |
+|---|---|---|---|---|
+
+End with a one-line verdict: "MERGE READY" or "DO NOT MERGE — &lt;reason&gt;".
+
+Keep the report under 400 words.
+</pre>
+
+<h2>Post-merge audit brief (orchestrator runs after each merge)</h2>
+
+<pre>One merge of an ADR-0009 plan just landed on vignette-review. Audit the
+merged state for regression and out-of-scope drift. Read-only.
+
+**Merged plan**: NN-&lt;slug&gt;
+**Merge commit**: &lt;SHA&gt;
+**vignette-review HEAD**: &lt;SHA&gt;
+
+**What to verify**:
+1. Re-run the authoritative gate ON VIGNETTE-REVIEW (not the worktree).
+   Expected: FAIL 0 / ERROR 0 / SKIP 0 / PASS N. If red, a regression has
+   been introduced by interaction with previously-merged plans.
+2. `git diff &lt;merge-base&gt;..HEAD --stat` — confirm only files listed in the
+   plan's "Files touched" changed since the previous merge.
+3. Confirm previously-merged plans' invariants still hold (e.g. PLAN-01's
+   constant-fold registry helpers still exported; PLAN-02's node slots
+   still present; etc.). Use grep for the specific symbol names.
+
+**Output format** — one short table:
+
+| Check | Result |
+|---|---|
+| Authoritative gate | 0/0/0 PASS N |
+| Files-touched matches plan | yes/no + list |
+| Previously-merged invariants | hold/regress |
+
+End with: "READY FOR PLAN-(NN+1)" or "BLOCK NEXT PLAN — &lt;reason&gt;".
+
+Keep under 250 words.
+</pre>
+
+<h2>What to do on failure</h2>
+
+<table>
+  <tr><th>Failure</th><th>Action</th></tr>
+  <tr><td>Implementer stops-and-reports (e.g. plan disagrees with source)</td><td>Surface verbatim to user. Do NOT re-spawn. Wait for user steering.</td></tr>
+  <tr><td>Auditor reports DO NOT MERGE</td><td>Surface verbatim. Do NOT merge. User decides whether to re-spawn implementer with a corrective brief.</td></tr>
+  <tr><td>Pre-merge gate red in worktree</td><td>Halt. The implementer reported green but the gate is red. Re-run yourself; if confirmed red, the implementer's self-report was wrong. Surface to user.</td></tr>
+  <tr><td>Post-merge gate red</td><td>Revert the merge (<code>git reset --hard HEAD~1</code> is acceptable on vignette-review since no force-push to remote; but ask user first per CLAUDE.md destructive-action policy). Surface the regression.</td></tr>
+  <tr><td>Sub-agent budget exhausted / model rate-limited</td><td>Stop. Surface to user with which plan is in-flight.</td></tr>
+</table>
+
+<h2>What this workflow does NOT do</h2>
+
+<ul>
+  <li>Does NOT push to remote. The user merges to <code>main</code> or pushes when they're ready, not the orchestrator.</li>
+  <li>Does NOT delete worktrees. Keep them for the user to inspect post-merge.</li>
+  <li>Does NOT skip the gate to "save time". The NOT_CRAN gate is the only thing that exercises browser e2e; skipping it leaves a class of regressions undetected.</li>
+  <li>Does NOT bypass the pre-commit hook with <code>--no-verify</code>. Hook refusal is a signal worth investigating.</li>
+</ul>
+
+<h2>Kickoff prompt (paste into the fresh session)</h2>
+
+<pre>You are the orchestrator for implementing ADR 0009 (pp-prefixed placeholders).
+Read dev/notes/placeholder-expr-mode/WORKFLOW.html in full, then
+dev/plans/placeholder-rename-expr-mode/INDEX.html for the plan list.
+
+Start with Phase 1: spawn 5 implementer sub-agents in parallel (Opus, high
+effort) for plans 01-05, using the implementer brief template from WORKFLOW.html
+with each plan's specific worktree path and plan-file path filled in.
+
+After each implementer reports done, spawn an auditor sub-agent (Opus, high
+effort) for that worktree using the per-worktree post-implementation audit
+brief from WORKFLOW.html. Then merge in plan order (Phase 2). Continue
+through plans 06, 07, 08.
+
+Before starting: verify state (git log -1 on vignette-review and each
+worktree; expect 37e425a or newer). Surface anything unexpected to the user
+before launching any sub-agent.
+
+Use rlang functions over base R for AST work (ADR 0009 cross-cutting). The
+pre-commit hook is live; do not bypass it.
+</pre>
+
+</body>
+</html>
