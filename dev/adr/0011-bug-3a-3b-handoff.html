@@ -330,7 +330,7 @@ class(ptr_prune2(sub)$layers[[1]]$data_arg)[1] %||% "NULL"   # =&gt; "NULL"  COR
 
 <h3>2.7 Fix attempt #2 — explicit method dispatch</h3>
 
-<p>Hypothesis: skip <code>UseMethod</code> entirely. <code>ptr_prune</code> is documented to take a <code>ptr_root</code>, so we know which method to call.</p>
+<p>Hypothesis: skip <code>UseMethod</code> entirely. Every callsite I could grep for (<code>R/paintr-safe.R:32</code>, <code>R/paintr-resolve.R:30</code>, and ~15 test usages) passes the output of <code>substitute_walk</code>, which preserves <code>ptr_root</code> class (verified: <code>inherits(substitute_walk(tree, ctx), "ptr_root") == TRUE</code> for a translated formula). So in practice the entry node is always <code>ptr_root</code>; we can dispatch directly.</p>
 
 <pre>ptr_prune &lt;- function(node, ...) {
   ...
@@ -342,17 +342,16 @@ class(ptr_prune2(sub)$layers[[1]]$data_arg)[1] %||% "NULL"   # =&gt; "NULL"  COR
 }
 </pre>
 
-<p><strong>Result: FIXED bug 3b but REGRESSED 49 unrelated tests.</strong> Final gate:</p>
+<p><strong>Result: FIXED bug 3b but REGRESSED a large number of unrelated tests.</strong> Final gate after this fix:</p>
 
-<pre>FAIL: 52   ERROR: 49   SKIP: 0   PASS: 1777   # (was 1982 baseline; -205)
+<pre>FAIL: 52   ERROR: 49   SKIP: 0   PASS: 1777   # (was 1982 baseline; -205 passing)
 </pre>
 
-<p>Two reasons the explicit-dispatch fix backfired:</p>
+<p>So 101 tests transitioned to failed-or-errored, and 205 fewer tests passed (some of the lost passes are expectations within a test_that block whose first expect_* raised an error).</p>
 
-<ul>
-  <li><strong>Recursive calls inside the methods.</strong> <code>prune_walk.ptr_root</code> calls <code>prune_walk(layer, remove_set, is_standalone)</code> for each layer. That recursive call is the <em>bare</em> form. From inside the namespace's <code>prune_walk.ptr_root</code>, the bare call should resolve to the namespace generic — but UseMethod from there walks the same frame chain and hits the same shadow. So bypassing only the TOP-LEVEL dispatch doesn't help for the recursive child dispatches.</li>
-  <li><strong>Non-root entry points.</strong> Some callers of <code>ptr_prune</code> apparently pass non-root subtrees (probably internal helpers in <code>R/paintr-headless.R</code> or test fixtures). The class assertion <code>inherits(node, "ptr_root")</code> rejected those calls outright, surfacing as failures even when the trap wouldn't have fired.</li>
-</ul>
+<p><strong>I do not yet know the precise cause of this regression.</strong> Initial speculation was "the class assertion rejected non-root callers" — but the audit (§2.7 paragraph 1 above) shows every known caller passes <code>ptr_root</code>, so the assertion would not fire. Other speculation was "recursive calls inside the methods still hit the shadow trap" — plausible but not proven; <code>prune_walk.ptr_root</code> calls <code>prune_walk(layer, ...)</code> in a lexical scope (namespace) where bare <code>prune_walk</code> SHOULD resolve to the namespace generic. The third speculation was "S3 method bodies rely on UseMethod-set frame vars (<code>.Generic</code>, <code>.Class</code>, <code>.Method</code>) or expect to be invoked via NextMethod" — inspected, no <code>NextMethod</code> call in any prune_walk method, so this is unlikely too.</p>
+
+<p><strong>Action item for the next implementer:</strong> before trying Shape B (§2.10), reproduce Fix #2 and capture the FIRST failing test's traceback. The traceback will identify the actual recursion path that broke. Without that, all four proposed fix shapes are unverified.</p>
 
 <h3>2.8 Reverted to original state</h3>
 
