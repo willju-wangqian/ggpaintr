@@ -8,6 +8,9 @@ ptr_define_placeholder_value(
   keyword,
   build_ui,
   resolve_expr,
+  default_arg = NULL,
+  named_args = list(),
+  runtime = NULL,
   copy_defaults = list(label = "Enter a value for {param}")
 )
 }
@@ -32,15 +35,40 @@ integer), \code{name}/\code{symbol} (build with \code{rlang::sym()}),
 the argument} from the rendered call. Use \code{NULL} for empty / not-yet
 input; throw with \code{rlang::abort()} for malformed input.}
 
+\item{default_arg}{Optional validator closure for the (single) positional
+argument the keyword accepts inside a formula. \code{NULL} (default) means
+positional arguments are rejected at translate time. A function
+receives the unevaluated AST and must return a canonical value or
+\code{rlang::abort()}. Validators are expected to operate on the AST only
+and not call \code{eval()}; ggpaintr trusts the author. Authors who eval in
+a validator are opting into the risk of running user code at translate
+time.}
+
+\item{named_args}{Named list of validator closures for additional named
+arguments beyond the reserved \code{shared = ...}. Each entry's closure
+receives the unevaluated AST and returns a canonical value or
+\code{rlang::abort()}. Default is \code{list()} (no named args). The name
+\code{"shared"} is reserved and may not appear here.}
+
+\item{runtime}{Optional \verb{function(x, ...)} body used when the
+placeholder keyword is \emph{also} called as a plain-R function (outside a
+formula context). When \code{NULL} (default), the identity function
+\code{function(x, ...) x} is supplied — calling \code{pct(0.5)} returns \code{0.5}
+unchanged. Override to give the keyword a non-identity plain-R
+meaning. The same runtime is returned to the caller of this helper
+so authors can bind it under the same name as the keyword:
+\code{ppPct <- ptr_define_placeholder_value(keyword = "ppPct", ...)}.}
+
 \item{copy_defaults}{Named list of single non-NA character defaults
 feeding the \code{ui_text} tree. Allowed names: \code{label}, \code{help},
 \code{placeholder}, \code{empty_text}. Strings may contain \code{{param}}, which is
 interpolated to the surrounding formal-argument name at render time.}
 }
 \value{
-Invisibly, the registry entry list. Called for its side effect
-of registering the placeholder in the package-global registry. Use
-\code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}} to remove it.
+The runtime callable. Default for a value placeholder is the
+identity \code{function(x, ...) x}; override with \code{runtime = ...}. The
+helper is also called for its registration side effect — use
+\code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}} to remove the entry.
 }
 \description{
 Register a new keyword (e.g. \code{pct}, \code{color}, \code{date}) that ggpaintr will
