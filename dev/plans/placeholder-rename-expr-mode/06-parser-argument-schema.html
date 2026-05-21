@@ -59,7 +59,7 @@ node$shared      # existing slot, behaviour unchanged
 
 <table>
   <tr><th>Item</th><th>Location</th><th>Notes</th></tr>
-  <tr><td><code>extract_shared(expr, keyword)</code></td><td><code>R/paintr-translate.R:380</code>–<code>407</code></td><td>Keyword-agnostic. Returns the shared key string or NULL. Aborts on positional / unknown-named.</td></tr>
+  <tr><td><code>extract_shared(expr, keyword)</code></td><td><code>R/paintr-translate.R:381</code>–<code>408</code></td><td>Keyword-agnostic. Returns the shared key string or NULL. Aborts on positional / unknown-named.</td></tr>
   <tr><td>Callers of <code>extract_shared</code></td><td><code>R/paintr-translate.R:364</code></td><td>Inside <code>detect_placeholder</code> (lines 359–366; the call site that builds <code>list(keyword, entry, shared)</code> at line 365). Placeholder-node construction is in a separate helper <code>build_placeholder_node</code> (lines 479–494), with the three <code>ptr_ph_*</code> call sites at lines 483 / 486 / 489.</td></tr>
   <tr><td>Registry lookup</td><td><code>ptr_registry_lookup(keyword)</code> at <code>R/paintr-registry.R:90</code></td><td>Returns the entry list. After PLAN-03, the entry carries <code>default_arg</code>, <code>named_args</code>, <code>runtime</code>.</td></tr>
   <tr><td>Node constructors</td><td><code>ptr_ph_value</code> (R/paintr-nodes.R:36), <code>ptr_ph_data_consumer</code> (44), <code>ptr_ph_data_source</code> (53)</td><td>After PLAN-02, accept <code>default</code> and <code>named_args</code> parameters.</td></tr>
@@ -69,7 +69,7 @@ node$shared      # existing slot, behaviour unchanged
 
 <table>
   <tr><th>File</th><th>Change</th></tr>
-  <tr><td><code>R/paintr-translate.R</code></td><td>Rename <code>extract_shared(expr, keyword)</code> (lines 380–407) → <code>extract_placeholder_args(expr, entry)</code>. Update its single caller inside <code>detect_placeholder</code> at line 364 to pass the registry entry (already in scope as <code>entry</code>) to the new helper. The helper now returns a list with three fields: <code>shared</code>, <code>default</code>, <code>named_args</code>. Update the placeholder-node construction sites inside <code>build_placeholder_node</code> (lines 479–494; calls at 483 / 486 / 489) to pass <code>default = ph$default</code> and <code>named_args = ph$named_args</code> through.</td></tr>
+  <tr><td><code>R/paintr-translate.R</code></td><td>Rename <code>extract_shared(expr, keyword)</code> (lines 381–408) → <code>extract_placeholder_args(expr, entry)</code>. Update its single caller inside <code>detect_placeholder</code> at line 364 to pass the registry entry (already in scope as <code>entry</code>) to the new helper. The helper now returns a list with three fields: <code>shared</code>, <code>default</code>, <code>named_args</code>. Update the placeholder-node construction sites inside <code>build_placeholder_node</code> (lines 479–494; calls at 483 / 486 / 489) to pass <code>default = ph$default</code> and <code>named_args = ph$named_args</code> through.</td></tr>
   <tr><td>new <code>tests/testthat/test-extract-placeholder-args.R</code></td><td>Tests covering: positional rejected when <code>default_arg = NULL</code>; positional accepted when <code>default_arg</code> is set; named args other than <code>shared</code> rejected when <code>named_args = list()</code>; named args accepted when declared; <code>shared</code> still parsed identically; validator-aborts propagate as translate-time aborts; the AST is never <code>eval()</code>'d.</td></tr>
 </table>
 
@@ -165,7 +165,7 @@ list(keyword = kw, entry = entry,
      shared = args$shared, default = args$default,
      named_args = args$named_args)</pre>
 
-<p>Placeholder-node construction at lines ~484–490:</p>
+<p>Placeholder-node construction inside <code>build_placeholder_node</code> (lines 479–494; calls at 483 / 486 / 489):</p>
 
 <pre>ptr_ph_value(
   keyword = ph$keyword, expr = expr,
@@ -278,7 +278,7 @@ list(keyword = kw, entry = entry,
 <h3>In scope</h3>
 <ul>
   <li>Rename and rewrite of <code>extract_shared</code> → <code>extract_placeholder_args</code>.</li>
-  <li>Update the single call site in <code>translate_placeholder_call</code>.</li>
+  <li>Update the single call site in <code>detect_placeholder</code>.</li>
   <li>Update placeholder-node construction sites to thread <code>default</code> and <code>named_args</code>.</li>
   <li>New test file covering the schema behaviour.</li>
 </ul>
@@ -299,7 +299,7 @@ list(keyword = kw, entry = entry,
   <li>PLAN-01, PLAN-02, PLAN-03 have already been merged into the worktree's base.</li>
   <li>Suite green at the authoritative gate.</li>
   <li>Worktree branched from the post-merge HEAD on branch <code>adr9/06-parser-schema</code>.</li>
-  <li>Before edits, confirm <code>extract_shared</code> is at line 380 of <code>R/paintr-translate.R</code> and is called once at line 364 from within <code>detect_placeholder</code>. Construction helper <code>build_placeholder_node</code> is at lines 479–494 with placeholder calls at lines 483 / 486 / 489.</li>
+  <li>Before edits, confirm <code>extract_shared</code> is at line 381 of <code>R/paintr-translate.R</code> and is called once at line 364 from within <code>detect_placeholder</code>. Construction helper <code>build_placeholder_node</code> is at lines 479–494 with placeholder calls at lines 483 / 486 / 489.</li>
 </ul>
 
 <h2>Independence</h2>
@@ -309,9 +309,9 @@ list(keyword = kw, entry = entry,
 <p><strong>Verification independence.</strong> Any implementer self-report ("tests pass", "DoD met", "scope clean") is a <em>claim to be verified</em>, never proof. The integrator MUST re-run the authoritative gate command from the Definition of Done before merging this plan, and MUST NOT treat the implementer's report (or any status block in this plan) as a substitute for that re-run. This is the project-wide rule from CLAUDE.md, made explicit here so a fresh agent reading only this plan still inherits it.</p>
 
 <div class="note">
-  <strong>Verification, 2026-05-20:</strong> Line numbers for <code>extract_shared</code> (380), its caller inside <code>detect_placeholder</code> (lines 359–366 with the call at 364), and <code>build_placeholder_node</code> (479–494 with placeholder constructor calls at 483 / 486 / 489) verified on 2026-05-20. Re-verify with <code>grep -n "extract_shared\b\|^detect_placeholder\|^build_placeholder_node\|ptr_ph_value(\|ptr_ph_data_consumer(\|ptr_ph_data_source(" R/paintr-translate.R</code> before editing.
+  <strong>Verification, 2026-05-20:</strong> Line numbers for <code>extract_shared</code> (381; an earlier audit miscalled this 380 — re-verified 381), its caller inside <code>detect_placeholder</code> (lines 359–366 with the call at 364), and <code>build_placeholder_node</code> (479–494 with placeholder constructor calls at 483 / 486 / 489) verified on 2026-05-20. Re-verify with <code>grep -n "extract_shared\b\|^detect_placeholder\|^build_placeholder_node\|ptr_ph_value(\|ptr_ph_data_consumer(\|ptr_ph_data_source(" R/paintr-translate.R</code> before editing.
 </div>
 
-<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=ef786edc6142 -->
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=508ba20251c7 -->
 </body>
 </html>

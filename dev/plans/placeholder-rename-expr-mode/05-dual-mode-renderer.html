@@ -52,7 +52,7 @@
   <tr><td><code>RENDER_WIDTH</code></td><td>13</td><td>Constant used for line-wrap decisions. Unchanged by this plan.</td></tr>
 </table>
 
-<p><strong>Mechanism note (verify before relying on this for the design):</strong> the existing <code>render_walk.ptr_ph_value</code> at line 209 (and its <code>_data_consumer</code> / <code>_data_source</code> siblings at lines 212 / 215) emit <code>rlang::expr_text(node$expr)</code> — i.e. they print the placeholder's source expression. The "final code" view shown in today's app is therefore produced by a <em>substitution-before-render</em> pass (the <code>substitute_walk.ptr_ph_*</code> methods in <code>R/paintr-substitute.R</code> at lines 80 / 115 / 138) that rewrites placeholder nodes into literal / resolved nodes <em>before</em> <code>ptr_render</code> walks the tree. <strong>Implementer: read those <code>substitute_walk.*</code> bodies (lines 80–175 of <code>R/paintr-substitute.R</code>) and confirm the swap shape before adopting the plan's "preserve-mode walks pre-substitution tree" framing.</strong> The two possible designs are:</p>
+<p><strong>Mechanism note (verify before relying on this for the design):</strong> the existing <code>render_walk.ptr_ph_value</code> at line 209 (and its <code>_data_consumer</code> / <code>_data_source</code> siblings at lines 212 / 215) emit <code>rlang::expr_text(node$expr)</code> — i.e. they print the placeholder's source expression. The "final code" view shown in today's app is therefore produced by a <em>substitution-before-render</em> pass (the <code>substitute_walk.ptr_ph_*</code> methods in <code>R/paintr-substitute.R</code> at lines 80 / 102 / 138) that rewrites placeholder nodes into literal / resolved nodes <em>before</em> <code>ptr_render</code> walks the tree. <strong>Implementer: read those <code>substitute_walk.*</code> bodies (lines 80–175 of <code>R/paintr-substitute.R</code>) and confirm the swap shape before adopting the plan's "preserve-mode walks pre-substitution tree" framing.</strong> The two possible designs are:</p>
 
 <ol>
   <li><em>Two trees</em> — preserve-mode renders the pre-substitution AST; erase-mode renders the post-substitution AST. The substitute pass is called once and the result kept alongside the original. Cleanest if the substitute pass is referentially transparent on the root.</li>
@@ -215,6 +215,6 @@ The renderer can decide by inspecting <code>typeof(node$current_pick)</code> and
   <strong>Verification, 2026-05-20:</strong> Line numbers for <code>ptr_render</code> (15), <code>render_walk</code> generic (19), and <code>render_walk.ptr_ph_value</code> (209) verified on 2026-05-20. Re-verify with <code>grep -n "^ptr_render\|^render_walk" R/paintr-render.R</code> before editing.
 </div>
 
-<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=e8914fb20b0d -->
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=11e4993542f3 -->
 </body>
 </html>
