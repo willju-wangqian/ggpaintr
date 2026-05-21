@@ -52,6 +52,30 @@
 #     value-range ........... custom *value* placeholder (value-range-app)
 #     consumer-colvars ...... custom *consumer* placeholder (consumer-colvars-app)
 #     source-dataset ........ custom *source* placeholder (source-dataset-app)
+#   ADR 0009 features (no vignette pairing; browser-only contracts):
+#     adr9-code-mode-toggle . ptr_code_mode radio drives ptr_register_code's
+#                             final-vs-preserve branch. Regression net for the
+#                             bug fixed in 2c504da (PLAN-08 added the UI radio
+#                             but the server never read it). Differential
+#                             assertion: code_final must NOT contain ppVar(;
+#                             code_preserve MUST contain ppVar(; the two must
+#                             not be identical; round-trip back to final.
+#     adr9-default-seeding .. ppVar(<sym>) populates node$default (PLAN-06)
+#                             which reaches the widget via invoke_build_ui's
+#                             extra$selected gate (PLAN-07). Asserts the
+#                             picker's initial Shiny input value matches the
+#                             formula default with NO user interaction.
+#     adr9-shared-default ... PLAN-07 shared_widget_default() first-occurrence-
+#                             wins. Two ppVar(<sym>, shared='col') with
+#                             different defaults; the shared widget seeds from
+#                             the first occurrence and silently ignores the
+#                             second. Asserts initial value of #shared_col.
+#     adr9-named-args-custom  PLAN-03 named_args registry slot end-to-end:
+#                             a custom hinted_text placeholder declares
+#                             named_args = list(hint = ptr_default_string()),
+#                             the formula passes hint = "...", and the value
+#                             reaches build_ui via do.call (PLAN-07) and lands
+#                             on textInput's placeholder= DOM attribute.
 #
 # EXCLUDED (with reason):
 #   * Non-app chunks (no shiny.appobj): every `setup`, `libs`, `clipboard`
@@ -533,4 +557,133 @@ test_that("customization source-dataset: custom source placeholder", {
   # never ran), and the selection reaches the generated code.
   expect_picker_populated(app, "ggplot_1_1_ppVar_NA", "Sepal.Length")
   expect_match(app$get_value(output = "ptr_code"), "Sepal.Length", fixed = TRUE)
+})
+
+# --- ADR 0009 features ------------------------------------------------------
+# These four fixtures are NOT vignette-paired — they cover ADR-0009 behaviours
+# that have no vignette chunk and that can ONLY be observed end-to-end in a
+# real browser (DOM widget initial state, radio-driven render branches,
+# named_args → rendered attribute). Each fixture lives at
+# tests/testthat/fixtures/vignette-apps/adr9-*/app.R and explains its purpose
+# in its own boot-block comment.
+
+test_that("adr9-code-mode-toggle: ptr_code_mode radio switches code panel between final and preserve", {
+  app <- boot_vignette_app("adr9-code-mode-toggle")
+
+  expect_dom_id(app, "ptr_update_plot")
+  expect_dom_id(app, "ptr_code")
+  expect_dom_id(app, "ptr_code_mode")
+
+  # Drive a first render so the code panel has substituted text to compare
+  # against. ggpaintr only redraws on Update click, so the inputs must be
+  # set BEFORE the click.
+  set_input(app, "ggplot_1_1_ppVar_NA", "mpg")
+  set_input(app, "ggplot_1_2_ppVar_NA", "cyl")
+  draw(app, "ptr_update_plot")
+  expect_code_nonempty(app, "ptr_code")
+
+  # FINAL mode (default) — substituted text. The placeholder call form
+  # must NOT appear; the chosen values MUST appear.
+  code_final <- app$get_value(output = "ptr_code")
+  expect_false(grepl("ppVar(", code_final, fixed = TRUE),
+               label = "final-mode code text does not contain ppVar(")
+  expect_match(code_final, "mpg", fixed = TRUE)
+  expect_match(code_final, "cyl", fixed = TRUE)
+
+  # Flip to PRESERVE mode. radioGroupButtons writes a new value to
+  # input$ptr_code_mode; ptr_register_code re-renders. wait_=TRUE because
+  # this is one of the few inputs that DOES trigger an output update by
+  # itself (no Update click required).
+  app$set_inputs(ptr_code_mode = "preserve", wait_ = TRUE, timeout_ = 10000)
+  code_preserve <- app$get_value(output = "ptr_code")
+
+  # Preserve-mode text MUST contain the placeholder call form and MUST NOT
+  # match the final-mode text. This is the regression-net: if the
+  # ptr_register_code wiring breaks (pre-2c504da behaviour), the radio is
+  # inert and code_preserve == code_final → both expectations fail.
+  expect_true(grepl("ppVar(", code_preserve, fixed = TRUE),
+              label = "preserve-mode code text contains ppVar(")
+  expect_false(identical(code_final, code_preserve),
+               label = "final and preserve modes produce different code text")
+
+  # And back to FINAL — the toggle is bidirectional.
+  app$set_inputs(ptr_code_mode = "final", wait_ = TRUE, timeout_ = 10000)
+  expect_identical(app$get_value(output = "ptr_code"), code_final)
+})
+
+test_that("adr9-default-seeding: ppVar(default = <sym>) seeds the picker initial value", {
+  app <- boot_vignette_app("adr9-default-seeding")
+
+  expect_dom_id(app, "ptr_update_plot")
+  expect_dom_id(app, "ggplot_1_1_ppVar_NA")
+  expect_dom_id(app, "ggplot_1_2_ppVar_NA")
+
+  # No user interaction yet — assert the widgets initialised to the formula
+  # defaults via PLAN-07's invoke_build_ui seeding path. A pre-PLAN-07
+  # ggpaintr would render these pickers empty even though node$default was
+  # populated by PLAN-06's parser.
+  expect_equal(app$get_value(input = "ggplot_1_1_ppVar_NA"), "mpg",
+               label = "ppVar(default = mpg) seeds x picker")
+  expect_equal(app$get_value(input = "ggplot_1_2_ppVar_NA"), "cyl",
+               label = "ppVar(default = cyl) seeds y picker")
+
+  # And the seeded defaults reach the rendered code on a first draw with
+  # no further input — proves the default is a real value, not just a
+  # display-only ghost.
+  draw(app, "ptr_update_plot")
+  expect_rendered(app, "#ptr_plot", "ggplot")
+  expect_no_inline_error(app, "ptr_error")
+  code <- app$get_value(output = "ptr_code")
+  expect_match(code, "mpg", fixed = TRUE)
+  expect_match(code, "cyl", fixed = TRUE)
+})
+
+test_that("adr9-shared-default: shared widget seeds from FIRST occurrence's default (PLAN-07)", {
+  app <- boot_vignette_app("adr9-shared-default")
+
+  expect_dom_id(app, "ptr_update_plot")
+  expect_dom_id(app, "shared_col")
+
+  # First-occurrence-wins: geom_point's ppVar(shared='col', default=hp) is
+  # the first 'col' occurrence in formula order; geom_smooth's
+  # ppVar(shared='col', default=wt) is the second and is silently ignored
+  # for seeding (matches ADR 0009 §8 "first wins silently; no
+  # translate-time abort"). The widget must initialise to "hp", NOT "wt".
+  expect_equal(app$get_value(input = "shared_col"), "hp",
+               label = "shared widget seeds from first occurrence's default")
+
+  # Functional check: the seeded shared value reaches BOTH layers' code.
+  draw(app, "ptr_update_plot")
+  expect_rendered(app, "#ptr_plot", "ggplot")
+  expect_no_inline_error(app, "ptr_error")
+  code <- app$get_value(output = "ptr_code")
+  expect_match(code, "hp", fixed = TRUE)
+})
+
+test_that("adr9-named-args-custom: declared named_args reach the build_ui hook as a named arg", {
+  app <- boot_vignette_app("adr9-named-args-custom")
+
+  expect_dom_id(app, "ptr_update_plot")
+  expect_dom_id(app, "ptr_plot")
+
+  # The custom 'hinted_text' build_ui passes named_args$hint through to
+  # shiny::textInput's `placeholder=` attribute. If PLAN-06's parser fails
+  # to populate node$named_args, or PLAN-07's invoke_build_ui fails to
+  # thread it via do.call, the placeholder attribute is empty and this
+  # assertion fails. We search the full page HTML (defensive against the
+  # exact textInput id) for the rendered attribute.
+  html <- app$get_html("body")
+  expect_match(
+    html %||% "",
+    'placeholder="Type your plot title"',
+    fixed = TRUE,
+    info = "build_ui received named_args$hint and rendered it as textInput placeholder"
+  )
+
+  # And the placeholder still produces working code on draw.
+  set_input(app, "ggplot_1_1_ppVar_NA", "mpg")
+  set_input(app, "ggplot_1_2_ppVar_NA", "cyl")
+  draw(app, "ptr_update_plot")
+  expect_rendered(app, "#ptr_plot", "ggplot")
+  expect_no_inline_error(app, "ptr_error")
 })
