@@ -61,10 +61,20 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
   if (annotate) {
     root <- ptr_assign_ids(root, ns_fn = ns_fn)
     root <- ptr_classify_data(root)
+    root <- ptr_classify_calls(root)
     root <- ptr_shared_bind(root)
     ptr_validate_shared_roles(root)
     ptr_assert_ids_assigned(root)
     ptr_assert_classified(root)
+  }
+  root
+}
+
+# Reserved classification-pass slot (ADR 0012 §2). PLAN-01 lands the identity
+# no-op; PLAN-02 fills in the lift / role-tagging body. Internal.
+ptr_classify_calls <- function(root) {
+  if (!is_ptr_root(root)) {
+    rlang::abort("ptr_classify_calls expects a ptr_root.")
   }
   root
 }
