@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-04 — Delete runtime upstream fast-path (bug 3a) (from ADR 0012)</title>
+<style>
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  .meta { color: #555; font-size: 13px; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .warn { border-left: 4px solid #c97a00; background: #fdf3e1; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+</style>
+</head>
+<body>
+<!--
+plan:
+  number: 04
+  slug: delete-upstream-fast-path
+  source_adr: dev/adr/0012-role-based-tree-and-ptr-spec.html
+  depends_on: [02]
+  parallel_group: G3
+  status: draft
+-->
+
+<h1>PLAN-04 — Delete <code>runtime_upstream_data</code> per-layer fast-path (closes bug 3a)</h1>
+<p class="meta">Source: ADR 0012 (§2 row "Bug 3a fast-path", §3.7 "Bug 3a fast-path deletion", §4 S4) · Depends on: 02 · Parallel group: G3 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0012 §3.7 locks the deletion: <em>"The <code>if (!is.null(state$resolved_data[[layer_name]])) { ... }</code> block inside <code>runtime_upstream_data</code> (in <code>R/paintr-server.R</code>) — the per-layer fast-path — goes away. With the role-based tree, every consumer's <code>c$upstream</code> already encodes its true resolution point — for in-stage consumers, that subtree is the prior stage, not the full pipeline. The existing <code>ptr_resolve_upstream(c$upstream, snapshot, ...)</code> fallback handles every case correctly."</em></p>
+<p>Plan 02's structural lift makes this deletion safe. Before plan 02, deletion would have broken in-aes pickers under <code>|&gt;</code> input. After plan 02, every consumer has correct structural <code>c$upstream</code>.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li>The per-layer fast-path block in <code>runtime_upstream_data</code> — the <code>if (!is.null(layer_name) &amp;&amp; !is.null(state$resolved_data[[layer_name]])) { ... }</code> block whose body assigns from <code>state$resolved_data[[layer_name]]()</code> to <code>out[[c$id]]</code> with a <code>next</code> — locate by symbol name in <code>R/paintr-server.R</code> is removed. The <code>shared</code> branch and the <code>c$upstream</code> fallback branch remain untouched.</li>
+  <li>An e2e fixture <code>tests/testthat/fixtures/vignette-apps/adr12-bug-3a/</code> exists with an <code>app.R</code> file using the app-dir + pkgload pattern (per the shinytest2 conventions in <code>.claude/rules/testing.md</code>). The fixture's formula is <code>ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; ggplot(aes(ppVar, ppVar)) + geom_point()</code>.</li>
+  <li>A corresponding test file <code>tests/testthat/test-adr12-bug-3a.R</code> exists, gated with <code>skip_on_cran()</code> + <code>skip_if_not_installed("shinytest2")</code> + <code>skip_if_not_installed("chromote")</code>. The test:
+    <ol>
+      <li>Boots the fixture app via <code>AppDriver$new(test_path("fixtures","vignette-apps","adr12-bug-3a"))</code> with the standard <code>GGP_PKG</code> env-var dance.</li>
+      <li>Uploads <code>penguins.csv</code> (or whatever test data the fixture provides) into the ppUpload widget.</li>
+      <li>Asserts the in-filter ppVar picker (id <code>ggplot_2_1_1_ppVar_NA</code> — confirm the exact id by inspecting the translated tree's consumer node ids in the fixture's app.R header comment) shows the uploaded data's columns as options.</li>
+      <li>Asserts the aes-side ppVar pickers (ids matching pattern <code>ggplot_1_*_ppVar_NA</code>) also show the columns.</li>
+    </ol>
+  </li>
+  <li>Authoritative gate (Definition of Done): FAIL 0 / ERROR 0 / SKIP 0 / PASS = baseline_after_plan_02 + N_new_test_assertions. No previously-passing test regresses (especially the existing <code>tests/testthat/test-runtime-*.R</code> coverage of <code>runtime_upstream_data</code>).</li>
+  <li>The deleted code's previous comment about "per-layer resolved-data fast-path" is removed cleanly — no orphan comments referencing a vanished block.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns: <code>R/paintr-server.R</code> (deletion only, in the <code>runtime_upstream_data</code> function body), <code>tests/testthat/fixtures/vignette-apps/adr12-bug-3a/app.R</code> (new), <code>tests/testthat/fixtures/vignette-apps/adr12-bug-3a/penguins.csv</code> (new, or a small derived CSV if a smaller test sample is preferable), <code>tests/testthat/test-adr12-bug-3a.R</code> (new).</li>
+  <li>Files this plan must NOT touch: <code>R/paintr-translate.R</code> (plan 02's territory), <code>R/paintr-prune.R</code>, <code>R/paintr-resolve.R</code>, <code>R/paintr-safe.R</code>, <code>R/paintr-app.R</code>, any other vignette or fixture, <code>NAMESPACE</code>, <code>man/</code>. In particular, do not refactor <code>runtime_upstream_data</code> beyond the deletion — no rename, no signature change, no helper extraction.</li>
+  <li>The fixture's <code>app.R</code> follows the project's shinytest2 conventions verbatim (per <code>.claude/rules/testing.md</code>): first line <code>pkgload::load_all(Sys.getenv("GGP_PKG"), quiet=TRUE, helpers=FALSE, attach_testthat=FALSE)</code>; the app body is verbatim-equivalent to the source formula it represents.</li>
+  <li>If the deletion uncovers a previously-masked test failure (a test that relied on the fast-path's output rather than the structural fallback), that is a regression and stops the plan — do not paper over by re-adding the fast-path under a guard. Surface in the audit report; the resolution belongs in a follow-up.</li>
+  <li>snake_case, 2-space indent, project conventions for shinytest2 fixtures (see existing <code>adr9-*</code> fixtures as templates).</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: In-stage pickers see the correct upstream after the fast-path is gone
+
+Scenario: Pre-upload boot
+  Given the fixture app for "ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; ggplot(aes(ppVar, ppVar)) + geom_point()"
+  When  the app boots without a file uploaded
+  Then  the app renders without error
+  And   the picker for in-filter ppVar is empty (no upstream yet)
+
+Scenario: Post-upload, in-filter picker populated
+  Given the booted fixture app
+  When  I upload penguins.csv into the ppUpload widget
+  And   the runtime resolves the upload
+  Then  the in-filter ppVar picker offers penguins' column names as choices
+  And   the aes-side ppVar pickers offer the same column names
+
+Scenario: Filter args do not narrow the in-filter picker's choices
+  Given the booted fixture app with penguins.csv uploaded
+  And   the in-filter ppVar set to "bill_length_mm" and the in-filter ppNum set to 40
+  When  the filter actually narrows the data to bill_length_mm &gt; 40
+  Then  the in-filter ppVar picker's column choices still come from the pre-filter data
+        (not from the post-filter row-narrowed view)
+
+Scenario: No regression on existing runtime upstream behavior
+  Given the existing tests in tests/testthat/test-runtime-*.R
+  When  the gate command runs
+  Then  every previously-passing test still passes (no count drop on PASS, no new FAIL/ERROR)
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate (copied verbatim from <code>CLAUDE.md</code>):</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected: <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline_after_plan_02 + N_new)</code>. The browser e2e test must <strong>run</strong> (not silently SKIP) under this gate — that's the point of the <code>NOT_CRAN=true</code> envvar.</p>
+<p><strong>Proxy traps — do not be fooled (copied verbatim from CLAUDE.md):</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does <strong>NOT</strong> make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead <strong>cleanly SKIP</strong> via <code>boot_vignette_app()</code>'s source-root guard (no <code>DESCRIPTION</code> in the <code>.Rcheck</code> sandbox). If a check run shows the e2e file <strong>ERRORing</strong>, that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> <strong>runs</strong> the browser tests (source tree present → 0 SKIP). That alone is the gate.</li>
+</ul>
+<p>This plan adds 1 new test file with ~3 browser-driven assertions plus 1 deletion in <code>R/paintr-server.R</code>. The gate must show PASS rise by ≥ 3, FAIL/ERROR still 0, SKIP unchanged.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: <code>R/paintr-server.R</code> (deletion only inside <code>runtime_upstream_data</code>), <code>tests/testthat/fixtures/vignette-apps/adr12-bug-3a/app.R</code> (new), <code>tests/testthat/fixtures/vignette-apps/adr12-bug-3a/penguins.csv</code> (new — small sampled subset acceptable), <code>tests/testthat/test-adr12-bug-3a.R</code> (new). Generated files (<code>NAMESPACE</code>, <code>man/</code>) untouched.</p>
+<p>Branch convention: <code>0012-delete-upstream-fast-path</code>, worktree at <code>.claude/worktrees/0012-role-based-tree-and-ptr-spec/delete-upstream-fast-path/</code>. Merge into orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor re-runs the gate command and verifies (a) the deleted block is gone, (b) the new e2e test runs (not SKIPs) and passes, (c) no existing test regresses.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch HEAD after plan 02 has merged. Record SHA + PASS count in worktree first commit message. Pre-existing baseline file <code>dev/baselines/</code> (if present) is the floor for SKIP — any SKIP count drift means the e2e gating story changed and needs investigation.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Findings outside this plan's owned files are surfaced, never absorbed. If the deletion uncovers a previously-masked behavior elsewhere in <code>runtime_upstream_data</code> (e.g., the shared-bucket branch turns out to depend on the fast-path having populated something), record as a follow-up plan — do not extend deletion to other branches in this plan.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: plan 02 (without the structural pipeline lift, deleting the fast-path regresses the in-aes pickers for nested-call / native-pipe input).</p>
+<p>Provides for: nothing structural. Parallel-eligible with plan 03 (different files). Plan 05 picks up the same <code>R/paintr-server.R</code> file afterwards for the <code>state$spec</code> wiring, so plan 05 must merge after this one.</p>
+
+<!-- implementable: PASS date=2026-05-21 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=ceddbb757fc0 -->
+</body>
+</html>
