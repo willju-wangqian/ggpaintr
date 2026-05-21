@@ -18,7 +18,7 @@
 <body>
 
 <h1>ADR 0010 — <code>ppUpload(name)</code> name-default arg + identity-outside-app evaluation</h1>
-<p class="meta">Date proposed: 2026-05-21 · Owner: ggpaintr · Status: <strong>DRAFT — deferred, not in scope for current cycle</strong> · Cross-refs: <a href="0009-pp-placeholders-and-expression-input.html">ADR 0009</a> (pp* grammar + expression-mode input) · Issue source: user-reported follow-up bug 2 from the ADR-0009 round-trip review (2026-05-21)</p>
+<p class="meta">Date proposed: 2026-05-21 · Promoted: 2026-05-21 · Owner: ggpaintr · Status: <strong>ACCEPTED — promoted from DEFERRED per /decision-to-plan session 2026-05-21; see Clarifications</strong> · Cross-refs: <a href="0009-pp-placeholders-and-expression-input.html">ADR 0009</a> (pp* grammar + expression-mode input) · Issue source: user-reported follow-up bug 2 from the ADR-0009 round-trip review (2026-05-21)</p>
 
 <div class="note"><strong>Follow-up note 2026-05-22.</strong> The preserve-mode render policy has changed since this ADR was drafted: an empty no-pick no-shared placeholder now renders as bare <code>ppX</code> (without parens) — see commit <code>8235d8a</code>. Body references below to "<code>ppUpload()</code> emits as <code>ppUpload()</code> in preserve mode" describe the pre-change behaviour. The argued ADR 0010 design still holds (a <code>ppUpload(penguins)</code> arg form would still round-trip with parens via <code>format_placeholder_value</code>); only the empty-form description is stale. Re-read those claims as "pre-change baseline" when scoping the eventual implementation.</div>
 
@@ -81,7 +81,35 @@
 
 <h2>Status</h2>
 
-<p><strong>DEFERRED.</strong> Out of scope for the current bug-fix cycle. Pick up alongside a Bug 3 (filter-stage upstream cols) follow-up plan or as a standalone PLAN-09 after the vignette-review branch lands.</p>
+<p><strong>ACCEPTED (promoted 2026-05-21).</strong> Originally drafted as DEFERRED out-of-scope this cycle; promoted in the /decision-to-plan session 2026-05-21 after design clarifications below resolved the under-specified parts. Implementation plans live at <code>dev/plans/0010-ppupload-name-default-arg/</code>.</p>
+
+<h2>Clarifications (2026-05-21, post-promotion)</h2>
+
+<p>The original Decision section under-specified four points. The /decision-to-plan grilling resolved them as follows. These clarifications are the authoritative source for the implementation plans; the original Decision text remains as drafted but is read <em>under</em> these clarifications, not against them.</p>
+
+<h3>C1. The display-name mechanism is the existing companion textInput</h3>
+
+<p>The original §Decision-3 implied a new "bareword group" entry for <code>ppUpload</code> in <code>format_placeholder_value</code> and a new field for the display name. Source verification (2026-05-21) shows the mechanism already exists: <code>ptr_builtin_upload_build_ui</code> (<code>R/paintr-builtins.R:218–240</code>) already renders a companion <code>textInput</code> at <code>node$companion_id</code> with initial <code>value = ""</code>, <code>substitute_walk.ptr_ph_data_source</code> (<code>R/paintr-substitute.R:145–179</code>) already reads <code>ctx$snapshot[[node$companion_id]]</code> and emits <code>rlang::sym(name_value)</code> in final mode, and <code>format_placeholder_value</code> (<code>R/paintr-render.R:391–412</code>) already lists <code>"ppUpload"</code> in <code>bareword_kw</code>. The work is therefore to <em>seed</em> that companion <code>textInput</code> with <code>node$default</code> at UI build time, not to invent a parallel mechanism. Preserve-mode rendering also depends on <code>stamp_current_pick_walk.ptr_ph_data_source</code> (<code>R/paintr-render.R:358–364</code>) reading the companion-id snapshot instead of the fileInput's value.</p>
+
+<h3>C2. Final-mode bind: via ADR-0009 captured caller env (no new injection plumbing)</h3>
+
+<p>When <code>ppUpload(penguins)</code> seeds the companion <code>textInput</code> with <code>"penguins"</code>, <code>substitute_walk.ptr_ph_data_source</code> emits the symbol <code>penguins</code> into the final-mode AST. At live-eval time, the symbol is resolved through the Shiny session's eval env (<code>state$eval_env = new.env(parent = envir)</code>, <code>R/paintr-server.R:207</code>), whose <strong>parent is the caller env captured by <code>ptr_capture_formula</code></strong> (<code>R/paintr-app.R:195</code>). If the user has <code>penguins</code> bound in the calling env, the pipeline resolves and renders. If they upload a file, <code>assign(binding_name, df, envir = state$eval_env)</code> (<code>R/paintr-server.R:504</code>) shadows the parent-env binding, so upload override works correctly. No new env-threading code is required — the existing eval-env parent chain delivers auto-resolve for free.</p>
+
+<h3>C3. Auto-resolve in app context (semantic extension beyond "display name")</h3>
+
+<p>The original ADR framed <code>ppUpload(penguins)</code> as <em>only</em> a display-name declaration. Promoted scope: <code>ppUpload(penguins)</code> additionally means "treat <code>penguins</code> from the caller env as the default data; users can still re-upload to replace it." The user-facing semantics now match <code>ppVar(mpg)</code>'s default-but-overridable shape. No imperative pre-binding step is needed because (per C2) the eval env's parent chain delivers caller-env lookup automatically once the companion <code>textInput</code> is seeded.</p>
+
+<h3>C4. Outside-app eval: <code>function(x) x</code> identity; string passthrough accepted</h3>
+
+<p>The runtime <code>ppUpload</code> top-level function (<code>R/paintr-builtins.R:365–367</code>) changes from a guard that always raises to <code>function(x, ...) if (missing(x)) rlang::abort(...) else x</code>. The bare-form (<code>ppUpload()</code>, no positional arg) still raises with the existing message. The arg-bearing form is identity, so <code>ppUpload(penguins)</code> outside <code>ptr_app</code> returns the value of <code>penguins</code> from the caller env. String form (<code>ppUpload("penguins")</code>) is accepted and returns the string verbatim — symmetric with <code>ppVar("mpg")</code> outside app; the pipeline's next stage will surface a typing error if a string is not what the user meant.</p>
+
+<h3>C5. Legacy <code>ppUpload()</code> (no default) emission is unchanged</h3>
+
+<p>When <code>node$default</code> is NULL, the companion <code>textInput</code> starts with <code>value = ""</code> exactly as today; preserve-mode emits <code>ppUpload()</code>; final-mode emission depends on whether the user has typed a name into the companion input at runtime (same as today). ADR 0010 is strictly additive on the legacy path.</p>
+
+<h3>C6. <code>node$default</code> storage shape</h3>
+
+<p><code>ptr_default_symbol_or_string()</code> (<code>R/paintr-default-args.R:201–213</code>) accepts a bare symbol or a string scalar and returns a single character scalar in both cases (the symbol is coerced via <code>rlang::as_string()</code>). Therefore <code>node$default</code> on <code>ppUpload</code> nodes is always either <code>NULL</code> (legacy) or a single character scalar (named form). This matches <code>ppVar</code>'s <code>node$default</code> shape, so seeding <code>shiny::textInput(value = node$default %||% "")</code> works without coercion logic.</p>
 
 </body>
 </html>

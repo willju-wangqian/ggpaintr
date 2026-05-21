@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-03 — adr10-ppupload-name e2e fixture + auto-resolve integration tests (from ADR 0010)</title>
+<style>
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  .meta { color: #555; font-size: 13px; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+</style>
+</head>
+<body>
+<!--
+plan:
+  number: 03
+  slug: e2e-and-integration
+  source_adr: dev/adr/0010-ppupload-name-default-arg.html
+  depends_on: [01, 02]
+  parallel_group: G2
+  status: draft
+-->
+
+<h1>PLAN-03 — <code>adr10-ppupload-name</code> e2e fixture + auto-resolve integration tests</h1>
+<p class="meta">Source: ADR 0010 (Decision §2, §4 + Clarifications C2, C3, C5) · Depends on: PLAN-01, PLAN-02 · Parallel group: G2 · Status: draft</p>
+
+<h2>Context</h2>
+
+<p>ADR 0010 Decision §2 (final-mode substitution emits the user name) and §4 (outside-app evaluation) describe end-to-end behavior whose unit-level pieces are owned by PLAN-01 and PLAN-02. This plan binds those pieces with two integration surfaces:</p>
+
+<ol>
+  <li>An R-level test file that exercises <code>ptr_app_components</code> end-to-end against a small in-memory data.frame in the caller env — asserting that <code>ppUpload(penguins) |&gt; ...</code> in the formula causes the live-eval AST emitted from <code>substitute_walk</code> to evaluate against the caller-env <code>penguins</code> via the existing <code>state$eval_env</code> parent chain (Clarification C2). No new server-side wiring is required by this plan; the plan verifies that what is already wired works under the seeded-companion change PLAN-01 introduces.</li>
+  <li>A browser-level shinytest2 fixture under <code>tests/testthat/fixtures/vignette-apps/adr10-ppupload-name/</code> following the <code>app-dir + pkgload::load_all</code> pattern documented in <code>CLAUDE.md</code>'s "Browser e2e (shinytest2) — hard-won gotchas" block, asserting (a) the companion <code>textInput</code> renders seeded with "penguins", (b) the code panel renders the formula with bareword name in both preserve and final modes, (c) the rendered plot appears (auto-resolve works against the caller env), (d) editing the companion input to "iris" causes preserve mode to round-trip <code>ppUpload(iris)</code>.</li>
+</ol>
+
+<h2>Success Criteria</h2>
+
+<ul>
+  <li><code>tests/testthat/test-ppupload-name-e2e.R</code> exists and contains R-level integration tests that bind <code>penguins &lt;- data.frame(a = 1L:3L, b = c("x","y","z"))</code> in the test scope, then call <code>ptr_app_components("ppUpload(penguins) |&gt; ggplot(aes(x = ppVar(a))) + geom_point()")</code> (or equivalent) and assert: (a) the returned <code>parts$ui</code> contains a <code>textInput</code> at the upload node's <code>companion_id</code> with <code>value = "penguins"</code> (cross-checks PLAN-01); (b) running the resulting server through <code>shiny::testServer(parts$server, ...)</code> (or by directly invoking <code>substitute_walk</code> against a hand-built snapshot whose <code>companion_id</code> entry = <code>"penguins"</code> and whose <code>ppVar</code> input = <code>"a"</code>) yields a final-mode AST containing the bare symbol <code>penguins</code> at the data-source slot.</li>
+  <li>A browser fixture app directory exists at <code>tests/testthat/fixtures/vignette-apps/adr10-ppupload-name/</code> containing <code>app.R</code>. The <code>app.R</code> first line is <code>pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)</code>; the body binds <code>penguins</code> to an <strong>inline <code>data.frame</code></strong> (verified 2026-05-21: <code>palmerpenguins</code> is not in <code>DESCRIPTION</code> Suggests, so inline is the default path, not a fallback) — e.g. <code>penguins &lt;- data.frame(species = c("Adelie","Gentoo","Chinstrap"), bill_length_mm = c(39.1, 50.0, 49.5), bill_depth_mm = c(18.7, 15.5, 17.5))</code> — then calls <code>ptr_app("ppUpload(penguins) |&gt; dplyr::filter(species == \"Adelie\") |&gt; ggplot(aes(x = ppVar(bill_length_mm), y = ppVar(bill_depth_mm))) + geom_point()")</code>.</li>
+  <li><code>tests/testthat/test-adr10-ppupload-name-browser.R</code> exists, gated with <code>skip_on_cran(); skip_if_not_installed("shinytest2"); skip_if_not_installed("chromote")</code>; sets <code>withr::local_envvar(GGP_PKG = normalizePath(test_path("..","..")))</code>; opens <code>AppDriver$new(test_path("fixtures","vignette-apps","adr10-ppupload-name"))</code> wrapped in <code>suppressWarnings()</code>; asserts: (a) <code>app$get_value(input = "&lt;upload-companion-id&gt;")</code> equals <code>"penguins"</code> at boot (PLAN-01 seeding visible end-to-end); (b) <code>app$get_html("#&lt;code-panel-id&gt;")</code> in preserve mode contains <code>"ppUpload(penguins)"</code> (PLAN-02 round-trip visible end-to-end); (c) the plot output element is non-empty after the initial Draw click, demonstrating auto-resolve from the caller-env <code>penguins</code> with no actual file upload (Clarification C3); (d) after <code>app$set_inputs(..._name = "iris", wait_ = FALSE)</code>, clicking Draw, and switching to preserve mode, the code panel contains <code>"ppUpload(iris)"</code>.</li>
+  <li>Per <code>CLAUDE.md</code>'s shinytest2 gotchas, the fixture and test never call <code>app$get_values()</code> (only targeted <code>get_html</code>/<code>get_value</code>); placeholder-input setters use <code>wait_ = FALSE</code> followed by an explicit Draw click; <code>var</code> pickers (if used) are set only after switching to the layer's Controls subtab.</li>
+  <li>The fixture must run with the project's existing <code>Suggests:</code>-tier stack — no new hard <code>Depends:</code>/<code>Imports:</code>/<code>Suggests:</code> additions to <code>DESCRIPTION</code>. Specifically: do NOT add <code>palmerpenguins</code> to Suggests just to use its <code>penguins</code> dataset; build a literal inline <code>data.frame</code> instead.</li>
+  <li>Authoritative gate returns <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline + N_new)</code>. Browser-test SKIPs are acceptable only on machines without <code>shinytest2</code>/<code>chromote</code>/Chrome — under the canonical <code>NOT_CRAN=true</code> run with the browser stack installed, the test runs (zero SKIP). The plan owner runs the gate themselves before claiming PASS, per the "authoritative gate" rule.</li>
+</ul>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>Files this plan owns:</strong>
+    <ul>
+      <li><code>tests/testthat/test-ppupload-name-e2e.R</code> (new R-level integration tests).</li>
+      <li><code>tests/testthat/fixtures/vignette-apps/adr10-ppupload-name/app.R</code> (new browser fixture).</li>
+      <li><code>tests/testthat/test-adr10-ppupload-name-browser.R</code> (new browser-level shinytest2 test).</li>
+    </ul>
+  </li>
+  <li><strong>Files this plan must NOT touch:</strong> any <code>R/paintr-*.R</code> file (Clarification C2 establishes that the auto-resolve mechanism is already in place at <code>R/paintr-server.R:207</code>'s <code>eval_env = new.env(parent = envir)</code> and at <code>R/paintr-server.R:504</code>'s <code>assign(binding_name, df, envir = state$eval_env)</code> — no production code change is required and this plan must not introduce one); <code>DESCRIPTION</code> (no new deps); <code>NAMESPACE</code>; <code>man/</code>; any vignette under <code>vignettes/</code>; any other fixture directory under <code>tests/testthat/fixtures/vignette-apps/</code>.</li>
+  <li>The fixture's <code>app.R</code> body must stay verbatim-equivalent to source the vignette / docs would reasonably show — diffable per the <code>app-dir + pkgload</code> pattern documented in <code>CLAUDE.md</code>. The <code>pkgload::load_all</code> first-line invariant is non-negotiable: omitting it makes shinytest2 boot the system-installed ggpaintr in a fresh R subprocess and silently test dead code.</li>
+  <li>If the browser fixture cannot demonstrate auto-resolve cleanly (e.g. <code>palmerpenguins</code> unavailable and the inline fallback is unwieldy), prefer a tiny inline data.frame over reaching for a heavier fixture — the assertion is "the named symbol resolves through eval_env's parent chain", which works equally well with <code>data.frame(a = 1:3)</code>.</li>
+  <li>Honor project conventions: <code>testthat</code> edition 3 syntax (<code>test_that("...", { ... })</code>, <code>expect_equal</code>/<code>expect_true</code>/<code>expect_match</code>); helpers under <code>tests/testthat/helper-*.R</code> if useful, but new helpers must not collide with existing helper names.</li>
+</ul>
+
+<h2>Implementation notes — discovering the upload companion-id and code-panel-id</h2>
+
+<p>The BDD scenarios below use the literal placeholders <code>&lt;upload-companion-id&gt;</code> and <code>&lt;code-panel-id&gt;</code>. The implementer resolves these at test-write time as follows:</p>
+
+<ol>
+  <li><strong>Upload companion-id:</strong> obtain the translated tree and harvest the node's <code>companion_id</code> slot directly.
+    <pre>formula &lt;- "ppUpload(penguins) |&gt; ..."
+tree    &lt;- ggpaintr:::ptr_translate(formula)   # internal — `:::` not `::`
+# Use the existing tree walker (R/paintr-walk.R:16) to collect ppUpload nodes:
+found &lt;- list()
+ggpaintr:::ptr_walk(tree, visit = function(n) {
+  if (ggpaintr:::is_ptr_ph_data_source(n) &amp;&amp; identical(n$keyword, "ppUpload")) {
+    found[[length(found) + 1L]] &lt;&lt;- n
+  }
+  n
+})
+companion_id &lt;- found[[1L]]$companion_id   # e.g. "&lt;layer&gt;-up&lt;n&gt;_name"</pre>
+    The companion-id is derived as <code>paste0(node$id, "_name")</code> per <code>ptr_upload_name_id</code> (<code>R/paintr-upload.R:7–9</code>) registered as <code>companion_id_fn</code> in the <code>upload_fn</code> registry block (<code>R/paintr-builtins.R:327–333</code>); deriving from <code>node$id</code> after the fact is equivalent and simpler if traversal is awkward.</li>
+  <li><strong>Code-panel-id:</strong> reuse the selector pattern from existing browser tests. Read <code>tests/testthat/test-e2e-vignette-examples-shinytest2.R</code> for the canonical code-panel selector used by <code>boot_vignette_app()</code>-driven assertions; the same selector applies here because <code>adr10-ppupload-name</code> uses the same <code>ptr_app()</code> entry-point and therefore the same default UI scaffold.</li>
+  <li><strong>Mode toggle:</strong> the preserve-mode / final-mode selector lives in the project's default UI under a known input id — find it the same way (existing browser tests already drive it). Do not hardcode a guess.</li>
+</ol>
+
+<p>If any of these discovery steps reveals that the symbol or selector pattern has changed, that is a regression against PLAN-01 / PLAN-02 (not this plan's scope to fix). Surface it in the audit report per the Out-of-scope handling section.</p>
+
+<h2>BDD scenarios</h2>
+
+<pre>
+Feature: ppUpload(name) round-trips end-to-end through ptr_app, including auto-resolve and re-edit
+
+Scenario: ptr_app_components surfaces the seeded companion textInput in its UI
+  Given a caller frame with penguins &lt;- data.frame(a = 1L:3L)
+  When  I call ggpaintr:::ptr_app_components(
+          "ppUpload(penguins) |&gt; ggplot(aes(x = ppVar(a))) + geom_point()",
+          envir = caller_frame)
+  Then  the returned $ui contains a shiny.tag for textInput whose inputId equals
+        the upload node's companion_id and whose value attribute equals "penguins"
+
+Scenario: substitute_walk emits the bare symbol when companion snapshot is seeded
+  Given a translated tree from "ppUpload(penguins) |&gt; ggplot(aes(x = ppVar(a))) + geom_point()"
+  And   an input_snapshot with input_snapshot[[companion_id]] = "penguins"
+        and input_snapshot[[ppvar_id]] = "a"
+  When  I call ggpaintr:::ptr_substitute(tree, input_snapshot = input_snapshot)
+        (note: `ptr_substitute` is internal — `:::` not `::`; the actual
+        parameter name is `input_snapshot`, not `snapshot`. Real signature:
+        `ptr_substitute(node, input_snapshot = list(), shared_bindings = list(),
+        eval_env = parent.frame(), upstream_cols = list())` at
+        R/paintr-substitute.R:16.)
+  Then  the resulting AST's data-source slot is the bare symbol `penguins`
+        (NOT a string, NOT the internal upload id)
+
+Scenario: live-eval resolves the symbol via eval_env's parent chain (caller env)
+  Given the substituted AST above
+  And   eval_env &lt;- new.env(parent = caller_env_with_penguins)
+  When  I call eval(ast, envir = eval_env)
+  Then  the result is a ggplot object backed by the caller-env penguins data.frame
+
+[Browser-level, gated on shinytest2/chromote/Chrome]
+
+Scenario: app boots with companion textInput seeded to "penguins"
+  Given the adr10-ppupload-name fixture app
+  When  AppDriver opens the app
+  Then  app$get_value(input = "&lt;upload-companion-id&gt;") equals "penguins"
+
+Scenario: preserve-mode code panel shows ppUpload(penguins) at boot
+  Given the same app open
+  When  the user switches the code panel to preserve mode
+  Then  app$get_html("#&lt;code-panel-id&gt;") contains the substring "ppUpload(penguins)"
+
+Scenario: plot renders without any actual file upload (auto-resolve via caller env)
+  Given the same app open
+  When  the user clicks the Draw button (no file was uploaded)
+  Then  the plot output element is non-empty and contains a rendered ggplot
+
+Scenario: editing the companion to "iris" round-trips to ppUpload(iris) in preserve mode
+  Given the same app open
+  When  the user sets the companion textInput to "iris" (wait_ = FALSE), clicks Draw,
+        and switches to preserve mode
+  Then  app$get_html("#&lt;code-panel-id&gt;") contains the substring "ppUpload(iris)"
+        and does NOT contain "ppUpload(penguins)"
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p>Authoritative gate (copied verbatim from <code>CLAUDE.md</code>):</p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p>Expected output: <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code> where <code>N = baseline_PASS_at_branch_point + N_new_tests_in_this_plan</code>. Record both numbers in the plan's worktree first commit message. Where "<code>SKIP 0</code>" requires the canonical <code>shinytest2 + chromote + Chrome</code> stack — on the maintainer's dev box that's true; on a CI box missing Chrome a clean all-skip on the browser file alone is acceptable but must be reported, not hidden.</p>
+
+<p><strong>Proxy traps — do not be fooled (copied verbatim from <code>CLAUDE.md</code>):</strong></p>
+
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does <strong>NOT</strong> make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead <strong>cleanly SKIP</strong> via <code>boot_vignette_app()</code>'s source-root guard (no <code>DESCRIPTION</code> in the <code>.Rcheck</code> sandbox). If a check run shows the e2e file <strong>ERRORing</strong> (<code>R CMD check found ERRORs</code>, pkgload "DESCRIPTION not found"), that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> <strong>runs</strong> the browser tests (source tree present → 0 SKIP). That alone is the gate. Never claim the suite green, merge a branch, mark a step done, or clear context off the skipping/erroring harness.</li>
+</ul>
+
+<p>This plan adds approximately 7 new tests (3 R-level + 4 browser-level). The gate must show <code>PASS</code> rise by ≥ 7 with <code>FAIL/ERROR</code> still 0 and <code>SKIP</code> unchanged from the pre-plan baseline (modulo the documented browser-stack-missing case).</p>
+
+<h2>Scope guard / ownership</h2>
+
+<p>This plan owns: three new test/fixture files listed in Constraints. No production R-source file is owned by this plan. No generated files. No <code>NAMESPACE</code> changes.</p>
+
+<p>Branch convention: this plan lives on branch <code>0010-e2e-and-integration</code> in a worktree at <code>.claude/worktrees/0010-ppupload-name-default-arg/e2e-and-integration/</code>. Merge via <code>--no-ff</code> only after PLAN-01 and PLAN-02 have both merged into the orchestrator branch.</p>
+
+<h2>Independence clause</h2>
+
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the Definition-of-Done command and verifies expected output before any merge. For browser-level tests, the auditor verifies SKIP count remained at the pre-plan baseline when the canonical browser stack is present.</p>
+
+<h2>Baseline / drift reference</h2>
+
+<p>Known-good baseline: orchestrator branch HEAD <em>after PLAN-01 and PLAN-02 are merged</em>. Record SHA and pre-plan PASS count in the worktree's first commit message. Pre-existing failures: none expected; if any are present, name them in the first commit message and treat them as the new baseline.</p>
+
+<h2>Out-of-scope handling</h2>
+
+<p>Findings outside this plan's owned files are surfaced in the audit report, never absorbed. Specifically: any production R-source change (<code>R/paintr-*.R</code>) discovered to be needed is a sign that PLAN-01 or PLAN-02 is incomplete — file as a regression against the upstream plan rather than absorbing into this one. Vignette / docs updates announcing ADR 0010 are explicitly out of scope and become a follow-up plan once the e2e fixture has been verified on the orchestrator branch.</p>
+
+<h2>Dependencies / ordering</h2>
+
+<p>Depends on: PLAN-01 (registry + companion-input seeding + outside-app identity), PLAN-02 (preserve-mode <code>current_pick</code> from companion-id). Both must be merged into the orchestrator branch before this plan's worktree is branched, because: (a) the seeded-textInput assertion needs PLAN-01's UI change; (b) the preserve-mode round-trip assertion needs PLAN-02's stamp rewire.</p>
+
+<p>Provides for: a future vignette/docs plan announcing ADR 0010, and an optional follow-up plan to migrate existing <code>ppUpload</code> usages in the project's own vignettes to the named form.</p>
+
+<!-- implementable: PASS date=2026-05-21 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=2e1e77914992 -->
+</body>
+</html>
