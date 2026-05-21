@@ -105,9 +105,29 @@
 #'   keywords; [ptr_ui_text()] for copy overrides; [ptr_css()] for the
 #'   `css =` argument and themable CSS custom properties;
 #'   `vignette("ggpaintr-use-cases")` for tutorial examples.
+#' @param formula Either a single character scalar containing a ggplot
+#'   expression with `ggpaintr` placeholders, or an unquoted ggplot
+#'   expression supplied directly. Expression-mode is captured with
+#'   [rlang::enexpr()] at the public boundary, then deparsed to a string
+#'   before reaching the shared translate pipeline; both modes produce
+#'   equivalent apps. A bare symbol bound to a string in the calling frame
+#'   (e.g. `f <- "..."; ptr_app(f)`) is resolved and treated as string
+#'   mode. Pre-quoted wrappers ([rlang::expr()], [rlang::quo()],
+#'   [base::quote()], [base::bquote()]) at the captured root are unwrapped
+#'   one level. `!!` splicing inside the captured expression is honoured
+#'   via [rlang::enexpr()]. **Native pipe (`|>`) caveat:** in expression
+#'   mode, R's parser desugars `|>` before capture, so the rendered code
+#'   shows the desugared nested-call form. Stay in string mode (or use
+#'   `%>%`) if you need `|>` preserved.
 #' @examples
 #' if (interactive()) {
+#'   # String mode (existing).
 #'   ptr_app("ggplot(mtcars, aes(x = var, y = var)) + geom_point()")
+#'   # Expression mode (new): pass the unquoted ggplot expression.
+#'   ptr_app(ggplot(mtcars, aes(x = var, y = var)) + geom_point())
+#'   # !! splicing into expression mode.
+#'   col <- rlang::sym("mpg")
+#'   ptr_app(ggplot(mtcars, aes(x = !!col, y = var)) + geom_point())
 #' }
 #' @export
 ptr_app <- function(formula,
@@ -117,8 +137,9 @@ ptr_app <- function(formula,
                        expr_check = TRUE,
                        safe_to_remove = character(),
                        css = NULL) {
+  formula_str <- ptr_capture_formula(rlang::enexpr(formula), envir)
   parts <- ptr_app_components(
-    formula,
+    formula_str,
     envir = envir,
     ui_text = ui_text,
     checkbox_defaults = checkbox_defaults,
@@ -137,6 +158,7 @@ ptr_app_components <- function(formula,
                                   safe_to_remove = character(),
                                   ns = shiny::NS(NULL),
                                   css = NULL) {
+  formula <- ptr_capture_formula(rlang::enexpr(formula), envir)
   tree <- ptr_translate(formula, expr_check = expr_check)
 
   ui <- ptr_build_app_ui(
@@ -155,6 +177,111 @@ ptr_app_components <- function(formula,
     safe_to_remove = safe_to_remove, ns = ns
   )
   list(ui = ui, server = server)
+}
+
+# Public-boundary dispatch for `formula`: accepts either a string scalar
+# or an unquoted ggplot expression captured with `rlang::enexpr()`.
+# Returns a single character scalar that the existing `ptr_translate()`
+# pipeline can consume verbatim. Per ADR 0009 §"Edge-case resolutions"
+# (E1, E1.a, E2.a):
+#   - string literal              -> returned as-is
+#   - bare symbol                 -> resolved once in `envir` (the
+#                                    `f <- "..."; ptr_app(f)` pattern)
+#   - rlang::expr() / rlang::quo() / quote() / bquote() at the root
+#                                 -> unwrapped one layer
+#   - any other language object   -> deparsed via `rlang::expr_text()`
+# `rlang::enexpr()` is used (not base `substitute()`) per the ADR 0009
+# cross-cutting rlang preference; it also makes `!!` splicing work.
+ptr_capture_formula <- function(formula_captured, envir) {
+  if (rlang::is_string(formula_captured)) {
+    return(formula_captured)
+  }
+  if (rlang::is_symbol(formula_captured)) {
+    sym_name <- rlang::as_string(formula_captured)
+    # Resolve order: caller-supplied `envir` first (documented
+    # contract: `f <- "..."; ptr_app(f)` looks `f` up in the user's
+    # frame), then walk the active call stack. The stack walk covers
+    # internal forwarding -- when `ptr_app()` converts to a string and
+    # passes its local variable to `ptr_app_components()`, the symbol
+    # is bound in `ptr_app`'s frame, not in the user-held `envir`. We
+    # accept only character / call / symbol values, so unrelated
+    # bindings in upstream frames cannot poison the resolution.
+    sentinel <- new.env(parent = emptyenv())
+    resolved <- tryCatch(rlang::eval_bare(formula_captured, envir),
+                         error = function(e) sentinel)
+    accept <- function(x) {
+      rlang::is_string(x) || is.call(x) || rlang::is_symbol(x)
+    }
+    if (identical(resolved, sentinel) || !accept(resolved)) {
+      resolved <- sentinel
+      for (fr in rev(sys.frames())) {
+        if (exists(sym_name, envir = fr, inherits = FALSE)) {
+          candidate <- get(sym_name, envir = fr, inherits = FALSE)
+          if (accept(candidate)) {
+            resolved <- candidate
+            break
+          }
+        }
+      }
+    }
+    if (rlang::is_string(resolved)) return(resolved)
+    if (is.call(resolved) || rlang::is_symbol(resolved)) {
+      formula_captured <- resolved
+      # fall through to wrapper-unwrap + deparse
+    } else {
+      rlang::abort(paste0(
+        "`formula` must be a single string or an unquoted ggplot ",
+        "expression; the variable `",
+        sym_name,
+        "` did not resolve to either."
+      ))
+    }
+  }
+  if (rlang::is_call(formula_captured)) {
+    head <- formula_captured[[1L]]
+    head_name <- if (rlang::is_symbol(head)) {
+      rlang::as_string(head)
+    } else if (rlang::is_call(head) && length(head) == 3L &&
+               rlang::as_string(head[[1L]]) %in% c("::", ":::")) {
+      rlang::as_string(head[[3L]])
+    } else {
+      ""
+    }
+    if (head_name %in% c("expr", "quo", "quote", "bquote") &&
+        length(formula_captured) >= 2L) {
+      formula_captured <- formula_captured[[2L]]
+    } else if (head_name %in% c("paste", "paste0", "sprintf", "gettextf",
+                                "format", "formatC", "c", "vector",
+                                "[", "[[", "$")) {
+      # String-builder / vector-constructor / subscript calls are
+      # forced to their value at the boundary. This preserves the
+      # historical contract that callers build / pick formulas via
+      # `paste0("ggplot(...)")` or `plots[[1]]` and pass them as the
+      # argument (force-evaluation used to happen at R's call site).
+      # For `c(...)` / `vector(...)` this is also where multi-element
+      # character vectors are caught and rejected as
+      # not-a-single-string.
+      evaled <- tryCatch(
+        rlang::eval_bare(formula_captured, envir),
+        error = function(e) NULL
+      )
+      if (rlang::is_string(evaled)) return(evaled)
+      if (!is.null(evaled)) {
+        rlang::abort(paste0(
+          "`formula` must be a single string or an unquoted ggplot ",
+          "expression; got a ", typeof(evaled), " of length ",
+          length(evaled), "."
+        ))
+      }
+    }
+  }
+  if (is.call(formula_captured) || rlang::is_symbol(formula_captured)) {
+    return(rlang::expr_text(formula_captured, width = 500L))
+  }
+  rlang::abort(paste0(
+    "`formula` must be a single string or an unquoted ggplot ",
+    "expression; got ", typeof(formula_captured), "."
+  ))
 }
 
 # The server closure shared by `ptr_app()` / `ptr_app_components()` and
@@ -875,7 +1002,11 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #' placeholders needs no `shared_state` — `ptr_server()` self-binds every
 #' declared key under its own namespace, matching what [ptr_app()] does.
 #'
-#' @param formula A single formula string with `ggpaintr` placeholders.
+#' @param formula Either a single character scalar containing a ggplot
+#'   expression with `ggpaintr` placeholders, or an unquoted ggplot
+#'   expression supplied directly. See [ptr_app()] for the full contract
+#'   (expression capture via [rlang::enexpr()], symbol resolution,
+#'   wrapper unwrap, and the native-pipe caveat in expression mode).
 #' @param id Optional module id; must match the id passed to [ptr_ui()] or
 #'   to the bare L3 pieces. Defaults to `NULL` (identity namespace,
 #'   single-instance use).
@@ -920,6 +1051,7 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #' @export
 ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
                                  shared_state = NULL) {
+  formula <- ptr_capture_formula(rlang::enexpr(formula), envir)
   dots <- list(...)
 
   # `shared_state` is the convenience path: a one-shot bundle produced by

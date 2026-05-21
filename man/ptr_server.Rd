@@ -13,7 +13,11 @@ ptr_server(
 )
 }
 \arguments{
-\item{formula}{A single formula string with \code{ggpaintr} placeholders.}
+\item{formula}{Either a single character scalar containing a ggplot
+expression with \code{ggpaintr} placeholders, or an unquoted ggplot
+expression supplied directly. See \code{\link[=ptr_app]{ptr_app()}} for the full contract
+(expression capture via \code{\link[rlang:defusing-advanced]{rlang::enexpr()}}, symbol resolution,
+wrapper unwrap, and the native-pipe caveat in expression mode).}
 
 \item{id}{Optional module id; must match the id passed to \code{\link[=ptr_ui]{ptr_ui()}} or
 to the bare L3 pieces. Defaults to \code{NULL} (identity namespace,
