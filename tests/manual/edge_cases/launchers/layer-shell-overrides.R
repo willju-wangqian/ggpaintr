@@ -13,7 +13,7 @@
 source("tests/manual/edge_cases/launchers/_setup.R")
 shiny::runApp(
   ptr_app(
-    "mtcars |> head(num) |> ggplot(aes(x = var, y = var)) + geom_point()",
+    "mtcars |> head(ppNum) |> ggplot(aes(x = ppVar, y = ppVar)) + geom_point()",
     ui_text = list(
       shell = list(
         layer_picker    = list(label = "Choose layer"),

@@ -25,7 +25,7 @@ for the full schema and current defaults.}
 
 \item{checkbox_defaults}{Optional named list of initial checked states.}
 
-\item{expr_check}{Controls \code{expr} placeholder validation: \code{TRUE} (default)
+\item{expr_check}{Controls \code{ppExpr} placeholder validation: \code{TRUE} (default)
 applies the built-in denylist + AST walker; \code{FALSE} disables all
 validation; a \code{list} with \code{deny_list}/\code{allow_list} entries customises
 the policy. See \code{vignette("ggpaintr-safety")}.}
@@ -56,7 +56,7 @@ them with the same \code{\link[=ptr_server]{ptr_server()}}.
 }
 \examples{
 ui <- ptr_ui(
-  "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
+  "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
   "plot1"
 )
 }

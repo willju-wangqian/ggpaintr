@@ -80,7 +80,7 @@ test_that("D6 build_ui receives the resolved upstream data frame", {
 # ---- D2: per-consumer cache deps ----
 
 test_that("D2 find_consumer_ids_in_upstream walks producer subtrees", {
-  r <- ptr_translate("mtcars |> dplyr::select(var) |> dplyr::select(var)")
+  r <- ptr_translate("mtcars |> dplyr::select(ppVar) |> dplyr::select(ppVar)")
   consumers <- find_nodes(r, is_ptr_ph_data_consumer)
   # The downstream consumer's upstream contains the upstream consumer.
   expect_length(consumers, 2L)
@@ -93,7 +93,7 @@ test_that("D2 find_consumer_ids_in_upstream walks producer subtrees", {
 })
 
 test_that("D2 find_producer_ids_in_upstream picks ptr_ph_value", {
-  r <- ptr_translate("mtcars |> dplyr::filter(num > 0) |> dplyr::select(var)")
+  r <- ptr_translate("mtcars |> dplyr::filter(ppNum > 0) |> dplyr::select(ppVar)")
   consumer <- find_nodes(r, is_ptr_ph_data_consumer)[[1L]]
   pids <- find_producer_ids_in_upstream(consumer$upstream)
   expect_length(pids, 1L)

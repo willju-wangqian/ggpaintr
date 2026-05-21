@@ -56,8 +56,8 @@ test_that("P11 pkg::fn head evaluates", {
 })
 
 test_that("P11 expr placeholder substitutes a real layer that evaluates", {
-  r <- ptr_translate("ggplot(mtcars, aes(x = mpg)) + geom_point() + expr")
-  expr_id <- find_nodes(r, function(x) is_ptr_placeholder(x) && x$keyword == "expr")[[1]]$id
+  r <- ptr_translate("ggplot(mtcars, aes(x = mpg)) + geom_point() + ppExpr")
+  expr_id <- find_nodes(r, function(x) is_ptr_placeholder(x) && x$keyword == "ppExpr")[[1]]$id
   s <- ptr_substitute(r, input_snapshot = setNames(list("theme_minimal()"), expr_id))
   p <- ptr_prune(s)
   pl <- ptr_eval(p)

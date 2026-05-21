@@ -7,13 +7,13 @@ render_html <- function(tag) {
   paste(as.character(htmltools::renderTags(tag)$html), collapse = "\n")
 }
 
-# Two disjoint formula-local var(shared=) keys -> panel_keys = character(0)
-f_local_1 <- 'ggplot(iris, aes(x = var(shared = "ax1"), y = Sepal.Width)) + geom_point()'
-f_local_2 <- 'ggplot(iris, aes(x = var(shared = "ax2"), y = Petal.Length)) + geom_point()'
+# Two disjoint formula-local ppVar(shared=) keys -> panel_keys = character(0)
+f_local_1 <- 'ggplot(iris, aes(x = ppVar(shared = "ax1"), y = Sepal.Width)) + geom_point()'
+f_local_2 <- 'ggplot(iris, aes(x = ppVar(shared = "ax2"), y = Petal.Length)) + geom_point()'
 
 # Cross-formula key -> panel_keys = "col"
-f_cross_1 <- 'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()'
-f_cross_2 <- 'ggplot(mtcars, aes(x = var(shared = "col"), y = hp)) + geom_line()'
+f_cross_1 <- 'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = mpg)) + geom_point()'
+f_cross_2 <- 'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = hp)) + geom_line()'
 
 test_that("SC.1 ptr_shared_panel returns NULL when panel_keys is empty", {
   obj <- ptr_shared(c(f_local_1, f_local_2))

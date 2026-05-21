@@ -27,7 +27,7 @@ text, and placeholders. The app title is read from
 \item{checkbox_defaults}{Optional named list of initial checked states for
 layer checkboxes.}
 
-\item{expr_check}{Controls \code{expr} placeholder validation: \code{TRUE} (default)
+\item{expr_check}{Controls \code{ppExpr} placeholder validation: \code{TRUE} (default)
 applies the built-in denylist + AST walker; \code{FALSE} disables all
 validation; a \code{list} with \code{deny_list}/\code{allow_list} entries customises
 the policy. See \code{vignette("ggpaintr-safety")}.}
@@ -64,7 +64,7 @@ For the recommended primary entry points, see \code{\link[=ptr_app]{ptr_app()}} 
 \code{\link[=ptr_app_grid]{ptr_app_grid()}}. Requires the \code{bslib} package
 (\code{install.packages("bslib")}).
 
-Single-formula \code{var(shared = "...")} coordination is not supported on this
+Single-formula \code{ppVar(shared = "...")} coordination is not supported on this
 wrapper — the auto-built shared widgets \code{ptr_app()} provides require an
 internal helper that is not part of the public API today. Use \code{\link[=ptr_app]{ptr_app()}}
 for that case, or \code{\link[=ptr_app_grid]{ptr_app_grid()}} (with explicit \verb{shared_ui =}
@@ -73,7 +73,7 @@ builders) for multi-formula shared coordination.
 \examples{
 if (interactive()) {
 ptr_app_bslib(
-  "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
 )
 }
 }

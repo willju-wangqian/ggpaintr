@@ -22,5 +22,5 @@ ptr_define_placeholder_consumer(
 )
 
 ptr_app("mtcars |> dplyr::select(colvars) |> 
-        ggplot(aes(x = var, y = var)) + geom_point()")
+        ggplot(aes(x = ppVar, y = ppVar)) + geom_point()")
 # <<<

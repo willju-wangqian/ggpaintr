@@ -2,7 +2,7 @@ test_that("ptr_app_bslib returns a shiny.appobj using public API", {
   skip_if_not_installed("bslib")
 
   app <- ptr_app_bslib(
-    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+    "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
   )
 
   expect_s3_class(app, "shiny.appobj")
@@ -14,7 +14,7 @@ test_that("ptr_app_bslib accepts a custom bslib theme", {
 
   custom_theme <- bslib::bs_theme(version = 5, bootswatch = "darkly")
   app <- ptr_app_bslib(
-    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+    "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
     theme = custom_theme
   )
 
@@ -24,14 +24,14 @@ test_that("ptr_app_bslib accepts a custom bslib theme", {
 test_that("ptr_app_bslib self-binds a single-formula shared placeholder", {
   skip_if_not_installed("bslib")
 
-  # Single-formula `var(shared = "...")` coordination now works through
+  # Single-formula `ppVar(shared = "...")` coordination now works through
   # the bare wrapper: ptr_server() self-binds every declared key under
   # the module's own namespace (matches ptr_app()'s auto_bind_shared
   # path). Documented in vignette("ggpaintr-customization").
   app <- ptr_app_bslib(
     paste0(
-      "ggplot(data = mtcars, aes(alpha = var(shared = \"v\"))) + ",
-      "geom_point(aes(size = var(shared = \"v\")))"
+      "ggplot(data = mtcars, aes(alpha = ppVar(shared = \"v\"))) + ",
+      "geom_point(aes(size = ppVar(shared = \"v\")))"
     ),
     envir = list2env(list(mtcars = mtcars), parent = globalenv())
   )

@@ -14,7 +14,7 @@
 #' [ptr_app_grid()]. Requires the `bslib` package
 #' (`install.packages("bslib")`).
 #'
-#' Single-formula `var(shared = "...")` coordination is not supported on this
+#' Single-formula `ppVar(shared = "...")` coordination is not supported on this
 #' wrapper — the auto-built shared widgets `ptr_app()` provides require an
 #' internal helper that is not part of the public API today. Use [ptr_app()]
 #' for that case, or [ptr_app_grid()] (with explicit `shared_ui =`
@@ -28,7 +28,7 @@
 #'   `ui_text$shell$title$label`; defaults to `"ggpaintr"`.
 #' @param checkbox_defaults Optional named list of initial checked states for
 #'   layer checkboxes.
-#' @param expr_check Controls `expr` placeholder validation: `TRUE` (default)
+#' @param expr_check Controls `ppExpr` placeholder validation: `TRUE` (default)
 #'   applies the built-in denylist + AST walker; `FALSE` disables all
 #'   validation; a `list` with `deny_list`/`allow_list` entries customises
 #'   the policy. See `vignette("ggpaintr-safety")`.
@@ -48,7 +48,7 @@
 #' @examples
 #' if (interactive()) {
 #' ptr_app_bslib(
-#'   "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+#'   "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
 #' )
 #' }
 #' @export

@@ -54,17 +54,17 @@ test_that("minimal var-using example: pickers populated from literal `data =`", 
   # empty `uiOutput` per consumer; the server's renderUI fills it on the
   # first reactive flush.
   parts <- ptr_app_components(
-    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+    "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
     envir = .app_test_env()
   )
   ui_html <- as.character(parts$ui)
-  expect_match(ui_html, "id=\"ggplot_1_1_var_NA_ui\"", fixed = TRUE)
-  expect_match(ui_html, "id=\"ggplot_1_2_var_NA_ui\"", fixed = TRUE)
+  expect_match(ui_html, "id=\"ggplot_1_1_ppVar_NA_ui\"", fixed = TRUE)
+  expect_match(ui_html, "id=\"ggplot_1_2_ppVar_NA_ui\"", fixed = TRUE)
 
   shiny::testServer(parts$server, {
     session$setInputs(.dummy = 1)
-    x_picker <- output$`ggplot_1_1_var_NA_ui`$html
-    y_picker <- output$`ggplot_1_2_var_NA_ui`$html
+    x_picker <- output$`ggplot_1_1_ppVar_NA_ui`$html
+    y_picker <- output$`ggplot_1_2_ppVar_NA_ui`$html
     # both pickers are shinyWidgets selectpickers populated with mtcars cols
     expect_match(x_picker, "selectpicker")
     expect_match(y_picker, "selectpicker")
@@ -83,12 +83,12 @@ test_that("var picker uses multiple + maxOptions=1 for empty-default + click-to-
   # Single-select with `selected = character(0)` was empirically broken
   # (verified in a real browser: still shipped first column as input value).
   parts <- ptr_app_components(
-    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+    "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
     envir = .app_test_env()
   )
   shiny::testServer(parts$server, {
     session$setInputs(.dummy = 1)
-    x_picker <- output$`ggplot_1_1_var_NA_ui`$html
+    x_picker <- output$`ggplot_1_1_ppVar_NA_ui`$html
     # Multiple-mode renders <select multiple>.
     expect_match(x_picker, "multiple", fixed = TRUE)
     # No real column should be the default selection.
@@ -103,7 +103,7 @@ test_that("ptr_app emits an Update Plot trigger button", {
   # button so the plot is gated behind an explicit click rather than
   # re-rendering on every keystroke.
   parts <- ptr_app_components(
-    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+    "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
     envir = .app_test_env()
   )
   ui_html <- as.character(parts$ui)
@@ -116,7 +116,7 @@ test_that("layer-select picker drives the hidden tabset", {
   # the visible panel unchanged. A placeholder-free layer like geom_point()
   # exposed this most visibly: switching to it appeared to do nothing.
   parts <- ptr_app_components(
-    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+    "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
     envir = .app_test_env()
   )
 
@@ -172,7 +172,7 @@ test_that("two ptr_server instances do not collide", {
 
 test_that("ptr_ui_controls emits the control ids (no output ids)", {
   ui <- ptr_ui_controls(
-    "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+    "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
     "x"
   )
   rendered <- as.character(ui)
@@ -229,8 +229,8 @@ test_that("ptr_ui ids line up with ptr_server end-to-end", {
 test_that("ptr_app_grid returns a shiny app object", {
   app <- ptr_app_grid(
     plots = list(
-      'ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point(size = num(shared = "sz"))',
-      'ggplot(data = mtcars, aes(x = hp, y = mpg)) + geom_point(size = num(shared = "sz"))'
+      'ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point(size = ppNum(shared = "sz"))',
+      'ggplot(data = mtcars, aes(x = hp, y = mpg)) + geom_point(size = ppNum(shared = "sz"))'
     ),
     shared_ui = list(
       sz = function(id) shiny::sliderInput(id, "Size", 1, 10, value = 3)
@@ -243,8 +243,8 @@ test_that("ptr_app_grid returns a shiny app object", {
 test_that("ptr_app_grid_components UI contains shared widget id and per-plot module ids", {
   parts <- ptr_app_grid_components(
     plots = list(
-      'ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point(size = num(shared = "sz"))',
-      'ggplot(data = mtcars, aes(x = hp, y = mpg)) + geom_point(size = num(shared = "sz"))'
+      'ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point(size = ppNum(shared = "sz"))',
+      'ggplot(data = mtcars, aes(x = hp, y = mpg)) + geom_point(size = ppNum(shared = "sz"))'
     ),
     shared_ui = list(
       sz = function(id) shiny::sliderInput(id, "Size", 1, 10, value = 3)
@@ -287,7 +287,7 @@ test_that("ptr_app_grid rejects shared_ui without unique non-empty names", {
   expect_error(
     ptr_app_grid(
       plots = list(
-        'ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), size = num(shared = "sz"))'
+        'ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), size = ppNum(shared = "sz"))'
       ),
       shared_ui = list(function(id) shiny::sliderInput(id, "x", 1, 10, 5)),
       envir = .app_test_env()
@@ -300,7 +300,7 @@ test_that("ptr_app_grid rejects non-function shared_ui entries", {
   expect_error(
     ptr_app_grid(
       plots = list(
-        'ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), size = num(shared = "sz"))'
+        'ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), size = ppNum(shared = "sz"))'
       ),
       shared_ui = list(sz = "not a function"),
       envir = .app_test_env()
@@ -313,11 +313,11 @@ test_that("ptr_app_grid_components UI includes the draw-all button", {
   # Post-PR-B (shared-multi-instance plan): the draw-all button is owned
   # by `ptr_shared_ui()` and gated on `length(plots) >= 2` together with
   # at least one shared placeholder somewhere across the formulas. Use a
-  # two-plot grid sharing one `var()` consumer to exercise it.
+  # two-plot grid sharing one `ppVar()` consumer to exercise it.
   parts <- ptr_app_grid_components(
     plots = list(
-      'ggplot(mtcars) + geom_point(aes(x = var(shared = "c"), y = mpg))',
-      'ggplot(mtcars) + geom_line(aes(x = var(shared = "c"), y = hp))'
+      'ggplot(mtcars) + geom_point(aes(x = ppVar(shared = "c"), y = mpg))',
+      'ggplot(mtcars) + geom_line(aes(x = ppVar(shared = "c"), y = hp))'
     ),
     shared_ui = list(),
     envir = .app_test_env()
@@ -329,8 +329,8 @@ test_that("ptr_app_grid_components UI includes the draw-all button", {
 test_that("ptr_app_grid_components draw-all button label is configurable", {
   parts <- ptr_app_grid_components(
     plots = list(
-      'ggplot(mtcars) + geom_point(aes(x = var(shared = "c"), y = mpg))',
-      'ggplot(mtcars) + geom_line(aes(x = var(shared = "c"), y = hp))'
+      'ggplot(mtcars) + geom_point(aes(x = ppVar(shared = "c"), y = mpg))',
+      'ggplot(mtcars) + geom_line(aes(x = ppVar(shared = "c"), y = hp))'
     ),
     shared_ui = list(),
     draw_all_label = "Refresh everything",

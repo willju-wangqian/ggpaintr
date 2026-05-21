@@ -28,8 +28,8 @@ dropped straight into a host layout. Its server counterpart
 }
 \examples{
 obj <- ptr_shared(c(
-  "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
-  "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+  "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()",
+  "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"
 ))
 ptr_shared_panel(obj)
 }

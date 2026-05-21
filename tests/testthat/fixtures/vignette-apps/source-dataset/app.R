@@ -24,5 +24,5 @@ ptr_define_placeholder_source(
   copy_defaults = list(label = "Built-in dataset for {param}")
 )
 
-ptr_app("ggplot(dataset, aes(var, var)) + geom_point()")
+ptr_app("ggplot(dataset, aes(ppVar, ppVar)) + geom_point()")
 # <<<

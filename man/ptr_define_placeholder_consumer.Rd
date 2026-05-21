@@ -37,8 +37,8 @@ message, layer pruned). Useful when a stale selection no longer
 matches any upstream column after a data swap.}
 
 \item{default_arg, named_args}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.
-Consumer placeholders use the same arg-schema slots; the \code{var}
-built-in passes a column-name validator here when used as \code{var(mpg)}.}
+Consumer placeholders use the same arg-schema slots; the \code{ppVar}
+built-in passes a column-name validator here when used as \code{ppVar(mpg)}.}
 
 \item{runtime}{Optional \verb{function(x, ...)} body used when the
 placeholder is called as a plain-R function. \code{NULL} (default) supplies
@@ -54,7 +54,7 @@ The runtime callable (identity by default; override with
 \description{
 A \emph{consumer} placeholder is a value placeholder that additionally
 receives the columns of the upstream data frame — typically a column
-picker. The built-in example is \code{var}. See
+picker. The built-in example is \code{ppVar}. See
 \code{vignette("ggpaintr-customization")} § "Consumer placeholders" for the
 tutorial.
 }

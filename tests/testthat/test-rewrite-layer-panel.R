@@ -27,7 +27,7 @@
 # ---- P6.6 / P6.7 — Data sub-tab presence gated on pipeline placeholders ----
 
 test_that("P6.6 layer panel includes Data sub-tab when pipeline placeholders present", {
-  tree <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = var))")
+  tree <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = ppVar))")
   layer <- .layer_by_name(tree, "ggplot")
   panel <- build_ui_for(layer)
   # Look for tabsetPanel containing two tabPanels (Data + Controls)
@@ -37,7 +37,7 @@ test_that("P6.6 layer panel includes Data sub-tab when pipeline placeholders pre
 })
 
 test_that("P6.7 layer panel omits Data sub-tab when no pipeline placeholders", {
-  tree <- ptr_translate("ggplot(mtcars, aes(x = var)) + geom_point()")
+  tree <- ptr_translate("ggplot(mtcars, aes(x = ppVar)) + geom_point()")
   layer <- .layer_by_name(tree, "ggplot")
   panel <- build_ui_for(layer)
   rendered <- as.character(panel)
@@ -123,7 +123,7 @@ test_that("layer panel namespaces ids via ns_fn", {
 # ---- Phase 4.1 — pipeline-stage placeholder labels name the verb ----
 
 test_that("pipeline-stage placeholder label names the verb via {param}", {
-  tree <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = var))")
+  tree <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = ppVar))")
   layer <- .layer_by_name(tree, "ggplot")
   panel <- build_ui_for(layer)
   # Default copy is "Enter a number for {param}"; for an unnamed positional arg
@@ -134,11 +134,11 @@ test_that("pipeline-stage placeholder label names the verb via {param}", {
 })
 
 test_that("unnamed-arg pipeline placeholder uses 'verb()' as the copy param key", {
-  tree <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = var))")
+  tree <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = ppVar))")
   layer <- .layer_by_name(tree, "ggplot")
   panel <- as.character(build_ui_for(
     layer,
-    ui_text = list(params = list(`head()` = list(num = list(label = "How many rows"))))
+    ui_text = list(params = list(`head()` = list(ppNum = list(label = "How many rows"))))
   ))
   # the `head()` param key still resolves the custom label ...
   expect_match(panel, "How many rows")
@@ -149,7 +149,7 @@ test_that("unnamed-arg pipeline placeholder uses 'verb()' as the copy param key"
 })
 
 test_that("a pipeline placeholder's widget no longer carries the ' in verb()' suffix", {
-  tree <- ptr_translate("mtcars |> transform(n = num) |> ggplot(aes(x = var))")
+  tree <- ptr_translate("mtcars |> transform(n = ppNum) |> ggplot(aes(x = ppVar))")
   layer <- .layer_by_name(tree, "ggplot")
   panel <- as.character(build_ui_for(layer))
   expect_match(panel, "ptr-stage-head")
@@ -161,7 +161,7 @@ test_that("a pipeline placeholder's widget no longer carries the ' in verb()' su
 
 test_that("pipeline stages render as .ptr-stage groups with a verb-labelled checkbox", {
   tree <- ptr_translate(
-    "mtcars |> subset(mpg > num) |> head(num) |> ggplot(aes(x = var))"
+    "mtcars |> subset(mpg > ppNum) |> head(ppNum) |> ggplot(aes(x = ppVar))"
   )
   layer <- .layer_by_name(tree, "ggplot")
   panel <- build_ui_for(layer)
@@ -177,7 +177,7 @@ test_that("pipeline stages render as .ptr-stage groups with a verb-labelled chec
 test_that("placeholder nested in a sub-expression names the stage verb, not the inner call", {
   # `text` is the RHS of `Species == text`, itself an argument to `subset()`.
   # The label/copy key must report the stage verb `subset()`, never `==()`.
-  tree <- ptr_translate("iris |> subset(Species == text) |> ggplot(aes(x = var))")
+  tree <- ptr_translate("iris |> subset(Species == ppText) |> ggplot(aes(x = ppVar))")
   layer <- .layer_by_name(tree, "ggplot")
   panel <- as.character(build_ui_for(layer))
   expect_match(panel, "Enter a value for subset\\(\\)")

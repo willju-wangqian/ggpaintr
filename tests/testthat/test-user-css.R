@@ -70,7 +70,7 @@ test_that("ptr_app() links the bundled stylesheet before the user stylesheet", {
   f <- file.path(dir, "mine.css"); writeLines(".ptr-app{}", f)
 
   parts <- ptr_app_components(
-    "ggplot(mtcars) + geom_point(aes(x = var, y = var))",
+    "ggplot(mtcars) + geom_point(aes(x = ppVar, y = ppVar))",
     css = f
   )
   # ggpaintr.css ships as an htmlDependency now; render deps + body so the

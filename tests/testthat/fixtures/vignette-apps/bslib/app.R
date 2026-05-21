@@ -10,6 +10,6 @@ library(shiny)
 #     wrapper it documents (the customization vignette presents bslib via
 #     this function). >>>
 ptr_app_bslib(
-  "ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"
+  "ggplot(iris, aes(x = ppVar, y = ppVar, color = ppVar)) + geom_point()"
 )
 # <<<

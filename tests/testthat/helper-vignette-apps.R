@@ -163,7 +163,7 @@ expect_host_settled <- function(app, host_id, kind, error_output_id,
 # Assert a rendered consumer/shared picker is *populated* — its element holds
 # a real column choice, not an empty uiOutput. A blank uiOutput still has its
 # container id present (so plain expect_dom_id passes), which is precisely how
-# bug B1 (formula-local var(shared=) never bound in the embed path) survived
+# bug B1 (formula-local ppVar(shared=) never bound in the embed path) survived
 # every prior test. This asserts an actual rendered choice for a known column.
 expect_picker_populated <- function(app, input_id, choice) {
   html <- app$get_html(paste0("#", input_id))

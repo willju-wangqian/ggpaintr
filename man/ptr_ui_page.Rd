@@ -30,7 +30,7 @@ theme scope + the (deduped) asset bundle. The only thing an L3 user
 must remember.
 }
 \examples{
-f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+f <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
 ptr_ui_page(
   shiny::sidebarLayout(
     shiny::sidebarPanel(ptr_ui_controls(id = "p", formula = f)),

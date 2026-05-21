@@ -251,49 +251,119 @@ ptr_builtin_upload_resolve_data <- function(value, node, ...) {
 # `ptr_clear_placeholder()` uses this to tell built-ins (which it refuses to
 # drop) apart from user-registered placeholders.
 ptr_builtin_keywords <- function() {
-  c("text", "num", "expr", "var", "upload")
+  c("ppText", "ppNum", "ppExpr", "ppVar", "ppUpload")
 }
 
+#' Placeholder Identity Helpers
+#'
+#' These are the plain-R callables returned by registering the five
+#' built-in ggpaintr placeholders (`ppVar`, `ppNum`, `ppText`, `ppExpr`,
+#' `ppUpload`). Inside a formula passed to [ptr_app()] / [ptr_server()]
+#' the parser recognises calls to these names as placeholder invocations
+#' and binds them to Shiny widgets (see `vignette("ggpaintr-use-cases")`).
+#' Outside `ptr_app()` they behave as plain R functions: the first four
+#' return their argument unchanged (identity), so a formula such as
+#' `aes(x = ppVar(mpg))` evaluates identically to `aes(x = mpg)` under
+#' ggplot2's tidy-eval. `ppUpload()` aborts when called outside
+#' `ptr_app()` — it is meaningful only as a placeholder slot.
+#'
+#' @param x A column name (`ppVar`), numeric (`ppNum`), string (`ppText`),
+#'   or expression (`ppExpr`). Passed through unchanged.
+#' @param ... Additional arguments (e.g. named arguments consumed by a
+#'   custom placeholder's `named_args` schema). Ignored by the built-in
+#'   identity implementation.
+#'
+#' @return The input value unchanged. `ppUpload()` does not return; it
+#'   aborts with a guard message.
+#'
+#' @examples
+#' # Identity inside ggplot2's tidy-eval:
+#' library(ggplot2)
+#' p1 <- ggplot(mtcars, aes(x = mpg)) + geom_histogram(bins = 10)
+#' p2 <- ggplot(mtcars, aes(x = ppVar(mpg))) + geom_histogram(bins = 10)
+#' # p1 and p2 produce the same plot.
+#'
+#' # Inside ptr_app() / ptr_server(), the same call binds to a column picker:
+#' # ptr_app("ggplot(mtcars, aes(x = ppVar(mpg))) + geom_point()")
+#' @name pp_placeholders
+NULL
+
 ptr_register_builtins <- function() {
-  ptr_define_placeholder_value(
-    keyword = "text",
+  text_fn <- ptr_define_placeholder_value(
+    keyword = "ppText",
     build_ui = ptr_builtin_text_build_ui,
     resolve_expr = ptr_builtin_text_resolve_expr,
+    default_arg = ptr_default_string(),
     copy_defaults = list(
       label = "Enter a value for {param}",
       placeholder = "Plain text - quotes are added automatically"
     )
   )
-  ptr_define_placeholder_value(
-    keyword = "num",
+  num_fn <- ptr_define_placeholder_value(
+    keyword = "ppNum",
     build_ui = ptr_builtin_num_build_ui,
     resolve_expr = ptr_builtin_num_resolve_expr,
+    default_arg = ptr_default_numeric(),
     copy_defaults = list(label = "Enter a number for {param}")
   )
-  ptr_define_placeholder_value(
-    keyword = "expr",
+  expr_fn <- ptr_define_placeholder_value(
+    keyword = "ppExpr",
     build_ui = ptr_builtin_expr_build_ui,
     resolve_expr = ptr_builtin_expr_resolve_expr,
+    default_arg = ptr_default_expression(),
     copy_defaults = list(label = "Enter an expression for {param}")
   )
-  ptr_define_placeholder_consumer(
-    keyword = "var",
+  var_fn <- ptr_define_placeholder_consumer(
+    keyword = "ppVar",
     build_ui = ptr_builtin_var_build_ui,
     resolve_expr = ptr_builtin_var_resolve_expr,
     validate_input = ptr_builtin_var_validate_input,
+    default_arg = ptr_default_symbol_or_string(),
     copy_defaults = list(
       label = "Pick a column for {param}",
       empty_text = "Choose one column"
     )
   )
-  ptr_define_placeholder_source(
-    keyword = "upload",
+  upload_fn <- ptr_define_placeholder_source(
+    keyword = "ppUpload",
     build_ui = ptr_builtin_upload_build_ui,
     resolve_data = ptr_builtin_upload_resolve_data,
     companion_id_fn = ptr_upload_name_id,
     copy_defaults = list(label = "Upload data for {param}")
   )
-  invisible(NULL)
+  # The plain-R callables that users see (`ppVar`, `ppNum`, ...) are the
+  # top-level functions below carrying `@export` roxygen tags. The
+  # registry entries above carry the same identity/guard semantics via
+  # `runtime_fn` for parity with custom placeholders (which receive
+  # their runtime from the define helper). We do not overwrite the
+  # package-namespace bindings here — once the package is loaded, those
+  # bindings are locked.
+  invisible(list(
+    ppText = text_fn, ppNum = num_fn, ppExpr = expr_fn,
+    ppVar = var_fn, ppUpload = upload_fn
+  ))
+}
+
+#' @rdname pp_placeholders
+#' @export
+ppVar <- function(x, ...) x
+
+#' @rdname pp_placeholders
+#' @export
+ppNum <- function(x, ...) x
+
+#' @rdname pp_placeholders
+#' @export
+ppText <- function(x, ...) x
+
+#' @rdname pp_placeholders
+#' @export
+ppExpr <- function(x, ...) x
+
+#' @rdname pp_placeholders
+#' @export
+ppUpload <- function(...) {
+  rlang::abort("`ppUpload()` is only meaningful inside `ptr_app()`.")
 }
 
 .onLoad <- function(libname, pkgname) {

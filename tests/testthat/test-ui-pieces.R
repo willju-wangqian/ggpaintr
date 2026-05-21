@@ -2,7 +2,7 @@
 # the ggpaintr UI has its own exported function, and the bundled apps stay
 # byte-identical because the bundle and the pieces share one builder.
 
-fml <- "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+fml <- "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
 
 # ---- ptr_ui_plot: truly bare (no behaviour flags) ----
 
@@ -178,9 +178,9 @@ test_that("ptr_ui self-wraps in .ptr-app and carries the bundle", {
 
 fml_shared_local <- paste0(
   'ggplot(mtcars) + ',
-  'geom_point(aes(x = mpg, y = hp), alpha = num(shared = "A"), ',
-  'size = num(shared = "A")) + ',
-  'geom_line(aes(x = mpg, y = wt), linewidth = num(shared = "X"))'
+  'geom_point(aes(x = mpg, y = hp), alpha = ppNum(shared = "A"), ',
+  'size = ppNum(shared = "A")) + ',
+  'geom_line(aes(x = mpg, y = wt), linewidth = ppNum(shared = "X"))'
 )
 
 test_that("ptr_ui_controls (no shared) renders all shared keys inline", {
@@ -193,9 +193,9 @@ test_that("ptr_ui_controls (no shared) renders all shared keys inline", {
 
 test_that("ptr_ui_controls(shared = obj) excludes obj$panel_keys", {
   f1 <- paste0('ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), ',
-               'alpha = num(shared = "B"), size = num(shared = "A"))')
+               'alpha = ppNum(shared = "B"), size = ppNum(shared = "A"))')
   f2 <- paste0('ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), ',
-               'alpha = num(shared = "B"), size = num(shared = "C"))')
+               'alpha = ppNum(shared = "B"), size = ppNum(shared = "C"))')
   obj <- ptr_shared(c(f1, f2))
   expect_identical(obj$panel_keys, "B")  # B is cross-formula
 
@@ -210,7 +210,7 @@ test_that("ptr_ui_controls(shared = obj) excludes obj$panel_keys", {
 })
 
 test_that("ptr_ui_controls with no shared placeholders renders no section", {
-  f <- "ggplot(mtcars) + geom_point(size = num())"
+  f <- "ggplot(mtcars) + geom_point(size = ppNum())"
   rendered <- as.character(ptr_ui_controls(f, "p"))
   expect_no_match(rendered, "ptr-shared-panel")
   expect_match(rendered, "p-ptr_layer_select", fixed = TRUE)
@@ -355,8 +355,8 @@ test_that("ptr_server_internal accepts a ptr_shared_server() bundle via shared_s
   # Step 02 changed ptr_shared_server() to take a ptr_shared() spec, not
   # (formulas, envir=). Step 10 brings this onto the new coordinator API.
   formulas <- c(
-    'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
-    'ggplot(mtcars, aes(x = var(shared = "col"), y = hp))  + geom_line()'
+    'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = mpg)) + geom_point()',
+    'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = hp))  + geom_line()'
   )
   expect_silent({
     server <- function(input, output, session) {

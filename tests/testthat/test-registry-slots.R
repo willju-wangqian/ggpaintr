@@ -265,25 +265,29 @@ test_that("shadow check rejects custom keyword colliding with ggplot2", {
 })
 
 test_that("existing built-in registrations still carry the new slots", {
-  # Built-ins are registered at .onLoad / first lookup; they should expose
-  # default_arg = NULL, named_args = list(), and an identity / guard
-  # runtime now that the helpers attach the defaults. Earlier tests may
-  # call ptr_registry_clear(); force a re-init unconditionally so this
-  # test does not depend on suite ordering.
+  # Built-ins are registered at .onLoad / first lookup. After PLAN-08
+  # the four value/consumer built-ins (ppText, ppNum, ppExpr, ppVar)
+  # carry a `default_arg` validator (so positional-arg calls like
+  # `ppVar(mpg)` or `ppNum(5)` are accepted as the initial seed value).
+  # `ppUpload` carries no `default_arg` (positional rejected). Earlier
+  # tests may call ptr_registry_clear(); force a re-init unconditionally
+  # so this test does not depend on suite ordering.
   ptr_registry_clear()
   ptr_register_builtins()
-  for (kw in c("text", "num", "expr")) {
+  for (kw in c("ppText", "ppNum", "ppExpr")) {
     entry <- ptr_registry_lookup(kw)
     expect_true(is.list(entry), info = kw)
-    expect_null(entry$default_arg, info = kw)
+    expect_true(is.function(entry$default_arg), info = kw)
     expect_equal(entry$named_args, list(), info = kw)
     expect_true(is.function(entry$runtime), info = kw)
     expect_identical(entry$runtime(123), 123, info = kw)
   }
-  var_entry <- ptr_registry_lookup("var")
+  var_entry <- ptr_registry_lookup("ppVar")
+  expect_true(is.function(var_entry$default_arg))
   expect_true(is.function(var_entry$runtime))
   expect_identical(var_entry$runtime(rlang::sym("mpg")), rlang::sym("mpg"))
-  upload_entry <- ptr_registry_lookup("upload")
+  upload_entry <- ptr_registry_lookup("ppUpload")
+  expect_null(upload_entry$default_arg)
   expect_true(is.function(upload_entry$runtime))
   expect_error(upload_entry$runtime(), regexp = "ptr_app")
 })

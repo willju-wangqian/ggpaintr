@@ -21,8 +21,8 @@ via \code{\link[=ptr_ui_page]{ptr_ui_page()}}).
 }
 \examples{
 obj <- ptr_shared(c(
-  "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
-  "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+  "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()",
+  "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"
 ))
 ptr_ui_shared_panel(obj)
 }

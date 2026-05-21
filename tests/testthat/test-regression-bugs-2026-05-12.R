@@ -20,7 +20,7 @@ test_that("BUG-1: ptr_define_placeholder_source() without companion_id_fn does n
   )
   withr::defer(ptr_clear_placeholder(kw))
 
-  formula <- sprintf("%s |> head(num) |> ggplot(aes(x = var, y = var))", kw)
+  formula <- sprintf("%s |> head(ppNum) |> ggplot(aes(x = ppVar, y = ppVar))", kw)
   tree <- ptr_translate(formula, expr_check = FALSE)
   spec <- ptr_runtime_input_spec(tree)
 
@@ -72,7 +72,7 @@ test_that("BUG-1 deep: companion-less source resolves through to downstream var 
   suppressWarnings(ptr_register_builtins())
   withr::defer(suppressWarnings(ptr_register_builtins()))
 
-  formula <- sprintf("%s |> head(num) |> ggplot(aes(x = var, y = var))", kw)
+  formula <- sprintf("%s |> head(ppNum) |> ggplot(aes(x = ppVar, y = ppVar))", kw)
 
   shiny::testServer(function(input, output, session) {
     st <- ptr_server_internal(input, output, session, formula, expr_check = FALSE)
@@ -101,8 +101,8 @@ test_that("BUG-1 deep: companion-less source resolves through to downstream var 
 })
 
 test_that("BUG-3: ptr_app_grid() validates shared keys against the union across plots", {
-  fa <- "iris |> ggplot(aes(x = var(shared = 'cv'), y = var(shared = 'cv'))) + geom_point()"
-  fb <- "iris |> ggplot(aes(x = var(shared = 'cv'), y = var(shared = 'cv'))) + geom_point(size = num(shared = 'pt'))"
+  fa <- "iris |> ggplot(aes(x = ppVar(shared = 'cv'), y = ppVar(shared = 'cv'))) + geom_point()"
+  fb <- "iris |> ggplot(aes(x = ppVar(shared = 'cv'), y = ppVar(shared = 'cv'))) + geom_point(size = ppNum(shared = 'pt'))"
   shared <- list(cv = shiny::reactiveVal(NULL), pt = shiny::reactiveVal(NULL))
 
   # Cross-plot validation: 'pt' is used by fb, so passing both plots must be silent.
@@ -152,7 +152,7 @@ test_that("BUG-4: custom ptr_define_placeholder_consumer() receives upstream col
   new_var_bu <- function(node, cols = character(), label = NULL,
                         copy = NULL, selected = character(0), ...) {
     captured$bu_calls[[length(captured$bu_calls) + 1L]] <<-
-      list(kw = "var", id = node$id, cols = cols)
+      list(kw = "ppVar", id = node$id, cols = cols)
     orig_var_bu(node, cols = cols, label = label, copy = copy,
                 selected = selected, ...)
   }
@@ -165,7 +165,7 @@ test_that("BUG-4: custom ptr_define_placeholder_consumer() receives upstream col
   withr::defer(suppressWarnings(ptr_register_builtins()))
 
   formula <- sprintf(
-    "upload |> head(num) |> %s(%s) |> dplyr::mutate(new_var = var + var) |> ggplot(aes(x = var, y = var))",
+    "ppUpload |> head(ppNum) |> %s(%s) |> dplyr::mutate(new_var = ppVar + ppVar) |> ggplot(aes(x = ppVar, y = ppVar))",
     "dplyr::select", kw
   )
 
@@ -191,7 +191,7 @@ test_that("BUG-4: custom ptr_define_placeholder_consumer() receives upstream col
   last_by_id <- list()
   for (c in captured$bu_calls) last_by_id[[c$id]] <- c
   custom_calls <- Filter(function(c) c$kw == "custom", last_by_id)
-  var_calls    <- Filter(function(c) c$kw == "var",    last_by_id)
+  var_calls    <- Filter(function(c) c$kw == "ppVar",    last_by_id)
   expect_true(length(custom_calls) >= 1L,
               info = "custom consumer build_ui must be invoked at least once")
   expect_true(length(var_calls) >= 1L,
@@ -225,9 +225,9 @@ test_that("BUG-2: ui_text$shell$draw_button$label propagates to the draw button"
 
 test_that("BUG-6: pipeline-stage enable-checkbox labels show the pipeline verb", {
   formula <- paste0(
-    "mtcars |> head(num) |> dplyr::select(var) |> ",
-    "dplyr::mutate(new = var + num) |> dplyr::filter(var > num) |> ",
-    "ggplot(aes(x = var, y = var))"
+    "mtcars |> head(ppNum) |> dplyr::select(ppVar) |> ",
+    "dplyr::mutate(new = ppVar + ppNum) |> dplyr::filter(ppVar > ppNum) |> ",
+    "ggplot(aes(x = ppVar, y = ppVar))"
   )
   tree <- ptr_translate(formula, expr_check = FALSE)
   layer <- tree$layers[[1L]]
@@ -245,8 +245,8 @@ test_that("BUG-6: pipeline-stage enable-checkbox labels show the pipeline verb",
 
 test_that("BUG-5: successful draw clears stale shared-picker error from #ptr_error", {
   formula <- paste0(
-    "mtcars |> ggplot(aes(x = var, y = var)) + ",
-    "geom_point(size = var(shared = 'v'))"
+    "mtcars |> ggplot(aes(x = ppVar, y = ppVar)) + ",
+    "geom_point(size = ppVar(shared = 'v'))"
   )
   shiny::testServer(function(input, output, session) {
     st <- ptr_server_internal(input, output, session, formula, expr_check = FALSE,
@@ -257,7 +257,7 @@ test_that("BUG-5: successful draw clears stale shared-picker error from #ptr_err
     # Simulate the shared resolver having latched an error early (pre-draw)
     # and a subsequently-successful draw landing in state$runtime.
     st$shared_resolution_errors(
-      "Shared `var(shared = \"v\")` cannot be resolved."
+      "Shared `ppVar(shared = \"v\")` cannot be resolved."
     )
     st$runtime(list(
       ok = TRUE, plot = ggplot2::ggplot(),
@@ -298,7 +298,7 @@ test_that("BUG-7: validate_input may return NULL for a valid input (idiomatic R)
   withr::defer(ptr_clear_placeholder(kw))
 
   formula <- sprintf(
-    "iris |> dplyr::select(%s) |> ggplot(aes(x = var, y = var))", kw
+    "iris |> dplyr::select(%s) |> ggplot(aes(x = ppVar, y = ppVar))", kw
   )
   tree <- ptr_translate(formula, expr_check = FALSE)
   consumer_node <- find_nodes(tree, function(n) {
@@ -336,15 +336,15 @@ test_that("BUG-8 advisory: pending data-source keywords surfaced for inline aler
   # `alert-warning` naming those source keywords (rather than rendering a
   # silently-empty picker or pushing a hard error to #ptr_error).
   formula <- paste0(
-    "upload |> ggplot(aes(x = var, y = var)) + ",
-    "geom_point(size = var(shared = 'v'))"
+    "ppUpload |> ggplot(aes(x = ppVar, y = ppVar)) + ",
+    "geom_point(size = ppVar(shared = 'v'))"
   )
   tree <- ptr_translate(formula, expr_check = FALSE)
   shared_node <- find_nodes(tree, function(n) {
     is_ptr_ph_data_consumer(n) && !is.null(n$shared)
   })[[1L]]
   pending <- ggpaintr:::pending_data_source_keywords(shared_node$upstream)
-  expect_equal(pending, "upload",
+  expect_equal(pending, "ppUpload",
                info = "shared widget pre-upload advisory should name `upload`")
 
   # Multiple distinct sources in a shared upstream should each appear.
@@ -358,7 +358,7 @@ test_that("BUG-8 advisory: pending data-source keywords surfaced for inline aler
   )
   withr::defer(ptr_clear_placeholder(kw))
   formula2 <- sprintf(
-    "%s |> ggplot(aes(x = var, y = var)) + geom_point(size = var(shared = 'w'))",
+    "%s |> ggplot(aes(x = ppVar, y = ppVar)) + geom_point(size = ppVar(shared = 'w'))",
     kw
   )
   tree2 <- ptr_translate(formula2, expr_check = FALSE)
@@ -370,9 +370,9 @@ test_that("BUG-8 advisory: pending data-source keywords surfaced for inline aler
                info = "advisory should name any custom data-source keyword, not only `upload`")
 })
 
-test_that("BUG-8: shared `var(shared='v')` resolves through an upload data source", {
+test_that("BUG-8: shared `ppVar(shared='v')` resolves through an upload data source", {
   # The 2026-05-12 report missed this; it surfaced from interactive testing.
-  # `var(shared = 'v')` deep inside a geom on an `upload`-headed pipeline
+  # `ppVar(shared = 'v')` deep inside a geom on an `upload`-headed pipeline
   # was returning the static "no dataset to list columns from" error because
   # `truncate_upstream_at_placeholder()` refused any upstream whose source
   # was a placeholder. Data-source placeholders (which resolve at runtime
@@ -380,8 +380,8 @@ test_that("BUG-8: shared `var(shared='v')` resolves through an upload data sourc
 
   # Unit-level: truncate_upstream_at_placeholder keeps an upload-source.
   formula <- paste0(
-    "upload |> ggplot(aes(x = var, y = var)) + ",
-    "geom_point(size = var(shared = 'v'))"
+    "ppUpload |> ggplot(aes(x = ppVar, y = ppVar)) + ",
+    "geom_point(size = ppVar(shared = 'v'))"
   )
   tree <- ptr_translate(formula, expr_check = FALSE)
   shared_nodes <- find_nodes(tree, function(n) {

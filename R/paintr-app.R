@@ -16,7 +16,7 @@
 #'   for the full schema and current defaults.
 #' @param checkbox_defaults Optional named list of initial checked states for
 #'   layer checkboxes.
-#' @param expr_check Controls `expr` placeholder validation. Three modes:
+#' @param expr_check Controls `ppExpr` placeholder validation. Three modes:
 #'   `TRUE` (default) applies the built-in denylist + AST walker;
 #'   `FALSE` disables all validation (for local prototyping with trusted
 #'   input only); a `list` with `deny_list` and/or `allow_list` entries
@@ -25,8 +25,8 @@
 #' @param safe_to_remove Character vector of additional function names whose
 #'   zero-argument calls should be dropped after placeholder substitution
 #'   leaves them empty. Defaults to `character()`. See **Empty-call cleanup**
-#'   below. A user-typed `expr` always wins — whatever the user enters into
-#'   an `expr` box is honoured verbatim, even if its top-level name is in
+#'   below. A user-typed `ppExpr` always wins — whatever the user enters into
+#'   an `ppExpr` box is honoured verbatim, even if its top-level name is in
 #'   `safe_to_remove`.
 #' @param css Optional character vector of paths to additional CSS files. Each
 #'   is served as a static resource and linked after `ggpaintr`'s bundled
@@ -43,21 +43,21 @@
 #' render time.
 #'
 #' \describe{
-#'   \item{`var`}{Column picker, data-aware. Renders as a `selectInput`
+#'   \item{`ppVar`}{Column picker, data-aware. Renders as a `selectInput`
 #'   populated with the upstream data's column-name vector. Example:
-#'   `aes(x = var)`.}
-#'   \item{`text`}{Free-text input. Renders as a `textInput`. Example:
+#'   `aes(x = ppVar)`.}
+#'   \item{`ppText`}{Free-text input. Renders as a `textInput`. Example:
 #'   `labs(title = text)`.}
-#'   \item{`num`}{Numeric input. Renders as a `numericInput`. Example:
-#'   `geom_point(size = num)`.}
-#'   \item{`expr`}{Code editor, validated by `expr_check`. The only keyword
+#'   \item{`ppNum`}{Numeric input. Renders as a `numericInput`. Example:
+#'   `geom_point(size = ppNum)`.}
+#'   \item{`ppExpr`}{Code editor, validated by `expr_check`. The only keyword
 #'   that accepts arbitrary R code; see `vignette("ggpaintr-safety")` for
-#'   the model. Example: `facet_wrap(expr)`.}
-#'   \item{`upload`}{File picker, returns a data frame. Renders as a
+#'   the model. Example: `facet_wrap(ppExpr)`.}
+#'   \item{`ppUpload`}{File picker, returns a data frame. Renders as a
 #'   `fileInput` plus an optional dataset-name textbox. Accepted formats:
 #'   `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, `.json`. Uploaded data is
 #'   normalized via [ptr_normalize_column_names()] automatically. Example:
-#'   `ggplot(upload, ...)`.}
+#'   `ggplot(ppUpload, ...)`.}
 #' }
 #'
 #' Any keyword occurrence may carry `shared = "<id>"` to lift the widget out
@@ -66,8 +66,8 @@
 #' `vignette("ggpaintr-use-cases")` for worked examples of each keyword.
 #'
 #' @section Empty-call cleanup:
-#' When a placeholder resolves to "missing" (an empty `var` pick, a blank
-#' `text`, a cleared `num`, an unchecked layer checkbox), its argument is
+#' When a placeholder resolves to "missing" (an empty `ppVar` pick, a blank
+#' `ppText`, a cleared `ppNum`, an unchecked layer checkbox), its argument is
 #' dropped from the generated code. If the surrounding call is left empty
 #' and its bare name is in the curated cleanup list, the whole call
 #' disappears too. This rule applies to both placeholder-driven empties and
@@ -122,12 +122,12 @@
 #' @examples
 #' if (interactive()) {
 #'   # String mode (existing).
-#'   ptr_app("ggplot(mtcars, aes(x = var, y = var)) + geom_point()")
+#'   ptr_app("ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()")
 #'   # Expression mode (new): pass the unquoted ggplot expression.
-#'   ptr_app(ggplot(mtcars, aes(x = var, y = var)) + geom_point())
+#'   ptr_app(ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point())
 #'   # !! splicing into expression mode.
 #'   col <- rlang::sym("mpg")
-#'   ptr_app(ggplot(mtcars, aes(x = !!col, y = var)) + geom_point())
+#'   ptr_app(ggplot(mtcars, aes(x = !!col, y = ppVar)) + geom_point())
 #' }
 #' @export
 ptr_app <- function(formula,
@@ -471,13 +471,33 @@ plot_card_tag <- function(ns, error = TRUE, code_toggle = FALSE) {
   )
 }
 
+# ADR 0009 / PLAN-08: two-mode code panel. The view-mode toggle
+# (radioGroupButtons keyed `ptr_code_mode`) switches the rendered text
+# between the final substituted code (`"final"`, default) and the
+# formula with `pp*` placeholders preserved (`"preserve"`). The server
+# reads `input$ptr_code_mode` inside `ptr_register_code()` and calls
+# `ptr_render(root, preserve_placeholders = identical(mode, "preserve"))`.
+code_mode_toggle <- function(ns) {
+  shiny::tags$span(
+    class = "ptr-code-mode",
+    shinyWidgets::radioGroupButtons(
+      inputId = ns("ptr_code_mode"),
+      label = NULL,
+      choices = c(`Final code` = "final", `Show placeholders` = "preserve"),
+      selected = "final",
+      size = "xs",
+      individual = TRUE
+    )
+  )
+}
+
 # The slide-out code window chrome (drag-by-title-bar head with Copy/Close +
 # a body), parameterised on the code-output content it wraps. Shared by
 # code_block_tag(style = "window") -- which feeds it the namespaced
 # verbatimTextOutput -- and the ptr_ui_toggle_code() combinator, which feeds
 # it an already-built bare ptr_ui_code() piece. The bundled JS toggles
 # `.ptr-open` on `.ptr-code-window`; structure here must keep that class.
-code_window_tag <- function(body) {
+code_window_tag <- function(body, mode_toggle = NULL) {
   shiny::tags$div(
     class = "ptr-code-window",
     shiny::tags$div(
@@ -485,6 +505,7 @@ code_window_tag <- function(body) {
       shiny::tags$span(class = "ptr-code-window__title", shiny::HTML("&lt;/&gt; Generated code")),
       shiny::tags$span(
         class = "ptr-code-window__actions",
+        mode_toggle,
         shiny::tags$button(type = "button", class = "ptr-copy-btn", "Copy"),
         shiny::tags$button(
           type = "button", class = "ptr-code-window__close",
@@ -500,13 +521,17 @@ code_window_tag <- function(body) {
 code_block_tag <- function(ns, style = c("panel", "window")) {
   style <- match.arg(style)
   if (identical(style, "window")) {
-    return(code_window_tag(shiny::verbatimTextOutput(ns("ptr_code"))))
+    return(code_window_tag(
+      shiny::verbatimTextOutput(ns("ptr_code")),
+      mode_toggle = code_mode_toggle(ns)
+    ))
   }
   shiny::tags$div(
     class = "ptr-card ptr-card--code",
     shiny::tags$div(
       class = "ptr-card__head",
-      shiny::tags$h3(class = "ptr-card__title", "Generated code")
+      shiny::tags$h3(class = "ptr-card__title", "Generated code"),
+      code_mode_toggle(ns)
     ),
     shiny::tags$div(
       class = "ptr-card__body",
@@ -792,7 +817,7 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
 #'   for the full schema and current defaults.
 #' @param checkbox_defaults Optional named list of initial checked states.
-#' @param expr_check Controls `expr` placeholder validation: `TRUE` (default)
+#' @param expr_check Controls `ppExpr` placeholder validation: `TRUE` (default)
 #'   applies the built-in denylist + AST walker; `FALSE` disables all
 #'   validation; a `list` with `deny_list`/`allow_list` entries customises
 #'   the policy. See `vignette("ggpaintr-safety")`.
@@ -814,7 +839,7 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #'   themable CSS custom properties.
 #' @examples
 #' ui <- ptr_ui(
-#'   "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
+#'   "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
 #'   "plot1"
 #' )
 #' @export
@@ -889,7 +914,7 @@ ptr_ui <- function(formula, id = NULL, ui_text = NULL,
 #' @param ui_text Optional named list of copy overrides; see
 #'   [ptr_ui_text()] for the full schema and current defaults.
 #' @param checkbox_defaults Optional named list of initial checked states.
-#' @param expr_check Controls `expr` placeholder validation: `TRUE` (default)
+#' @param expr_check Controls `ppExpr` placeholder validation: `TRUE` (default)
 #'   applies the built-in denylist + AST walker; `FALSE` disables all
 #'   validation; a `list` with `deny_list`/`allow_list` entries customises
 #'   the policy. See `vignette("ggpaintr-safety")`.
@@ -906,7 +931,7 @@ ptr_ui <- function(formula, id = NULL, ui_text = NULL,
 #'   [ptr_ui_code()], [ptr_shared()], [ptr_server()]
 #' @examples
 #' ptr_ui_controls(
-#'   "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
+#'   "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
 #'   id = "p"
 #' )
 #' @export
@@ -948,7 +973,7 @@ ptr_ui_controls <- function(formula, id = NULL, ui_text = NULL,
 #'   [shiny::shinyApp()] as `ui`.
 #' @seealso [ptr_ui_plot()], [ptr_ui_controls()], [ptr_server()], [ptr_css()]
 #' @examples
-#' f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+#' f <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
 #' ptr_ui_page(
 #'   shiny::sidebarLayout(
 #'     shiny::sidebarPanel(ptr_ui_controls(id = "p", formula = f)),
@@ -1027,7 +1052,7 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #'   [ptr_shared_panel()], [ptr_shared_server()].
 #' @examples
 #' if (interactive()) {
-#'   f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+#'   f <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
 #'   # L2: default layout
 #'   shiny::shinyApp(
 #'     ui = shiny::fluidPage(ptr_ui(f, "p")),
@@ -1204,7 +1229,7 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
 #'   reads `ui_text$shell$title$label`; defaults to `"ggpaintr grid"`. See
 #'   [ptr_ui_text()] for the full schema.
 #' @param draw_all_label Label for the draw-all action button.
-#' @param expr_check Controls `expr` placeholder validation: `TRUE` (default)
+#' @param expr_check Controls `ppExpr` placeholder validation: `TRUE` (default)
 #'   applies the built-in denylist + AST walker; `FALSE` disables all
 #'   validation; a `list` with `deny_list`/`allow_list` entries customises
 #'   the policy. See `vignette("ggpaintr-safety")`.
@@ -1220,8 +1245,8 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
 #' if (interactive()) {
 #'   ptr_app_grid(
 #'     plots = list(
-#'       "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
-#'       "ggplot(mtcars, aes(x = var)) + geom_histogram()"
+#'       "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
+#'       "ggplot(mtcars, aes(x = ppVar)) + geom_histogram()"
 #'     )
 #'   )
 #' }

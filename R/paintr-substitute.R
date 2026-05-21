@@ -100,7 +100,7 @@ substitute_walk.ptr_ph_value <- function(node, ctx) {
   resolved <- entry$resolve_expr(value, node)
   if (is.null(resolved)) return(ptr_missing())
   validate_resolve_expr_return(resolved, node$keyword)
-  if (node$keyword == "expr") {
+  if (node$keyword == "ppExpr") {
     return(ptr_user_expr(resolved))
   }
   ptr_literal(resolved)
@@ -199,19 +199,20 @@ read_placeholder_value <- function(node, ctx) {
 is_missing_value_input <- function(node, value) {
   if (is.null(value)) return(TRUE)
   if (length(value) == 0L) return(TRUE)
-  if (node$keyword == "num") {
+  if (node$keyword == "ppNum") {
     # numericInput's blank state arrives at the server as logical `NA`
     # (not NA_real_), which earlier checks missed because `is.numeric(NA)`
     # is FALSE. Catch any all-NA scalar regardless of storage type.
     if (length(value) == 1L && is.atomic(value) && is.na(value)) return(TRUE)
     if (is.character(value) && !nzchar(value[[1]])) return(TRUE)
   }
-  if (node$keyword == "expr") {
+  if (node$keyword == "ppExpr") {
     if (is.character(value) && !nzchar(value[[1]])) return(TRUE)
   }
-  if (node$keyword == "text") {
-    # textInput's blank state is `""`; treat as missing so empty `labs(title = text)`
-    # collapses to nothing rather than rendering `labs(title = "")`.
+  if (node$keyword == "ppText") {
+    # textInput's blank state is `""`; treat as missing so empty
+    # `labs(title = ppText())` collapses to nothing rather than rendering
+    # `labs(title = "")`.
     if (is.character(value) && !nzchar(value[[1]])) return(TRUE)
   }
   FALSE

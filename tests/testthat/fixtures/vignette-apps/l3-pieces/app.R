@@ -5,7 +5,7 @@
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
 library(shiny)
 # >>> verbatim: vignettes/ggpaintr-use-cases.Rmd chunk `l3-pieces` >>>
-formula <- "ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"
+formula <- "ggplot(iris, aes(x = ppVar, y = ppVar, color = ppVar)) + geom_point()"
 
 ui <- ptr_ui_page(                          # Bootstrap page + single .ptr-app + assets
   ptr_ui_header("Iris explorer"),

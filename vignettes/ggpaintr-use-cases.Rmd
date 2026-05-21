@@ -31,20 +31,20 @@ A ggpaintr formula is a single `ggplot()` call written as text. Drop one of five
 
 | Keyword  | Becomes                                       | Example formula fragment        | Renders as                                       |
 |----------|-----------------------------------------------|---------------------------------|--------------------------------------------------|
-| `var`    | column picker (data-aware `selectInput`)      | `aes(x = var, y = var)`         | two dropdowns scoped to the upstream data's columns |
-| `text`   | free-text input                               | `labs(title = text)`            | one text field                                   |
-| `num`    | numeric input                                 | `geom_point(size = num)`        | one numeric input                                |
-| `expr`   | code editor (validated against a denylist)    | `facet_wrap(expr)`              | one expression box; see `vignette("ggpaintr-safety")` for the validation model |
-| `upload` | file picker (returns a data frame)            | `ggplot(upload, …)`             | one file picker + an optional dataset-name field |
+| `ppVar`    | column picker (data-aware `selectInput`)      | `aes(x = ppVar, y = ppVar)`         | two dropdowns scoped to the upstream data's columns |
+| `ppText`   | free-text input                               | `labs(title = ppText)`            | one text field                                   |
+| `ppNum`    | numeric input                                 | `geom_point(size = ppNum)`        | one numeric input                                |
+| `ppExpr`   | code editor (validated against a denylist)    | `facet_wrap(ppExpr)`              | one expression box; see `vignette("ggpaintr-safety")` for the validation model |
+| `ppUpload` | file picker (returns a data frame)            | `ggplot(ppUpload, …)`             | one file picker + an optional dataset-name field |
 
 A formula that exercises four of the five:
 
 ```{r formula-tour}
 ptr_app("
-ggplot(iris, aes(x = var, y = var, color = var)) +
-geom_point(size = num) +
-labs(title = text) +
-facet_wrap(expr)
+ggplot(iris, aes(x = ppVar, y = ppVar, color = ppVar)) +
+geom_point(size = ppNum) +
+labs(title = ppText) +
+facet_wrap(ppExpr)
 ")
 ```
 
@@ -57,12 +57,12 @@ A layer's data argument is allowed to be a pipeline. Both `|>` and `%>%` are acc
 ```{r pipeline-formula-tour}
 ptr_app(
 "mpg |>
-dplyr::filter(displ > num) |>
+dplyr::filter(displ > ppNum) |>
 dplyr::group_by(class) |>
-dplyr::filter(dplyr::n() > num) |>
+dplyr::filter(dplyr::n() > ppNum) |>
 dplyr::ungroup() |>
-ggplot(aes(var, var, color = class)) +
-geom_point(alpha = num)"
+ggplot(aes(ppVar, ppVar, color = class)) +
+geom_point(alpha = ppNum)"
 )
 ```
 
@@ -74,9 +74,9 @@ See `vignette(\"ggpaintr-gallery\")` § 4 for the same example with the original
 - **Bare-symbol stage heads**: `filter(...)`, `head(...)`, `transform(...)`.
 - **Namespaced stage heads**: `dplyr::filter(...)`, `tidyr:::pivot_longer(...)`.
 - **Parenthesised heads**: `(filter)(...)` — used occasionally to disambiguate function lookup.
-- **`upload` as the pipeline head**: `upload |> dplyr::filter(...) |> ggplot(...)`. The upload widget feeds the pipeline; every downstream stage and placeholder resolves against the uploaded data.
+- **`ppUpload` as the pipeline head**: `ppUpload |> dplyr::filter(...) |> ggplot(...)`. The upload widget feeds the pipeline; every downstream stage and placeholder resolves against the uploaded data.
 - **Per-layer pipelines on multi-layer formulas**: each layer can have its own data-arg pipeline (`ggplot(data = df1 |> filter(...)) + geom_smooth(data = df2 |> filter(...))`) — the Data subtabs are scoped per layer.
-- **Placeholders in any stage**: `var`, `text`, `num`, `expr` inside any stage's call resolve as if that stage were a regular layer call.
+- **Placeholders in any stage**: `ppVar`, `ppText`, `ppNum`, `ppExpr` inside any stage's call resolve as if that stage were a regular layer call.
 
 ### What we know does **not** work yet
 
@@ -97,7 +97,7 @@ For a different page shell or theme, write a thin wrapper on top of the public g
 
 ```{r app-basic}
 ptr_app(
-"ggplot(iris, aes(var, var, color = var)) + geom_point() + labs(title = text)"
+"ggplot(iris, aes(ppVar, ppVar, color = ppVar)) + geom_point() + labs(title = ppText)"
 )
 ```
 
@@ -108,23 +108,23 @@ ptr_app(
 ```{r app-grid-shared}
 ptr_app_grid(
 plots = list(
-"ggplot(iris, aes(x = var, y = Sepal.Length, fill = Species)) +
+"ggplot(iris, aes(x = ppVar, y = Sepal.Length, fill = Species)) +
        geom_boxplot()",
-"ggplot(iris, aes(x = var, y = Sepal.Width, fill = Species)) +
+"ggplot(iris, aes(x = ppVar, y = Sepal.Width, fill = Species)) +
        geom_violin()"
 ),
-shared_ui = list()  # no shared= annotations above; the first var stays per-tile
+shared_ui = list()  # no shared= annotations above; the first ppVar stays per-tile
 )
 ```
 
-Adding `shared = 'metric'` to both `var` occurrences and supplying `shared_ui = list(metric = function(id) selectInput(id, "Metric", names(iris)))` lifts the column choice into a single widget that drives both plots when the user clicks **Draw all**. The shared mechanism works for any keyword — built-in `num(shared = "sz")` paired with `shared_ui = list(sz = function(id) sliderInput(id, "Size", 1, 10, 3))` is the simplest two-line example; custom consumers work the same way (see `vignette("ggpaintr-customization")` for registering custom widget types).
+Adding `shared = 'metric'` to both `ppVar` occurrences and supplying `shared_ui = list(metric = function(id) selectInput(id, "Metric", names(iris)))` lifts the column choice into a single widget that drives both plots when the user clicks **Draw all**. The shared mechanism works for any keyword — built-in `ppNum(shared = "sz")` paired with `shared_ui = list(sz = function(id) sliderInput(id, "Size", 1, 10, 3))` is the simplest two-line example; custom consumers work the same way (see `vignette("ggpaintr-customization")` for registering custom widget types).
 
 ```{r app-grid-shared-added}
 ptr_app_grid(
   plots = list(
-    "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Length, fill = Species)) +
+    "ggplot(iris, aes(x = ppVar(shared = 'metric'), y = Sepal.Length, fill = Species)) +
        geom_boxplot()",
-    "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Width, fill = Species)) +
+    "ggplot(iris, aes(x = ppVar(shared = 'metric'), y = Sepal.Width, fill = Species)) +
        geom_violin()"
   ),
   shared_ui = list(metric = function(id) selectInput(id, "Metric", names(iris)))
@@ -136,8 +136,8 @@ By default every tile sits in one row. Pass `ncol =` and/or `nrow =` to wrap the
 ```{r app-grid-layout}
 ptr_app_grid(
   plots = list(
-    "ggplot(iris, aes(x = var, y = Sepal.Length, fill = Species)) + geom_boxplot()",
-    "ggplot(iris, aes(x = var, y = Sepal.Width,  fill = Species)) + geom_violin()",
+    "ggplot(iris, aes(x = ppVar, y = Sepal.Length, fill = Species)) + geom_boxplot()",
+    "ggplot(iris, aes(x = ppVar, y = Sepal.Width,  fill = Species)) + geom_violin()",
     "ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width, color = Species)) + geom_point()",
     "ggplot(iris, aes(x = Petal.Length)) + geom_histogram()"
   ),
@@ -148,22 +148,22 @@ ptr_app_grid(
 
 ### Empty-call cleanup
 
-A placeholder that resolves to "missing" (an empty `var` pick, a blank `text`, a cleared `num`) drops its argument from the generated code. When that leaves an empty call whose name is in ggpaintr's curated cleanup list, the whole call disappears too:
+A placeholder that resolves to "missing" (an empty `ppVar` pick, a blank `ppText`, a cleared `ppNum`) drops its argument from the generated code. When that leaves an empty call whose name is in ggpaintr's curated cleanup list, the whole call disappears too:
 
 ```r
 ptr_app("
-ggplot(iris, aes(x = var, y = var)) +
+ggplot(iris, aes(x = ppVar, y = ppVar)) +
 geom_point() +
-labs(title = text) +              # title empty → labs() empty → labs() dropped
-facet_wrap(expr)                  # expr empty → facet_wrap() empty → facet_wrap() dropped
+labs(title = ppText) +              # title empty → labs() empty → labs() dropped
+facet_wrap(ppExpr)                  # ppExpr empty → facet_wrap() empty → facet_wrap() dropped
 ")
 ```
 
-The cleanup list covers safe ggplot2 no-ops: `theme()`, `labs()`, `xlab` / `ylab` / `ggtitle`, `facet_wrap` / `facet_grid` / `facet_null`, `xlim` / `ylim` / `lims`, `expand_limits`, `guides`, `annotate`, and the empty mapping helper (`aes()`). Third-party helpers (e.g. `pcp_theme()` from `ggpcp`) are *not* in the cleanup list — being absent is the "removal safety unknown" signal. Pass `safe_to_remove = c("pcp_theme")` to opt a specific name into the cleanup pass. An `expr` placeholder whose user supplies an expression always wins: whatever was typed is honoured verbatim, even if its top-level name is in `safe_to_remove`.
+The cleanup list covers safe ggplot2 no-ops: `theme()`, `labs()`, `xlab` / `ylab` / `ggtitle`, `facet_wrap` / `facet_grid` / `facet_null`, `xlim` / `ylim` / `lims`, `expand_limits`, `guides`, `annotate`, and the empty mapping helper (`aes()`). Third-party helpers (e.g. `pcp_theme()` from `ggpcp`) are *not* in the cleanup list — being absent is the "removal safety unknown" signal. Pass `safe_to_remove = c("pcp_theme")` to opt a specific name into the cleanup pass. An `ppExpr` placeholder whose user supplies an expression always wins: whatever was typed is honoured verbatim, even if its top-level name is in `safe_to_remove`.
 
 ### Local data with non-syntactic columns
 
-`var` placeholders need syntactic, unique column names — `Sepal.Length` is fine, `"Sepal Length"` is not, and `iris` deliberately ships clean. If your local data has spaces, reserved words, or duplicates in its names, pipe it through `ptr_normalize_column_names()` before referencing it from a formula:
+`ppVar` placeholders need syntactic, unique column names — `Sepal.Length` is fine, `"Sepal Length"` is not, and `iris` deliberately ships clean. If your local data has spaces, reserved words, or duplicates in its names, pipe it through `ptr_normalize_column_names()` before referencing it from a formula:
 
 ```{r normalize-cols}
 messy <- data.frame(
@@ -175,7 +175,7 @@ clean <- ptr_normalize_column_names(messy)
 names(clean)
 #> "first_column" "if_"
 
-ptr_app("ggplot(clean, aes(x = var, y = var)) + geom_point()")
+ptr_app("ggplot(clean, aes(x = ppVar, y = ppVar)) + geom_point()")
 ```
 
 Uploaded data goes through the same normalization automatically; the manual call is only needed for data already in your R session. `?ptr_normalize_column_names` documents the exact rules (`make.names()` plus uniqueness + reserved-word collision avoidance).
@@ -198,7 +198,7 @@ There is **no** free-form controls-here / plot-there split at L2: the only defau
 The compact option. Controls + outputs live next to each other inside the module's namespace. Note that `id` is not required if there is only one `ggpaintr` module.
 
 ```{r module-app}
-formula <- "ggplot(iris, aes(var, var, color = var)) + geom_point()"
+formula <- "ggplot(iris, aes(ppVar, ppVar, color = ppVar)) + geom_point()"
 
 ui <- shiny::fluidPage(
   shiny::titlePanel("My host app"),
@@ -229,7 +229,7 @@ The practical consequence is a hard split by **instance count**:
 ```{r single-instance-shared}
 # One instance, one key used twice: the widget auto-renders inline. No coordinator.
 ptr_app(
-  "ggplot(iris, aes(x = var(shared = 'col'), y = var - var(shared = 'col'),
+  "ggplot(iris, aes(x = ppVar(shared = 'col'), y = ppVar - ppVar(shared = 'col'),
                     color = Species)) + geom_point()"
 )
 ```
@@ -242,15 +242,15 @@ ptr_app(
 
 When you embed two or more ggpaintr blocks in your own app and want one widget to drive several of them, build the coordinator once and feed it to the three consumers. The contract:
 
-- `ptr_shared(formulas, shared_ui = list(), ui_text = NULL, expr_check = TRUE, draw_all_label = "Draw all")` → `obj`. Pass the **same list of formula strings** you will hand to the modules. `shared_ui` maps each non-auto key to a `function(id) -> shiny.tag`; a `var(shared = "...")` consumer needs no entry (its picker is built for you), and a built-in `num`/`text` shared key also auto-builds if you omit it. `obj` carries the computed partition (`obj$panel_keys`, `obj$local_keys_by_formula`).
+- `ptr_shared(formulas, shared_ui = list(), ui_text = NULL, expr_check = TRUE, draw_all_label = "Draw all")` → `obj`. Pass the **same list of formula strings** you will hand to the modules. `shared_ui` maps each non-auto key to a `function(id) -> shiny.tag`; a `ppVar(shared = "...")` consumer needs no entry (its picker is built for you), and a built-in `ppNum`/`ppText` shared key also auto-builds if you omit it. `obj` carries the computed partition (`obj$panel_keys`, `obj$local_keys_by_formula`).
 - `ptr_shared_panel(obj, css = NULL)` — the **one** standalone panel, holding exactly `obj`'s cross-formula keys. Self-contained (owns its `.ptr-app` scope + assets); place it once, wherever you want on the page. `css =` is the L2 restyle hook (see `?ptr_app` / `?ptr_css`).
 - `ptr_shared_server(obj)` — call **once at the top level** of your server (never inside `moduleServer()`). Returns a `ptr_shared_state` bundle.
 - `ptr_server(formula, id, shared_state = <bundle>)` — pass the bundle to every per-plot module. Each module renders its own formula-local shared keys inline and reads the panel keys from the bundle.
 
 ```{r l2-shared}
 plots <- list(
-  "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Length, fill = Species)) + geom_boxplot()",
-  "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Width,  fill = Species)) + geom_violin()"
+  "ggplot(iris, aes(x = ppVar(shared = 'metric'), y = Sepal.Length, fill = Species)) + geom_boxplot()",
+  "ggplot(iris, aes(x = ppVar(shared = 'metric'), y = Sepal.Width,  fill = Species)) + geom_violin()"
 )
 
 obj <- ptr_shared(formulas = plots,
@@ -279,10 +279,10 @@ Here `metric` is used in both formulas, so the partition rule sends it to the st
 
 ```{r l2-shared-partition}
 plots <- list(
-  "ggplot(iris, aes(x = var(shared = 'ax1'), y = var - var(shared = 'ax1'),
-                    color = Species)) + geom_point(size = num(shared = 'sz'))",
-  "ggplot(iris, aes(x = var(shared = 'ax2'), y = Sepal.Width,
-                    color = Species)) + geom_point(size = num(shared = 'sz'))"
+  "ggplot(iris, aes(x = ppVar(shared = 'ax1'), y = ppVar - ppVar(shared = 'ax1'),
+                    color = Species)) + geom_point(size = ppNum(shared = 'sz'))",
+  "ggplot(iris, aes(x = ppVar(shared = 'ax2'), y = Sepal.Width,
+                    color = Species)) + geom_point(size = ppNum(shared = 'sz'))"
 )
 
 obj <- ptr_shared(
@@ -320,7 +320,7 @@ The framework names every widget it emits from the formula's syntax, so the same
 | `geom_point() + geom_smooth()`            | `geom_point`, `geom_smooth`      |
 | `geom_point() + geom_point()`             | `geom_point`, `geom_point-2`     |
 
-**Per-placeholder input ids** follow `<layer>_<path>_<keyword>_<shared-or-NA>`, where `<path>` is the underscore-joined positional index path into the call. For example, `aes(x = var, y = var)` inside the `ggplot()` layer yields `ggplot_1_1_var_NA` and `ggplot_1_2_var_NA`; a shared annotation `var(shared = "x_col")` lands at `ggplot_1_1_var_x_col`.
+**Per-placeholder input ids** follow `<layer>_<path>_<keyword>_<shared-or-NA>`, where `<path>` is the underscore-joined positional index path into the call. For example, `aes(x = ppVar, y = ppVar)` inside the `ggplot()` layer yields `ggplot_1_1_var_NA` and `ggplot_1_2_var_NA`; a shared annotation `ppVar(shared = "x_col")` lands at `ggplot_1_1_var_x_col`.
 
 **Layer-derived ids:**
 
@@ -370,7 +370,7 @@ Ids must line up: pass the same `id` to every piece and to `ptr_server(formula, 
 Header, controls, plot, error, and code each in their own region — bare pieces, no flags:
 
 ```{r l3-pieces}
-formula <- "ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"
+formula <- "ggplot(iris, aes(x = ppVar, y = ppVar, color = ppVar)) + geom_point()"
 
 ui <- ptr_ui_page(                          # Bootstrap page + single .ptr-app + assets
   ptr_ui_header("Iris explorer"),
@@ -398,7 +398,7 @@ Swap the page builder with `page =` when you want a different Bootstrap-3 root �
 Want the slide-out code window and inline error while still owning the surrounding layout? Compose the pieces with the two combinators — this nested call is exactly what `ptr_app()` / `ptr_ui()` render internally, so behaviour and performance match the all-in-one path:
 
 ```{r l3-pieces-toggle}
-formula <- "ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"
+formula <- "ggplot(iris, aes(x = ppVar, y = ppVar, color = ppVar)) + geom_point()"
 
 ui <- ptr_ui_page(
   ptr_ui_header("Iris explorer"),
@@ -486,7 +486,7 @@ Mixing the two in a render block — calling `ptr_extract_plot(state)` inside `r
 Render `ptr_ui_controls(formula, id)` for the widgets, place your own output container at `shiny::NS(id)(...)`, and never place `ptr_ui_plot(id)` — with no UI slot bound to it the built-in `ptr_plot` output stays inert, so there is no bundled pane at all. The server is the canonical pattern above: `state <- ptr_server(formula, id)` in your plain `server`, then bind your widget off `state$runtime()`.
 
 ```{r l3-plotly}
-formula <- "ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"
+formula <- "ggplot(iris, aes(x = ppVar, y = ppVar, color = ppVar)) + geom_point()"
 
 ui <- ptr_ui_page(
   shiny::fluidRow(
@@ -572,8 +572,8 @@ Combine the multi-instance shared coordinator with custom outputs: one `ptr_shar
 
 ```{r l3-shared}
 plots <- list(
-  "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Length, fill = Species)) + geom_boxplot()",
-  "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Width,  fill = Species)) + geom_violin()"
+  "ggplot(iris, aes(x = ppVar(shared = 'metric'), y = Sepal.Length, fill = Species)) + geom_boxplot()",
+  "ggplot(iris, aes(x = ppVar(shared = 'metric'), y = Sepal.Width,  fill = Species)) + geom_violin()"
 )
 
 obj <- ptr_shared(formulas = plots,
@@ -617,8 +617,8 @@ If you want the bare default panes (not a custom renderer) under L3, the shape i
 
 ```{r l3-pieces-shared}
 plots <- list(
-  "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Length, fill = Species)) + geom_boxplot()",
-  "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Width,  fill = Species)) + geom_violin()"
+  "ggplot(iris, aes(x = ppVar(shared = 'metric'), y = Sepal.Length, fill = Species)) + geom_boxplot()",
+  "ggplot(iris, aes(x = ppVar(shared = 'metric'), y = Sepal.Width,  fill = Species)) + geom_violin()"
 )
 
 obj <- ptr_shared(formulas = plots,

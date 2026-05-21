@@ -33,7 +33,7 @@ for the full schema and current defaults.}
 \item{checkbox_defaults}{Optional named list of initial checked states for
 layer checkboxes.}
 
-\item{expr_check}{Controls \code{expr} placeholder validation: \code{TRUE} (default)
+\item{expr_check}{Controls \code{ppExpr} placeholder validation: \code{TRUE} (default)
 applies the built-in denylist + AST walker; \code{FALSE} disables all
 validation; a \code{list} with \code{deny_list}/\code{allow_list} entries customises
 the policy. See \code{vignette("ggpaintr-safety")}.}
@@ -48,7 +48,7 @@ outer wrapper such as \code{\link[=ptr_app_grid]{ptr_app_grid()}}. Defaults to \
 (e.g. the grid app's "Draw all" button).}
 
 \item{producer_debounce_ms}{Optional. Controls the debounce window applied
-to producer-style placeholder inputs (\code{text}, \code{num}, \code{expr}) before they
+to producer-style placeholder inputs (\code{ppText}, \code{ppNum}, \code{ppExpr}) before they
 invalidate downstream consumer caches. \code{NULL} (default) enables auto
 mode: window starts at 0 ms and the runtime flips to 300 ms after three
 consecutive upstream resolutions exceed 150 ms (and back to 0 after five
@@ -66,7 +66,7 @@ scope. Relaxes the "missing-from-bindings" check in
 \code{ptr_validate_shared_bindings()} (the host auto-binds instead).}
 
 \item{shared_resolutions}{Named list (keyed by raw shared key) of
-host-computed resolutions for shared data-consumer (\code{var}) widgets,
+host-computed resolutions for shared data-consumer (\code{ppVar}) widgets,
 as returned by \code{ptr_resolve_shared_consumers()}. When an entry is
 present, the runtime validates that key's selection against the
 host-resolved upstream (the same data the host picker was built
@@ -109,7 +109,7 @@ drive the typed tree programmatically or exercise ggpaintr under
 \examples{
 shiny::isolate({
   state <- ptr_init_state(
-    "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+    "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
   )
   is.list(state)
 })

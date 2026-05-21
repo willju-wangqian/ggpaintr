@@ -7,9 +7,9 @@ library(shiny)
 # >>> verbatim: vignettes/ggpaintr-use-cases.Rmd chunk `app-grid-shared-added` >>>
 ptr_app_grid(
   plots = list(
-    "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Length, fill = Species)) +
+    "ggplot(iris, aes(x = ppVar(shared = 'metric'), y = Sepal.Length, fill = Species)) +
        geom_boxplot()",
-    "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Width, fill = Species)) +
+    "ggplot(iris, aes(x = ppVar(shared = 'metric'), y = Sepal.Width, fill = Species)) +
        geom_violin()"
   ),
   shared_ui = list(metric = function(id) selectInput(id, "Metric", names(iris)))

@@ -30,7 +30,7 @@
 #'   for the full schema and current defaults.
 #' @param checkbox_defaults Optional named list of initial checked states for
 #'   layer checkboxes.
-#' @param expr_check Controls `expr` placeholder validation: `TRUE` (default)
+#' @param expr_check Controls `ppExpr` placeholder validation: `TRUE` (default)
 #'   applies the built-in denylist + AST walker; `FALSE` disables all
 #'   validation; a `list` with `deny_list`/`allow_list` entries customises
 #'   the policy. See `vignette("ggpaintr-safety")`.
@@ -41,7 +41,7 @@
 #' @param draw_trigger Optional reactive whose invalidation forces a redraw
 #'   (e.g. the grid app's "Draw all" button).
 #' @param producer_debounce_ms Optional. Controls the debounce window applied
-#'   to producer-style placeholder inputs (`text`, `num`, `expr`) before they
+#'   to producer-style placeholder inputs (`ppText`, `ppNum`, `ppExpr`) before they
 #'   invalidate downstream consumer caches. `NULL` (default) enables auto
 #'   mode: window starts at 0 ms and the runtime flips to 300 ms after three
 #'   consecutive upstream resolutions exceed 150 ms (and back to 0 after five
@@ -55,7 +55,7 @@
 #'   scope. Relaxes the "missing-from-bindings" check in
 #'   `ptr_validate_shared_bindings()` (the host auto-binds instead).
 #' @param shared_resolutions Named list (keyed by raw shared key) of
-#'   host-computed resolutions for shared data-consumer (`var`) widgets,
+#'   host-computed resolutions for shared data-consumer (`ppVar`) widgets,
 #'   as returned by `ptr_resolve_shared_consumers()`. When an entry is
 #'   present, the runtime validates that key's selection against the
 #'   host-resolved upstream (the same data the host picker was built
@@ -78,7 +78,7 @@
 #' @examples
 #' shiny::isolate({
 #'   state <- ptr_init_state(
-#'     "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+#'     "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
 #'   )
 #'   is.list(state)
 #' })
@@ -311,7 +311,7 @@ ptr_validate_state <- function(state) {
 #' @seealso [ptr_shared_server()], [ptr_server()]
 #' @examples
 #' if (interactive()) {
-#'   f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+#'   f <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
 #'   shiny::shinyApp(
 #'     ui = shiny::fluidPage(
 #'       ptr_ui_assets(),

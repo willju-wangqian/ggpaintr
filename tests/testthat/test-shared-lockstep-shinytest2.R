@@ -21,8 +21,8 @@ test_that("S-P2.D exactly one #shared_B; #shared_A only under its module", {
   # app startup -> this test errors order-dependently in the full suite.
   prune_dead_ggpaintr_resource_paths()
 
-  f1 <- 'ggplot(mtcars) + geom_point(aes(x = var(shared = "B"), y = mpg), size = num(shared = "A"))'
-  f2 <- 'ggplot(mtcars) + geom_point(aes(x = var(shared = "B"), y = hp))'
+  f1 <- 'ggplot(mtcars) + geom_point(aes(x = ppVar(shared = "B"), y = mpg), size = ppNum(shared = "A"))'
+  f2 <- 'ggplot(mtcars) + geom_point(aes(x = ppVar(shared = "B"), y = hp))'
   obj <- ptr_shared(c(f1, f2))
   e <- new.env(parent = globalenv())
 

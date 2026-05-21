@@ -19,9 +19,9 @@ knitr::opts_chunk$set(
 
 This vignette answers the question *how do I think about sharing ggpaintr-driven apps with untrusted users?* Companion vignettes cover the use-case ladder (`vignette("ggpaintr-use-cases")`), tailoring defaults (`vignette("ggpaintr-customization")`), real ggplot recipes (`vignette("ggpaintr-gallery")`), and LLM integration (`vignette("ggpaintr-llm")`).
 
-ggpaintr was designed around the assumption that *the formula author is the package user* (i.e. you), while the *placeholder values* — including any `expr` boxes — may come from anywhere. Three boundaries handle the gap between those two trust levels:
+ggpaintr was designed around the assumption that *the formula author is the package user* (i.e. you), while the *placeholder values* — including any `ppExpr` boxes — may come from anywhere. Three boundaries handle the gap between those two trust levels:
 
-1. **`expr_check`** — what controls validation of user-typed `expr` input.
+1. **`expr_check`** — what controls validation of user-typed `ppExpr` input.
 2. **The denylist + AST walker** — what the validator actually does.
 3. **Upload trust** — what happens between &quot;user picks a file&quot; and a data frame reaching `ggplot()`.
 
@@ -29,7 +29,7 @@ The rest of this vignette walks each in turn. ggpaintr has not been hardened for
 
 ## The `expr_check` flag
 
-The `expr` placeholder is the only formula keyword that accepts arbitrary R code. The other four (`var`, `text`, `num`, `upload`) accept atomic values or files — no code path runs whatever the user types as R. `expr_check` controls what happens to whatever lands inside an `expr` box before it reaches the runtime's evaluator.
+The `ppExpr` placeholder is the only formula keyword that accepts arbitrary R code. The other four (`ppVar`, `ppText`, `ppNum`, `ppUpload`) accept atomic values or files — no code path runs whatever the user types as R. `expr_check` controls what happens to whatever lands inside an `ppExpr` box before it reaches the runtime's evaluator.
 
 ```r
 ptr_app(formula, expr_check = TRUE)               # default — denylist + walker
@@ -83,7 +83,7 @@ There is **no "add one name to the curated denylist" shortcut**: a bare `expr_ch
 
 ### The AST walker
 
-`validate_expr_safety()` (also in `paintr-utils.R`) is the recursive descent that turns &quot;denylist&quot; from a list of names into a check that actually catches things. Every `expr`-box input passes through it before the runtime evaluates the formula.
+`validate_expr_safety()` (also in `paintr-utils.R`) is the recursive descent that turns &quot;denylist&quot; from a list of names into a check that actually catches things. Every `ppExpr`-box input passes through it before the runtime evaluates the formula.
 
 What the walker does at each AST node:
 
@@ -101,7 +101,7 @@ If you find a string that bypasses both the denylist and the walker, file a bug 
 
 ## Upload trust model
 
-The `upload` placeholder is the second untrusted-input vector. Unlike `expr`, uploads do *not* execute user-supplied code — they parse user-supplied bytes as tabular data.
+The `ppUpload` placeholder is the second untrusted-input vector. Unlike `ppExpr`, uploads do *not* execute user-supplied code — they parse user-supplied bytes as tabular data.
 
 ### Accepted formats
 
@@ -119,9 +119,9 @@ The `.rds` reader is the most permissive in what bytes it accepts (an `.rds` fil
 
 ### Normalization happens automatically
 
-Every successful upload passes through `ptr_normalize_column_names()` (or the equivalent `ptr_normalize_tabular_data()` for non-`data.frame` returns from `readRDS`/`readxl`/`jsonlite`). Column names that come in with spaces, reserved words, or duplicates leave normalized, syntactic, and unique. Downstream `var` placeholders therefore always see a clean column-name vector. You do not need to call `ptr_normalize_column_names()` yourself for uploaded data — only for in-session data frames you reference by name (see `vignette("ggpaintr-use-cases")` §L1).
+Every successful upload passes through `ptr_normalize_column_names()` (or the equivalent `ptr_normalize_tabular_data()` for non-`data.frame` returns from `readRDS`/`readxl`/`jsonlite`). Column names that come in with spaces, reserved words, or duplicates leave normalized, syntactic, and unique. Downstream `ppVar` placeholders therefore always see a clean column-name vector. You do not need to call `ptr_normalize_column_names()` yourself for uploaded data — only for in-session data frames you reference by name (see `vignette("ggpaintr-use-cases")` §L1).
 
-The file *stem* (name without extension) is also sanitised: a stem matching an R reserved word is renamed (e.g. `if.csv` → dataset name `if_`), not rejected — the upload still succeeds under the safe name, so it won't quietly shadow the `if` keyword if the user later types its stem into an `expr` box.
+The file *stem* (name without extension) is also sanitised: a stem matching an R reserved word is renamed (e.g. `if.csv` → dataset name `if_`), not rejected — the upload still succeeds under the safe name, so it won't quietly shadow the `if` keyword if the user later types its stem into an `ppExpr` box.
 
 ### What is and isn't validated
 
@@ -131,4 +131,4 @@ The upload pipeline validates *shape* (parseable as a recognised tabular format)
 - **Schema or expected columns.** Nothing requires that an upload have `Sepal.Length` just because the formula references it. A missing referenced column shows up as a runtime error, not a parse-time rejection.
 - **Size limits or rate limits.** Shiny's `shiny.maxRequestSize` option caps body size; that is host configuration, not a ggpaintr setting. Per-user rate limits, file-count caps, or anti-abuse policies are entirely the host's problem.
 
-If you need any of those validations, layer them either above ggpaintr (a custom `placeholder_source` that wraps `upload` and enforces a schema — see `vignette("ggpaintr-customization")`) or below it (Shiny / nginx / reverse-proxy configuration at the deployment tier).
+If you need any of those validations, layer them either above ggpaintr (a custom `placeholder_source` that wraps `ppUpload` and enforces a schema — see `vignette("ggpaintr-customization")`) or below it (Shiny / nginx / reverse-proxy configuration at the deployment tier).

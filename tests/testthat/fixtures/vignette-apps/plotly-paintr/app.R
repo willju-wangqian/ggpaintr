@@ -22,9 +22,9 @@ ptr_define_placeholder_value(
 library(plotly)
 
 formula <- "ggplot(data = mpg,
-                   aes(x = var, y = var, color = var,
+                   aes(x = ppVar, y = ppVar, color = ppVar,
                        text = paste(manufacturer, model, sep = ' '))) +
-              geom_point(size = num, alpha = num) +
+              geom_point(size = ppNum, alpha = ppNum) +
               coord_cartesian(xlim = range, ylim = range)"
 
 ui <- fluidPage(

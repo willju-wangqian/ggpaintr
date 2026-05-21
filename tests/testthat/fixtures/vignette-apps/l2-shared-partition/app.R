@@ -9,10 +9,10 @@ pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_t
 library(shiny)
 # >>> verbatim: vignettes/ggpaintr-use-cases.Rmd chunk `l2-shared-partition` >>>
 plots <- list(
-  "ggplot(iris, aes(x = var(shared = 'ax1'), y = var - var(shared = 'ax1'),
-                    color = Species)) + geom_point(size = num(shared = 'sz'))",
-  "ggplot(iris, aes(x = var(shared = 'ax2'), y = Sepal.Width,
-                    color = Species)) + geom_point(size = num(shared = 'sz'))"
+  "ggplot(iris, aes(x = ppVar(shared = 'ax1'), y = ppVar - ppVar(shared = 'ax1'),
+                    color = Species)) + geom_point(size = ppNum(shared = 'sz'))",
+  "ggplot(iris, aes(x = ppVar(shared = 'ax2'), y = Sepal.Width,
+                    color = Species)) + geom_point(size = ppNum(shared = 'sz'))"
 )
 
 obj <- ptr_shared(
