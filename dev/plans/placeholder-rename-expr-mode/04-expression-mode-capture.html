@@ -229,7 +229,7 @@ ptr_capture_formula &lt;- function(formula_captured, envir) {
   <li>Wrapper unwrap (E1.a): detect <code>rlang::expr</code> / <code>rlang::quo</code> / <code>quote</code> / <code>bquote</code> at the captured root and unwrap once.</li>
   <li><code>!!</code> splicing support comes for free via <code>rlang::enexpr</code>; document in <code>?ptr_app</code> with a brief example.</li>
   <li>Add an E2.a documentation paragraph in <code>?ptr_app</code>: "Native pipe (<code>|&gt;</code>) is desugared by R's parser before expression-mode capture; generated code shows the desugared form. Use string mode or <code>%&gt;%</code> if you need <code>|&gt;</code> preserved in the rendered output."</li>
-  <li>New private helper <code>ptr_capture_formula(formula_arg, formula_captured, envir)</code>.</li>
+  <li>New private helper <code>ptr_capture_formula(formula_captured, envir)</code> (matches the sketch and Files-touched row).</li>
   <li>Tests for both modes and the invalid-input paths.</li>
   <li>Roxygen + <code>devtools::document()</code>.</li>
 </ul>
@@ -261,6 +261,6 @@ ptr_capture_formula &lt;- function(formula_captured, envir) {
   <strong>Verification, 2026-05-20:</strong> Line numbers for <code>ptr_app</code> (113), <code>ptr_app_components</code> (132), <code>ptr_server</code> (921), and <code>ptr_translate</code> (12) verified on 2026-05-20. Re-verify with <code>grep -n "^ptr_app\b\|^ptr_server\b\|^ptr_app_components\b" R/paintr-app.R</code> and <code>grep -n "^ptr_translate\b" R/paintr-translate.R</code> before editing.
 </div>
 
-<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=3760e7f7f253 -->
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=73bf39a74c79 -->
 </body>
 </html>

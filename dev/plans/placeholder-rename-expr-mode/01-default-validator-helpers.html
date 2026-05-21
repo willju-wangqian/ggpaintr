@@ -62,7 +62,7 @@
   <tr><td><code>ptr_constant_fold_keywords()</code></td><td>List currently-registered names.</td></tr>
 </table>
 
-<p><strong>Built-in registrations (seeded at package load via <code>.onLoad</code>):</strong> arithmetic — <code>-</code>, <code>+</code>, <code>*</code>, <code>/</code>, <code>^</code>, <code>%%</code>, <code>%/%</code>. Sequence constructors — <code>:</code>, <code>c</code>, <code>seq</code>, <code>seq.int</code>, <code>seq_len</code>, <code>seq_along</code>. Common numeric constants resolve via the sealed env's parent (<code>baseenv()</code>): <code>pi</code>, <code>Inf</code>, <code>NaN</code>, <code>NA_real_</code>, <code>NA_integer_</code>.</p>
+<p><strong>Built-in registrations (seeded at package load):</strong> arithmetic — <code>-</code>, <code>+</code>, <code>*</code>, <code>/</code>, <code>^</code>, <code>%%</code>, <code>%/%</code>. Sequence constructors — <code>:</code>, <code>c</code>, <code>seq</code>, <code>seq.int</code>, <code>seq_len</code>, <code>seq_along</code>. <code>pi</code> resolves via the sealed env's parent (<code>baseenv()</code>) without explicit registration. <code>Inf</code>, <code>NaN</code>, <code>NA</code>, <code>NA_integer_</code>, <code>NA_real_</code>, <code>TRUE</code>, <code>FALSE</code> are <strong>syntactic literals</strong> (R parses them directly, not as bindings) — they're handled by the <code>rlang::is_syntactic_literal</code> branch of the walker, no allowlist lookup needed. Seeding lives in the existing <code>.onLoad()</code> at <code>R/paintr-builtins.R:263</code> (extend it; do NOT create a new <code>R/zzz.R</code>).</p>
 
 <p><strong>Internal storage:</strong></p>
 <pre>ptr_constant_fold_env &lt;- new.env(parent = baseenv())
@@ -78,7 +78,7 @@
   <tr><th>File</th><th>Change</th></tr>
   <tr><td>new <code>R/paintr-default-args.R</code></td><td>Define and export the five default-validator factories above plus the three constant-fold registry helpers (<code>ptr_register_constant_fold</code>, <code>ptr_clear_constant_fold</code>, <code>ptr_constant_fold_keywords</code>). Each validator factory returns a closure so call sites read <code>default_arg = ptr_default_numeric()</code> not <code>default_arg = ptr_default_numeric</code>. Includes the AST walker (<code>validate_constant_ast</code>) and the eval helper (<code>ptr_constant_fold</code>) as internal helpers.</td></tr>
   <tr><td>new <code>tests/testthat/test-default-args.R</code></td><td>Unit tests covering every accept/reject case in the matrix, length-check behaviour for the vector helper, every constant-fold scenario (arithmetic, seq, registered constants, unregistered rejection), registry life-cycle (register → use → clear → re-seed), and the A3/A4 edge cases (empty string, backticked names).</td></tr>
-  <tr><td><code>R/zzz.R</code> (likely existing; create if not)</td><td>Add a <code>.onLoad()</code> body (or extend an existing one) that calls a private <code>ptr_register_constant_fold_builtins()</code> to seed the built-in allowlist entries at package load. The function uses <code>rlang</code> idioms consistently.</td></tr>
+  <tr><td><code>R/paintr-builtins.R</code> (existing <code>.onLoad()</code> at line 263)</td><td>Extend the existing <code>.onLoad()</code> to also call a private <code>ptr_register_constant_fold_builtins()</code> that seeds the constant-fold registry's built-in entries. Do NOT create a new <code>R/zzz.R</code> (confirmed by grep, 2026-05-20: only one <code>.onLoad</code> in the project, in <code>paintr-builtins.R</code>). PLAN-08 is the plan that owns big edits to <code>paintr-builtins.R</code>; coordinate so the two changes don't collide (PLAN-01 ships its <code>.onLoad</code> tweak; PLAN-08 reshapes the keyword registrations alongside).</td></tr>
   <tr><td><code>NAMESPACE</code> (auto-generated)</td><td>Re-generated via <code>devtools::document()</code>. Do not hand-edit. Expected new exports: 5 validator factories + 3 registry helpers = 8 new <code>export()</code> lines.</td></tr>
 </table>
 
@@ -159,7 +159,7 @@ validate_constant_ast &lt;- function(expr) {
   <li>Each factory returns a closure of shape <code>function(arg_expr) -&gt; canonical_value | abort()</code>.</li>
   <li>Symbol policy follows the accept/reject matrix above. <code>ptr_default_symbol_or_string()</code> returns the symbol's name as a character string via <code>rlang::as_string</code> (preserves backticked/non-syntactic names per A4); returns the string unchanged when given a string literal (including <code>""</code> per A3); aborts otherwise.</li>
   <li><code>ptr_default_string()</code> accepts <code>""</code> (per A3) and any other single string literal.</li>
-  <li><code>ptr_default_expression()</code> returns its input unchanged (it is purely a tag, not a transformer); helpful so the parser still stamps "this placeholder accepts a default" regardless of shape.</li>
+  <li><code>ptr_default_expression()</code> returns its input unchanged (purely a tag, not a transformer) <strong>AND</strong> emits a one-shot <code>cli::cli_warn</code> at translate-time when the AST root is a wrapper call — one of <code>quote(...)</code>, <code>bquote(...)</code>, <code>rlang::expr(...)</code>, <code>rlang::quo(...)</code> (per ADR 0009 §A5.b). The warning text: "<code>ppExpr()</code> already captures its argument unevaluated; you do not need to wrap it in <code>quote()</code> / <code>rlang::expr()</code>. Pre-quoted expression stored verbatim — textarea shows the wrapper." The validator still stores the wrapper VERBATIM (does not unwrap). User learns through the warning.</li>
   <li><code>ptr_default_numeric_vector(length = 2L)</code> accepts <code>c(0, 1)</code> AND <code>c(-1, 1)</code> AND <code>seq(0, 1, by = 0.1)</code> with length=NULL (constant-fold via registry); rejects <code>c(0)</code> when length=2L (length mismatch); rejects <code>c(0, system("rm"))</code> (system not in allowlist).</li>
   <li><code>ptr_default_numeric()</code> accepts <code>5</code>, <code>-5</code>, <code>2 * pi</code> (pi resolves via baseenv parent), <code>2.5e3</code>; rejects <code>5L * x</code> (x not registered) and <code>5 + sqrt(2)</code> (sqrt not in default allowlist; user can register).</li>
   <li>The package also exports the constant-fold registry helpers: <code>ptr_register_constant_fold(name, value)</code>, <code>ptr_clear_constant_fold(name = NULL)</code>, <code>ptr_constant_fold_keywords()</code>. Built-ins are seeded in <code>.onLoad()</code>.</li>
@@ -168,7 +168,7 @@ validate_constant_ast &lt;- function(expr) {
   <li>Helpers do not call <code>eval()</code>, <code>parse()</code>, or any deparse → reparse cycle on the input.</li>
   <li>Unit tests in <code>tests/testthat/test-default-args.R</code> cover every cell of the matrix plus length-check behaviour. New tests are the only test additions; no existing test changes.</li>
   <li>The authoritative gate (<code>NOT_CRAN=true devtools::test()</code>) reports 0/0/0 with at least the previously-passing tests still passing.</li>
-  <li><code>devtools::document()</code> regenerates <code>NAMESPACE</code> cleanly with five new <code>export()</code> lines.</li>
+  <li><code>devtools::document()</code> regenerates <code>NAMESPACE</code> cleanly with eight new <code>export()</code> lines (5 validator factories + 3 registry helpers).</li>
 </ol>
 
 <h2>Constraints</h2>
@@ -271,6 +271,24 @@ validate_constant_ast &lt;- function(expr) {
     Given an instance of the validator from ptr_default_symbol_or_string()
     When invoked with the AST `\`miles per gallon\``
     Then it returns the character string "miles per gallon"
+
+  Scenario: ptr_default_expression warns on quote() wrapper (A5.b)
+    Given an instance of the validator from ptr_default_expression()
+    When invoked with the AST `quote(x + 1)`
+    Then a cli warning is emitted naming "already captures unevaluated"
+    And the validator returns the call object `quote(x + 1)` UNCHANGED (verbatim)
+
+  Scenario: ptr_default_expression warns on rlang::expr() wrapper (A5.b)
+    Given an instance of the validator from ptr_default_expression()
+    When invoked with the AST `rlang::expr(x + 1)`
+    Then a cli warning is emitted naming "already captures unevaluated"
+    And the validator returns the call object verbatim
+
+  Scenario: ptr_default_expression does NOT warn on bare expressions
+    Given an instance of the validator from ptr_default_expression()
+    When invoked with the AST `x + 1`
+    Then no warning is emitted
+    And the validator returns the call object `x + 1` verbatim
 </pre>
 
 <h2>Definition of Done</h2>
@@ -281,7 +299,7 @@ validate_constant_ast &lt;- function(expr) {
 
 <p><strong>Expected output:</strong> <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code> where N ≥ baseline. New tests in <code>test-default-args.R</code> appear in the count. <code>devtools::test()</code> is equivalent (it sets NOT_CRAN itself).</p>
 
-<p><strong>Plus:</strong> <code>devtools::document()</code> runs clean; <code>NAMESPACE</code> diff shows exactly five new <code>export()</code> lines and no other change.</p>
+<p><strong>Plus:</strong> <code>devtools::document()</code> runs clean; <code>NAMESPACE</code> diff shows exactly 8 new <code>export()</code> lines (5 validator factories + 3 constant-fold registry helpers) and no other change.</p>
 
 <p><strong>Plus:</strong> <code>devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))</code> → 0 errors / 0 warnings. By-design NOTEs allowed (CRAN incoming new-submission, <code>.git</code>, top-level <code>CONTEXT.md</code>); e2e browser file cleanly SKIPs via source-root guard.</p>
 
@@ -329,6 +347,6 @@ validate_constant_ast &lt;- function(expr) {
   <strong>Verification of source claims in this plan, 2026-05-20:</strong> No source files are referenced by line number in this plan beyond the new file's intended path. The <em>only</em> external dependency is the existence of <code>rlang</code> as a package dependency (it is — see <code>DESCRIPTION</code>) and the <code>testthat</code> edition-3 test conventions described in <code>.claude/rules/testing.md</code>.
 </div>
 
-<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=39aef56107fd -->
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=84a91088358d -->
 </body>
 </html>
