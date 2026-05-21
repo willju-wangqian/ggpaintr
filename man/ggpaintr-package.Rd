@@ -11,7 +11,7 @@ with generated controls, rendered plots, generated code, inline runtime
 feedback, upload support for \code{.csv}, \code{.tsv}, \code{.rds}, \code{.xlsx}, \code{.xls}, and \code{.json} files, copy customization, and
 per-app custom placeholder registries. It also provides lower-level helpers
 for runtime inspection and column-name normalization for data used with the
-built-in \code{var} placeholder.
+built-in \code{ppVar} placeholder.
 }
 \seealso{
 Useful links:

@@ -39,7 +39,7 @@
 #' \dontrun{
 #'   # accent.css:
 #'   #   .ptr-app { --ptr-accent: #2563eb; --ptr-accent-strong: #1e40af; }
-#'   ptr_app("ggplot(mtcars, aes(var, var)) + geom_point()",
+#'   ptr_app("ggplot(mtcars, aes(ppVar, ppVar)) + geom_point()",
 #'           css = "accent.css")
 #' }
 #'

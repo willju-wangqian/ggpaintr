@@ -300,10 +300,10 @@ format_placeholder_value <- function(value, keyword) {
       inherits(value, "expression")) {
     return(rlang::expr_text(value))
   }
-  bareword_kw <- c("var", "ppVar", "upload", "ppUpload")
-  string_kw   <- c("text", "ppText")
-  numeric_kw  <- c("num", "ppNum")
-  expr_kw     <- c("expr", "ppExpr")
+  bareword_kw <- c("ppVar", "ppUpload")
+  string_kw   <- c("ppText")
+  numeric_kw  <- c("ppNum")
+  expr_kw     <- c("ppExpr")
   if (keyword %in% bareword_kw) return(format_bareword(value))
   if (keyword %in% string_kw)   return(format_string(value))
   if (keyword %in% numeric_kw)  return(format_numeric(value))

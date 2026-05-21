@@ -5,7 +5,7 @@
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
 library(shiny)
 # >>> verbatim: vignettes/ggpaintr-use-cases.Rmd chunk `module-app` >>>
-formula <- "ggplot(iris, aes(var, var, color = var)) + geom_point()"
+formula <- "ggplot(iris, aes(ppVar, ppVar, color = ppVar)) + geom_point()"
 
 ui <- shiny::fluidPage(
   shiny::titlePanel("My host app"),

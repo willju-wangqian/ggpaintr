@@ -11,10 +11,10 @@ source("tests/manual/edge_cases/launchers/_setup.R")
 
 NS_PREFIX <- "myprefix_42"
 ui <- fluidPage(
-  ptr_ui(NS_PREFIX, "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point(size = num)")
+  ptr_ui(NS_PREFIX, "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point(size = ppNum)")
 )
 server <- function(input, output, session) {
-  ptr_server(NS_PREFIX, "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point(size = num)")
+  ptr_server(NS_PREFIX, "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point(size = ppNum)")
 }
 shiny::runApp(shinyApp(ui, server),
               port = PORT, host = "127.0.0.1", launch.browser = FALSE)

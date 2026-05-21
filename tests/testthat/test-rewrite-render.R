@@ -50,7 +50,7 @@ test_that("P10.5 mixed pipe chain preserves both ops", {
 test_that("P10.6 chained pipe keeps middle-link call empty when placeholder empty", {
   # Per relaxed P9 (P12.1): empty num drops the arg, head() survives empty
   # and renders. Eval relies on head's default n = 6.
-  r <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = mpg))")
+  r <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = mpg))")
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s)
   txt <- ptr_render(p)
@@ -85,13 +85,13 @@ test_that("P10.10 named args print as `name = value`", {
 })
 
 test_that("P10.11 code text reflects snapshotted values when supplied", {
-  r <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = mpg))")
-  num_id <- find_nodes(r, function(x) is_ptr_placeholder(x) && x$keyword == "num")[[1]]$id
+  r <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = mpg))")
+  num_id <- find_nodes(r, function(x) is_ptr_placeholder(x) && x$keyword == "ppNum")[[1]]$id
   s <- ptr_substitute(r, input_snapshot = setNames(list(3), num_id))
   p <- ptr_prune(s)
   txt <- ptr_render(p)
   expect_match(txt, "head\\(3\\)")
-  expect_false(grepl("head(num)", txt, fixed = TRUE))
+  expect_false(grepl("head(ppNum)", txt, fixed = TRUE))
 })
 
 test_that("P10.12 code text falls back to live input when no snapshot", {
@@ -101,9 +101,9 @@ test_that("P10.12 code text falls back to live input when no snapshot", {
   #   (a) live input "num = 5" → code text contains head(5)
   #   (b) no snapshot at all → the placeholder is missing → P9 drops the
   #       arg and the code text shows the empty-form head().
-  r <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = mpg))")
+  r <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = mpg))")
   num_id <- find_nodes(r,
-                       function(x) is_ptr_placeholder(x) && x$keyword == "num")[[1]]$id
+                       function(x) is_ptr_placeholder(x) && x$keyword == "ppNum")[[1]]$id
 
   txt_live <- ptr_render(ptr_prune(
     ptr_substitute(r, input_snapshot = stats::setNames(list(5), num_id))
@@ -112,11 +112,11 @@ test_that("P10.12 code text falls back to live input when no snapshot", {
 
   txt_none <- ptr_render(ptr_prune(ptr_substitute(r, input_snapshot = list())))
   expect_match(txt_none, "head\\(\\)")
-  expect_false(grepl("head(num)", txt_none, fixed = TRUE))
+  expect_false(grepl("head(ppNum)", txt_none, fixed = TRUE))
 })
 
 test_that("P10.13 nested data = ... pipe round-trips with inner pipeline", {
-  r <- ptr_translate("ggplot(data = mtcars |> filter(num > 0))")
+  r <- ptr_translate("ggplot(data = mtcars |> filter(ppNum > 0))")
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s)
   txt <- ptr_render(p)

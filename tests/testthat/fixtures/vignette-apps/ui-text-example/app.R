@@ -11,15 +11,15 @@ custom_text <- ptr_ui_text(list(
     draw_button = list(label = "Render")
   ),
   params = list(
-    x     = list(var  = list(label = "X variable")),
-    title = list(text = list(label = "Plot heading"))
+    x     = list(ppVar = list(label = "X variable")),
+    title = list(ppText = list(label = "Plot heading"))
   )
 ))
 
 ptr_app(
-  "ggplot(iris, aes(x = var, y = var, color = var)) +
+  "ggplot(iris, aes(x = ppVar, y = ppVar, color = ppVar)) +
      geom_point() +
-     labs(title = text)",
+     labs(title = ppText)",
   ui_text = custom_text
 )
 # <<<

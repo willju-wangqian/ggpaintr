@@ -7,7 +7,7 @@ library(shiny)
 # >>> lifted: vignettes/ggpaintr-use-cases.Rmd chunk `l3-pieces-toggle` (UI)
 #     paired with the chunk `l3-pieces` formula + documented server
 #     ("# server unchanged"). Verbatim-equivalent. >>>
-formula <- "ggplot(iris, aes(x = var, y = var, color = var)) + geom_point()"
+formula <- "ggplot(iris, aes(x = ppVar, y = ppVar, color = ppVar)) + geom_point()"
 
 ui <- ptr_ui_page(
   ptr_ui_header("Iris explorer"),

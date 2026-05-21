@@ -4,8 +4,8 @@
 # cross-formula panel keys (obj$panel_keys) are excluded from the inline
 # section because they belong to the one standalone ptr_shared_panel().
 
-f1 <- 'ggplot(iris, aes(x = var(shared = "ax1"), y = var(shared = "ax1"), color = Species)) + geom_point(size = num(shared = "sz"))'
-f2 <- 'ggplot(iris, aes(x = var(shared = "ax2"), y = Sepal.Width, color = Species)) + geom_point(size = num(shared = "sz"))'
+f1 <- 'ggplot(iris, aes(x = ppVar(shared = "ax1"), y = ppVar(shared = "ax1"), color = Species)) + geom_point(size = ppNum(shared = "sz"))'
+f2 <- 'ggplot(iris, aes(x = ppVar(shared = "ax2"), y = Sepal.Width, color = Species)) + geom_point(size = ppNum(shared = "sz"))'
 
 # shiny::tabsetPanel() stamps a fresh random data-tabsetid (and matching
 # `#tab-<n>-*` anchors) on every call, so two structurally identical UIs are

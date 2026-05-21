@@ -41,8 +41,8 @@ Override lists mirror the structure of \code{ptr_ui_text()}. Recognised paths
 \item \verb{upload$file$<leaf>}
 \item \verb{upload$name$<leaf>}
 \item \verb{layer_checkbox$<leaf>}
-\item \verb{defaults$<keyword>$<leaf>} — per placeholder keyword (\code{var}, \code{text},
-\code{num}, \code{expr}, \code{upload}, ...)
+\item \verb{defaults$<keyword>$<leaf>} — per placeholder keyword (\code{ppVar}, \code{ppText},
+\code{ppNum}, \code{ppExpr}, \code{ppUpload}, ...)
 \item \verb{params$<param>$<keyword>$<leaf>} — per aesthetic/argument name
 (\code{x}, \code{y}, \code{color}, ...); aliases (\code{colour}, \code{size}) are normalized
 \item \verb{layers$<layer_name>$<keyword>$<param>$<leaf>} — per layer override

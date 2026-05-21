@@ -1,5 +1,5 @@
 # Manual demo: two `ptr_ui()` instances embedded in a user-authored
-# Shiny app, sharing a `var()` consumer ("col") and a `text()` value
+# Shiny app, sharing a `ppVar()` consumer ("col") and a `ppText()` value
 # ("title") via one `ptr_shared_ui()` / `ptr_shared_server()` pair.
 #
 # Click "Draw all" to redraw both modules. Switching the shared column
@@ -10,11 +10,11 @@ library(ggpaintr)
 
 formulas <- c(
   'ggplot(mtcars) +
-     geom_point(aes(x = var(shared = "col"), y = mpg)) +
-     labs(subtitle = text(shared = "title"))',
+     geom_point(aes(x = ppVar(shared = "col"), y = mpg)) +
+     labs(subtitle = ppText(shared = "title"))',
   'ggplot(mtcars) +
-     geom_line(aes(x = var(shared = "col"), y = hp)) +
-     labs(subtitle = text(shared = "title"))'
+     geom_line(aes(x = ppVar(shared = "col"), y = hp)) +
+     labs(subtitle = ppText(shared = "title"))'
 )
 
 ui <- fluidPage(

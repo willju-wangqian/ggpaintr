@@ -29,16 +29,16 @@
 # ---- P6.1 / P6.2 — value placeholders ----
 
 test_that("P6.1 text placeholder UI renders textInput", {
-  tree <- ptr_translate("ggplot(mtcars) + geom_point(color = text)")
-  node <- .ph_by_keyword(tree, "text")
+  tree <- ptr_translate("ggplot(mtcars) + geom_point(color = ppText)")
+  node <- .ph_by_keyword(tree, "ppText")
   ui <- build_ui_for(node, layer_name = "geom_point")
   text_inputs <- .find_tags(ui, has_id = node$id)
   expect_true(length(text_inputs) > 0L)
 })
 
 test_that("P6.2 num placeholder UI renders a numeric-style input", {
-  tree <- ptr_translate("ggplot(mtcars) + geom_point(size = num)")
-  node <- .ph_by_keyword(tree, "num")
+  tree <- ptr_translate("ggplot(mtcars) + geom_point(size = ppNum)")
+  node <- .ph_by_keyword(tree, "ppNum")
   ui <- build_ui_for(node, layer_name = "geom_point")
   num_inputs <- .find_tags(ui, has_id = node$id)
   expect_true(length(num_inputs) > 0L)
@@ -47,8 +47,8 @@ test_that("P6.2 num placeholder UI renders a numeric-style input", {
 # ---- P6.3 / P6.4 — var consumer ----
 
 test_that("P6.3 var consumer static UI emits a uiOutput container", {
-  tree <- ptr_translate("ggplot(mtcars, aes(x = var)) + geom_point()")
-  node <- .ph_by_keyword(tree, "var")
+  tree <- ptr_translate("ggplot(mtcars, aes(x = ppVar)) + geom_point()")
+  node <- .ph_by_keyword(tree, "ppVar")
   ui <- build_ui_for(node, layer_name = "ggplot")
   rendered <- as.character(ui)
   expect_match(rendered, "shiny-html-output")
@@ -56,9 +56,9 @@ test_that("P6.3 var consumer static UI emits a uiOutput container", {
 })
 
 test_that("P6.3 registry build_ui renders pickerInput populated with cols", {
-  tree <- ptr_translate("ggplot(mtcars, aes(x = var)) + geom_point()")
-  node <- .ph_by_keyword(tree, "var")
-  entry <- ptr_registry_lookup("var")
+  tree <- ptr_translate("ggplot(mtcars, aes(x = ppVar)) + geom_point()")
+  node <- .ph_by_keyword(tree, "ppVar")
+  entry <- ptr_registry_lookup("ppVar")
   picker <- entry$build_ui(node, cols = c("mpg", "hp"), label = "Pick a column")
   rendered <- as.character(picker)
   expect_match(rendered, "selectpicker")
@@ -67,8 +67,8 @@ test_that("P6.3 registry build_ui renders pickerInput populated with cols", {
 })
 
 test_that("P6.4 var consumer with empty cols still renders an empty container", {
-  tree <- ptr_translate("ggplot(mtcars, aes(x = var)) + geom_point()")
-  node <- .ph_by_keyword(tree, "var")
+  tree <- ptr_translate("ggplot(mtcars, aes(x = ppVar)) + geom_point()")
+  node <- .ph_by_keyword(tree, "ppVar")
   ui <- build_ui_for(node, layer_name = "ggplot")
   rendered <- as.character(ui)
   expect_match(rendered, paste0("id=\"", consumer_output_id(node$id), "\""), fixed = TRUE)
@@ -77,8 +77,8 @@ test_that("P6.4 var consumer with empty cols still renders an empty container", 
 # ---- P6.5 — upload source paired widgets ----
 
 test_that("P6.5 upload UI emits paired widgets (file + name)", {
-  tree <- ptr_translate("upload |> ggplot()")
-  node <- .ph_by_keyword(tree, "upload")
+  tree <- ptr_translate("ppUpload |> ggplot()")
+  node <- .ph_by_keyword(tree, "ppUpload")
   ui <- build_ui_for(node, layer_name = "ggplot")
   expect_true(length(.find_tags(ui, has_id = node$id)) > 0L)
   expect_true(length(.find_tags(ui, has_id = node$companion_id)) > 0L)
@@ -87,12 +87,12 @@ test_that("P6.5 upload UI emits paired widgets (file + name)", {
 # ---- P6.13 — copy resolution ----
 
 test_that("P6.13 copy resolution applies custom label", {
-  tree <- ptr_translate("ggplot(mtcars) + geom_point(size = num)")
-  node <- .ph_by_keyword(tree, "num")
+  tree <- ptr_translate("ggplot(mtcars) + geom_point(size = ppNum)")
+  node <- .ph_by_keyword(tree, "ppNum")
   ui <- build_ui_for(
     node,
     layer_name = "geom_point",
-    ui_text = list(params = list(size = list(num = list(label = "Pick a number"))))
+    ui_text = list(params = list(size = list(ppNum = list(label = "Pick a number"))))
   )
   rendered <- as.character(ui)
   expect_match(rendered, "Pick a number")
@@ -114,8 +114,8 @@ test_that("ptr_literal / ptr_missing emit no UI", {
 # ---- ns_fn rendering — ids are namespaced before passed to hook ----
 
 test_that("build_ui_for renders id through ns_fn", {
-  tree <- ptr_translate("ggplot(mtcars) + geom_point(color = text)")
-  node <- .ph_by_keyword(tree, "text")
+  tree <- ptr_translate("ggplot(mtcars) + geom_point(color = ppText)")
+  node <- .ph_by_keyword(tree, "ppText")
   ns <- shiny::NS("module1")
   ui <- build_ui_for(node, layer_name = "geom_point", ns_fn = ns)
   rendered <- as.character(ui)
@@ -125,11 +125,11 @@ test_that("build_ui_for renders id through ns_fn", {
 # ---- Phase 1 — copy fidelity: help / placeholder / empty_text reach widgets ----
 
 test_that("text widget renders placeholder + help from resolved copy", {
-  tree <- ptr_translate("ggplot(mtcars) + geom_point(color = text)")
-  node <- .ph_by_keyword(tree, "text")
+  tree <- ptr_translate("ggplot(mtcars) + geom_point(color = ppText)")
+  node <- .ph_by_keyword(tree, "ppText")
   ui <- build_ui_for(
     node, layer_name = "geom_point",
-    ui_text = list(params = list(color = list(text = list(
+    ui_text = list(params = list(color = list(ppText = list(
       label = "L", help = "H-help", placeholder = "P-ph"
     ))))
   )
@@ -140,22 +140,22 @@ test_that("text widget renders placeholder + help from resolved copy", {
 })
 
 test_that("text widget carries the restored default placeholder", {
-  tree <- ptr_translate("ggplot(mtcars) + geom_point(color = text)")
-  node <- .ph_by_keyword(tree, "text")
+  tree <- ptr_translate("ggplot(mtcars) + geom_point(color = ppText)")
+  node <- .ph_by_keyword(tree, "ppText")
   ui <- build_ui_for(node, layer_name = "geom_point")
   expect_match(as.character(ui), "quotes are added automatically")
   expect_equal(
-    ptr_default_ui_text()$defaults$text$placeholder,
+    ptr_default_ui_text()$defaults$ppText$placeholder,
     "Plain text - quotes are added automatically"
   )
 })
 
 test_that("expr widget renders placeholder + help from resolved copy", {
-  tree <- ptr_translate("ggplot(mtcars) + geom_point() + facet_wrap(expr)")
-  node <- .ph_by_keyword(tree, "expr")
+  tree <- ptr_translate("ggplot(mtcars) + geom_point() + facet_wrap(ppExpr)")
+  node <- .ph_by_keyword(tree, "ppExpr")
   ui <- build_ui_for(
     node, layer_name = "facet_wrap",
-    ui_text = list(layers = list(facet_wrap = list(expr = list(
+    ui_text = list(layers = list(facet_wrap = list(ppExpr = list(
       `__unnamed__` = list(placeholder = "~ Species", help = "facet help")
     ))))
   )
@@ -166,11 +166,11 @@ test_that("expr widget renders placeholder + help from resolved copy", {
 })
 
 test_that("num widget renders help only (no placeholder attr)", {
-  tree <- ptr_translate("ggplot(mtcars) + geom_point(size = num)")
-  node <- .ph_by_keyword(tree, "num")
+  tree <- ptr_translate("ggplot(mtcars) + geom_point(size = ppNum)")
+  node <- .ph_by_keyword(tree, "ppNum")
   ui <- build_ui_for(
     node, layer_name = "geom_point",
-    ui_text = list(params = list(size = list(num = list(help = "0 to 1"))))
+    ui_text = list(params = list(size = list(ppNum = list(help = "0 to 1"))))
   )
   rendered <- as.character(ui)
   expect_match(rendered, "help-block")
@@ -178,18 +178,18 @@ test_that("num widget renders help only (no placeholder attr)", {
 })
 
 test_that("var picker honors copy$empty_text via noneSelectedText", {
-  tree <- ptr_translate("ggplot(mtcars, aes(x = var)) + geom_point()")
-  node <- .ph_by_keyword(tree, "var")
-  entry <- ptr_registry_lookup("var")
+  tree <- ptr_translate("ggplot(mtcars, aes(x = ppVar)) + geom_point()")
+  node <- .ph_by_keyword(tree, "ppVar")
+  entry <- ptr_registry_lookup("ppVar")
 
-  default_copy <- ptr_resolve_ui_text("control", keyword = "var", param = "x")
+  default_copy <- ptr_resolve_ui_text("control", keyword = "ppVar", param = "x")
   picker_default <- entry$build_ui(node, cols = c("mpg", "hp"),
                                    label = "Pick a column", copy = default_copy)
   expect_match(as.character(picker_default), "Choose one column")
 
   custom_copy <- ptr_resolve_ui_text(
-    "control", keyword = "var", param = "x",
-    ui_text = list(params = list(x = list(var = list(empty_text = "Pick me"))))
+    "control", keyword = "ppVar", param = "x",
+    ui_text = list(params = list(x = list(ppVar = list(empty_text = "Pick me"))))
   )
   picker_custom <- entry$build_ui(node, cols = c("mpg", "hp"),
                                   label = "Pick a column", copy = custom_copy)
@@ -197,7 +197,7 @@ test_that("var picker honors copy$empty_text via noneSelectedText", {
 })
 
 test_that("var default copy carries empty_text", {
-  expect_equal(ptr_default_ui_text()$defaults$var$empty_text, "Choose one column")
+  expect_equal(ptr_default_ui_text()$defaults$ppVar$empty_text, "Choose one column")
 })
 
 test_that("a third-party build_ui hook without `...`/`copy` is not passed copy", {

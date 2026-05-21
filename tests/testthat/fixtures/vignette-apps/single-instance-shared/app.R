@@ -7,7 +7,7 @@ library(shiny)
 # >>> verbatim: vignettes/ggpaintr-use-cases.Rmd chunk `single-instance-shared` >>>
 # One instance, one key used twice: the widget auto-renders inline. No coordinator.
 ptr_app(
-  "ggplot(iris, aes(x = var(shared = 'col'), y = var - var(shared = 'col'),
+  "ggplot(iris, aes(x = ppVar(shared = 'col'), y = ppVar - ppVar(shared = 'col'),
                     color = Species)) + geom_point()"
 )
 # <<<

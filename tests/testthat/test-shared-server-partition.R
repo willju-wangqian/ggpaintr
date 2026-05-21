@@ -12,8 +12,8 @@
 # shimming `ptr_server` in the package namespace (same technique as
 # test-shared-stage-checkbox.R's grid end-to-end test).
 
-f1 <- 'ggplot(mtcars) + geom_point(aes(x = var(shared = "B"), y = mpg), size = num(shared = "A"))'
-f2 <- 'ggplot(mtcars) + geom_point(aes(x = var(shared = "B"), y = hp))'
+f1 <- 'ggplot(mtcars) + geom_point(aes(x = ppVar(shared = "B"), y = mpg), size = ppNum(shared = "A"))'
+f2 <- 'ggplot(mtcars) + geom_point(aes(x = ppVar(shared = "B"), y = hp))'
 
 test_that("S-P2.3 server partition matches UI partition: bundle holds panel keys only", {
   # BDD Scenario: Server partition matches UI partition.
@@ -146,12 +146,12 @@ test_that("S-P2.4 canonical f1=A+A+B / f2=C+C+B end-to-end via the coordinator",
   # ptr_app_grid coordinator -- the module-server call is internal, so it
   # must be intercepted with local_mocked_bindings (assignInNamespace cannot
   # reach an internal call under devtools; see test-shared-stage-checkbox.R).
-  cf1 <- paste0('ggplot(mtcars) + geom_point(aes(x = var(shared = "B"), ',
-                'y = mpg), size = num(shared = "A"), ',
-                'alpha = num(shared = "A"))')
-  cf2 <- paste0('ggplot(mtcars) + geom_point(aes(x = var(shared = "B"), ',
-                'y = hp), size = num(shared = "C"), ',
-                'alpha = num(shared = "C"))')
+  cf1 <- paste0('ggplot(mtcars) + geom_point(aes(x = ppVar(shared = "B"), ',
+                'y = mpg), size = ppNum(shared = "A"), ',
+                'alpha = ppNum(shared = "A"))')
+  cf2 <- paste0('ggplot(mtcars) + geom_point(aes(x = ppVar(shared = "B"), ',
+                'y = hp), size = ppNum(shared = "C"), ',
+                'alpha = ppNum(shared = "C"))')
 
   # (a) Partition is authoritative: B -> panel, A -> f1-local, C -> f2-local.
   obj <- ptr_shared(formulas = list(cf1, cf2))

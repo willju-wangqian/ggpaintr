@@ -386,15 +386,15 @@ test_that("ptr_upload_autoname derives a default only when the companion is blan
 
 # --- Phase 1.5 / 1.6: upload widget accept filter + copy-driven labels -------
 
-.upload_node_from <- function(formula = "upload |> ggplot()") {
+.upload_node_from <- function(formula = "ppUpload |> ggplot()") {
   tree <- ptr_translate(formula)
   hits <- find_nodes(tree, function(n) {
-    is_ptr_placeholder(n) && identical(n$keyword, "upload")
+    is_ptr_placeholder(n) && identical(n$keyword, "ppUpload")
   })
   hits[[1L]]
 }
 
-test_that("upload build_ui restores the accept filter on the file input", {
+test_that("ppUpload build_ui restores the accept filter on the file input", {
   node <- .upload_node_from()
   ui <- build_ui_for(node, layer_name = "ggplot")
   rendered <- as.character(ui)

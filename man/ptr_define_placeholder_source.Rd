@@ -39,10 +39,10 @@ position — i.e. \emph{how the data is referred to} in the reproducible
 call, not the data itself. Default \code{rlang::sym(value)} works when the
 widget's value is already the symbol you want. Override to make the
 rendered code re-fetch instead of referencing an in-session object,
-e.g. \code{function(value, node, ...) rlang::expr(read.csv(!!value$datapath))}.
+e.g. \code{function(value, node, ...) rlang::ppExpr(read.csv(!!value$datapath))}.
 With \code{companion_id_fn} set, \code{value} here is the \emph{companion} input's
 value (e.g. the typed dataset name), \strong{not} the primary payload —
-the built-in \code{upload} relies on this so the default splices the typed
+the built-in \code{ppUpload} relies on this so the default splices the typed
 name as a bare symbol.}
 
 \item{companion_id_fn}{Optional \verb{function(id) -> companion_id_string}.
@@ -53,7 +53,7 @@ typically a name or override). The framework calls this function with
 the primary id and namespaces the returned companion id alongside it,
 so a single \code{build_ui} can render both widgets and both values reach
 \code{resolve_data} / \code{resolve_expr} through \code{node}. Most sources do not
-need it — one bound input is the common case. The built-in \code{upload}
+need it — one bound input is the common case. The built-in \code{ppUpload}
 uses it to attach the "Optional dataset name" textbox: the file
 contents bind to \code{node$id}, the user-typed dataset name binds to
 \code{node$companion_id}, and the substitution uses the name as the symbol
@@ -79,7 +79,7 @@ the entry.
 }
 \description{
 A \emph{source} placeholder produces a data frame the rest of the formula
-reads from. Built-in example: \code{upload}. Custom examples: database
+reads from. Built-in example: \code{ppUpload}. Custom examples: database
 tables, built-in datasets, URL fetches.
 }
 \examples{

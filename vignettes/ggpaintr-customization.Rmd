@@ -34,11 +34,11 @@ Every label, placeholder, and help string in the generated UI comes from a deep-
 | Section          | What it controls |
 |------------------|------------------|
 | `shell`          | Outer chrome — app title, draw / draw-all buttons, layer picker label, data / controls subtab labels. |
-| `upload`         | The `upload` placeholder widget — file-picker label, optional-dataset-name label / placeholder / help text. |
+| `ppUpload`         | The `ppUpload` placeholder widget — file-picker label, optional-dataset-name label / placeholder / help text. |
 | `layer_checkbox` | The "Include this layer in the plot" toggle on each layer panel. |
 | `defaults`       | Per-keyword copy defaults — one entry per registered placeholder, including custom ones (auto-populated from `copy_defaults` passed at registration time). |
 | `params`         | Per-parameter overrides — copy that applies when a placeholder appears as the `x`, `color`, `title`, `alpha`, … argument of a layer. |
-| `layers`         | Per-layer overrides — copy that applies to one placeholder occurrence inside one specific layer call (e.g. the positional `expr` of `facet_wrap()`). |
+| `layers`         | Per-layer overrides — copy that applies to one placeholder occurrence inside one specific layer call (e.g. the positional `ppExpr` of `facet_wrap()`). |
 
 The first three sections are flat: one fixed lookup path per UI slot. The last three are nested by keyword — and, for `layers`, by layer name × keyword × parameter — letting you scope an override to a single placeholder, a single parameter, or a single layer.
 
@@ -61,15 +61,15 @@ custom_text <- ptr_ui_text(list(
     draw_button = list(label = "Render")
   ),
   params = list(
-    x     = list(var  = list(label = "X variable")),
-    title = list(text = list(label = "Plot heading"))
+    x     = list(ppVar  = list(label = "X variable")),
+    title = list(ppText = list(label = "Plot heading"))
   )
 ))
 
 ptr_app(
-  "ggplot(iris, aes(x = var, y = var, color = var)) +
+  "ggplot(iris, aes(x = ppVar, y = ppVar, color = ppVar)) +
      geom_point() +
-     labs(title = text)",
+     labs(title = ppText)",
   ui_text = custom_text
 )
 ```
@@ -102,7 +102,7 @@ Every self-contained entry point (`ptr_app()`, `ptr_app_grid()`, `ptr_ui()`, `pt
 
 ```{r css-example, eval = FALSE}
 ptr_app(
-  "ggplot(mtcars, aes(var, var)) + geom_point()",
+  "ggplot(mtcars, aes(ppVar, ppVar)) + geom_point()",
   css = "my-theme.css"
 )
 ```
@@ -226,7 +226,7 @@ The same template extends to other shells (`bslib::page_navbar()`, a custom `shi
 
 ### Public-API limits
 
-The L2/L3 redesign closed the public-API gaps that the earlier `ptr_app_bslib()` wrapper was working around. The bare pieces `ptr_ui_plot(id)`, `ptr_ui_error(id)`, and `ptr_ui_code(id)` are independently placeable, so a layout that puts the plot and the generated code in separate containers — two side-by-side `bslib::card()`s, say — is just a matter of dropping each piece where you want it instead of nesting them through the combinators (skip `ptr_ui_toggle_code()` / `ptr_ui_inline_error()` and the panes render plain and standalone). Single-formula `var(shared = "...")` coordination also works on the bare path: `ptr_server()` self-binds every declared `shared` key under its own namespace and renders the widgets in that module's inline shared section, exactly like `ptr_app()` does — the `ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()` trio is only needed when you embed two or more ggpaintr blocks and want one widget to drive several of them.
+The L2/L3 redesign closed the public-API gaps that the earlier `ptr_app_bslib()` wrapper was working around. The bare pieces `ptr_ui_plot(id)`, `ptr_ui_error(id)`, and `ptr_ui_code(id)` are independently placeable, so a layout that puts the plot and the generated code in separate containers — two side-by-side `bslib::card()`s, say — is just a matter of dropping each piece where you want it instead of nesting them through the combinators (skip `ptr_ui_toggle_code()` / `ptr_ui_inline_error()` and the panes render plain and standalone). Single-formula `ppVar(shared = "...")` coordination also works on the bare path: `ptr_server()` self-binds every declared `shared` key under its own namespace and renders the widgets in that module's inline shared section, exactly like `ptr_app()` does — the `ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()` trio is only needed when you embed two or more ggpaintr blocks and want one widget to drive several of them.
 
 ### Background
 
@@ -234,7 +234,7 @@ The L2/L3 redesign closed the public-API gaps that the earlier `ptr_app_bslib()`
 
 ## Adding a new widget type
 
-ggpaintr ships five built-in placeholder keywords (`var`, `text`, `num`, `expr`, `upload`). Three constructors let you register your own. They write to a **process-global** registry, so call each one once per R session before launching any app that uses the new keyword. Re-registering an existing keyword warns and overwrites; `ptr_clear_placeholder()` (below) removes registrations between sessions.
+ggpaintr ships five built-in placeholder keywords (`ppVar`, `ppText`, `ppNum`, `ppExpr`, `ppUpload`). Three constructors let you register your own. They write to a **process-global** registry, so call each one once per R session before launching any app that uses the new keyword. Re-registering an existing keyword warns and overwrites; `ptr_clear_placeholder()` (below) removes registrations between sessions.
 
 | Constructor | Use when the widget … |
 |---|---|
@@ -242,7 +242,7 @@ ggpaintr ships five built-in placeholder keywords (`var`, `text`, `num`, `expr`,
 | `ptr_define_placeholder_consumer()` | … needs upstream column names. Column pickers, multi-column selectors. |
 | `ptr_define_placeholder_source()`   | … *produces* a data frame. Database queries, built-in datasets, custom readers. |
 
-Each constructor takes a `build_ui` hook (the Shiny tag) and a resolver hook (how to turn the user's input into a substituted expression). `resolve_expr()` returning `NULL` is the *drop this argument* signal — the substitute pass strips the corresponding argument from the generated code, exactly like the built-in `var` keyword returning `NULL` for an empty pick.
+Each constructor takes a `build_ui` hook (the Shiny tag) and a resolver hook (how to turn the user's input into a substituted expression). `resolve_expr()` returning `NULL` is the *drop this argument* signal — the substitute pass strips the corresponding argument from the generated code, exactly like the built-in `ppVar` keyword returning `NULL` for an empty pick.
 
 The three subsections below introduce one constructor at a time with a worked example. Skim "How a placeholder runs" first — the mental model makes the hook signatures land.
 
@@ -250,7 +250,7 @@ The three subsections below introduce one constructor at a time with a worked ex
 
 A placeholder is *not* a widget; it is a **rule** that ggpaintr applies twice each time the user touches the app:
 
-1. **Parse.** When `ptr_app("...formula...")` starts, ggpaintr parses the formula and, for every token whose name matches a registered keyword (`var`, `pct`, `range`, …), creates a *node*. A node remembers where the token appeared and gets a namespaced Shiny `id`. You never construct nodes by hand — the framework hands one to your hook.
+1. **Parse.** When `ptr_app("...formula...")` starts, ggpaintr parses the formula and, for every token whose name matches a registered keyword (`ppVar`, `pct`, `range`, …), creates a *node*. A node remembers where the token appeared and gets a namespaced Shiny `id`. You never construct nodes by hand — the framework hands one to your hook.
 2. **Render UI (your `build_ui`).** For each node, ggpaintr calls your `build_ui(node, label, …)`. Whatever Shiny tag you return is dropped into the layer's control panel. You **must** set the widget's `inputId` to `node$id` — that is the wire connecting the widget to step 3.
 3. **User types or clicks.** Standard Shiny: the widget's current value is `input[[node$id]]`. The framework watches every node's input and triggers step 4 whenever something changes.
 4. **Resolve to code (your `resolve_expr`).** ggpaintr calls `resolve_expr(value, node)` with the widget's current value. Your job is to return an **R expression** — not a value — that will be spliced into the rendered call at the placeholder's position. The framework then runs the substituted call to produce the plot, and prints the rendered call to the code window so the user sees a reproducible snippet.
@@ -295,10 +295,10 @@ The framework splices your return value into the call at the placeholder's posit
 |-----------------------------------------|-----------------------------------------------------|---------------------------------------------|
 | Scalar atomic (numeric/character/…)     | A literal (`0.4`, `"red"`, `TRUE`)                  | `value`, or `as.numeric(value)`, …          |
 | `name` / `symbol`                       | A bare identifier (`cyl`)                           | `rlang::sym(value)`                         |
-| `call` / `language`                     | A call (`factor(cyl)`, `c(0, 100)`)                 | `rlang::expr()`, `rlang::call2()`, `!!`     |
+| `call` / `language`                     | A call (`factor(cyl)`, `c(0, 100)`)                 | `rlang::ppExpr()`, `rlang::call2()`, `!!`     |
 | `NULL`                                  | **Prunes** this argument from the call entirely     | `return(NULL)`                              |
 
-The `NULL`-prunes-the-argument rule is central. It is how the built-in `var` placeholder makes `geom_point(color = var)` render as `geom_point()` until the user actually picks a column — *not* as `geom_point(color = NULL)`. Use it generously: any time the input is empty, blank, or otherwise unusable, return `NULL` and let the framework drop the argument. For inputs that are *malformed* (a non-parseable expression, a non-numeric string in a numeric slot), throw with `rlang::abort()` instead — the runtime surfaces the message inline.
+The `NULL`-prunes-the-argument rule is central. It is how the built-in `ppVar` placeholder makes `geom_point(color = ppVar)` render as `geom_point()` until the user actually picks a column — *not* as `geom_point(color = NULL)`. Use it generously: any time the input is empty, blank, or otherwise unusable, return `NULL` and let the framework drop the argument. For inputs that are *malformed* (a non-parseable expression, a non-numeric string in a numeric slot), throw with `rlang::abort()` instead — the runtime surfaces the message inline.
 
 #### Where copy comes from
 
@@ -360,13 +360,13 @@ ptr_define_placeholder_consumer(
 )
 ```
 
-Consumer constructors also accept an optional `validate_input = function(value, upstream_cols)` callback. It returns `TRUE` (or `NULL`) when the input is valid, or an error-message string otherwise. The built-in `var` consumer uses it to surface "Column `foo` was removed from the upstream data" messages when the data shape changes mid-session.
+Consumer constructors also accept an optional `validate_input = function(value, upstream_cols)` callback. It returns `TRUE` (or `NULL`) when the input is valid, or an error-message string otherwise. The built-in `ppVar` consumer uses it to surface "Column `foo` was removed from the upstream data" messages when the data shape changes mid-session.
 
 Wire it into an app to see the multi-select picker react to the upstream data:
 
 ```{r consumer-colvars-app}
 ptr_app("mtcars |> dplyr::select(colvars) |> 
-        ggplot(aes(x = var, y = var)) + geom_point()")
+        ggplot(aes(x = ppVar, y = ppVar)) + geom_point()")
 ```
 
 The picker's choices are populated from `mtcars`'s column names — that is `cols` in `build_ui`. Pick two or three columns; the rendered code becomes `mtcars |> dplyr::select(c('mpg', 'hp', 'wt'))`. Clear the picker and `resolve_expr` returns `NULL`, so the `c(...)` arg is pruned rather than spliced as `NULL`.
@@ -399,7 +399,7 @@ ptr_app("
 mtcars |> 
   dplyr::filter(mpg >= numrange(shared = 'n')[1],
                 mpg <= numrange(shared = 'n')[2]) |> 
-  ggplot(aes(x = var, y = var)) +
+  ggplot(aes(x = ppVar, y = ppVar)) +
   geom_point()
 ")
 ```
@@ -408,7 +408,7 @@ The slider's bounds are `range(mtcars$mpg)` — not a hard-coded guess — becau
 
 ### Source placeholders — `ptr_define_placeholder_source()`
 
-A source placeholder *produces* a data frame. Use this for widgets the rest of the formula reads from — built-in datasets, database queries, programmatic samples — without an `upload` placeholder doing the work.
+A source placeholder *produces* a data frame. Use this for widgets the rest of the formula reads from — built-in datasets, database queries, programmatic samples — without an `ppUpload` placeholder doing the work.
 
 ```{r source-dataset}
 ptr_define_placeholder_source(
@@ -430,17 +430,17 @@ ptr_define_placeholder_source(
 )
 ```
 
-`resolve_data` returns the data frame to feed downstream consumers. `resolve_expr` defaults to substituting the bare keyword (`rlang::sym(value)`) into the generated code, which is right when `value` is the name of a global object. Override `resolve_expr` to substitute something else (e.g. `expr(read.csv(!!path))`) when the generated code should re-fetch the data rather than carry a reference.
+`resolve_data` returns the data frame to feed downstream consumers. `resolve_expr` defaults to substituting the bare keyword (`rlang::sym(value)`) into the generated code, which is right when `value` is the name of a global object. Override `resolve_expr` to substitute something else (e.g. `ppExpr(read.csv(!!path))`) when the generated code should re-fetch the data rather than carry a reference.
 
-`companion_id_fn = function(id) <companion_id>` pairs the primary widget with a sibling — the built-in `upload` source uses it for the "Optional dataset name" textbox. Most sources do not need it.
+`companion_id_fn = function(id) <companion_id>` pairs the primary widget with a sibling — the built-in `ppUpload` source uses it for the "Optional dataset name" textbox. Most sources do not need it.
 
 Drop the `dataset` keyword in as the first stage of a pipeline:
 
 ```{r source-dataset-app}
-ptr_app("ggplot(dataset, aes(var, var)) + geom_point()")
+ptr_app("ggplot(dataset, aes(ppVar, ppVar)) + geom_point()")
 ```
 
-Pick *iris* in the dropdown — that runs `resolve_data("iris")`, which returns `iris`. The two downstream `var` consumers receive the iris columns in `cols`, populate their pickers, and the rendered code becomes `ggplot(iris, aes(Sepal.Length, Petal.Length)) + geom_point()` once the user picks columns. `resolve_expr` was not overridden, so the default `rlang::sym(value)` splices the bare symbol `iris`. If you wanted the code window to show `ggplot(read.csv("path/to/iris.csv"), …)` instead, you would override `resolve_expr` to return that `expr()` — the data the app reads from is unchanged, only the spliced text differs.
+Pick *iris* in the dropdown — that runs `resolve_data("iris")`, which returns `iris`. The two downstream `ppVar` consumers receive the iris columns in `cols`, populate their pickers, and the rendered code becomes `ggplot(iris, aes(Sepal.Length, Petal.Length)) + geom_point()` once the user picks columns. `resolve_expr` was not overridden, so the default `rlang::sym(value)` splices the bare symbol `iris`. If you wanted the code window to show `ggplot(read.csv("path/to/iris.csv"), …)` instead, you would override `resolve_expr` to return that `ppExpr()` — the data the app reads from is unchanged, only the spliced text differs.
 
 ### Common pitfalls
 
@@ -461,4 +461,4 @@ ptr_clear_placeholder("range")  # remove one keyword
 ptr_clear_placeholder()         # remove every user-registered keyword
 ```
 
-The five built-ins (`var`, `text`, `num`, `expr`, `upload`) are protected — passing one to `ptr_clear_placeholder()` errors. Re-registering an existing keyword via any of the three constructors above overwrites the previous entry (with a `cli` notice); you do not need to clear first.
+The five built-ins (`ppVar`, `ppText`, `ppNum`, `ppExpr`, `ppUpload`) are protected — passing one to `ptr_clear_placeholder()` errors. Re-registering an existing keyword via any of the three constructors above overwrites the previous entry (with a `cli` notice); you do not need to clear first.

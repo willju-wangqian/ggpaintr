@@ -122,14 +122,14 @@ test_that("source constructor defaults resolve_expr to symbol of value", {
 test_that("translate dispatches placeholders to correct node class via role", {
   ptr_registry_clear()
   ptr_register_builtins()
-  r <- ptr_translate("ggplot(my_local_df, aes(x = var, y = num)) + geom_point(color = text)")
+  r <- ptr_translate("ggplot(my_local_df, aes(x = ppVar, y = ppNum)) + geom_point(color = ppText)")
   values <- find_nodes(r, is_ptr_ph_value)
   consumers <- find_nodes(r, is_ptr_ph_data_consumer)
   sources <- find_nodes(r, is_ptr_ph_data_source)
   expect_equal(length(consumers), 1L)
-  expect_equal(consumers[[1]]$keyword, "var")
-  expect_true(any(vapply(values, function(v) v$keyword == "num", logical(1))))
-  expect_true(any(vapply(values, function(v) v$keyword == "text", logical(1))))
+  expect_equal(consumers[[1]]$keyword, "ppVar")
+  expect_true(any(vapply(values, function(v) v$keyword == "ppNum", logical(1))))
+  expect_true(any(vapply(values, function(v) v$keyword == "ppText", logical(1))))
   expect_equal(length(sources), 0L)
 })
 
@@ -230,8 +230,8 @@ test_that("ptr_clear_placeholder() errors on an unknown keyword", {
 
 test_that("ptr_clear_placeholder() refuses to clear a built-in placeholder", {
   .clean_registry()
-  expect_error(ptr_clear_placeholder("var"), "built-in")
-  expect_true("var" %in% ptr_registry_keywords())
+  expect_error(ptr_clear_placeholder("ppVar"), "built-in")
+  expect_true("ppVar" %in% ptr_registry_keywords())
 })
 
 test_that("ptr_clear_placeholder() with nothing to clear informs and returns empty", {

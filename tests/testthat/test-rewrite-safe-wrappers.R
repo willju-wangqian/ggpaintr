@@ -16,7 +16,7 @@ test_that("complete_expr_safe returns code_text on success", {
 })
 
 test_that("complete_expr_safe substitutes placeholders", {
-  tree <- ptr_translate("ggplot(mtcars) + geom_point(size = num)")
+  tree <- ptr_translate("ggplot(mtcars) + geom_point(size = ppNum)")
   num_id <- find_nodes(tree, is_ptr_ph_value)[[1L]]$id
   result <- ptr_complete_expr_safe(
     tree,
@@ -28,7 +28,7 @@ test_that("complete_expr_safe substitutes placeholders", {
 
 test_that("complete_expr_safe sets ok=FALSE on substitute error", {
   # `expr` rejects multi-line input at substitute time (BDD P8.11)
-  tree <- ptr_translate("ggplot(mtcars) + expr")
+  tree <- ptr_translate("ggplot(mtcars) + ppExpr")
   expr_id <- find_nodes(tree, is_ptr_ph_value)[[1L]]$id
   result <- ptr_complete_expr_safe(
     tree,
@@ -68,7 +68,7 @@ test_that("assemble_plot_safe propagates upstream failure unchanged", {
 
 test_that("assemble_plot_safe captures eval-time errors (P11.7)", {
   # Reference an undefined symbol via expr placeholder
-  tree <- ptr_translate("ggplot(mtcars, aes(x = mpg)) + expr")
+  tree <- ptr_translate("ggplot(mtcars, aes(x = mpg)) + ppExpr")
   expr_id <- find_nodes(tree, is_ptr_ph_value)[[1L]]$id
   c_res <- ptr_complete_expr_safe(
     tree,
@@ -84,7 +84,7 @@ test_that("assemble_plot_safe captures eval-time errors (P11.7)", {
 })
 
 test_that("assemble_plot_safe surfaces no-layers error", {
-  tree <- ptr_translate("ggplot(mtcars) + geom_point(color = text)")
+  tree <- ptr_translate("ggplot(mtcars) + geom_point(color = ppText)")
   c_res <- ptr_complete_expr_safe(
     tree,
     snapshot = list(),  # text missing → geom_point empty → dropped (standalone-eligible kept though)

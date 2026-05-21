@@ -33,7 +33,7 @@ test_that("ptr_init_state builds resolved_data slots only for bare-data-source l
   # bare-data-source layers (e.g., `ggplot(data = upload, ...)`) keep a
   # `resolved_data` slot for the upload reactive observer to write into.
   state <- ptr_init_state(
-    "mtcars |> head(num) |> ggplot() + geom_point()",
+    "mtcars |> head(ppNum) |> ggplot() + geom_point()",
     envir = .server_test_env()
   )
   expect_equal(length(state$resolved_data), 0L)
@@ -136,7 +136,7 @@ test_that("runtime is gated: no eval until Update Plot click (BDD G11.12)", {
   server <- function(input, output, session) {
     session$userData$state <- ptr_server_internal(
       input, output, session,
-      "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+      "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
       envir = e
     )
   }
@@ -145,7 +145,7 @@ test_that("runtime is gated: no eval until Update Plot click (BDD G11.12)", {
     expect_null(state$runtime())
 
     # Picking vars without clicking Update Plot must still leave runtime NULL.
-    session$setInputs(ggplot_1_1_var_NA = "mpg", ggplot_1_2_var_NA = "hp")
+    session$setInputs(ggplot_1_1_ppVar_NA = "mpg", ggplot_1_2_ppVar_NA = "hp")
     session$flushReact()
     expect_null(state$runtime())
 

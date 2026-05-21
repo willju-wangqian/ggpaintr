@@ -144,7 +144,7 @@ shared_consumer_representatives <- function(trees) {
 #' Server-Side Counterpart to the Shared Coordinator
 #'
 #' Builds the shared input reactives and binds the host-level
-#' `var(shared = "...")` consumer pickers for the [`ptr_shared_panel()`].
+#' `ppVar(shared = "...")` consumer pickers for the [`ptr_shared_panel()`].
 #' Returns a `ptr_shared_state` that the embedder threads into each
 #' [`ptr_server()`] via the `shared_state` argument.
 #'
@@ -157,7 +157,7 @@ shared_consumer_representatives <- function(trees) {
 #'   source of truth for the cross-formula partition. Replaces the old
 #'   `formulas`/`expr_check` arguments, which are now baked into `obj`.
 #' @param envir Environment used to resolve symbols in the shared
-#'   `var()` upstream chains. Default [`parent.frame()`] picks up the
+#'   `ppVar()` upstream chains. Default [`parent.frame()`] picks up the
 #'   embedder's caller scope so `mtcars` etc. resolve naturally.
 #' @param shared Optional named list overriding the auto-derived
 #'   reactives. Each named entry replaces the reactive for that key;
@@ -177,8 +177,8 @@ shared_consumer_representatives <- function(trees) {
 #' @examples
 #' if (interactive()) {
 #'   obj <- ptr_shared(c(
-#'     "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
-#'     "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+#'     "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()",
+#'     "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"
 #'   ))
 #'   shiny::shinyApp(
 #'     ui = shiny::fluidPage(ptr_shared_panel(obj)),

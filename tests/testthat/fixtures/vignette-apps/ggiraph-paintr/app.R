@@ -21,9 +21,9 @@ ptr_define_placeholder_value(
   copy_defaults = list(label = "Highlight colour for {param}")
 )
 
-formula <- "ggplot(data = mpg, aes(x = var, y = var)) +
-              geom_point_interactive(aes(tooltip = var),
-                                     size = num, color = color)"
+formula <- "ggplot(data = mpg, aes(x = ppVar, y = ppVar)) +
+              geom_point_interactive(aes(tooltip = ppVar),
+                                     size = ppNum, color = color)"
 
 ui <- fluidPage(
   fluidRow(

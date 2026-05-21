@@ -39,7 +39,7 @@ The other vignettes teach the workflow piece by piece. This one shows what the p
 
 Copy a chunk into a session, install the extension package named at the top of the section if you do not have it, and run it. The examples assume the setup chunks above have already executed.
 
-Several gallery sections below reference custom placeholders — `range` (a slider returning a length-2 numeric) and `colvars` (a multi-column picker) — alongside the five built-ins (`var`, `text`, `num`, `expr`, `upload`). The three constructors that register such widgets (`ptr_define_placeholder_value()`, `ptr_define_placeholder_consumer()`, `ptr_define_placeholder_source()`), the full hook contract, and a worked example for each are covered in `vignette("ggpaintr-customization")`. Run the setup chunk below once per R session before launching any gallery example that uses these keywords.
+Several gallery sections below reference custom placeholders — `range` (a slider returning a length-2 numeric) and `colvars` (a multi-column picker) — alongside the five built-ins (`ppVar`, `ppText`, `ppNum`, `ppExpr`, `ppUpload`). The three constructors that register such widgets (`ptr_define_placeholder_value()`, `ptr_define_placeholder_consumer()`, `ptr_define_placeholder_source()`), the full hook contract, and a worked example for each are covered in `vignette("ggpaintr-customization")`. Run the setup chunk below once per R session before launching any gallery example that uses these keywords.
 
 ```{r custom-placeholders-setup}
 ptr_define_placeholder_value(
@@ -86,16 +86,16 @@ ggplot(mpg, aes(displ, hwy, color = class)) +
   coord_cartesian(xlim = c(1, 7), ylim = c(10, 45))
 ```
 
-Replace each tuning knob with a placeholder token. `var` becomes a column picker populated from the data; `num` becomes `numericInput`s; `text` becomes `textInput`s; the custom `range` becomes a slider:
+Replace each tuning knob with a placeholder token. `ppVar` becomes a column picker populated from the data; `ppNum` becomes `numericInput`s; `ppText` becomes `textInput`s; the custom `range` becomes a slider:
 
 ```{r mpg-paintr}
 ptr_app(
-  "ggplot(data = mpg, aes(x = var, y = var, color = var)) +
-     geom_point(alpha = num, size = num) +
-     geom_smooth(method = 'loess', se = FALSE, span = num) +
-     facet_wrap(~ var) +
+  "ggplot(data = mpg, aes(x = ppVar, y = ppVar, color = ppVar)) +
+     geom_point(alpha = ppNum, size = ppNum) +
+     geom_smooth(method = 'loess', se = FALSE, span = ppNum) +
+     facet_wrap(~ ppVar) +
      scale_color_brewer(palette = 'Set2') +
-     labs(title = text, x = text, y = text) +
+     labs(title = ppText, x = ppText, y = ppText) +
      coord_cartesian(xlim = range, ylim = range)"
 )
 ```
@@ -129,17 +129,17 @@ library(dplyr)
 
 ptr_app(
   "mpg |>
-     dplyr::filter(displ > num) |>
+     dplyr::filter(displ > ppNum) |>
      dplyr::group_by(class) |>
-     dplyr::filter(dplyr::n() > num) |>
+     dplyr::filter(dplyr::n() > ppNum) |>
      dplyr::ungroup() |>
-     ggplot(aes(var, var, color = class)) +
-     geom_point(alpha = num) +
-     labs(title = text)"
+     ggplot(aes(ppVar, ppVar, color = class)) +
+     geom_point(alpha = ppNum) +
+     labs(title = ppText)"
 )
 ```
 
-Each pipeline stage gets its own enable/disable checkbox (G11). Toggling a stage off rewrites the generated code as if that step were never there; toggle it back on and the threshold widget resurfaces. Note also that `var` (and any custom consumer like `colvars`) introspects the upstream data automatically — pipe-walking through `|>` chains is part of the runtime, not your placeholder code.
+Each pipeline stage gets its own enable/disable checkbox (G11). Toggling a stage off rewrites the generated code as if that step were never there; toggle it back on and the threshold widget resurfaces. Note also that `ppVar` (and any custom consumer like `colvars`) introspects the upstream data automatically — pipe-walking through `|>` chains is part of the runtime, not your placeholder code.
 
 ### 4.2 PCA scores with 95% confidence ellipses
 
@@ -165,7 +165,7 @@ iris |>
     theme(legend.position = "bottom")
 ```
 
-The ggpaintr version introduces a small custom **palette** placeholder so the ColorBrewer palette becomes a dropdown, lets the user pick which numeric columns enter PCA via `colvars`, and re-uses `num(shared = "n")` across the ellipse `level` and the title — moving one slider redraws both.
+The ggpaintr version introduces a small custom **palette** placeholder so the ColorBrewer palette becomes a dropdown, lets the user pick which numeric columns enter PCA via `colvars`, and re-uses `ppNum(shared = "n")` across the ellipse `level` and the title — moving one slider redraws both.
 
 ```{r pca-paintr}
 library(dplyr)
@@ -195,11 +195,11 @@ ptr_app(
   'iris |>
      do_pca(colvars) |>
      ggplot(aes(.fittedPC1, .fittedPC2, color = Species)) +
-       stat_ellipse(level = num(shared = "n"), linewidth = num) +
+       stat_ellipse(level = ppNum(shared = "n"), linewidth = num) +
        geom_point(alpha = num, size = num) +
        scale_color_brewer(palette = palette) +
        labs(title = paste0("Iris in PC space, with ",
-                           as.character(100 * num(shared = "n")),
+                           as.character(100 * ppNum(shared = "n")),
                            "% ellipses"),
             x = text, y = text) +
        theme_minimal() +
@@ -209,7 +209,7 @@ ptr_app(
 
 ### 4.3 K-means elbow plot
 
-Tibble of `k`, map `kmeans()` over it, glance for `tot.withinss`, plot. `expr(shared = "k")` is the single source of truth for both the cluster range and the x-axis breaks — type `1:9` or `c(2, 3, 5, 8)` and the chart redraws end-to-end.
+Tibble of `k`, map `kmeans()` over it, glance for `tot.withinss`, plot. `ppExpr(shared = "k")` is the single source of truth for both the cluster range and the x-axis breaks — type `1:9` or `c(2, 3, 5, 8)` and the chart redraws end-to-end.
 
 ```{r kmeans-original}
 library(dplyr)
@@ -235,7 +235,7 @@ tibble(k = 1:9) |>
     theme_minimal()
 ```
 
-The clustered columns are fixed here rather than a `colvars` picker: `colvars` is a *consumer* placeholder and resolves its choices against the pipeline's upstream data, which at this point is `tibble(k = ...)` — not `iris`. The parameterized knobs are the cluster range (`expr(shared = "k")`, reused for the x-axis breaks) and the point size.
+The clustered columns are fixed here rather than a `colvars` picker: `colvars` is a *consumer* placeholder and resolves its choices against the pipeline's upstream data, which at this point is `tibble(k = ...)` — not `iris`. The parameterized knobs are the cluster range (`ppExpr(shared = "k")`, reused for the x-axis breaks) and the point size.
 
 ```{r kmeans-paintr}
 library(dplyr)
@@ -244,7 +244,7 @@ library(purrr)
 library(broom)
 
 ptr_app(
-  'tibble(k = expr(shared = "k")) |>
+  'tibble(k = ppExpr(shared = "k")) |>
      mutate(
        kmeans  = map(k, function(.k) kmeans(
          scale(iris[, c("Sepal.Length", "Sepal.Width",
@@ -256,7 +256,7 @@ ptr_app(
      ggplot(aes(k, tot.withinss)) +
        geom_line(color = "gray50") +
        geom_point(size = num, color = "#0072B2") +
-       scale_x_continuous(breaks = expr(shared = "k")) +
+       scale_x_continuous(breaks = ppExpr(shared = "k")) +
        labs(title = text, x = text, y = text) +
        theme_minimal()'
 )
@@ -264,7 +264,7 @@ ptr_app(
 
 ### 4.4 Regression diagnostics
 
-`broom::augment()` turns an `lm` fit into a tidy data frame whose `.fitted`, `.resid`, `.hat`, `.std.resid`, and `.cooksd` columns are the staples of regression diagnostics. Make the model formula an `expr` widget and the diagnostic axes a pair of `var` pickers — one app, every standard diagnostic plot (residuals vs fitted, scale-location, leverage).
+`broom::augment()` turns an `lm` fit into a tidy data frame whose `.fitted`, `.resid`, `.hat`, `.std.resid`, and `.cooksd` columns are the staples of regression diagnostics. Make the model formula an `ppExpr` widget and the diagnostic axes a pair of `ppVar` pickers — one app, every standard diagnostic plot (residuals vs fitted, scale-location, leverage).
 
 ```{r regress-original}
 library(broom)
@@ -293,11 +293,11 @@ ptr_app(
 )
 ```
 
-The `expr` widget accepts the full formula `mpg ~ wt + cyl + hp`; the `var` pickers downstream populate from the augmented frame so `.fitted`, `.resid`, `.hat`, `.std.resid`, `.cooksd` all appear as choices.
+The `ppExpr` widget accepts the full formula `mpg ~ wt + cyl + hp`; the `ppVar` pickers downstream populate from the augmented frame so `.fitted`, `.resid`, `.hat`, `.std.resid`, `.cooksd` all appear as choices.
 
 ### 4.5 Rolling time-series
 
-`economics` (shipped with `ggplot2`) holds 40+ years of monthly US macro indicators. The standard recipe — pick a series, overlay an *n*-month rolling mean — turns into two widgets: `var(shared = "y")` chooses the series (used both raw and in the rolling computation) and `num` picks the window size.
+`economics` (shipped with `ggplot2`) holds 40+ years of monthly US macro indicators. The standard recipe — pick a series, overlay an *n*-month rolling mean — turns into two widgets: `ppVar(shared = "y")` chooses the series (used both raw and in the rolling computation) and `ppNum` picks the window size.
 
 ```{r rolling-original}
 library(dplyr)
@@ -325,8 +325,8 @@ roll_mean <- function(x, n) {
 
 ptr_app(
   'economics |>
-     mutate(roll = roll_mean(var(shared = "y"), num)) |>
-     ggplot(aes(date, var(shared = "y"))) +
+     mutate(roll = roll_mean(ppVar(shared = "y"), num)) |>
+     ggplot(aes(date, ppVar(shared = "y"))) +
        geom_line(color = "gray70") +
        geom_line(aes(y = roll), color = "#0072B2", linewidth = num) +
        labs(title = text, x = text, y = text) +
@@ -334,11 +334,11 @@ ptr_app(
 )
 ```
 
-`var(shared = "y")` is the canonical pattern when the same column drives both the data step *and* the plot aesthetic — without it, you would have two pickers the user has to keep in sync by hand.
+`ppVar(shared = "y")` is the canonical pattern when the same column drives both the data step *and* the plot aesthetic — without it, you would have two pickers the user has to keep in sync by hand.
 
 ### 4.6 Group-wise regression coefficients
 
-A small-multiples regression: nest by a grouping factor, fit one `lm` per group, tidy the coefficients with confidence intervals, plot as a forest. The model formula stays as `expr` so a reader can swap responses or predictors at will.
+A small-multiples regression: nest by a grouping factor, fit one `lm` per group, tidy the coefficients with confidence intervals, plot as a forest. The model formula stays as `ppExpr` so a reader can swap responses or predictors at will.
 
 ```{r coefs-original}
 library(palmerpenguins)
@@ -384,7 +384,7 @@ ptr_app(
        tidy = map(fit,  function(.f) broom::tidy(.f, conf.int = TRUE))
      ) |>
      unnest(tidy) |>
-     filter(term == text) |>
+     filter(term == ppText) |>
      ggplot(aes(estimate, species, color = species)) +
        geom_vline(xintercept = 0, color = "gray60", linetype = 2) +
        geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
@@ -396,7 +396,7 @@ ptr_app(
 )
 ```
 
-`filter(term == text)` is how you let the user pick which coefficient to display — type `bill_length_mm` for slopes, `(Intercept)` for intercepts.
+`filter(term == ppText)` is how you let the user pick which coefficient to display — type `bill_length_mm` for slopes, `(Intercept)` for intercepts.
 
 ## 5. Interactive output packages
 
@@ -425,9 +425,9 @@ ggpaintr version — embed via the module helpers and own the plotly output:
 library(plotly)
 
 formula <- "ggplot(data = mpg,
-                   aes(x = var, y = var, color = var,
+                   aes(x = ppVar, y = ppVar, color = ppVar,
                        text = paste(manufacturer, model, sep = ' '))) +
-              geom_point(size = num, alpha = num) +
+              geom_point(size = ppNum, alpha = ppNum) +
               coord_cartesian(xlim = range, ylim = range)"
 
 ui <- fluidPage(
@@ -481,9 +481,9 @@ ptr_define_placeholder_value(
   copy_defaults = list(label = "Highlight colour for {param}")
 )
 
-formula <- "ggplot(data = mpg, aes(x = var, y = var)) +
-              geom_point_interactive(aes(tooltip = var),
-                                     size = num, color = color)"
+formula <- "ggplot(data = mpg, aes(x = ppVar, y = ppVar)) +
+              geom_point_interactive(aes(tooltip = ppVar),
+                                     size = ppNum, color = color)"
 
 ui <- fluidPage(
   fluidRow(
@@ -538,7 +538,7 @@ ptr_app(
                   pcp_arrange(),
           mapping = aes_pcp()) +
      geom_pcp_axes() +
-     geom_pcp(aes(colour = var))"
+     geom_pcp(aes(colour = ppVar))"
 )
 ```
 
@@ -558,7 +558,7 @@ ggplot(lincoln_weather,
 
 ggpaintr version — bandwidth, scale, and the colour aesthetic become widgets:
 
-`lincoln_weather` ships with non-syntactic column names (`Mean Temperature [F]`, …). The `var` placeholder needs syntactic identifiers, so we normalize first; see `vignette("ggpaintr-use-cases")` §"Local data with non-syntactic columns".
+`lincoln_weather` ships with non-syntactic column names (`Mean Temperature [F]`, …). The `ppVar` placeholder needs syntactic identifiers, so we normalize first; see `vignette("ggpaintr-use-cases")` §"Local data with non-syntactic columns".
 
 ```{r ridges-paintr}
 library(ggridges)
@@ -566,12 +566,12 @@ library(ggridges)
 lincoln_weather_clean <- ptr_normalize_column_names(lincoln_weather)
 
 ptr_app(
-  "ggplot(data = lincoln_weather_clean, aes(x = var, y = var, fill = ..x..)) +
-     geom_density_ridges_gradient(scale = num,
-                                  rel_min_height = num,
-                                  bandwidth = num) +
+  "ggplot(data = lincoln_weather_clean, aes(x = ppVar, y = ppVar, fill = ..x..)) +
+     geom_density_ridges_gradient(scale = ppNum,
+                                  rel_min_height = ppNum,
+                                  bandwidth = ppNum) +
      scale_fill_viridis_c(option = 'C') +
-     labs(title = text)"
+     labs(title = ppText)"
 )
 ```
 
@@ -589,7 +589,7 @@ ggplot(mt, aes(wt, mpg, label = model)) +
   geom_text_repel(size = 3.5, max.overlaps = 12, box.padding = 0.3)
 ```
 
-ggpaintr version — `max.overlaps`, `size`, and `box.padding` all turn into numeric inputs. The label aesthetic is bound by `var`:
+ggpaintr version — `max.overlaps`, `size`, and `box.padding` all turn into numeric inputs. The label aesthetic is bound by `ppVar`:
 
 ```{r repel-paintr}
 library(ggrepel)
@@ -597,12 +597,12 @@ library(ggrepel)
 mt <- data.frame(mtcars, model = rownames(mtcars))
 
 ptr_app(
-  "ggplot(data = mt, aes(x = var, y = var, label = var)) +
-     geom_point(size = num, color = 'steelblue') +
-     geom_text_repel(size = num,
-                     max.overlaps = num,
-                     box.padding = num) +
-     labs(title = text)",
+  "ggplot(data = mt, aes(x = ppVar, y = ppVar, label = ppVar)) +
+     geom_point(size = ppNum, color = 'steelblue') +
+     geom_text_repel(size = ppNum,
+                     max.overlaps = ppNum,
+                     box.padding = ppNum) +
+     labs(title = ppText)",
   envir = environment()
 )
 ```
@@ -632,11 +632,11 @@ library(ggalluvial)
 ptr_app(
   "ggplot(data = vaccinations,
           aes(x = survey, stratum = response, alluvium = subject,
-              y = freq, fill = var)) +
-     geom_flow(alpha = num) +
+              y = freq, fill = ppVar)) +
+     geom_flow(alpha = ppNum) +
      geom_stratum() +
      scale_x_discrete(expand = c(0.1, 0.1)) +
-     labs(title = text)"
+     labs(title = ppText)"
 )
 ```
 
@@ -660,15 +660,15 @@ ggpaintr version — every visual constant of `stat_halfeye()` becomes a slider 
 library(ggdist)
 
 ptr_app(
-  "ggplot(data = mtcars, aes(x = factor(cyl), y = var)) +
-     stat_halfeye(adjust = num,
-                  justification = num,
-                  .width = num,
+  "ggplot(data = mtcars, aes(x = factor(cyl), y = ppVar)) +
+     stat_halfeye(adjust = ppNum,
+                  justification = ppNum,
+                  .width = ppNum,
                   point_colour = NA,
-                  slab_alpha = num) +
-     geom_boxplot(width = num, outlier.shape = NA) +
+                  slab_alpha = ppNum) +
+     geom_boxplot(width = ppNum, outlier.shape = NA) +
      coord_flip() +
-     labs(title = text)"
+     labs(title = ppText)"
 )
 ```
 

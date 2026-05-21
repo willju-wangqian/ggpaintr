@@ -13,7 +13,7 @@ test_that("S-SRV.1 ptr_shared() errors when no formula declares a shared key", {
 
 test_that("S-SRV.2 aborts when called outside a reactive domain", {
   obj <- ptr_shared(
-    'ggplot(mtcars, aes(x = var(shared = "k"), y = mpg)) + geom_point()'
+    'ggplot(mtcars, aes(x = ppVar(shared = "k"), y = mpg)) + geom_point()'
   )
   expect_error(
     ptr_shared_server(obj),
@@ -26,7 +26,7 @@ test_that("S-SRV.2b aborts when not given a ptr_shared_spec", {
     {
       server <- function(input, output, session) {
         ptr_shared_server(
-          'ggplot(mtcars, aes(x = var(shared = "k"), y = mpg)) + geom_point()'
+          'ggplot(mtcars, aes(x = ppVar(shared = "k"), y = mpg)) + geom_point()'
         )
       }
       shiny::testServer(server, {})
@@ -37,8 +37,8 @@ test_that("S-SRV.2b aborts when not given a ptr_shared_spec", {
 
 test_that("S-SRV.3 returns a ptr_shared_state with the expected shape", {
   obj <- ptr_shared(c(
-    'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
-    'ggplot(mtcars, aes(x = var(shared = "col"), y = hp)) + geom_line()'
+    'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = mpg)) + geom_point()',
+    'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = hp)) + geom_line()'
   ))
   server <- function(input, output, session) {
     state <<- ptr_shared_server(obj, envir = globalenv())
@@ -58,7 +58,7 @@ test_that("S-SRV.3 returns a ptr_shared_state with the expected shape", {
 
 test_that("S-SRV.4 single-formula path produces draw_trigger = NULL", {
   obj <- ptr_shared(
-    'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()'
+    'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = mpg)) + geom_point()'
   )
   state <- NULL
   server <- function(input, output, session) {
@@ -74,8 +74,8 @@ test_that("S-SRV.5 shared override seeds a panel key until the picker is set", {
   # ones `ptr_shared_server()` owns. Both formulas use "k" and "m" so both
   # are panel keys; the override for "k" wins while its input is unset.
   obj <- ptr_shared(c(
-    'ggplot(mtcars, aes(x = var(shared = "k"), y = var(shared = "m"))) + geom_point()',
-    'ggplot(mtcars, aes(x = var(shared = "k"), y = var(shared = "m"))) + geom_line()'
+    'ggplot(mtcars, aes(x = ppVar(shared = "k"), y = ppVar(shared = "m"))) + geom_point()',
+    'ggplot(mtcars, aes(x = ppVar(shared = "k"), y = ppVar(shared = "m"))) + geom_line()'
   ))
   state <- NULL
   server <- function(input, output, session) {
@@ -94,8 +94,8 @@ test_that("S-SRV.5 shared override seeds a panel key until the picker is set", {
 
 test_that("S-SRV.6 draw_trigger override wins over the auto button reactive", {
   obj <- ptr_shared(c(
-    'ggplot(mtcars, aes(x = var(shared = "k"), y = mpg)) + geom_point()',
-    'ggplot(mtcars, aes(x = var(shared = "k"), y = hp)) + geom_line()'
+    'ggplot(mtcars, aes(x = ppVar(shared = "k"), y = mpg)) + geom_point()',
+    'ggplot(mtcars, aes(x = ppVar(shared = "k"), y = hp)) + geom_line()'
   ))
   state <- NULL
   server <- function(input, output, session) {
@@ -112,7 +112,7 @@ test_that("S-SRV.6 draw_trigger override wins over the auto button reactive", {
 
 test_that("S-SRV.7 override referencing an unknown key aborts", {
   obj <- ptr_shared(
-    'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()'
+    'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = mpg)) + geom_point()'
   )
   expect_error(
     {
@@ -128,7 +128,7 @@ test_that("S-SRV.7 override referencing an unknown key aborts", {
 
 test_that("S-SRV.8 non-reactive override is rejected", {
   obj <- ptr_shared(
-    'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()'
+    'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = mpg)) + geom_point()'
   )
   expect_error(
     {
@@ -143,8 +143,8 @@ test_that("S-SRV.8 non-reactive override is rejected", {
 
 test_that("S-SRV.9 print.ptr_shared_state surfaces keys", {
   obj <- ptr_shared(c(
-    'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
-    'ggplot(mtcars, aes(x = var(shared = "col"), y = hp)) + geom_line()'
+    'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = mpg)) + geom_point()',
+    'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = hp)) + geom_line()'
   ))
   state <- NULL
   server <- function(input, output, session) {

@@ -79,7 +79,7 @@ shared_partition <- function(trees) {
 #'   auto-rendered from the first formula that mentions them.
 #' @param ui_text Optional copy overrides forwarded to the auto-built
 #'   widgets (see [`ptr_app()`]'s `ui_text` argument).
-#' @param expr_check Whether to validate `expr` placeholders during formula
+#' @param expr_check Whether to validate `ppExpr` placeholders during formula
 #'   translation. Default `TRUE`.
 #' @param draw_all_label Label for the "Draw all" button rendered in the
 #'   panel when two or more formulas are supplied.
@@ -91,8 +91,8 @@ shared_partition <- function(trees) {
 #'   [`ptr_shared_server()`], [`ptr_ui()`].
 #' @examples
 #' obj <- ptr_shared(c(
-#'   "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
-#'   "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+#'   "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()",
+#'   "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"
 #' ))
 #' obj$panel_keys   # "x" — shared by both formulas
 #' @export
@@ -270,8 +270,8 @@ shared_panel_body_tag <- function(obj, keys) {
 #'   [`ptr_shared_server()`].
 #' @examples
 #' obj <- ptr_shared(c(
-#'   "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
-#'   "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+#'   "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()",
+#'   "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"
 #' ))
 #' ptr_shared_panel(obj)
 #' @export
@@ -306,8 +306,8 @@ ptr_shared_panel <- function(obj, css = NULL) {
 #'   [`ptr_shared_server()`].
 #' @examples
 #' obj <- ptr_shared(c(
-#'   "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
-#'   "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+#'   "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()",
+#'   "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"
 #' ))
 #' ptr_ui_shared_panel(obj)
 #' @export

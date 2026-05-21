@@ -31,7 +31,7 @@ reads \code{ui_text$shell$title$label}; defaults to \code{"ggpaintr grid"}. See
 
 \item{draw_all_label}{Label for the draw-all action button.}
 
-\item{expr_check}{Controls \code{expr} placeholder validation: \code{TRUE} (default)
+\item{expr_check}{Controls \code{ppExpr} placeholder validation: \code{TRUE} (default)
 applies the built-in denylist + AST walker; \code{FALSE} disables all
 validation; a \code{list} with \code{deny_list}/\code{allow_list} entries customises
 the policy. See \code{vignette("ggpaintr-safety")}.}
@@ -61,8 +61,8 @@ annotation, empty-call cleanup), see \code{\link[=ptr_app]{ptr_app()}}.
 if (interactive()) {
   ptr_app_grid(
     plots = list(
-      "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
-      "ggplot(mtcars, aes(x = var)) + geom_histogram()"
+      "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
+      "ggplot(mtcars, aes(x = ppVar)) + geom_histogram()"
     )
   )
 }

@@ -37,7 +37,7 @@
 
 test_that("num build_ui seeds numericInput value from node$default", {
   node <- ptr_ph_value(
-    id = "p_num", keyword = "num", expr = quote(num(5)), default = 5
+    id = "p_num", keyword = "ppNum", expr = quote(ppNum(5)), default = 5
   )
   ui <- build_ui_for(node, layer_name = "geom_point")
   expect_equal(.input_value_attr(ui, "p_num"), "5")
@@ -45,7 +45,7 @@ test_that("num build_ui seeds numericInput value from node$default", {
 
 test_that("num build_ui leaves value empty when node$default is NULL", {
   node <- ptr_ph_value(
-    id = "p_num2", keyword = "num", expr = quote(num())
+    id = "p_num2", keyword = "ppNum", expr = quote(ppNum())
   )
   ui <- build_ui_for(node, layer_name = "geom_point")
   # Today's behaviour: numericInput renders value="NA" -- but the copy-
@@ -58,7 +58,7 @@ test_that("num build_ui leaves value empty when node$default is NULL", {
 
 test_that("text build_ui seeds textInput value from node$default", {
   node <- ptr_ph_value(
-    id = "p_txt", keyword = "text", expr = quote(text("hello")),
+    id = "p_txt", keyword = "ppText", expr = quote(ppText("hello")),
     default = "hello"
   )
   ui <- build_ui_for(node, layer_name = "geom_point")
@@ -67,7 +67,7 @@ test_that("text build_ui seeds textInput value from node$default", {
 
 test_that("text build_ui leaves value empty when node$default is NULL", {
   node <- ptr_ph_value(
-    id = "p_txt2", keyword = "text", expr = quote(text())
+    id = "p_txt2", keyword = "ppText", expr = quote(ppText())
   )
   ui <- build_ui_for(node, layer_name = "geom_point")
   expect_equal(.input_value_attr(ui, "p_txt2"), "")
@@ -75,7 +75,7 @@ test_that("text build_ui leaves value empty when node$default is NULL", {
 
 test_that("expr build_ui seeds textAreaInput value from node$default (string)", {
   node <- ptr_ph_value(
-    id = "p_expr", keyword = "expr", expr = quote(expr("mpg * 2")),
+    id = "p_expr", keyword = "ppExpr", expr = quote(ppExpr("mpg * 2")),
     default = "mpg * 2"
   )
   ui <- build_ui_for(node, layer_name = "geom_point")
@@ -84,8 +84,8 @@ test_that("expr build_ui seeds textAreaInput value from node$default (string)", 
 
 test_that("expr build_ui deparses a language default into textarea source", {
   node <- ptr_ph_value(
-    id = "p_expr_lang", keyword = "expr",
-    expr = quote(expr(mpg * 2)),
+    id = "p_expr_lang", keyword = "ppExpr",
+    expr = quote(ppExpr(mpg * 2)),
     default = quote(mpg * 2)
   )
   ui <- build_ui_for(node, layer_name = "geom_point")
@@ -94,7 +94,7 @@ test_that("expr build_ui deparses a language default into textarea source", {
 
 test_that("expr build_ui leaves textarea empty when node$default is NULL", {
   node <- ptr_ph_value(
-    id = "p_expr2", keyword = "expr", expr = quote(expr())
+    id = "p_expr2", keyword = "ppExpr", expr = quote(ppExpr())
   )
   ui <- build_ui_for(node, layer_name = "geom_point")
   expect_equal(.textarea_value(ui, "p_expr2"), "")
@@ -104,7 +104,7 @@ test_that("expr build_ui leaves textarea empty when node$default is NULL", {
 
 test_that("var hook seeds picker selection from node$default via orchestrator", {
   node <- ptr_ph_data_consumer(
-    id = "p_var", keyword = "var", expr = quote(var(mpg)),
+    id = "p_var", keyword = "ppVar", expr = quote(ppVar(mpg)),
     default = "mpg"
   )
   # Mirror `ptr_setup_consumer_uis`'s call into the orchestrator: cols
@@ -125,7 +125,7 @@ test_that("var hook seeds picker selection from node$default via orchestrator", 
 
 test_that("persisted picker selection wins over node$default", {
   node <- ptr_ph_data_consumer(
-    id = "p_var2", keyword = "var", expr = quote(var(mpg)),
+    id = "p_var2", keyword = "ppVar", expr = quote(ppVar(mpg)),
     default = "mpg"
   )
   picker <- invoke_build_ui(
@@ -144,7 +144,7 @@ test_that("persisted picker selection wins over node$default", {
 
 test_that("NULL node$default + no persisted input leaves picker empty", {
   node <- ptr_ph_data_consumer(
-    id = "p_var3", keyword = "var", expr = quote(var())
+    id = "p_var3", keyword = "ppVar", expr = quote(ppVar())
   )
   picker <- invoke_build_ui(
     node,
@@ -162,7 +162,7 @@ test_that("var default not in cols is silently dropped (C1)", {
   # Edge-case resolution C1 from the plan: a default referring to a
   # column not present in cols is dropped silently (no warning).
   node <- ptr_ph_data_consumer(
-    id = "p_var_missing", keyword = "var", expr = quote(var(absent)),
+    id = "p_var_missing", keyword = "ppVar", expr = quote(ppVar(absent)),
     default = "absent"
   )
   expect_no_warning(
@@ -219,7 +219,7 @@ test_that("substitute walk ignores node$default; runtime snapshot wins", {
   # path; substitute must not consult it. We exercise that directly on
   # a hand-built value node so the assertion is unambiguous.
   node <- ptr_ph_value(
-    id = "p_sub", keyword = "num", expr = quote(num(99)), default = 99
+    id = "p_sub", keyword = "ppNum", expr = quote(ppNum(99)), default = 99
   )
   snapshot <- list(p_sub = 7)
   result <- ptr_substitute(node, input_snapshot = snapshot)
@@ -235,7 +235,7 @@ test_that("substitute walk treats missing input as missing, NOT default", {
   # NOT fall back to node$default -- the resolved form must be the
   # "missing" sentinel so the prune step can drop the arg.
   node <- ptr_ph_value(
-    id = "p_sub2", keyword = "num", expr = quote(num(99)), default = 99
+    id = "p_sub2", keyword = "ppNum", expr = quote(ppNum(99)), default = 99
   )
   result <- ptr_substitute(node, input_snapshot = list())
   expect_true(inherits(result, "ptr_missing"))

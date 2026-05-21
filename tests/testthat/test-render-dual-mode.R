@@ -43,7 +43,7 @@ test_that("preserve_placeholders = FALSE on a placeholder-bearing tree matches n
   # The translate->substitute->prune->render pipeline replaces placeholders
   # with literal nodes before render is called; preserve = FALSE must remain
   # backward-compatible with that flow.
-  r <- ptr_translate("ggplot(mtcars) + geom_point(aes(x = var))")
+  r <- ptr_translate("ggplot(mtcars) + geom_point(aes(x = ppVar))")
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s)
   expect_equal(ptr_render(p), ptr_render(p, preserve_placeholders = FALSE))
@@ -98,21 +98,21 @@ test_that("preserve mode handles missing current_pick with empty arg list", {
 # ---- legacy keyword vocabulary (var/num/text/expr) ------------------------
 
 test_that("preserve mode emits bareword for legacy `var` keyword", {
-  n <- ph_consumer("var", pick = "mpg")
+  n <- ph_consumer("ppVar", pick = "mpg")
   out <- ptr_render(n, preserve_placeholders = TRUE)
-  expect_true(grepl("var(mpg)", out, fixed = TRUE))
+  expect_true(grepl("ppVar(mpg)", out, fixed = TRUE))
 })
 
 test_that("preserve mode emits quoted string for legacy `text` keyword", {
-  n <- ph_value("text", pick = "hi")
+  n <- ph_value("ppText", pick = "hi")
   out <- ptr_render(n, preserve_placeholders = TRUE)
-  expect_true(grepl('text("hi")', out, fixed = TRUE))
+  expect_true(grepl('ppText("hi")', out, fixed = TRUE))
 })
 
 test_that("preserve mode emits literal for legacy `num` keyword", {
-  n <- ph_value("num", pick = 7)
+  n <- ph_value("ppNum", pick = 7)
   out <- ptr_render(n, preserve_placeholders = TRUE)
-  expect_true(grepl("num(7)", out, fixed = TRUE))
+  expect_true(grepl("ppNum(7)", out, fixed = TRUE))
 })
 
 # ---- shared placeholders (G2.a) -------------------------------------------
@@ -180,7 +180,7 @@ test_that("non-placeholder structure agrees across modes (whitespace, +-joins, i
 })
 
 test_that("pipe chain structure is identical across modes", {
-  r <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = var))")
+  r <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = ppVar))")
   e <- ptr_render(r, preserve_placeholders = FALSE)
   p <- ptr_render(r, preserve_placeholders = TRUE)
   # Both must split the chain across three pipe segments with identical join.

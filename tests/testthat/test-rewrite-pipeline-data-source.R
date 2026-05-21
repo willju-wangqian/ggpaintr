@@ -8,7 +8,7 @@
 
 test_that("find_source_companion_ids_in_upstream finds upload companions", {
   r <- ptr_translate(
-    "upload |> head(num) |> ggplot(aes(x = var, y = var)) + geom_point()"
+    "ppUpload |> head(ppNum) |> ggplot(aes(x = ppVar, y = ppVar)) + geom_point()"
   )
   consumer <- find_nodes(r, is_ptr_ph_data_consumer)[[1L]]
   ids <- find_source_companion_ids_in_upstream(consumer$upstream)
@@ -16,7 +16,7 @@ test_that("find_source_companion_ids_in_upstream finds upload companions", {
   expect_match(ids, "_name$")
 
   # No source in the upstream -> nothing.
-  r2 <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = var))")
+  r2 <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = ppVar))")
   c2 <- find_nodes(r2, is_ptr_ph_data_consumer)[[1L]]
   expect_length(find_source_companion_ids_in_upstream(c2$upstream), 0L)
   expect_length(find_source_companion_ids_in_upstream(NULL), 0L)
@@ -24,7 +24,7 @@ test_that("find_source_companion_ids_in_upstream finds upload companions", {
 
 test_that("ptr_init_state tracks resolved_sources for pipeline-head sources only", {
   s_pipe <- ptr_init_state(
-    "upload |> head(num) |> ggplot(aes(x = var, y = var)) + geom_point()",
+    "ppUpload |> head(ppNum) |> ggplot(aes(x = ppVar, y = ppVar)) + geom_point()",
     envir = globalenv()
   )
   expect_length(s_pipe$resolved_sources, 1L)
@@ -32,28 +32,28 @@ test_that("ptr_init_state tracks resolved_sources for pipeline-head sources only
 
   # Bare-data-source layer: handled via `state$resolved_data`, not sources.
   s_bare <- ptr_init_state(
-    "ggplot(data = upload, aes(x = var, y = var)) + geom_point()",
+    "ggplot(data = ppUpload, aes(x = ppVar, y = ppVar)) + geom_point()",
     envir = globalenv()
   )
   expect_length(s_bare$resolved_sources, 0L)
   expect_named(s_bare$resolved_data, "ggplot")
 
   # No data source at all.
-  s_none <- ptr_init_state("ggplot(mtcars, aes(x = var))", envir = globalenv())
+  s_none <- ptr_init_state("ggplot(mtcars, aes(x = ppVar))", envir = globalenv())
   expect_length(s_none$resolved_sources, 0L)
 })
 
 test_that("ptr_init_state gives state its own child eval env", {
   e <- new.env()
-  s <- ptr_init_state("ggplot(mtcars, aes(x = var))", envir = e)
+  s <- ptr_init_state("ggplot(mtcars, aes(x = ppVar))", envir = e)
   expect_false(identical(s$eval_env, e))
   expect_identical(parent.env(s$eval_env), e)
 })
 
-test_that("pipeline-head `upload` resolves downstream consumers and renders", {
+test_that("pipeline-head `ppUpload` resolves downstream consumers and renders", {
   e <- new.env(parent = globalenv())
   formula <-
-    "upload |> head(num) |> ggplot(aes(x = var, y = var)) + geom_point()"
+    "ppUpload |> head(ppNum) |> ggplot(aes(x = ppVar, y = ppVar)) + geom_point()"
   server <- function(input, output, session) {
     session$userData$state <- ptr_server_internal(input, output, session, formula,
                                           envir = e)
@@ -108,14 +108,14 @@ test_that("pipeline-head `upload` resolves downstream consumers and renders", {
   })
 })
 
-test_that("pipeline-head `upload` populates the consumer picker UI (renderUI path)", {
+test_that("pipeline-head `ppUpload` populates the consumer picker UI (renderUI path)", {
   # Exercises the full renderUI path, including a pipeline stage (`head(num)`,
   # `dplyr::filter(num > 0)`) that prunes away when the producer is unset --
   # this is where `prune_walk.ptr_call()` meets a `ptr_missing` arg.
   e <- new.env(parent = globalenv())
   formula <- paste(
-    "upload |> head(num) |> dplyr::filter(num > 0) |>",
-    "ggplot(aes(x = var, y = var)) + geom_point()"
+    "ppUpload |> head(ppNum) |> dplyr::filter(ppNum > 0) |>",
+    "ggplot(aes(x = ppVar, y = ppVar)) + geom_point()"
   )
   server <- function(input, output, session) {
     session$userData$state <- ptr_server_internal(input, output, session, formula,
@@ -148,7 +148,7 @@ test_that("pipeline-head `upload` populates the consumer picker UI (renderUI pat
 test_that("pipeline-head source clears its slot when the file is removed", {
   e <- new.env(parent = globalenv())
   formula <-
-    "upload |> head(num) |> ggplot(aes(x = var, y = var)) + geom_point()"
+    "ppUpload |> head(ppNum) |> ggplot(aes(x = ppVar, y = ppVar)) + geom_point()"
   server <- function(input, output, session) {
     session$userData$state <- ptr_server_internal(input, output, session, formula,
                                           envir = e)

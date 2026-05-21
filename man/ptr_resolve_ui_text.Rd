@@ -18,7 +18,7 @@ ptr_resolve_ui_text(
 \code{upload_name}, \code{layer_checkbox}, or \code{control} (for a placeholder
 control, in which case \code{keyword} is required).}
 
-\item{keyword}{Placeholder keyword (e.g. \code{"var"}, \code{"num"}); required when
+\item{keyword}{Placeholder keyword (e.g. \code{"ppVar"}, \code{"ppNum"}); required when
 \code{component = "control"}.}
 
 \item{param}{Optional parameter / aesthetic name (e.g. \code{"x"}); only used
@@ -45,7 +45,7 @@ through the same override chain as the built-in controls.
 ptr_resolve_ui_text("title")
 
 # Resolve copy for a var control on the x-axis
-ptr_resolve_ui_text("control", keyword = "var", param = "x")
+ptr_resolve_ui_text("control", keyword = "ppVar", param = "x")
 
 # Inside a custom `build_ui` hook, label the control through the same
 # override chain ggpaintr uses for built-in controls:

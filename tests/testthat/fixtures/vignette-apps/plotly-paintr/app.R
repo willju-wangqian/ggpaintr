@@ -22,9 +22,9 @@ ptr_define_placeholder_value(
 library(plotly)
 
 formula <- "ggplot(data = mpg,
-                   aes(x = var, y = var, color = var,
-                       text = paste(manufacturer, model, sep = ' '))) +
-              geom_point(size = num, alpha = num) +
+                   aes(x = ppVar, y = ppVar, color = ppVar,
+                       ppText = paste(manufacturer, model, sep = ' '))) +
+              geom_point(size = ppNum, alpha = ppNum) +
               coord_cartesian(xlim = range, ylim = range)"
 
 ui <- fluidPage(
@@ -39,7 +39,7 @@ server <- function(input, output, session) {
   output$interactive_plot <- plotly::renderPlotly({
     res <- state$runtime()
     shiny::req(isTRUE(res$ok), res$plot)
-    plotly::ggplotly(res$plot, tooltip = "text")
+    plotly::ggplotly(res$plot, tooltip = "ppText")
   })
 }
 

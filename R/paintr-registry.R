@@ -26,7 +26,7 @@ ptr_registry_clear <- function() {
 #'
 #' Unregisters placeholders added with [ptr_define_placeholder_value()],
 #' [ptr_define_placeholder_consumer()], or [ptr_define_placeholder_source()].
-#' The five built-in placeholders (`var`, `text`, `num`, `expr`, `upload`) are
+#' The five built-in placeholders (`ppVar`, `ppText`, `ppNum`, `ppExpr`, `ppUpload`) are
 #' never removed.
 #'
 #' @param keyword Optional single string. When supplied, only that placeholder
@@ -164,18 +164,15 @@ validate_hook <- function(fn, hook_name, required_args = character()) {
   "base", "stats", "utils", "methods", "graphics", "grDevices", "ggplot2"
 )
 
-# Keywords grandfathered through the F1.a shadow check. Two categories:
-#   1. Legacy built-ins from before the ADR 0009 atomic rename (PLAN-08):
-#      `var` (stats::var), `text` (graphics::text), `num`, `expr`, `upload`.
-#   2. Vignette / fixture custom keywords that the rest of the suite
-#      already registers and that this plan is forbidden from touching
-#      (scope guard): `range` (base::range) in the plotly-paintr fixture,
-#      `date` (base::date) in helper-placeholder-registry.R.
-# Both categories disappear once PLAN-08 renames built-ins and the
-# fixture rewrite PRs migrate to `pp`-prefixed custom keywords.
+# Keywords grandfathered through the F1.a shadow check. After PLAN-08
+# the built-in vocabulary moved to the `pp`-prefix (which does not shadow
+# anything in base R / ggplot2), so only the remaining vignette / fixture
+# custom keywords stay grandfathered for backwards-compatible test
+# coverage: `range` (base::range) in the plotly-paintr fixture, `date`
+# (base::date) in helper-placeholder-registry.R. Future fixture rewrites
+# will retire these too.
 .ptr_grandfathered_keywords <- c(
-  "var", "text", "num", "expr", "upload",   # built-ins (PLAN-08 target)
-  "range", "date"                            # vignette fixtures
+  "range", "date"   # vignette fixtures
 )
 
 validate_keyword_no_shadow <- function(keyword) {
@@ -354,7 +351,7 @@ ptr_registry_register <- function(entry) {
 #'   `input[[node$id]]` — whatever Shiny stores for that widget. Allowed
 #'   return types: scalar atomic (numeric / character / logical /
 #'   integer), `name`/`symbol` (build with `rlang::sym()`),
-#'   `call`/`language` (build with `rlang::expr()`), or `NULL` to **prune
+#'   `call`/`language` (build with `rlang::ppExpr()`), or `NULL` to **prune
 #'   the argument** from the rendered call. Use `NULL` for empty / not-yet
 #'   input; throw with `rlang::abort()` for malformed input.
 #'
@@ -447,7 +444,7 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #'
 #' A *consumer* placeholder is a value placeholder that additionally
 #' receives the columns of the upstream data frame — typically a column
-#' picker. The built-in example is `var`. See
+#' picker. The built-in example is `ppVar`. See
 #' `vignette("ggpaintr-customization")` § "Consumer placeholders" for the
 #' tutorial.
 #'
@@ -472,8 +469,8 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #'   matches any upstream column after a data swap.
 #'
 #' @param default_arg,named_args See [ptr_define_placeholder_value()].
-#'   Consumer placeholders use the same arg-schema slots; the `var`
-#'   built-in passes a column-name validator here when used as `var(mpg)`.
+#'   Consumer placeholders use the same arg-schema slots; the `ppVar`
+#'   built-in passes a column-name validator here when used as `ppVar(mpg)`.
 #'
 #' @param runtime Optional `function(x, ...)` body used when the
 #'   placeholder is called as a plain-R function. `NULL` (default) supplies
@@ -547,7 +544,7 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #' Define a data-source placeholder (e.g. upload, database table)
 #'
 #' A *source* placeholder produces a data frame the rest of the formula
-#' reads from. Built-in example: `upload`. Custom examples: database
+#' reads from. Built-in example: `ppUpload`. Custom examples: database
 #' tables, built-in datasets, URL fetches.
 #'
 #' @param keyword,copy_defaults See [ptr_define_placeholder_value()]. See
@@ -572,10 +569,10 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #'   call, not the data itself. Default `rlang::sym(value)` works when the
 #'   widget's value is already the symbol you want. Override to make the
 #'   rendered code re-fetch instead of referencing an in-session object,
-#'   e.g. `function(value, node, ...) rlang::expr(read.csv(!!value$datapath))`.
+#'   e.g. `function(value, node, ...) rlang::ppExpr(read.csv(!!value$datapath))`.
 #'   With `companion_id_fn` set, `value` here is the *companion* input's
 #'   value (e.g. the typed dataset name), **not** the primary payload —
-#'   the built-in `upload` relies on this so the default splices the typed
+#'   the built-in `ppUpload` relies on this so the default splices the typed
 #'   name as a bare symbol.
 #' @param companion_id_fn Optional `function(id) -> companion_id_string`.
 #'   Use this when the source widget needs **two** bound Shiny inputs that
@@ -585,7 +582,7 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #'   the primary id and namespaces the returned companion id alongside it,
 #'   so a single `build_ui` can render both widgets and both values reach
 #'   `resolve_data` / `resolve_expr` through `node`. Most sources do not
-#'   need it — one bound input is the common case. The built-in `upload`
+#'   need it — one bound input is the common case. The built-in `ppUpload`
 #'   uses it to attach the "Optional dataset name" textbox: the file
 #'   contents bind to `node$id`, the user-typed dataset name binds to
 #'   `node$companion_id`, and the substitution uses the name as the symbol

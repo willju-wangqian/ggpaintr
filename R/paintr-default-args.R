@@ -27,7 +27,7 @@
 #' * `ptr_default_expression()` is a verbatim store: it returns its input
 #'   unchanged so it can later be evaluated in the data context. As a
 #'   convenience it emits a one-shot warning if the user wraps the
-#'   expression in `quote()`, `bquote()`, `rlang::expr()`, or `rlang::quo()`
+#'   expression in `quote()`, `bquote()`, `rlang::ppExpr()`, or `rlang::quo()`
 #'   (the wrapper is stored verbatim).
 #'
 #' @param length Optional integer length required of the resulting numeric

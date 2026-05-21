@@ -11,10 +11,10 @@ experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](h
 
 ggpaintr turns a ggplot-like formula string into a running Shiny app.
 You write a single `ggplot()` call as text, drop placeholder keywords
-(`var`, `text`, `num`, `expr`, `upload`) anywhere a value would normally
-go, and ggpaintr does the rest: each keyword becomes an input widget,
-the same parsed object drives the UI, the plot, and a live code pane,
-and editing any widget re-renders the plot.
+(`ppVar`, `ppText`, `ppNum`, `ppExpr`, `ppUpload`) anywhere a value
+would normally go, and ggpaintr does the rest: each keyword becomes an
+input widget, the same parsed object drives the UI, the plot, and a live
+code pane, and editing any widget re-renders the plot.
 
 No Shiny UI or server code required. If you can write a ggplot call, you
 can ship an interactive version of it.
@@ -33,20 +33,20 @@ pak::pkg_install("willju-wangqian/ggpaintr")
 library(ggpaintr)
 
 ptr_app("
-ggplot(data = iris, aes(x = var, y = var)) +
-  geom_point(aes(color = var), size = num) +
-  labs(title = text) +
-  facet_wrap(expr)
+ggplot(data = iris, aes(x = ppVar, y = ppVar)) +
+  geom_point(aes(color = ppVar), size = ppNum) +
+  labs(title = ppText) +
+  facet_wrap(ppExpr)
 ")
 ```
 
 That single call returns a running Shiny app. Each placeholder in the
 formula becomes one widget:
 
--   the three `var` tokens → column pickers populated from `iris`,
--   `num` → a numeric input (point size),
--   `text` → a text input (plot title),
--   `expr` → a code box for the facet spec (e.g. `vars(Species)`).
+-   the three `ppVar` tokens → column pickers populated from `iris`,
+-   `ppNum` → a numeric input (point size),
+-   `ppText` → a text input (plot title),
+-   `ppExpr` → a code box for the facet spec (e.g. `vars(Species)`).
 
 `library(ggpaintr)` also attaches `ggplot2`, so bare `ggplot()` /
 `aes()` / `geom_*()` calls work directly inside formula strings. For a

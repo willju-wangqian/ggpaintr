@@ -4,15 +4,15 @@
 # ---- a hand-built typed tree exercising every cursor field ----------------
 
 build_cursor_tree <- function() {
-  consumer <- ptr_ph_data_consumer(keyword = "var", expr = quote(x))
+  consumer <- ptr_ph_data_consumer(keyword = "ppVar", expr = quote(x))
   # An `upstream` back-pointer that must NOT be descended into.
-  consumer$upstream <- ptr_ph_data_source(keyword = "upload", expr = quote(.data))
+  consumer$upstream <- ptr_ph_data_source(keyword = "ppUpload", expr = quote(.data))
   consumer$upstream$marker <- "SHOULD_NOT_BE_VISITED"
 
   aes_call <- ptr_call(fun = quote(aes), args = list(x = consumer), expr = quote(aes(x = x)))
   filter_call <- ptr_call(
     fun = quote(filter),
-    args = list(ptr_ph_value(keyword = "expr", expr = quote(cyl == 4))),
+    args = list(ptr_ph_value(keyword = "ppExpr", expr = quote(cyl == 4))),
     expr = quote(filter(cyl == 4))
   )
   pipe <- ptr_pipeline(
@@ -107,10 +107,10 @@ test_that("ptr_rewrite_pre does not descend into `upstream`", {
 })
 
 test_that("a placeholder sitting directly as a layer keeps layer_name = keyword", {
-  ph <- ptr_ph_data_source(keyword = "upload", expr = quote(upload))
+  ph <- ptr_ph_data_source(keyword = "ppUpload", expr = quote(upload))
   root <- ptr_root(layers = list(ph), expr = quote(upload))
   visits <- collect_visits(root)
-  expect_equal(visits[[2L]]$cur$layer_name, "upload")
+  expect_equal(visits[[2L]]$cur$layer_name, "ppUpload")
   expect_equal(visits[[2L]]$cur$path, integer())
 })
 
@@ -132,14 +132,14 @@ test_that("ptr_assert_ids_assigned aborts on an un-id'd placeholder", {
       name = "ggplot", expr = quote(ggplot()),
       children = list(mapping = ptr_call(
         fun = quote(aes),
-        args = list(x = ptr_ph_data_consumer(keyword = "var", expr = quote(x))),
+        args = list(x = ptr_ph_data_consumer(keyword = "ppVar", expr = quote(x))),
         expr = quote(aes(x = x))
       ))
     )),
     expr = quote(ggplot())
   )
   expect_error(ptr_assert_ids_assigned(root), "without an id")
-  expect_error(ptr_assert_ids_assigned(root), "var")
+  expect_error(ptr_assert_ids_assigned(root), "ppVar")
   # Once ids are assigned it passes.
   root2 <- ptr_assign_ids(root)
   expect_silent(ptr_assert_ids_assigned(root2))
@@ -148,14 +148,14 @@ test_that("ptr_assert_ids_assigned aborts on an un-id'd placeholder", {
 test_that("ptr_assert_classified aborts when a data source carries an upstream", {
   # A consumer with NULL upstream is legitimate (no data source in scope), so
   # that is not flagged; a source with an upstream is a contradiction.
-  consumer <- ptr_ph_data_consumer(keyword = "var", expr = quote(x))  # upstream NULL
+  consumer <- ptr_ph_data_consumer(keyword = "ppVar", expr = quote(x))  # upstream NULL
   ok <- ptr_root(layers = list(ptr_layer(
     name = "ggplot", expr = quote(ggplot()),
     children = list(mapping = ptr_call(fun = quote(aes), args = list(x = consumer), expr = quote(aes(x = x))))
   )), expr = quote(ggplot()))
   expect_silent(ptr_assert_classified(ok))
 
-  src <- ptr_ph_data_source(keyword = "upload", expr = quote(upload))
+  src <- ptr_ph_data_source(keyword = "ppUpload", expr = quote(upload))
   src$upstream <- ptr_literal(expr = quote(mtcars))
   bad <- ptr_root(layers = list(src), expr = quote(upload))
   expect_error(ptr_assert_classified(bad), "non-NULL `upstream`")
@@ -166,12 +166,12 @@ test_that("ptr_assert_no_placeholders aborts when a placeholder survives", {
     name = "ggplot", expr = quote(ggplot()),
     children = list(mapping = ptr_call(
       fun = quote(aes),
-      args = list(x = ptr_ph_value(keyword = "text", expr = quote("x"))),
+      args = list(x = ptr_ph_value(keyword = "ppText", expr = quote("x"))),
       expr = quote(aes(x = "x"))
     ))
   )), expr = quote(ggplot()))
   expect_error(ptr_assert_no_placeholders(root), "unresolved placeholder")
-  expect_error(ptr_assert_no_placeholders(root), "text")
+  expect_error(ptr_assert_no_placeholders(root), "ppText")
 })
 
 test_that("ptr_assert_no_missing aborts when a ptr_missing survives pruning", {
@@ -183,7 +183,7 @@ test_that("ptr_assert_no_missing aborts when a ptr_missing survives pruning", {
 })
 
 test_that("ptr_assert_acyclic aborts on a self-referential upstream", {
-  consumer <- ptr_ph_data_consumer(id = "ggplot_1_1_var_NA", keyword = "var", expr = quote(x))
+  consumer <- ptr_ph_data_consumer(id = "ggplot_1_1_ppVar_NA", keyword = "ppVar", expr = quote(x))
   consumer$upstream <- consumer
   root <- ptr_root(layers = list(ptr_layer(
     name = "ggplot", expr = quote(ggplot()),

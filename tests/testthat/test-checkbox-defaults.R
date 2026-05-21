@@ -257,7 +257,7 @@ test_that("length-0 value errors", {
 
 test_that("ptr_init_state exposes resolved vector on ptr_state$checkbox_defaults", {
   state <- ptr_init_state(
-    formula = "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point() + geom_smooth()",
+    formula = "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point() + geom_smooth()",
     checkbox_defaults = list(geom_smooth = FALSE)
   )
   expect_identical(
@@ -268,7 +268,7 @@ test_that("ptr_init_state exposes resolved vector on ptr_state$checkbox_defaults
 
 test_that("ptr_init_state default (NULL) yields all-TRUE", {
   state <- ptr_init_state(
-    formula = "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point() + geom_smooth()"
+    formula = "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point() + geom_smooth()"
   )
   expect_identical(
     state$checkbox_defaults,
@@ -279,7 +279,7 @@ test_that("ptr_init_state default (NULL) yields all-TRUE", {
 test_that("ptr_init_state errors are surfaced from validator", {
   expect_error(
     ptr_init_state(
-      formula = "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+      formula = "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
       checkbox_defaults = list(geom_point = "off")
     ),
     "logical"

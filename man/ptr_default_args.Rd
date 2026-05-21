@@ -56,7 +56,7 @@ an optional \code{length} check.
 \item \code{ptr_default_expression()} is a verbatim store: it returns its input
 unchanged so it can later be evaluated in the data context. As a
 convenience it emits a one-shot warning if the user wraps the
-expression in \code{quote()}, \code{bquote()}, \code{rlang::expr()}, or \code{rlang::quo()}
+expression in \code{quote()}, \code{bquote()}, \code{rlang::ppExpr()}, or \code{rlang::quo()}
 (the wrapper is stored verbatim).
 }
 }

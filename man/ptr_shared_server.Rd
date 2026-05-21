@@ -17,7 +17,7 @@ source of truth for the cross-formula partition. Replaces the old
 \code{formulas}/\code{expr_check} arguments, which are now baked into \code{obj}.}
 
 \item{envir}{Environment used to resolve symbols in the shared
-\code{var()} upstream chains. Default \code{\link[=parent.frame]{parent.frame()}} picks up the
+\code{ppVar()} upstream chains. Default \code{\link[=parent.frame]{parent.frame()}} picks up the
 embedder's caller scope so \code{mtcars} etc. resolve naturally.}
 
 \item{shared}{Optional named list overriding the auto-derived
@@ -38,7 +38,7 @@ that key's shared stage is active for each embedded module).
 }
 \description{
 Builds the shared input reactives and binds the host-level
-\code{var(shared = "...")} consumer pickers for the \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}.
+\code{ppVar(shared = "...")} consumer pickers for the \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}.
 Returns a \code{ptr_shared_state} that the embedder threads into each
 \code{\link[=ptr_server]{ptr_server()}} via the \code{shared_state} argument.
 }
@@ -51,8 +51,8 @@ reactive domain.
 \examples{
 if (interactive()) {
   obj <- ptr_shared(c(
-    "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
-    "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+    "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()",
+    "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"
   ))
   shiny::shinyApp(
     ui = shiny::fluidPage(ptr_shared_panel(obj)),

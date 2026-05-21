@@ -31,7 +31,7 @@ expression spliced into the rendered call. \code{value} is
 \code{input[[node$id]]} — whatever Shiny stores for that widget. Allowed
 return types: scalar atomic (numeric / character / logical /
 integer), \code{name}/\code{symbol} (build with \code{rlang::sym()}),
-\code{call}/\code{language} (build with \code{rlang::expr()}), or \code{NULL} to \strong{prune
+\code{call}/\code{language} (build with \code{rlang::ppExpr()}), or \code{NULL} to \strong{prune
 the argument} from the rendered call. Use \code{NULL} for empty / not-yet
 input; throw with \code{rlang::abort()} for malformed input.}
 

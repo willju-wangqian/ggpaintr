@@ -63,56 +63,56 @@ ptr_default_ui_text <- function() {
       defaults = default_placeholder_copy,
       params = list(
         x = list(
-          var = list(label = "Choose the x-axis column"),
-          text = list(label = "X-axis label")
+          ppVar = list(label = "Choose the x-axis column"),
+          ppText = list(label = "X-axis label")
         ),
         y = list(
-          var = list(label = "Choose the y-axis column"),
-          text = list(label = "Y-axis label")
+          ppVar = list(label = "Choose the y-axis column"),
+          ppText = list(label = "Y-axis label")
         ),
-        color = list(var = list(label = "Choose the color column")),
-        fill = list(var = list(label = "Choose the fill column")),
-        group = list(var = list(label = "Choose the grouping column")),
-        shape = list(var = list(label = "Choose the shape column")),
+        color = list(ppVar = list(label = "Choose the color column")),
+        fill = list(ppVar = list(label = "Choose the fill column")),
+        group = list(ppVar = list(label = "Choose the grouping column")),
+        shape = list(ppVar = list(label = "Choose the shape column")),
         alpha = list(
-          var = list(label = "Choose the transparency column"),
-          num = list(
+          ppVar = list(label = "Choose the transparency column"),
+          ppNum = list(
             label = "Transparency",
             help = "Enter a value between 0 and 1."
           )
         ),
-        label = list(var = list(label = "Choose the label column")),
-        title = list(text = list(label = "Plot title")),
-        subtitle = list(text = list(label = "Plot subtitle")),
-        caption = list(text = list(label = "Plot caption")),
+        label = list(ppVar = list(label = "Choose the label column")),
+        title = list(ppText = list(label = "Plot title")),
+        subtitle = list(ppText = list(label = "Plot subtitle")),
+        caption = list(ppText = list(label = "Plot caption")),
         legend.position = list(
-          text = list(
+          ppText = list(
             label = "Legend position",
             help = "Examples: right, left, top, bottom, none."
           )
         ),
         labeller = list(
-          expr = list(
+          ppExpr = list(
             label = "Facet label function",
             help = "Enter an R helper such as label_both."
           )
         ),
-        ncol = list(num = list(label = "Number of facet columns")),
-        nrow = list(num = list(label = "Number of facet rows")),
+        ncol = list(ppNum = list(label = "Number of facet columns")),
+        nrow = list(ppNum = list(label = "Number of facet rows")),
         linewidth = list(
-          var = list(label = "Choose the size column"),
-          num = list(
+          ppVar = list(label = "Choose the size column"),
+          ppNum = list(
             label = "Size",
             help = "Enter a number such as 2 or 3."
           )
         ),
-        stroke = list(num = list(label = "Stroke width")),
-        bins = list(num = list(label = "Number of bins")),
-        binwidth = list(num = list(label = "Bin width"))
+        stroke = list(ppNum = list(label = "Stroke width")),
+        bins = list(ppNum = list(label = "Number of bins")),
+        binwidth = list(ppNum = list(label = "Bin width"))
       ),
       layers = list(
         facet_wrap = list(
-          expr = list(
+          ppExpr = list(
             `__unnamed__` = list(
               label = "Facet by",
               placeholder = "~ Species",
@@ -121,7 +121,7 @@ ptr_default_ui_text <- function() {
           )
         ),
         facet_grid = list(
-          expr = list(
+          ppExpr = list(
             `__unnamed__` = list(
               label = "Facet layout",
               placeholder = "Species ~ .",
@@ -576,8 +576,8 @@ ptr_deep_merge_ui_text <- function(base, overrides) {
 #' - `upload$file$<leaf>`
 #' - `upload$name$<leaf>`
 #' - `layer_checkbox$<leaf>`
-#' - `defaults$<keyword>$<leaf>` — per placeholder keyword (`var`, `text`,
-#'   `num`, `expr`, `upload`, ...)
+#' - `defaults$<keyword>$<leaf>` — per placeholder keyword (`ppVar`, `ppText`,
+#'   `ppNum`, `ppExpr`, `ppUpload`, ...)
 #' - `params$<param>$<keyword>$<leaf>` — per aesthetic/argument name
 #'   (`x`, `y`, `color`, ...); aliases (`colour`, `size`) are normalized
 #' - `layers$<layer_name>$<keyword>$<param>$<leaf>` — per layer override
@@ -689,7 +689,7 @@ ptr_compact_ui_text <- function(ui_text = NULL) {
 #'   `layer_picker`, `data_subtab`, `controls_subtab`, `upload_file`,
 #'   `upload_name`, `layer_checkbox`, or `control` (for a placeholder
 #'   control, in which case `keyword` is required).
-#' @param keyword Placeholder keyword (e.g. `"var"`, `"num"`); required when
+#' @param keyword Placeholder keyword (e.g. `"ppVar"`, `"ppNum"`); required when
 #'   `component = "control"`.
 #' @param param Optional parameter / aesthetic name (e.g. `"x"`); only used
 #'   when `component = "control"`.
@@ -705,7 +705,7 @@ ptr_compact_ui_text <- function(ui_text = NULL) {
 #' ptr_resolve_ui_text("title")
 #'
 #' # Resolve copy for a var control on the x-axis
-#' ptr_resolve_ui_text("control", keyword = "var", param = "x")
+#' ptr_resolve_ui_text("control", keyword = "ppVar", param = "x")
 #'
 #' # Inside a custom `build_ui` hook, label the control through the same
 #' # override chain ggpaintr uses for built-in controls:

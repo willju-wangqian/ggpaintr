@@ -82,7 +82,7 @@ declared key under its own namespace, matching what \code{\link[=ptr_app]{ptr_ap
 
 \examples{
 if (interactive()) {
-  f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+  f <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
   # L2: default layout
   shiny::shinyApp(
     ui = shiny::fluidPage(ptr_ui(f, "p")),

@@ -18,7 +18,7 @@ test_that("M-SHR.1 bare ptr_server() self-binds formula-local shared keys", {
   expect_silent({
     server <- function(input, output, session) {
       ptr_server(
-        'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg - var(shared = "col"))) + geom_point()',
+        'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = mpg - ppVar(shared = "col"))) + geom_point()',
         "plot_1"
       )
     }
@@ -28,14 +28,14 @@ test_that("M-SHR.1 bare ptr_server() self-binds formula-local shared keys", {
 
 test_that("M-SHR.2 escape hatch: passing shared= via ... bypasses the abort", {
   obj <- ptr_shared(c(
-    'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
-    'ggplot(mtcars, aes(x = var(shared = "col"), y = hp)) + geom_line()'
+    'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = mpg)) + geom_point()',
+    'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = hp)) + geom_line()'
   ))
   expect_silent({
     server <- function(input, output, session) {
       state <- ptr_shared_server(obj, envir = globalenv())
       ptr_server(
-        'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
+        'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = mpg)) + geom_point()',
         "plot_1",
         envir = globalenv(),
         shared = state$shared,
@@ -52,7 +52,7 @@ test_that("M-SHR.3 shared_state non-ptr_shared_state value aborts", {
     {
       server <- function(input, output, session) {
         ptr_server(
-          'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
+          'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = mpg)) + geom_point()',
           "plot_1",
           shared_state = list(shared = list(), draw_trigger = NULL)
         )
@@ -67,8 +67,8 @@ test_that("M-SHR.4 shared_state path is silent for a formula-local key", {
   # f1 declares cross-formula "col" AND formula-local "a"; f2 only "col".
   # The coordinator's bundle covers "col" only -- "a" is formula-local by
   # construction, so the module self-binds it WITHOUT a warning.
-  f1 <- 'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point(alpha = num(shared = "a"))'
-  f2 <- 'ggplot(mtcars, aes(x = var(shared = "col"), y = hp)) + geom_line()'
+  f1 <- 'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = mpg)) + geom_point(alpha = ppNum(shared = "a"))'
+  f2 <- 'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = hp)) + geom_line()'
   obj <- ptr_shared(c(f1, f2))
   expect_silent({
     server <- function(input, output, session) {
@@ -83,7 +83,7 @@ test_that("M-SHR.4b raw escape-hatch partial shared= warns (reworded)", {
   # No `ptr_shared_state`: caller hand-passes a partial `shared =`. We
   # cannot tell a deliberately-local key from a forgotten one, so a
   # reworded heads-up fires and the key is bound locally.
-  f1 <- 'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point(alpha = num(shared = "a"))'
+  f1 <- 'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = mpg)) + geom_point(alpha = ppNum(shared = "a"))'
   expect_warning(
     {
       server <- function(input, output, session) {
@@ -101,15 +101,15 @@ test_that("M-SHR.4b raw escape-hatch partial shared= warns (reworded)", {
 
 test_that("M-SHR.5 shared_state convenience path delegates to ptr_server_internal cleanly", {
   obj <- ptr_shared(c(
-    'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
-    'ggplot(mtcars, aes(x = var(shared = "col"), y = hp)) + geom_line()'
+    'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = mpg)) + geom_point()',
+    'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = hp)) + geom_line()'
   ))
   # No abort, no warning -- happy-path wiring.
   expect_silent({
     server <- function(input, output, session) {
       state <- ptr_shared_server(obj, envir = globalenv())
       ptr_server(
-        'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
+        'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = mpg)) + geom_point()',
         "plot_1",
         envir = globalenv(),
         shared_state = state

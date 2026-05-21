@@ -93,7 +93,7 @@ build_ui_for.ptr_ph_data_source <- function(node,
   fmls <- names(formals(entry$build_ui))
   accepts_dots <- "..." %in% fmls
   extra_named <- build_ui_copy_args(fmls, copy)
-  if (identical(node$keyword, "upload") &&
+  if (identical(node$keyword, "ppUpload") &&
       (accepts_dots || "file_copy" %in% fmls)) {
     extra_named$file_copy <- ptr_resolve_ui_text(
       "upload_file", ui_text = ui_text

@@ -31,7 +31,7 @@ translated_fingerprint <- function(root) {
 }
 
 test_that("string-mode unchanged: dispatch is a no-op for string scalars", {
-  formula_str <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+  formula_str <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
   expect_identical(
     ggpaintr:::ptr_capture_formula(formula_str, parent.frame()),
     formula_str
@@ -46,7 +46,7 @@ test_that("string-mode unchanged: dispatch is a no-op for string scalars", {
 })
 
 test_that("expression-mode produces an equivalent translated AST", {
-  formula_str <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+  formula_str <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
   expr_captured <- rlang::expr(
     ggplot(mtcars, aes(x = var, y = var)) + geom_point()
   )
@@ -67,7 +67,7 @@ test_that("expression-mode produces an equivalent translated AST", {
 })
 
 test_that("symbol holding a string is resolved in envir", {
-  f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+  f <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
   resolved <- ggpaintr:::ptr_capture_formula(quote(f), environment())
   expect_identical(resolved, f)
 })
@@ -122,7 +122,7 @@ test_that("invalid input is rejected with a clear message", {
 })
 
 test_that("ptr_app accepts both modes and rejects invalid input end-to-end", {
-  f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+  f <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
   # String mode end-to-end (smoke): builds a shinyApp object.
   app_str <- ptr_app(f)
   expect_s3_class(app_str, "shiny.appobj")
@@ -168,7 +168,7 @@ test_that("ptr_server rejects invalid input at the public boundary", {
   # session check (proves the dispatch accepted both modes).
   expect_error(
     ptr_server(
-      "ggplot(mtcars, aes(x = var, y = var)) + geom_point()", "p"
+      "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()", "p"
     ),
     "session must be"
   )
@@ -181,7 +181,7 @@ test_that("ptr_server rejects invalid input at the public boundary", {
 })
 
 test_that("ptr_app_components accepts both modes", {
-  f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+  f <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
   parts_str <- ggpaintr:::ptr_app_components(f)
   parts_expr <- ggpaintr:::ptr_app_components(
     ggplot(mtcars, aes(x = var, y = var)) + geom_point()
@@ -191,7 +191,7 @@ test_that("ptr_app_components accepts both modes", {
 })
 
 test_that("native pipe in string mode survives preprocessing", {
-  formula_str <- "mtcars |> ggplot(aes(x = var)) + geom_histogram()"
+  formula_str <- "mtcars |> ggplot(aes(x = ppVar)) + geom_histogram()"
   expect_error(ptr_translate(formula_str), NA)
 })
 

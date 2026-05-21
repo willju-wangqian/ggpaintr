@@ -56,7 +56,7 @@ Current supported behavior:
 
 ```{r var-formula-transforms}
 obj <- ptr_parse_formula(
-  "ggplot(data = mtcars, aes(x = var + 1, y = log(var))) + geom_point()"
+  "ggplot(data = mtcars, aes(x = ppVar + 1, y = log(ppVar))) + geom_point()"
 )
 
 ggpaintr:::ptr_complete_expr(

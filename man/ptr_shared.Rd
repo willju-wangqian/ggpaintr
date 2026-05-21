@@ -23,7 +23,7 @@ auto-rendered from the first formula that mentions them.}
 \item{ui_text}{Optional copy overrides forwarded to the auto-built
 widgets (see \code{\link[=ptr_app]{ptr_app()}}'s \code{ui_text} argument).}
 
-\item{expr_check}{Whether to validate \code{expr} placeholders during formula
+\item{expr_check}{Whether to validate \code{ppExpr} placeholders during formula
 translation. Default \code{TRUE}.}
 
 \item{draw_all_label}{Label for the "Draw all" button rendered in the
@@ -55,8 +55,8 @@ the coordinator is a declaration of intent.
 }
 \examples{
 obj <- ptr_shared(c(
-  "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
-  "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+  "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()",
+  "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"
 ))
 obj$panel_keys   # "x" — shared by both formulas
 }
