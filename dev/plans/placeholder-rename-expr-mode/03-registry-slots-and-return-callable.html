@@ -131,7 +131,12 @@
   <tr><td><code>named_args</code> is a list (possibly empty), every element a function, every name non-empty character</td><td>walk <code>named_args</code> with <code>vapply(..., is.function, logical(1))</code> and <code>nzchar(names(named_args))</code></td><td><code>rlang_error</code></td></tr>
   <tr><td>No element of <code>named_args</code> is named <code>"shared"</code></td><td><code>!("shared" %in% names(named_args))</code></td><td><code>rlang_error</code> with message naming "shared is reserved"</td></tr>
   <tr><td><code>runtime</code> is NULL or a function</td><td><code>is.null(runtime) || is.function(runtime)</code></td><td><code>rlang_error</code></td></tr>
+  <tr><td><strong>Keyword does not shadow base R / ggplot2</strong> (per ADR 0009 §"Edge-case resolutions" — F1.a)</td><td>For each package in <code>c("base", "stats", "utils", "methods", "graphics", "grDevices", "ggplot2")</code>, check <code>exists(keyword, envir = asNamespace(pkg), inherits = FALSE)</code> AND <code>is.function(get(keyword, envir = asNamespace(pkg)))</code>. If any match, abort.</td><td><code>rlang_error</code> with message naming the conflicting package, e.g.: "Placeholder keyword 'sqrt' shadows <code>base::sqrt</code>. Pick a name that does not collide with base R or ggplot2 functions (the <code>pp</code>-prefix convention sidesteps this)."</td></tr>
 </table>
+
+<p><strong>Why F1.a:</strong> formulas inside <code>ptr_app()</code> see registered keywords as placeholder calls. A custom registration of <code>"sqrt"</code> would make <code>sqrt(4)</code> inside a formula get parsed as a placeholder call, breaking every legitimate use of <code>sqrt</code>. The <code>pp</code>-prefix convention used by the built-ins (ppVar/ppNum/etc.) avoids this automatically; the check is a tripwire for users who deviate.</p>
+
+<p><strong>F2.a: do not enforce AST-only contract on validators.</strong> The roxygen for each define-helper notes "validators are expected to operate on AST only and not call <code>eval()</code>; ggpaintr trusts the author. Authors who eval in a validator are opting into the risk of running user code at translate-time." No runtime enforcement.</p>
 
 <h2>Drift-warning helper</h2>
 
@@ -300,6 +305,6 @@
   <strong>Verification, 2026-05-20:</strong> Line numbers for the three define helpers (approx 261, 332, 419) and <code>ptr_registry_register</code> (187, with <code>invisible(entry)</code> at 192) verified against <code>R/paintr-registry.R</code> on 2026-05-20. Re-verify with <code>grep -n "^ptr_define_placeholder_\|^ptr_registry_register" R/paintr-registry.R</code> before editing. Note that the original line numbers in earlier drafts of this plan were off-by-one; the values here reflect the corrected positions.
 </div>
 
-<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=8d808c8665c2 -->
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=25151bdf58bb -->
 </body>
 </html>

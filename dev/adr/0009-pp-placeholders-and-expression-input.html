@@ -255,6 +255,51 @@ ppUpload &lt;- ptr_define_placeholder_source(
   <tr><td><code>NEWS.md</code>, <code>DESCRIPTION</code></td><td>Record the breaking change. No new dependency.</td></tr>
 </table>
 
+<h2>Edge-case resolutions (2026-05-20)</h2>
+
+<p>An edge-case review (see <code>dev/adr/0009-edge-cases.html</code>) surfaced 22 ambiguous cases not pinned down by the rest of this ADR. Decisions:</p>
+
+<table>
+  <tr><th>Case</th><th>Decision</th><th>Where it lands</th></tr>
+  <tr><td><strong>A1 — numeric defaults beyond literals</strong></td><td>Introduce a <em>constant-fold allowlist registry</em> (<code>ptr_register_constant_fold</code> / <code>ptr_clear_constant_fold</code> / <code>ptr_constant_fold_keywords</code>) mirroring the placeholder-registry pattern. Built-ins seeded with arithmetic ops (<code>-</code>, <code>+</code>, <code>*</code>, <code>/</code>, <code>^</code>, <code>%%</code>), sequence constructors (<code>:</code>, <code>c</code>, <code>seq</code>, <code>seq.int</code>, <code>seq_len</code>, <code>seq_along</code>). Numeric validators walk the AST against this registry, then eval in a sealed env containing exactly the registered names. <code>ppNum(-5)</code>, <code>ppNum(2 * pi)</code>, <code>ppRange(seq(0, 1, by = 0.1))</code> all work. <code>ppNum(system("rm"))</code> rejected at walk time. Subsumes A2.</td><td>PLAN-01</td></tr>
+  <tr><td><strong>A2 — non-literal numeric</strong></td><td>Subsumed by A1 — <code>ppNum(1 + 1)</code> works via constant-fold.</td><td>PLAN-01</td></tr>
+  <tr><td><strong>A3 — <code>ppText("")</code></strong></td><td>Accept. Empty string is a meaningful "boot blank" default.</td><td>PLAN-01</td></tr>
+  <tr><td><strong>A4 — backticked / whitespace symbols in <code>ppVar</code></strong></td><td>Accept. <code>ptr_default_symbol_or_string()</code> takes <code>rlang::as_string(sym)</code> verbatim, preserving non-syntactic names.</td><td>PLAN-01</td></tr>
+  <tr><td><strong>A5 — <code>ppExpr(quote(x + 1))</code></strong></td><td>Do NOT auto-unwrap. Store the wrapper verbatim (textarea shows <code>quote(x + 1)</code>) AND emit a one-shot warning at translate-time: "ppExpr already captures unevaluated; no need to wrap in <code>quote()</code>/<code>rlang::expr()</code>/<code>bquote()</code>." User learns.</td><td>PLAN-08 (ppExpr registration / validator)</td></tr>
+  <tr><td><strong>B1 — different keywords on the same shared key</strong></td><td>Abort at translate-time with role-mismatch error naming both keywords and both roles.</td><td>PLAN-06 (extract_placeholder_args or its caller)</td></tr>
+  <tr><td><strong>B2 — default conflict, first has none</strong></td><td>First-occurrence-wins silently (no special promotion). Documented in helper roxygen.</td><td>PLAN-07 (no code change; doc only)</td></tr>
+  <tr><td><strong>B3 — identical default on shared key</strong></td><td>Silent. No lint.</td><td>(no code change)</td></tr>
+  <tr><td><strong>C1 — default column not in upstream data</strong></td><td>Silent drop (today's <code>intersect(selected, cols)</code> behavior extends to defaults). No warning.</td><td>PLAN-07 (already aligned)</td></tr>
+  <tr><td><strong>C2 — default before async data arrives</strong></td><td>Seed unconditionally; <code>intersect</code> drops it when cols are unknown and re-applies when they arrive. No special "pending" state.</td><td>PLAN-07 (already aligned)</td></tr>
+  <tr><td><strong>D1 — plain-R <code>ppExpr</code> outside <code>aes()</code></strong></td><td>Pure identity. Document in <code>?ppExpr</code> that bare-statement use evaluates the arg in the caller frame (R's normal scoping). Users wanting non-eval semantics use base R <code>rlang::expr()</code>/<code>quote()</code>.</td><td>roxygen in PLAN-08</td></tr>
+  <tr><td><strong>D2 — "not bound" definition</strong></td><td>Explanatory only. Add a one-paragraph clarification to <code>?ppVar</code>: "bound" = "has a value in the current environment". Inside <code>aes()</code> the data context binds column symbols; outside, normal R scoping.</td><td>roxygen in PLAN-08</td></tr>
+  <tr><td><strong>E1 — pre-quoted input + <code>!!</code></strong></td><td>Use <code>rlang::enexpr()</code> instead of <code>substitute()</code> at the public boundary. This both supports <code>!!</code> splicing (free) AND lets us detect wrappers — unwrap once if root is <code>rlang::expr(...)</code> / <code>rlang::quo(...)</code> / <code>quote(...)</code> / <code>bquote(...)</code>.</td><td>PLAN-04</td></tr>
+  <tr><td><strong>E2 — native pipe lost in expression mode</strong></td><td>Accept the loss. Document the limitation in <code>?ptr_app</code>. <code>|&gt;</code>-preservation in expression mode is out of scope.</td><td>PLAN-04 (already aligned, doc strengthened)</td></tr>
+  <tr><td><strong>F1 — custom keyword shadows base R</strong></td><td>Reject at <code>ptr_define_placeholder_*()</code> registration. Block any keyword that resolves to a function in <code>base</code>, <code>stats</code>, <code>utils</code>, <code>methods</code>, <code>graphics</code>, <code>grDevices</code>, or <code>ggplot2</code>. Error names the conflicting package.</td><td>PLAN-03</td></tr>
+  <tr><td><strong>F2 — custom validator that calls <code>eval()</code></strong></td><td>Document the AST-only contract in <code>ptr_define_placeholder_value</code>'s roxygen; do not enforce. Author is opting into the risk.</td><td>roxygen in PLAN-03</td></tr>
+  <tr><td><strong>G1 — preserve-mode rendering for <code>ppVar</code></strong></td><td>Bareword always; backticked when the column name is non-syntactic (use base R's <code>make.names(x) == x</code> to detect). The form <code>ppVar(mpg)</code> / <code>ppVar(`my col`)</code> round-trips via identity + tidy-eval. The <code>.data[[ppVar("col")]]</code> form is mentioned in <code>?ptr_app</code> as a power-user alternative.</td><td>PLAN-05</td></tr>
+  <tr><td><strong>G2 — shared placeholders in preserve mode</strong></td><td>Render the (shared) default at <em>every</em> occurrence; the rendered formula round-trips because first-occurrence-wins still picks the same value. Renderer does not track occurrence index.</td><td>PLAN-05</td></tr>
+  <tr><td><strong>G3 — current pick vs author default in preserve mode</strong></td><td>Emit the current runtime pick. The preserve view is "formula + current state."</td><td>PLAN-05 (already aligned)</td></tr>
+  <tr><td><strong>H1 — Shiny bookmarks across the rename</strong></td><td>Out of scope. ggpaintr id-assignment is documented as internal/unstable.</td><td>NEWS.md note in PLAN-08</td></tr>
+  <tr><td><strong>H2 — user had a custom <code>"var"</code> registration before rename</strong></td><td>No action; NEWS.md mentions that <code>var/num/text/expr/upload</code> are no longer reserved by ggpaintr.</td><td>NEWS.md in PLAN-08</td></tr>
+  <tr><td><strong>I1, I2 — error message wording</strong></td><td>Current concise wording stays. No "hint" or "context-quoting" additions.</td><td>PLAN-06 (already aligned)</td></tr>
+</table>
+
+<h3>Cross-cutting decision: prefer rlang over base R for AST work</h3>
+
+<p>Wherever the implementation has a choice between a base-R AST primitive and an rlang equivalent, prefer rlang:</p>
+<table>
+  <tr><th>Use</th><th>Prefer (rlang)</th><th>Avoid (base)</th></tr>
+  <tr><td>Capture an unevaluated argument</td><td><code>rlang::enexpr(x)</code></td><td><code>substitute(x)</code></td></tr>
+  <tr><td>Inert quoted expression</td><td><code>rlang::expr(x + 1)</code></td><td><code>quote(x + 1)</code></td></tr>
+  <tr><td>Evaluate a bare expression in a chosen env</td><td><code>rlang::eval_bare(e, env)</code></td><td><code>eval(e, env)</code> (use rlang form when env is sealed)</td></tr>
+  <tr><td>Test AST shape</td><td><code>rlang::is_symbol</code>, <code>rlang::is_call</code>, <code>rlang::is_syntactic_literal</code>, <code>rlang::is_string</code>, <code>rlang::call_name</code>, <code>rlang::as_string</code></td><td>direct <code>is.symbol</code>, <code>is.call</code>, etc. (acceptable but less consistent)</td></tr>
+  <tr><td>Stringify language for display</td><td><code>rlang::expr_text(e)</code></td><td><code>deparse(e)</code></td></tr>
+  <tr><td>Splicing with <code>!!</code></td><td>only via <code>rlang::enexpr</code>/<code>rlang::expr</code>/<code>rlang::eval_tidy</code></td><td>not supported in base</td></tr>
+</table>
+
+<p>rlang is already in Imports; no new dependency. This is style guidance, applied in every plan that touches the AST or the placeholder pipeline.</p>
+
 <h2>Open follow-ups (out of scope this round)</h2>
 <ul>
   <li>Eval-with-safety variants of the default-arg helpers (e.g. <code>ptr_default_numeric_vector_eval(env)</code>) for placeholders that want to accept variable references like <code>ppRange(my_range)</code>. Requires caller-env threading and a translate-time safety pass; additive when ready.</li>

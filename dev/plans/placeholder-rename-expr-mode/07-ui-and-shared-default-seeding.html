@@ -24,6 +24,15 @@
 <h1>PLAN-07 — UI hooks + shared coordinator default seeding</h1>
 <p class="meta">Owning ADR: <code>dev/adr/0009-pp-placeholders-and-expression-input.html</code> · Branch: <code>adr9/07-ui-shared-defaults</code> · Parallelism: <span class="seq">SEQUENTIAL (after PLAN-02 + PLAN-06)</span> · Date: 2026-05-20</p>
 
+<div class="note" style="border-left:4px solid #2c7;background:#eafaf0;padding:.6rem .9rem;margin:.8rem 0;">
+  <strong>Edge-case resolutions confirmed (ADR 0009 §"Edge-case resolutions", 2026-05-20):</strong>
+  <ul style="margin:.3rem 0;">
+    <li><strong>C1 (default column not in upstream data) → silent drop.</strong> The existing <code>intersect(selected, cols)</code> path drops the default the same way it drops persisted input that no longer matches; no warning. This plan's build-ui orchestrator inherits that behavior — no special case needed.</li>
+    <li><strong>C2 (default before async data arrives) → seed unconditionally.</strong> Use <code>node$default</code> as the fallback whenever persisted input is empty, regardless of whether <code>cols</code> has populated yet. <code>intersect</code> resolves it once cols arrive.</li>
+    <li><strong>B2 (shared default conflict) → first-occurrence-wins silently.</strong> <code>shared_widget_default(occurrences)</code> reads only <code>occurrences[[1L]]$default</code>; later occurrences' defaults are silently ignored. No warning.</li>
+  </ul>
+</div>
+
 <h2>What this plan does (self-contained)</h2>
 
 <p>Wires <code>node$default</code> (set by PLAN-06's parser) into two consumer paths:</p>
@@ -245,6 +254,6 @@ do.call(entry$build_ui, c(build_ui_args, list(...)))</pre>
   <strong>Verification, 2026-05-20:</strong> <code>R/paintr-shared.R</code> line 144 (<code>collect_shared_consumer_occurrences</code>), 177 (<code>shared_widget_label</code>), 192 (<code>resolve_shared_consumer</code>) verified on 2026-05-20. The build-ui call site that computes <code>selected</code> was not pinned to a single line during planning — locate it with <code>grep -n "selected\b" R/paintr-build-ui.R</code> before editing and document the line in the implementing PR.
 </div>
 
-<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=668c4ef0a7e6 -->
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=3412bf0e1da6 -->
 </body>
 </html>

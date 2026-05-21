@@ -94,14 +94,18 @@
 
 <p><strong>Keyword-agnostic:</strong> the renderer reads <code>node$keyword</code> directly. After PLAN-08 renames the built-in keywords, the renderer emits the new names automatically with no further change here.</p>
 
-<p><strong>Symbol vs string formatting for the inner positional:</strong>
+<p><strong>Symbol vs string formatting for the inner positional</strong> (G1.d from ADR 0009 edge-case resolutions):
 <ul>
-  <li>For <code>ppVar</code> (<code>ptr_default_symbol_or_string</code>): emit the bareword (no quotes) — <code>ppVar(mpg)</code>.</li>
+  <li>For <code>ppVar</code> (<code>ptr_default_symbol_or_string</code>): emit a <em>bareword</em> when the column name is a syntactic R identifier (use base R's <code>make.names(x) == x</code> as the check); otherwise emit a backticked bareword — <code>ppVar(mpg)</code> or <code>ppVar(`miles per gallon`)</code>. Never emit <code>ppVar("mpg")</code> as a string — inside <code>aes()</code> that would resolve to a constant aesthetic, not a column reference. The <code>.data[[ppVar("col")]]</code> form is a power-user alternative mentioned in <code>?ptr_app</code>; this renderer does not emit it.</li>
   <li>For <code>ppText</code> (<code>ptr_default_string</code>): emit quoted — <code>ppText("hello")</code>.</li>
   <li>For <code>ppNum</code> (<code>ptr_default_numeric</code>): emit numeric literal — <code>ppNum(5)</code>.</li>
-  <li>For <code>ppExpr</code> (<code>ptr_default_expression</code>): emit deparsed expression — <code>ppExpr(x + 1)</code>.</li>
+  <li>For <code>ppExpr</code> (<code>ptr_default_expression</code>): emit deparsed expression via <code>rlang::expr_text()</code> — <code>ppExpr(x + 1)</code>.</li>
 </ul>
-The renderer can decide by inspecting <code>typeof(node$current_pick)</code> and the registry's <code>default_arg</code> (looked up via <code>ptr_registry_lookup(node$keyword)</code>). For this plan, implement a small helper <code>format_placeholder_value(value, keyword)</code> that does the dispatch; tests cover each shape.</p>
+The renderer decides by inspecting <code>typeof(node$current_pick)</code> and the registry's <code>default_arg</code> (looked up via <code>ptr_registry_lookup(node$keyword)</code>). Implement a small helper <code>format_placeholder_value(value, keyword)</code> that does the dispatch; tests cover each shape including non-syntactic column names (backtick path).</p>
+
+<p><strong>G2.a — shared placeholders render at every occurrence.</strong> When a placeholder has a non-NULL <code>node$shared</code>, the renderer emits the full <code>ppX(current_pick, shared = "k")</code> form at <em>every</em> occurrence in the rendered formula, not only the first. Rationale: the rendered formula round-trips correctly (re-translation applies first-occurrence-wins and arrives at the same value); the renderer does not need to track occurrence index, keeping the code path simple. Authoring-time intent (where the user wrote the default) is preserved at every site.</p>
+
+<p><strong>G3.a — current pick wins over author default in preserve mode</strong> (already implied by the renderer-uses-current_pick design above): when the user's runtime pick differs from the formula-time default, preserve mode emits the current pick — e.g. user authored <code>ppNum(5)</code>, picked <code>7.5</code>, renderer emits <code>ppNum(7.5)</code>. The preserve view is "formula + current state", consistent across var/num/text/expr.</p>
 
 <h2>Success Criteria</h2>
 
@@ -215,6 +219,6 @@ The renderer can decide by inspecting <code>typeof(node$current_pick)</code> and
   <strong>Verification, 2026-05-20:</strong> Line numbers for <code>ptr_render</code> (15), <code>render_walk</code> generic (19), and <code>render_walk.ptr_ph_value</code> (209) verified on 2026-05-20. Re-verify with <code>grep -n "^ptr_render\|^render_walk" R/paintr-render.R</code> before editing.
 </div>
 
-<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=11e4993542f3 -->
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=032719a6a29e -->
 </body>
 </html>

@@ -188,6 +188,36 @@ list(keyword = kw, entry = entry,
   <li>The authoritative gate reports 0/0/0 PASS N ≥ baseline + new tests.</li>
 </ol>
 
+<h2>Shared-key role-uniqueness check (B1.a from ADR 0009 §"Edge-case resolutions")</h2>
+
+<p>After the tree is annotated and <code>ptr_shared_bind</code> has bucketed the occurrences by shared key, run a sibling validator that aborts when two occurrences with the same <code>shared</code> key come from different placeholder <em>roles</em> (e.g. one <code>ppVar</code> consumer + one <code>ppNum</code> value, both with <code>shared = "k"</code>). This catches a footgun where the same shared id would back two incompatible widget types.</p>
+
+<p><strong>Where it lands</strong> (R/paintr-translate.R, inside the <code>annotate</code> block around lines 60-66): add a new line <code>ptr_validate_shared_roles(root)</code> right after the existing <code>root &lt;- ptr_shared_bind(root)</code> call.</p>
+
+<p><strong>Helper sketch:</strong></p>
+<pre>ptr_validate_shared_roles &lt;- function(root) {
+  occs &lt;- collect_shared_occurrences(root)   # walk tree; returns list keyed by shared
+  for (key in names(occs)) {
+    bucket &lt;- occs[[key]]
+    roles &lt;- vapply(bucket, function(n) {
+      if (is_ptr_ph_data_consumer(n)) "consumer"
+      else if (is_ptr_ph_data_source(n)) "source"
+      else "value"
+    }, character(1))
+    if (length(unique(roles)) &gt; 1L) {
+      keywords &lt;- vapply(bucket, function(n) n$keyword, character(1))
+      rlang::abort(paste0(
+        "Shared key `\"", key, "\"` is used by placeholders with incompatible roles: ",
+        paste0(keywords, "=", roles, collapse = ", "), ". ",
+        "A shared widget can only back one role at a time."
+      ))
+    }
+  }
+  invisible(root)
+}</pre>
+
+<p>The <code>collect_shared_occurrences</code> helper may already exist as <code>collect_shared_consumer_occurrences</code> in R/paintr-shared.R:144 — generalize or write a sibling that includes all placeholder roles, not only consumers.</p>
+
 <h2>Constraints</h2>
 
 <ul>
@@ -312,6 +342,6 @@ list(keyword = kw, entry = entry,
   <strong>Verification, 2026-05-20:</strong> Line numbers for <code>extract_shared</code> (381; an earlier audit miscalled this 380 — re-verified 381), its caller inside <code>detect_placeholder</code> (lines 359–366 with the call at 364), and <code>build_placeholder_node</code> (479–494 with placeholder constructor calls at 483 / 486 / 489) verified on 2026-05-20. Re-verify with <code>grep -n "extract_shared\b\|^detect_placeholder\|^build_placeholder_node\|ptr_ph_value(\|ptr_ph_data_consumer(\|ptr_ph_data_source(" R/paintr-translate.R</code> before editing.
 </div>
 
-<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=508ba20251c7 -->
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=5aacc77a8294 -->
 </body>
 </html>

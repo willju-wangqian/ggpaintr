@@ -26,9 +26,15 @@
 
 <h2>What this plan does (self-contained)</h2>
 
-<p>Adds five small, pure-function helpers that ggpaintr will use to validate the unevaluated AST of a placeholder's positional default and named arguments. These helpers do not change any existing behaviour: they introduce new exported helpers that no other code calls yet. PLAN-03 (registry) and PLAN-06 (parser) will consume them later.</p>
+<p>Adds five default-validator factory helpers plus a small <strong>constant-fold allowlist registry</strong> that ggpaintr will use to validate the unevaluated AST of a placeholder's positional default and named arguments. These helpers do not change any existing behaviour: they introduce new exported helpers that no other code calls yet. PLAN-03 (registry) and PLAN-06 (parser) will consume them later.</p>
 
-<p>Each helper accepts an unevaluated R expression (the AST captured by the parser) and either returns a canonical value or aborts with a clear, keyword-specific message. The helpers <strong>never call <code>eval()</code></strong> — they pattern-match the AST. Symbol policy is per-helper (see table below); the parser remains keyword-agnostic.</p>
+<p>Each helper accepts an unevaluated R expression (the AST captured by the parser) and either returns a canonical value or aborts with a clear message. Symbol policy is per-helper (see table below); the parser remains keyword-agnostic.</p>
+
+<p>The numeric helpers (<code>ptr_default_numeric</code>, <code>ptr_default_numeric_vector</code>) accept any AST whose every node is in the <strong>constant-fold allowlist</strong>: literals, plus a registry of pure-arithmetic / sequence-constructor function names. After walking the AST against the registry, the numeric helpers eval in a <em>sealed</em> environment containing exactly the registered names — no chance of running arbitrary user code at translate-time. The non-numeric helpers (string, symbol-or-string, expression) remain literal-only (no eval).</p>
+
+<p><strong>Edge-case decisions folded in (from ADR 0009 §"Edge-case resolutions"):</strong> A1 (constant-fold registry — this plan), A2 (subsumed by A1), A3 (accept <code>ppText("")</code>), A4 (accept backtick column names).</p>
+
+<p><strong>rlang preference (ADR 0009 cross-cutting):</strong> use <code>rlang::is_symbol</code>, <code>rlang::is_call</code>, <code>rlang::is_syntactic_literal</code>, <code>rlang::is_string</code>, <code>rlang::as_string</code>, <code>rlang::call_name</code>, <code>rlang::eval_bare</code> over the base R equivalents. rlang is already in Imports.</p>
 
 <h2>Context from ADR 0009 (only the bits this plan touches)</h2>
 
@@ -37,37 +43,96 @@
 <p>The five built-in helpers and their accept/reject matrix:</p>
 
 <table>
-  <tr><th>Helper</th><th>Bareword symbol</th><th>String literal</th><th>Numeric literal</th><th>c(...) literal</th><th>Other</th><th>Return</th></tr>
-  <tr><td><code>ptr_default_symbol_or_string()</code></td><td>accept (as column-name string)</td><td>accept</td><td>reject</td><td>reject</td><td>reject</td><td>single character string</td></tr>
-  <tr><td><code>ptr_default_string()</code></td><td>reject</td><td>accept</td><td>reject</td><td>reject</td><td>reject</td><td>single character string</td></tr>
-  <tr><td><code>ptr_default_numeric()</code></td><td>reject</td><td>reject</td><td>accept (scalar)</td><td>reject</td><td>reject</td><td>length-1 numeric</td></tr>
-  <tr><td><code>ptr_default_numeric_vector(length = NULL)</code></td><td>reject</td><td>reject</td><td>reject (or accept as length-1 if length permits)</td><td>accept if every element is a numeric literal; length check if non-NULL</td><td>reject</td><td>numeric vector</td></tr>
-  <tr><td><code>ptr_default_expression()</code></td><td>store verbatim as language</td><td>store as language</td><td>store as language</td><td>store as language</td><td>store as language</td><td>language object (unchanged input)</td></tr>
+  <tr><th>Helper</th><th>Bareword symbol</th><th>String literal</th><th>Numeric (literal or constant-fold)</th><th>Other</th><th>Return</th></tr>
+  <tr><td><code>ptr_default_symbol_or_string()</code></td><td>accept (as column-name string via <code>rlang::as_string</code>; preserves backticked / non-syntactic names — A4)</td><td>accept (empty string accepted — A3)</td><td>reject</td><td>reject</td><td>single character string</td></tr>
+  <tr><td><code>ptr_default_string()</code></td><td>reject</td><td>accept (empty string accepted — A3)</td><td>reject</td><td>reject</td><td>single character string</td></tr>
+  <tr><td><code>ptr_default_numeric()</code></td><td>accept if name registered in constant-fold (e.g. <code>pi</code>)</td><td>reject</td><td>accept any AST whose nodes are literals + registered names (A1+A2 via constant-fold)</td><td>reject</td><td>length-1 numeric</td></tr>
+  <tr><td><code>ptr_default_numeric_vector(length = NULL)</code></td><td>same as <code>_numeric</code></td><td>reject</td><td>accept any AST that constant-folds to a numeric vector; optional <code>length</code> check</td><td>reject</td><td>numeric vector</td></tr>
+  <tr><td><code>ptr_default_expression()</code></td><td>store verbatim as language</td><td>store as language</td><td>store as language</td><td>store as language</td><td>language object (unchanged input)</td></tr>
 </table>
+
+<h3>Constant-fold allowlist registry (new in this plan)</h3>
+
+<p>A separate small registry — distinct from the placeholder registry — holds the function (or constant) bindings that <code>ptr_default_numeric*</code> may walk + eval against.</p>
+
+<table>
+  <tr><th>Public function</th><th>Purpose</th></tr>
+  <tr><td><code>ptr_register_constant_fold(name, value)</code></td><td>Register a function or constant under <code>name</code> (character scalar). Numeric validators allow AST nodes naming <code>name</code>.</td></tr>
+  <tr><td><code>ptr_clear_constant_fold(name = NULL)</code></td><td>Remove <code>name</code> from the allowlist. If <code>name</code> is <code>NULL</code>, clear all entries and re-seed the built-ins.</td></tr>
+  <tr><td><code>ptr_constant_fold_keywords()</code></td><td>List currently-registered names.</td></tr>
+</table>
+
+<p><strong>Built-in registrations (seeded at package load via <code>.onLoad</code>):</strong> arithmetic — <code>-</code>, <code>+</code>, <code>*</code>, <code>/</code>, <code>^</code>, <code>%%</code>, <code>%/%</code>. Sequence constructors — <code>:</code>, <code>c</code>, <code>seq</code>, <code>seq.int</code>, <code>seq_len</code>, <code>seq_along</code>. Common numeric constants resolve via the sealed env's parent (<code>baseenv()</code>): <code>pi</code>, <code>Inf</code>, <code>NaN</code>, <code>NA_real_</code>, <code>NA_integer_</code>.</p>
+
+<p><strong>Internal storage:</strong></p>
+<pre>ptr_constant_fold_env &lt;- new.env(parent = baseenv())
+# Functions and constants registered here are looked up by name during the
+# AST walk and bound during the sealed-env eval. Parent is baseenv() so
+# `pi`, `Inf`, `NaN`, etc. resolve without explicit registration.</pre>
+
+<p><strong>Eval discipline:</strong> the numeric validators use <code>rlang::eval_bare(expr, ptr_constant_fold_env)</code> AFTER walking the AST to confirm every call head and free symbol is in the allowlist (registered name OR a numeric constant resolvable from <code>baseenv()</code>). Walk-then-eval; never eval-without-walk.</p>
 
 <h2>Files touched</h2>
 
 <table>
   <tr><th>File</th><th>Change</th></tr>
-  <tr><td>new <code>R/paintr-default-args.R</code></td><td>Define and export the five helpers above. Each is a factory function returning a closure (the actual validator) so call sites read <code>default_arg = ptr_default_numeric()</code> rather than <code>default_arg = ptr_default_numeric</code>.</td></tr>
-  <tr><td>new <code>tests/testthat/test-default-args.R</code></td><td>Unit tests covering every accept/reject case in the matrix, plus length-check behaviour for the vector helper.</td></tr>
-  <tr><td><code>NAMESPACE</code> (auto-generated)</td><td>Re-generated via <code>devtools::document()</code>. Do not hand-edit.</td></tr>
+  <tr><td>new <code>R/paintr-default-args.R</code></td><td>Define and export the five default-validator factories above plus the three constant-fold registry helpers (<code>ptr_register_constant_fold</code>, <code>ptr_clear_constant_fold</code>, <code>ptr_constant_fold_keywords</code>). Each validator factory returns a closure so call sites read <code>default_arg = ptr_default_numeric()</code> not <code>default_arg = ptr_default_numeric</code>. Includes the AST walker (<code>validate_constant_ast</code>) and the eval helper (<code>ptr_constant_fold</code>) as internal helpers.</td></tr>
+  <tr><td>new <code>tests/testthat/test-default-args.R</code></td><td>Unit tests covering every accept/reject case in the matrix, length-check behaviour for the vector helper, every constant-fold scenario (arithmetic, seq, registered constants, unregistered rejection), registry life-cycle (register → use → clear → re-seed), and the A3/A4 edge cases (empty string, backticked names).</td></tr>
+  <tr><td><code>R/zzz.R</code> (likely existing; create if not)</td><td>Add a <code>.onLoad()</code> body (or extend an existing one) that calls a private <code>ptr_register_constant_fold_builtins()</code> to seed the built-in allowlist entries at package load. The function uses <code>rlang</code> idioms consistently.</td></tr>
+  <tr><td><code>NAMESPACE</code> (auto-generated)</td><td>Re-generated via <code>devtools::document()</code>. Do not hand-edit. Expected new exports: 5 validator factories + 3 registry helpers = 8 new <code>export()</code> lines.</td></tr>
 </table>
 
 <h2>Helper contract (closure shape)</h2>
 
 <p>Every helper is a factory:</p>
 
-<pre>ptr_default_numeric &lt;- function() {
+<pre># Pure-literal case (no constant-fold): ptr_default_string
+ptr_default_string &lt;- function() {
   function(arg_expr) {
-    # arg_expr is unevaluated language (number, symbol, call, string, ...)
-    if (is.numeric(arg_expr) &amp;&amp; length(arg_expr) == 1L &amp;&amp; !is.na(arg_expr)) {
-      return(arg_expr)
-    }
-    rlang::abort(
-      "Default for this placeholder must be a single numeric literal."
-    )
+    if (rlang::is_string(arg_expr)) return(arg_expr)
+    rlang::abort("Default must be a single string literal.")
   }
+}
+
+# Constant-fold case: ptr_default_numeric uses the allowlist registry
+ptr_default_numeric &lt;- function() {
+  function(arg_expr) {
+    val &lt;- ptr_constant_fold(arg_expr)   # walks + eval'd in sealed env
+    if (!is.numeric(val) || length(val) != 1L || is.na(val)) {
+      rlang::abort("Default must evaluate to a single numeric.")
+    }
+    val
+  }
+}
+
+# The walker-evaluator (internal):
+ptr_constant_fold &lt;- function(expr) {
+  validate_constant_ast(expr)            # walks AST against ptr_constant_fold_env
+  rlang::eval_bare(expr, ptr_constant_fold_env)
+}
+
+validate_constant_ast &lt;- function(expr) {
+  if (rlang::is_syntactic_literal(expr)) return(invisible())
+  if (rlang::is_symbol(expr)) {
+    name &lt;- rlang::as_string(expr)
+    if (exists(name, envir = ptr_constant_fold_env, inherits = TRUE)) return(invisible())
+    rlang::abort(sprintf("symbol `%s` not in constant-fold allowlist", name))
+  }
+  if (rlang::is_call(expr)) {
+    head &lt;- expr[[1L]]
+    if (!rlang::is_symbol(head)) {
+      rlang::abort("non-symbol call head not allowed in constant expression")
+    }
+    name &lt;- rlang::as_string(head)
+    if (!exists(name, envir = ptr_constant_fold_env, inherits = FALSE)) {
+      rlang::abort(sprintf("function `%s` not in constant-fold allowlist", name))
+    }
+    for (i in seq.int(2L, length(expr))) {
+      if (!rlang::is_missing(expr[[i]])) validate_constant_ast(expr[[i]])
+    }
+    return(invisible())
+  }
+  rlang::abort(sprintf("unsupported AST node type: %s", typeof(expr)))
 }</pre>
 
 <p>The closure is what gets stored in <code>entry$default_arg</code>. PLAN-06's parser calls it with the placeholder's positional arg AST and stores the returned canonical value on <code>node$default</code>.</p>
@@ -92,9 +157,13 @@
 <ol>
   <li><code>R/paintr-default-args.R</code> exists and exports five factory functions: <code>ptr_default_symbol_or_string</code>, <code>ptr_default_string</code>, <code>ptr_default_numeric</code>, <code>ptr_default_numeric_vector</code>, <code>ptr_default_expression</code>.</li>
   <li>Each factory returns a closure of shape <code>function(arg_expr) -&gt; canonical_value | abort()</code>.</li>
-  <li>Symbol policy follows the accept/reject matrix above. <code>ptr_default_symbol_or_string()</code> returns the symbol's name as a character string when given a symbol; returns the string unchanged when given a string literal; aborts otherwise.</li>
+  <li>Symbol policy follows the accept/reject matrix above. <code>ptr_default_symbol_or_string()</code> returns the symbol's name as a character string via <code>rlang::as_string</code> (preserves backticked/non-syntactic names per A4); returns the string unchanged when given a string literal (including <code>""</code> per A3); aborts otherwise.</li>
+  <li><code>ptr_default_string()</code> accepts <code>""</code> (per A3) and any other single string literal.</li>
   <li><code>ptr_default_expression()</code> returns its input unchanged (it is purely a tag, not a transformer); helpful so the parser still stamps "this placeholder accepts a default" regardless of shape.</li>
-  <li><code>ptr_default_numeric_vector(length = 2L)</code> accepts <code>c(0, 1)</code> and rejects <code>c(0)</code> (length mismatch); without length argument, length is unchecked.</li>
+  <li><code>ptr_default_numeric_vector(length = 2L)</code> accepts <code>c(0, 1)</code> AND <code>c(-1, 1)</code> AND <code>seq(0, 1, by = 0.1)</code> with length=NULL (constant-fold via registry); rejects <code>c(0)</code> when length=2L (length mismatch); rejects <code>c(0, system("rm"))</code> (system not in allowlist).</li>
+  <li><code>ptr_default_numeric()</code> accepts <code>5</code>, <code>-5</code>, <code>2 * pi</code> (pi resolves via baseenv parent), <code>2.5e3</code>; rejects <code>5L * x</code> (x not registered) and <code>5 + sqrt(2)</code> (sqrt not in default allowlist; user can register).</li>
+  <li>The package also exports the constant-fold registry helpers: <code>ptr_register_constant_fold(name, value)</code>, <code>ptr_clear_constant_fold(name = NULL)</code>, <code>ptr_constant_fold_keywords()</code>. Built-ins are seeded in <code>.onLoad()</code>.</li>
+  <li><strong>rlang preference:</strong> the helpers use <code>rlang::is_call</code>, <code>rlang::is_symbol</code>, <code>rlang::is_string</code>, <code>rlang::is_syntactic_literal</code>, <code>rlang::as_string</code>, <code>rlang::eval_bare</code>, <code>rlang::is_missing</code>, <code>rlang::abort</code> — not the base R equivalents.</li>
   <li>Every abort message is a single sentence naming the constraint (e.g. "Default for ppNum must be a single numeric literal.") and is produced via <code>rlang::abort()</code>, not <code>stop()</code>.</li>
   <li>Helpers do not call <code>eval()</code>, <code>parse()</code>, or any deparse → reparse cycle on the input.</li>
   <li>Unit tests in <code>tests/testthat/test-default-args.R</code> cover every cell of the matrix plus length-check behaviour. New tests are the only test additions; no existing test changes.</li>
@@ -153,12 +222,55 @@
     Then it returns the language object identical to the input
     And no eval() is called
 
-  Scenario: helpers do not eval
+  Scenario: helpers do not eval untrusted code
     Given any of the five validators
     When invoked with the AST `system("rm -rf /")`
-    Then either the validator rejects on shape (e.g. ptr_default_numeric)
+    Then either the validator rejects on shape (e.g. ptr_default_numeric: `system` not in constant-fold allowlist)
     Or it stores the call verbatim as language (ptr_default_expression)
     And the system command is never executed
+
+  Scenario: ptr_default_numeric accepts arithmetic via constant-fold
+    Given an instance of the validator from ptr_default_numeric()
+    When invoked with the AST `2 * pi`
+    Then it returns approximately 6.283185
+
+  Scenario: ptr_default_numeric accepts negative literals via unary minus
+    Given an instance of the validator from ptr_default_numeric()
+    When invoked with the AST `-5`
+    Then it returns -5
+
+  Scenario: ptr_default_numeric_vector accepts seq() via constant-fold
+    Given an instance of the validator from ptr_default_numeric_vector()
+    When invoked with the AST `seq(0, 1, by = 0.1)`
+    Then it returns the numeric vector c(0, 0.1, 0.2, ..., 1.0)
+
+  Scenario: numeric validators reject unregistered functions
+    Given an instance of the validator from ptr_default_numeric()
+    When invoked with the AST `log10(100)`
+    Then it aborts with a message naming "log10 not in constant-fold allowlist"
+    And no eval happens
+
+  Scenario: constant-fold registry lets authors extend the allowlist
+    Given a fresh package load (no user registrations)
+    When the test calls ptr_register_constant_fold("log10", log10)
+    And then invokes ptr_default_numeric() with the AST `log10(100)`
+    Then it returns 2
+
+  Scenario: ptr_clear_constant_fold(NULL) re-seeds built-ins
+    Given a user has registered "log10" via ptr_register_constant_fold
+    When ptr_clear_constant_fold() is called with no argument
+    Then "log10" is gone from ptr_constant_fold_keywords()
+    And built-in names like "+", "c", "seq" are still present
+
+  Scenario: ptr_default_string accepts empty string (A3)
+    Given an instance of the validator from ptr_default_string()
+    When invoked with the AST `""`
+    Then it returns the empty string ""
+
+  Scenario: ptr_default_symbol_or_string preserves backticked names (A4)
+    Given an instance of the validator from ptr_default_symbol_or_string()
+    When invoked with the AST `\`miles per gallon\``
+    Then it returns the character string "miles per gallon"
 </pre>
 
 <h2>Definition of Done</h2>
@@ -217,6 +329,6 @@
   <strong>Verification of source claims in this plan, 2026-05-20:</strong> No source files are referenced by line number in this plan beyond the new file's intended path. The <em>only</em> external dependency is the existence of <code>rlang</code> as a package dependency (it is — see <code>DESCRIPTION</code>) and the <code>testthat</code> edition-3 test conventions described in <code>.claude/rules/testing.md</code>.
 </div>
 
-<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=418b350e3ca7 -->
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=39aef56107fd -->
 </body>
 </html>

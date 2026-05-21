@@ -60,35 +60,60 @@ ptr_app(ggplot(mtcars, aes(x = var, y = var)) + geom_point())          # express
 
 <table>
   <tr><th>File</th><th>Change</th></tr>
-  <tr><td><code>R/paintr-app.R</code></td><td>Capture <code>formula</code> with <code>substitute()</code> at the top of <code>ptr_app</code>, <code>ptr_server</code>, and <code>ptr_app_components</code>. Dispatch: if the captured value is a string (i.e. the user passed a character literal), use it verbatim. Otherwise, deparse the captured language to a single string with <code>paste(deparse(captured), collapse = "\n")</code> (or <code>rlang::expr_text()</code>) and pass that down. Add a private helper <code>ptr_capture_formula(formula_arg, formula_captured)</code> that performs the dispatch in one place so all three entry points stay aligned.</td></tr>
+  <tr><td><code>R/paintr-app.R</code></td><td>Capture <code>formula</code> with <code>rlang::enexpr()</code> (NOT base R <code>substitute()</code> — per ADR 0009 cross-cutting rlang-preference rule) at the top of <code>ptr_app</code>, <code>ptr_server</code>, and <code>ptr_app_components</code>. Dispatch via a new private helper <code>ptr_capture_formula(formula_captured, envir)</code>: string → return; symbol → eval in <code>envir</code> and recurse on the result; wrapper call (<code>rlang::expr</code>, <code>rlang::quo</code>, <code>quote</code>, <code>bquote</code>) → unwrap one layer (E1.a); language → <code>rlang::expr_text()</code> to single string. <code>enexpr()</code> also gives <code>!!</code>-splicing support for free (per ADR 0009 §E1).</td></tr>
   <tr><td>new <code>tests/testthat/test-expression-mode.R</code></td><td>Tests covering: string-mode unchanged; expression-mode produces an identical typed AST (modulo whitespace/native-pipe surface) for an equivalent formula; mixed call shapes (string-mode, expression-mode, expression-mode-with-magrittr-pipe).</td></tr>
 </table>
 
 <h2>Dispatch sketch</h2>
 
 <pre>ptr_app &lt;- function(formula, envir = parent.frame(), ...) {
-  formula_str &lt;- ptr_capture_formula(formula, substitute(formula))
+  formula_str &lt;- ptr_capture_formula(rlang::enexpr(formula), envir)
   parts &lt;- ptr_app_components(formula_str, envir = envir, ...)
   shiny::shinyApp(ui = parts$ui, server = parts$server)
 }
 
-ptr_capture_formula &lt;- function(formula_arg, formula_captured) {
-  # Two cases:
-  # (a) caller passed a string literal: substitute() returns a character scalar.
-  #     formula_arg has the same value; either works downstream.
-  # (b) caller passed an unquoted expression: substitute() returns language.
-  #     formula_arg attempted to eval the expression in the calling frame
-  #     and may have errored (free symbols like `var` and `mpg` are not defined)
-  #     OR returned a value (if all symbols happened to be in scope, ggplot's
-  #     identity-aes evaluation could produce something nonsensical). To avoid
-  #     accidental eval, we MUST capture via substitute() at the entry point
-  #     and NEVER touch formula_arg directly for the expression-mode case.
-  if (is.character(formula_captured) &amp;&amp; length(formula_captured) == 1L &amp;&amp;
-      !is.na(formula_captured)) {
+# NOTE (ADR 0009 cross-cutting): use rlang::enexpr() not substitute().
+# enexpr() processes `!!` splicing automatically and is the rlang-idiom
+# equivalent of substitute() for argument capture at the public boundary.
+ptr_capture_formula &lt;- function(formula_captured, envir) {
+  # (a) caller passed a string literal -> enexpr returns the character scalar.
+  if (rlang::is_string(formula_captured)) {
     return(formula_captured)
   }
-  if (is.language(formula_captured)) {
-    return(paste(deparse(formula_captured, width.cutoff = 500L), collapse = "\n"))
+  # (b) caller passed a symbol referencing a variable. Resolve once in envir.
+  if (rlang::is_symbol(formula_captured)) {
+    resolved &lt;- tryCatch(rlang::eval_bare(formula_captured, envir),
+                         error = function(e) NULL)
+    if (rlang::is_string(resolved)) return(resolved)
+    if (is.call(resolved) || rlang::is_symbol(resolved)) {
+      formula_captured &lt;- resolved
+      # fall through to wrapper-unwrap + deparse
+    } else {
+      rlang::abort(paste0(
+        "`formula` must be a single string or an unquoted ggplot expression; ",
+        "the variable `", rlang::as_string(formula_captured),
+        "` did not resolve to either."
+      ))
+    }
+  }
+  # (c) unwrap one layer of rlang::expr() / rlang::quo() / quote() / bquote()
+  #     wrappers (per ADR 0009 §"Edge-case resolutions" - E1.a).
+  if (rlang::is_call(formula_captured)) {
+    head &lt;- formula_captured[[1L]]
+    head_name &lt;- if (rlang::is_symbol(head)) {
+      rlang::as_string(head)
+    } else if (rlang::is_call(head) &amp;&amp; length(head) == 3L &amp;&amp;
+               rlang::as_string(head[[1L]]) %in% c("::", ":::")) {
+      rlang::as_string(head[[3L]])
+    } else ""
+    if (head_name %in% c("expr", "quo", "quote", "bquote") &amp;&amp;
+        length(formula_captured) &gt;= 2L) {
+      formula_captured &lt;- formula_captured[[2L]]
+    }
+  }
+  # (d) deparse the language to a single string via rlang::expr_text().
+  if (is.call(formula_captured) || rlang::is_symbol(formula_captured)) {
+    return(rlang::expr_text(formula_captured, width = 500L))
   }
   rlang::abort(paste0(
     "`formula` must be a single string or an unquoted ggplot expression; ",
@@ -96,33 +121,20 @@ ptr_capture_formula &lt;- function(formula_arg, formula_captured) {
   ))
 }</pre>
 
-<p><strong>Critical implementation note:</strong> <code>substitute(formula)</code> at the top of <code>ptr_app</code> captures whatever the user wrote, <em>without evaluating it</em>. This is the whole point of the new surface — if we let R evaluate <code>ggplot(aes(x = var, y = var))</code> first, it would fail (<code>var</code> is not a valid free symbol in the caller's frame). By capturing with <code>substitute()</code> before R tries to use the value, we sidestep evaluation entirely. The captured AST is then deparsed and routed through the existing string-mode pipeline.</p>
+<p><strong>Why <code>rlang::enexpr()</code> over <code>substitute()</code></strong> (ADR 0009 cross-cutting + E1):</p>
+<ul>
+  <li>Drop-in replacement for <code>substitute()</code> in the common case (character / symbol / language argument).</li>
+  <li>Processes <code>!!</code> splicing: <code>col &lt;- quote(mpg); ptr_app(ggplot(aes(x = ppVar(!!col))))</code> works (the <code>!!col</code> splices to <code>mpg</code>). With <code>substitute()</code>, <code>!!col</code> would parse as <code>!(!col)</code> and break silently.</li>
+  <li>Idiomatic across the rlang ecosystem (dplyr, ggplot2, rlang itself), so users coming from those packages get expected behavior.</li>
+</ul>
 
-<p><strong>String-mode side:</strong> when the user passes <code>"ggplot(...)"</code>, <code>substitute(formula)</code> returns the string literal verbatim (R doesn't evaluate string literals further). We detect this case and use the string directly.</p>
+<p><strong>Wrapper unwrap (E1.a)</strong>: if the captured expression's root is one of <code>rlang::expr(...)</code>, <code>rlang::quo(...)</code>, <code>quote(...)</code>, <code>bquote(...)</code>, unwrap exactly once. Users who pre-quote an expression and pass it via <code>ptr_app(rlang::expr(ggplot(...)))</code> get the natural behavior; deeper-nested wrapping is not unwrapped (rare and unambiguous user intent).</p>
 
-<p><strong>Variable-holding-string case:</strong> when the user writes <code>f &lt;- "ggplot(...)"; ptr_app(f)</code>, <code>substitute(formula)</code> returns the symbol <code>f</code>, not the string. We need to handle this too. The captured value is a symbol, so it falls into the "language" branch — <code>deparse(quote(f)) = "f"</code> — which is wrong. To handle this, we evaluate symbols in the caller's frame before deciding:</p>
+<p><strong>Why capture without evaluating:</strong> if R evaluates <code>ggplot(aes(x = var, y = var))</code> before <code>ptr_app</code> sees it, the call fails (<code>var</code> is not a value in the caller's frame). Capturing via <code>rlang::enexpr(formula)</code> at the top of <code>ptr_app</code> gives the unevaluated AST instead, sidestepping evaluation entirely. The dispatch helper above branches on what the captured object is (string → use; symbol → resolve in <code>envir</code>; wrapped language → unwrap once; language → deparse) and produces a string for the existing translate pipeline.</p>
 
-<pre># Refined dispatch:
-if (is.symbol(formula_captured)) {
-  # The user wrote ptr_app(some_var). Evaluate the symbol in the caller's
-  # frame to get its current value, then dispatch again. This is safe
-  # because a single symbol cannot itself be the new "unquoted ggplot
-  # expression" surface (it has no calls / no aes / no +).
-  resolved &lt;- tryCatch(
-    eval(formula_captured, envir = formula_envir),
-    error = function(e) NULL
-  )
-  if (is.character(resolved) &amp;&amp; length(resolved) == 1L &amp;&amp; !is.na(resolved)) {
-    return(resolved)
-  }
-  # Fall through: the symbol resolved to language (someone built an
-  # expression via quote() and passed it). Re-dispatch on that.
-  if (is.language(resolved)) {
-    return(paste(deparse(resolved, width.cutoff = 500L), collapse = "\n"))
-  }
-}</pre>
+<p><strong>String-mode is unchanged:</strong> when the user passes a character literal, <code>enexpr()</code> returns it verbatim (it never wraps strings in language objects). The dispatch's first branch <code>rlang::is_string</code> returns it directly.</p>
 
-<p>Where <code>formula_envir</code> is the <code>envir</code> argument the public function received (defaults to <code>parent.frame()</code>). Implement this branch as part of <code>ptr_capture_formula</code>.</p>
+<p><strong>Symbol-resolution covers the <code>f &lt;- "..."; ptr_app(f)</code> case:</strong> <code>enexpr</code> returns the symbol <code>f</code>; the dispatch's second branch evaluates it in <code>envir</code>, gets back the string. (A single symbol cannot itself be the new "unquoted ggplot expression" surface — no calls, no aes, no <code>+</code> — so re-resolving is safe.)</p>
 
 <h2>Success Criteria</h2>
 
@@ -163,7 +175,7 @@ if (is.symbol(formula_captured)) {
          to the translated root produced under the new dispatch
 
   Scenario: expression-mode produces equivalent translated AST
-    Given formula_expr <- substitute(ggplot(mtcars, aes(x = var, y = var)) + geom_point())
+    Given formula_expr <- rlang::expr(ggplot(mtcars, aes(x = ppVar(mpg), y = ppVar(disp))) + geom_point())
     And formula_str  <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
     When both are routed through ptr_capture_formula and then ptr_translate
     Then the two roots have identical layer counts and per-layer keyword sets
@@ -185,7 +197,7 @@ if (is.symbol(formula_captured)) {
     Then preprocess_native_pipe survives the |> token and the formula translates without error
 
   Scenario: native pipe in expression mode is desugared
-    Given formula_expr captured via substitute(mtcars |> ggplot(aes(x = var)) + geom_histogram())
+    Given formula_expr captured via rlang::enexpr(mtcars |> ggplot(aes(x = ppVar(mpg))) + geom_histogram())
     When ptr_capture_formula deparses it
     Then the resulting string contains "ggplot(mtcars, " (R-desugared form), not "|>"
     And ptr_translate succeeds on the desugared string
@@ -213,7 +225,10 @@ if (is.symbol(formula_captured)) {
 
 <h3>In scope</h3>
 <ul>
-  <li>Edit <code>ptr_app</code>, <code>ptr_server</code>, <code>ptr_app_components</code> to capture <code>formula</code> with <code>substitute()</code> and route through a single helper.</li>
+  <li>Edit <code>ptr_app</code>, <code>ptr_server</code>, <code>ptr_app_components</code> to capture <code>formula</code> with <code>rlang::enexpr()</code> and route through a single private helper <code>ptr_capture_formula()</code>. (Cross-cutting rlang preference, ADR 0009.)</li>
+  <li>Wrapper unwrap (E1.a): detect <code>rlang::expr</code> / <code>rlang::quo</code> / <code>quote</code> / <code>bquote</code> at the captured root and unwrap once.</li>
+  <li><code>!!</code> splicing support comes for free via <code>rlang::enexpr</code>; document in <code>?ptr_app</code> with a brief example.</li>
+  <li>Add an E2.a documentation paragraph in <code>?ptr_app</code>: "Native pipe (<code>|&gt;</code>) is desugared by R's parser before expression-mode capture; generated code shows the desugared form. Use string mode or <code>%&gt;%</code> if you need <code>|&gt;</code> preserved in the rendered output."</li>
   <li>New private helper <code>ptr_capture_formula(formula_arg, formula_captured, envir)</code>.</li>
   <li>Tests for both modes and the invalid-input paths.</li>
   <li>Roxygen + <code>devtools::document()</code>.</li>
@@ -246,6 +261,6 @@ if (is.symbol(formula_captured)) {
   <strong>Verification, 2026-05-20:</strong> Line numbers for <code>ptr_app</code> (113), <code>ptr_app_components</code> (132), <code>ptr_server</code> (921), and <code>ptr_translate</code> (12) verified on 2026-05-20. Re-verify with <code>grep -n "^ptr_app\b\|^ptr_server\b\|^ptr_app_components\b" R/paintr-app.R</code> and <code>grep -n "^ptr_translate\b" R/paintr-translate.R</code> before editing.
 </div>
 
-<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=8cdb300aa15a -->
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=3760e7f7f253 -->
 </body>
 </html>
