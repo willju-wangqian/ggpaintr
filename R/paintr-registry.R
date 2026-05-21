@@ -136,10 +136,12 @@ validate_hook <- function(fn, hook_name, required_args = character()) {
   }
   fmls <- names(formals(fn))
   if (length(fmls) == 1L && identical(fmls, "...")) {
-    cli::cli_warn(c(
-      "{.arg {hook_name}} only declares {.code ...}.",
-      i = "Required args: {.val {required_args}}."
-    ))
+    if (length(required_args) > 0L) {
+      cli::cli_warn(c(
+        "{.arg {hook_name}} only declares {.code ...}.",
+        i = "Required args: {.val {required_args}}."
+      ))
+    }
     return(invisible(TRUE))
   }
   has_dots <- "..." %in% fmls
@@ -152,6 +154,133 @@ validate_hook <- function(fn, hook_name, required_args = character()) {
     ))
   }
   invisible(TRUE)
+}
+
+# Packages whose top-level function names placeholder keywords must not
+# shadow. Per ADR 0009 F1.a: registering a keyword that names a function
+# in base R or ggplot2 would silently reinterpret legitimate calls inside
+# `ptr_app()` formulas as placeholder invocations.
+.ptr_shadow_pkgs <- c(
+  "base", "stats", "utils", "methods", "graphics", "grDevices", "ggplot2"
+)
+
+# Keywords grandfathered through the F1.a shadow check. Two categories:
+#   1. Legacy built-ins from before the ADR 0009 atomic rename (PLAN-08):
+#      `var` (stats::var), `text` (graphics::text), `num`, `expr`, `upload`.
+#   2. Vignette / fixture custom keywords that the rest of the suite
+#      already registers and that this plan is forbidden from touching
+#      (scope guard): `range` (base::range) in the plotly-paintr fixture,
+#      `date` (base::date) in helper-placeholder-registry.R.
+# Both categories disappear once PLAN-08 renames built-ins and the
+# fixture rewrite PRs migrate to `pp`-prefixed custom keywords.
+.ptr_grandfathered_keywords <- c(
+  "var", "text", "num", "expr", "upload",   # built-ins (PLAN-08 target)
+  "range", "date"                            # vignette fixtures
+)
+
+validate_keyword_no_shadow <- function(keyword) {
+  if (keyword %in% .ptr_grandfathered_keywords) return(invisible(TRUE))
+  for (pkg in .ptr_shadow_pkgs) {
+    ns <- tryCatch(asNamespace(pkg), error = function(e) NULL)
+    if (is.null(ns)) next
+    if (exists(keyword, envir = ns, inherits = FALSE) &&
+        is.function(get(keyword, envir = ns, inherits = FALSE))) {
+      rlang::abort(paste0(
+        "Placeholder keyword '", keyword, "' shadows `", pkg, "::", keyword,
+        "`. Pick a name that does not collide with base R or ggplot2 ",
+        "functions (the `pp`-prefix convention sidesteps this)."
+      ))
+    }
+  }
+  invisible(TRUE)
+}
+
+validate_default_arg <- function(default_arg, keyword) {
+  if (is.null(default_arg) || is.function(default_arg)) return(invisible(TRUE))
+  rlang::abort(paste0(
+    "`default_arg` for placeholder '", keyword,
+    "' must be NULL or a function (a validator closure)."
+  ))
+}
+
+validate_named_args <- function(named_args, keyword) {
+  if (!is.list(named_args)) {
+    rlang::abort(paste0(
+      "`named_args` for placeholder '", keyword, "' must be a list."
+    ))
+  }
+  if (length(named_args) == 0L) return(invisible(TRUE))
+  nms <- names(named_args)
+  if (is.null(nms) || any(!nzchar(nms)) || anyNA(nms)) {
+    rlang::abort(paste0(
+      "`named_args` for placeholder '", keyword,
+      "' must be a fully-named list (every element needs a non-empty name)."
+    ))
+  }
+  if (anyDuplicated(nms)) {
+    rlang::abort(paste0(
+      "`named_args` for placeholder '", keyword,
+      "' has duplicated names: ",
+      paste(unique(nms[duplicated(nms)]), collapse = ", "), "."
+    ))
+  }
+  if ("shared" %in% nms) {
+    rlang::abort(paste0(
+      "`named_args` for placeholder '", keyword,
+      "' may not contain an entry named \"shared\" (shared is reserved by ",
+      "ggpaintr for cross-layer binding)."
+    ))
+  }
+  ok <- vapply(named_args, is.function, logical(1))
+  if (!all(ok)) {
+    bad <- nms[!ok]
+    rlang::abort(paste0(
+      "`named_args` for placeholder '", keyword,
+      "' must contain only validator functions; non-function entries: ",
+      paste(bad, collapse = ", "), "."
+    ))
+  }
+  invisible(TRUE)
+}
+
+# Best-effort warning when the enclosing `<-` LHS differs from `keyword`.
+# Walks `sys.calls()` outward, stops at the first enclosing assignment, and
+# warns when the LHS symbol differs from the registered keyword. Stays
+# silent (returns NULL) in non-assignment contexts (lapply, top-level call
+# without `<-`, etc.). The mismatch is informational only — the
+# registration itself still proceeds.
+#
+# Implementation note: R's `<-` is a primitive that does not normally push
+# a call frame, so a top-level `ppFoo <- ptr_define_placeholder_*()` does
+# not surface a `<-` frame in `sys.calls()`. The walker is retained as a
+# tripwire for the rare shapes where `<-` does appear as a frame (e.g.
+# explicit re-binding inside a wrapper that itself takes the LHS symbol as
+# an argument), matching the "best-effort" wording in ADR 0009. Authors who
+# want a hard guarantee should keep the keyword and the binding identifier
+# the same — the explicit-string contract that R6::R6Class and methods::
+# setClass also rely on.
+ptr_check_keyword_lhs_drift <- function(keyword) {
+  calls <- sys.calls()
+  if (length(calls) == 0L) return(invisible(NULL))
+  for (i in seq.int(length(calls), 1L)) {
+    call <- calls[[i]]
+    if (is.call(call) && length(call) == 3L &&
+        identical(call[[1L]], quote(`<-`))) {
+      lhs <- call[[2L]]
+      if (is.symbol(lhs) && !identical(as.character(lhs), keyword)) {
+        cli::cli_warn(
+          paste0(
+            "Placeholder definition assigned to `", deparse(lhs),
+            "` but registered under keyword \"", keyword,
+            "\". The LHS name and the keyword should match for the ",
+            "plain-R callable to be in scope under the same identifier."
+          )
+        )
+      }
+      return(invisible(NULL))
+    }
+  }
+  invisible(NULL)
 }
 
 # A named list of length-1 character values, whose names are restricted to
@@ -234,9 +363,34 @@ ptr_registry_register <- function(entry) {
 #'   `placeholder`, `empty_text`. Strings may contain `{param}`, which is
 #'   interpolated to the surrounding formal-argument name at render time.
 #'
-#' @return Invisibly, the registry entry list. Called for its side effect
-#'   of registering the placeholder in the package-global registry. Use
-#'   [ptr_clear_placeholder()] to remove it.
+#' @param default_arg Optional validator closure for the (single) positional
+#'   argument the keyword accepts inside a formula. `NULL` (default) means
+#'   positional arguments are rejected at translate time. A function
+#'   receives the unevaluated AST and must return a canonical value or
+#'   `rlang::abort()`. Validators are expected to operate on the AST only
+#'   and not call `eval()`; ggpaintr trusts the author. Authors who eval in
+#'   a validator are opting into the risk of running user code at translate
+#'   time.
+#'
+#' @param named_args Named list of validator closures for additional named
+#'   arguments beyond the reserved `shared = ...`. Each entry's closure
+#'   receives the unevaluated AST and returns a canonical value or
+#'   `rlang::abort()`. Default is `list()` (no named args). The name
+#'   `"shared"` is reserved and may not appear here.
+#'
+#' @param runtime Optional `function(x, ...)` body used when the
+#'   placeholder keyword is *also* called as a plain-R function (outside a
+#'   formula context). When `NULL` (default), the identity function
+#'   `function(x, ...) x` is supplied — calling `pct(0.5)` returns `0.5`
+#'   unchanged. Override to give the keyword a non-identity plain-R
+#'   meaning. The same runtime is returned to the caller of this helper
+#'   so authors can bind it under the same name as the keyword:
+#'   `ppPct <- ptr_define_placeholder_value(keyword = "ppPct", ...)`.
+#'
+#' @return The runtime callable. Default for a value placeholder is the
+#'   identity `function(x, ...) x`; override with `runtime = ...`. The
+#'   helper is also called for its registration side effect — use
+#'   [ptr_clear_placeholder()] to remove the entry.
 #'
 #' @seealso `vignette("ggpaintr-customization")` for the tutorial;
 #'   [ptr_define_placeholder_consumer()], [ptr_define_placeholder_source()],
@@ -260,19 +414,33 @@ ptr_registry_register <- function(entry) {
 #' ptr_clear_placeholder("pct")
 #' @export
 ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
+                                       default_arg = NULL,
+                                       named_args = list(),
+                                       runtime = NULL,
                                        copy_defaults = list(
                                          label = "Enter a value for {param}"
                                        )) {
   validate_keyword(keyword)
+  validate_keyword_no_shadow(keyword)
   validate_hook(build_ui, "build_ui", c("node"))
   validate_hook(resolve_expr, "resolve_expr", c("value", "node"))
+  validate_default_arg(default_arg, keyword)
+  validate_named_args(named_args, keyword)
   validate_copy_defaults(copy_defaults)
+  ptr_check_keyword_lhs_drift(keyword)
+
+  runtime_fn <- runtime %||% function(x, ...) x
+  validate_hook(runtime_fn, "runtime", character())
+
   entry <- list(
     keyword = keyword, role = "value", data_aware = FALSE,
     build_ui = build_ui, resolve_expr = resolve_expr,
+    default_arg = default_arg, named_args = named_args,
+    runtime = runtime_fn,
     copy_defaults = copy_defaults
   )
   ptr_registry_register(entry)
+  runtime_fn
 }
 
 #' Define a data-consumer placeholder (e.g. column picker)
@@ -303,8 +471,19 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #'   message, layer pruned). Useful when a stale selection no longer
 #'   matches any upstream column after a data swap.
 #'
-#' @return Invisibly, the registry entry list. Use [ptr_clear_placeholder()]
-#'   to remove it.
+#' @param default_arg,named_args See [ptr_define_placeholder_value()].
+#'   Consumer placeholders use the same arg-schema slots; the `var`
+#'   built-in passes a column-name validator here when used as `var(mpg)`.
+#'
+#' @param runtime Optional `function(x, ...)` body used when the
+#'   placeholder is called as a plain-R function. `NULL` (default) supplies
+#'   the identity `function(x, ...) x`, matching the legacy `ppVar`-style
+#'   `aes()` NSE shape (the symbol-passthrough convention). Override to
+#'   give the consumer a non-identity plain-R meaning.
+#'
+#' @return The runtime callable (identity by default; override with
+#'   `runtime = ...`). Also called for its registration side effect; use
+#'   [ptr_clear_placeholder()] to remove it.
 #'
 #' @seealso `vignette("ggpaintr-customization")` for the tutorial;
 #'   [ptr_define_placeholder_value()], [ptr_define_placeholder_source()].
@@ -332,23 +511,37 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #' @export
 ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
                                           validate_input = NULL,
+                                          default_arg = NULL,
+                                          named_args = list(),
+                                          runtime = NULL,
                                           copy_defaults = list(
                                             label = "Pick a column for {param}"
                                           )) {
   validate_keyword(keyword)
+  validate_keyword_no_shadow(keyword)
   validate_hook(build_ui, "build_ui", c("node", "cols", "data"))
   validate_hook(resolve_expr, "resolve_expr", c("value", "node"))
   if (!is.null(validate_input)) {
     validate_hook(validate_input, "validate_input", c("value", "upstream_cols"))
   }
+  validate_default_arg(default_arg, keyword)
+  validate_named_args(named_args, keyword)
   validate_copy_defaults(copy_defaults)
+  ptr_check_keyword_lhs_drift(keyword)
+
+  runtime_fn <- runtime %||% function(x, ...) x
+  validate_hook(runtime_fn, "runtime", character())
+
   entry <- list(
     keyword = keyword, role = "consumer", data_aware = TRUE,
     build_ui = build_ui, resolve_expr = resolve_expr,
     validate_input = validate_input,
+    default_arg = default_arg, named_args = named_args,
+    runtime = runtime_fn,
     copy_defaults = copy_defaults
   )
   ptr_registry_register(entry)
+  runtime_fn
 }
 
 #' Define a data-source placeholder (e.g. upload, database table)
@@ -398,8 +591,22 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #'   `node$companion_id`, and the substitution uses the name as the symbol
 #'   inserted into the generated code. Pass `NULL` (default) when one
 #'   input suffices.
-#' @return Invisibly, the registry entry list. Use [`ptr_clear_placeholder()`] to remove
-#'   the registration.
+#'
+#' @param default_arg,named_args See [ptr_define_placeholder_value()].
+#'   Source placeholders use the same arg-schema slots.
+#'
+#' @param runtime Optional `function(...)` body used when the placeholder
+#'   is called as a plain-R function (outside `ptr_app()`). `NULL`
+#'   (default) supplies a guard that aborts with a message naming the
+#'   keyword and noting the call is only meaningful inside `ptr_app()` —
+#'   source placeholders typically have no out-of-app meaning (a file
+#'   upload widget cannot produce data at the REPL). Override only if the
+#'   source has a sensible plain-R interpretation.
+#'
+#' @return The runtime callable. Default for a source placeholder is a
+#'   guard that aborts when called outside an app context. Also called for
+#'   its registration side effect; use [ptr_clear_placeholder()] to remove
+#'   the entry.
 #' @seealso [ptr_define_placeholder_value()], [ptr_define_placeholder_consumer()],
 #'   [ptr_clear_placeholder()].
 #' @examples
@@ -420,10 +627,14 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 ptr_define_placeholder_source <- function(keyword, build_ui, resolve_data,
                                         resolve_expr = NULL,
                                         companion_id_fn = NULL,
+                                        default_arg = NULL,
+                                        named_args = list(),
+                                        runtime = NULL,
                                         copy_defaults = list(
                                           label = "Provide a data source for {param}"
                                         )) {
   validate_keyword(keyword)
+  validate_keyword_no_shadow(keyword)
   validate_hook(build_ui, "build_ui", c("node"))
   validate_hook(resolve_data, "resolve_data", c("value", "node"))
   if (is.null(resolve_expr)) {
@@ -434,12 +645,27 @@ ptr_define_placeholder_source <- function(keyword, build_ui, resolve_data,
   if (!is.null(companion_id_fn)) {
     validate_hook(companion_id_fn, "companion_id_fn", c("id"))
   }
+  validate_default_arg(default_arg, keyword)
+  validate_named_args(named_args, keyword)
   validate_copy_defaults(copy_defaults)
+  ptr_check_keyword_lhs_drift(keyword)
+
+  runtime_fn <- runtime %||% local({
+    kw <- keyword
+    function(...) rlang::abort(
+      paste0("`", kw, "()` is only meaningful inside `ptr_app()`.")
+    )
+  })
+  validate_hook(runtime_fn, "runtime", character())
+
   entry <- list(
     keyword = keyword, role = "source", data_aware = TRUE,
     build_ui = build_ui, resolve_expr = resolve_expr,
     resolve_data = resolve_data, companion_id_fn = companion_id_fn,
+    default_arg = default_arg, named_args = named_args,
+    runtime = runtime_fn,
     copy_defaults = copy_defaults
   )
   ptr_registry_register(entry)
+  runtime_fn
 }

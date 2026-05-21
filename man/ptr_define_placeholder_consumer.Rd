@@ -9,6 +9,9 @@ ptr_define_placeholder_consumer(
   build_ui,
   resolve_expr,
   validate_input = NULL,
+  default_arg = NULL,
+  named_args = list(),
+  runtime = NULL,
   copy_defaults = list(label = "Pick a column for {param}")
 )
 }
@@ -32,10 +35,21 @@ before \code{resolve_expr}. Return \code{TRUE} / \code{NULL} to accept; return a
 single character string to reject (surfaced inline as the error
 message, layer pruned). Useful when a stale selection no longer
 matches any upstream column after a data swap.}
+
+\item{default_arg, named_args}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.
+Consumer placeholders use the same arg-schema slots; the \code{var}
+built-in passes a column-name validator here when used as \code{var(mpg)}.}
+
+\item{runtime}{Optional \verb{function(x, ...)} body used when the
+placeholder is called as a plain-R function. \code{NULL} (default) supplies
+the identity \code{function(x, ...) x}, matching the legacy \code{ppVar}-style
+\code{aes()} NSE shape (the symbol-passthrough convention). Override to
+give the consumer a non-identity plain-R meaning.}
 }
 \value{
-Invisibly, the registry entry list. Use \code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}}
-to remove it.
+The runtime callable (identity by default; override with
+\code{runtime = ...}). Also called for its registration side effect; use
+\code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}} to remove it.
 }
 \description{
 A \emph{consumer} placeholder is a value placeholder that additionally

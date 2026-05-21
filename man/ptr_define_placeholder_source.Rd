@@ -10,6 +10,9 @@ ptr_define_placeholder_source(
   resolve_data,
   resolve_expr = NULL,
   companion_id_fn = NULL,
+  default_arg = NULL,
+  named_args = list(),
+  runtime = NULL,
   copy_defaults = list(label = "Provide a data source for {param}")
 )
 }
@@ -56,10 +59,23 @@ contents bind to \code{node$id}, the user-typed dataset name binds to
 \code{node$companion_id}, and the substitution uses the name as the symbol
 inserted into the generated code. Pass \code{NULL} (default) when one
 input suffices.}
+
+\item{default_arg, named_args}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.
+Source placeholders use the same arg-schema slots.}
+
+\item{runtime}{Optional \verb{function(...)} body used when the placeholder
+is called as a plain-R function (outside \code{ptr_app()}). \code{NULL}
+(default) supplies a guard that aborts with a message naming the
+keyword and noting the call is only meaningful inside \code{ptr_app()} —
+source placeholders typically have no out-of-app meaning (a file
+upload widget cannot produce data at the REPL). Override only if the
+source has a sensible plain-R interpretation.}
 }
 \value{
-Invisibly, the registry entry list. Use \code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}} to remove
-the registration.
+The runtime callable. Default for a source placeholder is a
+guard that aborts when called outside an app context. Also called for
+its registration side effect; use \code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}} to remove
+the entry.
 }
 \description{
 A \emph{source} placeholder produces a data frame the rest of the formula
