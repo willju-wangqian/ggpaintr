@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ggpaintr feature checklist (post-ADR-0009)</title>
+<style>
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 960px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .55rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .5rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  td.k { white-space: nowrap; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; background: #fafbff; }
+  .meta { color: #555; font-size: 13px; }
+  .why  { color: #444; font-size: 13.5px; margin: .35rem 0 .8rem; }
+  .pair { background: #fff7e6; padding: .5rem .8rem; border-left: 4px solid #f0a000; margin: .8rem 0; font-size: 13.5px; }
+  ul.flat { margin: .2rem 0 .8rem 1.2rem; padding-left: 0; }
+  ul.flat li { margin: .1rem 0; }
+  .sect-hint { color: #6a6; font-size: 12.5px; font-style: italic; margin-bottom: .4rem; }
+</style>
+</head>
+<body>
+
+<h1>ggpaintr feature checklist — post ADR-0009</h1>
+<p class="meta">vignette-review HEAD: <code>2c504da</code> · 2026-05-21 · companion to <a href="WORKFLOW.html">WORKFLOW.html</a> · purpose: a feature inventory grouped by what is natural to exercise <strong>together</strong> in a single complex test app. The grouping is not orthogonal to the L1/L2/L3 axis — it is orthogonal to <em>what can be observed without rebuilding state</em>.</p>
+
+<p class="why"><strong>How to read this.</strong> Each section answers the question "what feature cluster could one super-app demonstrate in one screen?" A super-testcase will pick one item from each of several sections — every section here represents a natural axis along which super-tests vary. Items inside a section are the granular things to assert. Items marked <strong>(BROKEN)</strong> have a known regression on current HEAD; <strong>(UNTESTED)</strong> means no automated test asserts the user-visible behaviour even if internals are covered.</p>
+
+<h2>Section A — Placeholders &amp; argument grammar</h2>
+<div class="sect-hint">Group: the placeholder vocabulary itself. Any super-app will use at least 2-3 of these in one formula.</div>
+
+<table>
+  <tr><th>Item</th><th>Keyword / shape</th><th>Notes</th></tr>
+  <tr><td>A1. Bareword (no parens) form</td><td class="k">aes(x = ppVar, y = ppNum)</td><td>Parser still recognises a placeholder used as a bareword inside <code>aes()</code> and other named-arg slots. Pre-ADR-0009 this was the only form; still works.</td></tr>
+  <tr><td>A2. Call form (parens, no args)</td><td class="k">geom_point(size = ppNum())</td><td>Equivalent to bareword. Common in user code that wants to be explicit.</td></tr>
+  <tr><td>A3. ppVar — column picker</td><td class="k">ppVar(mpg)</td><td>selectInput populated from upstream data cols. <code>default = &lt;sym&gt;</code> seeds the picker (PLAN-01 ptr_default_symbol_or_string).</td></tr>
+  <tr><td>A4. ppNum — numericInput</td><td class="k">ppNum(0.7)</td><td>Default validated via constant-fold registry: literals + arithmetic + named constants like <code>pi</code> (PLAN-01).</td></tr>
+  <tr><td>A5. ppText — textInput</td><td class="k">ppText("Hello")</td><td>Default must be a string literal.</td></tr>
+  <tr><td>A6. ppExpr — textInput → parsed user expression</td><td class="k">ppExpr(mpg * 2)</td><td>User-typed expression is parsed at runtime; default is the AST. Returned as <code>ptr_user_expr()</code> so substitution preserves it as code, not a quoted value.</td></tr>
+  <tr><td>A7. ppUpload — file source</td><td class="k">ppUpload() |&gt; dplyr::filter(...)</td><td>Either at formula head (data source) or mid-pipeline. Validates file extension (csv / tsv / xlsx / rds / fst).</td></tr>
+  <tr><td>A8. Named arg: <code>shared = "&lt;key&gt;"</code></td><td class="k">ppVar(shared = "a")</td><td>Bind multiple occurrences to one widget. See Section E.</td></tr>
+  <tr><td>A9. Multiple same-type placeholders</td><td class="k">aes(x = ppVar, y = ppVar)</td><td>Each occurrence gets its own widget unless <code>shared=</code> links them. Widget ids are distinct.</td></tr>
+  <tr><td>A10. Empty input → silent absence</td><td>—</td><td>Unset ppText / ppNum / ppVar collapse to <code>ptr_missing()</code>; the surrounding call is dropped (eg. <code>labs(title = ppText())</code> with no value emits no title).</td></tr>
+  <tr><td>A11. ppExpr empty → ptr_missing</td><td>—</td><td>Empty input string; user typed nothing yet.</td></tr>
+  <tr><td>A12. ppVar arity check via validate_input</td><td>—</td><td>Built-in <code>ppVar</code> rejects length-zero / length &gt;1 (multi-select consumers can lift this).</td></tr>
+</table>
+
+<h2>Section B — Code panel &amp; the two view modes</h2>
+<div class="sect-hint">Group: every super-app has a code panel; both modes should be exercised. <strong>This is where the "show placeholder" bug lived (fixed 2c504da).</strong></div>
+
+<table>
+  <tr><th>Item</th><th>Notes</th></tr>
+  <tr><td>B1. <em>Final code</em> mode (default)</td><td>Shows the substituted ggplot expression — input values plugged in, missing placeholders elided. <code>format_code_with_extras(state$runtime(), state$extras_exprs())</code>.</td></tr>
+  <tr><td>B2. <em>Code with placeholders</em> mode</td><td>Re-renders <code>state$tree()</code> with <code>preserve_placeholders = TRUE</code>; widget value appears as <code>ppX(value)</code> arg. PLAN-05.</td></tr>
+  <tr><td>B3. Toggle (radioGroupButtons)</td><td>Reads <code>input$&lt;ns&gt;-ptr_code_mode</code>, values <code>"final"</code> / <code>"preserve"</code>. PLAN-08 UI + commit 2c504da server wiring.</td></tr>
+  <tr><td>B4. Code panel <code>style = "window"</code></td><td>Floating mini-window (default in <code>ptr_app()</code>). Toggle lives inside.</td></tr>
+  <tr><td>B5. Code panel <code>style = "panel"</code></td><td>In-flow block (used by <code>ptr_ui_code_block(style = "panel")</code>). Toggle still attaches.</td></tr>
+  <tr><td>B6. Code reactive on Update click</td><td>Code panel re-runs <code>state$runtime()</code> which fires on the Update button.</td></tr>
+  <tr><td>B7. Code panel survives hidden state</td><td><code>outputOptions(suspendWhenHidden = FALSE)</code> — output renders even when the window is initially collapsed.</td></tr>
+  <tr><td>B8. <code>ptr_extract_code(state)</code></td><td>Non-reactive snapshot of current final-mode code. <strong>(UNTESTED)</strong> for parity with preserve-mode (no <code>ptr_extract_code(state, preserve = TRUE)</code>; consumer must call <code>ptr_render</code> themselves).</td></tr>
+</table>
+
+<div class="pair"><strong>Pair B with E.</strong> The preserve-mode renderer is the only way to see whether <code>shared=</code> survived parsing — the substituted form erases the shared annotation. A super-test that flips B3 should also assert the rendered text contains <code>shared = "key"</code>.</div>
+
+<h2>Section C — Overrides: <code>ui_text</code>, <code>copy</code>, defaults</h2>
+<div class="sect-hint">Group: every override mechanism. Super-app demonstrates per-keyword vs per-aesthetic vs per-layer precedence.</div>
+
+<table>
+  <tr><th>Item</th><th>Override slot</th><th>Notes</th></tr>
+  <tr><td>C1. Per-placeholder label / hint</td><td class="k">ui_text$defaults$ppNum$label</td><td>Applies to every <code>ppNum</code> widget unless overridden lower.</td></tr>
+  <tr><td>C2. Per-keyword empty-text</td><td class="k">ui_text$defaults$ppVar$empty_text</td><td>The "Pick a column" hint shown before the user chooses.</td></tr>
+  <tr><td>C3. <code>{param}</code> interpolation</td><td class="k">copy_defaults = list(label = "Range for {param}")</td><td>Custom placeholders fill <code>{param}</code> from the surrounding aes/arg name.</td></tr>
+  <tr><td>C4. Per-layer / per-arg copy</td><td class="k">params$linewidth$ppNum$label</td><td>Layer-name × arg-name × placeholder-kind precedence. Tested in <code>test-copy-rules.R</code>.</td></tr>
+  <tr><td>C5. Default seeding from formula</td><td class="k">ppNum(0.7)</td><td>PLAN-07 — <code>node$default</code> reaches the widget's <code>value</code> / <code>selected</code> arg. Persisted user input wins over default on re-render.</td></tr>
+  <tr><td>C6. Default seeding for shared bucket</td><td>—</td><td>First-occurrence-wins for the shared widget (PLAN-07 <code>shared_widget_default</code>). Conflicting defaults on later occurrences silently ignored.</td></tr>
+  <tr><td>C7. <code>named_args</code> threading</td><td>—</td><td>Validated named args from formula reach the build_ui hook via <code>node$named_args</code> (custom hooks only; built-ins swallow via <code>...</code>).</td></tr>
+  <tr><td>C8. NULL default → widget initial state</td><td>—</td><td>No default arg → widget's own empty initial state is unchanged.</td></tr>
+</table>
+
+<h2>Section D — Custom placeholders (L2 extension)</h2>
+<div class="sect-hint">Group: the registry surface. Super-app should always include at least one custom placeholder to flex this path.</div>
+
+<table>
+  <tr><th>Item</th><th>Notes</th></tr>
+  <tr><td>D1. <code>ptr_define_placeholder_value</code></td><td>Inline value placeholder (the <code>num</code>/<code>text</code>/<code>expr</code> shape). Required hooks: <code>build_ui</code>, <code>resolve_expr</code>.</td></tr>
+  <tr><td>D2. <code>ptr_define_placeholder_consumer</code></td><td>Data consumer (the <code>var</code> shape). Required: <code>build_ui</code>, <code>resolve_expr</code>, optional <code>validate_input</code>.</td></tr>
+  <tr><td>D3. <code>ptr_define_placeholder_source</code></td><td>Data source (the <code>upload</code> shape). Required: <code>build_ui</code>, <code>resolve_data</code> (or equivalent).</td></tr>
+  <tr><td>D4. Hook return value: callable (define-helpers)</td><td>PLAN-03: define-helpers return the registered entry as a callable, so users can capture <code>ppFoo &lt;- ptr_define_placeholder_value(...)</code> and reference it.</td></tr>
+  <tr><td>D5. <code>default_arg</code> validator on registry entry</td><td>Closure factory <code>ptr_default_*()</code> declared on the registry entry; parser dispatches to it. Built-ins use this since PLAN-08.</td></tr>
+  <tr><td>D6. <code>named_args</code> schema on registry entry</td><td>Named-list of validator closures, one per declared named arg. Reject undeclared args at parse time.</td></tr>
+  <tr><td>D7. Keyword-shadow rejection</td><td>Registering a keyword that exists in base R / utils / stats / dplyr / ggplot2 aborts with a shadow message. Grandfather list = <code>c("range", "date")</code> for vignette fixtures only.</td></tr>
+  <tr><td>D8. LHS-name vs <code>keyword=</code> drift warning</td><td>Best-effort warning when <code>ppFoo &lt;- ptr_define_placeholder_value(keyword = "bar")</code> would create a mismatch. Lexical-shadow path catches it; REPL primitive <code>&lt;-</code> does not push a frame.</td></tr>
+  <tr><td>D9. Custom <code>validate_input</code> contract</td><td>Returns TRUE / NULL (ok) or a character message (error displayed inline). Any other shape fails closed.</td></tr>
+  <tr><td>D10. Custom hook receives <code>selected</code> / <code>named_args</code> via <code>...</code></td><td>PLAN-07 gates the injection on <code>"..." %in% fmls || arg %in% fmls</code>; older hooks with neither still work.</td></tr>
+</table>
+
+<h2>Section E — Shared widgets (<code>shared=</code>)</h2>
+<div class="sect-hint">Group: cross-layer linkage. The only feature where two visually-distinct call sites collapse to one widget.</div>
+
+<table>
+  <tr><th>Item</th><th>Notes</th></tr>
+  <tr><td>E1. Same-keyword shared= collapse</td><td>Two <code>ppVar(shared = "a")</code> in different layers render <strong>one</strong> picker. Both layers re-render on its change.</td></tr>
+  <tr><td>E2. Shared section partition</td><td>Shared widgets surface in a dedicated section (sidebar header / top bar / coordinator) rather than under their layer's tab.</td></tr>
+  <tr><td>E3. Shared label tiebreak</td><td>First-occurrence <code>label =</code> wins; later differing labels silently ignored.</td></tr>
+  <tr><td>E4. Shared default tiebreak (PLAN-07)</td><td>First-occurrence <code>default =</code> wins.</td></tr>
+  <tr><td>E5. Cross-role rejection</td><td>PLAN-06 <code>ptr_validate_shared_roles()</code> — a shared key spanning value + consumer roles aborts at translate time.</td></tr>
+  <tr><td>E6. Same-role acceptance</td><td>Two ppVar with same shared key in two layers' aes mappings are accepted.</td></tr>
+  <tr><td>E7. Mid-pipeline shared= (data source)</td><td>Shared= on <code>ppVar</code> used both in a <code>dplyr::select</code> stage and an aes mapping — same widget drives both.</td></tr>
+  <tr><td>E8. Preserve-mode renders <code>shared =</code> arg</td><td>The dual-mode renderer should round-trip the <code>shared = "key"</code> annotation. <strong>(UNTESTED)</strong> for embed + grid hosts where the shared section's binder was historically inconsistent (see <code>shared-section-binder</code> memory).</td></tr>
+</table>
+
+<h2>Section F — Custom embedding (L3)</h2>
+<div class="sect-hint">Group: bring-your-own-UI surface. Super-app variant lives entirely outside <code>ptr_app()</code>.</div>
+
+<table>
+  <tr><th>Item</th><th>Notes</th></tr>
+  <tr><td>F1. <code>ptr_ui()</code> + <code>ptr_server()</code> in a custom <code>fluidPage</code></td><td>The standard L3 entry. Page layout is user-owned.</td></tr>
+  <tr><td>F2. <code>ptr_app_components()</code></td><td>Hand-place sidebar / plot / code panels separately. Returns a named list.</td></tr>
+  <tr><td>F3. <code>ptr_app_bslib(theme = bslib::bs_theme(...))</code></td><td>Bootstrap-5 theming pass-through.</td></tr>
+  <tr><td>F4. Custom plot output via <code>state$runtime()</code></td><td>plotly / ggiraph / DT / any backend that accepts a ggplot. <strong>Reactive context</strong> — read inside <code>renderPlotly</code>, not via <code>ptr_extract_plot</code>.</td></tr>
+  <tr><td>F5. <code>ptr_extract_plot / _error / _code</code> for non-reactive contexts</td><td>Download handlers, <code>testServer</code> assertions, screenshots.</td></tr>
+  <tr><td>F6. Multiple <code>ptr_server</code> instances in one app</td><td>Independent namespaces; updates don't cross. Used in the gallery vignette.</td></tr>
+  <tr><td>F7. <code>state$tree()</code> exposure</td><td>Read the parsed tree from outside ggpaintr (for custom code rendering, audits). Stable shape: list of <code>ptr_node</code>s.</td></tr>
+  <tr><td>F8. <code>state$runtime()$code_text</code></td><td>Final substituted code as character — same as <code>format_code_with_extras</code> input.</td></tr>
+  <tr><td>F9. <code>ptr_render(state$tree(), preserve_placeholders = TRUE)</code></td><td>L3 callers can ask for the preserve-mode text without booting the UI toggle. Useful for documentation / tooltips.</td></tr>
+</table>
+
+<h2>Section G — Expression-mode capture (ADR 0009 §4)</h2>
+<div class="sect-hint">Group: the new bare-expression input path. Super-app demonstrates that quoting is no longer the user's problem.</div>
+
+<table>
+  <tr><th>Item</th><th>Notes</th></tr>
+  <tr><td>G1. String formula</td><td><code>ptr_app("ggplot(mtcars, aes(x = mpg)) + geom_point()")</code> — historical shape, still works.</td></tr>
+  <tr><td>G2. Bare-expression formula</td><td><code>ptr_app(ggplot(mtcars, aes(x = ppVar)) + geom_point())</code> — captured via <code>enexpr</code>, then deparsed/parsed. PLAN-04.</td></tr>
+  <tr><td>G3. <code>!!</code> splice</td><td><code>f &lt;- rlang::expr(geom_point()); ptr_app(ggplot(mtcars, aes(x = ppVar)) + !!f)</code>.</td></tr>
+  <tr><td>G4. Pre-quoted formula</td><td><code>ptr_app(rlang::expr(...))</code> — unwrap-as-quoted detection (E1.a).</td></tr>
+  <tr><td>G5. String-builder force-eval</td><td><code>ptr_app(paste0("ggplot(", "mtcars, ...)"))</code> — closed whitelist (<code>paste/paste0/sprintf/format/formatC/gettextf/c/vector/[/[[/$</code>). PLAN-04 audited security-sound.</td></tr>
+  <tr><td>G6. Forwarded-symbol resolution</td><td><code>ptr_app_components(formula_str)</code> where <code>formula_str</code> is a local var — sys.frames fallback. PLAN-04.</td></tr>
+  <tr><td>G7. Symbol that resolves to a non-string non-call</td><td>Rejected at capture time with a typeof+length message.</td></tr>
+  <tr><td>G8. Multi-expression formula</td><td>Rejected: "more than one top-level expression".</td></tr>
+</table>
+
+<h2>Section H — Data sourcing</h2>
+<div class="sect-hint">Group: where the data comes from + how the pipeline handles uploads.</div>
+
+<table>
+  <tr><th>Item</th><th>Notes</th></tr>
+  <tr><td>H1. Built-in dataset reference</td><td><code>ggplot(mtcars, ...)</code> — name resolved at runtime against base/datasets.</td></tr>
+  <tr><td>H2. Local var dataset reference</td><td><code>ggplot(my_df, ...)</code> — looked up in the caller's environment at <code>ptr_app</code>/<code>ptr_server</code> capture time.</td></tr>
+  <tr><td>H3. ppUpload as formula head</td><td><code>ppUpload() + geom_point(aes(x = ppVar))</code>. <code>fileInput</code> rendered at top of sidebar.</td></tr>
+  <tr><td>H4. ppUpload mid-pipeline</td><td><code>ppUpload() |&gt; dplyr::filter(cyl == 4)</code> as data source. Fixed 2026-05-12 (pipeline-head data source).</td></tr>
+  <tr><td>H5. File-format validation</td><td>Unsupported extension → inline error in upload panel.</td></tr>
+  <tr><td>H6. Column-name normalisation</td><td>Spaces / non-syntactic names in headers — handled.</td></tr>
+  <tr><td>H7. Re-upload re-renders all dependent placeholders</td><td>ppVar pickers re-populate on data change.</td></tr>
+</table>
+
+<h2>Section I — Errors, state, runtime contract</h2>
+<div class="sect-hint">Group: failure surfaces. Every super-app needs at least one "bad input" assertion.</div>
+
+<table>
+  <tr><th>Item</th><th>Notes</th></tr>
+  <tr><td>I1. <code>res$ok == FALSE</code> on runtime error</td><td>state$runtime() always returns a list with <code>ok / plot / error / code_text</code>.</td></tr>
+  <tr><td>I2. Inline error rendering (default UI)</td><td>Plot panel shows the message; code panel still shows latest valid code.</td></tr>
+  <tr><td>I3. Update button forces re-render</td><td>Otherwise input changes are silent until clicked.</td></tr>
+  <tr><td>I4. <code>req(isTRUE(res$ok), res$plot)</code> idiom (L3)</td><td>Quiets custom outputs between draws and on errors.</td></tr>
+  <tr><td>I5. <code>validate_input</code> error → inline (not stop)</td><td>Custom placeholder rejection surfaces in the widget, not as a server crash.</td></tr>
+  <tr><td>I6. Malformed formula at parse time</td><td>Aborts at <code>ptr_app</code> launch with a clear message, not on first click.</td></tr>
+  <tr><td>I7. Empty / whitespace formula</td><td>Specific abort: "Formula is empty or whitespace."</td></tr>
+</table>
+
+<h2>Section J — Safety / parsing invariants</h2>
+<div class="sect-hint">Group: hardening surface. Not user-visible directly; super-app exercises by trying disallowed shapes.</div>
+
+<table>
+  <tr><th>Item</th><th>Notes</th></tr>
+  <tr><td>J1. Deny-list rejects <code>eval/parse/source/system/...</code> in user code</td><td>~151 entries + AST walker descends into all node types (lambdas, pairlists, string literals via <code>str2lang</code>). See memory <code>denylist-complete</code>.</td></tr>
+  <tr><td>J2. Default-arg constant-fold registry</td><td>Allowed: literals, arithmetic, <code>seq</code>, <code>:</code>, registered constants (<code>pi</code>, etc.). Symbols resolve only against the registry. PLAN-01.</td></tr>
+  <tr><td>J3. ppExpr user input still runs through deny-list</td><td>At runtime, before <code>eval_tidy</code>.</td></tr>
+  <tr><td>J4. ppUpload restricted to known extensions</td><td>Closed list, no regex bypass.</td></tr>
+  <tr><td>J5. Keyword shadow-guard (Section D7)</td><td>—</td></tr>
+  <tr><td>J6. Parser uses no <code>eval/parse/get</code> on AST</td><td>PLAN-06 added a source-grep test that fails closed if those creep into the parser path.</td></tr>
+</table>
+
+<h2>Section K — Theming &amp; assets</h2>
+<div class="sect-hint">Group: visual + resource surface. Single-section because all three items share the same htmlDependency / resource-prefix mechanism.</div>
+
+<table>
+  <tr><th>Item</th><th>Notes</th></tr>
+  <tr><td>K1. <code>ptr_app_bslib(theme = ...)</code></td><td>Bootstrap-5 styling.</td></tr>
+  <tr><td>K2. <code>user_css = "path/to/file.css"</code></td><td>Served from a private resource prefix; CSS reaches the page.</td></tr>
+  <tr><td>K3. Core htmlDependency (logo, fonts)</td><td><code>core_assets_dep()</code> explicitly <code>addResourcePath("ggpaintr", ...)</code> — htmlDependency alone does NOT register that prefix; see memory <code>htmldependency-resource-prefix</code>.</td></tr>
+  <tr><td>K4. Resource-path leak prevention</td><td>User-CSS prefix is pruned between sessions; do not leak into other apps.</td></tr>
+</table>
+
+<h2>Section L — Multi-instance &amp; layout integration</h2>
+<div class="sect-hint">Group: things that only fail when two ggpaintr modules share a page.</div>
+
+<table>
+  <tr><th>Item</th><th>Notes</th></tr>
+  <tr><td>L1. Two <code>ptr_server</code> instances on one page</td><td>Namespaced inputs don't cross-fire. Each Update button independent.</td></tr>
+  <tr><td>L2. Two <code>ptr_app_components()</code> in a grid</td><td>Each grid cell renders its own sidebar + plot + code. <strong>(known weakness for shared widgets in embed/grid hosts — see memory <code>shared-section-binder</code>)</strong>.</td></tr>
+  <tr><td>L3. Identical formula, two instances</td><td>Independent widget state; no input ID collision.</td></tr>
+  <tr><td>L4. <code>ptr_app_components()</code> + custom output binding</td><td>L3 super-app combining F4 with multiple instances.</td></tr>
+</table>
+
+<h2>Known-broken / known-weak features</h2>
+
+<table>
+  <tr><th>Item</th><th>Section</th><th>State</th></tr>
+  <tr><td>Code-mode toggle wiring (B3)</td><td>B</td><td>FIXED on HEAD 2c504da. Until that commit, clicking "Code with placeholders" was inert. <strong>No unit test covers this</strong> — only the underlying renderer (PLAN-05) is unit-tested. A super-test that toggles the radio and asserts <code>ppX(...)</code> in the rendered text would have caught it.</td></tr>
+  <tr><td>Shared-section binder in embed + grid (E8 / L2)</td><td>E, L</td><td>Pre-existing weakness (memory <code>shared-section-binder</code>). Partition governs ownership; applied inconsistently across the 3 hosts (<code>ptr_app</code>, <code>ptr_app_components</code> embed, grid coordinator). Plan stamped; impl pending.</td></tr>
+  <tr><td>Lambda as pipe stage (H4 cousin)</td><td>H</td><td>Lambdas as pipe stages unsupported. <code>layer_call_name</code> falls back to <code>expr_text(head)</code>, unusable as id/label. Documented in use-cases vignette; workaround = named helper. Memory <code>anonymous-fn-pipe-stage</code>.</td></tr>
+</table>
+
+<h2>How to build super-testcases from this</h2>
+
+<p>A "super" testcase = a single ggpaintr app that exercises one item from each of as many sections as possible without invalidating the formula. Suggested combinations:</p>
+
+<ul class="flat">
+  <li><strong>Maximal default app</strong>: A1+A3+A4+A5+A8+E1+B1+B3+C5+I3 — single string formula, every placeholder kind, shared bucket, default seeding, both code modes via the toggle.</li>
+  <li><strong>Custom + upload super</strong>: A7+D1+D5+D6+D9+H3+H4+H7+C3 — bare-expression formula, ppUpload mid-pipeline, custom placeholder with default_arg + named_args + validate_input, copy interpolation.</li>
+  <li><strong>L3 + plotly super</strong>: F1+F4+F8+G2+B9+I4 — bare-expression formula, custom plotly output, both code-text shapes accessible from outside the default UI.</li>
+  <li><strong>Multi-instance super</strong>: L1+L3+L4+F2+E1 — two <code>ptr_app_components</code> in a grid, both consuming a shared widget, both writing to bespoke outputs.</li>
+  <li><strong>Theming + safety super</strong>: K1+K2+K3+J1+J3+G5 — bslib theme, user_css, asset references; on the safety axis, attempt to inject <code>eval(parse(...))</code> through ppExpr and a paste() string-builder.</li>
+</ul>
+
+<p>Every super-test should toggle B3 at least once and assert that both code-mode outputs are sensible — that single check alone protects against the regression that motivated this checklist.</p>
+
+</body>
+</html>
