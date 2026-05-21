@@ -15,8 +15,20 @@ ptr_app(
 )
 }
 \arguments{
-\item{formula}{A single formula string with \code{ggpaintr} placeholders. See
-\strong{Formula grammar} below.}
+\item{formula}{Either a single character scalar containing a ggplot
+expression with \code{ggpaintr} placeholders, or an unquoted ggplot
+expression supplied directly. Expression-mode is captured with
+\code{\link[rlang:defusing-advanced]{rlang::enexpr()}} at the public boundary, then deparsed to a string
+before reaching the shared translate pipeline; both modes produce
+equivalent apps. A bare symbol bound to a string in the calling frame
+(e.g. \verb{f <- "..."; ptr_app(f)}) is resolved and treated as string
+mode. Pre-quoted wrappers (\code{\link[rlang:expr]{rlang::expr()}}, \code{\link[rlang:defusing-advanced]{rlang::quo()}},
+\code{\link[base:substitute]{base::quote()}}, \code{\link[base:bquote]{base::bquote()}}) at the captured root are unwrapped
+one level. \verb{!!} splicing inside the captured expression is honoured
+via \code{\link[rlang:defusing-advanced]{rlang::enexpr()}}. \strong{Native pipe (\verb{|>}) caveat:} in expression
+mode, R's parser desugars \verb{|>} before capture, so the rendered code
+shows the desugared nested-call form. Stay in string mode (or use
+\verb{\%>\%}) if you need \verb{|>} preserved.}
 
 \item{envir}{Environment used to resolve local data objects.}
 
@@ -124,7 +136,13 @@ Use \code{safe_to_remove = c("pcp_theme")} to opt a specific name in.
 
 \examples{
 if (interactive()) {
+  # String mode (existing).
   ptr_app("ggplot(mtcars, aes(x = var, y = var)) + geom_point()")
+  # Expression mode (new): pass the unquoted ggplot expression.
+  ptr_app(ggplot(mtcars, aes(x = var, y = var)) + geom_point())
+  # !! splicing into expression mode.
+  col <- rlang::sym("mpg")
+  ptr_app(ggplot(mtcars, aes(x = !!col, y = var)) + geom_point())
 }
 }
 \seealso{
