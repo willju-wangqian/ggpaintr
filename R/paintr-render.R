@@ -320,12 +320,28 @@ stamp_current_pick_walk.ptr_closure <- function(node, snapshot) {
   node
 }
 
-# Placeholder nodes: stamp from the snapshot when a value is present.
+# Placeholder nodes: stamp from the snapshot only when the snapshot entry
+# counts as a real user pick. Mirrors substitute_walk's missing-value
+# detection so preserve mode and final mode agree on what is "unset":
+#   * NULL or absent key                            -> unset (no stamp)
+#   * empty character/length-zero / all-NA scalar   -> unset (no stamp)
+#   * empty-string sentinel (ppVar picker's prepended "" placeholder)
+#                                                   -> unset (no stamp)
+# Otherwise stamp current_pick so the renderer emits ppX(value).
+.snapshot_value_is_set <- function(node, val) {
+  if (is.null(val)) return(FALSE)
+  if (length(val) == 0L) return(FALSE)
+  # Empty-string sentinel — substitute_walk.ptr_ph_data_consumer treats
+  # this identically.
+  if (is.character(val) && length(val) == 1L && !nzchar(val)) return(FALSE)
+  !is_missing_value_input(node, val)
+}
+
 #' @export
 stamp_current_pick_walk.ptr_ph_value <- function(node, snapshot) {
   if (!is.null(node$id)) {
     val <- snapshot[[node$id]]
-    if (!is.null(val)) node$current_pick <- val
+    if (.snapshot_value_is_set(node, val)) node$current_pick <- val
   }
   node
 }
@@ -334,7 +350,7 @@ stamp_current_pick_walk.ptr_ph_value <- function(node, snapshot) {
 stamp_current_pick_walk.ptr_ph_data_consumer <- function(node, snapshot) {
   if (!is.null(node$id)) {
     val <- snapshot[[node$id]]
-    if (!is.null(val)) node$current_pick <- val
+    if (.snapshot_value_is_set(node, val)) node$current_pick <- val
   }
   node
 }
@@ -343,7 +359,7 @@ stamp_current_pick_walk.ptr_ph_data_consumer <- function(node, snapshot) {
 stamp_current_pick_walk.ptr_ph_data_source <- function(node, snapshot) {
   if (!is.null(node$id)) {
     val <- snapshot[[node$id]]
-    if (!is.null(val)) node$current_pick <- val
+    if (.snapshot_value_is_set(node, val)) node$current_pick <- val
   }
   node
 }

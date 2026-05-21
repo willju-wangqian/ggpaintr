@@ -1400,11 +1400,21 @@ ptr_register_code <- function(output, state) {
     session <- shiny::getDefaultReactiveDomain()
     mode <- if (is.null(session)) NULL else session$input[[mode_id]]
     if (identical(mode, "preserve")) {
-      # Live snapshot: every input change refreshes the preserve text so
-      # the user sees their picks reflected immediately. The tree itself
-      # is invariant; only current_pick is restamped per render.
-      snapshot <- if (is.null(session)) list() else
-                  shiny::reactiveValuesToList(session$input)
+      # Build the snapshot the SAME way the runtime path does — keyed by
+      # `raw_id` (un-namespaced node ids that match `node$id`), values
+      # read via the module's namespace function from `session$input`. So
+      # preserve mode and final mode agree on what each picker holds.
+      # Live (no Update-click gating) — preserve text refreshes on each
+      # input change so the user sees their picks immediately.
+      ns_fn <- state$server_ns_fn
+      spec <- state$input_spec
+      snapshot <- list()
+      if (!is.null(session) && !is.null(spec) && nrow(spec) > 0L) {
+        for (i in seq_len(nrow(spec))) {
+          raw_id <- spec$input_id[i]
+          snapshot[[raw_id]] <- session$input[[ns_fn(raw_id)]]
+        }
+      }
       ptr_render(stamp_current_pick_walk(state$tree(), snapshot),
                  preserve_placeholders = TRUE)
     } else {
