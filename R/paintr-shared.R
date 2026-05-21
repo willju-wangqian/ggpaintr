@@ -188,6 +188,18 @@ shared_widget_label <- function(occurrences) {
   }
 }
 
+# PLAN-07: first-occurrence-wins default for a shared bucket. Mirrors
+# `shared_widget_label`'s tiebreak rule. Returns NULL when the bucket
+# is empty OR when the first occurrence has no default (NULL is the
+# canonical "no seed" sentinel for `node$default`; callers fall back
+# to the widget hook's own empty/initial state). A different default
+# on a later occurrence is silently ignored, matching ADR 0009 §8
+# ("first wins silently; no translate-time abort").
+shared_widget_default <- function(occurrences) {
+  if (length(occurrences) == 0L) return(NULL)
+  occurrences[[1L]]$default
+}
+
 # Apply the contract above to one bucket of occurrences.
 resolve_shared_consumer <- function(occurrences) {
   if (length(occurrences) == 0L) {

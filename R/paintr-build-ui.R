@@ -102,6 +102,12 @@ build_ui_for.ptr_ph_data_source <- function(node,
       "upload_name", ui_text = ui_text
     )
   }
+  # PLAN-07: pass node$named_args through so custom hooks can consume them.
+  # Only inject when the hook accepts the arg (`...` sink or named formal),
+  # so legacy hooks declared `(node, label)` keep working.
+  if (accepts_dots || "named_args" %in% fmls) {
+    extra_named$named_args <- node$named_args %||% list()
+  }
   do.call(entry$build_ui,
           c(list(rendered_node, label = copy$label), extra_named, list(...)))
 }
@@ -701,7 +707,37 @@ invoke_build_ui <- function(node, ui_text, layer_name,
       "`?ptr_define_placeholder_value`."
     ))
   }
-  extra_named <- build_ui_copy_args(names(formals(entry$build_ui)), copy)
+  fmls <- names(formals(entry$build_ui))
+  extra_named <- build_ui_copy_args(fmls, copy)
+  # PLAN-07: seed widget initial value from `node$default` when no caller
+  # has already provided one through `extra` (consumer renderUIs pre-compute
+  # `selected = current %||% character(0)`; this preserves their precedence).
+  # If they did supply `selected` but it is empty, still fall back to
+  # `node$default` so a default seeds on first render. Language defaults
+  # (from `ptr_default_expression`) are deparsed here -- `do.call` would
+  # otherwise evaluate the unquoted call when binding it to the hook formal.
+  # Only inject when the hook accepts the arg (formal or `...` sink); a
+  # legacy hook with formals `(node, label)` and no dots would otherwise
+  # abort with "unused argument".
+  hook_accepts_dots <- "..." %in% fmls
+  if (hook_accepts_dots || "selected" %in% fmls) {
+    seed_default <- node$default
+    if (is.language(seed_default)) {
+      seed_default <- paste(deparse(seed_default), collapse = "\n")
+    }
+    if (!"selected" %in% names(extra)) {
+      extra$selected <- seed_default
+    } else if (length(extra$selected) == 0L && !is.null(seed_default)) {
+      extra$selected <- seed_default
+    }
+  }
+  # PLAN-07: pass `node$named_args` through so custom hooks can consume them;
+  # built-in hooks swallow it via their `...` sink. Same accepts-arg guard.
+  if (hook_accepts_dots || "named_args" %in% fmls) {
+    if (!"named_args" %in% names(extra)) {
+      extra$named_args <- node$named_args %||% list()
+    }
+  }
   do.call(entry$build_ui,
           c(list(rendered_node, label = copy$label), extra_named, extra,
             list(...)))

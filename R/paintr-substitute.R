@@ -4,6 +4,14 @@
 # `ptr_missing` (input absent / empty / NA per built-in semantics).
 # Layer activation: if the layer's `active_input_id` is in the snapshot
 # and FALSE, the layer is marked `active = FALSE` for P9 to drop.
+#
+# PLAN-07 invariant: `node$default` (set by the PLAN-06 parser) is
+# consumed only at boot, via the UI layer (`R/paintr-build-ui.R` +
+# `R/paintr-builtins.R` seed the widget's initial value from it).
+# Substitute reads the resolved runtime value from `input_snapshot`
+# alone -- it never falls back to `node$default`. Once Shiny boots,
+# every input slot has a value (or has been emptied by the user),
+# so the snapshot is authoritative.
 
 ptr_substitute <- function(node, input_snapshot = list(),
                           shared_bindings = list(),

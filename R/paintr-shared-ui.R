@@ -122,6 +122,11 @@ shared_consumer_representatives <- function(trees) {
     n <- occ[[1L]]
     n$id <- canonical_shared_id(k)
     n$shared_label <- shared_widget_label(occ)
+    # PLAN-07: carry the first-occurrence default so the dynamic shared-
+    # consumer renderUI (`ptr_bind_shared_consumer_uis`) seeds the picker
+    # from it on first render. `shared_widget_default` mirrors the
+    # first-occurrence-wins tiebreak used for `shared_label`.
+    n$default <- shared_widget_default(occ)
     params <- vapply(occ, function(x) x$param %||% NA_character_,
                      character(1))
     distinct_params <- unique(params[!is.na(params) & nzchar(params) &

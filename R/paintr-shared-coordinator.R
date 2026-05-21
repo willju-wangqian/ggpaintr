@@ -177,6 +177,10 @@ shared_panel_body_tag <- function(obj, keys) {
   ui_text <- obj$ui_text
 
   shared_label_override <- lapply(firsts$occurrences, shared_widget_label)
+  # PLAN-07: first-occurrence default for each shared bucket. Seeded onto
+  # `node$default` below so `invoke_build_ui` picks it up via the same
+  # path as per-layer widgets.
+  shared_default_override <- lapply(firsts$occurrences, shared_widget_default)
 
   shared_widgets <- lapply(keys, function(k) {
     canonical <- canonical_shared_id(k)
@@ -192,6 +196,7 @@ shared_panel_body_tag <- function(obj, keys) {
     } else {
       node <- firsts$nodes[[k]]
       node$id <- canonical
+      node$default <- shared_default_override[[k]]
       build_ui_for(
         node,
         ui_text = ui_text,
