@@ -601,8 +601,14 @@ test_that("adr9-code-mode-toggle: ptr_code_mode radio switches code panel betwee
   # match the final-mode text. This is the regression-net: if the
   # ptr_register_code wiring breaks (pre-2c504da behaviour), the radio is
   # inert and code_preserve == code_final → both expectations fail.
-  expect_true(grepl("ppVar(", code_preserve, fixed = TRUE),
-              label = "preserve-mode code text contains ppVar(")
+  # Strong assertion: preserve mode shows the USER'S CURRENT PICK as the
+  # placeholder arg, e.g. `ppVar(mpg)` not the empty `ppVar()`. The empty-
+  # parens shape (regression caught in field testing 2026-05-21) would
+  # match a bare grepl("ppVar(", ...) check — that's too weak.
+  expect_true(grepl("ppVar(mpg)", code_preserve, fixed = TRUE),
+              label = "preserve-mode code contains ppVar(mpg) -- user's x pick")
+  expect_true(grepl("ppVar(cyl)", code_preserve, fixed = TRUE),
+              label = "preserve-mode code contains ppVar(cyl) -- user's y pick")
   expect_false(identical(code_final, code_preserve),
                label = "final and preserve modes produce different code text")
 

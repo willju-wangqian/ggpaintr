@@ -267,11 +267,93 @@ render_walk.default <- function(node, indent = 0L, preserve_placeholders = FALSE
 
 # ---- preserve-mode placeholder rendering -----------------------------------
 
+# Stamp each placeholder node's `current_pick` from a shiny-input snapshot.
+# `snapshot` is a named list keyed by node$id (same shape that substitute_walk
+# reads via ctx$snapshot). Returns a stamped tree copy; placeholder nodes
+# whose id is absent from the snapshot or maps to NULL are left untouched
+# (current_pick stays NULL -> preserve-mode renderer emits `ppX()`). Other
+# node kinds recurse only -- they have no current_pick slot.
+stamp_current_pick_walk <- function(node, snapshot)
+  UseMethod("stamp_current_pick_walk")
+
+#' @export
+stamp_current_pick_walk.default <- function(node, snapshot) node
+
+#' @export
+stamp_current_pick_walk.ptr_root <- function(node, snapshot) {
+  for (i in seq_along(node$layers)) {
+    node$layers[[i]] <- stamp_current_pick_walk(node$layers[[i]], snapshot)
+  }
+  node
+}
+
+#' @export
+stamp_current_pick_walk.ptr_layer <- function(node, snapshot) {
+  if (!is.null(node$data_arg)) {
+    node$data_arg <- stamp_current_pick_walk(node$data_arg, snapshot)
+  }
+  for (i in seq_along(node$children)) {
+    node$children[[i]] <- stamp_current_pick_walk(node$children[[i]], snapshot)
+  }
+  node
+}
+
+#' @export
+stamp_current_pick_walk.ptr_call <- function(node, snapshot) {
+  for (i in seq_along(node$args)) {
+    node$args[[i]] <- stamp_current_pick_walk(node$args[[i]], snapshot)
+  }
+  node
+}
+
+#' @export
+stamp_current_pick_walk.ptr_pipeline <- function(node, snapshot) {
+  for (i in seq_along(node$stages)) {
+    node$stages[[i]] <- stamp_current_pick_walk(node$stages[[i]], snapshot)
+  }
+  node
+}
+
+#' @export
+stamp_current_pick_walk.ptr_closure <- function(node, snapshot) {
+  node$body <- stamp_current_pick_walk(node$body, snapshot)
+  node
+}
+
+# Placeholder nodes: stamp from the snapshot when a value is present.
+#' @export
+stamp_current_pick_walk.ptr_ph_value <- function(node, snapshot) {
+  if (!is.null(node$id)) {
+    val <- snapshot[[node$id]]
+    if (!is.null(val)) node$current_pick <- val
+  }
+  node
+}
+
+#' @export
+stamp_current_pick_walk.ptr_ph_data_consumer <- function(node, snapshot) {
+  if (!is.null(node$id)) {
+    val <- snapshot[[node$id]]
+    if (!is.null(val)) node$current_pick <- val
+  }
+  node
+}
+
+#' @export
+stamp_current_pick_walk.ptr_ph_data_source <- function(node, snapshot) {
+  if (!is.null(node$id)) {
+    val <- snapshot[[node$id]]
+    if (!is.null(val)) node$current_pick <- val
+  }
+  node
+}
+
 # Emit `ppX(current_pick)` (or `ppX(current_pick, shared = "k")`) for a
-# placeholder node whose `current_pick` field has been set by an upstream pass
-# (PLAN-07/08). No current_pick -> empty call `ppX()`. The keyword on the node
-# is emitted verbatim so the post-rename vocabulary (ppVar/ppNum/...) and the
-# legacy vocabulary (var/num/...) both flow through unchanged.
+# placeholder node whose `current_pick` field has been set by
+# stamp_current_pick_walk() above. No current_pick -> empty call `ppX()`.
+# The keyword on the node is emitted verbatim so the post-rename vocabulary
+# (ppVar/ppNum/...) and the legacy vocabulary (var/num/...) both flow
+# through unchanged.
 render_placeholder_preserved <- function(node) {
   keyword <- node$keyword
   if (is.null(keyword) || !nzchar(keyword)) keyword <- "<anon>"

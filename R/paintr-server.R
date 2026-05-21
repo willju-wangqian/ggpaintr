@@ -1400,7 +1400,13 @@ ptr_register_code <- function(output, state) {
     session <- shiny::getDefaultReactiveDomain()
     mode <- if (is.null(session)) NULL else session$input[[mode_id]]
     if (identical(mode, "preserve")) {
-      ptr_render(state$tree(), preserve_placeholders = TRUE)
+      # Live snapshot: every input change refreshes the preserve text so
+      # the user sees their picks reflected immediately. The tree itself
+      # is invariant; only current_pick is restamped per render.
+      snapshot <- if (is.null(session)) list() else
+                  shiny::reactiveValuesToList(session$input)
+      ptr_render(stamp_current_pick_walk(state$tree(), snapshot),
+                 preserve_placeholders = TRUE)
     } else {
       format_code_with_extras(state$runtime(), state$extras_exprs())
     }
