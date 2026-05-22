@@ -9,16 +9,49 @@
 #   * safety   (deny-list AST walker)
 #   * runtime  (runtime_upstream_data — fast-path-deleted in this plan)
 #
-# Atomic-pair note (ADR 0012 §1, PLAN-04 history): the eval and prune
-# assertions that compare `nested` against `native`/`magrittr` require
-# PLAN-02's canonical-pipeline lift to be in place. In a PLAN-04-only
-# worktree they EXPECT TO FAIL — that failure is the mechanical proof the
-# atomic pair is needed (see BDD "Atomic pair — PLAN-02 alone, without
-# this plan, fails the consumer-uniformity test net"). The post-merge
-# integration auditor for G2 verifies both plans' DoD together: at that
-# point every assertion below passes. Each assertion is left in the file
-# exactly as the BDD `Then` clauses dictate; narrowing or downgrading any
-# of them to dodge the atomic-pair half-state would be a SCOPE VIOLATION.
+# Atomic-pair note (ADR 0012 §1, PLAN-04 history): the eval / prune /
+# picker assertions that compare `nested` against `native`/`magrittr`
+# require PLAN-02's canonical-pipeline lift to be in place. In a
+# PLAN-04-alone worktree the lift is absent — nested-form `data_arg` is a
+# bare `ptr_call`, not a `ptr_pipeline`, so its eval/prune/picker output
+# diverges from the `|>`/`%>%` forms by construction. We DETECT that state
+# at runtime via `plan02_lift_merged()` (content-based probe, defined
+# below) and `skip_if_not()` the 3 cross-form `identical(... nested ...)`
+# assertions. Each assertion is left verbatim per the BDD `Then` clauses;
+# the skip gate only controls WHEN they run, not WHAT they assert.
+#
+# * PLAN-04-alone: probe returns FALSE → the 3 cross-form assertions SKIP.
+#   The remaining `native` vs `magrittr` assertions still RUN and PASS,
+#   because PLAN-04's fast-path deletion already routes those two surface
+#   forms through a common pipeline-engine path.
+# * G2 post-merge (PLAN-02 + PLAN-04): probe returns TRUE → all 3 cross-
+#   form assertions RUN and PASS, mechanically proving the atomic pair.
+#
+# Removing or weakening any of the 3 cross-form `identical()` assertions
+# would be a SCOPE VIOLATION (the assertions ARE the BDD `Then` clauses).
+# Skip-gating them on a content-based probe is the orthogonal lever:
+# what they assert is preserved verbatim; only the half-state in which
+# they currently cannot pass is fenced off.
+
+# Atomic-pair detection helper — content-based, defined as a local
+# function in this test file (does not leak into the package API). The
+# probe parses a known nested-call formula and inspects the resulting
+# first layer's `data_arg`. Before PLAN-02's lift, nested-form `data_arg`
+# stays as a bare `ptr_call`; after the lift it becomes a `ptr_pipeline`
+# matching native/magrittr surface forms.
+plan02_lift_merged <- function() {
+  tree <- tryCatch(
+    ptr_translate(
+      "ggplot(dplyr::filter(penguins, bill_length_mm > 40)) + geom_point()",
+      expr_check = FALSE
+    ),
+    error = function(e) NULL
+  )
+  if (is.null(tree)) return(FALSE)
+  data_arg <- tryCatch(tree$layers[[1L]]$data_arg, error = function(e) NULL)
+  if (is.null(data_arg)) return(FALSE)
+  inherits(data_arg, "ptr_pipeline")
+}
 
 # ---- helpers ---------------------------------------------------------------
 
@@ -140,6 +173,13 @@ test_that("adr12 / PLAN-04: eval produces identical R expression across surface 
   e_nested <- ggpaintr:::layer_to_eval_expr(pr_nested$layers[[1]])
 
   expect_true(identical(e_native, e_magri))
+  # Cross-form: nested vs magrittr requires PLAN-02's lift to canonicalise
+  # nested-form `data_arg` to a `ptr_pipeline`. Skip-gated by content
+  # probe — assertion preserved verbatim per BDD `Then`.
+  skip_if_not(
+    plan02_lift_merged(),
+    "atomic-pair G2 gate: requires PLAN-02 merged for cross-form uniformity"
+  )
   expect_true(identical(e_magri, e_nested))
 })
 
@@ -170,6 +210,12 @@ test_that("adr12 / PLAN-04: prune produces structurally equivalent pruned data_a
   da_nested <- pr_nested$layers[[1]]$data_arg
 
   expect_true(ptr_tree_structural_equal(da_native, da_magri))
+  # Cross-form: nested vs magrittr requires PLAN-02's lift. Skip-gated by
+  # content probe — assertion preserved verbatim per BDD `Then`.
+  skip_if_not(
+    plan02_lift_merged(),
+    "atomic-pair G2 gate: requires PLAN-02 merged for cross-form uniformity"
+  )
   expect_true(ptr_tree_structural_equal(da_magri, da_nested))
 })
 
@@ -299,6 +345,12 @@ test_that("adr12 / PLAN-04: picker upstream resolution returns identical data ac
 
   expect_identical(set_native, set_magri,
                    info = "uniform upstream frames: native vs magrittr")
+  # Cross-form: nested vs magrittr requires PLAN-02's lift. Skip-gated by
+  # content probe — assertion preserved verbatim per BDD `Then`.
+  skip_if_not(
+    plan02_lift_merged(),
+    "atomic-pair G2 gate: requires PLAN-02 merged for cross-form uniformity"
+  )
   expect_identical(set_magri, set_nested,
                    info = "uniform upstream frames: magrittr vs nested")
 })

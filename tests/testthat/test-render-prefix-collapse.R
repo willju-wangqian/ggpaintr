@@ -127,6 +127,14 @@ test_that("non-preserve-mode rendering is unchanged from today (chain rendering 
   # nested-call form under preserve-mode renders as a `|>` chain under
   # non-preserve mode — matching today's behavior. (BDD "Render
   # non-preserve mode is unchanged from today" / Scope §2.)
+  #
+  # The non-preserve assertion uses BYTE-IDENTICAL comparison against the
+  # baseline render output captured from commit 72d09fb (the parent of
+  # PLAN-04's runtime/render changes — the `vignette-review`-tip render
+  # behavior). Presence checks (`grepl("|>", ...)`) would not have caught
+  # whitespace/indentation/operator-substitution regressions; the BDD `Then`
+  # clause for this scenario is "Render non-preserve mode is unchanged from
+  # today" — that demands equality, not presence.
   data_arg <- data_arg_from_formula(
     "penguins |> dplyr::filter(bill_length_mm > 40) |> ggplot(aes(bill_length_mm))"
   )
@@ -135,9 +143,14 @@ test_that("non-preserve-mode rendering is unchanged from today (chain rendering 
   rendered_preserve <- ggpaintr:::render_walk(data_arg, preserve_placeholders = TRUE)
   rendered_eval <- ggpaintr:::render_walk(data_arg, preserve_placeholders = FALSE)
 
-  # Preserve-mode: collapsed to nested.
-  expect_false(grepl("|>", rendered_preserve, fixed = TRUE))
-  # Non-preserve mode: chain retained, at least one `|>` present.
-  expect_true(grepl("|>", rendered_eval, fixed = TRUE))
-  expect_true(grepl("^penguins", ws_collapse(rendered_eval)))
+  # Preserve-mode: byte-identical collapsed nested-call form (PLAN-04 NEW).
+  baseline_preserve <- "dplyr::filter(penguins, bill_length_mm > 40)"
+  expect_identical(rendered_preserve, baseline_preserve)
+
+  # Non-preserve mode: byte-identical against baseline captured from
+  # commit 72d09fb (the parent of PLAN-04's runtime/render changes).
+  # Verified empirically by running `render_walk(data_arg,
+  # preserve_placeholders = FALSE)` on a worktree checked out at 72d09fb.
+  baseline_eval <- "penguins |>\n  dplyr::filter(bill_length_mm > 40)"
+  expect_identical(rendered_eval, baseline_eval)
 })
