@@ -40,6 +40,9 @@
 #'   `bslib` passthrough and is not part of the ggpaintr public surface the
 #'   wrapper demonstrates — wrappers are free to expose downstream-library
 #'   args like this in addition to whatever ggpaintr primitives they compose.
+#' @param spec An optional named list of fully-qualified Shiny input id ->
+#'   value, used to override widget defaults at session boot. See
+#'   [ADR 0012](dev/adr/0012-role-based-tree-and-ptr-spec.html).
 #'
 #' For the formula grammar (placeholder keywords, shared annotation,
 #' empty-call cleanup), see [ptr_app()].
@@ -58,7 +61,8 @@ ptr_app_bslib <- function(formula,
                           checkbox_defaults = NULL,
                           expr_check = TRUE,
                           safe_to_remove = character(),
-                          theme = NULL) {
+                          theme = NULL,
+                          spec = NULL) {
   if (!requireNamespace("bslib", quietly = TRUE)) {
     rlang::abort(
       "Package 'bslib' is required for ptr_app_bslib(). Install it with install.packages(\"bslib\")."
@@ -114,7 +118,8 @@ ptr_app_bslib <- function(formula,
       ui_text = ui_text,
       checkbox_defaults = checkbox_defaults,
       expr_check = expr_check,
-      safe_to_remove = safe_to_remove
+      safe_to_remove = safe_to_remove,
+      spec = spec
     )
   }
 
