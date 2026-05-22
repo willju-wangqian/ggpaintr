@@ -18,7 +18,11 @@ test_that("literal subtree evaluates to data frame", {
 })
 
 test_that("pipeline subtree folds and evaluates", {
-  tree <- ptr_translate("mtcars |> head(2) |> ggplot()")
+  # PLAN-02 (ADR 0012 §1): the canonical pipeline shape only emerges when
+  # the lift's chain-depth gate fires (>= 2 stages above the source). A
+  # 2-stage chain (filter + head) produces the 3-stage pipeline this test
+  # exercises.
+  tree <- ptr_translate("mtcars |> subset(mpg > 0) |> head(2) |> ggplot()")
   data_arg <- tree$layers[[1L]]$data_arg
   expect_true(is_ptr_pipeline(data_arg))
   result <- ptr_resolve_upstream(data_arg, eval_env = .test_env())

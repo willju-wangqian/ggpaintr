@@ -72,8 +72,10 @@ pipeline_to_eval_expr <- function(node) {
   if (length(node$stages) == 1L) return(node_to_lang(node$stages[[1L]]))
   acc <- node_to_lang(node$stages[[1L]])
   for (i in seq(2L, length(node$stages))) {
-    stage <- node_to_lang(node$stages[[i]])
-    acc <- desugar_pipe_to_call(acc, stage)
+    stage_node <- node$stages[[i]]
+    stage      <- node_to_lang(stage_node)
+    fan        <- stage_node$first_arg_name %||% ""
+    acc        <- desugar_pipe_to_call(acc, stage, first_arg_name = fan)
   }
   acc
 }
@@ -81,9 +83,23 @@ pipeline_to_eval_expr <- function(node) {
 # `lhs |> rhs(args)` -> `rhs(lhs, args)`. For bare-symbol rhs (`lhs |> f`)
 # -> `f(lhs)`. Both pipe ops desugar identically — we honor surface only at
 # render time, never at eval time.
-desugar_pipe_to_call <- function(lhs, rhs) {
+#
+# `first_arg_name` (chr scalar, defaults to "") names the inserted lhs slot
+# when the source position was named in the user's original chain (e.g.
+# `ggplot(data = penguins, ...)` carries `first_arg_name = "data"` on the
+# stage). PLAN-02 (ADR 0012) captures this name at lift time so the canonical
+# pipeline round-trips losslessly through eval. Existing direct callers of
+# this helper get the default `""` and behave exactly as before.
+desugar_pipe_to_call <- function(lhs, rhs, first_arg_name = "") {
   if (is.call(rhs)) {
-    return(as.call(c(list(rhs[[1L]]), list(lhs), as.list(rhs[-1L]))))
+    lhs_slot <- list(lhs)
+    if (nzchar(first_arg_name)) names(lhs_slot) <- first_arg_name
+    rest <- as.list(rhs[-1L])
+    new_args <- c(lhs_slot, rest)
+    return(as.call(c(list(rhs[[1L]]), new_args)))
+  }
+  if (nzchar(first_arg_name)) {
+    return(rlang::call2(rhs, !!first_arg_name := lhs))
   }
   rlang::call2(rhs, lhs)
 }

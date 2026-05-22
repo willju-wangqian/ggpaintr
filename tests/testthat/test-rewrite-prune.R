@@ -54,13 +54,20 @@ test_that("P9.7 positional missing in pipeline stage drops the arg, keeps the ca
   # Per relaxed P9 (P12.1): empty `num` drops the arg from `head(num)`,
   # leaving `head()` empty. `head` is NOT in default_drop_when_empty, so the
   # call survives and renders as-is — eval relies on head's default n = 6.
-  r <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = mpg))")
+  # PLAN-02 (ADR 0012 §1): the lift requires a chain depth >= 2 to fire.
+  # A 2-stage chain (filter + head) above the source produces the canonical
+  # 3-stage pipeline shape the test originally exercised under the legacy
+  # `|>` translator.
+  r <- ptr_translate(
+    "mtcars |> filter(mpg > 10) |> head(ppNum) |> ggplot(aes(x = mpg))"
+  )
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s)
   ggp <- p$layers[[1]]
   expect_true(is_ptr_pipeline(ggp$data_arg))
-  expect_equal(length(ggp$data_arg$stages), 2L)
-  head_stage <- ggp$data_arg$stages[[2L]]
+  # 3 stages: source (mtcars) + filter(mpg > 10) + head().
+  expect_equal(length(ggp$data_arg$stages), 3L)
+  head_stage <- ggp$data_arg$stages[[3L]]
   expect_true(is_ptr_call(head_stage))
   expect_equal(bare_call_name(head_stage$fun), "head")
   expect_equal(length(head_stage$args), 0L)

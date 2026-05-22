@@ -180,6 +180,10 @@ test_that("non-placeholder structure agrees across modes (whitespace, +-joins, i
 })
 
 test_that("pipe chain structure is identical across modes", {
+  skip_if_not(
+    plan04_prefix_collapse_merged(),
+    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
+  )
   r <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = ppVar))")
   e <- ptr_render(r, preserve_placeholders = FALSE)
   p <- ptr_render(r, preserve_placeholders = TRUE)

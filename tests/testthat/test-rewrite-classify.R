@@ -37,8 +37,16 @@ test_that("P2.4 geom with explicit data= shadows inheritance", {
 })
 
 test_that("P2.5 pipeline stage k>1 sees prior stages as synthetic upstream", {
-  r <- ptr_translate("mtcars |> filter(year >= ppNum) |> ggplot(aes(x = ppVar))")
+  # PLAN-02 (ADR 0012 §1): the lift fires only for chains with two or more
+  # manipulation stages above the source (GATE 0). Use a 2-stage chain so
+  # the canonical pipeline shape is what each consumer sees as its upstream.
+  r <- ptr_translate(
+    "mtcars |> filter(year >= ppNum) |> select(ppVar) |> ggplot(aes(x = ppVar))"
+  )
   num_node <- find_nodes(r, function(x) is_ptr_ph_value(x) && x$keyword == "ppNum")[[1]]
+  # `find_nodes` walks pre-order, so the first consumer is the ppVar inside
+  # `select(...)` (stage 3 of the canonical pipeline). Its upstream is the
+  # prior-stages pipeline (mtcars + filter), 2 stages.
   var_node <- find_nodes(r, is_ptr_ph_data_consumer)[[1]]
   expect_s3_class(var_node$upstream, "ptr_pipeline")
   expect_equal(length(var_node$upstream$stages), 2L)

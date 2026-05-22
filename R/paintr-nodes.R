@@ -107,3 +107,44 @@ is_ptr_user_expr <- function(x) inherits(x, "ptr_user_expr")
 is_ptr_closure <- function(x) inherits(x, "ptr_closure")
 is_ptr_literal <- function(x) inherits(x, "ptr_literal")
 is_ptr_missing <- function(x) inherits(x, "ptr_missing")
+
+# Structural equality of two typed-tree nodes, ignoring non-structural metadata
+# (`$op`, `$expr`). The canonical-pipeline-lift contract (ADR 0012 §1) requires
+# that `|>`, `%>%`, and nested-call surface forms produce trees that compare
+# equal *structurally* — but `$op` is surface-pipe metadata and `$expr` is the
+# original-AST hint duplicated alongside the load-bearing `$fun`/`$args`/
+# `$stages` fields. Both legitimately diverge across surface forms.
+#
+# `ptr_literal` is the one exception: its `$expr` slot *is* the load-bearing
+# value (a literal has no other content), so we compare it. Lists are walked
+# element-wise with name equality; leaves via `identical()`.
+#
+# Internal helper; not exported.
+ptr_tree_structural_equal <- function(a, b) {
+  if (is_ptr_node(a) || is_ptr_node(b)) {
+    if (!is_ptr_node(a) || !is_ptr_node(b)) return(FALSE)
+    if (!identical(class(a), class(b))) return(FALSE)
+    if (is_ptr_literal(a)) {
+      return(identical(a$expr, b$expr))
+    }
+    names_a <- setdiff(names(a), c("op", "expr"))
+    names_b <- setdiff(names(b), c("op", "expr"))
+    if (!setequal(names_a, names_b)) return(FALSE)
+    for (nm in names_a) {
+      if (!ptr_tree_structural_equal(a[[nm]], b[[nm]])) return(FALSE)
+    }
+    return(TRUE)
+  }
+  if (is.list(a) || is.list(b)) {
+    if (!is.list(a) || !is.list(b)) return(FALSE)
+    if (length(a) != length(b)) return(FALSE)
+    na <- names(a) %||% rep_len("", length(a))
+    nb <- names(b) %||% rep_len("", length(b))
+    if (!identical(na, nb)) return(FALSE)
+    for (i in seq_along(a)) {
+      if (!ptr_tree_structural_equal(a[[i]], b[[i]])) return(FALSE)
+    }
+    return(TRUE)
+  }
+  identical(a, b)
+}
