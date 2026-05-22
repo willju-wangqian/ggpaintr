@@ -92,11 +92,139 @@ render_walk.ptr_pipeline <- function(node, indent = 0L, preserve_placeholders = 
 
 render_pipeline_body <- function(node, indent = 0L, preserve_placeholders = FALSE) {
   if (length(node$stages) == 0L) return("")
-  thunks <- lapply(node$stages, function(s) {
+
+  if (!isTRUE(preserve_placeholders)) {
+    # Eval-mode rendering (placeholders already substituted upstream):
+    # render every stage as a `|>` / `%>%` chain link verbatim. PLAN-04
+    # leaves this codepath untouched — the prefix-collapse rule below is
+    # preserve-mode only (see BDD "Render non-preserve mode is
+    # unchanged from today" + Scope §2).
+    thunks <- lapply(node$stages, function(s) {
+      force(s)
+      function(ci) render_walk(s, ci, preserve_placeholders = FALSE)
+    })
+    return(render_pipe_chain(thunks, node$op, indent))
+  }
+
+  # Preserve-mode rendering — the new three-branch prefix-collapse rule
+  # (ADR 0012 §1 / §3.4 / PLAN-04 Scope §2). Lifting every layer's
+  # `data_arg` to a `ptr_pipeline` (PLAN-02) means an all-placeholder-free
+  # `%>%` / `|>` user-input chain would otherwise re-render as a `|>` chain
+  # in the preserve-mode panel; collapsing the placeholder-free prefix back
+  # to a nested-call source keeps that panel stable for existing users.
+  stages <- node$stages
+  k <- first_index_where_subtree_contains_any_placeholder(stages)
+
+  if (is.na(k)) {
+    # No placeholder anywhere in the pipeline. Collapse the whole pipeline
+    # to a single nested-call source rendered as a single atom (no pipe
+    # operators in the output).
+    nested <- rebuild_nested_from_stages_typed(stages)
+    return(render_walk(nested, indent, preserve_placeholders = TRUE))
+  }
+
+  if (k <= 2L) {
+    # Source itself (k == 1) or first verb stage (k == 2) carries a
+    # placeholder — no all-placeholder-free prefix to collapse. Render the
+    # full pipeline as a `|>` / `%>%` chain exactly as today.
+    thunks <- lapply(stages, function(s) {
+      force(s)
+      function(ci) render_walk(s, ci, preserve_placeholders = TRUE)
+    })
+    return(render_pipe_chain(thunks, node$op, indent))
+  }
+
+  # Mixed: stages[1..k-1] are all placeholder-free → collapse to a single
+  # nested-call source atom. stages[k..N] contain at least one placeholder
+  # → render as a `|>` / `%>%` chain whose first segment is the collapsed
+  # prefix.
+  prefix_nested <- rebuild_nested_from_stages_typed(stages[seq_len(k - 1L)])
+  tail_stages   <- stages[k:length(stages)]
+  prefix_thunk  <- function(ci) render_walk(prefix_nested, ci,
+                                            preserve_placeholders = TRUE)
+  tail_thunks   <- lapply(tail_stages, function(s) {
     force(s)
-    function(ci) render_walk(s, ci, preserve_placeholders = preserve_placeholders)
+    function(ci) render_walk(s, ci, preserve_placeholders = TRUE)
   })
-  render_pipe_chain(thunks, node$op, indent)
+  render_pipe_chain(c(list(prefix_thunk), tail_thunks), node$op, indent)
+}
+
+# Walk a SINGLE stage's subtree (or any typed node) and return TRUE iff any
+# descendant satisfies `is_ptr_placeholder()` (the union helper at
+# R/paintr-nodes.R covering ptr_ph_value / ptr_ph_data_consumer /
+# ptr_ph_data_source — there is no `ptr_ph` base class). Used by the
+# preserve-mode prefix-collapse rule above.
+subtree_contains_placeholder <- function(node) {
+  if (is.null(node)) return(FALSE)
+  if (is_ptr_placeholder(node)) return(TRUE)
+  if (is_ptr_call(node)) {
+    for (a in node$args) {
+      if (subtree_contains_placeholder(a)) return(TRUE)
+    }
+    return(FALSE)
+  }
+  if (is_ptr_pipeline(node)) {
+    for (s in node$stages) {
+      if (subtree_contains_placeholder(s)) return(TRUE)
+    }
+    return(FALSE)
+  }
+  if (is_ptr_closure(node)) return(subtree_contains_placeholder(node$body))
+  if (is_ptr_layer(node)) {
+    if (subtree_contains_placeholder(node$data_arg)) return(TRUE)
+    for (ch in node$children) {
+      if (subtree_contains_placeholder(ch)) return(TRUE)
+    }
+    return(FALSE)
+  }
+  if (is_ptr_root(node)) {
+    for (l in node$layers) {
+      if (subtree_contains_placeholder(l)) return(TRUE)
+    }
+    return(FALSE)
+  }
+  FALSE
+}
+
+# Map `subtree_contains_placeholder` over an ordered stages list and return
+# the first index whose subtree contains a placeholder; NA_integer_ when
+# none do.
+first_index_where_subtree_contains_any_placeholder <- function(stages) {
+  for (i in seq_along(stages)) {
+    if (subtree_contains_placeholder(stages[[i]])) return(as.integer(i))
+  }
+  NA_integer_
+}
+
+# Typed-node analogue of PLAN-02's raw-AST `rebuild_nested_from_stages`.
+# Folds an ordered stages list (`stages[[1]]` is the source; subsequent
+# entries are verb-stage `ptr_call`s written WITHOUT their first arg,
+# because the pipe operator originally supplied it) into a single nested
+# `ptr_call`, inserting each prior fold as the verb's first positional arg
+# — matching `desugar_pipe_to_call()` in R/paintr-eval.R. Pure typed-node
+# construction; render-time only.
+rebuild_nested_from_stages_typed <- function(stages) {
+  if (length(stages) == 0L) {
+    rlang::abort("rebuild_nested_from_stages_typed: empty stages.")
+  }
+  acc <- stages[[1L]]
+  if (length(stages) == 1L) return(acc)
+  for (i in seq(2L, length(stages))) {
+    s <- stages[[i]]
+    if (!is_ptr_call(s)) {
+      # Defensive: a non-call verb stage (e.g. a bare symbol) cannot have
+      # its first-arg slot filled meaningfully; fall back to passing the
+      # prior fold via call2(). Round-tripping is the caller's concern.
+      acc <- ptr_call(fun = if (is_ptr_literal(s)) s$expr else as.symbol("?"),
+                      args = list(acc), expr = NULL)
+      next
+    }
+    arg_names <- names(s$args) %||% rep_len("", length(s$args))
+    new_args <- c(list(acc), s$args)
+    names(new_args) <- c("", arg_names)
+    acc <- ptr_call(fun = s$fun, args = new_args, expr = NULL)
+  }
+  acc
 }
 
 # Lay out a pipe chain. `seg_thunks` is a list of `function(col) -> text`, one

@@ -433,6 +433,34 @@ ptr_setup_pipelines <- function(state, input, output, session) {
                    })
         } else NULL
         if (!is.null(df)) set_resolve_error(state, ln, NULL)
+        # ADR 0012 §3.7 / PLAN-04: mirror the pipeline-head source observer
+        # below — bind the resolved frame under the same symbol that
+        # `substitute_walk.ptr_ph_data_source()` will produce. Now that the
+        # per-layer fast-path in `runtime_upstream_data` /
+        # `runtime_consumer_entry` is gone, every in-aes consumer of a
+        # bare-data layer routes through `ptr_resolve_upstream(c$upstream,
+        # ...)`, which substitutes the source into a symbol and eval()s
+        # it in `state$eval_env`. Companion-driven sources (e.g.
+        # `ppUpload`) take the companion text input as the binding name;
+        # companion-less sources derive a symbol via `resolve_expr`.
+        # Invalid names yield NULL → no eval_env assign (`inject_resolved_data()`
+        # plot rendering still works via the cached `state$resolved_data`
+        # slot below).
+        binding_name <- if (!is.null(comp_id)) {
+          nm <- input[[comp_id]]
+          if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
+              make.names(nm) == nm) nm else NULL
+        } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
+          sym <- tryCatch(entry$resolve_expr(file_info, src),
+                          error = function(e) NULL)
+          if (is.symbol(sym)) {
+            cand <- as.character(sym)
+            if (nzchar(cand) && make.names(cand) == cand) cand else NULL
+          } else NULL
+        } else NULL
+        if (!is.null(df) && !is.null(binding_name)) {
+          assign(binding_name, df, envir = state$eval_env)
+        }
         state$resolved_data[[ln]](df)
       })
 
@@ -860,7 +888,7 @@ ptr_setup_layer_panel_classes <- function(state, input, output, session) {
 # resolved against whatever snapshot the caller supplies. Callers in P12's
 # reactive layer pass the LIVE input snapshot so consumer pickers reflect
 # placeholder edits immediately (BDD G11.12). The earlier preference for
-# `state$resolved_data[[layer_name]]` conflated terminal upstream
+# `state$resolved_data` keyed by layer name conflated terminal upstream
 # (the layer's `data_arg` post-snapshot) with per-position upstream
 # (each consumer's own `node$upstream`); they differ for consumers in
 # upstream pipeline stages.
@@ -898,15 +926,12 @@ runtime_upstream_data <- function(state, snapshot = list()) {
         next
       }
     }
-    layer_name <- c$layer_name
-    if (!is.null(layer_name) &&
-        !is.null(state$resolved_data[[layer_name]])) {
-      df <- state$resolved_data[[layer_name]]()
-      if (!is.null(df)) {
-        out[[c$id]] <- list(cols = names(df), data = df)
-        next
-      }
-    }
+    # ADR 0012 §3.7 / PLAN-04: the per-layer fast-path that short-circuited
+    # off `state$resolved_data` (keyed by layer name) has been deleted. Every
+    # consumer's `c$upstream` carries its true per-position resolution
+    # point (in-stage → prior stage; in-aes → the layer's data_arg
+    # pipeline). `ptr_resolve_upstream(c$upstream, ...)` handles every
+    # case uniformly across `|>` / `%>%` / nested-call surface forms.
     df <- ptr_resolve_upstream(
       c$upstream,
       snapshot = snapshot,
@@ -1294,19 +1319,18 @@ find_source_self_ids_in_upstream <- function(upstream) {
   unique(ids)
 }
 
-# Resolve a single consumer's upstream against a snapshot, mirroring the
-# per-consumer slot of runtime_upstream_data. Bare-data layers short-circuit
-# via the cached `state$resolved_data` slot; pipeline-data layers fall
-# through to a fresh `ptr_resolve_upstream` call.
+# Resolve a single consumer's upstream against a snapshot. Every consumer
+# routes through `ptr_resolve_upstream(node$upstream, ...)` — the per-layer
+# `state$resolved_data` (keyed by layer name) fast-path that used to mirror
+# the per-consumer slot of `runtime_upstream_data` was deleted in lockstep
+# with its sibling per ADR 0012 §3.7 / PLAN-04 so canonical-pipeline input from
+# `|>` / `%>%` / nested-call surface forms produces uniform downstream
+# behaviour. Bare-data layers still write `state$resolved_data[[ln]]` for
+# `inject_resolved_data()` plot rendering; their consumer pickers go via
+# `ptr_resolve_upstream`, which now also finds the upload frame because
+# `ptr_setup_pipelines` mirrors the pipeline-head observer's `eval_env`
+# binding for bare-data sources.
 runtime_consumer_entry <- function(state, node, snapshot = list()) {
-  layer_name <- node$layer_name
-  if (!is.null(layer_name) &&
-      !is.null(state$resolved_data[[layer_name]])) {
-    df <- state$resolved_data[[layer_name]]()
-    if (!is.null(df)) {
-      return(list(cols = names(df), data = df))
-    }
-  }
   t0 <- Sys.time()
   df <- ptr_resolve_upstream(
     node$upstream,
