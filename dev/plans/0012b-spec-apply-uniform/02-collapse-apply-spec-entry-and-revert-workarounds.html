@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-02 — Collapse apply_spec_entry to seed-only + revert test workarounds (from ADR 0012, Bug B)</title>
+<style>
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  .meta { color: #555; font-size: 13px; }
+  .note    { border-left: 4px solid #2c7;    background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .warn    { border-left: 4px solid #c97a00; background: #fdf3e1; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11.5px; font-weight: bold; color: #fff; }
+  .b-draft  { background: #4974c0; }
+</style>
+</head>
+<body>
+<!--
+plan:
+  number: 02
+  slug: collapse-apply-spec-entry-and-revert-workarounds
+  source_adr: dev/adr/0012-role-based-tree-and-ptr-spec.html
+  source_handoff: /var/folders/86/znw5mx352fj9523j26lssygh0000gn/T/handoff-XXXXXX.md.KONpWBGcUL
+  depends_on: ["01"]
+  parallel_group: G2
+  status: draft
+-->
+
+<h1>PLAN-02 — Collapse <code>apply_spec_entry</code> to seed-only + revert test workarounds</h1>
+<p class="meta">Source: ADR 0012 (Bug B successor) · Depends on: 01 · Parallel group: G2 · Status: <span class="badge b-draft">draft</span></p>
+
+<h2>Context</h2>
+
+<p>PLAN-01 added the <code>state$spec_seed</code> seed path and reshaped <code>build_ui_for.ptr_ph_value</code> / <code>build_ui_for.ptr_ph_data_source</code> to emit <code>uiOutput</code> containers rendered server-side. Both the new seed path AND the legacy <code>updateXyzInput</code> path now run, with the seed taking visual precedence (because renderUI fires before the deferred onFlushed callback) and the <code>updateXyzInput</code> calls being redundant for built-in keywords.</p>
+
+<p>This plan deletes the redundant path so the codebase has one mechanism for spec-apply, restoring single-source-of-truth and removing the structural asymmetry between built-in and custom keywords. It also reverts the test workarounds in <code>tests/testthat/test-adr12-spec-roundtrip.R</code> that fell back to <code>app$get_value(...)</code> because <code>shinyWidgets::updatePickerInput</code> updates the widget client-side without re-rendering the server-side HTML — now that <code>ptr_setup_consumer_uis</code> renders the picker server-side via <code>renderUI</code> with <code>selected = state$spec_seed[[bare]]</code>, the initial HTML carries <code>&lt;option ... selected&gt;</code> natively and <code>app$get_html</code> can assert it.</p>
+
+<h2>Governing principle</h2>
+
+<p>Same as PLAN-01: the registry contract is uniform (one <code>build_ui</code> hook), therefore the apply path must be uniform. PLAN-01 made the seed path WORK for custom keywords by adding it alongside the legacy path; PLAN-02 makes the seed path the ONLY path so the asymmetry cannot regress. <strong>A future contributor reading the post-PLAN-02 codebase must find no trace of "dispatch on keyword and call updateXyz" in the spec-apply flow.</strong> Pre-write normalization (numeric coercion, expression deparse) moves <em>into</em> the seed-write step inside <code>apply_spec_at_boot</code> / <code>apply_spec_entry</code>, not into renderUI consumers — so the "invalid value" warning still fires once at boot, never per-render. Mid-stream value validation in renderUI is a different anti-pattern (silent UI churn) and is forbidden.</p>
+
+<h2>Success Criteria</h2>
+
+<ul>
+  <li><strong>SC-1 (apply_spec_entry collapsed).</strong> After this plan, <code>apply_spec_entry</code> (<code>R/paintr-server.R</code>) contains <em>zero</em> calls to <code>shiny::updateTextInput</code> for the <em>ppText</em> branch, <code>shiny::updateNumericInput</code>, <code>shiny::updateTextAreaInput</code>, or <code>shinyWidgets::updatePickerInput</code>. Verify with this command, which scopes to the post-collapse <code>apply_spec_entry</code> body and counts the four placeholder-keyword update calls (must return <code>0</code>): <pre>Rscript -e 'src &lt;- readLines("R/paintr-server.R"); start &lt;- grep("^apply_spec_entry &lt;- function", src); end_offset &lt;- which(src[start:length(src)] == "}")[1] - 1; body &lt;- src[start:(start + end_offset)]; placeholder_updates &lt;- grepl("updateNumericInput|updateTextAreaInput|updatePickerInput", body) | (grepl("updateTextInput", body) &amp; grepl("ppText", body, fixed = TRUE)); cat(sum(placeholder_updates), "\\n")'</pre> Framework-internal <code>shiny::updateCheckboxInput</code> for <code>layer_checkbox</code>/<code>stage_enabled</code> and <code>shiny::updateTextInput</code> for <code>source_companion</code> survive — they are not registry placeholders and are outside the governing principle's scope. The verification command above explicitly excludes them.</li>
+  <li><strong>SC-2 (seed-only path covers all built-in keywords).</strong> Run <code>testthat::test_file("tests/testthat/test-adr12-spec-roundtrip.R")</code>. All assertions PASS using <code>app$get_html(...)</code> (where reverted) or <code>app$get_value(...)</code> (where retained for non-HTML inputs). PASS condition is <code>FAIL 0 / WARN 0 / SKIP 0</code> when <code>NOT_CRAN=true</code>.</li>
+  <li><strong>SC-3 (HTML carries server-rendered selection).</strong> The fixture's ppVar picker assertion (line 48 in current <code>test-adr12-spec-roundtrip.R</code>: <code>expect_equal(app$get_value(input = "ggplot_1_1_ppVar_NA"), "carb")</code>) becomes an <code>app$get_html("#ggplot_1_1_ppVar_NA")</code>-based assertion that the returned HTML contains <code>&lt;option ... selected&gt;carb&lt;/option&gt;</code> (or the shinyWidgets equivalent — verify the exact attribute markup against a printed sample from the fixture before stamping). PASS condition: the new assertion PASSes <em>and</em> a parallel <code>app$get_value</code> assertion confirms the input-side value still equals "carb" — proving both DOM and reactive-state mechanisms now agree.</li>
+  <li><strong>SC-4 (PLAN-01 Bug B regression still passes).</strong> <code>testthat::test_file("tests/testthat/test-adr12b-spec-custom-keyword.R")</code> (added by PLAN-01) continues to PASS unchanged. The seed-only path must still apply custom-keyword spec entries.</li>
+  <li><strong>SC-5 (full gate).</strong> The authoritative DoD command returns <code>FAIL 0 / WARN 0 / SKIP 2 / PASS &ge; post-PLAN-01 baseline</code>. SKIP count must be exactly 2.</li>
+</ul>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>Files this plan owns:</strong>
+    <ul>
+      <li><code>R/paintr-server.R</code> — collapse <code>apply_spec_entry</code> body to: (a) framework-internal cases (<code>layer_checkbox</code>, <code>stage_enabled</code>, <code>source_companion</code>) keep their <code>updateCheckboxInput</code>/<code>updateTextInput</code> calls; (b) placeholder cases (ppText, ppNum, ppExpr, ppVar) write the normalized value into <code>state$spec_seed[[row$bare_id]]</code> (pre-write normalization: ppNum coercion via <code>suppressWarnings(as.numeric(.)[[1L]])</code> with FALSE on NA-from-non-NA, ppExpr language-to-text via <code>paste(deparse(.), collapse="\n")</code>, ppText character coercion); (c) ppUpload's fileInput dispatch stays a silent TRUE (unsettable), and the existing source_companion handling continues for the dataset-name field. Move the seed-write performed by PLAN-01 inside <code>apply_spec_at_boot</code> to the same place, so all spec normalization lives in one function.</li>
+      <li><code>tests/testthat/test-adr12-spec-roundtrip.R</code> — revert <code>app$get_value</code> workarounds to <code>app$get_html</code>-based assertions where the widget is now server-rendered via PLAN-01's renderUI; retain <code>app$get_value</code> for the framework-internal <code>geom_point_checkbox</code> (assertion at current line 55) since it stays on <code>updateCheckboxInput</code>.</li>
+      <li><code>tests/testthat/fixtures/vignette-apps/adr12-spec-roundtrip/app.R</code> — update the "EXCEPT" header comment block to reflect that the ppVar picker is now server-rendered (no more "updatePickerInput from inside the onFlushed callback hits a live widget" claim).</li>
+    </ul>
+  </li>
+  <li><strong>Files this plan must NOT touch:</strong>
+    <ul>
+      <li>Anything PLAN-01 owns (<code>R/paintr-build-ui.R</code>, <code>tests/testthat/test-adr12b-*.R</code>) — PLAN-01 must have merged first.</li>
+      <li><code>R/paintr-classify.R</code>, <code>R/paintr-walk.R</code>, <code>R/paintr-translate.R</code>, <code>R/paintr-shared.R</code>, the <code>consumer-colvars</code> and <code>adr12-bug-3a</code> fixtures — owned by the parallel Bug A session.</li>
+      <li><code>R/paintr-placeholders.R</code> — no registry contract change.</li>
+    </ul>
+  </li>
+  <li><strong>No new hook type.</strong> Do not add an <code>update_value</code> hook to the placeholder registry. The seed path makes one unnecessary; adding one would re-introduce two paths.</li>
+  <li><strong>No mid-stream value validation in renderUI.</strong> All spec-value normalization happens once, at boot, before being written into <code>state$spec_seed</code>. The renderUI's role is purely to pass the seeded value through as <code>extra$selected</code>; it must not coerce, parse, or warn.</li>
+  <li><strong>HTML-attribute assertion specificity.</strong> SC-3's <code>app$get_html</code>-based assertion must check for the actual attribute markup shinyWidgets / shiny render (verify by capturing a sample from a quick browser-fixture probe before writing the matcher). Do <strong>not</strong> assume a particular attribute spelling; capture the real output first. Project memory <code>[[browser-probe-pitfalls]]</code> warns about DOM-shape artifacts.</li>
+  <li><strong>SCOPE NARROWING FORBIDDEN.</strong> If reverting the picker assertion to <code>app$get_html</code> reveals that shinyWidgets renders the selection in a way <code>app$get_html</code> cannot observe (e.g., the picker's display state is in a sibling JS-driven div), STOP and escalate to the orchestrator. Do NOT keep the <code>app$get_value</code> workaround and claim the plan done; that hides exactly the issue PLAN-02 exists to delete. Open a follow-up plan to investigate the shinyWidgets render path, do not absorb the workaround.</li>
+  <li><strong>Conventions:</strong> as PLAN-01.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>
+Feature: spec= apply path is uniform (seed-only) and HTML carries server-rendered selection
+
+Scenario: apply_spec_entry contains no updateXyzInput call for placeholder keywords
+  Given the post-PLAN-02 R/paintr-server.R
+  When the body of apply_spec_entry is read
+  Then for keyword in {ppText, ppNum, ppExpr, ppVar} there is no
+       shiny::updateTextInput / updateNumericInput / updateTextAreaInput /
+       shinyWidgets::updatePickerInput call
+   And the only update*Input calls remaining are the three framework-internal
+       cases: layer_checkbox -> updateCheckboxInput, stage_enabled ->
+       updateCheckboxInput, source_companion -> updateTextInput
+
+Scenario: ppVar picker assertion uses app$get_html and finds <option selected>
+  Given the adr12-spec-roundtrip fixture booted with spec entry ggplot_1_1_ppVar_NA = "carb"
+  When app$get_html("#ggplot_1_1_ppVar_NA") is read
+  Then the returned HTML contains an <option> tag for "carb" with the selected
+       attribute set (the exact attribute spelling -- "selected" /
+       "selected=\"selected\"" / "data-tokens=" / etc. -- is captured from a
+       pre-stamping browser-fixture probe and matched literally)
+   And the parallel app$get_value(input = "ggplot_1_1_ppVar_NA") still equals "carb"
+
+Scenario: ppNum spec value still coerces correctly through the seed path
+  Given a formula with a ppNum placeholder, spec = list(<num_id> = "5")
+  When apply_spec_at_boot writes the seed
+  Then state$spec_seed[[<num_id>]] equals 5 (numeric, not the string "5")
+   And the rendered numericInput's input-side value equals 5
+
+Scenario: ppExpr language value still deparses correctly through the seed path
+  Given a formula with a ppExpr placeholder, spec = list(<expr_id> = quote(a + b))
+  When apply_spec_at_boot writes the seed
+  Then state$spec_seed[[<expr_id>]] equals "a + b" (character, deparsed)
+
+Scenario: framework-internal checkbox still applies via updateCheckboxInput
+  Given a formula with a layer that yields layer_checkbox id <layer>_checkbox
+        and spec = list(<layer>_checkbox = FALSE)
+  When apply_spec_at_boot dispatches
+  Then session$input[[<layer>_checkbox]] equals FALSE after flushReact
+   And this path uses updateCheckboxInput (not state$spec_seed)
+
+Scenario: PLAN-01's Bug B regression still passes
+  Given the test-adr12b-spec-custom-keyword.R file (added by PLAN-01)
+  When the test is run under NOT_CRAN=true
+  Then it PASSes
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p>Authoritative gate (copied verbatim from <code>CLAUDE.md</code>):</p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p>Expected output: <code>FAIL 0 / WARN 0 / SKIP 2 / PASS &ge; (post-PLAN-01 PASS count)</code>. SKIP count must remain exactly 2.</p>
+
+<p><strong>Proxy traps — do not be fooled:</strong></p>
+
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with no <code>NOT_CRAN</code> silently SKIPs every shinytest2 browser test (<code>skip_on_cran()</code>). Never the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> sets <code>NOT_CRAN=true</code> internally; the e2e file cleanly SKIPs via the source-root guard. Use only for the <code>--as-cran</code> NOTE check, never as the test gate.</li>
+  <li>The new SC-3 <code>app$get_html</code> assertion is a stricter check than the SC-2 <code>app$get_value</code> baseline. If SC-2 PASSes but SC-3 FAILs, the seed path is not actually producing server-rendered selection HTML — surface the divergence, do not weaken SC-3.</li>
+</ul>
+
+<h2>Scope guard / ownership</h2>
+
+<p>This plan owns: <code>R/paintr-server.R</code> (apply_spec_entry body only), <code>tests/testthat/test-adr12-spec-roundtrip.R</code>, <code>tests/testthat/fixtures/vignette-apps/adr12-spec-roundtrip/app.R</code> (header comment only). Generated files (<code>NAMESPACE</code>, <code>man/*.Rd</code>) are not expected to change; if they do, surface in audit.</p>
+
+<p>Branch convention: same worktree as PLAN-01 (<code>.claude/worktrees/bug-b-spec-apply-uniform/</code>) since this plan strictly depends on PLAN-01's outputs. Sequential commits: PLAN-01 commit then PLAN-02 commit.</p>
+
+<h2>Independence clause</h2>
+
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the DoD command and verifies <code>FAIL 0 / WARN 0 / SKIP 2</code> with PASS count not lower than post-PLAN-01 baseline before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+
+<p>Known-good baseline: post-PLAN-01 commit on the <code>bug-b-spec-apply-uniform</code> branch. The pre-existing 2 SKIPs (<code>test-rewrite-render.R:40</code>, <code>:53</code>) carry through. New failures = anything not present after PLAN-01.</p>
+
+<h2>Out-of-scope handling</h2>
+
+<ul>
+  <li>Moving framework-internal widgets (stage_enabled / layer_checkbox / source_companion) to renderUI → future plan, user-gated.</li>
+  <li>Investigating whether shinyWidgets' picker selection HTML is observable via <code>app$get_html</code> (deferred to the SC-3 pre-stamping probe; if blocked, see Constraints "SCOPE NARROWING FORBIDDEN").</li>
+  <li>Per-plot vs combined-spec accessor at the grid level → ADR 0012 §5 OQ3, deferred.</li>
+</ul>
+
+<h2>Dependencies / ordering</h2>
+
+<p><strong>Depends on:</strong> 01 (consumes <code>state$spec_seed</code>, the two new setup helpers, and the reshaped <code>build_ui_for.*</code> methods). G2 in the topology; merges after G1.</p>
+<p><strong>Provides for:</strong> No downstream plan in this directory. Closes the Bug B scope.</p>
+
+<!-- implementable: PASS date=2026-05-22 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=088db1c35ad8 -->
+</body>
+</html>
