@@ -119,6 +119,9 @@
 #'   mode, R's parser desugars `|>` before capture, so the rendered code
 #'   shows the desugared nested-call form. Stay in string mode (or use
 #'   `%>%`) if you need `|>` preserved.
+#' @param spec An optional named list of fully-qualified Shiny input id ->
+#'   value, used to override widget defaults at session boot. See
+#'   [ADR 0012](dev/adr/0012-role-based-tree-and-ptr-spec.html).
 #' @examples
 #' if (interactive()) {
 #'   # String mode (existing).
@@ -136,7 +139,8 @@ ptr_app <- function(formula,
                        checkbox_defaults = NULL,
                        expr_check = TRUE,
                        safe_to_remove = character(),
-                       css = NULL) {
+                       css = NULL,
+                       spec = NULL) {
   formula_str <- ptr_capture_formula(rlang::enexpr(formula), envir)
   parts <- ptr_app_components(
     formula_str,
@@ -145,7 +149,8 @@ ptr_app <- function(formula,
     checkbox_defaults = checkbox_defaults,
     expr_check = expr_check,
     safe_to_remove = safe_to_remove,
-    css = css
+    css = css,
+    spec = spec
   )
   shiny::shinyApp(ui = parts$ui, server = parts$server)
 }
@@ -157,7 +162,8 @@ ptr_app_components <- function(formula,
                                   expr_check = TRUE,
                                   safe_to_remove = character(),
                                   ns = shiny::NS(NULL),
-                                  css = NULL) {
+                                  css = NULL,
+                                  spec = NULL) {
   formula <- ptr_capture_formula(rlang::enexpr(formula), envir)
   tree <- ptr_translate(formula, expr_check = expr_check)
 
@@ -174,7 +180,8 @@ ptr_app_components <- function(formula,
     formula, tree,
     envir = envir, ui_text = ui_text,
     checkbox_defaults = checkbox_defaults, expr_check = expr_check,
-    safe_to_remove = safe_to_remove, ns = ns
+    safe_to_remove = safe_to_remove, ns = ns,
+    spec = spec
   )
   list(ui = ui, server = server)
 }
@@ -290,7 +297,7 @@ ptr_capture_formula <- function(formula_captured, envir) {
 # already in hand at the call site (it also drives the UI there).
 ptr_make_app_server <- function(formula, tree, envir, ui_text,
                                 checkbox_defaults, expr_check,
-                                safe_to_remove, ns) {
+                                safe_to_remove, ns, spec = NULL) {
   shared_entries <- collect_shared_placeholders(tree)
   shared_keys <- vapply(shared_entries, `[[`, character(1), "key")
   shared_resolutions <- ptr_resolve_shared_consumers(tree)
@@ -317,7 +324,8 @@ ptr_make_app_server <- function(formula, tree, envir, ui_text,
       shared = shared_reactives,
       ns = ns,
       auto_bind_shared = TRUE,
-      shared_resolutions = shared_resolutions
+      shared_resolutions = shared_resolutions,
+      spec = spec
     )
     # Single-instance owns every shared consumer key (no coordinator),
     # so `host_owned_keys = character(0)`. Behaviour byte-stable: the
@@ -1043,6 +1051,9 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #'   formula declares a `shared = "..."` placeholder driven by a
 #'   cross-formula [ptr_shared_panel()] and the equivalent `...` arguments
 #'   are not supplied directly.
+#' @param spec An optional named list of fully-qualified Shiny input id ->
+#'   value, used to override widget defaults at session boot. See
+#'   [ADR 0012](dev/adr/0012-role-based-tree-and-ptr-spec.html).
 #'
 #' @return The `ptr_state` list from [ptr_init_state()]. This is the
 #'   **supported L3 custom-render handle**: `state$runtime()$plot` /
@@ -1075,7 +1086,7 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #' }
 #' @export
 ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
-                                 shared_state = NULL) {
+                                 shared_state = NULL, spec = NULL) {
   formula <- ptr_capture_formula(rlang::enexpr(formula), envir)
   dots <- list(...)
 
@@ -1180,7 +1191,8 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
       c(
         list(input = input, output = output, session = session,
              formula = formula, envir = envir,
-             ns = session$ns, server_ns = shiny::NS(NULL)),
+             ns = session$ns, server_ns = shiny::NS(NULL),
+             spec = spec),
         dots
       )
     )
@@ -1238,6 +1250,11 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
 #'   its rules win. See [ptr_app()] for the full semantics. Defaults to `NULL`.
 #' @param ncol Number of plot columns. Default \code{NULL} auto-computes from \code{nrow} or places all plots in one row.
 #' @param nrow Number of plot rows. Default \code{NULL} auto-computes from \code{ncol}.
+#' @param spec An optional named list of fully-qualified Shiny input id ->
+#'   value, used to override widget defaults at session boot. The same flat
+#'   spec is passed to every per-plot engine; each instance filters by its
+#'   own namespace prefix. See
+#'   [ADR 0012](dev/adr/0012-role-based-tree-and-ptr-spec.html).
 #'
 #' @return A `shiny.appobj`.
 #' @seealso [ptr_css()] for the `css =` argument and themable CSS custom properties.
@@ -1259,7 +1276,8 @@ ptr_app_grid <- function(plots,
                             expr_check = TRUE,
                             css = NULL,
                             ncol = NULL,
-                            nrow = NULL) {
+                            nrow = NULL,
+                            spec = NULL) {
   parts <- ptr_app_grid_components(
     plots = plots,
     shared_ui = shared_ui,
@@ -1269,7 +1287,8 @@ ptr_app_grid <- function(plots,
     expr_check = expr_check,
     css = css,
     ncol = ncol,
-    nrow = nrow
+    nrow = nrow,
+    spec = spec
   )
   shiny::shinyApp(ui = parts$ui, server = parts$server)
 }
@@ -1282,7 +1301,8 @@ ptr_app_grid_components <- function(plots,
                                        expr_check = TRUE,
                                        css = NULL,
                                        ncol = NULL,
-                                       nrow = NULL) {
+                                       nrow = NULL,
+                                       spec = NULL) {
   title <- ptr_resolve_ui_text("title", ui_text = ui_text)$label %||%
     "ggpaintr grid"
   if (is.character(plots)) plots <- as.list(plots)
@@ -1410,11 +1430,22 @@ ptr_app_grid_components <- function(plots,
   force(envir)
   force(expr_check)
   force(obj)
+  force(spec)
 
   server <- function(input, output, session) {
     state <- if (!is.null(obj)) {
       ptr_shared_server(obj, envir = envir)
     } else NULL
+
+    # Collect per-plot engine states so the grid can expose a
+    # `state$spec` reactive that combines every plot's namespaced spec
+    # into a single flat list (the form a caller pastes back into
+    # `ptr_app_grid(spec = ...)` for round-trip). Per PLAN-06: do NOT
+    # pre-partition the spec at the grid level on the way IN -- the same
+    # flat spec is passed to every per-plot `ptr_server`; each engine
+    # filters by its own namespace prefix. On the way OUT, per-plot
+    # `state$spec()` reactives are unioned via `ptr_spec_combine()`.
+    plot_states <- list()
 
     for (i in seq_along(plots)) {
       local({
@@ -1424,12 +1455,33 @@ ptr_app_grid_components <- function(plots,
           id = plot_module_ids[[idx]],
           envir = envir,
           expr_check = expr_check,
-          plots = plots
+          plots = plots,
+          spec = spec
         )
         if (!is.null(state)) args$shared_state <- state
-        do.call(ptr_server, args)
+        plot_states[[idx]] <<- do.call(ptr_server, args)
       })
     }
+
+    # Grid-level combined spec: union of per-plot `state$spec()` keyed by
+    # fully-qualified ids. The reactive recomputes on any per-plot change
+    # and `ptr_spec_combine` aborts on collisions (which should not occur
+    # under the standard `<plot_module_id>-` namespacing). The return
+    # shape is extended for callers that want to drive a panel/code
+    # accessor off the grid components.
+    combined_spec <- shiny::reactive({
+      per_plot <- lapply(plot_states, function(st) {
+        if (is.null(st) || is.null(st$spec)) return(NULL)
+        st$spec()
+      })
+      ptr_spec_combine(per_plot)
+    })
+
+    list(
+      plot_states = plot_states,
+      shared_state = state,
+      spec = combined_spec
+    )
   }
 
   list(ui = ui, server = server)

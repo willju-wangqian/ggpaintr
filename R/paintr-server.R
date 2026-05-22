@@ -402,6 +402,196 @@ ptr_validate_state <- function(state) {
   invisible(TRUE)
 }
 
+# ADR 0012 §3.6 / PLAN-06 — apply a session-boot `spec=` to widget state.
+#
+# `spec` is a named list of fully-qualified Shiny input ids -> values
+# (the shape PLAN-05's `state$spec` reactive emits and `format_spec_for_panel`
+# round-trips). This helper:
+#
+#   1. Filters `spec` to entries whose id starts with this engine instance's
+#      namespace prefix (so a flat spec for `ptr_app_grid` reaches each
+#      per-plot engine and each takes only its own slice).
+#   2. Drops entries whose stripped (bare) id is unknown to this instance's
+#      `state$input_spec` -- aggregated into ONE `cli::cli_inform` listing
+#      every dropped id.
+#   3. Dispatches `updateXyzInput(session, bare_id, value)` per surviving
+#      entry, keyed by the widget kind implied by `role` + `keyword` (see
+#      `apply_spec_entry` below). Bare ids are used because under
+#      `shiny::moduleServer` the session auto-namespaces; at top level
+#      `session$ns` is identity.
+#   4. Wraps every `updateXyz` call inside `session$onFlushed(once = TRUE)`
+#      so widgets exist when touched -- in particular the suspended `var`
+#      pickers under the layer "Data" subtab and the renderUI-built
+#      shared widgets are bound by the time the first flush fires.
+#
+# `var` placeholders (multi-select picker with `maxOptions = 1L`) accept
+# whatever value is set; the widget's own choice set may still be empty at
+# boot (e.g. before an upload resolves), so `selected = value` is harmless
+# -- the picker shows nothing until the choices arrive, then auto-selects
+# matching value(s).
+#
+# One-shot only -- the spec is consumed once and never re-applied (ADR
+# 0012 §2 row "Apply timing of spec="; reactive re-application is
+# deferred). No observer is created here.
+apply_spec_at_boot <- function(spec, session, state) {
+  if (is.null(spec) || length(spec) == 0L) return(invisible())
+  if (!is.list(spec)) {
+    rlang::abort("`spec` must be a named list of input id -> value.")
+  }
+  nms <- names(spec)
+  if (is.null(nms) || any(!nzchar(nms)) || anyNA(nms)) {
+    rlang::abort("`spec` must be fully named with non-empty input ids.")
+  }
+  # Prefix derivation: `session$ns("")` is "" at top level, "<id>-" under
+  # moduleServer. `startsWith(name, "")` is TRUE for every name, so the
+  # top-level path is identity. The trailing `-` separator is part of the
+  # moduleServer prefix so "p1-" does not match "p10-foo".
+  prefix <- tryCatch(session$ns(""), error = function(e) "")
+  if (is.null(prefix)) prefix <- ""
+  keep <- startsWith(nms, prefix)
+  if (!any(keep)) return(invisible())
+  spec <- spec[keep]
+  nms <- nms[keep]
+  bare_ids <- substring(nms, nchar(prefix) + 1L)
+
+  # `state$input_spec` rows: input_id, role, layer_name, keyword,
+  # param_key, source_id, shared.
+  spec_df <- state$input_spec
+  known_ids <- if (is.data.frame(spec_df) && nrow(spec_df) > 0L) {
+    spec_df$input_id
+  } else character()
+
+  dropped <- character()
+  rows_to_apply <- list()
+  for (i in seq_along(bare_ids)) {
+    bid <- bare_ids[[i]]
+    fq  <- nms[[i]]
+    idx <- match(bid, known_ids, nomatch = 0L)
+    if (idx == 0L) {
+      dropped <- c(dropped, fq)
+      next
+    }
+    rows_to_apply[[length(rows_to_apply) + 1L]] <- list(
+      fq = fq,
+      bare_id = bid,
+      value = spec[[i]],
+      role = spec_df$role[idx],
+      keyword = spec_df$keyword[idx]
+    )
+  }
+
+  if (length(dropped) > 0L) {
+    cli::cli_inform(c(
+      "i" = "Dropped {length(dropped)} unknown id{?s} from {.arg spec}: {.val {dropped}}"
+    ))
+  }
+
+  if (length(rows_to_apply) == 0L) return(invisible())
+
+  # Dispatch is deferred to the first flush so all dynamic UIs (renderUI'd
+  # consumer pickers, shared widgets, stage checkboxes) are mounted.
+  session$onFlushed(once = TRUE, function() {
+    invalid <- character()
+    for (row in rows_to_apply) {
+      ok <- apply_spec_entry(session, row)
+      if (isFALSE(ok)) invalid <- c(invalid, row$fq)
+    }
+    if (length(invalid) > 0L) {
+      cli::cli_warn(c(
+        "!" = "Skipped {length(invalid)} {.arg spec} entr{?y/ies} with an invalid value: {.val {invalid}}"
+      ))
+    }
+  })
+
+  invisible()
+}
+
+# Dispatch one spec entry to the matching `updateXyzInput`. Returns TRUE
+# on a successful update, FALSE if the value was invalid for the widget
+# (so the caller can aggregate per-id warnings). Widget-kind dispatch is
+# keyed by `role` + `keyword` from `state$input_spec`:
+#   role == "layer_checkbox" | "stage_enabled" -> updateCheckboxInput
+#   role == "source_companion"                 -> updateTextInput
+#   role == "placeholder", keyword == "ppText"   -> updateTextInput
+#                          keyword == "ppNum"    -> updateNumericInput
+#                          keyword == "ppExpr"   -> updateTextAreaInput
+#                          keyword == "ppVar"    -> shinyWidgets::updatePickerInput
+#                          keyword == "ppUpload" -> silent skip (fileInput
+#                                                   is not programmatically
+#                                                   settable; the companion
+#                                                   textInput is reached via
+#                                                   the "source_companion"
+#                                                   row).
+# (Placeholder keywords carry the `pp` prefix per ADR 0009 / project memory
+# `ADR-0009 Merged`. Pre-rename `text/num/expr/var/upload` no longer parse.)
+apply_spec_entry <- function(session, row) {
+  role    <- row$role
+  keyword <- row$keyword
+  id      <- row$bare_id
+  value   <- row$value
+
+  if (identical(role, "layer_checkbox") || identical(role, "stage_enabled")) {
+    if (!is.logical(value) || length(value) != 1L || is.na(value)) {
+      return(FALSE)
+    }
+    shiny::updateCheckboxInput(session, id, value = value)
+    return(TRUE)
+  }
+  if (identical(role, "source_companion")) {
+    if (is.null(value)) value <- ""
+    shiny::updateTextInput(session, id, value = as.character(value)[[1L]])
+    return(TRUE)
+  }
+  # role == "placeholder": dispatch on keyword (pp-prefixed per ADR 0009).
+  if (identical(keyword, "ppText")) {
+    if (is.null(value)) value <- ""
+    shiny::updateTextInput(session, id, value = as.character(value)[[1L]])
+    return(TRUE)
+  }
+  if (identical(keyword, "ppNum")) {
+    if (is.null(value) || (is.character(value) && !nzchar(value))) {
+      shiny::updateNumericInput(session, id, value = NA_real_)
+      return(TRUE)
+    }
+    num <- suppressWarnings(as.numeric(value)[[1L]])
+    if (is.na(num) && !identical(value, NA_real_) && !identical(value, NA_integer_)) {
+      return(FALSE)
+    }
+    shiny::updateNumericInput(session, id, value = num)
+    return(TRUE)
+  }
+  if (identical(keyword, "ppExpr")) {
+    if (is.null(value)) {
+      shiny::updateTextAreaInput(session, id, value = "")
+      return(TRUE)
+    }
+    txt <- if (is.language(value)) {
+      paste(deparse(value), collapse = "\n")
+    } else {
+      as.character(value)[[1L]]
+    }
+    shiny::updateTextAreaInput(session, id, value = txt)
+    return(TRUE)
+  }
+  if (identical(keyword, "ppVar")) {
+    if (is.null(value)) value <- character()
+    if (!requireNamespace("shinyWidgets", quietly = TRUE)) {
+      return(FALSE)
+    }
+    shinyWidgets::updatePickerInput(session, id,
+                                    selected = as.character(value))
+    return(TRUE)
+  }
+  if (identical(keyword, "ppUpload")) {
+    # fileInput cannot be updated programmatically (its value is set by
+    # an actual browser-side upload). Silent skip: the companion
+    # textInput's role is "source_companion" handled above.
+    return(TRUE)
+  }
+  # Unknown keyword (custom placeholder) — no built-in widget dispatch.
+  FALSE
+}
+
 # ---- public wiring entry point ----
 
 #' Internal: wire a `ggpaintr` server from a formula (engine)
@@ -434,6 +624,9 @@ ptr_validate_state <- function(state) {
 #'   through `...` still wins). This is the convenience path for wiring a
 #'   page-level [ptr_shared_panel()] panel to a single embedded plot — the
 #'   same bundle [ptr_server()] accepts. Defaults to `NULL`.
+#' @param spec An optional named list of fully-qualified Shiny input id ->
+#'   value, used to override widget defaults at session boot. See
+#'   [ADR 0012](dev/adr/0012-role-based-tree-and-ptr-spec.html).
 #'
 #' @return The `ptr_state` list.
 #' @seealso [ptr_shared_server()], [ptr_server()]
@@ -460,7 +653,8 @@ ptr_validate_state <- function(state) {
 #' @noRd
 ptr_server_internal <- function(input, output, session, formula,
                           envir = parent.frame(), ...,
-                          shared_state = NULL) {
+                          shared_state = NULL,
+                          spec = NULL) {
   dots <- list(...)
   # `shared_state` mirrors `ptr_server()`'s convenience path: a
   # one-shot bundle from `ptr_shared_server()` carrying `shared`,
@@ -500,6 +694,7 @@ ptr_server_internal <- function(input, output, session, formula,
   ptr_register_plot(output, state)
   ptr_register_error(output, state)
   ptr_register_code(output, state)
+  apply_spec_at_boot(spec, session, state)
   state
 }
 
