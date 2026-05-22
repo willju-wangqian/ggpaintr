@@ -399,8 +399,9 @@ render_walk.default <- function(node, indent = 0L, preserve_placeholders = FALSE
 # `snapshot` is a named list keyed by node$id (same shape that substitute_walk
 # reads via ctx$snapshot). Returns a stamped tree copy; placeholder nodes
 # whose id is absent from the snapshot or maps to NULL are left untouched
-# (current_pick stays NULL -> preserve-mode renderer emits `ppX()`). Other
-# node kinds recurse only -- they have no current_pick slot.
+# (current_pick stays NULL -> preserve-mode renderer emits bare `ppX`, or
+# `ppX(shared = "k")` when a shared key is present). Other node kinds
+# recurse only -- they have no current_pick slot.
 stamp_current_pick_walk <- function(node, snapshot)
   UseMethod("stamp_current_pick_walk")
 
@@ -492,12 +493,17 @@ stamp_current_pick_walk.ptr_ph_data_source <- function(node, snapshot) {
   node
 }
 
-# Emit `ppX(current_pick)` (or `ppX(current_pick, shared = "k")`) for a
-# placeholder node whose `current_pick` field has been set by
-# stamp_current_pick_walk() above. No current_pick -> empty call `ppX()`.
-# The keyword on the node is emitted verbatim so the post-rename vocabulary
-# (ppVar/ppNum/...) and the legacy vocabulary (var/num/...) both flow
-# through unchanged.
+# Render a placeholder node in preserve mode. The keyword on the node is
+# emitted verbatim so the post-rename vocabulary (ppVar/ppNum/...) and the
+# legacy vocabulary (var/num/...) both flow through unchanged. The arg list
+# is assembled from at most two pieces and the parens are dropped when both
+# are absent:
+#   * current_pick set        -> `ppX(current_pick)`
+#   * shared key set          -> `ppX(shared = "k")`
+#   * both set                -> `ppX(current_pick, shared = "k")`
+#   * neither set             -> bare `ppX` (no parens)
+# Bare `ppX` round-trips through ptr_translate(): placeholder_keyword() in
+# R/paintr-translate.R accepts both the symbol form and the zero-arg call.
 render_placeholder_preserved <- function(node) {
   keyword <- node$keyword
   if (is.null(keyword) || !nzchar(keyword)) keyword <- "<anon>"
@@ -510,7 +516,8 @@ render_placeholder_preserved <- function(node) {
   }
   args <- c(inner, shared_part)
   args <- args[nzchar(args)]
-  paste0(keyword, "(", paste(args, collapse = ", "), ")")
+  if (length(args) == 0L) keyword
+  else paste0(keyword, "(", paste(args, collapse = ", "), ")")
 }
 
 # Map a current pick + keyword to the rendered inner-arg text. Dispatch is
