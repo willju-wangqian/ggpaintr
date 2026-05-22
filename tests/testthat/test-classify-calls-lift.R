@@ -28,8 +28,12 @@ test_that("canonical-tree identity: native pipe vs magrittr pipe", {
 
   expect_s3_class(da_n, "ptr_pipeline")
   expect_s3_class(da_m, "ptr_pipeline")
+  # ADR 0012 §5 OQ2 closed (PLAN-01 of 0012b): `$op` now reflects the user's
+  # surface pipe choice via the first-pipe-op rule. The structural tree is
+  # still identical across the two forms — `ptr_tree_structural_equal`
+  # ignores `$op` — preserving the canonical-tree invariant (ADR 0012 §1).
   expect_equal(da_n$op, "|>")
-  expect_equal(da_m$op, "|>")
+  expect_equal(da_m$op, "%>%")
   expect_equal(length(da_n$stages), length(da_m$stages))
   expect_true(ggpaintr:::ptr_tree_structural_equal(da_n, da_m))
 })
