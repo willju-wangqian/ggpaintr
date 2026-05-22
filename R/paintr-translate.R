@@ -70,13 +70,122 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
   root
 }
 
-# Reserved classification-pass slot (ADR 0012 §2). PLAN-01 lands the identity
-# no-op; PLAN-02 fills in the lift / role-tagging body. Internal.
+# Classification pass (ADR 0012 §2 "Lift rule", §3.1, §3.2). Walks each
+# layer's `data_arg` and rewrites nested-call chains whose deepest first-arg
+# is non-call into a canonical `ptr_pipeline` — collapsing the divergence
+# between `%>%`, `|>`, and nested-call surface forms. Honours the `+` fence
+# (ADR 0012 §3.4) by never descending into `layer$children`. Internal.
 ptr_classify_calls <- function(root) {
   if (!is_ptr_root(root)) {
     rlang::abort("ptr_classify_calls expects a ptr_root.")
   }
+  any_lifted <- FALSE
+  for (i in seq_along(root$layers)) {
+    layer <- root$layers[[i]]
+    if (!is_ptr_layer(layer)) next
+    if (is.null(layer$data_arg)) next
+    lifted <- maybe_lift_data_arg(layer$data_arg)
+    if (!identical(lifted, layer$data_arg)) {
+      root$layers[[i]]$data_arg <- lifted
+      any_lifted <- TRUE
+    }
+  }
+  if (any_lifted) {
+    # The lift retranslates stages via `translate_node` — fresh placeholder
+    # nodes with `id = NA_character_` and unstamped upstream. Re-run the
+    # two upstream passes so the new sub-tree carries the same id /
+    # classification invariants `ptr_translate` promises downstream. Both
+    # passes are idempotent for unaffected layers (same shape -> same
+    # ids / upstream), so this is safe to call unconditionally.
+    root <- ptr_assign_ids(root, ns_fn = root$ns_fn %||% shiny::NS(NULL))
+    root <- ptr_classify_data(root)
+  }
   root
+}
+
+# Structural lift: if `node` is a ptr_call whose underlying expr is a nested
+# call chain that bottoms out in a known data-source shape (a bare symbol —
+# either a real R name like `penguins` or a placeholder source like
+# `ppUpload`), rewrite it as a ptr_pipeline using the same constructor the
+# `%>%` path uses. Quiet failure (returns `node` unchanged) for any other
+# shape — including chains whose deepest source position is itself an
+# opaque call (`make_data()`, `read_csv("foo.csv")`, `data.frame(x=1)`,
+# etc.) per ADR 0012 §3.2.
+maybe_lift_data_arg <- function(node) {
+  if (!is_ptr_call(node)) return(node)
+  expr <- node$expr
+  if (!is.call(expr) || length(expr) < 2L) return(node)
+  stages_raw <- resugar_pipeline(expr)
+  terminal <- stages_raw[[1L]]
+  if (!terminal_grounds_for_lift(terminal)) return(node)
+  translated <- lapply(stages_raw, translate_node)
+  ptr_pipeline(stages = translated, op = "|>", expr = expr)
+}
+
+# Terminal-grounding predicate (ADR 0012 §3.2 — narrowed to placeholder-
+# data-source symbols only). The lift fires iff the deepest first-arg of
+# the chain (the head of `resugar_pipeline`'s return) is a symbol whose
+# name is a registered placeholder keyword whose role is "source"
+# (e.g. `ppUpload`). The narrowing beyond "any symbol":
+#
+# * Pipe-syntax formulas with bare data names (`penguins |> filter(...) |>
+#   ggplot(...)`) already produce a `ptr_pipeline` data_arg via
+#   `translate_piped_layer` — the lift never sees a `ptr_call` to act on,
+#   so there is nothing for "bare symbol grounds the lift" to fix that
+#   isn't already canonical.
+# * Plain nested-call formulas with bare data names
+#   (`ggplot() + geom_point(data = filter(head(mtcars, ppNum), ppNum))`)
+#   are NOT pipe-syntax; lifting them changes the data_arg shape
+#   downstream consumers (paintr-disable's stage-id path-encoding,
+#   paintr-prune's nested-call cascade) currently rely on. ADR 0012 §3.3 +
+#   plan 04's "deletion of the per-layer fast-path" handle that migration.
+#   In the meantime, leaving these as `ptr_call` preserves existing
+#   behaviour while the canonical pipeline shape lands for the case that
+#   actually drove ADR 0012: placeholder-source-fronted nested-call
+#   chains (the post-desugar shape of `ppUpload |> ...` when ever a
+#   future parser path produces them).
+# * Literals (`read_csv("foo.csv")` peels to `"foo.csv"`, `data.frame(x=1)`
+#   peels to `1`) and opaque-source calls (`make_data()`) — both correctly
+#   filtered out: literals fail `is.symbol`, calls fail the predicate at
+#   the resugar level (loop bottoms at the call, no final-strip needed).
+#
+# Purely structural plus a registry lookup — no eval-env probing — and
+# the registry lookup is already part of `ptr_classify_data`.
+terminal_grounds_for_lift <- function(expr) {
+  if (!is.symbol(expr)) return(FALSE)
+  nm <- as.character(expr)
+  entry <- ptr_registry_lookup(nm)
+  if (is.null(entry)) return(FALSE)
+  identical(entry$role, "source")
+}
+
+# ADR 0012 §3.1 engine + final-strip extension. The loop descends into
+# `cur[[2L]]` while that slot is itself a call, stripping the first arg
+# from each visited call into the `stages` accumulator. When the loop
+# exits, if `cur` is still a call whose first arg is a non-call (a symbol,
+# literal, or placeholder), strip that final call too — the non-call
+# first arg becomes the pipeline source, and the call's head + remaining
+# args becomes the deepest stage. Returns a list whose head is the
+# deepest first-arg and whose tail is the stages in user-written order.
+# Pure-structural — does not decide whether the lift should fire; the
+# caller pairs this with `terminal_grounds_for_lift`.
+resugar_pipeline <- function(expr) {
+  stages <- list()
+  cur <- expr
+  while (is.call(cur) && length(cur) >= 2L && is.call(cur[[2L]])) {
+    head      <- cur[[1L]]
+    rest_args <- as.list(cur[-c(1L, 2L)])
+    stages    <- c(list(as.call(c(list(head), rest_args))), stages)
+    cur       <- cur[[2L]]
+  }
+  if (is.call(cur) && length(cur) >= 2L && !is.call(cur[[2L]])) {
+    head      <- cur[[1L]]
+    rest_args <- as.list(cur[-c(1L, 2L)])
+    stage     <- as.call(c(list(head), rest_args))
+    source    <- cur[[2L]]
+    return(c(list(source), list(stage), stages))
+  }
+  c(list(cur), stages)
 }
 
 # ---- depth ------------------------------------------------------------------
