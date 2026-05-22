@@ -10,34 +10,36 @@ test_that("P4.1 raw id format combines layer, path, keyword, shared", {
 })
 
 test_that("P4.2 ns_fn applied at UI emit (raw ids on tree, ns at render)", {
+  ns <- shiny::NS("plot1")
   r <- ptr_translate(
     "ggplot(mtcars) + geom_point(size = ppNum)",
-    ns_fn = shiny::NS("plot1")
+    ns_fn = ns
   )
   num <- find_nodes(r, function(x) is_ptr_ph_value(x) && x$keyword == "ppNum")[[1]]
-  rendered <- ptr_render_id(num$id, r$ns_fn)
+  rendered <- ptr_render_id(num$id, ns)
   expect_match(rendered, "^plot1-")
 })
 
 test_that("P4.3 ns_fn = shiny::NS(NULL) is identity", {
+  ns <- shiny::NS(NULL)
   r <- ptr_translate(
     "ggplot(mtcars) + geom_point(size = ppNum)",
-    ns_fn = shiny::NS(NULL)
+    ns_fn = ns
   )
   num <- find_nodes(r, function(x) is_ptr_ph_value(x) && x$keyword == "ppNum")[[1]]
-  rendered <- ptr_render_id(num$id, r$ns_fn)
+  rendered <- ptr_render_id(num$id, ns)
   expect_equal(rendered, num$id)
 })
 
 test_that("P4.4 distinct namespaces produce disjoint rendered ids", {
-  r1 <- ptr_translate("ggplot(mtcars) + geom_point(size = ppNum)",
-                      ns_fn = shiny::NS("a"))
-  r2 <- ptr_translate("ggplot(mtcars) + geom_point(size = ppNum)",
-                      ns_fn = shiny::NS("b"))
+  ns1 <- shiny::NS("a")
+  ns2 <- shiny::NS("b")
+  r1 <- ptr_translate("ggplot(mtcars) + geom_point(size = ppNum)", ns_fn = ns1)
+  r2 <- ptr_translate("ggplot(mtcars) + geom_point(size = ppNum)", ns_fn = ns2)
   n1 <- find_nodes(r1, function(x) is_ptr_ph_value(x) && x$keyword == "ppNum")[[1]]
   n2 <- find_nodes(r2, function(x) is_ptr_ph_value(x) && x$keyword == "ppNum")[[1]]
-  rendered1 <- ptr_render_id(n1$id, r1$ns_fn)
-  rendered2 <- ptr_render_id(n2$id, r2$ns_fn)
+  rendered1 <- ptr_render_id(n1$id, ns1)
+  rendered2 <- ptr_render_id(n2$id, ns2)
   expect_false(rendered1 == rendered2)
 })
 
