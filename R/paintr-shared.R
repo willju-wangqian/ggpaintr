@@ -98,6 +98,19 @@ extract_source_leaf <- function(upstream) {
     if (length(upstream$stages) == 0L) return(NULL)
     return(extract_source_leaf(upstream$stages[[1L]]))
   }
+  # PLAN-02 (ADR 0012 §1): single-stage chains stay as `ptr_call` instead of
+  # being lifted into a 1-stage pipeline. The shared-coordinator's
+  # source-equality check (`identical(src1, sources[[i]])`) needs the
+  # deepest data-source leaf, not the wrapping call — otherwise two layers
+  # whose data_args are `dplyr::select(mtcars, mpg, cyl)` vs
+  # `dplyr::select(mtcars, hp, wt)` look like different sources even though
+  # they share `mtcars`. Descend into the call's data-arg position (same
+  # tidyverse convention `disable_walk` uses) until we find a non-call leaf.
+  if (is_ptr_call(upstream)) {
+    pos <- data_arg_position(upstream)
+    if (is.null(pos)) return(upstream)
+    return(extract_source_leaf(upstream$args[[pos]]))
+  }
   upstream
 }
 

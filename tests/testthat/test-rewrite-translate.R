@@ -20,28 +20,47 @@ test_that("P1.1 simple ggplot+geom_point produces two layers, no pipeline", {
   expect_false(walk_root(r))
 })
 
-test_that("P1.2 magrittr pipe preserves op '%>%' on data_arg", {
+test_that("P1.2 single-stage `%>%` chain canonicalises to a non-pipeline data_arg", {
+  # PLAN-02 (ADR 0012 §1): pipes are pure first-arg-insertion sugar.
+  # `mtcars %>% ggplot(...)` desugars to `ggplot(mtcars, ...)`, a one-call
+  # chain — the lift rejects single-stage chains (GATE 0). The resulting
+  # data_arg is the bare-symbol source, not a 1-stage pipeline.
   r <- ptr_translate("mtcars %>% ggplot(aes(x = mpg))")
   expect_equal(length(r$layers), 1L)
   expect_equal(r$layers[[1]]$name, "ggplot")
-  expect_s3_class(r$layers[[1]]$data_arg, "ptr_pipeline")
-  expect_equal(r$layers[[1]]$data_arg$op, "%>%")
+  expect_s3_class(r$layers[[1]]$data_arg, "ptr_literal")
+  expect_identical(r$layers[[1]]$data_arg$expr, quote(mtcars))
 })
 
-test_that("P1.3 native pipe preserved as op '|>'", {
+test_that("P1.3 single-stage `|>` chain canonicalises to a non-pipeline data_arg", {
+  # `|>` and `%>%` now produce structurally-identical trees (ADR 0012 §1).
   r <- ptr_translate("mtcars |> ggplot(aes(x = mpg))")
-  expect_s3_class(r$layers[[1]]$data_arg, "ptr_pipeline")
-  expect_equal(r$layers[[1]]$data_arg$op, "|>")
+  expect_s3_class(r$layers[[1]]$data_arg, "ptr_literal")
+  expect_identical(r$layers[[1]]$data_arg$expr, quote(mtcars))
 })
 
-test_that("P1.4 mixed pipe chain preserves both ops in tree", {
-  r <- ptr_translate("mtcars %>% head(ppNum) |> ggplot(aes(x = mpg))")
+test_that("P1.4 multi-stage mixed-pipe chain lifts to one canonical `|>` pipeline", {
+  # The desugar pass collapses `%>%` AND `|>` to nested-call form before the
+  # lift runs, so the user's original pipe-operator choice is no longer
+  # recoverable from the tree (ADR §5 OQ2 — deferred). Every lifted
+  # pipeline carries `$op = "|>"` regardless of surface form. There are NO
+  # nested ptr_pipeline nodes — the always-aggressive descent produces one
+  # flat pipeline (ADR 0012 §1: the tree is semantic, not syntactic).
+  # The chain depth above the source must be >= 2 for the lift to fire.
+  r <- ptr_translate(
+    "mtcars %>% head(ppNum) %>% subset(mpg > 0) |> ggplot(aes(x = mpg))"
+  )
   da <- r$layers[[1]]$data_arg
   expect_s3_class(da, "ptr_pipeline")
   expect_equal(da$op, "|>")
-  inner <- da$stages[[1]]
-  expect_s3_class(inner, "ptr_pipeline")
-  expect_equal(inner$op, "%>%")
+  # 3 stages: source (mtcars) + head(ppNum) + subset(mpg > 0).
+  expect_equal(length(da$stages), 3L)
+  expect_s3_class(da$stages[[1L]], "ptr_literal")
+  expect_identical(da$stages[[1L]]$expr, quote(mtcars))
+  expect_s3_class(da$stages[[2L]], "ptr_call")
+  expect_s3_class(da$stages[[3L]], "ptr_call")
+  # No nested ptr_pipeline — always-aggressive descent flattens.
+  expect_false(any(vapply(da$stages, is_ptr_pipeline, logical(1))))
 })
 
 test_that("P1.5 top-level + split into ordered layers", {

@@ -40,6 +40,16 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
   root_expr <- exprs[[1L]]
   check_translate_depth(root_expr, max_depth = max_depth)
 
+  # Canonical-tree contract (ADR 0012 §1, PLAN-02): pipes are pure
+  # first-arg-insertion sugar with no surviving structural meaning. Desugar
+  # every `%>%` and native-pipe sentinel to fully-nested call form before
+  # any per-layer translation runs, so every surface form (`|>`, `%>%`,
+  # nested-call) produces structurally-identical layer expressions. The
+  # `ptr_classify_calls` pass then lifts the nested chain back into a
+  # canonical `ptr_pipeline` whose shape depends only on the chain's
+  # semantics — never on which pipe operator the user typed.
+  root_expr <- desugar_pipes_to_nested(root_expr)
+
   layer_exprs <- split_top_plus(root_expr)
   layers <- lapply(layer_exprs, translate_layer)
   layer_names <- vapply(layers, function(l) l$name, character(1))
@@ -59,9 +69,19 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
   root <- ptr_root(layers = layers, expr = root_expr)
   ptr_validate_tree_safety(root, expr_check = expr_check)
   if (annotate) {
+    # Pass order (PLAN-02): classify_calls (lift) → assign_ids → classify_data
+    # → shared_bind. `assign_ids` must run AFTER `classify_calls` so the
+    # structural-position-derived ids are stamped on the canonical post-lift
+    # shape — otherwise nested-call and `%>%` users would get different ids
+    # for the same widget. `classify_data` must run AFTER `assign_ids` so the
+    # `upstream` references it pins on each `ptr_ph_data_consumer` point at
+    # post-id-stamping nodes (R lists are copy-on-modify; a pre-id reference
+    # would freeze placeholders inside the upstream subtree at id = NA).
+    # Side benefit: `assign_stage_ids` (called inside `ptr_assign_ids`) now
+    # finds stages to id-stamp for all surface forms.
+    root <- ptr_classify_calls(root)
     root <- ptr_assign_ids(root, ns_fn = ns_fn)
     root <- ptr_classify_data(root)
-    root <- ptr_classify_calls(root)
     root <- ptr_shared_bind(root)
     ptr_validate_shared_roles(root)
     ptr_assert_ids_assigned(root)
@@ -70,13 +90,192 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
   root
 }
 
-# Reserved classification-pass slot (ADR 0012 §2). PLAN-01 lands the identity
-# no-op; PLAN-02 fills in the lift / role-tagging body. Internal.
+# Canonical-pipeline-lift pass (ADR 0012 §2, PLAN-02). Walks each layer's
+# `$data_arg` only (never `$children` — the `+` fence holds, ADR §3.4) and,
+# when the data-arg is a `ptr_call`, attempts to lift the nested-call chain
+# into a canonical `ptr_pipeline` via `try_lift_to_pipeline`. The lift fires
+# only when three gates pass (multi-stage, round-trip-identical, symbol
+# source); any failure leaves the data-arg unchanged. Internal.
 ptr_classify_calls <- function(root) {
   if (!is_ptr_root(root)) {
     rlang::abort("ptr_classify_calls expects a ptr_root.")
   }
+  for (i in seq_along(root$layers)) {
+    layer <- root$layers[[i]]
+    if (!is_ptr_layer(layer)) next
+    da <- layer$data_arg
+    if (!is_ptr_call(da)) next
+    raw_ast <- da$expr
+    lifted  <- try_lift_to_pipeline(raw_ast)
+    if (!isTRUE(lifted$success)) next
+    root$layers[[i]]$data_arg <- build_pipeline_from_lift(lifted$parts)
+  }
   root
+}
+
+# Construct a typed `ptr_pipeline` from the result of `try_lift_to_pipeline`.
+# The source (a raw AST symbol) becomes stage[[1]] via `translate_node`; each
+# stage's stripped call goes through `translate_node` and then gets its
+# `first_arg_name` attached (chr scalar captured at split time, "" when the
+# user wrote the source positionally). The canonical-nested-form expression
+# is recorded as the pipeline's `$expr` for downstream visibility.
+build_pipeline_from_lift <- function(parts) {
+  source_node <- translate_node(parts$source)
+  stage_nodes <- vector("list", length(parts$stages))
+  for (j in seq_along(parts$stages)) {
+    st <- parts$stages[[j]]
+    typed <- translate_node(st$call)
+    typed$first_arg_name <- st$first_arg_name
+    stage_nodes[[j]] <- typed
+  }
+  canonical <- rebuild_nested_from_stages(parts)
+  ptr_pipeline(
+    stages = c(list(source_node), stage_nodes),
+    op     = "|>",
+    expr   = canonical
+  )
+}
+
+# ---- canonical pipeline lift -----------------------------------------------
+#
+# Engine (ADR 0012 §3.1, PLAN-02 §"Engine"): four pure helpers that take a
+# raw R AST and produce either a structurally-canonical pipeline parts list
+# or a typed rejection reason. The lift fires the same way regardless of
+# surface form because Step 1 erases the pipe operators.
+
+# Step 1 — desugar all pipe operators (`%>%` and the native-pipe sentinel)
+# into fully-nested call form by inserting LHS as the RHS's first positional
+# arg. Recurses into all args of non-pipe calls, preserving arg names. A
+# no-op when the input contains no pipes.
+desugar_pipes_to_nested <- function(expr) {
+  if (!is.call(expr)) return(expr)
+  if (length(expr) >= 3L && is.symbol(expr[[1L]])) {
+    head_str <- as.character(expr[[1L]])
+    if (head_str == "%>%" || head_str == .ptr_pipe_native_sentinel) {
+      lhs <- desugar_pipes_to_nested(expr[[2L]])
+      rhs <- desugar_pipes_to_nested(expr[[3L]])
+      if (is.call(rhs)) {
+        return(as.call(c(list(rhs[[1L]]), list(lhs), as.list(rhs[-1L]))))
+      }
+      if (is.symbol(rhs)) {
+        return(as.call(list(rhs, lhs)))
+      }
+      # Pathological RHS (e.g., literal). Leave the call untouched — the
+      # safety walker / downstream consumers will reject it on their own
+      # terms.
+      return(expr)
+    }
+  }
+  # Recurse into a non-pipe call's args, preserving arg names.
+  recursed <- lapply(as.list(expr), desugar_pipes_to_nested)
+  out <- as.call(recursed)
+  names(out) <- names(expr)
+  out
+}
+
+# Step 2 — split a fully-nested call into `list(source, stages)`. Always-
+# aggressive descent: walks through every call whose first positional arg is
+# itself a call (ADR §1's "tree is semantic, not syntactic" — no early-stop
+# heuristic, no verb whitelist). On loop termination, if `cur` is still a
+# call whose first arg is a non-call, executes a post-loop split that
+# extracts the non-call as the source. Each stage records its `first_arg_name`
+# (a chr scalar, "" when the user wrote that slot positionally) so the round
+# trip rebuilds the named-arg shape losslessly.
+resugar_pipeline_stages <- function(expr) {
+  stages <- list()
+  cur <- expr
+  while (is.call(cur) && length(cur) >= 2L && is.call(cur[[2L]])) {
+    head <- cur[[1L]]
+    rest_args <- as.list(cur[-c(1L, 2L)])
+    nm_all <- names(cur) %||% rep_len("", length(cur))
+    fan <- nm_all[2L]
+    if (is.na(fan)) fan <- ""
+    stages <- c(
+      list(list(call = as.call(c(list(head), rest_args)),
+                first_arg_name = fan)),
+      stages
+    )
+    cur <- cur[[2L]]
+  }
+  # Post-loop split: cur is still a call whose first arg is a non-call.
+  # Extract that non-call as the source and bank cur (stripped of its first
+  # arg) as the deepest stage.
+  if (is.call(cur) && length(cur) >= 2L && !is.call(cur[[2L]])) {
+    head <- cur[[1L]]
+    rest_args <- as.list(cur[-c(1L, 2L)])
+    nm_all <- names(cur) %||% rep_len("", length(cur))
+    fan <- nm_all[2L]
+    if (is.na(fan)) fan <- ""
+    source_arg <- cur[[2L]]
+    stages <- c(
+      list(list(call = as.call(c(list(head), rest_args)),
+                first_arg_name = fan)),
+      stages
+    )
+    cur <- source_arg
+  }
+  list(source = cur, stages = stages)
+}
+
+# Step 3 — inverse of Step 2. Folds the source + ordered stages back into a
+# fully-nested call, restoring each stage's captured `first_arg_name` on the
+# inserted source slot. Used by GATE 1 (round-trip identity) and by the
+# pipeline constructor's `expr=` slot.
+rebuild_nested_from_stages <- function(parts) {
+  if (length(parts$stages) == 0L) return(parts$source)
+  acc <- parts$source
+  for (st in parts$stages) {
+    rest_args <- as.list(st$call[-1L])
+    new_args  <- c(list(acc), rest_args)
+    nms <- names(new_args) %||% rep_len("", length(new_args))
+    nms[1L] <- st$first_arg_name %||% ""
+    if (all(!nzchar(nms))) {
+      # No named args anywhere — keep the call unnamed so identical() against
+      # the canonical-nested form holds (R drops the names attribute when no
+      # element carries a name).
+      names(new_args) <- NULL
+    } else {
+      names(new_args) <- nms
+    }
+    acc <- as.call(c(list(st$call[[1L]]), new_args))
+  }
+  acc
+}
+
+# Step 4 — round-trip + grounding gates. Returns either
+# `list(success = TRUE, parts = ...)` when the lift may fire, or
+# `list(success = FALSE, reason = <single-stage|round-trip-mismatch|
+# opaque-call-source|non-data-source>)` otherwise. Three independent gates,
+# all of which must pass:
+#   GATE 0 (single-stage): a 1-stage list has no chain worth lifting.
+#   GATE 1 (round-trip):   the split + rebuild must equal the canonical-
+#                          nested form, otherwise the split bisected a
+#                          structure we cannot losslessly reconstruct.
+#   GATE 2 (grounding):    the source slot must be a SYMBOL. A call source
+#                          is an "opaque-call terminal" (ADR §3.2); a
+#                          non-call non-symbol (a literal that fell out of
+#                          bisecting `data.frame(x = 1)`, say) is not a
+#                          structurally-valid data source.
+# At lift time the source is raw AST, so the grounding check is
+# `is.symbol(source)` — not `is_ptr_ph_data_source` (placeholders are still
+# plain symbols pre-translate_node).
+try_lift_to_pipeline <- function(expr) {
+  canonical <- desugar_pipes_to_nested(expr)
+  parts     <- resugar_pipeline_stages(canonical)
+  if (length(parts$stages) < 2L) {
+    return(list(success = FALSE, reason = "single-stage"))
+  }
+  rebuilt <- rebuild_nested_from_stages(parts)
+  if (!identical(rebuilt, canonical)) {
+    return(list(success = FALSE, reason = "round-trip-mismatch"))
+  }
+  if (is.call(parts$source)) {
+    return(list(success = FALSE, reason = "opaque-call-source"))
+  }
+  if (!is.symbol(parts$source)) {
+    return(list(success = FALSE, reason = "non-data-source"))
+  }
+  list(success = TRUE, parts = parts)
 }
 
 # ---- depth ------------------------------------------------------------------
@@ -133,9 +332,11 @@ translate_layer <- function(expr) {
     node$name <- ph$keyword
     return(node)
   }
-  if (is.call(expr) && is_pipe_head(expr[[1L]])) {
-    return(translate_piped_layer(expr))
-  }
+  # PLAN-02: `ptr_translate` desugars every `%>%` and native-pipe sentinel to
+  # fully-nested call form before layer translation runs, so a layer expr
+  # never carries a pipe head here. The post-desugar layer always goes
+  # through `translate_plain_layer`; canonical pipeline construction is the
+  # job of `ptr_classify_calls` (it lifts the nested data-arg chain).
   translate_plain_layer(expr)
 }
 
@@ -207,28 +408,14 @@ preprocess_native_pipe <- function(formula) {
   paste(lines, collapse = "\n")
 }
 
-# Inspect a translated layer body for its data_arg (the first positional
-# arg of a ggplot/geom call, or the upstream side of a terminal pipeline).
-# Used by P2; P1 just attaches the subtree pointer.
-translate_piped_layer <- function(expr) {
-  outer_op <- pipe_op_from_symbol(expr[[1L]])
-  outer_op_sym <- as.character(expr[[1L]])
-  stages_raw <- collect_pipe_stages(expr, outer_op_sym)
-  terminal <- stages_raw[[length(stages_raw)]]
-  upstream_raw <- stages_raw[-length(stages_raw)]
-  upstream_stages <- lapply(upstream_raw, translate_node)
-  data_arg_expr <- build_pipe_left_expr(expr)
-  data_arg <- ptr_pipeline(
-    stages = upstream_stages, op = outer_op, expr = data_arg_expr
-  )
-  layer_name <- layer_call_name(terminal)
-  children <- translate_layer_children(terminal)
-  ptr_layer(
-    name = layer_name, expr = expr, data_arg = data_arg,
-    children = children, active_input_id = NULL,
-    default_active = TRUE, active = TRUE
-  )
-}
+# PLAN-02: `translate_piped_layer` (the legacy `%>%`-only layer translator)
+# and its helper `build_pipe_left_expr` were deleted along with
+# `translate_pipeline` and `collect_pipe_stages` (the `%>%`-only inner
+# pipeline constructor). The formula-level `desugar_pipes_to_nested` pass in
+# `ptr_translate` collapses every pipe surface form to nested-call shape
+# before per-layer translation runs, so every layer now goes through
+# `translate_plain_layer`; the canonical `ptr_pipeline` is constructed by
+# `ptr_classify_calls` from the post-desugar nested data-arg chain.
 
 translate_plain_layer <- function(expr) {
   layer_name <- layer_call_name(expr)
@@ -246,13 +433,6 @@ translate_plain_layer <- function(expr) {
     children = children, active_input_id = NULL,
     default_active = TRUE, active = TRUE
   )
-}
-
-build_pipe_left_expr <- function(expr) {
-  if (is.call(expr) && is_pipe_head(expr[[1L]]) && length(expr) >= 3L) {
-    return(expr[[2L]])
-  }
-  expr
 }
 
 extract_call_data_arg <- function(expr) {
@@ -302,9 +482,11 @@ translate_layer_children <- function(expr, exclude_data = FALSE) {
 translate_node <- function(expr) {
   if (is.call(expr)) {
     head <- expr[[1L]]
-    if (is_pipe_head(head)) {
-      return(translate_pipeline(expr))
-    }
+    # PLAN-02: pipes were already collapsed to nested form by
+    # `desugar_pipes_to_nested` at the formula level, so a pipe head can
+    # never reach here; the legacy `translate_pipeline` / `collect_pipe_stages`
+    # dispatch is gone. Canonical pipeline construction happens later in
+    # `ptr_classify_calls` via the `try_lift_to_pipeline` engine.
     ph <- detect_placeholder(expr)
     if (!is.null(ph)) {
       return(build_placeholder_node(expr, ph))
@@ -326,31 +508,6 @@ translate_node <- function(expr) {
     return(ptr_literal(expr))
   }
   ptr_literal(expr)
-}
-
-translate_pipeline <- function(expr) {
-  op <- pipe_op_from_symbol(expr[[1L]])
-  op_sym <- as.character(expr[[1L]])
-  stages <- collect_pipe_stages(expr, op_sym)
-  translated <- lapply(stages, translate_node)
-  ptr_pipeline(stages = translated, op = op, expr = expr)
-}
-
-# Flatten a left-associative pipe chain into ordered stages, preserving the
-# per-stage op via the surrounding nodes. Mixed-op chains keep each stage's
-# op via the node carrying that stage on its right side; for a uniform
-# pipeline we expose a single op (the outermost). For mixed chains the spec
-# requires per-stage op; we represent that by nesting `ptr_pipeline` nodes
-# rather than inventing a per-stage op vector.
-collect_pipe_stages <- function(expr, op) {
-  out <- list()
-  cur <- expr
-  while (is.call(cur) && length(cur) >= 3L &&
-         is.symbol(cur[[1L]]) && as.character(cur[[1L]]) == op) {
-    out <- c(list(cur[[3L]]), out)
-    cur <- cur[[2L]]
-  }
-  c(list(cur), out)
 }
 
 translate_call <- function(expr) {
