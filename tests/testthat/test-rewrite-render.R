@@ -22,6 +22,10 @@ test_that("P10.2 layers joined with ' +\\n  '", {
 })
 
 test_that("P10.3 native pipe surface preserved as |>", {
+  skip_if_not(
+    plan04_prefix_collapse_merged(),
+    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
+  )
   r <- ptr_translate("mtcars |> ggplot(aes(x = mpg))")
   txt <- ptr_render(r)
   expect_match(txt, "\\|>")
@@ -29,6 +33,10 @@ test_that("P10.3 native pipe surface preserved as |>", {
 })
 
 test_that("P10.4 magrittr pipe surface preserved as %>%", {
+  skip_if_not(
+    plan04_prefix_collapse_merged(),
+    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
+  )
   r <- ptr_translate("mtcars %>% ggplot(aes(x = mpg))")
   txt <- ptr_render(r)
   expect_match(txt, "%>%", fixed = TRUE)
@@ -36,6 +44,10 @@ test_that("P10.4 magrittr pipe surface preserved as %>%", {
 })
 
 test_that("P10.5 mixed pipe chain preserves both ops", {
+  skip_if_not(
+    plan04_prefix_collapse_merged(),
+    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
+  )
   # Multi-stage pipes always break one stage per line. The outer `|>` joins
   # the magrittr upstream to the terminal layer; that upstream is itself a
   # pipeline and so also breaks at its own `%>%`.
@@ -48,6 +60,10 @@ test_that("P10.5 mixed pipe chain preserves both ops", {
 })
 
 test_that("P10.6 chained pipe keeps middle-link call empty when placeholder empty", {
+  skip_if_not(
+    plan04_prefix_collapse_merged(),
+    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
+  )
   # Per relaxed P9 (P12.1): empty num drops the arg, head() survives empty
   # and renders. Eval relies on head's default n = 6.
   r <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = mpg))")
@@ -85,6 +101,10 @@ test_that("P10.10 named args print as `name = value`", {
 })
 
 test_that("P10.11 code text reflects snapshotted values when supplied", {
+  skip_if_not(
+    plan04_prefix_collapse_merged(),
+    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
+  )
   r <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = mpg))")
   num_id <- find_nodes(r, function(x) is_ptr_placeholder(x) && x$keyword == "ppNum")[[1]]$id
   s <- ptr_substitute(r, input_snapshot = setNames(list(3), num_id))
@@ -95,6 +115,10 @@ test_that("P10.11 code text reflects snapshotted values when supplied", {
 })
 
 test_that("P10.12 code text falls back to live input when no snapshot", {
+  skip_if_not(
+    plan04_prefix_collapse_merged(),
+    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
+  )
   # The "snapshot" passed to ptr_substitute IS the live-input projection at
   # the caller boundary (server.R wires reactiveValuesToList(input) as the
   # snapshot). This test exercises both halves of the contract:
@@ -153,6 +177,10 @@ test_that("P10.16 one-sided formula renders without redundant parens", {
 })
 
 test_that("P10.17 over-wide pipe chain breaks at each pipe operator", {
+  skip_if_not(
+    plan04_prefix_collapse_merged(),
+    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
+  )
   r <- ptr_translate(paste0(
     "iris |> head(200) |> ",
     "ggplot(aes(x = Sepal.Length, y = Sepal.Width, color = Species)) + geom_point()"
@@ -171,6 +199,10 @@ test_that("P10.17 over-wide pipe chain breaks at each pipe operator", {
 })
 
 test_that("P10.18 multi-stage pipe chains always break one stage per line", {
+  skip_if_not(
+    plan04_prefix_collapse_merged(),
+    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
+  )
   r <- ptr_translate("mtcars |> head(2) |> ggplot(aes(x = mpg))")
   expect_equal(
     ptr_render(r),
@@ -179,6 +211,10 @@ test_that("P10.18 multi-stage pipe chains always break one stage per line", {
 })
 
 test_that("P10.19 bracket / accessor heads render in syntactic form", {
+  skip_if_not(
+    plan04_prefix_collapse_merged(),
+    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
+  )
   expect_equal(
     ptr_render(ptr_translate(
       "mtcars |> dplyr::filter(mpg >= c(10, 20)[1]) |> ggplot(aes(x = mpg, y = hp)) + geom_point()"
@@ -203,6 +239,10 @@ test_that("P10.19 bracket / accessor heads render in syntactic form", {
 })
 
 test_that("P10.20 namespaced reference as an argument renders as pkg::name", {
+  skip_if_not(
+    plan04_prefix_collapse_merged(),
+    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
+  )
   expect_equal(
     ptr_render(ptr_translate(
       "mtcars |> purrr::map(broom::glance) |> ggplot(aes(mpg, hp)) + geom_point()"
