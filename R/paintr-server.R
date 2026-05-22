@@ -244,7 +244,6 @@ ptr_init_state <- function(formula,
     resolve_errors = shiny::reactiveVal(stats::setNames(list(), character())),
     ui_ns_fn = ns,
     server_ns_fn = server_ns,
-    ns_fn = server_ns,
     input_spec = ptr_runtime_input_spec(tree)
   ), class = c("ptr_state", "list"))
 

@@ -3,7 +3,11 @@
 # along with the enclosing arg name (`param`). The enclosing layer name is
 # also stamped on the node as `node$layer_name`. Layer-derived ids
 # (`<layer>_checkbox`) are attached to the layer node.
-# `ns_fn` is validated and stored on the root for emit-time application.
+# `ns_fn` is validated here. It is not stored on the tree: every namespacing
+# call site already receives it as a function parameter (UI build) or reads
+# it from `state$server_ns_fn` / `state$ui_ns_fn` (server), so a third copy
+# on the root would be dead weight (and would make two structurally-equal
+# trees compare unequal under `ptr_tree_structural_equal`).
 # Source companion ids are computed via the registry's `companion_id_fn`.
 
 # One cursor-threaded pre-order pass stamps every placeholder's id (the
@@ -16,7 +20,6 @@ ptr_assign_ids <- function(node, ns_fn = shiny::NS(NULL)) {
     rlang::abort("ptr_assign_ids expects a ptr_root.")
   }
   validate_ns_fn(ns_fn)
-  node$ns_fn <- ns_fn
   node <- ptr_rewrite_pre(node, function(n, cur) {
     if (is_ptr_placeholder(n)) {
       return(assign_id_to_placeholder(n, cur$layer_name, cur$path, cur$param))

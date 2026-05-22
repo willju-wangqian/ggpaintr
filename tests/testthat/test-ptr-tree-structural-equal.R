@@ -84,3 +84,26 @@ test_that("ptr_tree_structural_equal handles atomic non-list scalars", {
   expect_false(ggpaintr:::ptr_tree_structural_equal("abc", "xyz"))
   expect_true(ggpaintr:::ptr_tree_structural_equal(quote(x), quote(x)))
 })
+
+# Regression: TODO 7. Two trees built by independent ptr_translate() calls
+# with structurally identical formulas must compare equal even though their
+# `shiny::NS(...)` closures are not `identical()` (each call creates a fresh
+# enclosing env). Fixed by dropping `node$ns_fn <- ns_fn` in ptr_assign_ids —
+# the namespacing function is plumbed end-to-end as a parameter (UI build)
+# and lives on `state$server_ns_fn` / `state$ui_ns_fn` (server), so the root
+# slot was redundant.
+test_that("ptr_tree_structural_equal: independent trees with NS(NULL) compare equal", {
+  formula <- "ggplot(mtcars, aes(x = mpg)) + geom_point()"
+  t1 <- ptr_translate(formula, ns_fn = shiny::NS(NULL))
+  t2 <- ptr_translate(formula, ns_fn = shiny::NS(NULL))
+  expect_true(ggpaintr:::ptr_tree_structural_equal(t1, t2))
+})
+
+test_that("ptr_tree_structural_equal: namespace prefix does not affect equality", {
+  formula <- "ggplot(mtcars, aes(x = mpg)) + geom_point()"
+  t_top <- ptr_translate(formula, ns_fn = shiny::NS(NULL))
+  t_mod <- ptr_translate(formula, ns_fn = shiny::NS("mod1"))
+  # Raw ids stay on nodes; ns_fn is applied only at emit/binding time, so
+  # the canonical tree shape is independent of the chosen namespace.
+  expect_true(ggpaintr:::ptr_tree_structural_equal(t_top, t_mod))
+})
