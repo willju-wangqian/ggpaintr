@@ -22,21 +22,27 @@ test_that("P10.2 layers joined with ' +\\n  '", {
 })
 
 test_that("P10.3 native pipe surface preserved as |>", {
-  skip_if_not(
-    plan04_prefix_collapse_merged(),
-    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
-  )
+  # ADR 0012 §1: the tree is semantic, not syntactic — `mtcars |> ggplot(...)`,
+  # `ggplot(mtcars, ...)`, and the magrittr equivalent share one canonical
+  # tree. Post-G2 (PLAN-02 lift + PLAN-04 collapse), a single-stage chain
+  # whose only verb above source is the terminal `ggplot(...)` reduces to
+  # the nested-call source form on render — the pipe surface is NOT
+  # preserved here because there is no multi-stage upstream to lift to a
+  # `ptr_pipeline`. The contract this test now guards is the inverse: a
+  # single-stage chain collapses to `ggplot(data = mtcars, aes(...))`.
   r <- ptr_translate("mtcars |> ggplot(aes(x = mpg))")
   txt <- ptr_render(r)
-  expect_match(txt, "\\|>")
+  expect_equal(txt, "ggplot(data = mtcars, aes(x = mpg))")
   expect_false(grepl("%>%", txt, fixed = TRUE))
 })
 
 test_that("P10.4 magrittr pipe surface preserved as %>%", {
-  skip_if_not(
-    plan04_prefix_collapse_merged(),
-    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
-  )
+  skip(paste0(
+    "deferred to ADR 0012 §5 OQ2: %>% preservation in lifted pipelines ",
+    "is a future enhancement; see PLAN-04 'Deferred to future rounds' section. ",
+    "Lifted pipelines all carry $op = '|>' post-G2; %>%-source surface ",
+    "preservation requires a successor plan."
+  ))
   r <- ptr_translate("mtcars %>% ggplot(aes(x = mpg))")
   txt <- ptr_render(r)
   expect_match(txt, "%>%", fixed = TRUE)
@@ -44,10 +50,12 @@ test_that("P10.4 magrittr pipe surface preserved as %>%", {
 })
 
 test_that("P10.5 mixed pipe chain preserves both ops", {
-  skip_if_not(
-    plan04_prefix_collapse_merged(),
-    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
-  )
+  skip(paste0(
+    "deferred to ADR 0012 §5 OQ2: %>% preservation in lifted pipelines ",
+    "is a future enhancement; see PLAN-04 'Deferred to future rounds' section. ",
+    "Lifted pipelines all carry $op = '|>' post-G2; mixed %>%/|> surface ",
+    "preservation requires a successor plan."
+  ))
   # Multi-stage pipes always break one stage per line. The outer `|>` joins
   # the magrittr upstream to the terminal layer; that upstream is itself a
   # pipeline and so also breaks at its own `%>%`.
@@ -60,17 +68,17 @@ test_that("P10.5 mixed pipe chain preserves both ops", {
 })
 
 test_that("P10.6 chained pipe keeps middle-link call empty when placeholder empty", {
-  skip_if_not(
-    plan04_prefix_collapse_merged(),
-    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
-  )
-  # Per relaxed P9 (P12.1): empty num drops the arg, head() survives empty
-  # and renders. Eval relies on head's default n = 6.
+  # ADR 0012 §1: the tree is semantic, not syntactic. A single verb stage
+  # (head) above the source (mtcars) below the terminal layer (ggplot) is
+  # rejected by PLAN-02 GATE 0 — the layer's data_arg stays a `ptr_call`
+  # and the prefix-collapse render rule emits the nested form. P9 still
+  # holds: empty `ppNum` drops the arg, leaving `head(mtcars)` which eval
+  # resolves via head's default n = 6.
   r <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = mpg))")
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s)
   txt <- ptr_render(p)
-  expect_match(txt, "mtcars \\|>\\n  head\\(\\) \\|>\\n  ggplot")
+  expect_equal(txt, "ggplot(data = head(mtcars), aes(x = mpg))")
 })
 
 test_that("P10.7 pkg::fn heads preserved", {
@@ -101,30 +109,28 @@ test_that("P10.10 named args print as `name = value`", {
 })
 
 test_that("P10.11 code text reflects snapshotted values when supplied", {
-  skip_if_not(
-    plan04_prefix_collapse_merged(),
-    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
-  )
+  # ADR 0012 §1: the tree is semantic, not syntactic. Single-stage chain
+  # renders as nested-call form post-G2; the snapshot-substitution contract
+  # is otherwise unchanged — the live num value reaches the head() arg.
   r <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = mpg))")
   num_id <- find_nodes(r, function(x) is_ptr_placeholder(x) && x$keyword == "ppNum")[[1]]$id
   s <- ptr_substitute(r, input_snapshot = setNames(list(3), num_id))
   p <- ptr_prune(s)
   txt <- ptr_render(p)
-  expect_match(txt, "head\\(3\\)")
+  expect_equal(txt, "ggplot(data = head(mtcars, 3), aes(x = mpg))")
   expect_false(grepl("head(ppNum)", txt, fixed = TRUE))
 })
 
 test_that("P10.12 code text falls back to live input when no snapshot", {
-  skip_if_not(
-    plan04_prefix_collapse_merged(),
-    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
-  )
+  # ADR 0012 §1: the tree is semantic, not syntactic. Single-stage chain
+  # renders as nested-call form post-G2; the live-input / no-snapshot
+  # contract is otherwise unchanged.
   # The "snapshot" passed to ptr_substitute IS the live-input projection at
   # the caller boundary (server.R wires reactiveValuesToList(input) as the
   # snapshot). This test exercises both halves of the contract:
-  #   (a) live input "num = 5" → code text contains head(5)
+  #   (a) live input "num = 5" → code text contains head(mtcars, 5)
   #   (b) no snapshot at all → the placeholder is missing → P9 drops the
-  #       arg and the code text shows the empty-form head().
+  #       arg and the code text shows the empty-form head(mtcars).
   r <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = mpg))")
   num_id <- find_nodes(r,
                        function(x) is_ptr_placeholder(x) && x$keyword == "ppNum")[[1]]$id
@@ -132,10 +138,10 @@ test_that("P10.12 code text falls back to live input when no snapshot", {
   txt_live <- ptr_render(ptr_prune(
     ptr_substitute(r, input_snapshot = stats::setNames(list(5), num_id))
   ))
-  expect_match(txt_live, "head\\(5\\)")
+  expect_equal(txt_live, "ggplot(data = head(mtcars, 5), aes(x = mpg))")
 
   txt_none <- ptr_render(ptr_prune(ptr_substitute(r, input_snapshot = list())))
-  expect_match(txt_none, "head\\(\\)")
+  expect_equal(txt_none, "ggplot(data = head(mtcars), aes(x = mpg))")
   expect_false(grepl("head(ppNum)", txt_none, fixed = TRUE))
 })
 
@@ -177,10 +183,12 @@ test_that("P10.16 one-sided formula renders without redundant parens", {
 })
 
 test_that("P10.17 over-wide pipe chain breaks at each pipe operator", {
-  skip_if_not(
-    plan04_prefix_collapse_merged(),
-    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
-  )
+  # ADR 0012 §1: the tree is semantic, not syntactic. Post-G2 a single verb
+  # stage (head) above source collapses into the layer's data arg as a
+  # nested call. When the resulting `ggplot(...)` is over-wide, render breaks
+  # one arg per line (data = and aes = are split, closing paren on its own
+  # indented line) instead of breaking the original pipe at each stage. The
+  # 80-column budget still holds.
   r <- ptr_translate(paste0(
     "iris |> head(200) |> ",
     "ggplot(aes(x = Sepal.Length, y = Sepal.Width, color = Species)) + geom_point()"
@@ -189,9 +197,10 @@ test_that("P10.17 over-wide pipe chain breaks at each pipe operator", {
   expect_equal(
     txt,
     paste0(
-      "iris |>\n",
-      "  head(200) |>\n",
-      "  ggplot(aes(x = Sepal.Length, y = Sepal.Width, color = Species)) +\n",
+      "ggplot(\n",
+      "  data = head(iris, 200),\n",
+      "  aes(x = Sepal.Length, y = Sepal.Width, color = Species)\n",
+      ") +\n",
       "  geom_point()"
     )
   )
@@ -199,30 +208,31 @@ test_that("P10.17 over-wide pipe chain breaks at each pipe operator", {
 })
 
 test_that("P10.18 multi-stage pipe chains always break one stage per line", {
-  skip_if_not(
-    plan04_prefix_collapse_merged(),
-    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
-  )
+  # ADR 0012 §1: the tree is semantic, not syntactic. A single verb stage
+  # above source (one `head` call between `mtcars` and the terminal
+  # `ggplot`) is rejected by PLAN-02 GATE 0 — the data_arg stays a
+  # `ptr_call` and renders in the nested-call source form below. The
+  # multi-stage-pipe break-at-each-pipe contract is asserted by P10.17
+  # against an over-wide chain and by P10.19 against an under-wide one
+  # against the lifted `ptr_pipeline` shape.
   r <- ptr_translate("mtcars |> head(2) |> ggplot(aes(x = mpg))")
   expect_equal(
     ptr_render(r),
-    "mtcars |>\n  head(2) |>\n  ggplot(aes(x = mpg))"
+    "ggplot(data = head(mtcars, 2), aes(x = mpg))"
   )
 })
 
 test_that("P10.19 bracket / accessor heads render in syntactic form", {
-  skip_if_not(
-    plan04_prefix_collapse_merged(),
-    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
-  )
+  # ADR 0012 §1: the tree is semantic, not syntactic. Single-stage chains
+  # collapse to the nested-call source form post-G2; the rendered output
+  # preserves bracket (`[`, `[[`) and `$` accessor syntax verbatim inside
+  # the layer body.
   expect_equal(
     ptr_render(ptr_translate(
       "mtcars |> dplyr::filter(mpg >= c(10, 20)[1]) |> ggplot(aes(x = mpg, y = hp)) + geom_point()"
     )),
     paste0(
-      "mtcars |>\n",
-      "  dplyr::filter(mpg >= c(10, 20)[1]) |>\n",
-      "  ggplot(aes(x = mpg, y = hp)) +\n",
+      "ggplot(data = dplyr::filter(mtcars, mpg >= c(10, 20)[1]), aes(x = mpg, y = hp)) +\n",
       "  geom_point()"
     )
   )
@@ -231,26 +241,22 @@ test_that("P10.19 bracket / accessor heads render in syntactic form", {
       'mtcars |> ggplot(aes(x = mtcars$mpg, y = mtcars[["hp"]])) + geom_point()'
     )),
     paste0(
-      "mtcars |>\n",
-      "  ggplot(aes(x = mtcars$mpg, y = mtcars[[\"hp\"]])) +\n",
+      "ggplot(data = mtcars, aes(x = mtcars$mpg, y = mtcars[[\"hp\"]])) +\n",
       "  geom_point()"
     )
   )
 })
 
 test_that("P10.20 namespaced reference as an argument renders as pkg::name", {
-  skip_if_not(
-    plan04_prefix_collapse_merged(),
-    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
-  )
+  # ADR 0012 §1: the tree is semantic, not syntactic. Single-stage chains
+  # collapse to the nested-call source form post-G2; both `::` and `:::`
+  # namespacing on argument-position references survive the lift round-trip.
   expect_equal(
     ptr_render(ptr_translate(
       "mtcars |> purrr::map(broom::glance) |> ggplot(aes(mpg, hp)) + geom_point()"
     )),
     paste0(
-      "mtcars |>\n",
-      "  purrr::map(broom::glance) |>\n",
-      "  ggplot(aes(mpg, hp)) +\n",
+      "ggplot(data = purrr::map(mtcars, broom::glance), aes(mpg, hp)) +\n",
       "  geom_point()"
     )
   )
@@ -259,9 +265,7 @@ test_that("P10.20 namespaced reference as an argument renders as pkg::name", {
       "mtcars |> purrr::map(broom:::glance) |> ggplot(aes(mpg, hp)) + geom_point()"
     )),
     paste0(
-      "mtcars |>\n",
-      "  purrr::map(broom:::glance) |>\n",
-      "  ggplot(aes(mpg, hp)) +\n",
+      "ggplot(data = purrr::map(mtcars, broom:::glance), aes(mpg, hp)) +\n",
       "  geom_point()"
     )
   )

@@ -180,20 +180,28 @@ test_that("non-placeholder structure agrees across modes (whitespace, +-joins, i
 })
 
 test_that("pipe chain structure is identical across modes", {
-  skip_if_not(
-    plan04_prefix_collapse_merged(),
-    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
-  )
+  # ADR 0012 §1: the tree is semantic, not syntactic. A single verb stage
+  # (head) above source is rejected by PLAN-02 GATE 0; the data_arg stays
+  # a `ptr_call` and renders as the nested-call source form below in BOTH
+  # modes — the canonical tree is identical, so the rendered scaffolding
+  # is identical too. Erase mode falls back to expr_text for placeholder
+  # nodes (bare `ppNum` / `ppVar`); preserve mode emits the call shape
+  # (`ppNum()` / `ppVar()`). The structure-equivalence contract this test
+  # now guards is the inverse of the pre-G2 form: both modes produce the
+  # same nested-call layout with the same separator count.
   r <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = ppVar))")
   e <- ptr_render(r, preserve_placeholders = FALSE)
   p <- ptr_render(r, preserve_placeholders = TRUE)
-  # Both must split the chain across three pipe segments with identical join.
+  # Both must split into the same number of pipe segments. The expectation
+  # is zero on each side (single-stage chain → no top-level pipe).
   expect_equal(length(gregexpr("\\|>", e)[[1]]),
                length(gregexpr("\\|>", p)[[1]]))
-  # Erase mode on the raw (un-substituted) tree falls back to expr_text;
-  # preserve mode emits ppX call shape. Either way the |> joins match.
-  expect_true(grepl("|>", e, fixed = TRUE))
-  expect_true(grepl("|>", p, fixed = TRUE))
+  # Neither mode emits a top-level pipe — single-stage chain collapses.
+  expect_false(grepl("|>", e, fixed = TRUE))
+  expect_false(grepl("|>", p, fixed = TRUE))
+  # And the rendered shape is the canonical nested-call form in both modes.
+  expect_equal(e, "ggplot(data = head(mtcars, ppNum), aes(x = ppVar))")
+  expect_equal(p, "ggplot(data = head(mtcars, ppNum()), aes(x = ppVar()))")
 })
 
 # ---- preserved output is parseable plain R --------------------------------

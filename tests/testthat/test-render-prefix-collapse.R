@@ -50,8 +50,12 @@ test_that("preserve-mode renders all-placeholder-free pipeline as a single neste
 
 test_that("preserve-mode renders pipeline whose SOURCE is a placeholder as a `|>` chain (k == 1)", {
   # ppUpload is the source — k == 1. Whole pipeline renders as `|>` chain.
+  # Two verb stages above source so PLAN-02's GATE 0 accepts the lift and
+  # the layer's data_arg becomes a `ptr_pipeline` (a single verb stage
+  # reduces to a single-stage chain at the layer level and GATE 0
+  # correctly rejects it — see ADR 0012 PLAN-02 §GATE 0).
   data_arg <- data_arg_from_formula(
-    "ppUpload |> dplyr::filter(bill_length_mm > 40) |> ggplot(aes(bill_length_mm))"
+    "ppUpload |> dplyr::filter(bill_length_mm > 40) |> dplyr::mutate(y = bill_length_mm * 2) |> ggplot(aes(bill_length_mm))"
   )
   expect_s3_class(data_arg, "ptr_pipeline")
 
@@ -63,9 +67,13 @@ test_that("preserve-mode renders pipeline whose SOURCE is a placeholder as a `|>
 
 test_that("preserve-mode renders pipeline with placeholder at stage 2 as a `|>` chain", {
   # Source = `penguins`; placeholder appears at stage 2 (in-filter ppVar).
-  # k == 2; whole pipeline renders as `|>` chain.
+  # k == 2; whole pipeline renders as `|>` chain. Two verb stages above
+  # source so PLAN-02's GATE 0 accepts the lift and the layer's data_arg
+  # becomes a `ptr_pipeline` (a single verb stage reduces to a
+  # single-stage chain at the layer level and GATE 0 correctly rejects
+  # it — see ADR 0012 PLAN-02 §GATE 0).
   data_arg <- data_arg_from_formula(
-    "penguins |> dplyr::filter(ppVar > 1) |> ggplot(aes(ppVar))"
+    "penguins |> dplyr::filter(ppVar > 1) |> dplyr::mutate(y = bill_length_mm * 2) |> ggplot(aes(ppVar))"
   )
   expect_s3_class(data_arg, "ptr_pipeline")
 
@@ -103,21 +111,31 @@ test_that("preserve-mode collapses the placeholder-free prefix and chains the pl
 
 test_that("preserve-mode collapses a `%>%`-sourced all-placeholder-free chain to nested-call form (user-facing invariant)", {
   # User wrote `%>%` with no placeholders. Today (pre-PLAN-04) this would
-  # render as `penguins %>% dplyr::filter(...) %>% ggplot(...)`. The
-  # prefix-collapse rule subsumes it into a nested-call atom: no `|>`, no
-  # `%>%`. See BDD "Render preserve-mode — `%>%`-source user sees no `|>`
-  # for their all-placeholder-free chain".
+  # render as `penguins %>% dplyr::filter(...) %>% dplyr::mutate(...) %>%
+  # ggplot(...)`. The prefix-collapse rule subsumes it into a nested-call
+  # atom: no `|>`, no `%>%`. See BDD "Render preserve-mode — `%>%`-source
+  # user sees no `|>` for their all-placeholder-free chain". Two verb
+  # stages above source so PLAN-02's GATE 0 accepts the lift and the
+  # layer's data_arg becomes a `ptr_pipeline` (a single verb stage
+  # reduces to a single-stage chain at the layer level and GATE 0
+  # correctly rejects it — see ADR 0012 PLAN-02 §GATE 0).
   data_arg <- data_arg_from_formula(
-    "penguins %>% dplyr::filter(bill_length_mm > 40) %>% ggplot(aes(bill_length_mm))"
+    "penguins %>% dplyr::filter(bill_length_mm > 40) %>% dplyr::mutate(y = bill_length_mm * 2) %>% ggplot(aes(bill_length_mm))"
   )
   expect_s3_class(data_arg, "ptr_pipeline")
 
   rendered <- ggpaintr:::render_walk(data_arg, preserve_placeholders = TRUE)
   expect_false(grepl("|>", rendered, fixed = TRUE))
   expect_false(grepl("%>%", rendered, fixed = TRUE))
+  # The two-verb prefix-collapse output exceeds the inline RENDER_WIDTH
+  # budget so `render_call_text()` breaks each argument onto its own
+  # line. `ws_collapse()` (gsub("\\s+", " ", x)) reduces those breaks
+  # to single spaces — including the space after `(` and before `)`.
+  # Compare against the same-shape expected string so the assertion is
+  # whitespace-insensitive but operator-sensitive (no `|>`, no `%>%`).
   expect_equal(
     ws_collapse(rendered),
-    ws_collapse("dplyr::filter(penguins, bill_length_mm > 40)")
+    ws_collapse("dplyr::mutate(\n  dplyr::filter(penguins, bill_length_mm > 40),\n  y = bill_length_mm * 2\n)")
   )
 })
 
@@ -129,14 +147,19 @@ test_that("non-preserve-mode rendering is unchanged from today (chain rendering 
   # non-preserve mode is unchanged from today" / Scope §2.)
   #
   # The non-preserve assertion uses BYTE-IDENTICAL comparison against the
-  # baseline render output captured from commit 72d09fb (the parent of
-  # PLAN-04's runtime/render changes — the `vignette-review`-tip render
-  # behavior). Presence checks (`grepl("|>", ...)`) would not have caught
-  # whitespace/indentation/operator-substitution regressions; the BDD `Then`
-  # clause for this scenario is "Render non-preserve mode is unchanged from
-  # today" — that demands equality, not presence.
+  # baseline render output captured from the merged G2 state (PLAN-02 +
+  # PLAN-04) where multi-stage `|>` inputs canonicalise to `ptr_pipeline`
+  # via PLAN-02's lift. Presence checks (`grepl("|>", ...)`) would not
+  # have caught whitespace/indentation/operator-substitution regressions;
+  # the BDD `Then` clause for this scenario is "Render non-preserve mode
+  # is unchanged from today" — that demands equality, not presence.
+  #
+  # Two verb stages above source so PLAN-02's GATE 0 accepts the lift and
+  # the layer's data_arg becomes a `ptr_pipeline` (a single verb stage
+  # reduces to a single-stage chain at the layer level and GATE 0
+  # correctly rejects it — see ADR 0012 PLAN-02 §GATE 0).
   data_arg <- data_arg_from_formula(
-    "penguins |> dplyr::filter(bill_length_mm > 40) |> ggplot(aes(bill_length_mm))"
+    "penguins |> dplyr::filter(bill_length_mm > 40) |> dplyr::mutate(y = bill_length_mm * 2) |> ggplot(aes(bill_length_mm))"
   )
   expect_s3_class(data_arg, "ptr_pipeline")
 
@@ -144,13 +167,15 @@ test_that("non-preserve-mode rendering is unchanged from today (chain rendering 
   rendered_eval <- ggpaintr:::render_walk(data_arg, preserve_placeholders = FALSE)
 
   # Preserve-mode: byte-identical collapsed nested-call form (PLAN-04 NEW).
-  baseline_preserve <- "dplyr::filter(penguins, bill_length_mm > 40)"
+  # k = NA (all stages placeholder-free) → collapse entire pipeline to
+  # one nested-call atom. The two-verb prefix nests `dplyr::mutate(...)`
+  # around `dplyr::filter(...)` around the bare `penguins` source.
+  baseline_preserve <- "dplyr::mutate(\n  dplyr::filter(penguins, bill_length_mm > 40),\n  y = bill_length_mm * 2\n)"
   expect_identical(rendered_preserve, baseline_preserve)
 
-  # Non-preserve mode: byte-identical against baseline captured from
-  # commit 72d09fb (the parent of PLAN-04's runtime/render changes).
-  # Verified empirically by running `render_walk(data_arg,
-  # preserve_placeholders = FALSE)` on a worktree checked out at 72d09fb.
-  baseline_eval <- "penguins |>\n  dplyr::filter(bill_length_mm > 40)"
+  # Non-preserve mode: byte-identical against baseline captured from the
+  # merged G2 state. Each stage emits as a `|>` chain link — the
+  # pre-PLAN-04 chain-rendering behaviour the contract demands preserve.
+  baseline_eval <- "penguins |>\n  dplyr::filter(bill_length_mm > 40) |>\n  dplyr::mutate(y = bill_length_mm * 2)"
   expect_identical(rendered_eval, baseline_eval)
 })

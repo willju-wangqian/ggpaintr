@@ -510,29 +510,25 @@ test_that("customization value-range: custom value placeholder", {
 
 test_that("customization consumer-colvars: custom consumer placeholder", {
   testthat::skip_if_not_installed("dplyr")
-  # PLAN-02 (ADR 0012) GATE 0 contract: single-stage chains stay as ptr_call
-  # (not lifted to ptr_pipeline), so the colvars placeholder lives directly
-  # under the layer call — id becomes `ggplot_2_colvars_NA` (no stage index).
-  # The picker-populated / rendered-code assertions below additionally rely
-  # on PLAN-04's consumer-uniformity guarantees for the upstream-resolution
-  # path that populates the consumer picker's `cols` from the lifted shape;
-  # in the PLAN-02-alone half-state that path returns empty cols, so the
-  # picker cannot accept the upstream selection and the rendered code shows
-  # `dplyr::select(mtcars)` (no columns). The atomic G2 pair lands PLAN-04
-  # alongside PLAN-02; this guard removes itself there.
-  skip_if_not(
-    plan04_prefix_collapse_merged(),
-    "ADR 0012 atomic G2 pair: PLAN-02-alone half-state. Re-enabled when PLAN-04 lands."
-  )
+  # Post-ADR-0012 G2 (PLAN-02 lift + PLAN-04 prefix-collapse + consumer
+  # uniformity): GATE 0 lifts the data_arg to a `ptr_pipeline` only when
+  # there are >= 2 verb stages above source. The fixture formula is
+  # `mtcars |> head(20) |> dplyr::select(colvars) |> ggplot(aes(...))`,
+  # producing two verb stages above the source (head + dplyr::select),
+  # so the colvars placeholder lands at stage 3, arg 1 — id is
+  # `ggplot_3_1_colvars_NA`. See the fixture `app.R` EXCEPT block for why
+  # the fixture diverges from the single-stage vignette mirror. The
+  # picker-populated / rendered-code assertions exercise PLAN-04's
+  # consumer-uniformity upstream-resolution path against the lifted shape.
   app <- boot_vignette_app("consumer-colvars")
 
   expect_dom_id(app, "ptr_update_plot")
   expect_dom_id(app, "ptr_plot")
-  expect_dom_id(app, "ggplot_2_colvars_NA")  # the registered colvars selectInput
+  expect_dom_id(app, "ggplot_3_1_colvars_NA")  # the registered colvars selectInput
 
   # Pick upstream columns; switch to the Controls subtab so the downstream
   # var-picker renderUI binds (it is suspended while the Data subtab is shown).
-  set_input(app, "ggplot_2_colvars_NA", c("mpg", "hp", "wt"))
+  set_input(app, "ggplot_3_1_colvars_NA", c("mpg", "hp", "wt"))
   set_input(app, "ggplot_subtab", "Controls")
   app$wait_for_idle(timeout = 15 * 1000)
   set_input(app, "ggplot_1_1_ppVar_NA", "mpg")
@@ -544,7 +540,7 @@ test_that("customization consumer-colvars: custom consumer placeholder", {
   # B1-class: the consumer picker must be POPULATED with upstream columns
   # (an empty selectInput would pass a bare expect_dom_id), and the selected
   # columns must reach the generated dplyr::select() via resolve_expr.
-  expect_picker_populated(app, "ggplot_2_colvars_NA", "mpg")
+  expect_picker_populated(app, "ggplot_3_1_colvars_NA", "mpg")
   expect_match(app$get_value(output = "ptr_code"), '"mpg".*"hp".*"wt"')
 })
 

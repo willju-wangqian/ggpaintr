@@ -21,8 +21,15 @@
 # branch where the render walker (or the assertion itself) is updated, the
 # probe will return TRUE → the gated tests RUN as written.
 plan04_prefix_collapse_merged <- function() {
+  # Multi-stage chain (2+ verb stages above source) so PLAN-02's GATE 0
+  # accepts the lift and the data_arg becomes a `ptr_pipeline`. A
+  # single-stage chain (e.g. `mtcars |> head(2) |> ggplot(...)`) reduces
+  # to a single-stage data_arg at the layer level and GATE 0 correctly
+  # rejects it — the probe would then always return FALSE regardless of
+  # PLAN-04's render state. The multi-stage input below routes through
+  # the lifted pipeline and the prefix-collapse render rule.
   tree <- tryCatch(
-    ptr_translate("mtcars |> head(2) |> ggplot(aes(x = mpg))"),
+    ptr_translate("mtcars |> head(5) |> dplyr::filter(mpg > 20) |> ggplot(aes(x = mpg))"),
     error = function(e) NULL
   )
   if (is.null(tree)) return(FALSE)
