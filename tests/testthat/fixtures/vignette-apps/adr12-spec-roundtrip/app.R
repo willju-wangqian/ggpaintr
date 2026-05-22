@@ -19,9 +19,9 @@ library(shiny)
 #     so `shinyWidgets::updatePickerInput()` from inside the onFlushed
 #     callback hits a live widget and the chosen column appears as the
 #     selected option.
-#   - The `geom_point()` layer carries the pipeline (`data = mtcars |>
-#     dplyr::filter(carb > ppNum)`), which gives us a stage-enabled
-#     checkbox (`geom_point_0_stage_enabled`) and a layer checkbox
+#   - The `geom_point()` layer carries a lifted 2-stage pipeline (source
+#     `mtcars` + `dplyr::filter(carb > ppNum)`), which gives us a stage-
+#     enabled checkbox (`geom_point_2_stage_enabled`) and a layer checkbox
 #     (`geom_point_checkbox`). The layer checkbox renders in the layer
 #     header (outside the subtab system) and is bound at first flush —
 #     same dispatch path as `stage_enabled` (both → `updateCheckboxInput`).
@@ -29,15 +29,16 @@ library(shiny)
 # Spec entries cover:
 #   - var picker (`ggplot_1_1_ppVar_NA = "carb"`)
 #   - layer checkbox (`geom_point_checkbox = FALSE`)
-#   - num input (`geom_point_2_2_ppNum_NA = 5`)
+#   - num input inside the lifted filter stage
+#     (`geom_point_2_1_2_ppNum_NA = 5`)
 #   - unknown id (`no_such_widget_id_99 = "x"`) — silently dropped with a
 #     `cli::cli_inform`, no crash.
 ptr_app(
   "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point(data = mtcars |> dplyr::filter(carb > ppNum))",
   spec = list(
-    `ggplot_1_1_ppVar_NA`     = "carb",
-    `geom_point_checkbox`     = FALSE,
-    `geom_point_2_2_ppNum_NA` = 5,
-    `no_such_widget_id_99`    = "x"
+    `ggplot_1_1_ppVar_NA`       = "carb",
+    `geom_point_checkbox`       = FALSE,
+    `geom_point_2_1_2_ppNum_NA` = 5,
+    `no_such_widget_id_99`      = "x"
   )
 )

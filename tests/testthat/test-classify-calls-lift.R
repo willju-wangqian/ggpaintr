@@ -56,21 +56,17 @@ test_that("canonical-tree identity: native pipe vs nested-call", {
 test_that("bare-data-name terminal grounds the lift in nested-call form", {
   f <- "ggplot(filter(penguins, bill_length_mm > 40), aes(bill_length_mm)) + geom_point()"
   tree <- ptr_translate(f, expr_check = FALSE)
-  # `filter(penguins, ...)` is single-stage at the data-arg level and is
-  # therefore left as a `ptr_call` rather than being lifted into a pipeline:
-  # GATE 0 (single-stage) is the documented rejection reason for a chain
-  # that has no manipulation above the source. The grounded shape is the
-  # ptr_call whose deepest non-call (after split) is the bare symbol
-  # `penguins`.
+  # `filter(penguins, ...)` is a 1-stage chain (one transform above a bare
+  # data symbol). Per ADR 0012 §1 (tree is semantic, not syntactic), this
+  # lifts into a canonical `ptr_pipeline` so consumers inside the filter
+  # stage resolve through the same machinery as multi-stage chains. The
+  # source slot is the bare `penguins` symbol; the lone stage call is the
+  # filter with its first arg (the source) stripped.
   da <- tree$layers[[1L]]$data_arg
-  expect_s3_class(da, "ptr_call")
-  res <- ggpaintr:::try_lift_to_pipeline(da$expr)
-  expect_false(isTRUE(res$success))
-  expect_equal(res$reason, "single-stage")
-  # Cross-check the grounding via direct resugar: the source slot is the
-  # bare `penguins` symbol regardless of GATE 0 firing.
-  parts <- ggpaintr:::resugar_pipeline_stages(da$expr)
-  expect_identical(parts$source, quote(penguins))
+  expect_s3_class(da, "ptr_pipeline")
+  expect_equal(length(da$stages), 2L)
+  expect_identical(da$stages[[1L]]$expr, quote(penguins))
+  expect_identical(da$stages[[2L]]$expr, quote(filter(bill_length_mm > 40)))
 })
 
 test_that("bare-data terminal lifts into pipeline when the chain has depth >= 2", {

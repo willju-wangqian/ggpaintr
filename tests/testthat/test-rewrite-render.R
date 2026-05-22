@@ -21,15 +21,13 @@ test_that("P10.2 layers joined with ' +\\n  '", {
   expect_equal(txt, "ggplot(data = mtcars) +\n  geom_point() +\n  geom_smooth()")
 })
 
-test_that("P10.3 native pipe surface preserved as |>", {
-  # ADR 0012 §1: the tree is semantic, not syntactic — `mtcars |> ggplot(...)`,
+test_that("P10.3 zero-verb chain (bare source piped into terminal) collapses to nested", {
+  # ADR 0012 §1: the tree is semantic, not syntactic. `mtcars |> ggplot(...)`,
   # `ggplot(mtcars, ...)`, and the magrittr equivalent share one canonical
-  # tree. Post-G2 (PLAN-02 lift + PLAN-04 collapse), a single-stage chain
-  # whose only verb above source is the terminal `ggplot(...)` reduces to
-  # the nested-call source form on render — the pipe surface is NOT
-  # preserved here because there is no multi-stage upstream to lift to a
-  # `ptr_pipeline`. The contract this test now guards is the inverse: a
-  # single-stage chain collapses to `ggplot(data = mtcars, aes(...))`.
+  # tree. There is no verb stage above the source — the layer's data_arg is
+  # the bare-symbol `mtcars` (a `ptr_literal`), which `ptr_classify_calls`
+  # leaves untouched (its `!is_ptr_call(da)` early-out). Renders as the
+  # nested-call source form.
   r <- ptr_translate("mtcars |> ggplot(aes(x = mpg))")
   txt <- ptr_render(r)
   expect_equal(txt, "ggplot(data = mtcars, aes(x = mpg))")
@@ -68,17 +66,18 @@ test_that("P10.5 mixed pipe chain preserves both ops", {
 })
 
 test_that("P10.6 chained pipe keeps middle-link call empty when placeholder empty", {
-  # ADR 0012 §1: the tree is semantic, not syntactic. A single verb stage
-  # (head) above the source (mtcars) below the terminal layer (ggplot) is
-  # rejected by PLAN-02 GATE 0 — the layer's data_arg stays a `ptr_call`
-  # and the prefix-collapse render rule emits the nested form. P9 still
-  # holds: empty `ppNum` drops the arg, leaving `head(mtcars)` which eval
+  # ADR 0012 §1: a single verb stage (head) above source (mtcars) below the
+  # terminal layer (ggplot) lifts to a canonical `ptr_pipeline`. P9 still
+  # holds: empty `ppNum` drops the arg, leaving `head()` (no args) which eval
   # resolves via head's default n = 6.
   r <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = mpg))")
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s)
   txt <- ptr_render(p)
-  expect_equal(txt, "ggplot(data = head(mtcars), aes(x = mpg))")
+  expect_equal(
+    txt,
+    "ggplot(\n  data = mtcars |>\n           head(),\n  aes(x = mpg)\n)"
+  )
 })
 
 test_that("P10.7 pkg::fn heads preserved", {
@@ -109,28 +108,29 @@ test_that("P10.10 named args print as `name = value`", {
 })
 
 test_that("P10.11 code text reflects snapshotted values when supplied", {
-  # ADR 0012 §1: the tree is semantic, not syntactic. Single-stage chain
-  # renders as nested-call form post-G2; the snapshot-substitution contract
-  # is otherwise unchanged — the live num value reaches the head() arg.
+  # ADR 0012 §1: single-stage chain lifts to a canonical `ptr_pipeline` and
+  # renders as the |> pipe form. The snapshot-substitution contract is
+  # unchanged — the live num value reaches the head() arg.
   r <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = mpg))")
   num_id <- find_nodes(r, function(x) is_ptr_placeholder(x) && x$keyword == "ppNum")[[1]]$id
   s <- ptr_substitute(r, input_snapshot = setNames(list(3), num_id))
   p <- ptr_prune(s)
   txt <- ptr_render(p)
-  expect_equal(txt, "ggplot(data = head(mtcars, 3), aes(x = mpg))")
+  expect_equal(
+    txt,
+    "ggplot(\n  data = mtcars |>\n           head(3),\n  aes(x = mpg)\n)"
+  )
   expect_false(grepl("head(ppNum)", txt, fixed = TRUE))
 })
 
 test_that("P10.12 code text falls back to live input when no snapshot", {
-  # ADR 0012 §1: the tree is semantic, not syntactic. Single-stage chain
-  # renders as nested-call form post-G2; the live-input / no-snapshot
-  # contract is otherwise unchanged.
+  # ADR 0012 §1: single-stage chain lifts to a canonical `ptr_pipeline`.
   # The "snapshot" passed to ptr_substitute IS the live-input projection at
   # the caller boundary (server.R wires reactiveValuesToList(input) as the
   # snapshot). This test exercises both halves of the contract:
-  #   (a) live input "num = 5" → code text contains head(mtcars, 5)
+  #   (a) live input "num = 5" → code text contains head(5) in the pipe
   #   (b) no snapshot at all → the placeholder is missing → P9 drops the
-  #       arg and the code text shows the empty-form head(mtcars).
+  #       arg and the pipe shows the empty-form head().
   r <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = mpg))")
   num_id <- find_nodes(r,
                        function(x) is_ptr_placeholder(x) && x$keyword == "ppNum")[[1]]$id
@@ -138,10 +138,16 @@ test_that("P10.12 code text falls back to live input when no snapshot", {
   txt_live <- ptr_render(ptr_prune(
     ptr_substitute(r, input_snapshot = stats::setNames(list(5), num_id))
   ))
-  expect_equal(txt_live, "ggplot(data = head(mtcars, 5), aes(x = mpg))")
+  expect_equal(
+    txt_live,
+    "ggplot(\n  data = mtcars |>\n           head(5),\n  aes(x = mpg)\n)"
+  )
 
   txt_none <- ptr_render(ptr_prune(ptr_substitute(r, input_snapshot = list())))
-  expect_equal(txt_none, "ggplot(data = head(mtcars), aes(x = mpg))")
+  expect_equal(
+    txt_none,
+    "ggplot(\n  data = mtcars |>\n           head(),\n  aes(x = mpg)\n)"
+  )
   expect_false(grepl("head(ppNum)", txt_none, fixed = TRUE))
 })
 
@@ -183,12 +189,10 @@ test_that("P10.16 one-sided formula renders without redundant parens", {
 })
 
 test_that("P10.17 over-wide pipe chain breaks at each pipe operator", {
-  # ADR 0012 §1: the tree is semantic, not syntactic. Post-G2 a single verb
-  # stage (head) above source collapses into the layer's data arg as a
-  # nested call. When the resulting `ggplot(...)` is over-wide, render breaks
-  # one arg per line (data = and aes = are split, closing paren on its own
-  # indented line) instead of breaking the original pipe at each stage. The
-  # 80-column budget still holds.
+  # ADR 0012 §1: every chain with ≥1 verb stage above source lifts to a
+  # canonical `ptr_pipeline` and renders one stage per line. The
+  # `ggplot(...)` call itself stays over-wide and additionally breaks at
+  # its arg boundaries. 80-column budget still holds.
   r <- ptr_translate(paste0(
     "iris |> head(200) |> ",
     "ggplot(aes(x = Sepal.Length, y = Sepal.Width, color = Species)) + geom_point()"
@@ -198,7 +202,8 @@ test_that("P10.17 over-wide pipe chain breaks at each pipe operator", {
     txt,
     paste0(
       "ggplot(\n",
-      "  data = head(iris, 200),\n",
+      "  data = iris |>\n",
+      "           head(200),\n",
       "  aes(x = Sepal.Length, y = Sepal.Width, color = Species)\n",
       ") +\n",
       "  geom_point()"
@@ -208,31 +213,33 @@ test_that("P10.17 over-wide pipe chain breaks at each pipe operator", {
 })
 
 test_that("P10.18 multi-stage pipe chains always break one stage per line", {
-  # ADR 0012 §1: the tree is semantic, not syntactic. A single verb stage
-  # above source (one `head` call between `mtcars` and the terminal
-  # `ggplot`) is rejected by PLAN-02 GATE 0 — the data_arg stays a
-  # `ptr_call` and renders in the nested-call source form below. The
-  # multi-stage-pipe break-at-each-pipe contract is asserted by P10.17
-  # against an over-wide chain and by P10.19 against an under-wide one
-  # against the lifted `ptr_pipeline` shape.
+  # ADR 0012 §1: a single verb stage above source (one `head` call between
+  # `mtcars` and the terminal `ggplot`) lifts to a canonical `ptr_pipeline`
+  # and renders one stage per line, even when the resulting `ggplot(...)`
+  # call would otherwise fit on one line.
   r <- ptr_translate("mtcars |> head(2) |> ggplot(aes(x = mpg))")
   expect_equal(
     ptr_render(r),
-    "ggplot(data = head(mtcars, 2), aes(x = mpg))"
+    "ggplot(\n  data = mtcars |>\n           head(2),\n  aes(x = mpg)\n)"
   )
 })
 
 test_that("P10.19 bracket / accessor heads render in syntactic form", {
-  # ADR 0012 §1: the tree is semantic, not syntactic. Single-stage chains
-  # collapse to the nested-call source form post-G2; the rendered output
-  # preserves bracket (`[`, `[[`) and `$` accessor syntax verbatim inside
-  # the layer body.
+  # ADR 0012 §1: every chain with ≥1 verb stage above source lifts. The
+  # second assertion's chain has zero verb stages (bare `mtcars |>` into
+  # `ggplot`) — the data_arg is the bare-symbol source (a `ptr_literal`)
+  # which `ptr_classify_calls` leaves untouched, so it renders nested.
+  # Both cases preserve bracket (`[`, `[[`) and `$` accessor syntax verbatim.
   expect_equal(
     ptr_render(ptr_translate(
       "mtcars |> dplyr::filter(mpg >= c(10, 20)[1]) |> ggplot(aes(x = mpg, y = hp)) + geom_point()"
     )),
     paste0(
-      "ggplot(data = dplyr::filter(mtcars, mpg >= c(10, 20)[1]), aes(x = mpg, y = hp)) +\n",
+      "ggplot(\n",
+      "  data = mtcars |>\n",
+      "           dplyr::filter(mpg >= c(10, 20)[1]),\n",
+      "  aes(x = mpg, y = hp)\n",
+      ") +\n",
       "  geom_point()"
     )
   )
@@ -248,15 +255,19 @@ test_that("P10.19 bracket / accessor heads render in syntactic form", {
 })
 
 test_that("P10.20 namespaced reference as an argument renders as pkg::name", {
-  # ADR 0012 §1: the tree is semantic, not syntactic. Single-stage chains
-  # collapse to the nested-call source form post-G2; both `::` and `:::`
-  # namespacing on argument-position references survive the lift round-trip.
+  # ADR 0012 §1: every chain with ≥1 verb stage above source lifts. Both
+  # `::` and `:::` namespacing on argument-position references survive the
+  # lift round-trip into the rendered pipeline form.
   expect_equal(
     ptr_render(ptr_translate(
       "mtcars |> purrr::map(broom::glance) |> ggplot(aes(mpg, hp)) + geom_point()"
     )),
     paste0(
-      "ggplot(data = purrr::map(mtcars, broom::glance), aes(mpg, hp)) +\n",
+      "ggplot(\n",
+      "  data = mtcars |>\n",
+      "           purrr::map(broom::glance),\n",
+      "  aes(mpg, hp)\n",
+      ") +\n",
       "  geom_point()"
     )
   )
@@ -265,7 +276,11 @@ test_that("P10.20 namespaced reference as an argument renders as pkg::name", {
       "mtcars |> purrr::map(broom:::glance) |> ggplot(aes(mpg, hp)) + geom_point()"
     )),
     paste0(
-      "ggplot(data = purrr::map(mtcars, broom:::glance), aes(mpg, hp)) +\n",
+      "ggplot(\n",
+      "  data = mtcars |>\n",
+      "           purrr::map(broom:::glance),\n",
+      "  aes(mpg, hp)\n",
+      ") +\n",
       "  geom_point()"
     )
   )

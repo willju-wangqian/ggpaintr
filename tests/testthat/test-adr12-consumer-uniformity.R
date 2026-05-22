@@ -40,15 +40,11 @@
 # stays as a bare `ptr_call`; after the lift it becomes a `ptr_pipeline`
 # matching native/magrittr surface forms.
 plan02_lift_merged <- function() {
-  # Multi-stage nested-call chain (2+ verb stages above source) so
-  # PLAN-02's GATE 0 accepts the lift and the nested form's data_arg
-  # canonicalises to a `ptr_pipeline`. A single-verb-stage nested call
-  # (e.g. `ggplot(dplyr::filter(penguins, ...))`) reduces to a
-  # single-stage chain at the layer level and GATE 0 correctly rejects
-  # it — the probe would then always return FALSE regardless of
-  # PLAN-02's merge state. Two namespaced verbs are stacked above the
-  # source so the lift fires for nested form just as it does for
-  # `|>`/`%>%` forms.
+  # 2-verb-stage nested-call chain — the lift fires when the data_arg is
+  # a `ptr_call` with one or more verb stages above the source. We stack
+  # two namespaced verbs to keep the probe stable across both pre- and
+  # post-ADR-0012-fix branches: the nested-form data_arg canonicalises
+  # to a `ptr_pipeline` either way.
   tree <- tryCatch(
     ptr_translate(
       "ggplot(dplyr::filter(head(penguins, 50), bill_length_mm > 40)) + geom_point()",

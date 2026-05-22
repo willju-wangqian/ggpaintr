@@ -90,12 +90,14 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
   root
 }
 
-# Canonical-pipeline-lift pass (ADR 0012 §2, PLAN-02). Walks each layer's
-# `$data_arg` only (never `$children` — the `+` fence holds, ADR §3.4) and,
-# when the data-arg is a `ptr_call`, attempts to lift the nested-call chain
-# into a canonical `ptr_pipeline` via `try_lift_to_pipeline`. The lift fires
-# only when three gates pass (multi-stage, round-trip-identical, symbol
-# source); any failure leaves the data-arg unchanged. Internal.
+# Canonical-pipeline-lift pass (ADR 0012 §2). Walks each layer's `$data_arg`
+# only (never `$children` — the `+` fence holds, ADR §3.4) and, when the
+# data-arg is a `ptr_call`, attempts to lift the nested-call chain into a
+# canonical `ptr_pipeline` via `try_lift_to_pipeline`. The lift fires when
+# three gates pass: at least one stage exists above the source, the
+# stages-then-source list round-trips identical to the desugared input, and
+# the source is a non-call AST node. Any failure leaves the data-arg
+# unchanged. Internal.
 ptr_classify_calls <- function(root) {
   if (!is_ptr_root(root)) {
     rlang::abort("ptr_classify_calls expects a ptr_root.")
@@ -244,10 +246,13 @@ rebuild_nested_from_stages <- function(parts) {
 
 # Step 4 — round-trip + grounding gates. Returns either
 # `list(success = TRUE, parts = ...)` when the lift may fire, or
-# `list(success = FALSE, reason = <single-stage|round-trip-mismatch|
+# `list(success = FALSE, reason = <no-stages|round-trip-mismatch|
 # opaque-call-source|non-data-source>)` otherwise. Three independent gates,
 # all of which must pass:
-#   GATE 0 (single-stage): a 1-stage list has no chain worth lifting.
+#   GATE 0 (non-empty):    the stages list must hold at least one stage above
+#                          the source. The 0-stage case is degenerate
+#                          (e.g. `f()` with no args, where source = the
+#                          unchanged input call) — nothing to lift.
 #   GATE 1 (round-trip):   the split + rebuild must equal the canonical-
 #                          nested form, otherwise the split bisected a
 #                          structure we cannot losslessly reconstruct.
@@ -262,8 +267,8 @@ rebuild_nested_from_stages <- function(parts) {
 try_lift_to_pipeline <- function(expr) {
   canonical <- desugar_pipes_to_nested(expr)
   parts     <- resugar_pipeline_stages(canonical)
-  if (length(parts$stages) < 2L) {
-    return(list(success = FALSE, reason = "single-stage"))
+  if (length(parts$stages) < 1L) {
+    return(list(success = FALSE, reason = "no-stages"))
   }
   rebuilt <- rebuild_nested_from_stages(parts)
   if (!identical(rebuilt, canonical)) {

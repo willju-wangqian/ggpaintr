@@ -98,8 +98,10 @@ extract_source_leaf <- function(upstream) {
     if (length(upstream$stages) == 0L) return(NULL)
     return(extract_source_leaf(upstream$stages[[1L]]))
   }
-  # PLAN-02 (ADR 0012 §1): single-stage chains stay as `ptr_call` instead of
-  # being lifted into a 1-stage pipeline. The shared-coordinator's
+  # ADR 0012 §1: most chains lift to `ptr_pipeline`, but a `ptr_call` can
+  # still appear here as an upstream — e.g. when the lift gate rejected
+  # an opaque-call source (`read_csv("f") |> filter(...)`) or when the
+  # caller passed a non-data-arg subtree. The shared-coordinator's
   # source-equality check (`identical(src1, sources[[i]])`) needs the
   # deepest data-source leaf, not the wrapping call — otherwise two layers
   # whose data_args are `dplyr::select(mtcars, mpg, cyl)` vs

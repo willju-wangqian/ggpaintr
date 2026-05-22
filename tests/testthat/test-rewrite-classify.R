@@ -37,9 +37,9 @@ test_that("P2.4 geom with explicit data= shadows inheritance", {
 })
 
 test_that("P2.5 pipeline stage k>1 sees prior stages as synthetic upstream", {
-  # PLAN-02 (ADR 0012 §1): the lift fires only for chains with two or more
-  # manipulation stages above the source (GATE 0). Use a 2-stage chain so
-  # the canonical pipeline shape is what each consumer sees as its upstream.
+  # ADR 0012 §1: every chain with >= 1 verb stage above source lifts.
+  # Use a 2-stage chain so the per-stage `ctx_data` synthesis (built
+  # from prior stages) has something meaningful to point at.
   r <- ptr_translate(
     "mtcars |> filter(year >= ppNum) |> select(ppVar) |> ggplot(aes(x = ppVar))"
   )

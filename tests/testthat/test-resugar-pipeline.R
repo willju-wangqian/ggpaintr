@@ -93,10 +93,13 @@ test_that("try_lift fires on every surface form with the same canonical shape", 
   expect_equal(length(r_m$parts$stages), length(r_s$parts$stages))
 })
 
-test_that("try_lift refuses single-stage list (bare symbol)", {
+test_that("try_lift refuses input with no stages above source (bare symbol)", {
+  # A bare symbol can never reach `try_lift` in production (the classify_calls
+  # pass filters non-`ptr_call` data_args out beforehand), but the helper is
+  # called directly here to confirm GATE 0 still rejects the 0-stage case.
   res <- ggpaintr:::try_lift_to_pipeline(quote(penguins))
   expect_false(isTRUE(res$success))
-  expect_equal(res$reason, "single-stage")
+  expect_equal(res$reason, "no-stages")
 })
 
 test_that("try_lift refuses an opaque-call source on a multi-stage chain", {
@@ -106,14 +109,14 @@ test_that("try_lift refuses an opaque-call source on a multi-stage chain", {
   expect_equal(res$reason, "opaque-call-source")
 })
 
-test_that("try_lift gate ordering: single-stage fires before opaque-call check", {
-  # `filter(make_data(), ppVar > 1)` after split gives stages of length 1.
-  # GATE 0 (single-stage) must fire before GATE 2 (opaque-call grounding) so
-  # the reason is "single-stage", not "opaque-call-source".
+test_that("try_lift rejects an opaque-call source on a single-stage chain", {
+  # `filter(make_data(), ppVar > 1)` splits to source = `make_data()` (a call)
+  # and stages = list(filter(ppVar > 1)). The 1-stage case now passes GATE 0;
+  # GATE 2 (opaque-call grounding) is the rejection reason.
   expr <- quote(filter(make_data(), ppVar > 1))
   res <- ggpaintr:::try_lift_to_pipeline(expr)
   expect_false(isTRUE(res$success))
-  expect_equal(res$reason, "single-stage")
+  expect_equal(res$reason, "opaque-call-source")
 })
 
 test_that("try_lift refuses a literal-value source", {

@@ -20,11 +20,13 @@ test_that("P1.1 simple ggplot+geom_point produces two layers, no pipeline", {
   expect_false(walk_root(r))
 })
 
-test_that("P1.2 single-stage `%>%` chain canonicalises to a non-pipeline data_arg", {
-  # PLAN-02 (ADR 0012 §1): pipes are pure first-arg-insertion sugar.
-  # `mtcars %>% ggplot(...)` desugars to `ggplot(mtcars, ...)`, a one-call
-  # chain — the lift rejects single-stage chains (GATE 0). The resulting
-  # data_arg is the bare-symbol source, not a 1-stage pipeline.
+test_that("P1.2 zero-verb `%>%` chain canonicalises to a bare-source data_arg", {
+  # ADR 0012 §1: pipes are pure first-arg-insertion sugar.
+  # `mtcars %>% ggplot(...)` desugars to `ggplot(mtcars, ...)`. There is
+  # no verb stage above the source — the layer's data_arg is the
+  # bare-symbol `mtcars` (a `ptr_literal`), which `ptr_classify_calls`
+  # leaves untouched (its `!is_ptr_call(da)` early-out). The data_arg is
+  # the bare-symbol source, not a pipeline wrapper.
   r <- ptr_translate("mtcars %>% ggplot(aes(x = mpg))")
   expect_equal(length(r$layers), 1L)
   expect_equal(r$layers[[1]]$name, "ggplot")
@@ -32,8 +34,8 @@ test_that("P1.2 single-stage `%>%` chain canonicalises to a non-pipeline data_ar
   expect_identical(r$layers[[1]]$data_arg$expr, quote(mtcars))
 })
 
-test_that("P1.3 single-stage `|>` chain canonicalises to a non-pipeline data_arg", {
-  # `|>` and `%>%` now produce structurally-identical trees (ADR 0012 §1).
+test_that("P1.3 zero-verb `|>` chain canonicalises to a bare-source data_arg", {
+  # `|>` and `%>%` produce structurally-identical trees (ADR 0012 §1).
   r <- ptr_translate("mtcars |> ggplot(aes(x = mpg))")
   expect_s3_class(r$layers[[1]]$data_arg, "ptr_literal")
   expect_identical(r$layers[[1]]$data_arg$expr, quote(mtcars))

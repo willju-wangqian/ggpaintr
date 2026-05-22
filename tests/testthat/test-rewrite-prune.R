@@ -80,8 +80,9 @@ test_that("P9.7b empty call IN default_drop_when_empty drops from pipeline", {
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s)
   ggp <- p$layers[[1]]
-  # data_arg pipeline has just mtcars (single stage -> collapsed to literal),
-  # ggplot's children should not include the empty aes() arg.
+  # data_arg is the bare `mtcars` literal (no verb stages above source,
+  # so the lift's `is_ptr_call(da)` filter skipped it); ggplot's children
+  # should not include the empty aes() arg.
   arg_names <- names(ggp$children) %||% rep_len("", length(ggp$children))
   expect_false(any(vapply(ggp$children, function(c) {
     is_ptr_call(c) && identical(bare_call_name(c$fun), "aes")
@@ -215,13 +216,17 @@ test_that("P9.25 binary operator inside data_arg escalates when operand missing"
   # `subset(mtcars, mpg > num)` with num missing: the `>` operator has a
   # positional missing operand → escalates to ptr_missing per P9 (G2);
   # the surrounding subset call's positional second arg is now missing →
-  # subset itself escalates. Exercises G2 (operator escalation) and the
-  # nested-cascade rule together.
+  # subset itself drops the arg. Exercises G2 (operator escalation) and
+  # the nested-cascade rule together. Note: post-ADR-0012 the data_arg
+  # lifts to a `ptr_pipeline` and the rendered output may contain the
+  # `|>` token; assert on the operand symbol `mpg` instead of the raw
+  # `>` character (which would false-positive on `|>`).
   r <- ptr_translate("ggplot(subset(mtcars, mpg > ppNum)) + geom_point()")
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s)
   rendered <- ptr_render(p)
-  expect_false(grepl(">", rendered, fixed = TRUE))
+  expect_false(grepl("mpg", rendered, fixed = TRUE))
+  expect_false(grepl("ppNum", rendered, fixed = TRUE))
 })
 
 test_that("P9.26 anonymous-head call (paren-wrapped) is preserved by prune", {

@@ -57,8 +57,8 @@ test_that("adr12 / PLAN-06: spec= overrides widget defaults at session boot", {
 
   # 3. num input honored at boot. The registry default is NA; the spec
   #    sets 5. Read the numeric value through Shiny's input snapshot.
-  expect_equal(app$get_value(input = "geom_point_2_2_ppNum_NA"), 5,
-               label = "geom_point_2_2_ppNum_NA honored at boot (5 from spec)")
+  expect_equal(app$get_value(input = "geom_point_2_1_2_ppNum_NA"), 5,
+               label = "geom_point_2_1_2_ppNum_NA honored at boot (5 from spec)")
 
   # 4. Unknown id silently dropped: the app booted (boot_vignette_app
   #    succeeded) and no inline error is rendered.

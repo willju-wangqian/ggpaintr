@@ -180,28 +180,26 @@ test_that("non-placeholder structure agrees across modes (whitespace, +-joins, i
 })
 
 test_that("pipe chain structure is identical across modes", {
-  # ADR 0012 §1: the tree is semantic, not syntactic. A single verb stage
-  # (head) above source is rejected by PLAN-02 GATE 0; the data_arg stays
-  # a `ptr_call` and renders as the nested-call source form below in BOTH
-  # modes — the canonical tree is identical, so the rendered scaffolding
-  # is identical too. Erase mode falls back to expr_text for placeholder
-  # nodes (bare `ppNum` / `ppVar`); preserve mode emits the call shape
-  # (`ppNum()` / `ppVar()`). The structure-equivalence contract this test
-  # now guards is the inverse of the pre-G2 form: both modes produce the
-  # same nested-call layout with the same separator count.
+  # ADR 0012 §1: a single verb stage (head) above source lifts to a
+  # canonical `ptr_pipeline`, so both render modes emit the same pipe
+  # scaffold. Erase mode renders placeholder nodes as bare names
+  # (`ppNum` / `ppVar`); preserve mode emits the call shape
+  # (`ppNum()` / `ppVar()`). Exactly one `|>` token per side.
   r <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = ppVar))")
   e <- ptr_render(r, preserve_placeholders = FALSE)
   p <- ptr_render(r, preserve_placeholders = TRUE)
-  # Both must split into the same number of pipe segments. The expectation
-  # is zero on each side (single-stage chain → no top-level pipe).
   expect_equal(length(gregexpr("\\|>", e)[[1]]),
                length(gregexpr("\\|>", p)[[1]]))
-  # Neither mode emits a top-level pipe — single-stage chain collapses.
-  expect_false(grepl("|>", e, fixed = TRUE))
-  expect_false(grepl("|>", p, fixed = TRUE))
-  # And the rendered shape is the canonical nested-call form in both modes.
-  expect_equal(e, "ggplot(data = head(mtcars, ppNum), aes(x = ppVar))")
-  expect_equal(p, "ggplot(data = head(mtcars, ppNum()), aes(x = ppVar()))")
+  expect_true(grepl("|>", e, fixed = TRUE))
+  expect_true(grepl("|>", p, fixed = TRUE))
+  expect_equal(
+    e,
+    "ggplot(\n  data = mtcars |>\n           head(ppNum),\n  aes(x = ppVar)\n)"
+  )
+  expect_equal(
+    p,
+    "ggplot(\n  data = mtcars |>\n           head(ppNum()),\n  aes(x = ppVar())\n)"
+  )
 })
 
 # ---- preserved output is parseable plain R --------------------------------

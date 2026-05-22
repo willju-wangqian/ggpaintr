@@ -50,10 +50,8 @@ test_that("preserve-mode renders all-placeholder-free pipeline as a single neste
 
 test_that("preserve-mode renders pipeline whose SOURCE is a placeholder as a `|>` chain (k == 1)", {
   # ppUpload is the source — k == 1. Whole pipeline renders as `|>` chain.
-  # Two verb stages above source so PLAN-02's GATE 0 accepts the lift and
-  # the layer's data_arg becomes a `ptr_pipeline` (a single verb stage
-  # reduces to a single-stage chain at the layer level and GATE 0
-  # correctly rejects it — see ADR 0012 PLAN-02 §GATE 0).
+  # Two verb stages above source (filter + mutate) keep this test stable
+  # under the prefix-collapse render rule.
   data_arg <- data_arg_from_formula(
     "ppUpload |> dplyr::filter(bill_length_mm > 40) |> dplyr::mutate(y = bill_length_mm * 2) |> ggplot(aes(bill_length_mm))"
   )
@@ -68,10 +66,8 @@ test_that("preserve-mode renders pipeline whose SOURCE is a placeholder as a `|>
 test_that("preserve-mode renders pipeline with placeholder at stage 2 as a `|>` chain", {
   # Source = `penguins`; placeholder appears at stage 2 (in-filter ppVar).
   # k == 2; whole pipeline renders as `|>` chain. Two verb stages above
-  # source so PLAN-02's GATE 0 accepts the lift and the layer's data_arg
-  # becomes a `ptr_pipeline` (a single verb stage reduces to a
-  # single-stage chain at the layer level and GATE 0 correctly rejects
-  # it — see ADR 0012 PLAN-02 §GATE 0).
+  # source (filter + mutate) keep this test stable under the
+  # prefix-collapse render rule.
   data_arg <- data_arg_from_formula(
     "penguins |> dplyr::filter(ppVar > 1) |> dplyr::mutate(y = bill_length_mm * 2) |> ggplot(aes(ppVar))"
   )
@@ -115,10 +111,8 @@ test_that("preserve-mode collapses a `%>%`-sourced all-placeholder-free chain to
   # ggplot(...)`. The prefix-collapse rule subsumes it into a nested-call
   # atom: no `|>`, no `%>%`. See BDD "Render preserve-mode — `%>%`-source
   # user sees no `|>` for their all-placeholder-free chain". Two verb
-  # stages above source so PLAN-02's GATE 0 accepts the lift and the
-  # layer's data_arg becomes a `ptr_pipeline` (a single verb stage
-  # reduces to a single-stage chain at the layer level and GATE 0
-  # correctly rejects it — see ADR 0012 PLAN-02 §GATE 0).
+  # stages above source (filter + mutate) keep this test stable under
+  # the prefix-collapse render rule.
   data_arg <- data_arg_from_formula(
     "penguins %>% dplyr::filter(bill_length_mm > 40) %>% dplyr::mutate(y = bill_length_mm * 2) %>% ggplot(aes(bill_length_mm))"
   )
@@ -153,11 +147,8 @@ test_that("non-preserve-mode rendering is unchanged from today (chain rendering 
   # have caught whitespace/indentation/operator-substitution regressions;
   # the BDD `Then` clause for this scenario is "Render non-preserve mode
   # is unchanged from today" — that demands equality, not presence.
-  #
-  # Two verb stages above source so PLAN-02's GATE 0 accepts the lift and
-  # the layer's data_arg becomes a `ptr_pipeline` (a single verb stage
-  # reduces to a single-stage chain at the layer level and GATE 0
-  # correctly rejects it — see ADR 0012 PLAN-02 §GATE 0).
+  # Two verb stages above source (filter + mutate) keep this test stable
+  # under the prefix-collapse render rule.
   data_arg <- data_arg_from_formula(
     "penguins |> dplyr::filter(bill_length_mm > 40) |> dplyr::mutate(y = bill_length_mm * 2) |> ggplot(aes(bill_length_mm))"
   )

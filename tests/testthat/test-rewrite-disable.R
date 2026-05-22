@@ -76,10 +76,18 @@ test_that("assign_stage_ids: stage without placeholder skipped", {
   expect_null(stages[[3L]]$stage_id)
 })
 
-test_that("assign_stage_ids: single-call data_arg gets stage_id at path 0", {
+test_that("assign_stage_ids: 1-verb data_arg lifts and stage 2 gets a stage_id", {
+  # ADR 0012 §1: a single verb stage above source (`filter(mtcars, ppNum)`)
+  # lifts to a canonical 2-stage `ptr_pipeline`. Stage 1 is the source
+  # (mtcars literal, no stage_id). Stage 2 is the filter call (carries
+  # the ppNum placeholder), so it earns a stage_id at index 2.
   tree <- ptr_translate("ggplot() + geom_point(data = filter(mtcars, ppNum))")
   geom <- Filter(function(l) l$name == "geom_point", tree$layers)[[1L]]
-  expect_equal(geom$data_arg$stage_id, "geom_point_0_stage_enabled")
+  pipe <- geom$data_arg
+  expect_true(is_ptr_pipeline(pipe))
+  expect_equal(length(pipe$stages), 2L)
+  expect_null(pipe$stages[[1L]]$stage_id)
+  expect_equal(pipe$stages[[2L]]$stage_id, "geom_point_2_stage_enabled")
 })
 
 test_that("assign_stage_ids: nested non-pipeline calls each get a stage_id", {
@@ -135,13 +143,21 @@ test_that("disable_walk: FALSE-valued pipeline stage drops from stages list", {
   expect_true(is_ptr_literal(pipe$stages[[1L]]))
 })
 
-test_that("disable_walk: FALSE single-call data_arg replaces with first arg", {
+test_that("disable_walk: FALSE 1-verb lifted pipeline drops the verb stage", {
+  # ADR 0012 §1: `data = filter(mtcars, ppNum)` lifts to a 2-stage pipeline
+  # (mtcars + filter). Disabling stage 2 drops the filter, leaving a
+  # source-only pipeline whose lone stage is the `mtcars` literal.
+  # `disable_walk.ptr_pipeline` does not auto-collapse 1-stage results to
+  # the bare source (unlike `prune_walk.ptr_pipeline`) — that's an
+  # eval-time concern, not a tree-shape one.
   tree <- ptr_translate("ggplot() + geom_point(data = filter(mtcars, ppNum))")
-  sid <- "geom_point_0_stage_enabled"
+  sid <- "geom_point_2_stage_enabled"
   out <- disable_walk(tree, stats::setNames(list(FALSE), sid))
   geom <- Filter(function(l) l$name == "geom_point", out$layers)[[1L]]
-  expect_true(is_ptr_literal(geom$data_arg))
-  expect_equal(deparse(geom$data_arg$expr), "mtcars")
+  expect_true(is_ptr_pipeline(geom$data_arg))
+  expect_equal(length(geom$data_arg$stages), 1L)
+  expect_true(is_ptr_literal(geom$data_arg$stages[[1L]]))
+  expect_equal(deparse(geom$data_arg$stages[[1L]]$expr), "mtcars")
 })
 
 test_that("disable_walk: nested calls — outer disabled exposes inner", {
