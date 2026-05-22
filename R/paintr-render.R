@@ -47,12 +47,18 @@ render_walk.ptr_root <- function(node, indent = 0L, preserve_placeholders = FALS
 #' @export
 render_walk.ptr_layer <- function(node, indent = 0L, preserve_placeholders = FALSE) {
   head_text <- layer_head_text(node)
-  is_piped <- layer_is_piped(node)
+  # PLAN-01 (ADR 0012 §5 OQ2): asymmetric "%>%-preserve, |>-collapse"
+  # render policy. Only `%>%` triggers the layer-level chain branch;
+  # `|>` (and NULL) take today's nested-with-pipe-inside path. The
+  # `source_pipe_op` annotation is stamped on the layer when its source
+  # is piped in (translate_plain_layer); the typed tree is structurally
+  # identical across surface forms regardless of the annotation.
+  is_piped <- identical(node$source_pipe_op, "%>%")
   if (is_piped) {
     terminal <- function(ci) render_call_text(head_text, node$children, ci,
                                               preserve_placeholders = preserve_placeholders)
     if (is.null(node$data_arg)) return(terminal(indent))
-    op <- layer_pipe_op(node)
+    op <- node$source_pipe_op
     # Flatten a same-op upstream pipeline so each stage is its own segment
     # (`a |> b() |> c()`); a different-op or non-pipeline upstream stays one
     # opaque segment and wraps via its own render_walk if it is itself long.
@@ -116,9 +122,20 @@ render_pipeline_body <- function(node, indent = 0L, preserve_placeholders = FALS
   k <- first_index_where_subtree_contains_any_placeholder(stages)
 
   if (is.na(k)) {
-    # No placeholder anywhere in the pipeline. Collapse the whole pipeline
-    # to a single nested-call source rendered as a single atom (no pipe
-    # operators in the output).
+    # No placeholder anywhere in the pipeline. PLAN-01 asymmetric policy
+    # (ADR 0012 §5 OQ2): `%>%` preserves on sight (render as chain even
+    # when no placeholder forces it); `|>` is the canonical default and
+    # collapses to nested. Eval-mode renders the chain verbatim regardless
+    # of op — that branch is handled above.
+    if (identical(node$op, "%>%")) {
+      thunks <- lapply(stages, function(s) {
+        force(s)
+        function(ci) render_walk(s, ci, preserve_placeholders = TRUE)
+      })
+      return(render_pipe_chain(thunks, node$op, indent))
+    }
+    # `|>` (or any non-`%>%` op): collapse the whole pipeline to a single
+    # nested-call source rendered as a single atom (no pipe operators).
     nested <- rebuild_nested_from_stages_typed(stages)
     return(render_walk(nested, indent, preserve_placeholders = TRUE))
   }

@@ -9,6 +9,15 @@
 #      non-ggplot layers.
 #   6. Wrap in `ptr_root`; run safety walker (P5).
 
+ptr_first_pipe_op <- function(formula) {
+  m_pct  <- regexpr("%>%", formula, fixed = TRUE)
+  m_pipe <- regexpr("|>",  formula, fixed = TRUE)
+  pct_pos  <- if (m_pct[1]  == -1L) Inf else as.integer(m_pct)
+  pipe_pos <- if (m_pipe[1] == -1L) Inf else as.integer(m_pipe)
+  if (is.infinite(pct_pos) && is.infinite(pipe_pos)) "|>"
+  else if (pct_pos < pipe_pos) "%>%" else "|>"
+}
+
 ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
                           ns_fn = shiny::NS(NULL), annotate = TRUE) {
   assertthat::assert_that(
@@ -18,6 +27,16 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
   if (!nzchar(trimws(formula, which = "both"))) {
     rlang::abort("Formula is empty or whitespace.")
   }
+
+  # First-pipe-op rule (PLAN-01, ADR 0012 §5 OQ2). Derive a render-time
+  # annotation from the source string: pick whichever of `%>%` / `|>`
+  # appears first; default to `|>` when neither is present. In expression
+  # mode `|>` is already desugared at parse time, so only `%>%` can win
+  # there; in string mode the rule disambiguates mixed-op formulas to one
+  # canonical choice. The hint is propagated as a pure render-time slot;
+  # the typed tree's structure is unchanged across surface forms (the
+  # canonical-tree invariant, ADR 0012 §1).
+  op_hint <- ptr_first_pipe_op(formula)
 
   preprocessed <- preprocess_native_pipe(formula)
   exprs <- tryCatch(
@@ -51,7 +70,7 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
   root_expr <- desugar_pipes_to_nested(root_expr)
 
   layer_exprs <- split_top_plus(root_expr)
-  layers <- lapply(layer_exprs, translate_layer)
+  layers <- lapply(layer_exprs, translate_layer, op_hint = op_hint)
   layer_names <- vapply(layers, function(l) l$name, character(1))
   layer_names <- dedupe_layer_names(layer_names)
 
@@ -79,7 +98,7 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
     # would freeze placeholders inside the upstream subtree at id = NA).
     # Side benefit: `assign_stage_ids` (called inside `ptr_assign_ids`) now
     # finds stages to id-stamp for all surface forms.
-    root <- ptr_classify_calls(root)
+    root <- ptr_classify_calls(root, op_hint = op_hint)
     root <- ptr_assign_ids(root, ns_fn = ns_fn)
     root <- ptr_classify_data(root)
     root <- ptr_shared_bind(root)
@@ -98,7 +117,7 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
 # stages-then-source list round-trips identical to the desugared input, and
 # the source is a non-call AST node. Any failure leaves the data-arg
 # unchanged. Internal.
-ptr_classify_calls <- function(root) {
+ptr_classify_calls <- function(root, op_hint = "|>") {
   if (!is_ptr_root(root)) {
     rlang::abort("ptr_classify_calls expects a ptr_root.")
   }
@@ -110,7 +129,8 @@ ptr_classify_calls <- function(root) {
     raw_ast <- da$expr
     lifted  <- try_lift_to_pipeline(raw_ast)
     if (!isTRUE(lifted$success)) next
-    root$layers[[i]]$data_arg <- build_pipeline_from_lift(lifted$parts)
+    root$layers[[i]]$data_arg <- build_pipeline_from_lift(lifted$parts,
+                                                         op_hint = op_hint)
   }
   root
 }
@@ -121,7 +141,7 @@ ptr_classify_calls <- function(root) {
 # `first_arg_name` attached (chr scalar captured at split time, "" when the
 # user wrote the source positionally). The canonical-nested-form expression
 # is recorded as the pipeline's `$expr` for downstream visibility.
-build_pipeline_from_lift <- function(parts) {
+build_pipeline_from_lift <- function(parts, op_hint = "|>") {
   source_node <- translate_node(parts$source)
   stage_nodes <- vector("list", length(parts$stages))
   for (j in seq_along(parts$stages)) {
@@ -133,7 +153,7 @@ build_pipeline_from_lift <- function(parts) {
   canonical <- rebuild_nested_from_stages(parts)
   ptr_pipeline(
     stages = c(list(source_node), stage_nodes),
-    op     = "|>",
+    op     = op_hint,
     expr   = canonical
   )
 }
@@ -330,7 +350,7 @@ dedupe_layer_names <- function(names) {
 
 # ---- translate per node -----------------------------------------------------
 
-translate_layer <- function(expr) {
+translate_layer <- function(expr, op_hint = "|>") {
   ph <- detect_placeholder(expr)
   if (!is.null(ph)) {
     node <- build_placeholder_node(expr, ph)
@@ -342,7 +362,7 @@ translate_layer <- function(expr) {
   # never carries a pipe head here. The post-desugar layer always goes
   # through `translate_plain_layer`; canonical pipeline construction is the
   # job of `ptr_classify_calls` (it lifts the nested data-arg chain).
-  translate_plain_layer(expr)
+  translate_plain_layer(expr, op_hint = op_hint)
 }
 
 # Extract the bare layer name from a layer-level expression. Supports plain
@@ -422,7 +442,7 @@ preprocess_native_pipe <- function(formula) {
 # `translate_plain_layer`; the canonical `ptr_pipeline` is constructed by
 # `ptr_classify_calls` from the post-desugar nested data-arg chain.
 
-translate_plain_layer <- function(expr) {
+translate_plain_layer <- function(expr, op_hint = "|>") {
   layer_name <- layer_call_name(expr)
   if (is.symbol(expr)) {
     return(ptr_layer(
@@ -433,10 +453,15 @@ translate_plain_layer <- function(expr) {
   }
   data_arg <- extract_call_data_arg(expr)
   children <- translate_layer_children(expr, exclude_data = !is.null(data_arg))
+  # PLAN-01 (ADR 0012 §5 OQ2): stamp the render-time `source_pipe_op` hint
+  # only when this layer carries a source piped in (`data_arg` non-NULL).
+  # No data_arg ⇒ slot stays NULL ⇒ render side has no chain to emit.
+  source_pipe_op <- if (!is.null(data_arg)) op_hint else NULL
   ptr_layer(
     name = layer_name, expr = expr, data_arg = data_arg,
     children = children, active_input_id = NULL,
-    default_active = TRUE, active = TRUE
+    default_active = TRUE, active = TRUE,
+    source_pipe_op = source_pipe_op
   )
 }
 

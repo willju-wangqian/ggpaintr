@@ -13,12 +13,12 @@ ptr_root <- function(layers, expr = NULL) {
 
 ptr_layer <- function(name, expr, data_arg = NULL, children = list(),
                      active_input_id = NULL, default_active = TRUE,
-                     active = TRUE) {
+                     active = TRUE, source_pipe_op = NULL) {
   new_ptr_node(
     "ptr_layer",
     name = name, expr = expr, data_arg = data_arg, children = children,
     active_input_id = active_input_id, default_active = default_active,
-    active = active
+    active = active, source_pipe_op = source_pipe_op
   )
 }
 
