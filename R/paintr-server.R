@@ -192,7 +192,7 @@ ptr_init_state <- function(formula,
   producer_perf_env$fast_count <- 0L
   producer_perf_env$first_eval_done <- FALSE
 
-  structure(list(
+  state <- structure(list(
     tree = shiny::reactiveVal(tree),
     runtime = shiny::reactiveVal(NULL),
     extras = shiny::reactiveVal(list()),
@@ -247,6 +247,134 @@ ptr_init_state <- function(formula,
     ns_fn = server_ns,
     input_spec = ptr_runtime_input_spec(tree)
   ), class = c("ptr_state", "list"))
+
+  # ADR 0012 §3.5 / PLAN-05: `state$spec` is a pull-style reactive over
+  # `state$runtime()`'s frozen snapshot. It is a sparse named list of
+  # fully-qualified namespaced input ids -> values, dropping every entry
+  # whose value `identical()`-matches the registry/default for that id.
+  # Empty named list when runtime hasn't fired yet (no observer
+  # side-effects). The reactive captures the constructed `state` by
+  # reference so callers may treat `state$spec` like any other reactive
+  # on the object.
+  st <- state
+  st$spec <- shiny::reactive({
+    res <- st$runtime()
+    snapshot <- if (is.null(res)) list() else (res$snapshot %||% list())
+    if (length(snapshot) == 0L) {
+      return(stats::setNames(list(), character()))
+    }
+    defaults <- ptr_spec_defaults_from_state(st)
+    sparse <- ptr_spec_from_snapshot(snapshot, defaults)
+    if (length(sparse) == 0L) {
+      return(stats::setNames(list(), character()))
+    }
+    # Namespace the raw input ids -> fully-qualified ids
+    # (ADR 0012 §3.5: keyed by fully-qualified Shiny input id).
+    nm <- vapply(names(sparse), st$server_ns_fn, character(1))
+    stats::setNames(sparse, nm)
+  })
+  st
+}
+
+# ADR 0012 §3.5 / PLAN-05 — derive the default-input snapshot the runtime
+# would have started from, for diffing against the frozen runtime
+# snapshot. Mirrors `ptr_default_snapshot()` but consumes the
+# already-resolved `state$checkbox_defaults` (layer_name -> logical)
+# rather than re-running the validator, and reads ids straight off
+# `state$input_spec`. Placeholder/source-companion roles default to NULL
+# (no registry-documented default => emit on diff). `layer_checkbox`
+# defaults to the resolved checkbox-defaults entry for that layer (or
+# TRUE if missing). `stage_enabled` defaults to TRUE.
+ptr_spec_defaults_from_state <- function(state) {
+  spec <- state$input_spec
+  resolved_cd <- state$checkbox_defaults %||% list()
+  defaults <- list()
+  if (nrow(spec) == 0L) return(defaults)
+  for (i in seq_len(nrow(spec))) {
+    raw_id <- spec$input_id[i]
+    role   <- spec$role[i]
+    if (identical(role, "layer_checkbox")) {
+      layer_name <- spec$layer_name[i]
+      val <- resolved_cd[[layer_name]]
+      defaults[[raw_id]] <- if (is.null(val)) TRUE else val
+    } else if (identical(role, "stage_enabled")) {
+      defaults[[raw_id]] <- TRUE
+    } else {
+      defaults[raw_id] <- list(NULL)
+    }
+  }
+  defaults
+}
+
+# ADR 0012 §3.5 / PLAN-05 — pure: compute the sparse spec by diffing the
+# runtime snapshot against the registry/default snapshot. Keys are raw
+# input ids (namespacing is the caller's job). Default comparison is
+# `base::identical()` only -- no type coercion (Shiny preserves type and
+# coerced equality would silently drop genuine picks). Missing default
+# for an id => treat snapshot value as non-default (emit it).
+ptr_spec_from_snapshot <- function(snapshot, defaults) {
+  if (length(snapshot) == 0L) {
+    return(stats::setNames(list(), character()))
+  }
+  if (is.null(defaults)) defaults <- list()
+  keep_names <- character()
+  out <- list()
+  for (nm in names(snapshot)) {
+    if (!is.null(nm) && nzchar(nm) && nm %in% names(defaults) &&
+        identical(snapshot[[nm]], defaults[[nm]])) {
+      next
+    }
+    out[[length(out) + 1L]] <- snapshot[[nm]]
+    keep_names <- c(keep_names, nm)
+  }
+  names(out) <- keep_names
+  out
+}
+
+# ADR 0012 §3.5 / PLAN-05 — pure: union the per-plot specs into one flat
+# named list keyed by the already-fully-qualified namespaced id. If two
+# specs supply the same fully-qualified id (a namespacing bug), abort
+# naming the colliding id; never silently choose. Used by grid wrappers
+# (plan 06) to produce a single grid-wide spec from the per-plot
+# `state$spec()` reactives.
+ptr_spec_combine <- function(specs) {
+  if (length(specs) == 0L) {
+    return(stats::setNames(list(), character()))
+  }
+  out <- list()
+  keep_names <- character()
+  for (s in specs) {
+    if (is.null(s) || length(s) == 0L) next
+    for (nm in names(s)) {
+      if (nm %in% keep_names) {
+        rlang::abort(paste0(
+          "ptr_spec_combine: colliding fully-qualified id: ", nm, "."
+        ))
+      }
+      out[[length(out) + 1L]] <- s[[nm]]
+      keep_names <- c(keep_names, nm)
+    }
+  }
+  names(out) <- keep_names
+  out
+}
+
+# ADR 0012 §3.5 / PLAN-05 — render a sparse spec list as R source code
+# text for the preserve-mode code panel. Empty spec collapses to "" so
+# the caller can concatenate unconditionally. Backtick-quotes every id
+# (Shiny ids may contain digits, hyphens, and underscores; backticks are
+# the safest deparse-stable shape). Values go through `deparse()`.
+format_spec_for_panel <- function(spec) {
+  if (length(spec) == 0L) return("")
+  nms <- names(spec)
+  if (is.null(nms) || any(!nzchar(nms))) {
+    rlang::abort("format_spec_for_panel: every spec entry must have a non-empty name.")
+  }
+  entries <- vapply(seq_along(spec), function(i) {
+    val_text <- paste(deparse(spec[[i]]), collapse = "\n")
+    paste0("  `", nms[[i]], "` = ", val_text)
+  }, character(1))
+  paste0("ptr_spec <- list(\n", paste(entries, collapse = ",\n"), "\n)")
 }
 
 # Lightweight shape check for the `ptr_state` object created by
@@ -1438,8 +1566,19 @@ ptr_register_code <- function(output, state) {
       # placeholder renders as `ppX()`, matching the empty plot panel.
       res <- state$runtime()
       snapshot <- if (is.null(res)) list() else res$snapshot %||% list()
-      ptr_render(stamp_current_pick_walk(state$tree(), snapshot),
-                 preserve_placeholders = TRUE)
+      formula_text <- ptr_render(
+        stamp_current_pick_walk(state$tree(), snapshot),
+        preserve_placeholders = TRUE
+      )
+      # ADR 0012 §3.5 / PLAN-05: append a sparse `ptr_spec <- list(...)`
+      # block beneath the formula whenever non-default picks exist.
+      # Empty spec -> bit-identical to today's preserve-mode output.
+      spec_text <- format_spec_for_panel(state$spec())
+      if (!nzchar(spec_text)) {
+        formula_text
+      } else {
+        paste0(formula_text, "\n\n", spec_text)
+      }
     } else {
       format_code_with_extras(state$runtime(), state$extras_exprs())
     }
