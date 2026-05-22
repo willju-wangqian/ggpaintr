@@ -6,11 +6,13 @@
 
 # ---- predicate / helpers --------------------------------------------------
 
-# PLAN-02 (ADR 0012 §1): the canonical-pipeline lift fires only for chains
-# with chain depth >= 2 above the source (GATE 0). The disable tests below
-# use 2-stage chains (e.g., `filter(...) |> select(...)` above a bare-symbol
-# source) so the lifted `ptr_pipeline` shape these tests originally
-# exercised is preserved.
+# ADR 0012 §1: the canonical-pipeline lift fires for any chain with at
+# least one verb stage above the source (GATE 0 = "non-empty stages").
+# The disable tests below use 2-stage chains (e.g., `filter(...) |>
+# select(...)` above a bare-symbol source) so each test has a real
+# stage_id to flip — the same tests would also exercise the lift on a
+# 1-stage chain, but a 2-stage shape lets us assert disable-walk's
+# stage-index bookkeeping.
 
 test_that("is_data_chain_call: ptr_call with placeholder qualifies", {
   tree <- ptr_translate("mtcars |> filter(ppNum) |> select(mpg) |> ggplot()")
