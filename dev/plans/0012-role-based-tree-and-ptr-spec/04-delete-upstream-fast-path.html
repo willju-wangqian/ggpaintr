@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>PLAN-04 — Delete runtime upstream fast-path (bug 3a) (from ADR 0012)</title>
+<title>PLAN-04 — Downstream consumer uniformity, preserve-mode prefix-collapse render, runtime fast-path deletion (atomic pair with PLAN-02, from ADR 0012)</title>
 <style>
   body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
          max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
@@ -14,6 +14,7 @@
   .meta { color: #555; font-size: 13px; }
   .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
   .warn { border-left: 4px solid #c97a00; background: #fdf3e1; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .prin { border-left: 4px solid #1b1d22; background: #f3f3f6; padding: .65rem .9rem; margin: .8rem 0; font-size: 14px; }
   table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
   th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
   th { background: #f0f0f4; }
@@ -25,102 +26,313 @@ plan:
   number: 04
   slug: delete-upstream-fast-path
   source_adr: dev/adr/0012-role-based-tree-and-ptr-spec.html
-  depends_on: [02]
-  parallel_group: G3
+  depends_on: [01]
+  parallel_group: G2
   status: draft
 -->
 
-<h1>PLAN-04 — Delete <code>runtime_upstream_data</code> per-layer fast-path (closes bug 3a)</h1>
-<p class="meta">Source: ADR 0012 (§2 row "Bug 3a fast-path", §3.7 "Bug 3a fast-path deletion", §4 S4) · Depends on: 02 · Parallel group: G3 · Status: draft</p>
+<h1>PLAN-04 — Downstream uniformity (preserve-mode collapse + runtime fast-path delete + consumer-uniformity test net + bug-3a e2e)</h1>
+<p class="meta">Source: ADR 0012 (§1, §2 row "Bug 3a fast-path", §3.4 "+ fence", §3.7 "Bug 3a fast-path deletion", §4 S4) · Depends on: 01 · Parallel group: G2 (atomic pair with PLAN-02) · Status: draft (supersedes the cd9b74a-era PLAN-04 which scoped only the runtime fast-path deletion; this revision pairs with the rewritten PLAN-02 — see Governing principle and Atomic-pair section)</p>
+
+<h2>Governing principle (overrides scope tactics)</h2>
+<div class="prin"><strong>The tree is semantic, not syntactic.</strong> ADR 0012 §1 / §2 row 1: pipe operators are pure first-arg-insertion sugar that R desugars away (`|&gt;` at parse time; `%&gt;%` survives only because magrittr is a function). After PLAN-02's lift, every layer's `data_arg` arrives at downstream consumers in one canonical `ptr_pipeline` shape, regardless of which surface form the user wrote. This plan locks that uniformity in two ways: (a) it verifies it directly via a consumer-uniformity test net that asserts every downstream consumer of `data_arg` (eval, prune, safety, runtime upstream resolution) produces structurally equivalent output across the three surface forms (`|&gt;`, `%&gt;%`, nested-call); (b) it makes the always-aggressive lift invisible to existing `%&gt;%` / `|&gt;` users at the preserve-mode render layer via a prefix-collapse rule (placeholder-free prefix stages render as a single nested-call source). It also lands the original ADR §3.7 runtime fast-path deletion, which is safe only after PLAN-02's lift makes every consumer's `c$upstream` structurally correct. The implementer's job is to land these three changes uniformly; narrowing any of them to preserve a surface-syntax divergence is a SCOPE VIOLATION the auditor must mechanically FAIL.</div>
+<p>This plan does NOT modify the `data_arg`-consuming walkers in `R/paintr-prune.R`, `R/paintr-safety.R`, `R/paintr-eval.R`, or `R/paintr-build-ui.R` themselves. Those consumers were already ADR-correct against `ptr_pipeline` input; the consumer-uniformity test net VERIFIES this rather than changing it. Should the test net surface a real consumer-side gap, the response is to fix the consumer (in this plan, since plan 02's atomic-pair commitment makes the half-state intolerable), not to narrow plan 02's lift.</p>
 
 <h2>Context</h2>
-<p>ADR 0012 §3.7 locks the deletion: <em>"The <code>if (!is.null(state$resolved_data[[layer_name]])) { ... }</code> block inside <code>runtime_upstream_data</code> (in <code>R/paintr-server.R</code>) — the per-layer fast-path — goes away. With the role-based tree, every consumer's <code>c$upstream</code> already encodes its true resolution point — for in-stage consumers, that subtree is the prior stage, not the full pipeline. The existing <code>ptr_resolve_upstream(c$upstream, snapshot, ...)</code> fallback handles every case correctly."</em></p>
-<p>Plan 02's structural lift makes this deletion safe. Before plan 02, deletion would have broken in-aes pickers under <code>|&gt;</code> input. After plan 02, every consumer has correct structural <code>c$upstream</code>.</p>
+<p>PLAN-02 introduces the canonical-pipeline lift: every layer's `data_arg` becomes a `ptr_pipeline` whenever its three gates (single-stage, round-trip, grounding) pass. Two consequences need explicit downstream treatment in this plan:</p>
+<ol>
+  <li><strong>Always-aggressive descent produces extra structural stages</strong> for nested-call and `%&gt;%`-source inputs whose source is itself a call-shape (e.g. `<code>my_dict[["x"]]</code>` source). These extra stages are STRUCTURALLY CORRECT and STRUCTURALLY REVERSIBLE. They are invisible to the stage-checkbox UI today (verified: `<code>R/paintr-build-ui.R:229</code>`, `<code>if (length(fields) &gt; 0L)</code>` gates each stage's `<code>controllable_region</code>` emission on placeholder presence — placeholder-free extra stages emit no UI). They are NOT invisible to the preserve-mode panel today, which would render every stage as a `<code>|&gt;</code> stage</code>` and thus expose the new structural stages to users. The prefix-collapse render rule below fixes that.</li>
+  <li><strong>Every lifted `ptr_pipeline` now carries `$op = "|&gt;"`</strong> (PLAN-02 SC, per ADR §5 OQ2 default). For `%&gt;%`-source users in preserve mode, this would otherwise change the operator displayed in their copyable code. The prefix-collapse render rule below subsumes this concern: for placeholder-free prefixes (the common `%&gt;%`-source case), the collapsed prefix renders as a nested-call source, not as `|&gt;` stages.</li>
+</ol>
+<p><strong>ADR §3.7 (runtime fast-path) deletion.</strong> The per-layer fast-path appears as TWO sibling blocks in `<code>R/paintr-server.R</code>` — both with identical pattern (`<code>if (!is.null(layer_name) &amp;&amp; !is.null(state$resolved_data[[layer_name]])) { ... }</code>`) and identical fall-through to `<code>ptr_resolve_upstream(...)</code>`:</p>
+<ul>
+  <li>The block inside `<code>runtime_upstream_data</code>` (function near line 867, fast-path block near line 903 — the ADR §3.7 named block).</li>
+  <li>The block inside `<code>runtime_consumer_entry</code>` (function near line 1301, fast-path block near line 1304 — a sibling per-consumer function whose own comment explicitly says "mirroring the per-consumer slot of `runtime_upstream_data`"; the same architectural concern applies).</li>
+</ul>
+<p>Both blocks go away. With PLAN-02's lift, every consumer's `<code>c$upstream</code>` already encodes its true resolution point (for in-stage consumers, the prior stage; for in-aes consumers, the layer's data_arg pipeline). The existing `<code>ptr_resolve_upstream(c$upstream, snapshot, ...)</code>` fallback handles every case correctly. Before PLAN-02 this deletion was unsafe under `<code>|&gt;</code>` (the in-aes pickers' `<code>c$upstream</code>` was a `ptr_call` whose subtree the resolver could not walk uniformly); after PLAN-02 it is safe across all three surface forms. Deleting only one of the two blocks while leaving the other reproduces the exact half-state the atomic-pair is designed to prevent: callers routing through `<code>runtime_consumer_entry</code>` (the single-consumer resolution path) would short-circuit incorrectly under canonical-shape input.</p>
+<p><strong>e2e fixture for bug 3a.</strong> The original cd9b74a-era PLAN-04 included an e2e fixture `<code>adr12-bug-3a</code>` exercising the in-filter picker populating after upload under `<code>|&gt;</code>` input. That scope is kept verbatim; it doubles as the user-facing regression test for both the fast-path deletion and PLAN-02's lift.</p>
+<p><strong>History note (do not repeat).</strong> The prior PLAN-02 revision (merged as cd9b74a, reverted at f2954e5) shipped a narrowed lift predicate to avoid breaking downstream consumers (`<code>paintr-prune</code>`, `<code>paintr-disable</code>`). The narrowing preserved the very `<code>|&gt;</code>` / `<code>%&gt;%</code>` / nested-call divergence the ADR was supposed to eliminate. The structural fix is the PLAN-02 ⇄ PLAN-04 atomic pair: PLAN-02 lifts uniformly, PLAN-04 verifies downstream consumers handle the lifted shape uniformly, and the render-side concern (extra stages being visible to users) is addressed by the prefix-collapse render rule below — not by narrowing the lift.</p>
+
+<h2>Scope (four atomic deliverables)</h2>
+
+<h3>1. Delete the per-layer runtime fast-path (both sibling blocks)</h3>
+<p>In `<code>R/paintr-server.R</code>`, two sibling per-layer fast-path blocks must both be deleted:</p>
+<ol>
+  <li><strong>In `<code>runtime_upstream_data</code>`</strong> (the function that loops over each layer's consumer set and assembles the upstream-data list keyed by consumer id; located near line 867, fast-path block near line 903): remove the `<code>if (!is.null(layer_name) &amp;&amp; !is.null(state$resolved_data[[layer_name]])) { ... }</code> block whose body assigns from `<code>state$resolved_data[[layer_name]]()</code>` to `<code>out[[c$id]]</code>` with a `<code>next</code>`. The `<code>shared</code>` branch and the `<code>c$upstream</code>` fallback (`<code>ptr_resolve_upstream</code>`) branch remain untouched.</li>
+  <li><strong>In `<code>runtime_consumer_entry</code>`</strong> (the per-consumer sibling whose own comment at line 1300 reads "mirroring the per-consumer slot of `runtime_upstream_data`"; located near line 1301, fast-path block near line 1304): remove the `<code>if (!is.null(layer_name) &amp;&amp; !is.null(state$resolved_data[[layer_name]])) { ... }</code> block whose body assigns from `<code>state$resolved_data[[layer_name]]()</code>` to `<code>df</code>` with an early `<code>return(list(cols = names(df), data = df))</code>`. The function falls through to the existing `<code>ptr_resolve_upstream(node$upstream, ...)</code>` call; that fallback path is untouched.</li>
+</ol>
+<p>Locate by symbol name (line numbers drift). Use `<code>find_referencing_symbols</code>` or `<code>grep -n 'state$resolved_data[[layer_name]]' R/paintr-server.R</code>` to enumerate both blocks before deletion. Post-deletion, the same grep MUST return zero matches.</p>
+
+<h3>2. Prefix-collapse preserve-mode render rule in <code>R/paintr-render.R</code></h3>
+<p>In `<code>R/paintr-render.R</code>`, the three symbols responsible for rendering a `<code>ptr_pipeline</code>` in preserve mode are:</p>
+<ul>
+  <li>`<code>render_walk.ptr_pipeline(node, indent, preserve_placeholders)</code>` (S3 dispatch entry; located near line 89) — delegates to the body helper below.</li>
+  <li>`<code>render_pipeline_body(node, indent, preserve_placeholders)</code>` (located near line 93) — today emits every stage as a chain link via the helper below.</li>
+  <li>`<code>render_pipe_chain(seg_thunks, op, indent)</code>` (located near line 106) — assembles the `<code>|&gt;</code>` / `<code>%&gt;%</code>` chain text from per-stage thunks.</li>
+</ul>
+<p>Replace the body of `<code>render_pipeline_body</code>` (and any adjacent helpers as needed). The new body branches on `<code>preserve_placeholders</code>`:</p>
+<ul>
+  <li><strong>When `<code>preserve_placeholders = FALSE</code>`</strong> (eval-mode rendering — placeholders have been substituted with concrete values upstream; this codepath supplies the code-panel text users see after pressing Update): the existing chain rendering is preserved verbatim — every stage emits as a `<code>|&gt;</code>` (or `<code>%&gt;%</code>`) chain link via `<code>render_pipe_chain</code>`. PLAN-04 does NOT change non-preserve-mode rendering for any input.</li>
+  <li><strong>When `<code>preserve_placeholders = TRUE</code>`</strong> (preserve-mode rendering — placeholders are shown as their token names; this codepath supplies the preserve-mode panel users see while editing): the NEW three-branch prefix-collapse rule fires (pseudo-code below; final form may vary slightly for R idiom but must be semantically equivalent). `<code>render_pipe_chain</code>` is reused for the all-`<code>|&gt;</code>` and tail-`<code>|&gt;</code>` branches; a new helper renders the collapsed nested-call source as a single atom.</li>
+</ul>
+<pre>
+# stages[[1]] is the SOURCE node (per PLAN-02 ptr_classify_calls SC: post-loop
+# split places `cur` — the deepest non-call — as the source, and the typed
+# source node is stages[[1]] in the constructed ptr_pipeline).
+# stages[[2..N]] are the verb stages.
+
+render_pipeline_body(node, indent = 0L, preserve_placeholders = FALSE) {
+  if (length(node$stages) == 0L) return("")
+
+  if (!preserve_placeholders) {
+    # Eval-mode rendering: existing chain behavior verbatim. PLAN-04 does
+    # not change this codepath. (Matches today's render_pipeline_body body.)
+    thunks &lt;- lapply(node$stages, function(s) {
+      force(s)
+      function(ci) render_walk(s, ci, preserve_placeholders = FALSE)
+    })
+    return(render_pipe_chain(thunks, node$op, indent))
+  }
+
+  # preserve_placeholders = TRUE: the new three-branch prefix-collapse rule.
+  stages &lt;- node$stages
+  k &lt;- first_index_where_subtree_contains_any_placeholder(stages)  # NA if no stage contains a placeholder
+
+  if (is.na(k)) {
+    # No placeholders anywhere in the pipeline. Collapse the entire structure
+    # back to a single nested-call source. Render that nested-call source as
+    # a single rendered atom, not as a chain.
+    nested_expr &lt;- rebuild_nested_from_stages_typed(stages)   # uses PLAN-02's rebuild helper, adapted for typed nodes
+    return(render_nested_atom(nested_expr, indent = indent))
+  }
+
+  if (k &lt;= 2) {
+    # The source itself (k == 1) or the first verb stage (k == 2) already
+    # contains a placeholder — there is no all-placeholder-free prefix to
+    # collapse. Render the entire pipeline as a `|&gt;` chain (today's
+    # behavior under preserve mode).
+    thunks &lt;- lapply(stages, function(s) {
+      force(s)
+      function(ci) render_walk(s, ci, preserve_placeholders = TRUE)
+    })
+    return(render_pipe_chain(thunks, node$op, indent))
+  }
+
+  # Mixed: stages[1..k-1] are all placeholder-free; stages[k..N] contain at
+  # least one placeholder somewhere. Collapse the prefix to a nested-call
+  # source, then render the tail as a `|&gt;` chain whose first element is the
+  # collapsed nested source.
+  prefix_nested_expr &lt;- rebuild_nested_from_stages_typed(stages[seq_len(k - 1L)])
+  tail_stages        &lt;- stages[k:length(stages)]
+  prefix_thunk       &lt;- function(ci) render_nested_atom(prefix_nested_expr, indent = ci)
+  tail_thunks        &lt;- lapply(tail_stages, function(s) {
+    force(s)
+    function(ci) render_walk(s, ci, preserve_placeholders = TRUE)
+  })
+  return(render_pipe_chain(c(list(prefix_thunk), tail_thunks), node$op, indent))
+}
+</pre>
+<p>The helper `<code>rebuild_nested_from_stages_typed</code>` is a typed-node analogue of PLAN-02's `<code>rebuild_nested_from_stages</code>` — it folds the prefix using each stage's `<code>$first_arg_name</code>` to restore named-arg shape, but operates on the typed node shapes used by render-time rather than raw AST. Either share PLAN-02's helper with a typed-vs-raw flag, or duplicate the small folding loop in `<code>R/paintr-render.R</code>` — implementer's choice as long as the unit tests for both pass.</p>
+<p>The helper `<code>first_index_where_subtree_contains_any_placeholder</code>` walks a single stage's subtree (including its `<code>$args</code>` / `<code>$children</code>` / `<code>$stages</code>` fields) and returns TRUE iff any node satisfies `<code>is_ptr_placeholder(node)</code>` — the existing union helper at `<code>R/paintr-nodes.R:103-105</code>` that checks for any of the three concrete placeholder classes (`<code>ptr_ph_value</code>`, `<code>ptr_ph_data_consumer</code>`, `<code>ptr_ph_data_source</code>`; there is no `<code>ptr_ph</code>` base-class string — placeholders are flat S3, not a class hierarchy). The pipeline-level function maps this over `<code>stages</code>` left-to-right and returns the first TRUE index, or `<code>NA_integer_</code>` if none.</p>
+
+<h3>3. Consumer-uniformity test net (<code>tests/testthat/test-adr12-consumer-uniformity.R</code>)</h3>
+<p>A new test file that, for each downstream consumer of `<code>data_arg</code>`, asserts the consumer produces structurally equivalent output across the three surface forms (`<code>|&gt;</code>` string-input, `<code>%&gt;%</code>`, nested-call) for placeholder-containing chains. The four consumers covered:</p>
+<ul>
+  <li><strong>eval</strong> (`<code>R/paintr-eval.R</code> :: layer_to_eval_expr / pipeline_to_eval_expr</code>`) — assert `<code>identical(eval_expr_native, eval_expr_magrittr) &amp;&amp; identical(eval_expr_magrittr, eval_expr_nested)</code>` for a fixed placeholder snapshot.</li>
+  <li><strong>prune</strong> (`<code>R/paintr-prune.R</code> :: prune_walk.ptr_pipeline / prune_walk.ptr_call</code>`) — assert the pruned tree is `<code>ptr_tree_structural_equal</code>` across the three surface forms.</li>
+  <li><strong>safety</strong> (`<code>R/paintr-safety.R</code>` deny-list AST walker) — assert the same allow/deny verdict across the three surface forms for both a safe formula and a deny-listed formula.</li>
+  <li><strong>picker upstream resolution</strong> (`<code>R/paintr-server.R</code> :: runtime_upstream_data</code> AFTER deletion of the fast-path) — assert each consumer id's resolved upstream data is `<code>identical()</code>` across the three surface forms for a fixed uploaded data snapshot.</li>
+</ul>
+<p>Concrete formulas reused from PLAN-02's BDD scenarios — specifically the three-way set:</p>
+<pre>f_native   = "ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; mutate(new_var = ppVar + 1) |&gt; ggplot(aes(ppVar, ppVar)) + geom_point()"
+f_magrittr = "ppUpload %&gt;% filter(ppVar &gt; ppNum) %&gt;% mutate(new_var = ppVar + 1) %&gt;% ggplot(aes(ppVar, ppVar)) + geom_point()"
+f_nested   = "ggplot(mutate(filter(ppUpload, ppVar &gt; ppNum), new_var = ppVar + 1), aes(ppVar, ppVar)) + geom_point()"</pre>
+<p>The test net runs in-process (no shinytest2 required) and is gated only on `<code>NOT_CRAN</code>` if it touches eval; otherwise no gates. Each consumer's assertion is one `<code>test_that</code>` block; the file as a whole adds approximately four tests.</p>
+
+<h3>4. e2e fixture <code>adr12-bug-3a</code> (kept from cd9b74a-era scope)</h3>
+<p>Fixture: `<code>tests/testthat/fixtures/vignette-apps/adr12-bug-3a/app.R</code>` using the app-dir + pkgload pattern (per `<code>.claude/rules/testing.md</code>`'s "Browser e2e (shinytest2) — hard-won gotchas" section): first line `<code>pkgload::load_all(Sys.getenv("GGP_PKG"), quiet=TRUE, helpers=FALSE, attach_testthat=FALSE)</code>`. App body uses the formula `<code>ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; ggplot(aes(ppVar, ppVar)) + geom_point()</code>` and includes `<code>penguins.csv</code>` (or whatever test data the fixture provides) in the fixture directory for the test to upload.</p>
+<p>Test file: `<code>tests/testthat/test-adr12-bug-3a.R</code>` gated with `<code>skip_on_cran()</code>` + `<code>skip_if_not_installed("shinytest2")</code>` + `<code>skip_if_not_installed("chromote")</code>`. The test boots the fixture via `<code>AppDriver$new(test_path("fixtures","vignette-apps","adr12-bug-3a"))</code> with the standard `<code>GGP_PKG</code>` env-var dance, uploads test data into the `<code>ppUpload</code>` widget, clicks the Update/Draw button (placeholder widgets do not re-render on set; per testing rules), and asserts:</p>
+<ul>
+  <li>The in-filter `<code>ppVar</code>` picker (the one inside the `<code>filter(ppVar &gt; ppNum)</code>` stage) shows the uploaded data's columns as options.</li>
+  <li>The aes-side `<code>ppVar</code>` pickers (the two inside `<code>aes(ppVar, ppVar)</code>`) also show the columns.</li>
+  <li>Both populate from the SAME upstream resolution path (verifying the fast-path deletion did not break the in-aes branch).</li>
+</ul>
+<p>Exact picker ids should be discovered by the implementer inspecting the translated tree's consumer ids in a fixture header comment, NOT hardcoded blindly. The fixture's app.R should carry an `<code>EXCEPT: ...</code> header note documenting any deliberate drift from a vignette source.</p>
 
 <h2>Success Criteria</h2>
 <ul>
-  <li>The per-layer fast-path block in <code>runtime_upstream_data</code> — the <code>if (!is.null(layer_name) &amp;&amp; !is.null(state$resolved_data[[layer_name]])) { ... }</code> block whose body assigns from <code>state$resolved_data[[layer_name]]()</code> to <code>out[[c$id]]</code> with a <code>next</code> — locate by symbol name in <code>R/paintr-server.R</code> is removed. The <code>shared</code> branch and the <code>c$upstream</code> fallback branch remain untouched.</li>
-  <li>An e2e fixture <code>tests/testthat/fixtures/vignette-apps/adr12-bug-3a/</code> exists with an <code>app.R</code> file using the app-dir + pkgload pattern (per the shinytest2 conventions in <code>.claude/rules/testing.md</code>). The fixture's formula is <code>ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; ggplot(aes(ppVar, ppVar)) + geom_point()</code>.</li>
-  <li>A corresponding test file <code>tests/testthat/test-adr12-bug-3a.R</code> exists, gated with <code>skip_on_cran()</code> + <code>skip_if_not_installed("shinytest2")</code> + <code>skip_if_not_installed("chromote")</code>. The test:
-    <ol>
-      <li>Boots the fixture app via <code>AppDriver$new(test_path("fixtures","vignette-apps","adr12-bug-3a"))</code> with the standard <code>GGP_PKG</code> env-var dance.</li>
-      <li>Uploads <code>penguins.csv</code> (or whatever test data the fixture provides) into the ppUpload widget.</li>
-      <li>Asserts the in-filter ppVar picker (id <code>ggplot_2_1_1_ppVar_NA</code> — confirm the exact id by inspecting the translated tree's consumer node ids in the fixture's app.R header comment) shows the uploaded data's columns as options.</li>
-      <li>Asserts the aes-side ppVar pickers (ids matching pattern <code>ggplot_1_*_ppVar_NA</code>) also show the columns.</li>
-    </ol>
-  </li>
-  <li>Authoritative gate (Definition of Done): FAIL 0 / ERROR 0 / SKIP 0 / PASS = baseline_after_plan_02 + N_new_test_assertions. No previously-passing test regresses (especially the existing <code>tests/testthat/test-runtime-*.R</code> coverage of <code>runtime_upstream_data</code>).</li>
-  <li>The deleted code's previous comment about "per-layer resolved-data fast-path" is removed cleanly — no orphan comments referencing a vanished block.</li>
+  <li><strong>Fast-path deletion (both sibling blocks).</strong> BOTH per-layer fast-path blocks are removed:
+    <ul>
+      <li>The `<code>if (!is.null(layer_name) &amp;&amp; !is.null(state$resolved_data[[layer_name]])) { ... }</code> block inside `<code>runtime_upstream_data</code>` (body assigned from `<code>state$resolved_data[[layer_name]]()</code>` to `<code>out[[c$id]]</code>` with a `<code>next</code>`).</li>
+      <li>The `<code>if (!is.null(layer_name) &amp;&amp; !is.null(state$resolved_data[[layer_name]])) { ... }</code> block inside `<code>runtime_consumer_entry</code>` (body assigned from `<code>state$resolved_data[[layer_name]]()</code>` to `<code>df</code>` with an early `<code>return(list(cols = names(df), data = df))</code>`).</li>
+    </ul>
+    The `<code>shared</code>` branch and the `<code>c$upstream</code>` / `<code>node$upstream</code>` fallback (`<code>ptr_resolve_upstream</code>`) branch in each function are untouched. Mechanical check: `<code>grep -n 'state$resolved_data[[layer_name]]' R/paintr-server.R</code>` returns zero matches post-deletion (note: the pattern uses exactly `<code>[[layer_name]]</code>`; lookups via the iteration variable `<code>ln</code>` like `<code>state$resolved_data[[ln]](df)</code>` are unrelated and remain).</li>
+  <li><strong>Prefix-collapse render rule (preserve-mode only).</strong> `<code>R/paintr-render.R</code>` implements the three-branch rule defined in Scope §2 (all-placeholder-free → collapse-to-nested; placeholder at stage 1 or 2 → render as `<code>|&gt;</code>` chain unchanged; placeholder at stage ≥ 3 → collapse prefix, render tail as `<code>|&gt;</code>` chain with collapsed prefix as source). The rule fires only when `<code>preserve_placeholders = TRUE</code>`; non-preserve-mode rendering (the code-panel-after-substitution codepath) retains today's chain behavior verbatim. Internal helpers `<code>first_index_where_subtree_contains_any_placeholder</code>` and `<code>rebuild_nested_from_stages_typed</code>` are added to `<code>R/paintr-render.R</code>` (or `<code>R/paintr-nodes.R</code>` if the typed-rebuild is share-worthy with other call sites — implementer's choice). Neither helper is exported.</li>
+  <li><strong>Consumer-uniformity test net.</strong> `<code>tests/testthat/test-adr12-consumer-uniformity.R</code> exists and exercises the four consumers (eval, prune, safety, picker upstream resolution) across the three surface forms. Every assertion is structural-equality based (`<code>identical()</code> or `<code>ptr_tree_structural_equal()</code>`). Each consumer is one `<code>test_that</code>` block; the file adds ≥ 4 tests total. All assertions PASS.</li>
+  <li><strong>e2e fixture and test.</strong> Fixture `<code>tests/testthat/fixtures/vignette-apps/adr12-bug-3a/app.R</code> and test `<code>tests/testthat/test-adr12-bug-3a.R</code> exist, follow the app-dir + pkgload pattern, are gated with `<code>skip_on_cran()</code>` / `<code>skip_if_not_installed</code>`, and pass under the authoritative gate (NOT_CRAN=true) when shinytest2 + chromote + Chrome are present.</li>
+  <li><strong>Atomic-pair invariant: no half-state.</strong> If PLAN-02 has merged but this plan has not, the orchestrator must NOT merge any other plan in between. The merge order in `<code>index.md</code>` (G2 = `{02, 04}`) encodes this; the post-merge integration auditor for G2 verifies BOTH plans' Definition-of-Done together.</li>
+  <li>Authoritative gate (see Definition of Done) shows FAIL 0 / WARN 0 / SKIP 0 / PASS rising by ≥ N_new tests, with all existing tests still passing.</li>
 </ul>
 
 <h2>Constraints</h2>
 <ul>
-  <li>Files this plan owns: <code>R/paintr-server.R</code> (deletion only, in the <code>runtime_upstream_data</code> function body), <code>tests/testthat/fixtures/vignette-apps/adr12-bug-3a/app.R</code> (new), <code>tests/testthat/fixtures/vignette-apps/adr12-bug-3a/penguins.csv</code> (new, or a small derived CSV if a smaller test sample is preferable), <code>tests/testthat/test-adr12-bug-3a.R</code> (new).</li>
-  <li>Files this plan must NOT touch: <code>R/paintr-translate.R</code> (plan 02's territory), <code>R/paintr-prune.R</code>, <code>R/paintr-resolve.R</code>, <code>R/paintr-safe.R</code>, <code>R/paintr-app.R</code>, any other vignette or fixture, <code>NAMESPACE</code>, <code>man/</code>. In particular, do not refactor <code>runtime_upstream_data</code> beyond the deletion — no rename, no signature change, no helper extraction.</li>
-  <li>The fixture's <code>app.R</code> follows the project's shinytest2 conventions verbatim (per <code>.claude/rules/testing.md</code>): first line <code>pkgload::load_all(Sys.getenv("GGP_PKG"), quiet=TRUE, helpers=FALSE, attach_testthat=FALSE)</code>; the app body is verbatim-equivalent to the source formula it represents.</li>
-  <li>If the deletion uncovers a previously-masked test failure (a test that relied on the fast-path's output rather than the structural fallback), that is a regression and stops the plan — do not paper over by re-adding the fast-path under a guard. Surface in the audit report; the resolution belongs in a follow-up.</li>
-  <li>snake_case, 2-space indent, project conventions for shinytest2 fixtures (see existing <code>adr9-*</code> fixtures as templates).</li>
+  <li><strong>SCOPE NARROWING FORBIDDEN.</strong> If the consumer-uniformity test net surfaces a real consumer-side gap (a place where prune, safety, eval, or upstream resolution produces structurally different output across the three surface forms), the resolution is NEVER to narrow PLAN-02's lift to dodge the gap, and NEVER to assert the difference is "acceptable" in the test net. The acceptable resolutions are: (a) fix the consumer in this plan (since the atomic-pair commitment makes the half-state intolerable); (b) if a real ADR-vs-consumer conflict surfaces, STOP and surface the conflict in the audit report — do not paper over it. Any in-source comment of the form "narrowed for backward compat with X", any test that asserts "consumer Y produces different output for surface form Z" (other than the prefix-collapse render rule's documented all-placeholder-free → nested-atom branch, which IS surface-form-aware by design and IS the contract here), is a SCOPE VIOLATION that the auditor MUST FAIL.</li>
+  <li><strong>BDD is contract.</strong> A test that asserts behavior contradicting any `Then` clause in this plan's BDD section is a SCOPE VIOLATION, regardless of inline rationale. The auditor MUST FAIL such a test mechanically. Inline rationales explaining why the contradiction is "actually fine" do not save it.</li>
+  <li><strong>Files this plan owns:</strong>
+    <ul>
+      <li>`<code>R/paintr-server.R</code>` — delete the per-layer fast-path block in `<code>runtime_upstream_data</code>`; do not touch the `<code>shared</code>` branch or the `<code>c$upstream</code>` fallback.</li>
+      <li>`<code>R/paintr-render.R</code>` — replace the `<code>ptr_pipeline</code>`-preserve-mode renderer with the three-branch prefix-collapse rule. Internal helpers added here (or in `<code>R/paintr-nodes.R</code>` if shared) are unexported.</li>
+      <li>`<code>R/paintr-nodes.R</code>` — OPTIONAL: if the typed-node rebuild helper is shared with PLAN-02's raw-AST `<code>rebuild_nested_from_stages</code>`, the shared implementation lives here. Otherwise this file is untouched in this plan.</li>
+      <li>`<code>tests/testthat/test-adr12-consumer-uniformity.R</code>` (new) — the four-consumer uniformity test net.</li>
+      <li>`<code>tests/testthat/fixtures/vignette-apps/adr12-bug-3a/app.R</code>` (new), plus any test data files in that directory.</li>
+      <li>`<code>tests/testthat/test-adr12-bug-3a.R</code>` (new) — the bug-3a e2e regression test.</li>
+      <li>`<code>tests/testthat/test-render-prefix-collapse.R</code>` (new) — unit tests for the three-branch render rule (all-placeholder-free / placeholder-at-stage-1-or-2 / placeholder-at-stage-3+).</li>
+    </ul>
+  </li>
+  <li><strong>Files this plan must NOT touch:</strong> `<code>R/paintr-translate.R</code>` (PLAN-02's territory — the lift itself, including `<code>desugar_pipes_to_nested</code>` / `<code>resugar_pipeline_stages</code>` / `<code>rebuild_nested_from_stages</code>` / `<code>try_lift_to_pipeline</code>` / `<code>ptr_classify_calls</code>` / the pass reorder); `<code>R/paintr-classify.R</code>`; `<code>R/paintr-prune.R</code>` (consumers are ADR-correct — verify via the test net, do not modify); `<code>R/paintr-safety.R</code>` (same); `<code>R/paintr-eval.R</code>` (the `<code>desugar_pipe_to_call(.., first_arg_name = "")</code>` parameter is PLAN-02's edit; this plan does not touch eval source); `<code>R/paintr-build-ui.R</code>` (the stage-checkbox UI already gates on placeholder presence at `<code>R/paintr-build-ui.R:229</code>`, verified — no change needed); `<code>R/paintr-app.R</code>`; `<code>R/paintr-resolve.R</code>`; any vignette under `<code>vignettes/</code>`; `<code>NAMESPACE</code>`; `<code>man/</code>`.</li>
+  <li><strong>The consumer-uniformity test net is verification, not fixing.</strong> If a consumer-side assertion fails under the test net, the implementer's first response is to verify it is a real gap (not a test-side artifact). On real-gap confirmation, the fix lands in this plan's worktree (which DOES own the test net but does NOT own the consumer files); coordinate with the orchestrator to expand this plan's "files owned" set on a one-off basis, or stop and surface. Do NOT silently widen `Files this plan owns` mid-implementation.</li>
+  <li>No exported functions; no `<code>NAMESPACE</code>` changes; no `<code>@export</code>` roxygen tags.</li>
+  <li>snake_case, 2-space indent, `<code>rlang::abort()</code>` for errors, `<code>assertthat::assert_that()</code>` for argument validation, `<code>cli::cli_warn()</code>` not `<code>warning()</code>`.</li>
+  <li>e2e tests follow `<code>.claude/rules/testing.md</code>` verbatim: app-dir + pkgload (NOT a serialised `<code>shiny.appobj</code>`), `<code>app$set_inputs(.., wait_ = FALSE)</code>` for placeholder widgets, click the Update/Draw button to trigger render, set source/consumer var input before var-picker subtab, scoped `<code>suppressWarnings</code>` around `<code>AppDriver$new()</code>`.</li>
 </ul>
 
 <h2>BDD scenarios</h2>
+<p>Each `Then` is the contract. Tests asserting a contradicting predicate are a SCOPE VIOLATION (auditor must FAIL).</p>
 <pre>
-Feature: In-stage pickers see the correct upstream after the fast-path is gone
+Feature: Downstream consumers handle the canonical pipeline shape uniformly across all three surface forms; preserve-mode rendering remains stable for existing users; the runtime fast-path is removed.
 
-Scenario: Pre-upload boot
-  Given the fixture app for "ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; ggplot(aes(ppVar, ppVar)) + geom_point()"
-  When  the app boots without a file uploaded
-  Then  the app renders without error
-  And   the picker for in-filter ppVar is empty (no upstream yet)
+Scenario: Eval produces identical R expression across surface forms (placeholder-containing chain)
+  Given three string-input formulas semantically identical but differing in pipe syntax:
+        f_native   = "ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; mutate(new_var = ppVar + 1) |&gt; ggplot(aes(ppVar, ppVar)) + geom_point()"
+        f_magrittr = "ppUpload %&gt;% filter(ppVar &gt; ppNum) %&gt;% mutate(new_var = ppVar + 1) %&gt;% ggplot(aes(ppVar, ppVar)) + geom_point()"
+        f_nested   = "ggplot(mutate(filter(ppUpload, ppVar &gt; ppNum), new_var = ppVar + 1), aes(ppVar, ppVar)) + geom_point()"
+        and a fixed placeholder snapshot (e.g. ppUpload = penguins, ppVar = "bill_length_mm", ppNum = 40)
+  When  I run ptr_translate on each then call ggpaintr:::layer_to_eval_expr on layer[[1]] under the snapshot
+  Then  identical(eval_expr_native, eval_expr_magrittr) is TRUE
+  And   identical(eval_expr_magrittr, eval_expr_nested) is TRUE
 
-Scenario: Post-upload, in-filter picker populated
-  Given the booted fixture app
-  When  I upload penguins.csv into the ppUpload widget
-  And   the runtime resolves the upload
-  Then  the in-filter ppVar picker offers penguins' column names as choices
-  And   the aes-side ppVar pickers offer the same column names
+Scenario: Prune produces structurally equivalent pruned tree across surface forms
+  Given the same three formulas and a placeholder snapshot that leaves at least one placeholder unbound (so prune actually prunes something)
+  When  I run ptr_translate on each then call ggpaintr:::ptr_prune on each tree under the snapshot
+  Then  ptr_tree_structural_equal(pruned_native$layers[[1]]$data_arg, pruned_magrittr$layers[[1]]$data_arg) is TRUE
+  And   ptr_tree_structural_equal(pruned_magrittr$layers[[1]]$data_arg, pruned_nested$layers[[1]]$data_arg) is TRUE
 
-Scenario: Filter args do not narrow the in-filter picker's choices
-  Given the booted fixture app with penguins.csv uploaded
-  And   the in-filter ppVar set to "bill_length_mm" and the in-filter ppNum set to 40
-  When  the filter actually narrows the data to bill_length_mm &gt; 40
-  Then  the in-filter ppVar picker's column choices still come from the pre-filter data
-        (not from the post-filter row-narrowed view)
+Scenario: Safety deny-list produces same verdict across surface forms (safe case)
+  Given the three formulas above (placeholders ppUpload / ppVar / ppNum — all safe)
+  When  I run ptr_translate on each then call the deny-list AST walker on each tree
+  Then  every verdict is "allow"
+  And   the set of detected denied symbols is empty across all three trees
 
-Scenario: No regression on existing runtime upstream behavior
-  Given the existing tests in tests/testthat/test-runtime-*.R
-  When  the gate command runs
-  Then  every previously-passing test still passes (no count drop on PASS, no new FAIL/ERROR)
+Scenario: Safety deny-list produces same verdict across surface forms (denied case)
+  Given three formulas containing a deny-listed call (e.g. `system("ls")`) in the same structural position:
+        f_native   = "ppUpload |&gt; mutate(z = system(\"ls\")) |&gt; ggplot(aes(ppVar, ppVar)) + geom_point()"
+        f_magrittr = "ppUpload %&gt;% mutate(z = system(\"ls\")) %&gt;% ggplot(aes(ppVar, ppVar)) + geom_point()"
+        f_nested   = "ggplot(mutate(ppUpload, z = system(\"ls\")), aes(ppVar, ppVar)) + geom_point()"
+  When  I run the deny-list AST walker on each translated tree
+  Then  every verdict is "deny"
+  And   the detected denied symbol is "system" across all three trees
+
+Scenario: Picker upstream resolution returns identical data across surface forms (after fast-path deletion)
+  Given the three formulas above, a fixed uploaded data snapshot for ppUpload (e.g. iris first 50 rows), and a fixed value snapshot for ppVar / ppNum
+  When  I run ptr_translate on each, classify consumers, then call ggpaintr:::runtime_upstream_data with the state snapshot
+  Then  the returned list keyed by consumer id satisfies: for every consumer id present in all three returns, the corresponding data.frame is identical() across the three results
+  And   no consumer id resolved via the deleted per-layer fast-path (mechanically: the fast-path block does not exist in source per the `grep` SC above)
+
+Scenario: Render preserve-mode — all-placeholder-free pipeline collapses to nested-call source
+  Given a translated tree whose layer[[1]]$data_arg is a ptr_pipeline lifted from `quote(summarise(mutate(filter(penguins, bill_length_mm &gt; 40), y = bill_length_mm * 2), n = n()))` (no placeholders anywhere)
+  When  I call ggpaintr:::render_walk(data_arg, preserve_placeholders = TRUE)
+  Then  the rendered output contains no `|&gt;` token
+  And   the rendered output equals (modulo whitespace) "summarise(mutate(filter(penguins, bill_length_mm &gt; 40), y = bill_length_mm * 2), n = n())"
+
+Scenario: Render preserve-mode — placeholder at source stage renders the whole pipeline as `|&gt;`
+  Given a translated tree whose layer[[1]]$data_arg is a ptr_pipeline lifted from `quote(ggplot(filter(ppUpload, x &gt; 1), aes(x)))` (placeholder is the source)
+  When  I call ggpaintr:::render_walk(data_arg, preserve_placeholders = TRUE)
+  Then  the rendered output contains at least one `|&gt;` token
+  And   the rendered output starts (modulo whitespace) with "ppUpload"
+
+Scenario: Render preserve-mode — placeholder at stage 2 renders the whole pipeline as `|&gt;`
+  Given a translated tree whose layer[[1]]$data_arg is a ptr_pipeline lifted from `quote(ggplot(filter(penguins, ppVar &gt; 1), aes(ppVar)))` (placeholder appears starting at stage 2)
+  When  I call ggpaintr:::render_walk(data_arg, preserve_placeholders = TRUE)
+  Then  the rendered output starts (modulo whitespace) with "penguins"
+  And   the rendered output contains at least one `|&gt;` token after the source
+
+Scenario: Render preserve-mode — placeholder at stage ≥ 3 (general case) collapses the placeholder-free prefix to a nested source, renders the tail as `|&gt;`
+  Given a translated tree whose layer[[1]]$data_arg is a ptr_pipeline lifted from `quote(ggplot(mutate(filter(penguins, bill_length_mm &gt; 40), y = bill_length_mm * 2), aes(ppVar)))` (placeholders only in aes — stage 4 — but the structurally-extracted ggplot stage is stage 3 since stages 1, 2, 3 in pipeline order are [penguins, filter(...), mutate(...)] and stage 4 is ggplot(aes(ppVar)); first placeholder-containing stage is stage 4)
+  When  I call ggpaintr:::render_walk(data_arg, preserve_placeholders = TRUE)
+  Then  the rendered output starts (modulo whitespace) with "mutate(filter(penguins, bill_length_mm &gt; 40), y = bill_length_mm * 2)"
+        (the placeholder-free prefix collapsed to a single nested-call source atom)
+  And   immediately after the nested source the rendered output contains at least one `|&gt;` token
+
+Scenario: Render preserve-mode — `%&gt;%`-source user sees no `|&gt;` for their all-placeholder-free chain (the user-facing invariant)
+  Given the user wrote `penguins %&gt;% filter(x &gt; 1) %&gt;% ggplot(aes(x))` (no placeholders)
+  When  I translate the formula then call ggpaintr:::render_walk(layer[[1]]$data_arg, preserve_placeholders = TRUE)
+  Then  the rendered output contains no `|&gt;` token
+  And   the rendered output contains no `%&gt;%` token (the entire chain collapsed to nested-call form — see Out-of-scope §"preserved `%&gt;%` operator")
+  And   the rendered output equals (modulo whitespace) "ggplot(filter(penguins, x &gt; 1), aes(x))"
+
+Scenario: Render non-preserve mode is unchanged from today — chain rendering with `|&gt;` operator
+  Given a translated tree whose layer[[1]]$data_arg is a ptr_pipeline lifted from `penguins %&gt;% filter(x &gt; 1) %&gt;% ggplot(aes(x))` (no placeholders; per PLAN-02 SC the lifted pipeline carries $op = "|&gt;")
+  When  I call ggpaintr:::render_walk(layer[[1]]$data_arg, preserve_placeholders = FALSE)
+  Then  the rendered output contains at least one `|&gt;` token (chain rendering retained — PLAN-04's prefix-collapse rule does NOT fire in non-preserve mode)
+  And   the rendered output starts (modulo whitespace) with "penguins"
+  And   the rendered output is structurally equivalent to today's pre-PLAN-04 non-preserve-mode output for the same pipeline shape (mechanically: identical to the result of calling the unmodified `render_pipeline_body` body under `preserve_placeholders = FALSE`)
+
+Scenario: Runtime fast-path deletion — picker resolution still works under all three surface forms with placeholders
+  Given the three formulas (f_native / f_magrittr / f_nested) above, a real uploaded data snapshot, and the picker for the in-filter ppVar consumer
+  When  I run the upstream resolution pipeline end to end (routing through both runtime_upstream_data and runtime_consumer_entry, depending on call site)
+  Then  the picker for the in-filter ppVar consumer receives the upstream snapshot (i.e. the columns of the uploaded data, not NULL and not an empty character vector)
+  And   the in-aes ppVar pickers receive the post-mutate upstream snapshot (i.e. the columns of the uploaded data PLUS "new_var")
+  And   this holds identically across all three surface forms
+  And   mechanically: `grep -n 'state$resolved_data[[layer_name]]' R/paintr-server.R` returns zero matches (both runtime_upstream_data and runtime_consumer_entry have had their fast-path blocks removed)
+
+Scenario: e2e bug 3a — in-filter picker populates after upload under `|&gt;` input
+  Given the fixture app at tests/testthat/fixtures/vignette-apps/adr12-bug-3a/ booted via AppDriver
+  When  the user uploads penguins.csv into the ppUpload widget and clicks Update
+  Then  the in-filter ppVar picker shows the data's columns as options (non-empty `<select>` choices)
+  And   the in-aes ppVar pickers also show the columns
+  And   the test asserts both pickers populate from the SAME upstream resolution path (mechanically: both choice-set HTML contains the column "bill_length_mm")
+
+Scenario: Atomic pair — PLAN-02 alone, without this plan, fails the consumer-uniformity test net (mechanical proof the pair is atomic)
+  Given the orchestrator branch has PLAN-02 merged but NOT this plan
+  When  I run the consumer-uniformity test net (a copy of which exists in this plan's branch) against that intermediate state
+  Then  at least one of the four consumer assertions FAILs OR the runtime fast-path still exists in either runtime_upstream_data or runtime_consumer_entry (mechanically: `grep -n 'state$resolved_data[[layer_name]]' R/paintr-server.R` returns ≥ 1 result)
+        — this scenario is documentary, not part of the automated gate; included to make the atomic-pair commitment auditable. The orchestrator MUST NOT merge PLAN-02 alone.
 </pre>
 
 <h2>Definition of Done</h2>
-<p>Authoritative gate (copied verbatim from <code>CLAUDE.md</code>):</p>
+<p>Authoritative gate (copied verbatim from `<code>CLAUDE.md</code>`'s "Authoritative gate (Definition of Done)" block):</p>
 <pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
-<p>Expected: <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline_after_plan_02 + N_new)</code>. The browser e2e test must <strong>run</strong> (not silently SKIP) under this gate — that's the point of the <code>NOT_CRAN=true</code> envvar.</p>
+<p>Expected: `<code>FAIL 0 / WARN 0 / SKIP 0 / PASS (post-PLAN-02-baseline + N_new)</code>` where N_new is approximately 12–20 across the four new test files (consumer-uniformity ≈ 4, render-prefix-collapse ≈ 4–6, bug-3a e2e ≈ 1–3 depending on assertion split, plus any helper-test atoms). All previously-passing tests still pass. Note: the post-PLAN-02 baseline includes PLAN-02's ≈ 18–24 new tests (so the floor going into this plan is approximately PASS 2005–2011); record the actual count in this plan's worktree first commit message.</p>
 <p><strong>Proxy traps — do not be fooled (copied verbatim from CLAUDE.md):</strong></p>
 <ul>
-  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
-  <li><code>devtools::check(... --as-cran)</code> does <strong>NOT</strong> make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead <strong>cleanly SKIP</strong> via <code>boot_vignette_app()</code>'s source-root guard (no <code>DESCRIPTION</code> in the <code>.Rcheck</code> sandbox). If a check run shows the e2e file <strong>ERRORing</strong>, that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
-  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> <strong>runs</strong> the browser tests (source tree present → 0 SKIP). That alone is the gate.</li>
+  <li>A raw `<code>Rscript -e 'testthat::test_dir()/test_file()'</code>` with <strong>no `<code>NOT_CRAN</code>`</strong> → `<code>skip_on_cran()</code>` fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li>`<code>devtools::check(... --as-cran)</code>` does <strong>NOT</strong> make `<code>skip_on_cran()</code>` fire (devtools runs the check subprocess with `<code>NOT_CRAN=true</code>`). The browser fixtures instead <strong>cleanly SKIP</strong> via `<code>boot_vignette_app()</code>`'s source-root guard. If a check run shows the e2e file <strong>ERRORing</strong>, that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
+  <li>Only `<code>NOT_CRAN=true</code>` / `<code>devtools::test()</code>` <strong>runs</strong> the browser tests (source tree present → 0 SKIP). That alone is the gate.</li>
 </ul>
-<p>This plan adds 1 new test file with ~3 browser-driven assertions plus 1 deletion in <code>R/paintr-server.R</code>. The gate must show PASS rise by ≥ 3, FAIL/ERROR still 0, SKIP unchanged.</p>
 
 <h2>Scope guard / ownership</h2>
-<p>This plan owns: <code>R/paintr-server.R</code> (deletion only inside <code>runtime_upstream_data</code>), <code>tests/testthat/fixtures/vignette-apps/adr12-bug-3a/app.R</code> (new), <code>tests/testthat/fixtures/vignette-apps/adr12-bug-3a/penguins.csv</code> (new — small sampled subset acceptable), <code>tests/testthat/test-adr12-bug-3a.R</code> (new). Generated files (<code>NAMESPACE</code>, <code>man/</code>) untouched.</p>
-<p>Branch convention: <code>0012-delete-upstream-fast-path</code>, worktree at <code>.claude/worktrees/0012-role-based-tree-and-ptr-spec/delete-upstream-fast-path/</code>. Merge into orchestrator branch via <code>--no-ff</code>.</p>
+<p>This plan owns the file set listed in Constraints §"Files this plan owns". Generated files (`<code>NAMESPACE</code>`, `<code>man/</code>`) are owned by an integration step, not this plan — surface drift in audit, do not regenerate.</p>
+<p>Branch convention: `<code>0012-delete-upstream-fast-path</code>`, worktree at `<code>.claude/worktrees/0012-role-based-tree-and-ptr-spec/delete-upstream-fast-path/</code>`. Merge into orchestrator branch via `<code>--no-ff</code>`. <strong>Plan 02 and plan 04 are an atomic pair</strong> (see index.md): the orchestrator must merge plan 04 in the same group action, immediately after plan 02, before any other plan, so that downstream uniformity (this plan) and the canonical-shape lift (PLAN-02) land together. Neither plan 02 nor plan 04 may merge alone.</p>
 
 <h2>Independence clause</h2>
-<p>The implementer's "done" report is a claim, not proof. The auditor re-runs the gate command and verifies (a) the deleted block is gone, (b) the new e2e test runs (not SKIPs) and passes, (c) no existing test regresses.</p>
+<p>The implementer's "done" report is a claim, not proof. The auditor (and post-merge auditor) re-runs the Definition-of-Done command and verifies expected output before any merge. The auditor additionally enforces the BDD-as-contract rule (Constraints §"BDD is contract") and the SCOPE NARROWING FORBIDDEN rule (Constraints §"SCOPE NARROWING FORBIDDEN") mechanically: any test contradicting a `Then` clause, any in-source narrowing comment ("dodge the half-state", "preserve old shape", etc.), and any silent widening of `Files this plan owns` mid-implementation are automatic FAILs. The post-merge integration auditor for G2 verifies BOTH plans' Definition-of-Done together on the merged-PLAN-02-then-merged-PLAN-04 state.</p>
 
 <h2>Baseline / drift reference</h2>
-<p>Known-good baseline: orchestrator branch HEAD after plan 02 has merged. Record SHA + PASS count in worktree first commit message. Pre-existing baseline file <code>dev/baselines/</code> (if present) is the floor for SKIP — any SKIP count drift means the e2e gating story changed and needs investigation.</p>
+<p>Known-good baseline: orchestrator branch HEAD after plan 01 + the plan-02-revert (commit `<code>f2954e5</code>` on `<code>vignette-review</code>`), PASS count `<code>1987</code>` as measured 2026-05-21. The atomic pair operates on the post-PLAN-02 state of the worktree, so this plan's effective baseline is `<code>f2954e5</code> + PLAN-02-merged` (approximately PASS 2005–2011 — record the actual count in this plan's worktree first commit message). Any regression below that floor is a stop-the-line event for this plan.</p>
 
 <h2>Out-of-scope handling</h2>
-<p>Findings outside this plan's owned files are surfaced, never absorbed. If the deletion uncovers a previously-masked behavior elsewhere in <code>runtime_upstream_data</code> (e.g., the shared-bucket branch turns out to depend on the fast-path having populated something), record as a follow-up plan — do not extend deletion to other branches in this plan.</p>
+<p>Findings outside this plan's owned files are surfaced in the audit report, never absorbed. The realistic risks worth flagging:</p>
+<ul>
+  <li><strong>Preserved `%&gt;%` operator in render.</strong> ADR §5 OQ2 is deferred work: lifted pipelines all carry `<code>$op = "|&gt;"</code>`, and this plan's prefix-collapse rule renders all-placeholder-free chains as nested-call source (no operator at all). For `%&gt;%`-source users with placeholder-containing chains, the rendered tail uses `<code>|&gt;</code>`. If a user-facing complaint surfaces ("I wrote `%&gt;%`, why do I see `|&gt;`?"), record as a follow-up against ADR §5 OQ2, do NOT preserve `<code>$op = "%&gt;%"</code>` in PLAN-02 (which would be a SCOPE VIOLATION there).</li>
+  <li><strong>Existing in-source tests that snapshot stage count of a specific `<code>%&gt;%</code>`-source pipeline.</strong> PLAN-02's always-aggressive descent produces a higher stage count than today's `<code>%&gt;%</code>` path for call-shape sources. PLAN-02 SC and out-of-scope already cover this; this plan does not own those tests. If the consumer-uniformity test net trips on such a test, record as a follow-up against PLAN-02's out-of-scope list (the offending test should be updated to assert structural identity, not raw stage count).</li>
+  <li><strong>Render-side text drift in vignettes.</strong> If the prefix-collapse rule changes the rendered preserve-mode text of any committed vignette example, surface in audit. The expected outcome for existing vignette examples (which mostly use either bare-data-name source or upload-placeholder source) is NO text change: bare-data-name source → renders as nested-call source (matches today's text for the source line); upload-placeholder source → k=1, renders as `<code>|&gt;</code>` chain (matches today's text). Vignette text changes should be a code-side bug, not an expected outcome.</li>
+  <li><strong>Consumer-uniformity test surfaces a real consumer gap.</strong> If `<code>prune_walk.ptr_pipeline</code>` or `<code>safety_walk.ptr_pipeline</code>` turns out to handle the canonical shape differently from `<code>prune_walk.ptr_call</code>` / `<code>safety_walk.ptr_call</code>` for the test-net formulas, the fix is to patch the divergent walker — IN THIS PLAN's worktree (the atomic-pair commitment requires it). Coordinate with the orchestrator to expand `Files this plan owns` for the specific file; do not silently widen the ownership set, and do not narrow PLAN-02's lift to dodge.</li>
+</ul>
 
 <h2>Dependencies / ordering</h2>
-<p>Depends on: plan 02 (without the structural pipeline lift, deleting the fast-path regresses the in-aes pickers for nested-call / native-pipe input).</p>
-<p>Provides for: nothing structural. Parallel-eligible with plan 03 (different files). Plan 05 picks up the same <code>R/paintr-server.R</code> file afterwards for the <code>state$spec</code> wiring, so plan 05 must merge after this one.</p>
-
-<!-- implementable: PASS date=2026-05-21 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=ceddbb757fc0 -->
+<p>Depends on: plan 01 (which reserves the `<code>ptr_classify_calls</code>` slot — required for PLAN-02 to merge, which in turn is required for the fast-path deletion to be safe). Note: this plan does NOT formally `depends_on: [02]` even though PLAN-02 must merge first within G2 — the atomic-pair semantic is encoded at the parallel-group level in `<code>index.md</code>` (G2 = `{02, 04}`, merge order 02 → 04, no other plan between), not via the `<code>depends_on</code>` field. This is intentional: in-worktree implementer + auditor work for both plans can proceed in parallel against the post-PLAN-01 baseline, and the merge-order constraint is the orchestrator's responsibility.</p>
+<p>Paired-atomic with: plan 02 (the canonical-shape lift). Plans 02 and 04 land in the same parallel group G2 and merge as a pair — plan 02 first, plan 04 second, no other plan between them. The atomic landing avoids the half-state where canonical-shape exists but downstream consumers (or the runtime fast-path) reject it — which is the half-state that triggered the cd9b74a narrowing.</p>
+<p>Provides for: plan 03 (bug-3b regression test asserts the empty `<code>filter()</code>` elides across all three surface forms — depends on PLAN-02's lift producing one canonical tree AND on this plan's prefix-collapse render rule rendering the elided form stably).</p>
+<!-- implementable: PASS date=2026-05-22 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=0e5b067664fd -->
 </body>
 </html>

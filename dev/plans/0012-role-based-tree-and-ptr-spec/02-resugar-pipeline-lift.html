@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>PLAN-02 — resugar_pipeline lift + terminal grounding (from ADR 0012)</title>
+<title>PLAN-02 — Canonical pipeline lift via desugar + round-trip + grounding (from ADR 0012)</title>
 <style>
   body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
          max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
@@ -14,6 +14,7 @@
   .meta { color: #555; font-size: 13px; }
   .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
   .warn { border-left: 4px solid #c97a00; background: #fdf3e1; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .prin { border-left: 4px solid #1b1d22; background: #f3f3f6; padding: .65rem .9rem; margin: .8rem 0; font-size: 14px; }
   table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
   th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
   th { background: #f0f0f4; }
@@ -30,115 +31,384 @@ plan:
   status: draft
 -->
 
-<h1>PLAN-02 — <code>resugar_pipeline</code> lift + terminal grounding</h1>
-<p class="meta">Source: ADR 0012 (§2 "Lift rule", §3.1 "The lift transform", §3.2 "Terminal-grounding check", §4 S2) · Depends on: 01 · Parallel group: G2 · Status: draft</p>
+<h1>PLAN-02 — Canonical pipeline lift via desugar + round-trip + grounding</h1>
+<p class="meta">Source: ADR 0012 (§1, §2 "Lift rule", §3.1 "The lift transform", §3.2 "Terminal-grounding check", §3.4 "+ fence", §4 S2, §5 OQ2) · Depends on: 01 · Parallel group: G2 (lands atomically with PLAN-04) · Status: draft (revision 3 — supersedes the merged-then-reverted commit cd9b74a and supersedes revision 2's narrow ADR §3.1 engine after a grill session that surfaced the engine was incomplete for canonical equivalence with the existing `%&gt;%` translation path)</p>
+
+<h2>Governing principle (overrides scope tactics)</h2>
+<div class="prin"><strong>The tree is semantic, not syntactic.</strong> ADR 0012 §1 / §2 row 1: pipe operators are pure first-arg-insertion sugar that R desugars away (`|&gt;` at parse time; `%&gt;%` survives only because magrittr is a function). The canonical translated tree must be the same shape regardless of which surface form the user wrote (`|&gt;`, `%&gt;%`, nested-call, or any mix). The implementer's job is to make the lift produce one canonical tree for all four surface forms via a structural transformation, not to preserve any one surface form's idiosyncrasies. The auditor's job is to mechanically reject any implementation that leaves a surface-form divergence in the tree.</div>
+<p>This plan introduces the canonical-pipeline-construction path. It supersedes the existing `<code>%&gt;%</code>`-only `<code>translate_pipeline</code>` / `<code>collect_pipe_stages</code>` / `<code>translate_piped_layer</code>` path: all four surface forms now route through one uniform <em>desugar → split → round-trip-check → ground → lift</em> pipeline. After this plan and PLAN-04 land atomically, downstream consumers (prune, render, eval, runtime, safety, warn) treat the three surface forms uniformly because there is exactly one canonical shape they all produce.</p>
 
 <h2>Context</h2>
-<p>ADR 0012 §1.1–§1.2 documents the root divergence: a formula written with <code>|&gt;</code> or as nested calls produces a <code>data_arg</code> of class <code>ptr_call</code>, while the semantically-identical <code>%&gt;%</code> form produces a <code>ptr_pipeline</code> with explicit <code>$stages</code>. The role-based redesign collapses both surface forms to one canonical <code>ptr_pipeline</code> by structural lift.</p>
-<p>The lift rule is <em>terminal-grounded</em>: a nested-call chain becomes a pipeline iff its innermost first-arg is a known data source. Unknown terminal → quiet failure, stays a <code>ptr_call</code> (ADR 0012 §2 row "Lift rule", §3.2).</p>
+<p>ADR 0012 §1.1–§1.2 documents the root divergence: a formula written with `|&gt;` (expression mode) or as nested calls produces a `data_arg` of class `ptr_call`; the semantically-identical `%&gt;%` form produces a `ptr_pipeline`; the string-input `|&gt;` form (via `preprocess_native_pipe`) also produces a `ptr_pipeline` but via a separate translation route. Three different code paths for one semantic concept. The role-based redesign collapses them.</p>
+<p><strong>The ADR §3.1 engine sketch is incomplete.</strong> The sketch's loop terminates with `<code>cur</code>` still a call (whose first arg is a non-call), then returns `<code>c(list(cur), stages)</code>` — putting the entire last call (e.g., `<code>filter(penguins, x &gt; 1)</code>`) into the source slot. But the existing `<code>%&gt;%</code> path (`<code>collect_pipe_stages</code>`) splits `<code>penguins %&gt;% filter(x &gt; 1)</code>` into `<code>[penguins, filter(x &gt; 1)]</code>` — source extracted as its own non-call element. The two shapes are not `<code>identical()</code>`. This plan fills the gap with a post-loop split + a round-trip verification step + a placeholder-aware grounding check (see <strong>Engine</strong> below).</p>
+<p><strong>History note (do not repeat).</strong> The prior revision of this plan (merged as cd9b74a, reverted at f2954e5) shipped a narrowed predicate that lifted only when the terminal was a `<code>role='source'</code>` placeholder symbol. That narrowing preserved the very divergence the ADR was supposed to eliminate. The auditor accepted it on the strength of an inline rationale about downstream consumers. That acceptance was wrong — see Constraints §SCOPE NARROWING FORBIDDEN.</p>
+
+<h2>Engine</h2>
+<p>The lift is a 4-step pipeline. Pseudo-code (final form may vary slightly for R idiom but must be semantically equivalent):</p>
+<pre>
+# Step 1 — desugar all pipe operators (`%>%` and the native-pipe sentinel)
+# to fully-nested call form. Pipes are pure first-arg-insertion sugar.
+desugar_pipes_to_nested(expr) {
+  if (!is.call(expr)) return(expr)
+  if (length(expr) >= 3 && is.symbol(expr[[1]])) {
+    head_str <- as.character(expr[[1]])
+    # `.ptr_pipe_native_sentinel` is the existing constant defined in
+    # `R/paintr-translate.R` (used by `preprocess_native_pipe` to subst
+    # `|>` for `%ptrPipeNative%` before parse). Reused here unchanged.
+    if (head_str == "%>%" || head_str == .ptr_pipe_native_sentinel) {
+      lhs <- desugar_pipes_to_nested(expr[[2]])
+      rhs <- desugar_pipes_to_nested(expr[[3]])
+      if (is.call(rhs))   return(as.call(c(list(rhs[[1]]), list(lhs), as.list(rhs[-1]))))
+      if (is.symbol(rhs)) return(as.call(list(rhs, lhs)))
+      # other RHS shapes — leave expr untouched (rare; pathological)
+    }
+  }
+  # not a pipe — recurse into args, preserving names
+  out <- as.call(c(list(desugar_pipes_to_nested(expr[[1]])),
+                   lapply(as.list(expr[-1]), desugar_pipes_to_nested)))
+  names(out) <- names(expr)
+  out
+}
+
+# Step 2 — split fully-nested form into source + ordered stages. Each stage
+# carries `first_arg_name` so the original positional/named-arg shape can be
+# reconstructed losslessly. Result: list(source = node, stages = list(stage))
+# where each stage = list(call = call_with_first_arg_stripped,
+#                         first_arg_name = name_or_"")
+resugar_pipeline_stages(expr) {
+  stages <- list()
+  cur <- expr
+  # Outer loop: descend through any call whose first positional arg is itself
+  # a call. Always-aggressive descent per ADR §1's "tree is semantic, not
+  # syntactic" — pipe operators carry no boundary info, so neither do nested
+  # calls. The lift always descends as far as it can.
+  while (is.call(cur) && length(cur) >= 2 && is.call(cur[[2]])) {
+    head <- cur[[1]]; rest_args <- as.list(cur[-c(1, 2)])
+    fan  <- (names(cur) %||% rep_len("", length(cur)))[2]
+    stages <- c(list(list(call = as.call(c(list(head), rest_args)),
+                          first_arg_name = fan)), stages)
+    cur <- cur[[2]]
+  }
+  # Post-loop split: if cur is a call whose first arg is a non-call,
+  # extract that non-call as the source and bank cur (stripped of its
+  # first arg) as the source-side stage.
+  if (is.call(cur) && length(cur) >= 2 && !is.call(cur[[2]])) {
+    head <- cur[[1]]; rest_args <- as.list(cur[-c(1, 2)])
+    fan  <- (names(cur) %||% rep_len("", length(cur)))[2]
+    source_arg <- cur[[2]]
+    stages <- c(list(list(call = as.call(c(list(head), rest_args)),
+                          first_arg_name = fan)), stages)
+    cur <- source_arg
+  }
+  list(source = cur, stages = stages)
+}
+
+# Step 3 — rebuild the fully-nested form from (source, stages). Inverse of
+# Step 2; round-trip identity is the structural-correctness gate.
+rebuild_nested_from_stages(parts) {
+  if (length(parts$stages) == 0) return(parts$source)
+  acc <- parts$source
+  for (st in parts$stages) {
+    rest_args <- as.list(st$call[-1])
+    new_args  <- c(list(acc), rest_args)
+    nms <- names(new_args) %||% rep_len("", length(new_args))
+    nms[1] <- st$first_arg_name  # restore the captured first-arg name
+    names(new_args) <- nms
+    acc <- as.call(c(list(st$call[[1]]), new_args))
+  }
+  acc
+}
+
+# Step 4 — round-trip + grounding gates. Lift fires iff both pass.
+try_lift_to_pipeline(expr) {
+  canonical <- desugar_pipes_to_nested(expr)
+  parts <- resugar_pipeline_stages(canonical)
+  if (length(parts$stages) < 2) {
+    # Single-stage list = no chain to lift (degenerate single-call or bare value).
+    return(list(success = FALSE, reason = "single-stage"))
+  }
+  # GATE 1 — round-trip identity. If the rebuild does not equal the
+  # canonical-nested form, something was bisected (e.g. a named arg lost a
+  # name in the split). Refuse to lift.
+  rebuilt <- rebuild_nested_from_stages(parts)
+  if (!identical(rebuilt, canonical)) {
+    return(list(success = FALSE, reason = "round-trip-mismatch"))
+  }
+  # GATE 2 — source grounding. The extracted source must be a SYMBOL.
+  # A CALL is an "opaque-call terminal" per ADR §3.2 — quiet failure.
+  # A literal (numeric, string, logical) is not a data source.
+  # NOTE: at lift time, raw AST is what we hold — a placeholder like
+  # `ppUpload` is a plain symbol at the AST level; it does not become a
+  # ptr_ph_data_source NODE until translate_node runs over it. So the
+  # check here is purely `is.symbol`, not `is_ptr_ph_data_source`.
+  if (is.call(parts$source)) {
+    return(list(success = FALSE, reason = "opaque-call-source"))
+  }
+  if (!is.symbol(parts$source)) {
+    return(list(success = FALSE, reason = "non-data-source"))  # e.g. a literal
+  }
+  list(success = TRUE, parts = parts)
+}
+</pre>
+
+<p>Three independent gates decide whether to lift. <strong>GATE 0 (single-stage)</strong> rejects degenerate chains where `<code>length(parts$stages) &lt; 2</code>` — there is no chain to lift. <strong>GATE 1 (round-trip)</strong> catches structurally-non-reversible bisects. With `<code>first_arg_name</code>` preservation in Step 2/3, this gate accepts more inputs than a naive engine would (a named-first-arg call like `<code>ggplot(data = penguins, ...)</code>` round-trips losslessly via the captured `<code>"data"</code>` name). It still catches genuinely non-reversible structures should any arise (e.g., from pathological AST shapes that the desugar step can't normalize). <strong>GATE 2 (grounding)</strong> catches sources that are not structurally valid data sources — opaque-call sources (e.g., `<code>make_data()</code>` at the deepest position) and literals (e.g., a bare `<code>1</code>` that fell out of bisecting `<code>data.frame(x = 1)</code>`). The three gates together accept every case where (a) there is a real multi-stage chain, (b) the lift produces a structurally-reversible canonical pipeline, and (c) the source slot is a symbol that could plausibly resolve to a data frame.</p>
+
+<p><strong>Pass-order requirement.</strong> Two ordering constraints justify the reorder:</p>
+<ol>
+  <li>`ptr_classify_calls` must run BEFORE `ptr_assign_ids` so that ids are assigned on the canonical post-lift shape; otherwise nested-call and `%&gt;%` users get different ids for the same widget. This also fixes a latent bug: `assign_stage_ids` (called inside `ptr_assign_ids`) only finds stages to id-stamp when the tree is in pipeline form; under the old order, nested-call layers had no stage-disable ids assigned because no pipeline existed yet at id-assignment time.</li>
+  <li>`ptr_classify_data` runs before `ptr_classify_calls` for downstream consistency: classify_data tags placeholders' source/consumer role and stamps `ptr_ph_data_source` class on data-source placeholders. The lift itself does not consult these tags (GATE 2 uses only `is.symbol`, not `is_ptr_ph_data_source`, because the lift operates on raw AST where a placeholder is still a plain symbol), but `ptr_shared_bind` and downstream walkers rely on the tags, and keeping classify_data first preserves today's invariant that classification precedes structural rewrites.</li>
+</ol>
+<p>The annotate-block sequence in `ptr_translate` (`R/paintr-translate.R`) changes from</p>
+
+<pre>root &lt;- ptr_assign_ids(root, ns_fn = ns_fn)
+root &lt;- ptr_classify_data(root)
+root &lt;- ptr_classify_calls(root)
+root &lt;- ptr_shared_bind(root)</pre>
+
+<p>to</p>
+
+<pre>root &lt;- ptr_classify_data(root)
+root &lt;- ptr_classify_calls(root)   # the lift; runs on un-id-ed canonical tree
+root &lt;- ptr_assign_ids(root, ns_fn = ns_fn)  # assigns ids on the post-lift tree
+root &lt;- ptr_shared_bind(root)</pre>
+
+<p>Verified: `<code>ptr_classify_data</code>` (`R/paintr-classify.R:5-10`) is id-independent; `<code>ptr_classify_calls</code>`'s lift is id-independent; `<code>ptr_assign_ids</code>`'s id encoding depends on `<code>path_str</code>` (structural position) — so id stability across surface forms requires assignment on the canonical shape; `<code>ptr_shared_bind</code>` (`R/paintr-shared.R:6-11`, line 18 reads `<code>x$id</code>`) must run after `<code>ptr_assign_ids</code>` — both old and new order satisfy this.</p>
+
+<p><strong>Stage node shape change.</strong> Each pipeline stage now carries `<code>first_arg_name</code>` (a chr scalar, `""` when the user wrote the first arg positionally). Eval (`<code>pipeline_to_eval_expr</code>` in `R/paintr-eval.R`) and render (preserve-mode in `R/paintr-render.R`, modified by PLAN-04) consult this field to reconstruct named-arg shape losslessly. Walkers that iterate stages without reading `first_arg_name` are unaffected (the field is inert).</p>
+
+<p><strong>Existing `<code>%&gt;%</code>` path is retired.</strong> The current `<code>translate_pipeline</code>` / `<code>collect_pipe_stages</code>` / `<code>translate_piped_layer</code>` in `<code>R/paintr-translate.R</code>` collectively implement a `<code>%&gt;%</code>`-only pipeline-construction path. After PLAN-02, `<code>%&gt;%</code>` source AST is handled by `<code>desugar_pipes_to_nested</code>` (which collapses `<code>%&gt;%</code>` to nested form in step 1), then by the uniform lift. The three retired functions are deleted in this plan; any caller is rerouted through the new path.</p>
 
 <h2>Success Criteria</h2>
 <ul>
-  <li><code>resugar_pipeline(expr)</code> (internal, in <code>R/paintr-translate.R</code>) implements the engine sketch from ADR 0012 §3.1: walks a nested-call chain by descending into <code>cur[[2L]]</code>, collecting stages into a list whose head is the deepest first-arg and whose tail is the user-order stages.</li>
-  <li><code>ptr_classify_calls(root)</code> (body filled in this plan; slot reserved by plan 01) walks each layer's <code>data_arg</code>; when <code>data_arg</code> is a <code>ptr_call</code> whose underlying R expression has a nested call as its first arg AND the deepest first-arg grounds to a known data source, rewrites <code>data_arg</code> to the <code>ptr_pipeline</code> shape (same constructor that the existing <code>%&gt;%</code> path uses via <code>translate_pipeline</code> / <code>collect_pipe_stages</code>).</li>
-  <li><strong>Terminal grounding rule (closes ADR §5 open question 1, verified 2026-05-21):</strong> The lift fires iff the deepest first-arg of the chain — the value left in <code>cur</code> after <code>resugar_pipeline</code>'s loop terminates — is <em>not itself a call</em>. I.e., it must be a symbol, a literal, a <code>ptr_ph_data_source</code>, or any other non-call AST node. If the deepest first-arg IS a call (e.g., <code>make_data()</code>, <code>read_csv("foo.csv")</code>, <code>data.frame(x = 1)</code>), the chain stays as a plain <code>ptr_call</code> — quiet failure. Rationale: today's <code>ptr_classify_data</code> only tags <code>ptr_ph_data_source</code> nodes (verified by reading <code>R/paintr-classify.R</code> — no <code>is.symbol</code>, no <code>inherits…data.frame</code>, no eval-env probe), so the original ADR §3.2 three-category rule would only fire for placeholder sources. The non-call rule is purely structural, requires no eval-env lookup, and naturally captures all three intended cases (placeholder, bare data-name symbol, literal value) while filtering out opaque-call terminals.</li>
-  <li>The post-classify tree for <code>"ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; mutate(new_var = ppVar + 1) |&gt; ggplot(aes(ppVar, ppVar)) + geom_point()"</code> is structurally <code>identical()</code> to the post-classify tree for the same formula with <code>%&gt;%</code> substituted for <code>|&gt;</code> — i.e., the subbed-1 vs subbed-2 divergence from ADR 0012 §1.1 is closed. Compare on <code>tree$layers[[1]]$data_arg</code>: both must be <code>ptr_pipeline</code> with the same <code>$stages</code> shape and the same <code>$op</code>.</li>
-  <li><code>ptr_translate</code> output for plain (non-pipeable) calls — e.g., <code>"ggplot(penguins, aes(bill_length_mm)) + geom_point()"</code> — is bit-identical to the plan-01 baseline (no lift fires; the <code>ggplot()</code> call's first arg <code>penguins</code> has no nested call inside, so the loop terminates immediately).</li>
-  <li>Unknown-terminal case: <code>"some_user_helper() |&gt; ggplot(aes(x)) + geom_point()"</code> stays as <code>ptr_call</code> data_arg, no lift, no warning. (Quiet failure per ADR 0012 §3.2.)</li>
-  <li>Authoritative gate (see Definition of Done) shows FAIL 0 / ERROR 0 / SKIP 0 / PASS rising by ≥ N_new_tests with all existing tests still passing.</li>
+  <li>`<code>desugar_pipes_to_nested(expr)</code>` (internal, in `<code>R/paintr-translate.R</code>`) implements Step 1: recursively rewrites every `<code>%&gt;%</code>` and `<code>.ptr_pipe_native_sentinel</code>` infix call as a nested-call by inserting LHS as the first positional arg of RHS. Recurses into all args of non-pipe calls, preserving arg names. Returns the input unchanged when there are no pipe operators.</li>
+  <li>`<code>resugar_pipeline_stages(expr)</code>` (internal) implements Step 2: descends through every call whose first positional arg is itself a call (always-aggressive per ADR §1); on loop termination, executes the post-loop split when `<code>cur</code>` is a call whose first arg is a non-call. Returns `<code>list(source = node, stages = list(list(call = ..., first_arg_name = ...)))</code>`. Preserves the first-arg name of each call it descends through, so the round-trip rebuild is lossless.</li>
+  <li>`<code>rebuild_nested_from_stages(parts)</code>` (internal) is the inverse of Step 2: given `<code>list(source, stages)</code>`, folds left to reconstruct the fully-nested call, restoring the captured `<code>first_arg_name</code>` on each step.</li>
+  <li>`<code>try_lift_to_pipeline(expr)</code>` (internal) implements three gates: GATE 0 is `<code>length(parts$stages) &gt;= 2</code>` (single-stage rejected with `<code>reason = "single-stage"</code>`); GATE 1 is `<code>identical(rebuild_nested_from_stages(parts), desugar_pipes_to_nested(expr))</code>` (`<code>reason = "round-trip-mismatch"</code>` on failure); GATE 2 is `<code>!is.call(parts$source) &amp;&amp; is.symbol(parts$source)</code>` (call source → `<code>reason = "opaque-call-source"</code>`; non-call non-symbol, i.e. literal → `<code>reason = "non-data-source"</code>`). Returns `<code>list(success = TRUE, parts = parts)</code>` only when all three pass; otherwise `<code>list(success = FALSE, reason = &lt;one of the four reasons above&gt;)</code>`.</li>
+  <li>`<code>ptr_classify_calls(root)</code>` (body filled in this plan; slot reserved by plan 01) iterates the layers of `<code>root</code>`. For each layer it processes `<code>layer$data_arg</code>` only (NOT the layer's `<code>$children</code>` — the `+` fence holds, ADR §3.4). When `<code>layer$data_arg</code>` is a `<code>ptr_call</code>`, it extracts the raw R AST from `<code>data_arg$expr</code>` (the field every `<code>ptr_call</code>` already carries — confirmed at `<code>R/paintr-translate.R:336</code>` and `<code>R/paintr-nodes.R:29</code>`), runs `<code>try_lift_to_pipeline(raw_ast)</code>` ONCE per layer (no recursive walk into nested ptr_calls — post-desugar there are no nested liftable structures to find; one canonical lift per data_arg covers the chain in full), and on success rebuilds `<code>data_arg</code>` as a fresh `<code>ptr_pipeline</code>`: the source (a raw symbol) is fed through `<code>translate_node</code>` to become a typed source node; each stage's raw call is fed through `<code>translate_node</code>` to become a typed stage node; the stage's `<code>first_arg_name</code>` (a chr scalar captured at split time) is then attached as `<code>stage_node$first_arg_name</code>`; the resulting list of typed nodes is passed to `<code>ptr_pipeline(stages = ..., op = "|&gt;", expr = canonical_nested_expr)</code>`. On `<code>try_lift_to_pipeline</code>` failure, `<code>data_arg</code>` is left as `<code>ptr_call</code>` unchanged.</li>
+  <li><strong>Canonical-tree identity invariant.</strong> Define `<code>ptr_tree_structural_equal(a, b)</code>` in `<code>R/paintr-nodes.R</code>` as recursive structural identity that ignores `<code>$op</code>` and `<code>$expr</code>` (both are surface-form metadata, not load-bearing tree shape). For any layer formula whose data-arg chain has at least one placeholder, the three surface forms `|&gt;` (string-input or expression-input — they desugar identically post-step-1), `%&gt;%` (magrittr), and nested-call form produce trees where `<code>ptr_tree_structural_equal(t1$layers[[1]]$data_arg, t2$layers[[1]]$data_arg)</code>` returns TRUE pairwise.</li>
+  <li>Pass-order reorder in `<code>ptr_translate</code>` annotate block: `<code>classify_data → classify_calls → assign_ids → shared_bind</code>`. Verified id-independence of `<code>ptr_classify_data</code>` and `<code>ptr_classify_calls</code>` (the reorder is safe). Side benefit: `<code>assign_stage_ids</code>` (called inside `<code>ptr_assign_ids</code>`) now finds stages to id-stamp for all surface forms, closing the latent gap where nested-call forms had no stage-disable ids.</li>
+  <li>Existing `<code>translate_pipeline</code>`, `<code>collect_pipe_stages</code>`, and `<code>translate_piped_layer</code>` in `<code>R/paintr-translate.R</code>` are deleted; their callers (the layer dispatcher inside `<code>translate_node</code>`, the `<code>%&gt;%</code>`-handler) are rerouted through `<code>try_lift_to_pipeline</code>`.</li>
+  <li>Every lifted `<code>ptr_pipeline</code>` carries `<code>$op = "|&gt;"</code>` (the ADR §5 OQ2 default). Because all four surface forms route through `<code>desugar_pipes_to_nested</code>` in Step 1 — which erases the source surface-pipe info by construction — the lift cannot (and must not try to) preserve which pipe operator the user originally typed. Preservation of original pipe-operator choice is ADR §5 OQ2 deferred work, out of scope here. `<code>$op</code>` is non-structural metadata, excluded from `<code>ptr_tree_structural_equal</code>`.</li>
+  <li>Authoritative gate (see Definition of Done) shows FAIL 0 / WARN 0 / SKIP 0 / PASS rising by ≥ N_new tests with all existing tests still passing.</li>
 </ul>
 
 <h2>Constraints</h2>
 <ul>
-  <li>Files this plan owns: <code>R/paintr-translate.R</code> (implement <code>resugar_pipeline</code>; flesh out the body of <code>ptr_classify_calls</code> reserved by plan 01; may add a small terminal-grounding helper), <code>tests/testthat/test-resugar-pipeline.R</code> (new, unit tests for the pure transform), <code>tests/testthat/test-classify-calls-lift.R</code> (new, end-to-end tree-shape assertions).</li>
-  <li>Files this plan must NOT touch: <code>R/paintr-prune.R</code> (the elide logic is unchanged — explicitly per ADR 0012 §3.3), <code>R/paintr-server.R</code>, <code>R/paintr-app.R</code>, <code>R/paintr-resolve.R</code>, <code>R/paintr-safe.R</code>, any vignette, any fixture under <code>tests/testthat/fixtures/vignette-apps/</code>, <code>NAMESPACE</code>, <code>man/</code>. The bug-3b regression test and the runtime-fast-path deletion belong to plans 03 and 04 respectively.</li>
-  <li>Reuse the existing <code>ptr_pipeline</code> constructor and the existing <code>translate_pipeline</code> / <code>translate_node</code> machinery; do not introduce a parallel pipeline-construction path. The lift's job is to <em>identify</em> a pipeline structure and feed the stages into the same constructor the <code>%&gt;%</code> path uses.</li>
-  <li>Honor the <code>+</code> fence (ADR 0012 §3.4): the lift pass walks <code>data_arg</code> subtrees only; never descends into the layer's <code>children</code> (aes / mapping / aesthetic args), never crosses a layer boundary.</li>
-  <li>No exported functions; no <code>NAMESPACE</code> changes; no <code>@export</code> roxygen tags.</li>
-  <li>snake_case, 2-space indent, <code>rlang::abort()</code> for errors, <code>assertthat::assert_that()</code> for argument validation.</li>
+  <li><strong>SCOPE NARROWING FORBIDDEN.</strong> If the always-aggressive descent in `<code>resugar_pipeline_stages</code>` appears to break a downstream consumer (e.g., a render-side walker, a `<code>pipe_layer_warnings_for_layer</code>` scanner, a `<code>prune_walk.ptr_call</code>` branch), the resolution is NEVER to narrow the descent (add an early-stop heuristic, a verb whitelist, a "stop at non-chain-shape head" check, or any other ad-hoc surface-syntax preservation). The acceptable resolutions are: (a) coordinate with PLAN-04 to update the downstream consumer in the same atomic merge group; (b) if a real ADR-vs-consumer conflict surfaces, STOP and surface the conflict in the audit report — do not paper over it with a narrowing. Any in-source comment of the form "narrowed for backward compat with downstream X", "stop descent at verb Y", or any test that asserts "form Z does NOT lift" (other than the three plan-documented rejection cases — single-stage, round-trip-mismatch, opaque-call/non-data-source — see BDD) is a SCOPE VIOLATION that the auditor MUST FAIL.</li>
+  <li><strong>BDD is contract.</strong> A test that asserts behavior contradicting any `Then` clause in this plan's BDD section is a SCOPE VIOLATION, regardless of inline rationale. The auditor MUST FAIL such a test mechanically. Inline rationales explaining why the contradiction is "actually fine" do not save it.</li>
+  <li>Files this plan owns:
+    <ul>
+      <li>`<code>R/paintr-translate.R</code>` — add `<code>desugar_pipes_to_nested</code>`, `<code>resugar_pipeline_stages</code>`, `<code>rebuild_nested_from_stages</code>`, `<code>try_lift_to_pipeline</code>`; flesh out `<code>ptr_classify_calls</code>`; reorder the annotate-block pass sequence; DELETE `<code>translate_pipeline</code>`, `<code>collect_pipe_stages</code>`, `<code>translate_piped_layer</code>` and reroute their callers.</li>
+      <li>`<code>R/paintr-nodes.R</code>` — add `<code>ptr_tree_structural_equal(a, b)</code>` (internal, no `<code>@export</code>`). Stage nodes inside a `<code>ptr_pipeline$stages</code>` list carry an additional `<code>$first_arg_name</code>` chr field; the field is attached by `<code>ptr_classify_calls</code>` after `<code>translate_node</code>` produces the typed stage node (see the `<code>ptr_classify_calls</code>` SC bullet above). Nodes outside a pipeline-stage context never carry `<code>$first_arg_name</code>`. Existing walkers that iterate `<code>node$args</code>` or `<code>node$children</code>` or `<code>node$stages</code>` are unaffected — none of them inspect `<code>names(node)</code>` for unknown fields. No constructor change to `<code>ptr_pipeline</code>` / `<code>ptr_call</code>` / etc.; the field is set imperatively on the stage node after construction.</li>
+      <li>`<code>R/paintr-eval.R</code>` — `<code>desugar_pipe_to_call(lhs, rhs, first_arg_name = "")</code>` gains an optional `<code>first_arg_name</code>` parameter; when non-empty, the inserted lhs arg is named (e.g., `<code>first_arg_name = "data"</code>` yields `<code>rhs(data = lhs, ...)</code>`). `<code>pipeline_to_eval_expr</code>` is updated to pass `<code>stage$first_arg_name</code>` through each call, so lossless round-trip of named-arg shape holds at eval time. The new parameter defaults to `<code>""</code>` so any existing direct callers of `<code>desugar_pipe_to_call</code>` remain backward-compatible.</li>
+      <li>`<code>tests/testthat/test-resugar-pipeline.R</code>` (new) — unit tests for the pure transforms (Steps 1–4).</li>
+      <li>`<code>tests/testthat/test-classify-calls-lift.R</code>` (new) — end-to-end tree-shape assertions including the canonical-tree identity invariant across all three surface forms.</li>
+      <li>`<code>tests/testthat/test-ptr-tree-structural-equal.R</code>` (new) — unit tests for the structural-equality helper.</li>
+    </ul>
+  </li>
+  <li>Files this plan must NOT touch: `<code>R/paintr-prune.R</code>`, `<code>R/paintr-server.R</code>` (the runtime fast-path deletion is PLAN-04's job), `<code>R/paintr-render.R</code>` (the preserve-mode prefix-collapse render rule is PLAN-04's job), `<code>R/paintr-app.R</code>`, `<code>R/paintr-resolve.R</code>`, `<code>R/paintr-safe.R</code>`, `<code>R/paintr-safety.R</code>`, `<code>R/paintr-build-ui.R</code>` (stage-checkbox UI already correctly gates on placeholder presence — verified at `<code>R/paintr-build-ui.R:191-246</code>`, no change needed), any vignette, any fixture under `<code>tests/testthat/fixtures/vignette-apps/</code>`, `<code>NAMESPACE</code>`, `<code>man/</code>`.</li>
+  <li><strong>Always-aggressive descent is the rule.</strong> `<code>resugar_pipeline_stages</code>` descends through EVERY call whose first positional arg is a call, with no early-stop heuristic. Cases where this descent produces "weird-looking" stages (e.g., `<code>my_data_dict[["x"]]</code>` source decomposes into `<code>[my_data_dict, "[[" ("x"), ...]</code>`) are STRUCTURALLY CORRECT and STRUCTURALLY REVERSIBLE (round-trip passes). The user-facing UX impact is invisible at the widget layer (placeholder-free stages emit no UI per `<code>R/paintr-build-ui.R:191-246</code>`) and is invisible at the preserve-mode render layer once PLAN-04's prefix-collapse render rule lands (placeholder-free prefix is rendered as a single nested-call source). Any narrowing that "fixes" the weird stages by stopping descent earlier is a SCOPE VIOLATION.</li>
+  <li>Honor the `+` fence (ADR §3.4): `<code>ptr_classify_calls</code>` walks `<code>data_arg</code>` subtrees only. Never descends into `<code>$children</code>` (aes / aesthetic args); never crosses a layer boundary. A nested call inside an aes() arg is NOT a candidate for lifting.</li>
+  <li>No exported functions; no `<code>NAMESPACE</code>` changes; no `<code>@export</code>` roxygen tags.</li>
+  <li>snake_case, 2-space indent, `<code>rlang::abort()</code>` for errors, `<code>assertthat::assert_that()</code>` for argument validation.</li>
 </ul>
 
 <h2>BDD scenarios</h2>
+<p>Each `Then` is the contract. Tests asserting a contradicting predicate are a SCOPE VIOLATION (auditor must FAIL).</p>
 <pre>
-Feature: Lift nested-call data args into a canonical ptr_pipeline when the chain grounds to a known data source
+Feature: Canonical pipeline lift collapses |&gt;, %&gt;%, and nested-call surface forms to one structurally-identical tree.
 
-Scenario: |&gt; input now produces the same tree shape as %&gt;% input
-  Given two formulas that differ only in pipe syntax:
-        f_native  = "ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; mutate(new_var = ppVar + 1) |&gt; ggplot(aes(ppVar, ppVar)) + geom_point()"
-        f_magrittr = "ppUpload %&gt;% filter(ppVar &gt; ppNum) %&gt;% mutate(new_var = ppVar + 1) %&gt;% ggplot(aes(ppVar, ppVar)) + geom_point()"
+Scenario: Pure desugar — %&gt;% becomes nested
+  Given the R expression `quote(penguins %>% filter(x > 1) %>% mutate(y = z))`
+  When  I call ggpaintr:::desugar_pipes_to_nested(expr)
+  Then  identical(result, quote(mutate(filter(penguins, x > 1), y = z))) is TRUE
+
+Scenario: Pure desugar — native-pipe sentinel becomes nested
+  Given the R expression `quote(penguins %ptrPipeNative% filter(x > 1) %ptrPipeNative% mutate(y = z))`
+        (the sentinel preprocess_native_pipe substitutes in for `|&gt;` in string input)
+  When  I call ggpaintr:::desugar_pipes_to_nested(expr)
+  Then  identical(result, quote(mutate(filter(penguins, x > 1), y = z))) is TRUE
+
+Scenario: Pure desugar — mixed surface form
+  Given the R expression `quote(mutate(filter(penguins, x > 1), y = z) %>% summarise(n = n()))`
+  When  I call ggpaintr:::desugar_pipes_to_nested(expr)
+  Then  identical(result, quote(summarise(mutate(filter(penguins, x > 1), y = z), n = n()))) is TRUE
+
+Scenario: Pure desugar — no pipes is a no-op
+  Given the R expression `quote(mutate(filter(penguins, x > 1), y = z))`
+  When  I call ggpaintr:::desugar_pipes_to_nested(expr)
+  Then  identical(result, quote(mutate(filter(penguins, x > 1), y = z))) is TRUE
+
+Scenario: Split + rebuild round-trips on a chain with named first arg
+  Given the R expression `quote(ggplot(data = penguins, mapping = aes(x = bill_length)))`
+  When  I call parts &lt;- ggpaintr:::resugar_pipeline_stages(expr); rebuilt &lt;- ggpaintr:::rebuild_nested_from_stages(parts)
+  Then  identical(rebuilt, expr) is TRUE
+  And   parts$stages[[1]]$first_arg_name equals "data"
+
+Scenario: Split + rebuild round-trips on a 3-level chain
+  Given the R expression `quote(summarise(mutate(filter(penguins, x > 1), y = z), n = n()))`
+  When  I call parts &lt;- ggpaintr:::resugar_pipeline_stages(expr); rebuilt &lt;- ggpaintr:::rebuild_nested_from_stages(parts)
+  Then  identical(rebuilt, expr) is TRUE
+  And   identical(parts$source, quote(penguins)) is TRUE
+  And   length(parts$stages) equals 3
+
+Scenario: try_lift fires for plain bare-symbol source (any surface form, all give the same canonical tree)
+  Given the three R expressions:
+        e_native   = quote(penguins %ptrPipeNative% filter(ppVar > 1) %ptrPipeNative% mutate(y = ppNum))
+        e_magrittr = quote(penguins %>% filter(ppVar > 1) %>% mutate(y = ppNum))
+        e_nested   = quote(mutate(filter(penguins, ppVar > 1), y = ppNum))
+        (each contains placeholder ppVar / ppNum)
+  When  I call try_lift_to_pipeline(e_native), try_lift_to_pipeline(e_magrittr), try_lift_to_pipeline(e_nested)
+  Then  every result has $success equal to TRUE
+  And   identical(result_native$parts$source, result_magrittr$parts$source) is TRUE
+  And   identical(result_magrittr$parts$source, result_nested$parts$source) is TRUE
+  And   length(result_native$parts$stages) equals length(result_magrittr$parts$stages)
+  And   length(result_magrittr$parts$stages) equals length(result_nested$parts$stages)
+
+Scenario: try_lift refuses single-stage list (no chain to lift)
+  Given the R expression `quote(penguins)` (a bare symbol — no chain)
+  When  I call try_lift_to_pipeline(expr)
+  Then  result$success is FALSE
+  And   result$reason equals "single-stage"
+
+Scenario: try_lift refuses an opaque-call source (must have chain depth >= 2 to reach the grounding gate)
+  Given the R expression `quote(mutate(filter(make_data(), ppVar > 1), y = z))`
+        — after Step 1 desugar this is unchanged; after Step 2 split, parts$source = make_data() (a 0-arg CALL)
+        and parts$stages has length 2, so the single-stage GATE 0 does not fire and execution reaches the grounding gate
+  When  I call try_lift_to_pipeline(expr)
+  Then  result$success is FALSE
+  And   result$reason equals "opaque-call-source"
+
+Scenario: try_lift refuses a single-call data arg as single-stage (regression check on the gate ordering)
+  Given the R expression `quote(filter(make_data(), ppVar > 1))` whose split gives stages of length 1
+  When  I call try_lift_to_pipeline(expr)
+  Then  result$success is FALSE
+  And   result$reason equals "single-stage"   # NOT "opaque-call-source" — single-stage gate fires first
+
+Scenario: try_lift refuses a literal-value source
+  Given the R expression `quote(mutate(filter(c(1, 2, 3), x > 1), y = z))` whose deepest non-call after step-2 split is the literal `1`
+  When  I call try_lift_to_pipeline(expr)
+  Then  result$success is FALSE
+  And   result$reason equals "non-data-source"
+
+Scenario: ptr_classify_calls — canonical-tree identity across |&gt; and %&gt;%
+  Given two string-input formulas that differ only in pipe syntax:
+        f_native   = "ppUpload |&gt; filter(ppVar > ppNum) |&gt; mutate(new_var = ppVar + 1) |&gt; ggplot(aes(ppVar, ppVar)) + geom_point()"
+        f_magrittr = "ppUpload %&gt;% filter(ppVar > ppNum) %&gt;% mutate(new_var = ppVar + 1) %&gt;% ggplot(aes(ppVar, ppVar)) + geom_point()"
   When  I run ptr_translate(f_native) and ptr_translate(f_magrittr)
-  Then  both trees have layer[1]$data_arg of class "ptr_pipeline"
-  And   both pipelines have the same number of $stages
-  And   the stage names (filter / mutate) in order match across the two trees
+  Then  ptr_tree_structural_equal(tree_native$layers[[1]]$data_arg, tree_magrittr$layers[[1]]$data_arg) is TRUE
+  And   both data_arg nodes are of class "ptr_pipeline"
+  And   length(data_arg$stages) is identical across the two trees
+  And   tree_native$layers[[1]]$data_arg$op equals exactly "|&gt;"
+  And   tree_magrittr$layers[[1]]$data_arg$op equals exactly "|&gt;"   # per ADR §5 OQ2 default
 
-Scenario: Pure-function lift on a plain R expression
-  Given the R expression `quote(mutate(filter(penguins, x &gt; 1), y = z + 1))`
-  When  I call ggpaintr:::resugar_pipeline(expr)
-  Then  the returned list has length 3
-  And   the first element is the symbol `penguins` (the source)
-  And   the second element is the call `filter(x &gt; 1)` (filter stage, source removed)
-  And   the third element is the call `mutate(y = z + 1)` (mutate stage, source removed)
+Scenario: ptr_classify_calls — canonical-tree identity across |&gt; and nested-call
+  Given two string-input formulas:
+        f_native = "ppUpload |&gt; filter(ppVar > ppNum) |&gt; mutate(new_var = ppVar + 1) |&gt; ggplot(aes(ppVar, ppVar)) + geom_point()"
+        f_nested = "ggplot(mutate(filter(ppUpload, ppVar > ppNum), new_var = ppVar + 1), aes(ppVar, ppVar)) + geom_point()"
+  When  I run ptr_translate(f_native) and ptr_translate(f_nested)
+  Then  ptr_tree_structural_equal(tree_native$layers[[1]]$data_arg, tree_nested$layers[[1]]$data_arg) is TRUE
+  And   both data_arg nodes are of class "ptr_pipeline"
+  And   both data_arg$op values equal exactly "|&gt;"
 
-Scenario: No lift when there is no nested-call chain
-  Given the formula "ggplot(penguins, aes(bill_length_mm)) + geom_point()"
+Scenario: Bare-data-name terminal grounds the lift in nested-call form
+  Given the formula "ggplot(filter(penguins, bill_length_mm > 40), aes(bill_length_mm)) + geom_point()"
   When  I run ptr_translate(formula)
-  Then  layer[1]$data_arg is of class "ptr_literal" (or whatever ptr_classify_data tagged the bare `penguins` as)
-  And   no ptr_pipeline node was constructed
+  Then  inherits(tree$layers[[1]]$data_arg, "ptr_pipeline") is TRUE
+  And   length(tree$layers[[1]]$data_arg$stages) >= 2
+  And   identical(tree$layers[[1]]$data_arg$stages[[1]]$expr, quote(penguins)) is TRUE  # source is bare penguins symbol
 
-Scenario: Bare data-name symbol grounds the lift
-  Given the formula "penguins |&gt; filter(bill_length_mm &gt; 40) |&gt; ggplot(aes(bill_length_mm)) + geom_point()"
-        (`penguins` is a bare symbol — not a placeholder, not a call)
+Scenario: Opaque-call terminal does NOT lift (native-pipe form, chain depth >= 2)
+  Given the formula "make_data() |&gt; filter(ppVar > 1) |&gt; mutate(y = z) |&gt; ggplot(aes(x)) + geom_point()"
+        (layer[1] data_arg after R's parse-time desugar = mutate(filter(make_data(), ppVar > 1), y = z); the chain has depth 2 INSIDE the data arg, so the lift's split produces stages of length >= 2, single-stage gate does NOT fire, and grounding gate rejects on opaque-call source)
   When  I run ptr_translate(formula)
-  Then  layer[1]$data_arg is of class "ptr_pipeline"
-  And   the pipeline's first stage corresponds to the `penguins` symbol
+  Then  inherits(tree$layers[[1]]$data_arg, "ptr_pipeline") is FALSE
+  And   inherits(tree$layers[[1]]$data_arg, "ptr_call") is TRUE
+  And   expect_silent / expect_no_warning / expect_no_error all pass (quiet failure per ADR §3.2)
 
-Scenario: Quiet failure when terminal is an opaque CALL
-  Given the formula "make_data() |&gt; filter(x &gt; 1) |&gt; ggplot(aes(x)) + geom_point()"
-        (the deepest first-arg `make_data()` is itself a call)
+Scenario: Opaque-call terminal does NOT lift (nested-call form, chain depth >= 2)
+  Given the formula "ggplot(mutate(filter(read_csv(\"foo.csv\"), ppVar > 1), y = z), aes(x)) + geom_point()"
+        (layer[1] data_arg = mutate(filter(read_csv("foo.csv"), ppVar > 1), y = z); same depth-2 reasoning as above)
   When  I run ptr_translate(formula)
-  Then  layer[1]$data_arg is of class "ptr_call" (not ptr_pipeline)
-  And   no warning, no error, no cli message is emitted
+  Then  inherits(tree$layers[[1]]$data_arg, "ptr_pipeline") is FALSE
+  And   inherits(tree$layers[[1]]$data_arg, "ptr_call") is TRUE
 
-Scenario: Quiet failure when terminal is read_csv("foo.csv")
-  Given the formula "read_csv(\"foo.csv\") |&gt; filter(x &gt; 1) |&gt; ggplot(aes(x)) + geom_point()"
+Scenario: + fence holds — lift never walks into $children
+  Given the formula "ggplot(penguins, aes(x = filter(z, y > 1))) + geom_point()" (a nested call inside aes(), NOT the data arg)
   When  I run ptr_translate(formula)
-  Then  layer[1]$data_arg is of class "ptr_call" (no lift — opaque call terminal)
+  Then  the aes() node inside layer$children is structurally identical() to its plan-01-baseline form
+  And   no ptr_pipeline node was constructed anywhere inside layer$children
 
-Scenario: + fence holds
-  Given the formula "ggplot(aes(x = filter(penguins, y &gt; 1))) + geom_point()" (a nested call inside aes(), not the data arg)
-  When  I run ptr_translate(formula)
-  Then  the aes() child is unchanged — no lift was applied inside the layer's children subtree
+Scenario: ptr_assign_ids runs on the post-lift tree (id-stability across surface forms is the payoff)
+  Given three formulas semantically identical but differing in surface form:
+        f_native   = "penguins |&gt; filter(ppVar > 1) |&gt; ggplot(aes(ppVar)) + geom_point()"
+        f_magrittr = "penguins %&gt;% filter(ppVar > 1) %&gt;% ggplot(aes(ppVar)) + geom_point()"
+        f_nested   = "ggplot(filter(penguins, ppVar > 1), aes(ppVar)) + geom_point()"
+  When  I run ptr_translate on each
+  Then  every placeholder node in each tree's $layers[[1]]$data_arg$stages has a non-NULL $id
+  And   every stage call in each tree's $layers[[1]]$data_arg$stages whose subtree contains a placeholder has a non-NULL $stage_id
+  And   collect_all_placeholder_ids(tree_native) equals collect_all_placeholder_ids(tree_magrittr)
+  And   collect_all_placeholder_ids(tree_magrittr) equals collect_all_placeholder_ids(tree_nested)
+        (this id-set equality is the user-facing payoff of the pass-reorder; PLAN-06's spec= round-trip depends on it)
+
+Scenario: Old pipeline-translation symbols are deleted (the %&gt;%-only path is retired)
+  Given the loaded ggpaintr package
+  When  I evaluate exists("translate_pipeline", envir = asNamespace("ggpaintr"), inherits = FALSE)
+  Then  the result is FALSE
+  When  I evaluate exists("collect_pipe_stages", envir = asNamespace("ggpaintr"), inherits = FALSE)
+  Then  the result is FALSE
+  When  I evaluate exists("translate_piped_layer", envir = asNamespace("ggpaintr"), inherits = FALSE)
+  Then  the result is FALSE
+
+Scenario: ptr_tree_structural_equal ignores $op and $expr
+  Given two ptr_pipeline nodes constructed by hand to have identical $stages but different $op values ("|&gt;" vs "%&gt;%")
+  When  I call ptr_tree_structural_equal(a, b)
+  Then  the result is TRUE
+  When  I construct a third with the same $op but a substituted $stages[[1]]
+  Then  ptr_tree_structural_equal(a, third) is FALSE
+  When  I construct a fourth with identical $stages but a different $expr field on the pipeline node itself
+  Then  ptr_tree_structural_equal(a, fourth) is TRUE   # $expr is non-structural, ignored
+
+Scenario: pipeline_to_eval_expr round-trips named-first-arg shape via first_arg_name
+  Given a lifted ptr_pipeline whose stage[[1]]$first_arg_name equals "data" (e.g. lifted from `ggplot(data = penguins, mapping = aes(x = bill_length))`)
+  When  I call ggpaintr:::pipeline_to_eval_expr(pipeline)
+  Then  the result is identical() to quote(ggplot(data = penguins, mapping = aes(x = bill_length)))
+        — the "data" name on the first arg is restored at eval time, not lost
 </pre>
 
 <h2>Definition of Done</h2>
-<p>Authoritative gate (copied verbatim from <code>CLAUDE.md</code>'s "Authoritative gate (Definition of Done)" block):</p>
+<p>Authoritative gate (copied verbatim from `<code>CLAUDE.md</code>`'s "Authoritative gate (Definition of Done)" block):</p>
 <pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
-<p>Expected: <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline_after_plan_01 + N_new)</code>.</p>
+<p>Expected: `<code>FAIL 0 / WARN 0 / SKIP 0 / PASS (post-revert-baseline 1987 + N_new)</code>` where N_new is approximately 18–24 across the three new test files. All previously-passing tests still pass.</p>
 <p><strong>Proxy traps — do not be fooled (copied verbatim from CLAUDE.md):</strong></p>
 <ul>
-  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
-  <li><code>devtools::check(... --as-cran)</code> does <strong>NOT</strong> make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead <strong>cleanly SKIP</strong> via <code>boot_vignette_app()</code>'s source-root guard. If a check run shows the e2e file <strong>ERRORing</strong>, that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
-  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> <strong>runs</strong> the browser tests (source tree present → 0 SKIP). That alone is the gate.</li>
+  <li>A raw `<code>Rscript -e 'testthat::test_dir()/test_file()'</code>` with <strong>no `<code>NOT_CRAN</code>`</strong> → `<code>skip_on_cran()</code>` fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li>`<code>devtools::check(... --as-cran)</code>` does <strong>NOT</strong> make `<code>skip_on_cran()</code>` fire (devtools runs the check subprocess with `<code>NOT_CRAN=true</code>`). The browser fixtures instead <strong>cleanly SKIP</strong> via `<code>boot_vignette_app()</code>`'s source-root guard. If a check run shows the e2e file <strong>ERRORing</strong>, that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
+  <li>Only `<code>NOT_CRAN=true</code>` / `<code>devtools::test()</code>` <strong>runs</strong> the browser tests (source tree present → 0 SKIP). That alone is the gate.</li>
 </ul>
-<p>This plan adds approximately 8–12 new tests across <code>test-resugar-pipeline.R</code> (pure-function tests) and <code>test-classify-calls-lift.R</code> (translate-level shape assertions). The gate must show PASS rise by ≥ that count, FAIL/ERROR still 0, SKIP unchanged.</p>
 
 <h2>Scope guard / ownership</h2>
-<p>This plan owns: <code>R/paintr-translate.R</code> (new internal helpers + body fill-in for <code>ptr_classify_calls</code>), <code>tests/testthat/test-resugar-pipeline.R</code> (new file), <code>tests/testthat/test-classify-calls-lift.R</code> (new file). Generated files (<code>NAMESPACE</code>, <code>man/</code>) are owned by an integration step, not this plan — surface drift in audit, do not regenerate.</p>
-<p>Branch convention: <code>0012-resugar-pipeline-lift</code>, worktree at <code>.claude/worktrees/0012-role-based-tree-and-ptr-spec/resugar-pipeline-lift/</code>. Merge into orchestrator branch via <code>--no-ff</code>.</p>
+<p>This plan owns the file set listed in Constraints §"Files this plan owns". Generated files (`<code>NAMESPACE</code>`, `<code>man/</code>`) are owned by an integration step, not this plan — surface drift in audit, do not regenerate.</p>
+<p>Branch convention: `<code>0012-resugar-pipeline-lift</code>`, worktree at `<code>.claude/worktrees/0012-role-based-tree-and-ptr-spec/resugar-pipeline-lift/</code>`. Merge into orchestrator branch via `<code>--no-ff</code>`. <strong>Plan 02 and plan 04 are an atomic pair</strong> (see index.md): the orchestrator must merge plan 04 in the same group action, after plan 02, before any other plan, so that downstream consumers and the canonical-shape lift land together. Neither plan 02 nor plan 04 may merge alone.</p>
 
 <h2>Independence clause</h2>
-<p>The implementer's "done" report is a claim, not proof. The auditor (and post-merge auditor) re-runs the Definition-of-Done command and verifies expected output before any merge.</p>
+<p>The implementer's "done" report is a claim, not proof. The auditor (and post-merge auditor) re-runs the Definition-of-Done command and verifies expected output before any merge. The auditor additionally enforces the BDD-as-contract rule (Constraints §"BDD is contract") and the SCOPE NARROWING FORBIDDEN rule (Constraints §"SCOPE NARROWING FORBIDDEN") mechanically: any test contradicting a `Then` clause, any in-source narrowing of `<code>resugar_pipeline_stages</code>`'s descent rule, and any in-source comment justifying a narrowing for downstream-compat are automatic FAILs.</p>
 
 <h2>Baseline / drift reference</h2>
-<p>Known-good baseline: orchestrator branch HEAD after plan 01 has merged. Record SHA + pre-plan PASS count in this plan's worktree first commit message. The plan-01-baseline PASS count is the floor; any regression (a previously-passing test now failing) is a stop-the-line event for this plan.</p>
+<p>Known-good baseline: orchestrator branch HEAD after plan 01 + the plan-02-revert (commit `<code>f2954e5</code>` on `<code>vignette-review</code>`), PASS count `<code>1987</code>` as measured 2026-05-21. Record SHA + PASS count in this plan's worktree first commit message. Any regression (a previously-passing test now failing) is a stop-the-line event for this plan.</p>
 
 <h2>Out-of-scope handling</h2>
-<p>Findings outside this plan's owned files are surfaced in the audit report, never absorbed. Notable surfaces to surface (not act on): if any vignette under <code>vignettes/</code> renders code that visibly depends on the old <code>data_arg = ptr_call</code> shape (e.g., asserts on the absence of <code>ptr_pipeline</code> from a <code>|&gt;</code> formula), record as a follow-up — do not edit the vignette in this plan.</p>
+<p>Findings outside this plan's owned files are surfaced in the audit report, never absorbed. The realistic risks worth flagging:</p>
+<ul>
+  <li>A test that snapshots the <em>internal tree shape</em> of a `<code>%&gt;%</code>`-source data_arg (e.g. inspects `<code>length(data_arg$stages)</code>` directly on a `<code>%&gt;%</code>` formula) may see a different stage count post-lift if the formula's source is itself a call (e.g. `<code>make_data(args) %&gt;% filter(ppVar &gt; 1)</code>`, where today's `<code>%&gt;%</code> path produces 2 stages and the new always-aggressive lift produces 3). Record as a follow-up; do NOT narrow the lift to preserve the old count.</li>
+  <li>A test that asserts on the `<code>$op</code>` value of a `<code>%&gt;%</code>`-source pipeline (e.g. `<code>expect_equal(data_arg$op, "%&gt;%")</code>`) will fail because all lifted pipelines now carry `<code>$op = "|&gt;"</code>`. Record as a follow-up; update the assertion, do NOT preserve `<code>$op = "%&gt;%"</code>`.</li>
+  <li>Preserve-mode render output text is NOT a risk here: PLAN-04 ships the prefix-collapse render rule which renders placeholder-free prefix stages as a nested-call source, so user-facing preserve-mode text remains stable across the surface form change (verified by the dry-run discussion in this plan's grill session).</li>
+</ul>
 
 <h2>Dependencies / ordering</h2>
-<p>Depends on: plan 01 (which reserves the <code>ptr_classify_calls</code> slot and call site). Without plan 01, the body added here has no call site.</p>
-<p>Provides for: plan 03 (bug-3b regression test asserts the empty <code>filter()</code> elides under <code>|&gt;</code> — only possible because this plan's lift makes the structure a pipeline); plan 04 (deletion of the per-layer fast-path is only safe once consumers inside lifted-pipeline stages have correct structural <code>c$upstream</code>, which this plan provides).</p>
-
-<!-- implementable: PASS date=2026-05-21 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=265e511439a6 -->
+<p>Depends on: plan 01 (which reserves the `<code>ptr_classify_calls</code>` slot and call site at the original pre-reorder position; this plan moves the slot to the new position as part of its pass-reorder work).</p>
+<p>Paired-atomic with: plan 04 (the downstream-consumer-uniformity + render-prefix-collapse + runtime-fast-path-deletion plan). Plans 02 and 04 land in the same parallel group G2 and merge as a pair — plan 02 first, plan 04 second, no other plan between them. The atomic landing avoids the half-state where canonical-shape exists but downstream rejects it (which is the half-state that triggered the cd9b74a narrowing).</p>
+<p>Provides for: plan 03 (bug-3b regression test asserts the empty `<code>filter()</code>` elides across all three surface forms — only possible because this plan's lift makes the structure a pipeline uniformly).</p>
+<!-- implementable: PASS date=2026-05-22 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=e136843825c7 -->
 </body>
 </html>

@@ -25,13 +25,13 @@ plan:
   number: 03
   slug: bug-3b-regression-net
   source_adr: dev/adr/0012-role-based-tree-and-ptr-spec.html
-  depends_on: [02]
+  depends_on: [02, 04]
   parallel_group: G3
   status: draft
 -->
 
 <h1>PLAN-03 — Bug-3b regression net (empty filter elides under <code>|&gt;</code>)</h1>
-<p class="meta">Source: ADR 0012 (§1.3 row "ADR-0011 Bug 3b", §4 S3) · Depends on: 02 · Parallel group: G3 · Status: draft</p>
+<p class="meta">Source: ADR 0012 (§1.3 row "ADR-0011 Bug 3b", §4 S3) · Depends on: 02, 04 (the atomic G2 pair — see index.md) · Parallel group: G3 · Status: draft</p>
 
 <h2>Context</h2>
 <p>ADR 0012 §1.3 records: <em>"empty <code>filter()</code> survives prune under <code>|&gt;</code> input … <code>prune_walk.ptr_pipeline</code> elides stages whose args all prune to missing. With no <code>ptr_pipeline</code> node, that elision never runs."</em> Plan 02 lifts nested-call data args into a canonical <code>ptr_pipeline</code>, which restores the elision path. This plan adds the regression net that asserts the bug stays fixed.</p>
@@ -111,15 +111,15 @@ Scenario: Across-verb elision sweep
 <p>The implementer's "done" report is a claim, not proof. The auditor re-runs the Definition-of-Done command and verifies the new tests pass and no existing test regresses.</p>
 
 <h2>Baseline / drift reference</h2>
-<p>Known-good baseline: orchestrator branch HEAD after plan 02 has merged. Record SHA + PASS count in worktree first commit message.</p>
+<p>Known-good baseline: orchestrator branch HEAD after the atomic G2 pair (plan 02 + plan 04) has fully merged. Record SHA + PASS count in worktree first commit message.</p>
 
 <h2>Out-of-scope handling</h2>
 <p>Findings outside <code>tests/testthat/test-prune-bare-pipe-stage.R</code> are surfaced, never absorbed. If the test reveals that plan 02's lift missed an elision case, file a follow-up plan to extend plan 02's coverage; do not edit production source here.</p>
 
 <h2>Dependencies / ordering</h2>
-<p>Depends on: plan 02 (the lift to <code>ptr_pipeline</code> is what makes the empty-filter elision work for non-<code>%&gt;%</code> surface forms). Running this plan against plan-01's tree would fail the first scenario.</p>
-<p>Provides for: nothing — this is a pure regression net. Parallel-eligible with plan 04 (different files).</p>
+<p>Depends on: the atomic G2 pair (plan 02 + plan 04). Plan 02's lift to <code>ptr_pipeline</code> is what makes the empty-filter elision work for non-<code>%&gt;%</code> surface forms; plan 04's consumer-uniformity test net guarantees <code>prune_walk.ptr_pipeline</code> handles the lifted shape uniformly across all three surface forms. Running this plan against plan-01's tree would fail the first scenario.</p>
+<p>Provides for: nothing — this is a pure regression net. Sequenced after the atomic G2 pair; see index.md for the merge order. Plan 03 lives in G3 alone now (was previously grouped with plan 04 in G3 before the atomic-pair regroup).</p>
 
-<!-- implementable: PASS date=2026-05-21 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=a349858a50a2 -->
+<!-- implementable: PASS date=2026-05-22 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=f25e7f6d9b99 -->
 </body>
 </html>
