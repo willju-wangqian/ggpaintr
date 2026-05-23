@@ -43,7 +43,7 @@ formula_str <- paste0(
   "geom_point()"
 )
 
-test_that("ptr_app_components surfaces the seeded companion textInput in its UI (PLAN-01 end-to-end)", {
+test_that("ppUpload(penguins) captures the bareword as default and ptr_app_components emits a uiOutput companion slot", {
   penguins <- make_penguins()
 
   parts <- ggpaintr:::ptr_app_components(formula_str)
@@ -58,12 +58,18 @@ test_that("ptr_app_components surfaces the seeded companion textInput in its UI 
                paste0(upload$id, "_name"),
                label = "companion_id matches ptr_upload_name_id convention")
 
-  # The rendered UI must contain a textInput at the companion id with
-  # value="penguins" (the user-written symbol from the formula, seeded by
-  # PLAN-01's default_arg = ptr_default_symbol_or_string() path).
-  expect_true(grepl(upload$companion_id, ui_html, fixed = TRUE),
-              label = "UI contains the companion input id")
-  expect_match(ui_html, "value=\"penguins\"", fixed = TRUE)
+  # PLAN-01 tree-side contract: `ppUpload(penguins)` captures the bareword
+  # `penguins` as the placeholder's `default`. The companion textInput is
+  # subsequently seeded at server boot via state$spec_seed (the 0012b
+  # uiOutput+renderUI path) -- see test-adr10-ppupload-name-browser.R:50
+  # for the end-to-end UI-seeding assertion under a live session. The
+  # initial server-rendered HTML carries the uiOutput placeholder, not the
+  # final textInput, so we assert the upstream contract here.
+  expect_identical(upload$default, "penguins",
+                   label = "ppUpload(penguins) captures bareword as default_arg")
+  # Initial UI emits the uiOutput container that renderUI will populate at
+  # session boot. The container id is the source node's `<id>_ui`.
+  expect_match(ui_html, paste0(upload$id, "_ui"), fixed = TRUE)
 })
 
 test_that("ptr_substitute emits the bare symbol when companion snapshot is seeded (PLAN-02 contract)", {

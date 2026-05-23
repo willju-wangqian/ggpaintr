@@ -74,13 +74,16 @@ test_that("render_placeholder_preserved emits ppUpload(penguins) bareword", {
   expect_equal(out, "ppUpload(penguins)")
 })
 
-# ---- scenario 6: render_placeholder_preserved emits ppUpload() when no pick
+# ---- scenario 6: render_placeholder_preserved emits bare ppUpload when no pick
+# (ADR 0012 follow-up: vignette-review commit 8235d8a drops empty parens for
+# placeholders with no current_pick and no shared key — preserve-mode emits
+# the bare symbol so callers / round-trip render see a stable identifier.)
 
-test_that("render_placeholder_preserved emits ppUpload() when current_pick is NULL", {
+test_that("render_placeholder_preserved emits bare ppUpload when current_pick is NULL", {
   n <- ppupload_node()
   # current_pick is unset (NULL) by default on a freshly constructed node.
   out <- ggpaintr:::render_placeholder_preserved(n)
-  expect_equal(out, "ppUpload()")
+  expect_equal(out, "ppUpload")
 })
 
 # ---- scenario 7: end-to-end round-trip through translate + render ---------
