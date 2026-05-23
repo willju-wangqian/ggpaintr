@@ -1757,7 +1757,8 @@ ptr_register_code <- function(output, state) {
       # source of truth as final-mode substitute -> the two modes always
       # agree on which picks were "set". Until the user clicks Update,
       # the runtime hasn't fired and `snapshot` is NULL -> every
-      # placeholder renders as `ppX()`, matching the empty plot panel.
+      # placeholder renders as bare `ppX` (or `ppX(shared = "k")` when a
+      # shared key is set), matching the empty plot panel.
       res <- state$runtime()
       snapshot <- if (is.null(res)) list() else res$snapshot %||% list()
       formula_text <- ptr_render(

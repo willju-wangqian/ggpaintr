@@ -131,7 +131,7 @@ When CSS alone is not enough — you want a different page shell, a theme system
 
 - `ptr_ui_controls(formula, id = NULL, ...)` — the layer picker, per-layer parameter panels, and the "Update plot" button. It is **bare** (emits only its widgets, no wrapper, no assets), so the wrapper itself supplies the themed scope — a `shiny::tags$div(class = "ptr-app", ...)` — and the bundled stylesheet via `ptr_ui_assets()` (self-deduping page-wide through htmlDependency).
 - the output stack — `ptr_ui_toggle_code(ptr_ui_inline_error(ptr_ui_plot(id), ptr_ui_error(id)), ptr_ui_code(id))`: the plot card, inline error, and the slide-out generated-code window, composed from the bare panes by the two DOM-only combinators. This nested call is byte-for-byte what `ptr_app()` / `ptr_ui()` render internally.
-- `ptr_server(formula, id = NULL, ...)` — the server side. Forwards `ui_text` / `checkbox_defaults` / `expr_check` / `safe_to_remove` / `envir` to [ptr_init_state()] and wires all the reactivity, including shared widgets declared with `var(shared = "...")` inside the same formula.
+- `ptr_server(formula, id = NULL, ...)` — the server side. Forwards `ui_text` / `checkbox_defaults` / `expr_check` / `safe_to_remove` / `envir` to [ptr_init_state()] and wires all the reactivity, including shared widgets declared with `ppVar(shared = "...")` inside the same formula.
 
 The package ships one worked example as an exported function, `ptr_app_bslib()`. It is not a recommended primary entry point — `ptr_app()` and `ptr_app_grid()` are. Its purpose is to *demonstrate* the wrapper pattern. The entire source is short enough to read in one screen:
 
@@ -295,7 +295,7 @@ The framework splices your return value into the call at the placeholder's posit
 |-----------------------------------------|-----------------------------------------------------|---------------------------------------------|
 | Scalar atomic (numeric/character/…)     | A literal (`0.4`, `"red"`, `TRUE`)                  | `value`, or `as.numeric(value)`, …          |
 | `name` / `symbol`                       | A bare identifier (`cyl`)                           | `rlang::sym(value)`                         |
-| `call` / `language`                     | A call (`factor(cyl)`, `c(0, 100)`)                 | `rlang::ppExpr()`, `rlang::call2()`, `!!`     |
+| `call` / `language`                     | A call (`factor(cyl)`, `c(0, 100)`)                 | `rlang::expr()`, `rlang::call2()`, `!!`     |
 | `NULL`                                  | **Prunes** this argument from the call entirely     | `return(NULL)`                              |
 
 The `NULL`-prunes-the-argument rule is central. It is how the built-in `ppVar` placeholder makes `geom_point(color = ppVar)` render as `geom_point()` until the user actually picks a column — *not* as `geom_point(color = NULL)`. Use it generously: any time the input is empty, blank, or otherwise unusable, return `NULL` and let the framework drop the argument. For inputs that are *malformed* (a non-parseable expression, a non-numeric string in a numeric slot), throw with `rlang::abort()` instead — the runtime surfaces the message inline.

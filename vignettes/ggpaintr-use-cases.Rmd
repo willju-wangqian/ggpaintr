@@ -320,7 +320,7 @@ The framework names every widget it emits from the formula's syntax, so the same
 | `geom_point() + geom_smooth()`            | `geom_point`, `geom_smooth`      |
 | `geom_point() + geom_point()`             | `geom_point`, `geom_point-2`     |
 
-**Per-placeholder input ids** follow `<layer>_<path>_<keyword>_<shared-or-NA>`, where `<path>` is the underscore-joined positional index path into the call. For example, `aes(x = ppVar, y = ppVar)` inside the `ggplot()` layer yields `ggplot_1_1_var_NA` and `ggplot_1_2_var_NA`; a shared annotation `ppVar(shared = "x_col")` lands at `ggplot_1_1_var_x_col`.
+**Per-placeholder input ids** follow `<layer>_<path>_<keyword>_<shared-or-NA>`, where `<path>` is the underscore-joined positional index path into the call. For example, `aes(x = ppVar, y = ppVar)` inside the `ggplot()` layer yields `ggplot_1_1_ppVar_NA` and `ggplot_1_2_ppVar_NA`; a shared annotation `ppVar(shared = "x_col")` lands at `ggplot_1_1_ppVar_x_col`.
 
 **Layer-derived ids:**
 

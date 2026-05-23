@@ -92,7 +92,7 @@ What the walker does at each AST node:
 - **Pairlist** (e.g. the formals of a `function(x)` inside the expression) → recurse into every element.
 - **Call** → recurse into both the function head and every argument.
     - **Compound head** (`(system)("ls")`, `base::eval(parsed)`) → recurse into the head sub-expression first, then run the denylist check on its deparsed name.
-    - **Placeholder annotation** (`num(shared = "x")`) → skipped. These are formula DSL, not user code; their arguments are validated by the parser at translation time.
+    - **Placeholder annotation** (`ppNum(shared = "x")`) → skipped. These are formula DSL, not user code; their arguments are validated by the parser at translation time.
 - **Depth cap** → 100 nested levels. Above that, the validator aborts with &quot;simplify it.&quot; This is a DoS guard against pathological inputs.
 
 The walker is what makes the denylist usable. A name-only check would miss every form that can construct a function reference from a string — `do.call("system", list("ls"))`, `getFromNamespace("system", "base")`, `eval(parse(text = "system('ls')"))`. The walker recurses through *all* of those, hitting the denied names wherever they appear.
