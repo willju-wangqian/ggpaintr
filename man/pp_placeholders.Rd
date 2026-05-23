@@ -17,19 +17,20 @@ ppText(x, ...)
 
 ppExpr(x, ...)
 
-ppUpload(...)
+ppUpload(x, ...)
 }
 \arguments{
 \item{x}{A column name (\code{ppVar}), numeric (\code{ppNum}), string (\code{ppText}),
-or expression (\code{ppExpr}). Passed through unchanged.}
+expression (\code{ppExpr}), or dataset name/value (\code{ppUpload}). Passed
+through unchanged.}
 
 \item{...}{Additional arguments (e.g. named arguments consumed by a
 custom placeholder's \code{named_args} schema). Ignored by the built-in
 identity implementation.}
 }
 \value{
-The input value unchanged. \code{ppUpload()} does not return; it
-aborts with a guard message.
+The input value unchanged. The no-arg form \code{ppUpload()} does
+not return; it aborts with a guard message.
 }
 \description{
 These are the plain-R callables returned by registering the five
@@ -40,8 +41,12 @@ and binds them to Shiny widgets (see \code{vignette("ggpaintr-use-cases")}).
 Outside \code{ptr_app()} they behave as plain R functions: the first four
 return their argument unchanged (identity), so a formula such as
 \code{aes(x = ppVar(mpg))} evaluates identically to \code{aes(x = mpg)} under
-ggplot2's tidy-eval. \code{ppUpload()} aborts when called outside
-\code{ptr_app()} — it is meaningful only as a placeholder slot.
+ggplot2's tidy-eval. \code{ppUpload} is identical when called with an
+argument (\code{ppUpload(penguins)} returns \code{penguins}), so a formula such
+as \code{ppUpload(penguins) |> filter(...) |> ggplot(...)} evaluates as
+plain R when \code{penguins} is in scope. The no-arg form \code{ppUpload()}
+aborts outside \code{ptr_app()} — it is meaningful only as a placeholder
+slot.
 }
 \examples{
 # Identity inside ggplot2's tidy-eval:

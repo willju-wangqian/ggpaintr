@@ -11,7 +11,8 @@ ptr_app_bslib(
   checkbox_defaults = NULL,
   expr_check = TRUE,
   safe_to_remove = character(),
-  theme = NULL
+  theme = NULL,
+  spec = NULL
 )
 }
 \arguments{
@@ -40,7 +41,11 @@ leaves them empty. Defaults to \code{character()}.}
 bootswatch. Pass any \code{\link[bslib:bs_theme]{bslib::bs_theme()}} result to customize. This is a
 \code{bslib} passthrough and is not part of the ggpaintr public surface the
 wrapper demonstrates — wrappers are free to expose downstream-library
-args like this in addition to whatever ggpaintr primitives they compose.
+args like this in addition to whatever ggpaintr primitives they compose.}
+
+\item{spec}{An optional named list of fully-qualified Shiny input id ->
+value, used to override widget defaults at session boot. See
+\href{dev/adr/0012-role-based-tree-and-ptr-spec.html}{ADR 0012}.
 
 For the formula grammar (placeholder keywords, shared annotation,
 empty-call cleanup), see \code{\link[=ptr_app]{ptr_app()}}.}

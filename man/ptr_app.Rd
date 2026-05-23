@@ -11,7 +11,8 @@ ptr_app(
   checkbox_defaults = NULL,
   expr_check = TRUE,
   safe_to_remove = character(),
-  css = NULL
+  css = NULL,
+  spec = NULL
 )
 }
 \arguments{
@@ -57,6 +58,10 @@ is served as a static resource and linked after \code{ggpaintr}'s bundled
 stylesheet, so its rules override the default \verb{.ptr-*} styling. Relative
 \code{url(...)} references inside a file resolve against that file's own
 directory. Defaults to \code{NULL} (no extra stylesheet).}
+
+\item{spec}{An optional named list of fully-qualified Shiny input id ->
+value, used to override widget defaults at session boot. See
+\href{dev/adr/0012-role-based-tree-and-ptr-spec.html}{ADR 0012}.}
 }
 \value{
 A \code{shiny.appobj}.
