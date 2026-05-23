@@ -199,11 +199,11 @@ ptr_builtin_var_resolve_expr <- function(value, node, ...) {
   rlang::sym(value)
 }
 
-ptr_builtin_var_validate_input <- function(value, upstream_cols) {
+ptr_builtin_var_validate_input <- function(value, ctx) {
   if (length(value) != 1L) {
     return(paste0("Expected a single column; got ", length(value), "."))
   }
-  if (!value %in% upstream_cols) {
+  if (!value %in% ctx$upstream_cols) {
     return(paste0("Column `", value, "` is not in the data."))
   }
   TRUE

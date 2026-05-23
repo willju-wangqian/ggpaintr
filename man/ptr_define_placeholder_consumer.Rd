@@ -30,11 +30,20 @@ spliced as an identifier rather than a string literal. See
 \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}} for allowed return types and the
 \code{NULL}-prunes-the-argument convention.}
 
-\item{validate_input}{Optional \verb{function(value, upstream_cols)} called
-before \code{resolve_expr}. Return \code{TRUE} / \code{NULL} to accept; return a
-single character string to reject (surfaced inline as the error
-message, layer pruned). Useful when a stale selection no longer
-matches any upstream column after a data swap.}
+\item{validate_input}{Optional \verb{function(value, ctx)} called before
+\code{resolve_expr}. Return \code{TRUE} / \code{NULL} to accept; return a single
+character string to reject (surfaced inline as the error message,
+layer pruned). Useful when a stale selection no longer matches any
+upstream column after a data swap, or when only certain column types
+are admissible. \code{ctx} is a plain list with named fields: \code{node} (the
+placeholder AST node, carries \verb{$id}, \verb{$keyword}, \verb{$args}), \code{keyword}
+(convenience alias for \code{node$keyword}), \code{upstream_cols} (character
+vector of upstream column names — the same value \code{build_ui} received
+as \code{cols}), and \code{data} (the upstream data frame — the same object
+\code{build_ui} received as \code{data}). \code{ctx$upstream_cols} and \code{ctx$data}
+may both be \code{NULL} while upstream resolution is pending; the
+validator is not invoked when upstream has not yet resolved (the
+substitute walker skips the hook in that case).}
 
 \item{default_arg, named_args}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.
 Consumer placeholders use the same arg-schema slots; the \code{ppVar}
@@ -72,8 +81,8 @@ ptr_define_placeholder_consumer(
     if (length(value) != 1L || !nzchar(value)) return(NULL)
     rlang::sym(value)
   },
-  validate_input = function(value, upstream_cols) {
-    if (length(value) == 1L && value \%in\% upstream_cols) TRUE
+  validate_input = function(value, ctx) {
+    if (length(value) == 1L && value \%in\% ctx$upstream_cols) TRUE
     else "Pick a column that exists in the upstream data."
   }
 )
