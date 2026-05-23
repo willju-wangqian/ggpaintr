@@ -417,6 +417,7 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
                                        copy_defaults = list(
                                          label = "Enter a value for {param}"
                                        )) {
+  ensure_registry_initialized()
   validate_keyword(keyword)
   validate_keyword_no_shadow(keyword)
   validate_hook(build_ui, "build_ui", c("node"))
@@ -514,6 +515,7 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
                                           copy_defaults = list(
                                             label = "Pick a column for {param}"
                                           )) {
+  ensure_registry_initialized()
   validate_keyword(keyword)
   validate_keyword_no_shadow(keyword)
   validate_hook(build_ui, "build_ui", c("node", "cols", "data"))
@@ -630,6 +632,7 @@ ptr_define_placeholder_source <- function(keyword, build_ui, resolve_data,
                                         copy_defaults = list(
                                           label = "Provide a data source for {param}"
                                         )) {
+  ensure_registry_initialized()
   validate_keyword(keyword)
   validate_keyword_no_shadow(keyword)
   validate_hook(build_ui, "build_ui", c("node"))
