@@ -43,7 +43,10 @@ as \code{cols}), and \code{data} (the upstream data frame — the same object
 \code{build_ui} received as \code{data}). \code{ctx$upstream_cols} and \code{ctx$data}
 may both be \code{NULL} while upstream resolution is pending; the
 validator is not invoked when upstream has not yet resolved (the
-substitute walker skips the hook in that case).}
+substitute walker skips the hook in that case). ggpaintr invokes
+this function as \code{validate_input(value, ctx)} — no other positional
+or named arguments are passed, and \code{ctx} carries exactly the four
+fields above. The signature does not require \code{...}.}
 
 \item{default_arg, named_args}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.
 Consumer placeholders use the same arg-schema slots; the \code{ppVar}

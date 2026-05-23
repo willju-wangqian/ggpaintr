@@ -47,7 +47,10 @@ placeholder AST node, carries \verb{$id}, \verb{$keyword}, \verb{$args}), \code{
 upstream column scope by definition. They are present in the
 signature so the same validator shape works across all roles; see
 \code{\link[=ptr_define_placeholder_consumer]{ptr_define_placeholder_consumer()}} for the data-aware role where
-those fields are populated.}
+those fields are populated. ggpaintr invokes this function as
+\code{validate_input(value, ctx)} — no other positional or named
+arguments are passed, and \code{ctx} carries exactly the four fields
+above. The signature does not require \code{...}.}
 
 \item{default_arg}{Optional validator closure for the (single) positional
 argument the keyword accepts inside a formula. \code{NULL} (default) means

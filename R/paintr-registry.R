@@ -386,7 +386,10 @@ ptr_registry_register <- function(entry) {
 #'   upstream column scope by definition. They are present in the
 #'   signature so the same validator shape works across all roles; see
 #'   [ptr_define_placeholder_consumer()] for the data-aware role where
-#'   those fields are populated.
+#'   those fields are populated. ggpaintr invokes this function as
+#'   `validate_input(value, ctx)` — no other positional or named
+#'   arguments are passed, and `ctx` carries exactly the four fields
+#'   above. The signature does not require `...`.
 #'
 #' @param runtime Optional `function(x, ...)` body used when the
 #'   placeholder keyword is *also* called as a plain-R function (outside a
@@ -493,7 +496,10 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #'   `build_ui` received as `data`). `ctx$upstream_cols` and `ctx$data`
 #'   may both be `NULL` while upstream resolution is pending; the
 #'   validator is not invoked when upstream has not yet resolved (the
-#'   substitute walker skips the hook in that case).
+#'   substitute walker skips the hook in that case). ggpaintr invokes
+#'   this function as `validate_input(value, ctx)` — no other positional
+#'   or named arguments are passed, and `ctx` carries exactly the four
+#'   fields above. The signature does not require `...`.
 #'
 #' @param default_arg,named_args See [ptr_define_placeholder_value()].
 #'   Consumer placeholders use the same arg-schema slots; the `ppVar`
