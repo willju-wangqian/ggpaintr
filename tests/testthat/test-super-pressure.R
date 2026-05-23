@@ -23,7 +23,82 @@
 # presence-style proxies (see project memory `e2e-assertion-weakness-lens`).
 
 # >>> super-1 begin
-# (PLAN-02 inserts the super-app-1 kitchen-sink test_that() block here.)
+test_that("super-1 kitchen-sink: sentinels propagate through every placeholder", {
+  app <- boot_super_app("super-1-kitchen-sink")
+
+  # ---- C6 shared-default tiebreak ----------------------------------------
+  # `ppNum(1, shared = "lw")` in geom_smooth seeds the shared widget; the
+  # defaultless `ppNum(shared = "lw")` in geom_line is silently ignored.
+  # First-occurrence wins (ADR §App-1 pressure axis iii).
+  expect_equal(app$get_value(input = "shared_lw"), 1)
+
+  # ---- Drive every sentinel ----------------------------------------------
+  # ppExpr sentinel — dplyr::mutate(adj = ppExpr(mpg / wt)). Set first so
+  # the upstream pipeline resolves with the new derived column "adj" before
+  # the downstream y = ppVar(adj) picker reads its column choices.
+  # The widget is a text input whose value is the unevaluated expression text.
+  set_sentinel(app, "ggplot_3_1_ppExpr_NA", "hp + 1")
+  # Activate the ggplot layer's Controls subtab so the aes(x=/y=) ppVar
+  # pickers' renderUI binds (project memory `shinytest2-appdir-pkgload`:
+  # consumer pickers under a layer's tabset are suspended until the tab
+  # is shown). Subtab values are the "Data" / "Controls" labels themselves.
+  app$set_inputs(ggplot_subtab = "Controls", wait_ = FALSE)
+  app$wait_for_idle(timeout = 25 * 1000)
+  # ppVar root sentinel — aes(x = ppVar(mpg)).
+  set_sentinel(app, "ggplot_1_1_ppVar_NA", "disp")
+  # ppNum value sentinel — size = ppNum(2) in geom_point.
+  set_sentinel(app, "geom_point_1_ppNum_NA", 0.7314159)
+  # ppText sentinel — labs(title = ppText("Title")).
+  set_sentinel(app, "labs_1_ppText_NA", "S_T_2718")
+  # Shared "grp" — feeds aes(color = ...) AND facet_wrap(vars(...)).
+  set_sentinel(app, "shared_grp", "gear")
+  draw_and_wait(app, button_id = "ptr_update_plot")
+
+  # ---- Final-mode propagation assertions ---------------------------------
+  # ppNum: size = 0.7314159 inside geom_point(...)
+  expect_sentinel_in_code(app, "ptr_code", "0.7314159",
+    "geom_point\\([^)]*size\\s*=\\s*([^,)]*)", "final")
+  # ppVar root: x = disp inside aes(...)
+  expect_sentinel_in_code(app, "ptr_code", "disp",
+    "aes\\([^)]*x\\s*=\\s*([^,)]*)", "final")
+  # ppText: title = "S_T_2718" inside labs(...)
+  expect_sentinel_in_code(app, "ptr_code", "\"S_T_2718\"",
+    "labs\\([^)]*title\\s*=\\s*([^,)]*)", "final")
+  # ppExpr: dplyr::mutate(adj = hp + 1 ...)
+  expect_sentinel_in_code(app, "ptr_code", "hp + 1",
+    "dplyr::mutate\\(adj\\s*=\\s*([^)]*)", "final")
+  # Shared "grp" reaches BOTH aes(color=) AND facet_wrap(vars(...)).
+  # ADR §App-1 pressure axis (ii): call-type-agnostic. Both required.
+  expect_sentinel_in_code(app, "ptr_code", "gear",
+    "aes\\([^)]*color\\s*=\\s*([^,)]*)", "final")
+  expect_sentinel_in_code(app, "ptr_code", "gear",
+    "facet_wrap\\(vars\\(([^)]*)\\)", "final")
+  # ppExpr feeding a downstream ppVar picker: aes(y = ppVar(adj))'s picker
+  # offers "adj" as a column choice (the mutate-created column flows in).
+  expect_picker_populated(app, "ggplot_1_2_ppVar_NA", "adj")
+  # No plot-error class on the happy path in final mode.
+  expect_no_plot_error(app)
+
+  # ---- B3 toggle differential: final strips ppVar(, preserve retains ----
+  expect_sentinel_nowhere(app, "ptr_code", "ppVar(")
+  toggle_code_mode(app, "preserve")
+
+  # Preserve-mode round-trip: value placeholders wrap their sentinel,
+  # var placeholders render as a bare symbol (per render_placeholder_preserved).
+  expect_sentinel_in_code(app, "ptr_code", "0.7314159",
+    "ppNum\\(([^)]*)\\)", "preserve")
+  expect_sentinel_in_code(app, "ptr_code", "disp",
+    "aes\\([^)]*x\\s*=\\s*([^,)]*)", "preserve")
+  # Anchor on labs(title = ppText(...)) — geom_smooth(method = ppText("lm"))
+  # comes earlier in the rendered code, so a bare `ppText\(` regex would
+  # match the wrong occurrence.
+  expect_sentinel_in_code(app, "ptr_code", "\"S_T_2718\"",
+    "labs\\([^)]*title\\s*=\\s*ppText\\(([^)]*)\\)", "preserve")
+  # Preserve mode DOES contain "ppVar(" (B3 canonical-host instance).
+  expect_sentinel_in_code(app, "ptr_code", "ppVar(",
+    "(ppVar)\\(", "preserve")
+  expect_no_plot_error(app)
+})
 # <<< super-1 end
 
 # >>> super-2a begin
