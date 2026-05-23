@@ -28,12 +28,18 @@ source("dev/build-pkgdown.R"); build_pkgdown_clean()  # build documentation site
 
 ## Code Exploration Tools
 
-Prefer Serena MCP symbolic tools over Read/Grep/Bash when exploring R source:
-- `mcp__serena__get_symbols_overview` — list all functions in a file (one call, fast)
-- `mcp__serena__find_symbol` — fetch a function's body or signature by name (use `name_path_pattern`, not `name_path`; `relative_path` must be a file, not a directory)
-- `mcp__serena__find_referencing_symbols` — find callers of a function
+Serena MCP symbolic tools are the right tool for one specific job: navigating a *named* function inside a large `R/paintr-*.R` file. They are not a general default. Match the tool to the target:
 
-Reserve `Read` for `.Rmd`, `.md`, `.yml`, and for roxygen comment text outside function bodies. Reserve `Grep` for patterns that aren't symbol-shaped (string literals, multi-file text search). This cuts tool-call count and preserves context on large R source files.
+| Target | Use |
+|---|---|
+| Named function body / callers in `R/paintr-*.R` | `mcp__serena__get_symbols_overview` → `mcp__serena__find_symbol` (use `name_path_pattern`, `relative_path` must be a file) → `mcp__serena__find_referencing_symbols` |
+| Cross-file string / pattern search | Bash `grep -rn` / `Grep` tool |
+| `.Rmd`, `.md`, `.yml`, fixture `app.R`, `tests/testthat/test-*.R`, roxygen prose | `Read` / Bash — no useful symbol tree |
+| Runtime / reactive *behavior* ("why does this happen at flush time?") | `Rscript` probe scripts first; inside shinytest2 children, instrument via `assignInNamespace()` written into the fixture's `app.R`. Use symbolic reads afterward to narrow what the probe implicates. |
+
+**Order matters for diagnosis.** Behavioral questions → probe first, symbolic reads after. Structural questions → symbolic reads first, probe after.
+
+**Serena edit tools (`replace_symbol_body`, `insert_after_symbol`, `rename_symbol`, etc.)**: safe from the orchestrator, **not safe from sub-agents in nested worktrees** — Serena's project root does not follow the sub-agent's working directory and edits leak into the wrong tree. Sub-agents must use `Edit` / `Write` with absolute paths. See `.claude/rules/serena-tools.md` for the full rule and memory `feedback-serena-project-root-doesnt-follow-worktree`.
 
 ## Source of Truth Rules
 
