@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-01 — ppUpload registry default_arg + companion-input seeding + outside-app identity (from ADR 0010)</title>
+<style>
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  .meta { color: #555; font-size: 13px; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .warn { border-left: 4px solid #c97a00; background: #fdf3e1; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+</style>
+</head>
+<body>
+<!--
+plan:
+  number: 01
+  slug: registry-and-ui-seeding
+  source_adr: dev/adr/0010-ppupload-name-default-arg.html
+  depends_on: []
+  parallel_group: G1
+  status: draft
+-->
+
+<h1>PLAN-01 — <code>ppUpload</code> registry <code>default_arg</code> + companion-input seeding + outside-app identity</h1>
+<p class="meta">Source: ADR 0010 (Decision §1, §4 + Clarifications C1, C4, C5, C6) · Depends on: none · Parallel group: G1 · Status: draft</p>
+
+<h2>Context</h2>
+
+<p>ADR 0010 Decision §1 says <em>"<code>ppUpload</code>'s entry gains <code>default_arg = ptr_default_symbol_or_string()</code>, the same validator <code>ppVar</code> uses."</em> Clarification C1 establishes that the display-name mechanism is the existing companion <code>textInput</code> (<code>R/paintr-builtins.R:218–240</code>) — seeding its <code>value</code> from <code>node$default</code> is the work, not inventing a parallel mechanism. Clarification C4 changes the top-level <code>ppUpload</code> from <code>function(...) rlang::abort(...)</code> to <code>function(x, ...) if (missing(x)) abort() else x</code> so the arg-bearing form is identity outside <code>ptr_app</code>. Clarifications C5/C6 lock the legacy and storage-shape behaviors that this plan must honor.</p>
+
+<p>This plan groups every change to <code>R/paintr-builtins.R</code> into one indivisible unit so PLAN-02 (which touches <code>R/paintr-render.R</code>) and PLAN-03 (which adds an e2e fixture and integration tests) can run with zero file overlap.</p>
+
+<h2>Success Criteria</h2>
+
+<ul>
+  <li>The <code>upload_fn</code> registry block in <code>ptr_register_builtins()</code> (<code>R/paintr-builtins.R:327–333</code>) carries <code>default_arg = ptr_default_symbol_or_string()</code> as a sixth argument to <code>ptr_define_placeholder_source()</code>. Verified by inspecting the registry entry post-load (<code>ggpaintr:::ptr_registry_lookup("ppUpload")$default_arg</code> is a function — not <code>NULL</code>).</li>
+  <li><code>ptr_translate("ppUpload(penguins) |&gt; ggplot(mtcars, aes(x = mpg)) + geom_point()")</code> produces a tree whose <code>ptr_ph_data_source</code> node for the upload has <code>node$default == "penguins"</code> (single character scalar). Mirrored by <code>ptr_translate("ppUpload(\"penguins\") |&gt; ...")</code> producing the same <code>node$default</code> value (symbol-or-string accepted, returned as character scalar).</li>
+  <li><code>ptr_translate("ppUpload() |&gt; ggplot(...)")</code> and <code>ptr_translate("ppUpload |&gt; ggplot(...)")</code> still produce <code>node$default == NULL</code> (legacy behavior strictly preserved — C5).</li>
+  <li><code>ptr_translate("ppUpload(1 + 2) |&gt; ggplot(...)")</code> aborts with a validator error (<code>ptr_default_symbol_or_string()</code> rejects non-symbol/non-string ASTs). The error class is <code>"rlang_error"</code>.</li>
+  <li><code>ptr_builtin_upload_build_ui(node)</code> with <code>node$default = "penguins"</code> returns a <code>shiny.tag.list</code> whose embedded <code>textInput</code> at <code>node$companion_id</code> carries <code>value = "penguins"</code>. With <code>node$default = NULL</code>, that <code>textInput</code> carries <code>value = ""</code> (legacy default). Asserted by walking the rendered tag tree and reading the <code>value</code> attribute of the <code>&lt;input type="text"&gt;</code> element.</li>
+  <li>Top-level <code>ggpaintr::ppUpload</code> changes signature from <code>function(...)</code> to <code>function(x, ...)</code>; <code>ppUpload(penguins)</code> in a plain-R session with <code>penguins &lt;- data.frame(a = 1)</code> in scope returns that <code>data.frame</code> unchanged (identity). <code>ppUpload()</code> still aborts with a message containing the substring <code>"only meaningful inside"</code> (verified via <code>expect_error(..., "only meaningful inside")</code>). <code>ppUpload("penguins")</code> returns the string <code>"penguins"</code> verbatim (C4 — string passthrough).</li>
+  <li>The roxygen block at <code>R/paintr-builtins.R:257–289</code> (<code>@name pp_placeholders</code>) is updated to reflect the new <code>ppUpload(x)</code> identity semantics: the prose stops claiming "<code>ppUpload()</code> aborts when called outside <code>ptr_app()</code>" without qualification and instead specifies that <em>the no-arg form</em> aborts. The <code>@return</code> tag covers both branches. <code>devtools::document()</code> regenerates <code>man/pp_placeholders.Rd</code> consistently (regeneration is the integration step's responsibility per the project's "Generated files" rule — this plan flags drift, does not regenerate).</li>
+  <li>Authoritative gate (Definition of Done) returns <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline + N_new)</code> with the new tests this plan adds in <code>tests/testthat/test-ppupload-name-arg.R</code>.</li>
+</ul>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>Files this plan owns:</strong>
+    <ul>
+      <li><code>R/paintr-builtins.R</code> — modify only: (a) the <code>upload_fn</code> block (lines 327–333), (b) <code>ptr_builtin_upload_build_ui</code> (lines 218–240; change the <code>value = ""</code> literal in the <code>shiny::textInput</code> call), (c) the top-level <code>ppUpload</code> function (lines 365–367), (d) the roxygen prose around <code>@name pp_placeholders</code> (lines 257–289) and the immediate <code>@return</code>/<code>@param</code> rows describing <code>ppUpload</code>. No other functions in the file may be touched.</li>
+      <li><code>tests/testthat/test-ppupload-name-arg.R</code> (new file).</li>
+    </ul>
+  </li>
+  <li><strong>Files this plan must NOT touch:</strong> <code>R/paintr-render.R</code> (owned by PLAN-02 — stamp + preserve-mode changes), <code>R/paintr-substitute.R</code> (Clarification C1 establishes this needs no change), <code>R/paintr-nodes.R</code> (constructor already has <code>default</code> slot), <code>R/paintr-translate.R</code> (parser already routes through <code>entry$default_arg</code>), <code>R/paintr-default-args.R</code> (validator already exists), <code>NAMESPACE</code>, <code>man/</code>, any vignette under <code>vignettes/</code>, any fixture under <code>tests/testthat/fixtures/vignette-apps/</code>.</li>
+  <li>No new exports. The registry slot and UI seeding are internal; the top-level <code>ppUpload</code> stays <code>@export</code> as today (signature changes, export tag unchanged).</li>
+  <li>No scope creep into auto-resolve plumbing — per Clarification C2, the eval-env parent chain in <code>R/paintr-server.R:207</code> already delivers auto-resolve once the companion textInput is seeded; no server-side change is needed and this plan must not introduce one.</li>
+  <li>Honor project conventions: snake_case, 2-space indent; use <code>rlang::abort()</code> not <code>stop()</code> in the new no-arg guard; use <code>%||%</code> (already in the file) for the <code>node$default %||% ""</code> coalesce.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>
+Feature: ppUpload(name) parses, seeds the companion text input, and is identity outside ptr_app
+
+Scenario: Bare symbol arg stamps node$default
+  Given the formula string "ppUpload(penguins) |&gt; ggplot(aes(x = ppVar)) + geom_point()"
+  When  I call ggpaintr::ptr_translate(formula)
+  Then  the resulting ptr_root tree contains exactly one ptr_ph_data_source node
+  And   that node$default equals the character scalar "penguins"
+  And   that node$keyword equals "ppUpload"
+
+Scenario: String arg stamps node$default identically
+  Given the formula string "ppUpload(\"penguins\") |&gt; ggplot(aes(x = ppVar)) + geom_point()"
+  When  I call ggpaintr::ptr_translate(formula)
+  Then  the ptr_ph_data_source node$default equals "penguins"
+
+Scenario: Legacy ppUpload() leaves node$default NULL
+  Given the formula string "ppUpload() |&gt; ggplot(aes(x = ppVar)) + geom_point()"
+  When  I call ggpaintr::ptr_translate(formula)
+  Then  the ptr_ph_data_source node$default is NULL
+
+Scenario: Legacy bareword ppUpload leaves node$default NULL
+  Given the formula string "ppUpload |&gt; ggplot(aes(x = ppVar)) + geom_point()"
+  When  I call ggpaintr::ptr_translate(formula)
+  Then  the ptr_ph_data_source node$default is NULL
+
+Scenario: Non-symbol-or-string positional arg aborts
+  Given the formula string "ppUpload(1 + 2) |&gt; ggplot(aes(x = ppVar)) + geom_point()"
+  When  I call ggpaintr::ptr_translate(formula)
+  Then  the call aborts with class "rlang_error"
+
+Scenario: build_ui seeds the companion textInput value from node$default
+  Given a ptr_ph_data_source node with keyword="ppUpload",
+        id="up1", companion_id="up1_name", default="penguins"
+  When  I call ggpaintr:::ptr_builtin_upload_build_ui(node)
+  Then  the returned shiny.tag.list contains a textInput at inputId "up1_name"
+  And   that textInput's value attribute equals "penguins"
+
+Scenario: build_ui leaves the companion textInput empty when default is NULL
+  Given a ptr_ph_data_source node with keyword="ppUpload",
+        id="up1", companion_id="up1_name", default=NULL
+  When  I call ggpaintr:::ptr_builtin_upload_build_ui(node)
+  Then  the textInput at "up1_name" has value ""
+
+Scenario: ppUpload(x) outside app is identity
+  Given penguins is bound to data.frame(a = 1L) in the current frame
+  When  I call ggpaintr::ppUpload(penguins)
+  Then  the returned value is identical (base::identical) to penguins
+
+Scenario: ppUpload("string") outside app returns the string verbatim
+  When  I call ggpaintr::ppUpload("penguins")
+  Then  the returned value is the character scalar "penguins"
+
+Scenario: ppUpload() (no arg) outside app still aborts
+  When  I call ggpaintr::ppUpload()
+  Then  the call aborts with a message containing "only meaningful inside"
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p>Authoritative gate (copied verbatim from <code>CLAUDE.md</code>'s "Authoritative gate (Definition of Done)" block):</p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p>Expected output: <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code> where <code>N = baseline_PASS_at_branch_point + N_new_tests_in_this_plan</code>. Record both numbers in the plan's worktree first commit message.</p>
+
+<p><strong>Proxy traps — do not be fooled (copied verbatim from <code>CLAUDE.md</code>):</strong></p>
+
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does <strong>NOT</strong> make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead <strong>cleanly SKIP</strong> via <code>boot_vignette_app()</code>'s source-root guard (no <code>DESCRIPTION</code> in the <code>.Rcheck</code> sandbox). If a check run shows the e2e file <strong>ERRORing</strong> (<code>R CMD check found ERRORs</code>, pkgload "DESCRIPTION not found"), that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> <strong>runs</strong> the browser tests (source tree present → 0 SKIP). That alone is the gate. Never claim the suite green, merge a branch, mark a step done, or clear context off the skipping/erroring harness.</li>
+</ul>
+
+<p>This plan adds approximately 10 new tests across the BDD scenarios above, all in <code>tests/testthat/test-ppupload-name-arg.R</code>. The gate must show <code>PASS</code> rise by ≥ 10 with <code>FAIL/ERROR</code> still 0 and <code>SKIP</code> unchanged from the pre-plan baseline.</p>
+
+<h2>Scope guard / ownership</h2>
+
+<p>This plan owns: <code>R/paintr-builtins.R</code> (four localized hunks named in Constraints), <code>tests/testthat/test-ppupload-name-arg.R</code> (new file). Generated files (<code>NAMESPACE</code>, <code>man/pp_placeholders.Rd</code>) are owned by an integration step, not this plan — surface drift in the post-impl audit, do not regenerate. The roxygen prose update <em>will</em> change <code>man/pp_placeholders.Rd</code> on next <code>devtools::document()</code>; that regeneration is not this plan's deliverable.</p>
+
+<p>Branch convention: this plan lives on branch <code>0010-registry-and-ui-seeding</code> in a worktree at <code>.claude/worktrees/0010-ppupload-name-default-arg/registry-and-ui-seeding/</code>. Merge into the orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the Definition-of-Done command and verifies expected output before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+
+<p>Known-good baseline: orchestrator branch HEAD at the commit where this plan's worktree was created. Record SHA and the pre-plan PASS count in the worktree's first commit message. Pre-existing failures: none expected (the orchestrator branch must start at <code>0/0/0/N</code>); if any are present at branch time, name them in the first commit message and treat them as the new baseline — anything new on top counts as a regression.</p>
+
+<h2>Out-of-scope handling</h2>
+
+<p>Findings outside this plan's owned files are surfaced in the audit report, never absorbed. Specifically: preserve-mode rendering issues belong to PLAN-02; e2e fixture work belongs to PLAN-03; substitute-walk and node-constructor changes are not needed per Clarification C1 and must not be added.</p>
+
+<h2>Dependencies / ordering</h2>
+
+<p>Depends on: none. Parallel-group G1 with PLAN-02 (disjoint files: this plan owns <code>R/paintr-builtins.R</code>; PLAN-02 owns <code>R/paintr-render.R</code>).</p>
+
+<p>Provides for: PLAN-03 (e2e fixture + integration tests rely on <code>node$default</code> being populated and the companion <code>textInput</code> being seeded).</p>
+
+<!-- implementable: PASS date=2026-05-21 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=7de382c631ab -->
+</body>
+</html>

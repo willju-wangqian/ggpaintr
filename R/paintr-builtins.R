@@ -232,7 +232,7 @@ ptr_builtin_upload_build_ui <- function(node, label = NULL, copy = NULL,
       shiny::textInput(
         inputId = node$companion_id %||% paste0(node$id, "_name"),
         label = name_copy$label %||% "Optional dataset name",
-        value = "",
+        value = node$default %||% "",
         placeholder = name_copy$placeholder
       ),
       name_copy$help
@@ -264,17 +264,22 @@ ptr_builtin_keywords <- function() {
 #' Outside `ptr_app()` they behave as plain R functions: the first four
 #' return their argument unchanged (identity), so a formula such as
 #' `aes(x = ppVar(mpg))` evaluates identically to `aes(x = mpg)` under
-#' ggplot2's tidy-eval. `ppUpload()` aborts when called outside
-#' `ptr_app()` — it is meaningful only as a placeholder slot.
+#' ggplot2's tidy-eval. `ppUpload` is identical when called with an
+#' argument (`ppUpload(penguins)` returns `penguins`), so a formula such
+#' as `ppUpload(penguins) |> filter(...) |> ggplot(...)` evaluates as
+#' plain R when `penguins` is in scope. The no-arg form `ppUpload()`
+#' aborts outside `ptr_app()` — it is meaningful only as a placeholder
+#' slot.
 #'
 #' @param x A column name (`ppVar`), numeric (`ppNum`), string (`ppText`),
-#'   or expression (`ppExpr`). Passed through unchanged.
+#'   expression (`ppExpr`), or dataset name/value (`ppUpload`). Passed
+#'   through unchanged.
 #' @param ... Additional arguments (e.g. named arguments consumed by a
 #'   custom placeholder's `named_args` schema). Ignored by the built-in
 #'   identity implementation.
 #'
-#' @return The input value unchanged. `ppUpload()` does not return; it
-#'   aborts with a guard message.
+#' @return The input value unchanged. The no-arg form `ppUpload()` does
+#'   not return; it aborts with a guard message.
 #'
 #' @examples
 #' # Identity inside ggplot2's tidy-eval:
@@ -329,6 +334,7 @@ ptr_register_builtins <- function() {
     build_ui = ptr_builtin_upload_build_ui,
     resolve_data = ptr_builtin_upload_resolve_data,
     companion_id_fn = ptr_upload_name_id,
+    default_arg = ptr_default_symbol_or_string(),
     copy_defaults = list(label = "Upload data for {param}")
   )
   # The plain-R callables that users see (`ppVar`, `ppNum`, ...) are the
@@ -362,8 +368,11 @@ ppExpr <- function(x, ...) x
 
 #' @rdname pp_placeholders
 #' @export
-ppUpload <- function(...) {
-  rlang::abort("`ppUpload()` is only meaningful inside `ptr_app()`.")
+ppUpload <- function(x, ...) {
+  if (missing(x)) {
+    rlang::abort("`ppUpload()` is only meaningful inside `ptr_app()`.")
+  }
+  x
 }
 
 .onLoad <- function(libname, pkgname) {

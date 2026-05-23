@@ -269,9 +269,10 @@ test_that("existing built-in registrations still carry the new slots", {
   # the four value/consumer built-ins (ppText, ppNum, ppExpr, ppVar)
   # carry a `default_arg` validator (so positional-arg calls like
   # `ppVar(mpg)` or `ppNum(5)` are accepted as the initial seed value).
-  # `ppUpload` carries no `default_arg` (positional rejected). Earlier
-  # tests may call ptr_registry_clear(); force a re-init unconditionally
-  # so this test does not depend on suite ordering.
+  # `ppUpload` also carries a `default_arg` since ADR 0010 (positional
+  # bareword/string accepted as the dataset display-name default).
+  # Earlier tests may call ptr_registry_clear(); force a re-init
+  # unconditionally so this test does not depend on suite ordering.
   ptr_registry_clear()
   ptr_register_builtins()
   for (kw in c("ppText", "ppNum", "ppExpr")) {
@@ -287,7 +288,7 @@ test_that("existing built-in registrations still carry the new slots", {
   expect_true(is.function(var_entry$runtime))
   expect_identical(var_entry$runtime(rlang::sym("mpg")), rlang::sym("mpg"))
   upload_entry <- ptr_registry_lookup("ppUpload")
-  expect_null(upload_entry$default_arg)
+  expect_true(is.function(upload_entry$default_arg))
   expect_true(is.function(upload_entry$runtime))
   expect_error(upload_entry$runtime(), regexp = "ptr_app")
 })

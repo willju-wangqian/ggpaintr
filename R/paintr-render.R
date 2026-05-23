@@ -503,10 +503,21 @@ stamp_current_pick_walk.ptr_ph_data_consumer <- function(node, snapshot) {
 
 #' @export
 stamp_current_pick_walk.ptr_ph_data_source <- function(node, snapshot) {
-  if (!is.null(node$id)) {
-    val <- snapshot[[node$id]]
-    if (.snapshot_value_is_set(node, val)) node$current_pick <- val
+  # Data-source placeholders with a companion textInput (e.g. ppUpload) carry
+  # the user-typed display name at `snapshot[[node$companion_id]]`; the
+  # fileInput value at `snapshot[[node$id]]` is a four-column data.frame and
+  # is not the meaningful "current pick" for preserve-mode rendering. Sources
+  # without a companion (registered via ptr_define_placeholder_source() with
+  # no companion_id_fn) keep the legacy `snapshot[[node$id]]` path.
+  key <- if (!is.null(node$companion_id) && nzchar(node$companion_id)) {
+    node$companion_id
+  } else if (!is.null(node$id)) {
+    node$id
+  } else {
+    return(node)
   }
+  val <- snapshot[[key]]
+  if (.snapshot_value_is_set(node, val)) node$current_pick <- val
   node
 }
 
