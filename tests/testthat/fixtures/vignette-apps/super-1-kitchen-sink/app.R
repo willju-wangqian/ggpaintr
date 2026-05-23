@@ -14,7 +14,7 @@ pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_t
 # from `ptr_ui_text_keywords()` and tripping `ui_text$defaults` validation.
 ptr_registry_keywords()
 
-ptr_define_placeholder_value(
+ppRange <- ptr_define_placeholder_value(
   keyword = "ppRange",
   build_ui = function(node, label = "Range", ...) {
     shiny::sliderInput(node$id, label, min = 0, max = 100, value = c(0, 1))
@@ -32,10 +32,10 @@ ptr_app(
   ) +
     geom_point(size = ppNum(2), alpha = ppNum(0.7)) +
     geom_smooth(method = ppText("lm"), linewidth = ppNum(1, shared = "lw")) +
-    geom_line(linewidth = ppNum(shared = "lw")) +
+    geom_line(linewidth = ppNum(1, shared = "lw")) +
     facet_wrap(vars(ppVar(cyl, shared = "grp"))) +
     scale_y_continuous(limits = ppRange(c(0, 50))) +
-    labs(title = ppText("Title"), subtitle = ppText()),
+    labs(title = ppText("Title"), subtitle = ppText("")),
   ui_text = list(
     defaults = list(
       ppNum  = list(label = "{param}"),
