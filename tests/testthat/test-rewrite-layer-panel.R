@@ -128,7 +128,7 @@ test_that("pipeline-stage placeholder label names the verb via {param}", {
   # holds a uiOutput container). The label assertion drives testServer +
   # `session$getOutput()` to capture the post-flush HTML.
   formula <- "mtcars |> head(ppNum) |> ggplot(aes(x = ppVar))"
-  html <- .render_widget_html(formula, raw_id = "ggplot_2_ppNum_NA")
+  html <- .render_widget_html(formula, raw_id = "ggplot_2_1_ppNum_NA")
   # Default copy is "Enter a number for {param}"; for an unnamed positional arg
   # the verb fills {param}, giving "...for head()" -- and we do NOT also append
   # " in head()" on top of that.
@@ -148,7 +148,7 @@ test_that("unnamed-arg pipeline placeholder uses 'verb()' as the copy param key"
   expect_match(static_panel, "<code>head\\(\\)</code>")
 
   ui_text <- list(params = list(`head()` = list(ppNum = list(label = "How many rows"))))
-  widget_html <- .render_widget_html(formula, raw_id = "ggplot_2_ppNum_NA", ui_text = ui_text)
+  widget_html <- .render_widget_html(formula, raw_id = "ggplot_2_1_ppNum_NA", ui_text = ui_text)
   # the `head()` param key still resolves the custom label ...
   expect_match(widget_html, "How many rows")
   # ... but the verb is named once, by the stage-group header -- not as a
@@ -166,7 +166,7 @@ test_that("a pipeline placeholder's widget no longer carries the ' in verb()' su
   expect_match(static_panel, "<code>transform\\(\\)</code>")
   # The widget label itself (composed inside the renderUI body) does NOT
   # carry the redundant " in transform()" suffix.
-  widget_html <- .render_widget_html(formula, raw_id = "ggplot_2_ppNum_NA")
+  widget_html <- .render_widget_html(formula, raw_id = "ggplot_2_1_ppNum_NA")
   expect_no_match(widget_html, "in transform\\(\\)")
 })
 
@@ -193,7 +193,7 @@ test_that("placeholder nested in a sub-expression names the stage verb, not the 
   # ADR 0012 / PLAN-01 (Bug B): widget label resolves inside the renderUI
   # body in `ptr_setup_value_uis()`; assert via `.render_widget_html`.
   formula <- "iris |> subset(Species == ppText) |> ggplot(aes(x = ppVar))"
-  html <- .render_widget_html(formula, raw_id = "ggplot_2_2_ppText_NA",
+  html <- .render_widget_html(formula, raw_id = "ggplot_2_1_2_ppText_NA",
                               envir = list2env(list(iris = iris), parent = globalenv()))
   expect_match(html, "Enter a value for subset\\(\\)")
   expect_no_match(html, "==\\(\\)")
