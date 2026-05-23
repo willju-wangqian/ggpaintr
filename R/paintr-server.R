@@ -1652,6 +1652,27 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
                        selected = seed %||% current %||% character(0))
         )
       })
+      # Pre-warm consumer pickers whose upstream is fully self-contained
+      # (no unresolved data source in the chain — lazy-consumer-resolve.md
+      # §D4). Without this, the picker's renderUI is suspended while the
+      # layer panel's "Controls" subtab is hidden behind the default "Data"
+      # subtab, so `input[[<picker_id>]]` stays NULL on first Draw and the
+      # substitute walker prunes the aes mapping (e.g. `aes(y = ppVar(adj))`
+      # collapses away, breaking inheritance for geoms without their own
+      # aes). Mirrors the existing `outputOptions(suspendWhenHidden = FALSE)`
+      # in `ptr_setup_value_uis()` and `ptr_setup_source_uis()`.
+      #
+      # Stay lazy when the upstream still contains a `ptr_ph_data_source`
+      # (e.g. ppUpload-headed pipelines): firing the renderUI eagerly there
+      # would race the upload observer's `state$eval_env` binding and would
+      # pollute `state$upstream_cache` with the wrong frame found by R's
+      # scoping fallback (`datasets::penguins` for `<name> |> filter(...)`
+      # before the uploaded df is bound). The user has to interact with
+      # the source widget anyway, which lives on the Data tab and forces
+      # the renderUI to bind via tab activation.
+      if (length(find_nodes(node$upstream, is_ptr_ph_data_source)) == 0L) {
+        shiny::outputOptions(output, output_id, suspendWhenHidden = FALSE)
+      }
     })
   }
   invisible(state)
