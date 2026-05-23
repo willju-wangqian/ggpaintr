@@ -93,7 +93,7 @@ test_that("consumer constructor stores role and validate_input", {
     keyword = "mycol",
     build_ui = function(node, cols, ...) NULL,
     resolve_expr = function(value, node, ...) rlang::sym(value),
-    validate_input = function(value, upstream_cols) value %in% upstream_cols
+    validate_input = function(value, ctx) value %in% ctx$upstream_cols
   )
   e <- ptr_registry_lookup("mycol")
   expect_equal(e$role, "consumer")

@@ -1155,7 +1155,8 @@ ptr_setup_runtime <- function(state, input, output, session) {
         extras          = state$extras(),
         stage_enabled   = state$stage_enabled(),
         resolved_data   = lapply(state$resolved_data, function(rv) rv()),
-        upstream_cols   = upstream_cols
+        upstream_cols   = upstream_cols,
+        upstream_data   = runtime_upstream_data_frames(state, snapshot)
       )
       # Attach the snapshot used for this run to the runtime result so
       # preserve-mode rendering can stamp current_pick from the SAME
@@ -1331,6 +1332,17 @@ runtime_upstream_data <- function(state, snapshot = list()) {
 runtime_upstream_cols <- function(state, snapshot = list()) {
   res <- runtime_upstream_data(state, snapshot)
   lapply(res, function(x) x$cols)
+}
+
+# Sibling of `runtime_upstream_cols()` that returns the per-consumer
+# data.frame slot instead of the column-names slot. Used to feed
+# `ctx$data` into `validate_input(value, ctx)` hooks for data-aware
+# consumer validators (column-type / range / level checks). The
+# underlying `runtime_upstream_data()` already produces the per-consumer
+# data frame -- this wrapper just projects it out.
+runtime_upstream_data_frames <- function(state, snapshot = list()) {
+  res <- runtime_upstream_data(state, snapshot)
+  lapply(res, function(x) x$data)
 }
 
 
