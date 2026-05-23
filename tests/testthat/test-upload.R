@@ -396,7 +396,7 @@ test_that("ptr_upload_autoname derives a default only when the companion is blan
 
 test_that("ppUpload build_ui restores the accept filter on the file input", {
   node <- .upload_node_from()
-  ui <- build_ui_for(node, layer_name = "ggplot")
+  ui <- .source_widget(node)
   rendered <- as.character(ui)
   expect_match(rendered, 'type="file"')
   expect_match(rendered, "accept=\".csv,.tsv,.rds,.xlsx,.xls,.json\"", fixed = TRUE)
@@ -404,8 +404,8 @@ test_that("ppUpload build_ui restores the accept filter on the file input", {
 
 test_that("upload labels/help are driven by upload_file / upload_name copy", {
   node <- .upload_node_from()
-  ui <- build_ui_for(
-    node, layer_name = "ggplot",
+  ui <- .source_widget(
+    node,
     ui_text = list(upload = list(
       file = list(label = "Pick your CSV", help = "file help here"),
       name = list(label = "Name it", placeholder = "eg sales", help = "name help here")
@@ -421,7 +421,7 @@ test_that("upload labels/help are driven by upload_file / upload_name copy", {
 
 test_that("upload uses the resolved default copy when no override is given", {
   node <- .upload_node_from()
-  ui <- build_ui_for(node, layer_name = "ggplot")
+  ui <- .source_widget(node)
   rendered <- as.character(ui)
   expect_match(rendered, "Choose a data file")
   expect_match(rendered, "Optional dataset name")

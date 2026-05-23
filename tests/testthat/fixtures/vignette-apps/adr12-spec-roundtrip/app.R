@@ -5,13 +5,27 @@
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
 library(shiny)
 # EXCEPT: this fixture is NOT a vignette mirror — it is the ADR 0012 §3.6 /
-# PLAN-06 spec-apply-session-boot e2e (round-trip closes the loop). The
-# `spec=` arg threads through `ptr_app()` -> `ptr_app_components()` ->
-# `ptr_make_app_server()` -> `ptr_server_internal()` and is consumed by
-# `apply_spec_at_boot()` inside a single `session$onFlushed(once = TRUE)`.
+# PLAN-06 + PLAN-01 (Bug B) spec-apply-session-boot e2e (round-trip closes
+# the loop). The `spec=` arg threads through `ptr_app()` ->
+# `ptr_app_components()` -> `ptr_make_app_server()` -> `ptr_server_internal()`
+# and is consumed by `apply_spec_at_boot()`. After ADR 0012 / PLAN-01:
 #
-# Formula chosen so that no ppVar picker ends up under a suspended layer
-# subtab:
+#   - Placeholder rows (every keyword except ppUpload) are seeded via
+#     `state$spec_seed[[bare_id]]` synchronously at boot, BEFORE the
+#     `session$onFlushed(once = TRUE)` dispatch callback. The renderUI
+#     bodies in `ptr_setup_value_uis()` / `ptr_setup_source_uis()` /
+#     `ptr_setup_consumer_uis()` read the seed on first fire as
+#     `extra$selected`, so the rendered HTML carries the spec value
+#     (e.g. `<option value="carb" selected>` for ppVar, `value="5"` for
+#     ppNum).
+#   - Framework-internal rows (layer_checkbox / stage_enabled) still go
+#     through the deferred `updateCheckboxInput()` dispatch path inside
+#     the onFlushed callback -- they have no renderUI choke-point.
+#   - Seed-applied rows are SKIPPED in the dispatch path (PLAN-02
+#     collapse) so custom keywords (no built-in `updateXyz`) no longer
+#     aggregate into the spurious "Skipped N spec entries" warning.
+#
+# Layer-tab visibility:
 #   - Layer `ggplot` (the host) has NO pipeline of its own (data is the
 #     literal `mtcars`), so its in-aes ppVar pickers (ids
 #     `ggplot_1_1_ppVar_NA` / `ggplot_1_2_ppVar_NA`) render in a bare

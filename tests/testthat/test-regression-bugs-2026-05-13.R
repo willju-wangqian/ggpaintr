@@ -170,21 +170,32 @@ test_that("BUG-A2: ui_text$defaults$ppNum overrides reach the shared num widget"
   expect_equal(copy$empty_text, "No number yet")
 
   # End-to-end: a shared `num` widget across two geom_point args (alpha and
-  # size) is rendered statically into the sidebar by `ptr_app()` /
-  # `ptr_app_bslib()`. The widget's help / empty_text leaves must come from
-  # `ui_text$defaults$ppNum`, not from the alpha-specific built-in copy --
-  # otherwise multi-param widgets inherit alpha's "0 and 1" hint.
+  # size). Pre-PLAN-01 the widget was rendered statically into the sidebar
+  # and `app_ui_html(app)` carried its help / placeholder. After ADR 0012 /
+  # PLAN-01 (Bug B) `build_ui_for.ptr_ph_value` emits a uiOutput container
+  # and the widget itself is composed inside `ptr_setup_value_uis()`'s new
+  # shared-key renderUI -- so the assertion drives the app under
+  # `shiny::testServer` and reads the post-flush HTML out of the
+  # `shared_lvl_ui` output slot. The contract is unchanged: the resolved
+  # copy must come from `defaults$ppNum`, not from the alpha-specific
+  # built-in (which would leak the "0 and 1" hint).
   formula <- paste0(
     "ggplot(mtcars, aes(x = mpg, y = hp)) + ",
     "geom_point(alpha = ppNum(shared = 'lvl'), size = ppNum(shared = 'lvl'))"
   )
-  app <- ptr_app(formula, ui_text = ui_text, expr_check = FALSE)
-  rendered <- app_ui_html(app)
-  expect_true(grepl("Any number works here.", rendered, fixed = TRUE),
-              info = "defaults$num$help must reach the shared num widget")
-  expect_true(grepl("No number yet", rendered, fixed = TRUE),
-              info = "defaults$num$empty_text must reach the shared num widget (as `placeholder` on the underlying <input>)")
-  expect_false(grepl("Enter a value between 0 and 1.", rendered, fixed = TRUE),
+  env <- new.env(parent = globalenv()); env$mtcars <- mtcars
+  app <- ptr_app(formula, ui_text = ui_text, expr_check = FALSE, envir = env)
+  widget_html <- NULL
+  shiny::testServer(app, {
+    session$flushReact()
+    widget_html <<- paste(as.character(session$getOutput("shared_lvl_ui")),
+                          collapse = "\n")
+  })
+  expect_true(grepl("Any number works here.", widget_html, fixed = TRUE),
+              info = "defaults$ppNum$help must reach the shared num widget")
+  expect_true(grepl("No number yet", widget_html, fixed = TRUE),
+              info = "defaults$ppNum$empty_text must reach the shared num widget (as `placeholder` on the underlying <input>)")
+  expect_false(grepl("Enter a value between 0 and 1.", widget_html, fixed = TRUE),
                info = "alpha-specific built-in help must not bleed into shared widget")
 })
 

@@ -51,10 +51,16 @@ build_ui_for.ptr_ph_value <- function(node,
                                        param_override = NULL,
                                        label_suffix = NULL,
                                        ...) {
-  invoke_build_ui(node, ui_text = ui_text,
-                  layer_name = layer_name, ns_fn = ns_fn, extra = list(),
-                  param_override = param_override, label_suffix = label_suffix,
-                  ...)
+  # ADR 0012 / PLAN-01 (Bug B): emit a `uiOutput` container; the actual
+  # widget is rendered server-side inside `ptr_setup_value_uis()` via
+  # `invoke_build_ui()`, whose `extra$selected` precedence seeds the
+  # initial value from `state$spec_seed[[raw_id]]` for every placeholder
+  # -- including custom keywords with no symmetric `updateXyz`. The
+  # consumer placeholder has emitted a `uiOutput` since day one (see
+  # `build_ui_for.ptr_ph_data_consumer` below); this generalises that
+  # pattern to all placeholder kinds so spec-apply can route through one
+  # uniform hook (the registry's single `build_ui`).
+  shiny::uiOutput(ptr_render_id(value_output_id(node$id), ns_fn))
 }
 
 #' @exportS3Method
@@ -70,46 +76,32 @@ build_ui_for.ptr_ph_data_source <- function(node,
                                               layer_name = NULL,
                                               ns_fn = identity,
                                               ...) {
-  rendered_node <- node
-  rendered_node$id <- ns_fn(node$id)
-  if (!is.null(node$companion_id)) {
-    rendered_node$companion_id <- ns_fn(node$companion_id)
-  }
-  copy <- ptr_resolve_ui_text(
-    "control",
-    keyword = node$keyword,
-    param = node$param,
-    layer_name = layer_name,
-    ui_text = ui_text
-  )
-  entry <- ptr_registry_lookup(node$keyword)
-  if (is.null(entry) || is.null(entry$build_ui)) {
-    rlang::abort(paste0(
-      "Placeholder `", node$keyword, "` has no `build_ui` function. Pass ",
-      "`build_ui = function(node, label, ...)` when registering it -- see ",
-      "`?ptr_define_placeholder_value`."
-    ))
-  }
-  fmls <- names(formals(entry$build_ui))
-  accepts_dots <- "..." %in% fmls
-  extra_named <- build_ui_copy_args(fmls, copy)
-  if (identical(node$keyword, "ppUpload") &&
-      (accepts_dots || "file_copy" %in% fmls)) {
-    extra_named$file_copy <- ptr_resolve_ui_text(
-      "upload_file", ui_text = ui_text
-    )
-    extra_named$name_copy <- ptr_resolve_ui_text(
-      "upload_name", ui_text = ui_text
-    )
-  }
-  # PLAN-07: pass node$named_args through so custom hooks can consume them.
-  # Only inject when the hook accepts the arg (`...` sink or named formal),
-  # so legacy hooks declared `(node, label)` keep working.
-  if (accepts_dots || "named_args" %in% fmls) {
-    extra_named$named_args <- node$named_args %||% list()
-  }
-  do.call(entry$build_ui,
-          c(list(rendered_node, label = copy$label), extra_named, list(...)))
+  # ADR 0012 / PLAN-01 (Bug B): emit a `uiOutput` container; the actual
+  # widget (incl. ppUpload's fileInput + companion textInput tagList) is
+  # rendered server-side inside `ptr_setup_source_uis()`. The companion
+  # textInput is bound at `node$companion_id` because the source hook
+  # itself emits both inputs in the same tag -- only the renderUI
+  # *wrapper* is added here. Routing through renderUI is what lets the
+  # seed-based spec-apply path (state$spec_seed[[bare]] -> extra$selected)
+  # cover custom source keywords without an `updateXyz` symmetric hook.
+  shiny::uiOutput(ptr_render_id(source_output_id(node$id), ns_fn))
+}
+
+# ADR 0012 / PLAN-01 (Bug B): output-id helpers for the uiOutput
+# containers above. Same `_ui` suffix shape as `consumer_output_id()`
+# (R/paintr-ids.R) so the renderUI assignment in `ptr_setup_value_uis()`
+# / `ptr_setup_source_uis()` writes to a slot that does NOT collide with
+# the widget's raw inputId (the bound widget lives at the raw id; the
+# container holding it is `<raw_id>_ui`). Kept here rather than in
+# `R/paintr-ids.R` because they are exercised only by `build_ui_for.*`
+# above and the matching server-side setup helpers, both of which gain
+# the routing in PLAN-01 -- co-locating cuts cross-file coupling.
+value_output_id <- function(raw_id) {
+  paste0(raw_id, "_ui")
+}
+
+source_output_id <- function(raw_id) {
+  paste0(raw_id, "_ui")
 }
 
 # ---- ptr_layer panel scaffolding ----
@@ -243,6 +235,46 @@ build_pipeline_stage_ui <- function(entries, ui_text, layer_name, ns_fn) {
     i <- j
   }
   out
+}
+
+# ADR 0012 / PLAN-01 (Bug B): pipeline-stage placeholders need their verb
+# embedded in the resolved widget copy (e.g. "Enter a number for head()").
+# Pre-PLAN-01, `build_pipeline_stage_ui()` computed `param_override` /
+# `label_suffix` and threaded them through `build_ui_for(ph, ...)` --
+# which forwarded into `invoke_build_ui()`. After PLAN-01,
+# `build_ui_for.ptr_ph_value` returns a uiOutput container and the actual
+# widget is composed inside `ptr_setup_value_uis()`'s renderUI body. The
+# panel-level args no longer reach `invoke_build_ui()`, so the renderUI
+# body must re-derive the same overrides by walking the live tree. This
+# helper does that lookup. Returns NULL when `node_id` is not a
+# pipeline-stage placeholder (control-arg / aes-arg placeholders carry no
+# verb override).
+pipeline_override_for_node <- function(tree, node_id) {
+  if (is.null(tree) || is.null(tree$layers)) return(NULL)
+  for (layer in tree$layers) {
+    if (is.null(layer$data_arg)) next
+    entries <- find_layer_placeholders_with_stage(layer$data_arg)
+    for (entry in entries) {
+      if (!identical(entry$ph$id, node_id)) next
+      verb <- entry$verb
+      sid  <- entry$stage_id
+      has_verb <- !is.null(verb) && !is.na(verb) && nzchar(verb)
+      # `drop_suffix = !is.na(sid)`: when the placeholder lives inside a
+      # recognized stage group, the group's header already names the verb,
+      # so the per-widget " in verb()" suffix is suppressed -- mirroring
+      # `build_pipeline_stage_ui()`'s `drop_suffix = TRUE` branch.
+      drop_suffix <- !is.na(sid)
+      return(list(
+        param_override = if (has_verb && ptr_param_is_unnamed(entry$ph$param)) {
+          paste0(verb, "()")
+        } else NULL,
+        label_suffix = if (has_verb && !drop_suffix) {
+          paste0(" in ", verb, "()")
+        } else NULL
+      ))
+    }
+  }
+  NULL
 }
 
 # Every node where `pred(node)` is TRUE, in pre-order. See `ptr_walk()` in

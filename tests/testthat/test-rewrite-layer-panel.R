@@ -123,38 +123,51 @@ test_that("layer panel namespaces ids via ns_fn", {
 # ---- Phase 4.1 — pipeline-stage placeholder labels name the verb ----
 
 test_that("pipeline-stage placeholder label names the verb via {param}", {
-  tree <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = ppVar))")
-  layer <- .layer_by_name(tree, "ggplot")
-  panel <- build_ui_for(layer)
+  # ADR 0012 / PLAN-01 (Bug B): the widget label now resolves inside the
+  # renderUI body in `ptr_setup_value_uis()` (the static layer panel only
+  # holds a uiOutput container). The label assertion drives testServer +
+  # `session$getOutput()` to capture the post-flush HTML.
+  formula <- "mtcars |> head(ppNum) |> ggplot(aes(x = ppVar))"
+  html <- .render_widget_html(formula, raw_id = "ggplot_2_1_ppNum_NA")
   # Default copy is "Enter a number for {param}"; for an unnamed positional arg
   # the verb fills {param}, giving "...for head()" -- and we do NOT also append
   # " in head()" on top of that.
-  expect_match(as.character(panel), "Enter a number for head\\(\\)")
-  expect_no_match(as.character(panel), "head\\(\\) in head\\(\\)")
+  expect_match(html, "Enter a number for head\\(\\)")
+  expect_no_match(html, "head\\(\\) in head\\(\\)")
 })
 
 test_that("unnamed-arg pipeline placeholder uses 'verb()' as the copy param key", {
-  tree <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = ppVar))")
+  # Hybrid: the stage-group header ("<code>head()</code>") is composed in
+  # the static layer panel via `controllable_region()`, so `build_ui_for`
+  # still observes it. The widget's resolved label (custom override) lives
+  # in the renderUI -> `.render_widget_html`.
+  formula <- "mtcars |> head(ppNum) |> ggplot(aes(x = ppVar))"
+  tree <- ptr_translate(formula)
   layer <- .layer_by_name(tree, "ggplot")
-  panel <- as.character(build_ui_for(
-    layer,
-    ui_text = list(params = list(`head()` = list(ppNum = list(label = "How many rows"))))
-  ))
+  static_panel <- as.character(build_ui_for(layer))
+  expect_match(static_panel, "<code>head\\(\\)</code>")
+
+  ui_text <- list(params = list(`head()` = list(ppNum = list(label = "How many rows"))))
+  widget_html <- .render_widget_html(formula, raw_id = "ggplot_2_1_ppNum_NA", ui_text = ui_text)
   # the `head()` param key still resolves the custom label ...
-  expect_match(panel, "How many rows")
+  expect_match(widget_html, "How many rows")
   # ... but the verb is named once, by the stage-group header -- not as a
   # per-widget " in head()" suffix.
-  expect_match(panel, "<code>head\\(\\)</code>")
-  expect_no_match(panel, "How many rows in head")
+  expect_no_match(widget_html, "How many rows in head")
 })
 
 test_that("a pipeline placeholder's widget no longer carries the ' in verb()' suffix", {
-  tree <- ptr_translate("mtcars |> transform(n = ppNum) |> ggplot(aes(x = ppVar))")
+  formula <- "mtcars |> transform(n = ppNum) |> ggplot(aes(x = ppVar))"
+  tree <- ptr_translate(formula)
   layer <- .layer_by_name(tree, "ggplot")
-  panel <- as.character(build_ui_for(layer))
-  expect_match(panel, "ptr-stage-head")
-  expect_match(panel, "<code>transform\\(\\)</code>")
-  expect_no_match(panel, "in transform\\(\\)")
+  static_panel <- as.character(build_ui_for(layer))
+  # Stage-group scaffolding from the static panel.
+  expect_match(static_panel, "ptr-stage-head")
+  expect_match(static_panel, "<code>transform\\(\\)</code>")
+  # The widget label itself (composed inside the renderUI body) does NOT
+  # carry the redundant " in transform()" suffix.
+  widget_html <- .render_widget_html(formula, raw_id = "ggplot_2_1_ppNum_NA")
+  expect_no_match(widget_html, "in transform\\(\\)")
 })
 
 # ---- pipeline-stage groups ----
@@ -177,11 +190,13 @@ test_that("pipeline stages render as .ptr-stage groups with a verb-labelled chec
 test_that("placeholder nested in a sub-expression names the stage verb, not the inner call", {
   # `text` is the RHS of `Species == text`, itself an argument to `subset()`.
   # The label/copy key must report the stage verb `subset()`, never `==()`.
-  tree <- ptr_translate("iris |> subset(Species == ppText) |> ggplot(aes(x = ppVar))")
-  layer <- .layer_by_name(tree, "ggplot")
-  panel <- as.character(build_ui_for(layer))
-  expect_match(panel, "Enter a value for subset\\(\\)")
-  expect_no_match(panel, "==\\(\\)")
+  # ADR 0012 / PLAN-01 (Bug B): widget label resolves inside the renderUI
+  # body in `ptr_setup_value_uis()`; assert via `.render_widget_html`.
+  formula <- "iris |> subset(Species == ppText) |> ggplot(aes(x = ppVar))"
+  html <- .render_widget_html(formula, raw_id = "ggplot_2_1_2_ppText_NA",
+                              envir = list2env(list(iris = iris), parent = globalenv()))
+  expect_match(html, "Enter a value for subset\\(\\)")
+  expect_no_match(html, "==\\(\\)")
 })
 
 # ---- Phase 3 — layer-disabled visual cue ----
