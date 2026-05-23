@@ -9,8 +9,15 @@ pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_t
 
 ppRange <- ptr_define_placeholder_value(
   keyword = "ppRange",
-  build_ui = function(node, label = "Range", ...) {
-    shiny::sliderInput(node$id, label, min = 0, max = 100, value = c(0, 1))
+  # Accept `selected`: the orchestrator (paintr-build-ui.R:744-765) injects
+  # `node$default` into it at boot, so a positional default in the formula
+  # (`ppRange(c(0, 50))`) seeds the slider's initial range. Falling back to
+  # `c(0, 1)` keeps the widget usable when the formula omits a default.
+  build_ui = function(node, label = "Range", selected = NULL, ...) {
+    v <- if (is.numeric(selected) && length(selected) == 2L) {
+      as.numeric(selected)
+    } else c(0, 1)
+    shiny::sliderInput(node$id, label, min = 0, max = 100, value = v)
   },
   resolve_expr = function(value, ...) value,
   default_arg = ptr_default_numeric_vector(length = 2)

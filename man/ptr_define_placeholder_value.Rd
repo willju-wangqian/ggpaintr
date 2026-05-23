@@ -25,7 +25,17 @@ Pass \code{node$id} as the underlying widget's \code{inputId}. Read \code{node$k
 and \code{node$param} if you need them. The framework also passes any
 \code{copy_defaults} field you declare by name (\code{help}, \code{placeholder},
 \code{empty_text}) — or accept a \code{copy = NULL} list and read them off it.
-Always end the signature with \code{...}.}
+Always end the signature with \code{...}.
+
+\emph{Seeding the initial widget value} — declare an optional
+\code{selected = NULL} formal (or accept \code{...}) to opt in. At boot the
+framework injects \code{node$default} into \code{selected} so a positional
+default in the formula (e.g. \code{ppPct(50)}) seeds the widget. On
+subsequent renderUI fires \code{selected} carries the precedence chain
+\code{spec-seed \%||\% current-input \%||\% empty}, so it is the right slot to
+read regardless of which boot stage is firing. Do \strong{not} read
+\code{node$default} directly inside the body — that bypasses persistence
+and re-clobbers the user's edit on every renderUI re-fire.}
 
 \item{resolve_expr}{\verb{function(value, node, ...)} returning the R
 expression spliced into the rendered call. \code{value} is

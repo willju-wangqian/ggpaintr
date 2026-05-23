@@ -22,7 +22,17 @@ ptr_define_placeholder_consumer(
 Shiny tag. \code{cols} is a character vector of upstream column names
 (use as \code{choices}); \code{character(0)} before upstream resolves. \code{data}
 is the upstream data frame, or \code{NULL} while pending — read it only
-when you need column types / levels / ranges.}
+when you need column types / levels / ranges.
+
+\emph{Seeding the initial selection} — declare an optional
+\code{selected = NULL} formal (or accept \code{...}) to opt in. The framework
+passes the precedence chain \code{spec-seed \%||\% current-input \%||\% empty}
+into \code{selected} on every renderUI fire — including the boot fire, when
+it carries \code{node$default} for a positional default like \code{ppVar(adj)}.
+Pass \code{selected = intersect(selected, cols)} to the picker so a stale
+selection drops cleanly when the upstream columns change. Do \strong{not}
+read \code{node$default} directly inside the body — that bypasses
+persistence and re-clobbers the user's pick on each re-fire.}
 
 \item{resolve_expr}{\verb{function(value, node, ...)}. For a column picker
 the typical body is \code{rlang::sym(value)} so the bare column name is
