@@ -42,6 +42,7 @@ Reserve `Read` for `.Rmd`, `.md`, `.yml`, and for roxygen comment text outside f
 - Stored task files (`dev/tasks/*.md`) stay unchanged unless the user explicitly asks to edit them.
 - Do not create ad-hoc markdown files in `.claude/specs/`.
 - Architectural decision records live in `dev/adr/` (not `docs/` — that's pkgdown's generated, gitignored output). Agent-skill config lives in `dev/agents/` (see `## Agent skills` below).
+- Audit results (pre-merge / post-merge / drift / roxygen / e2e / LLM / etc.) save to `dev/audit/audit-<topic>-<time>.html` — single home for every audit artifact, not `dev/notes/`.
 
 ## Harness Config
 
