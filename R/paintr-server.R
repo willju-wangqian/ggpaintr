@@ -599,22 +599,23 @@ apply_spec_at_boot <- function(spec, session, state) {
 
 # Dispatch one spec entry to the matching `updateXyzInput`. Returns TRUE
 # on a successful update, FALSE if the value was invalid for the widget
-# (so the caller can aggregate per-id warnings). Widget-kind dispatch is
-# keyed by `role` + `keyword` from `state$input_spec`:
+# (so the caller can aggregate per-id warnings). Per PLAN-02 (Bug B
+# spec-apply uniform), placeholder rows (`role == "placeholder"`) are
+# seed-only: their values are written to `state$spec_seed` in
+# `apply_spec_at_boot`, and the renderUI hook's `selected` formal carries
+# the value into the widget on first fire. The dispatch callback skips
+# seeded rows entirely (`if (row$bare_id %in% seeded) next`), so the
+# per-keyword update branches for ppText / ppNum / ppExpr / ppVar are
+# gone. The only reasons control flow now reaches this function:
 #   role == "layer_checkbox" | "stage_enabled" -> updateCheckboxInput
 #   role == "source_companion"                 -> updateTextInput
-#   role == "placeholder", keyword == "ppText"   -> updateTextInput
-#                          keyword == "ppNum"    -> updateNumericInput
-#                          keyword == "ppExpr"   -> updateTextAreaInput
-#                          keyword == "ppVar"    -> shinyWidgets::updatePickerInput
-#                          keyword == "ppUpload" -> silent skip (fileInput
-#                                                   is not programmatically
-#                                                   settable; the companion
-#                                                   textInput is reached via
-#                                                   the "source_companion"
-#                                                   row).
-# (Placeholder keywords carry the `pp` prefix per ADR 0009 / project memory
-# `ADR-0009 Merged`. Pre-rename `text/num/expr/var/upload` no longer parse.)
+#   keyword == "ppUpload"                      -> silent skip (fileInput
+#       is not programmatically settable; its companion textInput is
+#       reached via the "source_companion" branch above).
+# Any other row (e.g. a built-in keyword whose value was invalid in the
+# seed loop and therefore left unseeded) falls through to the terminal
+# FALSE, which the dispatch callback aggregates into the
+# "Skipped N spec entries with an invalid value" warning.
 apply_spec_entry <- function(session, row) {
   role    <- row$role
   keyword <- row$keyword
@@ -633,53 +634,9 @@ apply_spec_entry <- function(session, row) {
     shiny::updateTextInput(session, id, value = as.character(value)[[1L]])
     return(TRUE)
   }
-  # role == "placeholder": dispatch on keyword (pp-prefixed per ADR 0009).
-  if (identical(keyword, "ppText")) {
-    if (is.null(value)) value <- ""
-    shiny::updateTextInput(session, id, value = as.character(value)[[1L]])
-    return(TRUE)
-  }
-  if (identical(keyword, "ppNum")) {
-    if (is.null(value) || (is.character(value) && !nzchar(value))) {
-      shiny::updateNumericInput(session, id, value = NA_real_)
-      return(TRUE)
-    }
-    num <- suppressWarnings(as.numeric(value)[[1L]])
-    if (is.na(num) && !identical(value, NA_real_) && !identical(value, NA_integer_)) {
-      return(FALSE)
-    }
-    shiny::updateNumericInput(session, id, value = num)
-    return(TRUE)
-  }
-  if (identical(keyword, "ppExpr")) {
-    if (is.null(value)) {
-      shiny::updateTextAreaInput(session, id, value = "")
-      return(TRUE)
-    }
-    txt <- if (is.language(value)) {
-      paste(deparse(value), collapse = "\n")
-    } else {
-      as.character(value)[[1L]]
-    }
-    shiny::updateTextAreaInput(session, id, value = txt)
-    return(TRUE)
-  }
-  if (identical(keyword, "ppVar")) {
-    if (is.null(value)) value <- character()
-    if (!requireNamespace("shinyWidgets", quietly = TRUE)) {
-      return(FALSE)
-    }
-    shinyWidgets::updatePickerInput(session, id,
-                                    selected = as.character(value))
-    return(TRUE)
-  }
   if (identical(keyword, "ppUpload")) {
-    # fileInput cannot be updated programmatically (its value is set by
-    # an actual browser-side upload). Silent skip: the companion
-    # textInput's role is "source_companion" handled above.
     return(TRUE)
   }
-  # Unknown keyword (custom placeholder) — no built-in widget dispatch.
   FALSE
 }
 

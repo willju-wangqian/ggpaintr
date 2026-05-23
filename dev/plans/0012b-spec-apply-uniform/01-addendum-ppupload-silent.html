@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-01 addendum — ppUpload "silently dropped" scenario, drop clause [2]</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; max-width: 980px; margin: 2rem auto; padding: 0 1rem; color: #222; line-height: 1.55; }
+  h1, h2, h3 { line-height: 1.2; }
+  h1 { border-bottom: 2px solid #888; padding-bottom: .3rem; }
+  h2 { margin-top: 2.2rem; border-bottom: 1px solid #ccc; padding-bottom: .2rem; }
+  h3 { margin-top: 1.4rem; }
+  code, pre { font-family: SFMono-Regular, Menlo, Consolas, monospace; }
+  code { background: #f4f4f4; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f8f8f8; border: 1px solid #ddd; border-radius: 4px; padding: .7rem 1rem; overflow-x: auto; font-size: 88%; }
+  table { border-collapse: collapse; width: 100%; margin: .8rem 0 1.2rem; }
+  th, td { border: 1px solid #d8d8d8; padding: .45rem .6rem; vertical-align: top; text-align: left; }
+  th { background: #f0f0f0; font-weight: 600; }
+  .small { color: #666; font-size: 88%; }
+  .note { background: #fff8e1; border-left: 4px solid #f39c12; padding: .6rem .9rem; margin: 1rem 0; }
+  del { background: #fdecea; text-decoration: line-through; }
+  ins { background: #e8f8ec; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<h1>PLAN-01 addendum — ppUpload "silently dropped" scenario</h1>
+<p class="small">
+  <b>Parent plan:</b> <code>01-spec-seed-and-renderui-emission.html</code> (<code>/implementable PASS</code> at <code>33ddcd6</code>) &middot;
+  <b>Audit reference:</b> <code>dev/notes/0012b-drift-audit-2026-05-22.html</code> Finding M3 &middot;
+  <b>Author:</b> 2026-05-22 post-merge follow-up &middot;
+  <b>Status:</b> draft (no <code>/implementable</code> stamp needed &mdash; this addendum amends BDD wording only and adds no Success Criterion).
+</p>
+
+<h2>Scope</h2>
+
+<p>
+  Amend a single BDD <code>Then</code> clause in PLAN-01's <em>"ppUpload spec value is silently dropped (fileInput unsettable)"</em> scenario (parent plan lines 123&ndash;131). The clause as written contradicts the scenario's own title and the parent plan's structural-asymmetry principle: it asks for an explicit <code>cli::cli_inform</code> announcing the dropped ppUpload value, while the title (and the only sensible user-facing contract) is <em>silent</em>. The post-merge implementation is silent; the BDD wording is the side that drifted, not the code.
+</p>
+
+<h2>What changes</h2>
+
+<p>The <em>"silently dropped"</em> scenario's third <code>Then</code> clause is deleted. No code change. No new test.</p>
+
+<h3>Before (parent plan, lines 123&ndash;131, verbatim)</h3>
+
+<pre>Scenario: ppUpload spec value is silently dropped (fileInput unsettable)
+  Given a placeholder ppUpload with id "ggplot_1_1_ppUpload_NA"
+    And spec = list(ggplot_1_1_ppUpload_NA = "ignored.csv",
+                    ggplot_1_1_ppUpload_NA_name = "my_data")
+  When ptr_server_internal boots and flushReact() runs
+  Then state$spec_seed does NOT contain the key "ggplot_1_1_ppUpload_NA"
+<del>    And a single cli::cli_inform names "ggplot_1_1_ppUpload_NA" as dropped at end of boot</del>
+    And state$spec_seed for the source_companion id equals "my_data"
+    And the companion textInput's value (read via session$input) equals "my_data"</pre>
+
+<h3>After (amended)</h3>
+
+<pre>Scenario: ppUpload spec value is silently dropped (fileInput unsettable)
+  Given a placeholder ppUpload with id "ggplot_1_1_ppUpload_NA"
+    And spec = list(ggplot_1_1_ppUpload_NA = "ignored.csv",
+                    ggplot_1_1_ppUpload_NA_name = "my_data")
+  When ptr_server_internal boots and flushReact() runs
+  Then state$spec_seed does NOT contain the key "ggplot_1_1_ppUpload_NA"
+    And state$spec_seed for the source_companion id equals "my_data"
+    And the companion textInput's value (read via session$input) equals "my_data"
+    And no cli::cli_inform or cli::cli_warn names "ggplot_1_1_ppUpload_NA"</pre>
+
+<p>The new final clause makes the silence explicit so any future implementer can&rsquo;t reintroduce a stray message without breaking a stated <code>Then</code>.</p>
+
+<h2>Rationale</h2>
+
+<ol>
+  <li><b>The scenario title is load-bearing.</b> "silently dropped" is the contract. The original clause [2] ("a single cli::cli_inform names &hellip; as dropped") contradicts that. The contradiction almost certainly came from copy-paste from the next scenario in the parent plan ("spec entry for unknown id is dropped with single aggregate cli_inform" at parent line 133), which legitimately <em>does</em> want a message.</li>
+  <li><b>A message here would be user-hostile.</b> Programmatic <code>spec=</code> callers typically replay a saved app state. Their <code>fileInput</code> value is unavoidably non-round-trippable (Shiny&rsquo;s <code>fileInput</code> takes its value from a browser-side upload event, not from <code>updateXyzInput</code>). Announcing this on every boot would be noise, not signal. The companion id ("&hellip;_name") <em>does</em> round-trip and carries the only piece a user can meaningfully reconstruct &mdash; that&rsquo;s already covered by clauses [3] and [4].</li>
+  <li><b>The code already implements the silent contract.</b> Verified at <code>R/paintr-server.R</code> in this worktree:
+    <ul>
+      <li>The seed-write guard at L538&ndash;541 excludes <code>row$keyword == "ppUpload"</code> &mdash; the row is skipped via <code>next</code> with no side effect.</li>
+      <li>The <code>cli_inform</code> at L507&ndash;511 only fires for ids absent from <code>state$input_spec$input_id</code>. The ppUpload id <em>is</em> in <code>input_spec</code>, so it does not enter the <code>dropped</code> vector.</li>
+      <li><code>apply_spec_entry</code>&rsquo;s ppUpload branch at L677&ndash;682 is a silent <code>return(TRUE)</code> with no message.</li>
+      <li>The source_companion row for "&hellip;_name" routes through the second arm of <code>write_seed</code> at L540 and is type-normalized as character at L544&ndash;547. The companion textInput&rsquo;s renderUI reads <code>state$spec_seed[[bare_id]]</code> as <code>extra$selected</code>.</li>
+    </ul>
+  </li>
+</ol>
+
+<h2>Success Criteria</h2>
+
+<ul>
+  <li><b>SC-A1.</b> The parent plan&rsquo;s <em>"ppUpload spec value is silently dropped"</em> scenario carries the amended <code>Then</code> block (clause [2] removed; explicit-silence clause appended). Verifiable by reading the parent plan file or this addendum together with it.</li>
+  <li><b>SC-A2.</b> No new <code>testthat</code> coverage is required by this addendum. The silent contract is verified by absence-of-message in the full DoD gate run &mdash; a stray <code>cli_inform</code> or <code>cli_warn</code> naming the ppUpload id would surface in the reporter's WARN counter or the tail output. The seed-write exclusion at <code>R/paintr-server.R:538&ndash;541</code> and the <code>source_companion</code> branch at <code>R/paintr-server.R:540 + L544&ndash;547</code> are verified by code review. <b>No existing test asserts the <code>source_companion</code> seed-write triggered specifically by a <code>ppUpload</code> spec entry</b> &mdash; the <code>test-adr12-spec-roundtrip.R</code> fixture uses <code>ppVar</code>, <code>ppNum</code>, <code>layer_checkbox</code>, and one unknown id, none of which produce a <code>source_companion</code> row. A ~25-line <code>test_that</code> follow-up could close that gap but is not blocking for M3's closure (which is a plan-text amendment only). Audit Finding M3 closes as <em>plan-text drift</em>, not <em>coverage gap</em>; ppUpload <code>source_companion</code> coverage is a separate, optional follow-up.</li>
+  <li><b>SC-A3.</b> Full gate (DoD below) remains unchanged: <code>FAIL 0 / WARN 0 / SKIP 2 / PASS 2194</code>.</li>
+</ul>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><b>Files this addendum owns:</b>
+    <ul>
+      <li>This file (<code>01-addendum-ppupload-silent.html</code>).</li>
+      <li>One row appended to <code>index.md</code>&rsquo;s "Plans" or "Notes" section linking this addendum (optional &mdash; orchestrator preference).</li>
+    </ul>
+  </li>
+  <li><b>Files this addendum must NOT touch:</b>
+    <ul>
+      <li><code>R/paintr-*.R</code> &mdash; no code change. The contract holds as-shipped.</li>
+      <li><code>tests/testthat/*</code> &mdash; no new test required; no existing test changed.</li>
+      <li><code>01-spec-seed-and-renderui-emission.html</code> &mdash; the parent plan stays at its <code>/implementable PASS</code> hash. In-place edit would invalidate the stamp; this addendum sits beside it instead.</li>
+      <li>PLAN-02 (<code>02-collapse-apply-spec-entry-and-revert-workarounds.html</code>) &mdash; independently still <code>/implementable PASS</code>; orthogonal to this clarification.</li>
+    </ul>
+  </li>
+  <li><b>Audit-finding linkage:</b> closes the <em>"M3 &mdash; coverage gap"</em> entry in <code>dev/notes/0012b-drift-audit-2026-05-22.html</code> by reclassifying it as a plan-text drift now reconciled. The drift-audit HTML itself stays read-only.</li>
+</ul>
+
+<h2>BDD scenarios (amended block, copy of "After" above)</h2>
+
+<pre>Feature: ppUpload spec entry handling at boot (amends PLAN-01)
+
+  Scenario: ppUpload spec value is silently dropped (fileInput unsettable)
+    Given a placeholder ppUpload with id "ggplot_1_1_ppUpload_NA"
+      And spec = list(ggplot_1_1_ppUpload_NA = "ignored.csv",
+                      ggplot_1_1_ppUpload_NA_name = "my_data")
+    When ptr_server_internal boots and flushReact() runs
+    Then state$spec_seed does NOT contain the key "ggplot_1_1_ppUpload_NA"
+      And state$spec_seed for the source_companion id equals "my_data"
+      And the companion textInput's value (read via session$input) equals "my_data"
+      And no cli::cli_inform or cli::cli_warn names "ggplot_1_1_ppUpload_NA"</pre>
+
+<p>The fourth <code>Then</code> clause is the explicit-silence guard. It is not asserted by a new test; it is the contract any future reviewer should match the implementation against when extending boot-time spec handling.</p>
+
+<h2>Definition of Done</h2>
+
+<p>Authoritative gate (copied verbatim from <code>CLAUDE.md</code>):</p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p>Expected: <code>FAIL 0 / WARN 0 / SKIP 2 / PASS 2194</code> (unchanged from the post-merge baseline at <code>efbf793</code>). Because this addendum adds no test and no code, a successful run is the run that already passed at merge; no fresh execution is required, but re-running the command costs nothing and is recommended before the outer merge to <code>vignette-review</code>.</p>
+
+<div class="note"><b>Proxy traps (from <code>CLAUDE.md</code>):</b> raw <code>Rscript -e 'testthat::test_dir()'</code> without <code>NOT_CRAN=true</code> silently skips every shinytest2 browser test. <code>devtools::check(... --as-cran)</code> sets <code>NOT_CRAN=true</code> in the check subprocess but the e2e fixture cleanly SKIPs there via the source-root guard &mdash; do not mistake that SKIP for a regression. The only gate is the command above.</div>
+
+<h2>One-line summary</h2>
+
+<p>PLAN-01&rsquo;s ppUpload-silent scenario had a contradictory <code>Then</code> clause asking for a <code>cli_inform</code>. This addendum deletes it and replaces it with an explicit-silence clause. No code, no test, no stamp churn on the parent plan; closes audit Finding M3 as plan-text drift.</p>
+
+</body>
+</html>

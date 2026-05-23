@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>0012b M3 addendum audit — Bug B spec-apply uniform (addendum honesty + merge readiness)</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; max-width: 980px; margin: 2rem auto; padding: 0 1rem; color: #222; line-height: 1.55; }
+  h1, h2, h3 { line-height: 1.2; }
+  h1 { border-bottom: 2px solid #888; padding-bottom: .3rem; }
+  h2 { margin-top: 2.2rem; border-bottom: 1px solid #ccc; padding-bottom: .2rem; }
+  h3 { margin-top: 1.4rem; }
+  code, pre { font-family: SFMono-Regular, Menlo, Consolas, monospace; }
+  code { background: #f4f4f4; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f8f8f8; border: 1px solid #ddd; border-radius: 4px; padding: .7rem 1rem; overflow-x: auto; font-size: 88%; }
+  table { border-collapse: collapse; width: 100%; margin: .8rem 0 1.2rem; }
+  th, td { border: 1px solid #d8d8d8; padding: .45rem .6rem; vertical-align: top; text-align: left; }
+  th { background: #f0f0f0; font-weight: 600; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 80%; font-weight: 600; color: white; }
+  .badge-high { background: #c0392b; }
+  .badge-med  { background: #e67e22; }
+  .badge-low  { background: #7f8c8d; }
+  .badge-pass { background: #27ae60; }
+  .verdict { font-size: 130%; font-weight: 700; padding: .7rem 1rem; background: #fff8e1; border-left: 6px solid #f39c12; margin: 2rem 0; }
+  .verdict.pass { background: #e8f8ec; border-left-color: #27ae60; }
+  .verdict.fail { background: #fdecea; border-left-color: #c0392b; }
+  .small { color: #666; font-size: 88%; }
+  blockquote { border-left: 3px solid #ccc; padding-left: .8rem; color: #555; margin: .5rem 0; }
+</style>
+</head>
+<body>
+
+<h1>0012b M3 addendum audit — Bug B spec-apply uniform</h1>
+<p class="small">
+  <b>Worktree:</b> <code>.claude/worktrees/bug-b-spec-apply-uniform</code> &middot;
+  <b>Branch:</b> <code>bug-b-spec-apply-uniform</code> &middot;
+  <b>HEAD:</b> <code>efbf793</code> (merge commit, feature <code>c5f6cae</code> on parent <code>33ddcd6</code>) <br>
+  <b>Audit date:</b> 2026-05-22. <b>Auditor:</b> opus-high read-only sub-agent dispatched by the orchestrator post-M3-addendum draft. <br>
+  <b>Scope:</b> Two passes — (A) verify the M3 addendum at <code>dev/plans/0012b-spec-apply-uniform/01-addendum-ppupload-silent.html</code> against the actual code + parent plan; (B) re-derive merge-readiness for <code>bug-b-spec-apply-uniform &rarr; vignette-review</code> with the still-open H1/M1/M2/L1 findings. Does NOT re-derive the prior drift audit (<code>dev/notes/0012b-drift-audit-2026-05-22.html</code>) — that PASS-with-caveats verdict is taken as input.
+</p>
+
+<div class="verdict">
+  <b>VERDICT (Pass A): PASS-with-caveats.</b>
+  All four code citations in the addendum are <em>literally correct</em>. The parent plan SHA-256 is byte-identical at <code>33ddcd6</code> and <code>efbf793</code> (untouched). The amended Gherkin block parses cleanly. <b>But</b> one load-bearing claim is wrong: SC-A2 states that <code>test-adr12-spec-roundtrip.R</code>'s "ppUpload fixture" exercises the <code>source_companion</code> seed-write path; <em>the fixture has no <code>ppUpload</code> placeholder</em> (verified by reading <code>app.R</code>). This is a new finding (N1, MEDIUM) — not a code defect, but a plan-text overreach.
+</div>
+
+<div class="verdict pass">
+  <b>VERDICT (Pass B): READY-WITH-CAVEATS.</b>
+  Gate ran personally and observed <code>FAIL 0 / WARN 0 / SKIP 2 / PASS 2194</code> (identical to expected). Both SKIPs are the documented ADR 0012 §5 OQ2 deferrals. Scope is clean: zero diff into Bug A territory (<code>paintr-classify.R</code>, <code>paintr-walk.R</code>, <code>paintr-translate.R</code>, <code>paintr-shared.R</code>, <code>consumer-colvars/</code>, <code>adr12-bug-3a/</code>, <code>NAMESPACE</code>, <code>man/</code>). The prior handoff's <em>external</em> merge blocker — pipe-op session dirty in MAIN — is <b>NO LONGER PRESENT</b>: <code>git -C &lt;MAIN&gt; status</code> shows clean tracked files; the previously dirty <code>R/paintr-translate.R</code>, <code>R/paintr-render.R</code>, <code>R/paintr-nodes.R</code> are committed or reverted. <b>The single remaining gate</b> is the user's H1 decision (10-line dead-code delete vs PLAN-02 SC-1 amendment vs defer). Without it, the outer merge proceeds but PLAN-02 SC-1's literal-verification command returns 5 instead of 0.
+</div>
+
+<h2>1. Audit Pass A — addendum honesty</h2>
+
+<h3>1.1 Code-claim verification (one row per addendum citation)</h3>
+
+<table>
+<thead><tr><th>Addendum claim</th><th>Citation</th><th>Literal-content match</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr>
+  <td><code>write_seed</code> guard excludes <code>row$keyword == "ppUpload"</code></td>
+  <td><code>R/paintr-server.R:538&ndash;541</code></td>
+  <td>Lines 538&ndash;541 read:<br><code>write_seed &lt;- (identical(row$role, "placeholder") &amp;&amp;<br>&nbsp;&nbsp;&nbsp;&nbsp;!identical(row$keyword, "ppUpload")) ||<br>&nbsp;&nbsp;identical(row$role, "source_companion")<br>if (!write_seed) next</code></td>
+  <td><span class="badge badge-pass">VERIFIED</span></td>
+</tr>
+<tr>
+  <td><code>cli_inform</code> fires only when <code>length(dropped) &gt; 0L</code>; ppUpload id is in <code>state$input_spec$input_id</code> so cannot enter <code>dropped</code></td>
+  <td><code>R/paintr-server.R:507&ndash;511</code></td>
+  <td>Lines 507&ndash;511 read:<br><code>if (length(dropped) &gt; 0L) {<br>&nbsp;&nbsp;cli::cli_inform(c(<br>&nbsp;&nbsp;&nbsp;&nbsp;"i" = "Dropped {length(dropped)} unknown id{?s} from {.arg spec}: {.val {dropped}}"<br>&nbsp;&nbsp;))<br>}</code><br>The <code>dropped</code> vector is built at L494&ndash;497 only when <code>match(bid, known_ids, nomatch=0L) == 0L</code>. ppUpload row is registered in <code>state$input_spec</code> via <code>register_placeholder_input</code>, so it matches and is routed to <code>rows_to_apply</code>, not <code>dropped</code>.</td>
+  <td><span class="badge badge-pass">VERIFIED</span></td>
+</tr>
+<tr>
+  <td><code>apply_spec_entry</code>'s ppUpload branch is a silent <code>return(TRUE)</code> with no <code>cli_*</code> call</td>
+  <td><code>R/paintr-server.R:677&ndash;682</code></td>
+  <td>Lines 677&ndash;682 read:<br><code>if (identical(keyword, "ppUpload")) {<br>&nbsp;&nbsp;# fileInput cannot be updated programmatically (its value is set by<br>&nbsp;&nbsp;# an actual browser-side upload). Silent skip: the companion<br>&nbsp;&nbsp;# textInput's role is "source_companion" handled above.<br>&nbsp;&nbsp;return(TRUE)<br>}</code><br>No <code>cli::*</code>, no <code>warning()</code>, no <code>message()</code>.</td>
+  <td><span class="badge badge-pass">VERIFIED</span></td>
+</tr>
+<tr>
+  <td>Source-companion arm at <code>L540</code> + character normalization at <code>L544&ndash;547</code></td>
+  <td><code>R/paintr-server.R:540 + L544&ndash;547</code></td>
+  <td>L540: <code>identical(row$role, "source_companion")</code> (second arm of <code>write_seed</code>). L544&ndash;547:<br><code>if (identical(row$role, "source_companion") ||<br>&nbsp;&nbsp;&nbsp;&nbsp;identical(row$keyword, "ppText")) {<br>&nbsp;&nbsp;if (is.null(value)) value &lt;- ""<br>&nbsp;&nbsp;else value &lt;- as.character(value)[[1L]]<br>}</code></td>
+  <td><span class="badge badge-pass">VERIFIED</span></td>
+</tr>
+</tbody>
+</table>
+
+<h3>1.2 Test-coverage claim (SC-A2) verification</h3>
+
+<p>
+  The addendum's SC-A2 (line 89 of <code>01-addendum-ppupload-silent.html</code>) asserts:
+</p>
+<blockquote>
+  "the companion id seeding is verified structurally by the <code>source_companion</code> path that is already exercised by <code>test-adr12-spec-roundtrip.R</code> (the ppUpload fixture there feeds the same seed-write branch)"
+</blockquote>
+
+<p>
+  This claim is <b>factually wrong</b>. <code>tests/testthat/fixtures/vignette-apps/adr12-spec-roundtrip/app.R</code>'s formula and spec list (verified by reading the entire file, 57 lines) contain <b>no <code>ppUpload</code> placeholder</b>:
+</p>
+
+<pre>ptr_app(
+  "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point(data = mtcars |> dplyr::filter(carb &gt; ppNum))",
+  spec = list(
+    `ggplot_1_1_ppVar_NA`     = "carb",
+    `geom_point_checkbox`     = FALSE,
+    `geom_point_2_2_ppNum_NA` = 5,
+    `no_such_widget_id_99`    = "x"
+  )
+)</pre>
+
+<p>
+  The fixture covers <code>ppVar</code>, <code>ppNum</code>, <code>layer_checkbox</code>, and an unknown id (for the M3-prior cli_inform on <em>truly unknown</em> ids). It does NOT cover <code>ppUpload</code>, and grep on the matching test file <code>tests/testthat/test-adr12-spec-roundtrip.R</code> finds zero hits for <code>ppUpload</code>, <code>source_companion</code>, or <code>_name</code>.
+</p>
+
+<p>
+  The <code>source_companion</code> seed-write path may still be covered <em>elsewhere</em> (e.g. by tests that exercise <code>ppVar-as-source</code>'s shared-coordinator companion), but the specific claim in SC-A2 (that the path is covered by the <em>ppUpload fixture</em> in this test file) is not supported by the source. This is the new finding <b>N1</b> (MEDIUM) below.
+</p>
+
+<h3>1.3 Parent plan untouched + audit-linkage check</h3>
+
+<table>
+<thead><tr><th>Check</th><th>Command / observation</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr>
+  <td>Parent plan SHA-256 at <code>33ddcd6</code> = SHA-256 at <code>efbf793</code></td>
+  <td>Both reported <code>91c98d5d5067864a2cfa673f0e88363eb11da4a948868ea1c89c0fe8083ed392</code>; <code>git diff 33ddcd6..efbf793 -- dev/plans/0012b-spec-apply-uniform/</code> produces empty output. The addendum is an untracked sibling, not a committed change.</td>
+  <td><span class="badge badge-pass">VERIFIED</span></td>
+</tr>
+<tr>
+  <td>Addendum names M3 by id and reclassifies as plan-text drift, not coverage gap</td>
+  <td>Line 29: <code>"Audit reference: dev/notes/0012b-drift-audit-2026-05-22.html Finding M3"</code>. Line 89 (SC-A2 last sentence): <code>"Audit Finding M3 closes as plan-text drift, not coverage gap."</code></td>
+  <td><span class="badge badge-pass">VERIFIED</span></td>
+</tr>
+<tr>
+  <td>PLAN-02 <code>/implementable PASS</code> stamp intact at <code>33ddcd6</code></td>
+  <td>The addendum's "Constraints" section (L107) explicitly states PLAN-02 stays at its <code>/implementable PASS</code> hash. The plan dir diff is empty, so PLAN-02 untouched too.</td>
+  <td><span class="badge badge-pass">VERIFIED</span></td>
+</tr>
+</tbody>
+</table>
+
+<h3>1.4 BDD-amendment Gherkin validity</h3>
+
+<p>
+  The amended "After" block (addendum L58&ndash;66 and L115&ndash;125) reads:
+</p>
+
+<pre>Scenario: ppUpload spec value is silently dropped (fileInput unsettable)
+  Given a placeholder ppUpload with id "ggplot_1_1_ppUpload_NA"
+    And spec = list(ggplot_1_1_ppUpload_NA = "ignored.csv",
+                    ggplot_1_1_ppUpload_NA_name = "my_data")
+  When ptr_server_internal boots and flushReact() runs
+  Then state$spec_seed does NOT contain the key "ggplot_1_1_ppUpload_NA"
+    And state$spec_seed for the source_companion id equals "my_data"
+    And the companion textInput's value (read via session$input) equals "my_data"
+    And no cli::cli_inform or cli::cli_warn names "ggplot_1_1_ppUpload_NA"</pre>
+
+<p>
+  Structure: one <code>Scenario:</code>, one <code>Given</code> + one <code>And</code> (Given), one <code>When</code>, one <code>Then</code> + three <code>And</code>s (Then). All four <code>Then</code> clauses are concrete and testable (they map to: absence of a key in a list, presence of a key with a specific value, an <code>input</code> read with a specific value, and absence of a cli message naming a specific id). The new fourth clause ("no cli::cli_inform or cli::cli_warn names &hellip;") is the explicit-silence guard; it does not contradict any contract in PLAN-01 or PLAN-02 (both are silent-on-ppUpload). <span class="badge badge-pass">VERIFIED</span>
+</p>
+
+<h2>2. Audit Pass B — merge readiness</h2>
+
+<h3>2.1 Authoritative gate (run personally)</h3>
+
+<p>Command exactly as in <code>CLAUDE.md</code>:</p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p>Tail (last 10 lines of stderr/stdout, 109.5 s duration):</p>
+
+<pre>══ Results ═════════════════════════════════════════════════════════════════════
+Duration: 109.5 s
+
+── Skipped tests (2) ───────────────────────────────────────────────────────────
+• deferred to ADR 0012 §5 OQ2: %&gt;% preservation in lifted pipelines is a future
+  enhancement; see PLAN-04 'Deferred to future rounds' section. Lifted
+  pipelines all carry $op = '|&gt;' post-G2; %&gt;%-source surface preservation
+  requires a successor plan. (1): 'test-rewrite-render.R:40:3'
+• deferred to ADR 0012 §5 OQ2: %&gt;% preservation in lifted pipelines is a future
+  enhancement; see PLAN-04 'Deferred to future rounds' section. Lifted
+  pipelines all carry $op = '|&gt;' post-G2; mixed %&gt;%/|&gt; surface preservation
+  requires a successor plan. (1): 'test-rewrite-render.R:53:3'
+
+[ FAIL 0 | WARN 0 | SKIP 2 | PASS 2194 ]</pre>
+
+<p>
+  Result <span class="badge badge-pass">FAIL 0 / WARN 0 / SKIP 2 / PASS 2194</span> — exactly the expected baseline at <code>efbf793</code>. Both SKIPs are pre-existing and documented; not regressions.
+</p>
+
+<h3>2.2 Scope-isolation check (Bug B did not touch Bug A territory)</h3>
+
+<pre>git diff 33ddcd6..efbf793 --stat -- \
+  R/paintr-classify.R R/paintr-walk.R R/paintr-translate.R R/paintr-shared.R \
+  tests/testthat/fixtures/vignette-apps/consumer-colvars/ \
+  tests/testthat/fixtures/vignette-apps/adr12-bug-3a/ \
+  NAMESPACE man/</pre>
+
+<p>
+  Output: <b>empty</b>. Bug B's diff stays inside <code>R/paintr-server.R</code> (+330 lines), <code>R/paintr-build-ui.R</code> (+120 lines), <code>tests/testthat/test-adr12-*</code>, <code>tests/testthat/helper-rewrite.R</code>, and a handful of regression-test patches. None of Bug A's files moved. <span class="badge badge-pass">VERIFIED</span>
+</p>
+
+<h3>2.3 External merge blocker (MAIN status)</h3>
+
+<pre>git -C /Users/willju/Research/ggpaintr-rewrite-vignette-review status</pre>
+
+<p>
+  Output (head):
+</p>
+
+<pre>On branch vignette-review
+Untracked files:
+  .claude/worktrees/
+  .codex/
+  dev/notes/0012-exec-plan-deferred-questions-2026-05-22T07-46-14Z.jsonl
+  dev/notes/0012-exec-plan-report-2026-05-22T07-46-14Z.html
+
+nothing added to commit but untracked files present</pre>
+
+<p>
+  <b>MAIN is clean on tracked files.</b> The prior handoff's claim that the pipe-op session has <code>R/paintr-translate.R</code>, <code>R/paintr-render.R</code>, <code>R/paintr-nodes.R</code> dirty in MAIN is <b>no longer accurate</b> — those modifications have been committed, reverted, or otherwise cleared. Only untracked files remain (worktrees + the exec-plan report sidecars), which do not block a merge. <span class="badge badge-pass">EXTERNAL BLOCKER CLEARED</span>
+</p>
+
+<h3>2.4 Open-findings re-derivation (post-M3-reclassification)</h3>
+
+<table>
+<thead><tr><th>Finding</th><th>Status after addendum</th><th>Blocks outer merge?</th><th>Recommendation</th></tr></thead>
+<tbody>
+<tr>
+  <td><b>H1</b> <span class="badge badge-high">HIGH</span> &mdash; dead code in <code>apply_spec_entry</code> at <code>R/paintr-server.R:645, 652, 657, 665, 673</code>; PLAN-02 SC-1's literal-verification command (count of <code>updateNumericInput|updateTextAreaInput|updatePickerInput</code> after line 619) returns <code>5</code>, expected <code>0</code></td>
+  <td>Still open. Two paths: (a) 10-line delete (audit's recommendation; preserves SC-1's intent literally); (b) PLAN-02 addendum amending SC-1 to accept the dead-code path (cheaper, but weakens the SC).</td>
+  <td><b>Yes — IF the user wants PLAN-02 SC-1 to pass literally before the outer merge.</b> If the user accepts the deviation in a follow-up commit, no.</td>
+  <td>Path (a) — the 10-line delete is mechanical and self-contained; the dead branches genuinely cannot fire after the seeded-skip at L587. Auditor concurs with prior audit.</td>
+</tr>
+<tr>
+  <td><b>M1</b> <span class="badge badge-med">MED</span> &mdash; PLAN-01 BDD <code>session$input[[id]]</code> wording is narrowed to HTML observation in the tests (MockShinySession does not auto-populate <code>input</code> from renderUI'd widgets).</td>
+  <td>Still open. Analogous to the M3 amendment that this session drafted &mdash; could be batched into a second PLAN-01 addendum.</td>
+  <td>No.</td>
+  <td>Defer: author a single PLAN-01 addendum batching M1+L1 either before the outer merge (clean) or as a follow-up commit on <code>vignette-review</code> post-merge (also acceptable; the wording is documentation, not a contract enforced by code).</td>
+</tr>
+<tr>
+  <td><b>M2</b> <span class="badge badge-med">MED</span> &mdash; shinytest2 round-trip is currently asserted by HTML observation only; the question of whether the user-facing reactive that reads <code>input$&lt;id&gt;</code> in production receives the seeded value before first user interaction is not covered.</td>
+  <td>Still open. ~20-line follow-up test in <code>test-adr12-spec-roundtrip.R</code> that drives the widget with shinytest2 and re-asserts via <code>app$get_value</code>.</td>
+  <td>No.</td>
+  <td>Defer to a follow-up issue on <code>vignette-review</code>; not blocking.</td>
+</tr>
+<tr>
+  <td><b>L1</b> <span class="badge badge-low">LOW</span> &mdash; <code>state$spec_seed</code> is an environment (reference semantics for closure capture), not a list; the BDD wording "named list" is mildly stale.</td>
+  <td>Still open. Same disposition as M1.</td>
+  <td>No.</td>
+  <td>Defer; batch with M1.</td>
+</tr>
+<tr>
+  <td><b>M3</b> <span class="badge badge-med">MED</span> (prior audit) &rarr; <span class="badge badge-low">LOW</span> (post-addendum)</td>
+  <td>Re-classified by the addendum at <code>dev/plans/0012b-spec-apply-uniform/01-addendum-ppupload-silent.html</code> as plan-text drift. Code is correct; BDD wording is amended.</td>
+  <td>No.</td>
+  <td>See N1 below — the addendum's SC-A2 overreaches, but the M3 reclassification itself stands.</td>
+</tr>
+<tr>
+  <td><b>N1</b> <span class="badge badge-med">MED</span> &mdash; new finding from this audit: SC-A2 of the addendum claims the ppUpload <code>source_companion</code> seed-write path is exercised by the <code>test-adr12-spec-roundtrip.R</code> fixture, but the fixture has no <code>ppUpload</code> placeholder.</td>
+  <td>Open. Two paths: (a) amend SC-A2 to drop the <code>ppUpload</code>-specific test claim; (b) extend the existing fixture with a <code>ppUpload</code> placeholder + a <code>_name</code> companion-id assertion to make SC-A2 honest.</td>
+  <td>No &mdash; SC-A2 is a wording claim in an unstamped addendum that adds no code or test.</td>
+  <td>Path (a). The companion seed-write path itself is structurally exercised by every renderUI mount; the gain from extending the fixture is small and orthogonal to the M3 reclassification. Just tighten the SC-A2 wording.</td>
+</tr>
+</tbody>
+</table>
+
+<h3>2.5 Merge-readiness verdict</h3>
+
+<p>
+  Given:
+</p>
+<ol>
+  <li>Full gate green at the literal command from <code>CLAUDE.md</code>.</li>
+  <li>No scope leak into Bug A.</li>
+  <li>MAIN's external blocker is cleared.</li>
+  <li>H1 is the only finding that could literally fail an SC-verification command on the parent plan.</li>
+  <li>M1/M2/L1 are documentation / coverage follow-ups, not merge blockers.</li>
+  <li>M3 is closed by the addendum (modulo N1, a wording tweak in the unstamped addendum).</li>
+</ol>
+
+<p>
+  Verdict: <b>READY-WITH-CAVEATS</b>. The single caveat is the user's H1 decision. If the user chooses path (a) — the 10-line delete — the merge proceeds cleanly with PLAN-02 SC-1 passing literally. If the user accepts the dead-code deviation in a PLAN-02 addendum, the merge also proceeds; that path just weakens the SC. Either way, M1/L1/M2/N1 are non-blocking follow-ups.
+</p>
+
+<h2>3. Findings summary (new only — H1/M1/M2/L1 are taken as inputs)</h2>
+
+<table>
+<thead><tr><th>Id</th><th>Severity</th><th>Where</th><th>What</th></tr></thead>
+<tbody>
+<tr>
+  <td>N1</td>
+  <td><span class="badge badge-med">MED</span></td>
+  <td><code>dev/plans/0012b-spec-apply-uniform/01-addendum-ppupload-silent.html:89</code> (SC-A2)</td>
+  <td>
+    SC-A2 claims the ppUpload <code>source_companion</code> seed-write path is exercised by the <code>test-adr12-spec-roundtrip.R</code> fixture. Verified by reading <code>tests/testthat/fixtures/vignette-apps/adr12-spec-roundtrip/app.R</code> (57 lines) and grepping <code>tests/testthat/test-adr12-spec-roundtrip.R</code>: the fixture's formula contains <code>ppVar</code> and <code>ppNum</code> only, no <code>ppUpload</code>, no <code>source_companion</code>, no <code>_name</code> companion id. The seed-write branch may be exercised elsewhere by ppVar-as-source coverage, but the specific fixture cited in SC-A2 does not exercise it. Recommend tightening SC-A2's wording (drop the parenthetical "the ppUpload fixture there feeds the same seed-write branch") or extending the fixture with a <code>ppUpload</code> placeholder.
+  </td>
+</tr>
+</tbody>
+</table>
+
+<p class="small">
+  Notes on what was checked but did not surface a new finding:
+</p>
+<ul>
+  <li>Four code citations in the addendum (L538&ndash;541, L507&ndash;511, L677&ndash;682, L540 + L544&ndash;547) are <em>literally</em> correct &mdash; no off-by-one.</li>
+  <li>Parent plan and PLAN-02 SHA-256 identical between <code>33ddcd6</code> and <code>efbf793</code>; addendum is untracked and orthogonal.</li>
+  <li>Amended Gherkin block parses cleanly; the explicit-silence clause does not contradict any contract in PLAN-01 or PLAN-02.</li>
+  <li>Authoritative gate ran personally; no proxy used.</li>
+  <li>Scope check on Bug A files, NAMESPACE, <code>man/</code> &mdash; all clean.</li>
+  <li>MAIN status: clean tracked files; pipe-op session blocker is cleared.</li>
+  <li>Observation (not a finding): the prior audit's "dead code in <code>apply_spec_entry</code>" enumeration of 5 lines (L645, 652, 657, 665, 673) is the count PLAN-02 SC-1 checks; technically L634 and L640 (source_companion + ppText branches) are also dead under the seeded-skip at L587, but those branches are excluded from SC-1's literal-verification scope. The auditor concurs with PLAN-02 SC-1's choice of the 5 placeholder branches for H1.</li>
+</ul>
+
+<h2>One-line summary</h2>
+
+<p>
+  M3 addendum's code claims are all literally correct and Gherkin parses; SC-A2's test-coverage claim overreaches (new finding N1, MED) because the cited fixture has no <code>ppUpload</code> placeholder; outer merge <code>bug-b-spec-apply-uniform &rarr; vignette-review</code> is READY-WITH-CAVEATS (single caveat: the user's H1 decision; the MAIN-side pipe-op blocker is cleared).
+</p>
+
+</body>
+</html>
