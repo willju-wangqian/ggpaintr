@@ -1,104 +1,189 @@
 #!/usr/bin/env python3
 """
-build-doc-css.py — Externalize inline <style> blocks from internal docs.
+build-doc-css.py — Minify / dedupe dev/assets/doc.css in place.
 
-Scans every in-scope HTML under dev/{plans,adr,audit,notes,feature_bank},
-plus dev/ast-walk-diagram.html, reads the <style>...</style> body from
-**git HEAD** (so re-running after a previous rewrite still works), and
-writes a merged dev/assets/doc.css ordered most-common-block-first so the
-cascade's last-wins behavior favors the long tail of one-off blocks.
+The first version of this script extracted inline <style> blocks from
+internal-docs HTMLs and concatenated them into dev/assets/doc.css. That
+was a one-time bootstrap. After it, dev/assets/doc.css IS the source of
+truth — this script reads it back, parses every rule, and rewrites the
+file as a flat deduplicated stylesheet:
 
-Pair with dev/scripts/rewrite-html-link.py:
-    python3 dev/scripts/build-doc-css.py        # produce dev/assets/doc.css
-    python3 dev/scripts/rewrite-html-link.py    # rewrite HTMLs to <link>
+  * One rule per selector signature, first-seen wins on declarations.
+    Visual drift between original buckets is accepted.
+  * `:root` variables are unioned across every `:root { ... }` block so
+    no `var(--...)` reference loses its definition.
+  * `@media` / `@keyframes` / `@supports` blocks are preserved as opaque
+    units, deduped by their full text.
+  * `@import` and other at-rule statements are preserved (deduped).
 
-Files explicitly skipped:
-  - dev/adr/0013-*.html and dev/plans/0013-*/*.html
-    (held for a concurrent worktree; revisit when 0013 lands)
-  - dev/demo/demo.html (pandoc-generated, self-contained)
-  - README.html, vignettes/*.html, archive/*.html (generated from .Rmd)
+Re-run after hand-editing dev/assets/doc.css if you want to canonicalize.
+Companion: dev/scripts/rewrite-html-link.py rewrites HTMLs from inline
+<style> to <link rel="stylesheet" href="../assets/doc.css">.
 """
-import re, hashlib, subprocess, sys
+import re, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+CSS_PATH = ROOT / "dev/assets/doc.css"
 
 
-def in_scope_files() -> list[str]:
-    paths: list[Path] = []
-    for d in ("dev/plans", "dev/adr", "dev/audit", "dev/notes", "dev/feature_bank"):
-        paths.extend((ROOT / d).rglob("*.html"))
-    paths.append(ROOT / "dev/ast-walk-diagram.html")
-    rels = []
-    for p in paths:
-        if not p.is_file():
+# ---- CSS parser (depth-aware top-level tokenizer) -----------------------
+
+def strip_comments(text: str) -> str:
+    return re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+
+
+def parse_css(text: str) -> list[tuple[str, str | None]]:
+    """Return a list of (prelude, body) pairs.
+
+    For a normal rule: prelude is the selector list, body is the declarations.
+    For an at-rule with a block (@media etc.): prelude is the @rule line,
+    body is the full inner block including any nested rules.
+    For an at-rule statement (@import): body is None.
+    """
+    text = strip_comments(text)
+    items: list[tuple[str, str | None]] = []
+    i, n = 0, len(text)
+    while i < n:
+        while i < n and text[i] in " \t\n\r":
+            i += 1
+        if i >= n:
+            break
+        j = i
+        while j < n and text[j] != "{" and text[j] != ";":
+            j += 1
+        if j >= n:
+            break
+        if text[j] == ";":
+            stmt = text[i:j].strip()
+            if stmt:
+                items.append((stmt, None))
+            i = j + 1
             continue
-        rel = p.relative_to(ROOT).as_posix()
-        if rel.startswith("dev/adr/0013-"):
-            continue
-        if rel.startswith("dev/plans/0013-"):
-            continue
-        rels.append(rel)
-    rels.sort()
-    return rels
+        prelude = text[i:j].strip()
+        depth = 1
+        k = j + 1
+        while k < n and depth > 0:
+            if text[k] == "{":
+                depth += 1
+            elif text[k] == "}":
+                depth -= 1
+            k += 1
+        body = text[j + 1 : k - 1].strip()
+        items.append((prelude, body))
+        i = k
+    return items
 
 
-def git_show_head(relpath: str) -> str:
-    try:
-        return subprocess.check_output(
-            ["git", "show", f"HEAD:{relpath}"],
-            cwd=ROOT, text=True
-        )
-    except subprocess.CalledProcessError:
-        return ""
+def parse_root_vars(body: str) -> list[tuple[str, str]]:
+    """Split a :root body into (--var-name, value) pairs, ignoring nested braces."""
+    out = []
+    depth = 0
+    cur: list[str] = []
+    for ch in body:
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+        if ch == ";" and depth == 0:
+            decl = "".join(cur).strip()
+            cur = []
+            if decl:
+                m = re.match(r"(--[\w-]+)\s*:\s*(.+)", decl, re.DOTALL)
+                if m:
+                    out.append((m.group(1), m.group(2).strip()))
+        else:
+            cur.append(ch)
+    decl = "".join(cur).strip()
+    if decl:
+        m = re.match(r"(--[\w-]+)\s*:\s*(.+)", decl, re.DOTALL)
+        if m:
+            out.append((m.group(1), m.group(2).strip()))
+    return out
+
+
+def normalize_decls(decls: str) -> str:
+    """Collapse interior whitespace runs to single spaces so rules format cleanly."""
+    return re.sub(r"\s+", " ", decls).strip()
+
+
+def normalize_selector(sel: str) -> str:
+    """Normalize a selector list for use as a dedup key. Splits the comma list,
+    strips each piece, sorts them so `a, b` and `b, a` collide.
+    """
+    parts = [p.strip() for p in sel.split(",") if p.strip()]
+    parts = [re.sub(r"\s+", " ", p) for p in parts]
+    parts.sort()
+    return ", ".join(parts)
 
 
 def main() -> int:
-    style_re = re.compile(r"<style>(.*?)</style>", re.DOTALL)
-    scope = in_scope_files()
-    blocks: dict[str, list[str]] = {}
+    if not CSS_PATH.exists():
+        print(f"error: {CSS_PATH} missing", file=sys.stderr)
+        return 1
 
-    for rel in scope:
-        head_text = git_show_head(rel)
-        text = head_text if head_text else (ROOT / rel).read_text()
-        m = style_re.search(text)
-        if not m:
-            print(f"WARN: no <style> in {rel}", file=sys.stderr)
+    source = CSS_PATH.read_text()
+
+    rules: dict[str, tuple[str, str]] = {}   # key -> (display-selector, declarations)
+    at_blocks: dict[str, None] = {}          # opaque @-block text -> sentinel
+    root_vars: dict[str, str] = {}           # var-name -> first-seen value
+    statements: dict[str, None] = {}         # @import etc.
+
+    for prelude, decls in parse_css(source):
+        if decls is None:
+            statements.setdefault(prelude, None)
             continue
-        body = m.group(1).strip("\n")
-        blocks.setdefault(body, []).append(rel)
+        head_word = prelude.split()[0] if prelude else ""
+        if head_word.startswith("@"):
+            key = f"{prelude} {{ {normalize_decls(decls)} }}"
+            at_blocks.setdefault(key, None)
+            continue
+        if prelude.strip() == ":root":
+            for name, value in parse_root_vars(decls):
+                root_vars.setdefault(name, value)
+            continue
+        key = normalize_selector(prelude)
+        if not key:
+            continue
+        rules.setdefault(key, (key, normalize_decls(decls)))
 
-    sorted_blocks = sorted(
-        blocks.items(),
-        key=lambda kv: (-len(kv[1]), hashlib.sha256(kv[0].encode()).hexdigest()),
-    )
-
-    out = []
+    # ---- Emit ----
+    out: list[str] = []
     out.append("/* dev/assets/doc.css")
-    out.append(" * Auto-generated by dev/scripts/build-doc-css.py.")
-    out.append(" * Source: inline <style> blocks across dev/{plans,adr,audit,notes,feature_bank}")
-    out.append(" *         HTMLs (+ dev/ast-walk-diagram.html), read from git HEAD.")
-    out.append(" * Order: most-frequent block first; cascade last-wins covers the long tail.")
-    out.append(f" * Buckets: {len(blocks)} unique CSS blobs across {sum(len(v) for v in blocks.values())} files.")
-    out.append(" * Do not hand-edit — re-run the script after changing inline styles in source HTML.")
+    out.append(" * Flat deduplicated stylesheet for internal docs under dev/.")
+    out.append(" * Generated by dev/scripts/build-doc-css.py — one rule per selector")
+    out.append(" * signature, :root variables unioned, @media/@keyframes preserved.")
+    out.append(f" * {len(rules)} rules, {len(at_blocks)} at-blocks, {len(root_vars)} :root vars.")
     out.append(" */")
     out.append("")
 
-    for body, files in sorted_blocks:
-        h = hashlib.sha256(body.encode()).hexdigest()[:8]
-        out.append(f"/* ---- source bucket {h} ({len(files)} file{'s' if len(files)!=1 else ''}) ----")
-        for src in files[:6]:
-            out.append(f" *   {src}")
-        if len(files) > 6:
-            out.append(f" *   ... and {len(files)-6} more")
-        out.append(" */")
-        out.append(body)
+    for stmt in statements:
+        out.append(f"{stmt};")
+    if statements:
         out.append("")
 
-    target = ROOT / "dev/assets/doc.css"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text("\n".join(out) + "\n")
-    print(f"wrote {target.relative_to(ROOT)}: {len(blocks)} unique blocks, {sum(len(v) for v in blocks.values())} files")
+    if root_vars:
+        out.append(":root {")
+        for name, value in root_vars.items():
+            out.append(f"  {name}: {value};")
+        out.append("}")
+        out.append("")
+
+    for key, (display_sel, decls) in rules.items():
+        out.append(f"{display_sel} {{ {decls} }}")
+    if rules:
+        out.append("")
+
+    for block in at_blocks:
+        out.append(block)
+    if at_blocks:
+        out.append("")
+
+    CSS_PATH.write_text("\n".join(out))
+    print(
+        f"wrote {CSS_PATH.relative_to(ROOT)}: "
+        f"{len(rules)} rules, {len(at_blocks)} at-blocks, {len(root_vars)} :root vars"
+    )
     return 0
 
 
