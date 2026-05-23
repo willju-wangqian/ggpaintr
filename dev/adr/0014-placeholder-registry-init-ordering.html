@@ -57,12 +57,26 @@ ptr_registry_keywords()
 
 <p><strong>Why not.</strong> Grep confirms only <code>R/paintr-registry.R</code> ever writes to <code>.ptr_registry</code> (no other source or test does), so Shape B would have been safe today. But the empty-guard is cheap and survives future refactors where a new write path might be added without going through init first. The cost of Shape A is one extra line check per registry read; the cost of Shape B breakage is silent double-registration of builtins. Conservative wins.</p>
 
+<h3>Implementation note: recursion guard in <code>ptr_register_builtins()</code></h3>
+
+<p>Shape A introduces a subtle re-entry hazard. <code>ptr_register_builtins()</code> is implemented as a sequence of public-constructor calls (<code>ptr_define_placeholder_value("ppText", …)</code>, etc.). After Shape A, each of those calls invokes <code>ensure_registry_initialized()</code>. On a freshly cleared registry (<code>done=FALSE</code>, <code>length(ls)==0</code>), the FIRST constructor re-enters <code>ptr_register_builtins()</code> from inside init, registers all five builtins, then returns to the outer call which still proceeds to <code>ptr_registry_register(entry)</code> on a now-populated env — emitting one <code>"Overwriting placeholder registry entry"</code> warning per builtin (5 per call). Test suites that clear-and-rebuild the registry produced 70 such warnings before this guard.</p>
+
+<p>The fix is one line at the top of <code>ptr_register_builtins()</code>:</p>
+
+<pre><code>ptr_register_builtins &lt;- function() {
+  .ptr_registry_initialized$done &lt;- TRUE   # ← break the recursion
+  text_fn &lt;- ptr_define_placeholder_value(...)
+  ...
+}</code></pre>
+
+<p>Setting <code>done=TRUE</code> before any constructor fires ensures <code>ensure_registry_initialized()</code> short-circuits inside the recursive entry — the constructors then proceed straight to <code>ptr_registry_register()</code> on a still-empty env, registering each builtin exactly once with no warnings.</p>
+
 <h2>3. Consequences</h2>
 
 <ul class="flat">
   <li><strong>Public API:</strong> no change. All three constructors keep the same signature, return value, and validation order. The added <code>ensure_registry_initialized()</code> call is idempotent (the <code>done</code> flag short-circuits on every subsequent call).</li>
   <li><strong>Test fixtures:</strong> the no-op <code>ptr_registry_keywords()</code> call at <code>tests/testthat/fixtures/vignette-apps/super-1-kitchen-sink/app.R:10–15</code> is removed in the same change. It was load-bearing only because of this bug.</li>
-  <li><strong>Regression coverage:</strong> a new <code>tests/testthat/test-regression-bugs-2026-05-23.R</code> pins the exact defect for each of the three constructors plus an idempotency check (calling twice does not double-register builtins).</li>
+  <li><strong>Regression coverage:</strong> a new <code>tests/testthat/test-regression-bugs-2026-05-23.R</code> pins the exact defect for each of the three constructors, an idempotency check (calling twice does not double-register builtins), and a no-recursion-warnings check that fails if the <code>done=TRUE</code> guard at the top of <code>ptr_register_builtins()</code> is removed.</li>
   <li><strong>Forward-compat:</strong> if a future contributor adds a fourth public registry writer, they must follow the same pattern. The empty-guard remains as a safety net but should not be relied on.</li>
 </ul>
 
@@ -70,7 +84,7 @@ ptr_registry_keywords()
 
 <pre><code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code></pre>
 
-<p>Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong>, with N ≥ baseline + 4 (the four new regression tests). Proxy traps per project <code>CLAUDE.md</code>: a bare <code>Rscript</code> without <code>NOT_CRAN=true</code> silently skips every shinytest2 test (<code>skip_on_cran()</code> fires); <code>devtools::check(... --as-cran)</code> sets <code>NOT_CRAN=true</code> internally but the e2e browser file then cleanly SKIPs via the source-root guard, so that path is a separate optional check, not the gate.</p>
+<p>Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong>, with N ≥ baseline + 5 (the five new regression tests — four constructor + idempotency checks plus the no-recursion-warnings check). Proxy traps per project <code>CLAUDE.md</code>: a bare <code>Rscript</code> without <code>NOT_CRAN=true</code> silently skips every shinytest2 test (<code>skip_on_cran()</code> fires); <code>devtools::check(... --as-cran)</code> sets <code>NOT_CRAN=true</code> internally but the e2e browser file then cleanly SKIPs via the source-root guard, so that path is a separate optional check, not the gate.</p>
 
 </body>
 </html>

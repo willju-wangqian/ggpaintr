@@ -61,6 +61,23 @@ test_that("ptr_define_placeholder_source on a cleared registry preserves builtin
   expect_true("ppFooSrc" %in% kws)
 })
 
+test_that("ptr_register_builtins() on a cleared registry emits no overwrite warnings", {
+  # Recursion-net for ADR-0014 follow-up: after the constructors call
+  # `ensure_registry_initialized()` (Shape A), a cleared-then-rebuilt
+  # registry used to re-enter `ptr_register_builtins()` from inside the
+  # first constructor, leading to 5 "Overwriting placeholder registry
+  # entry" warnings (one per built-in) on every clear-then-rebuild.
+  # The 1-line `done <- TRUE` at the top of `ptr_register_builtins()` is
+  # the regression guard this test pins.
+  ptr_registry_clear()
+  withr::defer(suppressWarnings(ptr_register_builtins()))
+
+  expect_no_warning(ptr_register_builtins())
+
+  kws <- ptr_registry_keywords()
+  expect_true(all(builtin_keywords %in% kws))
+})
+
 test_that("registering two custom placeholders does not double-register builtins", {
   ptr_registry_clear()
   withr::defer(suppressWarnings(ptr_register_builtins()))

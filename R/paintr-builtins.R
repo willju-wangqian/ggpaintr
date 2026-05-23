@@ -294,6 +294,13 @@ ptr_builtin_keywords <- function() {
 NULL
 
 ptr_register_builtins <- function() {
+  # Break the init recursion: each constructor below calls
+  # `ensure_registry_initialized()` (ADR-0014 Shape A), which on a cleared
+  # registry would re-enter this function and double-register every
+  # builtin, raising five "Overwriting placeholder" warnings per call.
+  # Flipping `done` first short-circuits that re-entry; the constructors
+  # then just `ptr_registry_register()` cleanly into the empty env.
+  .ptr_registry_initialized$done <- TRUE
   text_fn <- ptr_define_placeholder_value(
     keyword = "ppText",
     build_ui = ptr_builtin_text_build_ui,
