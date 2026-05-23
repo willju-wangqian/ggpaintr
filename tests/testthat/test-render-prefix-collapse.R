@@ -59,8 +59,10 @@ test_that("preserve-mode renders pipeline whose SOURCE is a placeholder as a `|>
 
   rendered <- ggpaintr:::render_walk(data_arg, preserve_placeholders = TRUE)
   expect_true(grepl("|>", rendered, fixed = TRUE))
-  # Source line starts (modulo whitespace) with `ppUpload(`.
-  expect_true(grepl("^ppUpload\\(", ws_collapse(rendered)))
+  # Source line starts (modulo whitespace) with the bare keyword `ppUpload`.
+  # Preserve mode drops parens when the placeholder has no current_pick and
+  # no shared key (which is the case here).
+  expect_true(grepl("^ppUpload\\b", ws_collapse(rendered)))
 })
 
 test_that("preserve-mode renders pipeline with placeholder at stage 2 as a `|>` chain", {

@@ -4,7 +4,7 @@
 #   - Default arg matches existing renderer output on baseline trees.
 #   - preserve_placeholders = FALSE === no-arg form on placeholder-bearing trees.
 #   - preserve_placeholders = TRUE emits ppX(current_pick) for var/num/text/expr
-#     and ppX() when current_pick is absent.
+#     and bare ppX when current_pick is absent (and no shared key).
 #   - Non-placeholder structure (whitespace, indentation, +-joins, pipe chains)
 #     agrees character-for-character across modes.
 #   - Shared placeholders carry `shared = "k"` at every occurrence (G2.a).
@@ -89,10 +89,24 @@ test_that("preserve mode emits ppExpr(x + 1) for expression-default placeholder"
   expect_true(grepl("ppExpr(x + 1)", out, fixed = TRUE))
 })
 
-test_that("preserve mode handles missing current_pick with empty arg list", {
+test_that("preserve mode renders empty placeholder as bare keyword (no parens)", {
+  # No pick stamped and no shared key -> bare `ppVar`, not `ppVar()`.
+  # Round-trip safety: placeholder_keyword() in R/paintr-translate.R already
+  # accepts both the symbol form (`ppVar`) and the zero-arg call form
+  # (`ppVar()`) -- copy-paste of the rendered output still parses.
   n <- ph_consumer("ppVar", pick = NULL)
   out <- ptr_render(n, preserve_placeholders = TRUE)
-  expect_true(grepl("ppVar()", out, fixed = TRUE))
+  expect_match(out, "\\bppVar\\b")
+  expect_false(grepl("ppVar()", out, fixed = TRUE))
+})
+
+test_that("preserve mode keeps parens when only `shared` is present (no pick)", {
+  # shared = "k" but no current_pick -> ppVar(shared = "k"), not bare ppVar.
+  # The keyword-only collapse fires only when args is empty; a shared key
+  # alone is still a real arg.
+  n <- ph_consumer("ppVar", pick = NULL, shared = "k")
+  out <- ptr_render(n, preserve_placeholders = TRUE)
+  expect_equal(out, 'ppVar(shared = "k")')
 })
 
 # ---- legacy keyword vocabulary (var/num/text/expr) ------------------------
@@ -182,9 +196,9 @@ test_that("non-placeholder structure agrees across modes (whitespace, +-joins, i
 test_that("pipe chain structure is identical across modes", {
   # ADR 0012 §1: a single verb stage (head) above source lifts to a
   # canonical `ptr_pipeline`, so both render modes emit the same pipe
-  # scaffold. Erase mode renders placeholder nodes as bare names
-  # (`ppNum` / `ppVar`); preserve mode emits the call shape
-  # (`ppNum()` / `ppVar()`). Exactly one `|>` token per side.
+  # scaffold. Both modes render an empty placeholder as the bare keyword
+  # (`ppNum` / `ppVar`); preserve mode adds parens only when the node has
+  # a stamped pick or a shared key. Exactly one `|>` token per side.
   r <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = ppVar))")
   e <- ptr_render(r, preserve_placeholders = FALSE)
   p <- ptr_render(r, preserve_placeholders = TRUE)
@@ -198,7 +212,7 @@ test_that("pipe chain structure is identical across modes", {
   )
   expect_equal(
     p,
-    "ggplot(\n  data = mtcars |>\n           head(ppNum()),\n  aes(x = ppVar())\n)"
+    "ggplot(\n  data = mtcars |>\n           head(ppNum),\n  aes(x = ppVar)\n)"
   )
 })
 
