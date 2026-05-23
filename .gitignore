@@ -56,6 +56,9 @@ dev/codex/runs/
 
 # EWH per-project state (developer-local preferences)
 .claude/ewh-state.json
+
+# /exec-plan per-session sub-worktree containers (ephemera; per-run only)
+.claude/worktrees/
 /doc/
 /Meta/
 .positai
