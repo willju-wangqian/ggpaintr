@@ -106,6 +106,13 @@ ptr_default_ui_text <- function() {
             help = "Enter a number such as 2 or 3."
           )
         ),
+        size = list(
+          ppVar = list(label = "Choose the size column"),
+          ppNum = list(
+            label = "Size",
+            help = "Enter a number such as 2 or 3."
+          )
+        ),
         stroke = list(ppNum = list(label = "Stroke width")),
         bins = list(ppNum = list(label = "Number of bins")),
         binwidth = list(ppNum = list(label = "Bin width"))
@@ -146,8 +153,7 @@ ptr_default_ui_text <- function() {
 #' @noRd
 ptr_ui_text_param_aliases <- function() {
   c(
-    colour = "color",
-    size = "linewidth"
+    colour = "color"
   )
 }
 

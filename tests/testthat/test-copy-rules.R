@@ -150,42 +150,36 @@ test_that("ptr_ui_text_component_paths keys are exhaustive", {
 
 # --- Improvements: alias normalization, generic label ---
 
-test_that("alias: size resolves to same copy as linewidth, both yield label 'Size'", {
-  size_copy <- ptr_resolve_ui_text(
-    "control",
-    keyword = "ppNum",
-    param = "size"
-  )
-  linewidth_copy <- ptr_resolve_ui_text(
-    "control",
-    keyword = "ppNum",
-    param = "linewidth"
-  )
-
+test_that("size and linewidth share default 'Size' label but user overrides do not bleed", {
+  size_copy <- ptr_resolve_ui_text("control", keyword = "ppNum", param = "size")
+  linewidth_copy <- ptr_resolve_ui_text("control", keyword = "ppNum", param = "linewidth")
   expect_equal(size_copy$label, "Size")
   expect_equal(linewidth_copy$label, "Size")
-  expect_identical(size_copy, linewidth_copy)
+
+  ut <- list(params = list(linewidth = list(ppNum = list(label = "Line thickness"))))
+  size_overridden <- ptr_resolve_ui_text("control", keyword = "ppNum", param = "size", ui_text = ut)
+  linewidth_overridden <- ptr_resolve_ui_text("control", keyword = "ppNum", param = "linewidth", ui_text = ut)
+  expect_equal(linewidth_overridden$label, "Line thickness")
+  expect_equal(size_overridden$label, "Size")
 })
 
-test_that("alias: size resolves to same var copy as linewidth", {
-  size_var <- ptr_resolve_ui_text(
-    "control",
-    keyword = "ppVar",
-    param = "size"
-  )
-  linewidth_var <- ptr_resolve_ui_text(
-    "control",
-    keyword = "ppVar",
-    param = "linewidth"
-  )
-
+test_that("size and linewidth share default ppVar label but user overrides do not bleed", {
+  size_var <- ptr_resolve_ui_text("control", keyword = "ppVar", param = "size")
+  linewidth_var <- ptr_resolve_ui_text("control", keyword = "ppVar", param = "linewidth")
   expect_equal(size_var$label, "Choose the size column")
-  expect_identical(size_var, linewidth_var)
+  expect_equal(linewidth_var$label, "Choose the size column")
+
+  ut <- list(params = list(linewidth = list(ppVar = list(label = "Linewidth col"))))
+  size_overridden <- ptr_resolve_ui_text("control", keyword = "ppVar", param = "size", ui_text = ut)
+  linewidth_overridden <- ptr_resolve_ui_text("control", keyword = "ppVar", param = "linewidth", ui_text = ut)
+  expect_equal(linewidth_overridden$label, "Linewidth col")
+  expect_equal(size_overridden$label, "Choose the size column")
 })
 
-test_that("linewidth$num label is the generic 'Size'", {
+test_that("size and linewidth both ship 'Size' as the ppNum default label", {
   defaults <- ptr_default_ui_text()
   expect_equal(defaults$params$linewidth$ppNum$label, "Size")
+  expect_equal(defaults$params$size$ppNum$label, "Size")
 })
 
 # --- W3 (D5): scoped, ui_text-overridable shared copy ---
