@@ -26,7 +26,7 @@
 <body>
 
 <h1>ggpaintr feature checklist — post ADR-0009</h1>
-<p class="meta">vignette-review HEAD: <code>2c504da</code> · 2026-05-21 · companion to <a href="WORKFLOW.html">WORKFLOW.html</a> · purpose: a feature inventory grouped by what is natural to exercise <strong>together</strong> in a single complex test app. The grouping is not orthogonal to the L1/L2/L3 axis — it is orthogonal to <em>what can be observed without rebuilding state</em>.</p>
+<p class="meta">vignette-review HEAD at last refresh: <code>984b689</code> · 2026-05-23 (original draft: <code>2c504da</code>, 2026-05-21; patched 2026-05-23 against audit <code>audit-feature-checklist-postadr9-drift-2026-05-23.html</code>) · companion to <a href="WORKFLOW.html">WORKFLOW.html</a> · purpose: a feature inventory grouped by what is natural to exercise <strong>together</strong> in a single complex test app. The grouping is not orthogonal to the L1/L2/L3 axis — it is orthogonal to <em>what can be observed without rebuilding state</em>.</p>
 
 <p class="why"><strong>How to read this.</strong> Each section answers the question "what feature cluster could one super-app demonstrate in one screen?" A super-testcase will pick one item from each of several sections — every section here represents a natural axis along which super-tests vary. Items inside a section are the granular things to assert. Items marked <strong>(BROKEN)</strong> have a known regression on current HEAD; <strong>(UNTESTED)</strong> means no automated test asserts the user-visible behaviour even if internals are covered.</p>
 
@@ -41,7 +41,7 @@
   <tr><td>A4. ppNum — numericInput</td><td class="k">ppNum(0.7)</td><td>Default validated via constant-fold registry: literals + arithmetic + named constants like <code>pi</code> (PLAN-01).</td></tr>
   <tr><td>A5. ppText — textInput</td><td class="k">ppText("Hello")</td><td>Default must be a string literal.</td></tr>
   <tr><td>A6. ppExpr — textInput → parsed user expression</td><td class="k">ppExpr(mpg * 2)</td><td>User-typed expression is parsed at runtime; default is the AST. Returned as <code>ptr_user_expr()</code> so substitution preserves it as code, not a quoted value.</td></tr>
-  <tr><td>A7. ppUpload — file source</td><td class="k">ppUpload() |&gt; dplyr::filter(...)</td><td>Either at formula head (data source) or mid-pipeline. Validates file extension (csv / tsv / xlsx / rds / fst).</td></tr>
+  <tr><td>A7. ppUpload — file source</td><td class="k">ppUpload() |&gt; dplyr::filter(...)</td><td>Either at formula head (data source) or mid-pipeline. Validates file extension against <code>ptr_upload_accept_formats()</code> = <code>c(".csv", ".tsv", ".rds", ".xlsx", ".xls", ".json")</code>. Optional <code>name = "&lt;sym&gt;"</code> companion (ADR-0010, registered <code>default_arg</code>) drives a companion <code>textInput</code> that round-trips through preserve-mode.</td></tr>
   <tr><td>A8. Named arg: <code>shared = "&lt;key&gt;"</code></td><td class="k">ppVar(shared = "a")</td><td>Bind multiple occurrences to one widget. See Section E.</td></tr>
   <tr><td>A9. Multiple same-type placeholders</td><td class="k">aes(x = ppVar, y = ppVar)</td><td>Each occurrence gets its own widget unless <code>shared=</code> links them. Widget ids are distinct.</td></tr>
   <tr><td>A10. Empty input → silent absence</td><td>—</td><td>Unset ppText / ppNum / ppVar collapse to <code>ptr_missing()</code>; the surrounding call is dropped (eg. <code>labs(title = ppText())</code> with no value emits no title).</td></tr>
@@ -58,7 +58,7 @@
   <tr><td>B2. <em>Code with placeholders</em> mode</td><td>Re-renders <code>state$tree()</code> with <code>preserve_placeholders = TRUE</code>; widget value appears as <code>ppX(value)</code> arg. PLAN-05.</td></tr>
   <tr><td>B3. Toggle (radioGroupButtons)</td><td>Reads <code>input$&lt;ns&gt;-ptr_code_mode</code>, values <code>"final"</code> / <code>"preserve"</code>. PLAN-08 UI + commit 2c504da server wiring.</td></tr>
   <tr><td>B4. Code panel <code>style = "window"</code></td><td>Floating mini-window (default in <code>ptr_app()</code>). Toggle lives inside.</td></tr>
-  <tr><td>B5. Code panel <code>style = "panel"</code></td><td>In-flow block (used by <code>ptr_ui_code_block(style = "panel")</code>). Toggle still attaches.</td></tr>
+  <tr><td>B5. Code panel <code>style = "panel"</code></td><td>In-flow block (used by <code>ptr_ui_code(id, style = "panel")</code> — the exported helper; <code>code_block_tag()</code> is an unexported internal). Toggle still attaches.</td></tr>
   <tr><td>B6. Code reactive on Update click</td><td>Code panel re-runs <code>state$runtime()</code> which fires on the Update button.</td></tr>
   <tr><td>B7. Code panel survives hidden state</td><td><code>outputOptions(suspendWhenHidden = FALSE)</code> — output renders even when the window is initially collapsed.</td></tr>
   <tr><td>B8. <code>ptr_extract_code(state)</code></td><td>Non-reactive snapshot of current final-mode code. <strong>(UNTESTED)</strong> for parity with preserve-mode (no <code>ptr_extract_code(state, preserve = TRUE)</code>; consumer must call <code>ptr_render</code> themselves).</td></tr>
@@ -119,14 +119,14 @@
 <table>
   <tr><th>Item</th><th>Notes</th></tr>
   <tr><td>F1. <code>ptr_ui()</code> + <code>ptr_server()</code> in a custom <code>fluidPage</code></td><td>The standard L3 entry. Page layout is user-owned.</td></tr>
-  <tr><td>F2. <code>ptr_app_components()</code></td><td>Hand-place sidebar / plot / code panels separately. Returns a named list.</td></tr>
+  <tr><td>F2. <code>ptr_app_grid()</code> / <code>ptr_shared()</code> coordinator</td><td>Canonical multi-instance + shared-widget surface (ADR-0006). <strong>Note:</strong> <code>ptr_app_components()</code> exists internally and returns <code>list(ui, server)</code>, but is unexported — L3 callers should compose <code>ptr_ui()</code> + <code>ptr_server()</code> (or <code>ptr_app_grid()</code> for multi-plot) instead of reaching for it.</td></tr>
   <tr><td>F3. <code>ptr_app_bslib(theme = bslib::bs_theme(...))</code></td><td>Bootstrap-5 theming pass-through.</td></tr>
   <tr><td>F4. Custom plot output via <code>state$runtime()</code></td><td>plotly / ggiraph / DT / any backend that accepts a ggplot. <strong>Reactive context</strong> — read inside <code>renderPlotly</code>, not via <code>ptr_extract_plot</code>.</td></tr>
   <tr><td>F5. <code>ptr_extract_plot / _error / _code</code> for non-reactive contexts</td><td>Download handlers, <code>testServer</code> assertions, screenshots.</td></tr>
   <tr><td>F6. Multiple <code>ptr_server</code> instances in one app</td><td>Independent namespaces; updates don't cross. Used in the gallery vignette.</td></tr>
   <tr><td>F7. <code>state$tree()</code> exposure</td><td>Read the parsed tree from outside ggpaintr (for custom code rendering, audits). Stable shape: list of <code>ptr_node</code>s.</td></tr>
   <tr><td>F8. <code>state$runtime()$code_text</code></td><td>Final substituted code as character — same as <code>format_code_with_extras</code> input.</td></tr>
-  <tr><td>F9. <code>ptr_render(state$tree(), preserve_placeholders = TRUE)</code></td><td>L3 callers can ask for the preserve-mode text without booting the UI toggle. Useful for documentation / tooltips.</td></tr>
+  <tr><td>F9. Preserve-mode text from outside the UI toggle</td><td>Not currently exposed: <code>ptr_render()</code> is <code>@keywords internal</code> and unexported, and <code>ptr_extract_code(state)</code> is final-mode only. The B8 "no <code>preserve = TRUE</code> parity" UNTESTED note is the same gap. Workaround for L3: read <code>state$tree()</code> and format inline (still uses internals). A public <code>ptr_extract_code(state, preserve = TRUE)</code> is the cleanest fix.</td></tr>
 </table>
 
 <h2>Section G — Expression-mode capture (ADR 0009 §4)</h2>
@@ -152,8 +152,8 @@
   <tr><td>H1. Built-in dataset reference</td><td><code>ggplot(mtcars, ...)</code> — name resolved at runtime against base/datasets.</td></tr>
   <tr><td>H2. Local var dataset reference</td><td><code>ggplot(my_df, ...)</code> — looked up in the caller's environment at <code>ptr_app</code>/<code>ptr_server</code> capture time.</td></tr>
   <tr><td>H3. ppUpload as formula head</td><td><code>ppUpload() + geom_point(aes(x = ppVar))</code>. <code>fileInput</code> rendered at top of sidebar.</td></tr>
-  <tr><td>H4. ppUpload mid-pipeline</td><td><code>ppUpload() |&gt; dplyr::filter(cyl == 4)</code> as data source. Fixed 2026-05-12 (pipeline-head data source).</td></tr>
-  <tr><td>H5. File-format validation</td><td>Unsupported extension → inline error in upload panel.</td></tr>
+  <tr><td>H4. ppUpload mid-pipeline + companion name</td><td><code>ppUpload() |&gt; dplyr::filter(cyl == 4)</code> as data source (fixed 2026-05-12, pipeline-head data source). Companion <code>ppUpload(name = "df")</code> (ADR-0010, merged 2026-05-22) seeds a sibling <code>textInput</code> for the bound object name and round-trips through preserve-mode.</td></tr>
+  <tr><td>H5. File-format validation</td><td>Accepted extensions come from <code>ptr_upload_accept_formats()</code> = <code>c(".csv", ".tsv", ".rds", ".xlsx", ".xls", ".json")</code>. Anything else → inline error in the upload panel.</td></tr>
   <tr><td>H6. Column-name normalisation</td><td>Spaces / non-syntactic names in headers — handled.</td></tr>
   <tr><td>H7. Re-upload re-renders all dependent placeholders</td><td>ppVar pickers re-populate on data change.</td></tr>
 </table>
@@ -202,7 +202,7 @@
 <table>
   <tr><th>Item</th><th>Notes</th></tr>
   <tr><td>L1. Two <code>ptr_server</code> instances on one page</td><td>Namespaced inputs don't cross-fire. Each Update button independent.</td></tr>
-  <tr><td>L2. Two <code>ptr_app_components()</code> in a grid</td><td>Each grid cell renders its own sidebar + plot + code. <strong>(known weakness for shared widgets in embed/grid hosts — see memory <code>shared-section-binder</code>)</strong>.</td></tr>
+  <tr><td>L2. Two <code>ptr_app_grid()</code> cells in one page</td><td>Each grid cell renders its own sidebar + plot + code; canonical multi-plot helper post-ADR-0006. (Earlier drafts of this doc reached for the unexported <code>ptr_app_components()</code> — prefer <code>ptr_app_grid()</code> or paired <code>ptr_ui()</code>/<code>ptr_server()</code> instead.) Shared-section binder weakness fixed 2026-05-22 (project memory <code>shared-section-binder</code>).</td></tr>
   <tr><td>L3. Identical formula, two instances</td><td>Independent widget state; no input ID collision.</td></tr>
   <tr><td>L4. <code>ptr_app_components()</code> + custom output binding</td><td>L3 super-app combining F4 with multiple instances.</td></tr>
 </table>
@@ -212,7 +212,7 @@
 <table>
   <tr><th>Item</th><th>Section</th><th>State</th></tr>
   <tr><td>Code-mode toggle wiring (B3)</td><td>B</td><td>FIXED on HEAD 2c504da. Until that commit, clicking "Code with placeholders" was inert. <strong>No unit test covers this</strong> — only the underlying renderer (PLAN-05) is unit-tested. A super-test that toggles the radio and asserts <code>ppX(...)</code> in the rendered text would have caught it.</td></tr>
-  <tr><td>Shared-section binder in embed + grid (E8 / L2)</td><td>E, L</td><td>Pre-existing weakness (memory <code>shared-section-binder</code>). Partition governs ownership; applied inconsistently across the 3 hosts (<code>ptr_app</code>, <code>ptr_app_components</code> embed, grid coordinator). Plan stamped; impl pending.</td></tr>
+  <tr><td>Shared-section binder in embed + grid (E8 / L2)</td><td>E, L</td><td><strong>FIXED 2026-05-22</strong> (project memory <code>shared-section-binder</code>). Originally a partition-ownership inconsistency across the 3 hosts (<code>ptr_app</code>, embed, grid coordinator). E8's UNTESTED flag stands until a preserve-mode round-trip assertion lands across embed + grid.</td></tr>
   <tr><td>Lambda as pipe stage (H4 cousin)</td><td>H</td><td>Lambdas as pipe stages unsupported. <code>layer_call_name</code> falls back to <code>expr_text(head)</code>, unusable as id/label. Documented in use-cases vignette; workaround = named helper. Memory <code>anonymous-fn-pipe-stage</code>.</td></tr>
 </table>
 
