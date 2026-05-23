@@ -108,7 +108,7 @@ test_that("P06.a single-plot renders shared widget once in shared section", {
   )
   ui_html <- as.character(parts$ui)
   # The shared widget id appears exactly once in the rendered DOM.
-  matches <- gregexpr('id="shared_sz"', ui_html, fixed = TRUE)[[1L]]
+  matches <- gregexpr('id="shared_sz_ui"', ui_html, fixed = TRUE)[[1L]]
   expect_equal(sum(matches > 0L), 1L)
 })
 
@@ -230,7 +230,7 @@ test_that("P06.d dedup: same key in two layers renders once", {
     envir = .shared_test_env()
   )
   ui_html <- as.character(parts$ui)
-  matches <- gregexpr('id="shared_sz"', ui_html, fixed = TRUE)[[1L]]
+  matches <- gregexpr('id="shared_sz_ui"', ui_html, fixed = TRUE)[[1L]]
   expect_equal(sum(matches > 0L), 1L)
 })
 
@@ -267,8 +267,8 @@ test_that("P06.f grid auto-renders default widget for unbound shared key", {
   # PR-B (shared-multi-instance): shared widget ids now use the
   # canonical `shared_<key>` form, matching the single-instance
   # `ptr_app()` convention.
-  expect_match(ui_html, 'id="shared_sz"', fixed = TRUE)
-  bare_matches <- gregexpr('id="shared_sz"', ui_html, fixed = TRUE)[[1L]]
+  expect_match(ui_html, 'id="shared_sz_ui"', fixed = TRUE)
+  bare_matches <- gregexpr('id="shared_sz_ui"', ui_html, fixed = TRUE)[[1L]]
   expect_equal(sum(bare_matches > 0L), 1L)
 })
 

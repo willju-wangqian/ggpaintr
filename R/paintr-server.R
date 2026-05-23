@@ -244,7 +244,24 @@ ptr_init_state <- function(formula,
     resolve_errors = shiny::reactiveVal(stats::setNames(list(), character())),
     ui_ns_fn = ns,
     server_ns_fn = server_ns,
-    input_spec = ptr_runtime_input_spec(tree)
+    input_spec = ptr_runtime_input_spec(tree),
+    # ADR 0012 / PLAN-01 (Bug B): per-instance, bare-id-keyed seed of
+    # initial values for placeholder widgets. `apply_spec_at_boot()`
+    # writes here BEFORE its deferred `session$onFlushed` dispatch so the
+    # first fire of every value/source/consumer renderUI seeds its widget
+    # via `extra$selected = isolate(state$spec_seed[[bare]]) %||% ...`.
+    # The single hook contract (`build_ui = function(node, label, ...)`)
+    # is the choke-point through which both built-in and custom-keyword
+    # placeholders receive the spec value — there is no second hook.
+    #
+    # Stored as an environment (not a list) so writes from
+    # `apply_spec_at_boot()` — which receives `state` by value — propagate
+    # to the renderUI closures captured by `ptr_setup_*_uis()`. R lists are
+    # pass-by-value (copy-on-modify); envs are pass-by-reference. Same
+    # pattern as `producer_input` / `upstream_cache` above. `spec_seed[[id]]`
+    # access works identically for env or list, so all read sites are
+    # untouched. Empty env when no `spec=` was passed.
+    spec_seed = new.env(parent = emptyenv())
   ), class = c("ptr_state", "list"))
 
   # ADR 0012 §3.5 / PLAN-05: `state$spec` is a pull-style reactive over
@@ -441,11 +458,18 @@ apply_spec_at_boot <- function(spec, session, state) {
   if (is.null(nms) || any(!nzchar(nms)) || anyNA(nms)) {
     rlang::abort("`spec` must be fully named with non-empty input ids.")
   }
-  # Prefix derivation: `session$ns("")` is "" at top level, "<id>-" under
-  # moduleServer. `startsWith(name, "")` is TRUE for every name, so the
-  # top-level path is identity. The trailing `-` separator is part of the
-  # moduleServer prefix so "p1-" does not match "p10-foo".
-  prefix <- tryCatch(session$ns(""), error = function(e) "")
+  # Prefix derivation: use `state$server_ns_fn("")` -- the same NS function
+  # the widgets are bound under -- NOT `session$ns("")`. Under a real
+  # browser session at top level, both return ""; under a moduleServer
+  # ptr_server_internal auto-wires server_ns_fn from session$ns. But
+  # under shiny::testServer, MockShinySession's session$ns prefixes with
+  # "mock-session-" -- which never matches user-supplied spec ids like
+  # "ggplot_1_1_ppCustomChoice_NA", silently dropping the entire spec.
+  # `state$server_ns_fn` is whatever ptr_init_state was given (default
+  # NS(NULL) at top level) so it always matches the widgets' actual
+  # namespace. Pre-existing PLAN-06 bug, surfaced by PLAN-01's testServer
+  # SC-1.
+  prefix <- tryCatch(state$server_ns_fn(""), error = function(e) "")
   if (is.null(prefix)) prefix <- ""
   keep <- startsWith(nms, prefix)
   if (!any(keep)) return(invisible())
@@ -487,11 +511,79 @@ apply_spec_at_boot <- function(spec, session, state) {
 
   if (length(rows_to_apply) == 0L) return(invisible())
 
-  # Dispatch is deferred to the first flush so all dynamic UIs (renderUI'd
-  # consumer pickers, shared widgets, stage checkboxes) are mounted.
+  # ADR 0012 / PLAN-01 (Bug B): write per-instance seed values into
+  # `state$spec_seed` BEFORE registering the deferred dispatch. The
+  # renderUI bodies in `ptr_setup_value_uis()` / `ptr_setup_source_uis()`
+  # / `ptr_setup_consumer_uis()` read `isolate(state$spec_seed[[raw_id]])`
+  # on first fire; if we deferred the seed write into the onFlushed
+  # callback, those reads would race the first render and miss the seed.
+  #
+  # Seed eligibility: roles that route through renderUI (the renderUI is
+  # the choke-point that respects the seed). `placeholder` rows (except
+  # ppUpload — its fileInput cannot accept a programmatic value) and
+  # `source_companion` rows (textInput inside the source's tagList).
+  # `layer_checkbox` / `stage_enabled` rows are framework-internal
+  # checkboxes that stay on `updateCheckboxInput` per PLAN-01's "no
+  # framework-internal renderUI conversion" constraint.
+  # Type normalization happens HERE (PLAN-02 collapse) so the seed value
+  # the renderUI hook reads is the same shape the equivalent
+  # `updateXyzInput` would have set. Built-in keywords get their type
+  # branch; unknown keywords (custom placeholders) write `value` verbatim
+  # so the hook's `selected` formal sees exactly what was specified.
+  # Invalid built-in values (e.g. non-numeric for ppNum) are left OUT of
+  # the seed so the dispatch path still surfaces them as warnings.
+  seeded <- character()
+  for (row in rows_to_apply) {
+    write_seed <- (identical(row$role, "placeholder") &&
+                   !identical(row$keyword, "ppUpload")) ||
+                  identical(row$role, "source_companion")
+    if (!write_seed) next
+
+    value <- row$value
+    if (identical(row$role, "source_companion") ||
+        identical(row$keyword, "ppText")) {
+      if (is.null(value)) value <- ""
+      else value <- as.character(value)[[1L]]
+    } else if (identical(row$keyword, "ppNum")) {
+      if (is.null(value) || (is.character(value) && !nzchar(value))) {
+        value <- NA_real_
+      } else {
+        num <- suppressWarnings(as.numeric(value)[[1L]])
+        if (is.na(num) &&
+            !identical(row$value, NA_real_) &&
+            !identical(row$value, NA_integer_)) {
+          next
+        }
+        value <- num
+      }
+    } else if (identical(row$keyword, "ppExpr")) {
+      if (is.null(value)) {
+        value <- ""
+      } else if (is.language(value)) {
+        value <- paste(deparse(value), collapse = "\n")
+      } else {
+        value <- as.character(value)[[1L]]
+      }
+    } else if (identical(row$keyword, "ppVar")) {
+      if (is.null(value)) value <- character()
+      else value <- as.character(value)
+    }
+    state$spec_seed[[row$bare_id]] <- value
+    seeded <- c(seeded, row$bare_id)
+  }
+
+  # Dispatch is deferred to the first flush so framework-internal rows
+  # (layer_checkbox / stage_enabled) can call `updateCheckboxInput()`
+  # after the stage checkboxes have mounted. Seed-applied rows are
+  # SKIPPED here (PLAN-02 collapse) — they are already carried into the
+  # renderUI's `selected` argument. Re-firing `updateXyzInput()` for them
+  # would be a no-op for built-ins but a FALSE return for custom keywords
+  # (no dispatch branch), which aggregated into the spurious "Skipped N
+  # spec entries with invalid value" warning (Bug B).
   session$onFlushed(once = TRUE, function() {
     invalid <- character()
     for (row in rows_to_apply) {
+      if (row$bare_id %in% seeded) next
       ok <- apply_spec_entry(session, row)
       if (isFALSE(ok)) invalid <- c(invalid, row$fq)
     }
@@ -687,6 +779,14 @@ ptr_server_internal <- function(input, output, session, formula,
   ptr_setup_stage_enabled(state, input, output, session)
   ptr_setup_shared_stage_enabled(state, shared_stage_enabled)
   ptr_setup_runtime(state, input, output, session)
+  # ADR 0012 / PLAN-01 (Bug B): value + source renderUIs must mount in
+  # the same first-flush cycle as the consumer renderUI so the
+  # `state$spec_seed` write inside `apply_spec_at_boot()` (also synchronous
+  # at boot, BEFORE its deferred `session$onFlushed` dispatch) reaches
+  # every placeholder's first render. Call order mirrors the registry-row
+  # order in `ptr_runtime_input_spec()`.
+  ptr_setup_value_uis(state, input, output, session)
+  ptr_setup_source_uis(state, input, output, session)
   ptr_setup_consumer_uis(state, input, output, session)
   ptr_setup_layer_picker(state, input, output, session)
   ptr_setup_layer_panel_classes(state, input, output, session)
@@ -1289,6 +1389,210 @@ runtime_upstream_cols <- function(state, snapshot = list()) {
 # exactly once and returns the full per-consumer named list, so two
 # consumers in the same tick share the computation.
 
+# ADR 0012 / PLAN-01 (Bug B): server-side renderUI for `ptr_ph_value`
+# placeholders (ppText / ppNum / ppExpr and any custom value keyword).
+# Mirrors `ptr_setup_consumer_uis()` shape; the renderUI body calls
+# `invoke_build_ui()` whose `extra$selected` precedence seeds the widget
+# from `state$spec_seed[[raw_id]]` on first fire. `apply_spec_at_boot()`
+# writes the seed synchronously at boot, BEFORE its deferred onFlushed
+# dispatch, so the seed is in place by the time this renderUI fires.
+# After the first fire `current` (the persisted input value) takes over
+# -- the `%||%` chain picks the first non-NULL.
+ptr_setup_value_uis <- function(state, input, output, session) {
+  tree <- shiny::isolate(state$tree())
+  ns <- state$server_ns_fn
+  ui_ns <- state$ui_ns_fn
+  ui_text <- state$effective_ui_text
+
+  values <- find_nodes(tree, is_ptr_ph_value)
+  for (v in values) {
+    if (is.null(v$id)) next
+    # Shared value widgets bind ONCE per shared key, after this loop, using
+    # the deduped representative from `collect_shared_placeholders()` so
+    # cross-occurrence param resolution applies. Per-occurrence binding
+    # here would overwrite the same output slot N times for N occurrences.
+    if (!is.null(v$shared)) next
+    local({
+      node <- v
+      raw_id <- node$id
+      output_id <- ns(value_output_id(raw_id))
+      output[[output_id]] <- shiny::renderUI({
+        # Re-fire on tree changes (layer toggles, formula rebuilds) the
+        # same way consumer renderUIs do; value widgets don't depend on
+        # resolved cols/data so the dependency set is intentionally thin.
+        state$tree()
+        state$stage_enabled()
+        current <- shiny::isolate(input[[ns(raw_id)]])
+        seed <- shiny::isolate(state$spec_seed[[raw_id]])
+        # Pipeline-stage placeholders carry a verb-derived `param_override`
+        # / `label_suffix` (e.g. "Enter a number for head()"). Pre-PLAN-01
+        # the layer panel threaded these into `invoke_build_ui` directly;
+        # now build_ui_for.ptr_ph_value emits a static uiOutput so the
+        # renderUI body re-derives them by walking the live tree via
+        # `pipeline_override_for_node()` (R/paintr-build-ui.R).
+        override <- pipeline_override_for_node(
+          shiny::isolate(state$tree()), node$id
+        )
+        invoke_build_ui(
+          node,
+          ui_text = ui_text,
+          layer_name = node$layer_name,
+          ns_fn = ui_ns,
+          extra = list(selected = seed %||% current),
+          param_override = override$param_override,
+          label_suffix = override$label_suffix
+        )
+      })
+      # ADR 0012 / PLAN-01 (Bug B): value widgets must exist in the DOM
+      # regardless of whether the layer panel's tab is currently visible.
+      # Shiny's default `suspendWhenHidden = TRUE` would skip rendering
+      # for tabs other than the selected layer; pre-PLAN-01 the widget
+      # was a static tag inside the layer panel and survived layer
+      # switches with the input element always mounted. Post-PLAN-01 it
+      # lives in a renderUI -- opting out of suspension keeps the input
+      # binding alive across layer changes, so spec seeding lands on a
+      # mounted widget and `app$get_html("#<raw_id>")` reads non-NULL
+      # for ids on inactive layers under shinytest2.
+      shiny::outputOptions(output, output_id, suspendWhenHidden = FALSE)
+    })
+  }
+
+  # ADR 0012 / PLAN-01 (Bug B): shared value widgets. Pre-PLAN-01 the
+  # shared section's `build_ui_for(rep_node, ...)` emitted the widget tag
+  # directly, so no server-side binding was needed. After the reshape it
+  # emits a `uiOutput(rep_node$id_ui)` -- we must register a renderUI for
+  # that slot. One renderUI per shared *key* (not per occurrence), using
+  # the deduped representative node from `collect_shared_placeholders()`:
+  # the rep_node clears `$param` to NA when multiple distinct params share
+  # the key, so copy resolution falls through to `defaults$<keyword>`
+  # instead of picking the first occurrence's param-specific copy (the
+  # BUG-A2 invariant: `defaults$ppNum.help` reaches a multi-param shared
+  # num widget without bleed from alpha's "0 and 1" hint).
+  shared_entries <- collect_shared_placeholders(tree)
+  for (entry in shared_entries) {
+    rep <- entry$node
+    if (!is_ptr_ph_value(rep)) next
+    if (is.null(rep$id)) next
+    local({
+      node <- rep
+      label_override <- entry$label_override
+      raw_id <- node$id
+      output_id <- ns(value_output_id(raw_id))
+      output[[output_id]] <- shiny::renderUI({
+        state$tree()
+        state$stage_enabled()
+        current <- shiny::isolate(input[[ns(raw_id)]])
+        seed <- shiny::isolate(state$spec_seed[[raw_id]])
+        invoke_build_ui(
+          node,
+          ui_text = ui_text,
+          layer_name = node$layer_name,
+          ns_fn = ui_ns,
+          extra = list(selected = seed %||% current),
+          label_override = label_override
+        )
+      })
+      # Shared widgets live in the host's shared section (not a layer
+      # tab), so suspension is moot there -- but keeping the option
+      # explicit guards against future restructuring that drops the
+      # shared section into a hidden container.
+      shiny::outputOptions(output, output_id, suspendWhenHidden = FALSE)
+    })
+  }
+  invisible(state)
+}
+
+# ADR 0012 / PLAN-01 (Bug B): server-side renderUI for `ptr_ph_data_source`
+# placeholders (ppVar-as-source, ppUpload and any custom source keyword).
+# Replicates the pre-PLAN-01 `build_ui_for.ptr_ph_data_source` body
+# (R/paintr-build-ui.R pre-reshape) -- copy resolution, ppUpload's
+# file_copy/name_copy injection, `named_args` pass-through, formals
+# guard -- but rendered inside a renderUI so the seed-precedence path
+# applies. The hook still emits both the fileInput AND the companion
+# textInput as a tagList; the companion's seed (role "source_companion")
+# is set by `updateTextInput` from the boot dispatch (the companion
+# textInput sits inside this same renderUI but is addressed by its own
+# `node$companion_id`, which Shiny will (re-)bind on this renderUI's
+# first fire just as for the consumer pattern).
+ptr_setup_source_uis <- function(state, input, output, session) {
+  tree <- shiny::isolate(state$tree())
+  ns <- state$server_ns_fn
+  ui_ns <- state$ui_ns_fn
+  ui_text <- state$effective_ui_text
+
+  sources <- find_nodes(tree, is_ptr_ph_data_source)
+  for (s in sources) {
+    if (is.null(s$id)) next
+    if (!is.null(s$shared)) next
+    local({
+      node <- s
+      raw_id <- node$id
+      output_id <- ns(source_output_id(raw_id))
+      output[[output_id]] <- shiny::renderUI({
+        state$tree()
+        state$stage_enabled()
+        current <- shiny::isolate(input[[ns(raw_id)]])
+        seed <- shiny::isolate(state$spec_seed[[raw_id]])
+
+        rendered_node <- node
+        rendered_node$id <- ui_ns(node$id)
+        if (!is.null(node$companion_id)) {
+          rendered_node$companion_id <- ui_ns(node$companion_id)
+        }
+        copy <- ptr_resolve_ui_text(
+          "control",
+          keyword = node$keyword,
+          param = node$param,
+          layer_name = node$layer_name,
+          ui_text = ui_text
+        )
+        entry <- ptr_registry_lookup(node$keyword)
+        if (is.null(entry) || is.null(entry$build_ui)) {
+          rlang::abort(paste0(
+            "Placeholder `", node$keyword, "` has no `build_ui` function. Pass ",
+            "`build_ui = function(node, label, ...)` when registering it -- see ",
+            "`?ptr_define_placeholder_value`."
+          ))
+        }
+        fmls <- names(formals(entry$build_ui))
+        accepts_dots <- "..." %in% fmls
+        extra_named <- build_ui_copy_args(fmls, copy)
+        if (identical(node$keyword, "ppUpload") &&
+            (accepts_dots || "file_copy" %in% fmls)) {
+          extra_named$file_copy <- ptr_resolve_ui_text(
+            "upload_file", ui_text = ui_text
+          )
+          extra_named$name_copy <- ptr_resolve_ui_text(
+            "upload_name", ui_text = ui_text
+          )
+        }
+        # PLAN-07: pass node$named_args through so custom hooks can
+        # consume them; built-in hooks swallow via `...`.
+        if (accepts_dots || "named_args" %in% fmls) {
+          extra_named$named_args <- node$named_args %||% list()
+        }
+        # PLAN-01: seed precedence for the source widget. Only inject
+        # when the hook accepts the arg (formal or `...` sink); ppUpload
+        # has neither, so the seed is silently ignored at this layer
+        # (the fileInput cannot be set programmatically anyway -- the
+        # exclusion is enforced upstream in `apply_spec_at_boot`).
+        if (accepts_dots || "selected" %in% fmls) {
+          sel <- seed %||% current
+          if (!is.null(sel)) extra_named$selected <- sel
+        }
+        do.call(entry$build_ui,
+                c(list(rendered_node, label = copy$label), extra_named))
+      })
+      # ADR 0012 / PLAN-01 (Bug B): source widgets (ppUpload, ppVar-as-
+      # source, custom source keywords) must stay mounted across layer-
+      # tab switches for the same reason value widgets do (see the
+      # parallel `outputOptions` in `ptr_setup_value_uis()` above).
+      shiny::outputOptions(output, output_id, suspendWhenHidden = FALSE)
+    })
+  }
+  invisible(state)
+}
+
 ptr_setup_consumer_uis <- function(state, input, output, session) {
   tree <- shiny::isolate(state$tree())
   ns <- state$server_ns_fn
@@ -1374,13 +1678,21 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
         # (cols change, layer toggle, etc.). `intersect` inside the
         # builtin's build_ui drops it if it's no longer a valid column.
         current <- shiny::isolate(input[[ns(raw_id)]])
+        # ADR 0012 / PLAN-01 (Bug B): the spec-seed takes precedence over
+        # `current` so a `spec=` entry naming this consumer's id seeds the
+        # picker on first render. After the user touches the widget,
+        # `current` becomes non-NULL and persistence resumes (the seed is
+        # written once at boot; it is not re-read on subsequent fires
+        # because by then `current` already shadows it logically — the
+        # `%||%` chain picks the first non-NULL).
+        seed <- shiny::isolate(state$spec_seed[[raw_id]])
         invoke_build_ui(
           node,
           ui_text = ui_text,
           layer_name = node$layer_name,
           ns_fn = ui_ns,
           extra = list(cols = cols, data = data,
-                       selected = current %||% character(0))
+                       selected = seed %||% current %||% character(0))
         )
       })
     })

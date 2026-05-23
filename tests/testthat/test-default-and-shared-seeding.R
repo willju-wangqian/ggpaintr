@@ -39,7 +39,7 @@ test_that("num build_ui seeds numericInput value from node$default", {
   node <- ptr_ph_value(
     id = "p_num", keyword = "ppNum", expr = quote(ppNum(5)), default = 5
   )
-  ui <- build_ui_for(node, layer_name = "geom_point")
+  ui <- .value_widget(node, layer_name = "geom_point")
   expect_equal(.input_value_attr(ui, "p_num"), "5")
 })
 
@@ -47,7 +47,7 @@ test_that("num build_ui leaves value empty when node$default is NULL", {
   node <- ptr_ph_value(
     id = "p_num2", keyword = "ppNum", expr = quote(ppNum())
   )
-  ui <- build_ui_for(node, layer_name = "geom_point")
+  ui <- .value_widget(node, layer_name = "geom_point")
   # Today's behaviour: numericInput renders value="NA" -- but the copy-
   # driven placeholder rewrite blanks that to "" when empty_text is set.
   # Either is acceptable as "no seed"; reject anything that smells like
@@ -61,7 +61,7 @@ test_that("text build_ui seeds textInput value from node$default", {
     id = "p_txt", keyword = "ppText", expr = quote(ppText("hello")),
     default = "hello"
   )
-  ui <- build_ui_for(node, layer_name = "geom_point")
+  ui <- .value_widget(node, layer_name = "geom_point")
   expect_equal(.input_value_attr(ui, "p_txt"), "hello")
 })
 
@@ -69,7 +69,7 @@ test_that("text build_ui leaves value empty when node$default is NULL", {
   node <- ptr_ph_value(
     id = "p_txt2", keyword = "ppText", expr = quote(ppText())
   )
-  ui <- build_ui_for(node, layer_name = "geom_point")
+  ui <- .value_widget(node, layer_name = "geom_point")
   expect_equal(.input_value_attr(ui, "p_txt2"), "")
 })
 
@@ -78,7 +78,7 @@ test_that("expr build_ui seeds textAreaInput value from node$default (string)", 
     id = "p_expr", keyword = "ppExpr", expr = quote(ppExpr("mpg * 2")),
     default = "mpg * 2"
   )
-  ui <- build_ui_for(node, layer_name = "geom_point")
+  ui <- .value_widget(node, layer_name = "geom_point")
   expect_equal(.textarea_value(ui, "p_expr"), "mpg * 2")
 })
 
@@ -88,7 +88,7 @@ test_that("expr build_ui deparses a language default into textarea source", {
     expr = quote(ppExpr(mpg * 2)),
     default = quote(mpg * 2)
   )
-  ui <- build_ui_for(node, layer_name = "geom_point")
+  ui <- .value_widget(node, layer_name = "geom_point")
   expect_equal(.textarea_value(ui, "p_expr_lang"), "mpg * 2")
 })
 
@@ -96,7 +96,7 @@ test_that("expr build_ui leaves textarea empty when node$default is NULL", {
   node <- ptr_ph_value(
     id = "p_expr2", keyword = "ppExpr", expr = quote(ppExpr())
   )
-  ui <- build_ui_for(node, layer_name = "geom_point")
+  ui <- .value_widget(node, layer_name = "geom_point")
   expect_equal(.textarea_value(ui, "p_expr2"), "")
 })
 
@@ -269,7 +269,7 @@ test_that("invoke_build_ui passes node$named_args to the hook", {
     id = "p_fake", keyword = "ppFakeNa", expr = quote(ppFakeNa()),
     default = "seed-me", named_args = list(step = 0.5, hint = "go")
   )
-  invisible(build_ui_for(node, layer_name = "geom_point"))
+  invisible(.value_widget(node, layer_name = "geom_point"))
   expect_equal(seen$args$selected, "seed-me")
   expect_equal(seen$args$named_args, list(step = 0.5, hint = "go"))
 })

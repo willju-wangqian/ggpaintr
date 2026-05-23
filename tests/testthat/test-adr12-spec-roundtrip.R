@@ -56,9 +56,20 @@ test_that("adr12 / PLAN-06: spec= overrides widget defaults at session boot", {
                label = "geom_point_checkbox honored at boot (FALSE from spec)")
 
   # 3. num input honored at boot. The registry default is NA; the spec
-  #    sets 5. Read the numeric value through Shiny's input snapshot.
-  expect_equal(app$get_value(input = "geom_point_2_1_2_ppNum_NA"), 5,
-               label = "geom_point_2_1_2_ppNum_NA honored at boot (5 from spec)")
+  #    sets 5. After ADR 0012 / PLAN-01 (Bug B), the ppNum widget is
+  #    rendered via the `ptr_setup_value_uis()` renderUI body (not via a
+  #    static UI tag + deferred `updateNumericInput()`), so the seed value
+  #    appears as `value="5"` in the renderUI'd `<input>` markup. Reading
+  #    via `app$get_html("#geom_point_2_1_2_ppNum_NA")` asserts on that
+  #    rendered shape directly -- `app$get_value(input = ...)` returns
+  #    NULL because the dynamic numericInput's JS binding does not send
+  #    its initial value back to the server until a user interaction.
+  expect_match(
+    app$get_html("#geom_point_2_1_2_ppNum_NA"),
+    'value="5"',
+    fixed = TRUE,
+    label = "geom_point_2_1_2_ppNum_NA honored at boot (5 from spec)"
+  )
 
   # 4. Unknown id silently dropped: the app booted (boot_vignette_app
   #    succeeded) and no inline error is rendered.
@@ -78,7 +89,9 @@ test_that("adr12 / PLAN-06: spec= overrides widget defaults at session boot", {
 
 stub_state_for_apply <- function(input_ids = character(),
                                  roles = character(),
-                                 keywords = character()) {
+                                 keywords = character(),
+                                 prefix = "",
+                                 spec_seed = NULL) {
   # Manufacture a minimal `input_spec` data frame in the same shape
   # `ptr_runtime_input_spec()` would produce. The dispatch fields the
   # helper consults are `input_id`, `role`, `keyword`. Pad the other
@@ -96,7 +109,19 @@ stub_state_for_apply <- function(input_ids = character(),
     shared     = pad,
     stringsAsFactors = FALSE
   )
-  list(input_spec = df)
+  # `apply_spec_at_boot()` (PLAN-06 / PLAN-01 fix) derives its filter
+  # prefix from `state$server_ns_fn("")` -- the namespace function the
+  # widgets were bound under -- NOT `session$ns("")`. The stub mirrors
+  # that contract; tests can drive prefix filtering by setting `prefix=`.
+  # `state$spec_seed` is an environment in production (so writes from the
+  # seed-write loop propagate to closure-captured state); these unit
+  # tests don't observe the seed, so a fresh `new.env(parent = emptyenv())`
+  # is the minimum that makes `state$spec_seed[[bid]] <- value` work.
+  list(
+    input_spec   = df,
+    server_ns_fn = function(x) paste0(prefix, x),
+    spec_seed    = spec_seed %||% new.env(parent = emptyenv())
+  )
 }
 
 # A stub session whose `ns("")` returns the configured prefix and whose
@@ -173,10 +198,17 @@ test_that("apply_spec_at_boot filters by session namespace prefix", {
   # surviving entry's id matches a known widget, so unknown-id branch
   # does not fire — the only side effect is the queued `onFlushed`
   # callback being captured by our stub.
+  #
+  # The prefix is sourced from `state$server_ns_fn("")` -- the namespace
+  # function the widgets were bound under (corrected from `session$ns`
+  # under PLAN-01, because shinytest2-less `testServer` makes
+  # `session$ns` prefix with `"mock-session-"` which never matches user-
+  # supplied spec ids). The stub state mirrors that contract.
   st <- stub_state_for_apply(
     input_ids = "foo",
     roles     = "layer_checkbox",
-    keywords  = NA_character_
+    keywords  = NA_character_,
+    prefix    = "p1-"
   )
   sess <- stub_session(prefix = "p1-")
   expect_silent(
@@ -193,7 +225,8 @@ test_that("apply_spec_at_boot returns silently when prefix matches nothing", {
   st <- stub_state_for_apply(
     input_ids = "foo",
     roles     = "layer_checkbox",
-    keywords  = NA_character_
+    keywords  = NA_character_,
+    prefix    = "p1-"
   )
   sess <- stub_session(prefix = "p1-")
   # Every spec entry is under a different prefix -> the helper returns

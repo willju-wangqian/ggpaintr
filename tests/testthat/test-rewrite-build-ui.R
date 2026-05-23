@@ -27,11 +27,17 @@
 }
 
 # ---- P6.1 / P6.2 — value placeholders ----
+#
+# `build_ui_for.ptr_ph_value` / `.ptr_ph_data_source` now return uiOutput
+# containers (ADR 0012 / PLAN-01 — Bug B). Tests that assert on the widget
+# tag use `.value_widget` / `.source_widget` from `helper-rewrite.R`,
+# which mirror the renderUI composition in `ptr_setup_value_uis()` /
+# `ptr_setup_source_uis()`.
 
 test_that("P6.1 text placeholder UI renders textInput", {
   tree <- ptr_translate("ggplot(mtcars) + geom_point(color = ppText)")
   node <- .ph_by_keyword(tree, "ppText")
-  ui <- build_ui_for(node, layer_name = "geom_point")
+  ui <- .value_widget(node, layer_name = "geom_point")
   text_inputs <- .find_tags(ui, has_id = node$id)
   expect_true(length(text_inputs) > 0L)
 })
@@ -39,7 +45,7 @@ test_that("P6.1 text placeholder UI renders textInput", {
 test_that("P6.2 num placeholder UI renders a numeric-style input", {
   tree <- ptr_translate("ggplot(mtcars) + geom_point(size = ppNum)")
   node <- .ph_by_keyword(tree, "ppNum")
-  ui <- build_ui_for(node, layer_name = "geom_point")
+  ui <- .value_widget(node, layer_name = "geom_point")
   num_inputs <- .find_tags(ui, has_id = node$id)
   expect_true(length(num_inputs) > 0L)
 })
@@ -79,7 +85,7 @@ test_that("P6.4 var consumer with empty cols still renders an empty container", 
 test_that("P6.5 upload UI emits paired widgets (file + name)", {
   tree <- ptr_translate("ppUpload |> ggplot()")
   node <- .ph_by_keyword(tree, "ppUpload")
-  ui <- build_ui_for(node, layer_name = "ggplot")
+  ui <- .source_widget(node)
   expect_true(length(.find_tags(ui, has_id = node$id)) > 0L)
   expect_true(length(.find_tags(ui, has_id = node$companion_id)) > 0L)
 })
@@ -89,7 +95,7 @@ test_that("P6.5 upload UI emits paired widgets (file + name)", {
 test_that("P6.13 copy resolution applies custom label", {
   tree <- ptr_translate("ggplot(mtcars) + geom_point(size = ppNum)")
   node <- .ph_by_keyword(tree, "ppNum")
-  ui <- build_ui_for(
+  ui <- .value_widget(
     node,
     layer_name = "geom_point",
     ui_text = list(params = list(size = list(ppNum = list(label = "Pick a number"))))
@@ -127,7 +133,7 @@ test_that("build_ui_for renders id through ns_fn", {
 test_that("text widget renders placeholder + help from resolved copy", {
   tree <- ptr_translate("ggplot(mtcars) + geom_point(color = ppText)")
   node <- .ph_by_keyword(tree, "ppText")
-  ui <- build_ui_for(
+  ui <- .value_widget(
     node, layer_name = "geom_point",
     ui_text = list(params = list(color = list(ppText = list(
       label = "L", help = "H-help", placeholder = "P-ph"
@@ -142,7 +148,7 @@ test_that("text widget renders placeholder + help from resolved copy", {
 test_that("text widget carries the restored default placeholder", {
   tree <- ptr_translate("ggplot(mtcars) + geom_point(color = ppText)")
   node <- .ph_by_keyword(tree, "ppText")
-  ui <- build_ui_for(node, layer_name = "geom_point")
+  ui <- .value_widget(node, layer_name = "geom_point")
   expect_match(as.character(ui), "quotes are added automatically")
   expect_equal(
     ptr_default_ui_text()$defaults$ppText$placeholder,
@@ -153,7 +159,7 @@ test_that("text widget carries the restored default placeholder", {
 test_that("expr widget renders placeholder + help from resolved copy", {
   tree <- ptr_translate("ggplot(mtcars) + geom_point() + facet_wrap(ppExpr)")
   node <- .ph_by_keyword(tree, "ppExpr")
-  ui <- build_ui_for(
+  ui <- .value_widget(
     node, layer_name = "facet_wrap",
     ui_text = list(layers = list(facet_wrap = list(ppExpr = list(
       `__unnamed__` = list(placeholder = "~ Species", help = "facet help")
@@ -168,7 +174,7 @@ test_that("expr widget renders placeholder + help from resolved copy", {
 test_that("num widget renders help only (no placeholder attr)", {
   tree <- ptr_translate("ggplot(mtcars) + geom_point(size = ppNum)")
   node <- .ph_by_keyword(tree, "ppNum")
-  ui <- build_ui_for(
+  ui <- .value_widget(
     node, layer_name = "geom_point",
     ui_text = list(params = list(size = list(ppNum = list(help = "0 to 1"))))
   )
@@ -212,7 +218,7 @@ test_that("a third-party build_ui hook without `...`/`copy` is not passed copy",
   )
   tree <- ptr_translate("ggplot(mtcars) + geom_point(color = plain_widget)")
   node <- .ph_by_keyword(tree, "plain_widget")
-  expect_silent(ui <- build_ui_for(node, layer_name = "geom_point"))
+  expect_silent(ui <- .value_widget(node, layer_name = "geom_point"))
   expect_true(length(.find_tags(ui, has_id = node$id)) > 0L)
 })
 
@@ -234,7 +240,7 @@ test_that("P6.14 custom placeholder UI invokes registered build_ui", {
   )
   tree <- ptr_translate("ggplot(mtcars) + geom_point(size = scale_factor)")
   node <- .ph_by_keyword(tree, "scale_factor")
-  ui <- build_ui_for(node, layer_name = "geom_point")
+  ui <- .value_widget(node, layer_name = "geom_point")
   expect_true(hook_called)
   expect_true(length(.find_tags(ui, has_id = node$id)) > 0L)
 })
