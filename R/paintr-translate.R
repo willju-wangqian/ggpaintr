@@ -221,11 +221,12 @@ resugar_pipeline_stages <- function(expr) {
   }
   # Post-loop split: cur is still a call whose first arg is a non-call.
   # Extract that non-call as the source and bank cur (stripped of its first
-  # arg) as the deepest stage. Skip when cur is a registered placeholder-
-  # source call — those carry their arg as a captured `default_arg`, not as
-  # upstream data, and the call itself must be the atomic source.
+  # arg) as the deepest stage. Skip when cur is any registered placeholder
+  # call — every placeholder's arg-bearing form is captured state on the
+  # node (via `default_arg`), not upstream data, so the call must stay
+  # atomic regardless of role.
   if (is.call(cur) && length(cur) >= 2L && !is.call(cur[[2L]]) &&
-      !is_placeholder_source_call(cur)) {
+      !is_placeholder_call(cur)) {
     head <- cur[[1L]]
     rest_args <- as.list(cur[-c(1L, 2L)])
     nm_all <- names(cur) %||% rep_len("", length(cur))
@@ -267,22 +268,26 @@ rebuild_nested_from_stages <- function(parts) {
   acc
 }
 
-# True when `expr` is a call whose head names a registered placeholder
-# source (role = "source" in the registry). For such calls the arg-bearing
-# form `keyword(arg)` carries `arg` as the placeholder's captured
-# `default_arg`; the arg is not upstream data, and the canonical lift must
-# treat the whole call as an atomic source (NOT split out the arg as a
-# separate pipeline stage). The lookup is best-effort: when the registry
-# is unavailable or the head is not a bare symbol, we return FALSE and the
-# normal lift rules apply.
-is_placeholder_source_call <- function(expr) {
+# True when `expr` is a call whose head names ANY registered placeholder
+# (regardless of role: value, consumer, or source). For every placeholder
+# the arg-bearing form `keyword(arg)` carries `arg` as the placeholder's
+# captured `default_arg` -- it is captured state on the node, not upstream
+# data -- so the canonical lift must treat the whole call as an atomic
+# leaf (NOT split out the arg as a separate pipeline stage). Source-role
+# placeholders are the typical leaf case (`ppUpload(penguins)`); value and
+# consumer roles are pathological in source position (`ppVar(mpg) |>
+# filter(...)` is nonsense) but get the same protection for symmetry --
+# otherwise lifting through a value/consumer placeholder loses its
+# default-arg capture and silently breaks the per-role contract. The
+# lookup is best-effort: when the registry is unavailable or the head is
+# not a bare symbol, we return FALSE and the normal lift rules apply.
+is_placeholder_call <- function(expr) {
   if (!is.call(expr) || length(expr) < 1L) return(FALSE)
   head <- expr[[1L]]
   if (!is.symbol(head)) return(FALSE)
   entry <- tryCatch(ptr_registry_lookup(as.character(head)),
                     error = function(e) NULL)
-  if (is.null(entry)) return(FALSE)
-  identical(entry$role, "source")
+  !is.null(entry)
 }
 
 # Step 4 — round-trip + grounding gates. Returns either
@@ -315,10 +320,10 @@ try_lift_to_pipeline <- function(expr) {
   if (!identical(rebuilt, canonical)) {
     return(list(success = FALSE, reason = "round-trip-mismatch"))
   }
-  if (is.call(parts$source) && !is_placeholder_source_call(parts$source)) {
+  if (is.call(parts$source) && !is_placeholder_call(parts$source)) {
     return(list(success = FALSE, reason = "opaque-call-source"))
   }
-  if (!is.symbol(parts$source) && !is_placeholder_source_call(parts$source)) {
+  if (!is.symbol(parts$source) && !is_placeholder_call(parts$source)) {
     return(list(success = FALSE, reason = "non-data-source"))
   }
   list(success = TRUE, parts = parts)
