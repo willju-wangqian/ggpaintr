@@ -43,6 +43,7 @@ Reserve `Read` for `.Rmd`, `.md`, `.yml`, and for roxygen comment text outside f
 - Do not create ad-hoc markdown files in `.claude/specs/`.
 - Architectural decision records live in `dev/adr/` (not `docs/` — that's pkgdown's generated, gitignored output). Agent-skill config lives in `dev/agents/` (see `## Agent skills` below).
 - Audit results (pre-merge / post-merge / drift / roxygen / e2e / LLM / etc.) save to `dev/audit/audit-<topic>-<time>.html` — single home for every audit artifact, not `dev/notes/`.
+- Generated HTML files (audits, notes, plans, ADRs, any agent-emitted artifact under `dev/`) MUST link the shared stylesheet via `<link rel="stylesheet" href="/path/to/dev/assets/doc.css">` (use the correct relative path from the file's location, e.g. `../assets/doc.css` from `dev/audit/`, `../../assets/doc.css` from `dev/plans/<slug>/`). Do NOT inline `<style>` blocks or duplicate rules already in `doc.css` — this saves output tokens and keeps doc styling consistent. If a class you need is missing from `doc.css`, add it there once rather than inlining locally.
 
 ## Harness Config
 
