@@ -26,7 +26,14 @@ same shape as in \code{\link[=ptr_define_placeholder_value]{ptr_define_placehold
 \code{companion_id_fn} set, render \strong{two} bound inputs in the same tag,
 one with \code{inputId = node$id} (data payload) and one with
 \code{inputId = node$companion_id} (sibling input — typically the
-user-facing dataset name spliced into the rendered code).}
+user-facing dataset name spliced into the rendered code).
+
+\emph{Seeding} — same opt-in shape as the other two helpers: declare an
+optional \code{selected = NULL} formal (or accept \code{...}) to receive the
+\code{spec-seed \%||\% current-input} chain on every renderUI fire. The
+built-in \code{ppUpload} declines this because a Shiny \code{fileInput()} can
+never be seeded programmatically; custom sources whose primary widget
+\emph{can} be seeded (e.g. a \code{selectInput} dataset chooser) should accept it.}
 
 \item{resolve_data}{\verb{function(value, node, ...)} returning a
 \code{data.frame} (the data downstream consumers read from), or \code{NULL} to

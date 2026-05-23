@@ -346,6 +346,16 @@ ptr_registry_register <- function(entry) {
 #'   `empty_text`) — or accept a `copy = NULL` list and read them off it.
 #'   Always end the signature with `...`.
 #'
+#'   *Seeding the initial widget value* — declare an optional
+#'   `selected = NULL` formal (or accept `...`) to opt in. At boot the
+#'   framework injects `node$default` into `selected` so a positional
+#'   default in the formula (e.g. `ppPct(50)`) seeds the widget. On
+#'   subsequent renderUI fires `selected` carries the precedence chain
+#'   `spec-seed %||% current-input %||% empty`, so it is the right slot to
+#'   read regardless of which boot stage is firing. Do **not** read
+#'   `node$default` directly inside the body — that bypasses persistence
+#'   and re-clobbers the user's edit on every renderUI re-fire.
+#'
 #' @param resolve_expr `function(value, node, ...)` returning the R
 #'   expression spliced into the rendered call. `value` is
 #'   `input[[node$id]]` — whatever Shiny stores for that widget. Allowed
@@ -456,6 +466,16 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #'   is the upstream data frame, or `NULL` while pending — read it only
 #'   when you need column types / levels / ranges.
 #'
+#'   *Seeding the initial selection* — declare an optional
+#'   `selected = NULL` formal (or accept `...`) to opt in. The framework
+#'   passes the precedence chain `spec-seed %||% current-input %||% empty`
+#'   into `selected` on every renderUI fire — including the boot fire, when
+#'   it carries `node$default` for a positional default like `ppVar(adj)`.
+#'   Pass `selected = intersect(selected, cols)` to the picker so a stale
+#'   selection drops cleanly when the upstream columns change. Do **not**
+#'   read `node$default` directly inside the body — that bypasses
+#'   persistence and re-clobbers the user's pick on each re-fire.
+#'
 #' @param resolve_expr `function(value, node, ...)`. For a column picker
 #'   the typical body is `rlang::sym(value)` so the bare column name is
 #'   spliced as an identifier rather than a string literal. See
@@ -557,6 +577,13 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #'   one with `inputId = node$id` (data payload) and one with
 #'   `inputId = node$companion_id` (sibling input — typically the
 #'   user-facing dataset name spliced into the rendered code).
+#'
+#'   *Seeding* — same opt-in shape as the other two helpers: declare an
+#'   optional `selected = NULL` formal (or accept `...`) to receive the
+#'   `spec-seed %||% current-input` chain on every renderUI fire. The
+#'   built-in `ppUpload` declines this because a Shiny `fileInput()` can
+#'   never be seeded programmatically; custom sources whose primary widget
+#'   *can* be seeded (e.g. a `selectInput` dataset chooser) should accept it.
 #'
 #' @param resolve_data `function(value, node, ...)` returning a
 #'   `data.frame` (the data downstream consumers read from), or `NULL` to
