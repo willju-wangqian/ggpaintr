@@ -1,0 +1,1977 @@
+/* dev/assets/doc.css
+ * Auto-generated from inline <style> blocks across dev/{plans,adr,audit,notes,feature_bank} HTMLs (+ dev/ast-walk-diagram.html).
+ * Source content is read from git HEAD, so re-running after rewrites is safe.
+ * Concatenation order: most-frequent block first; cascade last-wins handles the long tail.
+ * Buckets: 48 unique CSS blobs across 78 files.
+ */
+
+/* ---- source bucket 26b59112 (7 files) ----
+ *   dev/plans/finished-l2-l3-redesign-02-server-consistency.html
+ *   dev/plans/finished-l2-l3-redesign-06-app-grid-coordinator.html
+ *   dev/plans/finished-l2-l3-redesign-03-orthogonal-outputs.html
+ *   dev/plans/finished-l2-l3-redesign-04-fold-shared-section.html
+ *   dev/plans/finished-l2-l3-redesign-07-vignette.html
+ *   dev/plans/finished-l2-l3-redesign-10-tests.html
+ *   ... and 1 more
+ */
+body{font:15px/1.55 -apple-system,system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1.2rem;color:#1b1d22}h1{border-bottom:2px solid #1b1d22;padding-bottom:.3rem}h2{margin-top:1.6rem;border-bottom:1px solid #ccd}code{background:#f4f4f7;padding:1px 4px;border-radius:3px;font-size:90%}pre{background:#f4f4f7;padding:.7rem;border-radius:5px;overflow-x:auto;font-size:13px}.meta{color:#555;font-size:13px}.bdd{background:#f7f9ff;border-left:4px solid #4169e1;padding:.5rem .8rem;margin:.6rem 0;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:13px}
+
+/* ---- source bucket 494d41dc (5 files) ----
+ *   dev/plans/finished-2026-05-17-vignette-prose-sweep.html
+ *   dev/plans/finished-2026-05-17-llm-materials-audit.html
+ *   dev/plans/finished-2026-05-17-e2e-browser-vignette-examples.html
+ *   dev/plans/finished-l2-l3-redesign-05-module-rebuild.html
+ *   dev/plans/finished-l2-l3-redesign-01-coordinator.html
+ */
+body{font:15px/1.55 -apple-system,system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1.2rem;color:#1b1d22}h1{border-bottom:2px solid #1b1d22;padding-bottom:.3rem}h2{margin-top:1.6rem;border-bottom:1px solid #ccd}code{background:#f4f4f7;padding:1px 4px;border-radius:3px;font-size:90%}pre{background:#f4f4f7;padding:.7rem;border-radius:5px;overflow-x:auto;font-size:13px}.meta{color:#555;font-size:13px}.bdd{background:#f7f9ff;border-left:4px solid #4169e1;padding:.5rem .8rem;margin:.6rem 0;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:13px}.crit{border-left:4px solid #c0392b;background:#fde7e7;padding:.5rem .8rem}
+
+/* ---- source bucket 4daa946e (5 files) ----
+ *   dev/plans/placeholder-rename-expr-mode/finished-05-dual-mode-renderer.html
+ *   dev/plans/placeholder-rename-expr-mode/finished-04-expression-mode-capture.html
+ *   dev/plans/placeholder-rename-expr-mode/finished-02-placeholder-node-slots.html
+ *   dev/plans/placeholder-rename-expr-mode/finished-01-default-validator-helpers.html
+ *   dev/plans/placeholder-rename-expr-mode/finished-03-registry-slots-and-return-callable.html
+ */
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.6rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .par { color: #1e7b34; font-weight: bold; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+
+/* ---- source bucket 4faa826a (5 files) ----
+ *   dev/plans/0010-ppupload-name-default-arg/01-registry-and-ui-seeding.html
+ *   dev/plans/0012-role-based-tree-and-ptr-spec/finished-05-spec-emission-preserve-mode.html
+ *   dev/plans/0012-role-based-tree-and-ptr-spec/finished-06-spec-apply-session-boot.html
+ *   dev/plans/0012-role-based-tree-and-ptr-spec/finished-01-classify-calls-noop-pass.html
+ *   dev/plans/0012-role-based-tree-and-ptr-spec/finished-03-bug-3b-regression-net.html
+ */
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  .meta { color: #555; font-size: 13px; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .warn { border-left: 4px solid #c97a00; background: #fdf3e1; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+
+/* ---- source bucket 707f4fbd (3 files) ----
+ *   dev/adr/0006-single-server-entry-l3-ui-only.html
+ *   dev/adr/0008-no-exprs-bounded-placeholders.html
+ *   dev/adr/0005-l2-l3-redesign.html
+ */
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.2rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .danger { border-left: 4px solid #c0392b; background: #fde7e7; padding: .6rem .9rem; margin: .8rem 0; }
+  .note  { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+
+/* ---- source bucket 7f19eb94 (3 files) ----
+ *   dev/audit/2026-05-15-vignette-example-e2e.html
+ *   dev/audit/vignette/2026-05-18-22.html
+ *   dev/audit/vignette/2026-05-19-01.html
+ */
+  :root { --ok:#15803d; --bug:#b91c1c; --info:#6b7280; --bg:#f8fafc; --code:#0f172a; }
+  html,body { background:var(--bg); color:#111827; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; margin:0; padding:0; }
+  main { max-width:1080px; margin:0 auto; padding:32px 24px; }
+  h1 { font-size:22px; margin:0 0 4px 0; }
+  h2 { font-size:17px; margin:32px 0 8px 0; padding-bottom:4px; border-bottom:1px solid #e5e7eb; }
+  h3 { font-size:14px; margin:18px 0 6px 0; color:#374151; }
+  .subtitle { color:var(--info); margin-bottom:24px; }
+  table { border-collapse:collapse; width:100%; margin:8px 0 16px 0; font-size:13px; background:#fff; }
+  th,td { padding:6px 10px; text-align:left; vertical-align:top; border-bottom:1px solid #e5e7eb; }
+  th { background:#f1f5f9; font-weight:600; }
+  .pass { color:var(--ok); font-weight:600; }
+  .bug  { color:var(--bug); font-weight:600; }
+  .info { color:var(--info); font-weight:600; }
+  code, pre { font-family: ui-monospace,Menlo,Consolas,monospace; }
+  code { background:#eef2f7; padding:1px 5px; border-radius:3px; font-size:12.5px; }
+  pre  { background:var(--code); color:#e2e8f0; padding:12px 14px; border-radius:6px; overflow:auto; font-size:12px; }
+  .bug-card { background:#fff; border:1px solid #fecaca; border-left:4px solid var(--bug); border-radius:6px; padding:12px 16px; margin:12px 0; }
+  .bug-card h3 { margin-top:0; color:var(--bug); }
+  .patched { background:#fff; border:1px solid #bbf7d0; border-left:4px solid var(--ok); border-radius:6px; padding:12px 16px; margin:12px 0; }
+  .meta { font-size:12px; color:var(--info); }
+  ul { margin:6px 0 10px 22px; }
+
+/* ---- source bucket 6a75fde1 (2 files) ----
+ *   dev/plans/0012-role-based-tree-and-ptr-spec/finished-04-delete-upstream-fast-path.html
+ *   dev/plans/0012-role-based-tree-and-ptr-spec/finished-02-resugar-pipeline-lift.html
+ */
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  .meta { color: #555; font-size: 13px; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .warn { border-left: 4px solid #c97a00; background: #fdf3e1; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .prin { border-left: 4px solid #1b1d22; background: #f3f3f6; padding: .65rem .9rem; margin: .8rem 0; font-size: 14px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+
+/* ---- source bucket 79cd1633 (2 files) ----
+ *   dev/plans/0010-ppupload-name-default-arg/03-e2e-and-integration.html
+ *   dev/plans/0010-ppupload-name-default-arg/02-preserve-mode-current-pick.html
+ */
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  .meta { color: #555; font-size: 13px; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+
+/* ---- source bucket 84147527 (2 files) ----
+ *   dev/audit/0012b-bug-b-postmerge-audit-2026-05-22-93f2d28.html
+ *   dev/audit/0012b-bug-b-premerge-audit-2026-05-22-r4F3Yu50jQ.html
+ */
+  body { font-family: -apple-system, system-ui, sans-serif; max-width: 1100px; margin: 2em auto; padding: 0 1em; line-height: 1.45; color: #222; }
+  h1, h2, h3 { line-height: 1.2; }
+  code, pre { background: #f4f4f4; border-radius: 3px; }
+  pre { padding: 0.6em 1em; overflow-x: auto; }
+  code { padding: 0.1em 0.35em; }
+  .verdict-green  { background: #e2f5e6; padding: 0.3em 0.6em; border-left: 4px solid #2a8a3d; }
+  .verdict-yellow { background: #fff5d6; padding: 0.3em 0.6em; border-left: 4px solid #b8860b; }
+  .verdict-red    { background: #fde2e2; padding: 0.3em 0.6em; border-left: 4px solid #b32626; }
+  .pass    { color: #2a8a3d; font-weight: 600; }
+  .concern { color: #b8860b; font-weight: 600; }
+  .fail    { color: #b32626; font-weight: 600; }
+  table { border-collapse: collapse; }
+  th, td { padding: 0.3em 0.6em; border-bottom: 1px solid #ddd; vertical-align: top; }
+  th { text-align: left; background: #fafafa; }
+
+/* ---- source bucket a9549b12 (2 files) ----
+ *   dev/plans/0012b-spec-apply-uniform/finished-01-addendum-bdd-input-and-env-wording.html
+ *   dev/plans/0012b-spec-apply-uniform/finished-01-addendum-ppupload-silent.html
+ */
+  body { font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; max-width: 980px; margin: 2rem auto; padding: 0 1rem; color: #222; line-height: 1.55; }
+  h1, h2, h3 { line-height: 1.2; }
+  h1 { border-bottom: 2px solid #888; padding-bottom: .3rem; }
+  h2 { margin-top: 2.2rem; border-bottom: 1px solid #ccc; padding-bottom: .2rem; }
+  h3 { margin-top: 1.4rem; }
+  code, pre { font-family: SFMono-Regular, Menlo, Consolas, monospace; }
+  code { background: #f4f4f4; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f8f8f8; border: 1px solid #ddd; border-radius: 4px; padding: .7rem 1rem; overflow-x: auto; font-size: 88%; }
+  table { border-collapse: collapse; width: 100%; margin: .8rem 0 1.2rem; }
+  th, td { border: 1px solid #d8d8d8; padding: .45rem .6rem; vertical-align: top; text-align: left; }
+  th { background: #f0f0f0; font-weight: 600; }
+  .small { color: #666; font-size: 88%; }
+  .note { background: #fff8e1; border-left: 4px solid #f39c12; padding: .6rem .9rem; margin: 1rem 0; }
+  del { background: #fdecea; text-decoration: line-through; }
+  ins { background: #e8f8ec; text-decoration: none; }
+
+/* ---- source bucket cc71fc12 (2 files) ----
+ *   dev/plans/0012b-spec-apply-uniform/finished-01-spec-seed-and-renderui-emission.html
+ *   dev/plans/0012b-spec-apply-uniform/finished-02-collapse-apply-spec-entry-and-revert-workarounds.html
+ */
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  .meta { color: #555; font-size: 13px; }
+  .note    { border-left: 4px solid #2c7;    background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .warn    { border-left: 4px solid #c97a00; background: #fdf3e1; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11.5px; font-weight: bold; color: #fff; }
+  .b-draft  { background: #4974c0; }
+
+/* ---- source bucket d695d8ab (2 files) ----
+ *   dev/plans/placeholder-rename-expr-mode/finished-06-parser-argument-schema.html
+ *   dev/plans/placeholder-rename-expr-mode/finished-07-ui-and-shared-default-seeding.html
+ */
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.6rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .seq { color: #b34b00; font-weight: bold; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+
+/* ---- source bucket e6b5444e (2 files) ----
+ *   dev/plans/finished-2026-05-16-l3-piece-model.html
+ *   dev/plans/finished-2026-05-15-css-unification.html
+ */
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 920px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 2rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.3rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .8rem; border-radius: 4px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .8rem 0 1.4rem; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #eef0f5; }
+  ul { margin-top: .25rem; }
+  .footnote { color: #555; font-size: 13px; }
+  .callout { border-left: 4px solid #c79100; background: #fff7df; padding: .6rem .9rem; margin: .8rem 0; }
+  .danger  { border-left: 4px solid #c0392b; background: #fde7e7; padding: .6rem .9rem; margin: .8rem 0; }
+  .ok      { border-left: 4px solid #2d7a3a; background: #e7f4ea; padding: .6rem .9rem; margin: .8rem 0; }
+  .step    { background: #f7f8fa; border: 1px solid #d8dbe2; border-radius: 6px; padding: .8rem 1rem; margin: .8rem 0; }
+  .step h3 { margin-top: 0; }
+
+/* ---- source bucket f6aaf741 (2 files) ----
+ *   dev/audit/0012b-m3-addendum-audit-2026-05-22.html
+ *   dev/audit/0012b-drift-audit-2026-05-22.html
+ */
+  body { font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; max-width: 980px; margin: 2rem auto; padding: 0 1rem; color: #222; line-height: 1.55; }
+  h1, h2, h3 { line-height: 1.2; }
+  h1 { border-bottom: 2px solid #888; padding-bottom: .3rem; }
+  h2 { margin-top: 2.2rem; border-bottom: 1px solid #ccc; padding-bottom: .2rem; }
+  h3 { margin-top: 1.4rem; }
+  code, pre { font-family: SFMono-Regular, Menlo, Consolas, monospace; }
+  code { background: #f4f4f4; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f8f8f8; border: 1px solid #ddd; border-radius: 4px; padding: .7rem 1rem; overflow-x: auto; font-size: 88%; }
+  table { border-collapse: collapse; width: 100%; margin: .8rem 0 1.2rem; }
+  th, td { border: 1px solid #d8d8d8; padding: .45rem .6rem; vertical-align: top; text-align: left; }
+  th { background: #f0f0f0; font-weight: 600; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 80%; font-weight: 600; color: white; }
+  .badge-high { background: #c0392b; }
+  .badge-med  { background: #e67e22; }
+  .badge-low  { background: #7f8c8d; }
+  .badge-pass { background: #27ae60; }
+  .verdict { font-size: 130%; font-weight: 700; padding: .7rem 1rem; background: #fff8e1; border-left: 6px solid #f39c12; margin: 2rem 0; }
+  .verdict.pass { background: #e8f8ec; border-left-color: #27ae60; }
+  .verdict.fail { background: #fdecea; border-left-color: #c0392b; }
+  .small { color: #666; font-size: 88%; }
+  blockquote { border-left: 3px solid #ccc; padding-left: .8rem; color: #555; margin: .5rem 0; }
+
+/* ---- source bucket 000ef81a (1 file) ----
+ *   dev/audit/2026-05-15-css-unification.html
+ */
+  body { font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 900px; margin: 32px auto; padding: 0 16px; color: #1f2530; }
+  h1 { font-size: 22px; border-bottom: 1px solid #e7e9ee; padding-bottom: 6px; }
+  h2 { font-size: 17px; margin-top: 28px; border-bottom: 1px solid #f1f3f5; padding-bottom: 4px; }
+  h3 { font-size: 14px; margin-top: 18px; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; font-size: 12.5px; }
+  code { background: #f6f7f9; padding: 1px 5px; border-radius: 4px; }
+  pre { background: #f6f7f9; padding: 12px 14px; border-radius: 6px; overflow: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; margin: 8px 0; }
+  th, td { border: 1px solid #e7e9ee; padding: 6px 9px; text-align: left; vertical-align: top; }
+  th { background: #fafbfc; font-weight: 650; }
+  .ok { color: #15803d; }
+  .bad { color: #b91c1c; }
+  .warn { color: #b45309; }
+  .muted { color: #6b7280; font-size: 12.5px; }
+  .callout { background: #fef9c3; border-left: 3px solid #ca8a04; padding: 10px 14px; margin: 10px 0; font-size: 13px; border-radius: 4px; }
+  .callout--info { background: #eff6ff; border-color: #2563eb; }
+
+/* ---- source bucket 05b61133 (1 file) ----
+ *   dev/notes/placeholder-expr-mode/WORKFLOW.html
+ */
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 920px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.6rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .danger { border-left: 4px solid #c0392b; background: #fde7e7; padding: .6rem .9rem; margin: .8rem 0; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+  .par { color: #1e7b34; font-weight: bold; }
+  .seq { color: #b34b00; font-weight: bold; }
+  .atomic { color: #882020; font-weight: bold; }
+
+/* ---- source bucket 1354d1b9 (1 file) ----
+ *   dev/plans/placeholder-rename-expr-mode/INDEX.html
+ */
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.6rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .par { color: #1e7b34; font-weight: bold; }
+  .seq { color: #b34b00; font-weight: bold; }
+  .atomic { color: #882020; font-weight: bold; }
+
+/* ---- source bucket 278cabef (1 file) ----
+ *   dev/audit/report-roxygen-audit.html
+ */
+  *, *::before, *::after { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; color: #1f2530; background: #f5f6f8; margin: 0; padding: 24px; }
+  h1 { font-size: 1.6em; margin: 0 0 4px; }
+  .subtitle { color: #6b7280; margin: 0 0 28px; font-size: 0.92em; }
+  h2 { font-size: 1.15em; margin: 32px 0 12px; border-bottom: 1px solid #e0e2e6; padding-bottom: 6px; }
+  h3 { font-size: 1em; margin: 20px 0 8px; color: #374151; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 24px; }
+  th { background: #1f2530; color: #fff; text-align: left; padding: 9px 12px; font-size: 0.88em; font-weight: 600; }
+  td { padding: 8px 12px; vertical-align: top; border-bottom: 1px solid #f0f1f3; font-size: 0.88em; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafbfc; }
+  .sev-critical { background: #fee2e2; color: #7f1d1d; border-radius: 4px; padding: 2px 7px; font-weight: 700; font-size: 0.82em; white-space: nowrap; }
+  .sev-major   { background: #fef3c7; color: #78350f; border-radius: 4px; padding: 2px 7px; font-weight: 700; font-size: 0.82em; white-space: nowrap; }
+  .sev-minor   { background: #e5e7eb; color: #374151; border-radius: 4px; padding: 2px 7px; font-weight: 700; font-size: 0.82em; white-space: nowrap; }
+  .status-clean    { background: #d1fae5; color: #065f46; border-radius: 4px; padding: 2px 7px; font-weight: 600; font-size: 0.82em; }
+  .status-issues   { background: #fef3c7; color: #78350f; border-radius: 4px; padding: 2px 7px; font-weight: 600; font-size: 0.82em; }
+  .status-critical { background: #fee2e2; color: #7f1d1d; border-radius: 4px; padding: 2px 7px; font-weight: 600; font-size: 0.82em; }
+  code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-family: "SFMono-Regular", Consolas, monospace; font-size: 0.9em; }
+  .issue-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 12px; padding: 14px 16px; }
+  .issue-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .issue-fn { font-weight: 700; font-size: 0.95em; }
+  .issue-file { color: #6b7280; font-size: 0.82em; }
+  .issue-type { background: #e0e7ff; color: #3730a3; border-radius: 4px; padding: 2px 7px; font-size: 0.78em; font-weight: 600; }
+  .issue-desc { color: #374151; font-size: 0.88em; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 28px; }
+  .summary-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 16px; text-align: center; }
+  .summary-num { font-size: 2em; font-weight: 800; }
+  .summary-label { font-size: 0.8em; color: #6b7280; margin-top: 2px; }
+  .num-critical { color: #dc2626; }
+  .num-major    { color: #d97706; }
+  .num-minor    { color: #6b7280; }
+  .num-clean    { color: #059669; }
+  .pattern-block { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 14px 16px; margin-bottom: 12px; }
+  .pattern-title { font-weight: 700; margin-bottom: 6px; }
+  ul { margin: 4px 0 0 0; padding-left: 20px; }
+  li { margin-bottom: 3px; }
+  .tag-acc { background: #fce7f3; color: #831843; border-radius: 4px; padding: 2px 7px; font-size: 0.78em; font-weight: 600; }
+  .tag-miss { background: #e0e7ff; color: #3730a3; border-radius: 4px; padding: 2px 7px; font-size: 0.78em; font-weight: 600; }
+  .tag-xref { background: #ecfdf5; color: #065f46; border-radius: 4px; padding: 2px 7px; font-size: 0.78em; font-weight: 600; }
+  .tag-ex  { background: #fff7ed; color: #7c2d12; border-radius: 4px; padding: 2px 7px; font-size: 0.78em; font-weight: 600; }
+  .tag-ret { background: #f0fdf4; color: #166534; border-radius: 4px; padding: 2px 7px; font-size: 0.78em; font-weight: 600; }
+
+/* ---- source bucket 38012236 (1 file) ----
+ *   dev/notes/2026-05-17-e2e-gate-perf.html
+ */
+body{font:15px/1.55 -apple-system,system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1.2rem;color:#1b1d22}h1{border-bottom:2px solid #1b1d22;padding-bottom:.3rem}h2{margin-top:1.6rem;border-bottom:1px solid #ccd}code{background:#f4f4f7;padding:1px 4px;border-radius:3px;font-size:90%}pre{background:#f4f4f7;padding:.7rem;border-radius:5px;overflow-x:auto;font-size:13px}.meta{color:#555;font-size:13px}.crit{border-left:4px solid #c0392b;background:#fde7e7;padding:.5rem .8rem}.ok{border-left:4px solid #2c7;background:#eafaf0;padding:.5rem .8rem}.corr{border-left:4px solid #b8860b;background:#fdf6e3;padding:.5rem .8rem}
+
+/* ---- source bucket 380da664 (1 file) ----
+ *   dev/notes/2026-05-17-l2l3-handoff.html
+ */
+body{font:15px/1.55 -apple-system,system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1.2rem;color:#1b1d22}h1{border-bottom:2px solid #1b1d22;padding-bottom:.3rem}h2{margin-top:1.6rem;border-bottom:1px solid #ccd}code{background:#f4f4f7;padding:1px 4px;border-radius:3px;font-size:90%}pre{background:#f4f4f7;padding:.7rem;border-radius:5px;overflow-x:auto;font-size:13px}.meta{color:#555;font-size:13px}.ok{border-left:4px solid #2c7;background:#eafaf0;padding:.5rem .8rem}.crit{border-left:4px solid #c0392b;background:#fde7e7;padding:.5rem .8rem}
+
+/* ---- source bucket 4cea375c (1 file) ----
+ *   dev/feature_bank/feature-bank.html
+ */
+  :root {
+    --bg:#fafbfc; --fg:#1f2328; --muted:#57606a;
+    --card:#ffffff; --border:#d0d7de;
+    --danger:#cf222e; --danger-bg:#ffebe9;
+    --warn:#9a6700;  --warn-bg:#fff8c5;
+    --ok:#1a7f37;    --ok-bg:#dafbe1;
+    --info:#0969da;  --info-bg:#ddf4ff;
+    --code-bg:#f6f8fa;
+  }
+  html { box-sizing: border-box; }
+  *, *::before, *::after { box-sizing: inherit; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 1320px; margin: 0 auto; padding: 28px 24px 80px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 28px 0 10px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+  p { margin: 6px 0; }
+  a { color: var(--info); }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+  .meta code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  code, pre {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+  }
+  :not(pre) > code { background: var(--code-bg); padding: 1px 4px; border-radius: 4px; }
+  .summary-counts {
+    display: flex; gap: 12px; flex-wrap: wrap; margin: 10px 0 18px;
+  }
+  .summary-counts div {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 12px; min-width: 130px;
+  }
+  .summary-counts strong { font-size: 20px; display: block; }
+  .summary-counts span { color: var(--muted); font-size: 12px; }
+  .controls {
+    display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+    margin: 12px 0 12px; padding: 10px 12px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 6px;
+  }
+  .controls label { font-size: 13px; color: var(--muted); margin-right: 4px; }
+  .controls select, .controls input {
+    font: inherit; padding: 4px 8px; border: 1px solid var(--border); border-radius: 4px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 20px; background: var(--card); }
+  th, td { border: 1px solid var(--border); padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: var(--code-bg); cursor: pointer; user-select: none; position: sticky; top: 0; }
+  th.sortable::after { content: " \2195"; color: var(--muted); font-size: 11px; }
+  .col-name { width: 19%; }
+  .col-cat { width: 11%; white-space: nowrap; }
+  .col-where { width: 16%; white-space: nowrap; }
+  .col-desc { width: 26%; }
+  .col-status { width: 7%; text-align: center; }
+  .col-cov { width: 21%; font-size: 12px; }
+  .src-grp { margin-bottom: 4px; line-height: 1.4; }
+  .src-grp:last-child { margin-bottom: 0; }
+  .src-label { display: inline-block; min-width: 0; color: var(--muted); font-size: 11px;
+               text-transform: uppercase; letter-spacing: .03em; margin-right: 4px; }
+  .badge {
+    display: inline-block; padding: 1px 8px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; vertical-align: middle;
+  }
+  .b-ok     { color: var(--ok);     background: var(--ok-bg); }
+  .b-warn   { color: var(--warn);   background: var(--warn-bg); }
+  .b-danger { color: var(--danger); background: var(--danger-bg); }
+  .b-info   { color: var(--info);   background: var(--info-bg); }
+  .row-hide { display: none; }
+
+/* ---- source bucket 50e16ff3 (1 file) ----
+ *   dev/plans/placeholder-rename-expr-mode/finished-08-breaking-rename-atomic.html
+ */
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.6rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .atomic { color: #882020; font-weight: bold; }
+  .danger { border-left: 4px solid #c0392b; background: #fde7e7; padding: .6rem .9rem; margin: .8rem 0; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+
+/* ---- source bucket 5a9ef115 (1 file) ----
+ *   dev/plans/decisions-to-make.html
+ */
+  :root {
+    --bg:#fafbfc; --fg:#1f2328; --muted:#57606a;
+    --card:#ffffff; --border:#d0d7de;
+    --danger:#cf222e; --danger-bg:#ffebe9;
+    --warn:#9a6700;  --warn-bg:#fff8c5;
+    --ok:#1a7f37;    --ok-bg:#dafbe1;
+    --info:#0969da;  --info-bg:#ddf4ff;
+    --code-bg:#f6f8fa;
+  }
+  html { box-sizing: border-box; }
+  *, *::before, *::after { box-sizing: inherit; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 1180px; margin: 0 auto; padding: 28px 24px 80px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 32px 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+  h3 { font-size: 15px; margin: 18px 0 6px; }
+  p { margin: 6px 0; }
+  a { color: var(--info); }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+  .meta code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  code, pre {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+  }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  pre  { background: var(--code-bg); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); overflow-x: auto; }
+  pre code { padding: 0; background: transparent; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+  th, td { border: 1px solid var(--border); padding: 6px 9px; text-align: left; vertical-align: top; font-size: 13.5px; }
+  th { background: var(--code-bg); font-weight: 600; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 18px; margin: 14px 0;
+  }
+  .card h3 { margin-top: 0; }
+  .pill {
+    display: inline-block; padding: 1px 8px; border-radius: 999px;
+    font-size: 11.5px; font-weight: 600; vertical-align: middle;
+  }
+  .pill.open    { background: var(--warn-bg); color: var(--warn); }
+  .pill.locked  { background: var(--ok-bg);   color: var(--ok); }
+  .pill.api     { background: var(--info-bg); color: var(--info); }
+  .callout {
+    border-left: 3px solid var(--info); background: var(--info-bg); color: #032f62;
+    padding: 8px 12px; border-radius: 4px; margin: 10px 0;
+  }
+
+/* ---- source bucket 5f74e7fc (1 file) ----
+ *   dev/plans/finished-2026-05-14-controllable-region.html
+ */
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 920px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 2rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.3rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .8rem; border-radius: 4px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .8rem 0 1.4rem; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #eef0f5; }
+  ul { margin-top: .25rem; }
+  .footnote { color: #555; font-size: 13px; }
+  .callout { border-left: 4px solid #c79100; background: #fff7df; padding: .6rem .9rem; margin: .8rem 0; }
+  .danger  { border-left: 4px solid #c0392b; background: #fde7e7; padding: .6rem .9rem; margin: .8rem 0; }
+
+/* ---- source bucket 6200dce5 (1 file) ----
+ *   dev/audit/roxygen/2026-05-18-22.html
+ */
+  :root { --ok:#15803d; --bug:#b91c1c; --info:#6b7280; --bg:#f8fafc; --code:#0f172a; }
+  html,body { background:var(--bg); color:#111827; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; margin:0; padding:0; }
+  main { max-width:1080px; margin:0 auto; padding:32px 24px; }
+  h1 { font-size:22px; margin:0 0 4px 0; }
+  h2 { font-size:17px; margin:32px 0 8px 0; padding-bottom:4px; border-bottom:1px solid #e5e7eb; }
+  h3 { font-size:14px; margin:18px 0 6px 0; color:#374151; }
+  .subtitle { color:var(--info); margin-bottom:24px; }
+  table { border-collapse:collapse; width:100%; margin:8px 0 16px 0; font-size:13px; background:#fff; }
+  th,td { padding:6px 10px; text-align:left; vertical-align:top; border-bottom:1px solid #e5e7eb; }
+  th { background:#f1f5f9; font-weight:600; }
+  .pass { color:var(--ok); font-weight:600; } .bug { color:var(--bug); font-weight:600; } .info { color:var(--info); font-weight:600; }
+  code, pre { font-family: ui-monospace,Menlo,Consolas,monospace; }
+  code { background:#eef2f7; padding:1px 5px; border-radius:3px; font-size:12.5px; }
+  pre  { background:var(--code); color:#e2e8f0; padding:12px 14px; border-radius:6px; overflow:auto; font-size:12px; }
+  .bug-card { background:#fff; border:1px solid #fecaca; border-left:4px solid var(--bug); border-radius:6px; padding:12px 16px; margin:12px 0; }
+  .bug-card h3 { margin-top:0; color:var(--bug); }
+  .patched { background:#fff; border:1px solid #bbf7d0; border-left:4px solid var(--ok); border-radius:6px; padding:12px 16px; margin:12px 0; }
+  .meta { font-size:12px; color:var(--info); } ul { margin:6px 0 10px 22px; }
+
+/* ---- source bucket 6a9cca9c (1 file) ----
+ *   dev/notes/placeholder-expr-mode/FEATURE-CHECKLIST.html
+ */
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 960px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .55rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .5rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  td.k { white-space: nowrap; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; background: #fafbff; }
+  .meta { color: #555; font-size: 13px; }
+  .why  { color: #444; font-size: 13.5px; margin: .35rem 0 .8rem; }
+  .pair { background: #fff7e6; padding: .5rem .8rem; border-left: 4px solid #f0a000; margin: .8rem 0; font-size: 13.5px; }
+  ul.flat { margin: .2rem 0 .8rem 1.2rem; padding-left: 0; }
+  ul.flat li { margin: .1rem 0; }
+  .sect-hint { color: #6a6; font-size: 12.5px; font-style: italic; margin-bottom: .4rem; }
+
+/* ---- source bucket 6cac81af (1 file) ----
+ *   dev/plans/finished-vignette-rewrite-plan.html
+ */
+  :root {
+    --bg:#fafbfc; --fg:#1f2328; --muted:#57606a;
+    --card:#ffffff; --border:#d0d7de;
+    --danger:#cf222e; --danger-bg:#ffebe9;
+    --warn:#9a6700;  --warn-bg:#fff8c5;
+    --ok:#1a7f37;    --ok-bg:#dafbe1;
+    --info:#0969da;  --info-bg:#ddf4ff;
+    --code-bg:#f6f8fa;
+  }
+  html { box-sizing: border-box; }
+  *, *::before, *::after { box-sizing: inherit; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 1180px; margin: 0 auto; padding: 28px 24px 80px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 32px 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+  h3 { font-size: 15px; margin: 18px 0 6px; }
+  p { margin: 6px 0; }
+  a { color: var(--info); }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+  .meta code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  code, pre {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+  }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  pre  { background: var(--code-bg); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); overflow-x: auto; }
+  pre code { padding: 0; background: transparent; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+  th, td { border: 1px solid var(--border); padding: 6px 9px; text-align: left; vertical-align: top; font-size: 13.5px; }
+  th { background: var(--code-bg); font-weight: 600; }
+  td.ok    { color: var(--ok); }
+  td.warn  { color: var(--warn); }
+  td.danger{ color: var(--danger); }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 18px; margin: 14px 0;
+  }
+  .card h3 { margin-top: 0; }
+  .pill {
+    display: inline-block; padding: 1px 8px; border-radius: 999px;
+    font-size: 11.5px; font-weight: 600; vertical-align: middle;
+  }
+  .pill.new    { background: var(--info-bg); color: var(--info); }
+  .pill.keep   { background: var(--ok-bg);   color: var(--ok); }
+  .pill.surg   { background: var(--warn-bg); color: var(--warn); }
+  .pill.del    { background: var(--danger-bg); color: var(--danger); }
+  .pill.man    { background: #f0e9ff; color: #6f42c1; }
+  ul, ol { margin: 6px 0 6px 22px; }
+  li { margin: 3px 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } }
+  .callout {
+    border-left: 3px solid var(--info); background: var(--info-bg); color: #032f62;
+    padding: 8px 12px; border-radius: 4px; margin: 10px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: var(--warn-bg); color: #4d3800; }
+  .callout.danger { border-left-color: var(--danger); background: var(--danger-bg); color: #82071e; }
+  hr { border: 0; border-top: 1px solid var(--border); margin: 24px 0; }
+
+/* ---- source bucket 8473c290 (1 file) ----
+ *   dev/audit/report-roxygen-audit-2.html
+ */
+  :root {
+    --red:    #c1372c;
+    --orange: #e07b00;
+    --gray:   #6b7280;
+    --green:  #22863a;
+    --bg:     #fafbfc;
+    --surface: #ffffff;
+    --border: #e7e9ee;
+    --ink:    #1f2530;
+    --muted:  #6b7280;
+    --radius: 8px;
+    --mono:   "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink);
+    background: var(--bg);
+    padding: 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 6px; }
+  h2 { font-size: 1.2rem; font-weight: 600; margin: 32px 0 12px; border-bottom: 2px solid var(--border); padding-bottom: 6px; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 20px 0 8px; }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+  code { font-family: var(--mono); font-size: 12.5px; background: #f0f2f5; padding: 1px 5px; border-radius: 3px; }
+  p { margin-bottom: 10px; }
+  ul { padding-left: 22px; margin-bottom: 10px; }
+  li { margin-bottom: 4px; }
+
+  /* Summary cards */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    text-align: center;
+  }
+  .card .num { font-size: 2rem; font-weight: 700; }
+  .card .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .card.critical .num { color: var(--red); }
+  .card.major   .num { color: var(--orange); }
+  .card.minor   .num { color: var(--gray); }
+  .card.clean   .num { color: var(--green); }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px; }
+  th {
+    background: #f0f2f5;
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+  }
+  td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: #f7f8fa; }
+
+  /* Severity badges */
+  .sev {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .sev-critical { background: #fde8e8; color: var(--red); }
+  .sev-major    { background: #fef3e0; color: var(--orange); }
+  .sev-minor    { background: #f0f2f5; color: var(--gray); }
+
+  /* Row status colours */
+  .row-critical td:first-child { border-left: 4px solid var(--red); }
+  .row-major    td:first-child { border-left: 4px solid var(--orange); }
+  .row-minor    td:first-child { border-left: 4px solid #c9cdd4; }
+  .row-clean    td:first-child { border-left: 4px solid var(--green); }
+
+  /* Per-function table colour-coded worst severity */
+  .fn-critical { background: #fff5f5; }
+  .fn-major    { background: #fffbf0; }
+  .fn-minor    { background: #fafbfc; }
+  .fn-clean    { background: #f0fff4; }
+
+  /* Issue detail */
+  .issue-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin-bottom: 14px;
+  }
+  .issue-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+  }
+  .fn-name { font-family: var(--mono); font-size: 13px; font-weight: 600; }
+  .issue-type { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .issue-desc { font-size: 13px; color: var(--ink); }
+
+  /* Pattern blocks */
+  .pattern-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--orange);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin-bottom: 14px;
+  }
+  .pattern-block h4 { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+
+/* ---- source bucket 8cba59fa (1 file) ----
+ *   dev/plans/finished-shared-ui-multi-instance.html
+ */
+  :root {
+    --bg:#fafbfc; --fg:#1f2328; --muted:#57606a;
+    --card:#ffffff; --border:#d0d7de;
+    --danger:#cf222e; --danger-bg:#ffebe9;
+    --warn:#9a6700;  --warn-bg:#fff8c5;
+    --ok:#1a7f37;    --ok-bg:#dafbe1;
+    --info:#0969da;  --info-bg:#ddf4ff;
+    --code-bg:#f6f8fa;
+  }
+  html { box-sizing: border-box; }
+  *, *::before, *::after { box-sizing: inherit; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 1180px; margin: 0 auto; padding: 28px 24px 80px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 32px 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+  h3 { font-size: 15px; margin: 18px 0 6px; }
+  p { margin: 6px 0; }
+  a { color: var(--info); }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+  .meta code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  code, pre {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+  }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  pre  { background: var(--code-bg); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); overflow-x: auto; }
+  pre code { padding: 0; background: transparent; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+  th, td { border: 1px solid var(--border); padding: 6px 9px; text-align: left; vertical-align: top; font-size: 13.5px; }
+  th { background: var(--code-bg); font-weight: 600; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 18px; margin: 14px 0;
+  }
+  .card h3 { margin-top: 0; }
+  .pill {
+    display: inline-block; padding: 1px 8px; border-radius: 999px;
+    font-size: 11.5px; font-weight: 600; vertical-align: middle;
+  }
+  .pill.new   { background: var(--info-bg); color: var(--info); }
+  .pill.keep  { background: var(--ok-bg);   color: var(--ok); }
+  .pill.surg  { background: var(--warn-bg); color: var(--warn); }
+  .pill.del   { background: var(--danger-bg); color: var(--danger); }
+  ul, ol { margin: 6px 0 6px 22px; }
+  li { margin: 3px 0; }
+  .callout {
+    border-left: 3px solid var(--info); background: var(--info-bg); color: #032f62;
+    padding: 8px 12px; border-radius: 4px; margin: 10px 0;
+  }
+  .callout.warn   { border-left-color: var(--warn);   background: var(--warn-bg);   color: #4d3800; }
+  .callout.danger { border-left-color: var(--danger); background: var(--danger-bg); color: #82071e; }
+  .callout.ok     { border-left-color: var(--ok);     background: var(--ok-bg);     color: #0a3622; }
+  hr { border: 0; border-top: 1px solid var(--border); margin: 24px 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } }
+
+/* ---- source bucket 9444b56e (1 file) ----
+ *   dev/audit/vignette/l3-rewrite-draft.html
+ */
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 920px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.9rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.3rem; color:#222; }
+  h4 { margin-top: 1rem; color:#333; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .danger { border-left: 4px solid #c0392b; background: #fde7e7; padding: .6rem .9rem; margin: .8rem 0; }
+  .note  { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+  .new   { border-left: 4px solid #2960c0; background: #eaf0fb; padding: .6rem .9rem; margin: .8rem 0; }
+  del { color:#a33; background:#fbe9e9; } ins { color:#176a2b; background:#e7f7ec; text-decoration:none; }
+  .rmd { border:1px solid #cbd2dd; border-radius:6px; padding:.2rem 1rem .8rem; margin:.8rem 0; background:#fcfcfe; }
+  .rmd::before { content:"proposed .Rmd content"; font-size:11px; color:#789; letter-spacing:.04em; }
+
+/* ---- source bucket a766bc85 (1 file) ----
+ *   dev/adr/0003-controllable-region.html
+ */
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.6rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .8rem; border-radius: 4px; overflow-x: auto; font-size: 13px; }
+  .meta { color: #555; font-size: 13px; }
+  .callout { border-left: 4px solid #c79100; background: #fff7df; padding: .6rem .9rem; margin: .8rem 0; }
+
+/* ---- source bucket a84e0784 (1 file) ----
+ *   dev/audit/2026-05-15-feature-sweep-e2e-audit.html
+ */
+  :root { --ok:#15803d; --bug:#b91c1c; --info:#6b7280; --warn:#b45309; --bg:#f8fafc; --code:#0f172a; }
+  html,body { background:var(--bg); color:#111827; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; margin:0; padding:0; }
+  main { max-width:1080px; margin:0 auto; padding:32px 24px; }
+  h1 { font-size:22px; margin:0 0 4px 0; }
+  h2 { font-size:17px; margin:32px 0 8px 0; padding-bottom:4px; border-bottom:1px solid #e5e7eb; }
+  h3 { font-size:14px; margin:18px 0 6px 0; color:#374151; }
+  .subtitle { color:var(--info); margin-bottom:24px; }
+  table { border-collapse:collapse; width:100%; margin:8px 0 16px 0; font-size:13px; background:#fff; }
+  th,td { padding:6px 10px; text-align:left; vertical-align:top; border-bottom:1px solid #e5e7eb; }
+  th { background:#f1f5f9; font-weight:600; }
+  .pass { color:var(--ok); font-weight:600; }
+  .bug  { color:var(--bug); font-weight:600; }
+  .info { color:var(--info); font-weight:600; }
+  .warn { color:var(--warn); font-weight:600; }
+  code, pre { font-family: ui-monospace,Menlo,Consolas,monospace; }
+  code { background:#eef2f7; padding:1px 5px; border-radius:3px; font-size:12.5px; }
+  pre  { background:var(--code); color:#e2e8f0; padding:12px 14px; border-radius:6px; overflow:auto; font-size:12px; }
+  .bug-card { background:#fff; border:1px solid #fecaca; border-left:4px solid var(--bug); border-radius:6px; padding:12px 16px; margin:12px 0; }
+  .bug-card h3 { margin-top:0; color:var(--bug); }
+  .bug-card.med { border-color:#fed7aa; border-left-color:var(--warn); }
+  .bug-card.med h3 { color:var(--warn); }
+  .bug-card.low { border-color:#e5e7eb; border-left-color:var(--info); }
+  .bug-card.low h3 { color:var(--info); }
+  .note { background:#fff; border:1px solid #bfdbfe; border-left:4px solid #2563eb; border-radius:6px; padding:12px 16px; margin:12px 0; }
+  .note h3 { margin-top:0; color:#1d4ed8; }
+  .meta { font-size:12px; color:var(--info); }
+  ul { margin:6px 0 10px 22px; }
+  .sev { display:inline-block; font-size:11px; font-weight:700; padding:1px 7px; border-radius:10px; color:#fff; }
+  .sev-high { background:var(--bug); } .sev-med { background:var(--warn); } .sev-low { background:var(--info); }
+
+/* ---- source bucket b3c06702 (1 file) ----
+ *   dev/adr/0010-ppupload-name-default-arg.html
+ */
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.5rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .55rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; }
+  .meta { color: #555; font-size: 13px; }
+  ul.flat { margin: .2rem 0 .8rem 1.2rem; padding-left: 0; }
+  ul.flat li { margin: .15rem 0; }
+
+/* ---- source bucket b56b6895 (1 file) ----
+ *   dev/audit/audit-feature-checklist-postadr9-drift-2026-05-23.html
+ */
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+         max-width: 980px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .55rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .5rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .pass { color: #1a6f3a; font-weight: 600; }
+  .fail { color: #a01818; font-weight: 600; }
+  .warn { color: #a06400; font-weight: 600; }
+  .meta { color: #555; font-size: 13px; }
+  .summary td.k { white-space: nowrap; }
+
+/* ---- source bucket b6678611 (1 file) ----
+ *   dev/notes/2026-05-18-toggle-code-sibling-demo.html
+ */
+body{font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;background:#fafbfc;color:#1a1a2e}
+.wrap{max-width:1080px;margin:0 auto;padding:32px}
+h1{font-size:22px;margin:0 0 4px}.lede{color:#555;margin:0 0 24px}
+section{background:#fff;border:1px solid #e4e7eb;border-radius:10px;padding:20px 24px;margin:0 0 24px}
+h2{font-size:17px;margin:0 0 12px;border-bottom:1px solid #eee;padding-bottom:8px}
+h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:#7a7f87;margin:18px 0 6px}
+h4{font-size:12px;color:#9aa0a6;margin:12px 0 4px}
+.desc{color:#444;margin:0 0 8px}
+.render{border:1px dashed #c9ced4;border-radius:8px;padding:16px;background:#fff}
+pre.code{background:#0f1117;color:#cdd3de;padding:14px;border-radius:8px;overflow:auto;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;word-break:break-word}
+/* --- inlined ggpaintr.css (so the rendered blocks are accurate) --- */
+/* ggpaintr default app theme.
+   Scoped under .ptr-app so embedding ggpaintr as a Shiny module never
+   restyles the host page. Accent = cardinal, sampled from the cybird mark.
+   All colours/radii are CSS custom properties so a future ptr_options()
+   knob is a one-line override. */
+
+.ptr-app {
+  --ptr-bg: #fafbfc;
+  --ptr-surface: #ffffff;
+  --ptr-border: #e7e9ee;
+  --ptr-ink: #1f2530;
+  --ptr-muted: #6b7280;
+  --ptr-accent: #c1372c;
+  --ptr-accent-strong: #9a2b22;
+  --ptr-accent-weak: rgba(193, 55, 44, 0.13);
+  --ptr-accent-line: rgba(193, 55, 44, 0.22);
+  --ptr-radius: 10px;
+  --ptr-radius-sm: 7px;
+  --ptr-shadow: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --ptr-shadow-lg: 0 12px 28px rgba(16, 24, 40, 0.18), 0 2px 8px rgba(16, 24, 40, 0.10);
+  --ptr-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --ptr-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  background: var(--ptr-bg);
+  color: var(--ptr-ink);
+  font-family: var(--ptr-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The full-viewport backdrop is OPT-IN. Bare `.ptr-app` is just the themed
+   scope: a fragment or an embeddable shell (ptr_controls_ui /
+   ptr_outputs_ui / ptr_shared_ui / ptr_module_ui / ptr_ui_page) sizes to
+   its content, so dropping it into a host column / sidebar never stretches
+   that cell floor-to-ceiling. Only the standalone entrypoints (ptr_app /
+   ptr_app_grid) add `ptr-app--page`, which paints the full-window canvas.
+   Specificity (0,2,0) > bare `.ptr-app` (0,1,0). */
+.ptr-app.ptr-app--page {
+  min-height: 100vh;
+}
+
+/* Nested .ptr-app: the split helpers each self-wrap in `.ptr-app` so the
+   bundled stylesheet attaches without host-side scaffolding. When a
+   fragment lives inside an outer `.ptr-app` (e.g. a region half composed
+   by ptr_app / ptr_module_ui), drop the inner wrap's redundant opaque
+   background so it does not repaint the canvas. */
+.ptr-app .ptr-app {
+  background: transparent;
+}
+
+/* ---- header bar (replaces titlePanel) ---- */
+.ptr-app__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 22px;
+  margin: -15px -15px 18px;            /* cancel fluidPage container padding */
+  background: var(--ptr-surface);
+  border-bottom: 1px solid var(--ptr-border);
+}
+.ptr-app__mark {
+  height: 32px;
+  width: auto;
+  display: block;
+}
+.ptr-app__title {
+  font-size: 16px;
+  font-weight: 650;
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+/* ---- sidebar / controls ---- */
+.ptr-app .well {
+  background: var(--ptr-surface);
+  border: 1px solid var(--ptr-border);
+  border-radius: var(--ptr-radius);
+  box-shadow: var(--ptr-shadow);
+  padding: 18px;
+}
+/* Only the sidebarPanel sticks (it renders as <form class="well">); the
+   grid app's shared wellPanel renders as <div class="well"> and must scroll
+   normally, otherwise it overlaps the panels below it. */
+/* z-index keeps the sidebar's stacking context above the output column, so a
+   pickerInput dropdown that opens downward isn't occluded by the plot card
+   when the layout stacks vertically (narrow window). */
+.ptr-app form.well { position: sticky; top: 16px; z-index: 2; }
+
+/* grid app: the shared-controls panel header */
+.ptr-shared-panel { margin-bottom: 22px; }
+.ptr-shared-panel__title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ptr-muted);
+  font-weight: 650;
+  margin: 0 0 4px;
+}
+.ptr-shared-panel__hint {
+  font-size: 13px;
+  color: var(--ptr-muted);
+  margin: 0 0 14px;
+}
+.ptr-app .control-label,
+.ptr-app label { font-size: 13px; font-weight: 550; }
+.ptr-app .form-control,
+.ptr-app .selectize-input {
+  border-radius: var(--ptr-radius-sm);
+}
+
+/* primary action ("Update plot" / "Draw all") -- scoped to action buttons
+   only so it never bleeds onto pickerInput's .btn-default toggle. */
+.ptr-app .btn.action-button {
+  background: var(--ptr-accent);
+  border-color: var(--ptr-accent);
+  color: #fff;
+  font-weight: 600;
+  border-radius: var(--ptr-radius-sm);
+}
+.ptr-app .btn.action-button:hover,
+.ptr-app .btn.action-button:focus,
+.ptr-app .btn.action-button:active {
+  background: var(--ptr-accent-strong);
+  border-color: var(--ptr-accent-strong);
+  color: #fff;
+}
+
+/* hidden-tabset layer panels: keep the panel content tidy */
+.ptr-app .tab-content { margin-top: 6px; }
+
+/* ---- pipeline stage groups (layer Data sub-tab) ----
+   Structure + spacing live in ptr_layer_assets() so every app shell
+   gets them; here we only refine colours for the polished default app.
+   `.ptr-stage-head` carries the include checkbox labelled `verb()`;
+   `.ptr-stage-fields` holds that verb's placeholder widgets, indented
+   under a left rule. Built in build_pipeline_stage_ui() (paintr-build-ui.R). */
+.ptr-app .ptr-stage-fields { border-left-color: var(--ptr-border); }
+.ptr-app .ptr-stage-head code {
+  font-family: var(--ptr-mono);
+  /* Own the weight here (specificity 0,2,1): the badge would otherwise
+     inherit from its checkbox label, where ggpaintr's 550 ties Bootstrap's
+     .checkbox-label 400 at (0,1,1) and the winner flips with stylesheet
+     load order. */
+  font-weight: 550;
+  font-size: 12.5px;
+  color: var(--ptr-accent-strong);
+  background: var(--ptr-accent-weak);
+  border: 1px solid var(--ptr-accent-line);
+  padding: 1px 6px;
+  border-radius: 5px;
+}
+
+/* ---- output area ---- */
+.ptr-output { display: flex; flex-direction: column; gap: 16px; }
+/* Sibling-case toggle (custom outputs: plotly/ggiraph/plotOutput). The card
+   path's button sits inside .ptr-card__head, not a direct .ptr-output child,
+   so it is unaffected by this rule. */
+.ptr-output > .ptr-code-toggle { align-self: flex-end; }
+.ptr-card {
+  background: var(--ptr-surface);
+  border: 1px solid var(--ptr-border);
+  border-radius: var(--ptr-radius);
+  box-shadow: var(--ptr-shadow);
+  overflow: hidden;
+}
+.ptr-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--ptr-border);
+}
+.ptr-card__title { margin: 0; font-size: 13px; font-weight: 600; }
+.ptr-card__body { padding: 16px; }
+
+.ptr-icon-btn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 7px;
+  border: 1px solid var(--ptr-border);
+  background: #fff;
+  color: var(--ptr-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  line-height: 0;
+}
+.ptr-icon-btn:hover {
+  color: var(--ptr-accent-strong);
+  border-color: var(--ptr-accent);
+  background: var(--ptr-accent-weak);
+}
+.ptr-icon-btn svg { width: 15px; height: 15px; }
+
+/* inline error alert (rendered by ptr_error_ui) */
+.ptr-alert {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: var(--ptr-radius-sm);
+  font-size: 13.5px;
+}
+.ptr-alert--error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+.ptr-alert__detail { white-space: pre-wrap; margin-top: 6px; }
+
+/* ---- draggable code mini-window ---- */
+.ptr-code-window {
+  display: none;                       /* hidden until the </> icon is clicked */
+  position: fixed;
+  left: 50%;
+  top: 120px;
+  width: 460px;
+  max-width: 92vw;
+  background: var(--ptr-surface);
+  border: 1px solid var(--ptr-border);
+  border-radius: var(--ptr-radius);
+  box-shadow: var(--ptr-shadow-lg);
+  z-index: 1080;
+  overflow: hidden;
+}
+.ptr-code-window.ptr-open { display: block; }
+.ptr-code-window__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  background: #fafbfc;
+  border-bottom: 1px solid var(--ptr-border);
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+.ptr-code-window__title { font-size: 12.5px; font-weight: 600; color: var(--ptr-accent-strong); }
+.ptr-code-window__actions { display: flex; gap: 6px; align-items: center; }
+.ptr-copy-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--ptr-border);
+  background: #fff;
+  color: var(--ptr-ink);
+  cursor: pointer;
+}
+.ptr-copy-btn:hover { border-color: var(--ptr-accent); color: var(--ptr-accent-strong); }
+.ptr-code-window__close {
+  font-size: 15px;
+  line-height: 1;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ptr-muted);
+  cursor: pointer;
+}
+.ptr-code-window__close:hover { background: #f1f3f5; color: var(--ptr-ink); }
+.ptr-code-window__body { max-height: 320px; overflow: auto; }
+.ptr-code-window__body pre {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: #fbfcfd;
+  color: #0f172a;
+  font-family: var(--ptr-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  padding: 14px 16px;
+}
+
+/* ---- source bucket b9073884 (1 file) ----
+ *   dev/adr/0004-l3-ui-piece-model.html
+ */
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  ul { margin-top: .3rem; }
+  .meta { color: #555; font-size: 13px; }
+  .danger { border-left: 4px solid #c0392b; background: #fde7e7; padding: .6rem .9rem; margin: .8rem 0; }
+
+/* ---- source bucket c6264344 (1 file) ----
+ *   dev/audit/audit-adr-0010-postmerge-2026-05-22-140d6a5.html
+ */
+  body { font-family: -apple-system, system-ui, sans-serif; max-width: 1100px; margin: 2em auto; padding: 0 1em; line-height: 1.45; color: #222; }
+  h1, h2, h3 { line-height: 1.2; }
+  code, pre { background: #f4f4f4; border-radius: 3px; }
+  pre { padding: 0.6em 1em; overflow-x: auto; font-size: 0.92em; }
+  code { padding: 0.1em 0.35em; }
+  .verdict-green  { background: #e2f5e6; padding: 0.3em 0.6em; border-left: 4px solid #2a8a3d; }
+  .verdict-yellow { background: #fff5d6; padding: 0.3em 0.6em; border-left: 4px solid #b8860b; }
+  .verdict-red    { background: #fde2e2; padding: 0.3em 0.6em; border-left: 4px solid #b32626; }
+  .pass    { color: #2a8a3d; font-weight: 600; }
+  .concern { color: #b8860b; font-weight: 600; }
+  .fail    { color: #b32626; font-weight: 600; }
+  table { border-collapse: collapse; }
+  th, td { padding: 0.3em 0.6em; border-bottom: 1px solid #ddd; vertical-align: top; }
+  th { text-align: left; background: #fafafa; }
+
+/* ---- source bucket d15ce71e (1 file) ----
+ *   dev/notes/report-ggpaintr-parsing.html
+ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --sidebar-width: 260px;
+    --bg: #1a1d23;
+    --sidebar-bg: #141720;
+    --content-bg: #1e2130;
+    --border: #2d3147;
+    --text: #cdd6f4;
+    --muted: #6c7086;
+    --heading: #cba6f7;
+    --link: #89b4fa;
+    --link-hover: #b4d0fb;
+    --code-bg: #12141c;
+    --code-border: #313244;
+    --code-text: #a6e3a1;
+    --inline-code-bg: #2a2d3e;
+    --inline-code-text: #f38ba8;
+    --keyword: #cba6f7;
+    --string: #a6e3a1;
+    --number: #fab387;
+    --comment: #585b70;
+    --function-color: #89b4fa;
+    --operator: #89dceb;
+    --accent: #f5c2e7;
+    --warn-bg: #2a1f12;
+    --warn-border: #f38ba8;
+    --table-head: #2a2d3e;
+    --table-stripe: #1a1d2b;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    min-height: 100vh;
+    line-height: 1.65;
+    font-size: 15px;
+  }
+
+  /* ── sidebar ── */
+  #sidebar {
+    width: var(--sidebar-width);
+    flex-shrink: 0;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    position: fixed;
+    top: 0; left: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 24px 0 40px;
+  }
+
+  #sidebar .logo {
+    padding: 0 20px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--heading);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+
+  #sidebar nav ul { list-style: none; }
+
+  #sidebar nav ul li a {
+    display: block;
+    padding: 5px 20px;
+    font-size: 13px;
+    color: var(--muted);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  #sidebar nav ul li a:hover {
+    color: var(--text);
+    border-left-color: var(--heading);
+  }
+
+  #sidebar nav ul li.section-head a {
+    font-weight: 600;
+    color: var(--text);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    padding-top: 14px;
+    padding-bottom: 3px;
+  }
+
+  /* ── content ── */
+  #content {
+    margin-left: var(--sidebar-width);
+    flex: 1;
+    padding: 48px 56px 80px;
+    max-width: 900px;
+  }
+
+  h1 {
+    font-size: 2.1rem;
+    font-weight: 700;
+    color: var(--heading);
+    line-height: 1.25;
+    margin-bottom: 8px;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 40px;
+  }
+
+  h2 {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--heading);
+    margin: 56px 0 16px;
+    padding-top: 8px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 28px 0 10px;
+  }
+
+  h4 {
+    font-size: .95rem;
+    font-weight: 600;
+    color: var(--link);
+    margin: 20px 0 8px;
+  }
+
+  p { margin-bottom: 14px; }
+
+  a { color: var(--link); text-decoration: none; }
+  a:hover { color: var(--link-hover); text-decoration: underline; }
+
+  /* ── code ── */
+  code {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: .88em;
+    background: var(--inline-code-bg);
+    color: var(--inline-code-text);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 6px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    margin: 16px 0 20px;
+    position: relative;
+  }
+
+  pre code {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: .855em;
+    background: none;
+    padding: 0;
+    color: var(--code-text);
+    line-height: 1.7;
+  }
+
+  .lang-label {
+    position: absolute;
+    top: 8px; right: 12px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* R syntax coloring */
+  .kw  { color: var(--keyword); }
+  .st  { color: var(--string); }
+  .cm  { color: var(--comment); font-style: italic; }
+  .nm  { color: var(--number); }
+  .fn  { color: var(--function-color); }
+  .op  { color: var(--operator); }
+  .id  { color: var(--text); }
+
+  /* ── source refs ── */
+  .src-ref {
+    display: inline-block;
+    font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+    background: var(--inline-code-bg);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 0 6px;
+    border-radius: 3px;
+    margin-left: 4px;
+  }
+
+  /* ── callout / note ── */
+  .note {
+    background: var(--warn-bg);
+    border-left: 3px solid var(--warn-border);
+    padding: 12px 16px;
+    border-radius: 0 4px 4px 0;
+    margin: 16px 0;
+    font-size: .92em;
+  }
+
+  /* ── tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 20px;
+    font-size: .9em;
+  }
+
+  th {
+    background: var(--table-head);
+    color: var(--heading);
+    font-weight: 600;
+    text-align: left;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+  }
+
+  td {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) td { background: var(--table-stripe); }
+
+  /* ── diagram / flow ── */
+  .flow-box {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 16px 0 20px;
+  }
+
+  .flow-step {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 9px 16px;
+    font-size: .9em;
+    position: relative;
+  }
+
+  .flow-step::after {
+    content: "↓";
+    display: block;
+    text-align: center;
+    color: var(--muted);
+    font-size: 1.1em;
+    margin-top: 4px;
+  }
+
+  .flow-step:last-child::after { display: none; }
+
+  .flow-step .step-num {
+    color: var(--heading);
+    font-weight: 700;
+    margin-right: 8px;
+  }
+
+  /* ── hr ── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+  ul, ol { padding-left: 1.6em; margin-bottom: 14px; }
+  li { margin-bottom: 5px; }
+
+  strong { color: var(--accent); }
+
+/* ---- source bucket d8f75f67 (1 file) ----
+ *   dev/adr/0007-bare-pieces-host-theme-compatibility.html
+ */
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.2rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .danger { border-left: 4px solid #c0392b; background: #fde7e7; padding: .6rem .9rem; margin: .8rem 0; }
+  .note  { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+  .defer { border-left: 4px solid #d08a00; background: #fff6e5; padding: .6rem .9rem; margin: .8rem 0; }
+
+/* ---- source bucket db493c93 (1 file) ----
+ *   dev/plans/finished-2026-05-17-shared-section-fix.html
+ */
+body{font:15px/1.55 -apple-system,Segoe UI,Roboto,sans-serif;max-width:60rem;margin:2rem auto;padding:0 1.2rem;color:#1a1a1a}
+h1{font-size:1.5rem;border-bottom:2px solid #c0392b;padding-bottom:.3rem}
+h2{font-size:1.2rem;margin-top:2rem;border-bottom:1px solid #ddd;padding-bottom:.2rem}
+h3{font-size:1.02rem;margin-top:1.4rem}
+code{background:#f4f4f4;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
+pre{background:#f7f7f7;border:1px solid #e3e3e3;border-radius:5px;padding:.7rem .9rem;overflow-x:auto;font-size:.86rem}
+.gherkin{background:#fbf7ef;border-left:4px solid #c89b3c;padding:.5rem .9rem;white-space:pre-wrap;font-size:.88rem}
+.crit{background:#eef6ee;border-left:4px solid #3a8a3a;padding:.5rem .9rem}
+.con{background:#fdeeee;border-left:4px solid #c0392b;padding:.5rem .9rem}
+.dod{background:#eef2fb;border-left:4px solid #3a5aa8;padding:.5rem .9rem}
+table{border-collapse:collapse;width:100%;margin:.6rem 0}th,td{border:1px solid #ddd;padding:.35rem .5rem;text-align:left;font-size:.9rem}th{background:#f0f0f0}
+.tag{display:inline-block;background:#c0392b;color:#fff;font-size:.7rem;padding:.1rem .45rem;border-radius:3px;vertical-align:middle}
+
+/* ---- source bucket dd0d49fd (1 file) ----
+ *   dev/adr/0009-edge-cases.html
+ */
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 920px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; padding: .2rem .6rem; background: #f0f0f4; border-left: 4px solid #1b1d22; }
+  h3 { margin-top: 1.4rem; color: #233; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .case { border-left: 4px solid #d68910; background: #fdf6e3; padding: .8rem 1rem; margin: 1rem 0 1.4rem; border-radius: 0 5px 5px 0; }
+  .case-id { display: inline-block; background: #1b1d22; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 12px; font-family: monospace; margin-right: .4rem; }
+  .opt { background: #fff; border: 1px solid #e0e0e8; border-radius: 4px; padding: .5rem .7rem; margin: .35rem 0; }
+  .rec { border-left: 3px solid #2c7; }
+  .rationale { color: #444; font-size: 13.5px; margin-top: .4rem; }
+  .silent { color: #b34b00; font-weight: bold; }
+
+/* ---- source bucket e252a460 (1 file) ----
+ *   dev/adr/0009-pp-placeholders-and-expression-input.html
+ */
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 880px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.2rem; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre { background: #f4f4f7; padding: .7rem .9rem; border-radius: 5px; overflow-x: auto; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .meta { color: #555; font-size: 13px; }
+  .danger { border-left: 4px solid #c0392b; background: #fde7e7; padding: .6rem .9rem; margin: .8rem 0; }
+  .note  { border-left: 4px solid #2c7; background: #eafaf0; padding: .6rem .9rem; margin: .8rem 0; }
+  .warn  { border-left: 4px solid #d68910; background: #fdf6e3; padding: .6rem .9rem; margin: .8rem 0; }
+
+/* ---- source bucket e64e67bc (1 file) ----
+ *   dev/plans/finished-l2-l3-redesign-09-memory-claude.html
+ */
+body{font:15px/1.55 -apple-system,system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1.2rem;color:#1b1d22}h1{border-bottom:2px solid #1b1d22;padding-bottom:.3rem}h2{margin-top:1.6rem;border-bottom:1px solid #ccd}code{background:#f4f4f7;padding:1px 4px;border-radius:3px;font-size:90%}pre{background:#f4f4f7;padding:.7rem;border-radius:5px;overflow-x:auto;font-size:13px}.meta{color:#555;font-size:13px}.bdd{background:#f7f9ff;border-left:4px solid #4169e1;padding:.5rem .8rem;margin:.6rem 0;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:13px}.done{border-left:4px solid #2c7;background:#eafaf0;padding:.5rem .8rem}
+
+/* ---- source bucket ed452eda (1 file) ----
+ *   dev/notes/rewrite-non-source-checklist.html
+ */
+  body { font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         max-width: 900px; margin: 2em auto; padding: 0 1em; color: #222; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: .3em; }
+  h2 { margin-top: 1.8em; border-bottom: 1px solid #ccc; padding-bottom: .2em; }
+  h3 { margin-top: 1.2em; color: #444; }
+  code, pre { font-family: "SF Mono", Menlo, monospace; font-size: 12.5px;
+              background: #f4f4f4; padding: 1px 4px; border-radius: 3px; }
+  ul { padding-left: 1.3em; }
+  li { margin: .25em 0; }
+  .note { color: #666; font-style: italic; font-size: 12.5px; }
+  .gate { background: #fff8dc; border-left: 3px solid #d4a017; padding: .6em 1em; margin: 1em 0; }
+  .meta { color: #888; font-size: 12px; }
+
+/* ---- source bucket f352a6c2 (1 file) ----
+ *   dev/ast-walk-diagram.html
+ */
+  :root{
+    --root:#334155; --layer:#6366f1; --pipeline:#0d9488; --call:#2563eb;
+    --phval:#d97706; --phcons:#ea580c; --phsrc:#9333ea; --post:#16a34a; --sym:#64748b;
+    --bg:#f8fafc; --panel:#ffffff; --line:#e2e8f0; --ink:#1e293b; --muted:#64748b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14.5px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  header{padding:1.3rem 1.6rem .8rem;background:#fff;border-bottom:1px solid var(--line)}
+  header h1{margin:0 0 .25rem;font-size:1.45rem}
+  header p{margin:0;color:var(--muted);max-width:70ch}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:.92em;background:#f1f5f9;padding:1px 4px;border-radius:3px}
+  .wrap{max-width:1280px;margin:0 auto;padding:1.2rem 1.6rem 4rem}
+  section{margin-top:2.2rem}
+  h2{font-size:1.15rem;margin:0 0 .2rem;border-bottom:1px solid var(--line);padding-bottom:.3rem}
+  h2 .hint{font-weight:400;font-size:.8rem;color:var(--muted);float:right}
+
+  /* lifecycle stepper */
+  .pipeline{display:flex;flex-wrap:wrap;gap:.4rem;align-items:stretch;margin-top:.9rem}
+  .stage{flex:1 1 0;min-width:104px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:.55rem .6rem;cursor:pointer;transition:.12s;position:relative}
+  .stage:hover{border-color:#94a3b8;transform:translateY(-1px)}
+  .stage.active{border-color:var(--call);box-shadow:0 0 0 2px rgba(37,99,235,.15)}
+  .stage .ph{font-size:.7rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+  .stage .nm{font-weight:600;font-size:.86rem;margin-top:.15rem;word-break:break-word}
+  .stage .wk{margin-top:.3rem;font-size:.74rem;color:var(--call)}
+  .stage.user{background:#fffbeb;border-style:dashed}
+  .stage.user .wk{color:#b45309}
+  .arrow{align-self:center;color:#cbd5e1;font-size:1.1rem;padding:0 .05rem}
+  #stageDetail{margin-top:.8rem;background:#fff;border:1px solid var(--line);border-radius:8px;padding:.8rem 1rem;min-height:3.4rem}
+  #stageDetail .t{font-weight:600;margin-bottom:.25rem}
+  #stageDetail .m{color:var(--muted)}
+  #stageDetail.empty .m{font-style:italic}
+
+  /* main two-column */
+  .cols{display:grid;grid-template-columns:1.35fr 1fr;gap:1.1rem;margin-top:.9rem}
+  @media(max-width:980px){.cols{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem 1.1rem}
+
+  /* tree */
+  .tree{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13px;line-height:1.5}
+  .tree ul{list-style:none;margin:0;padding-left:1.2rem;border-left:1px dashed #cbd5e1}
+  .tree>ul{padding-left:0;border-left:none}
+  .tree li{margin:.18rem 0;position:relative}
+  .rel{color:var(--muted);font-size:11.5px;margin-right:.3rem}
+  .node{display:inline-flex;align-items:center;gap:.4rem;border:1px solid;border-radius:6px;padding:.12rem .5rem;cursor:pointer;background:#fff;transition:.1s;white-space:nowrap}
+  .node:hover{filter:brightness(.97);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .node.sel{box-shadow:0 0 0 2px #0f172a;font-weight:600}
+  .node.visiting{animation:pulse 1s ease}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(15,23,42,.5)}100%{box-shadow:0 0 0 10px rgba(15,23,42,0)}}
+  .node .lbl{font-weight:500}
+  .badge{font-size:10px;text-transform:uppercase;letter-spacing:.04em;background:rgba(0,0,0,.08);padding:0 4px;border-radius:3px}
+  .visit-no{display:inline-block;min-width:1.3em;text-align:center;background:#0f172a;color:#fff;border-radius:3px;font-size:10.5px;margin-right:.3rem;padding:0 2px}
+  .upstream-from{outline:2px solid var(--phcons);outline-offset:2px}
+  .upstream-to{outline:2px dashed var(--pipeline);outline-offset:2px;background:#ecfdf5!important}
+  /* kind colours */
+  .k-ptr_root{border-color:var(--root);color:var(--root)}
+  .k-ptr_layer{border-color:var(--layer);color:var(--layer)}
+  .k-ptr_pipeline{border-color:var(--pipeline);color:var(--pipeline)}
+  .k-ptr_call{border-color:var(--call);color:var(--call)}
+  .k-ptr_ph_value{border-color:var(--phval);color:var(--phval)}
+  .k-ptr_ph_data_consumer{border-color:var(--phcons);color:var(--phcons)}
+  .k-ptr_ph_data_source{border-color:var(--phsrc);color:var(--phsrc)}
+  .k-symbol{border-color:var(--sym);color:var(--sym)}
+  .k-post{border-color:var(--post);color:var(--post)}
+
+  /* detail panel */
+  #nodeDetail .crumb{font-size:11.5px;color:var(--muted);margin-bottom:.3rem}
+  #nodeDetail h3{margin:.1rem 0 .4rem;font-size:1rem;font-family:"SF Mono",Menlo,monospace}
+  #nodeDetail table{border-collapse:collapse;width:100%;font-size:12.5px;margin:.4rem 0 .6rem}
+  #nodeDetail td{border:1px solid var(--line);padding:.25rem .45rem;vertical-align:top}
+  #nodeDetail td.f{color:var(--muted);font-family:"SF Mono",monospace;white-space:nowrap;width:1%}
+  #nodeDetail td.v{font-family:"SF Mono",monospace}
+  #nodeDetail .role{color:#0f172a;background:#f8fafc;border-left:3px solid #cbd5e1;padding:.5rem .65rem;border-radius:0 6px 6px 0}
+  #nodeDetail .role b{color:#b45309}
+  .btn{font:inherit;font-size:12.5px;border:1px solid var(--line);background:#fff;border-radius:6px;padding:.3rem .55rem;cursor:pointer}
+  .btn:hover{border-color:#94a3b8}
+  .btn.on{background:#0f172a;color:#fff;border-color:#0f172a}
+  .legend{display:flex;flex-wrap:wrap;gap:.35rem .6rem;margin-top:.6rem;font-size:12px}
+  .legend span{display:inline-flex;align-items:center;gap:.3rem}
+  .sw{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+  /* walker section */
+  .wkbar{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.9rem}
+  .wkgrid{display:grid;grid-template-columns:1.05fr 1fr;gap:1.1rem;margin-top:.9rem}
+  @media(max-width:980px){.wkgrid{grid-template-columns:1fr}}
+  #walkerInfo h3{margin:.1rem 0 .3rem;font-family:"SF Mono",monospace;font-size:1.02rem}
+  #walkerInfo .meta{font-size:12.5px;color:var(--muted);margin-bottom:.5rem}
+  #walkerInfo .meta b{color:var(--ink)}
+  #walkerInfo table{border-collapse:collapse;width:100%;font-size:12.5px}
+  #walkerInfo td{border:1px solid var(--line);padding:.3rem .5rem;vertical-align:top}
+  #walkerInfo td.c{font-family:"SF Mono",monospace;color:#0f172a;white-space:nowrap;width:1%;background:#f8fafc}
+  #walkerInfo .skip{margin-top:.55rem;font-size:12.5px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:.45rem .6rem}
+  #log{font-family:"SF Mono",Menlo,monospace;font-size:12px;background:#0f172a;color:#e2e8f0;border-radius:8px;padding:.7rem .8rem;height:340px;overflow:auto;white-space:pre-wrap}
+  #log .step{color:#7dd3fc}
+  #log .do{color:#fbbf24}
+  #log .skip{color:#fb7185}
+  #log .info{color:#94a3b8}
+  .runbar{display:flex;gap:.4rem;align-items:center;margin-bottom:.5rem}
+  .small{font-size:12px;color:var(--muted)}
+
+/* ---- source bucket f83c53e2 (1 file) ----
+ *   dev/adr/0011-bug-3a-3b-handoff.html
+ */
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  h4 { margin-top: .9rem; font-size: 1em; color: #444; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  .meta { color: #555; font-size: 13px; }
+  .danger { border-left: 4px solid #c0392b; background: #fde7e7; padding: .6rem .9rem; margin: .8rem 0; font-size: 13.5px; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .step { border-left: 4px solid #4974c0; background: #eef2fb; padding: .55rem .85rem; margin: .7rem 0; font-size: 13.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  td.kw { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; background: #fafbff; }
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11.5px; font-weight: bold; color: #fff; }
+  .b-open    { background: #c0392b; }
+  .b-blocked { background: #b34b00; }
+  .b-revert  { background: #888; }
+  .b-confirm { background: #2c7; }
+
+/* ---- source bucket f899c1b0 (1 file) ----
+ *   dev/notes/report-ggpaintr-extensibility.html
+ */
+  /* ── Reset & base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f8f9fb;
+    color: #1a1d23;
+    line-height: 1.65;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ── Sidebar TOC ── */
+  #toc {
+    width: 270px;
+    flex-shrink: 0;
+    background: #1e2129;
+    color: #c9cdd4;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 24px 0 40px;
+    font-size: 0.83rem;
+    line-height: 1.5;
+  }
+  #toc h2 {
+    color: #7c8494;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0 20px 10px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid #2e333d;
+  }
+  #toc ul { list-style: none; }
+  #toc > ul { padding: 8px 0; }
+  #toc li > a {
+    display: block;
+    padding: 5px 20px;
+    color: #9aa0ab;
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  #toc li > a:hover {
+    background: #272c36;
+    color: #e0e3ea;
+    border-left-color: #4d90fe;
+  }
+  #toc li.section > a {
+    color: #c9cdd4;
+    font-weight: 600;
+    padding-top: 12px;
+  }
+  #toc ul ul li > a { padding-left: 36px; font-size: 0.80rem; }
+  #toc ul ul ul li > a { padding-left: 52px; font-size: 0.77rem; color: #7c8494; }
+
+  /* ── Main content ── */
+  #content {
+    flex: 1;
+    min-width: 0;
+    padding: 48px 64px 80px 56px;
+    max-width: 960px;
+  }
+
+  h1 { font-size: 2rem; font-weight: 700; color: #0d1117; margin-bottom: 8px; }
+  .subtitle { color: #5c6370; font-size: 1rem; margin-bottom: 40px; }
+  h2 {
+    font-size: 1.45rem; font-weight: 700; color: #0d1117;
+    margin: 52px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #dee1e6;
+  }
+  h3 { font-size: 1.15rem; font-weight: 600; color: #1a2230; margin: 36px 0 12px; }
+  h4 { font-size: 0.97rem; font-weight: 600; color: #2c3544; margin: 24px 0 8px; }
+
+  p { margin: 0 0 14px; }
+  strong { font-weight: 600; }
+  em { font-style: italic; }
+  ul, ol { margin: 0 0 14px 22px; }
+  li { margin-bottom: 4px; }
+
+  a { color: #2470d4; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ── Code & pre ── */
+  code {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", Menlo, monospace;
+    font-size: 0.855em;
+    background: #eef1f5;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #c0392b;
+  }
+  pre {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", Menlo, monospace;
+    font-size: 0.83rem;
+    background: #1e2129;
+    color: #abb2bf;
+    border-radius: 6px;
+    padding: 20px 24px;
+    overflow-x: auto;
+    margin: 16px 0 22px;
+    line-height: 1.6;
+    border: 1px solid #2e333d;
+  }
+  pre code {
+    font-size: inherit;
+    background: none;
+    padding: 0;
+    color: inherit;
+    border-radius: 0;
+  }
+
+  /* Syntax token colours (hand-applied via <span>) */
+  .kw   { color: #c678dd; }  /* keywords: function, if, return */
+  .fn   { color: #61afef; }  /* function calls */
+  .str  { color: #98c379; }  /* strings */
+  .cm   { color: #5c6370; font-style: italic; }  /* comments */
+  .num  { color: #d19a66; }  /* numbers */
+  .arg  { color: #e06c75; }  /* argument names */
+  .op   { color: #56b6c2; }  /* operators, special punctuation */
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    margin: 16px 0 22px;
+  }
+  th {
+    background: #e8ebf0;
+    text-align: left;
+    padding: 9px 14px;
+    font-weight: 600;
+    border-bottom: 2px solid #cdd0d7;
+  }
+  td { padding: 8px 14px; border-bottom: 1px solid #dee1e6; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: #f4f5f8; }
+
+  /* ── Callout boxes ── */
+  .callout {
+    border-left: 4px solid;
+    padding: 14px 18px;
+    margin: 18px 0 22px;
+    border-radius: 0 5px 5px 0;
+    font-size: 0.9rem;
+  }
+  .callout.info    { border-color: #2470d4; background: #eef5ff; }
+  .callout.warn    { border-color: #e6840a; background: #fff8ee; }
+  .callout.danger  { border-color: #c0392b; background: #fff0f0; }
+  .callout p { margin-bottom: 6px; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout strong { font-weight: 700; }
+
+  /* ── API signature block ── */
+  .sig {
+    background: #f0f3f8;
+    border: 1px solid #cdd0d7;
+    border-radius: 5px;
+    padding: 12px 18px;
+    font-family: "JetBrains Mono", Menlo, monospace;
+    font-size: 0.83rem;
+    line-height: 1.7;
+    margin: 10px 0 18px;
+    white-space: pre-wrap;
+  }
+
+  /* ── Source ref badges ── */
+  .src {
+    display: inline-block;
+    background: #dde6f5;
+    color: #1a4288;
+    font-family: "JetBrains Mono", Menlo, monospace;
+    font-size: 0.75rem;
+    padding: 1px 7px;
+    border-radius: 3px;
+    margin-left: 6px;
+    white-space: nowrap;
+  }
+
+  /* ── Section dividers ── */
+  hr { border: none; border-top: 1px solid #dee1e6; margin: 40px 0; }
+
+/* ---- source bucket fbf73694 (1 file) ----
+ *   dev/adr/0012-role-based-tree-and-ptr-spec.html
+ */
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  h4 { margin-top: .9rem; font-size: 1em; color: #444; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  .meta { color: #555; font-size: 13px; }
+  .note    { border-left: 4px solid #2c7;    background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .step    { border-left: 4px solid #4974c0; background: #eef2fb; padding: .55rem .85rem; margin: .7rem 0; font-size: 13.5px; }
+  .warn    { border-left: 4px solid #c97a00; background: #fdf3e1; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  td.kw { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; background: #fafbff; }
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11.5px; font-weight: bold; color: #fff; }
+  .b-draft  { background: #4974c0; }
+  .b-supers { background: #888; }
+
