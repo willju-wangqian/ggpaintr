@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0014 — Placeholder-registry init ordering for custom-placeholder constructors</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0014 — Placeholder-registry init ordering for custom-placeholder constructors</h1>
+<p class="meta">Date: 2026-05-23 · Owner: ggpaintr · Status: <strong>DECIDED &amp; APPLIED</strong> · Cross-refs: <a href="0013-super-app-pressure-test-suite.html">ADR 0013</a> (Follow-up C of the post-mortem) · supersedes the temporary workaround at <code>tests/testthat/fixtures/vignette-apps/super-1-kitchen-sink/app.R:10–15</code></p>
+
+<div class="note"><strong>One-line summary.</strong> The three public placeholder constructors (<code>ptr_define_placeholder_value</code>, <code>ptr_define_placeholder_consumer</code>, <code>ptr_define_placeholder_source</code>) bypass the lazy registry init path, so registering a custom placeholder before any read from the registry silently locks out the five built-ins. Fix is one line per constructor: call <code>ensure_registry_initialized()</code> first.</div>
+
+<h2>1. Defect</h2>
+
+<p>The lazy init for <code>.ptr_registry</code> (<code>R/paintr-registry.R:8–16</code>) has two short-circuits:</p>
+
+<pre><code>ensure_registry_initialized &lt;- function() {
+  if (isTRUE(.ptr_registry_initialized$done)) return(invisible(NULL))
+  .ptr_registry_initialized$done &lt;- TRUE
+  if (length(ls(.ptr_registry)) &gt; 0L) return(invisible(NULL))   # ← the trap
+  if (exists("ptr_register_builtins", mode = "function")) {
+    ptr_register_builtins()
+  }
+  invisible(NULL)
+}</code></pre>
+
+<p>The <code>length(ls(.ptr_registry)) &gt; 0L</code> guard exists so that if some other code path has already pre-populated the registry, init will not re-register builtins on top. It assumes whoever populated the registry has already done init themselves.</p>
+
+<p>All three public constructors (<code>R/paintr-registry.R:412</code>, <code>508</code>, <code>623</code>) skip init and go straight to <code>ptr_registry_register(entry)</code>. Read-side helpers (<code>ptr_registry_keywords</code>, <code>ptr_registry_lookup</code>, <code>ptr_clear_placeholder</code>, see lines 47, 91, 99) <em>do</em> call <code>ensure_registry_initialized()</code>. That asymmetry is the bug.</p>
+
+<h3>Reproduction</h3>
+
+<pre><code>devtools::load_all(".")
+ptr_registry_clear()
+ptr_define_placeholder_value(
+  keyword = "ppFoo",
+  build_ui = function(node, ...) shiny::textInput(node$id, "x"),
+  resolve_expr = function(value, ...) value
+)
+ptr_registry_keywords()
+# expected: c("ppVar","ppText","ppNum","ppExpr","ppUpload","ppFoo")
+# observed: c("ppFoo")</code></pre>
+
+<p>Downstream symptom (observed in the super-1 fixture before the workaround at <code>app.R:15</code> was added): <code>ui_text$defaults</code> validation aborts with <code>"ui_text$defaults has unsupported entries: ppNum, ppText"</code>.</p>
+
+<h2>2. Decision — Shape A (conservative)</h2>
+
+<p>Add <code>ensure_registry_initialized()</code> as the first statement of each of the three constructors, before any validation. Leave the <code>length(ls(.ptr_registry)) &gt; 0L</code> empty-guard intact as belt-and-suspenders.</p>
+
+<p>Three one-line additions. No behavior change for any callsite that <em>already</em> reads the registry before registering a custom placeholder.</p>
+
+<h3>Rejected: Shape B (drop the empty-guard)</h3>
+
+<p>Once the constructors unconditionally init, the empty-check is redundant — the <code>done</code> flag covers every reachable path. Dropping it would be slightly cleaner.</p>
+
+<p><strong>Why not.</strong> Grep confirms only <code>R/paintr-registry.R</code> ever writes to <code>.ptr_registry</code> (no other source or test does), so Shape B would have been safe today. But the empty-guard is cheap and survives future refactors where a new write path might be added without going through init first. The cost of Shape A is one extra line check per registry read; the cost of Shape B breakage is silent double-registration of builtins. Conservative wins.</p>
+
+<h2>3. Consequences</h2>
+
+<ul class="flat">
+  <li><strong>Public API:</strong> no change. All three constructors keep the same signature, return value, and validation order. The added <code>ensure_registry_initialized()</code> call is idempotent (the <code>done</code> flag short-circuits on every subsequent call).</li>
+  <li><strong>Test fixtures:</strong> the no-op <code>ptr_registry_keywords()</code> call at <code>tests/testthat/fixtures/vignette-apps/super-1-kitchen-sink/app.R:10–15</code> is removed in the same change. It was load-bearing only because of this bug.</li>
+  <li><strong>Regression coverage:</strong> a new <code>tests/testthat/test-regression-bugs-2026-05-23.R</code> pins the exact defect for each of the three constructors plus an idempotency check (calling twice does not double-register builtins).</li>
+  <li><strong>Forward-compat:</strong> if a future contributor adds a fourth public registry writer, they must follow the same pattern. The empty-guard remains as a safety net but should not be relied on.</li>
+</ul>
+
+<h2>4. Definition of Done</h2>
+
+<pre><code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code></pre>
+
+<p>Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong>, with N ≥ baseline + 4 (the four new regression tests). Proxy traps per project <code>CLAUDE.md</code>: a bare <code>Rscript</code> without <code>NOT_CRAN=true</code> silently skips every shinytest2 test (<code>skip_on_cran()</code> fires); <code>devtools::check(... --as-cran)</code> sets <code>NOT_CRAN=true</code> internally but the e2e browser file then cleanly SKIPs via the source-root guard, so that path is a separate optional check, not the gate.</p>
+
+</body>
+</html>

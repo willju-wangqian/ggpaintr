@@ -7,13 +7,6 @@ pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_t
 # (the test process never registers it, so no cross-test contamination — see
 # project memory `shinytest2-appdir-pkgload`).
 
-# Force the builtin placeholder registry to initialize *before* registering
-# ppRange. `ptr_define_placeholder_value()` only assigns into the registry;
-# the lazy `ensure_registry_initialized()` short-circuits if ppRange is
-# already present, leaving the built-in keywords (ppNum/ppText/etc.) absent
-# from `ptr_ui_text_keywords()` and tripping `ui_text$defaults` validation.
-ptr_registry_keywords()
-
 ppRange <- ptr_define_placeholder_value(
   keyword = "ppRange",
   build_ui = function(node, label = "Range", ...) {
