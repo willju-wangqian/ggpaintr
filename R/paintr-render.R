@@ -603,17 +603,6 @@ layer_is_piped <- function(layer) {
     c("%>%", "%ptrPipeNative%", "|>")
 }
 
-# Recover the outermost pipe op of a piped layer. Sentinel maps back to "|>".
-layer_pipe_op <- function(layer) {
-  e <- layer$expr
-  if (is.call(e) && is.symbol(e[[1L]])) {
-    s <- as.character(e[[1L]])
-    if (s == "%ptrPipeNative%") return("|>")
-    if (s %in% c("%>%", "|>")) return(s)
-  }
-  "|>"
-}
-
 # Recover the head text from the underlying language. For piped layers, peel
 # pipes to reach the terminal call head; for plain calls, use the call's
 # head directly. Falls back to layer$name if expr is unavailable.
