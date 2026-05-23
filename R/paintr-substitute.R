@@ -16,12 +16,14 @@
 ptr_substitute <- function(node, input_snapshot = list(),
                           shared_bindings = list(),
                           eval_env = parent.frame(),
-                          upstream_cols = list()) {
+                          upstream_cols = list(),
+                          upstream_data = list()) {
   ctx <- list(
     snapshot = input_snapshot,
     shared = shared_bindings,
     eval_env = eval_env,
-    upstream_cols = upstream_cols
+    upstream_cols = upstream_cols,
+    upstream_data = upstream_data
   )
   substitute_walk(node, ctx)
 }
@@ -97,6 +99,26 @@ substitute_walk.ptr_ph_value <- function(node, ctx) {
       "`?ptr_define_placeholder_value`."
     ))
   }
+  if (!is.null(entry$validate_input)) {
+    # Value-role ctx: `upstream_cols` / `data` are always NULL by contract
+    # (value placeholders have no upstream column scope; `data_aware = FALSE`
+    # on the registry entry). Hook still receives `node` + `keyword` so the
+    # validator can branch on the keyword if it's reused across registrations.
+    hook_ctx <- list(
+      node = node, keyword = node$keyword,
+      upstream_cols = NULL, data = NULL
+    )
+    ok <- entry$validate_input(value, hook_ctx)
+    # Accept TRUE or NULL as "valid" -- NULL is the standard R idiom for
+    # "no message to report". A character vector is the error message.
+    # Any other return value fails closed with a generic message.
+    if (!is.null(ok) && !isTRUE(ok)) {
+      rlang::abort(paste0(
+        "Invalid value for placeholder `", node$keyword, "`: ",
+        if (is.character(ok)) ok else "validation failed."
+      ))
+    }
+  }
   resolved <- entry$resolve_expr(value, node)
   if (is.null(resolved)) return(ptr_missing())
   validate_resolve_expr_return(resolved, node$keyword)
@@ -124,7 +146,18 @@ substitute_walk.ptr_ph_data_consumer <- function(node, ctx) {
   if (!is.null(entry$validate_input)) {
     cols <- ctx$upstream_cols[[node$id %||% ""]]
     if (!is.null(cols)) {
-      ok <- entry$validate_input(value, cols)
+      # Consumer-role ctx: populate both `upstream_cols` and `data` when
+      # the upstream has resolved. `data` is the same data.frame the
+      # consumer's `build_ui` received as its `data` arg (see
+      # `runtime_upstream_data()` in `R/paintr-server.R`), allowing the
+      # validator to inspect column types / ranges / levels and not just
+      # the column names.
+      hook_ctx <- list(
+        node = node, keyword = node$keyword,
+        upstream_cols = cols,
+        data = ctx$upstream_data[[node$id %||% ""]]
+      )
+      ok <- entry$validate_input(value, hook_ctx)
       # Accept TRUE or NULL as "valid" -- NULL is the standard R idiom for
       # "no message to report". A character vector is the error message.
       # Any other return value fails closed with a generic message.

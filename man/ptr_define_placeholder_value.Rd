@@ -8,6 +8,7 @@ ptr_define_placeholder_value(
   keyword,
   build_ui,
   resolve_expr,
+  validate_input = NULL,
   default_arg = NULL,
   named_args = list(),
   runtime = NULL,
@@ -34,6 +35,22 @@ integer), \code{name}/\code{symbol} (build with \code{rlang::sym()}),
 \code{call}/\code{language} (build with \code{rlang::ppExpr()}), or \code{NULL} to \strong{prune
 the argument} from the rendered call. Use \code{NULL} for empty / not-yet
 input; throw with \code{rlang::abort()} for malformed input.}
+
+\item{validate_input}{Optional \verb{function(value, ctx)} called before
+\code{resolve_expr}. Return \code{TRUE} / \code{NULL} to accept; return a single
+character string to reject (surfaced inline as the error message,
+layer pruned). \code{ctx} is a plain list with named fields: \code{node} (the
+placeholder AST node, carries \verb{$id}, \verb{$keyword}, \verb{$args}), \code{keyword}
+(convenience alias for \code{node$keyword}), \code{upstream_cols}, and
+\code{data}. For a \emph{value} placeholder, \code{ctx$upstream_cols} and
+\code{ctx$data} are \strong{always \code{NULL}} — value placeholders have no
+upstream column scope by definition. They are present in the
+signature so the same validator shape works across all roles; see
+\code{\link[=ptr_define_placeholder_consumer]{ptr_define_placeholder_consumer()}} for the data-aware role where
+those fields are populated. ggpaintr invokes this function as
+\code{validate_input(value, ctx)} — no other positional or named
+arguments are passed, and \code{ctx} carries exactly the four fields
+above. The signature does not require \code{...}.}
 
 \item{default_arg}{Optional validator closure for the (single) positional
 argument the keyword accepts inside a formula. \code{NULL} (default) means

@@ -375,6 +375,22 @@ ptr_registry_register <- function(entry) {
 #'   `rlang::abort()`. Default is `list()` (no named args). The name
 #'   `"shared"` is reserved and may not appear here.
 #'
+#' @param validate_input Optional `function(value, ctx)` called before
+#'   `resolve_expr`. Return `TRUE` / `NULL` to accept; return a single
+#'   character string to reject (surfaced inline as the error message,
+#'   layer pruned). `ctx` is a plain list with named fields: `node` (the
+#'   placeholder AST node, carries `$id`, `$keyword`, `$args`), `keyword`
+#'   (convenience alias for `node$keyword`), `upstream_cols`, and
+#'   `data`. For a *value* placeholder, `ctx$upstream_cols` and
+#'   `ctx$data` are **always `NULL`** — value placeholders have no
+#'   upstream column scope by definition. They are present in the
+#'   signature so the same validator shape works across all roles; see
+#'   [ptr_define_placeholder_consumer()] for the data-aware role where
+#'   those fields are populated. ggpaintr invokes this function as
+#'   `validate_input(value, ctx)` — no other positional or named
+#'   arguments are passed, and `ctx` carries exactly the four fields
+#'   above. The signature does not require `...`.
+#'
 #' @param runtime Optional `function(x, ...)` body used when the
 #'   placeholder keyword is *also* called as a plain-R function (outside a
 #'   formula context). When `NULL` (default), the identity function
@@ -411,6 +427,7 @@ ptr_registry_register <- function(entry) {
 #' ptr_clear_placeholder("pct")
 #' @export
 ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
+                                       validate_input = NULL,
                                        default_arg = NULL,
                                        named_args = list(),
                                        runtime = NULL,
@@ -422,6 +439,9 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
   validate_keyword_no_shadow(keyword)
   validate_hook(build_ui, "build_ui", c("node"))
   validate_hook(resolve_expr, "resolve_expr", c("value", "node"))
+  if (!is.null(validate_input)) {
+    validate_hook(validate_input, "validate_input", c("value", "ctx"))
+  }
   validate_default_arg(default_arg, keyword)
   validate_named_args(named_args, keyword)
   validate_copy_defaults(copy_defaults)
@@ -433,6 +453,7 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
   entry <- list(
     keyword = keyword, role = "value", data_aware = FALSE,
     build_ui = build_ui, resolve_expr = resolve_expr,
+    validate_input = validate_input,
     default_arg = default_arg, named_args = named_args,
     runtime = runtime_fn,
     copy_defaults = copy_defaults
@@ -463,11 +484,23 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #'   [ptr_define_placeholder_value()] for allowed return types and the
 #'   `NULL`-prunes-the-argument convention.
 #'
-#' @param validate_input Optional `function(value, upstream_cols)` called
-#'   before `resolve_expr`. Return `TRUE` / `NULL` to accept; return a
-#'   single character string to reject (surfaced inline as the error
-#'   message, layer pruned). Useful when a stale selection no longer
-#'   matches any upstream column after a data swap.
+#' @param validate_input Optional `function(value, ctx)` called before
+#'   `resolve_expr`. Return `TRUE` / `NULL` to accept; return a single
+#'   character string to reject (surfaced inline as the error message,
+#'   layer pruned). Useful when a stale selection no longer matches any
+#'   upstream column after a data swap, or when only certain column types
+#'   are admissible. `ctx` is a plain list with named fields: `node` (the
+#'   placeholder AST node, carries `$id`, `$keyword`, `$args`), `keyword`
+#'   (convenience alias for `node$keyword`), `upstream_cols` (character
+#'   vector of upstream column names — the same value `build_ui` received
+#'   as `cols`), and `data` (the upstream data frame — the same object
+#'   `build_ui` received as `data`). `ctx$upstream_cols` and `ctx$data`
+#'   may both be `NULL` while upstream resolution is pending; the
+#'   validator is not invoked when upstream has not yet resolved (the
+#'   substitute walker skips the hook in that case). ggpaintr invokes
+#'   this function as `validate_input(value, ctx)` — no other positional
+#'   or named arguments are passed, and `ctx` carries exactly the four
+#'   fields above. The signature does not require `...`.
 #'
 #' @param default_arg,named_args See [ptr_define_placeholder_value()].
 #'   Consumer placeholders use the same arg-schema slots; the `ppVar`
@@ -500,8 +533,8 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #'     if (length(value) != 1L || !nzchar(value)) return(NULL)
 #'     rlang::sym(value)
 #'   },
-#'   validate_input = function(value, upstream_cols) {
-#'     if (length(value) == 1L && value %in% upstream_cols) TRUE
+#'   validate_input = function(value, ctx) {
+#'     if (length(value) == 1L && value %in% ctx$upstream_cols) TRUE
 #'     else "Pick a column that exists in the upstream data."
 #'   }
 #' )
@@ -521,7 +554,7 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
   validate_hook(build_ui, "build_ui", c("node", "cols", "data"))
   validate_hook(resolve_expr, "resolve_expr", c("value", "node"))
   if (!is.null(validate_input)) {
-    validate_hook(validate_input, "validate_input", c("value", "upstream_cols"))
+    validate_hook(validate_input, "validate_input", c("value", "ctx"))
   }
   validate_default_arg(default_arg, keyword)
   validate_named_args(named_args, keyword)

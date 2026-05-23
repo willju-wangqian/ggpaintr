@@ -20,14 +20,16 @@ ptr_complete_expr_safe <- function(node,
                                    eval_env = parent.frame(),
                                    safe_to_remove = NULL,
                                    is_standalone = NULL,
-                                   upstream_cols = list()) {
+                                   upstream_cols = list(),
+                                   upstream_data = list()) {
   tryCatch({
     subbed <- ptr_substitute(
       node,
       input_snapshot = snapshot,
       shared_bindings = shared_bindings,
       eval_env = eval_env,
-      upstream_cols = upstream_cols
+      upstream_cols = upstream_cols,
+      upstream_data = upstream_data
     )
     pruned <- ptr_prune(
       subbed,

@@ -27,7 +27,8 @@ ptr_exec_headless <- function(tree, snapshot,
                               extras         = list(),
                               stage_enabled  = NULL,
                               resolved_data  = list(),
-                              upstream_cols  = NULL) {
+                              upstream_cols  = NULL,
+                              upstream_data  = NULL) {
   if (!is.null(stage_enabled)) tree <- disable_walk(tree, stage_enabled)
 
   res <- ptr_complete_expr_safe(
@@ -36,7 +37,8 @@ ptr_exec_headless <- function(tree, snapshot,
     shared_bindings = shared_bindings,
     eval_env = eval_env,
     safe_to_remove = safe_to_remove,
-    upstream_cols = upstream_cols
+    upstream_cols = upstream_cols,
+    upstream_data = upstream_data %||% list()
   )
   res$pruned <- inject_resolved_data_list(res$pruned, resolved_data)
   res <- ptr_assemble_plot_safe(res, expr_check = expr_check)
