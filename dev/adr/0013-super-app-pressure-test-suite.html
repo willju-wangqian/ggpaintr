@@ -49,11 +49,10 @@
 <p>The FEATURE-CHECKLIST's bottom-of-doc "super-test" suggestions are unstructured. We adopt a structured partition: <strong>each super-app picks one value of every mutually-exclusive slot, and crams the densest possible combination of compatible non-exclusive features inside</strong>. The exclusive slots — values a single formula can take exactly one of — are:</p>
 
 <ul class="flat">
-  <li><strong>Embedding host</strong>: <code>ptr_app()</code> · <code>ptr_app_bslib()</code> · <code>ptr_app_grid()</code> · hand-rolled L3 (<code>ptr_ui_*</code> + <code>ptr_server()</code>).</li>
+  <li><strong>Embedding host</strong>: <code>ptr_app()</code> · <code>ptr_app_grid()</code> · hand-rolled L3 (<code>ptr_ui_*</code> + <code>ptr_server()</code>). (<code>ptr_app_bslib()</code> is slated for removal — not included in the partition.)</li>
   <li><strong>Data head</strong>: dataset literal (e.g. <code>mtcars</code>) · local-var dataset · <code>ppUpload()</code> at formula head · <code>ppUpload() |&gt; ...</code> mid-pipeline · custom data source at head (D3 hook).</li>
   <li><strong>Formula-capture path</strong>: G1 string · G2 bare-expression · G3 <code>!!</code> splice · G4 pre-quoted via <code>rlang::expr()</code> · G5 string-builder force-eval (paste0 / sprintf).</li>
   <li><strong>Code-panel style</strong>: window · panel.</li>
-  <li><strong>Theme</strong>: default · bslib.</li>
 </ul>
 
 <p>A single mega-app can hit one value per row only. The interaction bugs we most fear (B3 toggle × E1 shared= in <em>each</em> host; mid-pipeline upload × shared widget × code-mode preserve; L3 custom output × runtime error × validate_input) live across host/data-head boundaries — so they require &gt;1 app to cover. A suite of ~4–5, each maximally dense within its slot choices, covers them.</p>
@@ -117,7 +116,7 @@
 <h3>D6 — Formula-capture coverage: every G-path exactly once</h3>
 <table>
   <tr><th>Capture path</th><th>Super-app</th><th>Shape in formula</th></tr>
-  <tr><td>G1 string</td><td>2a</td><td>multi-line <code>"ppUpload(name='df_main') |&gt; dplyr::filter(...) |&gt; ggplot(...) + ..."</code></td></tr>
+  <tr><td>G1 string</td><td>2a</td><td>multi-line <code>"ppUpload(df_main) |&gt; dplyr::filter(...) |&gt; ggplot(...) + ..."</code></td></tr>
   <tr><td>G2 bare-expression</td><td>1</td><td><code>ptr_app(ggplot(mtcars, aes(x = ppVar(mpg), ...)) + ...)</code></td></tr>
   <tr><td>G3 <code>!!</code> splice (with placeholders inside the splice)</td><td>2b</td><td><code>smooth_template &lt;- rlang::expr(geom_smooth(method = ppText("lm"), ...)); ptr_app(... + !!smooth_template + ...)</code></td></tr>
   <tr><td>G4 + G6 pre-quoted local var (<code>rlang::expr()</code> + forwarded-symbol resolution)</td><td>3</td><td><code>formula_a &lt;- rlang::expr(ggplot(...) + ...); ptr_server(formula_a, "plot1")</code></td></tr>
@@ -128,8 +127,8 @@
 
 <p>Two super-apps demonstrate that a <code>geom_*</code> layer can carry its own placeholder-source <code>data =</code> distinct from the root data:</p>
 <ul class="flat">
-  <li>App 2a: root <code>ppUpload(name = "df_main")</code> at formula head; <code>geom_smooth(data = ppUpload(name = "df_aux"), aes(...), ...)</code> at layer level. Two independent file widgets, two independent ppVar-picker scopes.</li>
-  <li>App 2b: root custom <code>ppSample()</code> at formula head; <code>geom_rug(data = ppUpload(name = "df_rug"), aes(...))</code> at layer level. Tests ppUpload as a layer-data source (a path not covered by H3/H4 alone — those scope ppUpload at the formula head, not at layer-level <code>data =</code>).</li>
+  <li>App 2a: root <code>ppUpload(df_main)</code> at formula head; <code>geom_smooth(data = ppUpload(df_aux), aes(...), ...)</code> at layer level. Two independent file widgets, two independent ppVar-picker scopes.</li>
+  <li>App 2b: root custom <code>ppSample()</code> at formula head; <code>geom_rug(data = ppUpload(df_rug), aes(...))</code> at layer level. Tests ppUpload as a layer-data source (a path not covered by H3/H4 alone — those scope ppUpload at the formula head, not at layer-level <code>data =</code>).</li>
 </ul>
 
 <p>Deliberately <em>not</em> tested: <code>shared=</code> spanning two different data-source scopes. That edge case (picker shows union of columns? intersection? first-data's? errors?) has under-specified semantics and deserves a focused narrow fixture rather than a super-app pile-on. Within each super-app, <code>shared=</code> stays inside the root-data scope only.</p>
@@ -166,8 +165,8 @@ ptr_app(
     scale_y_continuous(limits = ppRange(c(0, 50))) +
     labs(title = ppText("Title"), subtitle = ppText()),
   ui_text = list(defaults = list(ppNum  = list(label = "{param}"),
-                                 ppText = list(label = "{param} text"))),
-  copy = list(params = list(linewidth = list(ppNum = list(label = "Line thickness"))))
+                                 ppText = list(label = "{param} text")),
+                 params = list(linewidth = list(ppNum = list(label = "Line thickness"))))
 )</pre>
 
 <p><strong>Roster.</strong> ppVar×4 → 2 widgets after shared "grp" collapse · ppNum×4 → 3 widgets after shared "lw" collapse · ppText×3 · ppExpr×2 · ppRange×1. Total widgets ≈ 10.</p>
@@ -214,7 +213,7 @@ ppMultiVar &lt;- ptr_define_placeholder_consumer(
 )
 
 ptr_app(
-  "ppUpload(name = 'df_main') |&gt;
+  "ppUpload(df_main) |&gt;
      dplyr::filter(ppExpr(hp &gt;= 75)) |&gt;
      dplyr::mutate(transformed = ppExpr(mpg / wt)) |&gt;
      ggplot(aes(x = ppVar(mpg),
@@ -223,14 +222,14 @@ ptr_app(
      geom_point(aes(group = ppMultiVar(c('cyl', 'am'))),
                 size = ppNum(2),
                 alpha = ppPower(0.7)) +
-     geom_smooth(data = ppUpload(name = 'df_aux'),
+     geom_smooth(data = ppUpload(df_aux),
                  aes(x = ppVar(mpg), y = ppVar(wt)),
                  method = ppText('lm'),
                  linewidth = ppNum(1)) +
      facet_wrap(vars(ppVar(cyl, shared = 'grp'))) +
      labs(title = ppText('Main vs Aux'), subtitle = ppText())",
-  ui_text = list(defaults = list(ppNum = list(label = "{param}"))),
-  copy = list(params = list(method = list(ppText = list(label = "Smoothing method"))))
+  ui_text = list(defaults = list(ppNum = list(label = "{param}")),
+                 params = list(method = list(ppText = list(label = "Smoothing method"))))
 )</pre>
 
 <p><strong>Sample files shipped sibling to app.R</strong>: <code>sample_main.csv</code>, <code>sample_aux.csv</code> — both mtcars subsets so column names align with the seeded defaults (<code>mpg</code>, <code>wt</code>, <code>cyl</code>, <code>am</code>, <code>hp</code>).</p>
@@ -240,8 +239,8 @@ ptr_app(
 <p><strong>Pressure axes unique to App 2a.</strong></p>
 <ul class="flat">
   <li><strong>Mid-pipeline ppUpload + dplyr chain</strong> — fix history per memory <code>pipeline-head-data-source</code> (May 2026): the parser must wire ppUpload as the pipeline root, and the dplyr stages' arg-arg generics dispatch correctly under <code>lapply()</code>.</li>
-  <li><strong>Multi-data-source via layer <code>data =</code></strong> — <code>geom_smooth(data = ppUpload(name = "df_aux"), aes(...), ...)</code> is its own data scope. The two aes calls reference different dataframes' columns; ppVar pickers inside each aes populate from the layer's data, not from root.</li>
-  <li><strong>ADR-0010 <code>name=</code> companion on two ppUploads in one formula</strong> — distinct names render correctly in both modes; round-trip via preserve-mode shows <code>ppUpload(name = 'df_main')</code> and <code>ppUpload(name = 'df_aux')</code> as written.</li>
+  <li><strong>Multi-data-source via layer <code>data =</code></strong> — <code>geom_smooth(data = ppUpload(df_aux), aes(...), ...)</code> is its own data scope. The two aes calls reference different dataframes' columns; ppVar pickers inside each aes populate from the layer's data, not from root.</li>
+  <li><strong>ADR-0010 positional companion-name on two ppUploads in one formula</strong> — distinct positional bareword arguments (<code>ppUpload(df_main)</code>, <code>ppUpload(df_aux)</code>) render correctly in both modes; round-trip via preserve-mode shows the bareword form as written (per <code>R/paintr-render.R</code>'s <code>bareword_kw</code> dispatch).</li>
   <li><strong>Custom consumer in aes(group=) via interaction()</strong> — <code>resolve_expr</code> returns a <code>rlang::call2("interaction", ...)</code>; the substituted final-mode code emits <code>aes(group = interaction(cyl, am))</code>. Tests the resolve_expr-to-AST path for non-scalar consumer returns.</li>
   <li><strong>D9 validate_input on ppPower</strong> — set widget to 1.5 (out of range); the inline error appears beside the widget without crashing the runtime.</li>
   <li><strong>shared= confined to root-data scope</strong> — "grp" key spans aes(color=) and facet_wrap, both reference df_main. Cross-data shared= is deliberately not tested here.</li>
@@ -286,7 +285,7 @@ ppSample &lt;- ptr_define_placeholder_source(
     stopifnot(value %in% KNOWN_DATASETS)
     get(value, envir = asNamespace("datasets"))
   },
-  default_arg = ptr_default_character()
+  default_arg = ptr_default_string()
 )
 
 # Pre-built layer template carrying placeholders inside the splice (stronger G3 stress)
@@ -301,7 +300,7 @@ ptr_app(
              color = ppFactor(Species, shared = "fac"))) +
     geom_point(size = ppNum(2)) +
     !!smooth_template +
-    geom_rug(data = ppUpload(name = "df_rug"),
+    geom_rug(data = ppUpload(df_rug),
              aes(x = ppVar(mpg), y = ppVar(wt))) +
     facet_wrap(vars(ppFactor(Species, shared = "fac"))) +
     labs(title = ppText("ppSample + splice + layer-upload")),
@@ -324,7 +323,7 @@ ptr_app(
 
 <p>Slot picks: hand-rolled L3 (<code>ptr_ui_page</code> + <code>ptr_shared</code> + 2× <code>ptr_server</code>) · <code>mtcars</code> literal per cell · G4 pre-quoted via local <code>rlang::expr</code> var · custom plotly output on plot2 · default theme.</p>
 
-<div class="note"><strong>Important constraint discovered during design.</strong> <code>ptr_app_grid</code> (<code>R/paintr-app.R:1271</code>) asserts <code>all(vapply(plots, rlang::is_string, ...))</code> — grid takes string formulas only. To exercise G4 (pre-quoted via <code>rlang::expr</code>) alongside a custom plot output, App 3 hand-rolls the L3 surface instead of using <code>ptr_app_grid</code>. <code>ptr_app_grid</code>'s own pressure surface is already covered by narrow fixtures (<code>app-grid-shared-added</code>, <code>grid-shared-partition</code>) and is out of scope for the super-app suite.</div>
+<div class="note"><strong>Important constraint discovered during design.</strong> <code>ptr_app_grid</code> (<code>R/paintr-app.R:1271</code>) delegates to <code>ptr_app_grid_components</code> (<code>R/paintr-app.R:1296</code>) which asserts <code>all(vapply(plots, rlang::is_string, ...))</code> at <code>R/paintr-app.R:1309-1313</code> — grid takes string formulas only. To exercise G4 (pre-quoted via <code>rlang::expr</code>) alongside a custom plot output, App 3 hand-rolls the L3 surface instead of using <code>ptr_app_grid</code>. <code>ptr_app_grid</code>'s own pressure surface is already covered by narrow fixtures (<code>app-grid-shared-added</code>, <code>grid-shared-partition</code>) and is out of scope for the super-app suite.</div>
 
 <pre># tests/testthat/fixtures/vignette-apps/super-3-l3-multi-shared-plotly/app.R
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
@@ -400,11 +399,11 @@ shiny::shinyApp(ui, server)</pre>
   <li><strong>F4 + F7 + F8</strong> — <code>state$runtime()$plot</code> read inside <code>renderPlotly</code>; <code>state$tree()</code> available; <code>state$runtime()$code_text</code> drives the code panel (which the test inspects).</li>
 </ul>
 
-<h3>App 4 — "bslib + safety + adversarial"</h3>
+<h3>App 4 — "user_css + safety + adversarial"</h3>
 
-<p>Slot picks: <code>ptr_app_bslib()</code> + user_css · <code>mtcars</code> literal · G5 string-builder (<code>paste0</code> + <code>sprintf</code>) · window code panel · bslib theme.</p>
+<p>Slot picks: <code>ptr_app()</code> + <code>css</code> · <code>mtcars</code> literal · G5 string-builder (<code>paste0</code> + <code>sprintf</code>) · window code panel.</p>
 
-<pre># tests/testthat/fixtures/vignette-apps/super-4-bslib-safety-adversarial/app.R
+<pre># tests/testthat/fixtures/vignette-apps/super-4-user-css-safety-adversarial/app.R
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
 
 ppColor &lt;- ptr_define_placeholder_value(
@@ -424,7 +423,7 @@ ppColor &lt;- ptr_define_placeholder_value(
 y_arg &lt;- "ppVar(wt)"
 title_segment &lt;- sprintf("Speed vs %s", "Weight")
 
-ptr_app_bslib(
+ptr_app(
   paste0(
     "ggplot(mtcars, aes(x = ppVar(mpg), y = ", y_arg, ", color = ppVar(cyl))) + ",
     "geom_point(size = ppNum(2), alpha = ppNum(0.7), color = ppColor()) + ",
@@ -432,12 +431,11 @@ ptr_app_bslib(
     "labs(title = ppText('", title_segment, "'), ",
          "subtitle = ppExpr(nrow(mtcars)))"
   ),
-  theme = bslib::bs_theme(version = 5, bootswatch = "flatly", primary = "#3366FF"),
-  user_css = "user.css"
+  css = "user.css"
 )</pre>
 
 <p>Sibling <code>user.css</code>:</p>
-<pre>/* tests/testthat/fixtures/vignette-apps/super-4-bslib-safety-adversarial/user.css */
+<pre>/* tests/testthat/fixtures/vignette-apps/super-4-user-css-safety-adversarial/user.css */
 .ptr-super4-colorpicker input { border-color: #FF6633; }
 .ptr-super4-sentinel { color: #ABCDEF; }   /* test asserts this rule reaches the page */</pre>
 
@@ -445,7 +443,7 @@ ptr_app_bslib(
 
 <p><strong>Pressure axes unique to App 4.</strong></p>
 <ul class="flat">
-  <li><strong>K1 + K2 + K3 in one app</strong> — bslib theme + user_css + core <code>htmlDependency</code> assets coexist. Per project memory <code>htmldependency-resource-prefix</code>, the core assets require an explicit <code>addResourcePath("ggpaintr", ...)</code> in addition to the htmlDependency declaration; the user_css's private resource prefix must not collide.</li>
+  <li><strong>K2 + K3 in one app</strong> — user_css + core <code>htmlDependency</code> assets coexist. Per project memory <code>htmldependency-resource-prefix</code>, the core assets require an explicit <code>addResourcePath("ggpaintr", ...)</code> in addition to the htmlDependency declaration; the user_css's private resource prefix (<code>ggpaintr-user-&lt;hash&gt;</code>, <code>R/paintr-build-ui.R:633</code>) must not collide. (K1 bslib theming is dropped from the partition because <code>ptr_app_bslib()</code> is slated for removal.)</li>
   <li><strong>K4 — user_css resource path pruning</strong> — checked indirectly: after the test session ends, no leak into subsequent sessions (the cleanup helper documented in <code>shinytest2-appdir-pkgload</code> memory).</li>
   <li><strong>G5 force-eval with whitelist members</strong> — <code>paste0</code> + <code>sprintf</code> are inside the closed whitelist (PLAN-04). The assembled formula contains a sentinel <code>y_arg</code> that must propagate to the substituted final-mode code as <code>y = wt</code> (parsed from the embedded <code>"ppVar(wt)"</code> fragment).</li>
   <li><strong>J1 + J3 adversarial probes (test-injected)</strong> — the test sets the ppExpr widget value to a string containing <code>eval(parse(text = "1+1"))</code>, clicks Update, and asserts the runtime panel surfaces a denylist rejection. Same deny-list (~151 entries + the AST walker that descends into pairlists / lambda bodies / string literals via <code>str2lang</code>) fires at the runtime path, not just at parse time.</li>
@@ -467,7 +465,7 @@ ptr_app_bslib(
   <tr><td>H — Data sourcing</td><td>H1-H7</td><td>H1</td><td>H3, H4, H5, H6, H7</td><td>H5, H6, H7 (via ppUpload-as-layer)</td><td>H1</td><td>H1</td></tr>
   <tr><td>I — Errors, state, runtime</td><td>I1-I7</td><td>I3</td><td>I1, I3, I5</td><td>I1, I3, I5</td><td>I3, I4</td><td>I1, I2, I3, I5</td></tr>
   <tr><td>J — Safety / parsing invariants</td><td>J1-J6</td><td>—</td><td>—</td><td>—</td><td>—</td><td>J1, J3, J4 (test-injected adversarial)</td></tr>
-  <tr><td>K — Theming &amp; assets</td><td>K1-K4</td><td>—</td><td>—</td><td>—</td><td>—</td><td>K1, K2, K3, K4</td></tr>
+  <tr><td>K — Theming &amp; assets</td><td>K1-K4 (K1 = bslib, deferred — see App 4 prose)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>K2, K3, K4</td></tr>
   <tr><td>L — Multi-instance &amp; layout</td><td>L1-L4</td><td>—</td><td>—</td><td>—</td><td>L1, L3, L4</td><td>—</td></tr>
 </table>
 
@@ -477,7 +475,7 @@ ptr_app_bslib(
 <ul class="flat">
   <li><strong>E3, E4 (shared label / default tiebreak across differing keys)</strong> — App 1 covers C6 (same-key tiebreak) but not the cross-key edge cases. Worth a small narrow fixture; cheap to add later.</li>
   <li><strong>E7 (mid-pipeline shared= on a data source)</strong> — shared= keys spanning data-pipeline stages. App 2a's shared= stays within the post-pipeline aes scope.</li>
-  <li><strong>E8 (preserve-mode shared= round-trip)</strong> — App 1's preserve-mode assertion covers shared="grp" round-tripping in <code>ptr_app()</code>. The host-equivalent assertions for <code>ptr_app_bslib</code> and L3 are <em>not</em> in the super-app contract; they could be folded into Apps 3 and 4 cheaply if a regression appears.</li>
+  <li><strong>E8 (preserve-mode shared= round-trip)</strong> — App 1's preserve-mode assertion covers shared="grp" round-tripping in <code>ptr_app()</code>. The host-equivalent assertion under L3 is <em>not</em> in the super-app contract; it could be folded into App 3 cheaply if a regression appears.</li>
   <li><strong>D7 (keyword shadow rejection)</strong> — registering a keyword that exists in base R / utils / stats / dplyr / ggplot2 aborts. Adversarial registration cases. Would fit in App 4 or a separate narrow fixture; not currently included.</li>
   <li><strong>D8 (LHS-name vs <code>keyword=</code> drift warning)</strong> — best-effort warning when <code>ppFoo &lt;- ptr_define_placeholder_value(keyword = "bar")</code>. Lexical-shadow path only; not exercisable from a single super-app's app.R because each app uses lexically-matching names.</li>
   <li><strong>F5 (<code>ptr_extract_plot / _error / _code</code>)</strong> — non-reactive helpers for download handlers and testServer. App 3's test could assert <code>ptr_extract_code(state_b)</code> returns final-mode text; recommended addition but not part of the locked contract.</li>
@@ -497,7 +495,7 @@ ptr_app_bslib(
 <p>Out of scope for this ADR but tracked for follow-up after implementation lands:</p>
 <ul class="flat">
   <li>Whether the cross-data-source shared= edge case (<a href="#">flagged in D7's tradeoffs</a>) needs a focused narrow fixture before or after the super-suite ships.</li>
-  <li>Whether the E8 preserve-mode round-trip assertion under <code>ptr_app_bslib</code> and L3 hosts should be folded into Apps 4 and 3 respectively as a contract addition.</li>
+  <li>Whether the E8 preserve-mode round-trip assertion under the L3 host should be folded into App 3 as a contract addition.</li>
   <li>Whether App 3 should grow a third cell using a different custom-output backend (ggiraph, DT) once plotly is proven.</li>
 </ul>
 

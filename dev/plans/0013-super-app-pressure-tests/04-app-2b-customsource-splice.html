@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-04 — Super-app 2b: custom source + splice + layer-upload (from ADR 0013)</title>
+<style>
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  .meta { color: #555; font-size: 13px; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .warn { border-left: 4px solid #c97a00; background: #fdf3e1; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+</style>
+</head>
+<body>
+<!--
+plan:
+  number: 04
+  slug: app-2b-customsource-splice
+  source_adr: dev/adr/0013-super-app-pressure-test-suite.html
+  depends_on: [01]
+  parallel_group: G2
+  status: draft
+-->
+
+<h1>PLAN-04 — Super-app 2b: custom source + splice + layer-upload</h1>
+<p class="meta">Source: ADR 0013 §"App 2b — Custom source + splice + layer-upload" + D1/D2/D3/D4/D5/D6 (G3 row)/D7/D9/D10 · Depends on: 01 · Parallel group: G2 · Status: draft</p>
+
+<h2>Context</h2>
+
+<p>ADR 0013 §App-2b locks the slot picks: <code>ptr_app()</code> · custom <code>ppSample()</code> source (D3) at formula head · G3 <code>!!</code> splice with placeholders <em>inside</em> the spliced expression · window code panel · default theme. Three custom placeholders register locally: value <code>ppCoef</code> (slider 0–1), consumer <code>ppFactor</code> (single-select picker → bare symbol, supports <code>shared=</code>), and source <code>ppSample</code> (selectInput from a list of base R datasets, <code>resolve_data</code> reads the chosen dataset out of <code>asNamespace("datasets")</code>).</p>
+
+<p>The roster: ppSample×1 (D3) · ppUpload×1 (layer-data via <code>geom_rug(data = ppUpload(name = "df_rug"), aes(...))</code>, NOT at formula head) · ppVar×4 · ppNum×2 · ppText×2 · ppCoef×1 (inside the splice) · ppFactor×2 → 1 after shared "fac" collapse. Total widgets ≈ 10. One sample CSV ships sibling: <code>sample_rug.csv</code> (mtcars subset with mpg + wt columns).</p>
+
+<p>Unique pressure axes: (i) custom D3 source at head + ppUpload as layer-data — two distinct data-source mechanisms in one formula; (ii) placeholders <em>inside</em> the <code>!!</code>-spliced expression (the AST walker must descend into the spliced segment to discover them — FEATURE-CHECKLIST G3's canonical example splices a placeholder-free layer; this one stresses the harder shape); (iii) shared= on a custom consumer placeholder (<code>ppFactor(Species, shared = "fac")</code> in aes(color=) + facet_wrap collapse to one widget); (iv) G6 forwarded-symbol resolution (<code>smooth_template &lt;- rlang::expr(...)</code> is a local binding the splice resolves at capture time).</p>
+
+
+<h2>Governing principle</h2>
+
+<p>ADR 0013 commits the suite to <strong>propagation assertions</strong> across the densest placeholder × host × capture interactions. App 2b's distinguishing load: the AST walker that powers placeholder discovery MUST descend into the body of a spliced expression. If <code>!!smooth_template</code> resolves to <code>geom_smooth(method = ppText("lm"), linewidth = ppNum(1), alpha = ppCoef(0.3))</code> at capture time, the discovered placeholder set MUST include those three. A presence-style assertion that only checks "code panel non-empty" would survive a regression where the splice resolves but the walker fails to traverse it — exactly the integration shape this ADR was written to catch. The plan's BDD <code>Then</code> clauses name the spliced placeholders' sentinels at exact positions; weakening to "spliced layer is somewhere in the output" is forbidden.</p>
+
+<p>Likewise, the <em>two-source</em> pressure (custom D3 source at head + ppUpload at layer-data) is the failure shape this app uniquely covers. The two data sources have disjoint column sets (iris has Species; sample_rug.csv does not); a ppVar picker bound to the layer's aes() MUST populate from the layer's data, not the root's. STOP-and-escalate if the picker shows the wrong columns; do not narrow the assertion.</p>
+
+<h2>Success Criteria</h2>
+
+<ul>
+  <li><strong>Fixture directory exists with three files.</strong> <code>tests/testthat/fixtures/vignette-apps/super-2b-customsource-splice/app.R</code>, <code>reference.R</code>, <code>sample_rug.csv</code>. CSV has columns <code>mpg, wt</code> (≥ 6 rows).</li>
+
+  <li><strong><code>app.R</code> shape.</strong> First line is the pkgload scaffolding. Body: three <code>ptr_define_placeholder_*</code> registrations (ppCoef value, ppFactor consumer, ppSample source). <code>ppSample</code> uses <code>default_arg = ptr_default_string()</code> and its <code>resolve_data</code> reads from <code>asNamespace("datasets")</code> with a hard whitelist of four dataset names: <code>"iris"</code>, <code>"mtcars"</code>, <code>"ChickWeight"</code>, <code>"ToothGrowth"</code>. A local binding <code>smooth_template &lt;- rlang::expr(geom_smooth(method = ppText("lm"), linewidth = ppNum(1), alpha = ppCoef(0.3)))</code>. Then <code>ptr_app(&lt;G2 bare-expression formula with !!smooth_template splice&gt;, ui_text = list(defaults = list(ppCoef = list(label = "Coef: {param}"))))</code>. The formula matches the ADR §App-2b code block verbatim.</li>
+
+  <li><strong><code>reference.R</code> shape.</strong> Doc-only ggplot2 expression, all-defaults equivalent. First line: <code># Doc-only reference (ADR 0013 D3). Not parsed by tests.</code>.</li>
+
+  <li><strong>One <code>test_that()</code> block lands between PLAN-01's <code># &gt;&gt;&gt; super-2b begin</code> and <code># &lt;&lt;&lt; super-2b end</code> markers.</strong></li>
+
+  <li><strong>ppSample (D3 custom source) drives the formula-head data.</strong> The test sets the ppSample selectInput to <code>"mtcars"</code> (distinct from the default <code>"iris"</code>), draws, and asserts: (a) the host output has no plot-error class; (b) the root ppVar pickers (for x = ppVar(Sepal.Length) and y = ppVar(Sepal.Width)) populate from <strong>mtcars</strong>'s column set — verified via <code>expect_picker_populated(app, &lt;x picker id&gt;, "mpg")</code>; (c) preserve-mode code contains the literal substring <code>ppSample(mtcars)</code> (the bare-symbol/string-passthrough shape ppSample's resolve_data accepts).</li>
+
+  <li><strong>Layer-data ppUpload populates its own aes pickers from sample_rug.csv's columns.</strong> The test uploads <code>sample_rug.csv</code> to the df_rug file input, draws, asserts: <code>expect_picker_populated(app, &lt;geom_rug's x picker id&gt;, "mpg")</code> succeeds AND <code>expect_picker_populated(app, &lt;same id&gt;, "Sepal.Length")</code> would FAIL (asserted via HTML-substring inverse: the picker's HTML does NOT contain <code>"Sepal.Length"</code>). The two data sources stay scoped — root pickers offer iris/mtcars columns, layer pickers offer sample_rug.csv columns.</li>
+
+  <li><strong>Placeholders inside the splice are discovered.</strong> The test sets the ppText sentinel inside the spliced <code>geom_smooth</code> (the <code>method = ppText("lm")</code> input id) to the literally-unique value <code>"loess"</code>, draws, asserts final-mode <code>expect_sentinel_in_code(app, code_output_id, "\"loess\"", "geom_smooth\\([^)]*method\\s*=\\s*([^,)]*)", "final")</code>. In preserve mode, <code>expect_sentinel_in_code(app, code_output_id, "\"loess\"", "ppText\\(([^)]*)\\)", "preserve")</code>. Mirroring assertions for the spliced ppNum (linewidth) and the spliced ppCoef (alpha) — each with its own literally-unique sentinel. If the AST walker fails to descend into the spliced segment, the corresponding input id never appears in the page and the <code>set_sentinel</code> call fails with "Unable to find input binding" — that failure mode is the auditor's evidence the regression existed.</li>
+
+  <li><strong>Shared "fac" key collapses ppFactor in aes(color=) and facet_wrap(vars(...)).</strong> The test sets the shared widget <code>"shared_fac"</code> to <code>"Species"</code> (an iris column), draws, asserts in final mode that <code>"Species"</code> appears as a bare symbol in BOTH <code>aes(... color = Species ...)</code> AND <code>facet_wrap(vars(Species))</code> captures. This is the custom-consumer-shared variant of App-1's call-type-agnostic collapse — the test is independently warranted because ADR §App-2b notes FEATURE-CHECKLIST E1/E6 cover shared= on built-ins only.</li>
+
+  <li><strong>B3 toggle differential.</strong> Toggle preserve↔final. In final, <code>"ppSample("</code>, <code>"ppFactor("</code>, <code>"ppText("</code>, <code>"ppCoef("</code>, <code>"ppNum("</code>, <code>"ppVar("</code>, <code>"ppUpload("</code> all ABSENT (<code>expect_sentinel_nowhere</code> per literal). In preserve, all PRESENT.</li>
+
+  <li><strong>No plot-error class on happy path in either mode.</strong></li>
+
+  <li><strong>Authoritative gate</strong> returns <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline + 1)</code>.</li>
+</ul>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>Files this plan owns:</strong>
+    <ul>
+      <li><code>tests/testthat/fixtures/vignette-apps/super-2b-customsource-splice/app.R</code> (NEW)</li>
+      <li><code>tests/testthat/fixtures/vignette-apps/super-2b-customsource-splice/reference.R</code> (NEW)</li>
+      <li><code>tests/testthat/fixtures/vignette-apps/super-2b-customsource-splice/sample_rug.csv</code> (NEW)</li>
+      <li>The lines between <code># &gt;&gt;&gt; super-2b begin</code> and <code># &lt;&lt;&lt; super-2b end</code> in <code>tests/testthat/test-super-pressure.R</code>.</li>
+    </ul>
+  </li>
+  <li><strong>Files this plan must NOT touch:</strong>
+    <ul>
+      <li>Any <code>R/paintr-*.R</code> file.</li>
+      <li>The other four anchor regions in <code>tests/testthat/test-super-pressure.R</code>.</li>
+      <li>The helper files.</li>
+      <li>Any other fixture subdir.</li>
+      <li><code>NAMESPACE</code>, <code>DESCRIPTION</code>, anything under <code>man/</code>.</li>
+    </ul>
+  </li>
+  <li>The formula must be a bare expression (G2 capture shape) <em>containing</em> a G3 splice (<code>!!smooth_template</code>). The splice's content is the load-bearing test surface — placeholders <em>inside</em> the spliced expression must be discoverable.</li>
+  <li>shinyWidgets is referenced for ppFactor's pickerInput. Already an Imports dependency; do NOT touch <code>DESCRIPTION</code>.</li>
+  <li><strong>SCOPE NARROWING FORBIDDEN.</strong> Two specific weakenings to avoid: (a) if the spliced placeholders' input ids cannot be located via <code>set_sentinel</code>, that is a product defect in the splice-resolution path — STOP and escalate; do NOT silently set the unspliced equivalents instead. (b) If <code>ppSample(mtcars)</code> with <code>resolve_data</code> at <code>asNamespace("datasets")</code> fails to deliver mtcars, that is a product defect in the source-role resolution path — STOP; do NOT change the fixture to embed an inline data.frame.</li>
+  <li>Conventions: <code>CLAUDE.md</code>, <code>.claude/rules/testing.md</code>.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>
+Feature: App-2b custom-source + splice + layer-upload propagation contract
+
+Scenario: ppSample drives the formula-head data
+  Given the super-2b fixture booted (ppSample default = "iris")
+  When I set the ppSample selectInput to "mtcars"
+  And I draw and the app settles
+  Then the host output has no plot-error class
+  And the root x-axis ppVar picker is populated with "mpg" (mtcars column)
+  And the preserve-mode code contains "ppSample(mtcars)"
+
+Scenario: Layer-data ppUpload scopes its aes picker to the uploaded columns
+  Given the super-2b fixture booted with ppSample = "iris"
+  When I upload sample_rug.csv to the df_rug file input
+  And I draw and the app settles
+  Then the geom_rug x picker is populated with "mpg" (sample_rug.csv column)
+  And the geom_rug x picker does not offer "Sepal.Length" (an iris column not in sample_rug.csv)
+
+Scenario: Spliced ppText sentinel propagates
+  Given the super-2b fixture booted with both data sources
+  When I set the spliced geom_smooth's method input to "loess"
+  And I draw and the app settles
+  Then the rendered final-mode code contains "geom_smooth(... method = \"loess\" ...)"
+  And the rendered preserve-mode code contains "ppText(\"loess\")"
+
+Scenario: Spliced ppNum sentinel propagates
+  Given the super-2b fixture booted with both data sources
+  When I set the spliced geom_smooth's linewidth input to 0.92
+  And I draw and the app settles
+  Then the rendered final-mode code contains "geom_smooth(... linewidth = 0.92 ...)"
+  And the rendered preserve-mode code contains "ppNum(0.92)"
+
+Scenario: Spliced ppCoef sentinel propagates
+  Given the super-2b fixture booted with both data sources
+  When I set the spliced geom_smooth's alpha input to 0.81
+  And I draw and the app settles
+  Then the rendered final-mode code contains "geom_smooth(... alpha = 0.81 ...)"
+  And the rendered preserve-mode code contains "ppCoef(0.81)"
+
+Scenario: Custom-consumer shared= collapse to one widget
+  Given the super-2b fixture booted with both data sources (ppSample = "iris")
+  When I set "shared_fac" to "Species"
+  And I draw and the app settles
+  Then the rendered final-mode code contains "aes(... color = Species ...)"
+  And the rendered final-mode code contains "facet_wrap(vars(Species))"
+
+Scenario: B3 toggle differential — all wrappers stripped in final
+  Given the super-2b fixture booted, both data sources loaded, drawn
+  When I toggle code mode to "final"
+  Then the rendered code does not contain any of: ppSample(, ppFactor(, ppText(, ppCoef(, ppNum(, ppVar(, ppUpload(
+  When I toggle code mode to "preserve"
+  Then the rendered code contains every one of those wrappers
+  And the host output has no plot-error class in either mode
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p>Authoritative gate (copy verbatim from <code>CLAUDE.md</code>):</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected output: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline + 1)</strong>.</p>
+
+<p><strong>Proxy traps — do not be fooled (verbatim from <code>CLAUDE.md</code>):</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does NOT make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead cleanly SKIP via <code>boot_vignette_app()</code>'s source-root guard (no <code>DESCRIPTION</code> in the <code>.Rcheck</code> sandbox). If a check run shows the e2e file ERRORing (<code>R CMD check found ERRORs</code>, pkgload "DESCRIPTION not found"), that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> runs the browser tests (source tree present → 0 SKIP). That alone is the gate. Never claim the suite green, merge a branch, mark a step done, or clear context off the skipping/erroring harness.</li>
+</ul>
+
+<p>This plan adds <strong>1</strong> new <code>test_that()</code> call at the super-2b anchor region. Gate must show PASS+1 with FAIL/ERROR still 0 and SKIP unchanged from pre-plan baseline.</p>
+
+<h2>Scope guard / ownership</h2>
+
+<p>Owns: the three fixture files + the super-2b anchor region. NAMESPACE/man/ untouched. No source change.</p>
+<p>Branch convention: branch <code>0013-app-2b-customsource-splice</code> at <code>.claude/worktrees/0013-super-app-pressure-tests/app-2b-customsource-splice/</code>. Merge via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+
+<p>The auditor independently re-runs the gate, verifies <code>PASS (baseline + 1)</code>, AND reads the inserted <code>test_that</code> to confirm: (a) all four spliced-placeholder sentinels are exercised by name; (b) the negative scope assertion (geom_rug picker does not offer iris columns) is present as written.</p>
+
+<h2>Baseline / drift reference</h2>
+
+<p>Baseline = orchestrator HEAD after PLAN-01. PLAN-04 net effect: +1 PASS.</p>
+
+<h2>Out-of-scope handling</h2>
+
+<p>Follow-up plan candidates surfaced by this plan: (a) If the splice-resolution path fails to discover spliced placeholders, the fix lives in <code>R/paintr-translate.R</code> or wherever the AST walker descends — out of scope here. (b) Cross-data-source shared= edge cases — ADR 0013 §D7 explicitly defers these to a narrow fixture; this plan does not include them.</p>
+
+<h2>Dependencies / ordering</h2>
+
+<p>Depends on: PLAN-01. Parallel-group sibling of 02/03/05/06.</p>
+
+<!-- implementable: PASS date=2026-05-23 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=e979b3562981 -->
+</body>
+</html>
