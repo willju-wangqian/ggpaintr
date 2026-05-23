@@ -41,20 +41,24 @@ test_that("P1.3 zero-verb `|>` chain canonicalises to a bare-source data_arg", {
   expect_identical(r$layers[[1]]$data_arg$expr, quote(mtcars))
 })
 
-test_that("P1.4 multi-stage mixed-pipe chain lifts to one canonical `|>` pipeline", {
-  # The desugar pass collapses `%>%` AND `|>` to nested-call form before the
-  # lift runs, so the user's original pipe-operator choice is no longer
-  # recoverable from the tree (ADR §5 OQ2 — deferred). Every lifted
-  # pipeline carries `$op = "|>"` regardless of surface form. There are NO
-  # nested ptr_pipeline nodes — the always-aggressive descent produces one
-  # flat pipeline (ADR 0012 §1: the tree is semantic, not syntactic).
-  # The chain depth above the source must be >= 2 for the lift to fire.
+test_that("P1.4 multi-stage mixed-pipe chain lifts to a canonical pipeline whose `$op` reflects the first-pipe-op rule (ADR §5 OQ2 closed)", {
+  # ADR 0012 §5 OQ2 closed (PLAN-01 of 0012b): the desugar pass still
+  # collapses `%>%` AND `|>` to nested-call form before the lift runs, but
+  # `ptr_translate` now records a render-time `$op` annotation derived from
+  # the user's source string via the first-pipe-op rule (earliest character
+  # position of `%>%` vs `|>` in the source). The structural tree remains
+  # identical across surface forms — `$op` is a render-time annotation, not
+  # a structural fork (ADR 0012 §1: the tree is semantic, not syntactic).
+  # There are NO nested ptr_pipeline nodes — the always-aggressive descent
+  # produces one flat pipeline. The chain depth above the source must be
+  # >= 2 for the lift to fire. In the formula below, `%>%` appears at
+  # column ~8 (before `|>` at column ~36), so the rule picks `"%>%"`.
   r <- ptr_translate(
     "mtcars %>% head(ppNum) %>% subset(mpg > 0) |> ggplot(aes(x = mpg))"
   )
   da <- r$layers[[1]]$data_arg
   expect_s3_class(da, "ptr_pipeline")
-  expect_equal(da$op, "|>")
+  expect_equal(da$op, "%>%")
   # 3 stages: source (mtcars) + head(ppNum) + subset(mpg > 0).
   expect_equal(length(da$stages), 3L)
   expect_s3_class(da$stages[[1L]], "ptr_literal")

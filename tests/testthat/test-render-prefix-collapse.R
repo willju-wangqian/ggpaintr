@@ -107,31 +107,29 @@ test_that("preserve-mode collapses the placeholder-free prefix and chains the pl
   )
 })
 
-test_that("preserve-mode collapses a `%>%`-sourced all-placeholder-free chain to nested-call form (user-facing invariant)", {
-  # User wrote `%>%` with no placeholders. Today (pre-PLAN-04) this would
-  # render as `penguins %>% dplyr::filter(...) %>% dplyr::mutate(...) %>%
-  # ggplot(...)`. The prefix-collapse rule subsumes it into a nested-call
-  # atom: no `|>`, no `%>%`. See BDD "Render preserve-mode — `%>%`-source
-  # user sees no `|>` for their all-placeholder-free chain". Two verb
-  # stages above source (filter + mutate) keep this test stable under
-  # the prefix-collapse render rule.
+test_that("preserve-mode preserves a `%>%`-sourced all-placeholder-free chain as a `%>%` chain (asymmetric vs `|>` per ADR 0012 §5 OQ2)", {
+  # ADR 0012 §5 OQ2 closed (PLAN-01 of 0012b): asymmetric
+  # "%>%-preserve, |>-collapse" render policy. The `|>`-sibling block
+  # above still collapses to a nested-call atom (that is today's
+  # canonical default for `|>`). A `%>%`-sourced chain now PRESERVES as
+  # a `%>%` chain even with no placeholders — `$op == "%>%"` triggers
+  # the chain branch in `render_pipeline_body`. Two verb stages above
+  # source (filter + mutate) keep this test stable.
   data_arg <- data_arg_from_formula(
     "penguins %>% dplyr::filter(bill_length_mm > 40) %>% dplyr::mutate(y = bill_length_mm * 2) %>% ggplot(aes(bill_length_mm))"
   )
   expect_s3_class(data_arg, "ptr_pipeline")
+  expect_equal(data_arg$op, "%>%")
 
   rendered <- ggpaintr:::render_walk(data_arg, preserve_placeholders = TRUE)
   expect_false(grepl("|>", rendered, fixed = TRUE))
-  expect_false(grepl("%>%", rendered, fixed = TRUE))
-  # The two-verb prefix-collapse output exceeds the inline RENDER_WIDTH
-  # budget so `render_call_text()` breaks each argument onto its own
-  # line. `ws_collapse()` (gsub("\\s+", " ", x)) reduces those breaks
-  # to single spaces — including the space after `(` and before `)`.
-  # Compare against the same-shape expected string so the assertion is
-  # whitespace-insensitive but operator-sensitive (no `|>`, no `%>%`).
+  expect_true(grepl("%>%", rendered, fixed = TRUE))
+  # The data_arg pipeline has 3 stages (penguins, dplyr::filter,
+  # dplyr::mutate) — the terminal ggplot(...) layer is OUTSIDE this
+  # data_arg subtree. Each stage emits on its own line joined by ` %>%`.
   expect_equal(
-    ws_collapse(rendered),
-    ws_collapse("dplyr::mutate(\n  dplyr::filter(penguins, bill_length_mm > 40),\n  y = bill_length_mm * 2\n)")
+    rendered,
+    "penguins %>%\n  dplyr::filter(bill_length_mm > 40) %>%\n  dplyr::mutate(y = bill_length_mm * 2)"
   )
 })
 

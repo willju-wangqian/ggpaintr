@@ -137,3 +137,15 @@ test_that("try_lift fires on a two-stage chain whose source is a bare symbol", {
   expect_identical(res$parts$source, quote(penguins))
   expect_equal(length(res$parts$stages), 2L)
 })
+
+# ---- PLAN-01 (ADR 0012 §5 OQ2) — op_hint threads through lift -----------
+
+test_that("build_pipeline_from_lift threads op_hint into ptr_pipeline$op", {
+  # SC9: `build_pipeline_from_lift` accepts an `op_hint` argument that is
+  # stamped on the returned `ptr_pipeline$op`. The default value (`"|>"`)
+  # preserves today's behavior for any caller not yet threading the hint.
+  parts <- ggpaintr:::try_lift_to_pipeline(quote(head(mtcars, 2)))$parts
+  expect_equal(ggpaintr:::build_pipeline_from_lift(parts, op_hint = "%>%")$op, "%>%")
+  expect_equal(ggpaintr:::build_pipeline_from_lift(parts, op_hint = "|>")$op, "|>")
+  expect_equal(ggpaintr:::build_pipeline_from_lift(parts)$op, "|>")
+})

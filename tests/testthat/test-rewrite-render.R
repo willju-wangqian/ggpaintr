@@ -35,33 +35,22 @@ test_that("P10.3 zero-verb chain (bare source piped into terminal) collapses to 
 })
 
 test_that("P10.4 magrittr pipe surface preserved as %>%", {
-  skip(paste0(
-    "deferred to ADR 0012 §5 OQ2: %>% preservation in lifted pipelines ",
-    "is a future enhancement; see PLAN-04 'Deferred to future rounds' section. ",
-    "Lifted pipelines all carry $op = '|>' post-G2; %>%-source surface ",
-    "preservation requires a successor plan."
-  ))
   r <- ptr_translate("mtcars %>% ggplot(aes(x = mpg))")
   txt <- ptr_render(r)
   expect_match(txt, "%>%", fixed = TRUE)
   expect_false(grepl("|>", txt, fixed = TRUE))
 })
 
-test_that("P10.5 mixed pipe chain preserves both ops", {
-  skip(paste0(
-    "deferred to ADR 0012 §5 OQ2: %>% preservation in lifted pipelines ",
-    "is a future enhancement; see PLAN-04 'Deferred to future rounds' section. ",
-    "Lifted pipelines all carry $op = '|>' post-G2; mixed %>%/|> surface ",
-    "preservation requires a successor plan."
-  ))
-  # Multi-stage pipes always break one stage per line. The outer `|>` joins
-  # the magrittr upstream to the terminal layer; that upstream is itself a
-  # pipeline and so also breaks at its own `%>%`.
+test_that("P10.5 mixed pipe chain renders all-%>% under first-pipe-op rule", {
+  # PLAN-01 (ADR 0012 §5 OQ2): the first-pipe-op rule disambiguates a
+  # mixed-op formula by picking whichever of `%>%` / `|>` appears first
+  # in the source string. Here `%>%` wins (column 8 vs `|>` at column 20),
+  # so the whole rendered chain emits `%>%` between every stage.
   r <- ptr_translate("mtcars %>% head(2) |> ggplot(aes(x = mpg))")
   txt <- ptr_render(r)
   expect_equal(
     txt,
-    "mtcars %>%\n  head(2) |>\n  ggplot(aes(x = mpg))"
+    "mtcars %>%\n  head(2) %>%\n  ggplot(aes(x = mpg))"
   )
 })
 
@@ -85,6 +74,44 @@ test_that("P10.7 pkg::fn heads preserved", {
   txt <- ptr_render(r)
   expect_match(txt, "ggplot2::ggplot\\(mtcars\\)")
   expect_match(txt, "ggplot2::geom_point\\(\\)")
+})
+
+test_that("P10.7b canonical tree invariant across surface forms", {
+  # PLAN-01 / ADR 0012 §1: `mtcars %>% ggplot(...)`, `mtcars |> ggplot(...)`,
+  # and `ggplot(mtcars, ...)` must produce one canonical typed tree.
+  # `source_pipe_op` is a render-time annotation only — it must not affect
+  # the class chain at any walked node. SC8 asserts identical class chains
+  # on root, layer[[1]], layer[[1]]$data_arg, layer[[1]]$children; the only
+  # divergence is the `source_pipe_op` annotation slot.
+  r_pct <- ptr_translate("mtcars %>% ggplot(aes(x = mpg))")
+  r_pipe <- ptr_translate("mtcars |> ggplot(aes(x = mpg))")
+  r_nest <- ptr_translate("ggplot(mtcars, aes(x = mpg))")
+
+  expect_identical(class(r_pct), class(r_pipe))
+  expect_identical(class(r_pipe), class(r_nest))
+
+  l_pct <- r_pct$layers[[1L]]
+  l_pipe <- r_pipe$layers[[1L]]
+  l_nest <- r_nest$layers[[1L]]
+
+  expect_identical(class(l_pct), class(l_pipe))
+  expect_identical(class(l_pipe), class(l_nest))
+
+  expect_identical(class(l_pct$data_arg), class(l_pipe$data_arg))
+  expect_identical(class(l_pipe$data_arg), class(l_nest$data_arg))
+
+  expect_identical(
+    lapply(l_pct$children, class),
+    lapply(l_pipe$children, class)
+  )
+  expect_identical(
+    lapply(l_pipe$children, class),
+    lapply(l_nest$children, class)
+  )
+
+  expect_identical(l_pct$source_pipe_op, "%>%")
+  expect_identical(l_pipe$source_pipe_op, "|>")
+  expect_identical(l_nest$source_pipe_op, "|>")
 })
 
 test_that("P10.8 comments do not appear in rendered text", {
