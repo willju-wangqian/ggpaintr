@@ -195,6 +195,13 @@ ptr_init_state <- function(formula,
   state <- structure(list(
     tree = shiny::reactiveVal(tree),
     runtime = shiny::reactiveVal(NULL),
+    # Cache of the most recent ok-runtime result. Populated by
+    # `ptr_register_last_ok_cache()` whenever `runtime()` resolves with
+    # `isTRUE(res$ok)`; read as a fallback by `ptr_register_code()` /
+    # `ptr_register_plot()` so a transient `validate_input` failure
+    # surfaces the new error WITHOUT discarding the prior successful
+    # code panel and plot panel. NULL until the first successful draw.
+    last_ok_runtime = shiny::reactiveVal(NULL),
     extras = shiny::reactiveVal(list()),
     # Source expressions paired with `extras`. `ptr_gg_extra()` updates
     # both atomically so the code panel can append the user-typed source
@@ -401,7 +408,7 @@ ptr_validate_state <- function(state) {
   if (!is.list(state)) {
     rlang::abort("`state` must be a `ptr_state` list (from `ptr_init_state()`).")
   }
-  needed <- c("tree", "runtime", "extras", "extras_exprs",
+  needed <- c("tree", "runtime", "last_ok_runtime", "extras", "extras_exprs",
               "server_ns_fn", "ui_ns_fn", "eval_env", "input_spec")
   miss <- setdiff(needed, names(state))
   if (length(miss) > 0L) {
@@ -409,7 +416,7 @@ ptr_validate_state <- function(state) {
       "`state` is missing required entries: ", paste(miss, collapse = ", "), "."
     ))
   }
-  for (nm in c("tree", "runtime", "extras", "extras_exprs",
+  for (nm in c("tree", "runtime", "last_ok_runtime", "extras", "extras_exprs",
                "server_ns_fn", "ui_ns_fn")) {
     if (!is.function(state[[nm]])) {
       rlang::abort(paste0("`state$", nm, "` must be a function."))
@@ -747,6 +754,12 @@ ptr_server_internal <- function(input, output, session, formula,
   ptr_setup_consumer_uis(state, input, output, session)
   ptr_setup_layer_picker(state, input, output, session)
   ptr_setup_layer_panel_classes(state, input, output, session)
+  # `ptr_register_last_ok_cache` runs BEFORE `ptr_register_plot` /
+  # `ptr_register_code` so the cache observer fires first when
+  # `state$runtime()` updates (Shiny observers run in registration order
+  # under default priority) — the panel renderers below read the cache
+  # as their retain-on-error fallback.
+  ptr_register_last_ok_cache(output, state)
   ptr_register_plot(output, state)
   ptr_register_error(output, state)
   ptr_register_code(output, state)
@@ -1978,17 +1991,47 @@ runtime_consumer_entry <- function(state, node, snapshot = list()) {
 # (via `ptr_setup_runtime()`), which calls all three unconditionally;
 # each reads `state$runtime()`, populated only by the internal
 # `ptr_setup_runtime()`. Not a public composition surface post-rewrite.
+
+# Cache the most recent ok-runtime result on `state$last_ok_runtime` so
+# that downstream consumers (`ptr_register_code`, `ptr_register_plot`)
+# can fall back to the prior successful code panel + plot when the
+# current `runtime()` is not-ok. Registered alongside the rest of the
+# `ptr_register_*` family and called BEFORE `ptr_register_plot` so the
+# cache observer fires first when `state$runtime()` updates (Shiny
+# observers run in registration order under default priority). Takes
+# `output` to match the family signature but writes nothing to it.
+# Caches the full `res` (no field narrowing); the plan permits narrowing
+# only if memory pressure surfaces — it has not.
+ptr_register_last_ok_cache <- function(output, state) {
+  ptr_validate_state(state)
+  shiny::observe({
+    res <- state$runtime()
+    if (isTRUE(res$ok)) {
+      state$last_ok_runtime(res)
+    }
+  })
+  invisible(state)
+}
+
 ptr_register_plot <- function(output, state) {
   ptr_validate_state(state)
   output[[state$server_ns_fn("ptr_plot")]] <- shiny::renderPlot({
     res <- state$runtime()
-    if (is.null(res) || !isTRUE(res$ok) || is.null(res$plot)) {
-      # Blank the device so a failed render doesn't leave the previous
-      # plot lingering on screen (matches legacy graphics::plot.new()).
-      graphics::plot.new()
-      return(invisible(NULL))
+    if (!is.null(res) && isTRUE(res$ok) && !is.null(res$plot)) {
+      return(res$plot)
     }
-    res$plot
+    # Retain-on-error: when the current runtime is not-ok (or has no
+    # plot), surface the prior successful plot so a transient
+    # `validate_input` failure does NOT blank the screen. The error pane
+    # already shows the diagnostic; the user keeps the comparison plot.
+    last <- state$last_ok_runtime()
+    if (!is.null(last) && !is.null(last$plot)) {
+      return(last$plot)
+    }
+    # No prior ok-result — blank the device (matches legacy
+    # graphics::plot.new()).
+    graphics::plot.new()
+    invisible(NULL)
   })
   invisible(state)
 }
@@ -2061,8 +2104,16 @@ ptr_register_code <- function(output, state) {
       # the runtime hasn't fired and `snapshot` is NULL -> every
       # placeholder renders as bare `ppX` (or `ppX(shared = "k")` when a
       # shared key is set), matching the empty plot panel.
+      #
+      # Retain-on-error: when the current runtime is not-ok and a prior
+      # ok-result exists, fall back to the cached snapshot so a transient
+      # `validate_input` failure doesn't clobber the preserve-mode
+      # round-trip. If no prior ok-result exists, preserve-mode renders
+      # the current state (same as before this change).
       res <- state$runtime()
-      snapshot <- if (is.null(res)) list() else res$snapshot %||% list()
+      last <- state$last_ok_runtime()
+      chosen_res <- if (!is.null(res) && !isTRUE(res$ok) && !is.null(last)) last else res
+      snapshot <- if (is.null(chosen_res)) list() else chosen_res$snapshot %||% list()
       formula_text <- ptr_render(
         stamp_current_pick_walk(state$tree(), snapshot),
         preserve_placeholders = TRUE
@@ -2077,7 +2128,14 @@ ptr_register_code <- function(output, state) {
         paste0(formula_text, "\n\n", spec_text)
       }
     } else {
-      format_code_with_extras(state$runtime(), state$extras_exprs())
+      # Retain-on-error fallback for final-mode: when the current runtime
+      # is not-ok and a prior ok-result is cached, render the cached
+      # `code_text` so the code panel keeps the user's last successful
+      # draw on screen while the error pane surfaces the new diagnostic.
+      res <- state$runtime()
+      last <- state$last_ok_runtime()
+      chosen <- if (is.null(res) || isTRUE(res$ok) || is.null(last)) res else last
+      format_code_with_extras(chosen, state$extras_exprs())
     }
   })
   # The generated-code panel lives inside a mini-window that is hidden
