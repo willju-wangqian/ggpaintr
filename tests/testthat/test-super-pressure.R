@@ -106,7 +106,194 @@ test_that("super-1 kitchen-sink: sentinels propagate through every placeholder",
 # <<< super-2a end
 
 # >>> super-2b begin
-# (PLAN-04 inserts the super-app-2b customsource-splice test_that() block here.)
+test_that("super-2b customsource-splice: ppSample (D3 source) + !!splice (G3) + layer-upload + shared= on custom consumer all propagate, with layer-data pickers scoped to uploaded columns (ADR-0015 PLAN-01)", {
+  # ADR 0013 §App-2b. Pressure axes:
+  #   (i)   custom D3 source at formula head + layer-data ppUpload  (two
+  #         distinct data-source mechanisms in one formula);
+  #   (ii)  placeholders INSIDE a !! splice -- the AST walker MUST descend
+  #         into the spliced body and discover ppText / ppNum / ppCoef
+  #         under geom_smooth (FEATURE-CHECKLIST G3's canonical example
+  #         splices a placeholder-free layer; this stresses the harder
+  #         shape);
+  #   (iii) shared= on a custom CONSUMER placeholder: ppFactor in
+  #         aes(color=) and facet_wrap(vars(...)) collapse to one
+  #         shared_fac widget;
+  #   (iv)  G6 forwarded-symbol: smooth_template <- rlang::expr(...) is a
+  #         local binding the splice resolves at capture time.
+  #
+  # The layer-data ppUpload picker-scope assertion (mpg yes, Sepal.Length
+  # no) is the post-fix value-add specific to this plan: pre-ADR-0015
+  # PLAN-01, the layer-aes ppVar under `data = ppUpload(...)` stayed in
+  # `recalculating` indefinitely (the walker emitted the UI container but
+  # ptr_runtime_input_spec() never produced a row for the picker). The fix
+  # (eager-bind consumer pickers under source-headed upstream, merged at
+  # 6ee63d7) makes the picker populate from the uploaded CSV's columns.
+  # The single-layer binding case is already covered at module level by
+  # test-adr15-consumer-binding.R; the unique pressure here is the
+  # disjoint-column-set SCOPE DISCRIMINATION in a formula with two
+  # distinct data sources (ppSample at head, ppUpload as layer-data).
+  app <- boot_super_app("super-2b-customsource-splice")
+
+  # --- Anchor widgets present at boot ------------------------------------
+  expect_dom_id(app, "ptr_update_plot")
+  expect_dom_id(app, "ptr_plot")
+  expect_dom_id(app, "ptr_code")
+  expect_dom_id(app, "ptr_code_mode")
+  # ppSample selectInput default-selected option is "iris" (visible in the
+  # bound DOM; the other choices ride on the selectized data attribute).
+  expect_picker_populated(app, "ggplot_0_ppSample_NA", "iris")
+
+  # --- Scenario: ppSample drives the formula-head data -------------------
+  # Pick mtcars (distinct from default iris). After switching to the
+  # Controls subtab so the suspended renderUI binds, the downstream root
+  # ppVar pickers MUST populate from mtcars's column set -- proves the
+  # custom D3 source resolved through asNamespace("datasets").
+  set_sentinel(app, "ggplot_0_ppSample_NA", "mtcars")
+  set_sentinel(app, "ggplot_subtab", "Controls")
+  app$wait_for_idle(timeout = 15 * 1000)
+  set_sentinel(app, "ggplot_1_1_ppVar_NA", "mpg")
+  set_sentinel(app, "ggplot_1_2_ppVar_NA", "hp")
+  # ppFactor on color aes (shared "fac"); pick an mtcars column for now.
+  set_sentinel(app, "shared_fac", "cyl")
+  draw_and_wait(app, "ptr_update_plot")
+  expect_no_plot_error(app, "ptr_plot")
+  expect_picker_populated(app, "ggplot_1_1_ppVar_NA", "mpg")
+  # Preserve mode shows the user-selected sample wrapped in ppSample(...).
+  # The selectInput emits a string-typed value, so preserve renders
+  # ppSample("mtcars") (string-passthrough shape ppSample's resolve_data
+  # accepts; PLAN-04 SC(e) wrote `ppSample(mtcars)` colloquially -- the
+  # operative assertion is "the ppSample wrapper contains the user pick").
+  toggle_code_mode(app, "preserve")
+  expect_sentinel_in_code(
+    app, "ptr_code", "mtcars",
+    "ppSample\\([^)]*\\)", "preserve"
+  )
+
+  # --- Scenario: spliced ppText / ppNum / ppCoef sentinels propagate ----
+  # If the AST walker fails to descend into the spliced segment, the
+  # geom_smooth_{1_ppText,2_ppNum,3_ppCoef}_NA input ids never appear in
+  # the page and the next set_sentinel() call fails with "Unable to find
+  # input binding" -- that failure mode IS the auditor's evidence the
+  # regression existed. Literally-unique sentinel values per placeholder.
+  set_sentinel(app, "geom_smooth_1_ppText_NA", "loess")
+  set_sentinel(app, "geom_smooth_2_ppNum_NA", 0.92)
+  set_sentinel(app, "geom_smooth_3_ppCoef_NA", 0.81)
+  draw_and_wait(app, "ptr_update_plot")
+  expect_no_plot_error(app, "ptr_plot")
+
+  # Preserve regexes are KEYWORD-ANCHORED (method= / linewidth= / alpha=)
+  # to uniquely pin the spliced geom_smooth segment. A bare `ppNum\(...\)`
+  # would match `geom_point(size = ppNum(2))` first -- the spliced ppNum
+  # is the 2nd occurrence. The argument names `method`, `linewidth`,
+  # `alpha` are unique to the spliced geom_smooth in this formula.
+  toggle_code_mode(app, "preserve")
+  expect_sentinel_in_code(app, "ptr_code", "\"loess\"",
+    "method\\s*=\\s*ppText\\([^)]*\\)", "preserve")
+  expect_sentinel_in_code(app, "ptr_code", "0.92",
+    "linewidth\\s*=\\s*ppNum\\([^)]*\\)", "preserve")
+  expect_sentinel_in_code(app, "ptr_code", "0.81",
+    "alpha\\s*=\\s*ppCoef\\([^)]*\\)", "preserve")
+
+  toggle_code_mode(app, "final")
+  expect_sentinel_in_code(app, "ptr_code", "\"loess\"",
+    "geom_smooth\\([^)]*method\\s*=\\s*[^,)]*", "final")
+  expect_sentinel_in_code(app, "ptr_code", "0.92",
+    "geom_smooth\\([^)]*linewidth\\s*=\\s*[^,)]*", "final")
+  expect_sentinel_in_code(app, "ptr_code", "0.81",
+    "geom_smooth\\([^)]*alpha\\s*=\\s*[^,)]*", "final")
+
+  # --- Scenario: shared= collapse on custom consumer (under iris) -------
+  # Switch the root source back to iris (so Species is available), reset
+  # the root pickers to iris columns, then set the shared_fac widget to
+  # "Species". Final mode MUST show "Species" as a bare symbol in BOTH
+  # aes(color = ...) AND facet_wrap(vars(...)). The single-widget collapse
+  # is the call-type-agnostic contract for custom CONSUMER placeholders
+  # (FEATURE-CHECKLIST E1/E6 cover this only for built-ins -- App-2b is
+  # the first app-level assertion for custom-consumer shared=).
+  set_sentinel(app, "ggplot_0_ppSample_NA", "iris")
+  set_sentinel(app, "ggplot_subtab", "Controls")
+  app$wait_for_idle(timeout = 15 * 1000)
+  set_sentinel(app, "ggplot_1_1_ppVar_NA", "Sepal.Length")
+  set_sentinel(app, "ggplot_1_2_ppVar_NA", "Sepal.Width")
+  set_sentinel(app, "shared_fac", "Species")
+  draw_and_wait(app, "ptr_update_plot")
+  expect_no_plot_error(app, "ptr_plot")
+  toggle_code_mode(app, "final")
+  expect_sentinel_in_code(app, "ptr_code", "Species",
+    "aes\\([^)]*color\\s*=\\s*[^,)]*", "final")
+  expect_sentinel_in_code(app, "ptr_code", "Species",
+    "facet_wrap\\(vars\\([^)]*\\)\\)", "final")
+
+  # --- Scenario: Layer-data ppUpload + picker SCOPE discrimination ------
+  # Upload sample_rug.csv to the df_rug fileInput. The layer-data
+  # ppUpload's source-role resolution wires geom_rug's `data =` to df_rug.
+  # The layer-aes ppVar pickers under `data = ppUpload(...)` are the
+  # PLAN-04 unique value-add: pre-ADR-0015 these stayed in `recalculating`
+  # forever; post-fix they populate from the CSV's columns (mpg, wt).
+  # SCOPE NARROWING FORBIDDEN: the layer pickers MUST NOT offer iris
+  # columns -- proving the layer-data ppUpload owns the layer-aes column
+  # scope, NOT the root ppSample("iris"). If the picker shows iris columns,
+  # the disjoint-data-source contract is broken; STOP and escalate.
+  app$upload_file(
+    geom_rug_0_ppUpload_NA = testthat::test_path(
+      "fixtures", "vignette-apps",
+      "super-2b-customsource-splice", "sample_rug.csv"
+    )
+  )
+  # Companion name input -- set explicitly so the source observer's
+  # binding_name resolution finds a deterministic value (the browser
+  # autofills this from the filename via ptr_bind_source_autoname();
+  # explicit set guards against ordering races under AppDriver).
+  set_sentinel(app, "geom_rug_0_ppUpload_NA_name", "df_rug")
+  draw_and_wait(app, "ptr_update_plot")
+
+  # Layer ppUpload's source-role resolution propagates to the rendered
+  # geom_rug `data =` slot in final mode.
+  toggle_code_mode(app, "final")
+  expect_sentinel_in_code(app, "ptr_code", "df_rug",
+    "geom_rug\\([^)]*data\\s*=\\s*[^,)]*", "final")
+  # Picker-population (positive scope): layer-aes ppVar pickers under the
+  # ppUpload-headed upstream are populated with the CSV's columns.
+  expect_picker_populated(app, "geom_rug_1_1_ppVar_NA", "mpg")
+  expect_picker_populated(app, "geom_rug_1_2_ppVar_NA", "wt")
+  # Negative scope (PLAN-04 SC(layer-ppUpload)): the layer picker does
+  # NOT offer iris columns. HTML-substring inverse per plan SC.
+  rug_x_html <- app$get_html("#geom_rug_1_1_ppVar_NA") %||% ""
+  testthat::expect_false(
+    grepl("Sepal.Length", rug_x_html, fixed = TRUE),
+    label = paste0(
+      "scope discrimination: geom_rug aes(x) picker does NOT offer the ",
+      "iris column 'Sepal.Length' (proving the layer-data ppUpload owns ",
+      "the layer-aes column scope, not the root ppSample); ",
+      "actual html=", substr(rug_x_html, 1, 600)
+    )
+  )
+  expect_no_plot_error(app, "ptr_plot")
+
+  # --- Scenario: B3 toggle differential ----------------------------------
+  # Final mode: NONE of the seven placeholder wrapper call-forms appear.
+  toggle_code_mode(app, "final")
+  for (wrapper in c("ppSample(", "ppFactor(", "ppText(",
+                    "ppCoef(", "ppNum(", "ppVar(", "ppUpload(")) {
+    expect_sentinel_nowhere(app, "ptr_code", wrapper)
+  }
+  expect_no_plot_error(app, "ptr_plot")
+
+  # Preserve mode: every wrapper IS present.
+  toggle_code_mode(app, "preserve")
+  preserve_code <- app$get_value(output = "ptr_code") %||% ""
+  for (wrapper in c("ppSample(", "ppFactor(", "ppText(",
+                    "ppCoef(", "ppNum(", "ppVar(", "ppUpload(")) {
+    testthat::expect_true(
+      grepl(wrapper, preserve_code, fixed = TRUE),
+      label = paste0(
+        "preserve-mode code contains ", wrapper, " wrapper; ",
+        "actual code_text=", preserve_code
+      )
+    )
+  }
+  expect_no_plot_error(app, "ptr_plot")
+})
 # <<< super-2b end
 
 # >>> super-3 begin
