@@ -245,5 +245,179 @@ test_that("super-3 (L3 multi-cell + shared + plotly): shared key reaches both ce
 # <<< super-3 end
 
 # >>> super-4 begin
-# (PLAN-06 inserts the super-app-4 user-css safety-adversarial test_that() block here.)
+test_that("super-4 user_css + safety + adversarial: user.css + core assets coexist, G5 string-builder propagates, ppColor styling reaches DOM, validate_input retains prior content, denylist rejects adversarial ppExpr, K4 prune leaves no dead user_css path", {
+  app <- boot_super_app("super-4-user-css-safety-adversarial")
+
+  # ---- K4 user_css pruning post-check ------------------------------------
+  # PLAN-06 K4: after the block exits and AppDriver tears down, no
+  # `ggpaintr-user-*` entry whose target dir is gone may remain in the
+  # process-global resourcePaths(). The fixture's user.css lives at a
+  # persistent path (tests/testthat/fixtures/...), so a leak would manifest
+  # as a tempdir-target entry surviving. Defer in parent.frame so the
+  # assertion fires AFTER boot_super_app()'s app$stop() deferred earlier.
+  withr::defer({
+    rp <- shiny::resourcePaths()
+    dead_user <- vapply(
+      names(rp),
+      function(n) startsWith(n, "ggpaintr-user-") && !dir.exists(rp[[n]]),
+      logical(1)
+    )
+    testthat::expect_false(
+      any(dead_user),
+      label = "no dead ggpaintr-user-* resource path remains after super-4 teardown"
+    )
+  }, envir = parent.frame())
+
+  # ---- K2 + K3 coexistence -----------------------------------------------
+  # PLAN-06 explicitly allows the user.css presence to be proved via "a
+  # stylesheet link whose path begins with `ggpaintr-user-`" -- read all
+  # <link rel="stylesheet"> tags in the page and assert both prefixes
+  # coexist. The literal CSS *rule text* never reaches the head HTML
+  # because Shiny serves user.css as a separate stylesheet URL rather
+  # than inlining its contents; the link tag is the document-level
+  # evidence the browser fetched user.css.
+  # `link[rel='stylesheet']` returns a length-N character vector (one element
+  # per link tag); collapse so substring checks are length-1.
+  stylesheet_html <- paste(
+    app$get_html("link[rel='stylesheet']") %||% "",
+    collapse = "\n"
+  )
+  testthat::expect_true(
+    grepl("ggpaintr-user-", stylesheet_html, fixed = TRUE) &&
+      grepl("user.css", stylesheet_html, fixed = TRUE),
+    label = paste0(
+      "user.css linked via ggpaintr-user-*/user.css (proves user_css reached the DOM); ",
+      "stylesheet_html=", substr(stylesheet_html, 1, 600)
+    )
+  )
+  # Core ggpaintr htmlDependency assets reach the page. htmltools serves
+  # the bundle at a *versioned* prefix (`ggpaintr-<ver>/ggpaintr.css`),
+  # not the plain `addResourcePath("ggpaintr", ...)` path at
+  # R/paintr-build-ui.R:591 -- the registered prefix is the directory map
+  # that htmlDependency reads, not the served URL.
+  testthat::expect_true(
+    grepl("ggpaintr.css", stylesheet_html, fixed = TRUE),
+    label = paste0(
+      "core ggpaintr.css linked via htmlDependency prefix (proves core assets reached the DOM); ",
+      "stylesheet_html=", substr(stylesheet_html, 1, 400)
+    )
+  )
+
+  # ---- ppColor custom widget styling class reaches the DOM ---------------
+  # The ppColor build_ui hook wraps textInput in
+  # <div class="ptr-super4-colorpicker">. Read the wrapper (selected by
+  # class) and verify the textInput id sits inside it -- this proves the
+  # custom build_ui hook ran, the class landed on a real DOM element, and
+  # the user.css rule for that class can take effect (the link-tag check
+  # above completes the proof that the rule itself was fetched).
+  wrap_html <- app$get_html(".ptr-super4-colorpicker") %||% ""
+  testthat::expect_true(
+    grepl("ptr-super4-colorpicker", wrap_html, fixed = TRUE) &&
+      grepl("geom_smooth_2_ppColor_NA", wrap_html, fixed = TRUE),
+    label = "ppColor widget container has class ptr-super4-colorpicker and wraps the textInput #geom_smooth_2_ppColor_NA"
+  )
+
+  # ---- Initial happy-path draw at defaults -------------------------------
+  draw_and_wait(app, "ptr_update_plot")
+  expect_no_plot_error(app)
+
+  # ---- G5 string-builder propagation -------------------------------------
+  # ADR §App-4 / PLAN-06 G5 row: paste0 + sprintf are in the closed
+  # force-eval whitelist (R/paintr-app.R:260-262). The fixture's
+  # `y_arg <- "ppVar(wt)"` got spliced literally into the formula text,
+  # which the parser turned into a real ppVar widget. Set the y picker
+  # to a literally-unique column and verify the rendered FINAL code
+  # contains it inside aes(...). The widget existing + accepting a value
+  # is the proof that the string fragment became a real placeholder.
+  # super-4's ggplot layer has no data-pipeline verbs, so there is no
+  # `ggplot_subtab` (consumer pickers bind immediately, no subtab gate).
+  set_sentinel(app, "ggplot_1_2_ppVar_NA", "qsec")
+  draw_and_wait(app, "ptr_update_plot")
+  expect_sentinel_in_code(app, "ptr_code", "qsec",
+    "aes\\([^)]*y\\s*=\\s*([^,)]*)", "final")
+  # Snapshot the code panel for later validate_input-retain check.
+  code_after_first_ok_draw <- app$get_value(output = "ptr_code") %||% ""
+  testthat::expect_true(nzchar(code_after_first_ok_draw),
+    label = "code panel non-empty after first ok draw")
+
+  # ---- I5 validate_input rejection: inline error, no crash, prior code kept
+  # Drive ppColor to a non-hex string. validate_input returns
+  # "must be #RRGGBB hex" (a string, not TRUE) -> runtime res$ok = FALSE ->
+  # ptr_register_plot's last_ok_runtime fallback paints the prior plot ->
+  # ptr_register_code's fallback preserves the prior code text (PLAN-01).
+  set_sentinel(app, "geom_smooth_2_ppColor_NA", "notahex")
+  draw_and_wait(app, "ptr_update_plot")
+  err_html <- app$get_html("#ptr_error") %||% ""
+  testthat::expect_true(
+    grepl("must be #RRGGBB hex", err_html, fixed = TRUE),
+    label = "inline error pane #ptr_error surfaces validate_input message 'must be #RRGGBB hex'"
+  )
+  # Plot host retains the prior plot — no shiny-output-error / ptr-alert--error
+  # class on #ptr_plot (the last_ok_runtime cache fed the prior plot back).
+  expect_no_plot_error(app)
+  # Code panel preserved verbatim from the prior successful draw (validate_input
+  # failure does NOT clobber the code text).
+  code_after_validate_fail <- app$get_value(output = "ptr_code") %||% ""
+  testthat::expect_identical(
+    code_after_validate_fail, code_after_first_ok_draw
+  )
+
+  # Recover: set ppColor to a valid hex, draw, confirm error pane clears and
+  # the new sentinel reaches the rendered code. This proves the cache path
+  # is transient (not sticky) and the runtime resumed cleanly.
+  set_sentinel(app, "geom_smooth_2_ppColor_NA", "#A1B2C3")
+  draw_and_wait(app, "ptr_update_plot")
+  err_html_after_recover <- app$get_html("#ptr_error") %||% ""
+  testthat::expect_false(
+    grepl("must be #RRGGBB hex", err_html_after_recover, fixed = TRUE),
+    label = "ptr_error clears after recovering ppColor to a valid hex"
+  )
+  expect_sentinel_in_code(app, "ptr_code", "\"#A1B2C3\"",
+    "geom_smooth\\([^)]*color\\s*=\\s*([^,)]*)", "final")
+
+  # ---- J1 + J3 adversarial ppExpr probe ----------------------------------
+  # Set the ppExpr subtitle widget to a string containing the literal
+  # `eval(parse(text = "1+1"))`. The denylist (R/paintr-utils.R:448) +
+  # the recursive AST walker reject it; the canonical literal
+  # `is not allowed in an \`expr\` input` (R/paintr-utils.R:609) surfaces
+  # in the inline error pane, the adversarial text NEVER reaches the
+  # rendered code text, and the host output retains the prior plot.
+  set_sentinel(app, "labs_2_ppExpr_NA", "eval(parse(text = \"1+1\"))")
+  draw_and_wait(app, "ptr_update_plot")
+  err_html_adv <- app$get_html("#ptr_error") %||% ""
+  testthat::expect_true(
+    grepl("is not allowed in an `expr` input", err_html_adv, fixed = TRUE),
+    label = "inline error pane surfaces canonical denylist literal 'is not allowed in an `expr` input'"
+  )
+  expect_sentinel_nowhere(app, "ptr_code", "eval(parse")
+  expect_no_plot_error(app)
+
+  # ---- B3 toggle differential --------------------------------------------
+  # Final mode strips every wrapper; preserve mode renders each one at least
+  # once. The wrappers checked: ppVar(, ppNum(, ppText(, ppExpr(, ppColor(.
+  # The runtime still has a not-ok cached state from the adversarial draw;
+  # toggle_code_mode uses the FROZEN snapshot the runtime locked at the last
+  # OK Update click (the recover-with-#A1B2C3 draw), so both modes derive
+  # from the same source of truth.
+  toggle_code_mode(app, "final")
+  expect_sentinel_nowhere(app, "ptr_code", "ppVar(")
+  expect_sentinel_nowhere(app, "ptr_code", "ppNum(")
+  expect_sentinel_nowhere(app, "ptr_code", "ppText(")
+  expect_sentinel_nowhere(app, "ptr_code", "ppExpr(")
+  expect_sentinel_nowhere(app, "ptr_code", "ppColor(")
+  expect_no_plot_error(app)
+
+  toggle_code_mode(app, "preserve")
+  code_preserve <- app$get_value(output = "ptr_code") %||% ""
+  for (wrapper in c("ppVar(", "ppNum(", "ppText(", "ppExpr(", "ppColor(")) {
+    testthat::expect_true(
+      grepl(wrapper, code_preserve, fixed = TRUE),
+      label = paste0(
+        "B3 preserve-mode code contains wrapper '", wrapper, "'; ",
+        "actual code_text=", code_preserve
+      )
+    )
+  }
+  expect_no_plot_error(app)
+})
 # <<< super-4 end
