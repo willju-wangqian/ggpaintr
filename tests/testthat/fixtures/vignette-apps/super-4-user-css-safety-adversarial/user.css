@@ -1,0 +1,15 @@
+/* super-4 user.css: two rules.
+ *
+ * Rule 1 — colorpicker border: styles the input *inside* the
+ *   <div class="ptr-super4-colorpicker"> wrapper produced by ppColor's
+ *   build_ui hook. Verifies that user_css selectors targeting an
+ *   app-defined wrapper class take effect.
+ *
+ * Rule 2 — sentinel: a no-op styling rule whose selector literal
+ *   ".ptr-super4-sentinel" is asserted as a substring of the head's
+ *   innerHTML by PLAN-06's K2 scenario. Its sole purpose is to prove the
+ *   user.css reached the DOM (the bundled ggpaintr asset bundle and the
+ *   user override both have to coexist on the page, K2 + K3 coexistence).
+ */
+.ptr-super4-colorpicker input { border-color: #FF6633; }
+.ptr-super4-sentinel { color: #ABCDEF; }
