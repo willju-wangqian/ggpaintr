@@ -251,7 +251,15 @@ ptr_builtin_upload_resolve_data <- function(value, node, ...) {
 # `ptr_clear_placeholder()` uses this to tell built-ins (which it refuses to
 # drop) apart from user-registered placeholders.
 ptr_builtin_keywords <- function() {
-  c("ppText", "ppNum", "ppExpr", "ppVar", "ppUpload")
+  c(
+    "ppText", "ppNum", "ppExpr", "ppVar", "ppUpload",
+    # ADR 0020 structural keywords. They are registered alongside the
+    # placeholder built-ins so `ptr_clear_placeholder()` refuses to drop
+    # them, but they carry `role = "structural"` (not a placeholder role)
+    # and are intercepted by the translator before placeholder-arg
+    # extraction ever runs.
+    "ppLayerOff", "ppVerbOff"
+  )
 }
 
 #' Placeholder Identity Helpers
@@ -344,6 +352,13 @@ ptr_register_builtins <- function() {
     default_arg = ptr_default_symbol_or_string(),
     copy_defaults = list(label = "Upload data for {param}")
   )
+  # ADR 0020 structural keywords. These never become `ptr_ph_*` nodes;
+  # the translator's special-unwrap branches reshape the tree before
+  # placeholder-arg extraction runs. The registry entry is the minimum
+  # needed for `placeholder_keyword()` / `is_placeholder_call()` (which
+  # both walk `ptr_registry_keywords()`) to recognise the names.
+  ptr_register_structural_keyword("ppLayerOff")
+  ptr_register_structural_keyword("ppVerbOff")
   # The plain-R callables that users see (`ppVar`, `ppNum`, ...) are the
   # top-level functions below carrying `@export` roxygen tags. The
   # registry entries above carry the same identity/guard semantics via
@@ -380,6 +395,105 @@ ppUpload <- function(x, ...) {
     rlang::abort("`ppUpload()` is only meaningful inside `ptr_app()`.")
   }
   x
+}
+
+#' Off-by-default layer / pipeline-stage wrappers
+#'
+#' Two ADR-0020 *structural* keywords that mark a layer or a pipeline
+#' stage as off-by-default in `ptr_app()`. Inside `ptr_app()` /
+#' `ptr_server()` the parser sees the wrapper and unwraps it at translate
+#' time, stamping the boot-state metadata on the resulting node:
+#' `ppLayerOff(layer_expr, hide = TRUE)` becomes a `ptr_layer` with
+#' `default_active = FALSE`; `ppVerbOff(.data, verb_expr, hide = TRUE)`
+#' becomes the inner verb call with `default_stage_enabled = FALSE`. The
+#' wrapper itself never appears in the typed tree.
+#'
+#' Outside `ptr_app()` they behave per their R semantics so naked-ggplot
+#' scripts still render:
+#' `ppLayerOff(geom_point(), TRUE)` returns `NULL` (so
+#' `ggplot(mtcars, aes(x = mpg, y = wt)) + ppLayerOff(geom_point(), TRUE)`
+#' renders without the hidden layer); `ppLayerOff(geom_point(), FALSE)`
+#' returns the layer. `ppVerbOff(.data, mutate(x = 1), TRUE)` returns
+#' `.data` unchanged; `ppVerbOff(.data, mutate(x = 1), FALSE)` routes
+#' `.data` through the verb call.
+#'
+#' @section Data-argument position (`ppVerbOff` only):
+#' `ppVerbOff(.data, verb_expr, hide = TRUE)` assumes the data must be
+#' inserted as the **first positional argument** of `verb_expr` when
+#' `hide = FALSE`. This matches the tidyverse convention and the
+#' translator's pipeline-stage handling; non-tidyverse verbs that take
+#' data in a later argument are not supported via `ppVerbOff` (use a
+#' lambda stage or a named wrapper instead). See
+#' [ADR 0020](../articles/adr/0020-pp-layer-off-pp-verb-off-toggles.html)
+#' Risks §3.
+#'
+#' @param layer_expr A ggplot2 layer expression (e.g. `geom_point()`,
+#'   `facet_wrap(~ cyl)`). Evaluated only when `hide = FALSE`.
+#' @param .data A data frame or pipe-supplied dataset (the implicit
+#'   `.data` slot when used as a pipeline stage).
+#' @param verb_expr A data-pipeline verb call (e.g. `mutate(mpg = mpg +
+#'   100)`, `filter(cyl == 6)`). Evaluated with `.data` inserted as the
+#'   first positional argument only when `hide = FALSE`.
+#' @param hide A length-1 logical literal (`TRUE` or `FALSE`). In
+#'   `ptr_app()` formulas this MUST be a literal — the translator aborts
+#'   on a non-literal so the formula remains the single source of truth
+#'   for the app's boot state. Defaults to `TRUE`.
+#'
+#' @return Outside `ptr_app()`: `ppLayerOff` returns `NULL` when
+#'   `hide = TRUE`, otherwise the evaluated `layer_expr`. `ppVerbOff`
+#'   returns `.data` unchanged when `hide = TRUE`, otherwise the result
+#'   of `verb_expr` applied to `.data`.
+#'
+#' @examples
+#' library(ggplot2)
+#' # Naked-R semantics: hide = TRUE drops the layer to NULL.
+#' p1 <- ggplot(mtcars, aes(x = mpg, y = wt)) +
+#'   ppLayerOff(geom_point(), TRUE)        # equivalent to no geom_point
+#' p2 <- ggplot(mtcars, aes(x = mpg, y = wt)) +
+#'   ppLayerOff(geom_point(), FALSE)       # the layer is added
+#'
+#' # Naked-R semantics: hide = TRUE leaves the data unchanged.
+#' identical(ppVerbOff(mtcars, dplyr::mutate(mpg = mpg + 100), TRUE), mtcars)
+#'
+#' # Inside ptr_app(), the wrapper becomes a node-level default and a
+#' # boot-state-off checkbox (Plan 02 wires the UI):
+#' # ptr_app("ggplot() + ppLayerOff(geom_point(aes(x = mpg, y = wt)), TRUE)")
+#' @name pp_off_toggles
+NULL
+
+#' @rdname pp_off_toggles
+#' @export
+ppLayerOff <- function(layer_expr, hide = TRUE) {
+  assertthat::assert_that(
+    is.logical(hide), length(hide) == 1L, !is.na(hide),
+    msg = "`hide` must be a length-1 non-NA logical."
+  )
+  if (isTRUE(hide)) return(NULL)
+  layer_expr
+}
+
+#' @rdname pp_off_toggles
+#' @export
+ppVerbOff <- function(.data, verb_expr, hide = TRUE) {
+  assertthat::assert_that(
+    is.logical(hide), length(hide) == 1L, !is.na(hide),
+    msg = "`hide` must be a length-1 non-NA logical."
+  )
+  if (isTRUE(hide)) return(.data)
+  # Insert `.data` as the first positional argument of `verb_expr` and
+  # evaluate in the caller's frame. Matches the translator's pipeline-
+  # stage handling: tidyverse verbs take data in slot 1.
+  call_expr <- substitute(verb_expr)
+  if (!is.call(call_expr)) {
+    rlang::abort(
+      "`ppVerbOff(verb_expr = )` must be a verb call, e.g. `mutate(x = 1)`."
+    )
+  }
+  data_sym <- substitute(.data)
+  new_call <- as.call(c(
+    list(call_expr[[1L]]), list(data_sym), as.list(call_expr[-1L])
+  ))
+  eval(new_call, envir = parent.frame())
 }
 
 .onLoad <- function(libname, pkgname) {

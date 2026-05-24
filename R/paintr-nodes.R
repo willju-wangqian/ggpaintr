@@ -29,8 +29,20 @@ ptr_pipeline <- function(stages, op, expr) {
   new_ptr_node("ptr_pipeline", stages = stages, op = op, expr = expr)
 }
 
-ptr_call <- function(fun, args, expr) {
-  new_ptr_node("ptr_call", fun = fun, args = args, expr = expr)
+# `default_stage_enabled` (ADR 0020 §2) is the formula-derived boot state of
+# this call's stage-enabled checkbox: TRUE when the user wrote the stage as a
+# normal verb (or no `ppVerbOff` wrapper applies), FALSE when the user wrapped
+# the stage in `ppVerbOff(.data, verb_expr, hide = TRUE)`. The slot is present
+# on every `ptr_call` even when no stage-id has been assigned yet, because
+# downstream readers (Plan 02) consume `node$default_stage_enabled` without
+# first checking `node$stage_id`; defaulting to TRUE keeps non-chain calls
+# (e.g. layer-arg leaves) inert.
+ptr_call <- function(fun, args, expr, default_stage_enabled = TRUE) {
+  new_ptr_node(
+    "ptr_call",
+    fun = fun, args = args, expr = expr,
+    default_stage_enabled = default_stage_enabled
+  )
 }
 
 # Placeholder nodes carry two additive slots populated by the registry/parser

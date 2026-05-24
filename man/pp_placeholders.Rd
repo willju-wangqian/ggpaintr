@@ -9,13 +9,13 @@
 \alias{ppUpload}
 \title{Placeholder Identity Helpers}
 \usage{
-ppVar(x, ...)
+ppVar(x = NULL, ...)
 
-ppNum(x, ...)
+ppNum(x = NULL, ...)
 
-ppText(x, ...)
+ppText(x = NULL, ...)
 
-ppExpr(x, ...)
+ppExpr(x = NULL, ...)
 
 ppUpload(x, ...)
 }
