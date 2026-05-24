@@ -359,19 +359,19 @@ ptr_register_builtins <- function() {
 
 #' @rdname pp_placeholders
 #' @export
-ppVar <- function(x, ...) x
+ppVar <- function(x = NULL, ...) x
 
 #' @rdname pp_placeholders
 #' @export
-ppNum <- function(x, ...) x
+ppNum <- function(x = NULL, ...) x
 
 #' @rdname pp_placeholders
 #' @export
-ppText <- function(x, ...) x
+ppText <- function(x = NULL, ...) x
 
 #' @rdname pp_placeholders
 #' @export
-ppExpr <- function(x, ...) x
+ppExpr <- function(x = NULL, ...) x
 
 #' @rdname pp_placeholders
 #' @export
