@@ -729,3 +729,42 @@ ptr_define_placeholder_source <- function(keyword, build_ui, resolve_data,
   ptr_registry_register(entry)
   runtime_fn
 }
+
+# Register a "structural" keyword (ADR 0020): a name the translator
+# recognises via `placeholder_keyword()` but which never becomes a
+# `ptr_ph_*` node. Translate-time special-unwrap branches intercept the
+# call and reshape the tree (e.g. `ppLayerOff` unwraps to a `ptr_layer`
+# with `default_active = FALSE`; `ppVerbOff` unwraps to the inner verb
+# `ptr_call` with `default_stage_enabled = FALSE`).
+#
+# The entry's `role = "structural"` is the discriminator for callers that
+# walk the registry: `detect_placeholder()` skips structural entries so
+# the placeholder-arg extractor never runs on a wrapper call (whose
+# positional args would otherwise be rejected); `is_placeholder_call()`
+# also skips them so the canonical-pipeline lift treats `ppVerbOff(...)`
+# as an ordinary stage callable and the post-loop source-split still
+# fires. The optional `runtime` slot mirrors the package-namespace
+# function so that out-of-`ptr_app()` evaluation paths behave per the
+# function body (Plan 02 / Plan 04 will consume this if needed; the
+# translator itself does not call it).
+ptr_register_structural_keyword <- function(keyword, runtime = NULL) {
+  ensure_registry_initialized()
+  validate_keyword(keyword)
+  validate_keyword_no_shadow(keyword)
+  ptr_check_keyword_lhs_drift(keyword)
+
+  runtime_fn <- runtime %||% function(...) NULL
+  if (!is.function(runtime_fn)) {
+    rlang::abort(paste0(
+      "`runtime` for structural keyword '", keyword,
+      "' must be a function."
+    ))
+  }
+
+  entry <- list(
+    keyword = keyword, role = "structural", data_aware = FALSE,
+    runtime = runtime_fn
+  )
+  ptr_registry_register(entry)
+  invisible(entry)
+}
