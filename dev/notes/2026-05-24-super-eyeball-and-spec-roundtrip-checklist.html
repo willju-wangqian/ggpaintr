@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Super-app eyeball &amp; <code>spec=</code> round-trip checklist (2026-05-24)</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+<div class="wrap">
+
+<h1>Super-app eyeball &amp; <code>spec=</code> round-trip checklist</h1>
+
+<p class="lede">The 10 super-app blocks in <code>tests/testthat/test-super-pressure.R</code> (5 supers &times; {with-default, no-default}) drive every built-in placeholder and seven custom-registered ones via shinytest2 + Chrome. They assert sentinel propagation, B3 toggle differential, picker scope discrimination, <code>validate_input</code> rejection, denylist rejection, <code>resourcePath</code> hygiene, and plotly-backend rendering. They do <strong>not</strong> compare pixels, drive plotly interactivity, exercise the real OS file picker, or close the loop on <code>spec=</code> round-trip from the code panel back into a fresh <code>ptr_app()</code> boot. This note is the human-side checklist for those gaps.</p>
+
+<section>
+<h2>1. What the gate covers (recap)</h2>
+<p class="desc">Authoritative gate: <code>NOT_CRAN=true Rscript -e 'devtools::load_all("."); testthat::test_dir(...)'</code> (or <code>devtools::test()</code>, which sets <code>NOT_CRAN=true</code> itself). Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0</strong> on a machine with <code>shinytest2</code> + <code>chromote</code> + Chrome. Under R CMD check the suite cleanly all-skips via the source-root guard.</p>
+
+<table>
+  <thead>
+    <tr><th>Super</th><th>Built-ins</th><th>Custom keywords</th><th>Pressure surface</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>super-1 kitchen-sink</td><td>ppText, ppNum, ppExpr, ppVar</td><td>ppRange</td><td>Shared-default tiebreak; full B3 toggle differential.</td></tr>
+    <tr><td>super-2a upload-registry</td><td>ppText, ppNum, ppExpr, ppVar, ppUpload</td><td>ppMultiVar, ppPower</td><td>Two disjoint uploaded data sources; layer-data picker scope discrimination (df_aux columns only); <code>validate_input</code> &rarr; <code>#ptr_error</code>.</td></tr>
+    <tr><td>super-2b customsource-splice</td><td>ppText, ppNum, ppVar, ppUpload</td><td>ppCoef, ppFactor, ppSample</td><td>Custom D3 source at formula head + layer-data ppUpload; placeholders inside a <code>!!</code> splice; <code>shared=</code> on a custom consumer placeholder.</td></tr>
+    <tr><td>super-3 L3-multi-shared-plotly</td><td>ppText, ppNum, ppVar</td><td>ppRange</td><td>Two L3 cells (<code>ptr_ui</code>/<code>ptr_server</code>); shared key crosses ggplot &harr; plotly backends.</td></tr>
+    <tr><td>super-4 user-css safety adversarial</td><td>ppText, ppNum, ppExpr, ppVar</td><td>ppColor</td><td>user.css coexists with core assets; G5 string-builder; <code>validate_input</code> + denylist rejection; K4 <code>resourcePath</code> teardown.</td></tr>
+  </tbody>
+</table>
+
+<p class="desc">Built-ins covered: <strong>5/5</strong>. Custom placeholders exercised across the supers: <strong>7</strong> (ppRange, ppMultiVar, ppPower, ppCoef, ppFactor, ppSample, ppColor). <code>grep</code> confirms zero <code>expect_snapshot_file</code> / <code>vdiffr</code> / <code>expect_screenshot</code> calls in <code>test-super-pressure.R</code> or <code>test-e2e-vignette-examples-shinytest2.R</code> &mdash; the plot is never compared.</p>
+</section>
+
+<section>
+<h2>2. Per-super eyeball checks (~10 min each)</h2>
+
+<p class="desc">Boot each super interactively. The playable copies live at <code>dev/scripts/super-examples/&lt;slug&gt;/</code> &mdash; first line of each <code>app.R</code> is the only difference from the fixture (the <code>pkgload::load_all(Sys.getenv("GGP_PKG"))</code> scaffolding is replaced with a one-line comment, because in interactive play <code>ggpaintr</code> is already loaded).</p>
+
+<pre><code># From the repo root:
+devtools::load_all(".")
+shiny::runApp("dev/scripts/super-examples/super-1-kitchen-sink")
+# To run the no-default variant of any super:
+shiny::runApp(shiny::shinyAppFile(
+  "dev/scripts/super-examples/super-1-kitchen-sink/app-no-default.R"))</code></pre>
+
+<details>
+<summary><strong>super-1 kitchen-sink</strong> &mdash; redraw smoothness, toggle flicker</summary>
+<ol>
+  <li>Change <code>aes(x)</code> from default to <code>disp</code>, set ppExpr to <code>hp + 1</code>, set <code>shared_grp</code> to <code>gear</code>, set <code>labs(title)</code> to <code>S_T_2718</code>, set ppNum size widget to <code>0.73</code>.</li>
+  <li>Click Update. Plot redraws &mdash; does it feel snappy? Any visible blink/clear-then-redraw?</li>
+  <li>Toggle code mode <strong>final &harr; preserve</strong> three times rapidly. The text panel should switch without flashing the wrong text or leaving a stale fragment.</li>
+  <li>Confirm <code>facet_wrap(vars(gear))</code> actually creates separate panels (the regex test only matches the literal <code>gear</code> in the code, not the panel layout).</li>
+</ol>
+</details>
+
+<details>
+<summary><strong>super-2a upload-registry</strong> &mdash; real upload, picker scope, error wording</summary>
+<ol>
+  <li>Upload <code>dev/scripts/super-examples/super-2a-upload-registry/sample_main.csv</code> to the root <code>ppUpload</code> fileInput.</li>
+  <li>Upload <code>sample_aux.csv</code> to the geom_smooth fileInput.</li>
+  <li>Open the geom_smooth layer's <strong>Data</strong> subtab (then <strong>Controls</strong>) and confirm the <code>y</code> picker actually offers only <code>mpg</code> / <code>wt</code> &mdash; NOT <code>cyl</code>. Visual confirmation that the scope-discrimination assertion describes what a human sees.</li>
+  <li>Set <code>ppPower</code> widget to <code>1.5</code> (out-of-range), click Update. Read the message in the error pane out loud &mdash; does it sound like a human-facing error (<code>must be in [0,1]</code>)? The plot should still show the previous successful render.</li>
+  <li>Try opening the real CSVs with a BOM, semicolon-delimited, or non-UTF8 columns &mdash; not gate-tested.</li>
+</ol>
+</details>
+
+<details>
+<summary><strong>super-2b customsource-splice</strong> &mdash; sample switch, picker recovery, rug upload</summary>
+<ol>
+  <li>Switch the root <code>ppSample</code> from <code>iris</code> to <code>mtcars</code>. The root <code>aes(x)</code> / <code>aes(y)</code> pickers should re-bind cleanly &mdash; do they flash a broken/empty intermediate state during the switch?</li>
+  <li>Set <code>aes(x) = mpg</code>, <code>aes(y) = hp</code>, <code>shared_fac = cyl</code>, draw.</li>
+  <li>Switch back to <code>iris</code>, set picks to <code>Sepal.Length</code> / <code>Sepal.Width</code>, <code>shared_fac = Species</code>, draw.</li>
+  <li>Upload <code>sample_rug.csv</code> to the geom_rug <code>df_rug</code> fileInput. The rug-layer pickers should populate from the CSV's columns &mdash; do you see a stuck <code>recalculating</code> spinner first? The fix at ADR-0015 / 6ee63d7 should mean no.</li>
+  <li>Drive ppCoef / ppNum / ppText inside the spliced geom_smooth (look for <code>method=</code>, <code>linewidth=</code>, <code>alpha=</code> widgets).</li>
+</ol>
+</details>
+
+<details>
+<summary><strong>super-3 L3-multi-shared-plotly</strong> &mdash; cross-backend shared, plotly interactivity</summary>
+<ol>
+  <li>Drive <code>shared_linked</code> to <code>gear</code>. Click Update on both cells. The color update should look synchronized across the ggplot (<code>plot1</code>) and plotly (<code>plot2</code>) cells &mdash; not noticeably staggered.</li>
+  <li>Hover over the plotly cell's points &mdash; do tooltips look reasonable? (The gate only checks the plotly node exists, not its interactivity.)</li>
+  <li>Try plotly's lasso/box select if it surfaces &mdash; not gate-tested.</li>
+  <li>Toggle code mode on <code>plot2</code> only and confirm the <code>plot1</code> code panel doesn't change.</li>
+</ol>
+</details>
+
+<details>
+<summary><strong>super-4 user-css safety-adversarial</strong> &mdash; visual theme, error wording</summary>
+<ol>
+  <li>Open <code>dev/scripts/super-examples/super-4-user-css-safety-adversarial/user.css</code> in another window. The rule for <code>.ptr-super4-colorpicker</code> &mdash; does the <code>ppColor</code> widget in the running app actually <em>look</em> like the rule says? (The gate only confirms the link tag fetched + the wrapper class landed in the DOM.)</li>
+  <li>Type <code>eval(parse(text="1+1"))</code> in the ppExpr subtitle widget. Click Update. The error pane should surface <code>is not allowed in an `expr` input</code> (or similar). Read it &mdash; does a non-developer user understand what's wrong and what to do?</li>
+  <li>Plot host should retain the prior render (no error-class crashes).</li>
+  <li>Type <code>notahex</code> into the ppColor widget &mdash; the <code>must be #RRGGBB hex</code> message should be human-readable.</li>
+</ol>
+</details>
+</section>
+
+<section>
+<h2>3. <code>spec=</code> round-trip (the missing closed loop)</h2>
+
+<p class="desc"><strong>Background.</strong> Preserve-mode code panel emits a trailing <code>ptr_spec &lt;- list(\`id\` = value, ...)</code> beneath the formula text. <code>ptr_app(formula, spec = ptr_spec)</code> applies that list at session boot (via <code>apply_spec_at_boot</code>). Both halves are unit-tested independently &mdash; <strong>but no test in the tree currently closes the loop</strong>: takes the literal text the panel rendered, parses + evals it, and feeds the result into a fresh <code>ptr_app()</code> with an assertion that the second boot's widget snapshot equals the first. If the deparser and the apply-side ever drift on quoting / backtick / list-ordering / type rules, the unit tests stay green while the user-visible copy-paste workflow breaks silently.</p>
+
+<p class="desc">For each super with non-trivial picks, run this six-step recipe:</p>
+
+<ol>
+  <li>Boot via <code>shiny::runApp("dev/scripts/super-examples/&lt;slug&gt;")</code>.</li>
+  <li>Drive widgets to non-default values (one custom keyword + at least one built-in).</li>
+  <li>Click Update.</li>
+  <li>Toggle code mode to <strong>preserve</strong>.</li>
+  <li>Copy the entire <code>#ptr_code</code> contents &mdash; both the formula block AND the trailing <code>ptr_spec &lt;- list(...)</code>.</li>
+  <li>In a fresh R session, paste the text and run:
+    <pre><code>library(ggpaintr)  # or devtools::load_all("&lt;repo&gt;")
+&lt;the formula text from the panel, assigned to `f`&gt;
+&lt;the ptr_spec block from the panel&gt;
+shiny::runApp(ptr_app(f, spec = ptr_spec))</code></pre>
+  </li>
+</ol>
+
+<p class="desc"><strong>Pass condition:</strong> the second boot's widgets show the same picks at first paint, the first draw shows the same plot &mdash; <em>without</em> clicking Update first. <strong>Fail conditions to watch for:</strong></p>
+<ul>
+  <li>An entry in the spec is silently dropped (warning in console: <code>Skipped N spec entries</code>).</li>
+  <li>A custom-keyword spec entry doesn't seed its widget (build_ui hook may not be honoring <code>selected</code>).</li>
+  <li>Quoting drift between deparser and apply side: e.g. panel emits <code>c('a', 'b')</code> but apply rejects it as a non-named scalar.</li>
+  <li>Picker scope race: spec value names a column that hasn't been seeded yet (consumer pickers under suspended subtabs).</li>
+  <li>For super-2a / super-2b: <code>ppUpload</code> companion-name entries in the spec won't round-trip the underlying file &mdash; the user still has to re-upload. Confirm the bareword companion-name (<code>df_main</code> etc.) is at least emitted into the formula's <code>data =</code> slot in the panel text.</li>
+</ul>
+
+<p class="desc"><strong>Recommended super order</strong> for round-trip (highest custom-keyword pressure first):</p>
+<ol>
+  <li><strong>super-2b</strong> &mdash; ppCoef + ppFactor + ppSample in one formula (three custom keywords at once).</li>
+  <li><strong>super-2a</strong> &mdash; ppPower + ppMultiVar; ppUpload companion-name behavior under round-trip is unique to this app.</li>
+  <li><strong>super-1</strong> &mdash; ppRange + four built-ins; baseline-shape round-trip.</li>
+  <li><strong>super-4</strong> &mdash; ppColor + ppExpr; user.css path is orthogonal but worth seeing the colored widget at second boot.</li>
+  <li><strong>super-3</strong> &mdash; <em>stretch.</em> Two L3 cells under <code>ptr_ui</code> / <code>ptr_server</code> (no <code>ptr_app_grid</code>) means each cell emits its own <code>ptr_spec</code> block with namespaced ids (<code>plot1-...</code>, <code>plot2-...</code>). The combined-spec contract is <code>ptr_spec_combine()</code> + flat-spec dispatch; manually combining the two emitted blocks into one <code>list()</code> and passing it to <em>both</em> <code>ptr_server</code>s is the round-trip shape.</li>
+</ol>
+</section>
+
+<section>
+<h2>4. What to capture if anything fails</h2>
+<ul>
+  <li>The exact <code>input_id</code> you set and the value you set it to (DOM ids are visible via browser dev-tools).</li>
+  <li>Screenshot of: <code>#ptr_plot</code>, <code>#ptr_code</code> contents, <code>#ptr_error</code> contents.</li>
+  <li>Console R messages from the browser tab and the parent R session.</li>
+  <li>For round-trip failures: the literal copied text (verbatim) and the first boot's widget snapshot you were trying to reproduce.</li>
+</ul>
+
+<p class="desc">A round-trip failure is a real defect the gate cannot catch today; once you have one in hand, the test to add is straightforward &mdash; drive the same widget sequence under <code>testServer</code>, read <code>output$ptr_code</code> in preserve mode, parse the trailing <code>ptr_spec</code> block, feed it as <code>spec=</code> to a second <code>ptr_server_internal</code> boot, and assert the input map equals the first snapshot.</p>
+</section>
+
+<section>
+<h2>5. Related files</h2>
+<ul>
+  <li>Test that drives the supers: <code>tests/testthat/test-super-pressure.R</code> + <code>tests/testthat/helper-super-pressure.R</code>.</li>
+  <li>Fixture source-of-truth: <code>tests/testthat/fixtures/vignette-apps/super-{1,2a,2b,3,4}-*/</code>.</li>
+  <li>Playable copies: <code>dev/scripts/super-examples/&lt;slug&gt;/</code>.</li>
+  <li>Spec emission: <code>tests/testthat/test-ptr-spec-emission.R</code>; format helper at <code>R/paintr-server.R:408</code> (<code>format_spec_for_panel</code>).</li>
+  <li>Spec apply: <code>tests/testthat/test-adr12-spec-roundtrip.R</code>; helper at <code>R/paintr-server.R:446</code> (<code>apply_spec_at_boot</code>) and the fixture <code>tests/testthat/fixtures/vignette-apps/adr12-spec-roundtrip/app.R</code>.</li>
+  <li>Decision: <code>dev/adr/0012-*.html</code> (&sect;3.5 emission, &sect;3.6 apply) and <code>dev/adr/0013-super-app-pressure-tests.html</code>.</li>
+</ul>
+</section>
+
+</div>
+</body>
+</html>
