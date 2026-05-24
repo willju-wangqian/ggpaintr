@@ -181,6 +181,20 @@ ptr_init_state <- function(formula,
     pipeline_source_ids
   )
 
+  # ADR 0015 PLAN-02 / Option E: per-source reactiveVal holding the binding
+  # name actually bound into `state$eval_env` by `ptr_setup_pipelines()`.
+  # Written by `bind_source_value()` AFTER `assign(name, df, eval_env)`;
+  # consumers `req()` it to halt until the server-side binding lands,
+  # replacing PLAN-01's client-text + `exists()` poll. Keyed identically
+  # to `resolved_data` (layer_name) and `resolved_sources` (source_id);
+  # union of both keysets so a single lookup `state$bound_names[[k]]()`
+  # works for both bare-data and pipeline-head sources.
+  bound_names_keys <- unique(c(data_layer_names, pipeline_source_ids))
+  bound_names <- stats::setNames(
+    lapply(bound_names_keys, function(.) shiny::reactiveVal(NULL)),
+    bound_names_keys
+  )
+
   initial_stage_ids <- collect_stage_ids(tree)
   initial_stage_enabled <- stats::setNames(
     rep(list(TRUE), length(initial_stage_ids)),
@@ -225,6 +239,10 @@ ptr_init_state <- function(formula,
     draw_trigger = draw_trigger,
     resolved_data = resolved_data,
     resolved_sources = resolved_sources,
+    # ADR 0015 PLAN-02 / Option E: per-source `reactiveVal` of the bound
+    # name. Written by `bind_source_value()` AFTER the eval_env assign;
+    # `req()`'d by consumer entry to remove PLAN-01's polling workaround.
+    bound_names = bound_names,
     upstream_cache = new.env(parent = emptyenv()),
     stage_enabled = shiny::reactiveVal(initial_stage_enabled),
     # Producer-input debounce + auto-flip (D7 / D8). `producer_input` is
@@ -790,6 +808,26 @@ is_bare_data_source_layer <- function(layer) {
   is_ptr_ph_data_source(layer$data_arg)
 }
 
+# ADR 0015 PLAN-02 / Option E: the ONLY writer of `state$bound_names`.
+# Encapsulates the load-bearing ordering invariant — `assign()` MUST land
+# in `state$eval_env` BEFORE `state$bound_names[[key]](name)` fires, so any
+# downstream consumer that `req()`s the reactiveVal observes `eval_env`
+# in its post-assign configuration. `slot(df)` runs unconditionally so
+# the source's `resolved_data` / `resolved_sources` reactive bumps even
+# when no binding name is available (e.g. invalid companion text), giving
+# downstream observers a chance to halt via the existing `req()` chain.
+# Do not split these three writes across call sites — every assign into
+# eval_env must travel through this helper so the invariant is physical,
+# not conventional. (See dev/audit/audit-adr15-autoname-race-*.html for
+# the race PLAN-01's polling workaround was working around.)
+bind_source_value <- function(state, key, name, df, slot) {
+  if (!is.null(df) && !is.null(name)) {
+    assign(name, df, envir = state$eval_env)
+    state$bound_names[[key]](name)
+  }
+  slot(df)
+}
+
 ptr_setup_pipelines <- function(state, input, output, session) {
   tree <- shiny::isolate(state$tree())
   ns <- state$server_ns_fn
@@ -808,13 +846,14 @@ ptr_setup_pipelines <- function(state, input, output, session) {
       src_id <- ns(src$id)
       comp_id <- if (!is.null(src$companion_id)) ns(src$companion_id) else NULL
       entry <- ptr_registry_lookup(src$keyword)
+      slot <- state$resolved_data[[ln]]
 
       shiny::observe({
         file_info <- input[[src_id]]
         if (!is.null(comp_id)) input[[comp_id]]  # take dep
         if (is.null(file_info)) {
           set_resolve_error(state, ln, NULL)
-          state$resolved_data[[ln]](NULL)
+          slot(NULL)
           return(invisible())
         }
         df <- if (!is.null(entry) && !is.null(entry$resolve_data)) {
@@ -849,10 +888,10 @@ ptr_setup_pipelines <- function(state, input, output, session) {
             if (nzchar(cand) && make.names(cand) == cand) cand else NULL
           } else NULL
         } else NULL
-        if (!is.null(df) && !is.null(binding_name)) {
-          assign(binding_name, df, envir = state$eval_env)
-        }
-        state$resolved_data[[ln]](df)
+        # ADR 0015 PLAN-02 / Option E: enforces assign-before-signal so a
+        # consumer `req(state$bound_names[[ln]]())` cannot fire before
+        # `state$eval_env` holds `binding_name`.
+        bind_source_value(state, ln, binding_name, df, slot)
       })
 
       # Auto-fill the dataset-name companion from the uploaded filename
@@ -919,10 +958,9 @@ ptr_setup_pipelines <- function(state, input, output, session) {
             if (nzchar(cand) && make.names(cand) == cand) cand else NULL
           } else NULL
         } else NULL
-        if (!is.null(df) && !is.null(binding_name)) {
-          assign(binding_name, df, envir = state$eval_env)
-        }
-        slot(df)
+        # ADR 0015 PLAN-02 / Option E: same ordering invariant as the
+        # bare-data loop above — see `bind_source_value()`.
+        bind_source_value(state, sid, binding_name, df, slot)
       })
 
       ptr_bind_source_autoname(src_id, comp_id, input, session)
@@ -1663,6 +1701,15 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
             state$resolved_sources[[source_ready$id]]()
           }
           shiny::req(.rv_val)
+          # ADR 0015 PLAN-02 / Option E: also halt until the source
+          # observer has bound the resolved frame into `state$eval_env`
+          # under `binding_name`. `state$bound_names[[id]]` is written
+          # by `bind_source_value()` AFTER the `assign()`, so passing
+          # this `req()` guarantees R's symbol lookup will find the
+          # bound frame in `eval_env` (no scoping fallback to
+          # `datasets::penguins`-style parent-chain leaks). Replaces
+          # PLAN-01's client-text + `exists()` poll + `invalidateLater(50)`.
+          shiny::req(state$bound_names[[source_ready$id]]())
         }
 
         snapshot <- producer_values
@@ -1678,43 +1725,18 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
           val <- input[[ns(sid)]]
           if (!is.null(val)) snapshot[[sid]] <- val
         }
-        # ADR 0015 §2.1: a flush-ordering race between
-        # `ptr_bind_source_autoname()`'s `updateTextInput()` and the main
-        # upload observer's `assign(<name>, df, eval_env)` can let this
-        # entry fire with a non-empty companion value BEFORE `eval_env`
-        # holds the binding -- R's parent-chain scoping then finds a
-        # wrong dataset (e.g. `datasets::penguins`). Detect that window
-        # and re-invalidate this reactive in 50ms; the subsequent fire
-        # sees the binding in place. `invalidateLater()` is unfortunate
-        # but the race is intrinsic to `updateTextInput`'s client-roundtrip
-        # ordering vs the dep-driven re-fire of this reactive.
-        .binding_pending <- FALSE
-        for (cmp in upstream_source_companion_ids) {
-          nm <- input[[ns(cmp)]]
-          if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
-              make.names(nm) == nm &&
-              !exists(nm, envir = state$eval_env, inherits = FALSE)) {
-            .binding_pending <- TRUE
-            break
-          }
-        }
-        if (.binding_pending) {
-          shiny::invalidateLater(50)
-          return(NULL)
-        }
-        # ADR 0015 §2.1: bypass `state$upstream_cache` for the consumer
-        # renderUI's resolution. Even with the race guard above, an earlier
-        # fire (within the race window) could have populated the cache
-        # with a wrong frame under the substituted expression's key. Each
-        # consumer has a distinct upstream subtree (different cache key)
-        # so bypassing the cache here loses no dedup; plot rendering and
-        # validation paths keep the cache for their own use.
+        # ADR 0015 PLAN-02 / Option E: `state$upstream_cache` is safe
+        # again now that `entry_reactive` cannot fire during the
+        # autoname-vs-assign race window — the `req(bound_names)` above
+        # gates on a server-side reactiveVal that the source observer
+        # writes after `assign()` lands. Restored from PLAN-01's
+        # `cache = NULL` workaround.
         .df <- ptr_resolve_upstream(
           node$upstream,
           snapshot = snapshot,
           shared_bindings = state$shared_bindings,
           eval_env = state$eval_env,
-          cache = NULL,
+          cache = state$upstream_cache,
           expr_check = state$expr_check,
           stage_enabled = shiny::isolate(state$stage_enabled())
         )
@@ -1817,6 +1839,22 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
       upstream_source_self_ids <- if (!is.null(resolution$value)) {
         find_source_self_ids_in_upstream(resolution$value)
       } else character()
+      # ADR 0015 PLAN-02 / Option E: keys this shared consumer must wait
+      # on before `ptr_resolve_upstream` runs. Two kinds:
+      #   - pipeline-head sources publish into `state$bound_names[[id]]`
+      #     keyed by source-id; surfaced via the upstream's source nodes.
+      #   - bare-data layers publish into `state$bound_names[[layer]]`
+      #     keyed by layer name; surfaced via `rep_node$layer_name`
+      #     (multi-layer cross-shared still gates on the representative
+      #     layer; an edge-case noted in PLAN-02 §Out-of-scope).
+      upstream_source_ids_for_req <- if (!is.null(resolution$value)) {
+        ids <- vapply(
+          find_nodes(resolution$value, is_ptr_ph_data_source),
+          function(n) n$id %||% NA_character_,
+          character(1)
+        )
+        ids[!is.na(ids)]
+      } else character()
 
       output[[output_id]] <- shiny::renderUI({
         if (identical(resolution$kind, "error")) {
@@ -1848,6 +1886,22 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
           # `ptr_setup_consumer_uis()`).
           for (rv in state$resolved_sources) rv()
           for (rv in state$resolved_data) rv()
+          # ADR 0015 PLAN-02 / Option E: halt this renderUI until every
+          # upstream source has bound its frame into `state$eval_env`
+          # (symmetric with the `req(bound_names)` guard in the non-shared
+          # `ptr_setup_consumer_uis()`). Without this, the same autoname-
+          # vs-assign race that PLAN-01 worked around in the non-shared
+          # site could let a shared picker fire while R's parent-chain
+          # scoping resolves the substituted symbol to a wrong frame.
+          if (!is.null(rep_node$layer_name) &&
+              rep_node$layer_name %in% names(state$bound_names)) {
+            shiny::req(state$bound_names[[rep_node$layer_name]]())
+          }
+          for (sid in upstream_source_ids_for_req) {
+            if (sid %in% names(state$bound_names)) {
+              shiny::req(state$bound_names[[sid]]())
+            }
+          }
           use_env <- state$eval_env
           for (cmp in upstream_source_companion_ids) {
             val <- input[[ns(cmp)]]

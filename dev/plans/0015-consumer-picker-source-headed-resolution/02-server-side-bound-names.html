@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-02 — Option E: server-side bound_names reactiveVal (supersedes Option A workaround)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 02
+  slug: server-side-bound-names
+  source_adr: dev/adr/0015-consumer-picker-source-headed-resolution.html
+  supersedes_in_part: 01-eager-bind-source-headed-consumer-pickers
+  depends_on: [01]
+  parallel_group: G2
+  status: draft
+-->
+
+<h1>PLAN-02 — Option E: server-side <code>bound_names</code> reactiveVal</h1>
+<p class="meta">Source: ADR 0015 · Depends on: PLAN-01 (this supersedes its Option-A workaround tail) · Parallel group: G2 · Status: draft</p>
+
+<h2>Context</h2>
+
+<p>PLAN-01 landed the SC-1/SC-2/SC-3/SC-4 architecture from ADR-0015 §2 — drop the visibility-suspend gate, add a <code>req(source_ready)</code> guard inside <code>entry_reactive</code>, add the symmetric <code>resolved_data</code> dep loop to the shared site. During implementation, a second race surfaced in <code>tests/testthat/test-adr12-bug-3a.R</code> that the plan did not anticipate: the autoname observer's <code>shiny::updateTextInput(session, comp_id, value = auto)</code> at <code>R/paintr-server.R:947</code> emits a client-roundtripped input update; in the next flush, the consumer's <code>entry_reactive</code> can fire reading the new companion text BEFORE the main upload observer's <code>assign(binding_name, df, state$eval_env)</code> has run. R's parent-chain scoping then resolves the substituted symbol (e.g. <code>penguins</code>) against <code>datasets::penguins</code> — wrong frame, wrong columns, polluted upstream cache.</p>
+
+<p>PLAN-01 closed this second race tactically with a polling workaround inside <code>entry_reactive</code>: scan the companion text inputs in <code>upstream_source_companion_ids</code>, probe <code>exists(nm, envir = state$eval_env, inherits = FALSE)</code>, and if the binding has not yet landed, <code>shiny::invalidateLater(50); return(NULL)</code>. The cache was also bypassed for the consumer path (<code>cache = NULL</code>) so a fire inside the race window could not pollute it. Both are documented in the audit at <code>dev/audit/audit-adr15-autoname-race-20260523-204227.html</code> as Option A; both are workarounds that close the race by waiting it out rather than removing the race signal.</p>
+
+<p>Option E (this plan): expose each source's settled binding name as a server-side <code>shiny::reactiveVal</code>, written by the source observer <em>after</em> the successful <code>assign()</code>. Consumers <code>req()</code> that reactiveVal instead of reading the client-driven companion text and probing <code>eval_env</code>. The signal now points at server-side state, so there is no race window to wait out. Restores <code>state$upstream_cache</code>, removes the magic <code>invalidateLater(50)</code>, and makes the consumer read the correct signal — the same shape as the existing <code>state$resolved_data</code> / <code>state$resolved_sources</code> reactiveVals (signal written after the state it describes lands).</p>
+
+<p>One sibling read of the same race shape lives in <code>ptr_bind_shared_consumer_uis()</code> (<code>R/paintr-server.R:1770–1905</code>): its renderUI body reads <code>input[[ns(cmp)]]</code> for each <code>upstream_source_companion_ids</code> entry into a snapshot, then resolves against <code>state$eval_env</code>. It already passes <code>cache = NULL</code> so cache pollution does not apply there, but the wrong-frame leak via R scoping <em>can</em> still produce a transient mis-populated picker. PLAN-02 fixes both call sites.</p>
+
+<h2>Governing principle</h2>
+
+<p>A reactive signal that describes server-side state MUST be written by the observer that produces that state, AFTER the state has landed. Any downstream <code>req()</code> on that signal must observe the state in its post-write configuration. The consumer-resolution path must never depend on a client-roundtripped input value as a proxy for "has the server-side <code>eval_env</code> binding been installed?" — that question must be asked of a server-side reactiveVal whose write is sequenced after the binding's <code>assign()</code> in the same observer body.</p>
+
+<p>The ordering invariant (<code>assign()</code> before <code>state$bound_names[[key]](name)</code>) is load-bearing: if any future patch flips the order, the race silently returns. PLAN-02 enforces the invariant by encapsulating both writes behind a single private helper <code>bind_source_value()</code> — there is no public path that writes <code>bound_names</code> without first running <code>assign()</code>. Tests pin the helper's behavior and the absence of <code>invalidateLater(50)</code> in <code>entry_reactive</code>.</p>
+
+<p>The BDD <code>Then</code> clauses below are contract. An implementation that lands the new helper but leaves the polling tail in <code>entry_reactive</code> "for safety", or that adds <code>state$bound_names</code> as a plain field that observers write directly (bypassing the helper), violates the principle and must fail the auditor's check.</p>
+
+<h2>Success Criteria</h2>
+
+<ul>
+  <li><strong>SC-1 — <code>state$bound_names</code> slot allocated.</strong> <code>ptr_init_state()</code> in <code>R/paintr-server.R</code> populates a new <code>state$bound_names</code> slot as a named list of <code>shiny::reactiveVal(NULL)</code>, keyed exactly the same as <code>state$resolved_data</code> (by <code>layer_name</code> for bare-data-source layers) UNIONED with the keys of <code>state$resolved_sources</code> (by <code>source_id</code> for pipeline-head sources). Verified by <code>grep -n "state\\\$bound_names\\|bound_names <-" R/paintr-server.R</code> showing the allocation block adjacent to the existing <code>resolved_data</code> / <code>resolved_sources</code> allocation in <code>ptr_init_state</code> (currently lines ≈148–179). The slot is initialised with <code>NULL</code> values via <code>shiny::reactiveVal(NULL)</code> — same construction pattern as <code>resolved_data</code>.</li>
+
+  <li><strong>SC-2 — <code>bind_source_value()</code> helper exists and is the ONLY writer of <code>state$bound_names</code>.</strong> A new private helper in <code>R/paintr-server.R</code>:
+    <pre>bind_source_value &lt;- function(state, key, name, df, slot) {
+  if (!is.null(df) &amp;&amp; !is.null(name)) {
+    assign(name, df, envir = state$eval_env)
+    state$bound_names[[key]](name)
+  }
+  slot(df)
+}</pre>
+    Verified by: (a) <code>grep -nE "state\\\$bound_names\\[\\[" R/paintr-server.R</code> showing exactly TWO matches — the read inside <code>ptr_setup_consumer_uis</code>'s <code>entry_reactive</code> body and the read inside <code>ptr_bind_shared_consumer_uis</code>'s <code>renderUI</code> body (no other writes), and (b) <code>grep -nE "state\\\$bound_names\\[\\[.*]]\\(" R/paintr-server.R</code> showing exactly ONE write (the line inside <code>bind_source_value</code> itself). The helper is the choke point.</li>
+
+  <li><strong>SC-3 — Both source observers in <code>ptr_setup_pipelines()</code> use the helper.</strong> The bare-data-source layer loop (around <code>R/paintr-server.R:801–870</code>) and the pipeline-head data-source loop (around <code>R/paintr-server.R:887–928</code>) BOTH replace the in-line <code>if (!is.null(df) &amp;&amp; !is.null(binding_name)) assign(binding_name, df, envir = state$eval_env); slot(df)</code> sequence with a single <code>bind_source_value(state, key, binding_name, df, slot)</code> call. <code>key</code> is <code>ln</code> for the bare-data loop, <code>sid</code> for the pipeline-head loop. Verified by absence of any <code>assign(.*, envir = state\\\$eval_env)</code> hit OUTSIDE <code>bind_source_value()</code> in <code>R/paintr-server.R</code> (<code>grep -nE "assign\\(.*envir = state\\\$eval_env\\)" R/paintr-server.R</code> shows exactly one line — inside the helper).</li>
+
+  <li><strong>SC-4 — Consumer entry: polling removed, <code>req(bound_names)</code> added, cache restored.</strong> Inside <code>ptr_setup_consumer_uis()</code>'s <code>entry_reactive</code> body (currently lines ≈1636–1745):
+    <ul>
+      <li><strong>Removed:</strong> the entire <code>.binding_pending</code> block (currently lines ≈1689–1700), including the <code>for (cmp in upstream_source_companion_ids)</code> probe loop AND the <code>if (.binding_pending) { shiny::invalidateLater(50); return(NULL) }</code> tail. Verified by <code>grep -n "invalidateLater\\|binding_pending" R/paintr-server.R</code> returning zero matches inside <code>ptr_setup_consumer_uis()</code>.</li>
+      <li><strong>Added:</strong> immediately after the existing <code>req(source_ready)</code> block (which stays), a NEW guard <code>if (!is.null(source_ready)) shiny::req(state$bound_names[[source_ready$id]]())</code>. Reads from the same <code>source_ready$id</code> the existing block resolves; the <code>bound_names</code> slot key is identical to the <code>resolved_data</code> / <code>resolved_sources</code> key, so the lookup is direct.</li>
+      <li><strong>Restored:</strong> the <code>ptr_resolve_upstream</code> call's <code>cache = NULL</code> argument is changed back to <code>cache = state$upstream_cache</code>. Verified by <code>grep -nE "cache = NULL" R/paintr-server.R</code> in <code>ptr_setup_consumer_uis</code>'s body returning zero matches.</li>
+    </ul>
+  </li>
+
+  <li><strong>SC-5 — Shared consumer renderUI: same <code>req(bound_names)</code> guard.</strong> Inside <code>ptr_bind_shared_consumer_uis()</code>'s renderUI body (currently lines ≈1820–1860), immediately after the <code>for (rv in state$resolved_data) rv()</code> line, add a guard block that walks <code>upstream_source_companion_ids</code> + the upstream's source-self ids to discover which <code>bound_names</code> slots are upstream of this shared consumer, and <code>shiny::req()</code>s each one that exists in <code>names(state$bound_names)</code>. Reads <code>state$bound_names</code> via the same key shape as the non-shared path (layer-name for bare-data, source-id for pipeline-head). The advisory branch for "Data source not yet provided" remains unchanged — <code>req()</code> halts before the advisory renders, so a still-pre-bind state still shows the advisory (because the renderUI body halts and the previous output stays in DOM, which on first fire IS the advisory; verified by the BDD scenario below). <code>cache = NULL</code> stays in this site (it never used the cache).</li>
+
+  <li><strong>SC-6 — Regression fixture exists.</strong> Directory <code>tests/testthat/fixtures/vignette-apps/adr15-option-e-race/</code> contains:
+    <ul>
+      <li><code>app.R</code> — first line is <code>pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)</code>, then <code>library(shiny)</code>, then a single <code>ptr_app(ppUpload |> dplyr::filter(ppVar &gt; ppNum) |> ggplot(aes(ppVar, ppVar)) + geom_point())</code>. This is the exact formula from <code>test-adr12-bug-3a.R</code> that hit the race in PLAN-01's implementation cycle.</li>
+      <li><code>penguins.csv</code> — minimal CSV with header <code>x,y</code> and 3 rows of any numeric values. The filename <code>penguins.csv</code> is the trigger: autoname will set the companion to <code>"penguins"</code>, and if the race fires, R's scoping fallback finds <code>datasets::penguins</code> (which has columns <code>species, island, bill_length_mm, bill_depth_mm, flipper_length_mm, body_mass_g, sex, year</code>). The uploaded file's column set is <code>{x, y}</code>; <code>datasets::penguins</code>'s is disjoint. Any picker showing a column not in <code>{x, y}</code> proves the race fired.</li>
+    </ul>
+  </li>
+
+  <li><strong>SC-7 — Race-provable assertion.</strong> <code>tests/testthat/test-adr15-option-e-race.R</code> contains ONE <code>test_that()</code> block gated on <code>skip_on_cran()</code> + <code>skip_if_not_installed("shinytest2")</code> + <code>skip_if_not_installed("chromote")</code> + the source-root guard (<code>skip_if(!file.exists(test_path("..","..","DESCRIPTION")))</code>). Uses <code>withr::local_envvar(GGP_PKG = normalizePath(test_path("..","..")))</code> and boots <code>shinytest2::AppDriver$new(test_path("fixtures","vignette-apps","adr15-option-e-race"))</code> wrapped in <code>suppressWarnings()</code>. Then:
+    <ol>
+      <li><code>app$upload_file(ggplot_0_ppUpload_NA = test_path("fixtures","vignette-apps","adr15-option-e-race","penguins.csv"))</code></li>
+      <li>Does NOT touch the companion (<code>ggplot_0_ppUpload_NA_name</code>) — lets autoname fire.</li>
+      <li><code>app$wait_for_idle()</code></li>
+      <li>Reads <code>app$get_html("#ggplot_1_1_ppVar_NA_ui")</code> AND <code>app$get_html("#ggplot_2_1_ppVar_NA_ui")</code>.</li>
+      <li><strong>Asserts each picker's HTML contains <code>"x"</code> and <code>"y"</code> as <code>&lt;option&gt;</code> values</strong> AND <strong>contains NEITHER <code>"flipper_length_mm"</code> NOR <code>"bill_length_mm"</code> NOR <code>"body_mass_g"</code> NOR <code>"species"</code></strong>. The negative assertion is the load-bearing one — those columns appearing anywhere proves <code>datasets::penguins</code> leaked through R's scoping fallback.</li>
+    </ol>
+    This test would have failed against PLAN-01's polling workaround if the workaround were removed; it passes against PLAN-02 because the race is eliminated structurally.</li>
+
+  <li><strong>SC-8 — Pre-existing tests still pass.</strong> <code>tests/testthat/test-adr12-bug-3a.R</code> (the file PLAN-01 originally regressed on, recovered by the polling workaround) passes against PLAN-02 WITHOUT the workaround. <code>tests/testthat/test-adr15-consumer-binding.R</code> (PLAN-01's regression file) continues to pass unchanged.</li>
+
+  <li><strong>SC-9 — Authoritative gate stays clean.</strong> <code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code> returns <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS &gt;= 2358</code> (baseline 2357 from PLAN-01 + at least 1 new <code>expect_*</code> in the new <code>test_that</code> block; actual delta is the sum of <code>expect_*</code> calls added).</li>
+</ul>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>Files this plan owns:</strong>
+    <ul>
+      <li><code>R/paintr-server.R</code> — bodies of <code>ptr_init_state()</code> (ADD <code>bound_names</code> slot), <code>ptr_setup_pipelines()</code> (REPLACE inline <code>assign+slot</code> with <code>bind_source_value()</code> in both source loops), <code>ptr_setup_consumer_uis()</code> (REMOVE <code>.binding_pending</code> block + <code>invalidateLater</code>, ADD <code>req(bound_names)</code>, RESTORE <code>cache = state$upstream_cache</code>), <code>ptr_bind_shared_consumer_uis()</code> (ADD <code>req(bound_names)</code> guard). NEW private helper <code>bind_source_value()</code> placed adjacent to <code>ptr_setup_pipelines()</code>. No other functions in this file change.</li>
+      <li><code>tests/testthat/test-adr15-option-e-race.R</code> (NEW file).</li>
+      <li><code>tests/testthat/fixtures/vignette-apps/adr15-option-e-race/</code> (NEW directory) — <code>app.R</code>, <code>penguins.csv</code>.</li>
+    </ul>
+  </li>
+  <li><strong>Files this plan MUST NOT touch:</strong>
+    <ul>
+      <li><code>tests/testthat/test-adr12-bug-3a.R</code> — the diagnostic regression that surfaced the race; SC-8 demands it still passes unchanged. Editing it to weaken assertions would silently restore the polling workaround.</li>
+      <li><code>tests/testthat/test-adr15-consumer-binding.R</code> — PLAN-01's regression file; out of scope.</li>
+      <li><code>R/paintr-resolve.R</code>, <code>R/paintr-runtime.R</code> — Option E is purely a UI-binding-and-source-write change; no resolver or runtime changes.</li>
+      <li><code>NAMESPACE</code>, <code>DESCRIPTION</code>, <code>man/</code> — no API changes (helper is internal, all touched functions are internal).</li>
+      <li><code>R/paintr-server.R</code> body of <code>ptr_bind_source_autoname()</code> — Option E does NOT remove the autoname feature. The <code>updateTextInput</code> call stays; consumers just stop trusting it as a sync signal.</li>
+    </ul>
+  </li>
+  <li><strong>No scope creep.</strong> Do not refactor adjacent code. Do not extract additional helpers beyond <code>bind_source_value()</code>. Do not change the autoname mechanism. Do not touch Option Q (defensive eval-time free-variable check) — it is a separate, optional follow-on that PLAN-02 explicitly does not include.</li>
+  <li><strong>SCOPE NARROWING FORBIDDEN.</strong> If SC-4 (remove polling) breaks any test, STOP and escalate. Do NOT re-add <code>invalidateLater(50)</code> "for safety". Do NOT skip the shared-site fix (SC-5). Do NOT keep <code>cache = NULL</code> "for now". The whole point of Option E is that the race is gone — re-introducing any workaround means the implementation does not match the principle.</li>
+  <li><strong>Tree mutability assumption.</strong> <code>state$tree()</code> is initialised once in <code>ptr_init_state()</code> and never written after that (verified: <code>grep -nE "state\\\$tree\\(.+\\)" R/paintr-server.R R/paintr-app.R</code> shows only reads). Therefore <code>state$bound_names</code> needs no dynamic teardown — its keys are stable for the lifetime of the <code>ptr_state</code>. If a future change makes <code>state$tree()</code> mutable, <code>bound_names</code> will need parallel teardown alongside <code>resolved_data</code> / <code>resolved_sources</code>; this assumption must be re-verified.</li>
+  <li><strong>Conventions:</strong> tidyverse style, 2-space indent. <code>rlang::abort()</code> if introducing errors (none expected). No new exports.</li>
+  <li><strong>Serena / sub-agent constraints:</strong> when implementing in a worktree, sub-agents MUST use <code>Edit</code>/<code>Write</code> with absolute paths under the assigned worktree only. Do NOT use <code>mcp__serena__replace_symbol_body</code> from sub-agents — see project memory <code>feedback-serena-project-root-doesnt-follow-worktree</code>.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>
+Feature: Consumer resolution depends on server-side bound_names, not client-roundtripped companion text
+         (Option E — removes the race that Option A worked around)
+
+Scenario: Race elimination — upload penguins.csv with empty companion, no datasets::penguins leak
+  Given the fixture app `adr15-option-e-race` is booted via shinytest2::AppDriver
+  And the formula is ppUpload |> dplyr::filter(ppVar > ppNum) |> ggplot(aes(ppVar, ppVar)) + geom_point()
+  When app$upload_file(ggplot_0_ppUpload_NA = penguins.csv) is called
+  And NO app$set_inputs call touches ggplot_0_ppUpload_NA_name (autoname fires)
+  And app$wait_for_idle() is called
+  Then app$get_html("#ggplot_1_1_ppVar_NA_ui") contains "x" and "y" as <option> values
+  And app$get_html("#ggplot_1_1_ppVar_NA_ui") contains NEITHER "flipper_length_mm" NOR "bill_length_mm" NOR "species"
+  And app$get_html("#ggplot_2_1_ppVar_NA_ui") contains "x" and "y" as <option> values
+  And app$get_html("#ggplot_2_1_ppVar_NA_ui") contains NEITHER "flipper_length_mm" NOR "bill_length_mm" NOR "species"
+
+Scenario: Polling workaround is gone — entry_reactive has no invalidateLater
+  Given the source file R/paintr-server.R is read
+  When grep -n "invalidateLater" R/paintr-server.R is run
+  Then no match appears inside the body of ptr_setup_consumer_uis()
+  And no match appears inside the body of ptr_bind_shared_consumer_uis()
+
+Scenario: Upstream cache restored for consumer path
+  Given the source file R/paintr-server.R is read
+  When grep -n "cache = state\$upstream_cache\\|cache = NULL" inside ptr_setup_consumer_uis is run
+  Then the ptr_resolve_upstream call inside entry_reactive passes cache = state$upstream_cache
+  And no cache = NULL appears inside ptr_setup_consumer_uis's body
+
+Scenario: bound_names is only ever written through bind_source_value
+  Given the source file R/paintr-server.R is read
+  When grep -nE "state\$bound_names\[\[[^]]+]]\(" R/paintr-server.R is run
+  Then exactly ONE match appears, inside the body of bind_source_value()
+  And no other observer body writes state$bound_names directly
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p>Authoritative gate (copy verbatim from <code>CLAUDE.md</code> §Authoritative gate):</p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p>Expected output: <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS &gt;= 2358</code> (baseline 2357 after PLAN-01 + at least 1 new <code>expect_*</code> in the new <code>test_that</code> block).</p>
+
+<p><strong>Proxy traps — do not be fooled</strong> (copied from CLAUDE.md):</p>
+
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir(...)'</code> with NO <code>NOT_CRAN=true</code> → <code>skip_on_cran()</code> fires → every shinytest2 browser test silently SKIPs. "PASS / SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> runs the check subprocess with <code>NOT_CRAN=true</code>; the e2e file cleanly SKIPs via the source-root guard (no <code>DESCRIPTION</code> in the <code>.Rcheck</code> sandbox). If a check run shows the new e2e file <strong>ERRORing</strong>, the guard regressed — harness defect, NOT product failure.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> RUNS the browser tests. That alone is the gate.</li>
+</ul>
+
+<h2>Scope guard / ownership</h2>
+
+<p>This plan owns: <code>R/paintr-server.R</code> (bodies of <code>ptr_init_state</code>, <code>ptr_setup_pipelines</code>, <code>ptr_setup_consumer_uis</code>, <code>ptr_bind_shared_consumer_uis</code> + the new <code>bind_source_value()</code> helper), <code>tests/testthat/test-adr15-option-e-race.R</code>, <code>tests/testthat/fixtures/vignette-apps/adr15-option-e-race/</code>.</p>
+
+<p>R's auto-generated files (<code>NAMESPACE</code>, <code>man/</code>) are NOT owned by this plan — both modified functions and the new helper are internal (non-exported), so no <code>devtools::document()</code> regeneration is required or permitted.</p>
+
+<p>Branch convention: this plan lives on branch <code>0015-plan-02-server-side-bound-names</code>, branched off <code>followup-b</code> (or <code>post-add-expr</code> if <code>followup-b</code> has merged by the time work starts — confirm with user before naming). Merge back via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the Definition-of-Done command and verifies expected output before any merge. Specifically: the auditor MUST run the gate from a clean <code>devtools::load_all()</code> in the worktree AND MUST verify by <code>grep</code> that:</p>
+<ul>
+  <li>No <code>invalidateLater</code> appears inside <code>ptr_setup_consumer_uis()</code> or <code>ptr_bind_shared_consumer_uis()</code>.</li>
+  <li>No <code>.binding_pending</code> variable name appears anywhere in <code>R/paintr-server.R</code>.</li>
+  <li>The <code>cache = ...</code> argument inside <code>entry_reactive</code>'s <code>ptr_resolve_upstream</code> call is <code>state$upstream_cache</code>, NOT <code>NULL</code>.</li>
+  <li>Exactly one line in <code>R/paintr-server.R</code> writes to <code>state$bound_names[[...]](...)</code> — the line inside <code>bind_source_value()</code>.</li>
+  <li>Both source observers in <code>ptr_setup_pipelines()</code> end with a call to <code>bind_source_value(state, ...)</code> instead of inline <code>assign() + slot()</code>.</li>
+</ul>
+
+<h2>Baseline / drift reference</h2>
+
+<p>Known-good baseline: <code>followup-b</code> at HEAD <code>df44d58</code> (audit doc committed after PLAN-01). At this commit the authoritative gate reports <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS 2357</code>. After this plan lands, PASS rises by ≥ 1; FAIL / ERROR / SKIP unchanged.</p>
+
+<p>Pre-existing flakes: e2e shinytest2 tests have documented intermittent <code>chromote wait_for_js</code> timeout shapes. If the new file flakes, retry in isolation before filing.</p>
+
+<h2>Out-of-scope handling</h2>
+
+<p>Findings outside this plan's owned files are surfaced (recorded in the audit report), never absorbed.</p>
+
+<ul>
+  <li><strong>Option Q (defensive free-variable check in <code>ptr_resolve_upstream</code>).</strong> Discussed in the assessment turn; not part of PLAN-02. Surface as a follow-on candidate ADR if a future leak warrants belt-and-suspenders.</li>
+  <li><strong>Option R (canonical internal source names).</strong> Eliminates the client/server naming coupling structurally; bigger refactor with code-panel UX implications. Out of scope; flag as future-ADR candidate.</li>
+  <li><strong>Removal of remaining <code>shiny::update*</code> calls in <code>R/paintr-server.R</code> (lines 629, 634, 1225 per audit doc).</strong> Out of scope — audit doc §4 confirms those are different code paths (spec-apply boot + tab navigation), not load-bearing for ADR-0015's race.</li>
+</ul>
+
+<h2>Dependencies / ordering</h2>
+
+<p>Depends on: PLAN-01 (already merged on <code>followup-b</code>). PLAN-02 supersedes PLAN-01's Option-A workaround tail (the <code>.binding_pending</code> block + <code>cache = NULL</code>), but BUILDS ON PLAN-01's SC-1/SC-2/SC-3/SC-4 (the visibility-suspend removal, the <code>req(source_ready)</code> guard, the subtab dep drop, the shared <code>resolved_data</code> loop). PLAN-01's regression file <code>test-adr15-consumer-binding.R</code> continues to pass unchanged — its assertions are about eager binding, not race elimination.</p>
+
+<p>Provides for: no follow-on plans in the ADR-0015 set. Option Q / Option R would be separate ADRs.</p>
+
+<!-- implementable: PASS date=2026-05-23 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=cede1020a336 -->
+</body>
+</html>

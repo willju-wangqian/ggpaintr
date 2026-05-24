@@ -6,17 +6,19 @@ Orchestrator entry point: `/exec-plan dev/plans/0015-consumer-picker-source-head
 
 ## Merge order
 
-`01` (single plan)
+`01` → `02` (sequential; PLAN-02 supersedes PLAN-01's Option-A workaround tail but BUILDS ON its SC-1/SC-2/SC-3/SC-4 head)
 
 ## Parallel groups
 
-- **G1**: 01 — only plan in the set. ADR 0015's scope is two narrow edits to one source file + one new regression-test file + one new fixture directory; partitioning into multiple plans would split a single coherent change across worktrees with no parallelism benefit.
+- **G1**: 01 — eager-bind architecture (landed on `followup-b`).
+- **G2**: 02 — Option E structural race fix (this PR set). Depends on G1.
 
 ## Plans
 
-| #  | Slug                                            | Group | Depends on | Status | One-line summary |
-|----|-------------------------------------------------|-------|------------|--------|------------------|
-| 01 | eager-bind-source-headed-consumer-pickers       | G1    | —          | draft  | Drop pre-warm visibility-gate + add `req()` source-ready guard + drop subtab dep in `ptr_setup_consumer_uis()`; add symmetric `state$resolved_data` dep loop in `ptr_bind_shared_consumer_uis()`. Ships new fixture `adr15-consumer-binding/` + new test file `test-adr15-consumer-binding.R` with three `test_that` blocks (non-shared upload, shared upload, no-source pre-warm). |
+| #  | Slug                                            | Group | Depends on | Status     | One-line summary |
+|----|-------------------------------------------------|-------|------------|------------|------------------|
+| 01 | eager-bind-source-headed-consumer-pickers       | G1    | —          | merged     | Drop pre-warm visibility-gate + add `req()` source-ready guard + drop subtab dep in `ptr_setup_consumer_uis()`; add symmetric `state$resolved_data` dep loop in `ptr_bind_shared_consumer_uis()`. |
+| 02 | server-side-bound-names                         | G2    | 01         | stamped    | Option E: server-side `state$bound_names[[id]]` reactiveVal written by source observers after `assign()`; consumers `req()` it instead of polling `eval_env`. Supersedes PLAN-01's `invalidateLater(50)` + `cache=NULL` workaround tail; restores `state$upstream_cache`; same fix in shared consumer site. |
 
 ## Blocked plans
 
@@ -24,9 +26,9 @@ None.
 
 ## Notes for the orchestrator
 
-- This plan's worktree base is the orchestrator HEAD on `followup-b` (currently `4a23d39`).
+- PLAN-02's worktree base is the orchestrator HEAD on `followup-b` (or `post-add-expr` if `followup-b` has merged by then — confirm before naming the branch).
 - The Definition-of-Done command must be run from the worktree post-implement and post-merge. Bare `Rscript -e 'testthat::test_dir(...)'` without `NOT_CRAN=true` silently SKIPs every shinytest2 test — not the gate.
-- Post-merge: ADR-0013 PLAN-04 (`04-app-2b-customsource-splice`) becomes implementable. That plan lives in `dev/plans/0013-super-app-pressure-tests/` and is owned by the ADR-0013 plan set; do NOT touch it from this exec-plan run.
-- This plan's owned-files list explicitly excludes `tests/testthat/test-super-pressure.R` so PLAN-04 can land its own super-2b block cleanly afterwards.
+- PLAN-02's ordering invariant (`assign()` before `state$bound_names[[key]](name)`) is enforced by the new `bind_source_value()` helper. Auditor must verify exactly ONE write to `state$bound_names` exists in the codebase (inside the helper body).
+- Post-merge: ADR-0013 PLAN-04 was unblocked by PLAN-01 already; PLAN-02 has no new downstream dependants.
 
-<!-- implementable: PASS date=2026-05-23 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=ff6b07051c77 -->
+<!-- implementable: PASS date=2026-05-23 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=0b6e7dc9a819 -->
