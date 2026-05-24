@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0020 — ppLayerOff / ppVerbOff: source-mode checkbox toggles</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0020 — <code>ppLayerOff</code> / <code>ppVerbOff</code>: source-mode checkbox toggles</h1>
+
+<p><strong>Status:</strong> <em>Proposed.</em> Drafted 2026-05-24.</p>
+
+<p><strong>Date:</strong> 2026-05-24</p>
+
+<p><strong>Relates to:</strong> <a href="0009-pp-placeholders-and-expression-input.html">ADR-0009</a> (the <code>pp*</code> placeholder family + expression mode), <a href="0012-role-based-tree-and-ptr-spec.html">ADR-0012</a> (canonical typed tree; tree is semantic, not syntactic; <code>spec=</code> shape and apply-timing).</p>
+
+<h2>Context</h2>
+
+<p>ggpaintr already lets the user write naked-ggplot code with empty <code>pp*</code> calls (<code>ppVar()</code>, <code>ppNum()</code>, <code>ppText()</code>, <code>ppExpr()</code>) — they evaluate to <code>NULL</code> outside <code>ptr_app</code> (per the recent <code>49246f9</code> fix), and inside <code>ptr_app</code> they become widget bind-points. The same naked-ggplot script becomes either a static plot or an interactive app, depending on which evaluator runs it.</p>
+
+<p>Layer-on/off and stage-on/off toggles are the only first-class app controls that have <strong>no</strong> source-mode counterpart today:</p>
+
+<ul>
+  <li><strong>Layer checkbox.</strong> Every non-<code>ggplot</code> layer gets an input <code>&lt;layer_name&gt;_checkbox</code> (<code>R/paintr-translate.R:81-83</code>), emitted into <code>ptr_runtime_input_spec()</code> with role <code>"layer_checkbox"</code> (<code>R/paintr-input-spec.R:37-44</code>). The boot value comes from <code>checkbox_defaults =</code> (a <strong>schema-side</strong> argument keyed by layer name) or, if absent, defaults to <code>TRUE</code>. There is no way to express "this layer should start unchecked" <em>in the formula itself</em>.</li>
+  <li><strong>Stage-enabled checkbox.</strong> Every pipeline stage gets <code>stage_id = &lt;layer&gt;_&lt;path&gt;_stage_enabled</code> (<code>R/paintr-disable.R:37-71</code>), role <code>"stage_enabled"</code>. The boot value is hardcoded <code>TRUE</code> in both the snapshot (<code>R/paintr-headless.R:107-108</code>) and the stage-head UI (<code>R/paintr-region.R:36-50</code> via the <code>default_on</code> arg, hardcoded at all call sites). There is no schema-side equivalent of <code>checkbox_defaults</code> for stages, and no formula-side override at all.</li>
+</ul>
+
+<p>The user can already drive both via <code>spec =</code> at session boot (<code>apply_spec_at_boot()</code> in <code>R/paintr-server.R:477</code> dispatches <code>updateCheckboxInput()</code> for both roles), but that requires knowing the fully-qualified input id (<code>geom_point_1_stage_enabled</code>, namespaced for grid/embed apps) and writing it out by hand. It is a tool for round-trip restore, not for writing a formula.</p>
+
+<h3>Verified facts (2026-05-24)</h3>
+
+<ul>
+  <li>The naked-ggplot prototype works as expected: <code>ggplot(mtcars |> ppVerbOff(mutate(mpg = mpg + 100), FALSE) |> ppVerbOff(mutate(wt = wt + 1000), FALSE), aes(x = mpg, y = wt)) + ppLayerOff(geom_point(), FALSE) + ppLayerOff(geom_smooth())</code> renders one layer (the second <code>ppLayerOff</code> defaults <code>hide = TRUE</code> → <code>NULL</code>), with mpg[1] = 121 and wt[1] = 1002.62.</li>
+  <li><code>default_active</code> already exists on every <code>ptr_layer</code> (<code>R/paintr-nodes.R:15-20</code>, init'd <code>TRUE</code> at <code>R/paintr-translate.R:477,489</code>) and is read at exactly one site: <code>R/paintr-build-ui.R:144-145</code> → <code>resolve_layer_default(layer_name, checkbox_defaults, node$default_active)</code> at <code>R/paintr-build-ui.R:531-539</code>. The boot snapshot in <code>R/paintr-headless.R:105-108</code> (layer_checkbox branch) does <strong>not</strong> currently read <code>node$default_active</code> — it instead consumes <code>checkbox_defaults</code> via a call to <code>ptr_resolve_checkbox_defaults()</code> at line 98 (which also transitively consults the global option via <code>ptr_default_layer_state()</code>). Once that resolver call is removed, the snapshot must learn to read <code>node$default_active</code> directly — drift hazard if only one side is taught the new field.</li>
+  <li><code>default_stage_enabled</code> does not exist anywhere in the codebase. Two sites currently hardcode <code>TRUE</code> for stage-checkbox defaults: the snapshot branch above and <code>controllable_region()</code>'s <code>default_on</code> arg at the per-layer Data-panel stage call (<code>R/paintr-build-ui.R:230-232</code>, inside <code>build_pipeline_stage_ui()</code>) and the shared-stage variant (<code>R/paintr-build-ui.R:486-488</code>, inside <code>wrap_shared_widgets_with_stage_blocks()</code>).</li>
+  <li>Round-trip via <code>state$spec</code> emits on diff from the snapshot; once the snapshot honors the new defaults, <code>spec =</code> already works for both roles via the existing <code>apply_spec_entry()</code> dispatch (<code>R/paintr-server.R:643-665</code>).</li>
+  <li>No other tree consumer (<code>paintr-prune.R</code>, <code>paintr-substitute.R</code>, <code>paintr-disable.R</code>, <code>paintr-input-spec.R</code>, <code>paintr-server.R</code>) reads either <code>default_active</code> or the proposed <code>default_stage_enabled</code> — they read <code>active</code> (runtime, post-snapshot), <code>active_input_id</code>, and <code>stage_id</code> only. Adding the new field is read-side greenfield outside the two snapshot/UI sites enumerated above.</li>
+  <li><strong>Layer-checkbox boot value already has three bands today</strong> (not two): per-call <code>checkbox_defaults = list(&lt;layer_name&gt; = TRUE|FALSE)</code> at <code>R/paintr-checkbox-defaults.R:19-105</code> (note: <strong>both</strong> values are valid — the validator at <code>R/paintr-checkbox-defaults.R:135-157</code> only requires <em>logical, length&gt;0, not NA</em>; <code>R/paintr-build-ui.R:535-537</code> uses <code>isTRUE()</code> on the entry); then the global option <code>checkbox_default_all_other_layer</code> (default <code>TRUE</code>) consulted via <code>ptr_default_layer_state()</code> at <code>R/paintr-options.R:136-137</code> and used as <code>fallback</code> inside <code>ptr_resolve_checkbox_defaults()</code> at <code>R/paintr-checkbox-defaults.R:22</code>; then the implicit <code>TRUE</code>. Stage-checkbox boot value has no analogous global option — it is hardcoded <code>TRUE</code> in both reader sites.</li>
+  <li><strong>The structural-equality comparator</strong> <code>ptr_tree_structural_equal()</code> at <code>R/paintr-nodes.R:122-149</code> already excludes <code>op</code> and <code>expr</code> from its name-set walk (<code>setdiff(names(a), c("op", "expr"))</code>) — those fields capture surface notation (<code>|&gt;</code> vs <code>%&gt;%</code> vs nested-call; the cached original expr), not semantics. The new <code>default_active</code> / <code>default_stage_enabled</code> fields belong in the same exclusion category.</li>
+  <li><code>tests/testthat/test-adr12-consumer-uniformity.R:68</code> re-implements <code>ptr_tree_structural_equal()</code> <strong>inline</strong> (not a call to the real one). The inline helper is <em>class-dispatched</em>, not name-set-walking: for each node class it hand-picks the fields to compare (<code>ptr_layer</code>: <code>name</code> / <code>data_arg</code> / <code>children</code>; <code>ptr_call</code>: <code>fun</code> / <code>args</code>; etc.). It therefore already ignores <code>default_active</code> / <code>default_stage_enabled</code> by construction — no mirror change is needed. The right move is to <strong>switch the file to <code>ggpaintr:::ptr_tree_structural_equal</code></strong>, which both gains tighter coverage (it compares the full slot set rather than a hand-picked subset) and clears a few <code>:::</code> uses, aligning with <a href="0019-c3c-public-staged-pipeline.html">ADR-0019</a>'s direction.</li>
+</ul>
+
+<h2>Problem statement</h2>
+
+<p>The naked-ggplot story stops short of toggles. Users who want a formula to express "this layer starts off" or "this pipeline stage starts off" today have to leave the formula and either set <code>checkbox_defaults =</code> (layer only, schema-side, keyed by name) or hand-write <code>spec =</code> entries (both roles, but verbose and bound to namespaced ids). The formula is no longer a single source of truth for what the user wants the app to look like at boot.</p>
+
+<h2>Decision (direction, not interface)</h2>
+
+<p>Add two new keywords to the <code>pp*</code> family that are <strong>structural unwrappers</strong>, not value placeholders:</p>
+
+<pre><code>ppLayerOff(layer_expr, hide = TRUE)            # used in layer position (top-level +)
+ppVerbOff(.data, verb_expr, hide = TRUE)       # used as a data-pipeline stage</code></pre>
+
+<p>Out of source-mode (no ggpaintr evaluator on the stack) both behave exactly as their naked-R bodies imply: <code>ppLayerOff</code> returns <code>NULL</code> when <code>hide</code>, the layer expression otherwise; <code>ppVerbOff</code> re-routes the prior <code>.data</code> through the inner verb call when not hidden, returns <code>.data</code> unchanged when hidden.</p>
+
+<p>Inside ggpaintr, both keywords are recognised by <code>placeholder_keyword()</code> (<code>R/paintr-translate.R:594-605</code>) but translated with <strong>special unwrap rules</strong> — they do not become <code>ptr_ph_*</code> nodes:</p>
+
+<ul>
+  <li><code>ppLayerOff(layer_expr, hide = L)</code> in layer position → translate <code>layer_expr</code> as a normal layer (so <code>active_input_id = "&lt;name&gt;_checkbox"</code> is assigned by the existing path) and stamp <code>default_active &lt;- !isTRUE(L)</code> on the resulting <code>ptr_layer</code>. In any other position → translate-time error.</li>
+  <li><code>ppVerbOff(.data, verb_expr, hide = L)</code> as a pipeline stage → translate the inner <code>verb_expr</code> as the pipeline stage (so <code>assign_stage_ids()</code> tags it the usual <code>&lt;layer&gt;_&lt;path&gt;_stage_enabled</code>), stamp <code>default_stage_enabled &lt;- !isTRUE(L)</code> on the resulting <code>ptr_call</code>. In any other position → translate-time error.</li>
+  <li><code>hide</code> must be a static logical literal at translate time. Anything else is a translate-time error — it cannot be a <em>default</em> for a widget.</li>
+</ul>
+
+<p>Two reader sites read the new defaults directly off the node (no <code>checkbox_defaults</code> consultation — that arg is deprecated per the next section):</p>
+
+<ul>
+  <li><code>ptr_default_snapshot()</code> <code>layer_checkbox</code> branch (<code>R/paintr-headless.R:105-108</code>): use <code>node$default_active %||% TRUE</code>, looking the carrier <code>ptr_layer</code> up by <code>layer_name</code>. (The current call to <code>ptr_resolve_checkbox_defaults()</code> at line 98 is removed.)</li>
+  <li><code>ptr_default_snapshot()</code> <code>stage_enabled</code> branch (<code>R/paintr-headless.R:109-110</code>): look up the stage carrier node by <code>stage_id</code> and use <code>node$default_stage_enabled %||% TRUE</code>.</li>
+</ul>
+
+<p>Two UI sites:</p>
+
+<ul>
+  <li>Layer-checkbox initial value at <code>R/paintr-build-ui.R:144-145</code> currently goes through <code>resolve_layer_default(layer_name, checkbox_defaults, node$default_active)</code>. With <code>checkbox_defaults =</code> deprecated, this simplifies to <code>isTRUE(node$default_active %||% TRUE)</code>; <code>resolve_layer_default()</code> at <code>R/paintr-build-ui.R:531-539</code> can be removed (or inlined).</li>
+  <li>Stage-checkbox emission threads the carrier <code>ptr_call</code>'s <code>default_stage_enabled</code> into <code>controllable_region(..., default_on = ...)</code> at two sites. Each site has a single-line plumbing change in the producer + a single-line addition at the call site:
+    <ul>
+      <li><strong>Per-layer Data-panel:</strong> entry builder <code>find_layer_placeholders_with_stage()</code> at <code>R/paintr-build-ui.R:303-355</code> already has the carrier ptr_call in scope as <code>s</code> (line 333) where it extracts <code>verb</code>; extend the entry shape from <code>list(ph, stage_id, verb)</code> to <code>list(ph, stage_id, verb, default_stage_enabled)</code>. Consumer <code>build_pipeline_stage_ui()</code> at <code>R/paintr-build-ui.R:230-232</code> then passes <code>default_on = entries[[i]]$default_stage_enabled %||% TRUE</code> to <code>controllable_region()</code> (all entries in one stage block carry the same value; reading the head entry is sufficient).</li>
+      <li><strong>Shared-stage variant:</strong> producer <code>collect_orphan_shared_stages()</code> at <code>R/paintr-build-ui.R:405-420</code> already has the carrier ptr_call in scope as <code>n</code> (line 408); extend the emitted record (lines 413-417) from <code>list(stage_id, verb, shared_keys)</code> to <code>list(stage_id, verb, shared_keys, default_stage_enabled = n$default_stage_enabled)</code>. Consumer <code>wrap_shared_widgets_with_stage_blocks()</code> at <code>R/paintr-build-ui.R:486-488</code> then passes <code>default_on = st$default_stage_enabled %||% TRUE</code> to <code>controllable_region()</code>.</li>
+    </ul>
+  </li>
+</ul>
+
+<p>Nothing changes on the <code>spec =</code> side. <code>apply_spec_at_boot()</code> / <code>apply_spec_entry()</code> (<code>R/paintr-server.R:643-665</code>) already dispatches <code>updateCheckboxInput</code> for both <code>layer_checkbox</code> and <code>stage_enabled</code> roles. A user-supplied <code>spec =</code> entry overrides the <code>hide =</code>-derived default at flush time exactly as it does today for placeholder widgets.</p>
+
+<h3>Precedence (boot value of the checkbox)</h3>
+
+<p>Symmetric 3-band ladder for both roles, highest precedence first:</p>
+
+<ol>
+  <li><code>spec =</code> entry naming the input id (ad-hoc one-shot at boot — for round-trip restore or external boot configuration).</li>
+  <li>Formula-side <code>ppLayerOff(..., hide=)</code> → <code>default_active</code> on the carrier <code>ptr_layer</code>; <code>ppVerbOff(..., hide=)</code> → <code>default_stage_enabled</code> on the carrier <code>ptr_call</code>. <strong>The canonical formula-side mechanism.</strong></li>
+  <li>Implicit <code>TRUE</code>.</li>
+</ol>
+
+<p>This intentionally <strong>deprecates the per-call <code>checkbox_defaults =</code> argument and the global <code>checkbox_default_all_other_layer</code> option</strong> — see the next section.</p>
+
+<h3>Deprecation: <code>checkbox_defaults =</code> and the global option</h3>
+
+<p>Before this ADR, layer-checkbox boot state had three entry points: <code>spec =</code> (ad-hoc), per-call <code>checkbox_defaults =</code> (schema-side config), and the global option <code>checkbox_default_all_other_layer</code> (unscoped fallback). Adding <code>ppLayerOff</code> introduces a fourth. <strong>Four entry points for one bit of state is too many</strong>, and three of them are side-channels disconnected from the formula:</p>
+
+<ul>
+  <li><code>spec =</code> is justified as the ad-hoc boot-state restore mechanism — it has a distinct purpose (round-trip, external configuration) and a distinct shape (id-keyed, namespaced).</li>
+  <li><code>ppLayerOff</code> / <code>ppVerbOff</code> live <em>inside the formula</em>. They keep the naked-ggplot evaluation and the <code>ptr_app</code> evaluation consistent on what the boot state should be — the formula is the source of truth. This matches ADR-0009's "placeholder boot values live inside the call" principle (e.g. <code>ppText(initial = "hi")</code>), extended to toggles.</li>
+  <li><code>checkbox_defaults =</code> and <code>checkbox_default_all_other_layer</code> are side-channels: they affect <code>ptr_app</code> only, and can silently drift from what the formula says. <code>ppLayerOff</code> strictly subsumes them — every <code>checkbox_defaults</code> shape has a mechanical per-layer <code>ppLayerOff</code> equivalent (direct entries → wrap that layer; group expansion → wrap each instance; logical-vector → wrap each instance with the matching <code>hide=</code>). Nothing is lost.</li>
+</ul>
+
+<p>Therefore: deprecate both. Migration:</p>
+
+<ul>
+  <li><code>checkbox_defaults = list(geom_point = FALSE)</code> → <code>ggplot(...) + ppLayerOff(geom_point(), TRUE) + ...</code></li>
+  <li><code>checkbox_defaults = list(geom_point = c(TRUE, FALSE))</code> for two instances → <code>geom_point() + ppLayerOff(geom_point(), TRUE)</code> (or <code>ppLayerOff(geom_point(), FALSE) + ppLayerOff(geom_point(), TRUE)</code> if the user wants the explicit on-marker for symmetry).</li>
+  <li><code>ptr_options(checkbox_default_all_other_layer = FALSE)</code> (opt-in mode) → wrap every default-off layer in <code>ppLayerOff(..., TRUE)</code>. Verbose for many-layer apps, but explicit at the call site rather than hidden in global state.</li>
+</ul>
+
+<p><strong>Cost acknowledged:</strong> opt-in-mode users (many alternative layers, only a few on by default) trade one global setting for one wrapper per layer. This is real friction; the trade-off is that "what the app shows at boot" is now visible in the formula instead of split across global state and the formula.</p>
+
+<p><strong>Public surface affected</strong> (verified via grep + signature reads): the global option <code>ptr_options(checkbox_default_all_other_layer = ...)</code> at <code>R/paintr-options.R:10-11, 34-43, 62, 135-137</code>. The <code>checkbox_defaults =</code> argument is a <strong>named formal</strong> on: <code>ptr_app</code> (<code>R/paintr-app.R:139</code>), <code>ptr_app_components</code> (two variants at <code>R/paintr-app.R:161, 299</code>), <code>ptr_app_grid</code> (<code>R/paintr-app.R:392</code>), <code>ptr_app_grid_components</code> (<code>R/paintr-app.R:749</code>), <code>ptr_app_bslib</code> (<code>R/paintr-app-bslib.R:61</code>), <code>ptr_init_state</code> (<code>R/paintr-server.R:89</code>), <code>ptr_run_formula</code> (<code>R/paintr-headless.R:121</code>), <code>ptr_default_snapshot</code> (<code>R/paintr-headless.R:86</code>), and <code>ptr_resolve_checkbox_defaults</code> (<code>R/paintr-checkbox-defaults.R:20</code>). <code>ptr_server</code> forwards it via <code>...</code> into <code>ptr_init_state</code>, not as a formal. The entire <code>R/paintr-checkbox-defaults.R</code> file (<code>ptr_resolve_checkbox_defaults</code>, two validators, plus <code>ptr_strip_dedup_suffix</code> — verified to have only one caller, also inside that file, so it dies with the file) is removed. Test files: <code>tests/testthat/test-options.R</code> (the half that covers <code>checkbox_default_all_other_layer</code> needs removal; the <code>verbose</code> half stays) and the 287-line <code>tests/testthat/test-checkbox-defaults.R</code> (the dedicated test for the file being removed) — needs to be deleted or rewritten against the formula-side <code>ppLayerOff</code> equivalent.</p>
+
+<p><strong>Removal cadence:</strong> straight remove in the same change. ggpaintr has no external users to deprecate-warn for — there is no production deployment surface to protect. Mechanical migration of any internal call sites (vignettes, tests, manual fixtures) happens in the same plan.</p>
+
+<h3>ADR-0012 invariant (tree is semantic, not syntactic)</h3>
+
+<p>The "syntactic equivalents produce the same canonical tree" rule holds <strong>only when <code>hide = FALSE</code></strong>, i.e. when the user explicitly opted into the on-state:</p>
+
+<ul>
+  <li><code>mtcars |&gt; ppVerbOff(mutate(x = 1), FALSE)</code> ≡ <code>mtcars |&gt; mutate(x = 1)</code> → trees identical (<code>default_stage_enabled = TRUE</code> on both, the on-by-default value).</li>
+  <li><code>ppLayerOff(geom_point(), FALSE)</code> ≡ <code>geom_point()</code> → trees identical.</li>
+</ul>
+
+<p>With <code>hide = TRUE</code> (the function's default), the carrier node still differs from the bare equivalent on the <code>default_active</code> / <code>default_stage_enabled</code> metadata — that's the requested signal — but the <strong>structural-equality comparator deliberately ignores it</strong> (see below). Functionally: trees compare equal for both values of <code>hide</code>, while downstream readers (snapshot, UI emitter) still see the metadata and seed the right boot value.</p>
+
+<h3>Structural-equality comparator</h3>
+
+<p><code>ptr_tree_structural_equal()</code> at <code>R/paintr-nodes.R:122-149</code> already excludes <code>op</code> and <code>expr</code> from the name set it walks — those fields capture <em>how the user wrote it</em>, not <em>what the plot computes</em>. Extend the exclusion to <code>default_active</code> and <code>default_stage_enabled</code>:</p>
+
+<pre><code>names_a &lt;- setdiff(names(a), c("op", "expr", "default_active", "default_stage_enabled"))
+names_b &lt;- setdiff(names(b), c("op", "expr", "default_active", "default_stage_enabled"))</code></pre>
+
+<p>Justification: both fields encode a request about the <strong>UI widget's boot value</strong>, not anything the plot evaluation produces. Both are bool; both are user-flippable at runtime via the very checkbox they seed. The tree's shape and the plot it eventually renders are identical regardless of either field's value — exactly the same category as <code>op</code> (the pipe variant) and <code>expr</code> (the cached original R expression).</p>
+
+<p>This decouples the comparator from the runtime: the comparator answers "do these two trees compute the same plot?" while the snapshot / UI emitter / spec-roundtrip layers read the metadata fields directly off the node when they need it. Tests that want to assert "translate stamped the right default" read <code>node$default_active</code> / <code>node$default_stage_enabled</code> directly rather than through the comparator — which is strictly better than overloading the comparator with two separate responsibilities.</p>
+
+<h3>Out of scope for this ADR</h3>
+
+<ul>
+  <li>The exact spelling of error messages from translate-time validation (literal-only <code>hide</code>; wrong-position keyword).</li>
+  <li>The order in which <code>ppLayerOff</code> / <code>ppVerbOff</code> are introduced into the registry init pipeline (covered by ADR-0014).</li>
+  <li>Whether the same machinery should also let a user <strong>hide</strong> placeholder widgets (e.g. <code>ppText(initial = "hi", visible = FALSE)</code>). That is a separate UI-shape question; this ADR addresses only the binary on/off toggle that already exists.</li>
+  <li>Documentation of <code>ppVerbOff</code>'s data-arg-position assumption is in-scope for the implementation (man page + use-cases vignette) but the exact wording is a writing decision, not an architecture decision.</li>
+</ul>
+
+<h2>Consequences</h2>
+
+<h3>What this buys</h3>
+
+<ul>
+  <li>A naked-ggplot formula becomes a faithful expression of the app's boot state for <em>every</em> first-class control — not just placeholders. The "same formula in or out of ggpaintr" story extends to layer/stage toggles.</li>
+  <li>Zero new id schemes. All the existing <code>layer_checkbox</code> / <code>stage_enabled</code> input ids, widget rendering, runtime visitors (<code>disable_walk</code>, <code>resolve_layer_default</code>), and <code>spec =</code> round-trip continue to do exactly what they already do — the change is "teach two sites to honor a node-level default field". The dormant <code>default_active</code> field on <code>ptr_layer</code> finally gets a producer.</li>
+  <li>Composable with the existing layer-checkbox story: <code>checkbox_defaults =</code> (schema, by layer name) and <code>ppLayerOff(hide=)</code> (formula, per-instance) cover different ergonomic needs and stack via the documented precedence above.</li>
+</ul>
+
+<h3>What this does NOT buy</h3>
+
+<ul>
+  <li>No new runtime power. Anything <code>ppLayerOff</code> / <code>ppVerbOff</code> can express is also expressible via <code>spec =</code> with the right id, or (for layer only) via <code>checkbox_defaults =</code>. This is ergonomic-symmetry work, not new behaviour.</li>
+  <li>No solution to "I want the checkbox to disappear entirely from the UI" — the toggle is still rendered; only its initial value is set.</li>
+  <li>No coverage for placeholder widgets' boot defaults via a new keyword — those are already covered by passing the literal argument inside the placeholder call itself (<code>ppText(initial = "hi")</code>, etc.).</li>
+</ul>
+
+<h3>Risks</h3>
+
+<ul>
+  <li><strong>Drift between the snapshot and the UI's initial checkbox value</strong> if only one of the two reader sites is updated. The "verified facts" section pinned both sites; the implementation plan must touch both in the same change, with a regression test asserting that <code>ppLayerOff(..., TRUE)</code> produces a layer whose UI checkbox <code>value</code>, snapshot entry, and post-flush <code>state$layer_checkbox</code> reactive all agree on <code>FALSE</code>.</li>
+  <li><strong>Position discipline.</strong> A <code>ppLayerOff()</code> buried inside <code>aes()</code> or a <code>ppVerbOff()</code> outside a pipe chain has no useful semantics. Translate-time errors close that gap; without them, the user gets a silent no-op (the naked-R semantics apply at runtime, no toggle is registered, no widget appears).</li>
+  <li><strong><code>ppVerbOff</code> data-arg position.</strong> The unwrap assumes the verb call takes its data argument in position 1 (true for dplyr/tidyr verbs, magrittr/<code>|&gt;</code> conventions). This must be documented in the man page and use-cases vignette; a verb that takes data elsewhere will not round-trip correctly through <code>ppVerbOff</code>.</li>
+  <li><strong>Test-local re-implementation of the comparator.</strong> <code>tests/testthat/test-adr12-consumer-uniformity.R:68</code> defines its own inline <code>ptr_tree_structural_equal()</code> (it does not call the real one). The inline helper is class-dispatched — it never reads <code>default_active</code> / <code>default_stage_enabled</code>, so the new fields don't break it. But it's also a weaker comparator than the real one (hand-picked fields per class vs full slot set). Switch the file to <code>ggpaintr:::ptr_tree_structural_equal</code> for stronger coverage and to clear a few <code>:::</code> uses (aligns with ADR-0019).</li>
+</ul>
+
+</body>
+</html>

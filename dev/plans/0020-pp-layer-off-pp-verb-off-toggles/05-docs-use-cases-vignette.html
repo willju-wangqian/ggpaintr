@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-05 — use-cases vignette section for ppLayerOff / ppVerbOff (from ADR 0020)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 05
+  slug: docs-use-cases-vignette
+  source_adr: dev/adr/0020-pp-layer-off-pp-verb-off-toggles.html
+  depends_on: [04]
+  parallel_group: G4
+  status: draft
+-->
+
+<h1>PLAN-05 — use-cases vignette section for <code>ppLayerOff</code> / <code>ppVerbOff</code></h1>
+<p class="meta">Source: ADR 0020 (Out-of-scope §4, Risk §3 — ppVerbOff data-arg position) · Depends on: 04 · Parallel group: G4 · Status: draft</p>
+
+<h2>Context</h2>
+<p>Plan 01 ships the keywords <code>ppLayerOff</code> + <code>ppVerbOff</code> as exported functions with roxygen man pages (man/ppLayerOff.Rd, man/ppVerbOff.Rd) including the ppVerbOff data-arg-position note. Plan 04 deletes the old <code>checkbox_defaults =</code> documentation and migrates existing vignette mentions to <code>ppLayerOff</code>. Neither plan adds a <em>new</em> narrative section explaining when and how a user reaches for these keywords.</p>
+
+<p>This plan adds that narrative — one cohesive section in <code>vignettes/ggpaintr-use-cases.Rmd</code> covering: the formula-as-source-of-truth motivation, the layer-toggle use case (<code>ppLayerOff</code>), the stage-toggle use case (<code>ppVerbOff</code>), the runtime symmetry with naked-ggplot, the <code>spec =</code> precedence ordering, and the data-arg-position assumption for <code>ppVerbOff</code> (the headline pitfall ADR 0020 Risk §3 calls out). Examples in the vignette must round-trip cleanly through the standard build (<code>devtools::document()</code> + the use-cases vignette knit pass).</p>
+
+<h2>Governing principle</h2>
+<p><strong>The vignette is the only place a user learns these keywords exist before they need them.</strong> ADR 0020's machinery is only as useful as the user's awareness of it. The use-cases vignette is the existing home for "here is how you express X in a formula" material, and the two new keywords belong in that frame, not in a separate doc. The vignette section MUST:</p>
+<ul>
+  <li>Lead with the motivation (formula = single source of truth for boot state) before any syntax, so the reader understands <em>why</em> they would reach for these over <code>spec =</code>.</li>
+  <li>Show the runtime-symmetry contract — a naked-R example that renders without ggpaintr loaded, then the same expression inside <code>ptr_app</code>.</li>
+  <li>Document the <code>ppVerbOff</code> data-arg-position assumption explicitly with a "what won't work" counter-example (a verb that takes its data argument elsewhere — flagged by ADR Risk §3).</li>
+  <li>Show the <code>spec =</code> precedence (a <code>spec =</code> entry overrides the <code>hide =</code>-derived default at flush time), so users know how round-trip restore composes with formula-side toggles.</li>
+</ul>
+
+<p>What this plan does <strong>not</strong> do: re-explain the deleted <code>checkbox_defaults =</code> (Plan 04 already removed it; the vignette is post-deprecation). Nor does it add a new vignette file; new files mean extra <code>_pkgdown.yml</code> wiring and rebuild surface area for marginal benefit.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li><strong>SC1 — Vignette section added.</strong> <code>vignettes/ggpaintr-use-cases.Rmd</code> contains a new section (an H2 or H3 under a logical existing parent, depending on the file's current heading structure) titled along the lines of "Layer and stage toggles: <code>ppLayerOff</code> and <code>ppVerbOff</code>" (exact wording is editorial). The section is at least 200 words of prose plus at least 3 runnable code chunks. Verified by reading the rendered HTML and by an inline test in <code>tests/testthat/test-pp-off-vignette.R</code> that the literal string <code>"ppLayerOff"</code> appears at least 5 times in the .Rmd file and <code>"ppVerbOff"</code> appears at least 5 times.</li>
+
+  <li><strong>SC2 — Motivation-first prose.</strong> The first paragraph of the new section states the source-of-truth principle (formula expresses boot state) before any syntax. Verified by reading the rendered HTML — the BDD scenario below provides a concrete substring check.</li>
+
+  <li><strong>SC3 — Runtime-symmetry example.</strong> The section contains at least one code chunk that runs a naked-ggplot example (no <code>ptr_app</code> wrapping) using <code>ppLayerOff(..., FALSE)</code> and/or <code>ppVerbOff(..., FALSE)</code> and renders a real plot via <code>ggplot2</code>. The chunk has <code>eval = TRUE</code> (the vignette knit must execute it). Verified by knitting <code>vignettes/ggpaintr-use-cases.Rmd</code> via <code>rmarkdown::render()</code> with no errors and inspecting the generated HTML for the plot.</li>
+
+  <li><strong>SC4 — App-mode contrast.</strong> At least one code chunk shows the same formula inside <code>ptr_app(...)</code>; per the project's vignette convention this chunk is typically gated <code>eval = FALSE</code> or wrapped in <code>if (interactive())</code> (read the existing use-cases vignette for the prevailing pattern and match it). Verified by knit success and by inline regex check that the chunk references <code>ptr_app</code>.</li>
+
+  <li><strong>SC5 — ppVerbOff data-arg-position assumption documented.</strong> The section explicitly explains that <code>ppVerbOff</code> assumes the verb takes its data argument in position 1 (true for dplyr / tidyr verbs and the <code>|&gt;</code> + <code>%&gt;%</code> conventions). A counter-example shows what does NOT round-trip cleanly (e.g. a hypothetical verb that takes data in a named arg, or a verb call where the user explicitly passed data positionally somewhere other than position 1). Verified by reading the section and by a literal-string check for the substring "position 1" (or equivalent — the exact phrasing is editorial as long as it conveys the constraint).</li>
+
+  <li><strong>SC6 — spec = precedence shown.</strong> The section contains a short code example or prose paragraph illustrating that a <code>spec =</code> entry overrides the <code>hide =</code>-derived default at flush time. Verified by inline regex check for the string <code>"spec"</code> AND <code>"override"</code> (or equivalent) in the new section.</li>
+
+  <li><strong>SC7 — Vignette builds cleanly.</strong> Running <code>devtools::build_vignettes()</code> (or the project's equivalent vignette-build path — read <code>dev/build-pkgdown.R</code> if pkgdown is the canonical build) produces <code>vignettes/ggpaintr-use-cases.html</code> with no errors and no new warnings. Verified by running the build command and inspecting the output. The companion regenerated <code>vignettes/ggpaintr-use-cases.R</code> (the tangled R script) is updated accordingly.</li>
+
+  <li><strong>SC8 — Authoritative gate.</strong> <code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code> → <code>FAIL 0 / ERROR 0 / SKIP 0</code>. The new <code>tests/testthat/test-pp-off-vignette.R</code> adds at least 4 tests (one per literal-string SC above); PASS rises by ≥ 4 over baseline.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li><strong>Files this plan owns (read+write):</strong>
+    <ul>
+      <li><code>vignettes/ggpaintr-use-cases.Rmd</code> — add the new section. Do not rewrite unrelated content; do not reorder existing sections. The new section's placement is editorial (add after the section that most logically precedes it; if uncertain, place before any "Customization" / "Advanced" / "Custom apps" section so a beginning user sees toggles in the natural reading order). The H1 metadata block at the top of the file (YAML front matter) is unchanged.</li>
+      <li><code>vignettes/ggpaintr-use-cases.html</code>, <code>vignettes/ggpaintr-use-cases.R</code> — regenerated build outputs. Do not hand-edit; produced by the vignette-build step. Commit the regenerated files.</li>
+      <li><code>tests/testthat/test-pp-off-vignette.R</code> — NEW. Tests SC1, SC2, SC5, SC6 via <code>readLines()</code> + regex checks against <code>vignettes/ggpaintr-use-cases.Rmd</code>. SC3 / SC4 / SC7 are verified by the vignette-build step itself (passing the build is the assertion); the test file can additionally call <code>rmarkdown::render()</code> in a <code>tempdir()</code> if a fast knit-and-grep style check is desired and gates on <code>skip_if_not_installed("rmarkdown")</code>.</li>
+    </ul>
+  </li>
+  <li><strong>Files this plan must NOT touch:</strong>
+    <ul>
+      <li><code>R/</code> — all R source. The keywords already exist and are documented via roxygen (Plan 01); the vignette adds <em>narrative</em>, not new code paths.</li>
+      <li><code>man/ppLayerOff.Rd</code>, <code>man/ppVerbOff.Rd</code> — generated from Plan 01's roxygen; do not re-edit. If the man pages need additional examples, edit the roxygen in <code>R/paintr-builtins.R</code> as a follow-up plan, not here.</li>
+      <li><code>vignettes/ggpaintr-customization.Rmd</code>, <code>vignettes/ggpaintr-llm.Rmd</code>, <code>vignettes/ggpaintr-safety.Rmd</code>, <code>vignettes/ggpaintr-gallery.Rmd</code> — Plan 04 already migrated <code>checkbox_defaults</code> mentions in these; do not add new narrative here unless the post-impl audit identifies a specific gap that demands it.</li>
+      <li><code>NEWS.md</code>, <code>README.Rmd</code>, <code>README.md</code> — out of scope; Plan 04 owns NEWS-style migration documentation if added at all.</li>
+    </ul>
+  </li>
+  <li>No scope creep — narrative only. Do not introduce new API surface or expand the keywords' semantics.</li>
+  <li><strong>SCOPE NARROWING FORBIDDEN.</strong> If SC5 (data-arg-position prose) cannot be demonstrated cleanly with the current keyword design — e.g. the implementer concludes the constraint is too subtle to explain without rewriting <code>ppVerbOff</code>: STOP and escalate. Do not weaken SC5 to "we mention the constraint in a sentence and move on". The constraint is the headline pitfall the ADR named; the vignette must teach it concretely.</li>
+  <li>Conventions: do not hard-wrap prose in <code>.Rmd</code> (one paragraph = one line; project convention from <code>CLAUDE.md</code>); code chunks use the project's prevailing chunk-option style (read neighboring chunks in the same .Rmd for the pattern).</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: use-cases vignette teaches ppLayerOff / ppVerbOff with motivation + symmetry + data-arg pitfall
+
+Scenario: new section exists with both keywords
+  Given vignettes/ggpaintr-use-cases.Rmd
+  When  grep for "ppLayerOff" runs
+  Then  the match count is >= 5
+  And   grep for "ppVerbOff" returns match count >= 5
+
+Scenario: motivation paragraph precedes syntax
+  Given the new section's first paragraph
+  When  scanned for one of {"source of truth", "boot state", "formula", "single source"}
+  Then  at least one substring matches
+  And   the substring appears BEFORE the first ppLayerOff(... or ppVerbOff(... code-shape in the same section
+
+Scenario: runtime symmetry example renders without ggpaintr boot
+  Given a vignette chunk using ppLayerOff(geom_point(), FALSE)
+  When  the chunk runs under naked R (no ptr_app on the stack)
+  Then  it produces a ggplot2 layer object
+  And   the chunk's eval option is TRUE
+
+Scenario: app-mode contrast example references ptr_app
+  Given the new section
+  When  scanned for a code chunk mentioning ptr_app
+  Then  at least one chunk references ptr_app(...)
+  And   the chunk is gated per the file's prevailing pattern (eval = FALSE, interactive(), or running fixture)
+
+Scenario: ppVerbOff data-arg-position assumption is taught
+  Given the new section
+  When  scanned for the substring "position 1" or "first argument"
+  Then  at least one of the substrings matches
+  And   the section contains a counter-example showing what does NOT round-trip
+
+Scenario: spec = precedence is shown
+  Given the new section
+  When  scanned for "spec" and "override"
+  Then  both substrings appear in the same paragraph or adjacent paragraphs
+
+Scenario: vignette builds without new warnings or errors
+  Given the post-edit vignettes/ggpaintr-use-cases.Rmd
+  When  the project's vignette build (devtools::build_vignettes() or pkgdown equivalent) runs
+  Then  it exits with no errors
+  And   no new warnings appear that were not in the pre-plan baseline
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate (copy verbatim from <code>CLAUDE.md</code>'s "Authoritative gate" block):</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected output: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong>, with PASS rising by ≥ 4 over the post-Plan-04 baseline (the new <code>test-pp-off-vignette.R</code>).</p>
+
+<p><strong>Proxy traps — do not be fooled:</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does <strong>not</strong> make <code>skip_on_cran()</code> fire. Browser fixtures cleanly SKIP via the source-root guard. If a check run shows the e2e file <strong>ERRORing</strong>, that's a harness defect, not the gate.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> <strong>runs</strong> the browser tests. That alone is the gate.</li>
+  <li><strong>Vignette-specific proxy:</strong> a passing gate does NOT imply the vignette knits. Run the project's vignette build (<code>devtools::build_vignettes()</code> or <code>source("dev/build-pkgdown.R"); build_pkgdown_clean()</code>) and inspect the rendered output before claiming SC7. The gate cannot catch a broken vignette.</li>
+</ul>
+
+<p>Additionally, run the project's vignette build at least once and confirm <code>vignettes/ggpaintr-use-cases.html</code> renders cleanly with the new section visible.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: <code>vignettes/ggpaintr-use-cases.Rmd</code> (the new section only — do not reorder or rewrite unrelated content), <code>vignettes/ggpaintr-use-cases.html</code> + <code>vignettes/ggpaintr-use-cases.R</code> (build artifacts), <code>tests/testthat/test-pp-off-vignette.R</code> (new).</p>
+
+<p>Branch convention: this plan lives on branch <code>0020-docs-use-cases-vignette</code> in a worktree at <code>.claude/worktrees/0020-pp-layer-off-pp-verb-off-toggles/docs-use-cases-vignette/</code>. Merge into the orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the Definition-of-Done command and verifies expected output before any merge, AND independently runs the vignette build to confirm SC7.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch at the commit where this plan's worktree was created (post-Plan-04 merge SHA — record in the worktree's first commit message). Pre-existing failures (if any) named in <code>dev/baselines/</code> as of that SHA.</p>
+
+<h2>Out-of-scope handling</h2>
+<p><strong>Surface, do not absorb:</strong></p>
+<ul>
+  <li>If the vignette build reveals unrelated vignette failures (e.g. a different vignette's chunk errors): flag for a follow-up plan; do not silently fix.</li>
+  <li>If the new section reads awkwardly placed in the file's heading hierarchy: flag the placement question in the post-impl audit; do not restructure the file.</li>
+  <li>If <code>man/ppLayerOff.Rd</code> / <code>man/ppVerbOff.Rd</code> from Plan 01 lack examples this plan would benefit from cross-linking to: flag for a follow-up <code>R/paintr-builtins.R</code> roxygen update; do not add examples here.</li>
+  <li>If pkgdown's navigation YAML (<code>_pkgdown.yml</code>) needs updating to surface the new section in a sidebar: flag for a follow-up; do not silently edit pkgdown config.</li>
+</ul>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: <strong>Plan 04</strong> — sequencing after Plan 04 ensures the vignette section is written against a codebase where <code>checkbox_defaults =</code> no longer exists, so the new prose does not need to caveat "for now, X also works". Plan 04's vignette migrations also touch <code>vignettes/ggpaintr-use-cases.Rmd</code>; sequential merging avoids file-overlap conflict. (If Plan 04 left no <code>checkbox_defaults</code> migration in this file, the depends-on is editorial-cleanliness only, not strict-correctness.)</p>
+<p>Provides for: nothing else in this ADR. The vignette section is leaf documentation.</p>
+
+<!-- implementable: PASS date=2026-05-24 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=bcdeb4ed9a48 -->
+</body>
+</html>
