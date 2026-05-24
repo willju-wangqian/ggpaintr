@@ -1600,9 +1600,28 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
         find_source_companion_ids_in_upstream(node$upstream)
       upstream_source_self_ids <-
         find_source_self_ids_in_upstream(node$upstream)
-      subtab_id <- if (!is.null(node$layer_name)) {
-        paste0(node$layer_name, "_subtab")
-      } else NULL
+      # ADR 0015 §2.1: pick the source-ready reactive this consumer must
+      # wait on, computed once per consumer. Bare-data layers publish their
+      # frame into `state$resolved_data` under `layer_name`; pipeline-head
+      # source placeholders publish into `state$resolved_sources` under the
+      # placeholder id. Consumers with no source-headed upstream get no
+      # guard and pre-warm at boot (today's no-source-upstream behavior).
+      # NOTE: walk the upstream for ALL source-placeholder ids regardless
+      # of companion_id (find_source_self_ids_in_upstream excludes nodes
+      # with companions, which is the common ppUpload-with-name case).
+      source_ready <- if (!is.null(node$layer_name) &&
+                          node$layer_name %in% names(state$resolved_data)) {
+        list(kind = "data", id = node$layer_name)
+      } else {
+        upstream_source_ids <- vapply(
+          find_nodes(node$upstream, is_ptr_ph_data_source),
+          function(n) n$id %||% NA_character_,
+          character(1)
+        )
+        upstream_source_ids <- upstream_source_ids[!is.na(upstream_source_ids)]
+        hit <- intersect(upstream_source_ids, names(state$resolved_sources))
+        if (length(hit) > 0L) list(kind = "source", id = hit[[1L]]) else NULL
+      }
 
       entry_reactive <- shiny::reactive({
         state$tree()
@@ -1620,8 +1639,19 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
           val <- if (!is.null(r)) r() else input[[ns(pid)]]
           if (!is.null(val)) producer_values[[pid]] <- val
         }
-        if (!is.null(subtab_id)) input[[ns(subtab_id)]]
         input[[ns("ptr_update_plot")]]
+
+        # ADR 0015 §2.1: halt this entry until the upstream source actually
+        # has data. Closes the cache-pollution race that motivated the old
+        # visibility-gate pre-warm skip without re-introducing suspension.
+        if (!is.null(source_ready)) {
+          .rv_val <- if (identical(source_ready$kind, "data")) {
+            state$resolved_data[[source_ready$id]]()
+          } else {
+            state$resolved_sources[[source_ready$id]]()
+          }
+          shiny::req(.rv_val)
+        }
 
         snapshot <- producer_values
         for (cid in upstream_consumer_ids) {
@@ -1636,7 +1666,47 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
           val <- input[[ns(sid)]]
           if (!is.null(val)) snapshot[[sid]] <- val
         }
-        runtime_consumer_entry(state, node, snapshot)
+        # ADR 0015 §2.1: a flush-ordering race between
+        # `ptr_bind_source_autoname()`'s `updateTextInput()` and the main
+        # upload observer's `assign(<name>, df, eval_env)` can let this
+        # entry fire with a non-empty companion value BEFORE `eval_env`
+        # holds the binding -- R's parent-chain scoping then finds a
+        # wrong dataset (e.g. `datasets::penguins`). Detect that window
+        # and re-invalidate this reactive in 50ms; the subsequent fire
+        # sees the binding in place. `invalidateLater()` is unfortunate
+        # but the race is intrinsic to `updateTextInput`'s client-roundtrip
+        # ordering vs the dep-driven re-fire of this reactive.
+        .binding_pending <- FALSE
+        for (cmp in upstream_source_companion_ids) {
+          nm <- input[[ns(cmp)]]
+          if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
+              make.names(nm) == nm &&
+              !exists(nm, envir = state$eval_env, inherits = FALSE)) {
+            .binding_pending <- TRUE
+            break
+          }
+        }
+        if (.binding_pending) {
+          shiny::invalidateLater(50)
+          return(NULL)
+        }
+        # ADR 0015 §2.1: bypass `state$upstream_cache` for the consumer
+        # renderUI's resolution. Even with the race guard above, an earlier
+        # fire (within the race window) could have populated the cache
+        # with a wrong frame under the substituted expression's key. Each
+        # consumer has a distinct upstream subtree (different cache key)
+        # so bypassing the cache here loses no dedup; plot rendering and
+        # validation paths keep the cache for their own use.
+        .df <- ptr_resolve_upstream(
+          node$upstream,
+          snapshot = snapshot,
+          shared_bindings = state$shared_bindings,
+          eval_env = state$eval_env,
+          cache = NULL,
+          expr_check = state$expr_check,
+          stage_enabled = shiny::isolate(state$stage_enabled())
+        )
+        if (is.null(.df)) NULL else list(cols = names(.df), data = .df)
       })
 
       output[[output_id]] <- shiny::renderUI({
@@ -1664,27 +1734,13 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
                        selected = seed %||% current %||% character(0))
         )
       })
-      # Pre-warm consumer pickers whose upstream is fully self-contained
-      # (no unresolved data source in the chain — lazy-consumer-resolve.md
-      # §D4). Without this, the picker's renderUI is suspended while the
-      # layer panel's "Controls" subtab is hidden behind the default "Data"
-      # subtab, so `input[[<picker_id>]]` stays NULL on first Draw and the
-      # substitute walker prunes the aes mapping (e.g. `aes(y = ppVar(adj))`
-      # collapses away, breaking inheritance for geoms without their own
-      # aes). Mirrors the existing `outputOptions(suspendWhenHidden = FALSE)`
-      # in `ptr_setup_value_uis()` and `ptr_setup_source_uis()`.
-      #
-      # Stay lazy when the upstream still contains a `ptr_ph_data_source`
-      # (e.g. ppUpload-headed pipelines): firing the renderUI eagerly there
-      # would race the upload observer's `state$eval_env` binding and would
-      # pollute `state$upstream_cache` with the wrong frame found by R's
-      # scoping fallback (`datasets::penguins` for `<name> |> filter(...)`
-      # before the uploaded df is bound). The user has to interact with
-      # the source widget anyway, which lives on the Data tab and forces
-      # the renderUI to bind via tab activation.
-      if (length(find_nodes(node$upstream, is_ptr_ph_data_source)) == 0L) {
-        shiny::outputOptions(output, output_id, suspendWhenHidden = FALSE)
-      }
+      # ADR 0015 §2.1: bind every consumer picker eagerly so it does not
+      # hang on inner-tab visibility. Source-headed pipelines no longer
+      # race the upload observer because `entry_reactive` now `req()`s on
+      # the upstream source-ready reactive (see `source_ready` above),
+      # which halts the entry before `runtime_consumer_entry` touches
+      # `state$upstream_cache` with a stale `eval_env`.
+      shiny::outputOptions(output, output_id, suspendWhenHidden = FALSE)
     })
   }
   invisible(state)
@@ -1772,7 +1828,14 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
         snap <- list()
         use_env <- eval_env
         if (!is.null(state)) {
+          # ADR 0015 §2.2: bare-data-source layers publish their frame
+          # into `state$resolved_data` under `layer_name`, pipeline-head
+          # sources into `state$resolved_sources` under placeholder id.
+          # Watch both so a shared picker under a bare-data ppUpload
+          # re-fires when the file lands (symmetric with the dep set in
+          # `ptr_setup_consumer_uis()`).
           for (rv in state$resolved_sources) rv()
+          for (rv in state$resolved_data) rv()
           use_env <- state$eval_env
           for (cmp in upstream_source_companion_ids) {
             val <- input[[ns(cmp)]]

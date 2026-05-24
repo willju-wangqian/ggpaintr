@@ -180,6 +180,11 @@ test_that("BUG-4: custom ptr_define_placeholder_consumer() receives upstream col
     do.call(session$setInputs,
             stats::setNames(list("fakeup"), upl$companion_id))
     st$resolved_sources[[upl$id]](df_fake)
+    # ADR 0015: entry_reactive now `req()`s on the source-ready reactive.
+    # A flushReact is required to propagate the resolved_sources update
+    # into entry_reactive's dep graph before reading the consumer outputs;
+    # without it, the read sees a pre-flush snapshot and silent-errors.
+    session$flushReact()
     # Force renderUI evaluation by reading every consumer output id.
     for (cnode in find_nodes(st$tree(), is_ptr_ph_data_consumer)) {
       if (!is.null(cnode$shared)) next
