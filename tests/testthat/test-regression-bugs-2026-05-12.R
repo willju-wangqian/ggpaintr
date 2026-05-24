@@ -180,6 +180,14 @@ test_that("BUG-4: custom ptr_define_placeholder_consumer() receives upstream col
     do.call(session$setInputs,
             stats::setNames(list("fakeup"), upl$companion_id))
     st$resolved_sources[[upl$id]](df_fake)
+    # ADR 0015 PLAN-02 / Option E: the per-source `state$bound_names[[id]]`
+    # reactiveVal is written by `bind_source_value()` AFTER `assign()` in
+    # the real source observer. This testServer fixture bypasses
+    # `ptr_setup_pipelines()` and does the assign/slot writes manually, so
+    # the bound_names bump must also be done manually to satisfy
+    # entry_reactive's new `req(state$bound_names[[id]]())` guard. Mirrors
+    # the `req()` chain in `R/paintr-server.R` ptr_setup_consumer_uis.
+    st$bound_names[[upl$id]]("fakeup")
     # ADR 0015: entry_reactive now `req()`s on the source-ready reactive.
     # A flushReact is required to propagate the resolved_sources update
     # into entry_reactive's dep graph before reading the consumer outputs;
