@@ -1,12 +1,9 @@
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
-# super-2a-upload-registry: ADR 0013 §App-2a multi-data-source + custom-registry app.
-# Slot picks: ptr_app() · ppUpload mid-pipeline head + ppUpload in geom_smooth(data = )
-# · G1 string capture · window code panel · default theme.
-# Roster (per ADR §App-2a): ppUpload×2 · ppVar×6 -> 5 widgets after shared "grp"
-# collapse · ppNum×2 · ppText×3 · ppExpr×2 · ppPower×1 · ppMultiVar×1.
-# ppPower (value) + ppMultiVar (consumer) are registered locally in this child
-# process so the parent test process is never contaminated (project memory
-# `shinytest2-appdir-pkgload`).
+# super-2a-upload-registry (no-default variant): same formula structure as
+# app.R but every `pp*(default)` is stripped of its positional default.
+# Path-A pressure-test variant per ADR-0016. ppUpload's bareword companion
+# names (df_main / df_aux) are STRUCTURAL identifiers, not default values
+# — they stay.
 library(shiny)
 
 ppPower <- ptr_define_placeholder_value(
@@ -18,8 +15,6 @@ ppPower <- ptr_define_placeholder_value(
     shiny::numericInput(node$id, label, value = v, min = 0, max = 1, step = 0.01)
   },
   resolve_expr = function(value, ...) {
-    # Non-identity resolve_expr: rewrite value -> a CALL expression `v^2`
-    # so the final-mode deparser emits the literal `0.42^2`, not 0.1764.
     rlang::call2("^", value, 2)
   },
   validate_input = function(value, ctx) {
@@ -49,22 +44,19 @@ ppMultiVar <- ptr_define_placeholder_consumer(
   },
   validate_input = function(value, ctx) {
     if (length(value) >= 1L) TRUE else NULL
-  },
-  # default_arg accepts a positional bare symbol so the canonical formula can
-  # carry a default (`ppMultiVar(cyl)`) and remain Path-B evaluable (ADR-0016).
-  default_arg = ptr_default_symbol_or_string()
+  }
 )
 
 ptr_app(
   paste(
     "ppUpload(df_main) |>",
-    "dplyr::filter(ppExpr(hp >= 75)) |>",
-    "dplyr::mutate(adj = ppExpr(mpg / wt)) |>",
-    "ggplot(aes(x = ppVar(mpg), y = ppVar(adj), color = ppVar(cyl, shared = 'grp'))) +",
-    "geom_point(aes(group = ppMultiVar(cyl)), size = ppNum(2), alpha = ppPower(0.7)) +",
-    "geom_smooth(data = ppUpload(df_aux), aes(x = ppVar(mpg), y = ppVar(wt)), method = ppText('lm'), inherit.aes = FALSE) +",
-    "facet_wrap(vars(ppVar(cyl, shared = 'grp'))) +",
-    "labs(title = ppText('Title'), subtitle = ppText(''))",
+    "dplyr::filter(ppExpr()) |>",
+    "dplyr::mutate(adj = ppExpr()) |>",
+    "ggplot(aes(x = ppVar(), y = ppVar(), color = ppVar(shared = 'grp'))) +",
+    "geom_point(aes(group = ppMultiVar()), size = ppNum(), alpha = ppPower()) +",
+    "geom_smooth(data = ppUpload(df_aux), aes(x = ppVar(), y = ppVar()), method = ppText(), inherit.aes = FALSE) +",
+    "facet_wrap(vars(ppVar(shared = 'grp'))) +",
+    "labs(title = ppText(), subtitle = ppText())",
     sep = " "
   ),
   ui_text = list(

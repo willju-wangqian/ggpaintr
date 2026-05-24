@@ -61,7 +61,7 @@ ptr_app(
     "ggplot(head(mtcars), aes(x = ppVar(mpg), y = ", y_arg,
     ", color = ppVar(cyl))) + ",
     "geom_point(size = ppNum(2), alpha = ppNum(0.7)) + ",
-    "geom_smooth(method = ppText(\"lm\"), color = ppColor(), ",
+    "geom_smooth(method = ppText(\"lm\"), color = ppColor(\"#3366FF\"), ",
     "linewidth = ppNum(1), span = ppNum(0.75)) + ",
     "labs(title = ppText(\"", title_segment,
     "\"), subtitle = ppExpr(nrow(mtcars)))"

@@ -9,7 +9,10 @@ library(shiny)
 
 # --- Custom placeholders ---------------------------------------------------
 # ppCoef: VALUE role. 0-1 slider; resolve_expr returns the numeric literal.
-ptr_define_placeholder_value(
+# Bind the returned runtime fn to the keyword name so the formula evaluates as
+# plain ggplot under Path B (ADR-0016) — Path A would work without this since
+# the parser walks the AST, but discarding the return value defeats Path B.
+ppCoef <- ptr_define_placeholder_value(
   keyword       = "ppCoef",
   build_ui      = function(node, label = NULL, ...) {
     sliderInput(node$id, label = label %||% "Coef",
@@ -25,7 +28,8 @@ ptr_define_placeholder_value(
 
 # ppFactor: CONSUMER role. Single-select picker -> bare symbol via rlang::sym.
 # Supports `shared=` to collapse across aes(color=) + facet_wrap(vars(...)).
-ptr_define_placeholder_consumer(
+# `ppFactor <-` binding required for Path-B evaluability (ADR-0016).
+ppFactor <- ptr_define_placeholder_consumer(
   keyword       = "ppFactor",
   build_ui      = function(node, cols = character(), label = NULL,
                            selected = character(0), ...) {
@@ -47,7 +51,8 @@ ptr_define_placeholder_consumer(
 # resolve_data reads the chosen dataset out of `asNamespace("datasets")`.
 # default_arg = ptr_default_string() per PLAN-04 SC: the formula's literal
 # initial value MUST be a string (`ppSample("iris")`), matching ADR §App-2b.
-ptr_define_placeholder_source(
+# `ppSample <-` binding required for Path-B evaluability (ADR-0016).
+ppSample <- ptr_define_placeholder_source(
   keyword       = "ppSample",
   build_ui      = function(node, label = NULL, ...) {
     selectInput(
@@ -59,6 +64,16 @@ ptr_define_placeholder_source(
   resolve_data  = function(value, ...) {
     if (is.null(value) || !nzchar(value)) return(NULL)
     get(value, envir = asNamespace("datasets"))
+  },
+  # Custom `runtime`: invoked when the formula is evaluated as plain R outside
+  # `ptr_app()` (ADR-0016 Path B). Defaults to an abort guard at the registry
+  # level; we override so `ppSample("iris")` resolves to `datasets::iris`,
+  # making the canonical formula Path-B evaluable.
+  runtime       = function(x, ...) {
+    if (missing(x) || is.null(x) || !nzchar(x)) {
+      rlang::abort("`ppSample()` needs a dataset name (e.g., \"iris\").")
+    }
+    get(x, envir = asNamespace("datasets"))
   },
   copy_defaults = list(label = "Sample for {param}"),
   default_arg   = ptr_default_string()
@@ -94,7 +109,13 @@ ptr_app(
     geom_point(size = ppNum(2)) +
     !!smooth_template +
     geom_rug(data = ppUpload(df_rug),
-             aes(x = ppVar(mpg), y = ppVar(wt))) +
+             aes(x = ppVar(mpg), y = ppVar(wt)),
+             # `inherit.aes = FALSE` so geom_rug's own aes is authoritative.
+             # Without this, the root's `color = ppFactor(Species, ...)` leaks
+             # into geom_rug's eval scope and Path-B blows up when df_rug
+             # lacks a Species column (the sample CSV is just mpg+wt). Same
+             # pattern as super-2a's geom_smooth F4 fix.
+             inherit.aes = FALSE) +
     facet_wrap(vars(ppFactor(Species, shared = "fac"))) +
     labs(title = ppText("ppSample + splice + layer-upload")),
   ui_text = list(defaults = list(

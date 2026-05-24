@@ -1,15 +1,43 @@
-# Doc-only reference (ADR 0013 D3). Not parsed by tests.
-# The all-defaults equivalent of super-1-kitchen-sink/app.R with every
-# placeholder replaced by its seeded default.
-ggplot(
-  mtcars |>
-    dplyr::filter(hp >= 75) |>
-    dplyr::mutate(adj = mpg / wt),
-  aes(x = mpg, y = adj, color = cyl)
-) +
-  geom_point(size = 2, alpha = 0.7) +
-  geom_smooth(method = "lm", linewidth = 1) +
-  geom_line(linewidth = 1) +
-  facet_wrap(vars(cyl)) +
-  scale_y_continuous(limits = c(0, 50)) +
-  labs(title = "Title", subtitle = NULL)
+# Path-B reference (ADR-0016): the naked-ggplot expression from app.R,
+# evaluable as plain R without `ptr_app()`. Built-in pp* runtime fns are
+# `function(x, ...) x` (identity); the custom ppRange has identity
+# resolve_expr — so every `pp*(default)` in the formula collapses to its
+# positional default at eval time. The resulting plot is the same shape as
+# the original (default-equivalent) reference, modulo labels.
+#
+# Run via:  source("reference.R")        # in a session with the package loaded
+library(ggpaintr)
+library(ggplot2)
+
+ppRange <- ptr_define_placeholder_value(
+  keyword = "ppRange",
+  build_ui = function(node, label = "Range", selected = NULL, ...) {
+    v <- if (is.numeric(selected) && length(selected) == 2L) {
+      as.numeric(selected)
+    } else c(0, 1)
+    shiny::sliderInput(node$id, label, min = 0, max = 100, value = v)
+  },
+  resolve_expr = function(value, ...) value,
+  default_arg = ptr_default_numeric_vector(length = 2)
+)
+
+my_linewidth <- 1
+color_var <- rlang::expr(cyl)
+
+formula1 <- rlang::expr(
+  ggplot(
+    mtcars |>
+      dplyr::filter(ppExpr(hp >= 75)) |>
+      dplyr::mutate(adj = ppExpr(mpg / wt)),
+    aes(x = ppVar(mpg), y = ppVar(adj), color = ppVar(!!color_var, shared = "grp"))
+  ) +
+    geom_point(size = ppNum(2), alpha = ppNum(0.7)) +
+    geom_smooth(method = ppText("lm"), linewidth = ppNum(!!my_linewidth, shared = "lw")) +
+    geom_line(linewidth = ppNum(!!my_linewidth, shared = "lw")) +
+    facet_wrap(vars(ppVar(!!color_var, shared = "grp"))) +
+    scale_y_continuous(limits = ppRange(c(0, 50))) +
+    labs(title = ppText("Title"), subtitle = ppText(""))
+)
+
+# Evaluate as plain ggplot — Path B.
+eval(formula1)

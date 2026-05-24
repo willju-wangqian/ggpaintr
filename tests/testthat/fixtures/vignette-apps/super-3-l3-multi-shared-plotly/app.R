@@ -10,7 +10,8 @@ library(shiny)
 # Local custom value placeholder (ADR 0013 §App-3; shape matches App-1's).
 # Registration is local to this child app process (project memory
 # `shinytest2-appdir-pkgload`), so no cross-test contamination.
-ptr_define_placeholder_value(
+# `ppRange <-` binding required for Path-B evaluability (ADR-0016).
+ppRange <- ptr_define_placeholder_value(
   keyword     = "ppRange",
   default_arg = ptr_default_numeric_vector(length = 2),
   build_ui    = function(node, label = NULL, selected = NULL, ...) {

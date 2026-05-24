@@ -32,7 +32,7 @@
 # prune_dead_ggpaintr_resource_paths + suppressWarnings(AppDriver$new) +
 # withr::defer(app$stop())). Distinct name so the two boots can evolve
 # independently.
-boot_super_app <- function(slug) {
+boot_super_app <- function(slug, app_file = "app.R") {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("shinytest2")
   testthat::skip_if_not_installed("chromote")
@@ -56,13 +56,37 @@ boot_super_app <- function(slug) {
   # semantic no-op for live ones.
   prune_dead_ggpaintr_resource_paths()
   app_dir <- testthat::test_path("fixtures", "vignette-apps", slug)
+  # `app_file` lets a caller boot a non-default file in the same fixture
+  # dir (per ADR-0016: every super-app has a peer `app-no-default.R`
+  # alongside its `app.R`). shinytest2's AppDriver resolves the directory
+  # to `app.R` by name; to point it elsewhere we materialise a temp dir
+  # copy with the requested file renamed to `app.R`, preserving every
+  # sibling (CSVs, user.css, etc.).
+  if (!identical(app_file, "app.R")) {
+    src_path <- file.path(app_dir, app_file)
+    if (!file.exists(src_path)) {
+      stop(sprintf("boot_super_app: app_file '%s' not found in '%s'",
+                   app_file, app_dir))
+    }
+    staging <- withr::local_tempdir(.local_envir = parent.frame())
+    siblings <- list.files(app_dir, full.names = TRUE, no.. = TRUE)
+    file.copy(siblings, staging, recursive = TRUE)
+    # Drop the canonical app.R from the staging dir if present so the
+    # rename doesn't collide; then rename the requested file in place.
+    canonical_in_staging <- file.path(staging, "app.R")
+    if (file.exists(canonical_in_staging)) file.remove(canonical_in_staging)
+    file.rename(file.path(staging, app_file),
+                file.path(staging, "app.R"))
+    app_dir <- staging
+  }
   # "Failed to locate globals" / htmlDependency-prefix warnings on
   # AppDriver$new() are benign (project memory); suppression is scoped
   # to construction only, never to assertion output.
   app <- suppressWarnings(
     shinytest2::AppDriver$new(
       app_dir,
-      name = paste0("super-", slug),
+      name = paste0("super-", slug,
+                    if (identical(app_file, "app.R")) "" else "-no-default"),
       load_timeout = 60 * 1000,
       timeout = 30 * 1000
     )
@@ -77,7 +101,28 @@ boot_super_app <- function(slug) {
 # re-renders on an explicit Update/Draw click, so setting a placeholder
 # widget never updates an output by itself — wait_ = TRUE would
 # (correctly) time out.
+#
+# Pre-check the input is rendered in the DOM. Without this guard,
+# shinytest2's `set_inputs(..., wait_ = FALSE)` swallows "Unable to find
+# input binding for element with id X" as a printed console warning —
+# the input never gets set, but the test reports no error. That swallow
+# concealed an ADR-0016 diagnosis once: consumer pickers in no-default
+# formulas don't render until upstream column scope is resolved, so
+# `set_sentinel` calls against them were no-ops while the test thought
+# it had driven the picker. Surface that failure mode here, at the call
+# site, so the test stops with an actionable message instead of cascading
+# into a downstream assertion mismatch (project memory
+# `e2e-assertion-weakness-lens`).
 set_sentinel <- function(app, input_id, sentinel) {
+  page_html <- app$get_html(paste0("#", input_id))
+  if (is.null(page_html) || !nzchar(page_html)) {
+    stop(
+      "set_sentinel: input '", input_id, "' is not rendered in the DOM. ",
+      "Consumer pickers gate on upstream column scope — provide an ",
+      "upload / source resolution / Controls-subtab activation before ",
+      "driving this widget."
+    )
+  }
   args <- stats::setNames(list(sentinel), input_id)
   do.call(app$set_inputs, c(args, list(wait_ = FALSE)))
 }

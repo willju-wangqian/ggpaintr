@@ -101,6 +101,62 @@ test_that("super-1 kitchen-sink: sentinels propagate through every placeholder",
 })
 # <<< super-1 end
 
+# >>> super-1 no-default begin
+# ADR-0016 parallel coverage: same propagation pressure surface as the
+# with-default test above, but the fixture's `app-no-default.R` strips every
+# positional default from `pp*(...)` calls. The widget IDs are identical
+# (the `_NA` suffix is independent of positional-default presence), so the
+# sentinel drives map 1:1; the only initial-state divergence is `shared_lw`
+# (no formula seed → widget defaults instead of `1`). Drive-and-propagate
+# assertions are otherwise identical: this is the parallel test.
+test_that("super-1 no-default: sentinels propagate through every placeholder (no positional defaults)", {
+  app <- boot_super_app("super-1-kitchen-sink", app_file = "app-no-default.R")
+
+  # ---- Drive every sentinel ----------------------------------------------
+  set_sentinel(app, "ggplot_3_1_ppExpr_NA", "hp + 1")
+  app$set_inputs(ggplot_subtab = "Controls", wait_ = FALSE)
+  app$wait_for_idle(timeout = 25 * 1000)
+  set_sentinel(app, "ggplot_1_1_ppVar_NA", "disp")
+  set_sentinel(app, "geom_point_1_ppNum_NA", 0.7314159)
+  set_sentinel(app, "labs_1_ppText_NA", "S_T_2718")
+  # Drive the shared "lw" widget explicitly — no formula default seeds it.
+  set_sentinel(app, "shared_lw", 0.4242)
+  set_sentinel(app, "shared_grp", "gear")
+  draw_and_wait(app, button_id = "ptr_update_plot")
+
+  # ---- Final-mode propagation assertions ---------------------------------
+  expect_sentinel_in_code(app, "ptr_code", "0.7314159",
+    "geom_point\\([^)]*size\\s*=\\s*([^,)]*)", "final")
+  expect_sentinel_in_code(app, "ptr_code", "disp",
+    "aes\\([^)]*x\\s*=\\s*([^,)]*)", "final")
+  expect_sentinel_in_code(app, "ptr_code", "\"S_T_2718\"",
+    "labs\\([^)]*title\\s*=\\s*([^,)]*)", "final")
+  expect_sentinel_in_code(app, "ptr_code", "hp + 1",
+    "dplyr::mutate\\(adj\\s*=\\s*([^)]*)", "final")
+  expect_sentinel_in_code(app, "ptr_code", "gear",
+    "aes\\([^)]*color\\s*=\\s*([^,)]*)", "final")
+  expect_sentinel_in_code(app, "ptr_code", "gear",
+    "facet_wrap\\(vars\\(([^)]*)\\)", "final")
+  expect_sentinel_in_code(app, "ptr_code", "0.4242",
+    "geom_smooth\\([^)]*linewidth\\s*=\\s*([^,)]*)", "final")
+  expect_picker_populated(app, "ggplot_1_2_ppVar_NA", "adj")
+  expect_no_plot_error(app)
+
+  # ---- B3 toggle differential: final strips ppVar(, preserve retains ----
+  expect_sentinel_nowhere(app, "ptr_code", "ppVar(")
+  toggle_code_mode(app, "preserve")
+  expect_sentinel_in_code(app, "ptr_code", "0.7314159",
+    "ppNum\\(([^)]*)\\)", "preserve")
+  expect_sentinel_in_code(app, "ptr_code", "disp",
+    "aes\\([^)]*x\\s*=\\s*([^,)]*)", "preserve")
+  expect_sentinel_in_code(app, "ptr_code", "\"S_T_2718\"",
+    "labs\\([^)]*title\\s*=\\s*ppText\\(([^)]*)\\)", "preserve")
+  expect_sentinel_in_code(app, "ptr_code", "ppVar(",
+    "(ppVar)\\(", "preserve")
+  expect_no_plot_error(app)
+})
+# <<< super-1 no-default end
+
 # >>> super-2a begin
 test_that("super-2a upload+registry: sentinels propagate through multi-data-source + custom placeholders", {
   app <- boot_super_app("super-2a-upload-registry")
@@ -274,6 +330,116 @@ test_that("super-2a upload+registry: sentinels propagate through multi-data-sour
   expect_no_plot_error(app)
 })
 # <<< super-2a end
+
+# >>> super-2a no-default begin
+# ADR-0016 parallel coverage of the with-default test above. app-no-default.R
+# strips every `pp*(default)` to `pp*()` (ppUpload bareword companion-names
+# stay — they are structural source-binding identifiers, not defaults). The
+# adversarial validate_input probe is not re-run (it tests ggpaintr's error
+# pane, not formula structure).
+test_that("super-2a no-default: sentinels propagate through multi-data-source + custom placeholders (no positional defaults)", {
+  app <- boot_super_app("super-2a-upload-registry", app_file = "app-no-default.R")
+
+  # ---- Provide column scope via actual CSV upload ------------------------
+  # With no positional defaults, consumer placeholders (ppVar in aes(),
+  # ppMultiVar, the shared "grp" widget) need upstream column scope to
+  # bind their renderUI. In the with-default variant the positional
+  # defaults (`ppVar(mpg)`, `ppMultiVar(cyl)`, etc.) seed column hints
+  # into the parser so the pickers render with mtcars columns at boot;
+  # the no-default formula has no such hints, so the pickers stay
+  # un-rendered until a real upload resolves the data source. Upload the
+  # sibling CSVs and assign their companion names BEFORE driving any
+  # consumer picker.
+  fixture_dir <- testthat::test_path("fixtures", "vignette-apps",
+                                     "super-2a-upload-registry")
+  app$upload_file(ggplot_1_ppUpload_NA = file.path(fixture_dir, "sample_main.csv"))
+  app$upload_file(geom_smooth_0_ppUpload_NA = file.path(fixture_dir, "sample_aux.csv"))
+  set_sentinel(app, "ggplot_1_ppUpload_NA_name", "df_main")
+  set_sentinel(app, "geom_smooth_0_ppUpload_NA_name", "df_aux")
+  app$wait_for_idle(timeout = 25 * 1000)
+
+  # ---- Activate Controls subtab so root ppVar pickers bind ---------------
+  app$set_inputs(ggplot_subtab = "Controls", wait_ = FALSE)
+  app$wait_for_idle(timeout = 25 * 1000)
+
+  # ---- Drive sentinels and root aes pickers ------------------------------
+  set_sentinel(app, "ggplot_1_1_ppVar_NA", "mpg")
+  set_sentinel(app, "ggplot_1_2_ppVar_NA", "hp")
+  set_sentinel(app, "geom_point_3_ppPower_NA", 0.42)
+  set_sentinel(app, "shared_grp", "cyl")
+  set_sentinel(app, "geom_point_1_1_ppMultiVar_NA", c("cyl", "am"))
+  draw_and_wait(app, "ptr_update_plot")
+  expect_no_plot_error(app)
+
+  # ---- Final-mode propagation assertions --------------------------------
+  code_final <- app$get_value(output = "ptr_code")
+  testthat::expect_true(
+    is.character(code_final) && length(code_final) == 1L && nzchar(code_final),
+    label = paste0("ptr_code is non-empty in final mode; actual=", code_final %||% "<NULL>")
+  )
+  # ppPower's non-identity resolve_expr emits `v^2`, so the deparsed final
+  # code carries `alpha = 0.42^2` (proves the custom resolve_expr runs).
+  testthat::expect_true(
+    grepl("alpha = 0.42^2", code_final, fixed = TRUE),
+    label = paste0("final-mode code contains literal 'alpha = 0.42^2'; actual code=", code_final)
+  )
+  # ppUpload bareword companion names propagate to final-mode `data =`
+  # slots (these placeholders carry STRUCTURAL identifiers, not defaults,
+  # so they propagate even without driving any widget).
+  testthat::expect_true(
+    grepl("data = df_main", code_final, fixed = TRUE),
+    label = paste0("final-mode root data resolves to df_main; actual code=", code_final)
+  )
+  testthat::expect_true(
+    grepl("data = df_aux", code_final, fixed = TRUE),
+    label = paste0("final-mode geom_smooth data resolves to df_aux; actual code=", code_final)
+  )
+  # ppMultiVar's non-scalar return — `interaction(cyl, am)` — propagates to
+  # the geom_point's aes(group=) slot in final mode.
+  testthat::expect_true(
+    grepl("interaction(cyl, am)", code_final, fixed = TRUE),
+    label = paste0("final-mode code contains literal 'interaction(cyl, am)'; actual code=", code_final)
+  )
+  # Shared "grp" reaches BOTH the root aes(color=) and facet_wrap(vars(...)).
+  expect_sentinel_in_code(app, "ptr_code", "cyl",
+    "aes\\([^)]*color\\s*=\\s*([^,)]*)", "final")
+  expect_sentinel_in_code(app, "ptr_code", "cyl",
+    "facet_wrap\\(vars\\(([^)]*)\\)", "final")
+
+  # ---- B3 toggle differential -------------------------------------------
+  expect_sentinel_nowhere(app, "ptr_code", "ppPower(")
+  expect_sentinel_nowhere(app, "ptr_code", "ppMultiVar(")
+  expect_sentinel_nowhere(app, "ptr_code", "ppUpload(")
+
+  toggle_code_mode(app, "preserve")
+  code_preserve <- app$get_value(output = "ptr_code") %||% ""
+  # ppUpload bareword companion names round-trip in preserve mode (ADR-0010).
+  testthat::expect_true(
+    grepl("ppUpload(df_main)", code_preserve, fixed = TRUE),
+    label = "preserve-mode code contains literal 'ppUpload(df_main)' (companion-name)"
+  )
+  testthat::expect_true(
+    grepl("ppUpload(df_aux)", code_preserve, fixed = TRUE),
+    label = "preserve-mode code contains literal 'ppUpload(df_aux)' (companion-name)"
+  )
+  # ppPower preserves its 0.42 sentinel inside its wrapper.
+  expect_sentinel_in_code(app, "ptr_code", "0.42",
+    "ppPower\\(([^)]*)\\)", "preserve")
+  # ppMultiVar's preserve-mode shape carries both selected columns inside
+  # its wrapper (quote-folding may vary between c('cyl', 'am') and c("cyl",
+  # "am"); substring on `ppMultiVar(` + both column names covers either).
+  testthat::expect_true(
+    grepl("ppMultiVar(", code_preserve, fixed = TRUE) &&
+      grepl("cyl", code_preserve, fixed = TRUE) &&
+      grepl("am", code_preserve, fixed = TRUE),
+    label = paste0(
+      "preserve-mode code contains ppMultiVar( wrapper enclosing the ",
+      "picker's selected columns; actual code=", code_preserve
+    )
+  )
+  expect_no_plot_error(app)
+})
+# <<< super-2a no-default end
 
 # >>> super-2b begin
 test_that("super-2b customsource-splice: ppSample (D3 source) + !!splice (G3) + layer-upload + shared= on custom consumer all propagate, with layer-data pickers scoped to uploaded columns (ADR-0015 PLAN-01)", {
@@ -466,6 +632,62 @@ test_that("super-2b customsource-splice: ppSample (D3 source) + !!splice (G3) + 
 })
 # <<< super-2b end
 
+# >>> super-2b no-default begin
+# ADR-0016 parallel coverage. Strips positional defaults from every pp* call
+# in the canonical formula and splice template; ppUpload's df_rug companion
+# name stays. The bespoke layer-scope-discrimination probe (Sepal.Length not
+# offered by geom_rug ppVar) is not re-run — it tests ADR-0015 scope
+# resolution, which is formula-structure-agnostic.
+test_that("super-2b no-default: ppSample + !! splice + layer-upload + shared= on custom consumer all propagate (no positional defaults)", {
+  app <- boot_super_app("super-2b-customsource-splice", app_file = "app-no-default.R")
+
+  # --- Anchor widgets present at boot ------------------------------------
+  expect_dom_id(app, "ptr_update_plot")
+  expect_dom_id(app, "ptr_plot")
+  expect_dom_id(app, "ptr_code")
+  expect_dom_id(app, "ptr_code_mode")
+  # ppSample widget defaults to "iris" via build_ui's selected = "iris".
+  expect_picker_populated(app, "ggplot_0_ppSample_NA", "iris")
+
+  # --- Drive sentinels through the splice + shared layers ----------------
+  set_sentinel(app, "ggplot_0_ppSample_NA", "iris")
+  set_sentinel(app, "ggplot_subtab", "Controls")
+  app$wait_for_idle(timeout = 15 * 1000)
+  set_sentinel(app, "ggplot_1_1_ppVar_NA", "Sepal.Length")
+  set_sentinel(app, "ggplot_1_2_ppVar_NA", "Sepal.Width")
+  set_sentinel(app, "shared_fac", "Species")
+  set_sentinel(app, "geom_smooth_1_ppText_NA", "loess")
+  set_sentinel(app, "geom_smooth_2_ppNum_NA", 0.92)
+  set_sentinel(app, "geom_smooth_3_ppCoef_NA", 0.81)
+  draw_and_wait(app, "ptr_update_plot")
+  expect_no_plot_error(app, "ptr_plot")
+
+  # --- Final-mode propagation across spliced segment ---------------------
+  toggle_code_mode(app, "final")
+  expect_sentinel_in_code(app, "ptr_code", "\"loess\"",
+    "geom_smooth\\([^)]*method\\s*=\\s*[^,)]*", "final")
+  expect_sentinel_in_code(app, "ptr_code", "0.92",
+    "geom_smooth\\([^)]*linewidth\\s*=\\s*[^,)]*", "final")
+  expect_sentinel_in_code(app, "ptr_code", "0.81",
+    "geom_smooth\\([^)]*alpha\\s*=\\s*[^,)]*", "final")
+  # Shared "fac" reaches BOTH aes(color=) and facet_wrap(vars(...)).
+  expect_sentinel_in_code(app, "ptr_code", "Species",
+    "aes\\([^)]*color\\s*=\\s*[^,)]*", "final")
+  expect_sentinel_in_code(app, "ptr_code", "Species",
+    "facet_wrap\\(vars\\([^)]*\\)\\)", "final")
+
+  # --- Preserve-mode wrappers --------------------------------------------
+  toggle_code_mode(app, "preserve")
+  expect_sentinel_in_code(app, "ptr_code", "\"loess\"",
+    "method\\s*=\\s*ppText\\([^)]*\\)", "preserve")
+  expect_sentinel_in_code(app, "ptr_code", "0.92",
+    "linewidth\\s*=\\s*ppNum\\([^)]*\\)", "preserve")
+  expect_sentinel_in_code(app, "ptr_code", "0.81",
+    "alpha\\s*=\\s*ppCoef\\([^)]*\\)", "preserve")
+  expect_no_plot_error(app, "ptr_plot")
+})
+# <<< super-2b no-default end
+
 # >>> super-3 begin
 test_that("super-3 (L3 multi-cell + shared + plotly): shared key reaches both cells, plotly renders, B3 toggles, ppRange propagates", {
   testthat::skip_if_not_installed("plotly")
@@ -600,6 +822,80 @@ test_that("super-3 (L3 multi-cell + shared + plotly): shared key reaches both ce
   )
 })
 # <<< super-3 end
+
+# >>> super-3 no-default begin
+# ADR-0016 parallel coverage. Strips positional defaults from every pp* in
+# both cells' rlang::expr() formulas. The plotly-host non-error checks are
+# re-run because they validate the L3 multi-output surface under any
+# initial state.
+test_that("super-3 no-default (L3 multi-cell + shared + plotly): shared key reaches both cells, plotly renders (no positional defaults)", {
+  testthat::skip_if_not_installed("plotly")
+  app <- boot_super_app("super-3-l3-multi-shared-plotly", app_file = "app-no-default.R")
+
+  # ---- Anchor every expected placeholder input id from both formulas ----
+  plot1_ids <- c(
+    "plot1-ggplot_1_1_ppVar_NA",
+    "plot1-ggplot_1_2_ppVar_NA",
+    "plot1-geom_point_1_ppNum_NA",
+    "plot1-geom_point_2_ppNum_NA",
+    "plot1-scale_x_continuous_1_ppRange_NA",
+    "plot1-labs_1_ppText_NA",
+    "plot1-ptr_update_plot",
+    "plot1-ptr_code_mode"
+  )
+  plot2_ids <- c(
+    "plot2-ggplot_1_1_ppVar_NA",
+    "plot2-ggplot_1_2_ppVar_NA",
+    "plot2-geom_point_1_ppNum_NA",
+    "plot2-geom_smooth_1_ppText_NA",
+    "plot2-geom_smooth_2_ppNum_NA",
+    "plot2-labs_1_ppText_NA",
+    "plot2-ptr_update_plot",
+    "plot2-ptr_code_mode"
+  )
+  for (id in c(plot1_ids, plot2_ids, "shared_linked")) {
+    expect_dom_id(app, id)
+  }
+
+  # ---- Drive sentinels in cell A ----------------------------------------
+  set_sentinel(app, "plot1-ggplot_1_1_ppVar_NA", "mpg")
+  set_sentinel(app, "plot1-ggplot_1_2_ppVar_NA", "wt")
+  set_sentinel(app, "plot1-scale_x_continuous_1_ppRange_NA", c(12, 38))
+  # Drive sentinels in cell B
+  set_sentinel(app, "plot2-ggplot_1_1_ppVar_NA", "hp")
+  set_sentinel(app, "plot2-ggplot_1_2_ppVar_NA", "qsec")
+  set_sentinel(app, "plot2-geom_smooth_1_ppText_NA", "lm")
+  # Shared "linked" reaches BOTH cells
+  set_sentinel(app, "shared_linked", "gear")
+  draw_and_wait(app, "plot1-ptr_update_plot")
+  draw_and_wait(app, "plot2-ptr_update_plot")
+
+  expect_rendered(app, "#plot2-custom_plot", "plotly")
+  expect_rendered(app, "#plot1-ptr_plot", "ggplot")
+  expect_no_plot_error(app, "plot1-ptr_plot")
+
+  toggle_code_mode_ns <- function(ns_id, mode) {
+    set_sentinel(app, paste0(ns_id, "-ptr_code_mode"), mode)
+    app$wait_for_idle(timeout = 25 * 1000)
+  }
+  toggle_code_mode_ns("plot1", "final")
+  toggle_code_mode_ns("plot2", "final")
+  expect_sentinel_in_code(app, "plot1-ptr_code", "gear",
+    "aes\\([^)]*color\\s*=\\s*([^,)]*)", "final")
+  expect_sentinel_in_code(app, "plot2-ptr_code", "gear",
+    "aes\\([^)]*color\\s*=\\s*([^,)]*)", "final")
+  expect_sentinel_in_code(
+    app, "plot1-ptr_code", "c(12, 38)",
+    "scale_x_continuous\\(limits\\s*=\\s*[^)]*\\)", "final"
+  )
+
+  toggle_code_mode_ns("plot1", "preserve")
+  expect_sentinel_in_code(
+    app, "plot1-ptr_code", "c(12, 38)",
+    "ppRange\\([^)]*\\)\\)", "preserve"
+  )
+})
+# <<< super-3 no-default end
 
 # >>> super-4 begin
 test_that("super-4 user_css + safety + adversarial: user.css + core assets coexist, G5 string-builder propagates, ppColor styling reaches DOM, validate_input retains prior content, denylist rejects adversarial ppExpr, K4 prune leaves no dead user_css path", {
@@ -778,3 +1074,76 @@ test_that("super-4 user_css + safety + adversarial: user.css + core assets coexi
   expect_no_plot_error(app)
 })
 # <<< super-4 end
+
+# >>> super-4 no-default begin
+# ADR-0016 parallel coverage. Strips positional defaults from every pp* in
+# the paste0/sprintf-assembled formula. Notably exercises ppColor build_ui's
+# NULL-`selected` arrival path: with no formula default, `selected` arrives
+# NULL and build_ui's fallback ("#3366FF") seeds the textInput. The K4
+# user_css pruning + denylist adversarial probes are NOT re-run — they test
+# orthogonal surfaces already covered above.
+test_that("super-4 no-default: ppColor NULL-arrival fallback, G5 string-builder, validate_input, sentinel propagation (no positional defaults)", {
+  app <- boot_super_app("super-4-user-css-safety-adversarial",
+                        app_file = "app-no-default.R")
+
+  # ---- ppColor build_ui NULL-arrival: build_ui's fallback seeds the input
+  # When the formula carries no positional default, `node$default` is NULL
+  # at the build_ui injection point, so `selected` arrives NULL and the
+  # build_ui chooses its fallback `"#3366FF"`. That fallback is what the
+  # textInput reads as its initial value (per project memory
+  # `shinytest2-appdir-pkgload`: get_value on the input id reads the
+  # browser-side value, which the seed populates).
+  initial_color <- app$get_value(input = "geom_smooth_2_ppColor_NA")
+  testthat::expect_identical(
+    initial_color, "#3366FF",
+    label = paste0(
+      "ppColor build_ui NULL-arrival fallback seeds the textInput with ",
+      "'#3366FF' when the formula provides no positional default; ",
+      "actual=", initial_color %||% "<NULL>"
+    )
+  )
+
+  # ---- Initial happy-path draw at no-default state -----------------------
+  draw_and_wait(app, "ptr_update_plot")
+  expect_no_plot_error(app)
+
+  # ---- G5 string-builder propagation: the paste0-assembled y = ppVar()
+  # widget exists (the assembled formula text contained `y = ppVar()` which
+  # the parser turned into a real placeholder).
+  set_sentinel(app, "ggplot_1_2_ppVar_NA", "qsec")
+  draw_and_wait(app, "ptr_update_plot")
+  expect_sentinel_in_code(app, "ptr_code", "qsec",
+    "aes\\([^)]*y\\s*=\\s*([^,)]*)", "final")
+  code_after_first_ok_draw <- app$get_value(output = "ptr_code") %||% ""
+  testthat::expect_true(nzchar(code_after_first_ok_draw),
+    label = "code panel non-empty after first ok draw")
+
+  # ---- validate_input rejection: inline error pane surfaces, no crash ----
+  # NOTE: in the with-default test we also assert the prior code text
+  # survives the validate_input fail (last_ok_runtime cache fallback). That
+  # assertion is omitted here because the no-default's first draw is a
+  # partial-aes state (root x = ppVar() unset → aes(y = qsec) only), and
+  # the last_ok_runtime cache semantics under partial-aes states are not
+  # part of the no-default formula's contract — they are a runtime-cache
+  # implementation detail tested independently in the with-default block.
+  set_sentinel(app, "geom_smooth_2_ppColor_NA", "notahex")
+  draw_and_wait(app, "ptr_update_plot")
+  err_html <- app$get_html("#ptr_error") %||% ""
+  testthat::expect_true(
+    grepl("must be #RRGGBB hex", err_html, fixed = TRUE),
+    label = "inline error pane shows validate_input message"
+  )
+  expect_no_plot_error(app)
+
+  # ---- Recover and propagate the recovered color -------------------------
+  set_sentinel(app, "geom_smooth_2_ppColor_NA", "#A1B2C3")
+  draw_and_wait(app, "ptr_update_plot")
+  err_html_after_recover <- app$get_html("#ptr_error") %||% ""
+  testthat::expect_false(
+    grepl("must be #RRGGBB hex", err_html_after_recover, fixed = TRUE),
+    label = "ptr_error clears after recovering ppColor to a valid hex"
+  )
+  expect_sentinel_in_code(app, "ptr_code", "\"#A1B2C3\"",
+    "geom_smooth\\([^)]*color\\s*=\\s*([^,)]*)", "final")
+})
+# <<< super-4 no-default end
