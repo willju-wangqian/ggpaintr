@@ -126,7 +126,7 @@ test_that("BUG-4: custom ptr_define_placeholder_consumer() receives upstream col
   #
   # This test still has value as a contract: a custom consumer's build_ui
   # must receive the same `cols` vector as the built-in `var` consumer at the
-  # same upstream pipeline depth. If anyone keys `runtime_consumer_entry` or
+  # same upstream pipeline depth. If anyone keys `ptr_resolve_upstream` or
   # `invoke_build_ui`'s `extra` payload on the keyword in the future, this
   # guard rail fires.
   kw <- paste0("bug4cv_", as.integer(Sys.time()))
@@ -180,6 +180,11 @@ test_that("BUG-4: custom ptr_define_placeholder_consumer() receives upstream col
     do.call(session$setInputs,
             stats::setNames(list("fakeup"), upl$companion_id))
     st$resolved_sources[[upl$id]](df_fake)
+    # ADR 0015: entry_reactive now `req()`s on the source-ready reactive.
+    # A flushReact is required to propagate the resolved_sources update
+    # into entry_reactive's dep graph before reading the consumer outputs;
+    # without it, the read sees a pre-flush snapshot and silent-errors.
+    session$flushReact()
     # Force renderUI evaluation by reading every consumer output id.
     for (cnode in find_nodes(st$tree(), is_ptr_ph_data_consumer)) {
       if (!is.null(cnode$shared)) next

@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0015 — Consumer picker binding under source-headed upstream</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0015 — Consumer picker binding under source-headed upstream</h1>
+<p class="meta">Date: 2026-05-23 · Owner: ggpaintr · Status: <strong>DECIDED</strong> · Cross-refs: <a href="0013-super-app-pressure-test-suite.html">ADR 0013</a> §App-2b (test that surfaced the defect) · supersedes the <code>fix-super1</code> pre-warm exclusion at <code>R/paintr-server.R:1685</code></p>
+
+<div class="note"><strong>One-line summary.</strong> Two parallel defects keep a consumer <code>renderUI</code> from binding once its upstream contains a data-source placeholder (ppUpload, ppSample, etc.): the non-shared site suspends the picker on visibility (waits for the user to navigate to the inner Controls subtab); the shared site has a complete dep set for pipeline-head sources but is missing <code>state$resolved_data</code> for bare-data-source layers. Fix is two narrow edits: drop the pre-warm gate + add a <code>req()</code> guard in <code>ptr_setup_consumer_uis()</code>, and add one dep line in <code>ptr_bind_shared_consumer_uis()</code>.</div>
+
+<h2>1. Defect</h2>
+
+<h3>1.1 Symptom (ADR 0013 §App-2b diagnostic record)</h3>
+
+<p>From the predecessor's commit <code>a73ccca</code> on branch <code>0013-app-2b-customsource-splice</code>:</p>
+
+<blockquote>
+<p>Layer-aes ppVar nested under a layer-data ppUpload — <code>geom_rug(data = ppUpload(df_rug), aes(x = ppVar(mpg)))</code> — emits its renderUI scaffold (<code>geom_rug_1_1_ppVar_NA_ui</code> DOM container is present) but the inner picker never binds (stays in <code>recalculating</code>). Preserve mode reveals the symptom: the captured code shows <code>aes(x = ppVar)</code> with the <code>mpg</code> default dropped.</p>
+</blockquote>
+
+<p>The predecessor's hypothesis — "the consumer-discovery walker misses layer-aes ppVar under a layer-data ppX source" — was falsified at two diagnostic levels (see §1.2). The actual mechanism is runtime UI binding, not static classification.</p>
+
+<h3>1.2 Falsifying probes (both ran on this branch, base <code>4a23d39</code>)</h3>
+
+<p><strong>Static-tree probe</strong> (<code>/tmp/probe-followup-b.R</code>) — built the diagnostic formula via <code>ptr_translate(formula_str)</code> and inspected the classified tree. Found:</p>
+
+<ul class="flat">
+  <li><code>find_nodes(tree, is_ptr_ph_data_consumer)</code> DOES find <code>geom_rug_1_1_ppVar_NA</code>.</li>
+  <li><code>classify_walk.ptr_layer</code> at <code>R/paintr-classify.R:39–54</code> classifies <code>data_arg</code> first and passes the classified <code>data_arg</code> as <code>children_ctx</code> to children, so the consumer's <code>upstream</code> IS correctly wired to the ppUpload source (id <code>geom_rug_0_ppUpload_NA</code>).</li>
+  <li><code>ptr_runtime_input_spec()</code> DOES emit a row for the consumer (and a row for the ppUpload source + its companion).</li>
+</ul>
+
+<p><strong>Resolution-path probe</strong> (<code>/tmp/probe-followup-b-resolve.R</code>) — given <code>snapshot = list(companion_id = "df_rug")</code> and an <code>eval_env</code> with <code>df_rug</code> bound, <code>ptr_resolve_upstream(consumer$upstream, …)</code> returns the right data.frame with cols <code>mpg, wt</code>. With either input missing it returns NULL via the documented paths (<code>ptr_missing()</code> pruned, or silent <code>tryCatch(eval, error = NULL)</code>).</p>
+
+<p>Therefore the static classifier, the walker, and the resolver are all correct. The runtime UI binding path is where the failure lives.</p>
+
+<h3>1.3 Mechanism A — non-shared consumer is suspended on visibility</h3>
+
+<p><code>ptr_setup_consumer_uis()</code> at <code>R/paintr-server.R:1685</code> (added by <code>fix-super1</code>) only pre-warms a consumer renderUI when its upstream contains no data source:</p>
+
+<pre><code>if (length(find_nodes(node$upstream, is_ptr_ph_data_source)) == 0L) {
+  shiny::outputOptions(output, output_id, suspendWhenHidden = FALSE)
+}</code></pre>
+
+<p>For <code>geom_rug(data = ppUpload(df_rug), …)</code>, the consumer's <code>upstream</code> IS the ppUpload source → the condition is false → no pre-warm → the renderUI stays suspended (<code>suspendWhenHidden = TRUE</code>). The picker's DOM container is in the layer panel's static UI tree, but the picker itself never renders until the user activates the inner Controls subtab. The diagnostic <code>super-2b</code> test only passes because it explicitly calls <code>set_sentinel(app, "ggplot_subtab", "Controls")</code> before each root-aes pick; the layer-aes ppVar inside <code>geom_rug</code> is never given an analogous kick, so it stays unrendered — which the predecessor described as "stays in <code>recalculating</code> indefinitely".</p>
+
+<p>The <code>fix-super1</code> rationale (preserved in the same inline comment) is real but bounded:</p>
+
+<blockquote>
+<p>Stay lazy when the upstream still contains a <code>ptr_ph_data_source</code> (e.g. ppUpload-headed pipelines): firing the renderUI eagerly there would race the upload observer's <code>state$eval_env</code> binding and would pollute <code>state$upstream_cache</code> with the wrong frame found by R's scoping fallback (<code>datasets::penguins</code> for <code>&lt;name&gt; |&gt; filter(...)</code> before the uploaded df is bound).</p>
+</blockquote>
+
+<p>The race is real if the renderUI calls <code>ptr_resolve_upstream</code> before the source has resolved. The proper guard is not suspension — it is an explicit <code>req()</code> on the appropriate source-ready signal (<code>state$resolved_data[[ln]]()</code> for bare-data-source layers, <code>state$resolved_sources[[id]]()</code> for pipeline-head sources). <code>req(NULL)</code> raises <code>shiny.silent.error</code>, which Shiny treats as "not ready yet" — the renderUI halts BEFORE <code>ptr_resolve_upstream</code> runs, so the cache is never touched, the scoping fallback never has a chance to find <code>datasets::penguins</code>, and the renderUI re-fires once the source resolves.</p>
+
+<h3>1.4 Mechanism B — shared consumer's dep set is missing <code>resolved_data</code></h3>
+
+<p><code>ptr_bind_shared_consumer_uis()</code> at <code>R/paintr-server.R:1702–1830</code> has no <code>outputOptions(suspendWhenHidden = FALSE)</code> at all. Shared widgets live in always-visible host regions (sidebar / standalone <code>ptr_shared_panel()</code>), so the renderUI binds at boot regardless of visibility. The non-shared mechanism (§1.3) does not apply.</p>
+
+<p>The shared renderUI's source-side dep set is:</p>
+
+<pre><code>for (rv in state$resolved_sources) rv()   # pipeline-head sources
+for (cmp in upstream_source_companion_ids) { input[[ns(cmp)]] }
+for (sid in upstream_source_self_ids)      { input[[ns(sid)]] }</code></pre>
+
+<p>It watches <code>state$resolved_sources</code> (allocated only for pipeline-head sources, per <code>ptr_init_state</code> at <code>R/paintr-server.R:162–180</code>) but never <code>state$resolved_data</code> (allocated only for bare-data-source layers, same block). For the combo <code>geom_X(data = ppUpload(...), aes(... = ppVar(shared = "k")))</code>:</p>
+
+<ul class="flat">
+  <li>The ppUpload source is a bare-layer source → it has a slot in <code>state$resolved_data[[layer_name]]</code> but NOT in <code>state$resolved_sources[[source_id]]</code>.</li>
+  <li>The bare-layer upload observer (Loop 1 in <code>ptr_setup_pipelines()</code>, <code>R/paintr-server.R:788–852</code>) binds the resolved df into <code>state$eval_env</code> and bumps <code>state$resolved_data[[ln]]</code> — but never <code>state$resolved_sources[[sid]]</code> (no slot).</li>
+  <li>The shared renderUI has no dep on <code>resolved_data</code>. The only signals that fire it after upload are the companion text input and the source-self input — neither necessarily changes on upload (companion defaults from the formula's literal arg via <code>ppUpload(df)</code> — if the autobind would set the same value, no change event fires).</li>
+</ul>
+
+<p><strong>Empirical confirmation</strong> via an instrumented AppDriver probe in <code>/tmp/probe-shared-upload/</code> (full trace in §1.5). Five different trigger sequences (upload alone; bump companion to df2; bump again to df3; click Update Plot) every time left the shared widget showing the "Data source not yet provided" advisory with zero picker options. The <code>resolution$value</code> upstream is correct, <code>ptr_resolve_upstream</code> with the right snapshot + eval_env returns the right df — the renderUI's body just never receives the right inputs at the right time because the dep set doesn't latch the upload-completed signal.</p>
+
+<h3>1.5 Instrumented trace (proof of mechanism B)</h3>
+
+<p>Probe replaced <code>ptr_resolve_upstream</code> in the fixture's <code>app.R</code> via <code>assignInNamespace</code> to log <code>(snap, env_keys)</code> on every call. Formula:</p>
+
+<pre><code>ptr_app(
+  ggplot() +
+    geom_point(data = ppUpload(df),
+               aes(x = ppVar(shared = "v"),
+                   y = ppVar(shared = "v")))
+)</code></pre>
+
+<p>Trace (lines of form <code>(snap, env_keys) -&gt; result</code>):</p>
+
+<pre><code>BOOT:
+  (empty, empty)  -&gt; NULL    # runtime_upstream_data initial pass
+  (df,    empty)  -&gt; NULL    # shared renderUI first fire; companion default "df"; eval_env empty
+AFTER UPLOAD ALONE: (no new resolve calls — renderUI has no dep that fires)
+AFTER COMPANION BUMP to "df2":
+  (df2,   {df})   -&gt; NULL    # renderUI re-fires from companion dep
+                              # eval_env has 'df' (bound by an earlier observer fire)
+                              # but snap is "df2" — eval(df2) finds nothing → NULL</code></pre>
+
+<p>The trace confirms:</p>
+
+<ol>
+  <li>Upload alone triggers no shared renderUI re-fire (no dep latches the upload).</li>
+  <li>When a companion change finally invalidates the renderUI, the snapshot's new companion value ("df2") leads the eval_env's old binding ("df") — the renderUI sees a stale eval_env in the same flush.</li>
+</ol>
+
+<p>Adding <code>for (rv in state$resolved_data) rv()</code> to the renderUI dep block fixes both: the upload observer bumps <code>resolved_data[[ln]]</code> AFTER assigning to <code>eval_env</code>, so the resulting renderUI re-fire reads a settled eval_env. Symmetric with the existing <code>resolved_sources</code> dep that handles pipeline-head sources.</p>
+
+<h2>2. Decision — Option B (two-site fix)</h2>
+
+<p>Locked after grilling four candidate shapes and verifying empirically that one-site coverage is insufficient. Option B = the locked decision; A/C/D are recorded for completeness.</p>
+
+<h3>2.1 Change A — non-shared consumer pre-warm (<code>ptr_setup_consumer_uis</code>)</h3>
+
+<p>In <code>R/paintr-server.R</code> around the body of <code>ptr_setup_consumer_uis()</code> (lines 1564–1690):</p>
+
+<ol>
+  <li><strong>Drop the visibility-suspend gate at <code>:1685</code>.</strong> Replace
+    <pre><code>if (length(find_nodes(node$upstream, is_ptr_ph_data_source)) == 0L) {
+  shiny::outputOptions(output, output_id, suspendWhenHidden = FALSE)
+}</code></pre>
+    with the unconditional call:
+    <pre><code>shiny::outputOptions(output, output_id, suspendWhenHidden = FALSE)</code></pre>
+    matching the byte-stable pattern in <code>ptr_setup_value_uis()</code> and <code>ptr_setup_source_uis()</code>.</li>
+  <li><strong>Add a <code>req()</code> guard at the top of <code>entry_reactive</code>.</strong> The guard must halt when the consumer's upstream depends on a data source that has not yet resolved. Walk <code>node$upstream</code> at setup time to discover whether the consumer is under a bare-data-source layer (<code>node$layer_name</code> appears in <code>names(state$resolved_data)</code>) or a pipeline-head source (an id appears in <code>names(state$resolved_sources)</code>); call the appropriate <code>shiny::req(state$resolved_data[[ln]]())</code> / <code>shiny::req(state$resolved_sources[[id]]())</code> as the first statement of the reactive body. When the upstream contains no source placeholder at all, no <code>req()</code> is needed (today's pre-warm-when-empty branch becomes the no-op default; consumer resolves immediately at boot).</li>
+  <li><strong>Drop the subtab refresh-hook dep.</strong> Remove the four lines:
+    <pre><code>subtab_id &lt;- if (!is.null(node$layer_name)) {
+  paste0(node$layer_name, "_subtab")
+} else NULL
+…
+if (!is.null(subtab_id)) input[[ns(subtab_id)]]</code></pre>
+    Verified redundant: D3 in <a href="../../.claude/specs/lazy-consumer-resolve.md">lazy-consumer-resolve.md</a> had the tab dep substituting for excluded producer-input deps; the implementation already includes producer-input deps directly (see <code>upstream_producer_ids</code> loop), so the tab dep is doubly redundant under eager pre-warm. Drops the R7 constraint on <code>tabsetPanel(id=)</code>.</li>
+</ol>
+
+<h3>2.2 Change B — shared consumer dep set (<code>ptr_bind_shared_consumer_uis</code>)</h3>
+
+<p>In the renderUI body at <code>R/paintr-server.R:1771</code>, alongside the existing <code>resolved_sources</code> loop:</p>
+
+<pre><code>for (rv in state$resolved_sources) rv()
+for (rv in state$resolved_data)    rv()    # NEW — symmetric with non-shared</code></pre>
+
+<p>One-line addition. No other code change to the shared path; the existing graceful-empty-state advisory branch handles the still-pre-resolution case correctly. No <code>req()</code> needed on the shared side — the advisory IS the equivalent UX.</p>
+
+<h3>2.3 Rejected alternatives</h3>
+
+<p><strong>Option A (non-shared only).</strong> Was locked tentatively before the runtime probe; falsified by the instrumented AppDriver probe in §1.5 (shared widget never populates for the bare-data-source + shared combo across five trigger sequences). Documented as the trap: "shared widgets render at boot" was confused with "shared widgets refresh after upload" — the first is true, the second is not without the resolved_data dep.</p>
+
+<p><strong>Option C (full shared parity with req()).</strong> Treat the shared site exactly like the non-shared site (drop laziness, add req()). Rejected: the shared site is already not lazy on visibility — it has different mechanics — and changing its boot behavior would require redesigning the graceful-empty-state advisory branch. Option B closes the same hole with one line and zero UX change.</p>
+
+<p><strong>Option D (per-layer fast-path restoration).</strong> Restore the deleted-by-ADR-0012-§3.7 per-layer fast-path so the consumer reads <code>state$resolved_data[[layer_name]]</code> directly. Rejected: reverses an explicit ADR-0012 simplification and only addresses bare-data-source layers (pipeline-head sources keep the same suspension issue). Option B is uniform across both source shapes via the <code>req()</code> guard.</p>
+
+<h2>3. Regression coverage</h2>
+
+<h3>3.1 Non-shared (super-2b) — strengthen the existing fixture's test</h3>
+
+<p>The diagnostic <code>tests/testthat/test-super-pressure.R</code> super-2b block currently asserts only DOM-container presence for the broken case (<code>expect_dom_id(app, "geom_rug_1_1_ppVar_NA_ui")</code>) and explicitly carries the gap as a comment. Replace with a strict propagation assertion:</p>
+
+<ul class="flat">
+  <li>After <code>app$upload_file(geom_rug_0_ppUpload_NA = sample_rug.csv)</code> + <code>set_sentinel(app, "geom_rug_0_ppUpload_NA_name", "df_rug")</code>, WITHOUT navigating to the geom_rug Controls subtab, assert <code>expect_picker_populated(app, "geom_rug_1_1_ppVar_NA", "mpg")</code>.</li>
+  <li>Set the picker to <code>"mpg"</code>, click Draw, assert final mode shows <code>aes(x = mpg)</code> inside <code>geom_rug(...)</code> via <code>expect_sentinel_in_code</code>.</li>
+  <li>Remove the inline "wiring gap" comment from the existing test.</li>
+</ul>
+
+<p>This test fails today (the gap the predecessor recorded) and must pass after Option B lands.</p>
+
+<h3>3.2 Shared-over-bare-data-source — new fixture</h3>
+
+<p>Add a new sibling super-pressure fixture <code>tests/testthat/fixtures/vignette-apps/super-2c-shared-over-upload/</code> with:</p>
+
+<ul class="flat">
+  <li><code>app.R</code> — formula: <code>ggplot() + geom_point(data = ppUpload(df), aes(x = ppVar(shared = "v"), y = ppVar(shared = "v")))</code></li>
+  <li><code>sample.csv</code> — minimal CSV with cols <code>mpg, wt</code>.</li>
+</ul>
+
+<p>One <code>test_that</code> block (likely under a new <code>&gt;&gt;&gt; super-2c begin / &lt;&lt;&lt; super-2c end</code> anchor in <code>test-super-pressure.R</code>, following the ADR 0013 anchor convention) that boots the fixture, uploads <code>sample.csv</code>, asserts <code>expect_picker_populated(app, "shared_v", "mpg")</code> WITHOUT any subtab navigation, then picks <code>"mpg"</code> + draws + asserts final code contains <code>aes(x = mpg, y = mpg)</code>.</p>
+
+<h2>4. Consequences</h2>
+
+<ul class="flat">
+  <li><strong>Public API:</strong> no change. <code>ptr_setup_consumer_uis</code>, <code>ptr_bind_shared_consumer_uis</code>, and <code>ptr_setup_pipelines</code> are all internal; no exported function signature changes.</li>
+  <li><strong>Boot cost:</strong> every consumer renderUI evaluates once at boot. For typical ggpaintr formulas (placeholders per layer × layers ≲ 30) this is bounded and observable as a one-time cost. For consumers under an unresolved source, <code>req()</code> halts before <code>ptr_resolve_upstream</code> runs — no eval, no cache touch.</li>
+  <li><strong>Cache pollution race (the fix-super1 concern):</strong> closed structurally. The renderUI body never calls <code>ptr_resolve_upstream</code> until the appropriate <code>resolved_data</code> / <code>resolved_sources</code> reactive is non-NULL — by which point the bare-source observer has already bound the resolved df into <code>eval_env</code>. The R-scoping-fallback path (<code>datasets::penguins</code> for <code>&lt;name&gt; |&gt; filter(...)</code> before upload) cannot fire because the eval never runs.</li>
+  <li><strong>D3 / R7 from lazy-consumer-resolve.md:</strong> the tab-activation dep is removed (D3's substitute-for-producer-deps role was already absorbed by the producer-input dep loop). R7's tabsetPanel-id constraint is relaxed — UI builders may keep or drop the id; nothing reads it server-side anymore.</li>
+  <li><strong>Diagnostic branch <code>0013-app-2b-customsource-splice</code>:</strong> the fixture files (<code>app.R</code>, <code>sample_rug.csv</code>) cherry-pick cleanly into <code>followup-b</code> as part of the regression-test step; the in-test gap comment is rewritten to a strict assertion. The branch itself can be deleted after merge.</li>
+  <li><strong>Default-value flow:</strong> placeholder <code>default_arg</code> resolution is unaffected — it runs in <code>substitute_walk</code> at Draw time, not <code>build_ui</code>. Defaults still apply when the user hasn't picked a column.</li>
+  <li><strong>Custom placeholders:</strong> the fix automatically propagates to any <code>ptr_define_placeholder_consumer()</code> custom consumer (same code path). VALUE and SOURCE roles are handled by different functions (<code>ptr_setup_value_uis</code>, <code>ptr_setup_source_uis</code>) that already pre-warm unconditionally — no change required.</li>
+  <li><strong>Out of scope:</strong> behavioral changes to <code>ptr_resolve_upstream</code>, the typed-AST classifier, or the substitute walker. The fix is purely UI-binding plumbing in two functions.</li>
+</ul>
+
+<h2>5. Authoritative gate</h2>
+
+<p>Per project <code>CLAUDE.md</code>:</p>
+
+<pre><code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code></pre>
+
+<p>Baseline N at <code>4a23d39</code> (post-add-expr after plan7-impl + fix-super1): <strong>FAIL 0 / WARN 0 / SKIP 0 / PASS 2352</strong>. After Option B lands plus regression tests (§3.1 strengthened + §3.2 new), N grows by ≥ 1 (the new <code>super-2c</code> block) and the existing <code>super-2b</code> block goes from "asserts container present" to "asserts picker populated + propagates to final code". What matters is 0/0/0.</p>
+
+<p>Proxy traps (same as ADR 0013): bare <code>Rscript -e 'testthat::test_dir(...)'</code> without <code>NOT_CRAN=true</code> silently SKIPs every shinytest2 browser test; <code>devtools::check(... --as-cran)</code> runs the browser file as a clean all-skip via the source-root guard.</p>
+
+<h2>6. References</h2>
+
+<ul class="flat">
+  <li><a href="0013-super-app-pressure-test-suite.html">ADR 0013</a> — super-app pressure tests (App-2b configuration that surfaced the defect)</li>
+  <li><a href="../../.claude/specs/lazy-consumer-resolve.md">lazy-consumer-resolve.md</a> — D3 (Controls-tab consumer refresh policy) and R7 (tabsetPanel-id constraint)</li>
+  <li>Diagnostic branch commit: <code>git show a73ccca</code> — predecessor's inline test comments documenting the failure shape</li>
+  <li>Probe scripts (transient, /tmp): <code>probe-followup-b.R</code> (static tree), <code>probe-followup-b-resolve.R</code> (resolution path), <code>probe-shared-upload/</code> (instrumented AppDriver for mechanism B)</li>
+</ul>
+
+</body>
+</html>

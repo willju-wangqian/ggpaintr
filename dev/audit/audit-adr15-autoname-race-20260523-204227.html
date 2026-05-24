@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Root cause: the autoname-vs-assign race blocking ADR-0015 PLAN-01</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>Root cause: the autoname-vs-assign race blocking ADR-0015 PLAN-01</h1>
+<p class="meta">Generated 2026-05-23 · `followup-b` @ `5228646` · author: assistant (ADR-0015 PLAN-01 implementer)</p>
+
+<div class="note">
+This document exists because closing ADR-0015 PLAN-01's actual UX defect took far more than the plan's "two narrow edits to one file" suggested. The plan's mental model assumed <code>shiny::req()</code> alone would close the cache-pollution race. It doesn't. The real cause is a second flush-ordering race introduced by an in-tree <code>shiny::updateTextInput()</code> call inside <code>ptr_bind_source_autoname()</code>. The user flagged that <code>update*</code> calls were supposed to have been cleaned out previously, so this document lays the situation out for a clean decision.
+</div>
+
+<h2>0. What is the <code>followup-b</code> branch?</h2>
+
+<p><code>followup-b</code> is an <strong>integration branch collecting follow-up fixes</strong> that surfaced after the main <code>post-add-expr</code> branch landed. It is <em>not</em> a feature branch — it merges several independently-developed fixes into one stream, which the parent orchestrator will then fast-forward into <code>post-add-expr</code>.</p>
+
+<p>Commits on <code>followup-b</code> not in main, in reverse chronological order (commit, summary, ADR/plan it closes):</p>
+
+<table>
+<tr><th>SHA</th><th>Summary</th><th>Closes</th></tr>
+<tr><td><code>5228646</code></td><td>ADR-0015 PLAN-01: eager-bind consumer pickers under source-headed upstream</td><td><strong>ADR-0015 (this document's topic)</strong></td></tr>
+<tr><td><code>4a23d39</code></td><td>chore: ignore <code>.claude/worktrees/</code> + archive predecessor exec-plan report</td><td>hygiene</td></tr>
+<tr><td><code>16ba251</code></td><td>merge <code>fix-super1</code> (super-1 picker pre-warm + ppRange seeding)</td><td>super-1 picker regression + ppRange default seeding</td></tr>
+<tr><td><code>7eab201</code></td><td>docs(serena): scope Serena to its strengths; add routing table + runtime carve-out</td><td>tooling convention</td></tr>
+<tr><td><code>d17ad3d</code></td><td>merge <code>plan7-impl</code> (PLAN-07 unified <code>validate_input(value, ctx)</code>)</td><td>ADR-0013 PLAN-07</td></tr>
+<tr><td><code>e521044</code></td><td>merge <code>fix-registry-init</code> (ADR-0014 + recursion guard)</td><td>ADR-0014 (placeholder registry init recursion)</td></tr>
+<tr><td><code>8162e61</code></td><td>docs(regen): sync stale Rd with R/ roxygen</td><td>doc drift</td></tr>
+<tr><td><code>3fa5999</code></td><td>docs(placeholders): document <code>selected</code> formal in build_ui hooks</td><td>doc drift</td></tr>
+<tr><td><code>79b34c9</code></td><td>docs(validate_input): state the calling contract explicitly</td><td>doc drift</td></tr>
+<tr><td><code>f0f0507</code></td><td>fix(registry): break <code>ptr_register_builtins</code> recursion on cleared env</td><td>ADR-0014</td></tr>
+<tr><td><code>072800f</code></td><td>fix(super-1 fixture): seed ppRange slider from <code>node$default</code> via <code>selected</code></td><td>super-1 fixture</td></tr>
+<tr><td><code>f6764ae</code></td><td>fix(consumer-uis): pre-warm var pickers when upstream has no data source</td><td>super-1 picker (predecessor to ADR-0015)</td></tr>
+</table>
+
+<p>Base SHA for the branch: <code>4a23d39 chore: ignore .claude/worktrees/ + archive predecessor exec-plan report</code>, which is on <code>post-add-expr</code> after the upstream <code>plan7-impl</code> + <code>fix-super1</code> merges. Baseline gate at the base: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS 2352</strong>.</p>
+
+<p><strong>How <code>followup-b</code> relates to ADR-0015 specifically:</strong> the commit <code>f6764ae</code> ("pre-warm var pickers when upstream has no data source") was a predecessor's hypothesis-driven fix that the ADR-0015 instrumented-runtime trace eventually falsified — see ADR-0015 §1.2 + §1.4 for the falsifying probes. The current commit <code>5228646</code> supersedes that hypothesis with the two-site fix (drop the visibility gate + add <code>req()</code> + add the shared-binder <code>resolved_data</code> dep). The branch therefore carries both the falsified attempt's commit and the corrected fix on top of it; <code>git log</code> reads as the diagnostic-then-correct path.</p>
+
+<p>What the branch is <em>not</em>: it is not a long-running development branch, and it is not the place to do refactor-scope changes. Each commit is supposed to be narrowly scoped to a single ADR/plan/fix; the present document exists because <code>5228646</code> ended up exceeding that narrow scope (cache bypass + <code>invalidateLater</code>) due to the autoname race documented below.</p>
+
+<h2>1. What the plan asked for</h2>
+
+<p>ADR-0015 PLAN-01's SC-2 names the mechanism literally: at the top of each per-consumer <code>entry_reactive</code>, add <code>shiny::req(state$resolved_sources[[id]]())</code> (or <code>resolved_data[[layer_name]]()</code> for bare-data layers). The plan's <em>Governing principle</em> writes:</p>
+
+<blockquote>
+The cache-pollution race that motivated <code>fix-super1</code>'s visibility-gate is real but must be closed STRUCTURALLY (via <code>shiny::req()</code> on the appropriate source-ready reactive), NOT via suspension.
+</blockquote>
+
+<p>This is correct for one specific race: the OLD pre-warm-gate prevented <code>entry_reactive</code> from running at boot for source-headed consumers, so <code>runtime_consumer_entry()</code> never touched <code>state$upstream_cache</code> with a stale <code>eval_env</code>. <code>req()</code> achieves the same halt without suspending the renderUI's DOM container.</p>
+
+<p>For the simple scenario PLAN-01's own fixture exercises (<code>ppUpload(df)</code> as <em>layer-data</em>, companion seeded with <code>"df"</code> at parse time), <code>req()</code> alone <strong>does</strong> close the race and the new <code>test-adr15-consumer-binding.R</code> file passes.</p>
+
+<h2>2. The race the plan didn't anticipate</h2>
+
+<p>The pre-existing regression <code>test-adr12-bug-3a.R</code> hits a <em>different</em> failure mode that <code>req()</code> alone does not fix. The fixture's formula:</p>
+
+<pre>ppUpload |> dplyr::filter(ppVar > ppNum) |> ggplot(aes(ppVar, ppVar)) + geom_point()</pre>
+
+<p>Notice <code>ppUpload</code> is bare (no default-arg / no companion seed). Its companion text input starts empty.</p>
+
+<p>The race involves two pre-existing observers in <code>R/paintr-server.R</code>:</p>
+
+<ul>
+  <li><strong>MAIN upload observer</strong> (<code>ptr_setup_pipelines</code>, line 875):
+    <ol>
+      <li>Reads <code>file_info &lt;- input[[src_id]]</code>.</li>
+      <li>Resolves <code>df</code> via <code>entry$resolve_data(file_info, node)</code>.</li>
+      <li>Reads <code>nm &lt;- input[[comp_id]]</code> to derive <code>binding_name</code>.</li>
+      <li>If <code>df</code> + <code>binding_name</code> both non-NULL: <code>assign(binding_name, df, envir = state$eval_env)</code>.</li>
+      <li>Calls <code>slot(df)</code> (sets <code>state$resolved_sources[[id]]</code>).</li>
+    </ol>
+  </li>
+  <li><strong><code>ptr_bind_source_autoname()</code></strong> (line 927):
+    <pre>shiny::observeEvent(input[[src_id]], {
+  fi &lt;- input[[src_id]]
+  auto &lt;- ptr_upload_autoname(input[[comp_id]],
+                              if (!is.null(fi)) fi$name else NULL)
+  if (!is.null(auto)) {
+    shiny::updateTextInput(session, comp_id, value = auto)  <span style="background:#fdd;">&nbsp;←&nbsp;THE&nbsp;TRIGGER&nbsp;</span>
+  }
+})</pre>
+  </li>
+</ul>
+
+<p>When the user uploads a file named <code>penguins.csv</code> with an empty companion:</p>
+
+<ol>
+  <li><strong>Cycle 1</strong>: <code>input[[src_id]]</code> changes.
+    <ul>
+      <li>MAIN obs fires (priority 0). Reads <code>comp_id=""</code>. <code>binding_name = NULL</code>. <code>assign</code> skipped. <code>slot(df1)</code>.</li>
+      <li>Autoname obs fires (priority 0). <code>auto = "penguins"</code>. <code>updateTextInput(session, comp_id, "penguins")</code> — sends a message to the client.</li>
+      <li><code>entry_reactive</code> invalidates (slot dep). RenderUI flush. Snapshot reads <code>comp_id=""</code>. Substitute prunes. Resolve returns NULL. Empty picker rendered.</li>
+    </ul>
+  </li>
+  <li><strong>Cycle 2</strong>: client echoes <code>comp_id="penguins"</code> back to server.
+    <ul>
+      <li>MAIN obs invalidates (depends on <code>comp_id</code>).</li>
+      <li><code>entry_reactive</code> invalidates (snapshot reads <code>input[[comp_id]]</code> — a reactive dep).</li>
+      <li>Flush: <strong>both</strong> reactives invalidated by the same input change. Despite shiny's priority (observe@0 should run before renderUI@-1), the empirical trace shows <code>entry_reactive</code> firing while <code>state$eval_env</code> still lacks the <code>penguins</code> binding.</li>
+      <li>Substitute → <code>penguins</code> symbol. Eval against <code>state$eval_env</code> with no <code>penguins</code> binding → R's parent-chain scoping finds <code>datasets::penguins</code> (R 4.5+ ships a truncated-column <code>penguins</code> dataset baked in).</li>
+      <li>The wrong frame's <code>cols</code> are <code>cached</code> under <code>deparse("penguins |&gt; ...")</code> in <code>state$upstream_cache</code>.</li>
+    </ul>
+  </li>
+  <li>When MAIN obs eventually does <code>assign(penguins, df, eval_env)</code> + <code>slot(df2)</code>:
+    <ul>
+      <li><code>slot(df2)</code> is dedup'd (<code>identical(df1, df2)</code> is TRUE because <code>resolve_data</code> reads the same file twice into structurally-equal frames). No further invalidation.</li>
+      <li>Even if <code>entry_reactive</code> re-fires, the cache returns the polluted truncated-penguins result.</li>
+    </ul>
+  </li>
+</ol>
+
+<p>The instrumented trace from <code>/tmp/adr12-probe.log</code> shows this directly:</p>
+
+<pre>=== boot ===
+[resolve] cols=&lt;NA&gt; evenv_has_penguins=FALSE snap_keys=ppUpload_NA_name           ← Cycle 1, comp=""
+[resolve] cols=&lt;NA&gt; evenv_has_penguins=FALSE snap_keys=ppNum,ppUpload_NA_name
+[resolve] cols=&lt;NA&gt; evenv_has_penguins=FALSE snap_keys=ppNum,ppUpload_NA_name
+[resolve] cols=species,island,bill_len,bill_dep,flipper_len,body_mass,sex,year     ← Cycle 2, comp="penguins",
+          evenv_has_penguins=FALSE snap_keys=ppNum,ppUpload_NA_name                  but eval_env NOT YET bound
+[resolve] cols=species,island,bill_len,...      evenv_has_penguins=FALSE
+          snap_keys=ppNum,ppUpload_NA_name
+[resolve] cols=species,island,bill_length_mm,...                                   ← LATER, eval_env bound, but only
+          evenv_has_penguins=TRUE  snap_keys=ppUpload_NA_name                        the in-FILTER consumer re-fires</pre>
+
+<p>The truncated-column <code>bill_len</code> / <code>bill_dep</code> / <code>flipper_len</code> / <code>body_mass</code> are the smoking gun: those are <code>datasets::penguins</code>'s column names, not the uploaded CSV's. The in-aes ppVars get stuck on the cached polluted result; only the in-filter ppVar re-fires after the eval_env-bound state lands.</p>
+
+<h2>3. Why this took so long</h2>
+
+<p>The plan's diagnosis (ADR-0015 §1.5) named the cache-pollution race, but only described one of two interacting mechanisms. The plan author saw the OLD pre-warm-gate's behavior (no eager fire, no pollution) and assumed <code>req()</code> would architecturally replicate that property. It does — for upstream resolved-sources synchronization. It doesn't for the <code>eval_env</code>-binding-synchronization race that <code>updateTextInput()</code> opens.</p>
+
+<p>The diagnostic cycle here:</p>
+
+<ol>
+  <li>Implement SC-1..SC-4 verbatim. Gate runs: 3 failures in <code>test-adr12-bug-3a.R</code>, all "picker not populated".</li>
+  <li>First wrong hypothesis: <code>source_ready</code> wasn't catching companion-bearing sources because the helper <code>find_source_self_ids_in_upstream</code> excludes nodes with companions. Fix: walk upstream with <code>find_nodes(., is_ptr_ph_data_source)</code> instead. Gate: 7 failures (added testServer-path regressions).</li>
+  <li>Diagnosed the testServer regressions (<code>test-rewrite-pipeline-data-source.R:132</code> + BUG-4): pre-existing contracts asserted "renderUI must not throw" — incompatible with <code>req()</code>'s silent-error semantics. Per user direction (Option A), updated those 2 test contracts.</li>
+  <li>Down to 3 failures. Probed in testServer: works. Probed in shinytest2: fails with truncated penguins.</li>
+  <li>Instrumented <code>ptr_resolve_upstream</code> via <code>assignInNamespace</code> in the fixture's <code>app.R</code>. Trace revealed evenv_has_penguins=FALSE at the polluting resolve.</li>
+  <li>Tried <code>isolate()</code>-wrapping the companion read in snapshot. Removed the comp dep, but slot's identical-value dedup prevented the re-fire that would have caught the post-<code>assign</code> state. Made it worse.</li>
+  <li>Settled on <code>cache=NULL</code> + <code>invalidateLater(50)</code> retry. Gate: 0/0/0/2357. <strong>This is the current committed state on <code>followup-b@5228646</code>.</strong></li>
+</ol>
+
+<p>What I didn't do until now: <strong>question the existence of the <code>updateTextInput()</code> call in the first place</strong>. The user's observation that <code>update*</code> calls are supposed to have been cleaned out is the key insight that makes a real fix obvious. Without that, the apparent options were all variations of "cope with the race"; with it, the option of "delete the race-causing call" comes back on the table.</p>
+
+<h2>4. Current state of <code>update*</code> calls in the codebase</h2>
+
+<table>
+<tr><th>Line</th><th>Call site</th><th>Purpose</th><th>Introduced</th></tr>
+<tr><td>629</td><td><code>shiny::updateCheckboxInput(session, id, value)</code></td><td>Spec-apply boot dispatch (per-keyword role)</td><td>65a0a03 "PLAN-06: spec-apply-session-boot"</td></tr>
+<tr><td>634</td><td><code>shiny::updateTextInput(session, id, value)</code></td><td>Spec-apply boot dispatch (source_companion role)</td><td>65a0a03</td></tr>
+<tr><td>936</td><td><code>shiny::updateTextInput(session, comp_id, auto)</code></td><td><strong><code>ptr_bind_source_autoname()</code> — auto-fill companion from filename</strong></td><td>070343f "fix(shared/data): … upload autoname"</td></tr>
+<tr><td>1225</td><td><code>shiny::updateTabsetPanel(...)</code></td><td>(Did not investigate in this session)</td><td>—</td></tr>
+</table>
+
+<p>The convention "no updateXxx" was either never fully enforced or these three call sites slipped past the cleanup. Line 936 is the load-bearing one for ADR-0015's race. Lines 629/634 are spec-apply (different code path); line 1225 is a tab navigation helper.</p>
+
+<h2>5. Possible solutions</h2>
+
+<p>Each option is independent — they are not mutually exclusive but are listed in increasing scope. The current committed state is the workaround (Option A).</p>
+
+<h3>Option A — Keep the workaround (status quo: <code>followup-b@5228646</code>)</h3>
+
+<p><strong>Mechanism:</strong> <code>cache = NULL</code> per-consumer resolve + <code>invalidateLater(50)</code> retry when <code>eval_env</code> binding hasn't landed yet. Gate is green (0/0/0/2357).</p>
+
+<p><strong>Pros:</strong> Already committed. Closes the user-visible UX defect. No new convention violations.</p>
+
+<p><strong>Cons:</strong>
+<ul>
+  <li>Carries the architectural debt forward: the real cause (<code>updateTextInput</code>) remains.</li>
+  <li>50ms polling is hacky and visible in any future race-condition postmortem.</li>
+  <li>Bypassing <code>state$upstream_cache</code> for the per-consumer path loses one layer of dedup (small perf hit; consumers each have distinct upstream subtrees anyway, so the dedup it provided was already minimal).</li>
+  <li>SC-2's literal "<code>shiny::req()</code>" mechanism is augmented beyond the plan as written.</li>
+</ul></p>
+
+<h3>Option B — Remove <code>ptr_bind_source_autoname()</code> entirely</h3>
+
+<p><strong>Mechanism:</strong> Delete the function and its call sites. The user types the companion name themselves before resolution works.</p>
+
+<p><strong>Pros:</strong>
+<ul>
+  <li>Closes the race at the root (no <code>updateTextInput</code> → no extra reactive cycle → no flush-order race).</li>
+  <li>The workaround in Option A becomes dead code (can revert <code>invalidateLater</code> + restore <code>state$upstream_cache</code>).</li>
+  <li>Restores the "no <code>update*</code>" convention for one of the three remaining call sites.</li>
+  <li>Smaller code surface.</li>
+</ul></p>
+
+<p><strong>Cons:</strong>
+<ul>
+  <li>UX regression: companion no longer auto-fills from uploaded filename. Vignettes / docs that lean on this convenience would need to be updated.</li>
+  <li>Likely needs its own ADR ("remove autoname; companion is user-driven") to capture the rationale.</li>
+</ul></p>
+
+<h3>Option C — Replace <code>updateTextInput</code> with a renderUI-driven companion</h3>
+
+<p><strong>Mechanism:</strong> Make the companion a <code>renderUI</code> output (not a static <code>textInput</code>). The renderUI's <code>selected</code> argument reads <code>input[[src_id]]</code> and computes the autoname server-side. No <code>update*</code> call. The companion is still user-editable.</p>
+
+<p><strong>Pros:</strong>
+<ul>
+  <li>Preserves the autoname UX.</li>
+  <li>Removes the <code>update*</code> convention violation at line 936.</li>
+  <li>The new renderUI fires synchronously inside the server's reactive flush — no client roundtrip, no separate flush cycle, no race.</li>
+</ul></p>
+
+<p><strong>Cons:</strong>
+<ul>
+  <li>Larger refactor: every consumer of the static <code>textInput</code> id changes to a <code>uiOutput</code> consumer.</li>
+  <li>User-typed-in-progress text gets clobbered every time renderUI re-fires (need to preserve <code>current</code> across re-fires, the same pattern <code>ptr_setup_consumer_uis</code> already uses for var pickers).</li>
+  <li>Needs care with <code>shinyWidgets</code> custom-rendered text inputs if they're in play.</li>
+</ul></p>
+
+<h3>Option D — Make MAIN observer higher-priority than the renderUIs</h3>
+
+<p><strong>Mechanism:</strong> Add <code>priority = 1</code> (or higher) to the MAIN upload observer in <code>ptr_setup_pipelines</code>. Forces MAIN obs to flush before any renderUI in the same cycle, eliminating the order race regardless of <code>update*</code>.</p>
+
+<p><strong>Pros:</strong> Single-line change. Doesn't remove the <code>update*</code> call but does close the race.</p>
+
+<p><strong>Cons:</strong>
+<ul>
+  <li>Out of plan-01's scope (touches <code>ptr_setup_pipelines</code>, not <code>ptr_setup_consumer_uis</code>).</li>
+  <li>Relies on shiny's priority semantics (well-defined for <code>observe()</code>, less so across <code>renderUI</code> + <code>observe</code> interactions in chromote children).</li>
+  <li>Doesn't address the <code>update*</code> convention violation.</li>
+  <li>Subtle ordering change — any other observer at default priority that depends on the autoname-updated companion would now run after MAIN obs's assign, which may or may not be what they expect.</li>
+</ul></p>
+
+<h2>6. Recommendation</h2>
+
+<p><strong>Option C</strong> if the project's long-term direction is "no <code>update*</code>": replace the static companion with a renderUI, killing the race at the root while preserving the autoname UX. Schedule it as ADR-0015 §3 (or a sibling ADR) with its own implementable plan.</p>
+
+<p><strong>Option B</strong> if the autoname UX is dispensable: simplest possible code, clearest convention compliance.</p>
+
+<p>Either way, the workaround in Option A should be reverted in the same change so <code>invalidateLater(50)</code> + <code>cache=NULL</code> + the inlined-<code>runtime_consumer_entry</code> don't ossify as "the way ADR-0015 PLAN-01 works".</p>
+
+<p>If neither B nor C is in scope right now, Option A's committed state is a known-good resting point — the user-visible UX defect is closed, the gate is 0/0/0/2357, and ADR-0013 PLAN-04 is unblocked. The debt is documented here for whichever future iteration takes the cleanup on.</p>
+
+<h2>7. Files that would change under each option</h2>
+
+<table>
+<tr><th></th><th>Option B</th><th>Option C</th><th>Option D</th></tr>
+<tr><td><code>R/paintr-server.R</code> — revert workaround in <code>ptr_setup_consumer_uis</code></td><td>✓</td><td>✓</td><td>—</td></tr>
+<tr><td><code>R/paintr-server.R</code> — restore <code>runtime_consumer_entry</code> call site</td><td>✓</td><td>✓</td><td>—</td></tr>
+<tr><td><code>R/paintr-server.R</code> — delete <code>ptr_bind_source_autoname</code></td><td>✓</td><td>—</td><td>—</td></tr>
+<tr><td><code>R/paintr-server.R</code> — replace static companion with renderUI</td><td>—</td><td>✓</td><td>—</td></tr>
+<tr><td><code>R/paintr-server.R</code> — add <code>priority = 1</code> to MAIN obs</td><td>—</td><td>—</td><td>✓</td></tr>
+<tr><td>Vignettes mentioning autoname behavior</td><td>✓</td><td>—</td><td>—</td></tr>
+<tr><td>Tests that rely on autoname-set companion</td><td>✓ (audit + adjust)</td><td>—</td><td>—</td></tr>
+<tr><td>New ADR documenting the decision</td><td>✓</td><td>✓</td><td>(optional)</td></tr>
+</table>
+
+<h2>8. Counts for context</h2>
+
+<ul>
+  <li>Total <code>shiny::update*</code> call sites in <code>R/</code>: <strong>4</strong> (lines 629, 634, 936, 1225).</li>
+  <li>Of these, ADR-0015's blast radius touches line 936 only.</li>
+  <li><code>ptr_bind_source_autoname()</code> is called in <strong>2</strong> places in <code>ptr_setup_pipelines</code> (bare-data layer + pipeline-head source) — both at the end of each per-source <code>local({...})</code> block.</li>
+  <li>Tests that may rely on autoname behavior (grep for <code>_ppUpload_NA_name</code> + no explicit <code>set_input</code> before assertion): worth a one-pass audit before deleting.</li>
+</ul>
+
+</body>
+</html>

@@ -127,9 +127,13 @@ test_that("pipeline-head `ppUpload` populates the consumer picker UI (renderUI p
     cons <- find_nodes(tree, is_ptr_ph_data_consumer)[[1L]]
     out_id <- consumer_output_id(cons$id)
 
-    # Before any upload the renderUI must still resolve (no crash), just with
-    # an empty picker.
-    expect_no_error(output[[out_id]])
+    # ADR 0015: pre-upload, the consumer's `entry_reactive` `req()`s on the
+    # upstream source-ready reactive. Reading the renderUI before any upload
+    # therefore short-circuits with a `shiny.silent.error` — Shiny's standard
+    # "not yet ready" signal that yields no DOM. The contract this test pins
+    # is that AFTER the upload the picker populates; the pre-upload state is
+    # whatever Shiny's req() semantics produce.
+    expect_error(output[[out_id]], class = "shiny.silent.error")
 
     fp <- fixture_path("simple_numeric.csv")
     do.call(session$setInputs,
