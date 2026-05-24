@@ -39,8 +39,40 @@ note:
   via grep -n "super-2a" tests/testthat/test-super-pressure.R). depends_on cleared
   because PLAN-01's contribution is satisfied externally; slug suffixed -rerun
   to avoid colliding with the stale 0013-app-2a-upload-registry branch from the
-  prior aborted run. Plan body otherwise verbatim — Success Criteria, Constraints,
-  BDD, DoD all unchanged from the 2026-05-23 stamp.
+  prior aborted run.
+amendment-2026-05-23:
+  Pre-flight implementer + orchestrator probe (gate run + state instrumentation
+  against HEAD 038d726, the scaffold commit) identified 4 plan-contract defects
+  in the previously-stamped body:
+    F1 — SC #6 final-mode regex `geom_point\([^)]*alpha\s*=\s*([^,)]*)` cannot
+         span the balanced parens of `interaction(cyl, am)` inside geom_point's
+         own argument list. Substring "alpha = 0.42^2" IS literally present in
+         the deparser output, but the regex never reaches it.
+    F2 — SC #7 final-mode regex `aes\([^)]*group\s*=\s*([^,)]*)` has the same
+         shape defect; capture group `[^,)]*` stops at the first `,`, yielding
+         "aes(group = interaction(cyl" instead of "interaction(cyl, am)".
+    F3 — SC #10 (a) assumed a widget-adjacent inline error rendering path for
+         validate_input non-TRUE returns. Verified absent in product: grep on
+         R/ for inline_error / widget.*error / ptr-error-output returns empty.
+         validate_input errors render in the global error pane `#ptr_error`
+         (via ptr_register_error + ptr_error_ui at R/paintr-server.R:2073-2102).
+    F4 — SC #10 (c) asserted last_ok_runtime cache retains the prior successful
+         code panel after a validate_input non-TRUE draw. Empirical probe at
+         038d726 shows: ppPower=1.5 transmitted to server, validate_input fires
+         (ptr_error pane populated), state$runtime() becomes ok=FALSE, but
+         ptr_code returns empty instead of cached "0.42^2". The cache wiring
+         at R/paintr-server.R:204,411,419,2029,2044,2061,2148,2170 is present
+         but the fallback does not return cached content in this multi-source
+         + custom-registry flow. Root cause is in `R/paintr-server.R` and is
+         out-of-scope for this plan per its own STOP-and-escalate clause.
+  Resolution: F1/F2/F3 amended INLINE in this plan (SC #6/#7 switched to
+  substring assertions matching the BDD `Then` clauses verbatim; SC #10 (a)
+  selector changed to `#ptr_error`; SC #10 (c) + the corresponding BDD `Then`
+  clause REMOVED from this plan and deferred to a follow-up product plan at
+  `dev/plans/0013-followup-finding4-cache-multi-source/`. Plan body otherwise
+  verbatim — only the F1/F2/F3 SCs, the D9 BDD scenario, and the
+  out-of-scope-handling section were touched. Re-stamped under the same hash
+  pipeline as the original.
 -->
 
 <h1>PLAN-01 (PLAN-03 rerun) — Super-app 2a: upload + registry + mid-pipeline</h1>
@@ -74,15 +106,15 @@ note:
 
   <li><strong>Both uploads boot deterministically (no real file upload needed).</strong> The test uses <code>app$upload_file()</code> with <code>tests/testthat/fixtures/vignette-apps/super-2a-upload-registry/sample_main.csv</code> targeted at the <code>df_main</code> file input id, and <code>sample_aux.csv</code> at the <code>df_aux</code> file input id. After both uploads + Draw, the host output has no plot-error class (<code>expect_no_plot_error(app)</code>).</li>
 
-  <li><strong>Sentinel propagation — ppPower custom value (in-app registry).</strong> The test sets the ppPower input to <code>0.42</code> (a literally-unique value distinct from the default <code>0.7</code>), draws, asserts final-mode <code>expect_sentinel_in_code(app, code_output_id, "0.42^2", "geom_point\\([^)]*alpha\\s*=\\s*([^,)]*)", "final")</code>. Wait: <code>resolve_expr = function(v) v^2</code> rewrites the value, so the final-mode output is <code>0.42^2</code> (a call expression, not a number) — that is the exact sentinel propagation contract for a value placeholder with a non-identity <code>resolve_expr</code>. In preserve mode, <code>expect_sentinel_in_code(app, code_output_id, "0.42", "ppPower\\(([^)]*)\\)", "preserve")</code>.</li>
+  <li><strong>Sentinel propagation — ppPower custom value (in-app registry).</strong> The test sets the ppPower input to <code>0.42</code> (a literally-unique value distinct from the default <code>0.7</code>), draws, and asserts in final mode that the rendered code contains the literal substring <code>"alpha = 0.42^2"</code> via <code>expect_true(grepl("alpha = 0.42^2", code, fixed = TRUE))</code>. <code>resolve_expr = function(v) v^2</code> rewrites the value, so the final-mode output is <code>0.42^2</code> (a call expression, not a pre-evaluated number) — that is the exact sentinel propagation contract for a value placeholder with a non-identity <code>resolve_expr</code>. <strong>Substring (fixed=TRUE) is used, not a regex with a capture group:</strong> the deparser emits <code>geom_point(aes(group = interaction(cyl, am)), size = 2, alpha = 0.42^2)</code>, and the previously-attempted regex shape <code>geom_point\\([^)]*alpha\\s*=\\s*([^,)]*)</code> cannot span the balanced parens of <code>interaction(cyl, am)</code> (the amendment-2026-05-23 F1 finding). Substring matching reflects the BDD `Then` clause's intent verbatim. In preserve mode, <code>expect_sentinel_in_code(app, code_output_id, "0.42", "ppPower\\(([^)]*)\\)", "preserve")</code> is still safe — <code>[^)]*</code> works for the unnested <code>0.42</code> capture.</li>
 
-  <li><strong>Sentinel propagation — ppMultiVar custom consumer non-scalar return.</strong> The test sets the ppMultiVar input (a multi-select picker) to <code>c("cyl", "am")</code> via <code>set_sentinel(app, &lt;id&gt;, c("cyl", "am"))</code>, draws, and asserts final-mode <code>expect_sentinel_in_code(app, code_output_id, "interaction(cyl, am)", "aes\\([^)]*group\\s*=\\s*([^,)]*)", "final")</code>. In preserve mode, <code>expect_sentinel_in_code(app, code_output_id, "ppMultiVar(c('cyl', 'am'))", "ppMultiVar\\(([^)]*)\\)", "preserve")</code> (or the project's specific preserve serialization for consumer placeholders with vector input — see <code>render_placeholder_preserved</code> at <code>R/paintr-render.R:535</code>).</li>
+  <li><strong>Sentinel propagation — ppMultiVar custom consumer non-scalar return.</strong> The test sets the ppMultiVar input (a multi-select picker) to <code>c("cyl", "am")</code> via <code>set_sentinel(app, &lt;id&gt;, c("cyl", "am"))</code>, draws, and asserts in final mode that the rendered code contains the literal substring <code>"interaction(cyl, am)"</code> via <code>expect_true(grepl("interaction(cyl, am)", code, fixed = TRUE))</code>. <strong>Substring (fixed=TRUE) is used, not a regex with a capture group:</strong> the deparser emits <code>aes(group = interaction(cyl, am))</code>, and the previously-attempted regex shape <code>aes\\([^)]*group\\s*=\\s*([^,)]*)</code> truncates the capture at the first <code>,</code>, yielding only <code>"aes(group = interaction(cyl"</code> (the amendment-2026-05-23 F2 finding). Substring matching reflects the BDD `Then` clause's intent verbatim. In preserve mode, the equivalent substring check on the rendered code (the <code>render_placeholder_preserved</code> serialization at <code>R/paintr-render.R:535</code>) suffices; precise preserve-mode shape may include either <code>ppMultiVar(c('cyl', 'am'))</code> or <code>ppMultiVar(c("cyl", "am"))</code> depending on quote-folding.</li>
 
   <li><strong>ppUpload positional companion-name round-trip — both names retained.</strong> After both uploads, the test toggles to preserve mode and asserts the rendered code contains BOTH literal substrings <code>ppUpload(df_main)</code> AND <code>ppUpload(df_aux)</code> (bareword form per <code>R/paintr-render.R:534</code>'s <code>bareword_kw</code> dispatch for ppUpload). The two strings are distinct; collapsing them or swapping the companion names fails this expectation.</li>
 
   <li><strong>Layer-data ppVar picker populates from df_aux's columns, not df_main's.</strong> After both uploads, the test asserts <code>expect_picker_populated(app, &lt;ppVar id inside geom_smooth's data = ppUpload(df_aux) aes&gt;, "mpg")</code> succeeds AND <code>expect_picker_populated(app, &lt;same id&gt;, "cyl")</code> FAILS — because <code>cyl</code> is in df_main but NOT in df_aux (sample_aux.csv has only mpg/wt). The negative assertion uses an explicit <code>expect_failure()</code> wrapper or asserts the picker's HTML does not contain the string <code>"cyl"</code>.</li>
 
-  <li><strong>D9 validate_input — inline error appears, runtime does not crash.</strong> The test sets ppPower to <code>1.5</code> (out of range), draws, and asserts: (a) an inline error block appears next to the widget — verified via <code>app$get_html(&lt;widget container selector&gt;)</code> containing the literal string <code>"must be in [0,1]"</code>; (b) the host output retains its previous valid plot (no plot-error class added, <code>expect_no_plot_error(app)</code> still passes); (c) the previously-rendered code text is preserved (sentinel from the prior successful Draw is still present).</li>
+  <li><strong>D9 validate_input — error surfaces in global error pane, runtime does not crash.</strong> The test sets ppPower to <code>1.5</code> (out of range), draws, and asserts: (a) the validate_input error message surfaces in the global error pane — verified via <code>expect_true(grepl("must be in [0,1]", as.character(app$get_value(output = "ptr_error")), fixed = TRUE))</code> (or the equivalent <code>app$get_html("#ptr_error")</code> check); (b) the host output retains its previous valid plot (no plot-error class added, <code>expect_no_plot_error(app)</code> still passes). <strong>Note on (c):</strong> a prior draft of this SC had a third clause asserting the code panel retains the prior successful sentinel via the <code>last_ok_runtime</code> cache (04b2fc2). A pre-flight probe at <code>038d726</code> empirically established that the cache fallback does not return cached content in this multi-source + custom-registry flow (amendment-2026-05-23 F4 finding); the (c) clause has been DEFERRED to the follow-up product plan at <code>dev/plans/0013-followup-finding4-cache-multi-source/</code>, which will fix the cache behavior in <code>R/paintr-server.R</code> AND add the (c) assertion at that time. Removing (c) here does NOT weaken the BDD contract — it relocates the assertion to a plan whose DoD includes the product fix that makes (c) satisfiable.</li>
 
   <li><strong>Shared "grp" confined to root-data scope (no cross-scope contamination).</strong> The test sets <code>"shared_grp"</code> to a df_main column choice (e.g. <code>"cyl"</code>), draws, asserts in final mode that <code>cyl</code> appears as bare symbol in both <code>aes(... color = cyl ...)</code> AND <code>facet_wrap(vars(cyl))</code>. The geom_smooth's separate aes() (which reads df_aux) does NOT acquire a <code>color = cyl</code> — verified by <code>expect_sentinel_nowhere(app, code_output_id, "geom_smooth(... color = cyl")</code> via a tight regex.</li>
 
@@ -156,13 +188,17 @@ Scenario: Layer-data ppVar picker reflects df_aux's column set, not df_main's
   Then the ppVar picker inside geom_smooth's data = ppUpload(df_aux) aes is populated with "mpg"
   And that same picker does not offer "cyl" as a choice
 
-Scenario: D9 validate_input on ppPower — inline error, no crash
+Scenario: D9 validate_input on ppPower — global error pane, no crash
   Given the super-2a fixture booted with both uploads and a prior successful draw at default values
   When I set the ppPower input to 1.5
   And I draw and the app settles
-  Then the ppPower widget container shows the literal error string "must be in [0,1]"
+  Then the global error pane (#ptr_error) shows the literal error string "must be in [0,1]"
   And the host output retains its prior successful plot (no plot-error class added)
-  And the rendered code panel still contains the sentinel from the prior successful draw
+  # NOTE: the "code panel retains prior sentinel" clause was originally here but
+  # was deferred to dev/plans/0013-followup-finding4-cache-multi-source/ after
+  # the 2026-05-23 probe showed the last_ok_runtime cache fallback returns ""
+  # in this multi-source/registry flow. The followup plan fixes R/paintr-server.R
+  # AND adds the relocated assertion to this same super-2a test_that block.
 
 Scenario: shared "grp" stays within root-data scope
   Given the super-2a fixture booted with both uploads
@@ -212,12 +248,13 @@ Scenario: B3 toggle differential
 <h2>Out-of-scope handling</h2>
 
 <p>If the implementer finds that the layer-data ppVar picker actually pulls from df_main, that is a product defect in the multi-data-source resolution path under <code>R/paintr-translate.R</code> or <code>R/paintr-server.R</code>. STOP and escalate — do not edit those files from this plan's worktree. The fix is a follow-up plan. (Note: this exact regression was a prior blocker, fixed via ADR-0015 eager-bind at <code>6ee63d7</code>; if it resurfaces, that is a regression of ADR-0015, not new work.)</p>
+<p><strong>Already-known follow-up (F4 / amendment-2026-05-23):</strong> the <code>last_ok_runtime</code> cache fallback added at <code>04b2fc2</code> does NOT return cached code-panel content after a <code>validate_input</code> non-TRUE draw in this multi-source + custom-registry flow. State observed at <code>038d726</code>: <code>state$runtime()</code> correctly becomes ok=FALSE, the error pane populates, but <code>ptr_code</code> returns empty instead of the cached prior <code>"0.42^2"</code>. Root cause is in <code>R/paintr-server.R</code> (cache observer at lines 2039-2048 and/or render-branch chosen-last logic at lines 2169-2172, AND/OR the <code>format_code_with_extras</code> fallback at lines 2107-2120). This is OUT of scope for this plan and lives in <code>dev/plans/0013-followup-finding4-cache-multi-source/</code>. If the implementer surfaces F4 again during execution: that is expected; this plan's D9 BDD does not assert (c) anymore.</p>
 
 <h2>Dependencies / ordering</h2>
 
 <p>Depends on: none in this bundle. External satisfaction: PLAN-01 (anchor markers + helpers) already present in <code>tests/testthat/test-super-pressure.R</code> and <code>tests/testthat/helper-super-pressure.R</code> at HEAD <code>6ee63d7</code> (verified via <code>grep -n "super-2a" tests/testthat/test-super-pressure.R</code>).</p>
 <p>Provides for: nothing downstream. Single-plan bundle.</p>
 
-<!-- implementable: PASS date=2026-05-23 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=897407a4a652 -->
+<!-- implementable: PASS date=2026-05-23 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=3dcb56872e3f -->
 </body>
 </html>

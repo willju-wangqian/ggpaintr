@@ -49,5 +49,18 @@ This bundle was authored on 2026-05-23 in the `plan-03` worktree, in response to
 
 The committed plan body was reused verbatim per the entry-point handoff's "Plan body otherwise verbatim" guidance; only the meta block (slug suffix `-rerun`, `depends_on: []`, fresh provenance `note:`) and the branch-convention paragraph were updated.
 
-<!-- implementable: index — manifest, not a contract plan; the stamp below satisfies the pre-commit hook (which checks any dev/plans/*.md). The single contract plan in this bundle is 01-app-2a-upload-registry-rerun.html with its own PASS stamp at hash=897407a4a652. -->
-<!-- implementable: PASS date=2026-05-23 gate="N/A (manifest)" hash=f9a362f2bb72 -->
+## Amendment — 2026-05-23 (pre-flight probe surfaced 4 plan-contract defects)
+
+A pre-flight `/exec-plan` implementer run + orchestrator probe at HEAD `038d726` identified four defects in the previously-stamped body. F1/F2/F3 are amended inline in the contract plan; F4 is deferred to a follow-up product plan.
+
+| # | Defect | Resolution |
+|---|---|---|
+| F1 | SC #6 final-mode regex `geom_point\([^)]*alpha\s*=\s*([^,)]*)` cannot span balanced parens of `interaction(cyl, am)` inside geom_point's args (`[^)]*` truncates). | Amended in SC #6: switched to `expect_true(grepl("alpha = 0.42^2", code, fixed = TRUE))` substring assertion (reflects the BDD `Then` verbatim). |
+| F2 | SC #7 final-mode regex `aes\([^)]*group\s*=\s*([^,)]*)` truncates the capture at the first `,`, yielding only `"aes(group = interaction(cyl"`. | Amended in SC #7: switched to `expect_true(grepl("interaction(cyl, am)", code, fixed = TRUE))` substring assertion. |
+| F3 | SC #10 (a) assumed a widget-adjacent inline error rendering for `validate_input` non-TRUE returns. Verified absent in product (`grep R/` empty for inline_error / widget.*error / ptr-error-output). `validate_input` errors render in the global error pane `#ptr_error` (via `ptr_register_error` + `ptr_error_ui` at `R/paintr-server.R:2073-2102`). | Amended in SC #10 (a): selector changed to `#ptr_error` + BDD `Then` updated from "widget container" to "global error pane (#ptr_error)". |
+| F4 | SC #10 (c) asserted `last_ok_runtime` cache retains prior successful code panel after a `validate_input` non-TRUE draw. Empirical probe shows: ppPower=1.5 transmits OK, `validate_input` fires (ptr_error pane populated), `state$runtime()` becomes ok=FALSE, but `ptr_code` returns empty instead of cached `"0.42^2"`. Cache wiring at `R/paintr-server.R:204,411,419,2029,2044,2061,2148,2170` is present but the fallback does not work in this multi-source + custom-registry flow. | **DEFERRED.** SC #10 (c) + the corresponding D9 BDD `Then` clause REMOVED from this plan. Out of scope per the plan's own STOP-and-escalate clause (touches `R/paintr-*.R`). Follow-up investigation handed off to a sibling worktree; once the product fix lands, the relocated (c) assertion will be added back to the same super-2a `test_that` block alongside the fix. |
+
+The amendment commit (subject `docs(plans): amend PLAN-03 rerun for F1/F2/F3, defer F4`) carries the re-stamped contract plan (hash=`3dcb56872e3f`) and this index update.
+
+<!-- implementable: index — manifest, not a contract plan; the stamp below satisfies the pre-commit hook (which checks any dev/plans/*.md). The single contract plan in this bundle is 01-app-2a-upload-registry-rerun.html with its own PASS stamp at hash=3dcb56872e3f. -->
+<!-- implementable: PASS date=2026-05-23 gate="N/A (manifest)" hash=942d410f82e4 -->
