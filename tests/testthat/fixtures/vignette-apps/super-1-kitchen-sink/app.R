@@ -23,19 +23,26 @@ ppRange <- ptr_define_placeholder_value(
   default_arg = ptr_default_numeric_vector(length = 2)
 )
 
-ptr_app(
+my_linewidth = 1
+color_var = expr(cyl)
+
+formula1 <- expr(
   ggplot(
     mtcars |>
       dplyr::filter(ppExpr(hp >= 75)) |>
       dplyr::mutate(adj = ppExpr(mpg / wt)),
-    aes(x = ppVar(mpg), y = ppVar(adj), color = ppVar(cyl, shared = "grp"))
+    aes(x = ppVar(mpg), y = ppVar(adj), color = ppVar(!!color_var, shared = "grp"))
   ) +
     geom_point(size = ppNum(2), alpha = ppNum(0.7)) +
-    geom_smooth(method = ppText("lm"), linewidth = ppNum(1, shared = "lw")) +
-    geom_line(linewidth = ppNum(1, shared = "lw")) +
-    facet_wrap(vars(ppVar(cyl, shared = "grp"))) +
+    geom_smooth(method = ppText("lm"), linewidth = ppNum(!!my_linewidth, shared = "lw")) +
+    geom_line(linewidth = ppNum(!!my_linewidth, shared = "lw")) +
+    facet_wrap(vars(ppVar(!!color_var, shared = "grp"))) +
     scale_y_continuous(limits = ppRange(c(0, 50))) +
-    labs(title = ppText("Title"), subtitle = ppText("")),
+    labs(title = ppText("Title"), subtitle = ppText(""))
+)
+
+ptr_app(
+  !!formula1,
   ui_text = list(
     defaults = list(
       ppNum  = list(label = "{param}"),
