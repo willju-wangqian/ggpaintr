@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0017 — Deepening opportunities catalog</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0017 — Deepening opportunities catalog</h1>
+
+<p><strong>Status:</strong> <em>Proposal</em>. Records candidates surfaced by a <code>/improve-codebase-architecture</code> sweep on 2026-05-24. No decision yet on which to action; each candidate is to be grilled and either promoted to its own ADR (with a concrete deepened design) or rejected with a recorded reason.</p>
+
+<p><strong>Date:</strong> 2026-05-24</p>
+
+<p><strong>Relates to:</strong> <a href="0005-l2-l3-redesign.html">ADR-0005</a> (L2/L3 redesign — shared coordinator/partition implementation pending), <a href="0006-single-server-entry-l3-ui-only.html">ADR-0006</a> (single public server entry; L3 UI-only), <a href="0012-role-based-tree-and-ptr-spec.html">ADR-0012</a> (tree is semantic, not syntactic), <a href="0014-placeholder-registry-init-ordering.html">ADR-0014</a> (registry init ordering), <code>CONTEXT.md</code> (L1/L2/L3 embedding model and partition rule).</p>
+
+<h2>Context</h2>
+
+<p>An architectural sweep audited the 33 <code>R/paintr-*.R</code> files (~13&nbsp;350 lines total) for <strong>shallow modules</strong> — modules whose interface is nearly as complex as their implementation, or whose split is purely lexical rather than structural. The sweep used Ousterhout's deletion test ("if I delete this module, does complexity vanish or concentrate?") and read against <code>CONTEXT.md</code>'s locked L1/L2/L3 + shared-coordinator vocabulary.</p>
+
+<p>This ADR catalogs the candidates so they can be discussed one at a time. It does <em>not</em> propose interfaces; each candidate that survives grilling will get its own ADR with the concrete deepened design.</p>
+
+<h2>Candidates</h2>
+
+<p>Ranked by "real bugs hide here," not by neatness.</p>
+
+<h3>C1 — Partition's ownership decision is communicated through three asymmetric channels</h3>
+
+<p><strong>Files:</strong> <code>R/paintr-shared-coordinator.R</code> (algorithm), <code>R/paintr-shared-ui.R</code> + <code>R/paintr-shared.R</code> (state bundle, consumer rewrite), <code>R/paintr-app.R</code> (<code>render_shared_section</code> boolean, 6 sites), <code>R/paintr-server.R</code> (<code>ptr_bind_local_shared_consumers</code>'s <code>host_owned_keys</code> argument), <code>tests/testthat/test-shared-stage-checkbox.R</code> (2 sites using the boolean).</p>
+
+<p><strong>Initial framing corrected after verification (2026-05-24):</strong> the partition <em>algorithm</em> (<code>shared_partition()</code>) is centralised — it is called exactly once, from inside <code>ptr_shared()</code>. <code>is_shared_placeholder</code> is a 3-line predicate (different question), and <code>wrap_shared_widgets_with_stage_blocks</code> receives <code>orphan_stages</code> from its caller without recomputing. The earlier "re-derived at every consumer" framing was wrong.</p>
+
+<p><strong>Real symptom:</strong> the partition's <em>ownership decision</em> ("does this surface render and bind this key?") is communicated to consumers through three different, asymmetric channels:</p>
+
+<ol>
+  <li><strong>Multi-instance:</strong> the rich coordinator <code>obj</code> carrying <code>panel_keys</code> + <code>local_keys_by_formula</code> flows downstream.</li>
+  <li><strong>Single-formula L1:</strong> no coordinator exists (CONTEXT.md, locked 2026-05-16: "single-instance has no coordinator — ever"); <code>render_shared_section = TRUE</code> boolean stands in for "this surface owns all shared keys."</li>
+  <li><strong>L2 <code>ptr_server</code>:</strong> <code>ptr_bind_local_shared_consumers(host_owned_keys = …)</code> — the <em>complement</em> of panel-owned keys, computed separately by whichever caller wires it up.</li>
+</ol>
+
+<p>Same conceptual question, three different signals to keep consistent. The 2026-05-22 partition-binder bug (project memory <code>project-shared-section-binder</code>) lived in channel #3 — drift between the channels surfaced as a defect.</p>
+
+<p><strong>Deletion test:</strong> the partition algorithm itself is not duplicated and survives the test. What fails the test is the <em>consumption side</em>: removing any one channel forces re-encoding the ownership question in the remaining ones.</p>
+
+<p><strong>Deepening direction:</strong> introduce an internal <code>partition_view(part, surface_id)</code> abstraction (not public — user-facing API unchanged) that all three channels query. Multi-instance keeps building <code>obj</code> as today; single-instance gets a trivial <code>obj</code> constructed internally (owning all keys); L2 server's <code>host_owned_keys</code> becomes a lookup against the view, not a separate list.</p>
+
+<p><strong>Benefit (with "internal only" scope):</strong></p>
+
+<ul>
+  <li><strong>Locality of the ownership invariant.</strong> One place answers "does this surface own this key?" for every surface. The 2026-05-22 bug-shape becomes structurally hard to reintroduce — a new shared-key surface has no "compute it correctly" step to get wrong.</li>
+  <li><strong>Test leverage.</strong> "L2 omits panel-owned keys" becomes a unit test against the partition view, not a full-app boot.</li>
+  <li><strong>Smaller <code>paintr-server.R</code>.</strong> The <code>setdiff</code> dance in <code>ptr_bind_local_shared_consumers</code> moves into the view; binders read a ready list.</li>
+</ul>
+
+<p><strong>What it does <em>not</em> buy:</strong> no public API change; no reduction in file count; the algorithm was already centralised.</p>
+
+<p><strong>Cost estimate:</strong> ~150–250 LOC net. 6 boolean-→-view call-sites in <code>paintr-app.R</code>; ~3 server call-sites; 2 tests. ⚠ UNVERIFIED on the L2 server-side call-site count — needs a final grep before locking the design.</p>
+
+<p><strong>ADR conflict check:</strong> per discussion 2026-05-24, ADR-0005's pending shared-coordinator work is considered stale and out of scope; this candidate stands on its own merits.</p>
+
+<p><strong>Status:</strong> <em>Deferred</em>. Real but narrow. Worth it if new shared-key surfaces are expected or if test-time leverage on partition logic is wanted; skip if the 2026-05-22 fix is trusted to hold and no new surfaces are planned.</p>
+
+<h3>C2 — <code>ptr_server_internal</code>'s invariants live in comments; pure-core extraction is partial</h3>
+
+<p><strong>Files:</strong> <code>R/paintr-server.R</code> (orchestrator lines 726–785; 13 setup/register helpers), <code>R/paintr-headless.R</code> (existing pure-core <code>ptr_exec_headless</code> with reactive adapter <code>ptr_setup_runtime</code>), <code>tests/testthat/test-runtime-headless.R</code> (pure-path tests), <code>tests/testthat/test-shared-stage-checkbox.R</code> (one helper directly invoked).</p>
+
+<p><strong>Symptom (verified 2026-05-24):</strong> the orchestrator encodes <strong>four invariants as body comments</strong>, not as seam shape:</p>
+
+<ol>
+  <li><code>shared_state</code> overlay precedence ("explicit <code>...</code> wins"), lines 736–745.</li>
+  <li>Namespace auto-wire only inside <code>moduleServer</code>, lines 750–756.</li>
+  <li>Value/source/consumer renderUI call order = registry-row order in <code>ptr_runtime_input_spec()</code>, lines 765–768.</li>
+  <li><code>ptr_register_last_ok_cache</code> MUST precede <code>ptr_register_plot</code> / <code>_code</code> (registration order = observer firing order), lines 775–779.</li>
+</ol>
+
+<p>Silently reorder two lines and the first-flush spec seed or observer cache breaks; nothing structural objects.</p>
+
+<p><strong>Initial framing corrected after verification:</strong> the "every helper is single-use outlining" framing was too aggressive. Of 13 helpers: 1 already has the pure-core/reactive-adapter pattern (<code>ptr_setup_runtime</code> ⇄ <code>ptr_exec_headless</code>); 1 (<code>ptr_setup_shared_stage_enabled</code>) is directly invoked by a test and is a real seam; the rest are single-use. The "headless" name is also misleading post-rewrite — it is the pure runtime core, not an out-of-Shiny path.</p>
+
+<p><strong>Pure-core extractability map (read 11 helpers in full):</strong></p>
+
+<table>
+  <thead><tr><th>Helper</th><th>Lines</th><th>Pure core?</th></tr></thead>
+  <tbody>
+    <tr><td><code>ptr_setup_runtime</code></td><td>74</td><td><strong>Already extracted</strong> (<code>ptr_exec_headless</code>).</td></tr>
+    <tr><td><code>apply_spec_at_boot</code></td><td>147</td><td><strong>Yes</strong> — ~80 lines of spec validation + normalisation are pure.</td></tr>
+    <tr><td><code>ptr_register_code</code></td><td>59</td><td><strong>Yes</strong> — <code>(runtime, last_ok, mode, extras_exprs) → string</code> is pure.</td></tr>
+    <tr><td><code>ptr_setup_pipelines</code></td><td>140</td><td><strong>Partial</strong> — <code>binding_name</code> derivation (~30 lines, used twice) is pure.</td></tr>
+    <tr><td><code>ptr_register_error</code></td><td>30</td><td><strong>Partial</strong> — <code>compose_error_panel(...)</code> could be extracted.</td></tr>
+    <tr><td><code>ptr_register_plot</code></td><td>22</td><td>Thin renderer; not worth extracting.</td></tr>
+    <tr><td><code>ptr_setup_value_uis</code></td><td>103</td><td>Reactive; builder dispatch already pure in <code>build-ui.R</code>.</td></tr>
+    <tr><td><code>ptr_setup_producer_inputs</code></td><td>16</td><td>Pure reactive wiring.</td></tr>
+    <tr><td><code>ptr_setup_stage_enabled</code></td><td>24</td><td>Pure reactive wiring.</td></tr>
+    <tr><td><code>ptr_setup_shared_stage_enabled</code></td><td>27</td><td>Pure reactive wiring (real test seam).</td></tr>
+    <tr><td><code>ptr_setup_layer_picker</code></td><td>10</td><td>Trivial.</td></tr>
+    <tr><td><code>ptr_setup_layer_panel_classes</code></td><td>23</td><td>Pure reactive wiring (<code>sendCustomMessage</code> I/O).</td></tr>
+    <tr><td><code>ptr_register_last_ok_cache</code></td><td>10</td><td>Trivial.</td></tr>
+  </tbody>
+</table>
+
+<p>1 already extracted; 3 with real extractable cores (~200 LOC of testable logic); ~7 are thin reactive wiring with no pure core to extract.</p>
+
+<p><strong>Deepening splits into two distinct sub-candidates:</strong></p>
+
+<h4>C2a — Extract pure cores from the 3 mixed helpers</h4>
+
+<p>Pull <code>apply_spec_at_boot</code>'s validation, <code>ptr_register_code</code>'s render logic, and <code>ptr_setup_pipelines</code>'s <code>binding_name</code> derivation into a sibling module (extend <code>paintr-headless.R</code> after renaming to <code>paintr-runtime-core.R</code>, or new file). Each becomes pure helper + thin reactive adapter calling it.</p>
+
+<ul>
+  <li><strong>Buys:</strong> ~150 LOC of unit-testable logic without Shiny; smaller <code>paintr-server.R</code>; the I/O surface becomes explicit per helper.</li>
+  <li><strong>Cost:</strong> ~200 LOC moves + ~150 LOC of new pure tests.</li>
+  <li><strong>Skip if:</strong> the current reactive tests are trusted to catch spec-seed / code-render regressions.</li>
+</ul>
+
+<h4>C2b — Group thin-wiring calls into named phases</h4>
+
+<p>Reorganise <code>ptr_server_internal</code>'s body into 2–3 phase functions whose names encode the four invariants above. Helpers stay shaped as today; only the orchestrator changes.</p>
+
+<ul>
+  <li><strong>Buys:</strong> the invariant comments become structural — reordering becomes obviously wrong, not subtly wrong.</li>
+  <li><strong>Cost:</strong> ~30 LOC reorganisation, no behavioural change.</li>
+  <li><strong>Worth doing regardless of C2a.</strong></li>
+</ul>
+
+<p><strong>Status:</strong> <em>Deferred.</em> C2b is cheap and broadly applicable; promote whenever there's appetite for a low-risk structural pass. C2a is medium-effort / high-ROI only if the spec-seed / code-render paths are deemed fragile.</p>
+
+<p><strong>Naming side-effect (if either C2a or C2b promotes):</strong> rename <code>paintr-headless.R</code> → <code>paintr-runtime-core.R</code> (or similar) and update CONTEXT.md to document "runtime core" as the pure-functional substrate; "headless" name is a misleading legacy from the removed public path.</p>
+
+<h3>C3 — Translate→render pipeline has 11 files and no named canonical tree</h3>
+
+<p><strong>Files:</strong> <code>paintr-translate.R</code> (810), <code>paintr-walk.R</code> (244), <code>paintr-classify.R</code> (103), <code>paintr-nodes.R</code> (150), <code>paintr-prune.R</code> (242), <code>paintr-substitute.R</code> (280), <code>paintr-resolve.R</code> (100), <code>paintr-eval.R</code> (144), <code>paintr-region.R</code> (103) → <code>paintr-render.R</code> (636).</p>
+
+<p><strong>Symptom:</strong> ADR-0012 locks "tree is semantic, not syntactic" — but the canonical form lives only in contributor heads. Each downstream pass writes its own walker. <code>paintr-render.R</code> is larger than <code>paintr-translate.R</code> because the resolved tree still carries surface detail the renderer must re-canonicalise. A "what does this placeholder look like at render time?" question crosses 4–6 files; tests reach with <code>:::</code> to validate intermediate stages because there's no public path through the pipeline.</p>
+
+<p><strong>Deletion test:</strong> any single pass file deleted forces its logic to reappear inline in the next pass — but the <em>need for so many passes</em> is itself the question. If the resolved tree were named and documented, several passes might fold.</p>
+
+<p><strong>Deepening direction:</strong> introduce a named intermediate (provisional name: <em>resolved tree</em>) with a documented shape, produced once by translate+classify+resolve and consumed by everything downstream as a thin S3 dispatch. Render shrinks because it no longer reconstructs decisions.</p>
+
+<p><strong>ADR conflict check:</strong> directly extends ADR-0012's "one canonical tree" principle from <em>parser surface syntax</em> to <em>downstream pipeline contract</em>.</p>
+
+<h3>C4 — <code>paintr-app.R</code> conflates L1, L2, L3 surfaces and shared-binding plumbing</h3>
+
+<p><strong>Files:</strong> <code>R/paintr-app.R</code> (1488), housing <code>ptr_app</code> / <code>ptr_app_grid</code> (L1), <code>ptr_ui</code> / <code>ptr_server</code> (L2), <code>ptr_ui_plot</code> / <code>ptr_ui_error</code> / <code>ptr_ui_code</code> / <code>ptr_ui_controls</code> / <code>ptr_ui_inline_error</code> / <code>ptr_ui_toggle_code</code> / <code>ptr_ui_header</code> / <code>ptr_ui_page</code> (L3 bare pieces + combinators), plus <code>ptr_make_app_server</code> and <code>shared_section_tags</code> (L1-only shared-binding plumbing).</p>
+
+<p><strong>Symptom:</strong> <code>CONTEXT.md</code> treats L1, L2, L3 as <em>distinct seams</em> — three audiences, three contracts. The file does not. A new contributor cannot tell from file shape what an L2 user is required to write versus what is L1-only convenience. <code>ptr_make_app_server</code> sits next to the L2 pair but only L1 uses it, blurring whether L2 embedders must call something similar.</p>
+
+<p><strong>Deletion test:</strong> the file does <em>not</em> meaningfully concentrate complexity — splitting it by audience would lose nothing and gain a per-seam interface a reader can hold in their head.</p>
+
+<p><strong>Deepening direction:</strong> split along the audience seam (working names: <code>paintr-l1-app.R</code>, <code>paintr-l2-embed.R</code>, <code>paintr-l3-pieces.R</code>) and make L2 self-sufficient for shared binding (or explicitly delegate to the coordinator), rather than relying on L1-only plumbing.</p>
+
+<h3>C5 — <code>paintr-safe.R</code> + <code>paintr-safety.R</code>: split topic, shared contract</h3>
+
+<p><strong>Files:</strong> <code>R/paintr-safe.R</code> (125, <code>ptr_complete_expr_safe</code>, <code>ptr_assemble_plot_safe</code>, <code>ptr_validate_plot_render_safe</code>) and <code>R/paintr-safety.R</code> (90, <code>ptr_validate_tree_safety</code> + walker).</p>
+
+<p><strong>Symptom:</strong> two files split by <em>when</em> validation runs (parse-time vs render-time), not by <em>what they protect</em>. The actual invariant is one: "no untrusted expression ever reaches <code>eval()</code>." A denylist or walker change touches both files; a reader needs both open to answer any question about expr safety.</p>
+
+<p><strong>Deletion test:</strong> collapsing to one file does not regrow complexity.</p>
+
+<p><strong>Deepening direction:</strong> one <em>expr-safety</em> module with two named entry points — <code>validate_tree</code> (parse-time AST shape) and <code>guard_eval</code> (render-time <code>tryCatch</code>). Timing becomes a parameter, not a file boundary.</p>
+
+<h3>C6 — Placeholder-author contract is implicit and wide</h3>
+
+<p><strong>Files:</strong> <code>R/paintr-registry.R</code> (731) + <code>R/paintr-builtins.R</code> (390); coupled to <code>R/paintr-input-spec.R</code> (442), <code>R/paintr-default-args.R</code> (293), <code>R/paintr-checkbox-defaults.R</code> (158).</p>
+
+<p><strong>Symptom:</strong> three exported entry points (<code>ptr_define_placeholder_value</code>/<code>_consumer</code>/<code>_source</code>) take 10+ arguments each (UI builder, resolver, named_args, default_arg, validators…). A custom-placeholder author must also know the NS/id convention, the first-flush ordering (encoded inside <code>ptr_server_internal</code>'s comments — see C2), and the default-args/input-spec flow. The interface is wide; the contract is prose scattered across the registry source, the vignette, and ADR-0014.</p>
+
+<p><strong>Deletion test:</strong> shrinking the entry-point surface does <em>not</em> remove the contract — it makes it visible.</p>
+
+<p><strong>Deepening direction:</strong> introduce a <em>placeholder spec</em> object (constructor + validators) that bundles the contract, then <code>ptr_register(spec)</code> as the sole seam. Three wide entries collapse to one narrow one; the contract gains a name that can be documented in one place.</p>
+
+<h3>Honourable mentions</h3>
+
+<ul>
+  <li><strong><code>paintr-render.R</code> size</strong> (636 lines, 47 functions) — likely an effect of C3 (resolved tree leaks detail); will shrink if C3 is taken.</li>
+  <li><strong>Tests use <code>:::</code> to reach internal pipeline stages</strong> — symptom of C3 not exposing the canonical tree, not an independent candidate.</li>
+  <li><strong>Boolean <code>render_shared_section</code> flag</strong> — symptom of C1; replaced by the partition object once C1 is taken.</li>
+</ul>
+
+<h2>Decision</h2>
+
+<p>None yet — this is a <em>proposal-status</em> catalog. Each candidate will be grilled in turn. A candidate that survives gets its own ADR with a concrete deepened interface; a candidate that is rejected gets its rejection reason recorded inline in this ADR (so future architecture sweeps don't re-suggest it).</p>
+
+<h2>Process</h2>
+
+<ol>
+  <li>User picks a candidate to drill into.</li>
+  <li>Grill the design — constraints, seam shape, what tests survive, what migrations the existing call-sites require.</li>
+  <li>Update <code>CONTEXT.md</code> inline when terminology sharpens or new domain terms are introduced.</li>
+  <li>Either: promote to its own ADR with locked decision + implementation plan; <em>or</em>: record rejection reason in this ADR's "Decisions" subsection below.</li>
+</ol>
+
+<h3>Decisions log</h3>
+
+<ul>
+  <li><strong>C1 — Deferred (2026-05-24).</strong> Verified narrower than originally framed (partition algorithm is already centralised; symptom is asymmetric ownership-decision channels). Worth doing if new shared-key surfaces are expected or test leverage on partition logic is wanted; skip if the 2026-05-22 fix is trusted. See C1 section above for refined findings.</li>
+  <li><strong>C2 — Deferred (2026-05-24).</strong> Split into C2a (extract pure cores from 3 mixed helpers; ~200 LOC of testable logic; medium-effort / high-ROI) and C2b (group orchestrator calls into named phases; ~30 LOC; low-effort / medium-ROI; worth doing regardless). Naming side-effect: rename <code>paintr-headless.R</code> → <code>paintr-runtime-core.R</code> if either lands. See C2 section above.</li>
+  <li><strong>C3 — Promoted (2026-05-24).</strong> Verification corrected the framing on three counts (file count, render.R size, walker-primitive usage). Promoted as two independent ADRs:
+    <ul>
+      <li><a href="0018-c3a-eliminate-pass-walker-boilerplate.html">ADR-0018</a> — <strong>C3a: eliminate per-pass S3 walker boilerplate.</strong> Status: Proposed, interface design deferred to fresh-session grilling (handoff produced 2026-05-24).</li>
+      <li><a href="0019-c3c-public-staged-pipeline.html">ADR-0019</a> — <strong>C3c: public staged pipeline (drop the 222 <code>:::</code>).</strong> Status: Proposed, independent of ADR-0018, can land first.</li>
+    </ul>
+    C3b (tree subtypes) remains in this catalog, deferred pending an ADR-0012 conformity review.
+  </li>
+</ul>
+
+<h2>Consequences</h2>
+
+<p>This ADR is purely documentary at proposal status. Promoting any candidate carries its own consequences, recorded in that candidate's eventual ADR.</p>
+
+</body>
+</html>
