@@ -815,11 +815,10 @@ ptr_setup_pipelines <- function(state, input, output, session) {
         # ADR 0012 §3.7 / PLAN-04: mirror the pipeline-head source observer
         # below — bind the resolved frame under the same symbol that
         # `substitute_walk.ptr_ph_data_source()` will produce. Now that the
-        # per-layer fast-path in `runtime_upstream_data` /
-        # `runtime_consumer_entry` is gone, every in-aes consumer of a
-        # bare-data layer routes through `ptr_resolve_upstream(c$upstream,
-        # ...)`, which substitutes the source into a symbol and eval()s
-        # it in `state$eval_env`. Companion-driven sources (e.g.
+        # per-layer fast-path in `runtime_upstream_data` is gone, every
+        # in-aes consumer of a bare-data layer routes through
+        # `ptr_resolve_upstream(c$upstream, ...)`, which substitutes the
+        # source into a symbol and eval()s it in `state$eval_env`. Companion-driven sources (e.g.
         # `ppUpload`) take the companion text input as the binding name;
         # companion-less sources derive a symbol via `resolve_expr`.
         # Invalid names yield NULL → no eval_env assign (`inject_resolved_data()`
@@ -1738,7 +1737,7 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
       # hang on inner-tab visibility. Source-headed pipelines no longer
       # race the upload observer because `entry_reactive` now `req()`s on
       # the upstream source-ready reactive (see `source_ready` above),
-      # which halts the entry before `runtime_consumer_entry` touches
+      # which halts the entry before `ptr_resolve_upstream()` touches
       # `state$upstream_cache` with a stale `eval_env`.
       shiny::outputOptions(output, output_id, suspendWhenHidden = FALSE)
     })
@@ -2004,34 +2003,6 @@ find_source_self_ids_in_upstream <- function(upstream) {
     }
   })
   unique(ids)
-}
-
-# Resolve a single consumer's upstream against a snapshot. Every consumer
-# routes through `ptr_resolve_upstream(node$upstream, ...)` — the per-layer
-# `state$resolved_data` (keyed by layer name) fast-path that used to mirror
-# the per-consumer slot of `runtime_upstream_data` was deleted in lockstep
-# with its sibling per ADR 0012 §3.7 / PLAN-04 so canonical-pipeline input from
-# `|>` / `%>%` / nested-call surface forms produces uniform downstream
-# behaviour. Bare-data layers still write `state$resolved_data[[ln]]` for
-# `inject_resolved_data()` plot rendering; their consumer pickers go via
-# `ptr_resolve_upstream`, which now also finds the upload frame because
-# `ptr_setup_pipelines` mirrors the pipeline-head observer's `eval_env`
-# binding for bare-data sources.
-runtime_consumer_entry <- function(state, node, snapshot = list()) {
-  t0 <- Sys.time()
-  df <- ptr_resolve_upstream(
-    node$upstream,
-    snapshot = snapshot,
-    shared_bindings = state$shared_bindings,
-    eval_env = state$eval_env,
-    cache = state$upstream_cache,
-    expr_check = state$expr_check,
-    stage_enabled = shiny::isolate(state$stage_enabled())
-  )
-  elapsed_ms <- as.numeric(Sys.time() - t0, units = "secs") * 1000
-  record_eval_time(state, elapsed_ms)
-  if (is.null(df)) return(NULL)
-  list(cols = names(df), data = df)
 }
 
 # ---- public output bindings ----

@@ -126,7 +126,7 @@ test_that("BUG-4: custom ptr_define_placeholder_consumer() receives upstream col
   #
   # This test still has value as a contract: a custom consumer's build_ui
   # must receive the same `cols` vector as the built-in `var` consumer at the
-  # same upstream pipeline depth. If anyone keys `runtime_consumer_entry` or
+  # same upstream pipeline depth. If anyone keys `ptr_resolve_upstream` or
   # `invoke_build_ui`'s `extra` payload on the keyword in the future, this
   # guard rail fires.
   kw <- paste0("bug4cv_", as.integer(Sys.time()))
