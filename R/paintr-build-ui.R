@@ -141,8 +141,16 @@ build_ui_for.ptr_layer <- function(node,
     ns_fn = ns_fn
   )
 
-  default_on <- resolve_layer_default(layer_name, checkbox_defaults,
-                                      node$default_active)
+  # ADR 0020 PLAN-02: read `default_active` directly from the carrier
+  # ptr_layer node — the snapshot site (`ptr_default_snapshot()`) reads the
+  # same field, so static-UI value and reactive seed agree at boot. The
+  # `ggplot` layer is always-on by convention (no off-switch checkbox is
+  # even emitted for it).
+  default_on <- if (identical(layer_name, "ggplot")) {
+    TRUE
+  } else {
+    isTRUE(node$default_active %||% TRUE)
+  }
 
   content_div <- shiny::div(
     id = ns_fn(layer_panel_content_id(layer_name)),
@@ -227,8 +235,14 @@ build_pipeline_stage_ui <- function(entries, ui_text, layer_name, ns_fn) {
         head_label <- if (has_verb) {
           shiny::tags$code(paste0(verb, "()"))
         } else NULL
+        # ADR 0020 PLAN-02: all entries in one stage block share the same
+        # `default_stage_enabled` (they all descend from the same stage
+        # carrier ptr_call); reading the head entry's threaded value is
+        # sufficient. `%||% TRUE` covers the no-carrier case (e.g. a bare
+        # pipeline stage with no ppVerbOff stamp).
+        default_on <- isTRUE(entries[[i]]$default_stage_enabled %||% TRUE)
         out[[length(out) + 1L]] <- controllable_region(
-          sid, head_label, fields, ns_fn = ns_fn
+          sid, head_label, fields, ns_fn = ns_fn, default_on = default_on
         )
       }
     }
@@ -307,12 +321,18 @@ find_layer_placeholders_with_stage <- function(x) {
     nm <- bare_call_name(fun)
     if (is.null(nm) || !nzchar(nm)) NA_character_ else nm
   }
-  visit <- function(n, current_sid, current_verb) {
+  # ADR 0020 PLAN-02: thread `current_def_stage` (the carrier ptr_call's
+  # `default_stage_enabled`, NULL when no carrier is on the descent) alongside
+  # `current_sid` / `current_verb`. Picked up on the stage-descent branches
+  # below, threaded through every recursive call, and stamped on the emitted
+  # entry so `build_pipeline_stage_ui()` can pass it to `controllable_region()`.
+  visit <- function(n, current_sid, current_verb, current_def_stage) {
     if (is.null(n)) return()
     if (is_ptr_placeholder(n)) {
       if (is_shared_placeholder(n)) return()
       out[[length(out) + 1L]] <<- list(
-        ph = n, stage_id = current_sid, verb = current_verb
+        ph = n, stage_id = current_sid, verb = current_verb,
+        default_stage_enabled = current_def_stage
       )
       return()
     }
@@ -327,17 +347,29 @@ find_layer_placeholders_with_stage <- function(x) {
       } else {
         current_verb
       }
-      for (a in n$args) visit(a, sid, verb)
+      # Adopt the stage carrier's `default_stage_enabled` on the same branch
+      # the stage_id is adopted; otherwise inherit. NULL stays NULL —
+      # consumer's `%||% TRUE` covers the no-carrier case.
+      def_stage <- if (!is.null(n$stage_id)) {
+        n$default_stage_enabled
+      } else {
+        current_def_stage
+      }
+      for (a in n$args) visit(a, sid, verb, def_stage)
       return()
     }
     if (is_ptr_pipeline(n)) {
       for (s in n$stages) {
         if (is_ptr_call(s) && !is.null(s$stage_id)) {
-          # Stage IS the call: its args descend with the stage's id.
+          # Stage IS the call: its args descend with the stage's id and
+          # the stage's `default_stage_enabled` (NULL inherits the
+          # consumer's `%||% TRUE` fallback).
           verb <- call_head_name(s$fun)
-          for (a in s$args) visit(a, s$stage_id, verb)
+          for (a in s$args) {
+            visit(a, s$stage_id, verb, s$default_stage_enabled)
+          }
         } else {
-          visit(s, NA_character_, NA_character_)
+          visit(s, NA_character_, NA_character_, NULL)
         }
       }
       return()
@@ -345,13 +377,13 @@ find_layer_placeholders_with_stage <- function(x) {
     if (is_ptr_node(n)) {
       for (nm in names(n)) {
         if (identical(nm, "upstream")) next
-        visit(n[[nm]], current_sid, current_verb)
+        visit(n[[nm]], current_sid, current_verb, current_def_stage)
       }
     } else if (is.list(n) && !is.pairlist(n)) {
-      for (el in n) visit(el, current_sid, current_verb)
+      for (el in n) visit(el, current_sid, current_verb, current_def_stage)
     }
   }
-  visit(x, NA_character_, NA_character_)
+  visit(x, NA_character_, NA_character_, NULL)
   out
 }
 
@@ -410,10 +442,14 @@ collect_orphan_shared_stages <- function(tree) {
     if (length(phs) == 0L) return()
     if (!all(vapply(phs, is_shared_placeholder, logical(1)))) return()
     keys <- unique(vapply(phs, function(p) p$shared, character(1)))
+    # ADR 0020 PLAN-02: carry the carrier ptr_call's `default_stage_enabled`
+    # forward so `wrap_shared_widgets_with_stage_blocks()` can render the
+    # shared-stage controllable_region with the matching boot value.
     out[[length(out) + 1L]] <<- list(
       stage_id = n$stage_id,
       verb = bare_call_name(n$fun) %||% NA_character_,
-      shared_keys = keys
+      shared_keys = keys,
+      default_stage_enabled = n$default_stage_enabled
     )
   })
   out
@@ -483,8 +519,11 @@ wrap_shared_widgets_with_stage_blocks <- function(entries, widgets,
     head_label <- if (has_verb) {
       shiny::tags$code(paste0(st$verb, "()"))
     } else NULL
+    # ADR 0020 PLAN-02: shared-stage controllable_region boots from the
+    # carrier ptr_call's `default_stage_enabled` (NULL falls back to TRUE).
+    default_on <- isTRUE(st$default_stage_enabled %||% TRUE)
     out[[length(out) + 1L]] <- controllable_region(
-      st$stage_id, head_label, w, ns_fn = ns_fn
+      st$stage_id, head_label, w, ns_fn = ns_fn, default_on = default_on
     )
   }
   out

@@ -136,6 +136,42 @@ ptr_validate_shared_bindings <- function(shared, tree = NULL,
 # whose builders may return NULL for nodes that emit no UI).
 drop_null <- function(x) x[!vapply(x, is.null, logical(1))]
 
+# ADR 0020 PLAN-02: single source of truth for "find the carrier ptr_layer
+# whose `$name` equals `layer_name`" in a translated tree. Returns NULL when
+# no such layer exists (the snapshot / spec-defaults readers fall back to
+# `TRUE` in that case). Used by both `ptr_default_snapshot()` (R/paintr-headless.R)
+# and `ptr_spec_defaults_from_state()` (R/paintr-server.R) so the snapshot and
+# the spec-emission diff baseline agree on which carrier they consult.
+find_layer_by_name <- function(tree, layer_name) {
+  if (is.null(tree) || is.null(tree$layers)) return(NULL)
+  for (l in tree$layers) {
+    if (is_ptr_layer(l) && identical(l$name, layer_name)) {
+      return(l)
+    }
+  }
+  NULL
+}
+
+# ADR 0020 PLAN-02: single source of truth for "find the carrier ptr_call
+# whose `$stage_id` equals `stage_id`". The same helper is used by the
+# snapshot reader and the spec-emission diff baseline reader so the two
+# stay aligned on whose `default_stage_enabled` they read. Returns NULL
+# when no carrier call is found (consumer's `%||% TRUE` covers that).
+find_stage_call_by_id <- function(tree, stage_id) {
+  if (is.null(tree) || is.null(stage_id) || is.na(stage_id) ||
+      !nzchar(stage_id)) {
+    return(NULL)
+  }
+  found <- NULL
+  ptr_walk(tree, function(n) {
+    if (!is.null(found)) return()
+    if (is_ptr_call(n) && identical(n$stage_id, stage_id)) {
+      found <<- n
+    }
+  })
+  found
+}
+
 #' Suffix Duplicate Layer Names
 #'
 #' @param x A character vector of names.

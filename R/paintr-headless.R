@@ -80,32 +80,30 @@ ptr_headless_upstream_cols <- function(tree, snapshot = list(),
 
 # Default input snapshot for a runtime input spec: layer-include checkboxes
 # (`role == "layer_checkbox"`) and stage toggles (`role == "stage_enabled"`)
-# start checked (`TRUE` — respecting `checkbox_defaults` for the former via the
-# usual `ptr_resolve_checkbox_defaults()` path); everything else is NULL.
+# start checked (`TRUE`) unless ADR 0020 has stamped the carrier with
+# `default_active = FALSE` (layer_checkbox) or `default_stage_enabled = FALSE`
+# (stage_enabled); everything else is NULL. The carrier-node lookup goes
+# through `find_layer_by_name()` / `find_stage_call_by_id()` so this site
+# and `ptr_spec_defaults_from_state()` consult the same field, the same way.
 # Keys are RAW input ids (the `input_id` column), not namespaced.
+#
+# `checkbox_defaults =` is retained as a formal for API back-compat (Plan 04
+# removes it) but is NO LONGER READ at this site — ADR 0020 makes the
+# node-level `default_active` field the single source of truth.
 ptr_default_snapshot <- function(spec, tree, checkbox_defaults = NULL) {
   snapshot <- list()
   if (nrow(spec) == 0L) return(snapshot)
-
-  layer_names <- vapply(tree$layers, function(l) l$name, character(1))
-  # `ptr_resolve_checkbox_defaults()` keys off `names(expr_list)`; feed it a
-  # named placeholder list so the layer names land where it expects them
-  # (mirrors `ptr_init_state()`).
-  expr_list_proxy <- stats::setNames(
-    as.list(rep(NA, length(layer_names))),
-    layer_names
-  )
-  resolved_cd <- ptr_resolve_checkbox_defaults(checkbox_defaults, expr_list_proxy)
 
   for (i in seq_len(nrow(spec))) {
     raw_id <- spec$input_id[i]
     role   <- spec$role[i]
     if (identical(role, "layer_checkbox")) {
       layer_name <- spec$layer_name[i]
-      val <- resolved_cd[[layer_name]]
-      snapshot[[raw_id]] <- if (is.null(val)) TRUE else val
+      carrier <- find_layer_by_name(tree, layer_name)
+      snapshot[[raw_id]] <- isTRUE(carrier$default_active %||% TRUE)
     } else if (identical(role, "stage_enabled")) {
-      snapshot[[raw_id]] <- TRUE
+      carrier <- find_stage_call_by_id(tree, raw_id)
+      snapshot[[raw_id]] <- isTRUE(carrier$default_stage_enabled %||% TRUE)
     } else {
       snapshot[raw_id] <- list(NULL)
     }
