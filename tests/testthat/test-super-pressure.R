@@ -102,7 +102,177 @@ test_that("super-1 kitchen-sink: sentinels propagate through every placeholder",
 # <<< super-1 end
 
 # >>> super-2a begin
-# (PLAN-03 inserts the super-app-2a upload-registry test_that() block here.)
+test_that("super-2a upload+registry: sentinels propagate through multi-data-source + custom placeholders", {
+  app <- boot_super_app("super-2a-upload-registry")
+
+  fixture_dir <- testthat::test_path(
+    "fixtures", "vignette-apps", "super-2a-upload-registry"
+  )
+  main_csv <- file.path(fixture_dir, "sample_main.csv")
+  aux_csv  <- file.path(fixture_dir, "sample_aux.csv")
+
+  # ---- Upload both data sources -------------------------------------------
+  # ppUpload at the pipeline head: ggplot_1_ppUpload_NA (+ companion _name).
+  # ppUpload in geom_smooth(data = ): geom_smooth_0_ppUpload_NA (+ _name).
+  # Ids confirmed by probing ptr_translate + collect_layer_placeholders.
+  app$upload_file(ggplot_1_ppUpload_NA = main_csv)
+  app$upload_file(geom_smooth_0_ppUpload_NA = aux_csv)
+  # Explicit companion-name sets guard against AppDriver-ordering races on
+  # the auto-fill (project memory: adr12-bug-3a test does the same thing).
+  set_sentinel(app, "ggplot_1_ppUpload_NA_name", "df_main")
+  set_sentinel(app, "geom_smooth_0_ppUpload_NA_name", "df_aux")
+  app$wait_for_idle(timeout = 25 * 1000)
+
+  # ---- Initial draw at defaults (Scenario 1: both uploads boot) -----------
+  draw_and_wait(app, "ptr_update_plot")
+  expect_no_plot_error(app)
+
+  # ---- Layer-data ppVar picker reflects df_aux's columns, not df_main's --
+  # Pre-flight: pop the geom_smooth Controls subtab so its in-aes ppVar
+  # picker renderUI binds (project memory `shinytest2-appdir-pkgload`).
+  app$set_inputs(geom_smooth_subtab = "Controls", wait_ = FALSE)
+  app$wait_for_idle(timeout = 25 * 1000)
+  # Positive assertion: "mpg" IS offered (in both df_main and df_aux).
+  expect_picker_populated(app, "geom_smooth_1_1_ppVar_NA", "mpg")
+  # Negative assertion: "cyl" is NOT offered (in df_main but NOT in df_aux).
+  # The picker MUST be populated from df_aux's columns (mpg, wt) only — the
+  # ADR-0015 eager-bind fix at 6ee63d7 makes this work. If "cyl" appears,
+  # that is regression territory (the picker fell back to df_main): STOP
+  # and escalate, do not weaken the assertion.
+  ppvar_geom_smooth_html <- app$get_html("#geom_smooth_1_1_ppVar_NA") %||% ""
+  testthat::expect_false(
+    grepl("cyl", ppvar_geom_smooth_html, fixed = TRUE),
+    label = paste0(
+      "negative assertion: geom_smooth's layer-data ppVar picker MUST NOT ",
+      "offer 'cyl' as a choice (cyl is in df_main, NOT in df_aux); ",
+      "if this fails, the multi-data-source resolution regressed ",
+      "(ADR-0015 eager-bind, 6ee63d7) — STOP and escalate"
+    )
+  )
+
+  # ---- ppPower custom-value sentinel: 0.42^2 lands in final-mode code ----
+  set_sentinel(app, "geom_point_3_ppPower_NA", 0.42)
+  # Shared "grp" sentinel (drive once now so it lands before final-mode
+  # capture; df_main columns include cyl).
+  app$set_inputs(ggplot_subtab = "Controls", wait_ = FALSE)
+  app$wait_for_idle(timeout = 25 * 1000)
+  set_sentinel(app, "shared_grp", "cyl")
+  # ppMultiVar non-scalar sentinel: c("cyl", "am"). df_main has both.
+  set_sentinel(app, "geom_point_1_1_ppMultiVar_NA", c("cyl", "am"))
+  draw_and_wait(app, "ptr_update_plot")
+  expect_no_plot_error(app)
+
+  # ---- Final-mode propagation assertions ---------------------------------
+  # F1-amended: substring (fixed=TRUE) instead of regex. The deparser emits
+  # `geom_point(aes(group = interaction(cyl, am)), size = 2, alpha = 0.42^2)`
+  # and the prior regex shape `geom_point\\([^)]*alpha\\s*=\\s*([^,)]*)`
+  # cannot span the balanced parens of `interaction(cyl, am)` to reach
+  # `alpha = 0.42^2`. Substring matching reflects the BDD `Then` clause
+  # verbatim.
+  code_final <- app$get_value(output = "ptr_code")
+  testthat::expect_true(
+    is.character(code_final) && length(code_final) == 1L && nzchar(code_final),
+    label = paste0(
+      "ptr_code is non-empty in final mode; actual=", code_final %||% "<NULL>"
+    )
+  )
+  testthat::expect_true(
+    grepl("alpha = 0.42^2", code_final, fixed = TRUE),
+    label = paste0(
+      "final-mode code contains literal 'alpha = 0.42^2' (ppPower ",
+      "resolve_expr returns the call v^2, not a pre-evaluated number); ",
+      "actual code=", code_final
+    )
+  )
+  # F2-amended: substring (fixed=TRUE) for ppMultiVar's interaction() shape.
+  # The capture-group regex would truncate at the first comma inside
+  # `interaction(cyl, am)`.
+  testthat::expect_true(
+    grepl("interaction(cyl, am)", code_final, fixed = TRUE),
+    label = paste0(
+      "final-mode code contains literal 'interaction(cyl, am)' from ",
+      "ppMultiVar's non-scalar return; actual code=", code_final
+    )
+  )
+  # Shared "grp" reaches BOTH the root aes(color=) and facet_wrap(vars(...)).
+  expect_sentinel_in_code(app, "ptr_code", "cyl",
+    "aes\\([^)]*color\\s*=\\s*([^,)]*)", "final")
+  expect_sentinel_in_code(app, "ptr_code", "cyl",
+    "facet_wrap\\(vars\\(([^)]*)\\)", "final")
+  # The geom_smooth's separate aes() (which reads df_aux) does NOT acquire
+  # `color = cyl` — shared "grp" stays in root-data scope.
+  testthat::expect_false(
+    grepl("geom_smooth\\([^)]*color\\s*=\\s*cyl", code_final, perl = TRUE),
+    label = paste0(
+      "shared 'grp' must stay in root-data scope: geom_smooth's own aes() ",
+      "must NOT carry 'color = cyl'; actual code=", code_final
+    )
+  )
+
+  # ---- B3 toggle differential: preserve retains wrappers, final strips --
+  expect_sentinel_nowhere(app, "ptr_code", "ppPower(")
+  expect_sentinel_nowhere(app, "ptr_code", "ppMultiVar(")
+  expect_sentinel_nowhere(app, "ptr_code", "ppUpload(")
+
+  toggle_code_mode(app, "preserve")
+  code_preserve <- app$get_value(output = "ptr_code") %||% ""
+  # Both ppUpload bareword companion-names round-trip (per ADR-0010).
+  testthat::expect_true(
+    grepl("ppUpload(df_main)", code_preserve, fixed = TRUE),
+    label = paste0(
+      "preserve-mode code contains literal 'ppUpload(df_main)' (bareword ",
+      "companion-name); actual code=", code_preserve
+    )
+  )
+  testthat::expect_true(
+    grepl("ppUpload(df_aux)", code_preserve, fixed = TRUE),
+    label = paste0(
+      "preserve-mode code contains literal 'ppUpload(df_aux)' (bareword ",
+      "companion-name); actual code=", code_preserve
+    )
+  )
+  # ppPower preserves its 0.42 sentinel inside its wrapper.
+  expect_sentinel_in_code(app, "ptr_code", "0.42",
+    "ppPower\\(([^)]*)\\)", "preserve")
+  # ppMultiVar's preserve-mode shape may be ppMultiVar(c('cyl', 'am')) or
+  # ppMultiVar(c("cyl", "am")) depending on quote-folding; substring on
+  # 'ppMultiVar(' + both column names covers either.
+  testthat::expect_true(
+    grepl("ppMultiVar(", code_preserve, fixed = TRUE) &&
+      grepl("cyl", code_preserve, fixed = TRUE) &&
+      grepl("am", code_preserve, fixed = TRUE),
+    label = paste0(
+      "preserve-mode code contains ppMultiVar( wrapper enclosing the ",
+      "picker's selected columns; actual code=", code_preserve
+    )
+  )
+  expect_no_plot_error(app)
+
+  # ---- D9 validate_input on ppPower (Scenario: global error pane, no crash)
+  # Flip back to final-mode for the validate_input flow (the error contract
+  # is mode-agnostic, but final makes the post-error code-panel state
+  # easier to inspect). F4 was DEFERRED: only assert (a) the error pane
+  # populates and (b) the host has no plot-error class. The previously-drawn
+  # plot remains visible.
+  toggle_code_mode(app, "final")
+  set_sentinel(app, "geom_point_3_ppPower_NA", 1.5)
+  draw_and_wait(app, "ptr_update_plot")
+  # F3-amended: validate_input errors surface in the global #ptr_error pane,
+  # NOT a widget-adjacent inline error. Verified via
+  # ptr_register_error / ptr_error_ui at R/paintr-server.R:2073-2102.
+  # Use get_html (not get_value): ptr_error is a uiOutput that renders a
+  # tagList, and get_value returns a list whose scalar coercion is brittle.
+  err_html <- app$get_html("#ptr_error") %||% ""
+  testthat::expect_true(
+    grepl("must be in [0,1]", err_html, fixed = TRUE),
+    label = paste0(
+      "global #ptr_error pane shows the validate_input error 'must be in ",
+      "[0,1]' after ppPower set to 1.5; actual ptr_error HTML=", err_html
+    )
+  )
+  # (b) host retains a previous successful plot — no plot-error class added.
+  expect_no_plot_error(app)
+})
 # <<< super-2a end
 
 # >>> super-2b begin
