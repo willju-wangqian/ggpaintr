@@ -6,6 +6,7 @@
 \usage{
 ptr_shared(
   formulas,
+  id = NULL,
   shared_ui = list(),
   ui_text = NULL,
   expr_check = TRUE,
@@ -15,6 +16,19 @@ ptr_shared(
 \arguments{
 \item{formulas}{A character vector or list of formula strings, one per
 embedded \code{\link[=ptr_ui]{ptr_ui()}} instance.}
+
+\item{id}{Optional character scalar that namespaces every id this
+coordinator emits, so two or more coordinators can coexist in one
+Shiny session without colliding on shared \code{input} slots. When
+non-\code{NULL}, every id (\verb{shared_<key>}, \verb{shared_<key>_stage_enabled},
+\code{ptr_shared_draw_all}, \code{ptr_shared_errors}, the stage-block DOM id,
+and each consumer \code{renderUI} container) is prefixed \verb{<id>-} using
+Shiny \code{NS()}'s separator. The default \code{NULL} preserves today's flat
+ids byte-for-byte -- single-panel apps need no change. Must be \code{NULL}
+or a non-empty string matching \verb{^[A-Za-z][A-Za-z0-9_]*$};
+\code{\link[=ptr_shared_panel]{ptr_shared_panel()}}, \code{\link[=ptr_ui_shared_panel]{ptr_ui_shared_panel()}}, and
+\code{\link[=ptr_shared_server]{ptr_shared_server()}} all read it off \code{obj$id} -- their signatures
+do not change.}
 
 \item{shared_ui}{Named list of \verb{function(id) -> shiny.tag} builders, one
 per shared key the embedder wants to customise. Unsupplied keys are

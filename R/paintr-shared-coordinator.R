@@ -74,6 +74,18 @@ shared_partition <- function(trees) {
 #'
 #' @param formulas A character vector or list of formula strings, one per
 #'   embedded [`ptr_ui()`] instance.
+#' @param id Optional character scalar that namespaces every id this
+#'   coordinator emits, so two or more coordinators can coexist in one
+#'   Shiny session without colliding on shared `input` slots. When
+#'   non-`NULL`, every id (`shared_<key>`, `shared_<key>_stage_enabled`,
+#'   `ptr_shared_draw_all`, `ptr_shared_errors`, the stage-block DOM id,
+#'   and each consumer `renderUI` container) is prefixed `<id>-` using
+#'   Shiny `NS()`'s separator. The default `NULL` preserves today's flat
+#'   ids byte-for-byte -- single-panel apps need no change. Must be `NULL`
+#'   or a non-empty string matching `^[A-Za-z][A-Za-z0-9_]*$`;
+#'   [`ptr_shared_panel()`], [`ptr_ui_shared_panel()`], and
+#'   [`ptr_shared_server()`] all read it off `obj$id` -- their signatures
+#'   do not change.
 #' @param shared_ui Named list of `function(id) -> shiny.tag` builders, one
 #'   per shared key the embedder wants to customise. Unsupplied keys are
 #'   auto-rendered from the first formula that mentions them.
@@ -97,10 +109,20 @@ shared_partition <- function(trees) {
 #' obj$panel_keys   # "x" — shared by both formulas
 #' @export
 ptr_shared <- function(formulas,
+                       id = NULL,
                        shared_ui = list(),
                        ui_text = NULL,
                        expr_check = TRUE,
                        draw_all_label = "Draw all") {
+  if (!(is.null(id) ||
+        (is.character(id) && length(id) == 1L && !is.na(id) &&
+         nzchar(id) && grepl("^[A-Za-z][A-Za-z0-9_]*$", id)))) {
+    rlang::abort(paste0(
+      "`id` must be NULL or a single non-empty string matching ",
+      "\"^[A-Za-z][A-Za-z0-9_]*$\"; got ",
+      paste0(utils::capture.output(print(id)), collapse = " "), "."
+    ))
+  }
   assertthat::assert_that(is.list(shared_ui))
   trees <- shared_translate_formulas(formulas, expr_check = expr_check)
 
@@ -145,6 +167,7 @@ ptr_shared <- function(formulas,
 
   structure(
     list(
+      id = id,
       formulas = formulas,
       trees = trees,
       formula_count = length(trees),
@@ -175,6 +198,7 @@ shared_panel_body_tag <- function(obj, keys) {
   consumer_keys <- names(consumer_reps)
   shared_ui <- obj$shared_ui
   ui_text <- obj$ui_text
+  ns <- shared_ns(obj)
 
   shared_label_override <- lapply(firsts$occurrences, shared_widget_label)
   # PLAN-07: first-occurrence default for each shared bucket. Seeded onto
@@ -185,12 +209,12 @@ shared_panel_body_tag <- function(obj, keys) {
   shared_widgets <- lapply(keys, function(k) {
     canonical <- canonical_shared_id(k)
     if (k %in% names(shared_ui)) {
-      shared_ui[[k]](canonical)
+      shared_ui[[k]](ns(canonical))
     } else if (k %in% consumer_keys) {
       node <- consumer_reps[[k]]
       build_ui_for(
         node,
-        ns_fn = identity,
+        ns_fn = ns,
         label_override = node$shared_label
       )
     } else {
@@ -200,7 +224,7 @@ shared_panel_body_tag <- function(obj, keys) {
       build_ui_for(
         node,
         ui_text = ui_text,
-        ns_fn = identity,
+        ns_fn = ns,
         label_override = shared_label_override[[k]]
       )
     }
@@ -227,7 +251,7 @@ shared_panel_body_tag <- function(obj, keys) {
         shiny::tags$code(paste0(paste(verbs, collapse = "/"), "()"))
       } else NULL
       controllable_region(
-        shared_stage_input_id(k), head_label, w, ns_fn = identity
+        shared_stage_input_id(k), head_label, w, ns_fn = ns
       )
     })
   }
@@ -239,9 +263,9 @@ shared_panel_body_tag <- function(obj, keys) {
     ),
     shared_widgets,
     if (obj$formula_count >= 2L) {
-      list(shiny::actionButton("ptr_shared_draw_all", obj$draw_all_label))
+      list(shiny::actionButton(ns("ptr_shared_draw_all"), obj$draw_all_label))
     } else list(),
-    list(shiny::uiOutput("ptr_shared_errors"))
+    list(shiny::uiOutput(ns("ptr_shared_errors")))
   )
 
   shiny::wellPanel(
@@ -257,6 +281,8 @@ shared_panel_body_tag <- function(obj, keys) {
 #' theming scope and the bundled ggpaintr asset dependency, so it can be
 #' dropped straight into a host layout. Its server counterpart
 #' [`ptr_shared_server()`] must run at the top level.
+#'
+#' Namespacing is inherited from `obj$id`; supply it to [`ptr_shared()`].
 #'
 #' @param obj A `ptr_shared_spec` from [`ptr_shared()`].
 #' @param css Optional character vector of paths to additional CSS files;
@@ -297,6 +323,8 @@ ptr_shared_panel <- function(obj, css = NULL) {
 #' (the wellPanel holding `obj$panel_keys`) with **no** `.ptr-app` shell and
 #' **no** asset bundle. The L3 user supplies their own shell / assets (e.g.
 #' via [`ptr_ui_page()`]).
+#'
+#' Namespacing is inherited from `obj$id`; supply it to [`ptr_shared()`].
 #'
 #' @param obj A `ptr_shared_spec` from [`ptr_shared()`].
 #'
