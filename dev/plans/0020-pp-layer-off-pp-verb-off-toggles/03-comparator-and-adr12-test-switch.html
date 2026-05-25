@@ -45,7 +45,7 @@ plan:
 
   <li><strong>SC6 — End-to-end: <code>ppLayerOff(..., TRUE)</code> ≡ bare layer (comparator level).</strong> <code>ggpaintr:::ptr_tree_structural_equal(ptr_translate(quote(ggplot() + ppLayerOff(geom_point(), TRUE))), ptr_translate(quote(ggplot() + geom_point())))</code> returns <code>TRUE</code> (the trees differ on <code>default_active</code>, which is now excluded). This is the <em>new</em> capability — before this plan, the comparator would have returned <code>FALSE</code> because <code>default_active</code> was a compared slot.</li>
 
-  <li><strong>SC7 — End-to-end: <code>ppVerbOff(..., TRUE)</code> ≡ bare stage (comparator level).</strong> Same shape as SC6 for <code>ppVerbOff</code> / <code>default_stage_enabled</code>.</li>
+  <li><strong>SC7 — REMOVED (2026-05-24).</strong> Originally: "End-to-end: <code>ppVerbOff(..., TRUE)</code> ≡ bare stage (comparator level)". Dropped during execution because Plan 01's <code>stamp_default_stage_enabled_ids()</code> stamps a runtime-semantic <code>stage_id</code> slot on every <code>ppVerbOff(hide=TRUE)</code>-wrapped stage that the bare stage does not carry; <code>stage_id</code> is read by <code>disable_walk</code> at runtime so cannot be added to the comparator's exclusion list under Plan 03's own Constraints. The verb-stage structural-equality invariant will be addressed by a future <code>ppControl</code> placeholder ADR (see ADR 0020 "Out of scope"). SC6 already proves the principle at the layer level. SC numbering preserved (no shift on later SCs).</li>
 
   <li><strong>SC8 — test-adr12-consumer-uniformity.R uses the real comparator.</strong> The file no longer contains an inline <code>ptr_tree_structural_equal &lt;- function(a, b) {...}</code> definition. Instead, the top of the file (or each <code>test_that()</code> block as appropriate) calls <code>ggpaintr:::ptr_tree_structural_equal()</code> directly. Verified by <code>grep -c "^ptr_tree_structural_equal &lt;-" tests/testthat/test-adr12-consumer-uniformity.R</code> returning <code>0</code> and by <code>grep -c "ggpaintr:::ptr_tree_structural_equal" tests/testthat/test-adr12-consumer-uniformity.R</code> returning <code>&gt;= 1</code>. Asserted programmatically in <code>tests/testthat/test-pp-off-comparator.R</code> via a <code>readLines()</code> + regex check.</li>
 
@@ -60,7 +60,7 @@ plan:
     <ul>
       <li><code>R/paintr-nodes.R</code> — <strong>function body of <code>ptr_tree_structural_equal()</code> only</strong> (the two <code>setdiff()</code> calls at the existing lines 130-131, inside the function defined at lines 123-150). No edits to constructors, no edits elsewhere in the file. (Plan 01 edited the <code>ptr_call()</code> constructor here; this plan touches a disjoint function.)</li>
       <li><code>tests/testthat/test-adr12-consumer-uniformity.R</code> — replace the inline <code>ptr_tree_structural_equal()</code> helper definition (starts ~line 68) with the appropriate call to <code>ggpaintr:::ptr_tree_structural_equal()</code> at every call site in the file. The inline function is removed; the leading comment block explaining "pre-PLAN-04 codebase had no <code>ptr_tree_structural_equal()</code>" is also removed (no longer true; the real comparator has existed since ADR-0012 plan-04 landed).</li>
-      <li><code>tests/testthat/test-pp-off-comparator.R</code> — NEW. Tests SC1–SC8 (the SC8 grep-check is a regression catch for someone re-introducing the inline helper).</li>
+      <li><code>tests/testthat/test-pp-off-comparator.R</code> — NEW. Tests SC1–SC6 + SC8 (SC7 was removed; see ADR follow-up). The SC8 grep-check is a regression catch for someone re-introducing the inline helper.</li>
     </ul>
   </li>
   <li><strong>Files this plan must NOT touch:</strong>
@@ -114,12 +114,6 @@ Scenario: ppLayerOff(..., TRUE) is structurally equal to the bare layer
   When  ggpaintr:::ptr_tree_structural_equal(T_off, T_bare) is called
   Then  it returns TRUE
 
-Scenario: ppVerbOff(..., TRUE) is structurally equal to the bare stage
-  Given T_off  = ptr_translate(quote(ggplot(mtcars |> ppVerbOff(mutate(x = 1), TRUE))))
-  And   T_bare = ptr_translate(quote(ggplot(mtcars |> mutate(x = 1))))
-  When  ggpaintr:::ptr_tree_structural_equal(T_off, T_bare) is called
-  Then  it returns TRUE
-
 Scenario: test-adr12-consumer-uniformity.R no longer defines its own ptr_tree_structural_equal
   Given the lines of tests/testthat/test-adr12-consumer-uniformity.R
   When  scanned with regex "^ptr_tree_structural_equal\\s*<-\\s*function"
@@ -168,9 +162,9 @@ Scenario: test-adr12-consumer-uniformity.R still passes against the real compara
 </ul>
 
 <h2>Dependencies / ordering</h2>
-<p>Depends on: <strong>Plan 01</strong> — needs <code>default_stage_enabled</code> slot to exist on <code>ptr_call</code> (Plan 01 adds it). SC2-SC3 / SC5-SC7 construct trees that carry the fields, requiring Plan 01's translate machinery + node-constructor extension.</p>
+<p>Depends on: <strong>Plan 01</strong> — needs <code>default_stage_enabled</code> slot to exist on <code>ptr_call</code> (Plan 01 adds it). SC2-SC3 / SC5-SC6 construct trees that carry the fields, requiring Plan 01's translate machinery + node-constructor extension.</p>
 <p>Provides for: nothing else in this ADR (the comparator change is leaf). Future ADRs that add more UI-state-only fields will follow the same exclusion-list pattern.</p>
 
-<!-- implementable: PASS date=2026-05-24 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=6dc064daf53b -->
+<!-- implementable: PASS date=2026-05-24 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=50b7a1c53215 -->
 </body>
 </html>
