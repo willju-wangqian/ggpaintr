@@ -165,7 +165,7 @@ ptr_assert_no_surviving_structural_wrappers <- function(root) {
     head <- n$fun
     if (!is.symbol(head)) return()
     nm <- as.character(head)
-    if (nm %in% c("ppLayerOff", "ppVerbOff")) {
+    if (nm %in% c("ppLayerOff", "ppVerbOff", "ppVerbSwitch")) {
       bad[[length(bad) + 1L]] <<- nm
     }
   })
@@ -178,11 +178,17 @@ ptr_assert_no_surviving_structural_wrappers <- function(root) {
           "`ppLayerOff(layer_expr, hide)` is only valid as a top-level ",
           "layer (joined to a `ggplot()` chain with `+`)."
         )
-      } else {
+      } else if (nm == "ppVerbOff") {
         paste0(
           "`ppVerbOff(.data, verb_expr, hide)` is only valid as a stage ",
           "in a data-argument pipeline (e.g. `mtcars |> ",
           "ppVerbOff(mutate(x = 1), TRUE) |> ggplot(...)`)."
+        )
+      } else {
+        paste0(
+          "`ppVerbSwitch(.data, verb_expr, switch_on, label)` is only ",
+          "valid as a stage in a data-argument pipeline (e.g. `mtcars |> ",
+          "ppVerbSwitch(mutate(x = 1), TRUE) |> ggplot(...)`)."
         )
       }
     ))
@@ -233,6 +239,14 @@ build_pipeline_from_lift <- function(parts, op_hint = "|>") {
     # Unwrap to the inner verb call with `default_stage_enabled = !hide`.
     if (is_structural_keyword_call(st$call, "ppVerbOff")) {
       typed <- unwrap_pp_verb_off_stage(st$call)
+    } else if (is_structural_keyword_call(st$call, "ppVerbSwitch")) {
+      # ADR 0021 special-unwrap branch for `ppVerbSwitch` at pipeline-stage
+      # position. By this point the lift's resugar step has stripped the
+      # implicit `.data` slot, so `st$call` is
+      # `ppVerbSwitch(verb_expr, switch_on, label)`. Unwrap to the inner
+      # verb call with `has_user_control = TRUE`,
+      # `default_stage_enabled = switch_on`, and `stage_label = label`.
+      typed <- unwrap_pp_verb_switch_stage(st$call)
     } else {
       typed <- translate_node(st$call)
     }
@@ -850,6 +864,104 @@ unwrap_pp_verb_off_stage <- function(stage_call) {
     ))
   }
   inner_node$default_stage_enabled <- !isTRUE(hide)
+  inner_node
+}
+
+# Returns the literal logical `switch_on` value (a length-1 non-NA logical)
+# from a `ppVerbSwitch(...)` wrapper call, OR aborts with class
+# `"ptr_translate_error"` when the slot is missing, non-literal, or not a
+# length-1 logical. Accepts `switch_on` named or positional; `switch_on_position`
+# is the positional slot (2 at pipeline-stage position after `.data` has been
+# stripped by the lift's resugar step). Default is TRUE when the slot is
+# omitted entirely — matches the function-body default of `ppVerbSwitch`.
+# Mirrors `validate_pp_off_hide`'s shape verbatim so reviewers can diff-compare.
+validate_pp_verb_switch_switch_on <- function(expr, switch_on_position) {
+  args <- as.list(expr[-1L])
+  arg_names <- names(args) %||% rep_len("", length(args))
+  if ("switch_on" %in% arg_names) {
+    sw_expr <- args[[which(arg_names == "switch_on")[[1L]]]]
+  } else if (length(args) >= switch_on_position &&
+             !nzchar(arg_names[[switch_on_position]])) {
+    sw_expr <- args[[switch_on_position]]
+  } else {
+    return(TRUE)
+  }
+  if (!is.logical(sw_expr) || length(sw_expr) != 1L || is.na(sw_expr)) {
+    abort_translate(paste0(
+      "`ppVerbSwitch()` argument `switch_on` must be a length-1 logical ",
+      "literal (TRUE or FALSE); got `", deparse(sw_expr)[[1L]],
+      "`. The boot-state metadata is consumed at translate time so the ",
+      "formula remains the single source of truth — variables and ",
+      "non-literal expressions are not allowed in this slot."
+    ))
+  }
+  sw_expr
+}
+
+# Returns the literal character `label` value (a length-1 non-NA character)
+# from a `ppVerbSwitch(...)` wrapper call, OR `NULL` when the slot is
+# omitted / explicitly `NULL`, OR aborts with class `"ptr_translate_error"`
+# when the slot is non-literal or not a length-1 character. Accepts `label`
+# named or positional; `label_position` is the positional slot (3 at
+# pipeline-stage position after `.data` has been stripped). The label is
+# UI-routing metadata consumed at translate time and so is restricted to
+# literals for the same source-of-truth reason as `switch_on` / `hide`.
+validate_pp_verb_switch_label <- function(expr, label_position) {
+  args <- as.list(expr[-1L])
+  arg_names <- names(args) %||% rep_len("", length(args))
+  if ("label" %in% arg_names) {
+    lab_expr <- args[[which(arg_names == "label")[[1L]]]]
+  } else if (length(args) >= label_position &&
+             !nzchar(arg_names[[label_position]])) {
+    lab_expr <- args[[label_position]]
+  } else {
+    return(NULL)
+  }
+  if (is.null(lab_expr)) return(NULL)
+  if (!is.character(lab_expr) || length(lab_expr) != 1L || is.na(lab_expr)) {
+    abort_translate(paste0(
+      "`ppVerbSwitch()` argument `label` must be a length-1 character ",
+      "literal or NULL; got `", deparse(lab_expr)[[1L]],
+      "`. The boot-state metadata is consumed at translate time so the ",
+      "formula remains the single source of truth — variables and ",
+      "non-literal expressions are not allowed in this slot."
+    ))
+  }
+  lab_expr
+}
+
+# `ppVerbSwitch(.data, verb_expr, switch_on = TRUE, label = NULL)` at a
+# pipeline-stage position (i.e. as a `parts$stages[[j]]$call` after the
+# source has been split off, which strips the implicit `.data` slot — so
+# the call we see here is `ppVerbSwitch(verb_expr, switch_on, label)`).
+# Validate `switch_on` + `label`, translate the inner verb call through
+# `translate_node`, and stamp three fields on the resulting `ptr_call`:
+# `has_user_control = TRUE`, `default_stage_enabled = switch_on`,
+# `stage_label = label`. Used inside `build_pipeline_from_lift`.
+unwrap_pp_verb_switch_stage <- function(stage_call) {
+  args <- as.list(stage_call[-1L])
+  arg_names <- names(args) %||% rep_len("", length(args))
+  inner_idx <- which(!nzchar(arg_names))[1L]
+  if (is.na(inner_idx)) {
+    abort_translate(paste0(
+      "`ppVerbSwitch(.data, verb_expr, switch_on = TRUE, label = NULL)` ",
+      "requires the verb expression as a positional argument."
+    ))
+  }
+  verb_expr <- args[[inner_idx]]
+  switch_on <- validate_pp_verb_switch_switch_on(stage_call,
+                                                 switch_on_position = 2L)
+  label <- validate_pp_verb_switch_label(stage_call, label_position = 3L)
+  inner_node <- translate_node(verb_expr)
+  if (!is_ptr_call(inner_node)) {
+    abort_translate(paste0(
+      "`ppVerbSwitch(verb_expr = )` must be a verb call (e.g. `mutate(...)`); ",
+      "got `", deparse(verb_expr)[[1L]], "`."
+    ))
+  }
+  inner_node$has_user_control <- TRUE
+  inner_node$default_stage_enabled <- isTRUE(switch_on)
+  inner_node$stage_label <- label
   inner_node
 }
 
