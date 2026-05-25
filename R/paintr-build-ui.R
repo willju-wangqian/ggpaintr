@@ -231,7 +231,15 @@ build_pipeline_stage_ui <- function(entries, ui_text, layer_name, ns_fn) {
       } else {
         seen <- c(seen, sid)
         has_verb <- !is.null(verb) && !is.na(verb) && nzchar(verb)
-        head_label <- if (has_verb) {
+        # ADR 0021 PLAN-05: precedence — user-declared `stage_label` first
+        # (plain text, passed through unchanged), auto-derived `verb()`
+        # second (wrapped in `<code>`), NULL third. Reversing the order
+        # would let auto-label leak past a user override; wrapping the
+        # user's plain text in `<code>` would break the user's intent.
+        user_stage_label <- entries[[i]]$stage_label
+        head_label <- if (!is.null(user_stage_label)) {
+          user_stage_label
+        } else if (has_verb) {
           shiny::tags$code(paste0(verb, "()"))
         } else NULL
         # ADR 0020 PLAN-02: all entries in one stage block share the same
@@ -325,13 +333,18 @@ find_layer_placeholders_with_stage <- function(x) {
   # `current_sid` / `current_verb`. Picked up on the stage-descent branches
   # below, threaded through every recursive call, and stamped on the emitted
   # entry so `build_pipeline_stage_ui()` can pass it to `controllable_region()`.
-  visit <- function(n, current_sid, current_verb, current_def_stage) {
+  # ADR 0021 PLAN-05: also thread `current_stage_label` (the carrier ptr_call's
+  # `stage_label`, NULL when unset or when no carrier is on the descent) so
+  # `build_pipeline_stage_ui()` can override the stage-block head label.
+  visit <- function(n, current_sid, current_verb, current_def_stage,
+                    current_stage_label) {
     if (is.null(n)) return()
     if (is_ptr_placeholder(n)) {
       if (is_shared_placeholder(n)) return()
       out[[length(out) + 1L]] <<- list(
         ph = n, stage_id = current_sid, verb = current_verb,
-        default_stage_enabled = current_def_stage
+        default_stage_enabled = current_def_stage,
+        stage_label = current_stage_label
       )
       return()
     }
@@ -354,7 +367,15 @@ find_layer_placeholders_with_stage <- function(x) {
       } else {
         current_def_stage
       }
-      for (a in n$args) visit(a, sid, verb, def_stage)
+      # ADR 0021 PLAN-05: adopt the stage carrier's `stage_label` on the
+      # same branch the stage_id is adopted; otherwise inherit. NULL stays
+      # NULL — the UI emitter falls back to the auto-derived verb label.
+      stage_lbl <- if (!is.null(n$stage_id)) {
+        n$stage_label
+      } else {
+        current_stage_label
+      }
+      for (a in n$args) visit(a, sid, verb, def_stage, stage_lbl)
       return()
     }
     if (is_ptr_pipeline(n)) {
@@ -362,13 +383,16 @@ find_layer_placeholders_with_stage <- function(x) {
         if (is_ptr_call(s) && !is.null(s$stage_id)) {
           # Stage IS the call: its args descend with the stage's id and
           # the stage's `default_stage_enabled` (NULL inherits the
-          # consumer's `%||% TRUE` fallback).
+          # consumer's `%||% TRUE` fallback). ADR 0021 PLAN-05: also pass
+          # the stage's `stage_label` (NULL inherits the auto-label
+          # fallback in the UI emitter).
           verb <- call_head_name(s$fun)
           for (a in s$args) {
-            visit(a, s$stage_id, verb, s$default_stage_enabled)
+            visit(a, s$stage_id, verb, s$default_stage_enabled,
+                  s$stage_label)
           }
         } else {
-          visit(s, NA_character_, NA_character_, NULL)
+          visit(s, NA_character_, NA_character_, NULL, NULL)
         }
       }
       return()
@@ -376,13 +400,15 @@ find_layer_placeholders_with_stage <- function(x) {
     if (is_ptr_node(n)) {
       for (nm in names(n)) {
         if (identical(nm, "upstream")) next
-        visit(n[[nm]], current_sid, current_verb, current_def_stage)
+        visit(n[[nm]], current_sid, current_verb, current_def_stage,
+              current_stage_label)
       }
     } else if (is.list(n) && !is.pairlist(n)) {
-      for (el in n) visit(el, current_sid, current_verb, current_def_stage)
+      for (el in n) visit(el, current_sid, current_verb, current_def_stage,
+                          current_stage_label)
     }
   }
-  visit(x, NA_character_, NA_character_, NULL)
+  visit(x, NA_character_, NA_character_, NULL, NULL)
   out
 }
 
@@ -443,12 +469,16 @@ collect_orphan_shared_stages <- function(tree) {
     keys <- unique(vapply(phs, function(p) p$shared, character(1)))
     # ADR 0020 PLAN-02: carry the carrier ptr_call's `default_stage_enabled`
     # forward so `wrap_shared_widgets_with_stage_blocks()` can render the
-    # shared-stage controllable_region with the matching boot value.
+    # shared-stage controllable_region with the matching boot value. ADR 0021
+    # PLAN-05: also carry `stage_label` so the same shared-stage emitter can
+    # override the head label with the user's plain-text declaration (NULL
+    # falls back to the auto-derived verb label).
     out[[length(out) + 1L]] <<- list(
       stage_id = n$stage_id,
       verb = bare_call_name(n$fun) %||% NA_character_,
       shared_keys = keys,
-      default_stage_enabled = n$default_stage_enabled
+      default_stage_enabled = n$default_stage_enabled,
+      stage_label = n$stage_label
     )
   })
   out
@@ -515,7 +545,12 @@ wrap_shared_widgets_with_stage_blocks <- function(entries, widgets,
     }
     emitted <- c(emitted, st$stage_id)
     has_verb <- !is.null(st$verb) && !is.na(st$verb) && nzchar(st$verb)
-    head_label <- if (has_verb) {
+    # ADR 0021 PLAN-05: same precedence as `build_pipeline_stage_ui()` —
+    # user-declared `stage_label` first (plain text), auto-derived
+    # `verb()` second, NULL third.
+    head_label <- if (!is.null(st$stage_label)) {
+      st$stage_label
+    } else if (has_verb) {
       shiny::tags$code(paste0(st$verb, "()"))
     } else NULL
     # ADR 0020 PLAN-02: shared-stage controllable_region boots from the
