@@ -1,10 +1,33 @@
 # Placeholder registry (rewrite). Three constructors replace the legacy
 # `ptr_define_placeholder`. Stored in an isolated env so the legacy registry
 # in paintr-placeholders.R is undisturbed during cohabitation.
-
-.ptr_registry <- new.env(parent = emptyenv())
-.ptr_registry_initialized <- new.env(parent = emptyenv())
-.ptr_registry_initialized$done <- FALSE
+#
+# Why anchor in `options()`: `devtools::test()` (and any caller that goes
+# through `pkgload::load_all` more than once per session) re-evaluates this
+# top-level expression on every reload, producing a NEW env object bound in
+# the new namespace. Functions defined in EARLIER cycles still hold a
+# lexical-scope reference to the OLD env -- so `ptr_define_placeholder_value`
+# from cycle A writes into env A while `invoke_build_ui` from cycle B reads
+# from env B, and the entry vanishes. Anchoring in `options()` makes all
+# cycles re-bind the same session-scoped env, so register and lookup paths
+# converge regardless of which cycle compiled which caller.
+.ptr_registry <- local({
+  env <- getOption(".ggpaintr_registry_v1")
+  if (!is.environment(env)) {
+    env <- new.env(parent = emptyenv())
+    do.call(options, stats::setNames(list(env), ".ggpaintr_registry_v1"))
+  }
+  env
+})
+.ptr_registry_initialized <- local({
+  env <- getOption(".ggpaintr_registry_initialized_v1")
+  if (!is.environment(env)) {
+    env <- new.env(parent = emptyenv())
+    env$done <- FALSE
+    do.call(options, stats::setNames(list(env), ".ggpaintr_registry_initialized_v1"))
+  }
+  env
+})
 
 ensure_registry_initialized <- function() {
   if (isTRUE(.ptr_registry_initialized$done)) return(invisible(NULL))
@@ -666,6 +689,30 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #'   guard that aborts when called outside an app context. Also called for
 #'   its registration side effect; use [ptr_clear_placeholder()] to remove
 #'   the entry.
+#'
+#' @section `spec=` round-trip:
+#' The `spec=` mechanism (see [ptr_app()]) captures a sparse snapshot of
+#' input values so the preserve-mode panel can publish a reproducible boot
+#' state. For a source placeholder, ONE of two patterns must hold:
+#'
+#' * **Companion pattern** — provide `companion_id_fn`. The companion's
+#'   text value (typically the typed dataset name) carries the round-trip
+#'   identity; the source's own value at `node$id` is dropped from the
+#'   spec, because it is typically a per-session Shiny artifact (a
+#'   `fileInput()` data.frame whose `datapath` is a tempfile path that
+#'   does not survive the session). The built-in `ppUpload` uses this.
+#'
+#' * **Scalar pattern** — no companion. The widget's value at `node$id`
+#'   must be a literal that round-trips through `deparse()` — a length-1
+#'   string / number / logical, or a simple atomic vector. The
+#'   `selectInput`-style example above qualifies (its value is a single
+#'   string).
+#'
+#' Source widgets whose primary value is a complex object (raw
+#' `fileInput()` data.frame, environment, S4 instance, etc.) without a
+#' companion cannot round-trip; wrap them in a companion textInput that
+#' carries the binding name, mirroring `ppUpload`.
+#'
 #' @seealso [ptr_define_placeholder_value()], [ptr_define_placeholder_consumer()],
 #'   [ptr_clear_placeholder()].
 #' @examples

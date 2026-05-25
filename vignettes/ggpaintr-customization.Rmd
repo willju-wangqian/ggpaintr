@@ -337,6 +337,20 @@ Your registration's `copy_defaults` becomes `defaults[[keyword]]` in the `ui_tex
 
 Strings in `copy_defaults` may contain `{param}`; the framework interpolates it with the surrounding formal-argument name (e.g. `"Enter a value for {param}"` becomes `"Enter a value for alpha"`).
 
+#### Seeding from `spec=`
+
+The `spec=` argument to `ptr_app()` / `ptr_server()` reaches your widget through the same `extra` channel as `copy_defaults`: the framework computes `selected = spec_value %||% current_user_pick` and passes it to `build_ui` as a `selected` formal. Declare `selected = NULL` in your signature and use it as the widget's initial value:
+
+```r
+build_ui = function(node, label = NULL, selected = NULL, ...) {
+  numericInput(node$id, label,
+               value = selected %||% node$default %||% 0,
+               min = 0, max = 1, step = 0.01)
+}
+```
+
+The `selected %||% node$default` chain gives you the right precedence: a `spec=` value wins, then the user's prior pick (Shiny persists it via `current_user_pick`), then the formula-literal default (e.g. `0.5` from `pct(0.5)`, exposed as `node$default`). Hooks that hard-code the formula literal — or read `node$default` *first*, ignoring `selected` — silently drop both `spec=` and user picks: the widget will redraw to the formula default on every render. Built-in keywords (`ppText`, `ppNum`, `ppExpr`, `ppVar`) handle this for you; custom keywords must opt in.
+
 ### Value placeholders — `ptr_define_placeholder_value()`
 
 The simplest case: a widget whose value depends on nothing outside itself. Here is a `range` keyword that renders a `sliderInput()` and substitutes a `c(lo, hi)` call into the formula.
@@ -344,9 +358,11 @@ The simplest case: a widget whose value depends on nothing outside itself. Here 
 ```{r value-range}
 ptr_define_placeholder_value(
   keyword       = "range",
-  build_ui      = function(node, label = NULL, ...) {
+  build_ui      = function(node, label = NULL, selected = NULL, ...) {
     sliderInput(node$id, label = label %||% "Range",
-                min = 0, max = 100, value = c(0, 100), step = 0.1)
+                min = 0, max = 100,
+                value = selected %||% node$default %||% c(0, 100),
+                step = 0.1)
   },
   resolve_expr  = function(value, node, ...) {
     if (is.null(value) || length(value) != 2L) return(NULL)
@@ -406,12 +422,13 @@ The picker's choices are populated from `mtcars`'s column names — that is `col
 ptr_define_placeholder_consumer(
   keyword       = "numrange",
   build_ui      = function(node, cols = character(), data = NULL,
-                           label = NULL, ...) {
+                           label = NULL, selected = NULL, ...) {
     num_cols <- cols[vapply(data[cols], is.numeric, logical(1))]
     col      <- num_cols[1] %||% ""
     rng      <- if (nzchar(col)) range(data[[col]], na.rm = TRUE) else c(0, 1)
     sliderInput(node$id, label = label %||% "Range",
-                min = rng[1], max = rng[2], value = rng)
+                min = rng[1], max = rng[2],
+                value = selected %||% rng)
   },
   resolve_expr  = function(value, ...) {
     if (is.null(value)) return(NULL)
@@ -440,9 +457,10 @@ A source placeholder *produces* a data frame. Use this for widgets the rest of t
 ```{r source-dataset}
 ptr_define_placeholder_source(
   keyword       = "dataset",
-  build_ui      = function(node, label = NULL, ...) {
+  build_ui      = function(node, label = NULL, selected = NULL, ...) {
     selectInput(node$id, label = label %||% "Built-in dataset",
-                choices = c("iris", "mtcars", "diamonds", "economics"))
+                choices = c("iris", "mtcars", "diamonds", "economics"),
+                selected = selected)
   },
   resolve_data  = function(value, node, ...) {
     if (is.null(value) || !nzchar(value)) return(NULL)
