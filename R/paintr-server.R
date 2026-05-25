@@ -1951,13 +1951,23 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
         )
         cols <- if (!is.null(df)) names(df) else character()
         current <- shiny::isolate(input[[ns(rep_node$id)]])
+        # `state$spec_seed[[rep_node$id]]` is written by
+        # `apply_spec_at_boot()` for `spec = list(shared_<key> = ...)`
+        # entries; mirrors the seed precedence in
+        # `ptr_setup_consumer_uis()` (non-shared) and
+        # `ptr_setup_value_uis()`'s shared-value loop. Without this
+        # the shared consumer picker boots blank even though the
+        # seed sits in `state$spec_seed`.
+        seed <- if (!is.null(state)) {
+          shiny::isolate(state$spec_seed[[rep_node$id]])
+        } else NULL
         picker <- invoke_build_ui(
           rep_node,
           ui_text = ui_text,
           layer_name = NULL,
           ns_fn = ui_ns,
           extra = list(cols = cols, data = df,
-                       selected = current %||% character(0)),
+                       selected = seed %||% current %||% character(0)),
           label_override = rep_node$shared_label
         )
         # Soft advisory: when upstream resolution returns NULL and the
