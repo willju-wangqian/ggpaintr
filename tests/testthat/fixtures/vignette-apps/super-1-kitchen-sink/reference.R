@@ -28,12 +28,13 @@ formula1 <- rlang::expr(
   ggplot(
     mtcars |>
       dplyr::filter(ppExpr(hp >= 75)) |>
-      dplyr::mutate(adj = ppExpr(mpg / wt)),
+      dplyr::mutate(adj = ppExpr(mpg / wt)) |>
+      ppVerbSwitch(dplyr::slice_max(mpg, n = 15), TRUE, label = "Top 15 by mpg"),
     aes(x = ppVar(mpg), y = ppVar(adj), color = ppVar(!!color_var, shared = "grp"))
   ) +
     geom_point(size = ppNum(2), alpha = ppNum(0.7)) +
     geom_smooth(method = ppText("lm"), linewidth = ppNum(!!my_linewidth, shared = "lw")) +
-    geom_line(linewidth = ppNum(!!my_linewidth, shared = "lw")) +
+    ppLayerOff(geom_line(linewidth = ppNum(!!my_linewidth, shared = "lw")), TRUE) +
     facet_wrap(vars(ppVar(!!color_var, shared = "grp"))) +
     scale_y_continuous(limits = ppRange(c(0, 50))) +
     labs(title = ppText("Title"), subtitle = ppText(""))
