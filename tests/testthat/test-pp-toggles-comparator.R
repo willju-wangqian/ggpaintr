@@ -9,7 +9,7 @@
 # (drift-audit-D6 invariant from the plan: re-implementations of the
 # canonical comparator silently fork the contract).
 
-# Local helper, mirrors Plan 01's `test-pp-off-translate.R`: the AST-
+# Local helper, mirrors `test-pp-toggles-translate.R`: the AST-
 # translation path runs via `ptr_translate(rlang::expr_text(expr))`
 # (annotated path). `ptr_translate` itself is string-only.
 ptr_translate_annot <- function(expr) {
@@ -109,7 +109,7 @@ test_that("ptr_tree_structural_equal: trees differing on `fun` compare unequal",
 # ---- SC5: ppLayerOff(..., FALSE) ≡ bare layer (translate level) ----------
 # Note: the plan's BDD names `ptr_translate(quote(...))` but the
 # canonical AST-translation entrypoint in this codebase is
-# `ptr_translate_annot()` (see Plan 01's test-pp-off-translate.R for the
+# `ptr_translate_annot()` (see test-pp-toggles-translate.R for the
 # identical pattern). `ptr_translate()` is string-only. The Then clause
 # ("tree-structural equality on these forms") is preserved verbatim.
 

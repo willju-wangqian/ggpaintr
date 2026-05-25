@@ -4,11 +4,11 @@
 # this stage have a UI checkbox?": `is_ptr_call(node) && (walk_has_placeholder(node)
 # || isTRUE(node$has_user_control))`. The second-pass helper
 # `stamp_default_stage_enabled_ids` is deleted; its prior rescue of
-# `ppVerbOff(hide=TRUE)` stages with no placeholders is now covered by
-# `ppVerbOff` unwrap stamping `has_user_control = TRUE` (Option A).
+# off-boot stages with no placeholders is now covered by the
+# `ppVerbSwitch` unwrap stamping `has_user_control = TRUE` (Option A).
 
 # Helper: translate from a quoted expression (mirrors the calling
-# convention used by test-pp-verb-switch-translate.R and test-pp-off-translate.R).
+# convention used by test-pp-verb-switch-translate.R and test-pp-toggles-translate.R).
 ptr_translate_annot <- function(expr) {
   ptr_translate(rlang::expr_text(expr))
 }
@@ -78,10 +78,10 @@ test_that("SC-5: stamp_default_stage_enabled_ids is removed from the package nam
                       inherits = FALSE))
 })
 
-# ---- SC-6: ppVerbOff(hide=TRUE) still boots OFF after stamp helper removal
-test_that("SC-6: ppVerbOff(verb, TRUE) carrier has default_stage_enabled=FALSE AND a non-NULL stage_id", {
+# ---- SC-6: ppVerbSwitch(switch_on=FALSE) still boots OFF after stamp helper removal
+test_that("SC-6: ppVerbSwitch(verb, switch_on=FALSE) carrier has default_stage_enabled=FALSE AND a non-NULL stage_id", {
   tree <- ptr_translate_annot(quote(
-    ggplot(mtcars |> ppVerbOff(mutate(mpg = mpg + 100), TRUE))
+    ggplot(mtcars |> ppVerbSwitch(mutate(mpg = mpg + 100), switch_on = FALSE))
   ))
   carrier <- find_first_call_named(tree, "mutate")
   expect_s3_class(carrier, "ptr_call")

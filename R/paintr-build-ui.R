@@ -246,7 +246,7 @@ build_pipeline_stage_ui <- function(entries, ui_text, layer_name, ns_fn) {
         # `default_stage_enabled` (they all descend from the same stage
         # carrier ptr_call); reading the head entry's threaded value is
         # sufficient. `%||% TRUE` covers the no-carrier case (e.g. a bare
-        # pipeline stage with no ppVerbOff stamp).
+        # pipeline stage with no ppVerbSwitch stamp).
         default_on <- isTRUE(entries[[i]]$default_stage_enabled %||% TRUE)
         out[[length(out) + 1L]] <- controllable_region(
           sid, head_label, fields, ns_fn = ns_fn, default_on = default_on

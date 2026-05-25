@@ -1,8 +1,9 @@
-# ADR 0020 PLAN-05 — assert the use-cases vignette section for ppLayerOff /
-# ppVerbOff exists and teaches the required content. Pure file-text checks
-# (read the .Rmd, regex over it). Vignette knit + render are covered by
-# `devtools::build_vignettes()` outside the gate; this file's job is to lock
-# the prose contract so future edits cannot silently strip the section.
+# ADR 0020 / 0021 PLAN-06 — assert the use-cases vignette section for
+# ppLayerOff / ppVerbSwitch exists and teaches the required content. Pure
+# file-text checks (read the .Rmd, regex over it). Vignette knit + render
+# are covered by `devtools::build_vignettes()` outside the gate; this
+# file's job is to lock the prose contract so future edits cannot silently
+# strip the section.
 
 vignette_lines <- function() {
   path <- testthat::test_path("..", "..", "vignettes", "ggpaintr-use-cases.Rmd")
@@ -18,8 +19,8 @@ test_that("SC1: vignette contains >= 5 mentions of `ppLayerOff`", {
   expect_gte(hits, 5L)
 })
 
-test_that("SC1: vignette contains >= 5 mentions of `ppVerbOff`", {
-  hits <- length(grep("ppVerbOff", vignette_lines(), fixed = TRUE))
+test_that("SC1: vignette contains >= 5 mentions of `ppVerbSwitch`", {
+  hits <- length(grep("ppVerbSwitch", vignette_lines(), fixed = TRUE))
   expect_gte(hits, 5L)
 })
 
@@ -27,9 +28,9 @@ test_that("SC1: vignette contains >= 5 mentions of `ppVerbOff`", {
 
 test_that("SC1: vignette has a top-level section heading covering both keywords", {
   lines <- vignette_lines()
-  # An H2 heading that names both keywords (or one heading per ADR 0020 plan
-  # prose). Match either the combined heading the plan suggests or a heading
-  # that names ppLayerOff in the title.
+  # An H2 heading that names both keywords (or one heading per ADR 0020 /
+  # 0021 plan prose). Match either the combined heading the plan suggests
+  # or a heading that names ppLayerOff in the title.
   pattern <- "^## .*(ppLayerOff|Layer.*stage|stage.*toggles)"
   expect_true(any(grepl(pattern, lines, perl = TRUE)))
 })
@@ -49,10 +50,10 @@ test_that("SC2: motivation prose mentions source-of-truth framing", {
 
 test_that("SC3: a runnable naked-R chunk for the keywords exists with eval = TRUE", {
   text <- vignette_text()
-  # The naked-R chunk this plan adds is tagged `pp-off-naked` and carries
-  # the explicit `eval = TRUE` opt-in (the vignette's setup default is
-  # `eval = interactive()`).
-  expect_match(text, "pp-off-naked, eval = TRUE", fixed = TRUE)
+  # The naked-R chunk this plan adds is tagged `pp-toggles-naked` and
+  # carries the explicit `eval = TRUE` opt-in (the vignette's setup default
+  # is `eval = interactive()`).
+  expect_match(text, "pp-toggles-naked, eval = TRUE", fixed = TRUE)
   # The chunk uses the keyword in a real ggplot context.
   expect_match(text, "ppLayerOff(geom_point()", fixed = TRUE)
 })
@@ -61,13 +62,13 @@ test_that("SC3: a runnable naked-R chunk for the keywords exists with eval = TRU
 
 test_that("SC4: a contrast chunk wraps the formula in ptr_app(", {
   text <- vignette_text()
-  # The chunk `pp-off-app` shows the same formula text inside ptr_app(...).
-  expect_match(text, "pp-off-app", fixed = TRUE)
+  # The chunk `pp-toggles-app` shows the same formula text inside ptr_app(...).
+  expect_match(text, "pp-toggles-app", fixed = TRUE)
   # The chunk references ptr_app(.
   expect_match(text, "ptr_app(\n\"mtcars", fixed = TRUE)
 })
 
-# ---- SC5 — ppVerbOff data-argument-position assumption is documented ----
+# ---- SC5 — ppVerbSwitch data-argument-position assumption is documented ----
 
 test_that("SC5: the section teaches the first-positional-argument constraint", {
   text <- vignette_text()

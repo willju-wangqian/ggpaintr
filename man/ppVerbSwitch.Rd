@@ -28,10 +28,10 @@ Outside \code{ptr_app()}: returns \code{.data} unchanged when
 }
 \description{
 ADR-0021 \emph{structural} keyword that marks a pipeline stage as user-
-toggleable in \code{ptr_app()}. Identical naked-R shape to \code{\link[=ppVerbOff]{ppVerbOff()}}
-except the boolean argument is \code{switch_on} (positive sense: TRUE
-applies the verb, FALSE skips it) and an optional \code{label} carries the
-UI text for the resulting checkbox. Inside \code{ptr_app()} / \code{ptr_server()}
+toggleable in \code{ptr_app()}. The boolean argument is \code{switch_on}
+(positive sense: TRUE applies the verb, FALSE skips it) and an optional
+\code{label} carries the UI text for the resulting checkbox. Inside
+\code{ptr_app()} / \code{ptr_server()}
 the parser sees the wrapper and unwraps it at translate time, stamping
 the boot-state metadata + UI label onto the resulting node. The
 wrapper itself never appears in the typed tree.
