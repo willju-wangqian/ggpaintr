@@ -37,7 +37,14 @@ test_that("super-1 kitchen-sink: sentinels propagate through every placeholder",
   # the upstream pipeline resolves with the new derived column "adj" before
   # the downstream y = ppVar(adj) picker reads its column choices.
   # The widget is a text input whose value is the unevaluated expression text.
-  set_sentinel(app, "ggplot_3_1_ppExpr_NA", "hp + 1")
+  # Sentinel value `mpg + wt` (range ~12–44) is deliberately chosen to fit
+  # inside `scale_y_continuous(limits = c(0, 50))`. A larger value like
+  # `hp + 1` (range ~53–336) drops every row from geom_smooth → loess on
+  # empty data → hard error from seq_len(). `expect_no_plot_error` below
+  # only checks Shiny-output / ptr-alert CSS classes and would NOT catch
+  # that degenerate state — so the recipe doubles as the human-followable
+  # eyeball recipe in dev/notes/2026-05-24-super-eyeball-checklist.html.
+  set_sentinel(app, "ggplot_3_1_ppExpr_NA", "mpg + wt")
   # Activate the ggplot layer's Controls subtab so the aes(x=/y=) ppVar
   # pickers' renderUI binds (project memory `shinytest2-appdir-pkgload`:
   # consumer pickers under a layer's tabset are suspended until the tab
@@ -64,8 +71,8 @@ test_that("super-1 kitchen-sink: sentinels propagate through every placeholder",
   # ppText: title = "S_T_2718" inside labs(...)
   expect_sentinel_in_code(app, "ptr_code", "\"S_T_2718\"",
     "labs\\([^)]*title\\s*=\\s*([^,)]*)", "final")
-  # ppExpr: dplyr::mutate(adj = hp + 1 ...)
-  expect_sentinel_in_code(app, "ptr_code", "hp + 1",
+  # ppExpr: dplyr::mutate(adj = mpg + wt ...)
+  expect_sentinel_in_code(app, "ptr_code", "mpg + wt",
     "dplyr::mutate\\(adj\\s*=\\s*([^)]*)", "final")
   # Shared "grp" reaches BOTH aes(color=) AND facet_wrap(vars(...)).
   # ADR §App-1 pressure axis (ii): call-type-agnostic. Both required.
@@ -113,7 +120,7 @@ test_that("super-1 no-default: sentinels propagate through every placeholder (no
   app <- boot_super_app("super-1-kitchen-sink", app_file = "app-no-default.R")
 
   # ---- Drive every sentinel ----------------------------------------------
-  set_sentinel(app, "ggplot_3_1_ppExpr_NA", "hp + 1")
+  set_sentinel(app, "ggplot_3_1_ppExpr_NA", "mpg + wt")
   app$set_inputs(ggplot_subtab = "Controls", wait_ = FALSE)
   app$wait_for_idle(timeout = 25 * 1000)
   set_sentinel(app, "ggplot_1_1_ppVar_NA", "disp")
@@ -131,7 +138,7 @@ test_that("super-1 no-default: sentinels propagate through every placeholder (no
     "aes\\([^)]*x\\s*=\\s*([^,)]*)", "final")
   expect_sentinel_in_code(app, "ptr_code", "\"S_T_2718\"",
     "labs\\([^)]*title\\s*=\\s*([^,)]*)", "final")
-  expect_sentinel_in_code(app, "ptr_code", "hp + 1",
+  expect_sentinel_in_code(app, "ptr_code", "mpg + wt",
     "dplyr::mutate\\(adj\\s*=\\s*([^)]*)", "final")
   expect_sentinel_in_code(app, "ptr_code", "gear",
     "aes\\([^)]*color\\s*=\\s*([^,)]*)", "final")

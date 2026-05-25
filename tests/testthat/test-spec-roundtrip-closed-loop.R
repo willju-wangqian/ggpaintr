@@ -1,10 +1,16 @@
-# Closed-loop `spec=` round trip.
+# Closed-loop `spec=` round trip — gate test.
 #
 # Drives widgets via `shiny::testServer`, reads the preserve-mode code
 # panel, parses the trailing `ptr_spec <- list(...)` block, feeds the
 # result as `spec=` to a second `ptr_server_internal` boot, and asserts
 # the second session's `state$spec_seed` matches the first session's
 # `runtime()$snapshot` for the same ids.
+#
+# This is the *closed* loop the user-visible copy-paste workflow depends
+# on. Without it, the emit-side panel could quietly drift from the
+# apply-side parser (quoting, list ordering, type rules) while
+# `test-ptr-spec-emission.R` and `test-adr12-spec-roundtrip.R` stayed
+# green on their respective halves.
 #
 # Why `state$spec_seed` and not `input[[id]]`: under `testServer` there
 # is no client, so renderUI'd widgets' JS bindings cannot round-trip the
@@ -15,8 +21,7 @@
 # for "what session #2 booted with".
 #
 # Complements `test-ptr-spec-emission.R` (emission-side unit tests) and
-# `test-adr12-spec-roundtrip.R` (apply-side, browser e2e) by closing the
-# loop the user-visible copy-paste workflow depends on.
+# `test-adr12-spec-roundtrip.R` (apply-side, browser e2e).
 
 # ---- helpers ---------------------------------------------------------------
 
@@ -127,12 +132,11 @@ test_that("closed loop: built-ins (ppVar, ppNum, ppText, ppExpr) round-trip via 
 
 # ---- Test B: ppUpload spec must NOT leak temp filesystem paths -------------
 #
-# FAILS today. Verified leak (dev/notes/2026-05-24-...):
-# `format_spec_for_panel` deparses the upload's fileInput data.frame
-# verbatim, baking the OS tmp path into the rendered code. The fix
-# (skip role="placeholder" + keyword="ppUpload" rows inside `state$spec()`
-# / `ptr_spec_from_snapshot`) lands separately. This test is the
-# regression guard.
+# Regression guard for the ppUpload deparse hygiene rule: rows with
+# role="placeholder" + keyword="ppUpload" are skipped inside
+# `state$spec()` / `ptr_spec_from_snapshot`, so `format_spec_for_panel`
+# never deparses an upload's fileInput data.frame and never bakes the
+# session-local tmp path into the rendered code.
 
 test_that("closed loop: ppUpload spec does not leak temp file paths", {
   e <- list2env(list(mtcars = mtcars), parent = globalenv())
