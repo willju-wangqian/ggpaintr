@@ -211,7 +211,7 @@ server <- function(input, output, session) {
 shiny::shinyApp(ui, server)
 ```
 
-`ptr_server()` returns the `ptr_state` from `ptr_init_state()` so embedders that want to react to it (e.g. call `ptr_gg_extra()`, read `ptr_extract_*()`) can capture it; otherwise the side effects are all that matter. `...` is forwarded to `ptr_init_state()` — so `ui_text =`, `checkbox_defaults =`, `expr_check =`, `safe_to_remove =`, and the shared-binding arguments are all available here too.
+`ptr_server()` returns the `ptr_state` from `ptr_init_state()` so embedders that want to react to it (e.g. call `ptr_gg_extra()`, read `ptr_extract_*()`) can capture it; otherwise the side effects are all that matter. `...` is forwarded to `ptr_init_state()` — so `ui_text =`, `expr_check =`, `safe_to_remove =`, and the shared-binding arguments are all available here too. (To start a layer unchecked at boot, write the formula with `ppLayerOff(geom_X(), TRUE)`; ADR 0020 removed the prior `checkbox_defaults =` side-channel.)
 
 ### Shared widgets: single instance vs. multiple instances
 
@@ -349,7 +349,7 @@ The pieces are **truly orthogonal** — they take an `id` (and, where relevant, 
 |---|---|---|
 | `ptr_ui_page(…, page, css)` | The optional page shell: a Bootstrap-3 page + the single `.ptr-app` theme scope + the deduped asset bundle, wrapping the pieces you pass in `…` | `page` (default `shiny::fluidPage`), `css` |
 | `ptr_ui_header(title)` | The branded header bar (logo + title) | `title` (default `"ggpaintr"`) |
-| `ptr_ui_controls(formula, id = NULL, …)` | The generated control widgets (layer picker, per-layer panels, *Update plot*, inline shared section) | `id`, `formula`, `ui_text`, `checkbox_defaults`, `expr_check`, `shared` |
+| `ptr_ui_controls(formula, id = NULL, …)` | The generated control widgets (layer picker, per-layer panels, *Update plot*, inline shared section) | `id`, `formula`, `ui_text`, `expr_check`, `shared` |
 | `ptr_ui_plot(id)` | The bare plot card (`ptr_plot`) — no error slot, no toggle | `id` |
 | `ptr_ui_error(id)` | The bare inline error slot (`ptr_error`) | `id` |
 | `ptr_ui_code(id, style)` | The bare generated-code pane (`ptr_code`) | `style = "panel"` (plain, always visible — default) or `"window"` (slide-out chrome, only meaningful via the toggle combinator) |

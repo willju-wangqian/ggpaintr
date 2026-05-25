@@ -8,7 +8,6 @@ ptr_app(
   formula,
   envir = parent.frame(),
   ui_text = NULL,
-  checkbox_defaults = NULL,
   expr_check = TRUE,
   safe_to_remove = character(),
   css = NULL,
@@ -35,9 +34,6 @@ shows the desugared nested-call form. Stay in string mode (or use
 
 \item{ui_text}{Optional named list of copy overrides; see \code{\link[=ptr_ui_text]{ptr_ui_text()}}
 for the full schema and current defaults.}
-
-\item{checkbox_defaults}{Optional named list of initial checked states for
-layer checkboxes.}
 
 \item{expr_check}{Controls \code{ppExpr} placeholder validation. Three modes:
 \code{TRUE} (default) applies the built-in denylist + AST walker;

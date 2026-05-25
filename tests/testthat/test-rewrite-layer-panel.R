@@ -65,39 +65,39 @@ test_that("P6.12 ggplot layer has no checkbox", {
 
 # ---- P6.9 / P6.10 — checkbox default state ----
 
-test_that("P6.9 checkbox defaults to TRUE when key absent", {
+test_that("P6.9 checkbox defaults to TRUE when ppLayerOff is not used", {
+  # ADR 0020: default-active reads from `node$default_active`. A bare
+  # geom_point() leaves the field unset, so the carrier's effective value
+  # is TRUE -> the static panel renders the checkbox `checked="checked"`.
   tree <- ptr_translate("ggplot(mtcars) + geom_point()")
   layer <- .layer_by_name(tree, "geom_point")
-  panel <- build_ui_for(
-    layer,
-    checkbox_defaults = c(geom_smooth = FALSE)  # no geom_point key
-  )
+  panel <- build_ui_for(layer)
   rendered <- as.character(panel)
   expect_match(rendered, 'checked="checked"', fixed = TRUE)
 })
 
-test_that("P6.10 checkbox defaults to FALSE when key set FALSE", {
-  testthat::skip("superseded by ADR 0020 ppLayerOff; Plan 04 will delete this file")
-  tree <- ptr_translate("ggplot(mtcars) + geom_point()")
+test_that("P6.10 checkbox defaults to FALSE via ppLayerOff(geom, TRUE)", {
+  # ADR 0020 / Plan 04 rewrite of the deleted `checkbox_defaults =` test.
+  # `ppLayerOff(geom_point(), TRUE)` stamps `default_active = FALSE` on
+  # the carrier ptr_layer; `build_ui_for.ptr_layer` reads that field
+  # directly to set the checkbox state and the disabled-class on the
+  # layer content wrapper.
+  tree <- ptr_translate("ggplot(mtcars) + ppLayerOff(geom_point(), TRUE)")
   layer <- .layer_by_name(tree, "geom_point")
-  panel <- build_ui_for(
-    layer,
-    checkbox_defaults = c(geom_point = FALSE)
-  )
+  panel <- build_ui_for(layer)
   rendered <- as.character(panel)
   expect_no_match(rendered, 'checked="checked"', fixed = TRUE)
 })
 
 # ---- P6.11 — content div carries ptr-layer-disabled when FALSE ----
 
-test_that("P6.11 layer toggle FALSE adds ptr-layer-disabled class", {
-  testthat::skip("superseded by ADR 0020 ppLayerOff; Plan 04 will delete this file")
-  tree <- ptr_translate("ggplot(mtcars) + geom_point()")
+test_that("P6.11 ppLayerOff(geom, TRUE) adds ptr-layer-disabled class", {
+  # ADR 0020 / Plan 04 rewrite: same source-of-truth as P6.10 above; the
+  # static panel's content div picks up `ptr-layer-disabled` when the
+  # carrier's `default_active` is FALSE.
+  tree <- ptr_translate("ggplot(mtcars) + ppLayerOff(geom_point(), TRUE)")
   layer <- .layer_by_name(tree, "geom_point")
-  panel <- build_ui_for(
-    layer,
-    checkbox_defaults = c(geom_point = FALSE)
-  )
+  panel <- build_ui_for(layer)
   disabled_divs <- .find_tags2(panel, has_class = "ptr-layer-disabled")
   expect_true(length(disabled_divs) > 0L)
 })

@@ -72,13 +72,14 @@ ptr_app(
 )
 
 # 7. Multi-layer with every value-placeholder type (text/num/expr) and a
-#    layer-checkbox default that starts geom_smooth OFF.
+#    layer-checkbox default that starts geom_smooth OFF. ADR 0020: use
+#    `ppLayerOff()` inside the formula instead of the removed
+#    `checkbox_defaults =` argument.
 ptr_app(
   "ggplot(data = mtcars, aes(x = var, y = var)) +
    geom_point(size = num) +
-   geom_smooth(method = expr) +
-   labs(title = text, x = text, y = text)",
-  checkbox_defaults = list(geom_smooth = FALSE)
+   ppLayerOff(geom_smooth(method = expr), TRUE) +
+   labs(title = text, x = text, y = text)"
 )
 
 # 8. Pipeline data placeholder -- num threads through head() before ggplot

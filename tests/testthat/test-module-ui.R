@@ -62,9 +62,12 @@ test_that("B2.3b non-ptr_shared_spec non-NULL shared errors via ptr_ui_controls"
 
 test_that("B2.4 shared = does not change argument order of existing params", {
   # Constraint: shared = NULL is appended; existing params keep position.
+  # ADR 0020 / Plan 04: the deprecated `checkbox_defaults` slot was
+  # removed, so the public signature lost it but every other position
+  # is preserved.
   expect_identical(
     names(formals(ptr_ui)),
-    c("formula", "id", "ui_text", "checkbox_defaults",
+    c("formula", "id", "ui_text",
       "expr_check", "css", "shared")
   )
 })

@@ -17,15 +17,22 @@ test_that("ptr_init_state returns a typed-state structure", {
   expect_true(is.function(state$tree))  # reactiveVal is a function
 })
 
-test_that("ptr_init_state resolves checkbox_defaults", {
-  testthat::skip("superseded by ADR 0020 ppLayerOff; Plan 04 will rewrite using ppLayerOff equivalents")
-  state <- ptr_init_state(
-    "ggplot(mtcars) + geom_point() + geom_smooth()",
-    checkbox_defaults = list(geom_smooth = FALSE),
-    envir = .server_test_env()
+test_that("ptr_init_state honors ppLayerOff(geom, TRUE) via node$default_active", {
+  # ADR 0020 / Plan 04: replaces the deleted `checkbox_defaults = ...`
+  # test. The formula-side `ppLayerOff()` now carries the bit; the layer's
+  # default-checked state is read from `node$default_active` (stamped on
+  # the carrier in `ptr_translate()`).
+  tree <- ptr_translate(
+    "ggplot(mtcars) + ppLayerOff(geom_smooth(), TRUE) + geom_point()"
   )
-  expect_equal(state$checkbox_defaults[["geom_point"]], TRUE)
-  expect_equal(state$checkbox_defaults[["geom_smooth"]], FALSE)
+  smooth_layer <- tree$layers[[which(vapply(
+    tree$layers, function(l) identical(l$name, "geom_smooth"), logical(1)
+  ))]]
+  point_layer <- tree$layers[[which(vapply(
+    tree$layers, function(l) identical(l$name, "geom_point"), logical(1)
+  ))]]
+  expect_false(isTRUE(smooth_layer$default_active %||% TRUE))
+  expect_true(isTRUE(point_layer$default_active %||% TRUE))
 })
 
 test_that("ptr_init_state builds resolved_data slots only for bare-data-source layers", {

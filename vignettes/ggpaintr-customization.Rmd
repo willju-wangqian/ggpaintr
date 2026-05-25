@@ -25,6 +25,36 @@ Every chunk is marked `eval = interactive()` and is runnable as-is at the R prom
 library(ggpaintr)
 ```
 
+## Migrating from `checkbox_defaults`
+
+ADR 0020 (and its Plan 04 demolition pass) removed the per-call `checkbox_defaults =` argument and the global `checkbox_default_all_other_layer` option in favour of two formula-side keywords: `ppLayerOff()` and `ppVerbOff()`. The keywords live inside the formula, so the source-of-truth for "what starts off?" is the same string you wrote the chart against — no parallel side-channel to keep in sync.
+
+Three mechanical conversions cover every prior use:
+
+1. **Direct entries** — start one named layer off:
+
+    ```r
+    # Old
+    ptr_app("ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point() + geom_smooth()",
+            checkbox_defaults = list(geom_smooth = FALSE))
+
+    # New
+    ptr_app("ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point() + ppLayerOff(geom_smooth(), TRUE)")
+    ```
+
+2. **Duplicate-group expansion** — a vector at a bare base name addressed every same-name instance. Now wrap each instance separately:
+
+    ```r
+    # Old (apply c(TRUE, FALSE) across two geom_point() layers)
+    ptr_app("ggplot(...) + geom_point() + geom_point()",
+            checkbox_defaults = list(geom_point = c(TRUE, FALSE)))
+
+    # New
+    ptr_app("ggplot(...) + geom_point() + ppLayerOff(geom_point(), TRUE)")
+    ```
+
+3. **Opt-in mode** (`ptr_options(checkbox_default_all_other_layer = FALSE)`) — wrap every layer that should start off in `ppLayerOff(..., TRUE)` explicitly. The global option is gone; the formula is the only source of truth.
+
 ## Rewriting copy with `ui_text`
 
 Every label, placeholder, and help string in the generated UI comes from a deep-merged copy-rules tree. ggpaintr ships a set of defaults; you override any subset by passing `ui_text =` to the entry point. Only the keys you spell out change — everything else stays at its built-in value.
@@ -131,7 +161,7 @@ When CSS alone is not enough — you want a different page shell, a theme system
 
 - `ptr_ui_controls(formula, id = NULL, ...)` — the layer picker, per-layer parameter panels, and the "Update plot" button. It is **bare** (emits only its widgets, no wrapper, no assets), so the wrapper itself supplies the themed scope — a `shiny::tags$div(class = "ptr-app", ...)` — and the bundled stylesheet via `ptr_ui_assets()` (self-deduping page-wide through htmlDependency).
 - the output stack — `ptr_ui_toggle_code(ptr_ui_inline_error(ptr_ui_plot(id), ptr_ui_error(id)), ptr_ui_code(id))`: the plot card, inline error, and the slide-out generated-code window, composed from the bare panes by the two DOM-only combinators. This nested call is byte-for-byte what `ptr_app()` / `ptr_ui()` render internally.
-- `ptr_server(formula, id = NULL, ...)` — the server side. Forwards `ui_text` / `checkbox_defaults` / `expr_check` / `safe_to_remove` / `envir` to [ptr_init_state()] and wires all the reactivity, including shared widgets declared with `ppVar(shared = "...")` inside the same formula.
+- `ptr_server(formula, id = NULL, ...)` — the server side. Forwards `ui_text` / `expr_check` / `safe_to_remove` / `envir` to [ptr_init_state()] and wires all the reactivity, including shared widgets declared with `ppVar(shared = "...")` inside the same formula. (To start a layer unchecked at boot, write the formula with `ppLayerOff(geom_X(), TRUE)` — there is no `checkbox_defaults =` side-channel; ADR 0020.)
 
 The package ships one worked example as an exported function, `ptr_app_bslib()`. It is not a recommended primary entry point — `ptr_app()` and `ptr_app_grid()` are. Its purpose is to *demonstrate* the wrapper pattern. The entire source is short enough to read in one screen:
 
@@ -139,7 +169,6 @@ The package ships one worked example as an exported function, `ptr_app_bslib()`.
 ptr_app_bslib <- function(formula,
                           envir = parent.frame(),
                           ui_text = NULL,
-                          checkbox_defaults = NULL,
                           expr_check = TRUE,
                           safe_to_remove = character(),
                           theme = NULL) {
@@ -171,7 +200,6 @@ ptr_app_bslib <- function(formula,
         ptr_ui_controls(
           id = id, formula = formula,
           ui_text = ui_text,
-          checkbox_defaults = checkbox_defaults,
           expr_check = expr_check,
           shared = NULL
         )
@@ -196,7 +224,6 @@ ptr_app_bslib <- function(formula,
       id = id,
       envir = envir,
       ui_text = ui_text,
-      checkbox_defaults = checkbox_defaults,
       expr_check = expr_check,
       safe_to_remove = safe_to_remove
     )

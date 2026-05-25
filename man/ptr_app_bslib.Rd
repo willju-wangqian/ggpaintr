@@ -8,7 +8,6 @@ ptr_app_bslib(
   formula,
   envir = parent.frame(),
   ui_text = NULL,
-  checkbox_defaults = NULL,
   expr_check = TRUE,
   safe_to_remove = character(),
   theme = NULL,
@@ -24,9 +23,6 @@ the app.}
 \item{ui_text}{Optional named list of copy overrides for UI labels, helper
 text, and placeholders. The app title is read from
 \code{ui_text$shell$title$label}; defaults to \code{"ggpaintr"}.}
-
-\item{checkbox_defaults}{Optional named list of initial checked states for
-layer checkboxes.}
 
 \item{expr_check}{Controls \code{ppExpr} placeholder validation: \code{TRUE} (default)
 applies the built-in denylist + AST walker; \code{FALSE} disables all

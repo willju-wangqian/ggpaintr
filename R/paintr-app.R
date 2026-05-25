@@ -14,8 +14,6 @@
 #' @param envir Environment used to resolve local data objects.
 #' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
 #'   for the full schema and current defaults.
-#' @param checkbox_defaults Optional named list of initial checked states for
-#'   layer checkboxes.
 #' @param expr_check Controls `ppExpr` placeholder validation. Three modes:
 #'   `TRUE` (default) applies the built-in denylist + AST walker;
 #'   `FALSE` disables all validation (for local prototyping with trusted
@@ -136,7 +134,6 @@
 ptr_app <- function(formula,
                        envir = parent.frame(),
                        ui_text = NULL,
-                       checkbox_defaults = NULL,
                        expr_check = TRUE,
                        safe_to_remove = character(),
                        css = NULL,
@@ -146,7 +143,6 @@ ptr_app <- function(formula,
     formula_str,
     envir = envir,
     ui_text = ui_text,
-    checkbox_defaults = checkbox_defaults,
     expr_check = expr_check,
     safe_to_remove = safe_to_remove,
     css = css,
@@ -158,7 +154,6 @@ ptr_app <- function(formula,
 ptr_app_components <- function(formula,
                                   envir = parent.frame(),
                                   ui_text = NULL,
-                                  checkbox_defaults = NULL,
                                   expr_check = TRUE,
                                   safe_to_remove = character(),
                                   ns = shiny::NS(NULL),
@@ -170,7 +165,6 @@ ptr_app_components <- function(formula,
   ui <- ptr_build_app_ui(
     tree,
     ui_text = ui_text,
-    checkbox_defaults = checkbox_defaults,
     ns = ns,
     render_shared_section = TRUE,
     app_chrome = TRUE,
@@ -179,7 +173,7 @@ ptr_app_components <- function(formula,
   server <- ptr_make_app_server(
     formula, tree,
     envir = envir, ui_text = ui_text,
-    checkbox_defaults = checkbox_defaults, expr_check = expr_check,
+    expr_check = expr_check,
     safe_to_remove = safe_to_remove, ns = ns,
     spec = spec
   )
@@ -296,7 +290,7 @@ ptr_capture_formula <- function(formula_captured, envir) {
 # binding (`ptr_bind_shared_consumer_uis()`). `tree` is the translated AST,
 # already in hand at the call site (it also drives the UI there).
 ptr_make_app_server <- function(formula, tree, envir, ui_text,
-                                checkbox_defaults, expr_check,
+                                expr_check,
                                 safe_to_remove, ns, spec = NULL) {
   shared_entries <- collect_shared_placeholders(tree)
   shared_keys <- vapply(shared_entries, `[[`, character(1), "key")
@@ -318,7 +312,6 @@ ptr_make_app_server <- function(formula, tree, envir, ui_text,
       input, output, session, formula,
       envir = envir,
       ui_text = ui_text,
-      checkbox_defaults = checkbox_defaults,
       expr_check = expr_check,
       safe_to_remove = safe_to_remove,
       shared = shared_reactives,
@@ -389,7 +382,6 @@ shared_section_tags <- function(tree, ui_text = NULL, ns = shiny::NS(NULL),
 }
 
 ptr_controls_panel <- function(tree, ui_text = NULL,
-                               checkbox_defaults = NULL,
                                ns = shiny::NS(NULL),
                                render_shared_section = FALSE) {
   shell_copy <- layer_panel_default_shell_copy(ui_text)
@@ -399,7 +391,6 @@ ptr_controls_panel <- function(tree, ui_text = NULL,
     build_ui_for(layer,
                  ui_text = ui_text,
                  ns_fn = ns,
-                 checkbox_defaults = checkbox_defaults,
                  shell_copy = shell_copy)
   })
 
@@ -746,7 +737,6 @@ ptr_ui_toggle_code <- function(plotish, code) {
 }
 
 ptr_build_app_ui <- function(tree, ui_text = NULL,
-                                checkbox_defaults = NULL,
                                 ns = shiny::NS(NULL),
                                 render_shared_section = FALSE,
                                 app_chrome = FALSE,
@@ -773,7 +763,6 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
         do.call(
           shiny::sidebarPanel,
           ptr_controls_panel(tree, ui_text = ui_text,
-                             checkbox_defaults = checkbox_defaults,
                              ns = ns,
                              render_shared_section = render_shared_section)
         ),
@@ -824,7 +813,6 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #'   Defaults to `NULL` (identity namespace, single-instance use).
 #' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
 #'   for the full schema and current defaults.
-#' @param checkbox_defaults Optional named list of initial checked states.
 #' @param expr_check Controls `ppExpr` placeholder validation: `TRUE` (default)
 #'   applies the built-in denylist + AST walker; `FALSE` disables all
 #'   validation; a `list` with `deny_list`/`allow_list` entries customises
@@ -852,7 +840,7 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #' )
 #' @export
 ptr_ui <- function(formula, id = NULL, ui_text = NULL,
-                             checkbox_defaults = NULL, expr_check = TRUE,
+                             expr_check = TRUE,
                              css = NULL, shared = NULL) {
   # Self-contained L2 shell: fluidPage > div.ptr-app > sidebarLayout, built
   # by composing the bare L3 pieces + combinators (no reimplementation).
@@ -876,7 +864,6 @@ ptr_ui <- function(formula, id = NULL, ui_text = NULL,
           ptr_ui_controls(
             id = id, formula = formula,
             ui_text = ui_text,
-            checkbox_defaults = checkbox_defaults,
             expr_check = expr_check,
             shared = shared
           )
@@ -921,7 +908,6 @@ ptr_ui <- function(formula, id = NULL, ui_text = NULL,
 #'   `id` passed to the other piece functions and the server wiring.
 #' @param ui_text Optional named list of copy overrides; see
 #'   [ptr_ui_text()] for the full schema and current defaults.
-#' @param checkbox_defaults Optional named list of initial checked states.
 #' @param expr_check Controls `ppExpr` placeholder validation: `TRUE` (default)
 #'   applies the built-in denylist + AST walker; `FALSE` disables all
 #'   validation; a `list` with `deny_list`/`allow_list` entries customises
@@ -944,7 +930,7 @@ ptr_ui <- function(formula, id = NULL, ui_text = NULL,
 #' )
 #' @export
 ptr_ui_controls <- function(formula, id = NULL, ui_text = NULL,
-                            checkbox_defaults = NULL, expr_check = TRUE,
+                            expr_check = TRUE,
                             shared = NULL) {
   assertthat::assert_that(
     is.null(shared) || inherits(shared, "ptr_shared_spec")
@@ -955,7 +941,6 @@ ptr_ui_controls <- function(formula, id = NULL, ui_text = NULL,
   section <- shared_section_tags(tree, ui_text = ui_text, ns = ns,
                                  exclude_keys = exclude_keys)
   body <- ptr_controls_panel(tree, ui_text = ui_text,
-                             checkbox_defaults = checkbox_defaults,
                              ns = ns,
                              render_shared_section = FALSE)
   do.call(shiny::tagList, drop_null(c(list(section), body)))
@@ -1007,7 +992,7 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #' harmless no-op), and **returns the `ptr_state`** so you can drive a
 #' custom renderer. Additional arguments are forwarded to [ptr_init_state()]
 #' (e.g. `shared`, `draw_trigger`, `expr_check`, `safe_to_remove`,
-#' `ui_text`, `checkbox_defaults`).
+#' `ui_text`).
 #'
 #' @section Custom render (L3):
 #' Custom rendering is **UI-side**: place your own output widget (e.g.
