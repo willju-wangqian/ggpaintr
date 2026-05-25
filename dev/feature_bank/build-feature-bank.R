@@ -73,7 +73,7 @@ features <- list(
   # ---- Public API: Shiny module ------------------------------------------
   mk("ptr_module_ui", "ptr_module_ui()", "Public API",
      "R/paintr-app.R:328",
-     "Embeddable Shiny module UI; takes id + formula + ui_text + checkbox_defaults + expr_check + css.",
+     "Embeddable Shiny module UI; takes id + formula + ui_text + expr_check + css.",
      c("ptr_module_ui")),
   mk("ptr_module_server", "ptr_module_server()", "Public API",
      "R/paintr-app.R:423",
@@ -243,10 +243,9 @@ features <- list(
      "R/paintr-app.R:29",
      "Override copy across shell / upload / layer_checkbox / defaults / params / layers.",
      c("ui_text = ", "ptr_ui_text(", "ptr_resolve_ui_text")),
-  mk("arg-checkbox_defaults", "checkbox_defaults =", "ptr_app() arg",
-     "R/paintr-app.R:29",
-     "Per-layer initial enable / disable state for the include-this-layer checkbox.",
-     c("checkbox_defaults")),
+  # ADR 0020 / Plan 04: the `checkbox_defaults =` argument and the
+  # `checkbox_default_all_other_layer` option were removed; per-layer boot
+  # state lives in the formula via `ppLayerOff()` / `ppVerbOff()`.
   mk("arg-expr_check", "expr_check =", "ptr_app() arg",
      "R/paintr-app.R:29",
      "Toggle the expression-input safety guard: TRUE / FALSE / list(deny_list=) / list(allow_list=).",

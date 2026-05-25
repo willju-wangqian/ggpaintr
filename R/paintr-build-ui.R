@@ -20,7 +20,7 @@
 #' @param node A typed AST node (e.g. `ptr_ph_value`, `ptr_ph_data_consumer`,
 #'   `ptr_ph_data_source`, `ptr_layer`).
 #' @param ... Additional arguments. Recognized by built-in methods:
-#'   `ui_text`, `layer_name`, `ns_fn`, `checkbox_defaults`, `shell_copy`,
+#'   `ui_text`, `layer_name`, `ns_fn`, `shell_copy`,
 #'   `label_override` (force a specific widget label, used for shared widgets
 #'   referenced under several params). Consumer placeholders emit only a `uiOutput` container at
 #'   static build time; their picker is rendered server-side via
@@ -110,7 +110,6 @@ source_output_id <- function(raw_id) {
 build_ui_for.ptr_layer <- function(node,
                                     ui_text = NULL,
                                     ns_fn = identity,
-                                    checkbox_defaults = NULL,
                                     shell_copy = NULL,
                                     ...) {
   layer_name <- node$name
@@ -566,16 +565,6 @@ layer_panel_inner <- function(pipeline_ui, control_ui,
 
 layer_panel_content_id <- function(layer_name) {
   paste0("ptr_layer_content_", layer_name)
-}
-
-resolve_layer_default <- function(layer_name, checkbox_defaults,
-                                   default_active) {
-  if (identical(layer_name, "ggplot")) return(TRUE)
-  if (!is.null(checkbox_defaults) &&
-      layer_name %in% names(checkbox_defaults)) {
-    return(isTRUE(checkbox_defaults[[layer_name]]))
-  }
-  isTRUE(default_active %||% TRUE)
 }
 
 layer_panel_default_shell_copy <- function(ui_text) {

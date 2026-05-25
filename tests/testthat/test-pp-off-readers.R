@@ -46,18 +46,15 @@ test_that("SC2: snapshot's stage_enabled entry defaults to TRUE without ppVerbOf
   }
 })
 
-# ---- SC3 — snapshot ignores checkbox_defaults at the read site ----
-
-test_that("SC3: snapshot ignores checkbox_defaults argument for layer_checkbox", {
-  tree <- ptr_translate("ggplot() + geom_point()")
-  spec <- ptr_runtime_input_spec(tree)
-  snap_a <- ggpaintr:::ptr_default_snapshot(spec, tree, checkbox_defaults = NULL)
-  snap_b <- suppressWarnings(ggpaintr:::ptr_default_snapshot(
-    spec, tree, checkbox_defaults = list(geom_point = FALSE)
-  ))
-  expect_identical(snap_a, snap_b)
-  expect_true(snap_a[["geom_point_checkbox"]])
-})
+# ---- SC3 — superseded by Plan 04 ----
+#
+# Plan 02's SC3 asserted "snapshot ignores `checkbox_defaults` argument" as a
+# transitional safety net while the formal was still on `ptr_default_snapshot()`.
+# Plan 04 removes the formal entirely, so the assertion has no surface left to
+# test — the unused-arg error is enforced by R's call-site rules, and there
+# is no read site to verify-quiet. The covering coverage is now Plan 04's
+# `test-options.R` block "ptr_options() errors on the removed ..." and the
+# Plan 02 SC1/SC2 blocks above (which read carrier fields, not the deleted arg).
 
 # ---- SC4 — layer-checkbox UI honors node$default_active ----
 
@@ -85,22 +82,11 @@ test_that("SC4: layer-checkbox UI value reads node$default_active = TRUE (defaul
   expect_no_match(rendered, "ptr-layer-disabled", fixed = TRUE)
 })
 
-test_that("SC4: layer-checkbox UI ignores checkbox_defaults at read site", {
-  # ADR 0020: the layer-checkbox UI now reads node$default_active and does
-  # NOT consult the legacy checkbox_defaults arg, even when threaded in.
-  tree <- ptr_translate("ggplot() + geom_point()")
-  layer <- tree$layers[[which(vapply(
-    tree$layers, function(l) identical(l$name, "geom_point"), logical(1)
-  ))]]
-  panel <- ggpaintr:::build_ui_for(
-    layer, checkbox_defaults = c(geom_point = FALSE)
-  )
-  rendered <- as.character(panel)
-  # Should still be checked since default_active is TRUE (the legacy arg is
-  # ignored at this read site).
-  expect_match(rendered, 'checked="checked"', fixed = TRUE)
-  expect_no_match(rendered, "ptr-layer-disabled", fixed = TRUE)
-})
+# SC4 third block (legacy "ignores checkbox_defaults at read site") deleted
+# by Plan 04: the formal is gone from `build_ui_for.ptr_layer`, so the
+# "ignored when threaded" claim no longer has a surface to exercise. The
+# two SC4 blocks above already cover the affirmative read of
+# `node$default_active` (on and off).
 
 # ---- SC5 — per-layer Data-panel stage block honors default_stage_enabled ----
 
@@ -194,7 +180,10 @@ test_that("SC8: ptr_spec_defaults_from_state honors default_active = FALSE", {
   )
   defaults <- ggpaintr:::ptr_spec_defaults_from_state(state)
   expect_false(defaults[["geom_point_checkbox"]])
-  # And state$checkbox_defaults must be removed (no remaining consumers).
+  # ADR 0020 / Plan 04: `state$checkbox_defaults` was never written by
+  # Plan 02 and the field itself is dead — the assertion below survives
+  # the formal's removal because the `ptr_init_state()` signature no
+  # longer accepts the deprecated argument.
   expect_false("checkbox_defaults" %in% names(state))
 })
 

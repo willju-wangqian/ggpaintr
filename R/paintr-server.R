@@ -28,8 +28,6 @@
 #' @param envir Environment used to resolve local data objects.
 #' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
 #'   for the full schema and current defaults.
-#' @param checkbox_defaults Optional named list of initial checked states for
-#'   layer checkboxes.
 #' @param expr_check Controls `ppExpr` placeholder validation: `TRUE` (default)
 #'   applies the built-in denylist + AST walker; `FALSE` disables all
 #'   validation; a `list` with `deny_list`/`allow_list` entries customises
@@ -86,7 +84,6 @@
 ptr_init_state <- function(formula,
                                 envir = parent.frame(),
                                 ui_text = NULL,
-                                checkbox_defaults = NULL,
                                 expr_check = TRUE,
                                 safe_to_remove = character(),
                                 shared = list(),
@@ -132,12 +129,12 @@ ptr_init_state <- function(formula,
     strict_missing = !isTRUE(auto_bind_shared)
   )
 
-  # ADR 0020 PLAN-02: `checkbox_defaults =` is no longer consulted here.
-  # The node-level `default_active` field (stamped by `ppLayerOff`) is the
-  # single source of truth, read at the snapshot site
-  # (`ptr_default_snapshot()`) and at the spec-emission diff baseline
-  # (`ptr_spec_defaults_from_state()`). The formal stays for API
-  # back-compat; Plan 04 removes it from the public surface.
+  # ADR 0020: the node-level `default_active` field (stamped by `ppLayerOff`)
+  # is the single source of truth for layer-checkbox boot state, read at the
+  # snapshot site (`ptr_default_snapshot()`) and at the spec-emission diff
+  # baseline (`ptr_spec_defaults_from_state()`). The deprecated per-call
+  # argument and the global option were removed straight out in Plan 04
+  # (no external users to deprecate-warn for; see ADR 0020 §Deprecation).
   data_layer_names <- character()
   for (l in tree$layers) {
     if (is_bare_data_source_layer(l)) {
@@ -693,8 +690,7 @@ apply_spec_entry <- function(session, row) {
 #' @param formula A single formula string with `ggpaintr` placeholders.
 #' @param envir Environment used to resolve local data objects.
 #' @param ... Forwarded to [ptr_init_state()] (e.g. `shared`,
-#'   `draw_trigger`, `ui_text`, `checkbox_defaults`, `expr_check`,
-#'   `safe_to_remove`, `ns`).
+#'   `draw_trigger`, `ui_text`, `expr_check`, `safe_to_remove`, `ns`).
 #' @param shared_state Optional `ptr_shared_state` bundle from
 #'   [ptr_shared_server()]. When supplied, its `shared`, `draw_trigger`,
 #'   `shared_resolutions` and `shared_stage_enabled` slots seed the

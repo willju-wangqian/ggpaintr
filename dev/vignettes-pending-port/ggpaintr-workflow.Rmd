@@ -318,41 +318,37 @@ Leave it at `TRUE` unless you have a specific reason to change it.
 
 ### 3.5 Choosing which layers start checked
 
-By default every non-`ggplot()` layer in the formula starts checked. When a formula declares mutually-incompatible layers — for example, two competing geoms or alternative coordinate systems — that default produces a broken plot at app startup. The `checkbox_defaults` argument sets the initial checked state per layer, so users land on a sensible starting view and can toggle alternatives in.
+By default every non-`ggplot()` layer in the formula starts checked. When a formula declares mutually-incompatible layers — for example, two competing geoms or alternative coordinate systems — that default produces a broken plot at app startup. ADR 0020 introduced the formula-side `ppLayerOff()` keyword: wrap any layer call you want to start unchecked, and the user toggles it in via the include-this-layer checkbox.
 
-```{r checkbox-defaults, eval = FALSE}
+```{r pp-layer-off, eval = FALSE}
 ptr_app(
   formula = paste(
     "ggplot(data = mtcars, aes(x = var, y = var)) +",
     "geom_point() +",
-    "geom_smooth(method = text) +",
-    "geom_line()"
-  ),
-  checkbox_defaults = list(
-    geom_smooth = FALSE,
-    geom_line   = FALSE
+    "ppLayerOff(geom_smooth(method = text), TRUE) +",
+    "ppLayerOff(geom_line(), TRUE)"
   )
 )
 ```
 
-Pass a named list. Names match layer names from the formula — use `names(ptr_parse_formula(formula)$expr_list)` to inspect them. **Duplicate layers** receive a hyphen-numeric suffix starting at `-2`: a formula with two `geom_point()` calls produces layer names `geom_point` and `geom_point-2`. To address them as a group, pass a logical vector at the bare key:
+`ppLayerOff(layer_call, TRUE)` stamps the carrier's `default_active` field to `FALSE` at translate time; everything downstream (snapshot + UI + spec defaults) reads that field as the single source of truth.
 
-```{r checkbox-defaults-dup, eval = FALSE}
-list(geom_point = c(TRUE, FALSE))      # 1st on, 2nd off
-list(geom_point = FALSE)               # 1st off, 2nd defaults to TRUE (padded)
-list(`geom_point-2` = FALSE)           # address one specific instance (backticks required)
+For duplicate layers, address each instance separately — the previous "pass a logical vector at the bare key" shorthand is gone with the deprecated `checkbox_defaults =` argument:
+
+```{r pp-layer-off-dup, eval = FALSE}
+# Two geom_point() calls; first stays on, second starts off.
+"ggplot(...) + geom_point() + ppLayerOff(geom_point(), TRUE)"
 ```
 
-Vectors shorter than the layer count pad with `TRUE`; longer vectors warn and truncate. Unrecognized names raise a warning and are ignored. `NA` and non-logical values raise an error. The same argument is available on `ptr_app()`, `ptr_app_bslib()`, `ptr_server()`, and `ptr_server_state()`.
+(ADR 0020 / Plan 04 removed the per-call `checkbox_defaults =` argument and the global `checkbox_default_all_other_layer` option in favour of `ppLayerOff()`. See `vignette("ggpaintr-customization")` § "Migrating from `checkbox_defaults`" for the conversion mapping.)
 
 ### Package-global settings via `ptr_options()`
 
 `ggpaintr` exposes a small number of session-wide flags through `ptr_options()`, which mirrors base `options()`: call with no arguments to read every current value, or with one or more named logicals to set them. Setters invisibly return the previous values, so the standard `withr::with_options()` / `on.exit()` round-trip works (`old <- ptr_options(verbose = FALSE); on.exit(do.call(ptr_options, old), add = TRUE)`).
 
-The two settings currently exposed are:
+The one setting currently exposed is:
 
 - `verbose` (default `FALSE`) — when `TRUE`, ggpaintr emits the "Layer foo() removed (no arguments provided)." informational notice and similar pipeline diagnostics. Intended for debugging the formula pipeline; off by default for a quiet user experience.
-- `checkbox_default_all_other_layer` (default `TRUE`) — fallback initial state for layer checkboxes not explicitly named in `checkbox_defaults =`. For apps with many alternative layers, invert this with `ptr_options(checkbox_default_all_other_layer = FALSE)` so every layer starts unchecked unless explicitly opted in.
 
 See `?ptr_options` for the canonical reference.
 

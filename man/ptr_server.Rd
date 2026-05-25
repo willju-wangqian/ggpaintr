@@ -54,7 +54,7 @@ wires the whole reactive engine, registers the built-in \code{ptr_plot} /
 harmless no-op), and \strong{returns the \code{ptr_state}} so you can drive a
 custom renderer. Additional arguments are forwarded to \code{\link[=ptr_init_state]{ptr_init_state()}}
 (e.g. \code{shared}, \code{draw_trigger}, \code{expr_check}, \code{safe_to_remove},
-\code{ui_text}, \code{checkbox_defaults}).
+\code{ui_text}).
 }
 \section{Custom render (L3)}{
 

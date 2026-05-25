@@ -58,21 +58,18 @@ ui <- fluidPage(
   )
 )
 
-checkbox_defaults1 <- list(geom_point = FALSE)
-checkbox_defaults2 <- list(geom_point = FALSE)
-
+# ADR 0020: per-layer boot-state lives in the formula via `ppLayerOff()`.
+# Two embedded apps, each with its geom_point() starting off.
 server <- function(input, output, session) {
   ptr_server(
     input, output, session,
-    formula = "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
-    ns      = ns_a,
-    checkbox_defaults = checkbox_defaults1
+    formula = "ggplot(data = mtcars, aes(x = var, y = var)) + ppLayerOff(geom_point(), TRUE)",
+    ns      = ns_a
   )
   ptr_server(
     input, output, session,
-    formula = "ggplot(data = iris, aes(x = var, y = var)) + geom_point()",
-    ns      = ns_b,
-    checkbox_defaults = checkbox_defaults2
+    formula = "ggplot(data = iris, aes(x = var, y = var)) + ppLayerOff(geom_point(), TRUE)",
+    ns      = ns_b
   )
 }
 

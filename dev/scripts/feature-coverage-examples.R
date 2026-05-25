@@ -38,14 +38,16 @@
 #   * every `ptr_app()` argument: envir, ui_text (via ptr_ui_text(), all 6
 #     sections + every `shell` sub-key + both `upload` sub-keys + every leaf
 #     field including `empty_text` + the `__unnamed__` positional key),
-#     checkbox_defaults, expr_check, safe_to_remove, css
+#     expr_check, safe_to_remove, css. (ADR 0020 removed `checkbox_defaults`
+#     and the `checkbox_default_all_other_layer` option; use `ppLayerOff()`
+#     in the formula instead.)
 #   * every `ptr_app_bslib()` argument including the bslib-only `theme` / `title`
 #
 # Example 2 (`ex2_*`) -- everything that is not a single `ptr_app()` call:
 #   * `ptr_app_grid()` + `shared_ui` + draw-all + `title` / `draw_all_label` / `css`
 #   * split-UI embed: `ptr_controls_ui()` + `ptr_outputs_ui(css=)` + `ptr_module_server()`
 #   * Shiny-module embed: `ptr_module_ui()` with every arg (id, formula, ui_text,
-#     checkbox_defaults, expr_check, css) + `ptr_module_server()` returning state,
+#     expr_check, css) + `ptr_module_server()` returning state,
 #     a user-owned output pane fed by the reactive `state$runtime()`, and `ptr_gg_extra()`
 #   * granular wiring: `ptr_init_state()` + `ptr_setup_*()` (internal) +
 #     `ptr_register_plot()` / `ptr_register_error()` / `ptr_register_code()`
@@ -227,12 +229,13 @@ if (interactive()) {
 
   # 1a. ptr_app() with every argument it accepts. `safe_to_remove = "pcp_theme"`
   #     opts a (hypothetical) third-party theme helper into the empty-call
-  #     cleanup; harmless if the formula never uses it.
+  #     cleanup; harmless if the formula never uses it. ADR 0020 removed the
+  #     per-call `checkbox_defaults =` argument; to start a layer off, wrap it
+  #     in `ppLayerOff(layer(), TRUE)` inside the formula instead.
   ptr_app(
     ex1_formula,
     envir             = environment(),
     ui_text           = ex1_ui_text,
-    checkbox_defaults = list(geom_smooth = FALSE),  # smoother layer starts off
     expr_check        = TRUE,                       # denylist active on `expr` inputs
     safe_to_remove    = "pcp_theme",
     css               = ex_css
@@ -243,7 +246,6 @@ if (interactive()) {
     ex1_formula,
     envir             = environment(),
     ui_text           = ex1_ui_text,
-    checkbox_defaults = list(geom_smooth = FALSE),
     expr_check        = TRUE,
     safe_to_remove    = "pcp_theme",
     theme             = bslib::bs_theme(version = 5, bootswatch = "minty"),
@@ -318,7 +320,9 @@ for (comp in c("title", "draw_button", "draw_all_button",
 }
 
 # --- ptr_options(): read / set / round-trip ---------------------------------
-ex2_old_opts <- ptr_options(verbose = TRUE, checkbox_default_all_other_layer = FALSE)
+# ADR 0020 removed `checkbox_default_all_other_layer`; `verbose` is the only
+# remaining setting.
+ex2_old_opts <- ptr_options(verbose = TRUE)
 print(ptr_options())                 # current values
 do.call(ptr_options, ex2_old_opts)   # restore previous values
 
@@ -460,7 +464,6 @@ if (interactive()) {
     fluidRow(
       column(5, ptr_module_ui(ex2_simple, "m",
                               ui_text = list(shell = list(title = list(label = "Module"))),
-                              checkbox_defaults = list(),
                               expr_check = TRUE,
                               css = ex_css)),
       column(7, plotOutput("my_plot", height = "420px"))

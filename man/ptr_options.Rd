@@ -33,16 +33,6 @@ Logical. When \code{TRUE}, ggpaintr emits informative messages such as
 these messages are intended for debugging the formula pipeline and
 are off by default. Underlying option: \code{options(ggpaintr.verbose = ...)}.
 }
-\item{\code{checkbox_default_all_other_layer}}{
-Logical. The fallback initial state for layer checkboxes that aren't
-explicitly named in a call's \code{checkbox_defaults} argument. \code{TRUE}
-(default) starts unspecified layers checked (current behavior); \code{FALSE}
-starts unspecified layers unchecked, so apps with many alternative
-layers can opt-in only the ones they want via \verb{checkbox_defaults =}.
-The per-call argument always wins over this global fallback.
-Underlying option:
-\code{options(ggpaintr.checkbox_default_all_other_layer = ...)}.
-}
 }
 }
 
@@ -53,7 +43,4 @@ ptr_options()
 # Silence the "Layer ... removed" notice for one block
 old <- ptr_options(verbose = FALSE)
 on.exit(do.call(ptr_options, old), add = TRUE)
-
-# Start every app with all layers unchecked unless the call opts them in
-ptr_options(checkbox_default_all_other_layer = FALSE)
 }

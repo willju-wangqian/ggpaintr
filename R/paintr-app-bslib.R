@@ -26,8 +26,6 @@
 #' @param ui_text Optional named list of copy overrides for UI labels, helper
 #'   text, and placeholders. The app title is read from
 #'   `ui_text$shell$title$label`; defaults to `"ggpaintr"`.
-#' @param checkbox_defaults Optional named list of initial checked states for
-#'   layer checkboxes.
 #' @param expr_check Controls `ppExpr` placeholder validation: `TRUE` (default)
 #'   applies the built-in denylist + AST walker; `FALSE` disables all
 #'   validation; a `list` with `deny_list`/`allow_list` entries customises
@@ -58,7 +56,6 @@
 ptr_app_bslib <- function(formula,
                           envir = parent.frame(),
                           ui_text = NULL,
-                          checkbox_defaults = NULL,
                           expr_check = TRUE,
                           safe_to_remove = character(),
                           theme = NULL,
@@ -91,7 +88,6 @@ ptr_app_bslib <- function(formula,
         ptr_ui_controls(
           id = id, formula = formula,
           ui_text = ui_text,
-          checkbox_defaults = checkbox_defaults,
           expr_check = expr_check,
           shared = NULL
         )
@@ -116,7 +112,6 @@ ptr_app_bslib <- function(formula,
       id = id,
       envir = envir,
       ui_text = ui_text,
-      checkbox_defaults = checkbox_defaults,
       expr_check = expr_check,
       safe_to_remove = safe_to_remove,
       spec = spec

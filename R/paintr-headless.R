@@ -86,11 +86,7 @@ ptr_headless_upstream_cols <- function(tree, snapshot = list(),
 # through `find_layer_by_name()` / `find_stage_call_by_id()` so this site
 # and `ptr_spec_defaults_from_state()` consult the same field, the same way.
 # Keys are RAW input ids (the `input_id` column), not namespaced.
-#
-# `checkbox_defaults =` is retained as a formal for API back-compat (Plan 04
-# removes it) but is NO LONGER READ at this site — ADR 0020 makes the
-# node-level `default_active` field the single source of truth.
-ptr_default_snapshot <- function(spec, tree, checkbox_defaults = NULL) {
+ptr_default_snapshot <- function(spec, tree) {
   snapshot <- list()
   if (nrow(spec) == 0L) return(snapshot)
 
@@ -115,11 +111,10 @@ ptr_default_snapshot <- function(spec, tree, checkbox_defaults = NULL) {
 # an optional override of input values (named by RAW input id). Anything not
 # supplied falls back to `ptr_default_snapshot()`'s defaults.
 ptr_run_formula <- function(formula, inputs = list(), envir = parent.frame(),
-                            expr_check = TRUE, safe_to_remove = character(),
-                            checkbox_defaults = NULL) {
+                            expr_check = TRUE, safe_to_remove = character()) {
   tree     <- ptr_translate(formula, expr_check = expr_check)
   spec     <- ptr_runtime_input_spec(tree)
-  snapshot <- ptr_default_snapshot(spec, tree, checkbox_defaults)
+  snapshot <- ptr_default_snapshot(spec, tree)
   if (length(inputs) > 0L) snapshot[names(inputs)] <- inputs
 
   upstream_cols <- ptr_headless_upstream_cols(

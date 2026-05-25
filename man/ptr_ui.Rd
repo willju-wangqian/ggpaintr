@@ -8,7 +8,6 @@ ptr_ui(
   formula,
   id = NULL,
   ui_text = NULL,
-  checkbox_defaults = NULL,
   expr_check = TRUE,
   css = NULL,
   shared = NULL
@@ -22,8 +21,6 @@ Defaults to \code{NULL} (identity namespace, single-instance use).}
 
 \item{ui_text}{Optional named list of copy overrides; see \code{\link[=ptr_ui_text]{ptr_ui_text()}}
 for the full schema and current defaults.}
-
-\item{checkbox_defaults}{Optional named list of initial checked states.}
 
 \item{expr_check}{Controls \code{ppExpr} placeholder validation: \code{TRUE} (default)
 applies the built-in denylist + AST walker; \code{FALSE} disables all

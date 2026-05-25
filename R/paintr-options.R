@@ -1,15 +1,11 @@
 # Registry of public ggpaintr settings.
 # Each entry maps a short setting name (used in ptr_options()) to its
-# underlying base R `option()` name and default value. Both settings are
-# logical scalars, so a single validator suffices.
+# underlying base R `option()` name and default value. The single registered
+# setting is a logical scalar, so a single validator suffices.
 ptr_settings <- list(
   verbose = list(
     option  = "ggpaintr.verbose",
     default = FALSE
-  ),
-  checkbox_default_all_other_layer = list(
-    option  = "ggpaintr.checkbox_default_all_other_layer",
-    default = TRUE
   )
 )
 
@@ -31,16 +27,6 @@ ptr_settings <- list(
 #'     these messages are intended for debugging the formula pipeline and
 #'     are off by default. Underlying option: `options(ggpaintr.verbose = ...)`.
 #'   }
-#'   \item{`checkbox_default_all_other_layer`}{
-#'     Logical. The fallback initial state for layer checkboxes that aren't
-#'     explicitly named in a call's `checkbox_defaults` argument. `TRUE`
-#'     (default) starts unspecified layers checked (current behavior); `FALSE`
-#'     starts unspecified layers unchecked, so apps with many alternative
-#'     layers can opt-in only the ones they want via `checkbox_defaults =`.
-#'     The per-call argument always wins over this global fallback.
-#'     Underlying option:
-#'     `options(ggpaintr.checkbox_default_all_other_layer = ...)`.
-#'   }
 #' }
 #'
 #' @param ... Named logical arguments — one per setting to update. Setting
@@ -57,9 +43,6 @@ ptr_settings <- list(
 #' # Silence the "Layer ... removed" notice for one block
 #' old <- ptr_options(verbose = FALSE)
 #' on.exit(do.call(ptr_options, old), add = TRUE)
-#'
-#' # Start every app with all layers unchecked unless the call opts them in
-#' ptr_options(checkbox_default_all_other_layer = FALSE)
 #' @export
 ptr_options <- function(...) {
   args <- list(...)
@@ -129,10 +112,4 @@ ptr_validate_setting_value <- function(key, value) {
     ))
   }
   invisible(TRUE)
-}
-
-#' Read the global "default checkbox state for unspecified layers" option.
-#' @noRd
-ptr_default_layer_state <- function() {
-  ptr_get_setting(ptr_settings$checkbox_default_all_other_layer)
 }
