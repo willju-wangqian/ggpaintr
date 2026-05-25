@@ -68,6 +68,46 @@ shared_stage_input_id <- function(key) {
 #   list(kind = "upstream"|"source"|"error",
 #        value = <ptr_node or NULL>,
 #        error = <chr or NULL>)
+#
+# Trade-off (read before declaring `shared = "..."` on a `var`):
+#
+#   The truncation in step 1 deliberately discards every stage that
+#   contains any placeholder, even stages that introduce a column
+#   statically. For example:
+#
+#     mtcars |>
+#       dplyr::filter(ppExpr(hp >= 75)) |>
+#       dplyr::mutate(adj = ppExpr(mpg / wt)) |>
+#       dplyr::select(ppVar(adj, shared = "v"))
+#
+#   The `shared = "v"` picker is fed `names(mtcars)`. It never offers
+#   `adj`, because the resolver stops at the `filter` stage (first one
+#   carrying a placeholder) and cannot evaluate past it.
+#
+#   This is intentional, not an oversight. Two constraints force it:
+#     (a) The framework must not invoke any placeholder hook (built-in
+#         or custom `resolve_expr`) just to populate a UI dropdown -- a
+#         custom `resolve_expr` may open DB connections, do I/O, or
+#         depend on server state the picker code path does not have.
+#     (b) When occurrences diverge, there is no canonical occurrence to
+#         source per-layer producer values from. Picking one would make
+#         the shared picker's choice list depend on that occurrence's
+#         currently-typed producer input, which would (i) flicker as
+#         the user types and (ii) be wrong for the other occurrences.
+#
+#   So the semantic this code implements is "the deepest pipeline level
+#   every occurrence agrees on; the bare data source if they diverge;
+#   an error if even the source disagrees" -- NOT a column-set
+#   intersection across evaluated frames. No frame is ever evaluated
+#   on behalf of more than one occurrence at a time.
+#
+# Rule of thumb (surface to users):
+#   If you want a `var` picker to actively reflect its own pipeline --
+#   including columns added by upstream `mutate` / `transmute` / `select`
+#   stages -- do NOT declare it as `shared = "..."`. Drop the share and
+#   the non-shared resolver (`ptr_setup_consumer_uis`, paintr-server.R)
+#   will substitute live producer values into the full upstream and the
+#   picker will see whatever columns the evaluated pipeline produces.
 
 # TRUE if `n` (or any descendant, modulo the `upstream` back-pointer) is
 # a placeholder node.
