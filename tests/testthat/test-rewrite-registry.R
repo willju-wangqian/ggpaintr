@@ -241,3 +241,32 @@ test_that("ptr_clear_placeholder() with nothing to clear informs and returns emp
   expect_message(ret <- ptr_clear_placeholder(), "[Nn]o user-registered")
   expect_equal(ret, character())
 })
+
+# ---- Regression: registry env is session-anchored, not per-namespace ---------
+#
+# Bug: `devtools::test()` (and any flow that goes through `load_all` more than
+# once) used to re-evaluate `.ptr_registry <- new.env(...)` on every reload,
+# producing a NEW env object bound in the new namespace. Functions defined in
+# earlier reload cycles still held a lexical-scope reference to the OLD env, so
+# `ptr_define_placeholder_value` from cycle A wrote into env A while
+# `invoke_build_ui` from cycle B read from env B, and custom placeholders
+# vanished mid-test with "Placeholder X has no build_ui function". Fix anchors
+# both envs in `options()`; this test pins that contract.
+
+test_that(".ptr_registry env is anchored in options() across load_all cycles", {
+  reg_opt <- getOption(".ggpaintr_registry_v1")
+  expect_true(is.environment(reg_opt))
+  expect_identical(reg_opt, asNamespace("ggpaintr")$.ptr_registry)
+
+  init_opt <- getOption(".ggpaintr_registry_initialized_v1")
+  expect_true(is.environment(init_opt))
+  expect_identical(init_opt, asNamespace("ggpaintr")$.ptr_registry_initialized)
+})
+
+test_that("ptr_register_builtins() is silent when re-invoked without clear", {
+  # With the env anchored across cycles, builtins persist across reloads. A
+  # naive re-register would warn 7x "Overwriting placeholder registry entry"
+  # from `ptr_registry_register`; `ptr_register_builtins` now removes its own
+  # keys (via `ptr_builtin_keywords()`) first so the second call is silent.
+  expect_no_warning(ptr_register_builtins())
+})

@@ -309,6 +309,20 @@ ptr_register_builtins <- function() {
   # Flipping `done` first short-circuits that re-entry; the constructors
   # then just `ptr_registry_register()` cleanly into the empty env.
   .ptr_registry_initialized$done <- TRUE
+  # Remove any prior builtin entries so re-registration is silent. The
+  # registry env is anchored in `options()` and survives `load_all` cycles
+  # (see comment in `R/paintr-registry.R`), so callers that re-invoke this
+  # to "reset to builtins" without first running `ptr_registry_clear()`
+  # would otherwise hit a populated env and trigger "Overwriting placeholder"
+  # warnings from `ptr_registry_register()`. Custom placeholders are
+  # preserved. The keyword list is sourced from `ptr_builtin_keywords()` so
+  # downstream renames (e.g. ADR 0021 `ppVerbOff` -> `ppVerbSwitch`) flow in
+  # by editing only that one definition.
+  for (k in ptr_builtin_keywords()) {
+    if (exists(k, envir = .ptr_registry, inherits = FALSE)) {
+      rm(list = k, envir = .ptr_registry)
+    }
+  }
   text_fn <- ptr_define_placeholder_value(
     keyword = "ppText",
     build_ui = ptr_builtin_text_build_ui,

@@ -1,10 +1,33 @@
 # Placeholder registry (rewrite). Three constructors replace the legacy
 # `ptr_define_placeholder`. Stored in an isolated env so the legacy registry
 # in paintr-placeholders.R is undisturbed during cohabitation.
-
-.ptr_registry <- new.env(parent = emptyenv())
-.ptr_registry_initialized <- new.env(parent = emptyenv())
-.ptr_registry_initialized$done <- FALSE
+#
+# Why anchor in `options()`: `devtools::test()` (and any caller that goes
+# through `pkgload::load_all` more than once per session) re-evaluates this
+# top-level expression on every reload, producing a NEW env object bound in
+# the new namespace. Functions defined in EARLIER cycles still hold a
+# lexical-scope reference to the OLD env -- so `ptr_define_placeholder_value`
+# from cycle A writes into env A while `invoke_build_ui` from cycle B reads
+# from env B, and the entry vanishes. Anchoring in `options()` makes all
+# cycles re-bind the same session-scoped env, so register and lookup paths
+# converge regardless of which cycle compiled which caller.
+.ptr_registry <- local({
+  env <- getOption(".ggpaintr_registry_v1")
+  if (!is.environment(env)) {
+    env <- new.env(parent = emptyenv())
+    do.call(options, stats::setNames(list(env), ".ggpaintr_registry_v1"))
+  }
+  env
+})
+.ptr_registry_initialized <- local({
+  env <- getOption(".ggpaintr_registry_initialized_v1")
+  if (!is.environment(env)) {
+    env <- new.env(parent = emptyenv())
+    env$done <- FALSE
+    do.call(options, stats::setNames(list(env), ".ggpaintr_registry_initialized_v1"))
+  }
+  env
+})
 
 ensure_registry_initialized <- function() {
   if (isTRUE(.ptr_registry_initialized$done)) return(invisible(NULL))
