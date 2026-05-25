@@ -137,8 +137,18 @@ ptr_builtin_expr_build_ui <- function(node, label = NULL, copy = NULL,
 }
 
 ptr_builtin_expr_resolve_expr <- function(value, node, ...) {
-  if (!is.character(value) || length(value) != 1L || !nzchar(value)) {
-    rlang::abort(paste0(
+  # Empty / non-character / mid-typing values are transient by definition --
+  # the user is between keystrokes or just opened the widget. Signal
+  # `ptr_partial_input` (see [ptr_signal_partial()]) so live picker
+  # entry_reactives stay silent; the Update/Draw plot path still surfaces
+  # this as a normal inline error.
+  # `is.na(value)` must be checked before `nzchar(value)` because
+  # `nzchar(NA_character_)` returns `NA`, which would make the `||`
+  # chain evaluate to `NA` and crash with "missing value where TRUE/FALSE
+  # needed". The length check guards `is.na()` against vector input.
+  if (!is.character(value) || length(value) != 1L ||
+      is.na(value) || !nzchar(value)) {
+    ptr_signal_partial(paste0(
       "An `expr` input must contain a single R expression written as text ",
       "(for example: `factor(cyl)`)."
     ))
@@ -146,14 +156,14 @@ ptr_builtin_expr_resolve_expr <- function(value, node, ...) {
   exprs <- tryCatch(
     rlang::parse_exprs(value),
     error = function(e) {
-      rlang::abort(paste0(
+      ptr_signal_partial(paste0(
         "expr placeholder: could not parse input as R expression: ",
         conditionMessage(e)
       ))
     }
   )
   if (length(exprs) != 1L) {
-    rlang::abort(paste0(
+    ptr_signal_partial(paste0(
       "expr placeholder: input must contain exactly one expression, but ",
       length(exprs), " were found."
     ))

@@ -325,7 +325,12 @@ The framework splices your return value into the call at the placeholder's posit
 | `call` / `language`                     | A call (`factor(cyl)`, `c(0, 100)`)                 | `rlang::expr()`, `rlang::call2()`, `!!`     |
 | `NULL`                                  | **Prunes** this argument from the call entirely     | `return(NULL)`                              |
 
-The `NULL`-prunes-the-argument rule is central. It is how the built-in `ppVar` placeholder makes `geom_point(color = ppVar)` render as `geom_point()` until the user actually picks a column — *not* as `geom_point(color = NULL)`. Use it generously: any time the input is empty, blank, or otherwise unusable, return `NULL` and let the framework drop the argument. For inputs that are *malformed* (a non-parseable expression, a non-numeric string in a numeric slot), throw with `rlang::abort()` instead — the runtime surfaces the message inline.
+The `NULL`-prunes-the-argument rule is central. It is how the built-in `ppVar` placeholder makes `geom_point(color = ppVar)` render as `geom_point()` until the user actually picks a column — *not* as `geom_point(color = NULL)`. Use it generously: any time the input is empty, blank, or otherwise unusable, return `NULL` and let the framework drop the argument.
+
+For inputs that are *malformed*, the right call depends on whether the bad state is *transient mid-typing* or a *finished mistake*:
+
+- **Transient mid-typing** (the user is part-way through typing a free-text expression in a `textAreaInput`, e.g. `mpg /`). Signal `ptr_signal_partial(message)` instead of `rlang::abort()`. Live picker / preview reactives that re-fire on every keystroke catch the `ptr_partial_input` class and silently cancel the current re-render, so a downstream `var` picker keeps its previous content and the R console stays quiet. The Update / Draw-gated plot path does **not** catch it — if the user actually clicks "Update" with a partial value, the message still surfaces inline. The built-in `expr` placeholder uses this for unparseable / multi-expression / empty input.
+- **Finished mistake** (a wrong type, an out-of-range value, a malformed token the user *committed*). Use `rlang::abort()` — it loudly surfaces inline on the plot path *and* loudly cancels live pickers, which is what you want when the value isn't ever going to become valid by typing more.
 
 #### Where copy comes from
 
@@ -449,6 +454,23 @@ mtcars |>
 ```
 
 The slider's bounds are `range(mtcars$mpg)` — not a hard-coded guess — because `data` carries the actual frame. `data` is `NULL` before upstream resolves, so guard for it (the `if (nzchar(col))` fallback above does this). Note that `numrange` splices `c(lo, hi)` and the formula reads `numrange[1]` / `numrange[2]` to pull the bounds; `%in%` would do set membership, not a range check, so don't reach for it here.
+
+#### Shared consumers and pipeline visibility
+
+A consumer declared `shared = "<key>"` renders **one** widget at host scope (single-plot sidebar or grid top panel) and feeds it to every occurrence of that key. Because the widget is one, its column list must be one too — even when each occurrence sits at a different point in a different pipeline. The framework resolves this by feeding the shared picker the **deepest pipeline level every occurrence agrees on**: the common placeholder-free prefix if they all match, the bare data source if they diverge, an error if even the source disagrees.
+
+A consequence worth knowing before you reach for `shared =`: any column introduced by an *upstream* stage that contains a placeholder is invisible to the shared picker. For example,
+
+```r
+mtcars |>
+  dplyr::filter(ppExpr(hp >= 75)) |>
+  dplyr::mutate(adj = ppExpr(mpg / wt)) |>
+  dplyr::select(ppVar(adj, shared = "v"))
+```
+
+feeds the `shared = "v"` picker `names(mtcars)`. `adj` is added by the `mutate` just above the picker, but the resolver stops at the `filter` stage (the first one carrying a placeholder) and never evaluates past it. This is required: the framework will not invoke a placeholder hook — built-in or custom `resolve_expr` — just to populate a UI dropdown, and there is no canonical occurrence to source per-layer producer values from when occurrences diverge.
+
+**Rule of thumb.** If you want a `var` picker to actively reflect its own pipeline — including columns added by upstream `mutate`, `transmute`, or `select` stages — do **not** pass `shared = "..."`. Drop the share. The non-shared resolver substitutes the layer's live producer-input values into the full upstream, so the picker sees whatever columns the evaluated pipeline produces.
 
 ### Source placeholders — `ptr_define_placeholder_source()`
 
