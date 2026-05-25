@@ -86,25 +86,11 @@ test_that("super-1 kitchen-sink: sentinels propagate through every placeholder",
   # No plot-error class on the happy path in final mode.
   expect_no_plot_error(app)
 
-  # ---- B3 toggle differential: final strips ppVar(, preserve retains ----
+  # ---- B3 toggle differential: final strips ppVar( wrappers ---------------
+  # ADR 0022: preserve-mode panel emission retired. The render-walker
+  # preserve-mode shape is unit-tested directly in test-render-preserve.R;
+  # final-mode propagation (substitution) is still asserted here.
   expect_sentinel_nowhere(app, "ptr_code", "ppVar(")
-  toggle_code_mode(app, "preserve")
-
-  # Preserve-mode round-trip: value placeholders wrap their sentinel,
-  # var placeholders render as a bare symbol (per render_placeholder_preserved).
-  expect_sentinel_in_code(app, "ptr_code", "0.7314159",
-    "ppNum\\(([^)]*)\\)", "preserve")
-  expect_sentinel_in_code(app, "ptr_code", "disp",
-    "aes\\([^)]*x\\s*=\\s*([^,)]*)", "preserve")
-  # Anchor on labs(title = ppText(...)) — geom_smooth(method = ppText("lm"))
-  # comes earlier in the rendered code, so a bare `ppText\(` regex would
-  # match the wrong occurrence.
-  expect_sentinel_in_code(app, "ptr_code", "\"S_T_2718\"",
-    "labs\\([^)]*title\\s*=\\s*ppText\\(([^)]*)\\)", "preserve")
-  # Preserve mode DOES contain "ppVar(" (B3 canonical-host instance).
-  expect_sentinel_in_code(app, "ptr_code", "ppVar(",
-    "(ppVar)\\(", "preserve")
-  expect_no_plot_error(app)
 })
 # <<< super-1 end
 
@@ -149,18 +135,10 @@ test_that("super-1 no-default: sentinels propagate through every placeholder (no
   expect_picker_populated(app, "ggplot_1_2_ppVar_NA", "adj")
   expect_no_plot_error(app)
 
-  # ---- B3 toggle differential: final strips ppVar(, preserve retains ----
+  # ---- B3 toggle differential: final strips ppVar( wrappers ---------------
+  # ADR 0022: preserve-mode panel emission retired. See test-render-preserve.R
+  # for direct render-walker preserve-mode unit tests.
   expect_sentinel_nowhere(app, "ptr_code", "ppVar(")
-  toggle_code_mode(app, "preserve")
-  expect_sentinel_in_code(app, "ptr_code", "0.7314159",
-    "ppNum\\(([^)]*)\\)", "preserve")
-  expect_sentinel_in_code(app, "ptr_code", "disp",
-    "aes\\([^)]*x\\s*=\\s*([^,)]*)", "preserve")
-  expect_sentinel_in_code(app, "ptr_code", "\"S_T_2718\"",
-    "labs\\([^)]*title\\s*=\\s*ppText\\(([^)]*)\\)", "preserve")
-  expect_sentinel_in_code(app, "ptr_code", "ppVar(",
-    "(ppVar)\\(", "preserve")
-  expect_no_plot_error(app)
 })
 # <<< super-1 no-default end
 
@@ -272,44 +250,13 @@ test_that("super-2a upload+registry: sentinels propagate through multi-data-sour
     )
   )
 
-  # ---- B3 toggle differential: preserve retains wrappers, final strips --
+  # ---- B3 toggle differential: final strips wrappers ----------------------
+  # ADR 0022: preserve-mode panel emission retired; render-walker preserve
+  # shape is unit-tested directly in test-render-preserve.R (including the
+  # ppUpload bareword companion-name round-trip per ADR 0010).
   expect_sentinel_nowhere(app, "ptr_code", "ppPower(")
   expect_sentinel_nowhere(app, "ptr_code", "ppMultiVar(")
   expect_sentinel_nowhere(app, "ptr_code", "ppUpload(")
-
-  toggle_code_mode(app, "preserve")
-  code_preserve <- app$get_value(output = "ptr_code") %||% ""
-  # Both ppUpload bareword companion-names round-trip (per ADR-0010).
-  testthat::expect_true(
-    grepl("ppUpload(df_main)", code_preserve, fixed = TRUE),
-    label = paste0(
-      "preserve-mode code contains literal 'ppUpload(df_main)' (bareword ",
-      "companion-name); actual code=", code_preserve
-    )
-  )
-  testthat::expect_true(
-    grepl("ppUpload(df_aux)", code_preserve, fixed = TRUE),
-    label = paste0(
-      "preserve-mode code contains literal 'ppUpload(df_aux)' (bareword ",
-      "companion-name); actual code=", code_preserve
-    )
-  )
-  # ppPower preserves its 0.42 sentinel inside its wrapper.
-  expect_sentinel_in_code(app, "ptr_code", "0.42",
-    "ppPower\\(([^)]*)\\)", "preserve")
-  # ppMultiVar's preserve-mode shape may be ppMultiVar(c('cyl', 'am')) or
-  # ppMultiVar(c("cyl", "am")) depending on quote-folding; substring on
-  # 'ppMultiVar(' + both column names covers either.
-  testthat::expect_true(
-    grepl("ppMultiVar(", code_preserve, fixed = TRUE) &&
-      grepl("cyl", code_preserve, fixed = TRUE) &&
-      grepl("am", code_preserve, fixed = TRUE),
-    label = paste0(
-      "preserve-mode code contains ppMultiVar( wrapper enclosing the ",
-      "picker's selected columns; actual code=", code_preserve
-    )
-  )
-  expect_no_plot_error(app)
 
   # ---- D9 validate_input on ppPower (Scenario: global error pane, no crash)
   # Flip back to final-mode for the validate_input flow (the error contract
@@ -413,38 +360,13 @@ test_that("super-2a no-default: sentinels propagate through multi-data-source + 
   expect_sentinel_in_code(app, "ptr_code", "cyl",
     "facet_wrap\\(vars\\(([^)]*)\\)", "final")
 
-  # ---- B3 toggle differential -------------------------------------------
+  # ---- B3 toggle differential: final strips wrappers ---------------------
+  # ADR 0022: preserve-mode panel emission retired; render-walker preserve
+  # shape covered by test-render-preserve.R (including ADR 0010 ppUpload
+  # bareword companion-name round-trip).
   expect_sentinel_nowhere(app, "ptr_code", "ppPower(")
   expect_sentinel_nowhere(app, "ptr_code", "ppMultiVar(")
   expect_sentinel_nowhere(app, "ptr_code", "ppUpload(")
-
-  toggle_code_mode(app, "preserve")
-  code_preserve <- app$get_value(output = "ptr_code") %||% ""
-  # ppUpload bareword companion names round-trip in preserve mode (ADR-0010).
-  testthat::expect_true(
-    grepl("ppUpload(df_main)", code_preserve, fixed = TRUE),
-    label = "preserve-mode code contains literal 'ppUpload(df_main)' (companion-name)"
-  )
-  testthat::expect_true(
-    grepl("ppUpload(df_aux)", code_preserve, fixed = TRUE),
-    label = "preserve-mode code contains literal 'ppUpload(df_aux)' (companion-name)"
-  )
-  # ppPower preserves its 0.42 sentinel inside its wrapper.
-  expect_sentinel_in_code(app, "ptr_code", "0.42",
-    "ppPower\\(([^)]*)\\)", "preserve")
-  # ppMultiVar's preserve-mode shape carries both selected columns inside
-  # its wrapper (quote-folding may vary between c('cyl', 'am') and c("cyl",
-  # "am"); substring on `ppMultiVar(` + both column names covers either).
-  testthat::expect_true(
-    grepl("ppMultiVar(", code_preserve, fixed = TRUE) &&
-      grepl("cyl", code_preserve, fixed = TRUE) &&
-      grepl("am", code_preserve, fixed = TRUE),
-    label = paste0(
-      "preserve-mode code contains ppMultiVar( wrapper enclosing the ",
-      "picker's selected columns; actual code=", code_preserve
-    )
-  )
-  expect_no_plot_error(app)
 })
 # <<< super-2a no-default end
 
@@ -501,16 +423,8 @@ test_that("super-2b customsource-splice: ppSample (D3 source) + !!splice (G3) + 
   draw_and_wait(app, "ptr_update_plot")
   expect_no_plot_error(app, "ptr_plot")
   expect_picker_populated(app, "ggplot_1_1_ppVar_NA", "mpg")
-  # Preserve mode shows the user-selected sample wrapped in ppSample(...).
-  # The selectInput emits a string-typed value, so preserve renders
-  # ppSample("mtcars") (string-passthrough shape ppSample's resolve_data
-  # accepts; PLAN-04 SC(e) wrote `ppSample(mtcars)` colloquially -- the
-  # operative assertion is "the ppSample wrapper contains the user pick").
-  toggle_code_mode(app, "preserve")
-  expect_sentinel_in_code(
-    app, "ptr_code", "mtcars",
-    "ppSample\\([^)]*\\)", "preserve"
-  )
+  # ADR 0022: preserve-mode panel emission retired. The render-walker
+  # round-trip of ppSample("<pick>") is unit-tested in test-render-preserve.R.
 
   # --- Scenario: spliced ppText / ppNum / ppCoef sentinels propagate ----
   # If the AST walker fails to descend into the spliced segment, the
@@ -524,20 +438,9 @@ test_that("super-2b customsource-splice: ppSample (D3 source) + !!splice (G3) + 
   draw_and_wait(app, "ptr_update_plot")
   expect_no_plot_error(app, "ptr_plot")
 
-  # Preserve regexes are KEYWORD-ANCHORED (method= / linewidth= / alpha=)
-  # to uniquely pin the spliced geom_smooth segment. A bare `ppNum\(...\)`
-  # would match `geom_point(size = ppNum(2))` first -- the spliced ppNum
-  # is the 2nd occurrence. The argument names `method`, `linewidth`,
-  # `alpha` are unique to the spliced geom_smooth in this formula.
-  toggle_code_mode(app, "preserve")
-  expect_sentinel_in_code(app, "ptr_code", "\"loess\"",
-    "method\\s*=\\s*ppText\\([^)]*\\)", "preserve")
-  expect_sentinel_in_code(app, "ptr_code", "0.92",
-    "linewidth\\s*=\\s*ppNum\\([^)]*\\)", "preserve")
-  expect_sentinel_in_code(app, "ptr_code", "0.81",
-    "alpha\\s*=\\s*ppCoef\\([^)]*\\)", "preserve")
-
-  toggle_code_mode(app, "final")
+  # ADR 0022: preserve-mode panel emission retired. Render-walker preserve
+  # shape for spliced ppText/ppNum/ppCoef wrappers is covered by direct
+  # unit tests in test-render-preserve.R.
   expect_sentinel_in_code(app, "ptr_code", "\"loess\"",
     "geom_smooth\\([^)]*method\\s*=\\s*[^,)]*", "final")
   expect_sentinel_in_code(app, "ptr_code", "0.92",
@@ -615,25 +518,13 @@ test_that("super-2b customsource-splice: ppSample (D3 source) + !!splice (G3) + 
 
   # --- Scenario: B3 toggle differential ----------------------------------
   # Final mode: NONE of the seven placeholder wrapper call-forms appear.
+  # ADR 0022: preserve-mode panel emission retired; the symmetrical
+  # "every wrapper IS present in preserve" assertion lives in
+  # test-render-preserve.R as a direct render-walker unit test.
   toggle_code_mode(app, "final")
   for (wrapper in c("ppSample(", "ppFactor(", "ppText(",
                     "ppCoef(", "ppNum(", "ppVar(", "ppUpload(")) {
     expect_sentinel_nowhere(app, "ptr_code", wrapper)
-  }
-  expect_no_plot_error(app, "ptr_plot")
-
-  # Preserve mode: every wrapper IS present.
-  toggle_code_mode(app, "preserve")
-  preserve_code <- app$get_value(output = "ptr_code") %||% ""
-  for (wrapper in c("ppSample(", "ppFactor(", "ppText(",
-                    "ppCoef(", "ppNum(", "ppVar(", "ppUpload(")) {
-    testthat::expect_true(
-      grepl(wrapper, preserve_code, fixed = TRUE),
-      label = paste0(
-        "preserve-mode code contains ", wrapper, " wrapper; ",
-        "actual code_text=", preserve_code
-      )
-    )
   }
   expect_no_plot_error(app, "ptr_plot")
 })
@@ -683,14 +574,9 @@ test_that("super-2b no-default: ppSample + !! splice + layer-upload + shared= on
   expect_sentinel_in_code(app, "ptr_code", "Species",
     "facet_wrap\\(vars\\([^)]*\\)\\)", "final")
 
-  # --- Preserve-mode wrappers --------------------------------------------
-  toggle_code_mode(app, "preserve")
-  expect_sentinel_in_code(app, "ptr_code", "\"loess\"",
-    "method\\s*=\\s*ppText\\([^)]*\\)", "preserve")
-  expect_sentinel_in_code(app, "ptr_code", "0.92",
-    "linewidth\\s*=\\s*ppNum\\([^)]*\\)", "preserve")
-  expect_sentinel_in_code(app, "ptr_code", "0.81",
-    "alpha\\s*=\\s*ppCoef\\([^)]*\\)", "preserve")
+  # ADR 0022: preserve-mode panel emission retired. Render-walker preserve
+  # shape for spliced ppText/ppNum/ppCoef wrappers is covered by direct
+  # unit tests in test-render-preserve.R.
   expect_no_plot_error(app, "ptr_plot")
 })
 # <<< super-2b no-default end
@@ -783,35 +669,16 @@ test_that("super-3 (L3 multi-cell + shared + plotly): shared key reaches both ce
     app, "plot1-ptr_code", "c(12, 38)",
     "scale_x_continuous\\(limits\\s*=\\s*[^)]*\\)", "final"
   )
-  toggle_code_mode_ns("plot1", "preserve")
-  # Preserve-mode round-trips the wrapper -> `ppRange(c(12, 38))`. The
-  # outer `ppRange(...)` regex spans the entire wrapper including the
-  # inner `c(12, 38)`.
-  expect_sentinel_in_code(
-    app, "plot1-ptr_code", "c(12, 38)",
-    "ppRange\\([^)]*\\)\\)", "preserve"
-  )
+  # ADR 0022: preserve-mode panel emission retired; the ppRange wrapper
+  # round-trip is unit-tested in test-render-preserve.R.
 
-  # ---- B3 toggle next to plotly output: preserve <-> final ------------------
+  # ---- B3 toggle next to plotly output: final mode only --------------------
   # The toggle id ptr_ui_toggle_code wires for plot2 is `plot2-ptr_code_mode`
   # (per-module `ns("ptr_code_mode")`, see `code_mode_toggle` in
-  # R/paintr-app.R). Preserve mode must show "ppVar(" in plot2's code text;
-  # final mode must not. The plotly host must carry no error class either way.
-  toggle_code_mode_ns("plot2", "preserve")
-  plot2_code_preserve <- app$get_value(output = "plot2-ptr_code") %||% ""
-  testthat::expect_true(
-    grepl("ppVar(", plot2_code_preserve, fixed = TRUE),
-    label = paste0(
-      "B3 toggle: plot2 preserve-mode code text contains 'ppVar('; ",
-      "actual code_text=", plot2_code_preserve
-    )
-  )
-  plotly_host_html_p <- app$get_html("#plot2-custom_plot") %||% ""
-  testthat::expect_false(
-    grepl("shiny-output-error", plotly_host_html_p, fixed = TRUE) ||
-      grepl("ptr-alert--error", plotly_host_html_p, fixed = TRUE),
-    label = "plot2 plotly host has no error class in preserve mode"
-  )
+  # R/paintr-app.R). Final mode must not contain "ppVar("; the plotly host
+  # must carry no error class. (Pre-ADR-0022 this block also drove the
+  # radio to "preserve" and asserted "ppVar(" surfaced in plot2's code
+  # text; that integration is now covered by direct render unit tests.)
   toggle_code_mode_ns("plot2", "final")
   plot2_code_final <- app$get_value(output = "plot2-ptr_code") %||% ""
   testthat::expect_false(
@@ -896,11 +763,9 @@ test_that("super-3 no-default (L3 multi-cell + shared + plotly): shared key reac
     "scale_x_continuous\\(limits\\s*=\\s*[^)]*\\)", "final"
   )
 
-  toggle_code_mode_ns("plot1", "preserve")
-  expect_sentinel_in_code(
-    app, "plot1-ptr_code", "c(12, 38)",
-    "ppRange\\([^)]*\\)\\)", "preserve"
-  )
+  # ADR 0022: preserve-mode panel emission retired. The ppRange wrapper
+  # round-trip is covered by direct render-walker unit tests in
+  # test-render-preserve.R.
 })
 # <<< super-3 no-default end
 
@@ -1053,31 +918,19 @@ test_that("super-4 user_css + safety + adversarial: user.css + core assets coexi
   expect_no_plot_error(app)
 
   # ---- B3 toggle differential --------------------------------------------
-  # Final mode strips every wrapper; preserve mode renders each one at least
-  # once. The wrappers checked: ppVar(, ppNum(, ppText(, ppExpr(, ppColor(.
-  # The runtime still has a not-ok cached state from the adversarial draw;
-  # toggle_code_mode uses the FROZEN snapshot the runtime locked at the last
-  # OK Update click (the recover-with-#A1B2C3 draw), so both modes derive
-  # from the same source of truth.
+  # Final mode strips every wrapper. ADR 0022: the symmetrical "preserve
+  # mode renders each wrapper" half is covered by direct render-walker
+  # unit tests in test-render-preserve.R. The runtime still has a not-ok
+  # cached state from the adversarial draw; final mode reads from the
+  # FROZEN snapshot the runtime locked at the last OK Update click (the
+  # recover-with-#A1B2C3 draw), so the substituted code below derives
+  # from that ok snapshot.
   toggle_code_mode(app, "final")
   expect_sentinel_nowhere(app, "ptr_code", "ppVar(")
   expect_sentinel_nowhere(app, "ptr_code", "ppNum(")
   expect_sentinel_nowhere(app, "ptr_code", "ppText(")
   expect_sentinel_nowhere(app, "ptr_code", "ppExpr(")
   expect_sentinel_nowhere(app, "ptr_code", "ppColor(")
-  expect_no_plot_error(app)
-
-  toggle_code_mode(app, "preserve")
-  code_preserve <- app$get_value(output = "ptr_code") %||% ""
-  for (wrapper in c("ppVar(", "ppNum(", "ppText(", "ppExpr(", "ppColor(")) {
-    testthat::expect_true(
-      grepl(wrapper, code_preserve, fixed = TRUE),
-      label = paste0(
-        "B3 preserve-mode code contains wrapper '", wrapper, "'; ",
-        "actual code_text=", code_preserve
-      )
-    )
-  }
   expect_no_plot_error(app)
 })
 # <<< super-4 end

@@ -470,19 +470,21 @@ plot_card_tag <- function(ns, error = TRUE, code_toggle = FALSE) {
   )
 }
 
-# ADR 0009 / PLAN-08: two-mode code panel. The view-mode toggle
+# ADR 0009 / PLAN-08 / ADR 0022: two-mode code panel. The view-mode toggle
 # (radioGroupButtons keyed `ptr_code_mode`) switches the rendered text
-# between the final substituted code (`"final"`, default) and the
-# formula with `pp*` placeholders preserved (`"preserve"`). The server
-# reads `input$ptr_code_mode` inside `ptr_register_code()` and calls
-# `ptr_render(root, preserve_placeholders = identical(mode, "preserve"))`.
+# between the final substituted code (`"final"`, default) and a snapshot of
+# the current widget state as a `ptr_spec <- list(...)` block (`"spec"`).
+# The server reads `input$ptr_code_mode` inside `ptr_register_code()`. The
+# pre-ADR-0022 `"preserve"` choice (formula-with-placeholders round-trip)
+# was retired by ADR 0022 — the spec list is the supported state-persistence
+# primitive; the formula is the owner's source of truth and is not echoed.
 code_mode_toggle <- function(ns) {
   shiny::tags$span(
     class = "ptr-code-mode",
     shinyWidgets::radioGroupButtons(
       inputId = ns("ptr_code_mode"),
       label = NULL,
-      choices = c(`Final code` = "final", `Show placeholders` = "preserve"),
+      choices = c(`Final code` = "final", `Spec` = "spec"),
       selected = "final",
       size = "xs",
       individual = TRUE

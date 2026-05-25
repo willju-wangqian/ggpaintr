@@ -149,9 +149,15 @@ test_that("state$spec is sparse when only defaults are picked (testServer)", {
   })
 })
 
-# ---- preserve-mode code panel integration ----------------------------------
+# ---- spec-mode code panel integration --------------------------------------
+# ADR 0022: the second code-panel radio choice was renamed from "preserve"
+# (formula + spec) to "spec" (spec only). The pre-ADR-0022 tests in this
+# section asserted the formula-text half of the preserve emission; those
+# assertions are now covered as direct render-walker unit tests in
+# test-render-preserve.R. The tests below cover the spec-emission half
+# end-to-end through the panel reactive.
 
-test_that("preserve-mode panel emits ptr_spec block when a non-default pick exists", {
+test_that("spec-mode panel emits ptr_spec block when a non-default pick exists", {
   e <- list2env(list(mtcars = mtcars), parent = globalenv())
   server <- function(input, output, session) {
     session$userData$state <- ptr_server_internal(
@@ -172,28 +178,26 @@ test_that("preserve-mode panel emits ptr_spec block when a non-default pick exis
     res <- state$runtime()
     expect_true(isTRUE(res$ok))
 
-    # Preserve-mode rendering: switch the mode toggle and read the code
-    # output. The formula text is on top; the ptr_spec block follows it
-    # separated by a blank line.
-    session$setInputs(ptr_code_mode = "preserve")
+    # Spec-mode rendering: switch the mode toggle and read the code output.
+    # ADR 0022: the panel emits only the `ptr_spec <- list(...)` block;
+    # no formula text precedes it.
+    session$setInputs(ptr_code_mode = "spec")
     session$flushReact()
     code_txt <- output$ptr_code
 
-    # Formula text (preserve form: `ppVar(mpg)` etc.) on top.
-    expect_match(code_txt, "ggplot", fixed = TRUE)
-    expect_match(code_txt, "ppVar(mpg)", fixed = TRUE)
-    # ptr_spec block beneath.
+    # ptr_spec block present.
     expect_match(code_txt, "ptr_spec <- list(", fixed = TRUE)
     expect_match(code_txt, "`ggplot_1_1_ppVar_NA` = \"mpg\"", fixed = TRUE)
     expect_match(code_txt, "`ggplot_1_2_ppVar_NA` = \"hp\"", fixed = TRUE)
-    # Formula text is NOT wrapped in ptr_app(...).
-    expect_false(grepl("ptr_app\\(", code_txt))
-    # Formula + spec separated by a blank line.
-    expect_match(code_txt, "\n\nptr_spec <- list\\(")
+    # No formula text — the panel is no longer a reproducer for non-owners
+    # (audience-split rationale in ADR 0022). Formula source is owner-side.
+    expect_false(grepl("ggplot(", code_txt, fixed = TRUE))
+    expect_false(grepl("ppVar(", code_txt, fixed = TRUE))
+    expect_false(grepl("ptr_app(", code_txt, fixed = TRUE))
   })
 })
 
-test_that("preserve-mode panel is bit-identical to formula-only when spec is empty", {
+test_that("spec-mode panel shows the empty-spec placeholder line when nothing is overridden", {
   e <- list2env(list(mtcars = mtcars), parent = globalenv())
   server <- function(input, output, session) {
     session$userData$state <- ptr_server_internal(
@@ -205,20 +209,14 @@ test_that("preserve-mode panel is bit-identical to formula-only when spec is emp
   shiny::testServer(server, {
     state <- session$userData$state
     session$setInputs(ptr_update_plot = 1L)
-    session$setInputs(ptr_code_mode = "preserve")
+    session$setInputs(ptr_code_mode = "spec")
     session$flushReact()
     code_txt <- output$ptr_code
 
-    # Empty spec -> no ptr_spec substring anywhere.
+    # Empty spec → ADR 0022 placeholder line surfaces (so the panel is
+    # never confusingly blank pre-Update for first-time users).
+    expect_match(code_txt, "No overrides yet", fixed = TRUE)
+    # And no `ptr_spec` block (there's nothing to list).
     expect_false(grepl("ptr_spec", code_txt, fixed = TRUE))
-
-    # And the rendered text equals the bare preserve formula text
-    # (modulo `stamp_current_pick_walk` on an empty placeholder set).
-    snapshot <- state$runtime()$snapshot %||% list()
-    expected <- ggpaintr:::ptr_render(
-      ggpaintr:::stamp_current_pick_walk(state$tree(), snapshot),
-      preserve_placeholders = TRUE
-    )
-    expect_identical(code_txt, expected)
   })
 })

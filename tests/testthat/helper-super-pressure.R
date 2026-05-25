@@ -135,13 +135,15 @@ draw_and_wait <- function(app, button_id = "draw") {
   app$wait_for_idle(timeout = 25 * 1000)
 }
 
-# Flip the B3 mode radio between "final" and "preserve". Input id
-# `ptr_code_mode` matches what ptr_register_code() registers (verified
-# against R/paintr-server.R and R/paintr-app.R). Refuses any other mode
-# string up-front so callers cannot smuggle a typo into a test label.
+# Flip the B3 mode radio. Input id `ptr_code_mode` matches what
+# ptr_register_code() registers (verified against R/paintr-server.R and
+# R/paintr-app.R). Refuses any other mode string up-front so callers cannot
+# smuggle a typo into a test label. Post-ADR-0022 only "final" and "spec"
+# are valid radio values; the legacy "preserve" choice was retired and its
+# render-walker shape is unit-tested directly in test-render-preserve.R.
 toggle_code_mode <- function(app, mode) {
-  if (!isTRUE(mode %in% c("final", "preserve"))) {
-    stop("mode must be 'final' or 'preserve'")
+  if (!isTRUE(mode %in% c("final", "spec"))) {
+    stop("mode must be 'final' or 'spec'")
   }
   set_sentinel(app, "ptr_code_mode", mode)
   app$wait_for_idle(timeout = 25 * 1000)

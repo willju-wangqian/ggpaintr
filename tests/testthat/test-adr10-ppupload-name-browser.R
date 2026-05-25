@@ -1,15 +1,20 @@
 # test-adr10-ppupload-name-browser.R — shinytest2 driver for the
 # adr10-ppupload-name fixture. Covers the browser-level BDD scenarios of
-# PLAN-03 (ADR 0010): companion textInput seeded at boot, preserve-mode
-# round-trip to ppUpload(<name>), plot renders via caller-env auto-resolve
-# without any file upload, and re-editing the companion to "iris" updates
-# the preserve-mode code panel.
+# PLAN-03 (ADR 0010): companion textInput seeded at boot and plot renders
+# via caller-env auto-resolve without any file upload.
+#
+# ADR 0022: the previous preserve-mode round-trip assertions (formula text
+# panel echoing `ppUpload(<companion-value>)`) were retired with the UI's
+# preserve-mode choice. The underlying invariant — `ptr_render(...,
+# preserve_placeholders = TRUE)` honours the snapshot stamped on a data-
+# source companion — is preserved as a direct unit test below, which keeps
+# the dormant render code covered without depending on the UI.
 #
 # Gate pattern + boot scaffolding follow CLAUDE.md "Browser e2e (shinytest2)
 # — hard-won gotchas": app-dir + pkgload::load_all in the fixture, never
 # get_values(), set placeholder inputs with wait_=FALSE then explicit Draw.
 
-test_that("adr10-ppupload-name: companion textInput seeded, preserve-mode round-trips, plot auto-resolves", {
+test_that("adr10-ppupload-name: companion textInput seeded, plot auto-resolves without upload", {
   skip_on_cran()
   skip_if_not_installed("shinytest2")
   skip_if_not_installed("chromote")
@@ -67,34 +72,47 @@ test_that("adr10-ppupload-name: companion textInput seeded, preserve-mode round-
     label = "plot output container is present after Draw"
   )
   expect_match(plot_html, "<img", fixed = TRUE)
+})
 
-  # (b) Switch to preserve mode and assert the code panel contains
-  # ppUpload(penguins) (PLAN-02 round-trip end-to-end).
-  app$set_inputs(ptr_code_mode = "preserve", wait_ = TRUE, timeout_ = 10000)
-  app$wait_for_idle(timeout = 25 * 1000)
-  code_preserve <- app$get_value(output = "ptr_code")
+# ADR 0010 PLAN-02 round-trip (ADR 0022 disposition): preserve-mode formula
+# render still emits `ppUpload(<companion-value>)` when the companion's
+# current value is stamped on the data-source node. The UI no longer
+# surfaces this text, but the render path is still live and reachable
+# (e.g. by a future ptr_inject_spec() helper). These assertions exercise
+# ptr_render(... preserve_placeholders = TRUE) directly on a translated
+# tree, replacing the pre-ADR-0022 browser-driven assertions.
+test_that("adr10 PLAN-02 round-trip: preserve-mode render stamps companion bareword", {
+  formula <- "ppUpload(penguins) |> dplyr::filter(species == \"Adelie\") |> ggplot(aes(x = ppVar(bill_length_mm), y = ppVar(bill_depth_mm))) + geom_point()"
+  # ptr_translate(annotate = TRUE) already runs ptr_assign_ids internally,
+  # so the tree's data-source node has the placeholder id stamped (and the
+  # ppUpload companion_id `<id>_name` derived) by the time we stamp picks.
+  tree <- ggpaintr:::ptr_translate(formula)
+
+  # Initial render with the companion seeded to "penguins" (matches the
+  # boot-time companion textInput value the fixture asserts above).
+  snap_penguins <- list(ggplot_1_ppUpload_NA_name = "penguins")
+  text_penguins <- ggpaintr:::ptr_render(
+    ggpaintr:::stamp_current_pick_walk(tree, snap_penguins),
+    preserve_placeholders = TRUE
+  )
   expect_true(
-    grepl("ppUpload(penguins)", code_preserve, fixed = TRUE),
-    label = "preserve-mode code contains ppUpload(penguins)"
+    grepl("ppUpload(penguins)", text_penguins, fixed = TRUE),
+    label = "preserve-mode render emits ppUpload(penguins) with seeded companion"
   )
 
-  # (d) Edit the companion to "iris" and redraw; preserve mode should now
-  # show ppUpload(iris) and NOT ppUpload(penguins). Switch back to final
-  # then preserve to flush the renderer.
-  app$set_inputs(ptr_code_mode = "final", wait_ = TRUE, timeout_ = 10000)
-  app$wait_for_idle(timeout = 25 * 1000)
-  set_input(app, companion_id, "iris")
-  app$click("ptr_update_plot")
-  app$wait_for_idle(timeout = 25 * 1000)
-  app$set_inputs(ptr_code_mode = "preserve", wait_ = TRUE, timeout_ = 10000)
-  app$wait_for_idle(timeout = 25 * 1000)
-  code_preserve2 <- app$get_value(output = "ptr_code")
+  # After the user edits the companion to "iris", preserve-mode render
+  # must reflect the new bareword and drop the old one.
+  snap_iris <- list(ggplot_1_ppUpload_NA_name = "iris")
+  text_iris <- ggpaintr:::ptr_render(
+    ggpaintr:::stamp_current_pick_walk(tree, snap_iris),
+    preserve_placeholders = TRUE
+  )
   expect_true(
-    grepl("ppUpload(iris)", code_preserve2, fixed = TRUE),
-    label = "after re-edit, preserve-mode code contains ppUpload(iris)"
+    grepl("ppUpload(iris)", text_iris, fixed = TRUE),
+    label = "preserve-mode render emits ppUpload(iris) after companion edit"
   )
   expect_false(
-    grepl("ppUpload(penguins)", code_preserve2, fixed = TRUE),
-    label = "after re-edit, preserve-mode code no longer mentions penguins"
+    grepl("ppUpload(penguins)", text_iris, fixed = TRUE),
+    label = "preserve-mode render no longer mentions penguins after companion edit"
   )
 })

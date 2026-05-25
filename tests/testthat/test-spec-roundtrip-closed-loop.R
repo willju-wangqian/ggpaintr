@@ -1,10 +1,12 @@
 # Closed-loop `spec=` round trip — gate test.
 #
-# Drives widgets via `shiny::testServer`, reads the preserve-mode code
-# panel, parses the trailing `ptr_spec <- list(...)` block, feeds the
-# result as `spec=` to a second `ptr_server_internal` boot, and asserts
-# the second session's `state$spec_seed` matches the first session's
-# `runtime()$snapshot` for the same ids.
+# Drives widgets via `shiny::testServer`, reads the spec-mode code panel
+# (ADR 0022: pre-ADR-0022 the "preserve" mode was a formula + spec view;
+# post-ADR-0022 spec mode emits only the `ptr_spec <- list(...)` block),
+# parses the block, feeds the result as `spec=` to a second
+# `ptr_server_internal` boot, and asserts the second session's
+# `state$spec_seed` matches the first session's `runtime()$snapshot` for
+# the same ids.
 #
 # This is the *closed* loop the user-visible copy-paste workflow depends
 # on. Without it, the emit-side panel could quietly drift from the
@@ -25,7 +27,7 @@
 
 # ---- helpers ---------------------------------------------------------------
 
-# Parse the `ptr_spec <- list(...)` block out of a preserve-mode panel.
+# Parse the `ptr_spec <- list(...)` block out of a spec-mode panel.
 # Returns the evaluated named list, or NULL if no block is present.
 extract_ptr_spec <- function(code_txt) {
   if (!grepl("ptr_spec <- list", code_txt, fixed = TRUE)) return(NULL)
@@ -41,7 +43,7 @@ extract_ptr_spec <- function(code_txt) {
 }
 
 # Boot session #1, drive `picks(state$input_spec)`, click update, switch to
-# preserve mode, capture (snapshot, spec, code_txt).
+# spec mode, capture (snapshot, spec, code_txt).
 drive_and_capture <- function(formula, picks, envir, ...) {
   out <- list()
   ctor_dots <- list(...)
@@ -59,7 +61,7 @@ drive_and_capture <- function(formula, picks, envir, ...) {
     res <- state$runtime()
     out$runtime_ok <<- isTRUE(res$ok)
     out$snapshot   <<- res$snapshot
-    session$setInputs(ptr_code_mode = "preserve")
+    session$setInputs(ptr_code_mode = "spec")
     session$flushReact()
     out$code_txt <<- output$ptr_code
     out$spec     <<- extract_ptr_spec(output$ptr_code)
