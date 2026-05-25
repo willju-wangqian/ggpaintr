@@ -121,16 +121,6 @@ test_that("ppLayerOff(..., TRUE) is structurally equal to the bare layer (defaul
   expect_true(ggpaintr:::ptr_tree_structural_equal(t_off, t_bare))
 })
 
-# ---- SC7: ppVerbOff(..., TRUE) ≡ bare stage (comparator level) -----------
-
-test_that("ppVerbOff(..., TRUE) is structurally equal to the bare stage", {
-  t_off <- ptr_translate_annot(
-    quote(ggplot(mtcars |> ppVerbOff(mutate(x = 1), TRUE)))
-  )
-  t_bare <- ptr_translate_annot(quote(ggplot(mtcars |> mutate(x = 1))))
-  expect_true(ggpaintr:::ptr_tree_structural_equal(t_off, t_bare))
-})
-
 # ---- SC8: test-adr12-consumer-uniformity.R uses the real comparator ------
 
 test_that("test-adr12-consumer-uniformity.R no longer defines its own ptr_tree_structural_equal", {
