@@ -258,7 +258,7 @@ ptr_builtin_keywords <- function() {
     # them, but they carry `role = "structural"` (not a placeholder role)
     # and are intercepted by the translator before placeholder-arg
     # extraction ever runs.
-    "ppLayerOff", "ppVerbOff"
+    "ppLayerOff", "ppVerbOff", "ppVerbSwitch"
   )
 }
 
@@ -373,6 +373,7 @@ ptr_register_builtins <- function() {
   # both walk `ptr_registry_keywords()`) to recognise the names.
   ptr_register_structural_keyword("ppLayerOff")
   ptr_register_structural_keyword("ppVerbOff")
+  ptr_register_structural_keyword("ppVerbSwitch")
   # The plain-R callables that users see (`ppVar`, `ppNum`, ...) are the
   # top-level functions below carrying `@export` roxygen tags. The
   # registry entries above carry the same identity/guard semantics via
@@ -503,6 +504,89 @@ ppVerbOff <- function(.data, verb_expr, hide = TRUE) {
       "`ppVerbOff(verb_expr = )` must be a verb call, e.g. `mutate(x = 1)`."
     )
   }
+  data_sym <- substitute(.data)
+  new_call <- as.call(c(
+    list(call_expr[[1L]]), list(data_sym), as.list(call_expr[-1L])
+  ))
+  eval(new_call, envir = parent.frame())
+}
+
+#' Switchable pipeline-stage wrapper
+#'
+#' ADR-0021 *structural* keyword that marks a pipeline stage as user-
+#' toggleable in `ptr_app()`. Identical naked-R shape to [ppVerbOff()]
+#' except the boolean argument is `switch_on` (positive sense: TRUE
+#' applies the verb, FALSE skips it) and an optional `label` carries the
+#' UI text for the resulting checkbox. Inside `ptr_app()` / `ptr_server()`
+#' the parser sees the wrapper and unwraps it at translate time, stamping
+#' the boot-state metadata + UI label onto the resulting node. The
+#' wrapper itself never appears in the typed tree.
+#'
+#' Outside `ptr_app()` it behaves per its R semantics so naked-dplyr
+#' scripts still render: `ppVerbSwitch(.data, mutate(x = 1), FALSE)`
+#' returns `.data` unchanged; `ppVerbSwitch(.data, mutate(x = 1), TRUE)`
+#' routes `.data` through the verb call. `label` is metadata-only
+#' outside `ptr_app()` (the naked-R path ignores it).
+#'
+#' @section Data-argument position:
+#' `ppVerbSwitch(.data, verb_expr, switch_on = TRUE)` inserts `.data` as
+#' the **first positional argument** of `verb_expr` when `switch_on` is
+#' TRUE. This matches the tidyverse convention and the translator's
+#' pipeline-stage handling; non-tidyverse verbs that take data in a
+#' later argument are not supported (use a lambda stage or a named
+#' wrapper instead).
+#'
+#' @param .data A data frame or pipe-supplied dataset (the implicit
+#'   `.data` slot when used as a pipeline stage).
+#' @param verb_expr A data-pipeline verb call (e.g. `mutate(mpg = mpg +
+#'   100)`, `filter(cyl == 6)`). Evaluated with `.data` inserted as the
+#'   first positional argument only when `switch_on = TRUE`.
+#' @param switch_on A length-1 non-NA logical literal. In `ptr_app()`
+#'   formulas this MUST be a literal — the translator aborts on a
+#'   non-literal so the formula remains the single source of truth for
+#'   the app's boot state. Defaults to `TRUE` (apply the verb).
+#' @param label Optional length-1 character used as the checkbox label
+#'   inside `ptr_app()`. Ignored by the naked-R path. Defaults to `NULL`.
+#'
+#' @return Outside `ptr_app()`: returns `.data` unchanged when
+#'   `switch_on = FALSE`, otherwise the result of `verb_expr` applied to
+#'   `.data`.
+#'
+#' @examples
+#' # Naked-R semantics: switch_on = FALSE leaves the data unchanged.
+#' identical(
+#'   ppVerbSwitch(mtcars, dplyr::mutate(mpg = mpg + 100), FALSE),
+#'   mtcars
+#' )
+#'
+#' # switch_on = TRUE routes .data through the verb.
+#' result <- ppVerbSwitch(mtcars, dplyr::filter(mpg > 20), TRUE)
+#' nrow(result)  # 14
+#'
+#' # Inside ptr_app(), the wrapper becomes a node-level default + a
+#' # labelled boot-state-on checkbox (plans 03-05 wire the UI):
+#' # ptr_app("mtcars |> ppVerbSwitch(filter(mpg > 20), TRUE, label = 'Filter')")
+#'
+#' @export
+ppVerbSwitch <- function(.data, verb_expr, switch_on = TRUE, label = NULL) {
+  assertthat::assert_that(
+    is.logical(switch_on), length(switch_on) == 1L, !is.na(switch_on),
+    msg = "`switch_on` must be a length-1 non-NA logical."
+  )
+  # Validate the verb-call shape before honoring `switch_on`. The wrapper
+  # must reject malformed input regardless of the boot state so misuse
+  # surfaces immediately (BDD SC-5: a non-call `verb_expr` errors even
+  # when `switch_on = FALSE`).
+  call_expr <- substitute(verb_expr)
+  if (!is.call(call_expr)) {
+    rlang::abort(
+      "`ppVerbSwitch(verb_expr = )` must be a verb call, e.g. `mutate(x = 1)`."
+    )
+  }
+  if (!isTRUE(switch_on)) return(.data)
+  # Insert `.data` as the first positional argument of `verb_expr` and
+  # evaluate in the caller's frame. Mirrors `ppVerbOff`'s splicing recipe
+  # verbatim so the structural-equality claim of ADR 0021 holds.
   data_sym <- substitute(.data)
   new_call <- as.call(c(
     list(call_expr[[1L]]), list(data_sym), as.list(call_expr[-1L])
