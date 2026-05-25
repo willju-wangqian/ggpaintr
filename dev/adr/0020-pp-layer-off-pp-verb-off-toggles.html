@@ -9,7 +9,7 @@
 
 <h1>ADR 0020 — <code>ppLayerOff</code> / <code>ppVerbOff</code>: source-mode checkbox toggles</h1>
 
-<p><strong>Status:</strong> <em>Proposed.</em> Drafted 2026-05-24.</p>
+<p><strong>Status:</strong> <em>Proposed; partially superseded 2026-05-24 by <a href="0021-pp-verb-switch.html">ADR-0021</a>.</em> Drafted 2026-05-24. <strong>ADR-0021 supersedes this ADR on two specific points:</strong> (1) <code>ppVerbOff</code> is hard-removed in favor of <code>ppVerbSwitch(.data, verb_expr, switch_on, label)</code>, which strictly subsumes it; (2) the <em>Out-of-Scope</em> follow-up note proposing a sibling-node <code>ppControl</code> and forbidding <code>stage_id</code> from the comparator-exclusion list is rejected — source-code inspection shows <code>stage_id</code> is a UI-routing key, not execution-shape, so it joins the exclusion list and the verb-side structural-equality invariant (SC7) is restored via wrapping, not siblings. The rest of this ADR (<code>ppLayerOff</code>, <code>default_active</code> / <code>default_stage_enabled</code> reader sites, <code>checkbox_defaults =</code> deprecation, precedence ladder) stands.</p>
 
 <p><strong>Date:</strong> 2026-05-24</p>
 

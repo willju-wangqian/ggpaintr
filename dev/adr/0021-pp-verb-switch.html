@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0021 — ppVerbSwitch: user-controlled UI checkbox for any pipeline verb</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0021 — <code>ppVerbSwitch</code>: user-controlled UI checkbox for any pipeline verb</h1>
+
+<p><strong>Status:</strong> <em>Proposed.</em> Drafted 2026-05-24.</p>
+
+<p><strong>Date:</strong> 2026-05-24</p>
+
+<p><strong>Relates to:</strong> <a href="0009-pp-placeholders-and-expression-input.html">ADR-0009</a> (the <code>pp*</code> placeholder family), <a href="0012-role-based-tree-and-ptr-spec.html">ADR-0012</a> (canonical typed tree; <code>spec=</code> shape and apply-timing), <a href="0020-pp-layer-off-pp-verb-off-toggles.html">ADR-0020</a> (parent — supersedes its <em>Out-of-Scope</em> follow-up note that named a sibling-node <code>ppControl</code>; this ADR records the user-adjudicated direction of <strong>wrapping</strong> instead of siblings, and supersedes ADR-0020's "<code>stage_id</code> is genuinely runtime-semantic" framing with the corrected source-code-evidenced framing "<code>stage_id</code> is a UI-routing key, not execution-shape").</p>
+
+<h2>Context</h2>
+
+<p>ADR-0020 shipped <code>ppLayerOff</code> and <code>ppVerbOff</code>, restoring the formula-as-source-of-truth principle for layer/stage default visibility. During execution, Plan-03 SC7 (the requirement that <code>ppVerbOff(verb, TRUE)</code> compare structurally-equal to bare <code>verb</code>) was dropped because the parent ADR's framing classified <code>stage_id</code> as "runtime-semantic" and therefore ineligible for the comparator-exclusion list. The parent's <em>Out-of-Scope</em> note proposed a future <strong>sibling-node</strong> shape (<code>ppControl</code>) as the resolution.</p>
+
+<p>Two things are wrong with that proposal:</p>
+
+<ol>
+  <li><strong>The user-facing surface is wrong.</strong> Users write pipelines with wrapping syntax: <code>mtcars |&gt; ppVerbSwitch(mutate(x = x + 1)) |&gt; ggplot(...)</code>. A sibling-node shape cannot be expressed in surface R without inventing a non-pipe operator. The parent's proposal would require either a tree-shape-only sibling (with the user still writing the wrapper) or a separate surface entirely — both costly.</li>
+  <li><strong>The "<code>stage_id</code> is runtime-semantic" framing overstates what <code>stage_id</code> does.</strong> Source-code inspection (verified facts below) shows <code>stage_id</code> is a <em>UI-routing key</em>: a stage with a <code>stage_id</code> but no UI checkbox bound (<code>stage_enabled[[sid]]</code> is <code>NULL</code>) behaves identically at runtime to a stage with no <code>stage_id</code>. <code>stage_id</code> only <em>enables</em> a UI-driven gate; it does not <em>change</em> runtime behavior on its own. Therefore it belongs in the same comparator-exclusion category as <code>default_active</code> / <code>default_stage_enabled</code> — UI metadata, not execution metadata.</li>
+</ol>
+
+<p>This ADR adds the new keyword <code>ppVerbSwitch</code>, hard-removes the just-shipped <code>ppVerbOff</code> in favor of it (per user direction "no multiple surfaces doing the same thing"), and corrects the comparator-exclusion classification.</p>
+
+<h3>The capability gap that motivates the new keyword</h3>
+
+<p>Today, a pipeline verb stage gets a <em>stage-enabled</em> UI checkbox <strong>only if</strong> its subtree contains at least one <code>pp*</code> placeholder. The gate is in <code>R/paintr-disable.R:20-22</code>:</p>
+
+<pre><code>is_data_chain_call &lt;- function(node) {
+  is_ptr_call(node) &amp;&amp; walk_has_placeholder(node)
+}</code></pre>
+
+<p>So bare <code>mutate(x = x + 1)</code> in a pipeline gets no stage_id and no checkbox. The user has no formula-side way to say "give me a checkbox for this verb stage" without inventing a placeholder they don't need. ADR-0020's <code>ppVerbOff</code> closed half the gap (it forces a checkbox AND boots it off via Plan-01's <code>stamp_default_stage_enabled_ids()</code> workaround), but only when <code>hide = TRUE</code>. There is no formula-side way to say "give me a checkbox for this verb stage, default on" or "give me a checkbox with this custom label".</p>
+
+<h3>Verified facts (2026-05-24)</h3>
+
+<ul>
+  <li><strong><code>stage_id</code> is a UI-routing key.</strong> The full chain: <code>is_stage_disabled</code> at <code>R/paintr-disable.R:149-154</code> returns <code>FALSE</code> when <code>sid</code> is <code>NULL</code> <em>or</em> when <code>stage_enabled[[sid]]</code> is anything other than literal <code>FALSE</code> (<code>isFALSE()</code> rejects <code>NULL</code>); <code>disable_walk.ptr_pipeline</code> at <code>R/paintr-disable.R:116-134</code> only drops stages when <code>is_stage_disabled</code> returns <code>TRUE</code>. Therefore a stage with a stamped <code>stage_id</code> but no bound reactive (the "unwired" case) behaves identically to a stage with no <code>stage_id</code> at all: both fall through <code>is_stage_disabled → FALSE → stay</code>. <code>stage_id</code>'s only runtime effect is to <em>enable</em> a UI-driven drop; it does not change baseline execution. This contradicts ADR-0020's <em>Out-of-Scope</em> framing.</li>
+  <li><strong><code>assign_stage_ids</code> placeholder-gating</strong> at <code>R/paintr-disable.R:55-72</code> uses the single predicate <code>is_data_chain_call</code> for both the pipeline-stage branch (line 62) and the lone-call branch (line 67). Extending that predicate is the natural extension point.</li>
+  <li><strong>Plan-01 workaround.</strong> <code>stamp_default_stage_enabled_ids()</code> at <code>R/paintr-translate.R:131-153</code> is a second-pass walk introduced specifically to mint <code>stage_id</code>s on <code>ppVerbOff(..., TRUE)</code>-wrapped stages that <code>assign_stage_ids</code> skipped. Once the gate is extended (see Decision below), this entire helper becomes redundant and is deleted.</li>
+  <li><strong>Existing <code>ppVerbOff</code> unwrap.</strong> <code>unwrap_pp_verb_off_stage</code> at <code>R/paintr-translate.R:832-853</code> translates the inner verb call via <code>translate_node</code> (line 844) and stamps <code>inner_node$default_stage_enabled &lt;- !isTRUE(hide)</code>. Raw <code>mutate(x = x + 1)</code> is a <code>call</code> object that fails <code>is_ptr_node()</code>, but post-<code>translate_node</code> it is a <code>ptr_call</code> (subclass of <code>ptr_node</code>) that passes <code>is_ptr_call</code> on line 845. The same machinery applies for <code>ppVerbSwitch</code>; no new typing concerns.</li>
+  <li><strong>Current label rendering.</strong> <code>build_pipeline_stage_ui</code> at <code>R/paintr-build-ui.R:230-243</code> auto-derives the stage checkbox label as <code>shiny::tags$code(paste0(verb, "()"))</code>. There is no user-override path today. <code>controllable_region</code> at <code>R/paintr-region.R:36-50</code> splices whatever <code>head_label</code> it receives into <code>shiny::checkboxInput(label = ...)</code> without further transformation.</li>
+  <li><strong>Comparator exclusion list.</strong> <code>ptr_tree_structural_equal</code> at <code>R/paintr-nodes.R:135-162</code> already excludes <code>c("op", "expr", "default_active", "default_stage_enabled")</code>. The pattern is established; extending it to <code>stage_id</code>, <code>has_user_control</code>, and <code>stage_label</code> is a one-line edit (line 142-143).</li>
+  <li><strong><code>ppVerbSwitch(verb, switch_on=FALSE)</code> ≡ <code>ppVerbOff(verb, hide=TRUE)</code>.</strong> Naked-R: both <code>return(.data)</code> via symmetric guards (<code>isTRUE(hide)</code> vs <code>isFALSE(switch_on)</code>). Translate-time typed tree: both stamp <code>default_stage_enabled = FALSE</code> on a <code>ptr_call</code> obtained from the same <code>translate_node</code> path; the new field <code>has_user_control = TRUE</code> on the <code>ppVerbSwitch</code>-side is a no-op when <code>default_stage_enabled = FALSE</code> already fires the gate; both yield the same path-derived <code>stage_id</code>. Subsumption is full: <code>ppVerbSwitch(verb, switch_on=FALSE, label="…")</code> is a strict superset of <code>ppVerbOff(verb)</code>; <code>ppVerbSwitch(verb, switch_on=TRUE)</code> is a new capability (UI checkbox, boot ON) that <code>ppVerbOff</code> cannot express; <code>ppVerbOff(verb, hide=FALSE)</code> is a no-op wrapper whose migration target is bare <code>verb</code>.</li>
+</ul>
+
+<h2>Decision</h2>
+
+<p>Introduce one new keyword:</p>
+
+<pre><code>ppVerbSwitch(.data, verb_expr, switch_on = TRUE, label = NULL)</code></pre>
+
+<p><strong>Naked-R semantics.</strong> Identical shape to <code>ppVerbOff</code>: <code>.data</code> first, <code>verb_expr</code> captured via base-R <code>substitute()</code>, first-arg injection via <code>as.call()</code> + <code>eval()</code> in <code>parent.frame()</code>. <code>switch_on = FALSE</code> ⟹ <code>return(.data)</code> (skip the verb); <code>switch_on = TRUE</code> ⟹ apply the verb to <code>.data</code>. <code>label</code> is ignored outside ggpaintr (pure UI metadata).</p>
+
+<p><strong>Translate-time semantics</strong> (in <code>ptr_app</code> / <code>ptr_server</code>):</p>
+
+<ul>
+  <li>A new helper <code>unwrap_pp_verb_switch_stage</code> mirrors <code>unwrap_pp_verb_off_stage</code>: validates that <code>switch_on</code> is a literal scalar non-NA logical and <code>label</code> is a literal scalar character or <code>NULL</code> (both via new helpers <code>validate_pp_verb_switch_switch_on</code> and <code>validate_pp_verb_switch_label</code>, aborting with class <code>"ptr_translate_error"</code>); translates the inner verb call via <code>translate_node</code>; stamps three fields on the resulting <code>ptr_call</code>: <code>has_user_control &lt;- TRUE</code>, <code>default_stage_enabled &lt;- switch_on</code>, <code>stage_label &lt;- label</code>.</li>
+  <li>Used outside a pipeline-stage position → translate-time error via the existing <code>ptr_assert_no_surviving_structural_wrappers</code> at <code>R/paintr-translate.R:161-191</code>. Extend the wrapper-name list from <code>c("ppLayerOff", "ppVerbOff")</code> to <code>c("ppLayerOff", "ppVerbSwitch")</code> and update the error-message branch to mention <code>ppVerbSwitch</code>'s valid position.</li>
+</ul>
+
+<p><strong>Node-constructor change.</strong> Add two new slots to <code>ptr_call</code> in <code>R/paintr-nodes.R</code>: <code>has_user_control = FALSE</code> and <code>stage_label = NULL</code>. The existing <code>default_stage_enabled = TRUE</code> slot is unchanged.</p>
+
+<p><strong>Stage-id gate.</strong> Extend <code>is_data_chain_call</code> in <code>R/paintr-disable.R:20-22</code> from one predicate to a disjunction:</p>
+
+<pre><code>is_data_chain_call &lt;- function(node) {
+  is_ptr_call(node) &amp;&amp;
+    (walk_has_placeholder(node) || isTRUE(node$has_user_control))
+}</code></pre>
+
+<p>Single source of truth for "should this stage have a UI checkbox?" Three triggers (placeholder presence, explicit <code>has_user_control</code> from <code>ppVerbSwitch</code>) collapse to one gate.</p>
+
+<p><strong>Delete <code>stamp_default_stage_enabled_ids</code>.</strong> The Plan-01 second-pass workaround (<code>R/paintr-translate.R:131-153</code> + the call site at line 117) is no longer needed once the gate is extended: every stage that gets <code>has_user_control = TRUE</code> from <code>ppVerbSwitch</code> already gets a <code>stage_id</code> from <code>assign_stage_ids</code> via the extended gate. The lone caller at line 117 is removed in the same change.</p>
+
+<p><strong>UI emission.</strong> Thread <code>stage_label</code> through the same <code>entries</code> carrier in <code>R/paintr-build-ui.R</code> that already threads <code>default_stage_enabled</code> (line 240, 333, 451). <code>build_pipeline_stage_ui</code> at line 232-237 chooses between user-label and auto-label:</p>
+
+<pre><code>head_label &lt;- if (!is.null(entries[[i]]$stage_label)) {
+  entries[[i]]$stage_label              # user-provided plain text
+} else if (has_verb) {
+  shiny::tags$code(paste0(verb, "()"))  # existing auto-label
+} else NULL</code></pre>
+
+<p>Mirrored in <code>wrap_shared_widgets_with_stage_blocks</code> at line 517-520.</p>
+
+<p><strong>Wrap-with-placeholder is allowed.</strong> <code>ppVerbSwitch(mutate(x = ppVar(col)), label = "Transform x")</code> is legal — the wrapper composes with placeholder-driven stage_id stamping; the user gets both their custom label and the inner placeholder widget. <code>has_user_control = TRUE</code> is idempotent w.r.t. placeholder presence in the gate logic.</p>
+
+<p><strong>Hard-remove <code>ppVerbOff</code>.</strong> Per user direction, no deprecation window. Removed in the same change: the <code>ppVerbOff</code> exported function in <code>R/paintr-builtins.R:477-497</code> (and its roxygen <code>@rdname pp_off_toggles</code> entry); the <code>ppVerbOff</code> entry in <code>ptr_builtin_keywords()</code> at line 261; the <code>ptr_register_structural_keyword("ppVerbOff")</code> call at line 361; the <code>unwrap_pp_verb_off_stage</code> helper and its caller in <code>build_pipeline_from_lift</code> (replaced by the <code>ppVerbSwitch</code> equivalents); the <code>ppVerbOff</code>-specific branches in <code>ptr_assert_no_surviving_structural_wrappers</code> and the <code>validate_pp_off_hide</code> helper (replaced by the <code>ppVerbSwitch</code>-specific validators); the man page combined-Rd <code>pp_off_toggles</code> splits into one Rd for <code>ppLayerOff</code> alone (unchanged) and one new Rd for <code>ppVerbSwitch</code>; the use-cases vignette section "Layer and stage toggles — <code>ppLayerOff</code> and <code>ppVerbOff</code>" retitled to "Layer and stage toggles — <code>ppLayerOff</code> and <code>ppVerbSwitch</code>" with the <code>ppVerbOff</code> prose rewritten for <code>ppVerbSwitch</code>; the five <code>test-pp-off-*.R</code> files renamed to <code>test-pp-toggles-*.R</code> with the <code>ppVerbOff</code> halves rewritten as <code>ppVerbSwitch</code> coverage (the <code>ppLayerOff</code> halves stay verbatim).</p>
+
+<p><strong><code>ppLayerOff</code> is unchanged.</strong> No parallel <code>ppLayerSwitch</code>. Layers already get a checkbox unconditionally, so the "force a checkbox to exist" half of <code>ppVerbSwitch</code>'s value has no layer-side analogue. The "custom label" half is a real follow-up that this ADR explicitly does not address (out of scope below).</p>
+
+<h3>Precedence (boot value of the checkbox)</h3>
+
+<p>Same 3-band ladder as ADR-0020 § Precedence, with <code>switch_on</code> in place of <code>hide</code> (and the flag inverted):</p>
+
+<ol>
+  <li><code>spec =</code> entry naming the <code>&lt;stage_id&gt;_enabled</code> input id (ad-hoc one-shot at boot).</li>
+  <li>Formula-side <code>ppVerbSwitch(verb, switch_on = L)</code> → <code>default_stage_enabled = L</code> on the carrier <code>ptr_call</code>.</li>
+  <li>Implicit <code>TRUE</code>.</li>
+</ol>
+
+<h3>Structural-equality comparator (correction of ADR-0020 framing)</h3>
+
+<p>ADR-0020 added <code>default_active</code> and <code>default_stage_enabled</code> to the exclusion list. Its <em>Out-of-Scope</em> note explicitly preserved <code>stage_id</code> as <strong>not</strong> excluded, on the basis that <code>stage_id</code> is "runtime-semantic — <code>disable_walk</code> reads it to drop stages." Verified facts above show that framing is wrong: <code>stage_id</code> only enables a UI-driven gate; the gate's runtime effect (<code>is_stage_disabled → drop</code>) is identical between "no <code>stage_id</code>" and "<code>stage_id</code> with no bound reactive" — both fall through to <code>FALSE</code>.</p>
+
+<p>Therefore extend the exclusion list at <code>R/paintr-nodes.R:142-143</code>:</p>
+
+<pre><code>names_a &lt;- setdiff(names(a), c("op", "expr", "default_active",
+                                "default_stage_enabled",
+                                "stage_id", "has_user_control",
+                                "stage_label"))
+names_b &lt;- setdiff(names(b), c("op", "expr", "default_active",
+                                "default_stage_enabled",
+                                "stage_id", "has_user_control",
+                                "stage_label"))</code></pre>
+
+<p>Consequence (restores Plan-03 SC7 by side effect): <code>ppVerbSwitch(mutate(x=1), switch_on=FALSE)</code> ≡ bare <code>mutate(x=1)</code> structurally. The verb-side structural-equality invariant the parent ADR's note named is restored — through wrapping + corrected comparator-classification, not through siblings.</p>
+
+<h3>ADR-0012 invariant (tree is semantic, not syntactic)</h3>
+
+<p>Holds for all values of <code>switch_on</code>: surface forms <code>data |&gt; ppVerbSwitch(verb, switch_on=L)</code>, <code>ppVerbSwitch(data, verb, switch_on=L)</code>, and <code>data %&gt;% ppVerbSwitch(verb, switch_on=L)</code> all produce the same canonical typed tree (same stages, same flags). The carrier <code>ptr_call</code> still carries the <code>has_user_control</code> / <code>stage_label</code> / <code>default_stage_enabled</code> metadata so downstream readers (gate, snapshot, UI emitter) see what the user requested — but the comparator deliberately ignores it.</p>
+
+<h3>Out of scope for this ADR</h3>
+
+<ul>
+  <li>The exact spelling of error messages from translate-time validation (literal-only <code>switch_on</code> / <code>label</code>; wrong-position keyword).</li>
+  <li>A parallel <code>ppLayerSwitch(layer_expr, switch_on = TRUE, label = NULL)</code>. Layers already get a checkbox unconditionally, so the "force a checkbox" half doesn't apply; the "custom label" half is a real follow-up but not addressed here per user direction.</li>
+  <li>HTML or <code>shiny::tag</code> values for <code>label =</code>. <code>label</code> is a literal scalar character only; HTML/markup labels are a follow-up question if user demand arises.</li>
+  <li>Whether <code>ppVerbSwitch</code> wrapping a stage that <em>already</em> contains a placeholder should overwrite that placeholder's auto-derived label suffix (<code>" in mutate()"</code>) or compose with it. The current decision: the stage-level <code>stage_label</code> overrides only the stage-block head label, not the per-placeholder suffix; if this proves confusing, a follow-up can rationalise.</li>
+</ul>
+
+<h2>Consequences</h2>
+
+<h3>What this buys</h3>
+
+<ul>
+  <li>The formula-as-source-of-truth principle extends to <em>any</em> verb-stage UI checkbox. Users can opt a bare verb stage into the UI without inventing a placeholder, and can give it a meaningful label.</li>
+  <li><strong>ADR-0020's verb-side structural-equality invariant is restored as a side effect.</strong> <code>ppVerbSwitch(verb, switch_on=FALSE)</code> ≡ bare <code>verb</code>; the Plan-03 SC7 follow-up is closed.</li>
+  <li><strong>One mental model</strong> for verb-stage UI presence: the gate <code>is_data_chain_call</code> answers "this stage has a UI checkbox" by checking placeholder presence OR <code>has_user_control</code>. No separate post-translate stamping pass; <code>stamp_default_stage_enabled_ids</code> is deleted.</li>
+  <li><strong>One mental model</strong> for the <code>pp*</code>-toggles vocabulary: <code>ppLayerOff(layer, hide=)</code> for layers (which already have checkboxes), <code>ppVerbSwitch(verb, switch_on=, label=)</code> for verb stages (which don't). No <code>ppVerbOff</code> alias.</li>
+  <li>The <code>stage_id</code>-classification correction unblocks future work that wants to compare trees across UI-routing configurations (e.g., spec-roundtrip closed-loop tests, drift detection between equivalent formulations).</li>
+</ul>
+
+<h3>What this does NOT buy</h3>
+
+<ul>
+  <li>No new runtime power beyond UI affordance. <code>ppVerbSwitch</code> doesn't change what verbs run when the checkbox is checked — it only decides whether a checkbox exists and what it boots to.</li>
+  <li>No layer-side label override. <code>ppLayerOff</code> remains label-less; layer-checkbox labels still come from layer name. Symmetric label work is a follow-up.</li>
+</ul>
+
+<h3>Risks</h3>
+
+<ul>
+  <li><strong>Hard-removal of <code>ppVerbOff</code> is a public-API break.</strong> Justified by user direction ("no one uses it") and by <code>ppVerbOff</code> having shipped only two days prior (2026-05-24, ADR-0020). Existing formulas using <code>ppVerbOff</code> must migrate to <code>ppVerbSwitch(verb, switch_on=FALSE[, label=…])</code>; <code>ppVerbOff(verb, hide=FALSE)</code> migrates to bare <code>verb</code> (no UI affordance, no behavioral change). The implementation plan must search-and-replace every internal call site (vignettes, tests, fixtures) in the same change.</li>
+  <li><strong>The comparator-exclusion-list extension overrides ADR-0020's <em>Out-of-Scope</em> guidance.</strong> Future readers will see ADR-0020 say "do NOT add <code>stage_id</code> to the exclusion list" and ADR-0021 do exactly that. The justification (source-code evidence) is in §"Structural-equality comparator" above; ADR-0020's Status block will be amended in the same change to point to ADR-0021 as the corrected framing on this specific point.</li>
+  <li><strong>The "wrap a placeholder-containing stage" composability case.</strong> <code>ppVerbSwitch(mutate(x = ppVar(col)), label="X")</code> produces a stage with both a user-label and inner-placeholder widgets. The label override path interacts with the existing per-placeholder label-suffix rule (<code>build_pipeline_stage_ui</code> at line 197-200). The implementation plan must add a regression test that asserts the stage-block head label = the user's <code>label=</code>, while the inner placeholder labels keep their existing rendering.</li>
+  <li><strong>Test-rename + test-rewrite churn.</strong> The five <code>test-pp-off-*.R</code> files are renamed and partially rewritten. The plan must verify (a) the renamed files load via <code>testthat::test_dir</code>'s <code>^test.*\.R$</code> glob, (b) the <code>ppLayerOff</code> halves still pass byte-for-byte, (c) the <code>ppVerbSwitch</code>-rewritten halves cover every scenario the <code>ppVerbOff</code> halves did (boot-off, spec-override, snapshot, browser-e2e, vignette-chunk).</li>
+  <li><strong>Translate-time literal validation surface grows.</strong> Two new validators (<code>validate_pp_verb_switch_switch_on</code>, <code>validate_pp_verb_switch_label</code>) join <code>validate_pp_off_hide</code> (kept for <code>ppLayerOff</code>'s <code>hide</code>). Three validators with similar shapes; opportunity for one parameterised helper, but only if the savings outweigh the indirection cost. Implementation plan decides.</li>
+</ul>
+
+</body>
+</html>
