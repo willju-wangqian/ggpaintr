@@ -43,6 +43,8 @@ Returns a \code{ptr_shared_state} that the embedder threads into each
 \code{\link[=ptr_server]{ptr_server()}} via the \code{shared_state} argument.
 }
 \details{
+Namespacing is inherited from \code{obj$id}; supply it to \code{\link[=ptr_shared]{ptr_shared()}}.
+
 Reads its session via \code{\link[shiny:domains]{shiny::getDefaultReactiveDomain()}} -- call
 it inside the top-level Shiny server function (or any reactive
 context that inherits the session). Errors when called outside any

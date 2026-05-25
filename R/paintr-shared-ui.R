@@ -148,6 +148,8 @@ shared_consumer_representatives <- function(trees) {
 #' Returns a `ptr_shared_state` that the embedder threads into each
 #' [`ptr_server()`] via the `shared_state` argument.
 #'
+#' Namespacing is inherited from `obj$id`; supply it to [`ptr_shared()`].
+#'
 #' Reads its session via [`shiny::getDefaultReactiveDomain()`] -- call
 #' it inside the top-level Shiny server function (or any reactive
 #' context that inherits the session). Errors when called outside any
@@ -195,6 +197,7 @@ ptr_shared_server <- function(obj,
   if (!inherits(obj, "ptr_shared_spec")) {
     rlang::abort("`ptr_shared_server()` requires a `ptr_shared_spec` from `ptr_shared()`.")
   }
+  ns <- shared_ns(obj)
   session <- shiny::getDefaultReactiveDomain()
   if (is.null(session)) {
     rlang::abort(
@@ -263,7 +266,7 @@ ptr_shared_server <- function(obj,
   }
   shared_reactives <- stats::setNames(
     lapply(panel_keys, function(k) {
-      cid <- canonical_shared_id(k)
+      cid <- ns(canonical_shared_id(k))
       override_rv <- shared[[k]]
       if (is.null(override_rv)) {
         shiny::reactive(input[[cid]])
@@ -280,7 +283,10 @@ ptr_shared_server <- function(obj,
   effective_draw_trigger <- if (!is.null(draw_trigger)) {
     draw_trigger
   } else if (formula_count >= 2L) {
-    shiny::reactive(input$ptr_shared_draw_all)
+    local({
+      draw_id <- ns("ptr_shared_draw_all")
+      shiny::reactive(input[[draw_id]])
+    })
   } else {
     NULL
   }
@@ -293,16 +299,17 @@ ptr_shared_server <- function(obj,
   # marking the formula-local keys as host-owned-elsewhere so only
   # `panel_keys ∩ consumer_keys` are bound at `ns = identity`.
   panel_consumer_keys <- intersect(consumer_keys, panel_keys)
+  errors_output_id <- ns("ptr_shared_errors")
   if (length(panel_consumer_keys) > 0L) {
     errors_rv <- shiny::reactiveVal(character())
     ptr_bind_local_shared_consumers(
-      tree = trees, output = output, input = input, ns = identity,
+      tree = trees, output = output, input = input, ns = ns,
       host_owned_keys = setdiff(consumer_keys, panel_keys),
       eval_env = envir,
       expr_check = expr_check,
       errors_rv = errors_rv
     )
-    output$ptr_shared_errors <- shiny::renderUI({
+    output[[errors_output_id]] <- shiny::renderUI({
       msgs <- errors_rv()
       if (length(msgs) == 0L) return(NULL)
       ptr_error_ui(paste(msgs, collapse = "\n"))
@@ -312,7 +319,7 @@ ptr_shared_server <- function(obj,
     # slot in the panel; clear it explicitly so a stale prior render does
     # not stick. Safe no-op when `panel_keys` is empty (formula-local-only
     # multi-instance app) and the `ptr_shared_errors` id is absent.
-    output$ptr_shared_errors <- shiny::renderUI({ NULL })
+    output[[errors_output_id]] <- shiny::renderUI({ NULL })
   }
 
   # One reactive per shared key whose orphan pipeline stages should be
@@ -326,7 +333,7 @@ ptr_shared_server <- function(obj,
   shared_stage_enabled <- if (length(orphan_info) > 0L) {
     stats::setNames(
       lapply(names(orphan_info), function(k) {
-        sid_input <- shared_stage_input_id(k)
+        sid_input <- ns(shared_stage_input_id(k))
         shiny::reactive({
           v <- input[[sid_input]]
           if (is.null(v)) TRUE else isTRUE(v)
@@ -341,7 +348,7 @@ ptr_shared_server <- function(obj,
   # custom message registered by `ptr_layer_assets()`.
   for (k in names(orphan_info)) {
     local({
-      sid_input <- shared_stage_input_id(k)
+      sid_input <- ns(shared_stage_input_id(k))
       block_dom_id <- paste0(sid_input, "_stage_block")
       shiny::observeEvent(input[[sid_input]], {
         val <- input[[sid_input]]
