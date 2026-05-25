@@ -187,3 +187,90 @@ test_that("SC-7: entries packed from a ppVerbSwitch(..., 'X') carrier have ident
     expect_identical(e$stage_label, "X")
   }
 })
+
+# ---- SC-8: ppVerbSwitch wrapping a placeholder-free verb still gets a toggle ----
+#
+# ADR 0021's headline guarantee: "give me a checkbox for this verb stage
+# without inventing a placeholder they don't need". Pre-fix the typing path
+# stamped `stage_id` + `has_user_control = TRUE` + `default_stage_enabled` on
+# the carrier, but the UI emitter was entries-driven so a stage with zero
+# placeholders produced zero entries and zero UI — the toggle was silently
+# missing. Two assertions: (1) `find_layer_placeholders_with_stage` emits a
+# synthetic `ph = NULL` entry for the placeholder-free stage; (2)
+# `build_pipeline_stage_ui` renders a header-only `controllable_region` whose
+# checkbox carries the stage_id and the user's plain-text label.
+test_that("SC-8: ppVerbSwitch(<verb>, FALSE, 'L') with no inner placeholder emits a header-only stage block", {
+  tree <- ptr_translate(
+    'ggplot(mtcars |> ppVerbSwitch(dplyr::slice_max(mpg, n = 15), FALSE, label = "Top 15 by mpg"), aes(x = mpg, y = wt)) + geom_point()'
+  )
+  layer <- ggplot_layer_of(tree)
+
+  # (1) entries packing: one synthetic header-only entry for the stage.
+  entries <- ggpaintr:::find_layer_placeholders_with_stage(layer$data_arg)
+  expect_length(entries, 1L)
+  e <- entries[[1L]]
+  expect_null(e$ph)
+  expect_identical(e$stage_label, "Top 15 by mpg")
+  expect_identical(e$default_stage_enabled, FALSE)
+  expect_identical(e$verb, "slice_max")
+  expect_true(nzchar(e$stage_id))
+
+  # (2) UI emit: head-only controllable_region with stage_id input + label.
+  ui <- ggpaintr:::build_pipeline_stage_ui(
+    entries, ui_text = NULL, layer_name = "ggplot", ns_fn = identity
+  )
+  rendered <- as.character(htmltools::doRenderTags(ui))
+  head <- extract_stage_head(rendered)
+  expect_length(head, 1L)
+  expect_match(head[[1L]], "Top 15 by mpg", fixed = TRUE)
+  # User-declared plain text — NOT wrapped in <code>...</code>.
+  expect_no_match(head[[1L]], "<code>", fixed = TRUE)
+  # The synthetic entry's stage_id wires the checkbox inputId.
+  expect_match(rendered, paste0('id="', e$stage_id, '"'), fixed = TRUE)
+  # Default-off boot: no `checked` attribute on the input.
+  expect_no_match(head[[1L]], "checked", fixed = TRUE)
+})
+
+# ---- SC-9: same as SC-8 but boot-on, auto-label fallback ----
+#
+# Mirror image of SC-8: `switch_on = TRUE`, no `label` slot — so the head
+# must fall back to the `<code>slice_max()</code>` auto-label AND the
+# checkbox must boot checked. Locks both halves of the placeholder-free
+# guarantee.
+test_that("SC-9: ppVerbSwitch(<verb>, TRUE) with no inner placeholder boots checked with auto-label", {
+  tree <- ptr_translate(
+    'ggplot(mtcars |> ppVerbSwitch(dplyr::slice_max(mpg, n = 15), TRUE), aes(x = mpg, y = wt)) + geom_point()'
+  )
+  layer <- ggplot_layer_of(tree)
+  entries <- ggpaintr:::find_layer_placeholders_with_stage(layer$data_arg)
+  expect_length(entries, 1L)
+  expect_null(entries[[1L]]$ph)
+  expect_identical(entries[[1L]]$default_stage_enabled, TRUE)
+
+  ui <- ggpaintr:::build_pipeline_stage_ui(
+    entries, ui_text = NULL, layer_name = "ggplot", ns_fn = identity
+  )
+  rendered <- as.character(htmltools::doRenderTags(ui))
+  head <- extract_stage_head(rendered)
+  expect_length(head, 1L)
+  # Auto-label fallback fires because the user gave no label= slot.
+  expect_match(head[[1L]], "<code>slice_max()</code>", fixed = TRUE)
+  # Boot-on: input carries the `checked` attribute.
+  expect_match(head[[1L]], "checked", fixed = TRUE)
+})
+
+# ---- SC-10: bare verb (no ppVerbSwitch) still emits NO header ----
+#
+# Negative control. ADR 0021 leaves the existing "bare verb in pipeline →
+# no checkbox" semantics untouched; only `ppVerbSwitch(...)` opts a verb
+# in. The synthetic-entry pass must NOT fire for a bare verb (no
+# `has_user_control`, no `stage_id`).
+test_that("SC-10: bare dplyr::slice_max(mpg, n = 15) (no ppVerbSwitch) emits no stage block", {
+  tree <- ptr_translate(
+    'ggplot(mtcars |> dplyr::slice_max(mpg, n = 15), aes(x = mpg, y = wt)) + geom_point()'
+  )
+  layer <- ggplot_layer_of(tree)
+  entries <- ggpaintr:::find_layer_placeholders_with_stage(layer$data_arg)
+  # No placeholders, no `has_user_control` stamp → no entries at all.
+  expect_length(entries, 0L)
+})

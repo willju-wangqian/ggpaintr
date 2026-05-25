@@ -190,6 +190,12 @@ build_ui_for.ptr_layer <- function(node,
 build_pipeline_stage_ui <- function(entries, ui_text, layer_name, ns_fn) {
   build_ph <- function(entry, drop_suffix) {
     ph <- entry$ph
+    # ADR 0021 — synthetic header-only entry for a `ppVerbSwitch(<verb>, ...)`
+    # stage whose inner verb has no placeholders. Carries `ph = NULL` so the
+    # loop adds nothing to `fields`; the stage block's checkbox header is
+    # still emitted from the entry's `stage_id` / `stage_label` /
+    # `default_stage_enabled`.
+    if (is.null(ph)) return(NULL)
     verb <- entry$verb
     has_verb <- !is.null(verb) && !is.na(verb) && nzchar(verb)
     param_override <- if (has_verb && ptr_param_is_unnamed(ph$param)) {
@@ -225,33 +231,40 @@ build_pipeline_stage_ui <- function(entries, ui_text, layer_name, ns_fn) {
       if (!is.null(ui)) fields[[length(fields) + 1L]] <- ui
       j <- j + 1L
     }
-    if (length(fields) > 0L) {
-      if (sid %in% seen) {
+    if (sid %in% seen) {
+      # Continuation only carries fields; with no widgets to add (e.g. only
+      # a synthetic header-only entry for this sid), skip — the head was
+      # already emitted at first sighting.
+      if (length(fields) > 0L) {
         out[[length(out) + 1L]] <- controllable_region_continuation(fields)
-      } else {
-        seen <- c(seen, sid)
-        has_verb <- !is.null(verb) && !is.na(verb) && nzchar(verb)
-        # ADR 0021 PLAN-05: precedence — user-declared `stage_label` first
-        # (plain text, passed through unchanged), auto-derived `verb()`
-        # second (wrapped in `<code>`), NULL third. Reversing the order
-        # would let auto-label leak past a user override; wrapping the
-        # user's plain text in `<code>` would break the user's intent.
-        user_stage_label <- entries[[i]]$stage_label
-        head_label <- if (!is.null(user_stage_label)) {
-          user_stage_label
-        } else if (has_verb) {
-          shiny::tags$code(paste0(verb, "()"))
-        } else NULL
-        # ADR 0020 PLAN-02: all entries in one stage block share the same
-        # `default_stage_enabled` (they all descend from the same stage
-        # carrier ptr_call); reading the head entry's threaded value is
-        # sufficient. `%||% TRUE` covers the no-carrier case (e.g. a bare
-        # pipeline stage with no ppVerbSwitch stamp).
-        default_on <- isTRUE(entries[[i]]$default_stage_enabled %||% TRUE)
-        out[[length(out) + 1L]] <- controllable_region(
-          sid, head_label, fields, ns_fn = ns_fn, default_on = default_on
-        )
       }
+    } else {
+      seen <- c(seen, sid)
+      has_verb <- !is.null(verb) && !is.na(verb) && nzchar(verb)
+      # ADR 0021 PLAN-05: precedence — user-declared `stage_label` first
+      # (plain text, passed through unchanged), auto-derived `verb()`
+      # second (wrapped in `<code>`), NULL third. Reversing the order
+      # would let auto-label leak past a user override; wrapping the
+      # user's plain text in `<code>` would break the user's intent.
+      user_stage_label <- entries[[i]]$stage_label
+      head_label <- if (!is.null(user_stage_label)) {
+        user_stage_label
+      } else if (has_verb) {
+        shiny::tags$code(paste0(verb, "()"))
+      } else NULL
+      # ADR 0020 PLAN-02: all entries in one stage block share the same
+      # `default_stage_enabled` (they all descend from the same stage
+      # carrier ptr_call); reading the head entry's threaded value is
+      # sufficient. `%||% TRUE` covers the no-carrier case (e.g. a bare
+      # pipeline stage with no ppVerbSwitch stamp).
+      default_on <- isTRUE(entries[[i]]$default_stage_enabled %||% TRUE)
+      # ADR 0021: emit the head unconditionally so a `ppVerbSwitch(<verb>,
+      # ...)` wrapping a placeholder-free verb still gets its toggle
+      # checkbox. `fields` may be empty (single synthetic entry); the
+      # `.ptr-stage-fields` wrapper is then a harmless empty div.
+      out[[length(out) + 1L]] <- controllable_region(
+        sid, head_label, fields, ns_fn = ns_fn, default_on = default_on
+      )
     }
     i <- j
   }
@@ -390,6 +403,28 @@ find_layer_placeholders_with_stage <- function(x) {
           for (a in s$args) {
             visit(a, s$stage_id, verb, s$default_stage_enabled,
                   s$stage_label)
+          }
+          # ADR 0021 — "give me a checkbox without inventing a placeholder":
+          # `ppVerbSwitch(<verb>, ...)` stamps `has_user_control = TRUE` on a
+          # stage whose inner verb may carry zero placeholders. The arg-visit
+          # above then emits no entries, AND `collect_orphan_shared_stages`
+          # skips it (it requires >=1 shared placeholder). Without a synthetic
+          # header-only entry the UI emitter would never render the toggle
+          # checkbox — silently dropping (or silently keeping) the verb with
+          # no way for the user to flip it. Synthesise an entry with
+          # `ph = NULL` so `build_pipeline_stage_ui()` still emits the
+          # stage-block header.
+          if (isTRUE(s$has_user_control)) {
+            stage_ph_count <- length(
+              ptr_collect(s, is_ptr_placeholder, prune = is_ptr_placeholder)
+            )
+            if (stage_ph_count == 0L) {
+              out[[length(out) + 1L]] <<- list(
+                ph = NULL, stage_id = s$stage_id, verb = verb,
+                default_stage_enabled = s$default_stage_enabled,
+                stage_label = s$stage_label
+              )
+            }
           }
         } else {
           visit(s, NA_character_, NA_character_, NULL, NULL)
