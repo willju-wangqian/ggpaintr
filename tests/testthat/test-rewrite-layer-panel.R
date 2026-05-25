@@ -77,6 +77,7 @@ test_that("P6.9 checkbox defaults to TRUE when key absent", {
 })
 
 test_that("P6.10 checkbox defaults to FALSE when key set FALSE", {
+  testthat::skip("superseded by ADR 0020 ppLayerOff; Plan 04 will delete this file")
   tree <- ptr_translate("ggplot(mtcars) + geom_point()")
   layer <- .layer_by_name(tree, "geom_point")
   panel <- build_ui_for(
@@ -90,6 +91,7 @@ test_that("P6.10 checkbox defaults to FALSE when key set FALSE", {
 # ---- P6.11 — content div carries ptr-layer-disabled when FALSE ----
 
 test_that("P6.11 layer toggle FALSE adds ptr-layer-disabled class", {
+  testthat::skip("superseded by ADR 0020 ppLayerOff; Plan 04 will delete this file")
   tree <- ptr_translate("ggplot(mtcars) + geom_point()")
   layer <- .layer_by_name(tree, "geom_point")
   panel <- build_ui_for(

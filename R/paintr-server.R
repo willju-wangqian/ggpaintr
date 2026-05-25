@@ -132,16 +132,12 @@ ptr_init_state <- function(formula,
     strict_missing = !isTRUE(auto_bind_shared)
   )
 
-  layer_names <- vapply(tree$layers, function(l) l$name, character(1))
-  # `ptr_resolve_checkbox_defaults` keys off `names(expr_list)`; supply a
-  # named placeholder list so the layer names land where it expects them.
-  expr_list_proxy <- stats::setNames(
-    as.list(rep(NA, length(layer_names))),
-    layer_names
-  )
-  resolved_cd <- ptr_resolve_checkbox_defaults(checkbox_defaults,
-                                                expr_list_proxy)
-
+  # ADR 0020 PLAN-02: `checkbox_defaults =` is no longer consulted here.
+  # The node-level `default_active` field (stamped by `ppLayerOff`) is the
+  # single source of truth, read at the snapshot site
+  # (`ptr_default_snapshot()`) and at the spec-emission diff baseline
+  # (`ptr_spec_defaults_from_state()`). The formal stays for API
+  # back-compat; Plan 04 removes it from the public surface.
   data_layer_names <- character()
   for (l in tree$layers) {
     if (is_bare_data_source_layer(l)) {
@@ -233,7 +229,6 @@ ptr_init_state <- function(formula,
     # Static diagnostics from `ptr_translate()` — surfaced in `#ptr_error`
     # alongside runtime errors. Set once at init; never mutates.
     pipe_layer_warnings = pipe_layer_warnings,
-    checkbox_defaults = resolved_cd,
     shared_bindings = shared_bindings,
     shared_resolutions = if (is.list(shared_resolutions)) shared_resolutions else list(),
     draw_trigger = draw_trigger,
@@ -317,29 +312,39 @@ ptr_init_state <- function(formula,
   st
 }
 
-# ADR 0012 §3.5 / PLAN-05 — derive the default-input snapshot the runtime
-# would have started from, for diffing against the frozen runtime
-# snapshot. Mirrors `ptr_default_snapshot()` but consumes the
-# already-resolved `state$checkbox_defaults` (layer_name -> logical)
-# rather than re-running the validator, and reads ids straight off
-# `state$input_spec`. Placeholder/source-companion roles default to NULL
-# (no registry-documented default => emit on diff). `layer_checkbox`
-# defaults to the resolved checkbox-defaults entry for that layer (or
-# TRUE if missing). `stage_enabled` defaults to TRUE.
+# ADR 0012 §3.5 / PLAN-05 + ADR 0020 PLAN-02 — derive the default-input
+# snapshot the runtime would have started from, for diffing against the
+# frozen runtime snapshot. Mirrors `ptr_default_snapshot()` exactly,
+# reading the carrier-node fields via the shared `find_layer_by_name()` /
+# `find_stage_call_by_id()` helpers so the snapshot site and this site
+# stay aligned on which field they consult. Placeholder/source-companion
+# roles default to NULL (no registry-documented default => emit on diff).
+# `layer_checkbox` defaults to `isTRUE(node$default_active %||% TRUE)`.
+# `stage_enabled` defaults to `isTRUE(node$default_stage_enabled %||% TRUE)`.
 ptr_spec_defaults_from_state <- function(state) {
   spec <- state$input_spec
-  resolved_cd <- state$checkbox_defaults %||% list()
   defaults <- list()
   if (nrow(spec) == 0L) return(defaults)
+  # `state$tree` is a `reactiveVal` (function) in production calls (this
+  # function fires inside the `state$spec` reactive built in
+  # `ptr_init_state`) but can also be a plain ptr_root in unit-test calls.
+  # `isolate()` is safe in both contexts — for a non-reactive plain object
+  # the call passes through unchanged.
+  tree <- if (is.function(state$tree)) {
+    shiny::isolate(state$tree())
+  } else {
+    state$tree
+  }
   for (i in seq_len(nrow(spec))) {
     raw_id <- spec$input_id[i]
     role   <- spec$role[i]
     if (identical(role, "layer_checkbox")) {
       layer_name <- spec$layer_name[i]
-      val <- resolved_cd[[layer_name]]
-      defaults[[raw_id]] <- if (is.null(val)) TRUE else val
+      carrier <- find_layer_by_name(tree, layer_name)
+      defaults[[raw_id]] <- isTRUE(carrier$default_active %||% TRUE)
     } else if (identical(role, "stage_enabled")) {
-      defaults[[raw_id]] <- TRUE
+      carrier <- find_stage_call_by_id(tree, raw_id)
+      defaults[[raw_id]] <- isTRUE(carrier$default_stage_enabled %||% TRUE)
     } else {
       defaults[raw_id] <- list(NULL)
     }

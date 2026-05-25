@@ -18,6 +18,7 @@ test_that("ptr_init_state returns a typed-state structure", {
 })
 
 test_that("ptr_init_state resolves checkbox_defaults", {
+  testthat::skip("superseded by ADR 0020 ppLayerOff; Plan 04 will rewrite using ppLayerOff equivalents")
   state <- ptr_init_state(
     "ggplot(mtcars) + geom_point() + geom_smooth()",
     checkbox_defaults = list(geom_smooth = FALSE),

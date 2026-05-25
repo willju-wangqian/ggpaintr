@@ -256,6 +256,7 @@ test_that("length-0 value errors", {
 # ---------------------------------------------------------------------------
 
 test_that("ptr_init_state exposes resolved vector on ptr_state$checkbox_defaults", {
+  testthat::skip("superseded by ADR 0020 ppLayerOff; Plan 04 will delete this file")
   state <- ptr_init_state(
     formula = "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point() + geom_smooth()",
     checkbox_defaults = list(geom_smooth = FALSE)
@@ -267,6 +268,7 @@ test_that("ptr_init_state exposes resolved vector on ptr_state$checkbox_defaults
 })
 
 test_that("ptr_init_state default (NULL) yields all-TRUE", {
+  testthat::skip("superseded by ADR 0020 ppLayerOff; Plan 04 will delete this file")
   state <- ptr_init_state(
     formula = "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point() + geom_smooth()"
   )
@@ -277,6 +279,7 @@ test_that("ptr_init_state default (NULL) yields all-TRUE", {
 })
 
 test_that("ptr_init_state errors are surfaced from validator", {
+  testthat::skip("superseded by ADR 0020 ppLayerOff; Plan 04 will delete this file")
   expect_error(
     ptr_init_state(
       formula = "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
