@@ -24,14 +24,20 @@ test_that("comparator exclusion list contains the two new UI-state slots", {
     warn = FALSE
   )
   body <- paste(src, collapse = "\n")
+  # ADR-0021 PLAN-01: exclusion list grew from 4 names to 7 — the new sibling
+  # UI-metadata fields `stage_id`, `has_user_control`, `stage_label` are all
+  # UI-routing/labelling metadata, not load-bearing execution-AST pieces. The
+  # lockdown regex is re-anchored on the new 7-name literal in the same order
+  # it appears in the source (prefix-preserved), so accidental drift of the
+  # canonical exclusion list still trips this guard.
   expect_match(
     body,
-    'setdiff\\(names\\(a\\),\\s*c\\("op",\\s*"expr",\\s*"default_active",\\s*"default_stage_enabled"\\)\\)',
+    'setdiff\\(names\\(a\\),\\s*c\\("op",\\s*"expr",\\s*"default_active",\\s*"default_stage_enabled",\\s*"stage_id",\\s*"has_user_control",\\s*"stage_label"\\)\\)',
     fixed = FALSE
   )
   expect_match(
     body,
-    'setdiff\\(names\\(b\\),\\s*c\\("op",\\s*"expr",\\s*"default_active",\\s*"default_stage_enabled"\\)\\)',
+    'setdiff\\(names\\(b\\),\\s*c\\("op",\\s*"expr",\\s*"default_active",\\s*"default_stage_enabled",\\s*"stage_id",\\s*"has_user_control",\\s*"stage_label"\\)\\)',
     fixed = FALSE
   )
 })
