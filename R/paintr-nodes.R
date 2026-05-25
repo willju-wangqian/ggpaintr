@@ -29,19 +29,30 @@ ptr_pipeline <- function(stages, op, expr) {
   new_ptr_node("ptr_pipeline", stages = stages, op = op, expr = expr)
 }
 
-# `default_stage_enabled` (ADR 0020 §2) is the formula-derived boot state of
-# this call's stage-enabled checkbox: TRUE when the user wrote the stage as a
-# normal verb (or no `ppVerbOff` wrapper applies), FALSE when the user wrapped
-# the stage in `ppVerbOff(.data, verb_expr, hide = TRUE)`. The slot is present
+# `default_stage_enabled` (ADR 0020 §2 / ADR 0021) is the formula-derived
+# boot state of this call's stage-enabled checkbox: TRUE when the user
+# wrote the stage as a normal verb (or `ppVerbSwitch(verb, switch_on = TRUE)`),
+# FALSE when the user wrapped the stage in
+# `ppVerbSwitch(.data, verb_expr, switch_on = FALSE)`. The slot is present
 # on every `ptr_call` even when no stage-id has been assigned yet, because
 # downstream readers (Plan 02) consume `node$default_stage_enabled` without
 # first checking `node$stage_id`; defaulting to TRUE keeps non-chain calls
 # (e.g. layer-arg leaves) inert.
-ptr_call <- function(fun, args, expr, default_stage_enabled = TRUE) {
+#
+# `has_user_control` and `stage_label` (ADR 0021 §Decision) are sibling
+# UI-metadata fields stamped by the translator on carrier `ptr_call`s that
+# arose from a `ppVerbSwitch(...)` wrapper. They are read by the UI emitter
+# (Plan 05) and the extended gate (Plan 04), and like `stage_id` they are
+# routing/labelling metadata — never load-bearing pieces of the execution
+# AST. The comparator below therefore excludes all three together.
+ptr_call <- function(fun, args, expr = NULL, default_stage_enabled = TRUE,
+                     has_user_control = FALSE, stage_label = NULL) {
   new_ptr_node(
     "ptr_call",
     fun = fun, args = args, expr = expr,
-    default_stage_enabled = default_stage_enabled
+    default_stage_enabled = default_stage_enabled,
+    has_user_control = has_user_control,
+    stage_label = stage_label
   )
 }
 
@@ -139,8 +150,8 @@ ptr_tree_structural_equal <- function(a, b) {
     if (is_ptr_literal(a)) {
       return(identical(a$expr, b$expr))
     }
-    names_a <- setdiff(names(a), c("op", "expr", "default_active", "default_stage_enabled"))
-    names_b <- setdiff(names(b), c("op", "expr", "default_active", "default_stage_enabled"))
+    names_a <- setdiff(names(a), c("op", "expr", "default_active", "default_stage_enabled", "stage_id", "has_user_control", "stage_label"))
+    names_b <- setdiff(names(b), c("op", "expr", "default_active", "default_stage_enabled", "stage_id", "has_user_control", "stage_label"))
     if (!setequal(names_a, names_b)) return(FALSE)
     for (nm in names_a) {
       if (!ptr_tree_structural_equal(a[[nm]], b[[nm]])) return(FALSE)

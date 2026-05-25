@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-05 — UI emission of stage_label (from ADR 0021)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 05
+  slug: ui-emission-stage-label
+  source_adr: dev/adr/0021-pp-verb-switch.html
+  depends_on: [03]
+  parallel_group: G4
+  status: draft
+-->
+
+<h1>PLAN-05 — UI emission of <code>stage_label</code></h1>
+<p class="meta">Source: ADR 0021 · Depends on: 03 · Parallel group: G4 · Status: draft</p>
+
+<h2>Context</h2>
+<p>From the ADR's <em>Decision</em> section:</p>
+<blockquote>
+  <p><strong>UI emission.</strong> Thread <code>stage_label</code> through the same <code>entries</code> carrier in <code>R/paintr-build-ui.R</code> that already threads <code>default_stage_enabled</code> (L242 read, L334 entry creation, L451 second entry creation). <code>build_pipeline_stage_ui</code> (defined L190-250) at L234-237 chooses between user-label and auto-label:</p>
+  <pre>head_label &lt;- if (!is.null(entries[[i]]$stage_label)) {
+  entries[[i]]$stage_label              # user-provided plain text
+} else if (has_verb) {
+  shiny::tags$code(paste0(verb, "()"))  # existing auto-label
+} else NULL</pre>
+  <p>Mirrored in <code>wrap_shared_widgets_with_stage_blocks</code> (defined L492-528) at L518-520.</p>
+</blockquote>
+<p>This plan owns only the threading and the label choice in two UI builders. The <em>stamping</em> of <code>stage_label</code> on the typed-tree carrier is plan 03's. The carrier-to-entries-list packing is the existing logic in <code>R/paintr-build-ui.R</code> — this plan extends it by one additional packed field.</p>
+
+<h2>Governing principle</h2>
+<p>The UI emitter is a <strong>pure consumer</strong> of the typed tree's UI metadata — it never derives metadata from scratch and never overrides what the typed tree declared. <code>stage_label</code> on a carrier <code>ptr_call</code> is the user's source-of-truth declaration of the stage-block head label; the emitter's job is to splice that string into <code>controllable_region(head_label = ...)</code>, falling back to the auto-derived <code>verb()</code> code form only when the user did not declare a label. The fall-back ordering is non-negotiable: user-declared first, auto-derived second, <code>NULL</code> third. An emitter that reverses the precedence — auto-label first with a user-label "override" applied afterward — invites side-channel state that breaks the source-of-truth contract. An emitter that "improves" the label by wrapping the user's plain-text string in <code>shiny::tags$code(...)</code> breaks the user's intent: plain text was chosen <em>because</em> the user wanted plain text. Pass it through. <strong>The per-placeholder <code>" in mutate()"</code> suffix (the existing label-suffix rule inside <code>build_pipeline_stage_ui</code>'s <code>build_ph</code> closure at L196-199) is intentionally untouched</strong> by this plan: the ADR's "Out of scope" §4 explicitly defers the question of whether the stage-level <code>stage_label</code> should compose with or replace the placeholder-suffix, with a decision to override <em>only</em> the stage-block head label.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li><strong>SC-1.</strong> <strong>Per-layer stage-block head label uses user <code>stage_label</code> when set</strong>: launching <code>ptr_app("ggplot(mtcars |&gt; ppVerbSwitch(mutate(x = ppNum), TRUE, \"Transform x\"), aes(x = mpg, y = wt)) + geom_point()")</code> renders a stage-block whose head label has visible text <code>Transform x</code> (plain text, not wrapped in <code>&lt;code&gt;</code>). Verified by an HTML-snapshot test in <code>tests/testthat/test-pp-verb-switch-ui.R</code> using <code>shiny::testServer</code> or a static-render assertion against <code>build_pipeline_stage_ui()</code>'s output.</li>
+  <li><strong>SC-2.</strong> <strong>Fallback to auto-label when <code>stage_label</code> is NULL</strong>: launching the same formula with <code>stage_label</code> omitted (i.e. <code>ppVerbSwitch(mutate(x = ppNum), TRUE)</code>) renders a stage-block whose head label is <code>&lt;code&gt;mutate()&lt;/code&gt;</code> (i.e. <code>shiny::tags$code("mutate()")</code>). Verified by an HTML-snapshot assertion in the same file.</li>
+  <li><strong>SC-3.</strong> <strong>Bare-pipeline (no carrier) renders NULL head label</strong>: a stage block built from entries with no <code>stage_id</code> AND no verb fingerprint AND no <code>stage_label</code> renders <code>head_label = NULL</code>, matching pre-plan behavior. Verified by a unit-level assertion in the same file.</li>
+  <li><strong>SC-4.</strong> <strong>Shared-stage variant honours <code>stage_label</code></strong>: a formula that places a shared-bound placeholder inside a <code>ppVerbSwitch(verb, TRUE, "Custom")</code> wrapper emits the shared-stage head label as <code>Custom</code> (plain text). Verified by an HTML-snapshot assertion in the same file targeting <code>wrap_shared_widgets_with_stage_blocks()</code>'s output.</li>
+  <li><strong>SC-5.</strong> <strong>Per-placeholder label-suffix rule unchanged</strong>: a placeholder rendered inside a <code>ppVerbSwitch(mutate(x = ppNum), TRUE, "Custom")</code> wrapper still shows its widget label with the auto-derived <code>" in mutate()"</code> suffix (or its existing pre-plan rendering, whichever applied). The stage-level label override does NOT bleed into per-placeholder labels. Verified by a regression assertion in the same file.</li>
+  <li><strong>SC-6.</strong> <strong><code>ppVerbOff</code>-stamped stage still renders without label override</strong> (the wrapper carries no <code>stage_label</code>; the emitter falls back to auto-label). Verified by re-running the existing <code>tests/testthat/test-pp-off-readers.R</code> and observing zero regressions in HTML structure assertions there.</li>
+  <li><strong>SC-7.</strong> <strong>Entries-list invariant</strong>: every entry in the list passed to <code>build_pipeline_stage_ui</code> and <code>wrap_shared_widgets_with_stage_blocks</code> after this plan has a <code>stage_label</code> field (NULL or a length-1 character) — i.e. the carrier-to-entries packing in the two entry-creation sites (per the ADR, L334 + L451) reads <code>$stage_label</code> from the carrier <code>ptr_call</code> and packs it into the entry. Verified by an assertion that an entry built from a stamped carrier has <code>identical(entry$stage_label, "X")</code>.</li>
+  <li><strong>SC-8.</strong> The DoD command returns <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code> with N rising by <strong>7 new <code>test_that</code> blocks</strong> (SC-1..SC-7).</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns: <code>R/paintr-build-ui.R</code> (the threading at the two entry-creation sites + the <code>head_label</code> if/else in both UI builders), <code>tests/testthat/test-pp-verb-switch-ui.R</code> (NEW).</li>
+  <li>Files this plan must NOT touch: every other <code>R/paintr-*.R</code>, every vignette, every fixture, every other test file.</li>
+  <li>The verification of where exactly the carrier-to-entries packing happens (the ADR cites L334 and L451 as the two entry-creation sites): implementer MUST grep for the existing pack of <code>default_stage_enabled</code> in <code>R/paintr-build-ui.R</code> and add the <code>stage_label</code> field alongside, at every site that already packs <code>default_stage_enabled</code>. If the count of such sites differs from "two" (e.g. there's a third site the ADR missed), STOP and escalate — do not invent a third packing site, and do not skip one.</li>
+  <li>The user-label <code>shiny::tags$code()</code> wrap is FORBIDDEN. Per the ADR: <code>entries[[i]]$stage_label</code> is "user-provided plain text" and goes through <code>controllable_region(head_label = ...)</code> unchanged.</li>
+  <li>SCOPE NARROWING FORBIDDEN. If implementing SC-5 reveals that the per-placeholder suffix needs to suppress when <code>stage_label</code> is set, STOP and escalate — that is exactly the ADR-named out-of-scope question, and the decision is to keep them independent for this plan. Do not narrow SC-5 to "tested only when stage_label is NULL", do not add a suppression branch, do not add a unit test that asserts suppression.</li>
+  <li>Honor project conventions: 2-space indent, <code>%||%</code> idiom (the file already uses it; preserve), <code>shiny::tags$code()</code> only on the auto-label branch.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: stage_label on the carrier ptr_call surfaces as the stage-block head label.
+
+Scenario: SC-1 user stage_label replaces auto-label (per-layer pipeline)
+  Given the formula "ggplot(mtcars |> ppVerbSwitch(mutate(x = ppNum), TRUE, \"Transform x\"), aes(x = mpg, y = wt)) + geom_point()"
+  When the UI is built via ptr_app's static UI render
+  Then the stage-block head_label argument passed to controllable_region() is identical to "Transform x"
+  And  the rendered HTML does NOT wrap that string in <code>...</code>
+
+Scenario: SC-2 fallback to auto-label when stage_label is NULL
+  Given the formula "ggplot(mtcars |> ppVerbSwitch(mutate(x = ppNum), TRUE), aes(x = mpg, y = wt)) + geom_point()"
+  When the UI is built
+  Then the stage-block head_label is identical to shiny::tags$code("mutate()")
+
+Scenario: SC-3 bare-pipeline emits NULL head_label
+  Given an entries list whose entries have NA stage_id, no verb fingerprint, and NULL stage_label
+  When build_pipeline_stage_ui processes them
+  Then the call to controllable_region() either does not happen (no stage block) OR head_label is identical to NULL
+
+Scenario: SC-4 shared-stage variant honours stage_label
+  Given a formula that places a shared-bound placeholder inside ppVerbSwitch(verb, TRUE, "Custom")
+  When wrap_shared_widgets_with_stage_blocks builds its output
+  Then the stage block emits head_label identical to "Custom"
+
+Scenario: SC-5 per-placeholder label-suffix unchanged
+  Given the formula uses ppVerbSwitch(mutate(x = ppNum), TRUE, "Custom")
+  When the placeholder widget label for ppNum is rendered
+  Then its label suffix is still " in mutate()" (unchanged from the no-wrapper case)
+
+Scenario: SC-6 ppVerbOff stage block still uses auto-label
+  Given an entries list packed from a ppVerbOff-stamped carrier
+  When build_pipeline_stage_ui processes it
+  Then the head_label is identical to shiny::tags$code("mutate()")  # (or whatever verb)
+
+Scenario: SC-7 entries carry the stage_label field
+  Given a carrier ptr_call with stage_label = "X" passes through the carrier-to-entries packing
+  When the resulting entries list is inspected
+  Then every entry from that carrier has identical(entry$stage_label, "X")
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate (copy verbatim from project CLAUDE.md "Authoritative gate" block):</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected output: <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code>. Baseline N = plan-03's post-merge N (this plan is in parallel group G4 with plan-04; both branch from the same orchestrator HEAD); expected N after = baseline + 7.</p>
+<p><strong>Proxy traps — do not be fooled:</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → every shinytest2 browser test silently SKIPs. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does <strong>NOT</strong> make <code>skip_on_cran()</code> fire. The browser fixtures instead <strong>cleanly SKIP</strong> via the source-root guard. If a check run shows the e2e file <strong>ERRORing</strong>, that guard is a harness defect, not a product failure.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> <strong>runs</strong> the browser tests. That alone is the gate.</li>
+  <li>Project-specific proxy: <code>app$get_values()</code> in shinytest2 snapshots EVERY output and 500s on pre-draw <code>shiny.silent.error</code> states; use <code>app$get_html("#id")</code> / <code>app$get_value(output="id")</code> targeted assertions instead. (CLAUDE.md "Browser e2e gotchas".)</li>
+</ul>
+<p>This plan adds <strong>7 new <code>test_that</code> blocks</strong> at <code>tests/testthat/test-pp-verb-switch-ui.R</code> (SC-1..SC-7). The gate must show PASS count rise by exactly 7 with FAIL/ERROR still 0 and SKIP unchanged from the pre-plan baseline.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: <code>R/paintr-build-ui.R</code> (additions + the two <code>head_label</code> if/else changes), the new test file. No NAMESPACE / man churn (everything is internal).</p>
+<p>Branch convention: <code>0021-ui-emission-stage-label</code> in a worktree at <code>.claude/worktrees/0021-pp-verb-switch/ui-emission-stage-label/</code>. Merge into the orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor re-runs the Definition-of-Done command, verifies expected PASS-count rise, AND independently opens an interactive session against the SC-1 formula and reads the rendered HTML to confirm the visible head-label string.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch HEAD after plan-03 merged (record the SHA). This plan branches from the same point as plan 04 (both in G4). Pre-existing failures (if any) named in <code>dev/baselines/</code>.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>The interaction between stage-level <code>stage_label</code> and per-placeholder label-suffix is explicitly out-of-scope per the ADR's "Out of scope" §4. If user demand surfaces during implementation review, file as a follow-up plan — do NOT absorb into this plan. HTML/<code>shiny::tag</code> values for <code>label =</code> are similarly out-of-scope per the ADR's "Out of scope" §3.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: <strong>03</strong> (the carrier <code>ptr_call</code> with stamped <code>stage_label</code> only exists after plan 03 lands). Parallel with plan 04 (disjoint files: 04 touches <code>R/paintr-disable.R</code> + a deletion in <code>R/paintr-translate.R</code>; 05 touches <code>R/paintr-build-ui.R</code> only). Provides for: plan 06 (the vignette and test rewrites assume the label-rendering path is live).</p>
+
+<!-- implementable: PASS date=2026-05-24 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=dc7bab8b70bc -->
+</body>
+</html>
