@@ -47,6 +47,22 @@ test_that("SC7 e2e: ppLayerOff(hide=TRUE) — geom_point checkbox boots unchecke
   )
 })
 
+test_that("SC8 spec = at boot overrides formula-side ppLayerOff default (shinytest2)", {
+  skip_on_cran()
+  skip_if_not_installed("shinytest2")
+  skip_if_not_installed("chromote")
+
+  withr::local_envvar(GGP_PKG = normalizePath(test_path("..", "..")))
+  app <- suppressWarnings(shinytest2::AppDriver$new(
+    test_path("fixtures", "pp-off-apps", "pp-layer-off-spec-override"),
+    name = "pp-layer-off-spec-override"
+  ))
+  on.exit(app$stop(), add = TRUE)
+
+  # BDD `Then`: input value after flush equals TRUE
+  expect_true(app$get_value(input = "geom_point_checkbox"))
+})
+
 test_that("SC7 e2e: ppVerbOff(hide=TRUE) — stage checkbox boots unchecked", {
   app <- boot_pp_off_app("pp-verb-off-hide")
   # Don't use app$get_values() — it 500s on custom-renderer apps with a

@@ -254,32 +254,8 @@ test_that("snapshot value agrees with UI checkboxInput value attribute (on case)
 
 # ---- BDD (plan lines 159-163) — spec= at boot overrides formula-side default ----
 #
-# Scenario: spec = at boot overrides the formula-side default
-#   Given the formula F = quote(ggplot() + ppLayerOff(geom_point(), TRUE))
-#   And   spec = list(geom_point_checkbox = TRUE)
-#   When  the app boots with spec
-#   Then  the geom_point_checkbox input value after flush equals TRUE
-#
-# Mechanism: ppLayerOff stamps node$default_active = FALSE on the
-# geom_point layer (Plan 01). The snapshot/UI readers (this plan) honor
-# that, so without spec= the checkbox boots FALSE. spec= flows through
-# apply_spec_at_boot -> apply_spec_entry -> updateCheckboxInput in the
-# session$onFlushed callback, overriding the formula default. The
-# testServer harness drives that flush via session$flushReact() and
-# MockShinySession's updateCheckboxInput mirrors the value into
-# input[[id]], so the assertion observes the post-override value.
-test_that("spec = at boot overrides the formula-side ppLayerOff default", {
-  e <- list2env(list(mtcars = mtcars), parent = globalenv())
-  server <- function(input, output, session) {
-    session$userData$state <- ptr_server_internal(
-      input, output, session,
-      "ggplot() + ppLayerOff(geom_point(), TRUE)",
-      envir = e,
-      spec = list(geom_point_checkbox = TRUE)
-    )
-  }
-  shiny::testServer(server, {
-    session$flushReact()
-    expect_true(shiny::isolate(input$geom_point_checkbox))
-  })
-})
+# Note: the post-flush input-value assertion is exercised by shinytest2 in
+# `test-pp-off-e2e.R` (MockShinySession does not mirror
+# updateCheckboxInput() back into input[[id]], so testServer can't observe
+# the override). The state-field + spec_defaults_from_state sub-claims for
+# SC8 remain in the `SC8:` test_that blocks above.
