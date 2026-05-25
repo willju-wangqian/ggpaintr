@@ -1387,14 +1387,30 @@ runtime_upstream_data <- function(state, snapshot = list()) {
     # point (in-stage → prior stage; in-aes → the layer's data_arg
     # pipeline). `ptr_resolve_upstream(c$upstream, ...)` handles every
     # case uniformly across `|>` / `%>%` / nested-call surface forms.
-    df <- ptr_resolve_upstream(
-      c$upstream,
-      snapshot = snapshot,
-      shared_bindings = state$shared_bindings,
-      eval_env = state$eval_env,
-      cache = state$upstream_cache,
-      expr_check = state$expr_check,
-      stage_enabled = stage_enabled
+    # Partial-input passthrough: a placeholder upstream of this consumer
+    # may signal `ptr_partial_input` (see [ptr_signal_partial()]) when
+    # the user is mid-typing a free-text widget like `ppExpr`. This
+    # helper is called from both the gated plot-build observer
+    # (R/paintr-server.R ~1214/1234) and is a prefetch step before
+    # `ptr_exec_headless()`. Letting the condition escape here would
+    # kill the Shiny `observe` (session abort) before the substitute
+    # pass inside `ptr_complete_expr_safe()` -- which already has a
+    # `tryCatch(error=)` that converts the same condition into a clean
+    # `ok = FALSE` runtime result -- ever runs. Skipping this consumer
+    # is identical to the existing `is.null(df)` skip; the downstream
+    # substitute will hit the same condition and report it inline via
+    # the error pane.
+    df <- tryCatch(
+      ptr_resolve_upstream(
+        c$upstream,
+        snapshot = snapshot,
+        shared_bindings = state$shared_bindings,
+        eval_env = state$eval_env,
+        cache = state$upstream_cache,
+        expr_check = state$expr_check,
+        stage_enabled = stage_enabled
+      ),
+      ptr_partial_input = function(e) NULL
     )
     if (!is.null(df)) out[[c$id]] <- list(cols = names(df), data = df)
   }
@@ -1756,14 +1772,29 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
         # gates on a server-side reactiveVal that the source observer
         # writes after `assign()` lands. Restored from PLAN-01's
         # `cache = NULL` workaround.
-        .df <- ptr_resolve_upstream(
-          node$upstream,
-          snapshot = snapshot,
-          shared_bindings = state$shared_bindings,
-          eval_env = state$eval_env,
-          cache = state$upstream_cache,
-          expr_check = state$expr_check,
-          stage_enabled = shiny::isolate(state$stage_enabled())
+        #
+        # Partial-input catch: a placeholder hook upstream of this picker
+        # (e.g. ppExpr mid-typing) may signal `ptr_partial_input` via
+        # `ptr_signal_partial()`. That is the live-edit equivalent of "no
+        # upstream yet" -- cancel this output silently with
+        # `cancelOutput = TRUE` so the picker keeps its previous content
+        # instead of strobing blank + writing a Shiny warning to stderr.
+        # The gated plot-build path (paintr-server.R ~1197) does not
+        # catch, so a partial value at Update/Draw time still surfaces as
+        # a normal inline error.
+        .df <- tryCatch(
+          ptr_resolve_upstream(
+            node$upstream,
+            snapshot = snapshot,
+            shared_bindings = state$shared_bindings,
+            eval_env = state$eval_env,
+            cache = state$upstream_cache,
+            expr_check = state$expr_check,
+            stage_enabled = shiny::isolate(state$stage_enabled())
+          ),
+          ptr_partial_input = function(e) {
+            shiny::req(FALSE, cancelOutput = TRUE)
+          }
         )
         if (is.null(.df)) NULL else list(cols = names(.df), data = .df)
       })

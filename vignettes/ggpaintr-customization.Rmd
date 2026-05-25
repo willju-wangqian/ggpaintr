@@ -325,7 +325,12 @@ The framework splices your return value into the call at the placeholder's posit
 | `call` / `language`                     | A call (`factor(cyl)`, `c(0, 100)`)                 | `rlang::expr()`, `rlang::call2()`, `!!`     |
 | `NULL`                                  | **Prunes** this argument from the call entirely     | `return(NULL)`                              |
 
-The `NULL`-prunes-the-argument rule is central. It is how the built-in `ppVar` placeholder makes `geom_point(color = ppVar)` render as `geom_point()` until the user actually picks a column — *not* as `geom_point(color = NULL)`. Use it generously: any time the input is empty, blank, or otherwise unusable, return `NULL` and let the framework drop the argument. For inputs that are *malformed* (a non-parseable expression, a non-numeric string in a numeric slot), throw with `rlang::abort()` instead — the runtime surfaces the message inline.
+The `NULL`-prunes-the-argument rule is central. It is how the built-in `ppVar` placeholder makes `geom_point(color = ppVar)` render as `geom_point()` until the user actually picks a column — *not* as `geom_point(color = NULL)`. Use it generously: any time the input is empty, blank, or otherwise unusable, return `NULL` and let the framework drop the argument.
+
+For inputs that are *malformed*, the right call depends on whether the bad state is *transient mid-typing* or a *finished mistake*:
+
+- **Transient mid-typing** (the user is part-way through typing a free-text expression in a `textAreaInput`, e.g. `mpg /`). Signal `ptr_signal_partial(message)` instead of `rlang::abort()`. Live picker / preview reactives that re-fire on every keystroke catch the `ptr_partial_input` class and silently cancel the current re-render, so a downstream `var` picker keeps its previous content and the R console stays quiet. The Update / Draw-gated plot path does **not** catch it — if the user actually clicks "Update" with a partial value, the message still surfaces inline. The built-in `expr` placeholder uses this for unparseable / multi-expression / empty input.
+- **Finished mistake** (a wrong type, an out-of-range value, a malformed token the user *committed*). Use `rlang::abort()` — it loudly surfaces inline on the plot path *and* loudly cancels live pickers, which is what you want when the value isn't ever going to become valid by typing more.
 
 #### Where copy comes from
 
