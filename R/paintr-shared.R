@@ -35,6 +35,23 @@ collect_then_rewrite_shared <- function(root) {
 canonical_shared_id <- function(key) paste0("shared_", key)
 
 
+# Namespacing helper for the multi-panel shared coordinator. Returns the
+# identity prefixer when `obj$id` is NULL (or empty), so the default --
+# byte-for-byte compatible with single-panel apps -- is unchanged. When
+# `obj$id` is a non-empty string, returns a function that prefixes every
+# bare id with `<id>-`, matching Shiny `NS()`'s separator. Used at every
+# id-emitting site in the shared coordinator (UI + server) so two
+# coordinators with overlapping `shared` keys can coexist in one session.
+shared_ns <- function(obj) {
+  id <- obj$id
+  if (is.null(id) || !nzchar(id)) {
+    identity
+  } else {
+    function(x) paste(id, x, sep = "-")
+  }
+}
+
+
 # Synthetic Shiny input id for the shared-panel stage(verb) checkbox. One
 # checkbox per shared key controls every orphan pipeline stage that hosts
 # that key (across every formula in a `ptr_app_grid()` / `ptr_shared_ui()`

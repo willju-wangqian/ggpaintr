@@ -19,6 +19,9 @@ The bare counterpart to \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}: ide
 \strong{no} asset bundle. The L3 user supplies their own shell / assets (e.g.
 via \code{\link[=ptr_ui_page]{ptr_ui_page()}}).
 }
+\details{
+Namespacing is inherited from \code{obj$id}; supply it to \code{\link[=ptr_shared]{ptr_shared()}}.
+}
 \examples{
 obj <- ptr_shared(c(
   "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()",
