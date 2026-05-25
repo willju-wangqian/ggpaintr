@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-02 — ppVerbSwitch naked-R + keyword registration (from ADR 0021)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 02
+  slug: pp-verb-switch-keyword
+  source_adr: dev/adr/0021-pp-verb-switch.html
+  depends_on: [01]
+  parallel_group: G2
+  status: draft
+-->
+
+<h1>PLAN-02 — <code>ppVerbSwitch</code> naked-R + keyword registration</h1>
+<p class="meta">Source: ADR 0021 · Depends on: 01 · Parallel group: G2 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0021 introduces a new exported function <code>ppVerbSwitch(.data, verb_expr, switch_on = TRUE, label = NULL)</code> in <code>R/paintr-builtins.R</code>, registered as a built-in keyword and a structural keyword (so the placeholder-registry will not let any consumer drop it, and the translator can recognize the wrapper via <code>is_structural_keyword_call()</code>).</p>
+<p>From the ADR's <em>Decision</em> section:</p>
+<blockquote>
+  <p><strong>Naked-R semantics.</strong> Identical shape to <code>ppVerbOff</code>: <code>.data</code> first, <code>verb_expr</code> captured via base-R <code>substitute()</code>, first-arg injection via <code>as.call()</code> + <code>eval()</code> in <code>parent.frame()</code>. <code>switch_on = FALSE</code> ⟹ <code>return(.data)</code> (skip the verb); <code>switch_on = TRUE</code> ⟹ apply the verb to <code>.data</code>. <code>label</code> is ignored outside ggpaintr (pure UI metadata).</p>
+</blockquote>
+<p>This plan owns only the new function + the two single-line registry edits. Translation-time logic (validators, unwrap, wiring) is plan 03. UI emission of the <code>label</code> is plan 05. Hard-removal of <code>ppVerbOff</code> is plan 06 — <strong>do not touch <code>ppVerbOff</code> in this plan</strong>, the two keywords coexist on this branch until plan 06 merges.</p>
+
+<h2>Governing principle</h2>
+<p>Formula-as-source-of-truth: every UI affordance that affects pipeline structure or visibility must be expressible inside the formula text the user wrote against ggplot — there is no parallel side-channel (no <code>checkbox_defaults =</code>-style argument) for boot state, no <code>ui_text</code>-side override for the new label. <code>ppVerbSwitch</code> closes the last gap in the verb-stage UI surface: today the only way to <em>force</em> a UI checkbox onto a bare verb is to put a placeholder inside it, and there is no way to give that checkbox a meaningful label. The new keyword exposes both knobs (boot state + label) inside the formula, and its naked-R semantics MUST be identical to <code>ppVerbOff</code> for the <code>switch_on = FALSE</code> case so the structural-equality side of ADR 0021 holds: <code>ppVerbSwitch(verb, switch_on = FALSE)</code> at runtime equals <code>ppVerbOff(verb, hide = TRUE)</code> equals the script's "skip the verb" path. An implementer who deviates from <code>ppVerbOff</code>'s argument-splicing recipe (<code>as.call(c(list(call_expr[[1L]]), list(data_sym), as.list(call_expr[-1L])))</code> + <code>eval(new_call, envir = parent.frame())</code> at <code>R/paintr-builtins.R:486-496</code>) breaks the "naked-R script runs both bare and inside <code>ptr_app</code>" contract that ADR 0020 and ADR 0009 rest on. Mirror, do not improvise.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li><strong>SC-1.</strong> <code>ppVerbSwitch(mtcars, dplyr::filter(mpg &gt; 20), switch_on = TRUE)</code> returns a data frame with <strong>14 rows</strong> (mtcars rows with <code>mpg &gt; 20</code>), identical to <code>dplyr::filter(mtcars, mpg &gt; 20)</code>. Verified by an <code>expect_equal(nrow(...), 14L)</code> assertion in <code>tests/testthat/test-pp-verb-switch-naked.R</code>.</li>
+  <li><strong>SC-2.</strong> <code>ppVerbSwitch(mtcars, dplyr::filter(mpg &gt; 20), switch_on = FALSE)</code> returns <code>mtcars</code> unchanged. Verified by <code>expect_identical(ppVerbSwitch(mtcars, dplyr::filter(mpg &gt; 20), FALSE), mtcars)</code> in the same file.</li>
+  <li><strong>SC-3.</strong> <code>ppVerbSwitch(mtcars, dplyr::mutate(mpg = mpg + 100), TRUE)$mpg[[1]]</code> equals <code>mtcars$mpg[[1]] + 100</code>. Verified by an arithmetic equality assertion in the same file.</li>
+  <li><strong>SC-4.</strong> <code>switch_on</code> argument validation: <code>ppVerbSwitch(mtcars, dplyr::filter(mpg &gt; 20), switch_on = NA)</code> errors with the message <code>`switch_on` must be a length-1 non-NA logical.</code> (verbatim, including backticks); the same error fires for <code>switch_on = c(TRUE, FALSE)</code> and for a non-logical value like <code>switch_on = "yes"</code>. Verified by three <code>expect_error</code> assertions in the same file.</li>
+  <li><strong>SC-5.</strong> <code>verb_expr</code>-not-a-call validation: <code>ppVerbSwitch(mtcars, mtcars, FALSE)</code> errors with the message <code>`ppVerbSwitch(verb_expr = )` must be a verb call, e.g. `mutate(x = 1)`.</code> (the message text mirrors the existing <code>ppVerbOff</code> error verbatim except for the keyword name). Verified by an <code>expect_error</code> in the same file.</li>
+  <li><strong>SC-6.</strong> <code>label</code> is accepted as <code>NULL</code> (default) or a length-1 character (e.g. <code>"Transform x"</code>) without affecting runtime behaviour. <code>ppVerbSwitch(mtcars, dplyr::filter(mpg &gt; 20), TRUE, label = "X")</code> returns the same data frame as <code>ppVerbSwitch(mtcars, dplyr::filter(mpg &gt; 20), TRUE)</code>. Verified by an <code>expect_identical(...)</code> in the same file. (Argument validation for <code>label</code> outside <code>ptr_app</code> is intentionally permissive — naked-R is forgiving; translate-time validation is plan 03's territory.)</li>
+  <li><strong>SC-7.</strong> <code>"ppVerbSwitch" %in% ptr_builtin_keywords()</code> is <code>TRUE</code>. Verified by an assertion in <code>tests/testthat/test-pp-verb-switch-keyword.R</code>.</li>
+  <li><strong>SC-8.</strong> <code>"ppVerbSwitch" %in% ptr_registry_keywords()</code> is <code>TRUE</code> after a fresh <code>devtools::load_all()</code> (the boot path runs <code>ptr_register_structural_keyword("ppVerbSwitch")</code>). Verified by an assertion in the same file.</li>
+  <li><strong>SC-9.</strong> <code>ppLayerOff</code> and <code>ppVerbOff</code> remain present and functional during this branch (this plan does NOT remove them). Verified by re-running the existing <code>tests/testthat/test-pp-off-naked.R</code> and observing zero regressions.</li>
+  <li><strong>SC-10.</strong> The DoD command returns <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code> with N rising by exactly the number of new <code>test_that</code> blocks (SC-1..SC-8 = 8 blocks; SC-9 is regression coverage, not new) from the baseline.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns: <code>R/paintr-builtins.R</code> (additions only), <code>tests/testthat/test-pp-verb-switch-naked.R</code> (NEW), <code>tests/testthat/test-pp-verb-switch-keyword.R</code> (NEW), <code>NAMESPACE</code> (regenerated by <code>devtools::document()</code> — the new <code>@export</code> tag), <code>man/ppVerbSwitch.Rd</code> (regenerated). The NAMESPACE / Rd regeneration MUST be committed in the same change; <code>devtools::document()</code> is the canonical command.</li>
+  <li>Files this plan must NOT touch: <code>R/paintr-translate.R</code> (plan 03 owns the wrapper-translation), <code>R/paintr-disable.R</code> (plan 04 owns the gate extension), <code>R/paintr-build-ui.R</code> (plan 05 owns the label emission), <code>R/paintr-nodes.R</code> (plan 01 owns the slots — already merged before this plan starts), every vignette, every existing test file. Do NOT remove or modify <code>ppLayerOff</code> / <code>ppVerbOff</code> bodies or their roxygen.</li>
+  <li>Roxygen for <code>ppVerbSwitch</code>: write a NEW <code>@rdname</code>-free block in <code>R/paintr-builtins.R</code> right above the function body. Do not <code>@rdname pp_off_toggles</code> — the combined Rd is plan 06's territory (splitting it). The new <code>ppVerbSwitch.Rd</code> stands alone for now.</li>
+  <li>SCOPE NARROWING FORBIDDEN. If the test framework reveals that <code>devtools::document()</code> emits unexpected NAMESPACE churn (e.g. re-ordering existing entries), STOP and escalate. Do not narrow SC-7/SC-8 to skip the registry check, do not commit a partial NAMESPACE, do not justify the hedge inline.</li>
+  <li>Honor project conventions: tidyverse style, snake_case for internals (the function itself is camelCase to match the <code>pp*</code> family), <code>assertthat::assert_that</code> for argument validation (mirrors <code>ppVerbOff</code>), <code>rlang::abort</code> for the verb-call-shape error (mirrors <code>ppVerbOff</code>).</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: ppVerbSwitch is an exported naked-R function with switch_on + label slots.
+
+Scenario: SC-1 switch_on = TRUE applies the verb
+  Given mtcars has 32 rows
+  When ppVerbSwitch(mtcars, dplyr::filter(mpg > 20), TRUE) is called
+  Then the result has nrow() == 14L
+
+Scenario: SC-2 switch_on = FALSE returns .data unchanged
+  Given mtcars is the input
+  When ppVerbSwitch(mtcars, dplyr::filter(mpg > 20), FALSE) is called
+  Then identical(result, mtcars) is TRUE
+
+Scenario: SC-3 switch_on = TRUE for mutate applies the mutation
+  Given mtcars$mpg[[1]] == 21.0
+  When ppVerbSwitch(mtcars, dplyr::mutate(mpg = mpg + 100), TRUE) is called
+  Then result$mpg[[1]] == mtcars$mpg[[1]] + 100
+
+Scenario: SC-4 switch_on validation rejects NA
+  Given the caller passes switch_on = NA
+  When ppVerbSwitch(mtcars, dplyr::filter(mpg > 20), switch_on = NA) is called
+  Then it errors with message "`switch_on` must be a length-1 non-NA logical."
+
+Scenario: SC-4 switch_on validation rejects length-2 logical
+  Given the caller passes switch_on = c(TRUE, FALSE)
+  When ppVerbSwitch(mtcars, dplyr::filter(mpg > 20), switch_on = c(TRUE, FALSE)) is called
+  Then it errors with message "`switch_on` must be a length-1 non-NA logical."
+
+Scenario: SC-4 switch_on validation rejects character
+  Given the caller passes switch_on = "yes"
+  When ppVerbSwitch(mtcars, dplyr::filter(mpg > 20), switch_on = "yes") is called
+  Then it errors with message "`switch_on` must be a length-1 non-NA logical."
+
+Scenario: SC-5 non-call verb_expr is rejected
+  Given the caller passes mtcars (a data frame, not a call) as verb_expr
+  When ppVerbSwitch(mtcars, mtcars, FALSE) is called
+  Then it errors with message "`ppVerbSwitch(verb_expr = )` must be a verb call, e.g. `mutate(x = 1)`."
+
+Scenario: SC-6 label is metadata-only outside ptr_app
+  Given two calls with the same .data, verb_expr, switch_on differing only on label
+  When both calls run outside ptr_app
+  Then identical(result_with_label, result_without_label) is TRUE
+
+Scenario: SC-7 builtin-keyword registration
+  Given the package is loaded
+  When ptr_builtin_keywords() is called
+  Then the return value includes "ppVerbSwitch"
+
+Scenario: SC-8 structural-keyword registry registration
+  Given a fresh devtools::load_all(".") has just run
+  When ptr_registry_keywords() is called
+  Then the return value includes "ppVerbSwitch"
+
+Scenario: SC-9 ppVerbOff still works during this branch
+  Given ppVerbOff has not been removed yet (plan 06 has not merged)
+  When the test runner runs tests/testthat/test-pp-off-naked.R
+  Then all test_that blocks in that file PASS unchanged
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate (copy verbatim from project CLAUDE.md "Authoritative gate" block):</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected output: <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code>. Baseline N = plan-01's post-merge N; expected N after = baseline + 8.</p>
+<p><strong>Proxy traps — do not be fooled:</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → every shinytest2 browser test silently SKIPs. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does <strong>NOT</strong> make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead <strong>cleanly SKIP</strong> via <code>boot_vignette_app()</code>'s source-root guard. If a check run shows the e2e file <strong>ERRORing</strong>, that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> <strong>runs</strong> the browser tests. That alone is the gate.</li>
+</ul>
+<p>This plan adds <strong>8 new <code>test_that</code> blocks</strong> (one per SC-1..SC-8) at <code>tests/testthat/test-pp-verb-switch-naked.R</code> (SC-1..SC-6) and <code>tests/testthat/test-pp-verb-switch-keyword.R</code> (SC-7, SC-8). The gate must show PASS count rise by exactly 8 with FAIL/ERROR still 0 and SKIP unchanged from the pre-plan baseline.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: <code>R/paintr-builtins.R</code> (additions only), the two new test files. <code>NAMESPACE</code> and <code>man/ppVerbSwitch.Rd</code> are generated files; this plan regenerates them via <code>devtools::document()</code> and commits the result. Drift (e.g. a stray re-ordering of existing NAMESPACE entries) is surfaced in the post-impl audit, not absorbed.</p>
+<p>Branch convention: <code>0021-pp-verb-switch-keyword</code> in a worktree at <code>.claude/worktrees/0021-pp-verb-switch/pp-verb-switch-keyword/</code>. Merge into the orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor re-runs the Definition-of-Done command and verifies expected PASS-count rise + 0 errors before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch HEAD after plan-01 merged (record the SHA in the worktree's first commit message). Pre-existing failures (if any) are named in <code>dev/baselines/</code>. New failures = anything not in that list.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Findings outside this plan's owned files (e.g. an opportunity to consolidate <code>validate_pp_off_hide</code> with the new <code>switch_on</code> validator — that is plan 03's territory, and even there it's flagged as a "decide if savings outweigh indirection") are surfaced (recorded in the audit report), never absorbed.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: <strong>01</strong> — the new <code>has_user_control</code> / <code>stage_label</code> slots are not consumed by this plan (naked-R doesn't touch the typed tree), but the foundation must be in place for plan 03 to land on top of this. Provides for: plan 03 (translate-time logic needs <code>is_structural_keyword_call(call, "ppVerbSwitch")</code> to recognise the wrapper), plan 06 (the hard-removal of <code>ppVerbOff</code> migrates call sites <em>to</em> this function).</p>
+
+<!-- implementable: PASS date=2026-05-25 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=947a9a862fc9 -->
+</body>
+</html>

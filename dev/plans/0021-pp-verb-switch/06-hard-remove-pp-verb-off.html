@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-06 — hard-remove ppVerbOff across code, tests, vignettes, fixtures, man (from ADR 0021)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 06
+  slug: hard-remove-pp-verb-off
+  source_adr: dev/adr/0021-pp-verb-switch.html
+  depends_on: [02, 03, 04, 05]
+  parallel_group: G5
+  status: draft
+-->
+
+<h1>PLAN-06 — hard-remove <code>ppVerbOff</code> across code, tests, vignettes, fixtures, man</h1>
+<p class="meta">Source: ADR 0021 · Depends on: 02, 03, 04, 05 · Parallel group: G5 · Status: draft</p>
+
+<h2>Context</h2>
+<p>From the ADR's <em>Decision</em> section:</p>
+<blockquote>
+  <p><strong>Hard-remove <code>ppVerbOff</code>.</strong> Per user direction, no deprecation window. Removed in the same change: the <code>ppVerbOff</code> exported function in <code>R/paintr-builtins.R:477-497</code> (and its roxygen <code>@rdname pp_off_toggles</code> entry); the <code>ppVerbOff</code> entry in <code>ptr_builtin_keywords()</code> at line 261; the <code>ptr_register_structural_keyword("ppVerbOff")</code> call at line 361; the <code>unwrap_pp_verb_off_stage</code> helper and its caller in <code>build_pipeline_from_lift</code> (replaced by the <code>ppVerbSwitch</code> equivalents); the <code>ppVerbOff</code>-specific branches in <code>ptr_assert_no_surviving_structural_wrappers</code> and the <code>validate_pp_off_hide</code> helper (replaced by the <code>ppVerbSwitch</code>-specific validators); the man page combined-Rd <code>pp_off_toggles</code> splits into one Rd for <code>ppLayerOff</code> alone (unchanged) and one new Rd for <code>ppVerbSwitch</code>; the use-cases vignette section "Layer and stage toggles — <code>ppLayerOff</code> and <code>ppVerbOff</code>" retitled to "Layer and stage toggles — <code>ppLayerOff</code> and <code>ppVerbSwitch</code>" with the <code>ppVerbOff</code> prose rewritten for <code>ppVerbSwitch</code>; the six <code>test-pp-off-*.R</code> files (<code>comparator</code>, <code>e2e</code>, <code>naked</code>, <code>readers</code>, <code>translate</code>, <code>vignette</code>) renamed to <code>test-pp-toggles-*.R</code> with the <code>ppVerbOff</code> halves rewritten as <code>ppVerbSwitch</code> coverage (the <code>ppLayerOff</code> halves stay verbatim).</p>
+</blockquote>
+<p>The largest plan, and necessarily atomic: removing <code>ppVerbOff</code> from <code>R/</code> while leaving <code>tests/</code> or <code>vignettes/</code> calling it would break the gate. Every reference is migrated to <code>ppVerbSwitch</code> in one change.</p>
+
+<h2>Governing principle</h2>
+<p><strong>One mental model, no aliases.</strong> The user direction explicit in the ADR is "no multiple surfaces doing the same thing": once <code>ppVerbSwitch</code> exists and subsumes <code>ppVerbOff</code> (<code>ppVerbSwitch(verb, switch_on = FALSE)</code> ≡ <code>ppVerbOff(verb, hide = TRUE)</code>, and <code>ppVerbOff(verb, hide = FALSE)</code> ≡ bare <code>verb</code>), <code>ppVerbOff</code> must not survive as a synonym, deprecation shim, or compatibility alias. This is justified by two facts the ADR records: (a) <code>ppVerbOff</code> shipped only two days prior (ADR-0020, 2026-05-22) and has no production users beyond the project's own vignettes/tests; (b) leaving two surfaces forces every reader, contributor, and audit run to ask "which one and why" indefinitely. The migration map is mechanical: <code>ppVerbOff(.data, verb, TRUE)</code> → <code>ppVerbSwitch(.data, verb, switch_on = FALSE)</code> (or positionally, <code>ppVerbSwitch(.data, verb, FALSE)</code>); <code>ppVerbOff(.data, verb, FALSE)</code> → bare <code>.data |&gt; verb</code> (the no-op wrapper has no replacement — its semantics is just "run the verb", which is what bare verbs do; per ADR §"Verified facts": "<code>ppVerbOff(verb, hide=FALSE)</code> is a no-op wrapper whose migration target is bare <code>verb</code>"). An implementer who keeps a <code>ppVerbOff &lt;- function(.data, verb_expr, hide = TRUE) ppVerbSwitch(.data, verb_expr, switch_on = !hide)</code> shim "for safety" is re-introducing exactly the surface-multiplicity the ADR exists to remove; do not do this, and FAIL audit any such hedge on the PR. The naked-R / translate / disable / UI paths have already been put behind <code>ppVerbSwitch</code> by plans 02-05; this plan's job is to take the scaffolding away.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li><strong>SC-1.</strong> <code>grep -rln 'ppVerbOff' R/ tests/ vignettes/ man/ NAMESPACE</code> returns ZERO matches. Verified by the implementer's pre-DoD check and by the post-merge auditor.</li>
+  <li><strong>SC-2.</strong> The R-level expression <code>exists("ppVerbOff", envir = asNamespace("ggpaintr"), inherits = FALSE)</code> is <code>FALSE</code> after this plan merges. Verified by an assertion in the renamed <code>tests/testthat/test-pp-toggles-naked.R</code>.</li>
+  <li><strong>SC-3.</strong> <code>"ppVerbOff" %in% ptr_builtin_keywords()</code> is <code>FALSE</code> and <code>"ppVerbOff" %in% ptr_registry_keywords()</code> is <code>FALSE</code>. Verified by assertions in the renamed <code>tests/testthat/test-pp-toggles-translate.R</code>.</li>
+  <li><strong>SC-4.</strong> <code>NAMESPACE</code> contains <code>export(ppVerbSwitch)</code> and <code>export(ppLayerOff)</code>, and does NOT contain <code>export(ppVerbOff)</code>. <code>man/</code> contains <code>ppLayerOff.Rd</code> (alone, no longer combined) AND <code>ppVerbSwitch.Rd</code>, and does NOT contain <code>pp_off_toggles.Rd</code> or any reference to <code>ppVerbOff</code>. Verified by <code>grep</code> assertions and by inspecting the post-<code>devtools::document()</code> tree.</li>
+  <li><strong>SC-5.</strong> <code>R/paintr-translate.R</code> contains no symbol named <code>unwrap_pp_verb_off_stage</code>, no symbol named <code>validate_pp_off_hide</code>, and no branch that mentions <code>ppVerbOff</code> by name (the structural-wrapper assertion's keyword-name list is back down to <code>c("ppLayerOff", "ppVerbSwitch")</code>). Verified by <code>grep</code> assertions.</li>
+  <li><strong>SC-6.</strong> The six original test files have been removed and renamed to <code>tests/testthat/test-pp-toggles-{comparator,e2e,naked,readers,translate,vignette}.R</code>. The original filenames are absent from <code>tests/testthat/</code>. Verified by directory listing.</li>
+  <li><strong>SC-7.</strong> <strong>The <code>ppLayerOff</code> halves of the six renamed test files are byte-equivalent to their pre-rename content</strong> (verified by <code>git show HEAD~1:tests/testthat/test-pp-off-X.R</code> diff against the <code>ppLayerOff</code> halves of <code>test-pp-toggles-X.R</code> being empty for those test_that blocks). The <code>ppVerbOff</code> halves are <strong>rewritten</strong> as <code>ppVerbSwitch</code> coverage that covers every scenario the <code>ppVerbOff</code> halves did:
+    <ul>
+      <li>boot-off (was <code>ppVerbOff(verb, TRUE)</code> → now <code>ppVerbSwitch(verb, switch_on = FALSE)</code>);</li>
+      <li>boot-on (was <code>ppVerbOff(verb, FALSE)</code> → now bare <code>verb</code> OR <code>ppVerbSwitch(verb, switch_on = TRUE)</code> — both must exist, latter to exercise the new "force-checkbox" capability);</li>
+      <li>spec-override (a <code>spec =</code> entry naming the <code>stage_enabled</code> id wins over the formula-side default);</li>
+      <li>snapshot equality (<code>ptr_runtime_input_spec()</code> entry matches expected default);</li>
+      <li>browser-e2e (the renamed fixture under <code>tests/testthat/fixtures/pp-off-apps/</code> — see SC-8);</li>
+      <li>vignette-chunk (the vignette rewrite — see SC-9).</li>
+    </ul>
+    Verified by reviewing the diff between the six pre-rename files and the six post-rename files: every <code>test_that</code> block that previously asserted <code>ppVerbOff</code> behaviour MUST have a counterpart in the renamed file that asserts the equivalent <code>ppVerbSwitch</code> behaviour. Counts must match or rise.</li>
+  <li><strong>SC-8.</strong> The three fixtures under <code>tests/testthat/fixtures/pp-off-apps/</code> (<code>pp-verb-off-hide</code>, <code>pp-layer-off-spec-override</code>, <code>pp-layer-off-hide</code>) are renamed: the directory is renamed <code>tests/testthat/fixtures/pp-toggles-apps/</code> and the <code>pp-verb-off-hide/app.R</code> rewrites its formula from <code>ppVerbOff(filter(mpg &gt; ppNum), TRUE)</code> to <code>ppVerbSwitch(filter(mpg &gt; ppNum), switch_on = FALSE)</code> with the fixture renamed to <code>pp-verb-switch-off/app.R</code>. The two <code>pp-layer-off-*</code> fixtures keep their names AND contents byte-for-byte. The e2e test file's <code>test_path("fixtures","pp-off-apps", ...)</code> calls are updated to <code>"pp-toggles-apps"</code>.</li>
+  <li><strong>SC-9.</strong> <code>vignettes/ggpaintr-use-cases.Rmd</code> — section heading "Layer and stage toggles — <code>ppLayerOff</code> and <code>ppVerbOff</code>" retitled to "Layer and stage toggles — <code>ppLayerOff</code> and <code>ppVerbSwitch</code>". The <code>ppVerbOff</code> prose AND code chunks rewritten for <code>ppVerbSwitch</code>: every <code>ppVerbOff(.data, verb_expr, TRUE/FALSE)</code> call replaced by the migration map of SC-7 (boot-off → <code>ppVerbSwitch(..., switch_on = FALSE)</code>; no-op → bare verb), with a new paragraph documenting the <code>label =</code> capability and the "force a UI checkbox onto a bare verb" capability that <code>ppVerbOff</code> could not express. The "<code>ppVerbOff</code> and the data-argument-position assumption" subsection at L131 is retitled and rewritten for <code>ppVerbSwitch</code>. <code>vignettes/ggpaintr-customization.Rmd</code> L30 paragraph that mentions "<code>ppLayerOff()</code> and <code>ppVerbOff()</code>" is updated to "<code>ppLayerOff()</code> and <code>ppVerbSwitch()</code>"; the L164 + L295 cross-reference paragraphs about "<code>checkbox_defaults =</code> side-channel" stay (they reference <code>ppLayerOff</code> only). Verified by <code>grep -rln 'ppVerbOff' vignettes/</code> returning zero hits.</li>
+  <li><strong>SC-10.</strong> <code>ppLayerOff</code> is functionally unchanged. Its naked-R body, its <code>@export</code>, its registry registration, its translate-time unwrap, and its UI-emission path are all byte-identical to pre-plan. Verified by <code>git diff HEAD~1 -- R/paintr-builtins.R | grep -A 10 'ppLayerOff &lt;-'</code> being empty (no body diff) and by <code>tests/testthat/test-pp-toggles-naked.R</code>'s <code>ppLayerOff</code> halves PASSing byte-identical assertions.</li>
+  <li><strong>SC-11.</strong> The DoD command returns <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code>. <strong>Net PASS-count delta from baseline can be positive, zero, or slightly negative</strong> depending on the exact test rewrite — but the count of test_that blocks that exercise the migrated behaviour MUST equal or exceed the pre-rename count of <code>ppVerbOff</code>-asserting blocks plus the unchanged <code>ppLayerOff</code>-asserting blocks. The auditor verifies this by counting <code>test_that</code> entries via <code>grep -c 'test_that(' tests/testthat/test-pp-toggles-*.R</code> against the same count for <code>tests/testthat/test-pp-off-*.R</code> at the previous commit.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns (long list — every <code>ppVerbOff</code> reference site):
+    <ul>
+      <li><code>R/paintr-builtins.R</code> — remove <code>ppVerbOff</code> body (lines 477-497, inclusive of the <code>#' @export</code> at 476 and the closing <code>}</code> at 497), remove its roxygen, remove the <code>"ppVerbOff"</code> entry from <code>ptr_builtin_keywords()</code> (line 261), remove <code>ptr_register_structural_keyword("ppVerbOff")</code> (line 361); split the combined roxygen <code>@rdname pp_off_toggles</code> (the existing tag above <code>ppLayerOff</code> at line 464 and above <code>ppVerbOff</code> at line 475) into one standalone <code>#' @name ppLayerOff</code> block for <code>ppLayerOff</code> alone, so the combined Rd target <code>pp_off_toggles</code> is no longer generated;</li>
+      <li><code>R/paintr-translate.R</code> — remove <code>unwrap_pp_verb_off_stage</code> (lines 833-854), remove the <code>build_pipeline_from_lift</code> dispatch branch at line 234 (<code>is_structural_keyword_call(st$call, "ppVerbOff")</code>), remove the <code>ppVerbOff</code> entry from the wrapper-name list in <code>ptr_assert_no_surviving_structural_wrappers</code> + its error-message branch, remove the <code>ppVerbOff</code>-specific branch in <code>translate_layer_or_stage</code>-equivalent paths at lines 484-489 + the related comment block at lines 654-666, remove <code>validate_pp_off_hide</code> (lines 774-795) ONLY IF the validator is no longer used by <code>ppLayerOff</code> (it IS still used — confirm and keep);</li>
+      <li><code>NAMESPACE</code> — regenerated by <code>devtools::document()</code> so <code>export(ppVerbOff)</code> is gone;</li>
+      <li><code>man/pp_off_toggles.Rd</code> — removed; <code>man/ppLayerOff.Rd</code> created; <code>man/ppVerbSwitch.Rd</code> already created in plan 02;</li>
+      <li><code>vignettes/ggpaintr-use-cases.Rmd</code> — section retitle + prose + code chunks rewritten;</li>
+      <li><code>vignettes/ggpaintr-customization.Rmd</code> — L30 paragraph updated;</li>
+      <li>Six test files renamed: <code>tests/testthat/test-pp-off-{comparator,e2e,naked,readers,translate,vignette}.R</code> → <code>tests/testthat/test-pp-toggles-{comparator,e2e,naked,readers,translate,vignette}.R</code>, with <code>ppLayerOff</code> halves byte-equivalent and <code>ppVerbOff</code> halves rewritten for <code>ppVerbSwitch</code>;</li>
+      <li>Three fixtures renamed: <code>tests/testthat/fixtures/pp-off-apps/</code> → <code>tests/testthat/fixtures/pp-toggles-apps/</code>; the <code>pp-verb-off-hide</code> fixture renamed to <code>pp-verb-switch-off</code> with its <code>app.R</code> rewritten.</li>
+    </ul>
+  </li>
+  <li>Files this plan must NOT touch: <code>R/paintr-nodes.R</code> (plan 01), <code>R/paintr-disable.R</code> (plan 04), <code>R/paintr-build-ui.R</code> (plan 05). If a <code>ppVerbOff</code> reference is found in any of those files at this point (it should not be), surface in the audit — do not silently edit.</li>
+  <li>No deprecation shim. No alias. No <code>.Deprecated()</code> call. No <code>warning("ppVerbOff is deprecated, use ppVerbSwitch")</code>. The function is GONE; calls to it at user level produce R's stock <code>could not find function "ppVerbOff"</code> error, which is the correct migration signal.</li>
+  <li>SCOPE NARROWING FORBIDDEN. Plans 02-05 deliberately preserved every <code>ppVerbOff</code> path so this plan could remove them all at once. If implementing this plan reveals that some <code>ppVerbOff</code> usage in a vignette code chunk yields different rendered output under <code>ppVerbSwitch</code> than under <code>ppVerbOff</code> (e.g. a vignette plot that visibly changes because the migration recipe was off), STOP and escalate — do not narrow SC-9 to "approximate visual equivalence", do not skip the vignette knit, do not silently change the chunk to something that happens to render. The migration recipe in §"Governing principle" is mechanical and complete; if a vignette chunk does not migrate cleanly, the recipe is wrong, not the chunk.</li>
+  <li>Honor project conventions: <code>devtools::document()</code> after every roxygen edit; do not hand-edit <code>NAMESPACE</code> or <code>man/*.Rd</code>; pkgdown HTML is generated under <code>docs/</code> which is gitignored — do not commit pkgdown output.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: ppVerbOff is gone; ppVerbSwitch carries every migrated call site.
+
+Scenario: SC-1 no remaining ppVerbOff references in tracked sources
+  Given the plan has merged
+  When `grep -rln 'ppVerbOff' R/ tests/ vignettes/ man/ NAMESPACE` is run
+  Then the exit status is 1 (no matches) and stdout is empty
+
+Scenario: SC-2 ppVerbOff is not in the namespace
+  Given the package is loaded
+  When exists("ppVerbOff", envir = asNamespace("ggpaintr"), inherits = FALSE) is checked
+  Then the return value is identical to FALSE
+
+Scenario: SC-3 ppVerbOff is not in either keyword registry
+  Given the package is loaded
+  When ptr_builtin_keywords() and ptr_registry_keywords() are inspected
+  Then neither return value contains "ppVerbOff"
+
+Scenario: SC-4 NAMESPACE and man/ reflect the removal
+  Given the plan has merged and devtools::document() has been run
+  When NAMESPACE and man/ are inspected
+  Then NAMESPACE contains export(ppLayerOff) and export(ppVerbSwitch) but not export(ppVerbOff)
+  And  man/ppLayerOff.Rd exists alone
+  And  man/ppVerbSwitch.Rd exists
+  And  man/pp_off_toggles.Rd does NOT exist
+
+Scenario: SC-5 translate-time helpers cleaned up
+  Given the plan has merged
+  When R/paintr-translate.R is inspected via grep
+  Then the file contains no symbol named unwrap_pp_verb_off_stage
+  And  it contains no branch with the literal "ppVerbOff"
+
+Scenario: SC-6 test files renamed
+  Given the plan has merged
+  When tests/testthat/ is listed
+  Then test-pp-off-*.R are absent
+  And  test-pp-toggles-{comparator,e2e,naked,readers,translate,vignette}.R are present
+
+Scenario: SC-7 migrated test coverage is at parity
+  Given the previous-commit and current-commit versions of the six files are diffed
+  When test_that blocks are counted
+  Then every ppVerbOff-asserting block has a ppVerbSwitch-asserting counterpart in the renamed file
+
+Scenario: SC-8 fixtures renamed and rewritten
+  Given the plan has merged
+  When tests/testthat/fixtures/ is listed
+  Then the directory pp-off-apps/ is absent and pp-toggles-apps/ is present
+  And  pp-toggles-apps/pp-verb-switch-off/app.R contains "ppVerbSwitch(filter(mpg > ppNum), switch_on = FALSE)"
+  And  pp-toggles-apps/pp-layer-off-hide/app.R is byte-identical to the previous-commit pp-off-apps/pp-layer-off-hide/app.R
+
+Scenario: SC-9 vignette retitled and migrated
+  Given the plan has merged
+  When `grep -rln 'ppVerbOff' vignettes/` is run
+  Then the exit status is 1 (no matches)
+  And  vignettes/ggpaintr-use-cases.Rmd's section heading at line ~85 is "Layer and stage toggles — `ppLayerOff` and `ppVerbSwitch`"
+
+Scenario: SC-10 ppLayerOff is unchanged
+  Given the plan has merged
+  When git diff HEAD~1 -- R/paintr-builtins.R is inspected
+  Then ppLayerOff's function body is unchanged (no edit beyond surrounding context lines)
+
+Scenario: SC-11 gate passes with migrated coverage at parity-or-better
+  Given the plan has merged
+  When the DoD command runs
+  Then FAIL 0 / ERROR 0 / SKIP 0 with test_that-count of the six renamed files >= the six previous files
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate (copy verbatim from project CLAUDE.md "Authoritative gate" block):</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected output: <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code>. Baseline N = the orchestrator HEAD after plan-04 AND plan-05 have both merged; expected N after ≥ baseline (parity-or-better — the test rewrite preserves coverage but may consolidate blocks).</p>
+<p><strong>Proxy traps — do not be fooled:</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → every shinytest2 browser test silently SKIPs. "green, SKIP n" off that is NOT the gate. <strong>This trap is especially dangerous for THIS plan</strong> because the renamed e2e file is what verifies the migrated <code>ppVerbSwitch(filter(mpg &gt; ppNum), switch_on = FALSE)</code> fixture; running without <code>NOT_CRAN</code> would silently skip the exact regression coverage the plan exists to provide.</li>
+  <li><code>devtools::check(... --as-cran)</code> does <strong>NOT</strong> make <code>skip_on_cran()</code> fire. The browser fixtures instead <strong>cleanly SKIP</strong> via the source-root guard. If a check run shows the e2e file <strong>ERRORing</strong>, that guard is a harness defect, not a product failure.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> <strong>runs</strong> the browser tests. That alone is the gate.</li>
+  <li>Project-specific proxy: <code>devtools::document()</code> emits a roxygen2 churn on every run for unrelated files if the workspace is cold; commit only the diff that mentions <code>ppVerbOff</code> / <code>ppLayerOff</code> / <code>ppVerbSwitch</code> / <code>pp_off_toggles</code> — re-run <code>devtools::document()</code> twice to confirm the second run is a no-op before committing.</li>
+  <li>Vignette knit: <code>devtools::build_vignettes()</code> is NOT the gate, but the auditor MUST run it once to confirm both vignettes render to HTML without error (<code>ppVerbOff</code> calls in chunks would still parse at <code>load_all</code> time but would FAIL the chunk at knit time — the gate catches this only if a test_that block knits the chunk, which is what <code>test-pp-toggles-vignette.R</code> is for).</li>
+</ul>
+<p>This plan does not add new <code>test_that</code> blocks beyond the rewrites; net PASS-count delta is expected to be near zero with the rename. The hard requirement is <code>FAIL 0 / ERROR 0 / SKIP 0</code> AND the coverage-parity check in SC-11.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: the file list under Constraints. NAMESPACE / <code>man/</code> are regenerated by <code>devtools::document()</code>; the deletion of <code>man/pp_off_toggles.Rd</code> and the creation of <code>man/ppLayerOff.Rd</code> are roxygen-driven, not hand-edited.</p>
+<p>Branch convention: <code>0021-hard-remove-pp-verb-off</code> in a worktree at <code>.claude/worktrees/0021-pp-verb-switch/hard-remove-pp-verb-off/</code>. Merge into the orchestrator branch via <code>--no-ff</code>. This is the final plan in the ADR-0021 chain.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor:</p>
+<ul>
+  <li>re-runs the Definition-of-Done command and verifies <code>FAIL 0 / ERROR 0 / SKIP 0</code>;</li>
+  <li>independently runs <code>grep -rln 'ppVerbOff' R/ tests/ vignettes/ man/ NAMESPACE</code> expecting zero hits;</li>
+  <li>independently runs <code>devtools::build_vignettes()</code> and confirms both vignettes knit;</li>
+  <li>diffs the six renamed test files against their predecessors and confirms <code>ppLayerOff</code>-halves are byte-equivalent.</li>
+</ul>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch HEAD after plans 04 AND 05 have both merged (record the SHA in the worktree's first commit message). Pre-existing failures (if any) named in <code>dev/baselines/</code>.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Findings outside this plan's owned files (e.g. a stray <code>ppVerbOff</code> reference in <code>dev/notes/</code> or in a historical audit HTML) are surfaced (recorded in the audit report), never absorbed: those are historical records that mention the keyword in past tense, not live code. The audit should distinguish "code/test/vignette/man" (must be zero) from "dev/audit/" (allowed to mention historically).</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: <strong>02</strong> (the <code>ppVerbSwitch</code> keyword must be registered so migrated formulas parse), <strong>03</strong> (the translate-time path for <code>ppVerbSwitch</code> must work end-to-end so migrated tests pass), <strong>04</strong> (the gate disjunction must be live so migrated <code>ppVerbSwitch(verb, switch_on = TRUE)</code>-with-bare-verb still gets a checkbox), <strong>05</strong> (the UI emitter must honour <code>stage_label</code> so vignette code chunks that use <code>label =</code> render correctly). Provides for: nothing — this is the terminal plan in the ADR-0021 chain.</p>
+
+<!-- implementable: PASS date=2026-05-25 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=84d6ac375f4a -->
+</body>
+</html>
