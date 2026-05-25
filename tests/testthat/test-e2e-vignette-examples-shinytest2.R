@@ -573,7 +573,7 @@ test_that("customization source-dataset: custom source placeholder", {
 # tests/testthat/fixtures/vignette-apps/adr9-*/app.R and explains its purpose
 # in its own boot-block comment.
 
-test_that("adr9-code-mode-toggle: ptr_code_mode radio switches code panel between final and preserve", {
+test_that("adr9-code-mode-toggle: ptr_code_mode radio switches code panel between final and spec (ADR 0022)", {
   app <- boot_vignette_app("adr9-code-mode-toggle")
 
   expect_dom_id(app, "ptr_update_plot")
@@ -596,27 +596,33 @@ test_that("adr9-code-mode-toggle: ptr_code_mode radio switches code panel betwee
   expect_match(code_final, "mpg", fixed = TRUE)
   expect_match(code_final, "cyl", fixed = TRUE)
 
-  # Flip to PRESERVE mode. radioGroupButtons writes a new value to
-  # input$ptr_code_mode; ptr_register_code re-renders. wait_=TRUE because
-  # this is one of the few inputs that DOES trigger an output update by
-  # itself (no Update click required).
-  app$set_inputs(ptr_code_mode = "preserve", wait_ = TRUE, timeout_ = 10000)
-  code_preserve <- app$get_value(output = "ptr_code")
+  # Flip to SPEC mode (ADR 0022 renamed the second radio choice from
+  # "preserve" to "spec"; the panel now emits only the `ptr_spec <-
+  # list(...)` block, not the formula text). radioGroupButtons writes a
+  # new value to input$ptr_code_mode; ptr_register_code re-renders.
+  # wait_=TRUE because this is one of the few inputs that DOES trigger an
+  # output update by itself (no Update click required).
+  app$set_inputs(ptr_code_mode = "spec", wait_ = TRUE, timeout_ = 10000)
+  code_spec <- app$get_value(output = "ptr_code")
 
-  # Preserve-mode text MUST contain the placeholder call form and MUST NOT
-  # match the final-mode text. This is the regression-net: if the
-  # ptr_register_code wiring breaks (pre-2c504da behaviour), the radio is
-  # inert and code_preserve == code_final → both expectations fail.
-  # Strong assertion: preserve mode shows the USER'S CURRENT PICK as the
-  # placeholder arg, e.g. `ppVar(mpg)` not the empty `ppVar()`. The empty-
-  # parens shape (regression caught in field testing 2026-05-21) would
-  # match a bare grepl("ppVar(", ...) check — that's too weak.
-  expect_true(grepl("ppVar(mpg)", code_preserve, fixed = TRUE),
-              label = "preserve-mode code contains ppVar(mpg) -- user's x pick")
-  expect_true(grepl("ppVar(cyl)", code_preserve, fixed = TRUE),
-              label = "preserve-mode code contains ppVar(cyl) -- user's y pick")
-  expect_false(identical(code_final, code_preserve),
-               label = "final and preserve modes produce different code text")
+  # Spec-mode text MUST contain the spec block with the user's picks
+  # keyed by placeholder id, and MUST differ from final-mode text. This is
+  # the regression-net: if the ptr_register_code wiring breaks, the radio
+  # is inert and code_spec == code_final → both expectations fail.
+  expect_true(
+    grepl("ptr_spec <- list(", code_spec, fixed = TRUE),
+    label = "spec-mode code contains ptr_spec <- list(..."
+  )
+  expect_true(
+    grepl("`ggplot_1_1_ppVar_NA` = \"mpg\"", code_spec, fixed = TRUE),
+    label = "spec-mode code records the user's x pick keyed by placeholder id"
+  )
+  expect_true(
+    grepl("`ggplot_1_2_ppVar_NA` = \"cyl\"", code_spec, fixed = TRUE),
+    label = "spec-mode code records the user's y pick keyed by placeholder id"
+  )
+  expect_false(identical(code_final, code_spec),
+               label = "final and spec modes produce different code text")
 
   # And back to FINAL — the toggle is bidirectional.
   app$set_inputs(ptr_code_mode = "final", wait_ = TRUE, timeout_ = 10000)

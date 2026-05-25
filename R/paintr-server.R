@@ -2244,42 +2244,30 @@ ptr_register_code <- function(output, state) {
   code_id <- state$server_ns_fn("ptr_code")
   mode_id <- state$server_ns_fn("ptr_code_mode")
   output[[code_id]] <- shiny::renderText({
-    # ADR 0009 / PLAN-08: respect the code-mode toggle. Default ("final"
-    # or NULL when the UI has no toggle) shows the substituted code;
-    # "preserve" re-renders the original tree with placeholders intact
-    # for copy/paste / learning.
+    # ADR 0009 / PLAN-08 / ADR 0022: respect the code-mode toggle. Default
+    # ("final" or NULL when the UI has no toggle) shows the substituted
+    # code; "spec" shows a snapshot of current widget state as a sparse
+    # `ptr_spec <- list(...)` block (the owner pairs it with their formula
+    # source to reproduce the app at this state). The pre-ADR-0022
+    # "preserve" choice (formula-with-placeholders round-trip + spec
+    # underneath) was retired — its formula half could not honestly
+    # reproduce apps using structural keywords (ppLayerOff, ppVerbSwitch),
+    # and its audience (non-owners cloning the app) does not exist.
+    # `ptr_render(..., preserve_placeholders = TRUE)` itself remains a
+    # working internal function in R/paintr-render.R; it is no longer
+    # called from the panel.
     session <- shiny::getDefaultReactiveDomain()
     mode <- if (is.null(session)) NULL else session$input[[mode_id]]
-    if (identical(mode, "preserve")) {
-      # Use the FROZEN snapshot the runtime locked at the last Update
-      # click (attached to `res$snapshot` by the runtime observer). Same
-      # source of truth as final-mode substitute -> the two modes always
-      # agree on which picks were "set". Until the user clicks Update,
-      # the runtime hasn't fired and `snapshot` is NULL -> every
-      # placeholder renders as bare `ppX` (or `ppX(shared = "k")` when a
-      # shared key is set), matching the empty plot panel.
-      #
-      # Retain-on-error: when the current runtime is not-ok and a prior
-      # ok-result exists, fall back to the cached snapshot so a transient
-      # `validate_input` failure doesn't clobber the preserve-mode
-      # round-trip. If no prior ok-result exists, preserve-mode renders
-      # the current state (same as before this change).
-      res <- state$runtime()
-      last <- state$last_ok_runtime()
-      chosen_res <- if (!is.null(res) && !isTRUE(res$ok) && !is.null(last)) last else res
-      snapshot <- if (is.null(chosen_res)) list() else chosen_res$snapshot %||% list()
-      formula_text <- ptr_render(
-        stamp_current_pick_walk(state$tree(), snapshot),
-        preserve_placeholders = TRUE
-      )
-      # ADR 0012 §3.5 / PLAN-05: append a sparse `ptr_spec <- list(...)`
-      # block beneath the formula whenever non-default picks exist.
-      # Empty spec -> bit-identical to today's preserve-mode output.
+    if (identical(mode, "spec")) {
+      # The spec reflects the current widget state (state$spec() is the
+      # live snapshot the runtime updates on each successful Update click).
+      # Empty spec -> show a single comment line so the panel is never
+      # blank-and-confusing pre-Update.
       spec_text <- format_spec_for_panel(state$spec())
       if (!nzchar(spec_text)) {
-        formula_text
+        "# No overrides yet -- interact with the controls and click Update."
       } else {
-        paste0(formula_text, "\n\n", spec_text)
+        spec_text
       }
     } else {
       # Retain-on-error fallback for final-mode: when the current runtime
