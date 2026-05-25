@@ -89,6 +89,31 @@ A \emph{source} placeholder produces a data frame the rest of the formula
 reads from. Built-in example: \code{ppUpload}. Custom examples: database
 tables, built-in datasets, URL fetches.
 }
+\section{\verb{spec=} round-trip}{
+
+The \verb{spec=} mechanism (see \code{\link[=ptr_app]{ptr_app()}}) captures a sparse snapshot of
+input values so the preserve-mode panel can publish a reproducible boot
+state. For a source placeholder, ONE of two patterns must hold:
+\itemize{
+\item \strong{Companion pattern} — provide \code{companion_id_fn}. The companion's
+text value (typically the typed dataset name) carries the round-trip
+identity; the source's own value at \code{node$id} is dropped from the
+spec, because it is typically a per-session Shiny artifact (a
+\code{fileInput()} data.frame whose \code{datapath} is a tempfile path that
+does not survive the session). The built-in \code{ppUpload} uses this.
+\item \strong{Scalar pattern} — no companion. The widget's value at \code{node$id}
+must be a literal that round-trips through \code{deparse()} — a length-1
+string / number / logical, or a simple atomic vector. The
+\code{selectInput}-style example above qualifies (its value is a single
+string).
+}
+
+Source widgets whose primary value is a complex object (raw
+\code{fileInput()} data.frame, environment, S4 instance, etc.) without a
+companion cannot round-trip; wrap them in a companion textInput that
+carries the binding name, mirroring \code{ppUpload}.
+}
+
 \examples{
 # A minimal in-memory dataset source (picks from pre-loaded data frames).
 ptr_define_placeholder_source(

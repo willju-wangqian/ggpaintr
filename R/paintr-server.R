@@ -304,6 +304,30 @@ ptr_init_state <- function(formula,
     if (length(snapshot) == 0L) {
       return(stats::setNames(list(), character()))
     }
+    # Source placeholders with a companion textInput (e.g. ppUpload) carry
+    # the round-trip identity at the companion's input_id; the source's
+    # own value is a Shiny artifact (e.g. a fileInput data.frame holding a
+    # per-session tempfile path) that neither survives a session nor
+    # round-trips through deparse(). Same rule as
+    # `stamp_current_pick_walk.ptr_ph_data_source` (R/paintr-render.R) and
+    # the apply-side ppUpload seed skip in `apply_spec_at_boot()` below;
+    # enforced structurally on the `source_id` linkage in `input_spec` so
+    # every companion-shaped source — including third-party ones registered
+    # via `ptr_define_placeholder_source(companion_id_fn = ...)` — is
+    # covered. See `?ptr_define_placeholder_source` ("spec= round-trip")
+    # for the contract sources WITHOUT a companion must honour.
+    spec_df <- st$input_spec
+    if (is.data.frame(spec_df) && nrow(spec_df) > 0L) {
+      companioned <- spec_df$source_id[
+        !is.na(spec_df$role) & spec_df$role == "source_companion"
+      ]
+      if (length(companioned) > 0L) {
+        snapshot <- snapshot[setdiff(names(snapshot), companioned)]
+        if (length(snapshot) == 0L) {
+          return(stats::setNames(list(), character()))
+        }
+      }
+    }
     defaults <- ptr_spec_defaults_from_state(st)
     sparse <- ptr_spec_from_snapshot(snapshot, defaults)
     if (length(sparse) == 0L) {

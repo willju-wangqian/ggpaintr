@@ -666,6 +666,30 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #'   guard that aborts when called outside an app context. Also called for
 #'   its registration side effect; use [ptr_clear_placeholder()] to remove
 #'   the entry.
+#'
+#' @section `spec=` round-trip:
+#' The `spec=` mechanism (see [ptr_app()]) captures a sparse snapshot of
+#' input values so the preserve-mode panel can publish a reproducible boot
+#' state. For a source placeholder, ONE of two patterns must hold:
+#'
+#' * **Companion pattern** — provide `companion_id_fn`. The companion's
+#'   text value (typically the typed dataset name) carries the round-trip
+#'   identity; the source's own value at `node$id` is dropped from the
+#'   spec, because it is typically a per-session Shiny artifact (a
+#'   `fileInput()` data.frame whose `datapath` is a tempfile path that
+#'   does not survive the session). The built-in `ppUpload` uses this.
+#'
+#' * **Scalar pattern** — no companion. The widget's value at `node$id`
+#'   must be a literal that round-trips through `deparse()` — a length-1
+#'   string / number / logical, or a simple atomic vector. The
+#'   `selectInput`-style example above qualifies (its value is a single
+#'   string).
+#'
+#' Source widgets whose primary value is a complex object (raw
+#' `fileInput()` data.frame, environment, S4 instance, etc.) without a
+#' companion cannot round-trip; wrap them in a companion textInput that
+#' carries the binding name, mirroring `ppUpload`.
+#'
 #' @seealso [ptr_define_placeholder_value()], [ptr_define_placeholder_consumer()],
 #'   [ptr_clear_placeholder()].
 #' @examples
