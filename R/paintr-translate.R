@@ -106,15 +106,9 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
     # (e.g. inside `aes()`, a geom's mapping/arg list, or a non-data arg).
     ptr_assert_no_surviving_structural_wrappers(root)
     root <- ptr_assign_ids(root, ns_fn = ns_fn)
-    # ADR 0020: `assign_stage_ids` (called inside `ptr_assign_ids`) only
-    # stamps `stage_id` on stages whose subtree contains a placeholder.
-    # A `ppVerbOff`-wrapped stage may have no placeholders at all (e.g.
-    # `ppVerbOff(mutate(mpg = mpg + 100), TRUE)`); the unwrap path stamps
-    # `default_stage_enabled = FALSE` but leaves `stage_id` unset. Plan
-    # 02's UI/snapshot readers need a stage_id to address the checkbox.
-    # Stamp it here using the same `stage_id_from_path()` helper so the
-    # id-derivation rule stays in one place.
-    root <- stamp_default_stage_enabled_ids(root)
+    # ADR 0021: `is_data_chain_call` is the single gate (placeholder OR
+    # `has_user_control`); both `ppVerbOff` and `ppVerbSwitch` unwraps
+    # stamp `has_user_control = TRUE`, so `assign_stage_ids` covers them.
     root <- ptr_classify_data(root)
     root <- ptr_shared_bind(root)
     ptr_validate_shared_roles(root)
@@ -122,34 +116,6 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
     ptr_assert_classified(root)
   }
   root
-}
-
-# Stamp `stage_id` on every `ptr_call` whose `default_stage_enabled` is
-# FALSE but `stage_id` is unset — the ADR-0020 case where the wrapped
-# stage carries no placeholders so `assign_stage_ids`'s placeholder-gated
-# predicate skipped it. Idempotent; preserves existing stage_ids.
-stamp_default_stage_enabled_ids <- function(root) {
-  if (!is_ptr_root(root)) return(root)
-  ptr_rewrite_pre(root, function(n, cur) {
-    if (!isTRUE(cur$in_data_position)) return(n)
-    if (is_ptr_pipeline(n)) {
-      for (i in seq_along(n$stages)) {
-        s <- n$stages[[i]]
-        if (!is_ptr_call(s)) next
-        if (!is.null(s$stage_id) && nzchar(s$stage_id)) next
-        if (isFALSE(s$default_stage_enabled)) {
-          s$stage_id <- stage_id_from_path(cur$layer_name, c(cur$path, i))
-          n$stages[[i]] <- s
-        }
-      }
-    } else if (is_ptr_call(n)) {
-      if (!is.null(n$stage_id) && nzchar(n$stage_id)) return(n)
-      if (isFALSE(n$default_stage_enabled)) {
-        n$stage_id <- stage_id_from_path(cur$layer_name, cur$path)
-      }
-    }
-    n
-  })
 }
 
 # Walks the typed tree and aborts (class `"ptr_translate_error"`) if any
@@ -864,6 +830,12 @@ unwrap_pp_verb_off_stage <- function(stage_call) {
     ))
   }
   inner_node$default_stage_enabled <- !isTRUE(hide)
+  # ADR 0021: stamp `has_user_control = TRUE` so the single gate
+  # (`is_data_chain_call`'s placeholder-or-user-control disjunction) lets
+  # `assign_stage_ids` stamp a `stage_id` on this carrier, restoring the
+  # behaviour previously rescued by `stamp_default_stage_enabled_ids`.
+  # Removed together with `ppVerbOff` in plan 06.
+  inner_node$has_user_control <- TRUE
   inner_node
 }
 
