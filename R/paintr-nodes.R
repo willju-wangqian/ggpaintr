@@ -139,8 +139,8 @@ ptr_tree_structural_equal <- function(a, b) {
     if (is_ptr_literal(a)) {
       return(identical(a$expr, b$expr))
     }
-    names_a <- setdiff(names(a), c("op", "expr"))
-    names_b <- setdiff(names(b), c("op", "expr"))
+    names_a <- setdiff(names(a), c("op", "expr", "default_active", "default_stage_enabled"))
+    names_b <- setdiff(names(b), c("op", "expr", "default_active", "default_stage_enabled"))
     if (!setequal(names_a, names_b)) return(FALSE)
     for (nm in names_a) {
       if (!ptr_tree_structural_equal(a[[nm]], b[[nm]])) return(FALSE)

@@ -60,58 +60,12 @@ plan02_lift_merged <- function() {
 
 # ---- helpers ---------------------------------------------------------------
 
-# Tiny structural-equality helper for typed-tree nodes. Compares class +
-# every relevant slot recursively. The pre-PLAN-04 codebase had no
-# `ptr_tree_structural_equal()`; the plan's BDD references one — defined
-# here as an unexported test helper rather than in `R/paintr-nodes.R` so
-# the helper does not leak into the package API surface.
-ptr_tree_structural_equal <- function(a, b) {
-  if (is.null(a) && is.null(b)) return(TRUE)
-  if (is.null(a) || is.null(b)) return(FALSE)
-  if (!identical(class(a), class(b))) return(FALSE)
-  if (ggpaintr:::is_ptr_root(a)) {
-    if (length(a$layers) != length(b$layers)) return(FALSE)
-    for (i in seq_along(a$layers)) {
-      if (!ptr_tree_structural_equal(a$layers[[i]], b$layers[[i]])) return(FALSE)
-    }
-    return(TRUE)
-  }
-  if (ggpaintr:::is_ptr_layer(a)) {
-    if (!identical(a$name, b$name)) return(FALSE)
-    if (!ptr_tree_structural_equal(a$data_arg, b$data_arg)) return(FALSE)
-    if (length(a$children) != length(b$children)) return(FALSE)
-    for (i in seq_along(a$children)) {
-      if (!ptr_tree_structural_equal(a$children[[i]], b$children[[i]])) return(FALSE)
-    }
-    return(TRUE)
-  }
-  if (ggpaintr:::is_ptr_pipeline(a)) {
-    if (length(a$stages) != length(b$stages)) return(FALSE)
-    for (i in seq_along(a$stages)) {
-      if (!ptr_tree_structural_equal(a$stages[[i]], b$stages[[i]])) return(FALSE)
-    }
-    return(TRUE)
-  }
-  if (ggpaintr:::is_ptr_call(a)) {
-    if (!identical(a$fun, b$fun)) return(FALSE)
-    if (length(a$args) != length(b$args)) return(FALSE)
-    an <- names(a$args) %||% rep_len("", length(a$args))
-    bn <- names(b$args) %||% rep_len("", length(b$args))
-    if (!identical(an, bn)) return(FALSE)
-    for (i in seq_along(a$args)) {
-      if (!ptr_tree_structural_equal(a$args[[i]], b$args[[i]])) return(FALSE)
-    }
-    return(TRUE)
-  }
-  if (ggpaintr:::is_ptr_placeholder(a)) {
-    return(identical(a$keyword, b$keyword) && identical(a$param, b$param))
-  }
-  if (ggpaintr:::is_ptr_literal(a) || ggpaintr:::is_ptr_user_expr(a) ||
-      ggpaintr:::is_ptr_missing(a)) {
-    return(identical(a$expr, b$expr) && identical(a$inner, b$inner))
-  }
-  identical(a, b)
-}
+# Structural equality is delegated to the package's canonical comparator
+# `ggpaintr:::ptr_tree_structural_equal()` (defined in R/paintr-nodes.R).
+# Per ADR 0020 PLAN-03, this file no longer carries an inline re-
+# implementation: a fork of the comparator silently drifts whenever the
+# real comparator's contract evolves (e.g. ADR 0020 added two UI-state-
+# only slots to its exclusion list).
 
 # Snapshot factory — binds every placeholder in `tree` to a fixed value so
 # substitute → prune → eval produce concrete language.
@@ -214,14 +168,14 @@ test_that("adr12 / PLAN-04: prune produces structurally equivalent pruned data_a
   da_magri <- pr_magri$layers[[1]]$data_arg
   da_nested <- pr_nested$layers[[1]]$data_arg
 
-  expect_true(ptr_tree_structural_equal(da_native, da_magri))
+  expect_true(ggpaintr:::ptr_tree_structural_equal(da_native, da_magri))
   # Cross-form: nested vs magrittr requires PLAN-02's lift. Skip-gated by
   # content probe — assertion preserved verbatim per BDD `Then`.
   skip_if_not(
     plan02_lift_merged(),
     "atomic-pair G2 gate: requires PLAN-02 merged for cross-form uniformity"
   )
-  expect_true(ptr_tree_structural_equal(da_magri, da_nested))
+  expect_true(ggpaintr:::ptr_tree_structural_equal(da_magri, da_nested))
 })
 
 # ---- safety consumer -------------------------------------------------------
