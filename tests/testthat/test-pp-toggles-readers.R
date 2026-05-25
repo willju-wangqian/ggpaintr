@@ -1,7 +1,7 @@
-# ADR 0020 PLAN-02 — snapshot + UI readers honor node-level
+# ADR 0020 / 0021 PLAN-06 — snapshot + UI readers honor node-level
 # `default_active` / `default_stage_enabled` fields stamped by ppLayerOff /
-# ppVerbOff (Plan 01). Covers SC1-SC6 + SC8 of the plan; SC7's post-flush
-# browser half lives in `test-pp-off-e2e.R`.
+# ppVerbSwitch. Covers SC1-SC6 + SC8 of the plan; SC7's post-flush
+# browser half lives in `test-pp-toggles-e2e.R`.
 
 # ---- SC1 / SC2 — snapshot reads carrier-node fields ----
 
@@ -21,7 +21,7 @@ test_that("SC1: snapshot's layer_checkbox entry defaults to TRUE without ppLayer
 
 test_that("SC2: snapshot's stage_enabled entry reads default_stage_enabled = FALSE", {
   tree <- ptr_translate(
-    "ggplot(mtcars |> ppVerbOff(mutate(mpg = mpg + 100), TRUE))"
+    "ggplot(mtcars |> ppVerbSwitch(mutate(mpg = mpg + 100), switch_on = FALSE))"
   )
   spec <- ptr_runtime_input_spec(tree)
   stage_rows <- spec[spec$role == "stage_enabled", , drop = FALSE]
@@ -31,7 +31,7 @@ test_that("SC2: snapshot's stage_enabled entry reads default_stage_enabled = FAL
   expect_false(snap[[sid]])
 })
 
-test_that("SC2: snapshot's stage_enabled entry defaults to TRUE without ppVerbOff", {
+test_that("SC2: snapshot's stage_enabled entry defaults to TRUE without ppVerbSwitch wrapper", {
   tree <- ptr_translate(
     "ggplot(mtcars |> mutate(mpg = mpg + 100))"
   )
@@ -92,7 +92,7 @@ test_that("SC4: layer-checkbox UI value reads node$default_active = TRUE (defaul
 
 test_that("SC5: find_layer_placeholders_with_stage threads default_stage_enabled = FALSE", {
   tree <- ptr_translate(
-    "ggplot(mtcars |> ppVerbOff(mutate(x = ppNum), TRUE), aes(x = mpg)) + geom_point()"
+    "ggplot(mtcars |> ppVerbSwitch(mutate(x = ppNum), switch_on = FALSE), aes(x = mpg)) + geom_point()"
   )
   ggplot_layer <- tree$layers[[which(vapply(
     tree$layers, function(l) identical(l$name, "ggplot"), logical(1)
@@ -103,13 +103,13 @@ test_that("SC5: find_layer_placeholders_with_stage threads default_stage_enabled
   expect_true(length(entries) >= 1L)
   for (e in entries) {
     expect_false(isTRUE(e$default_stage_enabled %||% TRUE),
-                 info = "expected FALSE for ppVerbOff(..., TRUE) stage entry")
+                 info = "expected FALSE for ppVerbSwitch(..., switch_on = FALSE) stage entry")
   }
 })
 
 test_that("SC5: per-layer stage controllable_region renders default_on = FALSE", {
   tree <- ptr_translate(
-    "ggplot(mtcars |> ppVerbOff(mutate(x = ppNum), TRUE), aes(x = mpg)) + geom_point()"
+    "ggplot(mtcars |> ppVerbSwitch(mutate(x = ppNum), switch_on = FALSE), aes(x = mpg)) + geom_point()"
   )
   ggplot_layer <- tree$layers[[which(vapply(
     tree$layers, function(l) identical(l$name, "ggplot"), logical(1)
@@ -127,7 +127,7 @@ test_that("SC5: per-layer stage controllable_region renders default_on = FALSE",
   expect_no_match(m[[1L]], 'checked="checked"', fixed = TRUE)
 })
 
-test_that("SC5: bare pipeline stage (no ppVerbOff) renders default_on = TRUE", {
+test_that("SC5: bare pipeline stage (no ppVerbSwitch wrapper) renders default_on = TRUE", {
   tree <- ptr_translate(
     "ggplot(mtcars |> mutate(x = ppNum), aes(x = mpg)) + geom_point()"
   )
@@ -149,7 +149,7 @@ test_that("SC5: bare pipeline stage (no ppVerbOff) renders default_on = TRUE", {
 
 test_that("SC6: collect_orphan_shared_stages carries default_stage_enabled = FALSE", {
   tree <- ptr_translate(paste0(
-    "ggplot(mtcars |> ppVerbOff(filter(ppVar(shared = \"v\") > 0), TRUE), ",
+    "ggplot(mtcars |> ppVerbSwitch(filter(ppVar(shared = \"v\") > 0), switch_on = FALSE), ",
     "aes(x = ppVar(shared = \"v\"))) + geom_point()"
   ))
   orphans <- ggpaintr:::collect_orphan_shared_stages(tree)
@@ -157,7 +157,7 @@ test_that("SC6: collect_orphan_shared_stages carries default_stage_enabled = FAL
   expect_false(isTRUE(orphans[[1L]]$default_stage_enabled %||% TRUE))
 })
 
-test_that("SC6: collect_orphan_shared_stages defaults to TRUE without ppVerbOff", {
+test_that("SC6: collect_orphan_shared_stages defaults to TRUE without ppVerbSwitch wrapper", {
   tree <- ptr_translate(paste0(
     "ggplot(mtcars |> filter(ppVar(shared = \"v\") > 0), ",
     "aes(x = ppVar(shared = \"v\"))) + geom_point()"
@@ -190,7 +190,7 @@ test_that("SC8: ptr_spec_defaults_from_state honors default_active = FALSE", {
 test_that("SC8: ptr_spec_defaults_from_state agrees with snapshot for stage_enabled", {
   e <- list2env(list(mtcars = mtcars), parent = globalenv())
   state <- ptr_init_state(
-    "ggplot(mtcars |> ppVerbOff(mutate(mpg = mpg + 100), TRUE))",
+    "ggplot(mtcars |> ppVerbSwitch(mutate(mpg = mpg + 100), switch_on = FALSE))",
     envir = e
   )
   defaults <- ggpaintr:::ptr_spec_defaults_from_state(state)
@@ -199,7 +199,7 @@ test_that("SC8: ptr_spec_defaults_from_state agrees with snapshot for stage_enab
   expect_equal(nrow(stage_rows), 1L)
   sid <- stage_rows$input_id[1L]
   expect_false(defaults[[sid]])
-  # And without ppVerbOff, the same field defaults to TRUE.
+  # And without ppVerbSwitch, the same field defaults to TRUE.
   state2 <- ptr_init_state(
     "ggplot(mtcars |> mutate(mpg = mpg + 100))",
     envir = e
@@ -244,7 +244,7 @@ test_that("snapshot value agrees with UI checkboxInput value attribute (on case)
 # ---- BDD (plan lines 159-163) — spec= at boot overrides formula-side default ----
 #
 # Note: the post-flush input-value assertion is exercised by shinytest2 in
-# `test-pp-off-e2e.R` (MockShinySession does not mirror
+# `test-pp-toggles-e2e.R` (MockShinySession does not mirror
 # updateCheckboxInput() back into input[[id]], so testServer can't observe
 # the override). The state-field + spec_defaults_from_state sub-claims for
 # SC8 remain in the `SC8:` test_that blocks above.

@@ -29,10 +29,11 @@ ptr_pipeline <- function(stages, op, expr) {
   new_ptr_node("ptr_pipeline", stages = stages, op = op, expr = expr)
 }
 
-# `default_stage_enabled` (ADR 0020 §2) is the formula-derived boot state of
-# this call's stage-enabled checkbox: TRUE when the user wrote the stage as a
-# normal verb (or no `ppVerbOff` wrapper applies), FALSE when the user wrapped
-# the stage in `ppVerbOff(.data, verb_expr, hide = TRUE)`. The slot is present
+# `default_stage_enabled` (ADR 0020 §2 / ADR 0021) is the formula-derived
+# boot state of this call's stage-enabled checkbox: TRUE when the user
+# wrote the stage as a normal verb (or `ppVerbSwitch(verb, switch_on = TRUE)`),
+# FALSE when the user wrapped the stage in
+# `ppVerbSwitch(.data, verb_expr, switch_on = FALSE)`. The slot is present
 # on every `ptr_call` even when no stage-id has been assigned yet, because
 # downstream readers (Plan 02) consume `node$default_stage_enabled` without
 # first checking `node$stage_id`; defaulting to TRUE keeps non-chain calls

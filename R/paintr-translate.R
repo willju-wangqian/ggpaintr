@@ -99,16 +99,17 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
     # Side benefit: `assign_stage_ids` (called inside `ptr_assign_ids`) now
     # finds stages to id-stamp for all surface forms.
     root <- ptr_classify_calls(root, op_hint = op_hint)
-    # ADR 0020: a `ptr_call(ppVerbOff, ...)` is legitimate ONLY as a
-    # data-arg-of-`ggplot()` (lifted into a pipeline stage by
-    # `ptr_classify_calls` and unwrapped by `build_pipeline_from_lift`).
+    # ADR 0021: a `ptr_call(ppVerbSwitch, ...)` (or `ppLayerOff` at layer
+    # position) is legitimate ONLY at a structural-keyword position
+    # (lifted into a pipeline stage by `ptr_classify_calls` and unwrapped
+    # by `build_pipeline_from_lift`, or handled by `translate_layer`).
     # If any survives the lift, the wrapper sits at a wrong position
     # (e.g. inside `aes()`, a geom's mapping/arg list, or a non-data arg).
     ptr_assert_no_surviving_structural_wrappers(root)
     root <- ptr_assign_ids(root, ns_fn = ns_fn)
     # ADR 0021: `is_data_chain_call` is the single gate (placeholder OR
-    # `has_user_control`); both `ppVerbOff` and `ppVerbSwitch` unwraps
-    # stamp `has_user_control = TRUE`, so `assign_stage_ids` covers them.
+    # `has_user_control`); the `ppVerbSwitch` unwrap stamps
+    # `has_user_control = TRUE`, so `assign_stage_ids` covers it.
     root <- ptr_classify_data(root)
     root <- ptr_shared_bind(root)
     ptr_validate_shared_roles(root)
@@ -119,7 +120,7 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
 }
 
 # Walks the typed tree and aborts (class `"ptr_translate_error"`) if any
-# `ppLayerOff` or `ppVerbOff` wrapper survived translation. The
+# `ppLayerOff` or `ppVerbSwitch` wrapper survived translation. The
 # special-unwrap branches in `translate_layer` (layer position) and
 # `build_pipeline_from_lift` (pipeline-stage position) intercept the
 # legitimate positions; a surviving `ptr_call(<keyword>, ...)` means the
@@ -131,7 +132,7 @@ ptr_assert_no_surviving_structural_wrappers <- function(root) {
     head <- n$fun
     if (!is.symbol(head)) return()
     nm <- as.character(head)
-    if (nm %in% c("ppLayerOff", "ppVerbOff", "ppVerbSwitch")) {
+    if (nm %in% c("ppLayerOff", "ppVerbSwitch")) {
       bad[[length(bad) + 1L]] <<- nm
     }
   })
@@ -143,12 +144,6 @@ ptr_assert_no_surviving_structural_wrappers <- function(root) {
         paste0(
           "`ppLayerOff(layer_expr, hide)` is only valid as a top-level ",
           "layer (joined to a `ggplot()` chain with `+`)."
-        )
-      } else if (nm == "ppVerbOff") {
-        paste0(
-          "`ppVerbOff(.data, verb_expr, hide)` is only valid as a stage ",
-          "in a data-argument pipeline (e.g. `mtcars |> ",
-          "ppVerbOff(mutate(x = 1), TRUE) |> ggplot(...)`)."
         )
       } else {
         paste0(
@@ -199,19 +194,13 @@ build_pipeline_from_lift <- function(parts, op_hint = "|>") {
   stage_nodes <- vector("list", length(parts$stages))
   for (j in seq_along(parts$stages)) {
     st <- parts$stages[[j]]
-    # ADR 0020 special-unwrap branch for `ppVerbOff` at pipeline-stage
+    # ADR 0021 special-unwrap branch for `ppVerbSwitch` at pipeline-stage
     # position. By this point the lift's resugar step has stripped the
-    # implicit `.data` slot, so `st$call` is `ppVerbOff(verb_expr, hide)`.
-    # Unwrap to the inner verb call with `default_stage_enabled = !hide`.
-    if (is_structural_keyword_call(st$call, "ppVerbOff")) {
-      typed <- unwrap_pp_verb_off_stage(st$call)
-    } else if (is_structural_keyword_call(st$call, "ppVerbSwitch")) {
-      # ADR 0021 special-unwrap branch for `ppVerbSwitch` at pipeline-stage
-      # position. By this point the lift's resugar step has stripped the
-      # implicit `.data` slot, so `st$call` is
-      # `ppVerbSwitch(verb_expr, switch_on, label)`. Unwrap to the inner
-      # verb call with `has_user_control = TRUE`,
-      # `default_stage_enabled = switch_on`, and `stage_label = label`.
+    # implicit `.data` slot, so `st$call` is
+    # `ppVerbSwitch(verb_expr, switch_on, label)`. Unwrap to the inner
+    # verb call with `has_user_control = TRUE`,
+    # `default_stage_enabled = switch_on`, and `stage_label = label`.
+    if (is_structural_keyword_call(st$call, "ppVerbSwitch")) {
       typed <- unwrap_pp_verb_switch_stage(st$call)
     } else {
       typed <- translate_node(st$call)
@@ -357,11 +346,12 @@ is_placeholder_call <- function(expr) {
   entry <- tryCatch(ptr_registry_lookup(as.character(head)),
                     error = function(e) NULL)
   if (is.null(entry)) return(FALSE)
-  # ADR 0020: structural keywords (`ppLayerOff`, `ppVerbOff`) live in the
-  # registry only so `placeholder_keyword()` recognises their names; they
-  # are NOT placeholders and the canonical-pipeline lift must continue to
-  # treat them as ordinary callables (so the post-loop source-split still
-  # fires when a structural wrapper sits at the deepest non-call slot).
+  # ADR 0020 / 0021: structural keywords (`ppLayerOff`, `ppVerbSwitch`)
+  # live in the registry only so `placeholder_keyword()` recognises their
+  # names; they are NOT placeholders and the canonical-pipeline lift must
+  # continue to treat them as ordinary callables (so the post-loop
+  # source-split still fires when a structural wrapper sits at the
+  # deepest non-call slot).
   if (identical(entry$role, "structural")) return(FALSE)
   TRUE
 }
@@ -453,19 +443,19 @@ dedupe_layer_names <- function(names) {
 # ---- translate per node -----------------------------------------------------
 
 translate_layer <- function(expr, op_hint = "|>") {
-  # ADR 0020 special-unwrap branches. `ppLayerOff` is legal here and
-  # unwraps to the inner layer with `default_active = !hide`. `ppVerbOff`
+  # ADR 0020 / 0021 special-unwrap branches. `ppLayerOff` is legal here and
+  # unwraps to the inner layer with `default_active = !hide`. `ppVerbSwitch`
   # is NOT legal at a layer position — it belongs in a pipeline-stage
   # position (intercepted by `build_pipeline_from_lift`). The error class
   # `"ptr_translate_error"` is introduced by this validator.
   if (is_structural_keyword_call(expr, "ppLayerOff")) {
     return(unwrap_pp_layer_off(expr, op_hint = op_hint))
   }
-  if (is_structural_keyword_call(expr, "ppVerbOff")) {
+  if (is_structural_keyword_call(expr, "ppVerbSwitch")) {
     abort_translate(paste0(
-      "`ppVerbOff(...)` was used at a layer position, but it is only ",
+      "`ppVerbSwitch(...)` was used at a layer position, but it is only ",
       "valid as a pipeline-stage wrapper inside a data argument (e.g. ",
-      "`mtcars |> ppVerbOff(mutate(x = 1), TRUE) |> ggplot(...)`). Layers ",
+      "`mtcars |> ppVerbSwitch(mutate(x = 1), TRUE) |> ggplot(...)`). Layers ",
       "are added with `+`, not piped — use `ppLayerOff(layer_expr, hide)` ",
       "for off-by-default layers."
     ))
@@ -636,13 +626,13 @@ translate_node <- function(expr) {
     # if `ppLayerOff(...)` reaches the generic translator, it is buried
     # inside another expression and structurally invalid.
     #
-    # `ppVerbOff` is deliberately NOT aborted here: the data-arg of
+    # `ppVerbSwitch` is deliberately NOT aborted here: the data-arg of
     # `ggplot()` IS a legitimate position for it (the surrounding
     # `extract_call_data_arg` calls back into `translate_node`, and
-    # `ptr_classify_calls` later lifts the resulting `ptr_call(ppVerbOff,
+    # `ptr_classify_calls` later lifts the resulting `ptr_call(ppVerbSwitch,
     # ...)` into a pipeline whose stages are handled by
     # `build_pipeline_from_lift`'s unwrap branch). A post-translate
-    # surviving-wrapper scan catches `ppVerbOff` calls that did not get
+    # surviving-wrapper scan catches `ppVerbSwitch` calls that did not get
     # lifted into a stage (e.g. used inside `aes()` or as a non-data arg).
     if (is_structural_keyword_call(expr, "ppLayerOff")) {
       abort_translate(paste0(
@@ -736,9 +726,10 @@ abort_translate <- function(msg) {
 }
 
 # TRUE when `expr` is a call whose head names the given structural keyword
-# (one of "ppLayerOff", "ppVerbOff"). Pure shape check; the registry-lookup
-# version (`is_placeholder_call`) excludes structural roles by design and is
-# the wrong primitive for the special-unwrap branches.
+# (one of "ppLayerOff", "ppVerbSwitch"). Pure shape check; the
+# registry-lookup version (`is_placeholder_call`) excludes structural
+# roles by design and is the wrong primitive for the special-unwrap
+# branches.
 is_structural_keyword_call <- function(expr, keyword) {
   if (!is.call(expr) || length(expr) < 1L) return(FALSE)
   head <- expr[[1L]]
@@ -746,11 +737,12 @@ is_structural_keyword_call <- function(expr, keyword) {
 }
 
 # Returns the literal logical `hide` value (a length-1 non-NA logical) from
-# a `pp*Off()` wrapper call, OR aborts with class `"ptr_translate_error"`
-# when the slot is missing, non-literal, or not a length-1 logical. The
-# wrapper accepts `hide` named or positional; `hide_position` is the
-# positional slot (2 for `ppLayerOff`, 3 for `ppVerbOff`). Default is TRUE
-# when the slot is omitted entirely — matches the function-body default.
+# a `ppLayerOff()` wrapper call, OR aborts with class
+# `"ptr_translate_error"` when the slot is missing, non-literal, or not a
+# length-1 logical. The wrapper accepts `hide` named or positional;
+# `hide_position` is the positional slot (2 for `ppLayerOff`). Default is
+# TRUE when the slot is omitted entirely — matches the function-body
+# default.
 validate_pp_off_hide <- function(expr, keyword, hide_position) {
   args <- as.list(expr[-1L])
   arg_names <- names(args) %||% rep_len("", length(args))
@@ -802,41 +794,6 @@ unwrap_pp_layer_off <- function(expr, op_hint = "|>") {
   layer <- translate_plain_layer(inner_expr, op_hint = op_hint)
   layer$default_active <- !isTRUE(hide)
   layer
-}
-
-# `ppVerbOff(.data, verb_expr, hide = TRUE)` at a pipeline-stage position
-# (i.e. as a `parts$stages[[j]]$call` after the source has been split off,
-# which strips the implicit `.data` slot — so the call we see here is
-# `ppVerbOff(verb_expr, hide)`). Validate `hide`, translate the inner verb
-# call through `translate_node`, and stamp `default_stage_enabled = !hide`
-# on the resulting `ptr_call`. Used inside `build_pipeline_from_lift`.
-unwrap_pp_verb_off_stage <- function(stage_call) {
-  args <- as.list(stage_call[-1L])
-  arg_names <- names(args) %||% rep_len("", length(args))
-  inner_idx <- which(!nzchar(arg_names))[1L]
-  if (is.na(inner_idx)) {
-    abort_translate(paste0(
-      "`ppVerbOff(.data, verb_expr, hide = TRUE)` requires the verb ",
-      "expression as a positional argument."
-    ))
-  }
-  verb_expr <- args[[inner_idx]]
-  hide <- validate_pp_off_hide(stage_call, "ppVerbOff", hide_position = 2L)
-  inner_node <- translate_node(verb_expr)
-  if (!is_ptr_call(inner_node)) {
-    abort_translate(paste0(
-      "`ppVerbOff(verb_expr = )` must be a verb call (e.g. `mutate(...)`); ",
-      "got `", deparse(verb_expr)[[1L]], "`."
-    ))
-  }
-  inner_node$default_stage_enabled <- !isTRUE(hide)
-  # ADR 0021: stamp `has_user_control = TRUE` so the single gate
-  # (`is_data_chain_call`'s placeholder-or-user-control disjunction) lets
-  # `assign_stage_ids` stamp a `stage_id` on this carrier, restoring the
-  # behaviour previously rescued by `stamp_default_stage_enabled_ids`.
-  # Removed together with `ppVerbOff` in plan 06.
-  inner_node$has_user_control <- TRUE
-  inner_node
 }
 
 # Returns the literal logical `switch_on` value (a length-1 non-NA logical)

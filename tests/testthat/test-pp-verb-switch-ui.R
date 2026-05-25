@@ -157,11 +157,11 @@ test_that("SC-5: per-placeholder label suffix is identical with vs without ppVer
   expect_identical(override_W$param_override, override_N$param_override)
 })
 
-# ---- SC-6: ppVerbOff stage block still uses auto-label ----
+# ---- SC-6: ppVerbSwitch(switch_on = FALSE) stage block still uses auto-label ----
 
-test_that("SC-6: ppVerbOff-stamped carrier (no stage_label) renders head label as <code>mutate()</code> (auto-label fallback)", {
+test_that("SC-6: ppVerbSwitch carrier without a label slot renders head label as <code>mutate()</code> (auto-label fallback)", {
   tree <- ptr_translate(
-    'ggplot(mtcars |> ppVerbOff(mutate(x = ppNum), TRUE), aes(x = mpg, y = wt)) + geom_point()'
+    'ggplot(mtcars |> ppVerbSwitch(mutate(x = ppNum), switch_on = FALSE), aes(x = mpg, y = wt)) + geom_point()'
   )
   panel <- ggpaintr:::build_ui_for(ggplot_layer_of(tree))
   rendered <- as.character(panel)

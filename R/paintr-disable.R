@@ -16,10 +16,9 @@
 
 # A call qualifies for a stage-id iff it is a ptr_call AND either (a) its
 # subtree contains at least one placeholder, or (b) it carries
-# `has_user_control = TRUE` (stamped by `ppVerbSwitch` unwrap, and by
-# `ppVerbOff` unwrap until plan 06 removes it). Two disjuncts, single gate
-# — see ADR 0021. Walk position ("in data-arg position") is enforced by
-# the caller, not the predicate.
+# `has_user_control = TRUE` (stamped by `ppVerbSwitch` unwrap). Two
+# disjuncts, single gate — see ADR 0021. Walk position ("in data-arg
+# position") is enforced by the caller, not the predicate.
 is_data_chain_call <- function(node) {
   is_ptr_call(node) &&
     (walk_has_placeholder(node) || isTRUE(node$has_user_control))

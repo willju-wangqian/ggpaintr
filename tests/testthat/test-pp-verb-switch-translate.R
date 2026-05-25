@@ -1,16 +1,15 @@
 # ADR 0021 / PLAN-03 SC1-SC9 — translator wiring for ppVerbSwitch.
 #
 # `ppVerbSwitch(.data, verb_expr, switch_on, label)` at a pipeline-stage
-# position is intercepted by `build_pipeline_from_lift`'s sibling unwrap
-# branch (alongside `ppVerbOff`). The wrapper never appears in the typed
-# tree; instead the inner verb call's `ptr_call` is stamped with
-# `has_user_control = TRUE`, `default_stage_enabled = switch_on`, and
-# `stage_label = label`. Non-literal `switch_on` / `label`, non-call
-# `verb_expr`, and wrong-position uses abort with class
-# `"ptr_translate_error"`.
+# position is intercepted by `build_pipeline_from_lift`'s unwrap branch.
+# The wrapper never appears in the typed tree; instead the inner verb
+# call's `ptr_call` is stamped with `has_user_control = TRUE`,
+# `default_stage_enabled = switch_on`, and `stage_label = label`.
+# Non-literal `switch_on` / `label`, non-call `verb_expr`, and
+# wrong-position uses abort with class `"ptr_translate_error"`.
 
 # Annotation flag governs the unwrap path; mirror the helper from
-# `test-pp-off-translate.R` so this file uses the same calling convention.
+# `test-pp-toggles-translate.R` so this file uses the same calling convention.
 ptr_translate_annot <- function(expr) {
   ptr_translate(rlang::expr_text(expr))
 }

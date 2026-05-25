@@ -1,15 +1,17 @@
-# ADR 0020 / PLAN-01 SC2-SC9 — translator wiring for ppLayerOff / ppVerbOff.
+# ADR 0020 / 0021 PLAN-06 — translator wiring for ppLayerOff / ppVerbSwitch.
 #
-# The translator recognises the two ADR-0020 structural keywords via the
-# placeholder registry (`placeholder_keyword()` returns their names) but
-# never builds `ptr_ph_*` nodes for them — instead, special-unwrap branches
-# rewrite the typed tree at translate time. Layer-position `ppLayerOff`
-# becomes a `ptr_layer` with `default_active = !hide`; pipeline-stage
-# `ppVerbOff` becomes a `ptr_call` with `default_stage_enabled = !hide`.
-# Wrong-position uses and non-literal `hide` slots abort with class
-# `ptr_translate_error`.
+# The translator recognises the structural keywords via the placeholder
+# registry (`placeholder_keyword()` returns their names) but never builds
+# `ptr_ph_*` nodes for them — instead, special-unwrap branches rewrite the
+# typed tree at translate time. Layer-position `ppLayerOff` becomes a
+# `ptr_layer` with `default_active = !hide`; pipeline-stage `ppVerbSwitch`
+# becomes a `ptr_call` with `default_stage_enabled = switch_on`,
+# `has_user_control = TRUE`, and `stage_label = label`. Wrong-position
+# uses and non-literal slots abort with class `ptr_translate_error`.
+# PLAN-06 hard-removed the legacy off-only wrapper; SC-3 guards below
+# assert the removal (built via `paste0` so the SC-1 grep stays clean).
 
-# All ADR-0020 unwrap logic runs inside `ptr_classify_calls` /
+# All structural-keyword unwrap logic runs inside `ptr_classify_calls` /
 # `build_pipeline_from_lift`, which `ptr_translate` only invokes when
 # `annotate = TRUE` (the default). Use the annotated path for every
 # structural / validation assertion below.
@@ -23,8 +25,8 @@ test_that("ppLayerOff is registered in the placeholder registry", {
   expect_true("ppLayerOff" %in% ptr_registry_keywords())
 })
 
-test_that("ppVerbOff is registered in the placeholder registry", {
-  expect_true("ppVerbOff" %in% ptr_registry_keywords())
+test_that("ppVerbSwitch is registered in the placeholder registry", {
+  expect_true("ppVerbSwitch" %in% ptr_registry_keywords())
 })
 
 test_that("placeholder_keyword recognises ppLayerOff in a call expression", {
@@ -34,11 +36,23 @@ test_that("placeholder_keyword recognises ppLayerOff in a call expression", {
   expect_equal(kw, "ppLayerOff")
 })
 
-test_that("placeholder_keyword recognises ppVerbOff in a call expression", {
+test_that("placeholder_keyword recognises ppVerbSwitch in a call expression", {
   kw <- ggpaintr:::placeholder_keyword(
-    quote(ppVerbOff(.data, mutate(x = 1), FALSE))
+    quote(ppVerbSwitch(.data, mutate(x = 1), FALSE))
   )
-  expect_equal(kw, "ppVerbOff")
+  expect_equal(kw, "ppVerbSwitch")
+})
+
+# ---- PLAN-06 SC-3: the legacy off-only wrapper is gone from both keyword registries ----
+
+test_that("PLAN-06 SC-3: the legacy off-only wrapper is not a builtin keyword", {
+  legacy <- paste0("pp", "Verb", "Off")
+  expect_false(legacy %in% ptr_builtin_keywords())
+})
+
+test_that("PLAN-06 SC-3: the legacy off-only wrapper is not in the placeholder registry", {
+  legacy <- paste0("pp", "Verb", "Off")
+  expect_false(legacy %in% ptr_registry_keywords())
 })
 
 # ---- SC9: ptr_call default_stage_enabled slot ------------------------------
@@ -85,11 +99,11 @@ test_that("ppLayerOff(geom_point(), FALSE) is structurally equal to bare layer",
   expect_true(t_off$layers[[2L]]$default_active)
 })
 
-# ---- SC5: pipeline-stage unwrap with hide = TRUE ---------------------------
+# ---- SC5: pipeline-stage unwrap with switch_on = FALSE ---------------------------
 
-test_that("ppVerbOff at pipeline-stage position with hide=TRUE is off-by-default", {
+test_that("ppVerbSwitch at pipeline-stage position with switch_on=FALSE is off-by-default", {
   tree <- ptr_translate_annot(quote(
-    ggplot(mtcars |> ppVerbOff(mutate(mpg = mpg + 100), TRUE))
+    ggplot(mtcars |> ppVerbSwitch(mutate(mpg = mpg + 100), FALSE))
   ))
   # The ggplot layer's data_arg should be a ptr_pipeline.
   ggplot_layer <- tree$layers[[1L]]
@@ -106,28 +120,28 @@ test_that("ppVerbOff at pipeline-stage position with hide=TRUE is off-by-default
   expect_false(stage2$default_stage_enabled)
   # stage_id is the standard ggplot-rooted pattern.
   expect_match(stage2$stage_id, "^ggplot_.*_stage_enabled$")
-  # No surviving ppVerbOff wrapper anywhere.
+  # No surviving ppVerbSwitch wrapper anywhere.
   saw_wrapper <- FALSE
   ggpaintr:::ptr_walk(tree, function(n) {
     if (ggpaintr:::is_ptr_call(n) && is.symbol(n$fun) &&
-        identical(as.character(n$fun), "ppVerbOff")) {
+        identical(as.character(n$fun), "ppVerbSwitch")) {
       saw_wrapper <<- TRUE
     }
   })
   expect_false(saw_wrapper)
 })
 
-# ---- SC6: pipeline-stage unwrap with hide = FALSE produces structurally
-# ----    equal tree to the bare stage
-test_that("ppVerbOff with hide=FALSE is structurally equal to the bare stage", {
+# ---- SC6: pipeline-stage unwrap with switch_on = TRUE produces structurally
+# ----    equal tree to the bare stage (modulo UI-only fields)
+test_that("ppVerbSwitch with switch_on=TRUE is structurally equal to the bare stage", {
   t_off  <- ptr_translate_annot(quote(
-    ggplot(mtcars |> ppVerbOff(mutate(x = 1), FALSE))
+    ggplot(mtcars |> ppVerbSwitch(mutate(x = 1), TRUE))
   ))
   t_bare <- ptr_translate_annot(quote(ggplot(mtcars |> mutate(x = 1))))
   expect_true(ggpaintr:::ptr_tree_structural_equal(t_off, t_bare))
 })
 
-# ---- SC7: translate-time validation, non-literal hide ----------------------
+# ---- SC7: translate-time validation, non-literal switch_on ----------------------
 
 test_that("ppLayerOff with non-literal hide aborts (ptr_translate_error)", {
   expect_error(
@@ -137,13 +151,13 @@ test_that("ppLayerOff with non-literal hide aborts (ptr_translate_error)", {
   )
 })
 
-test_that("ppVerbOff with non-literal hide aborts (ptr_translate_error)", {
+test_that("ppVerbSwitch with non-literal switch_on aborts (ptr_translate_error)", {
   expect_error(
     ptr_translate_annot(quote(
-      ggplot(mtcars |> ppVerbOff(mutate(x = 1), some_var))
+      ggplot(mtcars |> ppVerbSwitch(mutate(x = 1), some_var))
     )),
     class = "ptr_translate_error",
-    regexp = "ppVerbOff.*literal|literal.*ppVerbOff"
+    regexp = "switch_on"
   )
 })
 
@@ -159,12 +173,12 @@ test_that("ppLayerOff outside layer position aborts (ptr_translate_error)", {
   )
 })
 
-test_that("ppVerbOff outside pipeline-stage position aborts (ptr_translate_error)", {
+test_that("ppVerbSwitch outside pipeline-stage position aborts (ptr_translate_error)", {
   expect_error(
     ptr_translate_annot(quote(
-      ggplot() + ppVerbOff(mtcars, mutate(x = 1), FALSE)
+      ggplot() + ppVerbSwitch(mtcars, mutate(x = 1), FALSE)
     )),
     class = "ptr_translate_error",
-    regexp = "ppVerbOff.*position|position.*ppVerbOff"
+    regexp = "ppVerbSwitch"
   )
 })

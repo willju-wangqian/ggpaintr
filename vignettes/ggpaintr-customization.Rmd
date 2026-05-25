@@ -27,7 +27,7 @@ library(ggpaintr)
 
 ## Migrating from `checkbox_defaults`
 
-ADR 0020 (and its Plan 04 demolition pass) removed the per-call `checkbox_defaults =` argument and the global `checkbox_default_all_other_layer` option in favour of two formula-side keywords: `ppLayerOff()` and `ppVerbOff()`. The keywords live inside the formula, so the source-of-truth for "what starts off?" is the same string you wrote the chart against — no parallel side-channel to keep in sync.
+ADR 0020 (and its Plan 04 demolition pass) removed the per-call `checkbox_defaults =` argument and the global `checkbox_default_all_other_layer` option in favour of two formula-side keywords: `ppLayerOff()` and `ppVerbSwitch()` (ADR 0021). The keywords live inside the formula, so the source-of-truth for "what starts off?" is the same string you wrote the chart against — no parallel side-channel to keep in sync.
 
 Three mechanical conversions cover every prior use:
 

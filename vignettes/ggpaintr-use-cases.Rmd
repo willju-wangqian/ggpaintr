@@ -82,11 +82,11 @@ See `vignette(\"ggpaintr-gallery\")` § 4 for the same example with the original
 
 - **Anonymous functions as pipe stages.** `df |> (\(x) x[x$cyl > 4, ])() |> ggplot(...)` and `df |> (function(x) ...)() |> ggplot(...)` are not supported. The runtime resolves each stage's name from its call head; an inline lambda has no name, so the stage cannot be assigned a stable Shiny id or a layer label, and the Data subtab cannot render. The expression-level safety walker still inspects the lambda body, but the surrounding pipeline machinery does not. Workaround: lift the anonymous function to a named helper in the calling environment, then use it as a bare-symbol stage (`df |> my_helper() |> ggplot(...)`).
 
-## Layer and stage toggles — `ppLayerOff` and `ppVerbOff`
+## Layer and stage toggles — `ppLayerOff` and `ppVerbSwitch`
 
-The formula is the single source of truth for an app's boot state. If a layer should start *unchecked* in the layer panel, or a pipeline stage should start *disabled* under the Data subtab, that decision belongs in the same text you wrote the chart against — not in a parallel `checkbox_defaults =` argument that has to be kept in sync. Two structural keywords carry that information inside the formula: `ppLayerOff(layer_expr, hide)` for layers, and `ppVerbOff(.data, verb_expr, hide)` for pipeline stages. `hide = TRUE` means "boot with this piece off"; `hide = FALSE` is a no-op and exists only so flipping the flag is a one-character edit.
+The formula is the single source of truth for an app's boot state. If a layer should start *unchecked* in the layer panel, or a pipeline stage should start *disabled* (or simply *toggleable*) under the Data subtab, that decision belongs in the same text you wrote the chart against — not in a parallel `checkbox_defaults =` argument that has to be kept in sync. Two structural keywords carry that information inside the formula: `ppLayerOff(layer_expr, hide)` for layers, and `ppVerbSwitch(.data, verb_expr, switch_on, label)` for pipeline stages. For `ppLayerOff` the positive sense is `hide = TRUE` ("boot with this layer off"). For `ppVerbSwitch` the positive sense is `switch_on = TRUE` (apply the verb — i.e. the checkbox boots *checked*); `switch_on = FALSE` boots the stage with its checkbox unchecked. Either way the formula carries the entire boot state.
 
-The keywords are also legal R outside `ptr_app()`, so the same formula text renders correctly under naked ggplot — paste it into the R prompt without loading ggpaintr's runtime and you get the same plot. Inside `ptr_app()` the translator unwraps the keyword at parse time and stamps the carrier node's `default_active` / `default_stage_enabled` field; the wrapper itself never reaches the typed tree. (See `?pp_off_toggles` for the full signature and `vignette("ggpaintr-customization")` § "Layer and stage boot state" for the migration from the now-removed `checkbox_defaults =`.)
+The keywords are also legal R outside `ptr_app()`, so the same formula text renders correctly under naked ggplot — paste it into the R prompt without loading ggpaintr's runtime and you get the same plot. Inside `ptr_app()` the translator unwraps the keyword at parse time and stamps the carrier node's `default_active` / `default_stage_enabled` (and, for `ppVerbSwitch`, the `stage_label`) field; the wrapper itself never reaches the typed tree. (See `?ppLayerOff` and `?ppVerbSwitch` for the full signatures, and `vignette("ggpaintr-customization")` § "Layer and stage boot state" for the migration from the now-removed `checkbox_defaults =`.)
 
 ### Why these are formula-side keywords
 
@@ -94,9 +94,9 @@ The motivation is symmetry: the formula expresses *what gets rendered*, includin
 
 ### Runtime symmetry — the formula reads the same naked or wrapped
 
-The same expression runs cleanly under bare ggplot and inside `ptr_app()`. Naked-R semantics: `ppLayerOff(layer_expr, FALSE)` returns the evaluated layer, `ppLayerOff(layer_expr, TRUE)` returns `NULL` (and `NULL + ggplot()` is a no-op); `ppVerbOff(.data, verb_expr, FALSE)` inserts `.data` as the first argument of `verb_expr` and evaluates it, `ppVerbOff(.data, verb_expr, TRUE)` returns `.data` unchanged. The chunk below is plain R — no `ptr_app` on the stack — and renders a real `ggplot2` object:
+The same expression runs cleanly under bare ggplot and inside `ptr_app()`. Naked-R semantics: `ppLayerOff(layer_expr, FALSE)` returns the evaluated layer, `ppLayerOff(layer_expr, TRUE)` returns `NULL` (and `NULL + ggplot()` is a no-op); `ppVerbSwitch(.data, verb_expr, TRUE)` inserts `.data` as the first argument of `verb_expr` and evaluates it, `ppVerbSwitch(.data, verb_expr, FALSE)` returns `.data` unchanged. The chunk below is plain R — no `ptr_app` on the stack — and renders a real `ggplot2` object:
 
-```{r pp-off-naked, eval = TRUE}
+```{r pp-toggles-naked, eval = TRUE}
 library(ggplot2)
 
 # ppLayerOff: hide = FALSE adds the layer; hide = TRUE drops it.
@@ -104,22 +104,22 @@ ggplot(mtcars, aes(mpg, wt)) +
   ppLayerOff(geom_point(), FALSE) +     # layer present
   ppLayerOff(geom_smooth(), TRUE)       # layer absent (returns NULL)
 
-# ppVerbOff: hide = FALSE pipes .data through the verb; hide = TRUE skips it.
+# ppVerbSwitch: switch_on = TRUE applies the verb; switch_on = FALSE skips it.
 mtcars |>
-  ppVerbOff(dplyr::filter(mpg > 20), FALSE) |>  # 14 rows survive
+  ppVerbSwitch(dplyr::filter(mpg > 20), switch_on = TRUE) |>   # 14 rows survive
   nrow()
 
 mtcars |>
-  ppVerbOff(dplyr::filter(mpg > 20), TRUE) |>   # bypassed — all 32 rows
+  ppVerbSwitch(dplyr::filter(mpg > 20), switch_on = FALSE) |> # bypassed — all 32 rows
   nrow()
 ```
 
-The same formula text wrapped in `ptr_app()` boots the matching pieces *off*; the user can toggle them back on at runtime:
+The same formula text wrapped in `ptr_app()` boots the matching pieces with the right checkbox state; the user can toggle them at runtime:
 
-```{r pp-off-app}
+```{r pp-toggles-app}
 ptr_app(
 "mtcars |>
-ppVerbOff(dplyr::filter(mpg > ppNum), TRUE) |>
+ppVerbSwitch(dplyr::filter(mpg > ppNum), switch_on = FALSE) |>
 ggplot(aes(mpg, wt)) +
 geom_point() +
 ppLayerOff(geom_smooth(method = 'lm'), TRUE)"
@@ -128,29 +128,33 @@ ppLayerOff(geom_smooth(method = 'lm'), TRUE)"
 
 Here the layer panel's `geom_smooth` checkbox starts unchecked, and the `mtcars` pipeline's filter-stage toggle (in the `ggplot` layer's Data subtab) starts disabled. Flipping either widget re-renders the plot with that piece active.
 
-### `ppVerbOff` and the data-argument-position assumption
+### `ppVerbSwitch`'s extra capabilities: `label =` and forcing a checkbox onto a bare verb
 
-`ppVerbOff(.data, verb_expr, hide = FALSE)` evaluates `verb_expr` after inserting `.data` as the **first positional argument** of the verb call. This is the same convention `|>` and `%>%` use, and it matches every dplyr and tidyr verb — `filter()`, `mutate()`, `select()`, `arrange()`, `group_by()`, `summarize()`, `pivot_longer()`, `pivot_wider()`, and the rest. Inside an `ptr_app()` formula, that means writing the verb call as you would write it in a pipe — without the `.data` argument:
+`ppVerbSwitch` adds two pieces of expressive power its predecessor lacked. The first is the `label =` slot: an optional length-1 character string that becomes the head label of the resulting checkbox in the Data subtab. Without it the UI falls back to an auto-generated `<code>verb()</code>` label derived from the call head; with it, the chart author writes the user-facing copy directly in the formula. The second is the positive sense itself — `switch_on = TRUE` promotes a bare verb (one that would otherwise have no checkbox, because it carries no placeholder and no off-boot flag) into a user-toggleable stage. Writing `mtcars |> ppVerbSwitch(filter(cyl == 6), switch_on = TRUE, label = "Six-cylinder only")` boots the stage with the filter applied AND exposes a labelled checkbox so the user can switch it off at runtime; writing the same stage bare (`mtcars |> filter(cyl == 6) |> ...`) leaves the stage permanently on, with no UI. The mechanical migration recipe for the prior off-only wrapper is therefore: a boot-off stage becomes `ppVerbSwitch(.data, verb, switch_on = FALSE)`; a no-op call with the off-only wrapper (the user wrote it just so flipping the flag would be a one-character edit) becomes a bare verb stage in the pipeline.
+
+### `ppVerbSwitch` and the data-argument-position assumption
+
+`ppVerbSwitch(.data, verb_expr, switch_on = TRUE)` evaluates `verb_expr` after inserting `.data` as the **first positional argument** of the verb call. This is the same convention `|>` and `%>%` use, and it matches every dplyr and tidyr verb — `filter()`, `mutate()`, `select()`, `arrange()`, `group_by()`, `summarize()`, `pivot_longer()`, `pivot_wider()`, and the rest. Inside an `ptr_app()` formula, that means writing the verb call as you would write it in a pipe — without the `.data` argument:
 
 ```r
 # Inside ptr_app — same shape as a normal pipeline stage:
-"mtcars |> ppVerbOff(dplyr::filter(cyl == 6), TRUE) |> ggplot(...)"
+"mtcars |> ppVerbSwitch(dplyr::filter(cyl == 6), switch_on = FALSE) |> ggplot(...)"
 ```
 
-What does *not* round-trip cleanly is a verb whose data argument is **not** in position 1. A hypothetical fitter `my_fit(formula, data, weights)` takes `data` in position 2; wrapping it in `ppVerbOff` would inject `.data` ahead of `formula`, producing `my_fit(.data, formula, data, weights)` — silently shifting every argument and almost certainly erroring or returning garbage. The same hazard applies to base-R helpers that take the data frame second or by name (`aggregate(formula, data = , ...)`, `by(data = , INDICES = , FUN = )`). The supported escape valve is to write a named one-line wrapper that adapts the signature to first-position data, then call the wrapper through `ppVerbOff`:
+What does *not* round-trip cleanly is a verb whose data argument is **not** in position 1. A hypothetical fitter `my_fit(formula, data, weights)` takes `data` in position 2; wrapping it in `ppVerbSwitch` would inject `.data` ahead of `formula`, producing `my_fit(.data, formula, data, weights)` — silently shifting every argument and almost certainly erroring or returning garbage. The same hazard applies to base-R helpers that take the data frame second or by name (`aggregate(formula, data = , ...)`, `by(data = , INDICES = , FUN = )`). The supported escape valve is to write a named one-line wrapper that adapts the signature to first-position data, then call the wrapper through `ppVerbSwitch`:
 
 ```r
 # Lift the non-tidy verb to a first-position-data wrapper:
 fit_first <- function(.data, formula, ...) my_fit(formula = formula, data = .data, ...)
 # Now it composes:
-"mtcars |> ppVerbOff(fit_first(mpg ~ wt), TRUE) |> ggplot(...)"
+"mtcars |> ppVerbSwitch(fit_first(mpg ~ wt), switch_on = FALSE) |> ggplot(...)"
 ```
 
 For lambda alternatives, see *"What we know does not work yet"* above — anonymous functions are not yet supported as pipeline stages, so a named helper is the recommended pattern either way.
 
 ### `spec =` overrides the formula-side default at boot
 
-`ppLayerOff` / `ppVerbOff` set the *default* boot state from the formula. The `spec =` argument on `ptr_app()` / `ptr_server()` / `ptr_app_grid()` carries restore values for any widget, and **a `spec =` entry overrides the formula-side default** at flush time. Round-tripping a saved app state therefore composes cleanly with formula-side toggles: the user opens an app with `ppLayerOff(geom_smooth(), TRUE)`, ticks the layer checkbox at runtime, captures the resulting `state$spec()`, and re-launches with that spec — the layer boots *checked* even though the formula still says off-by-default:
+`ppLayerOff` / `ppVerbSwitch` set the *default* boot state from the formula. The `spec =` argument on `ptr_app()` / `ptr_server()` / `ptr_app_grid()` carries restore values for any widget, and **a `spec =` entry overrides the formula-side default** at flush time. Round-tripping a saved app state therefore composes cleanly with formula-side toggles: the user opens an app with `ppLayerOff(geom_smooth(), TRUE)`, ticks the layer checkbox at runtime, captures the resulting `state$spec()`, and re-launches with that spec — the layer boots *checked* even though the formula still says off-by-default:
 
 ```r
 # Formula default: geom_smooth starts OFF.
@@ -161,7 +165,7 @@ ptr_app(
 )
 ```
 
-The same pattern applies to a `ppVerbOff`-stamped pipeline stage: write the stage's `stage_enabled` id to the spec list and the override wins over the formula-side default. The precedence rule is "formula-side default first, then `spec =` per-widget override" — the formula keyword is the only source of truth for the *default*, and `spec =` is the only knob for *that specific run*. See `?ptr_app` for the full `spec =` shape and `vignette("ggpaintr-customization")` for the migration story from the removed `checkbox_defaults =`.
+The same pattern applies to a `ppVerbSwitch`-stamped pipeline stage: write the stage's `stage_enabled` id to the spec list and the override wins over the formula-side default. The precedence rule is "formula-side default first, then `spec =` per-widget override" — the formula keyword is the only source of truth for the *default*, and `spec =` is the only knob for *that specific run*. See `?ptr_app` for the full `spec =` shape and `vignette("ggpaintr-customization")` for the migration story from the removed `checkbox_defaults =`.
 
 ## L1 — All-in-one entry point
 
