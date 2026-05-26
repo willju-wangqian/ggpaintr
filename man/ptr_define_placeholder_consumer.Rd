@@ -18,21 +18,33 @@ ptr_define_placeholder_consumer(
 \arguments{
 \item{keyword, copy_defaults}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.}
 
-\item{build_ui}{\verb{function(node, cols, data, label, ...)} returning a
-Shiny tag. \code{cols} is a character vector of upstream column names
-(use as \code{choices}); \code{character(0)} before upstream resolves. \code{data}
-is the upstream data frame, or \code{NULL} while pending — read it only
-when you need column types / levels / ranges.
+\item{build_ui}{\verb{function(node, cols, data, label = NULL, selected = NULL, ...)}
+returning a Shiny tag. \code{cols} is a character vector of upstream
+column names (use as \code{choices}); \code{character(0)} before upstream
+resolves. \code{data} is the upstream data frame, or \code{NULL} while
+pending — read it only when you need column types / levels / ranges.
 
-\emph{Seeding the initial selection} — declare an optional
-\code{selected = NULL} formal (or accept \code{...}) to opt in. The framework
-passes the precedence chain \code{spec-seed \%||\% current-input \%||\% empty}
-into \code{selected} on every renderUI fire — including the boot fire, when
-it carries \code{node$default} for a positional default like \code{ppVar(adj)}.
-Pass \code{selected = intersect(selected, cols)} to the picker so a stale
-selection drops cleanly when the upstream columns change. Do \strong{not}
-read \code{node$default} directly inside the body — that bypasses
-persistence and re-clobbers the user's pick on each re-fire.}
+\strong{Widget-seeding contract — \code{selected}.} Same precedence,
+omit-on-no-default, render-empty-when-empty, and never-read-
+\code{node$default} rules as for value placeholders — see the
+"Widget-seeding contract" block on
+\code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}} for the authoritative description.
+
+\strong{Consumer-specific rule: filter through \code{intersect()}.} Always
+pass \code{selected = intersect(selected \%||\% character(0), cols)} (or
+the equivalent column filter) to the underlying widget, not bare
+\code{selected}. Three cases collapse into one line:
+\itemize{
+\item User-cleared widget (\code{selected} is empty) → \code{intersect()}
+returns \code{character(0)}, widget renders empty. Honors the
+render-empty-when-empty rule.
+\item Stale pick after upstream data swap (\code{selected} names a column
+no longer in \code{cols}) → \code{intersect()} drops it cleanly. Without
+this, \code{selectInput} silently falls back to its first choice
+(silent data mutation) and \code{shinyWidgets::pickerInput} enters a
+similarly broken state.
+\item Valid pick → \code{intersect()} is a no-op, value flows through.
+}}
 
 \item{resolve_expr}{\verb{function(value, node, ...)}. For a column picker
 the typical body is \code{rlang::sym(value)} so the bare column name is
@@ -82,13 +94,18 @@ tutorial.
 }
 \examples{
 # A consumer that picks a numeric-only column.
+# Note: `selected = NULL` formal (per the seeding contract) plus
+# intersect() filter (per the consumer-specific rule). Empty input
+# renders empty; a stale pick after a data swap drops cleanly.
 ptr_define_placeholder_consumer(
   keyword = "numvar",
-  build_ui = function(node, cols, data, label, ...) {
+  build_ui = function(node, cols, data, label = NULL,
+                      selected = NULL, ...) {
     numeric_cols <- if (is.null(data)) character(0) else
       names(data)[vapply(data, is.numeric, logical(1))]
-    shiny::selectInput(node$id, label = label, choices = numeric_cols,
-                       selected = character(0))
+    retained <- intersect(selected \%||\% character(0), numeric_cols)
+    shiny::selectInput(node$id, label = label \%||\% "Numeric column",
+                       choices = numeric_cols, selected = retained)
   },
   resolve_expr = function(value, node, ...) {
     if (length(value) != 1L || !nzchar(value)) return(NULL)

@@ -839,25 +839,18 @@ invoke_build_ui <- function(node, ui_text, layer_name,
   }
   fmls <- names(formals(entry$build_ui))
   extra_named <- build_ui_copy_args(fmls, copy)
-  # PLAN-07: seed widget initial value from `node$default` when no caller
-  # has already provided one through `extra` (consumer renderUIs pre-compute
-  # `selected = current %||% character(0)`; this preserves their precedence).
-  # If they did supply `selected` but it is empty, still fall back to
-  # `node$default` so a default seeds on first render. Language defaults
-  # (from `ptr_default_expression`) are deparsed here -- `do.call` would
-  # otherwise evaluate the unquoted call when binding it to the hook formal.
-  # Only inject when the hook accepts the arg (formal or `...` sink); a
-  # legacy hook with formals `(node, label)` and no dots would otherwise
-  # abort with "unused argument".
+  # Inject `node$default` into `selected` only when the caller omitted
+  # `selected`. The widget-seeding contract is documented authoritatively
+  # at ?ptr_define_placeholder_value (Widget-seeding contract section).
+  # Language defaults (ptr_default_expression) are deparsed here so
+  # do.call binds a string rather than evaluating the call.
   hook_accepts_dots <- "..." %in% fmls
   if (hook_accepts_dots || "selected" %in% fmls) {
-    seed_default <- node$default
-    if (is.language(seed_default)) {
-      seed_default <- paste(deparse(seed_default), collapse = "\n")
-    }
     if (!"selected" %in% names(extra)) {
-      extra$selected <- seed_default
-    } else if (length(extra$selected) == 0L && !is.null(seed_default)) {
+      seed_default <- node$default
+      if (is.language(seed_default)) {
+        seed_default <- paste(deparse(seed_default), collapse = "\n")
+      }
       extra$selected <- seed_default
     }
   }
