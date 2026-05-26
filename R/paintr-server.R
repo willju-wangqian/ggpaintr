@@ -2258,6 +2258,53 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
         for (sid in upstream_source_ids_for_req) {
           if (sid %in% names(panel_sources)) panel_sources[[sid]]()
         }
+        # INT-2 (ADR 0023): at host scope (`state = NULL`) we have no
+        # `state$eval_env` to thread the panel-resolved frame into, and
+        # the per-instance snap block below is gated on `state`. Without
+        # this block the host-scope shared consumer picker stays empty
+        # even though `panel_sources[[sid]]()` is now wired (the dep
+        # loop above re-fires the renderUI, but `ptr_resolve_upstream`
+        # finds no symbol to substitute the `ppUpload(shared=)` node
+        # to). Build an env extending `eval_env` with the panel-resolved
+        # df under the binding name `panel_owned_binding_name()`
+        # produces (matches the per-instance binding contract in
+        # `ptr_setup_pipelines()`), and seed `snap` so the substitute
+        # walk emits that symbol. Per-instance scope (`!is.null(state)`)
+        # is unchanged: PLAN-05 already binds the panel-resolved df
+        # into `state$eval_env` / `state$bound_names`, and the snap
+        # loop below reads the panel-owned companion ids from the
+        # un-namespaced input.
+        if (is.null(state) && length(panel_sources) > 0L &&
+            !is.null(resolution$value)) {
+          host_env <- NULL
+          panel_source_nodes <- find_nodes(
+            resolution$value,
+            function(n) is_ptr_ph_data_source(n) &&
+              !is.null(n$id) && n$id %in% names(panel_sources)
+          )
+          for (psn in panel_source_nodes) {
+            sid <- psn$id
+            df_val <- panel_sources[[sid]]()
+            if (is.null(df_val)) next
+            entry <- ptr_registry_lookup(psn$keyword)
+            comp_value <- if (!is.null(psn$companion_id)) {
+              input[[psn$companion_id]]
+            } else NULL
+            bname <- panel_owned_binding_name(
+              psn, entry, session = NULL,
+              companion_value = comp_value, df = df_val
+            )
+            if (is.null(bname)) next
+            if (is.null(host_env)) host_env <- new.env(parent = eval_env)
+            assign(bname, df_val, envir = host_env)
+            if (!is.null(psn$companion_id)) {
+              snap[[psn$companion_id]] <- bname
+            } else {
+              snap[[sid]] <- bname
+            }
+          }
+          if (!is.null(host_env)) use_env <- host_env
+        }
         if (!is.null(state)) {
           # ADR 0015 §2.2: bare-data-source layers publish their frame
           # into `state$resolved_data` under `layer_name`, pipeline-head
