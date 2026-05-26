@@ -918,6 +918,130 @@ try_bind_source_default <- function(state, key, node, input, comp_id,
   TRUE
 }
 
+# ADR 0023 §3 — Single resolver for upload-source mechanics, two call
+# sites today (bare-data-source layer loop and pipeline-head source loop,
+# both in `ptr_setup_pipelines()`) and a third forthcoming via PLAN-04
+# (`ptr_setup_panel_sources()` at host scope). Encapsulates the full
+# resolve cycle for one source instance: read the upload `input_slot`,
+# dispatch `entry$resolve_data` for csv/tsv/rds/xlsx (and any future
+# format the registry entry handles), fall back to
+# `try_bind_source_default()` when no upload is present, derive the
+# binding name (companion text input value OR `entry$resolve_expr`),
+# and route everything through `bind_source_value()` /
+# `set_resolve_error()` so the ADR 0015 PLAN-02 assign-before-signal
+# invariant is preserved. Always returns `invisible(NULL)`.
+#
+# Args:
+#   input_slot      — the value of `input[[<namespaced upload id>]]`
+#                     (the fileInput's list, or NULL). Caller pre-reads
+#                     it so reactive deps are taken in the caller's
+#                     reactive context; the helper is Shiny-shape
+#                     agnostic for unit testing.
+#   companion_slot  — list(present = logical, value = character|NULL).
+#                     `present = FALSE` ⇒ source has no companion (e.g.
+#                     a selectInput chooser); `present = TRUE` ⇒ source
+#                     has a companion text input whose live value is
+#                     `value` (NULL during the boot race before the
+#                     widget registers, "" once registered & empty).
+#   node            — the source placeholder node (`ptr_ph_data_source`).
+#   entry           — the registry entry (`ptr_registry_lookup(...)`),
+#                     may be NULL for un-registered keywords.
+#   envir           — the eval environment (`state$eval_env`); reserved
+#                     for symmetry with the default-fallback lookup.
+#   state, key, slot — `bind_source_value()` / `set_resolve_error()`
+#                     destinations as in the inlined original.
+resolve_upload_source <- function(input_slot, companion_slot, node, entry,
+                                  envir, state, key, slot) {
+  file_info <- input_slot
+  has_companion <- isTRUE(companion_slot$present)
+  comp_value <- if (has_companion) companion_slot$value else NULL
+  if (is.null(file_info)) {
+    set_resolve_error(state, key, NULL)
+    # Source-default fallback: when no upload has been provided but the
+    # source carries a default-arg symbol resolvable in `envir`'s parent
+    # chain, bind it so the ADR 0015 §2.1 source-ready gate clears at
+    # boot. Falls through to `slot(NULL)` when the source has no default
+    # or the default doesn't resolve.
+    if (try_bind_source_default_resolved(state, key, node, has_companion,
+                                         comp_value, entry, slot)) {
+      return(invisible(NULL))
+    }
+    slot(NULL)
+    return(invisible(NULL))
+  }
+  df <- if (!is.null(entry) && !is.null(entry$resolve_data)) {
+    tryCatch(entry$resolve_data(file_info, node),
+             error = function(e) {
+               set_resolve_error(state, key, conditionMessage(e))
+               NULL
+             })
+  } else NULL
+  if (!is.null(df)) set_resolve_error(state, key, NULL)
+  # Bind the resolved frame under the same symbol that
+  # `substitute_walk.ptr_ph_data_source()` will produce.
+  # - companion-driven sources (upload): name = the companion text
+  #   input; invalid names yield NULL (substitute walk rejects loudly).
+  # - companion-less sources (e.g. selectInput chooser): name comes
+  #   from `entry$resolve_expr(value, node)` -- must be a symbol whose
+  #   character form is a valid R name.
+  binding_name <- if (has_companion) {
+    nm <- comp_value
+    if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
+        make.names(nm) == nm) nm else NULL
+  } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
+    sym <- tryCatch(entry$resolve_expr(file_info, node),
+                    error = function(e) NULL)
+    if (is.symbol(sym)) {
+      cand <- as.character(sym)
+      if (nzchar(cand) && make.names(cand) == cand) cand else NULL
+    } else NULL
+  } else NULL
+  # ADR 0015 PLAN-02 / Option E: enforces assign-before-signal so a
+  # consumer `req(state$bound_names[[key]]())` cannot fire before
+  # `state$eval_env` holds `binding_name`.
+  bind_source_value(state, key, binding_name, df, slot)
+  invisible(NULL)
+}
+
+# Internal companion of `resolve_upload_source()`: same contract as
+# `try_bind_source_default()` but takes the *resolved* companion
+# presence flag + value the helper already read from
+# `input[[comp_id]]`, instead of re-reading `input[[comp_id]]`. Keeps
+# `resolve_upload_source()` Shiny-input-shape agnostic so unit tests
+# can drive it with plain R values.
+try_bind_source_default_resolved <- function(state, key, node, has_companion,
+                                             comp_value, entry, slot) {
+  if (is.null(node$default)) return(FALSE)
+  binding_name <- if (has_companion) {
+    nm <- comp_value
+    # Boot race: the companion textInput is seeded with `node$default`
+    # by `ptr_builtin_upload_build_ui()`, but `input[[comp_id]]` is
+    # NULL until the widget registers. Fall back to `node$default` so
+    # the first observer fire can bind immediately rather than waiting
+    # an extra invalidation.
+    if (!is.character(nm) || length(nm) != 1L || !nzchar(nm)) {
+      nm <- node$default
+    }
+    if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
+        make.names(nm) == nm) nm else NULL
+  } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
+    sym <- tryCatch(entry$resolve_expr(node$default, node),
+                    error = function(e) NULL)
+    if (is.symbol(sym)) {
+      cand <- as.character(sym)
+      if (nzchar(cand) && make.names(cand) == cand) cand else NULL
+    } else NULL
+  } else NULL
+  if (is.null(binding_name)) return(FALSE)
+  df <- tryCatch(
+    get(binding_name, envir = state$eval_env, inherits = TRUE),
+    error = function(e) NULL
+  )
+  if (!is.data.frame(df)) return(FALSE)
+  bind_source_value(state, key, binding_name, df, slot)
+  TRUE
+}
+
 ptr_setup_pipelines <- function(state, input, output, session) {
   tree <- shiny::isolate(state$tree())
   ns <- state$server_ns_fn
@@ -939,58 +1063,20 @@ ptr_setup_pipelines <- function(state, input, output, session) {
       slot <- state$resolved_data[[ln]]
 
       shiny::observe({
-        file_info <- input[[src_id]]
-        if (!is.null(comp_id)) input[[comp_id]]  # take dep
-        if (is.null(file_info)) {
-          set_resolve_error(state, ln, NULL)
-          # Source-default fallback: when no upload has been provided but
-          # the source carries a default-arg symbol resolvable in
-          # `state$eval_env`'s parent chain, bind it so the ADR 0015 §2.1
-          # source-ready gate clears at boot. Falls through to `slot(NULL)`
-          # when the source has no default or the default doesn't resolve.
-          if (try_bind_source_default(state, ln, src, input, comp_id,
-                                      entry, slot)) {
-            return(invisible())
-          }
-          slot(NULL)
-          return(invisible())
-        }
-        df <- if (!is.null(entry) && !is.null(entry$resolve_data)) {
-          tryCatch(entry$resolve_data(file_info, src),
-                   error = function(e) {
-                     set_resolve_error(state, ln, conditionMessage(e))
-                     NULL
-                   })
-        } else NULL
-        if (!is.null(df)) set_resolve_error(state, ln, NULL)
-        # ADR 0012 §3.7 / PLAN-04: mirror the pipeline-head source observer
-        # below — bind the resolved frame under the same symbol that
-        # `substitute_walk.ptr_ph_data_source()` will produce. Now that the
-        # per-layer fast-path in `runtime_upstream_data` is gone, every
-        # in-aes consumer of a bare-data layer routes through
-        # `ptr_resolve_upstream(c$upstream, ...)`, which substitutes the
-        # source into a symbol and eval()s it in `state$eval_env`. Companion-driven sources (e.g.
-        # `ppUpload`) take the companion text input as the binding name;
-        # companion-less sources derive a symbol via `resolve_expr`.
-        # Invalid names yield NULL → no eval_env assign (`inject_resolved_data()`
-        # plot rendering still works via the cached `state$resolved_data`
-        # slot below).
-        binding_name <- if (!is.null(comp_id)) {
-          nm <- input[[comp_id]]
-          if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
-              make.names(nm) == nm) nm else NULL
-        } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
-          sym <- tryCatch(entry$resolve_expr(file_info, src),
-                          error = function(e) NULL)
-          if (is.symbol(sym)) {
-            cand <- as.character(sym)
-            if (nzchar(cand) && make.names(cand) == cand) cand else NULL
-          } else NULL
-        } else NULL
-        # ADR 0015 PLAN-02 / Option E: enforces assign-before-signal so a
-        # consumer `req(state$bound_names[[ln]]())` cannot fire before
-        # `state$eval_env` holds `binding_name`.
-        bind_source_value(state, ln, binding_name, df, slot)
+        resolve_upload_source(
+          input_slot     = input[[src_id]],
+          companion_slot = if (!is.null(comp_id)) {
+            list(present = TRUE, value = input[[comp_id]])
+          } else {
+            list(present = FALSE, value = NULL)
+          },
+          node           = src,
+          entry          = entry,
+          envir          = state$eval_env,
+          state          = state,
+          key            = ln,
+          slot           = slot
+        )
       })
 
       # Auto-fill the dataset-name companion from the uploaded filename
@@ -1026,50 +1112,20 @@ ptr_setup_pipelines <- function(state, input, output, session) {
       slot <- state$resolved_sources[[sid]]
 
       shiny::observe({
-        file_info <- input[[src_id]]
-        if (!is.null(comp_id)) input[[comp_id]]  # take dep so default-bind re-derives on companion edits
-        if (is.null(file_info)) {
-          set_resolve_error(state, sid, NULL)
-          # Source-default fallback: see `try_bind_source_default()` and the
-          # mirror block in the bare-data observer above.
-          if (try_bind_source_default(state, sid, node, input, comp_id,
-                                      entry, slot)) {
-            return(invisible())
-          }
-          slot(NULL)
-          return(invisible())
-        }
-        df <- if (!is.null(entry) && !is.null(entry$resolve_data)) {
-          tryCatch(entry$resolve_data(file_info, node),
-                   error = function(e) {
-                     set_resolve_error(state, sid, conditionMessage(e))
-                     NULL
-                   })
-        } else NULL
-        if (!is.null(df)) set_resolve_error(state, sid, NULL)
-        # Bind the resolved frame under the same symbol that
-        # `substitute_walk.ptr_ph_data_source()` will produce, so the
-        # pipeline `<name> |> ...` is evaluable.
-        # - companion-driven sources (upload): name = the companion text input;
-        #   invalid names are left for the substitute walk to reject loudly.
-        # - companion-less sources (e.g. selectInput chooser): name comes from
-        #   `entry$resolve_expr(value, node)` -- has to be a symbol whose
-        #   character form is a valid R name.
-        binding_name <- if (!is.null(comp_id)) {
-          nm <- input[[comp_id]]
-          if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
-              make.names(nm) == nm) nm else NULL
-        } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
-          sym <- tryCatch(entry$resolve_expr(file_info, node),
-                          error = function(e) NULL)
-          if (is.symbol(sym)) {
-            cand <- as.character(sym)
-            if (nzchar(cand) && make.names(cand) == cand) cand else NULL
-          } else NULL
-        } else NULL
-        # ADR 0015 PLAN-02 / Option E: same ordering invariant as the
-        # bare-data loop above — see `bind_source_value()`.
-        bind_source_value(state, sid, binding_name, df, slot)
+        resolve_upload_source(
+          input_slot     = input[[src_id]],
+          companion_slot = if (!is.null(comp_id)) {
+            list(present = TRUE, value = input[[comp_id]])
+          } else {
+            list(present = FALSE, value = NULL)
+          },
+          node           = node,
+          entry          = entry,
+          envir          = state$eval_env,
+          state          = state,
+          key            = sid,
+          slot           = slot
+        )
       })
 
       ptr_bind_source_autoname(src_id, comp_id, input, session,
