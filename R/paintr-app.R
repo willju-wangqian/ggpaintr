@@ -1433,7 +1433,11 @@ ptr_app_grid_components <- function(plots,
 
   server <- function(input, output, session) {
     state <- if (!is.null(obj)) {
-      ptr_shared_server(obj, envir = envir)
+      # FINDING #1 + #7: forward the flat `spec=` so the host-scope
+      # apply-at-boot can claim un-namespaced ids targeting panel widgets
+      # (`shared_<k>`, `shared_<k>_name`) that per-instance prefix filters
+      # drop. See `apply_spec_at_boot_host()` in R/paintr-shared-ui.R.
+      ptr_shared_server(obj, envir = envir, spec = spec)
     } else NULL
 
     # Collect per-plot engine states so the grid can expose a

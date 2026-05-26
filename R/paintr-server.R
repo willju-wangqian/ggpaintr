@@ -2219,7 +2219,8 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
                                             errors_rv = NULL,
                                             state = NULL,
                                             panel_sources = list(),
-                                            ui_ns = ns) {
+                                            ui_ns = ns,
+                                            spec_seed = NULL) {
   # `ns` namespaces server-side `output[[]]` / `input[[]]` slots; `ui_ns`
   # namespaces the `inputId` of the tag this renderUI emits. They differ
   # under `moduleServer`: there `output`/`input` are auto-namespaced (so
@@ -2468,7 +2469,17 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
         # `ptr_setup_value_uis()`'s shared-value loop. Without this
         # the shared consumer picker boots blank even though the
         # seed sits in `state$spec_seed`.
-        seed <- if (!is.null(state)) {
+        #
+        # FINDING #1 (placeholder-role-coverage2.html v7) fix: at host
+        # scope `state` is NULL by design (ADR 0006), so the seed read
+        # against `state$spec_seed` returns NULL and the panel-shared
+        # consumer falls back to `shared_widget_default()`. The host
+        # passes its un-namespaced `spec_seed` env directly via the
+        # `spec_seed=` arg; check it first so the host-scope binder
+        # honours `spec=list(shared_<k> = ...)` at boot.
+        seed <- if (!is.null(spec_seed)) {
+          shiny::isolate(spec_seed[[rep_node$id]])
+        } else if (!is.null(state)) {
           shiny::isolate(state$spec_seed[[rep_node$id]])
         } else NULL
         selected_arg <- if (has_rendered) {
@@ -2530,7 +2541,8 @@ ptr_bind_local_shared_consumers <- function(tree, output, input, ns,
                                             errors_rv = NULL,
                                             state = NULL,
                                             panel_sources = list(),
-                                            ui_ns = ns) {
+                                            ui_ns = ns,
+                                            spec_seed = NULL) {
   resolutions <- ptr_resolve_shared_consumers(tree)
   keys <- setdiff(names(resolutions), host_owned_keys)
   if (length(keys) == 0L) return(invisible(NULL))
@@ -2546,7 +2558,8 @@ ptr_bind_local_shared_consumers <- function(tree, output, input, ns,
     errors_rv = errors_rv,
     state = state,
     panel_sources = panel_sources,
-    ui_ns = ui_ns
+    ui_ns = ui_ns,
+    spec_seed = spec_seed
   )
   invisible(NULL)
 }

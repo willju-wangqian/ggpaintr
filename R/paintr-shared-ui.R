@@ -198,6 +198,16 @@ shared_consumer_representatives <- function(trees) {
 #'   "Draw all" trigger (`input$ptr_shared_draw_all`). Useful when an
 #'   embedder wants to drive the cross-module redraw from their own
 #'   button.
+#' @param spec Optional named list of fully-qualified Shiny input id ->
+#'   value, used to override widget defaults at session boot for
+#'   host-owned panel-shared widgets (`shared_<k>` for consumer / value
+#'   placeholders, `shared_<k>_name` for panel-owned source companion
+#'   textInputs). Multi-instance entrypoints like [`ptr_app_grid()`]
+#'   forward the same flat spec to every per-plot [`ptr_server()`] AND
+#'   to this host-scope server; per-plot servers prefix-filter by their
+#'   own module namespace and drop un-namespaced ids, leaving this host
+#'   apply path to claim them. See [ADR
+#'   0012](dev/adr/0012-role-based-tree-and-ptr-spec.html).
 #'
 #' @return A `ptr_shared_state` S3 object with public fields `shared`,
 #'   `draw_trigger`, `shared_resolutions`, and `shared_stage_enabled`
@@ -222,7 +232,8 @@ shared_consumer_representatives <- function(trees) {
 ptr_shared_server <- function(obj,
                               envir = parent.frame(),
                               shared = list(),
-                              draw_trigger = NULL) {
+                              draw_trigger = NULL,
+                              spec = NULL) {
   if (!inherits(obj, "ptr_shared_spec")) {
     rlang::abort("`ptr_shared_server()` requires a `ptr_shared_spec` from `ptr_shared()`.")
   }
@@ -343,9 +354,33 @@ ptr_shared_server <- function(obj,
   # owned source keys exist, preserving the existing observable shape
   # for all multi-instance apps that don't yet share a source across
   # formulas.
+  # FINDING #1 + #7 (placeholder-role-coverage2.html v7): host-scope
+  # `spec=` channel. The flat spec is passed verbatim from `ptr_app_grid()`;
+  # each per-instance `ptr_server()` prefix-filters by its own module ns
+  # and DROPS un-namespaced ids targeting host-owned panel widgets
+  # (`shared_<k>`, `shared_<k>_name`). `apply_spec_at_boot_host()` claims
+  # those entries, normalizes per keyword, and writes them into
+  # `host_spec_seed` for downstream `ptr_setup_panel_values()` and the
+  # `spec_seed=` arg of `ptr_bind_local_shared_consumers()` below. Source
+  # companions are also dispatched via deferred `updateTextInput` so the
+  # companion textInput first-renders with the spec value rather than
+  # `node$default` (mirrors `apply_spec_at_boot()`'s `source_companion`
+  # branch).
+  host_spec_seed <- new.env(parent = emptyenv())
+  apply_spec_at_boot_host(spec, session, host_spec_seed, obj)
+
   panel_sources <- ptr_setup_panel_sources(
     obj, input = input, output = output, envir = envir,
     errors_rv = errors_rv
+  )
+  # FINDING #7: bind host-scope renderUI for panel-shared VALUE keys, so
+  # the un-namespaced `output[["shared_<k>_ui"]]` slot is populated
+  # (per-instance shared-value loop registers under a namespaced id that
+  # never reaches the host's UI div).
+  ptr_setup_panel_values(
+    obj, output = output, input = input,
+    host_spec_seed = host_spec_seed,
+    ui_text = obj$ui_text
   )
   if (length(panel_consumer_keys) > 0L) {
     ptr_bind_local_shared_consumers(
@@ -354,7 +389,8 @@ ptr_shared_server <- function(obj,
       eval_env = envir,
       expr_check = expr_check,
       errors_rv = errors_rv,
-      panel_sources = panel_sources
+      panel_sources = panel_sources,
+      spec_seed = host_spec_seed
     )
   }
   output[[errors_output_id]] <- shiny::renderUI({
@@ -599,4 +635,217 @@ ptr_setup_panel_sources <- function(obj, input, output, envir,
     out[[canonical_shared_id(k)]] <- bundle
   }
   out
+}
+
+
+# ---- Host-scope spec= application -------------------------------------
+# FINDING #1 + #7 (placeholder-role-coverage2.html v7) fix. Multi-instance
+# `ptr_app_grid()` passes the same flat `spec=` to every per-instance
+# `ptr_server()`, where `apply_spec_at_boot()`'s `startsWith(nms, prefix)`
+# filter drops every un-namespaced key (the host's panel-shared widget
+# ids `shared_<k>` and `shared_<k>_name` live at the host's un-namespaced
+# root). With no host-scope spec applier, the seed never lands.
+#
+# `apply_spec_at_boot_host` claims un-namespaced spec entries that target
+# host-owned panel widgets (the canonical `shared_<k>` for consumer/value
+# placeholders, and `shared_<k>_name` for panel-owned source companions).
+# Per-keyword value normalization mirrors `apply_spec_at_boot()` so the
+# host seed reads see the same shape `updateXyzInput()` would. The result
+# is written into `host_spec_seed` (an env supplied by `ptr_shared_server()`)
+# which `ptr_setup_panel_values()` and `ptr_bind_shared_consumer_uis()`
+# read at first render via their new `spec_seed=` parameter (no `state`
+# coupling — the host has no per-instance `state` by ADR 0006).
+#
+# Source companion rows (`shared_<k>_name`) also dispatch a deferred
+# `updateTextInput` once the first flush mounts the companion textInput,
+# mirroring `apply_spec_at_boot()`'s `source_companion` branch (the
+# seed-only path is insufficient for textInput initial render — see
+# FINDING #8 entry in placeholder-role-coverage2.html v7).
+apply_spec_at_boot_host <- function(spec, session, host_spec_seed, obj) {
+  if (is.null(spec) || length(spec) == 0L) return(invisible())
+  if (!is.list(spec)) {
+    rlang::abort("`spec` must be a named list of input id -> value.")
+  }
+  nms <- names(spec)
+  if (is.null(nms) || any(!nzchar(nms)) || anyNA(nms)) {
+    rlang::abort("`spec` must be fully named with non-empty input ids.")
+  }
+
+  ns <- shared_ns(obj)
+  prefix <- tryCatch(ns(""), error = function(e) "")
+  if (is.null(prefix)) prefix <- ""
+  keep <- startsWith(nms, prefix)
+  if (!any(keep)) return(invisible())
+  spec <- spec[keep]
+  nms <- nms[keep]
+  bare_ids <- substring(nms, nchar(prefix) + 1L)
+
+  panel_keys <- obj$panel_keys
+  if (length(panel_keys) == 0L) return(invisible())
+
+  firsts_nodes <- obj$firsts$nodes
+  consumer_reps <- obj$consumer_reps %||% list()
+
+  rows <- list()
+  for (i in seq_along(bare_ids)) {
+    bid <- bare_ids[[i]]
+    val <- spec[[i]]
+    matched <- NULL
+    for (k in panel_keys) {
+      canonical <- canonical_shared_id(k)
+      if (identical(bid, canonical)) {
+        node <- consumer_reps[[k]]
+        if (is.null(node)) node <- firsts_nodes[[k]]
+        if (is.null(node)) next
+        if (is_ptr_ph_data_source(node)) {
+          # fileInput / non-programmatic source self id; skip silently —
+          # the spec target for a ppUpload source is the companion at
+          # `shared_<k>_name`, mirroring per-instance behaviour.
+          matched <- "skip"; break
+        }
+        matched <- list(keyword = node$keyword, is_companion = FALSE)
+        break
+      } else if (identical(bid, paste0(canonical, "_name"))) {
+        node <- firsts_nodes[[k]]
+        if (is.null(node) || !is_ptr_ph_data_source(node)) next
+        # Treat the companion textInput as ppText for normalization.
+        matched <- list(keyword = "ppText", is_companion = TRUE)
+        break
+      }
+    }
+    if (is.null(matched) || identical(matched, "skip")) next
+    rows[[length(rows) + 1L]] <- list(
+      bare_id = bid, value = val,
+      keyword = matched$keyword,
+      is_companion = matched$is_companion
+    )
+  }
+  if (length(rows) == 0L) return(invisible())
+
+  defer <- list()
+  for (row in rows) {
+    val <- row$value
+    if (row$is_companion || identical(row$keyword, "ppText")) {
+      if (is.null(val)) val <- "" else val <- as.character(val)[[1L]]
+    } else if (identical(row$keyword, "ppNum")) {
+      if (is.null(val) || (is.character(val) && !nzchar(val))) {
+        val <- NA_real_
+      } else {
+        num <- suppressWarnings(as.numeric(val)[[1L]])
+        if (is.na(num) &&
+            !identical(row$value, NA_real_) &&
+            !identical(row$value, NA_integer_)) {
+          next
+        }
+        val <- num
+      }
+    } else if (identical(row$keyword, "ppExpr")) {
+      if (is.null(val)) {
+        val <- ""
+      } else if (is.language(val)) {
+        val <- paste(deparse(val), collapse = "\n")
+      } else {
+        val <- as.character(val)[[1L]]
+      }
+    } else if (identical(row$keyword, "ppVar")) {
+      if (is.null(val)) val <- character() else val <- as.character(val)
+    }
+    # Custom value-keyword keywords (non-built-in) fall through with `val`
+    # untouched, mirroring `apply_spec_at_boot()`'s policy.
+    host_spec_seed[[row$bare_id]] <- val
+    if (row$is_companion) {
+      defer[[length(defer) + 1L]] <- list(id = row$bare_id, value = val)
+    }
+  }
+
+  if (length(defer) > 0L) {
+    session$onFlushed(once = TRUE, function() {
+      for (d in defer) {
+        shiny::updateTextInput(session, inputId = d$id, value = d$value)
+      }
+    })
+  }
+
+  invisible()
+}
+
+# ---- Host-scope renderUI for panel-shared VALUE placeholders ----------
+# FINDING #7 fix. The UI emits `uiOutput("shared_<k>_ui")` at the host's
+# un-namespaced root for every panel-shared VALUE key (`build_ui_for.ptr_ph_value`
+# in R/paintr-build-ui.R:46-63 — post-PLAN-01 reshape). The per-instance
+# shared-value loop in `ptr_setup_value_uis()` registers a renderUI at
+# the namespaced output id (`<module>-shared_<k>_ui`), which never
+# matches the un-namespaced UI div. This helper closes the gap: one
+# renderUI per panel-shared value key at host scope, reading the host's
+# `spec_seed` env so `spec = list(shared_<k> = ...)` lands at boot.
+#
+# Parallel to `ptr_setup_panel_sources()` (sources) and to the shared-
+# value loop in `ptr_setup_value_uis()` (per-instance values). The host
+# has no `state` / `state$tree()` / `state$stage_enabled()` reactives
+# (ADR 0006), so the renderUI's dependency set is intentionally thin:
+# `spec_seed` is isolated (boot-only); `input[[raw_id]]` is isolated to
+# avoid an unwanted re-fire on the user's own keystroke (matches the
+# per-instance loop's `has_rendered` semantics).
+ptr_setup_panel_values <- function(obj, output, input, host_spec_seed,
+                                   ui_text = NULL) {
+  panel_keys <- obj$panel_keys
+  if (length(panel_keys) == 0L) return(invisible())
+  firsts_nodes <- obj$firsts$nodes
+  consumer_keys <- names(obj$consumer_reps %||% list())
+  ns <- shared_ns(obj)
+  shared_label_override <- lapply(obj$firsts$occurrences, shared_widget_label)
+  shared_default_override <- lapply(obj$firsts$occurrences, shared_widget_default)
+
+  for (key in panel_keys) {
+    # Skip non-value keys: panel-shared consumers go through
+    # `ptr_bind_shared_consumer_uis()` (which also reads spec_seed);
+    # panel-shared sources go through `ptr_setup_panel_sources()`.
+    if (key %in% consumer_keys) next
+    rep <- firsts_nodes[[key]]
+    if (is.null(rep)) next
+    if (is_ptr_ph_data_source(rep)) next
+    if (!is_ptr_ph_value(rep)) next
+    # Stamp the canonical id + first-occurrence default onto the rep node
+    # to match `shared_panel_body_tag()`'s else-branch (UI side stamps
+    # the same fields before `build_ui_for(node, ...)`), so the
+    # `invoke_build_ui` call below renders a widget byte-equivalent to
+    # the no-spec path.
+    rep$id <- canonical_shared_id(key)
+    rep$default <- shared_default_override[[key]]
+    local({
+      node <- rep
+      label_override <- shared_label_override[[key]]
+      raw_id <- node$id
+      output_id <- ns(value_output_id(raw_id))
+      has_rendered <- FALSE
+      output[[output_id]] <- shiny::renderUI({
+        current <- shiny::isolate(input[[raw_id]])
+        seed <- shiny::isolate(host_spec_seed[[raw_id]])
+        selected_arg <- if (has_rendered) {
+          seed %||% current %||% character(0)
+        } else {
+          seed
+        }
+        extra <- list()
+        if (!is.null(selected_arg)) extra$selected <- selected_arg
+        result <- invoke_build_ui(
+          node,
+          ui_text = ui_text,
+          layer_name = NULL,
+          ns_fn = ns,
+          extra = extra,
+          label_override = label_override
+        )
+        has_rendered <<- TRUE
+        result
+      })
+      # Same `suspendWhenHidden = FALSE` rationale as the per-instance
+      # shared-value loop: keep the input element mounted regardless of
+      # which layer panel is currently active in any embedded module, so
+      # spec seeding lands on a live widget and `app$get_value(...)` /
+      # `app$get_html(...)` reads non-NULL under shinytest2.
+      shiny::outputOptions(output, output_id, suspendWhenHidden = FALSE)
+    })
+  }
+  invisible()
 }
