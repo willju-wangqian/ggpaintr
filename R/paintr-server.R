@@ -94,6 +94,7 @@ ptr_init_state <- function(formula,
                                 auto_bind_shared = FALSE,
                                 shared_resolutions = list(),
                                 shared_stage_enabled = list(),
+                                panel_sources = list(),
                                 plots = NULL) {
   if (!is.function(ns)) {
     rlang::abort("`ns` must be a namespace function (e.g. shiny::NS(\"id\")).")
@@ -228,6 +229,14 @@ ptr_init_state <- function(formula,
     pipe_layer_warnings = pipe_layer_warnings,
     shared_bindings = shared_bindings,
     shared_resolutions = if (is.list(shared_resolutions)) shared_resolutions else list(),
+    # ADR 0023 §1: bundle's `panel_sources` slot, threaded through the
+    # existing `do.call(ptr_init_state, c(list(formula, envir), dots))`
+    # channel in `ptr_server_internal()`. Named list of reactive
+    # data.frame values, keyed by canonical shared id (`shared_<key>`);
+    # populated by host `ptr_setup_panel_sources()` (Plan 04) and read
+    # by per-instance pipelines/consumer pickers (Plans 05/07). Empty
+    # list when no panel-owned source is bound.
+    panel_sources = if (is.list(panel_sources)) panel_sources else list(),
     draw_trigger = draw_trigger,
     resolved_data = resolved_data,
     resolved_sources = resolved_sources,
@@ -765,6 +774,11 @@ ptr_server_internal <- function(input, output, session, formula,
     if (is.null(dots$draw_trigger))         dots$draw_trigger <- shared_state$draw_trigger
     if (is.null(dots$shared_resolutions))   dots$shared_resolutions <- shared_state$shared_resolutions
     if (is.null(dots$shared_stage_enabled)) dots$shared_stage_enabled <- shared_state$shared_stage_enabled
+    # ADR 0023 §1: same bundle-channel rule for the panel-owned source
+    # payload. Explicit `...` wins, otherwise the bundle's value flows
+    # through to `ptr_init_state(panel_sources = ...)` via `do.call()`
+    # without changing the call site.
+    if (is.null(dots$panel_sources))        dots$panel_sources <- shared_state$panel_sources
   }
   # When called inside `shiny::moduleServer(id, ...)` without explicit
   # `ns` / `server_ns`, auto-wire them the same way `ptr_server()`
