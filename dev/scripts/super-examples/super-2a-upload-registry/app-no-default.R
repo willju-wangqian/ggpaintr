@@ -8,8 +8,10 @@ library(shiny)
 
 ppPower <- ptr_define_placeholder_value(
   keyword = "ppPower",
-  build_ui = function(node, label = "Power", ...) {
-    v <- if (is.numeric(node$default) && length(node$default) == 1L) {
+  build_ui = function(node, label = "Power", selected = NULL, ...) {
+    v <- if (is.numeric(selected) && length(selected) == 1L && !is.na(selected)) {
+      as.numeric(selected)
+    } else if (is.numeric(node$default) && length(node$default) == 1L) {
       as.numeric(node$default)
     } else 0.7
     shiny::numericInput(node$id, label, value = v, min = 0, max = 1, step = 0.01)
@@ -27,12 +29,13 @@ ppPower <- ptr_define_placeholder_value(
 
 ppMultiVar <- ptr_define_placeholder_consumer(
   keyword = "ppMultiVar",
-  build_ui = function(node, cols = character(), label = "Group by", ...) {
+  build_ui = function(node, cols = character(), label = "Group by",
+                      selected = character(0), ...) {
     shinyWidgets::pickerInput(
       inputId = node$id,
       label = label,
       choices = cols,
-      selected = character(0),
+      selected = intersect(selected, cols),
       multiple = TRUE,
       options = shinyWidgets::pickerOptions(noneSelectedText = label)
     )

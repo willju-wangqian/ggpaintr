@@ -7,9 +7,11 @@ library(shiny)
 
 ppCoef <- ptr_define_placeholder_value(
   keyword       = "ppCoef",
-  build_ui      = function(node, label = NULL, ...) {
+  build_ui      = function(node, label = NULL, selected = NULL, ...) {
     sliderInput(node$id, label = label %||% "Coef",
-                min = 0, max = 1, value = 0.5, step = 0.01)
+                min = 0, max = 1,
+                value = selected %||% node$default %||% 0.5,
+                step = 0.01)
   },
   resolve_expr  = function(value, node, ...) {
     if (is.null(value)) return(NULL)
@@ -39,11 +41,11 @@ ppFactor <- ptr_define_placeholder_consumer(
 
 ppSample <- ptr_define_placeholder_source(
   keyword       = "ppSample",
-  build_ui      = function(node, label = NULL, ...) {
+  build_ui      = function(node, label = NULL, selected = NULL, ...) {
     selectInput(
       node$id, label = label %||% "Sample dataset",
       choices = c("iris", "mtcars", "ChickWeight", "ToothGrowth"),
-      selected = "iris"
+      selected = selected %||% node$default %||% "iris"
     )
   },
   resolve_data  = function(value, ...) {

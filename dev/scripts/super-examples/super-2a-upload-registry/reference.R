@@ -8,8 +8,10 @@ library(shiny)
 
 ppPower <- ptr_define_placeholder_value(
   keyword = "ppPower",
-  build_ui = function(node, label = "Power", ...) {
-    shiny::numericInput(node$id, label, value = 0.7, min = 0, max = 1, step = 0.01)
+  build_ui = function(node, label = "Power", selected = NULL, ...) {
+    shiny::numericInput(node$id, label,
+                        value = selected %||% node$default %||% 0.7,
+                        min = 0, max = 1, step = 0.01)
   },
   resolve_expr = function(value, ...) rlang::call2("^", value, 2),
   default_arg = ptr_default_numeric()
@@ -17,9 +19,11 @@ ppPower <- ptr_define_placeholder_value(
 
 ppMultiVar <- ptr_define_placeholder_consumer(
   keyword = "ppMultiVar",
-  build_ui = function(node, cols = character(), label = "Group by", ...) {
+  build_ui = function(node, cols = character(), label = "Group by",
+                      selected = character(0), ...) {
     shinyWidgets::pickerInput(node$id, label, choices = cols,
-                              selected = character(0), multiple = TRUE)
+                              selected = intersect(selected, cols),
+                              multiple = TRUE)
   },
   resolve_expr = function(value, ...) {
     if (length(value) == 0L) return(rlang::missing_arg())
