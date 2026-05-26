@@ -312,6 +312,27 @@ ptr_app(
 # No error; the source acts like `shortcut = FALSE` from the user's perspective.
 </code></pre>
 
+<h2>Known precondition (not fixed by this ADR)</h2>
+
+<p>A pre-existing bug in the <code>ppUpload(&lt;name&gt;)</code> boot path was discovered during the design grill but is <strong>not in this ADR's scope</strong>. Captured here so the next implementer is not surprised when hand-testing.</p>
+
+<p><strong>Symptom:</strong> with <code>df_main &lt;- mtcars</code> in caller env, the app</p>
+
+<pre><code class="language-r">ptr_app(
+  ggplot(ppUpload(df_main), aes(x = ppVar(hp), y = mpg)) + geom_point()
+)
+</code></pre>
+
+<p>boots with the <code>ppVar(hp)</code> column picker <strong>empty</strong> — even though the seeding mechanism at <code>R/paintr-builtins.R:245</code> (<code>value = node$default %||% ""</code>) and the boot-race fallback in <code>try_bind_source_default</code> / <code>try_bind_source_default_resolved</code> are both implemented (ADR 0010 / ADR 0024). Removing <code>ppUpload</code> (using <code>ggplot(mtcars, …)</code> directly) makes the picker populate correctly.</p>
+
+<p><strong>Why out of scope:</strong> the failure path is observer ordering between the source bind and the consumer picker's <code>req(state$bound_names[[key]])</code> evaluation, OR the consumer picker is suspended at first paint per the <code>.claude/rules/testing.md</code> "var pickers are suspended" note. Neither code path is touched by any of this ADR's eight Decision sections (rename, mutex, auto-name, prologue, eval_env contract, spec round-trip, symbol-flip, vacate-on-empty). The bug exists today on <code>shared-id-upgrade</code> HEAD <code>6871371</code> and is not introduced or fixed by ADR 0025.</p>
+
+<p><strong>Authoritative-gate impact:</strong> none observed. The full suite is <code>FAIL 0 / WARN 0 / SKIP 0 / PASS 3093</code> on the same HEAD, so the bug is not covered by any existing test. ADR 0025's Definition-of-Done gate (below) therefore does not depend on this bug being fixed; ADR 0025 plans can pass independently.</p>
+
+<p><strong>Recommended sequencing:</strong> run <code>/diagnose</code> in parallel with <code>/decision-to-plan</code>. Fix the bug as its own small PR ahead of ADR 0025's implementation merge if diagnosis confirms a small/local fix; otherwise track separately. ADR 0025's plans should NOT absorb this fix — keeping the surfaces independent preserves the audit chain.</p>
+
+<p><strong>Tracking:</strong> file as a separate bug note (suggested location <code>dev/notes/ppUpload-explicit-name-boot-empty-consumer.html</code>) once diagnosis lands.</p>
+
 <h2>Definition of Done</h2>
 
 <p>Authoritative gate (per <code>CLAUDE.md</code>):</p>
@@ -401,6 +422,6 @@ ptr_app(
   <li><code>devtools::check()</code> runs with <code>NOT_CRAN=true</code> but uses the <code>.Rcheck</code> sandbox; source-root guard cleanly SKIPs the e2e file in that environment. Clean SKIP under check is expected; ERROR is not.</li>
 </ul>
 
-<!-- audit-adr: PASS 563a61513b7d dev/audit/audit-adr-0025-2026-05-26-1727.html 2026-05-26 -->
+<!-- audit-adr: PASS 5f437d0f279f dev/audit/audit-adr-0025-2026-05-26-1727.html 2026-05-26 -->
 </body>
 </html>
