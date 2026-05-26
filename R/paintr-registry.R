@@ -759,6 +759,24 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #'   `fileInput()` data.frame whose `datapath` is a tempfile path that
 #'   does not survive the session). The built-in `ppUpload` uses this.
 #'
+#'   **Data-loading entry point (ADR 0024).** When `companion_id_fn` is
+#'   set, the companion is more than a name override for an uploaded
+#'   frame — it is a typed-in shortcut for loading a `data.frame` from
+#'   the embedder's environment (`envir` passed to [ptr_app()] /
+#'   [ptr_server()]). Any valid R name typed into the companion (or
+#'   seeded via `spec = list(<companion-id> = "df_name")`) is looked
+#'   up via `get(name, envir, inherits = TRUE)` and bound as the
+#'   resolved source frame, with OR without `default=` on the
+#'   placeholder. The downstream pipeline, generated code panel, and
+#'   consumer pickers all read the named frame from `state$eval_env`
+#'   as if it had been uploaded. Failures surface on the inline error
+#'   pane via `set_resolve_error`:
+#'   `"Object 'x' not found in environment."` /
+#'   `"Object 'x' is not a data frame."` Lookup uses `inherits = TRUE`,
+#'   so package exports become reachable — typing `"plot"` will resolve
+#'   to `graphics::plot` and then fail the "is not a data frame" check
+#'   (loudly, not silently).
+#'
 #' * **Scalar pattern** — no companion. The widget's value at `node$id`
 #'   must be a literal that round-trips through `deparse()` — a length-1
 #'   string / number / logical, or a simple atomic vector. The

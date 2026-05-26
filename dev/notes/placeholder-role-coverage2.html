@@ -9,7 +9,7 @@
 <main>
 
 <h1>Placeholder coverage: scope &times; role &times; default &times; spec</h1>
-<p class="meta">Generated 2026-05-26 on branch <code>shared-id-upgrade</code> at HEAD <code>0bcacfd</code> (docs(plans): record ADR 0023 plan directory + audit stamps). <strong>Updated v4 2026-05-26</strong> &mdash; restructured the 36-cell matrix into three role-keyed sub-tables; added verdict + scope color cues; surfaced FINDING #8 (spec&rarr;companion routing investigation).</p>
+<p class="meta">Generated 2026-05-26 on branch <code>shared-id-upgrade</code> at HEAD <code>0bcacfd</code> (docs(plans): record ADR 0023 plan directory + audit stamps). <strong>Updated v7 2026-05-26</strong> &mdash; FINDING #8 RESOLVED end-to-end via Fix A (<code>apply_spec_at_boot</code>'s <code>seeded</code> exclusion for <code>source_companion</code> rows at <code>R/paintr-server.R:631-643</code>) + <a href="../adr/0024-source-companion-data-loading-entry-point.html">ADR 0024</a> (the entry-point lift in <code>try_bind_source_default[_resolved]</code> at <code>R/paintr-server.R:945-997</code> / <code>:1091-1152</code> + the structured error surface). Empirical verification: <code>tests/testthat/test-finding8-source-companion-spec.R</code> + <code>tests/testthat/test-adr0024-companion-entry-point.R</code> (Scenarios A/B/C/D + 4 unit cases); authoritative gate <code>PASS 3093 / FAIL 0 / SKIP 0</code>. Summary counts updated; 3 source&times;with-spec cells stay at YES (the v3 reclassification was correct, now verified runtime-side, not just structurally).</p>
 
 <h2>Changelog</h2>
 <ul>
@@ -19,6 +19,7 @@
   <li><strong>v4 (2026-05-26, this update)</strong> &mdash; restructured the 36-cell matrix into three role-keyed sub-tables; added verdict + scope color cues. Surfaced FINDING #8 [INVESTIGATE]: <code>apply_spec_at_boot</code> writes <code>state$spec_seed[[&lt;source-companion-id&gt;]]</code> AND marks the row in <code>seeded</code> (skipping onFlushed <code>updateTextInput</code> dispatch); meanwhile <code>ptr_builtin_upload_build_ui</code> initial-renders the companion textInput from <code>node$default %||% ""</code> only &mdash; no observed read of <code>state$spec_seed[[&lt;comp-id&gt;]]</code> at the companion's first-render site. Requires empirical verification (boot-spec assertion in shinytest2) to confirm or refute the v3 reclassification.</li>
   <li><strong>v5 (2026-05-26)</strong> &mdash; added "Non-working examples (per finding)" section with copy-pasteable ggpaintr code snippets per finding (#1, #2+#7 merged, #3, #4, #8). Each example is real public-API code that should logically work but doesn't (or is rejected-by-design); examples include Expected / Actual prose and cite the source lines that explain the gap.</li>
   <li><strong>v6 (2026-05-26)</strong> &mdash; Fixed two syntactic issues in v5 examples: removed invalid <code>ptr_shared_server(..., spec=)</code> calls (<code>spec=</code> lives on <code>ptr_server()</code> per <code>R/paintr-app.R:1082-1083</code>, not on <code>ptr_shared_server()</code> per <code>R/paintr-shared-ui.R:222-225</code>); corrected <code>ppNum</code>/<code>ppText</code> to use proper first-positional-default convention (<code>ppNum(default = 1, shared = 'lw')</code>, not <code>ppNum('lw', default = 1, shared = 'lw')</code>).</li>
+  <li><strong>v7 (2026-05-26, this update)</strong> &mdash; FINDING #8 <strong>RESOLVED</strong>. Diagnosis loop ran on branch <code>shared-id-upgrade</code>: (a) reproduced as predicted in v4 (companion textInput first-rendered blank despite <code>spec = list(&lt;comp-id&gt; = "df_name")</code>); root cause = <code>apply_spec_at_boot</code> at <code>R/paintr-server.R:631-643</code> added <code>source_companion</code> rows to its <code>seeded</code> set on the assumption a renderUI would consume the seed, but no such reader exists for the companion id (<code>ptr_builtin_upload_build_ui</code> at <code>R/paintr-builtins.R:228-250</code> uses <code>node$default %||% ""</code> only). (b) Fix A: exclude <code>source_companion</code> rows from <code>seeded</code> so they fall through to the existing onFlushed <code>updateTextInput</code> dispatch at <code>apply_spec_entry()</code> L691-695. (c) Discovered orthogonal <code>is.null(node$default)</code> guard in <code>try_bind_source_default[_resolved]</code> blocking the downstream env-lookup path &mdash; widened by <a href="../adr/0024-source-companion-data-loading-entry-point.html">ADR 0024</a> (companion as data-loading entry point) with structured error surface via <code>set_resolve_error</code>. (d) Discovered latent self-invalidation bug in <code>set_resolve_error</code> (undeclared reactive dep on its own write target, masked pre-ADR-0024 by every caller writing only idempotent clears) &mdash; fixed by wrapping the read in <code>shiny::isolate()</code>. Counts: 28&rarr;28 YES, 3&rarr;3 REJECTED, 2&rarr;2 PARTIAL, 3 INFO test-coverage gaps for source&times;with-spec cells &rarr; <strong>1</strong> (closed by <code>test-finding8-source-companion-spec.R</code> + ADR 0024 Scenarios B/D). FINDING #6 stays at v3 reframing (correct, now verified). Remaining open findings (independent of #8): #1, #2, #3, #7.</li>
 </ul>
 
 <h2>Method</h2>
@@ -44,9 +45,9 @@
   <div><strong>28</strong><span>cells supported (YES)</span></div>
   <div><strong>3</strong><span>cells rejected-by-design</span></div>
   <div><strong>2</strong><span>cells partial / latent gap</span></div>
-  <div><strong>3</strong><span>cells test-coverage gap (INFO, low-priority)</span></div>
+  <div><strong>2</strong><span>cells test-coverage gap (INFO, low-priority)</span></div>
 </div>
-<p class="meta">36 cells total. <em>v3 reclassification</em>: 3 source &times; with-spec cells (non-shared, shared-section, shared-panel) moved from PARTIAL to YES &mdash; the spec target for ppUpload IS the companion textInput, not the fileInput, and the companion-routing path is the by-design SUFFICIENT mechanism. The 2 remaining PARTIAL cells are the shared-panel-VALUE rows (FINDING #7), where the static-tag path at <code>shared_panel_body_tag()</code>'s else-branch lacks any spec_seed consumer. The 1 PARTIAL panel-CONSUMER row (FINDING #1) remains the same. test-coverage gaps: (1) no test directly seeds a ppUpload companion id at boot through <code>spec=</code> and asserts the downstream consumer reads the seeded symbol &mdash; the mechanism IS pinned structurally (<code>test-rewrite-input-spec.R</code>, <code>test-id-table.R</code>, <code>test-regression-bugs-2026-05-12.R</code>) and at runtime via direct <code>set_inputs</code> (<code>test-adr10-ppupload-name-browser.R</code>, <code>test-adr15-consumer-binding.R</code>); (2) shared-panel consumer with-spec at host scope (FINDING #1); (3) shared-panel value with-spec (FINDING #7). <strong>v4 caveat:</strong> FINDING #8 [INVESTIGATE] flags a potential gap in the spec&rarr;companion routing path that, if confirmed, would force the 3 source&times;with-spec YES cells back to PARTIAL.</p>
+<p class="meta">36 cells total. <em>v3 reclassification</em>: 3 source &times; with-spec cells (non-shared, shared-section, shared-panel) moved from PARTIAL to YES &mdash; the spec target for ppUpload IS the companion textInput, not the fileInput, and the companion-routing path is the by-design SUFFICIENT mechanism. <em>v7 verification</em>: those 3 cells now have runtime regression coverage via <code>tests/testthat/test-finding8-source-companion-spec.R</code> (non-shared with default + spec override) + <code>tests/testthat/test-adr0024-companion-entry-point.R</code> Scenarios B (non-shared, no default + spec) and D (shared-section, no default + spec) &mdash; their test-coverage gap rows are closed. The 2 remaining PARTIAL cells are the shared-panel-VALUE rows (FINDING #7), where the static-tag path at <code>shared_panel_body_tag()</code>'s else-branch lacks any spec_seed consumer. The 1 PARTIAL panel-CONSUMER row (FINDING #1) remains the same. Remaining test-coverage gaps: (1) shared-panel consumer with-spec at host scope (FINDING #1); (2) shared-panel value with-spec (FINDING #7).</p>
 
 <h2>The 36-cell matrix</h2>
 
@@ -436,24 +437,29 @@ sees the widget boot at its <code>shared_widget_default()</code> value, not 2. <
 convert the static tag emit into a host-scope <code>updateXyzInput()</code> call inside an <code>onFlushed</code>
 that consults <code>state$spec_seed</code>. Defect candidate.</li>
 
-<li><span class="verdict investigate" style="padding:2px 8px">INVESTIGATE</span> <strong>FINDING #8 (new in v4): spec&rarr;companion routing at boot may have a wire-up gap.</strong>
-<code>apply_spec_at_boot</code> writes <code>state$spec_seed[[&lt;source-companion-id&gt;]]</code> AND marks the
-row in <code>seeded</code>; the onFlushed <code>apply_spec_entry</code> dispatch at <code>R/paintr-server.R:646</code>
-skips rows in <code>seeded</code>. Meanwhile <code>ptr_builtin_upload_build_ui</code>
-(<code>R/paintr-builtins.R:228-250</code>) initial-renders the companion textInput from
-<code>node$default %||% ""</code> only &mdash; no observed read of
-<code>state$spec_seed[[&lt;comp-id&gt;]]</code> at the companion's first-render site. This implies the
-documented spec&rarr;companion routing may not actually land the spec value into the companion's
-first render at boot; the only path that primes it would be a downstream read of
-<code>state$spec_seed[[&lt;comp-id&gt;]]</code> somewhere I haven't located. <em>Requires empirical
-verification:</em> pass <code>spec = list(&lt;upload-companion-id&gt; = "df_name")</code> to
-<code>ptr_app()</code> and assert via shinytest2 that the companion textInput renders with
-"df_name" at boot (no user typing). If it doesn't, this is a real seeding-path defect &mdash; file
-as a defect; otherwise locate the consumption site and document it here. <em>If confirmed</em>:
-the three source &times; with-spec cells currently classified YES (companion-routed) in this v4
-matrix would move back to PARTIAL, FINDING #6's v3 reframing would need to be reverted, and the
-summary counts would shift back toward the v2 numbers. <em>If refuted</em>: locate and pin the
-companion-side seed-read site, then close this finding.</li>
+<li><span class="verdict yes" style="padding:2px 8px">RESOLVED</span> <strong>FINDING #8 (v4 INVESTIGATE &rarr; v7 RESOLVED): spec&rarr;companion routing at boot was indeed broken; now fixed.</strong>
+The v4 prediction was correct: <code>apply_spec_at_boot</code> wrote <code>state$spec_seed[[&lt;source-companion-id&gt;]]</code> AND marked
+the row in <code>seeded</code>, but no reader existed for <code>state$spec_seed[[&lt;comp-id&gt;]]</code> anywhere in the
+server tree (the five seed reads at <code>R/paintr-server.R:1745, 1815, 1881, 2107, 2406</code> all use <code>raw_id = node$id</code>
+&mdash; the source/value/consumer id, never the companion id; <code>ptr_builtin_upload_build_ui</code> at
+<code>R/paintr-builtins.R:228-250</code> hard-codes the companion's <code>value=</code> to <code>node$default %||% ""</code>).
+Companion textInput first-rendered blank regardless of <code>spec=</code>. <em>Fix A applied:</em> exclude <code>source_companion</code> rows
+from <code>seeded</code> at <code>R/paintr-server.R:631-643</code> so they fall through to the existing onFlushed
+<code>updateTextInput</code> dispatch in <code>apply_spec_entry()</code> at <code>R/paintr-server.R:691-695</code>. Regression test:
+<code>tests/testthat/test-finding8-source-companion-spec.R</code> + fixture
+<code>tests/testthat/fixtures/vignette-apps/finding8-source-companion-spec/app.R</code>. <em>Bonus fixes
+discovered during the diagnose loop and landed alongside:</em>
+(a) the <code>is.null(node$default)</code> guard in <code>try_bind_source_default[_resolved]</code> was blocking the downstream
+env-lookup path even when the companion (post-Fix-A) carried a valid name &mdash; lifted by
+<a href="../adr/0024-source-companion-data-loading-entry-point.html">ADR 0024</a> (companion as data-loading entry point) with a structured
+error surface via <code>set_resolve_error</code>;
+(b) latent self-invalidation in <code>set_resolve_error</code> &mdash; its <code>cur &lt;- state$resolve_errors()</code> read created an
+undeclared reactive dependency on its own write target, masked pre-ADR-0024 by every caller writing only idempotent
+clears, surfaced the moment ADR 0024's structured-error write fired from inside the resolve observer; fixed by wrapping
+the read in <code>shiny::isolate()</code> at <code>R/paintr-server.R:847-862</code>.
+The three source&times;with-spec cells in the matrix stay at YES (the v3 reclassification was correct;
+v7 reclassification = "verified runtime-side, not just structurally"). FINDING #6's v3 reframing is preserved.
+Authoritative gate: <code>PASS 3093 / FAIL 0 / SKIP 0</code> on the FINDING #8 + ADR 0024 commit.</li>
 
 </ul>
 
@@ -477,9 +483,9 @@ seeded/typed value propagates to the bind without any direct <code>state$spec_se
 <code>ptr_setup_panel_sources()</code>. This is the documented API surface and is the SUFFICIENT
 spec= mechanism for source roles. Companion id pattern: <code>&lt;source-id&gt;_name</code> non-shared;
 <code>shared_&lt;k&gt;_name</code> shared (per <code>entry$companion_id_fn</code> at
-<code>R/paintr-shared-ui.R:478-480</code>). <em>Caveat (v4):</em> FINDING #8 challenges the boot-render
-side of this design &mdash; the spec value reaching the companion at first render has not been
-empirically verified.</li>
+<code>R/paintr-shared-ui.R:478-480</code>). <em>Verified (v7):</em> FINDING #8's investigation confirmed the boot-render path was broken (companion textInput first-rendered blank
+despite a valid <code>spec=</code> entry) and the fix landed (see FINDING #8 entry above). The companion-routing design as described
+here now holds end-to-end with regression tests pinning both Fix A and the ADR 0024 entry-point lift.</li>
 
 </ul>
 

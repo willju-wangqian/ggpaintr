@@ -629,7 +629,20 @@ apply_spec_at_boot <- function(spec, session, state) {
       else value <- as.character(value)
     }
     state$spec_seed[[row$bare_id]] <- value
-    seeded <- c(seeded, row$bare_id)
+    # FINDING #8 (placeholder-role-coverage2 v4): `source_companion` rows
+    # have NO downstream `state$spec_seed[[<companion-id>]]` reader. The
+    # author's intent in the seed-eligibility comment above was that the
+    # companion textInput inside the source's tagList would read the seed
+    # on first render, but `ptr_builtin_upload_build_ui()` initial-renders
+    # the companion from `node$default %||% ""` only (the spec_seed reads
+    # in renderUI bodies use `raw_id = node$id` — the source id, not the
+    # companion id). So source_companion rows must fall through to the
+    # onFlushed `updateTextInput` dispatch in `apply_spec_entry()` —
+    # don't mark them seeded. The seed write is kept (harmless; reserved
+    # for a future renderUI-side reader if one is added).
+    if (!identical(row$role, "source_companion")) {
+      seeded <- c(seeded, row$bare_id)
+    }
   }
 
   # Dispatch is deferred to the first flush so framework-internal rows
@@ -832,7 +845,16 @@ ptr_server_internal <- function(input, output, session, formula,
 # `NULL` to clear. The error panel reads the resulting named list via
 # `ptr_register_error()`.
 set_resolve_error <- function(state, id, msg) {
-  cur <- state$resolve_errors()
+  # ADR 0024: isolate the read so the resolve observer (which calls
+  # set_resolve_error from its reactive body) does not take a
+  # dependency on `state$resolve_errors`. Without the isolate, the
+  # clear-then-set pattern inside `resolve_upload_source` becomes a
+  # self-invalidating loop the moment a structured error is written:
+  # observer reads resolve_errors via this helper -> writes new value
+  # -> own dependency invalidates -> observer re-fires -> ... Pre
+  # ADR-0024 the no-upload path only ever wrote NULL (idempotent on
+  # an empty list), so the latent loop never triggered.
+  cur <- shiny::isolate(state$resolve_errors())
   if (is.null(msg)) {
     cur[[id]] <- NULL
   } else {
@@ -929,14 +951,26 @@ panel_owned_binding_name <- function(node, entry, session,
 # `companion_id_fn`.
 try_bind_source_default <- function(state, key, node, input, comp_id,
                                     entry, slot) {
-  if (is.null(node$default)) return(FALSE)
+  # ADR 0024: the companion is a data-loading entry point. When the user
+  # has typed a non-empty name into the companion textInput (or spec=
+  # has dispatched one in via the source_companion path), bind the
+  # named frame from state$eval_env even if `node$default` is NULL.
+  # Pre-ADR-0024 the helper returned FALSE here unconditionally; the
+  # widened guard preserves that behavior when no companion value is
+  # available (no default + blank companion = nothing to look up).
+  comp_value <- if (!is.null(comp_id)) input[[comp_id]] else NULL
+  has_comp_value <- is.character(comp_value) && length(comp_value) == 1L &&
+                    nzchar(comp_value)
+  if (is.null(node$default) && !has_comp_value) return(FALSE)
   binding_name <- if (!is.null(comp_id)) {
-    nm <- input[[comp_id]]
+    nm <- comp_value
     # Boot race: the companion textInput is seeded with node$default by
     # `ptr_builtin_upload_build_ui()`, but `input[[comp_id]]` is NULL until
     # the widget registers. Fall back to `node$default` so the first
     # observer fire can bind immediately rather than waiting an extra
-    # invalidation.
+    # invalidation. (Post ADR 0024: when default is NULL, the
+    # has_comp_value guard above has already ensured comp_value is a
+    # usable string, so this fallback never fires in that branch.)
     if (!is.character(nm) || length(nm) != 1L || !nzchar(nm)) {
       nm <- node$default
     }
@@ -955,7 +989,19 @@ try_bind_source_default <- function(state, key, node, input, comp_id,
     get(binding_name, envir = state$eval_env, inherits = TRUE),
     error = function(e) NULL
   )
-  if (!is.data.frame(df)) return(FALSE)
+  # ADR 0024 §2: structured error surface. Pre-ADR-0024 both branches
+  # below returned FALSE silently; the companion-as-entry-point contract
+  # owes the user a reason when their typed name didn't bind.
+  if (is.null(df)) {
+    set_resolve_error(state, key,
+      sprintf("Object '%s' not found in environment.", binding_name))
+    return(FALSE)
+  }
+  if (!is.data.frame(df)) {
+    set_resolve_error(state, key,
+      sprintf("Object '%s' is not a data frame.", binding_name))
+    return(FALSE)
+  }
   bind_source_value(state, key, binding_name, df, slot)
   TRUE
 }
@@ -1053,14 +1099,24 @@ resolve_upload_source <- function(input_slot, companion_slot, node, entry,
 # can drive it with plain R values.
 try_bind_source_default_resolved <- function(state, key, node, has_companion,
                                              comp_value, entry, slot) {
-  if (is.null(node$default)) return(FALSE)
+  # ADR 0024: the companion is a data-loading entry point. See the
+  # companion comment in `try_bind_source_default()` above — both helpers
+  # must stay in lockstep (the `_resolved` variant is called by
+  # `resolve_upload_source()` for pipeline-head + panel scopes; the
+  # unresolved one by the bare-data-source-layer loop).
+  has_comp_value <- has_companion &&
+                    is.character(comp_value) && length(comp_value) == 1L &&
+                    nzchar(comp_value)
+  if (is.null(node$default) && !has_comp_value) return(FALSE)
   binding_name <- if (has_companion) {
     nm <- comp_value
     # Boot race: the companion textInput is seeded with `node$default`
     # by `ptr_builtin_upload_build_ui()`, but `input[[comp_id]]` is
     # NULL until the widget registers. Fall back to `node$default` so
     # the first observer fire can bind immediately rather than waiting
-    # an extra invalidation.
+    # an extra invalidation. (Post ADR 0024: when default is NULL, the
+    # has_comp_value guard above has already ensured comp_value is a
+    # usable string, so this fallback never fires in that branch.)
     if (!is.character(nm) || length(nm) != 1L || !nzchar(nm)) {
       nm <- node$default
     }
@@ -1079,7 +1135,17 @@ try_bind_source_default_resolved <- function(state, key, node, has_companion,
     get(binding_name, envir = state$eval_env, inherits = TRUE),
     error = function(e) NULL
   )
-  if (!is.data.frame(df)) return(FALSE)
+  # ADR 0024 §2: structured error surface — mirrors try_bind_source_default().
+  if (is.null(df)) {
+    set_resolve_error(state, key,
+      sprintf("Object '%s' not found in environment.", binding_name))
+    return(FALSE)
+  }
+  if (!is.data.frame(df)) {
+    set_resolve_error(state, key,
+      sprintf("Object '%s' is not a data frame.", binding_name))
+    return(FALSE)
+  }
   bind_source_value(state, key, binding_name, df, slot)
   TRUE
 }

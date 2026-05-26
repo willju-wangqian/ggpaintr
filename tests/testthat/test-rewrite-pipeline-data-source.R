@@ -149,7 +149,17 @@ test_that("pipeline-head `ppUpload` populates the consumer picker UI (renderUI p
   })
 })
 
-test_that("pipeline-head source clears its slot when the file is removed", {
+test_that("pipeline-head source clears its slot when file AND companion are removed", {
+  # ADR 0024 update: the companion is a data-loading entry point. A
+  # successful upload assigns the df into `state$eval_env` under the
+  # companion's typed name (bind_source_value, R/paintr-server.R:877).
+  # That binding is sticky — clearing JUST the fileInput leaves the
+  # name resolvable in eval_env, so the entry-point path
+  # (try_bind_source_default_resolved) re-binds via env lookup. To
+  # fully clear the slot, the user must clear BOTH the fileInput and
+  # the companion textInput. Pre-ADR-0024 this test asserted clearing
+  # only the file sufficed (because try_bind bailed on null default);
+  # post-ADR-0024 it does not.
   e <- new.env(parent = globalenv())
   formula <-
     "ppUpload |> head(ppNum) |> ggplot(aes(x = ppVar, y = ppVar)) + geom_point()"
@@ -168,7 +178,15 @@ test_that("pipeline-head source clears its slot when the file is removed", {
     session$flushReact()
     expect_s3_class(state$resolved_sources[[src$id]](), "data.frame")
 
+    # Clear ONLY the file. ADR 0024 entry-point semantics: the slot stays
+    # bound because the companion still resolves "simple_numeric" in eval_env
+    # (from the prior bind). NOT the same as the pre-ADR-0024 assertion.
     do.call(session$setInputs, stats::setNames(list(NULL), src$id))
+    session$flushReact()
+    expect_s3_class(state$resolved_sources[[src$id]](), "data.frame")
+
+    # Clear BOTH file AND companion. Now nothing resolves → slot becomes NULL.
+    do.call(session$setInputs, stats::setNames(list(""), src$companion_id))
     session$flushReact()
     expect_null(state$resolved_sources[[src$id]]())
   })
