@@ -18,13 +18,20 @@
 # ---- ptr_shared_state ------------------------------------------------------
 
 new_ptr_shared_state <- function(shared, draw_trigger, shared_resolutions,
-                                 shared_stage_enabled = list()) {
+                                 shared_stage_enabled = list(),
+                                 panel_sources = list()) {
   structure(
     list(
       shared = shared,
       draw_trigger = draw_trigger,
       shared_resolutions = shared_resolutions,
-      shared_stage_enabled = shared_stage_enabled
+      shared_stage_enabled = shared_stage_enabled,
+      # ADR 0023 §1: per-panel-owned source key (`shared_<key>`) reactive
+      # `data.frame`, written by the host's `ptr_setup_panel_sources()`
+      # (Plan 04) and read by per-instance `ptr_setup_pipelines()` /
+      # consumer pickers (Plans 05/07). Bundle-as-single-channel keeps
+      # ADR-0006's no-extra-top-level-state rule.
+      panel_sources = panel_sources
     ),
     class = c("ptr_shared_state", "list")
   )
@@ -65,6 +72,24 @@ validate_ptr_shared_state <- function(x) {
       rlang::abort("`shared_state$shared_stage_enabled` values must be Shiny reactives.")
     }
   }
+  # ADR 0023 §1: panel_sources is a (possibly empty) named list of reactive
+  # data.frame values, keyed by canonical shared id (`shared_<key>`). Same
+  # shape rules as `shared` / `shared_stage_enabled`. Missing slot is
+  # tolerated for embedder-built shared_state values constructed before
+  # this field existed (treated as empty).
+  ps <- x$panel_sources %||% list()
+  if (!is.list(ps)) {
+    rlang::abort("`shared_state$panel_sources` must be a (possibly empty) named list of reactives.")
+  }
+  if (length(ps) > 0L) {
+    nms <- names(ps)
+    if (is.null(nms) || any(!nzchar(nms)) || any(duplicated(nms))) {
+      rlang::abort("`shared_state$panel_sources` must have unique non-empty names.")
+    }
+    if (!all(vapply(ps, shiny::is.reactive, logical(1)))) {
+      rlang::abort("`shared_state$panel_sources` values must be Shiny reactives.")
+    }
+  }
   invisible(x)
 }
 
@@ -79,6 +104,10 @@ print.ptr_shared_state <- function(x, ...) {
   consumer_keys <- names(x$shared_resolutions) %||% character()
   cat("  consumer keys   :",
       if (length(consumer_keys)) paste(consumer_keys, collapse = ", ") else "<none>",
+      "\n")
+  panel_source_keys <- names(x$panel_sources) %||% character()
+  cat("  panel source keys :",
+      if (length(panel_source_keys)) paste(panel_source_keys, collapse = ", ") else "<none>",
       "\n")
   invisible(x)
 }
