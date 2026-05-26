@@ -113,7 +113,7 @@ boot_super_app <- function(slug, app_file = "app.R") {
 # site, so the test stops with an actionable message instead of cascading
 # into a downstream assertion mismatch (project memory
 # `e2e-assertion-weakness-lens`).
-set_sentinel <- function(app, input_id, sentinel) {
+set_sentinel <- function(app, input_id, sentinel, bind_timeout_ms = 5000) {
   page_html <- app$get_html(paste0("#", input_id))
   if (is.null(page_html) || !nzchar(page_html)) {
     stop(
@@ -122,6 +122,13 @@ set_sentinel <- function(app, input_id, sentinel) {
       "upload / source resolution / Controls-subtab activation before ",
       "driving this widget."
     )
+  }
+  # Element exists in the DOM but Shiny's input binding may not have wired
+  # up yet (the renderUI-vs-bindAll race that produces shinytest2's
+  # "Unable to find input binding" error). See `wait_for_input_binding()`
+  # in helper-vignette-apps.R for the timeout rationale.
+  if (bind_timeout_ms > 0) {
+    wait_for_input_binding(app, input_id, bind_timeout_ms)
   }
   args <- stats::setNames(list(sentinel), input_id)
   do.call(app$set_inputs, c(args, list(wait_ = FALSE)))

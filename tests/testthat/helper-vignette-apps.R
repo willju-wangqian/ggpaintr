@@ -74,7 +74,18 @@ expect_dom_id <- function(app, id) {
 # Set one input WITHOUT waiting for an output change. ggpaintr only re-renders
 # on an explicit Update/Draw click, so setting a placeholder widget never
 # updates an output by itself — wait_ = TRUE would (correctly) time out.
-set_input <- function(app, id, value) {
+#
+# Waits for Shiny's input binding to register on the target element BEFORE
+# dispatching `set_inputs`. shinytest2 emits "Unable to find input binding
+# for element with id <id>" when the JS-side binding hasn't been wired by
+# the time set_inputs lands — a known race on uiOutput-rendered inputs.
+# `wait_for_input_binding()` is empirically fast (max ~6 ms observed
+# across 30 calibration boots on a quiet system, p95 4 ms); the 5000 ms
+# timeout is the deadline for surfacing a real "binding never appeared"
+# regression vs the flake. Pass `bind_timeout_ms = 0` to opt out (e.g.
+# when intentionally probing for the absence of a binding).
+set_input <- function(app, id, value, bind_timeout_ms = 5000) {
+  if (bind_timeout_ms > 0) wait_for_input_binding(app, id, bind_timeout_ms)
   args <- stats::setNames(list(value), id)
   do.call(app$set_inputs, c(args, list(wait_ = FALSE)))
 }
@@ -185,3 +196,50 @@ expect_no_dom_id <- function(app, id) {
 }
 
 if (!exists("%||%")) `%||%` <- function(a, b) if (is.null(a)) b else a
+
+# Poll the DOM until the input element `#<id>` is registered with Shiny's
+# input binding (i.e. carries the `shiny-bound-input` class that Shiny
+# attaches once `Shiny.bindAll()` has wired the element to the input
+# registry). Returns the elapsed wait in seconds (useful for calibration).
+# Aborts with a structured error on timeout so the failure cleanly
+# distinguishes "we waited and the binding never appeared" (a real
+# regression) from "set_inputs raced the binding" (the flaky shape).
+#
+# Why this is needed: every uiOutput-rendered input has a small window
+# between renderUI firing and Shiny's `bindAll()` reaching the new DOM
+# subtree. shinytest2's `app$set_inputs(id = ..., wait_ = FALSE)` short-
+# circuits the wait, so it can land in that window and emit "Unable to
+# find input binding for element with id <id>". Calling this helper
+# right before `app$set_inputs(...)` closes the race. Empirically
+# calibrated default `timeout_ms = 5000` covers the worst-case observed
+# binding latency by ~50x (see commit log for calibration data).
+wait_for_input_binding <- function(app, id, timeout_ms = 5000,
+                                   poll_ms = 25) {
+  start <- Sys.time()
+  deadline <- start + timeout_ms / 1000
+  # Use `app$get_value(input = id)` as the binding-presence probe — it
+  # succeeds iff Shiny has registered the input with its reactive registry
+  # (regardless of the binding kind: renderUI'd .shiny-bound-input,
+  # bslib tabsetPanel, navset, custom binding, etc.). A DOM-class check
+  # like `#<id>.shiny-bound-input` would false-negative on tab and nav
+  # inputs which use a different binding shape.
+  repeat {
+    bound <- tryCatch({
+      app$get_value(input = id)
+      TRUE
+    }, error = function(e) FALSE)
+    if (isTRUE(bound)) {
+      return(as.numeric(Sys.time() - start, units = "secs"))
+    }
+    if (Sys.time() > deadline) {
+      rlang::abort(
+        sprintf(
+          "wait_for_input_binding(\"%s\") timed out after %d ms. Shiny's input registry has no entry for this id. Either the renderUI for the input's container never fired, or Shiny's bindAll() never reached it.",
+          id, timeout_ms
+        ),
+        class = "ggpaintr_wait_for_input_binding_timeout"
+      )
+    }
+    Sys.sleep(poll_ms / 1000)
+  }
+}
