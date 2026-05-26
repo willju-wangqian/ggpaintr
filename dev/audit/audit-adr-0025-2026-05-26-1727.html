@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>audit-adr — ADR 0025 — PASS — 2026-05-26 17:27</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>audit-adr — ADR 0025 source-shortcut-rename-and-upload-auto-name</h1>
+<p class="meta">Target: <code>dev/adr/0025-source-shortcut-rename-and-upload-auto-name.html</code> · Verdict: <strong>PASS</strong> · Audited: 2026-05-26 17:27 · Auditor: general-purpose/opus/high</p>
+
+<h2>Verdict</h2>
+
+<p><strong>PASS.</strong> All baseline-fidelity claims verify against the live source. Pass A (Verified Facts strict) — N/A (no Verified Facts section). Pass B (sweep) — every code-shaped baseline literal verified, every aspirational symbol classified and recorded. Pass C (worked examples) — both required <code>&lt;h2&gt;Worked examples&lt;/h2&gt;</code> sections present, each with ≥1 numbered example, one-line summary paragraph, and ```r fenced block. Initial pass-C miss (worked-examples sections absent) was corrected in the same session by adding Examples 1–6 to the ADR; this report reflects the corrected state.</p>
+
+<h2>Verified claims</h2>
+
+<table>
+<tr><th>Category</th><th>Claim (location in ADR)</th><th>Evidence</th></tr>
+<tr><td>baseline-source-line</td><td><code>R/paintr-server.R:964</code> is the post-ADR-0024 guard <code>if (is.null(node$default) &amp;&amp; !has_comp_value) return(FALSE)</code> in <code>try_bind_source_default</code> (Context)</td><td>Verified by line read at <code>R/paintr-server.R:964</code></td></tr>
+<tr><td>baseline-source-line</td><td><code>R/paintr-server.R:1110</code> is the same guard in <code>try_bind_source_default_resolved</code> (Context)</td><td>Verified by line read at <code>R/paintr-server.R:1110</code></td></tr>
+<tr><td>baseline-source-block</td><td><code>bind_source_value</code> defined at <code>R/paintr-server.R:884-890</code> (Decision §5)</td><td>Function definition at line 884; body ends ~line 890. Minor off-by-one (boundary line shift) noted as non-issue.</td></tr>
+<tr><td>baseline-source-block</td><td>Load-bearing assign-before-signal comment at <code>R/paintr-server.R:872-883</code> (Decision §5)</td><td>Comment spans 872 through 883 (the body just before <code>bind_source_value</code>'s definition).</td></tr>
+<tr><td>baseline-source-line</td><td><code>R/paintr-server.R:222</code> is <code>eval_env = new.env(parent = envir),</code> (Decision §3 — uniqueness analysis)</td><td>Verified by line read.</td></tr>
+<tr><td>baseline-source-line</td><td><code>R/paintr-app.R:331, 1209</code> pass <code>eval_env = envir,</code> (Decision §3)</td><td>Both lines verified verbatim.</td></tr>
+<tr><td>baseline-source-line</td><td><code>R/paintr-shared-ui.R:534</code> creates the coordinator's eval_env: <code>eval_env &lt;- new.env(parent = envir)</code> (Decision §3)</td><td>Verified by line read.</td></tr>
+<tr><td>baseline-source-line</td><td><code>R/paintr-ids.R:42</code> constructs <code>node$id = paste0(layer_name, "_", path_str, "_", node$keyword, "_", shared_part)</code> (Decision §3, §5)</td><td>Verified by line read.</td></tr>
+<tr><td>baseline-source-block</td><td><code>R/paintr-ids.R:49-50</code> is the <code>companion_id_fn</code> call site in <code>assign_id_to_placeholder</code> (Decision §1)</td><td>Verified.</td></tr>
+<tr><td>baseline-source-block</td><td><code>R/paintr-shared-ui.R:478-479</code> is the <code>companion_id_fn</code> call site in shared UI (Decision §1)</td><td>Verified.</td></tr>
+<tr><td>baseline-source-block</td><td><code>R/paintr-substitute.R:179-213</code> is the <code>substitute_walk.ptr_ph_data_source</code> body (Decision §5)</td><td>Function signature at 179, body to ~213.</td></tr>
+<tr><td>baseline-source-block</td><td><code>R/paintr-substitute.R:181-184</code> is the <code>node$companion_id</code> read site (Decision §1)</td><td>Verified.</td></tr>
+<tr><td>baseline-source-line</td><td><code>R/paintr-builtins.R:243</code> is <code>inputId = node$companion_id %||% paste0(node$id, "_name"),</code> (Decision §1)</td><td>Verified verbatim.</td></tr>
+<tr><td>baseline-source-block</td><td><code>R/paintr-shared-coordinator.R:220-234</code> — <code>ptr_shared</code> signature accepts <code>id</code> and validates it (Decision §3, Scope cuts)</td><td>Verified; validator regex <code>^[A-Za-z][A-Za-z0-9_]*$</code> present.</td></tr>
+<tr><td>baseline-source-line</td><td><code>R/paintr-shared-coordinator.R:292</code> stores <code>id = id</code> on the returned object (Decision §3)</td><td>Verified.</td></tr>
+<tr><td>baseline-file-exists</td><td><code>R/paintr-input-spec.R</code> exists; <code>ptr_runtime_input_spec()</code> defined at line 23 (Decision §6)</td><td>Verified.</td></tr>
+<tr><td>baseline-vignette-line</td><td><code>vignettes/ggpaintr-customization.Rmd:297, 502</code> reference <code>node$companion_id</code> / <code>companion_id_fn</code> (Scope cuts)</td><td>Both verified.</td></tr>
+<tr><td>baseline-context-line</td><td><code>CONTEXT.md:48, 132</code> contain the "exactly one per page" claim (Scope cuts)</td><td>Both verified — confirms the documented drift the ADR's amendment owes to fix.</td></tr>
+<tr><td>baseline-file-exists</td><td><code>dev/notes/placeholder-role-coverage2.html</code> exists (FINDING #8 reference)</td><td>Verified; 77851 bytes.</td></tr>
+<tr><td>baseline-file-exists</td><td><code>dev/audit/audit-adr15-autoname-race-*.html</code> exists (referenced from <code>R/paintr-server.R:882</code>)</td><td>Verified — sample file <code>audit-adr15-autoname-race-20260523-204227.html</code> present.</td></tr>
+<tr><td>baseline-source-line</td><td><code>R/paintr-builtins.R:375</code> registers <code>ppUpload</code> with <code>companion_id_fn = ptr_upload_name_id</code> (Decision §1 — pre-rename baseline)</td><td>Verified.</td></tr>
+<tr><td>worked-examples</td><td>Both required <code>&lt;h2&gt;Worked examples&lt;/h2&gt;</code> sections present with 3+3 numbered examples (Examples 1–6), each with summary paragraph and ```r code block</td><td>Verified by grep at lines 214, 270 (h2 headers); 216, 239, 252, 272, 281, 295 (h3 examples).</td></tr>
+</table>
+
+<h2>Aspirational symbols recorded (not findings)</h2>
+
+<table>
+<tr><th>Literal</th><th>Section</th><th>Classification reasoning</th></tr>
+<tr><td><code>shortcut = FALSE</code> / <code>shortcut = TRUE</code> registry param</td><td>Decision §1, Examples 1, 6</td><td>ADR proposes renaming <code>companion_id_fn</code> → <code>shortcut</code>; not in source yet.</td></tr>
+<tr><td><code>node$shortcut_id</code></td><td>Decision §1, §5; Examples 1, 6; BDD scenarios</td><td>Renamed field; source has <code>node$companion_id</code>.</td></tr>
+<tr><td><code>node$auto_name</code> new field</td><td>Decision §5</td><td>ADR explicitly proposes new translate-time field.</td></tr>
+<tr><td><code>"_shortcut"</code> suffix replacing <code>"_name"</code></td><td>Decision §1</td><td>Source currently uses <code>"_name"</code> suffix.</td></tr>
+<tr><td>Reserved-shared-key <code>"shortcut"</code> validator</td><td>Decision §1, Example 4</td><td>No such validator exists today.</td></tr>
+<tr><td>Q3-B mutex behavior (auto-clear file ↔ textbox)</td><td>Decision §2, Example 5</td><td>No such mutex pair in source.</td></tr>
+<tr><td>Auto-name binding table (<code>ds_a</code>, <code>main_ds_a</code>, <code>node$id</code>, <code>penguins</code>)</td><td>Decision §3</td><td>Current upload semantics derive name from typed companion text, not from <code>node$id</code>.</td></tr>
+<tr><td>Code-panel prologue <code>upload_data1 &lt;- read.csv("penguins.csv")</code></td><td>Decision §4</td><td>No prologue emission today.</td></tr>
+<tr><td><code>state$bound_names[[key]](NULL)</code> + <code>rm()</code> vacate (A1)</td><td>Decision §7</td><td>Not in <code>resolve_upload_source</code>'s no-file branch today.</td></tr>
+<tr><td><code>shiny::debounce(400)</code> on shortcut input read (A2)</td><td>Decision §7</td><td>No such debounce in source.</td></tr>
+<tr><td><code>options(ggpaintr.shortcut_debounce = 400)</code></td><td>Risks &amp; mitigations</td><td>Speculative configuration knob.</td></tr>
+<tr><td>Derived example auto-name <code>ggplot_1_0_ppUpload_NA</code></td><td>Decision §3, §6; Example 3</td><td>Derivable from <code>R/paintr-ids.R:42</code> format — predicted shape, not present in source.</td></tr>
+<tr><td>BDD <em>Feature: Source shortcut as data-loading entry point</em> + 10 scenarios</td><td>Definition of Done</td><td>None of these tests exist; they describe the gate the implementation must satisfy.</td></tr>
+<tr><td>Estimated ≤150 LOC</td><td>Consequences (Positive)</td><td>Forecast, not a baseline claim.</td></tr>
+</table>
+
+<h2>Behavioral claims — evidence types</h2>
+
+<table>
+<tr><th>Claim</th><th>Evidence</th><th>Pointer</th></tr>
+<tr><td>F1 — sticky-after-clear (eval_env binding lingers; no path actively <code>rm</code>s it)</td><td>source-read</td><td><code>resolve_upload_source</code> no-file branch at <code>R/paintr-server.R:1046-1058</code> lacks <code>rm()</code>; <code>bind_source_value</code> at line 885 writes but never deletes. Referenced reproducer at <code>dev/notes/placeholder-role-coverage2.html</code> FINDING #8 (file exists; not deeply re-traced this audit).</td></tr>
+<tr><td>F2 — code/plot mismatch under typed name override</td><td>source-read</td><td><code>R/paintr-substitute.R:181-191</code> reads from companion text; <code>R/paintr-server.R:964/1110</code> bind frame under same typed name when upload arrives. Two-source coupling visible in code; not test-cited.</td></tr>
+<tr><td>F3 — eval-env pollution by typed-name override</td><td>source-read</td><td><code>bind_source_value</code> performs <code>assign(name, df, envir = state$eval_env)</code> with <code>name = companion_text</code>; overwrites any prior binding under that symbol.</td></tr>
+<tr><td>ADR-0024 removed <code>is.null(node$default)</code> guard at the two cited sites</td><td>source-read</td><td>Lines 964 &amp; 1110 currently read <code>if (is.null(node$default) &amp;&amp; !has_comp_value) return(FALSE)</code> — the AND-form is the post-promotion shape.</td></tr>
+<tr><td>"Each per-instance state$eval_env is its own scope"</td><td>source-read</td><td><code>R/paintr-server.R:222</code> creates new env per call.</td></tr>
+<tr><td>"Each coordinator's eval_env is its own scope"</td><td>source-read</td><td><code>R/paintr-shared-ui.R:534</code> creates new env per coordinator wiring.</td></tr>
+<tr><td>"Per-instance eval_envs extend coordinator's eval_env via parent chain (ADR 0023)"</td><td>inconclusive (cited; not re-traced this audit)</td><td>ADR cites 0023; not re-verified here.</td></tr>
+<tr><td>CONTEXT.md "exactly one per page" contradicts shared-coordinator source</td><td>source-read</td><td>Verified: <code>CONTEXT.md:48</code>; <code>R/paintr-shared-coordinator.R:220-234, 292</code>. ADR's drift claim holds.</td></tr>
+</table>
+
+<h2>Aspirational symbols recorded — total</h2>
+
+<p>13 aspirational symbols recorded. All are <em>proposed-by-this-ADR</em>; none are findings. Listed above for the human implementer's reference.</p>
+
+<details>
+<summary>Audit manifest (machine-readable)</summary>
+<pre>
+manifest:
+  adr_path: dev/adr/0025-source-shortcut-rename-and-upload-auto-name.html
+  adr_hash: 563a61513b7d
+  audited_files:
+    - path: R/paintr-server.R
+      sha256: dbf69b84ac46
+    - path: R/paintr-ids.R
+      sha256: 0472cee9ebe1
+    - path: R/paintr-shared-ui.R
+      sha256: 351ea5548c51
+    - path: R/paintr-substitute.R
+      sha256: 2044b93e1dd1
+    - path: R/paintr-builtins.R
+      sha256: 4aa792f07b79
+    - path: R/paintr-app.R
+      sha256: f1ed97f2dd3c
+    - path: R/paintr-shared-coordinator.R
+      sha256: 3a034569d75f
+    - path: R/paintr-input-spec.R
+      sha256: 9f1bf20261c0
+    - path: R/paintr-headless.R
+      sha256: e04cad3dc763
+    - path: vignettes/ggpaintr-customization.Rmd
+      sha256: 6ce0526243c0
+    - path: CONTEXT.md
+      sha256: e4d8aeb60846
+  audited_at: 2026-05-26 17:27
+  auditor:
+    agent: general-purpose
+    model: opus
+    effort: high
+</pre>
+</details>
+
+</body>
+</html>

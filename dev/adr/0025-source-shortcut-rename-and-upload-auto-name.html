@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0025 — Source shortcut rename + upload auto-name + mutex-with-autoclear</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0025 — Source shortcut rename + upload auto-name + mutex-with-autoclear</h1>
+
+<p><strong>Status:</strong> <em>Proposed.</em> Drafted 2026-05-26 from a <code>/grill-with-docs</code> session on branch <code>shared-id-upgrade</code>. Awaits implementation.</p>
+
+<p><strong>Date:</strong> 2026-05-26</p>
+
+<p><strong>Relates to:</strong> <a href="0024-source-companion-data-loading-entry-point.html">ADR-0024</a> (promoted the companion from <em>name override</em> to <em>data-loading entry point</em>; this ADR completes that direction by renaming the surface and resolving the residual dual-role failure modes), <a href="0010-ppupload-name-default-arg.html">ADR-0010</a> (<code>ppUpload(name)</code> positional arg form; preserved here as <em>formula-shorthand for shortcut-textbox seed</em>), <a href="0023-panel-owned-shared-sources-end-to-end.html">ADR-0023</a> (panel-owned source binding via the coordinator's eval_env; the namespacing rule below extends to <code>obj$id</code>-prefixed auto-names), <a href="0015-consumer-picker-source-headed-resolution.html">ADR-0015</a> (assign-before-signal invariant via <code>bind_source_value</code>; preserved unchanged), <a href="0006-single-server-entry-l3-ui-only.html">ADR-0006</a> (single public server entry; this ADR adds no new public server surface).</p>
+
+<p><strong>Supersedes:</strong> ADR-0024's <em>Scope cuts</em> bullets on F1 (companion-name binding sticky across an upload-clear) and on the dual-role conflict more broadly. ADR-0024 explicitly deferred those — this ADR resolves them by retiring the dual role rather than reconciling it.</p>
+
+<h2>Context</h2>
+
+<p>ADR 0024 promoted the source companion <code>textInput</code> (rendered beside <code>ppUpload</code>'s <code>fileInput</code>) from <em>name override for an uploaded frame</em> to <em>data-loading entry point</em>. The promotion was a semantic widening of an already-keyword-agnostic mechanism: removing the <code>is.null(node$default)</code> guard at <code>R/paintr-server.R:964</code> (<code>try_bind_source_default</code>) and <code>R/paintr-server.R:1110</code> (<code>try_bind_source_default_resolved</code>) let a typed companion name bind a frame from <code>state$eval_env</code>'s parent chain even without a <code>default=</code> on the source node.</p>
+
+<p>Three failure modes survived the promotion, each empirically demonstrable (catalogued in <code>dev/notes/placeholder-role-coverage2.html</code> FINDING #8 follow-up):</p>
+
+<ul>
+  <li><strong>F1 — Sticky-after-clear.</strong> A successful upload writes <code>assign(name, df, envir = state$eval_env)</code>. Once the textbox is cleared (user deletion, or programmatic clear), the eval_env binding lingers because no path actively <code>rm()</code>s it; <code>state$bound_names[[key]]</code> stays non-NULL; downstream consumers keep reading the stale frame.</li>
+  <li><strong>F2 — Code/plot mismatch.</strong> The user uploads <code>penguins.csv</code> but typed <code>"mtcars"</code> into the companion textInput → plot draws penguins (from the upload), code panel reads <code>mtcars |&gt; ggplot(...)</code> (from the companion's name-override semantics). Two source-of-truth values for "what is this slot's data."</li>
+  <li><strong>F3 — Eval-env pollution.</strong> Upload binds under a typed name that previously resolved to a different env-resident frame; the upload silently overwrites it inside <code>state$eval_env</code>. Same root cause as F1+F2 (uploads and the entry-point lookup share <code>state$eval_env</code> without provenance tracking).</li>
+</ul>
+
+<p>F1, F2, F3 all share the same root: the companion textbox has <em>two</em> jobs — name override (for uploads) and env shortcut (for non-upload binds). Reconciling the two via origin tracking is possible but heavy; retiring one of the two is lighter. This ADR retires the <em>name override</em> role and keeps the <em>env shortcut</em> role, then derives the cascade of consequences (rename, auto-name generation for uploads, mutex between file and textbox, code-panel prologue, spec round-trip, vacate-on-empty).</p>
+
+<h2>Decision</h2>
+
+<h3>1. Rename: <code>companion_id_fn</code> → <code>shortcut</code> (boolean); <code>node$companion_id</code> → <code>node$shortcut_id</code></h3>
+
+<p>The public registry parameter on <code>ptr_define_placeholder_source()</code> changes from <code>companion_id_fn = function(id) -&gt; string</code> (NULL default) to <code>shortcut = FALSE</code> (boolean default). Authors who want their custom source to opt in to env-shortcut behavior set <code>shortcut = TRUE</code> <em>and</em> render a <code>shiny::textInput(inputId = node$shortcut_id, ...)</code> inside their <code>build_ui</code>. Authors who don't opt in get a source that works like today's <code>fileInput</code> — no textbox, no env-shortcut path. The built-in <code>ppUpload</code> registers with <code>shortcut = TRUE</code> (preserves its current textbox).</p>
+
+<p><strong>Default-FALSE rationale</strong> (overrides initial inclination to default TRUE): <em>auto-wrap</em> at the framework level would force every custom source to carry a textbox the author may not want; <em>author-emit</em> at default-TRUE creates a silent-breakage trap (forget the line → textbox absent → no binding, no error). Default-FALSE makes opt-in explicit on both sides: the registry knob declares intent, and the <code>build_ui</code> realizes it.</p>
+
+<p>The derivation rule for the id field on the node:</p>
+
+<pre><code># R/paintr-ids.R::assign_id_to_placeholder
+if (is_ptr_ph_data_source(node)) {
+  entry &lt;- ptr_registry_lookup(node$keyword)
+  if (isTRUE(entry$shortcut)) {
+    node$shortcut_id &lt;- paste0(node$id, "_shortcut")
+  }
+}
+</code></pre>
+
+<p>The <code>"_shortcut"</code> suffix replaces today's <code>"_name"</code>. Naming is consistent across the field, the suffix, and the public arg.</p>
+
+<p><strong>Reserved-name validator.</strong> The id derivation collides with another <code>node$id</code> only if some node's id ends literally in <code>_shortcut</code>. By id format <code>&lt;layer&gt;_&lt;path&gt;_&lt;keyword&gt;_&lt;shared-or-NA&gt;</code> (R/paintr-ids.R:42), this requires a user-supplied shared key of <code>"shortcut"</code>. Translate-time validator rejects this with a clear error: <code>"Shared key 'shortcut' is reserved by the source-shortcut id derivation. Pick a different shared key."</code></p>
+
+<p><strong>Hard rename</strong>, no <code>lifecycle::deprecate_warn()</code>. Package is 0.9.2, pre-1.0; ADR 0006 set the precedent (<code>ptr_module_*</code> → <code>ptr_*</code>, hard); the only in-tree consumer is <code>ppUpload</code>; no third-party callers identified. <code>companion_id_fn</code> arg is removed; <code>node$companion_id</code> field is removed; both internal call sites (<code>R/paintr-ids.R:49-50</code>, <code>R/paintr-shared-ui.R:478-479</code>) and the substitute walker (<code>R/paintr-substitute.R:181-184</code>) update to the new names.</p>
+
+<h3>2. UI-level mutex with soft-lock + auto-clear (Q3-B from grill)</h3>
+
+<p>The shortcut textbox and the fileInput are mutually exclusive: filling one auto-clears the other. There is no hard-greyed state — the act of using one cancels the other.</p>
+
+<ul>
+  <li><strong>User types in the shortcut textbox</strong> ⇒ framework calls <code>shiny::reset</code> (or equivalent) on the sibling fileInput.</li>
+  <li><strong>User picks a file</strong> ⇒ framework calls <code>updateTextInput(value = "")</code> on the sibling shortcut textbox.</li>
+  <li><strong>Boot-time exception:</strong> <code>ppUpload(penguins)</code> (ADR 0010) seeds the shortcut textbox with <code>"penguins"</code> at boot. That boot seed does <strong>not</strong> count as a "first interaction" — the fileInput remains live; picking a file silently wipes the seeded textbox under the normal auto-clear rule.</li>
+</ul>
+
+<p><strong>Rationale.</strong> The two affordances feed the same source slot; without mutex, every resolution path must arbitrate precedence and every test must specify which input wins. The mutex collapses the matrix to "whichever was last touched is the live one." F1/F2 collision modes by construction cannot arise in this UI.</p>
+
+<h3>3. Auto-name for uploads = <code>node$id</code> (non-shared) / <code>&lt;canonical&gt;</code> (shared) / <code>node$default</code> (explicit)</h3>
+
+<p>When a file is uploaded and the shortcut textbox is empty, the upload's frame binds into <code>state$eval_env</code> under a system-generated symbol. The symbol is derived deterministically from the existing <code>node$id</code> infrastructure:</p>
+
+<table style="border-collapse:collapse; width:100%; margin:.3rem 0 .9rem;">
+  <tr style="background:#f0f0f4;">
+    <th style="border:1px solid #ccd; padding:.3rem .55rem; text-align:left;">Source shape</th>
+    <th style="border:1px solid #ccd; padding:.3rem .55rem; text-align:left;">Auto-name (the symbol in eval_env)</th>
+    <th style="border:1px solid #ccd; padding:.3rem .55rem; text-align:left;">Lives in</th>
+  </tr>
+  <tr>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;"><code>ppUpload(shared='ds_a')</code> with <code>obj$id = NULL</code></td>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;"><code>ds_a</code></td>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;">coordinator eval_env (panel) or owning instance eval_env (section)</td>
+  </tr>
+  <tr>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;"><code>ppUpload(shared='ds_a')</code> with <code>obj$id = "main"</code></td>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;"><code>main_ds_a</code></td>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;">coordinator eval_env (panel) or owning instance eval_env (section)</td>
+  </tr>
+  <tr>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;"><code>ppUpload()</code> non-shared, no explicit name</td>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;"><code>node$id</code> (e.g. <code>ggplot_1_0_ppUpload_NA</code>)</td>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;">owning instance eval_env</td>
+  </tr>
+  <tr>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;"><code>ppUpload(penguins)</code> (ADR 0010)</td>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;"><code>penguins</code> (the <code>node$default</code> verbatim)</td>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;">owning instance eval_env</td>
+  </tr>
+</table>
+
+<p><strong>Uniqueness analysis.</strong> Verified against existing infrastructure:</p>
+
+<ul>
+  <li>Each per-instance <code>state$eval_env</code> is its own scope (created at <code>R/paintr-server.R:222</code> as <code>new.env(parent = envir)</code>; passed in via <code>R/paintr-app.R:331, 1209</code>). Two formulas in <code>ptr_app_grid</code> cannot collide because they have separate eval_envs.</li>
+  <li>Each coordinator's eval_env is its own scope (<code>R/paintr-shared-ui.R:534 eval_env &lt;- new.env(parent = envir)</code>). Two <code>ptr_shared(...)</code> calls on one page produce two coordinators; same canonical in each lands in distinct eval_envs.</li>
+  <li>Per-instance eval_envs extend a coordinator's eval_env via parent chain (ADR 0023). Cross-coordinator lookup isn't a thing — each instance binds to exactly one coordinator via <code>shared = obj</code>.</li>
+  <li>Within one coordinator, canonicals are unique by construction.</li>
+  <li>Within one formula's tree, <code>node$id</code> is unique by <code>assign_id_to_placeholder</code> (<code>R/paintr-ids.R:42</code>).</li>
+</ul>
+
+<p>Together: every auto-name is unique within its eval_env. No counter, no reserved-namespace beyond the <code>shortcut</code> validator above.</p>
+
+<p><strong>Symbol-flip on upload is accepted.</strong> Under <code>ppUpload(penguins)</code> (ADR 0010 form), the slot boots with textbox seeded <code>"penguins"</code> and binds caller-env <code>penguins</code> via env shortcut. If the user uploads a file, Q3-B's auto-clear empties the textbox, and the upload binds under the system auto-name (<code>node$id</code>, e.g. <code>ggplot_1_0_ppUpload_NA</code>). The code panel symbol flips from <code>penguins</code> to <code>node$id</code>. This is acceptable because the prologue line (Decision §4) makes the new symbol legible at a glance: <code>ggplot_1_0_ppUpload_NA &lt;- read.csv("uploaded.csv")</code>. One mechanism (textbox seed → eval_env name); no special "reserved auto-name" sub-mechanism.</p>
+
+<h3>4. Code-panel prologue with original filename + reader-fn-mirror</h3>
+
+<p>For every active upload-bound source, the code panel renders a prologue line above the formula:</p>
+
+<pre><code>upload_data1 &lt;- read.csv("penguins.csv")  # uploaded as: penguins.csv
+upload_data1 |&gt; ggplot(aes(x = mpg)) + geom_point()
+</code></pre>
+
+<p>The prologue is <strong>aspirational</strong>, not honest-to-the-byte: ggpaintr read the file from a tempfile, not from <code>"penguins.csv"</code> in the user's cwd. The user is responsible for reproducing the binding themselves (running the prologue in their own R session before running ggpaintr with the spec). This contract is the same as ADR 0010's <code>ppUpload(penguins)</code> — reproducibility-by-precondition, not reproducibility-by-self-contained-snippet.</p>
+
+<p>The reader function in the prologue mirrors ggpaintr's actual choice based on file extension (<code>read.csv</code> for csv, <code>readxl::read_excel</code> for xlsx, etc.). Custom sources defined via <code>ptr_define_placeholder_source</code> can supply their own prologue line via a registry hook (deferred — current scope is built-in <code>ppUpload</code> only).</p>
+
+<h3>5. Eval_env contract preserved (minimum-change path)</h3>
+
+<p>Uploads bind into the existing <code>state$eval_env</code> via the existing <code>bind_source_value</code> writer (R/paintr-server.R:884-890), under the auto-name from Decision §3. The load-bearing comment at R/paintr-server.R:872-883 (assign-before-signal invariant) stays intact. No parallel <code>state$upload_payload</code>, no fresh child env, no dispatch fork. The substitute walker (<code>R/paintr-substitute.R:179-213</code>) reads <code>ctx$snapshot[[node$shortcut_id]]</code> first; on empty, falls back to <code>node$auto_name</code> (a new field stamped at translate time alongside <code>node$id</code>).</p>
+
+<p>This is the minimum-change path verified against the source — every other candidate (parallel upload slot, child env) reintroduced the eval_env binding under a different name eventually, adding cost without paying it back.</p>
+
+<h3>6. Spec round-trip captures the auto-name</h3>
+
+<p><code>ptr_runtime_input_spec()</code> dumps <code>input[[shortcut_id]]</code> values into <code>spec[[shortcut_id]]</code> as today. When the textbox is empty but <code>state$bound_names[[key]]()</code> holds an upload-derived name, the dump falls back to the bound name:</p>
+
+<pre><code># R/paintr-input-spec.R, source-placeholder branch with `shortcut = TRUE`
+val &lt;- input[[shortcut_id]] %||% ""
+if (!nzchar(val)) {
+  bound &lt;- state$bound_names[[key]]()
+  if (!is.null(bound)) val &lt;- bound
+}
+spec[[shortcut_id]] &lt;- val
+</code></pre>
+
+<p>Reproducing a session = the consumer runs <code>&lt;auto-name&gt; &lt;- read.csv("...")</code> in their R session, then <code>ptr_app(formula, spec = list(...))</code>. The spec seeds the textbox at boot with the auto-name; resolution finds <code>&lt;auto-name&gt;</code> via env shortcut. Equivalent to running <code>ppUpload(&lt;auto-name&gt;)</code> as the formula — the spec is the bridge between live upload state and reproducible env-resident state.</p>
+
+<h3>7. Vacate-on-empty + debounce (Q13 A1 + A2)</h3>
+
+<p><strong>A1.</strong> When <code>resolve_upload_source</code> falls through to <code>slot(NULL)</code> without binding (file_info NULL and <code>try_bind_source_default_resolved</code> returned FALSE), actively vacate the slot:</p>
+
+<pre><code># R/paintr-server.R::resolve_upload_source, no-file branch
+prior_name &lt;- shiny::isolate(state$bound_names[[key]]())
+if (!is.null(prior_name) &amp;&amp;
+    exists(prior_name, envir = state$eval_env, inherits = FALSE)) {
+  rm(list = prior_name, envir = state$eval_env)
+}
+state$bound_names[[key]](NULL)
+slot(NULL)
+</code></pre>
+
+<p>Without A1, the textbox-deletion sequence (upload → type → delete text) leaves <code>state$bound_names[[key]]</code> stale; consumer pickers stay populated with stale columns; <code>ptr_runtime_input_spec()</code> dumps the stale name. The plot widget itself preserves last-good on req-failure (independent of A1) — A1 fixes the system-state surfaces, not the plot's carry-over behavior.</p>
+
+<p><strong>A2.</strong> Debounce the shortcut textbox input read with a 300-500ms window (recommend 400ms) so intermediate keystrokes don't trigger env manipulation:</p>
+
+<pre><code># at the observer's input-read site
+shortcut_val &lt;- shiny::reactive(input[[shortcut_id]]) %&gt;% shiny::debounce(400)
+</code></pre>
+
+<p>Eliminates the "Object 'm' not found / Object 'mt' not found / ..." error-pane flicker as the user types a name; reduces <code>rm</code>/<code>assign</code> churn from one-per-keystroke to one-per-decision.</p>
+
+<h3>8. ADR 0010 reinterpretation (no superseding)</h3>
+
+<p><code>ppUpload(penguins)</code> remains valid; ADR 0010's stated user-facing semantics ("default-but-overridable, with a meaningful display name") are preserved, but the <em>mechanism</em> is reinterpreted: under this ADR, <code>ppUpload(penguins)</code> is formula-shorthand for "seed the shortcut textbox with <code>'penguins'</code> at boot." There is no separate name-reservation mechanism; the textbox seed is the only handle. Post-upload (auto-clear), the slot's binding name is the system auto-name (<code>node$id</code>), not <code>penguins</code> — accepted per Decision §3.</p>
+
+<p>ADR 0010's <code>node$default</code> storage shape (single character scalar) is unchanged. Substitute walker behaviour for <code>ppUpload(penguins)</code> outside <code>ptr_app</code> (identity returning the value of <code>penguins</code> from the caller env) is unchanged.</p>
+
+<h2>Scope cuts</h2>
+
+<ul>
+  <li><strong>Vignette updates deferred.</strong> <code>vignettes/ggpaintr-customization.Rmd:297, 502</code> reference <code>node$companion_id</code> and <code>companion_id_fn</code>. Update bundled with the implementation, not pre-emptively in this ADR.</li>
+  <li><strong>NEWS.md entry deferred</strong> to the implementation PR.</li>
+  <li><strong>CONTEXT.md amendment owed.</strong> Lines 48 (<em>"exactly one per page"</em> for shared panel) and 132 (dialogue reinforcing same) contradict the source code at <code>R/paintr-shared-coordinator.R:220-234, 292</code> (which accepts <code>id</code> and namespaces every shared id). The contradiction predates this ADR; this ADR's auto-name namespacing rule (<code>obj$id</code>-prefixed shared canonicals) depends on multi-panel support being part of the documented surface. Amend CONTEXT.md in the same PR that implements this ADR.</li>
+  <li><strong>Custom-source prologue hook deferred.</strong> Decision §4 mirrors the reader fn for built-in <code>ppUpload</code> only. A registry-level <code>prologue_emit_fn(node, snapshot) -&gt; string</code> for third-party source types can land alongside the first such source.</li>
+  <li><strong>No origin tracking.</strong> The handoff's old Option B (tag eval_env bindings with provenance) is rejected — Q3-B's mutex collapsed the "both file and shortcut active" case that origin tracking would have arbitrated. A1's vacate-on-empty handles the remaining staleness sources.</li>
+  <li><strong>No "clear file" UI button.</strong> Vanilla Shiny's <code>fileInput</code> has no clear affordance and this ADR doesn't add one. Programmatic clear (via Q3-B auto-clear or spec replay) is the only way file_info goes from non-NULL to NULL.</li>
+</ul>
+
+<h2>Consequences</h2>
+
+<h3>Positive</h3>
+
+<ul>
+  <li><strong>F1, F2, F3 retired by construction.</strong> F2 is dead because the textbox no longer overrides upload names. F3 is dead because uploads bind under system auto-names that cannot collide with user-typed shortcut names. F1's user-reachable surface (textbox-deletion-after-bind) is fixed by A1.</li>
+  <li><strong>One mechanism, no special-cases.</strong> The textbox seed is the only handle on the source's binding name — whether typed by the user, set by <code>ppUpload(name)</code>, applied via <code>spec=</code>, or fallen back to the system auto-name on upload.</li>
+  <li><strong>Audience separation honoured.</strong> Group 1 (formula-authoring R users) lives in the textbox + env shortcut + <code>ppUpload(name)</code> path. Group 3 (non-R-using deployed-app consumers with their own data) lives in the fileInput + auto-name path. Mutex prevents either from accidentally invoking the other's mechanism.</li>
+  <li><strong>Spec round-trip is meaningful for both groups.</strong> Group 3 can export spec from a session and hand it to a Group 1 user, who runs the prologue + <code>ptr_app(formula, spec=)</code> and reproduces the session exactly.</li>
+  <li><strong>Minimum implementation surface.</strong> No new state slots; no parallel resolution pipeline; no novel env layer; uses existing <code>bind_source_value</code> / <code>bound_names</code> / <code>eval_env</code> contracts unchanged. Estimated ≤150 LOC across <code>R/paintr-server.R</code>, <code>R/paintr-ids.R</code>, <code>R/paintr-substitute.R</code>, <code>R/paintr-registry.R</code>, <code>R/paintr-builtins.R</code>, <code>R/paintr-input-spec.R</code>.</li>
+</ul>
+
+<h3>Risks &amp; mitigations</h3>
+
+<ul>
+  <li><strong>Hard rename breaks third-party callers of <code>companion_id_fn</code>.</strong> No such callers are known. Mitigation: clear NEWS.md entry in the implementation PR; the only in-tree caller is the built-in <code>ppUpload</code> which moves to <code>shortcut = TRUE</code>.</li>
+  <li><strong>Code-panel symbol flip on upload surprises users.</strong> Mitigated by the prologue line making the system auto-name legible at a glance. Recovery is one rename (the user adds <code>ppUpload(my_name)</code> to the formula or types <code>my_name</code> into the textbox).</li>
+  <li><strong>Debounce window choice (400ms) may feel sluggish to fast typists or laggy on slow workstations.</strong> Mitigation: document the window; consider making it configurable via a package option (<code>options(ggpaintr.shortcut_debounce = 400)</code>) if real-world feedback warrants.</li>
+  <li><strong>A1's <code>rm()</code> from eval_env interacts with caller-env shadowing.</strong> <code>rm()</code> removes only the local binding in <code>state$eval_env</code>; caller-env bindings reached via <code>inherits = TRUE</code> are untouched. This is the intended scope — A1 vacates only what ggpaintr itself put there.</li>
+  <li><strong>Reserved-name validator may surprise embedders using <code>shared = 'shortcut'</code>.</strong> Mitigation: clear translate-time error message names the conflict and suggests renaming the shared key.</li>
+  <li><strong>Multi-panel scenario is now load-bearing on the auto-name design.</strong> If the project decides to roll back multi-panel support (<code>obj$id</code>), the shared-key auto-name collision protection it provides disappears. Cross-ref this ADR before any such rollback.</li>
+</ul>
+
+<h2>Worked examples — what becomes possible</h2>
+
+<h3>Example 1 — Custom source opts in to env-shortcut</h3>
+
+<p>A third-party author defines a custom source that loads frames from the embedder's environment via a typed name. With <code>shortcut = TRUE</code>, the registry stamps <code>node$shortcut_id</code>; the author renders a <code>textInput</code> bound to it inside their <code>build_ui</code>.</p>
+
+<pre><code class="language-r">ptr_define_placeholder_source(
+  keyword       = "ppDataset",
+  role          = "source",
+  shortcut      = TRUE,
+  build_ui      = function(node, label = NULL, ...) {
+    shiny::tagList(
+      shiny::selectInput(node$id, label %||% "Dataset", choices = c("", "demo_a", "demo_b")),
+      shiny::textInput(node$shortcut_id, "Or type env frame:", value = "")
+    )
+  },
+  resolve_data  = function(value, node) get(value, envir = parent.frame()),
+  resolve_expr  = function(value, node) rlang::sym(value)
+)
+
+ptr_app("ppDataset() |> ggplot(aes(x = ppVar('col'))) + geom_bar()")
+# user types "mtcars" in the shortcut textbox -> binds caller-env mtcars,
+# ppVar picker populates with names(mtcars), plot draws.
+</code></pre>
+
+<h3>Example 2 — Multi-panel app with same shared canonical, no collision</h3>
+
+<p>Two coordinators on one page each declare a shared key <code>ds</code>; the <code>obj$id</code> prefix prevents the auto-name binding from colliding in either coordinator's eval_env or in the rendered code panels.</p>
+
+<pre><code class="language-r">obj_left  &lt;- ptr_shared(list(f1_left,  f2_left),  id = "left")
+obj_right &lt;- ptr_shared(list(f1_right, f2_right), id = "right")
+
+# Both f1_left and f1_right contain `ppUpload(shared = 'ds') |&gt; ggplot(...)`.
+# When the user uploads to each panel's shortcut, state$eval_env binds the
+# left frame under symbol `left_ds` and the right frame under symbol
+# `right_ds`. Code panels read distinct symbols; no collision.
+</code></pre>
+
+<h3>Example 3 — Spec round-trip reproduces an uploaded-data session</h3>
+
+<p>A Group-3 user uploads a file in a deployed app and exports the spec. A Group-1 user runs the prologue locally and reloads the spec; the textbox seed bridges the upload-only session to an env-resident reproduction.</p>
+
+<pre><code class="language-r"># Original (Group 3) session: user uploaded penguins.csv.
+# ptr_runtime_input_spec() dumps:
+spec &lt;- list(`ggplot_1_0_ppUpload_NA_shortcut` = "ggplot_1_0_ppUpload_NA")
+
+# Reproducer (Group 1) prepares caller env, then reloads:
+ggplot_1_0_ppUpload_NA &lt;- read.csv("penguins.csv")
+ptr_app(
+  "ppUpload() |&gt; ggplot(aes(x = ppVar('species'))) + geom_bar()",
+  spec = spec
+)
+# Boot: shortcut textbox seeded with "ggplot_1_0_ppUpload_NA"; env shortcut
+# resolves the caller-env frame; plot identical to original session.
+</code></pre>
+
+<h2>Worked examples — what is rejected by design</h2>
+
+<h3>Example 4 — Shared key <code>'shortcut'</code> rejected at translate time</h3>
+
+<p>The reserved-name validator surfaces a translate-time error rather than letting the user discover a silent <code>shortcut_id</code> collision at runtime.</p>
+
+<pre><code class="language-r">ptr_app("ppUpload(shared = 'shortcut') |&gt; ggplot(aes(x = ppVar)) + geom_bar()")
+# Error: Shared key 'shortcut' is reserved by the source-shortcut id
+#   derivation. Pick a different shared key.
+</code></pre>
+
+<h3>Example 5 — Concurrent upload + typed-text is structurally impossible</h3>
+
+<p>The Q3-B mutex makes the two affordances mutually exclusive at the UI level. Picking a file auto-clears the textbox; typing in the textbox auto-clears the file. There is no UI state with both active simultaneously, so the F2-shape code/plot mismatch cannot be expressed.</p>
+
+<pre><code class="language-r"># Scenario the design rejects:
+# (1) user uploads penguins.csv
+# (2) user types "mtcars" in the shortcut textbox
+# Without Q3-B: plot would draw penguins (from upload) while code panel
+# reads `mtcars |&gt; ggplot(...)` (F2 mismatch).
+# With Q3-B: step (2) calls shiny::reset on the fileInput; the upload's
+# file pill disappears. Only "mtcars" remains active. Plot draws mtcars;
+# code panel reads `mtcars |&gt; ggplot(...)`. No mismatch reachable.
+</code></pre>
+
+<h3>Example 6 — Custom source with <code>shortcut = TRUE</code> but no <code>textInput(node$shortcut_id)</code> in <code>build_ui</code></h3>
+
+<p>The registry stamps <code>node$shortcut_id</code> but the author's <code>build_ui</code> never binds an input at that id. No textbox renders; the env-shortcut path has no input to read. This is an <em>author trap</em>, not a translate-time error — the contract is "opt in on both sides" and silent breakage when one side opts out is the documented consequence of default-FALSE-author-emit (versus the rejected auto-wrap option).</p>
+
+<pre><code class="language-r">ptr_define_placeholder_source(
+  keyword  = "ppBroken",
+  role     = "source",
+  shortcut = TRUE,
+  build_ui = function(node, label = NULL, ...) {
+    # Author forgot to render shiny::textInput(node$shortcut_id, ...)
+    shiny::selectInput(node$id, label %||% "Source", choices = c("", "a", "b"))
+  },
+  resolve_data = function(value, node) NULL,
+  resolve_expr = function(value, node) rlang::sym(value)
+)
+# Boot: no shortcut textbox in the UI. User cannot type an env frame name.
+# The env-shortcut behavior advertised by `shortcut = TRUE` is unreachable.
+# No error; the source acts like `shortcut = FALSE` from the user's perspective.
+</code></pre>
+
+<h2>Definition of Done</h2>
+
+<p>Authoritative gate (per <code>CLAUDE.md</code>):</p>
+
+<pre><code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code></pre>
+
+<p>Expected: <strong>FAIL 0 / WARN 0 / SKIP 0 / PASS &ge; 3093 + new cases</strong>. Current baseline (ADR 0024 commit) is 3093.</p>
+
+<p>BDD coverage (new test cases needed):</p>
+
+<pre><code>Feature: Source shortcut as data-loading entry point (post-rename)
+
+  Scenario: shortcut = FALSE custom source renders no textbox
+    Given a custom source defined via ptr_define_placeholder_source(..., shortcut = FALSE)
+     When ptr_app boots the source
+     Then no textbox is rendered for the source
+      And node$shortcut_id is NULL
+
+  Scenario: shortcut = TRUE custom source's build_ui receives node$shortcut_id
+    Given a custom source defined via ptr_define_placeholder_source(..., shortcut = TRUE)
+      And the build_ui renders shiny::textInput(inputId = node$shortcut_id, ...)
+     When ptr_app boots the source
+     Then a textbox is rendered with id matching node$shortcut_id
+      And typing a valid env name resolves the env-resident frame
+
+  Scenario: shared key 'shortcut' is rejected by translate-time validator
+    Given a formula `ppUpload(shared='shortcut') |> ggplot(...)`
+     When ptr_app translates the formula
+     Then a translate-time error names the reserved-namespace conflict
+
+  Scenario: upload binds under node$id auto-name when textbox is empty
+    Given an app with `ppUpload() |> ggplot(aes(x = ppVar('col'))) + geom_bar()`
+     When the user uploads a file (no text in shortcut textbox)
+     Then state$eval_env binds the frame under node$id
+      And the code panel reads `&lt;node$id&gt; |> ggplot(...)`
+      And the prologue line reads `&lt;node$id&gt; &lt;- read.csv("&lt;filename&gt;")`
+
+  Scenario: shared upload binds under canonical with obj$id prefix
+    Given an app with `ppUpload(shared='ds') |> ggplot(...)` in a coordinator built with id = "main"
+     When the user uploads a file
+     Then state$eval_env binds the frame under "main_ds"
+      And the code panel reads `main_ds |> ggplot(...)`
+
+  Scenario: mutex auto-clears file when textbox typed
+    Given an upload has been made
+     When the user types "mtcars" in the shortcut textbox
+     Then the fileInput is cleared
+      And state$eval_env binds caller-env mtcars
+
+  Scenario: textbox-deletion vacates the slot (A1)
+    Given an upload has been made (state$bound_names[[key]] is non-NULL)
+     When the user clears the shortcut textbox to empty
+     Then state$bound_names[[key]] becomes NULL
+      And the prior eval_env binding is rm()'d
+      And ptr_runtime_input_spec dumps "" for the shortcut id
+
+  Scenario: spec round-trip via auto-name
+    Given a session ended with state$bound_names[[key]] = "ggplot_1_0_ppUpload_NA"
+      And ptr_runtime_input_spec() was called to dump the spec
+     When the user runs `ggplot_1_0_ppUpload_NA &lt;- read.csv("...")` then `ptr_app(formula, spec = spec)`
+     Then the shortcut textbox boots seeded with "ggplot_1_0_ppUpload_NA"
+      And the env shortcut resolves the caller-env frame
+      And the plot renders identically to the original session
+
+  Scenario: ppUpload(penguins) seeds the textbox; upload flips the symbol
+    Given an app with `ppUpload(penguins) |> ggplot(...)`
+      And `penguins` is in caller env
+     When the app boots
+     Then the shortcut textbox shows "penguins"
+      And the code panel reads `penguins |> ggplot(...)`
+     When the user uploads a file
+     Then the shortcut textbox auto-clears
+      And state$eval_env binds the upload under node$id
+      And the code panel reads `&lt;node$id&gt; |> ggplot(...)`
+
+  Scenario: keystroke debounce suppresses intermediate errors (A2)
+    Given the user starts typing "mtcars" in the shortcut textbox
+     When 6 keystrokes arrive within 400ms
+     Then no resolve work runs during the burst
+      And exactly one resolve attempt fires 400ms after the last keystroke
+      And the error pane shows zero "Object 'm' not found" messages
+</code></pre>
+
+<p>Proxy traps (per <code>CLAUDE.md</code> authoritative-gate block):</p>
+<ul>
+  <li>Raw <code>test_file</code> / <code>test_dir</code> without <code>NOT_CRAN=true</code> ⇒ <code>skip_on_cran()</code> fires inside <code>boot_vignette_app()</code> ⇒ new shinytest2 cases SKIP. SKIP &gt; 0 is NOT the gate.</li>
+  <li><code>devtools::check()</code> runs with <code>NOT_CRAN=true</code> but uses the <code>.Rcheck</code> sandbox; source-root guard cleanly SKIPs the e2e file in that environment. Clean SKIP under check is expected; ERROR is not.</li>
+</ul>
+
+<!-- audit-adr: PASS 563a61513b7d dev/audit/audit-adr-0025-2026-05-26-1727.html 2026-05-26 -->
+</body>
+</html>
