@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>audit-adr — ADR 0023 — PASS — 2026-05-26 00:28</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+<h1>audit-adr — ADR 0023 panel-owned-shared-sources-end-to-end</h1>
+<p class="meta">Target: <code>dev/adr/0023-panel-owned-shared-sources-end-to-end.html</code> · Verdict: <strong>PASS</strong> · Audited: 2026-05-26 00:28 · Auditor: general-purpose/opus/high</p>
+
+<h2>Verdict</h2>
+<p><strong>PASS.</strong> Both prior findings (positional-arg slips in <code>ptr_ui</code> / <code>ptr_server</code> worked-example calls) have been resolved by the patch: every worked-example invocation now passes <code>formula</code> in the first positional slot — <code>ptr_ui(panel$formulas[[i]], "pN")</code> and <code>ptr_server(panel$formulas[[i]], "pN", shared_state = s)</code> — matching the actual signatures at <code>R/paintr-app.R:844</code> and <code>R/paintr-app.R:1075</code>. The <code>panel$formulas</code> field exists at <code>R/paintr-shared-coordinator.R:171</code>, so the example pattern is grounded in real public surface. Worked-examples structural check holds (7 positive + 5 rejected, each with summary + code block). All other baseline claims (symbols, line citations, bundle fields, state fields) verified clean — same body of evidence as the prior FAIL audit, less the two slips.</p>
+
+<h2>Verified claims</h2>
+
+<table>
+  <thead><tr><th>Category</th><th>Claim</th><th>Evidence</th></tr></thead>
+  <tbody>
+    <tr><td>signature</td><td><code>ptr_ui(formula, id = NULL, …)</code> — every ADR call now passes formula first</td><td>R/paintr-app.R:844</td></tr>
+    <tr><td>signature</td><td><code>ptr_server(formula, id = NULL, …)</code> — every ADR call now passes formula first</td><td>R/paintr-app.R:1075</td></tr>
+    <tr><td>field</td><td><code>panel$formulas</code> on <code>ptr_shared_spec</code></td><td>R/paintr-shared-coordinator.R:171</td></tr>
+    <tr><td>symbol</td><td><code>ptr_init_state()</code></td><td>R/paintr-server.R:84 (called from <code>ptr_server</code>)</td></tr>
+    <tr><td>symbol</td><td><code>ptr_setup_source_uis()</code></td><td>R/paintr-server.R:1666</td></tr>
+    <tr><td>symbol</td><td><code>ptr_setup_pipelines()</code> — per-source observer loop near line 1001</td><td>R/paintr-server.R:907 (def); 1004 (for-loop); 1014 (observe); 1021 (<code>try_bind_source_default()</code>)</td></tr>
+    <tr><td>symbol</td><td><code>ptr_bind_shared_consumer_uis()</code> with <code>state = NULL</code> default arg</td><td>R/paintr-server.R:1948</td></tr>
+    <tr><td>symbol</td><td><code>ptr_bind_local_shared_consumers()</code> — called host-side with <code>state = NULL</code> (default)</td><td>R/paintr-server.R:2138 (def); R/paintr-shared-ui.R:305-311 (call, no <code>state =</code>)</td></tr>
+    <tr><td>symbol</td><td><code>validate_ptr_shared_state()</code></td><td>R/paintr-shared-ui.R:33</td></tr>
+    <tr><td>symbol</td><td><code>shared_panel_body_tag()</code> emits <code>uiOutput(shared_&lt;key&gt;_ui)</code> containers</td><td>R/paintr-shared-coordinator.R:195 (def); 311, 346 (call with <code>obj$panel_keys</code>)</td></tr>
+    <tr><td>symbol</td><td><code>try_bind_source_default()</code> (eyeball-play <code>a3d1636</code>)</td><td>R/paintr-server.R:874 (def); 937, 1021 (calls)</td></tr>
+    <tr><td>field</td><td><code>obj$panel_keys</code> on <code>ptr_shared_spec</code></td><td>R/paintr-shared-coordinator.R:19, 42, 47, 99, 109, 175, 194, 311, 346</td></tr>
+    <tr><td>fields</td><td><code>shared_state$shared</code>, <code>$shared_resolutions</code>, <code>$draw_trigger</code>, <code>$shared_stage_enabled</code></td><td>R/paintr-shared-ui.R:20-29 (constructor); 38, 50, 53, 57 (validator)</td></tr>
+    <tr><td>fields</td><td><code>state$resolved_data</code>, <code>$resolved_sources</code>, <code>$bound_names</code>, <code>$eval_env</code>, <code>$spec_seed</code></td><td>R/paintr-server.R:144, 172, 186, 221, 281</td></tr>
+    <tr><td>lines</td><td><code>R/paintr-server.R:166–170</code> is <code>pipeline_source_ids</code> logic (example 5)</td><td>exact read match</td></tr>
+    <tr><td>lines</td><td><code>R/paintr-server.R:588–590</code> apply_spec_at_boot eligibility + comment "<code>placeholder</code> rows (except ppUpload …) and <code>source_companion</code> rows" (example 7 / R3)</td><td>exact match</td></tr>
+    <tr><td>lines</td><td><code>R/paintr-server.R:574–575</code> same comment region</td><td>verified</td></tr>
+    <tr><td>lines</td><td><code>R/paintr-server.R:311–319</code> input-spec collector drops <code>source_companion</code> rows (R3)</td><td><code>setdiff(names(snapshot), companioned)</code> at 317</td></tr>
+    <tr><td>symbol</td><td><code>ptr_define_placeholder_source()</code> (example 6 — keyword/build_ui/resolve_data/companion_id_fn/default_arg)</td><td>R/paintr-registry.R:733</td></tr>
+    <tr><td>symbol</td><td><code>ptr_default_string()</code> (example 6)</td><td>R/paintr-default-args.R:217</td></tr>
+    <tr><td>symbol</td><td><code>ptr_shared(formulas, ...)</code> accepts character vector (examples)</td><td>R/paintr-shared-coordinator.R:111</td></tr>
+    <tr><td>symbol</td><td><code>ptr_shared_panel(obj, css = NULL)</code> (examples)</td><td>R/paintr-shared-coordinator.R:304</td></tr>
+    <tr><td>symbol</td><td><code>ptr_shared_server(obj, ..., draw_trigger = NULL)</code> (examples)</td><td>R/paintr-shared-ui.R:193-196</td></tr>
+    <tr><td>commit</td><td><code>d71893b</code> Cut 1 commit subject as quoted (line 16, 196)</td><td><code>git log d71893b -1</code></td></tr>
+    <tr><td>commit</td><td><code>a3d1636</code> eyeball-play commit subject as quoted (decision §2)</td><td><code>git log a3d1636 -1</code></td></tr>
+  </tbody>
+</table>
+
+<h2>Aspirational symbols recorded</h2>
+
+<ul>
+  <li><code>panel_sources</code> — Decision §1/§4/§5/§7, Consequences. New bundle field this ADR proposes (creation verb "gains"). Not flagged.</li>
+  <li><code>ptr_setup_panel_sources(obj, input, output, envir)</code> — Decision §2. New internal helper. Not flagged.</li>
+  <li><code>resolve_upload_source(input_slot, companion_slot, node, entry, envir)</code> — Decision §3, example 6 marginalia, Out of scope. New internal helper ("Extract them into an internal"). Not flagged.</li>
+  <li><code>s$panel_sources$shared_ds</code> — Worked examples 1, 4, R4. Aspirational use of the new bundle field.</li>
+  <li><code>shared_state = list(panel_sources = list(shared_ds = my_df))</code> — R4 manual-override path. Aspirational shape.</li>
+  <li><code>dots$panel_sources</code> lookup branch in <code>ptr_setup_pipelines()</code> — Decision §4 code block. Aspirational (proposed behaviour).</li>
+  <li><code>panel_sources</code> arg on <code>ptr_bind_shared_consumer_uis</code> / <code>ptr_bind_local_shared_consumers</code> — Decision §5 ("gains a <code>panel_sources</code> arg"). Aspirational.</li>
+  <li>Partition-aware skip <code>if (s$id %in% names(dots$panel_sources %||% list())) next</code> — Decision §7. Aspirational.</li>
+  <li>R1 parse-time abort error message text — Aspirational (specific wording can vary at implementation time).</li>
+  <li><code>ptr_shared_errors</code> slot — Decision §2 mid-bullet; tense leans aspirational ("Surfaces upload errors into …"). Borderline; not flagged.</li>
+</ul>
+
+<h2>Behavioral-claim evidence types</h2>
+
+<ul>
+  <li><strong>"<code>state</code> is created by <code>ptr_init_state()</code> inside <code>moduleServer()</code> per <code>ptr_server()</code> call"</strong> — evidence: source-read (R/paintr-server.R:84 def + R/paintr-server.R:781 call inside <code>ptr_server</code>).</li>
+  <li><strong><code>ptr_bind_local_shared_consumers</code> called at host scope with <code>state = NULL</code></strong> — evidence: source-read (R/paintr-shared-ui.R:305-311 host invocation, no <code>state =</code> passed).</li>
+  <li><strong>per-source observer near line 1001 already calls <code>try_bind_source_default()</code></strong> — evidence: source-read (R/paintr-server.R:1014-1024, call at 1021).</li>
+  <li><strong><code>apply_spec_at_boot()</code> skips ppUpload rows of role placeholder</strong> — evidence: source-read (R/paintr-server.R:588-590 write_seed predicate).</li>
+  <li><strong>input-spec collector drops source_companion rows</strong> — evidence: source-read (R/paintr-server.R:311-322).</li>
+  <li><strong><code>pipeline_source_ids</code> catches pipeline-head sources</strong> — evidence: source-read (R/paintr-server.R:166-170).</li>
+  <li><strong>"single-instance shared source works on this branch's HEAD already" (example 4)</strong> — evidence: inconclusive within this audit. No regression-test citation in the ADR; plausible given Cut 1's commit subject. Recommendation (not a finding): cite <code>tests/testthat/test-shared-source-rendering.R::"single-instance ppUpload(shared='ds') renders the fileInput at boot"</code> in the example 4 lead paragraph for a future stricter audit.</li>
+  <li><strong>"L1 grid path internally constructs <code>ptr_shared</code>/<code>ptr_shared_server</code> in the same shape" (Consequences / Out of scope L1)</strong> — evidence: inconclusive within this audit; not chased.</li>
+</ul>
+
+<h2>Worked-examples structural check</h2>
+
+<p><strong>VERDICT: complete.</strong> Both required <code>&lt;h2&gt;</code> headings present. 7 positive examples (§1–§7) + 5 rejected-by-design examples (R1–R5). Each example has a lead summary paragraph and at least one <code>&lt;pre&gt;&lt;code&gt;</code> block.</p>
+
+<details>
+<summary>Audit manifest (machine-readable)</summary>
+<pre>
+manifest:
+  adr_path: dev/adr/0023-panel-owned-shared-sources-end-to-end.html
+  adr_hash_pre_stamp: f3b2da2ebf62
+  audited_files:
+    - path: dev/adr/0023-panel-owned-shared-sources-end-to-end.html
+      sha256: f3b2da2ebf62
+    - path: R/paintr-app.R
+      sha256: f017150142d0
+    - path: R/paintr-shared-coordinator.R
+      sha256: aa59fa88e599
+    - path: R/paintr-shared-ui.R
+      sha256: 764997e6725d
+    - path: R/paintr-server.R
+      sha256: 459479326442
+    - path: R/paintr-default-args.R
+      sha256: 4452baabaeae
+    - path: R/paintr-registry.R
+      sha256: 1efb853c2187
+  audited_at: 2026-05-26 00:28
+  auditor:
+    agent: general-purpose
+    model: opus
+    effort: high
+  verdict: PASS
+  findings_count: 0
+  worked_examples_verdict: complete
+  resolves_prior_audit: dev/audit/audit-adr-0023-2026-05-26-0016.html
+</pre>
+</details>
+
+</body>
+</html>
