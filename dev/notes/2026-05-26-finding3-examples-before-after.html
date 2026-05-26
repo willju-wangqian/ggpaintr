@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FINDING #3 examples — panel-source x non-shared-consumer, before/after fix</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+<main>
+
+<h1>FINDING #3 examples — panel-source &times; non-shared-consumer, before/after fix</h1>
+<p class="meta">2026-05-26 on branch <code>finding3-panel-source-nonshared-consumer-test</code>. Fix landed on this branch; verified by <code>tests/testthat/test-finding3-panel-source-nonshared-consumer.R</code> (PASS 8/8) + authoritative gate <code>NOT_CRAN=true testthat::test_dir(...)</code> &rarr; <code>PASS 3101 / FAIL 0 / SKIP 0</code>. Companion doc: <a href="placeholder-role-coverage2.html">placeholder-role-coverage2.html</a> (the v7 row that asserted "works at runtime" was empirically wrong; that gloss is what this fix repairs).</p>
+
+<h2>Bug + fix in one paragraph</h2>
+<p>A non-shared <code>ppVar(...)</code> consumer downstream of a <strong>panel-owned</strong> <code>ppUpload(shared = "k")</code> booted with an <em>empty</em> picker and refused to draw. The consumer-side <code>renderUI</code> in <code>ptr_setup_consumer_uis()</code> (<code>R/paintr-server.R</code>) built its <code>snapshot</code> for <code>ptr_resolve_upstream()</code> by reading <code>input[[ns(cmp)]]</code> &mdash; per-instance namespaced. For panel-owned sources the companion textInput lives at <strong>HOST scope</strong> (un-namespaced; e.g. <code>shared_ds_name</code> with no <code>p1-</code> prefix), so the per-instance lookup is <code>NULL</code>. <code>substitute_walk.ptr_ph_data_source()</code> (<code>R/paintr-substitute.R:184-188</code>) therefore returns <code>ptr_missing()</code> &rarr; <code>ptr_prune()</code> strips the upstream &rarr; <code>ptr_resolve_upstream()</code> returns <code>NULL</code> &rarr; the picker dispatches with zero options. The fix pre-computes the set of upstream source companion/self ids that belong to a panel-owned source and routes those reads to <code>session$rootScope()$input[[<i>bare-id</i>]]</code> instead. Shared-section consumers (which use <code>ptr_bind_shared_consumer_uis()</code>, a different binder that never goes through <code>ptr_substitute</code>) were never affected, which is why the bug hid behind WE#3's mixed-scope coverage for so long.</p>
+
+<h2>How to read the examples</h2>
+<p>Each block is a minimal, copy-pasteable ggpaintr program. Paste into <code>R -e "source('app.R')"</code> after <code>devtools::load_all(".")</code>, or use the form as a <code>tests/testthat/fixtures/vignette-apps/<i>slug</i>/app.R</code> body (prepend the standard <code>pkgload::load_all(Sys.getenv("GGP_PKG"), ...)</code> line). The verdict columns are PRE-fix (HEAD before <code>2026-05-26</code> on this branch) vs POST-fix (HEAD on this branch).</p>
+
+<h2>Examples</h2>
+
+<h3>A. Baseline &mdash; non-shared source, non-shared consumer (always worked)</h3>
+<p>Sanity check that the fix did not touch the non-panel path. <code>state$panel_sources</code> is empty for this app, so the new <code>upstream_panel_companion_ids</code> set is empty and the snapshot loops are bit-for-bit identical to pre-fix behaviour.</p>
+<pre><code>library(ggpaintr)
+df_main &lt;- mtcars
+
+ptr_app(
+  "ggplot(ppUpload(df_main), aes(x = ppVar('xa'), y = mpg)) + geom_point()"
+)
+# Expected:  picker #ggplot_1_1_ppVar_NA populated with names(mtcars);
+#            draw renders a ggplot.
+</code></pre>
+<table class="cov">
+<thead><tr><th>Verdict</th><th>Pre-fix</th><th>Post-fix</th></tr></thead>
+<tbody><tr><td>Picker populated</td><td class="verdict yes">YES</td><td class="verdict yes">YES</td></tr>
+<tr><td>Draw renders</td><td class="verdict yes">YES</td><td class="verdict yes">YES</td></tr></tbody>
+</table>
+
+<h3>B. WE#3-style &mdash; panel source + shared-section consumer (always worked)</h3>
+<p>This is the closest pre-existing coverage (<code>tests/testthat/test-shared-source-panel-multi-instance.R</code> WE#3, fixture <code>shared-source-panel-multi-mixed</code>). The consumers carry <code>shared = </code> args (key in exactly one formula &rarr; shared-section), and are bound by <code>ptr_bind_shared_consumer_uis()</code> &mdash; a different code path that does not go through <code>ptr_substitute</code>, so the FINDING #3 bug never surfaced here.</p>
+<pre><code>library(ggpaintr)
+library(shiny)
+
+plots &lt;- c(
+  "ggplot(ppUpload(shared = 'ds'), aes(x = ppVar(shared = 'colA'), y = body_mass_g))     + geom_point()",
+  "ggplot(ppUpload(shared = 'ds'), aes(x = ppVar(shared = 'colB'), y = flipper_length_mm)) + geom_point()"
+)
+panel &lt;- ptr_shared(plots)
+
+ui &lt;- fluidPage(
+  ptr_shared_panel(panel),
+  fluidRow(
+    column(6, ptr_ui(panel$formulas[[1L]], "p1", shared = panel)),
+    column(6, ptr_ui(panel$formulas[[2L]], "p2", shared = panel))
+  )
+)
+server &lt;- function(input, output, session) {
+  s &lt;- ptr_shared_server(panel)
+  ptr_server(panel$formulas[[1L]], "p1", shared_state = s)
+  ptr_server(panel$formulas[[2L]], "p2", shared_state = s)
+}
+shinyApp(ui, server)
+# Expected:  one #shared_ds upload at host; pickers #p1-shared_colA, #p2-shared_colB
+#            populated from the uploaded df.
+</code></pre>
+<table class="cov">
+<thead><tr><th>Verdict</th><th>Pre-fix</th><th>Post-fix</th></tr></thead>
+<tbody><tr><td>Pickers populated</td><td class="verdict yes">YES</td><td class="verdict yes">YES</td></tr>
+<tr><td>Draw renders</td><td class="verdict yes">YES</td><td class="verdict yes">YES</td></tr></tbody>
+</table>
+
+<h3>C. FINDING #3 case &mdash; panel source + <em>non-shared</em> consumer (BROKEN pre-fix)</h3>
+<p>The exact composite the coverage matrix marked "works at runtime, but no test directly pins this composition." It did not work at runtime.</p>
+<pre><code>library(ggpaintr)
+library(shiny)
+
+plots &lt;- c(
+  "ggplot(ppUpload(shared = 'ds'), aes(x = ppVar('xa'), y = body_mass_g))     + geom_point()",
+  "ggplot(ppUpload(shared = 'ds'), aes(x = ppVar('xb'), y = flipper_length_mm)) + geom_point()"
+)
+panel &lt;- ptr_shared(plots)
+
+ui &lt;- fluidPage(
+  ptr_shared_panel(panel),
+  fluidRow(
+    column(6, ptr_ui(panel$formulas[[1L]], "p1", shared = panel)),
+    column(6, ptr_ui(panel$formulas[[2L]], "p2", shared = panel))
+  )
+)
+server &lt;- function(input, output, session) {
+  s &lt;- ptr_shared_server(panel)
+  ptr_server(panel$formulas[[1L]], "p1", shared_state = s)
+  ptr_server(panel$formulas[[2L]], "p2", shared_state = s)
+}
+shinyApp(ui, server)
+# Expected:  #p1-ggplot_1_1_ppVar_NA and #p2-ggplot_1_1_ppVar_NA populated;
+#            both layers draw cleanly.
+# Pre-fix:   both pickers boot &lt;select&gt;...&lt;/select&gt; (zero options) despite
+#            shared_ds + shared_ds_name = "penguins"; an inline error
+#            appears on draw.
+# Post-fix:  pickers populated; draw clean.
+</code></pre>
+<table class="cov">
+<thead><tr><th>Verdict</th><th>Pre-fix</th><th>Post-fix</th></tr></thead>
+<tbody>
+<tr><td>Pickers populated</td><td class="verdict rejected">NO &mdash; empty <code>&lt;select&gt;</code></td><td class="verdict yes">YES</td></tr>
+<tr><td>Draw renders cleanly</td><td class="verdict rejected">NO &mdash; inline error</td><td class="verdict yes">YES</td></tr>
+<tr><td>Source observer &amp; eval_env</td><td class="verdict yes">YES (df bound under "penguins")</td><td class="verdict yes">YES</td></tr>
+</tbody>
+</table>
+<p><strong>Where it broke pre-fix.</strong> The instrumentation run confirmed every prerequisite passed: <code>state$panel_sources["shared_ds"]</code> populated, panel observer fired with df 344&times;8, <code>bind_source_value(state, "ggplot", binding_name = "penguins", df, slot)</code> wrote <code>state$eval_env$penguins</code> + <code>state$resolved_data[["ggplot"]]()</code> + <code>state$bound_names[["ggplot"]]()</code>. The consumer's <code>entry_reactive</code> passed both <code>req()</code> gates, then called <code>ptr_resolve_upstream(node$upstream, snapshot = ...)</code> and got <code>NULL</code> back &mdash; because the snapshot lacked the host-scope companion value.</p>
+
+<h3>D. Mixed &mdash; one formula gets a non-shared consumer, the other a shared-section one (BROKEN pre-fix, side P1 only)</h3>
+<p>Same panel-source, but only formula 1's consumer is non-shared; formula 2 keeps the working shared-section pattern. Pre-fix this surfaced the bug asymmetrically &mdash; the right side worked while the left side did not. Useful for narrowing the blast radius in code review.</p>
+<pre><code>library(ggpaintr)
+library(shiny)
+
+plots &lt;- c(
+  "ggplot(ppUpload(shared = 'ds'), aes(x = ppVar('xa'),            y = body_mass_g))     + geom_point()",
+  "ggplot(ppUpload(shared = 'ds'), aes(x = ppVar(shared = 'colB'), y = flipper_length_mm)) + geom_point()"
+)
+panel &lt;- ptr_shared(plots)
+
+ui &lt;- fluidPage(
+  ptr_shared_panel(panel),
+  fluidRow(
+    column(6, ptr_ui(panel$formulas[[1L]], "p1", shared = panel)),
+    column(6, ptr_ui(panel$formulas[[2L]], "p2", shared = panel))
+  )
+)
+server &lt;- function(input, output, session) {
+  s &lt;- ptr_shared_server(panel)
+  ptr_server(panel$formulas[[1L]], "p1", shared_state = s)
+  ptr_server(panel$formulas[[2L]], "p2", shared_state = s)
+}
+shinyApp(ui, server)
+</code></pre>
+<table class="cov">
+<thead><tr><th>Verdict</th><th>Pre-fix</th><th>Post-fix</th></tr></thead>
+<tbody>
+<tr><td>p1 (non-shared) picker populated</td><td class="verdict rejected">NO</td><td class="verdict yes">YES</td></tr>
+<tr><td>p2 (shared-section) picker populated</td><td class="verdict yes">YES</td><td class="verdict yes">YES</td></tr>
+</tbody>
+</table>
+
+<h3>E. Pipeline-head variant &mdash; <code>upload |&gt; transform |&gt; ggplot(...)</code> (BROKEN pre-fix)</h3>
+<p>The same bug exists when the panel-shared upload is at the head of a pipeline (so the source-id flows through <code>state$resolved_sources</code> instead of <code>state$resolved_data</code>), because the snapshot construction in the same <code>entry_reactive</code> applies. Both the bare-data and pipeline-head branches of <code>ptr_setup_pipelines()</code> bind via <code>bind_source_value()</code> the same way; the consumer-side breakage is identical.</p>
+<pre><code>library(ggpaintr)
+library(shiny)
+
+plots &lt;- c(
+  "ppUpload(shared = 'ds') |&gt; head(ppNum(default = 20, shared = 'n')) |&gt; ggplot(aes(x = ppVar('xa'), y = body_mass_g)) + geom_point()",
+  "ppUpload(shared = 'ds') |&gt; head(ppNum(default = 20, shared = 'n')) |&gt; ggplot(aes(x = ppVar('xb'), y = flipper_length_mm)) + geom_point()"
+)
+panel &lt;- ptr_shared(plots)
+
+ui &lt;- fluidPage(
+  ptr_shared_panel(panel),
+  fluidRow(
+    column(6, ptr_ui(panel$formulas[[1L]], "p1", shared = panel)),
+    column(6, ptr_ui(panel$formulas[[2L]], "p2", shared = panel))
+  )
+)
+server &lt;- function(input, output, session) {
+  s &lt;- ptr_shared_server(panel)
+  ptr_server(panel$formulas[[1L]], "p1", shared_state = s)
+  ptr_server(panel$formulas[[2L]], "p2", shared_state = s)
+}
+shinyApp(ui, server)
+</code></pre>
+<table class="cov">
+<thead><tr><th>Verdict</th><th>Pre-fix</th><th>Post-fix</th></tr></thead>
+<tbody>
+<tr><td>Pickers populated</td><td class="verdict rejected">NO</td><td class="verdict yes">YES</td></tr>
+<tr><td>Draw renders cleanly</td><td class="verdict rejected">NO</td><td class="verdict yes">YES</td></tr>
+</tbody>
+</table>
+<p class="meta">Caveat: not exercised by the new regression test. Listed here on inspection grounds &mdash; both pipeline branches in <code>ptr_setup_pipelines()</code> follow the same panel-substitution shape, and the consumer-side snapshot loop the fix touches is the only consumption site for either. A follow-up fixture would close the empirical gap; the current evidence is structural, not runtime.</p>
+
+<h3>F. Negative control &mdash; single-formula <code>ppUpload(shared='ds')</code> (always worked; partition collapses to shared-section)</h3>
+<p>When <code>shared</code> appears in exactly one formula, the partition collapses to shared-section and there is no panel scope at all. Listed to make the partition rule explicit and rule out "any <code>shared = </code> with a single instance" as a misdiagnosis vector.</p>
+<pre><code>library(ggpaintr)
+
+ptr_app(
+  "ggplot(ppUpload(shared = 'ds'), aes(x = ppVar('xa'), y = body_mass_g)) + geom_point()"
+)
+# `ds` appears in 1 formula -&gt; shared_partition() -&gt; local_keys_by_formula;
+# the source renders per-instance under the per-instance ns; no host slot.
+</code></pre>
+<table class="cov">
+<thead><tr><th>Verdict</th><th>Pre-fix</th><th>Post-fix</th></tr></thead>
+<tbody><tr><td>Picker populated</td><td class="verdict yes">YES</td><td class="verdict yes">YES</td></tr>
+<tr><td>Draw renders</td><td class="verdict yes">YES</td><td class="verdict yes">YES</td></tr></tbody>
+</table>
+
+<h2>What changed in source</h2>
+<p>One self-contained edit inside <code>ptr_setup_consumer_uis()</code> in <code>R/paintr-server.R</code>:</p>
+<ol>
+<li>Just after the existing <code>upstream_source_self_ids</code> derivation, compute <code>upstream_panel_companion_ids</code> + <code>upstream_panel_self_ids</code> by walking <code>node$upstream</code> for source nodes whose <code>$id</code> is in <code>names(state$panel_sources)</code>.</li>
+<li>In the two snapshot-building loops (companions, self-ids), route the read for any id in those sets to <code>session$rootScope()$input[[<i>bare-id</i>]]</code> instead of <code>input[[ns(<i>id</i>)]]</code>.</li>
+</ol>
+<p>For non-panel apps both sets are empty; the if-branch never fires; behaviour is bit-for-bit unchanged. This is why the fix is safe under the documented <a href="#">sampling-race flake</a> on shared-state tests &mdash; the only behavioural delta the fix introduces is gated on <code>state$panel_sources</code> being non-empty.</p>
+
+<h2>Regression fixture + test</h2>
+<ul>
+<li><code>tests/testthat/test-finding3-panel-source-nonshared-consumer.R</code> &mdash; 8 assertions: source DOM id at host; no per-instance source DOM ids; both non-shared pickers populated with expected penguins columns; both draws render; no inline errors.</li>
+<li><code>tests/testthat/fixtures/vignette-apps/finding3-panel-source-nonshared-consumer/app.R</code> &mdash; the example C composite verbatim, plus the standard <code>pkgload::load_all(Sys.getenv("GGP_PKG"), ...)</code> first line.</li>
+<li>Gate run on the fix: <code>PASS 3101 / FAIL 0 / SKIP 0</code> (+8 vs the recorded 3093 baseline from CLAUDE.md).</li>
+</ul>
+
+<h2>Status of the other coverage-matrix gaps</h2>
+<p>FINDING #3 was framed in <code>placeholder-role-coverage2.html</code> v7 as INFO / test-coverage gap. The empirical reality was a deterministic runtime defect hidden behind a structural &ldquo;mechanism pinned piecewise&rdquo; claim. The same framing risk applies to the other open findings:</p>
+<ul>
+<li><strong>FINDING #1</strong> (host-scope shared-panel consumer cannot read <code>spec_seed</code>) &mdash; classified PARTIAL on architectural grounds (state is NULL at host scope &rarr; seed read short-circuits). Worth a shinytest2 boot-spec assertion before trusting the verdict.</li>
+<li><strong>FINDING #2 / #7</strong> (shared-panel VALUE static-tag drops <code>spec_seed</code>) &mdash; same shape: structural reasoning, no runtime pin, three composites that should work and probably do not. Pattern matches FINDING #8's v4-&gt;v7 escalation and FINDING #3's escalation here exactly.</li>
+</ul>
+<p>Recommend the same diagnose loop for each: build the minimal end-to-end fixture, run, observe. The two FINDINGs above are independent of FINDING #3 and can be picked up in any order.</p>
+
+</main>
+</body>
+</html>
