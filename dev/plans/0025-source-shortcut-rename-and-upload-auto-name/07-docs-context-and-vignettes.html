@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-07 — CONTEXT.md amendment + vignette updates (from ADR 0025)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 07
+  slug: docs-context-and-vignettes
+  source_adr: dev/adr/0025-source-shortcut-rename-and-upload-auto-name.html
+  depends_on: [01, 02, 03, 04, 05, 06]
+  parallel_group: G4
+  status: draft
+-->
+
+<h1>PLAN-07 — CONTEXT.md amendment + vignette updates</h1>
+<p class="meta">Source: ADR 0025 Scope cuts (vignettes + CONTEXT.md owed) · Depends on: 01–06 · Parallel group: G4 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0025's <em>Scope cuts</em> section explicitly defers three documentation updates to the implementation PR:</p>
+<ul>
+  <li><strong>Vignette updates</strong> — <code>vignettes/ggpaintr-customization.Rmd:297</code> (the table row for <code>node$companion_id</code>) and <code>vignettes/ggpaintr-customization.Rmd:502</code> (the <code>companion_id_fn = function(id) ...</code> prose) reference the retired surface. Rewrite to describe <code>shortcut = TRUE/FALSE</code> + <code>node$shortcut_id</code>.</li>
+  <li><strong>NEWS.md entry</strong> — a single bullet (or a tight set under a version heading) describing the hard rename + the new auto-name / mutex / prologue / vacate / debounce / spec-roundtrip behaviours.</li>
+  <li><strong>CONTEXT.md amendment</strong> — lines 48 and 132 currently say "exactly one [shared panel] per page". The source at <code>R/paintr-shared-coordinator.R:220–234, 292</code> already accepts <code>id</code> and namespaces every shared id; the new auto-name design (Plan 02) depends on multi-panel support being part of the documented surface.</li>
+</ul>
+
+<p>This plan is documentation-only. No <code>R/</code> source code is touched. Plans 01–06 must be merged first (the vignette/NEWS text describes their final behaviour).</p>
+
+<h2>Governing principle</h2>
+<p>Documentation that contradicts the source code is a liability — it sends consumers down dead paths and undermines the audit chain. The author-facing description of the registry knob (<code>shortcut</code> vs. retired <code>companion_id_fn</code>), the per-page count of shared panels, and the upload binding-name behaviour must each match exactly one place: the code. ADR 0025's scope cuts deferred these doc updates so the implementation PR could land first; this plan closes the loop. Naming the WHY: every future <code>/grill-with-docs</code> session and every external user reading the vignette assumes the words on the page reflect the package's actual surface — when they do not, the project's documentation contract collapses silently.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li><code>vignettes/ggpaintr-customization.Rmd</code> contains no occurrence of the literal strings <code>companion_id</code> or <code>companion_id_fn</code>. The table row at the previous line ~297 reads <code>node$shortcut_id</code> (with prose describing the new opt-in surface). The prose section at the previous line ~502 describes <code>shortcut = TRUE</code> + the author's responsibility to render <code>shiny::textInput(node$shortcut_id, ...)</code> in <code>build_ui</code>, with a one-paragraph note on the default-FALSE-author-emit policy (Example 6's silent-unreachability trap). Verified by <code>grep -nE 'companion_id' vignettes/</code> returning zero matches.</li>
+  <li><code>vignettes/ggpaintr-customization.Rmd</code> documents the per-source auto-name + mutex + prologue behaviour in one new subsection (≤ 150 words) covering: when the textbox is empty an upload binds under <code>node$auto_name</code>; the textbox auto-clears on file pick (and vice versa); the code panel emits a one-line <code>&lt;auto-name&gt; &lt;- read.&lt;ext&gt;(...)</code> prologue. Verified by reviewer reading the rendered <code>devtools::build_vignettes()</code> output (manual; no automated test for vignette prose content).</li>
+  <li><code>CONTEXT.md</code> no longer says "exactly one [shared panel] per page" at line 48 or any other line carrying the same claim (re-grep to locate; the ADR cites lines 48 and 132 but current source has the literal only at 48 — locate the second site by content, not by line number). Replacement wording describes that <code>ptr_shared(..., id = ...)</code> namespaces every shared id; multiple coordinators on one page are supported. Verified by <code>grep -nE 'exactly one.*per page' CONTEXT.md</code> returning zero matches.</li>
+  <li><code>NEWS.md</code> has a new entry (top of the Unreleased section, or new version heading per project convention) summarising ADR 0025's behaviours: hard rename <code>companion_id_fn</code> → <code>shortcut</code> + <code>node$companion_id</code> → <code>node$shortcut_id</code>; auto-name on upload; UI mutex; prologue; vacate-on-empty; 400ms debounce; spec round-trip via bound names. Single tight bullet group or paragraph (≤ 100 words). Verified by <code>grep -nE 'shortcut|auto-name|mutex|prologue' NEWS.md</code> matching the new section.</li>
+  <li>The vignette still builds cleanly: <code>devtools::build_vignettes()</code> finishes without error and the produced HTML renders the new subsection. Verified by running the build locally.</li>
+  <li>Full authoritative gate (Definition of Done) shows FAIL 0 / WARN 0 / SKIP 0 — no regressions from doc edits.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns:
+    <ul>
+      <li><code>vignettes/ggpaintr-customization.Rmd</code> — table row at the previous line 297; prose paragraph at the previous line 502; the new auto-name / mutex / prologue subsection. (Line numbers may shift after Plans 01–06 merge; re-grep <code>companion_id</code> in the vignette at the start of this plan to find the actual touchsites.)</li>
+      <li><code>CONTEXT.md</code> — lines 48 and 132 ("exactly one per page" claim); any other line found by <code>grep -nE 'exactly one.*per page|one shared panel' CONTEXT.md</code>.</li>
+      <li><code>NEWS.md</code> — one new entry. If Plan 01 added a partial NEWS entry (the rename note), this plan replaces or extends it with the full ADR-0025 summary.</li>
+    </ul>
+  </li>
+  <li>Files this plan must NOT touch:
+    <ul>
+      <li>Any file under <code>R/</code>, <code>tests/</code>, <code>man/</code>, or <code>dev/</code> (audits and notes excluded). This plan is documentation-only.</li>
+      <li>The ADR <code>dev/adr/0025-…html</code> itself. It is audit-stamped (hash <code>5f437d0f279f</code>) and any content edit invalidates the stamp.</li>
+      <li>Other vignettes (<code>ggpaintr-introduction.Rmd</code>, <code>ggpaintr-use-cases.Rmd</code>, etc.) — surface drift in the post-impl audit; do not rewrite preemptively here unless the audit explicitly flags a contradiction with the new surface.</li>
+      <li>Generated docs (pkgdown <code>docs/</code> output) — those regenerate via <code>source("dev/build-pkgdown.R"); build_pkgdown_clean()</code> as an integration step.</li>
+    </ul>
+  </li>
+  <li>Prose follows the project's <code>.Rmd</code> rule (no hard-wrap; one paragraph = one line; per global CLAUDE.md). Code blocks use the project's existing R-fenced style.</li>
+  <li>No new examples that exercise unimplemented features. The vignette text describes only what Plans 01–06 actually ship.</li>
+  <li>SCOPE NARROWING FORBIDDEN. Do not selectively rewrite some <code>companion_id</code> references and leave others "for a follow-up" — every occurrence must move in this plan.</li>
+  <li>Conventions: <code>tidyverse</code> style; do not introduce new headings unless mandated by content; keep diffs minimal.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>
+Feature: Documentation matches the ADR-0025 implementation (Scope cuts)
+
+Scenario: vignette contains no stale companion_id literals
+  Given the package tree after Plans 01–06 are merged
+   When `grep -nE 'companion_id' vignettes/ggpaintr-customization.Rmd` runs
+   Then the command exits with status 1 (no matches)
+
+Scenario: vignette table row documents node$shortcut_id
+  Given the customization vignette
+   When the reader reads the placeholder-node-slots table
+   Then the row for the renamed slot reads "node$shortcut_id" (no "companion" word)
+    And the row's description names "shortcut = TRUE" as the opt-in mechanism
+
+Scenario: vignette prose paragraph describes shortcut + auto-name + mutex + prologue
+  Given the customization vignette
+   When the reader reads the source-placeholder section
+   Then a paragraph describes `shortcut = TRUE` with author-emit textInput contract
+    And a paragraph or subsection describes the upload auto-name (`<auto-name> <- read.csv(...)` prologue)
+    And a paragraph mentions the UI mutex (typing clears file; picking file clears textbox)
+
+Scenario: CONTEXT.md no longer asserts "exactly one shared panel per page"
+  Given the project's CONTEXT.md
+   When `grep -nE 'exactly one.*per page|one shared panel.*per page' CONTEXT.md` runs
+   Then the command exits with status 1 (no matches)
+    And the surrounding paragraph describes that `ptr_shared(..., id = ...)` namespaces every shared id (multi-coordinator supported)
+
+Scenario: NEWS.md summarises ADR 0025 in one tight entry
+  Given the NEWS.md file
+   When the reader reads the most recent Unreleased section
+   Then it lists the hard rename, auto-name, mutex, prologue, vacate, debounce, spec-roundtrip changes in one bullet group
+    And the entry references ADR 0025 by number (e.g. "(ADR 0025)")
+
+Scenario: vignette still builds
+  Given the package tree
+   When `devtools::build_vignettes()` is invoked
+   Then it returns without error
+    And the produced HTML for ggpaintr-customization renders the new subsection
+</pre>
+
+<h2>Worked-example coverage</h2>
+
+<pre>
+| ADR anchor                                                     | kind     | summary (one line)                                                  | Scenario in this plan                                                   |
+|----------------------------------------------------------------|----------|---------------------------------------------------------------------|-------------------------------------------------------------------------|
+| (none — this plan is documentation-only; ADR worked examples #1–#6 are asserted by sibling plans' BDD `Then` clauses.) | | | |
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate: see <code>CLAUDE.md</code> §"Authoritative gate (Definition of Done)". Same command, same proxy-trap list.</p>
+
+<p><strong>Plan-specific gate risks</strong>: this is a docs-only plan; the authoritative gate cannot exercise vignette prose. The vignette-build step (<code>devtools::build_vignettes()</code>) is an additional must-pass action. The pkgdown build (<code>source("dev/build-pkgdown.R"); build_pkgdown_clean()</code>) is part of the integration step that follows this plan, not gated by this plan alone.</p>
+
+<p>This plan adds zero new test cases; expected PASS count is unchanged. FAIL/ERROR/SKIP remain 0.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns the files listed under Constraints. Generated <code>docs/</code> (pkgdown output) is owned by the integration step.</p>
+<p>Branch convention: this plan lives on branch <code>0025-docs-context-and-vignettes</code> in a worktree at <code>.claude/worktrees/0025-source-shortcut-rename-and-upload-auto-name/docs-context-and-vignettes/</code>. Merge into the orchestrator branch via <code>--no-ff</code> after Plans 01–06 land.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor re-runs the Definition-of-Done command, re-runs <code>devtools::build_vignettes()</code>, and verifies the grep outputs (companion_id absent; "exactly one per page" absent) before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch with Plans 01–06 merged. No flake risk on a docs-only plan.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Findings outside this plan's owned files are surfaced (recorded in the audit report), never absorbed. Specifically: other vignettes (introduction, use-cases, etc.) that may carry stale references after the rename are surfaced for follow-up plans; not silently rewritten here unless they directly contradict ADR 0025.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: 01, 02, 03, 04, 05, 06 (the docs describe the shipped behaviour; until Plans 01–06 land, the prose has no ground truth). Provides for: external readers, future <code>/grill-with-docs</code> sessions, and the next ADR's grounding context. Last plan in the chain; no downstream consumers.</p>
+
+<!-- implementable: PASS date=2026-05-26 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=fd3eca9766f9 -->
+</body>
+</html>
