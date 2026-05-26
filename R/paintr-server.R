@@ -853,6 +853,57 @@ bind_source_value <- function(state, key, name, df, slot) {
   slot(df)
 }
 
+# Boot-time fallback for source placeholders with a `default_arg`-validated
+# value: when no live input has been provided through the source widget
+# (e.g. ppUpload's fileInput is still empty), but the placeholder carries a
+# default symbol/name that resolves to a data.frame somewhere up
+# `state$eval_env`'s parent chain (typically the app.R script env), prime
+# `state$resolved_sources` / `state$bound_names` via the same
+# `bind_source_value()` path the upload observer uses. This clears the
+# ADR 0015 §2.1 source-ready gate (`req(state$bound_names[[k]]())` in
+# `ptr_setup_consumer_uis()` / `ptr_bind_shared_consumer_uis()`) at boot
+# so consumer pickers populate from the default-bound frame without an
+# upload. Returns TRUE on bind, FALSE otherwise (caller falls through to
+# the existing `slot(NULL)` path).
+#
+# Generalizes via `node$default` + `entry$resolve_expr` -- both already
+# required for any source placeholder definition -- so third-party
+# `ptr_define_placeholder_source()` callers with a default_arg get this
+# fallback for free, regardless of whether they registered a
+# `companion_id_fn`.
+try_bind_source_default <- function(state, key, node, input, comp_id,
+                                    entry, slot) {
+  if (is.null(node$default)) return(FALSE)
+  binding_name <- if (!is.null(comp_id)) {
+    nm <- input[[comp_id]]
+    # Boot race: the companion textInput is seeded with node$default by
+    # `ptr_builtin_upload_build_ui()`, but `input[[comp_id]]` is NULL until
+    # the widget registers. Fall back to `node$default` so the first
+    # observer fire can bind immediately rather than waiting an extra
+    # invalidation.
+    if (!is.character(nm) || length(nm) != 1L || !nzchar(nm)) {
+      nm <- node$default
+    }
+    if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
+        make.names(nm) == nm) nm else NULL
+  } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
+    sym <- tryCatch(entry$resolve_expr(node$default, node),
+                    error = function(e) NULL)
+    if (is.symbol(sym)) {
+      cand <- as.character(sym)
+      if (nzchar(cand) && make.names(cand) == cand) cand else NULL
+    } else NULL
+  } else NULL
+  if (is.null(binding_name)) return(FALSE)
+  df <- tryCatch(
+    get(binding_name, envir = state$eval_env, inherits = TRUE),
+    error = function(e) NULL
+  )
+  if (!is.data.frame(df)) return(FALSE)
+  bind_source_value(state, key, binding_name, df, slot)
+  TRUE
+}
+
 ptr_setup_pipelines <- function(state, input, output, session) {
   tree <- shiny::isolate(state$tree())
   ns <- state$server_ns_fn
@@ -878,6 +929,15 @@ ptr_setup_pipelines <- function(state, input, output, session) {
         if (!is.null(comp_id)) input[[comp_id]]  # take dep
         if (is.null(file_info)) {
           set_resolve_error(state, ln, NULL)
+          # Source-default fallback: when no upload has been provided but
+          # the source carries a default-arg symbol resolvable in
+          # `state$eval_env`'s parent chain, bind it so the ADR 0015 §2.1
+          # source-ready gate clears at boot. Falls through to `slot(NULL)`
+          # when the source has no default or the default doesn't resolve.
+          if (try_bind_source_default(state, ln, src, input, comp_id,
+                                      entry, slot)) {
+            return(invisible())
+          }
           slot(NULL)
           return(invisible())
         }
@@ -950,8 +1010,15 @@ ptr_setup_pipelines <- function(state, input, output, session) {
 
       shiny::observe({
         file_info <- input[[src_id]]
+        if (!is.null(comp_id)) input[[comp_id]]  # take dep so default-bind re-derives on companion edits
         if (is.null(file_info)) {
           set_resolve_error(state, sid, NULL)
+          # Source-default fallback: see `try_bind_source_default()` and the
+          # mirror block in the bare-data observer above.
+          if (try_bind_source_default(state, sid, node, input, comp_id,
+                                      entry, slot)) {
+            return(invisible())
+          }
           slot(NULL)
           return(invisible())
         }
