@@ -2219,7 +2219,24 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
           ns_fn = ui_ns,
           extra = extra
         )
-        has_rendered <<- TRUE
+        # Only flip `has_rendered` after a populated render. With a source-
+        # headed upstream (`ppUpload(df_main) |> ...`) the first
+        # `entry_reactive()` fire can return NULL because
+        # `substitute_walk.ptr_ph_data_source()` reads the companion value
+        # from `ctx$snapshot[[node$companion_id]]`, which is fed from
+        # `input[[ns(cmp)]]` and is briefly NULL post-boot before the
+        # client reports the widget's `value=` back. Flipping `has_rendered`
+        # on that empty fire used to lock the next valid fire into the
+        # `seed %||% current %||% character(0)` branch -- `extra$selected =
+        # character(0)` suppressed `invoke_build_ui()`'s `node$default`
+        # injection (paintr-build-ui.R:842-855), so `ppVar('hp')`-style
+        # defaults never seeded the picker once the upstream was a
+        # `ppUpload(default = df)` source. Gating the flip on
+        # `length(cols) > 0L` keeps the first-render flag deferred until
+        # cols are actually present; the explicit-deselect semantics is
+        # preserved by the `character(0)` tail above (after a valid render
+        # the user is the source of truth for "nothing selected").
+        if (length(cols) > 0L) has_rendered <<- TRUE
         result
       })
       # ADR 0015 §2.1: bind every consumer picker eagerly so it does not

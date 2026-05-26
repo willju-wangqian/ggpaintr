@@ -9,7 +9,9 @@
 <main>
 
 <h1>FINDING #3 examples — panel-source &times; non-shared-consumer, before/after fix</h1>
-<p class="meta">2026-05-26 on branch <code>finding3-panel-source-nonshared-consumer-test</code>. Fix landed on this branch; verified by <code>tests/testthat/test-finding3-panel-source-nonshared-consumer.R</code> (PASS 8/8) + authoritative gate <code>NOT_CRAN=true testthat::test_dir(...)</code> &rarr; <code>PASS 3101 / FAIL 0 / SKIP 0</code>. Companion doc: <a href="placeholder-role-coverage2.html">placeholder-role-coverage2.html</a> (the v7 row that asserted "works at runtime" was empirically wrong; that gloss is what this fix repairs).</p>
+<p class="meta">2026-05-26 on branch <code>finding3-panel-source-nonshared-consumer-test</code>. Two fixes landed: (1) the original FINDING #3 fix (commit <code>cc19e0c</code>), verified by <code>test-finding3-panel-source-nonshared-consumer.R</code> (PASS 8/8); (2) a sibling default-seeding fix (this addendum), verified by <code>test-default-seeding-with-source-upstream.R</code> (PASS 5/5). Authoritative gate after both: <code>PASS 3106 / FAIL 0 / SKIP 0</code>. Companion doc: <a href="placeholder-role-coverage2.html">placeholder-role-coverage2.html</a> (the v7 row that asserted "works at runtime" was empirically wrong; this addendum reports a second &ldquo;works at runtime&rdquo; claim that was also wrong &mdash; see the correction box below example A).</p>
+
+<div class="corr"><strong>Correction (2026-05-26, this update) &mdash; example A's "always worked" claim was wrong.</strong> The original v1 of this doc framed Example A (non-shared <code>ppUpload(df_main)</code> + non-shared <code>ppVar('hp')</code>) as the negative-baseline that "always worked." A user pasted that exact code and reported the picker booting empty. Reproduction with shinytest2 confirmed: the picker's options list IS populated with <code>names(df_main)</code>, but the default <code>'hp'</code> never seeds the selection &mdash; the dropdown shows the placeholder "Choose one column" instead of pre-selecting <code>hp</code>. Cause: <code>substitute_walk.ptr_ph_data_source()</code> reads the upload companion's value from <code>ctx$snapshot[[node$companion_id]]</code>, which is briefly NULL post-boot before the client reports the widget's <code>value=</code> back. The consumer's first <code>entry_reactive()</code> fire therefore returns NULL; the renderUI flipped <code>has_rendered</code> on that empty fire, locking the next valid fire into the <code>seed %||% current %||% character(0)</code> branch &mdash; <code>extra$selected = character(0)</code> suppressed <code>invoke_build_ui()</code>'s <code>node$default</code> injection (paintr-build-ui.R:842-855), so the default was permanently lost. Fix: gate the <code>has_rendered &lt;&lt;- TRUE</code> flip on <code>length(cols) &gt; 0L</code>, so the first <em>populated</em> render is the one that flips the flag. Example A's verdict tables below are corrected; the diagnose loop that found this is a textbook "matrix-classification &ne; runtime pin" repeat of FINDING #8's v4&rarr;v7 escalation and the original FINDING #3 escalation.</div>
 
 <h2>Bug + fix in one paragraph</h2>
 <p>A non-shared <code>ppVar(...)</code> consumer downstream of a <strong>panel-owned</strong> <code>ppUpload(shared = "k")</code> booted with an <em>empty</em> picker and refused to draw. The consumer-side <code>renderUI</code> in <code>ptr_setup_consumer_uis()</code> (<code>R/paintr-server.R</code>) built its <code>snapshot</code> for <code>ptr_resolve_upstream()</code> by reading <code>input[[ns(cmp)]]</code> &mdash; per-instance namespaced. For panel-owned sources the companion textInput lives at <strong>HOST scope</strong> (un-namespaced; e.g. <code>shared_ds_name</code> with no <code>p1-</code> prefix), so the per-instance lookup is <code>NULL</code>. <code>substitute_walk.ptr_ph_data_source()</code> (<code>R/paintr-substitute.R:184-188</code>) therefore returns <code>ptr_missing()</code> &rarr; <code>ptr_prune()</code> strips the upstream &rarr; <code>ptr_resolve_upstream()</code> returns <code>NULL</code> &rarr; the picker dispatches with zero options. The fix pre-computes the set of upstream source companion/self ids that belong to a panel-owned source and routes those reads to <code>session$rootScope()$input[[<i>bare-id</i>]]</code> instead. Shared-section consumers (which use <code>ptr_bind_shared_consumer_uis()</code>, a different binder that never goes through <code>ptr_substitute</code>) were never affected, which is why the bug hid behind WE#3's mixed-scope coverage for so long.</p>
@@ -19,22 +21,28 @@
 
 <h2>Examples</h2>
 
-<h3>A. Baseline &mdash; non-shared source, non-shared consumer (always worked)</h3>
-<p>Sanity check that the fix did not touch the non-panel path. <code>state$panel_sources</code> is empty for this app, so the new <code>upstream_panel_companion_ids</code> set is empty and the snapshot loops are bit-for-bit identical to pre-fix behaviour.</p>
+<h3>A. Non-shared source, non-shared consumer with a default &mdash; <em>was</em> broken (selection lost)</h3>
+<p>This is the case the user pasted. <code>ppVar('hp')</code> default never seeded the picker when wrapped in <code>ppUpload(df_main)</code>; removing <code>ppUpload</code> made the default seed correctly. Originally framed as the always-working baseline; corrected after empirical reproduction (see correction box above). The matching regression test lives at <code>tests/testthat/test-default-seeding-with-source-upstream.R</code> (3 test cases &mdash; string form, unquoted form, no-upstream baseline).</p>
 <pre><code>library(ggpaintr)
 df_main &lt;- mtcars
 
 ptr_app(
-  "ggplot(ppUpload(df_main), aes(x = ppVar('xa'), y = mpg)) + geom_point()"
+  ggplot(ppUpload(df_main), aes(x = ppVar(hp), y = mpg)) + geom_point()
 )
-# Expected:  picker #ggplot_1_1_ppVar_NA populated with names(mtcars);
-#            draw renders a ggplot.
+# Or the string form (same outcome both pre- and post-fix):
+# ptr_app("ggplot(ppUpload(df_main), aes(x = ppVar('hp'), y = mpg)) + geom_point()")
+# Expected:  picker #ggplot_1_1_ppVar_NA populated with names(mtcars)
+#            AND boot-selected to "hp" (the default).
 </code></pre>
 <table class="cov">
-<thead><tr><th>Verdict</th><th>Pre-fix</th><th>Post-fix</th></tr></thead>
-<tbody><tr><td>Picker populated</td><td class="verdict yes">YES</td><td class="verdict yes">YES</td></tr>
-<tr><td>Draw renders</td><td class="verdict yes">YES</td><td class="verdict yes">YES</td></tr></tbody>
+<thead><tr><th>Verdict</th><th>Pre-fix (cc19e0c)</th><th>Post-fix (this addendum)</th></tr></thead>
+<tbody>
+<tr><td>Picker has options</td><td class="verdict yes">YES (all 11 cols)</td><td class="verdict yes">YES</td></tr>
+<tr><td>Picker boots <em>selected = "hp"</em></td><td class="verdict rejected">NO &mdash; shows "Choose one column"</td><td class="verdict yes">YES &mdash; <code>&lt;option value="hp" selected=""&gt;</code></td></tr>
+<tr><td>Draw renders after a manual pick</td><td class="verdict yes">YES (works once user picks)</td><td class="verdict yes">YES</td></tr>
+</tbody>
 </table>
+<p><strong>Where it broke pre-fix.</strong> The consumer's first <code>entry_reactive()</code> fire returned NULL because <code>substitute_walk.ptr_ph_data_source()</code> read the companion's value from the input snapshot, which was briefly NULL post-boot. That fire dispatched a renderUI with <code>cols = character()</code>, and the post-fire <code>has_rendered &lt;&lt;- TRUE</code> flip locked the next valid fire (with proper cols) into the <code>has_rendered=TRUE</code> branch &mdash; <code>selected_arg = seed %||% current %||% character(0) = character(0)</code> &mdash; which set <code>extra$selected = character(0)</code> and suppressed <code>invoke_build_ui()</code>'s <code>node$default</code> injection (<code>R/paintr-build-ui.R:842-855</code>). Net: any <code>ppVar('<i>col</i>')</code> default was permanently lost as soon as the upstream included a <code>ppUpload(<i>df</i>)</code>. <strong>Where it works post-fix.</strong> The <code>has_rendered &lt;&lt;- TRUE</code> flip is now gated on <code>length(cols) &gt; 0L</code> (<code>R/paintr-server.R</code>, non-shared consumer renderUI). The first <em>populated</em> render is the one that flips the flag, so <code>node$default</code> still seeds via the <code>has_rendered=FALSE</code> branch on the first non-empty fire. Explicit user deselect semantics are unchanged: the deselect path writes <code>character(0)</code> into the input, so <code>current = character(0)</code>, <code>seed %||% current %||% character(0) = character(0)</code> wins over default-injection &mdash; verified by the existing <code>test-consumer-deselect-stays-empty.R</code> and <code>test-stale-pick-no-snap-to-default.R</code>.</p>
 
 <h3>B. WE#3-style &mdash; panel source + shared-section consumer (always worked)</h3>
 <p>This is the closest pre-existing coverage (<code>tests/testthat/test-shared-source-panel-multi-instance.R</code> WE#3, fixture <code>shared-source-panel-multi-mixed</code>). The consumers carry <code>shared = </code> args (key in exactly one formula &rarr; shared-section), and are bound by <code>ptr_bind_shared_consumer_uis()</code> &mdash; a different code path that does not go through <code>ptr_substitute</code>, so the FINDING #3 bug never surfaced here.</p>
