@@ -1088,6 +1088,7 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
     if (is.null(dots$draw_trigger))       dots$draw_trigger <- shared_state$draw_trigger
     if (is.null(dots$shared_resolutions)) dots$shared_resolutions <- shared_state$shared_resolutions
     if (is.null(dots$shared_stage_enabled)) dots$shared_stage_enabled <- shared_state$shared_stage_enabled
+    if (is.null(dots$panel_sources))      dots$panel_sources <- shared_state$panel_sources
   }
 
   # Pre-flight contract checks: surface a clear, module-scoped message
