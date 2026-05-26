@@ -980,12 +980,15 @@ ptr_setup_pipelines <- function(state, input, output, session) {
       })
 
       # Auto-fill the dataset-name companion from the uploaded filename
-      # when the user left it blank. Without a name, `substitute_walk`
-      # on the source placeholder yields `ptr_missing()`, so the code
-      # panel drops the `data = ...` argument entirely (the plot itself
-      # still renders, since `inject_resolved_data()` patches the eval
-      # tree). Never clobber a name the user typed.
-      ptr_bind_source_autoname(src_id, comp_id, input, session)
+      # when the user left it blank OR has not edited the default-arg
+      # seed. Without a name, `substitute_walk` on the source placeholder
+      # yields `ptr_missing()`, so the code panel drops the `data = ...`
+      # argument entirely (the plot itself still renders, since
+      # `inject_resolved_data()` patches the eval tree). Never clobber a
+      # name the user actually typed — only overwrite the seed/last-auto
+      # value.
+      ptr_bind_source_autoname(src_id, comp_id, input, session,
+                                default_name = src$default)
     })
   }
 
@@ -1055,7 +1058,8 @@ ptr_setup_pipelines <- function(state, input, output, session) {
         bind_source_value(state, sid, binding_name, df, slot)
       })
 
-      ptr_bind_source_autoname(src_id, comp_id, input, session)
+      ptr_bind_source_autoname(src_id, comp_id, input, session,
+                                default_name = node$default)
     })
   }
   invisible(state)
@@ -1066,16 +1070,34 @@ ptr_setup_pipelines <- function(state, input, output, session) {
 # returns NULL otherwise -- never clobbering a name the user typed). Shared
 # by the bare-layer and pipeline-head source wiring in
 # `ptr_setup_pipelines()`. `src_id` / `comp_id` are already namespaced.
-ptr_bind_source_autoname <- function(src_id, comp_id, input, session) {
+ptr_bind_source_autoname <- function(src_id, comp_id, input, session,
+                                     default_name = NULL) {
   if (is.null(comp_id)) return(invisible())
+  # Track the last value the helper itself set, seeded with the
+  # build-time `node$default` (the same value `ptr_builtin_upload_build_ui`
+  # writes into the companion textInput's `value =` at boot). Without
+  # this, a default-arg seed (e.g. `ppUpload(mtcars)` → companion =
+  # "mtcars") prevents subsequent uploads from auto-renaming the
+  # companion, because the autoname gate treated the seed as user-typed.
+  # The generated code then carried the stale name while
+  # `bind_source_value()` bound the uploaded frame under that stale name,
+  # producing dishonest spec/code output (`mtcars` shown, penguins bound).
+  seed_initial <- if (!is.null(default_name) &&
+                      is.character(default_name) &&
+                      length(default_name) == 1L && nzchar(default_name)) {
+    default_name
+  } else NULL
+  last_auto_set <- shiny::reactiveVal(seed_initial)
   shiny::observeEvent(input[[src_id]], {
     fi <- input[[src_id]]
     auto <- ptr_upload_autoname(
       input[[comp_id]],
-      if (!is.null(fi)) fi$name else NULL
+      if (!is.null(fi)) fi$name else NULL,
+      overwritable_seed = last_auto_set()
     )
     if (!is.null(auto)) {
       shiny::updateTextInput(session, comp_id, value = auto)
+      last_auto_set(auto)
     }
   })
 }
