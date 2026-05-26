@@ -883,6 +883,20 @@ panel_owned_binding_name <- function(node, entry, session,
   has_companion <- !is.null(node$companion_id)
   if (has_companion) {
     nm <- companion_value
+    # INT-3 (ADR 0023 / GAP-3A): mirror the boot-race fallback in
+    # `try_bind_source_default()` -- when the companion textInput hasn't
+    # registered yet, fall back to `node$default` so the panel-owned
+    # binding name can be computed at boot from a `default_arg`-primed
+    # source (worked example #2). Without this, the host-scope consumer
+    # picker stays empty: `panel_sources[[sid]]()` returns the primed
+    # df, but the binder block in `ptr_bind_shared_consumer_uis()` sees
+    # `bname = NULL` and skips. The per-instance call sites in
+    # `ptr_setup_pipelines()` benefit too: they wrote NULL into
+    # `state$bound_names[[layer]]` previously, leaving the source-ready
+    # gate unsatisfied at boot for default-arg priming.
+    if (!is.character(nm) || length(nm) != 1L || !nzchar(nm)) {
+      nm <- node$default
+    }
     if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
         make.names(nm) == nm) nm else NULL
   } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
@@ -2331,12 +2345,26 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
             }
           }
           use_env <- state$eval_env
+          # INT-3 (ADR 0023 / GAP-3B): when this binder runs inside an
+          # embedded `ptr_server()` (moduleServer), `input` is the
+          # *namespaced* module input -- `input[[cmp]]` resolves to
+          # `input[[<module>-<cmp>]]`, which never exists for a
+          # panel-owned companion id (its widget lives at the host's
+          # top-level un-namespaced slot). Use `rootScope()$input` to
+          # read the un-namespaced host slot from inside the module. At
+          # host scope (`state` is set on the single-instance / coordinator
+          # paths) `rootScope()` returns the same session, so this stays
+          # byte-equivalent there.
+          root_input <- {
+            dom <- shiny::getDefaultReactiveDomain()
+            if (!is.null(dom)) dom$rootScope()$input else input
+          }
           for (cmp in upstream_source_companion_ids) {
             # ADR 0023 / PLAN-07: panel-owned source companions live at
-            # the host's top-level (un-namespaced) input id; read
-            # `input[[cmp]]` (not `input[[ns(cmp)]]`) for those.
+            # the host's top-level (un-namespaced) input id; read from
+            # the root session's input (not the module's).
             val <- if (cmp %in% panel_sources_companion_ids) {
-              input[[cmp]]
+              root_input[[cmp]]
             } else {
               input[[ns(cmp)]]
             }
@@ -2346,7 +2374,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
             # ADR 0023 / PLAN-07: panel-owned source self ids live at
             # the host's top-level (un-namespaced) input id.
             val <- if (sid %in% names(panel_sources)) {
-              input[[sid]]
+              root_input[[sid]]
             } else {
               input[[ns(sid)]]
             }
