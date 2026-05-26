@@ -1769,17 +1769,14 @@ ptr_setup_source_uis <- function(state, input, output, session) {
   sources <- find_nodes(tree, is_ptr_ph_data_source)
   for (s in sources) {
     if (is.null(s$id)) next
-    # Cut 1 of the shared-source end-to-end fix: the prior blanket
-    # `if (!is.null(s$shared)) next` was partition-blind — it skipped
-    # every shared source, including formula-local ones the owning
-    # instance is supposed to render (Bug 2). With panel-owned source
-    # wiring still unimplemented, dropping the skip is safe: in single-
-    # instance the canonical id (e.g. `shared_ds`) is at the instance's
-    # own namespace and the standard renderUI path now applies; in
-    # multi-instance there is no panel-side container yet, so any
-    # collateral render is harmless (orphan output writes are silent).
-    # Cut 2 will reintroduce a *partition-aware* skip here once
-    # `shared_state$panel_sources` makes panel-owned ids addressable.
+    # ADR 0023 §7 / PLAN-06: partition-aware skip. Panel-owned source
+    # ids (populated on `state$panel_sources` by the host's
+    # `ptr_setup_panel_sources()`, Plan 04) are rendered once at host
+    # scope; the per-instance binder must not also write to those
+    # output slots. Formula-local shared ids and single-instance configs
+    # (where `state$panel_sources` is an empty list) fall through and
+    # render per-instance as before.
+    if (s$id %in% names(state$panel_sources %||% list())) next
     local({
       node <- s
       raw_id <- node$id
