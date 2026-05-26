@@ -2047,6 +2047,32 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
         find_source_companion_ids_in_upstream(node$upstream)
       upstream_source_self_ids <-
         find_source_self_ids_in_upstream(node$upstream)
+      # ADR 0023 §4 FINDING #3 fix: when an upstream source is panel-owned
+      # (`state$panel_sources[[<sid>]]` populated), its companion textInput
+      # and its source widget live at HOST scope -- there is no per-instance
+      # widget under `input[[ns(<id>)]]` to read from. Pre-compute which
+      # upstream companion/self ids belong to a panel-owned source so the
+      # snapshot loops below can read those values from
+      # `session$rootScope()$input[[<bare-id>]]` instead. Without this,
+      # `substitute_walk.ptr_ph_data_source` sees a NULL snapshot entry and
+      # short-circuits to `ptr_missing()` -> `ptr_resolve_upstream()`
+      # returns NULL -> non-shared `ppVar` pickers downstream of a
+      # panel-owned `ppUpload` boot empty (shared-section consumers go
+      # through `ptr_bind_shared_consumer_uis()` and are not affected).
+      upstream_panel_companion_ids <- character()
+      upstream_panel_self_ids <- character()
+      for (s in find_nodes(node$upstream, is_ptr_ph_data_source)) {
+        is_panel <- !is.null(s$id) &&
+          s$id %in% names(state$panel_sources %||% list())
+        if (!is_panel) next
+        if (!is.null(s$companion_id)) {
+          upstream_panel_companion_ids <-
+            c(upstream_panel_companion_ids, s$companion_id)
+        }
+        if (!is.null(s$id)) {
+          upstream_panel_self_ids <- c(upstream_panel_self_ids, s$id)
+        }
+      }
       # ADR 0015 §2.1: pick the source-ready reactive this consumer must
       # wait on, computed once per consumer. Bare-data layers publish their
       # frame into `state$resolved_data` under `layer_name`; pipeline-head
@@ -2115,11 +2141,19 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
           if (!is.null(val)) snapshot[[cid]] <- val
         }
         for (cmp in upstream_source_companion_ids) {
-          val <- input[[ns(cmp)]]
+          val <- if (cmp %in% upstream_panel_companion_ids) {
+            session$rootScope()$input[[cmp]]
+          } else {
+            input[[ns(cmp)]]
+          }
           if (!is.null(val)) snapshot[[cmp]] <- val
         }
         for (sid in upstream_source_self_ids) {
-          val <- input[[ns(sid)]]
+          val <- if (sid %in% upstream_panel_self_ids) {
+            session$rootScope()$input[[sid]]
+          } else {
+            input[[ns(sid)]]
+          }
           if (!is.null(val)) snapshot[[sid]] <- val
         }
         # ADR 0015 PLAN-02 / Option E: `state$upstream_cache` is safe
@@ -2185,7 +2219,24 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
           ns_fn = ui_ns,
           extra = extra
         )
-        has_rendered <<- TRUE
+        # Only flip `has_rendered` after a populated render. With a source-
+        # headed upstream (`ppUpload(df_main) |> ...`) the first
+        # `entry_reactive()` fire can return NULL because
+        # `substitute_walk.ptr_ph_data_source()` reads the companion value
+        # from `ctx$snapshot[[node$companion_id]]`, which is fed from
+        # `input[[ns(cmp)]]` and is briefly NULL post-boot before the
+        # client reports the widget's `value=` back. Flipping `has_rendered`
+        # on that empty fire used to lock the next valid fire into the
+        # `seed %||% current %||% character(0)` branch -- `extra$selected =
+        # character(0)` suppressed `invoke_build_ui()`'s `node$default`
+        # injection (paintr-build-ui.R:842-855), so `ppVar('hp')`-style
+        # defaults never seeded the picker once the upstream was a
+        # `ppUpload(default = df)` source. Gating the flip on
+        # `length(cols) > 0L` keeps the first-render flag deferred until
+        # cols are actually present; the explicit-deselect semantics is
+        # preserved by the `character(0)` tail above (after a valid render
+        # the user is the source of truth for "nothing selected").
+        if (length(cols) > 0L) has_rendered <<- TRUE
         result
       })
       # ADR 0015 §2.1: bind every consumer picker eagerly so it does not
