@@ -362,22 +362,56 @@ ptr_registry_register <- function(entry) {
 #'   name (passes `make.names()`) and not an R reserved word. This is the
 #'   token users type in the formula, e.g. `geom_point(alpha = pct)`.
 #'
-#' @param build_ui `function(node, label, ...)` returning a Shiny tag.
-#'   Pass `node$id` as the underlying widget's `inputId`. Read `node$keyword`
-#'   and `node$param` if you need them. The framework also passes any
-#'   `copy_defaults` field you declare by name (`help`, `placeholder`,
-#'   `empty_text`) — or accept a `copy = NULL` list and read them off it.
-#'   Always end the signature with `...`.
+#' @param build_ui `function(node, label = NULL, selected = NULL, ...)`
+#'   returning a Shiny tag. Pass `node$id` as the underlying widget's
+#'   `inputId`. Read `node$keyword` and `node$param` if you need them. The
+#'   framework also passes any `copy_defaults` field you declare by name
+#'   (`help`, `placeholder`, `empty_text`) — or accept a `copy = NULL`
+#'   list and read them off it. Always end the signature with `...`.
 #'
-#'   *Seeding the initial widget value* — declare an optional
-#'   `selected = NULL` formal (or accept `...`) to opt in. At boot the
-#'   framework injects `node$default` into `selected` so a positional
-#'   default in the formula (e.g. `ppPct(50)`) seeds the widget. On
-#'   subsequent renderUI fires `selected` carries the precedence chain
-#'   `spec-seed %||% current-input %||% empty`, so it is the right slot to
-#'   read regardless of which boot stage is firing. Do **not** read
-#'   `node$default` directly inside the body — that bypasses persistence
-#'   and re-clobbers the user's edit on every renderUI re-fire.
+#'   **Widget-seeding contract — `selected`** (authoritative; the four
+#'   `invoke_build_ui` call sites in `R/paintr-server.R` implement what
+#'   is described here, with short pointers back to this docblock).
+#'
+#'   Declare `selected = NULL` as an explicit formal, **not** a no-default
+#'   `selected` (or accept `...`). The framework calls `build_ui` on every
+#'   renderUI fire and delivers `selected` per this precedence:
+#'
+#'   - First render, `spec=` seed present → seed value.
+#'   - First render, no spec, positional default present
+#'     (e.g. `ppPct(50)`) → `node$default`.
+#'   - First render, no spec, no positional default →
+#'     framework **omits** `selected`; your `selected = NULL` formal
+#'     default applies.
+#'   - Subsequent renders (Update Plot click, upstream change, layer
+#'     toggle, …) → `spec %||% current-input` verbatim. If the user
+#'     emptied the widget, `current-input` is whatever the widget emits
+#'     on clear — one of `NULL`, `character(0)`, `""`, `NA_real_`,
+#'     `NA_character_`, depending on the widget — and the framework
+#'     coerces `NULL` to `character(0)` so you always receive a value
+#'     on subsequent renders.
+#'
+#'   Because the framework omits the argument on the first-render-no-
+#'   default path, a hook signature without a formal default for
+#'   `selected` aborts there with `argument "selected" is missing`.
+#'
+#'   **Render empty when `selected` is empty.** Treat any of `NULL`,
+#'   `character(0)`, `""`, `NA_real_`, `NA_character_` as "the user
+#'   wants this widget empty" and render the widget empty. Do not
+#'   substitute a hardcoded fallback inside `build_ui` for the empty
+#'   case — that re-introduces the deselect-snaps-back-to-default
+#'   defect the framework's seeding layer is designed to prevent
+#'   (closure-flag in `ptr_setup_value_uis()` /
+#'   `ptr_setup_consumer_uis()` / `ptr_bind_shared_consumer_uis()`).
+#'   Boot-time defaults belong in the formula, e.g. `ppPct(50)`, and
+#'   reach you through `selected`, not through a hardcoded constant in
+#'   the hook body.
+#'
+#'   **Never read `node$default` directly.** It is exposed only so the
+#'   framework can route it into `selected` on the boot fire. Reading
+#'   it inside the hook bypasses the precedence chain and the closure-
+#'   flag persistence guards, and will re-clobber a user-cleared widget
+#'   on every Update Plot click.
 #'
 #' @param resolve_expr `function(value, node, ...)` returning the R
 #'   expression spliced into the rendered call. `value` is
@@ -444,17 +478,23 @@ ptr_registry_register <- function(entry) {
 #'
 #' @examples
 #' # A percentage placeholder: user types a number 0-100; we splice
-#' # the fraction 0-1 into the rendered call.
+#' # the fraction 0-1 into the rendered call. The hook reads `selected`
+#' # to honor a formula default like `pct(75)` at boot and to keep a
+#' # user-cleared widget empty across Update Plot fires (do NOT
+#' # substitute a hardcoded fallback when selected is empty).
 #' ptr_define_placeholder_value(
 #'   keyword = "pct",
-#'   build_ui = function(node, label, ...) {
-#'     shiny::numericInput(node$id, label = label, value = 50,
-#'                         min = 0, max = 100, step = 1)
+#'   build_ui = function(node, label = NULL, selected = NULL, ...) {
+#'     n <- suppressWarnings(as.numeric(selected))
+#'     initial <- if (length(n) == 1L && is.finite(n)) n else NA_real_
+#'     shiny::numericInput(node$id, label = label %||% "Percent",
+#'                         value = initial, min = 0, max = 100, step = 1)
 #'   },
 #'   resolve_expr = function(value, node, ...) {
 #'     if (length(value) != 1L || !is.finite(value)) return(NULL)
 #'     value / 100
 #'   },
+#'   default_arg = ptr_default_numeric(),  # accept ppPct(50)-style defaults
 #'   copy_defaults = list(label = "Percent for {param}")
 #' )
 #' ptr_clear_placeholder("pct")
@@ -505,21 +545,33 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #'
 #' @param keyword,copy_defaults See [ptr_define_placeholder_value()].
 #'
-#' @param build_ui `function(node, cols, data, label, ...)` returning a
-#'   Shiny tag. `cols` is a character vector of upstream column names
-#'   (use as `choices`); `character(0)` before upstream resolves. `data`
-#'   is the upstream data frame, or `NULL` while pending — read it only
-#'   when you need column types / levels / ranges.
+#' @param build_ui
+#'   `function(node, cols, data, label = NULL, selected = NULL, ...)`
+#'   returning a Shiny tag. `cols` is a character vector of upstream
+#'   column names (use as `choices`); `character(0)` before upstream
+#'   resolves. `data` is the upstream data frame, or `NULL` while
+#'   pending — read it only when you need column types / levels / ranges.
 #'
-#'   *Seeding the initial selection* — declare an optional
-#'   `selected = NULL` formal (or accept `...`) to opt in. The framework
-#'   passes the precedence chain `spec-seed %||% current-input %||% empty`
-#'   into `selected` on every renderUI fire — including the boot fire, when
-#'   it carries `node$default` for a positional default like `ppVar(adj)`.
-#'   Pass `selected = intersect(selected, cols)` to the picker so a stale
-#'   selection drops cleanly when the upstream columns change. Do **not**
-#'   read `node$default` directly inside the body — that bypasses
-#'   persistence and re-clobbers the user's pick on each re-fire.
+#'   **Widget-seeding contract — `selected`.** Same precedence,
+#'   omit-on-no-default, render-empty-when-empty, and never-read-
+#'   `node$default` rules as for value placeholders — see the
+#'   "Widget-seeding contract" block on
+#'   [ptr_define_placeholder_value()] for the authoritative description.
+#'
+#'   **Consumer-specific rule: filter through `intersect()`.** Always
+#'   pass `selected = intersect(selected %||% character(0), cols)` (or
+#'   the equivalent column filter) to the underlying widget, not bare
+#'   `selected`. Three cases collapse into one line:
+#'
+#'   - User-cleared widget (`selected` is empty) → `intersect()`
+#'     returns `character(0)`, widget renders empty. Honors the
+#'     render-empty-when-empty rule.
+#'   - Stale pick after upstream data swap (`selected` names a column
+#'     no longer in `cols`) → `intersect()` drops it cleanly. Without
+#'     this, `selectInput` silently falls back to its first choice
+#'     (silent data mutation) and `shinyWidgets::pickerInput` enters a
+#'     similarly broken state.
+#'   - Valid pick → `intersect()` is a no-op, value flows through.
 #'
 #' @param resolve_expr `function(value, node, ...)`. For a column picker
 #'   the typical body is `rlang::sym(value)` so the bare column name is
@@ -564,13 +616,18 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #'
 #' @examples
 #' # A consumer that picks a numeric-only column.
+#' # Note: `selected = NULL` formal (per the seeding contract) plus
+#' # intersect() filter (per the consumer-specific rule). Empty input
+#' # renders empty; a stale pick after a data swap drops cleanly.
 #' ptr_define_placeholder_consumer(
 #'   keyword = "numvar",
-#'   build_ui = function(node, cols, data, label, ...) {
+#'   build_ui = function(node, cols, data, label = NULL,
+#'                       selected = NULL, ...) {
 #'     numeric_cols <- if (is.null(data)) character(0) else
 #'       names(data)[vapply(data, is.numeric, logical(1))]
-#'     shiny::selectInput(node$id, label = label, choices = numeric_cols,
-#'                        selected = character(0))
+#'     retained <- intersect(selected %||% character(0), numeric_cols)
+#'     shiny::selectInput(node$id, label = label %||% "Numeric column",
+#'                        choices = numeric_cols, selected = retained)
 #'   },
 #'   resolve_expr = function(value, node, ...) {
 #'     if (length(value) != 1L || !nzchar(value)) return(NULL)

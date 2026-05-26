@@ -1543,6 +1543,13 @@ ptr_setup_value_uis <- function(state, input, output, session) {
       node <- v
       raw_id <- node$id
       output_id <- ns(value_output_id(raw_id))
+      # Implements the widget-seeding contract from
+      # ?ptr_define_placeholder_value (Widget-seeding contract section).
+      # `has_rendered` distinguishes the first renderUI fire (input not
+      # bound; framework injects node$default via invoke_build_ui branch
+      # A) from subsequent fires (current %||% character(0) flows
+      # verbatim, so a user-emptied widget stays empty).
+      has_rendered <- FALSE
       output[[output_id]] <- shiny::renderUI({
         # Re-fire on tree changes (layer toggles, formula rebuilds) the
         # same way consumer renderUIs do; value widgets don't depend on
@@ -1560,15 +1567,24 @@ ptr_setup_value_uis <- function(state, input, output, session) {
         override <- pipeline_override_for_node(
           shiny::isolate(state$tree()), node$id
         )
-        invoke_build_ui(
+        selected_arg <- if (has_rendered) {
+          seed %||% current %||% character(0)
+        } else {
+          seed
+        }
+        extra <- list()
+        if (!is.null(selected_arg)) extra$selected <- selected_arg
+        result <- invoke_build_ui(
           node,
           ui_text = ui_text,
           layer_name = node$layer_name,
           ns_fn = ui_ns,
-          extra = list(selected = seed %||% current),
+          extra = extra,
           param_override = override$param_override,
           label_suffix = override$label_suffix
         )
+        has_rendered <<- TRUE
+        result
       })
       # ADR 0012 / PLAN-01 (Bug B): value widgets must exist in the DOM
       # regardless of whether the layer panel's tab is currently visible.
@@ -1605,19 +1621,30 @@ ptr_setup_value_uis <- function(state, input, output, session) {
       label_override <- entry$label_override
       raw_id <- node$id
       output_id <- ns(value_output_id(raw_id))
+      # See `has_rendered` comment in the non-shared value loop above.
+      has_rendered <- FALSE
       output[[output_id]] <- shiny::renderUI({
         state$tree()
         state$stage_enabled()
         current <- shiny::isolate(input[[ns(raw_id)]])
         seed <- shiny::isolate(state$spec_seed[[raw_id]])
-        invoke_build_ui(
+        selected_arg <- if (has_rendered) {
+          seed %||% current %||% character(0)
+        } else {
+          seed
+        }
+        extra <- list()
+        if (!is.null(selected_arg)) extra$selected <- selected_arg
+        result <- invoke_build_ui(
           node,
           ui_text = ui_text,
           layer_name = node$layer_name,
           ns_fn = ui_ns,
-          extra = list(selected = seed %||% current),
+          extra = extra,
           label_override = label_override
         )
+        has_rendered <<- TRUE
+        result
       })
       # Shared widgets live in the host's shared section (not a layer
       # tab), so suspension is moot there -- but keeping the option
@@ -1737,6 +1764,10 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
       node <- c
       raw_id <- node$id
       output_id <- ns(consumer_output_id(raw_id))
+      # Implements the widget-seeding contract from
+      # ?ptr_define_placeholder_consumer (see also the seeding-contract
+      # block on ?ptr_define_placeholder_value).
+      has_rendered <- FALSE
 
       # Per-consumer dep set:
       #   - structural: tree, stage_enabled
@@ -1882,14 +1913,22 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
         # because by then `current` already shadows it logically — the
         # `%||%` chain picks the first non-NULL).
         seed <- shiny::isolate(state$spec_seed[[raw_id]])
-        invoke_build_ui(
+        selected_arg <- if (has_rendered) {
+          seed %||% current %||% character(0)
+        } else {
+          seed
+        }
+        extra <- list(cols = cols, data = data)
+        if (!is.null(selected_arg)) extra$selected <- selected_arg
+        result <- invoke_build_ui(
           node,
           ui_text = ui_text,
           layer_name = node$layer_name,
           ns_fn = ui_ns,
-          extra = list(cols = cols, data = data,
-                       selected = seed %||% current %||% character(0))
+          extra = extra
         )
+        has_rendered <<- TRUE
+        result
       })
       # ADR 0015 §2.1: bind every consumer picker eagerly so it does not
       # hang on inner-tab visibility. Source-headed pipelines no longer
@@ -1952,6 +1991,8 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
       rep_node <- representative_nodes[[k]]
       if (is.null(rep_node)) return(NULL)
       output_id <- ns(consumer_output_id(rep_node$id))
+      # Widget-seeding contract — see ?ptr_define_placeholder_consumer.
+      has_rendered <- FALSE
       # Upload-companion ids in our resolved upstream. When `state` is
       # provided, the renderUI below builds a snapshot from these so
       # `ptr_resolve_upstream` can substitute a data-source placeholder
@@ -2059,15 +2100,22 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
         seed <- if (!is.null(state)) {
           shiny::isolate(state$spec_seed[[rep_node$id]])
         } else NULL
+        selected_arg <- if (has_rendered) {
+          seed %||% current %||% character(0)
+        } else {
+          seed
+        }
+        extra <- list(cols = cols, data = df)
+        if (!is.null(selected_arg)) extra$selected <- selected_arg
         picker <- invoke_build_ui(
           rep_node,
           ui_text = ui_text,
           layer_name = NULL,
           ns_fn = ui_ns,
-          extra = list(cols = cols, data = df,
-                       selected = seed %||% current %||% character(0)),
+          extra = extra,
           label_override = rep_node$shared_label
         )
+        has_rendered <<- TRUE
         # Soft advisory: when upstream resolution returns NULL and the
         # cause is an unresolved data-source placeholder (e.g. `upload`
         # not yet provided, `pick_ds` not yet picked), surface that

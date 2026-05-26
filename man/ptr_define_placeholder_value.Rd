@@ -20,22 +20,57 @@ ptr_define_placeholder_value(
 name (passes \code{make.names()}) and not an R reserved word. This is the
 token users type in the formula, e.g. \code{geom_point(alpha = pct)}.}
 
-\item{build_ui}{\verb{function(node, label, ...)} returning a Shiny tag.
-Pass \code{node$id} as the underlying widget's \code{inputId}. Read \code{node$keyword}
-and \code{node$param} if you need them. The framework also passes any
-\code{copy_defaults} field you declare by name (\code{help}, \code{placeholder},
-\code{empty_text}) — or accept a \code{copy = NULL} list and read them off it.
-Always end the signature with \code{...}.
+\item{build_ui}{\verb{function(node, label = NULL, selected = NULL, ...)}
+returning a Shiny tag. Pass \code{node$id} as the underlying widget's
+\code{inputId}. Read \code{node$keyword} and \code{node$param} if you need them. The
+framework also passes any \code{copy_defaults} field you declare by name
+(\code{help}, \code{placeholder}, \code{empty_text}) — or accept a \code{copy = NULL}
+list and read them off it. Always end the signature with \code{...}.
 
-\emph{Seeding the initial widget value} — declare an optional
-\code{selected = NULL} formal (or accept \code{...}) to opt in. At boot the
-framework injects \code{node$default} into \code{selected} so a positional
-default in the formula (e.g. \code{ppPct(50)}) seeds the widget. On
-subsequent renderUI fires \code{selected} carries the precedence chain
-\code{spec-seed \%||\% current-input \%||\% empty}, so it is the right slot to
-read regardless of which boot stage is firing. Do \strong{not} read
-\code{node$default} directly inside the body — that bypasses persistence
-and re-clobbers the user's edit on every renderUI re-fire.}
+\strong{Widget-seeding contract — \code{selected}} (authoritative; the four
+\code{invoke_build_ui} call sites in \code{R/paintr-server.R} implement what
+is described here, with short pointers back to this docblock).
+
+Declare \code{selected = NULL} as an explicit formal, \strong{not} a no-default
+\code{selected} (or accept \code{...}). The framework calls \code{build_ui} on every
+renderUI fire and delivers \code{selected} per this precedence:
+\itemize{
+\item First render, \verb{spec=} seed present → seed value.
+\item First render, no spec, positional default present
+(e.g. \code{ppPct(50)}) → \code{node$default}.
+\item First render, no spec, no positional default →
+framework \strong{omits} \code{selected}; your \code{selected = NULL} formal
+default applies.
+\item Subsequent renders (Update Plot click, upstream change, layer
+toggle, …) → \code{spec \%||\% current-input} verbatim. If the user
+emptied the widget, \code{current-input} is whatever the widget emits
+on clear — one of \code{NULL}, \code{character(0)}, \code{""}, \code{NA_real_},
+\code{NA_character_}, depending on the widget — and the framework
+coerces \code{NULL} to \code{character(0)} so you always receive a value
+on subsequent renders.
+}
+
+Because the framework omits the argument on the first-render-no-
+default path, a hook signature without a formal default for
+\code{selected} aborts there with \verb{argument "selected" is missing}.
+
+\strong{Render empty when \code{selected} is empty.} Treat any of \code{NULL},
+\code{character(0)}, \code{""}, \code{NA_real_}, \code{NA_character_} as "the user
+wants this widget empty" and render the widget empty. Do not
+substitute a hardcoded fallback inside \code{build_ui} for the empty
+case — that re-introduces the deselect-snaps-back-to-default
+defect the framework's seeding layer is designed to prevent
+(closure-flag in \code{ptr_setup_value_uis()} /
+\code{ptr_setup_consumer_uis()} / \code{ptr_bind_shared_consumer_uis()}).
+Boot-time defaults belong in the formula, e.g. \code{ppPct(50)}, and
+reach you through \code{selected}, not through a hardcoded constant in
+the hook body.
+
+\strong{Never read \code{node$default} directly.} It is exposed only so the
+framework can route it into \code{selected} on the boot fire. Reading
+it inside the hook bypasses the precedence chain and the closure-
+flag persistence guards, and will re-clobber a user-cleared widget
+on every Update Plot click.}
 
 \item{resolve_expr}{\verb{function(value, node, ...)} returning the R
 expression spliced into the rendered call. \code{value} is
@@ -116,17 +151,23 @@ the rest of the formula reads from (file upload, dataset chooser).
 }
 \examples{
 # A percentage placeholder: user types a number 0-100; we splice
-# the fraction 0-1 into the rendered call.
+# the fraction 0-1 into the rendered call. The hook reads `selected`
+# to honor a formula default like `pct(75)` at boot and to keep a
+# user-cleared widget empty across Update Plot fires (do NOT
+# substitute a hardcoded fallback when selected is empty).
 ptr_define_placeholder_value(
   keyword = "pct",
-  build_ui = function(node, label, ...) {
-    shiny::numericInput(node$id, label = label, value = 50,
-                        min = 0, max = 100, step = 1)
+  build_ui = function(node, label = NULL, selected = NULL, ...) {
+    n <- suppressWarnings(as.numeric(selected))
+    initial <- if (length(n) == 1L && is.finite(n)) n else NA_real_
+    shiny::numericInput(node$id, label = label \%||\% "Percent",
+                        value = initial, min = 0, max = 100, step = 1)
   },
   resolve_expr = function(value, node, ...) {
     if (length(value) != 1L || !is.finite(value)) return(NULL)
     value / 100
   },
+  default_arg = ptr_default_numeric(),  # accept ppPct(50)-style defaults
   copy_defaults = list(label = "Percent for {param}")
 )
 ptr_clear_placeholder("pct")
