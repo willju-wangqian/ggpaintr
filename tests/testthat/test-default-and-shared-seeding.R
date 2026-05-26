@@ -108,15 +108,23 @@ test_that("var hook seeds picker selection from node$default via orchestrator", 
     default = "mpg"
   )
   # Mirror `ptr_setup_consumer_uis`'s call into the orchestrator: cols
-  # populated, no persisted input (selected = character(0)). The
-  # orchestrator must fall back to node$default.
+  # populated, no persisted input (current = NULL, so the call site OMITS
+  # `selected` from `extra`). The orchestrator must fall back to
+  # `node$default` for the boot-seed.
+  #
+  # Contract change (deselect-snaps-back-to-default fix): the call site
+  # used to pass `selected = character(0)` in this scenario, and the
+  # orchestrator's `length == 0L` branch did the fallback. That branch
+  # was removed because it conflated "input not bound yet" with "user
+  # explicitly emptied the widget". Now: omit `selected` ⇒ orchestrator
+  # falls back to default; pass `character(0)` ⇒ orchestrator preserves
+  # the explicit empty (see U3 in test-invoke-build-ui-selected-contract.R).
   picker <- invoke_build_ui(
     node,
     ui_text = NULL,
     layer_name = NULL,
     ns_fn = identity,
-    extra = list(cols = c("mpg", "hp", "disp"), data = mtcars,
-                 selected = character(0))
+    extra = list(cols = c("mpg", "hp", "disp"), data = mtcars)
   )
   rendered <- as.character(picker)
   # pickerInput marks the selected <option> with `selected`.
