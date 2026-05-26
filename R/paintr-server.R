@@ -867,6 +867,34 @@ bind_source_value <- function(state, key, name, df, slot) {
   slot(df)
 }
 
+# ADR 0023 §4 PLAN-05: derive the binding name for a panel-owned source
+# on the per-instance side. Mirrors `resolve_upload_source()`'s name
+# derivation but reads the companion text-input value at the host's
+# top-level (`session$rootScope()$input[[node$companion_id]]`) -- the
+# panel-owned source widget lives at top-level, not under the
+# per-instance namespace ("one widget, one owner"). Companion-less
+# sources derive via `entry$resolve_expr` exactly as the input-watching
+# path does. Returns NULL when no valid name can be derived; in that
+# case `bind_source_value()` still mirrors the resolved df into the
+# instance's per-source slot (so downstream consumers see the value),
+# only `state$eval_env` / `state$bound_names` are skipped.
+panel_owned_binding_name <- function(node, entry, session,
+                                     companion_value, df) {
+  has_companion <- !is.null(node$companion_id)
+  if (has_companion) {
+    nm <- companion_value
+    if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
+        make.names(nm) == nm) nm else NULL
+  } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
+    sym <- tryCatch(entry$resolve_expr(df, node),
+                    error = function(e) NULL)
+    if (is.symbol(sym)) {
+      cand <- as.character(sym)
+      if (nzchar(cand) && make.names(cand) == cand) cand else NULL
+    } else NULL
+  } else NULL
+}
+
 # Boot-time fallback for source placeholders with a `default_arg`-validated
 # value: when no live input has been provided through the source widget
 # (e.g. ppUpload's fileInput is still empty), but the placeholder carries a
@@ -1062,6 +1090,35 @@ ptr_setup_pipelines <- function(state, input, output, session) {
       entry <- ptr_registry_lookup(src$keyword)
       slot <- state$resolved_data[[ln]]
 
+      # ADR 0023 §4 PLAN-05: panel-owned source substitution. When this
+      # source's canonical id (e.g. `shared_ds`) is owned by the panel
+      # (host-level `panel_sources` reactive populated by
+      # `ptr_setup_panel_sources()`), redirect the per-instance binder to
+      # read the resolved df from the panel reactive instead of watching
+      # the per-instance input slot (which has no widget --
+      # "one widget, one owner"). Skip wiring the input-watching observer
+      # for this source -- otherwise we would watch a permanently-NULL
+      # slot and cause spurious invalidations (ADR §4 note).
+      panel_owned <- !is.null(src$id) &&
+        src$id %in% names(state$panel_sources %||% list())
+      if (panel_owned) {
+        sid <- src$id
+        panel_reactive <- state$panel_sources[[sid]]
+        shiny::observe({
+          df <- panel_reactive()
+          if (is.null(df)) { slot(NULL); return(invisible(NULL)) }
+          binding_name <- panel_owned_binding_name(
+            src, entry, session,
+            companion_value = if (!is.null(src$companion_id)) {
+              session$rootScope()$input[[src$companion_id]]
+            } else NULL,
+            df = df
+          )
+          bind_source_value(state, ln, binding_name, df, slot)
+        })
+        return(invisible())
+      }
+
       shiny::observe({
         resolve_upload_source(
           input_slot     = input[[src_id]],
@@ -1110,6 +1167,28 @@ ptr_setup_pipelines <- function(state, input, output, session) {
       comp_id <- if (!is.null(node$companion_id)) ns(node$companion_id) else NULL
       entry <- ptr_registry_lookup(node$keyword)
       slot <- state$resolved_sources[[sid]]
+
+      # ADR 0023 §4 PLAN-05: panel-owned source substitution (pipeline-head
+      # variant). Symmetric with the bare-data-source-layer branch above:
+      # when this source's canonical id is owned by the panel, read the
+      # resolved df from the panel reactive and skip the input-watching
+      # observer (no per-instance widget exists for this id).
+      if (sid %in% names(state$panel_sources %||% list())) {
+        panel_reactive <- state$panel_sources[[sid]]
+        shiny::observe({
+          df <- panel_reactive()
+          if (is.null(df)) { slot(NULL); return(invisible(NULL)) }
+          binding_name <- panel_owned_binding_name(
+            node, entry, session,
+            companion_value = if (!is.null(node$companion_id)) {
+              session$rootScope()$input[[node$companion_id]]
+            } else NULL,
+            df = df
+          )
+          bind_source_value(state, sid, binding_name, df, slot)
+        })
+        return(invisible())
+      }
 
       shiny::observe({
         resolve_upload_source(
