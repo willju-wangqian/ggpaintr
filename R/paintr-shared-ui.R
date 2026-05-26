@@ -335,13 +335,26 @@ ptr_shared_server <- function(obj,
   # The sink remains a character() vector; per-source error messages are
   # bridged through it from each source's resolve_errors store.
   errors_rv <- shiny::reactiveVal(character())
+  # ADR 0023 / PLAN-04 + PLAN-07: bind the panel-owned source widgets
+  # and build the per-source resolved-data reactives BEFORE the consumer
+  # binder runs, so the binder can take a direct dep on
+  # `panel_sources[[sid]]()` for consumers whose upstream source id is
+  # panel-owned. The helper is a no-op (returns `list()`) when no panel-
+  # owned source keys exist, preserving the existing observable shape
+  # for all multi-instance apps that don't yet share a source across
+  # formulas.
+  panel_sources <- ptr_setup_panel_sources(
+    obj, input = input, output = output, envir = envir,
+    errors_rv = errors_rv
+  )
   if (length(panel_consumer_keys) > 0L) {
     ptr_bind_local_shared_consumers(
       tree = trees, output = output, input = input, ns = ns,
       host_owned_keys = setdiff(consumer_keys, panel_keys),
       eval_env = envir,
       expr_check = expr_check,
-      errors_rv = errors_rv
+      errors_rv = errors_rv,
+      panel_sources = panel_sources
     )
   }
   output[[errors_output_id]] <- shiny::renderUI({
@@ -390,15 +403,10 @@ ptr_shared_server <- function(obj,
     })
   }
 
-  # ADR 0023 / PLAN-04: bind the panel-owned source widgets and build the
-  # per-source resolved-data reactives. The helper is a no-op (returns
-  # `list()`) when no panel-owned source keys exist, preserving the
-  # existing observable shape for all multi-instance apps that don't yet
-  # share a source across formulas.
-  panel_sources <- ptr_setup_panel_sources(
-    obj, input = input, output = output, envir = envir,
-    errors_rv = errors_rv
-  )
+  # ADR 0023 / PLAN-07: `panel_sources` is now built earlier (before the
+  # consumer binder) so the binder can take a direct dep on
+  # `panel_sources[[sid]]()`. The reactive bundle is still threaded into
+  # `new_ptr_shared_state()` below.
 
   new_ptr_shared_state(
     shared = shared_reactives,

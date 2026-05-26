@@ -2138,6 +2138,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
                                             expr_check = TRUE,
                                             errors_rv = NULL,
                                             state = NULL,
+                                            panel_sources = list(),
                                             ui_ns = ns) {
   # `ns` namespaces server-side `output[[]]` / `input[[]]` slots; `ui_ns`
   # namespaces the `inputId` of the tag this renderUI emits. They differ
@@ -2181,6 +2182,23 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
       upstream_source_self_ids <- if (!is.null(resolution$value)) {
         find_source_self_ids_in_upstream(resolution$value)
       } else character()
+      # ADR 0023 / PLAN-07: subset of `upstream_source_companion_ids`
+      # belonging to a panel-owned source (i.e. paired with an `id` in
+      # `names(panel_sources)`). The snap loop reads these at the
+      # top-level (un-namespaced) input id to match the panel's global
+      # id convention; the per-instance loop in `ptr_setup_pipelines()`
+      # has no widget for them.
+      panel_sources_companion_ids <- if (!is.null(resolution$value) &&
+                                          length(panel_sources) > 0L) {
+        ids <- character()
+        ptr_walk(resolution$value, function(n) {
+          if (is_ptr_ph_data_source(n) && !is.null(n$companion_id) &&
+              !is.null(n$id) && n$id %in% names(panel_sources)) {
+            ids[[length(ids) + 1L]] <<- n$companion_id
+          }
+        })
+        unique(ids)
+      } else character()
       # ADR 0015 PLAN-02 / Option E: keys this shared consumer must wait
       # on before `ptr_resolve_upstream` runs. Two kinds:
       #   - pipeline-head sources publish into `state$bound_names[[id]]`
@@ -2219,6 +2237,27 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
         # even though the data is sitting in `state$eval_env`.
         snap <- list()
         use_env <- eval_env
+        # ADR 0023 / PLAN-07: when the consumer's resolved upstream
+        # source id sits in `names(panel_sources)`, take a reactive
+        # dep on `panel_sources[[sid]]()` so this renderUI re-fires
+        # when the panel-owned source resolves (NULL -> df) or
+        # transitions to a new frame. At host scope (`state = NULL`)
+        # this is the sole signal; at per-instance scope the
+        # `state$resolved_sources` / `state$resolved_data` deps below
+        # also fire because PLAN-05 mirrors the panel reactive into
+        # the per-instance slot, but depending directly here shortens
+        # the chain and makes the dep explicit when no `state` is
+        # threaded. Read as a separate line near the top of the body
+        # (NOT inside the `selected_arg` ternary) so the
+        # `has_rendered` closure-flag region remains verbatim.
+        # `upstream_source_self_ids` excludes companion-driven sources
+        # (e.g. `ppUpload`, whose `node$id` is paired with a
+        # `companion_id` like `<id>_name`); walk `upstream_source_ids_for_req`
+        # instead since it collects EVERY data-source `node$id` regardless
+        # of companion shape.
+        for (sid in upstream_source_ids_for_req) {
+          if (sid %in% names(panel_sources)) panel_sources[[sid]]()
+        }
         if (!is.null(state)) {
           # ADR 0015 §2.2: bare-data-source layers publish their frame
           # into `state$resolved_data` under `layer_name`, pipeline-head
@@ -2246,11 +2285,24 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
           }
           use_env <- state$eval_env
           for (cmp in upstream_source_companion_ids) {
-            val <- input[[ns(cmp)]]
+            # ADR 0023 / PLAN-07: panel-owned source companions live at
+            # the host's top-level (un-namespaced) input id; read
+            # `input[[cmp]]` (not `input[[ns(cmp)]]`) for those.
+            val <- if (cmp %in% panel_sources_companion_ids) {
+              input[[cmp]]
+            } else {
+              input[[ns(cmp)]]
+            }
             if (!is.null(val)) snap[[cmp]] <- val
           }
           for (sid in upstream_source_self_ids) {
-            val <- input[[ns(sid)]]
+            # ADR 0023 / PLAN-07: panel-owned source self ids live at
+            # the host's top-level (un-namespaced) input id.
+            val <- if (sid %in% names(panel_sources)) {
+              input[[sid]]
+            } else {
+              input[[ns(sid)]]
+            }
             if (!is.null(val)) snap[[sid]] <- val
           }
         }
@@ -2336,6 +2388,7 @@ ptr_bind_local_shared_consumers <- function(tree, output, input, ns,
                                             expr_check = TRUE,
                                             errors_rv = NULL,
                                             state = NULL,
+                                            panel_sources = list(),
                                             ui_ns = ns) {
   resolutions <- ptr_resolve_shared_consumers(tree)
   keys <- setdiff(names(resolutions), host_owned_keys)
@@ -2351,6 +2404,7 @@ ptr_bind_local_shared_consumers <- function(tree, output, input, ns,
     expr_check = expr_check,
     errors_rv = errors_rv,
     state = state,
+    panel_sources = panel_sources,
     ui_ns = ui_ns
   )
   invisible(NULL)
