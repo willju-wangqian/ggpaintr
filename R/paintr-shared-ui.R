@@ -329,8 +329,13 @@ ptr_shared_server <- function(obj,
   # `panel_keys ∩ consumer_keys` are bound at `ns = identity`.
   panel_consumer_keys <- intersect(consumer_keys, panel_keys)
   errors_output_id <- ns("ptr_shared_errors")
+  # ADR 0023 / PLAN-04: hoist `errors_rv` so that both the consumer binder
+  # (existing) and `ptr_setup_panel_sources()` (new, below) can push into
+  # the same panel-level error sink, symmetric with consumer-side errors.
+  # The sink remains a character() vector; per-source error messages are
+  # bridged through it from each source's resolve_errors store.
+  errors_rv <- shiny::reactiveVal(character())
   if (length(panel_consumer_keys) > 0L) {
-    errors_rv <- shiny::reactiveVal(character())
     ptr_bind_local_shared_consumers(
       tree = trees, output = output, input = input, ns = ns,
       host_owned_keys = setdiff(consumer_keys, panel_keys),
@@ -338,18 +343,12 @@ ptr_shared_server <- function(obj,
       expr_check = expr_check,
       errors_rv = errors_rv
     )
-    output[[errors_output_id]] <- shiny::renderUI({
-      msgs <- errors_rv()
-      if (length(msgs) == 0L) return(NULL)
-      ptr_error_ui(paste(msgs, collapse = "\n"))
-    })
-  } else {
-    # No panel consumer keys to surface, but the embedder still has the
-    # slot in the panel; clear it explicitly so a stale prior render does
-    # not stick. Safe no-op when `panel_keys` is empty (formula-local-only
-    # multi-instance app) and the `ptr_shared_errors` id is absent.
-    output[[errors_output_id]] <- shiny::renderUI({ NULL })
   }
+  output[[errors_output_id]] <- shiny::renderUI({
+    msgs <- errors_rv()
+    if (length(msgs) == 0L) return(NULL)
+    ptr_error_ui(paste(msgs, collapse = "\n"))
+  })
 
   # One reactive per shared key whose orphan pipeline stages should be
   # toggleable from the shared panel. Default to TRUE so that an unset
@@ -391,10 +390,205 @@ ptr_shared_server <- function(obj,
     })
   }
 
+  # ADR 0023 / PLAN-04: bind the panel-owned source widgets and build the
+  # per-source resolved-data reactives. The helper is a no-op (returns
+  # `list()`) when no panel-owned source keys exist, preserving the
+  # existing observable shape for all multi-instance apps that don't yet
+  # share a source across formulas.
+  panel_sources <- ptr_setup_panel_sources(
+    obj, input = input, output = output, envir = envir,
+    errors_rv = errors_rv
+  )
+
   new_ptr_shared_state(
     shared = shared_reactives,
     draw_trigger = effective_draw_trigger,
     shared_resolutions = shared_resolutions,
-    shared_stage_enabled = shared_stage_enabled
+    shared_stage_enabled = shared_stage_enabled,
+    panel_sources = panel_sources
   )
+}
+
+
+# ---- ptr_setup_panel_sources ----------------------------------------------
+#
+# ADR 0023 / PLAN-04: host-side renderer + reactive builder for the panel-
+# owned source keys. Mirrors the per-instance `ptr_setup_source_uis()` /
+# `ptr_setup_pipelines()` pair from R/paintr-server.R but at *panel* scope
+# (un-namespaced ids; one renderUI per source key) so the partition rule
+# ("ownership equals binding") holds for the source role too.
+#
+# For each panel-owned data-source key:
+#   * binds `output[[shared_<key>_ui]]` to a renderUI body equivalent to
+#     the per-instance source body (same `invoke_build_ui`-shaped
+#     dispatch: registry `build_ui`, `file_copy` / `name_copy` injection
+#     for ppUpload, `named_args` pass-through, and the same
+#     `outputOptions(..., suspendWhenHidden = FALSE)` mount).
+#   * builds a `reactiveVal` slot and an observer that calls
+#     `resolve_upload_source()` (Plan 02) on every change to the
+#     panel-level `input[[shared_<key>]]` / `input[[shared_<key>_name]]`
+#     pair, including the default-arg fallback when no upload is present.
+#   * surfaces upload errors into the supplied `errors_rv` so the panel's
+#     `ptr_shared_errors` slot reports them symmetrically with consumer-
+#     side errors.
+#
+# Returns a named list of `shiny::reactive` values keyed by canonical
+# shared id (`shared_<key>`), one per panel-owned source key. Returns
+# `list()` when there are zero such keys (the common shape today).
+ptr_setup_panel_sources <- function(obj, input, output, envir,
+                                    errors_rv = NULL) {
+  panel_keys <- obj$panel_keys %||% character()
+  firsts_nodes <- obj$firsts$nodes %||% list()
+  if (length(panel_keys) == 0L) return(list())
+
+  ns <- shared_ns(obj)
+  ui_text <- obj$ui_text
+
+  # Keep panel-owned keys whose first-occurrence node is a data-source
+  # placeholder; value-shared keys (ppText/ppNum/ppExpr/ppVar consumers)
+  # stay on the existing `shared_reactives` / consumer-binder paths.
+  source_keys <- character()
+  for (k in panel_keys) {
+    node <- firsts_nodes[[k]]
+    if (!is.null(node) && is_ptr_ph_data_source(node)) {
+      source_keys <- c(source_keys, k)
+    }
+  }
+  if (length(source_keys) == 0L) return(list())
+
+  out <- list()
+  for (k in source_keys) {
+    bundle <- local({
+      key <- k
+      node <- firsts_nodes[[key]]
+      # Stamp the canonical id (and keep the companion-id-fn-derived
+      # companion id) so the rendered widget binds at the global panel
+      # ids the panel body emits.
+      canonical <- canonical_shared_id(key)
+      node$id <- canonical
+      entry <- ptr_registry_lookup(node$keyword)
+      if (!is.null(entry) && !is.null(entry$companion_id_fn)) {
+        node$companion_id <- entry$companion_id_fn(canonical)
+      }
+
+      output_id <- ns(source_output_id(canonical))
+      input_id <- ns(canonical)
+      comp_id <- if (!is.null(node$companion_id)) ns(node$companion_id) else NULL
+
+      # Render the panel-side source widget. Body shape matches
+      # `ptr_setup_source_uis()` in R/paintr-server.R: same registry
+      # dispatch, same copy resolution, same outputOptions mount.
+      output[[output_id]] <- shiny::renderUI({
+        rendered_node <- node
+        copy <- ptr_resolve_ui_text(
+          "control",
+          keyword = node$keyword,
+          param = node$param,
+          layer_name = node$layer_name,
+          ui_text = ui_text
+        )
+        if (is.null(entry) || is.null(entry$build_ui)) {
+          rlang::abort(paste0(
+            "Placeholder `", node$keyword, "` has no `build_ui` function. ",
+            "Pass `build_ui = function(node, label, ...)` when registering ",
+            "it -- see `?ptr_define_placeholder_value`."
+          ))
+        }
+        fmls <- names(formals(entry$build_ui))
+        accepts_dots <- "..." %in% fmls
+        extra_named <- build_ui_copy_args(fmls, copy)
+        if (identical(node$keyword, "ppUpload") &&
+            (accepts_dots || "file_copy" %in% fmls)) {
+          extra_named$file_copy <- ptr_resolve_ui_text(
+            "upload_file", ui_text = ui_text
+          )
+          extra_named$name_copy <- ptr_resolve_ui_text(
+            "upload_name", ui_text = ui_text
+          )
+        }
+        if (accepts_dots || "named_args" %in% fmls) {
+          extra_named$named_args <- node$named_args %||% list()
+        }
+        if (accepts_dots || "selected" %in% fmls) {
+          if (!is.null(node$default)) extra_named$selected <- node$default
+        }
+        do.call(entry$build_ui,
+                c(list(rendered_node, label = copy$label), extra_named))
+      })
+      shiny::outputOptions(output, output_id, suspendWhenHidden = FALSE)
+
+      # Synthetic host-local `state` exposing only the slots
+      # `resolve_upload_source()` touches: `eval_env`, `bound_names[[key]]`,
+      # and `resolve_errors()`. The eval_env's parent chain is `envir`
+      # so the default-arg fallback in `try_bind_source_default_resolved()`
+      # walks to the caller's frame and resolves data symbols like
+      # `mtcars` / `df_main`.
+      eval_env <- new.env(parent = envir)
+      bound_names <- new.env(parent = emptyenv())
+      bound_names[[canonical]] <- shiny::reactiveVal(NULL)
+      resolve_errors <- shiny::reactiveVal(stats::setNames(list(),
+                                                           character()))
+      host_state <- list(
+        eval_env = eval_env,
+        bound_names = bound_names,
+        resolve_errors = resolve_errors
+      )
+
+      slot <- shiny::reactiveVal(NULL)
+
+      shiny::observe({
+        resolve_upload_source(
+          input_slot     = input[[input_id]],
+          companion_slot = if (!is.null(comp_id)) {
+            list(present = TRUE, value = input[[comp_id]])
+          } else {
+            list(present = FALSE, value = NULL)
+          },
+          node           = node,
+          entry          = entry,
+          envir          = eval_env,
+          state          = host_state,
+          key            = canonical,
+          slot           = slot
+        )
+      })
+
+      # Bridge per-source resolve errors into the panel-level
+      # `ptr_shared_errors` sink. The store under `resolve_errors` is a
+      # named list keyed by source id; transform into a character vector
+      # (one line per outstanding source error) and merge with whatever
+      # consumer-side errors the host already pushed.
+      if (!is.null(errors_rv)) {
+        local({
+          prev_lines <- character()
+          shiny::observe({
+            err_list <- resolve_errors()
+            new_lines <- character()
+            if (length(err_list) > 0L) {
+              src_keys <- names(err_list)
+              new_lines <- vapply(seq_along(err_list), function(i) {
+                paste0(src_keys[[i]], ": ", err_list[[i]])
+              }, character(1))
+            }
+            cur <- errors_rv()
+            kept <- setdiff(cur, prev_lines)
+            errors_rv(c(kept, new_lines))
+            prev_lines <<- new_lines
+          })
+        })
+      }
+
+      # Autoname companion text input from uploaded filename (same
+      # contract as `ptr_setup_pipelines()`).
+      if (!is.null(comp_id)) {
+        session <- shiny::getDefaultReactiveDomain()
+        ptr_bind_source_autoname(input_id, comp_id, input, session,
+                                  default_name = node$default)
+      }
+
+      shiny::reactive(slot())
+    })
+    out[[canonical_shared_id(k)]] <- bundle
+  }
+  out
 }
