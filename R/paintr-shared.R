@@ -341,7 +341,16 @@ rewrite_shared <- function(x, canonical) {
         }
       }
     }
-    return(x)
+    # Fall through to the ptr_node recursion below so the placeholder's
+    # captured-subtree fields are rewritten too. The consumer node
+    # carries an `$upstream` snapshot stamped by `ptr_classify_data`
+    # (paintr-classify.R) *before* `ptr_shared_bind` runs, so the source
+    # nodes inside that snapshot still carry pre-rewrite ids (and the
+    # pre-rewrite `companion_id`). The early-return that used to be here
+    # left them stale, which made `ptr_bind_shared_consumer_uis()` build
+    # its substitute snapshot from input ids that no DOM widget owns —
+    # the picker silently showed "Data source not yet provided" even
+    # when the source itself had bound its frame correctly.
   }
   if (is_ptr_node(x)) {
     for (nm in names(x)) x[[nm]] <- rewrite_shared(x[[nm]], canonical)
