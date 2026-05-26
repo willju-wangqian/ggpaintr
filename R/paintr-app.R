@@ -331,7 +331,14 @@ ptr_make_app_server <- function(formula, tree, envir, ui_text,
       eval_env = envir,
       expr_check = expr_check,
       errors_rv = state$shared_resolution_errors,
-      state = state
+      state = state,
+      # INT-2 (ADR 0023): thread panel-owned source reactives so the
+      # consumer-picker renderUI takes a dep on them and (host-scope)
+      # extends `eval_env` with their resolved df under the panel
+      # binding name. Without this, formula-local shared consumers
+      # under a panel-owned `ppUpload(shared=...)` would never
+      # populate.
+      panel_sources = state$panel_sources %||% list()
     )
   }
 }
@@ -1202,7 +1209,11 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
       eval_env = envir,
       expr_check = state$expr_check,
       errors_rv = state$shared_resolution_errors,
-      state = state
+      state = state,
+      # INT-2 (ADR 0023): mirror the single-instance call -- thread
+      # panel-owned source reactives so embedded shared consumers
+      # under `ppUpload(shared=...)` populate when the panel resolves.
+      panel_sources = state$panel_sources %||% list()
     )
     state
   })
