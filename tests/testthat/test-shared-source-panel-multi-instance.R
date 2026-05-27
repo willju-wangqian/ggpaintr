@@ -172,6 +172,12 @@ test_that("ADR worked example #4 -- single-instance shared source still works", 
   app$upload_file(shared_ds = csv_path)
   set_input(app, "shared_ds_shortcut", "penguins")
   set_input(app, "ggplot_subtab", "Controls")
+  # ADR 0025 §7 A2: the shortcut bind is debounced 400ms. The subtab-switch
+  # render settles fast, so wait_for_idle() can return BEFORE the debounce
+  # fires and the picker repopulates from the resolved source. Sleep past
+  # the window, then re-idle. (Worked example #1 happens not to hit this
+  # ordering because it does not interleave a subtab-switch render.)
+  Sys.sleep(0.5)
   app$wait_for_idle(timeout = 15 * 1000)
 
   # Consumer picker `shared_a` (both x and y in the bare fixture's formula)

@@ -71,7 +71,12 @@ test_that("pipeline-head `ppUpload` resolves downstream consumers and renders", 
     # dataset-name companion the way the browser auto-fill would.
     do.call(session$setInputs,
             stats::setNames(list("simple_numeric"), src$shortcut_id))
-    session$flushReact()
+    # ADR 0025 §7 A2: the shortcut-textbox observer is debounced 400ms via
+    # shiny::debounce(), which reads getDomainTimeMs(domain). Inside
+    # testServer the mock clock only advances via session$elapse(); plain
+    # session$flushReact() leaves the debounced value stuck on its prior
+    # NULL. Elapse past the window before asserting on bound state.
+    session$elapse(500); session$flushReact()
 
     # The resolved frame is bound under its dataset name in the state's
     # (child) eval env, not the caller's env.
@@ -140,7 +145,8 @@ test_that("pipeline-head `ppUpload` populates the consumer picker UI (renderUI p
             stats::setNames(list(mock_upload_input(fp)), src$id))
     do.call(session$setInputs,
             stats::setNames(list("simple_numeric"), src$shortcut_id))
-    session$flushReact()
+    # ADR 0025 §7 A2: advance the mock clock past the 400ms shortcut debounce.
+    session$elapse(500); session$flushReact()
 
     ui_html <- paste(as.character(output[[out_id]]), collapse = "")
     for (col in c("x", "y", "group")) {
@@ -175,7 +181,8 @@ test_that("pipeline-head source clears its slot when file AND companion are remo
             stats::setNames(list(mock_upload_input(fp)), src$id))
     do.call(session$setInputs,
             stats::setNames(list("simple_numeric"), src$shortcut_id))
-    session$flushReact()
+    # ADR 0025 §7 A2: advance mock clock past 400ms shortcut debounce.
+    session$elapse(500); session$flushReact()
     expect_s3_class(state$resolved_sources[[src$id]](), "data.frame")
 
     # Clear ONLY the file. ADR 0024 entry-point semantics: the slot stays
@@ -187,7 +194,9 @@ test_that("pipeline-head source clears its slot when file AND companion are remo
 
     # Clear BOTH file AND companion. Now nothing resolves → slot becomes NULL.
     do.call(session$setInputs, stats::setNames(list(""), src$shortcut_id))
-    session$flushReact()
+    # Debounce again: the empty-string companion must propagate before
+    # vacate_source_binding sees it.
+    session$elapse(500); session$flushReact()
     expect_null(state$resolved_sources[[src$id]]())
   })
 })

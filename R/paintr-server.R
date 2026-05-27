@@ -1426,26 +1426,17 @@ ptr_setup_pipelines <- function(state, input, output, session) {
         return(invisible())
       }
 
-      # ADR 0025 §7 / PLAN-05 (A2 deferred): debounce on the shortcut
-      # textbox read was attempted twice and broke distinct test contracts
-      # both times. (1) shiny::debounce(reactive(input[[shortcut_id]]), 400L)
-      # broke test-shared-source-panel-multi-instance.R's synchronous
-      # observe ordering (the mutex's file-reset round-trip races the bind).
-      # (2) Re-attempting with the test-side race-fix helpers from the
-      # parallel session (commits 69bd203, 4c924d2, d0136ed) STILL broke
-      # test-rewrite-pipeline-data-source.R (6 FAILs) and
-      # test-shared-source-panel-multi-instance.R (2 FAILs). The
-      # invariant the synchronous read protects is broader than the
-      # multi-instance fixture. Defer A2 to a follow-up plan that
-      # designs a debounce-friendly variant suppressing intermediate
-      # errors without breaking the synchronous bind path. The Plan 05
-      # A2 BDD scenario (test-debounce-keystroke-burst.R) is consequently
-      # NOT added.
+      # ADR 0025 §7 / PLAN-05 A2: 400ms debounce on the shortcut textbox
+      # so a keystroke burst (m -> mt -> mtc -> ... -> mtcars) resolves
+      # exactly once, not six times with five transient "not found" errors.
+      shortcut_r <- if (!is.null(shortcut_input_id)) {
+        shiny::debounce(shiny::reactive(input[[shortcut_input_id]]), 400L)
+      } else NULL
       shiny::observe({
         resolve_upload_source(
           input_slot     = input[[src_id]],
           shortcut_slot = if (!is.null(shortcut_input_id)) {
-            list(present = TRUE, value = input[[shortcut_input_id]])
+            list(present = TRUE, value = shortcut_r())
           } else {
             list(present = FALSE, value = NULL)
           },
@@ -1462,8 +1453,11 @@ ptr_setup_pipelines <- function(state, input, output, session) {
       # -- typing one auto-clears the other so the concurrently-active
       # state is structurally impossible. The legacy filename-derived
       # textbox auto-fill is retired; the binding name comes from the
-      # auto-name path (paintr-ids.R).
-      ptr_bind_source_mutex(src_id, shortcut_input_id, input, session)
+      # auto-name path (paintr-ids.R). Pass `shortcut_r` so the
+      # text-side mutex gates on the debounced reactive (see the
+      # ADR 0025 §7 A2 race-fix comment in `ptr_bind_source_mutex`).
+      ptr_bind_source_mutex(src_id, shortcut_input_id, input, session,
+                            shortcut_r = shortcut_r)
     })
   }
 
@@ -1508,13 +1502,16 @@ ptr_setup_pipelines <- function(state, input, output, session) {
         return(invisible())
       }
 
-      # ADR 0025 §7 / PLAN-05 (A2 deferred): see the parallel block in
-      # the bare-data-source-layer branch above.
+      # ADR 0025 §7 / PLAN-05 A2: see the parallel block in the bare-
+      # data-source-layer branch above. 400ms debounce on shortcut.
+      shortcut_r <- if (!is.null(shortcut_input_id)) {
+        shiny::debounce(shiny::reactive(input[[shortcut_input_id]]), 400L)
+      } else NULL
       shiny::observe({
         resolve_upload_source(
           input_slot     = input[[src_id]],
           shortcut_slot = if (!is.null(shortcut_input_id)) {
-            list(present = TRUE, value = input[[shortcut_input_id]])
+            list(present = TRUE, value = shortcut_r())
           } else {
             list(present = FALSE, value = NULL)
           },
@@ -1527,7 +1524,8 @@ ptr_setup_pipelines <- function(state, input, output, session) {
         )
       })
 
-      ptr_bind_source_mutex(src_id, shortcut_input_id, input, session)
+      ptr_bind_source_mutex(src_id, shortcut_input_id, input, session,
+                            shortcut_r = shortcut_r)
     })
   }
   invisible(state)
@@ -1546,7 +1544,8 @@ ptr_setup_pipelines <- function(state, input, output, session) {
 # multi-instance / multi-coordinator apps stay isolated. Shared by the
 # bare-layer and pipeline-head source wiring in `ptr_setup_pipelines()`.
 # `src_id` / `shortcut_input_id` are already namespaced.
-ptr_bind_source_mutex <- function(src_id, shortcut_input_id, input, session) {
+ptr_bind_source_mutex <- function(src_id, shortcut_input_id, input, session,
+                                  shortcut_r = NULL) {
   if (is.null(shortcut_input_id)) return(invisible())
   # File picked -> wipe the sibling textbox.
   shiny::observeEvent(input[[src_id]], {
@@ -1557,8 +1556,28 @@ ptr_bind_source_mutex <- function(src_id, shortcut_input_id, input, session) {
   # but shinyjs is not a dep); the package ships a tiny custom JS
   # handler `ptr_reset_file_input` in inst/www/ggpaintr-layer.js that
   # wipes the DOM file pill and writes NULL into the Shiny input slot.
-  shiny::observeEvent(input[[shortcut_input_id]], {
-    if (isTRUE(nzchar(input[[shortcut_input_id]] %||% ""))) {
+  #
+  # ADR 0025 §7 A2 race-fix: when `shortcut_r` (the same 400ms-debounced
+  # reactive that drives `resolve_upload_source()` in `ptr_setup_pipelines`)
+  # is supplied, gate the file-reset on it instead of the raw text input.
+  # Both observers then fire on the same debounced tick, so the bind sees
+  # `file=FILE, shortcut="<name>"` in the SAME flush -- which lets
+  # `resolve_upload_source` bind the uploaded df under `<name>` before
+  # the JS file-reset round-trip blanks `input[[src_id]]`. Without this,
+  # the mutex fires on the raw keystroke and the file is already NULL by
+  # the time the debounced bind observer runs, dropping into
+  # `try_bind_source_default_resolved()` which `inherits=TRUE` walks the
+  # parent chain and binds a same-named namespace export (e.g.
+  # `palmerpenguins::penguins`) instead of the uploaded df. Verified
+  # against `test-shared-source-panel-multi-instance.R` worked-example-#4
+  # (single-instance `ppUpload(shared='ds') |> ggplot(...)`).
+  text_event <- if (!is.null(shortcut_r)) {
+    shiny::reactive(shortcut_r())
+  } else {
+    shiny::reactive(input[[shortcut_input_id]])
+  }
+  shiny::observeEvent(text_event(), {
+    if (isTRUE(nzchar(text_event() %||% ""))) {
       session$sendCustomMessage("ptr_reset_file_input", list(id = src_id))
     }
   }, ignoreInit = TRUE)
