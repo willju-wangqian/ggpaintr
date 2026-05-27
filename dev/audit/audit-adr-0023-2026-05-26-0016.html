@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>audit-adr — ADR 0023 — FAIL — 2026-05-26 00:16</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+<h1>audit-adr — ADR 0023 panel-owned-shared-sources-end-to-end</h1>
+<p class="meta">Target: <code>dev/adr/0023-panel-owned-shared-sources-end-to-end.html</code> · Verdict: <strong>FAIL</strong> · Audited: 2026-05-26 00:16 · Auditor: general-purpose/opus/high</p>
+
+<h2>Verdict</h2>
+<p><strong>FAIL — 2 findings.</strong> Both are the same class of error: positional-arg slips in the worked-example code blocks (and the Context recipe at line 30). The Decision, Consequences, and Alternatives sections are baseline-clean — every named symbol, file path, line citation, and bundle-field claim verifies against source. The slip is isolated to the example R code: <code>ptr_ui("p1")</code> binds <code>"p1"</code> to the required <code>formula</code> argument (not <code>id</code>), and <code>ptr_server("p1", formula = panel$formulas[[1]], ...)</code> binds <code>"p1"</code> to <code>formula</code> positionally and then also passes a named <code>formula =</code> — a duplicate-arg R error. As written, the worked-example apps will not parse or run.</p>
+
+<p>Per the audit-adr contract, no stamp / commit / worktree on FAIL. Fix the two slips (or, in the very unlikely alternative, propose a <code>ptr_ui</code> / <code>ptr_server</code> signature change in the ADR), then re-run <code>/audit-adr</code>.</p>
+
+<h2>Findings</h2>
+
+<div class="finding fail">
+  <h3>FINDING 1: <code>ptr_ui("p1")</code> / <code>ptr_ui("p2")</code> mis-position the required <code>formula</code> arg</h3>
+  <p><strong>Category:</strong> 1 (code-shaped literal — function signature)</p>
+  <p><strong>ADR quotes (four occurrences):</strong></p>
+  <blockquote class="adr-quote">
+    Line 30 (Context recipe):<br>
+    <code># ui:     ptr_shared_panel(panel) + ptr_ui("p1") + ptr_ui("p2")</code><br><br>
+    Line 152 (Example 1):<br>
+    <code>fluidRow(column(6, ptr_ui("p1")), column(6, ptr_ui("p2")))</code><br><br>
+    Line 189 (Example 3 marginalia):<br>
+    <code># UI:    ptr_shared_panel(panel) + ptr_ui('p1') + ptr_ui('p2')</code><br><br>
+    Line 296 (R4 example):<br>
+    <code>ptr_server("p1", formula, shared_state = list(panel_sources = list(shared_ds = my_df)))</code>
+  </blockquote>
+  <p><strong>Source evidence:</strong></p>
+  <pre>R/paintr-app.R:844  ptr_ui &lt;- function(formula, id = NULL, ui_text = NULL,
+                                      expr_check = TRUE, css = NULL, shared = NULL)</pre>
+  <p>First positional arg is <code>formula</code> (required, captured via <code>rlang::enexpr()</code>); <code>id</code> is the second positional. Every real fixture passes formula first:</p>
+  <pre>tests/testthat/fixtures/vignette-apps/l2-shared/app.R:20-21
+  ptr_ui(plots[[1]], "plot_1", shared = obj)
+  ptr_ui(plots[[2]], "plot_2", shared = obj)
+
+vignettes/ggpaintr-use-cases.Rmd:274
+  ptr_ui(formula, id = NULL)</pre>
+  <p><strong>Two interpretations:</strong></p>
+  <ol>
+    <li><strong>If the ADR is wrong</strong> — proposed edits (NOT applied):
+      <pre class="proposed-diff">- # ui:     ptr_shared_panel(panel) + ptr_ui("p1") + ptr_ui("p2")
++ # ui:     ptr_shared_panel(panel) +
++ #         ptr_ui(panel$formulas[[1]], "p1") + ptr_ui(panel$formulas[[2]], "p2")
+
+- fluidRow(column(6, ptr_ui("p1")), column(6, ptr_ui("p2")))
++ fluidRow(
++   column(6, ptr_ui(panel$formulas[[1]], "p1")),
++   column(6, ptr_ui(panel$formulas[[2]], "p2"))
++ )
+
+- # UI:    ptr_shared_panel(panel) + ptr_ui('p1') + ptr_ui('p2')
++ # UI:    ptr_shared_panel(panel) +
++ #        ptr_ui(panel$formulas[[1]], 'p1') + ptr_ui(panel$formulas[[2]], 'p2')</pre>
+    </li>
+    <li><strong>If the source is wrong</strong> — verification path:
+      <p>The ADR would have to be proposing a <code>ptr_ui</code> signature change that lets <code>id</code> be the first positional when a shared coordinator carries the formulas. There is no such proposal anywhere in the ADR (Decision §1–7 don't touch <code>ptr_ui</code>). Confirm by <code>grep -n "ptr_ui" dev/adr/0023-panel-owned-shared-sources-end-to-end.html</code> — every mention is a usage, never a redesign. If the user actually wants this signature change, it belongs in a separate decision §, not as a silent change in example code.</p>
+    </li>
+  </ol>
+  <p><strong>Heuristic hint:</strong> Interpretation 1 is overwhelmingly more likely. The companion call <code>ptr_server("p1", formula = panel$formulas[[1]], shared_state = s)</code> at lines 156-157 makes the same slip in the opposite direction (formula positionally AND by name) — both look like the same authoring lapse where the author treated <code>id</code> as the first positional. Fix: thread <code>panel$formulas[[i]]</code> through the UI examples to match the server examples' (also wrong but separately) pattern.</p>
+</div>
+
+<div class="finding fail">
+  <h3>FINDING 2: <code>ptr_server("p1", formula = panel$formulas[[1]], shared_state = s)</code> duplicates <code>formula</code></h3>
+  <p><strong>Category:</strong> 1 (code-shaped literal — function signature)</p>
+  <p><strong>ADR quotes (Example 1, lines 156-157):</strong></p>
+  <blockquote class="adr-quote">
+    <code>s &lt;- ptr_shared_server(panel)<br>
+    ptr_server("p1", formula = panel$formulas[[1]], shared_state = s)<br>
+    ptr_server("p2", formula = panel$formulas[[2]], shared_state = s)</code>
+  </blockquote>
+  <p><strong>Source evidence:</strong></p>
+  <pre>R/paintr-app.R:1075  ptr_server &lt;- function(formula, id = NULL,
+                                            envir = parent.frame(), ...,
+                                            shared_state = NULL, spec = NULL)</pre>
+  <p>First positional arg is <code>formula</code>. The ADR call binds <code>"p1"</code> to <code>formula</code> positionally AND passes a named <code>formula = panel$formulas[[1]]</code> — R raises a "formal argument matched by multiple actual arguments" error at the call site. The example will not run.</p>
+  <p><strong>Two interpretations:</strong></p>
+  <ol>
+    <li><strong>If the ADR is wrong</strong> — proposed edit (NOT applied):
+      <pre class="proposed-diff">- ptr_server("p1", formula = panel$formulas[[1]], shared_state = s)
+- ptr_server("p2", formula = panel$formulas[[2]], shared_state = s)
++ ptr_server(panel$formulas[[1]], "p1", shared_state = s)
++ ptr_server(panel$formulas[[2]], "p2", shared_state = s)</pre>
+      <p>Or, fully named (more readable):</p>
+      <pre class="proposed-diff">+ ptr_server(formula = panel$formulas[[1]], id = "p1", shared_state = s)
++ ptr_server(formula = panel$formulas[[2]], id = "p2", shared_state = s)</pre>
+    </li>
+    <li><strong>If the source is wrong</strong> — verification path:
+      <p>Same as Finding 1: would require a <code>ptr_server</code> signature change explicitly proposed in the ADR. None is. Confirm with <code>grep -n "ptr_server" dev/adr/0023-panel-owned-shared-sources-end-to-end.html</code> — every reference treats <code>ptr_server</code> as already existing.</p>
+    </li>
+  </ol>
+  <p><strong>Heuristic hint:</strong> Interpretation 1. Same authoring lapse as Finding 1; both call sites have <code>"p1"</code>/<code>"p2"</code> in the first positional slot expecting it to be <code>id</code>. Fix both findings together — they're a pair.</p>
+</div>
+
+<h2>Verified claims</h2>
+
+<table>
+  <thead><tr><th>Category</th><th>Claim</th><th>Evidence</th></tr></thead>
+  <tbody>
+    <tr><td>commit</td><td>Cut 1 commit <code>d71893b</code> exists with subject as quoted (line 16, 196)</td><td><code>git log d71893b -1 --format='%s'</code> matches verbatim</td></tr>
+    <tr><td>commit</td><td>eyeball-play commit <code>a3d1636</code> exists (decision §2)</td><td>same — git log matches</td></tr>
+    <tr><td>symbol</td><td><code>ptr_init_state()</code> exists (line 44)</td><td>R/paintr-server.R:84</td></tr>
+    <tr><td>symbol</td><td><code>ptr_setup_source_uis()</code> exists (decision §7)</td><td>R/paintr-server.R:1666</td></tr>
+    <tr><td>symbol</td><td><code>ptr_setup_pipelines()</code> exists (decision §4)</td><td>R/paintr-server.R:907</td></tr>
+    <tr><td>symbol</td><td><code>ptr_bind_shared_consumer_uis()</code> exists with <code>state = NULL</code> arg (decision §5)</td><td>R/paintr-server.R:1948 (state default NULL at 1955)</td></tr>
+    <tr><td>symbol</td><td><code>ptr_bind_local_shared_consumers()</code> called with state=NULL at host scope (context table)</td><td>R/paintr-server.R:2138 (signature); R/paintr-shared-ui.R:305-311 (host-scope call, no state= passed → default NULL)</td></tr>
+    <tr><td>symbol</td><td><code>validate_ptr_shared_state()</code> exists (consequences)</td><td>R/paintr-shared-ui.R:33</td></tr>
+    <tr><td>symbol</td><td><code>shared_panel_body_tag()</code> exists (decision §2)</td><td>R/paintr-shared-coordinator.R:195; invoked at 311, 346 with <code>obj$panel_keys</code></td></tr>
+    <tr><td>symbol</td><td><code>try_bind_source_default()</code> exists, called from <code>ptr_setup_pipelines()</code> (decision §2)</td><td>R/paintr-server.R:874 (def); 937 and 1021 (calls)</td></tr>
+    <tr><td>field</td><td><code>obj$panel_keys</code> on <code>ptr_shared_spec</code> (decision §1)</td><td>R/paintr-shared-coordinator.R:19, 42, 47, 99, 109, 175, 194, 311, 346</td></tr>
+    <tr><td>fields</td><td><code>shared_state$shared</code>, <code>$shared_resolutions</code>, <code>$draw_trigger</code>, <code>$shared_stage_enabled</code> are existing bundle fields (decision §1)</td><td>R/paintr-shared-ui.R:20-29 (constructor), 38, 50, 53, 57 (validator)</td></tr>
+    <tr><td>fields</td><td><code>state$resolved_data</code>, <code>$resolved_sources</code>, <code>$bound_names</code>, <code>$eval_env</code>, <code>$spec_seed</code> are existing state fields (decision §4–6)</td><td>R/paintr-server.R:144, 172, 186, 221, 281 respectively</td></tr>
+    <tr><td>lines</td><td><code>R/paintr-server.R:166–170</code> is <code>pipeline_source_ids</code> logic (example 5)</td><td>exact match read</td></tr>
+    <tr><td>lines</td><td><code>R/paintr-server.R:588–590</code> apply_spec_at_boot eligibility comment + predicate (example 7 / R3)</td><td>exact comment "placeholder rows (except ppUpload — its fileInput cannot accept a programmatic value) and source_companion rows"; eligibility predicate <code>(identical(row$role, "placeholder") &amp;&amp; !identical(row$keyword, "ppUpload")) || identical(row$role, "source_companion")</code></td></tr>
+    <tr><td>lines</td><td><code>R/paintr-server.R:574–575</code> — same comment area</td><td>verified</td></tr>
+    <tr><td>lines</td><td><code>R/paintr-server.R:311–319</code> — input-spec collector drops source_companion rows (R3)</td><td><code>setdiff(names(snapshot), companioned)</code> at 317</td></tr>
+    <tr><td>lines</td><td><code>R/paintr-server.R</code> per-source observer loop near line 1001 (decision §4)</td><td>R/paintr-server.R:1004 <code>for (src in find_nodes(tree, is_ptr_ph_data_source))</code>; observe block at 1014; try_bind_source_default at 1021</td></tr>
+    <tr><td>symbol</td><td><code>ptr_define_placeholder_source(keyword, build_ui, resolve_data, companion_id_fn, default_arg)</code> (example 6)</td><td>R/paintr-registry.R:733 — signature includes all named args</td></tr>
+    <tr><td>symbol</td><td><code>ptr_default_string()</code> (example 6)</td><td>R/paintr-default-args.R:217</td></tr>
+    <tr><td>symbol</td><td><code>ptr_shared(formulas, ...)</code> first arg accepts character vector (examples)</td><td>R/paintr-shared-coordinator.R:111</td></tr>
+    <tr><td>symbol</td><td><code>ptr_shared_panel(obj, css = NULL)</code> (examples)</td><td>R/paintr-shared-coordinator.R:304</td></tr>
+    <tr><td>symbol</td><td><code>ptr_shared_server(obj, ..., draw_trigger = NULL)</code> (examples)</td><td>R/paintr-shared-ui.R:193-196</td></tr>
+  </tbody>
+</table>
+
+<h2>Aspirational symbols recorded</h2>
+
+<ul>
+  <li><code>panel_sources</code> — Decision §1, Consequences, Worked examples 1, 3, 4. "Bundle gains <code>panel_sources</code>" → aspirational. Correct classification.</li>
+  <li><code>ptr_setup_panel_sources(obj, input, output, envir)</code> — Decision §2. "A new internal helper" → aspirational.</li>
+  <li><code>resolve_upload_source(input_slot, companion_slot, node, entry, envir)</code> — Decision §3, example 6 marginalia, Out of scope. "Extract them into an internal" → aspirational.</li>
+  <li><code>dots$panel_sources</code> lookup branch in <code>ptr_setup_pipelines()</code> — Decision §4 code block. Aspirational (proposed behaviour).</li>
+  <li>New parse-time abort message text in R1 example (lines 258-263) — aspirational; specific wording can vary at implementation time.</li>
+  <li><code>panel_sources</code> arg on <code>ptr_bind_shared_consumer_uis</code> / <code>ptr_bind_local_shared_consumers</code> — Decision §5. "gains a <code>panel_sources</code> arg" → aspirational.</li>
+  <li>Partition-aware skip <code>if (s$id %in% names(dots$panel_sources %||% list())) next</code> — Decision §7. Aspirational.</li>
+  <li><code>ptr_shared_errors</code> slot (decision §2 mid-bullet) — tense leans aspirational ("Surfaces upload errors into the panel's <code>ptr_shared_errors</code> slot"); the symbol may already exist as a top-level uiOutput target in the panel but the source-side wiring is aspirational. Borderline; not flagged.</li>
+</ul>
+
+<h2>Behavioral-claim evidence types</h2>
+
+<ul>
+  <li><strong><code>ptr_bind_local_shared_consumers</code> called at host scope with <code>state = NULL</code></strong> — evidence: source-read → R/paintr-shared-ui.R:305-311 (host invocation passes no <code>state =</code>; argument defaults to NULL per definition at R/paintr-server.R:2144).</li>
+  <li><strong>per-source observer near line 1001 already calls <code>try_bind_source_default()</code></strong> — evidence: source-read → R/paintr-server.R:1014-1024 with the call at 1021.</li>
+  <li><strong>"single-instance shared source works on this branch's HEAD already" (example 4)</strong> — evidence: inconclusive within this audit. No regression-test citation is provided. The claim is plausible given Cut 1's stated intent in commit <code>d71893b</code> (which itself mentions "Authoritative gate: FAIL 0 / WARN 0 / SKIP 0 / PASS 2842"). If a stricter audit is wanted, cite <code>tests/testthat/test-shared-source-rendering.R::"single-instance ppUpload(shared='ds') renders the fileInput at boot"</code> in the ADR's Worked Example 4 lead paragraph.</li>
+  <li><strong>"L1 grid path internally constructs ptr_shared/ptr_shared_server in the same shape" (Consequences final bullet / Out of scope L1)</strong> — evidence: inconclusive within this audit; not chased. Would require reading <code>ptr_app_grid()</code>'s body.</li>
+</ul>
+
+<h2>Worked-examples structural check</h2>
+
+<p><strong>VERDICT: complete.</strong> Both required <code>&lt;h2&gt;</code> headings present; 7 positive examples + 5 rejected-by-design examples; each example has a lead summary paragraph and at least one <code>&lt;pre&gt;&lt;code&gt;</code> block. The structural contract is satisfied — but the slips in Findings 1 + 2 are inside the example code itself, which the structural check does not validate (that is the human's job, per the skill contract). Once those slips are fixed, the worked-examples block stays complete.</p>
+
+<details>
+<summary>Audit manifest (machine-readable)</summary>
+<pre>
+manifest:
+  adr_path: dev/adr/0023-panel-owned-shared-sources-end-to-end.html
+  adr_hash: 3bd4588bde95
+  audited_files:
+    - path: dev/adr/0023-panel-owned-shared-sources-end-to-end.html
+      sha256: 3bd4588bde95
+    - path: R/paintr-server.R
+      sha256: 459479326442
+    - path: R/paintr-app.R
+      sha256: aa59fa88e599
+    - path: R/paintr-shared-ui.R
+      sha256: f017150142d0
+    - path: R/paintr-shared-coordinator.R
+      sha256: 764997e6725d
+    - path: R/paintr-shared.R
+      sha256: 5732c3a1dd90
+    - path: R/paintr-registry.R
+      sha256: 1efb853c2187
+    - path: R/paintr-default-args.R
+      sha256: 4452baabaeae
+    - path: R/paintr-builtins.R
+      sha256: 4aa792f07b79
+  audited_at: 2026-05-26 00:16
+  auditor:
+    agent: general-purpose
+    model: opus
+    effort: high
+  verdict: FAIL
+  findings_count: 2
+  worked_examples_verdict: complete
+</pre>
+</details>
+
+</body>
+</html>

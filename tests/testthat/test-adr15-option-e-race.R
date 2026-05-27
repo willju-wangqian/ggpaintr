@@ -23,7 +23,7 @@ test_that("adr15 option E: autoname-fired upload does NOT leak datasets::penguin
     "fixtures", "vignette-apps", fixture, "penguins.csv"
   )
   app$upload_file(ggplot_1_ppUpload_NA = csv_path)
-  # Deliberately do NOT set ggplot_1_ppUpload_NA_name — let
+  # Deliberately do NOT set ggplot_1_ppUpload_NA_shortcut — let
   # ptr_bind_source_autoname() fire its updateTextInput("penguins").
   # That client-roundtripped input update is exactly the signal whose
   # ordering vs. the upload observer's assign() PLAN-01's polling

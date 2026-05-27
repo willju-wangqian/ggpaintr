@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-06 — Partition-aware skip in ptr_setup_source_uis (from ADR 0023)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 06
+  slug: partition-aware-skip-source-uis
+  source_adr: dev/adr/0023-panel-owned-shared-sources-end-to-end.html
+  depends_on: [01, 04]
+  parallel_group: G5
+  status: draft
+-->
+
+<h1>PLAN-06 — Partition-aware skip restored in <code>ptr_setup_source_uis()</code></h1>
+<p class="meta">Source: ADR 0023 · Depends on: 01, 04 · Parallel group: G5 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0023 §7 (Decision): <em>"Cut 1 dropped the partition-blind skip entirely. With <code>panel_sources</code> now telling each <code>ptr_server</code> which ids the host owns, the skip is reintroduced in partition-aware form: <code>if (s$id %in% names(state$panel_sources %||% list())) next</code>. The panel-side renderUI from point 2 owns those containers; the per-instance renderUI would otherwise write to orphan output slots (harmless today but a latent collision with future namespacing changes)."</em></p>
+
+<p><code>ptr_setup_source_uis()</code> lives in <code>R/paintr-server.R</code> at line 1693 (per the survey). The current implementation contains a long Cut-1 comment block (lines ~1697–1709) noting the prior blanket skip was partition-blind and that "Cut 2 will reintroduce a partition-aware skip here once <code>shared_state$panel_sources</code> makes panel-owned ids addressable." Plan 06 IS that Cut-2 step.</p>
+
+<p><strong>Accessor note.</strong> The ADR §7 pseudocode reads <code>state$panel_sources</code>, but <code>dots</code> is a local variable inside <code>ptr_server()</code> (<code>R/paintr-server.R:756</code>) — it is not in <code>ptr_setup_source_uis()</code>'s scope. The reachable accessor is <code>state$panel_sources</code>, populated by Plan 01's <code>ptr_init_state()</code> extension. This plan reads <code>state$panel_sources</code>.</p>
+
+<h2>Governing principle</h2>
+<p>One widget, one owner. The shared panel emits the source-widget container; the host server is its sole binder (Plan 04). The per-instance binder must not also write to that container, because two writers to the same output id is exactly the orphan-output / multi-writer collision the partition rule exists to eliminate. The Cut-1 fix removed a blanket skip <em>because the partition information wasn't reachable at the per-instance binder</em>; now that Plan 01 puts <code>panel_sources</code> on the bundle, the skip is restored in <strong>partition-aware</strong> form: skip exactly the ids the host owns, render every other shared source on the per-instance path.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li><code>ptr_setup_source_uis()</code> in <code>R/paintr-server.R</code> contains the line <code>if (s$id %in% names(state$panel_sources %||% list())) next</code> at the head of the <code>for (s in sources)</code> loop body (after the existing <code>if (is.null(s$id)) next</code> guard). The line replaces the Cut-1 comment block that flagged this work as deferred.</li>
+  <li>For a config where <code>state$panel_sources</code> includes id <code>"shared_ds"</code> and the per-instance tree references <code>ppUpload(shared='ds')</code> (a panel-owned source from the instance's view): the per-instance <code>ptr_setup_source_uis()</code> does NOT assign <code>output[[ns(source_output_id("shared_ds"))]]</code>. The host server (Plan 04) owns that output.</li>
+  <li>For a config where the per-instance tree references a formula-local <code>ppUpload(shared='ds_local')</code> NOT in <code>names(state$panel_sources)</code>: the per-instance <code>ptr_setup_source_uis()</code> DOES assign <code>output[[ns(source_output_id("shared_ds_local"))]]</code> — the Cut-1 fix for formula-local shared sources is preserved.</li>
+  <li>For a single-instance config (<code>shared_state = NULL</code>): <code>state$panel_sources</code> is absent / <code>NULL</code>; the <code>%||% list()</code> fallback yields an empty character vector from <code>names()</code>, the skip never fires, and the existing single-instance path (Cut 1) runs unchanged. Verified by every existing test in <code>test-shared-source-rendering.R</code> continuing to PASS.</li>
+  <li>All criteria verified by <code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code> → FAIL 0 / ERROR 0 / SKIP 0 / PASS rises by ≥ 2 (one positive, one negative scenario below).</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns: <code>R/paintr-server.R</code> (specifically <code>ptr_setup_source_uis()</code> — only the loop-head guard and the surrounding Cut-1 comment cleanup), <code>tests/testthat/test-setup-source-uis-partition-aware-skip.R</code>.</li>
+  <li>Files this plan must NOT touch: <code>R/paintr-shared-ui.R</code> (Plans 01/04), <code>R/paintr-shared-coordinator.R</code> (Plan 03), <code>ptr_setup_pipelines()</code> (Plan 05), <code>ptr_bind_shared_consumer_uis()</code> / <code>ptr_bind_local_shared_consumers()</code> (Plan 07).</li>
+  <li>The accessor is <code>state$panel_sources</code> — Plan 01 places <code>panel_sources</code> on <code>state</code> via the <code>ptr_init_state()</code> extension; this plan reads it directly. Do NOT invent a new field-access path; do NOT reach for <code>dots</code> (out of scope).</li>
+  <li>The <code>%||% list()</code> fallback is mandatory — without it, single-instance configs (where Plan 01's default <code>panel_sources = list()</code> may still produce an empty list rather than NULL, but defensive code is cheaper than a regression) would risk erroring on <code>names(NULL)</code>.</li>
+  <li>The Cut-1 multi-line comment block is shortened to a one-line comment pointing at ADR 0023 §7 (the long explanation is now stale — the work it deferred is done).</li>
+  <li>SCOPE NARROWING FORBIDDEN — see the implementer/auditor prompts in <code>/exec-plan</code>.</li>
+  <li>Tidyverse style, snake_case, 2-space indent.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: ptr_setup_source_uis skips panel-owned source ids
+
+Scenario: Panel-owned source id is skipped — output is not assigned per-instance
+  Given shared_state = list(panel_sources = list(shared_ds = shiny::reactiveVal(mtcars)))
+  And  shared_state is validated and class()ed as ptr_shared_state
+  And  a per-instance tree referencing ppUpload(shared='ds')
+  When ptr_server(formula, "p1", shared_state = shared_state) is run via testServer
+  And  ptr_setup_source_uis(state, input, output, session) is reached
+  Then output[[ns(source_output_id("shared_ds"))]] is NULL (never assigned)
+  And  no warning / message is emitted
+
+Scenario: Formula-local shared source id is rendered per-instance (Cut-1 preserved)
+  Given shared_state = NULL (so state$panel_sources is list() by Plan 01 default)
+  And  a per-instance tree referencing ppUpload(shared='ds_local')
+  When ptr_setup_source_uis(state, input, output, session) is called
+  Then output[[ns(source_output_id("shared_ds_local"))]] is assigned
+       (returns a non-NULL UI tag on render)
+
+Scenario: Single-instance config (NULL bundle) renders shared source per-instance
+  Given shared_state = NULL passed to ptr_server (so state$panel_sources is list())
+  And  a single-formula ppUpload(shared='ds') reproducer (the Cut-1 fixture)
+  When the server boots
+  Then the existing #shared_ds fileInput is rendered (Cut-1 regression test passes)
+</pre>
+
+<h2>Worked-example coverage</h2>
+<pre>
+| ADR anchor                                               | kind     | summary (one line)                                                                  | Scenario in this plan                            |
+|----------------------------------------------------------|----------|-------------------------------------------------------------------------------------|--------------------------------------------------|
+| (none — internal mechanism; the user-visible composition is asserted by Plan 08's e2e fixture) | -        | -                                                                                   | -                                                |
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate: see <code>CLAUDE.md</code> §"Authoritative gate" — copy verbatim:</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong>, with PASS rising by ≥ 3.</p>
+<p><strong>Plan-specific gate risks</strong>: the <em>negative</em> assertion ("<code>output[[…]]</code> is never assigned") is easy to write softly. The auditor must confirm the test reads the output slot via <code>shiny::testServer</code> after a reactive flush and asserts <code>is.null(output[[…]])</code>, not just "no error fired".</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: the loop body of <code>ptr_setup_source_uis()</code> in <code>R/paintr-server.R</code>, <code>tests/testthat/test-setup-source-uis-partition-aware-skip.R</code>. <code>NAMESPACE</code> regeneration is an integration concern.</p>
+<p>Branch convention: this plan lives on branch <code>0023-partition-aware-skip-source-uis</code> in a worktree at <code>.claude/worktrees/0023-panel-owned-shared-sources-end-to-end/partition-aware-skip-source-uis/</code>. Merge via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor re-runs the DoD command and verifies the expected output before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch <code>shared-id-upgrade</code> at HEAD after Plans 01 + 04 are merged. Pre-existing failures: none expected. Implementer records actual baseline PASS in the worktree's first commit message.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>The host-side renderUI for the same containers is Plan 04. Per-instance pipeline substitution (decision §4) is Plan 05. Findings outside this plan's owned region are surfaced in the audit report.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: <strong>01</strong> (the bundle field), <strong>04</strong> (the host populates it; without Plan 04 this skip would orphan the source container with nobody to render it). Provides for: <strong>08</strong> (end-to-end fixture asserts the host owns the container and the per-instance binder doesn't double-write).</p>
+
+<!-- implementable: PASS date=2026-05-26 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=48f450a1aa3a -->
+</body>
+</html>

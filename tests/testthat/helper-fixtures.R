@@ -83,7 +83,7 @@ supported_use_cases <- list(
     envir = globalenv(),
     input = list(
       "ggplot_2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple numeric.csv"),
-      "ggplot_2_name" = "",
+      "ggplot_2_shortcut" = "",
       "ggplot_3_2" = "x",
       "ggplot_3_3" = "y",
       "geom_point_checkbox" = TRUE
@@ -97,7 +97,7 @@ supported_use_cases <- list(
     envir = globalenv(),
     input = list(
       "geom_point_2" = mock_upload_input(fixture_path("simple_numeric.csv"), "layer-data.csv"),
-      "geom_point_2_name" = "layer_data",
+      "geom_point_2_shortcut" = "layer_data",
       "geom_point_3_2" = "x",
       "geom_point_3_3" = "y",
       "geom_point_checkbox" = TRUE

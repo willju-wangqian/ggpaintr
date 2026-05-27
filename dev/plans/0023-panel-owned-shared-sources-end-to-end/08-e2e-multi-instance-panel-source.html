@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-08 — End-to-end multi-instance panel-shared source fixture (from ADR 0023)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 08
+  slug: e2e-multi-instance-panel-source
+  source_adr: dev/adr/0023-panel-owned-shared-sources-end-to-end.html
+  depends_on: [01, 02, 03, 04, 05, 06, 07]
+  parallel_group: G7
+  status: draft
+-->
+
+<h1>PLAN-08 — End-to-end multi-instance panel-shared source fixture</h1>
+<p class="meta">Source: ADR 0023 · Depends on: 01–07 · Parallel group: G7 · Status: draft</p>
+
+<h2>Context</h2>
+<p>Plans 01–07 build the mechanism (bundle field, resolver helper, parser invariant, host resolver, per-instance substitution, partition-aware skip, consumer-picker dep). This plan ships the regression test that proves the composition works in a real browser: the original Bug 1 reproducer from ADR 0023's Context section — two plots sharing one uploaded dataset via a panel-owned <code>ppUpload(shared='ds')</code> and a panel-owned <code>ppVar(shared='col')</code>.</p>
+
+<p>Per <code>.claude/rules/testing.md</code> and project memory <code>shinytest2-appdir-pkgload</code>, the fixture is an app directory whose <code>app.R</code> starts with <code>pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)</code>; the test sets <code>withr::local_envvar(GGP_PKG = normalizePath(test_path("..", "..")))</code> and drives via <code>AppDriver</code>. The CONTEXT.md correction (line 125 promised in ADR 0023 Consequences) is folded into this plan because it documents the now-true invariant the e2e proves.</p>
+
+<h2>Governing principle</h2>
+<p>Mechanism that PASSes per-plan but never composes into the promised user observable IS a shipped bug. The textbook multi-instance use case — "upload one dataset, drive two plots from it" — is the entire reason ADR 0023 exists. Plans 01–07 each PASS their own gates, but none of them assert the composition in a real browser. This plan IS that assertion: render the panel UI, upload a CSV, observe both plots populate. Without it, every per-plan gate could be green and the ADR's promise could still ship broken — the canonical failure mode the worked-example coverage audit in <code>/decision-to-plan</code> exists to catch (ggpaintr ADR 0021 / <code>ppVerbSwitch</code>, 2026-05-25). The fixture is also the documentation artifact: future maintainers read it to see what "Cut 2 working" looks like.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li>A new test file <code>tests/testthat/test-shared-source-panel-multi-instance.R</code> opens the new fixture under <code>tests/testthat/fixtures/vignette-apps/shared-source-panel-multi/</code> via <code>AppDriver</code>. The fixture's <code>app.R</code> mirrors the ADR §1 worked-example body verbatim (the textbook reproducer): two formulas referencing <code>ppUpload(shared='ds')</code> + <code>ppVar(shared='col')</code>, wired with <code>ptr_shared_panel(panel)</code> in the UI and <code>s &lt;- ptr_shared_server(panel); ptr_server(panel$formulas[[i]], paste0("p", i), shared_state = s)</code> in the server.</li>
+  <li>The test boots the fixture, uploads <code>tests/testthat/fixtures/datasets/penguins.csv</code> into the panel-owned <code>#shared_ds</code> fileInput, opens the layer subtabs for both plot instances, and asserts that the panel-shared <code>#shared_col</code> picker's choices include every column of <code>penguins.csv</code> (uses <code>app$get_html("#shared_col")</code> and parses option values, or <code>app$get_value(input="shared_col")</code>).</li>
+  <li>The test asserts both plot outputs (<code>#p1-plot</code> and <code>#p2-plot</code>) render non-empty SVG after the user picks a column and clicks Draw — verified by <code>nchar(app$get_html("#p1-plot")) &gt; 0</code> AND containing a <code>&lt;svg</code> tag, same for <code>#p2-plot</code>.</li>
+  <li>A second test scenario in the same file asserts the rejected configuration from ADR Worked-example R1: constructing <code>ptr_shared(c("ggplot(mtcars, aes(x = ppVar(shared='col'))) + geom_point()", "ggplot(iris, aes(x = ppVar(shared='col'))) + geom_point()"))</code> aborts at <code>ptr_shared()</code> time with class <code>"ptr_panel_consumer_source_mismatch"</code> (this is the Plan 03 invariant exercised in a non-fixture context — included here as an end-to-end smoke).</li>
+  <li>A third scenario asserts the ADR Worked-example 4 single-instance shape (<code>ptr_app(ppUpload(shared='ds') |&gt; ggplot(...))</code>) still works post-Cut-2: this is the Cut-1 regression preserved by Plan 06's partition-aware (rather than blanket) skip. Re-uses the existing single-instance fixture from <code>test-shared-source-rendering.R</code> if present, otherwise adds a minimal app-dir fixture.</li>
+  <li><code>CONTEXT.md</code> line 125 (the <em>"the owning instance binds every formula-local key"</em> clause) is updated to the role-explicit wording the ADR Consequences promised: <em>"the owning instance binds every formula-local key — value, consumer, and source alike."</em> Exactly one line changes; the surrounding paragraph is otherwise untouched.</li>
+  <li>All criteria verified by <code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code> → FAIL 0 / ERROR 0 / SKIP 0 / PASS rises by ≥ 5.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns: <code>tests/testthat/test-shared-source-panel-multi-instance.R</code>, <code>tests/testthat/fixtures/vignette-apps/shared-source-panel-multi/app.R</code>, possibly <code>tests/testthat/fixtures/datasets/penguins.csv</code> (only if not already present — check first), <code>CONTEXT.md</code> (line 125 only).</li>
+  <li>Files this plan must NOT touch: every <code>R/paintr-*.R</code> file (mechanism owned by Plans 01–07), every existing test file (this plan ships only the new test file).</li>
+  <li>Fixture <code>app.R</code> MUST start with <code>pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)</code> (memory <code>shinytest2-appdir-pkgload</code>).</li>
+  <li>Test sets <code>withr::local_envvar(GGP_PKG = normalizePath(test_path("..", "..")))</code> before <code>AppDriver$new(test_path("fixtures", "vignette-apps", "shared-source-panel-multi"))</code>.</li>
+  <li>Use <code>app$set_inputs(..., wait_ = FALSE)</code> for placeholder sets, then click the draw button (memory <code>shinytest2-appdir-pkgload</code>'s "ggpaintr only re-renders on the Update/Draw click" note).</li>
+  <li>Set <code>p1_subtab = "Controls"</code> and <code>p2_subtab = "Controls"</code> after the upload so the suspended <code>var</code> pickers bind before assertion (same memory).</li>
+  <li>Wrap <code>AppDriver$new()</code> in scoped <code>suppressWarnings()</code> per the same memory.</li>
+  <li>Standard test gating header: <code>skip_on_cran(); skip_if_not_installed("shinytest2"); skip_if_not_installed("chromote")</code>.</li>
+  <li>Do NOT use <code>app$get_values()</code> (will 500 — memory <code>shinytest2-appdir-pkgload</code>).</li>
+  <li>SCOPE NARROWING FORBIDDEN — see the implementer/auditor prompts in <code>/exec-plan</code>.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: end-to-end multi-instance panel-shared source
+
+Scenario: ADR worked example #1 — two plots sharing one uploaded dataset
+  Given the fixture shared-source-panel-multi/app.R booted via AppDriver
+  And  the panel emits a fileInput at #shared_ds and a picker container at #shared_col
+  When the test uploads tests/testthat/fixtures/datasets/penguins.csv into #shared_ds
+  And  opens the layer Controls subtab on both p1 and p2
+  And  sets #shared_col to "bill_length_mm"
+  And  clicks the Draw button
+  Then the choices listed for #shared_col include every column of penguins.csv
+  And  #p1-plot innerHTML contains a "&lt;svg" element with non-zero rendered geom layers
+  And  #p2-plot innerHTML contains a "&lt;svg" element with non-zero rendered geom layers
+
+Scenario: ADR worked example R1 — panel-owned consumer with formula-local sources aborts at ptr_shared() time
+  Given formulas =
+    c("ggplot(mtcars, aes(x = ppVar(shared='col'))) + geom_point()",
+      "ggplot(iris,   aes(x = ppVar(shared='col'))) + geom_point()")
+  When ptr_shared(formulas) is called in the test process (no fixture)
+  Then it aborts with class "ptr_panel_consumer_source_mismatch"
+  And  the abort message names "col", "mtcars", "iris", and the two formulas
+
+Scenario: ADR worked example #4 — single-instance shared source still works (Cut-1 regression preserved)
+  Given a single-formula ptr_app with ppUpload(shared='ds') |&gt; ggplot(aes(x = ppVar(shared='a'), y = ppVar(shared='a'))) + geom_point()
+  When the user uploads tests/testthat/fixtures/datasets/penguins.csv into #shared_ds
+  And  opens the Controls subtab
+  And  sets #shared_a to "bill_length_mm"
+  And  clicks Draw
+  Then the plot renders an SVG containing point geoms (no regression vs Cut 1)
+
+Scenario: ADR worked example #2 — default_arg primes pickers at boot before any click
+  Given a fixture whose app.R defines df_main &lt;- mtcars in script scope
+  And  the formula `ppUpload(df_main, shared='ds') |&gt; ggplot(aes(x = ppVar(shared='col'), y = mpg)) + geom_point()` (× 2 instances, same `shared='ds'`)
+  When AppDriver boots the fixture
+  And  wait_for_idle() flushes the reactive context
+  And  the test opens the Controls subtab on p1 (without uploading any file)
+  Then app$get_value(input = "shared_col") is a string in names(mtcars)
+       (the shared col picker has populated from the default-arg-resolved mtcars frame at boot)
+  And  the option list under #shared_col equals names(mtcars)
+  And  no upload has been performed on #shared_ds (input is empty)
+
+Scenario: ADR worked example #3 — mixed scope (panel source, formula-local consumers) wires correctly
+  Given a fixture with formulas
+    c("ggplot(ppUpload(shared='ds'), aes(x = ppVar(shared='colA'), y = mpg)) + geom_point()",
+      "ggplot(ppUpload(shared='ds'), aes(x = ppVar(shared='colB'), y = hp))  + geom_col()")
+  When AppDriver boots and the user uploads tests/testthat/fixtures/datasets/penguins.csv into #shared_ds
+  And  opens Controls on p1 and p2
+  And  sets `p1-shared_colA` to "bill_length_mm" and `p2-shared_colB` to "bill_depth_mm"
+       (formula-local shared consumer DOM ids are namespaced as `&lt;instance&gt;-shared_&lt;key&gt;` — see canonical_shared_id at R/paintr-shared.R:35, regression test at tests/testthat/test-ui-pieces.R:203)
+  And  clicks Draw
+  Then the choices under #p1-shared_colA equal names(penguins) (formula-local consumer reads from panel-resolved df)
+  And  the choices under #p2-shared_colB equal names(penguins)
+  And  no panel-scope #shared_colA / #shared_colB exist (those keys are formula-local — they live only under per-instance namespaces #p1-shared_colA / #p2-shared_colB)
+  And  #p1-plot renders a non-empty SVG and #p2-plot renders a non-empty SVG
+</pre>
+
+<h2>Worked-example coverage</h2>
+<pre>
+| ADR anchor                                               | kind     | summary (one line)                                                                  | Scenario in this plan                            |
+|----------------------------------------------------------|----------|-------------------------------------------------------------------------------------|--------------------------------------------------|
+| Worked examples — what becomes possible #1               | positive | Two plots sharing one uploaded dataset (the textbook Bug 1 reproducer)              | ADR worked example #1 — two plots sharing one uploaded dataset |
+| Worked examples — what becomes possible #4               | positive | Single-instance shared source — Cut-1 path preserved post-Cut-2                     | ADR worked example #4 — single-instance shared source still works |
+| Worked examples — what is rejected by design #R1         | negative | Panel-owned consumer + formula-local sources aborts at ptr_shared() time (e2e smoke)| ADR worked example R1 — panel-owned consumer with formula-local sources aborts |
+| Worked examples — what becomes possible #2               | positive | default_arg primes panel-shared source so pickers populate at boot (browser observable) | ADR worked example #2 — default_arg primes pickers at boot before any click |
+| Worked examples — what becomes possible #3               | positive | Mixed scope (panel source, formula-local consumers) — local picker reads panel-resolved df | ADR worked example #3 — mixed scope (panel source, formula-local consumers) wires correctly |
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate: see <code>CLAUDE.md</code> §"Authoritative gate" — copy verbatim:</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong>, with PASS rising by ≥ 5.</p>
+<p><strong>Plan-specific gate risks</strong>: (a) The shinytest2 child process resolves <code>library(ggpaintr)</code> against the stale system install unless the fixture's <code>app.R</code> first calls <code>pkgload::load_all(Sys.getenv("GGP_PKG"))</code> — without that, every assertion is testing dead code while looking green (memory <code>shinytest2-appdir-pkgload</code>). The auditor MUST inspect the fixture's first line. (b) <code>devtools::check()</code> would clean-skip this file via the source-root guard, so checking against <code>check()</code> is not the gate (memory <code>shinytest2-appdir-pkgload</code>'s <code>devtools::check sets NOT_CRAN=true so e2e RUNs+ERRORs in .Rcheck unless source-root skip guard</code>). (c) Raw <code>Rscript</code> without <code>NOT_CRAN=true</code> SKIPs every shinytest2 test silently — the e2e file would show SKIP 3, FAIL 0, looking green. Run the authoritative gate.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: <code>tests/testthat/test-shared-source-panel-multi-instance.R</code>, <code>tests/testthat/fixtures/vignette-apps/shared-source-panel-multi/</code> (the directory and its <code>app.R</code>), <code>tests/testthat/fixtures/datasets/penguins.csv</code> (only if not present — check first), <code>CONTEXT.md</code> (line 125 only). No <code>R/</code> files are touched in this plan.</p>
+<p>Branch convention: this plan lives on branch <code>0023-e2e-multi-instance-panel-source</code> in a worktree at <code>.claude/worktrees/0023-panel-owned-shared-sources-end-to-end/e2e-multi-instance-panel-source/</code>. Merge via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor re-runs the DoD command and verifies the expected output before any merge. The auditor specifically inspects the fixture <code>app.R</code>'s first line for the <code>pkgload::load_all</code> incantation.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch <code>shared-id-upgrade</code> at HEAD after Plans 01–07 are all merged. Pre-existing failures: none expected. Implementer records actual baseline PASS in the worktree's first commit message.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Worked examples #2 (default_arg), #3 (mixed scope), #5 (pipeline-head source), #6 (custom keyword), #7 (companion seed) are covered by earlier plans' BDD scenarios (Plan 04 covers #2; Plan 05 covers #3; Plans 04+05 cover #5 mechanism; the registry-driven shape of <code>resolve_upload_source()</code> in Plan 02 covers #6 mechanism; #7 is the existing spec-seed path noted as out-of-scope deferral in the ADR). Findings outside this plan's owned region are surfaced in the audit report.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: <strong>01</strong> (bundle field), <strong>02</strong> (resolver helper), <strong>03</strong> (parser invariant — needed for the R1 scenario to abort), <strong>04</strong> (host resolver — populates panel_sources), <strong>05</strong> (per-instance substitution — mirrors into per-instance state), <strong>06</strong> (partition-aware skip — keeps the host as sole binder), <strong>07</strong> (consumer-picker dep — wakes the picker). Provides for: nothing — this is the terminal plan.</p>
+
+<!-- implementable: PASS date=2026-05-26 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=ff73d8e0b7b1 -->
+</body>
+</html>

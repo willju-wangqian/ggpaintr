@@ -8,7 +8,8 @@ ptr_shared_server(
   obj,
   envir = parent.frame(),
   shared = list(),
-  draw_trigger = NULL
+  draw_trigger = NULL,
+  spec = NULL
 )
 }
 \arguments{
@@ -29,6 +30,16 @@ unsupplied keys keep the default that reads
 "Draw all" trigger (\code{input$ptr_shared_draw_all}). Useful when an
 embedder wants to drive the cross-module redraw from their own
 button.}
+
+\item{spec}{Optional named list of fully-qualified Shiny input id ->
+value, used to override widget defaults at session boot for
+host-owned panel-shared widgets (\verb{shared_<k>} for consumer / value
+placeholders, \verb{shared_<k>_name} for panel-owned source companion
+textInputs). Multi-instance entrypoints like \code{\link[=ptr_app_grid]{ptr_app_grid()}}
+forward the same flat spec to every per-plot \code{\link[=ptr_server]{ptr_server()}} AND
+to this host-scope server; per-plot servers prefix-filter by their
+own module namespace and drop un-namespaced ids, leaving this host
+apply path to claim them. See \href{dev/adr/0012-role-based-tree-and-ptr-spec.html}{ADR 0012}.}
 }
 \value{
 A \code{ptr_shared_state} S3 object with public fields \code{shared},

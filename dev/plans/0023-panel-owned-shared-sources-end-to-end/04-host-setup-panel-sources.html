@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-04 — Host-side ptr_setup_panel_sources() (from ADR 0023)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 04
+  slug: host-setup-panel-sources
+  source_adr: dev/adr/0023-panel-owned-shared-sources-end-to-end.html
+  depends_on: [01, 02]
+  parallel_group: G3
+  status: draft
+-->
+
+<h1>PLAN-04 — Host-side <code>ptr_setup_panel_sources()</code></h1>
+<p class="meta">Source: ADR 0023 · Depends on: 01, 02 · Parallel group: G3 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0023 §2 (Decision): <em>"A new internal helper <code>ptr_setup_panel_sources(obj, input, output, envir)</code>: for each panel-owned source key, assigns the renderUI for the <code>uiOutput(shared_&lt;key&gt;_ui)</code> container that <code>shared_panel_body_tag()</code> already emits; builds a reactive that watches the top-level <code>input[[shared_&lt;key&gt;]]</code> (fileInput) and the companion <code>input[[shared_&lt;key&gt;_name]]</code>, runs the source registry's <code>resolve_data</code> hook, and falls back to <code>try_bind_source_default()</code> when the upload is empty and the source carries a <code>default_arg</code> resolvable through the host's <code>envir</code> parent chain; surfaces upload errors into the panel's <code>ptr_shared_errors</code> slot; the companion textInput (<code>shared_&lt;key&gt;_name</code>) is rendered once at panel scope."</em></p>
+
+<p><code>ptr_shared_server()</code> lives in <code>R/paintr-shared-ui.R</code>. The new helper runs inside that function, after the existing <code>shared_reactives</code> block, and populates the new <code>panel_sources</code> field that Plan 01 added to the bundle.</p>
+
+<h2>Governing principle</h2>
+<p>Ownership equals binding: whoever renders the surface is also the server binder. <code>CONTEXT.md</code> (locked 2026-05-17) names this for value and consumer roles; ADR 0023 extends it to the source role. The shared panel's <code>shared_panel_body_tag()</code> already emits the <code>uiOutput(shared_&lt;key&gt;_ui)</code> container for panel-owned source keys, so the panel server <em>must</em> be the binder for that renderUI — sending it to a per-instance binder would re-create the orphan-output / multi-writer problem the partition rule exists to prevent. The host's job is also <em>just</em> the panel keys; formula-local source keys stay on the per-instance path (decision §7 enforces this in <code>ptr_setup_source_uis</code>).</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li>A new internal helper <code>ptr_setup_panel_sources(obj, input, output, envir)</code> exists in <code>R/paintr-shared-ui.R</code> (file-scope, internal — no <code>@export</code>). It returns a named list of <code>shiny::reactive</code> values, one per panel-owned source key, keyed by canonical id (<code>shared_&lt;key&gt;</code>), suitable for assignment to the bundle's <code>panel_sources</code> field.</li>
+  <li><code>ptr_shared_server()</code> calls <code>ptr_setup_panel_sources(obj, input, output, envir)</code> and passes the returned list to <code>new_ptr_shared_state(..., panel_sources = ...)</code>. The single observable change to <code>ptr_shared_server()</code>'s return value is that <code>state$panel_sources</code> is now populated (was an empty list per Plan 01's default).</li>
+  <li>For each canonical id <code>shared_&lt;key&gt;</code> where <code>key</code> is in <code>obj$panel_keys</code> AND the corresponding placeholder is a data-source role (the panel-owned subset of <code>obj$firsts$nodes</code> whose nodes satisfy <code>is_ptr_ph_data_source</code>): the helper assigns <code>output[[paste0("shared_", key, "_ui")]] &lt;- shiny::renderUI({...})</code> using the same renderUI body shape as <code>ptr_setup_source_uis()</code> uses per-instance (the same <code>invoke_build_ui</code> call with the source registry's <code>build_ui</code> hook, registered upload <code>file_copy</code> / <code>name_copy</code> copy injection, and the same <code>outputOptions(..., suspendWhenHidden = FALSE)</code> mount).</li>
+  <li>The reactive value the helper returns for each panel-owned source id calls <code>resolve_upload_source(input_slot, companion_slot, node, entry, envir, state, key, slot)</code> (Plan 02's helper) with the top-level input slot names <code>shared_&lt;key&gt;</code> / <code>shared_&lt;key&gt;_name</code> (no namespacing — the panel uses global ids). For the host's purposes the <code>state</code> / <code>key</code> / <code>slot</code> args address a host-local <code>reactiveVal</code> the helper owns; the reactive's value tracks that <code>reactiveVal</code>.</li>
+  <li>Upload errors surfaced from <code>resolve_upload_source()</code> reach a host-owned error sink (a new internal <code>ptr_shared_errors</code> <code>reactiveVal</code> inside <code>ptr_shared_server()</code>) symmetrically with consumer-side errors. Verified by triggering an entry whose <code>resolve_data</code> throws and reading the error sink.</li>
+  <li>For a config with zero panel-owned source keys (the most common shape today), the helper returns <code>list()</code> and <code>state$panel_sources</code> remains an empty list — i.e., no observable change for existing tests.</li>
+  <li>All criteria verified by <code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code> → FAIL 0 / ERROR 0 / SKIP 0 / PASS rises by ≥ 8 (the eight new <code>testServer</code> scenarios in <code>tests/testthat/test-host-setup-panel-sources.R</code>).</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns: <code>R/paintr-shared-ui.R</code> (the new helper + the <code>ptr_shared_server()</code> wiring of the new return-field), <code>tests/testthat/test-host-setup-panel-sources.R</code>.</li>
+  <li>Files this plan must NOT touch: <code>R/paintr-server.R</code> (Plans 02/05/06/07 own the per-instance side), <code>R/paintr-shared-coordinator.R</code> (Plan 03 owns the parser invariant).</li>
+  <li>The helper does NOT call <code>ns()</code>: panel ids are global / un-namespaced per <code>CONTEXT.md</code> ("the shared panel uses global, un-namespaced ids <code>shared_&lt;key&gt;</code>").</li>
+  <li>The helper must NOT re-implement upload-format detection / default-arg fallback / binding-name derivation — it calls <code>resolve_upload_source()</code> from Plan 02.</li>
+  <li>The shared_panel_body_tag() container for source-role panel keys MUST already exist at <code>output[[shared_&lt;key&gt;_ui]]</code>; if the implementer finds the container is not currently emitted for source-role keys, they pause and file a follow-up rather than modifying <code>shared_panel_body_tag()</code> in this plan.</li>
+  <li>SCOPE NARROWING FORBIDDEN — see the implementer/auditor prompts in <code>/exec-plan</code>.</li>
+  <li>Tidyverse style, snake_case, 2-space indent, <code>rlang::abort()</code> for errors.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: ptr_shared_server populates panel_sources for panel-owned source keys
+
+Scenario: Helper returns empty list when no panel-owned source keys exist
+  Given obj &lt;- ptr_shared(c(
+    "ggplot(mtcars, aes(x = ppVar(shared='x'))) + geom_point()",
+    "ggplot(mtcars, aes(x = ppVar(shared='x'))) + geom_col()"
+  ))
+  When testServer runs a server containing
+       s &lt;- ptr_shared_server(obj)
+  Then s$panel_sources is identical to list()
+
+Scenario: Helper returns a reactive per panel-owned ppUpload source key
+  Given obj &lt;- ptr_shared(c(
+    "ggplot(ppUpload(shared='ds'), aes(x = ppVar(shared='col'))) + geom_point()",
+    "ggplot(ppUpload(shared='ds'), aes(x = ppVar(shared='col'))) + geom_col()"
+  ))
+  When testServer runs s &lt;- ptr_shared_server(obj)
+  Then names(s$panel_sources) is c("shared_ds")
+  And  shiny::is.reactive(s$panel_sources$shared_ds) is TRUE
+
+Scenario: Container renderUI is assigned for the panel-owned source key
+  Given the same obj as above
+  And  the panel body emits uiOutput("shared_ds_ui")
+  When testServer runs ptr_shared_server(obj)
+  Then output$shared_ds_ui (after wait_for_idle) yields a renderUI body that
+       is a tagList containing a Shiny fileInput element with id "shared_ds"
+
+Scenario: Default-arg fallback primes panel_sources at boot
+  Given df_main &lt;- mtcars
+  And  obj &lt;- ptr_shared(c(
+    "ggplot(ppUpload(df_main, shared='ds'), aes(x = ppVar(shared='col'), y = mpg)) + geom_point()",
+    "ggplot(ppUpload(df_main, shared='ds'), aes(x = ppVar(shared='col'), y = hp)) + geom_col()"
+  ))
+  When testServer runs s &lt;- ptr_shared_server(obj, envir = environment())
+  And  the reactive context flushes
+  Then shiny::isolate(s$panel_sources$shared_ds()) is identical to mtcars
+
+Scenario: Upload error surfaces into the host's error sink
+  Given obj has a panel-owned source with a registry entry whose resolve_data throws
+  When the test sets input$shared_ds = list(datapath="bad", name="x.csv")
+  And  the reactive context flushes
+  Then the host's ptr_shared_errors slot contains a message naming the source key
+       and the error text
+
+Scenario: ADR worked example #6 — custom source keyword inherits panel-scope wiring
+  Given a custom keyword registered via ptr_define_placeholder_source("ppDataChooser",
+        build_ui = function(node, ...) shiny::selectInput(node$id, "Choose", c("mtcars","iris")),
+        resolve_data = function(value, node, ...) get(value, envir = globalenv()))
+  And  obj &lt;- ptr_shared(c(
+        "ggplot(ppDataChooser(shared='ds'), aes(x = ppVar(shared='col'))) + geom_point()",
+        "ggplot(ppDataChooser(shared='ds'), aes(x = ppVar(shared='col'))) + geom_col()"))
+  When testServer runs s &lt;- ptr_shared_server(obj)
+  And  input$shared_ds_name &lt;- "mtcars"
+  And  input$shared_ds &lt;- "mtcars"
+  And  the reactive context flushes
+  Then shiny::isolate(s$panel_sources$shared_ds()) is identical to mtcars
+       (the factored resolve_upload_source helper dispatches via the registry's resolve_data hook — no per-keyword wiring required)
+
+Scenario: ADR worked example R3 — spec-seeding the fileInput with a data frame is silently skipped
+  Given a panel-owned ppUpload(shared='ds') and spec = list(shared_ds = mtcars)
+  When testServer boots the app with the spec
+  And  the reactive context flushes
+  Then no error is signalled (apply_spec_at_boot's ppUpload-role skip fires)
+  And  shiny::isolate(input$shared_ds) is NULL (the fileInput value was not assigned)
+  And  shiny::isolate(s$panel_sources$shared_ds()) is NULL
+       (the placeholder-role row was dropped; only source_companion / shared_<key>_name rows are honored — per the path documented at R/paintr-server.R:574–575, 588–590)
+
+Scenario: ADR worked example R4 — panel still emits the fileInput tag even when panel_sources is supplied
+  Given my_df &lt;- shiny::reactiveVal(mtcars)
+  And  shared_state = list(panel_sources = list(shared_ds = my_df)) injected into ptr_shared_server
+  When the host renderUI for output[[shared_ds_ui]] fires
+  Then the rendered HTML contains an &lt;input type="file"&gt; element with id "shared_ds"
+       (the escape-hatch reactive overrides the resolved value but does NOT replace the emitted widget shape)
+</pre>
+
+<h2>Worked-example coverage</h2>
+<pre>
+| ADR anchor                                               | kind     | summary (one line)                                                                  | Scenario in this plan                            |
+|----------------------------------------------------------|----------|-------------------------------------------------------------------------------------|--------------------------------------------------|
+| Worked examples — what becomes possible #2               | positive | default_arg primes panel-shared source so pickers populate at boot before any click | Default-arg fallback primes panel_sources at boot |
+| Worked examples — what becomes possible #6               | positive | custom source keyword inherits panel-scope wiring via the registry-dispatching resolver | ADR worked example #6 — custom source keyword inherits panel-scope wiring |
+| Worked examples — what is rejected by design #R3         | negative | spec-seeding the fileInput with a data frame is silently skipped (browser-driven slot) | ADR worked example R3 — spec-seeding the fileInput silently skipped |
+| Worked examples — what is rejected by design #R4         | negative | panel still emits a fileInput tag even when panel_sources reactive is supplied         | ADR worked example R4 — panel still emits the fileInput tag |
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate: see <code>CLAUDE.md</code> §"Authoritative gate" — copy verbatim:</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong>, with PASS rising by ≥ 8 (the BDD scenarios above).</p>
+<p><strong>Plan-specific gate risks</strong>: this plan adds reactives populated inside <code>ptr_shared_server()</code> that exist on the bundle but have no per-instance consumer yet (Plans 05/07 consume them). The auditor must confirm the new <code>state$panel_sources</code> values are observed by the new <code>testServer</code> tests directly — a green suite that does not <em>read</em> the new reactives would silently miss a wiring error. The auditor explicitly looks for one test that calls <code>shiny::isolate(s$panel_sources$shared_ds())</code> and asserts the resolved frame.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: <code>R/paintr-shared-ui.R</code> (specifically <code>ptr_shared_server()</code> and the new helper definition), <code>tests/testthat/test-host-setup-panel-sources.R</code>. <code>NAMESPACE</code> regeneration is an integration concern — the helper is internal.</p>
+<p>Branch convention: this plan lives on branch <code>0023-host-setup-panel-sources</code> in a worktree at <code>.claude/worktrees/0023-panel-owned-shared-sources-end-to-end/host-setup-panel-sources/</code>. Merge via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the Definition-of-Done command and verifies the expected output before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch <code>shared-id-upgrade</code> at the HEAD reached after Plans 01 and 02 are merged. Pre-existing failures: none expected. Implementer records actual baseline PASS in the worktree's first commit message.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Per-instance pipeline substitution (decision §4) lives in Plan 05. Partition-aware skip in <code>ptr_setup_source_uis()</code> (decision §7) lives in Plan 06. Consumer-picker dep (decision §5 / <code>has_rendered</code> invariant) lives in Plan 07. Findings outside this plan's owned region are surfaced in the audit report, not silently absorbed.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: <strong>01</strong> (the <code>panel_sources</code> field must exist on the bundle to assign it), <strong>02</strong> (this plan calls <code>resolve_upload_source()</code>). Provides for: <strong>05</strong> (per-instance pipelines read this list), <strong>06</strong> (partition-aware skip reads <code>names(dots$panel_sources)</code>), <strong>07</strong> (consumer-picker dep reads from this list), <strong>08</strong> (end-to-end fixture exercises the full chain).</p>
+
+<!-- implementable: PASS date=2026-05-26 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=0e35c545cc02 -->
+</body>
+</html>

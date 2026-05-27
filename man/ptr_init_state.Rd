@@ -18,6 +18,7 @@ ptr_init_state(
   auto_bind_shared = FALSE,
   shared_resolutions = list(),
   shared_stage_enabled = list(),
+  panel_sources = list(),
   plots = NULL
 )
 }

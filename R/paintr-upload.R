@@ -1,13 +1,3 @@
-#' Build the Dataset-Name Input Id for an Upload
-#'
-#' @param id A placeholder id.
-#'
-#' @return A related id string for the dataset-name control.
-#' @noRd
-ptr_upload_name_id <- function(id) {
-  paste0(id, "_name")
-}
-
 #' Derive a Default Object Name from an Uploaded File
 #'
 #' @param file_name The uploaded filename.
@@ -27,31 +17,6 @@ ptr_upload_default_name <- function(file_name) {
     file_stem <- paste0(file_stem, "_")
   }
   make.names(file_stem)
-}
-
-#' Pick the Auto-Filled Dataset Name for an Upload Companion
-#'
-#' Returns the name to write into an upload's dataset-name companion
-#' input, or `NULL` to leave it alone. A default derived from the
-#' uploaded filename is only offered when the user has not typed a name
-#' yet (so an explicit name is never clobbered) and a usable filename is
-#' available.
-#'
-#' @param current_name The companion input's current value.
-#' @param file_name The uploaded filename (`fileInput()` `$name`).
-#'
-#' @return A syntactic R object name, or `NULL`.
-#' @noRd
-ptr_upload_autoname <- function(current_name, file_name) {
-  if (!is.null(current_name) && is.character(current_name) &&
-      length(current_name) == 1L && nzchar(current_name)) {
-    return(NULL)
-  }
-  if (is.null(file_name) || !is.character(file_name) ||
-      length(file_name) != 1L || !nzchar(file_name)) {
-    return(NULL)
-  }
-  ptr_upload_default_name(file_name)
 }
 
 #' Read Uploaded Paintr Data
@@ -213,7 +178,7 @@ ptr_resolve_upload_info <- function(input, upload_id, strict = FALSE) {
   }
 
   data_obj <- ptr_read_uploaded_data(file_info)
-  object_name <- input[[ptr_upload_name_id(upload_id)]]
+  object_name <- input[[paste0(upload_id, "_shortcut")]]
   object_name <- trimws(if (is.null(object_name)) "" else object_name)
 
   if (identical(object_name, "")) {
@@ -224,22 +189,38 @@ ptr_resolve_upload_info <- function(input, upload_id, strict = FALSE) {
   }
 
   ext <- tolower(tools::file_ext(file_info$name))
-  read_fun <- switch(
-    ext,
-    csv  = "read.csv",
-    tsv  = "read.delim",
-    rds  = "readRDS",
-    xlsx = "readxl::read_excel",
-    xls  = "readxl::read_excel",
-    json = "jsonlite::fromJSON",
-    rlang::abort(ptr_unsupported_upload_message())
-  )
+  read_fun <- reader_fn_name_for_ext(ext)
+  if (is.na(read_fun)) rlang::abort(ptr_unsupported_upload_message())
 
   list(
     data = data_obj,
     object_name = object_name,
     file_name = file_info$name,
     code_text = paste0(object_name, " <- ", read_fun, "(\"", file_info$name, "\")")
+  )
+}
+
+# ADR 0025 §4 / PLAN-04: single source of truth for extension -> reader-fn
+# name dispatch. The mapping mirrors `ptr_read_uploaded_data()` (which picks
+# the actual reader function) at name-only resolution, so the code-panel
+# prologue (`emit_upload_prologue()` in paintr-server.R) and the
+# `ptr_resolve_upload_info()` `code_text` field stay in lockstep with the
+# real reader choice without duplicating the table.
+#
+# Returns `NA_character_` for unknown extensions; the prologue caller
+# silently omits the line for that entry, while `ptr_resolve_upload_info()`
+# aborts with `ptr_unsupported_upload_message()`.
+reader_fn_name_for_ext <- function(ext) {
+  if (!is.character(ext) || length(ext) != 1L) return(NA_character_)
+  switch(
+    tolower(ext),
+    csv  = "read.csv",
+    tsv  = "read.delim",
+    rds  = "readRDS",
+    xlsx = "readxl::read_excel",
+    xls  = "readxl::read_excel",
+    json = "jsonlite::fromJSON",
+    NA_character_
   )
 }
 

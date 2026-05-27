@@ -328,20 +328,29 @@ rewrite_shared <- function(x, canonical) {
     new_id <- canonical[[x$shared]]
     if (!is.null(new_id)) {
       x$id <- new_id
-      # Keep paired ids (e.g. an upload source's dataset-name companion)
+      # Keep paired ids (e.g. an upload source's dataset-name shortcut)
       # in sync with the canonical id. Without this, two occurrences of
       # `upload(shared = "ds")` in different layers keep the distinct
-      # companion ids `ptr_assign_ids()` gave them, so only the first
-      # occurrence's companion widget is rendered/read and the other
+      # shortcut ids `ptr_assign_ids()` gave them, so only the first
+      # occurrence's shortcut widget is rendered/read and the other
       # layer's `data = ...` silently drops out.
-      if (is_ptr_ph_data_source(x) && !is.null(x$companion_id)) {
+      if (is_ptr_ph_data_source(x) && !is.null(x$shortcut_id)) {
         entry <- ptr_registry_lookup(x$keyword)
-        if (!is.null(entry) && !is.null(entry$companion_id_fn)) {
-          x$companion_id <- entry$companion_id_fn(new_id)
+        if (!is.null(entry) && isTRUE(entry$shortcut)) {
+          x$shortcut_id <- paste0(new_id, "_shortcut")
         }
       }
     }
-    return(x)
+    # Fall through to the ptr_node recursion below so the placeholder's
+    # captured-subtree fields are rewritten too. The consumer node
+    # carries an `$upstream` snapshot stamped by `ptr_classify_data`
+    # (paintr-classify.R) *before* `ptr_shared_bind` runs, so the source
+    # nodes inside that snapshot still carry pre-rewrite ids (and the
+    # pre-rewrite `shortcut_id`). The early-return that used to be here
+    # left them stale, which made `ptr_bind_shared_consumer_uis()` build
+    # its substitute snapshot from input ids that no DOM widget owns —
+    # the picker silently showed "Data source not yet provided" even
+    # when the source itself had bound its frame correctly.
   }
   if (is_ptr_node(x)) {
     for (nm in names(x)) x[[nm]] <- rewrite_shared(x[[nm]], canonical)

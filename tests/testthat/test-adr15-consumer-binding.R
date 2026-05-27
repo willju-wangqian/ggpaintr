@@ -19,7 +19,7 @@
 
 # Companion ids in the adr15-consumer-binding fixture:
 #   - geom_point_0_ppUpload_NA           : the upload file-input
-#   - geom_point_0_ppUpload_NA_name      : the dataset-name companion
+#   - geom_point_0_ppUpload_NA_shortcut      : the dataset-name companion
 #   - geom_point_1_1_ppVar_NA            : non-shared ppVar(mpg) at x
 #   - shared_v                           : shared ppVar(shared = "v") at y
 
@@ -48,7 +48,7 @@ test_that("adr15: non-shared ppVar under ppUpload populates after upload, no sub
   withr::defer(app$stop())
 
   app$upload_file(geom_point_0_ppUpload_NA = csv_path)
-  app$set_inputs(geom_point_0_ppUpload_NA_name = "df", wait_ = FALSE)
+  set_input(app, "geom_point_0_ppUpload_NA_shortcut", "df")
   app$wait_for_idle(timeout = 25 * 1000)
 
   expect_picker_populated(app, "geom_point_1_1_ppVar_NA", "mpg")
@@ -82,7 +82,7 @@ test_that("adr15: shared ppVar under ppUpload populates after upload, no subtab 
   withr::defer(app$stop())
 
   app$upload_file(geom_point_0_ppUpload_NA = csv_path)
-  app$set_inputs(geom_point_0_ppUpload_NA_name = "df", wait_ = FALSE)
+  set_input(app, "geom_point_0_ppUpload_NA_shortcut", "df")
   app$wait_for_idle(timeout = 25 * 1000)
 
   expect_picker_populated(app, "shared_v", "mpg")

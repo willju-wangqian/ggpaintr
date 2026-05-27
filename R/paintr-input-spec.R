@@ -32,7 +32,7 @@ ptr_runtime_input_spec <- function(node) {
       pls <- collect_layer_placeholders(layer)
       for (pl in pls) {
         ph_rows[[length(ph_rows) + 1L]] <- placeholder_row(pl, layer$name)
-        if (is_ptr_ph_data_source(pl) && !is.null(pl$companion_id)) {
+        if (is_ptr_ph_data_source(pl) && !is.null(pl$shortcut_id)) {
           ph_rows[[length(ph_rows) + 1L]] <- companion_row(pl, layer$name)
         }
       }
@@ -54,7 +54,7 @@ ptr_runtime_input_spec <- function(node) {
       ph_rows[[length(ph_rows) + 1L]] <- placeholder_row(
         layer, layer$name %||% layer$keyword
       )
-      if (is_ptr_ph_data_source(layer) && !is.null(layer$companion_id)) {
+      if (is_ptr_ph_data_source(layer) && !is.null(layer$shortcut_id)) {
         ph_rows[[length(ph_rows) + 1L]] <- companion_row(
           layer, layer$name %||% layer$keyword
         )
@@ -105,7 +105,7 @@ placeholder_row <- function(pl, layer_name) {
 
 companion_row <- function(pl, layer_name) {
   list(
-    input_id = pl$companion_id %||% NA_character_,
+    input_id = pl$shortcut_id %||% NA_character_,
     role = "source_companion",
     layer_name = layer_name %||% NA_character_,
     keyword = pl$keyword %||% NA_character_,
@@ -362,9 +362,9 @@ emit_placeholder_rows <- function(ph, parent_call, layer_name, emit) {
     layer = base$layer, keyword = base$keyword, param = base$param,
     parent_call = base$parent_call, shared = base$shared
   )
-  if (is_ptr_ph_data_source(ph) && !is.null(ph$companion_id)) {
+  if (is_ptr_ph_data_source(ph) && !is.null(ph$shortcut_id)) {
     emit(
-      id = ph$companion_id, kind = "input_widget",
+      id = ph$shortcut_id, kind = "input_widget",
       role = "source_companion", scope = scope, include_in_ui = FALSE,
       layer = base$layer, keyword = base$keyword, param = base$param,
       parent_call = base$parent_call, shared = base$shared

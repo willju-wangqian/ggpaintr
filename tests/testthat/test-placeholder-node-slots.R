@@ -70,13 +70,13 @@ test_that("ptr_ph_data_consumer carries new slots without losing upstream", {
   expect_identical(node2$upstream, upstream)
 })
 
-test_that("ptr_ph_data_source carries new slots without losing companion_id", {
+test_that("ptr_ph_data_source carries new slots without losing shortcut_id", {
   node <- ptr_ph_data_source(
     keyword = "ppUpload", expr = quote(ppUpload()),
-    companion_id = "x_name"
+    shortcut_id = "x_shortcut"
   )
   expect_true(is_ptr_ph_data_source(node))
-  expect_equal(node$companion_id, "x_name")
+  expect_equal(node$shortcut_id, "x_shortcut")
   expect_null(node$default)
   expect_true(identical(node$named_args, list()))
 })

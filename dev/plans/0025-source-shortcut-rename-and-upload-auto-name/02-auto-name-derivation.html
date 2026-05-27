@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-02 — Auto-name derivation for upload binding (from ADR 0025)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 02
+  slug: auto-name-derivation
+  source_adr: dev/adr/0025-source-shortcut-rename-and-upload-auto-name.html
+  depends_on: [01]
+  parallel_group: G2
+  status: draft
+-->
+
+<h1>PLAN-02 — Auto-name derivation for upload binding</h1>
+<p class="meta">Source: ADR 0025 §3 + §5 + §8 (auto-name table, eval_env contract, ADR 0010 reinterpretation) · Depends on: 01 · Parallel group: G2 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0025 §3 specifies a deterministic auto-name for upload-bound sources when the shortcut textbox is empty:</p>
+<ul>
+  <li><code>ppUpload(shared='ds_a')</code> with <code>obj$id = NULL</code> → symbol <code>ds_a</code> (coordinator eval_env).</li>
+  <li><code>ppUpload(shared='ds_a')</code> with <code>obj$id = "main"</code> → symbol <code>main_ds_a</code>.</li>
+  <li><code>ppUpload()</code> non-shared, no explicit name → symbol <code>node$id</code> (e.g. <code>ggplot_1_0_ppUpload_NA</code>).</li>
+  <li><code>ppUpload(penguins)</code> (ADR 0010 form) → symbol <code>penguins</code> (the <code>node$default</code> verbatim).</li>
+</ul>
+<p>ADR §5 says the substitute walker reads <code>ctx$snapshot[[node$shortcut_id]]</code> first; on empty, falls back to <code>node$auto_name</code> (a new field stamped at translate time alongside <code>node$id</code>). Per-instance eval_envs and per-coordinator eval_envs (already isolated, ADR 0023) make every auto-name unique within its scope. No counter, no reserved-namespace beyond Plan 01's shared-key validator.</p>
+
+<h2>Governing principle</h2>
+<p>The auto-name is the slot's binding-name <em>contract</em> — one deterministic symbol per source node, owned by ggpaintr, derived from existing id infrastructure. Every reader of the slot's binding (substitute walker, code emission, eval_env writer, spec dumper) must consult <em>the same</em> single source of truth (<code>node$auto_name</code>), not re-derive the rule locally. Naming the WHY: F3 (eval-env pollution) is what you get when uploads write under whatever name happens to be in scope at the call site; one shared deterministic name eliminates the class.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li>After <code>ptr_translate_formula()</code> on <code>ppUpload() |&gt; ggplot(aes(x = ppVar('mpg'))) + geom_point()</code>, the resulting source node satisfies <code>identical(node$auto_name, node$id)</code> (a non-shared upload's auto-name is its <code>node$id</code>). Verified by <code>test-auto-name-derivation.R</code>.</li>
+  <li>After translation of <code>ppUpload(penguins) |&gt; ggplot(...)</code>, <code>node$auto_name == "penguins"</code> (the <code>node$default</code> verbatim). Verified by the same file.</li>
+  <li>In a <code>ptr_shared(list(f1, f2), id = "main")</code> coordinator where both formulas contain <code>ppUpload(shared = 'ds')</code>, after <code>ptr_setup_panel_sources()</code> runs, the panel's first-occurrence source node has <code>node$auto_name == "main_ds"</code> (the canonical with obj$id prefix). Verified by <code>test-auto-name-shared-canonical.R</code>.</li>
+  <li>In the same coordinator with <code>id = NULL</code> (the default), the auto-name is <code>"ds"</code> (no prefix). Verified by the same file.</li>
+  <li>When <code>resolve_upload_source</code> runs with <code>file_info</code> non-NULL and <code>companion_slot$value</code> empty/<code>NULL</code>, <code>bind_source_value</code> is called with <code>name = node$auto_name</code> (NOT <code>NULL</code>, NOT a re-derived value). Verified by <code>test-upload-binds-under-auto-name.R</code> using <code>testthat::local_mocked_bindings(.package = "ggpaintr", bind_source_value = function(state, key, name, df, slot) { ... })</code> to capture the <code>name</code> argument.</li>
+  <li>When <code>resolve_upload_source</code> runs with <code>file_info</code> non-NULL and <code>companion_slot$value = "my_name"</code> (a valid R name), <code>bind_source_value</code> is called with <code>name = "my_name"</code> (textbox wins over auto-name when both available). Verified by the same file.</li>
+  <li>The substitute walker, given a source node with <code>node$shortcut_id</code> set and <code>ctx$snapshot[[node$shortcut_id]] == ""</code>, returns an expression whose symbol equals <code>as.name(node$auto_name)</code>. Verified by <code>test-substitute-auto-name-fallback.R</code>.</li>
+  <li>Full authoritative gate (Definition of Done) shows FAIL 0 / WARN 0 / SKIP 0 with PASS rising by at least the new-case count.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns:
+    <ul>
+      <li><code>R/paintr-ids.R</code> — inside <code>assign_id_to_placeholder()</code> (or the equivalent translate-time stamp helper for source nodes), set <code>node$auto_name &lt;- node$default %||% node$id</code> for non-shared sources, and leave <code>node$auto_name = NULL</code> for shared sources (the runtime stamp in <code>ptr_setup_panel_sources</code> overwrites this for shared sources). The <code>node$default</code> path handles the <code>ppUpload(penguins)</code> case verbatim.</li>
+      <li><code>R/paintr-shared-ui.R</code> — inside <code>ptr_setup_panel_sources()</code> (the stamp block currently at lines ~511-516), after the existing <code>node$id &lt;- canonical</code> assignment, add <code>node$auto_name &lt;- if (!is.null(obj$id)) paste0(obj$id, "_", key) else key</code>. The <code>key</code> here is the shared key (e.g. <code>"ds"</code>); <code>obj$id</code> is the coordinator object's id slot. <strong>Cross-site check:</strong> <code>R/paintr-shared-ui.R:152</code> also calls <code>n$id &lt;- canonical_shared_id(k)</code> in a non-<code>ptr_setup_panel_sources</code> helper; verify whether that site is on the panel-first-occurrence binding path and either stamp <code>n$auto_name</code> there too or record a one-line justification for why the later <code>ptr_setup_panel_sources</code> overwrite supersedes it.</li>
+      <li><code>R/paintr-substitute.R</code> — extend the source-node substitute walk (lines ~179–213) so that when <code>ctx$snapshot[[node$shortcut_id]]</code> is empty (NULL or empty string), the walker falls through to <code>as.name(node$auto_name)</code> when <code>node$auto_name</code> is non-NULL. When both are empty, retain existing NULL/error behaviour (no behavioural change).</li>
+      <li><code>R/paintr-server.R</code> — modify the <code>binding_name</code> derivation inside <code>resolve_upload_source()</code> (currently ~lines 1071–1086 of the post-rename file) and its sibling <code>try_bind_source_default_resolved()</code> / <code>try_bind_source_default()</code> so that when the source has the shortcut surface (<code>!is.null(node$shortcut_id)</code>) and the companion textbox value is empty, the binding name falls back to <code>node$auto_name</code> rather than <code>NULL</code>. Companion-less sources retain the existing <code>resolve_expr(value, node)</code> path unchanged.</li>
+      <li>New tests:
+        <ul>
+          <li><code>tests/testthat/test-auto-name-derivation.R</code> — translate-time stamp for non-shared cases (default-arg + <code>node$id</code>).</li>
+          <li><code>tests/testthat/test-auto-name-shared-canonical.R</code> — runtime stamp under <code>ptr_setup_panel_sources()</code> for shared-with-obj$id and shared-without-obj$id.</li>
+          <li><code>tests/testthat/test-upload-binds-under-auto-name.R</code> — captures the <code>name</code> argument passed to <code>bind_source_value</code> via <code>local_mocked_bindings</code>.</li>
+          <li><code>tests/testthat/test-substitute-auto-name-fallback.R</code> — walker fallback semantics.</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li>Files this plan must NOT touch:
+    <ul>
+      <li>Code-panel prologue emission (Plan 03 / 04 — wait, prologue is Plan 04 by sequence; see Dependencies). The auto-name is exposed to the code panel via <code>node$auto_name</code>; plan 04 reads it.</li>
+      <li>UI mutex observers (Plan 03), <code>resolve_upload_source</code> no-file branch (vacate-on-empty is Plan 05; the file_info-NULL early-return in this plan is unchanged), debounce wrapper (Plan 05), <code>ptr_runtime_input_spec</code> bound-name fallback (Plan 06).</li>
+      <li><code>vignettes/</code>, <code>CONTEXT.md</code>, <code>NEWS.md</code> (Plan 07).</li>
+      <li>Plan 01's owned files (the rename) — Plan 02 builds on the renamed surface but does not re-edit it.</li>
+      <li>Generated <code>man/*.Rd</code> — owned by integration step.</li>
+    </ul>
+  </li>
+  <li>Translate-time stamp uses <code>node$default %||% node$id</code>, NOT a fresh symbol generator or counter. Per ADR §3 paragraph "Uniqueness analysis", existing id infrastructure already guarantees uniqueness within an eval_env scope.</li>
+  <li>The runtime stamp for shared sources runs <em>after</em> Plan 01's <code>node$shortcut_id</code> stamp inside <code>ptr_setup_panel_sources</code>. Verify the ordering: <code>node$id &lt;- canonical</code> first, then <code>node$shortcut_id</code> stamp (from Plan 01), then <code>node$auto_name</code> stamp (this plan).</li>
+  <li>SCOPE NARROWING FORBIDDEN. No "carry the binding through a new state slot" alternatives; the eval_env contract is locked.</li>
+  <li>Conventions: snake_case, 2-space indent, <code>rlang::abort()</code> for any error path (none expected).</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>
+Feature: Auto-name derivation for upload binding (ADR 0025 §3, §5, §8)
+
+Scenario: non-shared upload — translate-time auto-name equals node$id
+  Given a formula `ppUpload() |&gt; ggplot(aes(x = ppVar('mpg'))) + geom_point()`
+   When ptr_translate_formula() runs
+   Then the source node has node$auto_name identical to node$id
+    And node$auto_name has the literal suffix "_ppUpload_NA"
+
+Scenario: ppUpload(penguins) — translate-time auto-name equals node$default verbatim
+  Given a formula `ppUpload(penguins) |&gt; ggplot(aes(x = ppVar('species'))) + geom_bar()`
+   When ptr_translate_formula() runs
+   Then the source node's node$default is "penguins"
+    And node$auto_name is identical to "penguins"
+
+Scenario: ADR worked example #2 (part A) — shared upload with obj$id prefix
+  Given a coordinator `ptr_shared(list(f1, f2), id = "main")` where both formulas reference `ppUpload(shared = 'ds')`
+   When ptr_setup_panel_sources() stamps the panel-first-occurrence node
+   Then the stamped node has node$auto_name identical to "main_ds"
+
+Scenario: ADR worked example #2 (part B) — shared upload without obj$id
+  Given a coordinator `ptr_shared(list(f1, f2))` (id defaulted to NULL) where both formulas reference `ppUpload(shared = 'ds')`
+   When ptr_setup_panel_sources() stamps the panel-first-occurrence node
+   Then the stamped node has node$auto_name identical to "ds"
+
+Scenario: upload binds under auto-name when shortcut textbox is empty
+  Given a mocked bind_source_value (via testthat::local_mocked_bindings)
+    And a source node whose node$auto_name is "ggplot_1_0_ppUpload_NA"
+    And a file_info argument that is non-NULL
+    And companion_slot$value is NULL (or "")
+   When resolve_upload_source() runs
+   Then bind_source_value is invoked exactly once
+    And the captured `name` argument is identical to "ggplot_1_0_ppUpload_NA"
+
+Scenario: shortcut textbox wins over auto-name when both available
+  Given a mocked bind_source_value
+    And a source node whose node$auto_name is "ggplot_1_0_ppUpload_NA"
+    And companion_slot$value is "my_name" (a valid R name)
+   When resolve_upload_source() runs
+   Then the captured `name` argument is identical to "my_name"
+
+Scenario: substitute walker falls back to node$auto_name on empty snapshot
+  Given a source node with node$shortcut_id = "x_shortcut" and node$auto_name = "auto_x"
+    And ctx$snapshot[["x_shortcut"]] is "" (empty string)
+   When substitute_walk dispatches on the source node
+   Then the resulting expression's substituted symbol is identical to as.name("auto_x")
+</pre>
+
+<h2>Worked-example coverage</h2>
+
+<pre>
+| ADR anchor                                                     | kind     | summary (one line)                                                                  | Scenario in this plan                                          |
+|----------------------------------------------------------------|----------|-------------------------------------------------------------------------------------|----------------------------------------------------------------|
+| Worked examples — what becomes possible #2                     | positive | Multi-panel app: two coordinators each get `<obj$id>_<key>` auto-names, no collision. | ADR worked example #2 (part A) + (part B)                      |
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate: see <code>CLAUDE.md</code> §"Authoritative gate (Definition of Done)". Same command, same proxy-trap list. The implementer and auditor run it verbatim.</p>
+
+<p><strong>Plan-specific gate risks</strong>: none. (Pure-R tests; no shinytest2.)</p>
+
+<p>This plan adds 4 new test files (counts above). Expected PASS delta ≥ 7 new cases with FAIL/ERROR still 0 and SKIP unchanged.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns the files listed under Constraints. Generated <code>NAMESPACE</code> / <code>man/*.Rd</code> are owned by the integration step. Surface drift in the post-impl audit; do not regenerate as part of this plan.</p>
+<p>Branch convention: this plan lives on branch <code>0025-auto-name-derivation</code> in a worktree at <code>.claude/worktrees/0025-source-shortcut-rename-and-upload-auto-name/auto-name-derivation/</code>. Merge into the orchestrator branch via <code>--no-ff</code> after Plan 01 lands.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor re-runs the Definition-of-Done command and verifies expected output before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch with Plan 01 merged. Pre-existing flake list (e2e shinytest2 files) is documented in the project memory <code>shinytest2-appdir-pkgload</code>; re-run before attribution.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Findings outside this plan's owned files are surfaced (recorded in the audit report), never absorbed. The prologue emission, mutex, vacate-on-empty, debounce, and spec round-trip stay for Plans 03–06.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: 01 (the rename — <code>node$shortcut_id</code> must already exist as a field). Provides for: 04 (code-panel prologue emits <code>&lt;node$auto_name&gt; &lt;- read.csv(...)</code>), 05 (vacate-on-empty A1 vacates the eval_env binding keyed by <code>node$auto_name</code>; debounce wrapping the shortcut input read is structurally independent of this plan but conceptually downstream), 06 (spec round-trip dumps the bound name which, post-upload, is the auto-name).</p>
+
+<!-- implementable: PASS date=2026-05-26 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=448036435957 -->
+</body>
+</html>

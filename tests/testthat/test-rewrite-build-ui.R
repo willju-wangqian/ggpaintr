@@ -87,7 +87,7 @@ test_that("P6.5 upload UI emits paired widgets (file + name)", {
   node <- .ph_by_keyword(tree, "ppUpload")
   ui <- .source_widget(node)
   expect_true(length(.find_tags(ui, has_id = node$id)) > 0L)
-  expect_true(length(.find_tags(ui, has_id = node$companion_id)) > 0L)
+  expect_true(length(.find_tags(ui, has_id = node$shortcut_id)) > 0L)
 })
 
 # ---- P6.13 — copy resolution ----

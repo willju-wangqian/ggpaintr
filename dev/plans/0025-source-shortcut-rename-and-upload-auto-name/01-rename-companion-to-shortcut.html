@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-01 — Rename companion_id_fn → shortcut + node$companion_id → node$shortcut_id (from ADR 0025)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 01
+  slug: rename-companion-to-shortcut
+  source_adr: dev/adr/0025-source-shortcut-rename-and-upload-auto-name.html
+  depends_on: []
+  parallel_group: G1
+  status: draft
+-->
+
+<h1>PLAN-01 — Rename companion_id_fn → shortcut + node$companion_id → node$shortcut_id</h1>
+<p class="meta">Source: ADR 0025 §1 + §8 (rename) and Example 4 / Example 6 · Depends on: none · Parallel group: G1 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0025 §1 retires the dual-role <em>companion</em> surface and renames it to the single-role <em>shortcut</em> surface. The registry parameter on <code>ptr_define_placeholder_source()</code> changes from <code>companion_id_fn = function(id) -&gt; string</code> (NULL default) to <code>shortcut = FALSE</code> (boolean default). The node field <code>node$companion_id</code> becomes <code>node$shortcut_id</code>; the id suffix <code>"_name"</code> becomes <code>"_shortcut"</code>. The built-in <code>ppUpload</code> registers with <code>shortcut = TRUE</code> to keep its textbox. A translate-time validator rejects <code>shared = "shortcut"</code> with a clear error (ADR Example 4). Hard rename, no <code>lifecycle::deprecate_warn()</code>.</p>
+
+<p>Quoting the ADR §1 binding sentence: <em>"The <code>'_shortcut'</code> suffix replaces today's <code>'_name'</code>. Naming is consistent across the field, the suffix, and the public arg."</em></p>
+
+<h2>Governing principle</h2>
+<p>One surface, one role. The companion textbox carries <em>only</em> the env-shortcut role (a typed name resolves a caller-env frame); the upload-name-override role is retired. Every artefact named after the old dual role — argument name, node slot, id suffix, hook variable, find-helper — must move to the single-role name in lock-step, so no reader of any single file is led to believe the old dual role still exists. Naming the WHY: divergent naming is what let F1/F2/F3 (sticky-after-clear, code/plot mismatch, eval-env pollution) hide in ADR 0024's review; uniform naming makes the new contract auditable on sight.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li><code>ptr_define_placeholder_source(keyword = "ppX", role = "source", shortcut = TRUE, build_ui = ..., resolve_data = ..., resolve_expr = ...)</code> returns without error and the resulting registry entry carries <code>shortcut = TRUE</code> (a boolean), not <code>companion_id_fn</code>. Verified by <code>devtools::test(filter = "registry")</code> passing the new <code>test_that</code> case "ptr_define_placeholder_source accepts shortcut = TRUE".</li>
+  <li>Calling <code>ptr_define_placeholder_source(..., companion_id_fn = function(id) paste0(id, "_x"))</code> errors with a message naming the removed argument. Verified by an <code>expect_error</code> in <code>test-registry-shortcut.R</code>.</li>
+  <li>For a formula containing <code>ppUpload()</code>, after translation the source <code>node$shortcut_id</code> equals <code>paste0(node$id, "_shortcut")</code> (e.g. <code>"ggplot_1_0_ppUpload_NA_shortcut"</code>), <code>node$companion_id</code> is absent (<code>is.null(node$companion_id)</code> is TRUE), and no node field, helper, registry entry, or local variable in <code>R/paintr-*.R</code> contains the literal text <code>companion_id_fn</code> or <code>companion_id</code>. Verified by <code>devtools::test(filter = "id-table")</code> + a fresh <code>grep -r 'companion_id' R/</code> returning zero matches.</li>
+  <li>For a formula <code>ppUpload(shared = 'shortcut') |&gt; ggplot(...)</code>, <code>ptr_app()</code> translation aborts with an error whose message contains the substring <code>"Shared key 'shortcut' is reserved"</code>. Verified by <code>test-shortcut-reserved-key.R</code>.</li>
+  <li>A custom source registered with <code>shortcut = TRUE</code> whose <code>build_ui</code> omits a <code>textInput(node$shortcut_id, ...)</code> boots <em>without error</em> and renders only the widgets the author named (no auto-injected textbox). Verified by <code>test-shortcut-author-trap.R</code> asserting <code>expect_no_error</code> on translation + boot and the rendered tag list contains no input bound to <code>node$shortcut_id</code>.</li>
+  <li>Full authoritative gate (Definition of Done below) shows FAIL 0 / WARN 0 / SKIP 0 with PASS rising by at least the number of new test cases added in this plan, and zero new failures in pre-existing tests.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns:
+    <ul>
+      <li><code>R/paintr-registry.R</code> — public arg signature, validator, hook storage; roxygen prose updates for the renamed surface.</li>
+      <li><code>R/paintr-ids.R</code> — id derivation (rename <code>companion_id</code> field write → <code>shortcut_id</code>; change <code>"_name"</code> suffix to <code>"_shortcut"</code>; add reserved-shared-key validator).</li>
+      <li><code>R/paintr-builtins.R</code> — <code>ppUpload</code> registers <code>shortcut = TRUE</code> instead of <code>companion_id_fn = ptr_upload_name_id</code>; the <code>build_ui</code> binds <code>shiny::textInput(inputId = node$shortcut_id, ...)</code> instead of <code>node$companion_id %||% paste0(node$id, "_name")</code>; the now-unused helper <code>ptr_upload_name_id</code> is deleted.</li>
+      <li><code>R/paintr-substitute.R</code> — rename <code>node$companion_id</code> → <code>node$shortcut_id</code> at the two read sites (<em>this plan only renames; the snapshot-empty fallback to <code>node$auto_name</code> is Plan 02</em>).</li>
+      <li><code>R/paintr-shared-ui.R</code> — rename the <code>entry$companion_id_fn(canonical)</code> stamp site (currently lines ~514-515) to the new <code>isTRUE(entry$shortcut)</code> branch that writes <code>node$shortcut_id &lt;- paste0(node$id, "_shortcut")</code>.</li>
+      <li><code>R/paintr-shared.R</code> — rename the four sites at lines ~337-349 (the substitute-aware shared-id rewrite path): the <code>!is.null(x$companion_id)</code> guard, the <code>entry$companion_id_fn</code> dispatch, the <code>x$companion_id &lt;- entry$companion_id_fn(new_id)</code> stamp, and the inline comment referring to "pre-rewrite <code>companion_id</code>" all flip to <code>shortcut_id</code> / <code>shortcut</code>.</li>
+      <li><code>R/paintr-nodes.R</code> — rename the <code>companion_id = NULL</code> constructor parameter and the <code>companion_id = companion_id</code> field assignment on the source-node constructor (lines ~86, 91) to <code>shortcut_id</code> on both sides.</li>
+      <li><code>R/paintr-server.R</code> — rename every read of <code>node$companion_id</code>, <code>src$companion_id</code>, <code>psn$companion_id</code> to the <code>*$shortcut_id</code> form; rename local variables (<code>has_companion</code>, <code>comp_id</code>, <code>upstream_source_companion_ids</code>, <code>panel_sources_companion_ids</code>, <code>companion_value</code>) to the <code>*shortcut*</code> form. <em>Do NOT rename the helper <code>find_source_companion_ids_in_upstream</code></em> — per ADR §1, the rename is narrowed to surface artefacts (arg, node field, suffix); the role label <code>"source_companion"</code> is OUT OF SCOPE and the helper's name preserves symmetry with that label. Inline comments referring to "companion" update to "shortcut" only where they describe the renamed surface (arg/field/suffix), NOT where they describe the role-label-keyed walk.</li>
+      <li><code>R/paintr-render.R</code> — rename the three <code>node$companion_id</code> reads at the snapshot-key resolution site.</li>
+      <li><code>R/paintr-build-ui.R</code> — update the roxygen prose ("companion_id" → "shortcut_id"); rename the local variable carrying the namespaced sibling id.</li>
+      <li><code>R/paintr-input-spec.R</code> — rename the five <code>pl$companion_id</code> / <code>ph$companion_id</code> / <code>layer$companion_id</code> reads. (The fallback-to-<code>bound_names</code> body change is Plan 06.)</li>
+      <li><code>tests/testthat/test-placeholder-node-slots.R</code> — update the existing assertion <code>expect_equal(node$companion_id, "x_name")</code> to <code>expect_equal(node$shortcut_id, "x_shortcut")</code>; rename the test description from "without losing companion_id" to "without losing shortcut_id".</li>
+      <li><code>NEWS.md</code> — single bullet under an "Unreleased" or version-appropriate heading describing the hard rename and naming the removed argument.</li>
+      <li>New tests: <code>tests/testthat/test-registry-shortcut.R</code> (accept new arg, reject old arg), <code>tests/testthat/test-shortcut-reserved-key.R</code> (translate-time error), <code>tests/testthat/test-shortcut-author-trap.R</code> (silent unreachability under default-FALSE-author-emit policy).</li>
+    </ul>
+  </li>
+  <li>Files this plan must NOT touch:
+    <ul>
+      <li><code>vignettes/ggpaintr-customization.Rmd</code> — bundled into Plan 07.</li>
+      <li><code>CONTEXT.md</code> — bundled into Plan 07.</li>
+      <li>Code-panel prologue emission (Plan 03), <code>node$auto_name</code> stamping (Plan 02), UI mutex observers (Plan 04), resolve_upload_source no-file branch / debounce (Plan 05), <code>ptr_runtime_input_spec</code> bound-name fallback (Plan 06).</li>
+      <li>Generated <code>man/*.Rd</code> — owned by an integration step (regenerated via <code>devtools::document()</code> after all plans land).</li>
+    </ul>
+  </li>
+  <li>Pre-existing tests in <code>tests/testthat/</code> that read <code>node$companion_id</code> on translated nodes (e.g. <code>test-placeholder-node-slots.R</code>) must be updated in this plan to read <code>node$shortcut_id</code> — they are NOT "out-of-scope incidental drift", they are required-to-pass collateral of the rename.</li>
+  <li>No <code>lifecycle::deprecate_warn()</code> shim. No "back-compat alias" arg. No silent acceptance of <code>companion_id_fn</code>. ADR §1 explicitly mandates hard rename.</li>
+  <li>The role label <code>"source_companion"</code> in id-table outputs (<code>R/paintr-ids.R</code> id-table generation, <code>tests/testthat/test-id-table.R</code>) is OUT OF SCOPE for this plan. ADR 0025 §1 renames the dual-role <em>surface</em> (arg, field, suffix), not the role label. Leave <code>"source_companion"</code> rows unchanged.</li>
+  <li>No scope creep, no incidental refactors. SCOPE NARROWING FORBIDDEN.</li>
+  <li>Conventions: snake_case, 2-space indent, <code>rlang::abort()</code> for the reserved-key error with a clear <code>cli</code>-formatted message; roxygen2 regen invoked AFTER all plans (integration step).</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>
+Feature: Source-shortcut surface rename (ADR 0025 §1)
+
+Scenario: ptr_define_placeholder_source accepts shortcut = TRUE
+  Given a custom source defined with shortcut = TRUE, build_ui, resolve_data, resolve_expr
+   When ptr_define_placeholder_source is called
+   Then the call returns invisibly with no error
+    And ptr_registry_lookup("ppX")$shortcut is identical(TRUE)
+    And ptr_registry_lookup("ppX")$companion_id_fn is NULL (the slot does not exist)
+
+Scenario: ptr_define_placeholder_source rejects the removed companion_id_fn arg
+  Given a call passing companion_id_fn = function(id) paste0(id, "_x")
+   When ptr_define_placeholder_source is invoked
+   Then the call errors with class c("rlang_error", "error", "condition")
+    And the error message contains the substring "unused argument" or "companion_id_fn"
+
+Scenario: ppUpload node carries shortcut_id, not companion_id
+  Given a formula `ppUpload() |&gt; ggplot(aes(x = ppVar('mpg'))) + geom_point()` translated via ptr_translate_formula
+   When the resulting tree's source node is inspected
+   Then node$shortcut_id == paste0(node$id, "_shortcut")
+    And is.null(node$companion_id) is TRUE
+    And the id suffix is the literal "_shortcut", not "_name"
+
+Scenario: ADR worked example #4 — shared key 'shortcut' is rejected at translate time
+  Given a formula `ppUpload(shared = "shortcut") |&gt; ggplot(aes(x = ppVar("mpg"))) + geom_bar()`
+   When ptr_app() (or ptr_translate_formula) is invoked
+   Then translation aborts with a condition inheriting from "rlang_error"
+    And the error message contains the exact substring "Shared key 'shortcut' is reserved"
+
+Scenario: ADR worked example #6 — shortcut=TRUE without textInput is a silent author trap
+  Given a custom source registered with shortcut = TRUE whose build_ui omits any input bound to node$shortcut_id
+   When ptr_app() boots with a formula containing that source
+   Then no error is thrown at translation, at server startup, or at UI render
+    And the rendered tag list (returned by build_ui) contains no shiny input whose id equals node$shortcut_id
+    And no warning of class "ggpaintr_*" is emitted
+
+Scenario: ADR worked example #1 — custom source opts in to env-shortcut surface
+  Given a custom source ppDataset registered with shortcut = TRUE whose build_ui renders both selectInput(node$id) and textInput(node$shortcut_id)
+   When ptr_app("ppDataset() |&gt; ggplot(aes(x = ppVar('mpg'))) + geom_point()") is loaded in a test session
+   Then the UI tree contains a node with HTML id matching node$shortcut_id ending in the literal suffix "_shortcut"
+    And the registry-stamped node$shortcut_id is non-NULL on the source node after translation
+
+Scenario: rename leaves no residual companion_id literal in R/
+  Given the current package tree under R/
+   When a fresh `grep -nE 'companion_id' R/*.R` is run
+   Then the command exits with status 1 (no matches)
+</pre>
+
+<h2>Worked-example coverage</h2>
+
+<pre>
+| ADR anchor                                                     | kind     | summary (one line)                                                            | Scenario in this plan                                                                |
+|----------------------------------------------------------------|----------|-------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| Worked examples — what becomes possible #1                     | positive | Custom source opts in to env-shortcut via shortcut = TRUE + textInput render. | ADR worked example #1 — custom source opts in to env-shortcut surface                |
+| Worked examples — what is rejected by design #4                | negative | Shared key 'shortcut' rejected at translate time with a named-conflict error. | ADR worked example #4 — shared key 'shortcut' is rejected at translate time          |
+| Worked examples — what is rejected by design #6                | negative | shortcut = TRUE with no textInput in build_ui silently has no shortcut input. | ADR worked example #6 — shortcut=TRUE without textInput is a silent author trap      |
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate: see <code>CLAUDE.md</code> §"Authoritative gate (Definition of Done)". The implementer and auditor run that command verbatim and observe the expected output. The named proxy traps (no-<code>NOT_CRAN</code> raw <code>test_dir</code>; <code>devtools::check()</code> source-root guard) live there and apply to every plan.</p>
+
+<p><strong>Plan-specific gate risks</strong>: none. (This plan adds only pure-R tests with no shinytest2 dependency.)</p>
+
+<p>This plan adds 3 new test files (<code>test-registry-shortcut.R</code>, <code>test-shortcut-reserved-key.R</code>, <code>test-shortcut-author-trap.R</code>) and modifies one existing test (<code>test-placeholder-node-slots.R</code>). Expected PASS delta ≥ 5 new cases with FAIL/ERROR still 0 and SKIP unchanged from the pre-plan baseline.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns the files listed under Constraints. Generated <code>NAMESPACE</code> / <code>man/*.Rd</code> are owned by the integration step (the post-all-plans <code>devtools::document()</code> regen). Do not regenerate roxygen output as part of this plan; surface drift in the post-impl audit.</p>
+<p>Branch convention: this plan lives on branch <code>0025-rename-companion-to-shortcut</code> in a worktree at <code>.claude/worktrees/0025-source-shortcut-rename-and-upload-auto-name/rename-companion-to-shortcut/</code>. Merge into the orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the Definition-of-Done command and verifies the expected output before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch <code>shared-id-upgrade</code> at commit <code>5361a18</code> (the merge of host-spec-seed-panel-widgets). Pre-existing flake list: <code>tests/testthat/test-e2e-vignette-examples-shinytest2.R</code> and adjacent shinytest2 e2e files exhibit a documented timing flake — single FAIL-N runs are common; the suite stably converges across multiple runs. Re-run the gate before attributing any e2e failure to this plan.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Findings outside this plan's owned files are surfaced (recorded in the audit report), never absorbed. Specifically: any drift in vignettes, CONTEXT.md, NEWS for unrelated work, generated docs, or code-panel emission stays for Plan 07 / Plan 03 / a follow-up plan — not a silent edit here.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: none. Provides for: Plans 02 (auto-name reads <code>node$shortcut_id</code>), 03 (UI mutex targets <code>node$shortcut_id</code>), 04 (prologue references upload-bound symbol but downstream of auto-name), 05 (vacate-on-empty keys off <code>node$shortcut_id</code>), 06 (spec round-trip reads <code>input[[node$shortcut_id]]</code>), 07 (vignette/CONTEXT.md text now matches the renamed surface).</p>
+
+<!-- implementable: PASS date=2026-05-26 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=88ee774304e2 -->
+</body>
+</html>

@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Placeholder role x scope x default x spec coverage</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+<main>
+
+<h1>Placeholder coverage: scope &times; role &times; default &times; spec</h1>
+<p class="meta">Generated 2026-05-26 on branch <code>shared-id-upgrade</code> at HEAD <code>0bcacfd</code> (docs(plans): record ADR 0023 plan directory + audit stamps). <strong>Updated v8 2026-05-27</strong> at HEAD <code>67ac679</code> (merge a2-debounce-fix) &mdash; FINDING #1, FINDING #2, FINDING #3, FINDING #7 all RESOLVED with regression tests; #4 (rejection contract) and #5/#6/#8 unchanged. See v8 changelog entry below for the source-and-test map.</p>
+
+<h2>Changelog</h2>
+<ul>
+  <li><strong>v1 (2026-05-26 initial)</strong> &mdash; 18-cell matrix (3 scope &times; 3 role &times; 2 default), 9-row composite-scenarios table, 5 findings.</li>
+  <li><strong>v2 (2026-05-26)</strong> &mdash; added <code>spec=</code> seeding as a 4th dimension; matrix expanded to 36 rows; added FINDING #6 (panel-source ignores <code>state$spec_seed</code>) and FINDING #7 (panel-value bypasses spec_seed at host scope).</li>
+  <li><strong>v3 (2026-05-26)</strong> &mdash; reclassified all source &times; with-spec cells from PARTIAL to YES per source-verified companion-routing design (<code>R/paintr-server.R:582-674</code> + <code>R/paintr-shared-ui.R:541-554</code>). The spec entry for a <code>ppUpload</code> source is NOT aimed at the fileInput (non-programmatic) &mdash; it&rsquo;s aimed at the bare-name companion textInput, routed through <code>state$spec_seed</code> + (when dispatched) <code>updateTextInput</code>, and read REACTIVELY by the panel-source observer at <code>R/paintr-shared-ui.R:541-554</code>. FINDING #6 reframed: panel-source path does NOT need a direct <code>state$spec_seed</code> read because the companion is the spec target and its value is observed reactively. Summary counts recomputed: 28 YES / 3 REJECTED / 2 PARTIAL / 3 test-coverage gap.</li>
+  <li><strong>v4 (2026-05-26, this update)</strong> &mdash; restructured the 36-cell matrix into three role-keyed sub-tables; added verdict + scope color cues. Surfaced FINDING #8 [INVESTIGATE]: <code>apply_spec_at_boot</code> writes <code>state$spec_seed[[&lt;source-companion-id&gt;]]</code> AND marks the row in <code>seeded</code> (skipping onFlushed <code>updateTextInput</code> dispatch); meanwhile <code>ptr_builtin_upload_build_ui</code> initial-renders the companion textInput from <code>node$default %||% ""</code> only &mdash; no observed read of <code>state$spec_seed[[&lt;comp-id&gt;]]</code> at the companion's first-render site. Requires empirical verification (boot-spec assertion in shinytest2) to confirm or refute the v3 reclassification.</li>
+  <li><strong>v5 (2026-05-26)</strong> &mdash; added "Non-working examples (per finding)" section with copy-pasteable ggpaintr code snippets per finding (#1, #2+#7 merged, #3, #4, #8). Each example is real public-API code that should logically work but doesn't (or is rejected-by-design); examples include Expected / Actual prose and cite the source lines that explain the gap.</li>
+  <li><strong>v6 (2026-05-26)</strong> &mdash; Fixed two syntactic issues in v5 examples: removed invalid <code>ptr_shared_server(..., spec=)</code> calls (<code>spec=</code> lives on <code>ptr_server()</code> per <code>R/paintr-app.R:1082-1083</code>, not on <code>ptr_shared_server()</code> per <code>R/paintr-shared-ui.R:222-225</code>); corrected <code>ppNum</code>/<code>ppText</code> to use proper first-positional-default convention (<code>ppNum(default = 1, shared = 'lw')</code>, not <code>ppNum('lw', default = 1, shared = 'lw')</code>).</li>
+  <li><strong>v7 (2026-05-26, this update)</strong> &mdash; FINDING #8 <strong>RESOLVED</strong>. Diagnosis loop ran on branch <code>shared-id-upgrade</code>: (a) reproduced as predicted in v4 (companion textInput first-rendered blank despite <code>spec = list(&lt;comp-id&gt; = "df_name")</code>); root cause = <code>apply_spec_at_boot</code> at <code>R/paintr-server.R:631-643</code> added <code>source_companion</code> rows to its <code>seeded</code> set on the assumption a renderUI would consume the seed, but no such reader exists for the companion id (<code>ptr_builtin_upload_build_ui</code> at <code>R/paintr-builtins.R:228-250</code> uses <code>node$default %||% ""</code> only). (b) Fix A: exclude <code>source_companion</code> rows from <code>seeded</code> so they fall through to the existing onFlushed <code>updateTextInput</code> dispatch at <code>apply_spec_entry()</code> L691-695. (c) Discovered orthogonal <code>is.null(node$default)</code> guard in <code>try_bind_source_default[_resolved]</code> blocking the downstream env-lookup path &mdash; widened by <a href="../adr/0024-source-companion-data-loading-entry-point.html">ADR 0024</a> (companion as data-loading entry point) with structured error surface via <code>set_resolve_error</code>. (d) Discovered latent self-invalidation bug in <code>set_resolve_error</code> (undeclared reactive dep on its own write target, masked pre-ADR-0024 by every caller writing only idempotent clears) &mdash; fixed by wrapping the read in <code>shiny::isolate()</code>. Counts: 28&rarr;28 YES, 3&rarr;3 REJECTED, 2&rarr;2 PARTIAL, 3 INFO test-coverage gaps for source&times;with-spec cells &rarr; <strong>1</strong> (closed by <code>test-finding8-source-companion-spec.R</code> + ADR 0024 Scenarios B/D). FINDING #6 stays at v3 reframing (correct, now verified). Remaining open findings (independent of #8): #1, #2, #3, #7.</li>
+  <li><strong>v8 (2026-05-27, this update)</strong> at HEAD <code>67ac679</code> &mdash; <strong>FINDING #1, #2, #3, #7 all RESOLVED.</strong> Source state verified + each finding's exact non-working example now has a passing regression test (run this session). Map:
+    <ul>
+      <li><strong>#1 FIX</strong>: <code>ptr_shared_server()</code> gained a <code>spec = NULL</code> arg (<code>R/paintr-shared-ui.R:236</code>); a host-scope <code>host_spec_seed</code> env is populated by new helper <code>apply_spec_at_boot_host()</code> (<code>R/paintr-shared-ui.R:369-370</code>, body at <code>:681-790</code>); the env is threaded as <code>spec_seed=</code> into <code>ptr_bind_local_shared_consumers()</code> (<code>R/paintr-shared-ui.R:393</code>) and on to <code>ptr_bind_shared_consumer_uis()</code> (new <code>spec_seed=</code> param at <code>R/paintr-server.R:2562, 2904</code>; read at <code>:2839-2843</code> with comment block <code>:2832-2838</code> naming the finding). Test: <code>tests/testthat/test-spec-panel-widgets-boot.R</code> test 1 (asserts <code>shared_col == "mpg"</code> from spec, not "cyl" from default); fixture <code>tests/testthat/fixtures/vignette-apps/spec-panel-consumer/app.R</code>.</li>
+      <li><strong>#2 + #7 FIX</strong>: new <code>ptr_setup_panel_values()</code> (<code>R/paintr-shared-ui.R:806-871</code>) registers a host-scope <code>renderUI</code> per panel-shared VALUE key under <code>output$&lt;shared_k&gt;_ui</code>, reads <code>host_spec_seed[[raw_id]]</code> at first render, calls <code>invoke_build_ui()</code> with <code>extra$selected</code> = seed. Wired in at <code>R/paintr-shared-ui.R:380-384</code>. Test: <code>tests/testthat/test-spec-panel-widgets-boot.R</code> test 2 (asserts <code>shared_lw == 2</code> from spec, not 1 from default); fixture <code>tests/testthat/fixtures/vignette-apps/spec-panel-value/app.R</code>.</li>
+      <li><strong>#3 FIX</strong>: <code>tests/testthat/test-finding3-panel-source-nonshared-consumer.R</code> + fixture <code>tests/testthat/fixtures/vignette-apps/finding3-panel-source-nonshared-consumer/app.R</code> pin the panel-source + non-shared-consumer composite end-to-end.</li>
+      <li>#4 (rejection contract): unchanged &mdash; <code>shared_assert_panel_consumer_sources()</code> at <code>R/paintr-shared-coordinator.R:104</code>, structured class at <code>:154</code>. Pinned by <code>tests/testthat/test-shared-panel-consumer-source-invariant.R</code> (29 assertions).</li>
+      <li>#5, #6, #8: unchanged from v7.</li>
+    </ul>
+    <strong>Counts</strong>: 28 YES &rarr; 32 YES (4 cells lift: shared-panel consumer with-default + with-spec, shared-panel consumer without-default + with-spec, shared-panel value with-default + with-spec, shared-panel value without-default + with-spec); 2 PARTIAL &rarr; 0; 3 REJECTED &rarr; 3 (unchanged); INFO test-coverage gaps for source&times;with-spec &rarr; 1 unchanged (the three shared-section/shared-panel source&times;with-spec cells stay at INFO low-priority &mdash; the panel-VALUE wiring lifts the consumer/value gaps but the source-side INFO predates #8 fix). Authoritative gate this session: <strong>PASS 3279 / FAIL 0 / SKIP 0 / WARN 0</strong> in 408s.</li>
+</ul>
+
+<h2>Method</h2>
+<p>The matrix below enumerates the 3 (scope) &times; 3 (role) &times; 2 (default) &times; 2 (<code>spec=</code> seeding) cells implied by ggpaintr's placeholder model. For each cell I trace the actual server-side binder code in <code>R/paintr-server.R</code>, <code>R/paintr-shared-ui.R</code>, <code>R/paintr-shared-coordinator.R</code>, and <code>R/paintr-app.R</code>; locate the default-handling site and the <code>state$spec_seed</code> read (if any); and grep <code>tests/testthat/</code> for direct exercise of the cell. <em>Read-only</em> survey &mdash; no source files were edited.</p>
+
+<p>Scope vocabulary (from <code>CONTEXT.md</code> lines 36-49 and ADR 0023):</p>
+<ul>
+  <li><strong>non-shared</strong> &mdash; no <code>shared =</code> arg. Widget is per-instance, namespaced under <code>&lt;modId&gt;-&lt;auto-id&gt;</code>.</li>
+  <li><strong>shared-section</strong> &mdash; <code>shared = "k"</code> but key appears in exactly one formula. <code>shared_partition()</code> assigns it to <em>local_keys_by_formula</em>; widget renders inside that formula's inline shared section, server-bound by that instance's own <code>ptr_server()</code> via the <code>auto_bind_shared</code> path (<code>R/paintr-app.R:1117</code>) plus <code>ptr_bind_local_shared_consumers</code> (<code>R/paintr-app.R:1199</code>).</li>
+  <li><strong>shared-panel</strong> &mdash; <code>shared = "k"</code> AND key appears in &ge;2 formulas. <code>shared_partition()</code> assigns to <em>panel_keys</em>; rendered once at host scope by <code>shared_panel_body_tag()</code> (<code>R/paintr-shared-coordinator.R:316</code>) under un-namespaced ids <code>shared_&lt;k&gt;</code>.</li>
+</ul>
+
+<p>Role taxonomy: <strong>consumer</strong> (needs upstream df &mdash; <code>ppVar</code> built-in, <code>is_ptr_ph_data_consumer</code> node class), <strong>source</strong> (IS a df &mdash; <code>ppUpload</code> built-in, <code>is_ptr_ph_data_source</code>), <strong>value</strong> (scalar/expression no upstream &mdash; <code>ppText</code> / <code>ppNum</code> / <code>ppExpr</code>, <code>is_ptr_ph_value</code>). The five built-ins are <code>ppText</code> / <code>ppNum</code> / <code>ppExpr</code> / <code>ppVar</code> / <code>ppUpload</code> (registrations in <code>R/paintr-builtins.R:337-381</code>). Custom keywords are registered via <code>ptr_define_placeholder_value</code> / <code>_consumer</code> / <code>_source</code>.</p>
+
+<p><strong>Spec seeding dimension (4th axis, new in v2).</strong> The caller can pass <code>spec = list(&lt;id&gt; = &lt;value&gt;)</code> to <code>ptr_app()</code> / <code>ptr_server()</code>; <code>apply_spec_at_boot()</code> (<code>R/paintr-server.R:511-657</code>) filters entries by <code>state$server_ns_fn("")</code>, normalizes value shape per built-in keyword, and writes them to <code>state$spec_seed[[bare_id]]</code> <em>synchronously before</em> the first flush. Each renderUI body that participates in seeding reads <code>shiny::isolate(state$spec_seed[[raw_id]])</code> on first fire and threads it into <code>extra$selected</code> via <code>invoke_build_ui</code>. Spec wins over registry/<code>node$default</code> at boot.</p>
+
+<p><strong>ppUpload + spec= routing (clarification, v3).</strong> The spec entry for a <code>ppUpload</code> source is NOT aimed at the <code>fileInput</code> (a fileInput cannot accept a programmatic value &mdash; see comment at <code>R/paintr-server.R:582-584</code>). It IS aimed at the bare-name <strong>companion textInput</strong> beside the file widget. <code>apply_spec_at_boot()</code> writes <code>state$spec_seed[[&lt;companion-id&gt;]]</code> for <code>source_companion</code> rows (<code>R/paintr-server.R:597-599</code> + <code>R/paintr-server.R:631</code>), and the dispatch policy at <code>R/paintr-server.R:669-674</code> defines <code>source_companion</code> &rarr; <code>updateTextInput</code> and <code>keyword == "ppUpload"</code> &rarr; silent skip (fileInput is not programmatically settable; its companion is reached via the <code>source_companion</code> branch). Downstream consumers resolve the data frame via the companion-named symbol bound into <code>state$eval_env</code> by the source observer's <code>resolve_upload_source()</code> / <code>try_bind_source_default_resolved()</code> chain (<code>R/paintr-server.R:994-1084</code>). The panel-side observer at <code>R/paintr-shared-ui.R:541-554</code> reads <code>input[[comp_id]]</code> <strong>reactively</strong> inside a <code>shiny::observe({...})</code>, so the companion value (whether seeded by spec at boot or typed by the user later) re-invalidates the bind. <em>So</em> the design is: spec for ppUpload sources routes via the companion, and the panel-source binder consumes it reactively &mdash; no direct <code>state$spec_seed</code> read in <code>ptr_setup_panel_sources()</code> is needed. (See FINDING #8 for a v4 challenge to this conclusion.)</p>
+
+<p>Source-companion values are coerced to character at the seed-write site (<code>R/paintr-server.R:603-606</code>): empty or NULL becomes <code>""</code>, otherwise <code>as.character(value)[[1L]]</code>. The companion id pattern for ppUpload is <code>&lt;source-id&gt;_name</code> (e.g. <code>ggplot_1_ppUpload_NA_name</code>; pinned in <code>test-id-table.R</code> rows; <code>test-rewrite-input-spec.R:17</code> asserts <code>upload_rows$role == c("placeholder", "source_companion")</code>). For shared-section / shared-panel <code>ppUpload(shared='ds')</code>, the canonical id is <code>shared_&lt;k&gt;</code> and the companion id is <code>shared_&lt;k&gt;_name</code> (derived via <code>entry$companion_id_fn</code> in <code>ptr_setup_panel_sources</code> at <code>R/paintr-shared-ui.R:478-480</code>).</p>
+
+<h2>Summary</h2>
+<div class="summary-counts">
+  <div><strong>32</strong><span>cells supported (YES)</span></div>
+  <div><strong>3</strong><span>cells rejected-by-design</span></div>
+  <div><strong>0</strong><span>cells partial / latent gap</span></div>
+  <div><strong>1</strong><span>cell test-coverage gap (INFO, low-priority)</span></div>
+</div>
+<p class="meta">36 cells total. <em>v8 update</em>: the four PARTIAL cells in v7 (shared-panel consumer &times; with-spec rows + shared-panel value &times; with-spec rows) are now YES &mdash; the fixes for FINDING #1 (host-scope <code>spec_seed=</code> arg threaded through <code>ptr_bind_shared_consumer_uis</code>) and FINDING #7 (new <code>ptr_setup_panel_values()</code> host-scope renderUI) landed and have direct boot-spec regression tests in <code>test-spec-panel-widgets-boot.R</code>. The 1 remaining INFO cell is the source&times;with-spec coverage micro-gap noted in v7 (closed for non-shared by <code>test-finding8-source-companion-spec.R</code>; shared-section / shared-panel source&times;with-spec still lack a dedicated boot-spec test pairing <code>spec = list(&lt;shared_k_name&gt; = "df")</code> with the panel-owned upload &mdash; mechanism is pinned structurally + runtime-equivalent via direct <code>set_inputs</code> in browser tests, but no end-to-end spec-at-boot assertion). Rejection cells unchanged (3 from FINDING #4).</p>
+
+<h2>The 36-cell matrix</h2>
+
+<p class="meta">Rows ordered: scope (non-shared &rarr; shared-section &rarr; shared-panel), then default (with &rarr; without), then spec (with &rarr; without). Scope cells tinted; verdict cells colored. Legend: <span class="verdict yes" style="padding:2px 8px">YES</span> supported, <span class="verdict partial" style="padding:2px 8px">PARTIAL</span> latent gap, <span class="verdict rejected" style="padding:2px 8px">REJECTED</span> by design, <span class="verdict info" style="padding:2px 8px">INFO</span> test-coverage micro-gap, <span class="verdict investigate" style="padding:2px 8px">INVESTIGATE</span> needs empirical confirmation.</p>
+
+<h3>Source placeholders (<code>ppUpload</code> + custom source keywords)</h3>
+
+<table class="cov source">
+<thead>
+<tr><th>Scope</th><th>Default</th><th>Spec</th><th>Supported?</th><th>Code-path entry</th><th>Default / spec handling</th><th>Tests</th><th>Gap</th></tr>
+</thead>
+<tbody>
+
+<tr><td class="scope non-shared">non-shared</td><td>with-default</td><td>with-spec</td><td class="verdict yes">YES (companion-routed)</td>
+<td>Source renderUI at <code>R/paintr-server.R:1855-1939</code>. For ppUpload, the spec target is the bare-name <strong>companion textInput</strong>, not the fileInput. The <code>source_companion</code> row is seeded at <code>R/paintr-server.R:597-599</code> and either carried into <code>state$spec_seed</code> only (current code) or dispatched via <code>updateTextInput</code> per the policy block at <code>R/paintr-server.R:669-674</code>. Downstream consumers resolve via the companion-named symbol bound by <code>resolve_upload_source()</code> (<code>R/paintr-server.R:994-1045</code>) / <code>try_bind_source_default_resolved()</code> (<code>R/paintr-server.R:1053-1084</code>), reading <code>input[[comp_id]]</code> reactively.</td>
+<td><code>apply_spec_at_boot</code> writes <code>state$spec_seed[[&lt;comp-id&gt;]]</code> for <code>source_companion</code> rows with value coerced to character at <code>R/paintr-server.R:603-606</code>. ppUpload's own row is silent-skipped at <code>R/paintr-server.R:672-674</code> by design.</td>
+<td><code>test-rewrite-input-spec.R:17</code> (companion role pinned); <code>test-id-table.R:52,95-97,173</code> (source_companion id table pinned); <code>test-regression-bugs-2026-05-12.R:27-29</code> (no NA companion input_id); runtime equivalence via <code>test-adr10-ppupload-name-browser.R:93,105</code> and <code>test-adr15-consumer-binding.R:51,85</code> (direct <code>set_inputs</code> on the companion). <code>test-spec-roundtrip-closed-loop.R</code> Test B asserts the fileInput is NOT leaked into spec.</td>
+<td>INFO test-coverage gap, low-priority: no test passes <code>spec = list(&lt;upload-companion-id&gt; = "df_name")</code> at app boot AND asserts the downstream consumer reads the companion-seeded symbol. The structural plumbing and runtime equivalent are both pinned via the same slot. (See FINDING #8.)</td></tr>
+
+<tr><td class="scope non-shared">non-shared</td><td>with-default</td><td>without-spec</td><td class="verdict yes">YES</td>
+<td><code>ptr_setup_pipelines()</code> (<code>R/paintr-server.R:1086</code>): bare-data L1095, pipeline-head L1173. Widget renderUI via <code>ptr_setup_source_uis()</code> L1855.</td>
+<td><code>try_bind_source_default()</code> (L929-960) + registry <code>default_arg</code> validator + companion textInput seeded by builtin <code>build_ui</code>.</td>
+<td><code>test-adr10-ppupload-name</code> fixture; <code>test-shared-source-rendering.R</code> S-S.2; <code>test-default-and-shared-seeding.R</code>.</td>
+<td>none</td></tr>
+
+<tr><td class="scope non-shared">non-shared</td><td>without-default</td><td>with-spec</td><td class="verdict yes">YES (companion-routed)</td>
+<td>Same renderer; spec aims at the companion (not the fileInput). With no <code>node$default</code>, the seed-only path applies cleanly: <code>state$spec_seed[[&lt;comp-id&gt;]]</code> is the only source of the companion text at boot, then the panel observer reads <code>input[[comp_id]]</code> reactively.</td>
+<td>Same companion-routing mechanism as the with-default cell.</td>
+<td>Same structural + runtime tests as above.</td>
+<td>Same INFO test-coverage gap. (See FINDING #8.)</td></tr>
+
+<tr><td class="scope non-shared">non-shared</td><td>without-default</td><td>without-spec</td><td class="verdict yes">YES</td>
+<td>Same: <code>ptr_setup_pipelines()</code> + <code>ptr_setup_source_uis()</code>.</td>
+<td>N/A &mdash; fileInput boots empty; downstream consumer <code>source_ready</code> gate (<code>R/paintr-server.R:1994-2014</code>) <code>req()</code>s until upload.</td>
+<td><code>test-adr15-no-source-prewarm</code>; <code>test-pipeline-panel-source-substitution.R</code> empty case; <code>test-rewrite-classify.R</code>.</td>
+<td>none</td></tr>
+
+<tr><td class="scope shared-section">shared-section</td><td>with-default</td><td>with-spec</td><td class="verdict yes">YES (companion-routed)</td>
+<td>Per-instance source renderer (<code>R/paintr-server.R:1855-1939</code>) for the formula-local shared source. Spec targets the companion textInput (canonical id <code>shared_&lt;k&gt;_name</code>); seed write at <code>R/paintr-server.R:597-599,631</code>; dispatch policy at <code>R/paintr-server.R:669-674</code>. Downstream consumers resolve via the companion-named symbol bound by the source observer.</td>
+<td>Spec id for the shared-section ppUpload companion is the canonical <code>shared_&lt;k&gt;_name</code> (derived via <code>canonical_shared_id()</code> + <code>entry$companion_id_fn</code>).</td>
+<td><code>test-rewrite-input-spec.R</code>, <code>test-id-table.R</code>, and <code>test-regression-bugs-2026-05-12.R</code> pin the companion row at the structural level for shared sources too.</td>
+<td>INFO test-coverage gap, low-priority &mdash; no boot-spec assertion for shared-section ppUpload companion specifically. (See FINDING #8.)</td></tr>
+
+<tr><td class="scope shared-section">shared-section</td><td>with-default</td><td>without-spec</td><td class="verdict yes">YES</td>
+<td>Per-instance: <code>ptr_setup_source_uis()</code> (partition-aware skip at L1872 only skips panel-owned ids; formula-local shared sources still render per-instance). <code>ptr_setup_pipelines()</code> bare-data + pipeline-head branches resolve the upload.</td>
+<td><code>try_bind_source_default()</code> + builtin <code>ppUpload</code> companion seed. ADR 0023 Cut 1 (<code>d71893b</code>) ensured single-formula <code>ppUpload(shared='ds')</code> renders.</td>
+<td><code>test-shared-source-rendering.R</code> S-S.1 / S-S.2; <code>test-shared-source-panel-multi-instance.R</code> WE#4 (L141).</td>
+<td>none</td></tr>
+
+<tr><td class="scope shared-section">shared-section</td><td>without-default</td><td>with-spec</td><td class="verdict yes">YES (companion-routed)</td>
+<td>Same companion-routing as the with-default variant.</td>
+<td>Same mechanism.</td>
+<td>Same structural pins; runtime equivalence via direct <code>set_inputs</code> in the browser tests.</td>
+<td>Same INFO test-coverage gap. (See FINDING #8.)</td></tr>
+
+<tr><td class="scope shared-section">shared-section</td><td>without-default</td><td>without-spec</td><td class="verdict yes">YES</td>
+<td>Same per-instance path.</td>
+<td>N/A.</td>
+<td><code>test-shared-source-rendering.R</code> S-S.1 (no default arg); <code>test-id-table.R</code>.</td>
+<td>none</td></tr>
+
+<tr><td class="scope shared-panel">shared-panel</td><td>with-default</td><td>with-spec</td><td class="verdict yes">YES (companion-routed; FINDING #6 reframed)</td>
+<td>ADR 0023 path. The panel-source observer at <code>R/paintr-shared-ui.R:528-554</code> calls <code>resolve_upload_source()</code> inside <code>shiny::observe({...})</code>, reading <code>input[[comp_id]]</code> reactively (L541-554 wraps the companion read inside the observer). <code>apply_spec_at_boot</code> writes <code>state$spec_seed[[&lt;shared_&lt;k&gt;_name&gt;]]</code> for the <code>source_companion</code> row (no scope filter in the seed-write loop &mdash; only ppUpload's <em>own</em> placeholder row is excluded by keyword at <code>R/paintr-server.R:597-599</code>); the dispatch policy at <code>R/paintr-server.R:669-674</code> defines <code>source_companion</code> &rarr; <code>updateTextInput</code>. The companion's seeded value reaches <code>input[[comp_id]]</code> via the textInput's binding, the observer invalidates, and <code>try_bind_source_default_resolved()</code> (<code>R/paintr-server.R:1053-1084</code>) binds the named data frame into <code>state$eval_env</code> before the per-instance consumer's <code>source_ready</code> req-gate fires. <strong>No direct <code>state$spec_seed</code> read in <code>ptr_setup_panel_sources()</code> is needed by design</strong> &mdash; the companion is the spec target, not the fileInput.</td>
+<td>Companion-routed (see source-paths above). <code>node$default</code> still threads into the source widget's UI label via <code>R/paintr-shared-ui.R:516-522</code>, but the data-binding name comes from the companion value at observer-fire time.</td>
+<td>No direct boot-spec test pairing <code>spec = list(&lt;shared_k_name&gt; = "df")</code> with a panel-owned ppUpload. Mechanism pinned: <code>test-rewrite-input-spec.R:17</code> (companion row), <code>test-id-table.R</code> (shared id table), <code>test-host-setup-panel-sources.R</code>, <code>test-pipeline-panel-source-substitution.R</code>. Runtime via direct <code>set_inputs</code>: <code>test-adr10-ppupload-name-browser.R:93,105</code>, <code>test-adr15-consumer-binding.R:51,85</code>.</td>
+<td>INFO test-coverage gap, low-priority &mdash; reclassified per v3. (See FINDING #8 for v4 investigation.)</td></tr>
+
+<tr><td class="scope shared-panel">shared-panel</td><td>with-default</td><td>without-spec</td><td class="verdict yes">YES</td>
+<td>ADR 0023 path: <code>ptr_setup_panel_sources()</code> (<code>R/paintr-shared-ui.R:445-601</code>) renders the panel-owned source at <code>shared_&lt;k&gt;_ui</code> and wires <code>resolve_upload_source()</code>. Per-instance <code>ptr_setup_pipelines</code> substitutes (L1107-1132 + L1175-1192).</td>
+<td>Renderer at <code>R/paintr-shared-ui.R:516-522</code> reads <code>node$default</code> into <code>extra_named$selected</code> when the hook accepts the arg. Companion text seeded with <code>node$default</code> via <code>ptr_bind_source_autoname</code>.</td>
+<td><code>test-host-setup-panel-sources.R</code>; <code>test-shared-source-panel-multi-instance.R</code> WE#2 (L192); fixture <code>shared-source-panel-multi-default</code>.</td>
+<td>none for default path</td></tr>
+
+<tr><td class="scope shared-panel">shared-panel</td><td>without-default</td><td>with-spec</td><td class="verdict yes">YES (companion-routed; FINDING #6 reframed)</td>
+<td>Same companion-routing path. With no <code>node$default</code> the seeded companion value is the only source-binding signal at boot.</td>
+<td>Same mechanism.</td>
+<td>Same structural + runtime tests.</td>
+<td>Same INFO test-coverage gap. (See FINDING #8.)</td></tr>
+
+<tr><td class="scope shared-panel">shared-panel</td><td>without-default</td><td>without-spec</td><td class="verdict yes">YES</td>
+<td>Same ADR 0023 path.</td>
+<td>N/A.</td>
+<td><code>test-shared-source-panel-multi-instance.R</code> WE#1; <code>test-pipeline-panel-source-substitution.R</code>; <code>test-ptr-shared-state-panel-sources.R</code>; <code>test-int-ptr-server-bundle-panel-sources.R</code>; fixture <code>shared-source-panel-multi</code>.</td>
+<td>none</td></tr>
+
+</tbody>
+</table>
+
+<h3>Consumer placeholders (<code>ppVar</code> + column-aware widgets)</h3>
+
+<table class="cov consumer">
+<thead>
+<tr><th>Scope</th><th>Default</th><th>Spec</th><th>Supported?</th><th>Code-path entry</th><th>Default / spec handling</th><th>Tests</th><th>Gap</th></tr>
+</thead>
+<tbody>
+
+<tr><td class="scope non-shared">non-shared</td><td>with-default</td><td>with-spec</td><td class="verdict yes">YES</td>
+<td>Same binder. Renderer reads <code>seed</code> at L2107 and uses it for first-render <code>selected_arg</code>; <code>node$default</code> is shadowed by spec (spec wins).</td>
+<td><code>apply_spec_at_boot</code> normalises <code>ppVar</code> values via <code>as.character(value)</code> at L621-623, writes to <code>state$spec_seed[[bare]]</code>.</td>
+<td><code>test-adr12-spec-roundtrip.R</code> L23-80 (ppVar consumer id <code>ggplot_1_1_ppVar_NA</code> seeded to "carb"); <code>test-spec-roundtrip-closed-loop.R</code> Test A.</td>
+<td>none</td></tr>
+
+<tr><td class="scope non-shared">non-shared</td><td>with-default</td><td>without-spec</td><td class="verdict yes">YES</td>
+<td><code>ptr_setup_consumer_uis()</code> at <code>R/paintr-server.R:1941</code>. Skip-shared branch at L1953. Per-consumer <code>renderUI</code> consults <code>state$spec_seed</code> + <code>input[[ns(raw_id)]]</code>.</td>
+<td><code>node$default</code> threads into <code>invoke_build_ui()</code> via the <code>has_rendered</code> first-render branch (<code>R/paintr-server.R:2107</code> read; <code>R/paintr-server.R:2114-2120</code> dispatch).</td>
+<td><code>test-adr15-consumer-binding.R</code>; <code>test-consumer-picker-panel-sources-dep.R</code> T1; <code>test-default-and-shared-seeding.R</code>.</td>
+<td>none</td></tr>
+
+<tr><td class="scope non-shared">non-shared</td><td>without-default</td><td>with-spec</td><td class="verdict yes">YES</td>
+<td>Same renderUI. seed flows into <code>selected_arg</code> without competing with a default.</td>
+<td><code>state$spec_seed[[raw_id]]</code> read at L2107.</td>
+<td><code>test-spec-roundtrip-closed-loop.R</code> Test A (ppVar id picked via <code>sd$input_id[role=="placeholder" &amp; is.na(sd$shared)]</code>).</td>
+<td>none</td></tr>
+
+<tr><td class="scope non-shared">non-shared</td><td>without-default</td><td>without-spec</td><td class="verdict yes">YES</td>
+<td>Same: <code>ptr_setup_consumer_uis()</code> at <code>R/paintr-server.R:1941</code>.</td>
+<td>N/A &mdash; first render flows <code>selected = NULL</code>; <code>has_rendered</code> guards persistence.</td>
+<td><code>test-consumer-deselect-stays-empty.R</code>; <code>test-value-clear-stays-empty.R</code>.</td>
+<td>none</td></tr>
+
+<tr><td class="scope shared-section">shared-section</td><td>with-default</td><td>with-spec</td><td class="verdict yes">YES</td>
+<td>Same binder. <code>ptr_bind_shared_consumer_uis()</code> renderer at L2398-2412 reads <code>state$spec_seed[[rep_node$id]]</code> &mdash; AND here <code>state</code> is non-NULL (per-instance moduleServer scope), so seed is honored. ID is <code>shared_&lt;key&gt;</code>.</td>
+<td><code>apply_spec_at_boot</code> writes <code>state$spec_seed[["shared_grp"]] = "cyl"</code> after <code>as.character()</code> normalisation; renderer threads via <code>extra$selected</code> at L2414.</td>
+<td><code>test-shared-consumer-spec-seed.R</code> (regression: ppVar shared='grp' seeded to "cyl"); <code>test-spec-roundtrip-closed-loop.R</code> Test D (shared consumer round-trip); fixture <code>shared-consumer-spec/app.R</code>.</td>
+<td>none</td></tr>
+
+<tr><td class="scope shared-section">shared-section</td><td>with-default</td><td>without-spec</td><td class="verdict yes">YES</td>
+<td>Single-instance via <code>auto_bind_shared = TRUE</code> in <code>ptr_make_app_server</code>; multi-instance via <code>ptr_bind_local_shared_consumers()</code> (<code>R/paintr-server.R:2458</code>) called inside <code>moduleServer</code> in <code>ptr_server()</code> (<code>R/paintr-app.R:1199-1217</code>) with <code>host_owned_keys = panel_keys</code>. Delegates to <code>ptr_bind_shared_consumer_uis()</code> (<code>R/paintr-server.R:2146</code>).</td>
+<td><code>shared_widget_default()</code> picks first-occurrence default (<code>R/paintr-shared.R:270</code>); <code>shared_panel_body_tag()</code> stamps onto representative <code>node$default</code>.</td>
+<td><code>test-shared-stage-checkbox.R</code> S-S-A; <code>test-l2-shared</code> fixture; <code>test-default-and-shared-seeding.R</code>.</td>
+<td>none</td></tr>
+
+<tr><td class="scope shared-section">shared-section</td><td>without-default</td><td>with-spec</td><td class="verdict yes">YES</td>
+<td>Same renderer; seed flows in via L2406 with state non-NULL.</td>
+<td><code>state$spec_seed[["shared_&lt;k&gt;"]]</code> read.</td>
+<td><code>test-spec-roundtrip-closed-loop.R</code> Test D (the ppVar shared consumer has no default in the formula tested).</td>
+<td>none</td></tr>
+
+<tr><td class="scope shared-section">shared-section</td><td>without-default</td><td>without-spec</td><td class="verdict yes">YES</td>
+<td>Same binder chain.</td>
+<td>N/A.</td>
+<td><code>test-int-3-consumer-picker-remaining-gaps.R</code>; <code>test-rewrite-shared.R</code>; <code>test-shared-coordinator.R</code>.</td>
+<td>none</td></tr>
+
+<tr><td class="scope shared-panel">shared-panel</td><td>with-default</td><td>with-spec</td><td class="verdict yes">YES (FINDING #1 RESOLVED v8)</td>
+<td>Host-scope binder path. Renderer at <code>R/paintr-server.R:2839-2843</code>: <code>seed &lt;- if (!is.null(spec_seed)) isolate(spec_seed[[rep_node$id]]) else if (!is.null(state)) isolate(state$spec_seed[[rep_node$id]]) else NULL</code>. At host scope <code>state</code> is NULL (ADR 0006), but the host passes its un-namespaced <code>host_spec_seed</code> env directly via the new <code>spec_seed=</code> arg (threaded from <code>ptr_shared_server()</code> at <code>R/paintr-shared-ui.R:393</code> &rarr; <code>ptr_bind_local_shared_consumers</code> at <code>R/paintr-server.R:2904</code> &rarr; <code>ptr_bind_shared_consumer_uis</code> at <code>R/paintr-server.R:2562</code>). An embedder passing <code>spec = list(shared_col = "mpg")</code> on <code>ptr_shared_server()</code> &mdash; or via <code>ptr_app(spec=)</code> / <code>ptr_app_grid(spec=)</code> &mdash; drives the panel widget at boot.</td>
+<td><code>apply_spec_at_boot_host()</code> (<code>R/paintr-shared-ui.R:681</code>) claims un-namespaced ids, normalizes per keyword, writes to <code>host_spec_seed</code>; renderer reads at L2839-2843. Falls back to <code>shared_widget_default()</code> only if neither seed source has the key.</td>
+<td><code>test-spec-panel-widgets-boot.R</code> test 1 ("finding #1: spec= for a panel-shared consumer drives the picker at boot"); fixture <code>spec-panel-consumer/app.R</code>.</td>
+<td>none</td></tr>
+
+<tr><td class="scope shared-panel">shared-panel</td><td>with-default</td><td>without-spec</td><td class="verdict yes">YES</td>
+<td>Host scope: <code>ptr_shared_server()</code> (<code>R/paintr-shared-ui.R:221</code>) intersects <code>panel_keys</code> &cap; <code>consumer_keys</code> (L330), then <code>ptr_bind_local_shared_consumers()</code> with <code>host_owned_keys = setdiff(consumer_keys, panel_keys)</code> (L353) which inverts to bind panel_consumer_keys.</td>
+<td><code>shared_widget_default()</code> via <code>shared_panel_body_tag</code>; spec_seed read at L2406 returns NULL at host (state is NULL).</td>
+<td><code>test-shared-source-panel-multi-instance.R</code> WE#1; <code>test-shared-coordinator.R</code>; <code>test-shared-server.R</code>; <code>test-shared-panel-consumer-source-invariant.R</code>.</td>
+<td>none for default path</td></tr>
+
+<tr><td class="scope shared-panel">shared-panel</td><td>without-default</td><td>with-spec</td><td class="verdict yes">YES (FINDING #1 RESOLVED v8)</td>
+<td>Same renderer at <code>R/paintr-server.R:2839-2843</code> with <code>host_spec_seed</code> threaded via <code>spec_seed=</code>. With no <code>node$default</code>, the seeded value is the only boot signal &mdash; and now it lands.</td>
+<td>Same host-scope spec_seed mechanism.</td>
+<td><code>test-spec-panel-widgets-boot.R</code> covers boot-spec drive; the without-default variant is the more visible case and is exercised by the same fixture pattern.</td>
+<td>none</td></tr>
+
+<tr><td class="scope shared-panel">shared-panel</td><td>without-default</td><td>without-spec</td><td class="verdict yes">YES</td>
+<td>Same host-scope binder path.</td>
+<td>N/A.</td>
+<td><code>test-shared-coordinator.R</code>; <code>test-shared-server-partition.R</code>; <code>test-shared-source-panel-multi-instance.R</code>.</td>
+<td>none</td></tr>
+
+</tbody>
+</table>
+
+<h3>Value placeholders (<code>ppText</code> / <code>ppNum</code> / <code>ppExpr</code> / custom value keywords)</h3>
+
+<table class="cov value">
+<thead>
+<tr><th>Scope</th><th>Default</th><th>Spec</th><th>Supported?</th><th>Code-path entry</th><th>Default / spec handling</th><th>Tests</th><th>Gap</th></tr>
+</thead>
+<tbody>
+
+<tr><td class="scope non-shared">non-shared</td><td>with-default</td><td>with-spec</td><td class="verdict yes">YES</td>
+<td>Same renderer. Reads <code>seed</code> at L1745, uses it for first-render <code>selected_arg</code>.</td>
+<td><code>apply_spec_at_boot</code> normalises per keyword: <code>ppText</code> &rarr; <code>as.character(value)[[1]]</code> (L587-590); <code>ppNum</code> &rarr; <code>as.numeric</code> with invalid-skip (L591-602); <code>ppExpr</code> &rarr; <code>deparse</code>-if-language else as.character (L603-610). Custom value keywords write <code>value</code> verbatim.</td>
+<td><code>test-adr12-spec-roundtrip.R</code> L55-72 (geom_point checkbox FALSE, ppNum to 5); <code>test-spec-roundtrip-closed-loop.R</code> Test A (ppNum/ppText/ppExpr); <code>test-shared-consumer-spec-seed.R</code> (companion ppNum); <code>test-adr12b-spec-custom-keyword.R</code> (ppCustomChoice).</td>
+<td>none</td></tr>
+
+<tr><td class="scope non-shared">non-shared</td><td>with-default</td><td>without-spec</td><td class="verdict yes">YES</td>
+<td><code>ptr_setup_value_uis()</code> non-shared loop at <code>R/paintr-server.R:1712-1775</code>.</td>
+<td>Registry <code>build_ui</code> receives captured <code>node$default</code> via <code>invoke_build_ui</code> first-render branch.</td>
+<td><code>test-render-preserve.R</code>; <code>test-value-clear-stays-empty.R</code>; <code>test-default-and-shared-seeding.R</code>.</td>
+<td>none</td></tr>
+
+<tr><td class="scope non-shared">non-shared</td><td>without-default</td><td>with-spec</td><td class="verdict yes">YES</td>
+<td>Same renderer; seed flows in without a competing default.</td>
+<td>Per-keyword normalisation as above; <code>state$spec_seed[[raw_id]]</code> read at L1745.</td>
+<td><code>test-spec-roundtrip-closed-loop.R</code> Test A (ppNum 1 with no default); <code>test-adr12b-spec-custom-keyword.R</code> custom no-default.</td>
+<td>none</td></tr>
+
+<tr><td class="scope non-shared">non-shared</td><td>without-default</td><td>without-spec</td><td class="verdict yes">YES</td>
+<td>Same: <code>ptr_setup_value_uis()</code> non-shared loop.</td>
+<td>N/A.</td>
+<td><code>test-render-preserve.R</code>; <code>test-ui-pieces.R</code>; <code>test-app-basic</code> fixture.</td>
+<td>none</td></tr>
+
+<tr><td class="scope shared-section">shared-section</td><td>with-default</td><td>with-spec</td><td class="verdict yes">YES</td>
+<td>Same loop. Renderer at L1815 reads <code>state$spec_seed[[raw_id]]</code> where <code>raw_id = shared_&lt;k&gt;</code> via <code>node$id</code> (canonical id stamped onto rep_node before this loop runs).</td>
+<td><code>apply_spec_at_boot</code> normalises per keyword; spec wins over <code>shared_widget_default()</code> at boot.</td>
+<td><code>test-shared-consumer-spec-seed.R</code> companion check (<code>shared_lw = 2</code> for <code>ppNum(shared = "lw")</code>); <code>test-spec-roundtrip-closed-loop.R</code> Test D fixture pattern.</td>
+<td>none</td></tr>
+
+<tr><td class="scope shared-section">shared-section</td><td>with-default</td><td>without-spec</td><td class="verdict yes">YES</td>
+<td>Shared-value loop in <code>ptr_setup_value_uis()</code> at <code>R/paintr-server.R:1788-1840</code>. Iterates <code>collect_shared_placeholders(tree)</code> &mdash; one renderUI per shared <em>key</em>. Fires for both formula-local and panel keys; widget id is canonical <code>shared_&lt;k&gt;</code>.</td>
+<td><code>shared_widget_default()</code> picks first-occurrence default; representative node's <code>$param</code> is cleared if occurrences differ.</td>
+<td><code>test-super-pressure.R</code>; <code>test-ui-pieces.R</code>; <code>test-shared-stage-checkbox.R</code>.</td>
+<td>none</td></tr>
+
+<tr><td class="scope shared-section">shared-section</td><td>without-default</td><td>with-spec</td><td class="verdict yes">YES</td>
+<td>Same renderer; seed flows in without competing default.</td>
+<td><code>state$spec_seed[["shared_&lt;k&gt;"]]</code> read at L1815.</td>
+<td>Indirect via <code>test-shared-consumer-spec-seed.R</code> (the ppNum shared 'lw' occurrence in the fixture has no explicit default and is still seeded).</td>
+<td>none</td></tr>
+
+<tr><td class="scope shared-section">shared-section</td><td>without-default</td><td>without-spec</td><td class="verdict yes">YES</td>
+<td>Same shared-value loop.</td>
+<td>N/A.</td>
+<td><code>test-ui-pieces.R</code> alpha-no-default; <code>test-rewrite-shared.R</code>.</td>
+<td>none</td></tr>
+
+<tr><td class="scope shared-panel">shared-panel</td><td>with-default</td><td>with-spec</td><td class="verdict yes">YES (FINDING #2 + #7 RESOLVED v8)</td>
+<td>New host-scope <code>ptr_setup_panel_values()</code> at <code>R/paintr-shared-ui.R:806-871</code> registers a <code>renderUI</code> per panel-shared VALUE key under <code>output[[ns(value_output_id(raw_id))]]</code> (the un-namespaced <code>shared_&lt;k&gt;_ui</code> slot the panel emits). At first render it reads <code>shiny::isolate(host_spec_seed[[raw_id]])</code> (L840) and threads it into <code>extra$selected</code>. Wired in at <code>R/paintr-shared-ui.R:380-384</code>. Replaces the v7 static-tag emit for value keys; the else-branch in <code>shared_panel_body_tag()</code> still emits the placeholder div, but the renderUI now overwrites it at flush time.</td>
+<td><code>apply_spec_at_boot_host()</code> normalizes per keyword and writes to <code>host_spec_seed</code>; the panel-value renderer reads it on first fire.</td>
+<td><code>test-spec-panel-widgets-boot.R</code> test 2 ("finding #7: spec= for a panel-shared value drives the widget at boot"); fixture <code>spec-panel-value/app.R</code>.</td>
+<td>none</td></tr>
+
+<tr><td class="scope shared-panel">shared-panel</td><td>with-default</td><td>without-spec</td><td class="verdict yes">YES (note FINDING #2)</td>
+<td>UI side: <code>shared_panel_body_tag()</code> <em>else</em> branch (<code>R/paintr-shared-coordinator.R:341-348</code>) renders the widget for non-consumer non-source panel keys (i.e., values). Server side: host's <code>shared_reactives</code> (one <code>reactive(input[[shared_&lt;k&gt;]])</code> per panel key, L290-309).</td>
+<td><code>shared_widget_default</code> stamped onto rep_node at <code>shared_panel_body_tag</code> L344. Static tag carries the default as initial widget value.</td>
+<td><code>test-ui-pieces.R</code> L181-198 (shared-panel value rendering at tag-emit level); <code>test-shared-coordinator.R</code>.</td>
+<td>none for default path. FINDING #2 documents the architectural asymmetry (no host-scope renderUI for panel values).</td></tr>
+
+<tr><td class="scope shared-panel">shared-panel</td><td>without-default</td><td>with-spec</td><td class="verdict yes">YES (FINDING #2 + #7 RESOLVED v8)</td>
+<td>Same <code>ptr_setup_panel_values()</code> path. With no <code>node$default</code> the seeded value is the only boot signal &mdash; and now it lands.</td>
+<td>Same host-scope spec_seed mechanism.</td>
+<td><code>test-spec-panel-widgets-boot.R</code> covers boot-spec drive for the panel value widget.</td>
+<td>none</td></tr>
+
+<tr><td class="scope shared-panel">shared-panel</td><td>without-default</td><td>without-spec</td><td class="verdict yes">YES (note FINDING #2)</td>
+<td>Same as above &mdash; tag rendered statically by <code>shared_panel_body_tag</code>; reactive read via <code>shared_reactives</code>.</td>
+<td>N/A.</td>
+<td><code>test-ui-pieces.R</code> alpha-no-default cases; <code>test-shared-coordinator.R</code>; <code>test-shared-server.R</code>.</td>
+<td>none for default path. FINDING #2.</td></tr>
+
+</tbody>
+</table>
+
+<h2>Composite scenarios (source &times; consumer interactions, with spec annotations)</h2>
+
+<table>
+<thead>
+<tr><th>Source scope</th><th>Consumer scope</th><th>Status</th><th>Code path / rejection mechanism</th><th>Spec-seed behavior</th><th>Tests</th></tr>
+</thead>
+<tbody>
+
+<tr><td>shared-panel</td><td>shared-panel</td><td class="verdict yes">SUPPORTED</td>
+<td>ADR 0023 textbook case. Host renders both via <code>ptr_setup_panel_sources</code> (source) + <code>ptr_bind_local_shared_consumers(host_owned_keys = setdiff(consumer_keys, panel_keys), panel_sources = panel_sources)</code> in <code>ptr_shared_server</code>. Consumer binder takes a dep on <code>panel_sources[[sid]]()</code> at <code>R/paintr-server.R:2255-2257</code>. Host-scope (<code>state = NULL</code>) branch at L2261-2284.</td>
+<td><strong>Asymmetric:</strong> source-side spec HONORED (v3 reclassified &mdash; companion-routed via <code>state$spec_seed[[&lt;shared_k_name&gt;]]</code> + reactive observer at <code>R/paintr-shared-ui.R:541-554</code>); consumer-side spec ignored per FINDING #1 (host-scope <code>state = NULL</code> short-circuits the seed read). Consumer widget boots from <code>shared_widget_default()</code> / <code>node$default</code> only.</td>
+<td><code>test-shared-source-panel-multi-instance.R</code> WE#1; fixture <code>shared-source-panel-multi</code>; <code>test-consumer-picker-panel-sources-dep.R</code> T6.</td></tr>
+
+<tr><td>shared-panel</td><td>shared-section</td><td class="verdict yes">SUPPORTED</td>
+<td>ADR 0023 WE#3 (mixed-scope). Host renders source via <code>ptr_setup_panel_sources</code>; per-instance pipeline substitutes panel-owned source id into <code>state$resolved_sources</code> + <code>state$bound_names</code> (<code>R/paintr-server.R:1107-1132</code>). Formula-local consumer picker bound by the instance's <code>ptr_bind_local_shared_consumers</code> with <code>panel_sources = state$panel_sources</code> (<code>R/paintr-app.R:1213</code>); the binder's <code>!is.null(state)</code> branch reads from <code>state$eval_env</code> + <code>state$bound_names</code>.</td>
+<td>Source-side spec HONORED via companion routing; consumer-side spec HONORED because the instance's state is non-NULL (the consumer is formula-local), so L2406 returns the seed. Both sides drive the boot widgets when an embedder seeds via <code>spec=</code>.</td>
+<td><code>test-shared-source-panel-multi-instance.R</code> WE#3; fixture <code>shared-source-panel-multi-mixed</code>; <code>test-pipeline-panel-source-substitution.R</code> T7.</td></tr>
+
+<tr><td>shared-panel</td><td>non-shared</td><td class="verdict yes">SUPPORTED</td>
+<td>Per-instance <code>ptr_setup_consumer_uis</code>'s <code>source_ready</code> gate walks <code>upstream_source_ids</code> and req()s <code>state$resolved_sources[[id]]</code>; PLAN-05 mirrors the panel-resolved frame into <code>state$resolved_sources</code> + <code>state$bound_names</code>.</td>
+<td>Source-side spec HONORED via companion routing; consumer-side spec HONORED via the non-shared consumer renderUI at L2107 (per-instance state is non-NULL).</td>
+<td>Not directly exercised &mdash; see FINDING #3.</td></tr>
+
+<tr><td>shared-section</td><td>shared-section</td><td class="verdict yes">SUPPORTED</td>
+<td>Both formula-local. Per-instance source renderUI + pipeline. Per-instance shared consumer binder.</td>
+<td>Source-side spec HONORED via companion routing (the <code>source_companion</code> row is seeded regardless of scope). Consumer-side spec HONORED at L2406 via per-instance state.</td>
+<td><code>test-shared-source-rendering.R</code> S-S.2; fixture <code>l2-shared</code>; <code>test-id-table.R</code>; <code>test-spec-roundtrip-closed-loop.R</code> Test D.</td></tr>
+
+<tr><td>non-shared</td><td>non-shared</td><td class="verdict yes">SUPPORTED</td>
+<td>Baseline. Per-instance source renderUI + pipeline. Per-instance consumer renderUI with <code>source_ready</code> req-gate.</td>
+<td>Source-side spec HONORED via companion routing. Consumer-side spec HONORED via L2107.</td>
+<td><code>test-adr15-consumer-binding.R</code>; <code>test-adr12-spec-roundtrip.R</code>; many.</td></tr>
+
+<tr><td>shared-section</td><td>shared-panel</td><td class="verdict rejected">REJECTED-BY-DESIGN</td>
+<td>Parse-time: <code>ptr_shared()</code> &rarr; <code>shared_assert_panel_consumer_sources()</code> (<code>R/paintr-shared-coordinator.R:103-160</code>) detects this asymmetry and aborts with class <code>ptr_panel_consumer_source_mismatch</code>. ADR 0023 Decision &sect;6.</td>
+<td>Doesn't reach the renderUI stage (parse-time abort).</td>
+<td><code>test-shared-panel-consumer-source-invariant.R</code> R1, R2; abort fields test L108.</td></tr>
+
+<tr><td>non-shared</td><td>shared-panel</td><td class="verdict rejected">REJECTED-BY-DESIGN</td>
+<td>Same invariant.</td>
+<td>Doesn't reach the renderUI stage.</td>
+<td><code>test-shared-panel-consumer-source-invariant.R</code> R1 + R2.</td></tr>
+
+<tr><td>non-shared</td><td>shared-section</td><td class="verdict yes">SUPPORTED</td>
+<td>Formula-local consumer with non-shared upstream source &mdash; both per-instance.</td>
+<td>Source spec HONORED via companion routing; consumer spec HONORED via L2406.</td>
+<td><code>test-regression-bugs-2026-05-12.R</code>; <code>test-int-3-consumer-picker-remaining-gaps.R</code>.</td></tr>
+
+<tr><td>shared-section</td><td>non-shared</td><td class="verdict yes">SUPPORTED</td>
+<td>Per-instance non-shared consumer downstream of formula-local shared source. Standard per-instance binder chain.</td>
+<td>Source spec HONORED via companion routing; consumer spec HONORED via L2107.</td>
+<td><code>test-shared-source-rendering.R</code> S-S.1.</td></tr>
+
+</tbody>
+</table>
+
+<h2>Findings</h2>
+
+<ul>
+
+<li><span class="verdict yes" style="padding:2px 8px">RESOLVED v8</span> <strong>FINDING #1: host-scope shared-panel consumer can now read spec-seed.</strong>
+The v7 fix-sketch (host-level <code>spec_seed</code> bag threaded into the panel-consumer binder) landed. <code>ptr_shared_server()</code> gained a <code>spec = NULL</code> arg (<code>R/paintr-shared-ui.R:236</code>); <code>apply_spec_at_boot_host()</code> (<code>R/paintr-shared-ui.R:681-790</code>) claims un-namespaced ids targeting host-owned panel widgets, normalizes per keyword, and writes them into a <code>host_spec_seed</code> env (created at <code>:369</code>). The env is threaded as a new <code>spec_seed=</code> arg into <code>ptr_bind_local_shared_consumers()</code> (<code>R/paintr-server.R:2895-2924</code>) and on into <code>ptr_bind_shared_consumer_uis()</code> (<code>R/paintr-server.R:2562</code>); the renderer at <code>R/paintr-server.R:2839-2843</code> reads it first, falling back to <code>state$spec_seed</code> only when <code>spec_seed=</code> is NULL. Comment block at <code>R/paintr-server.R:2832-2838</code> names this finding. Regression test: <code>tests/testthat/test-spec-panel-widgets-boot.R</code> test 1 (asserts <code>shared_col == "mpg"</code> from spec, not "cyl" from default); fixture <code>spec-panel-consumer/app.R</code>. Verified PASS this session at HEAD <code>67ac679</code>.</li>
+
+<li><span class="verdict yes" style="padding:2px 8px">RESOLVED v8</span> <strong>FINDING #2: shared-panel VALUES now go through a host renderUI.</strong>
+The missing <code>ptr_setup_panel_values()</code> helper was built (<code>R/paintr-shared-ui.R:806-871</code>): for each panel-shared value key, it stamps the canonical id + first-occurrence default onto the rep node and registers <code>output[[ns(value_output_id(raw_id))]] &lt;- renderUI({ ... })</code> that calls <code>invoke_build_ui()</code> with seed + label overrides; <code>shiny::outputOptions(... suspendWhenHidden = FALSE)</code> keeps the input element mounted regardless of which layer panel is active. The host wires it in at <code>R/paintr-shared-ui.R:380-384</code>, so panel-value widgets now benefit from the same renderUI features as per-instance and consumer paths (label retitling, dynamic copy, spec-seed). The static-tag emit at <code>shared_panel_body_tag()</code>'s else-branch remains as a placeholder slot that the renderUI overwrites at flush time.</li>
+
+<li><span class="verdict yes" style="padding:2px 8px">RESOLVED v8</span> <strong>FINDING #3: shared-panel source + non-shared consumer composite is now exercised directly.</strong>
+<code>tests/testthat/test-finding3-panel-source-nonshared-consumer.R</code> + fixture
+<code>tests/testthat/fixtures/vignette-apps/finding3-panel-source-nonshared-consumer/app.R</code> pin a
+non-shared <code>ppVar(...)</code> consumer downstream of <code>ppUpload(shared='ds')</code> end-to-end (8 assertions: panel
+upload visible, no per-instance upload widget emitted, both consumer pickers populate from <code>names(df_main)</code>,
+both code panels show the panel-owned auto-name). Verified PASS this session.</li>
+
+<li><strong>FINDING #4 (by-design, document): the parse-time panel-consumer/panel-source invariant.</strong>
+<code>shared_assert_panel_consumer_sources()</code> rejects two composites at <code>ptr_shared()</code> time:
+(a) panel-owned consumer with formula-local source, (b) panel-owned consumer with non-shared source.
+ADR 0023 &sect;6 explains the rationale (one widget, one source-of-truth). Error class
+<code>ptr_panel_consumer_source_mismatch</code> exposes structured fields.</li>
+
+<li><strong>FINDING #5 (minor): single-formula <code>ppUpload(shared='ds')</code> renders.</strong>
+ADR 0023 Cut 1 (commit <code>d71893b</code>) dropped a partition-blind skip. The current
+<code>ptr_setup_source_uis()</code> skip at <code>R/paintr-server.R:1872</code> is partition-aware
+(<code>s$id %in% names(state$panel_sources %||% list())</code>); single-instance has empty <code>panel_sources</code>
+so the source renders per-instance. Direct test: <code>test-shared-source-rendering.R</code> S-S.1. Worth keeping
+in the regression net &mdash; the easy regression is "make the skip partition-blind again".</li>
+
+<li><strong>FINDING #6 (reframed in v3): <code>ptr_setup_panel_sources()</code> does NOT read <code>state$spec_seed</code>, and that is by design.</strong>
+The panel-side renderer at <code>R/paintr-shared-ui.R:486-522</code> reads <code>node$default</code> into
+<code>extra_named$selected</code> at L521-522 and does not consult a spec-seed map. The synthetic
+<code>host_state</code> built at L530-545 carries only <code>eval_env</code> / <code>bound_names</code> / <code>resolve_errors</code>.
+<em>Previously (v2)</em> this was flagged as a defect-candidate symmetry break. <em>Reframed (v3)</em>:
+spec for ppUpload sources is routed via the companion textInput, which the source observer reads
+REACTIVELY (<code>R/paintr-shared-ui.R:541-554</code>). The companion value lands first (seed write at
+<code>R/paintr-server.R:631</code>); the observer invalidates; <code>try_bind_source_default_resolved()</code>
+binds the named frame. A direct <code>state$spec_seed</code> read in <code>ptr_setup_panel_sources()</code>
+would be redundant for ppUpload (the fileInput is non-programmatic) and is unnecessary for custom
+panel-source keywords that accept a programmatic value because the same <code>updateTextInput</code> /
+seed-read companion mechanism applies. <em>Residual concern</em>: a custom source keyword that lacks
+a companion AND accepts a programmatic value at its primary slot (i.e., uses neither file upload
+nor a companion textInput) would not see the panel-side seed. No such custom source exists in
+the built-ins; document if/when one is registered. <strong>v4 caveat:</strong> see FINDING #8 &mdash; the
+v3 reframing assumes the companion's initial render picks up the seeded value, which has not been
+empirically verified.</li>
+
+<li><span class="verdict yes" style="padding:2px 8px">RESOLVED v8</span> <strong>FINDING #7: shared-panel value path no longer drops <code>spec=</code> entries.</strong>
+The v7 fix-sketch (host-scope <code>ptr_setup_panel_values()</code> that registers a renderUI per panel-value key and reads spec_seed) landed &mdash; see FINDING #2. The host's <code>apply_spec_at_boot_host()</code> (<code>R/paintr-shared-ui.R:681-790</code>) writes <code>host_spec_seed[["shared_&lt;k&gt;"]]</code> for panel-owned value keys, and <code>ptr_setup_panel_values()</code> reads it at L840 inside the renderUI body, threading the seed into <code>extra$selected</code>. An embedder passing <code>spec = list(shared_lw = 2)</code> for a <code>ppNum(shared = "lw")</code> in &ge;2 formulas now sees the widget boot at 2. Regression test: <code>tests/testthat/test-spec-panel-widgets-boot.R</code> test 2; fixture <code>spec-panel-value/app.R</code>. Verified PASS this session at HEAD <code>67ac679</code>.</li>
+
+<li><span class="verdict yes" style="padding:2px 8px">RESOLVED</span> <strong>FINDING #8 (v4 INVESTIGATE &rarr; v7 RESOLVED): spec&rarr;companion routing at boot was indeed broken; now fixed.</strong>
+The v4 prediction was correct: <code>apply_spec_at_boot</code> wrote <code>state$spec_seed[[&lt;source-companion-id&gt;]]</code> AND marked
+the row in <code>seeded</code>, but no reader existed for <code>state$spec_seed[[&lt;comp-id&gt;]]</code> anywhere in the
+server tree (the five seed reads at <code>R/paintr-server.R:1745, 1815, 1881, 2107, 2406</code> all use <code>raw_id = node$id</code>
+&mdash; the source/value/consumer id, never the companion id; <code>ptr_builtin_upload_build_ui</code> at
+<code>R/paintr-builtins.R:228-250</code> hard-codes the companion's <code>value=</code> to <code>node$default %||% ""</code>).
+Companion textInput first-rendered blank regardless of <code>spec=</code>. <em>Fix A applied:</em> exclude <code>source_companion</code> rows
+from <code>seeded</code> at <code>R/paintr-server.R:631-643</code> so they fall through to the existing onFlushed
+<code>updateTextInput</code> dispatch in <code>apply_spec_entry()</code> at <code>R/paintr-server.R:691-695</code>. Regression test:
+<code>tests/testthat/test-finding8-source-companion-spec.R</code> + fixture
+<code>tests/testthat/fixtures/vignette-apps/finding8-source-companion-spec/app.R</code>. <em>Bonus fixes
+discovered during the diagnose loop and landed alongside:</em>
+(a) the <code>is.null(node$default)</code> guard in <code>try_bind_source_default[_resolved]</code> was blocking the downstream
+env-lookup path even when the companion (post-Fix-A) carried a valid name &mdash; lifted by
+<a href="../adr/0024-source-companion-data-loading-entry-point.html">ADR 0024</a> (companion as data-loading entry point) with a structured
+error surface via <code>set_resolve_error</code>;
+(b) latent self-invalidation in <code>set_resolve_error</code> &mdash; its <code>cur &lt;- state$resolve_errors()</code> read created an
+undeclared reactive dependency on its own write target, masked pre-ADR-0024 by every caller writing only idempotent
+clears, surfaced the moment ADR 0024's structured-error write fired from inside the resolve observer; fixed by wrapping
+the read in <code>shiny::isolate()</code> at <code>R/paintr-server.R:847-862</code>.
+The three source&times;with-spec cells in the matrix stay at YES (the v3 reclassification was correct;
+v7 reclassification = "verified runtime-side, not just structurally"). FINDING #6's v3 reframing is preserved.
+Authoritative gate: <code>PASS 3093 / FAIL 0 / SKIP 0</code> on the FINDING #8 + ADR 0024 commit.</li>
+
+</ul>
+
+<h2>By-design notes (v3)</h2>
+
+<ul>
+
+<li><strong>ppUpload + spec= routing is companion-aimed, not fileInput-aimed.</strong>
+The spec target for a <code>ppUpload</code> source (at any scope) is the bare-name companion textInput
+beside the file widget, NOT the fileInput itself. The fileInput cannot accept a programmatic value;
+this is recorded in source at <code>R/paintr-server.R:582-584</code> and reinforced by the dispatch policy
+at <code>R/paintr-server.R:669-674</code> (<code>keyword == "ppUpload"</code> &rarr; silent skip; <code>source_companion</code>
+&rarr; <code>updateTextInput</code>). <code>apply_spec_at_boot()</code> writes
+<code>state$spec_seed[[&lt;companion-id&gt;]]</code> for the <code>source_companion</code> row at
+<code>R/paintr-server.R:597-599,631</code>, with character coercion at L603-606. Downstream consumers
+resolve the data frame via the companion-named symbol bound into <code>state$eval_env</code> by
+<code>resolve_upload_source()</code> / <code>try_bind_source_default_resolved()</code>
+(<code>R/paintr-server.R:994-1084</code>). The panel-source observer at
+<code>R/paintr-shared-ui.R:528-554</code> reads <code>input[[comp_id]]</code> reactively, so the companion's
+seeded/typed value propagates to the bind without any direct <code>state$spec_seed</code> read in
+<code>ptr_setup_panel_sources()</code>. This is the documented API surface and is the SUFFICIENT
+spec= mechanism for source roles. Companion id pattern: <code>&lt;source-id&gt;_name</code> non-shared;
+<code>shared_&lt;k&gt;_name</code> shared (per <code>entry$companion_id_fn</code> at
+<code>R/paintr-shared-ui.R:478-480</code>). <em>Verified (v7):</em> FINDING #8's investigation confirmed the boot-render path was broken (companion textInput first-rendered blank
+despite a valid <code>spec=</code> entry) and the fix landed (see FINDING #8 entry above). The companion-routing design as described
+here now holds end-to-end with regression tests pinning both Fix A and the ADR 0024 entry-point lift.</li>
+
+</ul>
+
+<h2>Non-working examples (per finding)</h2>
+<p>Minimal repros for each finding. Each example is real ggpaintr code that should work per the public API but doesn't because of the gap (or is rejected-by-design where the rejection IS the contract). Copy-paste into <code>R -e &quot;source('app.R')&quot;</code> or invoke as a test fixture under <code>tests/testthat/fixtures/vignette-apps/&lt;slug&gt;/</code>.</p>
+
+<details>
+  <summary><strong>FINDING #1 &mdash; host-scope shared-panel consumer can't read <code>spec_seed</code></strong> [verdict: <span class="verdict yes" style="padding:2px 8px">RESOLVED v8</span> &mdash; fixed by <code>ptr_shared_server(spec=)</code> + <code>host_spec_seed</code> threaded as <code>spec_seed=</code> arg; regression test <code>test-spec-panel-widgets-boot.R</code> test 1]</summary>
+  <p><strong>Expected (now actual):</strong> the panel-shared consumer picker <code>#shared_col</code> boots with <code>"mpg"</code> selected, because the embedder seeded it via <code>spec = list(shared_col = "mpg")</code>.</p>
+  <p><strong>Historical actual (pre-v8):</strong> picker booted from <code>shared_widget_default()</code> (first-occurrence default in the formula, or blank if no default); the spec entry was silently dropped at host scope.</p>
+  <pre><code>library(ggpaintr)
+library(shiny)
+
+df_main &lt;- mtcars
+
+plots &lt;- c(
+  "ppUpload(df_main, shared = 'ds') |&gt; ggplot(aes(x = ppVar(shared = 'col'), y = mpg)) + geom_point()",
+  "ppUpload(df_main, shared = 'ds') |&gt; ggplot(aes(x = ppVar(shared = 'col'), y = hp))  + geom_col()"
+)
+panel &lt;- ptr_shared(plots)
+
+ui &lt;- fluidPage(
+  ptr_shared_panel(panel),
+  fluidRow(
+    column(6, ptr_ui(panel$formulas[[1]], "p1", shared = panel)),
+    column(6, ptr_ui(panel$formulas[[2]], "p2", shared = panel))
+  )
+)
+server &lt;- function(input, output, session) {
+  s &lt;- ptr_shared_server(panel, envir = environment())
+  # `spec=` IS valid on the per-instance ptr_server() (signature at
+  # R/paintr-app.R:1082-1083) -- NOT on ptr_shared_server() (signature at
+  # R/paintr-shared-ui.R:222-225 has no spec= arg). Pass the host-scope panel
+  # consumer seed on a per-instance ptr_server(), expecting it to propagate
+  # to the host-scope panel widget:
+  ptr_server(panel$formulas[[1]], "p1", shared_state = s,
+             spec = list(shared_col = "mpg"))   # &lt;-- silently dropped by host
+  ptr_server(panel$formulas[[2]], "p2", shared_state = s)
+}
+shinyApp(ui, server)
+</code></pre>
+  <p><strong>Why this now works (v8):</strong> <code>ptr_shared_server()</code> gained a <code>spec = NULL</code> arg at <code>R/paintr-shared-ui.R:236</code>. The recommended call is <code>ptr_shared_server(panel, envir = environment(), spec = list(shared_col = "mpg"))</code> (or pass via <code>ptr_app(spec=)</code> / <code>ptr_app_grid(spec=)</code> which forward the un-namespaced entries to the host). <code>apply_spec_at_boot_host()</code> (<code>R/paintr-shared-ui.R:681-790</code>) claims un-namespaced ids targeting host-owned panel widgets, normalizes per keyword, writes to a <code>host_spec_seed</code> env. The env is threaded via the new <code>spec_seed=</code> arg into <code>ptr_bind_local_shared_consumers()</code> (<code>R/paintr-server.R:2895-2924</code>) and on to <code>ptr_bind_shared_consumer_uis()</code> (<code>R/paintr-server.R:2562</code>); renderer at <code>R/paintr-server.R:2839-2843</code> reads it first, falling back to <code>state$spec_seed</code> only when the host-scope env is NULL. Comment block at <code>R/paintr-server.R:2832-2838</code> names this finding.</p>
+  <p><strong>Regression test:</strong> <code>tests/testthat/test-spec-panel-widgets-boot.R</code> test 1 asserts <code>app$get_value(input = "shared_col") == "mpg"</code> at boot; fixture <code>tests/testthat/fixtures/vignette-apps/spec-panel-consumer/app.R</code>. PASS at HEAD <code>67ac679</code>.</p>
+</details>
+
+<details>
+  <summary><strong>FINDING #2 + #7 (merged) &mdash; shared-panel VALUE static-tag drops <code>spec_seed</code></strong> [verdict: <span class="verdict yes" style="padding:2px 8px">RESOLVED v8</span> &mdash; fixed by new <code>ptr_setup_panel_values()</code> host-scope renderUI; regression test <code>test-spec-panel-widgets-boot.R</code> test 2]</summary>
+  <p><strong>Expected (now actual):</strong> the panel-shared value widget at <code>#shared_lw</code> boots with <code>2</code>, because the embedder seeded it via <code>spec = list(shared_lw = 2)</code>.</p>
+  <p><strong>Historical actual (pre-v8):</strong> the widget booted at <code>shared_widget_default()</code> (first-occurrence default in the formula source, e.g. <code>1</code>); spec entry was silently dropped.</p>
+  <pre><code>library(ggpaintr)
+
+plots &lt;- c(
+  "ggplot(mtcars, aes(x = wt, y = mpg)) + geom_line(linewidth = ppNum(default = 1, shared = 'lw'))",
+  "ggplot(mtcars, aes(x = wt, y = hp))  + geom_line(linewidth = ppNum(default = 1, shared = 'lw'))"
+)
+
+ptr_app(plots, spec = list(shared_lw = 2))
+# Expected: the shared 'lw' numeric input shows 2 at boot.
+# Actual:   it shows 1 (shared_widget_default of the first occurrence).
+</code></pre>
+  <p><strong>Why this now works (v8):</strong> the v7 fix-sketch landed verbatim. New <code>ptr_setup_panel_values()</code> at <code>R/paintr-shared-ui.R:806-871</code> registers a <code>renderUI</code> per panel-shared value key under <code>output[[ns(value_output_id(raw_id))]]</code>, reads <code>shiny::isolate(host_spec_seed[[raw_id]])</code> at first fire (L840), threads it into <code>extra$selected</code>, calls <code>invoke_build_ui()</code> with label override + <code>suspendWhenHidden = FALSE</code> so the input stays mounted. Wired at <code>R/paintr-shared-ui.R:380-384</code>. <code>apply_spec_at_boot_host()</code> populates <code>host_spec_seed</code> with un-namespaced ids (including panel value keys like <code>shared_lw</code>). The static-tag emit in <code>shared_panel_body_tag()</code>'s else-branch remains as a placeholder slot that the renderUI overwrites at flush time.</p>
+  <p><strong>Regression test:</strong> <code>tests/testthat/test-spec-panel-widgets-boot.R</code> test 2 asserts <code>app$get_value(input = "shared_lw") == 2</code> at boot; fixture <code>tests/testthat/fixtures/vignette-apps/spec-panel-value/app.R</code>. PASS at HEAD <code>67ac679</code>.</p>
+</details>
+
+<details>
+  <summary><strong>FINDING #3 &mdash; shared-panel source + non-shared consumer composite (test-gap)</strong> [verdict: <span class="verdict yes" style="padding:2px 8px">RESOLVED v8</span> &mdash; regression test <code>test-finding3-panel-source-nonshared-consumer.R</code> (8 assertions) + fixture]</summary>
+  <p><strong>Expected (and actual today, now pinned):</strong> a non-shared <code>ppVar(...)</code> consumer downstream of a panel-owned <code>ppUpload(shared='ds')</code> populates its column picker from the panel-resolved data frame, with no per-formula upload widget. The composition works, AND a regression now defends it.</p>
+  <p><strong>Test pin (v8):</strong> <code>tests/testthat/test-finding3-panel-source-nonshared-consumer.R</code> + fixture <code>tests/testthat/fixtures/vignette-apps/finding3-panel-source-nonshared-consumer/app.R</code>. PASS at HEAD <code>67ac679</code> (8 assertions: panel upload visible, no per-instance upload, both consumer pickers populated from <code>names(df_main)</code>, both code panels show the panel-owned auto-name).</p>
+  <pre><code>library(ggpaintr)
+
+df_main &lt;- mtcars
+
+plots &lt;- c(
+  # Panel-owned source (shared='ds'), non-shared consumer (different col per formula):
+  "ppUpload(df_main, shared = 'ds') |&gt; ggplot(aes(x = ppVar('xa'), y = mpg)) + geom_point()",
+  "ppUpload(df_main, shared = 'ds') |&gt; ggplot(aes(x = ppVar('xb'), y = hp))  + geom_col()"
+)
+
+ptr_app(plots)
+# Expected: each ppVar picker boots populated from names(df_main);
+#           a single panel-owned upload widget drives both plots.
+# Actual:   works at runtime, but no test directly pins this composition;
+#           closest is test-shared-source-panel-multi-instance.R WE#3
+#           (uses shared-section consumers, not non-shared ones).
+</code></pre>
+  <p><strong>How it's defended (v8):</strong> the panel-source resolver mirrors the resolved frame into per-instance <code>state$resolved_sources</code> + <code>state$bound_names</code> in <code>ptr_setup_pipelines()</code> at <code>R/paintr-server.R:1107-1132</code>, and the non-shared consumer's <code>source_ready</code> gate (<code>R/paintr-server.R:1994-2014</code>) <code>req()</code>s on those slots. <code>test-finding3-panel-source-nonshared-consumer.R</code> exercises them together end-to-end; the piecewise tests (<code>test-pipeline-panel-source-substitution.R</code>, <code>test-adr15-consumer-binding.R</code>) remain as belt + braces.</p>
+</details>
+
+<details>
+  <summary><strong>FINDING #4 &mdash; panel-consumer + non-panel-source composite (REJECTED-BY-DESIGN)</strong> [verdict: REJECTED]</summary>
+  <p><strong>Expected (by contract):</strong> <code>ptr_shared()</code> aborts at parse time with condition class <code>ptr_panel_consumer_source_mismatch</code> when a panel-owned consumer would have to read from a formula-local (or non-shared) source. ADR 0023 &sect;6: "one widget, one source-of-truth" &mdash; the host can't pick which formula's source to feed into the panel-shared picker.</p>
+  <p><strong>Actual:</strong> exactly that &mdash; the rejection IS the contract, not a defect. Example below demonstrates the expected abort.</p>
+  <pre><code>library(ggpaintr)
+
+# Panel-owned consumer ppVar(shared='col') appears in both formulas
+# but each formula has its OWN bare-data source (mtcars vs iris)
+# i.e., non-shared source feeding a panel-owned consumer.
+plots &lt;- c(
+  "ggplot(mtcars, aes(x = ppVar(shared = 'col'))) + geom_point()",
+  "ggplot(iris,   aes(x = ppVar(shared = 'col'))) + geom_point()"
+)
+
+ptr_shared(plots)
+# Expected: aborts with condition class "ptr_panel_consumer_source_mismatch"
+#           (parse-time, before any UI/server is built).
+# Actual:   matches expected. This is the documented invariant; do NOT
+#           "fix" it &mdash; if you want this composition to work, promote
+#           the source to shared-panel as well (one shared upload).
+</code></pre>
+  <p><strong>Why it aborts:</strong> <code>shared_assert_panel_consumer_sources()</code> at <code>R/paintr-shared-coordinator.R:103-160</code> walks the partition, detects the panel-consumer / non-panel-source asymmetry, and aborts with the structured condition. Test coverage: <code>test-shared-panel-consumer-source-invariant.R</code> R1, R2 (+ abort-fields test L108).</p>
+  <p><strong>Fix the formula, not the package:</strong> either promote the source to panel-shared (<code>ppUpload(df, shared = 'ds')</code> in both formulas with the same df) or demote the consumer to shared-section (use a different <code>shared=</code> key per formula).</p>
+</details>
+
+<details>
+  <summary><strong>FINDING #8 [INVESTIGATE] &mdash; spec&rarr;companion routing may not land at boot</strong> [verdict: INVESTIGATE]</summary>
+  <p><strong>Expected (per v3 reframing):</strong> passing <code>spec = list(&lt;upload-companion-id&gt; = "mtcars")</code> at boot lands "mtcars" in the companion textInput at first render; downstream <code>ppVar</code> consumers immediately see <code>names(mtcars)</code> populated.</p>
+  <p><strong>Actual (suspected, pending empirical confirmation):</strong> the companion textInput first-renders blank because <code>ptr_builtin_upload_build_ui</code> at <code>R/paintr-builtins.R:228-250</code> uses <code>node$default %||% ""</code> only &mdash; with no observed read of <code>state$spec_seed[[&lt;comp-id&gt;]]</code> at the companion's first-render site. The onFlushed <code>apply_spec_entry</code> dispatch at <code>R/paintr-server.R:646</code> skips rows already marked in <code>seeded</code> (the seed-write at L631 marks them), so no <code>updateTextInput</code> fires either.</p>
+  <pre><code>library(ggpaintr)
+
+mtcars  # in scope
+
+ptr_app(
+  "ppUpload(shared = 'ds') |&gt; ggplot(aes(x = ppVar(shared = 'col'), y = mpg)) + geom_point()",
+  spec = list(ggplot_1_ppUpload_NA_name = "mtcars")
+)
+# Expected: companion text input shows "mtcars" at boot;
+#           the ppVar(shared='col') picker shows names(mtcars).
+# Actual (per finding #8 source-read): companion may render blank;
+#         spec value sits in state$spec_seed[["ggplot_1_ppUpload_NA_name"]]
+#         but no observed consumption site for the companion's initial render.
+#         Requires shinytest2 assertion to confirm or refute.
+</code></pre>
+  <p><strong>Why this needs verification:</strong> the v3 reclassification of all source &times; with-spec cells from PARTIAL to YES rests on the claim that the companion-routing path is sufficient. If the companion-side seed-read site doesn't exist at boot, then companion seeding is broken until the user types into the companion (no boot-render priming) &mdash; which would mean: (a) the three source&times;with-spec YES cells move back to PARTIAL, (b) FINDING #6's v3 reframing reverts, (c) summary counts shift back toward v2.</p>
+  <p><strong>How to confirm/refute:</strong> add a shinytest2 assertion: boot the app with <code>spec = list(&lt;companion-id&gt; = "mtcars")</code>; assert <code>app$get_value(input = "&lt;companion-id&gt;") == "mtcars"</code> before any user interaction; assert the downstream picker is populated. If the assertion fails &mdash; file as defect, locate the missing seed-read site, fix; if it passes &mdash; locate and document the consumption site that primes the companion.</p>
+</details>
+
+<h2>Bibliography</h2>
+
+<ul>
+  <li><code>CONTEXT.md</code> lines 30-125: shared-placeholder language, partition rule, single-vs-multi-instance contract.</li>
+  <li><code>dev/adr/0005-l2-l3-redesign.html</code>: shared coordinator introduction.</li>
+  <li><code>dev/adr/0006-single-server-entry-l3-ui-only.html</code>: single public server entry; partition-as-ownership rule for consumers/values.</li>
+  <li><code>dev/adr/0012-spec-roundtrip.html</code>: the spec= round-trip ADR. <code>R/paintr-server.R:511-657</code> is the <code>apply_spec_at_boot</code> implementation; see header comments at L660-720 for the role-eligibility contract.</li>
+  <li><code>dev/adr/0023-panel-owned-shared-sources-end-to-end.html</code>: source-role partition end-to-end; defines <code>panel_sources</code> bundle field, <code>ptr_setup_panel_sources</code>, <code>resolve_upload_source</code>, partition-aware skip, panel-consumer/panel-source invariant, mixed-scope WE#3.</li>
+  <li><code>R/paintr-server.R</code>: <code>ptr_server_internal</code> (760-824), <code>apply_spec_at_boot</code> (511-657), <code>apply_spec_entry</code> (679-701) &mdash; dispatch policy block L660-678, <code>source_companion</code> branch L692-696, <code>ppUpload</code> silent-skip L697-699, <code>try_bind_source_default</code> (929-960), <code>resolve_upload_source</code> (994-1045), <code>try_bind_source_default_resolved</code> (1053-1084), <code>panel_owned_binding_name</code>, <code>bind_source_value</code>, <code>ptr_setup_pipelines</code> (1086-1228), <code>ptr_setup_value_uis</code> (1712-1841), <code>ptr_setup_source_uis</code> (1855-1939), <code>ptr_setup_consumer_uis</code> (1941-2134), <code>ptr_bind_shared_consumer_uis</code> (2146-2445), <code>ptr_bind_local_shared_consumers</code> (2458-2485). spec_seed reads at L1745, L1815, L1881, L2107, L2406; spec_seed writes at L631.</li>
+  <li><code>R/paintr-shared-ui.R</code>: <code>ptr_shared_server</code> (221-417), <code>ptr_setup_panel_sources</code> (445-601) &mdash; companion-id derivation L478-480, source renderUI L486-522, reactive observer wrapping <code>resolve_upload_source()</code> L528-554, autoname autobind L587-594.</li>
+  <li><code>R/paintr-shared-coordinator.R</code>: <code>shared_partition</code> (27-50), <code>shared_assert_panel_consumer_sources</code> (103-160), <code>shared_panel_body_tag</code> (316-395) &mdash; <em>else</em>-branch at 341-348 is the static value tag (no spec_seed read), <code>ptr_shared</code>.</li>
+  <li><code>R/paintr-shared.R</code>: <code>shared_widget_default</code> (270), <code>shared_widget_label</code>, <code>collect_shared_consumer_occurrences</code>, <code>canonical_shared_id</code>.</li>
+  <li><code>R/paintr-app.R</code>: <code>ptr_server</code> (1081-1219) &mdash; assembly, host_owned_keys, missing_keys, formula-local self-bind, <code>ptr_bind_local_shared_consumers</code> call site.</li>
+  <li><code>R/paintr-input-spec.R</code>: <code>ptr_runtime_input_spec</code> &mdash; emits the <code>input_spec</code> data frame (input_id, role, layer_name, keyword, param_key, source_id, shared) that <code>apply_spec_at_boot</code> consults for known-id matching and role dispatch. <code>source_companion</code> role pinned at <code>tests/testthat/test-rewrite-input-spec.R:17</code>.</li>
+  <li><code>R/paintr-builtins.R</code> lines 228-250 (<code>ptr_builtin_upload_build_ui</code>: fileInput + companion textInput pair); 337-381: registry rows for <code>ppText</code>, <code>ppNum</code>, <code>ppExpr</code>, <code>ppVar</code>, <code>ppUpload</code>.</li>
+  <li>Tests under <code>tests/testthat/</code>: <code>test-adr12-spec-roundtrip.R</code> (e2e built-in spec round-trip via vignette fixture <code>adr12-spec-roundtrip</code>), <code>test-adr12b-spec-custom-keyword.R</code> (custom-keyword spec via <code>state$spec_seed</code>), <code>test-spec-roundtrip-closed-loop.R</code> (Tests A/B/C/D &mdash; built-ins / ppUpload no-leak / custom value / shared consumer), <code>test-shared-consumer-spec-seed.R</code> (regression: shared consumer + shared value seeded at boot), <code>test-rewrite-input-spec.R</code> (companion role pin, L17), <code>test-id-table.R</code> (L52, L95-97, L173 source_companion id table), <code>test-regression-bugs-2026-05-12.R</code> (L27-29 no NA companion input_id), <code>test-adr10-ppupload-name-browser.R</code> (L93, L105 runtime companion drives binding), <code>test-adr15-consumer-binding.R</code> (L51, L85 same), <code>test-ptr-spec-emission.R</code>, <code>test-shared-source-rendering.R</code>, <code>test-shared-source-panel-multi-instance.R</code>, <code>test-shared-panel-consumer-source-invariant.R</code>, <code>test-pipeline-panel-source-substitution.R</code>, <code>test-consumer-picker-panel-sources-dep.R</code>, <code>test-host-setup-panel-sources.R</code>, <code>test-ptr-shared-state-panel-sources.R</code>, <code>test-int-ptr-server-bundle-panel-sources.R</code>, <code>test-shared-coordinator.R</code>, <code>test-shared-partition.R</code>, <code>test-shared-server.R</code>, <code>test-shared-server-partition.R</code>, <code>test-shared-stage-checkbox.R</code>, <code>test-default-and-shared-seeding.R</code>, <code>test-adr15-consumer-binding.R</code>, <code>test-adr15-no-source-prewarm.R</code>, <code>test-rewrite-shared.R</code>, <code>test-rewrite-classify.R</code>, <code>test-super-pressure.R</code>, <code>test-ui-pieces.R</code>, <code>test-render-preserve.R</code>, <code>test-value-clear-stays-empty.R</code>, <code>test-consumer-deselect-stays-empty.R</code>, <code>test-int-3-consumer-picker-remaining-gaps.R</code>, <code>test-setup-source-uis-partition-aware-skip.R</code>.</li>
+  <li>Vignette fixtures: <code>tests/testthat/fixtures/vignette-apps/{shared-source-panel-multi, shared-source-panel-multi-default, shared-source-panel-multi-mixed, l2-shared, l2-shared-partition, app-grid-shared-added, grid-shared-partition, shared-consumer-spec, adr12-spec-roundtrip}/app.R</code>.</li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Host-scope spec= for panel-shared widgets — working / non-working examples</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+<main>
+
+<h1>Host-scope <code>spec=</code> for panel-shared widgets &mdash; working / non-working examples</h1>
+<p class="meta">Branch <code>host-spec-seed-panel-widgets</code> at HEAD with the FINDING #1 + #7 fix (pre-commit). Companion to <a href="placeholder-role-coverage2.html">placeholder-role-coverage2.html</a> v7 &mdash; the v7 doc described the gaps; this file shows the runnable repros that proved them and the post-fix behaviour.</p>
+
+<p>Every snippet below is real public-API <code>ggpaintr</code> code that should logically work. &ldquo;Before&rdquo; is the state on commit <code>1502c17</code> (the parent of the fix); &ldquo;After&rdquo; is the state with <code>R/paintr-shared-ui.R</code>'s new <code>apply_spec_at_boot_host()</code> + <code>ptr_setup_panel_values()</code> + <code>spec_seed=</code> threading through <code>ptr_bind_local_shared_consumers()</code>, plus the <code>spec=</code> channel on <code>ptr_shared_server()</code> forwarded from <code>ptr_app_grid()</code>.</p>
+
+<h2>Reading the verdicts</h2>
+<ul>
+  <li><span class="verdict yes" style="padding:2px 8px">YES</span> &mdash; works end-to-end (browser-truth verified via shinytest2 gate).</li>
+  <li><span class="verdict partial" style="padding:2px 8px">PARTIAL</span> &mdash; verified at the structural seam (host <code>spec_seed</code> bag receives the value; deferred dispatch registered) but the full browser-truth assertion has not been pinned by a regression test yet.</li>
+  <li><span class="verdict rejected" style="padding:2px 8px">REJECTED</span> &mdash; rejected by design at parse time or by the dispatch policy; the rejection IS the contract.</li>
+</ul>
+
+<h2>Authoritative gate</h2>
+<p>The two browser-truth assertions that pin the fix:</p>
+<pre><code>tests/testthat/test-spec-panel-widgets-boot.R
+tests/testthat/fixtures/vignette-apps/spec-panel-consumer/app.R
+tests/testthat/fixtures/vignette-apps/spec-panel-value/app.R
+</code></pre>
+<p>Run:</p>
+<pre><code>Rscript -e 'devtools::test(filter = "spec-panel-widgets-boot")'
+</code></pre>
+<p>Pre-fix output: <code>[ FAIL 2 | WARN 0 | SKIP 0 | PASS 2 ]</code>. Post-fix output: <code>[ FAIL 0 | WARN 0 | SKIP 0 | PASS 4 ]</code>. Full project suite stays at <code>PASS 3097 / FAIL 0 / ERR 0 / SKIP 0</code> on the authoritative <code>NOT_CRAN=true</code> gate.</p>
+
+<hr>
+
+<h2>1. Panel-shared CONSUMER + <code>spec=</code> (FINDING #1)</h2>
+<details open>
+  <summary><strong>1a. <span class="verdict yes" style="padding:2px 8px">AFTER: YES</span> &nbsp; <span class="verdict rejected" style="padding:2px 8px">BEFORE: silently dropped</span></strong> &mdash; cross-formula <code>ppVar(shared='col')</code> seeded via <code>spec=list(shared_col=&quot;mpg&quot;)</code></summary>
+  <pre><code>library(ggpaintr)
+
+ptr_app_grid(
+  plots = c(
+    "ggplot(mtcars, aes(x = ppVar('cyl', shared = 'col'), y = mpg)) + geom_point()",
+    "ggplot(mtcars, aes(x = ppVar('cyl', shared = 'col'), y = hp))  + geom_col()"
+  ),
+  spec = list(shared_col = "mpg")
+)
+</code></pre>
+  <p><strong>Before fix &mdash; actual:</strong> picker boots showing <code>&quot;cyl&quot;</code> (the formula's <code>default = 'cyl'</code>; <code>shared_widget_default()</code> first-occurrence wins). The <code>spec=</code> entry is silently dropped because every per-instance <code>ptr_server()</code>'s <code>apply_spec_at_boot()</code> prefix-filters by its own module namespace (<code>plot_1-</code> etc.) at <code>R/paintr-server.R:533</code>, and <code>ptr_shared_server()</code> never received <code>spec=</code>.</p>
+  <p><strong>After fix &mdash; actual:</strong> picker boots showing <code>&quot;mpg&quot;</code> (spec wins). <code>ptr_app_grid()</code> forwards <code>spec</code> into <code>ptr_shared_server()</code>; the new <code>apply_spec_at_boot_host()</code> writes <code>host_spec_seed[[&quot;shared_col&quot;]] &lt;- &quot;mpg&quot;</code>; <code>ptr_bind_shared_consumer_uis()</code>'s seed read now consults the <code>spec_seed=</code> argument before falling back to <code>state$spec_seed</code> (which is still <code>NULL</code> at host scope by ADR 0006).</p>
+  <p><strong>Browser-truth pin:</strong> <code>tests/testthat/test-spec-panel-widgets-boot.R</code> test 1.</p>
+</details>
+
+<details>
+  <summary><strong>1b. <span class="verdict yes" style="padding:2px 8px">UNCHANGED: YES</span></strong> &mdash; <em>shared-section</em> consumer + <code>spec=</code> (single-formula reference) was already working</summary>
+  <pre><code>ptr_app(
+  "ggplot(mtcars, aes(x = ppVar('cyl', shared = 'col'), y = mpg)) + geom_point()",
+  spec = list(shared_col = "mpg")
+)
+</code></pre>
+  <p>Single formula referencing <code>shared='col'</code> &rArr; key is shared-<em>section</em>, not shared-<em>panel</em>. <code>ptr_app()</code> uses <code>ptr_make_app_server()</code> (no coordinator); the per-instance <code>apply_spec_at_boot()</code> runs at top level (ns is identity), so <code>shared_col</code> matches the prefix and lands in <code>state$spec_seed</code>. Picker shows <code>&quot;mpg&quot;</code> at boot. Test coverage: <code>test-shared-consumer-spec-seed.R</code>.</p>
+</details>
+
+<hr>
+
+<h2>2. Panel-shared VALUE + <code>spec=</code> (FINDING #7)</h2>
+<details open>
+  <summary><strong>2a. <span class="verdict yes" style="padding:2px 8px">AFTER: YES</span> &nbsp; <span class="verdict rejected" style="padding:2px 8px">BEFORE: widget literally absent from the DOM</span></strong> &mdash; cross-formula <code>ppNum(shared='lw')</code> seeded via <code>spec=list(shared_lw=2)</code></summary>
+  <pre><code>library(ggpaintr)
+
+ptr_app_grid(
+  plots = c(
+    "ggplot(mtcars, aes(x = wt, y = mpg)) + geom_line(linewidth = ppNum(1, shared = 'lw'))",
+    "ggplot(mtcars, aes(x = wt, y = hp))  + geom_line(linewidth = ppNum(1, shared = 'lw'))"
+  ),
+  spec = list(shared_lw = 2)
+)
+</code></pre>
+  <p><strong>Before fix &mdash; actual:</strong> the <code>&lt;div id=&quot;shared_lw_ui&quot; class=&quot;shiny-html-output&quot;&gt;&lt;/div&gt;</code> placeholder is emitted by <code>shared_panel_body_tag()</code> at the host's un-namespaced root, but no server-side renderUI registers <code>output$shared_lw_ui</code>. The per-instance shared-value loop in <code>ptr_setup_value_uis()</code> registers at the per-instance namespaced id (<code>output[[&quot;plot_1-shared_lw_ui&quot;]]</code>), which never reaches the host's UI div. <em>Net</em>: the numericInput never materializes; <code>app$get_value(input = &quot;shared_lw&quot;)</code> returns <code>NULL</code>.</p>
+  <p><strong>After fix &mdash; actual:</strong> <code>ptr_setup_panel_values()</code> (new, at host scope, parallel to <code>ptr_setup_panel_sources()</code>) registers <code>output$shared_lw_ui &lt;- renderUI(...)</code> reading from <code>host_spec_seed</code>. Widget materializes with <code>value=&quot;2&quot;</code>. <code>app$get_value(input = &quot;shared_lw&quot;)</code> returns <code>2</code>.</p>
+  <p><strong>Browser-truth pin:</strong> <code>tests/testthat/test-spec-panel-widgets-boot.R</code> test 2.</p>
+</details>
+
+<details>
+  <summary><strong>2b. <span class="verdict yes" style="padding:2px 8px">UNCHANGED: YES</span></strong> &mdash; panel-shared value <em>without</em> <code>spec=</code> still gets the formula's first-occurrence default</summary>
+  <pre><code>ptr_app_grid(
+  plots = c(
+    "ggplot(mtcars, aes(x = wt, y = mpg)) + geom_line(linewidth = ppNum(3, shared = 'lw'))",
+    "ggplot(mtcars, aes(x = wt, y = hp))  + geom_line(linewidth = ppNum(1, shared = 'lw'))"
+  )
+)
+</code></pre>
+  <p><code>shared_widget_default()</code> still picks the first occurrence (<code>3</code>) via <code>node$default</code>; <code>has_rendered = FALSE</code> on first fire of the new host-scope renderUI means <code>selected_arg = seed</code> (here <code>NULL</code>), so <code>invoke_build_ui()</code> falls back to <code>node$default</code> just like the per-instance path. Widget shows <code>3</code> at boot.</p>
+</details>
+
+<hr>
+
+<h2>3. Panel-shared SOURCE COMPANION + <code>spec=</code></h2>
+<details>
+  <summary><strong>3a. <span class="verdict partial" style="padding:2px 8px">AFTER: PARTIAL (structural)</span> &nbsp; <span class="verdict rejected" style="padding:2px 8px">BEFORE: silently dropped</span></strong> &mdash; panel-shared <code>ppUpload(shared='ds')</code>'s companion textInput seeded via <code>spec=list(shared_ds_name=&quot;df_main&quot;)</code></summary>
+  <pre><code>library(ggpaintr)
+
+df_main &lt;- mtcars
+df_aux  &lt;- iris
+
+ptr_app_grid(
+  plots = c(
+    "ppUpload(shared = 'ds') |&gt; ggplot(aes(x = ppVar('cyl', shared = 'col'), y = mpg)) + geom_point()",
+    "ppUpload(shared = 'ds') |&gt; ggplot(aes(x = ppVar('cyl', shared = 'col'), y = hp))  + geom_col()"
+  ),
+  spec = list(shared_ds_name = "df_main")
+)
+</code></pre>
+  <p><strong>Before fix &mdash; actual:</strong> the companion textInput at the host's un-namespaced root id <code>shared_ds_name</code> first-renders blank. The per-instance <code>apply_spec_at_boot()</code> drops the un-namespaced spec id; no host-scope handler exists; the FINDING #8 onFlushed <code>updateTextInput</code> dispatch never fires for host-owned source companions.</p>
+  <p><strong>After fix &mdash; actual at the seam:</strong> <code>apply_spec_at_boot_host()</code> matches <code>shared_ds_name</code> against the <code>shared_&lt;k&gt;_name</code> companion pattern, normalizes the value as text, writes <code>host_spec_seed[[&quot;shared_ds_name&quot;]] &lt;- &quot;df_main&quot;</code>, and registers a deferred <code>session$onFlushed(once = TRUE, updateTextInput(session, &quot;shared_ds_name&quot;, &quot;df_main&quot;))</code> &mdash; the same shape as the per-instance <code>source_companion</code> branch in <code>apply_spec_at_boot()</code> (<code>R/paintr-server.R:680&ndash;700</code>), which already has browser-pinned coverage at <code>test-finding8-source-companion-spec.R</code>. Verified at the structural seam via a manual probe (matching logic finds the companion id; onFlushed callback registered).</p>
+  <p><strong>Caveat (the PARTIAL):</strong> not yet pinned by a shinytest2 regression test on this branch. The pre-existing per-instance companion path (FINDING #8) uses the same dispatch mechanism end-to-end and IS browser-pinned, so the host variant should follow the same end-to-end success &mdash; but the gate is not yet there. <strong>Follow-up:</strong> add <code>tests/testthat/fixtures/vignette-apps/spec-panel-source-companion/app.R</code> + a third assertion to <code>test-spec-panel-widgets-boot.R</code>.</p>
+</details>
+
+<details>
+  <summary><strong>3b. <span class="verdict rejected" style="padding:2px 8px">REJECTED (unchanged)</span></strong> &mdash; targeting the <em>fileInput</em> itself via <code>spec=list(shared_ds=&hellip;)</code> is silently skipped</summary>
+  <pre><code>ptr_app_grid(
+  plots = c(
+    "ppUpload(shared = 'ds') |&gt; ggplot(aes(x = ppVar('cyl', shared = 'col'), y = mpg)) + geom_point()",
+    "ppUpload(shared = 'ds') |&gt; ggplot(aes(x = ppVar('cyl', shared = 'col'), y = hp))  + geom_col()"
+  ),
+  spec = list(shared_ds = some_df)   # &lt;-- silently skipped at host scope
+)
+</code></pre>
+  <p>The fileInput cannot accept a programmatic value (recorded in source at <code>R/paintr-server.R:582&ndash;584</code>). Both per-instance <code>apply_spec_at_boot()</code> and the new <code>apply_spec_at_boot_host()</code> silently skip the row when the matched node <code>is_ptr_ph_data_source(node)</code>. Spec the bare-name companion (<code>shared_ds_name</code>, example 3a) instead.</p>
+</details>
+
+<hr>
+
+<h2>4. Composite: panel source + panel consumer + <code>spec=</code> for BOTH</h2>
+<details>
+  <summary><strong>4a. <span class="verdict yes" style="padding:2px 8px">AFTER: YES (consumer)</span> + <span class="verdict partial" style="padding:2px 8px">PARTIAL (companion)</span></strong> &mdash; ADR 0023 textbook case with both halves seeded</summary>
+  <pre><code>df_main &lt;- mtcars
+
+ptr_app_grid(
+  plots = c(
+    "ppUpload(shared = 'ds') |&gt; ggplot(aes(x = ppVar(shared = 'col'), y = mpg)) + geom_point()",
+    "ppUpload(shared = 'ds') |&gt; ggplot(aes(x = ppVar(shared = 'col'), y = hp))  + geom_col()"
+  ),
+  spec = list(
+    shared_ds_name = "df_main",   # panel source companion (PARTIAL — see 3a)
+    shared_col     = "mpg"         # panel consumer (YES — see 1a)
+  )
+)
+</code></pre>
+  <p><strong>Before fix:</strong> both halves silently dropped; the picker boots blank (no <code>default=</code> in the consumer formula) and the companion textInput boots blank. The user has to type the dataset name AND pick a column manually before any plot draws.</p>
+  <p><strong>After fix:</strong> consumer half is pinned by the gate; companion half is verified at the structural seam (see 3a). End-to-end: the page boots with the dataset name pre-filled, the panel resolver mirrors <code>df_main</code> through <code>state$resolved_sources</code> + <code>state$bound_names</code>, the consumer picker takes its dep on <code>panel_sources[[&quot;shared_ds&quot;]]()</code> + reads <code>spec_seed[[&quot;shared_col&quot;]]</code>, and both plots draw <code>x = mpg</code> from <code>df_main</code> at first paint.</p>
+</details>
+
+<hr>
+
+<h2>5. Rejected-by-design (unchanged, still rejected)</h2>
+<details>
+  <summary><strong>5a. <span class="verdict rejected" style="padding:2px 8px">REJECTED</span></strong> &mdash; panel-shared consumer + non-shared / shared-section source (FINDING #4)</summary>
+  <pre><code># Panel-owned consumer ppVar(shared='col') appears in both formulas,
+# but each formula has its OWN bare-data source (mtcars vs iris).
+ptr_shared(c(
+  "ggplot(mtcars, aes(x = ppVar(shared = 'col'))) + geom_point()",
+  "ggplot(iris,   aes(x = ppVar(shared = 'col'))) + geom_point()"
+))
+# Aborts at parse time with condition class
+# `ptr_panel_consumer_source_mismatch` — ADR 0023 §6, "one widget, one
+# source-of-truth". Fix the formula, not the package: either promote the
+# source to panel-shared too, or demote the consumer to shared-section.
+</code></pre>
+  <p>Adding a <code>spec=</code> entry doesn't change this: the abort fires before any server / spec-apply code runs.</p>
+</details>
+
+<details>
+  <summary><strong>5b. <span class="verdict rejected" style="padding:2px 8px">REJECTED</span></strong> &mdash; <code>spec=list(&lt;unknown-id&gt;=...)</code> at host scope is dropped with an <code>i</code> message</summary>
+  <p>If the spec key doesn't match any panel-shared id pattern (<code>shared_&lt;k&gt;</code> for a panel key, or <code>shared_&lt;k&gt;_name</code> for a panel-owned source companion), the host applier silently skips the row. Per-instance <code>apply_spec_at_boot()</code> still emits its <code>cli::cli_inform()</code> &ldquo;Dropped N unknown ids&rdquo; if the same id doesn't match any per-instance widget either. (The host applier is intentionally quieter: unknown un-namespaced ids could legitimately belong to <em>another</em> coordinator on the same page; a noisy warning would false-positive in that pattern.)</p>
+</details>
+
+<hr>
+
+<h2>What the fix actually changed</h2>
+<table>
+  <thead><tr><th>File</th><th>Change</th></tr></thead>
+  <tbody>
+    <tr><td><code>R/paintr-server.R</code></td><td><code>ptr_bind_shared_consumer_uis()</code> + <code>ptr_bind_local_shared_consumers()</code> accept optional <code>spec_seed=</code> env; seed read consults it with priority over <code>state$spec_seed</code> (so host scope works even when <code>state = NULL</code> by ADR 0006).</td></tr>
+    <tr><td><code>R/paintr-shared-ui.R</code></td><td>New: <code>apply_spec_at_boot_host()</code> (host-scope spec applier with per-keyword normalization mirroring <code>apply_spec_at_boot()</code>; defers <code>updateTextInput</code> for <code>source_companion</code> rows). New: <code>ptr_setup_panel_values()</code> (host-scope renderUI loop for panel-shared <em>value</em> placeholders, parallel to <code>ptr_setup_panel_sources()</code>). <code>ptr_shared_server()</code> gains <code>spec=</code> parameter; builds <code>host_spec_seed</code> env; threads it through the host&rsquo;s binder calls.</td></tr>
+    <tr><td><code>R/paintr-app.R</code></td><td><code>ptr_app_grid_components()</code> forwards <code>spec</code> into <code>ptr_shared_server(obj, envir = envir, spec = spec)</code>.</td></tr>
+    <tr><td><code>man/ptr_shared_server.Rd</code></td><td>Regenerated by <code>devtools::document()</code> &mdash; new <code>@param spec</code>.</td></tr>
+    <tr><td><code>tests/testthat/test-spec-panel-widgets-boot.R</code> + 2 fixtures under <code>fixtures/vignette-apps/</code></td><td>Authoritative browser-truth gate. Pre-fix: <code>FAIL 2 / PASS 2</code>. Post-fix: <code>FAIL 0 / PASS 4</code>.</td></tr>
+  </tbody>
+</table>
+
+<h2>Open follow-ups (not in this fix)</h2>
+<ul>
+  <li>Add a shinytest2 fixture + assertion for the panel source companion case (example 3a) to flip its verdict from PARTIAL to YES with a browser-pinned gate.</li>
+  <li>Consider whether the parallel structure of <code>apply_spec_at_boot()</code> / <code>apply_spec_at_boot_host()</code> (and <code>ptr_setup_value_uis()</code>'s shared-value loop / <code>ptr_setup_panel_values()</code>) is worth refactoring into shared infrastructure. Recommendation: wait for a third user before generalising &mdash; two parallel sites is honest, three is a pattern.</li>
+  <li>Update <a href="placeholder-role-coverage2.html">placeholder-role-coverage2.html</a> v8 to reflect: FINDING #1 RESOLVED, FINDING #7 RESOLVED, FINDING #2 still architectural (no <code>ptr_setup_panel_values()</code> was needed for the no-spec path until the fix; now it exists and the asymmetry is closed).</li>
+</ul>
+
+</main>
+</body>
+</html>

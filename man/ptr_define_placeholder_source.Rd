@@ -101,6 +101,24 @@ identity; the source's own value at \code{node$id} is dropped from the
 spec, because it is typically a per-session Shiny artifact (a
 \code{fileInput()} data.frame whose \code{datapath} is a tempfile path that
 does not survive the session). The built-in \code{ppUpload} uses this.
+
+\strong{Data-loading entry point (ADR 0024).} When \code{companion_id_fn} is
+set, the companion is more than a name override for an uploaded
+frame — it is a typed-in shortcut for loading a \code{data.frame} from
+the embedder's environment (\code{envir} passed to \code{\link[=ptr_app]{ptr_app()}} /
+\code{\link[=ptr_server]{ptr_server()}}). Any valid R name typed into the companion (or
+seeded via \verb{spec = list(<companion-id> = "df_name")}) is looked
+up via \code{get(name, envir, inherits = TRUE)} and bound as the
+resolved source frame, with OR without \verb{default=} on the
+placeholder. The downstream pipeline, generated code panel, and
+consumer pickers all read the named frame from \code{state$eval_env}
+as if it had been uploaded. Failures surface on the inline error
+pane via \code{set_resolve_error}:
+\code{"Object 'x' not found in environment."} /
+\code{"Object 'x' is not a data frame."} Lookup uses \code{inherits = TRUE},
+so package exports become reachable — typing \code{"plot"} will resolve
+to \code{graphics::plot} and then fail the "is not a data frame" check
+(loudly, not silently).
 \item \strong{Scalar pattern} — no companion. The widget's value at \code{node$id}
 must be a literal that round-trips through \code{deparse()} — a length-1
 string / number / logical, or a simple atomic vector. The

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0023 — Panel-owned shared sources end-to-end</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0023 — Panel-owned shared sources end-to-end</h1>
+
+<p><strong>Status:</strong> <em>Proposed.</em> Drafted 2026-05-25.</p>
+
+<p><strong>Date:</strong> 2026-05-25</p>
+
+<p><strong>Relates to:</strong> <a href="0005-l2-l3-redesign.html">ADR-0005</a> (introduced <code>ptr_shared</code> / <code>ptr_shared_panel</code> / <code>ptr_shared_server</code> — never specified source-role behaviour), <a href="0006-single-server-entry-l3-ui-only.html">ADR-0006</a> (single public server entry; locked the partition-as-ownership rule for consumers/values — silent on sources), <a href="0015-consumer-picker-source-headed-resolution.html">ADR-0015</a> (per-instance <code>state$resolved_data</code> / <code>state$bound_names</code> + req-gate — defines the per-instance picker→source dependency that this ADR generalises to host scope). Builds directly on the <strong>Cut 1</strong> fix in commit <code>d71893b</code> (<em>fix(shared): cut 1 — single-instance shared source renders + consumer reads canonical ids</em>), which dropped the partition-blind skip in <code>ptr_setup_source_uis()</code> and fixed the rewrite-shared early-return.</p>
+
+<p><strong>Implementation:</strong> <a href="../plans/0023-panel-owned-shared-sources-end-to-end/index.html">dev/plans/0023-panel-owned-shared-sources-end-to-end/</a> (TBD via <code>/decision-to-plan</code>).</p>
+
+<h2>Context</h2>
+
+<p>Two bugs surfaced against the new <code>ptr_shared</code> coordinator + <code>ptr_app</code> reduce to one root absence: <strong>source placeholders (<code>ppUpload</code>) were never wired through the shared/cross-formula path.</strong> ADR-0005/0006 (the L2/L3 redesign that introduced <code>ptr_shared</code>) discuss only value and consumer placeholders. Sources fell into the gap silently — partition logic gives them a canonical id and the panel calls <code>build_ui_for</code>, but every server-side wiring stopped short.</p>
+
+<p>Bug 2 (single-instance) was fixed by Cut 1. <strong>Bug 1 (multi-instance, panel-owned shared source)</strong> remains and is the subject of this ADR:</p>
+
+<pre><code>panel &lt;- ptr_shared(c(
+  "ggplot(ppUpload(shared='ds'), aes(x = ppVar(shared='col'), y = ppVar)) + geom_point()",
+  "ggplot(ppUpload(shared='ds'), aes(x = ppVar(shared='col'), y = ppVar)) + geom_col()"
+))
+# ui:     ptr_shared_panel(panel) +
+#         ptr_ui(panel$formulas[[1]], "p1") + ptr_ui(panel$formulas[[2]], "p2")
+# server: s &lt;- ptr_shared_server(panel)
+#         ptr_server(panel$formulas[[1]], "p1", shared_state = s)
+#         ptr_server(panel$formulas[[2]], "p2", shared_state = s)</code></pre>
+
+<p>The upload fileInput appears at top-level <code>#shared_ds</code> after the Cut 1 fix would render it — but no host-side code resolves it, no per-instance pipeline knows to look at top-level rather than its own namespace, and no consumer-picker dep wakes when the upload lands. Three concerns:</p>
+
+<table>
+  <thead><tr><th>Concern</th><th>Per-instance (works)</th><th>Panel scope (missing)</th></tr></thead>
+  <tbody>
+    <tr><td>Source widget renderUI (server-side filler)</td><td><code>ptr_setup_source_uis()</code></td><td>missing</td></tr>
+    <tr><td>Pipeline / <code>resolve_data</code> binding</td><td><code>ptr_setup_pipelines()</code></td><td>missing</td></tr>
+    <tr><td>Consumer-picker dep wiring downstream</td><td><code>ptr_bind_shared_consumer_uis(... state = state)</code></td><td><code>ptr_bind_local_shared_consumers(... state = NULL)</code> — the dep block is gated on <code>state</code> non-NULL, so no <code>resolved_data</code> watch fires</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Why the gap exists architecturally.</strong> <code>state</code> is created by <code>ptr_init_state()</code> inside <code>moduleServer()</code> for each <code>ptr_server()</code> call — per-formula by construction. <code>ptr_shared_server()</code> runs at the embedder's top level with no module wrapper, so no <code>state</code> exists to forward. ADR-0006 scoped the host server to <em>shared widgets + cross-module signals, never per-formula state.</em> Sources sit awkwardly in that scope: they need a server-side renderUI and a reactive resolved-df, but per-formula state is the wrong owner because the partition assigns them to the panel.</p>
+
+<p><strong>Constraints from the existing partition contract</strong> (<code>CONTEXT.md</code>, locked 2026-05-16):</p>
+<ul>
+  <li>Shared placeholders are role-agnostic — <em>"every occurrence of the same key … is driven by one widget in lockstep"</em> covers sources too.</li>
+  <li>Partition rule: key referenced in exactly one formula → that formula's inline section; ≥2 formulas → the standalone panel.</li>
+  <li>Ownership = whoever renders the surface is also the server binder: <em>"the host server owns only panel keys; the owning instance binds every formula-local key"</em> (resolved 2026-05-17). Today's source code does not honour this for the source role.</li>
+  <li>Shared panel uses global, un-namespaced ids (<code>shared_&lt;key&gt;</code>); cannot be namespaced or duplicated per module.</li>
+</ul>
+
+<h2>Decision</h2>
+
+<p>Extend the existing bundle channel between <code>ptr_shared_server()</code> and <code>ptr_server()</code> with a parallel source-side field. Per-instance pipelines learn one new branch: panel-owned source ids are <em>substituted</em>, not skipped. No new top-level abstraction; the partition is already at hand wherever it needs to be read.</p>
+
+<ol>
+  <li>
+    <strong>Bundle gains <code>panel_sources</code>.</strong> <code>ptr_shared_state</code> (returned by <code>ptr_shared_server()</code>) carries one new field: <code>panel_sources</code>, a named list of reactive <code>data.frame</code> values keyed by canonical shared id (<code>shared_&lt;key&gt;</code>), populated for exactly the panel-owned source keys (intersect of <code>obj$panel_keys</code> with source-role keys). The bundle stays "signals + payloads"; <code>shared_resolutions</code> is already a payload, so this is the same shape. <strong>Name kept: <code>shared_state</code>.</strong> No new top-level state object.
+  </li>
+  <li>
+    <strong>Host-side resolver runs inside <code>ptr_shared_server()</code>.</strong> A new internal helper <code>ptr_setup_panel_sources(obj, input, output, envir)</code>:
+    <ul>
+      <li>For each panel-owned source key, assigns the renderUI for the <code>uiOutput(shared_&lt;key&gt;_ui)</code> container that <code>shared_panel_body_tag()</code> already emits (the same renderUI body <code>ptr_setup_source_uis</code> assigns per-instance — extracted into a shared helper, see point 3).</li>
+      <li>Builds a reactive that watches the top-level <code>input[[shared_&lt;key&gt;]]</code> (fileInput) and the companion <code>input[[shared_&lt;key&gt;_name]]</code>, runs the source registry's <code>resolve_data</code> hook, and falls back to <code>try_bind_source_default()</code> when the upload is empty and the source carries a <code>default_arg</code> resolvable through the host's <code>envir</code> parent chain.</li>
+      <li>Surfaces upload errors into the panel's <code>ptr_shared_errors</code> slot — symmetric with consumer-side errors. One widget = one error sink.</li>
+      <li>The companion textInput (<code>shared_&lt;key&gt;_name</code>) is rendered once at panel scope; all instances read the same name. Consistent with "one widget per shared key."</li>
+    </ul>
+  </li>
+  <li>
+    <strong>Factor out the upload-resolution mechanics.</strong> The csv/tsv/rds/xlsx detection, the <code>resolve_data</code>-hook dispatch, the default-arg fallback (eyeball-play <code>try_bind_source_default</code>, commit <code>a3d1636</code>), and the binding-name derivation today live inside <code>ptr_setup_pipelines()</code>. Extract them into an internal <code>resolve_upload_source(input_slot, companion_slot, node, entry, envir)</code> helper that returns the resolved df + binding name. Per-instance pipeline calls it with namespaced slots; host calls it with top-level slots. <strong>One resolver, two callers</strong> — any future format addition (Parquet, Arrow) is made once.
+  </li>
+  <li>
+    <strong>Per-instance pipelines substitute panel-owned source ids.</strong> In <code>ptr_setup_pipelines()</code> (<code>R/paintr-server.R</code> near line 1001), add a branch at the head of the per-source observer loop:
+    <pre><code>panel_owned &lt;- sid %in% names(dots$panel_sources %||% list())
+if (panel_owned) {
+  # Bind from the host's resolved reactive instead of watching this
+  # instance's own (non-existent) namespaced input. The panel resolver
+  # populates `panel_sources[[sid]]` once per panel-owned key; this
+  # observer takes a dep on it and mirrors the value into the
+  # per-instance `state$resolved_sources[[sid]]` + `bound_names[[sid]]`
+  # so downstream consumer reactives (`ptr_setup_consumer_uis` /
+  # `ptr_bind_shared_consumer_uis`) see one unified resolved view
+  # keyed identically.
+  shiny::observe({
+    df &lt;- dots$panel_sources[[sid]]()
+    if (is.null(df)) { slot(NULL); return(invisible()) }
+    bind_source_value(state, sid, &lt;binding_name&gt;, df, slot)
+  })
+  return(invisible())  # do not also wire the input-watching observer
+}
+# else: existing per-instance path</code></pre>
+    Downstream consumer code is unchanged — it reads <code>state$resolved_sources</code> and <code>state$bound_names</code> as today. The substitution is local to the source-observer loop; no other downstream code learns about panel ownership.
+  </li>
+  <li>
+    <strong>Consumer-picker dep at host scope reads panel-owned sources.</strong> <code>ptr_bind_shared_consumer_uis()</code> (and <code>ptr_bind_local_shared_consumers()</code> when invoked at host scope by <code>ptr_shared_server()</code>) gains a <code>panel_sources</code> arg. When the consumer's resolved upstream source id sits in <code>names(panel_sources)</code>, the renderUI takes a dep on <code>panel_sources[[sid]]()</code> instead of (or in addition to) <code>state$resolved_sources</code> / <code>state$resolved_data</code>. The existing <code>if (!is.null(state))</code> gate (which today excludes the host path) is replaced with a <code>panel_sources</code>-aware path. One resolution code path, partition-routed. <strong>Cut 2 must preserve the <code>has_rendered</code> closure-flag pattern introduced by commit <code>401804c</code> — first-render-omits-<code>selected</code> and subsequent-render-passes-<code>current %||% character(0)</code>-verbatim are independent invariants that Cut 2's <code>panel_sources</code> dep wiring must not regress; the <code>panel_sources</code>-aware path threads <em>through</em> the existing <code>has_rendered</code> closure, not around it.</strong>
+  </li>
+  <li>
+    <strong>Parse-time invariant: <em>panel-owned consumer requires panel-owned source.</em></strong> Inside <code>ptr_shared()</code> (the coordinator), after the partition is computed: for each panel-owned consumer key, every source it depends on (via the consumer's upstream pipeline) must also be panel-owned. If any source is formula-local, abort with a clear message naming the consumer key, the dependent source key, and the formulas where the asymmetry surfaces. <strong>Reasons:</strong> (a) a panel-owned consumer renders a single widget at top-level, so it cannot pick columns from two different formula-local datasets; (b) keeping it illegal preserves the "one widget, one source-of-truth" invariant; (c) cheap partition-time check; (d) no clean semantics for the cross-scope case (union? intersection? per-formula picker?), so disallowing is safer than picking arbitrarily.
+  </li>
+  <li>
+    <strong>Partition-aware skip restored in <code>ptr_setup_source_uis()</code>.</strong> Cut 1 dropped the partition-blind skip entirely. With <code>panel_sources</code> now telling each <code>ptr_server</code> which ids the host owns, the skip is reintroduced in partition-aware form: <code>if (s$id %in% names(dots$panel_sources %||% list())) next</code>. The panel-side renderUI from point 2 owns those containers; the per-instance renderUI would otherwise write to orphan output slots (harmless today but a latent collision with future namespacing changes).
+  </li>
+</ol>
+
+<h2>Consequences</h2>
+
+<ul>
+  <li><strong>Public surface change:</strong> <code>ptr_shared_state</code> gains a <code>panel_sources</code> field. Embedders who construct <code>shared_state =</code> manually (escape hatch) gain one new optional list entry. The bundle remains a forward-compatible plain list. <code>validate_ptr_shared_state()</code> grows one line.</li>
+  <li><strong>Architectural framing intact:</strong> ADR-0006's "single public server entry" stands; the host doesn't gain its own engine, just a small resolver. The host still binds <em>only panel keys</em>; <code>state</code> remains per-instance.</li>
+  <li><strong>Bundle channel grows, not the abstraction count:</strong> No new top-level state object, no new lookup chain, no eval-env parenting. <code>panel_sources</code> is a payload alongside <code>shared</code> / <code>shared_resolutions</code>. Reviewers can read the new field as one more line in the same shape they already know.</li>
+  <li><strong>Single resolver:</strong> Upload format support (csv/tsv/rds/xlsx and any future addition) and the default-arg fallback live in one function called from both scopes. Removes the divergence-risk vector that motivated Q4-I in the grilling session.</li>
+  <li><strong>CONTEXT.md correction:</strong> Line 125 (<em>"the owning instance binds every formula-local key"</em>) becomes empirically true for every role (value/consumer/source) once Cut 2 lands. The clause is updated in the same change with role-explicit wording: <em>"the owning instance binds every formula-local key — value, consumer, and source alike."</em></li>
+  <li><strong>New parse-time error:</strong> "panel-owned consumer requires panel-owned source" — surfaces at <code>ptr_shared()</code> time, not at <code>ptr_server()</code> time, so the embedder sees the problem at coordinator construction (where they can act on it).</li>
+  <li><strong>Out-of-scope deferral:</strong> the L1 grid path (<code>ptr_app_grid()</code>) internally constructs <code>ptr_shared</code>/<code>ptr_shared_server</code> in the same shape as the L2 host path, so Cut 2 propagates transparently to L1. No separate L1 work required.</li>
+</ul>
+
+<h2>Alternatives considered</h2>
+
+<ul>
+  <li><strong>Option B (Module-server-by-coincidence).</strong> Render panel sources inside the <em>first</em> <code>ptr_server()</code>'s moduleServer and re-expose them at top-level for the other instances. Rejected: breaks the "one widget, one owner" rule, makes order-of-<code>ptr_server</code>-call load-bearing (a property the call site doesn't visibly own), and disguises rather than solves the ownership question.</li>
+  <li><strong>Option C (Panel <code>moduleServer("shared", …)</code>).</strong> Give the panel its own namespaced module so its outputs are at <code>shared-…</code>. Rejected: contradicts the locked CONTEXT.md claim that the shared panel uses global, un-namespaced ids (<code>shared_&lt;key&gt;</code>). Would force a documentation renegotiation and break embedders that hard-code top-level ids in custom CSS/JS.</li>
+  <li><strong>Skip-only (Q3 Option I).</strong> Per-instance pipeline drops panel-owned source ids entirely, and the plot eval-env's parent lookup resolves them via a <code>panel_eval_env</code> on the bundle. Rejected: consumer pickers downstream then need a second code path ("is the column-source panel- or instance-owned? if panel, look there; if instance, look here"), splintering the consumer code. Substitute (Q3 Option II, chosen above) keeps <code>state$resolved_sources</code> as the single per-instance resolved-data answer.</li>
+  <li><strong>Eval-env parenting (Q2 Option A original framing).</strong> Parent each <code>ptr_server</code>'s <code>state$eval_env</code> from a host <code>panel_eval_env</code>. Rejected in favour of substitution because parenting introduces a new cross-server lexical edge (today there is no such edge) and doesn't propagate cleanly to the consumer-picker scope; substitution keeps the bundle as the single channel.</li>
+  <li><strong>Narrow the contract — make <code>ppUpload(shared=)</code> a parse-time error.</strong> Rejected: contradicts three places in CONTEXT.md, partition rule loses generality, and the textbook multi-plot use case ("upload one dataset, drive two plots from it") becomes unsupported. Narrowing would shrink the feature for implementation-convenience reasons.</li>
+  <li><strong>Cross-scope consumer with defined semantics</strong> (panel-owned consumer with formula-local sources, resolving via union / intersection / per-instance pickers). Rejected: no clean canonical semantics, and the "one widget, one source-of-truth" invariant is more valuable than the rare use case. Parse-time abort with a clear message is the right shape.</li>
+</ul>
+
+<h2>Worked examples — what becomes possible</h2>
+
+<p>All examples below assume ADR 0023 has landed (Cut 2). Each is runnable ggpaintr code; the marginalia explains <em>why</em> the example exercises a specific decision point above.</p>
+
+<h3>1. Two plots sharing one uploaded dataset (the textbook case)</h3>
+
+<p>The motivating Bug 1 reproducer. Source <code>ds</code> is referenced by both formulas → <strong>panel-owned</strong>. Consumer <code>col</code> is also referenced by both → panel-owned. One fileInput in the panel drives both plots; one column picker drives the x-axis on both.</p>
+
+<pre><code>library(ggpaintr); library(shiny)
+
+panel &lt;- ptr_shared(c(
+  "ggplot(ppUpload(shared='ds'),
+          aes(x = ppVar(shared='col'), y = ppVar(shared='col'))) +
+     geom_point()",
+  "ggplot(ppUpload(shared='ds'),
+          aes(x = ppVar(shared='col'), y = ppVar(shared='col'))) +
+     geom_col()"
+))
+
+shinyApp(
+  ui = fluidPage(
+    ptr_shared_panel(panel),    # one upload widget + one shared col picker
+    fluidRow(
+      column(6, ptr_ui(panel$formulas[[1]], "p1")),
+      column(6, ptr_ui(panel$formulas[[2]], "p2"))
+    )
+  ),
+  server = function(input, output, session) {
+    s &lt;- ptr_shared_server(panel)                       # populates panel_sources$shared_ds
+    ptr_server(panel$formulas[[1]], "p1", shared_state = s)
+    ptr_server(panel$formulas[[2]], "p2", shared_state = s)
+  }
+)</code></pre>
+
+<p><em>What the bundle carries:</em> <code>s$panel_sources$shared_ds</code> is a reactive resolved df, populated by the host once the user uploads. Each <code>ptr_server</code>'s pipeline substitutes <code>state$resolved_sources$shared_ds</code> from that bundle field instead of watching its own (non-existent) namespaced <code>input</code> — decision §4 above.</p>
+
+<h3>2. Same shape, with a <code>default_arg</code> so pickers populate at boot before any click</h3>
+
+<p>Couples ADR 0023's panel resolver with the eyeball-play <code>try_bind_source_default</code> fallback (commit <code>a3d1636</code>). At boot, the host resolver finds <code>df_main</code> via <code>envir</code>'s parent chain and primes <code>panel_sources$shared_ds</code> with <code>mtcars</code>. Both column pickers populate immediately; no upload needed.</p>
+
+<pre><code>df_main &lt;- mtcars
+
+panel &lt;- ptr_shared(c(
+  "ggplot(ppUpload(df_main, shared='ds'),
+          aes(x = ppVar(shared='col'), y = mpg)) + geom_point()",
+  "ggplot(ppUpload(df_main, shared='ds'),
+          aes(x = ppVar(shared='col'), y = hp))  + geom_col()"
+))
+
+# ... same UI / server wiring as example 1.</code></pre>
+
+<h3>3. Mixed scope: panel-owned source, formula-local consumer</h3>
+
+<p>The source <code>ds</code> is referenced by both formulas → panel-owned (one widget in the panel). The consumers <code>colA</code> and <code>colB</code> are each used in only one formula → formula-local (each picker lives in its own instance's inline section). Per-instance pipeline substitutes the panel-resolved df into <code>state$resolved_sources$shared_ds</code>; the formula-local consumer reads from that <code>state</code> via the existing per-instance binder (decision §5 routes only the panel-owned consumer case to the host path — formula-local consumers stay on the per-instance path).</p>
+
+<pre><code>panel &lt;- ptr_shared(c(
+  "ggplot(ppUpload(shared='ds'),
+          aes(x = ppVar(shared='colA'), y = mpg)) + geom_point()",
+  "ggplot(ppUpload(shared='ds'),
+          aes(x = ppVar(shared='colB'), y = hp))  + geom_col()"
+))
+
+# UI:    ptr_shared_panel(panel) +
+#        ptr_ui(panel$formulas[[1]], 'p1') + ptr_ui(panel$formulas[[2]], 'p2')
+# server: ptr_shared_server(panel)
+#         ptr_server(panel$formulas[[i]], paste0('p', i), shared_state = s)</code></pre>
+
+<p>Panel holds just the upload (cross-formula); each instance's inline shared section holds its own column picker.</p>
+
+<h3>4. Single-instance shared source — already fixed by Cut 1 (included for the full shape)</h3>
+
+<p>One formula, no coordinator, every shared widget is owned by the single instance. ADR 0023 leaves this path untouched; <code>panel_sources</code> is absent from the bundle, the partition-aware skip at the per-instance source-UI loop (decision §7) is a no-op for this shape, and the existing per-instance pipeline path resolves the upload as it does today. <strong>This shape works on this branch's HEAD already</strong> — fixed by Cut 1 (commit <code>d71893b</code>), not pending Cut 2. Verified end-to-end: render the fileInput → user uploads a CSV → consumer picker populates with the uploaded df's columns.</p>
+
+<pre><code>ptr_app(
+  ppUpload(shared = 'ds') |>
+    ggplot(aes(x = ppVar(shared = 'a'), y = ppVar(shared = 'a'))) +
+    geom_point()
+)</code></pre>
+
+<h3>5. Pipeline-head source with intermediate stages, shared across plots</h3>
+
+<p>The source is at the head of a <code>|&gt;</code> chain that includes other stages. <code>pipeline_source_ids</code> (per <code>R/paintr-server.R:166–170</code>) catches it; the panel resolver populates <code>panel_sources$shared_ds</code>; per-instance pipelines substitute the resolved df into the chain head before evaluating downstream stages (<code>dplyr::filter</code>, <code>mutate</code>, etc.).</p>
+
+<pre><code>panel &lt;- ptr_shared(c(
+  "ppUpload(shared='ds') |&gt; dplyr::filter(ppExpr(cyl &gt; 4)) |&gt;
+     ggplot(aes(x = ppVar(shared='col'))) + geom_histogram()",
+  "ppUpload(shared='ds') |&gt; dplyr::mutate(z = ppExpr(mpg / wt)) |&gt;
+     ggplot(aes(x = ppVar(shared='col'), y = z)) + geom_point()"
+))</code></pre>
+
+<h3>6. Custom source keyword inherits panel-scope wiring for free</h3>
+
+<p>Because the factored <code>resolve_upload_source()</code> helper (decision §3) dispatches via the placeholder registry's <code>resolve_data</code> / <code>companion_id_fn</code> entries, any source keyword defined with <code>ptr_define_placeholder_source()</code> works at panel scope without further wiring.</p>
+
+<pre><code>ppDataChooser &lt;- ptr_define_placeholder_source(
+  keyword = "ppDataChooser",
+  build_ui     = function(node, ...) shiny::selectInput(node$id, "Choose data", choices = c("mtcars","iris")),
+  resolve_data = function(value, node, ...) get(value, envir = globalenv()),
+  default_arg  = ptr_default_string()
+)
+
+panel &lt;- ptr_shared(c(
+  "ggplot(ppDataChooser(shared='ds'), aes(x = ppVar(shared='col'))) + geom_point()",
+  "ggplot(ppDataChooser(shared='ds'), aes(x = ppVar(shared='col'))) + geom_col()"
+))</code></pre>
+
+<h3>7. Seed a panel-owned source via the companion id at boot</h3>
+
+<p>Spec routing for source placeholders is keyed off the <strong>companion</strong> input id (<code>shared_&lt;key&gt;_name</code>), not the fileInput id itself — the fileInput cannot accept a programmatic value (it lives in the browser's filesystem-picker). The companion path was landed by the existing <code>apply_spec_at_boot()</code> machinery (<code>R/paintr-server.R:588–590</code>: <em>"placeholder rows (except ppUpload) and source_companion rows"</em>); ADR 0023 does not introduce a new spec channel, it just makes that path reach panel-scope sources for free once <code>panel_sources</code> is wired.</p>
+
+<pre><code># Owner-side: ship a saved view that boots straight into "df_main"
+# without requiring the user to upload or type.
+ptr_app(
+  formula = ppUpload(shared='ds') |&gt;
+              ggplot(aes(x = ppVar(shared='col'))) + geom_point(),
+  spec    = list(shared_ds_name = "df_main")   # seeds the companion textInput
+)
+# At boot: companion shows "df_main", `try_bind_source_default()` reads it,
+# resolves `df_main` via state$eval_env's parent chain, primes
+# state$resolved_sources, picker populates from `df_main`'s columns.</code></pre>
+
+<p>The same companion-id seed shape works for the panel scope: <code>ptr_shared(...)</code> + an embedder-supplied <code>spec=</code> through <code>ptr_shared_server(spec = …)</code> targets the top-level <code>shared_&lt;key&gt;_name</code> companion (one widget per panel-owned source key).</p>
+
+<h2>Worked examples — what is rejected by design</h2>
+
+<h3>R1. Panel-owned consumer paired with formula-local source — parse-time abort</h3>
+
+<p>Decision §6 (parse-time invariant). Here <code>col</code> is referenced by both formulas → panel-owned; but each formula's source is a different bare-data dataset — formula-local. A single shared picker cannot list columns from two different datasets without an arbitrary choice (union? intersection? per-instance?). ADR 0023 rejects the configuration at <code>ptr_shared()</code> time:</p>
+
+<pre><code>ptr_shared(c(
+  "ggplot(mtcars, aes(x = ppVar(shared='col'))) + geom_point()",
+  "ggplot(iris,   aes(x = ppVar(shared='col'))) + geom_point()"
+))
+#&gt; Error in `ptr_shared()`:
+#&gt; ! Shared consumer `col` is panel-owned (used in 2 formulas) but its
+#&gt;   upstream data sources are formula-local: `mtcars` (formula 1),
+#&gt;   `iris` (formula 2).
+#&gt; i Either annotate the sources as `shared = "..."` so they're also panel-owned,
+#&gt;   or drop `shared = "col"` so each plot gets its own picker.</code></pre>
+
+<h3>R2. Different physical uploads for the same shared key — does not exist</h3>
+
+<p>Shared semantics is keyed to a canonical id, not to dataset value-equality. Two separate <code>ppUpload(shared='ds')</code> widgets do not exist in any configuration — by the rewrite, both occurrences of <code>shared='ds'</code> collapse to one widget with one canonical id. Users who upload "the same file" into two separate non-shared <code>ppUpload()</code> widgets will <em>not</em> get shared-consumer resolution; the user explicitly verified this when grilling Cut 1.</p>
+
+<pre><code># Not a valid workaround for "shared dataset across plots":
+ptr_app_grid(list(
+  "ggplot(ppUpload(), aes(x = ppVar(shared='col'))) + geom_point()",  # one widget
+  "ggplot(ppUpload(), aes(x = ppVar(shared='col'))) + geom_col()"     # another widget
+))
+# The two uploads are independent; the shared picker has no single source to
+# read columns from -- it lands in the R1 case above and aborts at coordinator time.</code></pre>
+
+<h3>R3. Spec-seeding the <code>fileInput</code> directly with a data frame — silently skipped (browser-driven)</h3>
+
+<p>The fileInput cannot be set programmatically — it carries a per-session tempfile path the browser owns. <code>apply_spec_at_boot()</code> explicitly skips ppUpload rows of role <code>placeholder</code> (<code>R/paintr-server.R:574–575, 588–590</code>) and the input-spec collector drops <code>source_companion</code>-classified rows from the companion-side round-trip (<code>R/paintr-server.R:311–319</code>) so the spec is honest about what survives. The supported seed path is the companion-id route shown in working example 6.</p>
+
+<pre><code># Silently skipped at boot (not an error -- the spec is honest about
+# what the browser cannot accept):
+ptr_app(formula, spec = list(shared_ds = mtcars))
+
+# DO this instead -- seed the companion, let the default-arg / eval_env
+# fallback resolve the binding name to a frame:
+df_main &lt;- mtcars   # in the host script env
+ptr_app(formula, spec = list(shared_ds_name = "df_main"))</code></pre>
+
+<h3>R4. Programmatic upload through <code>shared_state =</code> escape hatch — same restriction</h3>
+
+<p>Embedders constructing <code>shared_state</code> manually <em>can</em> supply a <code>panel_sources</code> entry pointing at their own reactive — that's exactly how the bundle generalises. But the host's own renderUI for the panel widget will still emit a <code>fileInput</code>; the escape-hatch reactive simply overrides the resolved value. There is no path to <em>replace</em> the fileInput tag with something else without dropping the panel piece entirely and rendering your own widget.</p>
+
+<pre><code># Works (manual override):
+my_df &lt;- shiny::reactiveVal(mtcars)
+ptr_server(formula, "p1", shared_state = list(panel_sources = list(shared_ds = my_df)))
+
+# Does NOT work (cannot replace the panel's emitted widget shape):
+# -- if you want a custom widget, omit `ptr_shared_panel(panel)` from the UI
+#    and render your own; supply `shared_state$panel_sources` manually.</code></pre>
+
+<h3>R5. <code>ptr_shared()</code> with sources referenced by only one formula — they fall to inline sections, not the panel</h3>
+
+<p>Not strictly "rejected" but a frequent misconception. The partition rule applies to sources just like values/consumers: a source referenced by exactly one formula is <em>formula-local</em>, rendered in that instance's inline section, not in the panel. <code>panel_sources</code> for that key stays absent from the bundle.</p>
+
+<pre><code>panel &lt;- ptr_shared(c(
+  "ggplot(ppUpload(shared='ds_a'), aes(x = ppVar(mpg))) + geom_point()",  # only formula 1
+  "ggplot(ppUpload(shared='ds_b'), aes(x = ppVar(mpg))) + geom_col()"     # only formula 2
+))
+# panel$panel_keys is empty for sources; ds_a renders inline under p1, ds_b under p2.
+# `ptr_shared_panel(panel)` body is empty -- this is the "valid empty panel"
+# case (CONTEXT.md flagged-ambiguity resolution, 2026-05-17).</code></pre>
+
+<h2>Out of scope</h2>
+
+<ul>
+  <li><strong>L1 grid-specific wiring.</strong> <code>ptr_app_grid()</code> constructs the coordinator and the per-module servers in the same shape as L2; Cut 2 propagates transparently. If a grid-specific gotcha emerges during implementation, it joins the plan as a sub-item rather than a separate ADR.</li>
+  <li><strong>Source widgets beyond <code>ppUpload</code>.</strong> Today's only source role placeholder is <code>ppUpload</code>. The factored <code>resolve_upload_source()</code> helper is keyword-aware (dispatches via registry), so a future custom source keyword (e.g. a <code>ppDataChooser</code> driven by a <code>selectInput</code>) inherits the panel-scope wiring for free. No work in this cut.</li>
+  <li><strong>Panel-scope <code>spec=</code> seeding for panel-owned sources.</strong> Today <code>ptr_app(spec = list(shared_&lt;key&gt; = …))</code> seeds shared <em>value</em> widgets at boot. Source widgets cannot be programmatically seeded with file content (fileInput is browser-driven); the companion <code>shared_&lt;key&gt;_name</code> textInput could be — but the seed shape needs its own design and is out of this cut. Deferred until a user surfaces a need.</li>
+  <li><strong>Hard removal of the partition-blind skip story in test suites.</strong> Existing tests for the per-instance source path stay; the new panel-scope path gets its own browser fixture. No grand re-organisation.</li>
+  <li><strong>ADR-0005 amendment.</strong> ADR-0005's silence on source-role behaviour is corrected by this ADR's existence. No formal amendment to 0005 is required; this ADR is referenced from <code>CONTEXT.md</code>'s shared-coordinator section as the source-role addendum.</li>
+</ul>
+
+<!-- audit-adr: PASS f61528e6d383 dev/audit/audit-adr-0023-2026-05-26-0050.html 2026-05-26 -->
+</body></html>

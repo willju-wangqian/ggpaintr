@@ -94,6 +94,7 @@ ptr_init_state <- function(formula,
                                 auto_bind_shared = FALSE,
                                 shared_resolutions = list(),
                                 shared_stage_enabled = list(),
+                                panel_sources = list(),
                                 plots = NULL) {
   if (!is.function(ns)) {
     rlang::abort("`ns` must be a namespace function (e.g. shiny::NS(\"id\")).")
@@ -228,6 +229,14 @@ ptr_init_state <- function(formula,
     pipe_layer_warnings = pipe_layer_warnings,
     shared_bindings = shared_bindings,
     shared_resolutions = if (is.list(shared_resolutions)) shared_resolutions else list(),
+    # ADR 0023 §1: bundle's `panel_sources` slot, threaded through the
+    # existing `do.call(ptr_init_state, c(list(formula, envir), dots))`
+    # channel in `ptr_server_internal()`. Named list of reactive
+    # data.frame values, keyed by canonical shared id (`shared_<key>`);
+    # populated by host `ptr_setup_panel_sources()` (Plan 04) and read
+    # by per-instance pipelines/consumer pickers (Plans 05/07). Empty
+    # list when no panel-owned source is bound.
+    panel_sources = if (is.list(panel_sources)) panel_sources else list(),
     draw_trigger = draw_trigger,
     resolved_data = resolved_data,
     resolved_sources = resolved_sources,
@@ -259,6 +268,18 @@ ptr_init_state <- function(formula,
     # downstream "object '<name>' not found". Keyed by source id (or layer
     # name for bare-data sources). A successful resolve clears that key.
     resolve_errors = shiny::reactiveVal(stats::setNames(list(), character())),
+    # ADR 0025 §4 / PLAN-04: per-active-upload prologue ledger. Named list
+    # keyed by `key` (layer name for bare-data sources, source id for
+    # pipeline-head sources). Each entry is
+    # `list(auto_name=<chr>, file_name=<chr>, ext=<chr>)`. Written by
+    # `resolve_upload_source()` / `try_bind_source_default_resolved()` on a
+    # successful upload bind (built-in `ppUpload` only); cleared on a
+    # vacated bind (file_info NULL, no shortcut value, no default). Read by
+    # `emit_upload_prologue()` and prepended to the code-panel text by
+    # `format_code_with_extras()`. Insertion order preserves declaration
+    # order across tree traversal, so the rendered prologue lines appear
+    # in formula order. Empty list when no upload-bound source is active.
+    active_uploads = shiny::reactiveVal(stats::setNames(list(), character())),
     ui_ns_fn = ns,
     server_ns_fn = server_ns,
     input_spec = ptr_runtime_input_spec(tree),
@@ -296,18 +317,20 @@ ptr_init_state <- function(formula,
     if (length(snapshot) == 0L) {
       return(stats::setNames(list(), character()))
     }
-    # Source placeholders with a companion textInput (e.g. ppUpload) carry
-    # the round-trip identity at the companion's input_id; the source's
+    # Source placeholders with a shortcut textInput (e.g. ppUpload) carry
+    # the round-trip identity at the shortcut's input_id; the source's
     # own value is a Shiny artifact (e.g. a fileInput data.frame holding a
     # per-session tempfile path) that neither survives a session nor
     # round-trips through deparse(). Same rule as
     # `stamp_current_pick_walk.ptr_ph_data_source` (R/paintr-render.R) and
     # the apply-side ppUpload seed skip in `apply_spec_at_boot()` below;
     # enforced structurally on the `source_id` linkage in `input_spec` so
-    # every companion-shaped source — including third-party ones registered
-    # via `ptr_define_placeholder_source(companion_id_fn = ...)` — is
+    # every shortcut-shaped source — including third-party ones registered
+    # via `ptr_define_placeholder_source(shortcut = TRUE)` — is
     # covered. See `?ptr_define_placeholder_source` ("spec= round-trip")
-    # for the contract sources WITHOUT a companion must honour.
+    # for the contract sources WITHOUT a shortcut must honour. (The
+    # role-label spec_df$role == "source_companion" is preserved as the
+    # spec/seed dispatch key — see ADR 0025 §1.)
     spec_df <- st$input_spec
     if (is.data.frame(spec_df) && nrow(spec_df) > 0L) {
       companioned <- spec_df$source_id[
@@ -620,7 +643,20 @@ apply_spec_at_boot <- function(spec, session, state) {
       else value <- as.character(value)
     }
     state$spec_seed[[row$bare_id]] <- value
-    seeded <- c(seeded, row$bare_id)
+    # FINDING #8 (placeholder-role-coverage2 v4): `source_companion` rows
+    # have NO downstream `state$spec_seed[[<companion-id>]]` reader. The
+    # author's intent in the seed-eligibility comment above was that the
+    # companion textInput inside the source's tagList would read the seed
+    # on first render, but `ptr_builtin_upload_build_ui()` initial-renders
+    # the companion from `node$default %||% ""` only (the spec_seed reads
+    # in renderUI bodies use `raw_id = node$id` — the source id, not the
+    # companion id). So source_companion rows must fall through to the
+    # onFlushed `updateTextInput` dispatch in `apply_spec_entry()` —
+    # don't mark them seeded. The seed write is kept (harmless; reserved
+    # for a future renderUI-side reader if one is added).
+    if (!identical(row$role, "source_companion")) {
+      seeded <- c(seeded, row$bare_id)
+    }
   }
 
   # Dispatch is deferred to the first flush so framework-internal rows
@@ -765,6 +801,11 @@ ptr_server_internal <- function(input, output, session, formula,
     if (is.null(dots$draw_trigger))         dots$draw_trigger <- shared_state$draw_trigger
     if (is.null(dots$shared_resolutions))   dots$shared_resolutions <- shared_state$shared_resolutions
     if (is.null(dots$shared_stage_enabled)) dots$shared_stage_enabled <- shared_state$shared_stage_enabled
+    # ADR 0023 §1: same bundle-channel rule for the panel-owned source
+    # payload. Explicit `...` wins, otherwise the bundle's value flows
+    # through to `ptr_init_state(panel_sources = ...)` via `do.call()`
+    # without changing the call site.
+    if (is.null(dots$panel_sources))        dots$panel_sources <- shared_state$panel_sources
   }
   # When called inside `shiny::moduleServer(id, ...)` without explicit
   # `ns` / `server_ns`, auto-wire them the same way `ptr_server()`
@@ -818,7 +859,16 @@ ptr_server_internal <- function(input, output, session, formula,
 # `NULL` to clear. The error panel reads the resulting named list via
 # `ptr_register_error()`.
 set_resolve_error <- function(state, id, msg) {
-  cur <- state$resolve_errors()
+  # ADR 0024: isolate the read so the resolve observer (which calls
+  # set_resolve_error from its reactive body) does not take a
+  # dependency on `state$resolve_errors`. Without the isolate, the
+  # clear-then-set pattern inside `resolve_upload_source` becomes a
+  # self-invalidating loop the moment a structured error is written:
+  # observer reads resolve_errors via this helper -> writes new value
+  # -> own dependency invalidates -> observer re-fires -> ... Pre
+  # ADR-0024 the no-upload path only ever wrote NULL (idempotent on
+  # an empty list), so the latent loop never triggered.
+  cur <- shiny::isolate(state$resolve_errors())
   if (is.null(msg)) {
     cur[[id]] <- NULL
   } else {
@@ -839,7 +889,7 @@ is_bare_data_source_layer <- function(layer) {
 # downstream consumer that `req()`s the reactiveVal observes `eval_env`
 # in its post-assign configuration. `slot(df)` runs unconditionally so
 # the source's `resolved_data` / `resolved_sources` reactive bumps even
-# when no binding name is available (e.g. invalid companion text), giving
+# when no binding name is available (e.g. invalid shortcut text), giving
 # downstream observers a chance to halt via the existing `req()` chain.
 # Do not split these three writes across call sites — every assign into
 # eval_env must travel through this helper so the invariant is physical,
@@ -851,6 +901,173 @@ bind_source_value <- function(state, key, name, df, slot) {
     state$bound_names[[key]](name)
   }
   slot(df)
+}
+
+# ADR 0025 §4 / PLAN-04: register / clear an entry on
+# `state$active_uploads`. Built-in `ppUpload` only (the source-registry
+# `shortcut == TRUE` predicate filters out custom sources whose code-panel
+# prologue is deferred per ADR scope cuts -- `prologue_emit_fn` hook is
+# explicitly out-of-scope here). The clear path is also used by Plan 05's
+# vacate-on-empty observer (file_info NULL + empty shortcut + no default).
+register_active_upload <- function(state, key, node, file_info) {
+  # Built-in upload only. The keyword stamp is the structural signal:
+  # third-party shortcut sources (registered via
+  # `ptr_define_placeholder_source(shortcut = TRUE)`) carry their own
+  # keyword and are intentionally excluded from prologue emission.
+  if (is.null(node) || !identical(node$keyword, "ppUpload")) {
+    return(invisible(NULL))
+  }
+  # `resolve_upload_source()` is also called from the panel-source
+  # observer in `paintr-shared-ui.R` with a minimal ad-hoc `state` that
+  # has no `active_uploads` slot (host-side panel source bind; the
+  # per-instance state populated by `ptr_server()` carries the slot).
+  # The prologue is rendered off the per-instance state's code panel, so
+  # the host-side panel-source bind has no prologue to register; silently
+  # no-op when the slot is absent.
+  if (!is.function(state$active_uploads)) return(invisible(NULL))
+  if (is.null(file_info) || is.null(file_info$name)) {
+    clear_active_upload(state, key)
+    return(invisible(NULL))
+  }
+  auto_name <- node$auto_name
+  if (!is.character(auto_name) || length(auto_name) != 1L || !nzchar(auto_name)) {
+    return(invisible(NULL))
+  }
+  ext <- tolower(tools::file_ext(file_info$name))
+  current <- shiny::isolate(state$active_uploads())
+  entry <- list(auto_name = auto_name,
+                file_name = file_info$name,
+                ext       = ext)
+  prior <- current[[key]]
+  if (!is.null(prior) && identical(prior, entry)) {
+    return(invisible(NULL))
+  }
+  # Insertion-order preservation: dropping then re-appending keeps the
+  # most-recently-set entry last. The natural first-bind sequence (each
+  # key registered once at first successful upload) yields formula /
+  # declaration order; later re-binds of the same key keep that key's
+  # position only if it was the latest one set, which matches the
+  # "current snapshot" semantics callers expect.
+  current[[key]] <- NULL
+  current[[key]] <- entry
+  state$active_uploads(current)
+  invisible(NULL)
+}
+
+clear_active_upload <- function(state, key) {
+  # See note in `register_active_upload()` -- the host-side panel-source
+  # observer hands in a minimal ad-hoc `state` without this slot.
+  if (!is.function(state$active_uploads)) return(invisible(NULL))
+  current <- shiny::isolate(state$active_uploads())
+  if (!(key %in% names(current))) return(invisible(NULL))
+  current[[key]] <- NULL
+  state$active_uploads(current)
+  invisible(NULL)
+}
+
+# ADR 0025 §7 / PLAN-05 (A1) -- vacate-on-empty. Called from any path that
+# falls through to `slot(NULL)` because the source has no value to bind
+# (file_info NULL AND shortcut empty AND no default). Reverses three pieces
+# of prior-resolve state so downstream system-state surfaces (consumer
+# pickers, code-panel prologue, `ptr_runtime_input_spec()`'s spec dump)
+# reflect the *current* (vacated) state, not the historic last-good:
+#   (1) drop the prior name from `state$eval_env` (scoped: `inherits = FALSE`
+#       so caller-env shadows reached via the parent chain are untouched);
+#   (2) reset `state$bound_names[[key]]` to NULL so the ADR 0015 §2.1
+#       source-ready gate (`req(state$bound_names[[k]]())`) re-blocks until
+#       the user supplies a new value;
+#   (3) clear `state$active_uploads[[key]]` so the code-panel prologue stops
+#       emitting a line for this key (delegates to `clear_active_upload()`).
+# Idempotent: safe to call multiple times for the same already-vacated key.
+# Note: `state$bound_names[[key]]` is read with `shiny::isolate()` because
+# the read happens inside an observer that already subscribes to `input`
+# slots; subscribing to `bound_names` from here would create a feedback loop.
+vacate_source_binding <- function(state, key) {
+  if (!is.list(state$bound_names) || !(key %in% names(state$bound_names))) {
+    clear_active_upload(state, key)
+    return(invisible(NULL))
+  }
+  prior_name <- shiny::isolate(state$bound_names[[key]]())
+  # Same syntactic-name predicate Plan 02 uses for `binding_name` derivation
+  # (see `resolve_upload_source()` / `try_bind_source_default()`). Required
+  # because `exists()` with `inherits = FALSE` errors on non-syntactic names
+  # on some R versions, and we will only ever have written via that same
+  # predicate so any present name must satisfy it.
+  if (is.character(prior_name) && length(prior_name) == 1L &&
+      nzchar(prior_name) && make.names(prior_name) == prior_name) {
+    if (exists(prior_name, envir = state$eval_env, inherits = FALSE)) {
+      rm(list = prior_name, envir = state$eval_env, inherits = FALSE)
+    }
+  }
+  state$bound_names[[key]](NULL)
+  clear_active_upload(state, key)
+  invisible(NULL)
+}
+
+# Walk `state$active_uploads()` in declaration (insertion) order and emit
+# one prologue line per entry. Unknown extensions are silently omitted
+# (ADR 0025 §4 documented default-skip: never substitute a fake reader).
+emit_upload_prologue <- function(active_uploads) {
+  if (length(active_uploads) == 0L) return("")
+  lines <- character(0)
+  for (entry in active_uploads) {
+    if (!is.list(entry)) next
+    auto_name <- entry$auto_name
+    file_name <- entry$file_name
+    ext       <- entry$ext
+    if (!is.character(auto_name) || length(auto_name) != 1L || !nzchar(auto_name)) next
+    if (!is.character(file_name) || length(file_name) != 1L || !nzchar(file_name)) next
+    reader <- reader_fn_name_for_ext(ext)
+    if (is.na(reader)) next
+    lines <- c(
+      lines,
+      paste0(auto_name, " <- ", reader, "(\"", file_name, "\")")
+    )
+  }
+  if (length(lines) == 0L) return("")
+  paste0(paste(lines, collapse = "\n"), "\n")
+}
+
+# ADR 0023 §4 PLAN-05: derive the binding name for a panel-owned source
+# on the per-instance side. Mirrors `resolve_upload_source()`'s name
+# derivation but reads the shortcut text-input value at the host's
+# top-level (`session$rootScope()$input[[node$shortcut_id]]`) -- the
+# panel-owned source widget lives at top-level, not under the
+# per-instance namespace ("one widget, one owner"). Shortcut-less
+# sources derive via `entry$resolve_expr` exactly as the input-watching
+# path does. Returns NULL when no valid name can be derived; in that
+# case `bind_source_value()` still mirrors the resolved df into the
+# instance's per-source slot (so downstream consumers see the value),
+# only `state$eval_env` / `state$bound_names` are skipped.
+panel_owned_binding_name <- function(node, entry, session,
+                                     shortcut_value, df) {
+  has_shortcut <- !is.null(node$shortcut_id)
+  if (has_shortcut) {
+    nm <- shortcut_value
+    # INT-3 (ADR 0023 / GAP-3A): mirror the boot-race fallback in
+    # `try_bind_source_default()` -- when the shortcut textInput hasn't
+    # registered yet, fall back to `node$default` so the panel-owned
+    # binding name can be computed at boot from a `default_arg`-primed
+    # source (worked example #2). Without this, the host-scope consumer
+    # picker stays empty: `panel_sources[[sid]]()` returns the primed
+    # df, but the binder block in `ptr_bind_shared_consumer_uis()` sees
+    # `bname = NULL` and skips. The per-instance call sites in
+    # `ptr_setup_pipelines()` benefit too: they wrote NULL into
+    # `state$bound_names[[layer]]` previously, leaving the source-ready
+    # gate unsatisfied at boot for default-arg priming.
+    if (!is.character(nm) || length(nm) != 1L || !nzchar(nm)) {
+      nm <- node$default
+    }
+    if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
+        make.names(nm) == nm) nm else NULL
+  } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
+    sym <- tryCatch(entry$resolve_expr(df, node),
+                    error = function(e) NULL)
+    if (is.symbol(sym)) {
+      cand <- as.character(sym)
+      if (nzchar(cand) && make.names(cand) == cand) cand else NULL
+    } else NULL
+  } else NULL
 }
 
 # Boot-time fallback for source placeholders with a `default_arg`-validated
@@ -870,17 +1087,35 @@ bind_source_value <- function(state, key, name, df, slot) {
 # required for any source placeholder definition -- so third-party
 # `ptr_define_placeholder_source()` callers with a default_arg get this
 # fallback for free, regardless of whether they registered a
-# `companion_id_fn`.
-try_bind_source_default <- function(state, key, node, input, comp_id,
+# `shortcut = TRUE`.
+try_bind_source_default <- function(state, key, node, input, shortcut_input_id,
                                     entry, slot) {
-  if (is.null(node$default)) return(FALSE)
-  binding_name <- if (!is.null(comp_id)) {
-    nm <- input[[comp_id]]
-    # Boot race: the companion textInput is seeded with node$default by
-    # `ptr_builtin_upload_build_ui()`, but `input[[comp_id]]` is NULL until
+  # ADR 0024: the shortcut is a data-loading entry point. When the user
+  # has typed a non-empty name into the shortcut textInput (or spec=
+  # has dispatched one in via the source_companion role-label path), bind
+  # the named frame from state$eval_env even if `node$default` is NULL.
+  # Pre-ADR-0024 the helper returned FALSE here unconditionally; the
+  # widened guard preserves that behavior when no shortcut value is
+  # available (no default + blank shortcut = nothing to look up).
+  shortcut_value <- if (!is.null(shortcut_input_id)) input[[shortcut_input_id]] else NULL
+  has_shortcut_value <- is.character(shortcut_value) && length(shortcut_value) == 1L &&
+                    nzchar(shortcut_value)
+  if (is.null(node$default) && !has_shortcut_value) return(FALSE)
+  # ADR 0025 §3 / PLAN-02: `lookup_name` selects the object we GET from
+  # `state$eval_env`; `binding_name` selects the symbol we ASSIGN it
+  # under. Pre-PLAN-02 they were the same; post-PLAN-02 the shortcut-
+  # empty path binds under `node$auto_name` (the deterministic
+  # translate-/runtime-stamped symbol the substitute walker also reads)
+  # while still LOOKING UP under the user-supplied default-arg name.
+  lookup_name <- if (!is.null(shortcut_input_id)) {
+    nm <- shortcut_value
+    # Boot race: the shortcut textInput is seeded with node$default by
+    # `ptr_builtin_upload_build_ui()`, but `input[[shortcut_input_id]]` is NULL until
     # the widget registers. Fall back to `node$default` so the first
     # observer fire can bind immediately rather than waiting an extra
-    # invalidation.
+    # invalidation. (Post ADR 0024: when default is NULL, the
+    # has_shortcut_value guard above has already ensured shortcut_value is a
+    # usable string, so this fallback never fires in that branch.)
     if (!is.character(nm) || length(nm) != 1L || !nzchar(nm)) {
       nm <- node$default
     }
@@ -894,12 +1129,250 @@ try_bind_source_default <- function(state, key, node, input, comp_id,
       if (nzchar(cand) && make.names(cand) == cand) cand else NULL
     } else NULL
   } else NULL
-  if (is.null(binding_name)) return(FALSE)
+  if (is.null(lookup_name)) return(FALSE)
   df <- tryCatch(
-    get(binding_name, envir = state$eval_env, inherits = TRUE),
+    get(lookup_name, envir = state$eval_env, inherits = TRUE),
     error = function(e) NULL
   )
-  if (!is.data.frame(df)) return(FALSE)
+  # ADR 0024 §2: structured error surface. Pre-ADR-0024 both branches
+  # below returned FALSE silently; the shortcut-as-entry-point contract
+  # owes the user a reason when their typed name didn't bind.
+  if (is.null(df)) {
+    set_resolve_error(state, key,
+      sprintf("Object '%s' not found in environment.", lookup_name))
+    return(FALSE)
+  }
+  if (!is.data.frame(df)) {
+    set_resolve_error(state, key,
+      sprintf("Object '%s' is not a data frame.", lookup_name))
+    return(FALSE)
+  }
+  # ADR 0025 §3 / PLAN-02: when the shortcut surface is present and the
+  # textbox is empty (shortcut_value not a usable string), bind under
+  # `node$auto_name` so the substitute walker's empty-snapshot fallback
+  # (`as.name(node$auto_name)`) resolves at eval-time. With a non-empty
+  # textbox, `shortcut_value` wins (existing behaviour).
+  binding_name <- lookup_name
+  if (!is.null(shortcut_input_id) && !has_shortcut_value) {
+    auto <- node$auto_name
+    if (is.character(auto) && length(auto) == 1L && nzchar(auto) &&
+        make.names(auto) == auto) {
+      binding_name <- auto
+    }
+  }
+  bind_source_value(state, key, binding_name, df, slot)
+  TRUE
+}
+
+# ADR 0023 §3 — Single resolver for upload-source mechanics, two call
+# sites today (bare-data-source layer loop and pipeline-head source loop,
+# both in `ptr_setup_pipelines()`) and a third forthcoming via PLAN-04
+# (`ptr_setup_panel_sources()` at host scope). Encapsulates the full
+# resolve cycle for one source instance: read the upload `input_slot`,
+# dispatch `entry$resolve_data` for csv/tsv/rds/xlsx (and any future
+# format the registry entry handles), fall back to
+# `try_bind_source_default()` when no upload is present, derive the
+# binding name (shortcut text input value OR `entry$resolve_expr`),
+# and route everything through `bind_source_value()` /
+# `set_resolve_error()` so the ADR 0015 PLAN-02 assign-before-signal
+# invariant is preserved. Always returns `invisible(NULL)`.
+#
+# Args:
+#   input_slot      — the value of `input[[<namespaced upload id>]]`
+#                     (the fileInput's list, or NULL). Caller pre-reads
+#                     it so reactive deps are taken in the caller's
+#                     reactive context; the helper is Shiny-shape
+#                     agnostic for unit testing.
+#   shortcut_slot  — list(present = logical, value = character|NULL).
+#                     `present = FALSE` ⇒ source has no shortcut sibling
+#                     (e.g. a selectInput chooser); `present = TRUE` ⇒
+#                     source has a shortcut text input whose live value
+#                     is `value` (NULL during the boot race before the
+#                     widget registers, "" once registered & empty).
+#   node            — the source placeholder node (`ptr_ph_data_source`).
+#   entry           — the registry entry (`ptr_registry_lookup(...)`),
+#                     may be NULL for un-registered keywords.
+#   envir           — the eval environment (`state$eval_env`); reserved
+#                     for symmetry with the default-fallback lookup.
+#   state, key, slot — `bind_source_value()` / `set_resolve_error()`
+#                     destinations as in the inlined original.
+resolve_upload_source <- function(input_slot, shortcut_slot, node, entry,
+                                  envir, state, key, slot) {
+  file_info <- input_slot
+  has_shortcut <- isTRUE(shortcut_slot$present)
+  shortcut_value <- if (has_shortcut) shortcut_slot$value else NULL
+  if (is.null(file_info)) {
+    set_resolve_error(state, key, NULL)
+    # ADR 0025 §4 / PLAN-04: vacated upload binding — drop any prior
+    # prologue ledger entry for this key. Plan 05 widens the vacate
+    # below to cover the textbox-empty fall-through (eval_env binding +
+    # bound_names + the same active_uploads slot).
+    clear_active_upload(state, key)
+    # Source-default fallback: when no upload has been provided but the
+    # source carries a default-arg symbol resolvable in `envir`'s parent
+    # chain, bind it so the ADR 0015 §2.1 source-ready gate clears at
+    # boot. Falls through to `slot(NULL)` when the source has no default
+    # or the default doesn't resolve.
+    if (try_bind_source_default_resolved(state, key, node, has_shortcut,
+                                         shortcut_value, entry, slot)) {
+      return(invisible(NULL))
+    }
+    # ADR 0025 §7 / PLAN-05 (A1): vacate-on-empty. We reached the
+    # `slot(NULL)` fall-through because file_info is NULL AND the
+    # default-arg fallback could not bind. Plan-05 vacate fires ONLY in
+    # the literal "empty textbox" case (file gone + textbox cleared to
+    # ""), NOT when the user typed a name that failed to resolve --
+    # otherwise a typo would clobber the prior-good upload binding and
+    # blank every downstream consumer picker (regression observed in
+    # `test-shared-source-panel-multi-instance.R` where typing a
+    # mistyped object name after an auto-name upload bind dropped the
+    # picker to empty). The empty-textbox condition is:
+    #   - source has a shortcut surface (`has_shortcut == TRUE`) AND
+    #   - the shortcut value is NULL (boot-time, no widget binding yet)
+    #     or a zero-length string (mutex auto-cleared or user-cleared).
+    # Sources with no shortcut surface (selectInput choosers etc.) get
+    # vacated when file_info is NULL, since they have no other input
+    # channel that could legitimately hold a "bad" value.
+    shortcut_is_empty <- !has_shortcut ||
+      is.null(shortcut_value) ||
+      (is.character(shortcut_value) && length(shortcut_value) == 1L &&
+       !nzchar(shortcut_value))
+    if (shortcut_is_empty) vacate_source_binding(state, key)
+    slot(NULL)
+    return(invisible(NULL))
+  }
+  df <- if (!is.null(entry) && !is.null(entry$resolve_data)) {
+    tryCatch(entry$resolve_data(file_info, node),
+             error = function(e) {
+               set_resolve_error(state, key, conditionMessage(e))
+               NULL
+             })
+  } else NULL
+  if (!is.null(df)) set_resolve_error(state, key, NULL)
+  # Bind the resolved frame under the same symbol that
+  # `substitute_walk.ptr_ph_data_source()` will produce.
+  # - shortcut-driven sources (upload): name = the shortcut text
+  #   input; invalid names yield NULL (substitute walk rejects loudly).
+  # - shortcut-less sources (e.g. selectInput chooser): name comes
+  #   from `entry$resolve_expr(value, node)` -- must be a symbol whose
+  #   character form is a valid R name.
+  binding_name <- if (has_shortcut) {
+    nm <- shortcut_value
+    if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
+        make.names(nm) == nm) {
+      nm
+    } else {
+      # ADR 0025 §3 / PLAN-02: when the shortcut textbox is empty (or
+      # not a syntactic R name), fall back to the deterministic
+      # `node$auto_name` so the upload binds to a stable symbol under
+      # the coordinator eval_env. The substitute walker reads the same
+      # field via its empty-snapshot fallback, keeping eval-time symbol
+      # resolution in lockstep with bind-time assignment.
+      auto <- node$auto_name
+      if (is.character(auto) && length(auto) == 1L && nzchar(auto) &&
+          make.names(auto) == auto) auto else NULL
+    }
+  } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
+    sym <- tryCatch(entry$resolve_expr(file_info, node),
+                    error = function(e) NULL)
+    if (is.symbol(sym)) {
+      cand <- as.character(sym)
+      if (nzchar(cand) && make.names(cand) == cand) cand else NULL
+    } else NULL
+  } else NULL
+  # ADR 0015 PLAN-02 / Option E: enforces assign-before-signal so a
+  # consumer `req(state$bound_names[[key]]())` cannot fire before
+  # `state$eval_env` holds `binding_name`.
+  bind_source_value(state, key, binding_name, df, slot)
+  # ADR 0025 §4 / PLAN-04: register the upload entry on
+  # `state$active_uploads` so the code-panel prologue emits a
+  # `<auto_name> <- read.<ext>(...)` line for this source. Built-in
+  # `ppUpload` only (the helper short-circuits on other keywords). Only
+  # registers when the bind succeeded (df non-NULL and a binding_name
+  # was usable); otherwise clears any stale entry.
+  if (!is.null(df) && !is.null(binding_name)) {
+    register_active_upload(state, key, node, file_info)
+  } else {
+    clear_active_upload(state, key)
+  }
+  invisible(NULL)
+}
+
+# Internal sibling of `resolve_upload_source()`: same contract as
+# `try_bind_source_default()` but takes the *resolved* shortcut
+# presence flag + value the helper already read from
+# `input[[shortcut_input_id]]`, instead of re-reading
+# `input[[shortcut_input_id]]`. Keeps `resolve_upload_source()`
+# Shiny-input-shape agnostic so unit tests can drive it with plain R
+# values.
+try_bind_source_default_resolved <- function(state, key, node, has_shortcut,
+                                             shortcut_value, entry, slot) {
+  # ADR 0024: the shortcut is a data-loading entry point. See the
+  # parallel comment in `try_bind_source_default()` above — both helpers
+  # must stay in lockstep (the `_resolved` variant is called by
+  # `resolve_upload_source()` for pipeline-head + panel scopes; the
+  # unresolved one by the bare-data-source-layer loop).
+  has_shortcut_value <- has_shortcut &&
+                    is.character(shortcut_value) && length(shortcut_value) == 1L &&
+                    nzchar(shortcut_value)
+  # ADR 0025 §7 / PLAN-05 (A1): inner vacates live in the caller
+  # (`resolve_upload_source()`'s `slot(NULL)` fall-through) only.
+  # Vacating from here too would clobber a still-good prior binding
+  # when the user types a name that fails to resolve (e.g. typo) --
+  # observed regression in `test-shared-source-panel-multi-instance.R`
+  # where typing "penguins" after an auto-name bind dropped the picker
+  # to empty even though the upload's data was still resolvable.
+  if (is.null(node$default) && !has_shortcut_value) return(FALSE)
+  # ADR 0025 §3 / PLAN-02: see the parallel comment in
+  # `try_bind_source_default()` — `lookup_name` chooses what we GET from
+  # `state$eval_env`; `binding_name` chooses the symbol we ASSIGN under,
+  # which on the shortcut-empty path is `node$auto_name`.
+  lookup_name <- if (has_shortcut) {
+    nm <- shortcut_value
+    # Boot race: the shortcut textInput is seeded with `node$default`
+    # by `ptr_builtin_upload_build_ui()`, but `input[[shortcut_input_id]]` is
+    # NULL until the widget registers. Fall back to `node$default` so
+    # the first observer fire can bind immediately rather than waiting
+    # an extra invalidation. (Post ADR 0024: when default is NULL, the
+    # has_shortcut_value guard above has already ensured shortcut_value is a
+    # usable string, so this fallback never fires in that branch.)
+    if (!is.character(nm) || length(nm) != 1L || !nzchar(nm)) {
+      nm <- node$default
+    }
+    if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
+        make.names(nm) == nm) nm else NULL
+  } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
+    sym <- tryCatch(entry$resolve_expr(node$default, node),
+                    error = function(e) NULL)
+    if (is.symbol(sym)) {
+      cand <- as.character(sym)
+      if (nzchar(cand) && make.names(cand) == cand) cand else NULL
+    } else NULL
+  } else NULL
+  if (is.null(lookup_name)) return(FALSE)
+  df <- tryCatch(
+    get(lookup_name, envir = state$eval_env, inherits = TRUE),
+    error = function(e) NULL
+  )
+  # ADR 0024 §2: structured error surface — mirrors try_bind_source_default().
+  if (is.null(df)) {
+    set_resolve_error(state, key,
+      sprintf("Object '%s' not found in environment.", lookup_name))
+    return(FALSE)
+  }
+  if (!is.data.frame(df)) {
+    set_resolve_error(state, key,
+      sprintf("Object '%s' is not a data frame.", lookup_name))
+    return(FALSE)
+  }
+  binding_name <- lookup_name
+  if (has_shortcut && !has_shortcut_value) {
+    auto <- node$auto_name
+    if (is.character(auto) && length(auto) == 1L && nzchar(auto) &&
+        make.names(auto) == auto) {
+      binding_name <- auto
+    }
+  }
   bind_source_value(state, key, binding_name, df, slot)
   TRUE
 }
@@ -920,72 +1393,71 @@ ptr_setup_pipelines <- function(state, input, output, session) {
       ln <- lyr$name
       src <- lyr$data_arg
       src_id <- ns(src$id)
-      comp_id <- if (!is.null(src$companion_id)) ns(src$companion_id) else NULL
+      shortcut_input_id <- if (!is.null(src$shortcut_id)) ns(src$shortcut_id) else NULL
       entry <- ptr_registry_lookup(src$keyword)
       slot <- state$resolved_data[[ln]]
 
+      # ADR 0023 §4 PLAN-05: panel-owned source substitution. When this
+      # source's canonical id (e.g. `shared_ds`) is owned by the panel
+      # (host-level `panel_sources` reactive populated by
+      # `ptr_setup_panel_sources()`), redirect the per-instance binder to
+      # read the resolved df from the panel reactive instead of watching
+      # the per-instance input slot (which has no widget --
+      # "one widget, one owner"). Skip wiring the input-watching observer
+      # for this source -- otherwise we would watch a permanently-NULL
+      # slot and cause spurious invalidations (ADR §4 note).
+      panel_owned <- !is.null(src$id) &&
+        src$id %in% names(state$panel_sources %||% list())
+      if (panel_owned) {
+        sid <- src$id
+        panel_reactive <- state$panel_sources[[sid]]
+        shiny::observe({
+          df <- panel_reactive()
+          if (is.null(df)) { slot(NULL); return(invisible(NULL)) }
+          binding_name <- panel_owned_binding_name(
+            src, entry, session,
+            shortcut_value = if (!is.null(src$shortcut_id)) {
+              session$rootScope()$input[[src$shortcut_id]]
+            } else NULL,
+            df = df
+          )
+          bind_source_value(state, ln, binding_name, df, slot)
+        })
+        return(invisible())
+      }
+
+      # ADR 0025 §7 / PLAN-05 A2: 400ms debounce on the shortcut textbox
+      # so a keystroke burst (m -> mt -> mtc -> ... -> mtcars) resolves
+      # exactly once, not six times with five transient "not found" errors.
+      shortcut_r <- if (!is.null(shortcut_input_id)) {
+        shiny::debounce(shiny::reactive(input[[shortcut_input_id]]), 400L)
+      } else NULL
       shiny::observe({
-        file_info <- input[[src_id]]
-        if (!is.null(comp_id)) input[[comp_id]]  # take dep
-        if (is.null(file_info)) {
-          set_resolve_error(state, ln, NULL)
-          # Source-default fallback: when no upload has been provided but
-          # the source carries a default-arg symbol resolvable in
-          # `state$eval_env`'s parent chain, bind it so the ADR 0015 §2.1
-          # source-ready gate clears at boot. Falls through to `slot(NULL)`
-          # when the source has no default or the default doesn't resolve.
-          if (try_bind_source_default(state, ln, src, input, comp_id,
-                                      entry, slot)) {
-            return(invisible())
-          }
-          slot(NULL)
-          return(invisible())
-        }
-        df <- if (!is.null(entry) && !is.null(entry$resolve_data)) {
-          tryCatch(entry$resolve_data(file_info, src),
-                   error = function(e) {
-                     set_resolve_error(state, ln, conditionMessage(e))
-                     NULL
-                   })
-        } else NULL
-        if (!is.null(df)) set_resolve_error(state, ln, NULL)
-        # ADR 0012 §3.7 / PLAN-04: mirror the pipeline-head source observer
-        # below — bind the resolved frame under the same symbol that
-        # `substitute_walk.ptr_ph_data_source()` will produce. Now that the
-        # per-layer fast-path in `runtime_upstream_data` is gone, every
-        # in-aes consumer of a bare-data layer routes through
-        # `ptr_resolve_upstream(c$upstream, ...)`, which substitutes the
-        # source into a symbol and eval()s it in `state$eval_env`. Companion-driven sources (e.g.
-        # `ppUpload`) take the companion text input as the binding name;
-        # companion-less sources derive a symbol via `resolve_expr`.
-        # Invalid names yield NULL → no eval_env assign (`inject_resolved_data()`
-        # plot rendering still works via the cached `state$resolved_data`
-        # slot below).
-        binding_name <- if (!is.null(comp_id)) {
-          nm <- input[[comp_id]]
-          if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
-              make.names(nm) == nm) nm else NULL
-        } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
-          sym <- tryCatch(entry$resolve_expr(file_info, src),
-                          error = function(e) NULL)
-          if (is.symbol(sym)) {
-            cand <- as.character(sym)
-            if (nzchar(cand) && make.names(cand) == cand) cand else NULL
-          } else NULL
-        } else NULL
-        # ADR 0015 PLAN-02 / Option E: enforces assign-before-signal so a
-        # consumer `req(state$bound_names[[ln]]())` cannot fire before
-        # `state$eval_env` holds `binding_name`.
-        bind_source_value(state, ln, binding_name, df, slot)
+        resolve_upload_source(
+          input_slot     = input[[src_id]],
+          shortcut_slot = if (!is.null(shortcut_input_id)) {
+            list(present = TRUE, value = shortcut_r())
+          } else {
+            list(present = FALSE, value = NULL)
+          },
+          node           = src,
+          entry          = entry,
+          envir          = state$eval_env,
+          state          = state,
+          key            = ln,
+          slot           = slot
+        )
       })
 
-      # Auto-fill the dataset-name companion from the uploaded filename
-      # when the user left it blank. Without a name, `substitute_walk`
-      # on the source placeholder yields `ptr_missing()`, so the code
-      # panel drops the `data = ...` argument entirely (the plot itself
-      # still renders, since `inject_resolved_data()` patches the eval
-      # tree). Never clobber a name the user typed.
-      ptr_bind_source_autoname(src_id, comp_id, input, session)
+      # ADR 0025 §2 (Q3-B): mutex between fileInput and shortcut textInput
+      # -- typing one auto-clears the other so the concurrently-active
+      # state is structurally impossible. The legacy filename-derived
+      # textbox auto-fill is retired; the binding name comes from the
+      # auto-name path (paintr-ids.R). Pass `shortcut_r` so the
+      # text-side mutex gates on the debounced reactive (see the
+      # ADR 0025 §7 A2 race-fix comment in `ptr_bind_source_mutex`).
+      ptr_bind_source_mutex(src_id, shortcut_input_id, input, session,
+                            shortcut_r = shortcut_r)
     })
   }
 
@@ -1004,82 +1476,113 @@ ptr_setup_pipelines <- function(state, input, output, session) {
       node <- src
       sid <- node$id
       src_id <- ns(sid)
-      comp_id <- if (!is.null(node$companion_id)) ns(node$companion_id) else NULL
+      shortcut_input_id <- if (!is.null(node$shortcut_id)) ns(node$shortcut_id) else NULL
       entry <- ptr_registry_lookup(node$keyword)
       slot <- state$resolved_sources[[sid]]
 
+      # ADR 0023 §4 PLAN-05: panel-owned source substitution (pipeline-head
+      # variant). Symmetric with the bare-data-source-layer branch above:
+      # when this source's canonical id is owned by the panel, read the
+      # resolved df from the panel reactive and skip the input-watching
+      # observer (no per-instance widget exists for this id).
+      if (sid %in% names(state$panel_sources %||% list())) {
+        panel_reactive <- state$panel_sources[[sid]]
+        shiny::observe({
+          df <- panel_reactive()
+          if (is.null(df)) { slot(NULL); return(invisible(NULL)) }
+          binding_name <- panel_owned_binding_name(
+            node, entry, session,
+            shortcut_value = if (!is.null(node$shortcut_id)) {
+              session$rootScope()$input[[node$shortcut_id]]
+            } else NULL,
+            df = df
+          )
+          bind_source_value(state, sid, binding_name, df, slot)
+        })
+        return(invisible())
+      }
+
+      # ADR 0025 §7 / PLAN-05 A2: see the parallel block in the bare-
+      # data-source-layer branch above. 400ms debounce on shortcut.
+      shortcut_r <- if (!is.null(shortcut_input_id)) {
+        shiny::debounce(shiny::reactive(input[[shortcut_input_id]]), 400L)
+      } else NULL
       shiny::observe({
-        file_info <- input[[src_id]]
-        if (!is.null(comp_id)) input[[comp_id]]  # take dep so default-bind re-derives on companion edits
-        if (is.null(file_info)) {
-          set_resolve_error(state, sid, NULL)
-          # Source-default fallback: see `try_bind_source_default()` and the
-          # mirror block in the bare-data observer above.
-          if (try_bind_source_default(state, sid, node, input, comp_id,
-                                      entry, slot)) {
-            return(invisible())
-          }
-          slot(NULL)
-          return(invisible())
-        }
-        df <- if (!is.null(entry) && !is.null(entry$resolve_data)) {
-          tryCatch(entry$resolve_data(file_info, node),
-                   error = function(e) {
-                     set_resolve_error(state, sid, conditionMessage(e))
-                     NULL
-                   })
-        } else NULL
-        if (!is.null(df)) set_resolve_error(state, sid, NULL)
-        # Bind the resolved frame under the same symbol that
-        # `substitute_walk.ptr_ph_data_source()` will produce, so the
-        # pipeline `<name> |> ...` is evaluable.
-        # - companion-driven sources (upload): name = the companion text input;
-        #   invalid names are left for the substitute walk to reject loudly.
-        # - companion-less sources (e.g. selectInput chooser): name comes from
-        #   `entry$resolve_expr(value, node)` -- has to be a symbol whose
-        #   character form is a valid R name.
-        binding_name <- if (!is.null(comp_id)) {
-          nm <- input[[comp_id]]
-          if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
-              make.names(nm) == nm) nm else NULL
-        } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
-          sym <- tryCatch(entry$resolve_expr(file_info, node),
-                          error = function(e) NULL)
-          if (is.symbol(sym)) {
-            cand <- as.character(sym)
-            if (nzchar(cand) && make.names(cand) == cand) cand else NULL
-          } else NULL
-        } else NULL
-        # ADR 0015 PLAN-02 / Option E: same ordering invariant as the
-        # bare-data loop above — see `bind_source_value()`.
-        bind_source_value(state, sid, binding_name, df, slot)
+        resolve_upload_source(
+          input_slot     = input[[src_id]],
+          shortcut_slot = if (!is.null(shortcut_input_id)) {
+            list(present = TRUE, value = shortcut_r())
+          } else {
+            list(present = FALSE, value = NULL)
+          },
+          node           = node,
+          entry          = entry,
+          envir          = state$eval_env,
+          state          = state,
+          key            = sid,
+          slot           = slot
+        )
       })
 
-      ptr_bind_source_autoname(src_id, comp_id, input, session)
+      ptr_bind_source_mutex(src_id, shortcut_input_id, input, session,
+                            shortcut_r = shortcut_r)
     })
   }
   invisible(state)
 }
 
-# Auto-fill a data source's dataset-name companion input from the uploaded
-# filename, but only when the user left it blank (`ptr_upload_autoname()`
-# returns NULL otherwise -- never clobbering a name the user typed). Shared
-# by the bare-layer and pipeline-head source wiring in
-# `ptr_setup_pipelines()`. `src_id` / `comp_id` are already namespaced.
-ptr_bind_source_autoname <- function(src_id, comp_id, input, session) {
-  if (is.null(comp_id)) return(invisible())
+# UI mutex between a data source's fileInput and its shortcut textInput
+# (ADR 0025 §2 / Q3-B). The two affordances feed the same source slot, so
+# concurrent file+typed-text is forbidden by construction: filling one
+# side auto-clears the other. The legacy filename-derived textbox
+# auto-fill is retired -- the shortcut textbox is now reserved for
+# env-shortcut typing and the upload's binding name comes from the
+# auto-name path (paintr-ids.R). Both observers gate on `ignoreInit = TRUE` so
+# the boot-time seed write (`ppUpload(penguins)` -> shortcut = "penguins")
+# does NOT count as a first interaction and does NOT shiny::reset() the
+# already-empty fileInput. Both run in the per-instance session scope so
+# multi-instance / multi-coordinator apps stay isolated. Shared by the
+# bare-layer and pipeline-head source wiring in `ptr_setup_pipelines()`.
+# `src_id` / `shortcut_input_id` are already namespaced.
+ptr_bind_source_mutex <- function(src_id, shortcut_input_id, input, session,
+                                  shortcut_r = NULL) {
+  if (is.null(shortcut_input_id)) return(invisible())
+  # File picked -> wipe the sibling textbox.
   shiny::observeEvent(input[[src_id]], {
-    fi <- input[[src_id]]
-    auto <- ptr_upload_autoname(
-      input[[comp_id]],
-      if (!is.null(fi)) fi$name else NULL
-    )
-    if (!is.null(auto)) {
-      shiny::updateTextInput(session, comp_id, value = auto)
+    shiny::updateTextInput(session, shortcut_input_id, value = "")
+  }, ignoreInit = TRUE)
+  # Text typed (non-empty) -> reset the sibling fileInput. shiny has no
+  # built-in reset for fileInput (shinyjs::reset() is the canonical tool
+  # but shinyjs is not a dep); the package ships a tiny custom JS
+  # handler `ptr_reset_file_input` in inst/www/ggpaintr-layer.js that
+  # wipes the DOM file pill and writes NULL into the Shiny input slot.
+  #
+  # ADR 0025 §7 A2 race-fix: when `shortcut_r` (the same 400ms-debounced
+  # reactive that drives `resolve_upload_source()` in `ptr_setup_pipelines`)
+  # is supplied, gate the file-reset on it instead of the raw text input.
+  # Both observers then fire on the same debounced tick, so the bind sees
+  # `file=FILE, shortcut="<name>"` in the SAME flush -- which lets
+  # `resolve_upload_source` bind the uploaded df under `<name>` before
+  # the JS file-reset round-trip blanks `input[[src_id]]`. Without this,
+  # the mutex fires on the raw keystroke and the file is already NULL by
+  # the time the debounced bind observer runs, dropping into
+  # `try_bind_source_default_resolved()` which `inherits=TRUE` walks the
+  # parent chain and binds a same-named namespace export (e.g.
+  # `palmerpenguins::penguins`) instead of the uploaded df. Verified
+  # against `test-shared-source-panel-multi-instance.R` worked-example-#4
+  # (single-instance `ppUpload(shared='ds') |> ggplot(...)`).
+  text_event <- if (!is.null(shortcut_r)) {
+    shiny::reactive(shortcut_r())
+  } else {
+    shiny::reactive(input[[shortcut_input_id]])
+  }
+  shiny::observeEvent(text_event(), {
+    if (isTRUE(nzchar(text_event() %||% ""))) {
+      session$sendCustomMessage("ptr_reset_file_input", list(id = src_id))
     }
-  })
+  }, ignoreInit = TRUE)
+  invisible()
 }
-
 
 # Wire one debounced reactive per `ptr_ph_value` (text/num/expr) input. The
 # debounce window is read dynamically from `state$producer_debounce_ms`, so
@@ -1271,6 +1774,42 @@ ptr_setup_runtime <- function(state, input, output, session) {
         for (i in seq_len(nrow(spec))) {
           raw_id <- spec$input_id[i]
           snapshot[[raw_id]] <- input[[ns(raw_id)]]
+          # ADR 0025 §6 / PLAN-06: spec round-trip fallback. For
+          # source-companion rows (the shortcut textInput sibling of a
+          # source placeholder), an empty textbox + a non-NULL
+          # `state$bound_names[[key]]()` means the user uploaded a file
+          # whose auto-name (Plan 02) is the live identity of that
+          # source. Overwrite the snapshot with the bound name so the
+          # spec dump records the auto-name. A boot-2 with `spec=` then
+          # seeds the textbox with this name; the consumer's
+          # `<auto-name> <- read.csv("...")` prologue (Plan 04) binds the
+          # frame under it; the env-shortcut resolves -> reproduces the
+          # rendered plot. Textbox wins when non-empty (no override).
+          if (identical(spec$role[i], "source_companion")) {
+            val <- snapshot[[raw_id]]
+            if (is.null(val) || (is.character(val) && length(val) == 1L &&
+                                 !nzchar(val))) {
+              # `state$bound_names` keys vary by source kind: pipeline-
+              # head sources publish under `node$id` (= spec$source_id);
+              # bare-data-source layers (`ppUpload |> ggplot(...)`)
+              # publish under `layer_name`. Try source_id first, then
+              # layer_name. Both come from the same spec row.
+              src_key   <- spec$source_id[i]
+              layer_key <- spec$layer_name[i]
+              bound <- NULL
+              if (!is.na(src_key) && nzchar(src_key) &&
+                  src_key %in% names(state$bound_names)) {
+                bound <- state$bound_names[[src_key]]()
+              }
+              if (is.null(bound) && !is.na(layer_key) && nzchar(layer_key) &&
+                  layer_key %in% names(state$bound_names)) {
+                bound <- state$bound_names[[layer_key]]()
+              }
+              if (!is.null(bound)) {
+                snapshot[[raw_id]] <- bound
+              }
+            }
+          }
         }
       }
 
@@ -1662,11 +2201,11 @@ ptr_setup_value_uis <- function(state, input, output, session) {
 # (R/paintr-build-ui.R pre-reshape) -- copy resolution, ppUpload's
 # file_copy/name_copy injection, `named_args` pass-through, formals
 # guard -- but rendered inside a renderUI so the seed-precedence path
-# applies. The hook still emits both the fileInput AND the companion
-# textInput as a tagList; the companion's seed (role "source_companion")
-# is set by `updateTextInput` from the boot dispatch (the companion
+# applies. The hook still emits both the fileInput AND the shortcut
+# textInput as a tagList; the shortcut's seed (role "source_companion")
+# is set by `updateTextInput` from the boot dispatch (the shortcut
 # textInput sits inside this same renderUI but is addressed by its own
-# `node$companion_id`, which Shiny will (re-)bind on this renderUI's
+# `node$shortcut_id`, which Shiny will (re-)bind on this renderUI's
 # first fire just as for the consumer pattern).
 ptr_setup_source_uis <- function(state, input, output, session) {
   tree <- shiny::isolate(state$tree())
@@ -1677,7 +2216,14 @@ ptr_setup_source_uis <- function(state, input, output, session) {
   sources <- find_nodes(tree, is_ptr_ph_data_source)
   for (s in sources) {
     if (is.null(s$id)) next
-    if (!is.null(s$shared)) next
+    # ADR 0023 §7 / PLAN-06: partition-aware skip. Panel-owned source
+    # ids (populated on `state$panel_sources` by the host's
+    # `ptr_setup_panel_sources()`, Plan 04) are rendered once at host
+    # scope; the per-instance binder must not also write to those
+    # output slots. Formula-local shared ids and single-instance configs
+    # (where `state$panel_sources` is an empty list) fall through and
+    # render per-instance as before.
+    if (s$id %in% names(state$panel_sources %||% list())) next
     local({
       node <- s
       raw_id <- node$id
@@ -1690,8 +2236,8 @@ ptr_setup_source_uis <- function(state, input, output, session) {
 
         rendered_node <- node
         rendered_node$id <- ui_ns(node$id)
-        if (!is.null(node$companion_id)) {
-          rendered_node$companion_id <- ui_ns(node$companion_id)
+        if (!is.null(node$shortcut_id)) {
+          rendered_node$shortcut_id <- ui_ns(node$shortcut_id)
         }
         copy <- ptr_resolve_ui_text(
           "control",
@@ -1785,10 +2331,36 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
       #   - global: Update Plot click invalidates every consumer.
       upstream_consumer_ids <- find_consumer_ids_in_upstream(node$upstream)
       upstream_producer_ids <- find_producer_ids_in_upstream(node$upstream)
-      upstream_source_companion_ids <-
+      upstream_source_shortcut_ids <-
         find_source_companion_ids_in_upstream(node$upstream)
       upstream_source_self_ids <-
         find_source_self_ids_in_upstream(node$upstream)
+      # ADR 0023 §4 FINDING #3 fix: when an upstream source is panel-owned
+      # (`state$panel_sources[[<sid>]]` populated), its shortcut textInput
+      # and its source widget live at HOST scope -- there is no per-instance
+      # widget under `input[[ns(<id>)]]` to read from. Pre-compute which
+      # upstream shortcut/self ids belong to a panel-owned source so the
+      # snapshot loops below can read those values from
+      # `session$rootScope()$input[[<bare-id>]]` instead. Without this,
+      # `substitute_walk.ptr_ph_data_source` sees a NULL snapshot entry and
+      # short-circuits to `ptr_missing()` -> `ptr_resolve_upstream()`
+      # returns NULL -> non-shared `ppVar` pickers downstream of a
+      # panel-owned `ppUpload` boot empty (shared-section consumers go
+      # through `ptr_bind_shared_consumer_uis()` and are not affected).
+      upstream_panel_shortcut_ids <- character()
+      upstream_panel_self_ids <- character()
+      for (s in find_nodes(node$upstream, is_ptr_ph_data_source)) {
+        is_panel <- !is.null(s$id) &&
+          s$id %in% names(state$panel_sources %||% list())
+        if (!is_panel) next
+        if (!is.null(s$shortcut_id)) {
+          upstream_panel_shortcut_ids <-
+            c(upstream_panel_shortcut_ids, s$shortcut_id)
+        }
+        if (!is.null(s$id)) {
+          upstream_panel_self_ids <- c(upstream_panel_self_ids, s$id)
+        }
+      }
       # ADR 0015 §2.1: pick the source-ready reactive this consumer must
       # wait on, computed once per consumer. Bare-data layers publish their
       # frame into `state$resolved_data` under `layer_name`; pipeline-head
@@ -1796,8 +2368,8 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
       # placeholder id. Consumers with no source-headed upstream get no
       # guard and pre-warm at boot (today's no-source-upstream behavior).
       # NOTE: walk the upstream for ALL source-placeholder ids regardless
-      # of companion_id (find_source_self_ids_in_upstream excludes nodes
-      # with companions, which is the common ppUpload-with-name case).
+      # of shortcut_id (find_source_self_ids_in_upstream excludes nodes
+      # with shortcuts, which is the common ppUpload-with-name case).
       source_ready <- if (!is.null(node$layer_name) &&
                           node$layer_name %in% names(state$resolved_data)) {
         list(kind = "data", id = node$layer_name)
@@ -1819,7 +2391,7 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
         # Upstream `upload`-style sources: their resolved frame is bound
         # into `state$eval_env` by `ptr_setup_pipelines()`, which also
         # bumps `state$resolved_sources` -- depend on it so we re-resolve
-        # once a file lands (the dataset-name companion is read below).
+        # once a file lands (the dataset-name shortcut input is read below).
         for (rv in state$resolved_sources) rv()
         for (cid in upstream_consumer_ids) input[[ns(cid)]]
         producer_values <- list()
@@ -1856,12 +2428,20 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
           val <- input[[ns(cid)]]
           if (!is.null(val)) snapshot[[cid]] <- val
         }
-        for (cmp in upstream_source_companion_ids) {
-          val <- input[[ns(cmp)]]
+        for (cmp in upstream_source_shortcut_ids) {
+          val <- if (cmp %in% upstream_panel_shortcut_ids) {
+            session$rootScope()$input[[cmp]]
+          } else {
+            input[[ns(cmp)]]
+          }
           if (!is.null(val)) snapshot[[cmp]] <- val
         }
         for (sid in upstream_source_self_ids) {
-          val <- input[[ns(sid)]]
+          val <- if (sid %in% upstream_panel_self_ids) {
+            session$rootScope()$input[[sid]]
+          } else {
+            input[[ns(sid)]]
+          }
           if (!is.null(val)) snapshot[[sid]] <- val
         }
         # ADR 0015 PLAN-02 / Option E: `state$upstream_cache` is safe
@@ -1927,7 +2507,24 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
           ns_fn = ui_ns,
           extra = extra
         )
-        has_rendered <<- TRUE
+        # Only flip `has_rendered` after a populated render. With a source-
+        # headed upstream (`ppUpload(df_main) |> ...`) the first
+        # `entry_reactive()` fire can return NULL because
+        # `substitute_walk.ptr_ph_data_source()` reads the shortcut value
+        # from `ctx$snapshot[[node$shortcut_id]]`, which is fed from
+        # `input[[ns(cmp)]]` and is briefly NULL post-boot before the
+        # client reports the widget's `value=` back. Flipping `has_rendered`
+        # on that empty fire used to lock the next valid fire into the
+        # `seed %||% current %||% character(0)` branch -- `extra$selected =
+        # character(0)` suppressed `invoke_build_ui()`'s `node$default`
+        # injection (paintr-build-ui.R:842-855), so `ppVar('hp')`-style
+        # defaults never seeded the picker once the upstream was a
+        # `ppUpload(default = df)` source. Gating the flip on
+        # `length(cols) > 0L` keeps the first-render flag deferred until
+        # cols are actually present; the explicit-deselect semantics is
+        # preserved by the `character(0)` tail above (after a valid render
+        # the user is the source of truth for "nothing selected").
+        if (length(cols) > 0L) has_rendered <<- TRUE
         result
       })
       # ADR 0015 §2.1: bind every consumer picker eagerly so it does not
@@ -1960,7 +2557,9 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
                                             expr_check = TRUE,
                                             errors_rv = NULL,
                                             state = NULL,
-                                            ui_ns = ns) {
+                                            panel_sources = list(),
+                                            ui_ns = ns,
+                                            spec_seed = NULL) {
   # `ns` namespaces server-side `output[[]]` / `input[[]]` slots; `ui_ns`
   # namespaces the `inputId` of the tag this renderUI emits. They differ
   # under `moduleServer`: there `output`/`input` are auto-namespaced (so
@@ -1993,15 +2592,32 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
       output_id <- ns(consumer_output_id(rep_node$id))
       # Widget-seeding contract — see ?ptr_define_placeholder_consumer.
       has_rendered <- FALSE
-      # Upload-companion ids in our resolved upstream. When `state` is
+      # Upload-shortcut ids in our resolved upstream. When `state` is
       # provided, the renderUI below builds a snapshot from these so
       # `ptr_resolve_upstream` can substitute a data-source placeholder
       # (e.g. `upload`) with its uploaded dataset symbol at runtime.
-      upstream_source_companion_ids <- if (!is.null(resolution$value)) {
+      upstream_source_shortcut_ids <- if (!is.null(resolution$value)) {
         find_source_companion_ids_in_upstream(resolution$value)
       } else character()
       upstream_source_self_ids <- if (!is.null(resolution$value)) {
         find_source_self_ids_in_upstream(resolution$value)
+      } else character()
+      # ADR 0023 / PLAN-07: subset of `upstream_source_shortcut_ids`
+      # belonging to a panel-owned source (i.e. paired with an `id` in
+      # `names(panel_sources)`). The snap loop reads these at the
+      # top-level (un-namespaced) input id to match the panel's global
+      # id convention; the per-instance loop in `ptr_setup_pipelines()`
+      # has no widget for them.
+      panel_sources_shortcut_ids <- if (!is.null(resolution$value) &&
+                                          length(panel_sources) > 0L) {
+        ids <- character()
+        ptr_walk(resolution$value, function(n) {
+          if (is_ptr_ph_data_source(n) && !is.null(n$shortcut_id) &&
+              !is.null(n$id) && n$id %in% names(panel_sources)) {
+            ids[[length(ids) + 1L]] <<- n$shortcut_id
+          }
+        })
+        unique(ids)
       } else character()
       # ADR 0015 PLAN-02 / Option E: keys this shared consumer must wait
       # on before `ptr_resolve_upstream` runs. Two kinds:
@@ -2034,13 +2650,101 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
         # When `state` is wired, prefer the runtime env (where
         # `ptr_setup_pipelines()` binds resolved upload data) and react
         # to data-source resolution so the picker refreshes once a file
-        # lands. Snapshot is built from upload-companion input values so
+        # lands. Snapshot is built from upload-shortcut input values so
         # `ptr_substitute` can resolve a data-source placeholder to its
         # dataset symbol; without these, an `upload`-headed upstream
         # would prune away and `ptr_resolve_upstream` would return NULL
         # even though the data is sitting in `state$eval_env`.
         snap <- list()
         use_env <- eval_env
+        # ADR 0023 / PLAN-07: when the consumer's resolved upstream
+        # source id sits in `names(panel_sources)`, take a reactive
+        # dep on `panel_sources[[sid]]()` so this renderUI re-fires
+        # when the panel-owned source resolves (NULL -> df) or
+        # transitions to a new frame. At host scope (`state = NULL`)
+        # this is the sole signal; at per-instance scope the
+        # `state$resolved_sources` / `state$resolved_data` deps below
+        # also fire because PLAN-05 mirrors the panel reactive into
+        # the per-instance slot, but depending directly here shortens
+        # the chain and makes the dep explicit when no `state` is
+        # threaded. Read as a separate line near the top of the body
+        # (NOT inside the `selected_arg` ternary) so the
+        # `has_rendered` closure-flag region remains verbatim.
+        # `upstream_source_self_ids` excludes shortcut-driven sources
+        # (e.g. `ppUpload`, whose `node$id` is paired with a
+        # `shortcut_id` like `<id>_shortcut`); walk `upstream_source_ids_for_req`
+        # instead since it collects EVERY data-source `node$id` regardless
+        # of shortcut shape.
+        for (sid in upstream_source_ids_for_req) {
+          if (sid %in% names(panel_sources)) panel_sources[[sid]]()
+        }
+        # INT-2 (ADR 0023): at host scope (`state = NULL`) we have no
+        # `state$eval_env` to thread the panel-resolved frame into, and
+        # the per-instance snap block below is gated on `state`. Without
+        # this block the host-scope shared consumer picker stays empty
+        # even though `panel_sources[[sid]]()` is now wired (the dep
+        # loop above re-fires the renderUI, but `ptr_resolve_upstream`
+        # finds no symbol to substitute the `ppUpload(shared=)` node
+        # to). Build an env extending `eval_env` with the panel-resolved
+        # df under the binding name `panel_owned_binding_name()`
+        # produces (matches the per-instance binding contract in
+        # `ptr_setup_pipelines()`), and seed `snap` so the substitute
+        # walk emits that symbol. Per-instance scope (`!is.null(state)`)
+        # is unchanged: PLAN-05 already binds the panel-resolved df
+        # into `state$eval_env` / `state$bound_names`, and the snap
+        # loop below reads the panel-owned shortcut ids from the
+        # un-namespaced input.
+        if (is.null(state) && length(panel_sources) > 0L &&
+            !is.null(resolution$value)) {
+          host_env <- NULL
+          panel_source_nodes <- find_nodes(
+            resolution$value,
+            function(n) is_ptr_ph_data_source(n) &&
+              !is.null(n$id) && n$id %in% names(panel_sources)
+          )
+          for (psn in panel_source_nodes) {
+            sid <- psn$id
+            df_val <- panel_sources[[sid]]()
+            if (is.null(df_val)) next
+            entry <- ptr_registry_lookup(psn$keyword)
+            shortcut_value <- if (!is.null(psn$shortcut_id)) {
+              input[[psn$shortcut_id]]
+            } else NULL
+            bname <- panel_owned_binding_name(
+              psn, entry, session = NULL,
+              shortcut_value = shortcut_value, df = df_val
+            )
+            # ADR 0025 §6 / PLAN-06: spec round-trip fallback at the
+            # panel-shared snap update. When the host-side shortcut text
+            # is empty AND `panel_owned_binding_name` only had
+            # `node$default` to fall back on, prefer the
+            # coordinator-eval-env-bound auto-name (Plan 02:
+            # `node$auto_name`) so the dumped spec/snap matches the
+            # symbol the per-instance pipelines bind under. Mirrors the
+            # first-site fallback (snapshot-write loop) so a panel-
+            # shared `ppUpload(shared='ds')` round-trips through
+            # `state$spec()` as the auto-name when no textbox was typed.
+            shortcut_empty <- is.null(shortcut_value) ||
+              (is.character(shortcut_value) && length(shortcut_value) == 1L &&
+               !nzchar(shortcut_value))
+            if (shortcut_empty) {
+              auto <- psn$auto_name
+              if (is.character(auto) && length(auto) == 1L && nzchar(auto) &&
+                  make.names(auto) == auto) {
+                bname <- auto
+              }
+            }
+            if (is.null(bname)) next
+            if (is.null(host_env)) host_env <- new.env(parent = eval_env)
+            assign(bname, df_val, envir = host_env)
+            if (!is.null(psn$shortcut_id)) {
+              snap[[psn$shortcut_id]] <- bname
+            } else {
+              snap[[sid]] <- bname
+            }
+          }
+          if (!is.null(host_env)) use_env <- host_env
+        }
         if (!is.null(state)) {
           # ADR 0015 §2.2: bare-data-source layers publish their frame
           # into `state$resolved_data` under `layer_name`, pipeline-head
@@ -2067,12 +2771,39 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
             }
           }
           use_env <- state$eval_env
-          for (cmp in upstream_source_companion_ids) {
-            val <- input[[ns(cmp)]]
+          # INT-3 (ADR 0023 / GAP-3B): when this binder runs inside an
+          # embedded `ptr_server()` (moduleServer), `input` is the
+          # *namespaced* module input -- `input[[cmp]]` resolves to
+          # `input[[<module>-<cmp>]]`, which never exists for a
+          # panel-owned shortcut id (its widget lives at the host's
+          # top-level un-namespaced slot). Use `rootScope()$input` to
+          # read the un-namespaced host slot from inside the module. At
+          # host scope (`state` is set on the single-instance / coordinator
+          # paths) `rootScope()` returns the same session, so this stays
+          # byte-equivalent there.
+          root_input <- {
+            dom <- shiny::getDefaultReactiveDomain()
+            if (!is.null(dom)) dom$rootScope()$input else input
+          }
+          for (cmp in upstream_source_shortcut_ids) {
+            # ADR 0023 / PLAN-07: panel-owned source shortcuts live at
+            # the host's top-level (un-namespaced) input id; read from
+            # the root session's input (not the module's).
+            val <- if (cmp %in% panel_sources_shortcut_ids) {
+              root_input[[cmp]]
+            } else {
+              input[[ns(cmp)]]
+            }
             if (!is.null(val)) snap[[cmp]] <- val
           }
           for (sid in upstream_source_self_ids) {
-            val <- input[[ns(sid)]]
+            # ADR 0023 / PLAN-07: panel-owned source self ids live at
+            # the host's top-level (un-namespaced) input id.
+            val <- if (sid %in% names(panel_sources)) {
+              root_input[[sid]]
+            } else {
+              input[[ns(sid)]]
+            }
             if (!is.null(val)) snap[[sid]] <- val
           }
         }
@@ -2097,7 +2828,17 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
         # `ptr_setup_value_uis()`'s shared-value loop. Without this
         # the shared consumer picker boots blank even though the
         # seed sits in `state$spec_seed`.
-        seed <- if (!is.null(state)) {
+        #
+        # FINDING #1 (placeholder-role-coverage2.html v7) fix: at host
+        # scope `state` is NULL by design (ADR 0006), so the seed read
+        # against `state$spec_seed` returns NULL and the panel-shared
+        # consumer falls back to `shared_widget_default()`. The host
+        # passes its un-namespaced `spec_seed` env directly via the
+        # `spec_seed=` arg; check it first so the host-scope binder
+        # honours `spec=list(shared_<k> = ...)` at boot.
+        seed <- if (!is.null(spec_seed)) {
+          shiny::isolate(spec_seed[[rep_node$id]])
+        } else if (!is.null(state)) {
           shiny::isolate(state$spec_seed[[rep_node$id]])
         } else NULL
         selected_arg <- if (has_rendered) {
@@ -2158,7 +2899,9 @@ ptr_bind_local_shared_consumers <- function(tree, output, input, ns,
                                             expr_check = TRUE,
                                             errors_rv = NULL,
                                             state = NULL,
-                                            ui_ns = ns) {
+                                            panel_sources = list(),
+                                            ui_ns = ns,
+                                            spec_seed = NULL) {
   resolutions <- ptr_resolve_shared_consumers(tree)
   keys <- setdiff(names(resolutions), host_owned_keys)
   if (length(keys) == 0L) return(invisible(NULL))
@@ -2173,7 +2916,9 @@ ptr_bind_local_shared_consumers <- function(tree, output, input, ns,
     expr_check = expr_check,
     errors_rv = errors_rv,
     state = state,
-    ui_ns = ui_ns
+    panel_sources = panel_sources,
+    ui_ns = ui_ns,
+    spec_seed = spec_seed
   )
   invisible(NULL)
 }
@@ -2218,34 +2963,36 @@ find_producer_ids_in_upstream <- function(upstream) {
   collect_upstream_ids(upstream, is_ptr_ph_value)
 }
 
-# Dataset-name companion ids of every `ptr_ph_data_source` in a consumer's
+# Dataset-name shortcut ids of every `ptr_ph_data_source` in a consumer's
 # `node$upstream` (e.g. an `upload` at the head of the pipeline). Their text
 # values must be in the substitute snapshot for the source to resolve to a
 # symbol rather than prune away; the resolved frame itself is bound into
 # `state$eval_env` by `ptr_setup_pipelines()`. (`collect_upstream_ids()`
-# returns `node$id`; here we need `node$companion_id`, hence the bespoke
+# returns `node$id`; here we need `node$shortcut_id`, hence the bespoke
 # walk.)
 find_source_companion_ids_in_upstream <- function(upstream) {
   if (is.null(upstream)) return(character())
   ids <- character()
   ptr_walk(upstream, function(n) {
-    if (is_ptr_ph_data_source(n) && !is.null(n$companion_id)) {
-      ids[[length(ids) + 1L]] <<- n$companion_id
+    if (is_ptr_ph_data_source(n) && !is.null(n$shortcut_id)) {
+      ids[[length(ids) + 1L]] <<- n$shortcut_id
     }
   })
   unique(ids)
 }
 
-# Companion-less data sources (e.g. a `selectInput` chooser): for these,
+# Shortcut-less data sources (e.g. a `selectInput` chooser): for these,
 # `substitute_walk.ptr_ph_data_source()` reads the source's *own* input id
 # directly out of the snapshot, so we must seed `snapshot[[node$id]]` for
-# the upstream to substitute past the head. Companion-driven sources are
-# handled by `find_source_companion_ids_in_upstream()`.
+# the upstream to substitute past the head. Shortcut-driven sources are
+# handled by `find_source_companion_ids_in_upstream()` (helper name
+# preserved; see ADR 0025 §1 — the role label keyed on this walk stays
+# `source_companion`).
 find_source_self_ids_in_upstream <- function(upstream) {
   if (is.null(upstream)) return(character())
   ids <- character()
   ptr_walk(upstream, function(n) {
-    if (is_ptr_ph_data_source(n) && is.null(n$companion_id) &&
+    if (is_ptr_ph_data_source(n) && is.null(n$shortcut_id) &&
         !is.null(n$id)) {
       ids[[length(ids) + 1L]] <<- n$id
     }
@@ -2339,19 +3086,27 @@ ptr_register_error <- function(output, state) {
 # Render the code-panel text for a runtime result + extras source list.
 # Used by both `ptr_register_code` (reactive output) and
 # `ptr_extract_code` (read accessor).
-format_code_with_extras <- function(res, extras_exprs) {
+#
+# `prologue` is the pre-formatted upload-prologue block produced by
+# `emit_upload_prologue(state$active_uploads())` -- a string ending with
+# a trailing newline so it concatenates cleanly with `base`, or "" when
+# no upload-bound source is active. Plain text only; ggpaintr never
+# parses/eval's the prologue. See ADR 0025 §4 / PLAN-04.
+format_code_with_extras <- function(res, extras_exprs, prologue = "") {
   base <- if (is.null(res)) "" else (res$code_text %||% "")
   if (is.null(res) || !isTRUE(res$ok) || length(extras_exprs) == 0L) {
-    return(base)
+    return(paste0(prologue, base))
   }
   extra_text <- vapply(extras_exprs, function(e) {
     if (rlang::is_quosure(e)) rlang::quo_text(e) else
       paste(deparse(e), collapse = " ")
   }, character(1))
-  if (!nzchar(base)) {
-    return(paste(extra_text, collapse = " +\n  "))
+  body <- if (!nzchar(base)) {
+    paste(extra_text, collapse = " +\n  ")
+  } else {
+    paste(c(base, extra_text), collapse = " +\n  ")
   }
-  paste(c(base, extra_text), collapse = " +\n  ")
+  paste0(prologue, body)
 }
 
 ptr_register_code <- function(output, state) {
@@ -2392,7 +3147,14 @@ ptr_register_code <- function(output, state) {
       res <- state$runtime()
       last <- state$last_ok_runtime()
       chosen <- if (is.null(res) || isTRUE(res$ok) || is.null(last)) res else last
-      format_code_with_extras(chosen, state$extras_exprs())
+      # ADR 0025 §4 / PLAN-04: read the active-upload ledger reactively so
+      # the prologue updates whenever the upload set changes (post-bind /
+      # post-vacate). Reads identical to `ptr_extract_code()`'s isolate
+      # read so the on-screen and extracted panel text agree.
+      format_code_with_extras(
+        chosen, state$extras_exprs(),
+        prologue = emit_upload_prologue(state$active_uploads())
+      )
     }
   })
   # The generated-code panel lives inside a mini-window that is hidden
@@ -2444,7 +3206,10 @@ ptr_extract_error <- function(state) shiny::isolate(state$runtime())$error
 #' @rdname ptr_extract
 #' @export
 ptr_extract_code  <- function(state) {
-  shiny::isolate(format_code_with_extras(state$runtime(), state$extras_exprs()))
+  shiny::isolate(format_code_with_extras(
+    state$runtime(), state$extras_exprs(),
+    prologue = emit_upload_prologue(state$active_uploads())
+  ))
 }
 
 # ---- ptr_gg_extra ----

@@ -75,7 +75,7 @@ build_uniform_snapshot <- function(tree,
                                    upload_name = "iris50") {
   snap <- list()
   for (n in ggpaintr:::find_nodes(tree, ggpaintr:::is_ptr_ph_data_source)) {
-    if (!is.null(n$companion_id)) snap[[n$companion_id]] <- upload_name
+    if (!is.null(n$shortcut_id)) snap[[n$shortcut_id]] <- upload_name
     if (!is.null(n$id)) snap[[n$id]] <- list(name = paste0(upload_name, ".csv"),
                                               datapath = "(stub)",
                                               size = 0L, type = "text/csv")

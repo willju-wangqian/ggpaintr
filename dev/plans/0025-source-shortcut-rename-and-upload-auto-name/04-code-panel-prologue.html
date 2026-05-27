@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-04 — Code-panel prologue with reader-fn mirror (from ADR 0025)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 04
+  slug: code-panel-prologue
+  source_adr: dev/adr/0025-source-shortcut-rename-and-upload-auto-name.html
+  depends_on: [02]
+  parallel_group: G3
+  status: draft
+-->
+
+<h1>PLAN-04 — Code-panel prologue with reader-fn mirror</h1>
+<p class="meta">Source: ADR 0025 §4 · Depends on: 02 · Parallel group: G3 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0025 §4 specifies that for every active upload-bound source, the code panel renders a prologue line above the formula:</p>
+<pre><code>upload_data1 &lt;- read.csv("penguins.csv")  # uploaded as: penguins.csv
+upload_data1 |&gt; ggplot(aes(x = mpg)) + geom_point()
+</code></pre>
+<p>The prologue is aspirational, not byte-honest — ggpaintr read the file from a tempfile, not from the original path. The user is responsible for reproducing the binding themselves (running the prologue line in their own R session before invoking <code>ptr_app(formula, spec = ...)</code>). The reader-fn mirrors ggpaintr's actual choice based on file extension (the same dispatch table already in <code>R/paintr-upload.R</code>). Custom-source prologue hooks (<code>prologue_emit_fn</code>) are deferred per ADR scope cuts — current scope is built-in <code>ppUpload</code> only.</p>
+
+<h2>Governing principle</h2>
+<p>The code panel is the slot's authoritative source-of-truth surface — what the user sees there must let them reproduce the rendered plot in a vanilla R session. Without the prologue, an upload-bound formula reading <code>ggplot_1_0_ppUpload_NA |&gt; ggplot(...)</code> in the code panel is unreproducible (no <code>ggplot_1_0_ppUpload_NA</code> in scope). With the prologue, the symbol is bound by a one-line precondition the user can copy verbatim. Naming the WHY: ADR 0025 §3 accepts the symbol-flip on upload only because §4 promises the new symbol will be made legible at a glance — the two decisions stand together.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li>After uploading <code>penguins.csv</code> to a <code>ppUpload() |&gt; ggplot(...)</code> app, the code panel's text starts with a prologue line of the form <code>&lt;node$auto_name&gt; &lt;- read.csv("penguins.csv")</code> followed by a newline and the formula deparse. Verified by a shinytest2 case <code>test-prologue-csv-upload.R</code> that uploads a csv, clicks Update, and asserts <code>grepl("^[A-Za-z0-9_]+ &lt;- read\\.csv\\(\"penguins\\.csv\"\\)\\n", code_text)</code>.</li>
+  <li>Uploading <code>foo.tsv</code> emits <code>&lt;auto-name&gt; &lt;- read.delim("foo.tsv")</code>. Uploading <code>foo.xlsx</code> emits <code>&lt;auto-name&gt; &lt;- readxl::read_excel("foo.xlsx")</code>. Uploading <code>foo.rds</code> emits <code>&lt;auto-name&gt; &lt;- readRDS("foo.rds")</code>. Verified by parameterized shinytest2 cases (one per ext) in <code>test-prologue-reader-fn-mirror.R</code>.</li>
+  <li>Without any active upload (the formula has no <code>ppUpload(...)</code>, or upload-bound sources are vacated), the code panel emits NO prologue line — the rendered text is identical to today's behaviour. Verified by <code>test-prologue-absent-without-upload.R</code>.</li>
+  <li>With multiple active upload sources (e.g. a 2-formula <code>ptr_app_grid</code> each with its own <code>ppUpload()</code>), the code panel emits one prologue line per active source, in declaration order, separated by newlines. Verified by <code>test-prologue-multi-source.R</code>.</li>
+  <li>Custom sources registered with <code>shortcut = TRUE</code> but no <code>prologue_emit_fn</code> hook (i.e. all custom sources today) emit NO prologue line — the scope cut explicitly excludes them. Verified by <code>test-prologue-custom-source-skip.R</code>.</li>
+  <li>Full authoritative gate (Definition of Done) shows FAIL 0 / WARN 0 / SKIP 0 with FAIL count for pre-existing tests still 0.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns:
+    <ul>
+      <li><code>R/paintr-server.R</code> — add a prologue-emission helper (proposed: <code>emit_upload_prologue(state)</code>) that walks <code>state$active_uploads</code> (a new state slot populated by the upload observer at resolve time, storing per-key the tuple <code>(auto_name, file_name, ext)</code>) and emits one line per entry. Modify <code>format_code_with_extras(res, extras_exprs)</code> at line ~2728 to prepend the prologue text to <code>base</code> when non-empty. Modify <code>resolve_upload_source()</code> + <code>try_bind_source_default_resolved()</code> to register the (key → tuple) mapping under <code>state$active_uploads[[key]]</code> on a successful bind, and to clear the entry on a vacated bind (Plan 05 owns the vacate path but this plan adds the slot it writes/clears).</li>
+      <li>Reader-fn dispatch table — REUSE the existing extension→reader-name table at <code>R/paintr-upload.R:240-245</code> (csv → <code>"read.csv"</code>, tsv → <code>"read.delim"</code>, rds → <code>"readRDS"</code>, xlsx/xls → <code>"readxl::read_excel"</code>) rather than introduce a parallel one. If the existing table is private inside <code>R/paintr-upload.R</code>, expose it via a small accessor (e.g. <code>reader_fn_name_for_ext(ext)</code>) returning <code>NA_character_</code> for unknown extensions (in which case the prologue line is silently omitted for that entry). The accessor lives next to the existing table — DRY across reader-dispatch and prologue-emission.</li>
+      <li><code>R/paintr-extract.R</code> (or wherever <code>ptr_extract_code</code> lives — if it's in <code>R/paintr-server.R</code>, edit there) — ensure the same prologue is included so <code>ptr_extract_code()</code> returns identical text to the on-screen panel.</li>
+      <li>New tests (shinytest2 fixtures + cases):
+        <ul>
+          <li><code>tests/testthat/test-prologue-csv-upload.R</code></li>
+          <li><code>tests/testthat/test-prologue-reader-fn-mirror.R</code> (csv/tsv/xlsx/rds — 4 sub-tests)</li>
+          <li><code>tests/testthat/test-prologue-absent-without-upload.R</code></li>
+          <li><code>tests/testthat/test-prologue-multi-source.R</code></li>
+          <li><code>tests/testthat/test-prologue-custom-source-skip.R</code></li>
+          <li><code>tests/testthat/test-prologue-two-coordinators-shared-key.R</code> — ADR worked example #2 end-to-end: two <code>ptr_shared(..., id = ...)</code> coordinators on one page sharing key <code>'ds'</code>, asserting distinct eval_env bindings (<code>left_ds</code> / <code>right_ds</code>), distinct code-panel substituted formulas, and distinct prologue lines.</li>
+        </ul>
+        Each follows the project's app-dir + <code>pkgload::load_all()</code> pattern. Each starts with <code>skip_on_cran(); skip_if_not_installed("shinytest2")</code> + chromote skip. Fixture data files (a tiny csv/tsv/xlsx/rds) live under <code>tests/testthat/fixtures/data/</code> — use the existing files there if available; otherwise create the minimum needed.</li>
+      </li>
+    </ul>
+  </li>
+  <li>Files this plan must NOT touch:
+    <ul>
+      <li><code>R/paintr-upload.R</code> reader dispatch (it already mirrors the four ext cases — this plan reads the same table, does not duplicate or rewrite it).</li>
+      <li>Auto-name derivation (Plan 02), UI mutex (Plan 03), vacate-on-empty + debounce (Plan 05), spec round-trip (Plan 06), docs (Plan 07).</li>
+      <li>Custom-source <code>prologue_emit_fn</code> hook — explicitly deferred by ADR scope cuts.</li>
+      <li>Generated <code>man/*.Rd</code> — integration step.</li>
+    </ul>
+  </li>
+  <li>The prologue is plain text (not parsed/eval'd anywhere by ggpaintr). It exists for human reading + manual reproduction. Do NOT also eval it server-side as a "verification" step.</li>
+  <li>The aspirational nature of the original-filename literal is intentional. Do not try to substitute the tempfile path; the user-facing string must read like the actual file the user uploaded.</li>
+  <li>SCOPE NARROWING FORBIDDEN. If a registered file extension is missing from the reader-fn table, the prologue line for that entry is silently omitted (NOT replaced with a fake reader like <code>read.csv</code>); this is the documented default-skip behaviour.</li>
+  <li>Conventions: snake_case, 2-space indent.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>
+Feature: Code-panel prologue for upload-bound sources (ADR 0025 §4)
+
+Scenario: csv upload emits read.csv prologue with auto-name
+  Given an app with `ppUpload() |&gt; ggplot(aes(x = ppVar('mpg'))) + geom_point()`
+   When the user uploads `tests/testthat/fixtures/data/mtcars.csv` and clicks Update
+   Then the code panel's text begins with a line matching the regex `^[A-Za-z0-9_]+ &lt;- read\.csv\("mtcars\.csv"\)\n`
+    And the auto-name token on the LHS of the prologue equals node$auto_name (i.e. ends with the literal "_ppUpload_NA")
+    And the next line is the substituted formula `<auto-name> |&gt; ggplot(aes(x = mpg)) + geom_point()`
+
+Scenario: tsv upload emits read.delim prologue
+  Given the same fixture renamed `mtcars.tsv`
+   When the user uploads it and clicks Update
+   Then the code panel's first line matches `^[A-Za-z0-9_]+ &lt;- read\.delim\("mtcars\.tsv"\)\n`
+
+Scenario: xlsx upload emits readxl::read_excel prologue
+  Given an .xlsx fixture
+   When the user uploads it and clicks Update
+   Then the code panel's first line matches `^[A-Za-z0-9_]+ &lt;- readxl::read_excel\("[^"]+\.xlsx"\)\n`
+
+Scenario: rds upload emits readRDS prologue
+  Given an .rds fixture
+   When the user uploads it and clicks Update
+   Then the code panel's first line matches `^[A-Za-z0-9_]+ &lt;- readRDS\("[^"]+\.rds"\)\n`
+
+Scenario: no prologue when no upload is active
+  Given an app whose formula has no ppUpload call (e.g. `mtcars |&gt; ggplot(aes(x = ppVar('mpg'))) + geom_point()`)
+   When the app boots and the user clicks Update
+   Then the code panel text does NOT contain " &lt;- read.csv(" or any other reader-fn pattern
+    And the text equals the substituted formula alone
+
+Scenario: multi-source app emits one prologue line per active upload
+  Given a `ptr_app_grid(list(f1, f2))` where f1 = `ppUpload() |&gt; ggplot(...)` and f2 = `ppUpload() |&gt; ggplot(...)`
+   When both sources are populated via upload and Update is clicked
+   Then the code panel contains exactly two prologue lines (one per active source)
+    And the lines appear in declaration order (f1's first)
+    And each line's LHS auto-name equals its node$auto_name
+
+Scenario: ADR worked example #2 — two coordinators on one page bind distinct shared canonicals with no collision
+  Given `obj_left  <- ptr_shared(list(f1_left,  f2_left),  id = "left")`
+    And `obj_right <- ptr_shared(list(f1_right, f2_right), id = "right")`
+    And both f1_left and f1_right contain `ppUpload(shared = 'ds') |> ggplot(aes(x = ppVar('mpg'))) + geom_point()`
+    And a shinytest2 app embeds both coordinators on one page via `ptr_ui_shared_panel(obj_left)` + `ptr_ui_shared_panel(obj_right)`
+   When the user uploads `mtcars.csv` to the left coordinator's shortcut and `penguins.csv` to the right and clicks each panel's Update
+   Then the left  code panel text (read via `app$get_value(output = <left-code-output-id>)`) matches the regex `^left_ds <- read\.csv\("mtcars\.csv"\)\nleft_ds \|> ggplot\(.*\)$` (prologue + substituted formula on the auto-name `left_ds`)
+    And the right code panel text (read via `app$get_value(output = <right-code-output-id>)`) matches the regex `^right_ds <- read\.csv\("penguins\.csv"\)\nright_ds \|> ggplot\(.*\)$`
+    And neither code panel text contains the literal token of the other coordinator's auto-name (the left panel does NOT contain `right_ds`, and the right panel does NOT contain `left_ds`)
+    And the rendered plot output on the left differs from the right (asserting via `app$get_html(<left-plot-id>) != app$get_html(<right-plot-id>)` — both non-empty)
+
+Scenario: custom source without prologue_emit_fn hook emits no prologue
+  Given a custom source ppDataset registered with shortcut = TRUE (no prologue_emit_fn)
+   When the user picks a dataset via that source
+   Then the code panel emits no prologue line for ppDataset
+    And only the formula deparse is shown
+</pre>
+
+<h2>Worked-example coverage</h2>
+
+<pre>
+| ADR anchor                                                     | kind     | summary (one line)                                              | Scenario in this plan                                              |
+|----------------------------------------------------------------|----------|-----------------------------------------------------------------|--------------------------------------------------------------------|
+| Worked examples — what becomes possible #2                     | positive | Multi-panel app: two coordinators on one page produce `left_ds` / `right_ds` distinct symbols, no collision, distinct code panels + distinct prologue lines. | ADR worked example #2 — two coordinators on one page bind distinct shared canonicals with no collision |
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate: see <code>CLAUDE.md</code> §"Authoritative gate (Definition of Done)". Same command, same proxy-trap list.</p>
+
+<p><strong>Plan-specific gate risks</strong>: all 5 new test files are shinytest2-based (per the proxy-trap note in Plan 03). Project memory <code>shinytest2-appdir-pkgload</code> documents the flake; re-run before attribution.</p>
+
+<p>This plan adds 5 new test files (≈ 8 cases counting the parameterized reader-fn-mirror sub-tests). Expected PASS delta ≥ 8 cases with FAIL/ERROR/SKIP still 0.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns the files listed under Constraints. Generated <code>man/*.Rd</code> are owned by the integration step.</p>
+<p>Branch convention: this plan lives on branch <code>0025-code-panel-prologue</code> in a worktree at <code>.claude/worktrees/0025-source-shortcut-rename-and-upload-auto-name/code-panel-prologue/</code>. Merge into the orchestrator branch via <code>--no-ff</code> after Plan 02 lands.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor re-runs the Definition-of-Done command and verifies expected output before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch with Plans 01 and 02 merged. e2e flake list per project memory <code>shinytest2-appdir-pkgload</code>.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Findings outside this plan's owned files are surfaced (recorded in the audit report), never absorbed. The custom-source prologue hook (<code>prologue_emit_fn</code>) is explicitly deferred — do not implement it here even if the architecture invites it.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: 02 (the prologue's LHS is <code>node$auto_name</code>, which Plan 02 stamps). Provides for: 05 (vacate-on-empty clears <code>state$active_uploads[[key]]</code>, which this plan introduces). Other plans (01, 03, 06, 07) are independent of this plan's outputs.</p>
+
+<!-- implementable: PASS date=2026-05-26 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=95c80f1bad42 -->
+</body>
+</html>

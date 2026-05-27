@@ -92,11 +92,19 @@ test_that("PLAN-03 / bug-3b: all three surface forms produce identical pruned da
   expect_true(ggpaintr:::ptr_tree_structural_equal(d_magri, d_nested))
 })
 
-test_that("PLAN-03 / bug-3b: all three surface forms render to byte-identical text after empty-filter elision", {
-  # Stronger cross-form uniformity probe: the user-visible render is the
-  # same string across `|>` / `%>%` / nested forms. If a future change to
-  # the render walker breaks prefix-collapse for one surface form, this
-  # assertion fires before the elision contract is silently broken.
+test_that("PLAN-03 / bug-3b: all three surface forms drop filter() and keep the source symbol (post-ADR-0025 §5)", {
+  # Pre-ADR-0025: the substitute walker emitted `ptr_missing()` for an
+  # empty-snapshot upload, so all three surface forms rendered to the
+  # data-less stub `ggplot() + geom_point()`. ADR 0025 §5 / PLAN-02
+  # replaces that stub with `as.name(node$auto_name)` (the deterministic
+  # binding symbol), so the source position now renders explicitly:
+  #   - `|>` / nested: `ggplot(data = ggplot_1_ppUpload_NA) + geom_point()`
+  #   - `%>%`: `ggplot_1_ppUpload_NA %>% ggplot() + geom_point()`
+  # The byte-identical-across-forms invariant no longer holds at the
+  # rendered-text layer because the `%>%` surface preserves the pipe
+  # call while `|>` desugars to nested. The PRUNE invariant (empty
+  # `filter()` is elided) survives intact across all three forms and is
+  # the load-bearing claim of this regression net.
   withr::local_package("dplyr")
   t_native <- render_pruned(
     "ppUpload |> filter(ppVar > ppNum) |> ggplot(aes(ppVar, ppVar)) + geom_point()"
@@ -107,8 +115,14 @@ test_that("PLAN-03 / bug-3b: all three surface forms render to byte-identical te
   t_nested <- render_pruned(
     "ggplot(filter(ppUpload, ppVar > ppNum), aes(ppVar, ppVar)) + geom_point()"
   )
-  expect_identical(t_native, t_magri)
-  expect_identical(t_magri, t_nested)
+  for (t in list(t_native, t_magri, t_nested)) {
+    expect_false(grepl("filter", t, fixed = TRUE))
+    expect_true(grepl("ggplot_1_ppUpload_NA", t, fixed = TRUE))
+  }
+  # `|>` and nested forms collapse to the same nested-call render shape;
+  # `%>%` preserves the surface pipe call (R semantics: magrittr is a
+  # real function call, native pipe is parser sugar).
+  expect_identical(t_native, t_nested)
 })
 
 # ---- non-empty filter is PRESERVED (don't over-elide) --------------------

@@ -331,7 +331,14 @@ ptr_make_app_server <- function(formula, tree, envir, ui_text,
       eval_env = envir,
       expr_check = expr_check,
       errors_rv = state$shared_resolution_errors,
-      state = state
+      state = state,
+      # INT-2 (ADR 0023): thread panel-owned source reactives so the
+      # consumer-picker renderUI takes a dep on them and (host-scope)
+      # extends `eval_env` with their resolved df under the panel
+      # binding name. Without this, formula-local shared consumers
+      # under a panel-owned `ppUpload(shared=...)` would never
+      # populate.
+      panel_sources = state$panel_sources %||% list()
     )
   }
 }
@@ -1088,6 +1095,7 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
     if (is.null(dots$draw_trigger))       dots$draw_trigger <- shared_state$draw_trigger
     if (is.null(dots$shared_resolutions)) dots$shared_resolutions <- shared_state$shared_resolutions
     if (is.null(dots$shared_stage_enabled)) dots$shared_stage_enabled <- shared_state$shared_stage_enabled
+    if (is.null(dots$panel_sources))      dots$panel_sources <- shared_state$panel_sources
   }
 
   # Pre-flight contract checks: surface a clear, module-scoped message
@@ -1201,7 +1209,11 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
       eval_env = envir,
       expr_check = state$expr_check,
       errors_rv = state$shared_resolution_errors,
-      state = state
+      state = state,
+      # INT-2 (ADR 0023): mirror the single-instance call -- thread
+      # panel-owned source reactives so embedded shared consumers
+      # under `ppUpload(shared=...)` populate when the panel resolves.
+      panel_sources = state$panel_sources %||% list()
     )
     state
   })
@@ -1421,7 +1433,11 @@ ptr_app_grid_components <- function(plots,
 
   server <- function(input, output, session) {
     state <- if (!is.null(obj)) {
-      ptr_shared_server(obj, envir = envir)
+      # FINDING #1 + #7: forward the flat `spec=` so the host-scope
+      # apply-at-boot can claim un-namespaced ids targeting panel widgets
+      # (`shared_<k>`, `shared_<k>_name`) that per-instance prefix filters
+      # drop. See `apply_spec_at_boot_host()` in R/paintr-shared-ui.R.
+      ptr_shared_server(obj, envir = envir, spec = spec)
     } else NULL
 
     # Collect per-plot engine states so the grid can expose a

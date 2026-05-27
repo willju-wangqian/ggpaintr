@@ -1,0 +1,85 @@
+# test-prologue-two-coordinators-shared-key.R -- ADR 0025 worked example #2
+# end-to-end / PLAN-04. Two independent plot modules on one page, each
+# bound to its own `ppUpload()`, asserting independent code panels with
+# independent prologue lines naming distinct uploaded files.
+#
+# DRIFT NOTE -- BDD literal vs. delivered observable (surfaced upstream
+# in the implementer report; **not** absorbed scope-narrowing):
+#
+# The plan's BDD literal calls for two `ptr_shared(..., id = "left"/"right")`
+# coordinators *sharing key 'ds'* and asserting `^left_ds <- read.csv(...)`
+# / `^right_ds <- read.csv(...)` prologue lines. On the current
+# architecture this shape is *infeasible* via shinytest2:
+#   * `obj$id` namespaces the panel widget *container* output id
+#     (`left-shared_ds_ui`) and the panel server's `input_id` slot
+#     (`left-shared_ds`), but
+#   * the *inner* `fileInput` rendered by `entry$build_ui()` for the
+#     ppUpload source hardcodes the bare DOM id `shared_ds` (no
+#     `<obj$id>-` prefix), so both coordinators emit `id="shared_ds"`
+#     and either (a) collide on a single DOM widget (no two-key fixture)
+#     or (b) the inner widget id never matches the prefixed
+#     server-side `input_id`, leaving the bind permanently unfired.
+# The fix lives in the shared-source UI builder (`shared_panel_body_tag()`
+# + `ptr_setup_panel_sources()` in R/paintr-shared-ui.R /
+# R/paintr-shared-coordinator.R) -- OUTSIDE Plan 04's owned files.
+#
+# This test exercises the same OBSERVABLE the BDD targets -- two
+# independent code panels each with its own prologue line referencing a
+# distinct uploaded file -- via two embedded `ptr_ui()` / `ptr_server()`
+# modules each carrying a pipeline-head `ppUpload()`. Each module's
+# auto-name is the same structural token (`ggplot_0_ppUpload_NA`) within
+# its own per-module eval_env, distinct only by namespace. The BDD
+# literal `left_ds` / `right_ds` symbols cannot be asserted without the
+# upstream fix; see the implementer report's "out-of-scope findings"
+# section for the ticket-worthy detail.
+
+test_that("two independent modules each emit their own prologue line", {
+  skip_on_cran()
+  skip_if_not_installed("shinytest2")
+  skip_if_not_installed("chromote")
+
+  app <- boot_vignette_app("prologue-two-coordinators-shared-key")
+
+  left_src  <- "left_p1-ggplot_0_ppUpload_NA"
+  right_src <- "right_p1-ggplot_0_ppUpload_NA"
+  expect_dom_id(app, left_src)
+  expect_dom_id(app, right_src)
+
+  mtcars_path <- testthat::test_path("fixtures", "mtcars.csv")
+  penguins_path <- testthat::test_path("fixtures", "penguins.csv")
+  app$upload_file(`left_p1-ggplot_0_ppUpload_NA` = mtcars_path)
+  app$wait_for_idle(timeout = 15 * 1000)
+  app$upload_file(`right_p1-ggplot_0_ppUpload_NA` = penguins_path)
+  app$wait_for_idle(timeout = 15 * 1000)
+  draw(app, "left_p1-ptr_update_plot")
+  draw(app, "right_p1-ptr_update_plot")
+
+  left_code  <- app$get_value(output = "left_p1-ptr_code")  %||% ""
+  right_code <- app$get_value(output = "right_p1-ptr_code") %||% ""
+
+  expect_true(nzchar(left_code),  label = "left code panel non-empty")
+  expect_true(nzchar(right_code), label = "right code panel non-empty")
+
+  # Each module's code panel begins with its own prologue line.
+  expect_match(left_code,
+               "^[A-Za-z0-9_.]+ <- read\\.csv\\(\"mtcars\\.csv\"\\)\n",
+               label = "left code panel leads with mtcars.csv prologue")
+  expect_match(right_code,
+               "^[A-Za-z0-9_.]+ <- read\\.csv\\(\"penguins\\.csv\"\\)\n",
+               label = "right code panel leads with penguins.csv prologue")
+
+  # No cross-contamination: neither panel mentions the other's file.
+  expect_false(grepl("penguins.csv", left_code, fixed = TRUE),
+               label = "left panel does NOT reference right's file")
+  expect_false(grepl("mtcars.csv", right_code, fixed = TRUE),
+               label = "right panel does NOT reference left's file")
+
+  # Both plots rendered something (the host outputs both have <img> -- the
+  # bare ggplot renderPlot path even when aes() resolution is partial).
+  left_plot_html  <- app$get_html("#left_p1-ptr_plot")  %||% ""
+  right_plot_html <- app$get_html("#right_p1-ptr_plot") %||% ""
+  expect_true(nzchar(left_plot_html),  label = "left plot HTML non-empty")
+  expect_true(nzchar(right_plot_html), label = "right plot HTML non-empty")
+})
+
+if (!exists("%||%")) `%||%` <- function(a, b) if (is.null(a)) b else a

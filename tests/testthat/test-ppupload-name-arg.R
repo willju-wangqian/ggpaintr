@@ -33,12 +33,12 @@ collect_input_tags <- function(x) {
 # Build a synthetic upload node with the minimum slots build_ui touches.
 make_upload_node <- function(default = NULL,
                              id = "up1",
-                             companion_id = "up1_name") {
+                             shortcut_id = "up1_shortcut") {
   structure(
     list(
       keyword = "ppUpload",
       id = id,
-      companion_id = companion_id,
+      shortcut_id = shortcut_id,
       default = default
     ),
     class = c("ptr_ph_data_source", "ptr_placeholder", "ptr_call",
@@ -111,7 +111,7 @@ test_that("ptr_builtin_upload_build_ui seeds companion value from default", {
   inputs <- collect_input_tags(ui)
   text_inputs <- Filter(
     function(t) identical(t$attribs$type, "text") &&
-      identical(t$attribs$id, "up1_name"),
+      identical(t$attribs$id, "up1_shortcut"),
     inputs
   )
   expect_equal(length(text_inputs), 1L)
@@ -126,7 +126,7 @@ test_that("ptr_builtin_upload_build_ui leaves companion value empty for NULL def
   inputs <- collect_input_tags(ui)
   text_inputs <- Filter(
     function(t) identical(t$attribs$type, "text") &&
-      identical(t$attribs$id, "up1_name"),
+      identical(t$attribs$id, "up1_shortcut"),
     inputs
   )
   expect_equal(length(text_inputs), 1L)

@@ -51,6 +51,115 @@ shared_partition <- function(trees) {
 }
 
 
+# Compute the "source signature" of one consumer's `$upstream` subtree under
+# the active partition. Returns a list with `kind` in
+# c("none", "panel", "formula_local_source", "bare") plus
+# `desc` (verbatim, human-readable source expression for the abort message)
+# and `cmp` (the comparable key used to decide signature equality across
+# formulas — same `cmp` across formulas => panel-owned consumer is
+# coordinated).
+#
+# - "none"                  : upstream is NULL (consumer has no upstream)
+# - "panel"                 : upstream contains a `ptr_ph_data_source` whose
+#                             `$shared` is in `panel_keys`
+# - "formula_local_source"  : upstream contains a `ptr_ph_data_source` that is
+#                             NOT panel-owned (no `$shared`, or `$shared` not in
+#                             `panel_keys`). This kind always fails the
+#                             invariant — independent widgets in each formula
+#                             cannot collaboratively drive a single
+#                             panel-scope picker.
+# - "bare"                  : upstream is a non-source subtree (typically a
+#                             `ptr_literal` like `mtcars`); `cmp` is its
+#                             deparsed AST so identical bare-data passes.
+shared_upstream_source_signature <- function(upstream, panel_keys) {
+  if (is.null(upstream)) {
+    return(list(kind = "none", desc = "(no upstream source)", cmp = "none"))
+  }
+  sources <- find_nodes(upstream, is_ptr_ph_data_source)
+  if (length(sources) > 0L) {
+    s <- sources[[1L]]
+    if (!is.null(s$shared) && s$shared %in% panel_keys) {
+      return(list(
+        kind = "panel",
+        desc = paste0("panel-owned source \"", s$shared, "\""),
+        cmp  = paste0("panel", s$shared)
+      ))
+    }
+    desc <- paste(deparse(s$expr), collapse = " ")
+    return(list(
+      kind = "formula_local_source",
+      desc = desc,
+      cmp  = paste0("formula_local", desc)
+    ))
+  }
+  ast <- upstream$expr %||% upstream
+  desc <- paste(deparse(ast), collapse = " ")
+  list(kind = "bare", desc = desc, cmp = paste0("bare", desc))
+}
+
+# ADR 0023 §6 — parse-time invariant. For each panel-owned consumer key,
+# walk every formula it appears in and abort if any formula's upstream
+# source is formula-local OR if the per-formula source signatures differ.
+# Reads the partition + trees already in scope; no fresh AST walk added.
+shared_assert_panel_consumer_sources <- function(trees, panel_keys, formulas) {
+  if (length(panel_keys) == 0L) return(invisible(NULL))
+  for (key in panel_keys) {
+    formula_idxs <- integer(0)
+    sigs <- list()
+    for (i in seq_along(trees)) {
+      occ <- find_nodes(trees[[i]], function(x) {
+        is_ptr_ph_data_consumer(x) && identical(x$shared, key)
+      })
+      if (length(occ) == 0L) next
+      formula_idxs <- c(formula_idxs, i)
+      sigs[[length(sigs) + 1L]] <- shared_upstream_source_signature(
+        occ[[1L]]$upstream, panel_keys
+      )
+    }
+    if (length(formula_idxs) < 2L) next
+    any_local_src <- any(vapply(sigs, function(s) {
+      identical(s$kind, "formula_local_source")
+    }, logical(1)))
+    cmps <- vapply(sigs, function(s) s$cmp, character(1))
+    sigs_differ <- length(unique(cmps)) > 1L
+    if (!any_local_src && !sigs_differ) next
+
+    formula_lines <- vapply(seq_along(formula_idxs), function(j) {
+      paste0("formula ", formula_idxs[[j]], ": ", sigs[[j]]$desc)
+    }, character(1))
+    body <- if (any_local_src) {
+      paste0(
+        "Panel-owned shared consumer \"", key,
+        "\" requires every source it depends on to be panel-owned, but the ",
+        "upstream sources are formula-local (each widget is independent and ",
+        "cannot collaboratively drive a single panel-scope picker)."
+      )
+    } else {
+      paste0(
+        "Panel-owned shared consumer \"", key,
+        "\" requires every source it depends on to be panel-owned, but the ",
+        "upstream sources differ across formulas."
+      )
+    }
+    hint <- paste0(
+      "Make the upstream source panel-owned by giving it the same ",
+      "`shared = \"...\"` annotation across formulas (e.g. ",
+      "`ppUpload(shared = \"ds\")`), or drop `shared = \"", key,
+      "\"` on the consumer so it becomes formula-local."
+    )
+    msg <- c(body, stats::setNames(formula_lines, rep("*", length(formula_lines))),
+             i = hint)
+    rlang::abort(
+      message  = msg,
+      class    = "ptr_panel_consumer_source_mismatch",
+      key      = key,
+      formulas = as.character(formulas)[formula_idxs],
+      sources  = vapply(sigs, function(s) s$desc, character(1))
+    )
+  }
+  invisible(NULL)
+}
+
 # ---- ptr_shared (coordinator) ---------------------------------------------
 
 #' Build the Shared Coordinator for a Multi-Instance Embedding
@@ -164,6 +273,19 @@ ptr_shared <- function(formulas,
   }
 
   part <- shared_partition(trees)
+
+  # PLAN-03 / ADR 0023 §6: a panel-owned consumer key must be driven by a
+  # panel-owned source. A single panel-scope picker cannot list columns from
+  # two formula-local datasets without inventing arbitrary semantics
+  # (union/intersection/per-instance widgets). Fail fast here, naming the
+  # consumer key, the offending formulas (1-indexed), and the verbatim source
+  # expressions; the embedder can `tryCatch()` it via class
+  # "ptr_panel_consumer_source_mismatch".
+  shared_assert_panel_consumer_sources(
+    trees       = trees,
+    panel_keys  = part$panel_keys,
+    formulas    = formulas
+  )
 
   structure(
     list(
