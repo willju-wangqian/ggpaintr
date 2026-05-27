@@ -15,7 +15,7 @@
 #   * Updating the panel reactive (incl. -> NULL) propagates to every
 #     per-instance slot on the next flush; binding name derivation reads
 #     the companion text-input value at the host's top-level
-#     (`session$rootScope()$input[[node$companion_id]]`), mirroring the
+#     (`session$rootScope()$input[[node$shortcut_id]]`), mirroring the
 #     name-derivation logic in `resolve_upload_source()`.
 #
 # Worked-example coverage:
@@ -237,9 +237,9 @@ test_that("ADR #5 -- pipeline-head ppUpload chained through dplyr::filter binds 
   shiny::testServer(server, {
     # Set the companion text input at TOP LEVEL (panel-owned widgets live
     # at top-level namespace, not under the per-instance prefix). The
-    # PLAN-05 branch reads `session$rootScope()$input[[node$companion_id]]`,
-    # i.e. `input$shared_ds_name`, to derive the binding name.
-    session$setInputs(shared_ds_name = "mtcars")
+    # PLAN-05 branch reads `session$rootScope()$input[[node$shortcut_id]]`,
+    # i.e. `input$shared_ds_shortcut`, to derive the binding name.
+    session$setInputs(shared_ds_shortcut = "mtcars")
     session$flushReact()
     # (a) panel-resolved df is mirrored into the per-instance slot.
     expect_identical(

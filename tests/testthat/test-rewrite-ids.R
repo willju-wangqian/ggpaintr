@@ -43,11 +43,10 @@ test_that("P4.4 distinct namespaces produce disjoint rendered ids", {
   expect_false(rendered1 == rendered2)
 })
 
-test_that("P4.5 companion id for upload derived via registry's companion_id_fn", {
+test_that("P4.5 shortcut id for upload derived from node id (registry shortcut=TRUE)", {
   r <- ptr_translate("ggplot(data = ppUpload)")
   src <- find_nodes(r, is_ptr_ph_data_source)[[1]]
-  expect_equal(src$companion_id, ptr_upload_name_id(src$id))
-  expect_equal(src$companion_id, paste0(src$id, "_name"))
+  expect_equal(src$shortcut_id, paste0(src$id, "_shortcut"))
 })
 
 test_that("P4.8 non-function ns_fn rejected", {

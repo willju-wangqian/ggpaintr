@@ -4,7 +4,7 @@
 # scaffolding in P6 and `ptr_module_*`) invoke once per tree node that
 # wants Shiny widgets. The dispatch:
 #   1. resolves the human-readable label via `ptr_resolve_ui_text`
-#   2. namespaces `node$id` (and the source's `companion_id`) via `ns_fn`
+#   2. namespaces `node$id` (and the source's `shortcut_id`) via `ns_fn`
 #   3. forwards to the registered `build_ui` hook with a resolved label
 #
 # The hook only ever sees a final id and a final label string. It never
@@ -14,7 +14,7 @@
 #'
 #' S3 generic dispatched per node class. Resolves the human-readable label
 #' through `ptr_resolve_ui_text`, namespaces the node's id (and any
-#' `companion_id` for source nodes) via `ns_fn`, and forwards to the
+#' `shortcut_id` for source nodes) via `ns_fn`, and forwards to the
 #' registered `build_ui` hook for the placeholder's keyword.
 #'
 #' @param node A typed AST node (e.g. `ptr_ph_value`, `ptr_ph_data_consumer`,
@@ -77,9 +77,9 @@ build_ui_for.ptr_ph_data_source <- function(node,
                                               ns_fn = identity,
                                               ...) {
   # ADR 0012 / PLAN-01 (Bug B): emit a `uiOutput` container; the actual
-  # widget (incl. ppUpload's fileInput + companion textInput tagList) is
-  # rendered server-side inside `ptr_setup_source_uis()`. The companion
-  # textInput is bound at `node$companion_id` because the source hook
+  # widget (incl. ppUpload's fileInput + shortcut textInput tagList) is
+  # rendered server-side inside `ptr_setup_source_uis()`. The shortcut
+  # textInput is bound at `node$shortcut_id` because the source hook
   # itself emits both inputs in the same tag -- only the renderUI
   # *wrapper* is added here. Routing through renderUI is what lets the
   # seed-based spec-apply path (state$spec_seed[[bare]] -> extra$selected)

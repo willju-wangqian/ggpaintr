@@ -33,7 +33,7 @@ test_that("finding #8: spec= for a source_companion id overrides node$default at
   #    a standard Shiny binding that sends its initial value back to the
   #    server — `app$get_value(input = ...)` is the authoritative read.
   expect_equal(
-    app$get_value(input = "ggplot_0_ppUpload_NA_name"),
+    app$get_value(input = "ggplot_0_ppUpload_NA_shortcut"),
     "mtcars",
     label = "companion id honored at boot (\"mtcars\" from spec, overriding default \"iris\")"
   )

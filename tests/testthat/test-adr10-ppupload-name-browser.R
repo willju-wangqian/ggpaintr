@@ -40,19 +40,19 @@ test_that("adr10-ppupload-name: companion textInput seeded, plot auto-resolves w
   # Discover the companion id from the translated tree (same convention used
   # in app.R's formula): `ppUpload(penguins) |> dplyr::filter(...) |>
   # ggplot(aes(x = ppVar(bill_length_mm), y = ppVar(bill_depth_mm))) + geom_point()`.
-  # The first ppUpload data-source node's companion_id is
-  # paste0(node$id, "_name") = "ggplot_1_ppUpload_NA_name".
-  companion_id <- "ggplot_1_ppUpload_NA_name"
+  # The first ppUpload data-source node's shortcut_id is
+  # paste0(node$id, "_shortcut") = "ggplot_1_ppUpload_NA_shortcut".
+  shortcut_id <- "ggplot_1_ppUpload_NA_shortcut"
 
   # Sanity: standard ptr_app() DOM landmarks are present.
   expect_dom_id(app, "ptr_update_plot")
   expect_dom_id(app, "ptr_code")
   expect_dom_id(app, "ptr_code_mode")
-  expect_dom_id(app, companion_id)
+  expect_dom_id(app, shortcut_id)
 
   # (a) Companion textInput is seeded with "penguins" at boot (PLAN-01).
   expect_equal(
-    app$get_value(input = companion_id), "penguins",
+    app$get_value(input = shortcut_id), "penguins",
     label = "companion textInput is seeded with bareword from formula"
   )
 
@@ -85,12 +85,12 @@ test_that("adr10 PLAN-02 round-trip: preserve-mode render stamps companion barew
   formula <- "ppUpload(penguins) |> dplyr::filter(species == \"Adelie\") |> ggplot(aes(x = ppVar(bill_length_mm), y = ppVar(bill_depth_mm))) + geom_point()"
   # ptr_translate(annotate = TRUE) already runs ptr_assign_ids internally,
   # so the tree's data-source node has the placeholder id stamped (and the
-  # ppUpload companion_id `<id>_name` derived) by the time we stamp picks.
+  # ppUpload shortcut_id `<id>_shortcut` derived) by the time we stamp picks.
   tree <- ggpaintr:::ptr_translate(formula)
 
   # Initial render with the companion seeded to "penguins" (matches the
   # boot-time companion textInput value the fixture asserts above).
-  snap_penguins <- list(ggplot_1_ppUpload_NA_name = "penguins")
+  snap_penguins <- list(ggplot_1_ppUpload_NA_shortcut = "penguins")
   text_penguins <- ggpaintr:::ptr_render(
     ggpaintr:::stamp_current_pick_walk(tree, snap_penguins),
     preserve_placeholders = TRUE
@@ -102,7 +102,7 @@ test_that("adr10 PLAN-02 round-trip: preserve-mode render stamps companion barew
 
   # After the user edits the companion to "iris", preserve-mode render
   # must reflect the new bareword and drop the old one.
-  snap_iris <- list(ggplot_1_ppUpload_NA_name = "iris")
+  snap_iris <- list(ggplot_1_ppUpload_NA_shortcut = "iris")
   text_iris <- ggpaintr:::ptr_render(
     ggpaintr:::stamp_current_pick_walk(tree, snap_iris),
     preserve_placeholders = TRUE

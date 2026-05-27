@@ -505,19 +505,19 @@ ptr_setup_panel_sources <- function(obj, input, output, envir,
     bundle <- local({
       key <- k
       node <- firsts_nodes[[key]]
-      # Stamp the canonical id (and keep the companion-id-fn-derived
-      # companion id) so the rendered widget binds at the global panel
-      # ids the panel body emits.
+      # Stamp the canonical id (and keep the shortcut id, derived as
+      # `<canonical>_shortcut` when the registry entry opts in) so the
+      # rendered widget binds at the global panel ids the panel body emits.
       canonical <- canonical_shared_id(key)
       node$id <- canonical
       entry <- ptr_registry_lookup(node$keyword)
-      if (!is.null(entry) && !is.null(entry$companion_id_fn)) {
-        node$companion_id <- entry$companion_id_fn(canonical)
+      if (!is.null(entry) && isTRUE(entry$shortcut)) {
+        node$shortcut_id <- paste0(canonical, "_shortcut")
       }
 
       output_id <- ns(source_output_id(canonical))
       input_id <- ns(canonical)
-      comp_id <- if (!is.null(node$companion_id)) ns(node$companion_id) else NULL
+      shortcut_input_id <- if (!is.null(node$shortcut_id)) ns(node$shortcut_id) else NULL
 
       # Render the panel-side source widget. Body shape matches
       # `ptr_setup_source_uis()` in R/paintr-server.R: same registry
@@ -583,8 +583,8 @@ ptr_setup_panel_sources <- function(obj, input, output, envir,
       shiny::observe({
         resolve_upload_source(
           input_slot     = input[[input_id]],
-          companion_slot = if (!is.null(comp_id)) {
-            list(present = TRUE, value = input[[comp_id]])
+          shortcut_slot = if (!is.null(shortcut_input_id)) {
+            list(present = TRUE, value = input[[shortcut_input_id]])
           } else {
             list(present = FALSE, value = NULL)
           },
@@ -624,9 +624,9 @@ ptr_setup_panel_sources <- function(obj, input, output, envir,
 
       # Autoname companion text input from uploaded filename (same
       # contract as `ptr_setup_pipelines()`).
-      if (!is.null(comp_id)) {
+      if (!is.null(shortcut_input_id)) {
         session <- shiny::getDefaultReactiveDomain()
-        ptr_bind_source_autoname(input_id, comp_id, input, session,
+        ptr_bind_source_autoname(input_id, shortcut_input_id, input, session,
                                   default_name = node$default)
       }
 

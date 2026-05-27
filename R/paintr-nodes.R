@@ -83,12 +83,12 @@ ptr_ph_data_consumer <- function(id = NA_character_, keyword, param = NA_charact
 }
 
 ptr_ph_data_source <- function(id = NA_character_, keyword, param = NA_character_,
-                              expr, shared = NULL, companion_id = NULL,
+                              expr, shared = NULL, shortcut_id = NULL,
                               default = NULL, named_args = list()) {
   new_ptr_node(
     "ptr_ph_data_source",
     id = id, keyword = keyword, param = param, expr = expr,
-    shared = shared, companion_id = companion_id,
+    shared = shared, shortcut_id = shortcut_id,
     default = default, named_args = named_args
   )
 }

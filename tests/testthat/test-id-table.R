@@ -98,9 +98,9 @@ test_that("ppUpload emits a source_companion row that include_in_ui = FALSE", {
   expect_equal(nrow(comp), 1L)
   expect_false(comp$include_in_ui)
   expect_equal(comp$kind, "input_widget")
-  expect_true(endsWith(comp$id, "_name"))
+  expect_true(endsWith(comp$id, "_shortcut"))
   # The corresponding source placeholder inner id exists
-  expect_true(sub("_name$", "", comp$id) %in% out$id)
+  expect_true(sub("_shortcut$", "", comp$id) %in% out$id)
 })
 
 test_that("layer_checkbox is emitted only for layers with active_input_id (not ggplot)", {

@@ -9,5 +9,5 @@ library(shiny)
 # ADR 0024 lift — pre-ADR-0024 the null-default guard rejected this).
 ptr_app(
   "ppUpload() |> ggplot(aes(x = ppVar('col'))) + geom_bar()",
-  spec = list(ggplot_0_ppUpload_NA_name = "mtcars")
+  spec = list(ggplot_0_ppUpload_NA_shortcut = "mtcars")
 )
