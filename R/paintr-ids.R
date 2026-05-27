@@ -77,6 +77,18 @@ assign_id_to_placeholder <- function(node, layer_name, path, param) {
     if (isTRUE(entry$shortcut)) {
       node$shortcut_id <- paste0(node$id, "_shortcut")
     }
+    # ADR 0025 §3 / PLAN-02: the auto-name is the source slot's binding
+    # contract under the coordinator eval_env. For non-shared sources,
+    # default to `node$default` (the verbatim user-supplied symbol, e.g.
+    # `"penguins"` from `ppUpload(penguins)`) and fall back to `node$id`
+    # (e.g. `ggplot_1_0_ppUpload_NA`). Shared sources are stamped later
+    # by `ptr_setup_panel_sources()` (R/paintr-shared-ui.R) where the
+    # canonical key + coordinator obj$id are in scope; we leave
+    # `node$auto_name` NULL here so that runtime stamp is the single
+    # source of truth for shared keys.
+    if (is.null(node$shared)) {
+      node$auto_name <- node$default %||% node$id
+    }
   }
   node
 }

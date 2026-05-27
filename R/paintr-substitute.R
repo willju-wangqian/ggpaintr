@@ -182,8 +182,20 @@ substitute_walk.ptr_ph_data_source <- function(node, ctx) {
     # Shortcut-driven source (e.g. `upload`): the shortcut text input
     # carries the binding name; resolve_expr maps name -> symbol.
     name_value <- ctx$snapshot[[node$shortcut_id]]
-    if (is.null(name_value) || !is.character(name_value) ||
-        length(name_value) != 1L || !nzchar(name_value)) {
+    has_name_value <- !is.null(name_value) && is.character(name_value) &&
+      length(name_value) == 1L && nzchar(name_value)
+    if (!has_name_value) {
+      # ADR 0025 §5 / PLAN-02: empty shortcut snapshot falls through to
+      # `node$auto_name` (the deterministic translate-/runtime-stamped
+      # binding name) when present. This is the same symbol the upload
+      # binder assigns into eval_env in `resolve_upload_source()`, so the
+      # substitute walk emits an expression that resolves at eval-time.
+      # When both the snapshot and `node$auto_name` are empty, retain
+      # pre-PLAN-02 behaviour (return `ptr_missing()`).
+      if (!is.null(node$auto_name) && is.character(node$auto_name) &&
+          length(node$auto_name) == 1L && nzchar(node$auto_name)) {
+        return(ptr_literal(as.name(node$auto_name)))
+      }
       return(ptr_missing())
     }
     if (make.names(name_value) != name_value) {

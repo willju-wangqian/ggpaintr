@@ -964,7 +964,13 @@ try_bind_source_default <- function(state, key, node, input, shortcut_input_id,
   has_shortcut_value <- is.character(shortcut_value) && length(shortcut_value) == 1L &&
                     nzchar(shortcut_value)
   if (is.null(node$default) && !has_shortcut_value) return(FALSE)
-  binding_name <- if (!is.null(shortcut_input_id)) {
+  # ADR 0025 §3 / PLAN-02: `lookup_name` selects the object we GET from
+  # `state$eval_env`; `binding_name` selects the symbol we ASSIGN it
+  # under. Pre-PLAN-02 they were the same; post-PLAN-02 the shortcut-
+  # empty path binds under `node$auto_name` (the deterministic
+  # translate-/runtime-stamped symbol the substitute walker also reads)
+  # while still LOOKING UP under the user-supplied default-arg name.
+  lookup_name <- if (!is.null(shortcut_input_id)) {
     nm <- shortcut_value
     # Boot race: the shortcut textInput is seeded with node$default by
     # `ptr_builtin_upload_build_ui()`, but `input[[shortcut_input_id]]` is NULL until
@@ -986,9 +992,9 @@ try_bind_source_default <- function(state, key, node, input, shortcut_input_id,
       if (nzchar(cand) && make.names(cand) == cand) cand else NULL
     } else NULL
   } else NULL
-  if (is.null(binding_name)) return(FALSE)
+  if (is.null(lookup_name)) return(FALSE)
   df <- tryCatch(
-    get(binding_name, envir = state$eval_env, inherits = TRUE),
+    get(lookup_name, envir = state$eval_env, inherits = TRUE),
     error = function(e) NULL
   )
   # ADR 0024 §2: structured error surface. Pre-ADR-0024 both branches
@@ -996,13 +1002,26 @@ try_bind_source_default <- function(state, key, node, input, shortcut_input_id,
   # owes the user a reason when their typed name didn't bind.
   if (is.null(df)) {
     set_resolve_error(state, key,
-      sprintf("Object '%s' not found in environment.", binding_name))
+      sprintf("Object '%s' not found in environment.", lookup_name))
     return(FALSE)
   }
   if (!is.data.frame(df)) {
     set_resolve_error(state, key,
-      sprintf("Object '%s' is not a data frame.", binding_name))
+      sprintf("Object '%s' is not a data frame.", lookup_name))
     return(FALSE)
+  }
+  # ADR 0025 §3 / PLAN-02: when the shortcut surface is present and the
+  # textbox is empty (shortcut_value not a usable string), bind under
+  # `node$auto_name` so the substitute walker's empty-snapshot fallback
+  # (`as.name(node$auto_name)`) resolves at eval-time. With a non-empty
+  # textbox, `shortcut_value` wins (existing behaviour).
+  binding_name <- lookup_name
+  if (!is.null(shortcut_input_id) && !has_shortcut_value) {
+    auto <- node$auto_name
+    if (is.character(auto) && length(auto) == 1L && nzchar(auto) &&
+        make.names(auto) == auto) {
+      binding_name <- auto
+    }
   }
   bind_source_value(state, key, binding_name, df, slot)
   TRUE
@@ -1077,7 +1096,19 @@ resolve_upload_source <- function(input_slot, shortcut_slot, node, entry,
   binding_name <- if (has_shortcut) {
     nm <- shortcut_value
     if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
-        make.names(nm) == nm) nm else NULL
+        make.names(nm) == nm) {
+      nm
+    } else {
+      # ADR 0025 §3 / PLAN-02: when the shortcut textbox is empty (or
+      # not a syntactic R name), fall back to the deterministic
+      # `node$auto_name` so the upload binds to a stable symbol under
+      # the coordinator eval_env. The substitute walker reads the same
+      # field via its empty-snapshot fallback, keeping eval-time symbol
+      # resolution in lockstep with bind-time assignment.
+      auto <- node$auto_name
+      if (is.character(auto) && length(auto) == 1L && nzchar(auto) &&
+          make.names(auto) == auto) auto else NULL
+    }
   } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
     sym <- tryCatch(entry$resolve_expr(file_info, node),
                     error = function(e) NULL)
@@ -1111,7 +1142,11 @@ try_bind_source_default_resolved <- function(state, key, node, has_shortcut,
                     is.character(shortcut_value) && length(shortcut_value) == 1L &&
                     nzchar(shortcut_value)
   if (is.null(node$default) && !has_shortcut_value) return(FALSE)
-  binding_name <- if (has_shortcut) {
+  # ADR 0025 §3 / PLAN-02: see the parallel comment in
+  # `try_bind_source_default()` — `lookup_name` chooses what we GET from
+  # `state$eval_env`; `binding_name` chooses the symbol we ASSIGN under,
+  # which on the shortcut-empty path is `node$auto_name`.
+  lookup_name <- if (has_shortcut) {
     nm <- shortcut_value
     # Boot race: the shortcut textInput is seeded with `node$default`
     # by `ptr_builtin_upload_build_ui()`, but `input[[shortcut_input_id]]` is
@@ -1133,21 +1168,29 @@ try_bind_source_default_resolved <- function(state, key, node, has_shortcut,
       if (nzchar(cand) && make.names(cand) == cand) cand else NULL
     } else NULL
   } else NULL
-  if (is.null(binding_name)) return(FALSE)
+  if (is.null(lookup_name)) return(FALSE)
   df <- tryCatch(
-    get(binding_name, envir = state$eval_env, inherits = TRUE),
+    get(lookup_name, envir = state$eval_env, inherits = TRUE),
     error = function(e) NULL
   )
   # ADR 0024 §2: structured error surface — mirrors try_bind_source_default().
   if (is.null(df)) {
     set_resolve_error(state, key,
-      sprintf("Object '%s' not found in environment.", binding_name))
+      sprintf("Object '%s' not found in environment.", lookup_name))
     return(FALSE)
   }
   if (!is.data.frame(df)) {
     set_resolve_error(state, key,
-      sprintf("Object '%s' is not a data frame.", binding_name))
+      sprintf("Object '%s' is not a data frame.", lookup_name))
     return(FALSE)
+  }
+  binding_name <- lookup_name
+  if (has_shortcut && !has_shortcut_value) {
+    auto <- node$auto_name
+    if (is.character(auto) && length(auto) == 1L && nzchar(auto) &&
+        make.names(auto) == auto) {
+      binding_name <- auto
+    }
   }
   bind_source_value(state, key, binding_name, df, slot)
   TRUE

@@ -514,6 +514,13 @@ ptr_setup_panel_sources <- function(obj, input, output, envir,
       if (!is.null(entry) && isTRUE(entry$shortcut)) {
         node$shortcut_id <- paste0(canonical, "_shortcut")
       }
+      # ADR 0025 §3 / PLAN-02: stamp the panel-scope auto-name. For shared
+      # sources under a coordinator with `obj$id = "main"`, the auto-name
+      # is `"main_ds"`; under `id = NULL` it collapses to `"ds"`. This is
+      # the single source of truth for the substitute walker fallback,
+      # the upload binding name in `resolve_upload_source()`, and the
+      # Plan-04 code-panel prologue.
+      node$auto_name <- if (!is.null(obj$id)) paste0(obj$id, "_", key) else key
 
       output_id <- ns(source_output_id(canonical))
       input_id <- ns(canonical)
