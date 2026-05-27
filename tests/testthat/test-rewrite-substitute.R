@@ -164,13 +164,42 @@ test_that("P8.16 upload aborts on injection attempt (invalid R name)", {
   )
 })
 
-test_that("P8.17 upload returns ptr_missing for empty companion name", {
+test_that("P8.17 upload falls back to node$auto_name on empty shortcut snapshot (ADR 0025 §5)", {
+  # ADR 0025 §5 / PLAN-02 supersedes the pre-PLAN-02 ptr_missing contract:
+  # when the shortcut snapshot is NULL/empty AND node$auto_name is set
+  # (always TRUE post-PLAN-02 for non-shared upload nodes, where
+  # auto_name = node$default %||% node$id), the walker emits
+  # `as.name(node$auto_name)` so the rendered code panel and the eval
+  # symbol resolve against the eval_env binding the upload binder placed
+  # under that name. The ptr_missing contract is preserved only when
+  # both snapshot AND auto_name are empty.
   r <- ptr_translate("ggplot(data = ppUpload)")
-  src <- find_nodes(r, is_ptr_ph_data_source)[[1]]
+  src <- find_nodes(r, is_ptr_ph_data_source)[[1L]]
+  expect_identical(src$auto_name, src$id)
   for (val in list("", NULL)) {
     sub <- ptr_substitute(r, input_snapshot = setNames(list(val), src$shortcut_id))
-    expect_true(length(find_nodes(sub, is_ptr_missing)) >= 1L)
+    # No ptr_missing — the auto_name fallback wins.
+    expect_equal(length(find_nodes(sub, is_ptr_missing)), 0L)
+    # The data source was substituted to as.name(auto_name).
+    lits <- find_nodes(sub, is_ptr_literal)
+    expect_true(any(vapply(lits, function(l) {
+      is.symbol(l$expr) && as.character(l$expr) == src$auto_name
+    }, logical(1L))))
   }
+})
+
+test_that("P8.17b upload returns ptr_missing only when both snapshot AND auto_name are empty", {
+  r <- ptr_translate("ggplot(data = ppUpload)")
+  src <- find_nodes(r, is_ptr_ph_data_source)[[1L]]
+  # Synthesise a node with auto_name explicitly NULL to confirm the
+  # pre-PLAN-02 fallback path still works in the both-empty case.
+  src2 <- src
+  src2$auto_name <- NULL
+  # Substitute walker is dispatched on a single node via internal helpers;
+  # easier path: poke the registry context directly.
+  ctx <- list(snapshot = setNames(list(""), src2$shortcut_id))
+  out <- ggpaintr:::substitute_walk(src2, ctx)
+  expect_true(inherits(out, "ptr_missing"))
 })
 
 # P8.18 expr provenance, P8.20–P8.22 -----------------------------------------
