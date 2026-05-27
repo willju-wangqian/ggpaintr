@@ -312,7 +312,11 @@ ptr_app(
 # No error; the source acts like `shortcut = FALSE` from the user's perspective.
 </code></pre>
 
-<h2>Known precondition (not fixed by this ADR)</h2>
+<h2>Known precondition (RESOLVED 2026-05-26)</h2>
+
+<p><strong>Update 2026-05-26:</strong> resolved by commit <code>979397b "fix(consumer): default seeds picker even with ppUpload upstream (has_rendered gate)"</code> on branch <code>finding3-panel-source-nonshared-consumer-test</code>, merged into <code>shared-id-upgrade</code> via merge commit <code>8c40ea4</code>. The fix gates the consumer renderUI's <code>has_rendered</code> flag so the first <code>entry_reactive()</code> fire (which transiently returns NULL while the source companion textInput's <code>value=</code> is in flight) does not lock the picker into the empty <code>character(0)</code> branch. Regression tests live at <code>tests/testthat/test-default-seeding-with-source-upstream.R</code> (3 test_that blocks: string form + unquoted form + bare-df baseline; fixtures under <code>tests/testthat/fixtures/vignette-apps/default-seeding-{source-upstream,source-upstream-unquoted,no-upstream-baseline}/app.R</code>; the unquoted-form fixture is the verbatim reproducer below). Full authoritative gate post-merge: <strong>FAIL 0 / WARN 0 / SKIP 0 / PASS 3110</strong>.</p>
+
+<p>Historical record (the bug as it existed pre-fix; preserved for audit-trail completeness):</p>
 
 <p>A pre-existing bug in the <code>ppUpload(&lt;name&gt;)</code> boot path was discovered during the design grill but is <strong>not in this ADR's scope</strong>. Captured here so the next implementer is not surprised when hand-testing.</p>
 
@@ -327,11 +331,11 @@ ptr_app(
 
 <p><strong>Why out of scope:</strong> the failure path is observer ordering between the source bind and the consumer picker's <code>req(state$bound_names[[key]])</code> evaluation, OR the consumer picker is suspended at first paint per the <code>.claude/rules/testing.md</code> "var pickers are suspended" note. Neither code path is touched by any of this ADR's eight Decision sections (rename, mutex, auto-name, prologue, eval_env contract, spec round-trip, symbol-flip, vacate-on-empty). The bug exists today on <code>shared-id-upgrade</code> HEAD <code>6871371</code> and is not introduced or fixed by ADR 0025.</p>
 
-<p><strong>Authoritative-gate impact:</strong> none observed. The full suite is <code>FAIL 0 / WARN 0 / SKIP 0 / PASS 3093</code> on the same HEAD, so the bug is not covered by any existing test. ADR 0025's Definition-of-Done gate (below) therefore does not depend on this bug being fixed; ADR 0025 plans can pass independently.</p>
+<p><strong>Authoritative-gate impact (pre-fix):</strong> none observed. The full suite was <code>FAIL 0 / WARN 0 / SKIP 0 / PASS 3093</code> on the pre-fix HEAD, so the bug was not covered by any existing test. ADR 0025's Definition-of-Done gate (below) therefore did not depend on this bug being fixed.</p>
 
-<p><strong>Recommended sequencing:</strong> run <code>/diagnose</code> in parallel with <code>/decision-to-plan</code>. Fix the bug as its own small PR ahead of ADR 0025's implementation merge if diagnosis confirms a small/local fix; otherwise track separately. ADR 0025's plans should NOT absorb this fix — keeping the surfaces independent preserves the audit chain.</p>
+<p><strong>Sequencing (now closed):</strong> the recommended <code>/diagnose</code> + small-PR track was executed independently of ADR 0025's plan-set; the fix landed via <code>979397b</code> ahead of <code>/exec-plan</code>. ADR 0025's plans did NOT absorb the fix — the audit-chain separation is preserved.</p>
 
-<p><strong>Tracking:</strong> file as a separate bug note (suggested location <code>dev/notes/ppUpload-explicit-name-boot-empty-consumer.html</code>) once diagnosis lands.</p>
+<p><strong>Tracking note:</strong> the originally-suggested standalone bug note (<code>dev/notes/ppUpload-explicit-name-boot-empty-consumer.html</code>) was superseded by the inline test + fixtures cited above and is not created.</p>
 
 <h2>Definition of Done</h2>
 
@@ -422,6 +426,7 @@ ptr_app(
   <li><code>devtools::check()</code> runs with <code>NOT_CRAN=true</code> but uses the <code>.Rcheck</code> sandbox; source-root guard cleanly SKIPs the e2e file in that environment. Clean SKIP under check is expected; ERROR is not.</li>
 </ul>
 
-<!-- audit-adr: PASS 5f437d0f279f dev/audit/audit-adr-0025-2026-05-26-1727.html 2026-05-26 -->
+<!-- audit-adr: PASS 7c200ea6ddf0 dev/audit/audit-adr-0025-2026-05-26-1727.html 2026-05-26 -->
+<!-- audit-adr-note: 2026-05-26 known-precondition resolved by 979397b (commit on shared-id-upgrade); section rewritten in-place; original audit report applies to pre-update content (the rewritten section is descriptive, not architectural) -->
 </body>
 </html>
