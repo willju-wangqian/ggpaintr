@@ -2230,7 +2230,14 @@ ptr_setup_source_uis <- function(state, input, output, session) {
       output_id <- ns(source_output_id(raw_id))
       output[[output_id]] <- shiny::renderUI({
         state$tree()
-        state$stage_enabled()
+        # Intentionally NOT a dep on `state$stage_enabled()`: source
+        # placeholders sit at the pipeline head, so toggling a downstream
+        # stage cannot alter their UI. Adding the dep here re-fires the
+        # renderUI on every stage checkbox click, which calls the upload
+        # build_ui afresh and resets the shortcut textInput to
+        # `node$default` (wiping user-typed text / upload auto-name).
+        # Stage disabling propagates to source widgets via CSS only
+        # (`ptr_set_class` in `ptr_setup_stage_enabled`).
         current <- shiny::isolate(input[[ns(raw_id)]])
         seed <- shiny::isolate(state$spec_seed[[raw_id]])
 
