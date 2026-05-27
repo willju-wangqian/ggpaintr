@@ -629,12 +629,11 @@ ptr_setup_panel_sources <- function(obj, input, output, envir,
         })
       }
 
-      # Autoname companion text input from uploaded filename (same
-      # contract as `ptr_setup_pipelines()`).
+      # ADR 0025 §2 (Q3-B): mutex between fileInput and shortcut textInput
+      # -- same contract as `ptr_setup_pipelines()`.
       if (!is.null(shortcut_input_id)) {
         session <- shiny::getDefaultReactiveDomain()
-        ptr_bind_source_autoname(input_id, shortcut_input_id, input, session,
-                                  default_name = node$default)
+        ptr_bind_source_mutex(input_id, shortcut_input_id, input, session)
       }
 
       shiny::reactive(slot())
