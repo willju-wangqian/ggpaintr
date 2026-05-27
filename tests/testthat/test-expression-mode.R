@@ -99,6 +99,38 @@ test_that("pre-quoted wrappers are unwrapped one layer (E1.a)", {
   expect_no_match(out_bq, "^bquote\\(")
 })
 
+test_that("top-level `{ ... }` is unwrapped so `|> ptr_app()` works", {
+  # `{ expr } |> ptr_app()` is the motivating shape: braces let the
+  # user pipe an entire built-up ggplot expression into `ptr_app()`
+  # at the bottom. `ptr_capture_formula` unwraps `{` and returns the
+  # last sub-expression as a string.
+  wrapped_brace <- rlang::expr({
+    ggplot(mtcars, aes(x = var, y = var)) + geom_point()
+  })
+  out_brace <- ggpaintr:::ptr_capture_formula(wrapped_brace, parent.frame())
+  expect_type(out_brace, "character")
+  expect_length(out_brace, 1L)
+  expect_match(out_brace, "ggplot", fixed = TRUE)
+  expect_no_match(out_brace, "^\\{")
+
+  # Multi-statement block: keep only the last expression (R's `{}`
+  # semantics). Earlier statements (helpers / temporaries) are dropped.
+  wrapped_multi <- rlang::expr({
+    x <- 1
+    ggplot(mtcars, aes(x = var, y = var)) + geom_point()
+  })
+  out_multi <- ggpaintr:::ptr_capture_formula(wrapped_multi, parent.frame())
+  expect_match(out_multi, "ggplot", fixed = TRUE)
+  expect_no_match(out_multi, "x <- 1", fixed = TRUE)
+
+  # End-to-end through `ptr_app()`: the braced + piped form builds
+  # a shinyApp just like the bare expression form.
+  app_brace <- ptr_app({
+    ggplot(mtcars, aes(x = var, y = var)) + geom_point()
+  })
+  expect_s3_class(app_brace, "shiny.appobj")
+})
+
 test_that("invalid input is rejected with a clear message", {
   expect_error(
     ggpaintr:::ptr_capture_formula(NULL, parent.frame()),

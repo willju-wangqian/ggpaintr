@@ -194,6 +194,16 @@ ptr_app_components <- function(formula,
 # `rlang::enexpr()` is used (not base `substitute()`) per the ADR 0009
 # cross-cutting rlang preference; it also makes `!!` splicing work.
 ptr_capture_formula <- function(formula_captured, envir) {
+  # Unwrap a top-level `{ ... }` block so users can wrap a piped
+  # expression in braces and feed it through `|> ptr_app()` at the
+  # bottom: `{ iris |> ggplot(...) + geom_point() } |> ptr_app()`.
+  # R's `{}` evaluates to its last expression, so we keep the last
+  # sub-expression. We don't recover the braces in the code panel.
+  if (is.call(formula_captured) &&
+      identical(formula_captured[[1L]], quote(`{`)) &&
+      length(formula_captured) >= 2L) {
+    formula_captured <- formula_captured[[length(formula_captured)]]
+  }
   if (rlang::is_string(formula_captured)) {
     return(formula_captured)
   }
