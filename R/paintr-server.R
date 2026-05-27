@@ -1584,17 +1584,6 @@ ptr_bind_source_mutex <- function(src_id, shortcut_input_id, input, session,
   invisible()
 }
 
-# ADR 0025 §7 / PLAN-05 (A2 deferred): the keystroke-burst debounce on
-# the shortcut textbox is out-of-scope for this commit. Initial attempt
-# (`shiny::debounce(reactive(input[[shortcut_id]]), 400)`) broke the
-# race-window in `test-shared-source-panel-multi-instance.R` where the
-# synchronous file+shortcut observe is what binds the typed name into
-# `state$eval_env` before the mutex's file-reset round-trip arrives. A
-# debounce-friendly variant that suppresses intermediate "not found"
-# errors without breaking that bind path needs its own design pass; see
-# the report attached to this plan's commit.
-
-
 # Wire one debounced reactive per `ptr_ph_value` (text/num/expr) input. The
 # debounce window is read dynamically from `state$producer_debounce_ms`, so
 # the auto-flip in `record_eval_time()` (D8) can flip every producer's
