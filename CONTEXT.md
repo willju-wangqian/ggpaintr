@@ -45,8 +45,8 @@ The block of shared-key widgets rendered **inside one formula's control panel**,
 _Avoid_: calling this a "panel"; assuming it knows about other formulas.
 
 **Shared panel** _(standalone, cross-formula)_:
-The single page-level `shiny::wellPanel()` built by `ptr_shared_ui(formulas, …)`, holding only keys referenced by **≥2 formulas**. Uses **global, un-namespaced ids** (`shared_<key>`, `ptr_shared_draw_all`, `ptr_shared_errors`); **exactly one per page**; its server counterpart `ptr_shared_server()` **must run at the top level**, never inside `moduleServer(id)`.
-_Avoid_: calling this a "section"; assuming it can be namespaced or duplicated per module; assuming it currently filters to cross-formula keys (today it takes *all* keys).
+The page-level `shiny::wellPanel()` built by `ptr_shared_ui(formulas, …)`, holding only keys referenced by **≥2 formulas**. `ptr_shared(..., id = ...)` namespaces every shared id under the coordinator's `id` (`<id>_shared_<key>`, `<id>_ptr_shared_draw_all`, `<id>_ptr_shared_errors`) — see `R/paintr-shared-coordinator.R:220–234, 292`. **Multiple coordinators on one page are supported**, each with its own `id`; their server counterparts `ptr_shared_server(obj)` all run at the top level, never inside `moduleServer(id)`. (Caveat: an upstream `ptr_setup_panel_sources` fix is still owed for shared *sources* whose `var(shared = ...)` consumer references a literal symbol name — tracked as a separate follow-up.)
+_Avoid_: calling this a "section"; assuming a single coordinator id is mandatory; assuming the panel currently filters to cross-formula keys (today it takes *all* keys).
 
 ### Shared coordinator _(in flux — new design)_
 
@@ -129,4 +129,4 @@ Exported `ptr_ui_assets(css)` — manual asset injector, *only* for out-of-`ptr_
 ## Example dialogue
 
 > **Embedder:** "I'll drop `ptr_shared_ui()` into each module's sidebar so every plot gets the shared control."
-> **Maintainer:** "No — the **shared panel** uses global ids and one top-level `ptr_shared_server()`; N copies collide. One standalone panel per page. If you only have *one* formula, you don't want the panel at all — you want the inline **shared section** (`render_shared_section = TRUE`)."
+> **Maintainer:** "No — the **shared panel** uses coordinator-namespaced ids built by `ptr_shared(..., id = ...)`; two copies of the *same* coordinator collide because they share an `id`. If you genuinely need two independent shared groups on one page, build two coordinators with different `id`s and emit a `ptr_shared_panel(obj)` for each. If you only have *one* formula, you don't want the panel at all — you want the inline **shared section** (`render_shared_section = TRUE`)."

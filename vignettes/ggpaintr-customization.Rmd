@@ -294,7 +294,8 @@ Inside either hook, `node` is a small list. The fields you can read:
 | `node$id`          | Namespaced Shiny input id. Pass as `inputId` of your widget in `build_ui`. In `resolve_expr` it just identifies which node you are resolving.          |
 | `node$keyword`     | The registered keyword (`"pct"`, `"range"`, …). Mostly useful when one `build_ui` is shared across keywords.                                          |
 | `node$param`       | The formal argument the placeholder is bound to (e.g. `"alpha"` for `geom_point(alpha = pct)`), or `NA_character_` for unnamed positional uses.       |
-| `node$companion_id`| Source placeholders only, when `companion_id_fn` is set. Namespaced id of the sibling input. See *Source placeholders* below.                          |
+| `node$shortcut_id` | Source placeholders only, when `shortcut = TRUE`. Namespaced id of the sibling text input that carries a *shortcut* name (typically a frame name to look up in the caller env, or a display name for an uploaded payload). See *Source placeholders* below. |
+| `node$auto_name`   | Source placeholders only. Default bound name stamped by the framework — at translate time for non-shared sources (`node$default %||% node$id`) and at runtime for shared sources (`paste0(obj$id, "_", key)`). Used as the symbol when the `shortcut_id` text input is empty so the rendered code still references a real binding. |
 
 You should not mutate `node` — copy out the fields you need.
 
@@ -499,7 +500,32 @@ ptr_define_placeholder_source(
 
 `resolve_data` returns the data frame to feed downstream consumers. `resolve_expr` defaults to substituting the bare keyword (`rlang::sym(value)`) into the generated code, which is right when `value` is the name of a global object. Override `resolve_expr` to substitute something else (e.g. `ppExpr(read.csv(!!path))`) when the generated code should re-fetch the data rather than carry a reference.
 
-`companion_id_fn = function(id) <companion_id>` pairs the primary widget with a sibling — the built-in `ppUpload` source uses it for the "Optional dataset name" textbox. Most sources do not need it.
+`shortcut = TRUE` (default `FALSE`) tells the framework to stamp `node$shortcut_id <- paste0(node$id, "_shortcut")` so your `build_ui` can render a sibling text input alongside the primary widget. The two are bound separately: `input[[node$id]]` carries the primary payload (e.g. the `fileInput` row), `input[[node$shortcut_id]]` carries a short name the user types to look up a frame in the caller env (or override the display name of an uploaded payload). The built-in `ppUpload` source uses this for its env-shortcut textbox; most sources do not need it. The author is responsible for emitting the `shiny::textInput(node$shortcut_id, ...)` inside `build_ui` — the default-FALSE/author-emit policy means a registration that forgets the second widget silently renders an unreachable shortcut id (Example 6's silent-unreachability trap; bind both or leave `shortcut = FALSE`).
+
+#### Auto-name, the textbox/file mutex, and the code-panel prologue
+
+A source placeholder with `shortcut = TRUE` carries an *auto-name* — a deterministic default bound name the framework stamps on `node$auto_name`. For a non-shared source it is `node$default %||% node$id` (stamped at translate time); for a shared source it is `paste0(obj$id, "_", key)` (stamped at runtime, once the coordinator id is known). When the user leaves the shortcut textbox empty, `substitute_pass` splices `as.name(node$auto_name)` into the rendered call so the code still references a real binding rather than an empty symbol; when the user types a name, that name wins. Vacating the textbox (`""`) with no upload present synchronously vacates the matching `state$bound_names[[key]]` and `state$eval_env` slot so the picker drops back to the auto-name binding (ADR 0025 §7 A1).
+
+For `ppUpload` the framework also wires a UI mutex between the file picker and the shortcut textbox: picking a file clears the textbox (so the auto-name takes over as the binding name), and typing into the textbox clears any pending file (so a name typed by the user always means "look up this object in the caller env", never "rename the uploaded payload"). The code panel emits a one-line prologue for every active upload — `<auto-name> <- read.csv("<filename>")` (or `read.delim`, `readxl::read_excel`, `jsonlite::fromJSON`, … as appropriate to the extension) — so the rendered code reads top-to-bottom as a self-contained snippet a reader can paste into a fresh R session.
+
+`ptr_spec()` round-trips this state through the same channel. When the shortcut textbox is empty, the spec dumps `node$auto_name` (not the empty string) as the bound name, so reloading the spec re-establishes the same binding the running app saw.
+
+```r
+# Built-in ppUpload (illustrative — the real registration lives in
+# R/paintr-builtins.R). `shortcut = TRUE` opts in to the sibling text input.
+ptr_define_placeholder_source(
+  keyword       = "ppUpload",
+  shortcut      = TRUE,
+  build_ui      = function(node, label = NULL, ...) {
+    shiny::tagList(
+      shiny::fileInput(node$id, label = label),
+      shiny::textInput(node$shortcut_id, label = "Bound name (optional)")
+    )
+  },
+  resolve_data  = function(value, node, ...) { ... },
+  resolve_expr  = function(value, node, ...) { ... }
+)
+```
 
 Drop the `dataset` keyword in as the first stage of a pipeline:
 
