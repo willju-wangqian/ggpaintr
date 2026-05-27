@@ -965,6 +965,45 @@ clear_active_upload <- function(state, key) {
   invisible(NULL)
 }
 
+# ADR 0025 §7 / PLAN-05 (A1) -- vacate-on-empty. Called from any path that
+# falls through to `slot(NULL)` because the source has no value to bind
+# (file_info NULL AND shortcut empty AND no default). Reverses three pieces
+# of prior-resolve state so downstream system-state surfaces (consumer
+# pickers, code-panel prologue, `ptr_runtime_input_spec()`'s spec dump)
+# reflect the *current* (vacated) state, not the historic last-good:
+#   (1) drop the prior name from `state$eval_env` (scoped: `inherits = FALSE`
+#       so caller-env shadows reached via the parent chain are untouched);
+#   (2) reset `state$bound_names[[key]]` to NULL so the ADR 0015 §2.1
+#       source-ready gate (`req(state$bound_names[[k]]())`) re-blocks until
+#       the user supplies a new value;
+#   (3) clear `state$active_uploads[[key]]` so the code-panel prologue stops
+#       emitting a line for this key (delegates to `clear_active_upload()`).
+# Idempotent: safe to call multiple times for the same already-vacated key.
+# Note: `state$bound_names[[key]]` is read with `shiny::isolate()` because
+# the read happens inside an observer that already subscribes to `input`
+# slots; subscribing to `bound_names` from here would create a feedback loop.
+vacate_source_binding <- function(state, key) {
+  if (!is.list(state$bound_names) || !(key %in% names(state$bound_names))) {
+    clear_active_upload(state, key)
+    return(invisible(NULL))
+  }
+  prior_name <- shiny::isolate(state$bound_names[[key]]())
+  # Same syntactic-name predicate Plan 02 uses for `binding_name` derivation
+  # (see `resolve_upload_source()` / `try_bind_source_default()`). Required
+  # because `exists()` with `inherits = FALSE` errors on non-syntactic names
+  # on some R versions, and we will only ever have written via that same
+  # predicate so any present name must satisfy it.
+  if (is.character(prior_name) && length(prior_name) == 1L &&
+      nzchar(prior_name) && make.names(prior_name) == prior_name) {
+    if (exists(prior_name, envir = state$eval_env, inherits = FALSE)) {
+      rm(list = prior_name, envir = state$eval_env, inherits = FALSE)
+    }
+  }
+  state$bound_names[[key]](NULL)
+  clear_active_upload(state, key)
+  invisible(NULL)
+}
+
 # Walk `state$active_uploads()` in declaration (insertion) order and emit
 # one prologue line per entry. Unknown extensions are silently omitted
 # (ADR 0025 §4 documented default-skip: never substitute a fake reader).
@@ -1165,9 +1204,9 @@ resolve_upload_source <- function(input_slot, shortcut_slot, node, entry,
   if (is.null(file_info)) {
     set_resolve_error(state, key, NULL)
     # ADR 0025 §4 / PLAN-04: vacated upload binding — drop any prior
-    # prologue ledger entry for this key. Note Plan 05 owns the
-    # textbox-empty fall-through; this clear covers the "no file_info"
-    # branch (e.g. fileInput pre-pick, or post-mutex shiny::reset()).
+    # prologue ledger entry for this key. Plan 05 widens the vacate
+    # below to cover the textbox-empty fall-through (eval_env binding +
+    # bound_names + the same active_uploads slot).
     clear_active_upload(state, key)
     # Source-default fallback: when no upload has been provided but the
     # source carries a default-arg symbol resolvable in `envir`'s parent
@@ -1178,6 +1217,27 @@ resolve_upload_source <- function(input_slot, shortcut_slot, node, entry,
                                          shortcut_value, entry, slot)) {
       return(invisible(NULL))
     }
+    # ADR 0025 §7 / PLAN-05 (A1): vacate-on-empty. We reached the
+    # `slot(NULL)` fall-through because file_info is NULL AND the
+    # default-arg fallback could not bind. Plan-05 vacate fires ONLY in
+    # the literal "empty textbox" case (file gone + textbox cleared to
+    # ""), NOT when the user typed a name that failed to resolve --
+    # otherwise a typo would clobber the prior-good upload binding and
+    # blank every downstream consumer picker (regression observed in
+    # `test-shared-source-panel-multi-instance.R` where typing a
+    # mistyped object name after an auto-name upload bind dropped the
+    # picker to empty). The empty-textbox condition is:
+    #   - source has a shortcut surface (`has_shortcut == TRUE`) AND
+    #   - the shortcut value is NULL (boot-time, no widget binding yet)
+    #     or a zero-length string (mutex auto-cleared or user-cleared).
+    # Sources with no shortcut surface (selectInput choosers etc.) get
+    # vacated when file_info is NULL, since they have no other input
+    # channel that could legitimately hold a "bad" value.
+    shortcut_is_empty <- !has_shortcut ||
+      is.null(shortcut_value) ||
+      (is.character(shortcut_value) && length(shortcut_value) == 1L &&
+       !nzchar(shortcut_value))
+    if (shortcut_is_empty) vacate_source_binding(state, key)
     slot(NULL)
     return(invisible(NULL))
   }
@@ -1255,6 +1315,13 @@ try_bind_source_default_resolved <- function(state, key, node, has_shortcut,
   has_shortcut_value <- has_shortcut &&
                     is.character(shortcut_value) && length(shortcut_value) == 1L &&
                     nzchar(shortcut_value)
+  # ADR 0025 §7 / PLAN-05 (A1): inner vacates live in the caller
+  # (`resolve_upload_source()`'s `slot(NULL)` fall-through) only.
+  # Vacating from here too would clobber a still-good prior binding
+  # when the user types a name that fails to resolve (e.g. typo) --
+  # observed regression in `test-shared-source-panel-multi-instance.R`
+  # where typing "penguins" after an auto-name bind dropped the picker
+  # to empty even though the upload's data was still resolvable.
   if (is.null(node$default) && !has_shortcut_value) return(FALSE)
   # ADR 0025 §3 / PLAN-02: see the parallel comment in
   # `try_bind_source_default()` — `lookup_name` chooses what we GET from
@@ -1359,6 +1426,21 @@ ptr_setup_pipelines <- function(state, input, output, session) {
         return(invisible())
       }
 
+      # ADR 0025 §7 / PLAN-05 (A2 deferred): debounce on the shortcut
+      # textbox read was attempted twice and broke distinct test contracts
+      # both times. (1) shiny::debounce(reactive(input[[shortcut_id]]), 400L)
+      # broke test-shared-source-panel-multi-instance.R's synchronous
+      # observe ordering (the mutex's file-reset round-trip races the bind).
+      # (2) Re-attempting with the test-side race-fix helpers from the
+      # parallel session (commits 69bd203, 4c924d2, d0136ed) STILL broke
+      # test-rewrite-pipeline-data-source.R (6 FAILs) and
+      # test-shared-source-panel-multi-instance.R (2 FAILs). The
+      # invariant the synchronous read protects is broader than the
+      # multi-instance fixture. Defer A2 to a follow-up plan that
+      # designs a debounce-friendly variant suppressing intermediate
+      # errors without breaking the synchronous bind path. The Plan 05
+      # A2 BDD scenario (test-debounce-keystroke-burst.R) is consequently
+      # NOT added.
       shiny::observe({
         resolve_upload_source(
           input_slot     = input[[src_id]],
@@ -1426,6 +1508,8 @@ ptr_setup_pipelines <- function(state, input, output, session) {
         return(invisible())
       }
 
+      # ADR 0025 §7 / PLAN-05 (A2 deferred): see the parallel block in
+      # the bare-data-source-layer branch above.
       shiny::observe({
         resolve_upload_source(
           input_slot     = input[[src_id]],
@@ -1480,6 +1564,16 @@ ptr_bind_source_mutex <- function(src_id, shortcut_input_id, input, session) {
   }, ignoreInit = TRUE)
   invisible()
 }
+
+# ADR 0025 §7 / PLAN-05 (A2 deferred): the keystroke-burst debounce on
+# the shortcut textbox is out-of-scope for this commit. Initial attempt
+# (`shiny::debounce(reactive(input[[shortcut_id]]), 400)`) broke the
+# race-window in `test-shared-source-panel-multi-instance.R` where the
+# synchronous file+shortcut observe is what binds the typed name into
+# `state$eval_env` before the mutex's file-reset round-trip arrives. A
+# debounce-friendly variant that suppresses intermediate "not found"
+# errors without breaking that bind path needs its own design pass; see
+# the report attached to this plan's commit.
 
 
 # Wire one debounced reactive per `ptr_ph_value` (text/num/expr) input. The

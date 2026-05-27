@@ -601,7 +601,11 @@ test_that("adr9-code-mode-toggle: ptr_code_mode radio switches code panel betwee
   # list(...)` block, not the formula text). radioGroupButtons writes a
   # new value to input$ptr_code_mode; ptr_register_code re-renders.
   # wait_=TRUE because this is one of the few inputs that DOES trigger an
-  # output update by itself (no Update click required).
+  # output update by itself (no Update click required). wait_for_input_binding
+  # guards against the renderUI/bindAll race; helper-vignette-apps.R::set_input
+  # already does this for wait_=FALSE call sites, but the wait_=TRUE path
+  # here uses app$set_inputs directly so the guard has to be explicit.
+  wait_for_input_binding(app, "ptr_code_mode")
   app$set_inputs(ptr_code_mode = "spec", wait_ = TRUE, timeout_ = 10000)
   code_spec <- app$get_value(output = "ptr_code")
 
@@ -624,7 +628,8 @@ test_that("adr9-code-mode-toggle: ptr_code_mode radio switches code panel betwee
   expect_false(identical(code_final, code_spec),
                label = "final and spec modes produce different code text")
 
-  # And back to FINAL — the toggle is bidirectional.
+  # And back to FINAL — the toggle is bidirectional. Binding already
+  # waited for above; the second toggle inherits a settled DOM.
   app$set_inputs(ptr_code_mode = "final", wait_ = TRUE, timeout_ = 10000)
   expect_identical(app$get_value(output = "ptr_code"), code_final)
 })
