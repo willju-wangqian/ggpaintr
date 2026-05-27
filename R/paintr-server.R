@@ -1672,6 +1672,42 @@ ptr_setup_runtime <- function(state, input, output, session) {
         for (i in seq_len(nrow(spec))) {
           raw_id <- spec$input_id[i]
           snapshot[[raw_id]] <- input[[ns(raw_id)]]
+          # ADR 0025 §6 / PLAN-06: spec round-trip fallback. For
+          # source-companion rows (the shortcut textInput sibling of a
+          # source placeholder), an empty textbox + a non-NULL
+          # `state$bound_names[[key]]()` means the user uploaded a file
+          # whose auto-name (Plan 02) is the live identity of that
+          # source. Overwrite the snapshot with the bound name so the
+          # spec dump records the auto-name. A boot-2 with `spec=` then
+          # seeds the textbox with this name; the consumer's
+          # `<auto-name> <- read.csv("...")` prologue (Plan 04) binds the
+          # frame under it; the env-shortcut resolves -> reproduces the
+          # rendered plot. Textbox wins when non-empty (no override).
+          if (identical(spec$role[i], "source_companion")) {
+            val <- snapshot[[raw_id]]
+            if (is.null(val) || (is.character(val) && length(val) == 1L &&
+                                 !nzchar(val))) {
+              # `state$bound_names` keys vary by source kind: pipeline-
+              # head sources publish under `node$id` (= spec$source_id);
+              # bare-data-source layers (`ppUpload |> ggplot(...)`)
+              # publish under `layer_name`. Try source_id first, then
+              # layer_name. Both come from the same spec row.
+              src_key   <- spec$source_id[i]
+              layer_key <- spec$layer_name[i]
+              bound <- NULL
+              if (!is.na(src_key) && nzchar(src_key) &&
+                  src_key %in% names(state$bound_names)) {
+                bound <- state$bound_names[[src_key]]()
+              }
+              if (is.null(bound) && !is.na(layer_key) && nzchar(layer_key) &&
+                  layer_key %in% names(state$bound_names)) {
+                bound <- state$bound_names[[layer_key]]()
+              }
+              if (!is.null(bound)) {
+                snapshot[[raw_id]] <- bound
+              }
+            }
+          }
         }
       }
 
@@ -2576,6 +2612,26 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
               psn, entry, session = NULL,
               shortcut_value = shortcut_value, df = df_val
             )
+            # ADR 0025 §6 / PLAN-06: spec round-trip fallback at the
+            # panel-shared snap update. When the host-side shortcut text
+            # is empty AND `panel_owned_binding_name` only had
+            # `node$default` to fall back on, prefer the
+            # coordinator-eval-env-bound auto-name (Plan 02:
+            # `node$auto_name`) so the dumped spec/snap matches the
+            # symbol the per-instance pipelines bind under. Mirrors the
+            # first-site fallback (snapshot-write loop) so a panel-
+            # shared `ppUpload(shared='ds')` round-trips through
+            # `state$spec()` as the auto-name when no textbox was typed.
+            shortcut_empty <- is.null(shortcut_value) ||
+              (is.character(shortcut_value) && length(shortcut_value) == 1L &&
+               !nzchar(shortcut_value))
+            if (shortcut_empty) {
+              auto <- psn$auto_name
+              if (is.character(auto) && length(auto) == 1L && nzchar(auto) &&
+                  make.names(auto) == auto) {
+                bname <- auto
+              }
+            }
             if (is.null(bname)) next
             if (is.null(host_env)) host_env <- new.env(parent = eval_env)
             assign(bname, df_val, envir = host_env)
