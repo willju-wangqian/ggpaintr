@@ -20,17 +20,15 @@ test_that("adr12 / PLAN-04 / bug-3a: in-filter ppVar picker populates after uplo
   app <- boot_vignette_app("adr12-bug-3a")
 
   # Upload the CSV. shinytest2's `upload_file` argument triggers the
-  # same input observer as the browser file picker.
+  # same input observer as the browser file picker. Post-ADR-0025: the
+  # upload binds the dataframe under `node$auto_name` (the placeholder
+  # id, here `ggplot_1_ppUpload_NA`) so the downstream pickers see the
+  # uploaded columns without needing a typed shortcut name. We do NOT
+  # set the shortcut textbox here — under the ADR 0025 §2 mutex, typing
+  # into the shortcut would reset the fileInput and undo the upload.
   app$upload_file(ggplot_1_ppUpload_NA = testthat::test_path(
     "fixtures", "vignette-apps", "adr12-bug-3a", "penguins.csv"
   ))
-
-  # Companion text input — explicitly set so the source observer's
-  # `binding_name` resolution finds a non-NULL companion on first eval.
-  # The browser auto-fills it from the uploaded filename via
-  # `ptr_bind_source_autoname()`, but the explicit set guards against
-  # ordering races inside AppDriver.
-  set_input(app, "ggplot_1_ppUpload_NA_shortcut", "penguins")
 
   # Switch to the layer's Controls subtab so the suspended `renderUI`s
   # for the var pickers (in-filter ppVar and in-aes ppVars) bind — they

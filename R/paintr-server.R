@@ -1262,16 +1262,12 @@ ptr_setup_pipelines <- function(state, input, output, session) {
         )
       })
 
-      # Auto-fill the dataset-name shortcut input from the uploaded filename
-      # when the user left it blank OR has not edited the default-arg
-      # seed. Without a name, `substitute_walk` on the source placeholder
-      # yields `ptr_missing()`, so the code panel drops the `data = ...`
-      # argument entirely (the plot itself still renders, since
-      # `inject_resolved_data()` patches the eval tree). Never clobber a
-      # name the user actually typed — only overwrite the seed/last-auto
-      # value.
-      ptr_bind_source_autoname(src_id, shortcut_input_id, input, session,
-                                default_name = src$default)
+      # ADR 0025 §2 (Q3-B): mutex between fileInput and shortcut textInput
+      # -- typing one auto-clears the other so the concurrently-active
+      # state is structurally impossible. The legacy filename-derived
+      # textbox auto-fill is retired; the binding name comes from the
+      # auto-name path (paintr-ids.R).
+      ptr_bind_source_mutex(src_id, shortcut_input_id, input, session)
     })
   }
 
@@ -1333,48 +1329,42 @@ ptr_setup_pipelines <- function(state, input, output, session) {
         )
       })
 
-      ptr_bind_source_autoname(src_id, shortcut_input_id, input, session,
-                                default_name = node$default)
+      ptr_bind_source_mutex(src_id, shortcut_input_id, input, session)
     })
   }
   invisible(state)
 }
 
-# Auto-fill a data source's dataset-name shortcut input from the uploaded
-# filename, but only when the user left it blank (`ptr_upload_autoname()`
-# returns NULL otherwise -- never clobbering a name the user typed). Shared
-# by the bare-layer and pipeline-head source wiring in
-# `ptr_setup_pipelines()`. `src_id` / `shortcut_input_id` are already namespaced.
-ptr_bind_source_autoname <- function(src_id, shortcut_input_id, input, session,
-                                     default_name = NULL) {
+# UI mutex between a data source's fileInput and its shortcut textInput
+# (ADR 0025 §2 / Q3-B). The two affordances feed the same source slot, so
+# concurrent file+typed-text is forbidden by construction: filling one
+# side auto-clears the other. The legacy filename-derived textbox
+# auto-fill is retired -- the shortcut textbox is now reserved for
+# env-shortcut typing and the upload's binding name comes from the
+# auto-name path (paintr-ids.R). Both observers gate on `ignoreInit = TRUE` so
+# the boot-time seed write (`ppUpload(penguins)` -> shortcut = "penguins")
+# does NOT count as a first interaction and does NOT shiny::reset() the
+# already-empty fileInput. Both run in the per-instance session scope so
+# multi-instance / multi-coordinator apps stay isolated. Shared by the
+# bare-layer and pipeline-head source wiring in `ptr_setup_pipelines()`.
+# `src_id` / `shortcut_input_id` are already namespaced.
+ptr_bind_source_mutex <- function(src_id, shortcut_input_id, input, session) {
   if (is.null(shortcut_input_id)) return(invisible())
-  # Track the last value the helper itself set, seeded with the
-  # build-time `node$default` (the same value `ptr_builtin_upload_build_ui`
-  # writes into the shortcut textInput's `value =` at boot). Without
-  # this, a default-arg seed (e.g. `ppUpload(mtcars)` → shortcut =
-  # "mtcars") prevents subsequent uploads from auto-renaming the
-  # shortcut, because the autoname gate treated the seed as user-typed.
-  # The generated code then carried the stale name while
-  # `bind_source_value()` bound the uploaded frame under that stale name,
-  # producing dishonest spec/code output (`mtcars` shown, penguins bound).
-  seed_initial <- if (!is.null(default_name) &&
-                      is.character(default_name) &&
-                      length(default_name) == 1L && nzchar(default_name)) {
-    default_name
-  } else NULL
-  last_auto_set <- shiny::reactiveVal(seed_initial)
+  # File picked -> wipe the sibling textbox.
   shiny::observeEvent(input[[src_id]], {
-    fi <- input[[src_id]]
-    auto <- ptr_upload_autoname(
-      input[[shortcut_input_id]],
-      if (!is.null(fi)) fi$name else NULL,
-      overwritable_seed = last_auto_set()
-    )
-    if (!is.null(auto)) {
-      shiny::updateTextInput(session, shortcut_input_id, value = auto)
-      last_auto_set(auto)
+    shiny::updateTextInput(session, shortcut_input_id, value = "")
+  }, ignoreInit = TRUE)
+  # Text typed (non-empty) -> reset the sibling fileInput. shiny has no
+  # built-in reset for fileInput (shinyjs::reset() is the canonical tool
+  # but shinyjs is not a dep); the package ships a tiny custom JS
+  # handler `ptr_reset_file_input` in inst/www/ggpaintr-layer.js that
+  # wipes the DOM file pill and writes NULL into the Shiny input slot.
+  shiny::observeEvent(input[[shortcut_input_id]], {
+    if (isTRUE(nzchar(input[[shortcut_input_id]] %||% ""))) {
+      session$sendCustomMessage("ptr_reset_file_input", list(id = src_id))
     }
-  })
+  }, ignoreInit = TRUE)
+  invisible()
 }
 
 
