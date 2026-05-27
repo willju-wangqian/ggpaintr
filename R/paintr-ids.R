@@ -8,7 +8,8 @@
 # it from `state$server_ns_fn` / `state$ui_ns_fn` (server), so a third copy
 # on the root would be dead weight (and would make two structurally-equal
 # trees compare unequal under `ptr_tree_structural_equal`).
-# Source companion ids are computed via the registry's `companion_id_fn`.
+# Source shortcut ids are derived as `paste0(node$id, "_shortcut")` when the
+# registry entry sets `shortcut = TRUE`.
 
 # One cursor-threaded pre-order pass stamps every placeholder's id (the
 # traversal cursor supplies `layer_name` / `path` / `param`); a second pass
@@ -20,6 +21,7 @@ ptr_assign_ids <- function(node, ns_fn = shiny::NS(NULL)) {
     rlang::abort("ptr_assign_ids expects a ptr_root.")
   }
   validate_ns_fn(ns_fn)
+  ptr_validate_reserved_shared_keys(node)
   node <- ptr_rewrite_pre(node, function(n, cur) {
     if (is_ptr_placeholder(n)) {
       return(assign_id_to_placeholder(n, cur$layer_name, cur$path, cur$param))
@@ -27,6 +29,32 @@ ptr_assign_ids <- function(node, ns_fn = shiny::NS(NULL)) {
     n
   })
   assign_stage_ids(node)
+}
+
+# ADR 0025 §1 Example #4: `"shortcut"` is reserved as a shared-key name
+# because the surface now uses the suffix `"_shortcut"` to disambiguate the
+# env-shortcut sibling input from the source's primary id. Allowing a user
+# formula to also bind `shared = "shortcut"` would create a namespace
+# collision between the reserved suffix and the shared-coordinator key. Abort
+# at translate-time with a message naming the reserved key.
+ptr_validate_reserved_shared_keys <- function(node) {
+  reserved <- "shortcut"
+  bad <- character()
+  ptr_walk(node, function(n) {
+    if (is_ptr_placeholder(n) && !is.null(n$shared) &&
+        n$shared %in% reserved) {
+      bad <<- c(bad, n$shared)
+    }
+  })
+  if (length(bad) > 0L) {
+    key <- bad[[1L]]
+    rlang::abort(paste0(
+      "Shared key '", key, "' is reserved (ADR 0025 §1): the suffix ",
+      "'_", key, "' names the source env-shortcut sibling input. ",
+      "Use a different shared key."
+    ))
+  }
+  invisible(node)
 }
 
 validate_ns_fn <- function(ns_fn) {
@@ -46,8 +74,8 @@ assign_id_to_placeholder <- function(node, layer_name, path, param) {
   }
   if (is_ptr_ph_data_source(node)) {
     entry <- ptr_registry_lookup(node$keyword)
-    if (!is.null(entry$companion_id_fn)) {
-      node$companion_id <- entry$companion_id_fn(node$id)
+    if (isTRUE(entry$shortcut)) {
+      node$shortcut_id <- paste0(node$id, "_shortcut")
     }
   }
   node

@@ -150,7 +150,7 @@ test_that("P8.14 var aborts on multiple selected columns", {
 test_that("P8.15 upload returns symbol for valid name (via companion id)", {
   r <- ptr_translate("ggplot(data = ppUpload)")
   src <- find_nodes(r, is_ptr_ph_data_source)[[1]]
-  sub <- ptr_substitute(r, input_snapshot = setNames(list("my_data"), src$companion_id))
+  sub <- ptr_substitute(r, input_snapshot = setNames(list("my_data"), src$shortcut_id))
   lits <- find_nodes(sub, is_ptr_literal)
   expect_true(any(vapply(lits, function(l) is.symbol(l$expr) && as.character(l$expr) == "my_data", logical(1))))
 })
@@ -159,7 +159,7 @@ test_that("P8.16 upload aborts on injection attempt (invalid R name)", {
   r <- ptr_translate("ggplot(data = ppUpload)")
   src <- find_nodes(r, is_ptr_ph_data_source)[[1]]
   expect_error(
-    ptr_substitute(r, input_snapshot = setNames(list("x; system('id')"), src$companion_id)),
+    ptr_substitute(r, input_snapshot = setNames(list("x; system('id')"), src$shortcut_id)),
     "valid R variable name"
   )
 })
@@ -168,7 +168,7 @@ test_that("P8.17 upload returns ptr_missing for empty companion name", {
   r <- ptr_translate("ggplot(data = ppUpload)")
   src <- find_nodes(r, is_ptr_ph_data_source)[[1]]
   for (val in list("", NULL)) {
-    sub <- ptr_substitute(r, input_snapshot = setNames(list(val), src$companion_id))
+    sub <- ptr_substitute(r, input_snapshot = setNames(list(val), src$shortcut_id))
     expect_true(length(find_nodes(sub, is_ptr_missing)) >= 1L)
   }
 })

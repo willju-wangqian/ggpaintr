@@ -80,7 +80,7 @@ test_that("ggpaintr:::resolve_upload_source has the documented formals", {
   expect_true(is.function(fn))
   expect_identical(
     names(formals(fn)),
-    c("input_slot", "companion_slot", "node", "entry", "envir",
+    c("input_slot", "shortcut_slot", "node", "entry", "envir",
       "state", "key", "slot")
   )
 })
@@ -97,7 +97,7 @@ test_that("NULL file_info with resolvable default-arg binds the resolved frame",
 
   ggpaintr:::resolve_upload_source(
     input_slot     = NULL,
-    companion_slot = list(present = TRUE, value = ""),
+    shortcut_slot = list(present = TRUE, value = ""),
     node           = node,
     entry          = entry,
     envir          = env,
@@ -131,7 +131,7 @@ test_that("populated file_info dispatches entry$resolve_data and binds result", 
   ggpaintr:::resolve_upload_source(
     input_slot     = list(datapath = tempfile(fileext = ".csv"),
                           name     = "iris.csv"),
-    companion_slot = list(present = TRUE, value = "iris_df"),
+    shortcut_slot = list(present = TRUE, value = "iris_df"),
     node           = node,
     entry          = entry,
     envir          = env,
@@ -161,7 +161,7 @@ test_that("resolve_data error surfaces via set_resolve_error and clears the slot
   ggpaintr:::resolve_upload_source(
     input_slot     = list(datapath = tempfile(fileext = ".csv"),
                           name     = "x.csv"),
-    companion_slot = list(present = TRUE, value = "x"),
+    shortcut_slot = list(present = TRUE, value = "x"),
     node           = node,
     entry          = entry,
     envir          = env,
@@ -194,7 +194,7 @@ test_that("invalid binding name (non-syntactic via make.names) leaves eval_env u
   ggpaintr:::resolve_upload_source(
     input_slot     = list(datapath = tempfile(fileext = ".csv"),
                           name     = "x.csv"),
-    companion_slot = list(present = TRUE, value = "1 not a name"),
+    shortcut_slot = list(present = TRUE, value = "1 not a name"),
     node           = node,
     entry          = entry,
     envir          = env,

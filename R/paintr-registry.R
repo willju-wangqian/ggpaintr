@@ -688,9 +688,9 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #'
 #' @param build_ui `function(node, label, ...)` returning a Shiny tag —
 #'   same shape as in [ptr_define_placeholder_value()]. With
-#'   `companion_id_fn` set, render **two** bound inputs in the same tag,
+#'   `shortcut = TRUE`, render **two** bound inputs in the same tag,
 #'   one with `inputId = node$id` (data payload) and one with
-#'   `inputId = node$companion_id` (sibling input — typically the
+#'   `inputId = node$shortcut_id` (sibling input — typically the
 #'   user-facing dataset name spliced into the rendered code).
 #'
 #'   *Seeding* — same opt-in shape as the other two helpers: declare an
@@ -712,24 +712,25 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #'   widget's value is already the symbol you want. Override to make the
 #'   rendered code re-fetch instead of referencing an in-session object,
 #'   e.g. `function(value, node, ...) rlang::ppExpr(read.csv(!!value$datapath))`.
-#'   With `companion_id_fn` set, `value` here is the *companion* input's
+#'   With `shortcut = TRUE`, `value` here is the *shortcut* input's
 #'   value (e.g. the typed dataset name), **not** the primary payload —
 #'   the built-in `ppUpload` relies on this so the default splices the typed
 #'   name as a bare symbol.
-#' @param companion_id_fn Optional `function(id) -> companion_id_string`.
-#'   Use this when the source widget needs **two** bound Shiny inputs that
-#'   both participate in the runtime substitution cycle: one at `node$id`
-#'   (the data payload) and one at `node$companion_id` (a sibling input,
-#'   typically a name or override). The framework calls this function with
-#'   the primary id and namespaces the returned companion id alongside it,
-#'   so a single `build_ui` can render both widgets and both values reach
-#'   `resolve_data` / `resolve_expr` through `node`. Most sources do not
-#'   need it — one bound input is the common case. The built-in `ppUpload`
-#'   uses it to attach the "Optional dataset name" textbox: the file
-#'   contents bind to `node$id`, the user-typed dataset name binds to
-#'   `node$companion_id`, and the substitution uses the name as the symbol
-#'   inserted into the generated code. Pass `NULL` (default) when one
-#'   input suffices.
+#' @param shortcut Single logical (default `FALSE`). When `TRUE`, the
+#'   framework stamps `node$shortcut_id <- paste0(node$id, "_shortcut")`
+#'   on every translated source node; the author's `build_ui` is then
+#'   expected to render **two** bound Shiny inputs that both participate
+#'   in the runtime substitution cycle: one at `node$id` (the data
+#'   payload) and one at `node$shortcut_id` (a sibling input, typically a
+#'   typed-in name that resolves a `data.frame` from the caller-supplied
+#'   `envir`). The shortcut value reaches `resolve_data` / `resolve_expr`
+#'   through `node`. Most sources do not need it — one bound input is the
+#'   common case. The built-in `ppUpload` sets `shortcut = TRUE` so the
+#'   "Optional dataset name" textbox sits beside the file picker: the
+#'   file contents bind to `node$id`, the user-typed name binds to
+#'   `node$shortcut_id`, and the substitution uses the name as the symbol
+#'   inserted into the generated code. The reserved shared key
+#'   `"shortcut"` is rejected at translate time (see ADR 0025 §1).
 #'
 #' @param default_arg,named_args See [ptr_define_placeholder_value()].
 #'   Source placeholders use the same arg-schema slots.
@@ -752,19 +753,19 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #' input values so the preserve-mode panel can publish a reproducible boot
 #' state. For a source placeholder, ONE of two patterns must hold:
 #'
-#' * **Companion pattern** — provide `companion_id_fn`. The companion's
+#' * **Shortcut pattern** — set `shortcut = TRUE`. The shortcut input's
 #'   text value (typically the typed dataset name) carries the round-trip
 #'   identity; the source's own value at `node$id` is dropped from the
 #'   spec, because it is typically a per-session Shiny artifact (a
 #'   `fileInput()` data.frame whose `datapath` is a tempfile path that
 #'   does not survive the session). The built-in `ppUpload` uses this.
 #'
-#'   **Data-loading entry point (ADR 0024).** When `companion_id_fn` is
-#'   set, the companion is more than a name override for an uploaded
+#'   **Data-loading entry point (ADR 0024).** When `shortcut = TRUE`,
+#'   the shortcut sibling is more than a name override for an uploaded
 #'   frame — it is a typed-in shortcut for loading a `data.frame` from
 #'   the embedder's environment (`envir` passed to [ptr_app()] /
-#'   [ptr_server()]). Any valid R name typed into the companion (or
-#'   seeded via `spec = list(<companion-id> = "df_name")`) is looked
+#'   [ptr_server()]). Any valid R name typed into the shortcut input (or
+#'   seeded via `spec = list(<shortcut-id> = "df_name")`) is looked
 #'   up via `get(name, envir, inherits = TRUE)` and bound as the
 #'   resolved source frame, with OR without `default=` on the
 #'   placeholder. The downstream pipeline, generated code panel, and
@@ -777,16 +778,17 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #'   to `graphics::plot` and then fail the "is not a data frame" check
 #'   (loudly, not silently).
 #'
-#' * **Scalar pattern** — no companion. The widget's value at `node$id`
-#'   must be a literal that round-trips through `deparse()` — a length-1
-#'   string / number / logical, or a simple atomic vector. The
-#'   `selectInput`-style example above qualifies (its value is a single
-#'   string).
+#' * **Scalar pattern** — `shortcut = FALSE`. The widget's value at
+#'   `node$id` must be a literal that round-trips through `deparse()` —
+#'   a length-1 string / number / logical, or a simple atomic vector.
+#'   The `selectInput`-style example above qualifies (its value is a
+#'   single string).
 #'
 #' Source widgets whose primary value is a complex object (raw
-#' `fileInput()` data.frame, environment, S4 instance, etc.) without a
-#' companion cannot round-trip; wrap them in a companion textInput that
-#' carries the binding name, mirroring `ppUpload`.
+#' `fileInput()` data.frame, environment, S4 instance, etc.) without
+#' `shortcut = TRUE` cannot round-trip; opt into the shortcut sibling
+#' and bind a `textInput(node$shortcut_id, ...)` that carries the
+#' binding name, mirroring `ppUpload`.
 #'
 #' @seealso [ptr_define_placeholder_value()], [ptr_define_placeholder_consumer()],
 #'   [ptr_clear_placeholder()].
@@ -807,7 +809,7 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #' @export
 ptr_define_placeholder_source <- function(keyword, build_ui, resolve_data,
                                         resolve_expr = NULL,
-                                        companion_id_fn = NULL,
+                                        shortcut = FALSE,
                                         default_arg = NULL,
                                         named_args = list(),
                                         runtime = NULL,
@@ -824,8 +826,11 @@ ptr_define_placeholder_source <- function(keyword, build_ui, resolve_data,
   } else {
     validate_hook(resolve_expr, "resolve_expr", c("value", "node"))
   }
-  if (!is.null(companion_id_fn)) {
-    validate_hook(companion_id_fn, "companion_id_fn", c("id"))
+  if (!is.logical(shortcut) || length(shortcut) != 1L || is.na(shortcut)) {
+    rlang::abort(
+      "`shortcut` must be a single logical (TRUE or FALSE).",
+      class = "ptr_registry_error"
+    )
   }
   validate_default_arg(default_arg, keyword)
   validate_named_args(named_args, keyword)
@@ -843,7 +848,7 @@ ptr_define_placeholder_source <- function(keyword, build_ui, resolve_data,
   entry <- list(
     keyword = keyword, role = "source", data_aware = TRUE,
     build_ui = build_ui, resolve_expr = resolve_expr,
-    resolve_data = resolve_data, companion_id_fn = companion_id_fn,
+    resolve_data = resolve_data, shortcut = isTRUE(shortcut),
     default_arg = default_arg, named_args = named_args,
     runtime = runtime_fn,
     copy_defaults = copy_defaults

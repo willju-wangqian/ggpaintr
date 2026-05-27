@@ -66,8 +66,8 @@
   }
   rendered_node <- node
   rendered_node$id <- ns_fn(node$id)
-  if (!is.null(node$companion_id)) {
-    rendered_node$companion_id <- ns_fn(node$companion_id)
+  if (!is.null(node$shortcut_id)) {
+    rendered_node$shortcut_id <- ns_fn(node$shortcut_id)
   }
   do.call(entry$build_ui, c(list(rendered_node, label = copy$label), extra_named))
 }

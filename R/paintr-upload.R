@@ -1,13 +1,3 @@
-#' Build the Dataset-Name Input Id for an Upload
-#'
-#' @param id A placeholder id.
-#'
-#' @return A related id string for the dataset-name control.
-#' @noRd
-ptr_upload_name_id <- function(id) {
-  paste0(id, "_name")
-}
-
 #' Derive a Default Object Name from an Uploaded File
 #'
 #' @param file_name The uploaded filename.
@@ -225,7 +215,7 @@ ptr_resolve_upload_info <- function(input, upload_id, strict = FALSE) {
   }
 
   data_obj <- ptr_read_uploaded_data(file_info)
-  object_name <- input[[ptr_upload_name_id(upload_id)]]
+  object_name <- input[[paste0(upload_id, "_shortcut")]]
   object_name <- trimws(if (is.null(object_name)) "" else object_name)
 
   if (identical(object_name, "")) {

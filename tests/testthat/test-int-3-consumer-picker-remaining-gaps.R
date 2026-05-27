@@ -7,7 +7,7 @@
 #    `df_main` resolved by `try_bind_source_default_resolved()` at boot).
 #    `panel_sources[[sid]]()` correctly returns the primed df, but the
 #    INT-2 host-scope block in `ptr_bind_shared_consumer_uis()` calls
-#    `panel_owned_binding_name()` with `companion_value = NULL` (the
+#    `panel_owned_binding_name()` with `shortcut_value = NULL` (the
 #    companion textInput has not registered yet -- and never does at boot
 #    because no upload occurred), so the helper returned NULL and the
 #    `next` skipped the source. Snap stayed empty, the substitute walk
@@ -77,7 +77,7 @@ test_that("GAP-3A: host-scope picker populates from default-arg-primed panel sou
     shiny::outputOptions(output, out_id, suspendWhenHidden = FALSE)
   }
   shiny::testServer(server, {
-    # NB: NO `setInputs(shared_ds_name = ...)` -- the companion
+    # NB: NO `setInputs(shared_ds_shortcut = ...)` -- the companion
     # textInput hasn't registered (this is exactly the boot state for
     # the default-arg priming path). Pre-INT-3,
     # `panel_owned_binding_name()` would return NULL here and the
@@ -101,24 +101,24 @@ test_that("GAP-3A unit: panel_owned_binding_name falls back to node$default when
   # for default-arg priming.
   node <- list(
     id           = "shared_ds",
-    companion_id = "shared_ds_name",
+    shortcut_id = "shared_ds_shortcut",
     default      = "df_main"
   )
   # Companion blank => default wins.
   expect_identical(
     ggpaintr:::panel_owned_binding_name(node, entry = NULL, session = NULL,
-                                        companion_value = NULL, df = mtcars),
+                                        shortcut_value = NULL, df = mtcars),
     "df_main"
   )
   expect_identical(
     ggpaintr:::panel_owned_binding_name(node, entry = NULL, session = NULL,
-                                        companion_value = "",   df = mtcars),
+                                        shortcut_value = "",   df = mtcars),
     "df_main"
   )
   # Companion present + valid => companion wins (default ignored).
   expect_identical(
     ggpaintr:::panel_owned_binding_name(node, entry = NULL, session = NULL,
-                                        companion_value = "penguins",
+                                        shortcut_value = "penguins",
                                         df = mtcars),
     "penguins"
   )
@@ -127,13 +127,13 @@ test_that("GAP-3A unit: panel_owned_binding_name falls back to node$default when
   expect_null(
     ggpaintr:::panel_owned_binding_name(node_no_default, entry = NULL,
                                         session = NULL,
-                                        companion_value = NULL, df = mtcars)
+                                        shortcut_value = NULL, df = mtcars)
   )
   # Default not a valid R name => NULL.
   node_bad <- node; node_bad$default <- "1bad name"
   expect_null(
     ggpaintr:::panel_owned_binding_name(node_bad, entry = NULL, session = NULL,
-                                        companion_value = NULL, df = mtcars)
+                                        shortcut_value = NULL, df = mtcars)
   )
 })
 
@@ -144,7 +144,7 @@ test_that("GAP-3B: per-instance (moduleServer) picker populates from panel-owned
   # Mixed scope: panel-owned source (`shared_ds`) consumed by a
   # formula-local consumer (`colA`). The binder runs at module scope --
   # `input` is the module's namespaced bag. Pre-INT-3, `input[[cmp]]`
-  # resolved to `input[["<module>-shared_ds_name"]]` (NULL forever).
+  # resolved to `input[["<module>-shared_ds_shortcut"]]` (NULL forever).
   # Post-INT-3 the panel-owned companion read uses rootScope()$input,
   # which sees the host top-level companion value.
   tree <- ggpaintr:::ptr_translate(
@@ -211,7 +211,7 @@ test_that("GAP-3B: per-instance (moduleServer) picker populates from panel-owned
     # Companion lives at host top-level; the module's `input` bag MUST
     # NOT see it directly. Pre-INT-3 the binder read `input[[cmp]]` in
     # the module bag (NULL); post-INT-3 it routes through rootScope().
-    session$setInputs(shared_ds_name = "penguins_df")
+    session$setInputs(shared_ds_shortcut = "penguins_df")
     session$flushReact()
     expect_gte(length(captured_extras), 1L)
     last_extra <- captured_extras[[length(captured_extras)]]

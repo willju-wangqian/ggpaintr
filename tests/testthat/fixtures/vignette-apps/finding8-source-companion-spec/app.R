@@ -24,5 +24,5 @@ library(shiny)
 # checking the ppVar picker for "cyl" (mtcars-only column).
 ptr_app(
   "ppUpload(iris) |> ggplot(aes(x = ppVar('col'))) + geom_bar()",
-  spec = list(ggplot_0_ppUpload_NA_name = "mtcars")
+  spec = list(ggplot_0_ppUpload_NA_shortcut = "mtcars")
 )

@@ -72,8 +72,8 @@ test_that("host-scope (state=NULL) renderUI picker populates `cols` from panel-r
     # Seed the companion text input at host top-level (un-namespaced)
     # so `panel_owned_binding_name()` derives a valid R name. ppUpload's
     # companion convention is `<source_id>_name`; for this consumer
-    # `shared_ds_name` is what the panel's text widget would publish.
-    session$setInputs(shared_ds_name = "uploaded_ds")
+    # `shared_ds_shortcut` is what the panel's text widget would publish.
+    session$setInputs(shared_ds_shortcut = "uploaded_ds")
     panel_rv(mtcars)
     session$flushReact()
     expect_gte(length(captured_extras), 1L)
@@ -125,7 +125,7 @@ test_that("host-scope renderUI re-fires AND re-populates cols when panel reactiv
     shiny::outputOptions(output, out_id, suspendWhenHidden = FALSE)
   }
   shiny::testServer(server, {
-    session$setInputs(shared_ds_name = "uploaded_ds")
+    session$setInputs(shared_ds_shortcut = "uploaded_ds")
     session$flushReact()
     n_first <- length(captured_extras)
     expect_gte(n_first, 1L)
@@ -229,7 +229,7 @@ test_that("ptr_bind_local_shared_consumers (host-scope, no state) populates cols
     shiny::outputOptions(output, out_id, suspendWhenHidden = FALSE)
   }
   shiny::testServer(server, {
-    session$setInputs(shared_ds_name = "uploaded_iris")
+    session$setInputs(shared_ds_shortcut = "uploaded_iris")
     session$flushReact()
     expect_gte(length(captured_extras), 1L)
     last_extra <- captured_extras[[length(captured_extras)]]

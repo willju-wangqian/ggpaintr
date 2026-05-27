@@ -1,6 +1,6 @@
 # ADR 0024 — source companion as data-loading entry point. Promotes the
 # companion textInput beside ppUpload's fileInput (and any custom source's
-# input emitted at node$companion_id) from "name override for an uploaded
+# input emitted at node$shortcut_id) from "name override for an uploaded
 # frame" to "typed-in shortcut for loading a data.frame from envir."
 #
 # Pre-ADR-0024 the binder helpers
@@ -21,7 +21,7 @@ test_that("adr0024: typed companion name binds env frame without default", {
 
   # Companion starts blank (no default, no spec). ppVar picker is empty.
   expect_equal(
-    app$get_value(input = "ggplot_0_ppUpload_NA_name") %||% "",
+    app$get_value(input = "ggplot_0_ppUpload_NA_shortcut") %||% "",
     "",
     label = "companion starts blank with no default + no spec"
   )
@@ -30,7 +30,7 @@ test_that("adr0024: typed companion name binds env frame without default", {
   # bare-data-source observer at R/paintr-server.R:1149-1164 invalidates,
   # calls resolve_upload_source -> file_info NULL ->
   # try_bind_source_default_resolved (post ADR 0024) -> binds mtcars.
-  set_input(app, "ggplot_0_ppUpload_NA_name", "mtcars")
+  set_input(app, "ggplot_0_ppUpload_NA_shortcut", "mtcars")
   app$wait_for_idle(timeout = 15 * 1000)
 
   expect_picker_populated(app, "ggplot_1_1_ppVar_NA", "cyl")
@@ -50,7 +50,7 @@ test_that("adr0024: typed name not resolving to a data frame surfaces inline err
   # "ggpaintr only re-renders on the Update/Draw click" note). set_input
   # writes the resolve error into `state$resolve_errors` synchronously
   # but the pane reflects it only after Update/Draw fires.
-  set_input(app, "ggplot_0_ppUpload_NA_name", "fooberry")
+  set_input(app, "ggplot_0_ppUpload_NA_shortcut", "fooberry")
   # `ptr_register_error()`'s renderUI body reads `state$resolve_errors()`,
   # so the structured error written inside the resolve observer re-renders
   # the pane WITHOUT needing a draw click. wait_for_idle can flag the
@@ -70,7 +70,7 @@ test_that("adr0024: typed name not resolving to a data frame surfaces inline err
 
   # Recovery: typing a valid name clears the error (resolve observer
   # calls `set_resolve_error(NULL)` at L1014 before retrying the bind).
-  set_input(app, "ggplot_0_ppUpload_NA_name", "mtcars")
+  set_input(app, "ggplot_0_ppUpload_NA_shortcut", "mtcars")
   app$wait_for_js(
     paste0("(function(){var e=document.getElementById('ptr_error');",
            "return !!e && e.innerHTML.indexOf('ptr-alert--error')===-1;})()"),
@@ -90,7 +90,7 @@ test_that("adr0024: spec= for a source_companion id binds env frame without defa
   # (apply_spec_at_boot no longer marks source_companion rows in `seeded`,
   # so the onFlushed updateTextInput dispatch runs).
   expect_equal(
-    app$get_value(input = "ggplot_0_ppUpload_NA_name"),
+    app$get_value(input = "ggplot_0_ppUpload_NA_shortcut"),
     "mtcars",
     label = "companion id seeded at boot from spec= (no default on node)"
   )
@@ -110,7 +110,7 @@ test_that("adr0024: shared-section ppUpload companion entry point honored at boo
   # role; the bind path is the per-instance pipeline-head loop running
   # inside the formula's moduleServer (single-formula = formula-local).
   expect_equal(
-    app$get_value(input = "shared_ds_name"),
+    app$get_value(input = "shared_ds_shortcut"),
     "mtcars",
     label = "shared companion id seeded at boot from spec="
   )
@@ -152,7 +152,7 @@ test_that("adr0024: try_bind_source_default_resolved binds without default when 
   ok <- shiny::isolate(
     ggpaintr:::try_bind_source_default_resolved(
       state, key = "k", node = node,
-      has_companion = TRUE, comp_value = "mtcars",
+      has_shortcut = TRUE, shortcut_value = "mtcars",
       entry = entry, slot = slot
     )
   )
@@ -178,7 +178,7 @@ test_that("adr0024: try_bind_source_default_resolved records error when name not
   ok <- shiny::isolate(
     ggpaintr:::try_bind_source_default_resolved(
       state, key = "k2", node = node,
-      has_companion = TRUE, comp_value = "fooberry",
+      has_shortcut = TRUE, shortcut_value = "fooberry",
       entry = entry, slot = slot
     )
   )
@@ -206,7 +206,7 @@ test_that("adr0024: try_bind_source_default_resolved records error when name is 
   ok <- shiny::isolate(
     ggpaintr:::try_bind_source_default_resolved(
       state, key = "k3", node = node,
-      has_companion = TRUE, comp_value = "not_a_df",
+      has_shortcut = TRUE, shortcut_value = "not_a_df",
       entry = entry, slot = slot
     )
   )
@@ -233,7 +233,7 @@ test_that("adr0024: try_bind_source_default_resolved still bails when neither de
   ok <- shiny::isolate(
     ggpaintr:::try_bind_source_default_resolved(
       state, key = "k4", node = node,
-      has_companion = TRUE, comp_value = "",
+      has_shortcut = TRUE, shortcut_value = "",
       entry = entry, slot = slot
     )
   )

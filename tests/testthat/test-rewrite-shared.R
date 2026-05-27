@@ -361,8 +361,8 @@ test_that("P06.l2 shared upload occurrences share canonical id + companion", {
   expect_true(all(vapply(srcs, is_ptr_ph_data_source, logical(1))))
   expect_equal(unique(vapply(srcs, function(s) s$id, character(1))), "shared_ds")
   expect_equal(
-    unique(vapply(srcs, function(s) s$companion_id, character(1))),
-    "shared_ds_name"
+    unique(vapply(srcs, function(s) s$shortcut_id, character(1))),
+    "shared_ds_shortcut"
   )
 })
 

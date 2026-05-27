@@ -34,13 +34,13 @@ test_that("upload helpers normalize .rds columns and coerce list-like uploads", 
 test_that("upload metadata uses custom names or normalized file names", {
   input_default <- list(
     "ggplot_2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple numeric.csv"),
-    "ggplot_2_name" = ""
+    "ggplot_2_shortcut" = ""
   )
   info_default <- ptr_resolve_upload_info(input_default, "ggplot_2")
 
   input_custom <- list(
     "ggplot_2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple numeric.csv"),
-    "ggplot_2_name" = "custom dataset"
+    "ggplot_2_shortcut" = "custom dataset"
   )
   info_custom <- ptr_resolve_upload_info(input_custom, "ggplot_2")
 
@@ -55,7 +55,7 @@ test_that("non-coercible uploads fail with a tabular-data validation error", {
 
   input_bad <- list(
     "ggplot_2" = mock_upload_input(non_coercible_path, "non_coercible.rds"),
-    "ggplot_2_name" = ""
+    "ggplot_2_shortcut" = ""
   )
 
   expect_error(
@@ -67,7 +67,7 @@ test_that("non-coercible uploads fail with a tabular-data validation error", {
 test_that("unsupported upload extensions error clearly", {
   input_bad <- list(
     "ggplot_2" = mock_upload_input(fixture_path("bad_extension.txt"), "bad_extension.txt"),
-    "ggplot_2_name" = ""
+    "ggplot_2_shortcut" = ""
   )
 
   expect_error(
@@ -95,7 +95,7 @@ test_that("TSV upload code_text uses read.delim", {
 
   input <- list(
     "ggplot_2" = mock_upload_input(tsv_file, "data.tsv"),
-    "ggplot_2_name" = ""
+    "ggplot_2_shortcut" = ""
   )
   info <- ptr_resolve_upload_info(input, "ggplot_2")
 
@@ -129,7 +129,7 @@ test_that("Excel upload code_text uses readxl::read_excel", {
 
   input <- list(
     "ggplot_2" = mock_upload_input(xlsx_file, "report.xlsx"),
-    "ggplot_2_name" = ""
+    "ggplot_2_shortcut" = ""
   )
   info <- ptr_resolve_upload_info(input, "ggplot_2")
 
@@ -220,7 +220,7 @@ test_that("JSON upload code_text uses jsonlite::fromJSON", {
 
   input <- list(
     "ggplot_2" = mock_upload_input(json_file, "records.json"),
-    "ggplot_2_name" = ""
+    "ggplot_2_shortcut" = ""
   )
   info <- ptr_resolve_upload_info(input, "ggplot_2")
 

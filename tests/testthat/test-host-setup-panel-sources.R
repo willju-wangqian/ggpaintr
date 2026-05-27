@@ -107,7 +107,7 @@ test_that("upload errors from resolve_data() reach the panel's error sink", {
       shiny::tagList(
         shiny::fileInput(inputId = node$id, label = label %||% "Upload"),
         shiny::textInput(
-          inputId = node$companion_id %||% paste0(node$id, "_name"),
+          inputId = node$shortcut_id %||% paste0(node$id, "_shortcut"),
           label = "Name",
           value = ""
         )
@@ -116,6 +116,7 @@ test_that("upload errors from resolve_data() reach the panel's error sink", {
     resolve_data = function(value, node, ...) {
       rlang::abort("bad-source-resolve")
     },
+    shortcut = TRUE,
     copy_defaults = list(label = "Bad source")
   )
   withr::defer(ptr_clear_placeholder("ppBadSource"))
@@ -130,7 +131,7 @@ test_that("upload errors from resolve_data() reach the panel's error sink", {
   shiny::testServer(server, {
     session$setInputs(
       shared_ds = list(datapath = "no-such-file", name = "x.csv"),
-      shared_ds_name = "x_df"
+      shared_ds_shortcut = "x_df"
     )
     session$flushReact()
     err_html <- paste(as.character(output$ptr_shared_errors),

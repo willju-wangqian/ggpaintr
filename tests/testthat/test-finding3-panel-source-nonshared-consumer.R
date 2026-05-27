@@ -52,7 +52,7 @@ test_that(
 
     csv_path <- test_path("fixtures", "penguins.csv")
     app$upload_file(shared_ds = csv_path)
-    set_input(app, "shared_ds_name", "penguins")
+    set_input(app, "shared_ds_shortcut", "penguins")
     app$wait_for_idle(timeout = 15 * 1000)
 
     # Both non-shared pickers should be populated from the panel-resolved df.

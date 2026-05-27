@@ -3,8 +3,8 @@
 #
 # Covers PLAN-03 owned BDD scenarios at the R level (no browser):
 #   (a) ptr_app_components UI carries the seeded textInput value="penguins"
-#       at the upload node's companion_id (cross-checks PLAN-01).
-#   (b) ptr_substitute(input_snapshot = list(<companion_id> = "penguins"))
+#       at the upload node's shortcut_id (cross-checks PLAN-01).
+#   (b) ptr_substitute(input_snapshot = list(<shortcut_id> = "penguins"))
 #       emits the bare symbol `penguins` at the data-source slot (NOT a
 #       string, NOT the internal upload id) -- the PLAN-02 round-trip seen
 #       below the renderer.
@@ -54,9 +54,9 @@ test_that("ppUpload(penguins) captures the bareword as default and ptr_app_compo
   upload <- find_upload_node(tree)
   expect_false(is.null(upload),
                label = "tree contains a ppUpload data-source node")
-  expect_equal(upload$companion_id,
-               paste0(upload$id, "_name"),
-               label = "companion_id matches ptr_upload_name_id convention")
+  expect_equal(upload$shortcut_id,
+               paste0(upload$id, "_shortcut"),
+               label = "shortcut_id matches `<id>_shortcut` convention")
 
   # PLAN-01 tree-side contract: `ppUpload(penguins)` captures the bareword
   # `penguins` as the placeholder's `default`. The companion textInput is
@@ -77,7 +77,7 @@ test_that("ptr_substitute emits the bare symbol when companion snapshot is seede
   upload <- find_upload_node(tree)
 
   snapshot <- list()
-  snapshot[[upload$companion_id]] <- "penguins"
+  snapshot[[upload$shortcut_id]] <- "penguins"
   # Also seed the ppVar pickers so the rest of the substitution is well-formed.
   snapshot[["ggplot_1_1_ppVar_NA"]] <- "bill_length_mm"
   snapshot[["ggplot_1_2_ppVar_NA"]] <- "bill_depth_mm"
@@ -101,7 +101,7 @@ test_that("live-eval resolves the bare symbol via eval_env's parent chain (Clari
   tree <- ggpaintr:::ptr_translate(formula_str)
   upload <- find_upload_node(tree)
   snapshot <- list()
-  snapshot[[upload$companion_id]] <- "penguins"
+  snapshot[[upload$shortcut_id]] <- "penguins"
   snapshot[["ggplot_1_1_ppVar_NA"]] <- "bill_length_mm"
   snapshot[["ggplot_1_2_ppVar_NA"]] <- "bill_depth_mm"
 

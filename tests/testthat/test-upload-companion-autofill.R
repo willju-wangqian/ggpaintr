@@ -40,7 +40,7 @@ test_that("ppUpload(default) companion auto-updates to uploaded file's basename"
   app$wait_for_idle(timeout = 25 * 1000)
 
   # At boot: companion seeded with the default-arg symbol name.
-  initial_companion <- app$get_value(input = "ggplot_0_ppUpload_NA_name")
+  initial_companion <- app$get_value(input = "ggplot_0_ppUpload_NA_shortcut")
   expect_equal(initial_companion, "mtcars")
 
   # Upload penguins.csv — companion must auto-update to "penguins" so
@@ -48,6 +48,6 @@ test_that("ppUpload(default) companion auto-updates to uploaded file's basename"
   app$upload_file(ggplot_0_ppUpload_NA = csv_path)
   app$wait_for_idle(timeout = 25 * 1000)
 
-  post_upload_companion <- app$get_value(input = "ggplot_0_ppUpload_NA_name")
+  post_upload_companion <- app$get_value(input = "ggplot_0_ppUpload_NA_shortcut")
   expect_equal(post_upload_companion, "penguins")
 })

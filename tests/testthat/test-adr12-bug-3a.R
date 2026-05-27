@@ -30,7 +30,7 @@ test_that("adr12 / PLAN-04 / bug-3a: in-filter ppVar picker populates after uplo
   # The browser auto-fills it from the uploaded filename via
   # `ptr_bind_source_autoname()`, but the explicit set guards against
   # ordering races inside AppDriver.
-  set_input(app, "ggplot_1_ppUpload_NA_name", "penguins")
+  set_input(app, "ggplot_1_ppUpload_NA_shortcut", "penguins")
 
   # Switch to the layer's Controls subtab so the suspended `renderUI`s
   # for the var pickers (in-filter ppVar and in-aes ppVars) bind — they

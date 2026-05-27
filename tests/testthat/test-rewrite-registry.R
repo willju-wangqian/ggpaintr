@@ -108,14 +108,15 @@ test_that("source constructor defaults resolve_expr to symbol of value", {
     keyword = "mysrc",
     build_ui = function(node, ...) NULL,
     resolve_data = function(value, node, ...) data.frame(x = 1:3),
-    companion_id_fn = function(id) paste0(id, "_companion")
+    shortcut = TRUE
   )
   e <- ptr_registry_lookup("mysrc")
   expect_equal(e$role, "source")
   expect_true(e$data_aware)
   expect_true(is.function(e$resolve_expr))
   expect_equal(e$resolve_expr("foo"), rlang::sym("foo"))
-  expect_equal(e$companion_id_fn("abc"), "abc_companion")
+  expect_true(isTRUE(e$shortcut))
+  expect_null(e$companion_id_fn)
   ptr_registry_clear()
 })
 

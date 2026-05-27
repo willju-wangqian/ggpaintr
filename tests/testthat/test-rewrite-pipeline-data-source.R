@@ -13,7 +13,7 @@ test_that("find_source_companion_ids_in_upstream finds upload companions", {
   consumer <- find_nodes(r, is_ptr_ph_data_consumer)[[1L]]
   ids <- find_source_companion_ids_in_upstream(consumer$upstream)
   expect_length(ids, 1L)
-  expect_match(ids, "_name$")
+  expect_match(ids, "_shortcut$")
 
   # No source in the upstream -> nothing.
   r2 <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = ppVar))")
@@ -70,7 +70,7 @@ test_that("pipeline-head `ppUpload` resolves downstream consumers and renders", 
     # `updateTextInput()` does not echo back inside `testServer`, so set the
     # dataset-name companion the way the browser auto-fill would.
     do.call(session$setInputs,
-            stats::setNames(list("simple_numeric"), src$companion_id))
+            stats::setNames(list("simple_numeric"), src$shortcut_id))
     session$flushReact()
 
     # The resolved frame is bound under its dataset name in the state's
@@ -139,7 +139,7 @@ test_that("pipeline-head `ppUpload` populates the consumer picker UI (renderUI p
     do.call(session$setInputs,
             stats::setNames(list(mock_upload_input(fp)), src$id))
     do.call(session$setInputs,
-            stats::setNames(list("simple_numeric"), src$companion_id))
+            stats::setNames(list("simple_numeric"), src$shortcut_id))
     session$flushReact()
 
     ui_html <- paste(as.character(output[[out_id]]), collapse = "")
@@ -174,7 +174,7 @@ test_that("pipeline-head source clears its slot when file AND companion are remo
     do.call(session$setInputs,
             stats::setNames(list(mock_upload_input(fp)), src$id))
     do.call(session$setInputs,
-            stats::setNames(list("simple_numeric"), src$companion_id))
+            stats::setNames(list("simple_numeric"), src$shortcut_id))
     session$flushReact()
     expect_s3_class(state$resolved_sources[[src$id]](), "data.frame")
 
@@ -186,7 +186,7 @@ test_that("pipeline-head source clears its slot when file AND companion are remo
     expect_s3_class(state$resolved_sources[[src$id]](), "data.frame")
 
     # Clear BOTH file AND companion. Now nothing resolves → slot becomes NULL.
-    do.call(session$setInputs, stats::setNames(list(""), src$companion_id))
+    do.call(session$setInputs, stats::setNames(list(""), src$shortcut_id))
     session$flushReact()
     expect_null(state$resolved_sources[[src$id]]())
   })

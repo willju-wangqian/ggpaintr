@@ -178,10 +178,10 @@ substitute_walk.ptr_ph_data_consumer <- function(node, ctx) {
 #' @export
 substitute_walk.ptr_ph_data_source <- function(node, ctx) {
   entry <- ptr_registry_lookup(node$keyword)
-  if (!is.null(node$companion_id)) {
-    # Companion-driven source (e.g. `upload`): the companion text input
+  if (!is.null(node$shortcut_id)) {
+    # Shortcut-driven source (e.g. `upload`): the shortcut text input
     # carries the binding name; resolve_expr maps name -> symbol.
-    name_value <- ctx$snapshot[[node$companion_id]]
+    name_value <- ctx$snapshot[[node$shortcut_id]]
     if (is.null(name_value) || !is.character(name_value) ||
         length(name_value) != 1L || !nzchar(name_value)) {
       return(ptr_missing())

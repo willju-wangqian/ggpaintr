@@ -10,13 +10,13 @@
 # Order (chosen 2026-05-13):
 #   BUG-1 → BUG-3 → BUG-4 → BUG-2 → BUG-6 → BUG-5
 
-test_that("BUG-1: ptr_define_placeholder_source() without companion_id_fn does not emit NA companion id", {
+test_that("BUG-1: ptr_define_placeholder_source() without shortcut does not emit NA companion id", {
   kw <- paste0("bug1src_", as.integer(Sys.time()))
   ptr_define_placeholder_source(
     keyword      = kw,
     build_ui     = function(node, label = NULL, ...) NULL,
     resolve_data = function(value, node, ...) mtcars
-    # NOTE: no companion_id_fn
+    # NOTE: shortcut defaults to FALSE
   )
   withr::defer(ptr_clear_placeholder(kw))
 
@@ -29,12 +29,12 @@ test_that("BUG-1: ptr_define_placeholder_source() without companion_id_fn does n
                info = "no source_companion row should have an NA input_id")
 })
 
-test_that("BUG-1 deep: companion-less source resolves through to downstream var consumers", {
+test_that("BUG-1 deep: shortcut-less source resolves through to downstream var consumers", {
   # Companion `11b6860` (2026-05-13) cleared the NA-input-id cascade; companion
-  # `c0d5467` closed the deeper layer where, even with a NULL companion_id, the
+  # `c0d5467` closed the deeper layer where, even with a NULL shortcut_id, the
   # pipeline-head observer / `substitute_walk.ptr_ph_data_source` /
   # consumer-snapshot construction were still upload-shaped. This regression
-  # guards the end-to-end resolution: selecting a dataset on a no-companion
+  # guards the end-to-end resolution: selecting a dataset on a no-shortcut
   # source must populate downstream `var` pickers with that dataset's columns.
   kw <- paste0("bug1deep_", as.integer(Sys.time()))
   ptr_define_placeholder_source(
@@ -46,7 +46,7 @@ test_that("BUG-1 deep: companion-less source resolves through to downstream var 
       if (is.null(value) || !nzchar(value)) return(NULL)
       get(value, envir = asNamespace("datasets"))
     }
-    # NOTE: no companion_id_fn — the deep path under test
+    # NOTE: shortcut defaults to FALSE — the deep path under test
   )
   withr::defer(ptr_clear_placeholder(kw))
 
@@ -80,7 +80,7 @@ test_that("BUG-1 deep: companion-less source resolves through to downstream var 
   }, {
     st <- session$userData$state
     src <- find_nodes(st$tree(), is_ptr_ph_data_source)[[1L]]
-    expect_null(src$companion_id,
+    expect_null(src$shortcut_id,
                 info = "constructor default must remain NULL post `11b6860`")
     # Drive the source's own input id (no companion).
     do.call(session$setInputs,
@@ -178,7 +178,7 @@ test_that("BUG-4: custom ptr_define_placeholder_consumer() receives upstream col
     df_fake <- head(iris)
     assign("fakeup", df_fake, envir = st$eval_env)
     do.call(session$setInputs,
-            stats::setNames(list("fakeup"), upl$companion_id))
+            stats::setNames(list("fakeup"), upl$shortcut_id))
     st$resolved_sources[[upl$id]](df_fake)
     # ADR 0015 PLAN-02 / Option E: the per-source `state$bound_names[[id]]`
     # reactiveVal is written by `bind_source_value()` AFTER `assign()` in

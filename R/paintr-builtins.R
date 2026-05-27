@@ -240,7 +240,7 @@ ptr_builtin_upload_build_ui <- function(node, label = NULL, copy = NULL,
     ),
     attach_help(
       shiny::textInput(
-        inputId = node$companion_id %||% paste0(node$id, "_name"),
+        inputId = node$shortcut_id,
         label = name_copy$label %||% "Optional dataset name",
         value = node$default %||% "",
         placeholder = name_copy$placeholder
@@ -372,7 +372,7 @@ ptr_register_builtins <- function() {
     keyword = "ppUpload",
     build_ui = ptr_builtin_upload_build_ui,
     resolve_data = ptr_builtin_upload_resolve_data,
-    companion_id_fn = ptr_upload_name_id,
+    shortcut = TRUE,
     default_arg = ptr_default_symbol_or_string(),
     copy_defaults = list(label = "Upload data for {param}")
   )

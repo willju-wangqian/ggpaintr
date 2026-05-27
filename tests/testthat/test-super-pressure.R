@@ -160,8 +160,8 @@ test_that("super-2a upload+registry: sentinels propagate through multi-data-sour
   app$upload_file(geom_smooth_0_ppUpload_NA = aux_csv)
   # Explicit companion-name sets guard against AppDriver-ordering races on
   # the auto-fill (project memory: adr12-bug-3a test does the same thing).
-  set_sentinel(app, "ggplot_1_ppUpload_NA_name", "df_main")
-  set_sentinel(app, "geom_smooth_0_ppUpload_NA_name", "df_aux")
+  set_sentinel(app, "ggplot_1_ppUpload_NA_shortcut", "df_main")
+  set_sentinel(app, "geom_smooth_0_ppUpload_NA_shortcut", "df_aux")
   app$wait_for_idle(timeout = 25 * 1000)
 
   # ---- Initial draw at defaults (Scenario 1: both uploads boot) -----------
@@ -308,8 +308,8 @@ test_that("super-2a no-default: sentinels propagate through multi-data-source + 
                                      "super-2a-upload-registry")
   app$upload_file(ggplot_1_ppUpload_NA = file.path(fixture_dir, "sample_main.csv"))
   app$upload_file(geom_smooth_0_ppUpload_NA = file.path(fixture_dir, "sample_aux.csv"))
-  set_sentinel(app, "ggplot_1_ppUpload_NA_name", "df_main")
-  set_sentinel(app, "geom_smooth_0_ppUpload_NA_name", "df_aux")
+  set_sentinel(app, "ggplot_1_ppUpload_NA_shortcut", "df_main")
+  set_sentinel(app, "geom_smooth_0_ppUpload_NA_shortcut", "df_aux")
   app$wait_for_idle(timeout = 25 * 1000)
 
   # ---- Activate Controls subtab so root ppVar pickers bind ---------------
@@ -490,7 +490,7 @@ test_that("super-2b customsource-splice: ppSample (D3 source) + !!splice (G3) + 
   # binding_name resolution finds a deterministic value (the browser
   # autofills this from the filename via ptr_bind_source_autoname();
   # explicit set guards against ordering races under AppDriver).
-  set_sentinel(app, "geom_rug_0_ppUpload_NA_name", "df_rug")
+  set_sentinel(app, "geom_rug_0_ppUpload_NA_shortcut", "df_rug")
   draw_and_wait(app, "ptr_update_plot")
 
   # Layer ppUpload's source-role resolution propagates to the rendered
