@@ -531,6 +531,17 @@ ptr_setup_panel_sources <- function(obj, input, output, envir,
       # dispatch, same copy resolution, same outputOptions mount.
       output[[output_id]] <- shiny::renderUI({
         rendered_node <- node
+        # Bind the rendered widget at the coordinator-namespaced DOM ids so
+        # two `ptr_shared(..., id = ...)` coordinators sharing a panel-owned
+        # source key on one page don't collide on bare `shared_<key>`.
+        # Mirrors `invoke_build_ui()` (R/paintr-build-ui.R) and
+        # `ptr_setup_source_uis()` (R/paintr-server.R) -- both stamp the
+        # namespaced id onto the local `rendered_node` copy before passing
+        # it to `entry$build_ui()`.
+        rendered_node$id <- input_id
+        if (!is.null(node$shortcut_id)) {
+          rendered_node$shortcut_id <- shortcut_input_id
+        }
         copy <- ptr_resolve_ui_text(
           "control",
           keyword = node$keyword,

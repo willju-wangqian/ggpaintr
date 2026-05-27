@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Diagnose — DOM-id collision for two-coordinator panel sources (left/right fix)</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+<header>
+<h1>Diagnose — DOM-id collision in <code>ptr_setup_panel_sources()</code></h1>
+<p class="meta">Branch <code>left-right-fix</code> · base <code>9aaaa10</code> · 2026-05-27 · /diagnose, no source edits</p>
+</header>
+
+<section>
+<h2>TL;DR</h2>
+<ul>
+  <li><strong>Bug reproduced.</strong> Two <code>ptr_shared(formulas, id = "left"|"right")</code> coordinators on one page each render an inner <code>fileInput</code> + companion textInput at the <em>bare</em> DOM ids <code>shared_ds</code> / <code>shared_ds_shortcut</code>. Both modules emit identical ids → Shiny binds one element per id; the other is dead. 5 collisions in the probe (label, fileInput, progress bar, shortcut label, shortcut input).</li>
+  <li><strong>Recommendation: Option A, minimal form.</strong> Mirror the already-shipped pattern at <code>R/paintr-build-ui.R:809-810</code> (<code>invoke_build_ui</code>) and <code>R/paintr-server.R:2229-2233</code> (<code>ptr_setup_source_uis</code>): inside the render closure of <code>ptr_setup_panel_sources()</code>, stamp <code>rendered_node$id &lt;- ns(node$id)</code> (and <code>rendered_node$shortcut_id</code>) on the local copy, leave <code>node</code> bare. No public API surface widens. ~3-line edit; the existing <code>rendered_node &lt;- node</code> line at <code>R/paintr-shared-ui.R:533</code> already exists — it just forgot to apply the stamp.</li>
+  <li><strong>Counterfactual confirmed.</strong> Applying the stamp in a side-by-side probe yields fully namespaced ids (<code>left-shared_ds</code> / <code>right-shared_ds</code>, etc.) — zero collisions.</li>
+  <li><strong>No new <code>node$dom_id</code> field</strong> needed (Option B). <code>grep -rn '$dom_id' R/</code> returns nothing — Option B would introduce a brand-new field; Option A is purely a behavioural fix at one site.</li>
+</ul>
+</section>
+
+<section>
+<h2>Phase 1–2 — Feedback loop + reproduction</h2>
+
+<p>Probe: <code>dev/scripts/probe-shared-id-collision.R</code>. Loads the package via <code>devtools::load_all(".")</code>, constructs two <code>ptr_shared</code> coordinators with <code>id = "left"</code> / <code>"right"</code> and identical formula <code>ppUpload(shared = 'ds') |&gt; ggplot(aes(x = ppVar('mpg'))) + geom_point()</code>, then verbatim-replicates the closure body at <code>R/paintr-shared-ui.R:532-568</code> against each coordinator's <code>firsts$nodes$ds</code>. Outputs the rendered widget tag's <code>id="..."</code> attributes via <code>htmltools::renderTags()</code>.</p>
+
+<p>This is faster than shinytest2 and exercises the exact code path: the only thing the real <code>renderUI</code> would do extra is call <code>ptr_resolve_ui_text()</code> (irrelevant to id namespacing) and bind the result into the host's <code>output</code> slot (also irrelevant — the container slot at <code>output_id &lt;- ns(source_output_id(canonical))</code> is already namespaced; the bug is in the inner widget tag built by <code>entry$build_ui</code>).</p>
+
+<h3>Buggy path (current HEAD)</h3>
+<pre><code>LEFT  widget ids: id="shared_ds-label" | id="shared_ds" | id="shared_ds_progress"
+                  | id="shared_ds_shortcut-label" | id="shared_ds_shortcut"
+RIGHT widget ids: id="shared_ds-label" | id="shared_ds" | id="shared_ds_progress"
+                  | id="shared_ds_shortcut-label" | id="shared_ds_shortcut"
+
+Collisions: 5 (every id duplicated across coordinators)</code></pre>
+
+<h3>Counterfactual — Option A stamp applied in-probe</h3>
+<pre><code>LEFT  (fixed): id="left-shared_ds-label"  | id="left-shared_ds"  | id="left-shared_ds_progress"
+               | id="left-shared_ds_shortcut-label"  | id="left-shared_ds_shortcut"
+RIGHT (fixed): id="right-shared_ds-label" | id="right-shared_ds" | id="right-shared_ds_progress"
+               | id="right-shared_ds_shortcut-label" | id="right-shared_ds_shortcut"
+
+Collisions: 0</code></pre>
+
+<p>Bug confirmed. Fix confirmed (in isolation; integration test still required — see §"Regression test we want").</p>
+</section>
+
+<section>
+<h2>Phase 3 — Hypotheses (ranked, with predictions)</h2>
+
+<table>
+<thead><tr><th>#</th><th>Hypothesis</th><th>Prediction</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr>
+  <td>H1</td>
+  <td>Bare <code>node$id</code> reaches <code>entry$build_ui</code> in <code>ptr_setup_panel_sources()</code> (the closure copies <code>rendered_node &lt;- node</code> at line 533 but never stamps the namespaced id like its siblings do at <code>paintr-build-ui.R:810</code> / <code>paintr-server.R:2230</code>).</td>
+  <td>Stamping <code>rendered_node$id &lt;- ns(node$id)</code> + <code>rendered_node$shortcut_id &lt;- ns(node$shortcut_id)</code> before the <code>do.call(entry$build_ui, …)</code> yields distinct namespaced ids.</td>
+  <td><strong>CONFIRMED</strong> by probe counterfactual.</td>
+</tr>
+<tr>
+  <td>H2</td>
+  <td>The inner ppUpload <code>build_ui</code> uses a separate field (e.g. <code>node$inputId</code>) that the stamp wouldn't touch.</td>
+  <td>Even with <code>rendered_node$id</code> stamped, the rendered fileInput would still carry a bare id.</td>
+  <td><strong>DISPROVED.</strong> Counterfactual renders fully-namespaced ids for both fileInput and shortcut textInput. <code>build_ui</code> reads only <code>node$id</code> + <code>node$shortcut_id</code>.</td>
+</tr>
+<tr>
+  <td>H3</td>
+  <td>The host-side <code>output_id</code> wrapper container is also bare, so collisions would persist outside the inner widget.</td>
+  <td>Grep <code>R/paintr-shared-ui.R:525</code> shows <code>output_id &lt;- ns(source_output_id(canonical))</code>.</td>
+  <td><strong>DISPROVED.</strong> The container slot is already namespaced; only the inner widget tag is bare. Probe confirms.</td>
+</tr>
+</tbody>
+</table>
+
+<p class="muted">Single-hypothesis-was-correct case: the handoff already narrowed the site. H2/H3 are recorded as falsifiable alternatives that ruled themselves out before they consumed time.</p>
+</section>
+
+<section>
+<h2>Prior-art audit — Option A is already the codebase convention</h2>
+
+<p>Three render paths build widgets from a <code>node</code> + <code>build_ui</code>. Two of them already stamp the namespaced id on a local copy. The third forgot. The bug is asymmetry, not a missing design.</p>
+
+<table>
+<thead><tr><th>Path</th><th>Site</th><th>Pattern</th></tr></thead>
+<tbody>
+<tr>
+  <td>Per-instance source widgets (single-coordinator + multi-coordinator per-formula sources)</td>
+  <td><code>R/paintr-server.R:2229-2233</code> (<code>ptr_setup_source_uis</code>)</td>
+  <td><code>rendered_node &lt;- node; rendered_node$id &lt;- ui_ns(node$id); if (!is.null(node$shortcut_id)) rendered_node$shortcut_id &lt;- ui_ns(node$shortcut_id)</code> ✓</td>
+</tr>
+<tr>
+  <td>Value placeholders (panel-shared ppText / ppNum / ppExpr / ppVar)</td>
+  <td><code>R/paintr-build-ui.R:809-810</code> (<code>invoke_build_ui</code>, called from <code>ptr_setup_panel_values</code> at R/paintr-shared-ui.R:826)</td>
+  <td><code>rendered_node &lt;- node; rendered_node$id &lt;- ns_fn(node$id)</code> ✓</td>
+</tr>
+<tr>
+  <td>Panel-shared <em>sources</em> (ppUpload under <code>ptr_shared(..., id =)</code>)</td>
+  <td><code>R/paintr-shared-ui.R:532-568</code> (<code>ptr_setup_panel_sources</code>)</td>
+  <td><code>rendered_node &lt;- node</code> ✗ (no stamp) — <strong>bug site</strong></td>
+</tr>
+</tbody>
+</table>
+</section>
+
+<section>
+<h2>Sister-site sweep — handoff §3 lines 152 / 309 / 511 / 641 / 701 / 819</h2>
+
+<table>
+<thead><tr><th>Site</th><th>Computes</th><th>Hands to DOM?</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>R/paintr-shared-ui.R:152 (<code>shared_consumer_representatives</code>)</td><td><code>n$id &lt;- canonical_shared_id(k)</code> on the consumer rep</td><td>Yes — but via <code>ptr_bind_shared_consumer_uis</code> → <code>invoke_build_ui</code> (which restamps namespaced; prior-art row 2).</td><td>Safe ✓</td></tr>
+<tr><td>R/paintr-shared-ui.R:309</td><td><code>cid &lt;- ns(canonical_shared_id(k))</code></td><td>No — already namespaced lookup key.</td><td>Safe ✓</td></tr>
+<tr><td>R/paintr-shared-ui.R:511 (the BUG)</td><td><code>node$id &lt;- canonical</code> + ad-hoc <code>do.call(entry$build_ui, ...)</code> w/o stamp</td><td><strong>YES — and stamp is missing.</strong></td><td><strong>Broken ✗</strong> — fix here.</td></tr>
+<tr><td>R/paintr-shared-ui.R:641</td><td><code>out[[canonical_shared_id(k)]] &lt;- bundle</code></td><td>No — bundle key for state lookup.</td><td>Safe ✓ (bare on purpose; host uses bare keys).</td></tr>
+<tr><td>R/paintr-shared-ui.R:701 (<code>apply_spec_at_boot_host</code>)</td><td><code>canonical &lt;- canonical_shared_id(k)</code></td><td>No — spec-replay key matching.</td><td>Safe ✓</td></tr>
+<tr><td>R/paintr-shared-ui.R:819 (<code>ptr_setup_panel_values</code>)</td><td><code>rep$id &lt;- canonical_shared_id(key)</code></td><td>Yes — but via <code>invoke_build_ui</code> at line 826 (prior-art row 2).</td><td>Safe ✓</td></tr>
+</tbody>
+</table>
+
+<p><strong>Conclusion:</strong> Exactly one site is broken — <code>ptr_setup_panel_sources()</code> at line 532. Everything else either doesn't render DOM, or routes through <code>invoke_build_ui</code> which stamps correctly.</p>
+</section>
+
+<section>
+<h2>Downstream-read audit — does mutating only <code>rendered_node</code> break anything?</h2>
+
+<p>Within the <code>local({})</code> scope at <code>paintr-shared-ui.R:505-640</code>, every read of <code>node$id</code> / <code>node$shortcut_id</code> after <code>build_ui</code> runs:</p>
+
+<table>
+<thead><tr><th>Line</th><th>Use</th><th>Expects</th><th>Effect of leaving <code>node</code> bare</th></tr></thead>
+<tbody>
+<tr><td>L579</td><td><code>bound_names[[canonical]] &lt;- shiny::reactiveVal(NULL)</code></td><td>bare canonical</td><td>fine ✓</td></tr>
+<tr><td>L598</td><td><code>resolve_upload_source(node = node, …)</code> — reads <code>node$id</code> to write <code>host_state$bound_names[[node$id]]</code></td><td>bare canonical (matches L579)</td><td>fine ✓ (host_state is per-host; bare is correct)</td></tr>
+<tr><td>L602</td><td><code>key = canonical</code></td><td>bare canonical</td><td>fine ✓</td></tr>
+<tr><td>L636</td><td><code>ptr_bind_source_mutex(input_id, shortcut_input_id, ...)</code></td><td>namespaced (already <code>ns(...)</code> at L526-527)</td><td>fine ✓</td></tr>
+<tr><td>L641</td><td><code>out[[canonical_shared_id(k)]] &lt;- bundle</code></td><td>bare canonical</td><td>fine ✓</td></tr>
+</tbody>
+</table>
+
+<p>Mutating only <code>rendered_node</code> (Option A's minimal form, no <code>node$id</code> change) leaves all of these on the correct (bare) value. No double-namespacing risk because we never re-namespace <code>node$id</code> downstream — only <code>input_id</code> and <code>shortcut_input_id</code> are namespaced, and they're built independently from <code>canonical</code> at L526-527.</p>
+</section>
+
+<section>
+<h2>Proposed fix (Option A, minimal)</h2>
+
+<p>Single edit at <code>R/paintr-shared-ui.R:533-568</code>. Lines added inside the existing <code>renderUI</code> closure, immediately after <code>rendered_node &lt;- node</code>:</p>
+
+<pre><code>output[[output_id]] &lt;- shiny::renderUI({
+  rendered_node &lt;- node
++ # Mirror invoke_build_ui() (R/paintr-build-ui.R:810) and
++ # ptr_setup_source_uis() (R/paintr-server.R:2230): the rendered widget
++ # must bind at the coordinator-namespaced DOM id so two ptr_shared(id=)
++ # coordinators on one page don't collide on bare shared_&lt;key&gt;.
++ rendered_node$id &lt;- input_id
++ if (!is.null(node$shortcut_id)) {
++   rendered_node$shortcut_id &lt;- shortcut_input_id
++ }
+  copy &lt;- ptr_resolve_ui_text(...)
+  ...
+  do.call(entry$build_ui, c(list(rendered_node, label = copy$label), extra_named))
+})</code></pre>
+
+<p>Where <code>input_id</code> and <code>shortcut_input_id</code> are already computed at lines 526-527 (<code>ns(canonical)</code> / <code>ns(node$shortcut_id)</code>). No new helpers, no new fields, no API change.</p>
+
+<p><strong>Blast radius:</strong> one closure body. No exported function signature changes. No third-party <code>build_ui</code> hook needs an update because every other render path already passes pre-namespaced <code>node$id</code> — third-party authors that wrote a custom <code>ptr_define_placeholder_source(build_ui = …)</code> already expect <code>node$id</code> to be the DOM id to bind to.</p>
+</section>
+
+<section>
+<h2>Regression test we want</h2>
+
+<p>New file: <code>tests/testthat/test-shared-two-coordinators-namespacing.R</code>. Two layers:</p>
+
+<h3>Layer 1 — pure-tag rendering (fast, no shinytest2 needed)</h3>
+<p>Mirror the existing <code>tests/testthat/test-shared-id-namespacing.R</code> pattern: instantiate two <code>ptr_shared(formulas = "ppUpload(shared='ds') |&gt; …", id = c("left","right"))</code>, render <code>ptr_shared_panel(obj)</code>'s static markup, drive <code>ptr_shared_server(obj)</code> under <code>testServer</code> so the source <code>renderUI</code> fires, then assert:</p>
+<ul>
+  <li>Each rendered panel HTML contains <code>id="left-shared_ds"</code> (resp. <code>id="right-shared_ds"</code>) exactly once.</li>
+  <li>Neither rendered panel HTML contains the bare <code>id="shared_ds"</code> (the existing tests at lines 41-47 of <code>test-shared-id-namespacing.R</code> have this shape — copy it).</li>
+  <li>Same for the shortcut companion (<code>id="left-shared_ds_shortcut"</code>).</li>
+</ul>
+
+<p class="muted">Mechanical hurdle: <code>ptr_setup_panel_sources()</code>'s <code>renderUI</code> needs to be observed to fire. Easiest path in testServer: force-realize the source output via <code>output$&lt;ns&gt;shared_ds_source &lt;- … invalidateLater(0)</code>, or simply read <code>output$&lt;ns&gt;shared_ds_source</code>. Worst case fall back to the shinytest2 fixture pattern documented in <code>shinytest2-appdir-pkgload</code>.</p>
+
+<h3>Layer 2 — shinytest2 fixture (full DOM, optional but recommended)</h3>
+<p>Fixture: <code>tests/testthat/fixtures/vignette-apps/shared-two-coordinators-namespacing/app.R</code>. Pattern matches <code>shared-source-panel-multi/</code>. Asserts on <code>app$get_html("body")</code> directly: two distinct namespaced fileInputs, zero bare <code>shared_ds</code>.</p>
+
+<h3>Adjacent tests to RE-RUN post-fix</h3>
+<ul>
+  <li><code>tests/testthat/test-shared-source-panel-multi-instance.R</code> — passing on <code>9aaaa10</code>.</li>
+  <li><code>tests/testthat/test-spec-roundtrip-shared.R</code> — PLAN-06 shared-coordinator round-trip.</li>
+  <li><code>tests/testthat/test-auto-name-shared-canonical.R</code> — PLAN-02 stamp assertions.</li>
+  <li><code>tests/testthat/test-shared-id-namespacing.R</code> — existing namespacing pin.</li>
+</ul>
+</section>
+
+<section>
+<h2>Definition of Done (from CLAUDE.md authoritative gate)</h2>
+
+<p>Single authoritative gate, run from the worktree:</p>
+<pre><code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::set_max_fails(Inf); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code></pre>
+
+<p>Expected after fix + new test: <strong>FAIL 0 / WARN 0 / SKIP 0 / PASS ≥ 3261 + n_new_cases</strong>. Pre-existing <code>test-super-pressure.R</code> chromote flakes are not attributable to this change (project memory <code>e2e-assertion-weakness-lens</code>) — re-run on suspected flake.</p>
+</section>
+
+<section>
+<h2>Open questions (handoff §"Open questions")</h2>
+
+<table>
+<thead><tr><th>Q</th><th>Resolution</th></tr></thead>
+<tbody>
+<tr>
+  <td>Q1: Option A vs B — how many sites in <code>R/paintr-server.R</code> / <code>R/paintr-substitute.R</code> re-namespace <code>node$id</code> via <code>ns(...)</code>?</td>
+  <td><strong>Option A's minimal form (mutate <code>rendered_node</code> only, not <code>node</code>).</strong> Zero downstream re-namespace sites because <code>node$id</code> stays bare; only the local <code>rendered_node</code> copy gets namespaced. This is exactly what <code>invoke_build_ui</code> and <code>ptr_setup_source_uis</code> already do.</td>
+</tr>
+<tr>
+  <td>Q2: Should the substitute walker emit <code>left_ds</code> (auto-name) or <code>left-shared_ds</code> (namespaced id)?</td>
+  <td>Auto-name. The substitute walker already prefers <code>node$auto_name</code> when present (set at L523, "&lt;id&gt;_&lt;key&gt;" per ADR 0025 §3 / PLAN-02). This fix doesn't touch substitute; it only un-collides the DOM.</td>
+</tr>
+<tr>
+  <td>Q3: Three-or-more-coordinator generalisation?</td>
+  <td>Free. The fix uses <code>ns(node$id)</code> where <code>ns</code> is the coordinator's <code>shared_ns(obj)</code> — distinct per coordinator. Add a 3-coordinator assertion to the new test if cheap.</td>
+</tr>
+</tbody>
+</table>
+</section>
+
+<section>
+<h2>Cleanup checklist (Phase 6, when fix lands)</h2>
+<ul>
+  <li>Probe artifact at <code>dev/scripts/probe-shared-id-collision.R</code> stays — it's a fast regression-style check. Move into <code>dev/scripts/</code>? Already there; OK.</li>
+  <li>No <code>[DEBUG-…]</code> instrumentation introduced.</li>
+  <li>NEWS.md entry: "Fix DOM-id collision when two <code>ptr_shared(..., id=)</code> coordinators share a panel-owned source key on one page (regression introduced when panel-owned sources first landed)."</li>
+  <li>PR/commit message: state the prior-art symmetry — fix mirrors <code>invoke_build_ui</code> / <code>ptr_setup_source_uis</code>; one missed call site.</li>
+</ul>
+</section>
+
+<section>
+<h2>Confidence</h2>
+<p>92 / 100. Bug reproduced under the actual <code>entry$build_ui</code> render path (probe replicates the closure body verbatim). Fix counterfactually verified in the same probe. The pattern is already shipped in two sibling code paths. Residual 8% reserved for: (a) the new regression test having to drive the <code>renderUI</code> reactively (testServer-vs-shinytest2 choice not yet made), (b) the possibility that some third-party <code>build_ui</code> hook in the wild has been coded against the bare-id assumption — but every other in-repo path already passes namespaced, and the ADR 0025 promise was always namespaced, so this would be a third-party bug not a regression.</p>
+</section>
+
+</body>
+</html>
