@@ -268,6 +268,18 @@ ptr_init_state <- function(formula,
     # downstream "object '<name>' not found". Keyed by source id (or layer
     # name for bare-data sources). A successful resolve clears that key.
     resolve_errors = shiny::reactiveVal(stats::setNames(list(), character())),
+    # ADR 0025 §4 / PLAN-04: per-active-upload prologue ledger. Named list
+    # keyed by `key` (layer name for bare-data sources, source id for
+    # pipeline-head sources). Each entry is
+    # `list(auto_name=<chr>, file_name=<chr>, ext=<chr>)`. Written by
+    # `resolve_upload_source()` / `try_bind_source_default_resolved()` on a
+    # successful upload bind (built-in `ppUpload` only); cleared on a
+    # vacated bind (file_info NULL, no shortcut value, no default). Read by
+    # `emit_upload_prologue()` and prepended to the code-panel text by
+    # `format_code_with_extras()`. Insertion order preserves declaration
+    # order across tree traversal, so the rendered prologue lines appear
+    # in formula order. Empty list when no upload-bound source is active.
+    active_uploads = shiny::reactiveVal(stats::setNames(list(), character())),
     ui_ns_fn = ns,
     server_ns_fn = server_ns,
     input_spec = ptr_runtime_input_spec(tree),
@@ -891,6 +903,92 @@ bind_source_value <- function(state, key, name, df, slot) {
   slot(df)
 }
 
+# ADR 0025 §4 / PLAN-04: register / clear an entry on
+# `state$active_uploads`. Built-in `ppUpload` only (the source-registry
+# `shortcut == TRUE` predicate filters out custom sources whose code-panel
+# prologue is deferred per ADR scope cuts -- `prologue_emit_fn` hook is
+# explicitly out-of-scope here). The clear path is also used by Plan 05's
+# vacate-on-empty observer (file_info NULL + empty shortcut + no default).
+register_active_upload <- function(state, key, node, file_info) {
+  # Built-in upload only. The keyword stamp is the structural signal:
+  # third-party shortcut sources (registered via
+  # `ptr_define_placeholder_source(shortcut = TRUE)`) carry their own
+  # keyword and are intentionally excluded from prologue emission.
+  if (is.null(node) || !identical(node$keyword, "ppUpload")) {
+    return(invisible(NULL))
+  }
+  # `resolve_upload_source()` is also called from the panel-source
+  # observer in `paintr-shared-ui.R` with a minimal ad-hoc `state` that
+  # has no `active_uploads` slot (host-side panel source bind; the
+  # per-instance state populated by `ptr_server()` carries the slot).
+  # The prologue is rendered off the per-instance state's code panel, so
+  # the host-side panel-source bind has no prologue to register; silently
+  # no-op when the slot is absent.
+  if (!is.function(state$active_uploads)) return(invisible(NULL))
+  if (is.null(file_info) || is.null(file_info$name)) {
+    clear_active_upload(state, key)
+    return(invisible(NULL))
+  }
+  auto_name <- node$auto_name
+  if (!is.character(auto_name) || length(auto_name) != 1L || !nzchar(auto_name)) {
+    return(invisible(NULL))
+  }
+  ext <- tolower(tools::file_ext(file_info$name))
+  current <- shiny::isolate(state$active_uploads())
+  entry <- list(auto_name = auto_name,
+                file_name = file_info$name,
+                ext       = ext)
+  prior <- current[[key]]
+  if (!is.null(prior) && identical(prior, entry)) {
+    return(invisible(NULL))
+  }
+  # Insertion-order preservation: dropping then re-appending keeps the
+  # most-recently-set entry last. The natural first-bind sequence (each
+  # key registered once at first successful upload) yields formula /
+  # declaration order; later re-binds of the same key keep that key's
+  # position only if it was the latest one set, which matches the
+  # "current snapshot" semantics callers expect.
+  current[[key]] <- NULL
+  current[[key]] <- entry
+  state$active_uploads(current)
+  invisible(NULL)
+}
+
+clear_active_upload <- function(state, key) {
+  # See note in `register_active_upload()` -- the host-side panel-source
+  # observer hands in a minimal ad-hoc `state` without this slot.
+  if (!is.function(state$active_uploads)) return(invisible(NULL))
+  current <- shiny::isolate(state$active_uploads())
+  if (!(key %in% names(current))) return(invisible(NULL))
+  current[[key]] <- NULL
+  state$active_uploads(current)
+  invisible(NULL)
+}
+
+# Walk `state$active_uploads()` in declaration (insertion) order and emit
+# one prologue line per entry. Unknown extensions are silently omitted
+# (ADR 0025 §4 documented default-skip: never substitute a fake reader).
+emit_upload_prologue <- function(active_uploads) {
+  if (length(active_uploads) == 0L) return("")
+  lines <- character(0)
+  for (entry in active_uploads) {
+    if (!is.list(entry)) next
+    auto_name <- entry$auto_name
+    file_name <- entry$file_name
+    ext       <- entry$ext
+    if (!is.character(auto_name) || length(auto_name) != 1L || !nzchar(auto_name)) next
+    if (!is.character(file_name) || length(file_name) != 1L || !nzchar(file_name)) next
+    reader <- reader_fn_name_for_ext(ext)
+    if (is.na(reader)) next
+    lines <- c(
+      lines,
+      paste0(auto_name, " <- ", reader, "(\"", file_name, "\")")
+    )
+  }
+  if (length(lines) == 0L) return("")
+  paste0(paste(lines, collapse = "\n"), "\n")
+}
+
 # ADR 0023 §4 PLAN-05: derive the binding name for a panel-owned source
 # on the per-instance side. Mirrors `resolve_upload_source()`'s name
 # derivation but reads the shortcut text-input value at the host's
@@ -1066,6 +1164,11 @@ resolve_upload_source <- function(input_slot, shortcut_slot, node, entry,
   shortcut_value <- if (has_shortcut) shortcut_slot$value else NULL
   if (is.null(file_info)) {
     set_resolve_error(state, key, NULL)
+    # ADR 0025 §4 / PLAN-04: vacated upload binding — drop any prior
+    # prologue ledger entry for this key. Note Plan 05 owns the
+    # textbox-empty fall-through; this clear covers the "no file_info"
+    # branch (e.g. fileInput pre-pick, or post-mutex shiny::reset()).
+    clear_active_upload(state, key)
     # Source-default fallback: when no upload has been provided but the
     # source carries a default-arg symbol resolvable in `envir`'s parent
     # chain, bind it so the ADR 0015 §2.1 source-ready gate clears at
@@ -1121,6 +1224,17 @@ resolve_upload_source <- function(input_slot, shortcut_slot, node, entry,
   # consumer `req(state$bound_names[[key]]())` cannot fire before
   # `state$eval_env` holds `binding_name`.
   bind_source_value(state, key, binding_name, df, slot)
+  # ADR 0025 §4 / PLAN-04: register the upload entry on
+  # `state$active_uploads` so the code-panel prologue emits a
+  # `<auto_name> <- read.<ext>(...)` line for this source. Built-in
+  # `ppUpload` only (the helper short-circuits on other keywords). Only
+  # registers when the bind succeeded (df non-NULL and a binding_name
+  # was usable); otherwise clears any stale entry.
+  if (!is.null(df) && !is.null(binding_name)) {
+    register_active_upload(state, key, node, file_info)
+  } else {
+    clear_active_upload(state, key)
+  }
   invisible(NULL)
 }
 
@@ -2814,19 +2928,27 @@ ptr_register_error <- function(output, state) {
 # Render the code-panel text for a runtime result + extras source list.
 # Used by both `ptr_register_code` (reactive output) and
 # `ptr_extract_code` (read accessor).
-format_code_with_extras <- function(res, extras_exprs) {
+#
+# `prologue` is the pre-formatted upload-prologue block produced by
+# `emit_upload_prologue(state$active_uploads())` -- a string ending with
+# a trailing newline so it concatenates cleanly with `base`, or "" when
+# no upload-bound source is active. Plain text only; ggpaintr never
+# parses/eval's the prologue. See ADR 0025 §4 / PLAN-04.
+format_code_with_extras <- function(res, extras_exprs, prologue = "") {
   base <- if (is.null(res)) "" else (res$code_text %||% "")
   if (is.null(res) || !isTRUE(res$ok) || length(extras_exprs) == 0L) {
-    return(base)
+    return(paste0(prologue, base))
   }
   extra_text <- vapply(extras_exprs, function(e) {
     if (rlang::is_quosure(e)) rlang::quo_text(e) else
       paste(deparse(e), collapse = " ")
   }, character(1))
-  if (!nzchar(base)) {
-    return(paste(extra_text, collapse = " +\n  "))
+  body <- if (!nzchar(base)) {
+    paste(extra_text, collapse = " +\n  ")
+  } else {
+    paste(c(base, extra_text), collapse = " +\n  ")
   }
-  paste(c(base, extra_text), collapse = " +\n  ")
+  paste0(prologue, body)
 }
 
 ptr_register_code <- function(output, state) {
@@ -2867,7 +2989,14 @@ ptr_register_code <- function(output, state) {
       res <- state$runtime()
       last <- state$last_ok_runtime()
       chosen <- if (is.null(res) || isTRUE(res$ok) || is.null(last)) res else last
-      format_code_with_extras(chosen, state$extras_exprs())
+      # ADR 0025 §4 / PLAN-04: read the active-upload ledger reactively so
+      # the prologue updates whenever the upload set changes (post-bind /
+      # post-vacate). Reads identical to `ptr_extract_code()`'s isolate
+      # read so the on-screen and extracted panel text agree.
+      format_code_with_extras(
+        chosen, state$extras_exprs(),
+        prologue = emit_upload_prologue(state$active_uploads())
+      )
     }
   })
   # The generated-code panel lives inside a mini-window that is hidden
@@ -2919,7 +3048,10 @@ ptr_extract_error <- function(state) shiny::isolate(state$runtime())$error
 #' @rdname ptr_extract
 #' @export
 ptr_extract_code  <- function(state) {
-  shiny::isolate(format_code_with_extras(state$runtime(), state$extras_exprs()))
+  shiny::isolate(format_code_with_extras(
+    state$runtime(), state$extras_exprs(),
+    prologue = emit_upload_prologue(state$active_uploads())
+  ))
 }
 
 # ---- ptr_gg_extra ----
