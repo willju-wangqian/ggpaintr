@@ -188,3 +188,68 @@ test_that("PLAN-03 / bug-3b: non-empty form of every elidable verb survives unde
                 info = paste0("verb `", verb, "` lost from non-empty form under `|>`: ", txt))
   })
 })
+
+# ---- partial-fill regression: no syntactically empty verb call survives ---
+#
+# 2026-05-27 user report: with formula
+#   mtcars |> mutate(adj = ppVar + ppVar) |> ggplot(aes(x = ppVar)) +
+#     geom_histogram()
+# only the aes-side `x = ppVar` widget was filled (e.g. "mpg"); the two
+# mutate-side `ppVar` widgets were left blank. Expected: either the full
+# mutate body substitutes through, or the empty mutate stage elides cleanly
+# from the rendered code. Observed in installed ggpaintr 0.9.2: the rendered
+# code panel showed `mtcars |> mutate()` — a syntactically empty verb call,
+# meaningless to a copy-paste reader. Fixed in `post-add-expr`; this test
+# locks the symptom-level invariant: the substituted+pruned rendered text
+# MUST NOT contain any zero-arg verb call (`verb()`). It catches the
+# observed regression regardless of which upstream path produced it.
+
+# Helper: substitute with a *partial* snapshot + populated upstream_cols
+# (mirrors the live runtime feed when the user has picked exactly one
+# column-picker widget). Returns the rendered code string.
+render_pruned_partial <- function(formula, snapshot, upstream_cols) {
+  tree <- ptr_translate(formula, expr_check = FALSE)
+  tree <- ggpaintr:::ptr_assign_ids(tree)
+  res <- ggpaintr:::ptr_complete_expr_safe(
+    tree,
+    snapshot      = snapshot,
+    upstream_cols = upstream_cols
+  )
+  stopifnot(isTRUE(res$ok))
+  res$code_text
+}
+
+test_that("partial-fill: rendered code never contains a zero-arg verb call", {
+  withr::local_package("dplyr")
+
+  formula <- paste(
+    "mtcars |> mutate(adj = ppVar + ppVar) |>",
+    "ggplot(aes(x = ppVar)) + geom_histogram()"
+  )
+  cols <- names(mtcars)
+  # Snapshot: only the aes-side ppVar is filled; both mutate-side ppVar
+  # widgets are absent (i.e. NULL in the live runtime feed).
+  snap <- list(ggplot_1_1_ppVar_NA = "mpg")
+  ucols <- list(
+    ggplot_1_1_ppVar_NA    = cols,
+    ggplot_2_1_1_ppVar_NA  = cols,
+    ggplot_2_1_2_ppVar_NA  = cols
+  )
+
+  txt <- render_pruned_partial(formula, snap, ucols)
+
+  # Symptom-level invariant: no `name()` zero-arg verb call survives. The
+  # regex captures any identifier followed immediately by `()` — `aes()` and
+  # `geom_histogram()` are intentionally excluded (an empty aes / standalone
+  # geom is the legitimate zero-arg form they take in pruned output).
+  # Targets the data-pipeline-verb shape `mutate()`, `filter()`, etc.
+  empty_verb_re <- "\\b(mutate|filter|arrange|group_by|summari[sz]e|select|transmute|rename|reframe)\\(\\s*\\)"
+  expect_false(grepl(empty_verb_re, txt),
+               info = paste0("zero-arg verb call survived render: ", txt))
+
+  # Sibling positive assertion: the aes-side substitution must have
+  # succeeded (otherwise the test would vacuously pass when sub bails
+  # before prune even gets a chance).
+  expect_true(grepl("aes(x = mpg)", txt, fixed = TRUE),
+              info = paste0("aes substitution missing: ", txt))
+})
