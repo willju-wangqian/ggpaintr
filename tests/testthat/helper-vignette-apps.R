@@ -58,6 +58,14 @@ boot_vignette_app <- function(slug) {
       timeout = 30 * 1000
     )
   )
+  # AppDriver$new returns once the initial Connect handshake completes; the
+  # JS side's bindAll() and the server's first flush may still be in flight.
+  # Calling wait_for_idle here makes every test_that body start from a
+  # quiet, observable state, so the first set_input / get_html / get_value
+  # doesn't race the boot tail. Cheap (idle in single-digit ms on most
+  # fixtures); only matters for the small subset that have a heavier first
+  # flush.
+  app$wait_for_idle(timeout = 15 * 1000)
   withr::defer(app$stop(), envir = parent.frame())
   app
 }
@@ -213,6 +221,51 @@ if (!exists("%||%")) `%||%` <- function(a, b) if (is.null(a)) b else a
 # right before `app$set_inputs(...)` closes the race. Empirically
 # calibrated default `timeout_ms = 5000` covers the worst-case observed
 # binding latency by ~50x (see commit log for calibration data).
+# Wait until the output element `#<id>` is settled — the reactive graph is
+# idle AND the element exists in the DOM AND it isn't currently flagged
+# `shiny-busy`. Use this before reading an output via `app$get_html()` /
+# `app$get_value(output = id)` when a re-render might be in flight (after
+# a click, a `set_input` cascade, or any reactive invalidation). Returns
+# elapsed seconds (useful for calibration). Aborts on timeout with a
+# structured class so the failure is distinguishable from "binding never
+# registered".
+#
+# Why this is needed: `app$wait_for_idle()` returns when the reactive
+# graph is quiet, but the JS-side output binding's update may still be
+# in flight (`shiny-busy` class set on the output node until the binding
+# finishes redrawing). Reading `app$get_html(...)` in that window returns
+# stale content. This helper polls until the busy-class clears.
+#
+# Separate from `wait_for_input_binding`: that one guards the INPUT-side
+# race (renderUI -> bindAll), this one guards the OUTPUT-side race
+# (server emit -> binding update). Use the one that matches the direction
+# of the next observable action.
+wait_for_output <- function(app, id, timeout_ms = 5000, poll_ms = 25) {
+  start <- Sys.time()
+  deadline <- start + timeout_ms / 1000
+  # First: drain the reactive queue. If a re-render is queued but not yet
+  # firing, this is the cheapest way to let it land.
+  app$wait_for_idle(timeout = timeout_ms)
+  selector <- paste0("#", id)
+  repeat {
+    html <- tryCatch(app$get_html(selector), error = function(e) NULL)
+    if (!is.null(html) && nzchar(html) &&
+        !grepl("shiny-busy", html, fixed = TRUE)) {
+      return(as.numeric(Sys.time() - start, units = "secs"))
+    }
+    if (Sys.time() > deadline) {
+      rlang::abort(
+        sprintf(
+          "wait_for_output(\"%s\") timed out after %d ms (element missing, empty, or stuck in `shiny-busy`).",
+          id, timeout_ms
+        ),
+        class = "ggpaintr_wait_for_output_timeout"
+      )
+    }
+    Sys.sleep(poll_ms / 1000)
+  }
+}
+
 wait_for_input_binding <- function(app, id, timeout_ms = 5000,
                                    poll_ms = 25) {
   start <- Sys.time()
