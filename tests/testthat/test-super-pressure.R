@@ -49,7 +49,7 @@ test_that("super-1 kitchen-sink: sentinels propagate through every placeholder",
   # pickers' renderUI binds (project memory `shinytest2-appdir-pkgload`:
   # consumer pickers under a layer's tabset are suspended until the tab
   # is shown). Subtab values are the "Data" / "Controls" labels themselves.
-  app$set_inputs(ggplot_subtab = "Controls", wait_ = FALSE)
+  set_input(app, "ggplot_subtab", "Controls")
   app$wait_for_idle(timeout = 25 * 1000)
   # ppVar root sentinel — aes(x = ppVar(mpg)).
   set_sentinel(app, "ggplot_1_1_ppVar_NA", "disp")
@@ -107,7 +107,7 @@ test_that("super-1 no-default: sentinels propagate through every placeholder (no
 
   # ---- Drive every sentinel ----------------------------------------------
   set_sentinel(app, "ggplot_3_1_ppExpr_NA", "mpg + wt")
-  app$set_inputs(ggplot_subtab = "Controls", wait_ = FALSE)
+  set_input(app, "ggplot_subtab", "Controls")
   app$wait_for_idle(timeout = 25 * 1000)
   set_sentinel(app, "ggplot_1_1_ppVar_NA", "disp")
   set_sentinel(app, "geom_point_1_ppNum_NA", 0.7314159)
@@ -171,7 +171,7 @@ test_that("super-2a upload+registry: sentinels propagate through multi-data-sour
   # ---- Layer-data ppVar picker reflects df_aux's columns, not df_main's --
   # Pre-flight: pop the geom_smooth Controls subtab so its in-aes ppVar
   # picker renderUI binds (project memory `shinytest2-appdir-pkgload`).
-  app$set_inputs(geom_smooth_subtab = "Controls", wait_ = FALSE)
+  set_input(app, "geom_smooth_subtab", "Controls")
   app$wait_for_idle(timeout = 25 * 1000)
   # Positive assertion: "mpg" IS offered (in both df_main and df_aux).
   expect_picker_populated(app, "geom_smooth_1_1_ppVar_NA", "mpg")
@@ -195,7 +195,7 @@ test_that("super-2a upload+registry: sentinels propagate through multi-data-sour
   set_sentinel(app, "geom_point_3_ppPower_NA", 0.42)
   # Shared "grp" sentinel (drive once now so it lands before final-mode
   # capture; df_main columns include cyl).
-  app$set_inputs(ggplot_subtab = "Controls", wait_ = FALSE)
+  set_input(app, "ggplot_subtab", "Controls")
   app$wait_for_idle(timeout = 25 * 1000)
   set_sentinel(app, "shared_grp", "cyl")
   # ppMultiVar non-scalar sentinel: c("cyl", "am"). df_main has both.
@@ -313,7 +313,7 @@ test_that("super-2a no-default: sentinels propagate through multi-data-source + 
   app$wait_for_idle(timeout = 25 * 1000)
 
   # ---- Activate Controls subtab so root ppVar pickers bind ---------------
-  app$set_inputs(ggplot_subtab = "Controls", wait_ = FALSE)
+  set_input(app, "ggplot_subtab", "Controls")
   app$wait_for_idle(timeout = 25 * 1000)
 
   # ---- Drive sentinels and root aes pickers ------------------------------
