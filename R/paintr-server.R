@@ -1426,15 +1426,21 @@ ptr_setup_pipelines <- function(state, input, output, session) {
         return(invisible())
       }
 
-      # ADR 0025 §7 / PLAN-05 (A2 deferred): debounce was attempted via
-      # `shortcut_debounced_reactive()` but broke a race-window in
-      # `test-shared-source-panel-multi-instance.R` where the synchronous
-      # observe fire under file-present + shortcut-non-empty is what binds
-      # the typed name into eval_env before the mutex's file-reset
-      # round-trip arrives. Deferred as out-of-scope (see commit message
-      # / report). The helper `shortcut_debounced_reactive()` stays in the
-      # file for the follow-up; current call sites read the input
-      # synchronously to preserve the race-window semantics.
+      # ADR 0025 §7 / PLAN-05 (A2 deferred): debounce on the shortcut
+      # textbox read was attempted twice and broke distinct test contracts
+      # both times. (1) shiny::debounce(reactive(input[[shortcut_id]]), 400L)
+      # broke test-shared-source-panel-multi-instance.R's synchronous
+      # observe ordering (the mutex's file-reset round-trip races the bind).
+      # (2) Re-attempting with the test-side race-fix helpers from the
+      # parallel session (commits 69bd203, 4c924d2, d0136ed) STILL broke
+      # test-rewrite-pipeline-data-source.R (6 FAILs) and
+      # test-shared-source-panel-multi-instance.R (2 FAILs). The
+      # invariant the synchronous read protects is broader than the
+      # multi-instance fixture. Defer A2 to a follow-up plan that
+      # designs a debounce-friendly variant suppressing intermediate
+      # errors without breaking the synchronous bind path. The Plan 05
+      # A2 BDD scenario (test-debounce-keystroke-burst.R) is consequently
+      # NOT added.
       shiny::observe({
         resolve_upload_source(
           input_slot     = input[[src_id]],
@@ -1502,7 +1508,7 @@ ptr_setup_pipelines <- function(state, input, output, session) {
         return(invisible())
       }
 
-      # ADR 0025 §7 / PLAN-05 (A2 deferred): see the parallel comment in
+      # ADR 0025 §7 / PLAN-05 (A2 deferred): see the parallel block in
       # the bare-data-source-layer branch above.
       shiny::observe({
         resolve_upload_source(
