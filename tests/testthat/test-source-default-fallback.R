@@ -45,4 +45,10 @@ test_that("pipeline-head ppUpload(df_main) populates ppVar picker at boot via de
   # populated with mtcars's columns at boot — no upload performed.
   expect_picker_populated(app, "ggplot_1_1_ppVar_NA", "mpg")
   expect_picker_populated(app, "ggplot_1_2_ppVar_NA", "hp")
+  # AND the positional defaults `ppVar(mpg)` / `ppVar(hp)` are actually
+  # SELECTED, not merely offered. `_populated` is a presence proxy on the
+  # options list and was the bug-class that hid the `aes(y = ppVar(adj))`
+  # derived-column regression (2026-05-27).
+  expect_picker_selected(app, "ggplot_1_1_ppVar_NA", "mpg")
+  expect_picker_selected(app, "ggplot_1_2_ppVar_NA", "hp")
 })

@@ -189,6 +189,12 @@ test_that("use-cases module-app: L2 ptr_ui/ptr_server (id omitted)", {
   draw(app, "ptr_update_plot")
   expect_rendered(app, "#ptr_plot", "ggplot")
   expect_code_nonempty(app, "ptr_code")
+  # Strengthen the bare "code-nonempty" presence proxy: the literal value
+  # we just set must actually propagate into the rendered code panel.
+  # Without this, a regression that returns "ggplot()" with no aes() args
+  # would still pass `expect_code_nonempty` (see audit-weak-assertions
+  # 2026-05-27).
+  expect_match(app$get_value(output = "ptr_code"), "Sepal.Length", fixed = TRUE)
   expect_no_inline_error(app, "ptr_error")
 })
 
@@ -483,6 +489,9 @@ test_that("customization bslib: page_sidebar wrapper (ptr_app_bslib)", {
   draw(app, "ptr-ptr_update_plot")
   expect_rendered(app, "#ptr-ptr_plot", "ggplot")
   expect_code_nonempty(app, "ptr-ptr_code")
+  # See l.196 (use-cases l2-noid): strengthen the code-nonempty proxy with
+  # a literal-propagation check for one of the just-set values.
+  expect_match(app$get_value(output = "ptr-ptr_code"), "Sepal.Length", fixed = TRUE)
   expect_no_inline_error(app, "ptr-ptr_error")
 })
 

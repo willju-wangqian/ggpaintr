@@ -2507,24 +2507,50 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
           ns_fn = ui_ns,
           extra = extra
         )
-        # Only flip `has_rendered` after a populated render. With a source-
-        # headed upstream (`ppUpload(df_main) |> ...`) the first
-        # `entry_reactive()` fire can return NULL because
-        # `substitute_walk.ptr_ph_data_source()` reads the shortcut value
-        # from `ctx$snapshot[[node$shortcut_id]]`, which is fed from
-        # `input[[ns(cmp)]]` and is briefly NULL post-boot before the
-        # client reports the widget's `value=` back. Flipping `has_rendered`
-        # on that empty fire used to lock the next valid fire into the
-        # `seed %||% current %||% character(0)` branch -- `extra$selected =
-        # character(0)` suppressed `invoke_build_ui()`'s `node$default`
-        # injection (paintr-build-ui.R:842-855), so `ppVar('hp')`-style
-        # defaults never seeded the picker once the upstream was a
-        # `ppUpload(default = df)` source. Gating the flip on
-        # `length(cols) > 0L` keeps the first-render flag deferred until
-        # cols are actually present; the explicit-deselect semantics is
-        # preserved by the `character(0)` tail above (after a valid render
-        # the user is the source of truth for "nothing selected").
-        if (length(cols) > 0L) has_rendered <<- TRUE
+        # Only flip `has_rendered` after a populated render. Two cases that
+        # used to lock the picker into an empty selection forever:
+        #
+        # (1) ppUpload-headed upstream: the first `entry_reactive()` fire
+        #     returns NULL because `substitute_walk.ptr_ph_data_source()`
+        #     reads the shortcut value from `ctx$snapshot[[node$shortcut_id]]`,
+        #     which is briefly NULL post-boot before the client reports the
+        #     widget's `value=` back. cols = character() on that fire.
+        #
+        # (2) Derived-column default (e.g. `aes(y = ppVar(adj))` over an
+        #     upstream that includes `dplyr::mutate(adj = ppExpr(mpg/wt))`):
+        #     the first fire happens before the ppExpr widget has echoed
+        #     its initial value back to the snapshot, so the mutate prunes
+        #     out of the upstream and cols = base-data cols without `adj`.
+        #     The framework's `node$default = "adj"` injection in
+        #     invoke_build_ui (R/paintr-build-ui.R:842-855) reaches
+        #     `ptr_builtin_var_build_ui`'s `intersect(selected, cols)`, which
+        #     drops it -- and on the next fire `current = character(0)`
+        #     shadows the default through the `seed %||% current %||%
+        #     character(0)` branch. Result: picker permanently empty even
+        #     after the snapshot stabilizes and cols include "adj".
+        #
+        # Fix: flip `has_rendered` only when this fire could have actually
+        # persisted the framework default (or a seed/current). Concretely:
+        # `selected_arg` is non-NULL (seed-or-current drove the choice), OR
+        # the effective default landed in cols (or there's no default to
+        # land). Until then, the next fire stays in the "branch B" path
+        # (`extra$selected` unset) so invoke_build_ui re-injects node$default.
+        # Explicit-deselect semantics is preserved: once a valid render
+        # lands and has_rendered flips TRUE, a user-driven `character(0)`
+        # current sticks via the `seed %||% current %||% character(0)`
+        # branch exactly as before.
+        effective_default <- node$default
+        if (is.language(effective_default)) {
+          effective_default <- paste(deparse(effective_default), collapse = "\n")
+        }
+        default_landed <-
+          is.null(effective_default) ||
+          (is.character(effective_default) &&
+           length(effective_default) == 1L &&
+           effective_default %in% cols)
+        if (length(cols) > 0L && (!is.null(selected_arg) || default_landed)) {
+          has_rendered <<- TRUE
+        }
         result
       })
       # ADR 0015 §2.1: bind every consumer picker eagerly so it does not

@@ -55,6 +55,14 @@ test_that("adr15: non-shared ppVar under ppUpload populates after upload, no sub
   expect_match(
     app$get_html("#geom_point_1_1_ppVar_NA_ui") %||% "", "mpg", fixed = TRUE
   )
+  # Stronger gate: the picker's POSITIONAL default `ppVar(mpg)` actually
+  # SELECTS `mpg`, not just offers it in the choices list. `_populated` is
+  # a substring-on-HTML presence proxy and was the slip-shape that hid the
+  # `aes(y = ppVar(adj))` derived-column regression (2026-05-27); add the
+  # value-equality check explicitly here so the default-seed contract is
+  # nailed even if the upstream picker DOM ever stops listing the column
+  # in its options.
+  expect_picker_selected(app, "geom_point_1_1_ppVar_NA", "mpg")
 })
 
 test_that("adr15: shared ppVar under ppUpload populates after upload, no subtab nav", {
@@ -119,4 +127,7 @@ test_that("adr15: no-source upstream pre-warm still binds at boot (req() guard i
   app$wait_for_idle(timeout = 25 * 1000)
 
   expect_picker_populated(app, "ggplot_1_1_ppVar_NA", "mpg")
+  # See comment on the sibling test above: the positional default
+  # `ppVar(mpg)` must actually be the SELECTED value, not merely offered.
+  expect_picker_selected(app, "ggplot_1_1_ppVar_NA", "mpg")
 })

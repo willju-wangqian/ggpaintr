@@ -83,8 +83,28 @@ test_that("super-1 kitchen-sink: sentinels propagate through every placeholder",
   # ppExpr feeding a downstream ppVar picker: aes(y = ppVar(adj))'s picker
   # offers "adj" as a column choice (the mutate-created column flows in).
   expect_picker_populated(app, "ggplot_1_2_ppVar_NA", "adj")
-  # No plot-error class on the happy path in final mode.
+  # AND the picker actually defaults to selecting "adj" — without this the
+  # consumer-default-on-derived-column regression slips through, because
+  # `expect_picker_populated` is a presence proxy on the OPTIONS list (the
+  # `<option value="adj">` tag is in the HTML whether selected or not).
+  # The bug: `has_rendered` flipped TRUE on the first renderUI fire (where
+  # cols missed "adj" because the upstream ppExpr hadn't yet echoed its
+  # initial value), locking subsequent fires into selected=character(0)
+  # via the seed/current/character(0) branch.
+  expect_picker_selected(app, "ggplot_1_2_ppVar_NA", "adj")
+  # And the y mapping reaches final-mode code as `aes(... y = adj ...)`.
+  # Without this, the renderer silently dropping `y = ppVar(adj)` when the
+  # picker is empty would still pass every other propagation regex
+  # (x/color/facet/mutate-RHS) and `expect_no_plot_error`'s old `#ptr_plot`
+  # check (the error renders into a sibling #ptr_error host).
+  expect_sentinel_in_code(app, "ptr_code", "adj",
+    "aes\\([^)]*y\\s*=\\s*([^,)]*)", "final")
+  # No plot-error class on the happy path in final mode. We pair the
+  # narrow plot-host check with the document-scoped inline-error check
+  # because the missing-aesthetic error routes into the sibling
+  # `#ptr_error` host -- the bug shape that escaped this test pre-fix.
   expect_no_plot_error(app)
+  expect_no_inline_error_anywhere(app)
 
   # ---- B3 toggle differential: final strips ppVar( wrappers ---------------
   # ADR 0022: preserve-mode panel emission retired. The render-walker
@@ -423,6 +443,10 @@ test_that("super-2b customsource-splice: ppSample (D3 source) + !!splice (G3) + 
   draw_and_wait(app, "ptr_update_plot")
   expect_no_plot_error(app, "ptr_plot")
   expect_picker_populated(app, "ggplot_1_1_ppVar_NA", "mpg")
+  # Tighten: post-set, the picker's current SELECTION is "mpg" -- not just
+  # that "mpg" appears in the options HTML. Prevents the same bug class as
+  # the `aes(y = ppVar(adj))` slip (audit-weak-assertions 2026-05-27).
+  expect_picker_selected(app, "ggplot_1_1_ppVar_NA", "mpg")
   # ADR 0022: preserve-mode panel emission retired. The render-walker
   # round-trip of ppSample("<pick>") is unit-tested in test-render-preserve.R.
 

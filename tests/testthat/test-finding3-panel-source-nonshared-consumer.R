@@ -63,6 +63,29 @@ test_that(
       app, "p2-ggplot_1_1_ppVar_NA", "bill_depth_mm"
     )
 
+    # Contract B: the fixture's positional defaults `ppVar('xa')` and
+    # `ppVar('xb')` are NOT columns in penguins.csv. The picker renders
+    # with options populated (asserted above) but with NO selection -- there
+    # is no first-column auto-fallback. The user MUST pick before drawing,
+    # which is exactly what the `set_input(...)` lines below do.
+    #
+    # Pinning this contract here defends against a future regression to
+    # Contract A (auto-fallback) which would silently mask formula-author
+    # typos like `ppVar('food')` for `ppVar('food_g')`. If we ever WANT
+    # auto-fallback, this assertion is the canary that must flip.
+    # See dev/audit/audit-weak-assertions-2026-05-27.md "Notes" for the
+    # full discussion.
+    expect_equal(
+      app$get_value(input = "p1-ggplot_1_1_ppVar_NA") %||% character(0),
+      character(0),
+      label = "ppVar('xa') -> no auto-fallback selection (Contract B)"
+    )
+    expect_equal(
+      app$get_value(input = "p2-ggplot_1_1_ppVar_NA") %||% character(0),
+      character(0),
+      label = "ppVar('xb') -> no auto-fallback selection (Contract B)"
+    )
+
     set_input(app, "p1-ggplot_1_1_ppVar_NA", "bill_length_mm")
     set_input(app, "p2-ggplot_1_1_ppVar_NA", "bill_depth_mm")
     draw(app, "p1-ptr_update_plot")

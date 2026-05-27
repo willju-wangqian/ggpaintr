@@ -231,8 +231,18 @@ expect_sentinel_nowhere <- function(app, code_output_id, sentinel) {
 
 # Assert: the host output `host_id` shows no Shiny error class. ggpaintr
 # emits the standard `shiny-output-error` class on a server-side render
-# error and the project's own `ptr-alert--error` block on a inline-error
+# error and the project's own `ptr-alert--error` block on an inline-error
 # pane. Default host_id matches ptr_app()'s default plot host.
+#
+# NARROW BY DESIGN: this helper checks ONLY the named host element. Inline
+# errors that route into a sibling host (e.g. `#ptr_error`) are out of
+# scope -- many super-pressure scenarios DELIBERATELY produce an inline
+# error in the sibling host (validate_input rejections, denylist probe)
+# and then assert the *plot* host stays clean. Use
+# `expect_no_inline_error_anywhere` below when you need the stronger
+# "no error pane anywhere" assertion. (Note: `expect_no_inline_error` in
+# helper-vignette-apps.R is the per-error-host check; named differently
+# to avoid a collision.)
 expect_no_plot_error <- function(app, host_id = "ptr_plot") {
   html <- app$get_html(paste0("#", host_id)) %||% ""
   testthat::expect_false(
@@ -242,6 +252,47 @@ expect_no_plot_error <- function(app, host_id = "ptr_plot") {
       "expect_no_plot_error: host #", host_id,
       " contained a shiny-output-error or ptr-alert--error class"
     )
+  )
+}
+
+# Assert: NO `.ptr-alert--error` block appears anywhere in the document.
+#
+# This is the stronger document-scoped check that catches missing-aesthetic
+# / stat-failure errors that ggpaintr routes into a SIBLING error host
+# (e.g. `#ptr_error` in the default host). The narrow `expect_no_plot_error`
+# above looks only at `#ptr_plot`, which can carry a stale-but-successful
+# `<img>` while the actual error renders elsewhere -- exactly the slip that
+# let `aes(y = ppVar(adj))` empty-default through the existing super-1
+# test (see test-consumer-default-derived-column.R for the bug context).
+#
+# Use this when the scenario expects EVERYTHING to be clean. Do NOT use it
+# in tests that deliberately produce a validate_input / denylist rejection
+# (those should use `expect_no_plot_error` alone).
+expect_no_inline_error_anywhere <- function(app) {
+  alert_html <- app$get_html(".ptr-alert--error") %||% ""
+  testthat::expect_false(
+    nzchar(alert_html),
+    label = "expect_no_inline_error_anywhere: a .ptr-alert--error block was found in the document"
+  )
+}
+
+# Assert: the picker input `input_id` has `choice` as its current selected
+# value (not merely as one of its offered options). Counterpart to
+# `expect_picker_populated`, which is intentionally a presence proxy on the
+# OPTIONS list — that helper passes when `<option value="adj">` is in the
+# HTML, regardless of whether `adj` is the selection. Use this stronger
+# helper whenever the consumer default is a derived column from an upstream
+# placeholder (e.g. `aes(y = ppVar(adj))` over `mutate(adj = ppExpr(...))`):
+# the bug shape there is a picker that *offers* the column but doesn't
+# *select* it, which would slip past `expect_picker_populated`.
+expect_picker_selected <- function(app, input_id, choice) {
+  value <- tryCatch(
+    app$get_value(input = input_id),
+    error = function(e) NULL
+  )
+  testthat::expect_equal(
+    as.character(value %||% ""), as.character(choice),
+    label = paste0("picker #", input_id, " selected value")
   )
 }
 

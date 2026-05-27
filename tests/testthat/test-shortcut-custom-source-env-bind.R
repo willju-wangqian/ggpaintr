@@ -35,6 +35,10 @@ test_that("custom ppDataset(shortcut=TRUE): typed env name binds caller-env fram
   # (mpg, cyl, disp, hp, ...).  Spot-check three; "mpg" is the default
   # selection from the formula.
   expect_picker_populated(app, var_id, "mpg")
+  # AND the positional default `ppVar(mpg)` is the SELECTED value, not
+  # merely an option (the `_populated` proxy fired green on the
+  # `aes(y = ppVar(adj))` derived-column regression at 2026-05-27).
+  expect_picker_selected(app, var_id, "mpg")
   for (col in c("cyl", "disp", "hp")) {
     html <- app$get_html(paste0("#", var_id)) %||% ""
     expect_true(
