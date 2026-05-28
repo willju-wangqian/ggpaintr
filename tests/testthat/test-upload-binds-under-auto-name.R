@@ -31,48 +31,12 @@ make_slot <- function() {
   }
 }
 
-test_that("empty shortcut textbox → bind_source_value name = node$auto_name", {
-  captured <- list()
-  testthat::local_mocked_bindings(
-    .package = "ggpaintr",
-    bind_source_value = function(state, key, name, df, slot) {
-      captured$key <<- key
-      captured$name <<- name
-      captured$df <<- df
-      slot(df)
-      invisible(NULL)
-    }
-  )
-
-  st <- fake_state()
-  st$bound_names[["k"]] <- make_slot()
-  slot <- make_slot()
-  node <- list(
-    keyword = "ppUpload",
-    shortcut_id = "ggplot_1_0_ppUpload_NA_shortcut",
-    auto_name = "ggplot_1_0_ppUpload_NA",
-    default = NULL
-  )
-  entry <- list(
-    resolve_data = function(file_info, node) datasets::mtcars
-  )
-
-  ggpaintr:::resolve_upload_source(
-    input_slot     = list(datapath = tempfile(fileext = ".csv"),
-                          name     = "x.csv"),
-    shortcut_slot = list(present = TRUE, value = ""),
-    node           = node,
-    entry          = entry,
-    envir          = st$eval_env,
-    state          = st,
-    key            = "k",
-    slot           = slot
-  )
-
-  expect_identical(captured$key, "k")
-  expect_identical(captured$name, "ggplot_1_0_ppUpload_NA")
-  expect_identical(captured$df, datasets::mtcars)
-})
+# ---- :34 MERGED into J2 journey on 2026-05-28 -------------------------
+# empty shortcut -> auto_name binding name is covered DOM-faithfully by
+# test-prologue-csv-upload.R (the prologue LHS `_ppUpload_NA <- read.csv
+# ("mtcars.csv")` IS the auto_name as observed in output$ptr_code). v9
+# routing: dev/audit/audit-test-fidelity-v9-j2-browser-faithfulness-
+# 2026-05-28-0027.html
 
 test_that("NULL shortcut textbox value → bind_source_value name = node$auto_name", {
   captured <- list()
@@ -111,39 +75,11 @@ test_that("NULL shortcut textbox value → bind_source_value name = node$auto_na
   expect_identical(captured$name, "main_ds")
 })
 
-test_that("non-empty shortcut textbox wins over node$auto_name", {
-  captured <- list()
-  testthat::local_mocked_bindings(
-    .package = "ggpaintr",
-    bind_source_value = function(state, key, name, df, slot) {
-      captured$name <<- name
-      slot(df)
-      invisible(NULL)
-    }
-  )
-  st <- fake_state()
-  st$bound_names[["k"]] <- make_slot()
-  slot <- make_slot()
-  node <- list(
-    keyword = "ppUpload",
-    shortcut_id = "any_shortcut",
-    auto_name = "ggplot_1_0_ppUpload_NA",
-    default = NULL
-  )
-  entry <- list(
-    resolve_data = function(file_info, node) datasets::mtcars
-  )
-
-  ggpaintr:::resolve_upload_source(
-    input_slot     = list(datapath = tempfile(fileext = ".csv"),
-                          name     = "x.csv"),
-    shortcut_slot = list(present = TRUE, value = "my_name"),
-    node           = node,
-    entry          = entry,
-    envir          = st$eval_env,
-    state          = st,
-    key            = "k",
-    slot           = slot
-  )
-  expect_identical(captured$name, "my_name")
-})
+# ---- :114 MERGED into J2 journey on 2026-05-28 ------------------------
+# non-empty shortcut wins over node$auto_name is covered DOM-faithfully
+# by test-j2-prologue-csv-upload-journey.R stage 1: type "my_data" into
+# the shortcut textbox AFTER upload, wait for ADR 0025 §7 A2 debounce-
+# tick rebind, click Update Plot, assert the substituted formula body
+# uses `data = my_data` (substitute_walk emits bound_names[[key]]). v9
+# routing: dev/audit/audit-test-fidelity-v9-j2-browser-faithfulness-
+# 2026-05-28-0027.html
