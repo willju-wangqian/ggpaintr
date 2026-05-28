@@ -159,6 +159,31 @@ These are debugging time-savers, not API reference. If a question asks "why is m
 **Fix:** when reproducing the Code panel programmatically, always go through `ptr_extract_code`. Don't read `state$runtime()$code_text` directly — you'll miss the prologue.
 **Source:** `R/paintr-server.R:3234-3239`; `02-key-paths.md` Path G.
 
+### F.4 — Placeholder surface forms: `pp*` works as bare symbol *and* call; legacy names parse-but-don't-detect
+**Symptom (writing about placeholders):** assuming `ppVar` must always appear as a function call (`ppVar()` / `ppVar(mpg)`), or claiming that the legacy unprefixed names "no longer parse" after ADR 0009. Both are wrong and have already led to a defective audit report (2026-05-27, manuscript Chapter 3 audit).
+**Cause:** `placeholder_keyword` (`R/paintr-translate.R:704-708`) accepts both `is.symbol(expr)` (bare symbol branch) and the call-headed branch immediately after; `detect_placeholder` (`R/paintr-translate.R:687-702`) builds on it and looks up the registry entry. There is no syntactic requirement of parens. So every registered `pp*` name is recognized in **all three** surface forms:
+
+  - bare symbol: `aes(x = ppVar, y = ppVar)` → 2 `ptr_ph_data_consumer` nodes
+  - empty call: `aes(x = ppVar())` → 1 `ptr_ph_data_consumer` node
+  - seeded default: `aes(x = ppVar(mpg))` → 1 `ptr_ph_data_consumer` node (seeded with `mpg`)
+
+For the unprefixed legacy names (`var`/`text`/`num`/`expr`/`upload`), the registry has no entry, so `detect_placeholder` returns `NULL`. The formula still **parses** as ordinary R — it's just left as a normal call/symbol that the framework never owns. That has three distinct failure modes downstream:
+
+  - **silent wrong:** `aes(x = var(mpg))` resolves to `stats::var(mpg)` (the variance scalar) at draw time; no error, semantically broken;
+  - **eval error:** `labs(title = text())` / `geom_point(size = num())` / `upload() |> ...` fail with "could not find function" inside the eval'd expression;
+  - **semantic garbage:** `expr()` is a base function returning an unevaluated expression — it runs cleanly and produces meaningless output downstream.
+
+**Fix (writing/auditing):** never claim "bare keywords don't parse" — say "are not recognized as placeholders" and name the actual failure mode. Whenever doing a manuscript / vignette / doc audit on placeholder syntax, **empirically verify the surface forms** by running:
+
+```r
+suppressMessages(devtools::load_all(".", quiet=TRUE))
+root <- ggpaintr:::ptr_translate("<formula string>")
+phs  <- ggpaintr:::ptr_collect(root, function(n,...) ggpaintr:::is_ptr_placeholder(n))
+```
+
+and counting `length(phs)` for each surface variant before writing a finding. The 2026-05-27 audit report's F1 finding was substantively right (manuscript ch3 uses legacy names) but wrong about the mechanism ("no longer parse") — the wrong mechanism propagated into the proposed patch text. The empirical-verify-each-form step is the cheapest way to catch this.
+**Source:** `R/paintr-translate.R:704-708` (`placeholder_keyword` — bare-symbol branch + call branch), `R/paintr-translate.R:687-702` (`detect_placeholder`), `R/paintr-builtins.R:265, 401-426` (current registry surface). 2026-05-27 manuscript ch3 audit report at `/Users/willju/Research/paintrPaper/preconsideration/notes/ggpaintr-expert-review-2026-05-27-1955.html` for the worked example.
+
 ## How to add a pitfall here
 
 Promote a debugging lesson when **all three** are true:
