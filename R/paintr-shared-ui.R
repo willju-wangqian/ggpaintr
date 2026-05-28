@@ -838,11 +838,14 @@ ptr_setup_panel_values <- function(obj, output, input, host_spec_seed,
       output[[output_id]] <- shiny::renderUI({
         current <- shiny::isolate(input[[raw_id]])
         seed <- shiny::isolate(host_spec_seed[[raw_id]])
-        selected_arg <- if (has_rendered) {
-          seed %||% current %||% character(0)
-        } else {
-          seed
-        }
+        # Boot-only seed precedence, shared with the per-instance binders via
+        # `boot_seed_selected()`. NOTE: this renderUI has no reactive
+        # dependencies (both `current` and `seed` are isolated and the host
+        # has no tree()/stage_enabled() reactives), so it renders exactly once
+        # and the has_rendered branch is currently unreachable -- routing it
+        # through the shared helper is defensive consistency so the contract
+        # can't drift if a future dep is ever added here.
+        selected_arg <- boot_seed_selected(has_rendered, seed, current)
         extra <- list()
         if (!is.null(selected_arg)) extra$selected <- selected_arg
         result <- invoke_build_ui(

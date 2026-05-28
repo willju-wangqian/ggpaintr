@@ -42,12 +42,15 @@ renderUI fire and delivers \code{selected} per this precedence:
 framework \strong{omits} \code{selected}; your \code{selected = NULL} formal
 default applies.
 \item Subsequent renders (Update Plot click, upstream change, layer
-toggle, …) → \code{spec \%||\% current-input} verbatim. If the user
-emptied the widget, \code{current-input} is whatever the widget emits
-on clear — one of \code{NULL}, \code{character(0)}, \code{""}, \code{NA_real_},
-\code{NA_character_}, depending on the widget — and the framework
-coerces \code{NULL} to \code{character(0)} so you always receive a value
-on subsequent renders.
+toggle, …) → \code{current-input} verbatim. The \verb{spec=} seed is
+\strong{boot-only}: it wins on the first render only and never
+participates again, so an upstream-triggered re-render can never
+snap the widget back to the seed and away from the user's live
+pick. If the user emptied the widget, \code{current-input} is whatever
+the widget emits on clear — one of \code{NULL}, \code{character(0)}, \code{""},
+\code{NA_real_}, \code{NA_character_}, depending on the widget — and the
+framework coerces \code{NULL} to \code{character(0)} so you always receive a
+value on subsequent renders.
 }
 
 Because the framework omits the argument on the first-render-no-

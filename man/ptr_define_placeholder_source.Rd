@@ -30,10 +30,13 @@ user-facing dataset name spliced into the rendered code).
 
 \emph{Seeding} — same opt-in shape as the other two helpers: declare an
 optional \code{selected = NULL} formal (or accept \code{...}) to receive the
-\code{spec-seed \%||\% current-input} chain on every renderUI fire. The
-built-in \code{ppUpload} declines this because a Shiny \code{fileInput()} can
-never be seeded programmatically; custom sources whose primary widget
-\emph{can} be seeded (e.g. a \code{selectInput} dataset chooser) should accept it.}
+seeded value. Seeding is \strong{boot-only}: a \verb{spec=} entry naming this
+source wins on the first render, and on every later render (e.g. a tree
+rebuild) the user's current pick is authoritative — the spec seed never
+snaps the widget back. The built-in \code{ppUpload} declines this because a
+Shiny \code{fileInput()} can never be seeded programmatically; custom sources
+whose primary widget \emph{can} be seeded (e.g. a \code{selectInput} dataset
+chooser) should accept it.}
 
 \item{resolve_data}{\verb{function(value, node, ...)} returning a
 \code{data.frame} (the data downstream consumers read from), or \code{NULL} to

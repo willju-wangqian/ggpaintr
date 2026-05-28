@@ -2121,11 +2121,8 @@ ptr_setup_value_uis <- function(state, input, output, session) {
         override <- pipeline_override_for_node(
           shiny::isolate(state$tree()), node$id
         )
-        selected_arg <- if (has_rendered) {
-          seed %||% current %||% character(0)
-        } else {
-          seed
-        }
+        # Boot-only seed precedence, shared with consumers / sources.
+        selected_arg <- boot_seed_selected(has_rendered, seed, current)
         extra <- list()
         if (!is.null(selected_arg)) extra$selected <- selected_arg
         result <- invoke_build_ui(
@@ -2182,11 +2179,8 @@ ptr_setup_value_uis <- function(state, input, output, session) {
         state$stage_enabled()
         current <- shiny::isolate(input[[ns(raw_id)]])
         seed <- shiny::isolate(state$spec_seed[[raw_id]])
-        selected_arg <- if (has_rendered) {
-          seed %||% current %||% character(0)
-        } else {
-          seed
-        }
+        # Boot-only seed precedence, shared with consumers / sources.
+        selected_arg <- boot_seed_selected(has_rendered, seed, current)
         extra <- list()
         if (!is.null(selected_arg)) extra$selected <- selected_arg
         result <- invoke_build_ui(
@@ -2243,6 +2237,12 @@ ptr_setup_source_uis <- function(state, input, output, session) {
       node <- s
       raw_id <- node$id
       output_id <- ns(source_output_id(raw_id))
+      # Boot-only seed latch: like the value / consumer binders, the `spec=`
+      # seed wins on the FIRST render only (see `boot_seed_selected()`). The
+      # renderUI re-fires on `state$tree()` changes, so without this latch the
+      # never-cleared seed snapped a seeded custom source back to the spec
+      # value on every tree rebuild, ignoring the user's pick.
+      has_rendered <- FALSE
       output[[output_id]] <- shiny::renderUI({
         state$tree()
         # Intentionally NOT a dep on `state$stage_enabled()`: source
@@ -2293,17 +2293,23 @@ ptr_setup_source_uis <- function(state, input, output, session) {
         if (accepts_dots || "named_args" %in% fmls) {
           extra_named$named_args <- node$named_args %||% list()
         }
-        # PLAN-01: seed precedence for the source widget. Only inject
-        # when the hook accepts the arg (formal or `...` sink); ppUpload
-        # has neither, so the seed is silently ignored at this layer
-        # (the fileInput cannot be set programmatically anyway -- the
-        # exclusion is enforced upstream in `apply_spec_at_boot`).
+        # PLAN-01: boot-only seed precedence for the source widget (shared
+        # with the value / consumer binders via `boot_seed_selected()`). Only
+        # inject when the hook accepts the arg (formal or `...` sink); ppUpload
+        # has neither, so the seed is silently ignored at this layer (the
+        # fileInput cannot be set programmatically anyway -- the exclusion is
+        # enforced upstream in `apply_spec_at_boot`). On the first render the
+        # seed wins (or, unseeded, `sel` is NULL and we OMIT `selected` so
+        # build_ui injects `node$default`); on later renders the user's
+        # `current` pick is authoritative.
         if (accepts_dots || "selected" %in% fmls) {
-          sel <- seed %||% current
+          sel <- boot_seed_selected(has_rendered, seed, current)
           if (!is.null(sel)) extra_named$selected <- sel
         }
-        do.call(entry$build_ui,
-                c(list(rendered_node, label = copy$label), extra_named))
+        result <- do.call(entry$build_ui,
+                          c(list(rendered_node, label = copy$label), extra_named))
+        has_rendered <<- TRUE
+        result
       })
       # ADR 0012 / PLAN-01 (Bug B): source widgets (ppUpload, ppVar-as-
       # source, custom source keywords) must stay mounted across layer-
@@ -2339,20 +2345,37 @@ ptr_setup_source_uis <- function(state, input, output, session) {
 #   (1) ppUpload-headed upstream: shortcut value briefly NULL post-boot.
 #   (2) derived-column default (`aes(y = ppVar(adj))` over `mutate(adj =
 #       ppExpr(...))`): `adj` is absent from cols until the ppExpr echoes.
-# Flipping on that empty first fire would, on the next fire, drop into the
-# `seed %||% current %||% character(0)` branch with `current = NULL` and pass
-# `selected = character(0)` -- so `invoke_build_ui()` stops re-injecting the
-# default and the picker either stays empty or auto-selects the first column.
-# Deferring keeps re-injecting the default until it lands. Explicit-deselect
-# is preserved: once a populated render flips the latch, a user-driven
-# `character(0)` `current` sticks (character(0) is not NULL, so the `%||%`
-# chain keeps it).
+# Flipping on that empty first fire would, on the next fire, pass
+# `selected = character(0)` (the post-boot branch with `current = NULL`) --
+# so `invoke_build_ui()` stops re-injecting the default and the picker either
+# stays empty or auto-selects the first column. Deferring keeps re-injecting
+# the default until it lands. Explicit-deselect is preserved: once a populated
+# render flips the latch, a user-driven `character(0)` `current` sticks.
+
+# `boot_seed_selected()` -- the boot-only `spec=` seed precedence shared by
+# EVERY placeholder widget that can be seeded from `spec=`: value widgets,
+# consumer pickers, panel-shared values, and custom source widgets. It is NOT
+# value-specific. Consumer pickers wrap it in `consumer_seed_decision()`
+# (which adds the `cols` / default-landing logic a picker needs); the value,
+# shared-value, panel-value and source binders call it directly.
+#
+# Contract: `seed` (a boot hint written once by `apply_spec_at_boot()` and
+# NEVER cleared) wins ONLY on the first render (`has_rendered == FALSE`), so a
+# `spec = list(<id> = ...)` entry lands. On every later render the user's live
+# `current` value is authoritative -- otherwise the never-cleared seed would
+# permanently override the user's pick on any upstream-triggered re-render
+# (the snap-back bug). A user-emptied widget yields `character(0)` so an
+# explicit clear sticks instead of snapping back to the seed.
+#
+# On the first render `seed` may be NULL; callers that want the formula
+# default to fill an unseeded widget OMIT `selected` when this returns NULL
+# (the omit-to-inject path -- see `invoke_build_ui()` and the source binder).
+boot_seed_selected <- function(has_rendered, seed, current) {
+  if (has_rendered) current %||% character(0) else seed
+}
+
 consumer_seed_decision <- function(has_rendered, seed, current, default, cols) {
-  selected <- if (has_rendered) {
-    seed %||% current %||% character(0)
-  } else {
-    seed
-  }
+  selected <- boot_seed_selected(has_rendered, seed, current)
   if (is.language(default)) {
     default <- paste(deparse(default), collapse = "\n")
   }

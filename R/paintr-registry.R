@@ -384,12 +384,15 @@ ptr_registry_register <- function(entry) {
 #'     framework **omits** `selected`; your `selected = NULL` formal
 #'     default applies.
 #'   - Subsequent renders (Update Plot click, upstream change, layer
-#'     toggle, …) → `spec %||% current-input` verbatim. If the user
-#'     emptied the widget, `current-input` is whatever the widget emits
-#'     on clear — one of `NULL`, `character(0)`, `""`, `NA_real_`,
-#'     `NA_character_`, depending on the widget — and the framework
-#'     coerces `NULL` to `character(0)` so you always receive a value
-#'     on subsequent renders.
+#'     toggle, …) → `current-input` verbatim. The `spec=` seed is
+#'     **boot-only**: it wins on the first render only and never
+#'     participates again, so an upstream-triggered re-render can never
+#'     snap the widget back to the seed and away from the user's live
+#'     pick. If the user emptied the widget, `current-input` is whatever
+#'     the widget emits on clear — one of `NULL`, `character(0)`, `""`,
+#'     `NA_real_`, `NA_character_`, depending on the widget — and the
+#'     framework coerces `NULL` to `character(0)` so you always receive a
+#'     value on subsequent renders.
 #'
 #'   Because the framework omits the argument on the first-render-no-
 #'   default path, a hook signature without a formal default for
@@ -695,10 +698,13 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #'
 #'   *Seeding* — same opt-in shape as the other two helpers: declare an
 #'   optional `selected = NULL` formal (or accept `...`) to receive the
-#'   `spec-seed %||% current-input` chain on every renderUI fire. The
-#'   built-in `ppUpload` declines this because a Shiny `fileInput()` can
-#'   never be seeded programmatically; custom sources whose primary widget
-#'   *can* be seeded (e.g. a `selectInput` dataset chooser) should accept it.
+#'   seeded value. Seeding is **boot-only**: a `spec=` entry naming this
+#'   source wins on the first render, and on every later render (e.g. a tree
+#'   rebuild) the user's current pick is authoritative — the spec seed never
+#'   snaps the widget back. The built-in `ppUpload` declines this because a
+#'   Shiny `fileInput()` can never be seeded programmatically; custom sources
+#'   whose primary widget *can* be seeded (e.g. a `selectInput` dataset
+#'   chooser) should accept it.
 #'
 #' @param resolve_data `function(value, node, ...)` returning a
 #'   `data.frame` (the data downstream consumers read from), or `NULL` to
