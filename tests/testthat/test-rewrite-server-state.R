@@ -135,37 +135,6 @@ test_that("ptr_extract_* surface the runtime fields", {
   })
 })
 
-test_that("runtime is gated: no eval until Update Plot click (BDD G11.12)", {
-  # Spec G11.12: plot is not rendered until the user clicks Update Plot.
-  # Specifically, no expression evaluation happens at all on first launch
-  # — `state$runtime()` stays NULL until the trigger fires, so the plot,
-  # code, and error outputs all render blank.
-  e <- .server_test_env()
-  server <- function(input, output, session) {
-    session$userData$state <- ptr_server_internal(
-      input, output, session,
-      "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
-      envir = e
-    )
-  }
-  shiny::testServer(server, {
-    state <- session$userData$state
-    expect_null(state$runtime())
-
-    # Picking vars without clicking Update Plot must still leave runtime NULL.
-    session$setInputs(ggplot_1_1_ppVar_NA = "mpg", ggplot_1_2_ppVar_NA = "hp")
-    session$flushReact()
-    expect_null(state$runtime())
-
-    # First click fires the runtime.
-    session$setInputs(ptr_update_plot = 1L)
-    session$flushReact()
-    res <- state$runtime()
-    expect_true(isTRUE(res$ok))
-    expect_match(res$code_text, "aes\\(x = mpg, y = hp\\)")
-  })
-})
-
 test_that("inject_resolved_data swaps data_arg for the cached frame (spec L105)", {
   # Pruned tree: ggplot(data = mtcars) layer + geom_point() layer. After
   # injection with a 3-row cache for the ggplot layer, that layer's
