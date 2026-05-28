@@ -69,4 +69,13 @@ if [ -n "$bad" ]; then
   exit 1
 fi
 
+# --- ggpaintr-source-expert symbol-manifest sidecar ---
+# Rebuilds dev/agents/ggpaintr-source-expert/symbol-lines.json when any
+# R/*.R is staged, and re-stages the refreshed JSON so it lands in the
+# same commit. Each sidecar runs in its own subprocess so its exit code
+# bubbles up but it can't affect the implementable check above.
+if [ -x dev/agents/ggpaintr-source-expert/pre-commit-symbol-manifest.sh ]; then
+  sh dev/agents/ggpaintr-source-expert/pre-commit-symbol-manifest.sh || exit 1
+fi
+
 exit 0
