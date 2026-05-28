@@ -108,9 +108,6 @@ test_that("ptr_app_grid returns a shiny app object", {
       'ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point(size = ppNum(shared = "sz"))',
       'ggplot(data = mtcars, aes(x = hp, y = mpg)) + geom_point(size = ppNum(shared = "sz"))'
     ),
-    shared_ui = list(
-      sz = function(id) shiny::sliderInput(id, "Size", 1, 10, value = 3)
-    ),
     envir = .app_test_env()
   )
   expect_s3_class(app, "shiny.appobj")
@@ -122,16 +119,15 @@ test_that("ptr_app_grid_components UI contains shared widget id and per-plot mod
       'ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point(size = ppNum(shared = "sz"))',
       'ggplot(data = mtcars, aes(x = hp, y = mpg)) + geom_point(size = ppNum(shared = "sz"))'
     ),
-    shared_ui = list(
-      sz = function(id) shiny::sliderInput(id, "Size", 1, 10, value = 3)
-    ),
     envir = .app_test_env()
   )
   ui_html <- as.character(parts$ui)
-  # PR-B (shared-multi-instance): shared widget ids now use the
-  # canonical `shared_<key>` form, so the embedder-supplied builder
-  # receives `"shared_sz"` rather than the bare `"sz"`.
-  expect_match(ui_html, "id=\"shared_sz\"", fixed = TRUE)
+  # PR-B (shared-multi-instance): shared widget ids use the canonical
+  # `shared_<key>` form. `shared_ui` removed (see ?ptr_shared); the `sz`
+  # value key now auto-renders from `ppNum`'s own `build_ui`, emitted as the
+  # deferred `uiOutput` container `shared_sz_ui` (the static widget at
+  # `shared_sz` is filled server-side), matching P06.f in test-rewrite-shared.
+  expect_match(ui_html, "id=\"shared_sz_ui\"", fixed = TRUE)
   expect_match(ui_html, "plot_1-", fixed = TRUE)
   expect_match(ui_html, "plot_2-", fixed = TRUE)
 })
@@ -139,7 +135,6 @@ test_that("ptr_app_grid_components UI contains shared widget id and per-plot mod
 test_that("ptr_app_grid works with no shared controls", {
   app <- ptr_app_grid(
     plots = list("ggplot(data = mtcars, aes(x = wt, y = mpg)) + geom_point()"),
-    shared_ui = list(),
     envir = .app_test_env()
   )
   expect_s3_class(app, "shiny.appobj")
@@ -147,43 +142,47 @@ test_that("ptr_app_grid works with no shared controls", {
 
 test_that("ptr_app_grid rejects empty plots list", {
   expect_error(
-    ptr_app_grid(plots = list(), shared_ui = list()),
+    ptr_app_grid(plots = list()),
     "length\\(plots\\)"
   )
 })
 
 test_that("ptr_app_grid rejects non-string plot entries", {
   expect_error(
-    ptr_app_grid(plots = list(42), shared_ui = list()),
+    ptr_app_grid(plots = list(42)),
     "is_string"
   )
 })
 
-test_that("ptr_app_grid rejects shared_ui without unique non-empty names", {
-  expect_error(
-    ptr_app_grid(
-      plots = list(
-        'ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), size = ppNum(shared = "sz"))'
-      ),
-      shared_ui = list(function(id) shiny::sliderInput(id, "x", 1, 10, 5)),
-      envir = .app_test_env()
-    ),
-    "unique non-empty names"
-  )
-})
-
-test_that("ptr_app_grid rejects non-function shared_ui entries", {
-  expect_error(
-    ptr_app_grid(
-      plots = list(
-        'ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), size = ppNum(shared = "sz"))'
-      ),
-      shared_ui = list(sz = "not a function"),
-      envir = .app_test_env()
-    ),
-    "must be a function"
-  )
-})
+# Removed: the two tests below covered `shared_ui` argument validation
+# (unique non-empty names; function entries), both gone with the argument
+# (see ?ptr_shared "Removed `shared_ui`"). Retained commented for provenance:
+#
+# test_that("ptr_app_grid rejects shared_ui without unique non-empty names", {
+#   expect_error(
+#     ptr_app_grid(
+#       plots = list(
+#         'ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), size = ppNum(shared = "sz"))'
+#       ),
+#       shared_ui = list(function(id) shiny::sliderInput(id, "x", 1, 10, 5)),
+#       envir = .app_test_env()
+#     ),
+#     "unique non-empty names"
+#   )
+# })
+#
+# test_that("ptr_app_grid rejects non-function shared_ui entries", {
+#   expect_error(
+#     ptr_app_grid(
+#       plots = list(
+#         'ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), size = ppNum(shared = "sz"))'
+#       ),
+#       shared_ui = list(sz = "not a function"),
+#       envir = .app_test_env()
+#     ),
+#     "must be a function"
+#   )
+# })
 
 test_that("ptr_app_grid_components UI includes the draw-all button", {
   # Post-PR-B (shared-multi-instance plan): the draw-all button is owned
@@ -195,7 +194,6 @@ test_that("ptr_app_grid_components UI includes the draw-all button", {
       'ggplot(mtcars) + geom_point(aes(x = ppVar(shared = "c"), y = mpg))',
       'ggplot(mtcars) + geom_line(aes(x = ppVar(shared = "c"), y = hp))'
     ),
-    shared_ui = list(),
     envir = .app_test_env()
   )
   ui_html <- as.character(parts$ui)
@@ -208,7 +206,6 @@ test_that("ptr_app_grid_components draw-all button label is configurable", {
       'ggplot(mtcars) + geom_point(aes(x = ppVar(shared = "c"), y = mpg))',
       'ggplot(mtcars) + geom_line(aes(x = ppVar(shared = "c"), y = hp))'
     ),
-    shared_ui = list(),
     draw_all_label = "Refresh everything",
     envir = .app_test_env()
   )

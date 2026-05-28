@@ -40,10 +40,9 @@ test_that("B2.2b default forwarding is a no-op vs explicit shared = NULL", {
 })
 
 test_that("B2.3 shared = obj excludes obj$panel_keys from the inline section", {
-  obj <- ptr_shared(
-    list(f1, f2),
-    shared_ui = list(sz = function(id) shiny::sliderInput(id, "Size", 1, 6, 3))
-  )
+  # `sz` is a panel key from the formulas' `ppNum(shared = "sz")` alone;
+  # `shared_ui` (removed, see ?ptr_shared) never affected the partition.
+  obj <- ptr_shared(list(f1, f2))
   expect_equal(obj$panel_keys, "sz")
 
   ui <- as.character(ptr_ui(f1, "plot_1", shared = obj))

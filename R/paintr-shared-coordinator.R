@@ -195,9 +195,19 @@ shared_assert_panel_consumer_sources <- function(trees, panel_keys, formulas) {
 #'   [`ptr_shared_panel()`], [`ptr_ui_shared_panel()`], and
 #'   [`ptr_shared_server()`] all read it off `obj$id` -- their signatures
 #'   do not change.
-#' @param shared_ui Named list of `function(id) -> shiny.tag` builders, one
-#'   per shared key the embedder wants to customise. Unsupplied keys are
-#'   auto-rendered from the first formula that mentions them.
+#' @section Removed `shared_ui`:
+#' `shared_ui` (a named list of `function(id) -> shiny.tag` builders) is no
+#' longer supported. Its original intent was to let two placeholders that
+#' share a key share the same UI settings. But each placeholder already
+#' carries its own `build_ui` rule, and two `shared=` placeholders simply
+#' reuse that one rule when their widget collapses to the panel. The
+#' customisation therefore comes from the placeholder's `build_ui`
+#' (`ptr_define_placeholder_*(build_ui = ...)`), not from a separate
+#' `shared_ui` override — so the override was redundant, and for `var`
+#' consumers it actively dropped the formula default and froze the column
+#' list. To customise a shared widget, define a custom placeholder with the
+#' `build_ui` you want and use it in the formula. Label-only divergence for
+#' the shared widget still has its own channel (`node$shared_label`).
 #' @param ui_text Optional copy overrides forwarded to the auto-built
 #'   widgets (see [`ptr_app()`]'s `ui_text` argument).
 #' @param expr_check Whether to validate `ppExpr` placeholders during formula
@@ -219,7 +229,6 @@ shared_assert_panel_consumer_sources <- function(trees, panel_keys, formulas) {
 #' @export
 ptr_shared <- function(formulas,
                        id = NULL,
-                       shared_ui = list(),
                        ui_text = NULL,
                        expr_check = TRUE,
                        draw_all_label = "Draw all") {
@@ -232,7 +241,6 @@ ptr_shared <- function(formulas,
       paste0(utils::capture.output(print(id)), collapse = " "), "."
     ))
   }
-  assertthat::assert_that(is.list(shared_ui))
   trees <- shared_translate_formulas(formulas, expr_check = expr_check)
 
   firsts <- shared_first_nodes(trees)
@@ -249,28 +257,32 @@ ptr_shared <- function(formulas,
     )
   }
 
-  if (length(shared_ui) > 0L) {
-    nms <- names(shared_ui)
-    if (is.null(nms) || any(!nzchar(nms)) || any(duplicated(nms))) {
-      rlang::abort(
-        "`shared_ui` must have unique non-empty names matching the `shared` annotations in `formulas`."
-      )
-    }
-    if (!all(vapply(shared_ui, is.function, logical(1)))) {
-      rlang::abort(
-        "Every entry of `shared_ui` must be a function `function(id) -> shiny.tag`."
-      )
-    }
-    extra <- setdiff(nms, formula_keys)
-    if (length(extra) > 0L) {
-      rlang::abort(paste0(
-        "`shared_ui` references key ",
-        paste0("\"", extra, "\"", collapse = ", "),
-        " which is not used in any plot formula. Available formula keys: ",
-        paste0("\"", formula_keys, "\"", collapse = ", "), "."
-      ))
-    }
-  }
+  # `shared_ui` removed (see ?ptr_shared "Removed `shared_ui`"). The widget a
+  # shared key renders is the representative placeholder's own `build_ui`; to
+  # customise it, define a custom placeholder. The former validation of a
+  # `shared_ui` named list is retained here, commented, for provenance:
+  # if (length(shared_ui) > 0L) {
+  #   nms <- names(shared_ui)
+  #   if (is.null(nms) || any(!nzchar(nms)) || any(duplicated(nms))) {
+  #     rlang::abort(
+  #       "`shared_ui` must have unique non-empty names matching the `shared` annotations in `formulas`."
+  #     )
+  #   }
+  #   if (!all(vapply(shared_ui, is.function, logical(1)))) {
+  #     rlang::abort(
+  #       "Every entry of `shared_ui` must be a function `function(id) -> shiny.tag`."
+  #     )
+  #   }
+  #   extra <- setdiff(nms, formula_keys)
+  #   if (length(extra) > 0L) {
+  #     rlang::abort(paste0(
+  #       "`shared_ui` references key ",
+  #       paste0("\"", extra, "\"", collapse = ", "),
+  #       " which is not used in any plot formula. Available formula keys: ",
+  #       paste0("\"", formula_keys, "\"", collapse = ", "), "."
+  #     ))
+  #   }
+  # }
 
   part <- shared_partition(trees)
 
@@ -299,7 +311,8 @@ ptr_shared <- function(formulas,
       keys_by_formula = part$keys_by_formula,
       firsts = firsts,
       consumer_reps = consumer_reps,
-      shared_ui = shared_ui,
+      # shared_ui removed (see ?ptr_shared). Field intentionally absent;
+      # `shared_panel_body_tag()` no longer reads `obj$shared_ui`.
       ui_text = ui_text,
       expr_check = expr_check,
       draw_all_label = draw_all_label
@@ -318,7 +331,10 @@ shared_panel_body_tag <- function(obj, keys) {
   firsts <- obj$firsts
   consumer_reps <- obj$consumer_reps
   consumer_keys <- names(consumer_reps)
-  shared_ui <- obj$shared_ui
+  # `shared_ui <- obj$shared_ui` removed: the per-key custom-override path is
+  # gone (see ?ptr_shared "Removed `shared_ui`"). Every key now auto-renders
+  # from its placeholder's own `build_ui` (consumer branch -> the binder's
+  # reactive renderUI; value branch -> `build_ui_for(node)`).
   ui_text <- obj$ui_text
   ns <- shared_ns(obj)
 
@@ -330,9 +346,11 @@ shared_panel_body_tag <- function(obj, keys) {
 
   shared_widgets <- lapply(keys, function(k) {
     canonical <- canonical_shared_id(k)
-    if (k %in% names(shared_ui)) {
-      shared_ui[[k]](ns(canonical))
-    } else if (k %in% consumer_keys) {
+    # The `shared_ui` per-key override branch was removed here (see
+    # ?ptr_shared "Removed `shared_ui`"):
+    #   if (k %in% names(shared_ui)) shared_ui[[k]](ns(canonical))
+    # A shared key's widget is now always its placeholder's own `build_ui`.
+    if (k %in% consumer_keys) {
       node <- consumer_reps[[k]]
       build_ui_for(
         node,

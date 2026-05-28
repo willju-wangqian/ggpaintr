@@ -55,16 +55,14 @@ test_that("boot oracle: super-2b customsource-splice consumer defaults match ref
 
 test_that("boot oracle: super-3 L3 cells' consumer defaults match reference.R at first render", {
   testthat::skip_if_not_installed("plotly")
-  # KNOWN BUG, handed off (.scratch/super3-l3-shared-consumer-boot-default/):
-  # the L3 host-scope shared consumer `linked` boots to the first column
-  # ("mpg") instead of its formula default ("cyl"). cddc46e fixed the two
-  # single-app consumer binders via consumer_seed_decision() but the
-  # multi-cell host-scope shared-consumer path still discards the default.
-  # The shared-`linked` slot + picker assertions are PINNED as known-failures
-  # (xfail_shared_keys); the non-shared x/y assertions stay active. When the
-  # bug is fixed these expect_failure() pins flip RED, forcing this xfail to
-  # be removed. The same divergence is what makes super-3's existing
-  # propagation test mask the bug (it drives shared_linked before asserting).
+  # Previously PINNED xfail: the shared consumer `linked` booted to the first
+  # column ("mpg") instead of its formula default ("cyl"). Root cause was NOT
+  # the host-scope binder (as first hypothesised) but the now-removed
+  # `shared_ui` per-key override: the fixture supplied a static
+  # `selectInput(names(mtcars))` (no `selected=`) for `linked`, bypassing the
+  # `ppVar` default-injection path. `shared_ui` is gone (see ?ptr_shared); the
+  # fixture's `linked` now auto-renders from `ppVar`'s `build_ui` and seeds
+  # `cyl` at boot. The slot + picker assertions are now ACTIVE (no xfail).
   app <- boot_super_app("super-3-l3-multi-shared-plotly")
   app$wait_for_idle(timeout = 25 * 1000)
   # Cell A (plain ggplot output): plot1-* ids.
@@ -72,8 +70,7 @@ test_that("boot oracle: super-3 L3 cells' consumer defaults match reference.R at
     app, "super-3-l3-multi-shared-plotly", formula_name = "formula_a",
     code_output_id = "plot1-ptr_code",
     draw_button_id = "plot1-ptr_update_plot",
-    code_mode_id   = "plot1-ptr_code_mode",
-    xfail_shared_keys = "linked"
+    code_mode_id   = "plot1-ptr_code_mode"
   )
   testthat::expect_equal(length(ma), 3L)
   # Cell B (plotly-wrapped output): plot2-* ids. The shared "linked" widget is
@@ -82,8 +79,7 @@ test_that("boot oracle: super-3 L3 cells' consumer defaults match reference.R at
     app, "super-3-l3-multi-shared-plotly", formula_name = "formula_b",
     code_output_id = "plot2-ptr_code",
     draw_button_id = "plot2-ptr_update_plot",
-    code_mode_id   = "plot2-ptr_code_mode",
-    xfail_shared_keys = "linked"
+    code_mode_id   = "plot2-ptr_code_mode"
   )
   testthat::expect_equal(length(mb), 3L)
 })

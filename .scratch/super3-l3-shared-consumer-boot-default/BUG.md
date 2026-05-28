@@ -1,6 +1,6 @@
 # BUG: L3 multi-cell host-scope shared consumer discards its formula default at boot
 
-Status: ready-for-agent
+Status: RESOLVED (2026-05-28) — see DIAGNOSIS.md. Root cause was NOT the host-scope binder/`has_rendered` (that hypothesis was refuted by probe). The symptom came from the fixture's custom `shared_ui` override on a `var` consumer key, which rendered a static `selectInput(names(mtcars))` with no `selected=`, bypassing `ppVar`'s default injection. Resolution (per user decision): `shared_ui` was removed as a supported argument of `ptr_shared()` / `ptr_app_grid()` — widget customization now comes from each placeholder's own `build_ui`. super-3's `linked` auto-renders from `ppVar`'s `build_ui` and seeds `cyl`; the boot-oracle xfail pins were removed and the assertions are now active green.
 
 ## Summary
 

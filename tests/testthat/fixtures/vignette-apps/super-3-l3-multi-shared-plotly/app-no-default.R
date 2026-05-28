@@ -36,11 +36,12 @@ formula_b <- rlang::expr(
 formula_a_str <- paste(deparse(formula_a), collapse = "\n")
 formula_b_str <- paste(deparse(formula_b), collapse = "\n")
 
+# `shared_ui` is no longer supported (see ?ptr_shared). `"linked"` is
+# `color = ppVar(shared = "linked")` (no positional default here -- the
+# no-default variant), so it auto-renders from `ppVar`'s own `build_ui` (the
+# reactive column picker), first column at boot.
 shared <- ptr_shared(
-  formulas  = list(formula_a_str, formula_b_str),
-  shared_ui = list(
-    linked = function(id) shiny::selectInput(id, "Linked color", names(mtcars))
-  )
+  formulas  = list(formula_a_str, formula_b_str)
 )
 
 ui <- ptr_ui_page(
