@@ -44,6 +44,18 @@ test_that("adr10-ppupload-name: companion textInput seeded, plot auto-resolves w
   # paste0(node$id, "_shortcut") = "ggplot_1_ppUpload_NA_shortcut".
   shortcut_id <- "ggplot_1_ppUpload_NA_shortcut"
 
+  # The companion `shortcut` textInput is renderUI-injected by
+  # `ptr_setup_source_uis()` (it mounts on the first server flush, not in the
+  # static page). `AppDriver$new()` returns once the Connect handshake
+  # completes -- that first flush + client `bindAll()` + value round-trip may
+  # still be in flight. Reading the companion DOM / boot-seed value before it
+  # settles is a boot-tail race that flakes under full-suite chromote load
+  # (single-digit-ms tail in isolation, slower under contention). Wait for the
+  # input binding to register first; the seed value rides in the rendered HTML
+  # (`value = node$default`, R/paintr-builtins.R), so once the binding exists
+  # both the DOM-presence and the "penguins" value assertions are settled.
+  wait_for_input_binding(app, shortcut_id)
+
   # Sanity: standard ptr_app() DOM landmarks are present.
   expect_dom_id(app, "ptr_update_plot")
   expect_dom_id(app, "ptr_code")
