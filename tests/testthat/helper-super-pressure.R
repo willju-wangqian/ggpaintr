@@ -91,6 +91,17 @@ boot_super_app <- function(slug, app_file = "app.R") {
       timeout = 30 * 1000
     )
   )
+  # AppDriver$new() returns once the Connect handshake completes; the first
+  # server flush + client bindAll() (which mounts every source/value/consumer
+  # renderUI, incl. ppUpload's fileInput + shortcut textInput) and the value
+  # round-trip may still be in flight. Without this wait the first post-boot
+  # get_value / upload_file / set_sentinel races that boot tail -- benign in
+  # isolation (single-digit-ms tail) but flaky under full-suite chromote
+  # contention (renderUI mounting grew heavier once shared widgets render from
+  # each placeholder's build_ui, ADR 0025 / tests-inspect 7b0297c). Mirrors
+  # boot_vignette_app() (helper-vignette-apps.R), which added this for the same
+  # reason. Cheap on quiet fixtures; only matters for the heavier first flush.
+  app$wait_for_idle(timeout = 15 * 1000)
   withr::defer(app$stop(), envir = parent.frame())
   app
 }
