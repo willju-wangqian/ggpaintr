@@ -72,6 +72,28 @@ test_that("adr10-ppupload-name: companion textInput seeded, plot auto-resolves w
     label = "plot output container is present after Draw"
   )
   expect_match(plot_html, "<img", fixed = TRUE)
+
+  # (d) Narrowing fidelity (absorbed from test-ppupload-name-e2e.R:98 +
+  # :75): the substituted code body MUST contain the literal
+  # `dplyr::filter(species == "Adelie")` chained off the bare `penguins`
+  # symbol. This pins the contract that test-ppupload-name-e2e.R:75
+  # asserted at the R level (`ptr_substitute` emits bare symbol at the
+  # data slot) AND :98 asserted at the eval level (live-eval narrows to
+  # the Adelie row via the chained filter). The literal here proves the
+  # filter call survived translate -> substitute with both its function
+  # spelling AND its argument; a regression that dropped the filter
+  # stage or rebuilt it from scratch would change this literal.
+  code_text <- app$get_value(output = "ptr_code")
+  expect_match(
+    code_text, "penguins |>", fixed = TRUE,
+    label = "substituted body uses bare `penguins` (no string literal, no internal upload id)"
+  )
+  expect_match(
+    code_text,
+    "dplyr::filter(species == \"Adelie\")",
+    fixed = TRUE,
+    label = "dplyr::filter narrowing call survives translate+substitute with its argument intact"
+  )
 })
 
 # ADR 0010 PLAN-02 round-trip (ADR 0022 disposition): preserve-mode formula
