@@ -428,6 +428,21 @@ test_that("super-2b customsource-splice: ppSample (D3 source) + !!splice (G3) + 
   # bound DOM; the other choices ride on the selectized data attribute).
   expect_picker_populated(app, "ggplot_0_ppSample_NA", "iris")
 
+  # --- Regression: shared CONSUMER picker honours the formula default at boot
+  # `ppFactor(Species, shared = "fac")` MUST boot with "Species" selected, so
+  # the boot plot matches the Path-B reference (color = Species + facet_wrap(
+  # vars(Species))). Pre-fix, `ptr_bind_shared_consumer_uis()` flipped
+  # `has_rendered` on the `cols = character()` first fire (upstream data not
+  # yet resolved); the next fire then took the `seed %||% current %||%
+  # character(0)` branch with `current = NULL` and passed `selected =
+  # character(0)`, so `invoke_build_ui` no longer re-injected `rep_node$default`
+  # and the picker auto-selected the first column ("Sepal.Length"). The
+  # non-shared consumer binder already guarded this (its `default_landed`
+  # block); the shared twin did not. This assertion runs BEFORE any
+  # set_sentinel drives `shared_fac` -- every later scenario overwrites the
+  # widget, which is exactly why the boot-default defect escaped this suite.
+  expect_picker_selected(app, "shared_fac", "Species")
+
   # --- Scenario: ppSample drives the formula-head data -------------------
   # Pick mtcars (distinct from default iris). After switching to the
   # Controls subtab so the suspended renderUI binds, the downstream root

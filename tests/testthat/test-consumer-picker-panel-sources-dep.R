@@ -210,9 +210,21 @@ test_that("has_rendered: subsequent renders pass current %||% character(0) -- us
     shiny::outputOptions(output, s$out_id, suspendWhenHidden = FALSE)
   }
   shiny::testServer(server, {
+    # Give the panel-owned `ppUpload(shared = "ds")` source a companion name
+    # so its frame actually binds and the consumer picker resolves a
+    # POPULATED column list. Without this the upstream never resolves (no
+    # binding name -> ptr_resolve_upstream returns NULL -> cols = character()),
+    # and the test would only exercise the degenerate empty-picker regime
+    # where the seed/current/default distinction is invisible. With cols
+    # populated, `has_rendered` flips on the first populated render (no
+    # default -> default_landed) and we genuinely test that a user-emptied
+    # widget then keeps passing selected = character(0).
+    session$setInputs(`shared_ds_shortcut` = "ds_df")
     session$flushReact()
     n_first <- length(captured_extras)
     expect_gte(n_first, 1L)
+    # Sanity: the picker resolved real columns (mtcars), so the latch flipped.
+    expect_gt(length(captured_extras[[n_first]]$cols), 0L)
     # User empties the picker.
     session$setInputs(`shared_col` = character(0))
     # Flip the panel reactive to re-fire the renderUI.
@@ -220,6 +232,8 @@ test_that("has_rendered: subsequent renders pass current %||% character(0) -- us
     session$flushReact()
     expect_gt(length(captured_extras), n_first)
     last_extra <- captured_extras[[length(captured_extras)]]
+    # has_rendered = TRUE (populated render happened) + user-emptied current
+    # => selected_arg = seed %||% current %||% character(0) = character(0).
     expect_true("selected" %in% names(last_extra))
     expect_identical(last_extra$selected, character(0))
   })

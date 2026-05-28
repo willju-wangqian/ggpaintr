@@ -2315,6 +2315,54 @@ ptr_setup_source_uis <- function(state, input, output, session) {
   invisible(state)
 }
 
+# Consumer-picker widget-seeding decision, shared verbatim by BOTH consumer
+# binders -- `ptr_setup_consumer_uis()` (non-shared, formula-local) and
+# `ptr_bind_shared_consumer_uis()` (shared `var(shared = "...")` keys) -- so
+# their seeding contract can never drift apart. (It drifted once: the shared
+# binder flipped `has_rendered` unconditionally, so a `ppFactor(Species,
+# shared = "fac")` default booted as the first column instead of "Species".)
+#
+# Seeding precedence (see ?ptr_define_placeholder_consumer):
+#   selected = spec-seed > user's current pick > (FIRST render only) the
+#   formula default. The default is NOT applied here: returning `selected =
+#   NULL` tells the caller to OMIT `selected` from `extra`, which makes
+#   `invoke_build_ui()` inject `node$default` (R/paintr-build-ui.R). That
+#   omit-to-inject path is the only way the formula default reaches the
+#   widget.
+#
+# `has_rendered` is the caller's per-picker closure latch (FALSE on the
+# first fire). `mark_rendered` says whether it may flip now. We defer the
+# flip until a render where the framework default could ACTUALLY persist --
+# `cols` populated AND (a seed/current drove the choice OR the default is a
+# valid column). Two failure modes this guards, both rooted in the first
+# fire arriving with `cols = character()` (upstream data not yet resolved):
+#   (1) ppUpload-headed upstream: shortcut value briefly NULL post-boot.
+#   (2) derived-column default (`aes(y = ppVar(adj))` over `mutate(adj =
+#       ppExpr(...))`): `adj` is absent from cols until the ppExpr echoes.
+# Flipping on that empty first fire would, on the next fire, drop into the
+# `seed %||% current %||% character(0)` branch with `current = NULL` and pass
+# `selected = character(0)` -- so `invoke_build_ui()` stops re-injecting the
+# default and the picker either stays empty or auto-selects the first column.
+# Deferring keeps re-injecting the default until it lands. Explicit-deselect
+# is preserved: once a populated render flips the latch, a user-driven
+# `character(0)` `current` sticks (character(0) is not NULL, so the `%||%`
+# chain keeps it).
+consumer_seed_decision <- function(has_rendered, seed, current, default, cols) {
+  selected <- if (has_rendered) {
+    seed %||% current %||% character(0)
+  } else {
+    seed
+  }
+  if (is.language(default)) {
+    default <- paste(deparse(default), collapse = "\n")
+  }
+  default_landed <-
+    is.null(default) ||
+    (is.character(default) && length(default) == 1L && default %in% cols)
+  mark_rendered <- length(cols) > 0L && (!is.null(selected) || default_landed)
+  list(selected = selected, mark_rendered = mark_rendered)
+}
+
 ptr_setup_consumer_uis <- function(state, input, output, session) {
   tree <- shiny::isolate(state$tree())
   ns <- state$server_ns_fn
@@ -2509,19 +2557,14 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
         current <- shiny::isolate(input[[ns(raw_id)]])
         # ADR 0012 / PLAN-01 (Bug B): the spec-seed takes precedence over
         # `current` so a `spec=` entry naming this consumer's id seeds the
-        # picker on first render. After the user touches the widget,
-        # `current` becomes non-NULL and persistence resumes (the seed is
-        # written once at boot; it is not re-read on subsequent fires
-        # because by then `current` already shadows it logically — the
-        # `%||%` chain picks the first non-NULL).
+        # picker on first render. Seeding precedence + the `has_rendered`
+        # deferral are centralised in `consumer_seed_decision()` (shared with
+        # the shared-consumer binder so the two never drift).
         seed <- shiny::isolate(state$spec_seed[[raw_id]])
-        selected_arg <- if (has_rendered) {
-          seed %||% current %||% character(0)
-        } else {
-          seed
-        }
+        dec <- consumer_seed_decision(has_rendered, seed, current,
+                                      node$default, cols)
         extra <- list(cols = cols, data = data)
-        if (!is.null(selected_arg)) extra$selected <- selected_arg
+        if (!is.null(dec$selected)) extra$selected <- dec$selected
         result <- invoke_build_ui(
           node,
           ui_text = ui_text,
@@ -2529,50 +2572,7 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
           ns_fn = ui_ns,
           extra = extra
         )
-        # Only flip `has_rendered` after a populated render. Two cases that
-        # used to lock the picker into an empty selection forever:
-        #
-        # (1) ppUpload-headed upstream: the first `entry_reactive()` fire
-        #     returns NULL because `substitute_walk.ptr_ph_data_source()`
-        #     reads the shortcut value from `ctx$snapshot[[node$shortcut_id]]`,
-        #     which is briefly NULL post-boot before the client reports the
-        #     widget's `value=` back. cols = character() on that fire.
-        #
-        # (2) Derived-column default (e.g. `aes(y = ppVar(adj))` over an
-        #     upstream that includes `dplyr::mutate(adj = ppExpr(mpg/wt))`):
-        #     the first fire happens before the ppExpr widget has echoed
-        #     its initial value back to the snapshot, so the mutate prunes
-        #     out of the upstream and cols = base-data cols without `adj`.
-        #     The framework's `node$default = "adj"` injection in
-        #     invoke_build_ui (R/paintr-build-ui.R:842-855) reaches
-        #     `ptr_builtin_var_build_ui`'s `intersect(selected, cols)`, which
-        #     drops it -- and on the next fire `current = character(0)`
-        #     shadows the default through the `seed %||% current %||%
-        #     character(0)` branch. Result: picker permanently empty even
-        #     after the snapshot stabilizes and cols include "adj".
-        #
-        # Fix: flip `has_rendered` only when this fire could have actually
-        # persisted the framework default (or a seed/current). Concretely:
-        # `selected_arg` is non-NULL (seed-or-current drove the choice), OR
-        # the effective default landed in cols (or there's no default to
-        # land). Until then, the next fire stays in the "branch B" path
-        # (`extra$selected` unset) so invoke_build_ui re-injects node$default.
-        # Explicit-deselect semantics is preserved: once a valid render
-        # lands and has_rendered flips TRUE, a user-driven `character(0)`
-        # current sticks via the `seed %||% current %||% character(0)`
-        # branch exactly as before.
-        effective_default <- node$default
-        if (is.language(effective_default)) {
-          effective_default <- paste(deparse(effective_default), collapse = "\n")
-        }
-        default_landed <-
-          is.null(effective_default) ||
-          (is.character(effective_default) &&
-           length(effective_default) == 1L &&
-           effective_default %in% cols)
-        if (length(cols) > 0L && (!is.null(selected_arg) || default_landed)) {
-          has_rendered <<- TRUE
-        }
+        if (dec$mark_rendered) has_rendered <<- TRUE
         result
       })
       # ADR 0015 §2.1: bind every consumer picker eagerly so it does not
@@ -2889,13 +2889,15 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
         } else if (!is.null(state)) {
           shiny::isolate(state$spec_seed[[rep_node$id]])
         } else NULL
-        selected_arg <- if (has_rendered) {
-          seed %||% current %||% character(0)
-        } else {
-          seed
-        }
+        # Seeding precedence + the `has_rendered` deferral are centralised in
+        # `consumer_seed_decision()` (shared verbatim with the non-shared
+        # binder `ptr_setup_consumer_uis()` so the two never drift -- the
+        # shared-vs-non-shared divergence is exactly what once booted a
+        # `ppFactor(Species, shared = "fac")` default as the first column).
+        dec <- consumer_seed_decision(has_rendered, seed, current,
+                                      rep_node$default, cols)
         extra <- list(cols = cols, data = df)
-        if (!is.null(selected_arg)) extra$selected <- selected_arg
+        if (!is.null(dec$selected)) extra$selected <- dec$selected
         picker <- invoke_build_ui(
           rep_node,
           ui_text = ui_text,
@@ -2904,7 +2906,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
           extra = extra,
           label_override = rep_node$shared_label
         )
-        has_rendered <<- TRUE
+        if (dec$mark_rendered) has_rendered <<- TRUE
         # Soft advisory: when upstream resolution returns NULL and the
         # cause is an unresolved data-source placeholder (e.g. `upload`
         # not yet provided, `pick_ds` not yet picked), surface that
