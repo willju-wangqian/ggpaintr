@@ -6,7 +6,6 @@
 \usage{
 ptr_app_grid(
   plots,
-  shared_ui = list(),
   envir = parent.frame(),
   ui_text = NULL,
   draw_all_label = "Draw all",
@@ -19,10 +18,6 @@ ptr_app_grid(
 }
 \arguments{
 \item{plots}{A list of formula strings, one per plot.}
-
-\item{shared_ui}{Named list mapping shared key → \verb{function(id) -> shiny.tag}
-builder. Names must match the \code{shared = "..."} annotations used in
-\code{plots}. Pass \code{list()} if there are no shared placeholders.}
 
 \item{envir}{Environment used to resolve local data objects.}
 
@@ -57,13 +52,22 @@ A \code{shiny.appobj}.
 \description{
 Builds a fluid layout of N plot modules with a top-level \code{wellPanel} for
 shared input widgets and a "Draw all" button that triggers a redraw across
-every plot. Each plot's \code{shared = "..."} placeholders read from the
-corresponding entry in \code{shared_ui} instead of rendering local widgets.
+every plot. Each plot's \code{shared = "..."} placeholders collapse to one
+widget in the top panel, rendered from the placeholder's own \code{build_ui}.
 }
 \details{
 For the formula grammar (placeholder keywords, \code{shared = "<id>"}
 annotation, empty-call cleanup), see \code{\link[=ptr_app]{ptr_app()}}.
 }
+\section{Removed \code{shared_ui}}{
+
+The \code{shared_ui} argument is no longer supported (see \code{\link[=ptr_shared]{ptr_shared()}} for the
+full rationale). To customise the widget a shared key renders, define a
+custom placeholder with the \code{build_ui} you want
+(\verb{ptr_define_placeholder_*}) and use it in the formula — the shared widget
+auto-renders from that \code{build_ui}.
+}
+
 \examples{
 if (interactive()) {
   ptr_app_grid(

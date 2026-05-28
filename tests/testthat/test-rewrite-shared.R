@@ -260,7 +260,6 @@ test_that("P06.f grid auto-renders default widget for unbound shared key", {
       "ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point(size = ppNum(shared = \"sz\"))",
       "ggplot(data = mtcars, aes(x = wt,  y = qsec)) + geom_point(alpha = ppNum(shared = \"sz\")/10)"
     ),
-    shared_ui = list(),
     envir = .shared_test_env()
   )
   ui_html <- as.character(parts$ui)
@@ -272,19 +271,20 @@ test_that("P06.f grid auto-renders default widget for unbound shared key", {
   expect_equal(sum(bare_matches > 0L), 1L)
 })
 
-# (g) Grid still rejects extra keys in shared_ui that no formula uses.
-test_that("P06.g grid rejects shared_ui keys not present in any formula", {
-  expect_error(
-    ptr_app_grid_components(
-      plots = list(
-        "ggplot(data = mtcars, aes(x = mpg)) + geom_point(size = ppNum(shared = \"sz\"))"
-      ),
-      shared_ui = list(typo = function(id) shiny::sliderInput(id, "x", 1, 10, 5)),
-      envir = .shared_test_env()
-    ),
-    "typo"
-  )
-})
+# (g) REMOVED: `shared_ui` (and its key validation) no longer exists -- see
+#     ?ptr_shared "Removed `shared_ui`". Retained commented for provenance:
+# test_that("P06.g grid rejects shared_ui keys not present in any formula", {
+#   expect_error(
+#     ptr_app_grid_components(
+#       plots = list(
+#         "ggplot(data = mtcars, aes(x = mpg)) + geom_point(size = ppNum(shared = \"sz\"))"
+#       ),
+#       shared_ui = list(typo = function(id) shiny::sliderInput(id, "x", 1, 10, 5)),
+#       envir = .shared_test_env()
+#     ),
+#     "typo"
+#   )
+# })
 
 # (h) Single-plot shared `var`: top-level uiOutput emits a picker
 #     populated with columns from the resolved upstream.

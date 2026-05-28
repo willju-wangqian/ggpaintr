@@ -296,4 +296,301 @@ expect_picker_selected <- function(app, input_id, choice) {
   )
 }
 
+# ---------------------------------------------------------------------------
+# Boot-state reference oracle (handoff deliverable (a); gap #2:
+# "the reference.R oracle is never consulted").
+#
+# Each super-app fixture ships a sibling `reference.R` -- the Path-B
+# expression (every `pp*(default)` collapses to its positional default under
+# the identity runtimes). Nothing in the suite ever diffed the app's
+# *first-render* code against it, so the shared-consumer boot-default discard
+# (cddc46e) lived entirely in the untouched boot state: every scenario drove
+# the shared widget before asserting, masking the seed path.
+#
+# This oracle closes that gap with a DELIBERATELY NARROW granularity
+# (chosen 2026-05-28): it does NOT do a brittle `boot == reference` string
+# diff (that false-positives on every upload-headed layer -- df_rug/df_main
+# legitimately diverge at boot; see handoff trap). It extracts only the
+# CONSUMER-placeholder defaults (the `pp*(col)` calls that sit in an `aes()`
+# slot or a `facet_wrap(vars(...))`), derives the column each slot SHOULD
+# seed to from reference.R, and asserts the untouched boot `ptr_code`
+# (final mode) carries that exact `slot = col` mapping. The extraction is a
+# pure AST read of the reference source -- independent of ggpaintr's runtime
+# seeding logic, which is the code path that had the bug, so the oracle is
+# NOT circular.
+#
+# Upload-scoped slots are excluded structurally: any aes() under a layer (or
+# the root ggplot) whose `data =` resolves through a `ppUpload(...)` is
+# skipped. That is the documented exclusion for super-2a (all-upload) and
+# super-2b's geom_rug.
+
+# Is `x` a placeholder call `pp<Keyword>(...)` (head is a bare `pp[A-Z]...`
+# symbol)? `dplyr::filter(...)` etc. have a `::` call head, not a symbol, so
+# they are correctly rejected.
+.ggp_is_pp_call <- function(x) {
+  is.call(x) && is.symbol(x[[1]]) && grepl("^pp[A-Z]", as.character(x[[1]]))
+}
+
+# Does the AST subtree `x` contain a `ppUpload(...)` call anywhere? Used to
+# decide whether a data scope is upload-headed (-> exclude its aes slots).
+.ggp_subtree_has_upload <- function(x) {
+  if (is.symbol(x) || is.atomic(x)) return(FALSE)
+  if (is.call(x)) {
+    if (is.symbol(x[[1]]) && identical(as.character(x[[1]]), "ppUpload")) {
+      return(TRUE)
+    }
+    return(any(vapply(as.list(x), .ggp_subtree_has_upload, logical(1))))
+  }
+  FALSE
+}
+
+# First *positional* (unnamed) argument of a pp call, deparsed to a string:
+# `ppVar(mpg)` -> "mpg", `ppFactor(Species, shared = "fac")` -> "Species".
+# That positional is the formula default the consumer must seed to.
+.ggp_pp_default <- function(call) {
+  args <- as.list(call)[-1L]
+  nms <- names(args)
+  if (is.null(nms)) nms <- rep("", length(args))
+  pos <- which(!nzchar(nms))
+  if (!length(pos)) return(NA_character_)
+  paste(deparse(args[[pos[[1L]]]]), collapse = "")
+}
+
+# The `shared = "<key>"` arg of a pp call, or NULL if not shared. A shared
+# consumer's widget id is the host-owned `shared_<key>` (never namespaced),
+# so the oracle can additionally assert `expect_picker_selected` on it -- the
+# precise surface of the shared-consumer boot-default bug.
+.ggp_shared_key <- function(call) {
+  args <- as.list(call)[-1L]
+  nms <- names(args)
+  if (is.null(nms) || !("shared" %in% nms)) return(NULL)
+  key <- args[["shared"]]
+  if (is.character(key) && length(key) == 1L) key else NULL
+}
+
+# Collect consumer mappings (slot, default, shared_key) from one aes() call,
+# unless its data scope is upload-headed.
+.ggp_mappings_from_aes <- function(aes_call, upload_scope) {
+  if (isTRUE(upload_scope)) return(list())
+  args <- as.list(aes_call)[-1L]
+  nms <- names(args)
+  if (is.null(nms)) return(list())
+  out <- list()
+  for (i in seq_along(args)) {
+    if (nzchar(nms[[i]]) && .ggp_is_pp_call(args[[i]])) {
+      out[[length(out) + 1L]] <- list(
+        slot = nms[[i]],
+        default = .ggp_pp_default(args[[i]]),
+        shared_key = .ggp_shared_key(args[[i]])
+      )
+    }
+  }
+  out
+}
+
+# Walk one top-level component of the `+` chain (the ggplot head OR a layer /
+# facet / scale / labs call), collecting consumer mappings. `root_upload` is
+# whether the root data scope is upload-headed; a layer with its own
+# `data =` overrides it.
+.ggp_mappings_from_component <- function(comp, root_upload) {
+  if (!is.call(comp)) return(list())
+  layer_upload <- root_upload
+  comp_args <- as.list(comp)[-1L]
+  comp_nms <- names(comp_args)
+  if (!is.null(comp_nms) && "data" %in% comp_nms) {
+    layer_upload <- .ggp_subtree_has_upload(comp_args[["data"]])
+  }
+  out <- list()
+  rec <- function(x) {
+    if (!is.call(x)) return(invisible())
+    head <- if (is.symbol(x[[1]])) as.character(x[[1]]) else ""
+    if (identical(head, "aes")) {
+      out <<- c(out, .ggp_mappings_from_aes(x, layer_upload))
+      return(invisible())
+    }
+    if (head %in% c("facet_wrap", "facet_grid")) {
+      if (!isTRUE(layer_upload)) {
+        for (el in as.list(x)[-1L]) {
+          if (is.call(el) && is.symbol(el[[1]]) &&
+                identical(as.character(el[[1]]), "vars")) {
+            for (v in as.list(el)[-1L]) {
+              if (.ggp_is_pp_call(v)) {
+                out <<- c(out, list(list(
+                  slot = "facet",
+                  default = .ggp_pp_default(v),
+                  shared_key = .ggp_shared_key(v)
+                )))
+              }
+            }
+          }
+        }
+      }
+      return(invisible())
+    }
+    for (el in as.list(x)[-1L]) rec(el)
+  }
+  rec(comp)
+  out
+}
+
+# Flatten an `a + b + c` ggplot expression into list(a, b, c).
+.ggp_flatten_plus <- function(expr) {
+  if (is.call(expr) && is.symbol(expr[[1]]) &&
+        identical(as.character(expr[[1]]), "+")) {
+    c(.ggp_flatten_plus(expr[[2]]), list(expr[[3]]))
+  } else {
+    list(expr)
+  }
+}
+
+# Parse a fixture's reference.R and return the ggplot formula AST with `!!`
+# unquoting already resolved. Evaluates the file's local bindings (color_var,
+# my_linewidth, df_*, y_arg, ...) in a sandbox so `rlang::expr()`/`paste0()`
+# resolve, but SKIPS every `ptr_define_placeholder_*()` call (those mutate the
+# process-global registry -- a side effect that must not leak into the parent
+# test process) and SKIPS the trailing `eval(...)`.
+#   formula_name = "formula1" / "formula" / "formula_a" -> that bound object
+#                  (a call, used as-is; a character string -> parse_expr).
+#   formula_name = NULL -> the last bare top-level expression (super-2a writes
+#                  its ggplot chain bare, with no assignment).
+.ggp_parse_reference_formula <- function(ref_path, formula_name = NULL) {
+  exprs <- parse(ref_path)
+  env <- new.env(parent = globalenv())
+  last_bare <- NULL
+  is_assign <- function(e) {
+    is.call(e) && is.symbol(e[[1]]) &&
+      as.character(e[[1]]) %in% c("<-", "=")
+  }
+  is_define_rhs <- function(rhs) {
+    is.call(rhs) && is.symbol(rhs[[1]]) &&
+      grepl("^ptr_define_placeholder", as.character(rhs[[1]]))
+  }
+  is_named_call <- function(e, nm) {
+    is.call(e) && is.symbol(e[[1]]) && identical(as.character(e[[1]]), nm)
+  }
+  for (e in exprs) {
+    if (is_assign(e)) {
+      if (is_define_rhs(e[[3]])) next            # skip registry mutation
+      eval(e, envir = env)
+    } else if (is_named_call(e, "library") ||
+                 is_named_call(e, "require") ||
+                 is_named_call(e, "eval")) {
+      next                                       # skip side-effecting calls
+    } else {
+      last_bare <- e                             # candidate bare formula
+    }
+  }
+  if (!is.null(formula_name)) {
+    obj <- get(formula_name, envir = env)
+    if (is.character(obj)) return(rlang::parse_expr(obj))
+    return(obj)
+  }
+  if (is.null(last_bare)) {
+    stop(".ggp_parse_reference_formula: no formula_name and no bare ",
+         "top-level expression in ", ref_path)
+  }
+  last_bare
+}
+
+# Public collector: reference.R path/name -> list of consumer mappings.
+ggp_reference_consumer_mappings <- function(ref_path, formula_name = NULL) {
+  fml <- .ggp_parse_reference_formula(ref_path, formula_name)
+  components <- .ggp_flatten_plus(fml)
+  ggplot_comp <- NULL
+  for (comp in components) {
+    if (is.call(comp) && is.symbol(comp[[1]]) &&
+          identical(as.character(comp[[1]]), "ggplot")) {
+      ggplot_comp <- comp
+      break
+    }
+  }
+  root_upload <- FALSE
+  if (!is.null(ggplot_comp)) {
+    gargs <- as.list(ggplot_comp)[-1L]
+    gnms <- names(gargs)
+    data_arg <- if (!is.null(gnms) && "data" %in% gnms) {
+      gargs[["data"]]
+    } else if (length(gargs) >= 1L) {
+      gargs[[1L]]
+    } else {
+      NULL
+    }
+    if (!is.null(data_arg)) root_upload <- .ggp_subtree_has_upload(data_arg)
+  }
+  out <- list()
+  for (comp in components) {
+    out <- c(out, .ggp_mappings_from_component(comp, root_upload))
+  }
+  out
+}
+
+# Assert: the untouched boot `ptr_code` (final mode, no widget driven)
+# carries every consumer-default mapping that reference.R declares.
+#
+# Granularity is per-slot (handoff: "decide the comparison granularity
+# deliberately"): for each consumer mapping the oracle asserts the boot code
+# contains `<slot> = <default-col>` via the same trusted per-slot regex the
+# super-pressure suite uses (expect_sentinel_in_code), and for SHARED
+# consumers additionally asserts the host-owned `shared_<key>` picker has
+# `<default-col>` selected. Upload-scoped aes slots are excluded by the
+# collector. Returns the mappings invisibly so a caller can assert the count
+# (e.g. the super-2a all-upload exclusion expects length 0).
+# `xfail_shared_keys`: shared keys whose boot-default seeding is a KNOWN,
+# handed-off product bug. Their slot + `shared_<key>` picker assertions are
+# wrapped in `testthat::expect_failure()` so the gate stays FAIL 0 / SKIP 0
+# AND flips loudly the moment the bug is fixed (forcing this pin to be
+# removed). Non-shared slots in the same fixture stay actively asserted.
+# Used for super-3's L3 host-scope shared consumer `linked` -- see
+# .scratch/super3-l3-shared-consumer-boot-default/.
+expect_boot_matches_reference <- function(app, slug, formula_name = NULL,
+                                          code_output_id = "ptr_code",
+                                          draw_button_id = "ptr_update_plot",
+                                          code_mode_id = "ptr_code_mode",
+                                          shared_prefix = "",
+                                          xfail_shared_keys = character()) {
+  ref_path <- testthat::test_path("fixtures", "vignette-apps", slug,
+                                  "reference.R")
+  mappings <- ggp_reference_consumer_mappings(ref_path, formula_name)
+
+  # First render at boot defaults -- NO set_sentinel, no widget driven.
+  app$click(draw_button_id)
+  app$wait_for_idle(timeout = 25 * 1000)
+  set_sentinel(app, code_mode_id, "final")
+  app$wait_for_idle(timeout = 25 * 1000)
+
+  for (m in mappings) {
+    if (is.na(m$default) || !nzchar(m$default)) next
+    xfail <- !is.null(m$shared_key) && m$shared_key %in% xfail_shared_keys
+    slot_assert <- function() {
+      if (identical(m$slot, "facet")) {
+        expect_sentinel_in_code(app, code_output_id, m$default,
+          "facet_wrap\\(vars\\(([^)]*)", "final")
+      } else {
+        regex <- sprintf("aes\\([^)]*%s\\s*=\\s*([^,)]*)", m$slot)
+        expect_sentinel_in_code(app, code_output_id, m$default, regex, "final")
+      }
+    }
+    if (xfail) {
+      testthat::expect_failure(
+        slot_assert(),
+        info = paste0("KNOWN BUG (handed off): shared consumer '", m$shared_key,
+                      "' does not seed default '", m$default,
+                      "' at boot in this host scope; see ",
+                      ".scratch/super3-l3-shared-consumer-boot-default/")
+      )
+    } else {
+      slot_assert()
+    }
+    if (!is.null(m$shared_key)) {
+      pid <- paste0(shared_prefix, "shared_", m$shared_key)
+      if (xfail) {
+        testthat::expect_failure(expect_picker_selected(app, pid, m$default))
+      } else {
+        expect_picker_selected(app, pid, m$default)
+      }
+    }
+  }
+  invisible(mappings)
+}
+
 if (!exists("%||%")) `%||%` <- function(a, b) if (is.null(a)) b else a

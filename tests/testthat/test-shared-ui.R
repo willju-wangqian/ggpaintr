@@ -5,8 +5,9 @@
 # (single-formula / disjoint keys are formula-local and are NOT shown here
 # -- the owning module renders them). Partition + bare-vs-bundled coverage
 # lives in test-shared-partition.R; this file covers the remaining panel
-# behaviours (structural markers, draw-all gating, the `shared_ui` builder
-# escape hatch, value placeholders).
+# behaviours (structural markers, draw-all gating, value placeholders).
+# NOTE: the former `shared_ui` builder escape hatch was removed (see
+# ?ptr_shared). Its two tests (S-UI.5/S-UI.6) are commented out below.
 
 two_consumer <- c(
   'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = mpg)) + geom_point()',
@@ -52,31 +53,37 @@ test_that("S-UI.4 ptr_shared_errors uiOutput is always present", {
   expect_match(html, "ptr_shared_errors", fixed = TRUE)
 })
 
-test_that("S-UI.5 embedder-supplied builder wins; receives canonical id", {
-  seen_id <- NULL
-  obj <- ptr_shared(
-    two_consumer,
-    shared_ui = list(
-      col = function(id) {
-        seen_id <<- id
-        shiny::tags$div(id = id, "custom widget")
-      }
-    )
-  )
-  html <- render_html(ptr_ui_shared_panel(obj))
-  expect_equal(seen_id, "shared_col")
-  expect_match(html, "custom widget", fixed = TRUE)
-})
-
-test_that("S-UI.6 shared_ui referencing an unknown key aborts at ptr_shared()", {
-  expect_error(
-    ptr_shared(
-      two_consumer,
-      shared_ui = list(other = function(id) shiny::tags$div(id = id))
-    ),
-    "not used in any plot formula"
-  )
-})
+# S-UI.5 / S-UI.6 removed: they tested the `shared_ui` per-key builder
+# override and its key-validation, both removed (see ?ptr_shared "Removed
+# `shared_ui`"). A shared key's widget is now always its placeholder's own
+# `build_ui`; to customise it, define a custom placeholder. Retained
+# commented for provenance:
+#
+# test_that("S-UI.5 embedder-supplied builder wins; receives canonical id", {
+#   seen_id <- NULL
+#   obj <- ptr_shared(
+#     two_consumer,
+#     shared_ui = list(
+#       col = function(id) {
+#         seen_id <<- id
+#         shiny::tags$div(id = id, "custom widget")
+#       }
+#     )
+#   )
+#   html <- render_html(ptr_ui_shared_panel(obj))
+#   expect_equal(seen_id, "shared_col")
+#   expect_match(html, "custom widget", fixed = TRUE)
+# })
+#
+# test_that("S-UI.6 shared_ui referencing an unknown key aborts at ptr_shared()", {
+#   expect_error(
+#     ptr_shared(
+#       two_consumer,
+#       shared_ui = list(other = function(id) shiny::tags$div(id = id))
+#     ),
+#     "not used in any plot formula"
+#   )
+# })
 
 test_that("S-UI.7 value-shared placeholder renders an auto widget at canonical id", {
   obj <- ptr_shared(c(

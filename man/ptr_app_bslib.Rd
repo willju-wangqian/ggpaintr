@@ -68,8 +68,8 @@ For the recommended primary entry points, see \code{\link[=ptr_app]{ptr_app()}} 
 Single-formula \code{ppVar(shared = "...")} coordination is not supported on this
 wrapper — the auto-built shared widgets \code{ptr_app()} provides require an
 internal helper that is not part of the public API today. Use \code{\link[=ptr_app]{ptr_app()}}
-for that case, or \code{\link[=ptr_app_grid]{ptr_app_grid()}} (with explicit \verb{shared_ui =}
-builders) for multi-formula shared coordination.
+for that case, or \code{\link[=ptr_app_grid]{ptr_app_grid()}} for multi-formula shared coordination
+(the shared widgets auto-render from each placeholder's own \code{build_ui}).
 }
 \examples{
 if (interactive()) {

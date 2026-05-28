@@ -7,7 +7,6 @@
 ptr_shared(
   formulas,
   id = NULL,
-  shared_ui = list(),
   ui_text = NULL,
   expr_check = TRUE,
   draw_all_label = "Draw all"
@@ -29,10 +28,6 @@ or a non-empty string matching \verb{^[A-Za-z][A-Za-z0-9_]*$};
 \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}, \code{\link[=ptr_ui_shared_panel]{ptr_ui_shared_panel()}}, and
 \code{\link[=ptr_shared_server]{ptr_shared_server()}} all read it off \code{obj$id} -- their signatures
 do not change.}
-
-\item{shared_ui}{Named list of \verb{function(id) -> shiny.tag} builders, one
-per shared key the embedder wants to customise. Unsupplied keys are
-auto-rendered from the first formula that mentions them.}
 
 \item{ui_text}{Optional copy overrides forwarded to the auto-built
 widgets (see \code{\link[=ptr_app]{ptr_app()}}'s \code{ui_text} argument).}
@@ -67,6 +62,22 @@ object: \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}, \code{\link[=ptr_ui
 Errors when no formula declares a \code{shared = "..."} annotation -- building
 the coordinator is a declaration of intent.
 }
+\section{Removed \code{shared_ui}}{
+
+\code{shared_ui} (a named list of \verb{function(id) -> shiny.tag} builders) is no
+longer supported. Its original intent was to let two placeholders that
+share a key share the same UI settings. But each placeholder already
+carries its own \code{build_ui} rule, and two \verb{shared=} placeholders simply
+reuse that one rule when their widget collapses to the panel. The
+customisation therefore comes from the placeholder's \code{build_ui}
+(\code{ptr_define_placeholder_*(build_ui = ...)}), not from a separate
+\code{shared_ui} override — so the override was redundant, and for \code{var}
+consumers it actively dropped the formula default and froze the column
+list. To customise a shared widget, define a custom placeholder with the
+\code{build_ui} you want and use it in the formula. Label-only divergence for
+the shared widget still has its own channel (\code{node$shared_label}).
+}
+
 \examples{
 obj <- ptr_shared(c(
   "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()",

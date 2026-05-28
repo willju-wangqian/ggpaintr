@@ -23,7 +23,7 @@ A \code{shiny.tag} (or NULL for nodes that emit no UI).
 \description{
 S3 generic dispatched per node class. Resolves the human-readable label
 through \code{ptr_resolve_ui_text}, namespaces the node's id (and any
-\code{companion_id} for source nodes) via \code{ns_fn}, and forwards to the
+\code{shortcut_id} for source nodes) via \code{ns_fn}, and forwards to the
 registered \code{build_ui} hook for the placeholder's keyword.
 }
 \keyword{internal}

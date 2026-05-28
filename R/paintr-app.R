@@ -1235,16 +1235,20 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
 #'
 #' Builds a fluid layout of N plot modules with a top-level `wellPanel` for
 #' shared input widgets and a "Draw all" button that triggers a redraw across
-#' every plot. Each plot's `shared = "..."` placeholders read from the
-#' corresponding entry in `shared_ui` instead of rendering local widgets.
+#' every plot. Each plot's `shared = "..."` placeholders collapse to one
+#' widget in the top panel, rendered from the placeholder's own `build_ui`.
 #'
 #' For the formula grammar (placeholder keywords, `shared = "<id>"`
 #' annotation, empty-call cleanup), see [ptr_app()].
 #'
+#' @section Removed `shared_ui`:
+#' The `shared_ui` argument is no longer supported (see [ptr_shared()] for the
+#' full rationale). To customise the widget a shared key renders, define a
+#' custom placeholder with the `build_ui` you want
+#' (`ptr_define_placeholder_*`) and use it in the formula — the shared widget
+#' auto-renders from that `build_ui`.
+#'
 #' @param plots A list of formula strings, one per plot.
-#' @param shared_ui Named list mapping shared key → `function(id) -> shiny.tag`
-#'   builder. Names must match the `shared = "..."` annotations used in
-#'   `plots`. Pass `list()` if there are no shared placeholders.
 #' @param envir Environment used to resolve local data objects.
 #' @param ui_text Optional named list of copy overrides. The page header
 #'   reads `ui_text$shell$title$label`; defaults to `"ggpaintr grid"`. See
@@ -1278,7 +1282,6 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
 #' }
 #' @export
 ptr_app_grid <- function(plots,
-                            shared_ui = list(),
                             envir = parent.frame(),
                             ui_text = NULL,
                             draw_all_label = "Draw all",
@@ -1289,7 +1292,6 @@ ptr_app_grid <- function(plots,
                             spec = NULL) {
   parts <- ptr_app_grid_components(
     plots = plots,
-    shared_ui = shared_ui,
     envir = envir,
     ui_text = ui_text,
     draw_all_label = draw_all_label,
@@ -1303,7 +1305,6 @@ ptr_app_grid <- function(plots,
 }
 
 ptr_app_grid_components <- function(plots,
-                                       shared_ui = list(),
                                        envir = parent.frame(),
                                        ui_text = NULL,
                                        draw_all_label = "Draw all",
@@ -1320,8 +1321,6 @@ ptr_app_grid_components <- function(plots,
     length(plots) >= 1L,
     all(vapply(plots, rlang::is_string, logical(1)))
   )
-  assertthat::assert_that(is.list(shared_ui))
-
   # Step 06 (#G): the L1 grid routes through the same coordinator as the
   # L2/L3 embed path (ADR 0005 §3). `ptr_shared()` computes the
   # cross-formula partition once and is the single source of truth;
@@ -1336,11 +1335,14 @@ ptr_app_grid_components <- function(plots,
       length(collect_shared_consumer_occurrences(tr)) > 0L
   }, logical(1)))
 
-  if (!any_shared && length(shared_ui) > 0L) {
-    rlang::abort(
-      "`shared_ui` was supplied but no plot formula declares a `shared = \"...\"` annotation."
-    )
-  }
+  # `shared_ui` removed (see ?ptr_shared / ?ptr_app_grid). The former guard
+  # that rejected a `shared_ui` supplied with no `shared=` annotation is gone
+  # with the argument; retained commented for provenance:
+  # if (!any_shared && length(shared_ui) > 0L) {
+  #   rlang::abort(
+  #     "`shared_ui` was supplied but no plot formula declares a `shared = \"...\"` annotation."
+  #   )
+  # }
 
   # `any_shared` is only the "does a coordinator exist" gate (ADR 0005:
   # multiple-instance ⇒ coordinator). The count-based partition itself
@@ -1348,7 +1350,6 @@ ptr_app_grid_components <- function(plots,
   obj <- if (any_shared) {
     ptr_shared(
       formulas = plots,
-      shared_ui = shared_ui,
       ui_text = ui_text,
       expr_check = expr_check,
       draw_all_label = draw_all_label

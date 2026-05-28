@@ -64,11 +64,13 @@ formula_b_str <- paste(deparse(formula_b), collapse = "\n")
 # `is_string`). Deparse the pre-quoted exprs here -- `ptr_server` below still
 # receives the unparsed `rlang::expr` bindings, preserving the G4 capture
 # pressure surface.
+# `shared_ui` is no longer supported (see ?ptr_shared). The `"linked"` key is
+# `color = ppVar(cyl, shared = "linked")` -- a `var` consumer. With no override
+# it auto-renders from `ppVar`'s own `build_ui` (the reactive column picker),
+# which honours the formula default `cyl` at boot -- exactly the seeding the
+# old custom `selectInput(names(mtcars))` override discarded.
 shared <- ptr_shared(
-  formulas  = list(formula_a_str, formula_b_str),
-  shared_ui = list(
-    linked = function(id) shiny::selectInput(id, "Linked color", names(mtcars))
-  )
+  formulas  = list(formula_a_str, formula_b_str)
 )
 
 ui <- ptr_ui_page(

@@ -17,8 +17,8 @@
 #' Single-formula `ppVar(shared = "...")` coordination is not supported on this
 #' wrapper — the auto-built shared widgets `ptr_app()` provides require an
 #' internal helper that is not part of the public API today. Use [ptr_app()]
-#' for that case, or [ptr_app_grid()] (with explicit `shared_ui =`
-#' builders) for multi-formula shared coordination.
+#' for that case, or [ptr_app_grid()] for multi-formula shared coordination
+#' (the shared widgets auto-render from each placeholder's own `build_ui`).
 #'
 #' @param formula A single formula string using `ggpaintr` placeholders.
 #' @param envir Environment used to resolve local data objects when building

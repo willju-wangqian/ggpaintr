@@ -9,7 +9,7 @@ ptr_define_placeholder_source(
   build_ui,
   resolve_data,
   resolve_expr = NULL,
-  companion_id_fn = NULL,
+  shortcut = FALSE,
   default_arg = NULL,
   named_args = list(),
   runtime = NULL,
@@ -23,9 +23,9 @@ tutorial.}
 
 \item{build_ui}{\verb{function(node, label, ...)} returning a Shiny tag —
 same shape as in \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}. With
-\code{companion_id_fn} set, render \strong{two} bound inputs in the same tag,
+\code{shortcut = TRUE}, render \strong{two} bound inputs in the same tag,
 one with \code{inputId = node$id} (data payload) and one with
-\code{inputId = node$companion_id} (sibling input — typically the
+\code{inputId = node$shortcut_id} (sibling input — typically the
 user-facing dataset name spliced into the rendered code).
 
 \emph{Seeding} — same opt-in shape as the other two helpers: declare an
@@ -47,25 +47,26 @@ call, not the data itself. Default \code{rlang::sym(value)} works when the
 widget's value is already the symbol you want. Override to make the
 rendered code re-fetch instead of referencing an in-session object,
 e.g. \code{function(value, node, ...) rlang::ppExpr(read.csv(!!value$datapath))}.
-With \code{companion_id_fn} set, \code{value} here is the \emph{companion} input's
+With \code{shortcut = TRUE}, \code{value} here is the \emph{shortcut} input's
 value (e.g. the typed dataset name), \strong{not} the primary payload —
 the built-in \code{ppUpload} relies on this so the default splices the typed
 name as a bare symbol.}
 
-\item{companion_id_fn}{Optional \verb{function(id) -> companion_id_string}.
-Use this when the source widget needs \strong{two} bound Shiny inputs that
-both participate in the runtime substitution cycle: one at \code{node$id}
-(the data payload) and one at \code{node$companion_id} (a sibling input,
-typically a name or override). The framework calls this function with
-the primary id and namespaces the returned companion id alongside it,
-so a single \code{build_ui} can render both widgets and both values reach
-\code{resolve_data} / \code{resolve_expr} through \code{node}. Most sources do not
-need it — one bound input is the common case. The built-in \code{ppUpload}
-uses it to attach the "Optional dataset name" textbox: the file
-contents bind to \code{node$id}, the user-typed dataset name binds to
-\code{node$companion_id}, and the substitution uses the name as the symbol
-inserted into the generated code. Pass \code{NULL} (default) when one
-input suffices.}
+\item{shortcut}{Single logical (default \code{FALSE}). When \code{TRUE}, the
+framework stamps \code{node$shortcut_id <- paste0(node$id, "_shortcut")}
+on every translated source node; the author's \code{build_ui} is then
+expected to render \strong{two} bound Shiny inputs that both participate
+in the runtime substitution cycle: one at \code{node$id} (the data
+payload) and one at \code{node$shortcut_id} (a sibling input, typically a
+typed-in name that resolves a \code{data.frame} from the caller-supplied
+\code{envir}). The shortcut value reaches \code{resolve_data} / \code{resolve_expr}
+through \code{node}. Most sources do not need it — one bound input is the
+common case. The built-in \code{ppUpload} sets \code{shortcut = TRUE} so the
+"Optional dataset name" textbox sits beside the file picker: the
+file contents bind to \code{node$id}, the user-typed name binds to
+\code{node$shortcut_id}, and the substitution uses the name as the symbol
+inserted into the generated code. The reserved shared key
+\code{"shortcut"} is rejected at translate time (see ADR 0025 §1).}
 
 \item{default_arg, named_args}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.
 Source placeholders use the same arg-schema slots.}
@@ -95,19 +96,19 @@ The \verb{spec=} mechanism (see \code{\link[=ptr_app]{ptr_app()}}) captures a sp
 input values so the preserve-mode panel can publish a reproducible boot
 state. For a source placeholder, ONE of two patterns must hold:
 \itemize{
-\item \strong{Companion pattern} — provide \code{companion_id_fn}. The companion's
+\item \strong{Shortcut pattern} — set \code{shortcut = TRUE}. The shortcut input's
 text value (typically the typed dataset name) carries the round-trip
 identity; the source's own value at \code{node$id} is dropped from the
 spec, because it is typically a per-session Shiny artifact (a
 \code{fileInput()} data.frame whose \code{datapath} is a tempfile path that
 does not survive the session). The built-in \code{ppUpload} uses this.
 
-\strong{Data-loading entry point (ADR 0024).} When \code{companion_id_fn} is
-set, the companion is more than a name override for an uploaded
+\strong{Data-loading entry point (ADR 0024).} When \code{shortcut = TRUE},
+the shortcut sibling is more than a name override for an uploaded
 frame — it is a typed-in shortcut for loading a \code{data.frame} from
 the embedder's environment (\code{envir} passed to \code{\link[=ptr_app]{ptr_app()}} /
-\code{\link[=ptr_server]{ptr_server()}}). Any valid R name typed into the companion (or
-seeded via \verb{spec = list(<companion-id> = "df_name")}) is looked
+\code{\link[=ptr_server]{ptr_server()}}). Any valid R name typed into the shortcut input (or
+seeded via \verb{spec = list(<shortcut-id> = "df_name")}) is looked
 up via \code{get(name, envir, inherits = TRUE)} and bound as the
 resolved source frame, with OR without \verb{default=} on the
 placeholder. The downstream pipeline, generated code panel, and
@@ -119,17 +120,18 @@ pane via \code{set_resolve_error}:
 so package exports become reachable — typing \code{"plot"} will resolve
 to \code{graphics::plot} and then fail the "is not a data frame" check
 (loudly, not silently).
-\item \strong{Scalar pattern} — no companion. The widget's value at \code{node$id}
-must be a literal that round-trips through \code{deparse()} — a length-1
-string / number / logical, or a simple atomic vector. The
-\code{selectInput}-style example above qualifies (its value is a single
-string).
+\item \strong{Scalar pattern} — \code{shortcut = FALSE}. The widget's value at
+\code{node$id} must be a literal that round-trips through \code{deparse()} —
+a length-1 string / number / logical, or a simple atomic vector.
+The \code{selectInput}-style example above qualifies (its value is a
+single string).
 }
 
 Source widgets whose primary value is a complex object (raw
-\code{fileInput()} data.frame, environment, S4 instance, etc.) without a
-companion cannot round-trip; wrap them in a companion textInput that
-carries the binding name, mirroring \code{ppUpload}.
+\code{fileInput()} data.frame, environment, S4 instance, etc.) without
+\code{shortcut = TRUE} cannot round-trip; opt into the shortcut sibling
+and bind a \code{textInput(node$shortcut_id, ...)} that carries the
+binding name, mirroring \code{ppUpload}.
 }
 
 \examples{
