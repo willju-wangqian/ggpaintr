@@ -900,6 +900,21 @@ bind_source_value <- function(state, key, name, df, slot) {
     assign(name, df, envir = state$eval_env)
     state$bound_names[[key]](name)
   }
+  # A source binding just changed (or was vacated). Cached upstream
+  # resolves in `state$upstream_cache` are keyed only on the deparsed
+  # substituted expression (R/paintr-resolve.R), not on eval_env
+  # contents -- so a re-upload that swaps `eval_env[["df_main"]]` would
+  # otherwise return the prior result under the same key. Drop the cache
+  # wholesale; consumer entry_reactive's are about to fire on the
+  # `slot(df)` write below and will re-resolve from scratch. The cache
+  # still absorbs the steady-state traffic (stage toggles, producer
+  # input edits, Update Plot clicks) where no binding moved. The
+  # is.environment guard keeps unit-test mocks that pass a bare list
+  # `state` (no `upstream_cache` slot) working.
+  if (is.environment(state$upstream_cache)) {
+    rm(list = ls(state$upstream_cache, all.names = TRUE),
+       envir = state$upstream_cache)
+  }
   slot(df)
 }
 
@@ -2230,7 +2245,14 @@ ptr_setup_source_uis <- function(state, input, output, session) {
       output_id <- ns(source_output_id(raw_id))
       output[[output_id]] <- shiny::renderUI({
         state$tree()
-        state$stage_enabled()
+        # Intentionally NOT a dep on `state$stage_enabled()`: source
+        # placeholders sit at the pipeline head, so toggling a downstream
+        # stage cannot alter their UI. Adding the dep here re-fires the
+        # renderUI on every stage checkbox click, which calls the upload
+        # build_ui afresh and resets the shortcut textInput to
+        # `node$default` (wiping user-typed text / upload auto-name).
+        # Stage disabling propagates to source widgets via CSS only
+        # (`ptr_set_class` in `ptr_setup_stage_enabled`).
         current <- shiny::isolate(input[[ns(raw_id)]])
         seed <- shiny::isolate(state$spec_seed[[raw_id]])
 
