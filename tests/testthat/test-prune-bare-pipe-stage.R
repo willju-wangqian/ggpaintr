@@ -97,15 +97,20 @@ test_that("PLAN-03 / bug-3b: all three surface forms drop filter() and keep the 
   # empty-snapshot upload, so all three surface forms rendered to the
   # data-less stub `ggplot() + geom_point()`. ADR 0025 §5 / PLAN-02
   # replaces that stub with `as.name(node$auto_name)` (the deterministic
-  # binding symbol), so the source position now renders explicitly:
-  #   - `|>` / nested: `ggplot(data = ggplot_1_ppUpload_NA) + geom_point()`
-  #   - `%>%`: `ggplot_1_ppUpload_NA %>% ggplot() + geom_point()`
+  # binding symbol). Per ADR 0025 §3 that auto-name is the system
+  # `df_<hash(node$id)>` (empty textbox -> auto_name fallback), so the
+  # source position now renders explicitly, e.g. with `df_c21b33` =
+  # df_<hash("ggplot_1_ppUpload_NA")>:
+  #   - `|>` / nested: `ggplot(data = df_c21b33) + geom_point()`
+  #   - `%>%`: `df_c21b33 %>% ggplot() + geom_point()`
   # The byte-identical-across-forms invariant no longer holds at the
   # rendered-text layer because the `%>%` surface preserves the pipe
   # call while `|>` desugars to nested. The PRUNE invariant (empty
   # `filter()` is elided) survives intact across all three forms and is
   # the load-bearing claim of this regression net.
   withr::local_package("dplyr")
+  # Computed in-test the same way paintr-ids.R::ptr_hash() does.
+  src_auto <- paste0("df_", substr(rlang::hash("ggplot_1_ppUpload_NA"), 1L, 6L))
   t_native <- render_pruned(
     "ppUpload |> filter(ppVar > ppNum) |> ggplot(aes(ppVar, ppVar)) + geom_point()"
   )
@@ -117,7 +122,7 @@ test_that("PLAN-03 / bug-3b: all three surface forms drop filter() and keep the 
   )
   for (t in list(t_native, t_magri, t_nested)) {
     expect_false(grepl("filter", t, fixed = TRUE))
-    expect_true(grepl("ggplot_1_ppUpload_NA", t, fixed = TRUE))
+    expect_true(grepl(src_auto, t, fixed = TRUE))
   }
   # `|>` and nested forms collapse to the same nested-call render shape;
   # `%>%` preserves the surface pipe call (R semantics: magrittr is a

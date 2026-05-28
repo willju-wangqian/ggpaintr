@@ -67,13 +67,15 @@ test_that("J1 stage 1 (j1-ppupload-spec-roundtrip): empty shortcut + upload => s
   #   )
   #
   # The auto-name for this formula (`ppUpload |> ggplot(...)`) is the
-  # source id itself `ggplot_0_ppUpload_NA` (no `default=` in the
-  # placeholder; the bareword fallback uses `node$id`); the shortcut id
-  # is `ggplot_0_ppUpload_NA_shortcut`. Probe-verified this session.
+  # system-generated `df_<hash(node$id)>` (ADR 0025 §3; the textbox is
+  # empty, so the binder falls back to node$auto_name). The shortcut id
+  # is `ggplot_0_ppUpload_NA_shortcut`. Computed in-test the same way
+  # paintr-ids.R::ptr_hash() does.
   app <- boot_vignette_app("j1-ppupload-spec-roundtrip")
 
   shortcut_id <- "ggplot_0_ppUpload_NA_shortcut"
   source_id   <- "ggplot_0_ppUpload_NA"
+  auto_name   <- paste0("df_", substr(rlang::hash(source_id), 1L, 6L))
 
   # ---- :25 -- empty shortcut + upload => spec at shortcut id == auto-name
   app$upload_file(ggplot_0_ppUpload_NA = testthat::test_path(
@@ -87,10 +89,10 @@ test_that("J1 stage 1 (j1-ppupload-spec-roundtrip): empty shortcut + upload => s
 
   spec_text_empty <- app$get_value(output = "ptr_code")
   # ptr_spec format: `<key>` = <deparsed value>.  Assert the shortcut id
-  # entry is present AND its value is the auto-name (the source id).
+  # entry is present AND its value is the auto-name (`df_<hash>`).
   expect_match(
     spec_text_empty,
-    paste0("`", shortcut_id, "` = \"", source_id, "\""),
+    paste0("`", shortcut_id, "` = \"", auto_name, "\""),
     fixed = TRUE,
     label = "spec-mode panel emits `<shortcut_id>` = \"<auto-name>\" when shortcut is empty"
   )

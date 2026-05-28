@@ -55,14 +55,26 @@ test_that("adr15: non-shared ppVar under ppUpload populates after upload, no sub
   expect_match(
     app$get_html("#geom_point_1_1_ppVar_NA_ui") %||% "", "mpg", fixed = TRUE
   )
-  # Stronger gate: the picker's POSITIONAL default `ppVar(mpg)` actually
-  # SELECTS `mpg`, not just offers it in the choices list. `_populated` is
-  # a substring-on-HTML presence proxy and was the slip-shape that hid the
-  # `aes(y = ppVar(adj))` derived-column regression (2026-05-27); add the
-  # value-equality check explicitly here so the default-seed contract is
-  # nailed even if the upstream picker DOM ever stops listing the column
-  # in its options.
-  expect_picker_selected(app, "geom_point_1_1_ppVar_NA", "mpg")
+  # Contract (ADR 0025): an uploaded data source is NEW data, so the
+  # formula's positional default (`ppVar(mpg)`) does NOT auto-carry onto
+  # it — the picker comes up POPULATED (mpg/wt are offered, asserted
+  # above) but UNSELECTED, leaving the user to pick a column for the new
+  # frame.
+  #
+  # Pre-ADR-0025 this picker auto-selected `mpg`, but only by COINCIDENCE:
+  # the old auto-name was `node$default %||% node$id`, which for
+  # `ppUpload(df)` equalled the typed dataset name `"df"`, so the uploaded
+  # frame got bound under the symbol `"df"` and the old default-seed found
+  # it. ADR 0025 binds the upload under a system `df_<hash(node$id)>`
+  # instead (killing the `df_rug`-style leak), which breaks that
+  # coincidence — so "no selection after upload" is now the correct,
+  # intended outcome. (See test-auto-name-derivation.R for the auto-name
+  # contract and the handoff note on the consumer-seeding follow-up.)
+  sel <- app$get_value(input = "geom_point_1_1_ppVar_NA")
+  expect_true(
+    is.null(sel) || !nzchar(sel),
+    label = "uploaded-source consumer picker is unselected (no default carry-over)"
+  )
 })
 
 test_that("adr15: shared ppVar under ppUpload populates after upload, no subtab nav", {
