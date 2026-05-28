@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Test Fidelity v7 — J11 browser-faithfulness pre-audit — 2026-05-27</title>
+<link rel="stylesheet" href="../assets/doc.css">
+<style>
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; margin: 0.6rem 0; }
+th, td { padding: 6px 9px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+th { background: #f3f4f6; text-align: left; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.tag-del { background: #fee2e2; color: #991b1b; padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+.tag-ret { background: #fef3c7; color: #854d0e; padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+.tag-mer { background: #dbeafe; color: #1e3a8a; padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+.tag-def { background: #ede9fe; color: #5b21b6; padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+.tag-rev { background: #fce7f3; color: #9d174d; padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+.changed { background: #fef2f2; }
+h2 { border-bottom: 2px solid #d1d5db; padding-bottom: 4px; margin-top: 2rem; }
+code.lit { background: #f3f4f6; padding: 0.5px 4px; border-radius: 3px; font-size: 12.5px; }
+</style></head><body>
+
+<h1>Test Fidelity v7 — J11 browser-faithfulness pre-audit — 2026-05-27 23:30</h1>
+<p class="subtitle">Follow-on to <a href="audit-test-fidelity-v6-phase1-outcome-2026-05-27-2245.html">v6</a>. v6 added the browser-faithfulness lens after J10's "5/5 MERGE-confirmed" demoted to 1 DELETE / 3 RETAIN / 1 deferred. This pre-audit applies the same lens to J11's 9 absorbed L2s before any Phase 2 journey work is written, so that the journey stages match the contracts that the browser can actually observe.</p>
+
+<div class="callout">
+<strong>Authoritative gate (verified):</strong> <code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code> →
+<strong>FAIL 0 / WARN 0 / SKIP 0 / PASS 3309</strong> (post-Phase 1 commit <code>b45fdeb</code>, this session 2026-05-27 23:00).
+</div>
+
+<h2>1. The lens (one-line restatement)</h2>
+
+<p>For each absorbed L2: <em>if the orchestrator/runtime regressed only at THIS contract, would the browser DOM differ?</em> If no → <strong>RETAIN as unit pin</strong>, do not migrate. If yes → <strong>MERGE</strong>. If yes-but-needs-extra-fixture → <strong>MERGE-deferred</strong>.</p>
+
+<p>Two sub-questions sharpen the lens (from v6 §1):</p>
+<ol>
+<li>Does the assertion observe an <em>internal-shape</em> value (S3 class, list field name, NULL vs empty-list, named-list shape, object identity) that the rendered DOM does not reflect?</li>
+<li>Does the assertion's <em>trigger</em> come from an R-side mutation (e.g. <code>ptr_gg_extra()</code>, direct <code>session$setInputs()</code> of a non-DOM virtual input) that no DOM event can dispatch?</li>
+</ol>
+<p>"Yes" to either → not browser-encodable as-is.</p>
+
+<h2>2. Per-L2 verdicts</h2>
+
+<table>
+<thead><tr><th style="width:24%">file:line</th><th>v5</th><th>v7</th><th>browser-faithfulness analysis</th></tr></thead>
+<tbody>
+
+<tr><td>test-rewrite-app.R:36<br><span class="muted">"server wires runtime end-to-end"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Assertion: <code class="lit">expect_match(output$ptr_code, "geom_point")</code> after <code class="lit">session$setInputs(ptr_update_plot = 1L)</code>. Browser equivalent: click <code>#ptr_update_plot</code>, then <code class="lit">get_html("#ptr_code")</code> contains <code class="lit">"geom_point"</code>. DOM-visible, no internal-shape dependency. <strong>Stage 1 of J11 plan stands.</strong></td></tr>
+
+<tr><td>test-rewrite-app.R:50<br><span class="muted">"pickers populated from literal data="</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Two assertions: (a) static UI HTML contains <code class="lit">id="ggplot_1_1_ppVar_NA_ui"</code> and <code class="lit">id="ggplot_1_2_ppVar_NA_ui"</code>; (b) rendered picker HTML contains <code class="lit">"selectpicker"</code> plus column names <code class="lit">mpg, cyl, hp</code>. Both DOM-visible after the picker mounts. Caveat: var pickers live under the Data subtab and are suspended until shown — fixture must show the subtab before the assertion fires (see <code>shinytest2-appdir-pkgload</code> memory). <strong>Stage 9 of J11 plan stands.</strong></td></tr>
+
+<tr><td>test-rewrite-app.R:78<br><span class="muted">"multiple + maxOptions=1"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Assertions on rendered selectpicker HTML: contains literal <code class="lit">"multiple"</code>, no <code class="lit">value="mpg" selected</code>, contains <code class="lit">data-max-options="1"</code>. All HTML attribute assertions — fully DOM-visible via <code class="lit">get_html()</code>. <strong>Stage 4 of J11 plan stands.</strong></td></tr>
+
+<tr><td>test-rewrite-app.R:113<br><span class="muted">"layer-select drives hidden tabset"</span></td><td>MERGE</td><td><span class="tag-rev">MERGE-revised</span></td><td>Assertion uses parent-process <code class="lit">trace(shiny::updateTabsetPanel)</code> + spy env to capture <code class="lit">inputId == "ptr_layer_tabset"</code> and selected values. <strong>This shape does NOT survive cross-process migration</strong> — shinytest2 runs the app in a child R process and parent <code>trace()</code> never sees the call (see <code>.claude/rules/serena-tools.md</code> § shinytest2 child-process instrumentation). Browser-encoded equivalent: navigate <code>#ptr_layer_select</code> picker, then assert which tab-pane has CSS class <code class="lit">active</code> — DOM-visible. <strong>Stage 5 of J11 plan needs the trace-based wording replaced with active-pane-class assertion</strong> (or, if internal-effect coverage is genuinely needed, instrument <code>updateTabsetPanel</code> via <code>assignInNamespace()</code> inside the fixture <code>app.R</code> and surface call records through a hidden output).</td></tr>
+
+<tr><td>test-rewrite-app.R:205<br><span class="muted">"ptr_ui/ptr_server id alignment"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Assertions: UI HTML contains <code class="lit">"p1-ptr_update_plot"</code> and <code class="lit">"p1-ptr_code"</code>; testServer with <code class="lit">id = "p1"</code> populates <code class="lit">output$ptr_code</code> after Update Plot click. All DOM-visible: namespaced ids appear in HTML attributes; the post-click code is read via <code class="lit">get_html("#p1-ptr_code")</code>. <strong>Stage 8 of J11 plan stands.</strong></td></tr>
+
+<tr><td>test-rewrite-server-state.R:67<br><span class="muted">"runtime observer populates code_text and plot"</span></td><td>MERGE</td><td><span class="tag-ret">RETAIN</span></td><td>Three assertions on the returned <code>state$runtime()</code> list: (a) <code class="lit">isTRUE(res$ok)</code>, (b) <code class="lit">res$code_text</code> matches <code class="lit">"ggplot"</code>, (c) <code class="lit">res$plot</code> is S3 class <code>ggplot</code>. <strong>Lens fails on (a) and (c):</strong> the runtime-list named-field-shape (<code>ok</code> / <code>code_text</code> / <code>plot</code>) is invisible to the DOM — a regression that returned <code class="lit">res$code</code> (typo) instead of <code class="lit">res$code_text</code> would break this assertion but the DOM would still populate via <code>output$ptr_code</code>'s own renderer reading whatever-the-field-is. Same for an <code>ok=FALSE</code> + populated DOM regression. (b) IS DOM-visible (already covered by J11 stage 1), but the named-list-shape contract is the unit pin. <strong>RETAIN as the runtime-list named-shape pin.</strong> J11 stage 3's "assert <code>state$runtime()</code> returns a list with ok=TRUE…" wording reaches into testServer, not browser — drop that stage; stage 1 already covers the DOM-visible portion (<code>code_text</code> match).</td></tr>
+
+<tr><td>test-rewrite-server-state.R:120<br><span class="muted">"ptr_extract_* surface the runtime fields"</span></td><td>MERGE</td><td><span class="tag-ret">RETAIN</span></td><td>Public-R-API contract: <code class="lit">ptr_extract_plot(state)</code> returns ggplot, <code class="lit">ptr_extract_code(state)</code> matches <code class="lit">"geom_point"</code>, <code class="lit">ptr_extract_error(state)</code> is <code>NULL</code>. These functions are the documented L3 hook for embedders that render their own UI off <code>state</code> — they are the alternative to the DOM. A regression where <code>ptr_extract_plot()</code> returned <code>NULL</code> while <code>output$ptr_plot</code> still rendered correctly is exactly the scenario these accessors guard against. <strong>Not browser-encodable by definition</strong> (they are the non-browser surface). <strong>RETAIN as public-API unit pin.</strong> Same lens that produced J10's <code>:153</code> RETAIN.</td></tr>
+
+<tr><td>test-rewrite-server-state.R:138<br><span class="muted">"runtime gated: no eval until Update Plot click"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Three checks: pre-click <code class="lit">state$runtime()</code> is <code>NULL</code>; after picker change but before click, still <code>NULL</code>; after click, list with <code class="lit">ok=TRUE</code> and <code class="lit">code_text</code> matching <code class="lit">"aes(x = mpg, y = hp)"</code>. The <code>NULL</code> contract is the testServer-side wording, but the DOM-faithful equivalent is observable: pre-click <code class="lit">#ptr_code</code> is empty/blank; after picker change still empty; after click populated. The picker-change-but-no-click leg is the load-bearing one. <strong>Stage 2 of J11 plan stands</strong> as "assert <code>#ptr_code</code> is empty after picker change, populated after click" — but the J11 stage as written says "assert <code>state$runtime()</code> is NULL", which is testServer wording; <strong>reword to DOM-observable form</strong>.</td></tr>
+
+<tr><td>test-rewrite-server-state.R:216<br><span class="muted">"runtime re-runs on post-Update-Plot extras change"</span></td><td>MERGE</td><td><span class="tag-def">MERGE-deferred</span></td><td>Trigger: <code class="lit">ptr_gg_extra(state, ggplot2::theme_void())</code>. Assertion: <code class="lit">!identical(rt_before, rt_after)</code> on the runtime list. <strong>Lens fails on the trigger:</strong> <code>ptr_gg_extra()</code> is R-side mutation on the state object — no DOM event dispatches it. Building a browser journey for this contract requires a custom fixture <code>app.R</code> that exposes a button → <code>observeEvent(input$add_theme, ptr_gg_extra(state, theme_void()))</code> → click in test → assert <code class="lit">#ptr_code</code> now contains <code class="lit">"theme_void"</code>. Encodable but needs a one-off fixture. <strong>Stage 6 of J11 plan as written ("change an extras arg post-click") is feasible only with this fixture extension</strong> — defer the build like D6, or write a minimal one-button fixture. Note: the <em>object-identity</em> assertion (<code class="lit">!identical(rt_before, rt_after)</code>) is not DOM-visible; the browser sees the resulting code-text change, which is the user-visible portion. The pure re-run-fired contract (different object even if produces identical code) is invisible to DOM.</td></tr>
+
+</tbody>
+</table>
+
+<h2>3. Tally</h2>
+
+<table>
+<thead><tr><th>verdict</th><th>count</th><th>which</th></tr></thead>
+<tbody>
+<tr><td><span class="tag-mer">MERGE</span></td><td class="num">5</td><td>app.R:36, :50, :78, :205; server-state.R:138</td></tr>
+<tr><td><span class="tag-rev">MERGE-revised</span></td><td class="num">1</td><td>app.R:113 (stage wording must drop parent-process trace)</td></tr>
+<tr><td><span class="tag-def">MERGE-deferred</span></td><td class="num">1</td><td>server-state.R:216 (needs custom <code>ptr_gg_extra</code> trigger fixture)</td></tr>
+<tr><td><span class="tag-ret">RETAIN</span></td><td class="num">2</td><td>server-state.R:67, :120</td></tr>
+<tr><td><strong>total</strong></td><td class="num"><strong>9</strong></td><td>✓</td></tr>
+</tbody>
+</table>
+
+<p>v5's 9/9 MERGE-confirmed → v7 demoted 3 (1 revised + 1 deferred + 2 RETAIN demoted to unit pins / out-of-merge). Demotion rate <strong>33%</strong> — lower than J10's 60%, consistent with J11 being a more pure "user clicks button → DOM updates" surface than J10's seeding contracts.</p>
+
+<h2>4. J11 journey shape — revised stage plan</h2>
+
+<p>Adjustments to the v5/clusters stages from this audit. The full clusters list of 9 stages stays, with these modifications. Stages 7 (extractors-surface-runtime) and 8's <code>parts</code> named-list-shape are dropped as journey stages — their underlying L2s are RETAINED as unit pins.</p>
+
+<table>
+<thead><tr><th>stage</th><th>v5 plan</th><th>v7 status</th><th>note</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>boot placeholder-free; click Update Plot; assert <code>#ptr_code</code> contains <code class="lit">"geom_point"</code></td><td>UNCHANGED</td><td>covers app.R:36</td></tr>
+<tr><td>2</td><td>placeholder-bearing fixture; assert <code>state$runtime()</code> is NULL pre-click</td><td>REWORD</td><td>assert <code>get_html("#ptr_code")</code> renders empty/blank pre-click and after picker change without click; covers server-state.R:138 via DOM</td></tr>
+<tr><td>3</td><td>click Update Plot; assert runtime list ok=TRUE + code_text + S3 plot</td><td>DROP</td><td>covered by stage 1's DOM assertion; the list-shape contract is RETAINed as unit pin (server-state.R:67)</td></tr>
+<tr><td>4</td><td>var picker uses <code>multiple</code> + <code>maxOptions=1</code></td><td>UNCHANGED</td><td>covers app.R:78</td></tr>
+<tr><td>5</td><td>layer-select drives tabset via <code>trace(updateTabsetPanel)</code></td><td>REWORD</td><td>parent-process trace is cross-process-invisible; replace with active-pane-class assertion in DOM, OR <code>assignInNamespace</code> instrumentation in fixture <code>app.R</code>; covers app.R:113</td></tr>
+<tr><td>6</td><td>extras-change re-runs runtime post Update Plot</td><td>DEFER or FIXTURE-EXTEND</td><td>R-side trigger not browser-dispatchable; build one-button fixture exposing <code>ptr_gg_extra(state, ...)</code> if encoding is required; covers server-state.R:216</td></tr>
+<tr><td>7</td><td>extractors surface runtime after click</td><td>DROP</td><td>public-R-API contract; not browser-encodable; server-state.R:120 RETAINs as unit pin</td></tr>
+<tr><td>8</td><td><code>ptr_ui/ptr_server</code> id alignment + <code>parts</code> named-list shape</td><td>SPLIT</td><td>keep DOM half (namespaced id literals + post-click <code>#p1-ptr_code</code> populates) — covers app.R:205; the <code>parts</code> named-list-shape half is a separate RETAIN (already moved to "Retained as unit pin" in clusters audit row at <code>test-expression-mode.R:215</code>; nothing to do here)</td></tr>
+<tr><td>9</td><td>minimal var-using example with literal <code>data=</code></td><td>UNCHANGED</td><td>covers app.R:50</td></tr>
+</tbody>
+</table>
+
+<h2>5. Honest J11 net</h2>
+
+<p>If the user accepts this routing as written:</p>
+
+<ul>
+<li><strong>Delete</strong> 5 L2 blocks (app.R:36, :50, :78, :113, :205, plus server-state.R:138 = 6).</li>
+<li><strong>Keep</strong> 2 L2 blocks as unit pins (server-state.R:67, :120).</li>
+<li><strong>Defer</strong> 1 L2 block (server-state.R:216) pending fixture-extension decision (same shape as D6 deferral from J10).</li>
+<li><strong>Build</strong> 1 new shinytest2 journey file with 6 honest stages (stages 1, 2, 4, 5, 8a, 9 from the revised plan; the revised stage 5 needs the trace→active-pane-class swap).</li>
+<li>Expected gate delta after Phase 2: 6 deletes × (1 unit + N expects) − 1 new journey × ~12 expects. Rough net PASS impact is small; will compute exact delta from in-tree counts before commit.</li>
+</ul>
+
+<h2>6. Decision the next step needs from the user</h2>
+
+<ol>
+<li><strong>RETAIN verdicts (server-state.R:67 and :120) — do you agree?</strong> v5 had them as MERGE; v7 demotes them on the same lens-failure pattern that produced J10's :153 RETAIN. If you'd rather absorb them anyway, the journey would need a custom-renderer fixture (D6-style) that exposes the runtime list shape via DOM — feasible but doubles fixture-build cost.</li>
+<li><strong>Stage 6 (extras-change) — defer or build?</strong> The fixture is small (one button + one observeEvent) but is per-journey scaffolding rather than per-product code. v6 deferred D6 on the same trade.</li>
+<li><strong>Stage 5 (tabset) — replace with active-pane-class observation, or build <code>assignInNamespace</code> instrumentation?</strong> Active-pane observation is simpler and tests the user-visible outcome; the namespace instrumentation tests the internal call shape (which is the L2's actual assertion). Recommendation: active-pane-class observation, plus a note in the journey file pointing back to this audit for the lens reasoning.</li>
+</ol>
+
+<p>None of these decisions touch product code. They shape the Phase 2 journey file only. Once decisions land, the build is mechanical: write the fixture, write the test, run the gate, delete the absorbed L2s in the same commit.</p>
+
+</body></html>

@@ -33,71 +33,6 @@ test_that("ptr_app_components UI emits expected output ids", {
   expect_match(rendered, "ptr_layer_select")
 })
 
-test_that("ptr_app_components server wires runtime end-to-end", {
-  parts <- ptr_app_components(
-    "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()",
-    envir = .app_test_env()
-  )
-  shiny::testServer(parts$server, {
-    # Spec G11.12: runtime is gated on Update Plot. Simulate a click so
-    # the runtime fires and `output$ptr_code` populates.
-    session$setInputs(ptr_update_plot = 1L)
-    res <- session$userData$state %||% NULL
-    expect_match(output$ptr_code, "geom_point")
-  })
-})
-
-test_that("minimal var-using example: pickers populated from literal `data =`", {
-  # Regression for the empty-dropdown bug. The documented minimal example
-  # `aes(x = var, y = var)` with `data = mtcars` should yield two pickers,
-  # each populated with the columns of `mtcars`. The static UI emits an
-  # empty `uiOutput` per consumer; the server's renderUI fills it on the
-  # first reactive flush.
-  parts <- ptr_app_components(
-    "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
-    envir = .app_test_env()
-  )
-  ui_html <- as.character(parts$ui)
-  expect_match(ui_html, "id=\"ggplot_1_1_ppVar_NA_ui\"", fixed = TRUE)
-  expect_match(ui_html, "id=\"ggplot_1_2_ppVar_NA_ui\"", fixed = TRUE)
-
-  shiny::testServer(parts$server, {
-    session$setInputs(.dummy = 1)
-    x_picker <- output$`ggplot_1_1_ppVar_NA_ui`$html
-    y_picker <- output$`ggplot_1_2_ppVar_NA_ui`$html
-    # both pickers are shinyWidgets selectpickers populated with mtcars cols
-    expect_match(x_picker, "selectpicker")
-    expect_match(y_picker, "selectpicker")
-    for (col in c("mpg", "cyl", "hp")) {
-      expect_match(x_picker, col)
-      expect_match(y_picker, col)
-    }
-  })
-})
-
-test_that("var picker uses multiple + maxOptions=1 for empty-default + click-to-deselect", {
-  # The legacy paintr trick: shinyWidgets pickerInput with `multiple = TRUE`
-  # plus `maxOptions = 1L` gives two behaviours single-select cannot:
-  #   - input value starts as character(0), not the first column;
-  #   - clicking the currently-selected column deselects it.
-  # Single-select with `selected = character(0)` was empirically broken
-  # (verified in a real browser: still shipped first column as input value).
-  parts <- ptr_app_components(
-    "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
-    envir = .app_test_env()
-  )
-  shiny::testServer(parts$server, {
-    session$setInputs(.dummy = 1)
-    x_picker <- output$`ggplot_1_1_ppVar_NA_ui`$html
-    # Multiple-mode renders <select multiple>.
-    expect_match(x_picker, "multiple", fixed = TRUE)
-    # No real column should be the default selection.
-    expect_false(grepl('value="mpg" selected', x_picker, fixed = TRUE))
-    # The maxOptions option is wired via data attribute (selectpicker-side).
-    expect_match(x_picker, "data-max-options=\"1\"", fixed = TRUE)
-  })
-})
-
 test_that("ptr_app emits an Update Plot trigger button", {
   # Spec L142 + BDD G11.12: standalone `ptr_app` carries an Update Plot
   # button so the plot is gated behind an explicit click rather than
@@ -108,43 +43,6 @@ test_that("ptr_app emits an Update Plot trigger button", {
   )
   ui_html <- as.character(parts$ui)
   expect_match(ui_html, 'id="ptr_update_plot"', fixed = TRUE)
-})
-
-test_that("layer-select picker drives the hidden tabset", {
-  # Regression: the layer picker (`ptr_layer_select`) was rendered but never
-  # wired to `updateTabsetPanel(ptr_layer_tabset)`, so picker changes left
-  # the visible panel unchanged. A placeholder-free layer like geom_point()
-  # exposed this most visibly: switching to it appeared to do nothing.
-  parts <- ptr_app_components(
-    "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
-    envir = .app_test_env()
-  )
-
-  spy <- new.env(parent = emptyenv())
-  spy$calls <- list()
-  trace(
-    shiny::updateTabsetPanel,
-    tracer = bquote({
-      .spy <- .(spy)
-      .spy$calls[[length(.spy$calls) + 1L]] <- list(
-        inputId = inputId, selected = selected
-      )
-    }),
-    print = FALSE
-  )
-  on.exit(untrace(shiny::updateTabsetPanel), add = TRUE)
-
-  shiny::testServer(parts$server, {
-    session$setInputs(ptr_layer_select = "geom_point")
-    session$flushReact()
-    session$setInputs(ptr_layer_select = "ggplot")
-    session$flushReact()
-  })
-
-  selecteds <- vapply(spy$calls, function(c) c$selected, character(1))
-  inputIds  <- vapply(spy$calls, function(c) c$inputId,  character(1))
-  expect_true(all(inputIds == "ptr_layer_tabset"))
-  expect_true(all(c("geom_point", "ggplot") %in% selecteds))
 })
 
 # ---- module variants — namespacing isolation (E6) ----
@@ -200,28 +98,6 @@ test_that("output combinators emit the output ids (no control ids)", {
   expect_match(rendered, "x-ptr_error")
   expect_match(rendered, "x-ptr_code")
   expect_no_match(rendered, "x-ptr_layer_select")
-})
-
-test_that("ptr_ui ids line up with ptr_server end-to-end", {
-  fml <- "ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point()"
-  # The module UI and the module server share one id; the server binds
-  # purely by id, so the runtime must fire and populate the code output.
-  ui <- as.character(ptr_ui(fml, "p1"))
-  expect_match(ui, "p1-ptr_update_plot")
-  expect_match(ui, "p1-ptr_code")
-
-  # shiny::isModuleServer requires the first formal to be "id"; use a thin
-  # adapter so shiny detects the module correctly while we test ptr_server.
-  shiny::testServer(
-    function(id, formula, envir = globalenv(), ...) {
-      ptr_server(formula, id, envir = envir, ...)
-    },
-    args = list(id = "p1", formula = fml, envir = .app_test_env()),
-    {
-      session$setInputs(ptr_update_plot = 1L)
-      expect_match(output$ptr_code, "geom_point")
-    }
-  )
 })
 
 # ---- ptr_app_grid (BDD P12.16) ----

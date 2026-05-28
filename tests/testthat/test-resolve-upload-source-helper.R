@@ -85,100 +85,18 @@ test_that("ggpaintr:::resolve_upload_source has the documented formals", {
   )
 })
 
-# ---- BDD Scenario 2 — NULL file_info + resolvable default-arg ----------
-
-test_that("NULL file_info with resolvable default-arg binds the resolved frame", {
-  env <- new.env(parent = emptyenv())
-  env$df_main <- mtcars
-  w <- wire("layerA", eval_env = env)
-
-  node <- list(default = "df_main")
-  entry <- list(resolve_data = function(file_info, node) stop("unreachable"))
-
-  ggpaintr:::resolve_upload_source(
-    input_slot     = NULL,
-    shortcut_slot = list(present = TRUE, value = ""),
-    node           = node,
-    entry          = entry,
-    envir          = env,
-    state          = w$state,
-    key            = "layerA",
-    slot           = w$slot
-  )
-
-  # bind_source_value() path: eval_env gets the frame under `df_main`,
-  # the bound_names slot records the name, the resolved-data slot
-  # receives the frame.
-  expect_identical(w$state$bound_names[["layerA"]](), "df_main")
-  expect_identical(get("df_main", envir = env, inherits = FALSE), mtcars)
-  expect_identical(w$slot(), mtcars)
-})
-
-# ---- BDD Scenario 3 — populated file_info dispatches resolve_data -----
-
-test_that("populated file_info dispatches entry$resolve_data and binds result", {
-  env <- new.env(parent = emptyenv())
-  w <- wire("layerB", eval_env = env)
-
-  node <- list(default = NULL)
-  entry <- list(
-    resolve_data = function(file_info, node) {
-      # mimic ppUpload's resolver: read the file path, return penguins
-      datasets::iris  # any data.frame works; using iris to be distinctive
-    }
-  )
-
-  ggpaintr:::resolve_upload_source(
-    input_slot     = list(datapath = tempfile(fileext = ".csv"),
-                          name     = "iris.csv"),
-    shortcut_slot = list(present = TRUE, value = "iris_df"),
-    node           = node,
-    entry          = entry,
-    envir          = env,
-    state          = w$state,
-    key            = "layerB",
-    slot           = w$slot
-  )
-
-  expect_identical(w$state$bound_names[["layerB"]](), "iris_df")
-  expect_identical(get("iris_df", envir = env, inherits = FALSE), datasets::iris)
-  expect_identical(w$slot(), datasets::iris)
-  # resolve_errors was cleared (no entry under our key)
-  expect_null(w$state$resolve_errors()[["layerB"]])
-})
-
-# ---- BDD Scenario 4 — resolve_data error surfaces via set_resolve_error --
-
-test_that("resolve_data error surfaces via set_resolve_error and clears the slot", {
-  env <- new.env(parent = emptyenv())
-  w <- wire("layerC", eval_env = env)
-
-  node <- list(default = NULL)
-  entry <- list(
-    resolve_data = function(file_info, node) stop("boom")
-  )
-
-  ggpaintr:::resolve_upload_source(
-    input_slot     = list(datapath = tempfile(fileext = ".csv"),
-                          name     = "x.csv"),
-    shortcut_slot = list(present = TRUE, value = "x"),
-    node           = node,
-    entry          = entry,
-    envir          = env,
-    state          = w$state,
-    key            = "layerC",
-    slot           = w$slot
-  )
-
-  errs <- w$state$resolve_errors()
-  expect_true("layerC" %in% names(errs))
-  expect_match(errs[["layerC"]], "boom", fixed = TRUE)
-  # slot was set to NULL via bind_source_value(df = NULL, name = "x"):
-  # bind_source_value only assigns when both df and name are non-NULL,
-  # so eval_env stays empty, but slot(df) fires unconditionally → NULL.
-  expect_null(w$slot())
-  expect_false(exists("x", envir = env, inherits = FALSE))
-})
+# ---- BDD Scenarios 2/3/4 — MERGED into J2 journey on 2026-05-28 ---------
+# resolve-upload-source-helper.R:90 (NULL file_info default-arg)
+#   -> covered by test-upload-clears-stale-cache.R:21-22 (boot-time picker
+#      cols seed from mtcars only if try_bind_source_default_resolved fired).
+# resolve-upload-source-helper.R:119 (populated file_info dispatch)
+#   -> covered by test-prologue-csv-upload.R (prologue LHS = auto_name).
+# resolve-upload-source-helper.R:152 (resolve_data error path)
+#   -> covered by test-j2-prologue-csv-upload-journey.R stage 2 (new
+#      fixture j2-custom-source-error registers ppFailingSource whose
+#      resolve_data throws "boom"; #ptr_error surfaces the message).
+# v9 routing: dev/audit/audit-test-fidelity-v9-j2-browser-faithfulness-
+# 2026-05-28-0027.html
 
 # ---- BDD Scenario 5 — invalid binding name yields NULL name ------------
 

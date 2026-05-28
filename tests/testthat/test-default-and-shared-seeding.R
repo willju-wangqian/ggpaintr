@@ -102,34 +102,16 @@ test_that("expr build_ui leaves textarea empty when node$default is NULL", {
 
 # ---- per-layer var consumer (orchestrator path) ----------------------------
 
-test_that("var hook seeds picker selection from node$default via orchestrator", {
-  node <- ptr_ph_data_consumer(
-    id = "p_var", keyword = "ppVar", expr = quote(ppVar(mpg)),
-    default = "mpg"
-  )
-  # Mirror `ptr_setup_consumer_uis`'s call into the orchestrator: cols
-  # populated, no persisted input (current = NULL, so the call site OMITS
-  # `selected` from `extra`). The orchestrator must fall back to
-  # `node$default` for the boot-seed.
-  #
-  # Contract change (deselect-snaps-back-to-default fix): the call site
-  # used to pass `selected = character(0)` in this scenario, and the
-  # orchestrator's `length == 0L` branch did the fallback. That branch
-  # was removed because it conflated "input not bound yet" with "user
-  # explicitly emptied the widget". Now: omit `selected` ⇒ orchestrator
-  # falls back to default; pass `character(0)` ⇒ orchestrator preserves
-  # the explicit empty (see U3 in test-invoke-build-ui-selected-contract.R).
-  picker <- invoke_build_ui(
-    node,
-    ui_text = NULL,
-    layer_name = NULL,
-    ns_fn = identity,
-    extra = list(cols = c("mpg", "hp", "disp"), data = mtcars)
-  )
-  rendered <- as.character(picker)
-  # pickerInput marks the selected <option> with `selected`.
-  expect_match(rendered, "<option[^>]*selected[^>]*>mpg</option>")
-})
+# "var hook seeds picker selection from node$default via orchestrator"
+# absorbed into the L3 browser test at
+# test-e2e-vignette-examples-shinytest2.R:646 (adr9-default-seeding),
+# which asserts the boot-time picker get_value() matches the formula
+# default ("mpg") through the real ptr_app() flush -- the same orchestrator
+# omit-selected-key path this unit drove via direct invoke_build_ui call.
+# The remaining persisted-wins / NULL-default / not-in-cols / shared
+# tests below stay RETAIN: they pin orchestrator contracts (selected
+# omit-vs-character(0), expect_no_warning) that browser DOM cannot
+# distinguish.
 
 test_that("persisted picker selection wins over node$default", {
   node <- ptr_ph_data_consumer(

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Test Fidelity v8 — J12 browser-faithfulness pre-audit — 2026-05-27 23:37</title>
+<link rel="stylesheet" href="../assets/doc.css">
+<style>
+.tag-mer{background:#dff5e2;color:#155724;padding:0 6px;border-radius:3px;font-weight:600}
+.tag-ret{background:#fee0e0;color:#7a1a1a;padding:0 6px;border-radius:3px;font-weight:600}
+.tag-rev{background:#fff3cd;color:#856404;padding:0 6px;border-radius:3px;font-weight:600}
+.tag-def{background:#e2e3f5;color:#1e2a78;padding:0 6px;border-radius:3px;font-weight:600}
+.lit{font-family:ui-monospace,Menlo,Consolas,monospace;background:#f4f4f4;padding:0 3px;border-radius:3px}
+.muted{color:#666}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;width:100%}
+th,td{border:1px solid #ddd;padding:6px 8px;vertical-align:top;text-align:left}
+th{background:#f7f7f7}
+</style>
+</head><body>
+<h1>Test Fidelity v8 — J12 browser-faithfulness pre-audit — 2026-05-27 23:37</h1>
+
+<p><strong>Branch:</strong> <code>tests-inspect</code> @ <code>252324d</code> · <strong>Scope:</strong> the 7 absorbed L2s for journey J12 (spec-panel-consumer + spec-panel-value + NEW custom-keyword-spec) from <code>dev/audit/audit-test-fidelity-clusters-2026-05-27-1849.html</code>.</p>
+
+<p>This doc replays the v6/v7 browser-faithfulness lens row-by-row against J12's 7 L2 entries before any code is touched. Once the routing is approved, the build is mechanical.</p>
+
+<h2>1. The lens (one-line restatement)</h2>
+
+<p>For each absorbed L2: <em>if the orchestrator/runtime regressed only at THIS contract, would the browser DOM differ?</em> If no → <strong>RETAIN as unit pin</strong>, do not migrate. If yes → <strong>MERGE</strong>. If yes-but-needs-extra-fixture → <strong>MERGE-deferred</strong>.</p>
+
+<p>Two sub-questions sharpen the lens (from v6 §1 / v7 §1):</p>
+<ol>
+<li>Does the assertion observe an <em>internal-shape</em> value (S3 class, list field name, NULL vs empty-list, named-list shape, object identity) that the rendered DOM does not reflect?</li>
+<li>Does the assertion's <em>trigger</em> come from an R-side mutation (e.g. <code>ptr_gg_extra()</code>, direct <code>session$setInputs()</code> of a non-DOM virtual input) that no DOM event can dispatch?</li>
+</ol>
+<p>"Yes" to either → not browser-encodable as-is.</p>
+
+<h2>2. Per-L2 verdicts</h2>
+
+<table>
+<thead><tr><th style="width:24%">file:line</th><th>v5</th><th>v8</th><th>browser-faithfulness analysis</th></tr></thead>
+<tbody>
+
+<tr><td>test-adr12b-renderui-emission.R:23<br><span class="muted">"bare ppNum renders build_ui default"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Assertion: <code class="lit">expect_match(html, 'value="NA"', fixed=TRUE)</code> on the rendered <code>numericInput</code> at <code class="lit">ggplot_1_2_ppNum_NA</code>. HTML attribute on the rendered widget — fully DOM-visible. Trigger: fixture boots with formula <code class="lit">ggplot(mtcars, aes(mpg, ppNum)) + geom_point()</code>; no DOM event needed beyond initial render + bindAll. <strong>MERGE.</strong> Browser equivalent: <code class="lit">get_html("#ggplot_1_2_ppNum_NA")</code> contains <code class="lit">value="NA"</code>.</td></tr>
+
+<tr><td>test-adr12b-renderui-emission.R:61<br><span class="muted">"ppVar-source binds via renderUI"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Assertion: <code class="lit">expect_false(is.null(session$getOutput("ggplot_1_1_ppVar_NA_ui")))</code>. Existence of the <code>uiOutput</code> slot is observable in DOM via <code class="lit">expect_dom_id(app, "ggplot_1_1_ppVar_NA_ui")</code>; existence of the bound <em>input</em> populated into that slot is observable via the helper <code class="lit">wait_for_input_binding(app, "ggplot_1_1_ppVar_NA")</code> (succeeds iff Shiny has registered the input — exactly the "source picker bound" contract). The L2's underlying claim — "post-PLAN-01 the source widget goes through renderUI and binds after first flush" — is DOM-faithful: a regression where <code>ptr_setup_source_uis</code> never ran would leave the <code>_ui</code> slot empty and <code>wait_for_input_binding</code> would time out. <strong>MERGE.</strong></td></tr>
+
+<tr><td>test-adr12b-renderui-emission.R:97<br><span class="muted">"ptr_setup_value_uis registers renderUI per ppText/ppNum/ppExpr"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Same shape as :61 — two <code>_ui</code> slot existence checks (<code class="lit">geom_text_1_3_ppText_NA_ui</code>, <code class="lit">geom_text_2_ppNum_NA_ui</code>). Both DOM-visible via <code class="lit">expect_dom_id</code> / <code class="lit">wait_for_input_binding</code>. <strong>MERGE.</strong> Combinable with :61 in a single fixture if the formula combines a source ppVar and multiple value placeholders.</td></tr>
+
+<tr><td>test-adr12b-spec-custom-keyword.R:33<br><span class="muted">"custom-keyword spec entry applies via state$spec_seed at boot"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Two assertions: (a) <code class="lit">state$spec_seed[["ggplot_1_1_ppCustomChoice_NA"]] == "b"</code> — internal env-map shape; (b) <code class="lit">expect_match(html, '&lt;option value="b" selected&gt;')</code> on the rendered selectInput HTML — DOM-visible. The L2 comment explicitly notes "the architectural contract — 'spec value reaches the widget' — is observable in the rendered HTML" and points to <code>test-adr12-spec-roundtrip.R</code> as the browser-side round-trip. The DOM half (b) IS the user-visible contract; the internal seed-map (a) is the implementation strategy. Trigger: <code>spec = list(...)</code> at <code>ptr_server_internal</code> construction — DOM-equivalent: <code>ptr_app(formula, spec=list(...))</code> at fixture boot. <strong>MERGE.</strong> Needs a NEW fixture that registers <code>ppCustomChoice</code> in its <code>app.R</code> and boots with <code>spec=</code>.</td></tr>
+
+<tr><td>test-ptr-spec-emission.R:133<br><span class="muted">"state$spec is sparse when only defaults are picked"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Assertion: <code class="lit">expect_equal(length(state$spec()), 0L)</code> after <code class="lit">setInputs(ptr_update_plot = 1L)</code> on a placeholder-free formula. The reactive <code>state$spec()</code> flows through <code>format_spec_for_panel</code> into <code>output$ptr_code</code>. If <code>state$spec()</code> returned non-empty when it should be empty, the spec-mode panel would emit a <code>ptr_spec &lt;- list(...)</code> block instead of the "No overrides yet" placeholder line — <strong>DOM-visible</strong>. The internal length-zero contract has no consequence the DOM doesn't reflect. <strong>MERGE.</strong> The DOM assertion is the same one used for :200 (a single "No overrides yet" / no "ptr_spec" check covers both contracts via the same fixture+stage).</td></tr>
+
+<tr><td>test-ptr-spec-emission.R:160<br><span class="muted">"spec-mode panel emits ptr_spec block on non-default pick"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Three assertions, all on <code class="lit">output$ptr_code</code> string after <code class="lit">ptr_code_mode="spec"</code>: matches <code class="lit">"ptr_spec &lt;- list("</code>; contains backtick-quoted <code class="lit">`ggplot_1_1_ppVar_NA` = "mpg"</code> and <code class="lit">`ggplot_1_2_ppVar_NA` = "hp"</code>. Plus three negative checks (no <code>ggplot(</code>, no <code>ppVar(</code>, no <code>ptr_app(</code>). All DOM-visible via <code class="lit">get_html("#ptr_code")</code> or <code class="lit">get_value(output="ptr_code")</code>. Trigger: both pickers + <code>ptr_update_plot</code> + <code>ptr_code_mode</code> — every step is DOM-dispatchable (picker, click, radio). <strong>MERGE.</strong></td></tr>
+
+<tr><td>test-ptr-spec-emission.R:200<br><span class="muted">"empty-spec placeholder line on no override"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Two assertions: <code class="lit">expect_match(code_txt, "No overrides yet")</code>; <code class="lit">expect_false(grepl("ptr_spec", code_txt))</code>. Both DOM-visible in <code class="lit">#ptr_code</code>. Trigger: click + radio toggle. Same fixture+stage subsumes :133's internal length-zero contract. <strong>MERGE.</strong></td></tr>
+
+</tbody>
+</table>
+
+<h2>3. Tally</h2>
+
+<table>
+<thead><tr><th>verdict</th><th>count</th><th>which</th></tr></thead>
+<tbody>
+<tr><td><span class="tag-mer">MERGE</span></td><td class="num">7</td><td>renderui-emission.R:23, :61, :97; spec-custom-keyword.R:33; spec-emission.R:133, :160, :200</td></tr>
+<tr><td><span class="tag-rev">MERGE-revised</span></td><td class="num">0</td><td>—</td></tr>
+<tr><td><span class="tag-def">MERGE-deferred</span></td><td class="num">0</td><td>—</td></tr>
+<tr><td><span class="tag-ret">RETAIN</span></td><td class="num">0</td><td>—</td></tr>
+<tr><td><strong>total</strong></td><td class="num"><strong>7</strong></td><td>✓</td></tr>
+</tbody>
+</table>
+
+<p>v5's 7/7 MERGE → v8 holds 7/7 MERGE. <strong>Demotion rate 0%</strong>. J12 turns out to be cleaner than J10 (60% demotion) or J11 (33%) — every J12 contract terminates at a DOM-observable surface because all 7 absorbed L2s assert on either rendered widget HTML attributes or on the <code>output$ptr_code</code> panel text. No internal-shape pins survived from the v5 selection.</p>
+
+<p>Why so clean: the spec-emission contract was designed audience-first (the spec panel is for a non-owner to copy a reproducer); every wire from <code>state$spec()</code> to the DOM is deliberate. The renderUI-emission contract (PLAN-01) was the structural fix that moved widget construction from static UI to <code>renderUI</code> bodies — its observable consequence is exactly <em>"the widget exists in the DOM"</em>, which <code>expect_dom_id</code> / <code>wait_for_input_binding</code> already cover.</p>
+
+<h2>4. J12 journey shape — stage plan</h2>
+
+<p>6 stages mapped to 7 L2s (stage 1 covers :133 + :200 simultaneously). All stages are browser-faithful as written.</p>
+
+<table>
+<thead><tr><th>stage</th><th>fixture</th><th>action + assertion</th><th>covers</th></tr></thead>
+<tbody>
+
+<tr><td>1</td><td><code class="lit">j12-spec-emission-empty</code> (NEW) — <code class="lit">ggplot(mtcars, aes(x=mpg, y=hp)) + geom_point()</code>. <strong>Reuse of <code>app-basic</code> was attempted first and failed</strong>: <code>app-basic</code> uses <code>aes(ppVar, ppVar, color=ppVar) + labs(title=ppText)</code>, so even on an empty Update click <code>labs_1_ppText_NA = ""</code> lands in <code>state$spec()</code> and produces a <code>ptr_spec</code> block. The empty-spec contract requires a truly placeholder-free formula.</td><td>click <code class="lit">#ptr_update_plot</code>; set <code class="lit">ptr_code_mode="spec"</code>; assert <code class="lit">get_value(output="ptr_code")</code> contains <code class="lit">"No overrides yet"</code> AND does NOT contain <code class="lit">"ptr_spec"</code></td><td>spec-emission.R:200 (DOM-explicit) + :133 (DOM-equivalent via same panel observation)</td></tr>
+
+<tr><td>2</td><td><code class="lit">j12-spec-emission-vars</code> (NEW) — <code class="lit">ggplot(mtcars, aes(x=ppVar, y=ppVar)) + geom_point()</code></td><td>set both pickers (<code class="lit">ggplot_1_1_ppVar_NA="mpg"</code>, <code class="lit">ggplot_1_2_ppVar_NA="hp"</code>); click Update; set <code class="lit">ptr_code_mode="spec"</code>; assert panel text contains <code class="lit">"ptr_spec &lt;- list("</code>, backtick-quoted <code class="lit">`ggplot_1_1_ppVar_NA` = "mpg"</code>, backtick-quoted <code class="lit">`ggplot_1_2_ppVar_NA` = "hp"</code>; assert panel does NOT contain <code class="lit">"ggplot("</code> or <code class="lit">"ppVar("</code> or <code class="lit">"ptr_app("</code> (the no-formula-text guard)</td><td>spec-emission.R:160</td></tr>
+
+<tr><td>3</td><td><code class="lit">j12-spec-custom-keyword</code> (NEW) — registers <code class="lit">ppCustomChoice</code> via <code class="lit">ptr_define_placeholder_value</code> with <code>selected</code> formal + 3 discrete choices; <code class="lit">ptr_app("ggplot(mtcars, aes(ppCustomChoice, mpg))", spec=list(ggplot_1_1_ppCustomChoice_NA="b"))</code></td><td>assert <code class="lit">get_html("#ggplot_1_1_ppCustomChoice_NA")</code> contains <code class="lit">&lt;option value="b" selected&gt;</code></td><td>spec-custom-keyword.R:33</td></tr>
+
+<tr><td>4</td><td><code class="lit">j12-renderui-emission</code> (NEW) — combined formula <code class="lit">ggplot(mtcars, aes(ppVar(mpg), ppNum)) + geom_text(aes(label=ppText), size=ppNum)</code></td><td>assert <code class="lit">get_html("#ggplot_1_2_ppNum_NA")</code> contains <code class="lit">value="NA"</code> (bare ppNum → numericInput at ggplot aes position 2 → build_ui's <code>NA_real_</code> stringified)</td><td>renderui-emission.R:23</td></tr>
+
+<tr><td>5</td><td>same as stage 4 (<code class="lit">j12-renderui-emission</code>)</td><td>assert <code class="lit">wait_for_input_binding(app, "ggplot_1_1_ppVar_NA")</code> returns within timeout (succeeds iff Shiny registered the input — proves <code>ptr_setup_source_uis</code> ran). Optionally, also <code class="lit">expect_dom_id(app, "ggplot_1_1_ppVar_NA_ui")</code> for the <code>uiOutput</code> slot.</td><td>renderui-emission.R:61</td></tr>
+
+<tr><td>6</td><td>same as stage 4 (<code class="lit">j12-renderui-emission</code>)</td><td>assert <code class="lit">expect_dom_id(app, "geom_text_1_3_ppText_NA_ui")</code> AND <code class="lit">expect_dom_id(app, "geom_text_2_ppNum_NA_ui")</code> (the two value <code>_ui</code> slots from <code>ptr_setup_value_uis</code>)</td><td>renderui-emission.R:97</td></tr>
+
+</tbody>
+</table>
+
+<h2>5. Fixture inventory</h2>
+
+<table>
+<thead><tr><th>fixture slug</th><th>kind</th><th>formula / scaffolding</th></tr></thead>
+<tbody>
+<tr><td><code class="lit">j12-spec-emission-empty</code></td><td>NEW</td><td><code class="lit">ptr_app("ggplot(mtcars, aes(x=mpg, y=hp)) + geom_point()")</code>. Truly placeholder-free (no ppXxx anywhere). Stage 1. Required because <code>app-basic</code>'s <code>labs(title=ppText)</code> produces a non-empty <code>state$spec()</code> on empty boot.</td></tr>
+<tr><td><code class="lit">j12-spec-emission-vars</code></td><td>NEW</td><td><code class="lit">ptr_app("ggplot(mtcars, aes(x=ppVar, y=ppVar)) + geom_point()")</code>. Stage 2.</td></tr>
+<tr><td><code class="lit">j12-spec-custom-keyword</code></td><td>NEW</td><td>app.R registers <code class="lit">ppCustomChoice</code> with <code class="lit">ptr_define_placeholder_value</code> (selectInput, 3 choices a/b/c, <code>selected</code> formal honored), then <code class="lit">ptr_app("ggplot(mtcars, aes(ppCustomChoice, mpg))", spec=list(ggplot_1_1_ppCustomChoice_NA="b"))</code>. Stage 3.</td></tr>
+<tr><td><code class="lit">j12-renderui-emission</code></td><td>NEW</td><td><code class="lit">ptr_app("ggplot(mtcars, aes(ppVar(mpg), ppNum)) + geom_text(aes(label=ppText), size=ppNum)")</code>. Stages 4, 5, 6.</td></tr>
+</tbody>
+</table>
+
+<p>Four NEW fixtures (vs the original audit's three; <code>j12-spec-emission-empty</code> was added on first-iteration gate feedback when <code>app-basic</code> turned out to be non-placeholder-free). Cost is still modest — each fixture is &lt;20 lines, all using the same pkgload boot pattern from <code>helper-vignette-apps.R</code>.</p>
+
+<h2>6. Honest J12 net</h2>
+
+<p>If the user accepts this routing as written:</p>
+<ul>
+<li><strong>Delete</strong> 7 L2 blocks — full files <code class="lit">test-adr12b-renderui-emission.R</code>, <code class="lit">test-adr12b-spec-custom-keyword.R</code> (modulo the negative-control test at :100 — see decision §7), and the three test blocks at <code class="lit">test-ptr-spec-emission.R:133/:160/:200</code>. The pure-helper tests at <code class="lit">test-ptr-spec-emission.R:16–116</code> (the four <code class="lit">ptr_spec_from_snapshot</code> / <code class="lit">format_spec_for_panel</code> / <code class="lit">ptr_spec_combine</code> unit blocks) stay — they pin pure-function contracts that have no DOM analog and would not be absorbed.</li>
+<li><strong>Keep</strong> 0 L2 blocks as unit pins (vs J10's 3 and J11's 3).</li>
+<li><strong>Defer</strong> 0 L2 blocks.</li>
+<li><strong>Build</strong> 1 new shinytest2 journey file (<code class="lit">test-j12-spec-and-renderui-emission-journey.R</code>) with 6 stages across 4 NEW fixtures (<code>j12-spec-emission-empty</code>, <code>-vars</code>, <code>-custom-keyword</code>, <code>-renderui-emission</code>).</li>
+<li>Expected gate delta: 7 deletes × per-block expects vs +6 stages × per-stage expects. Net PASS impact small. Will compute exact delta from in-tree counts before commit.</li>
+</ul>
+
+<h2>7. Decision the next step needs from the user</h2>
+
+<ol>
+<li><strong>Negative-control test at <code class="lit">test-adr12b-spec-custom-keyword.R:100</code> ("state$spec_seed is empty when no spec= is passed") — delete with the file, or RETAIN as unit pin?</strong> It is a pure internal-shape contract (empty env-map at boot when no <code>spec=</code>). DOM equivalent: <em>nothing</em> — no widget changes its rendered HTML based on whether <code>state$spec_seed</code> is empty vs non-empty as long as no value was seeded. Recommendation: <strong>RETAIN as unit pin</strong> — its purpose is "guard against future refactors that might inadvertently populate spec_seed from defaults", a regression class invisible to DOM. Same pattern as J10/J11 RETAINs.</li>
+<li><strong>Fixture <code class="lit">j12-renderui-emission</code> combined formula — accept the 3-stage combination, or split into 3 separate fixtures?</strong> The combined formula <code class="lit">ggplot(mtcars, aes(ppVar(mpg), ppNum)) + geom_text(aes(label=ppText), size=ppNum)</code> exercises source ppVar + value ppNum + multi-keyword value rendering in one boot. Recommendation: <strong>combine</strong> — three fixtures with overlapping shapes is unnecessary scaffolding; the bare_ids stay distinct (<code class="lit">ggplot_1_1_ppVar_NA</code>, <code class="lit">ggplot_1_2_ppNum_NA</code>, <code class="lit">geom_text_1_3_ppText_NA_ui</code>, <code class="lit">geom_text_2_ppNum_NA_ui</code>) so assertions don't collide. Split into 3 only if a stage interferes with another (none expected — bindAll is whole-tree).</li>
+<li><strong>Stage 3 — DOM observation of <code class="lit">&lt;option value="b" selected&gt;</code> on the selectInput's option HTML — confirm shape?</strong> Shiny's <code>selectInput</code> with <code class="lit">selected = "b"</code> renders the option list as <code class="lit">&lt;option value="a"&gt;a&lt;/option&gt; &lt;option value="b" selected&gt;b&lt;/option&gt; &lt;option value="c"&gt;c&lt;/option&gt;</code> — the literal <code class="lit">&lt;option value="b" selected&gt;</code> appears verbatim in <code class="lit">get_html("#ggplot_1_1_ppCustomChoice_NA")</code>. If a future Shiny version changes this to <code class="lit">selected="selected"</code>, the assertion would regress; the simpler/sturdier shape is <code class="lit">expect_match(html, 'value="b"[^&gt;]*selected', perl=TRUE)</code>. Recommendation: <strong>use the regex form</strong> for forward-compat.</li>
+</ol>
+
+<p>None of these decisions touch product code. They shape the J12 journey + fixtures only. Once decisions land, the build is mechanical: write 3 fixtures, write the test, run the gate, delete the 7 absorbed L2 blocks in the same commit.</p>
+
+<h2>8. Pre-build gate baseline (recorded before any change)</h2>
+
+<p>Baseline gate run kicked off at 23:34. Recording the exact <code>FAIL / WARN / SKIP / PASS</code> counts here once it completes — the post-build gate must match (modulo expected delta from deleted/added blocks).</p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'
+
+[ baseline -- 2026-05-27 23:34, duration 471.3s ]
+[ FAIL 0 | WARN 0 | SKIP 0 | PASS 3301 ]
+
+[ post-build -- 2026-05-28 00:05, duration 450.3s ]
+[ FAIL 0 | WARN 0 | SKIP 0 | PASS 3292 ]
+
+Delta: PASS -9. Accounting: 7 absorbed-L2 blocks deleted (~22 expects) +
+new J12 journey (13 expects across 6 stages) = -9 net. Three zeros
+preserved -- gate green.</pre>
+
+</body></html>

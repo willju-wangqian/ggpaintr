@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Test Fidelity v10 — J1 browser-faithfulness pre-audit — 2026-05-28 02:35</title>
+<link rel="stylesheet" href="../assets/doc.css">
+<style>
+.tag-mer{background:#dff5e2;color:#155724;padding:0 6px;border-radius:3px;font-weight:600}
+.tag-ret{background:#fee0e0;color:#7a1a1a;padding:0 6px;border-radius:3px;font-weight:600}
+.tag-rev{background:#fff3cd;color:#856404;padding:0 6px;border-radius:3px;font-weight:600}
+.tag-def{background:#e2e3f5;color:#1e2a78;padding:0 6px;border-radius:3px;font-weight:600}
+.tag-stale{background:#f4e3ff;color:#4b1a78;padding:0 6px;border-radius:3px;font-weight:600}
+.lit{font-family:ui-monospace,Menlo,Consolas,monospace;background:#f4f4f4;padding:0 3px;border-radius:3px}
+.muted{color:#666}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;width:100%}
+th,td{border:1px solid #ddd;padding:6px 8px;vertical-align:top;text-align:left}
+th{background:#f7f7f7}
+</style>
+</head><body>
+<h1>Test Fidelity v10 — J1 browser-faithfulness pre-audit — 2026-05-28 02:35</h1>
+
+<p><strong>Branch:</strong> <code>tests-inspect</code> @ <code>14d5fdb</code> · <strong>Scope:</strong> the 12 absorbed L2s for journey J1 (adr10-ppupload-name + adr12-spec-roundtrip + adr24-companion-typed) from <code>dev/audit/audit-test-fidelity-clusters-2026-05-27-1849.html</code> lines 159–184.</p>
+
+<p>This doc replays the v6/v7/v8/v9 browser-faithfulness lens row-by-row against J1's 12 absorbed L2 entries before any code is touched. Once the routing is approved, the build is mechanical.</p>
+
+<h2>1. The lens (one-line restatement)</h2>
+
+<p>For each absorbed L2: <em>if the orchestrator/runtime regressed only at THIS contract, would the browser DOM differ?</em> If no → <strong>RETAIN as unit pin</strong>, do not migrate. If yes → <strong>MERGE</strong>. If the contract is already absorbed in a prior round but the clusters audit citation is stale → <strong>STALE — already covered</strong>.</p>
+
+<p>Two sub-questions sharpen the lens (from v6/v7/v8/v9 §1):</p>
+<ol>
+<li>Does the assertion observe an <em>internal-shape</em> value (S3 class, list field name, NULL vs empty-list, named-list shape, object identity) that the rendered DOM does not reflect?</li>
+<li>Does the assertion's <em>trigger</em> come from an R-side mutation (e.g. <code>local_mocked_bindings(.package=)</code>, direct call to an internal helper with fabricated state) that no DOM event can dispatch?</li>
+</ol>
+<p>"Yes" to either → not browser-encodable as-is.</p>
+
+<h2>2. Per-L2 verdicts</h2>
+
+<p>Critical pre-flight: I grepped each absorbed-L2 file to <em>verify</em> the clusters audit's <code class="lit">file:line</code> citations against the actual source. The 5 <code class="lit">test-ppupload-preserve-mode.R</code> entries (audit lines 177–181, cited at :26 / :35 / :70 / :82 / :91) <strong>no longer exist at those line numbers</strong>: the file's current top-of-file header (<code class="lit">test-ppupload-preserve-mode.R:24–32</code>) explicitly states that scenarios 1, 2, 5, 6, 7 "are absorbed into the preserve-mode unit blocks in <code class="lit">test-adr10-ppupload-name-browser.R:84</code> / <code class="lit">:120</code> (post-extension 2026-05-27)". The current file has only two tests, at <code class="lit">:36</code> ("absent companion-id key in snapshot leaves <code>current_pick</code> NULL") and <code class="lit">:44</code> ("companion-less data-source node still reads from <code>snapshot[[node$id]]</code>"). Neither matches the audit's 5-entry list. <strong>Verdict: STALE — the clusters audit's line citations for this file pre-date the prior absorption round; the 5 listed L2 blocks were already deleted.</strong> The two remaining tests are <em>not</em> in the J1 absorbed list (they're synthetic-node edge cases on the stamp walker — RETAIN-class pins that survive any J1 work).</p>
+
+<p>The remaining 7 L2 entries (auto-name-shared :11/:74, ppupload-name-e2e :46/:75/:98, spec-roundtrip-bound-names-fallback :25/:94) <em>do</em> exist in source at the cited lines (grep-verified).</p>
+
+<table>
+<thead><tr><th style="width:24%">file:line</th><th>v5</th><th>v10</th><th>browser-faithfulness analysis</th></tr></thead>
+<tbody>
+
+<tr><td>test-auto-name-shared-canonical.R:11<br><span class="muted">"shared ppUpload under obj$id='main' — auto_name == 'main_ds'"</span></td><td>MERGE</td><td><span class="tag-ret">RETAIN (empirically demoted)</span></td><td><strong>Initial v10 verdict was MERGE; empirically demoted to RETAIN after a probe ran the candidate fixture <code class="lit">j1-shared-ppupload-main</code> (<code class="lit">ptr_shared(plots, id="main")</code> with two <code>ppUpload(shared='ds')</code> formulas).</strong> Result: after <code class="lit">upload_file(`main-shared_ds` = mtcars.csv)</code> + <code class="lit">wait_for_idle</code> + <code class="lit">click("main-ptr_shared_draw_all")</code>, the literal <code class="lit">"main_ds"</code> count in the rendered <code class="lit">body</code> HTML is <strong>0</strong> in every state (pre-draw and post-draw); per-plot code panels (<code class="lit">p1-ptr_code</code>, <code class="lit">p2-ptr_code</code>) show <code class="lit">"ggplot(aes(y = mpg)) + geom_point()"</code> and <code class="lit">"ggplot(aes(y = hp)) + geom_point()"</code> respectively — the <code>ppUpload(shared='ds')</code> first-arg and the <code>ppVar(shared='col')</code> x-aes are pruned because per-plot <code>substitute_walk</code> does not consult shared-source <code>bound_names</code>; per-plot <code>state$spec()</code> reports "No overrides yet" in spec mode (no shared shortcut entries). The <code>id="main"</code> + <code>auto_name="main_ds"</code> contract is genuinely R-internal-only in this fixture configuration. <strong>RETAIN as unit pin.</strong> Demotion is the canonical safety move per memory <code class="lit">feedback-browser-faithfulness-audit-pass</code> (a MERGE that doesn't materialize in DOM regresses coverage).</td></tr>
+
+<tr><td>test-auto-name-shared-canonical.R:74<br><span class="muted">"ptr_setup_panel_sources actually stamps node$auto_name (integration)"</span></td><td>MERGE</td><td><span class="tag-ret">RETAIN (empirically demoted)</span></td><td>Initial v10 verdict was MERGE-with-:11. Empirically demoted to RETAIN for the same reason as :11 — the downstream consequence the row would ride (auto_name in code body) never materializes in DOM for shared apps. Mocked-resolve_upload_source capture remains a unit-only contract. <strong>RETAIN as unit pin.</strong></td></tr>
+
+<tr><td>test-ppupload-name-e2e.R:46<br><span class="muted">"ppUpload(penguins) captures bareword as default + ptr_app_components emits uiOutput companion slot"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Assertions: <code class="lit">upload$default == "penguins"</code> (R-level on the translated tree); <code class="lit">ui_html</code> contains <code class="lit">paste0(upload$id, "_ui")</code> (the uiOutput placeholder before renderUI fires). Trigger: direct call to <code>ptr_app_components</code> + <code>ptr_translate</code>. <strong>DOM-equivalent already exists</strong>: <code class="lit">test-adr10-ppupload-name-browser.R:17</code> (drives the same <code class="lit">adr10-ppupload-name</code> fixture with <code class="lit">ppUpload(penguins) |> dplyr::filter(species=="Adelie") |> ...</code>) asserts <code class="lit">app$get_value(input="ggplot_1_ppUpload_NA_shortcut") == "penguins"</code>. The textInput would only be seeded with literal <code class="lit">"penguins"</code> if (a) the translate captured the bareword as <code>default</code>, AND (b) <code>ptr_setup_value_uis</code>' renderUI populated the uiOutput. Both halves of :46 are downstream-observable in the L3 sibling's single assertion. <strong>MERGE via pre-existing L3</strong> — no new stage needed.</td></tr>
+
+<tr><td>test-ppupload-name-e2e.R:75<br><span class="muted">"ptr_substitute emits bare symbol when companion snapshot is seeded (PLAN-02 contract)"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Assertions: <code class="lit">expr_text</code> matches <code class="lit">"filter(penguins,"</code> (bare symbol); does NOT contain <code class="lit">"\"penguins\""</code> (no string literal); does NOT contain the internal upload id. Trigger: direct call to <code>ptr_substitute</code> with a manual <code>input_snapshot</code> list. <strong>DOM-equivalent already exists</strong>: <code class="lit">test-adr10-ppupload-name-browser.R:17</code> asserts the plot renders (<code class="lit">plot_html</code> contains <code class="lit">"&lt;img"</code>) at boot, <em>without</em> any file upload. The auto-resolve plot only renders if <code>ptr_substitute</code> emitted the bare symbol AND live-eval found <code>penguins</code> via the parent chain — the regression at this contract would either change the substituted body to a string literal (eval error, no img) or leak the internal upload id (lookup fails, no img). <strong>MERGE via pre-existing L3</strong>.</td></tr>
+
+<tr><td>test-ppupload-name-e2e.R:98<br><span class="muted">"live-eval resolves the bare symbol via eval_env's parent chain (Clarification C2/C3)"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Assertions: <code class="lit">plot &lt;- ptr_eval(subst)</code> returns a ggplot S3; <code class="lit">nrow(layer_data) == 1L</code>; <code class="lit">layer_data$species == "Adelie"</code>. Trigger: direct call to <code>ptr_eval</code> with a manually-substituted tree. <strong>DOM-equivalent already exists</strong>: same <code class="lit">test-adr10-ppupload-name-browser.R:17</code> — the auto-resolve plot only renders when the live-eval path through eval_env's parent chain succeeds (per Clarification C3, see <code class="lit">paintr-server.R:207</code>). The narrowed-to-Adelie fidelity (nrow=1) is implicit: the formula contains <code class="lit">dplyr::filter(species=="Adelie")</code>, so plot rendering at all means filter ran on the resolved penguins frame. The Adelie-specificity is not literally asserted in the L3 sibling, but the live-eval path under test is. <strong>MERGE via pre-existing L3</strong>.</td></tr>
+
+<tr><td>test-ppupload-preserve-mode.R:26<br><span class="muted">"companion-id snapshot value populates current_pick on ppUpload node"</span></td><td>MERGE</td><td><span class="tag-stale">STALE — already absorbed</span></td><td>Clusters-audit citation is pre-dated. Grep of <code class="lit">test-ppupload-preserve-mode.R</code> shows only two tests at <code class="lit">:36</code> / <code class="lit">:44</code>; line :26 is a header-comment block (lines 24–32) explicitly stating "Scenarios 1, 2, 5, 6, 7 ... are absorbed into the preserve-mode unit blocks in <code>test-adr10-ppupload-name-browser.R:84 / :120</code> (post-extension 2026-05-27)." <strong>This row's contract is already covered by L3 at :84</strong> (which exercises <code>stamp_current_pick_walk</code> + <code>ptr_render(... preserve_placeholders=TRUE)</code> with the seeded snapshot and asserts <code class="lit">"ppUpload(penguins)"</code> in the rendered text). No work needed.</td></tr>
+
+<tr><td>test-ppupload-preserve-mode.R:35<br><span class="muted">"empty-string companion-id value leaves current_pick NULL"</span></td><td>MERGE</td><td><span class="tag-stale">STALE — already absorbed</span></td><td>Same as :26. Per the L3 sibling's header (<code class="lit">test-adr10-ppupload-name-browser.R:124</code>), "These assertions absorb the unit-level branches in <code class="lit">test-ppupload-preserve-mode.R:35 / :82</code>." The L3 at :127 exercises both empty-string AND absent-key snapshots and asserts the bare-<code>ppUpload</code> render (no parens). No work needed.</td></tr>
+
+<tr><td>test-ppupload-preserve-mode.R:70<br><span class="muted">"render_placeholder_preserved emits ppUpload(penguins) bareword"</span></td><td>MERGE</td><td><span class="tag-stale">STALE — already absorbed</span></td><td>Same as :26. Covered by L3 :84 (preserve-mode render stamps companion bareword "penguins"). No work needed.</td></tr>
+
+<tr><td>test-ppupload-preserve-mode.R:82<br><span class="muted">"render_placeholder_preserved emits bare ppUpload when current_pick is NULL"</span></td><td>MERGE</td><td><span class="tag-stale">STALE — already absorbed</span></td><td>Same as :35. Covered by L3 :127 (bare-ppUpload render under empty/absent snapshot). No work needed.</td></tr>
+
+<tr><td>test-ppupload-preserve-mode.R:91<br><span class="muted">"end-to-end translate + stamp + ptr_render preserves ppUpload(penguins)"</span></td><td>MERGE</td><td><span class="tag-stale">STALE — already absorbed</span></td><td>Same as :26. Covered by L3 :84 (which uses <code>ptr_translate</code> → <code>stamp_current_pick_walk</code> → <code>ptr_render(preserve_placeholders=TRUE)</code>, the full chain). No work needed.</td></tr>
+
+<tr><td>test-spec-roundtrip-bound-names-fallback.R:25<br><span class="muted">"empty shortcut + bound_names ⇒ spec contains the auto-name"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Assertion: <code class="lit">spec[[ns_shortcut]] == "uploaded_df"</code> (the manually-written bound name) after <code>session$setInputs(ptr_update_plot=1L)</code>. Trigger: <code>shiny::testServer</code> + manual <code>state$bound_names[[bn_key]]("uploaded_df")</code> write (no real upload). The bound_names key for bare-data <code>ppUpload |> ...</code> is the layer name (<code class="lit">"ggplot"</code>) not the source id — the unit test hand-writes both. <strong>DOM-faithful equivalent</strong>: with a real upload through the file pill the upload observer writes <code class="lit">bound_names[[key]](node$auto_name)</code> automatically; if the shortcut stays empty, the snapshot-write loop in <code>ptr_setup_runtime</code> falls back to <code class="lit">bound_names[[key]]()</code>; the spec-mode panel of <code>output$ptr_code</code> shows <code class="lit">ptr_spec(`&lt;ns(shortcut_id)&gt;` = "&lt;auto-name&gt;")</code>. <strong>MERGE — new stage</strong>: boot a fixture with <code class="lit">ppUpload |> ggplot(aes(x=ppVar('mpg'))) + geom_point()</code>, real <code>upload_file</code>, leave shortcut empty, click Update Plot, <code class="lit">set_inputs(ptr_code_mode="spec")</code>, assert <code class="lit">get_value(output="ptr_code")</code> contains the auto-name string at the namespaced shortcut id. (Per J2 lesson #2 the upload-only sequence works — mutex doesn't fire when shortcut stays empty.)</td></tr>
+
+<tr><td>test-spec-roundtrip-bound-names-fallback.R:94<br><span class="muted">"typed shortcut wins over bound_names fallback"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Assertion: <code class="lit">spec[[ns_shortcut]] == "mtcars"</code> when both shortcut="mtcars" AND <code class="lit">bound_names[[key]]("leftover_auto_name")</code>. Trigger: testServer + manual <code>state$bound_names</code> write + <code>setInputs(shortcut="mtcars")</code>. <strong>DOM-faithful equivalent</strong>: extend the stage 5 fixture — after the empty-shortcut upload (which writes auto-name into bound_names), type <code class="lit">"mtcars"</code> into the shortcut textInput; observe spec panel updates to <code class="lit">"mtcars"</code>. Per J2 lesson #2, upload-then-type DOES survive the mutex (the bind observer's debounced tick re-reads the shortcut). <strong>MERGE — combined into stage 5</strong>: the two contracts are both observed in one spec-mode-toggle stage.</td></tr>
+
+</tbody>
+</table>
+
+<h2>3. Tally</h2>
+
+<table>
+<thead><tr><th>verdict</th><th>count</th><th>which</th></tr></thead>
+<tbody>
+<tr><td><span class="tag-mer">MERGE</span></td><td class="num">5</td><td>ppupload-name-e2e.R:46, :75, :98 (via pre-existing L3); spec-roundtrip-bound-names-fallback.R:25, :94 (new stage)</td></tr>
+<tr><td><span class="tag-rev">MERGE-revised</span></td><td class="num">0</td><td>—</td></tr>
+<tr><td><span class="tag-def">MERGE-deferred</span></td><td class="num">0</td><td>—</td></tr>
+<tr><td><span class="tag-stale">STALE — already absorbed</span></td><td class="num">5</td><td>ppupload-preserve-mode.R:26, :35, :70, :82, :91 (audit citations pre-date the prior absorption round; covered by <code class="lit">test-adr10-ppupload-name-browser.R:84/:127</code>)</td></tr>
+<tr><td><span class="tag-ret">RETAIN (empirically demoted)</span></td><td class="num">2</td><td>auto-name-shared-canonical.R:11, :74 — see §7 decision 1; probe of candidate fixture <code class="lit">j1-shared-ppupload-main</code> showed the auto_name literal never materializes in any DOM surface</td></tr>
+<tr><td><strong>total</strong></td><td class="num"><strong>12</strong></td><td>✓</td></tr>
+</tbody>
+</table>
+
+<p>v5's 12/12 MERGE → v10 holds 5 MERGE + 5 STALE-already-absorbed + 2 RETAIN. <strong>Demotion rate: 17%</strong> (lower than J11/J2's 33%/22%; both demotions came from the same shared-section contract that proved R-internal-only on probe). J1 is in fact "cheaper" than J11/J12/J2 because over a third of its absorbed L2s were already absorbed by an earlier round of work into <code class="lit">test-adr10-ppupload-name-browser.R</code>; the clusters audit caught the L2 file but missed that the citations had drifted.</p>
+
+<p>Three of the five MERGE rows (<code class="lit">:46</code>, <code class="lit">:75</code>, <code class="lit">:98</code> — the entire <code class="lit">test-ppupload-name-e2e.R</code> file) ride a pre-existing L3 sibling (<code class="lit">test-adr10-ppupload-name-browser.R:17</code>). The other two (spec-roundtrip :25/:94) require one new journey stage.</p>
+
+<h2>4. J1 journey shape — stage plan</h2>
+
+<p>1 new stage covering 2 L2 deletes via new journey work; 3 additional L2 deletes ride the pre-existing L3 sibling; 5 L2 entries no longer exist in source (STALE — already absorbed); 2 L2 entries empirically demoted to RETAIN (their contract surface is not DOM-observable). Total L2 deletes in this round: 5.</p>
+
+<table>
+<thead><tr><th>stage</th><th>fixture</th><th>action + assertion</th><th>covers</th></tr></thead>
+<tbody>
+
+<tr><td>1</td><td><code class="lit">j1-ppupload-spec-roundtrip</code> (NEW) — fixture <code>app.R</code> calls <code class="lit">ptr_app("ppUpload |> ggplot(aes(x = ppVar(mpg), y = ppVar(hp))) + geom_point()")</code></td><td>(a) <code class="lit">app$upload_file(ggplot_0_ppUpload_NA = fixtures/mtcars.csv)</code>; leave <code class="lit">_shortcut</code> empty; click Update Plot; <code class="lit">set_inputs(ptr_code_mode="spec")</code>; assert <code class="lit">get_value(output="ptr_code")</code> contains the literal <code class="lit">`ggplot_0_ppUpload_NA_shortcut` = "ggplot_0_ppUpload_NA"</code> (per <code>format_spec_for_panel()</code>; probe-confirmed auto-name = source id for default-less <code>ppUpload</code>). (b) Then <code class="lit">set_input(app, "ggplot_0_ppUpload_NA_shortcut", "mtcars")</code>; click Update Plot; assert spec-mode panel updates to <code class="lit">`ggplot_0_ppUpload_NA_shortcut` = "mtcars"</code> and the auto-name no longer appears at that key (typed wins over bound_names fallback).</td><td>spec-roundtrip-bound-names-fallback.R:25 (empty shortcut → auto-name in spec) <em>and</em> :94 (typed shortcut wins). Two contracts, one stage. Stage passed on first run (this session).</td></tr>
+
+</tbody>
+</table>
+
+<p>The single new stage targets the spec-mode panel text exclusively. No DOM-faithful proxy compromises (unlike J2's "next-upload-clears-error" decision).</p>
+
+<h2>5. Fixture inventory</h2>
+
+<table>
+<thead><tr><th>fixture slug</th><th>kind</th><th>formula / scaffolding</th></tr></thead>
+<tbody>
+<tr><td><code class="lit">j1-ppupload-spec-roundtrip</code></td><td>NEW</td><td><code>app.R</code> with <code class="lit">ptr_app("ppUpload |> ggplot(aes(x = ppVar(mpg), y = ppVar(hp))) + geom_point()")</code>. Stage 1.</td></tr>
+<tr><td><code class="lit">j1-shared-ppupload-main</code></td><td>DROPPED (post-probe)</td><td>Initially planned for the auto-name-shared MERGE. Built and probed (this session). Empirical result demoted the L2s to RETAIN; the fixture has no remaining purpose and was removed before commit. See decision 1 in §7 for the probe trace.</td></tr>
+<tr><td><code class="lit">adr10-ppupload-name</code></td><td>REUSE (already-covering L3)</td><td>Pre-existing fixture + L3 driver at <code class="lit">test-adr10-ppupload-name-browser.R:17</code> already covers <code class="lit">test-ppupload-name-e2e.R</code> :46, :75, :98 via the companion-seeded + plot-auto-resolves assertion. Not driven by the new J1 journey.</td></tr>
+<tr><td><code class="lit">adr12-spec-roundtrip</code></td><td>NOT USED</td><td>The clusters audit suggested this fixture might cover the spec-roundtrip rows. Inspected — it tests <em>placeholder</em> (ppVar / ppNum) spec round-trip on a literal <code class="lit">data=mtcars</code> formula, not <code>ppUpload</code> shortcut-id round-trip. Wrong shape for J1's two spec-roundtrip rows (which are specifically about <code>bound_names</code> fallback to auto-name); a new fixture is cleaner than retrofitting.</td></tr>
+<tr><td><code class="lit">adr24-companion-typed</code></td><td>NOT USED</td><td>Companion-as-entry-point fixture (ADR 0024) — typed name resolves env frame, no default. Already exercised by <code class="lit">test-adr0024-companion-entry-point.R</code> at multiple lines. None of J1's 12 absorbed rows reference ADR 0024 semantics directly; the clusters audit's "+ adr24-companion-typed" header was aspirational not concrete.</td></tr>
+</tbody>
+</table>
+
+<p>One NEW fixture (after the empirical probe demotion). Two existing fixtures referenced but not used (pre-existing L3 covers one cluster; ADR-0024 fixture has no absorbed contracts in J1's actual list).</p>
+
+<h2>6. Honest J1 net</h2>
+
+<p>Post-empirical-demotion of <code class="lit">test-auto-name-shared-canonical.R:11</code> / <code class="lit">:74</code> to RETAIN:</p>
+<ul>
+<li><strong>Delete</strong> 5 L2 blocks:
+  <ul>
+    <li><code class="lit">test-ppupload-name-e2e.R:46</code> (bareword as default + uiOutput companion slot) — covered by <code class="lit">test-adr10-ppupload-name-browser.R:17</code></li>
+    <li><code class="lit">test-ppupload-name-e2e.R:75</code> (ptr_substitute emits bare symbol) — covered by <code class="lit">test-adr10-ppupload-name-browser.R:17</code></li>
+    <li><code class="lit">test-ppupload-name-e2e.R:98</code> (live-eval via parent chain) — covered by <code class="lit">test-adr10-ppupload-name-browser.R:17</code></li>
+    <li><code class="lit">test-spec-roundtrip-bound-names-fallback.R:25</code> (empty shortcut → auto-name in spec) — covered by new J1 stage 1</li>
+    <li><code class="lit">test-spec-roundtrip-bound-names-fallback.R:94</code> (typed shortcut wins) — covered by new J1 stage 1</li>
+  </ul>
+</li>
+<li><strong>Delete in whole</strong> (both tests in each file are absorbed):
+  <ul>
+    <li><code class="lit">tests/testthat/test-ppupload-name-e2e.R</code> (3/3 tests absorbed → whole-file delete)</li>
+    <li><code class="lit">tests/testthat/test-spec-roundtrip-bound-names-fallback.R</code> (2/2 tests absorbed → whole-file delete)</li>
+  </ul>
+</li>
+<li><strong>RETAIN — no edits</strong>: <code class="lit">tests/testthat/test-auto-name-shared-canonical.R</code> — keep all three tests at <code class="lit">:11</code>, <code class="lit">:54</code>, <code class="lit">:74</code> intact; both <code class="lit">:11</code> and <code class="lit">:74</code> empirically demoted to RETAIN this session (their auto_name="main_ds" contract is R-internal-only for shared apps and does not surface in any DOM).</li>
+<li><strong>No-op</strong>: <code class="lit">tests/testthat/test-ppupload-preserve-mode.R</code> — the 5 audit-listed entries are already absorbed in a prior round (file's own header comment documents this; current contents are 2 unrelated unit pins at <code class="lit">:36</code> / <code class="lit">:44</code>).</li>
+<li><strong>Add</strong> 1 new journey file + 1 new fixture dir:
+  <ul>
+    <li><code class="lit">tests/testthat/test-j1-ppupload-name-journey.R</code> (modelled on <code class="lit">test-j2-prologue-csv-upload-journey.R</code>; 1 stage)</li>
+    <li><code class="lit">tests/testthat/fixtures/vignette-apps/j1-ppupload-spec-roundtrip/app.R</code> (NEW)</li>
+  </ul>
+</li>
+</ul>
+
+<p>Pass the authoritative gate (<code class="lit">NOT_CRAN=true Rscript -e ...</code>): three zeros AND PASS count change predictable from the math (delta: minus 5 L2 test blocks; plus 1 journey test block ⇒ net −4; suite total ~3275 expected, down from baseline 3279). One transient flake budget (per J2 lesson #7); re-run once before claiming red.</p>
+
+<h2>7. Decisions resolved</h2>
+
+<ol>
+<li><strong>Shared-fixture risk (was stage 1) — RESOLVED via empirical demotion to RETAIN.</strong> User initially accepted MERGE with the shared fixture (per AskUserQuestion routing call 1, recommended option). On building <code class="lit">tests/testthat/fixtures/vignette-apps/j1-shared-ppupload-main/app.R</code> + the corresponding journey stage and running <code class="lit">test_file</code>, stage 1 failed in a way that the v10 audit had not anticipated: the candidate assertion <code class="lit">expect_match(code_text, "main_ds")</code> on <code class="lit">p1-ptr_code</code> returned <code class="lit">"ggplot(aes(y = mpg)) + geom_point()"</code> — the <code>ppUpload(shared='ds')</code> first-arg and <code>ppVar(shared='col')</code> x-aes were pruned. A probe (<code class="lit">dev/scratch/probe-j1-shared.R</code>, now cleaned up) ran the fixture end-to-end and counted <strong>0 occurrences</strong> of the literal <code class="lit">"main_ds"</code> in the rendered <code class="lit">body</code> HTML at every state (pre-upload, post-upload, post-draw, p1 spec mode); per-plot <code>substitute_walk</code> does not consult shared-source <code>bound_names</code>, and per-plot <code>state$spec()</code> reports "No overrides yet" in spec mode for shared shortcut ids. The contract is genuinely R-internal-only for shared apps. <strong>Reverted to RETAIN for both</strong> <code class="lit">:11</code> and <code class="lit">:74</code> (confirmed by the user via a follow-up AskUserQuestion, recommended option). The candidate fixture and journey stage 1 were removed before commit. Net effect: deletes drop from 7 to 5; one new fixture + one new stage. Memory <code class="lit">feedback-browser-faithfulness-audit-pass</code> applies — even a "lens-confirmed" MERGE can fail at the actual DOM surface. The fix is one-shot: probe-and-demote, not retry-and-debug.</li>
+<li><strong>Adelie-row fidelity (e2e:98) — RESOLVED via MERGE-as-is.</strong> User accepted the implicit-fidelity tradeoff (per AskUserQuestion routing call 2, recommended option). <code class="lit">test-adr10-ppupload-name-browser.R:17</code> is not extended; the <code class="lit">nrow(layer_data) == 1L</code> + <code class="lit">species == "Adelie"</code> narrowing assertions become implicit (the plot rendering at all is downstream evidence the chain ran). A regression breaking <code>dplyr::filter</code> on chained pipelines without breaking the plot bind is a low-probability shape.</li>
+</ol>
+
+</body></html>

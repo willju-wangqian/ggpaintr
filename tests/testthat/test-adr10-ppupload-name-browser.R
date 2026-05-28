@@ -72,6 +72,28 @@ test_that("adr10-ppupload-name: companion textInput seeded, plot auto-resolves w
     label = "plot output container is present after Draw"
   )
   expect_match(plot_html, "<img", fixed = TRUE)
+
+  # (d) Narrowing fidelity (absorbed from test-ppupload-name-e2e.R:98 +
+  # :75): the substituted code body MUST contain the literal
+  # `dplyr::filter(species == "Adelie")` chained off the bare `penguins`
+  # symbol. This pins the contract that test-ppupload-name-e2e.R:75
+  # asserted at the R level (`ptr_substitute` emits bare symbol at the
+  # data slot) AND :98 asserted at the eval level (live-eval narrows to
+  # the Adelie row via the chained filter). The literal here proves the
+  # filter call survived translate -> substitute with both its function
+  # spelling AND its argument; a regression that dropped the filter
+  # stage or rebuilt it from scratch would change this literal.
+  code_text <- app$get_value(output = "ptr_code")
+  expect_match(
+    code_text, "penguins |>", fixed = TRUE,
+    label = "substituted body uses bare `penguins` (no string literal, no internal upload id)"
+  )
+  expect_match(
+    code_text,
+    "dplyr::filter(species == \"Adelie\")",
+    fixed = TRUE,
+    label = "dplyr::filter narrowing call survives translate+substitute with its argument intact"
+  )
 })
 
 # ADR 0010 PLAN-02 round-trip (ADR 0022 disposition): preserve-mode formula
@@ -114,5 +136,46 @@ test_that("adr10 PLAN-02 round-trip: preserve-mode render stamps companion barew
   expect_false(
     grepl("ppUpload(penguins)", text_iris, fixed = TRUE),
     label = "preserve-mode render no longer mentions penguins after companion edit"
+  )
+})
+
+# Empty-string and absent-key companion snapshots: when no current pick
+# is stamped on the node, preserve-mode render emits the bare `ppUpload`
+# symbol rather than `ppUpload()` parens (ADR 0012 follow-up,
+# vignette-review commit 8235d8a). These assertions absorb the unit-level
+# branches in test-ppupload-preserve-mode.R:35 / :82, which exercised the
+# same stamp_current_pick_walk + render_placeholder_preserved code paths
+# on synthetic ppupload_node()s.
+test_that("adr10 PLAN-02 round-trip: empty / absent snapshot renders bare ppUpload (no parens)", {
+  formula <- "ppUpload(penguins) |> dplyr::filter(species == \"Adelie\") |> ggplot(aes(x = ppVar(bill_length_mm), y = ppVar(bill_depth_mm))) + geom_point()"
+  tree <- ggpaintr:::ptr_translate(formula)
+
+  # Empty-string snapshot — .snapshot_value_is_set treats "" as not-set,
+  # so current_pick stays NULL; render_placeholder_preserved emits the
+  # bare placeholder symbol.
+  text_empty <- ggpaintr:::ptr_render(
+    ggpaintr:::stamp_current_pick_walk(
+      tree, list(ggplot_1_ppUpload_NA_shortcut = "")
+    ),
+    preserve_placeholders = TRUE
+  )
+  expect_true(
+    grepl("ppUpload", text_empty, fixed = TRUE),
+    label = "empty snapshot still renders the placeholder identifier"
+  )
+  expect_false(
+    grepl("ppUpload(", text_empty, fixed = TRUE),
+    label = "empty companion value renders bare ppUpload (no parens)"
+  )
+
+  # Absent-key snapshot — stamp walker never enters the read branch;
+  # current_pick stays NULL; same bare render.
+  text_absent <- ggpaintr:::ptr_render(
+    ggpaintr:::stamp_current_pick_walk(tree, list()),
+    preserve_placeholders = TRUE
+  )
+  expect_false(
+    grepl("ppUpload(", text_absent, fixed = TRUE),
+    label = "absent companion key renders bare ppUpload (no parens)"
   )
 })

@@ -130,93 +130,9 @@ test_that("state$spec is an empty named list before the first runtime fires", {
   })
 })
 
-test_that("state$spec is sparse when only defaults are picked (testServer)", {
-  e <- list2env(list(mtcars = mtcars), parent = globalenv())
-  server <- function(input, output, session) {
-    session$userData$state <- ptr_server_internal(
-      input, output, session,
-      "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()",
-      envir = e
-    )
-  }
-  shiny::testServer(server, {
-    state <- session$userData$state
-    session$setInputs(ptr_update_plot = 1L)  # gates the runtime
-    res <- state$runtime()
-    expect_true(isTRUE(res$ok))
-    # No placeholders, no checkboxes off, no stages off -> empty spec.
-    expect_equal(length(state$spec()), 0L)
-  })
-})
-
-# ---- spec-mode code panel integration --------------------------------------
-# ADR 0022: the second code-panel radio choice was renamed from "preserve"
-# (formula + spec) to "spec" (spec only). The pre-ADR-0022 tests in this
-# section asserted the formula-text half of the preserve emission; those
-# assertions are now covered as direct render-walker unit tests in
-# test-render-preserve.R. The tests below cover the spec-emission half
-# end-to-end through the panel reactive.
-
-test_that("spec-mode panel emits ptr_spec block when a non-default pick exists", {
-  e <- list2env(list(mtcars = mtcars), parent = globalenv())
-  server <- function(input, output, session) {
-    session$userData$state <- ptr_server_internal(
-      input, output, session,
-      "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
-      envir = e
-    )
-  }
-  shiny::testServer(server, {
-    state <- session$userData$state
-    # Pick both vars; first click freezes the snapshot on res$snapshot.
-    session$setInputs(
-      ggplot_1_1_ppVar_NA = "mpg",
-      ggplot_1_2_ppVar_NA = "hp",
-      ptr_update_plot     = 1L
-    )
-    session$flushReact()
-    res <- state$runtime()
-    expect_true(isTRUE(res$ok))
-
-    # Spec-mode rendering: switch the mode toggle and read the code output.
-    # ADR 0022: the panel emits only the `ptr_spec <- list(...)` block;
-    # no formula text precedes it.
-    session$setInputs(ptr_code_mode = "spec")
-    session$flushReact()
-    code_txt <- output$ptr_code
-
-    # ptr_spec block present.
-    expect_match(code_txt, "ptr_spec <- list(", fixed = TRUE)
-    expect_match(code_txt, "`ggplot_1_1_ppVar_NA` = \"mpg\"", fixed = TRUE)
-    expect_match(code_txt, "`ggplot_1_2_ppVar_NA` = \"hp\"", fixed = TRUE)
-    # No formula text — the panel is no longer a reproducer for non-owners
-    # (audience-split rationale in ADR 0022). Formula source is owner-side.
-    expect_false(grepl("ggplot(", code_txt, fixed = TRUE))
-    expect_false(grepl("ppVar(", code_txt, fixed = TRUE))
-    expect_false(grepl("ptr_app(", code_txt, fixed = TRUE))
-  })
-})
-
-test_that("spec-mode panel shows the empty-spec placeholder line when nothing is overridden", {
-  e <- list2env(list(mtcars = mtcars), parent = globalenv())
-  server <- function(input, output, session) {
-    session$userData$state <- ptr_server_internal(
-      input, output, session,
-      "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()",
-      envir = e
-    )
-  }
-  shiny::testServer(server, {
-    state <- session$userData$state
-    session$setInputs(ptr_update_plot = 1L)
-    session$setInputs(ptr_code_mode = "spec")
-    session$flushReact()
-    code_txt <- output$ptr_code
-
-    # Empty spec → ADR 0022 placeholder line surfaces (so the panel is
-    # never confusingly blank pre-Update for first-time users).
-    expect_match(code_txt, "No overrides yet", fixed = TRUE)
-    # And no `ptr_spec` block (there's nothing to list).
-    expect_false(grepl("ptr_spec", code_txt, fixed = TRUE))
-  })
-})
+# spec-mode code panel integration tests previously here (state$spec
+# sparse on defaults, ptr_spec block on non-default pick, empty-spec
+# placeholder line) were migrated to the J12 browser journey on
+# 2026-05-27. See test-j12-spec-and-renderui-emission-journey.R and
+# dev/audit/audit-test-fidelity-v8-j12-browser-faithfulness-2026-05-27-
+# 2337.html for routing rationale.
