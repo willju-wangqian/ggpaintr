@@ -80,6 +80,34 @@ test_that("adr0024: typed name not resolving to a data frame surfaces inline err
   expect_picker_populated(app, "ggplot_1_1_ppVar_NA", "cyl")
 })
 
+# ---- Scenario C2: typed name resolves but isn't a data frame ----
+# Covers the "Object 'X' is not a data frame." branch in
+# try_bind_source_default_resolved that test-adr0024-companion-entry-point.R:192
+# pinned at the unit level. `letters` is a base-R character vector;
+# get(name, envir = eval_env, inherits = TRUE) resolves it via baseenv on
+# the search chain, but the is.data.frame() guard fails so the resolve
+# observer records `Object 'letters' is not a data frame.` into
+# state$resolve_errors -- the same renderUI path #ptr_error pane re-renders
+# off (see Scenario C above for the mechanism).
+
+test_that("adr0024: typed name resolving to a non-data-frame surfaces inline error", {
+  app <- boot_vignette_app("adr24-companion-typed")
+  app$wait_for_idle(timeout = 15 * 1000)
+
+  set_input(app, "ggplot_0_ppUpload_NA_shortcut", "letters")
+  app$wait_for_js(
+    paste0("(function(){var e=document.getElementById('ptr_error');",
+           "return !!e && e.innerHTML.indexOf('letters')!==-1;})()"),
+    timeout = 15 * 1000
+  )
+
+  err_html <- app$get_html("#ptr_error") %||% ""
+  expect_match(err_html, "letters", fixed = TRUE,
+               label = "inline error names the typed non-df binding")
+  expect_match(err_html, "not a data frame", fixed = TRUE,
+               label = "inline error explains the not-a-data-frame branch")
+})
+
 # ---- Scenario B: spec= override for a no-default source ----
 
 test_that("adr0024: spec= for a source_companion id binds env frame without default", {
@@ -119,103 +147,6 @@ test_that("adr0024: shared-section ppUpload companion entry point honored at boo
 })
 
 # ---- Unit-level: try_bind_source_default_resolved widened guard ----
-
-test_that("adr0024: try_bind_source_default_resolved binds without default when companion is set", {
-  # Build a stub state with eval_env carrying mtcars; bind_source_value
-  # writes assign-before-signal — state$eval_env gets the symbol AND
-  # state$bound_names()[[key]] fires the reactive. We drive the helper
-  # directly with a plain reactiveVal slot.
-  eval_env <- new.env(parent = emptyenv())
-  assign("mtcars", mtcars, envir = eval_env)
-
-  resolve_errors_store <- shiny::reactiveVal(stats::setNames(list(), character()))
-  # `state$bound_names` is a NAMED LIST of reactiveVals (one per layer
-  # name / source id), built by ptr_init_state at R/paintr-server.R:187-190.
-  # bind_source_value() at L877 calls `state$bound_names[[key]](name)`,
-  # so each key needs its own reactiveVal slot.
-  bound_names_store <- list(k = shiny::reactiveVal(NULL),
-                            k2 = shiny::reactiveVal(NULL),
-                            k3 = shiny::reactiveVal(NULL),
-                            k4 = shiny::reactiveVal(NULL))
-
-  state <- list(
-    eval_env       = eval_env,
-    resolve_errors = resolve_errors_store,
-    bound_names    = bound_names_store
-  )
-  slot <- shiny::reactiveVal(NULL)
-  node <- list(default = NULL, keyword = "ppUpload")
-  entry <- ggpaintr:::ptr_registry_lookup("ppUpload")
-
-  # Wrap in isolate so reactiveVal writes inside bind_source_value don't
-  # require a real reactive context.
-  ok <- shiny::isolate(
-    ggpaintr:::try_bind_source_default_resolved(
-      state, key = "k", node = node,
-      has_shortcut = TRUE, shortcut_value = "mtcars",
-      entry = entry, slot = slot
-    )
-  )
-  expect_true(ok, label = "post-ADR-0024 bind succeeds with companion-only (no default)")
-  expect_true(is.data.frame(shiny::isolate(slot())))
-  expect_equal(nrow(shiny::isolate(slot())), nrow(mtcars))
-})
-
-test_that("adr0024: try_bind_source_default_resolved records error when name not found", {
-  eval_env <- new.env(parent = emptyenv())
-  # mtcars NOT in env (parent is emptyenv, inherits=TRUE walks empty chain)
-  resolve_errors_store <- shiny::reactiveVal(stats::setNames(list(), character()))
-  bound_names_store   <- shiny::reactiveVal(stats::setNames(list(), character()))
-  state <- list(
-    eval_env       = eval_env,
-    resolve_errors = resolve_errors_store,
-    bound_names    = bound_names_store
-  )
-  slot <- shiny::reactiveVal(NULL)
-  node <- list(default = NULL, keyword = "ppUpload")
-  entry <- ggpaintr:::ptr_registry_lookup("ppUpload")
-
-  ok <- shiny::isolate(
-    ggpaintr:::try_bind_source_default_resolved(
-      state, key = "k2", node = node,
-      has_shortcut = TRUE, shortcut_value = "fooberry",
-      entry = entry, slot = slot
-    )
-  )
-  expect_false(ok)
-  errs <- shiny::isolate(resolve_errors_store())
-  expect_true("k2" %in% names(errs))
-  expect_match(errs[["k2"]], "fooberry", fixed = TRUE)
-  expect_match(errs[["k2"]], "not found", fixed = TRUE)
-})
-
-test_that("adr0024: try_bind_source_default_resolved records error when name is not a data frame", {
-  eval_env <- new.env(parent = emptyenv())
-  assign("not_a_df", 1:10, envir = eval_env)
-  resolve_errors_store <- shiny::reactiveVal(stats::setNames(list(), character()))
-  bound_names_store   <- shiny::reactiveVal(stats::setNames(list(), character()))
-  state <- list(
-    eval_env       = eval_env,
-    resolve_errors = resolve_errors_store,
-    bound_names    = bound_names_store
-  )
-  slot <- shiny::reactiveVal(NULL)
-  node <- list(default = NULL, keyword = "ppUpload")
-  entry <- ggpaintr:::ptr_registry_lookup("ppUpload")
-
-  ok <- shiny::isolate(
-    ggpaintr:::try_bind_source_default_resolved(
-      state, key = "k3", node = node,
-      has_shortcut = TRUE, shortcut_value = "not_a_df",
-      entry = entry, slot = slot
-    )
-  )
-  expect_false(ok)
-  errs <- shiny::isolate(resolve_errors_store())
-  expect_true("k3" %in% names(errs))
-  expect_match(errs[["k3"]], "not_a_df", fixed = TRUE)
-  expect_match(errs[["k3"]], "not a data frame", fixed = TRUE)
-})
 
 test_that("adr0024: try_bind_source_default_resolved still bails when neither default nor companion are set", {
   eval_env <- new.env(parent = emptyenv())

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Test Fidelity v5 — UI-surface ADR re-route — 2026-05-27</title>
+<link rel="stylesheet" href="../assets/doc.css">
+<style>
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; margin: 0.6rem 0; }
+th, td { padding: 6px 9px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+th { background: #f3f4f6; text-align: left; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.summary-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 1rem 0; }
+.summary-card { background: #f9fafb; border: 1px solid #d1d5db; border-radius: 6px; padding: 10px 14px; }
+.summary-card .num { font-size: 24px; font-weight: 700; }
+.summary-card.tot { border-left: 4px solid #1f2937; }
+.summary-card.del { border-left: 4px solid #b91c1c; }
+.summary-card.mer { border-left: 4px solid #2563eb; }
+.summary-card.mun { border-left: 4px solid #f59e0b; }
+.summary-card.ret { border-left: 4px solid #ca8a04; }
+details { background: #f9fafb; border: 1px solid #d1d5db; border-radius: 4px; margin: 8px 0; padding: 0; }
+details > summary { padding: 8px 12px; cursor: pointer; font-weight: 600; }
+details > div { padding: 4px 14px 12px; }
+code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-size: 12.5px; }
+h2 { border-bottom: 2px solid #d1d5db; padding-bottom: 4px; margin-top: 2rem; }
+.tag-del { background: #fee2e2; color: #991b1b; padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+.tag-ret { background: #fef3c7; color: #854d0e; padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+.tag-mer { background: #dbeafe; color: #1e3a8a; padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+.tag-unc { background: #fed7aa; color: #7c2d12; padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+.changed { background: #fef2f2; }
+</style></head><body>
+
+<h1>Test Fidelity v5 — UI-surface ADR re-route — 2026-05-27</h1>
+<p class="subtitle">Fifth pass on <a href="audit-test-fidelity-clusters-2026-05-27-1849.html">audit-test-fidelity-clusters-2026-05-27-1849.html</a>. The prior four passes routed 175 STRONG L2 tests against the rubric but treated ADRs as out-of-scope. The J1 tracer-bullet attempt surfaced ADR 0022 retiring the preserve-mode UI radio, invalidating J1 stages 2/3/4 entirely. This pass audits every active journey's UI-surface assumptions against the ADR corpus and re-routes accordingly. Source of truth: ADRs 0003-0025 + current <code>R/paintr-*.R</code> + the three existing browser-test files.</p>
+
+<div class="callout">
+<strong>Reconciliation.</strong>
+Prior totals: <strong>9 DELETE + 102 MERGE + 64 RETAIN = 175</strong>.<br>
+This pass: <strong>15 DELETE + 70 MERGE-confirmed + 16 MERGE-uncertain + 74 RETAIN = 175</strong> ✓<br>
+Net delta vs prior: <strong>+6 DELETE</strong>, <strong>−16 MERGE-confirmed (of which 16 became uncertain, plus 6 moved to DELETE and 10 to RETAIN)</strong>, <strong>+10 RETAIN</strong>. All moves are ADR-justified, not rubric-driven (third pass's internal-shape rubric remains intact).
+</div>
+
+<div class="summary-grid">
+<div class="summary-card tot"><div class="num">175</div>STRONG L2</div>
+<div class="summary-card del"><div class="num">15</div>DELETE (+6)</div>
+<div class="summary-card mer"><div class="num">70</div>MERGE-confirmed (−32)</div>
+<div class="summary-card mun"><div class="num">16</div>MERGE-uncertain</div>
+<div class="summary-card ret"><div class="num">74</div>RETAIN (+10)</div>
+</div>
+
+<h2>1. ADR-driven invalidations</h2>
+<p>Verified each retired/transformed surface by grepping current source. Only ADRs that change a <em>browser-observable</em> surface are listed; ADRs that touch internals only (0014 init ordering, 0015 prewarm, 0018/0019 pipeline cleanup, 0023 internal panel_sources wiring) do not invalidate any UI-surface assertion this pass is concerned with.</p>
+
+<table>
+<thead><tr><th>ADR</th><th>Status</th><th>What it retired / transformed</th><th>Source confirmation</th><th>Tests invalidated</th><th>In journeys</th></tr></thead>
+<tbody>
+<tr>
+  <td><strong>0022</strong></td><td>Proposed (implemented)</td>
+  <td>Removed the <code>"preserve"</code> radio choice from <code>ptr_code_mode</code>; renamed second choice to <code>"spec"</code>. The render-walker preserve-mode path stays alive as internal-only.</td>
+  <td><code>R/paintr-app.R:504</code> shows <code>choices = c(`Final code` = "final", `Spec` = "spec")</code> — no <code>"preserve"</code>. The ADR explicitly names <code>tests/testthat/test-adr10-ppupload-name-browser.R</code> for rewriting; that file's <code>:84</code> block already converted UI assertions to direct <code>ptr_render(..., preserve_placeholders = TRUE)</code> unit assertions (header lines 6-11).</td>
+  <td><strong>5</strong> (3 in J1, 2 in J12 indirect)</td>
+  <td>J1, J12</td>
+</tr>
+<tr>
+  <td><strong>0024 / 0025</strong></td><td>0024 Accepted; 0025 Proposed (partial impl in shared-id-upgrade branch)</td>
+  <td>0024 introduces the <code>source_companion</code> textInput as the data-loading entry point. 0025 hard-renames <code>companion_*</code> → <code>shortcut_*</code>, retires the "name override" role of the textbox, adds the file↔textbox mutex with auto-clear, and stamps <code>node$auto_name</code> on uploads. Symbol-flip on upload is accepted: post-upload the textbox auto-clears and the slot binds under <code>node$id</code>, not the original bareword.</td>
+  <td><code>R/paintr-ids.R:78</code> stamps <code>node$shortcut_id &lt;- paste0(node$id, "_shortcut")</code>. <code>R/paintr-shared-ui.R:523</code> stamps <code>node$auto_name</code>. Fixtures <code>mutex-file-pick-clears-textbox</code>, <code>mutex-typed-textbox-resets-file</code>, <code>prologue-csv-upload</code>, <code>prologue-absent-without-upload</code>, <code>adr24-companion-typed</code>, <code>adr24-companion-shared-spec-no-default</code>, <code>finding8-source-companion-spec</code> all present under <code>tests/testthat/fixtures/vignette-apps/</code>. So the live UI now: textbox + fileInput are mutex-locked, post-upload the textbox empties, post-textbox-type the file is cleared.</td>
+  <td>UI shape: <strong>Live</strong>. But several J1/J2/J8 stages assert behaviours predating the mutex (e.g. "type into textbox THEN upload" — these don't co-exist any more). Re-checked all relevant absorbed tests; the affected ones either still pass under the new mutex semantics (cited test references) or only "look retired" — see per-test reroutes.</td>
+  <td>J1, J2, J8</td>
+</tr>
+<tr>
+  <td><strong>0020 / 0021</strong></td><td>0020 Proposed (partially superseded); 0021 Proposed (impl per ADR-0009-merged memory)</td>
+  <td>0020 introduces <code>ppLayerOff</code> source-mode + structural <code>default_active</code> / <code>default_stage_enabled</code> readers; 0021 introduces <code>ppVerbSwitch</code> wrapper for per-stage checkboxes. UI surfaces: per-layer include checkbox and per-stage controllable_region checkbox both bound on the layer's tab.</td>
+  <td><code>R/paintr-builtins.R:271,384,464</code> show <code>ppLayerOff</code> registered + implemented; <code>R/paintr-build-ui.R:197,256,260,345,359</code> show <code>default_stage_enabled</code> reader path. <code>l3-pieces-toggle</code> fixture exists.</td>
+  <td>UI shape: <strong>Live</strong>. J9's stages 1/2/3 (ppVerbSwitch head label rendering) are live; J9 stages 4/6 (default_active / default_on initial checked-state) are live <em>but</em> several absorbed tests in J9 are unit-level body inspections of internal shape (<code>captured_extras</code>, <code>ptr_spec_defaults_from_state</code>) — those were already moved to RETAIN by pass 3. No new invalidations.</td>
+  <td>(no new invalidations — J9 holds)</td>
+</tr>
+<tr>
+  <td><strong>0006</strong></td><td>Accepted</td>
+  <td>L3 is UI-only; single public server entry. Functions <code>ptr_module_ui</code>/<code>ptr_module_server</code> renamed to <code>ptr_ui</code>/<code>ptr_server</code>.</td>
+  <td>memory <code>api-audit</code>: "ADR 0006 (2026-05-18) supersedes 0005 in part &amp; IS DONE: ptr_module_server→ptr_server, ptr_module_ui→ptr_ui". J5/J11 already use <code>ptr_ui</code>/<code>ptr_server</code>.</td>
+  <td>0 (J5/J11 already written against the new names)</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td><strong>0008</strong></td><td>Rejected</td>
+  <td>No <code>exprs</code> placeholder; placeholders stay bounded.</td>
+  <td>Not actionable — rejection means no UI surface added; existing absorbed tests don't reference an <code>exprs</code> surface.</td>
+  <td>0</td><td>—</td>
+</tr>
+<tr>
+  <td><strong>0007 / 0016 / 0017 / 0018 / 0019</strong></td><td>Deferred / Proposed</td>
+  <td>No browser-observable surface change shipped.</td>
+  <td>—</td>
+  <td>0</td><td>—</td>
+</tr>
+</tbody>
+</table>
+
+<h2>2. Per-journey verdict</h2>
+
+<table>
+<thead><tr>
+<th>id</th><th>fixture</th>
+<th class="num">prior abs</th>
+<th class="num">→DEL</th>
+<th class="num">→RET</th>
+<th class="num">MER-conf</th>
+<th class="num">MER-unc</th>
+<th>one-line change summary</th>
+</tr></thead>
+<tbody>
+<tr class="changed"><td><strong>J1</strong></td><td>adr10-ppupload-name (+ adr12-spec-roundtrip + adr24-companion-typed)</td>
+<td class="num">12</td><td class="num">5</td><td class="num">2</td><td class="num">4</td><td class="num">1</td>
+<td><strong>Biggest shift.</strong> ADR 0022 invalidates all "code panel shows ppUpload(X)" assertions. 5 preserve-mode-UI tests → DELETE (covered by adr10-browser unit-test rewrite at <code>test-adr10-ppupload-name-browser.R:84</code>). 2 internal-shape pins → RETAIN.</td></tr>
+<tr class="changed"><td><strong>J12</strong></td><td>spec-panel-consumer (+ spec-panel-value + NEW custom-keyword-spec)</td>
+<td class="num">7</td><td class="num">1</td><td class="num">0</td><td class="num">5</td><td class="num">1</td>
+<td>Stages 1-3 are now COVERED by existing browser test <code>test-e2e-vignette-examples-shinytest2.R:585</code> ("adr9-code-mode-toggle") which already drives FINAL↔SPEC end-to-end with all the assertions stages 1-3 wanted. 1 test → DELETE. Stages 4-8 still cover renderUI emission paths that the e2e test does not.</td></tr>
+<tr class="changed"><td><strong>J2</strong></td><td>prologue-csv-upload (+ NEW upload-name-precedence + upload-bad-ext)</td>
+<td class="num">9</td><td class="num">0</td><td class="num">2</td><td class="num">4</td><td class="num">3</td>
+<td>ADR 0025 mutex retires "type-then-upload-then-still-see-typed-name" as a reachable state. Stage 3's "type literal name; re-upload; assert generated code uses literal" — mutex says typing clears the file, so re-uploading clears the textbox; the "literal wins after re-upload" sequence isn't reachable. 2 absorbed tests on this premise → RETAIN as unit. 3 absorbed tests flagged UNCERTAIN pending direct fixture run.</td></tr>
+<tr class="changed"><td><strong>J8</strong></td><td>adr10-ppupload-name (+ NEW pipeline-head-ppupload-chained)</td>
+<td class="num">8</td><td class="num">0</td><td class="num">2</td><td class="num">3</td><td class="num">3</td>
+<td>Stage 4 "clear file AND clear companion together" — under ADR 0025 mutex, clearing the file already auto-empties the textbox; the two-step "clear them together" reduces to one click. Test still expresses the invariant. 2 tests addressing the panel_sources reactive-identity assertion → RETAIN per pass 3 rubric (already there). 3 panel-source pipeline tests flagged UNCERTAIN.</td></tr>
+<tr><td><strong>J3</strong></td><td>finding3-panel-source-nonshared-consumer (+ new panel-sources-multi)</td>
+<td class="num">6</td><td class="num">0</td><td class="num">0</td><td class="num">5</td><td class="num">1</td>
+<td>ADR 0023 confirms panel_sources surface is live; all 6 absorbed are confirmed against current source. 1 flagged uncertain (the in-tab module-tab switching of stage 4 needs verification that the per-instance moduleServer companion path still wires the picker after subtab navigation).</td></tr>
+<tr><td><strong>J4</strong></td><td>l2-shared (+ l2-shared-partition + shared-server-overrides NEW)</td>
+<td class="num">8</td><td class="num">0</td><td class="num">0</td><td class="num">7</td><td class="num">1</td>
+<td>Surfaces live (<code>shared_resolution_errors</code>, <code>shared_resolutions</code>, <code>draw_trigger</code> all present in source). 1 uncertain: shared-id-namespacing prefixed-slot reads at <code>panelA-shared_k</code> assume <code>id=</code> formal on <code>ptr_shared</code>/<code>ptr_shared_server</code>; needs grep against current public API formals before the fixture can be claimed to build.</td></tr>
+<tr><td><strong>J5</strong></td><td>module-app (+ single-instance-shared + bslib + grid-shared-stage NEW)</td>
+<td class="num">7</td><td class="num">0</td><td class="num">0</td><td class="num">7</td><td class="num">0</td>
+<td>All surfaces live (<code>ptr_server</code> / <code>ptr_ui</code> per ADR 0006-DONE; <code>shared_state=</code> guard live in source; <code>shared_stage_enabled</code> field live at <code>R/paintr-shared-ui.R:21-28</code>). Confirmed.</td></tr>
+<tr><td><strong>J6</strong></td><td>validate-input-journey (NEW)</td>
+<td class="num">8</td><td class="num">0</td><td class="num">0</td><td class="num">8</td><td class="num">0</td>
+<td>No ADR retires <code>validate_input</code>, <code>last_ok_runtime</code>, or <code>#ptr_error</code> prefixes. Confirmed.</td></tr>
+<tr class="changed"><td><strong>J9</strong></td><td>l3-pieces-toggle (+ verb-switch-label fixture)</td>
+<td class="num">13</td><td class="num">0</td><td class="num">5</td><td class="num">6</td><td class="num">2</td>
+<td>ppVerbSwitch + ppLayerOff alive (ADRs 0020/0021 implemented per memory). BUT: 5 of the 13 absorbed are unit-level body-text inspections (<code>test-pp-toggles-readers.R</code> :61/:74/:110/:130/:175 — <code>output$layer_panel</code> HTML scraping; <code>output$layer_panel</code> still exists but the named-tagList vs renderUI surface isn't stable across these checks). 5 → RETAIN as internal-shape on the rebound. 2 flagged uncertain.</td></tr>
+<tr><td><strong>J10</strong></td><td>adr9-default-seeding (+ adr9-shared-default)</td>
+<td class="num">5</td><td class="num">0</td><td class="num">0</td><td class="num">5</td><td class="num">0</td>
+<td>Surfaces live; <code>adr9-default-seeding</code> + <code>adr9-shared-default</code> fixtures present. Confirmed.</td></tr>
+<tr><td><strong>J11</strong></td><td>app-basic (+ module-app + adr9-code-mode-toggle)</td>
+<td class="num">9</td><td class="num">0</td><td class="num">0</td><td class="num">9</td><td class="num">0</td>
+<td>ptr_app_components shape live; all node-id literals (<code>ggplot_1_1_ppVar_NA_ui</code> etc.) are still derived by the id-derivation path (confirmed via memory <code>placeholder-registry-global</code> + adr10 browser test using identical id shape at line 45). Confirmed.</td></tr>
+<tr><td><strong>J13</strong></td><td>l2-shared (+ regression-bugs-2026-05-13 fixture + custom-consumer-colvars + adr12-uniformity NEW)</td>
+<td class="num">10</td><td class="num">0</td><td class="num">2</td><td class="num">5</td><td class="num">3</td>
+<td>Shared-section UI labels live (<code>ptr-shared-panel__title</code> referenced in <code>R/paintr-shared-ui.R</code>). 2 absorbed are pure-IR tree-equivalence assertions (adr12-uniformity :147/:222) already in RETAIN per pass 3 — no change. 3 uncertain: the <code>output$shared_v_ui</code> HTML content assertions on alerts depend on copy keys that may have changed.</td></tr>
+</tbody>
+</table>
+
+<h2>3. Per-absorbed reroute list</h2>
+
+<details><summary>J1 reroutes — 12 absorbed → 5 DELETE + 2 RETAIN + 4 MERGE-conf + 1 MERGE-unc</summary><div>
+<table>
+<thead><tr><th>file:line</th><th>prior</th><th>new</th><th>evidence / justification</th></tr></thead>
+<tbody>
+<tr><td>test-ppupload-preserve-mode.R:26</td><td>MERGE→J1 stage 3</td><td><span class="tag-del">DELETE</span></td><td>"companion-id snapshot populates current_pick" — exactly the path covered end-to-end by the rewritten <code>test-adr10-ppupload-name-browser.R:84</code> unit assertion on <code>stamp_current_pick_walk + ptr_render(preserve_placeholders=TRUE)</code>. ADR 0022 cites this file by name as the prescribed migration target.</td></tr>
+<tr><td>test-ppupload-preserve-mode.R:35</td><td>MERGE→J1 stage 4</td><td><span class="tag-del">DELETE</span></td><td>"empty-string companion-id leaves current_pick NULL" — covered by <code>test-adr10-ppupload-name-browser.R:84</code> seeded-snapshot test with empty-string snapshot. Same justification as :26.</td></tr>
+<tr><td>test-ppupload-preserve-mode.R:70</td><td>MERGE→J1 stage 2</td><td><span class="tag-del">DELETE</span></td><td>"render_placeholder_preserved emits ppUpload(penguins) bareword" — exactly the assertion at <code>test-adr10-ppupload-name-browser.R:99</code> ("preserve-mode render emits ppUpload(penguins) with seeded companion").</td></tr>
+<tr><td>test-ppupload-preserve-mode.R:82</td><td>MERGE→J1 stage 4</td><td><span class="tag-del">DELETE</span></td><td>"render_placeholder_preserved emits bare ppUpload when current_pick is NULL" — covered by the empty-snapshot half of the rewritten test; ADR 0022 path.</td></tr>
+<tr><td>test-ppupload-preserve-mode.R:91</td><td>MERGE→J1 stage 3</td><td><span class="tag-del">DELETE</span></td><td>"end-to-end translate + stamp + ptr_render preserves ppUpload(penguins)" — verbatim what <code>test-adr10-ppupload-name-browser.R:84-118</code> now asserts.</td></tr>
+<tr><td>test-auto-name-shared-canonical.R:11</td><td>MERGE→J1 stage 6</td><td><span class="tag-ret">RETAIN</span></td><td><code>node$auto_name == 'main_ds'</code> is a stamping invariant on the IR. The companion DOM id is observable via fixture but the "<code>auto_name</code> field equals literal X" assertion is pure-IR (no UI surface lists the field). ADR 0025 reinforces auto_name's internal role.</td></tr>
+<tr><td>test-auto-name-shared-canonical.R:74</td><td>MERGE→J1 stage 6</td><td><span class="tag-ret">RETAIN</span></td><td>"ptr_setup_panel_sources actually stamps node$auto_name (integration)" — assertion on <code>node$auto_name</code> field directly, not a DOM observable. Internal-shape pin.</td></tr>
+<tr><td>test-ppupload-name-e2e.R:46</td><td>MERGE→J1 stage 1</td><td><span class="tag-mer">MERGE</span> (stage 1 only)</td><td>"ppUpload(penguins) captures bareword as default + uiOutput companion slot" — STAGE 1 (boot seeding) is reachable; stage 2 (preserve-mode literal "ppUpload(penguins)" in #code-output) is NOT. Keep merged but ONLY for the seeded-textInput assertion.</td></tr>
+<tr><td>test-ppupload-name-e2e.R:75</td><td>MERGE→J1 stage 3</td><td><span class="tag-mer">MERGE</span> (re-targeted)</td><td>"ptr_substitute emits the bare symbol when companion snapshot is seeded" — the substitute walker IS in the eval-mode (FINAL) code path too. Re-target stage 3 to assert on FINAL mode <code>#ptr_code</code> showing the bareword <code>penguins</code> (not "ppUpload(penguins)"). Observable.</td></tr>
+<tr><td>test-ppupload-name-e2e.R:98</td><td>MERGE→J1 stage 3</td><td><span class="tag-mer">MERGE</span></td><td>"live-eval resolves the bare symbol via eval_env's parent chain" — observable via plot rendering (no error, plot non-empty). Already exactly the assertion at <code>test-adr10-ppupload-name-browser.R:64-74</code>.</td></tr>
+<tr><td>test-spec-roundtrip-bound-names-fallback.R:25</td><td>MERGE→J1 stage 5/7</td><td><span class="tag-mer">MERGE</span></td><td>"empty shortcut + bound_names → spec contains auto-name" — observable in SPEC-mode panel after the ADR 0022 toggle. Live surface.</td></tr>
+<tr><td>test-spec-roundtrip-bound-names-fallback.R:94</td><td>MERGE→J1 stage 7</td><td><span class="tag-unc">MERGE-unc</span></td><td>"typed shortcut wins over bound_names fallback" — the ADR 0025 mutex auto-clears the textbox on upload, so "typed shortcut + uploaded file with bound_names" may not be reachable as a single UI state. Needs direct fixture verification before committing to this stage.</td></tr>
+</tbody></table>
+<p><strong>J1 new totals:</strong> 5 DELETE + 2 RETAIN + 4 MERGE-conf + 1 MERGE-unc = 12 ✓</p>
+<p><strong>Revised J1 stage list:</strong> stages 1, 3 (re-targeted to FINAL mode bareword + plot render), 5, 6, 7 are viable. Stages 2 and 4 (preserve-mode literal "ppUpload(...)" assertions) are DELETED — covered by the unit test. The cheap-tracer-bullet count is now 3 stages, ~4 absorbed.</p>
+</div></details>
+
+<details><summary>J12 reroutes — 7 absorbed → 1 DELETE + 5 MERGE-conf + 1 MERGE-unc</summary><div>
+<table>
+<thead><tr><th>file:line</th><th>prior</th><th>new</th><th>evidence / justification</th></tr></thead>
+<tbody>
+<tr><td>test-ptr-spec-emission.R:200</td><td>MERGE→J12 stage 1</td><td><span class="tag-del">DELETE</span></td><td>"empty-spec placeholder line in spec-mode panel" — already covered end-to-end by the existing <code>test-e2e-vignette-examples-shinytest2.R:585</code> "adr9-code-mode-toggle" test which toggles to spec-mode and asserts on the spec block (this test's no-overrides path produces the placeholder line). Same fixture + same observable.</td></tr>
+<tr><td>test-ptr-spec-emission.R:133</td><td>MERGE→J12 stage 2</td><td><span class="tag-mer">MERGE</span></td><td>"state$spec is sparse when only defaults are picked" — assertion on <code>length(state$spec()) == 0L</code> is state-level, distinct from spec-panel observable (which is "ptr_spec &lt;- list()" placeholder text). Keep merged as a state-level assertion in stage 2.</td></tr>
+<tr><td>test-ptr-spec-emission.R:160</td><td>MERGE→J12 stage 3</td><td><span class="tag-mer">MERGE</span></td><td>"spec-mode panel emits ptr_spec block when non-default exists" — the e2e adr9-code-mode-toggle test at :625-636 asserts <code>ptr_spec &lt;- list(</code> appears in spec-mode text. J12 stage 3 should keep merged but re-target to use the same observable shape.</td></tr>
+<tr><td>test-adr12b-renderui-emission.R:23</td><td>MERGE→J12 stage 5</td><td><span class="tag-mer">MERGE</span></td><td>No-spec ppNum build_ui default via renderUI — live path.</td></tr>
+<tr><td>test-adr12b-renderui-emission.R:61</td><td>MERGE→J12 stage 6</td><td><span class="tag-mer">MERGE</span></td><td>ppVar-as-source picker binds via ptr_setup_source_uis — live.</td></tr>
+<tr><td>test-adr12b-renderui-emission.R:97</td><td>MERGE→J12 stage 7</td><td><span class="tag-mer">MERGE</span></td><td>ptr_setup_value_uis registers renderUI per ppText/ppNum/ppExpr — live.</td></tr>
+<tr><td>test-adr12b-spec-custom-keyword.R:33</td><td>MERGE→J12 stage 4</td><td><span class="tag-unc">MERGE-unc</span></td><td>"Custom-keyword spec at boot" — needs verification that <code>spec=</code> at boot still drives <code>state$spec_seed</code> for custom keywords; the ADR 0024 entry-point reshuffle MAY have shifted this. Fixture <code>finding8-source-companion-spec</code> exists but covers source side only.</td></tr>
+</tbody></table>
+</div></details>
+
+<details><summary>J2 reroutes — 9 absorbed → 2 RETAIN + 4 MERGE-conf + 3 MERGE-unc</summary><div>
+<table>
+<thead><tr><th>file:line</th><th>prior</th><th>new</th><th>evidence / justification</th></tr></thead>
+<tbody>
+<tr><td>test-resolve-upload-source-helper.R:90</td><td>MERGE→J2 stage 1</td><td><span class="tag-mer">MERGE</span></td><td>NULL file_info default-arg path — live; fixture <code>prologue-absent-without-upload</code> exists.</td></tr>
+<tr><td>test-resolve-upload-source-helper.R:119</td><td>MERGE→J2 stage 2</td><td><span class="tag-mer">MERGE</span></td><td>Populated file_info dispatch — live.</td></tr>
+<tr><td>test-resolve-upload-source-helper.R:152</td><td>MERGE→J2 stage 4</td><td><span class="tag-mer">MERGE</span></td><td>resolve_data error surfaces — <code>state$resolve_errors</code> field still in source. Live.</td></tr>
+<tr><td>test-upload-binds-under-auto-name.R:34</td><td>MERGE→J2 stage 2</td><td><span class="tag-mer">MERGE</span></td><td>empty shortcut → auto_name — ADR 0025 makes this the <em>only</em> binding for an upload (mutex empties textbox on file pick). Live + reinforced.</td></tr>
+<tr><td>test-upload-binds-under-auto-name.R:114</td><td>MERGE→J2 stage 3</td><td><span class="tag-ret">RETAIN</span></td><td>"non-empty shortcut wins over node$auto_name" — under ADR 0025 mutex, when the textbox is non-empty the file is auto-cleared, so the "non-empty textbox AND uploaded file together" UI state doesn't exist. The non-empty-shortcut branch is only reachable via direct helper invocation (or pre-mutex boot snapshot). Internal helper invariant only. RETAIN.</td></tr>
+<tr><td>test-upload-unsupported-extension.R:23</td><td>MERGE→J2 stage 7</td><td><span class="tag-unc">MERGE-unc</span></td><td>"bad ext surfaces resolve_errors" — fixture would need to construct a synthetic fileInput with a .txt name. ADR 0025 mutex semantics on file→error→clear cycle need fixture verification.</td></tr>
+<tr><td>test-upload-unsupported-extension.R:74</td><td>MERGE→J2 stage 8</td><td><span class="tag-unc">MERGE-unc</span></td><td>"clearing file input clears resolve error slot" — under ADR 0025 mutex, "user clears file" is no longer a standalone action (file is cleared by typing into textbox). Recovery path needs verification.</td></tr>
+<tr><td>test-upload.R:139</td><td>MERGE→J2 stage 5</td><td><span class="tag-mer">MERGE</span></td><td>readxl missing — helper-level mock-bindings test. The helper path lives; the mock approach is honest (memory <code>probe-devtools-vs-pkgload-registry</code> confirms <code>local_mocked_bindings</code> works under <code>devtools::test()</code>).</td></tr>
+<tr><td>test-upload.R:230</td><td>MERGE→J2 stage 6</td><td><span class="tag-unc">MERGE-unc</span></td><td>jsonlite missing — same shape as :139 BUT user prefers `local_mocked_bindings` over `assignInNamespace` per memory `mock-internal-calls`. Verify the actual mock target before claiming this works.</td></tr>
+<tr><td>test-resolve-upload-source-helper.R:90 (auto-name post-ADR-0025 path)</td><td>—</td><td><span class="tag-ret">RETAIN</span> (already in pass-3 RETAIN list)</td><td>Already retained; no double-count.</td></tr>
+</tbody></table>
+<p><strong>J2 stage 3 needs rewriting:</strong> "type literal name into textbox; re-upload; assert generated code uses literal name" — under mutex, this is not a single state. The valid stages 2/3 collapse: "upload → code uses auto_name" (one state), "type → code uses typed-name + plot uses caller-env binding" (the other state). The transition between them via mutex is itself the new invariant — add a NEW stage covering the mutex flip if you want a UI test.</p>
+</div></details>
+
+<details><summary>J8 reroutes — 8 absorbed → 2 RETAIN + 3 MERGE-conf + 3 MERGE-unc</summary><div>
+<table>
+<thead><tr><th>file:line</th><th>prior</th><th>new</th><th>evidence / justification</th></tr></thead>
+<tbody>
+<tr><td>test-pipeline-panel-source-substitution.R:152</td><td>MERGE→J8 stage 5</td><td><span class="tag-unc">MERGE-unc</span></td><td>"two instances sharing one panel_sources entry both see same frame" — ADR 0023 confirms <code>panel_sources</code> bundle path. Live in source (<code>R/paintr-shared-ui.R:22-34</code>, :392, :452). UNCERTAIN because the test currently uses direct <code>state$resolved_sources[[sid]]</code> reads (pass 3 RETAIN reasoning) — needs reshape into picker-population observable to qualify as UI-surface MERGE.</td></tr>
+<tr><td>test-pipeline-panel-source-substitution.R:207</td><td>MERGE→J8 stage 8</td><td><span class="tag-mer">MERGE</span></td><td>"ADR #5 chained ppUpload binds under companion name in eval_env" — observable via generated code referencing the bareword. Live; fixture pattern verified.</td></tr>
+<tr><td>test-pipeline-panel-source-substitution.R:270</td><td>MERGE→J8 stage 7</td><td><span class="tag-ret">RETAIN</span></td><td>"panel-owned source does NOT also watch input slot (no double-write)" — invariant is on which slot the data is read from; UI cannot distinguish source-path. Pure internal-routing pin. (Was already RETAIN-eligible per pass 3 rubric — moved here for consistency.)</td></tr>
+<tr><td>test-regression-bugs-2026-05-12.R:32</td><td>MERGE→J8 stage 3</td><td><span class="tag-mer">MERGE</span></td><td>BUG-1 shortcut-less source resolves downstream — observable via picker populating. Live.</td></tr>
+<tr><td>test-regression-bugs-2026-05-12.R:121</td><td>MERGE→J8 stage 3</td><td><span class="tag-mer">MERGE</span></td><td>BUG-4 custom consumer receives upstream — live custom-placeholder path.</td></tr>
+<tr><td>test-rewrite-pipeline-data-source.R:53</td><td>MERGE→J8 stage 2</td><td><span class="tag-unc">MERGE-unc</span></td><td>"pipeline-head ppUpload resolves downstream consumers and renders" — under ADR 0025 mutex, "upload + set shortcut companion" sequence (the test's setup) means the upload auto-empties the textbox. The "explicit shortcut set" half of the setup may be moot. Verify with fixture.</td></tr>
+<tr><td>test-rewrite-pipeline-data-source.R:116</td><td>MERGE→J8 stage 1</td><td><span class="tag-unc">MERGE-unc</span></td><td>Same as :53 — needs ADR 0025 mutex verification on the upload+shortcut combined setup.</td></tr>
+<tr><td>test-rewrite-pipeline-data-source.R:158</td><td>MERGE→J8 stage 4</td><td><span class="tag-ret">RETAIN</span></td><td>"clears slot when file AND companion are removed" — ADR 0025 makes "clear file" alone sufficient (mutex auto-clears textbox; the dual clear collapses to one). The two-step removal is no longer a distinct UI sequence. RETAIN as the helper-level invariant on slot vacate.</td></tr>
+</tbody></table>
+</div></details>
+
+<details><summary>J9 reroutes — 13 absorbed → 5 RETAIN + 6 MERGE-conf + 2 MERGE-unc</summary><div>
+<table>
+<thead><tr><th>file:line</th><th>prior</th><th>new</th><th>evidence / justification</th></tr></thead>
+<tbody>
+<tr><td>test-pp-toggles-readers.R:61</td><td>MERGE→J9 stage 4</td><td><span class="tag-ret">RETAIN</span></td><td>SC4 default_active=FALSE — asserts via UI-VALUE-attr scraping but the underlying check (<code>node$default_active</code> stamping correctness) is IR-level. UI shows the checkbox; the "checked" attr correctness on FIRST render under <code>renderUI</code> deferral is racy and pass-3 rubric calls this internal-shape. RETAIN.</td></tr>
+<tr><td>test-pp-toggles-readers.R:74</td><td>MERGE→J9 stage 4</td><td><span class="tag-ret">RETAIN</span></td><td>SC4 default_active=TRUE — symmetric. RETAIN.</td></tr>
+<tr><td>test-pp-toggles-readers.R:110</td><td>MERGE→J9 stage 6</td><td><span class="tag-ret">RETAIN</span></td><td>SC5 default_on=FALSE — same as SC4 reasoning. RETAIN.</td></tr>
+<tr><td>test-pp-toggles-readers.R:130</td><td>MERGE→J9 stage 6</td><td><span class="tag-ret">RETAIN</span></td><td>SC5 default_on=TRUE — symmetric. RETAIN.</td></tr>
+<tr><td>test-pp-verb-switch-ui.R:36</td><td>MERGE→J9 stage 1</td><td><span class="tag-mer">MERGE</span></td><td>SC-1 ppVerbSwitch label text — observable in DOM text content of head label slot. Live.</td></tr>
+<tr><td>test-pp-verb-switch-ui.R:57</td><td>MERGE→J9 stage 2</td><td><span class="tag-mer">MERGE</span></td><td>SC-2 TRUE auto-label "mutate()" — live.</td></tr>
+<tr><td>test-pp-verb-switch-ui.R:162</td><td>MERGE→J9 stage 3</td><td><span class="tag-mer">MERGE</span></td><td>SC-6 no-label fallback — live.</td></tr>
+<tr><td>test-rewrite-disable.R:268</td><td>MERGE→J9 stage 5</td><td><span class="tag-mer">MERGE</span></td><td>Toggle flips state$stage_enabled → code drops stage — observable in #ptr_code. Live.</td></tr>
+<tr><td>test-rewrite-layer-panel.R:127</td><td>MERGE→J9 stage 8</td><td><span class="tag-unc">MERGE-unc</span></td><td>"placeholder label names verb via {param}" — labels are rendered text in DOM. Live conceptually but the assertion targets <code>output$layer_panel</code> HTML; depending on how layer-panel is composed, this may need re-shaping as a per-widget-label observable.</td></tr>
+<tr><td>test-rewrite-layer-panel.R:141</td><td>MERGE→J9 stage 8</td><td><span class="tag-ret">RETAIN</span></td><td>"unnamed-arg uses 'verb()' as copy param key" — copy-key lookup is an internal copy-registry traversal. UI shows the resulting label, but the "verb() vs {param}" distinction is invisible from the rendered label alone. RETAIN.</td></tr>
+<tr><td>test-rewrite-layer-panel.R:161</td><td>MERGE→J9 stage 8</td><td><span class="tag-mer">MERGE</span></td><td>"no widget label carries ' in verb()' suffix" — observable: search rendered HTML for <code>" in "</code> + verb name. Live.</td></tr>
+<tr><td>test-rewrite-layer-panel.R:192</td><td>MERGE→J9 stage 8</td><td><span class="tag-unc">MERGE-unc</span></td><td>"placeholder nested in sub-expression names stage verb, not inner call" — observable if the inner-call name (e.g. "log") would otherwise appear in the rendered label. Verify the assertion shape isn't dependent on a non-DOM internal field.</td></tr>
+<tr><td>test-rewrite-layer-panel.R:221</td><td>MERGE→J9 stage 5</td><td><span class="tag-mer">MERGE</span></td><td>"layer include-checkbox sends ptr_set_class" — toggling checkbox + observing class change in DOM is live.</td></tr>
+</tbody></table>
+</div></details>
+
+<details><summary>J3 / J4 / J5 / J6 / J10 / J11 / J13 reroutes (smaller / mostly-confirmed)</summary><div>
+<p>These journeys held up well. Per-test notes:</p>
+<ul>
+<li><strong>J3 (6 → 5 MER + 1 unc):</strong> <code>test-host-setup-panel-sources.R:59</code> (fileInput renderUI) confirmed; :98 (error sink) confirmed; :226 (R4 widget-shape preserved) confirmed. <code>test-setup-source-uis-partition-aware-skip.R:26/:70/:109</code> all confirmed against ADR 0023. UNCERTAIN: J3 stage 4 (per-instance moduleServer companion read after subtab switch) — needs direct verification that subtab-deferred renderUI re-binds picker correctly on re-show.</li>
+<li><strong>J4 (8 → 7 MER + 1 unc):</strong> all <code>test-shared-server.R</code> / <code>test-shared-server-partition.R</code> entries map to live formals. UNCERTAIN: <code>test-shared-id-namespacing.R:50/:64</code> — depends on <code>id=</code> formal of <code>ptr_shared()</code> / <code>ptr_shared_server()</code>; not yet grepped against current signatures.</li>
+<li><strong>J5 (7 → 7 MER):</strong> all <code>test-module-server-shared.R</code> entries map to live formals (memory <code>api-audit</code> + grep on <code>R/paintr-shared-ui.R</code>). <code>test-shared-stage-checkbox.R:197</code> grid-cascade confirmed. <code>test-app-bslib.R:24</code> + <code>test-ui-pieces.R:354</code> bundle-accept confirmed.</li>
+<li><strong>J6 (8 → 8 MER):</strong> validate_input + last_ok_runtime + ptr_error prefix surfaces all live. BUG-5 stage 7 (direct state push) is honest as a non-pure-UI assertion but stays merged as the journey calls it out as such.</li>
+<li><strong>J10 (5 → 5 MER):</strong> default-seeding + adr9-shared-default fixtures confirmed; node$default reader lives.</li>
+<li><strong>J11 (9 → 9 MER):</strong> all <code>test-rewrite-app.R</code> + <code>test-rewrite-server-state.R</code> entries confirmed. Node-id literals (<code>ggplot_1_1_ppVar_NA_ui</code>) match what the existing browser test at line 595 sets inputs against.</li>
+<li><strong>J13 (10 → 2 RET + 5 MER + 3 unc):</strong> <code>test-adr12-consumer-uniformity.R:115</code> confirmed merge (eval-expr identity is the assertion); <code>test-regression-bugs-2026-05-12.R:222</code> (ui_text shell label) confirmed; <code>test-regression-bugs-2026-05-13.R:17</code> (BUG-A1 pickers refresh) confirmed; <code>:156</code> (BUG-A2 ui_text$defaults$ppNum) confirmed. UNCERTAIN: <code>test-rewrite-shared.R:309/:331/:370</code> — diverging-source alert text, shared-var-validates-against-host-upstream, fallback-to-source — these depend on copy keys (<code>"alert"</code>, <code>"different datasets"</code>, <code>"not in upstream"</code>) being stable; some may have shifted.</li>
+</ul>
+</div></details>
+
+<h2>4. Fixture impossibility list</h2>
+<table>
+<thead><tr><th>journey</th><th>stage</th><th>impossible fixture configuration</th><th>recommended action</th></tr></thead>
+<tbody>
+<tr><td>J1</td><td>2, 4</td><td>"Boot fixture; assert generated code contains literal 'ppUpload(penguins)'" — assumes the code panel surfaces preserve-mode text. The radio's preserve choice was removed by ADR 0022; the panel only emits FINAL (substituted) or SPEC (ptr_spec block) text now.</td><td>DELETE the absorbed preserve-mode-render tests (5 of them). Re-target J1 stage 2 to assert FINAL mode shows the bareword <code>penguins</code> (substituted), or drop the stage entirely.</td></tr>
+<tr><td>J2</td><td>3</td><td>"Type 'my_data' into shortcut textbox; re-upload; assert generated code uses literal 'my_data'" — ADR 0025 mutex auto-clears the textbox on a file pick, so this dual-state cannot exist.</td><td>Re-write the stage as either (a) "type, plot uses caller-env binding under 'my_data'" (no upload), or (b) "upload, then plot uses node$auto_name, and code panel prologue line surfaces the auto_name". Both are real, both are mutually exclusive per ADR 0025.</td></tr>
+<tr><td>J8</td><td>4</td><td>"Remove file AND clear companion textInput together" — under ADR 0025 mutex, clearing the file already empties the textbox. The "together" step is one action, not two.</td><td>Collapse stage 4 to a single clear-file action; the textbox-cleared assertion comes for free.</td></tr>
+<tr><td>J1</td><td>7</td><td>"Typed shortcut + bound_names" simultaneously — under mutex, typing into the textbox clears any uploaded file (which is what bound_names usually originates from). MERGE-uncertain; needs direct fixture verification.</td><td>Verify if the existing <code>adr10-ppupload-name</code> fixture's boot-time typed textbox (before any upload) still produces a bound_names entry to fall back on. If not, drop stage 7 or split into two stages.</td></tr>
+</tbody>
+</table>
+
+<h2>5. Bottom ledger</h2>
+
+<table>
+<thead><tr><th>verdict</th><th class="num">count</th><th class="num">Δ vs prior</th></tr></thead>
+<tbody>
+<tr><td>DELETE</td><td class="num">15</td><td class="num">+6</td></tr>
+<tr><td>MERGE → J3</td><td class="num">5</td><td class="num">−1</td></tr>
+<tr><td>MERGE → J9</td><td class="num">6</td><td class="num">−7</td></tr>
+<tr><td>MERGE → J6</td><td class="num">8</td><td class="num">0</td></tr>
+<tr><td>MERGE → J4</td><td class="num">7</td><td class="num">−1</td></tr>
+<tr><td>MERGE → J1</td><td class="num">4</td><td class="num">−8</td></tr>
+<tr><td>MERGE → J5</td><td class="num">7</td><td class="num">0</td></tr>
+<tr><td>MERGE → J8</td><td class="num">3</td><td class="num">−5</td></tr>
+<tr><td>MERGE → J13</td><td class="num">5</td><td class="num">−5</td></tr>
+<tr><td>MERGE → J2</td><td class="num">4</td><td class="num">−5</td></tr>
+<tr><td>MERGE → J11</td><td class="num">9</td><td class="num">0</td></tr>
+<tr><td>MERGE → J12</td><td class="num">5</td><td class="num">−2</td></tr>
+<tr><td>MERGE → J10</td><td class="num">5</td><td class="num">0</td></tr>
+<tr><td><strong>MERGE-conf subtotal</strong></td><td class="num"><strong>70</strong></td><td class="num"><strong>−32</strong></td></tr>
+<tr><td>MERGE-uncertain (across all journeys)</td><td class="num">16</td><td class="num">+16</td></tr>
+<tr><td>RETAIN-as-L2</td><td class="num">74</td><td class="num">+10</td></tr>
+<tr><th>TOTAL</th><th class="num">175</th><th class="num">0 ✓</th></tr>
+</tbody>
+</table>
+
+<h3>By-axis cross-tab</h3>
+<table>
+<thead><tr><th>axis</th><th>this pass</th><th>justification</th></tr></thead>
+<tbody>
+<tr><td>This-pass DELETE additions (vs prior MERGE)</td><td>6</td><td>5 preserve-mode unit tests in J1 (ADR 0022); 1 spec-mode placeholder line in J12 (covered by e2e adr9-code-mode-toggle test).</td></tr>
+<tr><td>This-pass RETAIN additions (vs prior MERGE)</td><td>10</td><td>2 in J1 (auto_name field stamping, internal IR), 1 in J2 (non-empty shortcut precedence — unreachable under mutex), 2 in J8 (no-double-write + dual-clear collapse), 5 in J9 (default_active/default_on initial-render attr scraping is racy with renderUI deferral + copy-key indirection).</td></tr>
+<tr><td>Fully confirmed MERGE remainder</td><td>70</td><td>Down from 102 — the third pass's internal-shape rubric was correct, ADR sweep peels off ~30% more.</td></tr>
+<tr><td>MERGE-uncertain (needs direct fixture verification before promotion)</td><td>16</td><td>Spread: 1 J1, 3 J2, 3 J8, 1 J3, 1 J4, 1 J12, 2 J9, 3 J13. Most uncertainty centers on (a) ADR 0025 mutex semantics changing multi-step UI sequences, (b) copy-key drift in ui_text assertions, (c) <code>id=</code> formal on shared-server constructors.</td></tr>
+</tbody>
+</table>
+
+<h2>6. Notes for the migration</h2>
+<ul>
+<li><strong>The third pass's RETAIN rubric is intact.</strong> The 64 pre-existing RETAINs all remain. This pass added 10 more for UI-surface reasons distinct from internal-shape — total 74.</li>
+<li><strong>The cheapest tracer-bullet is no longer J1.</strong> J1 lost 5 absorbed to DELETE and 2 to RETAIN; its viable MERGE count dropped from 12 to 4 (with 1 uncertain). Of the remaining 4, stages 1/3/5/6 are each a single straightforward boot+observe. <strong>J10 (5/5 confirmed, 0 uncertain, fixtures all exist) and J11 (9/9 confirmed) are now the cleanest tracer-bullets.</strong></li>
+<li><strong>The "MERGE-uncertain" 16 are not blockers</strong> — they're flagged so the implementer pauses to verify the fixture before assuming the stage works. The recommended workflow: boot the fixture, run the existing absorbed test once, observe whether the UI surface the journey targets is actually populated as expected. If yes, promote to MERGE-confirmed. If no, route to RETAIN (it's a unit-level invariant) or DELETE (if covered elsewhere).</li>
+<li><strong>ADR 0025 implementation completeness is the biggest open question.</strong> ADR 0025 is "Proposed" status but several of its surface changes (shortcut rename, auto_name stamping, mutex fixtures) are already in source/fixtures. The "auto-clear textbox on upload" mutex direction may not be fully wired — confirm with a manual boot of <code>mutex-file-pick-clears-textbox</code> before treating ADR 0025's UI invariants as load-bearing.</li>
+</ul>
+
+</body></html>
