@@ -9,7 +9,7 @@
 
 <h1>ADR 0022 — Spec panel replaces preserve-mode formula view</h1>
 
-<p><strong>Status:</strong> <em>Proposed.</em> Drafted 2026-05-25.</p>
+<p><strong>Status:</strong> <em>Accepted.</em> Drafted 2026-05-25. <strong>Implemented</strong> (verified in source 2026-05-28: <code>code_mode_toggle()</code> emits <code>choices = c(`Final code` = "final", `Spec` = "spec")</code> in <code>R/paintr-app.R</code>; panel body uses <code>format_spec_for_panel(state$spec())</code> in <code>R/paintr-server.R</code>, preserve-mode emission trimmed).</p>
 
 <p><strong>Date:</strong> 2026-05-25</p>
 
