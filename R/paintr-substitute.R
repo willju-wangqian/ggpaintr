@@ -187,14 +187,29 @@ substitute_walk.ptr_ph_data_source <- function(node, ctx) {
     if (!has_name_value) {
       # ADR 0025 §5 / PLAN-02: empty shortcut snapshot falls through to
       # `node$auto_name` (the deterministic translate-/runtime-stamped
-      # binding name) when present. This is the same symbol the upload
-      # binder assigns into eval_env in `resolve_upload_source()`, so the
-      # substitute walk emits an expression that resolves at eval-time.
-      # When both the snapshot and `node$auto_name` are empty, retain
-      # pre-PLAN-02 behaviour (return `ptr_missing()`).
-      if (!is.null(node$auto_name) && is.character(node$auto_name) &&
-          length(node$auto_name) == 1L && nzchar(node$auto_name)) {
-        return(ptr_literal(as.name(node$auto_name)))
+      # binding name) -- but ONLY when an upload has actually bound a
+      # frame under that symbol in `eval_env`. The fallback's sole
+      # justification (ADR 0025 §5 / R/paintr-ids.R) is the post-upload,
+      # mutex-cleared state, in which `resolve_upload_source()` has
+      # `assign()`ed the frame under `node$auto_name`. When NOTHING is
+      # bound (no upload, empty textbox -- the boot state, and the state
+      # left by A1's vacate-on-empty), the binder deliberately does NOT
+      # bind, so emitting `as.name(auto_name)` here would inject a symbol
+      # that errors `object '<auto_name>' not found` at eval-time. We
+      # therefore gate on the binding actually existing -- `inherits =
+      # TRUE` so a shared source bound in the parent coordinator eval_env
+      # (ADR 0023) resolves too. `exists()` on `ctx$eval_env` mirrors
+      # exactly what eval will see, so the walk emits the symbol iff it
+      # will resolve, and otherwise returns `ptr_missing()` (the `data=`
+      # arg is pruned, so e.g. `geom_rug(data = ppUpload())` inherits the
+      # plot's data, which is the documented no-arg `ppUpload()` meaning).
+      auto <- node$auto_name
+      auto_bound <- !is.null(auto) && is.character(auto) &&
+        length(auto) == 1L && nzchar(auto) &&
+        is.environment(ctx$eval_env) &&
+        exists(auto, envir = ctx$eval_env, inherits = TRUE)
+      if (auto_bound) {
+        return(ptr_literal(as.name(auto)))
       }
       return(ptr_missing())
     }

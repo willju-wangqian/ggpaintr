@@ -110,7 +110,7 @@ ptr_app(
              color = ppFactor(Species, shared = "fac"))) +
     geom_point(size = ppNum(2)) +
     !!smooth_template +
-    geom_rug(data = ppUpload(df_rug),
+    geom_rug(data = ppUpload(),
              aes(x = ppVar(mpg), y = ppVar(wt)),
              # `inherit.aes = FALSE` so geom_rug's own aes is authoritative.
              # Without this, the root's `color = ppFactor(Species, ...)` leaks

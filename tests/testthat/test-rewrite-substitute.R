@@ -164,26 +164,42 @@ test_that("P8.16 upload aborts on injection attempt (invalid R name)", {
   )
 })
 
-test_that("P8.17 upload falls back to node$auto_name on empty shortcut snapshot (ADR 0025 §5)", {
-  # ADR 0025 §5 / PLAN-02 supersedes the pre-PLAN-02 ptr_missing contract:
-  # when the shortcut snapshot is NULL/empty AND node$auto_name is set
-  # (always TRUE for non-shared upload nodes, where ADR 0025 §3 derives
-  # auto_name = `df_<hash(node$id)>` — a system name, NOT node$default),
-  # the walker emits `as.name(node$auto_name)` so the rendered code panel
-  # and the eval symbol resolve against the eval_env binding the upload
-  # binder placed under that name. The ptr_missing contract is preserved
-  # only when both snapshot AND auto_name are empty.
+test_that("P8.17 upload falls back to node$auto_name on empty shortcut snapshot ONLY when bound (ADR 0025 §5 + ppUpload-bug fix)", {
+  # ADR 0025 §5 / PLAN-02: when the shortcut snapshot is NULL/empty AND
+  # node$auto_name is set (always TRUE for non-shared upload nodes, where
+  # ADR 0025 §3 derives auto_name = `df_<hash(node$id)>`), the walker emits
+  # `as.name(node$auto_name)` so the code panel + eval symbol resolve
+  # against the eval_env binding the upload binder placed under that name.
+  # ppUpload-bug fix (2026-05-29): that fallback fires ONLY when the symbol
+  # is actually bound in eval_env. With no upload bound, the binder vacated
+  # (or never bound), so emitting the symbol regressed to `object
+  # '<auto_name>' not found` at eval; the walker now returns ptr_missing()
+  # so the data source is unresolved (the no-arg `ppUpload()` meaning).
   r <- ptr_translate("ggplot(data = ppUpload)")
   src <- find_nodes(r, is_ptr_ph_data_source)[[1L]]
   expect_match(src$auto_name, "^df_[0-9a-f]{6}$")
   expect_identical(src$auto_name, paste0("df_", substr(rlang::hash(src$id), 1L, 6L)))
+
+  # BOUND arm: an upload bound a frame under auto_name -> symbol emitted.
   for (val in list("", NULL)) {
-    sub <- ptr_substitute(r, input_snapshot = setNames(list(val), src$shortcut_id))
-    # No ptr_missing — the auto_name fallback wins.
+    env <- new.env(parent = emptyenv())
+    assign(src$auto_name, data.frame(a = 1), envir = env)
+    sub <- ptr_substitute(r, input_snapshot = setNames(list(val), src$shortcut_id),
+                          eval_env = env)
     expect_equal(length(find_nodes(sub, is_ptr_missing)), 0L)
-    # The data source was substituted to as.name(auto_name).
     lits <- find_nodes(sub, is_ptr_literal)
     expect_true(any(vapply(lits, function(l) {
+      is.symbol(l$expr) && as.character(l$expr) == src$auto_name
+    }, logical(1L))))
+  }
+
+  # UNBOUND arm: nothing bound -> ptr_missing (no dangling symbol).
+  for (val in list("", NULL)) {
+    sub <- ptr_substitute(r, input_snapshot = setNames(list(val), src$shortcut_id),
+                          eval_env = new.env(parent = emptyenv()))
+    expect_equal(length(find_nodes(sub, is_ptr_missing)), 1L)
+    lits <- find_nodes(sub, is_ptr_literal)
+    expect_false(any(vapply(lits, function(l) {
       is.symbol(l$expr) && as.character(l$expr) == src$auto_name
     }, logical(1L))))
   }

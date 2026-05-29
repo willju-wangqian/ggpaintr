@@ -26,9 +26,9 @@
 
 # Translate → substitute (empty snapshot) → prune → render. The four-step
 # pipeline the BDD `When` clause specifies, condensed.
-render_pruned <- function(formula) {
+render_pruned <- function(formula, eval_env = NULL) {
   tree <- ptr_translate(formula, expr_check = FALSE)
-  ctx <- list(snapshot = list(), upstream_cols = list())
+  ctx <- list(snapshot = list(), upstream_cols = list(), eval_env = eval_env)
   sub <- ggpaintr:::substitute_walk(tree, ctx)
   pruned <- ggpaintr:::ptr_prune(sub)
   ggpaintr:::ptr_render(pruned)
@@ -92,24 +92,22 @@ test_that("PLAN-03 / bug-3b: all three surface forms produce identical pruned da
   expect_true(ggpaintr:::ptr_tree_structural_equal(d_magri, d_nested))
 })
 
-test_that("PLAN-03 / bug-3b: all three surface forms drop filter() and keep the source symbol (post-ADR-0025 §5)", {
-  # Pre-ADR-0025: the substitute walker emitted `ptr_missing()` for an
-  # empty-snapshot upload, so all three surface forms rendered to the
-  # data-less stub `ggplot() + geom_point()`. ADR 0025 §5 / PLAN-02
-  # replaces that stub with `as.name(node$auto_name)` (the deterministic
-  # binding symbol). Per ADR 0025 §3 that auto-name is the system
-  # `df_<hash(node$id)>` (empty textbox -> auto_name fallback), so the
-  # source position now renders explicitly, e.g. with `df_c21b33` =
-  # df_<hash("ggplot_1_ppUpload_NA")>:
-  #   - `|>` / nested: `ggplot(data = df_c21b33) + geom_point()`
-  #   - `%>%`: `df_c21b33 %>% ggplot() + geom_point()`
-  # The byte-identical-across-forms invariant no longer holds at the
-  # rendered-text layer because the `%>%` surface preserves the pipe
-  # call while `|>` desugars to nested. The PRUNE invariant (empty
-  # `filter()` is elided) survives intact across all three forms and is
-  # the load-bearing claim of this regression net.
+test_that("PLAN-03 / bug-3b: with no upload bound, all three forms drop filter() AND the unresolved source (data-less stub)", {
+  # Behaviour history of the source position on an empty snapshot:
+  #   - Pre-ADR-0025: substitute emitted `ptr_missing()` -> data-less stub.
+  #   - ADR 0025 §5 / PLAN-02: replaced the stub with `as.name(auto_name)`
+  #     unconditionally -- but that injected the system auto-name
+  #     `df_<hash(node$id)>` even when NOTHING was bound, so eval blew up
+  #     `object 'df_<hash>' not found` (ppUpload-bug, 2026-05-29). This
+  #     text-layer net never caught it because it only checked rendered
+  #     text, never eval.
+  #   - ppUpload-bug fix: the §5 fallback now fires only when the auto-name
+  #     is actually bound in eval_env. With no upload (the empty-snapshot
+  #     case here, no eval_env binding) the source is unresolved, so the
+  #     data position drops back to the data-less stub -- the documented
+  #     no-arg `ppUpload()` meaning. The PRUNE invariant (empty `filter()`
+  #     elided) is unchanged and remains the load-bearing claim.
   withr::local_package("dplyr")
-  # Computed in-test the same way paintr-ids.R::ptr_hash() does.
   src_auto <- paste0("df_", substr(rlang::hash("ggplot_1_ppUpload_NA"), 1L, 6L))
   t_native <- render_pruned(
     "ppUpload |> filter(ppVar > ppNum) |> ggplot(aes(ppVar, ppVar)) + geom_point()"
@@ -122,11 +120,36 @@ test_that("PLAN-03 / bug-3b: all three surface forms drop filter() and keep the 
   )
   for (t in list(t_native, t_magri, t_nested)) {
     expect_false(grepl("filter", t, fixed = TRUE))
+    # The dangling auto-name must NOT leak in when nothing is bound.
+    expect_false(grepl(src_auto, t, fixed = TRUE))
+  }
+  # With the source dropped, all three surface forms collapse to the same
+  # data-less stub (the byte-identical-across-forms invariant is restored).
+  expect_identical(t_native, t_magri)
+  expect_identical(t_magri, t_nested)
+})
+
+test_that("PLAN-03 / bug-3b: once an upload binds the auto-name, the source renders explicitly", {
+  # Discrimination arm: when a frame IS bound under the auto-name in
+  # eval_env (post-upload, mutex-cleared textbox -- ADR 0025 §3/§5), the
+  # §5 fallback emits the symbol so the source position renders. `|>` and
+  # nested desugar to the same nested-call shape; `%>%` preserves the pipe.
+  withr::local_package("dplyr")
+  src_auto <- paste0("df_", substr(rlang::hash("ggplot_1_ppUpload_NA"), 1L, 6L))
+  env <- new.env(parent = emptyenv())
+  assign(src_auto, data.frame(ppVar = 1:3), envir = env)
+  t_native <- render_pruned(
+    "ppUpload |> filter(ppVar > ppNum) |> ggplot(aes(ppVar, ppVar)) + geom_point()",
+    eval_env = env
+  )
+  t_nested <- render_pruned(
+    "ggplot(filter(ppUpload, ppVar > ppNum), aes(ppVar, ppVar)) + geom_point()",
+    eval_env = env
+  )
+  for (t in list(t_native, t_nested)) {
+    expect_false(grepl("filter", t, fixed = TRUE))
     expect_true(grepl(src_auto, t, fixed = TRUE))
   }
-  # `|>` and nested forms collapse to the same nested-call render shape;
-  # `%>%` preserves the surface pipe call (R semantics: magrittr is a
-  # real function call, native pipe is parser sugar).
   expect_identical(t_native, t_nested)
 })
 
