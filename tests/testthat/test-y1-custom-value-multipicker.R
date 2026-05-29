@@ -4,7 +4,8 @@
 # placeholders (ppText/ppNum) never surfaced the bug in practice
 # because their widgets emit "" / NA on clear (length 1, not the
 # length-0 / NULL the legacy clobber required). This test confirms the
-# value-path closure-flag at R/paintr-server.R:1475 covers a custom
+# value-path closure-flag (has_rendered + boot_seed_selected() in the
+# non-shared value loop of ptr_setup_value_uis()) covers a custom
 # placeholder that DOES emit NULL on clear.
 
 empty_picker <- function(v) {

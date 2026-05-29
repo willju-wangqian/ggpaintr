@@ -4,11 +4,12 @@
 # `spec = list(shared_<k> = ...)` entries that target a panel-shared
 # placeholder (key referenced in >=2 formulas → host-owned un-namespaced
 # input id) must drive the widget's boot value the same way they do for
-# per-instance ids. Currently both paths drop the spec value: the panel-
-# consumer falls back to shared_widget_default(), and the panel-value's
-# `output$shared_<k>_ui` is never even registered at host scope (the per-
-# instance shared-value loop registers under the namespaced id, which the
-# un-namespaced UI div cannot reach).
+# per-instance ids. Pre-fix, both paths dropped the spec value: the panel-
+# consumer fell back to shared_widget_default(), and the panel-value's
+# `output$shared_<k>_ui` was never even registered at host scope (the per-
+# instance shared-value loop registered under the namespaced id, which the
+# un-namespaced UI div could not reach). This is now fixed; the assertions
+# below lock the post-fix contract.
 #
 # These tests embody the post-fix contract. Pre-fix they FAIL; that
 # failure IS the gate Phase 1 of /diagnose called for.

@@ -3,7 +3,7 @@
 # Tests cover:
 #   - Default arg matches existing renderer output on baseline trees.
 #   - preserve_placeholders = FALSE === no-arg form on placeholder-bearing trees.
-#   - preserve_placeholders = TRUE emits ppX(current_pick) for var/num/text/expr
+#   - preserve_placeholders = TRUE emits ppX(current_pick) for ppVar/ppNum/ppText/ppExpr
 #     and bare ppX when current_pick is absent (and no shared key).
 #   - Non-placeholder structure (whitespace, indentation, +-joins, pipe chains)
 #     agrees character-for-character across modes.
@@ -109,21 +109,22 @@ test_that("preserve mode keeps parens when only `shared` is present (no pick)", 
   expect_equal(out, 'ppVar(shared = "k")')
 })
 
-# ---- legacy keyword vocabulary (var/num/text/expr) ------------------------
+# ---- pp* keyword vocabulary smoke-check (ppVar/ppText/ppNum) --------------
+# Duplicates the per-kind tests above; kept as a compact vocabulary check.
 
-test_that("preserve mode emits bareword for legacy `var` keyword", {
+test_that("preserve mode emits bareword for ppVar keyword", {
   n <- ph_consumer("ppVar", pick = "mpg")
   out <- ptr_render(n, preserve_placeholders = TRUE)
   expect_true(grepl("ppVar(mpg)", out, fixed = TRUE))
 })
 
-test_that("preserve mode emits quoted string for legacy `text` keyword", {
+test_that("preserve mode emits quoted string for ppText keyword", {
   n <- ph_value("ppText", pick = "hi")
   out <- ptr_render(n, preserve_placeholders = TRUE)
   expect_true(grepl('ppText("hi")', out, fixed = TRUE))
 })
 
-test_that("preserve mode emits literal for legacy `num` keyword", {
+test_that("preserve mode emits literal for ppNum keyword", {
   n <- ph_value("ppNum", pick = 7)
   out <- ptr_render(n, preserve_placeholders = TRUE)
   expect_true(grepl("ppNum(7)", out, fixed = TRUE))

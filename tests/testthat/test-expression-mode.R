@@ -8,20 +8,14 @@
 # and placeholder ids in document order.
 translated_fingerprint <- function(root) {
   layer_names <- vapply(root$layers, function(l) l$name, character(1))
+  # Collect placeholder ids per layer via the package's own traversal.
+  # A naive recursive list-walk misses placeholder nodes embedded behind
+  # `expr` language objects, leaving per_layer_ids empty and the AST-
+  # equivalence comparison vacuous (it would pass even for a bare `var`
+  # token that produces no placeholder at all).
   per_layer_ids <- lapply(root$layers, function(l) {
-    ids <- character()
-    walk <- function(node) {
-      if (is.list(node)) {
-        if (!is.null(node$id) && is.character(node$id) &&
-            length(node$id) == 1L) {
-          ids <<- c(ids, node$id)
-        }
-        for (nm in names(node)) walk(node[[nm]])
-        if (is.null(names(node))) for (x in node) walk(x)
-      }
-    }
-    walk(l)
-    sort(unique(ids))
+    phs <- ggpaintr:::find_nodes(l, ggpaintr:::is_ptr_placeholder)
+    sort(unique(vapply(phs, function(n) n$id, character(1))))
   })
   list(
     layer_count = length(root$layers),
@@ -48,7 +42,7 @@ test_that("string-mode unchanged: dispatch is a no-op for string scalars", {
 test_that("expression-mode produces an equivalent translated AST", {
   formula_str <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
   expr_captured <- rlang::expr(
-    ggplot(mtcars, aes(x = var, y = var)) + geom_point()
+    ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()
   )
   str_from_expr <- ggpaintr:::ptr_capture_formula(
     expr_captured, parent.frame()
@@ -75,7 +69,7 @@ test_that("symbol holding a string is resolved in envir", {
 test_that("pre-quoted wrappers are unwrapped one layer (E1.a)", {
   # rlang::expr() at the captured root unwraps.
   wrapped_expr <- rlang::expr(rlang::expr(
-    ggplot(mtcars, aes(x = var, y = var)) + geom_point()
+    ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()
   ))
   out_expr <- ggpaintr:::ptr_capture_formula(wrapped_expr, parent.frame())
   expect_type(out_expr, "character")
@@ -84,7 +78,7 @@ test_that("pre-quoted wrappers are unwrapped one layer (E1.a)", {
 
   # quote() at the captured root unwraps.
   wrapped_q <- rlang::expr(quote(
-    ggplot(mtcars, aes(x = var, y = var)) + geom_point()
+    ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()
   ))
   out_q <- ggpaintr:::ptr_capture_formula(wrapped_q, parent.frame())
   expect_match(out_q, "ggplot", fixed = TRUE)
@@ -92,7 +86,7 @@ test_that("pre-quoted wrappers are unwrapped one layer (E1.a)", {
 
   # bquote() at the captured root unwraps.
   wrapped_bq <- rlang::expr(bquote(
-    ggplot(mtcars, aes(x = var, y = var)) + geom_point()
+    ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()
   ))
   out_bq <- ggpaintr:::ptr_capture_formula(wrapped_bq, parent.frame())
   expect_match(out_bq, "ggplot", fixed = TRUE)
@@ -105,7 +99,7 @@ test_that("top-level `{ ... }` is unwrapped so `|> ptr_app()` works", {
   # at the bottom. `ptr_capture_formula` unwraps `{` and returns the
   # last sub-expression as a string.
   wrapped_brace <- rlang::expr({
-    ggplot(mtcars, aes(x = var, y = var)) + geom_point()
+    ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()
   })
   out_brace <- ggpaintr:::ptr_capture_formula(wrapped_brace, parent.frame())
   expect_type(out_brace, "character")
@@ -117,7 +111,7 @@ test_that("top-level `{ ... }` is unwrapped so `|> ptr_app()` works", {
   # semantics). Earlier statements (helpers / temporaries) are dropped.
   wrapped_multi <- rlang::expr({
     x <- 1
-    ggplot(mtcars, aes(x = var, y = var)) + geom_point()
+    ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()
   })
   out_multi <- ggpaintr:::ptr_capture_formula(wrapped_multi, parent.frame())
   expect_match(out_multi, "ggplot", fixed = TRUE)
@@ -126,7 +120,7 @@ test_that("top-level `{ ... }` is unwrapped so `|> ptr_app()` works", {
   # End-to-end through `ptr_app()`: the braced + piped form builds
   # a shinyApp just like the bare expression form.
   app_brace <- ptr_app({
-    ggplot(mtcars, aes(x = var, y = var)) + geom_point()
+    ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()
   })
   expect_s3_class(app_brace, "shiny.appobj")
 })
@@ -160,7 +154,7 @@ test_that("ptr_app accepts both modes and rejects invalid input end-to-end", {
   expect_s3_class(app_str, "shiny.appobj")
   # Expression mode end-to-end (smoke).
   app_expr <- ptr_app(
-    ggplot(mtcars, aes(x = var, y = var)) + geom_point()
+    ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()
   )
   expect_s3_class(app_expr, "shiny.appobj")
   # Symbol-holding-string mode (f is bound in the local test frame).
@@ -206,7 +200,7 @@ test_that("ptr_server rejects invalid input at the public boundary", {
   )
   expect_error(
     ptr_server(
-      ggplot(mtcars, aes(x = var, y = var)) + geom_point(), "p"
+      ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point(), "p"
     ),
     "session must be"
   )
@@ -216,7 +210,7 @@ test_that("ptr_app_components accepts both modes", {
   f <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
   parts_str <- ggpaintr:::ptr_app_components(f)
   parts_expr <- ggpaintr:::ptr_app_components(
-    ggplot(mtcars, aes(x = var, y = var)) + geom_point()
+    ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()
   )
   expect_named(parts_str, c("ui", "server"))
   expect_named(parts_expr, c("ui", "server"))
@@ -229,7 +223,7 @@ test_that("native pipe in string mode survives preprocessing", {
 
 test_that("native pipe in expression mode is desugared before capture", {
   expr_captured <- rlang::expr(
-    mtcars |> ggplot(aes(x = var)) + geom_histogram()
+    mtcars |> ggplot(aes(x = ppVar)) + geom_histogram()
   )
   out <- ggpaintr:::ptr_capture_formula(expr_captured, parent.frame())
   expect_type(out, "character")
@@ -248,7 +242,7 @@ test_that("!! splicing into expression mode works (rlang::enexpr behaviour)", {
   }
   col <- rlang::sym("mpg")
   out <- capture_via(
-    ggplot(mtcars, aes(x = !!col, y = var)) + geom_point()
+    ggplot(mtcars, aes(x = !!col, y = ppVar)) + geom_point()
   )
   expect_match(out, "x = mpg", fixed = TRUE)
 })

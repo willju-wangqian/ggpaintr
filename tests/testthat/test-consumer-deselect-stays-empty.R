@@ -6,7 +6,8 @@
 # default for shared pickers). Caused by `invoke_build_ui()`'s
 # `length(extra$selected) == 0L` branch conflating "input not bound on
 # first render" with "user explicitly emptied the widget" — see
-# R/paintr-build-ui.R:843-868 and R/paintr-server.R:1496/1554/1832/2003.
+# invoke_build_ui()'s seed branch (R/paintr-build-ui.R:842) and the bind
+# paths in ptr_setup_value_uis()/ptr_setup_source_uis() (R/paintr-server.R).
 #
 # Unit-layer regression (no Shiny session): see
 # tests/testthat/test-invoke-build-ui-selected-contract.R (U3).
