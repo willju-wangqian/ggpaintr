@@ -2395,7 +2395,26 @@ consumer_seed_decision <- function(has_rendered, seed, current, default, cols,
   default_landed <-
     is.null(default) ||
     (is.character(default) && length(default) == 1L && default %in% cols)
-  mark_rendered <- length(cols) > 0L && (!is.null(selected) || default_landed)
+  # Bug fix (2026-05-29): honour a GENUINE user pick before the latch flips.
+  # The `has_rendered` latch only flips once the formula default lands (a valid
+  # `cols` member) or a seed/current drove the choice (see the `mark_rendered`
+  # comment above). When the upstream data is uploaded / shortcut-swapped to a
+  # frame whose columns do NOT include the parse-time default (e.g.
+  # `ppVar(carb)` over an `iris` upload), `default_landed` is permanently FALSE,
+  # so the latch never flips and `boot_seed_selected()` discards the user's
+  # `current` pick in favour of the (empty) boot seed on EVERY later render --
+  # the picker blanks on each Update Plot. A valid `current` pick (at least one
+  # element present in `cols`) is, by definition, no longer a pre-pick "first
+  # render": honour it now and let it flip the latch. Gated on `is.null(seed)`
+  # so boot-only `spec=` precedence is untouched, and on `current` overlapping
+  # `cols` so a purely-stale pick keeps deferring to the default (the
+  # derived-column / post-boot transient the `default_landed` gate protects,
+  # where `current` is NULL, is also untouched).
+  user_pick <- !has_rendered && is.null(seed) &&
+    !is.null(current) && length(current) > 0L && any(current %in% cols)
+  if (user_pick) selected <- current
+  mark_rendered <- length(cols) > 0L &&
+    (!is.null(selected) || default_landed || user_pick)
   list(selected = selected, mark_rendered = mark_rendered)
 }
 
