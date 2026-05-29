@@ -7,6 +7,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 An R package that turns ggplot-like formula strings into Shiny apps.
 Placeholder tokens in the formula (`var`, `text`, `num`, `expr`, `upload`) become Shiny input widgets automatically.
 
+## Before implementing — context-sufficiency check (do this FIRST)
+
+Treat any handoff / bug report / "locked decision" / "N-line fix" as a **hypothesis about scope**, never as the full picture. Bugs here often span multiple sessions and branches (e.g. the consumer-seeding / source-binding / boot-default / auto-name complex). Before writing code, **verify breadth, not just depth**:
+
+- Read the cited ADR(s) in `dev/adr/` **in full** (not by reference) and `CONTEXT.md` for the domain model.
+- `git log --oneline -- <touched files/area>` and scan recent commits for prior related work; check **sibling branches/worktrees** (`git branch -vv`, `git worktree list`) and `.scratch/` + `dev/` notes — an active multi-session campaign usually leaves tracks there.
+- Grep `MEMORY.md` + the memory dir for the area; recalled memories naming a related bug are a signal to go read it.
+- Then **state, before coding: what larger complex this belongs to, what's already been tried, and what context is still missing.** If the answer is "this is one facet of X," map X first.
+
+A handoff's "complete / verified / 2-line" claim gets the *same skepticism as its code claims* — and the breadth check is **proactive** (up front), not reactive (only when a test breaks). When in doubt, fan out and read widely before narrowing. See memory `verify-breadth-not-just-depth`.
+
 ## Commands
 
 ```r
