@@ -52,7 +52,8 @@ test_that(
 
     csv_path <- test_path("fixtures", "penguins.csv")
     upload_file(app, shared_ds = csv_path)
-    set_input(app, "shared_ds_shortcut", "penguins")
+    # ADR 0025 §3: shortcut no longer names an upload; leave it empty so the
+    # upload binds under the canonical auto-name (no `penguins` env frame).
     app$wait_for_idle(timeout = 15 * 1000)
 
     # Both non-shared pickers should be populated from the panel-resolved df.

@@ -178,10 +178,11 @@ test_that("super-2a upload+registry: sentinels propagate through multi-data-sour
   # Ids confirmed by probing ptr_translate + collect_layer_placeholders.
   upload_file(app, ggplot_1_ppUpload_NA = main_csv)
   upload_file(app, geom_smooth_0_ppUpload_NA = aux_csv)
-  # Explicit companion-name sets guard against AppDriver-ordering races on
-  # the auto-fill (project memory: adr12-bug-3a test does the same thing).
-  set_sentinel(app, "ggplot_1_ppUpload_NA_shortcut", "df_main")
-  set_sentinel(app, "geom_smooth_0_ppUpload_NA_shortcut", "df_aux")
+  # ADR 0025 §3: the shortcut no longer NAMES an upload (F2 retired). These
+  # are genuine uploads (no `df_main`/`df_aux` env frames), so they bind
+  # under their system auto-names and the consumer pickers populate from the
+  # uploaded CSV columns. Typing the names here would env-load nonexistent
+  # frames and fail. The mutex blanks the boot-seeded shortcut on upload.
   app$wait_for_idle(timeout = 25 * 1000)
 
   # ---- Initial draw at defaults (Scenario 1: both uploads boot) -----------
@@ -328,8 +329,9 @@ test_that("super-2a no-default: sentinels propagate through multi-data-source + 
                                      "super-2a-upload-registry")
   upload_file(app, ggplot_1_ppUpload_NA = file.path(fixture_dir, "sample_main.csv"))
   upload_file(app, geom_smooth_0_ppUpload_NA = file.path(fixture_dir, "sample_aux.csv"))
-  set_sentinel(app, "ggplot_1_ppUpload_NA_shortcut", "df_main")
-  set_sentinel(app, "geom_smooth_0_ppUpload_NA_shortcut", "df_aux")
+  # ADR 0025 §3: shortcut no longer names an upload (F2 retired). Genuine
+  # uploads bind under their system auto-names; pickers populate from the
+  # CSV columns. (No `df_main`/`df_aux` env frames exist to env-load.)
   app$wait_for_idle(timeout = 25 * 1000)
 
   # ---- Activate Controls subtab so root ppVar pickers bind ---------------
@@ -357,16 +359,23 @@ test_that("super-2a no-default: sentinels propagate through multi-data-source + 
     grepl("alpha = 0.42^2", code_final, fixed = TRUE),
     label = paste0("final-mode code contains literal 'alpha = 0.42^2'; actual code=", code_final)
   )
-  # ppUpload bareword companion names propagate to final-mode `data =`
-  # slots (these placeholders carry STRUCTURAL identifiers, not defaults,
-  # so they propagate even without driving any widget).
+  # ADR 0025 §3: an UPLOADED source binds under the system auto-name
+  # `df_<hash(node$id)>` (the retired-F2 bareword no longer names the upload),
+  # and the code-panel prologue makes each upload legible as
+  # `df_<hash> <- read.csv("<uploaded file>")`. Assert the prologue wires BOTH
+  # uploads and that the geom_smooth `data =` slot references an auto-name
+  # symbol (not a bareword). Both uploads are genuinely driven above.
   testthat::expect_true(
-    grepl("data = df_main", code_final, fixed = TRUE),
-    label = paste0("final-mode root data resolves to df_main; actual code=", code_final)
+    grepl('read.csv("sample_main.csv")', code_final, fixed = TRUE),
+    label = paste0("prologue loads the root upload under its auto-name; actual code=", code_final)
   )
   testthat::expect_true(
-    grepl("data = df_aux", code_final, fixed = TRUE),
-    label = paste0("final-mode geom_smooth data resolves to df_aux; actual code=", code_final)
+    grepl('read.csv("sample_aux.csv")', code_final, fixed = TRUE),
+    label = paste0("prologue loads the geom_smooth upload under its auto-name; actual code=", code_final)
+  )
+  testthat::expect_true(
+    grepl("data = df_", code_final, fixed = TRUE),
+    label = paste0("geom_smooth `data =` references an auto-name df_<hash>; actual code=", code_final)
   )
   # ppMultiVar's non-scalar return — `interaction(cyl, am)` — propagates to
   # the geom_point's aes(group=) slot in final mode.
@@ -510,25 +519,28 @@ test_that("super-2b customsource-splice: ppSample (D3 source) + !!splice (G3) + 
     "facet_wrap\\(vars\\([^)]*\\)\\)", "final")
 
   # --- Scenario: Layer-data ppUpload + picker SCOPE discrimination ------
-  # Upload sample_rug.csv to the df_rug fileInput. The layer-data
-  # ppUpload's source-role resolution wires geom_rug's `data =` to df_rug.
-  # The layer-aes ppVar pickers under `data = ppUpload(...)` are the
-  # PLAN-04 unique value-add: pre-ADR-0015 these stayed in `recalculating`
-  # forever; post-fix they populate from the CSV's columns (mpg, wt).
-  # SCOPE NARROWING FORBIDDEN: the layer pickers MUST NOT offer iris
-  # columns -- proving the layer-data ppUpload owns the layer-aes column
+  # Upload sample_rug.csv to the df_rug fileInput, THEN type the real env
+  # frame name `df_rug` (= mtcars, defined in the fixture) into the shortcut.
+  # ADR 0025 §2/§3: the shortcut is the live affordance once typed (the Q3-B
+  # mutex blanks it on every upload), so the env frame `df_rug` is loaded and
+  # the uploaded sample_rug.csv is DROPPED -- this scenario therefore also
+  # regresses the F3-pollution fix (pre-fix the upload was assign()ed under
+  # the symbol `df_rug`, polluting eval_env). The layer-aes ppVar pickers
+  # under `data = ppUpload(...)` then populate from df_rug=mtcars's columns
+  # (mpg, wt). SCOPE NARROWING FORBIDDEN: the layer pickers MUST NOT offer
+  # iris columns -- proving the layer-data source owns the layer-aes column
   # scope, NOT the root ppSample("iris"). If the picker shows iris columns,
   # the disjoint-data-source contract is broken; STOP and escalate.
-  upload_file(app, 
+  upload_file(app,
     geom_rug_0_ppUpload_NA = testthat::test_path(
       "fixtures", "vignette-apps",
       "super-2b-customsource-splice", "sample_rug.csv"
     )
   )
-  # Companion name input -- set explicitly so the source observer's
-  # binding_name resolution finds a deterministic value (the browser
-  # autofills this from the filename via ptr_bind_source_autoname();
-  # explicit set guards against ordering races under AppDriver).
+  # Type the env-frame name into the shortcut: env-shortcut load of df_rug
+  # (= mtcars). ADR 0025 retired the F2 "name the upload" role; here the
+  # name is a real env frame, so the source resolves to it (last-touched
+  # wins) and the rendered `data =` shows the `df_rug` symbol.
   set_sentinel(app, "geom_rug_0_ppUpload_NA_shortcut", "df_rug")
   draw_and_wait(app, "ptr_update_plot")
 

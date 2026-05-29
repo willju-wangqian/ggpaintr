@@ -48,7 +48,11 @@ test_that("adr15: non-shared ppVar under ppUpload populates after upload, no sub
   withr::defer(app$stop())
 
   upload_file(app, geom_point_0_ppUpload_NA = csv_path)
-  set_input(app, "geom_point_0_ppUpload_NA_shortcut", "df")
+  # ADR 0025 §3: the shortcut no longer NAMES an upload (F2 retired). The
+  # upload binds under the system auto-name `df_<hash>`; typing "df" here
+  # would instead env-load a `df` frame (which does not exist) and fail.
+  # Leave the shortcut empty -- the consumer pickers populate from the
+  # uploaded frame's columns regardless of the bind symbol.
   app$wait_for_idle(timeout = 25 * 1000)
 
   expect_picker_populated(app, "geom_point_1_1_ppVar_NA", "mpg")
@@ -102,7 +106,11 @@ test_that("adr15: shared ppVar under ppUpload populates after upload, no subtab 
   withr::defer(app$stop())
 
   upload_file(app, geom_point_0_ppUpload_NA = csv_path)
-  set_input(app, "geom_point_0_ppUpload_NA_shortcut", "df")
+  # ADR 0025 §3: the shortcut no longer NAMES an upload (F2 retired). The
+  # upload binds under the system auto-name `df_<hash>`; typing "df" here
+  # would instead env-load a `df` frame (which does not exist) and fail.
+  # Leave the shortcut empty -- the consumer pickers populate from the
+  # uploaded frame's columns regardless of the bind symbol.
   app$wait_for_idle(timeout = 25 * 1000)
 
   expect_picker_populated(app, "shared_v", "mpg")

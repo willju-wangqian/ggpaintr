@@ -1054,6 +1054,21 @@ emit_upload_prologue <- function(active_uploads) {
 # case `bind_source_value()` still mirrors the resolved df into the
 # instance's per-source slot (so downstream consumers see the value),
 # only `state$eval_env` / `state$bound_names` are skipped.
+# ADR 0025 §3: the canonical auto-name symbol an empty-shortcut shared
+# upload binds under. `node$auto_name` is the authoritative value (stamped
+# obj$id-aware in `ptr_setup_panel_sources()`, R/paintr-shared-ui.R), but it
+# is only set on the HOST rep node -- the per-instance + consumer shared
+# source nodes (seen by `panel_owned_binding_name()` and
+# `substitute_walk.ptr_ph_data_source()`) carry it as NULL. For those we fall
+# back to `node$shared` (the shared key), which equals the host rep's
+# auto_name in the single-coordinator (obj$id = NULL) case. Both the bind
+# side and the eval side call this so they choose the SAME symbol.
+# (Multi-panel obj$id namespacing on the per-instance node is a known gap;
+# no current panel-owned-upload-with-obj$id path exercises it.)
+panel_source_canonical_name <- function(node) {
+  node$auto_name %||% node$shared
+}
+
 panel_owned_binding_name <- function(node, entry, session,
                                      shortcut_value, df) {
   has_shortcut <- !is.null(node$shortcut_id)
@@ -1070,8 +1085,16 @@ panel_owned_binding_name <- function(node, entry, session,
     # `ptr_setup_pipelines()` benefit too: they wrote NULL into
     # `state$bound_names[[layer]]` previously, leaving the source-ready
     # gate unsatisfied at boot for default-arg priming.
+    #
+    # ADR 0025 §3 (caveat-2 / path-4): when neither the shortcut nor the
+    # default yields a name, fall back to the canonical auto-name so an
+    # UPLOAD with an empty shortcut binds under the canonical symbol
+    # (shared rows of the §3 auto-name table) instead of NULL -- previously
+    # this returned NULL and the panel-owned upload silently never bound
+    # (the empty-shortcut upload path was masked by the now-retired F2 tests
+    # that always typed a name). `substitute_walk` uses the same helper.
     if (!is.character(nm) || length(nm) != 1L || !nzchar(nm)) {
-      nm <- node$default
+      nm <- node$default %||% panel_source_canonical_name(node)
     }
     if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
         make.names(nm) == nm) nm else NULL
@@ -1169,7 +1192,7 @@ try_bind_source_default <- function(state, key, node, input, shortcut_input_id,
   # textbox, `shortcut_value` wins (existing behaviour).
   binding_name <- lookup_name
   if (!is.null(shortcut_input_id) && !has_shortcut_value) {
-    auto <- node$auto_name
+    auto <- panel_source_canonical_name(node)
     if (is.character(auto) && length(auto) == 1L && nzchar(auto) &&
         make.names(auto) == auto) {
       binding_name <- auto
@@ -1216,6 +1239,28 @@ resolve_upload_source <- function(input_slot, shortcut_slot, node, entry,
   file_info <- input_slot
   has_shortcut <- isTRUE(shortcut_slot$present)
   shortcut_value <- if (has_shortcut) shortcut_slot$value else NULL
+  # ADR 0025 §2 (Q3-B) "whichever was last touched is the live one" +
+  # §3 F3 (eval-env pollution), implemented as a read-gate. The Q3-B
+  # mutex blanks the shortcut textbox on every upload, so a *non-empty*
+  # shortcut means the textbox was last-touched -- the shortcut is the
+  # live affordance and any lingering fileInput value is stale. We must
+  # ignore that stale file here, because the §7-A2 debounce keeps the
+  # fileInput value alive until the debounced shortcut tick: on that one
+  # flush `file=PRESENT` and `shortcut="iris"` coexist, and without this
+  # gate the binding-name logic below would prefer the typed name and
+  # `assign()` the uploaded frame into `state$eval_env` under `iris`
+  # (ADR 0025 §3 declared F3 dead; the A2 race reincarnated it). Forcing
+  # `file_info <- NULL` routes to the env-load branch
+  # (`try_bind_source_default_resolved`), which `get()`s the *env* frame
+  # under the typed name -- never polluting eval_env with upload data.
+  # Bind/eval consistency: `substitute_walk.ptr_ph_data_source()` also
+  # keys off "shortcut snapshot non-empty", so both sides take the
+  # env-name path together. Invalid (non-syntactic) names are not kept as
+  # uploads either -- the upload is dropped here and the eval-side
+  # validator aborts loudly on draw with the make.names message.
+  shortcut_active <- has_shortcut && is.character(shortcut_value) &&
+    length(shortcut_value) == 1L && nzchar(shortcut_value)
+  if (shortcut_active) file_info <- NULL
   if (is.null(file_info)) {
     set_resolve_error(state, key, NULL)
     # ADR 0025 §4 / PLAN-04: vacated upload binding — drop any prior
@@ -1283,7 +1328,7 @@ resolve_upload_source <- function(input_slot, shortcut_slot, node, entry,
       # the coordinator eval_env. The substitute walker reads the same
       # field via its empty-snapshot fallback, keeping eval-time symbol
       # resolution in lockstep with bind-time assignment.
-      auto <- node$auto_name
+      auto <- panel_source_canonical_name(node)
       if (is.character(auto) && length(auto) == 1L && nzchar(auto) &&
           make.names(auto) == auto) auto else NULL
     }
@@ -1382,7 +1427,7 @@ try_bind_source_default_resolved <- function(state, key, node, has_shortcut,
   }
   binding_name <- lookup_name
   if (has_shortcut && !has_shortcut_value) {
-    auto <- node$auto_name
+    auto <- panel_source_canonical_name(node)
     if (is.character(auto) && length(auto) == 1L && nzchar(auto) &&
         make.names(auto) == auto) {
       binding_name <- auto
@@ -2435,9 +2480,18 @@ consumer_seed_decision <- function(has_rendered, seed, current, default, cols,
 #                    env-default settling at boot (NULL -> "mtcars") never clears.
 consumer_upstream_source_state <- function(src_nodes, read_input, state,
                                             layer_name = NULL) {
-  if (length(src_nodes) == 0L) return(list(identity = NULL, user_supplied = FALSE))
+  if (length(src_nodes) == 0L) {
+    return(list(identity = NULL, user_supplied = FALSE, uploaded = FALSE))
+  }
   ids <- character()
   supplied <- FALSE
+  # `uploaded` is the narrower signal: an actual fileInput datapath is present
+  # (a real upload), as distinct from `user_supplied` which is ALSO TRUE for a
+  # shortcut that merely differs from its default (incl. a boot-time `spec=`
+  # seed of the shortcut). Used by the first-render clear so a spec-seeded
+  # env-shortcut (boot data) does NOT blank the consumer default, while a
+  # genuine upload-at-first-render does (ADR 0025 §3b).
+  uploaded <- FALSE
   for (s in src_nodes) {
     sid <- s$id
     if (is.null(sid)) next
@@ -2471,9 +2525,41 @@ consumer_upstream_source_state <- function(src_nodes, read_input, state,
     } else ""
     def <- trimws(as.character(s$default %||% ""))
     ids <- c(ids, paste0(sid, "#", dp, "#", bn))
+    if (nzchar(dp)) uploaded <- TRUE
     if (nzchar(dp) || (nzchar(sc) && !identical(sc, def))) supplied <- TRUE
   }
-  list(identity = paste(ids, collapse = "||"), user_supplied = supplied)
+  list(identity = paste(ids, collapse = "||"), user_supplied = supplied,
+       uploaded = uploaded)
+}
+
+# ADR 0025 §3b: should a consumer picker clear its selection because the
+# upstream data is user-supplied "new work" (an upload / shortcut-rename),
+# rather than the boot data the formula default was written against? Shared by
+# both consumer binders so the non-shared and shared paths cannot drift. Two
+# triggers, both gated on the upstream data being `user_supplied`:
+#   (1) a NEW source since the last render -- the identity changed while the
+#       picker was already on screen (`src_seen`). This is the post-boot
+#       upload / shortcut-rename edge.
+#   (2) the picker's FIRST render is already on an UPLOAD. Consumer pickers are
+#       suspended until visible, and a source-headed layer has no columns at
+#       boot, so a picker over `ppUpload()` (no boot data) renders for the first
+#       time only AFTER an upload. There was no boot render to seed against, and
+#       the data arrived post-boot -- so the formula default must NOT seed
+#       (ADR 0025 §3b: "seeds ... only against the data present at boot").
+#       Gated on the narrower `uploaded` (an actual fileInput datapath), NOT
+#       generic `user_supplied`: a boot-time `spec=` seed of the shortcut also
+#       sets `user_supplied`, but that is author-known BOOT data the default
+#       SHOULD seed against -- so the first-render clear must not fire for it.
+#       Also gated on `is.null(seed)` so a boot-only consumer `spec=` seed wins.
+# Boot env-default data (e.g. `ppUpload(mtcars)` resolving `mtcars` at boot via
+# the shortcut == default) is neither `user_supplied` nor `uploaded`, so the
+# default correctly seeds there -- neither trigger fires.
+consumer_clear_for_new_source <- function(src_seen, identity, last_identity,
+                                          user_supplied, uploaded, seed) {
+  changed_since_last <- src_seen && !identical(identity, last_identity) &&
+    isTRUE(user_supplied)
+  first_render_on_upload <- !src_seen && is.null(seed) && isTRUE(uploaded)
+  changed_since_last || first_render_on_upload
 }
 
 ptr_setup_consumer_uis <- function(state, input, output, session) {
@@ -2700,9 +2786,9 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
           upstream_src_nodes, read_src_input, state,
           layer_name = node$layer_name
         )
-        clear_for_new_source <- src_seen &&
-          !identical(src_state$identity, last_src_identity) &&
-          isTRUE(src_state$user_supplied)
+        clear_for_new_source <- consumer_clear_for_new_source(
+          src_seen, src_state$identity, last_src_identity,
+          src_state$user_supplied, src_state$uploaded, seed)
         last_src_identity <<- src_state$identity
         src_seen <<- TRUE
         dec <- consumer_seed_decision(has_rendered, seed, current,
@@ -3066,9 +3152,9 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
           upstream_src_nodes, read_src_input, state,
           layer_name = rep_node$layer_name
         )
-        clear_for_new_source <- src_seen &&
-          !identical(src_state$identity, last_src_identity) &&
-          isTRUE(src_state$user_supplied)
+        clear_for_new_source <- consumer_clear_for_new_source(
+          src_seen, src_state$identity, last_src_identity,
+          src_state$user_supplied, src_state$uploaded, seed)
         last_src_identity <<- src_state$identity
         src_seen <<- TRUE
         dec <- consumer_seed_decision(has_rendered, seed, current,

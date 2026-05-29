@@ -58,10 +58,12 @@ test_that("ADR worked example #1 -- two plots sharing one uploaded dataset", {
   # and mirror into the per-instance state for both p1 and p2 (Plan 05).
   csv_path <- test_path("fixtures", "penguins.csv")
   upload_file(app, shared_ds = csv_path)
-  # Companion text input is browser-auto-filled from the uploaded filename
-  # via ptr_bind_source_autoname(); explicit set guards against ordering
-  # races inside AppDriver (same pattern as test-adr12-bug-3a.R:33).
-  set_input(app, "shared_ds_shortcut", "penguins")
+  # ADR 0025 §3: the shortcut textbox NO LONGER names an upload (the F2
+  # name-override role is retired -- shared uploads bind under the canonical
+  # auto-name `ds`, with the shortcut left empty). The fixture has no
+  # `penguins` object in its env, so typing "penguins" here would switch the
+  # source to the env-shortcut loader and fail (`object 'penguins' not
+  # found`). Leave the shortcut empty; the upload binds under the canonical.
 
   # The plan's "p1_subtab / p2_subtab = Controls" prescription assumes the
   # standalone ptr_app() layer Data/Controls subtab, but the embedded
@@ -170,7 +172,8 @@ test_that("ADR worked example #4 -- single-instance shared source still works", 
 
   csv_path <- test_path("fixtures", "penguins.csv")
   upload_file(app, shared_ds = csv_path)
-  set_input(app, "shared_ds_shortcut", "penguins")
+  # ADR 0025 §3: shortcut no longer names an upload; leave it empty so the
+  # upload binds under the canonical auto-name (no `penguins` env frame).
   set_input(app, "ggplot_subtab", "Controls")
   # ADR 0025 §7 A2: the shortcut bind is debounced 400ms. The subtab-switch
   # render settles fast, so wait_for_idle() can return BEFORE the debounce
@@ -298,7 +301,8 @@ test_that("ADR worked example #3 -- mixed scope wires correctly", {
 
   csv_path <- test_path("fixtures", "penguins.csv")
   upload_file(app, shared_ds = csv_path)
-  set_input(app, "shared_ds_shortcut", "penguins")
+  # ADR 0025 §3: shortcut no longer names an upload; leave it empty so the
+  # upload binds under the canonical auto-name (no `penguins` env frame).
   # Embedded ptr_ui() uses a hidden layer tabset rather than the
   # Data/Controls split (see notes in the worked-example #1 scenario);
   # the formula-local consumer pickers are bound at boot.

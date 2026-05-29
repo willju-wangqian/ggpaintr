@@ -8,5 +8,5 @@
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
 library(shiny)
 ptr_app(
-  ggplot() + geom_point(data = ppUpload(df), aes(x = ppVar(mpg), y = ppVar(shared = "v")))
+  ggplot() + geom_point(data = ppUpload(), aes(x = ppVar(mpg), y = ppVar(shared = "v")))
 )

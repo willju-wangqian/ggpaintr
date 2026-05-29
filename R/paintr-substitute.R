@@ -203,7 +203,13 @@ substitute_walk.ptr_ph_data_source <- function(node, ctx) {
       # will resolve, and otherwise returns `ptr_missing()` (the `data=`
       # arg is pruned, so e.g. `geom_rug(data = ppUpload())` inherits the
       # plot's data, which is the documented no-arg `ppUpload()` meaning).
-      auto <- node$auto_name
+      # ADR 0025 §3 (caveat-2 / path-4): prefer the stamped node$auto_name,
+      # but fall back to the canonical key (node$shared) for the per-instance
+      # + consumer shared source nodes, which carry node$auto_name = NULL
+      # (only the host rep node is stamped in ptr_setup_panel_sources). The
+      # bind side (`panel_owned_binding_name()`) uses the SAME helper, so an
+      # empty-shortcut shared upload emits the symbol it was bound under.
+      auto <- panel_source_canonical_name(node)
       auto_bound <- !is.null(auto) && is.character(auto) &&
         length(auto) == 1L && nzchar(auto) &&
         is.environment(ctx$eval_env) &&
