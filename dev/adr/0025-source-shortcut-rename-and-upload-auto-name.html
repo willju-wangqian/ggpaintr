@@ -9,7 +9,7 @@
 
 <h1>ADR 0025 — Source shortcut rename + upload auto-name + mutex-with-autoclear</h1>
 
-<p><strong>Status:</strong> <em>Proposed.</em> Drafted 2026-05-26 from a <code>/grill-with-docs</code> session on branch <code>shared-id-upgrade</code>. Awaits implementation.</p>
+<p><strong>Status:</strong> <em>Proposed.</em> Drafted 2026-05-26 from a <code>/grill-with-docs</code> session on branch <code>shared-id-upgrade</code>. §3 auto-name implemented (commit <code>de1edd1</code>; non-shared auto-name landed as <code>df_&lt;hash(node$id)&gt;</code> — see that commit, which refines the §3 table's <code>node$id</code> entry). <strong>§3b consumer-seeding contract (ii) implemented and verified 2026-05-28</strong> (this change). Remaining sections await implementation/verification.</p>
 
 <p><strong>Date:</strong> 2026-05-26</p>
 
@@ -113,6 +113,43 @@ if (is_ptr_ph_data_source(node)) {
 <p>Together: every auto-name is unique within its eval_env. No counter, no reserved-namespace beyond the <code>shortcut</code> validator above.</p>
 
 <p><strong>Symbol-flip on upload is accepted.</strong> Under <code>ppUpload(penguins)</code> (ADR 0010 form), the slot boots with textbox seeded <code>"penguins"</code> and binds caller-env <code>penguins</code> via env shortcut. If the user uploads a file, Q3-B's auto-clear empties the textbox, and the upload binds under the system auto-name (<code>node$id</code>, e.g. <code>ggplot_1_0_ppUpload_NA</code>). The code panel symbol flips from <code>penguins</code> to <code>node$id</code>. This is acceptable because the prologue line (Decision §4) makes the new symbol legible at a glance: <code>ggplot_1_0_ppUpload_NA &lt;- read.csv("uploaded.csv")</code>. One mechanism (textbox seed → eval_env name); no special "reserved auto-name" sub-mechanism.</p>
+
+<h3>3b. Consumer pickers do not inherit the formula default for a NEW post-boot source — contract (ii)</h3>
+
+<p><strong>Decision (locked 2026-05-28).</strong> A consumer placeholder (<code>ppVar</code> and friends) seeds its formula-side default <strong>only at boot</strong>, and only against the data that is present at boot. Once the app is running, <strong>any new data source — a file uploaded through <code>ppUpload</code>'s <code>fileInput</code> (or a custom source's file-like mechanism), or the shortcut textbox renamed to a different dataset — clears the consumer picker.</strong> The picker comes up populated (the new frame's columns are offered) but with no selection; the user re-picks. Neither the formula default nor a stale prior pick carries onto the new data. Boot-time <code>spec=</code> seeding (ADR 0012) is the only thing that may override the default, and only at boot.</p>
+
+<p><strong>Why.</strong> An uploaded or swapped dataset is new work; its columns are not the parse-time context the formula author wrote the default (<code>ppVar(mpg)</code>) against, so auto-selecting that column would be a guess. By contrast, an <em>env-default boot frame</em> (e.g. <code>ppUpload(mtcars)</code> resolving <code>mtcars</code> via the shortcut at boot, per ADR 0010 + §3) <strong>is</strong> author-known data, so the formula default <strong>does</strong> seed at boot — that path must not regress.</p>
+
+<table style="border-collapse:collapse; width:100%; margin:.3rem 0 .9rem;">
+  <tr style="background:#f0f0f4;">
+    <th style="border:1px solid #ccd; padding:.3rem .55rem; text-align:left;">Situation</th>
+    <th style="border:1px solid #ccd; padding:.3rem .55rem; text-align:left;">Consumer picker</th>
+  </tr>
+  <tr>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;">Boot over an env-default frame (<code>ppUpload(mtcars)</code>), no <code>spec=</code></td>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;">formula default seeds (<code>mpg</code> selected)</td>
+  </tr>
+  <tr>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;">Boot with <code>spec=list(&lt;id&gt; = "wt")</code></td>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;"><code>wt</code> (spec overrides the default, boot-only)</td>
+  </tr>
+  <tr>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;">Post-boot: a file is uploaded</td>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;">cleared (unselected) — default does not carry</td>
+  </tr>
+  <tr>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;">Post-boot: shortcut renamed to another dataset</td>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;">cleared (unselected)</td>
+  </tr>
+  <tr>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;">After a clearing upload, the user picks a column</td>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;">that pick persists across re-renders of the same source</td>
+  </tr>
+</table>
+
+<p><strong>Mechanism (deterministic, not a reactive-flush race).</strong> The clear is <em>edge-triggered</em> on a change to the upstream source's identity, not a level check of "a file is present" (which would wipe the user's pick on every re-render and forbid picking). Identity = the fileInput datapath (changes on every upload, even same filename) + the bound dataset name (catches a shortcut rename), snapshotted by <code>consumer_upstream_source_state()</code>; the clear is gated to <em>user-supplied</em> data so the boot env-default settling never fires it. The decision is centralised in <code>consumer_seed_decision(clear_for_new_source=)</code> (<code>R/paintr-server.R</code>) and applied identically by both consumer binders — <code>ptr_setup_consumer_uis()</code> (non-shared) and <code>ptr_bind_shared_consumer_uis()</code> (shared) — so the two cannot drift.</p>
+
+<p><strong>History.</strong> Before this, the outcome held only by accident of reactive scheduling: the boot-injected default was echoed back as the input value, so a post-boot upload <em>carried</em> the default (e.g. <code>mpg</code>) onto the new frame. Commit <code>de1edd1</code> (the §3 auto-name fix) flagged "make contract (ii) intentional rather than timing-incidental" as a follow-up; this section is that follow-up. Regression coverage: <code>tests/testthat/test-spec-seed-boot-only.R</code> (unit, <code>consumer_seed_decision</code>) and <code>tests/testthat/test-adr25-upload-default-clear.R</code> (e2e: boot-seed + upload-clear).</p>
 
 <h3>4. Code-panel prologue with original filename + reader-fn-mirror</h3>
 

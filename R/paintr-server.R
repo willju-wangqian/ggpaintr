@@ -2374,7 +2374,20 @@ boot_seed_selected <- function(has_rendered, seed, current) {
   if (has_rendered) current %||% character(0) else seed
 }
 
-consumer_seed_decision <- function(has_rendered, seed, current, default, cols) {
+consumer_seed_decision <- function(has_rendered, seed, current, default, cols,
+                                   clear_for_new_source = FALSE) {
+  # ADR 0025 contract (ii), user-locked 2026-05-28: a NEW source arriving AFTER
+  # boot (a file uploaded via the fileInput, or the shortcut renamed to a
+  # different dataset) is new work -- clear the picker, so neither the formula
+  # default NOR a stale prior pick (NOR a boot-only `spec=` seed) carries onto
+  # the new data. The user re-picks against it. The stateful "did the source
+  # identity change since the last render" detection is the caller's (a
+  # per-picker closure comparing fileInput datapath + bound name); here we just
+  # honour the resulting edge signal. At boot this is FALSE, so the normal
+  # boot-seed precedence below is untouched (default seeds, spec overrides).
+  if (isTRUE(clear_for_new_source)) {
+    return(list(selected = character(0), mark_rendered = length(cols) > 0L))
+  }
   selected <- boot_seed_selected(has_rendered, seed, current)
   if (is.language(default)) {
     default <- paste(deparse(default), collapse = "\n")
@@ -2384,6 +2397,47 @@ consumer_seed_decision <- function(has_rendered, seed, current, default, cols) {
     (is.character(default) && length(default) == 1L && default %in% cols)
   mark_rendered <- length(cols) > 0L && (!is.null(selected) || default_landed)
   list(selected = selected, mark_rendered = mark_rendered)
+}
+
+# Snapshot of a consumer's upstream data-source(s) for the post-boot new-source
+# clear (feeds `consumer_seed_decision(clear_for_new_source=)`). `read_input` is
+# a caller-supplied id -> value reader that already resolves scope (module ns
+# vs `session$rootScope()` for panel-owned ids) AND isolates -- the consumer
+# renderUI re-fires on a source change via its entry reactive's dep on
+# `state$resolved_sources`, so we only need the snapshot, not a new dependency.
+# Returns:
+#   identity      -- a string that changes whenever a file is (re)uploaded (the
+#                    fileInput datapath changes per upload, even same filename)
+#                    or the bound name changes (a shortcut rename to a different
+#                    dataset).
+#   user_supplied -- TRUE when the upstream data came from the user (a file is
+#                    present, or the shortcut names a non-default dataset) vs the
+#                    formula's boot/env default. Gates the clear so that the
+#                    env-default settling at boot (NULL -> "mtcars") never clears.
+consumer_upstream_source_state <- function(src_nodes, read_input, state) {
+  if (length(src_nodes) == 0L) return(list(identity = NULL, user_supplied = FALSE))
+  ids <- character()
+  supplied <- FALSE
+  for (s in src_nodes) {
+    sid <- s$id
+    if (is.null(sid)) next
+    fv <- tryCatch(read_input(sid), error = function(e) NULL)
+    dp <- if (is.list(fv) && !is.null(fv$datapath)) {
+      paste(fv$datapath, collapse = "|")
+    } else ""
+    bn <- tryCatch({
+      r <- state$bound_names[[sid]]
+      if (is.null(r)) "" else (r() %||% "")
+    }, error = function(e) "")
+    sc <- if (!is.null(s$shortcut_id)) {
+      v <- tryCatch(read_input(s$shortcut_id), error = function(e) NULL)
+      if (is.null(v) || length(v) == 0L) "" else trimws(as.character(v)[[1L]])
+    } else ""
+    def <- trimws(as.character(s$default %||% ""))
+    ids <- c(ids, paste0(sid, "#", dp, "#", bn))
+    if (nzchar(dp) || (nzchar(sc) && !identical(sc, def))) supplied <- TRUE
+  }
+  list(identity = paste(ids, collapse = "||"), user_supplied = supplied)
 }
 
 ptr_setup_consumer_uis <- function(state, input, output, session) {
@@ -2407,6 +2461,12 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
       # ?ptr_define_placeholder_consumer (see also the seeding-contract
       # block on ?ptr_define_placeholder_value).
       has_rendered <- FALSE
+      # ADR 0025 contract (ii): per-picker latch for the post-boot new-source
+      # clear. `src_seen` guards the very first render (never clear at boot);
+      # `last_src_identity` is the previous upstream-source snapshot, compared
+      # each render to detect an upload / shortcut-rename edge.
+      last_src_identity <- NULL
+      src_seen <- FALSE
 
       # Per-consumer dep set:
       #   - structural: tree, stage_enabled
@@ -2454,6 +2514,10 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
           upstream_panel_self_ids <- c(upstream_panel_self_ids, s$id)
         }
       }
+      # ADR 0025 contract (ii): the upstream data-source nodes whose identity
+      # (fileInput datapath + bound name + shortcut) drives the post-boot
+      # new-source clear. Computed once per consumer.
+      upstream_src_nodes <- find_nodes(node$upstream, is_ptr_ph_data_source)
       # ADR 0015 §2.1: pick the source-ready reactive this consumer must
       # wait on, computed once per consumer. Bare-data layers publish their
       # frame into `state$resolved_data` under `layer_name`; pipeline-head
@@ -2584,8 +2648,29 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
         # deferral are centralised in `consumer_seed_decision()` (shared with
         # the shared-consumer binder so the two never drift).
         seed <- shiny::isolate(state$spec_seed[[raw_id]])
+        # ADR 0025 contract (ii): detect a NEW upstream source since the last
+        # render (file uploaded / shortcut renamed). On that edge, post-boot,
+        # clear the picker (new data is new work). `src_seen` keeps the very
+        # first render from clearing so the boot default still seeds.
+        read_src_input <- function(id) shiny::isolate(
+          if (id %in% upstream_panel_self_ids ||
+              id %in% upstream_panel_shortcut_ids) {
+            session$rootScope()$input[[id]]
+          } else {
+            input[[ns(id)]]
+          }
+        )
+        src_state <- consumer_upstream_source_state(
+          upstream_src_nodes, read_src_input, state
+        )
+        clear_for_new_source <- src_seen &&
+          !identical(src_state$identity, last_src_identity) &&
+          isTRUE(src_state$user_supplied)
+        last_src_identity <<- src_state$identity
+        src_seen <<- TRUE
         dec <- consumer_seed_decision(has_rendered, seed, current,
-                                      node$default, cols)
+                                      node$default, cols,
+                                      clear_for_new_source = clear_for_new_source)
         extra <- list(cols = cols, data = data)
         if (!is.null(dec$selected)) extra$selected <- dec$selected
         result <- invoke_build_ui(
@@ -2663,6 +2748,14 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
       output_id <- ns(consumer_output_id(rep_node$id))
       # Widget-seeding contract — see ?ptr_define_placeholder_consumer.
       has_rendered <- FALSE
+      # ADR 0025 contract (ii): per-picker new-source clear latch + the
+      # upstream source nodes whose identity drives it. Kept in lockstep with
+      # `ptr_setup_consumer_uis()` (non-shared binder).
+      last_src_identity <- NULL
+      src_seen <- FALSE
+      upstream_src_nodes <- if (!is.null(resolution$value)) {
+        find_nodes(resolution$value, is_ptr_ph_data_source)
+      } else list()
       # Upload-shortcut ids in our resolved upstream. When `state` is
       # provided, the renderUI below builds a snapshot from these so
       # `ptr_resolve_upstream` can substitute a data-source placeholder
@@ -2917,8 +3010,32 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
         # binder `ptr_setup_consumer_uis()` so the two never drift -- the
         # shared-vs-non-shared divergence is exactly what once booted a
         # `ppFactor(Species, shared = "fac")` default as the first column).
+        # ADR 0025 contract (ii): detect a new upstream source since the last
+        # render (lockstep with the non-shared binder). Panel-owned source ids
+        # live at the host's un-namespaced input; everything else under `ns`.
+        root_input <- {
+          dom <- shiny::getDefaultReactiveDomain()
+          if (!is.null(dom)) dom$rootScope()$input else input
+        }
+        read_src_input <- function(id) shiny::isolate(
+          if (id %in% names(panel_sources) ||
+              id %in% panel_sources_shortcut_ids) {
+            root_input[[id]]
+          } else {
+            input[[ns(id)]]
+          }
+        )
+        src_state <- consumer_upstream_source_state(
+          upstream_src_nodes, read_src_input, state
+        )
+        clear_for_new_source <- src_seen &&
+          !identical(src_state$identity, last_src_identity) &&
+          isTRUE(src_state$user_supplied)
+        last_src_identity <<- src_state$identity
+        src_seen <<- TRUE
         dec <- consumer_seed_decision(has_rendered, seed, current,
-                                      rep_node$default, cols)
+                                      rep_node$default, cols,
+                                      clear_for_new_source = clear_for_new_source)
         extra <- list(cols = cols, data = df)
         if (!is.null(dec$selected)) extra$selected <- dec$selected
         picker <- invoke_build_ui(
