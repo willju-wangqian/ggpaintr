@@ -535,6 +535,80 @@ ggp_reference_consumer_mappings <- function(ref_path, formula_name = NULL) {
   out
 }
 
+# Source a SINGLE-PLOT reference.R and return both the ground-truth ggplot
+# (its trailing `eval(formula)`) and the populated sandbox env (custom
+# placeholder runtimes + local data bindings like `df_rug`). A caller can
+# then eval the APP's emitted final-mode code in the SAME env and compare
+# `ggplot_build()$data` -- the robust "same plot" assertion (object identity
+# fails: every ggplot carries a distinct plot_env; built layer data does
+# not). Unlike `.ggp_parse_reference_formula` (which SKIPS the
+# `ptr_define_placeholder_*` calls to avoid registry mutation), this loader
+# MUST run them so the runtimes exist for Path-B eval; it snapshots the
+# registry keyword set and removes any keys the source added on exit, so the
+# mutation does not leak into sibling tests. Only valid for single-plot
+# references (super-1/2b/4 tail-eval shape); multi-cell refs (super-3
+# formula_a/formula_b) need a formula-name-aware variant.
+ggp_reference_plot <- function(slug, formula_name = NULL) {
+  ref_path <- testthat::test_path("fixtures", "vignette-apps", slug,
+                                  "reference.R")
+  before <- ggpaintr:::ptr_registry_keywords()
+  on.exit({
+    added <- setdiff(ggpaintr:::ptr_registry_keywords(), before)
+    for (k in added) {
+      if (exists(k, envir = ggpaintr:::.ptr_registry, inherits = FALSE)) {
+        rm(list = k, envir = ggpaintr:::.ptr_registry)
+      }
+    }
+  }, add = TRUE)
+  env <- new.env(parent = globalenv())
+  # `formula_name = NULL` -> the trailing `eval(...)` value (single-plot refs:
+  # super-1 `eval(formula1)`, super-2b `eval(formula)`, super-4
+  # `eval(parse(text = formula_text))`). For multi-cell refs (super-3 evals
+  # `formula_a` then `formula_b`), pass the formula object's name and eval
+  # THAT one in the populated sandbox.
+  val <- source(ref_path, local = env)$value
+  p <- if (is.null(formula_name)) {
+    val
+  } else {
+    eval(get(formula_name, envir = env), envir = env)
+  }
+  list(plot = p, env = env)
+}
+
+# Assert: the APP's boot final-mode code, eval'd in the reference sandbox,
+# builds to the SAME plot (layer-by-layer `ggplot_build()$data`) as
+# reference.R. `boot_super_app()` must already have been booted; this clicks
+# Draw, switches the code panel to final mode, reads `ptr_code`, evals it in
+# `ref$env`, and compares built data. Pairs with `expect_no_plot_error()`
+# (which proves the LIVE server render did not error) -- the two catch
+# different failure classes: a wrong-but-evaluable emitted expression
+# (caught here) vs. a runtime resolution failure whose emitted code is still
+# textually fine (caught there, e.g. an unbound `df_rug` shortcut).
+expect_boot_plot_matches_reference <- function(app, ref,
+                                               code_output_id = "ptr_code",
+                                               draw_button_id = "ptr_update_plot",
+                                               code_mode_id = "ptr_code_mode") {
+  app$click(draw_button_id)
+  app$wait_for_idle(timeout = 25 * 1000)
+  # Document-wide error check: the unbound-`df_rug` boot error routes into the
+  # inline `.ptr-alert--error` pane, NOT `#ptr_plot`, so the narrow
+  # `expect_no_plot_error` (host-only) would miss it. Use the stronger
+  # any-error-anywhere check so a failed live render is actually caught.
+  expect_no_inline_error_anywhere(app)
+  set_sentinel(app, code_mode_id, "final")
+  app$wait_for_idle(timeout = 25 * 1000)
+  code <- app$get_value(output = code_output_id)
+  testthat::expect_true(is.character(code) && nzchar(code),
+    label = "boot final-mode ptr_code is a non-empty string")
+  p_app <- eval(parse(text = code), envir = ref$env)
+  testthat::expect_s3_class(p_app, "ggplot")
+  testthat::expect_equal(
+    ggplot2::ggplot_build(p_app)$data,
+    ggplot2::ggplot_build(ref$plot)$data
+  )
+  invisible(p_app)
+}
+
 # Assert: the untouched boot `ptr_code` (final mode, no widget driven)
 # carries every consumer-default mapping that reference.R declares.
 #

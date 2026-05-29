@@ -94,6 +94,17 @@ smooth_template <- rlang::expr(
   )
 )
 
+# `ppUpload(df_rug)` is a shortcut source: at boot it loads the object named
+# `df_rug` from this script env (R/paintr-server.R::try_bind_source_default,
+# `get(lookup_name, envir = state$eval_env, inherits = TRUE)`), falling back
+# to a user upload. Bind it so the app boots faithfully to reference.R (which
+# binds the same `df_rug <- mtcars`) instead of raising "object 'df_rug' not
+# found" at first render. mtcars = mpg+wt (no Species) per the inherit.aes
+# note below. The super-pressure test still uploads sample_rug.csv, and an
+# upload wins over this env binding (resolve_upload_source: file_info present
+# => upload data), so post-upload assertions are unaffected.
+df_rug <- mtcars
+
 # --- The app --------------------------------------------------------------
 # G2 BARE-EXPRESSION formula carrying:
 #   - ppSample("iris") at root data        (custom D3 source)

@@ -53,6 +53,23 @@ test_that("boot oracle: super-2b customsource-splice consumer defaults match ref
   testthat::expect_equal(length(mappings), 4L)
 })
 
+test_that("boot oracle: super-2b boot PLOT (built data) equals reference.R", {
+  # Stronger than the consumer-default code-substring oracle above: this
+  # asserts the actual plot. (1) `expect_no_plot_error` proves the LIVE
+  # server render succeeded at boot -- this is what catches the unbound
+  # `ppUpload(df_rug)` shortcut regression (df_rug absent => "object
+  # 'df_rug' not found" => the consumer-default text oracle stayed green
+  # while the plot was broken). (2) the app's emitted final-mode code,
+  # eval'd in reference.R's sandbox, must `ggplot_build()$data`-match
+  # reference.R's own plot -- catching a semantically-wrong-but-evaluable
+  # emitted expression. Object identity is NOT used (every ggplot carries a
+  # distinct plot_env); built layer data is the robust equality.
+  ref <- ggp_reference_plot("super-2b-customsource-splice")
+  app <- boot_super_app("super-2b-customsource-splice")
+  app$wait_for_idle(timeout = 25 * 1000)
+  expect_boot_plot_matches_reference(app, ref)
+})
+
 test_that("boot oracle: super-3 L3 cells' consumer defaults match reference.R at first render", {
   testthat::skip_if_not_installed("plotly")
   # Previously PINNED xfail: the shared consumer `linked` booted to the first
@@ -93,4 +110,48 @@ test_that("boot oracle: super-4 user-css consumer defaults match reference.R at 
   mappings <- expect_boot_matches_reference(app, "super-4-user-css-safety-adversarial",
                                             formula_name = "formula_text")
   testthat::expect_equal(length(mappings), 3L)
+})
+
+# ---- boot PLOT equivalence (built data), beyond the consumer-default text
+# oracle above. Each asserts (1) the live render produced no error pane at
+# boot, and (2) the app's emitted final-mode code, eval'd in reference.R's
+# sandbox, ggplot_build()$data-matches reference.R's own plot. See
+# expect_boot_plot_matches_reference / ggp_reference_plot in the helper.
+
+test_that("boot oracle: super-1 boot PLOT (built data) equals reference.R", {
+  ref <- ggp_reference_plot("super-1-kitchen-sink")
+  app <- boot_super_app("super-1-kitchen-sink")
+  app$wait_for_idle(timeout = 25 * 1000)
+  expect_boot_plot_matches_reference(app, ref)
+})
+
+test_that("boot oracle: super-4 boot PLOT (built data) equals reference.R", {
+  ref <- ggp_reference_plot("super-4-user-css-safety-adversarial")
+  app <- boot_super_app("super-4-user-css-safety-adversarial")
+  app$wait_for_idle(timeout = 25 * 1000)
+  expect_boot_plot_matches_reference(app, ref)
+})
+
+test_that("boot oracle: super-3 L3 cells' boot PLOTS (built data) equal reference.R", {
+  testthat::skip_if_not_installed("plotly")
+  app <- boot_super_app("super-3-l3-multi-shared-plotly")
+  app$wait_for_idle(timeout = 25 * 1000)
+  # Cell A (plain ggplot output): plot1-* ids, reference formula_a.
+  ref_a <- ggp_reference_plot("super-3-l3-multi-shared-plotly",
+                              formula_name = "formula_a")
+  expect_boot_plot_matches_reference(
+    app, ref_a,
+    code_output_id = "plot1-ptr_code",
+    draw_button_id = "plot1-ptr_update_plot",
+    code_mode_id   = "plot1-ptr_code_mode"
+  )
+  # Cell B (plotly-wrapped output): plot2-* ids, reference formula_b.
+  ref_b <- ggp_reference_plot("super-3-l3-multi-shared-plotly",
+                              formula_name = "formula_b")
+  expect_boot_plot_matches_reference(
+    app, ref_b,
+    code_output_id = "plot2-ptr_code",
+    draw_button_id = "plot2-ptr_update_plot",
+    code_mode_id   = "plot2-ptr_code_mode"
+  )
 })

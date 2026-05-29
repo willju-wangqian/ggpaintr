@@ -70,6 +70,14 @@ smooth_template <- rlang::expr(
   )
 )
 
+# `ppUpload(df_rug)`: the bareword `df_rug` is a STRUCTURAL shortcut id (it is
+# NOT a stripped positional default — see header), and at boot the shortcut
+# source loads the object named `df_rug` from this script env (falling back to
+# a user upload). Bind it so this no-default variant also boots clean instead
+# of raising "object 'df_rug' not found". The super-pressure no-default test
+# uploads sample_rug.csv; an upload wins over this env binding.
+df_rug <- mtcars
+
 ptr_app(
   ggplot(ppSample(),
          aes(x = ppVar(),
