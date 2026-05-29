@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0025 Item #7 — fileInput visual reset (static-textInput + rising-edge re-render)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0025 Item #7 — fileInput visual reset via static-textInput + rising-edge re-render</h1>
+
+<p class="meta"><strong>Status:</strong> Ready to implement (design validated by throwaway prototype, real browser, 2026-05-29).
+<strong>Scope:</strong> the ONE remaining deferred item of the ppUpload shortcut/upload campaign — make the fileInput's <em>visual</em> state clear when the shortcut takes over. Cosmetic only; the data gate is already correct and untouched.</p>
+
+<h2>1. Context &amp; baseline (verify before coding)</h2>
+<ul>
+<li><strong>The bug.</strong> After uploading a file then typing a non-empty shortcut, the <strong>data</strong> is correct (gate at <code>resolve_upload_source</code> ignores the lingering file and env-loads the typed name) but the <strong>fileInput widget still visibly shows the uploaded filename</strong>. ADR 0025 §2 (Q3-B mutex) says typing the shortcut should clear the sibling fileInput; the lingering display is a real deviation. The existing JS handler <code>ptr_reset_file_input</code> (<code>inst/www/ggpaintr-layer.js:19-31</code>) is buggy/ineffective and, by design, only works for <code>fileInput</code> — not for custom source widgets.</li>
+<li><strong>Validated design (prototype approach "a").</strong> The shortcut <code>textInput</code> becomes <strong>framework-owned and static</strong>; only the source widget (fileInput for ppUpload) lives in a <code>uiOutput</code> that is re-rendered on a <strong>rising-edge</strong> "shortcut became non-empty" trigger. Re-rendering produces a fresh same-id fileInput with no filename baked in → the pill clears; the static textInput is never re-rendered → typing is undisturbed. Prototype + verdict: <code>.scratch/ppupload-7-fileinput-reset-prototype/</code> (all three behaviors eyeballed YES in a real browser).</li>
+<li><strong>Baseline state.</strong> This plan assumes the ADR-0025 <em>test-migration</em> commit has landed (the 10 stale/regression failures resolved, including the super-2a app.R revert and the strengthened source-default boot oracle) and the full serial suite is <strong>0/0/0</strong>. Confirm <code>git log</code> shows that commit and re-run the gate before starting, so #7's effects are attributable.</li>
+<li><strong>§7-A2 debounce analysis (already done).</strong> The 400ms shortcut debounce (<code>R/paintr-server.R:1489-1494, 1565-1569</code>) serves TWO roles: (i) feeding <code>resolve_upload_source</code> — keystroke-churn / "object not found" flicker reduction, <strong>independent of #7, must stay</strong>; (ii) gating the JS file-reset via <code>shortcut_r</code> passed into <code>ptr_bind_source_mutex</code> — the A2 shadow-bind race fix. #7 removes only role (ii). The same-id re-render never blanks <code>input[[src_id]]</code>, so the A2 race cannot occur.</li>
+</ul>
+
+<h2>2. Success Criteria</h2>
+<ol>
+<li>After uploading a file then typing a non-empty shortcut, the fileInput <strong>no longer displays the uploaded filename</strong> in a real browser (verified by eyeball — the chromote/CDP harness cannot see this; see §6).</li>
+<li>Typing the shortcut is <strong>not disrupted</strong> (no cursor jump / focus loss): the textInput is static, never inside the re-rendered <code>uiOutput</code>.</li>
+<li><strong>Asymmetric:</strong> picking a file clears the textbox (kept <code>updateTextInput</code>) but does <strong>NOT</strong> re-render/wipe the just-uploaded file display (re-render fires on the shortcut rising edge only).</li>
+<li>The data stays the env-loaded frame (the <code>resolve_upload_source</code> gate remains the source of truth — unchanged).</li>
+<li>The behaviour generalises: a custom source registered with <code>shortcut = TRUE</code> gets the framework shortcut textInput + the re-render-on-shortcut clear for <em>free</em> (no fileInput-specific JS).</li>
+<li>The buggy <code>ptr_reset_file_input</code> JS handler is removed (not left dead).</li>
+<li>Full serial authoritative gate stays <strong>0/0/0</strong>; the palmerpenguins shadow-bind test stays green.</li>
+</ol>
+
+<h2>3. Constraints</h2>
+<ul>
+<li><strong>Cosmetic only.</strong> Do NOT change <code>resolve_upload_source</code>'s gate, the auto-name binding, or the env-load path. The resolver stays the data source of truth.</li>
+<li><strong>Do not regress</strong> the F3/caveat-2/§3b fixes from commit <code>332f7b7</code>, nor the super-2a app.R revert / source-default oracle from the test-migration commit.</li>
+<li><strong>Keep the 400ms resolve-path debounce.</strong> Remove only the JS reset + the text→file mutex half + the <code>shortcut_r</code>→mutex threading.</li>
+<li>The shortcut <code>textInput</code> must be emitted as <strong>static UI</strong> in <code>build_ui_for.ptr_ph_data_source</code> (gated on <code>entry$shortcut</code>), <strong>never</strong> inside the source <code>renderUI</code> body. <code>build_ui</code> returns ONLY the source widget.</li>
+<li>The re-render trigger must be <strong>rising-edge only</strong> (shortcut empty→non-empty). A symmetric boolean dep would re-render on the falling edge (file-pick clears the textbox) and wipe the just-uploaded file display — Success Criterion 3.</li>
+<li>Do NOT rely on the chromote harness to "prove" the visual (CDP sets files invisibly to page JS). A real-browser eyeball is mandatory.</li>
+<li>Prefer fixing/removing <code>ptr_reset_file_input</code> over adding a second mechanism. Do NOT add <code>shinyjs</code> as a dependency without asking.</li>
+<li>R conventions: <code>ptr_</code> prefix for exports only; <code>rlang::abort</code>/<code>cli::*</code>; run <code>devtools::document()</code> if any roxygen changes (none expected — internal functions).</li>
+</ul>
+
+<h2>4. Implementation steps (the 5 changes)</h2>
+<ol>
+<li><strong><code>R/paintr-builtins.R</code> — <code>ptr_builtin_upload_build_ui</code> (≈229-251):</strong> return ONLY the fileInput (+ its <code>attach_help</code>). Remove the shortcut <code>textInput</code> from this hook. <code>build_ui</code> now produces just the source widget — the uniform contract for all sources.</li>
+<li><strong><code>R/paintr-build-ui.R</code> — <code>build_ui_for.ptr_ph_data_source</code> (≈73-88):</strong> when <code>ptr_registry_lookup(node$keyword)$shortcut</code> is TRUE, emit <code>tagList(uiOutput(source_output_id(node$id)), textInput(ns_fn(node$shortcut_id), label/placeholder from name_copy, value = node$default %||% ""))</code>; else emit the bare <code>uiOutput(...)</code>. The textInput is static here, never re-rendered. Resolve <code>name_copy</code> via the existing <code>ui_text</code> path (this hook already receives <code>ui_text</code>).</li>
+<li><strong><code>R/paintr-server.R</code> — <code>ptr_setup_source_uis</code> (≈2263-2366):</strong> the <code>&lt;id&gt;_ui</code> <code>renderUI</code> now renders ONLY <code>build_ui(node)</code> (the source widget), not the tagList. Add a per-source rising-edge re-render: a <code>reactiveVal</code> bumped by an observer on the (debounced) shortcut value when it transitions empty→non-empty, used as a <code>renderUI</code> dependency. Keep the existing boot-seed / <code>has_rendered</code> latch and <code>outputOptions(suspendWhenHidden=FALSE)</code>.</li>
+<li><strong><code>R/paintr-server.R</code> — <code>ptr_bind_source_mutex</code> (≈1594-1645) + call sites (≈1519, 1587):</strong> reduce the mutex to the file→text direction only (<code>updateTextInput(value="")</code> on file pick — generic, kept). Delete the text→file half (the <code>session$sendCustomMessage("ptr_reset_file_input", ...)</code> observer) and the <code>shortcut_r</code> parameter. The rising-edge re-render (step 3) replaces it. Stop passing <code>shortcut_r =</code> at both call sites.</li>
+<li><strong><code>inst/www/ggpaintr-layer.js</code> (19-31):</strong> remove the now-dead <code>ptr_reset_file_input</code> custom-message handler.</li>
+</ol>
+
+<h2>5. BDD scenarios</h2>
+<pre><code>Feature: fileInput visual reset when the shortcut takes over (ADR 0025 §2 Q3-B, item #7)
+
+  Background:
+    Given a ppUpload source rendered with a fileInput and a static shortcut textInput
+    And the resolve_upload_source gate is unchanged (data correctness independent of this feature)
+
+  Scenario: typing a shortcut clears the lingering fileInput display
+    Given the user has uploaded "mt.csv" and the fileInput shows "mt.csv"
+    When the user types a non-empty name into the shortcut textbox
+    Then the source uiOutput re-renders a fresh fileInput
+    And the displayed filename "mt.csv" is cleared
+    And the data resolves to the env-loaded frame (not the upload)
+
+  Scenario: typing is not disrupted by the re-render
+    Given the shortcut textbox is empty
+    When the user types characters into it
+    Then the textInput retains focus and the typed value (it is static, never re-rendered)
+    And the rising-edge re-render fires at most once (on the empty -> non-empty transition)
+
+  Scenario: picking a file does NOT wipe its own just-uploaded display (asymmetric)
+    Given the shortcut textbox holds a value
+    When the user picks a file
+    Then the shortcut textbox is cleared via updateTextInput
+    And the fileInput continues to display the just-picked filename
+    And no rising-edge re-render fires (the shortcut went non-empty -> empty, not empty -> non-empty)
+
+  Scenario: a custom shortcut source inherits the clear with no fileInput-specific JS
+    Given a custom source registered with shortcut = TRUE and a build_ui returning a non-file widget
+    When the user types into its framework-provided shortcut textbox
+    Then its source uiOutput re-renders to the widget's default state
+    And no ptr_reset_file_input JS is involved
+
+  Scenario: the palmerpenguins shadow-bind does not regress
+    Given a single-instance ppUpload(shared='ds') |> ggplot(...) app on a search path carrying palmerpenguins::penguins
+    When a file is uploaded (mutex clears the shortcut to "")
+    Then resolve binds the uploaded frame under the canonical auto-name
+    And no env-load of "penguins" occurs (input[[src_id]] is never blanked by a JS reset)
+</code></pre>
+
+<h2>6. Why the test harness can't prove this (read before claiming done)</h2>
+<p>shinytest2/chromote set the uploaded file via CDP, which is invisible to page JS, so the on-page filename display behaves differently than a real browser. A green mutex e2e does <strong>not</strong> prove the pill clears. <strong>Verification of Success Criteria 1-3 is a real-browser eyeball</strong> (run the canonical repro below in Chrome). An automated DOM guard (<code>get_html</code> of the source uiOutput) may be added but must be sanity-checked against the real browser.</p>
+<pre><code># /tmp/ppupload-7-repro/app.R
+devtools::load_all("/Users/willju/Research/ggpaintr-ppUpload-bug", quiet = TRUE)
+library(shiny)
+ptr_app(ggplot(ppUpload(), aes(x = ppVar(Sepal.Length), y = ppVar(Sepal.Width))) + geom_point())
+# Run: shiny::runApp("/tmp/ppupload-7-repro")
+# Steps: write.csv(mtcars,"/tmp/mt.csv"); upload mt.csv -> widget shows "mt.csv";
+#        type "iris" in the shortcut -> data flips to iris AND the "mt.csv" pill clears.</code></pre>
+
+<h2>7. Out of scope</h2>
+<ul>
+<li>The F3 data gate, panel-owned canonical bind, §3b consumer-seeding (already landed, <code>332f7b7</code>).</li>
+<li>The ADR-0025 test migration + super-2a oracle (the separate, prior commit).</li>
+<li>A "clear file" UI button (ADR 0025 explicitly declines one).</li>
+<li>Custom-source prologue hook (ADR 0025 deferred).</li>
+<li>Adding <code>shinyjs</code> (forbidden without asking).</li>
+</ul>
+
+<h2>8. Dependencies</h2>
+<p>None new. Uses existing shiny <code>renderUI</code>/<code>reactiveVal</code>/<code>updateTextInput</code>, the existing <code>entry$shortcut</code> registry field (<code>R/paintr-registry.R:819</code>), and the existing <code>source_output_id</code> / <code>build_ui_copy_args</code> helpers.</p>
+
+<h2>9. Definition of Done (authoritative — copy-pasteable, with proxy traps)</h2>
+<p><strong>(a) Blast-radius e2e cluster first</strong> (shared runtime/codegen change → seeding/binding/source cluster; the palmerpenguins shadow-bind is the hard gate):</p>
+<pre><code>Rscript -e 'devtools::test(filter="shared-source-panel-multi|mutex|adr25|source-shortcut|rewrite-pipeline|adr15-consumer-binding|boot-reference-oracle|resolve-upload-source-helper|host-setup-panel-sources|int-consumer", reporter="progress", stop_on_failure=FALSE)'</code></pre>
+<p>Expected: <code>FAIL 0 | WARN 0 | SKIP 0 | PASS N</code>. <strong>test-shared-source-panel-multi-instance.R worked-example-#4 MUST be green.</strong></p>
+
+<p><strong>(b) Full serial authoritative gate</strong> (the only thing that grounds "done"):</p>
+<pre><code>Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'</code></pre>
+<p>Expected: <code>FAIL 0 | ERROR 0 | SKIP 0 | PASS N</code> (N ≳ 3388; the count is not the gate, 0/0/0 is). <code>devtools::test()</code> sets <code>NOT_CRAN=true</code> itself so the browser tests RUN (0 SKIP).</p>
+
+<p><strong>(c) R CMD check</strong> (the e2e file must cleanly SKIP via the source-root guard, not ERROR):</p>
+<pre><code>Rscript -e 'devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))'</code></pre>
+<p>Expected: 0 errors / 0 warnings (by-design NOTEs OK).</p>
+
+<p><strong>(d) Real-browser eyeball</strong> (mandatory, harness cannot prove it — §6): run the canonical repro, confirm the filename pill clears on shortcut-type while typing is undisturbed and a file-pick does not wipe its own display.</p>
+
+<p class="warn"><strong>Proxy traps:</strong></p>
+<ul>
+<li>A raw <code>testthat::test_dir()</code>/<code>test_file()</code> with <strong>no</strong> <code>NOT_CRAN=true</code> → <code>skip_on_cran()</code> fires → every shinytest2 browser test silently SKIPs. "green, SKIP n" off that is NOT the gate. Use <code>devtools::test()</code>.</li>
+<li>A green chromote e2e does NOT prove the visual pill clears (CDP caveat, §6). Do not claim Success Criteria 1-3 off an e2e alone.</li>
+<li>Registry env splits under raw <code>test_dir</code> (custom placeholders invisible to translate); <code>devtools::test()</code> heals it.</li>
+<li>A residual flake under parallel load is not a product failure — re-confirm serially.</li>
+</ul>
+
+<h2>10. Independence, integration &amp; out-of-scope discipline</h2>
+<ul>
+<li><strong>Independence clause.</strong> Any "done / tests pass / 0/0/0" in this plan, in a sub-agent report, or in a prior turn is a <em>claim to verify, never proof</em>. The integrator (you, or whoever lands #7) MUST independently re-run the §9 Definition-of-Done commands and see the expected output — do not trust a status block, a self-report, or a green from a different (skipping) harness.</li>
+<li><strong>Branch / integration.</strong> Implement on a branch off the committed test-migration baseline; land #7 as <strong>one revertable commit</strong> (the 5 changes are a single cosmetic unit; <code>git revert</code> backs out the whole feature). Do not fold the test-migration into the #7 commit — they are distinct units.</li>
+<li><strong>Surface, don't absorb.</strong> If implementation turns up anything outside §2-4 (a new bug, a stale test, a fixture/oracle drift, a sibling gate on the same invariant), <strong>surface it as a tracked follow-up</strong> (a <code>.scratch/</code> note or an issue) and flag it — never silently paper over it, widen scope, or "fix while I'm here." The #6/#7 super-2a regression in this very campaign is the cautionary case: a fixture edit that looked in-scope was actually a separate regression.</li>
+</ul>
+
+<h2>11. Files to read first (ordered)</h2>
+<ul>
+<li>This plan + the prototype verdict <code>.scratch/ppupload-7-fileinput-reset-prototype/NOTES.md</code>.</li>
+<li><code>dev/adr/0025-source-shortcut-rename-and-upload-auto-name.html</code> §2 (Q3-B mutex), §3/§7-A2 (gate/debounce).</li>
+<li><code>R/paintr-builtins.R</code> (<code>ptr_builtin_upload_build_ui</code>), <code>R/paintr-build-ui.R</code> (<code>build_ui_for.ptr_ph_data_source</code> + <code>source_output_id</code>), <code>R/paintr-server.R</code> (<code>ptr_setup_source_uis</code>, <code>ptr_bind_source_mutex</code>, <code>resolve_upload_source</code> gate, the <code>shortcut_r</code> debounce wiring ≈1489-1520/1565-1588), <code>inst/www/ggpaintr-layer.js</code> (19-31).</li>
+<li><code>.claude/rules/testing.md</code> (shinytest2 gotchas + CDP caveat), <code>CLAUDE.md</code> authoritative-gate block.</li>
+</ul>
+
+<!-- implementable: PASS date=2026-05-29 gate="Rscript -e 'devtools::test(reporter=\"progress\", stop_on_failure=FALSE)'" hash=36e48f0b80c4 -->
+</body>
+</html>
