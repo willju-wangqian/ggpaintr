@@ -289,7 +289,7 @@ test_that("super-2a upload+registry: sentinels propagate through multi-data-sour
   draw_and_wait(app, "ptr_update_plot")
   # F3-amended: validate_input errors surface in the global #ptr_error pane,
   # NOT a widget-adjacent inline error. Verified via
-  # ptr_register_error / ptr_error_ui at R/paintr-server.R:2073-2102.
+  # ptr_error_ui (R/paintr-server.R:1873) / ptr_register_error (R/paintr-server.R:3128).
   # Use get_html (not get_value): ptr_error is a uiOutput that renders a
   # tagList, and get_value returns a list whose scalar coercion is brittle.
   err_html <- app$get_html("#ptr_error") %||% ""
@@ -857,7 +857,7 @@ test_that("super-4 user_css + safety + adversarial: user.css + core assets coexi
   # Core ggpaintr htmlDependency assets reach the page. htmltools serves
   # the bundle at a *versioned* prefix (`ggpaintr-<ver>/ggpaintr.css`),
   # not the plain `addResourcePath("ggpaintr", ...)` path at
-  # R/paintr-build-ui.R:591 -- the registered prefix is the directory map
+  # R/paintr-build-ui.R:689 -- the registered prefix is the directory map
   # that htmlDependency reads, not the served URL.
   testthat::expect_true(
     grepl("ggpaintr.css", stylesheet_html, fixed = TRUE),
@@ -887,7 +887,7 @@ test_that("super-4 user_css + safety + adversarial: user.css + core assets coexi
 
   # ---- G5 string-builder propagation -------------------------------------
   # ADR §App-4 / PLAN-06 G5 row: paste0 + sprintf are in the closed
-  # force-eval whitelist (R/paintr-app.R:260-262). The fixture's
+  # force-eval whitelist (R/paintr-app.R:264). The fixture's
   # `y_arg <- "ppVar(wt)"` got spliced literally into the formula text,
   # which the parser turned into a real ppVar widget. Set the y picker
   # to a literally-unique column and verify the rendered FINAL code
@@ -941,9 +941,9 @@ test_that("super-4 user_css + safety + adversarial: user.css + core assets coexi
 
   # ---- J1 + J3 adversarial ppExpr probe ----------------------------------
   # Set the ppExpr subtitle widget to a string containing the literal
-  # `eval(parse(text = "1+1"))`. The denylist (R/paintr-utils.R:448) +
-  # the recursive AST walker reject it; the canonical literal
-  # `is not allowed in an \`expr\` input` (R/paintr-utils.R:609) surfaces
+  # `eval(parse(text = "1+1"))`. The denylist (unsafe_expr_denylist,
+  # R/paintr-utils.R:484) + the recursive AST walker reject it; the canonical
+  # literal `is not allowed in an \`expr\` input` (R/paintr-utils.R:645) surfaces
   # in the inline error pane, the adversarial text NEVER reaches the
   # rendered code text, and the host output retains the prior plot.
   set_sentinel(app, "labs_2_ppExpr_NA", "eval(parse(text = \"1+1\"))")

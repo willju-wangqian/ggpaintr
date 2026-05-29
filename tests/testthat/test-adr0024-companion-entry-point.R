@@ -4,8 +4,8 @@
 # frame" to "typed-in shortcut for loading a data.frame from envir."
 #
 # Pre-ADR-0024 the binder helpers
-#   try_bind_source_default        (R/paintr-server.R:945)
-#   try_bind_source_default_resolved (R/paintr-server.R:1069)
+#   try_bind_source_default        (R/paintr-server.R:1106)
+#   try_bind_source_default_resolved (R/paintr-server.R:1323)
 # short-circuited on `if (is.null(node$default)) return(FALSE)`, rejecting
 # a typed-in OR spec-seeded companion value when the placeholder had no
 # `default=`. ADR 0024 lifts the guard (preserving the existing
@@ -27,8 +27,8 @@ test_that("adr0024: typed companion name binds env frame without default", {
   )
 
   # User types "mtcars". The input-bound textInput sends the change; the
-  # bare-data-source observer at R/paintr-server.R:1149-1164 invalidates,
-  # calls resolve_upload_source -> file_info NULL ->
+  # input-bound observer fires; resolve_upload_source (R/paintr-server.R:1214)
+  # sees file_info NULL ->
   # try_bind_source_default_resolved (post ADR 0024) -> binds mtcars.
   set_input(app, "ggplot_0_ppUpload_NA_shortcut", "mtcars")
   app$wait_for_idle(timeout = 15 * 1000)
@@ -46,7 +46,7 @@ test_that("adr0024: typed name not resolving to a data frame surfaces inline err
   # Type a name that does NOT resolve to a data.frame in envir. The
   # error pane #ptr_error is a renderUI that depends on `state$runtime()`
   # — it only re-renders on a draw click (see ptr_register_error @
-  # R/paintr-server.R:2672-2700 + the .claude/rules/testing.md
+  # R/paintr-server.R:3128 + the .claude/rules/testing.md
   # "ggpaintr only re-renders on the Update/Draw click" note). set_input
   # writes the resolve error into `state$resolve_errors` synchronously
   # but the pane reflects it only after Update/Draw fires.
@@ -69,7 +69,7 @@ test_that("adr0024: typed name not resolving to a data frame surfaces inline err
                label = "inline error explains the unresolved binding")
 
   # Recovery: typing a valid name clears the error (resolve observer
-  # calls `set_resolve_error(NULL)` at L1014 before retrying the bind).
+  # calls `set_resolve_error(NULL)` at R/paintr-server.R:1220 before retrying the bind).
   set_input(app, "ggplot_0_ppUpload_NA_shortcut", "mtcars")
   app$wait_for_js(
     paste0("(function(){var e=document.getElementById('ptr_error');",
@@ -82,7 +82,7 @@ test_that("adr0024: typed name not resolving to a data frame surfaces inline err
 
 # ---- Scenario C2: typed name resolves but isn't a data frame ----
 # Covers the "Object 'X' is not a data frame." branch in
-# try_bind_source_default_resolved that test-adr0024-companion-entry-point.R:192
+# try_bind_source_default_resolved that test-adr0024-companion-entry-point.R:151
 # pinned at the unit level. `letters` is a base-R character vector;
 # get(name, envir = eval_env, inherits = TRUE) resolves it via baseenv on
 # the search chain, but the is.data.frame() guard fails so the resolve

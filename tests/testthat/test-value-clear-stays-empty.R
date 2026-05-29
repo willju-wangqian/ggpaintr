@@ -1,8 +1,8 @@
 # End-to-end regression tests for the value-path call sites of the
 # default-fallback fix. Mirrors test-consumer-deselect-stays-empty.R
 # but exercises the two value renderUIs:
-#   - ptr_setup_value_uis (non-shared value loop, R/paintr-server.R:1475)
-#   - ptr_setup_value_uis (shared-value loop,    R/paintr-server.R:1561)
+#   - ptr_setup_value_uis (non-shared value loop, R/paintr-server.R:~2102)
+#   - ptr_setup_value_uis (shared-value loop,    R/paintr-server.R:~2175)
 #
 # These widgets emit "" (textInput on clear) or NA_real_ (numericInput on
 # clear) -- both have length 1, so the original `length == 0L` clobber

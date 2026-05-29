@@ -17,8 +17,8 @@
 #    symbol and seeds the snap so the substitute walk emits that symbol.
 #
 #  GAP B — both `ptr_bind_local_shared_consumers()` call sites in
-#    `R/paintr-app.R` (the single-instance preamble at line ~327 and the
-#    embed binder at line ~1197) omitted `panel_sources =`, so even when
+#    `R/paintr-app.R` (the single-instance preamble at line ~337 and the
+#    embed binder at line ~1214) omitted `panel_sources =`, so even when
 #    the host wired `state$panel_sources`, the binder defaulted to
 #    `list()` and the renderUI's PLAN-07 dep loop never engaged. The
 #    patch threads `panel_sources = state$panel_sources %||% list()`

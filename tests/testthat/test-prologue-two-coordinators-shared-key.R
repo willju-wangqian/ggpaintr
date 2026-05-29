@@ -3,35 +3,25 @@
 # bound to its own `ppUpload()`, asserting independent code panels with
 # independent prologue lines naming distinct uploaded files.
 #
-# DRIFT NOTE -- BDD literal vs. delivered observable (surfaced upstream
-# in the implementer report; **not** absorbed scope-narrowing):
+# NOTE -- BDD literal vs. delivered observable.
 #
 # The plan's BDD literal calls for two `ptr_shared(..., id = "left"/"right")`
 # coordinators *sharing key 'ds'* and asserting `^left_ds <- read.csv(...)`
-# / `^right_ds <- read.csv(...)` prologue lines. On the current
-# architecture this shape is *infeasible* via shinytest2:
-#   * `obj$id` namespaces the panel widget *container* output id
-#     (`left-shared_ds_ui`) and the panel server's `input_id` slot
-#     (`left-shared_ds`), but
-#   * the *inner* `fileInput` rendered by `entry$build_ui()` for the
-#     ppUpload source hardcodes the bare DOM id `shared_ds` (no
-#     `<obj$id>-` prefix), so both coordinators emit `id="shared_ds"`
-#     and either (a) collide on a single DOM widget (no two-key fixture)
-#     or (b) the inner widget id never matches the prefixed
-#     server-side `input_id`, leaving the bind permanently unfired.
-# The fix lives in the shared-source UI builder (`shared_panel_body_tag()`
-# + `ptr_setup_panel_sources()` in R/paintr-shared-ui.R /
-# R/paintr-shared-coordinator.R) -- OUTSIDE Plan 04's owned files.
+# / `^right_ds <- read.csv(...)` prologue lines. The bare-DOM-id deferral
+# that originally blocked that shape (both coordinators' inner `fileInput`
+# emitting the un-prefixed id `shared_ds`, so the bind never fired) was
+# FIXED in 9334c59: `ptr_setup_panel_sources()` now stamps namespaced ids
+# onto the rendered node via `ns(canonical_shared_id(key))`
+# (R/paintr-shared-ui.R), so the two-coordinator-shared-key shape is now
+# feasible.
 #
-# This test exercises the same OBSERVABLE the BDD targets -- two
-# independent code panels each with its own prologue line referencing a
-# distinct uploaded file -- via two embedded `ptr_ui()` / `ptr_server()`
-# modules each carrying a pipeline-head `ppUpload()`. Each module's
-# auto-name is the same structural token (`ggplot_0_ppUpload_NA`) within
-# its own per-module eval_env, distinct only by namespace. The BDD
-# literal `left_ds` / `right_ds` symbols cannot be asserted without the
-# upstream fix; see the implementer report's "out-of-scope findings"
-# section for the ticket-worthy detail.
+# This test exercises an equivalent OBSERVABLE -- two independent code
+# panels each with its own prologue line referencing a distinct uploaded
+# file -- via two embedded `ptr_ui()` / `ptr_server()` modules each
+# carrying a pipeline-head `ppUpload()`. Each module's auto-name is the
+# same structural token (`ggplot_0_ppUpload_NA`) within its own per-module
+# eval_env, distinct only by namespace. (A direct `left_ds`/`right_ds`
+# panel-shared-key variant is now possible as a follow-up given 9334c59.)
 
 test_that("two independent modules each emit their own prologue line", {
   skip_on_cran()

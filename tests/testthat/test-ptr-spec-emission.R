@@ -1,6 +1,6 @@
-# PLAN-05 (ADR 0012 §3.5) — `ptr_spec` emission in preserve-mode code panel.
+# PLAN-05 (ADR 0012 §3.5; ADR 0022) — `ptr_spec` emission in spec-mode code panel.
 #
-# Tests the three new internal helpers + the preserve-mode panel
+# Tests the three new internal helpers + the spec-mode panel
 # integration:
 #   * ptr_spec_from_snapshot(snapshot, defaults)  — pure sparse diff
 #   * ptr_spec_combine(specs)                     — pure union with

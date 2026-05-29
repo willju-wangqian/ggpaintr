@@ -1,10 +1,11 @@
 # Regression tests for the `extra$selected` contract in `invoke_build_ui()`
-# (R/paintr-build-ui.R:804). Pins the boot-seed precedence and the deselect
+# (R/paintr-build-ui.R:805). Pins the boot-seed precedence and the deselect
 # bug fix (consumer renderUI emitting `selected = character(0)` after a
 # user empties a `pickerInput(multiple = TRUE)` must NOT snap back to
 # `node$default`).
 #
-# Documented contract reference: R/paintr-registry.R:514-518 — the framework
+# Documented contract reference: R/paintr-registry.R:372-414 (Widget-seeding
+# contract on ?ptr_define_placeholder_value) — the framework
 # delivers `selected` on every renderUI fire (including the boot fire,
 # which carries `node$default` when a positional default is present).
 #

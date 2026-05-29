@@ -2,8 +2,8 @@
 # the convenience path plus the warn pre-flight check. Post Step 02
 # (#P2): with a `ptr_shared_state` supplied, a formula key missing from the
 # bundle is formula-local BY CONSTRUCTION (the coordinator never omits a
-# panel key) -- the module self-binds it silently. The "not in the shared
-# list" heads-up now fires ONLY on the raw escape-hatch path (a partial
+# panel key) -- the module self-binds it silently. The "absent from the
+# supplied shared list" heads-up now fires ONLY on the raw escape-hatch path (a partial
 # `shared =` passed without a `ptr_shared_state`).
 #
 # Single-instance fix: bare `ptr_server()` on a `shared = "..."` formula

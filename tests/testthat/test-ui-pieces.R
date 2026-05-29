@@ -220,7 +220,7 @@ test_that("ptr_ui_controls with no shared placeholders renders no section", {
 # The full-viewport `min-height:100vh` backdrop is opt-in via the
 # `ptr-app--page` modifier. Only the standalone entrypoints (ptr_app /
 # ptr_app_grid) add it. Everything designed to embed in a host app -- the
-# region halves (ptr_controls_ui/ptr_outputs_ui/ptr_shared_ui),
+# region halves (ptr_ui_controls/ptr_outputs_panel/ptr_ui_shared_panel),
 # ptr_ui, ptr_ui_page -- stays bare `.ptr-app` so it sizes to its
 # content instead of stretching the host's column/sidebar floor-to-ceiling.
 
@@ -240,8 +240,8 @@ test_that("ptr_ui stays bare .ptr-app so it embeds (no --page canvas)", {
 
 test_that("ptr_app is standalone -> carries ptr-app--page", {
   # ptr_app_components() builds via ptr_outputs_panel() (unaffected here).
-  # The ptr_app_grid half composes ptr_ui() -> ptr_outputs_ui() ->
-  # deleted ptr_ui_code_toggle; Step 05/06 restore the grid assertion.
+  # ptr_app_components() builds the output region via ptr_outputs_panel()
+  # / ptr_ui_toggle_code(); the grid --page assertion below is live.
   app <- render_with_deps(ptr_app_components(fml)$ui)
   expect_match(app, "ptr-app--page", fixed = TRUE)
 })
