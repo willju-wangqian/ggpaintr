@@ -9,7 +9,7 @@
 
 <h1>ADR 0025 — Source shortcut rename + upload auto-name + mutex-with-autoclear</h1>
 
-<p><strong>Status:</strong> <em>Proposed.</em> Drafted 2026-05-26 from a <code>/grill-with-docs</code> session on branch <code>shared-id-upgrade</code>. §3 auto-name implemented (commit <code>de1edd1</code>; non-shared auto-name landed as <code>df_&lt;hash(node$id)&gt;</code> — see that commit, which refines the §3 table's <code>node$id</code> entry). <strong>§3b consumer-seeding contract (ii) implemented and verified 2026-05-28</strong> (this change). Remaining sections await implementation/verification.</p>
+<p><strong>Status:</strong> <em>Proposed.</em> Drafted 2026-05-26 from a <code>/grill-with-docs</code> session on branch <code>shared-id-upgrade</code>. §3 auto-name implemented (commit <code>de1edd1</code>; §3 below reflects the as-built non-shared auto-name <code>df_&lt;hash(node$id)&gt;</code>). <strong>§3b consumer-seeding contract (ii) implemented and verified 2026-05-28</strong> (this change). Remaining sections await implementation/verification.</p>
 
 <p><strong>Date:</strong> 2026-05-26</p>
 
@@ -68,7 +68,7 @@ if (is_ptr_ph_data_source(node)) {
 
 <p><strong>Rationale.</strong> The two affordances feed the same source slot; without mutex, every resolution path must arbitrate precedence and every test must specify which input wins. The mutex collapses the matrix to "whichever was last touched is the live one." F1/F2 collision modes by construction cannot arise in this UI.</p>
 
-<h3>3. Auto-name for uploads = <code>node$id</code> (non-shared) / <code>&lt;canonical&gt;</code> (shared) / <code>node$default</code> (explicit)</h3>
+<h3>3. Auto-name for uploads = <code>df_&lt;hash(node$id)&gt;</code> (non-shared) / <code>&lt;canonical&gt;</code> (shared) / <code>node$default</code> (explicit)</h3>
 
 <p>When a file is uploaded and the shortcut textbox is empty, the upload's frame binds into <code>state$eval_env</code> under a system-generated symbol. The symbol is derived deterministically from the existing <code>node$id</code> infrastructure:</p>
 
@@ -90,7 +90,7 @@ if (is_ptr_ph_data_source(node)) {
   </tr>
   <tr>
     <td style="border:1px solid #ccd; padding:.3rem .55rem;"><code>ppUpload()</code> non-shared, no explicit name</td>
-    <td style="border:1px solid #ccd; padding:.3rem .55rem;"><code>node$id</code> (e.g. <code>ggplot_1_0_ppUpload_NA</code>)</td>
+    <td style="border:1px solid #ccd; padding:.3rem .55rem;"><code>df_&lt;hash(node$id)&gt;</code>, where <code>hash = substr(rlang::hash(node$id), 1, 6)</code> (e.g. <code>df_158206</code> for <code>node$id = "ggplot_1_0_ppUpload_NA"</code>)</td>
     <td style="border:1px solid #ccd; padding:.3rem .55rem;">owning instance eval_env</td>
   </tr>
   <tr>
@@ -112,7 +112,7 @@ if (is_ptr_ph_data_source(node)) {
 
 <p>Together: every auto-name is unique within its eval_env. No counter, no reserved-namespace beyond the <code>shortcut</code> validator above.</p>
 
-<p><strong>Symbol-flip on upload is accepted.</strong> Under <code>ppUpload(penguins)</code> (ADR 0010 form), the slot boots with textbox seeded <code>"penguins"</code> and binds caller-env <code>penguins</code> via env shortcut. If the user uploads a file, Q3-B's auto-clear empties the textbox, and the upload binds under the system auto-name (<code>node$id</code>, e.g. <code>ggplot_1_0_ppUpload_NA</code>). The code panel symbol flips from <code>penguins</code> to <code>node$id</code>. This is acceptable because the prologue line (Decision §4) makes the new symbol legible at a glance: <code>ggplot_1_0_ppUpload_NA &lt;- read.csv("uploaded.csv")</code>. One mechanism (textbox seed → eval_env name); no special "reserved auto-name" sub-mechanism.</p>
+<p><strong>Symbol-flip on upload is accepted.</strong> Under <code>ppUpload(penguins)</code> (ADR 0010 form), the slot boots with textbox seeded <code>"penguins"</code> and binds caller-env <code>penguins</code> via env shortcut. If the user uploads a file, Q3-B's auto-clear empties the textbox, and the upload binds under the system auto-name <code>df_&lt;hash(node$id)&gt;</code> (e.g. <code>df_158206</code>) — deliberately decoupled from <code>node$default</code> so the user's env-shortcut symbol (<code>penguins</code>) does not leak onto uploaded data (the bug fixed in <code>de1edd1</code>). The code panel symbol flips from <code>penguins</code> to <code>df_&lt;hash(node$id)&gt;</code>. This is acceptable because the prologue line (Decision §4) makes the new symbol legible at a glance: <code>df_158206 &lt;- read.csv("uploaded.csv")</code>. One mechanism (textbox seed → eval_env name); no special "reserved auto-name" sub-mechanism.</p>
 
 <h3>3b. Consumer pickers do not inherit the formula default for a NEW post-boot source — contract (ii)</h3>
 
@@ -290,17 +290,19 @@ obj_right &lt;- ptr_shared(list(f1_right, f2_right), id = "right")
 
 <p>A Group-3 user uploads a file in a deployed app and exports the spec. A Group-1 user runs the prologue locally and reloads the spec; the textbox seed bridges the upload-only session to an env-resident reproduction.</p>
 
-<pre><code class="language-r"># Original (Group 3) session: user uploaded penguins.csv.
-# ptr_runtime_input_spec() dumps:
-spec &lt;- list(`ggplot_1_0_ppUpload_NA_shortcut` = "ggplot_1_0_ppUpload_NA")
+<pre><code class="language-r"># Original (Group 3) session: user uploaded penguins.csv into the empty
+# textbox, so the frame bound under the auto-name df_&lt;hash(node$id)&gt; (§3).
+# The shortcut INPUT id is &lt;node$id&gt;_shortcut; its captured VALUE is that
+# auto-name. ptr_runtime_input_spec() dumps:
+spec &lt;- list(`ggplot_1_0_ppUpload_NA_shortcut` = "df_158206")
 
-# Reproducer (Group 1) prepares caller env, then reloads:
-ggplot_1_0_ppUpload_NA &lt;- read.csv("penguins.csv")
+# Reproducer (Group 1) prepares caller env under the auto-name, then reloads:
+df_158206 &lt;- read.csv("penguins.csv")
 ptr_app(
   "ppUpload() |&gt; ggplot(aes(x = ppVar('species'))) + geom_bar()",
   spec = spec
 )
-# Boot: shortcut textbox seeded with "ggplot_1_0_ppUpload_NA"; env shortcut
+# Boot: shortcut textbox seeded with "df_158206"; env shortcut
 # resolves the caller-env frame; plot identical to original session.
 </code></pre>
 
@@ -431,10 +433,10 @@ ptr_app(
       And ptr_runtime_input_spec dumps "" for the shortcut id
 
   Scenario: spec round-trip via auto-name
-    Given a session ended with state$bound_names[[key]] = "ggplot_1_0_ppUpload_NA"
+    Given a session ended with state$bound_names[[key]] = "df_158206" (the auto-name df_<hash(node$id)>)
       And ptr_runtime_input_spec() was called to dump the spec
-     When the user runs `ggplot_1_0_ppUpload_NA &lt;- read.csv("...")` then `ptr_app(formula, spec = spec)`
-     Then the shortcut textbox boots seeded with "ggplot_1_0_ppUpload_NA"
+     When the user runs `df_158206 &lt;- read.csv("...")` then `ptr_app(formula, spec = spec)`
+     Then the shortcut textbox boots seeded with "df_158206"
       And the env shortcut resolves the caller-env frame
       And the plot renders identically to the original session
 
