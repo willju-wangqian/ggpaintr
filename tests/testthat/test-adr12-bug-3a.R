@@ -26,7 +26,7 @@ test_that("adr12 / PLAN-04 / bug-3a: in-filter ppVar picker populates after uplo
   # uploaded columns without needing a typed shortcut name. We do NOT
   # set the shortcut textbox here — under the ADR 0025 §2 mutex, typing
   # into the shortcut would reset the fileInput and undo the upload.
-  app$upload_file(ggplot_1_ppUpload_NA = testthat::test_path(
+  upload_file(app, ggplot_1_ppUpload_NA = testthat::test_path(
     "fixtures", "vignette-apps", "adr12-bug-3a", "penguins.csv"
   ))
 

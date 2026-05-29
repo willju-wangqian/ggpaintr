@@ -24,7 +24,7 @@ test_that("csv upload emits read.csv prologue", {
 
   app <- boot_vignette_app("prologue-reader-fn-mirror")
   path <- testthat::test_path("fixtures", "mtcars.csv")
-  app$upload_file(ggplot_0_ppUpload_NA = path)
+  upload_file(app, ggplot_0_ppUpload_NA = path)
   app$wait_for_idle(timeout = 15 * 1000)
   draw(app, "ptr_update_plot")
 
@@ -40,7 +40,7 @@ test_that("tsv upload emits read.delim prologue", {
 
   app <- boot_vignette_app("prologue-reader-fn-mirror")
   path <- testthat::test_path("fixtures", "mtcars.tsv")
-  app$upload_file(ggplot_0_ppUpload_NA = path)
+  upload_file(app, ggplot_0_ppUpload_NA = path)
   app$wait_for_idle(timeout = 15 * 1000)
   draw(app, "ptr_update_plot")
 
@@ -57,7 +57,7 @@ test_that("xlsx upload emits readxl::read_excel prologue", {
 
   app <- boot_vignette_app("prologue-reader-fn-mirror")
   path <- testthat::test_path("fixtures", "mtcars.xlsx")
-  app$upload_file(ggplot_0_ppUpload_NA = path)
+  upload_file(app, ggplot_0_ppUpload_NA = path)
   app$wait_for_idle(timeout = 15 * 1000)
   draw(app, "ptr_update_plot")
 
@@ -73,7 +73,7 @@ test_that("rds upload emits readRDS prologue", {
 
   app <- boot_vignette_app("prologue-reader-fn-mirror")
   path <- testthat::test_path("fixtures", "mtcars.rds")
-  app$upload_file(ggplot_0_ppUpload_NA = path)
+  upload_file(app, ggplot_0_ppUpload_NA = path)
   app$wait_for_idle(timeout = 15 * 1000)
   draw(app, "ptr_update_plot")
 

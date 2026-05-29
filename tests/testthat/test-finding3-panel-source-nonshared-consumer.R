@@ -51,7 +51,7 @@ test_that(
     expect_no_dom_id(app, "ggplot_1_1_ppVar_NA")
 
     csv_path <- test_path("fixtures", "penguins.csv")
-    app$upload_file(shared_ds = csv_path)
+    upload_file(app, shared_ds = csv_path)
     set_input(app, "shared_ds_shortcut", "penguins")
     app$wait_for_idle(timeout = 15 * 1000)
 

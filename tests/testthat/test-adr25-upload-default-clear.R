@@ -38,7 +38,7 @@ test_that("adr25: env-default boot seeds the formula default; a new upload clear
 
   # Case C (the bug): a real upload is new data — the boot default must not
   # carry onto it. Picker stays populated but unselected.
-  app$upload_file(
+  upload_file(app, 
     geom_point_0_ppUpload_NA = file.path(app_dir(), "up.csv"),
     wait_ = FALSE
   )

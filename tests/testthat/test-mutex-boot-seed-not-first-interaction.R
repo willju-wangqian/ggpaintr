@@ -50,7 +50,7 @@ test_that("ppUpload(penguins) boot seed does not trip mutex; later upload still 
     "fixtures", "vignette-apps", "mutex-boot-seed-not-first-interaction",
     "penguins.csv"
   )
-  app$upload_file(ggplot_0_ppUpload_NA = csv_path)
+  upload_file(app, ggplot_0_ppUpload_NA = csv_path)
   app$wait_for_idle(timeout = 15 * 1000)
 
   expect_equal(

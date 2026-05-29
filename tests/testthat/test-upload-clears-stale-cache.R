@@ -21,7 +21,7 @@ test_that("upload re-resolves consumers; pickers don't keep stale columns", {
   # ---- Upload a CSV with DISJOINT columns -----------------------------
   csv <- testthat::test_path("fixtures", "vignette-apps",
                              "upload-clears-stale-cache", "penguins5.csv")
-  app$upload_file(ggplot_0_ppUpload_NA = csv)
+  upload_file(app, ggplot_0_ppUpload_NA = csv)
   app$wait_for_idle(timeout = 25 * 1000)
 
   # ---- The non-shared x/y pickers MUST NOT still hold mtcars cols -----

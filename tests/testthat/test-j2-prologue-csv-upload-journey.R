@@ -69,7 +69,7 @@ test_that("J2 stage 1 (prologue-csv-upload): typed shortcut wins over node$auto_
   src_id      <- "ggplot_0_ppUpload_NA"
   shortcut_id <- "ggplot_0_ppUpload_NA_shortcut"
 
-  app$upload_file(ggplot_0_ppUpload_NA = testthat::test_path(
+  upload_file(app, ggplot_0_ppUpload_NA = testthat::test_path(
     "fixtures", "mtcars.csv"
   ))
   app$wait_for_idle(timeout = 15 * 1000)
@@ -104,7 +104,7 @@ test_that("J2 stage 2 (j2-custom-source-error): resolve_data error surfaces in #
   src_id <- "ggplot_0_ppFailingSource_NA"
   expect_dom_id(app, src_id)
 
-  app$upload_file(ggplot_0_ppFailingSource_NA = testthat::test_path(
+  upload_file(app, ggplot_0_ppFailingSource_NA = testthat::test_path(
     "fixtures", "mtcars.csv"
   ))
   app$wait_for_idle(timeout = 15 * 1000)
@@ -135,7 +135,7 @@ test_that("J2 stage 3 (prologue-csv-upload): bad extension surfaces resolve_erro
   app <- boot_vignette_app("prologue-csv-upload")
 
   # ---- :23 -- upload bad ext, assert error surfaces -------------------
-  app$upload_file(ggplot_0_ppUpload_NA = testthat::test_path(
+  upload_file(app, ggplot_0_ppUpload_NA = testthat::test_path(
     "fixtures", "bad_extension.txt"
   ))
   app$wait_for_idle(timeout = 15 * 1000)
@@ -149,7 +149,7 @@ test_that("J2 stage 3 (prologue-csv-upload): bad extension surfaces resolve_erro
   )
 
   # ---- :74 -- next good upload clears the error -----------------------
-  app$upload_file(ggplot_0_ppUpload_NA = testthat::test_path(
+  upload_file(app, ggplot_0_ppUpload_NA = testthat::test_path(
     "fixtures", "mtcars.csv"
   ))
   app$wait_for_idle(timeout = 15 * 1000)

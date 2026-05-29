@@ -57,7 +57,7 @@ test_that("ADR worked example #1 -- two plots sharing one uploaded dataset", {
   # Upload the textbook CSV; the panel host observer must resolve it once
   # and mirror into the per-instance state for both p1 and p2 (Plan 05).
   csv_path <- test_path("fixtures", "penguins.csv")
-  app$upload_file(shared_ds = csv_path)
+  upload_file(app, shared_ds = csv_path)
   # Companion text input is browser-auto-filled from the uploaded filename
   # via ptr_bind_source_autoname(); explicit set guards against ordering
   # races inside AppDriver (same pattern as test-adr12-bug-3a.R:33).
@@ -169,7 +169,7 @@ test_that("ADR worked example #4 -- single-instance shared source still works", 
   expect_dom_id(app, "shared_ds")
 
   csv_path <- test_path("fixtures", "penguins.csv")
-  app$upload_file(shared_ds = csv_path)
+  upload_file(app, shared_ds = csv_path)
   set_input(app, "shared_ds_shortcut", "penguins")
   set_input(app, "ggplot_subtab", "Controls")
   # ADR 0025 §7 A2: the shortcut bind is debounced 400ms. The subtab-switch
@@ -297,7 +297,7 @@ test_that("ADR worked example #3 -- mixed scope wires correctly", {
   expect_no_dom_id(app, "shared_colB")
 
   csv_path <- test_path("fixtures", "penguins.csv")
-  app$upload_file(shared_ds = csv_path)
+  upload_file(app, shared_ds = csv_path)
   set_input(app, "shared_ds_shortcut", "penguins")
   # Embedded ptr_ui() uses a hidden layer tabset rather than the
   # Data/Controls split (see notes in the worked-example #1 scenario);

@@ -29,7 +29,7 @@ test_that("picking a file auto-clears the shortcut textbox", {
     "fixtures", "vignette-apps", "mutex-file-pick-clears-textbox",
     "penguins.csv"
   )
-  app$upload_file(ggplot_0_ppUpload_NA = csv_path)
+  upload_file(app, ggplot_0_ppUpload_NA = csv_path)
   app$wait_for_idle(timeout = 15 * 1000)
 
   # Then: the shortcut textbox has been wiped to the empty string

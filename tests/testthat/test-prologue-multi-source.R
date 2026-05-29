@@ -24,9 +24,9 @@ test_that("multi-source app emits one prologue line per active upload in declara
 
   csv_path <- testthat::test_path("fixtures", "mtcars.csv")
   tsv_path <- testthat::test_path("fixtures", "mtcars.tsv")
-  app$upload_file(geom_point_0_ppUpload_NA = csv_path)
+  upload_file(app, geom_point_0_ppUpload_NA = csv_path)
   app$wait_for_idle(timeout = 15 * 1000)
-  app$upload_file(geom_line_0_ppUpload_NA = tsv_path)
+  upload_file(app, geom_line_0_ppUpload_NA = tsv_path)
   app$wait_for_idle(timeout = 15 * 1000)
   draw(app, "ptr_update_plot")
 

@@ -78,7 +78,7 @@ test_that("J1 stage 1 (j1-ppupload-spec-roundtrip): empty shortcut + upload => s
   auto_name   <- paste0("df_", substr(rlang::hash(source_id), 1L, 6L))
 
   # ---- :25 -- empty shortcut + upload => spec at shortcut id == auto-name
-  app$upload_file(ggplot_0_ppUpload_NA = testthat::test_path(
+  upload_file(app, ggplot_0_ppUpload_NA = testthat::test_path(
     "fixtures", "mtcars.csv"
   ))
   app$wait_for_idle(timeout = 15 * 1000)

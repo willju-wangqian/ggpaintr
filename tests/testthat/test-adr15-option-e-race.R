@@ -22,7 +22,7 @@ test_that("adr15 option E: autoname-fired upload does NOT leak datasets::penguin
   csv_path <- testthat::test_path(
     "fixtures", "vignette-apps", fixture, "penguins.csv"
   )
-  app$upload_file(ggplot_1_ppUpload_NA = csv_path)
+  upload_file(app, ggplot_1_ppUpload_NA = csv_path)
   # Deliberately do NOT set ggplot_1_ppUpload_NA_shortcut — let
   # ptr_bind_source_autoname() fire its updateTextInput("penguins").
   # That client-roundtripped input update is exactly the signal whose

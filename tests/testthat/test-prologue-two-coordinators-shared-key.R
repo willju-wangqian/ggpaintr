@@ -37,9 +37,9 @@ test_that("two independent modules each emit their own prologue line", {
 
   mtcars_path <- testthat::test_path("fixtures", "mtcars.csv")
   penguins_path <- testthat::test_path("fixtures", "penguins.csv")
-  app$upload_file(`left_p1-ggplot_0_ppUpload_NA` = mtcars_path)
+  upload_file(app, `left_p1-ggplot_0_ppUpload_NA` = mtcars_path)
   app$wait_for_idle(timeout = 15 * 1000)
-  app$upload_file(`right_p1-ggplot_0_ppUpload_NA` = penguins_path)
+  upload_file(app, `right_p1-ggplot_0_ppUpload_NA` = penguins_path)
   app$wait_for_idle(timeout = 15 * 1000)
   draw(app, "left_p1-ptr_update_plot")
   draw(app, "right_p1-ptr_update_plot")

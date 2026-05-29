@@ -64,7 +64,7 @@ test_that("clearing shortcut textbox drops the code-panel prologue line (observa
   # Step 1: upload a csv. resolve_upload_source binds + registers
   # active_uploads + (on draw) emits a prologue line.
   csv_path <- testthat::test_path("fixtures", "mtcars.csv")
-  app$upload_file(ggplot_0_ppUpload_NA = csv_path)
+  upload_file(app, ggplot_0_ppUpload_NA = csv_path)
   app$wait_for_idle(timeout = 15 * 1000)
   draw(app, "ptr_update_plot")
 

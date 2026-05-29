@@ -24,7 +24,7 @@ test_that("typing into shortcut textbox auto-clears the sibling fileInput", {
     "fixtures", "vignette-apps", "mutex-typed-textbox-resets-file",
     "penguins.csv"
   )
-  app$upload_file(ggplot_0_ppUpload_NA = csv_path)
+  upload_file(app, ggplot_0_ppUpload_NA = csv_path)
   app$wait_for_idle(timeout = 15 * 1000)
 
   # Step 2: type into the shortcut textbox. wait_=FALSE per project rule

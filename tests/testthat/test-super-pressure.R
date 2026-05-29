@@ -176,8 +176,8 @@ test_that("super-2a upload+registry: sentinels propagate through multi-data-sour
   # ppUpload at the pipeline head: ggplot_1_ppUpload_NA (+ companion _name).
   # ppUpload in geom_smooth(data = ): geom_smooth_0_ppUpload_NA (+ _name).
   # Ids confirmed by probing ptr_translate + collect_layer_placeholders.
-  app$upload_file(ggplot_1_ppUpload_NA = main_csv)
-  app$upload_file(geom_smooth_0_ppUpload_NA = aux_csv)
+  upload_file(app, ggplot_1_ppUpload_NA = main_csv)
+  upload_file(app, geom_smooth_0_ppUpload_NA = aux_csv)
   # Explicit companion-name sets guard against AppDriver-ordering races on
   # the auto-fill (project memory: adr12-bug-3a test does the same thing).
   set_sentinel(app, "ggplot_1_ppUpload_NA_shortcut", "df_main")
@@ -326,8 +326,8 @@ test_that("super-2a no-default: sentinels propagate through multi-data-source + 
   # consumer picker.
   fixture_dir <- testthat::test_path("fixtures", "vignette-apps",
                                      "super-2a-upload-registry")
-  app$upload_file(ggplot_1_ppUpload_NA = file.path(fixture_dir, "sample_main.csv"))
-  app$upload_file(geom_smooth_0_ppUpload_NA = file.path(fixture_dir, "sample_aux.csv"))
+  upload_file(app, ggplot_1_ppUpload_NA = file.path(fixture_dir, "sample_main.csv"))
+  upload_file(app, geom_smooth_0_ppUpload_NA = file.path(fixture_dir, "sample_aux.csv"))
   set_sentinel(app, "ggplot_1_ppUpload_NA_shortcut", "df_main")
   set_sentinel(app, "geom_smooth_0_ppUpload_NA_shortcut", "df_aux")
   app$wait_for_idle(timeout = 25 * 1000)
@@ -519,7 +519,7 @@ test_that("super-2b customsource-splice: ppSample (D3 source) + !!splice (G3) + 
   # columns -- proving the layer-data ppUpload owns the layer-aes column
   # scope, NOT the root ppSample("iris"). If the picker shows iris columns,
   # the disjoint-data-source contract is broken; STOP and escalate.
-  app$upload_file(
+  upload_file(app, 
     geom_rug_0_ppUpload_NA = testthat::test_path(
       "fixtures", "vignette-apps",
       "super-2b-customsource-splice", "sample_rug.csv"

@@ -47,7 +47,7 @@ test_that("adr15: non-shared ppVar under ppUpload populates after upload, no sub
   )
   withr::defer(app$stop())
 
-  app$upload_file(geom_point_0_ppUpload_NA = csv_path)
+  upload_file(app, geom_point_0_ppUpload_NA = csv_path)
   set_input(app, "geom_point_0_ppUpload_NA_shortcut", "df")
   app$wait_for_idle(timeout = 25 * 1000)
 
@@ -101,7 +101,7 @@ test_that("adr15: shared ppVar under ppUpload populates after upload, no subtab 
   )
   withr::defer(app$stop())
 
-  app$upload_file(geom_point_0_ppUpload_NA = csv_path)
+  upload_file(app, geom_point_0_ppUpload_NA = csv_path)
   set_input(app, "geom_point_0_ppUpload_NA_shortcut", "df")
   app$wait_for_idle(timeout = 25 * 1000)
 

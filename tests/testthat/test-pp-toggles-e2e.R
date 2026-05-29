@@ -59,8 +59,11 @@ test_that("SC8 spec = at boot overrides formula-side ppLayerOff default (shinyte
   ))
   on.exit(app$stop(), add = TRUE)
 
-  # BDD `Then`: input value after flush equals TRUE
-  expect_true(app$get_value(input = "geom_point_checkbox"))
+  # BDD `Then`: input value after flush equals TRUE. Poll for the seeded
+  # value rather than sampling once — the spec `=` override lands a flush
+  # after the Connect handshake, and under parallel-execution CPU contention
+  # that lag is seconds (a single immediate read races it).
+  expect_input_eventually(app, "geom_point_checkbox", TRUE)
 })
 
 test_that("SC7 e2e: ppVerbSwitch(switch_on=FALSE) — stage checkbox boots unchecked", {
