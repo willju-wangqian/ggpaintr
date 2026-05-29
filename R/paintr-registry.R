@@ -690,11 +690,13 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #'   tutorial.
 #'
 #' @param build_ui `function(node, label, ...)` returning a Shiny tag —
-#'   same shape as in [ptr_define_placeholder_value()]. With
-#'   `shortcut = TRUE`, render **two** bound inputs in the same tag,
-#'   one with `inputId = node$id` (data payload) and one with
-#'   `inputId = node$shortcut_id` (sibling input — typically the
-#'   user-facing dataset name spliced into the rendered code).
+#'   same shape as in [ptr_define_placeholder_value()]. Render ONLY the
+#'   source's data-payload widget at `inputId = node$id` (e.g. a
+#'   `fileInput`, a `selectInput` chooser). With `shortcut = TRUE` the
+#'   framework emits the sibling shortcut `textInput` (at
+#'   `node$shortcut_id`) for you (ADR 0025 item #7) — do NOT render it
+#'   yourself, or the id would be bound twice. A source whose only entry
+#'   point is the shortcut (e.g. an env-name loader) may return `NULL`.
 #'
 #'   *Seeding* — same opt-in shape as the other two helpers: declare an
 #'   optional `selected = NULL` formal (or accept `...`) to receive the
@@ -724,19 +726,24 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #'   name as a bare symbol.
 #' @param shortcut Single logical (default `FALSE`). When `TRUE`, the
 #'   framework stamps `node$shortcut_id <- paste0(node$id, "_shortcut")`
-#'   on every translated source node; the author's `build_ui` is then
-#'   expected to render **two** bound Shiny inputs that both participate
-#'   in the runtime substitution cycle: one at `node$id` (the data
-#'   payload) and one at `node$shortcut_id` (a sibling input, typically a
-#'   typed-in name that resolves a `data.frame` from the caller-supplied
-#'   `envir`). The shortcut value reaches `resolve_data` / `resolve_expr`
-#'   through `node`. Most sources do not need it — one bound input is the
-#'   common case. The built-in `ppUpload` sets `shortcut = TRUE` so the
-#'   "Optional dataset name" textbox sits beside the file picker: the
-#'   file contents bind to `node$id`, the user-typed name binds to
-#'   `node$shortcut_id`, and the substitution uses the name as the symbol
-#'   inserted into the generated code. The reserved shared key
-#'   `"shortcut"` is rejected at translate time (see ADR 0025 §1).
+#'   on every translated source node AND renders the sibling shortcut
+#'   `textInput` (at `node$shortcut_id`) for you — an "Optional dataset
+#'   name" box beside the source widget (ADR 0025 item #7). Your
+#'   `build_ui` renders ONLY the data-payload widget at `node$id` (or
+#'   `NULL` for a shortcut-only source); it must NOT render the shortcut
+#'   input itself. Both inputs participate in the runtime substitution
+#'   cycle: one at `node$id` (the data payload) and one at
+#'   `node$shortcut_id` (a typed-in name that resolves a `data.frame` from
+#'   the caller-supplied `envir`). The shortcut value reaches
+#'   `resolve_data` / `resolve_expr` through `node`. Most sources do not
+#'   need it — one bound input is the common case. The built-in `ppUpload`
+#'   sets `shortcut = TRUE`: the file contents bind to `node$id`, the
+#'   user-typed name binds to `node$shortcut_id`, and the substitution
+#'   uses the name as the symbol inserted into the generated code. The
+#'   framework also re-renders the source widget when the shortcut goes
+#'   non-empty, clearing a stale display (ADR 0025 item #7). The reserved
+#'   shared key `"shortcut"` is rejected at translate time (see ADR 0025
+#'   §1).
 #'
 #' @param default_arg,named_args See [ptr_define_placeholder_value()].
 #'   Source placeholders use the same arg-schema slots.
@@ -792,9 +799,9 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #'
 #' Source widgets whose primary value is a complex object (raw
 #' `fileInput()` data.frame, environment, S4 instance, etc.) without
-#' `shortcut = TRUE` cannot round-trip; opt into the shortcut sibling
-#' and bind a `textInput(node$shortcut_id, ...)` that carries the
-#' binding name, mirroring `ppUpload`.
+#' `shortcut = TRUE` cannot round-trip; opt into `shortcut = TRUE` and the
+#' framework renders the sibling `textInput(node$shortcut_id, ...)` that
+#' carries the binding name, mirroring `ppUpload`.
 #'
 #' @seealso [ptr_define_placeholder_value()], [ptr_define_placeholder_consumer()],
 #'   [ptr_clear_placeholder()].

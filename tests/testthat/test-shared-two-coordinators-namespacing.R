@@ -43,6 +43,15 @@ source_render_html_for <- function(obj, slot) {
   out
 }
 
+# ADR 0025 item #7: the shortcut textInput is no longer rendered inside the
+# source uiOutput (`<id>-shared_<key>_ui`, which now holds ONLY the
+# fileInput). It is emitted as a STATIC sibling by the panel body
+# (`shared_panel_body_tag` -> `build_ui_for`). Assert shortcut ids against
+# this panel-body HTML, fileInput ids against the uiOutput render above.
+panel_body_html <- function(obj) {
+  as.character(shared_panel_body_tag(obj, obj$panel_keys))
+}
+
 # Two-formula coordinator so `ppUpload(shared = "ds")` becomes a panel key.
 plots_ds <- c(
   "ggplot(ppUpload(shared = 'ds'), aes(x = ppVar('mpg'))) + geom_point()",
@@ -57,21 +66,26 @@ test_that("left coordinator renders panel-source widget at namespaced DOM id", {
   expect_match(html, 'id="left-shared_ds"', fixed = TRUE)
   expect_match(html, 'id="left-shared_ds-label"', fixed = TRUE)
   expect_match(html, 'id="left-shared_ds_progress"', fixed = TRUE)
-  # Shortcut companion (autoname text input) likewise namespaced.
-  expect_match(html, 'id="left-shared_ds_shortcut"', fixed = TRUE)
-  expect_match(html, 'id="left-shared_ds_shortcut-label"', fixed = TRUE)
-  # The bare ids must NOT appear when a coordinator id is supplied.
   expect_false(grepl('id="shared_ds"', html, fixed = TRUE))
-  expect_false(grepl('id="shared_ds_shortcut"', html, fixed = TRUE))
+  # Shortcut companion (autoname text input) lives in the panel body now
+  # (static sibling, item #7), likewise coordinator-namespaced.
+  body <- panel_body_html(left)
+  expect_match(body, 'id="left-shared_ds_shortcut"', fixed = TRUE)
+  expect_match(body, 'id="left-shared_ds_shortcut-label"', fixed = TRUE)
+  # The bare shortcut id must NOT appear when a coordinator id is supplied.
+  expect_false(grepl('id="shared_ds_shortcut"', body, fixed = TRUE))
 })
 
 test_that("right coordinator renders panel-source widget at distinct namespaced DOM id", {
   right <- ptr_shared(formulas = plots_ds, id = "right")
   html <- source_render_html_for(right, "right-shared_ds_ui")
   expect_match(html, 'id="right-shared_ds"', fixed = TRUE)
-  expect_match(html, 'id="right-shared_ds_shortcut"', fixed = TRUE)
   expect_false(grepl('id="shared_ds"', html, fixed = TRUE))
   expect_false(grepl('id="left-shared_ds"', html, fixed = TRUE))
+  # Shortcut companion (static sibling, item #7) in the panel body.
+  body <- panel_body_html(right)
+  expect_match(body, 'id="right-shared_ds_shortcut"', fixed = TRUE)
+  expect_false(grepl('id="left-shared_ds_shortcut"', body, fixed = TRUE))
 })
 
 test_that("two coordinators sharing key 'ds' produce disjoint DOM ids (no collision)", {
@@ -100,5 +114,6 @@ test_that("default `id = NULL` still renders panel-source widget at bare DOM id"
   expect_null(obj$id)
   html <- source_render_html_for(obj, "shared_ds_ui")
   expect_match(html, 'id="shared_ds"', fixed = TRUE)
-  expect_match(html, 'id="shared_ds_shortcut"', fixed = TRUE)
+  # Bare shortcut id (id = NULL coordinator) in the panel body, item #7.
+  expect_match(panel_body_html(obj), 'id="shared_ds_shortcut"', fixed = TRUE)
 })

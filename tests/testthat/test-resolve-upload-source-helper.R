@@ -78,11 +78,15 @@ wire <- function(key, eval_env = new.env(parent = emptyenv())) {
 test_that("ggpaintr:::resolve_upload_source has the documented formals", {
   fn <- ggpaintr:::resolve_upload_source
   expect_true(is.function(fn))
+  # ADR 0025 item #7: `file_reset` (default FALSE) added so the resolver can
+  # treat the fileInput as absent when its display was re-rendered, without
+  # depending on the unreliable server-side input value.
   expect_identical(
     names(formals(fn)),
     c("input_slot", "shortcut_slot", "node", "entry", "envir",
-      "state", "key", "slot")
+      "state", "key", "slot", "file_reset")
   )
+  expect_identical(formals(fn)$file_reset, FALSE)
 })
 
 # ---- BDD Scenarios 2/3/4 — MERGED into J2 journey on 2026-05-28 ---------

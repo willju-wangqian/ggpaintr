@@ -75,19 +75,23 @@ test_that("clearing shortcut textbox drops the code-panel prologue line (observa
     label = "code panel leads with a prologue line after upload"
   )
 
-  # Step 2: type a non-empty name into the shortcut textbox. The mutex's
-  # typed-textbox-resets-file observer fires (nzchar("zzz") == TRUE) and
-  # calls the JS ptr_reset_file_input handler -> file_info goes NULL.
-  # resolve_upload_source then fires with file_info NULL AND
-  # shortcut "zzz"; try_bind_source_default_resolved tries to resolve
-  # "zzz" in eval_env, fails (no such binding), and falls through.
+  # Step 2: type a non-empty name into the shortcut textbox. ADR 0025
+  # item #7: this is the shortcut rising edge -> the source uiOutput
+  # re-renders (the file pill clears) AND the `state$source_file_reset`
+  # flag for this source is set TRUE. resolve_upload_source then fires
+  # with the shortcut active ("zzz"), so file_info is forced NULL; the
+  # prior active_uploads entry is cleared and try_bind_source_default
+  # fails to resolve "zzz" -- so no prologue, but no vacate yet (the
+  # textbox is non-empty).
   set_input(app, shortcut_id, "zzz")
   app$wait_for_idle(timeout = 15 * 1000)
   app$wait_for_idle(timeout = 15 * 1000)
 
-  # Step 3: clear the shortcut textbox to "". Now file_info is NULL AND
-  # shortcut is empty -> slot(NULL) fall-through -> shortcut_is_empty
-  # TRUE -> vacate_source_binding() fires.
+  # Step 3: clear the shortcut textbox to "". The `file_reset` flag is
+  # still TRUE (no new file picked since the re-render), so
+  # resolve_upload_source treats file_info as NULL even though the stale
+  # server-side fileInput value persists; shortcut is now empty ->
+  # shortcut_is_empty TRUE -> vacate_source_binding() fires.
   set_input(app, shortcut_id, "")
   app$wait_for_idle(timeout = 15 * 1000)
   app$wait_for_idle(timeout = 15 * 1000)

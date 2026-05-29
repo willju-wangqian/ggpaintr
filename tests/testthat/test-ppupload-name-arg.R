@@ -103,11 +103,15 @@ test_that("ppUpload(1 + 2) aborts with rlang_error class", {
   )
 })
 
-# ---- Scenario 6: build_ui seeds companion textInput value ------------------
+# ---- Scenario 6: static shortcut textInput seeds value from default --------
+# ADR 0025 item #7: the shortcut textInput moved out of the source hook
+# (`ptr_builtin_upload_build_ui`, which now returns only the fileInput) and
+# is emitted as STATIC UI by `build_ui_for.ptr_ph_data_source`. The value
+# seeding from `node$default` is unchanged -- it just lives one layer up.
 
-test_that("ptr_builtin_upload_build_ui seeds companion value from default", {
+test_that("build_ui_for emits a shortcut textInput seeded from node$default", {
   node <- make_upload_node(default = "penguins")
-  ui <- ptr_builtin_upload_build_ui(node)
+  ui <- build_ui_for(node)
   inputs <- collect_input_tags(ui)
   text_inputs <- Filter(
     function(t) identical(t$attribs$type, "text") &&
@@ -118,11 +122,11 @@ test_that("ptr_builtin_upload_build_ui seeds companion value from default", {
   expect_identical(text_inputs[[1L]]$attribs$value, "penguins")
 })
 
-# ---- Scenario 7: build_ui leaves companion empty when default = NULL -------
+# ---- Scenario 7: static shortcut textInput is empty when default = NULL ----
 
-test_that("ptr_builtin_upload_build_ui leaves companion value empty for NULL default", {
+test_that("build_ui_for leaves the shortcut textInput empty for NULL default", {
   node <- make_upload_node(default = NULL)
-  ui <- ptr_builtin_upload_build_ui(node)
+  ui <- build_ui_for(node)
   inputs <- collect_input_tags(ui)
   text_inputs <- Filter(
     function(t) identical(t$attribs$type, "text") &&
@@ -131,6 +135,27 @@ test_that("ptr_builtin_upload_build_ui leaves companion value empty for NULL def
   )
   expect_equal(length(text_inputs), 1L)
   expect_identical(text_inputs[[1L]]$attribs$value, "")
+})
+
+# ---- Scenario 6b: the source hook itself now returns ONLY the fileInput ----
+# Pins the moved contract from the other side: `ptr_builtin_upload_build_ui`
+# must no longer emit the shortcut textInput (else it double-binds the id
+# against the static one). Discriminates the regression where the hook
+# re-grows the textInput.
+
+test_that("ptr_builtin_upload_build_ui returns only the fileInput (no shortcut)", {
+  node <- make_upload_node(default = "penguins")
+  ui <- ptr_builtin_upload_build_ui(node)
+  inputs <- collect_input_tags(ui)
+  # fileInput renders BOTH an <input type="file"> picker and an internal
+  # readonly <input type="text"> filename display, so we discriminate on the
+  # shortcut id specifically: the shortcut textInput must NOT be emitted here.
+  file_inputs <- Filter(function(t) identical(t$attribs$type, "file"), inputs)
+  shortcut_inputs <- Filter(
+    function(t) identical(t$attribs$id, "up1_shortcut"), inputs
+  )
+  expect_equal(length(file_inputs), 1L)
+  expect_equal(length(shortcut_inputs), 0L)
 })
 
 # ---- Scenario 8: ppUpload(x) outside app is identity (data.frame) ----------
