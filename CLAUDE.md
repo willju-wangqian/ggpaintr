@@ -49,6 +49,7 @@ Serena MCP symbolic tools are the right tool for one specific job: navigating a 
 - Do not create ad-hoc markdown files in `.claude/specs/`.
 - Architectural decision records live in `dev/adr/` (not `docs/` — that's pkgdown's generated, gitignored output). Agent-skill config lives in `dev/agents/` (see `## Agent skills` below).
 - Audit results (pre-merge / post-merge / drift / roxygen / e2e / LLM / etc.) save to `dev/audit/audit-<topic>-<time>.html` — single home for every audit artifact, not `dev/notes/`.
+- `dev/feature_bank/` is **deprecated — NOT a source of truth** (demoted 2026-05-28; its substring-match coverage went stale). Do not cite, regenerate, or treat its rows as authoritative. Derive feature/coverage status from the R source + `NAMESPACE` + `CONTEXT.md` + `dev/adr/` + the test suite.
 - Generated HTML files (audits, notes, plans, ADRs, any agent-emitted artifact under `dev/`) MUST link the shared stylesheet via `<link rel="stylesheet" href="/path/to/dev/assets/doc.css">` (use the correct relative path from the file's location, e.g. `../assets/doc.css` from `dev/audit/`, `../../assets/doc.css` from `dev/plans/<slug>/`). Do NOT inline `<style>` blocks or duplicate rules already in `doc.css` — this saves output tokens and keeps doc styling consistent. If a class you need is missing from `doc.css`, add it there once rather than inlining locally.
 
 ## Harness Config
@@ -73,7 +74,7 @@ The authoritative full-suite gate for this project is:
 NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'
 ```
 
-Expected: **FAIL 0 / ERROR 0 / SKIP 0 / PASS N** (N = 1583 as of 2026-05-17 `vignette-review`; the count grows — what matters is 0/0/0). `devtools::test()` is equivalent (it sets `NOT_CRAN=true` itself).
+Expected: **FAIL 0 / ERROR 0 / SKIP 0 / PASS N** (N grows over time — last-observed ≈3300 on 2026-05-28 `post-add-expr`, not re-verified here; the exact count is **not** the gate, **0/0/0 is**). `devtools::test()` is equivalent (it sets `NOT_CRAN=true` itself).
 
 > ⚠ Proxy trap — do not be fooled (corrected 2026-05-17, empirically verified):
 > - A raw `Rscript -e 'testthat::test_dir()/test_file()'` with **no `NOT_CRAN`** → `skip_on_cran()` fires → **every shinytest2 browser test silently SKIPs**. "green, SKIP n" off that is NOT the gate.
@@ -96,4 +97,4 @@ Default canonical vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `
 
 ### Domain docs
 
-Single-context. The L2/L3 embedding model, UI-piece taxonomy, and shared-coordinator language live in `CONTEXT.md` (authoritative, created 2026-05-16, locked by ADR 0005). General project/build conventions stay in this file. Architectural decisions live in `dev/adr/`. See `dev/agents/domain.md`.
+Single-context. The L2/L3 embedding model, UI-piece taxonomy, and shared-coordinator language live in `CONTEXT.md` (authoritative, created 2026-05-16, locked by ADR 0005 and amended through ADR 0023 — see CONTEXT.md's status header for the ADR chain). General project/build conventions stay in this file. Architectural decisions live in `dev/adr/`. See `dev/agents/domain.md`.
