@@ -111,6 +111,70 @@ test_that("consumer_seed_decision: clear_for_new_source defaults to FALSE (back-
 })
 
 
+# ---- Seam 1c: a valid user pick survives a NON-LANDING formula default -----
+#
+# Bug (2026-05-29): a consumer whose formula default is NOT a column of the
+# uploaded / shortcut-swapped dataset never latched `has_rendered`.
+# `default_landed` was FALSE (the default is not in the new cols) and the first
+# populated render came up unselected (no spec seed), so `mark_rendered` stayed
+# FALSE *forever*. Every later render -- including the Update Plot click -- then
+# ran the `has_rendered == FALSE` branch, which discards `current` in favour of
+# the (empty) boot seed, so the user's pick was reset on every Update.
+# Repro: geom_rug(data = ppUpload()) + ppVar(carb); type "iris" in the shortcut,
+# pick Sepal.Length, click Update -> picker blanks. The `default_landed` gate
+# (commit cddc46e) conflated "default not landable YET" (a transient worth
+# deferring for) with "default will NEVER land on this dataset" (the swap case).
+# Distinguisher: in the deferral case the user has not picked yet (current
+# NULL); a genuine valid pick must be honoured now and must flip the latch.
+test_that("consumer_seed_decision: a valid user pick survives a non-landing default before the latch flips", {
+  iris_cols <- c("Sepal.Length", "Sepal.Width", "Petal.Length", "Petal.Width", "Species")
+
+  # has_rendered still FALSE (the latch never flipped -- `carb` is not an iris
+  # column), but the user HAS picked a valid column. The pick must be honoured
+  # NOW (not discarded for the empty seed) AND must flip `has_rendered`.
+  picked <- ggpaintr:::consumer_seed_decision(
+    has_rendered = FALSE, seed = NULL, current = "Sepal.Length",
+    default = "carb", cols = iris_cols
+  )
+  expect_identical(
+    picked$selected, "Sepal.Length",
+    label = "user pick honoured even though the formula default never lands"
+  )
+  expect_true(
+    picked$mark_rendered,
+    label = "a valid user pick flips has_rendered so the next render keeps it"
+  )
+
+  # Deferral the `default_landed` gate protects (derived-column default /
+  # post-boot transient): user has NOT picked (current NULL) and the default is
+  # not yet a column -> keep deferring (selected NULL -> omit -> re-inject the
+  # default) and do NOT flip the latch.
+  waiting <- ggpaintr:::consumer_seed_decision(
+    has_rendered = FALSE, seed = NULL, current = NULL,
+    default = "adj", cols = iris_cols
+  )
+  expect_null(waiting$selected)
+  expect_false(waiting$mark_rendered)
+
+  # A purely-stale `current` (no element valid for the new cols) is NOT a pick
+  # -- behaves like the waiting case (default re-injects, latch stays down).
+  stale <- ggpaintr:::consumer_seed_decision(
+    has_rendered = FALSE, seed = NULL, current = "carb",
+    default = "carb", cols = iris_cols
+  )
+  expect_null(stale$selected)
+  expect_false(stale$mark_rendered)
+
+  # Boot-only spec precedence preserved: a spec seed still wins on the first
+  # render even if the user already has a (valid) pick.
+  seeded <- ggpaintr:::consumer_seed_decision(
+    has_rendered = FALSE, seed = "Species", current = "Sepal.Length",
+    default = "carb", cols = iris_cols
+  )
+  expect_identical(seeded$selected, "Species")
+})
+
+
 # ---- Shared setup for the testServer scenarios (mirrors the panel-sources
 # ---- dep test's helper) ----------------------------------------------------
 
