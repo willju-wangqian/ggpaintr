@@ -65,7 +65,6 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Config/testthat/edition: 3
-Config/testthat/parallel: true
 Config/testthat/start-first: e2e-vignette-examples-shinytest2,
     j12-spec-and-renderui-emission-journey, shared-source-panel-multi-instance,
     adr0024-companion-entry-point, prologue-reader-fn-mirror,
