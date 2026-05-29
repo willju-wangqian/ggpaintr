@@ -16,6 +16,14 @@
 # (`assign_stage_ids`) stamps stage-disable ids on the data-arg chain. Both
 # run on `ptr_rewrite_pre` so the "where am I" bookkeeping lives once, in the
 # traversal — not hand-threaded here.
+# Short, deterministic, `make.names`-valid hash of an id. Mirrors the
+# `substr(rlang::hash(...), 1L, n)` precedent in R/paintr-build-ui.R. Used
+# to derive a non-shared source's `auto_name` from its translate-time
+# `node$id` so the post-upload binding symbol is system-generated (not a
+# leaked user `default`). 6 hex chars: 16^6 ≈ 16.7M, ample for the handful
+# of source slots in one formula.
+ptr_hash <- function(id) substr(rlang::hash(id), 1L, 6L)
+
 ptr_assign_ids <- function(node, ns_fn = shiny::NS(NULL)) {
   if (!is_ptr_root(node)) {
     rlang::abort("ptr_assign_ids expects a ptr_root.")
@@ -78,16 +86,21 @@ assign_id_to_placeholder <- function(node, layer_name, path, param) {
       node$shortcut_id <- paste0(node$id, "_shortcut")
     }
     # ADR 0025 §3 / PLAN-02: the auto-name is the source slot's binding
-    # contract under the coordinator eval_env. For non-shared sources,
-    # default to `node$default` (the verbatim user-supplied symbol, e.g.
-    # `"penguins"` from `ppUpload(penguins)`) and fall back to `node$id`
-    # (e.g. `ggplot_1_0_ppUpload_NA`). Shared sources are stamped later
-    # by `ptr_setup_panel_sources()` (R/paintr-shared-ui.R) where the
-    # canonical key + coordinator obj$id are in scope; we leave
+    # contract under the coordinator eval_env — the symbol the upload
+    # binder assigns into and the substitute walker resolves once the
+    # shortcut textbox is empty (i.e. after an upload, when the mutex has
+    # cleared it). For non-shared sources it is a system-generated
+    # `df_<hash(node$id)>`: derived solely from the translate-time
+    # `node$id`, so it is stable across readers and unique per source
+    # slot. It must NOT be derived from `node$default` — doing so leaked
+    # the env-shortcut symbol (e.g. `df_rug` from `ppUpload(df_rug)`)
+    # into the post-upload generated code. Shared sources are stamped
+    # later by `ptr_setup_panel_sources()` (R/paintr-shared-ui.R) where
+    # the canonical key + coordinator obj$id are in scope; we leave
     # `node$auto_name` NULL here so that runtime stamp is the single
     # source of truth for shared keys.
     if (is.null(node$shared)) {
-      node$auto_name <- node$default %||% node$id
+      node$auto_name <- paste0("df_", ptr_hash(node$id))
     }
   }
   node

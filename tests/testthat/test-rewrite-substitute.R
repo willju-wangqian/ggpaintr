@@ -167,15 +167,16 @@ test_that("P8.16 upload aborts on injection attempt (invalid R name)", {
 test_that("P8.17 upload falls back to node$auto_name on empty shortcut snapshot (ADR 0025 §5)", {
   # ADR 0025 §5 / PLAN-02 supersedes the pre-PLAN-02 ptr_missing contract:
   # when the shortcut snapshot is NULL/empty AND node$auto_name is set
-  # (always TRUE post-PLAN-02 for non-shared upload nodes, where
-  # auto_name = node$default %||% node$id), the walker emits
-  # `as.name(node$auto_name)` so the rendered code panel and the eval
-  # symbol resolve against the eval_env binding the upload binder placed
-  # under that name. The ptr_missing contract is preserved only when
-  # both snapshot AND auto_name are empty.
+  # (always TRUE for non-shared upload nodes, where ADR 0025 §3 derives
+  # auto_name = `df_<hash(node$id)>` — a system name, NOT node$default),
+  # the walker emits `as.name(node$auto_name)` so the rendered code panel
+  # and the eval symbol resolve against the eval_env binding the upload
+  # binder placed under that name. The ptr_missing contract is preserved
+  # only when both snapshot AND auto_name are empty.
   r <- ptr_translate("ggplot(data = ppUpload)")
   src <- find_nodes(r, is_ptr_ph_data_source)[[1L]]
-  expect_identical(src$auto_name, src$id)
+  expect_match(src$auto_name, "^df_[0-9a-f]{6}$")
+  expect_identical(src$auto_name, paste0("df_", substr(rlang::hash(src$id), 1L, 6L)))
   for (val in list("", NULL)) {
     sub <- ptr_substitute(r, input_snapshot = setNames(list(val), src$shortcut_id))
     # No ptr_missing — the auto_name fallback wins.

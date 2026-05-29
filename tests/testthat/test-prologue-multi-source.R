@@ -38,12 +38,17 @@ test_that("multi-source app emits one prologue line per active upload in declara
   expect_equal(length(prologue_lines), 2L,
                label = "exactly two prologue lines")
 
-  # Declaration order: f1 = geom_point (point source) first.
+  # Declaration order: f1 = geom_point (point source) first. ADR 0025 §3:
+  # an empty-textbox upload binds under the system auto-name
+  # `df_<hash(node$id)>`, so the prologue LHS is that symbol (not the raw
+  # node id). Computed in-test the same way paintr-ids.R::ptr_hash() does.
+  pt_auto <- paste0("df_", substr(rlang::hash("geom_point_0_ppUpload_NA"), 1L, 6L))
+  ln_auto <- paste0("df_", substr(rlang::hash("geom_line_0_ppUpload_NA"), 1L, 6L))
   expect_match(prologue_lines[[1]],
-               "^geom_point_0_ppUpload_NA <- read\\.csv\\(\"mtcars\\.csv\"\\)$",
+               paste0("^", pt_auto, " <- read\\.csv\\(\"mtcars\\.csv\"\\)$"),
                label = "first prologue line is the geom_point source (declaration order)")
   expect_match(prologue_lines[[2]],
-               "^geom_line_0_ppUpload_NA <- read\\.delim\\(\"mtcars\\.tsv\"\\)$",
+               paste0("^", ln_auto, " <- read\\.delim\\(\"mtcars\\.tsv\"\\)$"),
                label = "second prologue line is the geom_line source")
 })
 
