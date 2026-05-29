@@ -2433,7 +2433,8 @@ consumer_seed_decision <- function(has_rendered, seed, current, default, cols,
 #                    present, or the shortcut names a non-default dataset) vs the
 #                    formula's boot/env default. Gates the clear so that the
 #                    env-default settling at boot (NULL -> "mtcars") never clears.
-consumer_upstream_source_state <- function(src_nodes, read_input, state) {
+consumer_upstream_source_state <- function(src_nodes, read_input, state,
+                                            layer_name = NULL) {
   if (length(src_nodes) == 0L) return(list(identity = NULL, user_supplied = FALSE))
   ids <- character()
   supplied <- FALSE
@@ -2446,6 +2447,22 @@ consumer_upstream_source_state <- function(src_nodes, read_input, state) {
     } else ""
     bn <- tryCatch({
       r <- state$bound_names[[sid]]
+      # ADR 0025 contract (ii) / bug fix 2026-05-29: a bare-data-source layer
+      # (`geom_rug(data = ppUpload(), ...)`) publishes its bound dataset name
+      # under `layer_name`, NOT the source node id -- only pipeline-head
+      # sources publish under `sid`. When the sid key is absent, fall back to
+      # the consumer's `layer_name` key. This mirrors the source_id-then-
+      # layer_name duality the spec round-trip already relies on (see the
+      # `src_key` / `layer_key` fallback ~line 1807). Without it the identity
+      # snapshot for a layer source is a constant `sid##` (bn always ""), so a
+      # shortcut rename to a different dataset never changes `identity`, the
+      # post-boot new-source clear never fires, and a stale column pick rides
+      # onto the new data (the picker keeps e.g. "weight" across a
+      # ChickWeight -> PlantGrowth rename).
+      if (is.null(r) && !is.null(layer_name) &&
+          layer_name %in% names(state$bound_names)) {
+        r <- state$bound_names[[layer_name]]
+      }
       if (is.null(r)) "" else (r() %||% "")
     }, error = function(e) "")
     sc <- if (!is.null(s$shortcut_id)) {
@@ -2680,7 +2697,8 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
           }
         )
         src_state <- consumer_upstream_source_state(
-          upstream_src_nodes, read_src_input, state
+          upstream_src_nodes, read_src_input, state,
+          layer_name = node$layer_name
         )
         clear_for_new_source <- src_seen &&
           !identical(src_state$identity, last_src_identity) &&
@@ -3045,7 +3063,8 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
           }
         )
         src_state <- consumer_upstream_source_state(
-          upstream_src_nodes, read_src_input, state
+          upstream_src_nodes, read_src_input, state,
+          layer_name = rep_node$layer_name
         )
         clear_for_new_source <- src_seen &&
           !identical(src_state$identity, last_src_identity) &&
