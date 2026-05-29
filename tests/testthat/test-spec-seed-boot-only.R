@@ -61,6 +61,56 @@ test_that("consumer_seed_decision: post-boot re-render keeps the user pick, not 
 })
 
 
+# ---- Seam 1b: post-boot new-source clear ----------------------------------
+#
+# ADR 0025 contract (ii), user-locked 2026-05-28: when a NEW source arrives
+# AFTER boot (a file uploaded via ppUpload's fileInput, or the shortcut
+# renamed to a different dataset), the consumer picker is CLEARED -- a new
+# upload is new work, so neither the formula default NOR a stale prior pick
+# carries onto it. The stateful "did the source identity change since the last
+# render" detection lives in the caller (a per-picker closure); the decision
+# helper just takes the resulting boolean. At boot nothing clears (default
+# seeds, spec overrides -- Seam 1) so this flag defaults to FALSE.
+test_that("consumer_seed_decision: clear_for_new_source empties the picker, overriding all else", {
+  cols <- c("mpg", "wt")
+
+  # A boot-default that was echoed back as `current` (the case C carry bug)
+  # is wiped on the new upload.
+  carried <- ggpaintr:::consumer_seed_decision(
+    has_rendered = TRUE, seed = NULL, current = "mpg",
+    default = "mpg", cols = cols, clear_for_new_source = TRUE
+  )
+  expect_identical(carried$selected, character(0))
+  expect_true(carried$mark_rendered)
+
+  # A genuine prior user pick (case D) is also cleared -- "new upload = new
+  # work" (user-locked rationale), so prior selection does not survive.
+  prior_pick <- ggpaintr:::consumer_seed_decision(
+    has_rendered = TRUE, seed = NULL, current = "wt",
+    default = "mpg", cols = cols, clear_for_new_source = TRUE
+  )
+  expect_identical(prior_pick$selected, character(0))
+
+  # Even a spec seed does not resurrect a value on a post-boot new source
+  # (spec is boot-only).
+  with_seed <- ggpaintr:::consumer_seed_decision(
+    has_rendered = TRUE, seed = "wt", current = "wt",
+    default = "mpg", cols = cols, clear_for_new_source = TRUE
+  )
+  expect_identical(with_seed$selected, character(0))
+})
+
+test_that("consumer_seed_decision: clear_for_new_source defaults to FALSE (back-compat)", {
+  cols <- c("mpg", "wt")
+  base     <- ggpaintr:::consumer_seed_decision(TRUE, NULL, "wt", "mpg", cols)
+  explicit <- ggpaintr:::consumer_seed_decision(
+    TRUE, NULL, "wt", "mpg", cols, clear_for_new_source = FALSE
+  )
+  expect_identical(base, explicit)
+  expect_identical(base$selected, "wt")
+})
+
+
 # ---- Shared setup for the testServer scenarios (mirrors the panel-sources
 # ---- dep test's helper) ----------------------------------------------------
 
