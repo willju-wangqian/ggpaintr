@@ -129,9 +129,14 @@ test_that("upload errors from resolve_data() reach the panel's error sink", {
     ptr_shared_server(obj, envir = globalenv())
   }
   shiny::testServer(server, {
+    # ADR 0025 §2/§3: a non-empty shortcut makes the textbox the live
+    # affordance and drops the lingering file, so `resolve_data` is never
+    # called and its abort cannot surface. To exercise the error sink for an
+    # upload `resolve_data()` failure (this test's intent), leave the shortcut
+    # EMPTY so the file path runs and the abort propagates. (Pre-ADR-0025 this
+    # set `shared_ds_shortcut = "x_df"` -- the retired both-active state.)
     session$setInputs(
-      shared_ds = list(datapath = "no-such-file", name = "x.csv"),
-      shared_ds_shortcut = "x_df"
+      shared_ds = list(datapath = "no-such-file", name = "x.csv")
     )
     session$flushReact()
     err_html <- paste(as.character(output$ptr_shared_errors),

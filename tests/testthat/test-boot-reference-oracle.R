@@ -30,18 +30,28 @@ test_that("boot oracle: super-1 kitchen-sink consumer defaults match reference.R
   testthat::expect_equal(length(mappings), 4L)
 })
 
-test_that("boot oracle: super-2a is an all-upload exclusion (no non-upload consumer mappings)", {
-  # Documented, justified exclusion (handoff trap + criterion #2): super-2a's
-  # root data is `ppUpload(df_main) |> ...` and geom_smooth reads
-  # `data = ppUpload(df_aux)`, so every consumer slot is upload-scoped. A naive
-  # `boot == reference` string diff would false-positive here; the oracle
-  # collector instead returns ZERO non-upload mappings. We assert that
-  # directly (no app boot needed) so the exclusion is VERIFIED, not just
-  # asserted in a comment.
+test_that("boot oracle: super-2a source-shortcut defaults match reference.R (all-upload consumer exclusion)", {
+  # super-2a is all-upload: root data is `ppUpload(df_main) |> ...` and
+  # geom_smooth reads `data = ppUpload(df_aux)`, so every CONSUMER slot is
+  # upload-scoped and reference.R declares ZERO non-upload consumer mappings.
+  # A naive `boot == reference` string diff would false-positive here.
   ref_path <- testthat::test_path("fixtures", "vignette-apps",
                                   "super-2a-upload-registry", "reference.R")
   mappings <- ggp_reference_consumer_mappings(ref_path, formula_name = NULL)
   testthat::expect_equal(length(mappings), 0L)
+
+  # SOURCE side. Because the consumer oracle is empty here, super-2a's app.R
+  # had NO boot-oracle coverage at all -- which is exactly how commit 332f7b7's
+  # `ppUpload(df_main)/(df_aux)` -> `ppUpload()` strip rode through this file
+  # (caught only by test-source-shortcut-preserves). Boot the app and assert
+  # each ppUpload's shortcut textbox seeds to reference.R's positional default
+  # (df_main / df_aux). A re-strip to bare ppUpload() boots "" and FAILS here,
+  # so the oracle now bites the source side too.
+  app <- boot_super_app("super-2a-upload-registry")
+  app$wait_for_idle(timeout = 25 * 1000)
+  expect_boot_source_defaults_match_reference(
+    app, "super-2a-upload-registry", formula_name = NULL
+  )
 })
 
 test_that("boot oracle: super-2b customsource-splice consumer defaults match reference.R at first render", {

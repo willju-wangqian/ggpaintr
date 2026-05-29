@@ -60,12 +60,12 @@ ppMultiVar <- ptr_define_placeholder_consumer(
 
 ptr_app(
   paste(
-    "ppUpload() |>",
+    "ppUpload(df_main) |>",
     "dplyr::filter(ppExpr(hp >= 75)) |>",
     "dplyr::mutate(adj = ppExpr(mpg / wt)) |>",
     "ggplot(aes(x = ppVar(mpg), y = ppVar(adj), color = ppVar(cyl, shared = 'grp'))) +",
     "geom_point(aes(group = ppMultiVar(cyl)), size = ppNum(2), alpha = ppPower(0.7)) +",
-    "geom_smooth(data = ppUpload(), aes(x = ppVar(mpg), y = ppVar(wt)), method = ppText('lm'), inherit.aes = FALSE) +",
+    "geom_smooth(data = ppUpload(df_aux), aes(x = ppVar(mpg), y = ppVar(wt)), method = ppText('lm'), inherit.aes = FALSE) +",
     "facet_wrap(vars(ppVar(cyl, shared = 'grp'))) +",
     "labs(title = ppText('Title'), subtitle = ppText(''))",
     sep = " "

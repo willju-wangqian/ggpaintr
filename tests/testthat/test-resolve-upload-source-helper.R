@@ -121,11 +121,15 @@ test_that("invalid binding name (non-syntactic via make.names) leaves eval_env u
     slot           = w$slot
   )
 
-  # bind_source_value(name = NULL, df = mtcars): the guard
-  # `if (!is.null(df) && !is.null(name))` short-circuits, so eval_env
-  # gets nothing AND bound_names stays unset, but slot(df) still fires
-  # so downstream `req()` chains can halt cleanly.
+  # ADR 0025 §2/§3: a non-empty shortcut ("1 not a name") makes the textbox
+  # the live affordance, so resolve_upload_source nulls the lingering file
+  # (file_info <- NULL) and takes the env-load path -- entry$resolve_data is
+  # never called. The typed name is non-syntactic and not present in eval_env,
+  # so nothing binds: eval_env is untouched, bound_names stays unset, and the
+  # slot vacates to NULL (the eval-side validator is what aborts loudly on a
+  # draw for an invalid name). Pre-ADR-0025 the file was kept and slot(mtcars)
+  # fired with name=NULL; that name-override-with-file path is retired.
   expect_null(w$state$bound_names[["layerD"]]())
   expect_identical(ls(envir = env), character(0))
-  expect_identical(w$slot(), mtcars)
+  expect_null(w$slot())
 })

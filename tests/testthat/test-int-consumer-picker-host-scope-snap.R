@@ -141,12 +141,17 @@ test_that("host-scope renderUI re-fires AND re-populates cols when panel reactiv
 })
 
 
-# ---- GAP A: empty companion -> no binding, picker stays empty (NULL safe) -
+# ---- GAP A: panel df present + companion blank -> §3b canonical bind, picker
+#            comes up POPULATED-unselected (ADR 0025 §3 caveat-2 + §3b) -------
 
-test_that("host-scope: panel df present but companion blank => picker stays empty (no crash)", {
-  # `panel_owned_binding_name()` returns NULL when the companion is
-  # blank/invalid; the patch path must `next` past that source rather
-  # than throw or assign under an empty name.
+test_that("host-scope: panel df present + companion blank => picker populated-unselected (canonical bind)", {
+  # ADR 0025 §3 caveat-2 (campaign fix #2): an empty-shortcut SHARED upload
+  # binds under the canonical auto-name (`panel_source_canonical_name()` =
+  # node$auto_name %||% node$shared, here "ds"), NOT NULL. So with the panel
+  # df present the consumer picker comes up POPULATED with that frame's columns
+  # -- per §3b "the picker comes up populated but unselected." (Pre-fix the
+  # blank companion returned NULL and the picker rendered empty cols; that is
+  # the retired behavior this test used to assert.)
   tree <- ggpaintr:::ptr_translate(
     'ggplot(ppUpload(shared = "ds"), aes(x = ppVar(shared = "col"))) + geom_point()'
   )
@@ -181,13 +186,15 @@ test_that("host-scope: panel df present but companion blank => picker stays empt
     shiny::outputOptions(output, out_id, suspendWhenHidden = FALSE)
   }
   shiny::testServer(server, {
-    # No companion seed -> panel_owned_binding_name() returns NULL ->
-    # snap entry NOT added -> substitute walk drops the upload node ->
-    # ptr_resolve_upstream() returns NULL -> picker renders empty cols.
+    # No companion seed -> empty-shortcut shared upload binds under the
+    # canonical name "ds" (§3 caveat-2) -> the panel df (mtcars) resolves ->
+    # the picker is offered that frame's columns, unselected (§3b).
     session$flushReact()
     expect_gte(length(captured_extras), 1L)
     last_extra <- captured_extras[[length(captured_extras)]]
-    expect_identical(last_extra$cols, character())
+    expect_identical(last_extra$cols, names(mtcars))
+    # §3b: populated but NOT auto-selected.
+    expect_length(last_extra$selected, 0L)
   })
 })
 

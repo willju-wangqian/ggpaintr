@@ -535,6 +535,76 @@ ggp_reference_consumer_mappings <- function(ref_path, formula_name = NULL) {
   out
 }
 
+# ---------------------------------------------------------------------------
+# SOURCE-default boot oracle (the symmetric counterpart of
+# ggp_reference_consumer_mappings, added 2026-05-29). The consumer-default
+# oracle is structurally BLIND to source placeholders, so a strip of a
+# source's positional default -- `ppUpload(df_main)` -> `ppUpload()`, exactly
+# what 332f7b7 did to super-2a's app.R -- slipped through the boot-oracle file
+# (it was caught only by test-source-shortcut-preserves). This collector +
+# expectation close that gap: under ADR 0025 §6/§8 a source's positional
+# default is the seed for its shortcut textbox at boot, so the booted shortcut
+# value must equal reference.R's `ppUpload(<default>)`.
+#
+# Scope: `ppUpload` (the only built-in shortcut source). Custom shortcut
+# sources would need their keyword added here; super-2b's df_rug source is
+# already covered end-to-end by its boot-PLOT oracle, so this is wired for the
+# all-upload super-2a fixture, which has no other boot-state oracle.
+
+# Multiset (sorted) of `ppUpload(<default>)` positional defaults declared in a
+# reference formula; bare `ppUpload()` (or `ppUpload(shared=...)` with no
+# positional) contributes "" -- the empty shortcut seed.
+ggp_reference_source_defaults <- function(ref_path, formula_name = NULL) {
+  fml <- .ggp_parse_reference_formula(ref_path, formula_name)
+  defs <- character(0)
+  rec <- function(x) {
+    if (!is.call(x)) return(invisible())
+    if (is.symbol(x[[1]]) && identical(as.character(x[[1]]), "ppUpload")) {
+      d <- .ggp_pp_default(x)
+      defs[[length(defs) + 1L]] <<- if (is.na(d)) "" else d
+    }
+    for (el in as.list(x)[-1L]) rec(el)
+  }
+  rec(fml)
+  sort(defs)
+}
+
+# Multiset (sorted) of the boot values of every source-shortcut textbox in a
+# booted app. Source shortcut ids end in "_shortcut" (R/paintr-ids.R; the
+# suffix is reserved by ADR 0025's validator). Regex on rendered HTML, the
+# same xml2-free approach as test-source-shortcut-preserves' sweep.
+ggp_boot_source_shortcut_values <- function(app) {
+  html <- app$get_html("body")
+  m <- regmatches(
+    html,
+    gregexpr('id="([A-Za-z0-9_]+_shortcut)"', html, perl = TRUE)
+  )[[1]]
+  ids <- unique(gsub('^id="|"$', "", m))
+  vals <- vapply(ids, function(id) {
+    v <- tryCatch(app$get_value(input = id), error = function(e) NA_character_)
+    as.character(v %||% "")
+  }, character(1))
+  sort(unname(vals))
+}
+
+# Assert booted source-shortcut seeds == reference.R's ppUpload() defaults.
+expect_boot_source_defaults_match_reference <- function(app, slug,
+                                                        formula_name = NULL) {
+  ref_path <- testthat::test_path("fixtures", "vignette-apps", slug,
+                                  "reference.R")
+  expected <- ggp_reference_source_defaults(ref_path, formula_name)
+  actual <- ggp_boot_source_shortcut_values(app)
+  testthat::expect_equal(
+    actual, expected,
+    label = paste0(
+      "booted source-shortcut seeds for ", slug,
+      " must match reference.R ppUpload() defaults (a stripped default ",
+      "boots \"\" and fails here)"
+    )
+  )
+  invisible(expected)
+}
+
 # Source a SINGLE-PLOT reference.R and return both the ground-truth ggplot
 # (its trailing `eval(formula)`) and the populated sandbox env (custom
 # placeholder runtimes + local data bindings like `df_rug`). A caller can

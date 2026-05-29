@@ -67,24 +67,21 @@ test_that("pipeline-head `ppUpload` resolves downstream consumers and renders", 
     fp <- fixture_path("simple_numeric.csv")
     do.call(session$setInputs,
             stats::setNames(list(mock_upload_input(fp)), src$id))
-    # `updateTextInput()` does not echo back inside `testServer`, so set the
-    # dataset-name companion the way the browser auto-fill would.
-    do.call(session$setInputs,
-            stats::setNames(list("simple_numeric"), src$shortcut_id))
-    # ADR 0025 §7 A2: the shortcut-textbox observer is debounced 400ms via
-    # shiny::debounce(), which reads getDomainTimeMs(domain). Inside
-    # testServer the mock clock only advances via session$elapse(); plain
-    # session$flushReact() leaves the debounced value stuck on its prior
-    # NULL. Elapse past the window before asserting on bound state.
+    # ADR 0025 §2/§3: the file and shortcut are mutually exclusive and the
+    # shortcut no longer NAMES an upload (F2 retired). Leave the shortcut
+    # EMPTY so the upload binds under the deterministic system auto-name
+    # (`panel_source_canonical_name(node)` == node$auto_name for a non-shared
+    # source), never a user-typed name. Elapse past the 400ms shortcut
+    # debounce so the empty-shortcut value settles before asserting.
     session$elapse(500); session$flushReact()
 
-    # The resolved frame is bound under its dataset name in the state's
+    # The resolved frame is bound under the system auto-name in the state's
     # (child) eval env, not the caller's env.
-    expect_true(exists("simple_numeric", envir = state$eval_env,
-                       inherits = FALSE))
-    expect_s3_class(get("simple_numeric", envir = state$eval_env),
-                    "data.frame")
-    expect_false(exists("simple_numeric", envir = e, inherits = FALSE))
+    auto <- ggpaintr:::panel_source_canonical_name(src)
+    expect_true(is.character(auto) && nzchar(auto))
+    expect_true(exists(auto, envir = state$eval_env, inherits = FALSE))
+    expect_s3_class(get(auto, envir = state$eval_env), "data.frame")
+    expect_false(exists(auto, envir = e, inherits = FALSE))
 
     # Downstream `var` pickers see the upstream columns.
     snap <- list()
@@ -143,9 +140,9 @@ test_that("pipeline-head `ppUpload` populates the consumer picker UI (renderUI p
     fp <- fixture_path("simple_numeric.csv")
     do.call(session$setInputs,
             stats::setNames(list(mock_upload_input(fp)), src$id))
-    do.call(session$setInputs,
-            stats::setNames(list("simple_numeric"), src$shortcut_id))
-    # ADR 0025 §7 A2: advance the mock clock past the 400ms shortcut debounce.
+    # ADR 0025 §3: empty shortcut -> upload binds under the system auto-name;
+    # the consumer picker populates from the uploaded frame's columns
+    # regardless of the bind symbol. Advance past the 400ms shortcut debounce.
     session$elapse(500); session$flushReact()
 
     ui_html <- paste(as.character(output[[out_id]]), collapse = "")
@@ -155,17 +152,14 @@ test_that("pipeline-head `ppUpload` populates the consumer picker UI (renderUI p
   })
 })
 
-test_that("pipeline-head source clears its slot when file AND companion are removed", {
-  # ADR 0024 update: the companion is a data-loading entry point. A
-  # successful upload assigns the df into `state$eval_env` under the
-  # companion's typed name (bind_source_value, R/paintr-server.R:877).
-  # That binding is sticky — clearing JUST the fileInput leaves the
-  # name resolvable in eval_env, so the entry-point path
-  # (try_bind_source_default_resolved) re-binds via env lookup. To
-  # fully clear the slot, the user must clear BOTH the fileInput and
-  # the companion textInput. Pre-ADR-0024 this test asserted clearing
-  # only the file sufficed (because try_bind bailed on null default);
-  # post-ADR-0024 it does not.
+test_that("pipeline-head source vacates its slot when the file is removed (ADR 0025 §7 A1)", {
+  # ADR 0025 retires ADR-0024's "companion names the upload" role: an upload
+  # with an EMPTY shortcut binds under the system auto-name. §7 A1 then
+  # vacates the slot when the file is removed while the shortcut is empty, so
+  # clearing JUST the fileInput now fully clears the slot -- there is no
+  # separate companion bind to also clear. (Pre-ADR-0025 the companion held
+  # the bind name, clearing the file alone left the slot sticky, and the test
+  # had to clear BOTH; that two-step path is gone.)
   e <- new.env(parent = globalenv())
   formula <-
     "ppUpload |> head(ppNum) |> ggplot(aes(x = ppVar, y = ppVar)) + geom_point()"
@@ -177,25 +171,15 @@ test_that("pipeline-head source clears its slot when file AND companion are remo
     state <- session$userData$state
     src <- find_nodes(shiny::isolate(state$tree()), is_ptr_ph_data_source)[[1L]]
     fp <- fixture_path("simple_numeric.csv")
+    # Upload with an empty shortcut -> binds under the system auto-name.
     do.call(session$setInputs,
             stats::setNames(list(mock_upload_input(fp)), src$id))
-    do.call(session$setInputs,
-            stats::setNames(list("simple_numeric"), src$shortcut_id))
-    # ADR 0025 §7 A2: advance mock clock past 400ms shortcut debounce.
     session$elapse(500); session$flushReact()
     expect_s3_class(state$resolved_sources[[src$id]](), "data.frame")
 
-    # Clear ONLY the file. ADR 0024 entry-point semantics: the slot stays
-    # bound because the companion still resolves "simple_numeric" in eval_env
-    # (from the prior bind). NOT the same as the pre-ADR-0024 assertion.
+    # Clear the file. The shortcut is empty, so §7 A1 vacate fires and the
+    # slot becomes NULL -- clearing the file alone now suffices.
     do.call(session$setInputs, stats::setNames(list(NULL), src$id))
-    session$flushReact()
-    expect_s3_class(state$resolved_sources[[src$id]](), "data.frame")
-
-    # Clear BOTH file AND companion. Now nothing resolves → slot becomes NULL.
-    do.call(session$setInputs, stats::setNames(list(""), src$shortcut_id))
-    # Debounce again: the empty-string companion must propagate before
-    # vacate_source_binding sees it.
     session$elapse(500); session$flushReact()
     expect_null(state$resolved_sources[[src$id]]())
   })
