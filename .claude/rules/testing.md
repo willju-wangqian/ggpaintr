@@ -78,3 +78,27 @@ These cost a full debugging cycle once. Read before adding any shinytest2 test.
 - Wrap `AppDriver$new()` in scoped `suppressWarnings()` (the "Failed to locate
   globals" / htmlDependency-prefix warnings are benign — see project memory);
   never blanket-suppress assertion output.
+
+## Test scope during iteration — inner loop vs full e2e gate
+
+The full e2e browser suite (shinytest2/chromote) is ~100% of the suite wall-clock and is the **merge gate**, not an inner-loop check. Running all ~150 browser boots on every small fix is waste, and under parallel it invites the boot-tail contention flakes the helpers were hardened against (4b5f4d0). Unless the user explicitly asks, do **not** run the full e2e suite while iterating. Instead:
+
+1. **All non-e2e tests — always.** Cheap (seconds, ~2680 assertions), catch most regressions. No `NOT_CRAN` → browser tests cleanly SKIP via `skip_on_cran()`:
+
+   ```
+   Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'
+   ```
+   Expected: FAIL 0 / ERROR 0 / PASS N / SKIP ≈112 (the SKIPs are the browser tests — correct here, not the gate).
+
+2. **Only the e2e tests in the change's BLAST RADIUS** — never the whole e2e set. Blast radius = the e2e files covering the touched code path **plus** any e2e on the *same invariant / shared mechanism*, because bugs here routinely span the cross-cutting runtime (seeding ↔ source-binding ↔ boot-default ↔ auto-name; see the iceberg-bugs and verify-breadth memories):
+   - **Leaf change** (one placeholder's copy/type, a parse edge case, a pure unexported helper) → relevant e2e is narrow or empty.
+   - **Shared runtime / codegen change** (`R/paintr-runtime.R`, `R/paintr-server.R`, `R/paintr-substitute.R`, `R/paintr-ui.R`) → widens to the seeding/binding/source-coordinator e2e cluster; if you cannot confidently bound it, that **is** a full-e2e case — partial coverage on a shared-mechanism change is exactly where icebergs hide.
+
+   Targeted e2e file/cluster (serial, browser ON via `devtools::test()` setting `NOT_CRAN`; `filter` is a regex on the name after `test-` and before `.R`, so it can match a cluster):
+   ```
+   Rscript -e 'devtools::test(filter="adr15-consumer-binding", reporter="progress", stop_on_failure=FALSE)'
+   ```
+
+Run the **full e2e suite** ONLY when the user explicitly asks, or at a **merge boundary** — the post-merge gate and the sibling-worktree landing check (kept deliberately: they cover the branch in isolation vs. integrated with everything else merged, not redundant). Parallelism (`TESTTHAT_PARALLEL=TRUE TESTTHAT_CPUS=4`) is opt-in for those full-suite runs only — see the authoritative-gate block in `CLAUDE.md`.
+
+This governs iteration speed only. It does **not** relax the Definition of Done: nothing is "green" / done / mergeable until the full-suite authoritative gate has passed at the merge boundary. A relevant-e2e-only pass never substitutes for the gate and never grounds a "done" / "verified" claim.
