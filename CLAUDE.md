@@ -80,16 +80,18 @@ Serena MCP symbolic tools are the right tool for one specific job: navigating a 
 
 ### Authoritative gate (Definition of Done) — read before claiming green
 
-The authoritative full-suite gate for this project is:
+The authoritative full-suite gate for this project is (file-level parallel since 4b5f4d0; ~260–356s wall-clock at 4 workers vs ~590s serial):
 
 ```
-NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'
+TESTTHAT_CPUS=4 Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'
 ```
 
-Expected: **FAIL 0 / ERROR 0 / SKIP 0 / PASS N** (N grows over time — last-observed ≈3300 on 2026-05-28 `post-add-expr`, not re-verified here; the exact count is **not** the gate, **0/0/0 is**). `devtools::test()` is equivalent (it sets `NOT_CRAN=true` itself).
+Expected: **FAIL 0 / ERROR 0 / SKIP 0 / PASS N** (N grows over time — last-observed ≈3388 on 2026-05-29 `eyeball-play`, not re-verified here; the exact count is **not** the gate, **0/0/0 is**). `devtools::test()` sets `NOT_CRAN=true` itself **and** loads the dev package into each parallel worker (`test_local(load_package="source")`) — that is precisely why it, not a bare `test_dir`, is now the gate (see the parallel proxy trap below). To force serial (e.g. to confirm a failure is a real bug and not a contention flake), prepend `TESTTHAT_PARALLEL=FALSE`.
 
-> ⚠ Proxy trap — do not be fooled (corrected 2026-05-17, empirically verified):
+> ⚠ Proxy trap — do not be fooled (corrected 2026-05-17 / 2026-05-29, empirically verified):
 > - A raw `Rscript -e 'testthat::test_dir()/test_file()'` with **no `NOT_CRAN`** → `skip_on_cran()` fires → **every shinytest2 browser test silently SKIPs**. "green, SKIP n" off that is NOT the gate.
+> - **Parallel (2026-05-29):** the suite runs `Config/testthat/parallel: true`. `testthat::test_dir(...)` defaults to `load_package="none"`, so under parallel its worker subprocesses do **not** load ggpaintr (the parent's `devtools::load_all()` does not propagate into workers) → mass errors. The prior `load_all(".") + test_dir()` one-liner is therefore **no longer the gate** — use `devtools::test()`, which pkgloads the source package in every worker. Worker count = `TESTTHAT_CPUS`, else `getOption("Ncpus")`, else **2** — so omitting `TESTTHAT_CPUS=4` gives a slow 2-worker run, not a wrong result. Cap at 4 (not 8): browser tests are render-bound, and >4 concurrent Chromes oversubscribe CPU — slower *and* more boot-tail flakes.
+> - **Contention flakes:** parallel exposes boot-tail races (a `renderUI` input read/uploaded before `bindAll()` wires it). The e2e boot helpers were hardened to poll/await bindings (4b5f4d0, incl. the `upload_file()` wrapper guarding all upload sites); a residual browser flake under load is **not** a product failure — re-run, or confirm serially with `TESTTHAT_PARALLEL=FALSE`, before treating it as a regression.
 > - `devtools::check(... --as-cran)` does **NOT** make `skip_on_cran()` fire (devtools runs the check subprocess with `NOT_CRAN=true`). The browser fixtures instead **cleanly SKIP** via `boot_vignette_app()`'s source-root guard (no `DESCRIPTION` in the `.Rcheck` sandbox). If a check run shows the e2e file **ERRORing** (`R CMD check found ERRORs`, pkgload "DESCRIPTION not found"), that guard is missing/broken — a **harness defect, not a product failure, and never the gate**.
 > - Only `NOT_CRAN=true` / `devtools::test()` **runs** the browser tests (source tree present → 0 SKIP). That alone is the gate. Never claim the suite green, merge a branch, mark a step done, or clear context off the skipping/erroring harness.
 
