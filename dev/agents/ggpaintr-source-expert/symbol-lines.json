@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-05-29T23:10:01-0500",
-  "git_head": "cb3d9f0",
+  "generated_at": "2026-05-30T00:36:13-0500",
+  "git_head": "4e6ee04",
   "n_files": 34,
   "n_symbols": 499,
   "symbols": {
@@ -1747,92 +1747,92 @@
     "ptr_setup_consumer_uis": {
       "file": "R/paintr-server.R",
       "start_line": 2640,
-      "end_line": 2894
+      "end_line": 2917
     },
     "ptr_bind_shared_consumer_uis": {
       "file": "R/paintr-server.R",
-      "start_line": 2906,
-      "end_line": 3271
+      "start_line": 2929,
+      "end_line": 3294
     },
     "ptr_bind_local_shared_consumers": {
       "file": "R/paintr-server.R",
-      "start_line": 3284,
-      "end_line": 3313
+      "start_line": 3307,
+      "end_line": 3336
     },
     "pending_data_source_keywords": {
       "file": "R/paintr-server.R",
-      "start_line": 3318,
-      "end_line": 3327
+      "start_line": 3341,
+      "end_line": 3350
     },
     "collect_upstream_ids": {
       "file": "R/paintr-server.R",
-      "start_line": 3332,
-      "end_line": 3339
+      "start_line": 3355,
+      "end_line": 3362
     },
     "find_consumer_ids_in_upstream": {
       "file": "R/paintr-server.R",
-      "start_line": 3343,
-      "end_line": 3345
+      "start_line": 3366,
+      "end_line": 3368
     },
     "find_producer_ids_in_upstream": {
       "file": "R/paintr-server.R",
-      "start_line": 3351,
-      "end_line": 3353
+      "start_line": 3374,
+      "end_line": 3376
     },
     "find_source_companion_ids_in_upstream": {
       "file": "R/paintr-server.R",
-      "start_line": 3362,
-      "end_line": 3371
+      "start_line": 3385,
+      "end_line": 3394
     },
     "find_source_self_ids_in_upstream": {
       "file": "R/paintr-server.R",
-      "start_line": 3380,
-      "end_line": 3390
+      "start_line": 3403,
+      "end_line": 3413
     },
     "ptr_register_last_ok_cache": {
       "file": "R/paintr-server.R",
-      "start_line": 3410,
-      "end_line": 3419
+      "start_line": 3433,
+      "end_line": 3442
     },
     "ptr_register_plot": {
       "file": "R/paintr-server.R",
-      "start_line": 3421,
-      "end_line": 3442
+      "start_line": 3444,
+      "end_line": 3465
     },
     "ptr_register_error": {
       "file": "R/paintr-server.R",
-      "start_line": 3444,
-      "end_line": 3473
+      "start_line": 3467,
+      "end_line": 3496
     },
     "format_code_with_extras": {
       "file": "R/paintr-server.R",
-      "start_line": 3484,
-      "end_line": 3499
+      "start_line": 3507,
+      "end_line": 3522
     },
     "ptr_register_code": {
       "file": "R/paintr-server.R",
-      "start_line": 3501,
-      "end_line": 3554
+      "start_line": 3524,
+      "end_line": 3577
     },
     "ptr_extract_plot": {
       "file": "R/paintr-server.R",
-      "start_line": 3589,
-      "end_line": 3589
+      "start_line": 3612,
+      "end_line": 3612
     },
     "ptr_extract_error": {
       "file": "R/paintr-server.R",
-      "start_line": 3593,
-      "end_line": 3593
+      "start_line": 3616,
+      "end_line": 3616
     },
     "ptr_extract_code": {
       "file": "R/paintr-server.R",
-      "start_line": 3597,
-      "end_line": 3602
+      "start_line": 3620,
+      "end_line": 3625
     },
     "ptr_gg_extra": {
       "file": "R/paintr-server.R",
-      "start_line": 3630,
-      "end_line": 3645
+      "start_line": 3653,
+      "end_line": 3668
     },
     "shared_partition": {
       "file": "R/paintr-shared-coordinator.R",

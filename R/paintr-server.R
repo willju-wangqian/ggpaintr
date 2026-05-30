@@ -2681,6 +2681,18 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
       #   - global: Update Plot click invalidates every consumer.
       upstream_consumer_ids <- find_consumer_ids_in_upstream(node$upstream)
       upstream_producer_ids <- find_producer_ids_in_upstream(node$upstream)
+      # Option I (2026-05-30): per-producer formula default (deparsed), used as
+      # the boot value when neither the committed input nor a spec seed has
+      # arrived yet -- so a column DERIVED from a producer's default expression
+      # (`mutate(adj = ppExpr(mpg / wt))`) exists from the first render, even
+      # with no spec. Computed once per consumer.
+      upstream_producer_defaults <- list()
+      for (.p in find_nodes(node$upstream, is_ptr_ph_value)) {
+        if (is.null(.p$id)) next
+        .d <- .p$default
+        if (is.language(.d)) .d <- paste(deparse(.d), collapse = "\n")
+        if (!is.null(.d)) upstream_producer_defaults[[.p$id]] <- .d
+      }
       upstream_source_shortcut_ids <-
         find_source_companion_ids_in_upstream(node$upstream)
       upstream_source_self_ids <-
@@ -2752,6 +2764,17 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
         for (pid in upstream_producer_ids) {
           r <- state$producer_input[[pid]]
           val <- if (!is.null(r)) r() else input[[ns(pid)]]
+          # Option I (2026-05-30): a producer's value reaches the server only
+          # after the browser commits its widget (a round trip + the 300ms
+          # producer debounce). Until then `val` is NULL. Fall back to the
+          # producer's boot seed so a column DERIVED from this producer -- e.g.
+          # `mutate(adj = ppExpr(...))` -- exists in this picker's column list
+          # from the very first render, instead of appearing one redraw late and
+          # racing a boot-time stage toggle that wipes the seeded selection.
+          if (is.null(val)) {
+            val <- shiny::isolate(state$spec_seed[[pid]]) %||%
+              upstream_producer_defaults[[pid]]
+          }
           if (!is.null(val)) producer_values[[pid]] <- val
         }
         input[[ns("ptr_update_plot")]]
