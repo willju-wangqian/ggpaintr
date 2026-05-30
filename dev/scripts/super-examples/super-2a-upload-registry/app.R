@@ -58,6 +58,9 @@ ppMultiVar <- ptr_define_placeholder_consumer(
   default_arg = ptr_default_symbol_or_string()
 )
 
+df_main <- mtcars
+df_aux  <- mtcars
+
 ptr_app(
   paste(
     "ppUpload(df_main) |>",
