@@ -1,3 +1,31 @@
+#' Coerce a String into a Syntactic, Reserved-Word-Safe R Object Name
+#'
+#' Single source of truth for turning a user- or file-supplied binding name
+#' into a syntactic R name: collapse runs of non-`[alnum_]` to `_`, trim
+#' leading/trailing `_`, substitute `fallback` if the result is empty, suffix
+#' `_` for R reserved words, then `make.names()`. Both the file-derived
+#' default name and the typed-companion (shortcut) name flow through here so
+#' the two binding-name paths cannot drift.
+#'
+#' @param x A single character string (the raw name).
+#' @param fallback Name to use when normalization leaves an empty string.
+#'
+#' @return A syntactic R object name.
+#' @noRd
+ptr_make_valid_name <- function(x, fallback = "uploaded_data") {
+  x <- gsub("[^[:alnum:]_]+", "_", x)
+  x <- gsub("^_+|_+$", "", x)
+
+  if (identical(x, "")) {
+    x <- fallback
+  }
+
+  if (x %in% ptr_reserved_words()) {
+    x <- paste0(x, "_")
+  }
+  make.names(x)
+}
+
 #' Derive a Default Object Name from an Uploaded File
 #'
 #' @param file_name The uploaded filename.
@@ -5,18 +33,7 @@
 #' @return A syntactic R object name.
 #' @noRd
 ptr_upload_default_name <- function(file_name) {
-  file_stem <- tools::file_path_sans_ext(basename(file_name))
-  file_stem <- gsub("[^[:alnum:]_]+", "_", file_stem)
-  file_stem <- gsub("^_+|_+$", "", file_stem)
-
-  if (identical(file_stem, "")) {
-    file_stem <- "uploaded_data"
-  }
-
-  if (file_stem %in% ptr_reserved_words()) {
-    file_stem <- paste0(file_stem, "_")
-  }
-  make.names(file_stem)
+  ptr_make_valid_name(tools::file_path_sans_ext(basename(file_name)))
 }
 
 #' Read Uploaded Paintr Data
@@ -184,8 +201,7 @@ ptr_resolve_upload_info <- function(input, upload_id, strict = FALSE) {
   if (identical(object_name, "")) {
     object_name <- ptr_upload_default_name(file_info$name)
   } else {
-    object_name <- gsub("[[:space:]]+", "_", object_name)
-    object_name <- make.names(object_name)
+    object_name <- ptr_make_valid_name(object_name)
   }
 
   ext <- tolower(tools::file_ext(file_info$name))

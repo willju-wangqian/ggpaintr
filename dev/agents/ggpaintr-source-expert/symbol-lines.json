@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-05-30T03:58:46-0500",
-  "git_head": "2430869",
+  "generated_at": "2026-05-30T04:11:13-0500",
+  "git_head": "9604978",
   "n_files": 34,
-  "n_symbols": 497,
+  "n_symbols": 498,
   "symbols": {
     "ptr_app_bslib": {
       "file": "R/paintr-app-bslib.R",
@@ -2279,60 +2279,65 @@
       "start_line": 1090,
       "end_line": 1100
     },
+    "ptr_make_valid_name": {
+      "file": "R/paintr-upload.R",
+      "start_line": 15,
+      "end_line": 27
+    },
     "ptr_upload_default_name": {
       "file": "R/paintr-upload.R",
-      "start_line": 7,
-      "end_line": 20
+      "start_line": 35,
+      "end_line": 37
     },
     "ptr_read_uploaded_data": {
       "file": "R/paintr-upload.R",
-      "start_line": 28,
-      "end_line": 48
+      "start_line": 45,
+      "end_line": 65
     },
     "ptr_unsupported_upload_message": {
       "file": "R/paintr-upload.R",
-      "start_line": 52,
-      "end_line": 54
+      "start_line": 69,
+      "end_line": 71
     },
     "ptr_check_upload_dimensions": {
       "file": "R/paintr-upload.R",
-      "start_line": 58,
-      "end_line": 66
+      "start_line": 75,
+      "end_line": 83
     },
     "ptr_read_csv_upload": {
       "file": "R/paintr-upload.R",
-      "start_line": 70,
-      "end_line": 81
+      "start_line": 87,
+      "end_line": 98
     },
     "ptr_read_tsv_upload": {
       "file": "R/paintr-upload.R",
-      "start_line": 83,
-      "end_line": 94
+      "start_line": 100,
+      "end_line": 111
     },
     "ptr_read_rds_upload": {
       "file": "R/paintr-upload.R",
-      "start_line": 96,
-      "end_line": 107
+      "start_line": 113,
+      "end_line": 124
     },
     "ptr_read_excel_upload": {
       "file": "R/paintr-upload.R",
-      "start_line": 109,
-      "end_line": 125
+      "start_line": 126,
+      "end_line": 142
     },
     "ptr_read_json_upload": {
       "file": "R/paintr-upload.R",
-      "start_line": 127,
-      "end_line": 159
+      "start_line": 144,
+      "end_line": 176
     },
     "ptr_resolve_upload_info": {
       "file": "R/paintr-upload.R",
-      "start_line": 170,
-      "end_line": 201
+      "start_line": 187,
+      "end_line": 217
     },
     "reader_fn_name_for_ext": {
       "file": "R/paintr-upload.R",
-      "start_line": 213,
-      "end_line": 225
+      "start_line": 229,
+      "end_line": 241
     },
     "ptr_validate_shared_bindings": {
       "file": "R/paintr-utils.R",
