@@ -1022,7 +1022,7 @@ vacate_source_binding <- function(state, key) {
   # on some R versions, and we will only ever have written via that same
   # predicate so any present name must satisfy it.
   if (is.character(prior_name) && length(prior_name) == 1L &&
-      nzchar(prior_name) && make.names(prior_name) == prior_name) {
+      is_syntactic_name(prior_name)) {
     if (exists(prior_name, envir = state$eval_env, inherits = FALSE)) {
       rm(list = prior_name, envir = state$eval_env, inherits = FALSE)
     }
@@ -1078,6 +1078,26 @@ emit_upload_prologue <- function(active_uploads) {
 # side and the eval side call this so they choose the SAME symbol.
 # (Multi-panel obj$id namespacing on the per-instance node is a known gap;
 # no current panel-owned-upload-with-obj$id path exercises it.)
+# Single predicate for "x is a usable R binding symbol": a length-1, non-NA
+# character that is ALREADY a syntactically valid, non-reserved R name
+# (make.names() would leave it unchanged; reserved words like `if` fail
+# because make.names appends a dot). The source-binding derivation helpers
+# (panel_owned_binding_name / try_bind_source_default[_resolved] / the host
+# consumer binder) and the bound-name cleanup each validate candidate names
+# this exact way -- this is their single shared check.
+#
+# NOTE (ADR 0026): this intentionally does NOT collapse the per-site binding-
+# name DERIVATION. The `lookup_name` vs `binding_name` split, whether
+# `resolve_expr` is fed `df` / `node$default` / the resolved file_info, and the
+# auto-name fallback conditions differ by call site per ADR 0024/0025/0023 and
+# are deliberately left distinct (a unified derivor would be a shallow
+# multi-flag pass-through and risk behaviour change in this seeding-sensitive
+# path). Only the validation predicate is shared.
+is_syntactic_name <- function(x) {
+  is.character(x) && length(x) == 1L && !is.na(x) && nzchar(x) &&
+    make.names(x) == x
+}
+
 panel_source_canonical_name <- function(node) {
   node$auto_name %||% node$shared
 }
@@ -1109,14 +1129,13 @@ panel_owned_binding_name <- function(node, entry, session,
     if (!is.character(nm) || length(nm) != 1L || !nzchar(nm)) {
       nm <- node$default %||% panel_source_canonical_name(node)
     }
-    if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
-        make.names(nm) == nm) nm else NULL
+    if (is_syntactic_name(nm)) nm else NULL
   } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
     sym <- tryCatch(entry$resolve_expr(df, node),
                     error = function(e) NULL)
     if (is.symbol(sym)) {
       cand <- as.character(sym)
-      if (nzchar(cand) && make.names(cand) == cand) cand else NULL
+      if (is_syntactic_name(cand)) cand else NULL
     } else NULL
   } else NULL
 }
@@ -1170,14 +1189,13 @@ try_bind_source_default <- function(state, key, node, input, shortcut_input_id,
     if (!is.character(nm) || length(nm) != 1L || !nzchar(nm)) {
       nm <- node$default
     }
-    if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
-        make.names(nm) == nm) nm else NULL
+    if (is_syntactic_name(nm)) nm else NULL
   } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
     sym <- tryCatch(entry$resolve_expr(node$default, node),
                     error = function(e) NULL)
     if (is.symbol(sym)) {
       cand <- as.character(sym)
-      if (nzchar(cand) && make.names(cand) == cand) cand else NULL
+      if (is_syntactic_name(cand)) cand else NULL
     } else NULL
   } else NULL
   if (is.null(lookup_name)) return(FALSE)
@@ -1206,8 +1224,7 @@ try_bind_source_default <- function(state, key, node, input, shortcut_input_id,
   binding_name <- lookup_name
   if (!is.null(shortcut_input_id) && !has_shortcut_value) {
     auto <- panel_source_canonical_name(node)
-    if (is.character(auto) && length(auto) == 1L && nzchar(auto) &&
-        make.names(auto) == auto) {
+    if (is_syntactic_name(auto)) {
       binding_name <- auto
     }
   }
@@ -1342,8 +1359,7 @@ resolve_upload_source <- function(input_slot, shortcut_slot, node, entry,
   #   character form is a valid R name.
   binding_name <- if (has_shortcut) {
     nm <- shortcut_value
-    if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
-        make.names(nm) == nm) {
+    if (is_syntactic_name(nm)) {
       nm
     } else {
       # ADR 0025 §3 / PLAN-02: when the shortcut textbox is empty (or
@@ -1353,15 +1369,14 @@ resolve_upload_source <- function(input_slot, shortcut_slot, node, entry,
       # field via its empty-snapshot fallback, keeping eval-time symbol
       # resolution in lockstep with bind-time assignment.
       auto <- panel_source_canonical_name(node)
-      if (is.character(auto) && length(auto) == 1L && nzchar(auto) &&
-          make.names(auto) == auto) auto else NULL
+      if (is_syntactic_name(auto)) auto else NULL
     }
   } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
     sym <- tryCatch(entry$resolve_expr(file_info, node),
                     error = function(e) NULL)
     if (is.symbol(sym)) {
       cand <- as.character(sym)
-      if (nzchar(cand) && make.names(cand) == cand) cand else NULL
+      if (is_syntactic_name(cand)) cand else NULL
     } else NULL
   } else NULL
   # ADR 0015 PLAN-02 / Option E: enforces assign-before-signal so a
@@ -1423,14 +1438,13 @@ try_bind_source_default_resolved <- function(state, key, node, has_shortcut,
     if (!is.character(nm) || length(nm) != 1L || !nzchar(nm)) {
       nm <- node$default
     }
-    if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
-        make.names(nm) == nm) nm else NULL
+    if (is_syntactic_name(nm)) nm else NULL
   } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
     sym <- tryCatch(entry$resolve_expr(node$default, node),
                     error = function(e) NULL)
     if (is.symbol(sym)) {
       cand <- as.character(sym)
-      if (nzchar(cand) && make.names(cand) == cand) cand else NULL
+      if (is_syntactic_name(cand)) cand else NULL
     } else NULL
   } else NULL
   if (is.null(lookup_name)) return(FALSE)
@@ -1452,8 +1466,7 @@ try_bind_source_default_resolved <- function(state, key, node, has_shortcut,
   binding_name <- lookup_name
   if (has_shortcut && !has_shortcut_value) {
     auto <- panel_source_canonical_name(node)
-    if (is.character(auto) && length(auto) == 1L && nzchar(auto) &&
-        make.names(auto) == auto) {
+    if (is_syntactic_name(auto)) {
       binding_name <- auto
     }
   }
@@ -3128,8 +3141,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
                !nzchar(shortcut_value))
             if (shortcut_empty) {
               auto <- psn$auto_name
-              if (is.character(auto) && length(auto) == 1L && nzchar(auto) &&
-                  make.names(auto) == auto) {
+              if (is_syntactic_name(auto)) {
                 bname <- auto
               }
             }
