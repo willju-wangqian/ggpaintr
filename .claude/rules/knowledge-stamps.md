@@ -1,6 +1,6 @@
 ## Knowledge Stamps — the contract
 
-When you derive a **reusable, source-grounded understanding** while working this repo, emit an inline **stamp** so it can be harvested later (`/summarize-knowledge` writes the session's stamps into `.claude/harvest-findings/raw_conversation/`, a script greps them, a regular pass verifies + stores them). This is how hard-won findings survive past a single session instead of evaporating on `/clear`.
+When you derive a **reusable, source-grounded understanding** while working this repo, emit an inline **stamp** so it can be harvested later: `/summarize-knowledge` writes your stamps into `.claude/harvest-findings/raw_conversation/`, `harvest-finding` greps + verifies them into `raw_knowledge/`, and `/process-finding` files them by topic into the index. This is how hard-won findings survive past a single session instead of evaporating on `/clear`.
 
 ### Grammar (canonical — the parser keys off this exactly)
 
@@ -25,11 +25,20 @@ Stamp only what is **non-obvious, derived from reading the source/running the ap
 - **This rule** = best-effort inline habit (no hook can detect "you just understood something"; you *will* miss some — that's expected).
 - **`/stamp`** — emit one stamp on demand the moment the user (or you) spots a keeper.
 - **`/summarize-knowledge`** — invoked before `/clear`; sweep the whole session and write every finding as stamps **directly into `.claude/harvest-findings/raw_conversation/<date>-<time>-<topic>.md`**, best-effort, **unverified** (`status=derived-unverified`). Do **not** verify here — just try your best; a later pass checks.
-- **`harvest-finding`** skill = the regular pass: read the stamps in `raw_conversation/` → extract → **verify** each `source:` against current code → save the verified knowledge as a timestamped JSON under `.claude/harvest-findings/raw_knowledge/<date>-<time>.json` (a later pass promotes it into memory/`.scratch`/ADRs).
+- **`harvest-finding`** skill = the regular pass: read the stamps in `raw_conversation/` (written directly by `/summarize-knowledge` — no `/export` step) → extract → **verify** each `source:` against current code → save the verified knowledge as a timestamped JSON under `.claude/harvest-findings/raw_knowledge/<date>-<time>.json`.
+- **`/process-finding`** = the categorize pass *after* harvest: read `raw_knowledge/*.json` → assign each finding one or more topic **labels** (written back onto the finding) → maintain the canonical vocabulary `.claude/harvest-findings/labels.json` and regenerate `.claude/harvest-findings/INDEX.md` (label → description → finding ids). A later pass promotes findings into memory/`.scratch`/ADRs by label.
+
+Pipeline: **stamp → summarize-knowledge → harvest-finding → process-finding** (write side) ; **consult INDEX.md** (read side, below).
+
+### Recall — rebuild understanding from the index
+
+When you need to rebuild knowledge about a topic (a subsystem, a past bug, *why* something is built a certain way), **consult the index first** before re-deriving it from scratch. On demand: **`/recall-finding <topic>`** — it matches the topic against the labels + finding text, pulls the verified findings (with sources + verdicts), and tells you plainly when the index has nothing. Manual fallback: `grep -i "<topic>" .claude/harvest-findings/INDEX.md` → label, then `grep -rl "<label>" .claude/harvest-findings/raw_knowledge/` → the findings. The pipeline above *writes* hard-won understanding; this is how you *read* it back.
 
 ### Folders (`.claude/harvest-findings/`)
 
 Bootstrap a fresh clone/worktree/project with `/harvest-init` (creates the dirs + gitignore, confirms first, idempotent).
 
 - `raw_conversation/` — the knowledge corpus: `<date>-<time>-<topic>.md` stamp files written directly by `/summarize-knowledge` (the parser greps the sentinels in any `.md`/`.txt`/`.json`). Gitignored.
-- `raw_knowledge/` — verified-knowledge JSON output. Tracked.
+- `raw_knowledge/` — verified-knowledge JSON output (each finding gains a `labels` array). Tracked.
+- `labels.json` — canonical `{label: description}` vocabulary maintained by `/process-finding`. Tracked.
+- `INDEX.md` — generated label catalog (the read-side map). Tracked.
