@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-01 — partition_view: one origin for shared-key ownership (from ADR 0026 rank 11)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 01
+  slug: partition-view-seam
+  source_adr: dev/adr/0026-followup-partition-view.html
+  depends_on: []
+  parallel_group: G1
+  status: draft
+-->
+
+<h1>PLAN-01 — <code>partition_view</code>: one origin for shared-key ownership</h1>
+<p class="meta">Source: ADR 0026 rank 11 (partition-view seam, promoted from ADR 0017 C1) · Depends on: none · Parallel group: G1 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ggpaintr answers one yes/no question for every shared key and every UI surface: <em>"does THIS surface render and bind THIS shared key?"</em> Today that single question is answered by <strong>three hand-derived complement sets</strong> plus <strong>one UI boolean</strong>, kept consistent by hand. When they drift, a shared widget renders but never binds (or binds twice) — the shipped <strong>2026-05-22 partition-binder bug</strong> (project memory <code>project-shared-section-binder</code>) was exactly this.</p>
+
+<p>The load-bearing quantity is <code>host_owned_keys</code>: the binder <code>ptr_bind_local_shared_consumers()</code> binds <code>setdiff(names(resolutions), host_owned_keys)</code> (<code>R/paintr-server.R:3376</code>), so <code>host_owned_keys</code> is the <em>complement</em> — "keys this surface must NOT bind because something else owns them." It is derived three different ways, and the UI side carries a parallel boolean <code>render_shared_section</code> that must agree:</p>
+
+<table>
+<thead><tr><th>Surface</th><th><code>host_owned_keys</code> (the complement)</th><th>Net: binds</th><th><code>render_shared_section</code></th><th>Source (verified 2026-05-30)</th></tr></thead>
+<tbody>
+<tr><td>single <code>ptr_app</code></td><td><code>character(0)</code></td><td>all keys</td><td><code>TRUE</code></td><td><code>R/paintr-app.R:339</code> / <code>:169</code></td></tr>
+<tr><td>panel host (L2)</td><td><code>setdiff(consumer_keys, panel_keys)</code></td><td>panel keys (≥2 formulas)</td><td><code>FALSE</code></td><td><code>R/paintr-shared-ui.R:416</code></td></tr>
+<tr><td>embed instance</td><td><code>names(dots$shared %||% list())</code> (= the coordinator's panel keys)</td><td>formula-local keys</td><td><code>FALSE</code></td><td><code>R/paintr-app.R:1164</code></td></tr>
+</tbody>
+</table>
+
+<p>The ADR's "All related files" list cited <code>shared-ui.R:388</code> (the file has since drifted to <code>:416</code>) and <strong>omitted the embed-instance derivation at <code>app.R:1164</code></strong>; that third site was confirmed by re-grep for this plan (the re-grep the ADR boundary note flagged as required before locking the interface). <code>render_shared_section = TRUE</code> appears at exactly one site (<code>app.R:169</code>); every other call passes <code>FALSE</code> (<code>:403</code> default, <code>:760</code>, <code>:964</code>) — so it is a pure function of surface role.</p>
+
+<h2>Governing principle</h2>
+<p>One question, one origin. A single internal, pure, non-reactive <code>partition_view</code> becomes the <em>only</em> place that maps a surface's role to its ownership answers. Every call site constructs the view from the partition facts it already holds and <em>queries</em> it; no call site re-encodes the complement or the boolean. A new shared-key surface gets a query, not a "compute it correctly" step to get wrong. The change is <strong>behavior-preserving by construction</strong>: each accessor returns exactly the literal the corresponding site passes today, which the unit tests pin by enumerating every role.</p>
+
+<h2>Interface Contract (frozen — item 10)</h2>
+<p>New internal file <code>R/paintr-partition-view.R</code> (unexported; matches the <code>paintr-*.R</code> source pattern; isolates the seam for unit testing). Three internal functions:</p>
+<pre><code># Internal. Pure, non-reactive. The single origin for shared-key ownership.
+# role:          one of "single", "panel_host", "instance".
+# panel_keys:    shared keys owned by the standalone panel (>=2 formulas).
+#                character(0) for "single". For "instance" this is the set the
+#                coordinator handed in (names(dots$shared)).
+# consumer_keys: all shared consumer/value keys reachable from this surface's
+#                tree(s). Consulted ONLY for role "panel_host".
+new_partition_view &lt;- function(role,
+                              panel_keys = character(),
+                              consumer_keys = character()) -&gt; &lt;ptr_partition_view&gt;
+
+# The complement set the binder must NOT bind (today's `host_owned_keys`).
+#   single     -&gt; character(0)
+#   panel_host -&gt; setdiff(consumer_keys, panel_keys)
+#   instance   -&gt; panel_keys
+partition_host_owned_keys(view) -&gt; character vector
+
+# Whether this surface renders its inline formula-local shared SECTION
+# (today's `render_shared_section`). TRUE iff role == "single".
+partition_renders_section(view) -&gt; logical(1)
+</code></pre>
+<p>Validation: <code>role</code> is checked with <code>match.arg(role, c("single","panel_host","instance"))</code> (rejects any other value); <code>panel_keys</code> / <code>consumer_keys</code> are coerced/asserted to be character vectors via <code>assertthat::assert_that(is.character(...))</code>. The class tag <code>ptr_partition_view</code> exists so accessors can <code>assert_that(inherits(view, "ptr_partition_view"))</code> and fail fast on a raw list.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li><code>new_partition_view("single")</code> yields a view for which <code>partition_host_owned_keys(view)</code> is <code>character(0)</code> and <code>partition_renders_section(view)</code> is <code>TRUE</code>. Verified by <code>devtools::test(filter = "partition-view")</code> case "single instance owns all keys and renders its section".</li>
+  <li><code>new_partition_view("panel_host", panel_keys = c("b"), consumer_keys = c("a","b"))</code> yields <code>partition_host_owned_keys(view) == "a"</code> (the formula-local complement) and <code>partition_renders_section(view) == FALSE</code>. The expected value <code>"a"</code> is derived independently from the partition rule (CONTEXT.md: a key in exactly one formula is formula-local; <code>a</code> ∉ panel ⇒ formula-local ⇒ not bound by the panel host), not by running the code. Verified by <code>test-partition-view.R</code> case "panel host binds only panel keys".</li>
+  <li><code>new_partition_view("instance", panel_keys = c("g","h"))</code> yields <code>partition_host_owned_keys(view)</code> equal to <code>c("g","h")</code> (the embed instance defers panel keys to the host) and <code>partition_renders_section(view) == FALSE</code>. Verified by <code>test-partition-view.R</code> case "embed instance defers panel keys to host".</li>
+  <li><code>new_partition_view("bogus")</code> errors with a message naming the allowed roles. Verified by an <code>expect_error</code> in <code>test-partition-view.R</code> (negative space).</li>
+  <li>The three rewired call sites pass <code>partition_host_owned_keys(view)</code> in place of their inline expression, and the resulting value is byte-identical to today's: a <code>grep</code> for the retired literals — <code>setdiff(consumer_keys, panel_keys)</code> in <code>R/paintr-shared-ui.R</code>, <code>host_owned_keys = character(0)</code> and <code>host_owned_keys &lt;- names(dots$shared</code> in <code>R/paintr-app.R</code> — returns <strong>zero</strong> matches after the change. Verified by <code>grep -n</code> over those two files.</li>
+  <li>The single <code>render_shared_section = TRUE</code> literal at <code>R/paintr-app.R:169</code> is replaced by <code>partition_renders_section(view)</code> for a <code>"single"</code> view, and a unit test asserts <code>partition_renders_section(new_partition_view("single"))</code> is <code>TRUE</code> while it is <code>FALSE</code> for both other roles — pinning the UI/server agreement that drift used to break.</li>
+  <li><strong>Behavioral invariant preserved (regression target):</strong> a shared key in exactly one formula renders+binds in that formula's shared section; a shared key in ≥2 formulas renders+binds in the one shared panel — unchanged before/after. Verified by the e2e grid/shared cluster passing (Definition of Done).</li>
+  <li>Full authoritative gate (below) shows FAIL 0 / ERROR 0 / SKIP 0 with PASS rising by the number of new <code>test-partition-view.R</code> cases and zero new failures in pre-existing tests; <code>devtools::check(--as-cran)</code> clean.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns:
+    <ul>
+      <li><code>R/paintr-partition-view.R</code> — <strong>new</strong>. The three internal functions + the <code>ptr_partition_view</code> constructor. No <code>@export</code> (internal seam).</li>
+      <li><code>R/paintr-app.R</code> — two edits only: (a) at the single-instance binder call (~<code>:337-339</code>) construct <code>view &lt;- new_partition_view("single")</code> and pass <code>host_owned_keys = partition_host_owned_keys(view)</code>; (b) at the embed-instance binder call (~<code>:1164</code> / <code>:1214</code>) construct <code>view &lt;- new_partition_view("instance", panel_keys = names(dots$shared %||% list()))</code> and pass <code>host_owned_keys = partition_host_owned_keys(view)</code>. The <code>render_shared_section = TRUE</code> at <code>:169</code> becomes <code>partition_renders_section(new_partition_view("single"))</code>.</li>
+      <li><code>R/paintr-shared-ui.R</code> — one edit: at the panel-host binder call (~<code>:416</code>) construct <code>view &lt;- new_partition_view("panel_host", panel_keys = panel_keys, consumer_keys = consumer_keys)</code> and pass <code>host_owned_keys = partition_host_owned_keys(view)</code>.</li>
+      <li><code>tests/testthat/test-partition-view.R</code> — <strong>new</strong>. The unit cases enumerated in Success Criteria + the BDD scenarios below. These are pure-function tests (no app boot, no <code>NOT_CRAN</code>).</li>
+      <li><code>NEWS.md</code> — one bullet under the appropriate heading: internal refactor, no user-visible change ("Unified shared-key ownership behind an internal <code>partition_view</code>; no behavior change").</li>
+    </ul>
+  </li>
+  <li>Files this plan must NOT touch:
+    <ul>
+      <li><code>R/paintr-shared-coordinator.R</code> — the partition <em>algorithm</em> (<code>shared_partition()</code>, <code>panel_keys &lt;- all_keys[formula_counts &gt;= 2L]</code> at <code>:42</code>) is already centralised and correct. This plan changes the <em>consumption</em> side only.</li>
+      <li><code>R/paintr-server.R</code> — the binder <code>ptr_bind_local_shared_consumers()</code> keeps its <code>host_owned_keys</code> parameter and its <code>setdiff(names(resolutions), host_owned_keys)</code> body verbatim. The view feeds that parameter; it does not change the binder.</li>
+      <li>The <strong>source-ownership / <code>panel_sources</code> path</strong> (<code>ptr_setup_panel_sources()</code>, <code>R/paintr-shared-ui.R:485+</code>). Panel-owned sources already derive ownership from the same <code>panel_keys</code> and are delivered via the <code>panel_sources</code> reactive list, not via a hand-wired complement — there is no separate source-ownership channel to absorb. Leave it byte-stable (see Out of scope).</li>
+      <li>Any exported function signature or behavior — <code>ptr_app</code> / <code>ptr_shared</code> / <code>ptr_shared_panel</code> / <code>ptr_shared_server</code> / <code>ptr_server</code> are frozen (CONTEXT.md locked).</li>
+      <li>Generated <code>man/*.Rd</code> / <code>NAMESPACE</code> — no exported surface changes, so <code>devtools::document()</code> is a no-op here; do not hand-edit.</li>
+    </ul>
+  </li>
+  <li>Behavior must be byte-stable: every accessor returns exactly the value the rewired site passes today. This is provable, not aspirational — the unit tests enumerate all three roles against the literals currently in source.</li>
+  <li>No public API change. No new exported symbol. No reactive state inside the view (it is a pure value object; ADR 0006's <code>state = NULL</code> host scope is unaffected because the view never touches <code>state</code>).</li>
+  <li>Do not fold in <code>validate_partition_invariant()</code> (the ADR's optional merge from the dropped <code>partition-rule-ownership-verification</code> candidate). It is a separable follow-up; including it would break this plan's independence and behavior-preservation guarantee. See Out of scope.</li>
+</ul>
+
+<h2>BDD</h2>
+<pre><code>Feature: partition_view is the single origin for shared-key ownership
+
+  Scenario: single instance owns every shared key and renders its section
+    Given a single-instance surface with no coordinator
+    When  a partition_view is built with role "single"
+    Then  partition_host_owned_keys(view) is character(0)
+    And   partition_renders_section(view) is TRUE
+
+  Scenario: panel host binds only the cross-formula (panel) keys
+    Given shared consumer keys {a, b} where only b is referenced by >=2 formulas
+    When  a partition_view is built with role "panel_host", panel_keys {b}, consumer_keys {a, b}
+    Then  partition_host_owned_keys(view) is {a}
+    And   partition_renders_section(view) is FALSE
+
+  Scenario: embed instance defers the panel keys to the host
+    Given an embedded instance whose coordinator owns panel keys {g, h}
+    When  a partition_view is built with role "instance", panel_keys {g, h}
+    Then  partition_host_owned_keys(view) is {g, h}
+    And   partition_renders_section(view) is FALSE
+
+  Scenario: an unknown surface role is rejected at construction
+    Given a caller passing role "bogus"
+    When  new_partition_view("bogus") is evaluated
+    Then  it errors with a message listing the allowed roles single, panel_host, instance
+
+  Scenario: a formula-local var(shared="g") in a grid where g is also cross-formula still binds
+    Given a grid with formulas f1 = ppVar(shared="a") and f2 = ppVar(shared="a") + ppVar(shared="g") and a separate formula using g
+    When  the app boots and the panel host and each instance build their partition_view
+    Then  g renders+binds exactly once in the standalone shared panel
+    And   the formula-local var(shared="a") picker in each instance is populated, not blank
+</code></pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative full-suite gate (CLAUDE.md), run <strong>serially</strong> — <code>devtools::test()</code> sets <code>NOT_CRAN=true</code> itself so the browser/e2e tests RUN (0 SKIP):</p>
+<pre><code>Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'</code></pre>
+<p>Expected output: <strong>FAIL 0 / WARN 0 / ERROR 0 / SKIP 0 / PASS ≥ 3439 + (new test-partition-view.R cases)</strong>. The count is not the gate; <strong>0/0/0 is</strong>. The blast-radius e2e cluster that must be green (run via <code>devtools::test(filter="...")</code> so <code>NOT_CRAN</code> is set): <code>l2-shared</code>, <code>l2-shared-partition</code>, <code>grid-shared-partition</code>, <code>app-grid-shared-added</code> — this is a shared-runtime change, so the full e2e suite is the merge gate, not a leaf subset.</p>
+<p>Plus the package check, expected clean (by-design NOTEs only — CRAN "new submission", <code>.git</code>, top-level <code>CONTEXT.md</code>):</p>
+<pre><code>Rscript -e 'devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))'</code></pre>
+<p><strong>Named proxy traps (do not be fooled):</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()'</code> with <strong>no <code>NOT_CRAN</code></strong> makes <code>skip_on_cran()</code> fire → every shinytest2 browser test silently SKIPs. "PASS, SKIP n" off that is the inner-loop check, <strong>not the gate</strong> — the grid/shared e2e fixtures are precisely the ones that would skip, and they are this change's regression target.</li>
+  <li>Under <code>TESTTHAT_PARALLEL=TRUE</code>, <code>testthat::test_dir()</code> defaults to <code>load_package="none"</code> so workers don't load ggpaintr → use <code>devtools::test()</code>. Parallel also exposes boot-tail seeding/binding flakes; a residual flake under parallel load must be re-confirmed serially before being called a regression.</li>
+  <li><code>devtools::check(--as-cran)</code> does NOT make <code>skip_on_cran()</code> fire (devtools sets <code>NOT_CRAN=true</code> for the check subprocess); the e2e file instead cleanly SKIPs via the source-root guard. A check run showing the e2e file <em>ERRORing</em> ("DESCRIPTION not found") is a harness defect, never a product failure and never the gate.</li>
+</ul>
+
+<h2>Out of scope (explicit)</h2>
+<ul>
+  <li><strong>Source-ownership refactor.</strong> <code>panel_sources</code> / <code>ptr_setup_panel_sources()</code> stay byte-stable. Source ownership already flows from <code>panel_keys</code>; there is no second hand-derived source complement to centralise. A future plan could add a <code>partition_owns_source(view, sid)</code> accessor, but not here.</li>
+  <li><strong><code>validate_partition_invariant()</code> fail-fast at <code>ptr_shared()</code> construction.</strong> The ADR floats merging the dropped <code>partition-rule-ownership-verification</code> candidate; deferred to a separable follow-up plan so this one stays a pure behavior-preserving seam.</li>
+  <li><strong>The <code>render_shared_section = FALSE</code> default sites</strong> (<code>app.R:403/760/964</code>). They already evaluate to the correct non-<code>"single"</code> answer; this plan retires only the one explicit <code>TRUE</code> literal (the asymmetric one). Threading a view object through the entire UI-assembly chain is unnecessary surface for a behavior-frozen refactor.</li>
+  <li>Any change to <code>shared_partition()</code>, the binder, the coordinator object fields, or CONTEXT.md/ADR text.</li>
+</ul>
+<p><strong>Handling new findings:</strong> if implementation surfaces anything outside this plan's scope — a fourth ownership derivation, a related drift in <code>render_shared_section</code>, a <code>panel_sources</code> irregularity, a stale test — <strong>surface it as a tracked follow-up</strong> (a note in this plan dir or a <code>.scratch/</code> issue), never silently absorb it into this change or paper over it. A new finding is a reason to stop and record, not to scope-creep.</p>
+
+<h2>Independence</h2>
+<p>Any implementer / agent / self-report status block touching this plan — "done", "tests pass", "scope clean", "byte-stable confirmed" — is a <strong>claim to verify, never proof</strong>. It is the reporter's belief produced by the same fallible process, evidence to prioritise what to check, never a substitute for checking. The integrator independently re-runs the Definition-of-Done command above and reads its actual output (FAIL 0 / ERROR 0 / SKIP 0) before trusting any status, and does not treat a sub-agent's or prior turn's "green" as the gate. The byte-stable claim in particular is verified by the post-change <code>grep</code> for the retired literals returning zero matches, run by the integrator, not by accepting the implementer's word.</p>
+
+<h2>Dependencies &amp; independence</h2>
+<p>No dependencies. Single self-contained plan (parallel group G1, no siblings). The new file + four edits + new test file land together; nothing else in the tree references <code>partition_view</code> until this plan creates it. The three rewired sites are independent of each other (different surfaces) and each is a literal-for-call substitution with an identical return value.</p>
+
+<h2>Baseline</h2>
+<p>Captured 2026-05-30 (HEAD <code>13dcc58</code>): authoritative gate green at FAIL 0 / ERROR 0 / SKIP 0, PASS ≈ 3439. Re-capture immediately before implementation to confirm the delta is purely the new <code>test-partition-view.R</code> cases. The three ownership derivations and the lone <code>render_shared_section = TRUE</code> were re-grepped against HEAD for this plan (the ADR boundary note's required pre-lock re-grep): 3 <code>host_owned_keys</code> sites + 1 <code>TRUE</code> site, the embed site at <code>app.R:1164</code> being the one the ADR omitted.</p>
+
+<!-- implementable: PASS date=2026-05-30 gate="Rscript -e 'devtools::test(reporter=\"progress\", stop_on_failure=FALSE)'" hash=e607ba78d98e -->
+</body>
+</html>

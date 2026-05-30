@@ -413,7 +413,10 @@ ptr_shared_server <- function(obj,
   if (length(panel_consumer_keys) > 0L) {
     ptr_bind_local_shared_consumers(
       tree = trees, output = output, input = input, ns = ns,
-      host_owned_keys = setdiff(consumer_keys, panel_keys),
+      host_owned_keys = partition_host_owned_keys(
+        new_partition_view("panel_host", panel_keys = panel_keys,
+                           consumer_keys = consumer_keys)
+      ),
       eval_env = envir,
       expr_check = expr_check,
       errors_rv = errors_rv,
