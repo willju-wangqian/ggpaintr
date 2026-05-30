@@ -24,7 +24,11 @@
         "R/paintr-shared-ui.R:482"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "source-binding-runtime",
+        "shared-coordinator-partition"
+      ]
     },
     {
       "id": "shared-host-consumer-binder-dual-mode",
@@ -39,7 +43,11 @@
         "R/paintr-server.R:2890-3283"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "source-binding-runtime",
+        "shared-coordinator-partition"
+      ]
     },
     {
       "id": "consumer-identity-bound-name-blind-at-host",
@@ -54,7 +62,11 @@
         "R/paintr-server.R:2540-2592"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "consumer-picker-seeding",
+        "shared-coordinator-partition"
+      ]
     },
     {
       "id": "host-upload-double-render-reverts-consumer-clear",
@@ -70,7 +82,12 @@
         "R/paintr-server.R:2890-3283"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "consumer-picker-seeding",
+        "ppupload-mechanics",
+        "shared-coordinator-partition"
+      ]
     },
     {
       "id": "host-env-rename-never-clears-iceberg",
@@ -86,7 +103,12 @@
         "R/paintr-server.R:2616-2622"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "consumer-picker-seeding",
+        "shared-coordinator-partition",
+        "ppupload-mechanics"
+      ]
     },
     {
       "id": "resolve-upload-source-file-reset-arg",
@@ -101,7 +123,10 @@
         "R/paintr-server.R:1249-1382"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "ppupload-mechanics"
+      ]
     },
     {
       "id": "host-flag-can-be-local-not-state-slot",
@@ -116,7 +141,11 @@
         "R/paintr-shared-ui.R:482-698"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "ppupload-mechanics",
+        "shared-coordinator-partition"
+      ]
     },
     {
       "id": "ptr-bind-source-mutex-is-file-to-text-only",
@@ -131,7 +160,10 @@
         "R/paintr-server.R:1651-1658"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "ppupload-mechanics"
+      ]
     },
     {
       "id": "fileinput-pill-is-harness-blind",
@@ -146,7 +178,11 @@
         "dev/plans/0025-item7-followup-host-shared-consumer-clear/plan.html"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "shinytest2-gotchas",
+        "ppupload-mechanics"
+      ]
     },
     {
       "id": "stale-mock-signature-breaks-on-new-arg",
@@ -161,7 +197,11 @@
         "tests/testthat/test-auto-name-shared-canonical.R"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "refactor-discipline",
+        "ppupload-mechanics"
+      ]
     },
     {
       "id": "ggpaintr-baseline-gate-3403-to-3420",
@@ -176,7 +216,10 @@
         "(observed this session)"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "test-gate-discipline"
+      ]
     },
     {
       "id": "tool-output-batched-delivery-not-corruption",
@@ -189,7 +232,10 @@
       "verification": "No code ref to check \u2014 a meta-observation about this session's tool harness. Re-manifested during harvest (duplicated grep output), so true by direct observation but not source-verifiable.",
       "checked_refs": [],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "harness-tooling"
+      ]
     }
   ]
 }

@@ -1,0 +1,14 @@
+{
+  "app-entry-points": "Structure of the L1 entry points ptr_app / ptr_app_grid (thin wrappers over their *_components builders).",
+  "consumer-picker-seeding": "Consumer (ppVar) picker seed/clear/redraw lifecycle: has_rendered latches, identity-based new-source clear, derived-column boot races, the seed_landed gate, producer-value timing.",
+  "harness-tooling": "Claude-Code harness mechanics in this repo: /exec-plan & /decision-to-plan input contracts, the implementable pre-commit hook (incl. the *-plan.md glob), the generated symbol-lines.json manifest, worktree layout, tool-output batching artifact.",
+  "placeholder-registry-api": "The placeholder registry + the three ptr_define_placeholder_* constructors: their args/validators (ptr_arg_*, positional_arg/ui_text_defaults), entry-record keys, runtime callable.",
+  "ppupload-mechanics": "ppUpload / upload source specifics: fileInput reset flag, file<->text mutex, shortcut/companion textbox, env-load, auto-name, the resolve_upload_source helper.",
+  "r-name-normalization": "Turning strings into syntactic R names: the column-vector vs single binding-name normalizers and the is_syntactic_name predicate.",
+  "refactor-discipline": "Lessons for refactoring safely: automated dedup sweeps over-state duplication (run the deletion test before extracting), stale mocks break when a mocked fn gains an arg.",
+  "shared-coordinator-partition": "Shared placeholders and the partition: panel vs formula-local ownership, coordinator host scope, the three ownership channels, snapshot/column-truncation rules.",
+  "shinytest2-gotchas": "Browser e2e mechanics: app-dir+pkgload fixtures, child-process instrumentation, harness-blind native widgets, suspended renderUI pickers, false-green column traps.",
+  "source-binding-runtime": "How data-source placeholders resolve and bind their frame at runtime: single-instance vs panel-host paths, the binder observers, binding-name derivation, state=NULL-at-host divergence.",
+  "test-gate-discipline": "The authoritative full-suite gate: serial vs parallel, NOT_CRAN, baseline PASS counts, parallel boot-tail flakes in the seeding cluster, seeded-picker poll fixes.",
+  "ui-widget-construction": "Static/renderUI widget building: the output-id container suffix, verb/stage param_override derivation, build_ui dispatch."
+}
