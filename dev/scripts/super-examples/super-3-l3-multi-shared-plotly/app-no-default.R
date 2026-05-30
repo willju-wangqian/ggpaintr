@@ -6,7 +6,7 @@ library(shiny)
 
 ppRange <- ptr_define_placeholder_value(
   keyword     = "ppRange",
-  default_arg = ptr_default_numeric_vector(length = 2),
+  positional_arg = ptr_arg_numeric_vector(length = 2),
   build_ui    = function(node, label = NULL, selected = NULL, ...) {
     val <- if (!is.null(selected) && length(selected) == 2L) selected else c(0, 100)
     shiny::sliderInput(node$id, label = label %||% "Range",
