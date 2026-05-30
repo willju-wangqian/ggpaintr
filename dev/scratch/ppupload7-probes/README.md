@@ -7,8 +7,8 @@ Each `app.R` boots dev source via `pkgload::load_all(GGP_PKG)`, defines an env d
 Run (browser ON via shinytest2 setting NOT_CRAN; ~60s each):
 
 ```
-Rscript .scratch/ppupload7-probes/shared/run-probe.R    # host coordinator path — stale column RIDES (the bug)
-Rscript .scratch/ppupload7-probes/single/run-probe.R    # single-instance reference — picker clears to NULL
+Rscript dev/scratch/ppupload7-probes/shared/run-probe.R    # host coordinator path — stale column RIDES (the bug)
+Rscript dev/scratch/ppupload7-probes/single/run-probe.R    # single-instance reference — picker clears to NULL
 ```
 
 Key result (differential): identity = `sid#datapath#boundName`. Single-instance's `boundName` changes across the upload's two reactive beats so the trailing render re-clears (sticks); the host path runs at `state=NULL` so `boundName=""` always → identity stabilises → the trailing render reverts the clear. `single/discover.R` just dumps input ids (the consumer picker is suspended until its source is provided + the Controls subtab opens).

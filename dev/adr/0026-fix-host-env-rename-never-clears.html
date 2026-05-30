@@ -63,7 +63,7 @@
   <li><code>panel_owned_binding_name()</code> :1105, <code>panel_source_canonical_name()</code> :1101 — the host-scope binding-name source for fix #1.</li>
   </ul></li>
 <li><code>R/paintr-shared-ui.R</code> — <code>ptr_setup_panel_sources()</code> :482 (host source widgets + the <code>panel_sources</code> reactives the consumer reads).</li>
-<li>Probes from the session that found this: <code>.scratch/ppupload7-probes/</code> (shared/app.R + single/app.R use the <code>assignInNamespace</code> child-process instrumentation pattern to log the identity + clear verdict).</li>
+<li>Probes from the session that found this: <code>dev/scratch/ppupload7-probes/</code> (shared/app.R + single/app.R use the <code>assignInNamespace</code> child-process instrumentation pattern to log the identity + clear verdict).</li>
 </ul>
 
 <h2>Boundary / scope</h2>
@@ -110,7 +110,7 @@
 <ol>
 <li>Read this doc, then <a href="0025-source-shortcut-rename-and-upload-auto-name.html">ADR 0025</a> §3b and <a href="0024-source-companion-data-loading-entry-point.html">ADR 0024</a> (shortcut = data-loading entry point) and <a href="0006-single-server-entry-l3-ui-only.html">ADR 0006</a> (<code>state=NULL</code> at host — the root condition).</li>
 <li>Grep the knowledge index: <code>grep -iE "consumer|seed|host|clear" .claude/harvest-findings/INDEX.md</code> → labels <code>consumer-picker-seeding</code>, <code>source-binding-runtime</code>, <code>shared-coordinator-partition</code>. Read these verified findings in particular: <code>host-env-rename-never-clears-iceberg</code>, <code>consumer-identity-bound-name-blind-at-host</code>, <code>host-upload-double-render-reverts-consumer-clear</code>, <code>consumer-identity-boundname-drives-clear-stickiness</code>, <code>overlapping-column-false-green-trap</code>, <code>child-process-instrumentation-via-assigninnamespace</code>.</li>
-<li>Reuse the probes in <code>.scratch/ppupload7-probes/</code> to instrument <code>consumer_upstream_source_state</code>'s identity + <code>consumer_clear_for_new_source</code>'s verdict inside the AppDriver child.</li>
+<li>Reuse the probes in <code>dev/scratch/ppupload7-probes/</code> to instrument <code>consumer_upstream_source_state</code>'s identity + <code>consumer_clear_for_new_source</code>'s verdict inside the AppDriver child.</li>
 <li>Project memories worth recalling: <code>bound-names-key-duality</code>, <code>consumer-seed-derived-column-latch</code>, <code>feedback-runtime-claim-must-run-app</code>, <code>feedback-iceberg-bugs</code>.</li>
 </ol>
 

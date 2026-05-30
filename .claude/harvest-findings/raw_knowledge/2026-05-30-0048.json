@@ -71,10 +71,10 @@
     {
       "id": "host-upload-double-render-reverts-consumer-clear",
       "claim": "At host scope, uploading over a typed source fails to clear the consumer picker: beat 1 (datapath changes) clears, but beat 2 (datapath unchanged, bn still \"\") has a stable identity so the clear returns FALSE and consumer_seed_decision re-applies the stale current pick.",
-      "detail": "Single-instance is immune because state!=NULL makes bn change across beats. Worked around in ab4b6dd by a host-scope cleared_for_identity latch. Probe: .scratch/ppupload7-probes.",
+      "detail": "Single-instance is immune because state!=NULL makes bn change across beats. Worked around in ab4b6dd by a host-scope cleared_for_identity latch. Probe: dev/scratch/ppupload7-probes.",
       "scope": "campaign",
       "feature": "ppupload-7-host-shared",
-      "source": "R/paintr-server.R:2616-2622 (consumer_clear_for_new_source); :2481-2523 (consumer_seed_decision); .scratch/ppupload7-probes/README.md",
+      "source": "R/paintr-server.R:2616-2622 (consumer_clear_for_new_source); :2481-2523 (consumer_seed_decision); dev/scratch/ppupload7-probes/README.md",
       "verdict": "verified",
       "verification": "consumer_clear_for_new_source confirmed: changed_since_last = src_seen && identity!=last && user_supplied; a stable identity on beat 2 yields FALSE. Latch present in binder.",
       "checked_refs": [

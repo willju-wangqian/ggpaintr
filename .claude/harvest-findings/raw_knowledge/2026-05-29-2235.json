@@ -56,7 +56,7 @@
     {
       "id": "consumer-identity-boundname-drives-clear-stickiness",
       "claim": "The downstream consumer's new-source-clear is edge-triggered on an identity string `sid#datapath#boundName`; an upload settles in TWO reactive render beats, and the clear only STICKS if the identity keeps changing across both beats \u2014 single-instance's `boundName` (from `state$bound_names`) flips `typed_ds\u2192df_<hash>` so both beats re-clear, whereas at host scope `state=NULL` forces `boundName=\"\"` permanently, the identity stabilises after beat 1, and beat 2 re-seeds the stale `current` via `boot_seed_selected` and REVERTS the clear.",
-      "detail": "Static mechanism confirmed in source: consumer_upstream_source_state builds identity = paste0(sid,'#',dp,'#',bn) joined by '||', edge-triggered in consumer_clear_for_new_source via `src_seen && !identical(identity,last_identity) && user_supplied`. The sid\u2192layer_name bound_names fallback (server.R:2576-2579) means a NULL state yields bn=\"\" permanently. The TWO-beat runtime divergence (single clears, host reverts) was AppDriver-observed in-session (.scratch/ppupload7-probes/) and NOT re-run this pass; the static code path is fully consistent with it. Refutes an earlier 'req-gate serialization' theory.",
+      "detail": "Static mechanism confirmed in source: consumer_upstream_source_state builds identity = paste0(sid,'#',dp,'#',bn) joined by '||', edge-triggered in consumer_clear_for_new_source via `src_seen && !identical(identity,last_identity) && user_supplied`. The sid\u2192layer_name bound_names fallback (server.R:2576-2579) means a NULL state yields bn=\"\" permanently. The TWO-beat runtime divergence (single clears, host reverts) was AppDriver-observed in-session (dev/scratch/ppupload7-probes/) and NOT re-run this pass; the static code path is fully consistent with it. Refutes an earlier 'req-gate serialization' theory.",
       "scope": "durable",
       "feature": "",
       "tags": "ppupload-7-followup",
@@ -108,12 +108,12 @@
       "scope": "durable",
       "feature": "",
       "tags": "ppupload-testing",
-      "source": "R/paintr-server.R:2625-2763 (ptr_setup_consumer_uis req(bound_names)); .scratch/ppupload7-probes/single/discover.R",
+      "source": "R/paintr-server.R:2625-2763 (ptr_setup_consumer_uis req(bound_names)); dev/scratch/ppupload7-probes/single/discover.R",
       "verdict": "verified",
-      "verification": "ptr_setup_consumer_uis defined at server.R:2625; consumer binder uses the req(state$bound_names[[...]]) suspend gate (shared block at :3095 / non-shared path). discover.R exists (.scratch/ppupload7-probes/single/discover.R). Runtime picker-id observation not re-run; mechanism + testing.md rule back it.",
+      "verification": "ptr_setup_consumer_uis defined at server.R:2625; consumer binder uses the req(state$bound_names[[...]]) suspend gate (shared block at :3095 / non-shared path). discover.R exists (dev/scratch/ppupload7-probes/single/discover.R). Runtime picker-id observation not re-run; mechanism + testing.md rule back it.",
       "checked_refs": [
         "R/paintr-server.R:2625-2636",
-        ".scratch/ppupload7-probes/single/discover.R",
+        "dev/scratch/ppupload7-probes/single/discover.R",
         ".claude/rules/testing.md"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
@@ -130,11 +130,11 @@
       "scope": "durable",
       "feature": "",
       "tags": "ppupload-testing",
-      "source": "shinyWidgets selectInput/selectpicker behaviour; .scratch/ppupload7-probes/README.md",
+      "source": "shinyWidgets selectInput/selectpicker behaviour; dev/scratch/ppupload7-probes/README.md",
       "verdict": "verified",
-      "verification": ".scratch/ppupload7-probes/README.md:16 states verbatim: 'the consumer assertion MUST use a column present in BOTH datasets (body_mass_g) \u2014 a unique column is auto-dropped by selectInput and yields a false green.' Matches claim exactly.",
+      "verification": "dev/scratch/ppupload7-probes/README.md:16 states verbatim: 'the consumer assertion MUST use a column present in BOTH datasets (body_mass_g) \u2014 a unique column is auto-dropped by selectInput and yields a false green.' Matches claim exactly.",
       "checked_refs": [
-        ".scratch/ppupload7-probes/README.md:16"
+        "dev/scratch/ppupload7-probes/README.md:16"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
       "origin_status": "derived-unverified",
@@ -150,12 +150,12 @@
       "scope": "durable",
       "feature": "",
       "tags": "ppupload-testing",
-      "source": ".scratch/ppupload7-probes/shared/app.R, single/app.R; .claude/rules/serena-tools.md",
+      "source": "dev/scratch/ppupload7-probes/shared/app.R, single/app.R; .claude/rules/serena-tools.md",
       "verdict": "verified",
-      "verification": "Both .scratch/ppupload7-probes/shared/app.R and single/app.R contain `assignInNamespace` + message() instrumentation. .claude/rules/serena-tools.md documents the same child-process assignInNamespace pattern (2 mentions). Matches claim.",
+      "verification": "Both dev/scratch/ppupload7-probes/shared/app.R and single/app.R contain `assignInNamespace` + message() instrumentation. .claude/rules/serena-tools.md documents the same child-process assignInNamespace pattern (2 mentions). Matches claim.",
       "checked_refs": [
-        ".scratch/ppupload7-probes/shared/app.R",
-        ".scratch/ppupload7-probes/single/app.R",
+        "dev/scratch/ppupload7-probes/shared/app.R",
+        "dev/scratch/ppupload7-probes/single/app.R",
         ".claude/rules/serena-tools.md"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
