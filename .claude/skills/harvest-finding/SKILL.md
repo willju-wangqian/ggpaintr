@@ -7,12 +7,19 @@ description: The regular verify-and-store pass over knowledge stamps. Collect /e
 
 Turns raw stamped transcripts into **verified knowledge**, saved as one JSON file. This is the pass `/stamp` and `/summarize-knowledge` defer verification to. Contract + grammar: `.claude/rules/knowledge-stamps.md`. Scripts in `scripts/`.
 
+## Folders (all under `.claude/harvest-findings/`)
+
+- `exports/` — the **`/export` inbox**: the user runs `/export .claude/harvest-findings/exports/<date>-<topic>.txt` (plain text, use a `.txt`/`.md` extension or the parser skips it). Gitignored.
+- `raw_conversation/` — pooled corpus for a harvest run (collect.sh dest). Gitignored.
+- `raw_knowledge/` — the verified-knowledge JSON output. **Tracked.**
+
 ## Workflow
 
-1. **Collect** — pool the user's exported conversations into one corpus:
-   `scripts/collect.sh <export-dir-or-files> [--dest raw_conversation]`.
+1. **Collect** — pool the exported conversations from the inbox into the corpus:
+   `scripts/collect.sh .claude/harvest-findings/exports`
+   (default `--dest` is `.claude/harvest-findings/raw_conversation`).
 2. **Extract** — parse all stamps, dedupe by `id` (newest transcript wins):
-   `scripts/extract-stamps.py raw_conversation/ > /tmp/stamp-ledger.json`
+   `scripts/extract-stamps.py .claude/harvest-findings/raw_conversation/ > /tmp/stamp-ledger.json`
    (`--md` for a human view). Reports count + origin transcript per stamp.
 3. **Verify** — for **each** stamp, open every ref in `source=` against *current* code and judge the `claim`/`detail`. Load-bearing step — a stamp is a cross-session claim, not proof (project anti-hallucination rules apply). Assign a verdict:
    - `verified` — refs exist and back the claim.
@@ -31,7 +38,7 @@ Turns raw stamped transcripts into **verified knowledge**, saved as one JSON fil
 ```json
 {
   "harvested_at": "2026-05-29T14:32",
-  "corpus": "raw_conversation/ (12 transcripts)",
+  "corpus": ".claude/harvest-findings/raw_conversation/ (12 transcripts)",
   "counts": { "verified": 7, "contradicted": 1, "unconfirmable": 2 },
   "findings": [
     {
@@ -44,7 +51,7 @@ Turns raw stamped transcripts into **verified knowledge**, saved as one JSON fil
       "verdict": "verified",
       "verification": "what you checked and what you found (1-2 lines)",
       "checked_refs": ["R/paintr-shared-ui.R:120-140", "app.R:959"],
-      "origin_transcript": "raw_conversation/20260529T0727__chat.md",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/20260529T0727__chat.txt",
       "origin_status": "derived-unverified"
     }
   ]

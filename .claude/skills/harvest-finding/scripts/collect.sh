@@ -3,13 +3,13 @@
 #
 #   collect.sh <src>... [--dest DIR]
 #     <src>   files and/or directories holding exported transcripts (.md/.txt/.json)
-#     --dest  destination corpus dir (default: ./raw_conversation)
+#     --dest  destination corpus dir (default: .claude/harvest-findings/raw_conversation)
 #
 # Copies (does not move) matching files in, flattening, with a timestamp+name so
 # re-running accumulates rather than clobbers. Idempotent on identical content.
 set -euo pipefail
 
-DEST="raw_conversation"
+DEST=".claude/harvest-findings/raw_conversation"
 srcs=()
 while [ $# -gt 0 ]; do
   case "$1" in

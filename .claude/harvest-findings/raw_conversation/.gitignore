@@ -1,0 +1,3 @@
+# Pooled corpus for a harvest run (collect.sh dest). Keep the dir, ignore contents.
+*
+!.gitignore
