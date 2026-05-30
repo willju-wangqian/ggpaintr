@@ -9,7 +9,7 @@
   "findings": [
     {
       "id": "two-parallel-source-handling-paths",
-      "claim": "ggpaintr has TWO parallel data-source widget/resolution implementations \u2014 the single-instance/formula-local path (`ptr_setup_source_uis` in paintr-server.R) and the multi-instance shared-coordinator HOST path (`ptr_setup_panel_sources` in paintr-shared-ui.R) \u2014 and a fix applied to one does not propagate to the other.",
+      "claim": "ggpaintr has TWO parallel data-source widget/resolution implementations — the single-instance/formula-local path (`ptr_setup_source_uis` in paintr-server.R) and the multi-instance shared-coordinator HOST path (`ptr_setup_panel_sources` in paintr-shared-ui.R) — and a fix applied to one does not propagate to the other.",
       "detail": "This is the root structural reason ADR-0025-area fixes (#7 fileInput reset, source_file_reset flag, file_reset gate) landed only single-instance and had to be separately ported. The host path mirrors the single path's renderUI/registry-dispatch shape but is a distinct code path with its own renderUI, its own resolve_upload_source call, and its own mutex.",
       "scope": "durable",
       "feature": "",
@@ -26,18 +26,20 @@
       "origin_status": "derived-unverified",
       "labels": [
         "source-consumer-architecture"
-      ]
+      ],
+      "status": "stale",
+      "stale_reason": "no verification baseline"
     },
     {
       "id": "shared-consumer-binder-runs-state-null-at-host",
-      "claim": "At coordinator HOST scope `ptr_bind_shared_consumer_uis` is called with `state=NULL` (by ADR-0006 design), so its entire `if (!is.null(state))` block \u2014 including the `req(state$bound_names[[id]]())` source-ready/suppress gate \u2014 never executes; the host path instead drives the picker off `panel_sources[[sid]]()` reactives + a synthetic host_env.",
+      "claim": "At coordinator HOST scope `ptr_bind_shared_consumer_uis` is called with `state=NULL` (by ADR-0006 design), so its entire `if (!is.null(state))` block — including the `req(state$bound_names[[id]]())` source-ready/suppress gate — never executes; the host path instead drives the picker off `panel_sources[[sid]]()` reactives + a synthetic host_env.",
       "detail": "Consequence: the single-instance suppress-on-vacate gate is structurally absent at host scope. The same binder runs at per-instance embedded scope WITH a real state, so behaviour diverges by call site, not by code. Reached via ptr_bind_local_shared_consumers (server.R:3269) from both the single-instance/embedded server (state passed) and the coordinator host (state omitted).",
       "scope": "durable",
       "feature": "",
       "tags": "ppupload-architecture",
       "source": "R/paintr-server.R:2891-3256 (ptr_bind_shared_consumer_uis), :3095-3156 (if(!is.null(state)) block); R/paintr-shared-ui.R:386 (host call omits state=)",
       "verdict": "verified",
-      "verification": "ptr_bind_local_shared_consumers (server.R:3269) has `state = NULL` default; host call at shared-ui.R:386 omits `state=` \u2192 NULL propagates into ptr_bind_shared_consumer_uis (server.R:2891). The `if (!is.null(state))` block begins at server.R:3095 and contains `shiny::req(state$bound_names[[...]]())` \u2014 wholly skipped when state is NULL. Confirmed by source read.",
+      "verification": "ptr_bind_local_shared_consumers (server.R:3269) has `state = NULL` default; host call at shared-ui.R:386 omits `state=` → NULL propagates into ptr_bind_shared_consumer_uis (server.R:2891). The `if (!is.null(state))` block begins at server.R:3095 and contains `shiny::req(state$bound_names[[...]]())` — wholly skipped when state is NULL. Confirmed by source read.",
       "checked_refs": [
         "R/paintr-server.R:2891",
         "R/paintr-server.R:3095",
@@ -49,18 +51,20 @@
       "labels": [
         "source-consumer-architecture",
         "shared-host-scope"
-      ]
+      ],
+      "status": "stale",
+      "stale_reason": "no verification baseline"
     },
     {
       "id": "consumer-identity-boundname-drives-clear-stickiness",
-      "claim": "The downstream consumer's new-source-clear is edge-triggered on an identity string `sid#datapath#boundName`; an upload settles in TWO reactive render beats, and the clear only STICKS if the identity keeps changing across both beats \u2014 single-instance's `boundName` (from `state$bound_names`) flips `typed_ds\u2192df_<hash>` so both beats re-clear, whereas at host scope `state=NULL` forces `boundName=\"\"` permanently, the identity stabilises after beat 1, and beat 2 re-seeds the stale `current` via `boot_seed_selected` and REVERTS the clear.",
-      "detail": "Static mechanism confirmed in source: consumer_upstream_source_state builds identity = paste0(sid,'#',dp,'#',bn) joined by '||', edge-triggered in consumer_clear_for_new_source via `src_seen && !identical(identity,last_identity) && user_supplied`. The sid\u2192layer_name bound_names fallback (server.R:2576-2579) means a NULL state yields bn=\"\" permanently. The TWO-beat runtime divergence (single clears, host reverts) was AppDriver-observed in-session (.scratch/ppupload7-probes/) and NOT re-run this pass; the static code path is fully consistent with it. Refutes an earlier 'req-gate serialization' theory.",
+      "claim": "The downstream consumer's new-source-clear is edge-triggered on an identity string `sid#datapath#boundName`; an upload settles in TWO reactive render beats, and the clear only STICKS if the identity keeps changing across both beats — single-instance's `boundName` (from `state$bound_names`) flips `typed_ds→df_<hash>` so both beats re-clear, whereas at host scope `state=NULL` forces `boundName=\"\"` permanently, the identity stabilises after beat 1, and beat 2 re-seeds the stale `current` via `boot_seed_selected` and REVERTS the clear.",
+      "detail": "Static mechanism confirmed in source: consumer_upstream_source_state builds identity = paste0(sid,'#',dp,'#',bn) joined by '||', edge-triggered in consumer_clear_for_new_source via `src_seen && !identical(identity,last_identity) && user_supplied`. The sid→layer_name bound_names fallback (server.R:2576-2579) means a NULL state yields bn=\"\" permanently. The TWO-beat runtime divergence (single clears, host reverts) was AppDriver-observed in-session (.scratch/ppupload7-probes/) and NOT re-run this pass; the static code path is fully consistent with it. Refutes an earlier 'req-gate serialization' theory.",
       "scope": "durable",
       "feature": "",
       "tags": "ppupload-7-followup",
       "source": "R/paintr-server.R:2528-2592 (consumer_upstream_source_state), :2481-2523 (consumer_seed_decision), :2617-2623 (consumer_clear_for_new_source), :2478 (boot_seed_selected)",
       "verdict": "verified",
-      "verification": "consumer_upstream_source_state at server.R:2541 builds `paste0(sid,'#',dp,'#',bn)`; consumer_clear_for_new_source at :2617 is edge-triggered (changed_since_last + first_render_on_upload); boot_seed_selected at :2478; bound_names sid\u2192layer_name fallback at :2576-2579 confirms bn empties when state/bound_names absent. Runtime two-beat differential is probe-observed (not re-run), static path consistent.",
+      "verification": "consumer_upstream_source_state at server.R:2541 builds `paste0(sid,'#',dp,'#',bn)`; consumer_clear_for_new_source at :2617 is edge-triggered (changed_since_last + first_render_on_upload); boot_seed_selected at :2478; bound_names sid→layer_name fallback at :2576-2579 confirms bn empties when state/bound_names absent. Runtime two-beat differential is probe-observed (not re-run), static path consistent.",
       "checked_refs": [
         "R/paintr-server.R:2541-2592",
         "R/paintr-server.R:2617-2623",
@@ -71,11 +75,13 @@
       "origin_status": "derived-unverified",
       "labels": [
         "consumer-source-clear"
-      ]
+      ],
+      "status": "stale",
+      "stale_reason": "no verification baseline"
     },
     {
       "id": "host-source-port-is-simpler-than-single",
-      "claim": "Porting #7's source_file_reset flag to the host path is simpler than the single-instance original because in `ptr_setup_panel_sources` the renderUI, the shortcut, the flag, and the `resolve_upload_source` call all live in ONE `local({...})` scope \u2014 so the flag is a local `reactiveVal` read directly at the resolve call, with no cross-function plumbing, unlike single-instance which must publish on `state$source_file_reset` and read it back in the per-instance pipeline binders.",
+      "claim": "Porting #7's source_file_reset flag to the host path is simpler than the single-instance original because in `ptr_setup_panel_sources` the renderUI, the shortcut, the flag, and the `resolve_upload_source` call all live in ONE `local({...})` scope — so the flag is a local `reactiveVal` read directly at the resolve call, with no cross-function plumbing, unlike single-instance which must publish on `state$source_file_reset` and read it back in the per-instance pipeline binders.",
       "detail": "The planned host edits are additive in that one scope; resolve_upload_source already accepts `file_reset` (server.R:1251, `if (isTRUE(file_reset)) file_info <- NULL` at :1287). The host path uses a synthetic host_state list (eval_env + throwaway bound_names env + resolve_errors) at shared-ui.R:593-597 and returns reactive(slot()). Single-instance plumbing confirmed: file_reset_rv published on state$source_file_reset (server.R:2329-2330) and read back at :1536/:1614. Plan: dev/plans/0025-item7-followup-host-shared-consumer-clear/plan.html (exists).",
       "scope": "campaign",
       "feature": "ppupload-7-followup",
@@ -96,11 +102,13 @@
       "labels": [
         "source-file-reset",
         "shared-host-scope"
-      ]
+      ],
+      "status": "stale",
+      "stale_reason": "no verification baseline"
     },
     {
       "id": "single-instance-consumer-suspended-until-source-and-subtab",
-      "claim": "A single-instance `ppVar()` consumer picker does NOT bind at boot \u2014 it stays absent from `input` until BOTH its upstream source has data (the `req(state$bound_names[[id]]())` gate clears) AND the layer's Controls subtab is opened; so a probe/test must provide the source first, then set `<layer>_subtab=\"Controls\"`, then read the picker.",
+      "claim": "A single-instance `ppVar()` consumer picker does NOT bind at boot — it stays absent from `input` until BOTH its upstream source has data (the `req(state$bound_names[[id]]())` gate clears) AND the layer's Controls subtab is opened; so a probe/test must provide the source first, then set `<layer>_subtab=\"Controls\"`, then read the picker.",
       "detail": "Single-instance source id pattern observed: `ggplot_0_ppUpload_NA`, shortcut `ggplot_0_ppUpload_NA_shortcut`; consumer picker id `ggplot_1_1_ppVar_NA` appeared only after typing an env source AND opening the subtab. Static mechanism (ptr_setup_consumer_uis suspend + req gate) confirmed; the specific runtime ids are probe-observed (discover.R is a thin 553-byte discovery script, not re-run this pass). Corroborated by project rule .claude/rules/testing.md (consumer var pickers are suspended under a renderUI subtab).",
       "scope": "durable",
       "feature": "",
@@ -118,18 +126,20 @@
       "labels": [
         "e2e-testing",
         "boot-tail-race"
-      ]
+      ],
+      "status": "stale",
+      "stale_reason": "no verification baseline"
     },
     {
       "id": "overlapping-column-false-green-trap",
-      "claim": "A consumer-clear regression test MUST select a column present in BOTH the pre- and post-switch datasets (e.g. `body_mass_g`), because a `selectInput`/`selectpicker` silently drops a selection that is no longer a valid option \u2014 so a test using a column unique to the old dataset passes even when the clear logic is broken (false green).",
+      "claim": "A consumer-clear regression test MUST select a column present in BOTH the pre- and post-switch datasets (e.g. `body_mass_g`), because a `selectInput`/`selectpicker` silently drops a selection that is no longer a valid option — so a test using a column unique to the old dataset passes even when the clear logic is broken (false green).",
       "detail": "This trap masked the bug during static analysis: it looks 'cleared' merely because the option vanished, not because our clear fired. The probe deliberately used body_mass_g (present in both typed_ds and penguins.csv) to expose the persistence.",
       "scope": "durable",
       "feature": "",
       "tags": "ppupload-testing",
       "source": "shinyWidgets selectInput/selectpicker behaviour; .scratch/ppupload7-probes/README.md",
       "verdict": "verified",
-      "verification": ".scratch/ppupload7-probes/README.md:16 states verbatim: 'the consumer assertion MUST use a column present in BOTH datasets (body_mass_g) \u2014 a unique column is auto-dropped by selectInput and yields a false green.' Matches claim exactly.",
+      "verification": ".scratch/ppupload7-probes/README.md:16 states verbatim: 'the consumer assertion MUST use a column present in BOTH datasets (body_mass_g) — a unique column is auto-dropped by selectInput and yields a false green.' Matches claim exactly.",
       "checked_refs": [
         ".scratch/ppupload7-probes/README.md:16"
       ],
@@ -137,11 +147,13 @@
       "origin_status": "derived-unverified",
       "labels": [
         "e2e-testing"
-      ]
+      ],
+      "status": "stale",
+      "stale_reason": "no verification baseline"
     },
     {
       "id": "child-process-instrumentation-via-assigninnamespace",
-      "claim": "To observe internal reactive state inside a shinytest2 child process, wrap the target ggpaintr internal in the fixture `app.R` via `assignInNamespace(\"fn\", wrapper, ns=\"ggpaintr\")` after `pkgload::load_all`, having the wrapper `message()` its state; `AppDriver$get_logs()` then captures it as stderr lines \u2014 parent-process `trace()` is invisible to the child.",
+      "claim": "To observe internal reactive state inside a shinytest2 child process, wrap the target ggpaintr internal in the fixture `app.R` via `assignInNamespace(\"fn\", wrapper, ns=\"ggpaintr\")` after `pkgload::load_all`, having the wrapper `message()` its state; `AppDriver$get_logs()` then captures it as stderr lines — parent-process `trace()` is invisible to the child.",
       "detail": "Used this session to log consumer_upstream_source_state identity + consumer_clear_for_new_source verdict, producing the differential single-vs-host evidence. Capture the original with `ggpaintr:::fn` BEFORE reassigning. Parse via as.data.frame(app$get_logs())$message grep 'PROBE_'.",
       "scope": "durable",
       "feature": "",
@@ -158,7 +170,9 @@
       "origin_status": "derived-unverified",
       "labels": [
         "e2e-testing"
-      ]
+      ],
+      "status": "stale",
+      "stale_reason": "no verification baseline"
     },
     {
       "id": "fileinput-pill-is-harness-blind",
@@ -167,7 +181,7 @@
       "scope": "durable",
       "feature": "",
       "tags": "ppupload-testing",
-      "source": "dev/plans/0025-item7-fileinput-reset/plan.html \u00a76; chromote/CDP behaviour",
+      "source": "dev/plans/0025-item7-fileinput-reset/plan.html §6; chromote/CDP behaviour",
       "verdict": "verified",
       "verification": "dev/plans/0025-item7-fileinput-reset/plan.html exists and references pill/chromote/eyeball/harness-blind/CDP (8 hits). Claim is a durable browser-behavior fact (native file widget chrome is outside the DOM chromote serializes); consistent with the plan's manual Gate-0 eyeball. Not independently re-run in a live browser this pass.",
       "checked_refs": [
@@ -177,11 +191,13 @@
       "origin_status": "derived-unverified",
       "labels": [
         "e2e-testing"
-      ]
+      ],
+      "status": "stale",
+      "stale_reason": "no verification baseline"
     },
     {
       "id": "exec-plan-input-contract",
-      "claim": "`/exec-plan <plan-dir>` only consumes a `/decision-to-plan` output directory \u2014 it reads `<plan-dir>/index.md` (merge order + parallel groups + worked-example matrix) and per-plan `NN-<slug>.html` files with HTML-comment frontmatter (`number`/`slug`/`depends_on`/`parallel_group`) + a `Files this plan owns:` block + a mandatory worked-example table, and REFUSES TO START if index.md or the worked-example section is missing.",
+      "claim": "`/exec-plan <plan-dir>` only consumes a `/decision-to-plan` output directory — it reads `<plan-dir>/index.md` (merge order + parallel groups + worked-example matrix) and per-plan `NN-<slug>.html` files with HTML-comment frontmatter (`number`/`slug`/`depends_on`/`parallel_group`) + a `Files this plan owns:` block + a mandatory worked-example table, and REFUSES TO START if index.md or the worked-example section is missing.",
       "detail": "A hand-authored single plan.html blessed only by /implementable is NOT exec-plan-ready (lacks index.md, frontmatter, NN-slug filename, worked-example table). exec-plan also runs autonomously, so a harness-blind eyeball success criterion cannot be grounded by it.",
       "scope": "durable",
       "feature": "",
@@ -197,7 +213,9 @@
       "origin_status": "derived-unverified",
       "labels": [
         "harness-tooling"
-      ]
+      ],
+      "status": "stale",
+      "stale_reason": "no verification baseline"
     },
     {
       "id": "ggpaintr-is-a-git-worktree",
@@ -217,7 +235,9 @@
       "origin_status": "derived-unverified",
       "labels": [
         "repo-layout"
-      ]
+      ],
+      "status": "stale",
+      "stale_reason": "no verification baseline"
     },
     {
       "id": "implementable-hook-already-wired-via-chaining-shim",
@@ -226,7 +246,7 @@
       "scope": "durable",
       "feature": "",
       "tags": "harness",
-      "source": ".git config core.hooksPath \u2192 /Users/willju/Research/ggpaintr/.git/hooks/pre-commit (chaining shim) \u2192 dev/githooks/pre-commit; ~/.claude/skills/implementable/hooks/pre-commit",
+      "source": ".git config core.hooksPath → /Users/willju/Research/ggpaintr/.git/hooks/pre-commit (chaining shim) → dev/githooks/pre-commit; ~/.claude/skills/implementable/hooks/pre-commit",
       "verdict": "verified",
       "verification": "/Users/willju/Research/ggpaintr/.git/hooks/pre-commit IS a chaining shim that resolves $root/dev/githooks/pre-commit (via git rev-parse --show-toplevel) and `exec`s it. dev/githooks/pre-commit exists and is executable. core.hooksPath confirmed pointing at the main repo .git/hooks. Commit 38c48a1 is HEAD on ppUpload-bug (clean commit corroborated). Hash-pipeline detail resides in the tracked hook (not re-derived this pass).",
       "checked_refs": [
@@ -237,7 +257,9 @@
       "origin_status": "derived-unverified",
       "labels": [
         "harness-tooling"
-      ]
+      ],
+      "status": "stale",
+      "stale_reason": "no verification baseline"
     }
   ]
 }

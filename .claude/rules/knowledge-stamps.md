@@ -27,8 +27,10 @@ Stamp only what is **non-obvious, derived from reading the source/running the ap
 - **`/summarize-knowledge`** — invoked before `/clear`; sweep the whole session and write every finding as stamps **directly into `.claude/harvest-findings/raw_conversation/<date>-<time>-<topic>.md`**, best-effort, **unverified** (`status=derived-unverified`). Do **not** verify here — just try your best; a later pass checks.
 - **`harvest-finding`** skill = the regular pass: read the stamps in `raw_conversation/` (written directly by `/summarize-knowledge` — no `/export` step) → extract → **verify** each `source:` against current code → save the verified knowledge as a timestamped JSON under `.claude/harvest-findings/raw_knowledge/<date>-<time>.json`.
 - **`/process-finding`** = the categorize pass *after* harvest: read `raw_knowledge/*.json` → assign each finding one or more topic **labels** (written back onto the finding) → maintain the canonical vocabulary `.claude/harvest-findings/labels.json` and regenerate `.claude/harvest-findings/INDEX.md` (label → description → finding ids). A later pass promotes findings into memory/`.scratch`/ADRs by label.
+- **`/mark-stale-finding`** = the maintenance **detector** (pure fast script, no model): reads the git diff and flips a finding to `status=stale` when a file it cites changed since its `verified_at_commit` baseline. Freshness is *orthogonal* to verdict — a `verdict=verified` finding can be `status=stale`. Runnable as a git hook.
+- **`/maintain-finding`** = the maintenance **re-verifier** (model judgment): re-runs harvest-finding's verify contract over the `status=stale` subset only, refreshing `verdict`/`verification` and re-stamping `verified_at_commit=HEAD` + `status=fresh`.
 
-Pipeline: **stamp → summarize-knowledge → harvest-finding → process-finding** (write side) ; **consult INDEX.md** (read side, below).
+Pipeline: **stamp → summarize-knowledge → harvest-finding → process-finding** (write side) ; **mark-stale-finding → maintain-finding** (maintenance loop) ; **consult INDEX.md** (read side, below).
 
 ### Recall — rebuild understanding from the index
 
@@ -42,3 +44,4 @@ Bootstrap a fresh clone/worktree/project with `/harvest-init` (creates the dirs 
 - `raw_knowledge/` — verified-knowledge JSON output (each finding gains a `labels` array). Tracked.
 - `labels.json` — canonical `{label: description}` vocabulary maintained by `/process-finding`. Tracked.
 - `INDEX.md` — generated label catalog (the read-side map). Tracked.
+- `archive/archived.json` — findings that re-verification found **false today** (no longer hold), moved out of `raw_knowledge/` by `/maintain-finding`. Preserved as history with `archived_reason` + `archived_at_commit`; not re-indexed for recall. Created on first archive. Tracked.
