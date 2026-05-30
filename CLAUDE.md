@@ -100,3 +100,7 @@ Default canonical vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `
 ### Domain docs
 
 Single-context. The L2/L3 embedding model, UI-piece taxonomy, and shared-coordinator language live in `CONTEXT.md` (authoritative, created 2026-05-16, locked by ADR 0005 and amended through ADR 0023 — see CONTEXT.md's status header for the ADR chain). General project/build conventions stay in this file. Architectural decisions live in `dev/adr/`. See `dev/agents/domain.md`.
+
+### Knowledge stamps
+
+While working, emit inline `⟦FINDING⟧` stamps for source-grounded understandings per the contract in `.claude/rules/knowledge-stamps.md`. Use `/stamp` to mark one finding, `/summarize-knowledge` to stamp a whole session before `/clear`, and the `harvest-finding` skill to verify stamps and store them under `.claude/harvest-findings/raw_knowledge/`.
