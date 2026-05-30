@@ -1,0 +1,37 @@
+#!/bin/sh
+# Tracked post-merge hook (reviewable here; invoked via the chaining shim that
+# core.hooksPath installs at the main repo's .git/hooks/post-merge).
+#
+# Runs the knowledge-staleness DETECTOR (mark-stale-finding) after every merge:
+# flips any verified finding to status=stale when a file it cites changed since
+# its verified_at_commit baseline. Detection only — re-verification is the
+# separate /maintain-finding (model) pass. The marker is a pure fast script.
+#
+# Informational, never blocks (post-merge cannot abort a merge anyway). It
+# leaves status/stale_reason edits in the working tree for you to review, then
+# run /maintain-finding. Resolved against the merged tree's toplevel, so it
+# works from the main repo and every worktree.
+root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+[ -n "$root" ] || exit 0
+
+# Nothing to do if this tree has no harvested knowledge.
+[ -d "$root/.claude/harvest-findings/raw_knowledge" ] || exit 0
+
+script="$HOME/.claude/skills/mark-stale-finding/scripts/mark_stale.py"
+if [ ! -f "$script" ]; then
+  echo "[post-merge] mark-stale-finding script not found ($script) — skipping staleness scan."
+  exit 0
+fi
+
+py="$(command -v python3 || command -v python)" || {
+  echo "[post-merge] no python interpreter — skipping staleness scan."
+  exit 0
+}
+
+echo "[post-merge] scanning knowledge findings for source drift (mark-stale-finding)…"
+( cd "$root" && "$py" "$script" ) || {
+  echo "[post-merge] staleness scan errored (non-fatal)."
+  exit 0
+}
+echo "[post-merge] done. Any newly status=stale findings are unstaged edits — run /maintain-finding to re-verify."
+exit 0
