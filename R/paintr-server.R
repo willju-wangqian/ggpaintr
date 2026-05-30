@@ -2936,6 +2936,20 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
       # `ptr_setup_consumer_uis()` (non-shared binder).
       last_src_identity <- NULL
       src_seen <- FALSE
+      # ADR 0025 item #7 follow-up (HOST SCOPE ONLY, state = NULL): two extra
+      # per-picker latches that let the host-scope new-source clear SURVIVE
+      # the upload's trailing double-render. At host scope the identity
+      # snapshot is bound-name-blind (`bn` is always "" -- there is no
+      # `state$bound_names` to read), so it stabilises across the two reactive
+      # beats an upload fires; the base clear trips on beat 1 but beat 2 sees
+      # an unchanged identity and the stale `current` rides back. The
+      # per-instance path (state != NULL) does NOT need this -- its identity
+      # already changes across beats (bn populated) -- so the block below is
+      # gated on `is.null(state)` and per-instance behaviour stays byte-equal.
+      # `cleared_for_identity` arms the hold for one trailing render;
+      # `last_user_supplied` drives the supply->no-supply vacate edge.
+      cleared_for_identity <- NULL
+      last_user_supplied <- FALSE
       upstream_src_nodes <- if (!is.null(resolution$value)) {
         find_nodes(resolution$value, is_ptr_ph_data_source)
       } else list()
@@ -3215,6 +3229,32 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
         clear_for_new_source <- consumer_clear_for_new_source(
           src_seen, src_state$identity, last_src_identity,
           src_state$user_supplied, src_state$uploaded, seed)
+        # ADR 0025 item #7 follow-up: hold the clear across the upload's
+        # trailing double-render at HOST scope (see the latch comment above).
+        # `held_clear` re-asserts the clear on the one render immediately
+        # after a base clear edge, while `current` still carries the stale
+        # pick for the same (bound-name-blind) identity; the latch is consumed
+        # the same render so a later legitimate re-pick on the same data is
+        # NOT clobbered. `vacate_edge` folds in the supply->no-supply
+        # transition (P3 vacated the source) so a vacated source also drops
+        # the stale column.
+        if (is.null(state)) {
+          current_nonempty <- !is.null(current) && length(current) > 0L &&
+            any(nzchar(as.character(current)))
+          held_clear <- !is.null(cleared_for_identity) &&
+            identical(cleared_for_identity, src_state$identity) &&
+            current_nonempty
+          vacate_edge <- src_seen && isTRUE(last_user_supplied) &&
+            !isTRUE(src_state$user_supplied)
+          if (isTRUE(clear_for_new_source)) {
+            cleared_for_identity <<- src_state$identity   # arm trailing render
+          } else {
+            cleared_for_identity <<- NULL                 # consume / release
+          }
+          clear_for_new_source <- clear_for_new_source || held_clear ||
+            vacate_edge
+          last_user_supplied <<- isTRUE(src_state$user_supplied)
+        }
         last_src_identity <<- src_state$identity
         src_seen <<- TRUE
         dec <- consumer_seed_decision(has_rendered, seed, current,
