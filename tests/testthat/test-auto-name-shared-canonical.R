@@ -78,7 +78,12 @@ test_that("ptr_setup_panel_sources actually stamps node$auto_name (integration)"
   testthat::local_mocked_bindings(
     .package = "ggpaintr",
     resolve_upload_source = function(input_slot, shortcut_slot, node, entry,
-                                     envir, state, key, slot) {
+                                     envir, state, key, slot,
+                                     file_reset = FALSE) {
+      # Signature mirrors the real `resolve_upload_source()`; the host path
+      # (`ptr_setup_panel_sources`) now passes `file_reset=` (ADR 0025 #7
+      # follow-up), so the mock must accept it or the call errors and
+      # `captured_node` stays NULL.
       captured_node <<- node
       invisible(NULL)
     }
