@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-05-30T05:19:24-0500",
-  "git_head": "9bb8235",
+  "generated_at": "2026-05-30T14:59:54-0500",
+  "git_head": "80c05fb",
   "n_files": 34,
-  "n_symbols": 503,
+  "n_symbols": 504,
   "symbols": {
     "ptr_app_bslib": {
       "file": "R/paintr-app-bslib.R",
@@ -1866,23 +1866,23 @@
     },
     "ptr_shared": {
       "file": "R/paintr-shared-coordinator.R",
-      "start_line": 230,
-      "end_line": 322
+      "start_line": 245,
+      "end_line": 342
     },
     "shared_panel_body_tag": {
       "file": "R/paintr-shared-coordinator.R",
-      "start_line": 330,
-      "end_line": 414
+      "start_line": 350,
+      "end_line": 434
     },
     "ptr_shared_panel": {
       "file": "R/paintr-shared-coordinator.R",
-      "start_line": 444,
-      "end_line": 458
+      "start_line": 464,
+      "end_line": 478
     },
     "ptr_ui_shared_panel": {
       "file": "R/paintr-shared-coordinator.R",
-      "start_line": 482,
-      "end_line": 487
+      "start_line": 502,
+      "end_line": 507
     },
     "new_ptr_shared_state": {
       "file": "R/paintr-shared-ui.R",
@@ -1899,40 +1899,45 @@
       "start_line": 97,
       "end_line": 113
     },
+    "normalize_shared_formulas": {
+      "file": "R/paintr-shared-ui.R",
+      "start_line": 130,
+      "end_line": 151
+    },
     "shared_translate_formulas": {
       "file": "R/paintr-shared-ui.R",
-      "start_line": 120,
-      "end_line": 128
+      "start_line": 153,
+      "end_line": 156
     },
     "shared_first_nodes": {
       "file": "R/paintr-shared-ui.R",
-      "start_line": 132,
-      "end_line": 142
+      "start_line": 160,
+      "end_line": 170
     },
     "shared_consumer_representatives": {
       "file": "R/paintr-shared-ui.R",
-      "start_line": 147,
-      "end_line": 168
+      "start_line": 175,
+      "end_line": 196
     },
     "ptr_shared_server": {
       "file": "R/paintr-shared-ui.R",
-      "start_line": 232,
-      "end_line": 454
+      "start_line": 260,
+      "end_line": 482
     },
     "ptr_setup_panel_sources": {
       "file": "R/paintr-shared-ui.R",
-      "start_line": 482,
-      "end_line": 696
+      "start_line": 510,
+      "end_line": 724
     },
     "apply_spec_at_boot_host": {
       "file": "R/paintr-shared-ui.R",
-      "start_line": 722,
-      "end_line": 828
+      "start_line": 750,
+      "end_line": 856
     },
     "ptr_setup_panel_values": {
       "file": "R/paintr-shared-ui.R",
-      "start_line": 847,
-      "end_line": 912
+      "start_line": 875,
+      "end_line": 940
     },
     "ptr_shared_bind": {
       "file": "R/paintr-shared.R",

@@ -117,13 +117,41 @@ print.ptr_shared_state <- function(x, ...) {
 
 # Translate every formula to a typed AST, accepting either a character vector
 # or a list of strings (mirrors `ptr_app_grid()` input handling).
-shared_translate_formulas <- function(formulas, expr_check) {
+# Normalize the `formulas` argument of `ptr_shared()` to a list of formula
+# strings. Each element is accepted as either a string (kept verbatim) or a
+# quoted expression -- a language object produced by `rlang::expr()` /
+# `quote()` -- which is deparsed to its source string (same `expr_text` width
+# as `ptr_capture_formula()` for the single-formula entries). Elements arrive
+# already evaluated (R evaluates the surrounding `list(...)`/`c(...)` call), so
+# this never `eval()`s an element -- it only deparses language objects, keeping
+# the translate-time eval surface closed (ADR 0009). A built ggplot object
+# (which deparses to `<object>` and cannot be translated) or any other value is
+# rejected with an index-naming message pointing the user at `expr()`.
+normalize_shared_formulas <- function(formulas) {
   if (is.character(formulas)) formulas <- as.list(formulas)
-  assertthat::assert_that(
-    is.list(formulas),
-    length(formulas) >= 1L,
-    all(vapply(formulas, rlang::is_string, logical(1)))
-  )
+  if (!is.list(formulas) || length(formulas) < 1L) {
+    rlang::abort(paste0(
+      "`formulas` must be a non-empty list or character vector of formula ",
+      "strings and/or quoted expressions (`expr(...)` / `quote(...)`)."
+    ))
+  }
+  lapply(seq_along(formulas), function(i) {
+    x <- formulas[[i]]
+    if (rlang::is_string(x)) return(x)
+    if (is.call(x) || rlang::is_symbol(x)) {
+      return(rlang::expr_text(x, width = 500L))
+    }
+    rlang::abort(paste0(
+      "`formulas[[", i, "]]` must be a single formula string or a quoted ",
+      "ggplot expression (`expr(...)` / `quote(...)`); got ", class(x)[1L], ". ",
+      "A built ggplot object cannot be used here -- quote the expression ",
+      "instead: `expr(ggplot(...) + ...)`."
+    ))
+  })
+}
+
+shared_translate_formulas <- function(formulas, expr_check) {
+  formulas <- normalize_shared_formulas(formulas)
   lapply(formulas, ptr_translate, expr_check = expr_check)
 }
 

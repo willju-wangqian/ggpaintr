@@ -13,8 +13,16 @@ ptr_shared(
 )
 }
 \arguments{
-\item{formulas}{A character vector or list of formula strings, one per
-embedded \code{\link[=ptr_ui]{ptr_ui()}} instance.}
+\item{formulas}{A non-empty character vector or list, one element per
+embedded \code{\link[=ptr_ui]{ptr_ui()}} instance. Each element is either a formula
+\strong{string} or a \strong{quoted ggplot expression} (\code{rlang::expr(...)} /
+\code{quote(...)}); quoted expressions are deparsed to their source string,
+and the two forms are interchangeable (mixed lists are allowed). A built
+ggplot object (e.g. \code{g <- ggplot(...) + geom_point()} then passing \code{g})
+is \strong{not} accepted -- its source is unrecoverable, so quote it with
+\code{expr()} instead. Note: a native pipe \verb{|>} inside a quoted expression is
+desugared by R's parser before capture, so it does not survive into the
+generated code panel (use \verb{\%>\%} or a formula string to preserve it).}
 
 \item{id}{Optional character scalar that namespaces every id this
 coordinator emits, so two or more coordinators can coexist in one
@@ -84,6 +92,13 @@ obj <- ptr_shared(c(
   "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"
 ))
 obj$panel_keys   # "x" — shared by both formulas
+
+# Quoted expressions work too, and may be mixed with strings:
+obj2 <- ptr_shared(list(
+  rlang::expr(ggplot(mtcars, aes(x = ppVar(shared = "x"), y = mpg)) + geom_point()),
+  "ggplot(mtcars, aes(x = ppVar(shared = 'x'), y = hp)) + geom_line()"
+))
+obj2$panel_keys  # "x"
 }
 \seealso{
 \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}, \code{\link[=ptr_ui_shared_panel]{ptr_ui_shared_panel()}},
