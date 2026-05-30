@@ -1022,7 +1022,7 @@ vacate_source_binding <- function(state, key) {
   # on some R versions, and we will only ever have written via that same
   # predicate so any present name must satisfy it.
   if (is.character(prior_name) && length(prior_name) == 1L &&
-      nzchar(prior_name) && make.names(prior_name) == prior_name) {
+      is_syntactic_name(prior_name)) {
     if (exists(prior_name, envir = state$eval_env, inherits = FALSE)) {
       rm(list = prior_name, envir = state$eval_env, inherits = FALSE)
     }
@@ -1078,6 +1078,26 @@ emit_upload_prologue <- function(active_uploads) {
 # side and the eval side call this so they choose the SAME symbol.
 # (Multi-panel obj$id namespacing on the per-instance node is a known gap;
 # no current panel-owned-upload-with-obj$id path exercises it.)
+# Single predicate for "x is a usable R binding symbol": a length-1, non-NA
+# character that is ALREADY a syntactically valid, non-reserved R name
+# (make.names() would leave it unchanged; reserved words like `if` fail
+# because make.names appends a dot). The source-binding derivation helpers
+# (panel_owned_binding_name / try_bind_source_default[_resolved] / the host
+# consumer binder) and the bound-name cleanup each validate candidate names
+# this exact way -- this is their single shared check.
+#
+# NOTE (ADR 0026): this intentionally does NOT collapse the per-site binding-
+# name DERIVATION. The `lookup_name` vs `binding_name` split, whether
+# `resolve_expr` is fed `df` / `node$default` / the resolved file_info, and the
+# auto-name fallback conditions differ by call site per ADR 0024/0025/0023 and
+# are deliberately left distinct (a unified derivor would be a shallow
+# multi-flag pass-through and risk behaviour change in this seeding-sensitive
+# path). Only the validation predicate is shared.
+is_syntactic_name <- function(x) {
+  is.character(x) && length(x) == 1L && !is.na(x) && nzchar(x) &&
+    make.names(x) == x
+}
+
 panel_source_canonical_name <- function(node) {
   node$auto_name %||% node$shared
 }
@@ -1109,16 +1129,48 @@ panel_owned_binding_name <- function(node, entry, session,
     if (!is.character(nm) || length(nm) != 1L || !nzchar(nm)) {
       nm <- node$default %||% panel_source_canonical_name(node)
     }
-    if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
-        make.names(nm) == nm) nm else NULL
+    if (is_syntactic_name(nm)) nm else NULL
   } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
     sym <- tryCatch(entry$resolve_expr(df, node),
                     error = function(e) NULL)
     if (is.symbol(sym)) {
       cand <- as.character(sym)
-      if (nzchar(cand) && make.names(cand) == cand) cand else NULL
+      if (is_syntactic_name(cand)) cand else NULL
     } else NULL
   } else NULL
+}
+
+# Is source id `id` owned by the panel (rendered once at host scope via
+# `ptr_setup_panel_sources()`)? Per-instance binders skip wiring an
+# input-watching observer for these -- "one widget, one owner" (ADR 0023 §4).
+# Accepts the panel_sources list directly so both `state$panel_sources` and a
+# local `panel_sources` (host consumer binder) call sites share one check.
+is_panel_owned_id <- function(panel_sources, id) {
+  !is.null(id) && id %in% names(panel_sources %||% list())
+}
+
+# Wire the per-instance binder for a panel-owned source: read the resolved df
+# from the host's panel reactive (`state$panel_sources[[node$id]]`) instead of
+# watching a per-instance input slot that has no widget. `key` is the symbol
+# the frame binds under in `state$bound_names` -- the bare-data-layer branch
+# passes the LAYER name, the pipeline-head branch passes the SOURCE id (the
+# bound_names key duality; see project memory `bound-names-key-duality`). Both
+# branches of `ptr_setup_pipelines()` call this so the observer wiring lives
+# once and a fix lands on both paths.
+wire_panel_owned_source <- function(state, key, node, entry, session, slot) {
+  panel_reactive <- state$panel_sources[[node$id]]
+  shiny::observe({
+    df <- panel_reactive()
+    if (is.null(df)) { slot(NULL); return(invisible(NULL)) }
+    binding_name <- panel_owned_binding_name(
+      node, entry, session,
+      shortcut_value = if (!is.null(node$shortcut_id)) {
+        session$rootScope()$input[[node$shortcut_id]]
+      } else NULL,
+      df = df
+    )
+    bind_source_value(state, key, binding_name, df, slot)
+  })
 }
 
 # Boot-time fallback for source placeholders with a `default_arg`-validated
@@ -1170,14 +1222,13 @@ try_bind_source_default <- function(state, key, node, input, shortcut_input_id,
     if (!is.character(nm) || length(nm) != 1L || !nzchar(nm)) {
       nm <- node$default
     }
-    if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
-        make.names(nm) == nm) nm else NULL
+    if (is_syntactic_name(nm)) nm else NULL
   } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
     sym <- tryCatch(entry$resolve_expr(node$default, node),
                     error = function(e) NULL)
     if (is.symbol(sym)) {
       cand <- as.character(sym)
-      if (nzchar(cand) && make.names(cand) == cand) cand else NULL
+      if (is_syntactic_name(cand)) cand else NULL
     } else NULL
   } else NULL
   if (is.null(lookup_name)) return(FALSE)
@@ -1206,8 +1257,7 @@ try_bind_source_default <- function(state, key, node, input, shortcut_input_id,
   binding_name <- lookup_name
   if (!is.null(shortcut_input_id) && !has_shortcut_value) {
     auto <- panel_source_canonical_name(node)
-    if (is.character(auto) && length(auto) == 1L && nzchar(auto) &&
-        make.names(auto) == auto) {
+    if (is_syntactic_name(auto)) {
       binding_name <- auto
     }
   }
@@ -1342,8 +1392,7 @@ resolve_upload_source <- function(input_slot, shortcut_slot, node, entry,
   #   character form is a valid R name.
   binding_name <- if (has_shortcut) {
     nm <- shortcut_value
-    if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
-        make.names(nm) == nm) {
+    if (is_syntactic_name(nm)) {
       nm
     } else {
       # ADR 0025 §3 / PLAN-02: when the shortcut textbox is empty (or
@@ -1353,15 +1402,14 @@ resolve_upload_source <- function(input_slot, shortcut_slot, node, entry,
       # field via its empty-snapshot fallback, keeping eval-time symbol
       # resolution in lockstep with bind-time assignment.
       auto <- panel_source_canonical_name(node)
-      if (is.character(auto) && length(auto) == 1L && nzchar(auto) &&
-          make.names(auto) == auto) auto else NULL
+      if (is_syntactic_name(auto)) auto else NULL
     }
   } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
     sym <- tryCatch(entry$resolve_expr(file_info, node),
                     error = function(e) NULL)
     if (is.symbol(sym)) {
       cand <- as.character(sym)
-      if (nzchar(cand) && make.names(cand) == cand) cand else NULL
+      if (is_syntactic_name(cand)) cand else NULL
     } else NULL
   } else NULL
   # ADR 0015 PLAN-02 / Option E: enforces assign-before-signal so a
@@ -1423,14 +1471,13 @@ try_bind_source_default_resolved <- function(state, key, node, has_shortcut,
     if (!is.character(nm) || length(nm) != 1L || !nzchar(nm)) {
       nm <- node$default
     }
-    if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
-        make.names(nm) == nm) nm else NULL
+    if (is_syntactic_name(nm)) nm else NULL
   } else if (!is.null(entry) && !is.null(entry$resolve_expr)) {
     sym <- tryCatch(entry$resolve_expr(node$default, node),
                     error = function(e) NULL)
     if (is.symbol(sym)) {
       cand <- as.character(sym)
-      if (nzchar(cand) && make.names(cand) == cand) cand else NULL
+      if (is_syntactic_name(cand)) cand else NULL
     } else NULL
   } else NULL
   if (is.null(lookup_name)) return(FALSE)
@@ -1452,8 +1499,7 @@ try_bind_source_default_resolved <- function(state, key, node, has_shortcut,
   binding_name <- lookup_name
   if (has_shortcut && !has_shortcut_value) {
     auto <- panel_source_canonical_name(node)
-    if (is.character(auto) && length(auto) == 1L && nzchar(auto) &&
-        make.names(auto) == auto) {
+    if (is_syntactic_name(auto)) {
       binding_name <- auto
     }
   }
@@ -1490,23 +1536,8 @@ ptr_setup_pipelines <- function(state, input, output, session) {
       # "one widget, one owner"). Skip wiring the input-watching observer
       # for this source -- otherwise we would watch a permanently-NULL
       # slot and cause spurious invalidations (ADR §4 note).
-      panel_owned <- !is.null(src$id) &&
-        src$id %in% names(state$panel_sources %||% list())
-      if (panel_owned) {
-        sid <- src$id
-        panel_reactive <- state$panel_sources[[sid]]
-        shiny::observe({
-          df <- panel_reactive()
-          if (is.null(df)) { slot(NULL); return(invisible(NULL)) }
-          binding_name <- panel_owned_binding_name(
-            src, entry, session,
-            shortcut_value = if (!is.null(src$shortcut_id)) {
-              session$rootScope()$input[[src$shortcut_id]]
-            } else NULL,
-            df = df
-          )
-          bind_source_value(state, ln, binding_name, df, slot)
-        })
+      if (is_panel_owned_id(state$panel_sources, src$id)) {
+        wire_panel_owned_source(state, ln, src, entry, session, slot)
         return(invisible())
       }
 
@@ -1572,20 +1603,8 @@ ptr_setup_pipelines <- function(state, input, output, session) {
       # when this source's canonical id is owned by the panel, read the
       # resolved df from the panel reactive and skip the input-watching
       # observer (no per-instance widget exists for this id).
-      if (sid %in% names(state$panel_sources %||% list())) {
-        panel_reactive <- state$panel_sources[[sid]]
-        shiny::observe({
-          df <- panel_reactive()
-          if (is.null(df)) { slot(NULL); return(invisible(NULL)) }
-          binding_name <- panel_owned_binding_name(
-            node, entry, session,
-            shortcut_value = if (!is.null(node$shortcut_id)) {
-              session$rootScope()$input[[node$shortcut_id]]
-            } else NULL,
-            df = df
-          )
-          bind_source_value(state, sid, binding_name, df, slot)
-        })
+      if (is_panel_owned_id(state$panel_sources, sid)) {
+        wire_panel_owned_source(state, sid, node, entry, session, slot)
         return(invisible())
       }
 
@@ -2123,7 +2142,7 @@ runtime_upstream_data_frames <- function(state, snapshot = list()) {
 # `ptr_ph_data_consumer` in the tree, we render its widget inside a
 # `renderUI` so that whenever upstream cols change the picker is rebuilt
 # with the fresh `cols`. The static UI emits an empty `uiOutput` container
-# at `consumer_output_id(node$id)`; this function fills it.
+# at `placeholder_output_id(node$id)`; this function fills it.
 #
 # `cols_memo` is a once-per-tick reactive that calls `runtime_upstream_cols`
 # exactly once and returns the full per-consumer named list, so two
@@ -2155,7 +2174,7 @@ ptr_setup_value_uis <- function(state, input, output, session) {
     local({
       node <- v
       raw_id <- node$id
-      output_id <- ns(value_output_id(raw_id))
+      output_id <- ns(placeholder_output_id(raw_id))
       # Implements the widget-seeding contract from
       # ?ptr_define_placeholder_value (Widget-seeding contract section).
       # `has_rendered` distinguishes the first renderUI fire (input not
@@ -2230,7 +2249,7 @@ ptr_setup_value_uis <- function(state, input, output, session) {
       node <- rep
       label_override <- entry$label_override
       raw_id <- node$id
-      output_id <- ns(value_output_id(raw_id))
+      output_id <- ns(placeholder_output_id(raw_id))
       # See `has_rendered` comment in the non-shared value loop above.
       has_rendered <- FALSE
       output[[output_id]] <- shiny::renderUI({
@@ -2291,11 +2310,11 @@ ptr_setup_source_uis <- function(state, input, output, session) {
     # output slots. Formula-local shared ids and single-instance configs
     # (where `state$panel_sources` is an empty list) fall through and
     # render per-instance as before.
-    if (s$id %in% names(state$panel_sources %||% list())) next
+    if (is_panel_owned_id(state$panel_sources, s$id)) next
     local({
       node <- s
       raw_id <- node$id
-      output_id <- ns(source_output_id(raw_id))
+      output_id <- ns(placeholder_output_id(raw_id))
       # Boot-only seed latch: like the value / consumer binders, the `spec=`
       # seed wins on the FIRST render only (see `boot_seed_selected()`). The
       # renderUI re-fires on `state$tree()` changes, so without this latch the
@@ -2653,7 +2672,7 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
     local({
       node <- c
       raw_id <- node$id
-      output_id <- ns(consumer_output_id(raw_id))
+      output_id <- ns(placeholder_output_id(raw_id))
       # Implements the widget-seeding contract from
       # ?ptr_define_placeholder_consumer (see also the seeding-contract
       # block on ?ptr_define_placeholder_value).
@@ -2713,7 +2732,7 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
       upstream_panel_self_ids <- character()
       for (s in find_nodes(node$upstream, is_ptr_ph_data_source)) {
         is_panel <- !is.null(s$id) &&
-          s$id %in% names(state$panel_sources %||% list())
+          is_panel_owned_id(state$panel_sources, s$id)
         if (!is_panel) next
         if (!is.null(s$shortcut_id)) {
           upstream_panel_shortcut_ids <-
@@ -2925,7 +2944,7 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
 #
 # `representative_nodes` is a named list (key -> placeholder node). The
 # host is expected to set `node$id` to the id used by its rendered
-# `uiOutput` so `output[[consumer_output_id(node$id)]]` lines up.
+# `uiOutput` so `output[[placeholder_output_id(node$id)]]` lines up.
 ptr_bind_shared_consumer_uis <- function(output, input, ns,
                                             resolutions,
                                             representative_nodes,
@@ -2966,7 +2985,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
       resolution <- resolutions[[k]]
       rep_node <- representative_nodes[[k]]
       if (is.null(rep_node)) return(NULL)
-      output_id <- ns(consumer_output_id(rep_node$id))
+      output_id <- ns(placeholder_output_id(rep_node$id))
       # Widget-seeding contract — see ?ptr_define_placeholder_consumer.
       has_rendered <- FALSE
       # ADR 0025 contract (ii): per-picker new-source clear latch + the
@@ -3012,7 +3031,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
         ids <- character()
         ptr_walk(resolution$value, function(n) {
           if (is_ptr_ph_data_source(n) && !is.null(n$shortcut_id) &&
-              !is.null(n$id) && n$id %in% names(panel_sources)) {
+              is_panel_owned_id(panel_sources, n$id)) {
             ids[[length(ids) + 1L]] <<- n$shortcut_id
           }
         })
@@ -3075,7 +3094,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
         # instead since it collects EVERY data-source `node$id` regardless
         # of shortcut shape.
         for (sid in upstream_source_ids_for_req) {
-          if (sid %in% names(panel_sources)) panel_sources[[sid]]()
+          if (is_panel_owned_id(panel_sources, sid)) panel_sources[[sid]]()
         }
         # INT-2 (ADR 0023): at host scope (`state = NULL`) we have no
         # `state$eval_env` to thread the panel-resolved frame into, and
@@ -3099,7 +3118,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
           panel_source_nodes <- find_nodes(
             resolution$value,
             function(n) is_ptr_ph_data_source(n) &&
-              !is.null(n$id) && n$id %in% names(panel_sources)
+              is_panel_owned_id(panel_sources, n$id)
           )
           for (psn in panel_source_nodes) {
             sid <- psn$id
@@ -3128,8 +3147,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
                !nzchar(shortcut_value))
             if (shortcut_empty) {
               auto <- psn$auto_name
-              if (is.character(auto) && length(auto) == 1L && nzchar(auto) &&
-                  make.names(auto) == auto) {
+              if (is_syntactic_name(auto)) {
                 bname <- auto
               }
             }
@@ -3198,7 +3216,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
           for (sid in upstream_source_self_ids) {
             # ADR 0023 / PLAN-07: panel-owned source self ids live at
             # the host's top-level (un-namespaced) input id.
-            val <- if (sid %in% names(panel_sources)) {
+            val <- if (is_panel_owned_id(panel_sources, sid)) {
               root_input[[sid]]
             } else {
               input[[ns(sid)]]
@@ -3253,7 +3271,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
           if (!is.null(dom)) dom$rootScope()$input else input
         }
         read_src_input <- function(id) shiny::isolate(
-          if (id %in% names(panel_sources) ||
+          if (is_panel_owned_id(panel_sources, id) ||
               id %in% panel_sources_shortcut_ids) {
             root_input[[id]]
           } else {

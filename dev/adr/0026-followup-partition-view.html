@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0026 followup — partition-view seam (#11 handoff)</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0026 followup — partition-view seam (#11)</h1>
+
+<p><strong>Status:</strong> <em>Parked — fresh-session handoff.</em> This is a context-rebuild document, NOT an implementable plan and NOT a locked decision. It exists so a fresh session can pick up candidate #11 from <a href="0026-deepening-sweep-v2-and-renames.html">ADR 0026</a> without re-deriving everything. Treat every file:line as a starting anchor (verify with <code>find_symbol</code> — <code>paintr-server.R</code> shifts often).</p>
+<p><strong>Date:</strong> 2026-05-30. <strong>Parent:</strong> ADR 0026 rank 11 (promoted from ADR 0017 candidate C1).</p>
+
+<h2>The story, in plain language</h2>
+
+<p>ggpaintr lets a placeholder be <em>shared</em> — the same key (e.g. <code>x</code>) drives one widget that controls several spots, possibly across several plots. The framework must decide, for every shared key and every UI surface, a single yes/no question:</p>
+
+<blockquote><strong>"Does THIS surface render and bind THIS shared key?"</strong></blockquote>
+
+<p>That one question is currently answered <strong>three different, asymmetric ways</strong> depending on which embedding level you're in:</p>
+
+<ol>
+<li><strong>Multi-formula (the coordinator).</strong> <code>ptr_shared()</code> builds a <code>ptr_shared_spec</code> object carrying <code>panel_keys</code> (keys referenced by ≥2 formulas → owned by the one shared <em>panel</em>) and <code>local_keys_by_formula</code> (per-formula inline keys). Downstream code reads these fields. <em>Source:</em> <code>R/paintr-shared-coordinator.R</code> — <code>shared_partition()</code> at line 28, <code>panel_keys &lt;- all_keys[formula_counts &gt;= 2L]</code> at line 42, the object assembled around lines 287–310.</li>
+<li><strong>Single-formula L1.</strong> There is <em>no</em> coordinator (CONTEXT.md, locked: "single-instance has no coordinator — ever"). Instead a bare boolean <code>render_shared_section = TRUE</code> stands in for "this surface owns ALL shared keys." <em>Source:</em> <code>R/paintr-app.R:169</code> (set TRUE for <code>ptr_app</code>), and the consuming branch <code>shared_section &lt;- if (isTRUE(render_shared_section))</code> around <code>R/paintr-app.R:425</code> (also <code>:760</code>, <code>:339</code> where it is FALSE / <code>host_owned_keys = character(0)</code>).</li>
+<li><strong>L2 <code>ptr_server</code>.</strong> The complement is computed as a set difference: <code>host_owned_keys = setdiff(consumer_keys, panel_keys)</code> and passed into <code>ptr_bind_local_shared_consumers()</code>. <em>Source:</em> <code>R/paintr-shared-ui.R:388</code>; consumer <code>R/paintr-server.R:3365</code> (<code>ptr_bind_local_shared_consumers</code>).</li>
+</ol>
+
+<p>Same conceptual question, three signals that must be kept mutually consistent by hand. When they drift, the bug is "a shared widget renders but never binds" or "binds twice." This is not hypothetical: the <strong>2026-05-22 partition-binder bug</strong> (project memory <code>project-shared-section-binder</code>) lived in channel #3 — a surface computed its <code>host_owned_keys</code> wrong and a formula-local <code>var(shared=)</code> went blank.</p>
+
+<h2>Why do this (motivation)</h2>
+<ul>
+<li><strong>It is a recurring-bug class, not a tidiness itch.</strong> The ownership question has already produced at least one shipped defect; every new shared-key surface is a fresh chance to compute it wrong because there is no single function that answers it.</li>
+<li><strong>Locality.</strong> One place would answer "does surface S own key K?" for every surface. A new surface gets no "compute it correctly" step to get wrong.</li>
+<li><strong>Test leverage.</strong> "L2 omits panel-owned keys" / "single-formula owns all keys" become unit assertions against the view, not full-app boots.</li>
+<li><strong>Public-API-safe.</strong> This is an INTERNAL seam. No exported function changes signature or behavior — the lowest-risk category of the parked items, which is why ADR 0026 ranked it the strongest remaining candidate.</li>
+</ul>
+
+<h2>Proposed shape (direction, not locked)</h2>
+<p>Introduce an internal <code>partition_view(part, surface_id)</code> (name negotiable) that every channel queries instead of re-encoding ownership:</p>
+<ul>
+<li>Multi-instance keeps building the coordinator object as today, but the <em>consumers</em> ask the view "owns(surface, key)?" rather than re-deriving from <code>panel_keys</code>.</li>
+<li>Single-formula L1 constructs a trivial internal view that owns all keys (replacing the <code>render_shared_section = TRUE</code> boolean).</li>
+<li>L2 server's <code>host_owned_keys</code> becomes a lookup against the view, not a separate <code>setdiff</code> the caller wires up.</li>
+</ul>
+<p>Optionally fold in a <code>validate_partition_invariant()</code> fail-fast at <code>ptr_shared()</code> construction (merged from the dropped <code>partition-rule-ownership-verification</code> candidate).</p>
+
+<h2>All related files</h2>
+<ul>
+<li><code>R/paintr-shared-coordinator.R</code> — <code>shared_partition()</code> (the algorithm; already centralised, called once from <code>ptr_shared()</code>), the <code>ptr_shared_spec</code> object fields (<code>panel_keys</code>, <code>local_keys_by_formula</code>, <code>formula_keys</code>).</li>
+<li><code>R/paintr-shared-ui.R</code> — <code>host_owned_keys = setdiff(...)</code> at :388; panel rendering reads <code>obj$panel_keys</code> at :265/:308/:341/:484/:741/:849.</li>
+<li><code>R/paintr-server.R</code> — <code>ptr_bind_local_shared_consumers()</code> at :3365 (takes <code>host_owned_keys</code>); <code>ptr_bind_shared_consumer_uis()</code> at :2948 (the dual-mode binder; see the <code>state=NULL</code> note below).</li>
+<li><code>R/paintr-app.R</code> — <code>render_shared_section</code> at :169 (TRUE), :339/:760 (FALSE), and the consuming branch ~:425; this is the boolean to retire.</li>
+<li><code>R/paintr-shared.R</code> — <code>ptr_shared()</code> public entry / partition wiring.</li>
+<li><code>tests/testthat/test-shared-server-partition.R</code>, <code>test-shared-stage-checkbox.R</code> — existing partition tests (these reach in with <code>ggpaintr:::</code>; the view gives them a cleaner unit target).</li>
+</ul>
+
+<h2>Boundary / scope</h2>
+<ul>
+<li><strong>Internal only.</strong> No public API change. <code>ptr_shared</code>/<code>ptr_shared_panel</code>/<code>ptr_shared_server</code>/<code>ptr_app</code> behaviour is frozen (CONTEXT.md locked).</li>
+<li><strong>Do not</strong> change the partition <em>algorithm</em> (<code>shared_partition</code>) — it is already centralised and correct; this candidate is about the <em>consumption</em> side (the three channels).</li>
+<li><strong>Re-grep first:</strong> ADR 0017 flagged the L2 <code>host_owned_keys</code> call-site count as UNVERIFIED. Count the real call sites before locking the view's interface.</li>
+<li><strong>Respect ADR 0006:</strong> at coordinator HOST scope, <code>ptr_bind_shared_consumer_uis</code> runs with <code>state=NULL</code>; the view must work in that mode (it should, since it queries the partition object, not <code>state</code>).</li>
+</ul>
+
+<h2>Before / after (what changes for a maintainer)</h2>
+<p>This is an internal refactor, so "working/non-working example" is best framed as the <em>bug-shape</em>, not a user formula:</p>
+<table>
+<thead><tr><th></th><th>Today (3 channels)</th><th>After (one view)</th></tr></thead>
+<tbody>
+<tr><td>Adding a new shared-key surface</td><td>Must remember to compute ownership in that surface's idiom (boolean / setdiff / panel_keys membership) — easy to get wrong (2026-05-22 bug).</td><td>Calls <code>partition_view(part, surface_id)$owns(key)</code>; no per-surface ownership logic to get wrong.</td></tr>
+<tr><td>"Does L2 omit panel-owned keys?"</td><td>Verified only by a full-app boot test.</td><td>Unit assertion against the view.</td></tr>
+<tr><td>Formula-local <code>var(shared="g")</code> in a grid where <code>g</code> is also cross-formula</td><td>Ownership decided by a <code>setdiff</code> a caller wired up; drift → blank widget.</td><td>One answer; drift becomes structurally hard.</td></tr>
+</tbody>
+</table>
+<p><strong>Behavioural invariant to preserve (regression target):</strong> a shared key in exactly one formula renders in that formula's <em>shared section</em>; a shared key in ≥2 formulas renders in the one <em>shared panel</em> (the partition rule, CONTEXT.md). The full e2e suite — especially the grid/shared fixtures (<code>l2-shared</code>, <code>l2-shared-partition</code>, <code>grid-shared-partition</code>, <code>app-grid-shared-added</code>) — is the gate.</p>
+
+<h2>How a fresh session should rebuild context</h2>
+<ol>
+<li>Read <a href="0026-deepening-sweep-v2-and-renames.html">ADR 0026</a> (this candidate is rank 11) and ADR 0017 candidate C1 (the original framing + the "deferred" reasoning now met).</li>
+<li>Read <code>CONTEXT.md</code> §"Shared placeholders" + §"Shared coordinator" + the partition rule (authoritative domain language).</li>
+<li>Read <a href="0005-l2-l3-redesign.html">ADR 0005</a> + <a href="0006-single-server-entry-l3-ui-only.html">ADR 0006</a> (single server entry, <code>state=NULL</code> at host).</li>
+<li>Grep the knowledge index: <code>grep -i "partition\|shared" .claude/harvest-findings/INDEX.md</code> → label <code>shared-coordinator-partition</code> → read those verified findings (esp. <code>partition-ownership-three-channels</code>, <code>shared-host-consumer-binder-dual-mode</code>, <code>shared-consumer-truncate-at-placeholder-intentional</code>).</li>
+<li>This is a design change — run the skill's grilling loop (<code>/improve-codebase-architecture</code> step 3, or <code>/grill-with-docs</code>) to lock the view interface before coding, then <code>/decision-to-plan</code> → <code>/exec-plan</code>.</li>
+</ol>
+
+<h2>Definition of Done (when it becomes a plan)</h2>
+<p>Per CLAUDE.md authoritative gate, run serially: <code>Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'</code> → FAIL 0 / ERROR 0 / SKIP 0 / PASS ≥ baseline (3439 as of 2026-05-30). Plus new unit tests asserting the view's ownership answer for: single-formula (owns all), multi-formula panel key (owned by panel), multi-formula formula-local key (owned by its formula's section), L2 (omits panel-owned). No public-API change; <code>devtools::check(--as-cran)</code> clean.</p>
+
+</body>
+</html>

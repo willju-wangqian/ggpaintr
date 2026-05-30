@@ -10,14 +10,14 @@ ptr_define_placeholder_source(
   resolve_data,
   resolve_expr = NULL,
   shortcut = FALSE,
-  default_arg = NULL,
+  positional_arg = NULL,
   named_args = list(),
   runtime = NULL,
-  copy_defaults = list(label = "Provide a data source for {param}")
+  ui_text_defaults = list(label = "Provide a data source for {param}")
 )
 }
 \arguments{
-\item{keyword, copy_defaults}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}. See
+\item{keyword, ui_text_defaults}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}. See
 \code{vignette("ggpaintr-customization")} § "Source placeholders" for the
 tutorial.}
 
@@ -78,7 +78,7 @@ non-empty, clearing a stale display (ADR 0025 item #7). The reserved
 shared key \code{"shortcut"} is rejected at translate time (see ADR 0025
 §1).}
 
-\item{default_arg, named_args}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.
+\item{positional_arg, named_args}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.
 Source placeholders use the same arg-schema slots.}
 
 \item{runtime}{Optional \verb{function(...)} body used when the placeholder

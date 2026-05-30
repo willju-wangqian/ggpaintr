@@ -24,8 +24,8 @@ return \code{invisible(NULL)}. \code{\link[=ptr_constant_fold_keywords]{ptr_cons
 character vector of currently registered names.
 }
 \description{
-The numeric default-argument validators (\code{\link[=ptr_default_numeric]{ptr_default_numeric()}} and
-\code{\link[=ptr_default_numeric_vector]{ptr_default_numeric_vector()}}) walk the placeholder's default-argument
+The numeric default-argument validators (\code{\link[=ptr_arg_numeric]{ptr_arg_numeric()}} and
+\code{\link[=ptr_arg_numeric_vector]{ptr_arg_numeric_vector()}}) walk the placeholder's default-argument
 AST against an allowlist of function and constant names. Authors can
 extend the allowlist with \code{\link[=ptr_register_constant_fold]{ptr_register_constant_fold()}} when their
 placeholder definitions need additional pure operators.
@@ -44,6 +44,6 @@ registration. \code{pi} resolves through the registry's parent
 }
 \examples{
 ptr_register_constant_fold("log10", log10)
-ptr_default_numeric()(quote(log10(100)))
+ptr_arg_numeric()(quote(log10(100)))
 ptr_clear_constant_fold("log10")
 }

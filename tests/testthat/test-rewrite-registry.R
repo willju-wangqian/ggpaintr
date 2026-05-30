@@ -65,7 +65,7 @@ test_that("copy_defaults validation: rejects non-list", {
     keyword = "k1",
     build_ui = function(node, ...) NULL,
     resolve_expr = function(value, node, ...) value,
-    copy_defaults = "label"
+    ui_text_defaults = "label"
   ), "named list")
 })
 
@@ -74,7 +74,7 @@ test_that("copy_defaults validation: rejects non-string values", {
     keyword = "k2",
     build_ui = function(node, ...) NULL,
     resolve_expr = function(value, node, ...) value,
-    copy_defaults = list(label = 42)
+    ui_text_defaults = list(label = 42)
   ), "single non-NA string")
 })
 
@@ -83,7 +83,7 @@ test_that("copy_defaults validation: rejects unnamed entries", {
     keyword = "k3",
     build_ui = function(node, ...) NULL,
     resolve_expr = function(value, node, ...) value,
-    copy_defaults = list("naked")
+    ui_text_defaults = list("naked")
   ))
 })
 
@@ -161,7 +161,7 @@ test_that("validate_copy_defaults rejects unknown copy fields", {
       "kw_bad",
       build_ui = function(node, ...) NULL,
       resolve_expr = function(value, node, ...) value,
-      copy_defaults = list(tooltip = "x")
+      ui_text_defaults = list(tooltip = "x")
     ),
     "unsupported field"
   )
@@ -177,7 +177,7 @@ test_that("validate_copy_defaults accepts every supported leaf field", {
       "kw_ok",
       build_ui = function(node, ...) NULL,
       resolve_expr = function(value, node, ...) value,
-      copy_defaults = list(label = "L", help = "H", placeholder = "P", empty_text = "E")
+      ui_text_defaults = list(label = "L", help = "H", placeholder = "P", empty_text = "E")
     )
   )
 })

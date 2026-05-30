@@ -1,5 +1,9 @@
 # ggpaintr (development version)
 
+## New features
+
+- **`ptr_shared()` now accepts quoted ggplot expressions as `formulas` elements, alongside strings.** Each element of `formulas` may be a formula string (as before) or a quoted expression built with `rlang::expr()` / `quote()`; quoted expressions are deparsed to their source and the two forms are interchangeable, including in a single mixed list. This brings the multi-formula coordinator in line with the string-or-expression input already accepted by `ptr_app()` / `ptr_server()`. A built ggplot object (whose source text is unrecoverable) is rejected with a message pointing at `expr()`. Additive and fully backward-compatible — existing all-string call sites are unchanged. (As with the single-formula entries, a native pipe `|>` inside a quoted expression is desugared by R before capture and so does not survive into the generated code panel.)
+
 ## Breaking changes
 
 - **Source surface rename + auto-name + UI mutex + code prologue (ADR 0025).** `ptr_define_placeholder_source()` no longer accepts a `companion_id_fn = function(id) -> string` callback; pass `shortcut = TRUE` (single logical, default `FALSE`) to opt into the env-shortcut sibling input. The framework stamps `node$shortcut_id <- paste0(node$id, "_shortcut")` on every translated source node (the old `node$companion_id` slot and the `"_name"` suffix are gone). Built-in `ppUpload` migrates verbatim. The reserved shared key `"shortcut"` aborts translation with a named-conflict error. Hard rename, no `lifecycle::deprecate_warn()` shim. The same surface ships four further behaviours:

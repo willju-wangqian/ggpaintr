@@ -336,13 +336,7 @@ emit_placeholder_rows <- function(ph, parent_call, layer_name, emit) {
   shared_key <- ph$shared %||% NA_character_
   scope <- "instance"
   raw_id <- ph$id
-  sleeve_id <- if (is_ptr_ph_data_source(ph)) {
-    source_output_id(raw_id)
-  } else if (is_ptr_ph_data_consumer(ph)) {
-    consumer_output_id(raw_id)
-  } else {
-    value_output_id(raw_id)
-  }
+  sleeve_id <- placeholder_output_id(raw_id)
   base <- list(
     layer = layer_name %||% NA_character_,
     keyword = ph$keyword %||% NA_character_,

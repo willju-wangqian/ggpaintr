@@ -18,7 +18,7 @@ ptr_define_placeholder_value(
     if (is.null(value) || identical(value, "")) return(NULL)
     as.character(value)
   },
-  copy_defaults = list(label = "Highlight colour for {param}")
+  ui_text_defaults = list(label = "Highlight colour for {param}")
 )
 
 formula <- "ggplot(data = mpg, aes(x = ppVar, y = ppVar)) +

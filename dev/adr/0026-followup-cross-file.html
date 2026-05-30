@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0026 followup — cross-file source/consumer parallel paths (#10 backup)</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0026 followup — cross-file source/consumer parallel paths (#10)</h1>
+
+<p><strong>Status:</strong> <em>Parked — findings backup.</em> NOT an active plan. This is a store of what we know about the two parallel source/consumer implementations, to be picked up <strong>after</strong> the narrower bug fix in <a href="0026-fix-host-env-rename-never-clears.html">ADR26-fix-host-env-rename-never-clears</a> lands (the user's chosen sequencing — fix the live bug first, consolidate later, if at all). The synthesis demoted the full collapse to <em>optional</em>; this doc records why, and what is genuinely shared vs genuinely divergent, so a future investigation starts from truth, not from the over-stated raw catalog.</p>
+<p><strong>Date:</strong> 2026-05-30. <strong>Parent:</strong> ADR 0026 rank 10. <strong>Relates to:</strong> <a href="0023-panel-owned-shared-sources-end-to-end.html">ADR 0023</a>, <a href="0006-single-server-entry-l3-ui-only.html">ADR 0006</a>, <a href="0025-source-shortcut-rename-and-upload-auto-name.html">ADR 0025</a>.</p>
+
+<h2>The story, in plain language</h2>
+<p>ggpaintr has <strong>two parallel implementations of the data-source → consumer machinery</strong>:</p>
+<ul>
+<li><strong>Single-instance / formula-local path</strong> — <code>ptr_setup_source_uis()</code> (<code>R/paintr-server.R:2297</code>) + <code>ptr_setup_consumer_uis()</code> (<code>:2659</code>) + the per-instance branch of <code>ptr_bind_shared_consumer_uis()</code> (<code>:2948</code>, <code>state</code> non-NULL). Always has a real <code>state</code>.</li>
+<li><strong>Shared-coordinator HOST path</strong> — <code>ptr_setup_panel_sources()</code> (<code>R/paintr-shared-ui.R:482</code>) + the host branch of <code>ptr_bind_shared_consumer_uis()</code> (<code>state = NULL</code>, ADR 0006). One widget at top level ("one widget, one owner").</li>
+</ul>
+<p>They mirror each other's renderUI / resolve / mutex / seeding shape, but are <strong>distinct code</strong>. The documented consequence (verified finding <code>two-parallel-source-handling-paths</code>): a fix applied to one path does <strong>not</strong> propagate to the other and has to be hand-ported. The ADR-0025-#7 fileInput-reset work, and the host-env-rename bug (<a href="0026-fix-host-env-rename-never-clears.html">separate doc</a>), are both symptoms of this split.</p>
+
+<h2>Crucial correction (don't trust the raw sweep here)</h2>
+<p>The automated sweep OVER-stated this duplication. Verified facts (2026-05-30):</p>
+<ul>
+<li><strong>The resolution CORE is already shared.</strong> <code>resolve_upload_source()</code> (<code>R/paintr-server.R:1300</code>) is called by BOTH paths — the host path (<code>shared-ui.R</code>) calls the same master impl. So upload resolution is NOT duplicated.</li>
+<li><strong>The spec-normalization IS duplicated</strong> — and this is the one the sweep's "no host twin" claim got WRONG (caught by the harvest verify pass): <code>apply_spec_at_boot()</code> (<code>server.R:539</code>) has a host twin <code>apply_spec_at_boot_host()</code> (<code>shared-ui.R:722</code>). These two are a genuine duplication candidate (the original "#10 Phase A").</li>
+<li><strong>The genuinely divergent copies</strong> are: (a) the two renderUI bodies, (b) the seeding-decision closures + latches (<code>has_rendered</code>, <code>src_seen</code>, <code>last_src_identity</code>, <code>cleared_for_identity</code>), (c) the spec-value normalization (the <code>apply_spec_at_boot</code> twin).</li>
+</ul>
+
+<h2>Why the full collapse is hard (and was demoted to optional)</h2>
+<p>The two paths' <strong>reactive dependencies genuinely differ</strong>, so a forced merge would couple them artificially:</p>
+<ul>
+<li>Single-instance is <strong>state-backed</strong>: it reads/writes <code>state$bound_names</code>, <code>state$resolved_sources</code>, <code>state$source_file_reset</code>, a per-instance namespace.</li>
+<li>Host is <strong>input-id-only / state=NULL</strong> (ADR 0006): it drives the picker off <code>panel_sources[[sid]]()</code> reactives + a synthetic <code>host_env</code>, reads the shortcut at <code>session$rootScope()$input[[...]]</code> (top-level, not namespaced), and has no real <code>state</code>.</li>
+</ul>
+<p>This is the same divergence that makes the host-env-rename bug exist (<code>bn=""</code> at host). A single seam that pretends the two are interchangeable risks regressions in the most bug-prone area of the codebase. So: consolidate the genuinely-identical pieces (spec normalization first), do NOT force a unified source/consumer seam unless a later investigation proves the reactive shapes can be reconciled cleanly.</p>
+
+<h2>Phased approach (if pursued, after the bug fix)</h2>
+<ol>
+<li><strong>Phase A (the safe, real dedup): unify <code>apply_spec_at_boot</code> ↔ <code>apply_spec_at_boot_host</code>.</strong> Extract the pure spec-value normalization kernel both share; keep the per-scope dispatch (namespaced vs un-namespaced spec keys) as thin wrappers. ~40 LOC pure, ~10 LOC net. This is the one with the clearest motivation (the harvest-verified twin) and the lowest risk (pure normalization, not reactive wiring). Apply the same verify-first discipline: prove the two kernels are byte-equivalent in intent before merging; gate on the spec-roundtrip e2e (<code>test-spec-roundtrip-*</code>).</li>
+<li><strong>Phase B/C (risky, optional): the renderUI bodies + seeding closures.</strong> Only after the host-env-rename fix (<a href="0026-fix-host-env-rename-never-clears.html">separate doc</a>) settles the seeding semantics, and only if a focused investigation shows a shared seam that does not couple the state-backed and state=NULL reactive shapes. Wide-blast-radius shared-runtime change → full e2e at the merge boundary, never partial; never combine phases in one commit.</li>
+</ol>
+
+<h2>All related files / anchors</h2>
+<ul>
+<li><code>R/paintr-server.R</code> — <code>ptr_setup_source_uis()</code> :2297, <code>ptr_setup_consumer_uis()</code> :2659, <code>ptr_bind_shared_consumer_uis()</code> :2948 (dual-mode), <code>resolve_upload_source()</code> :1300 (ALREADY shared), <code>apply_spec_at_boot()</code> :539, the seeding helpers (<code>consumer_seed_decision</code> :2501, <code>consumer_upstream_source_state</code> :2575, <code>consumer_clear_for_new_source</code> :2651, <code>boot_seed_selected</code> :2497).</li>
+<li><code>R/paintr-shared-ui.R</code> — <code>ptr_setup_panel_sources()</code> :482, <code>apply_spec_at_boot_host()</code> :722 (the twin).</li>
+<li><code>R/paintr-shared-coordinator.R</code> — the partition object both consumer paths read (overlaps with <a href="0026-followup-partition-view.html">ADR26-followup-partition-view</a>).</li>
+<li>Tests: <code>test-spec-roundtrip-*.R</code>, <code>test-int-*consumer-picker*</code>, <code>test-host-setup-panel-sources.R</code>, <code>test-adr15-*</code>, the seeding/derived-column browser cluster.</li>
+</ul>
+
+<h2>Boundary / scope</h2>
+<ul>
+<li>No public API change (internal runtime only).</li>
+<li>Phase A only is "safe-ish"; the full seam-collapse is explicitly OPTIONAL and should not be forced.</li>
+<li>Sequenced AFTER the host-env-rename fix. The bug fix may itself touch <code>consumer_upstream_source_state</code> at host scope; let that land and stabilise first.</li>
+<li>Respect ADR 0006 (<code>state=NULL</code> at host) — any shared helper must work in both modes or be gated by <code>is.null(state)</code>.</li>
+</ul>
+
+<h2>Before / after (maintainer-facing)</h2>
+<table>
+<thead><tr><th></th><th>Today</th><th>After Phase A</th></tr></thead>
+<tbody>
+<tr><td>A spec-normalization fix (e.g. a new coercion rule)</td><td>must be made in <code>apply_spec_at_boot</code> AND <code>apply_spec_at_boot_host</code> or the host path drifts</td><td>made once in the shared kernel; both scopes inherit it</td></tr>
+<tr><td>Upload resolution fix</td><td>already shared (<code>resolve_upload_source</code>) — no action needed</td><td>unchanged</td></tr>
+<tr><td>Seeding/clear semantics</td><td>two divergent closures (the host-env-rename bug lives here)</td><td>still divergent unless Phase B/C is justified — fix the bug in place first</td></tr>
+</tbody>
+</table>
+
+<h2>How a fresh session should rebuild context</h2>
+<ol>
+<li>Read this doc + <a href="0026-fix-host-env-rename-never-clears.html">ADR26-fix-host-env-rename-never-clears</a> (do that first) + ADR 0023 / 0006 / 0025.</li>
+<li>Grep the knowledge index: labels <code>source-binding-runtime</code>, <code>shared-coordinator-partition</code>, <code>ppupload-mechanics</code>. Read verified findings: <code>two-parallel-source-handling-paths</code>, <code>ggpaintr-two-source-consumer-paths</code>, <code>shared-host-consumer-binder-dual-mode</code>, <code>resolve-upload-source-already-shared</code> (note its <strong>contradicted</strong> verdict — the apply_spec_at_boot_host correction is the actionable nugget), <code>host-flag-can-be-local-not-state-slot</code>.</li>
+<li>Diff <code>apply_spec_at_boot</code> vs <code>apply_spec_at_boot_host</code> line-by-line before touching them — confirm the shared kernel and the per-scope difference (namespacing of spec keys).</li>
+<li>Apply the session's hard-won discipline (verified finding <code>verify-before-extract-dedup-overstated</code>): run the deletion test on each piece; extract only what is genuinely identical; never manufacture a multi-flag pass-through to "unify" two reactive shapes that differ.</li>
+</ol>
+
+<h2>Definition of Done (Phase A, when it becomes a plan)</h2>
+<p>Serial authoritative gate FAIL 0 / ERROR 0 / SKIP 0 / PASS ≥ baseline; spec-roundtrip e2e green in both single-instance and host/panel-shared modes; no public API change; <code>devtools::check(--as-cran)</code> clean. Phases B/C are out of scope until separately justified.</p>
+
+</body>
+</html>

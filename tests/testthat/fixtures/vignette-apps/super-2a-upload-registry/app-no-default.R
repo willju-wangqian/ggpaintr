@@ -24,7 +24,7 @@ ppPower <- ptr_define_placeholder_value(
           !is.na(value) && value >= 0 && value <= 1) TRUE
     else "must be in [0,1]"
   },
-  default_arg = ptr_default_numeric()
+  positional_arg = ptr_arg_numeric()
 )
 
 ppMultiVar <- ptr_define_placeholder_consumer(

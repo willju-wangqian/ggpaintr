@@ -181,8 +181,16 @@ shared_assert_panel_consumer_sources <- function(trees, panel_keys, formulas) {
 #' Errors when no formula declares a `shared = "..."` annotation -- building
 #' the coordinator is a declaration of intent.
 #'
-#' @param formulas A character vector or list of formula strings, one per
-#'   embedded [`ptr_ui()`] instance.
+#' @param formulas A non-empty character vector or list, one element per
+#'   embedded [`ptr_ui()`] instance. Each element is either a formula
+#'   **string** or a **quoted ggplot expression** (`rlang::expr(...)` /
+#'   `quote(...)`); quoted expressions are deparsed to their source string,
+#'   and the two forms are interchangeable (mixed lists are allowed). A built
+#'   ggplot object (e.g. `g <- ggplot(...) + geom_point()` then passing `g`)
+#'   is **not** accepted -- its source is unrecoverable, so quote it with
+#'   `expr()` instead. Note: a native pipe `|>` inside a quoted expression is
+#'   desugared by R's parser before capture, so it does not survive into the
+#'   generated code panel (use `%>%` or a formula string to preserve it).
 #' @param id Optional character scalar that namespaces every id this
 #'   coordinator emits, so two or more coordinators can coexist in one
 #'   Shiny session without colliding on shared `input` slots. When
@@ -226,6 +234,13 @@ shared_assert_panel_consumer_sources <- function(trees, panel_keys, formulas) {
 #'   "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"
 #' ))
 #' obj$panel_keys   # "x" — shared by both formulas
+#'
+#' # Quoted expressions work too, and may be mixed with strings:
+#' obj2 <- ptr_shared(list(
+#'   rlang::expr(ggplot(mtcars, aes(x = ppVar(shared = "x"), y = mpg)) + geom_point()),
+#'   "ggplot(mtcars, aes(x = ppVar(shared = 'x'), y = hp)) + geom_line()"
+#' ))
+#' obj2$panel_keys  # "x"
 #' @export
 ptr_shared <- function(formulas,
                        id = NULL,
@@ -241,6 +256,11 @@ ptr_shared <- function(formulas,
       paste0(utils::capture.output(print(id)), collapse = " "), "."
     ))
   }
+  # Normalize once here so the spec's `formulas` field and the
+  # panel-consumer-source assertion below both see plain strings (quoted
+  # expressions deparsed). `shared_translate_formulas()` re-normalizes
+  # idempotently -- strings pass straight through.
+  formulas <- normalize_shared_formulas(formulas)
   trees <- shared_translate_formulas(formulas, expr_check = expr_check)
 
   firsts <- shared_first_nodes(trees)

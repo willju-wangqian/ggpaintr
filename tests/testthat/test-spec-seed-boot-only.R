@@ -243,7 +243,7 @@ ssbo_consumer_setup <- function(formula) {
     resolutions  = ggpaintr:::ptr_resolve_shared_consumers(tree),
     rep_nodes    = ggpaintr:::shared_consumer_representatives(tree),
     cid          = ggpaintr:::canonical_shared_id("col"),
-    out_id       = ggpaintr:::consumer_output_id(
+    out_id       = ggpaintr:::placeholder_output_id(
       ggpaintr:::canonical_shared_id("col")
     )
   )
@@ -411,7 +411,7 @@ test_that("source widget: spec seed wins at boot, user pick persists across an u
     },
     resolve_expr = function(value, node, ...) rlang::sym(value),
     runtime      = function(x, ...) get(x, envir = asNamespace("datasets")),
-    default_arg  = ggpaintr::ptr_default_string()
+    positional_arg  = ggpaintr::ptr_arg_string()
   )
 
   formula <- 'ggplot(ppSeedSrc("iris"), aes(x = mpg, y = hp)) + geom_point()'

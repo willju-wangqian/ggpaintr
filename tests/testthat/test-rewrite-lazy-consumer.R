@@ -67,7 +67,7 @@ test_that("D6 build_ui receives the resolved upstream data frame", {
     state <- session$userData$state
     tree <- shiny::isolate(state$tree())
     consumer <- find_nodes(tree, is_ptr_ph_data_consumer)[[1L]]
-    output_id <- consumer_output_id(consumer$id)
+    output_id <- placeholder_output_id(consumer$id)
     # Force the renderUI to run by reading its output.
     output[[output_id]]
     session$flushReact()

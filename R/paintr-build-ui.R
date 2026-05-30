@@ -60,14 +60,14 @@ build_ui_for.ptr_ph_value <- function(node,
   # `build_ui_for.ptr_ph_data_consumer` below); this generalises that
   # pattern to all placeholder kinds so spec-apply can route through one
   # uniform hook (the registry's single `build_ui`).
-  shiny::uiOutput(ptr_render_id(value_output_id(node$id), ns_fn))
+  shiny::uiOutput(ptr_render_id(placeholder_output_id(node$id), ns_fn))
 }
 
 #' @exportS3Method
 build_ui_for.ptr_ph_data_consumer <- function(node,
                                                 ns_fn = identity,
                                                 ...) {
-  shiny::uiOutput(ptr_render_id(consumer_output_id(node$id), ns_fn))
+  shiny::uiOutput(ptr_render_id(placeholder_output_id(node$id), ns_fn))
 }
 
 #' @exportS3Method
@@ -82,7 +82,7 @@ build_ui_for.ptr_ph_data_source <- function(node,
   # renderUI is what lets the seed-based spec-apply path
   # (state$spec_seed[[bare]] -> extra$selected) cover custom source
   # keywords without an `updateXyz` symmetric hook.
-  source_ui <- shiny::uiOutput(ptr_render_id(source_output_id(node$id), ns_fn))
+  source_ui <- shiny::uiOutput(ptr_render_id(placeholder_output_id(node$id), ns_fn))
 
   # ADR 0025 item #7: when the source's registry entry opts into the
   # shortcut sibling, emit its textInput here as STATIC UI -- never inside
@@ -110,23 +110,6 @@ build_ui_for.ptr_ph_data_source <- function(node,
       name_copy$help
     )
   )
-}
-
-# ADR 0012 / PLAN-01 (Bug B): output-id helpers for the uiOutput
-# containers above. Same `_ui` suffix shape as `consumer_output_id()`
-# (R/paintr-ids.R) so the renderUI assignment in `ptr_setup_value_uis()`
-# / `ptr_setup_source_uis()` writes to a slot that does NOT collide with
-# the widget's raw inputId (the bound widget lives at the raw id; the
-# container holding it is `<raw_id>_ui`). Kept here rather than in
-# `R/paintr-ids.R` because they are exercised only by `build_ui_for.*`
-# above and the matching server-side setup helpers, both of which gain
-# the routing in PLAN-01 -- co-locating cuts cross-file coupling.
-value_output_id <- function(raw_id) {
-  paste0(raw_id, "_ui")
-}
-
-source_output_id <- function(raw_id) {
-  paste0(raw_id, "_ui")
 }
 
 # ---- ptr_layer panel scaffolding ----
@@ -221,17 +204,10 @@ build_pipeline_stage_ui <- function(entries, ui_text, layer_name, ns_fn) {
     # still emitted from the entry's `stage_id` / `stage_label` /
     # `default_stage_enabled`.
     if (is.null(ph)) return(NULL)
-    verb <- entry$verb
-    has_verb <- !is.null(verb) && !is.na(verb) && nzchar(verb)
-    param_override <- if (has_verb && ptr_param_is_unnamed(ph$param)) {
-      paste0(verb, "()")
-    } else NULL
-    label_suffix <- if (has_verb && !drop_suffix) {
-      paste0(" in ", verb, "()")
-    } else NULL
+    ov <- stage_overrides_for_entry(entry, drop_suffix)
     build_ui_for(ph, ui_text = ui_text, layer_name = layer_name,
-                 ns_fn = ns_fn, param_override = param_override,
-                 label_suffix = label_suffix)
+                 ns_fn = ns_fn, param_override = ov$param_override,
+                 label_suffix = ov$label_suffix)
   }
   out <- list()
   seen <- character()
@@ -296,6 +272,27 @@ build_pipeline_stage_ui <- function(entries, ui_text, layer_name, ns_fn) {
   out
 }
 
+# Single source of truth for the verb-derived overrides a pipeline-stage
+# placeholder needs: the `{param}` override (so its copy reads "... for
+# head()") and the " in verb()" label suffix. Computed at static build time by
+# `build_pipeline_stage_ui()` AND re-derived at renderUI time by
+# `pipeline_override_for_node()`; both call this so the two paths cannot drift.
+# `drop_suffix = TRUE` suppresses the per-widget " in verb()" suffix when an
+# enclosing stage-group header already names the verb. Returns both overrides
+# as NULL for an entry with no verb.
+stage_overrides_for_entry <- function(entry, drop_suffix) {
+  verb <- entry$verb
+  has_verb <- !is.null(verb) && !is.na(verb) && nzchar(verb)
+  list(
+    param_override = if (has_verb && ptr_param_is_unnamed(entry$ph$param)) {
+      paste0(verb, "()")
+    } else NULL,
+    label_suffix = if (has_verb && !drop_suffix) {
+      paste0(" in ", verb, "()")
+    } else NULL
+  )
+}
+
 # ADR 0012 / PLAN-01 (Bug B): pipeline-stage placeholders need their verb
 # embedded in the resolved widget copy (e.g. "Enter a number for head()").
 # Pre-PLAN-01, `build_pipeline_stage_ui()` computed `param_override` /
@@ -305,9 +302,9 @@ build_pipeline_stage_ui <- function(entries, ui_text, layer_name, ns_fn) {
 # widget is composed inside `ptr_setup_value_uis()`'s renderUI body. The
 # panel-level args no longer reach `invoke_build_ui()`, so the renderUI
 # body must re-derive the same overrides by walking the live tree. This
-# helper does that lookup. Returns NULL when `node_id` is not a
-# pipeline-stage placeholder (control-arg / aes-arg placeholders carry no
-# verb override).
+# helper does that lookup via `stage_overrides_for_entry()` (the shared
+# derivation). Returns NULL when `node_id` is not a pipeline-stage
+# placeholder (control-arg / aes-arg placeholders carry no verb override).
 pipeline_override_for_node <- function(tree, node_id) {
   if (is.null(tree) || is.null(tree$layers)) return(NULL)
   for (layer in tree$layers) {
@@ -315,22 +312,11 @@ pipeline_override_for_node <- function(tree, node_id) {
     entries <- find_layer_placeholders_with_stage(layer$data_arg)
     for (entry in entries) {
       if (!identical(entry$ph$id, node_id)) next
-      verb <- entry$verb
-      sid  <- entry$stage_id
-      has_verb <- !is.null(verb) && !is.na(verb) && nzchar(verb)
-      # `drop_suffix = !is.na(sid)`: when the placeholder lives inside a
+      # `drop_suffix = !is.na(stage_id)`: when the placeholder lives inside a
       # recognized stage group, the group's header already names the verb,
       # so the per-widget " in verb()" suffix is suppressed -- mirroring
       # `build_pipeline_stage_ui()`'s `drop_suffix = TRUE` branch.
-      drop_suffix <- !is.na(sid)
-      return(list(
-        param_override = if (has_verb && ptr_param_is_unnamed(entry$ph$param)) {
-          paste0(verb, "()")
-        } else NULL,
-        label_suffix = if (has_verb && !drop_suffix) {
-          paste0(" in ", verb, "()")
-        } else NULL
-      ))
+      return(stage_overrides_for_entry(entry, drop_suffix = !is.na(entry$stage_id)))
     }
   }
   NULL
@@ -867,7 +853,7 @@ invoke_build_ui <- function(node, ui_text, layer_name,
   # Inject `node$default` into `selected` only when the caller omitted
   # `selected`. The widget-seeding contract is documented authoritatively
   # at ?ptr_define_placeholder_value (Widget-seeding contract section).
-  # Language defaults (ptr_default_expression) are deparsed here so
+  # Language defaults (ptr_arg_expression) are deparsed here so
   # do.call binds a string rather than evaluating the call.
   hook_accepts_dots <- "..." %in% fmls
   if (hook_accepts_dots || "selected" %in% fmls) {

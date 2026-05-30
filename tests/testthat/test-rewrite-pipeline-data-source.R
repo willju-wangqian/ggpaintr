@@ -127,7 +127,7 @@ test_that("pipeline-head `ppUpload` populates the consumer picker UI (renderUI p
     tree <- shiny::isolate(session$userData$state$tree())
     src <- find_nodes(tree, is_ptr_ph_data_source)[[1L]]
     cons <- find_nodes(tree, is_ptr_ph_data_consumer)[[1L]]
-    out_id <- consumer_output_id(cons$id)
+    out_id <- placeholder_output_id(cons$id)
 
     # ADR 0015: pre-upload, the consumer's `entry_reactive` `req()`s on the
     # upstream source-ready reactive. Reading the renderUI before any upload

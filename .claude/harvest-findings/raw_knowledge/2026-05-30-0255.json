@@ -10,7 +10,7 @@
     {
       "id": "consumer-picker-redraw-lifecycle",
       "claim": "A non-shared consumer (`var`) picker re-resolves its selection on every renderUI redraw via a fixed pipeline: read committed input `current=isolate(input[[id]])`, read boot `seed=isolate(state$spec_seed[[id]])`, compute `clear_for_new_source`, call `consumer_seed_decision(has_rendered, seed, current, node$default, cols, clear)`, set `extra$selected` ONLY if the decision's selected is non-NULL (else `invoke_build_ui` injects `node$default`), build the pickerInput which keeps `intersect(selected, cols)`, then flip the per-picker `has_rendered` latch iff `mark_rendered`.",
-      "detail": "Per-picker closure latches that persist across redraws: `has_rendered`, `last_src_identity`, `src_seen`. `boot_seed_selected` = (has_rendered ? current %||% character(0) : seed). The latch's intended meaning: \"once settled, `current` is authoritative; seed is boot-only.\" invoke_build_ui uses `extra$selected` if present (even character(0)) and falls back to `node$default` only when `selected` is OMITTED — so returning `selected=character(0)` actively blanks the picker rather than re-showing the default.",
+      "detail": "Per-picker closure latches that persist across redraws: `has_rendered`, `last_src_identity`, `src_seen`. `boot_seed_selected` = (has_rendered ? current %||% character(0) : seed). The latch's intended meaning: \"once settled, `current` is authoritative; seed is boot-only.\" invoke_build_ui uses `extra$selected` if present (even character(0)) and falls back to `node$default` only when `selected` is OMITTED \u2014 so returning `selected=character(0)` actively blanks the picker rather than re-showing the default.",
       "scope": "durable",
       "feature": "",
       "tags": "derived-column-seed-boot",
@@ -25,15 +25,13 @@
       ],
       "origin_status": "derived-unverified",
       "labels": [
-        "consumer-seeding"
-      ],
-      "status": "stale",
-      "stale_reason": "no verification baseline"
+        "consumer-picker-seeding"
+      ]
     },
     {
       "id": "consumer-renderui-isolate-is-load-bearing",
-      "claim": "The `isolate()` around the consumer picker's own committed-input read is load-bearing: dropping it (to make the browser commit trigger a confirming redraw) causes an INFINITE reactive loop — the renderUI rebuilds the whole pickerInput each render, the fresh widget re-sends its value → input changes → re-render forever — so the app never reaches idle (AppDriver `wait_for_idle` times out).",
-      "detail": "Empirically A/B-verified: isolate dropped → never-stable; isolate restored → stable, reproduces the known bug, deselect contract holds. Therefore any \"settle on confirmation\" design (Option B) must confirm WITHOUT re-rendering the widget (e.g. updatePickerInput), not by removing the isolate.",
+      "claim": "The `isolate()` around the consumer picker's own committed-input read is load-bearing: dropping it (to make the browser commit trigger a confirming redraw) causes an INFINITE reactive loop \u2014 the renderUI rebuilds the whole pickerInput each render, the fresh widget re-sends its value \u2192 input changes \u2192 re-render forever \u2014 so the app never reaches idle (AppDriver `wait_for_idle` times out).",
+      "detail": "Empirically A/B-verified: isolate dropped \u2192 never-stable; isolate restored \u2192 stable, reproduces the known bug, deselect contract holds. Therefore any \"settle on confirmation\" design (Option B) must confirm WITHOUT re-rendering the widget (e.g. updatePickerInput), not by removing the isolate.",
       "scope": "durable",
       "feature": "",
       "tags": "derived-column-seed-boot",
@@ -46,15 +44,13 @@
       ],
       "origin_status": "derived-unverified",
       "labels": [
-        "consumer-seeding"
-      ],
-      "status": "stale",
-      "stale_reason": "no verification baseline"
+        "consumer-picker-seeding"
+      ]
     },
     {
       "id": "consumer-seed-decision-seed-landed-gate",
-      "claim": "`consumer_seed_decision` must gate the `has_rendered` latch flip on `seed_landed` (the seed's column actually present in `cols`, or an empty seed) — symmetric to the existing `default_landed` — instead of the old blanket `!is.null(selected)`, otherwise a seed whose column is not yet in `cols` flips the latch on the empty first render and is dropped by the downstream `intersect(selected, cols)`.",
-      "detail": "Also factor out `valid_current` (a current pick with ≥1 element in cols) and use it in `mark_rendered` so a never-landing/typo seed cannot trap the picker, WITHOUT letting `current` override the seed's `selected` (boot-only seed precedence preserved — locked by Seam 1c \"seed wins over current\"). This fix alone is necessary but NOT sufficient when a stage toggle also fires (see derived-column-seed-stage-toggle-race + option-i fallback).",
+      "claim": "`consumer_seed_decision` must gate the `has_rendered` latch flip on `seed_landed` (the seed's column actually present in `cols`, or an empty seed) \u2014 symmetric to the existing `default_landed` \u2014 instead of the old blanket `!is.null(selected)`, otherwise a seed whose column is not yet in `cols` flips the latch on the empty first render and is dropped by the downstream `intersect(selected, cols)`.",
+      "detail": "Also factor out `valid_current` (a current pick with \u22651 element in cols) and use it in `mark_rendered` so a never-landing/typo seed cannot trap the picker, WITHOUT letting `current` override the seed's `selected` (boot-only seed precedence preserved \u2014 locked by Seam 1c \"seed wins over current\"). This fix alone is necessary but NOT sufficient when a stage toggle also fires (see derived-column-seed-stage-toggle-race + option-i fallback).",
       "scope": "durable",
       "feature": "",
       "tags": "derived-column-seed-boot",
@@ -69,16 +65,13 @@
       ],
       "origin_status": "derived-unverified",
       "labels": [
-        "consumer-seeding",
-        "derived-column"
-      ],
-      "status": "stale",
-      "stale_reason": "no verification baseline"
+        "consumer-picker-seeding"
+      ]
     },
     {
       "id": "derived-column-seed-stage-toggle-race",
-      "claim": "The derived-column picker is cleared at boot by a 3-redraw race: (1) column absent → defer; (2) column appears, seed lands, picker emits the seed and flips `has_rendered`; (3) a redraw fired by the boot-time stage toggle (`ggplot_N_stage_enabled=FALSE`, applied in `onFlushed`, invalidating the consumer's `state$stage_enabled()` dependency) arrives BEFORE the browser commits the seeded value back, so `current` is still NULL, `has_rendered` is already TRUE, and `boot_seed_selected` returns empty → picker blanks.",
-      "detail": "Empirically verified by instrumenting `consumer_seed_decision` in an AppDriver fixture. Removing only the stage toggle leaves 2 redraws and the seed survives. `mpg` (real column) is immune because it lands at redraw 1, committing before the toggle redraw. The latch's assumption — \"after settling, `current` reflects the emitted value\" — is false in the emit→commit gap.",
+      "claim": "The derived-column picker is cleared at boot by a 3-redraw race: (1) column absent \u2192 defer; (2) column appears, seed lands, picker emits the seed and flips `has_rendered`; (3) a redraw fired by the boot-time stage toggle (`ggplot_N_stage_enabled=FALSE`, applied in `onFlushed`, invalidating the consumer's `state$stage_enabled()` dependency) arrives BEFORE the browser commits the seeded value back, so `current` is still NULL, `has_rendered` is already TRUE, and `boot_seed_selected` returns empty \u2192 picker blanks.",
+      "detail": "Empirically verified by instrumenting `consumer_seed_decision` in an AppDriver fixture. Removing only the stage toggle leaves 2 redraws and the seed survives. `mpg` (real column) is immune because it lands at redraw 1, committing before the toggle redraw. The latch's assumption \u2014 \"after settling, `current` reflects the emitted value\" \u2014 is false in the emit\u2192commit gap.",
       "scope": "durable",
       "feature": "",
       "tags": "derived-column-seed-boot",
@@ -91,15 +84,12 @@
       ],
       "origin_status": "derived-unverified",
       "labels": [
-        "consumer-seeding",
-        "derived-column"
-      ],
-      "status": "stale",
-      "stale_reason": "no verification baseline"
+        "consumer-picker-seeding"
+      ]
     },
     {
       "id": "e2e-fixture-must-pkgload-source",
-      "claim": "An AppDriver boot/runtime claim must run an app DIRECTORY whose `app.R` first line is `pkgload::load_all(Sys.getenv(\"GGP_PKG\"), ...)` with the test setting `GGP_PKG=normalizePath(test_path(\"..\",\"..\"))` and `NOT_CRAN=true`; instrument internal behavior by `assignInNamespace()`-wrapping a function CALLED BY BARE NAME (e.g. `consumer_seed_decision`) — wrapping a function whose reference the registry captured at registration (e.g. `ptr_builtin_var_build_ui`) does NOT take effect.",
+      "claim": "An AppDriver boot/runtime claim must run an app DIRECTORY whose `app.R` first line is `pkgload::load_all(Sys.getenv(\"GGP_PKG\"), ...)` with the test setting `GGP_PKG=normalizePath(test_path(\"..\",\"..\"))` and `NOT_CRAN=true`; instrument internal behavior by `assignInNamespace()`-wrapping a function CALLED BY BARE NAME (e.g. `consumer_seed_decision`) \u2014 wrapping a function whose reference the registry captured at registration (e.g. `ptr_builtin_var_build_ui`) does NOT take effect.",
       "detail": "Verified this session: the var-builder wrapper never fired (registry holds the original ref), but the `consumer_seed_decision` wrapper did (it is looked up by name at each call). `app$get_logs()` surfaces child-process `cat()` output for retrieval.",
       "scope": "durable",
       "feature": "",
@@ -112,10 +102,8 @@
       ],
       "origin_status": "derived-unverified",
       "labels": [
-        "e2e-testing"
-      ],
-      "status": "stale",
-      "stale_reason": "no verification baseline"
+        "shinytest2-gotchas"
+      ]
     },
     {
       "id": "merge-conflict-only-generated-manifest",
@@ -135,13 +123,11 @@
       "origin_status": "derived-unverified",
       "labels": [
         "harness-tooling"
-      ],
-      "status": "stale",
-      "stale_reason": "no verification baseline"
+      ]
     },
     {
       "id": "option-i-producer-boot-value-fallback",
-      "claim": "The complete fix (\"Option I\") is: in the consumer's column-list reactive, when an upstream producer's value is NULL (input not yet committed), fall back to its boot value — `isolate(state$spec_seed[[pid]])` else the producer node's deparsed `$default` — so a derived column exists in `cols` from the FIRST redraw and the picker behaves like a real-column picker (seed lands + latch flips at boot, before any stage-toggle redraw).",
+      "claim": "The complete fix (\"Option I\") is: in the consumer's column-list reactive, when an upstream producer's value is NULL (input not yet committed), fall back to its boot value \u2014 `isolate(state$spec_seed[[pid]])` else the producer node's deparsed `$default` \u2014 so a derived column exists in `cols` from the FIRST redraw and the picker behaves like a real-column picker (seed lands + latch flips at boot, before any stage-toggle redraw).",
       "detail": "Fallback fires ONLY on `is.null(val)`; a user-cleared expression commits `\"\"` (not NULL) and is respected, so the seed is not re-injected over an intentional clear. Leaves the latch/deselect logic untouched (deselect contract pinned green). Behavioral ripple: derived columns now appear in consumer choices at boot rather than one redraw late.",
       "scope": "durable",
       "feature": "",
@@ -156,12 +142,8 @@
       ],
       "origin_status": "derived-unverified",
       "labels": [
-        "consumer-seeding",
-        "derived-column",
-        "producer-resolution"
-      ],
-      "status": "stale",
-      "stale_reason": "no verification baseline"
+        "consumer-picker-seeding"
+      ]
     },
     {
       "id": "parallel-gate-seeded-picker-flake-fix",
@@ -181,15 +163,13 @@
       ],
       "origin_status": "derived-unverified",
       "labels": [
-        "boot-tail-race",
-        "e2e-testing"
-      ],
-      "status": "stale",
-      "stale_reason": "no verification baseline"
+        "test-gate-discipline",
+        "shinytest2-gotchas"
+      ]
     },
     {
       "id": "producer-value-lags-browser-plus-debounce",
-      "claim": "A producer placeholder's (ppExpr/ppNum/ppText) value reaches the server pipeline only after TWO delays — the inherent Shiny client→server round trip (input is client-populated; renderUI/updateXInput cannot set input directly) PLUS an explicit `shiny::debounce(reactive(input[[id]]), 300ms)` — and `substitute_walk.ptr_ph_value` resolves a producer ONLY from the committed `ctx$snapshot`, with NO fallback to `node$default` or the spec seed.",
+      "claim": "A producer placeholder's (ppExpr/ppNum/ppText) value reaches the server pipeline only after TWO delays \u2014 the inherent Shiny client\u2192server round trip (input is client-populated; renderUI/updateXInput cannot set input directly) PLUS an explicit `shiny::debounce(reactive(input[[id]]), 300ms)` \u2014 and `substitute_walk.ptr_ph_value` resolves a producer ONLY from the committed `ctx$snapshot`, with NO fallback to `node$default` or the spec seed.",
       "detail": "Consequence: a column DERIVED from a producer (`mutate(adj = ppExpr(...))`) does not exist on the server at the first consumer redraw (ncol unchanged); it appears one redraw later once the expression box commits + debounce elapses. A real (non-derived) column is in `cols` from redraw 1, which is why real-column seeds never hit this race.",
       "scope": "durable",
       "feature": "",
@@ -204,11 +184,9 @@
       ],
       "origin_status": "derived-unverified",
       "labels": [
-        "producer-resolution",
-        "derived-column"
-      ],
-      "status": "stale",
-      "stale_reason": "no verification baseline"
+        "consumer-picker-seeding",
+        "shinytest2-gotchas"
+      ]
     },
     {
       "id": "shared-binder-snapshot-omits-producers",
@@ -226,11 +204,9 @@
       ],
       "origin_status": "derived-unverified",
       "labels": [
-        "shared-resolver",
-        "derived-column"
-      ],
-      "status": "stale",
-      "stale_reason": "no verification baseline"
+        "shared-coordinator-partition",
+        "consumer-picker-seeding"
+      ]
     },
     {
       "id": "shared-consumer-truncate-at-placeholder-intentional",
@@ -249,11 +225,9 @@
       ],
       "origin_status": "derived-unverified",
       "labels": [
-        "shared-resolver",
-        "derived-column"
-      ],
-      "status": "stale",
-      "stale_reason": "no verification baseline"
+        "shared-coordinator-partition",
+        "consumer-picker-seeding"
+      ]
     },
     {
       "id": "shared-producer-legal-but-not-bundled",
@@ -273,11 +247,9 @@
       ],
       "origin_status": "derived-unverified",
       "labels": [
-        "shared-resolver",
-        "derived-column"
-      ],
-      "status": "stale",
-      "stale_reason": "no verification baseline"
+        "shared-coordinator-partition",
+        "placeholder-registry-api"
+      ]
     }
   ]
 }

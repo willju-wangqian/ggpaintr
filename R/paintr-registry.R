@@ -215,10 +215,10 @@ validate_keyword_no_shadow <- function(keyword) {
   invisible(TRUE)
 }
 
-validate_default_arg <- function(default_arg, keyword) {
-  if (is.null(default_arg) || is.function(default_arg)) return(invisible(TRUE))
+validate_positional_arg <- function(positional_arg, keyword) {
+  if (is.null(positional_arg) || is.function(positional_arg)) return(invisible(TRUE))
   rlang::abort(paste0(
-    "`default_arg` for placeholder '", keyword,
+    "`positional_arg` for placeholder '", keyword,
     "' must be NULL or a function (a validator closure)."
   ))
 }
@@ -305,32 +305,119 @@ ptr_check_keyword_lhs_drift <- function(keyword) {
 
 # A named list of length-1 character values, whose names are restricted to
 # the supported copy leaf fields (`ptr_ui_text_leaf_fields()`).
-validate_copy_defaults <- function(copy_defaults) {
-  if (is.null(copy_defaults)) return(invisible(TRUE))
-  if (!is.list(copy_defaults)) {
-    rlang::abort("`copy_defaults` must be a named list.")
+# Validates the `ui_text_defaults` argument (stored on the registry entry
+# under the `copy_defaults` key — see `ptr_define_core()`). Messages name the
+# public argument (`ui_text_defaults`), not the internal storage key.
+validate_copy_defaults <- function(ui_text_defaults) {
+  if (is.null(ui_text_defaults)) return(invisible(TRUE))
+  if (!is.list(ui_text_defaults)) {
+    rlang::abort("`ui_text_defaults` must be a named list.")
   }
-  nms <- names(copy_defaults)
+  nms <- names(ui_text_defaults)
   if (is.null(nms) || any(!nzchar(nms)) || anyDuplicated(nms)) {
-    rlang::abort("`copy_defaults` must have unique, non-empty names.")
+    rlang::abort("`ui_text_defaults` must have unique, non-empty names.")
   }
   unknown <- setdiff(nms, ptr_ui_text_leaf_fields())
   if (length(unknown) > 0L) {
     rlang::abort(paste0(
-      "`copy_defaults` has unsupported field(s): ",
+      "`ui_text_defaults` has unsupported field(s): ",
       paste(sort(unknown), collapse = ", "),
       ". Allowed: ", paste(ptr_ui_text_leaf_fields(), collapse = ", "), "."
     ))
   }
-  for (i in seq_along(copy_defaults)) {
-    v <- copy_defaults[[i]]
+  for (i in seq_along(ui_text_defaults)) {
+    v <- ui_text_defaults[[i]]
     if (!is.character(v) || length(v) != 1L || is.na(v)) {
       rlang::abort(paste0(
-        "`copy_defaults$", nms[[i]], "` must be a single non-NA string."
+        "`ui_text_defaults$", nms[[i]], "` must be a single non-NA string."
       ))
     }
   }
   invisible(TRUE)
+}
+
+# Shared registration core for the three public placeholder-definition entry
+# points (ptr_define_placeholder_value/_consumer/_source). Owns the ~20-line
+# validate-then-register prologue that those three duplicated verbatim. The
+# role-specific bits branch on `role`: build_ui arity (consumer also takes
+# cols/data), the resolve hook (source uses resolve_data + an optional
+# resolve_expr defaulting to rlang::sym; value/consumer use resolve_expr and
+# accept validate_input), the `shortcut` flag (source only), the runtime
+# default (identity for value/consumer; an abort-guard for source), and
+# data_aware. The public wrappers are thin: they fix `role` and pass through.
+#
+# NOTE: the registry-record KEYS stay `default_arg` / `copy_defaults` (internal
+# storage read across translate/server/copy); only the public ARGUMENT names
+# are `positional_arg` / `ui_text_defaults`.
+ptr_define_core <- function(role, keyword, build_ui,
+                            resolve_expr = NULL, resolve_data = NULL,
+                            validate_input = NULL, shortcut = FALSE,
+                            positional_arg = NULL, named_args = list(),
+                            runtime = NULL, ui_text_defaults = list()) {
+  ensure_registry_initialized()
+  validate_keyword(keyword)
+  validate_keyword_no_shadow(keyword)
+
+  build_ui_args <- if (identical(role, "consumer")) {
+    c("node", "cols", "data")
+  } else {
+    "node"
+  }
+  validate_hook(build_ui, "build_ui", build_ui_args)
+
+  if (identical(role, "source")) {
+    validate_hook(resolve_data, "resolve_data", c("value", "node"))
+    if (is.null(resolve_expr)) {
+      resolve_expr <- function(value, node, ...) rlang::sym(value)
+    } else {
+      validate_hook(resolve_expr, "resolve_expr", c("value", "node"))
+    }
+    if (!is.logical(shortcut) || length(shortcut) != 1L || is.na(shortcut)) {
+      rlang::abort(
+        "`shortcut` must be a single logical (TRUE or FALSE).",
+        class = "ptr_registry_error"
+      )
+    }
+  } else {
+    validate_hook(resolve_expr, "resolve_expr", c("value", "node"))
+    if (!is.null(validate_input)) {
+      validate_hook(validate_input, "validate_input", c("value", "ctx"))
+    }
+  }
+
+  validate_positional_arg(positional_arg, keyword)
+  validate_named_args(named_args, keyword)
+  validate_copy_defaults(ui_text_defaults)
+  ptr_check_keyword_lhs_drift(keyword)
+
+  runtime_default <- if (identical(role, "source")) {
+    local({
+      kw <- keyword
+      function(...) rlang::abort(
+        paste0("`", kw, "()` is only meaningful inside `ptr_app()`.")
+      )
+    })
+  } else {
+    function(x, ...) x
+  }
+  runtime_fn <- runtime %||% runtime_default
+  validate_hook(runtime_fn, "runtime", character())
+
+  entry <- list(
+    keyword = keyword, role = role,
+    data_aware = role %in% c("consumer", "source"),
+    build_ui = build_ui, resolve_expr = resolve_expr,
+    validate_input = validate_input,
+    default_arg = positional_arg, named_args = named_args,
+    runtime = runtime_fn,
+    copy_defaults = ui_text_defaults
+  )
+  if (identical(role, "source")) {
+    entry$resolve_data <- resolve_data
+    entry$shortcut <- isTRUE(shortcut)
+  }
+  ptr_registry_register(entry)
+  runtime_fn
 }
 
 ptr_registry_register <- function(entry) {
@@ -365,7 +452,7 @@ ptr_registry_register <- function(entry) {
 #' @param build_ui `function(node, label = NULL, selected = NULL, ...)`
 #'   returning a Shiny tag. Pass `node$id` as the underlying widget's
 #'   `inputId`. Read `node$keyword` and `node$param` if you need them. The
-#'   framework also passes any `copy_defaults` field you declare by name
+#'   framework also passes any `ui_text_defaults` field you declare by name
 #'   (`help`, `placeholder`, `empty_text`) — or accept a `copy = NULL`
 #'   list and read them off it. Always end the signature with `...`.
 #'
@@ -425,12 +512,12 @@ ptr_registry_register <- function(entry) {
 #'   the argument** from the rendered call. Use `NULL` for empty / not-yet
 #'   input; throw with `rlang::abort()` for malformed input.
 #'
-#' @param copy_defaults Named list of single non-NA character defaults
+#' @param ui_text_defaults Named list of single non-NA character defaults
 #'   feeding the `ui_text` tree. Allowed names: `label`, `help`,
 #'   `placeholder`, `empty_text`. Strings may contain `{param}`, which is
 #'   interpolated to the surrounding formal-argument name at render time.
 #'
-#' @param default_arg Optional validator closure for the (single) positional
+#' @param positional_arg Optional validator closure for the (single) positional
 #'   argument the keyword accepts inside a formula. `NULL` (default) means
 #'   positional arguments are rejected at translate time. A function
 #'   receives the unevaluated AST and must return a canonical value or
@@ -497,45 +584,25 @@ ptr_registry_register <- function(entry) {
 #'     if (length(value) != 1L || !is.finite(value)) return(NULL)
 #'     value / 100
 #'   },
-#'   default_arg = ptr_default_numeric(),  # accept ppPct(50)-style defaults
-#'   copy_defaults = list(label = "Percent for {param}")
+#'   positional_arg = ptr_arg_numeric(),  # accept ppPct(50)-style defaults
+#'   ui_text_defaults = list(label = "Percent for {param}")
 #' )
 #' ptr_clear_placeholder("pct")
 #' @export
 ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
-                                       validate_input = NULL,
-                                       default_arg = NULL,
-                                       named_args = list(),
-                                       runtime = NULL,
-                                       copy_defaults = list(
-                                         label = "Enter a value for {param}"
-                                       )) {
-  ensure_registry_initialized()
-  validate_keyword(keyword)
-  validate_keyword_no_shadow(keyword)
-  validate_hook(build_ui, "build_ui", c("node"))
-  validate_hook(resolve_expr, "resolve_expr", c("value", "node"))
-  if (!is.null(validate_input)) {
-    validate_hook(validate_input, "validate_input", c("value", "ctx"))
-  }
-  validate_default_arg(default_arg, keyword)
-  validate_named_args(named_args, keyword)
-  validate_copy_defaults(copy_defaults)
-  ptr_check_keyword_lhs_drift(keyword)
-
-  runtime_fn <- runtime %||% function(x, ...) x
-  validate_hook(runtime_fn, "runtime", character())
-
-  entry <- list(
-    keyword = keyword, role = "value", data_aware = FALSE,
-    build_ui = build_ui, resolve_expr = resolve_expr,
-    validate_input = validate_input,
-    default_arg = default_arg, named_args = named_args,
-    runtime = runtime_fn,
-    copy_defaults = copy_defaults
+                                         validate_input = NULL,
+                                         positional_arg = NULL,
+                                         named_args = list(),
+                                         runtime = NULL,
+                                         ui_text_defaults = list(
+                                           label = "Enter a value for {param}"
+                                         )) {
+  ptr_define_core(
+    "value", keyword, build_ui, resolve_expr = resolve_expr,
+    validate_input = validate_input, positional_arg = positional_arg,
+    named_args = named_args, runtime = runtime,
+    ui_text_defaults = ui_text_defaults
   )
-  ptr_registry_register(entry)
-  runtime_fn
 }
 
 #' Define a data-consumer placeholder (e.g. column picker)
@@ -546,7 +613,7 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #' `vignette("ggpaintr-customization")` § "Consumer placeholders" for the
 #' tutorial.
 #'
-#' @param keyword,copy_defaults See [ptr_define_placeholder_value()].
+#' @param keyword,ui_text_defaults See [ptr_define_placeholder_value()].
 #'
 #' @param build_ui
 #'   `function(node, cols, data, label = NULL, selected = NULL, ...)`
@@ -600,7 +667,7 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #'   or named arguments are passed, and `ctx` carries exactly the four
 #'   fields above. The signature does not require `...`.
 #'
-#' @param default_arg,named_args See [ptr_define_placeholder_value()].
+#' @param positional_arg,named_args See [ptr_define_placeholder_value()].
 #'   Consumer placeholders use the same arg-schema slots; the `ppVar`
 #'   built-in passes a column-name validator here when used as `ppVar(mpg)`.
 #'
@@ -644,39 +711,19 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #' ptr_clear_placeholder("numvar")
 #' @export
 ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
-                                          validate_input = NULL,
-                                          default_arg = NULL,
-                                          named_args = list(),
-                                          runtime = NULL,
-                                          copy_defaults = list(
-                                            label = "Pick a column for {param}"
-                                          )) {
-  ensure_registry_initialized()
-  validate_keyword(keyword)
-  validate_keyword_no_shadow(keyword)
-  validate_hook(build_ui, "build_ui", c("node", "cols", "data"))
-  validate_hook(resolve_expr, "resolve_expr", c("value", "node"))
-  if (!is.null(validate_input)) {
-    validate_hook(validate_input, "validate_input", c("value", "ctx"))
-  }
-  validate_default_arg(default_arg, keyword)
-  validate_named_args(named_args, keyword)
-  validate_copy_defaults(copy_defaults)
-  ptr_check_keyword_lhs_drift(keyword)
-
-  runtime_fn <- runtime %||% function(x, ...) x
-  validate_hook(runtime_fn, "runtime", character())
-
-  entry <- list(
-    keyword = keyword, role = "consumer", data_aware = TRUE,
-    build_ui = build_ui, resolve_expr = resolve_expr,
-    validate_input = validate_input,
-    default_arg = default_arg, named_args = named_args,
-    runtime = runtime_fn,
-    copy_defaults = copy_defaults
+                                            validate_input = NULL,
+                                            positional_arg = NULL,
+                                            named_args = list(),
+                                            runtime = NULL,
+                                            ui_text_defaults = list(
+                                              label = "Pick a column for {param}"
+                                            )) {
+  ptr_define_core(
+    "consumer", keyword, build_ui, resolve_expr = resolve_expr,
+    validate_input = validate_input, positional_arg = positional_arg,
+    named_args = named_args, runtime = runtime,
+    ui_text_defaults = ui_text_defaults
   )
-  ptr_registry_register(entry)
-  runtime_fn
 }
 
 #' Define a data-source placeholder (e.g. upload, database table)
@@ -685,7 +732,7 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #' reads from. Built-in example: `ppUpload`. Custom examples: database
 #' tables, built-in datasets, URL fetches.
 #'
-#' @param keyword,copy_defaults See [ptr_define_placeholder_value()]. See
+#' @param keyword,ui_text_defaults See [ptr_define_placeholder_value()]. See
 #'   `vignette("ggpaintr-customization")` § "Source placeholders" for the
 #'   tutorial.
 #'
@@ -745,7 +792,7 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #'   shared key `"shortcut"` is rejected at translate time (see ADR 0025
 #'   §1).
 #'
-#' @param default_arg,named_args See [ptr_define_placeholder_value()].
+#' @param positional_arg,named_args See [ptr_define_placeholder_value()].
 #'   Source placeholders use the same arg-schema slots.
 #'
 #' @param runtime Optional `function(...)` body used when the placeholder
@@ -821,53 +868,20 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #' ptr_clear_placeholder("dataset")
 #' @export
 ptr_define_placeholder_source <- function(keyword, build_ui, resolve_data,
-                                        resolve_expr = NULL,
-                                        shortcut = FALSE,
-                                        default_arg = NULL,
-                                        named_args = list(),
-                                        runtime = NULL,
-                                        copy_defaults = list(
-                                          label = "Provide a data source for {param}"
-                                        )) {
-  ensure_registry_initialized()
-  validate_keyword(keyword)
-  validate_keyword_no_shadow(keyword)
-  validate_hook(build_ui, "build_ui", c("node"))
-  validate_hook(resolve_data, "resolve_data", c("value", "node"))
-  if (is.null(resolve_expr)) {
-    resolve_expr <- function(value, node, ...) rlang::sym(value)
-  } else {
-    validate_hook(resolve_expr, "resolve_expr", c("value", "node"))
-  }
-  if (!is.logical(shortcut) || length(shortcut) != 1L || is.na(shortcut)) {
-    rlang::abort(
-      "`shortcut` must be a single logical (TRUE or FALSE).",
-      class = "ptr_registry_error"
-    )
-  }
-  validate_default_arg(default_arg, keyword)
-  validate_named_args(named_args, keyword)
-  validate_copy_defaults(copy_defaults)
-  ptr_check_keyword_lhs_drift(keyword)
-
-  runtime_fn <- runtime %||% local({
-    kw <- keyword
-    function(...) rlang::abort(
-      paste0("`", kw, "()` is only meaningful inside `ptr_app()`.")
-    )
-  })
-  validate_hook(runtime_fn, "runtime", character())
-
-  entry <- list(
-    keyword = keyword, role = "source", data_aware = TRUE,
-    build_ui = build_ui, resolve_expr = resolve_expr,
-    resolve_data = resolve_data, shortcut = isTRUE(shortcut),
-    default_arg = default_arg, named_args = named_args,
-    runtime = runtime_fn,
-    copy_defaults = copy_defaults
+                                           resolve_expr = NULL,
+                                           shortcut = FALSE,
+                                           positional_arg = NULL,
+                                           named_args = list(),
+                                           runtime = NULL,
+                                           ui_text_defaults = list(
+                                             label = "Provide a data source for {param}"
+                                           )) {
+  ptr_define_core(
+    "source", keyword, build_ui, resolve_data = resolve_data,
+    resolve_expr = resolve_expr, shortcut = shortcut,
+    positional_arg = positional_arg, named_args = named_args,
+    runtime = runtime, ui_text_defaults = ui_text_defaults
   )
-  ptr_registry_register(entry)
-  runtime_fn
 }
 
 # Register a "structural" keyword (ADR 0020 / 0021): a name the translator

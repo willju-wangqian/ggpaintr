@@ -30,7 +30,7 @@ ppMetric <- ptr_define_placeholder_consumer(
     if (length(value) == 0L || !nzchar(value)) return(NULL)
     rlang::sym(value)
   },
-  default_arg  = ptr_default_symbol_or_string()
+  positional_arg  = ptr_arg_symbol_or_string()
 )
 
 plots <- list(

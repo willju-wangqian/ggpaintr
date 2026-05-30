@@ -13,7 +13,7 @@ library(shiny)
 # `ppRange <-` binding required for Path-B evaluability (ADR-0016).
 ppRange <- ptr_define_placeholder_value(
   keyword     = "ppRange",
-  default_arg = ptr_default_numeric_vector(length = 2),
+  positional_arg = ptr_arg_numeric_vector(length = 2),
   build_ui    = function(node, label = NULL, selected = NULL, ...) {
     val <- if (!is.null(selected) && length(selected) == 2L) selected else c(0, 100)
     # `step = 0.1` keeps the returned values as doubles (not integers); a
@@ -39,12 +39,12 @@ formula_a <- rlang::expr(
   ggplot(mtcars, aes(x = ppVar(mpg), y = ppVar(wt),
                      color = ppVar(cyl, shared = "linked"))) +
     geom_point(size = ppNum(2), alpha = ppNum(0.7)) +
-    scale_x_continuous(limits = ppRange(c(10, 40))) +
+    scale_x_continuous(limits = ppRange(c(10, 40), shared = "rr")) +
     labs(title = ppText("Cell A: ggplot"))
 )
 formula_b <- rlang::expr(
   ggplot(mtcars, aes(x = ppVar(hp), y = ppVar(qsec),
-                     color = ppVar(cyl, shared = "linked"))) +
+                     color = factor(ppVar(cyl, shared = "linked")))) +
     geom_point(size = ppNum(2)) +
     geom_smooth(method = ppText("lm"), linewidth = ppNum(1)) +
     labs(title = ppText("Cell B: plotly"))
@@ -64,11 +64,15 @@ formula_b_str <- paste(deparse(formula_b), collapse = "\n")
 # `is_string`). Deparse the pre-quoted exprs here -- `ptr_server` below still
 # receives the unparsed `rlang::expr` bindings, preserving the G4 capture
 # pressure surface.
+# shared <- ptr_shared(
+#   formulas  = list(formula_a_str, formula_b_str),
+#   # shared_ui = list(
+#   #   linked = function(id) shiny::selectInput(id, "Linked color", names(mtcars))
+#   # )
+# )
+
 shared <- ptr_shared(
-  formulas  = list(formula_a_str, formula_b_str),
-  shared_ui = list(
-    linked = function(id) shiny::selectInput(id, "Linked color", names(mtcars))
-  )
+  formulas  = list(formula_a, formula_b),
 )
 
 ui <- ptr_ui_page(
@@ -77,7 +81,7 @@ ui <- ptr_ui_page(
     # Cell A: default ggpaintr-managed plot output + L3 controls + code panel.
     shiny::column(
       6,
-      ptr_ui_controls(formula_a_str, "plot1"),
+      ptr_ui_controls(formula_a_str, "plot1", shared = shared),
       ptr_ui_plot("plot1"),
       ptr_ui_code("plot1")
     ),
@@ -85,7 +89,7 @@ ui <- ptr_ui_page(
     # with its own code panel.
     shiny::column(
       6,
-      ptr_ui_controls(formula_b_str, "plot2"),
+      ptr_ui_controls(formula_b_str, "plot2", shared = shared),
       plotly::plotlyOutput(shiny::NS("plot2")("custom_plot"), height = "500px") |>
         ptr_ui_toggle_code(ptr_ui_code("plot2"))
     )

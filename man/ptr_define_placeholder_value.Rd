@@ -9,10 +9,10 @@ ptr_define_placeholder_value(
   build_ui,
   resolve_expr,
   validate_input = NULL,
-  default_arg = NULL,
+  positional_arg = NULL,
   named_args = list(),
   runtime = NULL,
-  copy_defaults = list(label = "Enter a value for {param}")
+  ui_text_defaults = list(label = "Enter a value for {param}")
 )
 }
 \arguments{
@@ -23,7 +23,7 @@ token users type in the formula, e.g. \code{geom_point(alpha = pct)}.}
 \item{build_ui}{\verb{function(node, label = NULL, selected = NULL, ...)}
 returning a Shiny tag. Pass \code{node$id} as the underlying widget's
 \code{inputId}. Read \code{node$keyword} and \code{node$param} if you need them. The
-framework also passes any \code{copy_defaults} field you declare by name
+framework also passes any \code{ui_text_defaults} field you declare by name
 (\code{help}, \code{placeholder}, \code{empty_text}) — or accept a \code{copy = NULL}
 list and read them off it. Always end the signature with \code{...}.
 
@@ -100,7 +100,7 @@ those fields are populated. ggpaintr invokes this function as
 arguments are passed, and \code{ctx} carries exactly the four fields
 above. The signature does not require \code{...}.}
 
-\item{default_arg}{Optional validator closure for the (single) positional
+\item{positional_arg}{Optional validator closure for the (single) positional
 argument the keyword accepts inside a formula. \code{NULL} (default) means
 positional arguments are rejected at translate time. A function
 receives the unevaluated AST and must return a canonical value or
@@ -124,7 +124,7 @@ meaning. The same runtime is returned to the caller of this helper
 so authors can bind it under the same name as the keyword:
 \code{ppPct <- ptr_define_placeholder_value(keyword = "ppPct", ...)}.}
 
-\item{copy_defaults}{Named list of single non-NA character defaults
+\item{ui_text_defaults}{Named list of single non-NA character defaults
 feeding the \code{ui_text} tree. Allowed names: \code{label}, \code{help},
 \code{placeholder}, \code{empty_text}. Strings may contain \code{{param}}, which is
 interpolated to the surrounding formal-argument name at render time.}
@@ -170,8 +170,8 @@ ptr_define_placeholder_value(
     if (length(value) != 1L || !is.finite(value)) return(NULL)
     value / 100
   },
-  default_arg = ptr_default_numeric(),  # accept ppPct(50)-style defaults
-  copy_defaults = list(label = "Percent for {param}")
+  positional_arg = ptr_arg_numeric(),  # accept ppPct(50)-style defaults
+  ui_text_defaults = list(label = "Percent for {param}")
 )
 ptr_clear_placeholder("pct")
 }

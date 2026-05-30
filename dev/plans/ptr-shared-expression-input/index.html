@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN — ptr_shared() accepts quoted-expression formulas (close the string-only gap)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  slug: ptr-shared-expression-input
+  source_adr: none (additive; ADR criteria not met — see "Why no ADR")
+  depends_on: []
+  status: draft
+-->
+
+<h1>PLAN — <code>ptr_shared()</code> accepts quoted-expression formulas</h1>
+<p class="meta">Source: grill session 2026-05-30 · ADR: none (additive, trivially reversible) · Status: draft · Branch: improve-code-base-workflow-run</p>
+
+<h2>Context — the feature gap</h2>
+
+<p><code>ptr_app()</code> / <code>ptr_server()</code> / <code>ptr_ui()</code> accept a formula as <em>either</em> a string <em>or</em> an unquoted ggplot expression. They do it at the single-argument public boundary: <code>rlang::enexpr(formula)</code> captures the argument unevaluated, then <code>ptr_capture_formula()</code> (<code>R/paintr-app.R:196</code>) normalizes it to a single <strong>string</strong> by deparse (<code>rlang::expr_text</code>). Everything downstream of the boundary — <code>ptr_translate()</code> and the whole engine — is string-only; expression mode is purely a front-door deparse convenience. ADR 0009 (<code>dev/adr/0009-pp-placeholders-and-expression-input.html</code> §28) <strong>scoped expression mode to the single-formula entries only</strong>.</p>
+
+<p><code>ptr_shared(formulas, …)</code> (<code>R/paintr-shared-coordinator.R:230</code>) is the multi-formula coordinator. It is <strong>string-only</strong>: <code>shared_translate_formulas()</code> (<code>R/paintr-shared-ui.R:120</code>) asserts <code>all(vapply(formulas, rlang::is_string, logical(1)))</code>. Passing a quoted expression element today fails with the cryptic <code>"Elements 2 of vapply(formulas, rlang::is_string, logical(1)) are not true"</code> (verified). That is the gap.</p>
+
+<p><strong>Design decision (grill, 2026-05-30):</strong> <code>formulas</code> stays a <em>normally-evaluated</em> argument (signature unchanged — <code>...</code> / <code>!!!</code> rejected to avoid breaking ~150 existing call sites). Because <code>expr()</code>/<code>quote()</code> evaluate to a <strong>language object</strong>, by the time <code>ptr_shared()</code> receives the list each element is already either a <strong>character string</strong> or a <strong>language object</strong> — no NSE, no <code>enexpr</code>, no <code>envir</code> needed. The change is per-element normalization: deparse language elements to strings; reject anything that is neither a string nor a quoted expression.</p>
+
+<p><strong>Why not transfer the <code>enexpr</code> mechanism?</strong> <code>formulas</code> is a collection. <code>rlang::enexpr(formulas)</code> would capture the whole <code>list(...)</code>/<code>c(...)</code> call as one expression, and letting R evaluate <code>list(ggplot(...) + geom())</code> eagerly builds ggplot objects (source text lost — deparse yields <code>&lt;object&gt;</code>, verified). The "list of strings or <code>expr()</code>-quoted language" contract sidesteps both: <code>expr()</code> defers evaluation to a recoverable language object; R's ordinary argument evaluation of the surrounding <code>list()</code> is harmless because each element is already a string or a language object.</p>
+
+<h3>Why no ADR</h3>
+<p>The skill's three-criteria test (hard to reverse · surprising without context · real trade-off) requires <em>all three</em>. After reverting the <code>...</code> proposal, the change is <strong>additive and trivially reversible</strong> (re-tighten one assertion to undo it) — criterion 1 fails. Documented instead via <code>ptr_shared</code> roxygen + <code>NEWS.md</code> + a one-line <code>CONTEXT.md</code> status-header pointer.</p>
+
+<h2>Interface Contract (frozen)</h2>
+<ul>
+<li><strong>Signature unchanged:</strong> <code>ptr_shared(formulas, id = NULL, ui_text = NULL, expr_check = TRUE, draw_all_label = "Draw all")</code>. No new arguments. No <code>envir</code>.</li>
+<li><strong><code>formulas</code> accepts:</strong> a non-empty <code>list</code> <em>or</em> character vector. Each element is one of:
+  <ul>
+    <li>a single non-empty <strong>string</strong> (existing behavior, byte-identical), or</li>
+    <li>a <strong>language object</strong> — a call or symbol, as produced by <code>rlang::expr(...)</code> / <code>quote(...)</code>.</li>
+  </ul>
+</li>
+<li><strong>Normalization:</strong> string → kept verbatim; language (<code>is.call(x) || rlang::is_symbol(x)</code>) → <code>rlang::expr_text(x, width = 500L)</code> (same width as <code>ptr_capture_formula</code>).</li>
+<li><strong>Rejected</strong> with a clear, <em>index-naming</em> error (replacing the cryptic vapply message): any element that is neither a string nor a language object — notably a <strong>built ggplot/gg object</strong> (<code>is.call</code>/<code>is.language</code> both <code>FALSE</code>; deparse → <code>&lt;object&gt;</code>), a numeric, a list, etc. The message must name the 1-based index and the offending class, and tell the user to quote the expression: <code>expr(ggplot(...) + ...)</code>.</li>
+<li><strong>Return:</strong> a <code>ptr_shared_spec</code> identical in every field to the all-string call with the deparsed equivalents, including <code>obj$formulas</code> which holds the <strong>normalized character strings</strong> (not raw language objects), so <code>shared_assert_panel_consumer_sources()</code> and the code panel get clean source text.</li>
+<li><strong>Mixed lists allowed:</strong> <code>list("ggplot(...)", expr(ggplot(...)))</code> is valid.</li>
+<li><strong>Native-pipe caveat (inherited from ADR 0009 §29):</strong> a <code>|&gt;</code> inside a quoted expression is desugared by R's parser before <code>expr()</code> captures it, so the deparsed string loses the <code>|&gt;</code> surface (use <code>%&gt;%</code> or string mode to preserve it). Documented, not fixed.</li>
+</ul>
+
+<h2>Success Criteria</h2>
+<ol>
+<li><code>ptr_shared(formulas = list(expr(ggplot(aes(x = ppVar(mpg), colour = ppVar(g, shared = "k"))) + geom_point()), expr(ggplot(aes(x = ppVar(wt), colour = ppVar(g, shared = "k"))) + geom_line())))</code> returns a <code>ptr_shared_spec</code> whose <code>panel_keys</code>, <code>local_keys_by_formula</code>, <code>formula_keys</code>, and <code>formula_count</code> are <strong>equal</strong> to the spec built from the byte-equivalent all-string formulas.</li>
+<li><code>obj$formulas</code> is a list of character strings (each <code>rlang::is_string()</code> TRUE) after an all-expression or mixed call.</li>
+<li>A mixed <code>list(string, expr)</code> call succeeds and is equal to the corresponding all-string spec.</li>
+<li>A built ggplot object element (<code>ggplot(...) + geom_point()</code>, not quoted) is rejected with an error that (a) names the 1-based index, (b) names the class, (c) mentions <code>expr(</code>.</li>
+<li>A numeric / logical / nested-list element is rejected with the same index-naming error shape.</li>
+<li>Every existing all-string call site continues to pass unchanged (no regression): full suite at FAIL 0 / ERROR 0 / SKIP 0.</li>
+<li><code>devtools::document()</code> regenerates <code>man/ptr_shared.Rd</code> with the widened <code>@param formulas</code>; <code>NAMESPACE</code> unchanged.</li>
+</ol>
+
+<h2>Constraints</h2>
+<ul>
+<li><strong>No signature change.</strong> Do not switch to <code>...</code>; do not add <code>envir</code>. The whole point of the revert is zero call-site churn.</li>
+<li><strong>No new translate-time eval surface.</strong> Normalization must <em>only</em> deparse language objects — never <code>eval()</code> an element. (Symbol resolution / string-builder forcing from <code>ptr_capture_formula</code> is deliberately <em>out of scope</em>: elements arrive pre-evaluated, so there is nothing to resolve, and adding eval would open a surface ADR 0009 §56 closed.)</li>
+<li><strong>String path byte-identical.</strong> A string element must flow through unchanged; the deparse branch must never touch it.</li>
+<li><strong>Reuse existing helpers.</strong> Deparse via <code>rlang::expr_text(x, width = 500L)</code> (matches <code>ptr_capture_formula</code>); error via <code>rlang::abort()</code>; do not introduce a new dependency.</li>
+<li><strong>Do not edit <code>ptr_app_grid</code>.</strong> Out of scope (unmaintained, per user); its identical guard at <code>R/paintr-app.R:1318-1322</code> stays string-only. The new helper is local to the shared coordinator, not a shared utility.</li>
+<li><strong>Do not edit fixtures/vignettes/tests to <em>use</em> the new form except the new dedicated tests.</strong> Existing call sites must keep working as-is (they prove non-regression). Vignettes are flagged outdated (project rule) — not gating.</li>
+<li><strong>Follow project idioms:</strong> <code>rlang::abort()</code> not <code>stop()</code>; snake_case; internal helper needs no <code>ptr_</code> prefix; run <code>devtools::document()</code> after roxygen edits.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre><code>Feature: ptr_shared() accepts quoted-expression formula elements
+
+  Background:
+    Given two formulas that share key "k" via ppVar(g, shared = "k")
+    And their string forms FS1, FS2
+    And their quoted forms FE1 = expr(&lt;FS1&gt;), FE2 = expr(&lt;FS2&gt;)
+
+  Scenario: all-expression list equals all-string spec
+    When I call ptr_shared(formulas = list(FE1, FE2))
+    Then it returns a ptr_shared_spec
+    And its panel_keys, local_keys_by_formula, formula_keys, formula_count
+        equal those of ptr_shared(formulas = list(FS1, FS2))
+
+  Scenario: spec stores normalized strings
+    When I call ptr_shared(formulas = list(FE1, FE2))
+    Then every element of obj$formulas satisfies rlang::is_string()
+
+  Scenario: mixed string-and-expression list
+    When I call ptr_shared(formulas = list(FS1, FE2))
+    Then it returns a spec equal to ptr_shared(formulas = list(FS1, FS2))
+
+  Scenario: built ggplot object is rejected with a guiding message
+    Given GOBJ = ggplot(aes(x = ppVar(mpg))) + geom_point()   # evaluated object
+    When I call ptr_shared(formulas = list(GOBJ, FS2))
+    Then it aborts
+    And the message names index 1
+    And the message names the class "ggplot"
+    And the message contains "expr("
+
+  Scenario: non-language non-string element rejected
+    When I call ptr_shared(formulas = list(42, FS2))
+    Then it aborts naming index 1 and the class "numeric"
+
+  Scenario: existing all-string call is unchanged (regression teeth)
+    When I call ptr_shared(formulas = c(FS1, FS2))
+    Then it returns the same spec it returns on the pre-change code
+</code></pre>
+
+<h2>Implementation</h2>
+
+<h3>1. <code>R/paintr-shared-ui.R</code> — add <code>normalize_shared_formulas()</code>, route <code>shared_translate_formulas()</code> through it</h3>
+<p>Add an internal helper (no <code>ptr_</code> prefix) and call it at the top of <code>shared_translate_formulas()</code>, replacing the string-only assertion:</p>
+<pre><code>normalize_shared_formulas &lt;- function(formulas) {
+  if (is.character(formulas)) formulas &lt;- as.list(formulas)
+  if (!is.list(formulas) || length(formulas) &lt; 1L) {
+    rlang::abort(paste0(
+      "`formulas` must be a non-empty list or character vector of formula ",
+      "strings and/or quoted expressions (`expr(...)` / `quote(...)`)."
+    ))
+  }
+  lapply(seq_along(formulas), function(i) {
+    x &lt;- formulas[[i]]
+    if (rlang::is_string(x)) return(x)
+    if (is.call(x) || rlang::is_symbol(x)) {
+      return(rlang::expr_text(x, width = 500L))
+    }
+    rlang::abort(paste0(
+      "`formulas[[", i, "]]` must be a single formula string or a quoted ",
+      "ggplot expression (`expr(...)` / `quote(...)`); got ", class(x)[1L], ". ",
+      "A built ggplot object cannot be used here -- quote the expression ",
+      "instead: `expr(ggplot(...) + ...)`."
+    ))
+  })
+}
+
+shared_translate_formulas &lt;- function(formulas, expr_check) {
+  formulas &lt;- normalize_shared_formulas(formulas)   # now always a list of strings
+  lapply(formulas, ptr_translate, expr_check = expr_check)
+}</code></pre>
+<p>Note the old <code>assertthat::assert_that(...)</code> block is gone; normalization both validates and converts.</p>
+
+<h3>2. <code>R/paintr-shared-coordinator.R</code> — store normalized strings in the spec</h3>
+<p><code>ptr_shared()</code> currently calls <code>shared_translate_formulas(formulas, …)</code> at L244 but stores the <strong>raw</strong> <code>formulas</code> in the spec (L305) and passes raw <code>formulas</code> to <code>shared_assert_panel_consumer_sources(formulas = formulas)</code> (L299). Normalize once at the top so both the spec field and the assert get strings:</p>
+<pre><code># near L244, before shared_translate_formulas:
+formulas &lt;- normalize_shared_formulas(formulas)
+trees    &lt;- shared_translate_formulas(formulas, expr_check = expr_check)</code></pre>
+<p>With <code>formulas</code> already normalized here, <code>shared_translate_formulas()</code> calling <code>normalize_shared_formulas()</code> again is idempotent (strings pass through) — acceptable; or pass a pre-normalized flag. Prefer the idempotent double-call for simplicity unless profiling says otherwise. <code>formulas = formulas</code> at L305 and the assert at L299 now see strings with no further change.</p>
+
+<h3>3. Roxygen — widen <code>@param formulas</code> on <code>ptr_shared</code></h3>
+<p>At <code>R/paintr-shared-coordinator.R:184</code> change to document both forms and the native-pipe caveat:</p>
+<pre><code>#' @param formulas A non-empty list or character vector, one element per
+#'   embedded [`ptr_ui()`] instance. Each element is either a formula
+#'   **string** or a **quoted ggplot expression** (`rlang::expr(...)` /
+#'   `quote(...)`); quoted expressions are deparsed to their source string.
+#'   A built ggplot object (e.g. `ggplot(...) + geom_point()` assigned to a
+#'   variable) is **not** accepted -- quote it with `expr()`. Note: a native
+#'   pipe `|&gt;` inside a quoted expression is desugared by R before capture,
+#'   so it does not survive into the generated code (use `%&gt;%` or a string).</code></pre>
+<p>Add one <code>@examples</code> line showing the quoted form. Run <code>devtools::document()</code>.</p>
+
+<h3>4. Tests — new file <code>tests/testthat/test-shared-expression-input.R</code></h3>
+<p>Encode the BDD scenarios. Build FS1/FS2 strings and FE1/FE2 = <code>rlang::expr(...)</code> of the byte-equivalent code. Assert spec-field equality (not object identity — environments/attrs may differ), <code>obj$formulas</code> string-ness, mixed-list equality, and the two reject paths via <code>expect_error(..., regexp =)</code> on index + class + <code>"expr("</code>. <strong>Teeth:</strong> the all-expression acceptance test must fail on the pre-change code (it does — current guard aborts with the vapply message); the reject tests must fail if the guard were dropped entirely. Expectations are derived from the contract (deparse round-trip), not from running the new code.</p>
+
+<h3>5. <code>NEWS.md</code> + <code>CONTEXT.md</code> pointer</h3>
+<p>NEWS: one bullet — "<code>ptr_shared()</code> now accepts quoted ggplot expressions (<code>expr()</code>/<code>quote()</code>) as <code>formulas</code> elements, alongside strings; mixed lists allowed." CONTEXT.md: one line in the status header noting expression input extended to <code>ptr_shared()</code> (2026-05-30, additive, no ADR).</p>
+
+<h3>6. (Optional) one e2e fixture parity smoke</h3>
+<p>Lowest-priority. A construction-time unit equality test (Scenario 1) already proves parity because the deparsed string is byte-equivalent to the string form and the entire engine is downstream of the string. An e2e boot adds little. Include only if the merge-boundary reviewer wants belt-and-suspenders; otherwise the unit equality + full-suite regression is sufficient.</p>
+
+<h2>Blast radius</h2>
+<p>Change is at the <strong>construction/parse boundary only</strong> (no runtime/reactive/codegen change), and the string path is byte-identical, so the seeding ↔ source-binding ↔ boot-default runtime cluster is <em>not</em> touched. Inner-loop coverage: all non-e2e tests + the shared-coordinator unit cluster (<code>test-shared-coordinator</code>, <code>test-shared-partition</code>, <code>test-shared-ui</code>, the new <code>test-shared-expression-input</code>). The full e2e suite runs only at the merge boundary per <code>.claude/rules/testing.md</code>.</p>
+
+<h2>Integration, baseline & independence</h2>
+
+<h3>Baseline / drift reference (item 7)</h3>
+<p>The <strong>sole authoritative ledger</strong> is <code>devtools::test()</code> at <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong> (Gate 2). Before implementing, capture the known-good baseline: on the unchanged tree run Gate 2 and record N (expected ≈ 3388 pre-change). After implementing, N must equal baseline + the new file's assertion count, with FAIL/ERROR/SKIP still 0. For R CMD check (Gate 3), the baseline is whatever <code>check</code> already reports on the stashed tree — diff against it; pre-existing failures (per memory <code>rcmd-check-preexisting-failures</code>) are not a regression. Distinguish pre-existing from new by the A/B stash described in Gate 3.</p>
+
+<h3>Independence clause (item 6)</h3>
+<p>Any "done / tests pass / scope clean" reported by an implementer, sub-agent, worktree session, or a prior turn is a <strong>claim to verify, never proof</strong> — it is the reporter's belief from the same fallible process. The integrator does <strong>not</strong> trust a status block: they independently re-run the Gate-2 authoritative command themselves and see <code>FAIL 0 / ERROR 0 / SKIP 0</code> with their own eyes before this change is considered green, merged, or context cleared.</p>
+
+<h3>Out-of-scope handling (item 8)</h3>
+<p>This change owns exactly: <code>normalize_shared_formulas()</code> + its wiring in <code>shared_translate_formulas()</code>/<code>ptr_shared()</code>, the <code>ptr_shared</code> roxygen, the <code>NEWS.md</code> bullet, the one-line <code>CONTEXT.md</code> pointer, and the new <code>test-shared-expression-input.R</code>. Any unrelated bug, drift, or smell discovered while implementing is <strong>surfaced, not absorbed</strong>: record it as a <code>.scratch/&lt;feature&gt;/</code> follow-up issue and leave it untouched. Do not fold an adjacent fix into this commit, do not paper over a pre-existing failure, do not widen scope to <code>ptr_app_grid</code>.</p>
+
+<h3>Revertable integration (item 9)</h3>
+<p>The whole change lands as <strong>one commit</strong> (helper + guard + roxygen + regenerated <code>man/ptr_shared.Rd</code> + <code>NEWS.md</code> + <code>CONTEXT.md</code> line + new test). No ordering dependencies on other work. <code>git revert &lt;sha&gt;</code> undoes it cleanly as a unit. The additive, low-blast-radius nature does not warrant a sibling worktree / isolated <code>--no-ff</code> merge.</p>
+
+<h2>Definition of Done</h2>
+<p>Copy-paste, see the expected output. Proxy traps named inline.</p>
+
+<h3>Gate 1 — inner loop (non-e2e + coordinator units), run while iterating</h3>
+<pre><code>Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code></pre>
+<p>Expected: <strong>FAIL 0 / ERROR 0</strong>, PASS grows by the new file's assertions, SKIP ≈112 (the browser tests — correct here; no <code>NOT_CRAN</code> ⇒ they <code>skip_on_cran()</code>). <span class="warn">Proxy trap: this SKIP-n run is <em>not</em> the gate — it cannot fail the way the browser suite fails.</span></p>
+
+<h3>Gate 2 — AUTHORITATIVE full suite (merge boundary, grounds "done"/"green")</h3>
+<pre><code>Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'</code></pre>
+<p>Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong> (N ≈ prior 3388 + new assertions). <code>devtools::test()</code> sets <code>NOT_CRAN=true</code> itself, so browser tests <strong>run</strong> (0 SKIP). <span class="warn">Proxy traps: (a) a raw <code>testthat::test_dir()</code> with no <code>NOT_CRAN</code> silently SKIPs every shinytest2 test — "green, SKIP n" off that is NOT the gate; (b) only 0/0/0 here grounds a done/green/merge claim — the PASS count is not the gate.</span></p>
+
+<h3>Gate 3 — R CMD check (DIFF vs baseline, NOT literal zero)</h3>
+<pre><code>Rscript -e 'devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))'</code></pre>
+<p>R CMD check is a <strong>secondary</strong> gate here. Project memory <code>rcmd-check-preexisting-failures</code> records that on recent branches <code>check</code> carries pre-existing failures (registry-split + pp-toggles) that are <strong>identical on baseline</strong> and unrelated to this change. So do <strong>not</strong> expect literal 0 errors. Instead <strong>diff against baseline</strong>: stash this change (<code>git stash</code>), run check, record the NOTE/error/warning ledger; unstash, run check again; the only acceptable delta attributable to this plan is <strong>none</strong>. By-design NOTEs (new-submission, <code>.git</code>, top-level <code>CONTEXT.md</code>) and any pre-existing failure present on baseline are not this change's concern. <span class="warn">Proxy traps: (a) "0 errors / 0 warnings" is NOT the bar on this repo — a literal-zero expectation will block on unrelated noise; the bar is "no NEW failure vs the A/B-stashed baseline". (b) If the e2e file ERRORs here ("DESCRIPTION not found"), that is a harness/guard defect, not this change's failure — and never the gate. (c) R CMD check is never what grounds "done"; only Gate 2 is.</span></p>
+
+<h3>Gate 4 — docs regenerate clean</h3>
+<pre><code>Rscript -e 'devtools::document()'   # man/ptr_shared.Rd updates; NAMESPACE unchanged (git diff confirms)</code></pre>
+
+<!-- implementable: PASS date=2026-05-30 gate="Rscript -e 'devtools::test(reporter=\"progress\", stop_on_failure=FALSE)'" hash=81b3252a9e37 -->
+</body>
+</html>

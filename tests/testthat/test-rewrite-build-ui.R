@@ -58,7 +58,7 @@ test_that("P6.3 var consumer static UI emits a uiOutput container", {
   ui <- build_ui_for(node, layer_name = "ggplot")
   rendered <- as.character(ui)
   expect_match(rendered, "shiny-html-output")
-  expect_match(rendered, paste0("id=\"", consumer_output_id(node$id), "\""), fixed = TRUE)
+  expect_match(rendered, paste0("id=\"", placeholder_output_id(node$id), "\""), fixed = TRUE)
 })
 
 test_that("P6.3 registry build_ui renders pickerInput populated with cols", {
@@ -77,7 +77,7 @@ test_that("P6.4 var consumer with empty cols still renders an empty container", 
   node <- .ph_by_keyword(tree, "ppVar")
   ui <- build_ui_for(node, layer_name = "ggplot")
   rendered <- as.character(ui)
-  expect_match(rendered, paste0("id=\"", consumer_output_id(node$id), "\""), fixed = TRUE)
+  expect_match(rendered, paste0("id=\"", placeholder_output_id(node$id), "\""), fixed = TRUE)
 })
 
 # ---- P6.5 — upload source paired widgets ----
@@ -91,7 +91,7 @@ test_that("P6.5 build_ui_for emits the source container + static shortcut textIn
   node <- .ph_by_keyword(tree, "ppUpload")
   ui <- build_ui_for(node)
   # the uiOutput container the server fills with the fileInput
-  expect_true(length(.find_tags(ui, has_id = source_output_id(node$id))) > 0L)
+  expect_true(length(.find_tags(ui, has_id = placeholder_output_id(node$id))) > 0L)
   # the framework-owned static shortcut textInput
   expect_true(length(.find_tags(ui, has_id = node$shortcut_id)) > 0L)
 })

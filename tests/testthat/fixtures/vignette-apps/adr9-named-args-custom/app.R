@@ -2,7 +2,7 @@
 # this child app process so the e2e test exercises dev source, not a stale
 # system install. This fixture is NOT vignette-paired — it covers the
 # ADR-0009 named_args registry slot end-to-end: a custom placeholder
-# declares named_args = list(hint = ptr_default_string()), the formula
+# declares named_args = list(hint = ptr_arg_string()), the formula
 # passes hint = "..." in the call form, and the value flows
 # parser -> node$named_args (PLAN-06)
 #   -> invoke_build_ui's do.call (PLAN-07)
@@ -14,7 +14,7 @@ library(shiny)
 
 ptr_define_placeholder_value(
   keyword    = "hinted_text",
-  named_args = list(hint = ptr_default_string()),
+  named_args = list(hint = ptr_arg_string()),
   build_ui   = function(node, label = NULL, named_args = list(), ...) {
     shiny::textInput(
       node$id,

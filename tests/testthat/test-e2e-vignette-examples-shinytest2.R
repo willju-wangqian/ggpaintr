@@ -72,7 +72,7 @@
 #                             second. Asserts initial value of #shared_col.
 #     adr9-named-args-custom  PLAN-03 named_args registry slot end-to-end:
 #                             a custom hinted_text placeholder declares
-#                             named_args = list(hint = ptr_default_string()),
+#                             named_args = list(hint = ptr_arg_string()),
 #                             the formula passes hint = "...", and the value
 #                             reaches build_ui via do.call (PLAN-07) and lands
 #                             on textInput's placeholder= DOM attribute.

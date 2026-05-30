@@ -193,7 +193,7 @@ test_that("closed loop: custom value placeholder (ppPower) round-trips via spec_
           !is.na(value) && value >= 0 && value <= 1) TRUE
       else "must be in [0,1]"
     },
-    default_arg = ptr_default_numeric()
+    positional_arg = ptr_arg_numeric()
   )
 
   e <- list2env(list(mtcars = mtcars), parent = globalenv())

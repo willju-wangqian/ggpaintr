@@ -31,7 +31,7 @@ ptr_define_placeholder_value(
     if (length(value) == 0L) return(NULL)
     value[1L]
   },
-  default_arg = ptr_default_string()
+  positional_arg = ptr_arg_string()
 )
 
 ptr_app(

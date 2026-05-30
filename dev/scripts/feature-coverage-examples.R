@@ -108,7 +108,7 @@ ptr_define_placeholder_value(
     if (is.null(value) || length(value) != 2L) return(NULL)   # NULL == "missing"
     rlang::expr(c(!!value[1], !!value[2]))
   },
-  copy_defaults = list(label = "Range for {param}")           # {param} interpolation
+  ui_text_defaults = list(label = "Range for {param}")           # {param} interpolation
 )
 
 # (b) ptr_define_placeholder_consumer -- data-aware; receives the upstream
@@ -131,7 +131,7 @@ ptr_define_placeholder_consumer(
     if (length(bad)) sprintf("unknown column(s): %s", paste(bad, collapse = ", "))
     else NULL
   },
-  copy_defaults  = list(label = "Columns for {param}")
+  ui_text_defaults  = list(label = "Columns for {param}")
 )
 
 # (c) ptr_define_placeholder_source -- data-aware; PRODUCES a data frame.
@@ -153,7 +153,7 @@ ptr_define_placeholder_source(
     if (is.null(value) || !nzchar(value)) return(NULL)  # NULL == "missing"
     rlang::sym(value)
   },
-  copy_defaults = list(label = "Dataset for {param}")
+  ui_text_defaults = list(label = "Dataset for {param}")
 )
 
 # A small user stylesheet on disk -- `css =` takes file path(s) to `.css` files

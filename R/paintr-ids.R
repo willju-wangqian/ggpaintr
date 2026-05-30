@@ -128,10 +128,14 @@ ptr_render_id <- function(raw_id, ns_fn) {
 }
 
 
-# Output id used as the renderUI container for a consumer placeholder. The
-# placeholder's input id (e.g. `ggplot_1_1_var_NA`) is reused with a `_ui`
-# suffix so the picker, when emitted by renderUI, lives at the original id
-# while the container that holds it is uniquely named.
-consumer_output_id <- function(raw_id) {
+# Output id used as the renderUI container for ANY placeholder (value,
+# source, or consumer). The placeholder's input id (e.g. `ggplot_1_1_var_NA`)
+# is reused with a `_ui` suffix so the widget, when emitted by renderUI,
+# lives at the original raw id while the container that holds it is uniquely
+# named (no collision between the bound widget's inputId and its container).
+# Single source of truth for the `_ui` suffix contract: `build_ui_for.*`
+# (R/paintr-build-ui.R), the `ptr_setup_*_uis` server helpers, and
+# `emit_placeholder_rows` (R/paintr-input-spec.R) all route through it.
+placeholder_output_id <- function(raw_id) {
   paste0(raw_id, "_ui")
 }

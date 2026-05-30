@@ -9,14 +9,14 @@ ptr_define_placeholder_consumer(
   build_ui,
   resolve_expr,
   validate_input = NULL,
-  default_arg = NULL,
+  positional_arg = NULL,
   named_args = list(),
   runtime = NULL,
-  copy_defaults = list(label = "Pick a column for {param}")
+  ui_text_defaults = list(label = "Pick a column for {param}")
 )
 }
 \arguments{
-\item{keyword, copy_defaults}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.}
+\item{keyword, ui_text_defaults}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.}
 
 \item{build_ui}{\verb{function(node, cols, data, label = NULL, selected = NULL, ...)}
 returning a Shiny tag. \code{cols} is a character vector of upstream
@@ -70,7 +70,7 @@ this function as \code{validate_input(value, ctx)} — no other positional
 or named arguments are passed, and \code{ctx} carries exactly the four
 fields above. The signature does not require \code{...}.}
 
-\item{default_arg, named_args}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.
+\item{positional_arg, named_args}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.
 Consumer placeholders use the same arg-schema slots; the \code{ppVar}
 built-in passes a column-name validator here when used as \code{ppVar(mpg)}.}
 

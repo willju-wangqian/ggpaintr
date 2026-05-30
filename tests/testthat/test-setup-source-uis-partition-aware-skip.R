@@ -55,7 +55,7 @@ test_that("PLAN-06 positive: panel-owned source id is skipped per-instance (outp
     expect_true("shared_ds" %in% names(state$panel_sources))
 
     # The canonical source output id for `ppUpload(shared='ds')` is
-    # `shared_ds_ui` (per source_output_id()). With the partition-aware
+    # `shared_ds_ui` (per placeholder_output_id()). With the partition-aware
     # skip in place, the per-instance binder must NOT have assigned a
     # renderUI to that slot. shiny::MockShinySession$getOutput() errors
     # with "hasn't been defined yet" when the slot was never assigned --

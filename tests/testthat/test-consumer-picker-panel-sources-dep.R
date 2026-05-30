@@ -35,7 +35,7 @@ build_panel_consumer_setup <- function(formula) {
     tree = tree,
     resolutions = resolutions,
     rep_nodes = rep_nodes,
-    out_id = ggpaintr:::consumer_output_id(
+    out_id = ggpaintr:::placeholder_output_id(
       ggpaintr:::canonical_shared_id("col")
     )
   )
