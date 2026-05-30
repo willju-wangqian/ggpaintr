@@ -299,7 +299,20 @@ ptr_init_state <- function(formula,
     # pattern as `producer_input` / `upstream_cache` above. `spec_seed[[id]]`
     # access works identically for env or list, so all read sites are
     # untouched. Empty env when no `spec=` was passed.
-    spec_seed = new.env(parent = emptyenv())
+    spec_seed = new.env(parent = emptyenv()),
+    # ADR 0025 item #7: per-source "the fileInput display was visually
+    # reset" flag, keyed by SOURCE id (`node$id`, stable -- NOT the
+    # bound_names layer/source key duality). An env of `reactiveVal(logical)`
+    # created + driven by `ptr_setup_source_uis()`: set TRUE on the shortcut
+    # rising edge (same trigger that re-renders the source uiOutput, clearing
+    # the file pill), cleared on a genuine new file pick. Read by
+    # `resolve_upload_source()` (via `ptr_setup_pipelines()`) so the data
+    # gate / vacate-on-empty key off the re-render, not the unreliable
+    # server-side fileInput value (a re-rendered fileInput never reports its
+    # cleared state back to the server). Env (pass-by-reference) so the
+    # source-uis writes are visible to the pipelines observers. Empty when
+    # no shortcut source exists.
+    source_file_reset = new.env(parent = emptyenv())
   ), class = c("ptr_state", "list"))
 
   # ADR 0012 §3.5 / PLAN-05: `state$spec` is a pull-style reactive over
@@ -1235,7 +1248,7 @@ try_bind_source_default <- function(state, key, node, input, shortcut_input_id,
 #   state, key, slot — `bind_source_value()` / `set_resolve_error()`
 #                     destinations as in the inlined original.
 resolve_upload_source <- function(input_slot, shortcut_slot, node, entry,
-                                  envir, state, key, slot) {
+                                  envir, state, key, slot, file_reset = FALSE) {
   file_info <- input_slot
   has_shortcut <- isTRUE(shortcut_slot$present)
   shortcut_value <- if (has_shortcut) shortcut_slot$value else NULL
@@ -1261,6 +1274,17 @@ resolve_upload_source <- function(input_slot, shortcut_slot, node, entry,
   shortcut_active <- has_shortcut && is.character(shortcut_value) &&
     length(shortcut_value) == 1L && nzchar(shortcut_value)
   if (shortcut_active) file_info <- NULL
+  # ADR 0025 item #7: the source uiOutput was re-rendered (the user typed a
+  # shortcut, visually clearing the fileInput pill). A re-rendered fileInput
+  # does NOT report its cleared state back to the server, so `input_slot`
+  # may still hold the stale uploaded file. The `file_reset` flag -- tracked
+  # by `ptr_setup_source_uis()` on the shortcut rising edge, cleared on a
+  # genuine new upload -- is the authoritative "the file display is gone"
+  # signal. Honour it here so BOTH the env-load gate AND the vacate-on-empty
+  # branch (A1) key off the re-render rather than the unreliable server-side
+  # input value: when the shortcut is later cleared while this flag holds,
+  # `file_info` stays NULL and the empty-textbox case vacates as designed.
+  if (isTRUE(file_reset)) file_info <- NULL
   if (is.null(file_info)) {
     set_resolve_error(state, key, NULL)
     # ADR 0025 §4 / PLAN-04: vacated upload binding — drop any prior
@@ -1505,19 +1529,22 @@ ptr_setup_pipelines <- function(state, input, output, session) {
           envir          = state$eval_env,
           state          = state,
           key            = ln,
-          slot           = slot
+          slot           = slot,
+          # ADR 0025 item #7: keyed by the stable source id (NOT `ln`),
+          # matching `ptr_setup_source_uis()` which owns the flag.
+          file_reset     = {
+            rv <- state$source_file_reset[[src$id]]
+            !is.null(rv) && isTRUE(rv())
+          }
         )
       })
 
       # ADR 0025 §2 (Q3-B): mutex between fileInput and shortcut textInput
-      # -- typing one auto-clears the other so the concurrently-active
-      # state is structurally impossible. The legacy filename-derived
-      # textbox auto-fill is retired; the binding name comes from the
-      # auto-name path (paintr-ids.R). Pass `shortcut_r` so the
-      # text-side mutex gates on the debounced reactive (see the
-      # ADR 0025 §7 A2 race-fix comment in `ptr_bind_source_mutex`).
-      ptr_bind_source_mutex(src_id, shortcut_input_id, input, session,
-                            shortcut_r = shortcut_r)
+      # -- picking a file auto-clears the textbox. The reverse direction
+      # (typing clears the file pill) is handled by the rising-edge
+      # re-render in `ptr_setup_source_uis()`, not the mutex (ADR 0025
+      # item #7); `shortcut_r` no longer threads into it.
+      ptr_bind_source_mutex(src_id, shortcut_input_id, input, session)
     })
   }
 
@@ -1580,12 +1607,17 @@ ptr_setup_pipelines <- function(state, input, output, session) {
           envir          = state$eval_env,
           state          = state,
           key            = sid,
-          slot           = slot
+          slot           = slot,
+          # ADR 0025 item #7: keyed by the stable source id `sid`,
+          # matching `ptr_setup_source_uis()` which owns the flag.
+          file_reset     = {
+            rv <- state$source_file_reset[[sid]]
+            !is.null(rv) && isTRUE(rv())
+          }
         )
       })
 
-      ptr_bind_source_mutex(src_id, shortcut_input_id, input, session,
-                            shortcut_r = shortcut_r)
+      ptr_bind_source_mutex(src_id, shortcut_input_id, input, session)
     })
   }
   invisible(state)
@@ -1593,53 +1625,35 @@ ptr_setup_pipelines <- function(state, input, output, session) {
 
 # UI mutex between a data source's fileInput and its shortcut textInput
 # (ADR 0025 §2 / Q3-B). The two affordances feed the same source slot, so
-# concurrent file+typed-text is forbidden by construction: filling one
-# side auto-clears the other. The legacy filename-derived textbox
+# concurrent file+typed-text is forbidden by construction: picking a file
+# auto-clears the sibling textbox. The legacy filename-derived textbox
 # auto-fill is retired -- the shortcut textbox is now reserved for
 # env-shortcut typing and the upload's binding name comes from the
-# auto-name path (paintr-ids.R). Both observers gate on `ignoreInit = TRUE` so
-# the boot-time seed write (`ppUpload(penguins)` -> shortcut = "penguins")
-# does NOT count as a first interaction and does NOT shiny::reset() the
-# already-empty fileInput. Both run in the per-instance session scope so
-# multi-instance / multi-coordinator apps stay isolated. Shared by the
-# bare-layer and pipeline-head source wiring in `ptr_setup_pipelines()`.
-# `src_id` / `shortcut_input_id` are already namespaced.
-ptr_bind_source_mutex <- function(src_id, shortcut_input_id, input, session,
-                                  shortcut_r = NULL) {
+# auto-name path (paintr-ids.R).
+#
+# ADR 0025 item #7: the reverse direction (typed shortcut -> clear the
+# fileInput's visible pill) is no longer handled here. The old text->file
+# half sent a `ptr_reset_file_input` custom message (a buggy/ineffective
+# DOM hack, now removed); it is replaced by the rising-edge re-render of
+# the source uiOutput in `ptr_setup_source_uis()`, which produces a fresh
+# same-id fileInput with no filename baked in. That re-render never blanks
+# `input[[src_id]]` mid-flush, so the §7-A2 shadow-bind race the old
+# `shortcut_r` gate guarded against cannot occur -- hence the `shortcut_r`
+# parameter is gone. The data gate (`resolve_upload_source`) remains the
+# source of truth and is untouched.
+#
+# `ignoreInit = TRUE` so the boot-time seed write (`ppUpload(penguins)` ->
+# shortcut = "penguins") does NOT count as a first interaction. Runs in the
+# per-instance session scope so multi-instance / multi-coordinator apps stay
+# isolated. Shared by the bare-layer and pipeline-head source wiring in
+# `ptr_setup_pipelines()` and the host-scope panel sources in
+# `ptr_setup_panel_sources()`. `src_id` / `shortcut_input_id` are already
+# namespaced.
+ptr_bind_source_mutex <- function(src_id, shortcut_input_id, input, session) {
   if (is.null(shortcut_input_id)) return(invisible())
   # File picked -> wipe the sibling textbox.
   shiny::observeEvent(input[[src_id]], {
     shiny::updateTextInput(session, shortcut_input_id, value = "")
-  }, ignoreInit = TRUE)
-  # Text typed (non-empty) -> reset the sibling fileInput. shiny has no
-  # built-in reset for fileInput (shinyjs::reset() is the canonical tool
-  # but shinyjs is not a dep); the package ships a tiny custom JS
-  # handler `ptr_reset_file_input` in inst/www/ggpaintr-layer.js that
-  # wipes the DOM file pill and writes NULL into the Shiny input slot.
-  #
-  # ADR 0025 §7 A2 race-fix: when `shortcut_r` (the same 400ms-debounced
-  # reactive that drives `resolve_upload_source()` in `ptr_setup_pipelines`)
-  # is supplied, gate the file-reset on it instead of the raw text input.
-  # Both observers then fire on the same debounced tick, so the bind sees
-  # `file=FILE, shortcut="<name>"` in the SAME flush -- which lets
-  # `resolve_upload_source` bind the uploaded df under `<name>` before
-  # the JS file-reset round-trip blanks `input[[src_id]]`. Without this,
-  # the mutex fires on the raw keystroke and the file is already NULL by
-  # the time the debounced bind observer runs, dropping into
-  # `try_bind_source_default_resolved()` which `inherits=TRUE` walks the
-  # parent chain and binds a same-named namespace export (e.g.
-  # `palmerpenguins::penguins`) instead of the uploaded df. Verified
-  # against `test-shared-source-panel-multi-instance.R` worked-example-#4
-  # (single-instance `ppUpload(shared='ds') |> ggplot(...)`).
-  text_event <- if (!is.null(shortcut_r)) {
-    shiny::reactive(shortcut_r())
-  } else {
-    shiny::reactive(input[[shortcut_input_id]])
-  }
-  shiny::observeEvent(text_event(), {
-    if (isTRUE(nzchar(text_event() %||% ""))) {
-      session$sendCustomMessage("ptr_reset_file_input", list(id = src_id))
-    }
   }, ignoreInit = TRUE)
   invisible()
 }
@@ -2288,16 +2302,62 @@ ptr_setup_source_uis <- function(state, input, output, session) {
       # never-cleared seed snapped a seeded custom source back to the spec
       # value on every tree rebuild, ignoring the user's pick.
       has_rendered <- FALSE
+      # ADR 0025 item #7: rising-edge re-render of the source widget. When
+      # the shortcut textbox transitions empty -> non-empty (the user types
+      # a dataset name), bump `source_bump` so the source uiOutput re-renders
+      # a fresh source widget -- clearing a stale fileInput filename pill now
+      # that the typed shortcut owns the data (the `resolve_upload_source`
+      # gate already ignores the lingering file). The edge is ONE-directional
+      # (only empty -> non-empty bumps), so a file-pick -- which clears the
+      # textbox empty via the mutex -- does NOT re-render and therefore does
+      # NOT wipe the just-uploaded display. The shortcut textInput itself is
+      # static (emitted by `build_ui_for.ptr_ph_data_source`), so typing is
+      # never disrupted by this re-render. Debounced on the same 400ms window
+      # as the resolve path so the bump fires once per keystroke burst.
+      shortcut_input_id <- if (!is.null(node$shortcut_id)) {
+        ns(node$shortcut_id)
+      } else NULL
+      source_bump <- shiny::reactiveVal(0L)
+      # ADR 0025 item #7: the data-side mirror of the visual re-render. This
+      # flag (on `state$source_file_reset`, keyed by the stable source id)
+      # records "the fileInput display was visually reset", which a
+      # re-rendered fileInput cannot report to the server. `resolve_upload_source`
+      # keys the env-load gate and vacate-on-empty off THIS flag rather than
+      # the stale server-side `input[[src_id]]` value. Set TRUE on the same
+      # rising edge that bumps the re-render; cleared on a genuine new file
+      # pick (a fresh upload is authoritative again).
+      file_reset_rv <- shiny::reactiveVal(FALSE)
+      state$source_file_reset[[raw_id]] <- file_reset_rv
+      if (!is.null(shortcut_input_id)) {
+        prev_shortcut <- shiny::reactiveVal("")
+        shortcut_debounced <- shiny::debounce(
+          shiny::reactive(input[[shortcut_input_id]]), 400L
+        )
+        shiny::observeEvent(shortcut_debounced(), {
+          cur <- shortcut_debounced() %||% ""
+          if (nzchar(cur) && !nzchar(shiny::isolate(prev_shortcut()))) {
+            source_bump(shiny::isolate(source_bump()) + 1L)
+            file_reset_rv(TRUE)
+          }
+          prev_shortcut(cur)
+        }, ignoreInit = TRUE, ignoreNULL = FALSE)
+        # A genuine new file pick clears the "display was reset" flag so the
+        # fresh upload is honoured again (and re-registers its prologue).
+        shiny::observeEvent(input[[ns(raw_id)]], {
+          file_reset_rv(FALSE)
+        }, ignoreInit = TRUE)
+      }
       output[[output_id]] <- shiny::renderUI({
         state$tree()
+        source_bump()  # ADR 0025 #7: re-render on the shortcut rising edge
         # Intentionally NOT a dep on `state$stage_enabled()`: source
         # placeholders sit at the pipeline head, so toggling a downstream
         # stage cannot alter their UI. Adding the dep here re-fires the
-        # renderUI on every stage checkbox click, which calls the upload
-        # build_ui afresh and resets the shortcut textInput to
-        # `node$default` (wiping user-typed text / upload auto-name).
-        # Stage disabling propagates to source widgets via CSS only
-        # (`ptr_set_class` in `ptr_setup_stage_enabled`).
+        # renderUI on every stage checkbox click, needlessly re-creating the
+        # source widget (the shortcut textInput is static -- emitted by
+        # `build_ui_for` -- so it is unaffected either way). Stage disabling
+        # propagates to source widgets via CSS only (`ptr_set_class` in
+        # `ptr_setup_stage_enabled`).
         current <- shiny::isolate(input[[ns(raw_id)]])
         seed <- shiny::isolate(state$spec_seed[[raw_id]])
 

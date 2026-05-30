@@ -77,14 +77,39 @@ build_ui_for.ptr_ph_data_source <- function(node,
                                               ns_fn = identity,
                                               ...) {
   # ADR 0012 / PLAN-01 (Bug B): emit a `uiOutput` container; the actual
-  # widget (incl. ppUpload's fileInput + shortcut textInput tagList) is
-  # rendered server-side inside `ptr_setup_source_uis()`. The shortcut
-  # textInput is bound at `node$shortcut_id` because the source hook
-  # itself emits both inputs in the same tag -- only the renderUI
-  # *wrapper* is added here. Routing through renderUI is what lets the
-  # seed-based spec-apply path (state$spec_seed[[bare]] -> extra$selected)
-  # cover custom source keywords without an `updateXyz` symmetric hook.
-  shiny::uiOutput(ptr_render_id(source_output_id(node$id), ns_fn))
+  # source widget (ppUpload's fileInput, a custom source widget) is
+  # rendered server-side inside `ptr_setup_source_uis()`. Routing through
+  # renderUI is what lets the seed-based spec-apply path
+  # (state$spec_seed[[bare]] -> extra$selected) cover custom source
+  # keywords without an `updateXyz` symmetric hook.
+  source_ui <- shiny::uiOutput(ptr_render_id(source_output_id(node$id), ns_fn))
+
+  # ADR 0025 item #7: when the source's registry entry opts into the
+  # shortcut sibling, emit its textInput here as STATIC UI -- never inside
+  # the source renderUI. Keeping it static (a) leaves typing undisturbed
+  # (it is never re-rendered) and (b) lets the source uiOutput re-render on
+  # the shortcut's rising edge (clearing a stale file pill) without wiping
+  # the typed text. The textInput binds at `node$shortcut_id`, which the
+  # server reads via `ns(node$shortcut_id)` in `ptr_setup_pipelines()` /
+  # `ptr_setup_panel_sources()`. Generalises to any `shortcut = TRUE`
+  # source (no ppUpload-specific path): the framework owns the textbox.
+  entry <- ptr_registry_lookup(node$keyword)
+  if (!isTRUE(entry$shortcut) || is.null(node$shortcut_id)) {
+    return(source_ui)
+  }
+  name_copy <- ptr_resolve_ui_text("upload_name", ui_text = ui_text)
+  shiny::tagList(
+    source_ui,
+    attach_help(
+      shiny::textInput(
+        inputId = ptr_render_id(node$shortcut_id, ns_fn),
+        label = name_copy$label %||% "Optional dataset name",
+        value = node$default %||% "",
+        placeholder = name_copy$placeholder
+      ),
+      name_copy$help
+    )
+  )
 }
 
 # ADR 0012 / PLAN-01 (Bug B): output-id helpers for the uiOutput

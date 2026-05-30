@@ -390,28 +390,30 @@ test_that("ppUpload build_ui restores the accept filter on the file input", {
 })
 
 test_that("upload labels/help are driven by upload_file / upload_name copy", {
+  # ADR 0025 item #7: the upload widget is now split across two layers --
+  # the file copy lives in the source hook (`.source_widget`), the shortcut
+  # name copy in `build_ui_for` (the static textInput). Assert each on its
+  # own layer.
   node <- .upload_node_from()
-  ui <- .source_widget(
-    node,
-    ui_text = list(upload = list(
-      file = list(label = "Pick your CSV", help = "file help here"),
-      name = list(label = "Name it", placeholder = "eg sales", help = "name help here")
-    ))
-  )
-  rendered <- as.character(ui)
-  expect_match(rendered, "Pick your CSV")
-  expect_match(rendered, "file help here")
-  expect_match(rendered, "Name it")
-  expect_match(rendered, 'placeholder="eg sales"', fixed = TRUE)
-  expect_match(rendered, "name help here")
+  ui_text <- list(upload = list(
+    file = list(label = "Pick your CSV", help = "file help here"),
+    name = list(label = "Name it", placeholder = "eg sales", help = "name help here")
+  ))
+  file_ui <- as.character(.source_widget(node, ui_text = ui_text))
+  name_ui <- as.character(build_ui_for(node, ui_text = ui_text))
+  expect_match(file_ui, "Pick your CSV")
+  expect_match(file_ui, "file help here")
+  expect_match(name_ui, "Name it")
+  expect_match(name_ui, 'placeholder="eg sales"', fixed = TRUE)
+  expect_match(name_ui, "name help here")
 })
 
 test_that("upload uses the resolved default copy when no override is given", {
   node <- .upload_node_from()
-  ui <- .source_widget(node)
-  rendered <- as.character(ui)
-  expect_match(rendered, "Choose a data file")
-  expect_match(rendered, "Optional dataset name")
+  file_ui <- as.character(.source_widget(node))
+  name_ui <- as.character(build_ui_for(node))
+  expect_match(file_ui, "Choose a data file")        # file copy (hook)
+  expect_match(name_ui, "Optional dataset name")     # name copy (build_ui_for)
 })
 
 test_that("the removed shell$update_data_button copy key is still rejected", {

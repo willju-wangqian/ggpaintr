@@ -226,27 +226,23 @@ ptr_upload_accept_formats <- function() {
   c(".csv", ".tsv", ".rds", ".xlsx", ".xls", ".json")
 }
 
+# ADR 0025 item #7: the source hook now returns ONLY the source widget
+# (the fileInput). The shortcut textInput is emitted as STATIC UI by
+# `build_ui_for.ptr_ph_data_source()` (R/paintr-build-ui.R) so it survives
+# the source uiOutput's rising-edge re-render (which clears a stale file
+# pill once a typed shortcut takes over). `name_copy` is retained as a
+# formal only for backward-compatible call sites that still pass it; it is
+# no longer consumed here.
 ptr_builtin_upload_build_ui <- function(node, label = NULL, copy = NULL,
                                         file_copy = NULL, name_copy = NULL,
                                         ...) {
-  shiny::tagList(
-    attach_help(
-      shiny::fileInput(
-        inputId = node$id,
-        label = file_copy$label %||% label %||% "Choose a data file",
-        accept = ptr_upload_accept_formats()
-      ),
-      file_copy$help
+  attach_help(
+    shiny::fileInput(
+      inputId = node$id,
+      label = file_copy$label %||% label %||% "Choose a data file",
+      accept = ptr_upload_accept_formats()
     ),
-    attach_help(
-      shiny::textInput(
-        inputId = node$shortcut_id,
-        label = name_copy$label %||% "Optional dataset name",
-        value = node$default %||% "",
-        placeholder = name_copy$placeholder
-      ),
-      name_copy$help
-    )
+    file_copy$help
   )
 }
 

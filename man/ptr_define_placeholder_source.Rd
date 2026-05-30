@@ -22,11 +22,13 @@ ptr_define_placeholder_source(
 tutorial.}
 
 \item{build_ui}{\verb{function(node, label, ...)} returning a Shiny tag —
-same shape as in \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}. With
-\code{shortcut = TRUE}, render \strong{two} bound inputs in the same tag,
-one with \code{inputId = node$id} (data payload) and one with
-\code{inputId = node$shortcut_id} (sibling input — typically the
-user-facing dataset name spliced into the rendered code).
+same shape as in \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}. Render ONLY the
+source's data-payload widget at \code{inputId = node$id} (e.g. a
+\code{fileInput}, a \code{selectInput} chooser). With \code{shortcut = TRUE} the
+framework emits the sibling shortcut \code{textInput} (at
+\code{node$shortcut_id}) for you (ADR 0025 item #7) — do NOT render it
+yourself, or the id would be bound twice. A source whose only entry
+point is the shortcut (e.g. an env-name loader) may return \code{NULL}.
 
 \emph{Seeding} — same opt-in shape as the other two helpers: declare an
 optional \code{selected = NULL} formal (or accept \code{...}) to receive the
@@ -57,19 +59,24 @@ name as a bare symbol.}
 
 \item{shortcut}{Single logical (default \code{FALSE}). When \code{TRUE}, the
 framework stamps \code{node$shortcut_id <- paste0(node$id, "_shortcut")}
-on every translated source node; the author's \code{build_ui} is then
-expected to render \strong{two} bound Shiny inputs that both participate
-in the runtime substitution cycle: one at \code{node$id} (the data
-payload) and one at \code{node$shortcut_id} (a sibling input, typically a
-typed-in name that resolves a \code{data.frame} from the caller-supplied
-\code{envir}). The shortcut value reaches \code{resolve_data} / \code{resolve_expr}
-through \code{node}. Most sources do not need it — one bound input is the
-common case. The built-in \code{ppUpload} sets \code{shortcut = TRUE} so the
-"Optional dataset name" textbox sits beside the file picker: the
-file contents bind to \code{node$id}, the user-typed name binds to
-\code{node$shortcut_id}, and the substitution uses the name as the symbol
-inserted into the generated code. The reserved shared key
-\code{"shortcut"} is rejected at translate time (see ADR 0025 §1).}
+on every translated source node AND renders the sibling shortcut
+\code{textInput} (at \code{node$shortcut_id}) for you — an "Optional dataset
+name" box beside the source widget (ADR 0025 item #7). Your
+\code{build_ui} renders ONLY the data-payload widget at \code{node$id} (or
+\code{NULL} for a shortcut-only source); it must NOT render the shortcut
+input itself. Both inputs participate in the runtime substitution
+cycle: one at \code{node$id} (the data payload) and one at
+\code{node$shortcut_id} (a typed-in name that resolves a \code{data.frame} from
+the caller-supplied \code{envir}). The shortcut value reaches
+\code{resolve_data} / \code{resolve_expr} through \code{node}. Most sources do not
+need it — one bound input is the common case. The built-in \code{ppUpload}
+sets \code{shortcut = TRUE}: the file contents bind to \code{node$id}, the
+user-typed name binds to \code{node$shortcut_id}, and the substitution
+uses the name as the symbol inserted into the generated code. The
+framework also re-renders the source widget when the shortcut goes
+non-empty, clearing a stale display (ADR 0025 item #7). The reserved
+shared key \code{"shortcut"} is rejected at translate time (see ADR 0025
+§1).}
 
 \item{default_arg, named_args}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.
 Source placeholders use the same arg-schema slots.}
@@ -132,9 +139,9 @@ single string).
 
 Source widgets whose primary value is a complex object (raw
 \code{fileInput()} data.frame, environment, S4 instance, etc.) without
-\code{shortcut = TRUE} cannot round-trip; opt into the shortcut sibling
-and bind a \code{textInput(node$shortcut_id, ...)} that carries the
-binding name, mirroring \code{ppUpload}.
+\code{shortcut = TRUE} cannot round-trip; opt into \code{shortcut = TRUE} and the
+framework renders the sibling \code{textInput(node$shortcut_id, ...)} that
+carries the binding name, mirroring \code{ppUpload}.
 }
 
 \examples{

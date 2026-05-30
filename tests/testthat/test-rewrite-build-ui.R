@@ -81,13 +81,27 @@ test_that("P6.4 var consumer with empty cols still renders an empty container", 
 })
 
 # ---- P6.5 — upload source paired widgets ----
+# ADR 0025 item #7: the pairing moved. `build_ui_for` (the panel layer) now
+# emits the source uiOutput container PLUS the STATIC shortcut textInput;
+# the source hook (`.source_widget` -> `entry$build_ui`) emits ONLY the
+# fileInput, rendered server-side into that container.
 
-test_that("P6.5 upload UI emits paired widgets (file + name)", {
+test_that("P6.5 build_ui_for emits the source container + static shortcut textInput", {
+  tree <- ptr_translate("ppUpload |> ggplot()")
+  node <- .ph_by_keyword(tree, "ppUpload")
+  ui <- build_ui_for(node)
+  # the uiOutput container the server fills with the fileInput
+  expect_true(length(.find_tags(ui, has_id = source_output_id(node$id))) > 0L)
+  # the framework-owned static shortcut textInput
+  expect_true(length(.find_tags(ui, has_id = node$shortcut_id)) > 0L)
+})
+
+test_that("P6.5 the source hook emits ONLY the fileInput (no shortcut)", {
   tree <- ptr_translate("ppUpload |> ggplot()")
   node <- .ph_by_keyword(tree, "ppUpload")
   ui <- .source_widget(node)
   expect_true(length(.find_tags(ui, has_id = node$id)) > 0L)
-  expect_true(length(.find_tags(ui, has_id = node$shortcut_id)) > 0L)
+  expect_equal(length(.find_tags(ui, has_id = node$shortcut_id)), 0L)
 })
 
 # ---- P6.13 — copy resolution ----
