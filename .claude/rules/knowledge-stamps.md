@@ -25,7 +25,14 @@ Stamp only what is **non-obvious, derived from reading the source/running the ap
 - **This rule** = best-effort inline habit (no hook can detect "you just understood something"; you *will* miss some — that's expected).
 - **`/stamp`** — emit one stamp on demand the moment the user (or you) spots a keeper.
 - **`/summarize-knowledge`** — invoked before `/clear`; sweep the whole session and dump every finding as stamps, best-effort, **unverified** (`status=derived-unverified`). Do **not** verify here — just try your best; a later pass checks.
-- **`harvest-finding`** skill = the regular pass: collect `/export`ed transcripts → extract stamps → **verify** each `source:` against current code → save the verified knowledge as a timestamped JSON under `.claude/harvest-findings/raw_knowledge/<date>-<time>.json` (a later pass promotes it into memory/`.scratch`/ADRs).
+- **`harvest-finding`** skill = the regular pass: collect `/export`ed transcripts → extract stamps → **verify** each `source:` against current code → save the verified knowledge as a timestamped JSON under `.claude/harvest-findings/raw_knowledge/<date>-<time>.json`.
+- **`/process-finding`** = the categorize pass *after* harvest: read `raw_knowledge/*.json` → assign each finding one or more topic **labels** (written back onto the finding) → maintain the canonical vocabulary `.claude/harvest-findings/labels.json` and regenerate `.claude/harvest-findings/INDEX.md` (label → description → finding ids). A later pass promotes findings into memory/`.scratch`/ADRs by label.
+
+Pipeline: **stamp → summarize-knowledge → harvest-finding → process-finding** (write side) ; **consult INDEX.md** (read side, below).
+
+### Recall — rebuild understanding from the index
+
+When you need to rebuild knowledge about a topic (a subsystem, a past bug, *why* something is built a certain way), **consult the index first** before re-deriving it from scratch: `grep -i "<topic>" .claude/harvest-findings/INDEX.md` to find the label(s), then `grep -rl "<label>" .claude/harvest-findings/raw_knowledge/` (or read the finding ids listed under that label) to pull the verified findings. The pipeline above *writes* hard-won understanding; this is how you *read* it back.
 
 ### Folders (`.claude/harvest-findings/`)
 
@@ -33,4 +40,6 @@ Bootstrap a fresh clone/worktree/project with `/harvest-init` (creates the dirs 
 
 - `exports/` — `/export` inbox: `/export .claude/harvest-findings/exports/<date>-<topic>.txt` (plain text; `.txt`/`.md` extension required or the parser skips it). Gitignored.
 - `raw_conversation/` — pooled corpus for a harvest run (`collect.sh` dest). Gitignored.
-- `raw_knowledge/` — verified-knowledge JSON output. Tracked.
+- `raw_knowledge/` — verified-knowledge JSON output (each finding gains a `labels` array). Tracked.
+- `labels.json` — canonical `{label: description}` vocabulary maintained by `/process-finding`. Tracked.
+- `INDEX.md` — generated label catalog (the read-side map). Tracked.
