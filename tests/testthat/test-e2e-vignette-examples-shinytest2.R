@@ -681,8 +681,11 @@ test_that("adr9-shared-default: shared widget seeds from FIRST occurrence's defa
   # ppVar(shared='col', default=wt) is the second and is silently ignored
   # for seeding (matches ADR 0009 §8 "first wins silently; no
   # translate-time abort"). The widget must initialise to "hp", NOT "wt".
-  expect_equal(app$get_value(input = "shared_col"), "hp",
-               label = "shared widget seeds from first occurrence's default")
+  # Poll (not a bare get_value): this host-scope shared renderUI picker's
+  # seeded value can land a flush after the DOM id appears, and under
+  # parallel-execution CPU contention that lag is seconds (boot-tail flake
+  # class re-confirmed on the post-merge parallel gate, 2026-05-30).
+  expect_input_eventually(app, "shared_col", "hp")
 
   # Functional check: the seeded shared value reaches BOTH layers' code.
   draw(app, "ptr_update_plot")
