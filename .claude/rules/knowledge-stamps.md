@@ -29,6 +29,8 @@ Stamp only what is **non-obvious, derived from reading the source/running the ap
 
 ### Folders (`.claude/harvest-findings/`)
 
+Bootstrap a fresh clone/worktree/project with `/harvest-init` (creates the dirs + gitignore, confirms first, idempotent).
+
 - `exports/` — `/export` inbox: `/export .claude/harvest-findings/exports/<date>-<topic>.txt` (plain text; `.txt`/`.md` extension required or the parser skips it). Gitignored.
 - `raw_conversation/` — pooled corpus for a harvest run (`collect.sh` dest). Gitignored.
 - `raw_knowledge/` — verified-knowledge JSON output. Tracked.
