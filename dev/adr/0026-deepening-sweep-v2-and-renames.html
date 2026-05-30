@@ -113,5 +113,41 @@
 <pre><code>Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'</code></pre>
 <p>Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS ≥ baseline</strong>. For exported-surface renames (ranks 3, 4): <code>devtools::document()</code> first (NAMESPACE + man regenerated), and the rename-forced test edits are called out in the commit. The cheap inner loop (non-e2e + targeted e2e blast radius) drives iteration; the full serial gate grounds each commit. A candidate that cannot reach green cleanly within its risk budget is recorded here as <em>parked</em> rather than forced.</p>
 
+<h2>Session outcome (2026-05-30, unattended run)</h2>
+
+<p>This section is authoritative over the "status" column above. Each landed item passed the serial authoritative gate (FAIL 0 / ERROR 0 / SKIP 0 / PASS 3439) and is one reviewable commit on branch <code>improve-code-base-workflow-run</code>.</p>
+
+<h3>Landed (gated + committed)</h3>
+<table>
+<thead><tr><th>candidate</th><th>helper introduced</th><th>commit</th></tr></thead>
+<tbody>
+<tr><td>1 dup-output-id-triple</td><td><code>placeholder_output_id()</code> (single, in paintr-ids.R)</td><td><code>9604978</code></td></tr>
+<tr><td>2 dup-name-normalization</td><td><code>ptr_make_valid_name()</code> (unifies the two binding-name paths; column-vector normalizer left separate by design)</td><td><code>b3fa65a</code></td></tr>
+<tr><td>factory rename</td><td><code>ptr_default_* → ptr_arg_*</code> (hard rename, NAMESPACE/man regenerated)</td><td><code>6d0a4f6</code></td></tr>
+<tr><td>3 define consolidation + arg rename</td><td><code>ptr_define_core()</code> + 3 thin wrappers; <code>default_arg→positional_arg</code>, <code>copy_defaults→ui_text_defaults</code> (entry keys kept internal)</td><td><code>3b34c22</code></td></tr>
+<tr><td>5 stage-override dedup</td><td><code>stage_overrides_for_entry()</code> (build-time + render-time share it)</td><td><code>6c14f61</code></td></tr>
+<tr><td>7 binding-symbol predicate</td><td><code>is_syntactic_name()</code> (13 open-coded copies)</td><td><code>9bb8235</code></td></tr>
+<tr><td>8 panel-owned source dedup</td><td><code>is_panel_owned_id()</code> (9 sites) + <code>wire_panel_owned_source()</code> (2 observer blocks; bound_names key duality preserved)</td><td><code>9ece82e</code></td></tr>
+</tbody>
+</table>
+
+<p><strong>Scope refinements found during implementation</strong> (verify-first discipline — the raw sweep over-stated several "duplications"): #2 left the column-vector normalizer separate (distinct job + many pinned tests); #5 scoped to <code>param_override</code> only (orphan-stage was an already-shared helper, not a dup); #7 reduced to the leaf predicate (the binding-name <em>derivation</em> genuinely differs per ADR 0024/0025/0023 site); #8 passed the bound-name <code>key</code> explicitly to preserve the layer-name/source-id duality. No exported-function test was changed except where an authorized rename literally changed a symbol (factory rename + the <code>positional_arg</code> message assertion + one self-pass), each flagged in its commit.</p>
+
+<h3>Deep-leave (verified NOT a genuine duplication — do not re-suggest)</h3>
+<ul>
+<li><strong>12 app-l1-assembly</strong> — <code>ptr_app</code> and <code>ptr_app_grid</code> are <em>already</em> thin wrappers over distinct builders (<code>ptr_app_components</code> vs <code>ptr_app_grid_components</code>); the only shared line is <code>shiny::shinyApp(ui, server)</code> (a pass-through that fails the deletion test). The file-split half is 0-net-LOC churn that harms git-blame continuity (synthesis agreed). Left as-is.</li>
+</ul>
+
+<h3>Parked for a focused / interactive session (NOT done — recommend grilling loop or /decision-to-plan → /exec-plan)</h3>
+<p>These are <strong>design-level changes</strong> (new abstractions or reactive-orchestrator surgery), not simple duplications, and they sit in the seeding/partition/source <em>iceberg zone</em> (bound_names duality, consumer-seed latches, the recurring 2026-05-22 partition-binder bug). The gate would catch gross breakage, but the residual risk is <em>subtle</em> behaviour change the suite may not cover — exactly what the user said must not change. The <code>/improve-codebase-architecture</code> skill prescribes a grilling loop for deepening <em>designs</em>, and the project Risk-Discussion rule says discuss risky tasks first. They were deliberately not rushed unattended; each is recorded with enough detail to plan.</p>
+<ul>
+<li><strong>11 c1-partition-view-seam</strong> (highest residual value) — the ownership question "does this surface render+bind this key?" is answered three asymmetric ways: coordinator <code>obj$panel_keys</code> / <code>local_keys_by_formula</code> (multi-instance), <code>render_shared_section = TRUE</code> boolean (single-formula L1, app.R:169), and <code>host_owned_keys = setdiff(consumer_keys, panel_keys)</code> (L2, shared-ui.R:388 / app.R:339). Proposed internal <code>partition_view(part, surface_id)</code> that all three query — directly hardens against the recurring binder-bug class. A new internal seam (no public API change), ~150–250 LOC across shared-coordinator/shared-ui/server/app; warrants the grilling loop.</li>
+<li><strong>9 c2a-pure-core-extraction</strong> — pull the pure cores (spec-validation in <code>apply_spec_at_boot</code>, code-render in <code>ptr_register_code</code>, binding-name derivation in <code>ptr_setup_pipelines</code>) out of the reactive helpers into a runtime-core module (rename <code>paintr-headless.R → paintr-runtime-core.R</code>). Additive + testability-motivated; the payoff (≈150 LOC of new pure tests) must be authored non-tautologically (contract-derived), which warrants attention rather than volume-rushing. Safe to extract code without the new tests as a first step.</li>
+<li><strong>6 c2b-orchestrator-phases</strong> — group <code>ptr_server_internal</code>'s body into named phase functions so its four ordering invariants (cache-before-plot, renderUI order = registry order, namespace auto-wire, shared_state overlay precedence) are structural, not comments. Reactive observer-registration regrouping; the synthesis itself said "best done after #9/#7 settle."</li>
+<li><strong>10 cross-file source/consumer parallel paths</strong> — the synthesis already demoted the full seam-collapse to <em>optional</em>: the two paths' reactive dependencies genuinely differ (state-backed single-instance vs input-id-only host, ADR 0006 <code>state=NULL</code>-at-host), <code>resolve_upload_source</code> is already shared, and there is no <code>apply_spec_at_boot_host</code> twin (the divergence is the renderUI bodies + seeding closures, which differ by reactive deps). Any consolidation here is Phase-A-only (a narrow shared spec-normalization helper) and should follow #9.</li>
+</ul>
+
+<p><strong>Net:</strong> 7 source refactors + this ADR landed (8 commits), every genuine safe duplication consolidated and every user-requested rename done, suite green at each step. The 4 parked items are design decisions best taken with the user in the loop.</p>
+
 </body>
 </html>
