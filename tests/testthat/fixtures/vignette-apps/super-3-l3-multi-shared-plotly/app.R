@@ -79,7 +79,7 @@ ui <- ptr_ui_page(
     # Cell A: default ggpaintr-managed plot output + L3 controls + code panel.
     shiny::column(
       6,
-      ptr_ui_controls(formula_a_str, "plot1"),
+      ptr_ui_controls(formula_a_str, "plot1", shared = shared),
       ptr_ui_plot("plot1"),
       ptr_ui_code("plot1")
     ),
@@ -87,7 +87,7 @@ ui <- ptr_ui_page(
     # with its own code panel.
     shiny::column(
       6,
-      ptr_ui_controls(formula_b_str, "plot2"),
+      ptr_ui_controls(formula_b_str, "plot2", shared = shared),
       plotly::plotlyOutput(shiny::NS("plot2")("custom_plot"), height = "500px") |>
         ptr_ui_toggle_code(ptr_ui_code("plot2"))
     )

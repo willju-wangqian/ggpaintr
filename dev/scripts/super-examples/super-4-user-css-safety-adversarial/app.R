@@ -48,6 +48,41 @@ ppColor <- ptr_define_placeholder_value(
   }
 )
 
+ppColor2 <- ptr_define_placeholder_value(
+  keyword = "ppColor2",
+  # `selected` is the canonical injection slot for the formula's positional
+  # default (invoke_build_ui at R/paintr-build-ui.R:744-765); the formula
+  # uses positionless ppColor() so `selected` arrives NULL and the build_ui
+  # fallback "#3366FF" wins. The wrapping `<div class="ptr-super4-colorpicker">`
+  # is the styling hook the user.css rule targets.
+  build_ui = function(node, label = "Color", selected = NULL, ...) {
+    v <- if (is.character(selected) && length(selected) == 1L && nzchar(selected)) {
+      selected
+    } else "purple"
+    shiny::tags$div(
+      class = "ptr-super4-colorpicker",
+      colourpicker::colourInput(
+        inputId = node$id,
+        label = label,
+        value = v,           # Initial color
+        allowTransparent = TRUE,    # Enables an alpha/transparency slider
+        palette = "square"          # Offers a full palette selector
+      )
+    )
+
+  },
+  resolve_expr = function(value, ...) value,
+  positional_arg = ptr_arg_string(),
+  # validate_input = function(value, ctx) {
+  #   if (is.character(value) && length(value) == 1L &&
+  #       grepl("^#[0-9A-Fa-f]{6}$", value)) {
+  #     TRUE
+  #   } else {
+  #     "must be #RRGGBB hex"
+  #   }
+  # }
+)
+
 # G5 row: paste0 + sprintf are both inside the closed force-eval whitelist
 # at R/paintr-app.R:260-262. `y_arg` is the LITERAL STRING "ppVar(wt)" — when
 # paste0 assembles it, the resulting formula text contains `y = ppVar(wt)`
