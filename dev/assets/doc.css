@@ -446,3 +446,6 @@ table.cov.value thead th { background: #fdebcb; }
 .finding.sevMED { border-left-color: var(--warn); }
 .finding.sevHIGH { border-left-color: var(--danger); }
 .finding table th { width: 130px; vertical-align: top; text-align: left; white-space: nowrap; }
+
+/* inline highlight for "review this" call-outs in headings */
+.hl { background: var(--warn, #fde68a); color: #1f2937; padding: 0 .35em; border-radius: 3px; font-size: .8em; font-weight: 600; }

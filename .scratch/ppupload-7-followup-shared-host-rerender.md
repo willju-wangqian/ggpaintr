@@ -1,6 +1,6 @@
 # Follow-up (surfaced by ADR 0025 item #7): rising-edge fileInput pill-clear NOT extended to the shared-coordinator host-scope source path
 
-**Status:** needs-triage
+**Status:** DONE (2026-05-29) — host source flag + visual reset ported; attended consumer-clear handled alongside. See "## Resolution" at the bottom.
 **Surfaced:** 2026-05-29, during ADR 0025 item #7 implementation (commit on branch `ppUpload-bug`).
 **Scope discipline:** flagged, NOT silently fixed/widened — per the plan's "surface, don't absorb" clause and `dev/plans/0025-item7-fileinput-reset/plan.html` §10.
 
@@ -42,3 +42,20 @@ Watch the **bound_names key duality** (memory `bound-names-key-duality`): key th
 - The plan (`dev/plans/0025-item7-fileinput-reset/plan.html`) scoped item #7 to the single-instance/formula-local path; the prototype validated that path only.
 - The §6 repro and all Success Criteria are single-instance.
 - Porting to the host path is additional ADR-0023-area work that should be its own scoped change (and prototyped/tested for the multi-host case).
+
+## Resolution (2026-05-29)
+
+Implemented per `dev/plans/0025-item7-followup-host-shared-consumer-clear/plan.html` (implementable: PASS).
+
+**Host source path (`ptr_setup_panel_sources`, R/paintr-shared-ui.R)** — ported the three #7 pieces into the single `local()` scope, byte-shape-equal to `ptr_setup_source_uis()`:
+- **P1** `source_bump <- reactiveVal(0L)` + `source_bump()` dep on the first line of the host `renderUI` body → rising-edge re-render of the fileInput (clears the stale filename pill). One-directional (empty→non-empty only) so a file-pick does NOT wipe the just-uploaded display.
+- **P2** `file_reset_rv <- reactiveVal(FALSE)`: 400ms-debounced `observeEvent` on the shortcut sets it TRUE + bumps on the empty→non-empty edge; `observeEvent(input[[input_id]])` sets it FALSE on a genuine new file pick. Kept local (read directly at the in-scope resolve call) — no `state$source_file_reset` publish needed (unlike single-instance), keyed by the canonical source id.
+- **P3** `file_reset = isTRUE(file_reset_rv())` passed into the in-scope `resolve_upload_source()` call → env-load gate + vacate-on-empty key off the flag, not the stale server-side `input[[input_id]]`.
+
+**Attended consumer clear (`ptr_bind_shared_consumer_uis`, R/paintr-server.R, HOST scope `state = NULL` only)** — added two per-picker latches (`cleared_for_identity`, `last_user_supplied`). At host scope the identity snapshot is bound-name-blind (`bn` always `""`), so it stabilises across the upload's trailing double-render and the base clear was reverted by a stale `current`. The latch re-asserts the clear on the one trailing render (then consumes itself so a later legitimate re-pick is not clobbered), and a supply→no-supply `vacate_edge` folds the P3 vacate into the same clear trigger. **Per-instance scope (`state != NULL`) is gated out → byte-equal → single-instance unaffected.** `consumer_seed_decision` and the non-shared binder `ptr_setup_consumer_uis` were NOT touched.
+
+**Design note (deviation from plan's literal wording, intentional):** the plan said "hold selected=character(0) … until current is observed emptied." I instead **consume the latch after exactly one trailing re-assert** (the probe established the upload fires a *double* render — two beats — so one held render covers it). Holding "until emptied" risks a persistent latch wrongly clearing a later legitimate re-pick on the same data when no intervening empty-current render occurs; consume-after-one eliminates that with strictly less regression risk while still surviving the double-render. Verified by the S-N1 test.
+
+**Tests** — `tests/testthat/test-shared-host-source-reset.R` (+ fixture `fixtures/vignette-apps/adr25-host-shared-source-reset/app.R`): P3 env-load gate, P3 vacate (discriminating), S-N1 consumer clear (overlapping `body_mass_g` — proxy-trap guard), S-N2 vacate-suppress, W1 single-instance guard (re-uses adr25-upload-default-clear). **Discrimination proven**: with the R fix stashed the new file is 2 FAIL / 15 PASS (vacate + S-N1); with the fix 17 PASS / 0/0/0.
+
+**P1 (pill clear) is harness-blind** (CDP can't see the native file widget pill) → validated by eyeball, per plan §7 / Gate 0.

@@ -526,10 +526,50 @@ ptr_setup_panel_sources <- function(obj, input, output, envir,
       input_id <- ns(canonical)
       shortcut_input_id <- if (!is.null(node$shortcut_id)) ns(node$shortcut_id) else NULL
 
+      # ADR 0025 item #7 (host port): rising-edge re-render of the source
+      # widget + the data-side `file_reset` flag. Byte-shape-equal to
+      # `ptr_setup_source_uis()` (R/paintr-server.R). When the shortcut
+      # textbox transitions empty -> non-empty (the user types a dataset
+      # name) bump `source_bump` so the source uiOutput re-renders a fresh
+      # fileInput -- clearing the stale filename pill now that the typed
+      # shortcut owns the data (the `resolve_upload_source` gate already
+      # ignores the lingering file). The edge is ONE-directional (only
+      # empty -> non-empty), so a file-pick (for which the mutex clears the
+      # textbox) does NOT re-render and therefore does NOT wipe the
+      # just-uploaded display. `file_reset_rv` is the data-side mirror: a
+      # re-rendered fileInput cannot report its cleared state, so the resolve
+      # call below keys its env-load gate + vacate-on-empty off THIS flag
+      # rather than the stale server-side `input[[input_id]]`. Unlike the
+      # single-instance path it needs no `state$source_file_reset` publish --
+      # the renderUI, the flag, and the resolve call all live in this one
+      # `local()` scope, so the flag is read directly at the call site.
+      source_bump <- shiny::reactiveVal(0L)
+      file_reset_rv <- shiny::reactiveVal(FALSE)
+      if (!is.null(shortcut_input_id)) {
+        prev_shortcut <- shiny::reactiveVal("")
+        shortcut_debounced <- shiny::debounce(
+          shiny::reactive(input[[shortcut_input_id]]), 400L
+        )
+        shiny::observeEvent(shortcut_debounced(), {
+          cur <- shortcut_debounced() %||% ""
+          if (nzchar(cur) && !nzchar(shiny::isolate(prev_shortcut()))) {
+            source_bump(shiny::isolate(source_bump()) + 1L)
+            file_reset_rv(TRUE)
+          }
+          prev_shortcut(cur)
+        }, ignoreInit = TRUE, ignoreNULL = FALSE)
+        # A genuine new file pick clears the "display was reset" flag so the
+        # fresh upload is honoured again.
+        shiny::observeEvent(input[[input_id]], {
+          file_reset_rv(FALSE)
+        }, ignoreInit = TRUE)
+      }
+
       # Render the panel-side source widget. Body shape matches
       # `ptr_setup_source_uis()` in R/paintr-server.R: same registry
       # dispatch, same copy resolution, same outputOptions mount.
       output[[output_id]] <- shiny::renderUI({
+        source_bump()  # ADR 0025 #7: re-render on the shortcut rising edge
         rendered_node <- node
         # Bind the rendered widget at the coordinator-namespaced DOM ids so
         # two `ptr_shared(..., id = ...)` coordinators sharing a panel-owned
@@ -611,7 +651,8 @@ ptr_setup_panel_sources <- function(obj, input, output, envir,
           envir          = eval_env,
           state          = host_state,
           key            = canonical,
-          slot           = slot
+          slot           = slot,
+          file_reset     = isTRUE(file_reset_rv())
         )
       })
 

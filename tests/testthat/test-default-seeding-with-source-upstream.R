@@ -27,7 +27,12 @@ test_that("ppVar default seeds picker through ppUpload(df) (string form)", {
   app$wait_for_idle(timeout = 25 * 1000)
 
   # Picker boot value reflects `ppVar('hp')` default, not character(0).
-  expect_equal(app$get_value(input = "ggplot_1_1_ppVar_NA"), "hp")
+  # Poll the picker value: `wait_for_idle()` can return before the client
+  # round-trips this source-headed renderUI picker's seeded value back, so a
+  # single immediate `get_value()` races -- and under parallel-execution CPU
+  # contention that lag is seconds (observed as a FAIL 1 boot-tail flake on the
+  # post-merge parallel gate, 2026-05-30; passes serially).
+  expect_input_eventually(app, "ggplot_1_1_ppVar_NA", "hp")
   expect_picker_populated(app, "ggplot_1_1_ppVar_NA", "hp")
 })
 
@@ -49,7 +54,12 @@ test_that("ppVar default seeds picker through ppUpload(df) (unquoted form)", {
   withr::defer(app$stop())
   app$wait_for_idle(timeout = 25 * 1000)
 
-  expect_equal(app$get_value(input = "ggplot_1_1_ppVar_NA"), "hp")
+  # Poll the picker value: `wait_for_idle()` can return before the client
+  # round-trips this source-headed renderUI picker's seeded value back, so a
+  # single immediate `get_value()` races -- and under parallel-execution CPU
+  # contention that lag is seconds (observed as a FAIL 1 boot-tail flake on the
+  # post-merge parallel gate, 2026-05-30; passes serially).
+  expect_input_eventually(app, "ggplot_1_1_ppVar_NA", "hp")
   expect_picker_populated(app, "ggplot_1_1_ppVar_NA", "hp")
 })
 
@@ -74,5 +84,10 @@ test_that("baseline: ppVar default seeds picker with bare-df upstream", {
   withr::defer(app$stop())
   app$wait_for_idle(timeout = 25 * 1000)
 
-  expect_equal(app$get_value(input = "ggplot_1_1_ppVar_NA"), "hp")
+  # Poll the picker value: `wait_for_idle()` can return before the client
+  # round-trips this source-headed renderUI picker's seeded value back, so a
+  # single immediate `get_value()` races -- and under parallel-execution CPU
+  # contention that lag is seconds (observed as a FAIL 1 boot-tail flake on the
+  # post-merge parallel gate, 2026-05-30; passes serially).
+  expect_input_eventually(app, "ggplot_1_1_ppVar_NA", "hp")
 })
