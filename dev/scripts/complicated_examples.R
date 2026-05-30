@@ -135,7 +135,7 @@ color_placeholder <- ptr_define_placeholder(
     }
     rlang::expr(!!as.character(value))
   },
-  copy_defaults = list(label = "Highlight color for {param}")
+  ui_text_defaults = list(label = "Highlight color for {param}")
 )
 
 boundary <- subset(penguins, species %in% c("Adelie", "Chinstrap"))
@@ -225,7 +225,7 @@ range_placeholder <- ptr_define_placeholder(
     if (is.null(value)) return(ptr_missing_expr())
     rlang::expr(c(!!value[1], !!value[2]))
   },
-  copy_defaults = list(label = "Zoom range for {param}")
+  ui_text_defaults = list(label = "Zoom range for {param}")
 )
 library(shiny)
 library(ggpaintr)
@@ -320,7 +320,7 @@ log_num <- ptr_define_placeholder(
     eval_env
   },
 
-  copy_defaults = list(label = "Log-transform column for {param}")
+  ui_text_defaults = list(label = "Log-transform column for {param}")
 )
 cols_placeholder <- ptr_define_placeholder(
   keyword = "cols",
@@ -435,7 +435,7 @@ log_num <- ptr_define_placeholder(
     eval_env
   },
 
-  copy_defaults = list(label = "Log-transform column for {param}")
+  ui_text_defaults = list(label = "Log-transform column for {param}")
 )
 
 registry <- ptr_merge_placeholders(list(cols = log_num))
@@ -500,7 +500,7 @@ log_num <- ptr_define_placeholder(
     eval_env
   },
 
-  copy_defaults = list(label = "Log-transform column for {param}")
+  ui_text_defaults = list(label = "Log-transform column for {param}")
 )
 
 registry <- ptr_merge_placeholders(list(log_num = log_num))
@@ -562,7 +562,7 @@ cols_ph <- ptr_define_placeholder(
     rlang::expr(dplyr::all_of(!!value))
   },
 
-  copy_defaults = list(label = "Choose columns for {param}")
+  ui_text_defaults = list(label = "Choose columns for {param}")
 )
 
 registry <- ptr_merge_placeholders(list(cols = cols_ph))
@@ -657,7 +657,7 @@ cols_ph <- ptr_define_placeholder(
     rlang::expr(dplyr::all_of(!!value))
   },
 
-  copy_defaults = list(label = "Choose columns for {param}")
+  ui_text_defaults = list(label = "Choose columns for {param}")
 )
 range_placeholder <- ptr_define_placeholder(
   keyword       = "range",
@@ -669,7 +669,7 @@ range_placeholder <- ptr_define_placeholder(
     if (is.null(value)) return(ptr_missing_expr())
     rlang::expr(c(!!value[1], !!value[2]))
   },
-  copy_defaults = list(label = "Zoom range for {param}")
+  ui_text_defaults = list(label = "Zoom range for {param}")
 )
 registry <- ptr_merge_placeholders(list(cols = cols_ph,
                                         range = range_placeholder))

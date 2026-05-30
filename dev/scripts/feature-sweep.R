@@ -135,7 +135,7 @@ ptr_define_placeholder_value(
                 min = 0, max = 100, value = 50)
   },
   resolve_expr = function(value, node, ...) value / 100,
-  copy_defaults = list(label = "Pick a percentage for {param}")
+  ui_text_defaults = list(label = "Pick a percentage for {param}")
 )
 ptr_app(
   "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point(alpha = pct)"
@@ -162,7 +162,7 @@ ptr_define_placeholder_consumer(
     }
     rlang::sym(value)
   },
-  copy_defaults = list(label = "Column for {param}")
+  ui_text_defaults = list(label = "Column for {param}")
 )
 ptr_app(
   "ggplot(data = mtcars, aes(x = dropvar, y = dropvar)) + geom_point()"
@@ -208,7 +208,7 @@ ptr_define_placeholder_consumer(
     # straight into the substituted tree.
     rlang::call2("c", !!!as.list(value))
   },
-  copy_defaults = list(label = "Columns for {param}")
+  ui_text_defaults = list(label = "Columns for {param}")
 )
 ptr_app(
   "iris |> subset(select = colvars) |>
@@ -383,7 +383,7 @@ ptr_app_grid(
 #     if (!is.character(value) || length(value) != 1L || !nzchar(value)) return(NULL)
 #     rlang::sym(value)
 #   },
-#   copy_defaults = list(label = "Column for {param}")
+#   ui_text_defaults = list(label = "Column for {param}")
 # )
 ptr_app(
   "ggplot(data = mtcars, aes(x = dropvar(shared = \"v\"), y = mpg)) +
@@ -610,7 +610,7 @@ ptr_define_placeholder_consumer(
     # straight into the substituted tree.
     rlang::call2("c", !!!as.list(value))
   },
-  copy_defaults = list(label = "Columns for {param}")
+  ui_text_defaults = list(label = "Columns for {param}")
 )
 
 ptr_app(
