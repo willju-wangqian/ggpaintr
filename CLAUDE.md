@@ -29,6 +29,16 @@ devtools::load_all()                      # load package for interactive use
 source("dev/build-pkgdown.R"); build_pkgdown_clean()  # build documentation site
 ```
 
+## Git hooks — fresh-clone bootstrap
+
+Hooks are tracked in `dev/githooks/` and wired via `core.hooksPath` (not the untracked `.git/hooks/` shims — removed 2026-05-30). `core.hooksPath` is **not** cloned, so each fresh clone needs this one line once (worktrees of an existing clone inherit it from the shared config — nothing to do):
+
+```sh
+git config core.hooksPath dev/githooks
+```
+
+`pre-commit` = the implementable-PASS gate + `symbol-lines.json` regen. `post-merge` = the `mark-stale-finding` drift detector (flips findings to `status=stale` when a cited file changed since their `verified_at_commit`; informational, never blocks — then run `/maintain-finding`). The relative path resolves per-worktree, and a worktree whose checkout lacks a given hook file simply skips it.
+
 ## Conventions
 
 Style (`ptr_` prefix, snake_case, 2-space), error/message idioms (`rlang::abort`, `cli::cli_warn`), validation (`assertthat`), and the NAMESPACE / `devtools::document()` workflow live in `.claude/rules/coding.md`. Project-specific: source `R/paintr-*.R`, tests `tests/testthat/test-*.R`; dependencies — rlang (tidy eval + error signaling), assertthat (validation), cli (messages), ggplot2 (rendering), purrr (functional helpers), shiny + shinyWidgets (UI), bslib (optional, powers `ptr_app_bslib()`).
