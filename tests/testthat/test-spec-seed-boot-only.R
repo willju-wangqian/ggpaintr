@@ -411,7 +411,7 @@ test_that("source widget: spec seed wins at boot, user pick persists across an u
     },
     resolve_expr = function(value, node, ...) rlang::sym(value),
     runtime      = function(x, ...) get(x, envir = asNamespace("datasets")),
-    default_arg  = ggpaintr::ptr_arg_string()
+    positional_arg  = ggpaintr::ptr_arg_string()
   )
 
   formula <- 'ggplot(ppSeedSrc("iris"), aes(x = mpg, y = hp)) + geom_point()'

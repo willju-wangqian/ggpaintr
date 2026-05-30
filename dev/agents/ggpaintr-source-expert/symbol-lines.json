@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-05-30T04:24:16-0500",
-  "git_head": "b3fa65a",
+  "generated_at": "2026-05-30T04:41:12-0500",
+  "git_head": "6d0a4f6",
   "n_files": 34,
-  "n_symbols": 498,
+  "n_symbols": 499,
   "symbols": {
     "ptr_app_bslib": {
       "file": "R/paintr-app-bslib.R",
@@ -1159,7 +1159,7 @@
       "start_line": 201,
       "end_line": 216
     },
-    "validate_default_arg": {
+    "validate_positional_arg": {
       "file": "R/paintr-registry.R",
       "start_line": 218,
       "end_line": 224
@@ -1176,38 +1176,43 @@
     },
     "validate_copy_defaults": {
       "file": "R/paintr-registry.R",
-      "start_line": 308,
-      "end_line": 334
+      "start_line": 311,
+      "end_line": 337
+    },
+    "ptr_define_core": {
+      "file": "R/paintr-registry.R",
+      "start_line": 352,
+      "end_line": 421
     },
     "ptr_registry_register": {
       "file": "R/paintr-registry.R",
-      "start_line": 336,
-      "end_line": 342
+      "start_line": 423,
+      "end_line": 429
     },
     "ptr_define_placeholder_value": {
       "file": "R/paintr-registry.R",
-      "start_line": 505,
-      "end_line": 539
+      "start_line": 592,
+      "end_line": 606
     },
     "ptr_define_placeholder_consumer": {
       "file": "R/paintr-registry.R",
-      "start_line": 646,
-      "end_line": 680
+      "start_line": 713,
+      "end_line": 727
     },
     "ptr_define_placeholder_source": {
       "file": "R/paintr-registry.R",
-      "start_line": 823,
-      "end_line": 871
+      "start_line": 870,
+      "end_line": 885
     },
     "ptr_register_structural_keyword": {
       "file": "R/paintr-registry.R",
-      "start_line": 891,
-      "end_line": 911
+      "start_line": 905,
+      "end_line": 925
     },
     "ptr_signal_partial": {
       "file": "R/paintr-registry.R",
-      "start_line": 947,
-      "end_line": 949
+      "start_line": 961,
+      "end_line": 963
     },
     "ptr_render": {
       "file": "R/paintr-render.R",

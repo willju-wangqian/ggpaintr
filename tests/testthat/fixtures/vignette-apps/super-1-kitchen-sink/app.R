@@ -20,7 +20,7 @@ ppRange <- ptr_define_placeholder_value(
     shiny::sliderInput(node$id, label, min = 0, max = 100, value = v)
   },
   resolve_expr = function(value, ...) value,
-  default_arg = ptr_arg_numeric_vector(length = 2)
+  positional_arg = ptr_arg_numeric_vector(length = 2)
 )
 
 my_linewidth = 1

@@ -93,7 +93,7 @@ test_that("default_arg / named_args are stored on the entry", {
     keyword = kw,
     build_ui = .rs_build_ui,
     resolve_expr = .rs_resolve_expr,
-    default_arg = da,
+    positional_arg = da,
     named_args = list(step = na_step)
   )
   entry <- ptr_registry_lookup(kw)
@@ -116,7 +116,7 @@ test_that("named_args rejects entry named 'shared'", {
   )
 })
 
-test_that("default_arg must be NULL or a function", {
+test_that("positional_arg must be NULL or a function", {
   kw <- .rs_unique_kw("rsv")
   withr::defer(try(ptr_clear_placeholder(kw), silent = TRUE))
   expect_error(
@@ -124,9 +124,9 @@ test_that("default_arg must be NULL or a function", {
       keyword = kw,
       build_ui = .rs_build_ui,
       resolve_expr = .rs_resolve_expr,
-      default_arg = "not a function"
+      positional_arg = "not a function"
     ),
-    regexp = "default_arg",
+    regexp = "positional_arg",
     class = "rlang_error"
   )
 })

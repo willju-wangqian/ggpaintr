@@ -19,7 +19,7 @@ ppCoef <- ptr_define_placeholder_value(
     if (is.null(value)) return(NULL)
     rlang::expr(!!value)
   },
-  default_arg   = ptr_arg_numeric()
+  positional_arg   = ptr_arg_numeric()
 )
 
 ppFactor <- ptr_define_placeholder_consumer(
@@ -32,7 +32,7 @@ ppFactor <- ptr_define_placeholder_consumer(
     if (length(value) == 0L || !nzchar(value)) return(NULL)
     rlang::sym(value)
   },
-  default_arg   = ptr_arg_symbol_or_string()
+  positional_arg   = ptr_arg_symbol_or_string()
 )
 
 ppSample <- ptr_define_placeholder_source(
@@ -52,7 +52,7 @@ ppSample <- ptr_define_placeholder_source(
     }
     get(x, envir = asNamespace("datasets"))
   },
-  default_arg   = ptr_arg_string()
+  positional_arg   = ptr_arg_string()
 )
 
 smooth_template <- rlang::expr(

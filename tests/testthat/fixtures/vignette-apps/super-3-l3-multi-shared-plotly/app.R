@@ -13,7 +13,7 @@ library(shiny)
 # `ppRange <-` binding required for Path-B evaluability (ADR-0016).
 ppRange <- ptr_define_placeholder_value(
   keyword     = "ppRange",
-  default_arg = ptr_arg_numeric_vector(length = 2),
+  positional_arg = ptr_arg_numeric_vector(length = 2),
   build_ui    = function(node, label = NULL, selected = NULL, ...) {
     val <- if (!is.null(selected) && length(selected) == 2L) selected else c(0, 100)
     # `step = 0.1` keeps the returned values as doubles (not integers); a

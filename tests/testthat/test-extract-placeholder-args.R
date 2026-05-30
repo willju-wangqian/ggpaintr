@@ -8,7 +8,7 @@
 # ---- shared fixtures -------------------------------------------------------
 
 # Register a no-arg placeholder value (matches today's built-in `num`-like
-# schema: default_arg = NULL, named_args = list()).
+# schema: positional_arg = NULL, named_args = list()).
 register_no_schema_value <- function(kw) {
   ptr_define_placeholder_value(
     keyword = kw,
@@ -24,7 +24,7 @@ register_numeric_default_value <- function(kw) {
     keyword = kw,
     build_ui = function(node, ...) shiny::numericInput(node$id, kw, value = 0),
     resolve_expr = function(value, node, ...) value,
-    default_arg = ptr_arg_numeric(),
+    positional_arg = ptr_arg_numeric(),
     named_args = list(step = ptr_arg_numeric())
   )
 }
@@ -40,7 +40,7 @@ find_first_placeholder <- function(root) {
   hits[[1L]]
 }
 
-# ---- BDD: positional rejected when default_arg = NULL ----------------------
+# ---- BDD: positional rejected when positional_arg = NULL ----------------------
 
 test_that("positional arg is rejected when default_arg is NULL", {
   kw <- "ppPlan06NoSchemaA"
@@ -153,7 +153,7 @@ test_that("placeholder argument ASTs are never eval()'d at parse time", {
     keyword = kw,
     build_ui = function(node, ...) shiny::textInput(node$id, kw),
     resolve_expr = function(value, node, ...) value,
-    default_arg = ptr_arg_expression()
+    positional_arg = ptr_arg_expression()
   )
   withr::defer(ptr_clear_placeholder(kw))
 

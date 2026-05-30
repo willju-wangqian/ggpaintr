@@ -16,7 +16,7 @@ ptr_define_placeholder_value(
     if (is.null(value) || length(value) != 2L) return(NULL)
     rlang::expr(c(!!value[1], !!value[2]))
   },
-  copy_defaults = list(label = "Range for {param}")
+  ui_text_defaults = list(label = "Range for {param}")
 )
 
 ptr_app("ggplot(mtcars, aes(mpg, hp)) + geom_point() + xlim(range)")

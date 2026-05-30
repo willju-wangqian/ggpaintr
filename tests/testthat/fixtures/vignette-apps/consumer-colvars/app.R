@@ -18,7 +18,7 @@ ptr_define_placeholder_consumer(
     if (length(value) == 0L) return(NULL)
     rlang::call2("c", !!!as.list(value))
   },
-  copy_defaults = list(label = "Columns for {param}")
+  ui_text_defaults = list(label = "Columns for {param}")
 )
 
 ptr_app("mtcars |> dplyr::select(colvars) |>

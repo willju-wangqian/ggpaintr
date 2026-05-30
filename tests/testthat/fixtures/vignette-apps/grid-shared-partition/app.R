@@ -20,7 +20,7 @@ library(shiny)
 # override used to supply). Process-local registration.
 ppSize <- ptr_define_placeholder_value(
   keyword      = "ppSize",
-  default_arg  = ptr_arg_numeric(),
+  positional_arg  = ptr_arg_numeric(),
   build_ui     = function(node, label = NULL, selected = NULL, ...) {
     val <- if (is.null(selected) || length(selected) == 0L) 3 else
       suppressWarnings(as.numeric(selected[[1L]]))

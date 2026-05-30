@@ -36,7 +36,7 @@ make_test_date_placeholder <- function() {
 
       rlang::expr(as.Date(!!value))
     },
-    copy_defaults = list(label = "Choose a date for {param}")
+    ui_text_defaults = list(label = "Choose a date for {param}")
   )
 }
 
@@ -64,6 +64,6 @@ make_non_inline_date_placeholder <- function() {
     keyword = "date",
     build_ui = named_date_build_ui,
     resolve_expr = named_date_resolve_expr,
-    copy_defaults = list(label = "Choose a date for {param}")
+    ui_text_defaults = list(label = "Choose a date for {param}")
   )
 }

@@ -117,7 +117,7 @@ test_that("upload errors from resolve_data() reach the panel's error sink", {
       rlang::abort("bad-source-resolve")
     },
     shortcut = TRUE,
-    copy_defaults = list(label = "Bad source")
+    ui_text_defaults = list(label = "Bad source")
   )
   withr::defer(ptr_clear_placeholder("ppBadSource"))
 
@@ -162,7 +162,7 @@ test_that("custom source keyword inherits panel-scope wiring via registry dispat
     resolve_expr = function(value, node, ...) {
       as.symbol(value)
     },
-    copy_defaults = list(label = "Choose a dataset")
+    ui_text_defaults = list(label = "Choose a dataset")
   )
   withr::defer(ptr_clear_placeholder("ppDataChooser"))
 

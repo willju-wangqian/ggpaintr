@@ -21,7 +21,7 @@
 
 local_recorder <- function(keyword,
                            hook = c("explicit_selected", "dots_only"),
-                           default_arg = NULL,
+                           positional_arg = NULL,
                            envir = parent.frame()) {
   hook <- match.arg(hook)
   sink <- new.env(parent = emptyenv())
@@ -52,7 +52,7 @@ local_recorder <- function(keyword,
     keyword     = keyword,
     build_ui    = build_ui,
     resolve_expr = function(value, ...) value,
-    default_arg = default_arg
+    positional_arg = positional_arg
   )
   withr::defer(suppressMessages(ptr_clear_placeholder(keyword)), envir = envir)
   sink
