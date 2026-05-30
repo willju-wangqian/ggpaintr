@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0025 #7 follow-up — port flag + visual reset to the shared-coordinator host SOURCE path</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0025 #7 follow-up — close the shared-vs-single SOURCE asymmetry: port the rising-edge re-render + <code>source_file_reset</code> flag to the host source path</h1>
+
+<p class="meta"><strong>Status:</strong> Ready to implement (single-instance reference behaviour + host-path gap runtime-verified by differential AppDriver probes, 2026-05-29).
+<strong>Primary goal:</strong> the shared-coordinator host source path lacks the #7 machinery the single-instance source path has. Bring it to parity: clear the stale fileInput <strong>pill</strong> on the shortcut rising edge, add the host-scope <code>source_file_reset</code> <strong>flag</strong>, and feed <code>file_reset=</code> into the host <code>resolve_upload_source</code> (env-load gate + vacate-on-empty).
+<strong>Attended side effect:</strong> the downstream consumer picker must also clear/suppress correctly once the flag/vacate is in place (§5 S, §4.2). It is a consequence to get right, NOT the headline.</p>
+
+<h2>1. Context &amp; baseline (verify before coding)</h2>
+
+<p><strong>The asymmetry (this is where the session started — <code>.scratch/ppupload-7-followup-shared-host-rerender.md</code>).</strong> #7 made the source shortcut a framework-owned <em>static</em> <code>textInput</code> and re-renders only the source widget (the fileInput) on the shortcut's <strong>rising edge</strong> (empty→non-empty), clearing the stale filename pill once a typed shortcut takes over. The data side keys off a per-source <code>state$source_file_reset</code> flag (set on that rising edge, cleared on a genuine new upload) so the env-load gate AND vacate-on-empty work without depending on the unreliable server-side <code>input[[src_id]]</code> value. This landed for the <strong>single-instance / formula-local</strong> source path only:</p>
+<ul>
+<li><code>ptr_setup_source_uis</code> (<code>R/paintr-server.R:2277-2426</code>) — the rising-edge re-render (<code>source_bump</code>) + the <code>state$source_file_reset[[raw_id]]</code> flag + its two observers.</li>
+<li><code>resolve_upload_source</code> (<code>R/paintr-server.R:1249-1382</code>) — already accepts and honours <code>file_reset</code> (NULLs the file_info → env-load + vacate branches).</li>
+</ul>
+
+<p><strong>The gap.</strong> The multi-instance <strong>shared-coordinator host</strong> source path is a parallel implementation in <code>ptr_setup_panel_sources</code> (<code>R/paintr-shared-ui.R:481-654</code>). Its own <code>renderUI</code> (532-579) has <strong>no rising-edge re-render</strong>; it never creates/drives a <code>source_file_reset</code> flag; and it calls <code>resolve_upload_source</code> (601-616) <strong>without</strong> <code>file_reset</code>. So on the host path: typing a shortcut over an uploaded file does NOT visually clear the fileInput pill, and the data-side vacate-on-empty does not fire off the re-render signal. (The data gate's <code>shortcut_active</code> branch still forces the env-load, so a typed name is still <em>used</em> correctly — the asymmetry is the visual pill + the flag-driven vacate, not raw data selection.)</p>
+
+<p><strong>Why the host port is actually simpler than single-instance.</strong> In <code>ptr_setup_source_uis</code> the flag must be published on <code>state$source_file_reset</code> and read back in two <em>other</em> functions (the per-instance pipeline binders at <code>R/paintr-server.R:1536,1614</code>). In <code>ptr_setup_panel_sources</code> the <code>renderUI</code>, the flag, the shortcut, AND the <code>resolve_upload_source</code> call all live in the same <code>local({...})</code> scope (lines 503-651) — so the flag is a local <code>reactiveVal</code> read directly at the resolve call. No cross-function plumbing.</p>
+
+<p><strong>The attended consumer side note (runtime-verified, secondary).</strong> While the flag/visual is fixed, the host downstream <code>ppVar(shared=)</code> picker must also clear/suppress correctly. Two differential probes (<code>/tmp/ppupload7-probe</code> shared vs <code>/tmp/ppupload7-single</code> single) showed: the host consumer binder runs at <code>state=NULL</code> (call site <code>R/paintr-shared-ui.R:386</code>), so (i) its identity snapshot is bound-name-blind, and (ii) a fired clear is reverted by the upload's trailing double-render. The vacate this plan adds (P3) makes <code>slot(NULL)</code> fire so the host picker re-renders empty (helps suppress), but the upload-over-typed consumer-clear needs the additional host-binder handling in §5 S. This is the side node — addressed, but downstream of the source fix.</p>
+
+<p><strong>Baseline.</strong> Branch <code>ppUpload-bug</code> at <code>fe431c4</code>; #7 single-instance source fix landed (<code>8513dbc</code>). Confirm the full serial gate is <strong>0/0/0</strong> before starting. <code>devtools::check()</code> has 15 PRE-EXISTING failures here (registry-split + pp-toggles, identical on baseline) — not a gate (memory <code>rcmd-check-preexisting-failures</code>).</p>
+
+<h2>2. Success Criteria</h2>
+<ol>
+<li><strong>(P1 — visual, PRIMARY) Pill clears on the host path.</strong> In a two-plot shared app: upload a file to <code>#shared_ds</code>, then type a non-empty shortcut into <code>#shared_ds_shortcut</code> → the fileInput <strong>no longer displays the uploaded filename</strong> (real browser, eyeball — the chromote/CDP harness cannot see the pill; see §7). Same observable as #7 Success Criterion 1, now on the shared host source widget.</li>
+<li><strong>(P1) Typing is not disrupted</strong> and the clear is <strong>asymmetric</strong>: picking a file clears the textbox (mutex, kept) but does NOT re-render/wipe the just-uploaded file display (re-render fires on the shortcut rising edge ONLY).</li>
+<li><strong>(P2 — flag) <code>source_file_reset</code> exists on the host path</strong>, keyed by the <strong>canonical source id</strong> (<code>shared_ds</code>): set TRUE on the shortcut rising edge, cleared FALSE on a genuine new upload. Verified by an instrumented probe / unit-style assertion on the resolver receiving <code>file_reset=TRUE</code>.</li>
+<li><strong>(P3 — data) vacate-on-empty + env-load gate key off the flag.</strong> After a shortcut takes over (flag TRUE), clearing the shortcut textbox to empty <strong>vacates</strong> the host source binding (the picker/plots fall back to "no source"), and the env-load gate ignores the stale lingering fileInput value — both driven by <code>file_reset</code>, not the server-side <code>input[[src_id]]</code>. Verified via AppDriver (data observable).</li>
+<li><strong>(S — attended consumer side) host <code>ppVar(shared=)</code> picker does not ride a stale column.</strong> Type an env dataset → select a column present in BOTH that dataset and the to-be-uploaded CSV → upload the CSV → the picker selection is <strong>cleared</strong> (not stale). And clearing the source (P3 vacate) leaves no stale pick.</li>
+<li><strong>No regression to the single-instance source path</strong> (<code>ptr_setup_source_uis</code>, <code>resolve_upload_source</code>) or its verified clear behaviour. Full serial authoritative gate stays <strong>0/0/0</strong>; the palmerpenguins shadow-bind test and the shared-source/consumer e2e cluster stay green.</li>
+</ol>
+
+<h2>3. Constraints</h2>
+<ul>
+<li><strong>Mirror #7, do not re-invent.</strong> The host pieces must be byte-equivalent in shape to <code>ptr_setup_source_uis</code>'s rising-edge block (same 400ms debounce window, same one-directional empty→non-empty edge, same <code>file_reset_rv(FALSE)</code> on a genuine new upload).</li>
+<li><strong>Rising-edge ONLY.</strong> A symmetric boolean dep would re-render on the falling edge (file-pick clears the textbox) and wipe the just-uploaded display — Success Criterion 2.</li>
+<li><strong>Key the flag by the canonical source id</strong> (<code>shared_ds</code>) — the same key <code>panel_sources</code> and the host_state use — NOT a bound_names layer-name key (memory <code>bound-names-key-duality</code>).</li>
+<li><strong>Keep the data gate intact.</strong> Do NOT change <code>resolve_upload_source</code>'s logic, the auto-name binding, or the env-load path. P3 only passes the existing <code>file_reset=</code> argument the resolver already supports.</li>
+<li><strong>Keep the 400ms resolve-path debounce and the file→text mutex.</strong> Only ADD the rising-edge re-render + flag; do not remove the mutex (it is the file→text half, still needed).</li>
+<li><strong>Consumer side (S) is host-scoped.</strong> Any consumer-binder change lands in <code>ptr_bind_shared_consumer_uis</code> only; do NOT alter <code>consumer_seed_decision</code>'s contract or the non-shared binder <code>ptr_setup_consumer_uis</code> (single-instance is verified-good).</li>
+</ul>
+
+<h2>4. Working / non-working examples <span class="hl">(review this section)</span></h2>
+
+<p>Two-plot shared coordinator. Boot with <code>devtools::load_all(".")</code>; an env dataset must be defined in the calling frame for a typed shortcut to resolve (<code>ptr_shared_server</code> <code>envir = parent.frame()</code>). CSV: <code>tests/testthat/fixtures/penguins.csv</code>. DOM ids: <code>#shared_ds</code> (file), <code>#shared_ds_shortcut</code> (textbox), <code>#shared_col</code> (picker).</p>
+
+<pre><code>typed_ds &lt;- data.frame(grp = rep(c("a","b"),10),
+                       body_mass_g = rnorm(20,4000,500),
+                       flipper_length_mm = rnorm(20,200,10))
+plots &lt;- c(
+  "ggplot(ppUpload(shared='ds'), aes(x = ppVar(shared='col'), y = body_mass_g)) + geom_point()",
+  "ggplot(ppUpload(shared='ds'), aes(x = ppVar(shared='col'), y = flipper_length_mm)) + geom_point()")
+panel &lt;- ptr_shared(plots)   # ui: ptr_shared_panel(panel) + two ptr_ui(); server: ptr_shared_server + two ptr_server</code></pre>
+
+<h3>4.1 PRIMARY — source-side: NON-WORKING today → WORKING after fix</h3>
+<table>
+<thead><tr><th>#</th><th>Scenario (host path)</th><th>Today (NON-working)</th><th>After fix (working)</th><th>Fix</th></tr></thead>
+<tbody>
+<tr>
+<td>P-N1</td>
+<td>Upload <code>penguins.csv</code> to <code>#shared_ds</code> → type a non-empty name into <code>#shared_ds_shortcut</code>.</td>
+<td>The <code>penguins.csv</code> filename <strong>pill stays visible</strong> on the fileInput, though the data is the typed source. <span class="bad">The single-instance app clears it; the shared host does not — the asymmetry.</span></td>
+<td>The pill <strong>clears</strong> on the rising edge (fresh same-id fileInput re-rendered); display matches the typed source.</td>
+<td>P1</td>
+</tr>
+<tr>
+<td>P-N2</td>
+<td>After a typed shortcut has taken over (flag TRUE), <strong>clear</strong> the shortcut textbox back to empty.</td>
+<td>Host source does NOT vacate (no <code>file_reset</code> wired) — it may keep treating the stale fileInput as live.</td>
+<td>Source <strong>vacates</strong> to "no source"; downstream picker/plots fall back accordingly (driven by the flag, not the stale input value).</td>
+<td>P2 + P3</td>
+</tr>
+<tr>
+<td>P-N3</td>
+<td>Pick a file <em>after</em> a typed shortcut (file→text direction).</td>
+<td>(mutex already clears the textbox)</td>
+<td>Unchanged: file-pick clears the textbox but does NOT re-render/wipe the just-uploaded display (asymmetric, rising-edge only).</td>
+<td>P1 (asymmetry guard)</td>
+</tr>
+</tbody>
+</table>
+
+<h3>4.2 SECONDARY (attended side node) — consumer-side: NON-WORKING today → WORKING after fix</h3>
+<table>
+<thead><tr><th>#</th><th>Scenario (host path)</th><th>Today (NON-working)</th><th>After fix (working)</th><th>Fix</th></tr></thead>
+<tbody>
+<tr>
+<td>S-N1</td>
+<td>Type <code>typed_ds</code> → select <code>body_mass_g</code> → upload <code>penguins.csv</code> (<code>body_mass_g</code> in BOTH).</td>
+<td><code>#shared_col</code> stays <code>body_mass_g</code> (stale rides). <span class="bad">VERIFIED by probe.</span></td>
+<td><code>#shared_col</code> clears; user re-picks against penguins.</td>
+<td>S (host-binder clear must survive the trailing double-render)</td>
+</tr>
+<tr>
+<td>S-N2</td>
+<td>After a column is selected, clear the source (P-N2 vacate).</td>
+<td>Stale column persists.</td>
+<td>Picker shows no stale selection (slot→NULL re-render + host-binder suppress).</td>
+<td>P3 + S</td>
+</tr>
+</tbody>
+</table>
+<p class="note"><strong>Proxy-trap (load-bearing) for S-N1:</strong> the selected column MUST exist in BOTH datasets (<code>body_mass_g</code>). With a column unique to <code>typed_ds</code> (e.g. <code>grp</code>), <code>selectInput</code> auto-drops the invalid option regardless of our clear logic — a <strong>false green</strong>. This trap masked the bug during static analysis.</p>
+
+<h3>4.3 WORKING today AND after (reference — must NOT regress)</h3>
+<table>
+<thead><tr><th>#</th><th>Scenario</th><th>Behaviour (before &amp; after)</th></tr></thead>
+<tbody>
+<tr>
+<td>W1</td>
+<td><strong>Single-instance source</strong> <code>ptr_app("ggplot(ppUpload(), aes(x = ppVar(), y = body_mass_g)) + geom_point()")</code>: upload, then type a shortcut.</td>
+<td>Pill clears (rising-edge re-render); flag drives vacate; consumer clears to <code>NULL</code>. <span class="ok">VERIFIED by probe.</span> This is the parity target — must stay byte-equivalent.</td>
+</tr>
+<tr>
+<td>W2</td>
+<td>Host path: pick a file (no prior shortcut).</td>
+<td>fileInput shows the filename; data resolves to the upload; mutex clears the (empty) textbox. Unaffected.</td>
+</tr>
+<tr>
+<td>W3</td>
+<td>Host path: boot env-default shortcut (no user action).</td>
+<td>Default seeds; no rising edge (boot is not empty→non-empty post-interaction), no spurious clear.</td>
+</tr>
+</tbody>
+</table>
+
+<h2>5. Implementation steps</h2>
+<p>All PRIMARY edits land in the single <code>local({...})</code> in <code>ptr_setup_panel_sources</code> (<code>R/paintr-shared-ui.R:503-651</code>), mirroring <code>ptr_setup_source_uis</code>.</p>
+<ol>
+<li><strong>P1 — rising-edge re-render (pill clear).</strong> In the <code>local()</code> scope (after <code>shortcut_input_id</code> at line 527): add <code>source_bump &lt;- shiny::reactiveVal(0L)</code>; add <code>source_bump()</code> as a dep on the first line of the <code>renderUI</code> body (line 533). The textbox is already static (panel body emits it), so re-rendering touches only the fileInput.</li>
+<li><strong>P2 — host <code>source_file_reset</code> flag.</strong> Add <code>file_reset_rv &lt;- shiny::reactiveVal(FALSE)</code> in the same scope. When <code>shortcut_input_id</code> is non-NULL: a debounced (400ms) <code>observeEvent</code> on the shortcut that, on the empty→non-empty edge, bumps <code>source_bump</code> and sets <code>file_reset_rv(TRUE)</code> (tracking <code>prev_shortcut</code>); plus an <code>observeEvent(input[[input_id]], ...)</code> that sets <code>file_reset_rv(FALSE)</code> on a genuine new file pick. Byte-shape-equal to <code>ptr_setup_source_uis</code> lines 2318-2344. (Optionally also publish on a host-state slot keyed by <code>canonical</code> if a future reader needs it; not required since the resolve call is in-scope.)</li>
+<li><strong>P3 — feed <code>file_reset=</code> into the host resolve call.</strong> At the <code>resolve_upload_source(...)</code> call (601-615) add <code>file_reset = isTRUE(file_reset_rv())</code>. The resolver's existing <code>file_reset</code> branch then NULLs the stale file_info → the env-load gate + the vacate-on-empty (A1) fall-through both fire off the re-render signal. Keep the mutex (645-647).</li>
+<li><strong>S — attended consumer clear/suppress (host binder).</strong> In <code>ptr_bind_shared_consumer_uis</code> (<code>R/paintr-server.R:2891-3256</code>), make the host-scope (<code>state=NULL</code>) new-source clear <em>survive the upload's trailing double-render</em>: add a per-picker <code>cleared_for_identity</code> latch (next to <code>last_src_identity</code>/<code>src_seen</code>, ~2937) that holds <code>selected=character(0)</code> for an identity epoch until <code>current</code> is observed emptied, and fold a vacate edge (<code>was-supplied → no cols</code>) into the same clear trigger. Optionally make the host identity bound-name-aware via a backward-compatible <code>bound_name_for=</code> param on <code>consumer_upstream_source_state</code> fed from the host <code>panel_owned_binding_name</code> map (improves env→env rename detection). Do NOT touch <code>consumer_seed_decision</code> or the non-shared binder.</li>
+<li><strong>Tests.</strong> New <code>tests/testthat/test-shared-host-source-reset.R</code>: P3 vacate + env-load gate (AppDriver data assertions), S-N1 consumer clear (overlapping column), S-N2 vacate-suppress, and a W1 single-instance guard. The visual pill (P1, P-N1) is asserted by an <strong>eyeball</strong> prototype run (harness cannot see it — §7), mirroring how #7 was validated.</li>
+<li><strong>Docs.</strong> Update <code>.scratch/ppupload-7-followup-shared-host-rerender.md</code>: mark the host source flag + visual reset DONE; note the consumer-clear was handled alongside.</li>
+</ol>
+
+<h2>6. BDD scenarios</h2>
+<pre><code>Feature: Shared-coordinator host source path reaches parity with the single-instance source path
+
+  Background:
+    Given a two-plot shared coordinator with ppUpload(shared='ds') and ppVar(shared='col')
+    And an env data frame `typed_ds` whose columns include `body_mass_g`
+    And penguins.csv whose columns also include `body_mass_g`
+
+  Scenario: P1 — typing a shortcut over an uploaded file clears the fileInput pill (host)
+    Given I uploaded penguins.csv to #shared_ds (the filename pill shows)
+    When I type a non-empty name into #shared_ds_shortcut
+    Then the #shared_ds fileInput no longer displays the uploaded filename   # eyeball; harness-blind
+    And typing is not disrupted (the textInput is static)
+
+  Scenario: P1 — picking a file does NOT wipe the just-uploaded display (asymmetry)
+    Given a typed shortcut is active
+    When I pick a file in #shared_ds
+    Then the textbox is cleared by the mutex
+    But the source widget is NOT re-rendered and the new filename remains shown
+
+  Scenario: P3 — clearing the shortcut vacates the host source (flag-driven)
+    Given a typed shortcut took over (source_file_reset is TRUE for `shared_ds`)
+    When I clear #shared_ds_shortcut to ""
+    Then the host source binding vacates (no stale fileInput value is treated as live)
+    And resolve_upload_source received file_reset = TRUE
+
+  Scenario: S — upload over a typed source clears the consumer picker (overlapping column)
+    Given I typed "typed_ds" and set #shared_col to "body_mass_g"
+    When I upload penguins.csv to #shared_ds
+    Then get_value(input="shared_col") is empty (NOT "body_mass_g")
+    And both plots still draw without inline error
+
+  Scenario: W1 — single-instance source path is unchanged (must stay green)
+    Given a single-instance ppUpload()+ppVar() app
+    When I upload after typing, then inspect the picker
+    Then the pill clears, the source vacates on empty, and the picker clears to NULL
+</code></pre>
+
+<h2>7. Why the harness can't prove P1 (read before claiming done)</h2>
+<p>The fileInput filename pill is rendered client-side by the browser's native file widget; chromote/CDP <code>get_html</code>/<code>get_value</code> cannot observe whether the pill text is shown (exactly as documented for #7's plan §6). P1 / P-N1 / P-N3 are therefore validated by an <strong>eyeball run of a throwaway prototype in a real browser</strong>, not by an AppDriver assertion. The flag (P2), the vacate + env-load gate (P3), and the consumer clear (S) ARE harness-observable via data/value assertions and carry the AppDriver regression. Do not claim P1 done off a green harness alone — run it and look (memory <code>feedback-runtime-claim-must-run-app</code>, <code>feedback-visual-before-css-decision</code>).</p>
+
+<h2>8. Out of scope</h2>
+<ul>
+<li>Any change to the single-instance source path (<code>ptr_setup_source_uis</code>) or <code>resolve_upload_source</code>'s internal logic — P3 only passes the existing argument.</li>
+<li><code>consumer_seed_decision</code> contract and the non-shared consumer binder.</li>
+<li>The pre-existing 15 <code>R CMD check</code> failures (registry-split + pp-toggles).</li>
+</ul>
+
+<h2>9. Dependencies</h2>
+<ul>
+<li>#7 single-instance source fix (commit <code>8513dbc</code>) landed — provides the static shortcut + the reference implementation to mirror.</li>
+<li>Browser e2e stack: <code>shinytest2</code> + <code>chromote</code> + Chrome (present locally, verified 2026-05-29).</li>
+<li>No new package dependency; no NAMESPACE/roxygen change (all touched functions are internal helpers).</li>
+</ul>
+
+<h2>10. Definition of Done (authoritative — copy-pasteable, with proxy traps)</h2>
+
+<p><strong>Gate 0 — P1 eyeball (cannot be automated):</strong> run the prototype shared app in a real browser; upload → type shortcut → confirm the <code>#shared_ds</code> filename pill clears and typing is undisturbed; pick a file after a shortcut → confirm the display is NOT wiped. Record the verdict (as #7 did under <code>.scratch/</code>).</p>
+
+<p><strong>Gate 1 — new regression test (browser ON):</strong></p>
+<pre><code>Rscript -e 'devtools::test(filter="shared-host-source-reset", reporter="progress", stop_on_failure=FALSE)'</code></pre>
+<p>Expected: <code>FAIL 0 / ERROR 0 / SKIP 0</code> with P3-vacate, P3-env-load-gate, S-N1 (overlapping column), S-N2, and W1 assertions present and passing.</p>
+
+<p><strong>Gate 2 — blast-radius e2e cluster (shared runtime change):</strong></p>
+<pre><code>Rscript -e 'devtools::test(filter="shared-source-panel-multi|adr15-consumer-binding|shared-consumer|vacate-on-empty", reporter="progress", stop_on_failure=FALSE)'</code></pre>
+<p>Expected: <code>FAIL 0 / ERROR 0 / SKIP 0</code>.</p>
+
+<p><strong>Gate 3 — full authoritative serial suite (merge boundary):</strong></p>
+<pre><code>Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'</code></pre>
+<p>Expected: <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code> (N ≥ ~3388). <strong>0/0/0 is the gate, not the count.</strong></p>
+
+<p class="note"><strong>Proxy traps — do not be fooled:</strong></p>
+<ul>
+<li><strong>P1 harness-blind</strong> (§7): a green AppDriver run does NOT prove the pill cleared — eyeball it.</li>
+<li><strong>Unique-column false green</strong> (§4.2 note): S-N1 must use <code>body_mass_g</code> (in both datasets), never a unique column.</li>
+<li><strong>No <code>NOT_CRAN</code></strong>: raw <code>testthat::test_dir()</code> → <code>skip_on_cran()</code> → browser tests SKIP; "green, SKIP n" is NOT the gate. Use <code>devtools::test()</code>.</li>
+<li><strong><code>app$get_values()</code></strong> 500s on custom-renderer apps — assert with targeted <code>get_value()</code>/<code>get_html("#id")</code>.</li>
+<li><strong>boot-tail race</strong>: <code>wait_for_idle()</code> after each <code>set_inputs(..., wait_=FALSE)</code>/<code>upload_file()</code> before asserting.</li>
+<li><strong><code>devtools::check()</code> is NOT this plan's gate</strong> — 15 pre-existing failures (memory <code>rcmd-check-preexisting-failures</code>); <code>devtools::test()</code> 0/0/0 is authoritative.</li>
+</ul>
+
+<h2>11. Independence, integration &amp; out-of-scope discipline</h2>
+<p><strong>Piece tiering (audited 2026-05-29):</strong> two pieces, both <strong>load-bearing</strong> (full 9-item contract) — Piece 1 = host source reset (P1+P2+P3, one <code>local()</code> scope in <code>ptr_setup_panel_sources</code>); Piece 2 = attended consumer clear/suppress (S, <code>ptr_bind_shared_consumer_uis</code>). Tiering is rigor-scoping only; integration is one commit.</p>
+<p>Two touched source files (<code>R/paintr-shared-ui.R</code> primary; <code>R/paintr-server.R</code> for the secondary host-binder consumer clear) + one new test file + one scratch-doc update. No parallel groups. The fix is host-scoped and additive (mirrors existing single-instance code), so it cannot regress the verified single-instance source/consumer behaviour; Gate 3 + the W1 guard prove that invariant. Each piece is revertable at commit granularity (one commit per piece, <code>git revert</code> per piece).</p>
+<p><strong>Independence clause.</strong> Any "done / green / tests pass / scope clean" from an implementer, sub-agent, worktree session, or a prior turn is a <em>claim to verify, never proof</em> — it is the reporter's belief produced by the same fallible process. The integrator does not trust a status block: before treating this plan as done, the integrator <strong>independently re-runs the Definition of Done</strong> — Gate 3 (<code>devtools::test()</code> serial → <code>0/0/0</code>) and Gate 0 (eyeball the host fileInput pill in a real browser, since the harness is blind to it) — and sees the expected output first-hand. A relevant-e2e-only pass never grounds a "done" claim.</p>
+<p><strong>Out-of-scope discipline (surface, don't absorb).</strong> Beyond the static §8 list: any out-of-scope issue discovered <em>while implementing</em> — e.g. the X1 cosmetic-pill facet on a different widget surface, a sibling untouched gate, an adjacent bug — is <strong>surfaced as a follow-up scratch note</strong> (append to <code>.scratch/ppupload-7-followup-shared-host-rerender.md</code> or a new <code>.scratch/</code> entry) and NOT silently fixed, widened, or papered over. This mirrors the originating note's "surface, don't absorb" clause; scope creep here is exactly how the seeding/binding/source iceberg bugs spread across sessions.</p>
+
+<h2>12. Files to read first (ordered)</h2>
+<ol>
+<li><code>R/paintr-shared-ui.R:481-654</code> — <code>ptr_setup_panel_sources</code> (P1/P2/P3 land here).</li>
+<li><code>R/paintr-server.R:2277-2426</code> — <code>ptr_setup_source_uis</code> (the reference #7 block to mirror).</li>
+<li><code>R/paintr-server.R:1249-1382</code> — <code>resolve_upload_source</code> (the <code>file_reset</code> branch P3 triggers).</li>
+<li><code>R/paintr-server.R:2891-3256</code> — <code>ptr_bind_shared_consumer_uis</code> (secondary S).</li>
+<li><code>.scratch/ppupload-7-followup-shared-host-rerender.md</code> — the originating follow-up note (the three pieces to port).</li>
+<li><code>/tmp/ppupload7-probe/</code> + <code>/tmp/ppupload7-single/</code> — differential probes grounding the consumer side note.</li>
+<li>Memories: <code>bound-names-key-duality</code>, <code>feedback-runtime-claim-must-run-app</code>, <code>shinytest2-appdir-pkgload</code>, <code>e2e-assertion-weakness-lens</code>.</li>
+</ol>
+
+<!-- implementable: PASS date=2026-05-29 gate="Rscript -e 'devtools::test(reporter=\"progress\", stop_on_failure=FALSE)'" hash=853f818a0e1d -->
+</body>
+</html>
