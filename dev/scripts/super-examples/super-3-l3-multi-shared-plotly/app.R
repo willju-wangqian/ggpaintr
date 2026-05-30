@@ -66,9 +66,9 @@ formula_b_str <- paste(deparse(formula_b), collapse = "\n")
 # pressure surface.
 shared <- ptr_shared(
   formulas  = list(formula_a_str, formula_b_str),
-  shared_ui = list(
-    linked = function(id) shiny::selectInput(id, "Linked color", names(mtcars))
-  )
+  # shared_ui = list(
+  #   linked = function(id) shiny::selectInput(id, "Linked color", names(mtcars))
+  # )
 )
 
 ui <- ptr_ui_page(

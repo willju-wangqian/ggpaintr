@@ -94,6 +94,8 @@ smooth_template <- rlang::expr(
   )
 )
 
+df_rug <- mtcars
+
 # --- The app --------------------------------------------------------------
 # G2 BARE-EXPRESSION formula carrying:
 #   - ppSample("iris") at root data        (custom D3 source)

@@ -32,7 +32,7 @@ formula1 <- expr(
       dplyr::filter(ppExpr(hp >= 75)) |>
       dplyr::mutate(adj = ppExpr(mpg / wt)) |>
       ppVerbSwitch(dplyr::slice_max(mpg, n = 15), TRUE, label = "Top 15 by mpg"),
-    aes(x = ppVar(mpg), y = ppVar(adj), color = (ppVar(!!color_var, shared = "grp")))
+    aes(x = ppVar(mpg), y = ppVar(adj), color = ppVar(!!color_var, shared = "grp"))
   ) +
     geom_point(size = ppNum(2), alpha = ppNum(0.7)) +
     geom_smooth(method = ppText("lm"), linewidth = ppNum(!!my_linewidth, shared = "lw")) +
