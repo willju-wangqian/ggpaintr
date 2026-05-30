@@ -32,7 +32,7 @@ Pipeline: **stamp → summarize-knowledge → harvest-finding → process-findin
 
 ### Recall — rebuild understanding from the index
 
-When you need to rebuild knowledge about a topic (a subsystem, a past bug, *why* something is built a certain way), **consult the index first** before re-deriving it from scratch: `grep -i "<topic>" .claude/harvest-findings/INDEX.md` to find the label(s), then `grep -rl "<label>" .claude/harvest-findings/raw_knowledge/` (or read the finding ids listed under that label) to pull the verified findings. The pipeline above *writes* hard-won understanding; this is how you *read* it back.
+When you need to rebuild knowledge about a topic (a subsystem, a past bug, *why* something is built a certain way), **consult the index first** before re-deriving it from scratch. On demand: **`/recall-finding <topic>`** — it matches the topic against the labels + finding text, pulls the verified findings (with sources + verdicts), and tells you plainly when the index has nothing. Manual fallback: `grep -i "<topic>" .claude/harvest-findings/INDEX.md` → label, then `grep -rl "<label>" .claude/harvest-findings/raw_knowledge/` → the findings. The pipeline above *writes* hard-won understanding; this is how you *read* it back.
 
 ### Folders (`.claude/harvest-findings/`)
 
