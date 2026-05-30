@@ -9,7 +9,8 @@
 
 <h1>ADR 0026 fix — host env→env shortcut rename never clears the consumer picker</h1>
 
-<p><strong>Status:</strong> <em>Open bug — fresh-session handoff.</em> Source-confirmed this session (2026-05-30), NOT test-proven, NOT fixed. This is the immediate next item (the user chose to fix this before tackling the broader cross-file consolidation, <a href="0026-followup-cross-file.html">ADR26-followup-cross-file</a>). Context-rebuild doc; verify every file:line with <code>find_symbol</code> (<code>paintr-server.R</code> drifts).</p>
+<p><strong>Status:</strong> <em>FIXED — 2026-05-30 (this session).</em> Fix #2 (host-scoped shortcut-value in the consumer-clear identity) landed and is runtime-verified: the bug's e2e was written red on HEAD, then turned green by the fix; the seeding/binding/source e2e blast-radius cluster stays green (single-instance, host-upload, boot/spec-seed all unchanged). See <a href="#resolution">Resolution</a> below. The broader cross-file consolidation (<a href="0026-followup-cross-file.html">ADR26-followup-cross-file</a>) remains open and is unaffected by this fix. <em>(Original handoff prose retained below for the record.)</em></p>
+<p><strong>Original status (handoff):</strong> <em>Open bug — fresh-session handoff.</em> Source-confirmed this session (2026-05-30), NOT test-proven, NOT fixed. This is the immediate next item (the user chose to fix this before tackling the broader cross-file consolidation, <a href="0026-followup-cross-file.html">ADR26-followup-cross-file</a>). Context-rebuild doc; verify every file:line with <code>find_symbol</code> (<code>paintr-server.R</code> drifts).</p>
 <p><strong>Date:</strong> 2026-05-30. <strong>Relates to:</strong> <a href="0025-source-shortcut-rename-and-upload-auto-name.html">ADR 0025</a> §3b (the consumer-clear-on-new-source contract), <a href="0024-source-companion-data-loading-entry-point.html">ADR 0024</a> (the shortcut is a data-loading entry point — typing an env name loads that frame), <a href="0023-panel-owned-shared-sources-end-to-end.html">ADR 0023</a> + <a href="0006-single-server-entry-l3-ui-only.html">ADR 0006</a> (panel-owned sources; <code>state=NULL</code> at host scope).</p>
 
 <h2>The bug, in plain language</h2>
@@ -39,6 +40,30 @@
 <p>For an env→env rename: <code>dp = ""</code> at both ends (no file) AND <code>bn = ""</code> (host scope). So <code>identity = "shared_ds##"</code> is <strong>constant across the rename</strong> → <code>changed_since_last</code> is always FALSE → the clear never fires. The ADR-0025-#7 <code>cleared_for_identity</code> latch (<code>server.R:3300–3308</code>) cannot help — it only <em>re-asserts</em> an existing clear edge across the upload double-render; the base clear never trips, so there is nothing to hold.</p>
 
 <p><strong>Why single-instance is immune:</strong> there <code>state</code> is real, so <code>bn</code> reads the live bound name, which flips when the rename binds a new frame → identity changes → clear fires.</p>
+
+<h2 id="resolution">Resolution (landed 2026-05-30)</h2>
+
+<p><strong>Chosen: Fix #2 (host-scoped shortcut value in the identity).</strong> One-line semantic change in <code>consumer_upstream_source_state()</code> (<code>R/paintr-server.R</code>, the <code>id_str</code> assignment that replaced the bare <code>paste0(sid, "#", dp, "#", bn)</code>):</p>
+<pre><code>id_str &lt;- if (is.null(state)) {
+  paste0(sid, "#", dp, "#", bn, "#", sc)   # host scope: append the shortcut value
+} else {
+  paste0(sid, "#", dp, "#", bn)            # single-instance: byte-identical, untouched
+}
+ids &lt;- c(ids, id_str)</code></pre>
+<p><code>sc</code> (the trimmed shortcut textbox value) was already computed in the function but deliberately excluded from the identity. Appending it <strong>only when <code>is.null(state)</code></strong> makes an env→env rename flip the identity at host scope, so <code>consumer_clear_for_new_source()</code> trips and the stale pick clears. The gate keeps the single-instance identity string byte-identical, so that path's verified clear behaviour is provably untouched.</p>
+
+<p><strong>Why the ADR's "why was <code>sc</code> left out?" worry was unfounded:</strong> the §3b boot contracts are guarded <em>upstream</em> of the identity, not by it. Boot spec-seed cannot clear because <code>changed_since_last</code> is <code>src_seen &amp;&amp; …</code> and <code>src_seen</code> is FALSE on the first render. Boot env-default where the textbox equals the default cannot clear because <code>user_supplied</code> requires <code>nzchar(sc) &amp;&amp; !identical(sc, def)</code>, already FALSE when <code>sc == def</code>. Adding <code>sc</code> to the identity touches neither gate.</p>
+
+<p><strong>The latch question is settled (empirically).</strong> An env→env rename has no file upload, so there is no trailing double-render for the host <code>cleared_for_identity</code> latch to fight: the base clear trips once and a subsequent legitimate re-pick survives. Verified by an explicit "re-pick after the clear survives" assertion in the e2e (not just the draw tail).</p>
+
+<h3>Verification</h3>
+<ul>
+<li><strong>Red first (teeth):</strong> new e2e <code>tests/testthat/test-adr26-host-env-rename-clear.R</code> + fixture <code>tests/testthat/fixtures/vignette-apps/adr26-host-env-rename-clear/</code> (two env frames, both with the overlapping <code>body_mass_g</code> column; <code>grp</code>/<code>trt</code> unique markers prove each frame loaded). On HEAD before the fix it failed with <code>got: "body_mass_g"</code> — the stale pick riding onto the new frame. Overlapping column defeats the <code>selectInput</code> auto-drop false-green.</li>
+<li><strong>Green after:</strong> the same file passes <code>FAIL 0 / PASS 12</code>, including the clear, the latch re-pick-survives assertion, and the same-frame-retype boundary (no spurious clear on every keystroke).</li>
+<li><strong>Blast radius (shared-runtime change):</strong> non-e2e suite <code>FAIL 0 / PASS 2720</code>; seeding/binding/source e2e cluster <code>FAIL 0 / SKIP 0 / PASS 395</code> (single-instance <code>source-default-fallback</code>/<code>upload-clears-stale-cache</code>, host-upload <code>shared-host-source-reset</code>, boot/spec-seed, vacate, source-shortcut-stage-toggle).</li>
+<li><strong>Anticipated risk that did NOT materialise:</strong> appending <code>sc</code> fires a clear on the first shortcut keystroke at host scope, but no boot-seeded/spec-seeded host default was blanked — the spec-seed e2e stay green.</li>
+<li><strong>Full authoritative gate:</strong> <code>PASS 3475 / SKIP 0</code> (parallel, 4 CPUs). Two parallel-only failures in <code>test-spec-seed-derived-column-browser.R</code> (the non-shared, <code>state != NULL</code> path my change leaves byte-identical) were the documented seeding/derived-column boot-tail race under CPU contention — re-confirmed green serially (<code>FAIL 0 / SKIP 0 / PASS 11</code> for the <code>spec-seed-derived-column</code> cluster, including its shared sibling), so a genuine <code>0 FAIL / 0 ERROR / 0 SKIP</code>.</li>
+</ul>
 
 <h2>Fix candidates (evaluate, don't assume)</h2>
 

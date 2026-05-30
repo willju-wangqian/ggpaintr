@@ -2618,7 +2618,21 @@ consumer_upstream_source_state <- function(src_nodes, read_input, state,
       if (is.null(v) || length(v) == 0L) "" else trimws(as.character(v)[[1L]])
     } else ""
     def <- trimws(as.character(s$default %||% ""))
-    ids <- c(ids, paste0(sid, "#", dp, "#", bn))
+    # ADR 0026: at host scope (`state = NULL`) the identity is bound-name-blind
+    # (`bn` always "" -- no `state$bound_names` to read) AND an env shortcut
+    # carries no upload datapath (`dp` always ""), so an env->env shortcut
+    # RENAME leaves `sid#dp#bn` constant and the §3b new-source clear never
+    # fires (the stale column pick rides onto the new frame). Append the
+    # trimmed shortcut value `sc` ONLY at host scope so a rename flips the
+    # identity. Gated on `is.null(state)`: at single-instance scope `bn` is the
+    # live bound name and already flips on a rename, so its identity string --
+    # and the verified clear behaviour built on it -- stays byte-identical.
+    id_str <- if (is.null(state)) {
+      paste0(sid, "#", dp, "#", bn, "#", sc)
+    } else {
+      paste0(sid, "#", dp, "#", bn)
+    }
+    ids <- c(ids, id_str)
     if (nzchar(dp)) uploaded <- TRUE
     if (nzchar(dp) || (nzchar(sc) && !identical(sc, def))) supplied <- TRUE
   }
