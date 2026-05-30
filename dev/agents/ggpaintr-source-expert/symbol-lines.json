@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-05-30T04:11:13-0500",
-  "git_head": "9604978",
+  "generated_at": "2026-05-30T04:24:16-0500",
+  "git_head": "b3fa65a",
   "n_files": 34,
   "n_symbols": 498,
   "symbols": {
@@ -599,27 +599,27 @@
       "start_line": 192,
       "end_line": 195
     },
-    "ptr_default_symbol_or_string": {
+    "ptr_arg_symbol_or_string": {
       "file": "R/paintr-default-args.R",
       "start_line": 201,
       "end_line": 213
     },
-    "ptr_default_string": {
+    "ptr_arg_string": {
       "file": "R/paintr-default-args.R",
       "start_line": 217,
       "end_line": 224
     },
-    "ptr_default_numeric": {
+    "ptr_arg_numeric": {
       "file": "R/paintr-default-args.R",
       "start_line": 228,
       "end_line": 236
     },
-    "ptr_default_numeric_vector": {
+    "ptr_arg_numeric_vector": {
       "file": "R/paintr-default-args.R",
       "start_line": 240,
       "end_line": 261
     },
-    "ptr_default_expression": {
+    "ptr_arg_expression": {
       "file": "R/paintr-default-args.R",
       "start_line": 268,
       "end_line": 293

@@ -18,7 +18,7 @@ ppCoef <- ptr_define_placeholder_value(
     rlang::expr(!!value)
   },
   copy_defaults = list(label = "Coef for {param}"),
-  default_arg   = ptr_default_numeric()
+  default_arg   = ptr_arg_numeric()
 )
 
 ppFactor <- ptr_define_placeholder_consumer(
@@ -36,7 +36,7 @@ ppFactor <- ptr_define_placeholder_consumer(
     rlang::sym(value)
   },
   copy_defaults = list(label = "Factor for {param}"),
-  default_arg   = ptr_default_symbol_or_string()
+  default_arg   = ptr_arg_symbol_or_string()
 )
 
 ppSample <- ptr_define_placeholder_source(
@@ -59,7 +59,7 @@ ppSample <- ptr_define_placeholder_source(
     get(x, envir = asNamespace("datasets"))
   },
   copy_defaults = list(label = "Sample for {param}"),
-  default_arg   = ptr_default_string()
+  default_arg   = ptr_arg_string()
 )
 
 smooth_template <- rlang::expr(

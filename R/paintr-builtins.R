@@ -115,7 +115,7 @@ ptr_builtin_num_resolve_expr <- function(value, node, ...) {
 ptr_builtin_expr_build_ui <- function(node, label = NULL, copy = NULL,
                                       selected = NULL, ...) {
   # PLAN-07: seed initial textarea value from `selected`. Strings render
-  # verbatim; a language default (from `ptr_default_expression`) is
+  # verbatim; a language default (from `ptr_arg_expression`) is
   # deparsed back to source text.
   initial <- if (is.null(selected) ||
                  (is.atomic(selected) && length(selected) == 0L)) {
@@ -333,7 +333,7 @@ ptr_register_builtins <- function() {
     keyword = "ppText",
     build_ui = ptr_builtin_text_build_ui,
     resolve_expr = ptr_builtin_text_resolve_expr,
-    default_arg = ptr_default_string(),
+    default_arg = ptr_arg_string(),
     copy_defaults = list(
       label = "Enter a value for {param}",
       placeholder = "Plain text - quotes are added automatically"
@@ -343,14 +343,14 @@ ptr_register_builtins <- function() {
     keyword = "ppNum",
     build_ui = ptr_builtin_num_build_ui,
     resolve_expr = ptr_builtin_num_resolve_expr,
-    default_arg = ptr_default_numeric(),
+    default_arg = ptr_arg_numeric(),
     copy_defaults = list(label = "Enter a number for {param}")
   )
   expr_fn <- ptr_define_placeholder_value(
     keyword = "ppExpr",
     build_ui = ptr_builtin_expr_build_ui,
     resolve_expr = ptr_builtin_expr_resolve_expr,
-    default_arg = ptr_default_expression(),
+    default_arg = ptr_arg_expression(),
     copy_defaults = list(label = "Enter an expression for {param}")
   )
   var_fn <- ptr_define_placeholder_consumer(
@@ -358,7 +358,7 @@ ptr_register_builtins <- function() {
     build_ui = ptr_builtin_var_build_ui,
     resolve_expr = ptr_builtin_var_resolve_expr,
     validate_input = ptr_builtin_var_validate_input,
-    default_arg = ptr_default_symbol_or_string(),
+    default_arg = ptr_arg_symbol_or_string(),
     copy_defaults = list(
       label = "Pick a column for {param}",
       empty_text = "Choose one column"
@@ -369,7 +369,7 @@ ptr_register_builtins <- function() {
     build_ui = ptr_builtin_upload_build_ui,
     resolve_data = ptr_builtin_upload_resolve_data,
     shortcut = TRUE,
-    default_arg = ptr_default_symbol_or_string(),
+    default_arg = ptr_arg_symbol_or_string(),
     copy_defaults = list(label = "Upload data for {param}")
   )
   # ADR 0020 structural keywords. These never become `ptr_ph_*` nodes;

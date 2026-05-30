@@ -497,7 +497,7 @@ ptr_registry_register <- function(entry) {
 #'     if (length(value) != 1L || !is.finite(value)) return(NULL)
 #'     value / 100
 #'   },
-#'   default_arg = ptr_default_numeric(),  # accept ppPct(50)-style defaults
+#'   default_arg = ptr_arg_numeric(),  # accept ppPct(50)-style defaults
 #'   copy_defaults = list(label = "Percent for {param}")
 #' )
 #' ptr_clear_placeholder("pct")

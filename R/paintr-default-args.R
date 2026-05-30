@@ -1,4 +1,4 @@
-#' Default-argument validator helpers for placeholder definitions
+#' Argument validators for placeholder definitions (`ptr_arg_*`)
 #'
 #' These helpers are factories that return a closure of shape
 #' `function(arg_expr) -> canonical_value | abort()`. The closure validates
@@ -7,24 +7,24 @@
 #'
 #' The validators operate on AST only: they do not call `eval()`, `parse()`,
 #' or any deparse-and-reparse cycle on their input. The two numeric helpers
-#' (`ptr_default_numeric()` and `ptr_default_numeric_vector()`) walk the AST
+#' (`ptr_arg_numeric()` and `ptr_arg_numeric_vector()`) walk the AST
 #' against the constant-fold allowlist registry (see
 #' [ptr_register_constant_fold()]) and then evaluate in a sealed environment
 #' whose only bindings are the registered names.
 #'
 #' Symbol policy is per-helper:
 #'
-#' * `ptr_default_symbol_or_string()` accepts a bareword symbol (returned as
+#' * `ptr_arg_symbol_or_string()` accepts a bareword symbol (returned as
 #'   its character name, preserving non-syntactic / backticked names) or any
 #'   single string literal (including the empty string).
-#' * `ptr_default_string()` accepts only a single string literal (including
+#' * `ptr_arg_string()` accepts only a single string literal (including
 #'   the empty string); rejects symbols and numbers.
-#' * `ptr_default_numeric()` accepts any AST whose every node is a syntactic
+#' * `ptr_arg_numeric()` accepts any AST whose every node is a syntactic
 #'   literal or a registered constant-fold name; the result must be a
 #'   length-one non-NA numeric.
-#' * `ptr_default_numeric_vector(length = NULL)` is the vector analogue, with
+#' * `ptr_arg_numeric_vector(length = NULL)` is the vector analogue, with
 #'   an optional `length` check.
-#' * `ptr_default_expression()` is a verbatim store: it returns its input
+#' * `ptr_arg_expression()` is a verbatim store: it returns its input
 #'   unchanged so it can later be evaluated in the data context. As a
 #'   convenience it emits a one-shot warning if the user wraps the
 #'   expression in `quote()`, `bquote()`, `rlang::ppExpr()`, or `rlang::quo()`
@@ -34,17 +34,17 @@
 #'   vector. `NULL` (the default) imposes no length check.
 #' @return A closure that takes an unevaluated expression and returns the
 #'   canonical default value, or aborts.
-#' @name ptr_default_args
+#' @name ptr_arg_validators
 #' @examples
-#' is_symbol_ok <- ptr_default_symbol_or_string()
+#' is_symbol_ok <- ptr_arg_symbol_or_string()
 #' is_symbol_ok(quote(mpg))
 #' is_symbol_ok("mpg")
 #'
-#' is_num <- ptr_default_numeric()
+#' is_num <- ptr_arg_numeric()
 #' is_num(5)
 #' is_num(quote(2 * pi))
 #'
-#' is_vec <- ptr_default_numeric_vector(length = 2L)
+#' is_vec <- ptr_arg_numeric_vector(length = 2L)
 #' is_vec(quote(c(0, 1)))
 NULL
 
@@ -70,8 +70,8 @@ ptr_constant_fold_env_get <- function() {
 
 #' Constant-fold allowlist registry
 #'
-#' The numeric default-argument validators ([ptr_default_numeric()] and
-#' [ptr_default_numeric_vector()]) walk the placeholder's default-argument
+#' The numeric default-argument validators ([ptr_arg_numeric()] and
+#' [ptr_arg_numeric_vector()]) walk the placeholder's default-argument
 #' AST against an allowlist of function and constant names. Authors can
 #' extend the allowlist with [ptr_register_constant_fold()] when their
 #' placeholder definitions need additional pure operators.
@@ -94,7 +94,7 @@ ptr_constant_fold_env_get <- function() {
 #' @name ptr_constant_fold_registry
 #' @examples
 #' ptr_register_constant_fold("log10", log10)
-#' ptr_default_numeric()(quote(log10(100)))
+#' ptr_arg_numeric()(quote(log10(100)))
 #' ptr_clear_constant_fold("log10")
 NULL
 
@@ -196,9 +196,9 @@ ptr_constant_fold <- function(expr) {
 
 # ---- Validator factories ---------------------------------------------------
 
-#' @rdname ptr_default_args
+#' @rdname ptr_arg_validators
 #' @export
-ptr_default_symbol_or_string <- function() {
+ptr_arg_symbol_or_string <- function() {
   function(arg_expr) {
     if (rlang::is_symbol(arg_expr)) {
       return(rlang::as_string(arg_expr))
@@ -212,9 +212,9 @@ ptr_default_symbol_or_string <- function() {
   }
 }
 
-#' @rdname ptr_default_args
+#' @rdname ptr_arg_validators
 #' @export
-ptr_default_string <- function() {
+ptr_arg_string <- function() {
   function(arg_expr) {
     if (rlang::is_string(arg_expr)) {
       return(arg_expr)
@@ -223,9 +223,9 @@ ptr_default_string <- function() {
   }
 }
 
-#' @rdname ptr_default_args
+#' @rdname ptr_arg_validators
 #' @export
-ptr_default_numeric <- function() {
+ptr_arg_numeric <- function() {
   function(arg_expr) {
     val <- ptr_constant_fold(arg_expr)
     if (!is.numeric(val) || length(val) != 1L || is.na(val)) {
@@ -235,9 +235,9 @@ ptr_default_numeric <- function() {
   }
 }
 
-#' @rdname ptr_default_args
+#' @rdname ptr_arg_validators
 #' @export
-ptr_default_numeric_vector <- function(length = NULL) {
+ptr_arg_numeric_vector <- function(length = NULL) {
   if (!is.null(length)) {
     if (!is.numeric(length) || base::length(length) != 1L ||
         is.na(length) || length < 0L) {
@@ -263,9 +263,9 @@ ptr_default_numeric_vector <- function(length = NULL) {
 # Wrapper-call heads that trigger the A5.b convenience warning.
 .ptr_expr_wrapper_names <- c("quote", "bquote", "expr", "quo")
 
-#' @rdname ptr_default_args
+#' @rdname ptr_arg_validators
 #' @export
-ptr_default_expression <- function() {
+ptr_arg_expression <- function() {
   function(arg_expr) {
     if (rlang::is_call(arg_expr)) {
       head <- arg_expr[[1L]]

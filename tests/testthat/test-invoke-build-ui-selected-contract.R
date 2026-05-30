@@ -130,7 +130,7 @@ test_that("U4: explicit selected value is passed through unchanged", {
 
 # ---- U5 -------------------------------------------------------------------
 test_that("U5: language `node$default` is deparsed before reaching the hook", {
-  # `ptr_default_expression()` stores the expression as a language object on
+  # `ptr_arg_expression()` stores the expression as a language object on
   # `node$default`; invoke_build_ui must deparse before binding it, or
   # `do.call` would evaluate the call when binding to the formal.
   sink <- local_recorder("ppRecU5")

@@ -850,7 +850,7 @@ invoke_build_ui <- function(node, ui_text, layer_name,
   # Inject `node$default` into `selected` only when the caller omitted
   # `selected`. The widget-seeding contract is documented authoritatively
   # at ?ptr_define_placeholder_value (Widget-seeding contract section).
-  # Language defaults (ptr_default_expression) are deparsed here so
+  # Language defaults (ptr_arg_expression) are deparsed here so
   # do.call binds a string rather than evaluating the call.
   hook_accepts_dots <- "..." %in% fmls
   if (hook_accepts_dots || "selected" %in% fmls) {

@@ -29,7 +29,7 @@ ppPower <- ptr_define_placeholder_value(
           !is.na(value) && value >= 0 && value <= 1) TRUE
     else "must be in [0,1]"
   },
-  default_arg = ptr_default_numeric()
+  default_arg = ptr_arg_numeric()
 )
 
 ppMultiVar <- ptr_define_placeholder_consumer(
@@ -55,7 +55,7 @@ ppMultiVar <- ptr_define_placeholder_consumer(
   },
   # default_arg accepts a positional bare symbol so the canonical formula can
   # carry a default (`ppMultiVar(cyl)`) and remain Path-B evaluable (ADR-0016).
-  default_arg = ptr_default_symbol_or_string()
+  default_arg = ptr_arg_symbol_or_string()
 )
 
 ptr_app(

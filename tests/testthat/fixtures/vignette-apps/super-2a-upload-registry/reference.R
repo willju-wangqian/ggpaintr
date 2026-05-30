@@ -14,7 +14,7 @@ ppPower <- ptr_define_placeholder_value(
                         min = 0, max = 1, step = 0.01)
   },
   resolve_expr = function(value, ...) rlang::call2("^", value, 2),
-  default_arg = ptr_default_numeric()
+  default_arg = ptr_arg_numeric()
 )
 
 ppMultiVar <- ptr_define_placeholder_consumer(
@@ -30,7 +30,7 @@ ppMultiVar <- ptr_define_placeholder_consumer(
     if (length(value) == 1L) return(rlang::sym(value))
     rlang::call2("interaction", !!!rlang::syms(value))
   },
-  default_arg = ptr_default_symbol_or_string()
+  default_arg = ptr_arg_symbol_or_string()
 )
 
 df_main <- mtcars

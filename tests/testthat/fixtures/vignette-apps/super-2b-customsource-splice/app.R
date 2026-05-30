@@ -25,7 +25,7 @@ ppCoef <- ptr_define_placeholder_value(
     rlang::expr(!!value)
   },
   copy_defaults = list(label = "Coef for {param}"),
-  default_arg   = ptr_default_numeric()
+  default_arg   = ptr_arg_numeric()
 )
 
 # ppFactor: CONSUMER role. Single-select picker -> bare symbol via rlang::sym.
@@ -46,12 +46,12 @@ ppFactor <- ptr_define_placeholder_consumer(
     rlang::sym(value)
   },
   copy_defaults = list(label = "Factor for {param}"),
-  default_arg   = ptr_default_symbol_or_string()
+  default_arg   = ptr_arg_symbol_or_string()
 )
 
 # ppSample: SOURCE role. selectInput from a hard whitelist of base-R datasets.
 # resolve_data reads the chosen dataset out of `asNamespace("datasets")`.
-# default_arg = ptr_default_string() per PLAN-04 SC: the formula's literal
+# default_arg = ptr_arg_string() per PLAN-04 SC: the formula's literal
 # initial value MUST be a string (`ppSample("iris")`), matching ADR §App-2b.
 # `ppSample <-` binding required for Path-B evaluability (ADR-0016).
 ppSample <- ptr_define_placeholder_source(
@@ -78,7 +78,7 @@ ppSample <- ptr_define_placeholder_source(
     get(x, envir = asNamespace("datasets"))
   },
   copy_defaults = list(label = "Sample for {param}"),
-  default_arg   = ptr_default_string()
+  default_arg   = ptr_arg_string()
 )
 
 # --- Spliced template (G6 forwarded-symbol; resolved at capture time) -----

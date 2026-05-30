@@ -189,7 +189,7 @@ test_that("P1.18 call-form rejects unknown args", {
 
 test_that("P1.19 call-form accepts positional default-arg (ADR 0009)", {
   # After PLAN-08, `ppVar` declares a `default_arg =
-  # ptr_default_symbol_or_string()` validator, so a positional bareword
+  # ptr_arg_symbol_or_string()` validator, so a positional bareword
   # or string is accepted as the initial seed value. The translated
   # node carries it on `node$default`.
   r <- ptr_translate('ggplot(aes(x = ppVar("x_axis"))) + geom_point()')
