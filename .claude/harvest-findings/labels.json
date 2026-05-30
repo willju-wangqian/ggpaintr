@@ -1,6 +1,7 @@
 {
   "app-entry-points": "Structure of the L1 entry points ptr_app / ptr_app_grid (thin wrappers over their *_components builders).",
   "consumer-picker-seeding": "Consumer (ppVar) picker seed/clear/redraw lifecycle: has_rendered latches, identity-based new-source clear, derived-column boot races, the seed_landed gate, producer-value timing.",
+  "formula-capture": "How formula input is captured and normalized to a string at the public boundaries: rlang::enexpr + ptr_capture_formula deparse (expr_text width=500), string vs quoted-expression input, expr()/quote() language objects vs un-deparseable built ggplot objects, native-pipe |> desugaring; and ptr_shared()'s expression-input parity via normalize_shared_formulas.",
   "harness-tooling": "Claude-Code harness mechanics in this repo: /exec-plan & /decision-to-plan input contracts, the implementable pre-commit hook (incl. the *-plan.md glob), the generated symbol-lines.json manifest, worktree layout, tool-output batching artifact.",
   "placeholder-registry-api": "The placeholder registry + the three ptr_define_placeholder_* constructors: their args/validators (ptr_arg_*, positional_arg/ui_text_defaults), entry-record keys, runtime callable.",
   "ppupload-mechanics": "ppUpload / upload source specifics: fileInput reset flag, file<->text mutex, shortcut/companion textbox, env-load, auto-name, the resolve_upload_source helper.",
