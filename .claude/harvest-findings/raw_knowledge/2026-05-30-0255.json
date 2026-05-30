@@ -23,7 +23,10 @@
         "R/paintr-build-ui.R seed_default",
         "R/paintr-builtins.R retained<-intersect"
       ],
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "consumer-seeding"
+      ]
     },
     {
       "id": "consumer-renderui-isolate-is-load-bearing",
@@ -39,7 +42,10 @@
         "R/paintr-server.R current<-shiny::isolate",
         "R/paintr-server.R no OPTION-B marker"
       ],
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "consumer-seeding"
+      ]
     },
     {
       "id": "consumer-seed-decision-seed-landed-gate",
@@ -57,7 +63,11 @@
         "tests/testthat/test-spec-seed-boot-only.R Seam 1d",
         "git 4e6ee04"
       ],
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "consumer-seeding",
+        "derived-column"
+      ]
     },
     {
       "id": "derived-column-seed-stage-toggle-race",
@@ -73,7 +83,11 @@
         "R/paintr-server.R ptr_setup_consumer_uis state$stage_enabled()",
         "R/paintr-server.R onFlushed"
       ],
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "consumer-seeding",
+        "derived-column"
+      ]
     },
     {
       "id": "e2e-fixture-must-pkgload-source",
@@ -88,7 +102,10 @@
       "checked_refs": [
         "tests/testthat/fixtures/vignette-apps/*/app.R pkgload::load_all (84 files)"
       ],
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "e2e-testing"
+      ]
     },
     {
       "id": "merge-conflict-only-generated-manifest",
@@ -105,7 +122,10 @@
         "dev/agents/ggpaintr-source-expert/pre-commit-symbol-manifest.sh",
         "git 0cb1efd"
       ],
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "harness-tooling"
+      ]
     },
     {
       "id": "option-i-producer-boot-value-fallback",
@@ -122,7 +142,12 @@
         "R/paintr-server.R state$spec_seed[[pid]] fallback",
         "git 1a7644c"
       ],
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "consumer-seeding",
+        "derived-column",
+        "producer-resolution"
+      ]
     },
     {
       "id": "parallel-gate-seeded-picker-flake-fix",
@@ -140,7 +165,11 @@
         "tests/testthat/test-e2e-vignette-examples-shinytest2.R",
         "git a9fd8cb"
       ],
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "boot-tail-race",
+        "e2e-testing"
+      ]
     },
     {
       "id": "producer-value-lags-browser-plus-debounce",
@@ -157,7 +186,11 @@
         "R/paintr-server.R .PTR_DEFAULT_DEBOUNCE_WINDOW 300L",
         "R/paintr-substitute.R read_placeholder_value"
       ],
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "producer-resolution",
+        "derived-column"
+      ]
     },
     {
       "id": "shared-binder-snapshot-omits-producers",
@@ -173,7 +206,11 @@
         "R/paintr-server.R ptr_bind_shared_consumer_uis snap[[ (source ids only)",
         "R/paintr-server.R 0 producer_input in shared binder"
       ],
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "shared-resolver",
+        "derived-column"
+      ]
     },
     {
       "id": "shared-consumer-truncate-at-placeholder-intentional",
@@ -190,7 +227,11 @@
         "R/paintr-shared.R:131 contains_placeholder",
         "R/paintr-shared.R:180 truncate_upstream_at_placeholder"
       ],
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "shared-resolver",
+        "derived-column"
+      ]
     },
     {
       "id": "shared-producer-legal-but-not-bundled",
@@ -208,7 +249,11 @@
         "R/paintr-server.R:2150 shared value bind",
         "R/paintr-shared.R truncation ignores $shared"
       ],
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "shared-resolver",
+        "derived-column"
+      ]
     }
   ]
 }

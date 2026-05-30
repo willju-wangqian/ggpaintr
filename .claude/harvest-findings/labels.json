@@ -1,0 +1,16 @@
+{
+  "boot-tail-race": "The renderUI input that binds/reports its value late after AppDriver boot (NULL reads), worsened under parallel-load CPU contention, and its fixes (wait_for_idle/poll, expect_input_eventually).",
+  "consumer-seeding": "How a non-shared consumer (var) picker seeds its selection at boot: the renderUI redraw lifecycle, the has_rendered latch, boot_seed_selected, seed_landed, and the load-bearing isolate.",
+  "consumer-source-clear": "The consumer picker's new-source clear: identity = sid#datapath#boundName, edge-triggered clearing, the double-render revert, and the host env->env-rename iceberg.",
+  "derived-column": "Columns produced by placeholder-carrying pipeline stages (mutate(adj=ppExpr())) and whether/how they reach pickers: the boot race, Option I fallback, the shared-path truncation.",
+  "e2e-testing": "shinytest2/AppDriver patterns and gotchas: app-dir+pkgload fixtures, child-process instrumentation via assignInNamespace, suspended/late-binding pickers, the overlapping-column false-green trap, the harness-blind fileInput pill.",
+  "harness-tooling": "Claude Code harness/tooling mechanics: the /exec-plan input contract, the implementable enforcement hook shim, batched tool-output delivery, and the generated symbol-manifest merge handling.",
+  "mocking": "Test mock signature drift: a stale mock that omits a newly-added real arg breaks with 'unused argument' and silently nulls the captured value.",
+  "producer-resolution": "How producer placeholder (ppExpr/ppNum/ppText) values reach the pipeline: the browser round-trip + 300ms debounce lag, snapshot-only substitution, and the Option I boot-value fallback.",
+  "repo-layout": "ggpaintr repo/worktree structure facts (e.g. the ppUpload-bug directory is a git worktree of the main repo).",
+  "shared-host-scope": "Coordinator HOST scope where ptr_bind_shared_consumer_uis runs with state=NULL (ADR-0006), and the consequences: bound-name-blind identity, the dual-mode binder, local-not-state flags.",
+  "shared-resolver": "ptr_resolve_shared_consumers: the intentional truncate-at-first-placeholder contract, shared-role validation, shared-producer legality, and why a shared picker offers source columns not derived ones.",
+  "source-consumer-architecture": "ggpaintr's two parallel data-source->consumer implementations (single-instance/formula-local vs shared coordinator/host) and how they differ.",
+  "source-file-reset": "ppUpload source-widget reset mechanics: the file_reset arg, fileInput re-render to clear the stale pill, the file->text mutex, and host-vs-single porting.",
+  "test-gate": "The authoritative full-suite gate baseline and counts on a given branch (e.g. ppUpload-bug PASS 3403->3420)."
+}
