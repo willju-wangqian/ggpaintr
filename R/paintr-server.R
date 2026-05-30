@@ -2123,7 +2123,7 @@ runtime_upstream_data_frames <- function(state, snapshot = list()) {
 # `ptr_ph_data_consumer` in the tree, we render its widget inside a
 # `renderUI` so that whenever upstream cols change the picker is rebuilt
 # with the fresh `cols`. The static UI emits an empty `uiOutput` container
-# at `consumer_output_id(node$id)`; this function fills it.
+# at `placeholder_output_id(node$id)`; this function fills it.
 #
 # `cols_memo` is a once-per-tick reactive that calls `runtime_upstream_cols`
 # exactly once and returns the full per-consumer named list, so two
@@ -2155,7 +2155,7 @@ ptr_setup_value_uis <- function(state, input, output, session) {
     local({
       node <- v
       raw_id <- node$id
-      output_id <- ns(value_output_id(raw_id))
+      output_id <- ns(placeholder_output_id(raw_id))
       # Implements the widget-seeding contract from
       # ?ptr_define_placeholder_value (Widget-seeding contract section).
       # `has_rendered` distinguishes the first renderUI fire (input not
@@ -2230,7 +2230,7 @@ ptr_setup_value_uis <- function(state, input, output, session) {
       node <- rep
       label_override <- entry$label_override
       raw_id <- node$id
-      output_id <- ns(value_output_id(raw_id))
+      output_id <- ns(placeholder_output_id(raw_id))
       # See `has_rendered` comment in the non-shared value loop above.
       has_rendered <- FALSE
       output[[output_id]] <- shiny::renderUI({
@@ -2295,7 +2295,7 @@ ptr_setup_source_uis <- function(state, input, output, session) {
     local({
       node <- s
       raw_id <- node$id
-      output_id <- ns(source_output_id(raw_id))
+      output_id <- ns(placeholder_output_id(raw_id))
       # Boot-only seed latch: like the value / consumer binders, the `spec=`
       # seed wins on the FIRST render only (see `boot_seed_selected()`). The
       # renderUI re-fires on `state$tree()` changes, so without this latch the
@@ -2653,7 +2653,7 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
     local({
       node <- c
       raw_id <- node$id
-      output_id <- ns(consumer_output_id(raw_id))
+      output_id <- ns(placeholder_output_id(raw_id))
       # Implements the widget-seeding contract from
       # ?ptr_define_placeholder_consumer (see also the seeding-contract
       # block on ?ptr_define_placeholder_value).
@@ -2925,7 +2925,7 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
 #
 # `representative_nodes` is a named list (key -> placeholder node). The
 # host is expected to set `node$id` to the id used by its rendered
-# `uiOutput` so `output[[consumer_output_id(node$id)]]` lines up.
+# `uiOutput` so `output[[placeholder_output_id(node$id)]]` lines up.
 ptr_bind_shared_consumer_uis <- function(output, input, ns,
                                             resolutions,
                                             representative_nodes,
@@ -2966,7 +2966,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
       resolution <- resolutions[[k]]
       rep_node <- representative_nodes[[k]]
       if (is.null(rep_node)) return(NULL)
-      output_id <- ns(consumer_output_id(rep_node$id))
+      output_id <- ns(placeholder_output_id(rep_node$id))
       # Widget-seeding contract — see ?ptr_define_placeholder_consumer.
       has_rendered <- FALSE
       # ADR 0025 contract (ii): per-picker new-source clear latch + the

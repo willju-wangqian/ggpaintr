@@ -243,7 +243,7 @@ ssbo_consumer_setup <- function(formula) {
     resolutions  = ggpaintr:::ptr_resolve_shared_consumers(tree),
     rep_nodes    = ggpaintr:::shared_consumer_representatives(tree),
     cid          = ggpaintr:::canonical_shared_id("col"),
-    out_id       = ggpaintr:::consumer_output_id(
+    out_id       = ggpaintr:::placeholder_output_id(
       ggpaintr:::canonical_shared_id("col")
     )
   )

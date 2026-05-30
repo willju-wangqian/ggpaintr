@@ -16,7 +16,7 @@
 
 source_render_html <- function(obj) {
   # Drive `ptr_shared_server()` under testServer and read the panel-source
-  # `renderUI` output. The output slot id is `source_output_id(canonical)`
+  # `renderUI` output. The output slot id is `placeholder_output_id(canonical)`
   # = `"shared_<key>_ui"`, namespaced by `shared_ns(obj)` = `<id>-`.
   out <- ""
   shiny::testServer(function(input, output, session) {

@@ -39,7 +39,7 @@ test_that("host-scope (state=NULL) renderUI picker populates `cols` from panel-r
   )
   resolutions <- ggpaintr:::ptr_resolve_shared_consumers(tree)
   rep_nodes <- ggpaintr:::shared_consumer_representatives(tree)
-  out_id <- ggpaintr:::consumer_output_id(
+  out_id <- ggpaintr:::placeholder_output_id(
     ggpaintr:::canonical_shared_id("col")
   )
 
@@ -95,7 +95,7 @@ test_that("host-scope renderUI re-fires AND re-populates cols when panel reactiv
   )
   resolutions <- ggpaintr:::ptr_resolve_shared_consumers(tree)
   rep_nodes <- ggpaintr:::shared_consumer_representatives(tree)
-  out_id <- ggpaintr:::consumer_output_id(
+  out_id <- ggpaintr:::placeholder_output_id(
     ggpaintr:::canonical_shared_id("col")
   )
 
@@ -157,7 +157,7 @@ test_that("host-scope: panel df present + companion blank => picker populated-un
   )
   resolutions <- ggpaintr:::ptr_resolve_shared_consumers(tree)
   rep_nodes <- ggpaintr:::shared_consumer_representatives(tree)
-  out_id <- ggpaintr:::consumer_output_id(
+  out_id <- ggpaintr:::placeholder_output_id(
     ggpaintr:::canonical_shared_id("col")
   )
 
@@ -210,7 +210,7 @@ test_that("ptr_bind_local_shared_consumers (host-scope, no state) populates cols
   tree <- ggpaintr:::ptr_translate(
     'ggplot(ppUpload(shared = "ds"), aes(x = ppVar(shared = "col"))) + geom_point()'
   )
-  out_id <- ggpaintr:::consumer_output_id(
+  out_id <- ggpaintr:::placeholder_output_id(
     ggpaintr:::canonical_shared_id("col")
   )
 

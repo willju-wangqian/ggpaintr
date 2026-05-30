@@ -522,7 +522,7 @@ ptr_setup_panel_sources <- function(obj, input, output, envir,
       # Plan-04 code-panel prologue.
       node$auto_name <- if (!is.null(obj$id)) paste0(obj$id, "_", key) else key
 
-      output_id <- ns(source_output_id(canonical))
+      output_id <- ns(placeholder_output_id(canonical))
       input_id <- ns(canonical)
       shortcut_input_id <- if (!is.null(node$shortcut_id)) ns(node$shortcut_id) else NULL
 
@@ -874,7 +874,7 @@ ptr_setup_panel_values <- function(obj, output, input, host_spec_seed,
       node <- rep
       label_override <- shared_label_override[[key]]
       raw_id <- node$id
-      output_id <- ns(value_output_id(raw_id))
+      output_id <- ns(placeholder_output_id(raw_id))
       has_rendered <- FALSE
       output[[output_id]] <- shiny::renderUI({
         current <- shiny::isolate(input[[raw_id]])

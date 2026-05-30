@@ -74,8 +74,8 @@ test_that("shared widget for non-pipeline key is NOT wrapped in a stage block", 
   # Only the orphan stage (key "a") should be wrapped; "b" is bare.
   expect_equal(length(.find_tags(panel, has_class = "ptr-stage-head")), 1L)
   # Both shared widgets must still be present (one wrapped, one bare).
-  a_id <- consumer_output_id(canonical_shared_id("a"))
-  b_id <- consumer_output_id(canonical_shared_id("b"))
+  a_id <- placeholder_output_id(canonical_shared_id("a"))
+  b_id <- placeholder_output_id(canonical_shared_id("b"))
   expect_true(length(.find_tags(panel, has_id = a_id)) > 0L)
   expect_true(length(.find_tags(panel, has_id = b_id)) > 0L)
 })

@@ -60,14 +60,14 @@ build_ui_for.ptr_ph_value <- function(node,
   # `build_ui_for.ptr_ph_data_consumer` below); this generalises that
   # pattern to all placeholder kinds so spec-apply can route through one
   # uniform hook (the registry's single `build_ui`).
-  shiny::uiOutput(ptr_render_id(value_output_id(node$id), ns_fn))
+  shiny::uiOutput(ptr_render_id(placeholder_output_id(node$id), ns_fn))
 }
 
 #' @exportS3Method
 build_ui_for.ptr_ph_data_consumer <- function(node,
                                                 ns_fn = identity,
                                                 ...) {
-  shiny::uiOutput(ptr_render_id(consumer_output_id(node$id), ns_fn))
+  shiny::uiOutput(ptr_render_id(placeholder_output_id(node$id), ns_fn))
 }
 
 #' @exportS3Method
@@ -82,7 +82,7 @@ build_ui_for.ptr_ph_data_source <- function(node,
   # renderUI is what lets the seed-based spec-apply path
   # (state$spec_seed[[bare]] -> extra$selected) cover custom source
   # keywords without an `updateXyz` symmetric hook.
-  source_ui <- shiny::uiOutput(ptr_render_id(source_output_id(node$id), ns_fn))
+  source_ui <- shiny::uiOutput(ptr_render_id(placeholder_output_id(node$id), ns_fn))
 
   # ADR 0025 item #7: when the source's registry entry opts into the
   # shortcut sibling, emit its textInput here as STATIC UI -- never inside
@@ -110,23 +110,6 @@ build_ui_for.ptr_ph_data_source <- function(node,
       name_copy$help
     )
   )
-}
-
-# ADR 0012 / PLAN-01 (Bug B): output-id helpers for the uiOutput
-# containers above. Same `_ui` suffix shape as `consumer_output_id()`
-# (R/paintr-ids.R) so the renderUI assignment in `ptr_setup_value_uis()`
-# / `ptr_setup_source_uis()` writes to a slot that does NOT collide with
-# the widget's raw inputId (the bound widget lives at the raw id; the
-# container holding it is `<raw_id>_ui`). Kept here rather than in
-# `R/paintr-ids.R` because they are exercised only by `build_ui_for.*`
-# above and the matching server-side setup helpers, both of which gain
-# the routing in PLAN-01 -- co-locating cuts cross-file coupling.
-value_output_id <- function(raw_id) {
-  paste0(raw_id, "_ui")
-}
-
-source_output_id <- function(raw_id) {
-  paste0(raw_id, "_ui")
 }
 
 # ---- ptr_layer panel scaffolding ----

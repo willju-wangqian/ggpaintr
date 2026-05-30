@@ -44,7 +44,7 @@ test_that("GAP-3A: host-scope picker populates from default-arg-primed panel sou
   )
   resolutions <- ggpaintr:::ptr_resolve_shared_consumers(tree)
   rep_nodes   <- ggpaintr:::shared_consumer_representatives(tree)
-  out_id      <- ggpaintr:::consumer_output_id(
+  out_id      <- ggpaintr:::placeholder_output_id(
     ggpaintr:::canonical_shared_id("col")
   )
 
@@ -152,7 +152,7 @@ test_that("GAP-3B: per-instance (moduleServer) picker populates from panel-owned
   )
   resolutions <- ggpaintr:::ptr_resolve_shared_consumers(tree)
   rep_nodes   <- ggpaintr:::shared_consumer_representatives(tree)
-  out_id      <- ggpaintr:::consumer_output_id(
+  out_id      <- ggpaintr:::placeholder_output_id(
     ggpaintr:::canonical_shared_id("colA")
   )
 
