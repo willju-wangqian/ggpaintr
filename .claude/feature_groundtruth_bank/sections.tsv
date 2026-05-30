@@ -1,0 +1,21 @@
+# Feature sections — YOU define these. One row per section.
+# Format (TAB-separated, 3 columns):
+#   section_id <TAB> source globs (space-separated) <TAB> Human-readable title
+#
+# Glob rules:
+#   - a pattern ending in "/"  matches that directory RECURSIVELY (prefix match)
+#   - otherwise standard shell globbing applies (no recursion across "/")
+#
+# Each section_id becomes sections/<section_id>.feature
+#
+# SECTIONING MODEL = IMPORTANCE RANK (user-supplied; rank 1 = most-used entry point).
+# Each export is homed in exactly one rank. Source globs are coarse staleness
+# triggers (file -> section), so a file shared across ranks may flag several
+# sections — that is expected. BDD depth is highest for rank 1 and tapers down.
+rank-1	R/paintr-app.R R/paintr-builtins.R R/paintr-registry.R	Rank 1 (most used) — ptr_app, pp* placeholders, ptr_define_placeholder_*
+rank-2	R/paintr-app.R R/paintr-server.R R/paintr-build-ui.R	Rank 2 — ptr_server, ptr_ui (compose-your-own-layout server/UI pair)
+rank-3	R/paintr-shared-coordinator.R R/paintr-shared-ui.R R/paintr-shared.R	Rank 3 — ptr_shared & the shared-coordinator surface
+rank-4	R/paintr-app.R R/paintr-build-ui.R R/paintr-copy.R	Rank 4 — ptr_ui_* composable UI pieces
+rank-5	R/paintr-default-args.R R/paintr-server.R R/paintr-input-spec.R R/paintr-data.R R/paintr-options.R R/paintr-copy.R R/paintr-registry.R R/paintr-render.R R/paintr-eval.R	Rank 5 — everything else (defaults, extractors, options, init/state, utils)
+rank-6	R/paintr-llm.R	Rank 6 — ptr_llm_* primer registry
+rank-7	R/paintr-app.R R/paintr-app-bslib.R	Rank 7 — ptr_app_grid, ptr_app_bslib
