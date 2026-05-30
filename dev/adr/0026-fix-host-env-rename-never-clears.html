@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0026 fix — host env→env shortcut rename never clears the consumer picker</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0026 fix — host env→env shortcut rename never clears the consumer picker</h1>
+
+<p><strong>Status:</strong> <em>Open bug — fresh-session handoff.</em> Source-confirmed this session (2026-05-30), NOT test-proven, NOT fixed. This is the immediate next item (the user chose to fix this before tackling the broader cross-file consolidation, <a href="0026-followup-cross-file.html">ADR26-followup-cross-file</a>). Context-rebuild doc; verify every file:line with <code>find_symbol</code> (<code>paintr-server.R</code> drifts).</p>
+<p><strong>Date:</strong> 2026-05-30. <strong>Relates to:</strong> <a href="0025-source-shortcut-rename-and-upload-auto-name.html">ADR 0025</a> §3b (the consumer-clear-on-new-source contract), <a href="0024-source-companion-data-loading-entry-point.html">ADR 0024</a> (the shortcut is a data-loading entry point — typing an env name loads that frame), <a href="0023-panel-owned-shared-sources-end-to-end.html">ADR 0023</a> + <a href="0006-single-server-entry-l3-ui-only.html">ADR 0006</a> (panel-owned sources; <code>state=NULL</code> at host scope).</p>
+
+<h2>The bug, in plain language</h2>
+
+<p>Setup: a <strong>shared</strong> data source whose widget is panel-owned (rendered once at host scope), used as an <strong>env shortcut</strong> — i.e. the user types a dataset name into the shortcut textbox and ggpaintr <code>get()</code>s that data.frame from the app environment (ADR 0024). A downstream consumer picker (<code>ppVar</code>) offers that frame's columns.</p>
+
+<p>The user types <code>ChickWeight</code>, picks column <code>weight</code>. Then the user <strong>renames the shortcut to a different env dataset</strong> (e.g. <code>PlantGrowth</code>) that also happens to have a <code>weight</code> column. Per ADR 0025 §3b, a new user-supplied source is "new work" and the stale pick should clear. <strong>It does not.</strong> The picker keeps <code>weight</code> from the old frame, silently riding onto the new data.</p>
+
+<p>This is an <strong>iceberg</strong>: the single-instance (non-host) path does NOT have this bug, and the prior ADR-0025-#7 latch work made the host UPLOAD case clear, so it <em>looks</em> fixed. Only the host <em>env→env rename</em> (no file upload at either end) is broken.</p>
+
+<h2>Exact mechanism (root cause)</h2>
+
+<p>The consumer's new-source clear is edge-triggered on an <strong>identity string</strong> built by <code>consumer_upstream_source_state()</code> (<code>R/paintr-server.R:2575</code>):</p>
+<pre><code>ids &lt;- c(ids, paste0(sid, "#", dp, "#", bn))   # server.R:2621
+# identity = paste(ids, collapse = "||")</code></pre>
+<p>where, per source node:</p>
+<ul>
+<li><code>dp</code> = the fileInput datapath (<code>fv$datapath</code>). For an <strong>env shortcut with no file upload, <code>dp = ""</code></strong>.</li>
+<li><code>bn</code> = the bound dataset name, read from <code>state$bound_names[[sid]]</code> (with a <code>layer_name</code> fallback) — <code>server.R:2596–2615</code>.</li>
+</ul>
+
+<p>The clear fires in <code>consumer_clear_for_new_source()</code> (<code>server.R:2651</code>) via:</p>
+<pre><code>changed_since_last &lt;- src_seen &amp;&amp; !identical(identity, last_identity) &amp;&amp; isTRUE(user_supplied)</code></pre>
+
+<p><strong>At HOST scope the binder runs with <code>state = NULL</code></strong> (ADR 0006 design; the host call is <code>ptr_bind_shared_consumer_uis(...)</code> with <code>state</code> omitted, and it threads that NULL straight into <code>consumer_upstream_source_state(upstream_src_nodes, read_src_input, state, ...)</code> at <code>server.R:3281</code>). So <code>state$bound_names</code> is NULL → <strong><code>bn = ""</code> permanently</strong>.</p>
+
+<p>For an env→env rename: <code>dp = ""</code> at both ends (no file) AND <code>bn = ""</code> (host scope). So <code>identity = "shared_ds##"</code> is <strong>constant across the rename</strong> → <code>changed_since_last</code> is always FALSE → the clear never fires. The ADR-0025-#7 <code>cleared_for_identity</code> latch (<code>server.R:3300–3308</code>) cannot help — it only <em>re-asserts</em> an existing clear edge across the upload double-render; the base clear never trips, so there is nothing to hold.</p>
+
+<p><strong>Why single-instance is immune:</strong> there <code>state</code> is real, so <code>bn</code> reads the live bound name, which flips when the rename binds a new frame → identity changes → clear fires.</p>
+
+<h2>Fix candidates (evaluate, don't assume)</h2>
+
+<p>The identity at host scope must change when the env name changes. Two candidate fixes; a fresh session must decide which is correct and prove it:</p>
+
+<ol>
+<li><strong>Plan-of-record: host-aware bound name.</strong> Give <code>consumer_upstream_source_state()</code> an optional way to compute the bound name at host scope (e.g. a <code>bound_name_for = function(node) ...</code> param) that the host binder supplies, reading the panel binding via <code>panel_owned_binding_name(node, entry, session, shortcut_value, df)</code> / <code>panel_source_canonical_name(node)</code> (<code>server.R:1101</code>/<code>:1105</code>) instead of the NULL <code>state$bound_names</code>. Then <code>bn</code> reflects the renamed env name and identity flips. This is the fix the original ADR-0025-#7 plan named but skipped.</li>
+<li><strong>Simpler candidate to evaluate: include the shortcut value in the identity.</strong> <code>consumer_upstream_source_state()</code> ALREADY computes <code>sc</code> (the trimmed shortcut textbox value) at <code>server.R:2616–2619</code> but deliberately does <strong>not</strong> include it in the identity string (only <code>sid#dp#bn</code>). Adding <code>sc</code> would make an env rename flip the identity directly. <em>Risk to investigate:</em> there was presumably a reason <code>sc</code> was left out (it may cause spurious clears in some single-instance/spec-seed case, or double-count with <code>bn</code> when the live bind already captures it). Do not add it blindly — check why it's excluded and whether including it regresses the §3b "boot spec-seed must NOT clear" contract.</li>
+</ol>
+
+<p>Whichever path: the change must be <strong>gated to host scope</strong> (<code>is.null(state)</code>) or otherwise proven not to alter single-instance identity, because single-instance is currently correct and must stay so.</p>
+
+<h2>All related files / anchors</h2>
+<ul>
+<li><code>R/paintr-server.R</code>:
+  <ul>
+  <li><code>consumer_upstream_source_state()</code> :2575 — builds the identity; the <code>bn</code> derivation :2596–2615; the <code>paste0(sid,"#",dp,"#",bn)</code> :2621; the unused <code>sc</code> :2616.</li>
+  <li><code>consumer_clear_for_new_source()</code> :2651 — the edge-trigger.</li>
+  <li><code>consumer_seed_decision()</code> :2501, <code>boot_seed_selected()</code> :2497 — what re-seeds the stale pick when the clear doesn't fire.</li>
+  <li>Host binder <code>ptr_bind_shared_consumer_uis()</code> :2948; the host-scope <code>is.null(state)</code> block + <code>cleared_for_identity</code> latch :3300–3315; the host call to <code>consumer_upstream_source_state</code> :3281.</li>
+  <li>Per-instance call (the immune path, for comparison) :2902.</li>
+  <li><code>panel_owned_binding_name()</code> :1105, <code>panel_source_canonical_name()</code> :1101 — the host-scope binding-name source for fix #1.</li>
+  </ul></li>
+<li><code>R/paintr-shared-ui.R</code> — <code>ptr_setup_panel_sources()</code> :482 (host source widgets + the <code>panel_sources</code> reactives the consumer reads).</li>
+<li>Probes from the session that found this: <code>.scratch/ppupload7-probes/</code> (shared/app.R + single/app.R use the <code>assignInNamespace</code> child-process instrumentation pattern to log the identity + clear verdict).</li>
+</ul>
+
+<h2>Boundary / scope</h2>
+<ul>
+<li><strong>Host scope only.</strong> Do not change single-instance behaviour (it is correct). Gate on <code>is.null(state)</code>.</li>
+<li><strong>Do not break the §3b "boot data must seed" contract:</strong> boot env-default data (e.g. <code>ppUpload(mtcars)</code> where the shortcut == its default at boot) is neither <code>user_supplied</code> nor <code>uploaded</code>, so the default SHOULD seed — the fix must keep that (an env name that equals the default at boot is not "new work").</li>
+<li><strong>Do not regress the host UPLOAD clear</strong> (ADR-0025-#7) or the spec-seed-wins-at-boot path.</li>
+<li>This is a <em>bug fix</em>, deliberately scoped narrower than the cross-file consolidation (<a href="0026-followup-cross-file.html">ADR26-followup-cross-file</a>); fix the bug first, consolidate later.</li>
+</ul>
+
+<h2>Before / after — concrete reproduction</h2>
+<p><strong>Working example AFTER the fix / non-working BEFORE</strong> (a host-scope shared env source over two frames that share a column):</p>
+<pre><code># app env defines two data.frames that BOTH contain `weight`:
+#   ChickWeight (datasets), PlantGrowth has `weight`; or build two frames
+#   sharing `body_mass_g` (penguins-style) — see the test trap below.
+# A multi-plot shared source via ptr_shared(), panel-owned, env shortcut.
+# Steps: type "ChickWeight" -> pick weight -> rename shortcut to the other frame.</code></pre>
+<table>
+<thead><tr><th></th><th>consumer picker after the rename</th></tr></thead>
+<tbody>
+<tr><td><strong>Before (bug)</strong></td><td>still shows <code>weight</code> (stale pick from ChickWeight rides onto the new frame)</td></tr>
+<tr><td><strong>After (fixed)</strong></td><td>clears (per ADR 0025 §3b: new user-supplied source = new work) — re-seeds to the placeholder default or empty</td></tr>
+</tbody>
+</table>
+
+<h2>⚠ Test traps (these will give you a FALSE GREEN — read before writing the e2e)</h2>
+<ul>
+<li><strong>Use a column present in BOTH frames</strong> (e.g. <code>weight</code> / <code>body_mass_g</code>). A <code>selectInput</code>/<code>pickerInput</code> <em>silently drops</em> a selection that is no longer a valid option — so a test using a column unique to the OLD frame "passes" because the option vanished, not because the clear fired. (verified finding <code>overlapping-column-false-green-trap</code>.)</li>
+<li><strong>The fileInput pill is harness-blind</strong> — but irrelevant here: this bug is env→env (no file), which is fully automatable (typing → re-render → env-load → picker populated/cleared is observable via <code>get_value</code>/<code>get_html</code>). No manual eyeball needed, unlike the #7 upload-pill case.</li>
+<li><strong>Boot an app DIRECTORY that <code>pkgload::load_all()</code>s</strong> (the <code>tests/testthat/fixtures/vignette-apps/&lt;slug&gt;/app.R</code> pattern, <code>GGP_PKG</code> env) — a parent-built <code>shiny.appobj</code> resolves to the stale installed ggpaintr and silently tests dead code (verified finding <code>e2e-fixture-must-pkgload-source</code>).</li>
+<li><strong>Consumer var pickers are suspended</strong> until their upstream has data AND the layer's Controls subtab is shown — set source first, then <code>set_inputs(&lt;layer&gt;_subtab="Controls")</code>, <code>wait_for_idle()</code>, then read the picker.</li>
+<li><strong>Run the gate serially</strong> — the seeding/derived-column browser cluster flakes under parallel load (verified <code>parallel-gate-flakes-seeding-cluster</code>); a residual parallel flake here is not a regression.</li>
+</ul>
+
+<h2>Definition of Done</h2>
+<ol>
+<li><strong>Write the failing e2e FIRST</strong> (red): a host-scope shared env source, pick an overlapping column, rename the shortcut to the other frame, assert the picker cleared. Prove it FAILS on current <code>HEAD</code> (the bug) before fixing — this is the teeth test; a green-after-only test could be vacuous.</li>
+<li>Apply the chosen fix (gated to <code>is.null(state)</code>).</li>
+<li>Authoritative gate, serial: <code>Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'</code> → FAIL 0 / ERROR 0 / SKIP 0 / PASS ≥ 3439 + the new test.</li>
+<li>Confirm single-instance + host-upload + boot-spec-seed paths unchanged (their existing e2e stay green).</li>
+</ol>
+
+<h2>How a fresh session should rebuild context</h2>
+<ol>
+<li>Read this doc, then <a href="0025-source-shortcut-rename-and-upload-auto-name.html">ADR 0025</a> §3b and <a href="0024-source-companion-data-loading-entry-point.html">ADR 0024</a> (shortcut = data-loading entry point) and <a href="0006-single-server-entry-l3-ui-only.html">ADR 0006</a> (<code>state=NULL</code> at host — the root condition).</li>
+<li>Grep the knowledge index: <code>grep -iE "consumer|seed|host|clear" .claude/harvest-findings/INDEX.md</code> → labels <code>consumer-picker-seeding</code>, <code>source-binding-runtime</code>, <code>shared-coordinator-partition</code>. Read these verified findings in particular: <code>host-env-rename-never-clears-iceberg</code>, <code>consumer-identity-bound-name-blind-at-host</code>, <code>host-upload-double-render-reverts-consumer-clear</code>, <code>consumer-identity-boundname-drives-clear-stickiness</code>, <code>overlapping-column-false-green-trap</code>, <code>child-process-instrumentation-via-assigninnamespace</code>.</li>
+<li>Reuse the probes in <code>.scratch/ppupload7-probes/</code> to instrument <code>consumer_upstream_source_state</code>'s identity + <code>consumer_clear_for_new_source</code>'s verdict inside the AppDriver child.</li>
+<li>Project memories worth recalling: <code>bound-names-key-duality</code>, <code>consumer-seed-derived-column-latch</code>, <code>feedback-runtime-claim-must-run-app</code>, <code>feedback-iceberg-bugs</code>.</li>
+</ol>
+
+</body>
+</html>
