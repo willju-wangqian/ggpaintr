@@ -166,7 +166,7 @@ ptr_app_components <- function(formula,
     tree,
     ui_text = ui_text,
     ns = ns,
-    render_shared_section = TRUE,
+    render_shared_section = partition_renders_section(new_partition_view("single")),
     app_chrome = TRUE,
     css = css
   )
@@ -331,12 +331,12 @@ ptr_make_app_server <- function(formula, tree, envir, ui_text,
       spec = spec
     )
     # Single-instance owns every shared consumer key (no coordinator),
-    # so `host_owned_keys = character(0)`. Behaviour byte-stable: the
-    # helper assembles the same representative nodes the inline preamble
-    # used and calls the same binder once.
+    # so the partition view for the "single" surface yields character(0).
+    # Behaviour byte-stable: the helper assembles the same representative
+    # nodes the inline preamble used and calls the same binder once.
     ptr_bind_local_shared_consumers(
       tree = tree, output = output, input = input, ns = ns,
-      host_owned_keys = character(0),
+      host_owned_keys = partition_host_owned_keys(new_partition_view("single")),
       ui_text = ui_text,
       eval_env = envir,
       expr_check = expr_check,
@@ -1161,7 +1161,11 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
   # formula-local keys. The module must bind only the formula-local shared
   # consumer pickers (the binder-less path, bug B1), never a panel key the
   # host already renders -- so this set is the helper's `host_owned_keys`.
-  host_owned_keys <- names(dots$shared %||% list())
+  # The "instance" partition view returns these panel keys verbatim as the
+  # complement (formula-local keys are what this module binds).
+  host_owned_keys <- partition_host_owned_keys(
+    new_partition_view("instance", panel_keys = names(dots$shared %||% list()))
+  )
 
   shiny::moduleServer(id, function(input, output, session) {
     # Self-bind every formula-local key: build one reactive per missing
