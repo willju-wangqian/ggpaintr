@@ -16,7 +16,7 @@
       "tags": "derived-column-seed-boot",
       "source": "R/paintr-server.R:2819-2868 (ptr_setup_consumer_uis renderUI); R/paintr-server.R:2482-2524 (consumer_seed_decision); R/paintr-server.R:2478-2480 (boot_seed_selected); R/paintr-build-ui.R:867-881 (invoke_build_ui); R/paintr-builtins.R:188 (intersect)",
       "verdict": "verified",
-      "verification": "Confirmed the full pipeline in ptr_setup_consumer_uis renderUI: isolate(input) current, isolate(state$spec_seed) seed, consumer_clear_for_new_source, consumer_seed_decision(...), extra$selected set only if dec$selected non-NULL, invoke_build_ui (build-ui.R:815-877) injects node$default when absent, intersect(selected,cols) in ptr_builtin_var_build_ui (builtins.R:175-202), has_rendered flip iff dec$mark_rendered.",
+      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
       "checked_refs": [
         "R/paintr-server.R ptr_setup_consumer_uis",
         "R/paintr-server.R consumer_seed_decision",
@@ -27,7 +27,7 @@
         "consumer-picker-seeding"
       ],
       "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
     },
     {
       "id": "consumer-renderui-isolate-is-load-bearing",
@@ -38,7 +38,7 @@
       "tags": "derived-column-seed-boot",
       "source": "R/paintr-server.R:2841 (current <- shiny::isolate(input[[ns(raw_id)]])); AppDriver experiment 2026-05-30",
       "verdict": "verified",
-      "verification": "Confirmed current <- shiny::isolate(input[[ns(raw_id)]]) inside ptr_setup_consumer_uis renderUI; without isolate the renderUI would depend on its own output's input -> self-retriggering render loop, as claimed.",
+      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
       "checked_refs": [
         "R/paintr-server.R ptr_setup_consumer_uis"
       ],
@@ -47,7 +47,7 @@
         "consumer-picker-seeding"
       ],
       "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
     },
     {
       "id": "consumer-seed-decision-seed-landed-gate",
@@ -58,7 +58,7 @@
       "tags": "derived-column-seed-boot",
       "source": "R/paintr-server.R:2482-2524 (consumer_seed_decision); tests/testthat/test-spec-seed-boot-only.R Seam 1d; commit 4e6ee04",
       "verdict": "verified",
-      "verification": "Confirmed consumer_seed_decision computes seed_landed (!is.null(seed) && (length(seed)==0 || all(as.character(seed) %in% cols))) symmetric to default_landed, and mark_rendered<-length(cols)>0 && (seed_landed||default_landed||valid_current) — replacing the old blanket !is.null(selected).",
+      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
       "checked_refs": [
         "R/paintr-server.R consumer_seed_decision",
         "R/paintr-server.R boot_seed_selected"
@@ -68,7 +68,7 @@
         "consumer-picker-seeding"
       ],
       "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
     },
     {
       "id": "derived-column-seed-stage-toggle-race",
@@ -79,7 +79,7 @@
       "tags": "derived-column-seed-boot",
       "source": "R/paintr-server.R:2726-2742 (entry_reactive deps incl state$stage_enabled()); R/paintr-server.R:683-695 (apply_spec_at_boot onFlushed dispatch of stage/checkbox); R/paintr-server.R:2841 (current isolate)",
       "verdict": "verified",
-      "verification": "Confirmed both legs of the mechanism: entry_reactive in ptr_setup_consumer_uis lists state$stage_enabled() as a dependency; apply_spec_at_boot dispatches layer_checkbox/stage_enabled rows in session$onFlushed(once=TRUE) via apply_spec_entry. Accurate description of the (now Option-I-fixed) boot race.",
+      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
       "checked_refs": [
         "R/paintr-server.R ptr_setup_consumer_uis",
         "R/paintr-server.R apply_spec_at_boot"
@@ -89,7 +89,7 @@
         "consumer-picker-seeding"
       ],
       "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
     },
     {
       "id": "e2e-fixture-must-pkgload-source",
@@ -142,7 +142,7 @@
       "tags": "derived-column-seed-boot",
       "source": "R/paintr-server.R consumer column-list reactive producer loop (~2751-2762 + per-consumer upstream_producer_defaults map); commit 1a7644c; tests/testthat/test-spec-seed-derived-column-stage-off-browser.R; tests/testthat/test-default-derived-column-stage-off-browser.R",
       "verdict": "verified",
-      "verification": "Confirmed: upstream_producer_defaults map built per consumer by walking find_nodes(node$upstream,is_ptr_ph_value) deparsing each $default; in entry_reactive a NULL producer val falls back to isolate(state$spec_seed[[pid]]) %||% upstream_producer_defaults[[pid]]; labelled 'Option I (2026-05-30)'.",
+      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
       "checked_refs": [
         "R/paintr-server.R ptr_setup_consumer_uis upstream_producer_defaults"
       ],
@@ -151,7 +151,7 @@
         "consumer-picker-seeding"
       ],
       "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
     },
     {
       "id": "parallel-gate-seeded-picker-flake-fix",
@@ -183,7 +183,7 @@
       "tags": "derived-column-seed-boot",
       "source": "R/paintr-server.R:1675 (shiny::debounce of input); R/paintr-server.R:1693 (.PTR_DEFAULT_DEBOUNCE_WINDOW <- 300L); R/paintr-substitute.R:90-128,262 (substitute_walk.ptr_ph_value reads only ctx$snapshot)",
       "verdict": "verified",
-      "verification": "Confirmed: .PTR_DEFAULT_DEBOUNCE_WINDOW<-300L (server.R:1712); each ptr_ph_value producer wired through shiny::debounce(reactive(input[[id]]),...) (server.R ~1686-1701); substitute_walk.ptr_ph_value -> read_placeholder_value reads only ctx$snapshot[[id]] (substitute.R:252-262), no default/seed fallback.",
+      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
       "checked_refs": [
         "R/paintr-server.R:1712",
         "R/paintr-substitute.R:252-262"
@@ -194,7 +194,7 @@
         "shinytest2-gotchas"
       ],
       "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
     },
     {
       "id": "shared-binder-snapshot-omits-producers",
@@ -205,7 +205,7 @@
       "tags": "",
       "source": "R/paintr-server.R:2929-3207 (ptr_bind_shared_consumer_uis renderUI snap build)",
       "verdict": "verified",
-      "verification": "Confirmed: ptr_bind_shared_consumer_uis builds snap only from data-source ids (upstream_source_ids_for_req via find_nodes is_ptr_ph_data_source, shortcut/self companion ids, panel-owned) and never reads state$producer_input; consistent with shared resolver truncating producers upstream (shared.R:179-210).",
+      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
       "checked_refs": [
         "R/paintr-server.R ptr_bind_shared_consumer_uis snap",
         "R/paintr-shared.R:179-210"
@@ -216,7 +216,7 @@
         "consumer-picker-seeding"
       ],
       "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
     },
     {
       "id": "shared-consumer-truncate-at-placeholder-intentional",
@@ -248,7 +248,7 @@
       "tags": "",
       "source": "R/paintr-translate.R:1066 (ptr_validate_shared_roles); R/paintr-server.R:2213+ (ptr_setup_value_uis shared-value loop); R/paintr-shared.R:131-211 (truncation ignores $shared)",
       "verdict": "verified",
-      "verification": "Confirmed: ptr_validate_shared_roles (translate.R:1065-1085) only rejects a key spanning >1 role, so a 'value'-role producer can share legally; truncation (shared.R:179-210) breaks at any placeholder stage and never inspects $shared, so a shared ppExpr upstream is still truncated away.",
+      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
       "checked_refs": [
         "R/paintr-translate.R:1065-1085",
         "R/paintr-shared.R:179-210"
@@ -259,7 +259,7 @@
         "placeholder-registry-api"
       ],
       "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
     }
   ]
 }

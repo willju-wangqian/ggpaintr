@@ -15,7 +15,7 @@
       "feature": "",
       "source": "R/paintr-server.R:2277 (ptr_setup_source_uis); :2639 (ptr_setup_consumer_uis); :2890 (ptr_bind_shared_consumer_uis); R/paintr-shared-ui.R:482 (ptr_setup_panel_sources)",
       "verdict": "verified",
-      "verification": "Four named functions present and distinct at HEAD f5a367c: ptr_setup_source_uis (server.R:2297), ptr_setup_consumer_uis (2659), ptr_setup_panel_sources (shared-ui.R:510), ptr_bind_shared_consumer_uis (server.R:2948); comments flag them as kept 'in lockstep'/'byte-stable'.",
+      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
       "checked_refs": [
         "R/paintr-server.R:2297",
         "R/paintr-server.R:2659",
@@ -29,7 +29,7 @@
         "shared-coordinator-partition"
       ],
       "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
     },
     {
       "id": "shared-host-consumer-binder-dual-mode",
@@ -39,7 +39,7 @@
       "feature": "",
       "source": "R/paintr-server.R:2890-3283 (ptr_bind_shared_consumer_uis)",
       "verdict": "verified",
-      "verification": "Confirmed one body, two modes gated on is.null(state): host (default state=NULL server.R:2955; host-only blocks 3115, 3297) vs per-instance (if(!is.null(state)) ... req(state$bound_names) server.R:3165-3226); explicit comment 'gated on is.null(state)' at 3004-3005.",
+      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
       "checked_refs": [
         "R/paintr-server.R:2955",
         "R/paintr-server.R:3115",
@@ -52,21 +52,19 @@
         "shared-coordinator-partition"
       ],
       "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
     },
     {
       "id": "consumer-identity-bound-name-blind-at-host",
-      "claim": "consumer_upstream_source_state builds identity = sid#datapath#boundName, but at host scope (state=NULL) boundName is always \"\" (no state$bound_names), so the host consumer identity is datapath-only.",
+      "claim": "consumer_upstream_source_state builds the consumer identity as sid#datapath#boundName at single-instance scope, but at HOST scope (state=NULL) it is sid#datapath#boundName#shortcutValue with boundName always '' (no state$bound_names) -- i.e. still bound-name-blind, but NO LONGER datapath-only: the shortcut value sc was appended (ADR 0026) so an env->env rename flips the identity.",
       "detail": "bn = tryCatch({ r <- state$bound_names[[sid]]; ... r() }, error=\"\"); NULL$bound_names -> NULL[[sid]] -> NULL -> bn \"\". Root cause of both the double-render revert and the env-rename iceberg.",
       "scope": "durable",
       "feature": "",
       "source": "R/paintr-server.R:2540-2592 (consumer_upstream_source_state)",
       "verdict": "verified",
-      "verification": "Confirmed: identity=paste0(sid,'#',dp,'#',bn) at server.R:2621; bn derives from state$bound_names inside tryCatch(...,error=->'') (2596-2615), so at host (state=NULL) bn is always '' and identity is datapath-only; in-code comment 2998-2999 states exactly this.",
+      "verification": "Read symbol at HEAD a58dadd R/paintr-server.R:2575-2641; host branch (line 2631) = paste0(sid,'#',dp,'#',bn,'#',sc). Prior 'datapath-only at host' wording superseded by ADR 0026 host-rename-clear fix.",
       "checked_refs": [
-        "R/paintr-server.R:2621",
-        "R/paintr-server.R:2596-2615",
-        "R/paintr-server.R:2998-2999"
+        "R/paintr-server.R consumer_upstream_source_state"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
       "origin_status": "derived-unverified",
@@ -75,7 +73,7 @@
         "shared-coordinator-partition"
       ],
       "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
     },
     {
       "id": "host-upload-double-render-reverts-consumer-clear",
@@ -85,7 +83,7 @@
       "feature": "ppupload-7-host-shared",
       "source": "R/paintr-server.R:2616-2622 (consumer_clear_for_new_source); :2481-2523 (consumer_seed_decision); dev/scratch/ppupload7-probes/README.md",
       "verdict": "verified",
-      "verification": "DRIFT: the described iceberg is now FIXED. Verified the host-scope latch exists — held_clear=!is.null(cleared_for_identity) && identical(cleared_for_identity,src_state$identity) && current_nonempty; clear_for_new_source<-clear||held_clear||vacate_edge (server.R:3300-3311). Claim rewritten to reflect the fix.",
+      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
       "checked_refs": [
         "R/paintr-server.R:3297-3313",
         "R/paintr-server.R:2651-2657"
@@ -98,22 +96,20 @@
         "shared-coordinator-partition"
       ],
       "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
     },
     {
       "id": "host-env-rename-never-clears-iceberg",
-      "claim": "ICEBERG partially open: a host env->env shortcut rename is still not cleared by identity detection (datapath '' + host bn '' -> constant 'shared_ds##', server.R:2621/2653-2654); the new host vacate_edge latch (server.R:3303) only catches a supply->no-supply edge, not a non-default->non-default env rename, so this specific case remains unclosed and untested.",
+      "claim": "ICEBERG CLOSED (ADR 0026): a host env->env shortcut rename now clears the consumer picker. consumer_upstream_source_state appends the trimmed shortcut value sc to the identity ONLY at host scope (paste0(sid,'#',dp,'#',bn,'#',sc) when is.null(state)), so an env->env rename flips identity and the SS3b changed-since-last clear fires; single-instance scope keeps sid#dp#bn byte-identical because bn already flips there.",
       "detail": "The ab4b6dd latch cannot help (it only re-asserts an existing clear; base_clear never trips). Real fix = plan's optional bound_name_for= param on consumer_upstream_source_state (skipped). Confirm with a host env->env-rename e2e using a column in BOTH frames (body_mass_g) — unique columns are auto-dropped by selectInput (false green).",
       "scope": "campaign",
       "feature": "ppupload-7-host-shared",
       "source": "R/paintr-server.R:2540-2592 (consumer_upstream_source_state); :2616-2622 (consumer_clear_for_new_source)",
       "verdict": "verified",
-      "verification": "DRIFT: partially addressed but NOT fully closed. consumer_clear_for_new_source.changed_since_last still goes FALSE for env->env rename (constant identity 'shared_ds##', server.R:2621/2653-2654); the new vacate_edge (server.R:3303) only catches a supply->no-supply edge, and user_supplied stays TRUE across a non-default->non-default rename (2623), so the rename case remains open. Claim rewritten.",
+      "verification": "Read consumer_upstream_source_state at HEAD a58dadd (R/paintr-server.R:2630-2634): host branch id_str = paste0(sid,'#',dp,'#',bn,'#',sc), gated on is.null(state). The case this finding said was 'unclosed and untested' is now closed; e2e test-adr26-host-env-rename-clear passes 12 assertions.",
       "checked_refs": [
-        "R/paintr-server.R:2621",
-        "R/paintr-server.R:2653-2654",
-        "R/paintr-server.R:2623",
-        "R/paintr-server.R:3303-3311"
+        "R/paintr-server.R consumer_upstream_source_state",
+        "tests/testthat/test-adr26-host-env-rename-clear.R"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
       "origin_status": "derived-unverified",
@@ -123,7 +119,7 @@
         "ppupload-mechanics"
       ],
       "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
     },
     {
       "id": "resolve-upload-source-file-reset-arg",
@@ -133,7 +129,7 @@
       "feature": "",
       "source": "R/paintr-server.R:1249-1382 (resolve_upload_source)",
       "verdict": "verified",
-      "verification": "Confirmed: resolve_upload_source(...,file_reset=FALSE) signature at server.R:1300-1301; if(isTRUE(file_reset)) file_info<-NULL at 1337 routes to env-load (try_bind_source_default_resolved, 1350) + vacate-on-empty (vacate_source_binding, 1374).",
+      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
       "checked_refs": [
         "R/paintr-server.R:1300-1301",
         "R/paintr-server.R:1337",
@@ -145,7 +141,7 @@
         "ppupload-mechanics"
       ],
       "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
     },
     {
       "id": "host-flag-can-be-local-not-state-slot",
@@ -155,7 +151,7 @@
       "feature": "",
       "source": "R/paintr-shared-ui.R:482-698 (ptr_setup_panel_sources)",
       "verdict": "verified",
-      "verification": "Confirmed: file_reset_rv reactiveVal local to the per-key local() in ptr_setup_panel_sources (shared-ui.R:575), read directly at the resolve call (683); single-instance publishes state$source_file_reset (server.R:2349). Contrast comment verbatim at shared-ui.R:570-573.",
+      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
       "checked_refs": [
         "R/paintr-shared-ui.R:575",
         "R/paintr-shared-ui.R:683",
@@ -168,7 +164,7 @@
         "shared-coordinator-partition"
       ],
       "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
     },
     {
       "id": "ptr-bind-source-mutex-is-file-to-text-only",
@@ -178,7 +174,7 @@
       "feature": "",
       "source": "R/paintr-server.R:1651-1658 (ptr_bind_source_mutex)",
       "verdict": "verified",
-      "verification": "Confirmed: ptr_bind_source_mutex (server.R:1671-1678) has one observeEvent(input[[src_id]]) that updateTextInput(...,value='') (file->blank shortcut); no reverse observer. Typed-over-upload visual clear is the ADR-0025 #7 source_bump re-render (server.R:2355-2362), not the mutex.",
+      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
       "checked_refs": [
         "R/paintr-server.R:1671-1678",
         "R/paintr-server.R:2355-2362"
@@ -189,7 +185,7 @@
         "ppupload-mechanics"
       ],
       "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
     },
     {
       "id": "fileinput-pill-is-harness-blind",
@@ -241,7 +237,7 @@
       "feature": "ppupload-7-host-shared",
       "source": "devtools::test() serial; project CLAUDE.md authoritative-gate block",
       "verdict": "unconfirmable",
-      "verification": "Point-in-time test-count observation on the (now-merged) ppUpload-bug branch with no durable source ('observed this session'); cannot be re-verified, and CLAUDE.md states the count is explicitly NOT the gate (0/0/0 is). Kept live but flagged — a human should decide whether to retire it.",
+      "verification": "Point-in-time gate count (PASS 3403->3420 on branch ppUpload-bug); not reproducible from current source and the count is not the gate (0/0/0 is). Stays unconfirmable per its original verdict; re-stamped fresh at HEAD a58dadd.",
       "checked_refs": [
         "(observed this session)"
       ],
@@ -251,7 +247,7 @@
         "test-gate-discipline"
       ],
       "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
     },
     {
       "id": "tool-output-batched-delivery-not-corruption",

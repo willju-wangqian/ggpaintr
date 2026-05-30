@@ -15,7 +15,7 @@
       "feature": "ptr-shared-expression-input",
       "source": "tests/testthat/test-shared-spec-seed-derived-column-browser.R:41,46; CLAUDE.md authoritative-gate block",
       "verdict": "verified",
-      "verification": "test-shared-spec-seed-derived-column-browser.R present; the durable claim (renderUI shared picker read-before-binding boot-tail race surfaces as a blank actual under TESTTHAT_PARALLEL, passes on serial re-run; not a product failure) matches CLAUDE.md. Specific FAIL 2 count is point-in-time.",
+      "verification": "Observational parallel boot-tail flake finding. Cited test file(s) unchanged at HEAD a58dadd and CLAUDE.md authoritative-gate block still documents this parallel-vs-serial flake behavior. Claim re-confirmed.",
       "checked_refs": [
         "tests/testthat/test-shared-spec-seed-derived-column-browser.R",
         "CLAUDE.md authoritative-gate"
@@ -26,7 +26,7 @@
         "test-gate-discipline"
       ],
       "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
     },
     {
       "id": "built-ggplot-object-undeparseable",
