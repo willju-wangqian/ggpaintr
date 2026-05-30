@@ -103,4 +103,4 @@ Single-context. The L2/L3 embedding model, UI-piece taxonomy, and shared-coordin
 
 ### Knowledge stamps
 
-When you derive a reusable, source-grounded understanding, emit an inline `⟦FINDING⟧ … ⟦/FINDING⟧` stamp so it survives `/clear` and can be harvested+verified later. Full contract, grammar, and the bar for what's worth stamping: `.claude/rules/knowledge-stamps.md`. On-demand: `/stamp`. End-of-session dump (best-effort, unverified): `/summarize-knowledge`. The regular verify+store pass over `/export`-ed transcripts: the `harvest-finding` skill.
+When you derive a reusable, source-grounded understanding, emit an inline `⟦FINDING⟧ … ⟦/FINDING⟧` stamp so it survives `/clear` and can be harvested+verified later. Full contract, grammar, and the bar for what's worth stamping: `.claude/rules/knowledge-stamps.md`. On-demand: `/stamp`. End-of-session dump (best-effort, unverified): `/summarize-knowledge` — writes the session's stamps directly into `.claude/harvest-findings/raw_conversation/<date>-<time>-<topic>.md` (no `/export` step). The regular verify+store pass over that corpus: the `harvest-finding` skill.

@@ -1,6 +1,6 @@
 ## Knowledge Stamps — the contract
 
-When you derive a **reusable, source-grounded understanding** while working this repo, emit an inline **stamp** so it can be harvested later (the user `/export`s the conversation, a script greps the stamps, a regular pass verifies + stores them). This is how hard-won findings survive past a single session instead of evaporating on `/clear`.
+When you derive a **reusable, source-grounded understanding** while working this repo, emit an inline **stamp** so it can be harvested later (`/summarize-knowledge` writes the session's stamps into `.claude/harvest-findings/raw_conversation/`, a script greps them, a regular pass verifies + stores them). This is how hard-won findings survive past a single session instead of evaporating on `/clear`.
 
 ### Grammar (canonical — the parser keys off this exactly)
 
@@ -24,13 +24,12 @@ Stamp only what is **non-obvious, derived from reading the source/running the ap
 
 - **This rule** = best-effort inline habit (no hook can detect "you just understood something"; you *will* miss some — that's expected).
 - **`/stamp`** — emit one stamp on demand the moment the user (or you) spots a keeper.
-- **`/summarize-knowledge`** — invoked before `/clear`; sweep the whole session and dump every finding as stamps, best-effort, **unverified** (`status=derived-unverified`). Do **not** verify here — just try your best; a later pass checks.
-- **`harvest-finding`** skill = the regular pass: collect `/export`ed transcripts → extract stamps → **verify** each `source:` against current code → save the verified knowledge as a timestamped JSON under `.claude/harvest-findings/raw_knowledge/<date>-<time>.json` (a later pass promotes it into memory/`.scratch`/ADRs).
+- **`/summarize-knowledge`** — invoked before `/clear`; sweep the whole session and write every finding as stamps **directly into `.claude/harvest-findings/raw_conversation/<date>-<time>-<topic>.md`**, best-effort, **unverified** (`status=derived-unverified`). Do **not** verify here — just try your best; a later pass checks.
+- **`harvest-finding`** skill = the regular pass: read the stamps in `raw_conversation/` → extract → **verify** each `source:` against current code → save the verified knowledge as a timestamped JSON under `.claude/harvest-findings/raw_knowledge/<date>-<time>.json` (a later pass promotes it into memory/`.scratch`/ADRs).
 
 ### Folders (`.claude/harvest-findings/`)
 
 Bootstrap a fresh clone/worktree/project with `/harvest-init` (creates the dirs + gitignore, confirms first, idempotent).
 
-- `exports/` — `/export` inbox: `/export .claude/harvest-findings/exports/<date>-<topic>.txt` (plain text; `.txt`/`.md` extension required or the parser skips it). Gitignored.
-- `raw_conversation/` — pooled corpus for a harvest run (`collect.sh` dest). Gitignored.
+- `raw_conversation/` — the knowledge corpus: `<date>-<time>-<topic>.md` stamp files written directly by `/summarize-knowledge` (the parser greps the sentinels in any `.md`/`.txt`/`.json`). Gitignored.
 - `raw_knowledge/` — verified-knowledge JSON output. Tracked.
