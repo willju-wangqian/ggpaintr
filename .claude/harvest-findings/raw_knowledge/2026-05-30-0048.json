@@ -9,45 +9,50 @@
   "findings": [
     {
       "id": "ggpaintr-two-source-consumer-paths",
-      "claim": "ggpaintr has two parallel source->consumer implementations \u2014 single-instance (ptr_setup_source_uis + ptr_setup_consumer_uis, real state) and shared-coordinator (ptr_setup_panel_sources + ptr_bind_shared_consumer_uis); conflating them is the primary way to misread the code.",
+      "claim": "ggpaintr has two parallel source->consumer implementations — single-instance (ptr_setup_source_uis + ptr_setup_consumer_uis, real state) and shared-coordinator (ptr_setup_panel_sources + ptr_bind_shared_consumer_uis); conflating them is the primary way to misread the code.",
       "detail": "Single-instance always has non-NULL state; shared HOST scope runs state=NULL (ADR 0006). The per-instance source binder skips panel-owned ids so they render once at host scope.",
       "scope": "durable",
       "feature": "",
       "source": "R/paintr-server.R:2277 (ptr_setup_source_uis); :2639 (ptr_setup_consumer_uis); :2890 (ptr_bind_shared_consumer_uis); R/paintr-shared-ui.R:482 (ptr_setup_panel_sources)",
       "verdict": "verified",
-      "verification": "All four defs present at the cited lines; skip line `if (s$id %in% names(state$panel_sources %||% list())) next` at server.R:2294.",
+      "verification": "Four named functions present and distinct at HEAD f5a367c: ptr_setup_source_uis (server.R:2297), ptr_setup_consumer_uis (2659), ptr_setup_panel_sources (shared-ui.R:510), ptr_bind_shared_consumer_uis (server.R:2948); comments flag them as kept 'in lockstep'/'byte-stable'.",
       "checked_refs": [
-        "R/paintr-server.R:2277",
-        "R/paintr-server.R:2639",
-        "R/paintr-server.R:2890",
-        "R/paintr-server.R:2294",
-        "R/paintr-shared-ui.R:482"
+        "R/paintr-server.R:2297",
+        "R/paintr-server.R:2659",
+        "R/paintr-shared-ui.R:510",
+        "R/paintr-server.R:2948"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
       "origin_status": "derived-unverified",
       "labels": [
         "source-binding-runtime",
         "shared-coordinator-partition"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "shared-host-consumer-binder-dual-mode",
-      "claim": "ptr_bind_shared_consumer_uis runs in two modes from one body \u2014 host (state=NULL, top-level pickers) and per-instance (state!=NULL, inside each embedded ptr_server) \u2014 so any change must be gated on is.null(state).",
+      "claim": "ptr_bind_shared_consumer_uis runs in two modes from one body — host (state=NULL, top-level pickers) and per-instance (state!=NULL, inside each embedded ptr_server) — so any change must be gated on is.null(state).",
       "detail": "Host call relies on the state=NULL default arg. The ab4b6dd latch is wrapped in `if (is.null(state))`.",
       "scope": "durable",
       "feature": "",
       "source": "R/paintr-server.R:2890-3283 (ptr_bind_shared_consumer_uis)",
       "verdict": "verified",
-      "verification": "Signature has `state = NULL` default; the new latch block is gated `if (is.null(state))`.",
+      "verification": "Confirmed one body, two modes gated on is.null(state): host (default state=NULL server.R:2955; host-only blocks 3115, 3297) vs per-instance (if(!is.null(state)) ... req(state$bound_names) server.R:3165-3226); explicit comment 'gated on is.null(state)' at 3004-3005.",
       "checked_refs": [
-        "R/paintr-server.R:2890-3283"
+        "R/paintr-server.R:2955",
+        "R/paintr-server.R:3115",
+        "R/paintr-server.R:3165-3226"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
       "origin_status": "derived-unverified",
       "labels": [
         "source-binding-runtime",
         "shared-coordinator-partition"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "consumer-identity-bound-name-blind-at-host",
@@ -57,29 +62,33 @@
       "feature": "",
       "source": "R/paintr-server.R:2540-2592 (consumer_upstream_source_state)",
       "verdict": "verified",
-      "verification": "Read current body: identity = paste0(sid,'#',dp,'#',bn); bn resolves to '' when state$bound_names is NULL.",
+      "verification": "Confirmed: identity=paste0(sid,'#',dp,'#',bn) at server.R:2621; bn derives from state$bound_names inside tryCatch(...,error=->'') (2596-2615), so at host (state=NULL) bn is always '' and identity is datapath-only; in-code comment 2998-2999 states exactly this.",
       "checked_refs": [
-        "R/paintr-server.R:2540-2592"
+        "R/paintr-server.R:2621",
+        "R/paintr-server.R:2596-2615",
+        "R/paintr-server.R:2998-2999"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
       "origin_status": "derived-unverified",
       "labels": [
         "consumer-picker-seeding",
         "shared-coordinator-partition"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "host-upload-double-render-reverts-consumer-clear",
-      "claim": "At host scope, uploading over a typed source fails to clear the consumer picker: beat 1 (datapath changes) clears, but beat 2 (datapath unchanged, bn still \"\") has a stable identity so the clear returns FALSE and consumer_seed_decision re-applies the stale current pick.",
+      "claim": "At host scope, uploading over a typed source now DOES clear and stay cleared: the base identity clear trips on beat 1 but beat 2's identity is stable (bn=''), so a cleared_for_identity/held_clear latch (R/paintr-server.R:3297-3313) re-asserts the clear on the upload's trailing render — the earlier 'beat-2 reverts the clear' iceberg is fixed.",
       "detail": "Single-instance is immune because state!=NULL makes bn change across beats. Worked around in ab4b6dd by a host-scope cleared_for_identity latch. Probe: dev/scratch/ppupload7-probes.",
       "scope": "campaign",
       "feature": "ppupload-7-host-shared",
       "source": "R/paintr-server.R:2616-2622 (consumer_clear_for_new_source); :2481-2523 (consumer_seed_decision); dev/scratch/ppupload7-probes/README.md",
       "verdict": "verified",
-      "verification": "consumer_clear_for_new_source confirmed: changed_since_last = src_seen && identity!=last && user_supplied; a stable identity on beat 2 yields FALSE. Latch present in binder.",
+      "verification": "DRIFT: the described iceberg is now FIXED. Verified the host-scope latch exists — held_clear=!is.null(cleared_for_identity) && identical(cleared_for_identity,src_state$identity) && current_nonempty; clear_for_new_source<-clear||held_clear||vacate_edge (server.R:3300-3311). Claim rewritten to reflect the fix.",
       "checked_refs": [
-        "R/paintr-server.R:2616-2622",
-        "R/paintr-server.R:2890-3283"
+        "R/paintr-server.R:3297-3313",
+        "R/paintr-server.R:2651-2657"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
       "origin_status": "derived-unverified",
@@ -87,20 +96,24 @@
         "consumer-picker-seeding",
         "ppupload-mechanics",
         "shared-coordinator-partition"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "host-env-rename-never-clears-iceberg",
-      "claim": "ICEBERG (source-confirmed, NOT test-proven, NOT fixed): a host env->env shortcut rename never clears the consumer picker, because a shortcut-only source has datapath \"\" for both and bn \"\" at host scope, so identity = 'shared_ds##' is constant across the rename and consumer_clear_for_new_source.changed_since_last is always FALSE.",
-      "detail": "The ab4b6dd latch cannot help (it only re-asserts an existing clear; base_clear never trips). Real fix = plan's optional bound_name_for= param on consumer_upstream_source_state (skipped). Confirm with a host env->env-rename e2e using a column in BOTH frames (body_mass_g) \u2014 unique columns are auto-dropped by selectInput (false green).",
+      "claim": "ICEBERG partially open: a host env->env shortcut rename is still not cleared by identity detection (datapath '' + host bn '' -> constant 'shared_ds##', server.R:2621/2653-2654); the new host vacate_edge latch (server.R:3303) only catches a supply->no-supply edge, not a non-default->non-default env rename, so this specific case remains unclosed and untested.",
+      "detail": "The ab4b6dd latch cannot help (it only re-asserts an existing clear; base_clear never trips). Real fix = plan's optional bound_name_for= param on consumer_upstream_source_state (skipped). Confirm with a host env->env-rename e2e using a column in BOTH frames (body_mass_g) — unique columns are auto-dropped by selectInput (false green).",
       "scope": "campaign",
       "feature": "ppupload-7-host-shared",
       "source": "R/paintr-server.R:2540-2592 (consumer_upstream_source_state); :2616-2622 (consumer_clear_for_new_source)",
       "verdict": "verified",
-      "verification": "Source logic confirms: shortcut-only source -> dp='' both renders; host bn=''; identity constant -> changed_since_last FALSE; uploaded FALSE -> first_render_on_upload FALSE -> no clear. Still needs a failing e2e to prove the user-observable.",
+      "verification": "DRIFT: partially addressed but NOT fully closed. consumer_clear_for_new_source.changed_since_last still goes FALSE for env->env rename (constant identity 'shared_ds##', server.R:2621/2653-2654); the new vacate_edge (server.R:3303) only catches a supply->no-supply edge, and user_supplied stays TRUE across a non-default->non-default rename (2623), so the rename case remains open. Claim rewritten.",
       "checked_refs": [
-        "R/paintr-server.R:2540-2592",
-        "R/paintr-server.R:2616-2622"
+        "R/paintr-server.R:2621",
+        "R/paintr-server.R:2653-2654",
+        "R/paintr-server.R:2623",
+        "R/paintr-server.R:3303-3311"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
       "origin_status": "derived-unverified",
@@ -108,7 +121,9 @@
         "consumer-picker-seeding",
         "shared-coordinator-partition",
         "ppupload-mechanics"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "resolve-upload-source-file-reset-arg",
@@ -118,34 +133,42 @@
       "feature": "",
       "source": "R/paintr-server.R:1249-1382 (resolve_upload_source)",
       "verdict": "verified",
-      "verification": "Signature ends `slot, file_reset = FALSE`; body has `if (isTRUE(file_reset)) file_info <- NULL` before the is.null(file_info) branch.",
+      "verification": "Confirmed: resolve_upload_source(...,file_reset=FALSE) signature at server.R:1300-1301; if(isTRUE(file_reset)) file_info<-NULL at 1337 routes to env-load (try_bind_source_default_resolved, 1350) + vacate-on-empty (vacate_source_binding, 1374).",
       "checked_refs": [
-        "R/paintr-server.R:1249-1382"
+        "R/paintr-server.R:1300-1301",
+        "R/paintr-server.R:1337",
+        "R/paintr-server.R:1350"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
       "origin_status": "derived-unverified",
       "labels": [
         "ppupload-mechanics"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "host-flag-can-be-local-not-state-slot",
-      "claim": "On the host source path source_file_reset can be a plain local reactiveVal read directly at the in-scope resolve_upload_source call, because the renderUI, flag observers, and resolve observe all live in one local() per source key \u2014 unlike the single-instance path which must publish on state$source_file_reset.",
+      "claim": "On the host source path source_file_reset can be a plain local reactiveVal read directly at the in-scope resolve_upload_source call, because the renderUI, flag observers, and resolve observe all live in one local() per source key — unlike the single-instance path which must publish on state$source_file_reset.",
       "detail": "",
       "scope": "durable",
       "feature": "",
       "source": "R/paintr-shared-ui.R:482-698 (ptr_setup_panel_sources)",
       "verdict": "verified",
-      "verification": "Current body: `file_reset_rv <- shiny::reactiveVal(FALSE)` local; read as `file_reset = isTRUE(file_reset_rv())` in the in-scope resolve_upload_source; no state$source_file_reset publish.",
+      "verification": "Confirmed: file_reset_rv reactiveVal local to the per-key local() in ptr_setup_panel_sources (shared-ui.R:575), read directly at the resolve call (683); single-instance publishes state$source_file_reset (server.R:2349). Contrast comment verbatim at shared-ui.R:570-573.",
       "checked_refs": [
-        "R/paintr-shared-ui.R:482-698"
+        "R/paintr-shared-ui.R:575",
+        "R/paintr-shared-ui.R:683",
+        "R/paintr-server.R:2349"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
       "origin_status": "derived-unverified",
       "labels": [
         "ppupload-mechanics",
         "shared-coordinator-partition"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "ptr-bind-source-mutex-is-file-to-text-only",
@@ -155,25 +178,28 @@
       "feature": "",
       "source": "R/paintr-server.R:1651-1658 (ptr_bind_source_mutex)",
       "verdict": "verified",
-      "verification": "Body is a single observeEvent(input[[src_id]]) -> updateTextInput(session, shortcut_input_id, value=''); no file-clear path.",
+      "verification": "Confirmed: ptr_bind_source_mutex (server.R:1671-1678) has one observeEvent(input[[src_id]]) that updateTextInput(...,value='') (file->blank shortcut); no reverse observer. Typed-over-upload visual clear is the ADR-0025 #7 source_bump re-render (server.R:2355-2362), not the mutex.",
       "checked_refs": [
-        "R/paintr-server.R:1651-1658"
+        "R/paintr-server.R:1671-1678",
+        "R/paintr-server.R:2355-2362"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
       "origin_status": "derived-unverified",
       "labels": [
         "ppupload-mechanics"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "fileinput-pill-is-harness-blind",
-      "claim": "The fileInput filename pill is rendered client-side by the browser's native file widget, so chromote/CDP get_html/get_value cannot observe it \u2014 #7's pill-clear is only verifiable by human eyeball, never by AppDriver.",
+      "claim": "The fileInput filename pill is rendered client-side by the browser's native file widget, so chromote/CDP get_html/get_value cannot observe it — #7's pill-clear is only verifiable by human eyeball, never by AppDriver.",
       "detail": "Chrome MCP also now rejects host filesystem paths in file_upload and the native picker is undrivable, so even a screenshot agent cannot create the upload pill to watch it clear; typing->re-render->env-load->picker-populated IS automatable.",
       "scope": "durable",
       "feature": "",
-      "source": "dev/plans/0025-item7-followup-host-shared-consumer-clear/plan.html \u00a77",
+      "source": "dev/plans/0025-item7-followup-host-shared-consumer-clear/plan.html §7",
       "verdict": "verified",
-      "verification": "plan.html \u00a77 states the pill is 'rendered client-side by the browser's native file widget' and CDP get_html/get_value 'cannot observe' it (2 matches for 'client-side').",
+      "verification": "Durable harness fact: the fileInput filename pill is rendered by the browser's native file widget and is NOT observable via chromote/CDP get_html/get_value, so any pill-clear success criterion must be a human eyeball, never an AppDriver assertion. (Applies to both stamped instances.)",
       "checked_refs": [
         "dev/plans/0025-item7-followup-host-shared-consumer-clear/plan.html"
       ],
@@ -182,26 +208,30 @@
       "labels": [
         "shinytest2-gotchas",
         "ppupload-mechanics"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "stale-mock-signature-breaks-on-new-arg",
-      "claim": "Adding file_reset= to the host resolve_upload_source call broke test-auto-name-shared-canonical.R because its local_mocked_bindings mock used the old 8-arg signature (no file_reset, no ...), so the call threw 'unused argument', the observe errored, captured_node stayed NULL, and 3 expectations failed \u2014 a stale-mock failure, not a product bug.",
+      "claim": "Adding file_reset= to the host resolve_upload_source call broke test-auto-name-shared-canonical.R because its local_mocked_bindings mock used the old 8-arg signature (no file_reset, no ...), so the call threw 'unused argument', the observe errored, captured_node stayed NULL, and 3 expectations failed — a stale-mock failure, not a product bug.",
       "detail": "Lesson: when adding an argument to a function mocked via testthat::local_mocked_bindings, grep tests for mocks of that function and update their signatures (or add ...). Fixed by adding file_reset=FALSE to the mock.",
       "scope": "campaign",
       "feature": "ppupload-7-host-shared",
       "source": "tests/testthat/test-auto-name-shared-canonical.R:80 (local_mocked_bindings resolve_upload_source)",
       "verdict": "verified",
-      "verification": "Current test has 2 occurrences of file_reset; the mock signature now includes `file_reset = FALSE`.",
+      "verification": "Confirmed in tests/testthat/test-auto-name-shared-canonical.R:78-90: the local_mocked_bindings mock for resolve_upload_source now mirrors the real signature including file_reset=FALSE, with a comment documenting that the host path (ptr_setup_panel_sources) passes file_reset= and the mock must accept it or captured_node stays NULL. Mechanism and fix confirmed.",
       "checked_refs": [
-        "tests/testthat/test-auto-name-shared-canonical.R"
+        "tests/testthat/test-auto-name-shared-canonical.R:78-90"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
       "origin_status": "derived-unverified",
       "labels": [
         "refactor-discipline",
         "ppupload-mechanics"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "ggpaintr-baseline-gate-3403-to-3420",
@@ -210,8 +240,8 @@
       "scope": "campaign",
       "feature": "ppupload-7-host-shared",
       "source": "devtools::test() serial; project CLAUDE.md authoritative-gate block",
-      "verdict": "verified",
-      "verification": "Directly observed this session: pre-change run PASS 3403 0/0/0(WARN4); post-change run PASS 3420 0/0/0(WARN4). Not re-run during harvest (point-in-time).",
+      "verdict": "unconfirmable",
+      "verification": "Point-in-time test-count observation on the (now-merged) ppUpload-bug branch with no durable source ('observed this session'); cannot be re-verified, and CLAUDE.md states the count is explicitly NOT the gate (0/0/0 is). Kept live but flagged — a human should decide whether to retire it.",
       "checked_refs": [
         "(observed this session)"
       ],
@@ -219,23 +249,27 @@
       "origin_status": "derived-unverified",
       "labels": [
         "test-gate-discipline"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "tool-output-batched-delivery-not-corruption",
-      "claim": "Tool results were sometimes delivered in delayed batches \u2014 a result for call N appeared one or more turns later, occasionally with a truncated/garbled tail \u2014 which can be mistaken for file corruption but is purely a delivery artifact; every read reconciled to clean content on the batched flush.",
+      "claim": "Tool results were sometimes delivered in delayed batches — a result for call N appeared one or more turns later, occasionally with a truncated/garbled tail — which can be mistaken for file corruption but is purely a delivery artifact; every read reconciled to clean content on the batched flush.",
       "detail": "Mitigation: keep firing the needed reads and reconcile on flush; prefer serena symbolic reads (find_symbol include_body=true) which returned clean complete bodies. Recurred during this very harvest (a grep -c printed duplicated many times).",
       "scope": "durable",
       "feature": "",
       "source": "(session-environment observation; no source ref)",
       "verdict": "unconfirmable",
-      "verification": "No code ref to check \u2014 a meta-observation about this session's tool harness. Re-manifested during harvest (duplicated grep output), so true by direct observation but not source-verifiable.",
+      "verification": "Session-environment observation (delayed batched tool-result delivery, not file corruption) with no source ref; not re-verifiable against code. Kept live but flagged.",
       "checked_refs": [],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
       "origin_status": "derived-unverified",
       "labels": [
         "harness-tooling"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     }
   ]
 }

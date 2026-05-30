@@ -9,40 +9,45 @@
   "findings": [
     {
       "id": "parallel-boottail-flake-shared-spec-seed-derived",
-      "claim": "Under TESTTHAT_PARALLEL=TRUE TESTTHAT_CPUS=4 the full suite showed FAIL 2 in test-shared-spec-seed-derived-column-browser.R with a blank `actual` value (the renderUI shared picker read before binding \u2014 a boot-tail race), but a SERIAL re-run of that file passed FAIL 0 / PASS 3, confirming it is a parallel-load flake and not a product failure.",
-      "detail": "Concretely validated CLAUDE.md's \"residual flake under parallel load is not a product failure \u2014 re-confirm serially\" rule; the file uses only string formulas (no expr()), so the normalize change cannot affect it. Full suite otherwise PASS 3463 / SKIP 0.",
+      "claim": "Under TESTTHAT_PARALLEL=TRUE TESTTHAT_CPUS=4 the full suite showed FAIL 2 in test-shared-spec-seed-derived-column-browser.R with a blank `actual` value (the renderUI shared picker read before binding — a boot-tail race), but a SERIAL re-run of that file passed FAIL 0 / PASS 3, confirming it is a parallel-load flake and not a product failure.",
+      "detail": "Concretely validated CLAUDE.md's \"residual flake under parallel load is not a product failure — re-confirm serially\" rule; the file uses only string formulas (no expr()), so the normalize change cannot affect it. Full suite otherwise PASS 3463 / SKIP 0.",
       "scope": "campaign",
       "feature": "ptr-shared-expression-input",
       "source": "tests/testthat/test-shared-spec-seed-derived-column-browser.R:41,46; CLAUDE.md authoritative-gate block",
       "verdict": "verified",
-      "verification": "test-shared-spec-seed-derived-column-browser.R:41/46 are expect_true/expect_false (match the FAIL 2 'Expected ... TRUE/FALSE' under parallel). Serial re-run of the file: FAIL 0 / PASS 3. Confirms parallel boot-tail flake, not a regression; file uses only string formulas.",
+      "verification": "test-shared-spec-seed-derived-column-browser.R present; the durable claim (renderUI shared picker read-before-binding boot-tail race surfaces as a blank actual under TESTTHAT_PARALLEL, passes on serial re-run; not a product failure) matches CLAUDE.md. Specific FAIL 2 count is point-in-time.",
       "checked_refs": [
-        "tests/testthat/test-shared-spec-seed-derived-column-browser.R:41",
-        "tests/testthat/test-shared-spec-seed-derived-column-browser.R:46"
+        "tests/testthat/test-shared-spec-seed-derived-column-browser.R",
+        "CLAUDE.md authoritative-gate"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1502-ptr-shared-expression-input.md",
       "origin_status": "derived-unverified",
       "labels": [
         "test-gate-discipline"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "built-ggplot-object-undeparseable",
-      "claim": "Assigning `f <- ggplot(aes(x = ppVar(mpg))) + geom_point()` SUCCEEDS and yields a built S7 ggplot object (ppVar is a real identity callable and aes() quotes its args, so nothing errors), but deparsing that object gives `<object>` \u2014 its source text is unrecoverable, so a built ggplot object can never be translated and must be rejected; only a quoted expression (rlang::expr()/quote(), a language object) deparses back to clean source.",
+      "claim": "Assigning `f <- ggplot(aes(x = ppVar(mpg))) + geom_point()` SUCCEEDS and yields a built S7 ggplot object (ppVar is a real identity callable and aes() quotes its args, so nothing errors), but deparsing that object gives `<object>` — its source text is unrecoverable, so a built ggplot object can never be translated and must be rejected; only a quoted expression (rlang::expr()/quote(), a language object) deparses back to clean source.",
       "detail": "This is why the ptr_shared formulas contract requires `expr()`/`quote()`-quoted language objects, not eager ggplot objects. The discriminator `is.call(x) || rlang::is_symbol(x)` cleanly separates acceptable language objects (TRUE) from built ggplot objects (both FALSE, is.language also FALSE).",
       "scope": "durable",
       "feature": "",
       "source": "R/paintr-builtins.R:357-391; probe: ggplot(aes(x=ppVar(mpg)))+geom_point()",
       "verdict": "verified",
-      "verification": "ppVar registered as identity consumer (var_fn at R/paintr-builtins.R:356, exposed ppVar=var_fn at :391); probe this session showed `ggplot(aes(x=ppVar(mpg)))+geom_point()` builds an S7 ggplot object whose deparse is `<object>` and is.call/is.language FALSE, while expr()/quote() yield a call that deparses to source.",
+      "verification": "Confirmed ppVar<-function(x=NULL,...) x is an identity callable (builtins.R:396); a built ggplot object is not call/symbol so its source is unrecoverable, and normalize_shared_formulas (shared-ui.R:129-150) explicitly rejects a built ggplot object ('quote the expression instead'); only quoted language deparses cleanly.",
       "checked_refs": [
-        "R/paintr-builtins.R:356-391"
+        "R/paintr-builtins.R:396",
+        "R/paintr-shared-ui.R:129-150"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1502-ptr-shared-expression-input.md",
       "origin_status": "derived-unverified",
       "labels": [
         "formula-capture"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "capture-formula-deparses-to-string",
@@ -52,38 +57,41 @@
       "feature": "",
       "source": "R/paintr-app.R:196-296",
       "verdict": "verified",
-      "verification": "rlang::expr_text(formula_captured, width = 500L) confirmed at R/paintr-app.R:290 as the final normalize-to-string return; ptr_capture_formula untouched this session.",
+      "verification": "Confirmed ptr_capture_formula (app.R:196-296): strings pass through, expr/quo/quote/bquote unwrapped one layer, terminal path returns rlang::expr_text(formula_captured,width=500L) for call/symbol — engine downstream is string-only.",
       "checked_refs": [
-        "R/paintr-app.R:196-296",
-        "R/paintr-app.R:290"
+        "R/paintr-app.R:196-296"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1502-ptr-shared-expression-input.md",
       "origin_status": "derived-unverified",
       "labels": [
         "formula-capture",
         "app-entry-points"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "expr-mode-scoped-to-single-formula-entries",
-      "claim": "Before this change, expression-mode formula input existed ONLY at the single-formula public boundaries (ptr_app/ptr_server/ptr_ui); both multi-formula entries (ptr_shared, ptr_app_grid) were string-only, each guarded by an identical `all(vapply(formulas, rlang::is_string, logical(1)))` assertion, and ADR 0009 \u00a728 deliberately scoped expression mode to the single-formula entries.",
+      "claim": "Expression-mode formula input now exists at the single-formula entries (ptr_app/ptr_server/ptr_ui via ptr_capture_formula) AND at ptr_shared (via normalize_shared_formulas, shared-coordinator.R:263); only ptr_app_grid remains string-only, still guarded by all(vapply(plots, rlang::is_string, logical(1))) at R/paintr-app.R:1322. (ADR 0009 §28 originally scoped expr mode to single-formula entries; ptr_shared was extended afterward.)",
       "detail": "ptr_app_grid is unmaintained, so this session extended expression mode to ptr_shared only; ptr_app_grid's identical guard at R/paintr-app.R:1318-1322 was intentionally left string-only.",
       "scope": "durable",
       "feature": "",
       "source": "dev/adr/0009-pp-placeholders-and-expression-input.html:28-29; R/paintr-app.R:133,1092,1318-1322; R/paintr-shared-ui.R:120",
       "verdict": "verified",
-      "verification": "ptr_app_grid string-only guard confirmed live at R/paintr-app.R:1318-1322 (all(vapply(plots, rlang::is_string))). The ptr_shared half is accurate as HISTORY but now superseded this session: the identical guard at shared-ui was replaced by normalize_shared_formulas (see ptr-shared-accepts-quoted-expr-formulas). ADR 0009 single-formula scoping unchanged.",
+      "verification": "DRIFT: ptr_shared NOW accepts quoted exprs via normalize_shared_formulas (shared-coordinator.R:263). Verified ptr_app_grid is still string-only (all(vapply(plots,rlang::is_string,logical(1))) at app.R:1322). Claim rewritten to current truth.",
       "checked_refs": [
-        "R/paintr-app.R:1318-1322",
-        "R/paintr-shared-ui.R:130",
-        "dev/adr/0009-pp-placeholders-and-expression-input.html:28"
+        "R/paintr-app.R:1318-1323",
+        "R/paintr-shared-coordinator.R:263",
+        "R/paintr-shared-ui.R:129-150"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1502-ptr-shared-expression-input.md",
       "origin_status": "derived-unverified",
       "labels": [
         "formula-capture",
         "app-entry-points"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "native-pipe-desugared-before-expr-capture",
@@ -93,28 +101,31 @@
       "feature": "",
       "source": "probe: rlang::expr(mtcars |> ggplot(...)); dev/adr/0009...html:29",
       "verdict": "verified",
-      "verification": "Probe this session: rlang::expr(mtcars |> ggplot(aes(...))) captured `ggplot(mtcars, aes(...))` (pipe gone); `%>%` captured verbatim. Matches ADR 0009 expression-mode note.",
+      "verification": "Confirmed: source comment translate.R:34 '|> already desugared at parse time'; %>% handled as real operator head (translate.R:234); string mode preserves |> via preprocess_native_pipe (translate.R:522-543). R-language parse-time desugaring fact.",
       "checked_refs": [
-        "dev/adr/0009-pp-placeholders-and-expression-input.html:29"
+        "R/paintr-translate.R:34",
+        "R/paintr-translate.R:234",
+        "R/paintr-translate.R:522-543"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1502-ptr-shared-expression-input.md",
       "origin_status": "derived-unverified",
       "labels": [
         "formula-capture"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "ptr-shared-accepts-quoted-expr-formulas",
-      "claim": "ptr_shared(formulas) now accepts each element as either a string or a quoted ggplot expression (language object), implemented by a new internal normalize_shared_formulas() that deparses language elements (expr_text width=500L), keeps strings byte-identical, and rejects anything else with an index-naming error; the signature is UNCHANGED (formulas=, normally evaluated \u2014 no enexpr/!!!/envir) because expr()/quote() already evaluate to recoverable language objects.",
+      "claim": "ptr_shared(formulas) now accepts each element as either a string or a quoted ggplot expression (language object), implemented by a new internal normalize_shared_formulas() that deparses language elements (expr_text width=500L), keeps strings byte-identical, and rejects anything else with an index-naming error; the signature is UNCHANGED (formulas=, normally evaluated — no enexpr/!!!/envir) because expr()/quote() already evaluate to recoverable language objects.",
       "detail": "ptr_shared() normalizes once at the top (before shared_translate_formulas) so spec$formulas and shared_assert_panel_consumer_sources both see strings; shared_translate_formulas re-normalizes idempotently. The string path is identity through the normalizer (string -> return(x)), so all existing all-string call sites are byte-for-byte unaffected. Additive + trivially reversible -> no ADR was warranted (failed the \"hard to reverse\" criterion).",
       "scope": "durable",
       "feature": "",
       "source": "R/paintr-shared-ui.R:120 (normalize_shared_formulas); R/paintr-shared-coordinator.R:230,244; tests/testthat/test-shared-expression-input.R",
       "verdict": "verified",
-      "verification": "normalize_shared_formulas defined at R/paintr-shared-ui.R:130, called there at :154 and in ptr_shared at R/paintr-shared-coordinator.R:263; new contract tests (test-shared-expression-input.R) pass 26 assertions; full suite PASS 3463/SKIP 0. Landed in commit 2e568c5.",
+      "verification": "Confirmed normalize_shared_formulas (shared-ui.R:129-150): string verbatim, call/symbol -> expr_text(width=500L), else index-naming abort; called by ptr_shared (shared-coordinator.R:263) and ptr_shared_server (shared-ui.R:154); signature unchanged; tests/testthat/test-shared-expression-input.R present.",
       "checked_refs": [
-        "R/paintr-shared-ui.R:130",
-        "R/paintr-shared-ui.R:154",
+        "R/paintr-shared-ui.R:129-150",
         "R/paintr-shared-coordinator.R:263",
         "tests/testthat/test-shared-expression-input.R"
       ],
@@ -123,7 +134,9 @@
       "labels": [
         "formula-capture",
         "shared-coordinator-partition"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     }
   ]
 }

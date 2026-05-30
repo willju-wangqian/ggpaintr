@@ -9,41 +9,42 @@
   "findings": [
     {
       "id": "two-parallel-source-handling-paths",
-      "claim": "ggpaintr has TWO parallel data-source widget/resolution implementations \u2014 the single-instance/formula-local path (`ptr_setup_source_uis` in paintr-server.R) and the multi-instance shared-coordinator HOST path (`ptr_setup_panel_sources` in paintr-shared-ui.R) \u2014 and a fix applied to one does not propagate to the other.",
+      "claim": "ggpaintr has TWO parallel data-source widget/resolution implementations — the single-instance/formula-local path (`ptr_setup_source_uis` in paintr-server.R) and the multi-instance shared-coordinator HOST path (`ptr_setup_panel_sources` in paintr-shared-ui.R) — and a fix applied to one does not propagate to the other.",
       "detail": "This is the root structural reason ADR-0025-area fixes (#7 fileInput reset, source_file_reset flag, file_reset gate) landed only single-instance and had to be separately ported. The host path mirrors the single path's renderUI/registry-dispatch shape but is a distinct code path with its own renderUI, its own resolve_upload_source call, and its own mutex.",
       "scope": "durable",
       "feature": "",
       "tags": "ppupload-architecture",
       "source": "R/paintr-server.R:2277-2426 (ptr_setup_source_uis); R/paintr-shared-ui.R:481-654 (ptr_setup_panel_sources)",
       "verdict": "verified",
-      "verification": "Both functions exist: ptr_setup_source_uis defined at server.R:2278, ptr_setup_panel_sources at shared-ui.R:482. Distinct files, each with its own renderUI + resolve_upload_source call + mutex. Line drift minor (file grew to 3630).",
+      "verification": "Confirmed two distinct implementations at HEAD f5a367c: ptr_setup_source_uis (R/paintr-server.R:2297) vs ptr_setup_panel_sources (R/paintr-shared-ui.R:510); single-instance even skips panel-owned ids (server.R:2313) and shared-ui carries a 'Byte-shape-equal' manual-port comment (shared-ui.R:558) — fixes do not auto-propagate.",
       "checked_refs": [
-        "R/paintr-server.R:2278",
-        "R/paintr-shared-ui.R:482",
-        "R/paintr-shared-ui.R:602"
+        "R/paintr-server.R ptr_setup_source_uis",
+        "R/paintr-server.R:2313",
+        "R/paintr-shared-ui.R ptr_setup_panel_sources"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
       "origin_status": "derived-unverified",
       "labels": [
         "source-binding-runtime",
         "shared-coordinator-partition"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "shared-consumer-binder-runs-state-null-at-host",
-      "claim": "At coordinator HOST scope `ptr_bind_shared_consumer_uis` is called with `state=NULL` (by ADR-0006 design), so its entire `if (!is.null(state))` block \u2014 including the `req(state$bound_names[[id]]())` source-ready/suppress gate \u2014 never executes; the host path instead drives the picker off `panel_sources[[sid]]()` reactives + a synthetic host_env.",
+      "claim": "At coordinator HOST scope ptr_bind_shared_consumer_uis is called with state=NULL (R/paintr-server.R:2955, ADR-0006), so the if(!is.null(state)) block — including both req(state$bound_names[[id]]()) gates — never runs; host scope instead runs its own is.null(state) branches: a synthetic host_env extending eval_env with the panel-resolved df (server.R:3115-3164) and a per-picker double-render clear-hold latch (server.R:3297-3313), driving the picker off panel_sources[[sid]]() reactives.",
       "detail": "Consequence: the single-instance suppress-on-vacate gate is structurally absent at host scope. The same binder runs at per-instance embedded scope WITH a real state, so behaviour diverges by call site, not by code. Reached via ptr_bind_local_shared_consumers (server.R:3269) from both the single-instance/embedded server (state passed) and the coordinator host (state omitted).",
       "scope": "durable",
       "feature": "",
       "tags": "ppupload-architecture",
       "source": "R/paintr-server.R:2891-3256 (ptr_bind_shared_consumer_uis), :3095-3156 (if(!is.null(state)) block); R/paintr-shared-ui.R:386 (host call omits state=)",
       "verdict": "verified",
-      "verification": "ptr_bind_local_shared_consumers (server.R:3269) has `state = NULL` default; host call at shared-ui.R:386 omits `state=` \u2192 NULL propagates into ptr_bind_shared_consumer_uis (server.R:2891). The `if (!is.null(state))` block begins at server.R:3095 and contains `shiny::req(state$bound_names[[...]]())` \u2014 wholly skipped when state is NULL. Confirmed by source read.",
+      "verification": "Verified by symbol: ptr_bind_shared_consumer_uis default state=NULL (server.R:2955); the if(!is.null(state)) block with both req(state$bound_names) gates is skipped at host. DRIFT: host scope now also runs its own is.null(state) branches (synthetic host_env server.R:3115-3164; clear-hold latch 3297-3313) that postdate the original stamp — claim rewritten.",
       "checked_refs": [
-        "R/paintr-server.R:2891",
-        "R/paintr-server.R:3095",
-        "R/paintr-server.R:3269-3286",
-        "R/paintr-shared-ui.R:386-394"
+        "R/paintr-server.R:2955",
+        "R/paintr-server.R:3115-3164",
+        "R/paintr-server.R:3297-3313"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
       "origin_status": "derived-unverified",
@@ -51,118 +52,125 @@
         "source-binding-runtime",
         "shared-coordinator-partition",
         "consumer-picker-seeding"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "consumer-identity-boundname-drives-clear-stickiness",
-      "claim": "The downstream consumer's new-source-clear is edge-triggered on an identity string `sid#datapath#boundName`; an upload settles in TWO reactive render beats, and the clear only STICKS if the identity keeps changing across both beats \u2014 single-instance's `boundName` (from `state$bound_names`) flips `typed_ds\u2192df_<hash>` so both beats re-clear, whereas at host scope `state=NULL` forces `boundName=\"\"` permanently, the identity stabilises after beat 1, and beat 2 re-seeds the stale `current` via `boot_seed_selected` and REVERTS the clear.",
-      "detail": "Static mechanism confirmed in source: consumer_upstream_source_state builds identity = paste0(sid,'#',dp,'#',bn) joined by '||', edge-triggered in consumer_clear_for_new_source via `src_seen && !identical(identity,last_identity) && user_supplied`. The sid\u2192layer_name bound_names fallback (server.R:2576-2579) means a NULL state yields bn=\"\" permanently. The TWO-beat runtime divergence (single clears, host reverts) was AppDriver-observed in-session (dev/scratch/ppupload7-probes/) and NOT re-run this pass; the static code path is fully consistent with it. Refutes an earlier 'req-gate serialization' theory.",
+      "claim": "The downstream consumer's new-source-clear is edge-triggered on identity sid#datapath#boundName (server.R:2621); single-instance flips boundName via state$bound_names so both upload beats re-clear, while at host scope state=NULL forces boundName=\"\" so identity stabilises after beat 1 — but a host-scope latch (cleared_for_identity armed on the clear edge + held_clear re-assertion, server.R:3297-3311) now carries the clear across the trailing render, so the stale current no longer rides back (the beat-2 revert was fixed).",
+      "detail": "Static mechanism confirmed in source: consumer_upstream_source_state builds identity = paste0(sid,'#',dp,'#',bn) joined by '||', edge-triggered in consumer_clear_for_new_source via `src_seen && !identical(identity,last_identity) && user_supplied`. The sid→layer_name bound_names fallback (server.R:2576-2579) means a NULL state yields bn=\"\" permanently. The TWO-beat runtime divergence (single clears, host reverts) was AppDriver-observed in-session (dev/scratch/ppupload7-probes/) and NOT re-run this pass; the static code path is fully consistent with it. Refutes an earlier 'req-gate serialization' theory.",
       "scope": "durable",
       "feature": "",
       "tags": "ppupload-7-followup",
       "source": "R/paintr-server.R:2528-2592 (consumer_upstream_source_state), :2481-2523 (consumer_seed_decision), :2617-2623 (consumer_clear_for_new_source), :2478 (boot_seed_selected)",
       "verdict": "verified",
-      "verification": "consumer_upstream_source_state at server.R:2541 builds `paste0(sid,'#',dp,'#',bn)`; consumer_clear_for_new_source at :2617 is edge-triggered (changed_since_last + first_render_on_upload); boot_seed_selected at :2478; bound_names sid\u2192layer_name fallback at :2576-2579 confirms bn empties when state/bound_names absent. Runtime two-beat differential is probe-observed (not re-run), static path consistent.",
+      "verification": "Identity string sid#datapath#boundName confirmed at server.R:2621; single-instance boundName flip via state$bound_names (2596-2614) and host bn='' both confirmed. DRIFT: the old 'beat-2 reverts the clear' behavior is fixed by a host latch (cleared_for_identity + held_clear, server.R:3300-3311) — claim rewritten.",
       "checked_refs": [
-        "R/paintr-server.R:2541-2592",
-        "R/paintr-server.R:2617-2623",
-        "R/paintr-server.R:2478",
-        "R/paintr-server.R:2576-2579"
+        "R/paintr-server.R:2621",
+        "R/paintr-server.R:2596-2614",
+        "R/paintr-server.R:3297-3311"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
       "origin_status": "derived-unverified",
       "labels": [
         "consumer-picker-seeding",
         "ppupload-mechanics"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "host-source-port-is-simpler-than-single",
-      "claim": "Porting #7's source_file_reset flag to the host path is simpler than the single-instance original because in `ptr_setup_panel_sources` the renderUI, the shortcut, the flag, and the `resolve_upload_source` call all live in ONE `local({...})` scope \u2014 so the flag is a local `reactiveVal` read directly at the resolve call, with no cross-function plumbing, unlike single-instance which must publish on `state$source_file_reset` and read it back in the per-instance pipeline binders.",
+      "claim": "Porting #7's source_file_reset flag to the host path is simpler than the single-instance original because in `ptr_setup_panel_sources` the renderUI, the shortcut, the flag, and the `resolve_upload_source` call all live in ONE `local({...})` scope — so the flag is a local `reactiveVal` read directly at the resolve call, with no cross-function plumbing, unlike single-instance which must publish on `state$source_file_reset` and read it back in the per-instance pipeline binders.",
       "detail": "The planned host edits are additive in that one scope; resolve_upload_source already accepts `file_reset` (server.R:1251, `if (isTRUE(file_reset)) file_info <- NULL` at :1287). The host path uses a synthetic host_state list (eval_env + throwaway bound_names env + resolve_errors) at shared-ui.R:593-597 and returns reactive(slot()). Single-instance plumbing confirmed: file_reset_rv published on state$source_file_reset (server.R:2329-2330) and read back at :1536/:1614. Plan: dev/plans/0025-item7-followup-host-shared-consumer-clear/plan.html (exists).",
       "scope": "campaign",
       "feature": "ppupload-7-followup",
       "tags": "ppupload-7-followup",
       "source": "R/paintr-shared-ui.R:503-651 (ptr_setup_panel_sources local scope); R/paintr-server.R:2277-2426, :1536,1614, :1249-1382 (resolve_upload_source)",
       "verdict": "verified",
-      "verification": "resolve_upload_source signature carries `file_reset = FALSE` (server.R:1251) with `if (isTRUE(file_reset)) file_info <- NULL` (:1287). Single-instance publishes file_reset_rv on state$source_file_reset (:2329-2330) and reads at :1536/:1614. Host host_state list (eval_env/bound_names/resolve_errors) at shared-ui.R:593-597 with observe+resolve_upload_source in one loop-body scope at :602. 'Simpler' is a structurally-grounded judgment; plan dir exists.",
+      "verification": "Confirmed: in ptr_setup_panel_sources the renderUI, file_reset_rv reactiveVal (shared-ui.R:575) and resolve_upload_source call (file_reset=isTRUE(file_reset_rv()), shared-ui.R:683) all live in one local() scope; verbatim contrast comment at shared-ui.R:570-573; single-instance instead publishes state$source_file_reset (server.R:2349).",
       "checked_refs": [
-        "R/paintr-server.R:1251",
-        "R/paintr-server.R:1287",
-        "R/paintr-server.R:1535-1536",
-        "R/paintr-server.R:1613-1614",
-        "R/paintr-server.R:2329-2330",
-        "R/paintr-shared-ui.R:593-617"
+        "R/paintr-shared-ui.R:575",
+        "R/paintr-shared-ui.R:683",
+        "R/paintr-server.R:2349"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
       "origin_status": "derived-unverified",
       "labels": [
         "ppupload-mechanics",
         "shared-coordinator-partition"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "single-instance-consumer-suspended-until-source-and-subtab",
-      "claim": "A single-instance `ppVar()` consumer picker does NOT bind at boot \u2014 it stays absent from `input` until BOTH its upstream source has data (the `req(state$bound_names[[id]]())` gate clears) AND the layer's Controls subtab is opened; so a probe/test must provide the source first, then set `<layer>_subtab=\"Controls\"`, then read the picker.",
+      "claim": "A single-instance `ppVar()` consumer picker does NOT bind at boot — it stays absent from `input` until BOTH its upstream source has data (the `req(state$bound_names[[id]]())` gate clears) AND the layer's Controls subtab is opened; so a probe/test must provide the source first, then set `<layer>_subtab=\"Controls\"`, then read the picker.",
       "detail": "Single-instance source id pattern observed: `ggplot_0_ppUpload_NA`, shortcut `ggplot_0_ppUpload_NA_shortcut`; consumer picker id `ggplot_1_1_ppVar_NA` appeared only after typing an env source AND opening the subtab. Static mechanism (ptr_setup_consumer_uis suspend + req gate) confirmed; the specific runtime ids are probe-observed (discover.R is a thin 553-byte discovery script, not re-run this pass). Corroborated by project rule .claude/rules/testing.md (consumer var pickers are suspended under a renderUI subtab).",
       "scope": "durable",
       "feature": "",
       "tags": "ppupload-testing",
       "source": "R/paintr-server.R:2625-2763 (ptr_setup_consumer_uis req(bound_names)); dev/scratch/ppupload7-probes/single/discover.R",
       "verdict": "verified",
-      "verification": "ptr_setup_consumer_uis defined at server.R:2625; consumer binder uses the req(state$bound_names[[...]]) suspend gate (shared block at :3095 / non-shared path). discover.R exists (dev/scratch/ppupload7-probes/single/discover.R). Runtime picker-id observation not re-run; mechanism + testing.md rule back it.",
+      "verification": "Confirmed in ptr_setup_consumer_uis: source_ready computed (server.R:2758-2770) then req(state$bound_names[[source_ready$id]]()) gate (2803-2819); Controls-subtab dep documented in the per-consumer dep set (2696-2699). Matches the probe order in .claude/rules/testing.md.",
       "checked_refs": [
-        "R/paintr-server.R:2625-2636",
-        "dev/scratch/ppupload7-probes/single/discover.R",
-        ".claude/rules/testing.md"
+        "R/paintr-server.R:2758-2770",
+        "R/paintr-server.R:2803-2819",
+        "R/paintr-server.R:2696-2699"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
       "origin_status": "derived-unverified",
       "labels": [
         "consumer-picker-seeding",
         "shinytest2-gotchas"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "overlapping-column-false-green-trap",
-      "claim": "A consumer-clear regression test MUST select a column present in BOTH the pre- and post-switch datasets (e.g. `body_mass_g`), because a `selectInput`/`selectpicker` silently drops a selection that is no longer a valid option \u2014 so a test using a column unique to the old dataset passes even when the clear logic is broken (false green).",
+      "claim": "A consumer-clear regression test MUST select a column present in BOTH the pre- and post-switch datasets (e.g. `body_mass_g`), because a `selectInput`/`selectpicker` silently drops a selection that is no longer a valid option — so a test using a column unique to the old dataset passes even when the clear logic is broken (false green).",
       "detail": "This trap masked the bug during static analysis: it looks 'cleared' merely because the option vanished, not because our clear fired. The probe deliberately used body_mass_g (present in both typed_ds and penguins.csv) to expose the persistence.",
       "scope": "durable",
       "feature": "",
       "tags": "ppupload-testing",
       "source": "shinyWidgets selectInput/selectpicker behaviour; dev/scratch/ppupload7-probes/README.md",
       "verdict": "verified",
-      "verification": "dev/scratch/ppupload7-probes/README.md:16 states verbatim: 'the consumer assertion MUST use a column present in BOTH datasets (body_mass_g) \u2014 a unique column is auto-dropped by selectInput and yields a false green.' Matches claim exactly.",
+      "verification": "Durable test-design fact (shinyWidgets selectInput/pickerInput silently drops a selection that is not a current option), so a consumer-clear test must select a column present in BOTH datasets. Probe README still present at dev/scratch/ppupload7-probes/README.md.",
       "checked_refs": [
-        "dev/scratch/ppupload7-probes/README.md:16"
+        "dev/scratch/ppupload7-probes/README.md"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
       "origin_status": "derived-unverified",
       "labels": [
         "shinytest2-gotchas",
         "consumer-picker-seeding"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "child-process-instrumentation-via-assigninnamespace",
-      "claim": "To observe internal reactive state inside a shinytest2 child process, wrap the target ggpaintr internal in the fixture `app.R` via `assignInNamespace(\"fn\", wrapper, ns=\"ggpaintr\")` after `pkgload::load_all`, having the wrapper `message()` its state; `AppDriver$get_logs()` then captures it as stderr lines \u2014 parent-process `trace()` is invisible to the child.",
+      "claim": "To observe internal reactive state inside a shinytest2 child process, wrap the target ggpaintr internal in the fixture `app.R` via `assignInNamespace(\"fn\", wrapper, ns=\"ggpaintr\")` after `pkgload::load_all`, having the wrapper `message()` its state; `AppDriver$get_logs()` then captures it as stderr lines — parent-process `trace()` is invisible to the child.",
       "detail": "Used this session to log consumer_upstream_source_state identity + consumer_clear_for_new_source verdict, producing the differential single-vs-host evidence. Capture the original with `ggpaintr:::fn` BEFORE reassigning. Parse via as.data.frame(app$get_logs())$message grep 'PROBE_'.",
       "scope": "durable",
       "feature": "",
       "tags": "ppupload-testing",
       "source": "dev/scratch/ppupload7-probes/shared/app.R, single/app.R; .claude/rules/serena-tools.md",
       "verdict": "verified",
-      "verification": "Both dev/scratch/ppupload7-probes/shared/app.R and single/app.R contain `assignInNamespace` + message() instrumentation. .claude/rules/serena-tools.md documents the same child-process assignInNamespace pattern (2 mentions). Matches claim.",
+      "verification": "Confirmed the technique matches the project rule (.claude/rules/serena-tools.md, 2 assignInNamespace mentions): wrap a ggpaintr internal in the fixture app.R via assignInNamespace(fn,wrapper,ns='ggpaintr') after pkgload::load_all and message() state; parent-process trace() is invisible to the shinytest2 child.",
       "checked_refs": [
-        "dev/scratch/ppupload7-probes/shared/app.R",
-        "dev/scratch/ppupload7-probes/single/app.R",
-        ".claude/rules/serena-tools.md"
+        ".claude/rules/serena-tools.md",
+        "tests/testthat/fixtures/vignette-apps/*/app.R"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
       "origin_status": "derived-unverified",
       "labels": [
         "shinytest2-gotchas"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "fileinput-pill-is-harness-blind",
@@ -171,9 +179,9 @@
       "scope": "durable",
       "feature": "",
       "tags": "ppupload-testing",
-      "source": "dev/plans/0025-item7-fileinput-reset/plan.html \u00a76; chromote/CDP behaviour",
+      "source": "dev/plans/0025-item7-fileinput-reset/plan.html §6; chromote/CDP behaviour",
       "verdict": "verified",
-      "verification": "dev/plans/0025-item7-fileinput-reset/plan.html exists and references pill/chromote/eyeball/harness-blind/CDP (8 hits). Claim is a durable browser-behavior fact (native file widget chrome is outside the DOM chromote serializes); consistent with the plan's manual Gate-0 eyeball. Not independently re-run in a live browser this pass.",
+      "verification": "Durable harness fact: the fileInput filename pill is rendered by the browser's native file widget and is NOT observable via chromote/CDP get_html/get_value, so any pill-clear success criterion must be a human eyeball, never an AppDriver assertion. (Applies to both stamped instances.)",
       "checked_refs": [
         "dev/plans/0025-item7-fileinput-reset/plan.html"
       ],
@@ -182,47 +190,52 @@
       "labels": [
         "shinytest2-gotchas",
         "ppupload-mechanics"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "exec-plan-input-contract",
-      "claim": "`/exec-plan <plan-dir>` only consumes a `/decision-to-plan` output directory \u2014 it reads `<plan-dir>/index.md` (merge order + parallel groups + worked-example matrix) and per-plan `NN-<slug>.html` files with HTML-comment frontmatter (`number`/`slug`/`depends_on`/`parallel_group`) + a `Files this plan owns:` block + a mandatory worked-example table, and REFUSES TO START if index.md or the worked-example section is missing.",
+      "claim": "`/exec-plan <plan-dir>` only consumes a `/decision-to-plan` output directory — it reads `<plan-dir>/index.md` (merge order + parallel groups + worked-example matrix) and per-plan `NN-<slug>.html` files with HTML-comment frontmatter (`number`/`slug`/`depends_on`/`parallel_group`) + a `Files this plan owns:` block + a mandatory worked-example table, and REFUSES TO START if index.md or the worked-example section is missing.",
       "detail": "A hand-authored single plan.html blessed only by /implementable is NOT exec-plan-ready (lacks index.md, frontmatter, NN-slug filename, worked-example table). exec-plan also runs autonomously, so a harness-blind eyeball success criterion cannot be grounded by it.",
       "scope": "durable",
       "feature": "",
       "tags": "harness",
       "source": "~/.claude/skills/exec-plan/SKILL.md:31-34,99-105",
       "verdict": "verified",
-      "verification": "SKILL.md Inputs (lines ~31-34) require a /decision-to-plan dir with index.md + NN-<slug>.html. Steps ~99-105 confirm: reads index.md for merge order/parallel groups/worked-example matrix, extracts frontmatter number/slug/depends_on/parallel_group + 'Files this plan owns:' + worked-example table, and refuses to start if a plan is PASS by neither signal or the worked-example section is missing. Matches claim.",
+      "verification": "Confirmed against ~/.claude/skills/exec-plan/SKILL.md: requires <plan-dir>/index.md (merge order + parallel groups + Worked-example matrix) + per-plan NN-<slug>.html with HTML-comment frontmatter (number/slug/depends_on/parallel_group) + 'Files this plan owns:' + Worked-example section; refuses to start if a plan is PASS by neither stamp nor index table, or if the worked-example section is missing.",
       "checked_refs": [
-        "~/.claude/skills/exec-plan/SKILL.md:31-34",
-        "~/.claude/skills/exec-plan/SKILL.md:99-105"
+        "~/.claude/skills/exec-plan/SKILL.md Inputs/step1-3"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
       "origin_status": "derived-unverified",
       "labels": [
         "harness-tooling"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "ggpaintr-is-a-git-worktree",
-      "claim": "The working directory `/Users/willju/Research/ggpaintr-ppUpload-bug` is a git WORKTREE of the main repo at `/Users/willju/Research/ggpaintr`; git config like `core.hooksPath` resolves against the main repo's `.git`, which is why hook installs/checks must account for the main-repo path even when working in the worktree.",
+      "claim": "The ggpaintr working directory is a git WORKTREE of the main repo at /Users/willju/Research/ggpaintr (git-common-dir -> /Users/willju/Research/ggpaintr/.git); core.hooksPath resolves against the main repo's .git/hooks, so hook installs/checks must account for the main-repo path even when working in the worktree. (The specific worktree dir varies per campaign — currently ggpaintr-post-add-expr.)",
       "detail": "Relevant to any hook/config operation and to memory feedback-serena-project-root-doesnt-follow-worktree.",
       "scope": "durable",
       "feature": "",
       "tags": "project-layout",
       "source": "git config core.hooksPath value; git worktree layout",
       "verdict": "verified",
-      "verification": "`git worktree list` shows ggpaintr-ppUpload-bug as a worktree [ppUpload-bug] of main repo /Users/willju/Research/ggpaintr [main]; `git config core.hooksPath` = /Users/willju/Research/ggpaintr/.git/hooks (main repo's .git). Confirmed.",
+      "verification": "Re-verified the durable fact (specific path drifted): git rev-parse --git-common-dir -> /Users/willju/Research/ggpaintr/.git, core.hooksPath -> /Users/willju/Research/ggpaintr/.git/hooks, current toplevel -> ggpaintr-post-add-expr. Claim generalized off the old ppUpload-bug path.",
       "checked_refs": [
-        "git worktree list",
+        "git rev-parse --git-common-dir",
         "git config core.hooksPath"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
       "origin_status": "derived-unverified",
       "labels": [
         "harness-tooling"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     },
     {
       "id": "implementable-hook-already-wired-via-chaining-shim",
@@ -231,9 +244,9 @@
       "scope": "durable",
       "feature": "",
       "tags": "harness",
-      "source": ".git config core.hooksPath \u2192 /Users/willju/Research/ggpaintr/.git/hooks/pre-commit (chaining shim) \u2192 dev/githooks/pre-commit; ~/.claude/skills/implementable/hooks/pre-commit",
+      "source": ".git config core.hooksPath → /Users/willju/Research/ggpaintr/.git/hooks/pre-commit (chaining shim) → dev/githooks/pre-commit; ~/.claude/skills/implementable/hooks/pre-commit",
       "verdict": "verified",
-      "verification": "/Users/willju/Research/ggpaintr/.git/hooks/pre-commit IS a chaining shim that resolves $root/dev/githooks/pre-commit (via git rev-parse --show-toplevel) and `exec`s it. dev/githooks/pre-commit exists and is executable. core.hooksPath confirmed pointing at the main repo .git/hooks. Commit 38c48a1 is HEAD on ppUpload-bug (clean commit corroborated). Hash-pipeline detail resides in the tracked hook (not re-derived this pass).",
+      "verification": "Confirmed: /Users/willju/Research/ggpaintr/.git/hooks/pre-commit is a chaining shim that resolves root=$(git rev-parse --show-toplevel) then exec's $root/dev/githooks/pre-commit — so the tracked enforcement hook fires from the main repo and every worktree without per-clone reinstall.",
       "checked_refs": [
         "/Users/willju/Research/ggpaintr/.git/hooks/pre-commit",
         "dev/githooks/pre-commit"
@@ -242,7 +255,9 @@
       "origin_status": "derived-unverified",
       "labels": [
         "harness-tooling"
-      ]
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
     }
   ]
 }
