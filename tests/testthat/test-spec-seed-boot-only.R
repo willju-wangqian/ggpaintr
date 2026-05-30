@@ -175,6 +175,64 @@ test_that("consumer_seed_decision: a valid user pick survives a non-landing defa
 })
 
 
+# ---- Seam 1d: a spec seed naming a DERIVED column survives until it lands ---
+#
+# Bug (2026-05-29 #2): a consumer seeded over a column that does not yet exist
+# in `cols` on the first render -- because an upstream `mutate(adj = ppExpr(...))`
+# has not been evaluated until its ppExpr input binds -- lost the seed forever.
+# `mark_rendered` flipped the `has_rendered` latch on the strength of
+# `!is.null(selected)` (the seed is non-null), even though the downstream
+# `intersect(selected, cols)` in `ptr_builtin_var_build_ui()` silently drops a
+# seed whose column is absent. So the latch flipped on the empty first render;
+# when `adj` finally appeared in `cols` (ncol 11 -> 12), `has_rendered` was
+# already TRUE and `boot_seed_selected()` returned the empty `current`. The
+# DEFAULT path already guards this via `default_landed`; the SEED path had no
+# symmetric `seed_landed` gate. Repro:
+#   aes(y = ppVar(adj)) over mutate(adj = ppExpr(mpg/wt + hp/10)),
+#   spec = list(ggplot_1_2_ppVar_NA = "adj")  ->  y picker boots EMPTY.
+# (e2e: test-spec-seed-derived-column-browser.R)
+test_that("consumer_seed_decision: a spec seed for a derived column defers the latch until the column lands", {
+  pre_cols  <- c("mpg", "wt", "hp")          # render 1: upstream mutate not yet evaluated
+  post_cols <- c("mpg", "wt", "hp", "adj")   # render 2: `adj` has appeared
+
+  # Render 1 -- `adj` not in cols yet. The seed is still returned (it will be
+  # intersect-dropped downstream), but the latch must NOT flip: a seed that
+  # cannot land is not "applied".
+  r1 <- ggpaintr:::consumer_seed_decision(
+    has_rendered = FALSE, seed = "adj", current = character(0),
+    default = "adj", cols = pre_cols
+  )
+  expect_identical(r1$selected, "adj")
+  expect_false(
+    r1$mark_rendered,
+    label = "latch must defer while the seeded column is absent from cols"
+  )
+
+  # Render 2 -- latch still down (r1 deferred), `adj` now present. The seed
+  # lands and flips the latch.
+  r2 <- ggpaintr:::consumer_seed_decision(
+    has_rendered = FALSE, seed = "adj", current = character(0),
+    default = "adj", cols = post_cols
+  )
+  expect_identical(r2$selected, "adj")
+  expect_true(
+    r2$mark_rendered,
+    label = "a landed seed flips has_rendered so the pick persists"
+  )
+
+  # A never-landing seed (e.g. a typo) must not TRAP the picker: once the user
+  # makes a genuine valid pick, the latch flips so their pick sticks next render.
+  trapped <- ggpaintr:::consumer_seed_decision(
+    has_rendered = FALSE, seed = "adjX", current = "mpg",
+    default = "adjX", cols = post_cols
+  )
+  expect_true(
+    trapped$mark_rendered,
+    label = "a valid user pick flips the latch even under a never-landing seed"
+  )
+})
+
+
 # ---- Shared setup for the testServer scenarios (mirrors the panel-sources
 # ---- dep test's helper) ----------------------------------------------------
 
