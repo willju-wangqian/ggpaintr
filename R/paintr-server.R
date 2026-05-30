@@ -1140,6 +1140,39 @@ panel_owned_binding_name <- function(node, entry, session,
   } else NULL
 }
 
+# Is source id `id` owned by the panel (rendered once at host scope via
+# `ptr_setup_panel_sources()`)? Per-instance binders skip wiring an
+# input-watching observer for these -- "one widget, one owner" (ADR 0023 §4).
+# Accepts the panel_sources list directly so both `state$panel_sources` and a
+# local `panel_sources` (host consumer binder) call sites share one check.
+is_panel_owned_id <- function(panel_sources, id) {
+  !is.null(id) && id %in% names(panel_sources %||% list())
+}
+
+# Wire the per-instance binder for a panel-owned source: read the resolved df
+# from the host's panel reactive (`state$panel_sources[[node$id]]`) instead of
+# watching a per-instance input slot that has no widget. `key` is the symbol
+# the frame binds under in `state$bound_names` -- the bare-data-layer branch
+# passes the LAYER name, the pipeline-head branch passes the SOURCE id (the
+# bound_names key duality; see project memory `bound-names-key-duality`). Both
+# branches of `ptr_setup_pipelines()` call this so the observer wiring lives
+# once and a fix lands on both paths.
+wire_panel_owned_source <- function(state, key, node, entry, session, slot) {
+  panel_reactive <- state$panel_sources[[node$id]]
+  shiny::observe({
+    df <- panel_reactive()
+    if (is.null(df)) { slot(NULL); return(invisible(NULL)) }
+    binding_name <- panel_owned_binding_name(
+      node, entry, session,
+      shortcut_value = if (!is.null(node$shortcut_id)) {
+        session$rootScope()$input[[node$shortcut_id]]
+      } else NULL,
+      df = df
+    )
+    bind_source_value(state, key, binding_name, df, slot)
+  })
+}
+
 # Boot-time fallback for source placeholders with a `default_arg`-validated
 # value: when no live input has been provided through the source widget
 # (e.g. ppUpload's fileInput is still empty), but the placeholder carries a
@@ -1503,23 +1536,8 @@ ptr_setup_pipelines <- function(state, input, output, session) {
       # "one widget, one owner"). Skip wiring the input-watching observer
       # for this source -- otherwise we would watch a permanently-NULL
       # slot and cause spurious invalidations (ADR §4 note).
-      panel_owned <- !is.null(src$id) &&
-        src$id %in% names(state$panel_sources %||% list())
-      if (panel_owned) {
-        sid <- src$id
-        panel_reactive <- state$panel_sources[[sid]]
-        shiny::observe({
-          df <- panel_reactive()
-          if (is.null(df)) { slot(NULL); return(invisible(NULL)) }
-          binding_name <- panel_owned_binding_name(
-            src, entry, session,
-            shortcut_value = if (!is.null(src$shortcut_id)) {
-              session$rootScope()$input[[src$shortcut_id]]
-            } else NULL,
-            df = df
-          )
-          bind_source_value(state, ln, binding_name, df, slot)
-        })
+      if (is_panel_owned_id(state$panel_sources, src$id)) {
+        wire_panel_owned_source(state, ln, src, entry, session, slot)
         return(invisible())
       }
 
@@ -1585,20 +1603,8 @@ ptr_setup_pipelines <- function(state, input, output, session) {
       # when this source's canonical id is owned by the panel, read the
       # resolved df from the panel reactive and skip the input-watching
       # observer (no per-instance widget exists for this id).
-      if (sid %in% names(state$panel_sources %||% list())) {
-        panel_reactive <- state$panel_sources[[sid]]
-        shiny::observe({
-          df <- panel_reactive()
-          if (is.null(df)) { slot(NULL); return(invisible(NULL)) }
-          binding_name <- panel_owned_binding_name(
-            node, entry, session,
-            shortcut_value = if (!is.null(node$shortcut_id)) {
-              session$rootScope()$input[[node$shortcut_id]]
-            } else NULL,
-            df = df
-          )
-          bind_source_value(state, sid, binding_name, df, slot)
-        })
+      if (is_panel_owned_id(state$panel_sources, sid)) {
+        wire_panel_owned_source(state, sid, node, entry, session, slot)
         return(invisible())
       }
 
@@ -2304,7 +2310,7 @@ ptr_setup_source_uis <- function(state, input, output, session) {
     # output slots. Formula-local shared ids and single-instance configs
     # (where `state$panel_sources` is an empty list) fall through and
     # render per-instance as before.
-    if (s$id %in% names(state$panel_sources %||% list())) next
+    if (is_panel_owned_id(state$panel_sources, s$id)) next
     local({
       node <- s
       raw_id <- node$id
@@ -2726,7 +2732,7 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
       upstream_panel_self_ids <- character()
       for (s in find_nodes(node$upstream, is_ptr_ph_data_source)) {
         is_panel <- !is.null(s$id) &&
-          s$id %in% names(state$panel_sources %||% list())
+          is_panel_owned_id(state$panel_sources, s$id)
         if (!is_panel) next
         if (!is.null(s$shortcut_id)) {
           upstream_panel_shortcut_ids <-
@@ -3025,7 +3031,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
         ids <- character()
         ptr_walk(resolution$value, function(n) {
           if (is_ptr_ph_data_source(n) && !is.null(n$shortcut_id) &&
-              !is.null(n$id) && n$id %in% names(panel_sources)) {
+              is_panel_owned_id(panel_sources, n$id)) {
             ids[[length(ids) + 1L]] <<- n$shortcut_id
           }
         })
@@ -3088,7 +3094,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
         # instead since it collects EVERY data-source `node$id` regardless
         # of shortcut shape.
         for (sid in upstream_source_ids_for_req) {
-          if (sid %in% names(panel_sources)) panel_sources[[sid]]()
+          if (is_panel_owned_id(panel_sources, sid)) panel_sources[[sid]]()
         }
         # INT-2 (ADR 0023): at host scope (`state = NULL`) we have no
         # `state$eval_env` to thread the panel-resolved frame into, and
@@ -3112,7 +3118,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
           panel_source_nodes <- find_nodes(
             resolution$value,
             function(n) is_ptr_ph_data_source(n) &&
-              !is.null(n$id) && n$id %in% names(panel_sources)
+              is_panel_owned_id(panel_sources, n$id)
           )
           for (psn in panel_source_nodes) {
             sid <- psn$id
@@ -3210,7 +3216,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
           for (sid in upstream_source_self_ids) {
             # ADR 0023 / PLAN-07: panel-owned source self ids live at
             # the host's top-level (un-namespaced) input id.
-            val <- if (sid %in% names(panel_sources)) {
+            val <- if (is_panel_owned_id(panel_sources, sid)) {
               root_input[[sid]]
             } else {
               input[[ns(sid)]]
@@ -3265,7 +3271,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
           if (!is.null(dom)) dom$rootScope()$input else input
         }
         read_src_input <- function(id) shiny::isolate(
-          if (id %in% names(panel_sources) ||
+          if (is_panel_owned_id(panel_sources, id) ||
               id %in% panel_sources_shortcut_ids) {
             root_input[[id]]
           } else {
