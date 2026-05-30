@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0026 — Deepening sweep v2: duplication consolidation, placeholder-API renames, landing sequence</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0026 — Deepening sweep v2: duplication consolidation, placeholder-API renames, landing sequence</h1>
+
+<p><strong>Status:</strong> <em>Accepted &amp; in-flight.</em> Decisions made autonomously on 2026-05-30 (branch <code>improve-code-base-workflow-run</code>) under an explicit user mandate to run <code>/improve-codebase-architecture</code> unattended, <strong>implement &amp; land each candidate behind the full green test gate</strong>, one reviewable commit per candidate. The user delegated naming choices (they authorised renaming arguments and hard-renaming the <code>ptr_default_*</code> factories). This ADR records the ranked catalog, the landing sequence, the reconciliation with ADR 0017, and the locked rename decisions. Per-candidate status is tracked in the table below and updated as each lands.</p>
+
+<p><strong>Date:</strong> 2026-05-30</p>
+
+<p><strong>Supersedes:</strong> <a href="0017-deepening-opportunities-catalog.html">ADR 0017</a> (the 2026-05-24 deepening catalog) as the active catalog. ADR 0017's candidates are reconciled below: C1/C2a/C2b promoted, C3a/C3c dropped (their ADRs 0018/0019 stay parked as proposals), C4/C5/C6 folded.</p>
+
+<p><strong>Relates to:</strong> <a href="0018-c3a-eliminate-pass-walker-boilerplate.html">ADR 0018</a> (C3a pass-driver — parked, see below), <a href="0019-c3c-public-staged-pipeline.html">ADR 0019</a> (C3c staged pipeline — parked), <a href="0006-single-server-entry-l3-ui-only.html">ADR 0006</a> (single public server entry — the <code>state=NULL</code>-at-host divergence the source/consumer dedup must respect), <a href="0023-panel-owned-shared-sources-end-to-end.html">ADR 0023</a> / <a href="0025-source-shortcut-rename-and-upload-auto-name.html">ADR 0025</a> (the source-binding rules ranks 5–7 consolidate), <a href="0012-role-based-tree-and-ptr-spec.html">ADR 0012</a> (typed-tree — the dropped C3a is in its territory), <code>CONTEXT.md</code> (L1/L2/L3 + partition vocabulary).</p>
+
+<h2>Context</h2>
+
+<p>A fresh architectural sweep (7 parallel <code>Explore</code> agents over the subsystem clusters + a synthesis pass) audited the 35 <code>R/paintr-*.R</code> files (~16 270 lines) for <strong>deepening opportunities</strong> using Ousterhout's <strong>deletion test</strong> and the LANGUAGE.md / CONTEXT.md vocabulary. The user's stated #1 friction: <em>logic copy-pasted across 2+ spots that should be a single shared helper</em> (must maintain in multiple places). 41 raw candidates deduped to 12 ranked deepenings + a deep-leave/dropped list.</p>
+
+<p>Baseline before any change (2026-05-30): serial full suite <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS ≈3433</strong> (6 parallel-only failures in the consumer-seeding browser cluster re-confirmed as boot-tail flakes — pass serially). The authoritative gate per <code>CLAUDE.md</code> is the <em>serial</em> <code>devtools::test()</code> at 0/0/0; parallel reproducibly flakes that cluster, so each candidate's landing gate is run serially.</p>
+
+<h2>Constraints (locked by the user)</h2>
+<ul>
+<li><strong>Functionality of the frequently-used public API is frozen:</strong> <code>ptr_app</code>, <code>ptr_server</code>, <code>ptr_ui</code>, <code>ptr_shared</code>/<code>_panel</code>/<code>_server</code>, the <code>pp*</code> keywords, <code>ptr_define_placeholder_*</code>. <em>Renaming arguments is allowed; behaviour is not changed.</em></li>
+<li><strong>Tests for exported functions are not edited</strong> except where an authorised rename literally changed a name (flagged in that commit). Tests for internal functions may change with the interface contract.</li>
+<li><strong>Low-value / safe-to-restructure exports:</strong> <code>ptr_app_grid</code> (user plans to remove), <code>ptr_app_bslib</code> (failed attempt), <code>ptr_extract_*</code> (only tests use them). Their <em>deprecation</em> is a product decision, deferred to a separate pass — not actioned as a deepening here.</li>
+<li><strong>Hard-rename</strong> (no deprecated aliases) for the <code>ptr_default_*</code> factories and the confusing <code>ptr_define_placeholder_*</code> argument names.</li>
+</ul>
+
+<h2>Locked rename decisions (ranks 3 &amp; 4)</h2>
+
+<p><strong>Why the <code>ptr_default_*</code> names are wrong:</strong> they read like "produce a default value of type X" or a coercer, but each is a <em>factory returning a validator closure</em> <code>function(arg_expr) → canonical_value | abort()</code> that checks the <em>unevaluated AST of a placeholder keyword's formula-time argument</em> at registration time. The role is "validate an argument," not "make a default."</p>
+
+<table>
+<thead><tr><th>Old (exported)</th><th>New (exported)</th></tr></thead>
+<tbody>
+<tr><td><code>ptr_default_string()</code></td><td><code>ptr_arg_string()</code></td></tr>
+<tr><td><code>ptr_default_numeric()</code></td><td><code>ptr_arg_numeric()</code></td></tr>
+<tr><td><code>ptr_default_numeric_vector(length=)</code></td><td><code>ptr_arg_numeric_vector(length=)</code></td></tr>
+<tr><td><code>ptr_default_symbol_or_string()</code></td><td><code>ptr_arg_symbol_or_string()</code></td></tr>
+<tr><td><code>ptr_default_expression()</code></td><td><code>ptr_arg_expression()</code></td></tr>
+</tbody>
+</table>
+
+<p><strong><code>ptr_define_placeholder_*</code> argument renames:</strong></p>
+<table>
+<thead><tr><th>Old arg</th><th>New arg</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><code>default_arg</code></td><td><code>positional_arg</code></td><td>It is the validator for the <em>single positional</em> formula argument the keyword accepts (the <code>50</code> in <code>ppPct(50)</code>); parallels <code>named_args</code> (positional vs named). Reads <code>positional_arg = ptr_arg_numeric()</code>.</td></tr>
+<tr><td><code>copy_defaults</code></td><td><code>ui_text_defaults</code></td><td>Ties to the public <code>ui_text</code> vocabulary (<code>ptr_ui_text</code>, <code>ptr_resolve_ui_text</code>); "copy" was an internal synonym.</td></tr>
+<tr><td><code>named_args</code></td><td><em>(keep)</em></td><td>Already clear: validators for named formula args. Stays for parallel with <code>positional_arg</code>.</td></tr>
+<tr><td><code>build_ui</code>, <code>resolve_expr</code>, <code>resolve_data</code>, <code>validate_input</code>, <code>runtime</code>, <code>shortcut</code>, <code>keyword</code></td><td><em>(keep)</em></td><td>Reasonably clear hook/role names; renaming them is churn for little clarity gain.</td></tr>
+</tbody>
+</table>
+
+<p>Internal helpers harmonise: <code>validate_default_arg</code> → <code>validate_positional_arg</code>; the roxygen <code>@name ptr_default_args</code> group → <code>ptr_arg_validators</code>. The entry-list slot <code>default_arg</code> in the registry record is internal storage and may keep its key or rename to <code>positional_arg</code> consistently (decided at implementation; keep behaviour identical).</p>
+
+<h2>Ranked catalog &amp; landing sequence</h2>
+
+<p>Order = lowest-risk + the user's explicit renames first, then low-risk UI dups + orchestrator phasing, then the seeding/source-binding cluster bottom-up (each consumes the helper extracted before it), then the wide partition-view and app-assembly changes last. Every item = one commit gated behind the serial authoritative DoD. Shared-runtime items (5–11) widen the e2e blast radius to the whole seeding/binding/source/partition cluster (<code>.claude/rules/testing.md</code>) → full e2e at each merge boundary, never partial.</p>
+
+<table>
+<thead><tr><th>#</th><th>id</th><th>risk</th><th>API</th><th>dup?</th><th>one-line</th><th>status</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><code>dup-output-id-triple</code></td><td>low</td><td>none</td><td>yes</td><td>Three identical <code>paste0(raw_id,"_ui")</code> (<code>value_/source_/consumer_output_id</code>) → one <code>placeholder_output_id</code> in <code>paintr-ids.R</code>.</td><td>pending</td></tr>
+<tr><td>2</td><td><code>dup-name-normalization</code></td><td>low</td><td>none</td><td>yes</td><td>Three divergent "R-syntactic + reserved-safe name" impls → one <code>ptr_make_valid_name()</code>.</td><td>pending</td></tr>
+<tr><td>3</td><td><code>define-placeholder-consolidation-and-rename</code></td><td>med</td><td>arg-rename</td><td>yes</td><td>Collapse the identical ~20-line registration prologue into <code>ptr_define_core()</code>; rename args (above).</td><td>pending</td></tr>
+<tr><td>4</td><td><code>ptr-default-arg-factory-rename</code></td><td>low</td><td>fn-rename</td><td>no</td><td>Hard-rename the five <code>ptr_default_*</code> → <code>ptr_arg_*</code> (above).</td><td>pending</td></tr>
+<tr><td>5</td><td><code>ui-stage-override-and-orphan-stage-dup</code></td><td>low</td><td>none</td><td>yes</td><td><code>derive_stage_overrides()</code> (build-vs-render copy) + memoize orphan-stage discovery.</td><td>pending</td></tr>
+<tr><td>6</td><td><code>c2b-orchestrator-phases</code></td><td>low</td><td>none</td><td>no</td><td>Group <code>ptr_server_internal</code> body into named phase fns so the four ordering invariants are structural, not comments.</td><td>pending</td></tr>
+<tr><td>7</td><td><code>source-binding-name-derivation</code></td><td>med</td><td>none</td><td>yes</td><td>Extract <code>binding_name_for_source()</code> (shortcut else auto-name else <code>node$default</code>, validated) used in 3 runtime contexts.</td><td>pending</td></tr>
+<tr><td>8</td><td><code>panel-owned-source-observer-and-readiness</code></td><td>med</td><td>none</td><td>yes</td><td><code>ptr_wire_panel_owned_source()</code> + <code>collect_panel_owned_source_ids()</code> for the copy-pasted observer blocks + ownership loop.</td><td>pending</td></tr>
+<tr><td>9</td><td><code>c2a-pure-core-extraction</code></td><td>med</td><td>none</td><td>no</td><td>Pull pure cores (spec-validation, code-render, binding-name) out of reactive helpers into a runtime-core module (rename <code>paintr-headless.R</code> → <code>paintr-runtime-core.R</code>).</td><td>pending</td></tr>
+<tr><td>10</td><td><code>cross-file-source-consumer-spec-seed-parallel-paths</code></td><td>high</td><td>none</td><td>yes</td><td>Phased: shared spec-normalization helper + source/consumer seam so single-instance (server.R) and panel-host (shared-ui.R) stop being hand-ported. <strong>Phase A only is mandatory; B/C optional.</strong></td><td>pending</td></tr>
+<tr><td>11</td><td><code>c1-partition-view-seam</code></td><td>med</td><td>none</td><td>no</td><td>Internal <code>partition_view(part, surface_id)</code> so the coordinator obj, the <code>render_shared_section</code> boolean, and the <code>host_owned_keys</code> setdiff all answer "do I own this key?" through one seam.</td><td>pending</td></tr>
+<tr><td>12</td><td><code>app-l1-assembly-and-file-split</code></td><td>low</td><td>none</td><td>yes</td><td>Unified L1-assembly seam (<code>ptr_app</code>/<code>ptr_app_grid</code> become thin wrappers). File splits (C4/C5) optional, last.</td><td>pending</td></tr>
+</tbody>
+</table>
+
+<p><strong>Key synthesis correction:</strong> the cross-file source/consumer duplication (#10) is <em>narrower</em> than first claimed — <code>resolve_upload_source</code> is <em>already</em> shared (the panel-host path calls the master impl). The genuine divergent copies are (a) the renderUI bodies, (b) the seeding-decision closures + latches, (c) the spec-value normalization (<code>apply_spec_at_boot</code> vs its host variant). The two paths' reactive dependencies genuinely differ (state-backed vs input-id-only, per ADR 0006's <code>state=NULL</code>-at-host), so a forced full collapse would couple them artificially — hence #10 is phased and its full seam-collapse is optional, landed only if it goes green cleanly.</p>
+
+<p><strong>Implementer note (from synthesis):</strong> <code>paintr-server.R</code> (3708 lines) and <code>paintr-app.R</code> line numbers in the raw candidates DISAGREE across explorers — locate every server.R/app.R target by <em>symbol</em> (Serena <code>find_symbol</code>), never by cited line.</p>
+
+<h2>ADR 0017 reconciliation</h2>
+<ul>
+<li><strong>C1 partition-view</strong> → <em>promoted</em> (rank 11). Deferral condition ("worth it if test leverage on partition logic is wanted") met given the recurring 2026-05-22 binder bug.</li>
+<li><strong>C2a pure cores</strong> → <em>promoted</em> (rank 9). Deferral condition met per the seeding-bug memories.</li>
+<li><strong>C2b named phases</strong> → <em>promoted</em> (rank 6). ADR 0017 already said "worth doing regardless."</li>
+<li><strong>C3a pass-driver (ADR 0018)</strong> → <em>dropped from this sweep</em>. High risk, widest blast radius (all four typed-AST passes, ADR 0012 territory). The ~80% boilerplate is real but the per-node payloads genuinely differ and a pass-driver is a large speculative abstraction; not worth the regression risk before the cheaper, higher-locality duplications are banked. ADR 0018 stays a parked proposal.</li>
+<li><strong>C3c public staged pipeline (ADR 0019)</strong> → <em>dropped</em>. The pass functions are deep infrastructure; the 186 <code>:::</code> test reach-ins are a test-coupling concern, not a duplication. Better served incrementally by the rank-9 pure cores than by a new public API. ADR 0019 stays parked.</li>
+<li><strong>C4 (app split) / C5 (safe/safety merge)</strong> → folded into rank 12 as low-value organisational moves (optional).</li>
+<li><strong>C6 (placeholder spec / single seam)</strong> → partially realised by rank 3 (the lighter consolidation+rename, not the full <code>ptr_register(spec)</code> collapse).</li>
+</ul>
+
+<h2>Deep-leave / dropped (do not re-suggest)</h2>
+<ul>
+<li><code>validate_keyword/_hook/_default_arg/_named_args/_copy_defaults</code> — deep-leave: each encodes a distinct single-use registration contract; not duplication. They become parameters of rank 3's core, not a target.</li>
+<li>Per-role <code>runtime_fn</code> default (identity for value/consumer, abort-guard for source) — deep-leave: semantically required, a one-line role branch in rank 3's core.</li>
+<li><code>classify_walk</code>/<code>disable_walk</code> shared S3 structure — deep-leave: a design pattern, independent behaviour; folding re-introduces the C3a boilerplate-driver risk for no locality gain (ADR 0012 territory).</li>
+<li><code>invoke_build_ui</code> label+widget coupling — deep-leave: intentional synchronisation on the final label.</li>
+<li><code>layer_panel_default_shell_copy</code>'s 5 <code>ptr_resolve_ui_text</code> calls — deep-leave: a named semantic unit, not shallow batching.</li>
+<li><code>paintr-utils.R</code> 21-function split — dropped: 0-net-LOC churn, no bug payoff, costs git-blame continuity. Revisit only if it becomes an editing hotspot.</li>
+<li><code>ptr_app_bslib</code> / <code>ptr_extract_*</code> / <code>ptr_options</code> export-surface — dropped from this sweep: deprecation/unexport is a product/API decision, not a depth fix. Handle in a separate deprecation/export-surface pass.</li>
+<li><code>shared_placeholders</code> <code>vapply(..., [[, 'key')</code> repeated 3× — dropped: a stable idiom, not divergent logic; a <code>collect_shared_keys()</code> helper is mild sugar not worth the arg-rename risk. Touch only if in the area for C1.</li>
+</ul>
+
+<h2>Definition of Done (per candidate)</h2>
+<p>Each commit lands behind the <code>CLAUDE.md</code> authoritative gate, run serially:</p>
+<pre><code>Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'</code></pre>
+<p>Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS ≥ baseline</strong>. For exported-surface renames (ranks 3, 4): <code>devtools::document()</code> first (NAMESPACE + man regenerated), and the rename-forced test edits are called out in the commit. The cheap inner loop (non-e2e + targeted e2e blast radius) drives iteration; the full serial gate grounds each commit. A candidate that cannot reach green cleanly within its risk budget is recorded here as <em>parked</em> rather than forced.</p>
+
+</body>
+</html>
