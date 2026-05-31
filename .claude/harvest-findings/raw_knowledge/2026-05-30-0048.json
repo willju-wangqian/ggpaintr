@@ -28,8 +28,9 @@
         "source-binding-runtime",
         "shared-coordinator-partition"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "shared-host-consumer-binder-dual-mode",
@@ -51,8 +52,9 @@
         "source-binding-runtime",
         "shared-coordinator-partition"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "consumer-identity-bound-name-blind-at-host",
@@ -72,8 +74,9 @@
         "consumer-picker-seeding",
         "shared-coordinator-partition"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "host-upload-double-render-reverts-consumer-clear",
@@ -95,8 +98,9 @@
         "ppupload-mechanics",
         "shared-coordinator-partition"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "host-env-rename-never-clears-iceberg",
@@ -118,8 +122,9 @@
         "shared-coordinator-partition",
         "ppupload-mechanics"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "resolve-upload-source-file-reset-arg",
@@ -140,8 +145,9 @@
       "labels": [
         "ppupload-mechanics"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "host-flag-can-be-local-not-state-slot",
@@ -163,8 +169,9 @@
         "ppupload-mechanics",
         "shared-coordinator-partition"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "ptr-bind-source-mutex-is-file-to-text-only",
@@ -184,8 +191,9 @@
       "labels": [
         "ppupload-mechanics"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "fileinput-pill-is-harness-blind",

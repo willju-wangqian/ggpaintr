@@ -26,8 +26,9 @@
       "labels": [
         "consumer-picker-seeding"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "2 changed file(s): R/paintr-builtins.R, R/paintr-server.R"
     },
     {
       "id": "consumer-renderui-isolate-is-load-bearing",
@@ -46,8 +47,9 @@
       "labels": [
         "consumer-picker-seeding"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "consumer-seed-decision-seed-landed-gate",
@@ -67,8 +69,9 @@
       "labels": [
         "consumer-picker-seeding"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "derived-column-seed-stage-toggle-race",
@@ -88,8 +91,9 @@
       "labels": [
         "consumer-picker-seeding"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "e2e-fixture-must-pkgload-source",
@@ -150,8 +154,9 @@
       "labels": [
         "consumer-picker-seeding"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "parallel-gate-seeded-picker-flake-fix",
@@ -171,8 +176,9 @@
         "test-gate-discipline",
         "shinytest2-gotchas"
       ],
-      "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "status": "stale",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407",
+      "stale_reason": "1 changed file(s): tests/testthat/test-e2e-vignette-examples-shinytest2.R"
     },
     {
       "id": "producer-value-lags-browser-plus-debounce",
@@ -193,8 +199,9 @@
         "consumer-picker-seeding",
         "shinytest2-gotchas"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "shared-binder-snapshot-omits-producers",
@@ -215,8 +222,9 @@
         "shared-coordinator-partition",
         "consumer-picker-seeding"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "shared-consumer-truncate-at-placeholder-intentional",
@@ -258,8 +266,9 @@
         "shared-coordinator-partition",
         "placeholder-registry-api"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "2 changed file(s): R/paintr-server.R, R/paintr-translate.R"
     }
   ]
 }

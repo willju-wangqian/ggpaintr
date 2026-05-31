@@ -28,8 +28,9 @@
         "source-binding-runtime",
         "shared-coordinator-partition"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "shared-consumer-binder-runs-state-null-at-host",
@@ -53,8 +54,9 @@
         "shared-coordinator-partition",
         "consumer-picker-seeding"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "consumer-identity-boundname-drives-clear-stickiness",
@@ -77,8 +79,9 @@
         "consumer-picker-seeding",
         "ppupload-mechanics"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "host-source-port-is-simpler-than-single",
@@ -101,8 +104,9 @@
         "ppupload-mechanics",
         "shared-coordinator-partition"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "single-instance-consumer-suspended-until-source-and-subtab",
@@ -125,8 +129,9 @@
         "consumer-picker-seeding",
         "shinytest2-gotchas"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "overlapping-column-false-green-trap",

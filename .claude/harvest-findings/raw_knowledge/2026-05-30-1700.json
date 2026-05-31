@@ -29,8 +29,9 @@
         "app-entry-points",
         "package-api-surface"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "2 changed file(s): R/paintr-app-bslib.R, R/paintr-app.R"
     },
     {
       "id": "ptr-app-formula-only-required-arg",
@@ -53,8 +54,9 @@
       "labels": [
         "app-entry-points"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "2 changed file(s): R/paintr-app-bslib.R, R/paintr-app.R"
     },
     {
       "id": "formula-string-or-expression-mode-capture",
@@ -79,8 +81,9 @@
         "formula-capture",
         "app-entry-points"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-app.R"
     },
     {
       "id": "ptr-app-grid-takes-list-of-formulas-routes-through-coordinator",
@@ -105,8 +108,9 @@
         "app-entry-points",
         "shared-coordinator-partition"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-app.R"
     },
     {
       "id": "ptr-app-bslib-demonstration-wrapper-no-single-formula-shared",
@@ -126,8 +130,9 @@
       "labels": [
         "app-entry-points"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "1 changed file(s): R/paintr-app-bslib.R"
     },
     {
       "id": "ptr-app-ui-server-wiring",
@@ -149,8 +154,9 @@
       "labels": [
         "app-entry-points"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-app.R"
     },
     {
       "id": "pp-placeholder-three-roles",
@@ -172,8 +178,9 @@
       "labels": [
         "placeholder-keywords"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "2 changed file(s): R/paintr-builtins.R, R/paintr-translate.R"
     },
     {
       "id": "pp-widget-mapping-and-resolve",
@@ -193,8 +200,9 @@
       "labels": [
         "placeholder-keywords"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "1 changed file(s): R/paintr-builtins.R"
     },
     {
       "id": "pp-positional-default-arg-validators",
@@ -216,8 +224,9 @@
       "labels": [
         "placeholder-keywords"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "2 changed file(s): R/paintr-builtins.R, R/paintr-translate.R"
     },
     {
       "id": "pp-shared-named-arg-coordinator",
@@ -238,8 +247,9 @@
         "placeholder-keywords",
         "shared-coordinator-partition"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "1 changed file(s): R/paintr-translate.R"
     },
     {
       "id": "pp-upload-shortcut-positional-env-load",
@@ -263,8 +273,9 @@
         "placeholder-keywords",
         "ppupload-mechanics"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "3 changed file(s): R/paintr-builtins.R, R/paintr-ids.R, R/paintr-registry.R"
     },
     {
       "id": "pp-expr-distinct-user-expr-node",
@@ -287,8 +298,9 @@
         "placeholder-keywords",
         "expr-safety"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "1 changed file(s): R/paintr-builtins.R"
     },
     {
       "id": "pp-structural-toggles-literal-boot-state",
@@ -310,8 +322,9 @@
       "labels": [
         "placeholder-keywords"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "2 changed file(s): R/paintr-builtins.R, R/paintr-translate.R"
     },
     {
       "id": "custom-placeholder-three-role-constructors",
@@ -337,8 +350,9 @@
       "labels": [
         "placeholder-registry-api"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "2 changed file(s): R/paintr-builtins.R, R/paintr-registry.R"
     },
     {
       "id": "registry-process-global-options-anchored",
@@ -364,8 +378,9 @@
       "labels": [
         "placeholder-registry-api"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "1 changed file(s): R/paintr-registry.R"
     },
     {
       "id": "custom-placeholder-hook-signatures",
@@ -389,8 +404,9 @@
       "labels": [
         "placeholder-registry-api"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "1 changed file(s): R/paintr-registry.R"
     },
     {
       "id": "ptr-arg-validators-ast-only",
@@ -414,8 +430,9 @@
       "labels": [
         "placeholder-registry-api"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "2 changed file(s): R/paintr-builtins.R, R/paintr-registry.R"
     },
     {
       "id": "source-shortcut-companion-and-ui-text-defaults",
@@ -444,8 +461,9 @@
         "placeholder-registry-api",
         "ppupload-mechanics"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "2 changed file(s): R/paintr-builtins.R, R/paintr-registry.R"
     },
     {
       "id": "runtime-callable-returned-for-plain-r-binding",
@@ -471,8 +489,9 @@
       "labels": [
         "placeholder-registry-api"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "1 changed file(s): R/paintr-registry.R"
     },
     {
       "id": "l2-single-public-server-plus-ptr-init-state-exported",
@@ -498,8 +517,9 @@
         "extensibility-levels",
         "package-api-surface"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "2 changed file(s): R/paintr-app.R, R/paintr-server.R"
     },
     {
       "id": "l2-user-owns-shinyapp-shell",
@@ -523,8 +543,9 @@
       "labels": [
         "extensibility-levels"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "2 changed file(s): R/paintr-app.R, tests/testthat/fixtures/vignette-apps/module-app/app.R"
     },
     {
       "id": "ptr-server-wraps-moduleserver-itself",
@@ -546,8 +567,9 @@
       "labels": [
         "extensibility-levels"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "3 changed file(s): R/paintr-app.R, tests/testthat/fixtures/vignette-apps/module-app/app.R, tests/testthat/test-e2e-vignette-examples-shinytest2.R"
     },
     {
       "id": "ptr-server-returns-ptr-state-render-handle",
@@ -574,8 +596,9 @@
         "extensibility-levels",
         "l3-custom-render"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "2 changed file(s): R/paintr-app.R, R/paintr-server.R"
     },
     {
       "id": "l2-ptr-server-arg-forwarding-and-shared",
@@ -597,8 +620,9 @@
       "labels": [
         "extensibility-levels"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "2 changed file(s): R/paintr-app.R, R/paintr-server.R"
     },
     {
       "id": "l2-id-arg-namespaces-all-ids",
@@ -620,8 +644,9 @@
       "labels": [
         "extensibility-levels"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "2 changed file(s): R/paintr-app.R, tests/testthat/test-e2e-vignette-examples-shinytest2.R"
     },
     {
       "id": "ptr-ui-self-contained-shell",
@@ -642,8 +667,9 @@
       "labels": [
         "extensibility-levels"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-app.R"
     },
     {
       "id": "ptr-ui-page-vs-ptr-ui-controls",
@@ -666,8 +692,9 @@
         "l3-custom-render",
         "extensibility-levels"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-app.R"
     },
     {
       "id": "ptr-ui-pieces-output-id-contract",
@@ -698,8 +725,9 @@
       "labels": [
         "l3-custom-render"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "2 changed file(s): R/paintr-app.R, R/paintr-server.R"
     },
     {
       "id": "ptr-ui-pieces-emit-no-assets-page-includes-once",
@@ -723,8 +751,9 @@
       "labels": [
         "l3-custom-render"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-app.R"
     },
     {
       "id": "ptr-ui-assets-keeps-legacy-resourcepath",
@@ -768,8 +797,9 @@
       "labels": [
         "l3-custom-render"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-app.R"
     },
     {
       "id": "ptr-ui-code-style-window-needs-toggle",
@@ -792,8 +822,9 @@
       "labels": [
         "l3-custom-render"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "2 changed file(s): R/paintr-app.R, R/paintr-server.R"
     },
     {
       "id": "ptr-ui-controls-shared-key-exclusion",
@@ -816,8 +847,9 @@
         "l3-custom-render",
         "shared-coordinator-partition"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-app.R"
     },
     {
       "id": "ptr-ui-text-is-copy-schema-accessor-not-a-piece",
@@ -841,8 +873,9 @@
       "labels": [
         "copy-ui-text"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-app.R"
     },
     {
       "id": "ui-text-three-level-specificity-merge",
@@ -1007,8 +1040,9 @@
       "labels": [
         "constant-fold"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "1 changed file(s): R/paintr-builtins.R"
     },
     {
       "id": "constant-fold-env-namespace-accessor-load-all-hazard",
@@ -1054,8 +1088,9 @@
         "constant-fold",
         "translate-pipeline"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "3 changed file(s): R/paintr-builtins.R, R/paintr-registry.R, R/paintr-server.R"
     },
     {
       "id": "llm-assist-surface-four-file-backed-fns",
@@ -1078,8 +1113,9 @@
       "labels": [
         "llm-assist"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "1 changed file(s): R/paintr-llm.R"
     },
     {
       "id": "llm-content-stale-ptr-module-names",
@@ -1104,8 +1140,9 @@
         "llm-assist",
         "package-api-surface"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "2 changed file(s): R/paintr-llm.R, inst/llm/primer.md"
     },
     {
       "id": "llm-register-snapshots-topics-and-lenient-chat",
@@ -1126,8 +1163,9 @@
       "labels": [
         "llm-assist"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "1 changed file(s): R/paintr-llm.R"
     },
     {
       "id": "llm-primer-encodes-prefix-and-decision-rule",
@@ -1149,8 +1187,9 @@
         "llm-assist",
         "extensibility-levels"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "2 changed file(s): inst/llm/primer.md, inst/llm/topics/overview.md"
     },
     {
       "id": "ppexpr-safety-multipoint-screening",
@@ -1174,8 +1213,9 @@
       "labels": [
         "expr-safety"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "1 changed file(s): R/paintr-translate.R"
     },
     {
       "id": "ppexpr-walker-primary-not-denylist",
@@ -1218,8 +1258,9 @@
       "labels": [
         "expr-safety"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "1 changed file(s): R/paintr-registry.R"
     },
     {
       "id": "ppexpr-allowlist-is-default-deny",
@@ -1268,8 +1309,9 @@
       "labels": [
         "expr-safety"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "2 changed file(s): R/paintr-app.R, R/paintr-server.R"
     },
     {
       "id": "ppexpr-walker-typed-tree-vs-language",
@@ -1312,8 +1354,9 @@
       "labels": [
         "translate-pipeline"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "1 changed file(s): R/paintr-translate.R"
     },
     {
       "id": "canonical-tree-invariant-op-is-render-only",
@@ -1336,8 +1379,9 @@
       "labels": [
         "translate-pipeline"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "1 changed file(s): R/paintr-translate.R"
     },
     {
       "id": "pipeline-lift-three-gates",
@@ -1358,8 +1402,9 @@
       "labels": [
         "translate-pipeline"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "1 changed file(s): R/paintr-translate.R"
     },
     {
       "id": "classify-data-stamps-consumer-upstream",
@@ -1449,8 +1494,9 @@
         "translate-pipeline",
         "l3-custom-render"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "1 changed file(s): R/paintr-ids.R"
     },
     {
       "id": "ptr-id-table-l3-enumerator",
@@ -1498,8 +1544,9 @@
         "extensibility-levels",
         "package-api-surface"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "2 changed file(s): R/paintr-app.R, R/paintr-server.R"
     },
     {
       "id": "l3-extract-needs-running-runtime",
@@ -1522,8 +1569,9 @@
       "labels": [
         "l3-custom-render"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "ptr-extract-isolate-not-for-render-blocks",
@@ -1543,8 +1591,9 @@
       "labels": [
         "l3-custom-render"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "l3-runtime-result-shape",
@@ -1568,8 +1617,9 @@
       "labels": [
         "l3-custom-render"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "2 changed file(s): R/paintr-server.R, tests/testthat/fixtures/vignette-apps/l3-plotly/app.R"
     },
     {
       "id": "no-public-headless-path",
@@ -1614,8 +1664,9 @@
       "labels": [
         "l3-custom-render"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "2 changed file(s): tests/testthat/fixtures/vignette-apps/l3-pieces/app.R, tests/testthat/fixtures/vignette-apps/l3-plotly/app.R"
     },
     {
       "id": "l3-pieces-namespacing-rule",
@@ -1637,8 +1688,9 @@
         "l3-custom-render",
         "extensibility-levels"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "2 changed file(s): tests/testthat/fixtures/vignette-apps/l3-plotly/app.R, tests/testthat/test-e2e-vignette-examples-shinytest2.R"
     },
     {
       "id": "ptr-gg-extra-replace-atomic-redraw",
@@ -1663,8 +1715,9 @@
       "labels": [
         "l3-custom-render"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "3 changed file(s): R/paintr-server.R, tests/testthat/fixtures/vignette-apps/l3-gg-extra/app.R, tests/testthat/test-e2e-vignette-examples-shinytest2.R"
     },
     {
       "id": "ptr-shared-coordinator-three-consumer-api",
@@ -1711,8 +1764,9 @@
       "labels": [
         "shared-coordinator-partition"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "1 changed file(s): tests/testthat/test-e2e-vignette-examples-shinytest2.R"
     },
     {
       "id": "ptr-shared-removed-shared-ui-arg",
@@ -1765,8 +1819,9 @@
         "shared-coordinator-partition",
         "extensibility-levels"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "ptr-shared-panel-vs-ui-shared-panel-L2-L3",
@@ -1837,8 +1892,9 @@
       "labels": [
         "shared-coordinator-partition"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "2 changed file(s): tests/testthat/fixtures/vignette-apps/single-instance-shared/app.R, tests/testthat/test-e2e-vignette-examples-shinytest2.R"
     },
     {
       "id": "shared-control-drives-all-panels-one-input",
@@ -1859,8 +1915,9 @@
       "labels": [
         "shared-coordinator-partition"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "1 changed file(s): tests/testthat/test-e2e-vignette-examples-shinytest2.R"
     },
     {
       "id": "ptr-app-grid-l1-turnkey-shared-host-shape",
@@ -1885,8 +1942,9 @@
         "shared-coordinator-partition",
         "app-entry-points"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "2 changed file(s): R/paintr-app.R, tests/testthat/test-e2e-vignette-examples-shinytest2.R"
     },
     {
       "id": "shared-panel-pickers-bind-eagerly-vs-data-subtab-suspended",
@@ -1909,8 +1967,9 @@
         "shared-coordinator-partition",
         "shinytest2-gotchas"
       ],
-      "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "status": "stale",
+      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
+      "stale_reason": "1 changed file(s): tests/testthat/test-e2e-vignette-examples-shinytest2.R"
     },
     {
       "id": "l1-runtime-gated-on-update-click",
@@ -1932,8 +1991,9 @@
       "labels": [
         "app-entry-points"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "2 changed file(s): R/paintr-app.R, R/paintr-server.R"
     },
     {
       "id": "l1-default-ui-chrome-contents",
@@ -1960,8 +2020,9 @@
       "labels": [
         "app-entry-points"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "3 changed file(s): R/paintr-app.R, R/paintr-server.R, tests/testthat/test-e2e-vignette-examples-shinytest2.R"
     },
     {
       "id": "l1-placeholder-input-id-namespaced-by-parent-call",

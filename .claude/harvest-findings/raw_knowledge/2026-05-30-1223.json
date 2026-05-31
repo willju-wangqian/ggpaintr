@@ -30,8 +30,9 @@
       "labels": [
         "shared-coordinator-partition"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-app.R"
     },
     {
       "id": "ggpaintr-name-normalizers-distinct",
@@ -95,8 +96,9 @@
         "r-name-normalization",
         "source-binding-runtime"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "panel-owned-source-key-duality",
@@ -119,8 +121,9 @@
         "source-binding-runtime",
         "shared-coordinator-partition"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "parallel-gate-flakes-seeding-cluster",
@@ -164,8 +167,9 @@
       "labels": [
         "ui-widget-construction"
       ],
-      "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "status": "stale",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407",
+      "stale_reason": "1 changed file(s): R/paintr-ids.R"
     },
     {
       "id": "ptr-app-grid-already-thin",
@@ -186,8 +190,9 @@
       "labels": [
         "app-entry-points"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-app.R"
     },
     {
       "id": "ptr-arg-factory-rename",
@@ -230,8 +235,9 @@
       "labels": [
         "placeholder-registry-api"
       ],
-      "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "status": "stale",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407",
+      "stale_reason": "1 changed file(s): R/paintr-registry.R"
     },
     {
       "id": "registry-entry-keys-vs-public-args",
@@ -252,8 +258,9 @@
       "labels": [
         "placeholder-registry-api"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "3 changed file(s): R/paintr-registry.R, R/paintr-server.R, R/paintr-translate.R"
     },
     {
       "id": "resolve-upload-source-already-shared",
@@ -277,8 +284,9 @@
         "source-binding-runtime",
         "shared-coordinator-partition"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "source-binding-derivation-per-site",
@@ -300,8 +308,9 @@
       "labels": [
         "source-binding-runtime"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     },
     {
       "id": "stage-overrides-build-vs-render",
@@ -344,8 +353,9 @@
       "labels": [
         "harness-tooling"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): dev/agents/ggpaintr-source-expert/symbol-lines.json"
     },
     {
       "id": "verify-before-extract-dedup-overstated",
@@ -366,8 +376,9 @@
       "labels": [
         "refactor-discipline"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "status": "stale",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "stale_reason": "1 changed file(s): R/paintr-server.R"
     }
   ]
 }

@@ -46,8 +46,9 @@
       "labels": [
         "formula-capture"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-builtins.R"
     },
     {
       "id": "capture-formula-deparses-to-string",
@@ -67,8 +68,9 @@
         "formula-capture",
         "app-entry-points"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-app.R"
     },
     {
       "id": "expr-mode-scoped-to-single-formula-entries",
@@ -90,8 +92,9 @@
         "formula-capture",
         "app-entry-points"
       ],
-      "status": "fresh",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
+      "status": "stale",
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
+      "stale_reason": "1 changed file(s): R/paintr-app.R"
     },
     {
       "id": "native-pipe-desugared-before-expr-capture",
@@ -112,8 +115,9 @@
       "labels": [
         "formula-capture"
       ],
-      "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "status": "stale",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407",
+      "stale_reason": "1 changed file(s): R/paintr-translate.R"
     },
     {
       "id": "ptr-shared-accepts-quoted-expr-formulas",
