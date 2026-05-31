@@ -3,14 +3,16 @@
 # core.hooksPath installs at the main repo's .git/hooks/post-merge).
 #
 # Runs the knowledge-staleness DETECTOR (mark-stale-finding) after every merge:
-# flips any verified finding to status=stale when a file it cites changed since
-# its verified_at_commit baseline. Detection only — re-verification is the
-# separate /maintain-finding (model) pass. The marker is a pure fast script.
+# flips a finding to status=stale when a cited source SPAN (line range / symbol)
+# it depends on changed since its verified_at_commit baseline, and auto-heals
+# refs that merely shifted (rewrites the shifted line numbers + re-baselines, no
+# re-verify). Detection + mechanical heal only — re-verification is the separate
+# /maintain-finding (model) pass. The marker is a pure fast script.
 #
-# Informational, never blocks (post-merge cannot abort a merge anyway). It
-# leaves status/stale_reason edits in the working tree for you to review, then
-# run /maintain-finding. Resolved against the merged tree's toplevel, so it
-# works from the main repo and every worktree.
+# Informational, never blocks (post-merge cannot abort a merge anyway). It leaves
+# status/stale_reason edits AND auto-healed line-refs in the working tree for you
+# to review, then run /maintain-finding. Resolved against the merged tree's
+# toplevel, so it works from the main repo and every worktree.
 root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 [ -n "$root" ] || exit 0
 
@@ -33,5 +35,5 @@ echo "[post-merge] scanning knowledge findings for source drift (mark-stale-find
   echo "[post-merge] staleness scan errored (non-fatal)."
   exit 0
 }
-echo "[post-merge] done. Any newly status=stale findings are unstaged edits — run /maintain-finding to re-verify."
+echo "[post-merge] done. Newly status=stale findings AND auto-healed line-refs are unstaged edits — review, then run /maintain-finding to re-verify the stale ones."
 exit 0
