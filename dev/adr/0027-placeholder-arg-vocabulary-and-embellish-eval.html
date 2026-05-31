@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0027 — Placeholder argument vocabulary + explicit plain-R embellish_eval</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0027 — Placeholder argument vocabulary + explicit plain-R <code>embellish_eval</code></h1>
+
+<p><strong>Status:</strong> <em>Locked decision (pending implementation).</em> Routes to <code>/decision-to-plan</code> for the implementable plan; this doc records the decision + its verified baseline, it is not itself the plan.</p>
+<p><strong>Date:</strong> 2026-05-31. <strong>Supersedes naming for:</strong> the <code>ptr_define_placeholder_*</code> argument surface introduced with ADR 0009 (pp* rename) and the <code>ptr_arg_*</code> validator factories.</p>
+
+<h2>The story, in plain language</h2>
+
+<p>A ggpaintr placeholder is a token (<code>ppVar</code>, <code>ppNum</code>, a custom <code>colvars</code>/<code>ppVars2</code>) you write inside an otherwise-ordinary ggplot2 expression. That expression is meant to work <strong>two</strong> ways:</p>
+
+<ol>
+<li><strong>Through <code>ptr_app()</code>/<code>ptr_server()</code></strong> — the token becomes a Shiny widget. Its parenthesized arguments (e.g. <code>ppNum(50)</code>, <code>colvars(c(mpg, hp))</code>) are the <em>default seed</em> for that widget, parsed at translate time.</li>
+<li><strong>As plain R, with no app</strong> — the same expression still renders a static ggplot, because each placeholder keyword is bound to a function that gives the token a live-R meaning. This is a real, documented feature (README + tutorial lead with the unquoted-expression form).</li>
+</ol>
+
+<p>Path 2 is <strong>under-built and under-documented</strong>, and it broke on a real example. The constructor argument that governs path 2 is currently named <code>runtime</code>, defaults to <code>function(x, ...) x</code> (identity), and for any column-selecting placeholder used inside a tidyselect verb the identity default is <em>wrong</em>: it eagerly forces the bare column symbols in ordinary scope.</p>
+
+<h2>Verified baseline (the premise, grounded against HEAD)</h2>
+
+<p>The customization vignette's own <code>colvars</code> example —</p>
+<pre><code>mtcars |&gt;
+  dplyr::select(colvars(mpg, hp)) |&gt;
+  ggplot(aes(x = ppVar(mpg), y = ppVar(hp))) + geom_point()</code></pre>
+<p>— fails <strong>two independent ways</strong> (reproduced 2026-05-31 against <code>devtools::load_all(".")</code>):</p>
+<ol>
+<li><strong>Rejected inside <code>ptr_app</code>.</strong> <code>colvars(mpg, hp)</code> is two positional args; <code>extract_placeholder_args</code> caps positional args at one → <em>"Placeholder <code>colvars(...)</code> accepts at most one positional argument (the default); got 2."</em> <em>Source:</em> <code>R/paintr-translate.R:925-930</code>.</li>
+<li><strong>Naked expression fails.</strong> With the identity <code>runtime</code>, <code>colvars(mpg, hp)</code> returns the whole tibble and tidyselect rejects it: <em>"must be numeric or character, not a &lt;tbl_df&gt; object."</em> The same mechanism makes <code>ppVars2(c(species, tars1, …))</code> throw <em>"object 'species' not found"</em> — tidyselect evaluates the un-substituted wrapper call in non-masked scope. <em>Source:</em> identity default at <code>R/paintr-registry.R:393-404</code>; tidyselect behavior confirmed empirically (<code>/tmp/runtime_test*.R</code>).</li>
+</ol>
+
+<p><strong>Why the <code>ptr_app</code> path does <em>not</em> hit defect 2:</strong> <code>ptr_resolve_upstream</code> substitutes the placeholder before evaluating, splicing <code>c(species, tars1, …)</code> <em>inline</em> with no wrapper, so tidyselect masks correctly (verified: a 518-row pcp data frame). <em>Source:</em> <code>R/paintr-resolve.R:24-47</code>, <code>R/paintr-substitute.R:132-176</code>. The defect is exclusively on the plain-R path, which is exactly the path <code>runtime</code> exists to serve and which no test/vignette exercises.</p>
+
+<p><strong>Current argument surface</strong> (verified): <code>ptr_define_placeholder_*</code> take <code>positional_arg</code>, <code>named_args</code>, <code>validate_input</code>, <code>runtime</code>. Exported validator factories: <code>ptr_arg_numeric</code>, <code>ptr_arg_numeric_vector</code>, <code>ptr_arg_string</code>, <code>ptr_arg_symbol_or_string</code>, <code>ptr_arg_expression</code> (no standalone <code>ptr_arg_symbol</code>). <em>Source:</em> <code>R/paintr-default-args.R:201-289</code>, <code>R/paintr-registry.R:592-606,713-719</code>.</p>
+
+<h2>The structural problem</h2>
+
+<p>For a column placeholder, the seed-parse slot (<code>positional_arg</code>) and the plain-R slot (<code>runtime</code>) perform <em>the same transformation</em> — "bare column names → character vector" — declared twice. That duplication, plus arbitrary/disconnected names (<code>positional_arg</code>, <code>named_args</code>, <code>runtime</code> all govern the same parenthesized arguments but share no vocabulary), is the root of the confusion.</p>
+
+<h2>Decisions (locked)</h2>
+
+<h3>D1 — Keep the plain-R evaluation slot explicit; do NOT derive it (Direction A)</h3>
+<p>The plain-R behavior is <strong>not</strong> auto-derived from the seed-parse spec. Rationale: derivation is unreliable and would silently guess wrong — e.g. a numeric placeholder may legitimately need string treatment in plain R, which no type-derivation can know. Forcing authors to see and own the plain-R slot is the feature, not overhead.</p>
+
+<h3>D2 — Rename the argument vocabulary (one coherent family)</h3>
+<table>
+<thead><tr><th>now</th><th>final</th><th>role</th></tr></thead>
+<tbody>
+<tr><td><code>positional_arg</code></td><td><code>parse_positional_arg</code></td><td>translate-time: parse+validate the positional default into the widget seed</td></tr>
+<tr><td><code>named_args</code></td><td><code>parse_named_args</code></td><td>translate-time: whitelist + per-arg parse/validate of named defaults</td></tr>
+<tr><td><code>validate_input</code></td><td><code>validate_session_input</code></td><td>session-time: validate the live widget value before resolve</td></tr>
+<tr><td><code>runtime</code></td><td><code>embellish_eval</code></td><td>plain-R: how a placeholder-embellished ggplot expression evaluates with no app</td></tr>
+</tbody>
+</table>
+<p><code>parse_*</code> (not <code>validate_*</code>) because these factories <em>return the parsed seed value</em>, not merely a pass/fail (<code>default &lt;- entry$default_arg(positional[[1L]])</code>, <code>R/paintr-translate.R:931</code>). The internal registry-record keys (<code>default_arg</code>, <code>copy_defaults</code>) stay as-is — only the public argument names change.</p>
+
+<h3>D3 — Collapse the <code>vector</code> variants; add <code>ptr_arg_symbol</code></h3>
+<ul>
+<li><code>ptr_arg_numeric(vector = FALSE, length = NULL)</code> absorbs <code>ptr_arg_numeric_vector</code> (<code>vector = TRUE</code>; <code>length</code> applies only when <code>vector</code>).</li>
+<li><code>ptr_arg_string(vector = FALSE)</code>, <code>ptr_arg_symbol_or_string(vector = FALSE)</code> gain the flag.</li>
+<li>New <code>ptr_arg_symbol(vector = FALSE)</code> (bare-name → string), needed so <code>colvars(c(mpg, hp))</code> has a vector-capable positional parser.</li>
+<li><code>vector = TRUE</code> accepts a single <code>c(...)</code> literal; it does <strong>not</strong> enable multiple positional args (see D6).</li>
+</ul>
+
+<h3>D4 — Built-in <code>embellish_eval</code> helpers</h3>
+<ul>
+<li><code>embellish_identity()</code> — the default (<code>function(x, ...) x</code>); correct for value placeholders used in data-masked contexts (<code>aes()</code>).</li>
+<li><code>embellish_symbol_to_string()</code> — NSE-captures the call's argument (<code>rlang::enexpr</code>) and returns column names as a <em>character vector</em>, which tidyselect accepts; correct for column-selecting consumers used in tidyselect verbs (verified working, <code>/tmp/runtime_test2.R</code>).</li>
+</ul>
+<p>Helper prefix is <code>embellish_*</code> to match the <code>embellish_eval</code> slot (no <code>eval_arg_*</code>/<code>evaluate_*_R</code> split). Authors may always supply their own function.</p>
+
+<h3>D5 — Accept the breaking change; bump; sweep all call sites</h3>
+<p>Renaming exported constructor arguments and removing <code>ptr_arg_numeric_vector</code> is a hard break (argument names cannot be soft-deprecated). At 0.10.0 this is acceptable. The change is atomic: rename, regenerate NAMESPACE/man, and update every in-repo call site (tutorial vignette, tests, examples, any fixture <code>app.R</code>) in the same change. Version bump accompanies it.</p>
+
+<h3>D6 — <code>colvars(c(mpg, hp))</code> is canonical; bare-multi is out of scope</h3>
+<p>The one-positional cap in <code>extract_placeholder_args</code> stays (it is shared by every placeholder; loosening it is a separate, higher-risk decision). The supported multi-column form is a single <code>c(...)</code> positional. The vignette example must change from <code>colvars(mpg, hp)</code> to <code>colvars(c(mpg, hp))</code>.</p>
+
+<h2>Worked examples — what becomes possible</h2>
+
+<p>Example 1 demonstrates the core win: one column-selecting consumer that works through <code>ptr_app</code> <em>and</em> as a naked static expression, because <code>embellish_eval</code> is set to the new NSE helper.</p>
+<h3>1. A consumer that survives both paths</h3>
+<pre><code class="language-r">colvars &lt;- ptr_define_placeholder_consumer(
+  keyword = "colvars",
+  build_ui = function(node, cols, data, label = NULL, selected = NULL, ...)
+    shiny::selectInput(node$id, label %||% "Columns", choices = cols,
+                       selected = intersect(selected %||% character(0), cols),
+                       multiple = TRUE),
+  resolve_expr   = function(value, node, ...)            # ptr_app path: inline c(<syms>)
+    if (length(value) == 0L) NULL else rlang::call2("c", !!!rlang::syms(value)),
+  embellish_eval = embellish_symbol_to_string(),         # plain-R path: NSE -&gt; character vector
+  parse_positional_arg = ptr_arg_symbol(vector = TRUE)   # seed: colvars(c(mpg, hp))
+)
+
+# naked, no app -- now renders instead of erroring:
+mtcars |&gt; dplyr::select(colvars(c(mpg, hp)))             # data frame with mpg, hp</code></pre>
+
+<p>Example 2 demonstrates D1's rationale: a numeric placeholder whose plain-R meaning is deliberately a string, which no derivation could infer — so the author sets <code>embellish_eval</code> by hand.</p>
+<h3>2. A value placeholder with a non-identity plain-R meaning</h3>
+<pre><code class="language-r">ppCode &lt;- ptr_define_placeholder_value(
+  keyword = "ppCode",
+  build_ui = function(node, label = NULL, selected = NULL, ...)
+    shiny::numericInput(node$id, label %||% "Code", value = selected %||% 1),
+  resolve_expr   = function(value, node, ...) as.character(value),
+  embellish_eval = function(x, ...) as.character(x),      # plain-R: number -&gt; string
+  parse_positional_arg = ptr_arg_numeric()
+)</code></pre>
+
+<h2>Worked examples — what is rejected by design</h2>
+
+<p>Example 1 stays rejected after this ADR: the bare comma-separated form is multiple positional args, and the one-positional cap is retained (D6).</p>
+<h3>1. Bare multi-positional selection (use <code>c(...)</code> instead)</h3>
+<pre><code class="language-r"># still aborts at translate: "accepts at most one positional argument; got 2"
+ptr_app( mtcars |&gt; dplyr::select(colvars(mpg, hp)) |&gt; ggplot(aes(ppVar(mpg), ppVar(hp))) + geom_point() )
+# canonical form:
+ptr_app( mtcars |&gt; dplyr::select(colvars(c(mpg, hp))) |&gt; ggplot(aes(ppVar(mpg), ppVar(hp))) + geom_point() )</code></pre>
+
+<p>Example 2 is the anti-pattern this ADR exists to prevent: leaving a tidyselect consumer on the default <code>embellish_identity()</code>, which forces the bare symbols and breaks the naked path.</p>
+<h3>2. Relying on the identity default for a tidyselect consumer</h3>
+<pre><code class="language-r"># embellish_eval defaults to embellish_identity() -> forces c(mpg, hp) in ordinary scope
+colvars_bad &lt;- ptr_define_placeholder_consumer(
+  keyword = "colvars_bad",
+  build_ui = function(node, cols, data, ...) shiny::selectInput(node$id, "Columns", cols, multiple = TRUE),
+  resolve_expr = function(value, node, ...) rlang::call2("c", !!!rlang::syms(value))
+  # no embellish_eval -> naked `dplyr::select(colvars_bad(c(mpg, hp)))` errors "object 'mpg' not found"
+)</code></pre>
+
+<h2>Scope</h2>
+<p><strong>In:</strong> the rename map (D2), the <code>vector=</code> collapse + <code>ptr_arg_symbol</code> (D3), the two <code>embellish_*</code> helpers (D4), NAMESPACE/man regen, in-repo call-site sweep, version bump, focused tests for the new plain-R path.</p>
+<p><strong>Out (follow-ups):</strong> the vignette's missing plain-R-use-case coverage is a known, larger gap tracked separately — this ADR fixes the example's correctness (<code>c(...)</code> form + a working <code>embellish_eval</code>) but does not rewrite the vignette's narrative. Bare-multi positional support (D6). Any Direction-B unification.</p>
+
+<h2>Success criteria</h2>
+<ul>
+<li>A column-selecting consumer with <code>embellish_eval = embellish_symbol_to_string()</code> renders a static ggplot from the <em>naked</em> expression (<code>dplyr::select(colvars(c(mpg, hp)))</code> path) — no "object not found", no "must be numeric or character".</li>
+<li>The same placeholder still works through <code>ptr_app</code> (substituted-inline path unchanged).</li>
+<li>All <code>ptr_define_placeholder_*</code> calls in the repo use the new argument names; <code>devtools::document()</code> shows no NAMESPACE drift; the authoritative test gate is FAIL 0 / ERROR 0 / SKIP 0.</li>
+<li>No remaining reference to <code>runtime</code>/<code>positional_arg</code>/<code>named_args</code>/<code>validate_input</code>/<code>ptr_arg_numeric_vector</code> as public arg/function names.</li>
+</ul>
+
+<h2>BDD (acceptance, to expand at plan stage)</h2>
+<pre><code>Feature: plain-R evaluation of a column-selecting placeholder
+  Scenario: naked expression with embellish_symbol_to_string
+    Given a consumer placeholder "colvars" with embellish_eval = embellish_symbol_to_string()
+    When the expression `mtcars |> dplyr::select(colvars(c(mpg, hp)))` is evaluated as plain R
+    Then it returns a data frame with exactly columns mpg, hp
+    And no "object 'mpg' not found" error is raised
+
+  Scenario: same placeholder still seeds and binds through ptr_app
+    Given the same "colvars" registered with parse_positional_arg = ptr_arg_symbol(vector = TRUE)
+    When ptr_app() boots with colvars(c(mpg, hp)) as the formula default
+    Then the column picker is seeded with mpg, hp
+    And the substituted upstream evaluates without leaking the colvars(...) wrapper</code></pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate (from <code>CLAUDE.md</code>): <code>Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'</code> → FAIL 0 / ERROR 0 / SKIP 0. Plus <code>devtools::document()</code> clean (no NAMESPACE diff after commit) and <code>devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))</code> at the by-design NOTEs only. Proxy trap: a raw <code>test_dir</code> with no <code>NOT_CRAN</code> SKIPs the browser tests — not the gate.</p>
+
+<h2>References</h2>
+<ul>
+<li>Findings: <code>consumer-placeholder-tidyselect-bare-cols</code>, <code>consumer-placeholder-tidyselect-runtime-nse</code> (this session).</li>
+<li>Probes: <code>/tmp/ppvars_probe5.R</code> (ptr_app path), <code>/tmp/runtime_test2.R</code> (embellish_symbol_to_string), <code>/tmp/colvars_check.R</code> (baseline defects).</li>
+<li>Source anchors: <code>R/paintr-translate.R:903-957</code>, <code>R/paintr-registry.R:352-420,592-606,713-719</code>, <code>R/paintr-default-args.R:201-289</code>, <code>R/paintr-resolve.R:9-70</code>, <code>R/paintr-substitute.R:132-176</code>.</li>
+</ul>
+
+<!-- audit-adr: PASS 5c572c9c8305 dev/audit/audit-adr-0027-2026-05-31-1739.html 2026-05-31 -->
+</body>
+</html>
