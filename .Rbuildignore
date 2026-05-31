@@ -19,6 +19,7 @@ README\.*
 ^\.claude$
 ^AGENTS\.md$
 ^CLAUDE\.md$
+^CONTEXT\.md$
 ^Rplots\.pdf$
 ^docker-compose\.codex\.yml$
 ^\.ewh-artifacts$
