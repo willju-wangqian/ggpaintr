@@ -135,7 +135,7 @@
       "tags": "deepening-sweep-v2,harness",
       "source": "TESTTHAT_PARALLEL=TRUE devtools::test() vs serial; test-spec-seed-derived-column-browser.R, test-shared-spec-seed-derived-column-browser.R, test-consumer-deselect-stays-empty.R, test-default-derived-column-stage-off-browser.R",
       "verdict": "verified",
-      "verification": "Observational parallel boot-tail flake finding. Cited test file(s) unchanged at HEAD a58dadd and CLAUDE.md authoritative-gate block still documents this parallel-vs-serial flake behavior. Claim re-confirmed.",
+      "verification": "All four cited test files still exist (test-spec-seed-derived-column-browser.R, test-shared-spec-seed-derived-column-browser.R, test-consumer-deselect-stays-empty.R, test-default-derived-column-stage-off-browser.R). CLAUDE.md:84 confirms the policy: 'A residual flake under parallel load is not a product failure — re-confirm serially', and run is serial by default. Claim holds.",
       "checked_refs": [
         "tests/testthat/test-spec-seed-derived-column-browser.R",
         "CLAUDE.md authoritative-gate"
@@ -147,7 +147,7 @@
         "shinytest2-gotchas"
       ],
       "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "verified_at_commit": "964650277e131cfa9d6b6b7af10f4b3c8cbb7bc6"
     },
     {
       "id": "placeholder-output-id-single-source",
@@ -350,9 +350,10 @@
       "tags": "deepening-sweep-v2,harness",
       "source": "dev/githooks/pre-commit (rebuilds dev/agents/ggpaintr-source-expert/symbol-lines.json on R/ change)",
       "verdict": "verified",
-      "verification": "Read dev/githooks/pre-commit. The header comment (L73) states it 'Rebuilds dev/agents/ggpaintr-source-expert/symbol-lines.json when any' R/ file changes; the hook prints a '[pre-commit] R/ changed' rebuild message and runs `git add` on the regenerated symbol-lines.json so it is auto-staged. Matches the claim (auto-regen + auto-stage on R/ change; use `git add -A` to include it).",
+      "verification": "dev/githooks/pre-commit lines 72-80 rebuild dev/agents/ggpaintr-source-expert/symbol-lines.json when R/*.R is staged (delegates to dev/agents/ggpaintr-source-expert/pre-commit-symbol-manifest.sh) and the sidecar re-stages the refreshed JSON into the same commit. Auto-regen + auto-stage behavior holds; the progress message lives in the sidecar script, not pre-commit itself.",
       "checked_refs": [
-        "dev/githooks/pre-commit"
+        "dev/githooks/pre-commit:72-80",
+        "dev/agents/ggpaintr-source-expert/pre-commit-symbol-manifest.sh"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
       "origin_status": "derived-unverified",
@@ -360,7 +361,7 @@
         "harness-tooling"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "964650277e131cfa9d6b6b7af10f4b3c8cbb7bc6"
     },
     {
       "id": "verify-before-extract-dedup-overstated",

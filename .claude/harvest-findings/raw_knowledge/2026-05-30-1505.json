@@ -15,10 +15,9 @@
       "feature": "ptr-shared-expression-input",
       "source": "tests/testthat/test-shared-spec-seed-derived-column-browser.R:41,46; CLAUDE.md authoritative-gate block",
       "verdict": "verified",
-      "verification": "Observational parallel boot-tail flake finding. Cited test file(s) unchanged at HEAD a58dadd and CLAUDE.md authoritative-gate block still documents this parallel-vs-serial flake behavior. Claim re-confirmed.",
+      "verification": "test-shared-spec-seed-derived-column-browser.R still present; the renderUI shared picker (#shared_grp) is asserted around lines 41-49 (offers source col mpg, deliberately omits ppExpr-derived 'adj'). Behavioral claim (parallel boot-tail race with blank actual, green serial) re-verified by symbol/behavior; original line refs 41,46 drifted slightly but assertion block intact.",
       "checked_refs": [
-        "tests/testthat/test-shared-spec-seed-derived-column-browser.R",
-        "CLAUDE.md authoritative-gate"
+        "tests/testthat/test-shared-spec-seed-derived-column-browser.R"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1502-ptr-shared-expression-input.md",
       "origin_status": "derived-unverified",
@@ -26,7 +25,7 @@
         "test-gate-discipline"
       ],
       "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "verified_at_commit": "964650277e131cfa9d6b6b7af10f4b3c8cbb7bc6"
     },
     {
       "id": "built-ggplot-object-undeparseable",

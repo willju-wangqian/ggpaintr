@@ -16,7 +16,7 @@
       "tags": "vignette-rewrite",
       "source": ".Rbuildignore line ^archive$ (already present before the move); archive/retired_vignettes/ holds the 3 retired .Rmd",
       "verdict": "verified",
-      "verification": ".Rbuildignore:9 ^archive$ \u2014 NOT in commit 64f8fe9 changed-files; added 2026-04-06 (66e6818). Move done via git mv (renames in commit).",
+      "verification": ".Rbuildignore:9 ^archive$ — NOT in commit 64f8fe9 changed-files; added 2026-04-06 (66e6818). Move done via git mv (renames in commit).",
       "checked_refs": [
         ".Rbuildignore:9"
       ],
@@ -30,14 +30,14 @@
     },
     {
       "id": "percent-or-vector-default-needs-rlang",
-      "claim": "ggpaintr declares `Depends: R (>= 4.0.0)` and does NOT re-export `%||%`, so a vignette/example using `%||%` must load rlang (or shiny) explicitly \u2014 base R's `%||%` only exists from 4.4.0, so `library(ggpaintr); library(ggplot2)` alone does not guarantee it.",
+      "claim": "ggpaintr declares `Depends: R (>= 4.0.0)` and does NOT re-export `%||%`, so a vignette/example using `%||%` must load rlang (or shiny) explicitly — base R's `%||%` only exists from 4.4.0, so `library(ggpaintr); library(ggplot2)` alone does not guarantee it.",
       "detail": "",
       "scope": "campaign",
       "feature": "vignette-rewrite",
       "tags": "vignette-rewrite",
       "source": "DESCRIPTION Depends R(>=4.0.0); NAMESPACE has no %||% reexport; rlang exports %||%; base %||% only since R 4.4.0",
       "verdict": "verified",
-      "verification": "DESCRIPTION Depends R(>=4.0.0); NAMESPACE has no %||% export (grep clean); base %||% is R>=4.4.0 \u2014 so examples load rlang explicitly. Tutorial libs chunk adds library(rlang).",
+      "verification": "DESCRIPTION Depends R(>=4.0.0); NAMESPACE has no %||% export (grep clean); base %||% is R>=4.4.0 — so examples load rlang explicitly. Tutorial libs chunk adds library(rlang).",
       "checked_refs": [
         "DESCRIPTION",
         "NAMESPACE",
@@ -54,19 +54,19 @@
     },
     {
       "id": "final-vignette-set-three",
-      "claim": "As of 2026-05-30 the intended vignette set is exactly THREE \u2014 `ggpaintr-tutorial` (new), `ggpaintr-safety` (rewritten), `ggpaintr-llm` (separate session) \u2014 with use-cases/customization/gallery retired to archive; `_pkgdown.yml` articles and all live cross-references were repointed accordingly.",
+      "claim": "As of 2026-05-30 the intended vignette set is exactly THREE — `ggpaintr-tutorial` (new), `ggpaintr-safety` (rewritten), `ggpaintr-llm` (separate session) — with use-cases/customization/gallery retired to archive; `_pkgdown.yml` articles and all live cross-references were repointed accordingly.",
       "detail": "",
       "scope": "decision",
       "feature": "",
       "tags": "vignette-rewrite",
       "source": "vignettes/ now holds ggpaintr-{tutorial,safety,llm}.Rmd; _pkgdown.yml articles = tutorial/safety/llm; archive/retired_vignettes/ = use-cases/customization/gallery",
       "verdict": "verified",
-      "verification": "vignettes/ holds exactly tutorial/safety/llm; _pkgdown.yml articles list = ggpaintr-tutorial/ggpaintr-safety/ggpaintr-llm; use-cases/customization/gallery in archive/retired_vignettes/.",
+      "verification": "vignettes/ holds exactly ggpaintr-{tutorial,safety,llm}.Rmd; _pkgdown.yml:78-84 articles = tutorial/safety/llm; archive/retired_vignettes/ = use-cases/customization/gallery. Exact match to claim.",
       "checked_refs": [
         "vignettes/",
         "_pkgdown.yml"
       ],
-      "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
+      "verified_at_commit": "964650277e131cfa9d6b6b7af10f4b3c8cbb7bc6",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
       "origin_status": "derived-unverified",
@@ -76,14 +76,14 @@
     },
     {
       "id": "build-ui-injection-contract",
-      "claim": "A custom placeholder's `build_ui` is never called bare \u2014 `invoke_build_ui()` does `do.call(build_ui, c(list(node, label=copy$label), extra_named, extra, ...))`, injecting `label`, `selected` (=node$default), and `named_args` only when the hook's formals name them OR the hook has `...`; this is why the idiomatic signature is `function(node, label=NULL, selected=NULL, ...)` \u2014 `...` swallows framework-injected args the hook doesn't consume.",
+      "claim": "A custom placeholder's `build_ui` is never called bare — `invoke_build_ui()` does `do.call(build_ui, c(list(node, label=copy$label), extra_named, extra, ...))`, injecting `label`, `selected` (=node$default), and `named_args` only when the hook's formals name them OR the hook has `...`; this is why the idiomatic signature is `function(node, label=NULL, selected=NULL, ...)` — `...` swallows framework-injected args the hook doesn't consume.",
       "detail": "The injector guards each injection with `hook_accepts_dots || \"<arg>\" %in% fmls`. So a build_ui lacking both `...` and `selected` never receives the boot default. `node$id` arrives already namespaced (rendered_node$id <- ns_fn(node$id)); the hook must use node$id verbatim and must NOT re-namespace.",
       "scope": "durable",
       "feature": "",
       "tags": "vignette-rewrite",
       "source": "R/paintr-build-ui.R invoke_build_ui (do.call(entry$build_ui, c(list(rendered_node, label=copy$label), extra_named, extra, list(...))))",
       "verdict": "verified",
-      "verification": "R/paintr-build-ui.R:824-877 invoke_build_ui \u2014 confirmed do.call(build_ui, c(list(rendered_node,label=copy$label),extra_named,extra,...)); rendered_node$id<-ns_fn(node$id); injection guarded by hook_accepts_dots||\"selected\"/\"named_args\" %in% fmls (lines 858-873).",
+      "verification": "R/paintr-build-ui.R:824-877 invoke_build_ui — confirmed do.call(build_ui, c(list(rendered_node,label=copy$label),extra_named,extra,...)); rendered_node$id<-ns_fn(node$id); injection guarded by hook_accepts_dots||\"selected\"/\"named_args\" %in% fmls (lines 858-873).",
       "checked_refs": [
         "R/paintr-build-ui.R:858",
         "R/paintr-build-ui.R:870"
@@ -99,7 +99,7 @@
     },
     {
       "id": "custom-source-capture-env-not-parent-frame",
-      "claim": "A custom source placeholder whose `resolve_data` loads an object by name must capture the registration environment (`env <- environment()`) and `get(nm, envir=env, inherits=TRUE)` \u2014 NOT `parent.frame()` at resolve time, because `resolve_data` runs inside the framework's call stack where `parent.frame()` is not the author's script env and would miss user data frames.",
+      "claim": "A custom source placeholder whose `resolve_data` loads an object by name must capture the registration environment (`env <- environment()`) and `get(nm, envir=env, inherits=TRUE)` — NOT `parent.frame()` at resolve time, because `resolve_data` runs inside the framework's call stack where `parent.frame()` is not the author's script env and would miss user data frames.",
       "detail": "",
       "scope": "durable",
       "feature": "",
@@ -123,13 +123,13 @@
     {
       "id": "define-core-role-branching",
       "claim": "The three public `ptr_define_placeholder_*` constructors are thin wrappers over internal `ptr_define_core(role, ...)`, which validates hook arity at DEFINITION time: build_ui must be `function(node,...)` for value/source and `function(node,cols,data,...)` for consumer; value/consumer require `resolve_expr` + optional `validate_input(value,ctx)`; source requires `resolve_data(value,node)`, makes `resolve_expr` optional (defaulting to `rlang::sym(value)`), and takes a `shortcut` logical.",
-      "detail": "Verified by headless run: all four example registrations (value/consumer/source/ppSize) passed validate_hook and registered. A wrong build_ui arity aborts at the constructor call, not at app launch \u2014 useful for vignette examples (they fail fast).",
+      "detail": "Verified by headless run: all four example registrations (value/consumer/source/ppSize) passed validate_hook and registered. A wrong build_ui arity aborts at the constructor call, not at app launch — useful for vignette examples (they fail fast).",
       "scope": "durable",
       "feature": "",
       "tags": "vignette-rewrite",
       "source": "R/paintr-registry.R ptr_define_core (validate_hook build_ui_args = c('node','cols','data') for consumer else 'node'); consumer/value require resolve_expr + optional validate_input(value,ctx); source requires resolve_data(value,node) + optional resolve_expr defaulting to function(value,node,...) rlang::sym(value) + shortcut logical",
       "verdict": "verified",
-      "verification": "R/paintr-registry.R:357-405 ptr_define_core \u2014 build_ui_args=c('node','cols','data') for consumer (361-362); source validate_hook(resolve_data,c('value','node')) + resolve_expr default rlang::sym(value) (369-371) + is.logical(shortcut) (375); value/consumer validate_input(value,ctx) (384). Also confirmed live this session by 4 headless registrations.",
+      "verification": "R/paintr-registry.R:357-405 ptr_define_core — build_ui_args=c('node','cols','data') for consumer (361-362); source validate_hook(resolve_data,c('value','node')) + resolve_expr default rlang::sym(value) (369-371) + is.logical(shortcut) (375); value/consumer validate_input(value,ctx) (384). Also confirmed live this session by 4 headless registrations.",
       "checked_refs": [
         "R/paintr-registry.R:361",
         "R/paintr-registry.R:369",
@@ -168,7 +168,7 @@
     },
     {
       "id": "fixtures-orphaned-from-live-vignettes",
-      "claim": "After retiring the three vignettes, ~14 vignette-app fixtures and the e2e coverage-audit comments are now PROVENANCE-orphaned from any live vignette \u2014 their `>>> verbatim:` headers were repointed to `archive/retired_vignettes/...` (still byte-true against the archived chunk) rather than to tutorial chunks, because the new tutorial chunks are different code and a \"verbatim\" claim against them would be false.",
+      "claim": "After retiring the three vignettes, ~14 vignette-app fixtures and the e2e coverage-audit comments are now PROVENANCE-orphaned from any live vignette — their `>>> verbatim:` headers were repointed to `archive/retired_vignettes/...` (still byte-true against the archived chunk) rather than to tutorial chunks, because the new tutorial chunks are different code and a \"verbatim\" claim against them would be false.",
       "detail": "This means the fixtures still test real behavior but no LIVE vignette pairs them; a future pass may want to re-pair the still-relevant ones (consumer-colvars, module-app, single-instance-shared, value-range, source-dataset) to tutorial chunks and drop the gallery-only ones.",
       "scope": "durable",
       "feature": "",
@@ -191,14 +191,14 @@
     },
     {
       "id": "named-args-validator-list-shared-reserved",
-      "claim": "`named_args` on a placeholder constructor is a fully-named list mapping extra formula-call argument names to validator functions (same family as `positional_arg`); the name `shared` is explicitly rejected (reserved for cross-widget binding), and the validated values reach `build_ui` as the `named_args` list \u2014 letting a formula write e.g. `ppPercent(40, step = 5)`.",
+      "claim": "`named_args` on a placeholder constructor is a fully-named list mapping extra formula-call argument names to validator functions (same family as `positional_arg`); the name `shared` is explicitly rejected (reserved for cross-widget binding), and the validated values reach `build_ui` as the `named_args` list — letting a formula write e.g. `ppPercent(40, step = 5)`.",
       "detail": "",
       "scope": "durable",
       "feature": "",
       "tags": "vignette-rewrite",
       "source": "R/paintr-registry.R validate_named_args (fully-named list of functions; rejects entry named 'shared'); invoke_build_ui injects node$named_args as named_args=",
       "verdict": "verified",
-      "verification": "R/paintr-registry.R:226-262 validate_named_args \u2014 fully-named list of functions; rejects name 'shared' (250); non-function entries rejected (259). Injected to build_ui as named_args (build-ui.R:870-873).",
+      "verification": "R/paintr-registry.R:226-262 validate_named_args — fully-named list of functions; rejects name 'shared' (250); non-function entries rejected (259). Injected to build_ui as named_args (build-ui.R:870-873).",
       "checked_refs": [
         "R/paintr-registry.R:226",
         "R/paintr-registry.R:250",
@@ -215,14 +215,14 @@
     },
     {
       "id": "ptr-app-no-data-arg",
-      "claim": "`ptr_app()`'s only required argument is `formula`; there is no `data=` parameter \u2014 data is resolved by looking up bare symbols in `envir` (default `parent.frame()`) or produced by a `ppUpload`/source placeholder.",
+      "claim": "`ptr_app()`'s only required argument is `formula`; there is no `data=` parameter — data is resolved by looking up bare symbols in `envir` (default `parent.frame()`) or produced by a `ppUpload`/source placeholder.",
       "detail": "",
       "scope": "durable",
       "feature": "",
       "tags": "vignette-rewrite",
-      "source": "R/paintr-app.R ptr_app signature (formula, envir=parent.frame(), ui_text, expr_check, safe_to_remove, css, spec) \u2014 no data= param",
+      "source": "R/paintr-app.R ptr_app signature (formula, envir=parent.frame(), ui_text, expr_check, safe_to_remove, css, spec) — no data= param",
       "verdict": "verified",
-      "verification": "R/paintr-app.R:134-152 ptr_app(formula, envir=parent.frame(), ui_text=NULL, expr_check=TRUE, safe_to_remove=character(), css=NULL, spec=NULL) \u2014 no data= param.",
+      "verification": "R/paintr-app.R:134-152 ptr_app(formula, envir=parent.frame(), ui_text=NULL, expr_check=TRUE, safe_to_remove=character(), css=NULL, spec=NULL) — no data= param.",
       "checked_refs": [
         "R/paintr-app.R:134"
       ],
@@ -259,7 +259,7 @@
     },
     {
       "id": "ptr-signal-partial-exported",
-      "claim": "`ptr_signal_partial()` IS exported, so a custom placeholder's `validate_input` may legitimately call it (for mid-typing artifacts caught on the live keystroke path but not the draw path) \u2014 distinct from `rlang::abort()` for real argument/security errors.",
+      "claim": "`ptr_signal_partial()` IS exported, so a custom placeholder's `validate_input` may legitimately call it (for mid-typing artifacts caught on the live keystroke path but not the draw path) — distinct from `rlang::abort()` for real argument/security errors.",
       "detail": "",
       "scope": "durable",
       "feature": "",
@@ -282,14 +282,14 @@
     },
     {
       "id": "resolve-expr-check-replace-vs-floor",
-      "claim": "`expr_check`'s list form is asymmetric \u2014 a bare `deny_list` REPLACES the curated 151-entry denylist with only those names (weakening protection), while `allow_list` switches to allowlist mode (`fns = setdiff(allow_list, deny_list)`) AND keeps the curated names blocked as bare data; there is no \"add one name to the curated denylist\" form.",
+      "claim": "`expr_check`'s list form is asymmetric — a bare `deny_list` REPLACES the curated 151-entry denylist with only those names (weakening protection), while `allow_list` switches to allowlist mode (`fns = setdiff(allow_list, deny_list)`) AND keeps the curated names blocked as bare data; there is no \"add one name to the curated denylist\" form.",
       "detail": "In allowlist mode `deny_hit(name)` for bare symbols/strings checks `name %in% unsafe_expr_denylist` (the floor), while call HEADS must be in the allow set. So `system` is blocked as bare data even under an allow_list that omits it.",
       "scope": "durable",
       "feature": "",
       "tags": "vignette-rewrite,safety",
       "source": "R/paintr-utils.R resolve_expr_check: FALSE->off; TRUE/list-with-neither->denylist=unsafe_expr_denylist; list(deny_list)->denylist=deny_list (REPLACES); list(allow_list[,deny_list])->allowlist fns=setdiff(allow,deny)",
       "verdict": "verified",
-      "verification": "R/paintr-utils.R:555-587 resolve_expr_check \u2014 FALSE->off(557); TRUE/list-neither->denylist=unsafe_expr_denylist(561,575); allow present->allowlist fns=setdiff(allow,deny)(581-583); deny only->denylist=deny_list REPLACES(586). Floor: walker deny_hit checks name %in% unsafe_expr_denylist in allowlist mode (639).",
+      "verification": "R/paintr-utils.R:555-587 resolve_expr_check — FALSE->off(557); TRUE/list-neither->denylist=unsafe_expr_denylist(561,575); allow present->allowlist fns=setdiff(allow,deny)(581-583); deny only->denylist=deny_list REPLACES(586). Floor: walker deny_hit checks name %in% unsafe_expr_denylist in allowlist mode (639).",
       "checked_refs": [
         "R/paintr-utils.R:555-587",
         "R/paintr-utils.R:639"
@@ -304,7 +304,7 @@
     },
     {
       "id": "shortcut-true-companion-build-ui-renders-only-node-id",
-      "claim": "For a source placeholder with `shortcut = TRUE`, the sibling \"type a dataset name\" textInput (node$shortcut_id) is FRAMEWORK-OWNED, so the author's `build_ui` must render only node$id (or NULL for an env-name-only source) \u2014 rendering the shortcut itself would bind the id twice.",
+      "claim": "For a source placeholder with `shortcut = TRUE`, the sibling \"type a dataset name\" textInput (node$shortcut_id) is FRAMEWORK-OWNED, so the author's `build_ui` must render only node$id (or NULL for an env-name-only source) — rendering the shortcut itself would bind the id twice.",
       "detail": "",
       "scope": "durable",
       "feature": "",
@@ -333,7 +333,7 @@
       "tags": "vignette-rewrite",
       "source": "R/paintr-registry.R ptr_define_core runtime_default: source -> function(...) abort('only meaningful inside ptr_app()'); value/consumer -> function(x,...) x",
       "verdict": "verified",
-      "verification": "R/paintr-registry.R:393-401 \u2014 source runtime_default aborts \"<kw>() is only meaningful inside ptr_app()\"; else function(x,...) x. Confirmed by auto-printed runtime callables in headless run.",
+      "verification": "R/paintr-registry.R:393-401 — source runtime_default aborts \"<kw>() is only meaningful inside ptr_app()\"; else function(x,...) x. Confirmed by auto-printed runtime callables in headless run.",
       "checked_refs": [
         "R/paintr-registry.R:393",
         "R/paintr-registry.R:397",
@@ -350,14 +350,14 @@
     },
     {
       "id": "tutorial-examples-eval-interactive",
-      "claim": "ggpaintr vignettes mark Shiny-app chunks `eval = interactive()` (runnable at the prompt, skipped on static knit / R CMD check), reserving `eval = TRUE` for pure-ggplot illustration chunks \u2014 so the vignettes knit cleanly without launching apps.",
+      "claim": "ggpaintr vignettes mark Shiny-app chunks `eval = interactive()` (runnable at the prompt, skipped on static knit / R CMD check), reserving `eval = TRUE` for pure-ggplot illustration chunks — so the vignettes knit cleanly without launching apps.",
       "detail": "",
       "scope": "durable",
       "feature": "",
       "tags": "vignette-rewrite",
       "source": "vignettes/*.Rmd setup chunk knitr::opts_chunk$set(eval=interactive()); pure-ggplot illustration chunks override eval=TRUE",
       "verdict": "verified",
-      "verification": "vignettes/{tutorial,safety}.Rmd setup chunk eval=interactive() (line 16 both); tutorial line 28 states the convention. NOTE: the two NEW vignettes contain no eval=TRUE chunk \u2014 the eval=TRUE-for-illustration half of the claim is the package convention (seen in the now-archived use-cases.Rmd `pp-toggles-naked, eval=TRUE`), not exercised by tutorial/safety themselves.",
+      "verification": "vignettes/{tutorial,safety}.Rmd setup chunk eval=interactive() (line 16 both); tutorial line 28 states the convention. NOTE: the two NEW vignettes contain no eval=TRUE chunk — the eval=TRUE-for-illustration half of the claim is the package convention (seen in the now-archived use-cases.Rmd `pp-toggles-naked, eval=TRUE`), not exercised by tutorial/safety themselves.",
       "checked_refs": [
         "vignettes/ggpaintr-tutorial.Rmd:16",
         "vignettes/ggpaintr-safety.Rmd:16"

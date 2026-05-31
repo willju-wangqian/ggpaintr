@@ -127,12 +127,11 @@
       "feature": "",
       "source": "tests/testthat/test-spec-seed-derived-column-browser.R:38,45; CLAUDE.md authoritative-gate parallel note",
       "verdict": "verified",
-      "verification": "Observational parallel boot-tail flake finding. Cited test file(s) unchanged at HEAD a58dadd and CLAUDE.md authoritative-gate block still documents this parallel-vs-serial flake behavior. Claim re-confirmed.",
+      "verification": "test-spec-seed-derived-column-browser.R present; asserts derived col 'adj' is in y-picker CHOICES (expect_true grepl, ~line 36) and is the SELECTED value (expect_equal 'adj', ~line 44). Line refs drifted from 38,45 to ~36,44 but the boot-time choices/selection assertions are intact; parallel-only flake claim holds.",
       "checked_refs": [
-        "tests/testthat/test-spec-seed-derived-column-browser.R:38",
-        "tests/testthat/test-spec-seed-derived-column-browser.R:45"
+        "tests/testthat/test-spec-seed-derived-column-browser.R"
       ],
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
+      "verified_at_commit": "964650277e131cfa9d6b6b7af10f4b3c8cbb7bc6",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1738-adr26-host-env-rename-clear.md",
       "origin_status": "derived-unverified",

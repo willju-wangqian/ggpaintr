@@ -233,7 +233,7 @@
       "feature": "ppupload-7-host-shared",
       "source": "devtools::test() serial; project CLAUDE.md authoritative-gate block",
       "verdict": "unconfirmable",
-      "verification": "Point-in-time gate count (PASS 3403->3420 on branch ppUpload-bug); not reproducible from current source and the count is not the gate (0/0/0 is). Stays unconfirmable per its original verdict; re-stamped fresh at HEAD a58dadd.",
+      "verification": "Structural part holds: CLAUDE.md:78 still states '0/0/0 is the gate, not the count'. The specific PASS 3403→3420 figures are a one-time session observation (refs='observed this session') with no re-derivable source — left unconfirmable as before.",
       "checked_refs": [
         "(observed this session)"
       ],
@@ -243,7 +243,7 @@
         "test-gate-discipline"
       ],
       "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "verified_at_commit": "964650277e131cfa9d6b6b7af10f4b3c8cbb7bc6"
     },
     {
       "id": "tool-output-batched-delivery-not-corruption",
