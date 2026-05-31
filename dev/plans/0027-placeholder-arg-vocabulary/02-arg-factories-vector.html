@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-02 — ptr_arg_* vector= collapse + ptr_arg_symbol (from ADR 0027)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 02
+  slug: arg-factories-vector
+  source_adr: dev/adr/0027-placeholder-arg-vocabulary-and-embellish-eval.html
+  depends_on: []
+  parallel_group: G1
+  status: draft
+-->
+
+<h1>PLAN-02 — ptr_arg_* vector= collapse + ptr_arg_symbol</h1>
+<p class="meta">Source: ADR 0027 (D3) · Depends on: none · Parallel group: G1 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0027 D3: collapse the scalar/vector validator-factory pair into a single <code>vector=</code> flag and add a missing factory. Concretely: <code>ptr_arg_numeric(vector = FALSE, length = NULL)</code> absorbs the behavior of <code>ptr_arg_numeric_vector</code> (under <code>vector = TRUE</code>; <code>length</code> applies only then); <code>ptr_arg_string(vector = FALSE)</code> and <code>ptr_arg_symbol_or_string(vector = FALSE)</code> gain the flag; and a new <code>ptr_arg_symbol(vector = FALSE)</code> (bare-name → string) is added so a multi-column consumer's positional default <code>colvars(c(mpg, hp))</code> has a vector-capable parser. This plan is <em>additive</em>: <code>ptr_arg_numeric_vector</code> is retained as a thin alias delegating to <code>ptr_arg_numeric(vector = TRUE)</code> so the gate stays green; PLAN-03 removes the alias atomically with the call-site sweep.</p>
+
+<h2>Governing principle</h2>
+<p>The validator factories are the single declared schema for a placeholder's positional/named default arguments; their return value is not a mere pass/fail but the <em>parsed seed value</em> the widget boots with. A <code>vector=</code> flag must therefore preserve that parse-and-return contract — <code>vector = TRUE</code> returns the whole vector, <code>vector = FALSE</code> stays scalar — and must keep folding only constant ASTs (the placeholder-argument trust boundary). Do not let <code>vector=</code> widen what counts as an acceptable literal beyond "a single <code>c(...)</code> / vector of the declared element type."</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li><code>ptr_arg_numeric()(quote(5))</code> returns <code>5</code> (scalar default unchanged); <code>ptr_arg_numeric(vector = TRUE)(quote(c(1, 2)))</code> returns <code>c(1, 2)</code>; <code>ptr_arg_numeric(vector = TRUE, length = 2L)(quote(c(1,2,3)))</code> errors on length. Verified by <code>devtools::test(filter="default-args")</code>.</li>
+  <li><code>ptr_arg_symbol()(quote(mpg))</code> returns <code>"mpg"</code>; <code>ptr_arg_symbol(vector = TRUE)(quote(c(mpg, hp)))</code> returns <code>c("mpg", "hp")</code>; a non-symbol literal is rejected.</li>
+  <li><code>ptr_arg_string(vector = TRUE)(quote(c("a","b")))</code> returns <code>c("a","b")</code>; <code>ptr_arg_symbol_or_string(vector = TRUE)(quote(c(mpg, "hp")))</code> returns <code>c("mpg","hp")</code>.</li>
+  <li><code>ptr_arg_numeric_vector()</code> still exists and behaves identically to <code>ptr_arg_numeric(vector = TRUE)</code> (alias retained this round); all are exported after <code>devtools::document()</code>.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns: <code>R/paintr-default-args.R</code>, <code>tests/testthat/test-default-args.R</code> (extend — owned jointly for new cases; do not delete existing assertions).</li>
+  <li>Files this plan must NOT touch: <code>R/paintr-registry.R</code>, <code>R/paintr-builtins.R</code> (PLAN-03), <code>R/paintr-embellish.R</code> (PLAN-01), NAMESPACE/man (integration).</li>
+  <li>Keep <code>ptr_arg_numeric_vector</code> as a retained alias — do NOT remove it (PLAN-03 removes it with the sweep). Removing it here breaks the tutorial + super-1/super-3 fixtures and fails the gate at this merge.</li>
+  <li>Reuse the existing <code>ptr_constant_fold</code> / <code>validate_constant_ast</code> machinery; do not weaken the constant-only fold.</li>
+  <li>SCOPE NARROWING FORBIDDEN — see <code>/exec-plan</code> prompts.</li>
+  <li>Conventions: project CLAUDE.md + <code>.claude/rules/coding.md</code>.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: collapsed vector= validator factories + ptr_arg_symbol
+
+Scenario: scalar numeric default unchanged
+  Given the factory ptr_arg_numeric()
+  When it validates the literal AST quote(5)
+  Then it returns 5
+
+Scenario: numeric vector default via vector=TRUE
+  Given the factory ptr_arg_numeric(vector = TRUE)
+  When it validates quote(c(1, 2))
+  Then it returns the numeric vector c(1, 2)
+
+Scenario: numeric vector length constraint
+  Given the factory ptr_arg_numeric(vector = TRUE, length = 2L)
+  When it validates quote(c(1, 2, 3))
+  Then it raises an error stating the default must be a numeric vector of length 2
+
+Scenario: new ptr_arg_symbol parses bare names
+  Given the factory ptr_arg_symbol(vector = TRUE)
+  When it validates quote(c(mpg, hp))
+  Then it returns the character vector c("mpg", "hp")
+
+Scenario: ptr_arg_symbol rejects a non-symbol literal
+  Given the factory ptr_arg_symbol()
+  When it validates quote(1 + 1)
+  Then it raises an error indicating a bare column name is required
+
+Scenario: ptr_arg_numeric_vector alias preserved
+  Given the retained alias ptr_arg_numeric_vector()
+  When it validates quote(c(1, 2))
+  Then it returns c(1, 2), identical to ptr_arg_numeric(vector = TRUE)
+</pre>
+
+<h2>Worked-example coverage</h2>
+<pre>
+| ADR anchor | kind | summary (one line) | Scenario in this plan |
+|------------|------|--------------------|-----------------------|
+| (none — this plan ships enabling mechanism: the vector-capable factories that PLAN-03's renamed parse_positional_arg slot and the ADR worked examples consume) | — | — | — |
+</pre>
+
+<h2>Interface Contract</h2>
+<p>Every factory is a zero-or-few-arg constructor returning a <em>validator</em> of signature <code>function(arg_expr)</code> where <code>arg_expr</code> is an unevaluated language object (the formula's positional/named default). The validator returns the <em>parsed seed value</em> on success and <code>rlang::abort()</code>s on a rejected literal. All numeric/vector parsing goes through the existing constant-only <code>ptr_constant_fold</code> (no symbol evaluation beyond the constant-fold env).</p>
+
+<h3><code>ptr_arg_numeric(vector = FALSE, length = NULL)</code></h3>
+<ul>
+  <li><strong>Signature:</strong> <code>vector</code> logical scalar (default FALSE); <code>length</code> non-negative integer or NULL, honored only when <code>vector = TRUE</code>. Returns <code>function(arg_expr)</code>.</li>
+  <li><strong>Input domain:</strong> inside — <code>vector=FALSE</code>: a literal folding to a single finite non-NA numeric; <code>vector=TRUE</code>: a literal folding to a numeric vector of non-NA values (length == <code>length</code> if given). Outside — non-numeric, NA, wrong length, non-constant AST.</li>
+  <li><strong>Output spec:</strong> the folded numeric scalar (scalar mode) or numeric vector (vector mode), returned verbatim.</li>
+  <li><strong>Error modes:</strong> abort "Default must be a single numeric literal." (scalar); "Default must be a numeric vector of non-NA values." / "…of length N." (vector); <code>length</code> itself non-scalar-integer → abort at construction.</li>
+  <li><strong>Side effects:</strong> none.</li>
+  <li><strong>Worked example:</strong> <code>ptr_arg_numeric()(quote(5))</code> → <code>5</code>; <code>ptr_arg_numeric(vector = TRUE)(quote(c(1, 2)))</code> → <code>c(1, 2)</code>; <code>ptr_arg_numeric(vector = TRUE, length = 2L)(quote(c(1,2,3)))</code> → abort (length 2 required).</li>
+</ul>
+
+<h3><code>ptr_arg_string(vector = FALSE)</code> / <code>ptr_arg_symbol_or_string(vector = FALSE)</code> / <code>ptr_arg_symbol(vector = FALSE)</code></h3>
+<ul>
+  <li><strong>Signature:</strong> <code>vector</code> logical scalar (default FALSE). Returns <code>function(arg_expr)</code>.</li>
+  <li><strong>Input domain (scalar mode):</strong> <code>ptr_arg_string</code> — a single string literal; <code>ptr_arg_symbol</code> — a single bare symbol; <code>ptr_arg_symbol_or_string</code> — either. <strong>Vector mode</strong> (<code>vector=TRUE</code>): a <code>c(...)</code> literal whose elements each satisfy the scalar element rule. Outside — any element violating the element rule (e.g. a number for <code>ptr_arg_symbol</code>), or a non-<code>c()</code> compound.</li>
+  <li><strong>Output spec:</strong> scalar mode → a length-1 character; vector mode → a character vector, order preserved. Bare symbols are converted via <code>rlang::as_string</code>; string literals pass through.</li>
+  <li><strong>Error modes:</strong> abort with a message naming the required element kind (e.g. "Default must be a bareword column name…", "Default must be a single string literal.").</li>
+  <li><strong>Side effects:</strong> none.</li>
+  <li><strong>Worked example:</strong> <code>ptr_arg_symbol()(quote(mpg))</code> → <code>"mpg"</code>; <code>ptr_arg_symbol(vector = TRUE)(quote(c(mpg, hp)))</code> → <code>c("mpg","hp")</code>; <code>ptr_arg_symbol()(quote(1 + 1))</code> → abort; <code>ptr_arg_symbol_or_string(vector = TRUE)(quote(c(mpg, "hp")))</code> → <code>c("mpg","hp")</code>.</li>
+</ul>
+
+<h3><code>ptr_arg_numeric_vector(length = NULL)</code> (retained alias this round)</h3>
+<ul>
+  <li><strong>Signature/behavior:</strong> identical to <code>ptr_arg_numeric(vector = TRUE, length = length)</code>; exists only so existing callers keep working until PLAN-03 migrates them and removes it.</li>
+  <li><strong>Worked example:</strong> <code>ptr_arg_numeric_vector()(quote(c(1, 2)))</code> → <code>c(1, 2)</code>, identical to the <code>vector = TRUE</code> form.</li>
+</ul>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate: CLAUDE.md §"Authoritative gate" — <code>Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'</code> → FAIL 0 / ERROR 0 / SKIP 0.</p>
+<p><strong>Plan-specific gate risks:</strong> none (pure unexported-helper logic; <code>test-default-args.R</code> needs no browser stack).</p>
+<p>This plan adds ≥ 6 new tests at <code>tests/testthat/test-default-args.R</code>. The gate must show PASS rise by ≥ 6 with FAIL/ERROR 0 and SKIP unchanged.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>Owns <code>R/paintr-default-args.R</code> + the new cases in <code>tests/testthat/test-default-args.R</code>. NAMESPACE/man regenerated by integration, not here.</p>
+<p>Branch convention: branch <code>0027-arg-factories-vector</code> in a worktree under <code>.claude/worktrees/0027-placeholder-arg-vocabulary/arg-factories-vector/</code>. Merge via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor re-runs the Definition-of-Done command before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch at worktree-creation SHA. New failures = anything not green at branch point.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>The rename of the constructor argument that consumes these factories (<code>positional_arg</code> → <code>parse_positional_arg</code>) and the removal of the <code>ptr_arg_numeric_vector</code> alias are PLAN-03; surface, do not absorb.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: none. Provides for: PLAN-03 (which removes the <code>ptr_arg_numeric_vector</code> alias and uses these factories under the renamed <code>parse_positional_arg</code> slot).</p>
+
+<!-- implementable: PASS date=2026-05-31 gate="Rscript -e 'devtools::test(reporter=\"progress\", stop_on_failure=FALSE)'" hash=b9614b6d371e -->
+</body>
+</html>
