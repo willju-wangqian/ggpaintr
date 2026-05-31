@@ -1,0 +1,231 @@
+{
+  "harvested_at": "2026-05-30T21:07",
+  "corpus": ".claude/harvest-findings/raw_conversation/ (1 transcript, 11 stamps)",
+  "counts": {
+    "verified": 11,
+    "contradicted": 0,
+    "unconfirmable": 0
+  },
+  "findings": [
+    {
+      "id": "build-llm-gen-mechanism",
+      "status": "fresh",
+      "scope": "durable",
+      "source": "dev/build-llm.R; dev/githooks/pre-commit",
+      "feature": "",
+      "tags": "llm-assist,tooling",
+      "claim": "dev/build-llm.R is the build-time generation+gate for inst/llm \u2014 `lint` asserts the corpus against live introspection (every ptr_*() names an export, no dead args checkbox_defaults/shared_ui/copy_defaults/companion_id_fn, no pre-pp* bare tokens, no internal S3 generic documented as a call), `generate` rewrites `<!-- @ptr-gen:token-table -->` / `:topic-index` sentinel blocks from registry+disk, `verify` is the document()-style regenerate-no-diff gate; a pre-commit sidecar runs lint+verify when inst/llm/ or the script is staged.",
+      "detail": "\"internal generic\" is derived from NAMESPACE (S3method-registered generics minus exported names) so build_ui_for is caught source-generically. Decision: managed-block injection (prose stays hand-edited in inst/llm; only factual blocks regenerated) over full template generation. build_ui_for/ptr_translate section was REMOVED (kept corpus within the real public surface) rather than exported.",
+      "transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "verdict": "verified",
+      "verification": "dev/build-llm.R dispatches lint|generate|verify (3 switch arms); pre-commit has the 'LLM-assist corpus gate' sidecar; internal_generics() derives from NAMESPACE; build_ui_for section removed from level3_layout.",
+      "checked_refs": [
+        "dev/build-llm.R",
+        "dev/githooks/pre-commit"
+      ],
+      "verified_at_commit": "df42df1e3d4fc6f5ff7a8120d420b6d6f3f36038",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "checkbox-and-shared-ui-removed",
+      "status": "fresh",
+      "scope": "durable",
+      "source": "R/paintr-options.R; R/paintr-app.R:1248; R/paintr-input-spec.R:120; ptr_options()",
+      "feature": "",
+      "tags": "llm-assist",
+      "claim": "ptr_options() now exposes only `verbose`; both the `checkbox_default_all_other_layer` option AND the per-call `checkbox_defaults=` arg are gone, per-widget boot defaults (incl. a layer checkbox's initial state) are now set via `spec=` (a fully-qualified input-id -> value list, ADR 0012), and `shared_ui=` is removed across ptr_shared/ptr_app_grid (customize a shared widget via a custom placeholder's build_ui instead).",
+      "detail": "grep confirmed checkbox_defaults absent from all of R/; checkbox_default_all_other_layer has zero reads in R/ and is not in the ptr_options registry (ptr_options() returns only $verbose). spec= is the general role-based boot-override (ADR 0012); discover ids with ptr_id_table(formula). shared_ui customization replaced by registering a custom consumer/value placeholder whose build_ui draws the desired control (see tests/testthat/fixtures/vignette-apps/l2-shared/app.R using ppMetric).",
+      "transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "verdict": "verified",
+      "verification": "ptr_options() returns only $verbose; checkbox_defaults and checkbox_default_all_other_layer absent from all of R/ (0 files); R/paintr-app.R:1248 carries '@section Removed shared_ui'.",
+      "checked_refs": [
+        "R/paintr-options.R",
+        "R/paintr-app.R:1248"
+      ],
+      "verified_at_commit": "df42df1e3d4fc6f5ff7a8120d420b6d6f3f36038",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "ellmer-tooldef-is-s7",
+      "status": "fresh",
+      "scope": "durable",
+      "source": "ellmer::tool(); R/paintr-llm.R:153",
+      "feature": "",
+      "tags": "llm-assist",
+      "claim": "ellmer::tool() returns an S7 object of class ellmer::ToolDef whose name is read with the @ accessor (captured@name), not $name; unlist() on it errors (\"cannot coerce closure to character\") because it carries closures \u2014 relevant when testing ptr_llm_register's tool registration.",
+      "detail": "",
+      "transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "verdict": "verified",
+      "verification": "ptr_llm_register() produced an object of class 'ellmer::ToolDef,function,S7_object'; captured@name returned the custom tool_name.",
+      "checked_refs": [
+        "R/paintr-llm.R:153",
+        "ellmer::tool()"
+      ],
+      "verified_at_commit": "df42df1e3d4fc6f5ff7a8120d420b6d6f3f36038",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "fixture-appR-is-docs-ground-truth",
+      "status": "fresh",
+      "scope": "durable",
+      "source": "tests/testthat/fixtures/vignette-apps/*/app.R",
+      "feature": "",
+      "tags": "llm-assist,testing",
+      "claim": "The tests/testthat/fixtures/vignette-apps/<slug>/app.R files are the authoritative, e2e-tested source of correct ggpaintr public-API calling patterns and should be mirrored when rewriting any docs/examples; their \"DIVERGED FROM VIGNETTE\" header comments explicitly flag where a vignette is the stale side (e.g. l2-shared documents the shared_ui removal vs the still-stale vignette).",
+      "detail": "",
+      "transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "verdict": "verified",
+      "verification": "tests/testthat/fixtures/vignette-apps/l2-shared/app.R contains a 'DIVERGED FROM VIGNETTE' header documenting the shared_ui removal vs the stale vignette.",
+      "checked_refs": [
+        "tests/testthat/fixtures/vignette-apps/l2-shared/app.R"
+      ],
+      "verified_at_commit": "df42df1e3d4fc6f5ff7a8120d420b6d6f3f36038",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "llm-corpus-systemic-drift-fixed",
+      "status": "fresh",
+      "scope": "durable",
+      "source": "inst/llm/; dev/build-llm.R; R/paintr-app.R:861,1092,1248; R/paintr-options.R",
+      "feature": "",
+      "tags": "llm-assist",
+      "claim": "The inst/llm LLM-assist corpus (primer.md + 12 topics) was systemically drifted behind shipped API changes and was rewritten 2026-05-30 against live introspection; a new build-time gate dev/build-llm.R (lint/generate/verify) + tests/testthat/test-llm.R now prevent recurrence.",
+      "detail": "Five drift classes existed: (1) ghost ptr_module_ui/ptr_module_server (never existed in R/, not exported; L2 pair is ptr_ui/ptr_server, and the fix is an arg-ORDER swap not a rename \u2014 ptr_module_ui(id, formula) -> ptr_ui(formula, id)); (2) removed args still documented \u2014 checkbox_defaults, shared_ui (R/paintr-app.R:1248 has an explicit `@section Removed shared_ui`), copy_defaults/companion_id_fn; (3) pre-ADR-0009 bare placeholder tokens var(/num( instead of ppVar/ppNum; (4) build_ui_for + ptr_translate (both internal \u2014 S3method-only / unexported) documented as a public \"scatter widgets\" escape hatch; (5) hand-typed signatures wrong (ptr_app_bslib(title=), ptr_app_grid(shared_ui=/title=), ptr_app(checkbox_defaults=)). Before fix: 101 HARD + 21 WARN lint violations across all 13 files.",
+      "transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "verdict": "verified",
+      "verification": "inst/llm rewritten; dev/build-llm.R lint reports 0 HARD/0 WARN; tests/testthat/test-llm.R present; R/paintr-app.R:1248 confirms the shared_ui removal underpinning class 2. Pre-fix 101/21 count is historical (not re-counted) but consistent with the refs.",
+      "checked_refs": [
+        "inst/llm/",
+        "dev/build-llm.R",
+        "tests/testthat/test-llm.R",
+        "R/paintr-app.R:1248"
+      ],
+      "verified_at_commit": "df42df1e3d4fc6f5ff7a8120d420b6d6f3f36038",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "llm-l2-l3-calling-patterns",
+      "status": "fresh",
+      "scope": "durable",
+      "source": "tests/testthat/fixtures/vignette-apps/{module-app,l2-shared,l3-pieces,l3-plotly,l3-gg-extra}/app.R; ptr_id_table()",
+      "feature": "",
+      "tags": "llm-assist",
+      "claim": "Verified ggpaintr calling patterns from the tested fixture apps \u2014 L2 embed: ptr_ui(formula[, id]) + ptr_server(formula[, id]) called directly in server (NO input/output/session args, NO moduleServer wrap); L3 custom render: state <- ptr_server(formula, \"id\") then output[[shiny::NS(\"id\")(\"name\")]] <- renderX({res<-state$runtime(); shiny::req(isTRUE(res$ok),res$plot); ...}); shared multi-instance: ptr_ui(f, id, shared=obj) + ptr_server(f, id, shared_state=sh) with obj<-ptr_shared(formulas=plots) and sh<-ptr_shared_server(obj) once at top level.",
+      "detail": "Generated input ids: non-shared = <layer>_<path>_<keyword>_NA (e.g. ggplot_1_1_ppVar_NA, geom_point_1_ppNum_NA), shared = shared_<key> (e.g. shared_x_col) \u2014 a completely different scheme from the old docs' claimed ggplot_1_1_var_x_col. Discover all ids via ptr_id_table(formula). ptr_code_mode is a real top-level id the old docs missed. The old \"nest ptr_server inside your own moduleServer(id)\" pattern is WRONG post-redesign.",
+      "transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "verdict": "verified",
+      "verification": "ptr_id_table() yields shared_<key> ids (shared_col) for a shared placeholder; the cited fixture app.R files exist and use ptr_ui/ptr_server formula-first with NS(id) custom-render.",
+      "checked_refs": [
+        "tests/testthat/fixtures/vignette-apps/l3-plotly/app.R",
+        "ptr_id_table()"
+      ],
+      "verified_at_commit": "df42df1e3d4fc6f5ff7a8120d420b6d6f3f36038",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "managed-block-named-vector-idempotency-gotcha",
+      "status": "fresh",
+      "scope": "durable",
+      "source": "dev/build-llm.R render_block()",
+      "feature": "",
+      "tags": "tooling,r-gotcha",
+      "claim": "A doc-block generator that builds lines via vapply over a NAMED input returns a named character vector, which makes identical(regenerated, readLines(file)) FALSE forever (readLines is unnamed) even though writeLines drops names and the file is correct/idempotent on disk \u2014 the generator's verify/no-op check silently always reports \"stale\" until the render output is unname()'d.",
+      "detail": "",
+      "transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "verdict": "verified",
+      "verification": "render_block() wraps switch() in unname() with an explanatory comment; after the fix generate is idempotent ('already current') and verify reports 'in sync'.",
+      "checked_refs": [
+        "dev/build-llm.R"
+      ],
+      "verified_at_commit": "df42df1e3d4fc6f5ff7a8120d420b6d6f3f36038",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "placeholder-constructor-real-args",
+      "status": "fresh",
+      "scope": "durable",
+      "source": "R/paintr-registry.R:592,713; tests/testthat/fixtures/vignette-apps/{l2-shared,grid-shared-partition,source-dataset}/app.R",
+      "feature": "",
+      "tags": "llm-assist,placeholder-registry",
+      "claim": "The three placeholder constructors' real tail args are validate_input, positional_arg, named_args, runtime, ui_text_defaults (value/consumer); resolve_data, shortcut, positional_arg, named_args, runtime, ui_text_defaults (source) \u2014 there is NO copy_defaults and NO companion_id_fn argument (those names in the old docs were drift; copy lives under ui_text_defaults=list(label=...)).",
+      "detail": "Customize call shape with positional_arg = ptr_arg_*() (ptr_arg_numeric(), ptr_arg_symbol_or_string(), ptr_arg_string(), ...). source shortcut=TRUE means a bareword arg loads that object from the app env (ADR 0024). Companions (the ppUpload \"dataset name\" textbox) are wired internally to the ppUpload builtin only \u2014 not a public custom-source arg.",
+      "transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "verdict": "verified",
+      "verification": "formals confirm value/consumer tail validate_input,positional_arg,named_args,runtime,ui_text_defaults and source resolve_data,shortcut,...,ui_text_defaults; no copy_defaults or companion_id_fn argument exists.",
+      "checked_refs": [
+        "R/paintr-registry.R:592",
+        "R/paintr-registry.R:713"
+      ],
+      "verified_at_commit": "df42df1e3d4fc6f5ff7a8120d420b6d6f3f36038",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "ptr-server-signature-no-session-args",
+      "status": "fresh",
+      "scope": "durable",
+      "source": "R/paintr-app.R:861,1092",
+      "feature": "",
+      "tags": "llm-assist",
+      "claim": "Post-redesign ptr_ui and ptr_server take the formula FIRST with id as an optional named 2nd arg \u2014 ptr_ui(formula, id=NULL, ui_text=NULL, expr_check=TRUE, css=NULL, shared=NULL) and ptr_server(formula, id=NULL, envir=parent.frame(), ..., shared_state=NULL, spec=NULL); ptr_server does NOT take input/output/session and reads the active Shiny session itself.",
+      "detail": "",
+      "transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "verdict": "verified",
+      "verification": "formals(ptr_ui)=formula,id,ui_text,expr_check,css,shared; formals(ptr_server)=formula,id,envir,...,shared_state,spec \u2014 no input/output/session.",
+      "checked_refs": [
+        "R/paintr-app.R:861",
+        "R/paintr-app.R:1092"
+      ],
+      "verified_at_commit": "df42df1e3d4fc6f5ff7a8120d420b6d6f3f36038",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "registry-keywords-7-incl-structural",
+      "status": "fresh",
+      "scope": "durable",
+      "source": "R/paintr-registry.R:121; R/paintr-builtins.R:261",
+      "feature": "",
+      "tags": "placeholder-registry",
+      "claim": "ptr_registry_keywords() returns 7 keywords \u2014 the 5 user-facing formula tokens (ppVar, ppText, ppNum, ppExpr, ppUpload) plus 2 ADR-0020 STRUCTURAL keywords (ppLayerOff, ppVerbSwitch) that are NOT formula tokens a user writes; docs/generators sourcing a token table must filter to the user-facing 5, not use the raw registry list.",
+      "detail": "",
+      "transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "verdict": "verified",
+      "verification": "ptr_registry_keywords() returns 7: ppExpr,ppLayerOff,ppNum,ppText,ppUpload,ppVar,ppVerbSwitch \u2014 the 5 user tokens plus structural ppLayerOff/ppVerbSwitch.",
+      "checked_refs": [
+        "R/paintr-registry.R:121",
+        "R/paintr-builtins.R:261"
+      ],
+      "verified_at_commit": "df42df1e3d4fc6f5ff7a8120d420b6d6f3f36038",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "ui-text-cascade-keyed-by-pp-keyword",
+      "status": "fresh",
+      "scope": "durable",
+      "source": "R/paintr-copy.R; tests/testthat/fixtures/vignette-apps/ui-text-example/app.R; ptr_resolve_ui_text()",
+      "feature": "",
+      "tags": "ui-text,llm-assist",
+      "claim": "The ui_text per-placeholder cascade (defaults / params / layers) is keyed by the pp-form placeholder KEYWORD (ppVar, ppText, \u2026), not the bare token; ptr_resolve_ui_text(component, keyword, param, layer_name, ui_text) expects keyword=\"ppText\" and resolves layers[[layer]][[keyword]][[param]] > params[[param]][[keyword]] > defaults[[keyword]].",
+      "detail": "",
+      "transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "verdict": "verified",
+      "verification": "formals(ptr_resolve_ui_text)=component,keyword,param,layer_name,ui_text; session eval confirmed keyword='ppText' with a ppText-keyed cascade resolves the layers entry.",
+      "checked_refs": [
+        "R/paintr-copy.R",
+        "tests/testthat/fixtures/vignette-apps/ui-text-example/app.R"
+      ],
+      "verified_at_commit": "df42df1e3d4fc6f5ff7a8120d420b6d6f3f36038",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-llm-rewrite.md",
+      "origin_status": "derived-unverified"
+    }
+  ]
+}
