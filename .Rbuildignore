@@ -17,6 +17,8 @@ README\.*
 ^cran-comments\.md$
 
 ^\.claude$
+^\.git$
+^\.scratch$
 ^AGENTS\.md$
 ^CLAUDE\.md$
 ^CONTEXT\.md$
