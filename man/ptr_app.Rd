@@ -96,7 +96,7 @@ normalized via \code{\link[=ptr_normalize_column_names]{ptr_normalize_column_nam
 Any keyword occurrence may carry \code{shared = "<id>"} to lift the widget out
 of its per-layer panel into a top-level shared section. Used by
 \code{\link[=ptr_app_grid]{ptr_app_grid()}} to drive multiple plots from one control. See
-\code{vignette("ggpaintr-use-cases")} for worked examples of each keyword.
+\code{vignette("ggpaintr-tutorial")} for worked examples of each keyword.
 }
 
 \section{Empty-call cleanup}{
@@ -152,5 +152,5 @@ if (interactive()) {
 \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}} et al. for registering custom
 keywords; \code{\link[=ptr_ui_text]{ptr_ui_text()}} for copy overrides; \code{\link[=ptr_css]{ptr_css()}} for the
 \verb{css =} argument and themable CSS custom properties;
-\code{vignette("ggpaintr-use-cases")} for tutorial examples.
+\code{vignette("ggpaintr-tutorial")} for tutorial examples.
 }

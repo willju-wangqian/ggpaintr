@@ -140,7 +140,7 @@ Register a new keyword (e.g. \code{pct}, \code{color}, \code{date}) that ggpaint
 recognise as a substitutable token in a formula. The keyword's widget
 is built by \code{build_ui}; the widget's value is turned back into the R
 code spliced into the rendered call by \code{resolve_expr}. See
-\code{vignette("ggpaintr-customization")} § "Adding a new widget type" for
+\code{vignette("ggpaintr-tutorial")} § "Defining your own placeholders" for
 the lifecycle walk-through, signatures table, and runnable
 \code{ptr_app()} examples — this help page is reference.
 }
@@ -176,7 +176,7 @@ ptr_define_placeholder_value(
 ptr_clear_placeholder("pct")
 }
 \seealso{
-\code{vignette("ggpaintr-customization")} for the tutorial;
+\code{vignette("ggpaintr-tutorial")} § "Defining your own placeholders";
 \code{\link[=ptr_define_placeholder_consumer]{ptr_define_placeholder_consumer()}}, \code{\link[=ptr_define_placeholder_source]{ptr_define_placeholder_source()}},
 \code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}}.
 }

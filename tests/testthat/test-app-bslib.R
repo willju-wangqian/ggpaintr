@@ -25,7 +25,7 @@ test_that("ptr_app_bslib self-binds a single-formula shared placeholder", {
   # Single-formula `ppVar(shared = "...")` coordination works through the
   # bare wrapper: ptr_server() self-binds every declared key under the
   # module's own namespace (matches ptr_app()'s auto_bind_shared path).
-  # Documented in vignette("ggpaintr-customization").
+  # Documented in archive/retired_vignettes/ggpaintr-customization.Rmd.
   #
   # Browser test (replaces a prior `expect_silent(testServer(...flushReact()))`
   # no-crash proxy that could not fail when self-binding regressed). The shared

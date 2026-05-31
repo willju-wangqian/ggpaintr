@@ -89,8 +89,8 @@ The runtime callable (identity by default; override with
 A \emph{consumer} placeholder is a value placeholder that additionally
 receives the columns of the upstream data frame — typically a column
 picker. The built-in example is \code{ppVar}. See
-\code{vignette("ggpaintr-customization")} § "Consumer placeholders" for the
-tutorial.
+\code{vignette("ggpaintr-tutorial")} § "Defining your own placeholders"
+(consumer role).
 }
 \examples{
 # A consumer that picks a numeric-only column.
@@ -119,6 +119,6 @@ ptr_define_placeholder_consumer(
 ptr_clear_placeholder("numvar")
 }
 \seealso{
-\code{vignette("ggpaintr-customization")} for the tutorial;
+\code{vignette("ggpaintr-tutorial")} § "Defining your own placeholders";
 \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}, \code{\link[=ptr_define_placeholder_source]{ptr_define_placeholder_source()}}.
 }

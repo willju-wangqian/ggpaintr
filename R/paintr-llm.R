@@ -60,8 +60,8 @@ ptr_llm_topics <- function() {
 #' focused example instead of the entire manual.
 #'
 #' Each topic is derived from (and kept in sync with) either
-#' `README.Rmd` or one of the post-rewrite vignettes
-#' (`ggpaintr-use-cases`, `ggpaintr-customization`).
+#' `README.Rmd` or the tutorial vignette
+#' (`ggpaintr-tutorial`).
 #'
 #' @param name Topic name. Must be one of [ptr_llm_topics()].
 #' @return A single character string.

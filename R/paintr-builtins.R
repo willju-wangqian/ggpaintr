@@ -274,7 +274,7 @@ ptr_builtin_keywords <- function() {
 #' built-in ggpaintr placeholders (`ppVar`, `ppNum`, `ppText`, `ppExpr`,
 #' `ppUpload`). Inside a formula passed to [ptr_app()] / [ptr_server()]
 #' the parser recognises calls to these names as placeholder invocations
-#' and binds them to Shiny widgets (see `vignette("ggpaintr-use-cases")`).
+#' and binds them to Shiny widgets (see `vignette("ggpaintr-tutorial")`).
 #' Outside `ptr_app()` they behave as plain R functions: the first four
 #' return their argument unchanged (identity), so a formula such as
 #' `aes(x = ppVar(mpg))` evaluates identically to `aes(x = mpg)` under

@@ -4,7 +4,7 @@
 # the named vignette chunk (factory <=> vignette equivalence, reviewable by diff).
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
 library(shiny)
-# >>> verbatim: vignettes/ggpaintr-use-cases.Rmd chunk `l3-plotly` >>>
+# >>> verbatim: archive/retired_vignettes/ggpaintr-use-cases.Rmd chunk `l3-plotly` >>>
 formula <- "ggplot(iris, aes(x = ppVar, y = ppVar, color = ppVar)) + geom_point()"
 
 ui <- ptr_ui_page(

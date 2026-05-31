@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-05-30T19:57:11-0500",
-  "git_head": "f9120b4",
+  "generated_at": "2026-05-30T20:52:30-0500",
+  "git_head": "df42df1",
   "n_files": 35,
   "n_symbols": 507,
   "symbols": {
     "ptr_app_bslib": {
       "file": "R/paintr-app-bslib.R",
-      "start_line": 56,
-      "end_line": 122
+      "start_line": 55,
+      "end_line": 121
     },
     "ptr_app": {
       "file": "R/paintr-app.R",

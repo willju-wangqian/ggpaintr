@@ -14,8 +14,8 @@ ptr_ui_page(..., page = shiny::fluidPage, css = NULL)
 \code{bootstrapPage}, \code{basicPage}. NOT \code{navbarPage} (needs a positional
 \code{title} + \code{tabPanel} children) and NOT bslib/BS5 pages (the bundled
 CSS is Bootstrap-3-scoped -- see \code{\link[=ptr_app_bslib]{ptr_app_bslib()}}). For those roots,
-compose by hand: see the decomposition example in
-\code{vignette("ggpaintr-use-cases")}.}
+compose by hand: see
+\code{vignette("ggpaintr-tutorial")}.}
 
 \item{css}{Optional character vector of extra stylesheet paths,
 linked after \code{ggpaintr.css}. See \code{\link[=ptr_css]{ptr_css()}}.}

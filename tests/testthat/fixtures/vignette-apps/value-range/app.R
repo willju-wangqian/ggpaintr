@@ -4,7 +4,7 @@
 # the named vignette chunk (factory <=> vignette equivalence, reviewable by diff).
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
 library(shiny)
-# >>> verbatim: vignettes/ggpaintr-customization.Rmd chunk `value-range`
+# >>> verbatim: archive/retired_vignettes/ggpaintr-customization.Rmd chunk `value-range`
 #     (registration) + chunk `value-range-app` (the app) >>>
 ptr_define_placeholder_value(
   keyword       = "range",
