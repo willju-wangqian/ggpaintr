@@ -122,13 +122,13 @@
 #'   [ADR 0012](dev/adr/0012-role-based-tree-and-ptr-spec.html).
 #' @examples
 #' if (interactive()) {
-#'   # String mode (existing).
-#'   ptr_app("ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()")
-#'   # Expression mode (new): pass the unquoted ggplot expression.
+#'   # Expression mode (primary): pass the unquoted ggplot expression.
 #'   ptr_app(ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point())
-#'   # !! splicing into expression mode.
+#'   # `!!` splices a value into the expression.
 #'   col <- rlang::sym("mpg")
 #'   ptr_app(ggplot(mtcars, aes(x = !!col, y = ppVar)) + geom_point())
+#'   # String mode (fallback): the same formula as text.
+#'   ptr_app("ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()")
 #' }
 #' @export
 ptr_app <- function(formula,
@@ -967,6 +967,12 @@ ptr_ui <- function(formula, id = NULL, envir = parent.frame(),
 #' @seealso [ptr_ui_page()], [ptr_ui_assets()], [ptr_ui_plot()],
 #'   [ptr_ui_code()], [ptr_shared()], [ptr_server()]
 #' @examples
+#' # Expression form (primary): an unquoted ggplot call.
+#' ptr_ui_controls(
+#'   ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point(),
+#'   id = "p"
+#' )
+#' # String form (fallback): equivalent.
 #' ptr_ui_controls(
 #'   "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
 #'   id = "p"
@@ -1015,10 +1021,10 @@ ptr_ui_controls <- function(formula, id = NULL, envir = parent.frame(),
 #'   [shiny::shinyApp()] as `ui`.
 #' @seealso [ptr_ui_plot()], [ptr_ui_controls()], [ptr_server()], [ptr_css()]
 #' @examples
-#' f <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
+#' f <- rlang::expr(ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point())
 #' ptr_ui_page(
 #'   shiny::sidebarLayout(
-#'     shiny::sidebarPanel(ptr_ui_controls(id = "p", formula = f)),
+#'     shiny::sidebarPanel(ptr_ui_controls(id = "p", formula = !!f)),
 #'     shiny::mainPanel(ptr_ui_plot("p"))
 #'   )
 #' )
@@ -1097,22 +1103,22 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #'   [ptr_shared_panel()], [ptr_shared_server()].
 #' @examples
 #' if (interactive()) {
-#'   f <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
+#'   f <- rlang::expr(ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point())
 #'   # L2: default layout
 #'   shiny::shinyApp(
-#'     ui = shiny::fluidPage(ptr_ui(f, "p")),
+#'     ui = shiny::fluidPage(ptr_ui(!!f, "p")),
 #'     server = function(input, output, session) {
-#'       ptr_server(f, "p")
+#'       ptr_server(!!f, "p")
 #'     }
 #'   )
 #'   # L3: own the render path off the returned state
 #'   shiny::shinyApp(
 #'     ui = ptr_ui_page(
-#'       ptr_ui_controls(formula = f, id = "p"),
+#'       ptr_ui_controls(formula = !!f, id = "p"),
 #'       plotly::plotlyOutput(shiny::NS("p")("my_plot"))
 #'     ),
 #'     server = function(input, output, session) {
-#'       state <- ptr_server(f, "p")
+#'       state <- ptr_server(!!f, "p")
 #'       output[[shiny::NS("p")("my_plot")]] <-
 #'         plotly::renderPlotly(state$runtime()$plot)
 #'     }
@@ -1314,7 +1320,7 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
 #'     )
 #'   )
 #' }
-#' @export
+#' @keywords internal
 ptr_app_grid <- function(plots,
                             envir = parent.frame(),
                             ui_text = NULL,

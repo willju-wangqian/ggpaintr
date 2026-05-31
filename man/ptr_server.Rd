@@ -87,22 +87,22 @@ declared key under its own namespace, matching what \code{\link[=ptr_app]{ptr_ap
 
 \examples{
 if (interactive()) {
-  f <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
+  f <- rlang::expr(ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point())
   # L2: default layout
   shiny::shinyApp(
-    ui = shiny::fluidPage(ptr_ui(f, "p")),
+    ui = shiny::fluidPage(ptr_ui(!!f, "p")),
     server = function(input, output, session) {
-      ptr_server(f, "p")
+      ptr_server(!!f, "p")
     }
   )
   # L3: own the render path off the returned state
   shiny::shinyApp(
     ui = ptr_ui_page(
-      ptr_ui_controls(formula = f, id = "p"),
+      ptr_ui_controls(formula = !!f, id = "p"),
       plotly::plotlyOutput(shiny::NS("p")("my_plot"))
     ),
     server = function(input, output, session) {
-      state <- ptr_server(f, "p")
+      state <- ptr_server(!!f, "p")
       output[[shiny::NS("p")("my_plot")]] <-
         plotly::renderPlotly(state$runtime()$plot)
     }

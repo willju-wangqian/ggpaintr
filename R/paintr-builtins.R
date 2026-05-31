@@ -303,7 +303,7 @@ ptr_builtin_keywords <- function() {
 #' # p1 and p2 produce the same plot.
 #'
 #' # Inside ptr_app() / ptr_server(), the same call binds to a column picker:
-#' # ptr_app("ggplot(mtcars, aes(x = ppVar(mpg))) + geom_point()")
+#' # ptr_app(ggplot(mtcars, aes(x = ppVar(mpg), y = ppVar)) + geom_point())
 #' @name pp_placeholders
 NULL
 
@@ -455,7 +455,7 @@ ppUpload <- function(x, ...) {
 #'
 #' # Inside ptr_app(), the wrapper becomes a node-level default and a
 #' # boot-state-off checkbox:
-#' # ptr_app("ggplot() + ppLayerOff(geom_point(aes(x = mpg, y = wt)), TRUE)")
+#' # ptr_app(ggplot() + ppLayerOff(geom_point(aes(x = mpg, y = wt)), TRUE))
 #' @export
 ppLayerOff <- function(layer_expr, hide = TRUE) {
   assertthat::assert_that(

@@ -77,6 +77,6 @@ override accordingly.
 }
 
 \examples{
-ptr_id_table("ggplot(ppUpload, aes(x = ppVar)) + geom_point(color = ppText)")
+ptr_id_table("ggplot(ppUpload, aes(x = ppVar, y = ppVar)) + geom_point(color = ppText)")
 ptr_id_table("ggplot(ppUpload, aes(x = ppVar))", id = "myplot")
 }

@@ -233,7 +233,7 @@ rows_to_data_frame <- function(rows) {
 #' override accordingly.
 #'
 #' @examples
-#' ptr_id_table("ggplot(ppUpload, aes(x = ppVar)) + geom_point(color = ppText)")
+#' ptr_id_table("ggplot(ppUpload, aes(x = ppVar, y = ppVar)) + geom_point(color = ppText)")
 #' ptr_id_table("ggplot(ppUpload, aes(x = ppVar))", id = "myplot")
 #' @export
 ptr_id_table <- function(formula, id = NULL) {

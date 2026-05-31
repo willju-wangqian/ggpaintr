@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-05-31T01:48:08-0500",
-  "git_head": "918c2ec",
+  "generated_at": "2026-05-31T17:37:46-0500",
+  "git_head": "b14c2ed",
   "n_files": 35,
   "n_symbols": 506,
   "symbols": {
@@ -121,28 +121,28 @@
     },
     "ptr_ui_controls": {
       "file": "R/paintr-app.R",
-      "start_line": 975,
-      "end_line": 996
+      "start_line": 981,
+      "end_line": 1002
     },
     "ptr_ui_page": {
       "file": "R/paintr-app.R",
-      "start_line": 1026,
-      "end_line": 1032
+      "start_line": 1032,
+      "end_line": 1038
     },
     "ptr_server": {
       "file": "R/paintr-app.R",
-      "start_line": 1122,
-      "end_line": 1264
+      "start_line": 1128,
+      "end_line": 1270
     },
     "ptr_app_grid": {
       "file": "R/paintr-app.R",
-      "start_line": 1318,
-      "end_line": 1339
+      "start_line": 1324,
+      "end_line": 1345
     },
     "ptr_app_grid_components": {
       "file": "R/paintr-app.R",
-      "start_line": 1341,
-      "end_line": 1536
+      "start_line": 1347,
+      "end_line": 1542
     },
     "build_ui_for": {
       "file": "R/paintr-build-ui.R",

@@ -55,9 +55,9 @@ formula becomes one widget:
 reuse a formula across calls, store it with `rlang::expr()` and splice
 it in with `!!` — `f <- rlang::expr(ggplot(...)); ptr_app(!!f)`. The
 string form (`ptr_app("ggplot(...)")`) remains a supported fallback,
-handy when a formula is built or fetched as text. For a grid layout, use
-`ptr_app_grid()`. To swap in a custom page shell or theme, write a thin
-wrapper on top of the public primitives.
+handy when a formula is built or fetched as text. To swap in a custom
+page shell or theme, write a thin wrapper on top of the public
+primitives.
 
 ## More topics
 

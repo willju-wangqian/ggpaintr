@@ -100,7 +100,7 @@ A short guide to each:
 |--------------------------|--------------------------------------------------------------------------|
 | `overview`               | First orientation — the 3-level model and decision rule.                 |
 | `formula_syntax`         | Which placeholder keyword goes where; pipelines; `shared = "..."`.       |
-| `level1_ptr_app`         | Quick turn-key app + `ptr_app_grid()` multi-plot.                        |
+| `level1_ptr_app`         | Quick turn-key single-plot app (`ptr_app()`).                            |
 | `level1_ptr_options`     | Package-global settings: verbosity, layer-checkbox default.              |
 | `level2_module`          | Embed the self-contained default-layout block (`ptr_ui()` / `ptr_server()`) in the user's own Shiny app. |
 | `level2_custom_ids`      | Id collisions, the `ptr_` reserved prefix, generated-id grammar.         |

@@ -56,5 +56,5 @@ p2 <- ggplot(mtcars, aes(x = ppVar(mpg))) + geom_histogram(bins = 10)
 # p1 and p2 produce the same plot.
 
 # Inside ptr_app() / ptr_server(), the same call binds to a column picker:
-# ptr_app("ggplot(mtcars, aes(x = ppVar(mpg))) + geom_point()")
+# ptr_app(ggplot(mtcars, aes(x = ppVar(mpg), y = ppVar)) + geom_point())
 }
