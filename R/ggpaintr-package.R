@@ -8,6 +8,7 @@
 #' built-in `ppVar` placeholder.
 #'
 #' @import ggplot2
+#' @importFrom rlang "%||%"
 #' @keywords internal
 "_PACKAGE"
 

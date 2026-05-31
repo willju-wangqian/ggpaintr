@@ -553,5 +553,3 @@ ppVerbSwitch <- function(.data, verb_expr, switch_on = TRUE, label = NULL) {
   ptr_register_builtins()
   ptr_register_constant_fold_builtins()
 }
-
-`%||%` <- function(a, b) if (is.null(a)) b else a
